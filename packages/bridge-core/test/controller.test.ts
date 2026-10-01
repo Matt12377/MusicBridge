@@ -2641,3 +2641,52 @@ test('MBP003A：无MB owner的外部Stop排队期间切Zone，迟到控制仍绑
   assert.equal(expectedZone, 'zone-1');
   assert.equal(f.nativeRoon.stopCalls, 0);
 });
+
+
+test('MBP006：Controller只读稳定出口与kind保留，前进seek不能标为position', async t => {
+  let clock = 1_700_000_000_000;
+  const { controller, roon } = makeHarness(206, undefined, () => clock);
+  t.after(() => controller.stop());
+  const kinds: string[] = [];
+  const remove = controller.subscribe((_snapshot, metadata) => kinds.push(metadata?.kind ?? 'missing'));
+  t.after(remove);
+  assert.equal(kinds[0], 'full');
+  await controller.play({ trackId: '90101', quality: 'standard' });
+  const before = controller.getPlaybackPublication();
+  assert.equal(controller.getPlaybackPublication().queue, before.queue);
+  assert.equal(Object.isFrozen(before.queue.items), true);
+  clock += 250;
+  controller.updateRoonTime(1000);
+  assert.equal(kinds.at(-1), 'position');
+  t.mock.method(roon, 'seek', async () => { clock += 250; controller.updateRoonTime(5000); });
+  await controller.seek(5000);
+  assert.deepEqual(kinds.slice(-2), ['position', 'full']);
+  assert.equal(controller.getPlaybackPublication().queue, before.queue);
+});
+
+
+for (const reason of ['failed', 'cancelled'] as const) {
+  test(`MBP006：${reason} seek不会补发成功full`, async t => {
+    const { controller, roon } = makeHarness();
+    t.after(() => controller.stop());
+    await controller.play({ trackId: '90101', quality: 'standard' });
+    const fullPlaying: PlaybackSnapshot[] = [];
+    const remove = controller.subscribe((snapshot, metadata) => {
+      if (metadata?.kind === 'full' && snapshot.state === 'playing') fullPlaying.push(snapshot);
+    });
+    t.after(remove);
+    const entered = mbpDeferred<void>(), release = mbpDeferred<void>();
+    t.mock.method(roon, 'seek', async () => {
+      entered.resolve(); await release.promise;
+      if (reason === 'failed') throw new BridgeError('ROON_TIMEOUT', '合成seek失败');
+    });
+    const before = fullPlaying.length;
+    const seeking = assert.rejects(controller.seek(5000));
+    await entered.promise;
+    const stopping = reason === 'cancelled' ? controller.stop() : undefined;
+    release.resolve();
+    await seeking;
+    await stopping;
+    assert.equal(fullPlaying.length, before);
+  });
+}

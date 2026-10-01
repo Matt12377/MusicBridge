@@ -12,6 +12,8 @@ import type { ZoneLifecycleStatus } from '../zone-lifecycle.js'
 defineProps<{
   currentTrack?: TrackSummary
   playbackState: PlaybackSnapshot | null
+  clockIdentity?: string
+  playbackReady?: boolean
   zones: readonly PublicRoonZone[]
   selectedZone?: PublicRoonZone
   roonStatus: string
@@ -66,6 +68,6 @@ function transportLabel(state: PlaybackSnapshot['state'] | undefined): string {
       <VolumeControl :zone-id="selectedZone?.zoneId" />
       <button type="button" class="player-inspector-button" aria-label="打开播放队列" @click="emit('open-queue')"><SidebarIcon name="list" :size="16" /><span class="visually-hidden">队列</span></button>
     </div>
-    <PlayerProgress :snapshot="playbackState" :allowed="selectedZone?.seekAllowed === true" @seek="(position, settle) => emit('seek', position, settle)" />
+    <PlayerProgress :snapshot="playbackState" :clock-identity="clockIdentity" :allowed="playbackReady !== false && selectedZone?.seekAllowed === true" @seek="(position, settle) => emit('seek', position, settle)" />
   </footer>
 </template>

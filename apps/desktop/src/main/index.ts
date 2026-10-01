@@ -108,6 +108,7 @@ import {
 import {
   CoreIpcError,
   CoreSupervisor,
+  shouldRefreshTrayForCoreEvent,
   type CoreSupervisorLifecycle,
   type CoreStartupClient,
   type CoreChildProcess,
@@ -1633,6 +1634,9 @@ function registerIpcHandlers(
   registerPerformanceHandler('playback:get-state', (event) =>
     invokeCore(event, () => supervisor.request('playback.getState', {})),
   )
+  registerPerformanceHandler('playback:get-stream-snapshot', (event) =>
+    invokeCore(event, () => supervisor.getPlaybackStreamSnapshot()),
+  )
   registerPerformanceHandler('playback:play', (event, trackId: unknown, qualityPreference: unknown, rendererClickAt: unknown) => {
     const mainReceivedAtMs = Date.now()
     return invokeCore(event, () => {
@@ -1875,6 +1879,7 @@ function createCoreSupervisor(
     entryPath: path.join(currentDirectory, 'core.js'),
     cwd: dataDirectory,
     env: buildCoreEnvironment(),
+    playbackEventProtocol: process.env.MUSIC_BRIDGE_COMPACT_PLAYBACK_EVENTS === '0' ? null : 'compact-v1',
     dependencies: {
       createChannel: () => {
         const channel = new MessageChannelMain()
@@ -1898,7 +1903,7 @@ function createCoreSupervisor(
     onEvent: (event: TypedIpcEvent) => {
       mainDiagnostics.recordCoreEvent(event)
       options.onEvent?.(event)
-      requestTrayRefresh()
+      if (shouldRefreshTrayForCoreEvent(event)) requestTrayRefresh()
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('core:event', event)
       }

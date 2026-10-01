@@ -16,11 +16,13 @@ async function mounted(t: test.TestContext, name: 'inspector/PlaybackInspector' 
   const script = compileScript(descriptor, { id: 'roon-demand-queue-ui', inlineTemplate: true })
   const virtualWindow = await import('../src/renderer/src/composables/virtualWindow.js')
   const details = await import('../src/renderer/src/components/player/details.js')
+  const clock = await import('../src/renderer/src/components/player/playbackClock.js')
   const compiled = ts.transpileModule(script.content, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
   const component = { exports: {} as { default: import('vue').Component } }
   const load = (path: string) => path === 'vue' ? vue
     : path.endsWith('virtualWindow.js') ? virtualWindow
     : path.endsWith('details.js') ? details
+    : path.endsWith('playbackClock.js') ? clock
     : path.endsWith('roon-queue-context-status.js') ? contextStatusModule
     : path.endsWith('.vue') ? { default: { render: () => null } } : require(path)
   const contextStatusModule = await import('../src/renderer/src/roon-queue-context-status.js')

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { PublicBridgeState, TrackSummary } from '@music-bridge/contracts';
+import type { PublicBridgeState, TrackSummary, TypedIpcEvent, PlaybackEventProtocol } from '@music-bridge/contracts';
 import { createBridgeRuntime, createTestBridgeRuntime, toPublicBridgeState } from '../src/runtime.js';
 import { NeteaseClient } from '../src/netease/client.js';
 import { RoonAudioInputAdapter } from '../src/roon/adapter.js';
@@ -27,7 +27,8 @@ async function beforeSlowWork<T>(promise: Promise<T>, message: string): Promise<
 }
 
 /** 真实runtime组合，只替换外部I/O；两个select回调均来自生产构造，不是合成runtime实现。 */
-async function priorityRuntime(t: test.TestContext, contextOptions: { enabled?: boolean; disabledFlag?: boolean; size?: number } = {}) {
+async function priorityRuntime(t: test.TestContext, contextOptions: { enabled?: boolean; disabledFlag?: boolean; size?: number; protocol?: PlaybackEventProtocol } = {}) {
+  const protocolEvents: TypedIpcEvent[] = [];
   const events: string[] = [], metadata = deferred<void>(), url = deferred<void>(), confirmation = deferred<void>(), stop = deferred<void>(), nativeResponse = deferred<void>();
   let holdMetadata = false, holdUrl = false, holdConfirmation = false, holdStop = false, holdNativeResponse = false, failStop = false;
   let state: RoonState = { status: 'ready', selectedZoneId: 'zone-A', transportState: 'stopped', canPause: true, canResume: true };
@@ -131,6 +132,8 @@ async function priorityRuntime(t: test.TestContext, contextOptions: { enabled?: 
     nativePlay = (Reflect.get(options.controller, 'dependencies') as { roonLibrary: { play: typeof nativePlay } }).roonLibrary.play;
   });
   const runtime = createBridgeRuntime({
+    ...(contextOptions.protocol ? { playbackEventProtocol: contextOptions.protocol } : {}),
+    onEvent: event => protocolEvents.push(event),
     env: { NETEASE_COOKIE: 'synthetic-runtime-only', BRIDGE_CONTROL_HOST: '127.0.0.1', BRIDGE_STREAM_HOST: '127.0.0.1', ...(contextOptions.disabledFlag ? { MUSIC_BRIDGE_INCREMENTAL_ROON_QUEUE: '0' } : {}) },
     favoriteRepository: createLocalFavoriteRepository(),
     logger: { debug() {}, info() {}, warn() {}, error() {} },
@@ -139,7 +142,7 @@ async function priorityRuntime(t: test.TestContext, contextOptions: { enabled?: 
   await runtime.start();
   t.after(async () => { metadata.resolve(); url.resolve(); confirmation.resolve(); stop.resolve(); nativeResponse.resolve(); failStop = false; await runtime.shutdown(); });
   return {
-    runtime, events, metadata, url, confirmation, stop, nativeResponse,
+    runtime, events, protocolEvents, metadata, url, confirmation, stop, nativeResponse,
     select: (entry: 'runtime' | 'control', zoneId: string) => entry === 'runtime' ? runtime.selectZone(zoneId) : controlSelect(zoneId),
     controlSeek: (positionMs: number) => controlSeek(positionMs),
     nativePlay,
@@ -507,4 +510,40 @@ for (const size of [50, 500, 5000]) test(`003B：${size}条生产runtime合成�
   assert.equal(snapshot.queue.index, 0);
   assert.equal(f.events.filter(event => event === 'native-play:zone-A').length, 1);
   if (size > 101) assert.equal(snapshot.queue.context?.afterComplete, false);
+});
+
+
+test('MBP006：真实runtime compact只读基准与命令回执共享owner事实，新Zone采样不贴旧seq', async t => {
+  const f = await priorityRuntime(t, { protocol: 'compact-v1' });
+  const seed = f.runtime.getPlaybackStreamSnapshot()!;
+  assert.equal(seed.stamp.coreInstanceId, f.runtime.getPlaybackEventProtocol()!.coreInstanceId);
+  assert.deepEqual(f.runtime.getPlaybackStreamSnapshot(), seed);
+  const playing = await f.runtime.playbackPlay('101', 'lossless');
+  assert.equal(playing.stream!.trackId, playing.currentTrack!.id);
+  const sample = f.runtime.getPlaybackStreamSnapshot()!;
+  assert.deepEqual(playing.stream, sample.stamp);
+  await f.runtime.selectZone('zone-B');
+  const moved = f.runtime.getPlaybackStreamSnapshot()!;
+  assert.equal(moved.snapshot.selectedZoneId, 'zone-B');
+  assert.equal(moved.stamp.selectedZoneId, 'zone-B');
+  assert.ok(moved.stamp.sequence > sample.stamp.sequence);
+  assert.deepEqual(f.runtime.getPlaybackState().stream, moved.stamp);
+  const playbackEvents = f.protocolEvents.filter(event => event.event.startsWith('playback.') || event.event === 'queue.changed');
+  assert.equal(playbackEvents.some(event => event.event === 'playback.changed' || event.event === 'queue.changed'), false);
+});
+
+test('MBP006：真实runtime legacy仍无ACK/stream，compact同曲重播换owner且前进seek保持state', async t => {
+  const legacy = await priorityRuntime(t);
+  assert.equal(legacy.runtime.getPlaybackEventProtocol(), null);
+  assert.equal(legacy.runtime.getPlaybackStreamSnapshot(), null);
+  assert.equal('stream' in legacy.runtime.getPlaybackState(), false);
+  const f = await priorityRuntime(t, { protocol: 'compact-v1' });
+  const first = await f.runtime.playbackPlay('101', 'lossless');
+  const second = await f.runtime.playbackPlay('101', 'lossless');
+  assert.ok(second.stream!.generation > first.stream!.generation);
+  await f.runtime.seekPlayback(5000);
+  const event = f.protocolEvents.filter(event => event.event.startsWith('playback.')).at(-1)!;
+  assert.equal(event.event, 'playback.state');
+  assert.ok(f.events.includes('seek:zone-A:5000'));
+  assert.equal(f.runtime.getPlaybackState().positionMs, 0, '不能把请求目标冒充尚未观测的设备位置');
 });

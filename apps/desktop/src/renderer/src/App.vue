@@ -74,10 +74,11 @@ const playback = usePlaybackSession({
   onToast: showToast,
 })
 const {
-  playbackState, playbackStartPending, playbackSource, nativeRoonHasNeteaseMatch,
+  playbackViewState: playbackState, playbackStartPending, playbackSource, nativeRoonHasNeteaseMatch,
+  playbackSyncStatus, playbackClockIdentity,
   lyricsSnapshot, localLyricsMatchState, localLyricsMatchBusy, localLyricsMatchError,
   trackLikeState, localTrackFavoriteDescriptor, currentTrack, recentTracks,
-  applyPlaybackState, refreshPlayback, selectLocalLyricsMatch, revokeLocalLyricsMatch,
+  refreshPlayback, selectLocalLyricsMatch, revokeLocalLyricsMatch,
   toggleTrackLike, playTrack, playRoonLibraryTrack, queueRoonLibraryTrack,
   appendTrack, insertTrackNext, replaceAndPlayCollection, appendCollection,
   invalidateCollectionOperation, playQueueItem, togglePlayback, stopPlayback,
@@ -656,6 +657,7 @@ function onGlobalShortcut(event: KeyboardEvent): void {
 }
 
 async function retryAction(): Promise<void> {
+  if (playbackSyncStatus.value === 'error') { await playback.retryPlaybackSync(); return }
   await retryLastPlaybackAction()
 }
 
@@ -682,7 +684,7 @@ const lifecycle = useRendererLifecycle({
     const previousStatus = remoteCoreState.value.status
     remoteCoreState.value = state
     if (state.sshTarget) updateRemoteSshTarget(state.sshTarget)
-    if (previousStatus === 'ready' && state.status !== 'ready') resetRoonRuntimeReferences()
+    if (previousStatus === 'ready' && state.status !== 'ready') { playback.suspendPlaybackStream(); resetRoonRuntimeReferences() }
     if (previousStatus === 'ready' && state.status !== 'ready') search.invalidateScope()
     if (state.status !== 'ready' && coreState.value) {
       coreState.value = { ...coreState.value, roon: 'disconnected' }
@@ -698,6 +700,9 @@ const lifecycle = useRendererLifecycle({
   onCoreEvent: event => {
     const previousRoonStatus = coreState.value?.roon
     const previousRuntime = coreState.value?.runtime
+    if (event.event === 'core.ready') playback.acceptPlaybackReady(event.payload.playbackEvents)
+    if (event.event === 'core.health' && event.payload.state.runtime !== 'ready') playback.suspendPlaybackStream()
+    if (event.event === 'playback.snapshot' || event.event === 'playback.state' || event.event === 'playback.progress') playback.acceptPlaybackStreamEvent(event)
     if (
       event.event === 'core.ready'
       || (event.event === 'roon.changed'
@@ -778,9 +783,8 @@ const lifecycle = useRendererLifecycle({
       if (!accountResult.active) return
     }
     if (isCoreRuntimeStable(coreState.value.runtime, remoteCoreState.value.status)) {
-      const playbackResult = await read(() => window.musicBridge.getPlaybackState())
+      const playbackResult = await read(() => playback.initializePlaybackStream())
       if (!playbackResult.active) return
-      applyPlaybackState(playbackResult.value)
       await read(loadZones)
     }
   },
@@ -1172,6 +1176,7 @@ onUnmounted(() => {
           v-else-if="currentView === 'now-playing'"
           :current-track="currentTrack"
           :playback-state="playbackState"
+          :clock-identity="playbackClockIdentity"
           :lyrics-snapshot="lyricsSnapshot"
           :local-lyrics-match-state="localLyricsMatchState"
           :local-lyrics-match-busy="localLyricsMatchBusy"
@@ -1182,7 +1187,7 @@ onUnmounted(() => {
           :track-like-state="trackLikeState"
           :track-like-available="playbackSource === 'netease' || nativeRoonHasNeteaseMatch || localTrackFavoriteDescriptor !== null"
           :playback-source="playbackSource"
-          :seek-allowed="selectedZone?.seekAllowed === true"
+          :seek-allowed="selectedZone?.seekAllowed === true && playbackSyncStatus === 'ready'"
           @back="exitNowPlaying"
           @previous="previousTrack"
           @toggle-playback="togglePlayback"
@@ -1251,6 +1256,8 @@ onUnmounted(() => {
     </div>
 
     <BottomPlayer
+      :clock-identity="playbackClockIdentity"
+      :playback-ready="playbackSyncStatus === 'ready'"
       v-if="!isImmersiveNowPlaying"
       :current-track="currentTrack"
       :playback-state="playbackState"

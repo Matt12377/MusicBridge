@@ -53,6 +53,11 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
   })
   assert.ok(exposed)
   assert.equal(calls.filter(([channel]) => channel === 'commandOutbox:context').length, 6, '共享读写范围一次，Attempt、档案、Replica、打印、设备五个独立客户端各采集一次工作库身份')
+  const streamApi = exposed as unknown as { getPlaybackStreamSnapshot: () => Promise<unknown> }
+  assert.equal(typeof streamApi.getPlaybackStreamSnapshot, 'function')
+  calls.length = 0
+  assert.deepEqual(await streamApi.getPlaybackStreamSnapshot(), { reply: 'playback:get-stream-snapshot' })
+  assert.deepEqual(calls, [['playback:get-stream-snapshot', undefined]])
   const libraryRead = { id: 'renderer-read', command: 'library.search' as const, payload: { query: '合成查询', page: { offset: 0, limit: 24 } }, deadlineAtMs: Date.now() + 1000 }
   assert.equal(typeof exposed.readLibrary, 'function'); assert.equal(typeof exposed.cancelLibraryRead, 'function')
   assert.deepEqual(await exposed.readLibrary!(libraryRead), { reply: 'library:read' })
@@ -492,6 +497,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'selectLocalLyricsMatch',
     'revokeLocalLyricsMatch',
     'getPlaybackState',
+    'getPlaybackStreamSnapshot',
     'play',
     'pause',
     'resume',

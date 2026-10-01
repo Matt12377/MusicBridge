@@ -70,6 +70,9 @@ import {
   type PlaybackResolvedSource,
   type PlaybackSourcePreference,
   type PlaybackSnapshot,
+  type PlaybackStreamStamp,
+  type PlaybackStreamSnapshot,
+  type PlaybackEventProtocolAck,
 } from './playback.js';
 import {
   IPC_COMMANDS,
@@ -439,9 +442,7 @@ function isPlaybackQueueSnapshot(value: unknown): value is PlaybackQueueSnapshot
 }
 
 function isPlaybackState(value: unknown): value is PlaybackSnapshot['state'] {
-  return ['idle', 'resolving', 'preparing', 'playing', 'pausing', 'paused', 'resuming', 'stopping', 'error'].includes(
-    String(value),
-  );
+  return typeof value === 'string' && ['idle', 'resolving', 'preparing', 'playing', 'pausing', 'paused', 'resuming', 'stopping', 'error'].includes(value);
 }
 
 const PLAYBACK_RECOVERY_ACTIONS = new Set([
@@ -460,7 +461,7 @@ function isPlaybackIssue(value: unknown): value is PlaybackIssue {
     safeString(value.message, 512) &&
     typeof value.retryable === 'boolean' &&
     safeString(value.diagnosticId, 128) &&
-    (value.action === undefined || PLAYBACK_RECOVERY_ACTIONS.has(String(value.action)))
+    (value.action === undefined || typeof value.action === 'string' && PLAYBACK_RECOVERY_ACTIONS.has(value.action))
   );
 }
 
@@ -487,6 +488,7 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
       'canStop',
       'canPause',
       'canResume',
+      'stream',
     ]) ||
     !isPlaybackState(value.state) ||
     !isPlaybackQueueSnapshot(value.queue) ||
@@ -517,7 +519,52 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
   ) {
     return false;
   }
-  return true;
+  return value.stream === undefined || isPlaybackStreamStamp(value.stream) && matchesPlaybackStamp(value.stream, value);
+}
+
+function isStreamInteger(value: unknown, minimum: number): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= minimum;
+}
+
+export function isPlaybackEventProtocolAck(value: unknown): value is PlaybackEventProtocolAck {
+  return isRecord(value) && hasOnlyKeys(value, ['protocol', 'coreInstanceId']) &&
+    value.protocol === 'compact-v1' && typeof value.coreInstanceId === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(value.coreInstanceId);
+}
+
+export function isPlaybackStreamStamp(value: unknown): value is PlaybackStreamStamp {
+  return isRecord(value) && hasOnlyKeys(value, ['coreInstanceId', 'generation', 'sequence', 'queueRevision', 'selectedZoneId', 'trackId', 'source']) &&
+    typeof value.coreInstanceId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(value.coreInstanceId) &&
+    isStreamInteger(value.generation, 0) && isStreamInteger(value.sequence, 1) && isStreamInteger(value.queueRevision, 1) &&
+    (value.selectedZoneId === null || safeString(value.selectedZoneId, 128)) &&
+    (value.trackId === null || safeString(value.trackId, 128)) &&
+    (value.source === null || typeof value.source === 'string' && isPlaybackResolvedSource(value.source));
+}
+
+function matchesPlaybackStamp(stamp: PlaybackStreamStamp, snapshot: Record<string, unknown>): boolean {
+  const track = snapshot.currentTrack;
+  return stamp.selectedZoneId === (snapshot.selectedZoneId ?? null) &&
+    stamp.trackId === (isRecord(track) ? track.id : null) && stamp.source === (snapshot.source ?? null);
+}
+
+export function isPlaybackStreamSnapshot(value: unknown): value is PlaybackStreamSnapshot {
+  return isRecord(value) && hasOnlyKeys(value, ['stamp', 'snapshot']) &&
+    isPlaybackStreamStamp(value.stamp) && isRecord(value.snapshot) && !Object.hasOwn(value.snapshot, 'stream') &&
+    isPlaybackSnapshot(value.snapshot) && matchesPlaybackStamp(value.stamp, value.snapshot);
+}
+
+function isPlaybackStreamState(value: unknown): boolean {
+  if (!isRecord(value) || !hasOnlyKeys(value, ['stamp', 'state', 'queue']) ||
+    !isPlaybackStreamStamp(value.stamp) || !isRecord(value.state) || Object.hasOwn(value.state, 'queue') || Object.hasOwn(value.state, 'stream')) return false;
+  // 复用完整状态保护；只添加固定空队列，不遍历事件之外的任何队列。
+  return isPlaybackSnapshot({ ...value.state, queue: { items: [], index: -1, hasNext: false, hasPrevious: false } }) &&
+    matchesPlaybackStamp(value.stamp, value.state) &&
+    (value.queue === undefined || isPlaybackQueueSnapshot(value.queue));
+}
+
+function isPlaybackStreamProgress(value: unknown): boolean {
+  return isRecord(value) && hasOnlyKeys(value, ['stamp', 'positionMs']) && isPlaybackStreamStamp(value.stamp) &&
+    isStreamInteger(value.positionMs, 0) && value.positionMs <= 86_400_000;
 }
 
 function isPlaybackPlayPayload(
@@ -1908,6 +1955,8 @@ function isCommandResult(
     case 'playback.appendQueue':
     case 'playback.insertNext':
       return isPlaybackSnapshot(value);
+    case 'playback.getStreamSnapshot':
+      return value === null || isPlaybackStreamSnapshot(value);
     case 'roon.volume.get':
     case 'roon.volume.set':
       return isVolumeSnapshot(value);
@@ -1931,6 +1980,8 @@ function isEventPayload(event: IpcEventName, payload: unknown): boolean {
   if (!isRecord(payload)) return false;
   switch (event) {
     case 'core.ready':
+      return hasOnlyKeys(payload, ['state', 'playbackEvents']) && isPublicBridgeState(payload.state) &&
+        (payload.playbackEvents === undefined || isPlaybackEventProtocolAck(payload.playbackEvents));
     case 'core.health':
     case 'roon.changed':
       return hasOnlyKeys(payload, ['state']) && isPublicBridgeState(payload.state);
@@ -1942,6 +1993,12 @@ function isEventPayload(event: IpcEventName, payload: unknown): boolean {
       return isDiagnosticPayload(payload);
     case 'playback.changed':
       return hasOnlyKeys(payload, ['state']) && isPlaybackSnapshot(payload.state);
+    case 'playback.snapshot':
+      return isPlaybackStreamSnapshot(payload);
+    case 'playback.state':
+      return isPlaybackStreamState(payload);
+    case 'playback.progress':
+      return isPlaybackStreamProgress(payload);
     case 'queue.changed':
       return hasOnlyKeys(payload, ['queue']) && isPlaybackQueueSnapshot(payload.queue);
     case 'lyrics.changed':

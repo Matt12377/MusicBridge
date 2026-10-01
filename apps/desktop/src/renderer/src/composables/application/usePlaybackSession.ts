@@ -3,6 +3,7 @@ import { roonTrackIdFromReference } from '@music-bridge/contracts'
 import type {
   FavoriteEntityDescriptor, LocalLyricsMatchSnapshot, LyricsSnapshot, Page, PageRequest,
   PlaybackQualityPreference, PlaybackQueueItem, PlaybackQueueRequestItem, PlaybackSnapshot,
+  PlaybackEventProtocolAck, PlaybackStreamSnapshot, PlaybackStreamState, PlaybackStreamProgress,
   PublicRoonZone, PublicTrackMatchResult, RoonLibraryItem, RoonLibraryPage, TrackSummary,
 } from '@music-bridge/contracts'
 import type { MusicBridgePublicApi } from '../../../../preload/api.js'
@@ -19,6 +20,7 @@ import { resolveFavoriteToggle } from '../playbackFavorites.js'
 import { createOptimisticRoonPlayback } from '../../roon-playback-optimism.js'
 import { collectRoonPlaybackContext } from '../../roon-context-queue.js'
 import { projectPlaybackSnapshot } from './playbackSnapshot.js'
+import { createPlaybackStreamReducer, type PlaybackStreamApplication } from './playbackStreamReducer.js'
 
 const LIBRARY_PAGE_SIZE = 20
 const MAX_ROON_QUEUE_DESCRIPTORS = 256
@@ -65,6 +67,19 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
 
   const playbackState = shallowRef<PlaybackSnapshot | null>(null)
   const playbackStartPending = ref(false)
+  const stream = createPlaybackStreamReducer()
+  let streamMode: 'unknown' | 'legacy' | 'compact' = typeof api.getPlaybackStreamSnapshot === 'function' ? 'unknown' : 'legacy'
+  let streamLifecycle = 0, seekOperation = 0, automaticAttemptUsed = false
+  let syncFlight: Promise<void> | undefined
+  let pendingSeek: { target: number; acknowledged: boolean; isCurrent: () => boolean; settle?: (position?: number) => void; timer?: ReturnType<typeof setTimeout> } | undefined
+  const playbackSyncStatus = ref<'ready' | 'syncing' | 'error' | 'suspended'>(streamMode === 'legacy' ? 'ready' : 'syncing')
+  const playbackClockIdentity = ref<string | undefined>()
+  const playbackViewState = computed(() => {
+    const value = playbackState.value
+    return !value || playbackSyncStatus.value === 'ready' ? value : {
+      ...value, canNext: false, canPrevious: false, canStop: false, canPause: false, canResume: false,
+    }
+  })
   const playbackSource = ref<'roon' | 'netease'>('netease')
   const nativeRoonHasNeteaseMatch = ref(false)
   const lyricsSnapshot = shallowRef<LyricsSnapshot>(emptyLyricsSnapshot())
@@ -331,7 +346,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     }
   }
 
-  function applyPlaybackState(snapshot: PlaybackSnapshot): void {
+  function commitPlaybackState(snapshot: PlaybackSnapshot): void {
     if (disposed) return
     const previousSnapshot = playbackState.value
     const previousTrackId = previousSnapshot?.currentTrack?.id
@@ -413,21 +428,153 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     }
   }
 
-  function applyNeteasePlayback(snapshot: PlaybackSnapshot): void {
-    applyPlaybackState(snapshot)
+  function clearPendingSeek(): void {
+    if (pendingSeek?.timer !== undefined) clearTimeout(pendingSeek.timer)
+    pendingSeek = undefined
+  }
+  function confirmPendingSeek(): void {
+    const pending = pendingSeek
+    if (!pending) return
+    if (!pending.isCurrent()) { clearPendingSeek(); return }
+    const observed = stream.snapshot?.positionMs
+    if (!pending.acknowledged || observed === undefined || Math.abs(observed - pending.target) > 1000) return
+    clearPendingSeek(); pending.settle?.(observed)
   }
 
-  async function refreshPlayback(): Promise<void> {
-    await refreshPlaybackWhileCurrent(() => !disposed)
+  function applyStreamApplication(application: PlaybackStreamApplication | undefined): void {
+    if (!application || disposed) return
+    const owner = application.stamp
+    playbackClockIdentity.value = JSON.stringify([owner.coreInstanceId, owner.generation, owner.selectedZoneId, owner.trackId, owner.source])
+    if (application.kind === 'progress') {
+      // prepare显示独立于权威基准；旧owner进度不能写到乐观新曲上。
+      if (optimisticRoonTrackId === undefined && playbackState.value && playbackState.value.positionMs !== application.snapshot.positionMs) {
+        playbackState.value = { ...playbackState.value, positionMs: application.snapshot.positionMs }
+      }
+    } else {
+      optimisticRoonTrackId = undefined
+      commitPlaybackState(application.snapshot)
+    }
+    confirmPendingSeek()
   }
 
+  function applyPlaybackState(snapshot: PlaybackSnapshot): void {
+    if (disposed) return
+    if (streamMode === 'legacy') { commitPlaybackState(snapshot); return }
+    if (snapshot.stream) {
+      const { stream: stamp, ...value } = snapshot
+      applyStreamApplication(stream.full({ stamp, snapshot: value }))
+      if (!stream.desynced) playbackSyncStatus.value = 'ready'
+    } else stream.markDesynced()
+    if (stream.desynced) void synchronizePlayback()
+  }
+
+  function applyNeteasePlayback(snapshot: PlaybackSnapshot): void { applyPlaybackState(snapshot) }
+
+  async function synchronizePlayback(explicit = false): Promise<void> {
+    if (disposed || playbackSyncStatus.value === 'suspended') return
+    if (syncFlight) return syncFlight
+    if (explicit) automaticAttemptUsed = false
+    if (automaticAttemptUsed) return
+    automaticAttemptUsed = true
+    const lifecycle = streamLifecycle
+    playbackSyncStatus.value = 'syncing'
+    stream.beginSeed()
+    const work = (async () => {
+      try {
+        const envelope = await api.getPlaybackStreamSnapshot()
+        if (disposed || lifecycle !== streamLifecycle) return
+        if (envelope === null) {
+          if (streamMode === 'compact') throw new Error('紧凑播放基准缺失，请重试同步。')
+          streamMode = 'legacy'
+          const value = await api.getPlaybackState()
+          if (disposed || lifecycle !== streamLifecycle) return
+          commitPlaybackState(value); playbackSyncStatus.value = 'ready'; automaticAttemptUsed = false
+          return
+        }
+        if (streamMode === 'compact' && envelope.stamp.coreInstanceId !== stream.instance) throw new Error('播放实例已变化，请重试同步。')
+        if (streamMode !== 'compact') { streamMode = 'compact'; stream.authorize(envelope.stamp.coreInstanceId, true) }
+        applyStreamApplication(stream.endSeed(envelope))
+        playbackSyncStatus.value = stream.desynced ? 'error' : 'ready'
+        if (stream.desynced) onActionMessage('播放状态尚未同步，请重试读取。')
+        if (!stream.desynced) automaticAttemptUsed = false
+      } catch (error) {
+        if (disposed || lifecycle !== streamLifecycle) return
+        stream.failSeed(); playbackSyncStatus.value = 'error'; onError(error)
+      }
+    })()
+    syncFlight = work
+    try { await work } finally { if (syncFlight === work) syncFlight = undefined }
+  }
+
+  async function initializePlaybackStream(): Promise<void> {
+    if (streamMode === 'legacy') { await refreshPlayback(); return }
+    await synchronizePlayback()
+  }
+  async function retryPlaybackSync(): Promise<void> {
+    if (streamMode === 'legacy') { await refreshPlayback(); return }
+    await synchronizePlayback(true)
+  }
+  function acceptPlaybackReady(ack?: PlaybackEventProtocolAck): void {
+    if (disposed) return
+    if (ack && streamMode === 'compact' && stream.instance === ack.coreInstanceId && playbackSyncStatus.value !== 'suspended') return
+    ++streamLifecycle; ++seekOperation; clearPendingSeek(); syncFlight = undefined; automaticAttemptUsed = false
+    cancelRoonPlaybackPreparation()
+    if (!ack) {
+      streamMode = 'legacy'; stream.suspend(); playbackClockIdentity.value = undefined; playbackSyncStatus.value = 'syncing'
+      const lifecycle = streamLifecycle
+      // legacy构造快照可能早于ready；新的可信route仍需一次只读初始事实。
+      queueMicrotask(() => { if (!disposed && lifecycle === streamLifecycle) void refreshPlayback() })
+      return
+    }
+    streamMode = 'compact'; stream.authorize(ack.coreInstanceId); playbackSyncStatus.value = 'syncing'
+    // Main同步ready+seed先取得完整基准；缺seed才使用唯一自动恢复机会。
+    queueMicrotask(() => { if (!disposed && stream.instance === ack.coreInstanceId && stream.desynced) void synchronizePlayback() })
+  }
+  function suspendPlaybackStream(): void {
+    if (disposed) return
+    ++streamLifecycle; ++seekOperation; clearPendingSeek(); syncFlight = undefined; automaticAttemptUsed = false
+    stream.suspend(); playbackSyncStatus.value = 'suspended'; playbackClockIdentity.value = undefined
+    cancelRoonPlaybackPreparation()
+  }
+  function acceptPlaybackStreamEvent(event: { event: 'playback.snapshot'; payload: PlaybackStreamSnapshot } | { event: 'playback.state'; payload: PlaybackStreamState } | { event: 'playback.progress'; payload: PlaybackStreamProgress }): void {
+    if (disposed || playbackSyncStatus.value === 'suspended' || streamMode === 'legacy') return
+    if (streamMode === 'unknown') {
+      // 暂存不是授权；只有当前Main route的seed/ready才建立instance。
+      if (syncFlight) {
+        if (event.event === 'playback.snapshot') {
+          const { queue, ...state } = event.payload.snapshot
+          stream.delta({ kind: 'state', stamp: event.payload.stamp, state, queue })
+        } else if (event.event === 'playback.state') stream.delta({ kind: 'state', ...event.payload })
+        else stream.delta({ kind: 'progress', ...event.payload })
+      }
+      return
+    }
+    if (event.payload.stamp.coreInstanceId !== stream.instance) return
+    const application = event.event === 'playback.snapshot' ? stream.full(event.payload)
+      : event.event === 'playback.state' ? stream.delta({ kind: 'state', ...event.payload })
+      : stream.delta({ kind: 'progress', ...event.payload })
+    applyStreamApplication(application)
+    if (stream.desynced) void synchronizePlayback()
+    else if (application) { playbackSyncStatus.value = 'ready'; automaticAttemptUsed = false }
+  }
+  async function refreshPlayback(): Promise<void> { await refreshPlaybackWhileCurrent(() => !disposed) }
   async function refreshPlaybackWhileCurrent(isCurrent: () => boolean): Promise<void> {
+    if (streamMode !== 'legacy') { if (isCurrent()) await synchronizePlayback(); return }
+    const lifecycle = streamLifecycle
     try {
       const snapshot = await api.getPlaybackState()
-      if (isCurrent()) applyPlaybackState(snapshot)
+      if (isCurrent() && lifecycle === streamLifecycle) { commitPlaybackState(snapshot); playbackSyncStatus.value = 'ready' }
     } catch (error) {
-      if (isCurrent()) onError(error)
+      if (isCurrent() && lifecycle === streamLifecycle) {
+        if (playbackSyncStatus.value !== 'ready') playbackSyncStatus.value = 'error'
+        onError(error)
+      }
     }
+  }
+
+  function playbackCommandsReady(): boolean {
+    if (playbackSyncStatus.value === 'ready') return true
+    onActionMessage('播放状态正在同步，请稍候或重试读取。'); return false
   }
 
   function queueItemsForTracks(tracks: readonly TrackSummary[]): PlaybackQueueRequestItem[] {
@@ -458,6 +605,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function playTrack(track: TrackSummary): Promise<void> {
+    if (!playbackCommandsReady()) return
     if (playbackStartPending.value) return
     invalidateCollectionOperation()
     retryStopSource = undefined
@@ -507,6 +655,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function playRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
+    if (!playbackCommandsReady()) return
     if (playbackStartPending.value) return
     const zoneId = getSelectedZone()?.zoneId ?? playbackState.value?.selectedZoneId
     if (!zoneId) {
@@ -530,7 +679,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     const roonTrackId = roonTrackIdFromReference(track.reference)
     optimisticRoonTrackId = roonTrackId
     rememberRoonQueueDescriptor(roonTrackId, track)
-    applyPlaybackState(createOptimisticRoonPlayback(track, zoneId, getSelectedQuality()))
+    commitPlaybackState(createOptimisticRoonPlayback(track, zoneId, getSelectedQuality()))
     onEnterNowPlaying()
     try {
       if (operation !== roonPlaybackOperation || disposed) return
@@ -556,9 +705,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       }
       if (operation !== roonPlaybackOperation) return
       optimisticRoonTrackId = undefined
-      const snapshot = await api.getPlaybackState()
-      if (operation !== roonPlaybackOperation || disposed) return
-      applyPlaybackState(snapshot)
+      await refreshPlaybackWhileCurrent(() => operation === roonPlaybackOperation && !disposed)
     } catch (error) {
       traceOutcome = operation === roonPlaybackOperation ? 'error' : 'cancelled'
       if (operation !== roonPlaybackOperation) return
@@ -576,6 +723,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function queueRoonLibraryTrack(track: RoonLibraryItem): Promise<void> {
+    if (!playbackCommandsReady()) return
     const zoneId = getSelectedZone()?.zoneId ?? playbackState.value?.selectedZoneId
     if (!zoneId) {
       if (getZoneLifecycleStatus() === 'loading') {
@@ -590,7 +738,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       const roonTrackId = roonTrackIdFromReference(track.reference)
       rememberRoonQueueDescriptor(roonTrackId, track)
       await api.queueRoonTrack(track.reference, zoneId)
-      applyPlaybackState(await api.getPlaybackState())
+      await refreshPlayback()
       onToast('已将 Roon 曲目加入队列')
     } catch (error) {
       onError(error)
@@ -598,6 +746,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function appendTrack(track: TrackSummary): Promise<void> {
+    if (!playbackCommandsReady()) return
     clearActionError()
     try {
       applyNeteasePlayback(await api.appendQueue(queueItemsForTracks([track])))
@@ -608,6 +757,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function insertTrackNext(track: TrackSummary): Promise<void> {
+    if (!playbackCommandsReady()) return
     clearActionError()
     try {
       applyNeteasePlayback(await api.insertNext(queueItemsForTracks([track])))
@@ -659,6 +809,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     initialPage?: Page<TrackSummary>,
     openNowPlaying = true,
   ): Promise<void> {
+    if (!playbackCommandsReady()) return
     if (collectionPlaybackStartInFlight) return
     invalidateCollectionOperation()
     retryStopSource = undefined
@@ -702,6 +853,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function appendCollection(loadPage: CollectionPageLoader): Promise<void> {
+    if (!playbackCommandsReady()) return
     invalidateCollectionOperation()
     const operation = ++collectionOperation
     clearActionError()
@@ -730,6 +882,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function playTracks(tracks: readonly TrackSummary[]): Promise<void> {
+    if (!playbackCommandsReady()) return
     if (!tracks.length) return
     invalidateCollectionOperation()
     retryStopSource = undefined
@@ -745,6 +898,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
 
 
   async function playQueueItem(_item: PlaybackQueueItem, index: number): Promise<void> {
+    if (!playbackCommandsReady()) return
     const items = playbackState.value?.queue.items
     if (!items?.[index]) return
     cancelRoonPlaybackPreparation()
@@ -757,6 +911,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function togglePlayback(): Promise<void> {
+    if (!playbackCommandsReady()) return
     const snapshot = playbackState.value
     if (!snapshot) return
     if (snapshot.state === 'playing' && snapshot.canPause) {
@@ -781,6 +936,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function stopPlayback(): Promise<void> {
+    if (!playbackCommandsReady()) return
     await stopPlaybackForSource(playbackSource.value)
   }
 
@@ -793,9 +949,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       if (source === 'roon') {
         await api.stopRoonTransport()
         if (operation !== collectionOperation || disposed) return
-        const snapshot = await api.getPlaybackState()
-        if (operation !== collectionOperation || disposed) return
-        applyPlaybackState(snapshot)
+        await refreshPlaybackWhileCurrent(() => operation === collectionOperation && !disposed)
         retryStopSource = undefined
         return
       }
@@ -825,6 +979,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function nextTrack(): Promise<void> {
+    if (!playbackCommandsReady()) return
     cancelRoonPlaybackPreparation()
     try {
       applyNeteasePlayback(await api.next())
@@ -834,6 +989,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function previousTrack(): Promise<void> {
+    if (!playbackCommandsReady()) return
     cancelRoonPlaybackPreparation()
     try {
       applyNeteasePlayback(await api.previous())
@@ -843,27 +999,44 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   async function seekPlayback(positionMs: number, settle?: (positionMs?: number) => void): Promise<void> {
-    const snapshot = playbackState.value
-    const currentTrack = snapshot?.currentTrack
-    if (
-      !snapshot ||
-      !currentTrack ||
-      currentTrack.durationMs === undefined ||
-      getSelectedZone()?.seekAllowed !== true
-    ) { settle?.(); return }
+    const snapshot = playbackState.value, track = snapshot?.currentTrack
+    if (!snapshot || !track || track.durationMs === undefined || getSelectedZone()?.seekAllowed !== true
+      || playbackSyncStatus.value !== 'ready') { settle?.(); return }
+    clearPendingSeek()
+    const operation = ++seekOperation, lifecycle = streamLifecycle, owner = playbackClockIdentity.value
+    const zone = getSelectedZone()?.zoneId, source = snapshot.source
+    const isCurrent = () => !disposed && operation === seekOperation && lifecycle === streamLifecycle
+      && owner === playbackClockIdentity.value && playbackState.value?.currentTrack?.id === track.id
+      && playbackState.value?.source === source && getSelectedZone()?.zoneId === zone
+    const pending = { target: Math.round(positionMs), acknowledged: false, isCurrent, settle } as NonNullable<typeof pendingSeek>
+    if (streamMode === 'compact') pendingSeek = pending
     try {
-      const confirmed = await api.seek(Math.round(positionMs))
-      settle?.(confirmed.positionMs)
+      const confirmed = await api.seek(pending.target)
+      if (!isCurrent()) return
+      if (streamMode === 'legacy') settle?.(confirmed.positionMs)
+      else {
+        pending.acknowledged = true
+        // SDK ACK可仍携旧位置；只有已接纳的同owner观测能收起草稿。
+        confirmPendingSeek()
+        if (pendingSeek === pending) {
+          pending.timer = setTimeout(() => {
+            if (pendingSeek !== pending) return
+            clearPendingSeek()
+            if (isCurrent()) { settle?.(); onActionMessage('尚未收到拖动位置确认，请重试。') }
+          }, 5000)
+          ;(pending.timer as unknown as { unref?: () => void }).unref?.()
+        }
+      }
       await refreshPlayback()
     } catch (error) {
-      settle?.()
-      onError(error)
-      await refreshPlayback()
+      if (!isCurrent()) return
+      clearPendingSeek(); settle?.(); onError(error); await refreshPlayback()
     }
   }
 
 
   function acceptPlaybackEvent(snapshot: PlaybackSnapshot): void {
+    if (streamMode !== 'legacy') return
     if (
       optimisticRoonTrackId !== undefined
       && !(snapshot.state === 'playing' && snapshot.source === 'roon'
@@ -909,6 +1082,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
 
   function dispose(): void {
+    suspendPlaybackStream()
     disposed = true
     resetRoonSession()
     invalidateCollectionOperation()
@@ -923,6 +1097,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     lyricsSnapshot, localLyricsMatchState, localLyricsMatchBusy, localLyricsMatchError,
     trackLikeState, neteaseTrackLiked, localTrackFavoriteState, localTrackFavoriteDescriptor,
     currentTrack, recentTracks, applyPlaybackState, acceptPlaybackEvent,
+    playbackSyncStatus, playbackViewState, playbackClockIdentity, initializePlaybackStream, retryPlaybackSync, acceptPlaybackReady, acceptPlaybackStreamEvent, suspendPlaybackStream,
     onLyricsChanged, onLocalMatchChanged, initializeLocalLyricsMatch,
     selectLocalLyricsMatch, revokeLocalLyricsMatch, toggleTrackLike, refreshPlayback,
     playTrack, playRoonLibraryTrack, queueRoonLibraryTrack, appendTrack, insertTrackNext,

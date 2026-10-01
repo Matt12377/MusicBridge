@@ -107,6 +107,8 @@ export interface PlaybackIssue {
 }
 
 export interface PlaybackSnapshot {
+  /** 仅紧凑事件模式响应；请求不能注入。 */
+  stream?: PlaybackStreamStamp
   state: PlaybackState
   queue: PlaybackQueueSnapshot
   currentTrack?: TrackSummary
@@ -126,4 +128,40 @@ export interface PlaybackSnapshot {
   canStop: boolean
   canPause: boolean
   canResume: boolean
+}
+
+export type PlaybackEventProtocol = 'compact-v1'
+
+export interface PlaybackEventProtocolAck {
+  protocol: PlaybackEventProtocol
+  coreInstanceId: string
+}
+
+/** 同一Core实例的出版序号跨播放所有者单调递增。 */
+export interface PlaybackStreamStamp {
+  coreInstanceId: string
+  generation: number
+  sequence: number
+  queueRevision: number
+  selectedZoneId: string | null
+  trackId: string | null
+  source: PlaybackResolvedSource | null
+}
+
+export interface PlaybackStreamSnapshot {
+  stamp: PlaybackStreamStamp
+  snapshot: Omit<PlaybackSnapshot, 'stream'>
+}
+
+export type PlaybackStateProjection = Omit<PlaybackSnapshot, 'queue' | 'stream'>
+
+export interface PlaybackStreamState {
+  stamp: PlaybackStreamStamp
+  state: PlaybackStateProjection
+  queue?: PlaybackQueueSnapshot
+}
+
+export interface PlaybackStreamProgress {
+  stamp: PlaybackStreamStamp
+  positionMs: number
 }

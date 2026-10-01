@@ -65,6 +65,9 @@ import type {
   PlaybackQuality,
   PlaybackQualityPreference,
   PlaybackSnapshot,
+  PlaybackEventProtocol,
+  PlaybackEventProtocolAck,
+  PlaybackStreamSnapshot,
   PublicAuthState,
   PublicAggregatedSearchResult,
   PublicAccountState,
@@ -195,6 +198,8 @@ export interface CoreRuntime {
   selectLocalLyricsMatch(matchSessionId: string, candidateId: string): Promise<LocalLyricsMatchSnapshot>;
   revokeLocalLyricsMatch(): Promise<LocalLyricsMatchSnapshot>;
   getPlaybackState(): PlaybackSnapshot;
+  getPlaybackStreamSnapshot(): PlaybackStreamSnapshot | null;
+  getPlaybackEventProtocol(): PlaybackEventProtocolAck | null;
   playbackPlay(
     trackId: string,
     quality: PlaybackQualityPreference,
@@ -253,6 +258,7 @@ export interface BridgeRuntimeOptions {
   roonSdk?: RoonSdk;
   now?: () => number;
   onEvent?: (event: CoreRuntimeEvent) => void;
+  playbackEventProtocol?: PlaybackEventProtocol;
   onRoonTimeShape?: (summary: RoonTimeShapeSummary) => void;
   onRoonBrowseShape?: (summary: RoonBrowseShapeSummary) => void;
   onRoonImageShape?: (summary: RoonImageShapeSummary) => void;
@@ -582,6 +588,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     if (performanceTrace.isEnabled()) {
       performanceTrace.increment('eventCount');
       if (event.event === 'playback.changed') performanceTrace.setGauge('queueItemCount', event.payload.state.queue.items.length);
+      if (event.event === 'playback.snapshot') performanceTrace.setGauge('queueItemCount', event.payload.snapshot.queue.items.length);
+      if (event.event === 'playback.state' && event.payload.queue) performanceTrace.setGauge('queueItemCount', event.payload.queue.items.length);
       // 抽样估计 JSON 负载；不在每次进度通知中再次序列化全队列。
       if (++performanceEventSequence % 40 === 1) {
         try { performanceTrace.mark('event', 'sample', currentPerformanceContext()?.context, { estimatedBytes: Buffer.byteLength(JSON.stringify(event)) }, { eventName: event.event }); } catch { /* 诊断不影响业务事件。 */ }
@@ -865,12 +873,18 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
   });
 
-  const publishPlaybackEvents = createPlaybackEventPublisher(emit);
-  const removeControllerListener = controller.subscribe((snapshot) => {
-    const lyricsContext = createLyricsRequestContext(snapshot, controller.getPlaybackGeneration());
+  const publishPlaybackEvents = createPlaybackEventPublisher(emit, { ...(options.playbackEventProtocol ? { protocol: options.playbackEventProtocol } : {}) });
+  const playbackMetadata = () => ({ generation: controller.getPlaybackGeneration(), kind: 'full' as const });
+  const capturePlayback = () => options.playbackEventProtocol
+    ? publishPlaybackEvents.capture(controller.getPlaybackPublication(), playbackMetadata()) : null;
+  const readPlayback = () => options.playbackEventProtocol
+    ? publishPlaybackEvents.stamp(controller.getPlaybackPublication(), playbackMetadata()) : controller.getPlaybackState();
+  const removeControllerListener = controller.subscribe((snapshot, metadata) => {
+    const generation = controller.getPlaybackGeneration();
+    const lyricsContext = createLyricsRequestContext(snapshot, generation);
     manualLyrics.observeContext(!displayLyrics.enabled && lyricsContext?.kind === 'local' ? lyricsContext : undefined);
     lyrics.onPlaybackChanged(snapshot, lyricsContext);
-    publishPlaybackEvents(snapshot);
+    publishPlaybackEvents(snapshot, { generation, kind: metadata?.kind ?? 'full' });
   });
 
   roon.setStateHandler(() => {
@@ -1226,7 +1240,9 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       return manualLyrics.select(matchSessionId, candidateId);
     },
     revokeLocalLyricsMatch: () => manualLyrics.revoke(),
-    getPlaybackState: () => controller.getPlaybackState(),
+    getPlaybackState: readPlayback,
+    getPlaybackStreamSnapshot: capturePlayback,
+    getPlaybackEventProtocol: publishPlaybackEvents.getProtocol,
     async playbackPlay(trackId, qualityPreference, rendererClickAtMs) {
       const coreReceivedAtMs = options.now?.() ?? Date.now();
       const startedAt = Math.min(rendererClickAtMs ?? coreReceivedAtMs, coreReceivedAtMs);
@@ -1252,7 +1268,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
           state: 'playing',
           durationMs: lastPlayLatencyMs,
         });
-        return controller.getPlaybackState();
+        return readPlayback();
       } catch (error) {
         lastPlayLatencyMs = Math.max(0, (options.now?.() ?? Date.now()) - startedAt);
         recordDiagnostic('warn', 'play_failed', {
@@ -1271,39 +1287,39 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
     async playbackStop() {
       await controller.stop();
-      return controller.getPlaybackState();
+      return readPlayback();
     },
     async playbackPause() {
       await controller.pause();
-      return controller.getPlaybackState();
+      return readPlayback();
     },
     async playbackResume() {
       await controller.resume();
-      return controller.getPlaybackState();
+      return readPlayback();
     },
     async playbackNext() {
       await controller.next();
-      return controller.getPlaybackState();
+      return readPlayback();
     },
     async playbackPrevious() {
       await controller.previous();
-      return controller.getPlaybackState();
+      return readPlayback();
     },
     async playbackPlayQueueIndex(index) {
       await controller.playQueueIndex(index);
-      return controller.getPlaybackState();
+      return readPlayback();
     },
     async replacePlaybackQueue(items, index) {
       await controller.replaceQueue(items, index);
-      return controller.getPlaybackState();
+      return readPlayback();
     },
     async appendPlaybackQueue(items) {
       await controller.appendQueue(items);
-      return controller.getPlaybackState();
+      return readPlayback();
     },
     async insertNextPlayback(items) {
       await controller.insertNext(items);
-      return controller.getPlaybackState();
+      return readPlayback();
     },
 
     browseRoonAlbums: (page) => roonLibrary.browseAlbums(page),
@@ -1413,6 +1429,8 @@ export interface TestBridgeRuntimeOptions {
   backupContentBinding?: ArchiveContentBinding;
   authorized?: boolean
   accountMode?: 'ready' | 'profile-unavailable' | 'expired'
+  onEvent?: (event: CoreRuntimeEvent) => void;
+  playbackEventProtocol?: PlaybackEventProtocol;
 }
 
 export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}): CoreRuntime {
@@ -1520,6 +1538,13 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         }
     : { status: 'missing' };
   let playbackState = emptyPlaybackState();
+  // 合成流程独立模拟 owner 代次，不能冒称真实设备所有权。
+  let syntheticGeneration = 0;
+  const publishPlaybackEvents = createPlaybackEventPublisher(event => options.onEvent?.(event), { ...(options.playbackEventProtocol ? { protocol: options.playbackEventProtocol } : {}) });
+  const playbackMetadata = () => ({ generation: syntheticGeneration, kind: 'full' as const });
+  const readPlayback = () => publishPlaybackEvents.stamp(playbackState, playbackMetadata());
+  const publishPlayback = () => { publishPlaybackEvents(playbackState, playbackMetadata()); return readPlayback(); };
+  publishPlaybackEvents(playbackState, playbackMetadata());
   let syntheticVolume = 40;
   let selectedZoneId: string | undefined;
   const diagnostics = new DiagnosticRingBuffer();
@@ -1570,6 +1595,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       canResume: false,
     };
     playbackState = nextState;
+    syntheticGeneration += 1;
   };
   const getDiagnostics = (): DiagnosticComponentSnapshot => {
     const queueStateMachinePassed = playbackState.queue.items.length >= 100;
@@ -1806,7 +1832,9 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     async revokeLocalLyricsMatch() {
       throw new BridgeError('BAD_REQUEST', 'Synthetic local lyrics matching is unavailable', { httpStatus: 409 });
     },
-    getPlaybackState: () => playbackState,
+    getPlaybackState: readPlayback,
+    getPlaybackStreamSnapshot: () => publishPlaybackEvents.capture(playbackState, playbackMetadata()),
+    getPlaybackEventProtocol: publishPlaybackEvents.getProtocol,
     getVolume: () => ({zoneId: selectedZoneId ?? '', outputs: selectedZoneId ? [{outputId:'synthetic-output',name:'模拟音箱',type:'number',min:0,max:100,step:1,value:syntheticVolume}] : []}),
     async setVolume(request) {
       if (request.zoneId !== selectedZoneId || request.outputId !== 'synthetic-output' || request.how !== 'absolute' || !Number.isFinite(request.value) || request.value < 0 || request.value > 100) throw new BridgeError('BAD_REQUEST', '模拟音量请求无效', {httpStatus:400});
@@ -1815,6 +1843,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     },
     async seekPlayback(positionMs) {
       playbackState = { ...playbackState, positionMs };
+      publishPlayback();
       return { positionMs };
     },
     async playbackPlay(trackId, qualityPreference) {
@@ -1824,21 +1853,22 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         queue: { items: [verifiedQueueItem({ trackId, qualityPreference })], index: 0, hasNext: false, hasPrevious: false },
       };
       setPlayingTrack(trackId, qualityPreference);
-      return playbackState;
+      return publishPlayback();
     },
     async playbackPause() {
       if (playbackState.canPause) {
         playbackState = { ...playbackState, state: 'paused', canPause: false, canResume: true };
       }
-      return playbackState;
+      return publishPlayback();
     },
     async playbackResume() {
       if (playbackState.canResume) {
         playbackState = { ...playbackState, state: 'playing', canPause: true, canResume: false };
       }
-      return playbackState;
+      return publishPlayback();
     },
     async playbackStop() {
+      syntheticGeneration += 1;
       playbackState = {
         ...playbackState,
         state: 'idle',
@@ -1847,7 +1877,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         canPause: false,
         canResume: false,
       };
-      return playbackState;
+      return publishPlayback();
     },
     async playbackNext() {
       if (playbackState.queue.hasNext) {
@@ -1864,7 +1894,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         };
         if (item) setPlayingTrack(item.trackId, item.qualityPreference);
       }
-      return playbackState;
+      return publishPlayback();
     },
     async playbackPrevious() {
       if (playbackState.queue.hasPrevious) {
@@ -1881,7 +1911,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         };
         if (item) setPlayingTrack(item.trackId, item.qualityPreference);
       }
-      return playbackState;
+      return publishPlayback();
     },
     async playbackPlayQueueIndex(index) {
       if (!Number.isSafeInteger(index) || index < 0 || index >= playbackState.queue.items.length) {
@@ -1899,7 +1929,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         },
       };
       if (item) setPlayingTrack(item.trackId, item.qualityPreference);
-      return playbackState;
+      return publishPlayback();
     },
     async replacePlaybackQueue(items, index) {
       const verifiedItems = items.map(verifiedQueueItem);
@@ -1915,7 +1945,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       };
       const item = verifiedItems[index];
       if (item) setPlayingTrack(item.trackId, item.qualityPreference);
-      return playbackState;
+      return publishPlayback();
     },
     async appendPlaybackQueue(items) {
       const verifiedItems = items.map(verifiedQueueItem);
@@ -1933,7 +1963,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         canNext: hasNext,
         canPrevious: playbackState.queue.index > 0,
       };
-      return playbackState;
+      return publishPlayback();
     },
     async insertNextPlayback(items) {
       const verifiedItems = items.map(verifiedQueueItem);
@@ -1955,7 +1985,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         canNext: hasNext,
         canPrevious: playbackState.queue.index > 0,
       };
-      return playbackState;
+      return publishPlayback();
     },
     async browseRoonAlbums(page) {
       if (options.roonLibrary) return options.roonLibrary.browseAlbums(page);
@@ -2035,6 +2065,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     }).zones,
     async selectZone(zoneId) {
       if (playbackState.state !== 'idle') {
+        syntheticGeneration += 1;
         const {
           currentTrack: _currentTrack,
           source: _source,
@@ -2062,6 +2093,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       selectedZoneId = zoneId;
       state = { ...state, roon: 'ready' };
       playbackState = { ...playbackState, selectedZoneId };
+      publishPlayback();
       return state;
     },
   };

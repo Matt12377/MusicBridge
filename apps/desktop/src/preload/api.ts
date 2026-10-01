@@ -39,6 +39,7 @@ import type {
   PlaybackQueueRequestItem,
   PlaybackQualityPreference,
   PlaybackSnapshot,
+  PlaybackStreamSnapshot,
   PublicAuthState,
   PublicAccountState,
   PublicBridgeState,
@@ -130,6 +131,7 @@ export interface MusicBridgePublicApi extends Partial<LibraryReadPublicApi>, Rec
   selectLocalLyricsMatch: (matchSessionId: string, candidateId: string) => Promise<LocalLyricsMatchSnapshot>
   revokeLocalLyricsMatch: () => Promise<LocalLyricsMatchSnapshot>
   getPlaybackState: () => Promise<PlaybackSnapshot>
+  getPlaybackStreamSnapshot: () => Promise<PlaybackStreamSnapshot | null>
   play: (
     trackId: string,
     quality: PlaybackQualityPreference,
@@ -413,6 +415,7 @@ export const PUBLIC_API_KEYS = [
   'selectLocalLyricsMatch',
   'revokeLocalLyricsMatch',
   'getPlaybackState',
+  'getPlaybackStreamSnapshot',
   'play',
   'pause',
   'resume',
@@ -608,6 +611,7 @@ export function createPreloadApi(
   recordingDeviceApi?: RecordingDeviceSelectionPublicApi,
   performanceDiagnostics: import('../shared/performance-transport.js').PerformanceInteractionDiagnostics = { begin: () => undefined, use: () => {}, end: () => {} },
   libraryReadApi?: LibraryReadPublicApi,
+  playbackStreamApi?: { getPlaybackStreamSnapshot: () => Promise<PlaybackStreamSnapshot | null> },
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
@@ -740,6 +744,7 @@ export function createPreloadApi(
     selectLocalLyricsMatch,
     revokeLocalLyricsMatch,
     getPlaybackState,
+    getPlaybackStreamSnapshot: playbackStreamApi?.getPlaybackStreamSnapshot ?? (async () => null),
     play,
     pause,
     resume,

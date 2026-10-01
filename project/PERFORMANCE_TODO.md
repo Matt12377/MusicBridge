@@ -2,7 +2,7 @@
 
 **实现完成：6/11 · 本地软件验收：6/11 · 真实 Mac/Roon：未执行**
 
-当前任务：**MBP-003B — 先播与按需补队列**。基线 `0212560`，分支 `codex/mbp-003b-demand-queue`。
+当前任务：**MBP-006 — 小进度事件、队列版本与重连恢复**。基线 `78502a3`，分支 `codex/mbp-006-compact-events`。
 
 本计划已获 Owner 授权连续实施。技术栈保留 Electron、Vue、Node/TS；真实播放、设备录音、main 合并、正式 App 替换和发布分别记录，不由软件测试代替。
 
@@ -33,7 +33,7 @@ MBP-001 远端已结束：security 通过，verify/Electron E2E 失败。本地�
 | 5 | MBP-003A | 已完成A | 本地通过 | 短状态处理与优先控制；属于 MBP-003 的第一步 |
 | 6 | MBP-004 | 已完成 | 本地通过 | Roon 详情真分页与原始游标 |
 | 7 | MBP-003B | 已完成 | 本地通过 | Core 持有上下文，先播并按需补队列 |
-| 8 | MBP-006 | 待开始 | 未执行 | 小进度事件、队列版本与重连恢复 |
+| 8 | MBP-006 | 实施中 | 未执行 | 小进度事件、队列版本与重连恢复 |
 | 9 | MBP-005 | 待开始 | 未执行 | 作用域缓存、网易云歌单快照、渐进搜索 |
 | 10 | MBP-007 | 待开始 | 未执行 | 虚拟网格、封面竞态修复和资源预算 |
 | 11 | MBP-008 | 待开始 | 未执行 | 批量 SQL、进度匹配与历史预算热点；worker 按测量决定 |
@@ -141,3 +141,26 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 首个固定1fff4d9原完整verify退出2，在Contracts新测试helper命令参数被推断为string处停止，未到测试或整体构建。仅补IpcCommand类型注解，生产与行为断言不改；三包类型入口随后均退出0。新固定源码将重跑原完整Gate，首轮失败不计通过。
 
 最终固定003B `77101e1`：原完整verify237 / 1802+原2skip / 1020、三包构建，mockElectron4/4、完整E2E104+原4条件skip，零失败/flaky，静态Gate均exit0；837源码SHA dc33ee87…前后相同。003A/B整体完成，总计6/11。独立报告提交/push后从报告HEAD连续接续006。上一报告0212560远端verify作业/security/Electron E2E通过，工作流仍因dependency-audit失败11moderate/7high；全CI红灯不隐藏。
+
+003B报告78502a3已push，远端HEAD精确相同；tracked清洁、原无关WIP保留。
+
+### MBP-006 当前子步骤
+
+- [x] 从003B最终报告HEAD建立独立分支，核外置卷与原WIP。
+- [x] 三作者只读方案和seed/seek时序窄核，接口与文件所有权冻结。
+- [x] 公共compact-v1合同、严格字段/身份验证与回滚兼容；初次246合同回归通过，枚举补严新增实际RED/GREEN后10/10。
+- [x] 唯一Core publisher、真实owner/queueRevision、小进度与失败恢复；7文件冻结188/188、隔离类型通过，待独立/统一Gate。
+- [x] Main启动seed同步屏障、旧route回执隔离与tray去除tick全读；冻结81/81及隔离类型通过，待独立/统一Gate。
+- [x] Renderer单reducer、有界singleflight、连续覆盖暂存与clock owner身份；10文件首冻结82/82及隔离vue类型通过，待完整独立R1/原全量Gate。
+- [ ] 独立审计、50/500/5000结构对照、固定原全量Gate。
+- [ ] 独立报告/push、远端HEAD核对后接续005。
+
+006 Root阶段：Utility新增4实际RED→GREEN，原54+新增共58/58；实际Preload入口缺方法RED→GREEN，9/9。50/500/5000合成publisher+validator+JSON结构对照各100tick，小事件最多253字节、每组25152字节，队列源字段读取0；旧模式当前稳定队列每tick单full的总字节965158/9370358/94320558，不混用历史双tick。该结构测试首次GREEN，不伪称RED或真实Electron/Roon成绩，后续固定源码Gate仍待全部作者冻结。
+
+006 Main四文件已冻结，原断言零调整。新增独立gpt-6.1-sol high审计代理正在核冻结Root/Main，Core/Renderer作者仍补seek/重连边界；原完整Gate尚未执行，不升级总计。
+
+006 Core七文件已冻结188/188；seek只有实际SDK成功/current guard后full出版，观测位置不伪写。Root全部合同247/247通过；独立第一轮Root/Main十五文件指纹一致，真实Utility+Supervisor/mockruntime双向Port跨层5/5，静态暂未确认P1/P2。Core/Renderer完整审计及原全量Gate尚未完成。
+
+006 Renderer实际mounted复现：change-only拖动时仅clock.preview未更新position ref，SDK ACK在途仍显示旧位置；修正即时读取draft后两组件整合6/6通过，旧ACK/同owner旧full保持目标，晚设备progress才收草稿，同ID新generation回0。新增真实RED与原断言保留；作者最后freeze及独立完整R1仍待完成。
+
+006四方32个源码/测试文件指纹核对一致，全作者首冻结。原47项Renderer断言保持，旧mounted loader只加真实clock依赖映射。完整独立审计R1现在进行，先固定实现提交便于Gate绑定；尚不计软件验收通过，总计6/11。

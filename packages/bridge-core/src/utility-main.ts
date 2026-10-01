@@ -26,6 +26,7 @@ import {
   IPC_VERSION,
   parseIpcRuntimeMessage,
   validateIpcRequest,
+  validateIpcResponseForCommand,
   isCommandOutboxExecute,
   type IpcCommand,
   type IpcCommandPayloads,
@@ -188,10 +189,11 @@ function failureForError(id: string, error: unknown, command: IpcRequest['comman
 }
 
 function postReady(port: UtilityPort, runtime: CoreRuntime): void {
+  const playbackEvents = runtime.getPlaybackEventProtocol?.();
   port.postMessage({
     version: IPC_VERSION,
     event: 'core.ready',
-    payload: { state: runtime.getState() },
+    payload: { state: runtime.getState(), ...(playbackEvents ? { playbackEvents } : {}) },
   } satisfies CoreRuntimeEvent);
 }
 
@@ -732,6 +734,8 @@ async function dispatch(
       return runtime.stopRoonTransport();
     case 'playback.getState':
       return runtime.getPlaybackState();
+    case 'playback.getStreamSnapshot':
+      return runtime.getPlaybackStreamSnapshot?.() ?? null;
     case 'playback.play':
       return runtime.playbackPlay(
         (request.payload as { trackId: string }).trackId,
@@ -803,12 +807,17 @@ export async function attachCoreRuntimePort(
           result = await (isLibraryReadCommand(parsed.value.command) ? reads.read(parsed.value, operation) : operation());
           span?.end('ok');
         } catch (error) { span?.end('error'); throw error; }
+        // 最后同步采样覆盖dispatch的await窗口，此后直到postMessage不再让出执行权。
+        if (parsed.value.command === 'playback.getStreamSnapshot') result = runtime.getPlaybackStreamSnapshot?.() ?? null;
         const response: IpcResponse = {
           version: IPC_VERSION,
           id: parsed.value.id,
           ok: true,
           result,
         };
+        if (parsed.value.command === 'playback.getStreamSnapshot' && !validateIpcResponseForCommand(response, 'playback.getStreamSnapshot').ok) {
+          throw new Error('Core播放流回执无效');
+        }
         port.postMessage(response);
         recorder?.mark('ipc', 'response-sent', span?.context, {}, { command: parsed.value.command });
         if (parsed.value.command === 'core.shutdown' && options.exitAfterShutdown) {
@@ -896,6 +905,14 @@ export async function runCoreUtilityProcess(
       }
       let dataset: Awaited<ReturnType<typeof openCollectionDataset>> | undefined;
       try {
+        if (!isRecord(event.data) || event.data.type !== 'musicbridge.core.port' ||
+          Object.keys(event.data).some(key => !['type', 'playbackEventProtocol'].includes(key)) ||
+          (event.data.playbackEventProtocol !== undefined && event.data.playbackEventProtocol !== 'compact-v1')) {
+          throw new Error('Core启动播放事件协议无效');
+        }
+        const playbackEventProtocol = event.data.playbackEventProtocol === 'compact-v1' ? 'compact-v1' as const : undefined;
+        const playbackOptions = playbackEventProtocol ? { playbackEventProtocol } : {};
+        const onEvent = (message: CoreRuntimeEvent) => { if (message.event !== 'core.ready') port.postMessage(message); };
         const recordingConverter = await createRecordingConverter?.();
         const recordingOutputHelper = await createRecordingOutputHelper?.();
         const recordingDeviceOutputHelper = await createRecordingDeviceOutputHelper?.();
@@ -925,6 +942,8 @@ export async function runCoreUtilityProcess(
         const runtime =
           env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
             ? createTestBridgeRuntime({
+                ...playbackOptions,
+                onEvent,
                 ...(recordingConverter ? { recordingConverter } : {}),
                 ...(recordingOutputHelper ? { recordingOutputHelper } : {}),
                 ...(recordingDeviceOutputHelper ? { recordingDeviceOutputHelper } : {}),
@@ -949,6 +968,7 @@ export async function runCoreUtilityProcess(
                 const onRoonBrowseShape = createRoonBrowseShapeRecorder(env);
                 const onRoonImageShape = createRoonImageShapeRecorder(env);
                 return createBridgeRuntime({
+                  ...playbackOptions,
                   ...(recordingConverter ? { recordingConverter } : {}),
                 ...(recordingOutputHelper ? { recordingOutputHelper } : {}),
                 ...(recordingDeviceOutputHelper ? { recordingDeviceOutputHelper } : {}),
@@ -962,11 +982,7 @@ export async function runCoreUtilityProcess(
                   ...(onRoonTimeShape ? { onRoonTimeShape } : {}),
                   ...(onRoonBrowseShape ? { onRoonBrowseShape } : {}),
                   ...(onRoonImageShape ? { onRoonImageShape } : {}),
-                  onEvent: (message) => {
-                  if (message.event !== 'core.ready') {
-                    port.postMessage(message)
-                  }
-                  },
+                  onEvent,
                 });
               })();
         await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true, beforeReady: () => dataset?.commit() });

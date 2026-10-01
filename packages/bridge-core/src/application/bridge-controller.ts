@@ -135,7 +135,8 @@ interface QueueContext {
   ready: Promise<void>;
   activate(): void;
 }
-export type PlaybackChangedListener = (snapshot: PlaybackSnapshot) => void;
+export interface PlaybackChangeMetadata { readonly kind: 'full' | 'position' }
+export type PlaybackChangedListener = (snapshot: PlaybackSnapshot, metadata?: PlaybackChangeMetadata) => void;
 
 const SKIPPABLE_QUEUE_ERRORS = new Set([
   'TRACK_UNAVAILABLE',
@@ -492,12 +493,17 @@ export class BridgeController {
     const snapshot = this.playbackPublication('full');
     // 后来的订阅者读取现态，不替已有订阅者确认尚未广播的变化。
     if (wasUnobserved) this.lastPublishedPlayback = snapshot;
-    listener(snapshot);
+    listener(snapshot, { kind: 'full' });
     return () => this.playbackListeners.delete(listener);
   }
 
   getPlaybackState(): PlaybackSnapshot {
     return this.playbackSnapshot(this.projectQueueSnapshot());
+  }
+
+  /** 仅供同进程出版/采样；返回不可变且内容相同则引用稳定的队列。 */
+  getPlaybackPublication(): PlaybackSnapshot {
+    return this.playbackPublication('full');
   }
 
   private projectQueueSnapshot(): PlaybackQueueSnapshot {
@@ -1278,11 +1284,13 @@ export class BridgeController {
       if (this.activeRoonPlayback && roonLibrary?.seek) {
         await this.device(() => { this.guardControl(owner, generation); return roonLibrary.seek!(positionMs, options); });
         this.guardControl(owner, generation);
+        this.notifyPlaybackChanged('full');
         return this.getState();
       }
       if (this.activePlayback && this.dependencies.roon.seek) {
         await this.device(() => { this.guardControl(owner, generation); return this.dependencies.roon.seek!(positionMs, options); });
         this.guardControl(owner, generation);
+        this.notifyPlaybackChanged('full');
         return this.getState();
       }
       throw new BridgeError(
@@ -2117,7 +2125,7 @@ export class BridgeController {
   private notifyPlaybackChanged(kind: 'full' | 'position' = 'full'): void {
     this.scheduleNextPreparation();
     const snapshot = this.playbackPublication(kind);
-    this.publishPlayback(snapshot);
+    this.publishPlayback(snapshot, kind);
   }
 
   private notifyPlaybackChangedIfDifferent(): void {
@@ -2127,11 +2135,11 @@ export class BridgeController {
     this.publishPlayback(snapshot);
   }
 
-  private publishPlayback(snapshot: PlaybackSnapshot): void {
+  private publishPlayback(snapshot: PlaybackSnapshot, kind: 'full' | 'position' = 'full'): void {
     this.lastPublishedPlayback = snapshot;
     for (const listener of this.playbackListeners) {
       try {
-        listener(snapshot);
+        listener(snapshot, { kind });
       } catch {
         this.dependencies.logger.warn('playback_listener_failed', {});
       }

@@ -20,6 +20,9 @@ import {
   type PerformanceTraceRecorder,
   type PerformanceTraceContext,
   type PerformanceSpan,
+  type PlaybackEventProtocol,
+  type PlaybackEventProtocolAck,
+  type PlaybackStreamSnapshot,
 } from '@music-bridge/contracts'
 
 export interface CoreMessagePort {
@@ -68,6 +71,7 @@ export class CoreIpcError extends Error {
 export interface CoreStartupClient {
   request: CoreSupervisor['request']
   requestInternal: CoreSupervisor['requestInternal']
+  readonly playbackEvents: PlaybackEventProtocolAck | null
 }
 interface StartupAttempt {
   generation: number
@@ -75,6 +79,7 @@ interface StartupAttempt {
   port: CoreMessagePort
   valid: boolean
   readyReceived: boolean
+  playbackEvents: PlaybackEventProtocolAck | null
   cancelStart(error: CoreIpcError): void
 }
 
@@ -88,6 +93,12 @@ interface PendingRequest {
   timer: NodeJS.Timeout
   reject(error: CoreIpcError): void
   resolve(value: unknown): void
+  accept?: (value: unknown) => void
+}
+
+/** 位置tick不能触发托盘的全队列读取。 */
+export function shouldRefreshTrayForCoreEvent(event: TypedIpcEvent): boolean {
+  return event.event !== 'playback.progress'
 }
 
 const DEFAULT_REQUEST_TIMEOUT_MS = 2_000
@@ -120,6 +131,7 @@ export class CoreSupervisor {
       entryPath: string
       cwd: string
       env?: NodeJS.ProcessEnv
+      playbackEventProtocol?: PlaybackEventProtocol | null
       dependencies: CoreSupervisorDependencies
       requestTimeoutMs?: number
       startupTimeoutMs?: number
@@ -142,6 +154,25 @@ export class CoreSupervisor {
 
   get restarts(): number {
     return this.restartCount
+  }
+
+  async getPlaybackStreamSnapshot(): Promise<PlaybackStreamSnapshot | null> {
+    const route = this.startupAttempt
+    if (!route || !this.isCurrentRoute(route) || this._status !== 'ready') throw new CoreIpcError('NOT_READY', 'Core is not ready')
+    if (!route.playbackEvents) return null
+    const result = await this.request('playback.getStreamSnapshot', {})
+    // 已resolve的旧回复也不能跨异步续体进入新route。
+    if (!this.isCurrentRoute(route) || this._status !== 'ready') throw new CoreIpcError('NOT_READY', 'Core 播放流路由已撤销')
+    this.assertStreamSnapshot(result, route)
+    return result
+  }
+
+  private isCurrentRoute(route: StartupAttempt): boolean {
+    return route.valid && route === this.startupAttempt && route.generation === this.startupGeneration && this.child === route.child && this.port === route.port && !this.shuttingDown
+  }
+
+  private assertStreamSnapshot(value: PlaybackStreamSnapshot | null, route: StartupAttempt): asserts value is PlaybackStreamSnapshot {
+    if (!value || value.stamp.coreInstanceId !== route.playbackEvents?.coreInstanceId) throw new CoreIpcError('INVALID_IPC_RESPONSE', 'Core 播放流基准身份无效')
   }
 
   async start(): Promise<void> {
@@ -170,7 +201,16 @@ export class CoreSupervisor {
     expectedDatasetId?: string,
     read?: { signal?: AbortSignal; deadlineAtMs?: number },
   ): Promise<IpcCommandResults[TCommand]> {
-    return (await this.sendRequest(command, payload, false, expectedDatasetId, undefined, read)) as IpcCommandResults[TCommand]
+    const route = this.startupAttempt
+    const result = await this.sendRequest(command, payload, false, expectedDatasetId, undefined, read)
+    if (command.startsWith('playback.')) {
+      if (!route || !this.isCurrentRoute(route) || this._status !== 'ready') throw new CoreIpcError('NOT_READY', 'Core 播放回执路由已撤销')
+      if (route.playbackEvents && result && typeof result === 'object' && 'stream' in result) {
+        const stream = result.stream as import('@music-bridge/contracts').PlaybackStreamStamp | undefined
+        if (stream && stream.coreInstanceId !== route.playbackEvents.coreInstanceId) throw new CoreIpcError('INVALID_IPC_RESPONSE', 'Core 播放回执身份无效')
+      }
+    }
+    return result as IpcCommandResults[TCommand]
   }
 
   async requestInternal<TCommand extends IpcInternalCommand>(
@@ -188,6 +228,7 @@ export class CoreSupervisor {
     expectedDatasetId?: string,
     startup?: StartupAttempt,
     read?: { signal?: AbortSignal; deadlineAtMs?: number },
+    accept?: (value: unknown) => void,
   ): Promise<unknown> {
     if (read && !isLibraryReadCommand(command)) throw new CoreIpcError('INVALID_IPC_REQUEST', '写命令不能使用读取取消协议')
     if (read?.deadlineAtMs !== undefined && (!Number.isSafeInteger(read.deadlineAtMs) || read.deadlineAtMs <= 0)) throw new CoreIpcError('INVALID_IPC_REQUEST', '读取期限无效')
@@ -243,7 +284,7 @@ export class CoreSupervisor {
         reject(new CoreIpcError('TIMEOUT', 'Core request timed out'))
       }, deadlineAtMs === undefined ? timeoutMs : Math.max(1, deadlineAtMs - Date.now()))
       read?.signal?.addEventListener('abort', abort, { once: true })
-      this.pending.set(id, { command, internal, timer, resolve, reject, ...(deadlineAtMs === undefined ? {} : { readDeadlineAtMs: deadlineAtMs, cancelCoreRead }), ...(read?.signal ? { detachReadAbort: () => read.signal?.removeEventListener('abort', abort) } : {}), ...(performanceSpan ? { performanceSpan } : {}) })
+      this.pending.set(id, { command, internal, timer, resolve, reject, ...(accept ? { accept } : {}), ...(deadlineAtMs === undefined ? {} : { readDeadlineAtMs: deadlineAtMs, cancelCoreRead }), ...(read?.signal ? { detachReadAbort: () => read.signal?.removeEventListener('abort', abort) } : {}), ...(performanceSpan ? { performanceSpan } : {}) })
       recorder?.setGauge('activeRequestCount', this.pending.size)
       try {
         if (read?.signal?.aborted) { abort(); return }
@@ -390,7 +431,7 @@ export class CoreSupervisor {
       rejectReady = reject
     })
     const attempt: StartupAttempt = {
-      generation: ++this.startupGeneration, child, port: channel.port2, valid: true, readyReceived: false,
+      generation: ++this.startupGeneration, child, port: channel.port2, valid: true, readyReceived: false, playbackEvents: null,
       cancelStart: error => {
         clearTimeout(readyTimer)
         attempt.valid = false
@@ -413,8 +454,25 @@ export class CoreSupervisor {
       failStart(new CoreIpcError('TIMEOUT', 'Core 启动与恢复等待超时'))
     }, this.readyTimeoutOverride ?? this.options.startupTimeoutMs ?? DEFAULT_STARTUP_TIMEOUT_MS)
     const startupClient: CoreStartupClient = {
+      get playbackEvents() { return attempt.playbackEvents },
       request: <C extends IpcCommand>(command: C, payload: IpcCommandPayloads[C], expectedDatasetId?: string) => this.sendRequest(command, payload, false, expectedDatasetId, attempt) as Promise<IpcCommandResults[C]>,
       requestInternal: <C extends IpcInternalCommand>(command: C, payload: IpcCommandPayloads[C], expectedDatasetId?: string) => this.sendRequest(command, payload, true, expectedDatasetId, attempt) as Promise<IpcInternalCommandResults[C]>,
+    }
+    const requestedProtocol = this.options.playbackEventProtocol === null || this.options.env?.MUSIC_BRIDGE_COMPACT_PLAYBACK_EVENTS === '0' ? undefined : 'compact-v1'
+    const commitReady = (message: TypedIpcEvent, seed?: PlaybackStreamSnapshot): void => {
+      if (settled || !this.isCurrentRoute(attempt)) throw new CoreIpcError('NOT_READY', 'Core 启动路由已撤销')
+      this._status = 'ready'
+      // 回调可同步shutdown/restart；每次广播前重核，不能续发旧seed。
+      this.options.onLifecycle?.({ event: 'ready' })
+      if (!this.isCurrentRoute(attempt)) throw new CoreIpcError('NOT_READY', 'Core 启动路由已撤销')
+      this.options.onEvent?.(message)
+      if (!this.isCurrentRoute(attempt)) throw new CoreIpcError('NOT_READY', 'Core 启动路由已撤销')
+      if (seed) this.options.onEvent?.({ version: IPC_VERSION, event: 'playback.snapshot', payload: seed })
+      if (!this.isCurrentRoute(attempt)) throw new CoreIpcError('NOT_READY', 'Core 启动路由已撤销')
+      settled = true
+      completedReady = true
+      clearTimeout(readyTimer)
+      resolveReady()
     }
 
     const handleExit = (code: number): void => {
@@ -452,6 +510,9 @@ export class CoreSupervisor {
         if (!attempt.valid) return
         if (message.event === 'core.ready') {
           if (!settled && !readyReceived) {
+            const ack = message.payload.playbackEvents
+            if (ack && !requestedProtocol) { failStart(new CoreIpcError('INVALID_IPC_RESPONSE', 'Core 未经请求启用播放流协议')); return }
+            attempt.playbackEvents = ack ?? null
             readyReceived = true
             attempt.readyReceived = true
             void Promise.resolve().then(() => {
@@ -460,21 +521,25 @@ export class CoreSupervisor {
             }).then(
               () => {
                 if (settled || !attempt.valid || this.child !== child || this.shuttingDown) return
-                settled = true
-                completedReady = true
-                clearTimeout(readyTimer)
-                this._status = 'ready'
-                this.options.onLifecycle?.({ event: 'ready' })
-                this.options.onEvent?.(message)
-                resolveReady()
+                if (!attempt.playbackEvents) { commitReady(message); return }
+                // 专用响应处理器在reply调用栈提交；Promise续体只处理失败。
+                void this.sendRequest('playback.getStreamSnapshot', {}, false, undefined, attempt, undefined, value => {
+                  const seed = value as PlaybackStreamSnapshot | null
+                  this.assertStreamSnapshot(seed, attempt)
+                  commitReady(message, seed)
+                }).catch(error => failStart(error instanceof CoreIpcError ? error : new CoreIpcError('INTERNAL_ERROR', 'Core 启动恢复未完成')))
               },
               () => failStart(new CoreIpcError('INTERNAL_ERROR', 'Core 启动恢复未完成')),
-            )
+            ).catch(error => failStart(error instanceof CoreIpcError ? error : new CoreIpcError('INTERNAL_ERROR', 'Core 启动恢复未完成')))
           }
           return
         }
         // Core自己的ready不等于Main恢复完成；不把早到health转发成UI就绪。
         if (message.event === 'core.health' && !completedReady) return
+        if (message.event === 'playback.snapshot' || message.event === 'playback.state' || message.event === 'playback.progress') {
+          if (!completedReady || message.payload.stamp.coreInstanceId !== attempt.playbackEvents?.coreInstanceId) return
+        }
+        if (attempt.playbackEvents && (message.event === 'playback.changed' || message.event === 'queue.changed')) return
         this.options.onEvent?.(message)
         return
       }
@@ -506,14 +571,15 @@ export class CoreSupervisor {
       this.removePending(message.id)
       pending.performanceSpan?.end(response.value.ok ? 'ok' : 'error')
       if (response.value.ok) {
-        pending.resolve(response.value.result)
+        try { pending.accept?.(response.value.result); pending.resolve(response.value.result) }
+        catch (error) { pending.reject(error instanceof CoreIpcError ? error : new CoreIpcError('INTERNAL_ERROR', 'Core 启动恢复未完成')) }
       } else {
         pending.reject(new CoreIpcError(response.value.error.code, response.value.error.message))
       }
     })
     channel.port2.start()
     try {
-      child.postMessage({ type: 'musicbridge.core.port' }, [channel.port1])
+      child.postMessage({ type: 'musicbridge.core.port', ...(requestedProtocol ? { playbackEventProtocol: requestedProtocol } : {}) }, [channel.port1])
     } catch {
       failStart(new CoreIpcError('INTERNAL_ERROR', 'Core process could not be started'))
     }

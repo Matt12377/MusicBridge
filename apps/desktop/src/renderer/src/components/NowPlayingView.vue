@@ -5,11 +5,13 @@ import SidebarIcon from './sidebar/SidebarIcon.vue'
 import TrackArtwork from './TrackArtwork.vue'
 import LyricsLines from './LyricsLines.vue'
 import LocalLyricsMatchDrawer from './LocalLyricsMatchDrawer.vue'
+import { createPlaybackClock } from './player/playbackClock.js'
 import { roonQueueContextStatus } from '../roon-queue-context-status.js'
 
 const props = defineProps<{
   currentTrack?: TrackSummary
   playbackState: PlaybackSnapshot | null
+  clockIdentity?: string
   lyricsSnapshot: LyricsSnapshot
   qualityLabel: (quality: string | undefined) => string
   qualityNotice?: PlaybackIssue
@@ -29,7 +31,7 @@ const emit = defineEmits<{
   'toggle-playback': []
   next: []
   'toggle-like': []
-  seek: [positionMs: number]
+  seek: [positionMs: number, settle: (positionMs?: number) => void]
   'select-lyrics-match': [matchSessionId: string, candidateId: string]
   'revoke-lyrics-match': []
 }>()
@@ -52,67 +54,52 @@ const progressRatio = computed(() => {
   return Math.min(1, Math.max(0, progressMs.value / durationMs.value))
 })
 let progressAnimationFrame: number | undefined
-let positionAnchorMs = 0
-let positionAnchorAt = 0
+const clock = createPlaybackClock()
+let disposed = false
 
 function stopProgressInterpolation(): void {
-  if (progressAnimationFrame !== undefined) {
-    cancelAnimationFrame(progressAnimationFrame)
-    progressAnimationFrame = undefined
-  }
+  if (progressAnimationFrame !== undefined) { cancelAnimationFrame(progressAnimationFrame); progressAnimationFrame = undefined }
 }
-
-function syncPlaybackPosition(): void {
-  positionAnchorMs = Math.max(0, props.playbackState?.positionMs ?? 0)
-  positionAnchorAt = performance.now()
-  progressMs.value = Math.min(positionAnchorMs, durationMs.value || Number.MAX_SAFE_INTEGER)
-}
-
 function tickProgress(): void {
-  if (seeking.value || props.playbackState?.state !== 'playing') {
-    stopProgressInterpolation()
-    return
-  }
-  const interpolated = positionAnchorMs + Math.max(0, performance.now() - positionAnchorAt)
-  progressMs.value = Math.min(interpolated, durationMs.value || Number.MAX_SAFE_INTEGER)
-  progressAnimationFrame = requestAnimationFrame(tickProgress)
+  progressMs.value = clock.read(performance.now())
+  if (props.playbackState?.state === 'playing') progressAnimationFrame = requestAnimationFrame(tickProgress)
 }
-
 function readSeekValue(event: Event): number {
   const target = event.target
   if (!(target instanceof HTMLInputElement)) return progressMs.value
   const value = Number(target.value)
   return Number.isFinite(value) ? Math.max(0, Math.round(value)) : progressMs.value
 }
-
 function previewSeek(event: Event): void {
   seeking.value = true
-  progressMs.value = Math.min(readSeekValue(event), durationMs.value || Number.MAX_SAFE_INTEGER)
+  clock.preview(readSeekValue(event), performance.now()); progressMs.value = clock.read(performance.now())
 }
-
 function commitSeek(event: Event): void {
-  const positionMs = Math.min(readSeekValue(event), durationMs.value || Number.MAX_SAFE_INTEGER)
+  if (!props.seekAllowed || durationMs.value <= 0) { cancelSeek(); return }
   seeking.value = false
-  progressMs.value = positionMs
-  emit('seek', positionMs)
-  startProgressInterpolation()
+  const value = Math.min(readSeekValue(event), durationMs.value)
+  const token = clock.preview(value, performance.now())
+  progressMs.value = clock.read(performance.now())
+  emit('seek', value, confirmed => {
+    if (disposed) return
+    clock.settle(token, confirmed, performance.now()); progressMs.value = clock.read(performance.now())
+  })
 }
-
+function cancelSeek(): void { seeking.value = false; clock.cancel(performance.now()); progressMs.value = clock.read(performance.now()) }
 function startProgressInterpolation(): void {
   stopProgressInterpolation()
-  syncPlaybackPosition()
-  if (props.playbackState?.state === 'playing') {
-    progressAnimationFrame = requestAnimationFrame(tickProgress)
-  }
+  clock.observe({ id: props.clockIdentity ?? `${props.playbackState?.selectedZoneId ?? ''}:${props.currentTrack?.id ?? ''}`,
+    state: props.playbackState?.state ?? 'idle', position: props.playbackState?.positionMs ?? 0, duration: durationMs.value }, performance.now())
+  tickProgress()
 }
-
-watch(() => [props.currentTrack?.id, props.playbackState?.positionMs, props.playbackState?.state], startProgressInterpolation)
+watch(() => [props.clockIdentity, props.currentTrack?.id, props.playbackState?.selectedZoneId, props.playbackState?.positionMs, props.playbackState?.state], startProgressInterpolation)
 watch(() => props.currentTrack?.id, () => { lyricsMatchOpen.value = false })
 watch(playbackQualityIdentity, () => {
   qualityDetailsOpen.value = false
 })
 onMounted(startProgressInterpolation)
 onUnmounted(() => {
+  disposed = true
   stopProgressInterpolation()
 })
 
@@ -167,7 +154,7 @@ const actualQualityDetail = computed(() => {
             <div class="now-playing-progress-track" :style="{ '--progress-ratio': `${progressRatio * 100}%` }">
               <span class="now-playing-progress-visual" aria-hidden="true"></span>
               <progress aria-label="播放进度" :max="Math.max(durationMs, 1)" :value="progressMs">{{ progressMs }}</progress>
-              <input class="now-playing-progress-input" type="range" aria-label="拖动播放进度" :min="0" :max="Math.max(durationMs, 1)" :value="progressMs" :disabled="!props.seekAllowed || !props.currentTrack || durationMs <= 0" @input="previewSeek" @change="commitSeek" />
+              <input class="now-playing-progress-input" type="range" aria-label="拖动播放进度" :min="0" :max="Math.max(durationMs, 1)" :value="progressMs" :disabled="!props.seekAllowed || !props.currentTrack || durationMs <= 0" @input="previewSeek" @change="commitSeek" @pointercancel="cancelSeek" />
             </div>
             <div class="now-playing-progress-meta"><span>{{ formatTime(progressMs) }}</span><span>{{ formatTime(durationMs) }}</span></div>
           </div>

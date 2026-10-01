@@ -3,15 +3,15 @@ import { computed, ref, watch, onUnmounted } from 'vue'
 import type { PlaybackSnapshot } from '@music-bridge/contracts'
 import { formatPlaybackTime } from './details.js'
 import { createPlaybackClock } from './playbackClock.js'
-const props = defineProps<{ snapshot: PlaybackSnapshot | null; allowed: boolean }>()
+const props = defineProps<{ snapshot: PlaybackSnapshot | null; allowed: boolean; clockIdentity?: string }>()
 const emit = defineEmits<{ seek: [positionMs: number, settle: (positionMs?:number)=>void] }>()
 const position = ref(0)
 const duration = computed(() => props.snapshot?.currentTrack?.durationMs ?? 0)
 const clock=createPlaybackClock()
 let frame=0, seekToken=0, disposed=false
 function tick(){position.value=clock.read(performance.now());if(props.snapshot?.state==='playing')frame=requestAnimationFrame(tick)}
-watch(() => [props.snapshot?.currentTrack?.id,props.snapshot?.selectedZoneId,props.snapshot?.positionMs,props.snapshot?.state],()=>{
- clock.observe({id:`${props.snapshot?.selectedZoneId ?? ''}:${props.snapshot?.currentTrack?.id ?? ''}`,state:props.snapshot?.state ?? 'idle',position:props.snapshot?.positionMs ?? 0,duration:duration.value},performance.now())
+watch(() => [props.clockIdentity,props.snapshot?.currentTrack?.id,props.snapshot?.selectedZoneId,props.snapshot?.positionMs,props.snapshot?.state],()=>{
+ clock.observe({id:props.clockIdentity ?? `${props.snapshot?.selectedZoneId ?? ''}:${props.snapshot?.currentTrack?.id ?? ''}`,state:props.snapshot?.state ?? 'idle',position:props.snapshot?.positionMs ?? 0,duration:duration.value},performance.now())
  cancelAnimationFrame(frame);tick()
 },{immediate:true})
 onUnmounted(()=>{disposed=true;cancelAnimationFrame(frame)})
@@ -20,6 +20,7 @@ function commit(event:Event){
  if(!props.allowed || duration.value<=0){clock.cancel(performance.now());return}
  const value=Number((event.target as HTMLInputElement).value)
  seekToken=clock.preview(value,performance.now())
+ position.value=clock.read(performance.now())
  const token=seekToken
  emit('seek',value,confirmed=>{if(disposed)return;clock.settle(token,confirmed,performance.now());position.value=clock.read(performance.now())})
 }

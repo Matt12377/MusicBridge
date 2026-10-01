@@ -53,6 +53,10 @@ import type {
   PlaybackQueueSnapshot,
   PlaybackQualityPreference,
   PlaybackSnapshot,
+  PlaybackEventProtocolAck,
+  PlaybackStreamSnapshot,
+  PlaybackStreamState,
+  PlaybackStreamProgress,
 } from './playback.js';
 import type {
   PublicAccountState,
@@ -374,6 +378,7 @@ export interface IpcCommandPayloads {
   'roon.library.queue': { reference: string; zoneId: string };
   'roon.transport.stop': Record<string, never>;
   'playback.getState': Record<string, never>;
+  'playback.getStreamSnapshot': Record<string, never>;
   'playback.play': {
     trackId: string;
     qualityPreference: PlaybackQualityPreference;
@@ -657,6 +662,7 @@ export interface IpcCommandResults {
   'roon.library.queue': { queued: true };
   'roon.transport.stop': { stopped: true };
   'playback.getState': PlaybackSnapshot;
+  'playback.getStreamSnapshot': PlaybackStreamSnapshot | null;
   'playback.play': PlaybackSnapshot;
   'playback.pause': PlaybackSnapshot;
   'playback.resume': PlaybackSnapshot;
@@ -673,13 +679,16 @@ export interface IpcCommandResults {
 }
 
 export interface IpcEventPayloads {
-  'core.ready': { state: PublicBridgeState };
+  'core.ready': { state: PublicBridgeState; playbackEvents?: PlaybackEventProtocolAck };
   'core.health': { state: PublicBridgeState };
   'roon.changed': { state: PublicBridgeState };
   'auth.changed': { state: PublicAuthState };
   'account.changed': { state: PublicAccountState };
   'diagnostic.notice': { code: string; message?: string };
   'playback.changed': { state: PlaybackSnapshot };
+  'playback.snapshot': PlaybackStreamSnapshot;
+  'playback.state': PlaybackStreamState;
+  'playback.progress': PlaybackStreamProgress;
   'queue.changed': { queue: PlaybackQueueSnapshot };
   'lyrics.changed': { state: LyricsSnapshot };
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
