@@ -3580,15 +3580,42 @@ test('本地搜索范围隔离，切页恢复原页面，新搜索清除旧路�
       calls.push({ query, kind: name, offset: page.offset }); return empty(page)
     })
   })
+  // 虚拟网格只挂可见窗口；逐段核对26条逻辑结果，保留分页、次序和首尾可达保护。
+  async function expectCompleteAlbumResults(): Promise<void> {
+    const scroll = page.locator('.content-scroll')
+    const grid = page.locator('.roon-album-grid')
+    const savedScroll = await scroll.evaluate(element => element.scrollTop)
+    await scroll.evaluate(element => { element.scrollTop = element.scrollHeight })
+    await expect(grid).toHaveAttribute('data-grid-window', 'true')
+    await expect(grid).toHaveAttribute('data-grid-end', '26')
+    await expect(grid.locator('[data-grid-index="25"] .roon-album-copy strong')).toHaveText('逆光 本地专辑 26')
+    const titles = new Map<number, string>()
+    for (const fraction of [0, 0.5, 1]) {
+      await scroll.evaluate(async (element, value) => {
+        element.scrollTop = (element.scrollHeight - element.clientHeight) * value
+        await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+      }, fraction)
+      for (const entry of await grid.locator('[data-grid-index]').evaluateAll(elements => elements.map(element => ({
+        index: Number((element as HTMLElement).dataset.gridIndex),
+        title: element.querySelector('.roon-album-copy strong')?.textContent ?? '',
+      })))) titles.set(entry.index, entry.title)
+    }
+    expect([...titles].sort((left, right) => left[0] - right[0])).toEqual(
+      Array.from({ length: 26 }, (_, index) => [index, `逆光 本地专辑 ${index + 1}`]),
+    )
+    await scroll.evaluate((element, value) => { element.scrollTop = value }, savedScroll)
+    await expect.poll(() => scroll.evaluate(element => element.scrollTop)).toBe(savedScroll)
+  }
   await page.locator('[data-sidebar-source="roon-albums"]').click()
   const albumsSearch = page.getByRole('searchbox', { name: '搜索本地专辑', exact: true })
   await albumsSearch.fill('逆光')
   await expect(page.locator('.roon-album-card').first()).toContainText('逆光 本地专辑 1')
   await expect(page.locator('.view-search')).toHaveCount(0)
   await page.locator('.content-scroll').evaluate(e => { e.scrollTop = e.scrollHeight })
-  await expect(page.locator('.roon-album-card')).toHaveCount(26)
+  await expectCompleteAlbumResults()
   await page.screenshot({ path: path.join(os.tmpdir(), 'musicbridge-local-search-albums.png') })
-  await page.locator('.roon-album-card').first().click()
+  await page.locator('.content-scroll').evaluate(element => { element.scrollTop = 0 })
+  await page.getByRole('button', { name: /逆光 本地专辑 1 封面/ }).first().click()
   await expect(page.getByRole('heading', { name: '逆光 本地专辑 1', exact: true })).toBeVisible()
   // 详情请求尚未完成就切页，迟到响应不能把页面切回去。
   await page.locator('[data-sidebar-source="roon-artists"]').click()
@@ -3600,14 +3627,14 @@ test('本地搜索范围隔离，切页恢复原页面，新搜索清除旧路�
   await page.locator('.roon-album-detail-view .back-link').click()
   await expect(albumsSearch).toHaveValue('逆光')
   await page.waitForTimeout(300)
-  await expect(page.locator('.roon-album-card')).toHaveCount(26)
+  await expectCompleteAlbumResults()
   await page.locator('.content-scroll').evaluate(e => { e.scrollTop = 200 })
   const retainedScrollTop = await page.locator('.content-scroll').evaluate(e => e.scrollTop)
   expect(retainedScrollTop).toBeGreaterThan(0)
   await page.locator('[data-sidebar-source="roon-artists"]').click()
   await page.locator('[data-sidebar-source="roon-albums"]').click()
   await expect(albumsSearch).toHaveValue('逆光')
-  await expect(page.locator('.roon-album-card')).toHaveCount(26)
+  await expectCompleteAlbumResults()
   await expect.poll(() => page.locator('.content-scroll').evaluate(e => e.scrollTop)).toBe(retainedScrollTop)
   await page.locator('[data-sidebar-source="roon-artists"]').click()
   const artistsSearch = page.getByRole('searchbox', { name: '搜索本地艺术家', exact: true })
