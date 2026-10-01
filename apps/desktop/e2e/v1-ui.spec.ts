@@ -10,7 +10,7 @@ import { createRequire } from 'node:module'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { roonTrackIdFromReference, type PlaybackSnapshot } from '@music-bridge/contracts'
+import { roonTrackIdFromReference, type PlaybackSnapshot, type PlaybackStreamSnapshot } from '@music-bridge/contracts'
 import { loseNextOutboxReceipt, verifyBackupRestoreWorkflow, verifyInactiveWindowRestore } from './task-066-workflows.js'
 
 const desktopRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
@@ -3256,6 +3256,77 @@ test('搜索原生曲目连续点击只派发一次播放，失败后可以重�
   await expect.poll(() => electronApp.evaluate(() => (globalThis as typeof globalThis & { nativePlayCalls: number }).nativePlayCalls)).toBe(2)
 })
 
+type CompactPlaybackFixture = {
+  current: PlaybackStreamSnapshot
+  publishSnapshot: (snapshot: PlaybackSnapshot) => void
+  publishProgress: (positionMs: number) => void
+  publishState: (snapshot: PlaybackSnapshot) => void
+}
+
+/** 先借当前 Main 的只读基准取得可信域，夹具不能用普通事件自授新实例。 */
+async function installCompactPlaybackFixture(recordContinuationControls = false): Promise<void> {
+  const seed = await page.evaluate(() => window.musicBridge.getPlaybackStreamSnapshot())
+  if (!seed) throw new Error('本组夹具要求实际 Main 已协商 compact-v1 并返回可信基准。')
+  await electronApp.evaluate(({ ipcMain, BrowserWindow }, input) => {
+    const runtime = globalThis as typeof globalThis & { compactPlaybackFixture: CompactPlaybackFixture; continuationControls?: string[] }
+    const send = (event: string, payload: unknown) => BrowserWindow.getAllWindows()[0]?.webContents.send('core:event', { version: 1, event, payload })
+    const commit = (snapshot: PlaybackSnapshot, newOwner: boolean): { envelope: PlaybackStreamSnapshot; queueChanged: boolean } => {
+      const { stream: _stream, ...state } = snapshot
+      const previous = runtime.compactPlaybackFixture.current
+      const queueChanged = JSON.stringify(previous.snapshot.queue) !== JSON.stringify(state.queue)
+      const envelope: PlaybackStreamSnapshot = {
+        stamp: {
+          ...previous.stamp,
+          sequence: previous.stamp.sequence + 1,
+          generation: previous.stamp.generation + (newOwner ? 1 : 0),
+          queueRevision: previous.stamp.queueRevision + (queueChanged ? 1 : 0),
+          selectedZoneId: state.selectedZoneId ?? null,
+          trackId: state.currentTrack?.id ?? null,
+          source: state.source ?? null,
+        },
+        snapshot: state,
+      }
+      runtime.compactPlaybackFixture.current = envelope
+      return { envelope, queueChanged }
+    }
+    runtime.compactPlaybackFixture = {
+      current: input.seed,
+      publishSnapshot(snapshot) { send('playback.snapshot', commit(snapshot, true).envelope) },
+      publishProgress(positionMs) {
+        const previous = runtime.compactPlaybackFixture.current
+        const stamp = { ...previous.stamp, sequence: previous.stamp.sequence + 1 }
+        runtime.compactPlaybackFixture.current = { stamp, snapshot: { ...previous.snapshot, positionMs } }
+        send('playback.progress', { stamp, positionMs })
+      },
+      publishState(snapshot) {
+        const previous = runtime.compactPlaybackFixture.current.stamp
+        if ((snapshot.currentTrack?.id ?? null) !== previous.trackId || (snapshot.source ?? null) !== previous.source
+          || (snapshot.selectedZoneId ?? null) !== previous.selectedZoneId) throw new Error('所有权变化必须发布新代完整基准。')
+        const { envelope, queueChanged } = commit(snapshot, false)
+        const { queue, ...state } = envelope.snapshot
+        send('playback.state', { stamp: envelope.stamp, state, ...(queueChanged ? { queue } : {}) })
+      },
+    }
+    for (const channel of ['playback:get-state', 'playback:get-stream-snapshot', 'playback:next', 'playback:previous']) ipcMain.removeHandler(channel)
+    const receipt = () => {
+      const current = runtime.compactPlaybackFixture.current
+      return { ...current.snapshot, stream: current.stamp }
+    }
+    ipcMain.handle('playback:get-state', receipt)
+    ipcMain.handle('playback:get-stream-snapshot', () => runtime.compactPlaybackFixture.current)
+    for (const command of ['next', 'previous']) ipcMain.handle(`playback:${command}`, () => {
+      if (input.recordContinuationControls) runtime.continuationControls!.push(command)
+      return receipt()
+    })
+  }, { seed, recordContinuationControls })
+}
+
+async function publishCompactPlaybackSnapshot(snapshot: PlaybackSnapshot): Promise<void> {
+  await electronApp.evaluate((_electron, value) => {
+    ;(globalThis as typeof globalThis & { compactPlaybackFixture: CompactPlaybackFixture }).compactPlaybackFixture.publishSnapshot(value)
+  }, snapshot)
+}
+
 test('Roon 自动续播事件更新底栏及正在播放页，不残留第一首元数据', async () => {
   const cover = Array.from(await readFile(path.join(desktopRoot, '../../prototypes/sakura-glass/assets/cover-1.jpg')))
   await electronApp.evaluate(({ ipcMain }, coverBytes) => {
@@ -3270,25 +3341,17 @@ test('Roon 自动续播事件更新底栏及正在播放页，不残留第一首
     { id: '9103', title: 'Roon 队列外歌曲', artists: ['丙艺人'], album: '丙专辑', durationMs: 210_000,
       artworkReference: 'musicbridge-v2-image-44444444-4444-4444-8444-444444444444' },
   ]
-  const publish = async (index: number) => electronApp.evaluate(({ BrowserWindow, ipcMain }, input) => {
-    const snapshot = {
-      state: 'playing', source: 'roon', currentTrack: input.tracks[input.index],
-      queue: { items: input.tracks.slice(0, 2).map(track => ({ trackId: track.id, track, qualityPreference: 'auto', preferredSource: 'roon', resolvedSource: 'roon' })),
-        index: input.index < 2 ? input.index : -1, hasNext: input.index === 0, hasPrevious: input.index === 1 },
+  await installCompactPlaybackFixture(true)
+  const publish = async (index: number) => {
+    const snapshot: PlaybackSnapshot = {
+      state: 'playing', source: 'roon', currentTrack: tracks[index],
+      queue: { items: tracks.slice(0, 2).map(track => ({ trackId: track.id, track, qualityPreference: 'auto', preferredSource: 'roon', resolvedSource: 'roon' })),
+        index: index < 2 ? index : -1, hasNext: index === 0, hasPrevious: index === 1 },
       positionMs: 2000, actualQuality: 'unknown', selectedZoneId: 'synthetic-zone',
-      canNext: input.index !== 1, canPrevious: input.index !== 0, canStop: true, canPause: true, canResume: false,
+      canNext: index !== 1, canPrevious: index !== 0, canStop: true, canPause: true, canResume: false,
     }
-    ipcMain.removeHandler('playback:get-state')
-    ipcMain.handle('playback:get-state', () => snapshot)
-    for (const command of ['next', 'previous']) {
-      ipcMain.removeHandler(`playback:${command}`)
-      ipcMain.handle(`playback:${command}`, () => {
-        ;(globalThis as typeof globalThis & { continuationControls: string[] }).continuationControls.push(command)
-        return snapshot
-      })
-    }
-    BrowserWindow.getAllWindows()[0]?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: snapshot } })
-  }, { tracks, index })
+    await publishCompactPlaybackSnapshot(snapshot)
+  }
   await publish(0)
   await expect(page.locator('.global-player')).toContainText('本地第一首')
   await page.getByRole('button', { name: '打开正在播放', exact: true }).click()
@@ -3325,10 +3388,11 @@ test('同曲连续进度不重复读取歌词和收藏，先到歌词与导航�
     queue: { items: [{ trackId: track.id, track, qualityPreference: 'auto', preferredSource: 'netease', resolvedSource: 'netease' }], index: 0, hasNext: false, hasPrevious: false },
     selectedZoneId: 'synthetic-zone', canNext: false, canPrevious: false, canStop: true, canPause: true, canResume: false,
   }
-  await electronApp.evaluate(({ ipcMain, BrowserWindow }, snapshot) => {
+  await installCompactPlaybackFixture()
+  await electronApp.evaluate(({ ipcMain }, snapshot) => {
     const calls = { lyrics: 0, like: 0, favorite: 0, setFavorite: 0, queued: 0, favoriteDescriptors: [] as string[] }
     ;(globalThis as typeof globalThis & { decouplingCalls: typeof calls }).decouplingCalls = calls
-    for (const channel of ['lyrics:get', 'library:like-status', 'favorites:check', 'favorites:set', 'playback:get-state']) ipcMain.removeHandler(channel)
+    for (const channel of ['lyrics:get', 'library:like-status', 'favorites:check', 'favorites:set']) ipcMain.removeHandler(channel)
     ipcMain.handle('lyrics:get', () => {
       calls.lyrics += 1
       return { status: 'ready', source: 'netease', lines: [{ startMs: 0, text: '合成旧曲歌词' }], activeLineIndex: 0, timingSource: 'static' }
@@ -3336,9 +3400,8 @@ test('同曲连续进度不重复读取歌词和收藏，先到歌词与导航�
     ipcMain.handle('library:like-status', () => { calls.like += 1; return { liked: false } })
     ipcMain.handle('favorites:check', (_event, descriptor) => { calls.favorite += 1; calls.favoriteDescriptors.push(`${descriptor.kind}:${descriptor.title}`); return { favorite: false } })
     ipcMain.handle('favorites:set', (_event, _descriptor, favorite) => { calls.setFavorite += 1; return { favorite } })
-    ipcMain.handle('playback:get-state', () => snapshot)
-    BrowserWindow.getAllWindows()[0]?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: snapshot } })
   }, neteaseSnapshot)
+  await publishCompactPlaybackSnapshot(neteaseSnapshot)
   await expect(page.locator('.global-player')).toContainText(track.title)
   await expect.poll(() => electronApp.evaluate(() => {
     const calls = (globalThis as typeof globalThis & { decouplingCalls: { lyrics: number; like: number } }).decouplingCalls
@@ -3347,16 +3410,13 @@ test('同曲连续进度不重复读取歌词和收藏，先到歌词与导航�
   const beforeNeteaseProgress = await electronApp.evaluate(() => (globalThis as typeof globalThis & {
     decouplingCalls: { lyrics: number; like: number; favorite: number; setFavorite: number }
   }).decouplingCalls)
-  await electronApp.evaluate(({ BrowserWindow }, input) => {
-    const window = BrowserWindow.getAllWindows()[0]
+  await electronApp.evaluate((_electron, input) => {
+    const fixture = (globalThis as typeof globalThis & { compactPlaybackFixture: CompactPlaybackFixture }).compactPlaybackFixture
     for (let index = 1; index <= 100; index += 1) {
-      const isFinal = index === 100
-      window?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: {
-        ...input.snapshot, positionMs: 4_000 + index * 1_000,
-        canNext: isFinal,
-        currentTrack: isFinal ? { ...input.snapshot.currentTrack, artworkUrl: input.nextCoverUrl } : input.snapshot.currentTrack,
-      } } })
+      fixture.publishProgress(4_000 + index * 1_000)
     }
+    fixture.publishState({ ...input.snapshot, positionMs: 104_000, canNext: true,
+      currentTrack: { ...input.snapshot.currentTrack!, artworkUrl: input.nextCoverUrl } })
   }, { snapshot: neteaseSnapshot, nextCoverUrl })
   await expect.poll(() => page.locator('.global-player input[aria-label="播放栏进度"]').evaluate(input => Number((input as HTMLInputElement).value))).toBeGreaterThanOrEqual(104_000)
   await expect(page.locator('.global-player').getByRole('button', { name: '下一首', exact: true })).toBeEnabled()
@@ -3387,14 +3447,12 @@ test('同曲连续进度不重复读取歌词和收藏，先到歌词与导航�
     decouplingCalls: { favorite: number }
   }).decouplingCalls.favorite)
   await electronApp.evaluate(({ ipcMain, BrowserWindow }, snapshot) => {
-    ipcMain.removeHandler('playback:get-state')
-    ipcMain.handle('playback:get-state', () => snapshot)
     const window = BrowserWindow.getAllWindows()[0]
     window?.webContents.send('core:event', { version: 1, event: 'lyrics.changed', payload: { state: {
       status: 'ready', source: 'roon-display', lines: [{ startMs: 0, text: '合成新曲歌词' }], activeLineIndex: 0, timingSource: 'roon-time',
     } } })
-    window?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: snapshot } })
   }, roonSnapshot)
+  await publishCompactPlaybackSnapshot(roonSnapshot)
   await expect(page.locator('.global-player')).toContainText(roonItem.title)
   await page.getByRole('button', { name: '打开正在播放', exact: true }).click()
   await expect(page.locator('.now-playing-lyrics')).toContainText('合成新曲歌词')
@@ -3403,12 +3461,12 @@ test('同曲连续进度不重复读取歌词和收藏，先到歌词与导航�
   const beforeRoonProgress = await electronApp.evaluate(() => (globalThis as typeof globalThis & {
     decouplingCalls: { lyrics: number; like: number; favorite: number; setFavorite: number }
   }).decouplingCalls)
-  await electronApp.evaluate(({ BrowserWindow }, snapshot) => {
-    const window = BrowserWindow.getAllWindows()[0]
+  await electronApp.evaluate(() => {
+    const fixture = (globalThis as typeof globalThis & { compactPlaybackFixture: CompactPlaybackFixture }).compactPlaybackFixture
     for (let index = 1; index <= 100; index += 1) {
-      window?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: { ...snapshot, positionMs: 2_000 + index * 1_000 } } })
+      fixture.publishProgress(2_000 + index * 1_000)
     }
-  }, roonSnapshot)
+  })
   await expect.poll(() => page.locator('.now-playing-progress input').evaluate(input => Number((input as HTMLInputElement).value))).toBeGreaterThanOrEqual(102_000)
   expect(await electronApp.evaluate(() => (globalThis as typeof globalThis & { decouplingCalls: typeof beforeRoonProgress }).decouplingCalls)).toEqual(beforeRoonProgress)
   await page.getByRole('button', { name: '喜欢这首歌', exact: true }).click()
@@ -3426,16 +3484,16 @@ test('仅网易云来源的正在播放按钮连续收藏与取消，只写网�
     queue: { items: [{ trackId: track.id, track, qualityPreference: 'auto', preferredSource: 'netease', resolvedSource: 'netease' }], index: 0, hasNext: false, hasPrevious: false },
     canNext: false, canPrevious: false, canStop: true, canPause: true, canResume: false,
   }
-  await electronApp.evaluate(({ ipcMain, BrowserWindow }, input) => {
+  await installCompactPlaybackFixture()
+  await electronApp.evaluate(({ ipcMain }, input) => {
     const calls = { neteaseWrites: [] as boolean[], localWrites: [] as boolean[] }
     ;(globalThis as typeof globalThis & { singleNeteaseFavoriteCalls: typeof calls }).singleNeteaseFavoriteCalls = calls
-    for (const channel of ['playback:get-state', 'library:like-status', 'library:like', 'favorites:set']) ipcMain.removeHandler(channel)
-    ipcMain.handle('playback:get-state', () => input)
+    for (const channel of ['library:like-status', 'library:like', 'favorites:set']) ipcMain.removeHandler(channel)
     ipcMain.handle('library:like-status', () => ({ liked: false }))
     ipcMain.handle('library:like', (_event, _trackId, liked: boolean) => { calls.neteaseWrites.push(liked); return { liked } })
     ipcMain.handle('favorites:set', (_event, _descriptor, favorite: boolean) => { calls.localWrites.push(favorite); return { favorite } })
-    BrowserWindow.getAllWindows()[0]?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: input } })
   }, snapshot)
+  await publishCompactPlaybackSnapshot(snapshot)
   await expect(page.locator('.global-player')).toContainText(track.title)
   await page.getByRole('button', { name: '打开正在播放', exact: true }).click()
   const like = page.getByRole('button', { name: '喜欢这首歌', exact: true })
@@ -3464,8 +3522,7 @@ test('仅本地 Roon 来源的正在播放按钮连续收藏与取消，不写�
     const calls = { neteaseWrites: [] as boolean[], localWrites: [] as Array<{ kind: string; title: string; favorite: boolean }> }
     ;(globalThis as typeof globalThis & { singleRoonFavoriteCalls: typeof calls }).singleRoonFavoriteCalls = calls
     const pageOf = (page: { offset: number; limit: number }, items: unknown[]) => ({ ...page, items, total: items.length, hasMore: false })
-    for (const channel of ['playback:get-state', 'roon:library:albums', 'roon:library:album', 'roon:library:queue', 'library:like', 'favorites:check', 'favorites:set']) ipcMain.removeHandler(channel)
-    ipcMain.handle('playback:get-state', () => input.snapshot)
+    for (const channel of ['roon:library:albums', 'roon:library:album', 'roon:library:queue', 'library:like', 'favorites:check', 'favorites:set']) ipcMain.removeHandler(channel)
     ipcMain.handle('roon:library:albums', (_event, page) => pageOf(page, [input.album]))
     ipcMain.handle('roon:library:album', (_event, _reference, page) => pageOf(page, [input.item]))
     ipcMain.handle('roon:library:queue', () => ({ queued: true }))
@@ -3476,13 +3533,12 @@ test('仅本地 Roon 来源的正在播放按钮连续收藏与取消，不写�
       return { favorite }
     })
   }, { album, item, snapshot })
+  await installCompactPlaybackFixture()
   await page.locator('[data-sidebar-source="roon-albums"]').click()
   await page.locator('.roon-album-card').first().click()
   await page.getByRole('button', { name: `将 ${item.title} 加入队列`, exact: true }).click()
   await expect(page.getByRole('status')).toContainText('已将 Roon 曲目加入队列')
-  await electronApp.evaluate(({ BrowserWindow }, input) => {
-    BrowserWindow.getAllWindows()[0]?.webContents.send('core:event', { version: 1, event: 'playback.changed', payload: { state: input } })
-  }, snapshot)
+  await publishCompactPlaybackSnapshot(snapshot)
   await expect(page.locator('.global-player')).toContainText(item.title)
   await page.getByRole('button', { name: '打开正在播放', exact: true }).click()
   const like = page.getByRole('button', { name: '喜欢这首歌', exact: true })
