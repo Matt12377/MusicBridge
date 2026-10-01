@@ -4,7 +4,7 @@ import type { MusicBridgePublicApi } from '../src/preload/api.js'
 import { useAggregatedSearch, type AggregatedSearchOptions } from '../src/renderer/src/composables/application/useAggregatedSearch.js'
 import { useRoonCollection } from '../src/renderer/src/composables/useRoonCollection.js'
 import { useNeteaseLibrary } from '../src/renderer/src/composables/application/useNeteaseLibrary.js'
-import type { PageRequest, PlaylistDetail } from '@music-bridge/contracts'
+import type { PageRequest, PlaylistDetail, RoonLibraryItem } from '@music-bridge/contracts'
 const turn = () => new Promise<void>(resolve => setImmediate(resolve))
 function deferred<T>() { let resolve!: (value: T) => void, reject!: (error: unknown) => void; const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail }); return { promise, resolve, reject } }
 const page = (id: string, offset = 0) => ({ items: [{ id, title: id, artists: ['合成艺人'], album: '合成专辑' }], offset, limit: 1, total: 2, hasMore: offset === 0 })
@@ -300,3 +300,81 @@ test('MBP005 R1：详情retry显式reload正确target，取消旧more且迟到�
   assert.equal(cache.peek<{ title: string }>(identity)?.value.title, '刷新歌曲')
   search.closeSearchDetail(); assert.equal(restoredScroll, 321, '详情重试不能覆盖返回搜索页的滚动位置')
 })
+
+function descriptorHarness(kind: 'album' | 'artist' | 'genre' | 'playlist') {
+  let reads = 0
+  const cache = createLibraryPageCache(), child = { ...roonPage('缓存子项'), hasMore: false }
+  const read = async () => { reads++; return child }
+  const browse = useRoonBrowse({ cache, getCacheScope: () => '描述符测试scope', api: {
+    getRoonAlbumTracks: read, getRoonArtistAlbums: read, getRoonGenreItems: read, getRoonPlaylistTracks: read, checkFavorite: async () => ({ favorite: false }),
+  } as unknown as MusicBridgePublicApi, formatError: () => '读取错误', onError: () => {}, onToast: () => {}, getView: () => `roon-${kind}-detail`,
+    onDetailOpening: () => {}, onDetailReady: () => {}, onNavigateSource: () => {}, onPlayTrack: () => {} })
+  const ports = { album: { root: browse.roonAlbumsPage, selected: browse.selectedRoonAlbum, page: browse.selectedRoonAlbumPage, load: browse.loadRoonAlbum },
+    artist: { root: browse.roonArtistsPage, selected: browse.selectedRoonArtist, page: browse.selectedRoonArtistPage, load: browse.loadRoonArtist },
+    genre: { root: browse.roonGenresPage, selected: browse.selectedRoonGenre, page: browse.selectedRoonGenrePage, load: browse.loadRoonGenre },
+    playlist: { root: browse.roonPlaylistsPage, selected: browse.selectedRoonPlaylist, page: browse.selectedRoonPlaylistPage, load: browse.loadRoonPlaylist } }
+  return { browse, ...ports[kind], readCount: () => reads, child }
+}
+for (const kind of ['album', 'artist', 'genre', 'playlist'] as const) {
+  for (const origin of ['当前列表', '当前点击'] as const) test(`MBP005 Gate回归：${kind}相同reference的${origin}新metadata优先旧cache描述符`, async t => {
+    const h = descriptorHarness(kind), old = { reference: `${kind}-same-reference`, kind, title: '旧查询标题', subtitle: '旧说明' }
+    t.after(() => h.browse.dispose()); h.root.value = { ...roonPage('root'), items: [old] }; await h.load(old.reference, { offset: 0, limit: 1 }); assert.equal(h.selected.value?.title, '旧查询标题')
+    const current = { ...old, title: '聚合验证的新标题', subtitle: '当前查询说明' }
+    if (origin === '当前列表') {
+      h.root.value = { ...h.root.value, items: [current] }
+      await dispatchAppRootSelect(kind, h.browse, current, () => {})
+    }
+    else { h.root.value = { ...h.root.value, items: [] }; h.selected.value = current }
+    await h.load(current.reference, { offset: 0, limit: 1 })
+    assert.equal(h.selected.value?.title, current.title); assert.equal(h.selected.value?.subtitle, current.subtitle)
+    assert.equal(h.readCount(), 1, '只更新当前描述符，fresh缓存详情页仍复用'); assert.equal(h.page.value.sourceEpoch, h.child.sourceEpoch); assert.equal(h.page.value.items[0]?.reference, '缓存子项')
+    const snapshot = h.browse.captureDetail(); h.browse.leaveDetail(); h.browse.restoreDetail(snapshot); await h.browse.resumePageReads(`roon-${kind}-detail`)
+    assert.equal(h.selected.value?.title, current.title, '父详情恢复不倒退metadata'); assert.equal(h.readCount(), 1)
+  })
+  test(`MBP005 Gate保护：${kind}没有当前目标描述符时仍允许cache恢复且不带入另一target`, async t => {
+    const h = descriptorHarness(kind), original = { reference: `${kind}-same-reference`, kind, title: '可恢复的旧目标描述符' }
+    t.after(() => h.browse.dispose()); h.root.value = { ...roonPage('root'), items: [original] }; await h.load(original.reference, { offset: 0, limit: 1 })
+    h.root.value = { ...h.root.value, items: [] }; h.selected.value = null
+    await h.load(original.reference, { offset: 0, limit: 1 }); assert.equal((h.selected.value as RoonLibraryItem | null)?.title, original.title); assert.equal(h.readCount(), 1)
+    h.selected.value = { reference: `${kind}-another-reference`, kind, title: '不得带入的另一个目标' }
+    await h.load(original.reference, { offset: 0, limit: 1 }); assert.equal(h.selected.value?.reference, original.reference); assert.equal(h.selected.value?.title, original.title); assert.equal(h.readCount(), 1)
+  })
+}
+
+// 执行实际App模板绑定与脚本函数，验证点击条目先seed，再进入原导航链。
+async function dispatchAppRootSelect(kind: 'album' | 'artist' | 'genre' | 'playlist', browse: ReturnType<typeof useRoonBrowse>, item: RoonLibraryItem, navigateSource: (source: { type: string; reference: string }) => void) {
+  const { readFile } = await import('node:fs/promises'), { parse } = await import('@vue/compiler-sfc'), ts = (await import('typescript')).default
+  const { descriptor } = parse(await readFile(new URL('../src/renderer/src/App.vue', import.meta.url), 'utf8'))
+  const plural = { album: 'albums', artist: 'artists', genre: 'genres', playlist: 'playlists' }[kind]
+  const section = descriptor.template!.content.split(`currentView === 'roon-${plural}'`)[1]!.split('</section>')[0]!
+  const expression = section.match(/@select="([^"]+)"/)![1]!
+  const ast = ts.createSourceFile('App.ts', descriptor.scriptSetup!.content, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  const functions: string[] = []
+  function visit(node: import('typescript').Node): void {
+    if (ts.isFunctionDeclaration(node) && ['seedCurrentRoonDescriptor', 'openRoonLibraryItem'].includes(node.name?.text ?? '')) functions.push(node.getText(ast))
+    ts.forEachChild(node, visit)
+  }
+  visit(ast)
+  const script = ts.transpileModule(`${functions.join('\n')}; return $event => { ${expression.includes('$event') ? expression : `${expression}($event)`} }`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText
+  const execute = new Function('browse', 'navigateSource', script)(browse, navigateSource) as (item: RoonLibraryItem) => void
+  execute(item)
+}
+for (const kind of ['album', 'artist', 'genre', 'playlist'] as const) {
+  test(`MBP005 Gate根覆盖：${kind}当前seed优先同reference旧root及旧cache`, async t => {
+    const h = descriptorHarness(kind), old = { reference: `${kind}-same-reference`, kind, title: '旧根与旧缓存' }
+    t.after(() => h.browse.dispose()); h.root.value = { ...roonPage('root'), items: [old] }; await h.load(old.reference, { offset: 0, limit: 1 })
+    const current = { ...old, title: '当前seed的新metadata', subtitle: '当前说明' }; h.selected.value = current
+    await h.load(current.reference, { offset: 0, limit: 1 })
+    assert.equal(h.selected.value?.title, current.title); assert.equal(h.selected.value?.subtitle, current.subtitle); assert.equal(h.readCount(), 1)
+  })
+  test(`MBP005 Gate实际App点击：${kind}同ref新条目必须在导航前seed，旧root不抢当前metadata`, async t => {
+    const h = descriptorHarness(kind), old = { reference: `${kind}-same-reference`, kind, title: '旧查询条目' }
+    t.after(() => h.browse.dispose()); h.root.value = { ...roonPage('root'), items: [old] }; await h.load(old.reference, { offset: 0, limit: 1 })
+    const current = { ...old, title: '刚点击的新查询条目', subtitle: '新查询说明' }; let navigations = 0, loading: Promise<void> | undefined
+    await dispatchAppRootSelect(kind, h.browse, current, source => {
+      navigations++; assert.equal(h.selected.value?.reference, current.reference); assert.equal(h.selected.value?.title, current.title, '实际模板点击必须先seed描述符再导航'); assert.equal(h.selected.value?.subtitle, current.subtitle)
+      assert.deepEqual(source, { type: `roon-${kind}`, reference: current.reference }); loading = h.load(source.reference, { offset: 0, limit: 1 })
+    })
+    await loading; assert.equal(navigations, 1); assert.equal(h.selected.value?.title, current.title); assert.equal(h.selected.value?.subtitle, current.subtitle); assert.equal(h.readCount(), 1)
+  })
+}

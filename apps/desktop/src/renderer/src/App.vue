@@ -6,6 +6,7 @@ import type {
   PlaybackQualityPreference,
   PublicBridgeState,
   PublicRoonZone,
+  RoonLibraryItem,
   RemoteCoreTunnelState,
   TrackSummary,
 } from '@music-bridge/contracts'
@@ -261,8 +262,30 @@ const {
   sidebarSearchQuery, sidebarSearchLabel, roonDetailBackLabel,
   isImmersiveNowPlaying, enterNowPlaying, exitNowPlaying, navigate, navigateSource,
   openTapeCollection, clearSearch, updateSearchQuery, returnFromRoonDetail,
-  returnToSearch, selectAggregatedRoonItem,
+  returnToSearch, selectAggregatedRoonItem: selectAggregatedRoonItemInJourney,
 } = journey
+
+// 点击时携带的描述符比旧根列表或详情缓存更新；导航仍沿原父页与搜索链。
+function seedCurrentRoonDescriptor(item: RoonLibraryItem): void {
+  if (item.kind === 'album') browse.selectedRoonAlbum.value = item
+  else if (item.kind === 'artist') browse.selectedRoonArtist.value = item
+  else if (item.kind === 'genre') browse.selectedRoonGenre.value = item
+  else if (item.kind === 'playlist') browse.selectedRoonPlaylist.value = item
+}
+
+function openRoonLibraryItem(item: RoonLibraryItem): void {
+  seedCurrentRoonDescriptor(item)
+  if (item.kind === 'album') navigateSource({ type: 'roon-album', reference: item.reference })
+  else if (item.kind === 'artist') navigateSource({ type: 'roon-artist', reference: item.reference })
+  else if (item.kind === 'genre') navigateSource({ type: 'roon-genre', reference: item.reference })
+  else if (item.kind === 'playlist') navigateSource({ type: 'roon-playlist', reference: item.reference })
+}
+
+function selectAggregatedRoonItem(item: RoonLibraryItem): void {
+  // 搜索父页先由journey保存，再沿原顺序seed；普通详情跳转补齐点击事实。
+  if (currentView.value !== 'search' && !roonSearchOrigin.value) seedCurrentRoonDescriptor(item)
+  selectAggregatedRoonItemInJourney(item)
+}
 
 watch(currentView, (view, previous) => {
   if (previous === 'recording' && view !== 'recording') {
@@ -939,7 +962,7 @@ onUnmounted(() => {
             :loading-more="roonAlbumsLoadingMore"
             :load-more-error="roonAlbumsLoadMoreError"
             :error="roonAlbumsError"
-            @select="navigateSource({ type: 'roon-album', reference: $event.reference })"
+            @select="openRoonLibraryItem"
             @retry="retryRoonAlbums"
             @load-more="loadMoreRoonAlbums"
           />
@@ -958,7 +981,7 @@ onUnmounted(() => {
             :loading-more="roonArtistsLoadingMore"
             :load-more-error="roonArtistsLoadMoreError"
             :error="roonArtistsError"
-            @select="navigateSource({ type: 'roon-artist', reference: $event.reference })"
+            @select="openRoonLibraryItem"
             @retry="retryRoonArtists"
             @load-more="loadMoreRoonArtists"
           />
@@ -976,7 +999,7 @@ onUnmounted(() => {
             :loading-more="roonGenresLoadingMore"
             :load-more-error="roonGenresLoadMoreError"
             :error="roonGenresError"
-            @select="navigateSource({ type: 'roon-genre', reference: $event.reference })"
+            @select="openRoonLibraryItem"
             @retry="retryRoonGenres"
             @load-more="loadMoreRoonGenres"
           />
@@ -994,7 +1017,7 @@ onUnmounted(() => {
             :loading-more="roonPlaylistsLoadingMore"
             :load-more-error="roonPlaylistsLoadMoreError"
             :error="roonPlaylistsError"
-            @select="navigateSource({ type: 'roon-playlist', reference: $event.reference })"
+            @select="openRoonLibraryItem"
             @retry="retryRoonPlaylists"
             @load-more="loadMoreRoonPlaylists"
           />
@@ -1032,7 +1055,7 @@ onUnmounted(() => {
             :loading-more="roonArtistLoadingMore"
             :load-more-error="roonArtistLoadMoreError"
             :error="roonArtistError"
-            @select="roonSearchOrigin ? selectAggregatedRoonItem($event) : navigateSource({ type: 'roon-album', reference: $event.reference })"
+            @select="roonSearchOrigin ? selectAggregatedRoonItem($event) : openRoonLibraryItem($event)"
             @retry="loadRoonArtist(selectedRoonArtist.reference)"
             @load-more="roonArtistPageAt(nextRoonPageOffset(selectedRoonArtistPage))"
           />

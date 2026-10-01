@@ -175,7 +175,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       ...selectedRoonArtistPage.value.items,
       ...selectedRoonGenrePage.value.items,
     ].find((item) => item.reference === reference)
-    if (album && album.kind === 'album') {
+    if (selectedRoonAlbum.value?.reference !== reference && album?.kind === 'album') {
       selectedRoonAlbum.value = album
     }
     if (initial && selectedRoonAlbum.value?.reference !== reference) selectedRoonAlbum.value = null
@@ -200,7 +200,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     const current = () => !disposed && generation === roonAlbumRequestGeneration && scope === cacheScope()
     if (initial && cached && (!cached.value.page.sourceEpoch || !invalidDetailEpochs.has(cached.value.page.sourceEpoch))) {
       selectedRoonAlbumPage.value = mergeRefreshedRoonPage(selectedRoonAlbumPage.value, cached.value.page)
-      if (cached.value.descriptor?.reference === reference) {
+      if (selectedRoonAlbum.value?.reference !== reference && cached.value.descriptor?.reference === reference) {
         const missingDescriptor = selectedRoonAlbum.value?.reference !== reference
         selectedRoonAlbum.value = cached.value.descriptor
         if (missingDescriptor) void loadRoonEntityFavorite(cached.value.descriptor, 'album')
@@ -266,7 +266,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       return
     }
     const artist = roonArtistsPage.value.items.find((item) => item.reference === reference)
-    if (artist && artist.kind === 'artist') {
+    if (selectedRoonArtist.value?.reference !== reference && artist?.kind === 'artist') {
       selectedRoonArtist.value = artist
     }
     if (initial && selectedRoonArtist.value?.reference !== reference) selectedRoonArtist.value = null
@@ -290,7 +290,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     const current = () => !disposed && generation === roonArtistRequestGeneration && scope === cacheScope()
     if (initial && cached && (!cached.value.page.sourceEpoch || !invalidDetailEpochs.has(cached.value.page.sourceEpoch))) {
       selectedRoonArtistPage.value = mergeRefreshedRoonPage(selectedRoonArtistPage.value, cached.value.page)
-      if (cached.value.descriptor?.reference === reference) {
+      if (selectedRoonArtist.value?.reference !== reference && cached.value.descriptor?.reference === reference) {
         const missingDescriptor = selectedRoonArtist.value?.reference !== reference
         selectedRoonArtist.value = cached.value.descriptor
         if (missingDescriptor) void loadRoonEntityFavorite(cached.value.descriptor, 'artist')
@@ -356,7 +356,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       return
     }
     const genre = roonGenresPage.value.items.find((item) => item.reference === reference)
-    if (genre?.kind === 'genre') selectedRoonGenre.value = genre
+    if (selectedRoonGenre.value?.reference !== reference && genre?.kind === 'genre') selectedRoonGenre.value = genre
     if (initial && selectedRoonGenre.value?.reference !== reference) selectedRoonGenre.value = null
     if (initial) {
       if (!resume) detailRebases.genre = 0
@@ -376,7 +376,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     const current = () => !disposed && generation === roonGenreRequestGeneration && scope === cacheScope()
     if (initial && cached && (!cached.value.page.sourceEpoch || !invalidDetailEpochs.has(cached.value.page.sourceEpoch))) {
       selectedRoonGenrePage.value = mergeRefreshedRoonPage(selectedRoonGenrePage.value, cached.value.page)
-      if (cached.value.descriptor?.reference === reference) selectedRoonGenre.value = cached.value.descriptor
+      if (selectedRoonGenre.value?.reference !== reference && cached.value.descriptor?.reference === reference) selectedRoonGenre.value = cached.value.descriptor
       if (!resume) { onDetailReady('roon-genre-detail', { type: 'roon-genre', reference }); notified = true }
     }
     detailRequests.genre = { reference, page: { ...page } }
@@ -438,7 +438,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       return
     }
     const playlist = roonPlaylistsPage.value.items.find((item) => item.reference === reference)
-    if (playlist?.kind === 'playlist') selectedRoonPlaylist.value = playlist
+    if (selectedRoonPlaylist.value?.reference !== reference && playlist?.kind === 'playlist') selectedRoonPlaylist.value = playlist
     if (initial && selectedRoonPlaylist.value?.reference !== reference) selectedRoonPlaylist.value = null
     if (initial) {
       if (!resume) detailRebases.playlist = 0
@@ -458,7 +458,7 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
     const current = () => !disposed && generation === roonPlaylistRequestGeneration && scope === cacheScope()
     if (initial && cached && (!cached.value.page.sourceEpoch || !invalidDetailEpochs.has(cached.value.page.sourceEpoch))) {
       selectedRoonPlaylistPage.value = mergeRefreshedRoonPage(selectedRoonPlaylistPage.value, cached.value.page)
-      if (cached.value.descriptor?.reference === reference) selectedRoonPlaylist.value = cached.value.descriptor
+      if (selectedRoonPlaylist.value?.reference !== reference && cached.value.descriptor?.reference === reference) selectedRoonPlaylist.value = cached.value.descriptor
       if (!resume) { onDetailReady('roon-playlist-detail', { type: 'roon-playlist', reference }); notified = true }
     }
     detailRequests.playlist = { reference, page: { ...page } }

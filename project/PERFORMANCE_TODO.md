@@ -209,3 +209,9 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 005 R1的6个P2补修已最终冻结：Root13/Roon4/NET5/Renderer13，共35文件Hash全匹配。NET62/62、Renderer144/144、Roon128/128与隔离严格类型exit0；NET时钟/LRU/真实header和Renderer恢复/账户重载/实际搜索详情模板均有实际RED→GREEN。现在固定实现后进行一次R2及原完整Gate，总计仍7/11，不将作者定向升级为验收。
 
 005两轮独立审计结束：原独立RED12次执行全GREEN，指定35文件无剩余确认P1/P2。首个固定ceb7ccb原完整verify退出1：Contracts250、Core1877+原2skip通过，Desktop1112通过/2旧静态case失败，未到最终构建。cachedArtists误匹配Dart及旧搜索调用/allSettled文字失配已由Root仅修一test文件，运行时禁入、query、分区catch/publish保护保留；35/35退出0。不改已审生产、不做第三轮，重新固定后原全量重跑，总计仍7/11。独立direct Fake曾设置工程不识别的旧KEYCHAIN变量，报告已校正；未触真实钥匙串，不作为mock模式验收，Root标准runner实际TEST变量。
+
+005新固定da05269原完整verify通过：Contracts250、Core1877+原2skip、Desktop1114及三包类型/构建exit0；mockElectron4/4 exit0。858源码指纹1e41b1be…Gate前与verify后相同。完整E2E运行中，软件总计仍7/11，报告/push待最后门禁。
+
+005固定da05269首次完整E2E退出1：103pass/1fail/原4skip/0flaky。最后本地搜索导航case复用同public reference的新艺人metadata时，旧cached descriptor覆盖当前点击名称，返回父标题错误；原3668断言保留。完整JSON/失败目录已外置另名保存，作者补四detail owner同根因，Root自查/定向及新固定原完整Gate覆盖，不开第三独立审计轮。总计仍7/11。
+
+005原Gate发现descriptor同根因已补并最终冻结：四owner当前目标优先，App真实点击同步seed并保留journey原父链；Renderer164/164（原111+前33+本20）、strict与diff exit0，da基线20个保护实际4pass16fail→20GREEN。原E2E整份与base逐字相同。Root已自查三文件delta，36源码/测试Hash一致；固定新SHA后先跑原失败case，再原完整Gate，不开第三审计轮。
