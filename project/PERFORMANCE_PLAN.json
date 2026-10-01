@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
   "state": "active",
-  "ownerAuthorization": "连续实施性能与正确性计划，使用 gpt-6.1-sol xhigh 子代理并展示待办进度",
+  "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol high，最多3名，必要时承担审计测试",
   "currentTask": "MBR-002",
-  "implementationComplete": 3,
-  "automaticAcceptanceComplete": 3,
+  "implementationComplete": 4,
+  "automaticAcceptanceComplete": 4,
   "taskCount": 11,
   "realMacRoonAcceptance": "NOT_RUN",
   "realRecordingAcceptance": "NOT_RUN",
@@ -57,10 +57,14 @@
       "dependsOn": [
         "MBP-002"
       ],
-      "state": "implementing",
-      "implementationCommit": null,
+      "state": "software-gates-passed",
+      "implementationCommit": "200da1903578bff1342e405d663e04391e94b90f",
       "reportCommit": null,
-      "evidence": []
+      "evidence": [
+        "reports/MBR-002_RECOVERY_LIFECYCLE.md",
+        "reports/MBR-002_EVIDENCE.json"
+      ],
+      "reportCommitResolution": "commit-containing-reports/MBR-002_RECOVERY_LIFECYCLE.md"
     },
     {
       "id": "MBP-003",
@@ -158,7 +162,7 @@
       "evidence": []
     }
   ],
-  "implementationCommit": null,
+  "implementationCommit": "200da1903578bff1342e405d663e04391e94b90f",
   "branch": "codex/mbr-002-recovery-lifecycle",
   "currentTaskBase": "f672c9f1ef4c8faf0af86a8758476cb4def50a9f",
   "automaticAcceptanceScope": "local-standard-software-gates",

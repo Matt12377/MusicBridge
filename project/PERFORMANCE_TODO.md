@@ -1,6 +1,6 @@
 # MusicBridge 性能与正确性实施进度
 
-**实现完成：3/11 · 本地软件验收：3/11 · 真实 Mac/Roon：未执行**
+**实现完成：4/11 · 本地软件验收：4/11 · 真实 Mac/Roon：未执行**
 
 当前任务：**MBR-002 — 录音未知回执与资源收尾恢复**。基线 `f672c9f`，分支 `codex/mbr-002-recovery-lifecycle`。
 
@@ -29,7 +29,7 @@ MBP-001 远端已结束：security 通过，verify/Electron E2E 失败。本地�
 | 1 | MBP-001 | 已完成 | 通过 | 基线、Trace、负载夹具 |
 | 2 | MBR-001 | 已完成 | 本地通过 | 播放终止、停止失败、Zone 确认、旧队列与键盘正确性 |
 | 3 | MBP-002 | 已完成 | 本地通过 | 只读取消、截止期限、共享读取、导航和加载状态 |
-| 4 | MBR-002 | 实施中 | 首轮失败，重新验收 | 录音未知回执恢复、SSH 探测关闭、Control API 防护 |
+| 4 | MBR-002 | 已完成 | 本地通过 | 录音未知回执恢复、SSH 探测关闭、Control API 防护 |
 | 5 | MBP-003A | 待开始 | 未执行 | 短状态处理与优先控制；属于 MBP-003 的第一步 |
 | 6 | MBP-004 | 待开始 | 未执行 | Roon 详情真分页与原始游标 |
 | 7 | MBP-003B | 待开始 | 未执行 | Core 持有上下文，先播并按需补队列 |
@@ -72,7 +72,7 @@ MBR-001 远端固定 37fe2d2：verify 作业通过，Electron E2E 工作流通�
 - [x] 从 MBP-002 报告 HEAD 创建独立分支，保留原无关未跟踪目录。
 - [x] 只读预检确认：终态未静止却放行、Begin 在途历史切换、SSH 探测失去关闭所有权、Control 来源/请求预算缺口。
 - [x] 原 commandId + 完整请求 + Dataset 的只读回执合同与 IPC 已接入；合同 14/14、Main/Preload/SSH 首轮 24/24；等待固定实现全量验收。
-- [ ] 软件关闭证明、失败后精确停止恢复与 Renderer 离页/历史锁。
+- [x] 软件关闭证明、失败后精确停止恢复与 Renderer 离页/历史锁，定向与全量均通过。
 - [x] SSH 探测和子进程取消、确认退出与有界资源保留；独立代码复审通过，合成测试与 Control 合计 27/27。
 - [x] Control API Host/Origin、JSON 与请求/停止预算；仅隔离 loopback 验证，未连接真实服务。
 - [ ] 固定实现原全量 Gate、独立报告和开发分支 push。
@@ -84,3 +84,5 @@ MBR-001 远端固定 37fe2d2：verify 作业通过，Electron E2E 工作流通�
 七项失败的修正已冻结：原 formal-provider 三项与 output-recovery 一项断言未改；安全 pre-spawn 拒绝保留失败 Attempt/barrier，只有精确关闭证明和有效输入释放才解除资源锁。历史缺静止证明夹具在 Begin 前构造旧 store 路径，不修改已写事实；主流程继续检查原回执不可变、旧 revision 拒绝及最新状态冷启一致。新固定提交将重跑原完整 verify 与 Electron 范围。
 
 MBP-002 固定报告 `f672c9f` 的远端后续结果：verify 作业通过、security 工作流通过；verify 工作流仍因 dependency-audit 失败（11 moderate / 7 high）。Electron E2E 为 103 通过、4 原条件跳过、1 失败（v5 的 Core crash marker）；原始日志与测试产物已保存，但未保留进程实际输出，无法确认本次失败的唯一原因。独立内存复现确认固定 1 秒采样和迟装 stdout 监听存在竞态；本轮已修正并保留双崩溃、只重启一次、真实关闭与退出码断言，相关 unit 27/27，仍待完整 Electron 验证。
+
+MBR-002 最终固定实现 `200da19`：完整 verify 224 / 1648+原2跳过 / 975、三包生产构建，mock Electron4/4，原完整E2E104通过+原4跳过，均exit0。827源码Gate前后指纹一致；v5 Core crash 用例本次本地通过。独立报告与证据已保存，完成报告提交及开发分支push后立即接续MBP-003A。远端CI与真实设备仍单列，不扩大本地通过结论。
