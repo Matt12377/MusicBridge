@@ -207,3 +207,5 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 005独立完整R1累计6个P2根因：NET三项及Renderer owner回拨、account恢复、searchDetail后台loading/error遮住已有歌曲。NET三项已实际7RED→7GREEN，最终62/62与strict0，五文件新Hash核对一致；Renderer前三修已3RED→3GREEN，最后详情table/notice/retry收尾。之后只第二轮直接影响复核，不追加第三轮。
 
 005 R1的6个P2补修已最终冻结：Root13/Roon4/NET5/Renderer13，共35文件Hash全匹配。NET62/62、Renderer144/144、Roon128/128与隔离严格类型exit0；NET时钟/LRU/真实header和Renderer恢复/账户重载/实际搜索详情模板均有实际RED→GREEN。现在固定实现后进行一次R2及原完整Gate，总计仍7/11，不将作者定向升级为验收。
+
+005两轮独立审计结束：原独立RED12次执行全GREEN，指定35文件无剩余确认P1/P2。首个固定ceb7ccb原完整verify退出1：Contracts250、Core1877+原2skip通过，Desktop1112通过/2旧静态case失败，未到最终构建。cachedArtists误匹配Dart及旧搜索调用/allSettled文字失配已由Root仅修一test文件，运行时禁入、query、分区catch/publish保护保留；35/35退出0。不改已审生产、不做第三轮，重新固定后原全量重跑，总计仍7/11。独立direct Fake曾设置工程不识别的旧KEYCHAIN变量，报告已校正；未触真实钥匙串，不作为mock模式验收，Root标准runner实际TEST变量。

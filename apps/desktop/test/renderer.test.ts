@@ -229,7 +229,10 @@ test('Renderer uses the clean-room player landmarks without importing the refere
     assert.match(source, new RegExp(landmark))
   }
   assert.match(source, /data-ui-reference=["']simple-music-player-2["']/)
-  assert.doesNotMatch(source, /flutter|dart|pocketbase|download-manager/i)
+  // 按完整运行时名称匹配，不能把 cachedArtists 中的 dArt 误判为 Dart。
+  const referenceRuntime = /\b(?:flutter|dart|pocketbase|download-manager)\b/i
+  for (const forbidden of ["import 'flutter'", "import('dart:ffi')", "import PocketBase from 'pocketbase'", "import 'download-manager'"]) assert.match(forbidden, referenceRuntime)
+  assert.doesNotMatch(source, referenceRuntime)
   // V3 可以说明 Core 的转换器身份，但 Renderer 不得引入转换器运行时。
   const converterImport = /(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"][^'"]*ffmpeg[^'"]*['"]/i
   for (const forbidden of ["import '@ffmpeg/ffmpeg'", "import('@ffmpeg/core')", "export { FFmpeg } from '@ffmpeg/ffmpeg'", "require('fluent-ffmpeg')"]) assert.match(forbidden, converterImport)
@@ -415,9 +418,12 @@ test('V1 Search is an artist, track and album flow without playlist results', as
     assert.match(app, new RegExp(label))
   }
   assert.match(aggregatedSearch, /createSearchSnapshotLoader/)
-  assert.match(aggregatedSearch, /searchSnapshotLoader\.load\(query\)/)
+  assert.match(aggregatedSearch, /searchSnapshotLoader\.load\(query(?:\)|,\s*\{)/)
+  assert.match(aggregatedSearch, /onSection:\s*publication\s*=>/)
   assert.match(app, /searchArtists|search-albums/)
-  assert.match(search, /Promise\.allSettled/)
+  assert.match(search, /Promise\.all\(/)
+  assert.match(search, /catch \(error\) \{\s*result = \{ state: 'error', message: errorMessage\(error\)/)
+  assert.match(search, /publish\(\{ query, section: kind, result \}/)
   assert.match(search, /stale/)
   assert.match(contracts, /ArtistSummary/)
   assert.match(contracts, /AlbumSummary/)

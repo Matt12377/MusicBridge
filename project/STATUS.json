@@ -2671,7 +2671,8 @@
       "focused": "RootContracts250-Registry21-Transport21-crossLayer3; Roon128; Netease62; Renderer144; isolatedStrict-PASS",
       "remoteCI": "NOT_PUSHED",
       "realMacRoon": "NOT_RUN",
-      "realRecording": "NOT_RUN"
+      "realRecording": "NOT_RUN",
+      "firstVerify": "FAIL-exit1-contracts250-core1877-original2skip-desktop1112-two-static-fail-not-built"
     },
     "realMacRoonAcceptance": "NOT_RUN",
     "realRecordingAcceptance": "NOT_RUN",
@@ -2718,7 +2719,7 @@
       "remoteElectronE2ERun": 36821212886,
       "remoteElectronE2EResult": "PASS"
     },
-    "pendingGate": "35个源码/测试文件R1补修最终冻结：NET62、Renderer144、Roon128；待指定一次R2与固定原全量Gate",
+    "pendingGate": "R2六P2闭合，35源文件无剩余确认P1/P2；首全量verify仅两旧静态case失配，一test文件Root修复35/35后重新冻结原全量Gate",
     "automaticAcceptanceScope": "local-standard-software-gates",
     "baseCommit": "a0c9cd7c1030c380263fa4394f73c5b802ec5f23",
     "reportCommitResolution": null,
