@@ -2654,15 +2654,15 @@
     "nextBranchBase": "最终报告提交 HEAD；不作为下一任务放行"
   },
   "performanceOptimization20261001": {
-    "state": "report-delivery-pending",
+    "state": "software-completed-real-acceptance-pending",
     "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol xhigh，最多3名，必要时独立审计测试",
     "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
     "branch": "codex/mbp-009-acceptance",
     "currentTask": "MBP-009",
     "plan": "project/PERFORMANCE_PLAN.json",
     "todo": "project/PERFORMANCE_TODO.md",
-    "implementationComplete": 10,
-    "automaticAcceptanceComplete": 10,
+    "implementationComplete": 11,
+    "automaticAcceptanceComplete": 11,
     "taskCount": 11,
     "implementationCommit": "862876a1d4cd21e77a48a283b873d2b28094717a",
     "checks": {
@@ -2937,7 +2937,12 @@
           ],
           "reportSha256": "1c5daf75bf84392cde0a47182a4f12cbd3dfb97d3ec2e2affc546948b4b044d7"
         }
-      }
+      },
+      "sourceCIImplementationCommit": "862876a1d4cd21e77a48a283b873d2b28094717a",
+      "reportPreparationCommit": "1e2c612",
+      "sourcePushActualExit": 0,
+      "sourceRemoteHeadVerified": "862876a1d4cd21e77a48a283b873d2b28094717a",
+      "finalSourceFingerprint": "898/dd07d75f6b7b3e1e7beb92dfc66c2cac1a68aab994c7d3b9d479fad0ac535e8b"
     },
     "realMacRoonAcceptance": "NOT_RUN",
     "realRecordingAcceptance": "NOT_RUN",
@@ -2955,7 +2960,7 @@
       "remoteSourceCI": "Linux verify/security/macElectron PASS，dependency-audit FAIL11moderate8high",
       "report": "reports/MBP-008_COLLECTION_BATCH.md"
     },
-    "pendingGate": "独立报告提交、交付状态及最终开发分支push/远端HEAD",
+    "pendingGate": "软件门禁与固定源码CI均通过；真实Roon/录音、系统钥匙串/GateB/P4/P5/Owner验收未执行",
     "automaticAcceptanceScope": "local-standard-software-gates",
     "baseCommit": "6ac36f63ca044d74c838768a2f68490541d22647",
     "reportCommitResolution": "commit-containing-reports/MBP-009_ACCEPTANCE.md",
@@ -2968,7 +2973,7 @@
         "gpt-6-sol"
       ]
     },
-    "reportCommit": null,
+    "reportCommit": "f97eb9abc85924c2a661f76c56e26ae27b13d261",
     "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-009-root-d9sa4fiu",
     "carryoverDependencyAudit": {
       "lastVerifiedReport": "77901d5b553cf782e3943f3027957884928212c7",
@@ -2981,6 +2986,9 @@
       "reports/MBP-009_ACCEPTANCE.md",
       "reports/MBP-009_EVIDENCE.json"
     ],
-    "remoteSourceCI": "862876a原verify/audit/security/macOS全部SUCCESS；E2E104+原4skip/0fail/flaky，原日志和两份最终ZIP已封存"
+    "remoteSourceCI": "862876a原verify/audit/security/macOS全部SUCCESS；E2E104+原4skip/0fail/flaky，原日志和两份最终ZIP已封存",
+    "deliveryCommitResolution": "git-log-last-commit-touching-project/PERFORMANCE_PLAN.json",
+    "nextBranchBaseResolution": "final-development-delivery-HEAD-no-new-task-authorization",
+    "finalDeliveryReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-009-root-d9sa4fiu/FINAL_DELIVERY_RECEIPT.json"
   }
 }

@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
-  "state": "active",
+  "state": "software-completed-real-acceptance-pending",
   "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol xhigh，最多3名，必要时独立审计测试",
   "currentTask": "MBP-009",
-  "implementationComplete": 10,
-  "automaticAcceptanceComplete": 10,
+  "implementationComplete": 11,
+  "automaticAcceptanceComplete": 11,
   "taskCount": 11,
   "realMacRoonAcceptance": "NOT_RUN",
   "realRecordingAcceptance": "NOT_RUN",
@@ -245,9 +245,9 @@
         "MBP-008",
         "MBR-002"
       ],
-      "state": "report-delivery-pending",
+      "state": "software-gates-passed",
       "implementationCommit": "862876a1d4cd21e77a48a283b873d2b28094717a",
-      "reportCommit": null,
+      "reportCommit": "f97eb9abc85924c2a661f76c56e26ae27b13d261",
       "evidence": [
         "reports/MBP-009_ACCEPTANCE.md",
         "reports/MBP-009_EVIDENCE.json"
@@ -272,7 +272,9 @@
       "searchScopeCorrection": "bc原完整本地actual0/104+4；远端mac一绿104+4、一红103+4+1（合法底栏与搜索列表曲名重复），两份原始结果和失败ZIP保留；单行限定搜索table且严格exact/visible不变，受控两元素RED1→GREEN0；8f77a4e新固定原全量重跑中",
       "archiveReadinessCorrection": "阶段FINALIZED后仍巡检；seed改为phase完成+active false+issue null，主流程完整冷启深相等保留。受控coordinator RED1→GREEN0，原主流程Electron定向1/1实际0；基线6ac至8f相关四文件逐字相同，失败原ZIP/JSON/日志保留。",
       "reportCommitResolution": "commit-containing-reports/MBP-009_ACCEPTANCE.md",
-      "report": "reports/MBP-009_ACCEPTANCE.md"
+      "report": "reports/MBP-009_ACCEPTANCE.md",
+      "deliveryCommitResolution": "git-log-last-commit-touching-project/PERFORMANCE_PLAN.json",
+      "finalDeliveryReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-009-root-d9sa4fiu/FINAL_DELIVERY_RECEIPT.json"
     }
   ],
   "implementationCommit": "862876a1d4cd21e77a48a283b873d2b28094717a",
@@ -287,5 +289,8 @@
     "forbiddenModels": [
       "gpt-6-sol"
     ]
-  }
+  },
+  "reportCommit": "f97eb9abc85924c2a661f76c56e26ae27b13d261",
+  "deliveryCommitResolution": "git-log-last-commit-touching-project/PERFORMANCE_PLAN.json",
+  "nextBranchBaseResolution": "final-development-delivery-HEAD-no-new-task-authorization"
 }

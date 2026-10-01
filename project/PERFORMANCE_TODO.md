@@ -1,8 +1,8 @@
 # MusicBridge 性能与正确性实施进度
 
-**实现完成：10/11 · 本地软件验收：10/11 · 真实 Mac/Roon：未执行**
+**实现完成：11/11 · 本地软件验收：11/11 · 固定源码远端 CI：通过 · 真实 Mac/Roon：未执行**
 
-当前任务：**MBP-009 — 全量验收与依赖安全收口**。基线 `6ac36f6`，分支 `codex/mbp-009-acceptance`。
+最终任务：**MBP-009 — 软件验收完成，开发分支交付收尾**。基线 `6ac36f6`，分支 `codex/mbp-009-acceptance`。
 
 本计划已获 Owner 授权连续实施。技术栈保留 Electron、Vue、Node/TS；真实播放、设备录音、main 合并、正式 App 替换和发布分别记录，不由软件测试代替。
 
@@ -37,7 +37,7 @@ MBP-001 远端已结束：security 通过，verify/Electron E2E 失败。本地�
 | 9 | MBP-005 | 已完成 | 本地通过 | 作用域缓存、网易云歌单快照、渐进搜索 |
 | 10 | MBP-007 | 已完成 | 本地通过 | 虚拟网格、封面竞态修复和资源预算 |
 | 11 | MBP-008 | 已完成 | 本地通过 | 批量 SQL、进度匹配与历史预算热点；worker 按测量决定 |
-| 12 | MBP-009 | 开发中 | 未完成 | 接口收口、全量回归、性能对照与实机验收记录 |
+| 12 | MBP-009 | 已完成 | 本地及固定源码CI通过 | strict、依赖安全、原全量回归、兼容与证据收口；真实验收另列 |
 
 MBP-003 只有 A/B 都完成并验收才计为一个完成任务。每个完成项绑定固定实现 SHA、报告、退出码和证据；没有证据不勾选。所有 Gate 保持原有范围，不新增 skip。
 
@@ -349,7 +349,7 @@ MBP-008软件收尾：10/11。固定77901d5新远端Linux verify254/Core1948+原
 - [x] 合成loopback HTTP28项/39请求、FTP6组件及parser/CJS4组断言，均actual0；资源关闭、自然退出、源和依赖指纹一致。
 - [x] 固定源码verify254/Core1948+原2skip/Desktop1219及三包构建、security29、mock4、原high audit、静态372文件，实际退出均0。
 - [x] 固定862876a原108 Electron E2E与全部远端原作业终态；本地及远端104+原4skip/0fail/flaky，旧399/bc/8f失败证据保留。
-- [ ] 独立实现/报告commit、开发分支push与远端HEAD，软件范围11/11；真实范围仍另列。
+- [x] 独立实现与最终报告commit，固定源码开发分支push/HEAD已核；交付状态提交按finalDeliveryReceipt核对最终push/HEAD。软件范围11/11，真实范围另列。
 
 009固定实现 `399d5a6`：原完整v1 strict before30诊断/actual2→after0诊断/actual0，18include保留原17；3条实际依赖边/lock最小结构delta校验通过，原XLSX校验值恢复保留。真实loopback兼容与原全量Gate开始，仍10/11。
 
@@ -368,3 +368,5 @@ MBP-008软件收尾：10/11。固定77901d5新远端Linux verify254/Core1948+原
 862876a本地最终原9门禁均actual0：verify254/Core1948+原2skip/Desktop1219、security29、mock4、原108 E2E104+原4skip/0fail/flaky，high0/critical0/6moderate，静态Gate通过。最终JSON已独立封存；源码898前后dd07d75f…一致。远端Linux verify/audit/security SUCCESS，macOS仍运行。报告/push待齐，保持10/11。
 
 862876a同SHA远端最终原verify/audit/security/macOS全部SUCCESS：Linux254/1948+原2skip/1219，security29，macstartup4及108 E2E104+原4skip/0fail/flaky。最终原日志/两份ZIP独立摘要校验及JSON原skip逐名核对通过；独立报告和最终开发分支push收尾中，完成后软件11/11，真实验收继续未执行。
+
+最终软件结果11/11：实现862876a，最终报告f97eb9abc85924c2a661f76c56e26ae27b13d261；本地原9门禁和同源码全部远端CI通过。最终开发分支交付HEAD由project状态的deliveryCommitResolution解析，实际非forcepush/远端HEAD/tracked clean/报告SHA/源码不变核对保存在FINAL_DELIVERY_RECEIPT.json。原无关WIP保留。6moderate、真实Roon/录音、系统钥匙串、GateB/P4/P5/Owner验收未执行边界不变；main/正式App/发布未执行。
