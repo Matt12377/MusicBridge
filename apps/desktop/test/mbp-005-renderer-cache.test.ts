@@ -174,9 +174,8 @@ test('MBP005：搜索新query迟到旧分区不发布，健康艺人不被失败
   old.resolve(page('迟到旧查询歌曲') as typeof empty); await turn(); assert.equal(search.searchPage.value.items[0]?.id, '新查询歌曲')
 })
 
-import { writeFile } from 'node:fs/promises'
 import { useRoonBrowse } from '../src/renderer/src/composables/application/useRoonBrowse.js'
-test('MBP005：50/500/5000合成条目逐页读取，pool只留最多8窗口页并报告精确bytes', async () => {
+test('MBP005：50/500/5000合成条目逐页读取，pool只留最多8窗口页并报告精确bytes', async t => {
   const retained: Array<{ inputItems: number; pages: number; bytes: number; retainedItems: number }> = []
   for (const count of [50, 500, 5000]) {
     const cache = createLibraryPageCache(), keys = []
@@ -188,7 +187,7 @@ test('MBP005：50/500/5000合成条目逐页读取，pool只留最多8窗口页�
     assert.equal(stats.pages, Math.min(8, Math.ceil(count / 24))); assert.ok(stats.bytes <= 8 * 1024 * 1024); assert.equal(retainedItems, count === 50 ? 50 : count % 24 + 7 * 24)
     retained.push({ inputItems: count, ...stats, retainedItems }); cache.dispose()
   }
-  await writeFile('/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-005-renderer-high-Kn2TPa/retained-pool-counts.json', JSON.stringify({ note: '纯值pool页与UTF8序列化bytes，不是RSS或实际设备数据', retained }, null, 2))
+  t.diagnostic(JSON.stringify({ note: '纯值pool页与UTF8序列化bytes，不是RSS或实际设备数据', retained }))
 })
 test('MBP005：真实browse父详情返回保留累计页与handle，fresh不重读，scope变更拒恢复', async t => {
   const cache = createLibraryPageCache(), offsets: number[] = []; let scope = 'scope-a'
@@ -261,11 +260,13 @@ test('MBP005 R1：真实App account.changed清私有值后恢复列表且不重�
     getDailyRecommendations: async () => { dailyCalls++; return { dayKey: '2026-10-01', tracks: [] } } })
   t.after(() => library.dispose()); library.applyAuthState({ status: 'authorized' }); await turn(); assert.equal(likedCalls, 1); assert.equal(playlistCalls, 1); assert.equal(accountCalls, 1)
   const script = ts.transpileModule(`let pageCacheEpoch=0; ${invalidate}; return event => { ${branch} }`, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } }).outputText
-  const execute = new Function('pageCache', 'netease', 'journey', 'playback', 'recentTracks', 'applyAccountState', 'search', 'currentView', script)(
-    createLibraryPageCache(), library, { resetPrivatePath() {} }, { invalidateCollectionOperation() {} }, ref([]), library.applyAccountState, { invalidateAccountScope() {}, resume() {} }, ref('liked')) as (event: unknown) => void
+  const scopeEpoch = ref(0); let artworkInvalidations = 0
+  const execute = new Function('pageCache', 'netease', 'journey', 'playback', 'recentTracks', 'applyAccountState', 'search', 'currentView', 'roonGridScopeEpoch', 'roonArtworkCache', script)(
+    createLibraryPageCache(), library, { resetPrivatePath() {} }, { invalidateCollectionOperation() {} }, ref([]), library.applyAccountState, { invalidateAccountScope() {}, resume() {} }, ref('liked'), scopeEpoch, { clear() { artworkInvalidations++ } }) as (event: unknown) => void
   execute({ event: 'account.changed', payload: { state: { status: 'ready', profile: { userId: '合成用户', displayName: '合成账户' } } } }); await turn()
   assert.equal(likedCalls, 2); assert.equal(playlistCalls, 2); assert.equal(library.likedPage.value.items[0]?.id, '恢复的喜欢'); assert.equal(library.playlists.value[0]?.name, '恢复的歌单')
   assert.equal(accountCalls, 1, '可信profile事件恢复数据时不得再读profile触发反馈'); assert.equal(dailyCalls, 2, '沿applyAccountState原逻辑刷新一次daily，恢复函数不再重复')
+  assert.equal(scopeEpoch.value, 1, '身份轮转同步废弃旧收藏解析作用域'); assert.equal(artworkInvalidations, 1, '身份轮转同步清旧图片租期，不由迟到回执重放')
 })
 
 test('MBP005 R1：collection恰在0/29999ms为fresh，30000ms恢复重采', async t => {

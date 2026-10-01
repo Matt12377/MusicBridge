@@ -15,12 +15,14 @@ const props = withDefaults(defineProps<{
 })
 
 const failed = ref(false)
+const imageElement = ref<HTMLImageElement | null>(null)
 
 watch(() => props.src, () => {
   failed.value = false
 })
 
-function onError(): void {
+function onError(event: Event): void {
+  if (event.currentTarget !== imageElement.value || imageElement.value?.getAttribute('src') !== props.src) return
   failed.value = true
 }
 </script>
@@ -28,6 +30,6 @@ function onError(): void {
 <template>
   <span class="safe-artwork" :class="$attrs.class">
     <span class="artwork-fallback" aria-hidden="true">{{ props.fallback }}</span>
-    <img v-if="props.src && !failed" :src="props.src" :alt="props.alt" :loading="props.loading" @error="onError" />
+    <img v-if="props.src && !failed" :key="props.src" ref="imageElement" :src="props.src" :alt="props.alt" :loading="props.loading" @error="onError" />
   </span>
 </template>

@@ -10,7 +10,7 @@ async function mounted(t: test.TestContext, name: 'SearchEntities' | 'LibraryRef
   const script = compileScript(descriptor, { id: 'mbp005-ui', inlineTemplate: true })
   const compiled = ts.transpileModule(script.content, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
   const entities = await import('../src/renderer/src/composables/search-entities.js')
-  const load = (path: string) => path === 'vue' ? vue : path.includes('search-entities') ? entities : path.endsWith('.vue') ? { default: { render: () => null } } : require(path)
+  const load = (path: string) => path === 'vue' ? vue : path.includes('search-entities') ? entities : path.endsWith('.vue') ? { default: { render: () => null } } : path.startsWith('.') ? require(new URL(path, new URL('../src/renderer/src/components/', import.meta.url)).pathname) : require(path)
   let intersect: (() => void) | undefined
   class Observer { constructor(callback: (entries: Array<{ isIntersecting: boolean }>) => void) { intersect = () => callback([{ isIntersecting: true }]) } observe() {} disconnect() {} }
   const component = { exports: {} as { default: import('vue').Component } }

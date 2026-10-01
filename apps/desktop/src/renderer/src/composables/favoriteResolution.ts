@@ -1,5 +1,7 @@
 import type { FavoriteRecord, PageRequest, RoonLibraryItem, RoonLibraryPage, FavoriteKind } from '@music-bridge/contracts'
 
+import { assertRoonPageEpoch, nextRoonPageOffset } from './roonLibraryPagination.js'
+
 const normalized = (value?: string): string => (value ?? '').normalize('NFKC').trim().toLocaleLowerCase()
 
 // 收藏保存描述，不保存跨 Core 会话失效的 Browse 引用；每次进入从当前资料库恢复引用。
@@ -27,15 +29,23 @@ export async function resolveFavorite(
   const matches = new Map<string, RoonLibraryItem>()
   try {
     if (record.kind === 'track' && record.album && albumTracks) {
-      let scannedTracks = 0
-      for (let offset = 0; offset < 1000 && active(); offset += 100) {
+      let scannedTracks = 0, albumPage: RoonLibraryPage | undefined
+      let offset = 0
+      for (let scan = 0; scan < 10 && active(); scan++) {
         const albums = await search(record.album.slice(0, 128), { offset, limit: 100 }, 'album')
         if (!active()) return { state: 'error', message: '读取已取消' }
+        if (albums.offset !== offset) throw new Error('分页响应异常')
+        if (albumPage) assertRoonPageEpoch(albumPage, albums)
+        albumPage = albums
         for (const album of albums.items) {
           if (normalized(album.title) !== normalized(record.album)) continue
-          for (let trackOffset = 0; trackOffset < 1000 && active(); trackOffset += 100) {
+          let trackOffset = 0, previousTracks: RoonLibraryPage | undefined
+          for (let trackScan = 0; trackScan < 10 && active(); trackScan++) {
             const tracks = await albumTracks(album.reference, { offset: trackOffset, limit: 100 })
             if (!active()) return { state: 'error', message: '读取已取消' }
+            if (tracks.offset !== trackOffset) throw new Error('分页响应异常')
+            if (previousTracks) assertRoonPageEpoch(previousTracks, tracks)
+            previousTracks = tracks
             scannedTracks += tracks.items.length
             if (scannedTracks > 1000) return { state: 'error', message: '同名专辑结果过多，请到本地搜索选择' }
             for (const track of tracks.items) {
@@ -43,7 +53,8 @@ export async function resolveFavorite(
               if (matchesFavorite(record, enriched)) matches.set(track.reference, enriched)
             }
             if (!tracks.hasMore) break
-            if (trackOffset === 900) return { state: 'error', message: '专辑曲目过多，请从专辑详情选择' }
+            trackOffset = nextRoonPageOffset(tracks)
+            if (trackScan === 9) return { state: 'error', message: '专辑曲目过多，请从专辑详情选择' }
           }
         }
         if (matches.size > 1) return { state: 'ambiguous', message: '存在多个同名版本，请到本地搜索选择' }
@@ -51,19 +62,26 @@ export async function resolveFavorite(
           const item = [...matches.values()][0]
           return item ? { state: 'ready', item } : { state: 'missing', message: '当前资料库未找到，收藏仍保留' }
         }
+        offset = nextRoonPageOffset(albums)
       }
       return { state: 'error', message: '读取未完成，请重试或从专辑详情选择' }
     }
     // 有界串行分页，未完成扫描不把第一条同名结果当作唯一匹配。
-    for (let offset = 0; offset < 1000 && active(); offset += 100) {
+    let offset = 0, previousPage: RoonLibraryPage | undefined, scannedItems = 0
+    for (let scan = 0; scan < 10 && active(); scan++) {
       const page = await search(record.title.slice(0, 128), { offset, limit: 100 }, record.kind)
       if (!active()) return { state: 'error', message: '读取已取消' }
+      if (page.offset !== offset) throw new Error('分页响应异常')
+      if (previousPage) assertRoonPageEpoch(previousPage, page)
+      previousPage = page; scannedItems += page.items.length
+      if (scannedItems > 1000) return { state: 'error', message: '结果过多，请重试或缩小搜索范围' }
       for (const item of page.items) if (matchesFavorite(record, item)) matches.set(item.reference, item)
       if (matches.size > 1) return { state: 'ambiguous', message: '存在多个同名版本，请到本地搜索选择' }
       if (!page.hasMore) {
         const item = [...matches.values()][0]
         return item ? { state: 'ready', item } : { state: 'missing', message: '当前资料库未找到，收藏仍保留' }
       }
+      offset = nextRoonPageOffset(page)
     }
     return { state: 'error', message: '结果过多或读取已取消，请重试或缩小搜索范围' }
   } catch {

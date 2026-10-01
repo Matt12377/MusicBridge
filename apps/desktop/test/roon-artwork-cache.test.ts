@@ -3,7 +3,7 @@ import test from 'node:test'
 
 import { createRoonArtworkCache } from '../src/renderer/src/roon-artwork-cache.js'
 
-const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46])
+const JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, 1, 0, 1, 0, 3, 1, 17, 0, 2, 17, 0, 3, 17, 0, 0xff, 0xd9])
 
 test('Renderer artwork cache 去重同图同尺寸请求并复用已解码 URL', async () => {
   let fetchCalls = 0

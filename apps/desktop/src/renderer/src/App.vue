@@ -28,6 +28,7 @@ import SearchTrackPreview from './components/SearchTrackPreview.vue'
 import RoonAlbumGrid from './components/RoonAlbumGrid.vue'
 import RoonEntityGrid from './components/RoonEntityGrid.vue'
 import FavoriteEntityGrid from './components/FavoriteEntityGrid.vue'
+import NeteasePlaylistGrid from './components/NeteasePlaylistGrid.vue'
 import { nextRoonPageOffset } from './composables/roonLibraryPagination.js'
 import RoonAlbumDetail from './components/RoonAlbumDetail.vue'
 import RoonBrowseDetail from './components/RoonBrowseDetail.vue'
@@ -123,8 +124,11 @@ const toastMessage = ref<string | null>(null)
 
 const pageCache = createLibraryPageCache()
 let pageCacheEpoch = 0
+const roonGridScopeEpoch = ref(0)
 function invalidatePageCaches(): void {
   pageCacheEpoch++; pageCache.clear()
+  roonGridScopeEpoch.value++
+  roonArtworkCache.clear()
   // scope 已轮转：同步结束旧私有读取，保留当前目标供原恢复链续读。
   netease.resetAuthorizedLoadStarted()
 }
@@ -363,7 +367,6 @@ function resetRoonRuntimeReferences(): void {
   journey.resetRoonPath()
   playback.resetRoonSession()
   search.invalidateRoonScope()
-  roonArtworkCache.clear()
 }
 
 function publicErrorCode(error: unknown): string | undefined {
@@ -1032,6 +1035,7 @@ onUnmounted(() => {
           </div>
           <FavoriteEntityGrid
             :key="favoriteResolutionEpoch"
+            :scope-key="String(roonGridScopeEpoch)"
             :page="favoritesPage"
             :kind="favoriteKind"
             :initial-loading="favoritesInitialLoading"
@@ -1224,7 +1228,7 @@ onUnmounted(() => {
           <div class="view-heading"><div><p class="section-kicker">资料库</p><h2 id="playlists-heading">所有歌单</h2><p class="lede">你的网易云歌单直接来自当前 Provider 数据。</p></div></div>
           <p v-if="playlistState === 'error'" class="persistent-error">歌单暂时无法加载，请从侧栏歌单区域重试。</p>
           <LibraryRefreshNotice :message="netease.playlistListRefreshError.value" @retry="netease.loadPlaylists()" />
-          <div class="playlist-grid"><div v-if="playlistState === 'loading'" class="empty-state"><p>读取歌单…</p></div><div v-else-if="!playlists.length" class="empty-state"><h3>还没有歌单</h3><p>歌单会在网易云可用后出现在这里。</p></div><button v-for="playlist in playlists" v-else :key="playlist.id" type="button" class="playlist-card" @click="navigateSource({ type: 'playlist', playlistId: playlist.id })"><SafeArtwork class="playlist-art" :src="playlist.artworkUrl" alt="" fallback="♫" /><span><strong>{{ playlist.name }}</strong><small>{{ playlist.trackCount }} 首歌曲</small></span><b aria-hidden="true">→</b></button></div>
+          <NeteasePlaylistGrid :playlists="playlists" :loading="playlistState === 'loading'" @select="playlist => navigateSource({ type: 'playlist', playlistId: playlist.id })" />
         </section>
 
         <section v-else-if="currentView === 'playlist-detail'" class="view view-playlist" aria-labelledby="playlist-heading">

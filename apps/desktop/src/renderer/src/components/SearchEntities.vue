@@ -4,6 +4,8 @@ import type { AlbumSummary, ArtistSummary, RoonLibraryItem } from '@music-bridge
 import { groupSearchArtists, mixSearchAlbums } from '../composables/search-entities'
 import SafeArtwork from './SafeArtwork.vue'
 import RoonArtwork from './RoonArtwork.vue'
+import { useGridArtworkRetry } from '../composables/useGridArtworkRetry.js'
+import { useGridWindow } from '../composables/useGridWindow.js'
 
 const props = defineProps<{
   mode: 'all' | 'albums' | 'artists'
@@ -71,6 +73,11 @@ watch(() => [props.mode, props.albums.length, props.artists.length, props.roonAl
   props.albumsLoading, props.artistsLoading, props.roonLoading, props.albumsError, props.artistsError, props.roonError, props.roonAlbumsLoading, props.roonArtistsLoading, props.roonAlbumsError, props.roonArtistsError],
   () => void nextTick(observeMore))
 onUnmounted(() => observer?.disconnect())
+const artistGridRoot = ref<HTMLElement | null>(null), albumGridRoot = ref<HTMLElement | null>(null)
+const artistGrid = useGridWindow(visibleArtists, artistGridRoot, { enabled: () => props.mode !== 'all' })
+const albumGrid = useGridWindow(visibleAlbums, albumGridRoot, { enabled: () => props.mode !== 'all' })
+const artistArtworkRetry = useGridArtworkRetry(computed(() => artistGrid.rendered.value.map(entry => entry.item)), item => item.key)
+const albumArtworkRetry = useGridArtworkRetry(computed(() => albumGrid.rendered.value.map(entry => entry.item)), item => item.key)
 </script>
 
 <template>
@@ -80,14 +87,15 @@ onUnmounted(() => observer?.disconnect())
     <p v-if="roonArtistsError" class="persistent-error">{{ roonArtistsError }}</p>
     <p v-if="artistsError" class="persistent-error">{{ artistsError }}</p>
     <p v-if="artistsLoading || artistRoonLoading" role="status">正在搜索艺人…</p>
-    <div v-if="artists.length" class="search-card-grid search-card-grid-artists" role="list">
-      <div v-for="artist in visibleArtists" :key="artist.key" class="search-artist-card unified-artist" role="listitem">
+    <div v-if="artists.length" ref="artistGridRoot" v-bind="artistGrid.attrs.value" :style="artistGrid.rootStyle.value" @focusin="artistGrid.onFocusIn" @focusout="artistGrid.onFocusOut" @keydown="artistGrid.onKeydown" class="search-card-grid search-card-grid-artists" role="list">
+      <div v-for="{ item: artist, index, style } in artistGrid.rendered.value" :data-grid-index="index" :style="style ?? { position: 'relative' }" :key="artist.key" class="search-artist-card unified-artist" role="listitem">
         <button class="artist-primary" type="button" :aria-label="`打开 ${artist.name}`" @click="artist.roon ? emit('roon', artist.roon) : artist.netease && emit('artist', artist.netease)">
           <SafeArtwork v-if="artist.netease?.artworkUrl" class="search-artist-art" :src="artist.netease.artworkUrl" :alt="artist.name" />
-          <RoonArtwork v-else-if="artist.roon" class="search-artist-art" :reference="artist.roon.artworkReference ?? artist.roon.reference" :alt="artist.name" />
+          <RoonArtwork v-else-if="artist.roon" :external-retry="true" :onRetryAction="artistArtworkRetry.handler(artist)" class="search-artist-art" :reference="artist.roon.artworkReference ?? artist.roon.reference" :alt="artist.name" />
           <SafeArtwork v-else class="search-artist-art" :alt="artist.name" />
           <strong>{{ artist.name }}</strong>
         </button>
+        <button v-if="artistArtworkRetry.available(artist)" type="button" class="secondary-button" :style="{ position: 'absolute', top: '8px', right: '8px', zIndex: 3 }" aria-label="重试读取封面" @click="artistArtworkRetry.run(artist, $event)">重试封面</button>
         <div class="artist-sources">
           <button v-if="artist.roon" type="button" class="text-button" :aria-label="`${artist.name} · Roon 艺人详情`" @click="emit('roon', artist.roon)">Roon</button>
           <button v-if="artist.netease" type="button" class="text-button" :aria-label="`${artist.name} · 网易云艺人详情`" @click="emit('artist', artist.netease)">网易云</button>
@@ -105,17 +113,17 @@ onUnmounted(() => observer?.disconnect())
     <p v-if="roonAlbumsError" class="persistent-error">{{ roonAlbumsError }}</p>
     <p v-if="albumsError" class="persistent-error">{{ albumsError }}</p>
     <p v-if="albumsLoading || albumRoonLoading" role="status">正在搜索专辑…</p>
-    <div v-if="albums.length" class="search-card-grid search-card-grid-albums" role="list">
-      <button v-for="album in visibleAlbums" :key="album.key" type="button" class="search-album-card" role="listitem" @click="album.source === 'roon' ? emit('roon', album.item) : emit('album', album.item)">
+    <div v-if="albums.length" ref="albumGridRoot" v-bind="albumGrid.attrs.value" :style="albumGrid.rootStyle.value" @focusin="albumGrid.onFocusIn" @focusout="albumGrid.onFocusOut" @keydown="albumGrid.onKeydown" class="search-card-grid search-card-grid-albums" role="list">
+      <div v-for="{ item: album, index, style } in albumGrid.rendered.value" :data-grid-index="index" :style="style ?? { position: 'relative' }" :key="album.key"><button :style="{ width: '100%', height: '100%' }" type="button" class="search-album-card" role="listitem" @click="album.source === 'roon' ? emit('roon', album.item) : emit('album', album.item)">
         <template v-if="album.source === 'roon'">
-          <RoonArtwork class="search-album-art" :reference="album.item.artworkReference" :alt="album.item.title" />
+          <RoonArtwork :external-retry="true" :onRetryAction="albumArtworkRetry.handler(album)" class="search-album-art" :reference="album.item.artworkReference" :alt="album.item.title" />
           <span><strong>{{ album.item.title }}</strong><small>{{ album.item.artist || album.item.subtitle }}{{ album.item.year ? ` · ${album.item.year}` : '' }}</small><small class="search-source">Roon</small></span>
         </template>
         <template v-else>
           <SafeArtwork class="search-album-art" :src="album.item.artworkUrl" :alt="album.item.name" />
           <span><strong>{{ album.item.name }}</strong><small>{{ album.item.artistName }}</small><small class="search-source">网易云</small></span>
         </template>
-      </button>
+      </button><button v-if="albumArtworkRetry.available(album)" type="button" class="secondary-button" :style="{ position: 'absolute', top: '8px', right: '8px', zIndex: 3 }" aria-label="重试读取封面" @click="albumArtworkRetry.run(album, $event)">重试封面</button></div>
     </div>
     <p v-else-if="!albumsLoading && !albumRoonLoading" class="search-section-empty">没有匹配的专辑</p>
     <div v-if="mode !== 'all'" class="button-row">

@@ -1,4 +1,5 @@
 import type { RoonPlaybackContextLease, RoonPlaybackContextPage } from './playback-context.js';
+import { RoonImageReadOwner } from './image-read-owner.js';
 import { assertLibraryReadCurrent, currentLibraryRead } from '../shared/library-read-lifetime.js';
 import type {
   RoonImageOptions as PublicRoonImageOptions,
@@ -35,6 +36,7 @@ const DEFAULT_MAX_REFERENCE_CACHE_BYTES = 32 * 1024 * 1024;
 const DEFAULT_MAX_IMAGE_CACHE_ENTRIES = 128;
 const DEFAULT_MAX_IMAGE_CACHE_BYTES = 32 * 1024 * 1024;
 const DEFAULT_NEGATIVE_IMAGE_TTL_MS = 3_000;
+const MAX_NEGATIVE_IMAGES = 128;
 
 export interface RoonPublicLibraryOptions {
   /** 只在读取时调用，包含Zone、凭据及组合层关闭代际。 */
@@ -45,6 +47,8 @@ export interface RoonPublicLibraryOptions {
   maxImageCacheEntries?: number;
   maxImageCacheBytes?: number;
   negativeImageTtlMs?: number;
+  /** 私有合成夹具可缩小等待期限；生产固定上限10秒。 */
+  imageReadTimeoutMs?: number;
   now?: () => number;
   onImageShape?: (summary: RoonImageShapeSummary) => void;
 }
@@ -158,6 +162,7 @@ interface CachedImage {
 
 interface NegativeImageEntry {
   error: unknown;
+  bornAt: number;
   expiresAt: number;
 }
 
@@ -382,8 +387,8 @@ export function createRoonPublicLibrary(
   const references = new ReferenceMap<DescriptorReference>(maxReferenceCacheBytes, descriptorReferenceBytes);
   const imageReferences = new ReferenceMap<string>(maxReferenceCacheBytes, value => value.length * 2);
   const imageCache = new Map<string, CachedImage>();
-  const pendingImages = new Map<string, Promise<CachedImage>>();
-  const imageReadOwners = new WeakMap<Promise<CachedImage>, NonNullable<ReturnType<typeof currentLibraryRead>>>();
+  const imageReadTimeoutMs = requireBoundedInteger(libraryOptions.imageReadTimeoutMs, 10_000, 10_000, '图片读取期限');
+  const imageReads = new RoonImageReadOwner(now, 32, 256, imageReadTimeoutMs);
   const negativeImages = new Map<string, NegativeImageEntry>();
   let imageCacheBytes = 0;
   let activeService: RoonLibraryService | undefined;
@@ -403,7 +408,7 @@ export function createRoonPublicLibrary(
 
   const clearImageState = (): void => {
     imageCache.clear();
-    pendingImages.clear();
+    imageReads.clear();
     negativeImages.clear();
     imageCacheBytes = 0;
   };
@@ -748,95 +753,71 @@ export function createRoonPublicLibrary(
       catch (error) { return wrapLibraryError(error); }
     },
     async getImage(reference, options) {
-      const current = service();
-      let imageKey = imageReferences.get(reference);
-      const scope = referenceScope;
-      const ensureCurrent = (): void => { assertLibraryReadCurrent(); if (service() !== current || referenceScope !== scope) throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon 封面读取已过期'); };
-      const stored = references.get(reference);
-      if (!imageKey) {
-        if (stored?.descriptor.kind === 'artist' && current.getArtistImageKey) {
-          try {
-            imageKey = await current.getArtistImageKey(stored.descriptor);
-            ensureCurrent();
-            if (imageKey) imageReferences.set(reference, imageKey);
-          } catch (error) {
-            return wrapLibraryError(error, 'image');
-          }
-        }
-      }
-      if (!imageKey) {
-        if (stored?.descriptor.kind === 'artist') {
-          throw new BridgeError('ROON_IMAGE_UNAVAILABLE', 'Roon artist image is unavailable', {
-            httpStatus: 404,
-          });
-        }
-        throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon image reference is invalid', {
-          httpStatus: 400,
-        });
-      }
       try {
+        assertLibraryReadCurrent();
+        const current = service(), scope = referenceScope;
+        const subscriberDeadlineAtMs = now() + imageReadTimeoutMs;
+        const isCurrent = (): boolean => getService() === current && referenceScope === scope;
+        const ensureCurrent = (): void => {
+          assertLibraryReadCurrent();
+          if (!isCurrent()) throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon 封面读取已过期');
+        };
+        let imageKey = imageReferences.get(reference);
+        const stored = references.get(reference);
+        if (!imageKey && stored?.descriptor.kind === 'artist' && current.getArtistImageKey) {
+          imageKey = await imageReads.read(JSON.stringify(['artist', scope, reference]), isCurrent, async () => {
+            const key = await current.getArtistImageKey!(stored.descriptor);
+            ensureCurrent();
+            if (key) imageReferences.set(reference, key);
+            return key;
+          }, subscriberDeadlineAtMs);
+          ensureCurrent();
+        }
+        if (!imageKey) {
+          if (stored?.descriptor.kind === 'artist') throw new BridgeError('ROON_IMAGE_UNAVAILABLE', 'Roon artist image is unavailable', { httpStatus: 404 });
+          throw new BridgeError('ROON_LIBRARY_INVALID_REFERENCE', 'Roon image reference is invalid', { httpStatus: 400 });
+        }
         const normalized = normalizedImageOptions(options);
-        const cacheKey = JSON.stringify([
-          referenceScope,
-          imageKey,
-          normalized.width,
-          normalized.height,
-          normalized.format,
-          normalized.scale,
-        ]);
+        const cacheKey = JSON.stringify([scope, imageKey, normalized.width, normalized.height, normalized.format, normalized.scale]);
+        ensureCurrent();
         const cached = touchCachedImage(cacheKey);
         if (cached) return cloneImage(cached);
         const negative = negativeImages.get(cacheKey);
         if (negative) {
-          if (negative.expiresAt > now()) throw negative.error;
+          const age = now() - negative.bornAt;
+          if (age >= 0 && now() < negative.expiresAt) throw negative.error;
           negativeImages.delete(cacheKey);
         }
-        let pending = pendingImages.get(cacheKey);
-        const owner = pending && imageReadOwners.get(pending);
-        if (owner && (owner.signal.aborted || !owner.isCurrent() || owner.now() >= owner.deadlineAtMs)) pending = undefined;
-        if (!pending) {
-          pending = (async () => {
-            try {
-              const result = await current.getImage(imageKey, imageOptions(normalized));
-              ensureCurrent();
-              const body = new Uint8Array(result.body);
-              if (!isValidRoonImageBinary(result.contentType, body)) {
-                throw new RoonLibraryError(
-                  'ROON_IMAGE_DECODE_FAILED',
-                  'Roon image response failed binary validation',
-                );
-              }
-              const image = { contentType: result.contentType, body };
-              try {
-                libraryOptions.onImageShape?.(
-                  summarizeRoonImageBinary('bridge-core-output', image.contentType, image.body),
-                );
-              } catch {
-                // 诊断回调不得改变图片行为。
-              }
-              cacheImage(cacheKey, image);
-              return image;
-            } catch (error) {
-              try { ensureCurrent(); } catch { throw error; }
-              negativeImages.set(cacheKey, {
-                error,
-                expiresAt: now() + negativeImageTtlMs,
-              });
-              throw error;
-            } finally {
-              if (pendingImages.get(cacheKey) === pending) pendingImages.delete(cacheKey);
+        const key = imageKey;
+        const result = await imageReads.read(cacheKey, isCurrent, async () => {
+          try {
+            const result = await current.getImage(key, imageOptions(normalized));
+            ensureCurrent();
+            if (!isValidRoonImageBinary(result.contentType, result.body)) {
+              throw new RoonLibraryError('ROON_IMAGE_DECODE_FAILED', 'Roon image response failed binary validation');
             }
-          })();
-          const read = currentLibraryRead();
-          if (read) imageReadOwners.set(pending, read);
-          pendingImages.set(cacheKey, pending);
-        }
-        const result = await pending;
+            const image = { contentType: result.contentType, body: new Uint8Array(result.body) };
+            try { libraryOptions.onImageShape?.(summarizeRoonImageBinary('bridge-core-output', image.contentType, image.body)); }
+            catch { /* 诊断回调不得改变图片行为。 */ }
+            ensureCurrent();
+            cacheImage(cacheKey, image);
+            return image;
+          } catch (error) {
+            ensureCurrent();
+            // 无人拥有、忙或本地超时属于读取控制状态，不能生成图片不可用事实。
+            if (!(error instanceof BridgeError && ['READ_CANCELLED', 'READ_DEADLINE', 'ROON_LIBRARY_REQUEST_FAILED'].includes(error.code))
+              && !(error instanceof RoonLibraryError && error.code === 'ROON_IMAGE_REQUEST_FAILED' && /预算|timed out/u.test(error.message))) {
+              negativeImages.delete(cacheKey);
+              while (negativeImages.size >= MAX_NEGATIVE_IMAGES) negativeImages.delete(negativeImages.keys().next().value!);
+              const bornAt = now();
+              negativeImages.set(cacheKey, { error, bornAt, expiresAt: bornAt + negativeImageTtlMs });
+            }
+            throw error;
+          }
+        }, subscriberDeadlineAtMs);
         ensureCurrent();
         return cloneImage(result);
-      } catch (error) {
-        return wrapLibraryError(error, 'image');
-      }
+      } catch (error) { return wrapLibraryError(error, 'image'); }
     },
     async playTrack(reference, zoneOrOutputId, onDispatch) {
       try {

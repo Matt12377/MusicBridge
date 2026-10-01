@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { RoonLibraryItem, RoonLibraryPage } from '@music-bridge/contracts'
 import RoonArtwork from './RoonArtwork.vue'
+import { useGridArtworkRetry } from '../composables/useGridArtworkRetry.js'
+import { useGridWindow } from '../composables/useGridWindow.js'
+import { prepareRoonCardProbe } from '../composables/gridCardProbe.js'
 import { shouldAutoLoadRoonPage } from '../composables/roonLibraryPagination.js'
 
 const props = withDefaults(defineProps<{
@@ -56,6 +59,9 @@ watch(
 )
 
 onUnmounted(() => intersectionObserver?.disconnect())
+const gridRoot = ref<HTMLElement | null>(null)
+const grid = useGridWindow(computed(() => props.page.items), gridRoot, { profile: item => item.year ? 'year' : 'plain', prepareProbe: prepareRoonCardProbe })
+const artworkRetry = useGridArtworkRetry(computed(() => grid.rendered.value.map(entry => entry.item)), item => item.reference)
 </script>
 
 <template>
@@ -76,11 +82,11 @@ onUnmounted(() => intersectionObserver?.disconnect())
     <button type="button" class="secondary-button" @click="emit('retry')">重新读取</button>
   </div>
   <template v-else>
-    <div class="roon-album-grid" aria-label="Roon 专辑">
-      <button v-for="album in props.page.items" :key="album.reference" type="button" class="roon-album-card" @click="emit('select', album)">
-        <RoonArtwork class="roon-album-art" :reference="album.artworkReference" :alt="`${album.title} 封面`" :width="256" :height="256" />
+    <div ref="gridRoot" v-bind="grid.attrs.value" :style="grid.rootStyle.value" @focusin="grid.onFocusIn" @focusout="grid.onFocusOut" @keydown="grid.onKeydown" class="roon-album-grid" aria-label="Roon 专辑">
+      <div v-for="{ item: album, index, style } in grid.rendered.value" :data-grid-index="index" :style="style" :key="album.reference"><button :style="{ width: '100%', height: '100%' }" type="button" class="roon-album-card" @click="emit('select', album)">
+        <RoonArtwork :external-retry="true" :onRetryAction="artworkRetry.handler(album)" class="roon-album-art" :reference="album.artworkReference" :alt="`${album.title} 封面`" :width="256" :height="256" />
         <span class="roon-album-copy"><strong>{{ album.title }}</strong><small>{{ album.artist || album.subtitle || 'Roon Library' }}</small><small v-if="album.year">{{ album.year }}</small></span>
-      </button>
+      </button><button v-if="artworkRetry.available(album)" type="button" class="secondary-button" :style="{ position: 'absolute', top: '8px', right: '8px', zIndex: 3 }" aria-label="重试读取封面" @click="artworkRetry.run(album, $event)">重试封面</button></div>
     </div>
     <div v-if="props.page.hasMore" ref="loadMoreSentinel" class="roon-library-more" aria-live="polite">
       <span v-if="props.loadingMore" role="status">正在加载更多专辑…</span>

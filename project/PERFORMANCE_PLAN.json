@@ -3,7 +3,7 @@
   "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
   "state": "active",
   "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol high，最多3名，必要时承担审计测试",
-  "currentTask": "MBP-005",
+  "currentTask": "MBP-007",
   "implementationComplete": 8,
   "automaticAcceptanceComplete": 8,
   "taskCount": 11,
@@ -154,7 +154,7 @@
       ],
       "state": "software-gates-passed",
       "implementationCommit": "f9e7616982ec3e67d30aa058fafa9148f9accba8",
-      "reportCommit": null,
+      "reportCommit": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
       "evidence": [
         "reports/MBP-005_SCOPED_CACHE.md",
         "reports/MBP-005_EVIDENCE.json"
@@ -169,10 +169,12 @@
         "MBP-005",
         "MBP-006"
       ],
-      "state": "pending",
+      "state": "in-progress",
       "implementationCommit": null,
       "reportCommit": null,
-      "evidence": []
+      "evidence": [],
+      "baseCommit": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
+      "branch": "codex/mbp-007-virtual-artwork"
     },
     {
       "id": "MBP-008",
@@ -203,9 +205,9 @@
       "evidence": []
     }
   ],
-  "implementationCommit": "f9e7616982ec3e67d30aa058fafa9148f9accba8",
-  "branch": "codex/mbp-005-scoped-cache",
-  "currentTaskBase": "a0c9cd7c1030c380263fa4394f73c5b802ec5f23",
+  "implementationCommit": null,
+  "branch": "codex/mbp-007-virtual-artwork",
+  "currentTaskBase": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
   "automaticAcceptanceScope": "local-standard-software-gates",
   "agentPolicy": {
     "model": "gpt-6.1-sol",
