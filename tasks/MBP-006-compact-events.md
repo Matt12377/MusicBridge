@@ -62,3 +62,9 @@ Main不为compact progress刷新tray（否则现每event全量getState两RPC仍�
 CoreRuntime新增getPlaybackStreamSnapshot():PlaybackStreamSnapshot|null与getPlaybackEventProtocol():PlaybackEventProtocolAck|null；BridgeRuntimeOptions/TestBridgeRuntimeOptions新增playbackEventProtocol?:PlaybackEventProtocol，默认legacy。PlaybackEventProtocol是字面量compact-v1；PlaybackEventProtocolAck={protocol:PlaybackEventProtocol,coreInstanceId:string}。Main/Preload方法getPlaybackStreamSnapshot，typed命令playback.getStreamSnapshot。Root只写Utility transfer/dispatch和Preload；runtime生产/synthetic由Core writer独占。
 
 沿用三名gpt-6.1-sol high作者。Owner另允许必要时增加一名审计/测试代理；只在实际收益与并发槽允许时启用，禁止gpt-6-sol。原完整Gate和证据边界不变。
+
+## 审计与远端失败收口
+
+独立R1复现旧恢复flight失败撤销已接纳新full的P2。Renderer用恢复令牌废弃被权威基准取代的读取，迟到成功/失败和finally不得影响新基准或后一incident；原测试保护保留，新加五个竞态用例，R2直接复核。
+
+上一报告78502a3远端verify作业另出现首录音测试等待provider entered未结算、后27项连带取消。Root额外只改recording-attempt.test.ts目标夹具：mock setTimeout，真实FS/FD/provider entered后推进原100/20ms；提前结算必须直接失败，清理始终观察假驱动拒绝。所有资源关闭断言与生产coordinator/input实现保持。独立受控复现说明start前耗尽期限的机制，不声称已量得Linux具体慢步骤。此精确测试delta并入同一R2；完整Gate覆盖最终源码。

@@ -1514,6 +1514,8 @@ test('MBR002：pre-spawn精确收口证明须等待输入释放，安全拒绝�
 
 test('MBR002：pre-spawn驱动虽有局部proof但原start仍未决，超时不得释放输入或持久静止', async t => {
   const f = await fixture(t), entered = deferred<void>(), startGate = deferred<RecordingAttemptDriver>(); let releases = 0;
+  // 清理可发生在start之前；假驱动拒绝必须始终有观察器。
+  void startGate.promise.catch(() => undefined);
   let inputLease: Awaited<ReturnType<typeof acquireRecordingOutputInputLease>> | undefined;
   const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts, operationTimeoutMs: 100, closeTimeoutMs: 20,
     acquireInputLease: async (...args) => {
@@ -1525,8 +1527,15 @@ test('MBR002：pre-spawn驱动虽有局部proof但原start仍未决，超时不�
       entered.resolve(); return startGate.promise;
     } },
   });
-  f.registerDependentCleanup(async () => { startGate.reject(new AttemptError('BACKEND_NOT_CERTIFIED')); await coordinator.close().catch(() => undefined); await inputLease?.release().catch(() => undefined); });
-  const starting = coordinator.begin(f.beginRequest()); await entered.promise; const timedOut = await starting;
+  f.registerDependentCleanup(async () => { t.mock.timers.reset(); startGate.reject(new AttemptError('BACKEND_NOT_CERTIFIED')); await coordinator.close().catch(() => undefined); await inputLease?.release().catch(() => undefined); });
+  // 真实FS核验和FD租期不受机器速度影响期限；进入目标阶段后再推进原100/20ms。
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const starting = coordinator.begin(f.beginRequest());
+  await Promise.race([entered.promise, starting.then(() => { throw new Error('假驱动进入前开始请求已经结算'); })]);
+  t.mock.timers.tick(100);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  t.mock.timers.tick(20);
+  const timedOut = await starting;
   assert.notEqual(timedOut.status, 'in-progress');
   assert.equal(releases, 0); assert.equal(coordinator.get({ attemptId: timedOut.id }).attempt!.sides[0]!.cleanupQuiescent, false);
   assert.throws(() => coordinator.assertExecutionIdle(), { code: 'ATTEMPT_CONFLICT' });

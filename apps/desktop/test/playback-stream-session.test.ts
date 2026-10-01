@@ -172,3 +172,39 @@ test('MBP006 ACK后观测等待有界，到期恢复观测而不伪造目标', a
   await h.session.seekPlayback(50000, value => values.push(value)); assert.deepEqual(values, [])
   t.mock.timers.tick(5001); assert.deepEqual(values, [undefined]); assert.equal(h.session.playbackState.value!.positionMs, 10000)
 })
+
+for (const outcome of ['reject', 'null', 'older', 'later'] as const) {
+  test(`MBP006 新full取代恢复flight后，迟到${outcome}不得撤销基准或再读`, async t => {
+    const pending = deferred<PlaybackStreamSnapshot | null>(); let reads = 0
+    const h = fixture({ getPlaybackStreamSnapshot: async () => ++reads === 1 ? { stamp: stamp(1), snapshot: snapshot() } : pending.promise })
+    t.after(() => h.session.dispose()); await h.session.initializePlaybackStream()
+    h.session.acceptPlaybackStreamEvent({ event: 'playback.progress', payload: { stamp: stamp(3), positionMs: 11000 } })
+    assert.equal(reads, 2)
+    h.session.acceptPlaybackStreamEvent({ event: 'playback.snapshot', payload: { stamp: stamp(4), snapshot: snapshot(12000) } })
+    assert.equal(h.session.playbackSyncStatus.value, 'ready')
+    if (outcome === 'reject') pending.reject(new Error('合成旧恢复读取失败'))
+    else if (outcome === 'null') pending.resolve(null)
+    else pending.resolve({ stamp: stamp(outcome === 'older' ? 2 : 6), snapshot: snapshot(90000) })
+    await tick()
+    assert.equal(h.session.playbackSyncStatus.value, 'ready'); assert.equal(h.session.playbackViewState.value!.canPause, true)
+    assert.equal(h.session.playbackState.value!.positionMs, 12000); assert.deepEqual(h.errors, [])
+    h.session.acceptPlaybackStreamEvent({ event: 'playback.progress', payload: { stamp: stamp(5), positionMs: 13000 } }); await tick()
+    assert.equal(reads, 2); assert.equal(h.session.playbackState.value!.positionMs, 13000)
+  })
+}
+
+test('MBP006 被新full废弃的旧flight不得清除后一incident的flight与预算', async t => {
+  const old = deferred<PlaybackStreamSnapshot | null>(), next = deferred<PlaybackStreamSnapshot | null>(); let reads = 0
+  const h = fixture({ getPlaybackStreamSnapshot: async () => ++reads === 1 ? { stamp: stamp(), snapshot: snapshot() } : reads === 2 ? old.promise : next.promise })
+  t.after(() => h.session.dispose()); await h.session.initializePlaybackStream()
+  h.session.acceptPlaybackStreamEvent({ event: 'playback.progress', payload: { stamp: stamp(3), positionMs: 11000 } })
+  h.session.acceptPlaybackStreamEvent({ event: 'playback.snapshot', payload: { stamp: stamp(4), snapshot: snapshot(12000) } })
+  h.session.acceptPlaybackStreamEvent({ event: 'playback.progress', payload: { stamp: stamp(6), positionMs: 14000 } })
+  assert.equal(reads, 3)
+  old.reject(new Error('合成被替代的读取失败')); await tick()
+  assert.equal(h.session.playbackSyncStatus.value, 'syncing'); assert.deepEqual(h.errors, [])
+  for (let n = 7; n <= 100; n++) h.session.acceptPlaybackStreamEvent({ event: 'playback.progress', payload: { stamp: stamp(n), positionMs: n } })
+  assert.equal(reads, 3)
+  next.resolve({ stamp: stamp(101), snapshot: snapshot(15000) }); await tick()
+  assert.equal(h.session.playbackSyncStatus.value, 'ready'); assert.equal(h.session.playbackState.value!.positionMs, 15000)
+})

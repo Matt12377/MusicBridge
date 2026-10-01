@@ -70,6 +70,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   const stream = createPlaybackStreamReducer()
   let streamMode: 'unknown' | 'legacy' | 'compact' = typeof api.getPlaybackStreamSnapshot === 'function' ? 'unknown' : 'legacy'
   let streamLifecycle = 0, seekOperation = 0, automaticAttemptUsed = false
+  let recoveryToken = {}
   let syncFlight: Promise<void> | undefined
   let pendingSeek: { target: number; acknowledged: boolean; isCurrent: () => boolean; settle?: (position?: number) => void; timer?: ReturnType<typeof setTimeout> } | undefined
   const playbackSyncStatus = ref<'ready' | 'syncing' | 'error' | 'suspended'>(streamMode === 'legacy' ? 'ready' : 'syncing')
@@ -441,8 +442,12 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     clearPendingSeek(); pending.settle?.(observed)
   }
 
-  function applyStreamApplication(application: PlaybackStreamApplication | undefined): void {
+  function applyStreamApplication(application: PlaybackStreamApplication | undefined, fromRecovery = false): void {
     if (!application || disposed) return
+    if (application.kind === 'full' && !fromRecovery) {
+      // 新权威基准已完成恢复：旧读取仍接住回执，但失去回写资格。
+      recoveryToken = {}; syncFlight = undefined; automaticAttemptUsed = false
+    }
     const owner = application.stamp
     playbackClockIdentity.value = JSON.stringify([owner.coreInstanceId, owner.generation, owner.selectedZoneId, owner.trackId, owner.source])
     if (application.kind === 'progress') {
@@ -477,28 +482,29 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     if (automaticAttemptUsed) return
     automaticAttemptUsed = true
     const lifecycle = streamLifecycle
+    const token = recoveryToken
     playbackSyncStatus.value = 'syncing'
     stream.beginSeed()
     const work = (async () => {
       try {
         const envelope = await api.getPlaybackStreamSnapshot()
-        if (disposed || lifecycle !== streamLifecycle) return
+        if (disposed || lifecycle !== streamLifecycle || token !== recoveryToken) return
         if (envelope === null) {
           if (streamMode === 'compact') throw new Error('紧凑播放基准缺失，请重试同步。')
           streamMode = 'legacy'
           const value = await api.getPlaybackState()
-          if (disposed || lifecycle !== streamLifecycle) return
+          if (disposed || lifecycle !== streamLifecycle || token !== recoveryToken) return
           commitPlaybackState(value); playbackSyncStatus.value = 'ready'; automaticAttemptUsed = false
           return
         }
         if (streamMode === 'compact' && envelope.stamp.coreInstanceId !== stream.instance) throw new Error('播放实例已变化，请重试同步。')
         if (streamMode !== 'compact') { streamMode = 'compact'; stream.authorize(envelope.stamp.coreInstanceId, true) }
-        applyStreamApplication(stream.endSeed(envelope))
+        applyStreamApplication(stream.endSeed(envelope), true)
         playbackSyncStatus.value = stream.desynced ? 'error' : 'ready'
         if (stream.desynced) onActionMessage('播放状态尚未同步，请重试读取。')
         if (!stream.desynced) automaticAttemptUsed = false
       } catch (error) {
-        if (disposed || lifecycle !== streamLifecycle) return
+        if (disposed || lifecycle !== streamLifecycle || token !== recoveryToken) return
         stream.failSeed(); playbackSyncStatus.value = 'error'; onError(error)
       }
     })()

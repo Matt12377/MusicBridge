@@ -135,8 +135,8 @@
       "dependsOn": [
         "MBP-003"
       ],
-      "state": "implementing",
-      "implementationCommit": null,
+      "state": "audit-repair",
+      "implementationCommit": "bdbba037cca1f59c941f95c4f64f5cbf6498afe4",
       "reportCommit": null,
       "evidence": [],
       "baseCommit": "78502a338b8c59a6160c1cba3f1b7d3497c18fe7",
@@ -193,9 +193,9 @@
       "evidence": []
     }
   ],
-  "implementationCommit": null,
-  "branch": "codex/mbp-003b-demand-queue",
-  "currentTaskBase": "02125604ab19a62f85a7b75d84b400f9d0e3f105",
+  "implementationCommit": "bdbba037cca1f59c941f95c4f64f5cbf6498afe4",
+  "branch": "codex/mbp-006-compact-events",
+  "currentTaskBase": "78502a338b8c59a6160c1cba3f1b7d3497c18fe7",
   "automaticAcceptanceScope": "local-standard-software-gates",
   "agentPolicy": {
     "model": "gpt-6.1-sol",

@@ -164,3 +164,9 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 006 Renderer实际mounted复现：change-only拖动时仅clock.preview未更新position ref，SDK ACK在途仍显示旧位置；修正即时读取draft后两组件整合6/6通过，旧ACK/同owner旧full保持目标，晚设备progress才收草稿，同ID新generation回0。新增真实RED与原断言保留；作者最后freeze及独立完整R1仍待完成。
 
 006四方32个源码/测试文件指纹核对一致，全作者首冻结。原47项Renderer断言保持，旧mounted loader只加真实clock依赖映射。完整独立审计R1现在进行，先固定实现提交便于Gate绑定；尚不计软件验收通过，总计6/11。
+
+006首冻结实现 `bdbba03` 已提交。独立完整R1确认32文件指纹稳定，唯一P2：较新full已恢复后旧恢复read失败会撤销基准、禁用控制并再发read。实际独立RED保留；Renderer补修中，之后只做第二轮直接影响复核，再固定原完整Gate。暂不升级6/11。
+
+上一报告 `78502a3` 远端最新检查已结束：security/Electron E2E通过；verify作业也失败，Core1772通过、28取消、原2跳过，首项为录音pre-spawn超时测试等待entered未结算，后续受父取消。依赖审计仍11moderate/7high。原始日志已外置保存，正在只读归因，不将28取消说成28个代码缺陷或已知旧失败。
+
+006唯一P2作者新增5项真实RED→GREEN，Renderer最终87/87，独立R2直接35/35通过，旧flight成功/失败均废弃；原Session测试前缀逐字保留。CI首录音用例改为确定性setTimeout，100/20期限和原资源断言保留，整份Attempt规格96/96退出0。独立审计将同轮复核这一夹具delta，然后固定最终源码跑原全量Gate。
