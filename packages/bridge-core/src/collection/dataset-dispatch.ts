@@ -9,10 +9,9 @@ import { DatasetScopeError } from '../recording/dataset-identity.js';
 import { readSpreadsheetFile } from './spreadsheet-files.js';
 import { parseSpreadsheetWorkbook } from './spreadsheet-parser.js';
 import { isDatasetCommand } from './dataset-owner-protocol.js';
-import type { DatasetDomain } from './dataset-domain.js';
+import type { DatasetServices } from './dataset-services.js';
 
-export type DatasetDispatchTarget = Partial<Pick<DatasetDomain,
-  'backups' | 'collection' | 'sources' | 'sourceCandidates' | 'mediaPlanning' | 'masterVersions' | 'preparation' | 'preparationZips' | 'prepared' | 'execution' | 'archive' | 'recordingPlans' | 'recordingOutput' | 'recordingAttempts' | 'recordingRecords' | 'recordingPrints' | 'recordingReplica' | 'recordingDeviceSelection' | 'masterDrafts' | 'physicalLinks' | 'commandOutbox' | 'assertOpen'>>;
+export type DatasetDispatchTarget = Partial<DatasetServices>;
 
 function backupsFor(runtime: DatasetDispatchTarget) {
   if (!runtime.backups) throw new CollectionError('INVENTORY_UNAVAILABLE', '备份维护服务尚未就绪。');

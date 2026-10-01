@@ -1,0 +1,47 @@
+import type { CollectionRepository } from './repository.js';
+import type { PhysicalLinksCoordinator, ProjectedPhysicalLinksCoordinator } from './physical-links-coordinator.js';
+import type { createDatasetCommandBoundary } from '../recording/dataset-identity.js';
+import type { SourceEvidenceService } from '../recording/source-evidence.js';
+import type { SourceCandidateService } from '../recording/source-candidates.js';
+import type { MediaPlanningCoordinator } from '../recording/media-coordinator.js';
+import type { MasterVersionsCoordinator } from '../recording/versions-coordinator.js';
+import type { PreparationCoordinator } from '../recording/preparation-coordinator.js';
+import type { PreparationZipCoordinator } from '../recording/preparation-export-coordinator.js';
+import type { PreparedCoordinator } from '../recording/prepared-coordinator.js';
+import type { ExecutionCoordinator } from '../recording/execution-coordinator.js';
+import type { ArchiveCoordinator } from '../recording/archive-coordinator.js';
+import type { BackupCoordinator } from '../recording/backup-coordinator.js';
+import type { RecordingDeviceSelectionBroker } from '../recording/device-selection-broker.js';
+import type { RecordingPlanCoordinator } from '../recording/plan-coordinator.js';
+import type { RecordingOutputService } from '../recording/output-service.js';
+import type { RecordingAttemptCoordinator } from '../recording/attempt-coordinator.js';
+import type { RecordingRecordCoordinator } from '../recording/record-coordinator.js';
+import type { RecordingPrintCoordinator } from '../recording/print-coordinator.js';
+import type { RecordingReplicaCoordinator } from '../recording/replica-coordinator.js';
+import type { MasterDraftsCoordinator, ProjectedMasterDraftsCoordinator } from '../recording/drafts-coordinator.js';
+
+/** 组合与派发共用领域类型；派发层不反向依赖组合工厂。 */
+export interface DatasetServices {
+  collection: CollectionRepository;
+  commandOutbox: ReturnType<typeof createDatasetCommandBoundary>;
+  sources: SourceEvidenceService;
+  sourceCandidates: SourceCandidateService;
+  mediaPlanning: MediaPlanningCoordinator;
+  masterVersions: MasterVersionsCoordinator;
+  preparation: PreparationCoordinator;
+  preparationZips: PreparationZipCoordinator;
+  prepared: PreparedCoordinator;
+  execution: ExecutionCoordinator;
+  backups: BackupCoordinator;
+  archive: ArchiveCoordinator;
+  recordingDeviceSelection?: RecordingDeviceSelectionBroker;
+  recordingPlans: RecordingPlanCoordinator;
+  recordingOutput: RecordingOutputService;
+  recordingAttempts: RecordingAttemptCoordinator;
+  recordingRecords: RecordingRecordCoordinator;
+  recordingPrints: RecordingPrintCoordinator;
+  recordingReplica: RecordingReplicaCoordinator;
+  physicalLinks: PhysicalLinksCoordinator | ProjectedPhysicalLinksCoordinator;
+  masterDrafts: MasterDraftsCoordinator | ProjectedMasterDraftsCoordinator;
+  assertOpen(): void;
+}

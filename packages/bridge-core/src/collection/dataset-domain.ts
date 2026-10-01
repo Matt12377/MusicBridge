@@ -1,4 +1,4 @@
-import { createRecordingPrintCoordinator, type RecordingPrintCoordinator } from '../recording/print-coordinator.js';
+import { createRecordingPrintCoordinator } from '../recording/print-coordinator.js';
 import { createRecordingReplicaInput } from '../recording/replica-input.js';
 import { createReplicaDeviceSessionCoordinator } from '../recording/replica-device-session.js';
 import { createReplicaDeviceOutputProvider } from '../recording/replica-device-output-provider.js';
@@ -9,30 +9,30 @@ import { createFormalDeviceAttemptProvider } from '../recording/formal-device-at
 import type { PinnedDeviceOutputHelper } from '../recording/bundled-device-output-helper.js';
 import type { OutputRunRecoveryState } from '../recording/output-run-recovery.js';
 import { createRecordingReplicaCoordinator, type RecordingReplicaCoordinator } from '../recording/replica-coordinator.js';
-import { createRecordingRecordCoordinator, type RecordingRecordCoordinator } from '../recording/record-coordinator.js';
+import { createRecordingRecordCoordinator } from '../recording/record-coordinator.js';
 import { createRecordingAttemptCoordinator, type RecordingAttemptCoordinator, type RecordingAttemptAdmissionProvider } from '../recording/attempt-coordinator.js';
-import { createRecordingOutputService, type RecordingOutputService } from '../recording/output-service.js';
+import { createRecordingOutputService } from '../recording/output-service.js';
 import type { PinnedOutputHelper } from '../recording/bundled-output-helper.js';
-import { createRecordingPlanCoordinator, type RecordingPlanCoordinator } from '../recording/plan-coordinator.js';
+import { createRecordingPlanCoordinator } from '../recording/plan-coordinator.js';
 import { randomUUID } from 'node:crypto';
 import { createDatasetCommandBoundary, type DatasetIdentity } from '../recording/dataset-identity.js';
 import type { ArchiveContentBinding } from '../recording/backup-package.js';
 import type { RootCapability } from '../recording/source-files.js';
-import { createBackupCoordinator, type BackupCoordinator } from '../recording/backup-coordinator.js';
+import { createBackupCoordinator } from '../recording/backup-coordinator.js';
 import { createBackupWorkflowStore, type BackupWorkflowStore } from '../recording/backup-workflow-store.js';
-import { createExecutionCoordinator, type ExecutionCoordinator } from '../recording/execution-coordinator.js';
-import { createArchiveCoordinator, type ArchiveCoordinator } from '../recording/archive-coordinator.js';
+import { createExecutionCoordinator } from '../recording/execution-coordinator.js';
+import { createArchiveCoordinator } from '../recording/archive-coordinator.js';
 import { assertSourceOutsideArchives } from '../recording/archive-input.js';
 import type { FfmpegConverter } from '../recording/audio-converter.js';
-import { createPreparedCoordinator, type PreparedCoordinator } from '../recording/prepared-coordinator.js';
-import { createMasterVersionsCoordinator, type MasterVersionsCoordinator } from '../recording/versions-coordinator.js';
-import { createPreparationCoordinator, type PreparationCoordinator } from '../recording/preparation-coordinator.js';
-import { createPreparationZipCoordinator, type PreparationZipCoordinator } from '../recording/preparation-export-coordinator.js';
-import { createMediaPlanningCoordinator, type MediaPlanningCoordinator } from '../recording/media-coordinator.js';
-import { createSourceEvidenceService, type SourceEvidenceService } from '../recording/source-evidence.js';
-import { createSourceCandidateService, type SourceCandidateService } from '../recording/source-candidates.js';
-import { createMasterDraftsCoordinator, createProjectedMasterDraftsCoordinator, type MasterDraftsCoordinator, type ProjectedMasterDraftsCoordinator } from '../recording/drafts-coordinator.js';
-import { createPhysicalLinksCoordinator, createProjectedPhysicalLinksCoordinator, type PhysicalLinksCoordinator, type ProjectedPhysicalLinksCoordinator, type CollectionRoonProjectionPort } from './physical-links-coordinator.js';
+import { createPreparedCoordinator } from '../recording/prepared-coordinator.js';
+import { createMasterVersionsCoordinator } from '../recording/versions-coordinator.js';
+import { createPreparationCoordinator } from '../recording/preparation-coordinator.js';
+import { createPreparationZipCoordinator } from '../recording/preparation-export-coordinator.js';
+import { createMediaPlanningCoordinator } from '../recording/media-coordinator.js';
+import { createSourceEvidenceService } from '../recording/source-evidence.js';
+import { createSourceCandidateService } from '../recording/source-candidates.js';
+import { createMasterDraftsCoordinator, createProjectedMasterDraftsCoordinator, type MasterDraftsCoordinator } from '../recording/drafts-coordinator.js';
+import { createPhysicalLinksCoordinator, createProjectedPhysicalLinksCoordinator, type PhysicalLinksCoordinator, type CollectionRoonProjectionPort } from './physical-links-coordinator.js';
 
 import path from 'node:path';
 import type { IpcRequest } from '@music-bridge/contracts';
@@ -42,6 +42,7 @@ import { openCollectionDataset } from '../recording/restore-dataset-runtime.js';
 import { reconcileOutputRunRecovery } from '../recording/output-run-recovery.js';
 import { failureForError } from '../shared/ipc-failure.js';
 import { dispatchDatasetCommand } from './dataset-dispatch.js';
+import type { DatasetServices } from './dataset-services.js';
 import type { DatasetProjectionPort, DatasetProjectionTicket, OwnedDatasetDomain } from './dataset-owner-protocol.js';
 
 export interface DatasetDomainOptions {
@@ -68,30 +69,7 @@ export interface TestDatasetDomainOptions extends Partial<Omit<DatasetDomainOpti
   recordingPlanDeviceSelection?: RecordingDeviceSelectionBroker;
   recordingPlanGateB?: GateBAdmissionSource;
 }
-export interface DatasetDomain extends OwnedDatasetDomain {
-  collection: CollectionRepository;
-  commandOutbox: ReturnType<typeof createDatasetCommandBoundary>;
-  sources: SourceEvidenceService;
-  sourceCandidates: SourceCandidateService;
-  mediaPlanning: MediaPlanningCoordinator;
-  masterVersions: MasterVersionsCoordinator;
-  preparation: PreparationCoordinator;
-  preparationZips: PreparationZipCoordinator;
-  prepared: PreparedCoordinator;
-  execution: ExecutionCoordinator;
-  backups: BackupCoordinator;
-  archive: ArchiveCoordinator;
-  recordingDeviceSelection?: RecordingDeviceSelectionBroker;
-  recordingPlans: RecordingPlanCoordinator;
-  recordingOutput: RecordingOutputService;
-  recordingAttempts: RecordingAttemptCoordinator;
-  recordingRecords: RecordingRecordCoordinator;
-  recordingPrints: RecordingPrintCoordinator;
-  recordingReplica: RecordingReplicaCoordinator;
-  physicalLinks: PhysicalLinksCoordinator | ProjectedPhysicalLinksCoordinator;
-  masterDrafts: MasterDraftsCoordinator | ProjectedMasterDraftsCoordinator;
-  assertOpen(): void;
-}
+export interface DatasetDomain extends OwnedDatasetDomain, DatasetServices {}
 export type TestDatasetDomain = Omit<DatasetDomain, 'physicalLinks' | 'masterDrafts'> & {
   physicalLinks: PhysicalLinksCoordinator; masterDrafts: MasterDraftsCoordinator;
 };
