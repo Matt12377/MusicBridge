@@ -599,8 +599,13 @@ test('P1-D keeps local-library navigation in the sidebar and wires real genre an
   assert.match(navigation, /type: 'roon-playlist'; reference: string/)
   assert.match(browse, /api\.getRoonGenreItems/)
   assert.match(browse, /api\.getRoonPlaylistTracks/)
-  assert.match(app, /@select="navigateSource\(\{ type: 'roon-genre'/)
-  assert.match(app, /@select="navigateSource\(\{ type: 'roon-playlist'/)
+  // 统一点击入口先保存当前描述符，再沿原类型导航；保护实际入口和两个目标。
+  const openItem = app.match(/function openRoonLibraryItem\(item: RoonLibraryItem\): void \{([\s\S]*?)\n\}/)?.[1]
+  assert.ok(openItem)
+  assert.match(app, /currentView === 'roon-genres'[\s\S]*?@select="openRoonLibraryItem"/)
+  assert.match(app, /currentView === 'roon-playlists'[\s\S]*?@select="openRoonLibraryItem"/)
+  assert.match(openItem, /seedCurrentRoonDescriptor\(item\)[\s\S]*item\.kind === 'genre'\) navigateSource\(\{ type: 'roon-genre', reference: item\.reference \}\)/)
+  assert.match(openItem, /item\.kind === 'playlist'\) navigateSource\(\{ type: 'roon-playlist', reference: item\.reference \}\)/)
   assert.match(artwork, /封面解码失败/)
   assert.match(trackTable, /Smart 匹配不唯一/)
 })

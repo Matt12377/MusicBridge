@@ -2664,7 +2664,7 @@
     "implementationComplete": 7,
     "automaticAcceptanceComplete": 7,
     "taskCount": 11,
-    "implementationCommit": "da05269dc98f4197af2f13d02552bf2cbff1c7b8",
+    "implementationCommit": "85562ce2dfaef54322f714ca8f7cf37f946adb8d",
     "checks": {
       "currentTask": "MBP-005",
       "softwareGates": "NOT_RUN",
@@ -2673,11 +2673,19 @@
       "realMacRoon": "NOT_RUN",
       "realRecording": "NOT_RUN",
       "firstVerify": "FAIL-exit1-contracts250-core1877-original2skip-desktop1112-two-static-fail-not-built",
-      "verify": "PASS-exit0-contracts250-core1877-original2skip-desktop1114-three-builds",
-      "electronGate": "PASS-exit0-mock4",
-      "sourceFingerprint": "1e41b1be49ed125576c2a6dca3b977b2a0c0af6ed4aab06b9bc63551d85e5b6d",
       "sourceFileCount": 858,
-      "firstFullE2E": "FAIL-exit1-103passed-one-cache-descriptor-production-regression-original4skip-0flaky"
+      "firstFullE2E": "FAIL-exit1-103passed-one-cache-descriptor-production-regression-original4skip-0flaky",
+      "previousFixedVerify": {
+        "commit": "da05269dc98f4197af2f13d02552bf2cbff1c7b8",
+        "verify": "PASS-exit0-contracts250-core1877-original2skip-desktop1114-three-builds",
+        "mockElectron": "PASS-exit0-mock4",
+        "sourceFingerprint": "1e41b1be49ed125576c2a6dca3b977b2a0c0af6ed4aab06b9bc63551d85e5b6d"
+      },
+      "verify": "NOT_RUN-r4",
+      "electronGate": "NOT_RUN-r3",
+      "fullE2E": "NOT_RUN-r3",
+      "targetedOriginalSearchE2E": "PASS-exit0-one-original-case-0skip-0flaky-fixed85562ce",
+      "thirdVerify": "FAIL-exit1-fixed85562ce-contracts250-core1877-original2skip-desktop1133-one-old-static-handler-contract"
     },
     "realMacRoonAcceptance": "NOT_RUN",
     "realRecordingAcceptance": "NOT_RUN",
@@ -2724,7 +2732,7 @@
       "remoteElectronE2ERun": 36821212886,
       "remoteElectronE2EResult": "PASS"
     },
-    "pendingGate": "descriptor根因三文件Root自查补修，Renderer164/164与strict0；36文件重冻结，原失败E2E和新固定原完整Gate待执行",
+    "pendingGate": "一旧静态handler契约已校正，原35/35通过；重新冻结r4原完整Gate待执行",
     "automaticAcceptanceScope": "local-standard-software-gates",
     "baseCommit": "a0c9cd7c1030c380263fa4394f73c5b802ec5f23",
     "reportCommitResolution": null,
