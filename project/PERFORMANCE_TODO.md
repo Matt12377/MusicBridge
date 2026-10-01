@@ -103,3 +103,5 @@ MBP-003A已有RED：Controller慢metadata/URL/preflight与小批插入4项失败
 MBP-003A随后定向通过：Roon100/100，生产runtime组合25/25（含17项新增行为），Controller最终105/105及严格类型通过，外部Stop排队捕获Zone保护已包含在最终冻结中。Transport确认和实际SDK回执使用独立屏障；同turn意图、Stop未知、迟到准备、新所有者资源、Smart取消与有序控制保持。独立审计和原完整Gate尚未结算，未升级总计。
 
 固定首个实现 `a6abd4c` 原完整verify退出0：224 / 1697+原2跳过 / 975，三包构建通过，827源码Gate前后指纹相同。Root补查复现最后意图结算后已发布canStop仍为true、实际所有权已释放的差异（独立内存复现及新增契约测试均exit1）；补修结算时发布能力变化，Controller106+runtime25共131项通过，未修改已有断言。补修后重新固定并重跑原完整Gate，不沿用首个通过覆盖新代码。
+
+第二固定 `d30bfdb` 原完整verify退出0：224 / 1698+原2跳过 / 975；827源码指纹前后一致。独立窄审发现普通已确认播放成功Stop的公开canStop结算遗漏，Provider/Native两个行为case实际RED退出1；matching Stop flight结算时发布能力释放，未知停止锁继续保留。Controller108+runtime25共133项GREEN退出0；最终代码重新冻结后完成原全量Gate。首次RED命令在仓库根找不到tsx，属于执行入口错误而非行为RED，修正工作目录后的两项失败证据单独保留。

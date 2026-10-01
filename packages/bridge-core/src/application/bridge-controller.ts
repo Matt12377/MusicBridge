@@ -1699,7 +1699,13 @@ export class BridgeController {
       this.notifyPlaybackChanged();
     })();
     this.stopFlight = closing;
-    void closing.then(() => { if (this.stopFlight === closing) this.stopFlight = undefined; }, () => { if (this.stopFlight === closing) this.stopFlight = undefined; });
+    const settleStop = () => {
+      if (this.stopFlight !== closing) return;
+      this.stopFlight = undefined;
+      // 关闭请求本身也占有停止能力；实际结算后同步发布释放，失败仍保留未知停止锁。
+      this.notifyPlaybackChangedIfDifferent();
+    };
+    void closing.then(settleStop, settleStop);
     return closing;
   }
 

@@ -2397,6 +2397,27 @@ function mbpDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+for (const source of ['provider', 'native'] as const) {
+  test(`MBP003A：${source}已确认播放成功停止，最后发布快照不保留已结束的Stop所有权`, async () => {
+    const f = makeHarness();
+    const snapshots: PlaybackSnapshot[] = [];
+    const unsubscribe = f.controller.subscribe(snapshot => snapshots.push(snapshot));
+    try {
+      if (source === 'provider') await f.controller.play({ trackId: '99101' });
+      else await f.controller.playRoon(mbrNativeQueue(1)[0]!);
+      assert.equal(snapshots.at(-1)?.canStop, true);
+      await f.controller.stop();
+      assert.equal(f.controller.hasPlaybackOwnership(), false);
+      assert.equal(f.controller.getPlaybackState().canStop, false);
+      assert.equal(snapshots.at(-1)?.state, 'idle');
+      assert.equal(snapshots.at(-1)?.canStop, false, '已结束的Stop必须同步发布能力释放');
+    } finally {
+      unsubscribe();
+      await f.controller.stop();
+    }
+  });
+}
+
 test('MBP003A：取消准备后最后意图结算，发布的停止能力与已释放所有权一致', async t => {
   const f = makeHarness(), gate = mbpDeferred<void>(), entered = mbpDeferred<void>();
   const original = f.netease.getTrack.bind(f.netease);
