@@ -2,7 +2,7 @@
 
 **实现完成：9/11 · 本地软件验收：9/11 · 真实 Mac/Roon：未执行**
 
-当前任务：**MBP-007 — 虚拟网格、封面竞态与资源预算**。基线 `4ac88f5`，分支 `codex/mbp-007-virtual-artwork`。
+当前任务：**MBP-008 — 收藏批量读取与操作内索引**。基线 `8253bc1`，分支 `codex/mbp-008-collection-batch`。
 
 本计划已获 Owner 授权连续实施。技术栈保留 Electron、Vue、Node/TS；真实播放、设备录音、main 合并、正式 App 替换和发布分别记录，不由软件测试代替。
 
@@ -36,7 +36,7 @@ MBP-001 远端已结束：security 通过，verify/Electron E2E 失败。本地�
 | 8 | MBP-006 | 已完成 | 本地通过 | 小进度事件、队列版本与重连恢复 |
 | 9 | MBP-005 | 已完成 | 本地通过 | 作用域缓存、网易云歌单快照、渐进搜索 |
 | 10 | MBP-007 | 已完成 | 本地通过 | 虚拟网格、封面竞态修复和资源预算 |
-| 11 | MBP-008 | 待开始 | 未执行 | 批量 SQL、进度匹配与历史预算热点；worker 按测量决定 |
+| 11 | MBP-008 | 局部优化与大库对照中 | 未完成 | 批量 SQL、进度匹配与历史预算热点；worker 按测量决定 |
 | 12 | MBP-009 | 待开始 | 未执行 | 接口收口、全量回归、性能对照与实机验收记录 |
 
 MBP-003 只有 A/B 都完成并验收才计为一个完成任务。每个完成项绑定固定实现 SHA、报告、退出码和证据；没有证据不勾选。所有 Gate 保持原有范围，不新增 skip。
@@ -232,7 +232,7 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 - [x] Core跨alias独立消费者、共享owned ALS与真实SDK32预算保护。
 - [x] 实际几何、焦点/返回/加载更多及默认资源预算观测。
 - [x] 两轮独立审计及固定原完整Gate均完成。
-- [ ] 固定实现/报告提交、开发分支push与远端HEAD核对。
+- [x] 固定实现/报告提交、开发分支push与远端HEAD核对。
 
 007仅软件实现范围；真实Provider/Roon/设备/GateB、main/App替换和发布保持未执行。005固定4ac88f5远端已结束：Electron E2E/security通过；verify作业1个测试失败为证据文件写死本机绝对路径，dependency-audit仍11 moderate/7 high失败。原日志/产物已保存；Root本轮修测试输出为TAP诊断，保留全部断言；不把local通过称全CI通过。
 
@@ -243,7 +243,7 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 - [x] 六类网格窗口、收藏解析有限池、外部重试按钮、延迟挂载与滚动布局复用：52/52定向、严格类型。
 - [x] 实际Chrome合成36组首/中/末几何，以及7组焦点、resize、恢复、分页和900ms背景租期行为。
 - [x] 源码冻结后两轮独立审计、原全量verify/mock Electron/完整E2E与静态Gate。
-- [ ] 独立实现/报告提交、开发分支push与远端HEAD核对；通过后计9/11并接续008。
+- [x] 独立实现/报告提交、开发分支push与远端HEAD核对；已计9/11并接续008。
 
 上一阶段005远端verify新测试固定本机产物路径已定位并移除，原业务断言保留；dependency-audit仍为已确认11 moderate/7 high，009收口。
 
@@ -259,3 +259,81 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 007固定c948第四轮verify与mock Electron通过；完整E2E103pass/原4skip/1fail，case74在beforeEach Electron启动退出1，未执行页面断言，退出根因未确定。相同源码原case单次复跑1/1退出0；不能代替完整范围。第五轮以独立外置目录重跑原108项E2E及未到达静态Gate，保留全部失败日志与报告，总计仍8/11。
 
 007最终固定c948：第四轮verify Contracts250/Core1904+原2skip/Desktop1214与三包类型/构建、mock Electron4均exit0；第五轮完整E2E104+原4skip/0fail/0flaky与原静态Gate均exit0。876源码四个检查点SHA cd178bf6…相同，36任务源码/测试身份未改变。R4启动失败原日志/JSON/exit1和相同原case单次复跑通过均保留，根因仍未确定；不增加skip或自动retry。软件完成9/11，独立报告/push后接续008。
+
+007报告8253bc1已push且远端HEAD精确一致。
+
+### MBP-008 当前子步骤
+
+- [x] 从007报告最终HEAD创建独立分支，正式冻结文件所有权与合法容量。
+- [x] 50候选工具语法、生产公开API合成seed与只读事实核验；50/500/2000已完成，跨3书总5000单列继续。
+- [x] Repository页内批SQL与库存/照片/分页守恒，独立R2及固定原全量Gate通过。
+- [x] Progress操作内revision索引、批读取与历史/指纹/预算保护，401跨块独立验证与固定全量Gate通过。
+- [ ] 相同合法夹具前后对照、生产Utility合成routing争用与worker测量裁决。
+- [ ] 独立审计、固定原完整Gate、报告及开发分支push；通过后计10/11。
+
+008外置证据根：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-root-i5_cre8_`。两名源码作者目前只读等待，Root先验证工具与baseline；未触Owner数据库、Roon或真实播放。
+
+008候选实际完成16phase/exit0：公开seed及15种首屏read/mode，5原始重复、跨mode输出canonical与受保护facts相同。list25实际152 SQL；current完整目录parse51。原825源码227文件及contracts/dist153文件逐字固定到外置detached快照；同50夹具新来源校准输出/结构/事实完全一致，exit0。继续大库基线时两作者并行，当前不计10/11。
+
+### MBP-008 最新进度
+
+- [x] R1库存批量SQL与progress局部上下文；独立96/96+strict退出0。
+- [x] 50/500原基线及同库90组完整DTO/事实对照；控制路由50/500合成对照退出0。
+- [ ] 2000/总5000合法固定基线与最终候选对照（原60秒seed超时保留；新300秒取得完整2000夹具）。
+- [x] 消除首次activation完整校验中的平方成员扫描和重复parse；保留全部损坏/历史/容量检测，30项目录与31项相关合同通过。
+- [x] 第二轮独立审查及原全量Gate，固定4d84十文件/153dist/878source身份一致。
+- [ ] worker残余同步热点裁决；最终5000对照、报告与最终开发分支push。
+
+当前三名gpt-6.1-sol xhigh分别负责测量恢复、残余CPU归因和完整数据库所有者边界设计。009只读类型交接已完成；008两轮独立审计已结束，不追加第三轮。
+
+最终十文件固定 `4d84ccd`：原完整verify实际exit0，Contracts254 / Core1922+原2skip / Desktop1214与类型、三包构建通过；878源码SHA8bbb936…2934前后相同。R2独立合同源对照8797次零不等价，数据库行为与原Electron范围仍待完成。最终候选测量按原合法夹具逻辑副本进行，不沿用四文件R1的性能成绩。
+
+固定4d84原软件Gate全部通过：verify254 / Core1922+原2skip / Desktop1214，mockElectron4/4，原完整108 E2E为104pass+原4skip、零fail/flaky，静态Gate均exit0；四份878源码指纹一致。最终候选50/500各45完整对照，2000已开始且首warm current15910.800→70.774ms、SQL4035→16、完整catalog parse2001→1；绝对ms属并发合成测量，控制争用与大库完整范围尚未闭合，因此仍9/11。
+
+R2十文件独立审查完成：8797合同接受/拒绝零不等价；401当前型号和401历史目标实际800+2跨块、同库DTO/指纹/CAS/回滚/冷热owner与41损坏差分通过，未确证P1/P2。最终对照135/234（50/500/2000各45、675样本）完整输出/事实/源码匹配。生产Utility同线程合成Control50/500/2000均exit0并确认空闲关闭，但2000 current/snapshot暂停p95=61.014/157.653ms，20ms全路径目标未达；残余同步热点与worker裁决待完成。原5000seed真实300s SIGTERM保留，fresh900s准备另列。
+
+固定实现阶段快照4d84已非强制push并核远端HEAD一致；这是CI复核用源快照，不是本任务最终报告或完成验收。新5000基线仅runner截止上限300000→900000一行，worker/probe/metrics逐字不改；合法数量、全部历史与99读phase保持。原300s失败仍单独封存。
+
+固定4d84远端检查现已结束：verify作业254 / Core1922+原2skip / Desktop1214通过，Electron E2E与security工作流通过；verify工作流因独立dependency-audit失败（新原始日志确认11 moderate / 7 high）。原始日志已保存，依赖修复仍归009，不标全CI绿灯。
+
+5000新合法公开API夹具实际481895ms准备完成，exit0，无超时；模型5000、目标5000、快照3、书籍2000+2000+1000。中断后检查确认原记录为seed+5个读phase实际COMPLETE；下一cross读仅3样本partial且无退出回执，保留未完成。恢复使用新工具/副本，只补未开始范围与明确的一次中断补测，原通过项不重跑。完整5000对照与残余热点裁决仍未完成，总计保持9/11。
+
+最新补证：5000基线恢复已累计15/99项实际完成（原5项与新10项分列），无失败或超时。最终候选5000首次执行为8项完整匹配、91项等待基线，父进程实际退出3；与之前135项合计143/234，不写成整体通过。完整基线结束并核对源码、工具和数据库事实后，才续跑剩余91项。
+
+残余CPU采样已实际退出0：2000型号的只读current/snapshot各3次，均值60.043/95.337ms，源码和全部持久事实一致。业务采样442.711ms中，canonical构造192.084ms、完整parse/guard132.127ms、数据库预算37.541ms；三类互斥，内部子项不重复相加。即使假设canonical完全免费，仍不足以证明20ms目标，因此正在确定完整owner隔离的实施边界；没有删校验、预算或历史保护。
+
+完整owner实施子步骤（同一MBP-008，不提前开始009）：
+
+- [x] 根据同步控制实测裁决完整Dataset Owner隔离；外置detached工作区从4d84建立，原测量源码不变。
+- [x] 领域与线程作者接口对齐：20子域、两个长期连接、208个领域命令；父Core保留播放与Roon/Provider。
+- [x] 领域组合/异步协议、生产worker入口与启动提交/关闭自然退出实现和直接行为验证。
+- [x] 真实线程下控制响应、未知回执/代际/资源收尾和受控录音负载验证；同owner录音延迟与真实设备未验收单列。
+- [ ] 合并新候选、固定源码后原完整Gate、结果报告和开发分支推送。
+
+当前4d84的软件Gate只覆盖此前局部优化，不覆盖隔离工作区中的新owner代码。新实现仍在开发，完成计数保持9/11。
+
+owner接线进度：领域/协议作者已交付；Root原Runtime/Utility及新行为范围111/111通过，真实Worker+实际持久数据库集成3/3通过（合成CPU负载下播放先回执、写入后断链unknown/冷启原收据、Roon安全投影）。Desktop类型、生产构建和开发mock启动均实际exit0；不代替最终固定源码全Gate。编译shared chunk新增Excel worker相对路径回归已修，正验证实际编译owner内嵌套解析与重启收据。5000基线45/99全部已完成项对照一致，剩余54继续；不重复旧通过项、不新增skip。
+
+编译 owner 内实际 CSV 解析、中文与公式文本、重启同命令收据已通过，实际退出0。2000目录与受控录音并行时，停止最终 quiet 落账、输入撤销、原生关闭和自然退出已有通过证据；Stop accepted 本身仍不代表 quiet。数据库线程内 Stop 排队62–99ms、受控供帧间隔最长122ms，保留为限制，不计为真实设备验收。当前5000基线54/99，全部已完成项一致、0失败；继续原剩余45项与后续候选91项。最终 owner 控制对照和固定源码全Gate仍待执行，完成数保持9/11。
+
+新owner候选固定 `f810728`，897源码指纹已封存。原2000合成库、25条分页、四条读取路径各5样本，真实Worker完整两库领域隔离后pause合同回执p95为0.158/0.123/0.122/0.434ms，20ms目标四路径均通过；完整canonical/持久事实/自然关闭一致。额外expectedDatasetId保护仍校验。此结果不是UI点击或实际Roon耗时。原全量verify正在独立外置checkout执行，主测量checkout仍保持4d84，未推进完成计数。
+
+owner首全量 `f810728` actual1：Contracts254/Core1946+原2skip通过，Desktop1218通过/1旧设备入口静态断言失配，尚未到构建；原pin/资源保护保留，检查迁至owner bootstrap并补接线断言。第二候选 `7791388` 静态type依赖环actual1，Root仅终止自己的全量验证子树actual143，部分日志保留。共用领域类型抽取后372文件cycles/control-plane/boundaries均0，定向25项0，strict0。最终新冻结 `957bd1c`（898源码）控制对照actual0，四路径pause p950.147/0.243/0.149/0.124ms均达20ms；第三次原全量verify进行中。原5000基线72/99、0失败；依赖续跑91项仍待基线正常终态。进度9/11不变。
+
+固定957第三轮原verify：三层类型与Contracts254、Core1947+原2skip已实际通过，Desktop与构建仍收尾；尚不等于整个verify退出0。随后保留原mockElectron4和108E2E完整范围。
+
+固定957第三轮原完整verify已结束，actual0：Contracts254、Core1947+原2skip、Desktop1219、全部类型与三包构建通过。表格编译后检查定位为合成XLS生成器未写出公式，保留失败证据；新夹具按真实序列化输入核对，XLSX公式强断言仍保留。随后原mockElectron4与完整108E2E；5000基线81/99、0失败。9/11不变。
+
+固定957编译后完整owner的CSV/XLSX/XLS、输入字节不变、XLSX公式缓存、重启回执和自然退出均actual0；合成夹具的三次失败与原因原样保留。mockElectron4/4 actual0，原108 E2E执行中。主checkout4d84的878源码和690dist仍全数不变。
+
+固定957原完整E2E结束：104通过+原4条件skip，0失败/0flaky，actual0；skip名称与旧4d84四项完全相同。最终898源码、主冻结878源码/690dist均不变。必需本地Gate已齐，5000基线90/99与依赖91项、主checkout接入、报告和push仍未结束，9/11不变。
+
+5000基线原同会话actual0：99/99（原5+新94）、0failed/unknown/unstarted，每项原5样本；source380/dist153、全逻辑数据库副本与protected facts核对一致。满足原条件后一次补跑候选91项原WAITING，原8/原135与578已有证据不重跑/不覆写；报告与push仍待最终终态。
+
+新957远端Linux verify实际失败：Contracts254/Core1946通过、1关闭失败fatal消息竞态失败+原2skip，Desktop/build未到达；security29通过，依赖审计11moderate7high仍失败。关闭错误response与后续fatal帧之间被测试终止会失去close-failed原因；协议作者正做确定性RED/GREEN并同步锁定失败，不放宽断言。新冻结后重新原完整Gate，旧957本地通过保留，9/11不变。
+
+关闭失败消息竞态确定性RED1→GREEN8/8与strict0，原失败断言不改。新固定77901d5（898源码，SHA95f2a18d…）已开始原verify-r4；旧957本地通过与新远端失败保留，不代替新源码验收。原5000候选91一次续跑继续，不影响Main4d84冻结。
+
+固定77901d5原verify-r4已actual0：254/Core1948+原2skip/Desktop1219、类型/三包构建通过；898源码和主878源码/690dist不变。实际2000 Worker控制四路径p950.115–0.224ms、编译CSV/XLSX/XLS、原静态Gate均0。mock4运行，原108E2E随后；5000候选92/99零失败。
+
+固定77901d5原全Gate均actual0：Contracts254/Core1948+原2skip/Desktop1219、原mock4、E2E104+原4skip（0failure/flaky）、编译表格与原静态Gate。5000全部99项canonical与持久事实匹配；基线parent实际0，候选parent实际3（未选择原135），234分runner清单不混算。开发checkout已安全接入77901d5，原无关目录保留；源码阶段非forcepush/远端HEAD一致，新的Linux关闭竞态复核与报告push待完成，进度保持9/11。

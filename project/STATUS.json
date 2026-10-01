@@ -2655,118 +2655,167 @@
   },
   "performanceOptimization20261001": {
     "state": "active",
-    "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol high，最多3名，必要时承担审计测试",
+    "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol xhigh，最多3名，必要时独立审计测试",
     "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
-    "branch": "codex/mbp-007-virtual-artwork",
-    "currentTask": "MBP-007",
+    "branch": "codex/mbp-008-collection-batch",
+    "currentTask": "MBP-008",
     "plan": "project/PERFORMANCE_PLAN.json",
     "todo": "project/PERFORMANCE_TODO.md",
     "implementationComplete": 9,
     "automaticAcceptanceComplete": 9,
     "taskCount": 11,
-    "implementationCommit": "c948c1e14ba87ebdbde95c868ce55dff515c3509",
+    "implementationCommit": "77901d5b553cf782e3943f3027957884928212c7",
     "checks": {
-      "currentTask": "MBP-007",
-      "softwareGates": "PASS_FIXED_C948_LOCAL_ORIGINAL_FULL_SCOPE",
-      "focused": "Core149-Artwork54-Grid56-Root53-strict-PASS; Chrome36-7-9-and-failureStatus12-PASS",
-      "remoteCI": "NOT_PUSHED",
+      "currentTask": "MBP-008",
+      "softwareGates": "PASS fixed4d84: verify254/Core1922+original2skip/Desktop1214/types/build0; mockElectron4/4; fullE2E104+original4skip/0fail/0flaky; static0; source878 stable",
+      "baseline": "50/500/2000 COMPLETE;5000resume99/99 actual0/0failed, original5+new94, protected facts/source380/dist153 equal",
+      "workerDecision": "REQUIRED_COMPLETE_DATASET_OWNER_ISOLATION; implementing external detached4d84 checkout; old gates do not cover new owner",
+      "remoteCI": "4d84 verify job/security/Electron104+original4skip PASS; workflow dependency-audit FAIL11moderate7high",
       "realMacRoon": "NOT_RUN",
       "realRecording": "NOT_RUN",
-      "firstVerify": "INTERRUPTED-exit143-independent-R1-found-Favorite-bootstrap-P2; types+contracts-complete-Core-partial-desktop-build-NOT_REACHED",
-      "independentAudit": "R1-one-P2-fixed-R2-no-unresolved-P1-P2-in-scoped-delta",
-      "verify": "PASS-exit0-fixedc948-contracts250-core1904-original2skip-desktop1214-three-builds",
-      "electronGate": "PASS-exit0-mock4",
-      "sourceFileCount": 876,
-      "sourceFingerprint": "cd178bf637f5fb3000c0f8246b10615e87bb18da7233faccf712e79e4780c114",
-      "secondVerify": "INCOMPLETE_EXIT_UNKNOWN-Core1904-pass-original2skip-desktop-pretest-stopped-after-turn-interruption",
-      "firstFullE2E": "FAIL-exit1-103pass-original4skip-one-old-all26-DOM-count-assumption",
-      "postAuditTestDelta": "one-v1-ui-virtual-DOM-contract-Root-self-reviewed-original-targeted-case1-PASS-production35-unchanged",
-      "secondFullE2E": "FAIL-exit1-103pass-original4skip-beforeEach-Electron-launch-case74-process-exit1-cause-UNDETERMINED-case108-PASS",
-      "fullE2E": "R5-PASS-exit0-104pass-original4skip-0fail-0flaky",
-      "statics": "control-plane-boundaries-cycles-diff-PASS-exit0"
+      "syntheticRouting": "final50/500/2000 actualexit0/idleClose;2000currentp95=61.014ms/snapshot157.653ms, same-thread synthetic production Utility; 20ms all-path goal NOT_MET",
+      "candidateR1": "90phase same-DB DTO/facts/source matched exit0; independent96/96+strict0",
+      "finalFreeze": "10files_4d84ccd; source878 SHA8bbb9366722e8c33cb329c4b50a41dc780fa0119946bed0a8d172396795b2934; fullverify0",
+      "independentAuditR2": "PASS ten-file scoped R2:8797 src differential/strict/401model and401history chunks/41catalog corruption/lifecycle; no confirmed P1/P2",
+      "candidateFinal": "135prior+8prior5000 unchanged; selected5000 candidate92/99 last observation, zero failure; original91 only once resume",
+      "residualCpuProfile": "actualexit0/readOnlyDB/3current+3snapshot;means60.043/95.337ms;source878/runtime385/facts/canonical matched",
+      "ownerIsolation": "FROZEN 957bd1c source898; final control fourpaths p950.124-0.243ms all20ms PASS; static372/control-plane/boundaries0; original verify0",
+      "ownerFirstFullGate": "f810 verify actual1: Contracts254/Core1946+original2skip/Desktop1218pass1staticentrymismatch; did not reach builds",
+      "ownerSecondFullGate": "779 actual143 Root-owned verification stopped before source change due static type cycle actual1; partial retained, not PASS",
+      "ownerFinalGateProgress": {
+        "implementationCommit": "77901d5b553cf782e3943f3027957884928212c7",
+        "sourceFileCount": 898,
+        "sourceSha256": "95f2a18dbb7ed62dc166f4a266805c3dd87ad7cef885d4fb685c395c61b61498",
+        "sourceBeforeAfterStable": true,
+        "mainFrozenSourceBeforeAfterStable": true,
+        "mainDist690BeforeAfterStable": true,
+        "verify": {
+          "actualExitCode": 0,
+          "contractsPassed": 254,
+          "corePassed": 1948,
+          "coreOriginalSkip": 2,
+          "desktopPassed": 1219,
+          "typesAndThreeBuilds": "PASS"
+        },
+        "mockElectron": {
+          "actualExitCode": 0,
+          "passed": 4,
+          "failed": 0,
+          "skip": 0,
+          "realKeychain": "NOT_VERIFIED"
+        },
+        "fullElectronE2E": {
+          "actualExitCode": 0,
+          "stats": {
+            "startTime": "2026-10-01T16:07:42.624Z",
+            "duration": 298764.989,
+            "expected": 104,
+            "skipped": 4,
+            "unexpected": 0,
+            "flaky": 0
+          },
+          "originalTotal": 108,
+          "originalSkipsUnchanged": [
+            "V3固定原生输出检查：真实Plan到只读FD与PCM守恒，取消先到、冷启和变更不产生认证",
+            "V3无设备检查面板：明确计划与侧面后真实helper通过，键盘与窄窗保留未认证边界",
+            "V3无设备检查面板：取消失败可重试，迟到真实成功不能改为通过",
+            "V3 执行资产固定原生构建：真实转换、文件验证与冷启动"
+          ]
+        },
+        "compiledSpreadsheetFormats": {
+          "actualExitCode": 0,
+          "formats": [
+            "csv",
+            "xlsx",
+            "xls"
+          ],
+          "compiledWorker": true,
+          "inputBytesUnchanged": true,
+          "restartReceiptsMatched": true,
+          "xlsxFormulaAndCachePreserved": true,
+          "xlsFormulaAbsentInSyntheticSerializedInput": true,
+          "naturalWorkerExit": true,
+          "report": "compiled-owner-formats-o8BOOk/RESULT.json"
+        },
+        "static": {
+          "controlPlane": 0,
+          "boundaries": 0,
+          "cycles372": 0,
+          "diffCheck": 0
+        },
+        "tenAlgorithmFilesMatch4d84": true,
+        "realProviderRoonAudioDevices": "NOT_RUN",
+        "mainMerge": "NOT_RUN",
+        "installedAppReplacement": "NOT_RUN",
+        "verifiedAt": "2026-10-01T16:15:16.561854+00:00",
+        "controlSummary": "OWNER_FINAL_R4_CONTROL_SUMMARY.json",
+        "measurementFinalVerification": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-final-after-5000-0ebae72dbce7/MEASUREMENT_FINAL_VERIFICATION.json"
+      },
+      "ownerStageSourcePush": {
+        "implementationCommit": "77901d5b553cf782e3943f3027957884928212c7",
+        "actualExitCode": 0,
+        "remoteHead": "77901d5b553cf782e3943f3027957884928212c7"
+      },
+      "ownerRemoteCI": [
+        {
+          "conclusion": "",
+          "databaseId": 36890602118,
+          "headSha": "77901d5b553cf782e3943f3027957884928212c7",
+          "status": "in_progress",
+          "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602118",
+          "workflowName": "electron-e2e"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 36890602111,
+          "headSha": "77901d5b553cf782e3943f3027957884928212c7",
+          "status": "completed",
+          "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602111",
+          "workflowName": "security"
+        },
+        {
+          "conclusion": "",
+          "databaseId": 36890602070,
+          "headSha": "77901d5b553cf782e3943f3027957884928212c7",
+          "status": "in_progress",
+          "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602070",
+          "workflowName": "verify"
+        }
+      ],
+      "ownerIsolationCandidateCommit": "77901d5b553cf782e3943f3027957884928212c7",
+      "ownerCloseLatch": "remote957 close-error reply/fatal ordering cause reproduced deterministic RED1; client sync latch closed; original7+new1 actual8/8/strict0; original assertion unchanged",
+      "final5000Measurement": {
+        "selected": 99,
+        "matched": 99,
+        "baselineParentActualExit": 0,
+        "candidateParentActualExit": 3,
+        "prior135ProvenanceSeparate": true,
+        "finalVerificationSha256": "3442ef424820b6fed025cc45c20c338ba9bb6eb47aae68683947f02178916b9e"
+      }
     },
     "realMacRoonAcceptance": "NOT_RUN",
     "realRecordingAcceptance": "NOT_RUN",
     "mainMerge": "NOT_RUN",
     "installedAppReplacement": "NOT_RUN",
-    "report": "reports/MBP-007_VIRTUAL_ARTWORK.md",
-    "currentTaskBase": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
+    "report": null,
+    "currentTaskBase": "8253bc19c2f473943b304ac9418ad22f71a65f79",
     "previousTask": {
-      "id": "MBP-005",
-      "implementationCommit": "f9e7616982ec3e67d30aa058fafa9148f9accba8",
-      "reportCommit": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
-      "remoteHead": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
-      "report": "reports/MBP-005_SCOPED_CACHE.md",
-      "checks": {
-        "currentTask": "MBP-005",
-        "softwareGates": "PASS",
-        "focused": "RootContracts250-Registry21-Transport21-crossLayer3-static35; Roon128; Netease62; Renderer164; isolatedStrict-PASS",
-        "remoteCI": "NOT_PUSHED",
-        "realMacRoon": "NOT_RUN",
-        "realRecording": "NOT_RUN",
-        "firstVerify": "FAIL-exit1-contracts250-core1877-original2skip-desktop1112-two-static-fail-not-built",
-        "sourceFileCount": 858,
-        "firstFullE2E": "FAIL-exit1-103passed-one-cache-descriptor-production-regression-original4skip-0flaky",
-        "previousFixedVerify": {
-          "commit": "da05269dc98f4197af2f13d02552bf2cbff1c7b8",
-          "verify": "PASS-exit0-contracts250-core1877-original2skip-desktop1114-three-builds",
-          "mockElectron": "PASS-exit0-mock4",
-          "sourceFingerprint": "1e41b1be49ed125576c2a6dca3b977b2a0c0af6ed4aab06b9bc63551d85e5b6d"
-        },
-        "verify": "PASS-exit0-contracts250-core1877-original2skip-desktop1134-three-builds",
-        "electronGate": "PASS-exit0-mock4",
-        "fullE2E": "PASS-exit0-104-original4skip-0fail-0flaky",
-        "targetedOriginalSearchE2E": "PASS-exit0-one-original-case-0skip-0flaky-fixed85562ce",
-        "thirdVerify": "FAIL-exit1-fixed85562ce-contracts250-core1877-original2skip-desktop1133-one-old-static-handler-contract",
-        "sourceFingerprint": "d44c510eecbba7f5ec74392843fdd06809ad1c869168decf0e9d167369bdf8c3",
-        "implementationSha": "f9e7616982ec3e67d30aa058fafa9148f9accba8",
-        "controlPlane": "PASS-exit0",
-        "boundaries": "PASS-exit0",
-        "cycles": "PASS-exit0",
-        "diffCheck": "PASS-exit0"
-      },
-      "localSoftwareGate": "PASS",
-      "remoteCI": "FAIL_VERIFY_TEST_ARTIFACT_PATH_AND_DEPENDENCY_AUDIT",
-      "evidence": "reports/MBP-005_EVIDENCE.json",
-      "remoteRuns": {
-        "head": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
-        "verify": {
-          "run": 36835564019,
-          "job": 110282023366,
-          "result": "FAIL",
-          "contracts": 250,
-          "core": 1877,
-          "coreOriginalSkip": 2,
-          "desktopPass": 1133,
-          "desktopFail": 1,
-          "cause": "test-only-fixed-local-artifact-path-ENOENT",
-          "build": "NOT_REACHED"
-        },
-        "dependencyAudit": {
-          "job": 110282023674,
-          "result": "FAIL",
-          "moderate": 11,
-          "high": 7
-        },
-        "electronE2E": {
-          "run": 36835563971,
-          "result": "PASS"
-        },
-        "security": {
-          "run": 36835564017,
-          "result": "PASS"
-        },
-        "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-verify-raw.log",
-        "artifactDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p/previous-005-ci-artifact"
-      }
+      "id": "MBP-007",
+      "implementationCommit": "c948c1e14ba87ebdbde95c868ce55dff515c3509",
+      "reportCommit": "8253bc19c2f473943b304ac9418ad22f71a65f79",
+      "remoteHead": "8253bc19c2f473943b304ac9418ad22f71a65f79",
+      "pushExitCode": 0,
+      "softwareGates": "PASS",
+      "remoteCI": "007 exact825 security PASS; verify core/build PASS dependency-audit FAIL11moderate7high; fullElectron102pass4originalskip2fail; raw logs saved: task067 reload30s and task070 snapshots CoreIPC2s timeout, causes not yet closed",
+      "report": "reports/MBP-007_VIRTUAL_ARTWORK.md"
     },
-    "pendingGate": "本地原完整软件Gate通过；独立报告提交、push核对远端HEAD后立即008",
+    "pendingGate": "77901d5远端Linux修复复核、最终008报告commit/push，随后009",
     "automaticAcceptanceScope": "local-standard-software-gates",
-    "baseCommit": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
-    "reportCommitResolution": "commit-containing-reports/MBP-007_VIRTUAL_ARTWORK.md",
+    "baseCommit": "8253bc19c2f473943b304ac9418ad22f71a65f79",
+    "reportCommitResolution": null,
     "agentPolicy": {
       "model": "gpt-6.1-sol",
-      "reasoningEffort": "high",
+      "reasoningEffort": "xhigh",
       "maximumImplementationAgents": 3,
       "additionalAuditAgent": "Owner-permitted-if-needed",
       "forbiddenModels": [
@@ -2774,7 +2823,7 @@
       ]
     },
     "reportCommit": null,
-    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-007-root-gorkf37p",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-root-i5_cre8_",
     "carryoverDependencyAudit": {
       "lastVerifiedReport": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
       "result": "FAIL",

@@ -29,3 +29,17 @@ R1四文件及50/500同库90phase源码与产物独立冻结，未覆盖后续�
 Owner最新子代理许可gpt-6.1-sol xhigh，禁止gpt-6-sol；已派出的high只读测量/审查先完成，新增作者和R2使用xhigh。
 
 Root复查远端task070的大品牌分组路径后，发现collection-progress公共guard也按每个品牌/系列重复扫描全部条目。Root范围补入packages/contracts/src/collection-progress.ts和test/collection-progress.test.ts：仅本次guard内线性归并/成员索引，保留全部counts逐字段一致、品牌/系列关系、零数量分组、未知candidate/needs-review、页分母/完整快照/8MiB保护。500品牌新行为测试原12pass1fail actual1；补修后两合同组合31/31退出0。最终候选共10生产/测试文件，R2统一审查；此前四文件R1和八文件中间证据不升级为最终候选覆盖。
+
+## 同步控制实测后的完整所有者隔离
+
+固定4d84的2000型号同线程Utility暂停p95为current61.014ms、snapshot157.653ms，未达20ms目标。只读CPU归因与完整事实守恒已确认；假设canonical完全免费仍不能证明达标。Root据本任务已有worker裁决授权，在外置detached4d84 checkout实施完整Dataset Owner，主checkout保持原5000基线/候选测量身份不变。008两轮独立审查已经结束；新实现由作者行为测试、Root自查与固定全量Gate验收，不追加第三轮独立审查。
+
+所有者承载原20子域、两个长期连接、全部208领域命令及其coordinator、激活/身份/租约/quiet屏障和原生输入/输出资源。父Core保留播放、Roon SDK与PublicLibrary、Provider、Stream/Control与事件；不新开只读副本，不用逐store RPC拆散事务，不传函数、SDK、FD、真实凭据或设备资格。有限元数据投影保留scope/来源/epoch，owner内同步事务消费后释放许可。启动在owner prepare、父runtime成功及owner commitBoot之后发ready。
+
+领域作者独占新增dataset-domain.ts/dataset-dispatch.ts及原physical-links-coordinator.ts/drafts-coordinator.ts和对应测试。协议作者独占新增dataset-owner-protocol.ts/client.ts/worker.ts与边界测试。Root独占runtime.ts、utility-main.ts、ipc-failure.ts、父Roon投影、桌面启动/recording bootstrap、Vite入口与编译后的spreadsheet worker路径适配，以及进度/报告/Git/完整Gate。所有生产改动先在隔离checkout整合，前后测量完成后才推进主checkout。
+
+关闭先封新入口，原顺序尽力停止全部coordinator，等在途dispatch/启动提交与异步文件工作收口，再关闭两库并等待worker自然退出。任何清理错误不能发关闭成功ACK；继续尝试其他资源停止，保留两库，走现有Core监督/冷启动恢复。发送后断链仍为unknown，保留原请求/commandId，不自动重放或冒充ATTEMPT_NOT_ACCEPTED。完整原生资格与真实硬件验收仍未授权/NOT_RUN。
+
+新门禁须证明：原Runtime/Utility合同保留；真实worker和持久两库的scope/epoch/未知回执/幂等/关闭与重启；正式编译owner嵌套CSV/XLSX worker可用；相同2000合法数据库下先read后pause完整DTO/事实对照；合成真实输入consumer/native协议/pump负载与Stop/quiet/关闭另列，不拿播放控制p95代替录音或设备证据。原全量verify/mockElectron/108E2E/静态Gate及原skip保持。
+
+固定957远端Linux首次验证新增关闭故障消息竞态：close失败response与随后fatal帧之间可发生父端终止，使失败诊断变成worker-exit。Root重授协议作者在隔离checkout修client与原boundary test，须确定性RED/GREEN并保留close失败拒绝、exactly-once fatal和不terminate/replay；不第三审计、不放宽原断言。新源码重新冻结并跑原完整Gate，主4d84原5000对照继续冻结。
