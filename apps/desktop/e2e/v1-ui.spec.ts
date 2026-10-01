@@ -1045,7 +1045,7 @@ test('search, library pagination, playlist detail, queue controls and lyrics sta
 
   await search.fill('synthetic')
   await searchView.getByRole('navigation', { name: '搜索分类' }).getByRole('button', { name: '单曲', exact: true }).click()
-  await expect(page.getByText('Synthetic Track 1', { exact: true })).toBeVisible()
+  await expect(searchView.getByRole('table', { name: '歌曲列表' }).getByText('Synthetic Track 1', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: /^播放 Synthetic Track 1(?: · .+)?$/ }).click()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
   await expect(page.locator('.now-playing-fullscreen')).toBeVisible()
