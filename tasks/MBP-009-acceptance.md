@@ -19,3 +19,9 @@ Root独占pnpm-workspace.yaml、pnpm-lock.yaml、apps/desktop/e2e/v1-ui.spec.ts�
 ## Carryover与回滚
 
 继承008录音同owner同步热点的受控Stop/PCM延迟与未真实设备验证、历史未知/中断产物边界；不在009扩大第二次资源架构。source/type/兼容/CI出现新缺陷按明确根因修复并重新绑定完整Gate，不用旧绿色数覆盖新源码。回滚仅Owner明确授权后通过独立revert提交，保留数据库/用户数据；本任务不自动回滚或删除任何用户内容。
+
+## 最终软件证据
+
+固定实现862876a1d4cd21e77a48a283b873d2b28094717a；报告reports/MBP-009_ACCEPTANCE.md与机器证据reports/MBP-009_EVIDENCE.json。原完整本地9门禁均actual0，verify254/Core1948+原2skip/Desktop1219、security29、mock4、108 E2E104+原4skip/0fail/flaky；同SHA远端原verify/audit/security/macOS全部成功。三轮CI失败保留原日志/ZIP，导航屏障、严格搜索范围及归档静止屏障都有明确合同/归因证据，原业务断言和timeout不缩减。
+
+软件交付状态与报告SHA由project/PERFORMANCE_PLAN.json及STATUS.json解析；真实Provider/Roon/录音、系统钥匙串、GateB、P4/P5及Owner验收未执行；0high/0critical但仍有6moderate。没有main合并、正式App替换或发布。

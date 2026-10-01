@@ -3,7 +3,7 @@
   "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
   "state": "active",
   "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol xhigh，最多3名，必要时独立审计测试",
-  "currentTask": "MBP-008",
+  "currentTask": "MBP-009",
   "implementationComplete": 10,
   "automaticAcceptanceComplete": 10,
   "taskCount": 11,
@@ -189,7 +189,7 @@
       "state": "software-gates-passed",
       "workerDecision": "完整20子域/twoDB Owner已实现；2000合成Utility四路径控制20ms目标通过",
       "implementationCommit": "77901d5b553cf782e3943f3027957884928212c7",
-      "reportCommit": null,
+      "reportCommit": "6ac36f63ca044d74c838768a2f68490541d22647",
       "evidence": [
         "reports/MBP-008_COLLECTION_BATCH.md",
         "reports/MBP-008_EVIDENCE.json"
@@ -200,7 +200,7 @@
       "independentAudit": "R1 four-files and R2 final ten-files completed; no confirmed scoped P1/P2",
       "performanceComparison": "135原较小规模+99原5000分runner全canonical/facts匹配；baselineactual0/candidateactual3准确分列",
       "syntheticControlGoal20Ms": "PASS fourpaths2000 actualNodeWorker/fullDB/Utility p950.115–0.224ms；realRoon NOT_RUN",
-      "stageSourcePush": "4d84ccd remote HEAD verified; report pending",
+      "stageSourcePush": "final report6ac36f6 push0 / remote HEAD exact",
       "stageRemoteCI": "4d84 verify job/security/Electron104+original4skip PASS; workflow dependency-audit FAIL11moderate7high",
       "residualCpuProfile": "actualexit0/3current+3snapshot;means60.043/95.337ms;source/facts stable;canonical192.084/validation132.127/DBbudget37.541ms mutually exclusive sampled categories",
       "ownerIsolation": "完整Owner实际实现；最终898源码和全本地原Gate通过",
@@ -245,15 +245,39 @@
         "MBP-008",
         "MBR-002"
       ],
-      "state": "pending",
-      "implementationCommit": null,
+      "state": "report-delivery-pending",
+      "implementationCommit": "862876a1d4cd21e77a48a283b873d2b28094717a",
       "reportCommit": null,
-      "evidence": []
+      "evidence": [
+        "reports/MBP-009_ACCEPTANCE.md",
+        "reports/MBP-009_EVIDENCE.json"
+      ],
+      "baseCommit": "6ac36f63ca044d74c838768a2f68490541d22647",
+      "branch": "codex/mbp-009-acceptance",
+      "scope": "精确Axios/API&utils、get-uri/basic-ftp依赖补丁；完整v1 strict与原全量/兼容/审计收口",
+      "localSoftwareGates": "862876a原完整9门禁全部actual0；verify254/Core1948+原2skip/Desktop1219，E2E104+原4skip/0fail/flaky，源码898前后同SHA",
+      "syntheticDependencyCompatibility": "HTTP28项/39请求、FTP6组件、parser/CJS4组断言actual0；正式source/lock/installeddeps绑定不变；真实Provider/FTP未执行",
+      "productionDependencyAudit": {
+        "actualPlainHighGateExit": 0,
+        "high": 0,
+        "critical": 0,
+        "moderate": 6,
+        "officialJsonExit": 1,
+        "jsonExitSemantics": "总漏洞数非0即1；原high过滤仅plain分支",
+        "globalRegistryChanged": false,
+        "ignoreOrThresholdChanged": false
+      },
+      "remoteSourceCI": "862876a原verify/audit/security/macOS全部SUCCESS；E2E104+原4skip/0fail/flaky，原日志和两份最终ZIP已封存",
+      "reloadReadinessCorrection": "399远端真实reload等load超时；受控装饰图片实验证明DOM/home/Core/outbox可先就绪；bc36362仅收敛导航屏障并新增Core ready断言，原全部业务断言/timeout/108与4skip保留；远端具体阻塞资源未定位",
+      "searchScopeCorrection": "bc原完整本地actual0/104+4；远端mac一绿104+4、一红103+4+1（合法底栏与搜索列表曲名重复），两份原始结果和失败ZIP保留；单行限定搜索table且严格exact/visible不变，受控两元素RED1→GREEN0；8f77a4e新固定原全量重跑中",
+      "archiveReadinessCorrection": "阶段FINALIZED后仍巡检；seed改为phase完成+active false+issue null，主流程完整冷启深相等保留。受控coordinator RED1→GREEN0，原主流程Electron定向1/1实际0；基线6ac至8f相关四文件逐字相同，失败原ZIP/JSON/日志保留。",
+      "reportCommitResolution": "commit-containing-reports/MBP-009_ACCEPTANCE.md",
+      "report": "reports/MBP-009_ACCEPTANCE.md"
     }
   ],
-  "implementationCommit": "77901d5b553cf782e3943f3027957884928212c7",
-  "branch": "codex/mbp-008-collection-batch",
-  "currentTaskBase": "8253bc19c2f473943b304ac9418ad22f71a65f79",
+  "implementationCommit": "862876a1d4cd21e77a48a283b873d2b28094717a",
+  "branch": "codex/mbp-009-acceptance",
+  "currentTaskBase": "6ac36f63ca044d74c838768a2f68490541d22647",
   "automaticAcceptanceScope": "local-standard-software-gates",
   "agentPolicy": {
     "model": "gpt-6.1-sol",

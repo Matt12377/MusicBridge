@@ -2,7 +2,7 @@
 
 **实现完成：10/11 · 本地软件验收：10/11 · 真实 Mac/Roon：未执行**
 
-当前任务：**MBP-008 — 收藏批量读取与操作内索引**。基线 `8253bc1`，分支 `codex/mbp-008-collection-batch`。
+当前任务：**MBP-009 — 全量验收与依赖安全收口**。基线 `6ac36f6`，分支 `codex/mbp-009-acceptance`。
 
 本计划已获 Owner 授权连续实施。技术栈保留 Electron、Vue、Node/TS；真实播放、设备录音、main 合并、正式 App 替换和发布分别记录，不由软件测试代替。
 
@@ -37,7 +37,7 @@ MBP-001 远端已结束：security 通过，verify/Electron E2E 失败。本地�
 | 9 | MBP-005 | 已完成 | 本地通过 | 作用域缓存、网易云歌单快照、渐进搜索 |
 | 10 | MBP-007 | 已完成 | 本地通过 | 虚拟网格、封面竞态修复和资源预算 |
 | 11 | MBP-008 | 已完成 | 本地通过 | 批量 SQL、进度匹配与历史预算热点；worker 按测量决定 |
-| 12 | MBP-009 | 待开始 | 未执行 | 接口收口、全量回归、性能对照与实机验收记录 |
+| 12 | MBP-009 | 开发中 | 未完成 | 接口收口、全量回归、性能对照与实机验收记录 |
 
 MBP-003 只有 A/B 都完成并验收才计为一个完成任务。每个完成项绑定固定实现 SHA、报告、退出码和证据；没有证据不勾选。所有 Gate 保持原有范围，不新增 skip。
 
@@ -188,7 +188,7 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 - [x] Roon四文件作者冻结，128/128与隔离严格类型通过；独立审计及整体Gate待完成。
 - [x] 网易云五文件作者冻结，54/54与隔离严格类型通过；独立审计及整体Gate待完成。
 - [x] Renderer13文件首冻结，137/137与隔离Vue/test strict通过；原111项断言保留，完整独立R1中。
-- [ ] 必要独立审计、固定原完整Gate、报告和开发分支push。
+- [x] 必要独立审计、固定原完整Gate、报告和开发分支push。
 
 005 Root定向：合同250/250，原读取保护保留；Registry21、Main/Scope/Supervisor21、实际Source→Broker→Supervisor→Utility→Registry合成组合3，均exit0。默认四字段、独立取消和实际未返回预算保留；构造/文案/类型入口夹具错误日志另存，不伪称生产RED。Root首冻结13文件Hash，runtime整体类型和全量Gate待作者冻结。
 
@@ -268,8 +268,8 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 - [x] 50候选工具语法、生产公开API合成seed与只读事实核验；50/500/2000已完成，跨3书总5000单列继续。
 - [x] Repository页内批SQL与库存/照片/分页守恒，独立R2及固定原全量Gate通过。
 - [x] Progress操作内revision索引、批读取与历史/指纹/预算保护，401跨块独立验证与固定全量Gate通过。
-- [ ] 相同合法夹具前后对照、生产Utility合成routing争用与worker测量裁决。
-- [ ] 独立审计、固定原完整Gate、报告及开发分支push；通过后计10/11。
+- [x] 相同合法夹具前后对照、生产Utility合成routing争用与worker测量裁决。
+- [x] 独立审计、固定原完整Gate、报告及开发分支push；通过后计10/11。
 
 008外置证据根：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-root-i5_cre8_`。两名源码作者目前只读等待，Root先验证工具与baseline；未触Owner数据库、Roon或真实播放。
 
@@ -279,10 +279,10 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 
 - [x] R1库存批量SQL与progress局部上下文；独立96/96+strict退出0。
 - [x] 50/500原基线及同库90组完整DTO/事实对照；控制路由50/500合成对照退出0。
-- [ ] 2000/总5000合法固定基线与最终候选对照（原60秒seed超时保留；新300秒取得完整2000夹具）。
+- [x] 2000/总5000合法固定基线与最终候选对照（原60秒seed超时保留；新300秒取得完整2000夹具）。
 - [x] 消除首次activation完整校验中的平方成员扫描和重复parse；保留全部损坏/历史/容量检测，30项目录与31项相关合同通过。
 - [x] 第二轮独立审查及原全量Gate，固定4d84十文件/153dist/878source身份一致。
-- [ ] worker残余同步热点裁决；最终5000对照、报告与最终开发分支push。
+- [x] worker残余同步热点裁决；最终5000对照、报告与最终开发分支push。
 
 当前三名gpt-6.1-sol xhigh分别负责测量恢复、残余CPU归因和完整数据库所有者边界设计。009只读类型交接已完成；008两轮独立审计已结束，不追加第三轮。
 
@@ -308,7 +308,7 @@ R2十文件独立审查完成：8797合同接受/拒绝零不等价；401当前�
 - [x] 领域与线程作者接口对齐：20子域、两个长期连接、208个领域命令；父Core保留播放与Roon/Provider。
 - [x] 领域组合/异步协议、生产worker入口与启动提交/关闭自然退出实现和直接行为验证。
 - [x] 真实线程下控制响应、未知回执/代际/资源收尾和受控录音负载验证；同owner录音延迟与真实设备未验收单列。
-- [ ] 合并新候选、固定源码后原完整Gate、结果报告和开发分支推送。
+- [x] 合并新候选、固定源码后原完整Gate、结果报告和开发分支推送。
 
 当前4d84的软件Gate只覆盖此前局部优化，不覆盖隔离工作区中的新owner代码。新实现仍在开发，完成计数保持9/11。
 
@@ -339,3 +339,32 @@ owner首全量 `f810728` actual1：Contracts254/Core1946+原2skip通过，Deskto
 固定77901d5原全Gate均actual0：Contracts254/Core1948+原2skip/Desktop1219、原mock4、E2E104+原4skip（0failure/flaky）、编译表格与原静态Gate。5000全部99项canonical与持久事实匹配；基线parent实际0，候选parent实际3（未选择原135），234分runner清单不混算。开发checkout已安全接入77901d5，原无关目录保留；源码阶段非forcepush/远端HEAD一致，新的Linux关闭竞态复核与报告push待完成，进度保持9/11。
 
 MBP-008软件收尾：10/11。固定77901d5新远端Linux verify254/Core1948+原2skip/Desktop1219、security29、macOS startup4/E2E104+原4skip通过，关闭失败两用例通过；完整verify原始日志/产物actual0已存。dependency-audit最新11moderate8high失败（新增basic-ftp高危），009精确修复并原全量收口。b9544d3草稿提交保留，本次最终报告补齐终态与计数。真实Roon/录音、GateB、main/App/发布仍未执行。
+
+### MBP-009 当前子步骤
+
+- [x] 008最终报告6ac36f6 push与远端HEAD确认；独立009分支从其建立，原无关目录保留。
+- [x] strict与HTTP准备只读审查；修正有损字节断言/DNS resolver护栏，60方法阻断/恢复行为检查通过，实际HTTP尚未执行。
+- [x] 三条精确父依赖override与lock/install完整性；API4.40.1/utils0.4.4保持，Axios1.20.0/basic-ftp6.2.1。
+- [x] 完整v1 strict：30诊断/exit2→0诊断/exit0；原expect/test/skip保护不减弱。
+- [x] 合成loopback HTTP28项/39请求、FTP6组件及parser/CJS4组断言，均actual0；资源关闭、自然退出、源和依赖指纹一致。
+- [x] 固定源码verify254/Core1948+原2skip/Desktop1219及三包构建、security29、mock4、原high audit、静态372文件，实际退出均0。
+- [x] 固定862876a原108 Electron E2E与全部远端原作业终态；本地及远端104+原4skip/0fail/flaky，旧399/bc/8f失败证据保留。
+- [ ] 独立实现/报告commit、开发分支push与远端HEAD，软件范围11/11；真实范围仍另列。
+
+009固定实现 `399d5a6`：原完整v1 strict before30诊断/actual2→after0诊断/actual0，18include保留原17；3条实际依赖边/lock最小结构delta校验通过，原XLSX校验值恢复保留。真实loopback兼容与原全量Gate开始，仍10/11。
+
+009最新：HTTP与FTP合成兼容通过（不是实际Provider/FTP/音频证据）；原high审计官方endpoint退出0、0high/0critical，另有6moderate。默认npm镜像审计endpoint失败和官方JSON导出exit1分别保留；JSON exit1为pnpm10.17.1总漏洞数语义，不替代原plain high门禁退出0。原parser工具PATH缺/usr/sbin、FTP监听数字地址被DNS护栏拒绝的工具失败保留，新工具经明确根因修正/重新绑定后通过。399d5a61已开发分支push，远端CI执行中；security作业已通过。
+
+009本地最终原门禁已齐：完整108 E2E为104pass+原4skip，0fail/flaky/actual0；898源码前后不变。399固定远端Linux verify与dependency-audit、security全部SUCCESS；macOS E2E仍RUNNING。第二次009窄独立复审无确证P1/P2，8秒deadline仅覆盖worker而不包含前后身份扫描，报告如实限定。最后待远端macOS终态、原日志/产物、报告与最终push，不提前宣布整轮结束。
+
+399远端macOS Electron E2E已终态FAIL（2026-10-01 17:24:40 UTC），不是等待。Linux verify/audit与security成功、本地完整108成功分别保留；先保存失败日志/产物并归因，当前依旧10/11，不用skip或缩小范围替代验收。
+
+009重载修正固定 `bc36362`：仅task070等待改为真实reload的DOMContentLoaded+原首页+新增Core ready，倒放该delta恢复旧文件逐字内容，全部原业务断言/超时/测试注册与4skip保留。受控装饰PNG挂起时document=interactive且Core/outbox可用，释放后load完成；这证明机制，不证明399远端具体阻塞资源。Root probe目录前缀错误的两个失败保留，修正入口后actual0。新898源码SHA ed9b170d…，生产源码/lock/deps不变；原完整Gate及新CI重跑中，仍10/11。
+
+009第三固定 `8f77a4e`：bc原完整本地actual0/104+4；远端mac一绿104+4、一红103+4+1（合法底栏与搜索列表曲名重复），两份原始结果和失败ZIP保留；单行限定搜索table且严格exact/visible不变，受控两元素RED1→GREEN0；8f77a4e新固定原全量重跑中。898源码SHA b6113c20…；生产/lock/deps不变，临时RED/GREEN前置assert已移除。初次grep入口无测试actual1和仅等底栏而case通过actual0不算RED；两处可见且count2后旧locator严格失败actual1，同夹具只限定搜索table后全case通过actual0。仍10/11。
+
+009第四固定 `862876a`：8f本地原全量104+原4skip成功，远端Linux verify/audit/security成功、mac103+4+1失败。唯一差异是初次归档快照active=true、冷启false；FINALIZED后生产仍巡检，原夹具只等phase。真实coordinator暂停FINALIZED复现RED1→GREEN0，原主流程Electron定向1/1实际0。仅强化seed的完成/静止/无故障屏障，主流程完整deep equality、原timeout/108/4skip不变；失败ZIP SHA42cce8e9…及初始identity已封存。新固定原全量/CI待验证，仍10/11。
+
+862876a本地最终原9门禁均actual0：verify254/Core1948+原2skip/Desktop1219、security29、mock4、原108 E2E104+原4skip/0fail/flaky，high0/critical0/6moderate，静态Gate通过。最终JSON已独立封存；源码898前后dd07d75f…一致。远端Linux verify/audit/security SUCCESS，macOS仍运行。报告/push待齐，保持10/11。
+
+862876a同SHA远端最终原verify/audit/security/macOS全部SUCCESS：Linux254/1948+原2skip/1219，security29，macstartup4及108 E2E104+原4skip/0fail/flaky。最终原日志/两份ZIP独立摘要校验及JSON原skip逐名核对通过；独立报告和最终开发分支push收尾中，完成后软件11/11，真实验收继续未执行。

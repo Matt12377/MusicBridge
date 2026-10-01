@@ -2654,32 +2654,32 @@
     "nextBranchBase": "最终报告提交 HEAD；不作为下一任务放行"
   },
   "performanceOptimization20261001": {
-    "state": "active",
+    "state": "report-delivery-pending",
     "ownerAuthorization": "连续实施性能与正确性计划；最新子代理偏好 gpt-6.1-sol xhigh，最多3名，必要时独立审计测试",
     "baselineCommit": "e97f9e578beb7c5329d0c59e232b0da568e2f6fa",
-    "branch": "codex/mbp-008-collection-batch",
-    "currentTask": "MBP-008",
+    "branch": "codex/mbp-009-acceptance",
+    "currentTask": "MBP-009",
     "plan": "project/PERFORMANCE_PLAN.json",
     "todo": "project/PERFORMANCE_TODO.md",
     "implementationComplete": 10,
     "automaticAcceptanceComplete": 10,
     "taskCount": 11,
-    "implementationCommit": "77901d5b553cf782e3943f3027957884928212c7",
+    "implementationCommit": "862876a1d4cd21e77a48a283b873d2b28094717a",
     "checks": {
-      "currentTask": "MBP-008",
-      "softwareGates": "PASS exact779 local standard full范围；remoteLinux verify/security/macElectron PASS，dependency-audit FAIL11moderate8high",
+      "currentTask": "MBP-009",
+      "softwareGates": "862876a原完整9门禁全部actual0；verify254/Core1948+原2skip/Desktop1219，E2E104+原4skip/0fail/flaky，源码898前后同SHA",
       "baseline": "50/500/2000 COMPLETE;5000resume99/99 actual0/0failed, original5+new94, protected facts/source380/dist153 equal",
-      "workerDecision": "REQUIRED_COMPLETE_DATASET_OWNER_ISOLATION; implementing external detached4d84 checkout; old gates do not cover new owner",
-      "remoteCI": "4d84 verify job/security/Electron104+original4skip PASS; workflow dependency-audit FAIL11moderate7high",
+      "workerDecision": "完成完整20子域/twoDB Owner；最终779实现四路径2000合成控制p950.115–0.224ms，20ms通过；真实未验收",
+      "remoteCI": "862876a原verify/audit/security/macOS全部SUCCESS；E2E104+原4skip/0fail/flaky，原日志和两份最终ZIP已封存",
       "realMacRoon": "NOT_RUN",
       "realRecording": "NOT_RUN",
       "syntheticRouting": "final50/500/2000 actualexit0/idleClose;2000currentp95=61.014ms/snapshot157.653ms, same-thread synthetic production Utility; 20ms all-path goal NOT_MET",
       "candidateR1": "90phase same-DB DTO/facts/source matched exit0; independent96/96+strict0",
       "finalFreeze": "10files_4d84ccd; source878 SHA8bbb9366722e8c33cb329c4b50a41dc780fa0119946bed0a8d172396795b2934; fullverify0",
       "independentAuditR2": "PASS ten-file scoped R2:8797 src differential/strict/401model and401history chunks/41catalog corruption/lifecycle; no confirmed P1/P2",
-      "candidateFinal": "135prior+8prior5000 unchanged; selected5000 candidate92/99 last observation, zero failure; original91 only once resume",
+      "candidateFinal": "原135较小规模与99原5000分runner均完整对照；候选parent实际3/基线0准确保留",
       "residualCpuProfile": "actualexit0/readOnlyDB/3current+3snapshot;means60.043/95.337ms;source878/runtime385/facts/canonical matched",
-      "ownerIsolation": "FROZEN 957bd1c source898; final control fourpaths p950.124-0.243ms all20ms PASS; static372/control-plane/boundaries0; original verify0",
+      "ownerIsolation": "最终77901d5完整898源码/localGate通过，008报告6ac36f6已push；009源399d5a61执行Gate",
       "ownerFirstFullGate": "f810 verify actual1: Contracts254/Core1946+original2skip/Desktop1218pass1staticentrymismatch; did not reach builds",
       "ownerSecondFullGate": "779 actual143 Root-owned verification stopped before source change due static type cycle actual1; partial retained, not PASS",
       "ownerFinalGateProgress": {
@@ -2792,28 +2792,173 @@
         "prior135ProvenanceSeparate": true,
         "finalVerificationSha256": "3442ef424820b6fed025cc45c20c338ba9bb6eb47aae68683947f02178916b9e"
       },
-      "finalReportEvidence": "reports/MBP-008_EVIDENCE.json"
+      "finalReportEvidence": "reports/MBP-008_EVIDENCE.json",
+      "MBP009PreparationReview": {
+        "findings": "有损Buffer比较与DNS覆盖已在外置r2准备工具修正",
+        "candidateToolSha256": "8b0e4b34337a5cd5a00fa70d6ec139c4d30c9876adcbafdfa019deda9d3bbb53",
+        "dnsMethodsUnitPassed": 60,
+        "HTTPRequests": 0
+      },
+      "009SourceFreeze": {
+        "head": "399d5a61cf760d14f48bae0efa852261ca0d7ad6",
+        "count": 898,
+        "sourceSha256": "163d6cdb574058a947290a070d9790b5836daad78a4407ec34344c47df736ecb",
+        "lockSha256": "46de57baa6d1b1a360af8cbeabec1ced2a33223db1eda13c589bbd867e62b99a",
+        "branch": "codex/mbp-009-acceptance",
+        "baseCommit": "6ac36f63ca044d74c838768a2f68490541d22647"
+      },
+      "009Strict": {
+        "beforeCorrectActualExit": 2,
+        "beforeDiagnostics": 30,
+        "afterActualExit": 0
+      },
+      "009DependencyEdges": "实际API4.40.1/utils0.4.4→Axios1.20.0；get-uri6.0.5→basic-ftp6.2.1，lock最小结构delta校验0",
+      "009Compatibility": "HTTP28项/39请求、FTP6组件、parser/CJS4组断言actual0；正式source/lock/installeddeps绑定不变；真实Provider/FTP未执行",
+      "009Audit": {
+        "actualPlainHighGateExit": 0,
+        "high": 0,
+        "critical": 0,
+        "moderate": 6,
+        "officialJsonExit": 1,
+        "jsonExitSemantics": "总漏洞数非0即1；原high过滤仅plain分支",
+        "globalRegistryChanged": false,
+        "ignoreOrThresholdChanged": false
+      },
+      "009SourceFreezeR2": {
+        "head": "bc36362d393b968b487cf0ff24ce159dab445005",
+        "count": 898,
+        "sourceSha256": "ed9b170ddafb8fdfeae9b586257a14b1a5bca00e614a09e95e82da960b1cd72f",
+        "lockSha256": "46de57baa6d1b1a360af8cbeabec1ced2a33223db1eda13c589bbd867e62b99a",
+        "branch": "codex/mbp-009-acceptance",
+        "baseCommit": "6ac36f63ca044d74c838768a2f68490541d22647",
+        "previousImplementation": "399d5a61cf760d14f48bae0efa852261ca0d7ad6",
+        "delta": [
+          "apps/desktop/e2e/task-070.spec.ts"
+        ]
+      },
+      "reloadReadinessCorrection": "399远端真实reload等load超时；受控装饰图片实验证明DOM/home/Core/outbox可先就绪；bc36362仅收敛导航屏障并新增Core ready断言，原全部业务断言/timeout/108与4skip保留；远端具体阻塞资源未定位",
+      "009SourceFreezeR3": {
+        "head": "8f77a4ebe7bf9d066bf4fc9ba997554b6180cc15",
+        "count": 898,
+        "sourceSha256": "b6113c20aca18078079743cf9d5d455aaf96e194bb38a8a18588251c46f0b4cf",
+        "lockSha256": "46de57baa6d1b1a360af8cbeabec1ced2a33223db1eda13c589bbd867e62b99a",
+        "branch": "codex/mbp-009-acceptance",
+        "baseCommit": "6ac36f63ca044d74c838768a2f68490541d22647",
+        "previousImplementation": "bc36362d393b968b487cf0ff24ce159dab445005",
+        "delta": [
+          "apps/desktop/e2e/v1-ui.spec.ts"
+        ]
+      },
+      "searchScopeCorrection": "bc原完整本地actual0/104+4；远端mac一绿104+4、一红103+4+1（合法底栏与搜索列表曲名重复），两份原始结果和失败ZIP保留；单行限定搜索table且严格exact/visible不变，受控两元素RED1→GREEN0；8f77a4e新固定原全量重跑中",
+      "archiveReadinessCorrection": "阶段FINALIZED后仍巡检；seed改为phase完成+active false+issue null，主流程完整冷启深相等保留。受控coordinator RED1→GREEN0，原主流程Electron定向1/1实际0；基线6ac至8f相关四文件逐字相同，失败原ZIP/JSON/日志保留。",
+      "009SourceFreezeR4": {
+        "head": "862876a1d4cd21e77a48a283b873d2b28094717a",
+        "count": 898,
+        "sourceSha256": "dd07d75f6b7b3e1e7beb92dfc66c2cac1a68aab994c7d3b9d479fad0ac535e8b",
+        "lockSha256": "46de57baa6d1b1a360af8cbeabec1ced2a33223db1eda13c589bbd867e62b99a",
+        "branch": "codex/mbp-009-acceptance",
+        "baseCommit": "6ac36f63ca044d74c838768a2f68490541d22647",
+        "previousImplementation": "8f77a4ebe7bf9d066bf4fc9ba997554b6180cc15",
+        "delta": [
+          "apps/desktop/e2e/task-072-workflows.ts"
+        ]
+      },
+      "009LocalFinalGateR4": {
+        "implementationCommit": "862876a1d4cd21e77a48a283b873d2b28094717a",
+        "sourceFileCount": 898,
+        "sourceSha256": "dd07d75f6b7b3e1e7beb92dfc66c2cac1a68aab994c7d3b9d479fad0ac535e8b",
+        "actualExitCodes": {
+          "full-verify-r4": 0,
+          "security-r4": 0,
+          "mock-electron-r4": 0,
+          "full-electron-e2e-r4": 0,
+          "production-audit-official-plain-r6": 0,
+          "control-plane-r4": 0,
+          "boundaries-r4": 0,
+          "cycles-r4": 0,
+          "diff-check-r4": 0
+        },
+        "verify": {
+          "contractsPassed": 254,
+          "corePassed": 1948,
+          "coreOriginalSkip": 2,
+          "desktopPassed": 1219,
+          "typesAndThreeBuilds": "PASS"
+        },
+        "fullElectronE2E": {
+          "stats": {
+            "startTime": "2026-10-01T19:02:04.892Z",
+            "duration": 295805.234,
+            "expected": 104,
+            "skipped": 4,
+            "unexpected": 0,
+            "flaky": 0
+          },
+          "originalTotal": 108,
+          "originalSkipNames": [
+            "V3固定原生输出检查：真实Plan到只读FD与PCM守恒，取消先到、冷启和变更不产生认证",
+            "V3无设备检查面板：明确计划与侧面后真实helper通过，键盘与窄窗保留未认证边界",
+            "V3无设备检查面板：取消失败可重试，迟到真实成功不能改为通过",
+            "V3 执行资产固定原生构建：真实转换、文件验证与冷启动"
+          ],
+          "report": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-009-root-d9sa4fiu/musicbridge-playwright-report-local-r4-final.json",
+          "reportSha256": "8757393cffc82307435538ae7b725ac497c0e19ce366463e7f2d8111eab0e0ee"
+        },
+        "audit": {
+          "high": 0,
+          "critical": 0,
+          "moderate": 6,
+          "actualPlainHighGateExit": 0
+        }
+      },
+      "009SourceCIFinalR4": {
+        "implementationCommit": "862876a1d4cd21e77a48a283b873d2b28094717a",
+        "allOriginalSourceWorkflows": "SUCCESS",
+        "runIds": [
+          36910131425,
+          36910131539,
+          36910131352
+        ],
+        "fullE2E": {
+          "stats": {
+            "startTime": "2026-10-01T18:55:05.721Z",
+            "duration": 801056.383,
+            "expected": 104,
+            "skipped": 4,
+            "unexpected": 0,
+            "flaky": 0
+          },
+          "originalTotal": 108,
+          "originalSkipNames": [
+            "V3固定原生输出检查：真实Plan到只读FD与PCM守恒，取消先到、冷启和变更不产生认证",
+            "V3无设备检查面板：明确计划与侧面后真实helper通过，键盘与窄窗保留未认证边界",
+            "V3无设备检查面板：取消失败可重试，迟到真实成功不能改为通过",
+            "V3 执行资产固定原生构建：真实转换、文件验证与冷启动"
+          ],
+          "reportSha256": "1c5daf75bf84392cde0a47182a4f12cbd3dfb97d3ec2e2affc546948b4b044d7"
+        }
+      }
     },
     "realMacRoonAcceptance": "NOT_RUN",
     "realRecordingAcceptance": "NOT_RUN",
     "mainMerge": "NOT_RUN",
     "installedAppReplacement": "NOT_RUN",
-    "report": "reports/MBP-008_COLLECTION_BATCH.md",
-    "currentTaskBase": "8253bc19c2f473943b304ac9418ad22f71a65f79",
+    "report": "reports/MBP-009_ACCEPTANCE.md",
+    "currentTaskBase": "6ac36f63ca044d74c838768a2f68490541d22647",
     "previousTask": {
-      "id": "MBP-007",
-      "implementationCommit": "c948c1e14ba87ebdbde95c868ce55dff515c3509",
-      "reportCommit": "8253bc19c2f473943b304ac9418ad22f71a65f79",
-      "remoteHead": "8253bc19c2f473943b304ac9418ad22f71a65f79",
+      "id": "MBP-008",
+      "implementationCommit": "77901d5b553cf782e3943f3027957884928212c7",
+      "reportCommit": "6ac36f63ca044d74c838768a2f68490541d22647",
+      "remoteHead": "6ac36f63ca044d74c838768a2f68490541d22647",
       "pushExitCode": 0,
-      "softwareGates": "PASS",
-      "remoteCI": "007 exact825 security PASS; verify core/build PASS dependency-audit FAIL11moderate7high; fullElectron102pass4originalskip2fail; raw logs saved: task067 reload30s and task070 snapshots CoreIPC2s timeout, causes not yet closed",
-      "report": "reports/MBP-007_VIRTUAL_ARTWORK.md"
+      "softwareGates": "PASS localstandard",
+      "remoteSourceCI": "Linux verify/security/macElectron PASS，dependency-audit FAIL11moderate8high",
+      "report": "reports/MBP-008_COLLECTION_BATCH.md"
     },
-    "pendingGate": "008最终报告开发分支push/远端HEAD；009精确依赖安全/strict/兼容与原全量Gate",
+    "pendingGate": "独立报告提交、交付状态及最终开发分支push/远端HEAD",
     "automaticAcceptanceScope": "local-standard-software-gates",
-    "baseCommit": "8253bc19c2f473943b304ac9418ad22f71a65f79",
-    "reportCommitResolution": "commit-containing-reports/MBP-008_COLLECTION_BATCH.md",
+    "baseCommit": "6ac36f63ca044d74c838768a2f68490541d22647",
+    "reportCommitResolution": "commit-containing-reports/MBP-009_ACCEPTANCE.md",
     "agentPolicy": {
       "model": "gpt-6.1-sol",
       "reasoningEffort": "xhigh",
@@ -2824,13 +2969,18 @@
       ]
     },
     "reportCommit": null,
-    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-root-i5_cre8_",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-009-root-d9sa4fiu",
     "carryoverDependencyAudit": {
       "lastVerifiedReport": "77901d5b553cf782e3943f3027957884928212c7",
       "result": "FAIL",
       "moderate": 11,
       "high": 8,
       "closureTask": "MBP-009"
-    }
+    },
+    "evidence": [
+      "reports/MBP-009_ACCEPTANCE.md",
+      "reports/MBP-009_EVIDENCE.json"
+    ],
+    "remoteSourceCI": "862876a原verify/audit/security/macOS全部SUCCESS；E2E104+原4skip/0fail/flaky，原日志和两份最终ZIP已封存"
   }
 }
