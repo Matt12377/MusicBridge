@@ -33,6 +33,7 @@ export default defineConfig({
         input: {
           index: path.join(currentDirectory, 'src/main/index.ts'),
           core: path.join(currentDirectory, 'src/main/core-entry.ts'),
+          'dataset-owner': path.join(currentDirectory, 'src/main/dataset-owner-entry.ts'),
           'spreadsheet-worker': path.join(currentDirectory, '../../packages/bridge-core/src/collection/spreadsheet-worker.ts'),
         },
         output: {

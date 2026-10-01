@@ -1,3 +1,5 @@
+import { createTestDatasetDomain } from './collection/dataset-domain.js';
+import type { DatasetOwnerEndpoint } from './collection/dataset-owner-protocol.js';
 import { assertLibraryReadCurrent, currentLibraryRead, type LibraryReadLifetime } from './shared/library-read-lifetime.js';
 import { createNodePerformanceTrace, currentPerformanceContext } from './diagnostics/performance-trace.js';
 import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts';
@@ -134,6 +136,9 @@ import { resolveRoonMatch } from './matching/candidate-resolution.js';
 export type CoreRuntimeEvent = TypedIpcEvent;
 
 export interface CoreRuntime {
+  readonly datasetOwnerEndpoint?: DatasetOwnerEndpoint;
+  /** 仅可信所有者元数据桥接使用，不属于公开IPC对象。 */
+  getDatasetRoonLibrary?(): RoonPublicLibrary;
   getLibraryReadScope?(command: import('@music-bridge/contracts').IpcCommand): string;
   readonly performance?: import('@music-bridge/contracts').PerformanceTraceRecorder;
   readonly commandOutbox?: ReturnType<typeof createDatasetCommandBoundary>;
@@ -238,6 +243,7 @@ export interface CoreRuntime {
 }
 
 export interface BridgeRuntimeOptions {
+  datasetOwnerEndpoint?: DatasetOwnerEndpoint;
   collectionDatasetIdentity?: DatasetIdentity;
   /** 仅由受信任的 Core 组合层注入；不从 Renderer 或系统 PATH 自动配置。 */
   recordingConverter?: FfmpegConverter;
@@ -351,6 +357,9 @@ const PLAYBACK_STARTUP_DIAGNOSTIC_EVENTS: Record<PlaybackStartupStage, string> =
 };
 
 export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRuntime {
+  if (options.datasetOwnerEndpoint && (options.collectionRepository || options.backupWorkflowStore || options.collectionDatasetIdentity)) {
+    throw new Error('远程数据集所有者不能与本地数据库实例并存。');
+  }
   const config = loadConfig(options.env);
   const logger = options.logger ?? createLogger(config.logLevel);
   const registry = new StreamRegistry();
@@ -985,6 +994,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     assertCurrent: assertReplicaCurrent, assertAttemptIdle: () => recordingAttempts.assertExecutionIdle(),
   }) : undefined;
   const cleanup = async (): Promise<void> => {
+    let ownerCloseFailed = false;
+    let ownerCloseError: unknown;
+    try { await options.datasetOwnerEndpoint?.close(); }
+    catch (error) { ownerCloseFailed = true; ownerCloseError = error; }
     await recordingReplica?.close();
     await recordingPrints?.close();
     await recordingRecords?.close();
@@ -999,7 +1012,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     await preparationZips?.close();
     await preparation?.close();
     await masterVersions?.close();
-    sourceCandidates?.close();
+    await sourceCandidates?.close();
     await sources?.close();
     options.collectionRepository?.close();
     await control.stop();
@@ -1009,6 +1022,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     lyrics.shutdown();
     registry.revokeAll();
     await gateway.stop();
+    if (ownerCloseFailed) throw ownerCloseError;
   };
 
   const diagnosticCounters = (): DiagnosticResourceCounters => {
@@ -1080,6 +1094,8 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       return JSON.stringify([shutdownStarted, ...(combined || command.startsWith('library.') ? [credentialGeneration] : []), ...(combined || !command.startsWith('library.') ? roonScope : [])]);
     },
     performance: performanceTrace,
+    ...(options.datasetOwnerEndpoint ? { datasetOwnerEndpoint: options.datasetOwnerEndpoint } : {}),
+    getDatasetRoonLibrary: () => roonLibrary,
     async start(): Promise<void> {
       if (runtime === 'ready') return;
       if (shutdownStarted) {
@@ -1418,6 +1434,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 const SYNTHETIC_QR_IMAGE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNTYiIGhlaWdodD0iMjU2IiB2aWV3Qm94PSIwIDAgMzMgMzMiIHNoYXBlLXJlbmRlcmluZz0iY3Jpc3BFZGdlcyI+PHBhdGggZmlsbD0iI2ZmZmZmZiIgZD0iTTAgMGgzM3YzM0gweiIvPjxwYXRoIHN0cm9rZT0iIzAwMDAwMCIgZD0iTTIgMi41aDdtMSAwaDFtMSAwaDJtNCAwaDFtMSAwaDNtMSAwaDdNMiAzLjVoMW01IDBoMW0xIDBoMW0xIDBoMW0xIDBoMm04IDBoMW01IDBoMU0yIDQuNWgxbTEgMGgzbTEgMGgxbTMgMGgybTEgMGgzbTIgMGgybTIgMGgxbTEgMGgzbTEgMGgxTTIgNS41aDFtMSAwaDNtMSAwaDFtMSAwaDFtNCAwaDJtMiAwaDNtMiAwaDFtMSAwaDNtMSAwaDFNMiA2LjVoMW0xIDBoM20xIDBoMW0zIDBoMW0zIDBoM20yIDBoMW0yIDBoMW0xIDBoM20xIDBoMU0yIDcuNWgxbTUgMGgxbTIgMGgybTIgMGgybTIgMGgzbTIgMGgxbTUgMGgxTTIgOC41aDdtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDdNMTAgOS41aDFtMiAwaDJtMyAwaDNNMiAxMC41aDFtMSAwaDJtMSAwaDNtMSAwaDJtMiAwaDFtMiAwaDVtMSAwaDFtMiAwaDFtMSAwaDJNNCAxMS41aDFtMiAwaDFtMiAwaDNtMSAwaDJtMiAwaDFtMiAwaDRtMSAwaDFtMSAwaDNNMiAxMi41aDFtMiAwaDJtMSAwaDFtNSAwaDJtMyAwaDJtMiAwaDdNMiAxMy41aDFtMSAwaDFtMSAwaDFtMiAwaDFtMSAwaDNtNyAwaDNtMiAwaDFtMiAwaDFNMiAxNC41aDNtMiAwaDJtMiAwaDJtMSAwaDFtMSAwaDFtMiAwaDFtMyAwaDFtMSAwaDFtMiAwaDJNMiAxNS41aDFtMSAwaDFtMSAwaDJtMiAwaDVtMSAwaDRtMSAwaDFtMiAwaDJtMiAwaDNNNSAxNi41aDFtMiAwaDFtMSAwaDFtMiAwaDFtMSAwaDFtMiAwaDFtMSAwaDJtMSAwaDFtMSAwaDFtMiAwaDNNNCAxNy41aDRtMSAwaDJtNSAwaDNtNSAwaDRNNCAxOC41aDFtMSAwaDFtMSAwaDFtMSAwaDFtMSAwaDJtMiAwaDJtMiAwaDRtMSAwaDJtMiAwaDFNMyAxOS41aDNtNCAwaDRtMiAwaDJtMiAwaDFtMSAwaDJtMSAwaDFtMSAwaDFtMSAwaDFNMiAyMC41aDFtMiAwaDFtMiAwaDFtMSAwaDNtMiAwaDZtMiAwaDFtMSAwaDFtMiAwaDFNMTEgMjEuNWgxbTMgMGgybTIgMGgybTIgMGgybTIgMGgzTTMgMjIuNWg2bTMgMGg1bTEgMGg5bTEgMGgyTTEwIDIzLjVoMW0xIDBoMW0xIDBoMW0zIDBoMW0yIDBoMm0zIDBoMW0yIDBoMk0yIDI0LjVoN20xIDBoMW0xIDBoMm0yIDBoMW0yIDBoNG0xIDBoMW0xIDBoMW0yIDBoMU0yIDI1LjVoMW01IDBoMW0xIDBoMW0yIDBoNG0xIDBoMW0zIDBoMW0zIDBoMU0yIDI2LjVoMW0xIDBoM20xIDBoMW0zIDBoMW02IDBoMm0xIDBoNW0xIDBoMU0yIDI3LjVoMW0xIDBoM20xIDBoMW0xIDBoMW0yIDBoMW0zIDBoMm00IDBoMW0xIDBoMm0zIDBoMU0yIDI4LjVoMW0xIDBoM20xIDBoMW0xIDBoMW0yIDBoMW0xIDBoMW00IDBoMW0xIDBoMm0xIDBoMW00IDBoMU0yIDI5LjVoMW01IDBoMW0yIDBoMW0xIDBoMm03IDBoM20xIDBoMm0xIDBoMU0yIDMwLjVoN20xIDBoMW0yIDBoMW0xIDBoMm0zIDBoNG01IDBoMSIvPjwvc3ZnPgo='
 
 export interface TestBridgeRuntimeOptions {
+  datasetOwnerEndpoint?: DatasetOwnerEndpoint;
   collectionDatasetIdentity?: DatasetIdentity;
   recordingConverter?: FfmpegConverter;
   recordingOutputHelper?: PinnedOutputHelper;
@@ -1439,46 +1456,11 @@ export interface TestBridgeRuntimeOptions {
 }
 
 export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}): CoreRuntime {
-  const collection = options.collectionRepository ?? createCollectionRepository({ filePath: ':memory:' });
-  const commandOutbox = createDatasetCommandBoundary(options.collectionDatasetIdentity ?? { datasetId: randomUUID(), assertCurrent: () => { collection.list({ offset: 0, limit: 1 }); } });
-  const backups = createBackupCoordinator({ store: options.backupWorkflowStore ?? createBackupWorkflowStore({ filePath: ':memory:' }), repository: collection, ...(options.backupPrivateRoot ? { privateRoot: options.backupPrivateRoot } : {}), ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) });
-  const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts, validateAuthorization: root => assertSourceOutsideArchives(root.path, collection.archive) });
-  const sourceCandidates = createSourceCandidateService({ store: collection.sources, drafts: collection.drafts, sources });
-  const mediaPlanning = createMediaPlanningCoordinator({ store: collection.media, drafts: collection.drafts, sources });
-  const masterVersions = createMasterVersionsCoordinator({ store: collection.versions, mediaStore: collection.media, media: mediaPlanning, drafts: collection.drafts, sourceStore: collection.sources, sources });
-  const preparation = createPreparationCoordinator({ store: collection.preparations, sourceStore: collection.sources, sources });
-  const preparationZips = createPreparationZipCoordinator({
-    store: collection.preparationZips,
-    preparations: collection.preparations,
-    datasetId: commandOutbox.context().datasetId,
-    assertDataset: () => { commandOutbox.context(); },
-    protectedRoots: () => [
-      ...collection.sources.roots(),
-      ...collection.preparations.destinations(),
-      ...collection.archive.candidates().map(candidate => candidate.parent),
-      ...collection.archive.operations().flatMap(operation => operation.owned ? [operation.owned.archive.root] : []),
-      ...(options.backupContentBinding?.protectedRoots ?? []),
-      ...(options.backupPrivateRoot ? [options.backupPrivateRoot] : []),
-    ],
-  });
-  const prepared = createPreparedCoordinator({ store: collection.prepared, preparationStore: collection.preparations, preparation, sourceStore: collection.sources });
-  const execution = createExecutionCoordinator({ store: collection.execution, profiles: collection.recordingProfiles, preparationStore: collection.preparations, preparedStore: collection.prepared, mediaStore: collection.media, sourceStore: collection.sources, sources, preparation, ...(options.recordingConverter ? { converter: options.recordingConverter } : {}) });
-  const recordingPlans = createRecordingPlanCoordinator({ store: collection.recordingPlans,
-    ...(options.recordingPlanDeviceSelection ? { deviceSelection: options.recordingPlanDeviceSelection } : {}),
-    ...(options.recordingPlanGateB ? { gateB: options.recordingPlanGateB } : {}) });
-  let assertReplicaIdle = () => {};
-  const recordingAttempts = createRecordingAttemptCoordinator({ store: collection.recordingAttempts,
-    ...(options.recordingAttemptAdmissionProvider ? { admissionProvider: options.recordingAttemptAdmissionProvider } : {}),
-    assertReplicaIdle: () => assertReplicaIdle(), assertCurrent: () => { commandOutbox.context(); } });
-  const recordingReplica = createRecordingReplicaCoordinator({
-    input: createRecordingReplicaInput({ repository: collection, assertCurrent: () => { commandOutbox.context(); }, ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) }),
-    assertCurrent: () => { commandOutbox.context(); }, assertAttemptIdle: () => recordingAttempts.assertExecutionIdle(),
-  });
-  assertReplicaIdle = () => recordingReplica.assertExecutionIdle();
-  const recordingRecords = createRecordingRecordCoordinator({ store: collection.recordingRecords, assertCurrent: () => { commandOutbox.context(); }, assertExecutionIdle: () => recordingAttempts.assertExecutionIdle() });
-  const recordingPrints = createRecordingPrintCoordinator({ store: collection.recordingPrints, assertCurrent: () => { commandOutbox.context(); } });
-  const recordingOutput = createRecordingOutputService({ store: collection.recordingPlans, ...(options.recordingOutputHelper ? { helper: options.recordingOutputHelper } : {}) });
-  const archive = createArchiveCoordinator({ store: collection.archive, executionStore: collection.execution, preparationStore: collection.preparations, sourceStore: collection.sources, sources, preparation });
+  if (options.datasetOwnerEndpoint && (options.collectionRepository || options.backupWorkflowStore || options.collectionDatasetIdentity)) {
+    throw new Error('远程数据集所有者不能与本地数据库实例并存。');
+  }
+  const datasetDomain = options.datasetOwnerEndpoint ? undefined : createTestDatasetDomain(options);
+  const datasetRoonLibrary = options.roonLibrary ?? createRoonPublicLibrary(() => undefined);
   const accountMode = options.accountMode ?? 'ready'
   const syntheticAuthorized = options.authorized === true && accountMode !== 'expired'
   const favoriteRepository = createLocalFavoriteRepository()
@@ -1647,30 +1629,17 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         ...(combined || !command.startsWith('library.') ? [state.roon, selectedZoneId ?? ''] : [])]);
     },
     performance: performanceTrace,
+    ...(options.datasetOwnerEndpoint ? { datasetOwnerEndpoint: options.datasetOwnerEndpoint } : {}),
+    getDatasetRoonLibrary: () => datasetRoonLibrary,
     async start() {
-      commandOutbox.context();
+      datasetDomain?.commandOutbox.context();
       state = { ...state, runtime: 'ready', roon: 'ready' };
       diagnostics.record({ component: 'core', level: 'info', event: 'core_ready', state: 'ready' });
     },
     async shutdown() {
       try {
-      await recordingReplica.close();
-      await recordingPrints.close();
-      await recordingRecords.close();
-      await recordingAttempts.close();
-      options.recordingPlanDeviceSelection?.close();
-      await recordingOutput.close();
-      await recordingPlans.close();
-      await backups.close();
-      await archive.close();
-      await execution.close();
-      await prepared.close();
-      await preparationZips.close();
-      await preparation.close();
-      await masterVersions.close();
-      sourceCandidates.close();
-      await sources.close();
-      collection.close();
+      await options.datasetOwnerEndpoint?.close();
+      await datasetDomain?.close();
       playbackState = emptyPlaybackState();
       state = {
         ...state,
@@ -2049,14 +2018,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     async stopRoonTransport() {
       return { stopped: true as const };
     },
-    collection,
-    commandOutbox,
-    sources,
-    sourceCandidates,
-    mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, archive, backups, recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingPrints, recordingReplica,
-    ...(options.recordingPlanDeviceSelection ? { recordingDeviceSelection: options.recordingPlanDeviceSelection } : {}),
-    physicalLinks: createPhysicalLinksCoordinator({ repository: collection.links, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
-    masterDrafts: createMasterDraftsCoordinator({ repository: collection.drafts, library: options.roonLibrary ?? createRoonPublicLibrary(() => undefined) }),
+    ...(datasetDomain ?? {}),
     listFavorites: (kind, page) => favoriteRepository.listFavorites(kind, page),
     async checkFavorite(descriptor) {
       return { favorite: await favoriteRepository.isFavorite(descriptor) };

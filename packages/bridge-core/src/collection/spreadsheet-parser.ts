@@ -15,7 +15,10 @@ export async function parseSpreadsheetWorkbook(bytes: Uint8Array, fileFormat: Sp
   const timeoutMs = options.timeoutMs ?? 10000;
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10000) throw new SpreadsheetParseError();
   if (activeWorker) throw new SpreadsheetParseError();
-  const built = new URL('./spreadsheet-worker.js', import.meta.url), entry = existsSync(built) ? built : new URL('./spreadsheet-worker.ts', import.meta.url);
+  // Node构建与源码入口同目录；Electron共享chunk在main/chunks，解析入口在main。
+  const built = new URL('./spreadsheet-worker.js', import.meta.url);
+  const bundled = new URL('../spreadsheet-worker.js', import.meta.url);
+  const entry = existsSync(built) ? built : existsSync(bundled) ? bundled : new URL('./spreadsheet-worker.ts', import.meta.url);
   const worker = new Worker(entry, { workerData: { bytes, fileFormat }, resourceLimits: { maxOldGenerationSizeMb: 256, maxYoungGenerationSizeMb: 16, stackSizeMb: 4 } });
   activeWorker = worker;
   try {
