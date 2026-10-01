@@ -76,9 +76,16 @@
       "steps": [
         {
           "id": "MBP-003A",
-          "state": "implementing",
+          "state": "software-gates-passed",
           "baseCommit": "a838a00486d113ea086e4edbe229cafe528a9bf7",
-          "branch": "codex/mbp-003a-priority-controls"
+          "branch": "codex/mbp-003a-priority-controls",
+          "implementationCommit": "c2038e6807f8bccdd12b75366ffcd8dc3c62c25d",
+          "reportCommit": null,
+          "reportCommitResolution": "commit-containing-reports/MBP-003A_PRIORITY_CONTROLS.md",
+          "evidence": [
+            "reports/MBP-003A_PRIORITY_CONTROLS.md",
+            "reports/MBP-003A_EVIDENCE.json"
+          ]
         },
         {
           "id": "MBP-003B",
