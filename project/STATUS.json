@@ -2668,6 +2668,9 @@
     "checks": {
       "currentTask": "MBP-003A",
       "softwareGates": "FOCUSED_PASS_FULL_GATES_PENDING",
+      "focused": "controller-106-runtime-25-roon-100-PASS",
+      "firstVerify": "a6abd4c-PASS-exit-0-224-1697-original-2-skip-975",
+      "publicationCorrection": "cancelled-intent-canStop-publication-RED-exit-1-GREEN-131-exit-0-final-full-gates-pending",
       "realMacRoon": "NOT_RUN",
       "realRecording": "NOT_RUN",
       "remoteCI": "NOT_PUSHED"

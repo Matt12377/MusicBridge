@@ -1846,7 +1846,11 @@ export class BridgeController {
       this.playbackCommandTail = result.then(() => undefined, () => undefined);
       return result;
     });
-    return result.finally(() => { --this.pendingPlaybackCommands; });
+    return result.finally(() => {
+      --this.pendingPlaybackCommands;
+      // 最后意图结算后同步公开能力，避免取消准备留下过期的可停止状态。
+      if (this.pendingPlaybackCommands === 0) this.notifyPlaybackChangedIfDifferent();
+    });
   }
 
   private enqueueControl<T>(operation: () => Promise<T>): Promise<T> {

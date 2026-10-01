@@ -93,7 +93,7 @@ MBR-002 最终固定实现 `200da19`：完整 verify 224 / 1648+原2跳过 / 975
 - [x] 仅读定位长 operationTail、准备中原生所有权缺口与内部取消接口。
 - [x] 短状态处理、外部播放准备、队列填充与完整身份隔离；定向行为验证通过。
 - [x] Roon派发边界、可取消确认、捕获Zone与停止未知保护；100项定向验证通过。
-- [ ] runtime换Zone覆盖准备/派发所有权，独立行为审计。
+- [x] runtime换Zone覆盖准备/派发所有权，独立行为审计；原断言与资源保护保留。
 - [ ] 固定实现、原全量Gate、独立报告与开发分支push。
 
 MBR-002 固定报告 `a838a00` 的远端检查已结束：security和Electron E2E通过，verify作业通过；verify工作流仍因独立dependency-audit失败（11 moderate / 7 high），原始日志已保存。MBP-003A完成仍不增加总计，须后续003B一起验收。
@@ -101,3 +101,5 @@ MBR-002 固定报告 `a838a00` 的远端检查已结束：security和Electron E2
 MBP-003A已有RED：Controller慢metadata/URL/preflight与小批插入4项失败；生产runtime组合两Zone入口11项中音量原独立路径通过，其余10项复现准备撤销、原生所有权和真实SDK回执排序缺口。Roon适配层97项定向通过；Controller仍实施，不以局部结果勾选软件验收。
 
 MBP-003A随后定向通过：Roon100/100，生产runtime组合25/25（含17项新增行为），Controller最终105/105及严格类型通过，外部Stop排队捕获Zone保护已包含在最终冻结中。Transport确认和实际SDK回执使用独立屏障；同turn意图、Stop未知、迟到准备、新所有者资源、Smart取消与有序控制保持。独立审计和原完整Gate尚未结算，未升级总计。
+
+固定首个实现 `a6abd4c` 原完整verify退出0：224 / 1697+原2跳过 / 975，三包构建通过，827源码Gate前后指纹相同。Root补查复现最后意图结算后已发布canStop仍为true、实际所有权已释放的差异（独立内存复现及新增契约测试均exit1）；补修结算时发布能力变化，Controller106+runtime25共131项通过，未修改已有断言。补修后重新固定并重跑原完整Gate，不沿用首个通过覆盖新代码。

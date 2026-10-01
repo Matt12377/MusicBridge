@@ -2397,6 +2397,29 @@ function mbpDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+test('MBP003A：取消准备后最后意图结算，发布的停止能力与已释放所有权一致', async t => {
+  const f = makeHarness(), gate = mbpDeferred<void>(), entered = mbpDeferred<void>();
+  const original = f.netease.getTrack.bind(f.netease);
+  t.mock.method(f.netease, 'getTrack', async (id: string) => {
+    entered.resolve(); await gate.promise; return original(id);
+  });
+  const snapshots: PlaybackSnapshot[] = [];
+  const unsubscribe = f.controller.subscribe(snapshot => snapshots.push(snapshot));
+  const playing = f.controller.play({ trackId: '99100' }).catch(error => error);
+  try {
+    await entered.promise;
+    assert.equal(snapshots.at(-1)?.canStop, true);
+    await f.controller.stop();
+    await playing;
+    assert.equal(f.controller.hasPlaybackOwnership(), false);
+    assert.equal(f.controller.getPlaybackState().canStop, false);
+    assert.equal(snapshots.at(-1)?.state, 'idle');
+    assert.equal(snapshots.at(-1)?.canStop, false, '已发布快照不得留存过期的停止能力');
+    assert.equal(f.roon.playRequests.length, 0);
+    assert.equal(f.registry.size, 0);
+  } finally { gate.resolve(); unsubscribe(); await playing; }
+});
+
 for (const stage of ['metadata', 'url', 'preflight'] as const) {
   test(`MBP003A：${stage}准备未决时Stop先完成，迟到结果零播放/零token`, { timeout: 3000 }, async t => {
     const f = makeHarness(), gate = mbpDeferred<void>(), entered = mbpDeferred<void>();
