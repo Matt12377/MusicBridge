@@ -64,6 +64,10 @@ export async function seedRecordingPlan(page: Page, app: ElectronApplication, di
   const archiveSelection = { rootId: root!.id, assetId: asset.id, sourcePolicy: 'preserve-exact-sources' as const }
   const archivePreview = await page.evaluate(request => window.musicBridge.previewArchive(request), { ...archiveSelection, readId: randomUUID() })
   const archived = await page.evaluate(request => window.musicBridge.startArchive(request), { ...archiveSelection, commandId: randomUUID(), proposalFingerprint: archivePreview.proposalFingerprint, userConfirmed: true as const })
-  await expect.poll(async () => (await page.evaluate(id => window.musicBridge.getArchiveOperation(id), archived.id)).operation?.phase).toBe('FINALIZED')
+  // FINALIZED 后仍有完整性巡检；确认静止且无故障后，才固定冷启动身份快照。
+  await expect.poll(async () => {
+    const operation = (await page.evaluate(id => window.musicBridge.getArchiveOperation(id), archived.id)).operation
+    return { phase: operation?.phase, active: operation?.active, issue: operation?.issue ?? null }
+  }).toEqual({ phase: 'FINALIZED', active: false, issue: null })
   return { draft: saved, sourceFile, bytes, media, layout, profile, session, asset, archive: archived, selection: { assetId: asset.id, archiveOperationId: archived.id } }
 }
