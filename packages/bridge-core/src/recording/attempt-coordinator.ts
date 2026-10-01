@@ -26,7 +26,7 @@ interface Options {
 }
 type CleanupType = 'engine-cutoff' | 'stop-ack';
 type CleanupEvent = { type: CleanupType; side: dto.RenderSide; runId: string; at: string };
-interface Slot { controller: AbortController; attemptId?: string; side?: dto.RenderSide; runId?: string; handle?: RecordingAttemptDriver; inputLease?: RecordingOutputInputLease; pendingInputLease?: Promise<RecordingOutputInputLease>; barrierPending?: boolean; barrierSettled?: boolean; wantsClose: boolean; closing?: Promise<void>; closingFailed?: boolean; closingError?: unknown; pendingStart?: Promise<RecordingAttemptDriver>; stopCleanup?: Map<CleanupType, CleanupEvent>; terminalPersisted?: boolean }
+interface Slot { controller: AbortController; attemptId?: string; side?: dto.RenderSide; runId?: string; handle?: RecordingAttemptDriver; inputLease?: RecordingOutputInputLease; pendingInputLease?: Promise<RecordingOutputInputLease>; barrierPending?: boolean; barrierSettled?: boolean; wantsClose: boolean; closing?: Promise<void>; closingFailed?: boolean; closingError?: unknown; pendingStart?: Promise<RecordingAttemptDriver>; driverCutoff?: boolean; driverCleanupQuiescent?: boolean; stopCleanup?: Map<CleanupType, CleanupEvent>; terminalPersisted?: boolean }
 
 export function createRecordingAttemptCoordinator({ store, admissionProvider, assertCurrent = () => {}, assertReplicaIdle = () => {}, acquireInputLease = acquireRecordingOutputInputLease, operationTimeoutMs = 30 * 60_000, closeTimeoutMs = 5_000 }: Options) {
   if (!Number.isSafeInteger(operationTimeoutMs) || operationTimeoutMs < 1 || operationTimeoutMs > 30 * 60_000 || !Number.isSafeInteger(closeTimeoutMs) || closeTimeoutMs < 1 || closeTimeoutMs > 5_000) return attemptFail('INVALID_REQUEST');
@@ -78,9 +78,13 @@ export function createRecordingAttemptCoordinator({ store, admissionProvider, as
           throw error;
         }
       }
-      // 只有driver.close证明软件静止后才允许末Hash与FD关闭。
+      // 原pendingStart已实际拒绝才可消费pre-spawn局部证明；外层等待超时绝不替代这个settled边界。
+      const preSpawnClosed = !handle && startFailed && current.pendingStart !== undefined
+        && current.driverCutoff === true && current.driverCleanupQuiescent === true;
+      const driverClosed = !!handle || preSpawnClosed;
+      // 真实driver.close，或精确pre-spawn拒绝收口后，仍须Core输入末Hash与FD释放。
       try {
-        if (handle && !current.inputLease) throw new AttemptError('BACKEND_FAILURE');
+        if (driverClosed && !current.inputLease) throw new AttemptError('BACKEND_FAILURE');
         if (current.inputLease) {
           releaseResult = await current.inputLease.release();
           if (releaseResult !== 'verified' && releaseResult !== 'cancelled') throw new AttemptError('BACKEND_FAILURE');
@@ -110,15 +114,16 @@ export function createRecordingAttemptCoordinator({ store, admissionProvider, as
         }
         current.barrierSettled = true;
       }
-      if (handle && current.inputLease && !releaseFailed && (releaseResult === 'verified' || releaseResult === 'cancelled')
+      if (driverClosed && current.inputLease && !releaseFailed && (releaseResult === 'verified' || releaseResult === 'cancelled')
         && current.attemptId && current.side && current.runId) {
-        // 句柄关闭与Core输入租期释放均已完成；只补精确run的软件静止事实，不伪造设备ACK/排空。
+        // 驱动关闭或pre-spawn收口、Core输入租期释放均完成；只补精确run静止，不伪造设备ACK/排空。
         store.persistClosedOutputRunQuiet(current.attemptId, current.side, current.runId);
       }
       // 末核验失败未持久化时会在上方抛出，不能先清slot再补写失败。
       if (releaseFailed) throw releaseError ?? new AttemptError('BACKEND_FAILURE');
       if (slot === current) slot = undefined;
-      if (startFailed) throw startError ?? new AttemptError('BACKEND_FAILURE');
+      // 有证据的pre-spawn业务拒绝不是资源收口失败；Attempt/barrier保留失败，但不锁住下一Begin。
+      if (startFailed && !preSpawnClosed) throw startError ?? new AttemptError('BACKEND_FAILURE');
       if (retryFailed && previousError !== undefined && cleanupError === previousError) cleanupError = undefined;
     };
     void finish().then(resolveClose, rejectClose); return current.closing;
@@ -135,9 +140,10 @@ export function createRecordingAttemptCoordinator({ store, admissionProvider, as
     if (current.controller.signal.aborted && (!valid || !['engine-cutoff', 'stop-ack', 'cleanup-quiescent'].includes(event.type))) return;
     if (!valid || !('runId' in event) || event.type === 'begin-side') { interrupt(current, 'protocol-error'); return; }
     if (event.runId !== current.runId || event.side !== current.side) return;
-    // 驱动清理仅证明其自身资源静止；Core仍持有输入租期，不能进入Attempt或原Stop回执。
+    if (event.type === 'engine-cutoff') current.driverCutoff = true;
+    // 驱动清理仅保存精确run的局部证明；Core仍持有输入租期，不能进入Attempt或原Stop回执。
     // 正常EOF继续等backend-drained触发收尾；失败/停止已有终态与finishHandle，不抢先释放输入。
-    if (event.type === 'cleanup-quiescent') return;
+    if (event.type === 'cleanup-quiescent') { current.driverCleanupQuiescent = true; return; }
     if (current.stopCleanup && (event.type === 'engine-cutoff' || event.type === 'stop-ack')) {
       // 真实cutoff与ACK各保留首个合法回报和到达顺序，不让同步abort监听先进入持久审计。
       if (!current.stopCleanup.has(event.type)) current.stopCleanup.set(event.type, { ...event } as CleanupEvent);

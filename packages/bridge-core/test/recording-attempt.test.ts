@@ -1465,6 +1465,74 @@ test('MBR002：driver已close但输入租期release未返回时不写静止且�
   assert.equal(latest.sides[0]!.stopAcknowledged, false); assert.equal(latest.sides[0]!.backendDrained, false);
 });
 
+test('MBR002：pre-spawn精确收口证明须等待输入释放，安全拒绝不锁下一Begin', async t => {
+  for (const mode of ['success', 'release-reject', 'wrong-run', 'no-proof', 'missing-cutoff'] as const) await t.test(mode, async t => {
+    const f = await fixture(t), entered = deferred<void>(), releaseGate = deferred<void>(); let starts = 0, authorizations = 0;
+    let inputLease: Awaited<ReturnType<typeof acquireRecordingOutputInputLease>> | undefined;
+    const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts,
+      acquireInputLease: async (...args) => {
+        const lease = inputLease = await acquireRecordingOutputInputLease(...args);
+        return { signal: lease.signal, provider: lease.provider, async release() {
+          entered.resolve(); await releaseGate.promise; const result = await lease.release();
+          if (mode === 'release-reject') throw new AttemptError('BACKEND_FAILURE');
+          return result;
+        } };
+      }, admissionProvider: { async authorize() {
+        if (++authorizations > 1) throw new AttemptError('BACKEND_NOT_CERTIFIED');
+      }, async start(request) {
+        ++starts; const identity = { side: request.side, runId: request.runId, at: new Date().toISOString() };
+        if (mode !== 'no-proof' && mode !== 'missing-cutoff') request.onEvent({ ...identity, type: 'engine-cutoff' });
+        if (mode !== 'no-proof') request.onEvent({ ...identity, type: 'cleanup-quiescent', runId: mode === 'wrong-run' ? randomUUID() : request.runId });
+        throw new AttemptError('BACKEND_NOT_CERTIFIED');
+      } },
+    });
+    f.registerDependentCleanup(async () => { releaseGate.resolve(); await coordinator.close().catch(() => undefined); await inputLease?.release().catch(() => undefined); });
+    const starting = coordinator.begin(f.beginRequest()); await entered.promise;
+    const pending = coordinator.list({ page }).items[0]!;
+    assert.equal(pending.status, 'failed'); assert.equal(pending.reason, 'backend-start-failed');
+    assert.equal(pending.sides[0]!.cleanupQuiescent, false, '输入释放在途时驱动证明不得直接持久');
+    assert.throws(() => coordinator.assertExecutionIdle(), { code: 'ATTEMPT_CONFLICT' });
+    releaseGate.resolve(); const failed = await starting;
+    assert.equal(failed.status, 'failed'); assert.equal(failed.reason, 'backend-start-failed');
+    assert.equal(failed.sides[0]!.cleanupQuiescent, mode === 'success');
+    assert.equal(failed.sides[0]!.stopAcknowledged, false); assert.equal(failed.sides[0]!.sourceEof, false); assert.equal(failed.sides[0]!.backendDrained, false);
+    const db = new DatabaseSync(f.filePath, { readOnly: true });
+    try { assert.deepEqual(db.prepare('SELECT phase FROM output_run_barrier_events WHERE attempt_id=? ORDER BY phase').all(failed.id).map(row => row.phase), ['failed', 'pending']); }
+    finally { db.close(); }
+    if (mode === 'success') {
+      coordinator.assertExecutionIdle();
+      await assert.rejects(coordinator.begin(f.beginRequest()), { code: 'NOT_ACCEPTED', causeCode: 'BACKEND_NOT_CERTIFIED' });
+      assert.equal(authorizations, 2, '安全pre-spawn拒绝不得锁住后续准入；第二次Fake准入主动拒绝以免重用已预留Plan');
+      assert.equal(starts, 1);
+    } else {
+      assert.throws(() => coordinator.assertExecutionIdle(), { code: 'BACKEND_FAILURE' });
+      await assert.rejects(coordinator.begin(f.beginRequest()), { code: 'BACKEND_FAILURE' });
+      assert.equal(starts, 1);
+    }
+  });
+});
+
+test('MBR002：pre-spawn驱动虽有局部proof但原start仍未决，超时不得释放输入或持久静止', async t => {
+  const f = await fixture(t), entered = deferred<void>(), startGate = deferred<RecordingAttemptDriver>(); let releases = 0;
+  let inputLease: Awaited<ReturnType<typeof acquireRecordingOutputInputLease>> | undefined;
+  const coordinator = createRecordingAttemptCoordinator({ store: f.repository.recordingAttempts, operationTimeoutMs: 100, closeTimeoutMs: 20,
+    acquireInputLease: async (...args) => {
+      const lease = inputLease = await acquireRecordingOutputInputLease(...args);
+      return { signal: lease.signal, provider: lease.provider, async release() { ++releases; return lease.release(); } };
+    }, admissionProvider: { async authorize() {}, async start(request) {
+      const identity = { side: request.side, runId: request.runId, at: new Date().toISOString() };
+      request.onEvent({ ...identity, type: 'engine-cutoff' }); request.onEvent({ ...identity, type: 'cleanup-quiescent' });
+      entered.resolve(); return startGate.promise;
+    } },
+  });
+  f.registerDependentCleanup(async () => { startGate.reject(new AttemptError('BACKEND_NOT_CERTIFIED')); await coordinator.close().catch(() => undefined); await inputLease?.release().catch(() => undefined); });
+  const starting = coordinator.begin(f.beginRequest()); await entered.promise; const timedOut = await starting;
+  assert.notEqual(timedOut.status, 'in-progress');
+  assert.equal(releases, 0); assert.equal(coordinator.get({ attemptId: timedOut.id }).attempt!.sides[0]!.cleanupQuiescent, false);
+  assert.throws(() => coordinator.assertExecutionIdle(), { code: 'ATTEMPT_CONFLICT' });
+  await assert.rejects(coordinator.begin(f.beginRequest()), { code: 'ATTEMPT_CONFLICT' });
+});
+
 test('MBR002：Stop反复拒写无持久回执时，原DTO手动重试仍可恢复真实close', async t => {
   const f = await fixture(t), original = f.repository.recordingAttempts;
   let closes = 0, writes = 0;

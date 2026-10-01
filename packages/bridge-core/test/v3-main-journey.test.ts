@@ -14,7 +14,8 @@ import { createPreparationCoordinator } from '../src/recording/preparation-coord
 import { createExecutionCoordinator } from '../src/recording/execution-coordinator.js';
 import { createArchiveCoordinator } from '../src/recording/archive-coordinator.js';
 import { createRecordingPlanCoordinator } from '../src/recording/plan-coordinator.js';
-import { createRecordingAttemptCoordinator, type RecordingAttemptDriverRequest } from '../src/recording/attempt-coordinator.js';
+import { createRecordingAttemptCoordinator, type RecordingAttemptCoordinator, type RecordingAttemptDriverRequest } from '../src/recording/attempt-coordinator.js';
+import { AttemptError } from '../src/recording/attempt-integrity.js';
 import { createRecordingRecordCoordinator } from '../src/recording/record-coordinator.js';
 import { fakePlanDeviceSelection } from './helpers/fake-plan-device-selection.js';
 import { recordingProfileContent } from './helpers/recording-profile-fixture.js';
@@ -39,6 +40,17 @@ async function journeyTemporaryRoot(): Promise<string> {
   return actual;
 }
 const page = { offset: 0, limit: 25 };
+async function waitForOutputIdle(coordinator: RecordingAttemptCoordinator): Promise<void> {
+  const deadline = performance.now() + 10_000;
+  for (;;) {
+    try { coordinator.assertExecutionIdle(); return; }
+    catch (error) {
+      if (!(error instanceof AttemptError) || error.code !== 'ATTEMPT_CONFLICT') throw error;
+      if (performance.now() >= deadline) throw new Error('合成输出关闭与输入租期释放未在期限内完成');
+      await new Promise<void>(resolve => setTimeout(resolve, 10));
+    }
+  }
+}
 function audio(marker: number): Buffer {
   const bytes = Buffer.alloc(44 + 44100 * 4);
   bytes.write('RIFF'); bytes.writeUInt32LE(bytes.length - 8, 4); bytes.write('WAVEfmt ', 8);
@@ -229,6 +241,17 @@ test('V3主流程：中途主动取消无成功档案；冷启保留Attempt/回�
   const stop = { commandId: randomUUID(), attemptId: accepted.id };
   const aborted = await f.attempts.stop(stop);
   assert.equal(aborted.status, 'aborted'); assert.equal(aborted.reason, 'user-stop');
+  await waitForOutputIdle(f.attempts);
+  const latest = f.attempts.get({ attemptId: aborted.id }).attempt!;
+  assert.equal(latest.status, aborted.status); assert.equal(latest.reason, aborted.reason);
+  assert.ok(latest.revision > aborted.revision, '关闭与租期释放追加新事实，不重写原Stop回执');
+  assert.equal(latest.sides[0]!.engineStoppedSubmitting, true);
+  assert.equal(latest.sides[0]!.cleanupQuiescent, true);
+  assert.equal(latest.sides[0]!.stopAcknowledged, aborted.sides[0]!.stopAcknowledged, 'quiet不能冒充新的设备ACK');
+  assert.equal(latest.sides[0]!.backendDrained, false); assert.equal(latest.softwarePlaybackComplete, false);
+  assert.equal(latest.sides[0]!.physicalStopConfirmedAt, undefined);
+  assert.equal(aborted.sides[0]!.cleanupQuiescent, false, '原Stop回执保持不可变');
+  assert.deepEqual(await f.attempts.stop(stop), aborted);
   assert.equal(f.records.list({ page }).total, 0);
   const archived = f.repository.archive.operation(f.archived.id);
   await f.close();
@@ -236,24 +259,32 @@ test('V3主流程：中途主动取消无成功档案；冷启保留Attempt/回�
   const resumed = createRecordingAttemptCoordinator({ store: reopened.recordingAttempts });
   const records = createRecordingRecordCoordinator({ store: reopened.recordingRecords, assertCurrent() {}, assertExecutionIdle: () => resumed.assertExecutionIdle() });
   try {
-    assert.deepEqual(resumed.get({ attemptId: aborted.id }).attempt, aborted);
+    assert.deepEqual(resumed.get({ attemptId: aborted.id }).attempt, latest);
     assert.deepEqual(await resumed.begin(f.begin), accepted); assert.deepEqual(await resumed.stop(stop), aborted);
     assert.equal(records.list({ page }).total, 0); assert.deepEqual(reopened.archive.operation(f.archived.id), archived);
     assert.equal(records.history({ physicalId: aborted.physicalId, page }).state.knowledge.state, 'unknown');
-    await assert.rejects(resumed.confirm({ commandId: randomUUID(), attemptId: aborted.id, expectedRevision: aborted.revision, kind: 'final-verification', userConfirmed: true }));
+    await assert.rejects(resumed.confirm({ commandId: randomUUID(), attemptId: latest.id, expectedRevision: latest.revision, kind: 'final-verification', userConfirmed: true }));
   } finally { records.close(); await resumed.close(); reopened.close(); }
 });
 
 test('V3主流程：取消后须显式处置与新冻结Plan才能新Attempt；旧失败/新谱系冷启分离', async t => {
   const f = await journey(t), first = await f.attempts.begin(f.begin);
   const stopped = await f.attempts.stop({ commandId: randomUUID(), attemptId: first.id });
-  const aborted = await f.attempts.confirm({ commandId: randomUUID(), attemptId: first.id, expectedRevision: stopped.revision, kind: 'physical-stop', side: 'A', userConfirmed: true });
+  await waitForOutputIdle(f.attempts);
+  const quiet = f.attempts.get({ attemptId: first.id }).attempt!;
+  assert.equal(quiet.sides[0]!.cleanupQuiescent, true);
+  const aborted = await f.attempts.confirm({ commandId: randomUUID(), attemptId: first.id, expectedRevision: quiet.revision, kind: 'physical-stop', side: 'A', userConfirmed: true });
   await assert.rejects(f.attempts.begin({ ...f.begin, commandId: randomUUID() }), '未知实体不能直接借旧Plan重试');
   assert.equal(f.starts.length, 1); assert.equal(f.records.list({ page }).total, 0);
   const preview = await f.media.preview({ draftId: f.draft.draftId, spec: f.layout.spec, page });
   const media = await f.media.save({ commandId: randomUUID(), draftId: f.draft.draftId, expectedDraftRevision: preview.draftRevision, inputFingerprint: preview.inputFingerprint, spec: f.layout.spec });
   const state = f.records.history({ physicalId: first.physicalId, page }).state;
-  const disposition = f.records.previewDisposition({ physicalId: first.physicalId, expectedPhysicalRevision: state.physicalRevision, expectedContentRevision: state.revision, expectedAttempt: { id: aborted.id, revision: aborted.revision }, intent: { action: 'prepare-rerecord', mediaPlanId: media.id, expectedMediaPlanRevision: media.revision } });
+  const latest = f.attempts.get({ attemptId: first.id }).attempt!;
+  const dispositionRequest = { physicalId: first.physicalId, expectedPhysicalRevision: state.physicalRevision, expectedContentRevision: state.revision, expectedAttempt: { id: latest.id, revision: latest.revision }, intent: { action: 'prepare-rerecord' as const, mediaPlanId: media.id, expectedMediaPlanRevision: media.revision } };
+  assert.throws(() => f.records.previewDisposition({ ...dispositionRequest, expectedAttempt: { id: stopped.id, revision: stopped.revision } }), { code: 'CONFLICT' });
+  assert.deepEqual(f.attempts.get({ attemptId: first.id }).attempt, latest, '旧Attempt revision拒绝后不能修改失败事实');
+  assert.deepEqual(f.records.history({ physicalId: first.physicalId, page }).state, state, '旧Attempt revision拒绝后不能授予重录许可');
+  const disposition = f.records.previewDisposition(dispositionRequest);
   const permitted = f.records.applyDisposition({ ...disposition.request, commandId: randomUUID(), proposalFingerprint: disposition.proposalFingerprint, userConfirmed: true });
   assert.equal(permitted.state.activeRerecordPermit?.state, 'available');
   const versionPreview = await f.versions.preview({ planId: permitted.mediaPlan!.id, sampleRate: 44100 });
@@ -281,13 +312,17 @@ test('V3主流程：取消后须显式处置与新冻结Plan才能新Attempt；�
   assert.deepEqual(f.attempts.get({ attemptId: first.id }).attempt, aborted);
   assert.equal(f.records.history({ physicalId: first.physicalId, page }).state.activeRerecordPermit, null);
   const stop = { commandId: randomUUID(), attemptId: next.id }, second = await f.attempts.stop(stop);
+  await waitForOutputIdle(f.attempts);
+  const secondLatest = f.attempts.get({ attemptId: next.id }).attempt!;
+  assert.equal(secondLatest.status, second.status); assert.equal(secondLatest.reason, second.reason);
+  assert.equal(secondLatest.sides[0]!.cleanupQuiescent, true);
   const beforeHistory = f.records.history({ physicalId: first.physicalId, page });
   await f.close();
   const reopened = createCollectionRepository({ filePath: f.filePath });
   const attempts = createRecordingAttemptCoordinator({ store: reopened.recordingAttempts });
   const records = createRecordingRecordCoordinator({ store: reopened.recordingRecords, assertCurrent() {}, assertExecutionIdle: () => attempts.assertExecutionIdle() });
   try {
-    assert.deepEqual(attempts.get({ attemptId: first.id }).attempt, aborted); assert.deepEqual(attempts.get({ attemptId: next.id }).attempt, second);
+    assert.deepEqual(attempts.get({ attemptId: first.id }).attempt, aborted); assert.deepEqual(attempts.get({ attemptId: next.id }).attempt, secondLatest);
     assert.deepEqual(await attempts.begin(begin), next); assert.deepEqual(await attempts.stop(stop), second);
     assert.deepEqual(records.history({ physicalId: first.physicalId, page }), beforeHistory); assert.equal(records.list({ page }).total, 0);
     assert.equal(reopened.recordingPlans.version({ id: plan.id }).plan?.archive.operationId, archived.id);

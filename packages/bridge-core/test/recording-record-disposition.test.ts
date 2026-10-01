@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import type { PhysicalRecordingDispositionIntent, PreviewPhysicalRecordingDispositionRequest } from '@music-bridge/contracts';
 import { recordingAttemptFixture } from './helpers/recording-attempt-fixture.js';
 import { AttemptError } from '../src/recording/attempt-integrity.js';
+import { createRecordingAttemptCoordinator } from '../src/recording/attempt-coordinator.js';
 
 const page = { offset: 0, limit: 25 };
 const turn = () => new Promise<void>(resolve => setImmediate(resolve));
@@ -20,7 +21,21 @@ async function waitForOutputIdle(assertIdle: () => void): Promise<void> {
   }
 }
 async function completed(t: test.TestContext, cleanup = true) {
-  const f = await recordingAttemptFixture(t), initial = await f.attempts.begin(f.beginRequest());
+  const source = await recordingAttemptFixture(t);
+  let f = source;
+  if (!cleanup) {
+    // 仅构造历史缺持久静止证明的数据：Begin前模拟旧store未追加quiet，不篡改已写记录。
+    // 驱动close与输入租期仍真实收口；正常completed使用当前生产store，不经过此代理。
+    const legacyStore = new Proxy(source.repository.recordingAttempts, {
+      get(target, property, receiver) {
+        return property === 'persistClosedOutputRunQuiet' ? () => undefined : Reflect.get(target, property, receiver);
+      },
+    });
+    const attempts = createRecordingAttemptCoordinator({ store: legacyStore, admissionProvider: source.provider });
+    source.registerDependentCleanup(() => attempts.close());
+    f = { ...source, attempts };
+  }
+  const initial = await f.attempts.begin(f.beginRequest());
   const current = () => f.attempts.get({ attemptId: initial.id }).attempt!;
   for (let index = 0; index < initial.sides.length; ++index) {
     const driver = f.starts[index]!, side = current().sides[index]!;
@@ -41,6 +56,7 @@ async function completed(t: test.TestContext, cleanup = true) {
   await f.attempts.confirm({ commandId: randomUUID(), attemptId: initial.id, expectedRevision: current().revision, kind: 'physical-recording', userConfirmed: true });
   const attempt = await f.attempts.confirm({ commandId: randomUUID(), attemptId: initial.id, expectedRevision: current().revision, kind: 'final-verification', userConfirmed: true });
   assert.equal(attempt.status, 'completed');
+  if (cleanup) assert.ok(attempt.sides.every(side => side.cleanupQuiescent), '当前生产完成流须持久化close与输入租期释放后的静止证明');
   return { ...f, attempt };
 }
 async function fixture(t: test.TestContext, cleanup = true) {
