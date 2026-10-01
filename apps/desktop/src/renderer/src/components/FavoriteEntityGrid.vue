@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import type { FavoriteKind, FavoritePage, FavoriteRecord, RoonLibraryItem } from '@music-bridge/contracts'
 import RoonArtwork from './RoonArtwork.vue'
 import { useGridArtworkRetry } from '../composables/useGridArtworkRetry.js'
 import { useGridWindow } from '../composables/useGridWindow.js'
+import { prepareFavoriteCardProbe } from '../composables/gridCardProbe.js'
 import { favoriteResolutionKey, useFavoriteWindowResolution } from '../composables/useFavoriteWindowResolution.js'
 
 const props = withDefaults(defineProps<{
@@ -28,19 +29,19 @@ const emit = defineEmits<{
   remove: [item: FavoriteRecord]
 }>()
 
-let resolution: ReturnType<typeof useFavoriteWindowResolution> | undefined
-function resultFor(item: FavoriteRecord) { return resolution?.result(item) }
+const resolution = shallowRef<ReturnType<typeof useFavoriteWindowResolution>>()
+function resultFor(item: FavoriteRecord) { return resolution.value?.result(item) }
 const gridRoot = ref<HTMLElement | null>(null)
 const grid = useGridWindow(computed(() => props.page.items), gridRoot, {
   profile: item => status(item),
-  prepareProbe(element, item) { const label = element.querySelector('.favorite-entity-status'); if (label) label.textContent = status(item) },
+  prepareProbe(element, item) { const result = resultFor(item); prepareFavoriteCardProbe(element, { message: status(item), ready: result?.state === 'ready', retry: !!result && result.state !== 'ready', resolving: !!resolution.value?.resolving.value }) },
 })
-resolution = useFavoriteWindowResolution(computed(() => grid.rendered.value.map(entry => entry.item)), () => props.scopeKey ?? 'component', () => props.kind, window.musicBridge)
+resolution.value = useFavoriteWindowResolution(computed(() => grid.rendered.value.map(entry => entry.item)), () => props.scopeKey ?? 'component', () => props.kind, window.musicBridge)
 const artworkRetry = useGridArtworkRetry(computed(() => grid.rendered.value.map(entry => entry.item)), item => `${favoriteResolutionKey(props.scopeKey ?? 'component', props.kind, item)}:${artwork(item) ?? ''}`)
-const resolving = resolution.resolving
+const resolving = resolution.value.resolving
 watch(() => grid.rendered.value.map(entry => status(entry.item)).join('\n'), () => grid.refresh())
 const dateFormatter = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })
-function retryItem(item: FavoriteRecord): void { resolution?.retry(item) }
+function retryItem(item: FavoriteRecord): void { resolution.value?.retry(item) }
 function artwork(item: FavoriteRecord): string | undefined {
   const result = resultFor(item)
   return result?.state === 'ready' ? result.item.artworkReference ?? (item.kind === 'artist' ? result.item.reference : undefined) : undefined

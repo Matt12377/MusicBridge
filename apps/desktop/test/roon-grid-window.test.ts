@@ -21,3 +21,21 @@ test('007 resize换列与空dataset保持总高/索引正确', () => {
   assert.equal(createGridRows([200, 220, 200, 200], 2, 24).totalHeight, 444)
   assert.deepEqual(gridWindowIndices(createGridRows([200, 220, 200, 200], 4, 24), 4, 0, 620), [0, 1, 2, 3])
 })
+
+test('007 R1 收藏probe按当前状态重建重试布局，保留取消收藏且不继承另一状态按钮', async () => {
+  const { prepareFavoriteCardProbe } = await import('../src/renderer/src/composables/gridCardProbe.js')
+  type Button = { textContent: string; disabled: boolean; type: string; className: string; remove: () => void }
+  const buttons: Button[] = [], label = { textContent: '' }, open = { disabled: true }
+  function button(textContent: string): Button { const value = { textContent, disabled: false, type: 'button', className: 'text-button', remove() { const i = buttons.indexOf(value); if (i >= 0) buttons.splice(i, 1) } }; return value }
+  const remove = button('取消收藏'); buttons.push(remove)
+  const actions = { querySelectorAll: () => [...buttons], get firstChild() { return buttons[0] }, insertBefore(value: Button) { buttons.unshift(value) } }
+  const element = { querySelector: (selector: string) => selector === '.favorite-entity-status' ? label : selector === '.favorite-open' ? open : actions, ownerDocument: { createElement: () => button('') } } as unknown as HTMLElement
+  prepareFavoriteCardProbe(element, { message: '当前资料库未找到，收藏仍保留', ready: false, retry: true, resolving: true })
+  assert.equal(label.textContent, '当前资料库未找到，收藏仍保留'); assert.equal(open.disabled, true); assert.deepEqual(buttons.map(b => [b.textContent, b.disabled]), [['重试匹配', true], ['取消收藏', false]])
+  prepareFavoriteCardProbe(element, { message: '点击打开', ready: true, retry: false, resolving: false })
+  assert.equal(open.disabled, false); assert.deepEqual(buttons, [remove])
+  prepareFavoriteCardProbe(element, { message: '暂时无法连接资料库，点击重试', ready: false, retry: true, resolving: false })
+  assert.equal(open.disabled, true); assert.deepEqual(buttons.map(b => [b.textContent, b.disabled]), [['重试匹配', false], ['取消收藏', false]])
+  prepareFavoriteCardProbe(element, { message: '正在匹配资料库…', ready: false, retry: false, resolving: true })
+  assert.deepEqual(buttons, [remove]); assert.equal(open.disabled, true)
+})

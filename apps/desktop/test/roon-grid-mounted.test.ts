@@ -18,7 +18,15 @@ async function mountGrid(t: test.TestContext, name: string, initial: Record<stri
     vue.onMounted(publishBusy); vue.watch(() => props.reference, publishBusy, { flush: 'post' })
     vue.onUnmounted(() => emit('retry-action', undefined)); return () => null
   } })
-  const load = (path: string) => path === 'vue' ? vue : path.endsWith('RoonArtwork.vue') ? { default: artwork } : path.endsWith('.vue') ? { default: { render: () => null } } : require(new URL(path, new URL('../src/renderer/src/components/', import.meta.url)).pathname)
+  const load = (path: string) => {
+    if (path.endsWith('useGridWindow.js') && Array.isArray(api.__profiles)) {
+      const actual = require(new URL(path, new URL('../src/renderer/src/components/', import.meta.url)).pathname).useGridWindow
+      return { useGridWindow(items: unknown, element: unknown, options: { profile: (item: FavoriteRecord) => string }) {
+        return actual(items, element, { ...options, profile(item: FavoriteRecord) { const value = options.profile(item); (api.__profiles as string[]).push(value); return value } })
+      } }
+    }
+    return path === 'vue' ? vue : path.endsWith('RoonArtwork.vue') ? { default: artwork } : path.endsWith('.vue') ? { default: { render: () => null } } : require(new URL(path, new URL('../src/renderer/src/components/', import.meta.url)).pathname)
+  }
   new Function('require', 'module', 'exports', 'IntersectionObserver', code)(load, component, component.exports, Observer)
   const focusHistory: number[] = []
   const descendants = (n: Host): Host[] => n.children.flatMap(child => [child, ...descendants(child)])
@@ -98,4 +106,15 @@ for (const name of ['RoonAlbumGrid', 'RoonEntityGrid', 'SearchEntities', 'Favori
   const event = { preventDefault() {}, stopPropagation() { stopped++ } }; click(event); click(event); await h.flush()
   assert.equal(retries, 1); assert.equal(stopped, 2); assert.equal(h.events.Select?.length ?? 0, 0); assert.equal(h.events.Roon?.length ?? 0, 0)
   publishers.forEach(publish => publish(undefined)); await h.flush(); assert.equal(h.nodes().some(n => n.props['aria-label'] === '重试读取封面'), false)
+})
+
+for (const state of ['missing', 'error', 'ready'] as const) test(`007 R1 收藏bootstrap→${state}真实DOM与布局profile同步`, async t => {
+  const seen: string[] = [], title = '合成收藏'
+  const message = state === 'missing' ? '当前资料库未找到，收藏仍保留' : state === 'error' ? '暂时无法连接资料库，点击重试' : '点击打开'
+  const h = await mountGrid(t, 'FavoriteEntityGrid', { page: { items: [{ favoriteId: 'profile', kind: 'album', title, createdAt: 1, updatedAt: 1 }], offset: 0, limit: 24, total: 1, hasMore: false }, kind: 'album', scopeKey: 'bootstrap' }, {
+    __profiles: seen, searchRoonLibrary: async (_query: string, page: object) => { if (state === 'error') throw new Error('合成上游失败'); return { ...page, items: state === 'ready' ? [{ reference: 'current', kind: 'album', title }] : [], hasMore: false } },
+  })
+  await h.flush(); assert.ok(h.nodes().some(n => n.text === message), '正式DOM已消费当前结果')
+  assert.ok(seen.includes(message), '布局computed也必须消费初始化后的结果依赖，不能停在waiting')
+  assert.equal(h.nodes().some(n => n.tag === 'button' && n.text === '重试匹配'), state !== 'ready')
 })
