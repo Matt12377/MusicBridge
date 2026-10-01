@@ -1,6 +1,6 @@
 # MusicBridge 性能与正确性实施进度
 
-**实现完成：9/11 · 本地软件验收：9/11 · 真实 Mac/Roon：未执行**
+**实现完成：10/11 · 本地软件验收：10/11 · 真实 Mac/Roon：未执行**
 
 当前任务：**MBP-008 — 收藏批量读取与操作内索引**。基线 `8253bc1`，分支 `codex/mbp-008-collection-batch`。
 
@@ -36,7 +36,7 @@ MBP-001 远端已结束：security 通过，verify/Electron E2E 失败。本地�
 | 8 | MBP-006 | 已完成 | 本地通过 | 小进度事件、队列版本与重连恢复 |
 | 9 | MBP-005 | 已完成 | 本地通过 | 作用域缓存、网易云歌单快照、渐进搜索 |
 | 10 | MBP-007 | 已完成 | 本地通过 | 虚拟网格、封面竞态修复和资源预算 |
-| 11 | MBP-008 | 局部优化与大库对照中 | 未完成 | 批量 SQL、进度匹配与历史预算热点；worker 按测量决定 |
+| 11 | MBP-008 | 已完成 | 本地通过 | 批量 SQL、进度匹配与历史预算热点；worker 按测量决定 |
 | 12 | MBP-009 | 待开始 | 未执行 | 接口收口、全量回归、性能对照与实机验收记录 |
 
 MBP-003 只有 A/B 都完成并验收才计为一个完成任务。每个完成项绑定固定实现 SHA、报告、退出码和证据；没有证据不勾选。所有 Gate 保持原有范围，不新增 skip。
@@ -337,3 +337,5 @@ owner首全量 `f810728` actual1：Contracts254/Core1946+原2skip通过，Deskto
 固定77901d5原verify-r4已actual0：254/Core1948+原2skip/Desktop1219、类型/三包构建通过；898源码和主878源码/690dist不变。实际2000 Worker控制四路径p950.115–0.224ms、编译CSV/XLSX/XLS、原静态Gate均0。mock4运行，原108E2E随后；5000候选92/99零失败。
 
 固定77901d5原全Gate均actual0：Contracts254/Core1948+原2skip/Desktop1219、原mock4、E2E104+原4skip（0failure/flaky）、编译表格与原静态Gate。5000全部99项canonical与持久事实匹配；基线parent实际0，候选parent实际3（未选择原135），234分runner清单不混算。开发checkout已安全接入77901d5，原无关目录保留；源码阶段非forcepush/远端HEAD一致，新的Linux关闭竞态复核与报告push待完成，进度保持9/11。
+
+MBP-008软件收尾：10/11。固定77901d5新远端Linux verify254/Core1948+原2skip/Desktop1219、security29、macOS startup4/E2E104+原4skip通过，关闭失败两用例通过；完整verify原始日志/产物actual0已存。dependency-audit最新11moderate8high失败（新增basic-ftp高危），009精确修复并原全量收口。b9544d3草稿提交保留，本次最终报告补齐终态与计数。真实Roon/录音、GateB、main/App/发布仍未执行。

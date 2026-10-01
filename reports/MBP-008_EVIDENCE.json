@@ -983,14 +983,6 @@
   ],
   "remoteCandidate": [
     {
-      "conclusion": "",
-      "databaseId": 36890602118,
-      "headSha": "77901d5b553cf782e3943f3027957884928212c7",
-      "status": "in_progress",
-      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602118",
-      "workflowName": "electron-e2e"
-    },
-    {
       "conclusion": "success",
       "databaseId": 36890602111,
       "headSha": "77901d5b553cf782e3943f3027957884928212c7",
@@ -999,12 +991,20 @@
       "workflowName": "security"
     },
     {
-      "conclusion": "",
+      "conclusion": "failure",
       "databaseId": 36890602070,
       "headSha": "77901d5b553cf782e3943f3027957884928212c7",
-      "status": "in_progress",
+      "status": "completed",
       "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602070",
       "workflowName": "verify"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 36890602118,
+      "headSha": "77901d5b553cf782e3943f3027957884928212c7",
+      "status": "completed",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602118",
+      "workflowName": "electron-e2e"
     }
   ],
   "carryover": [
@@ -1207,6 +1207,525 @@
       "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/owner-main-development-fastforward-r4.exit",
       "bytes": 2,
       "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/OWNER_STAGE_VERIFY_R4_COMPLETE.json",
+      "bytes": 3992,
+      "sha256": "358665bb1fecdae69691caae75f163562550bb19e854fa78392f5b03da4568e8"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/OWNER_STAGE_SECURITY_R4_STATUS.json",
+      "bytes": 2172,
+      "sha256": "2c97757cce0c28662118a2ed8ac71d73ca741e66c915f57649e4ad71c5144af4"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/OWNER_STAGE_ELECTRON_R4_COMPLETE.json",
+      "bytes": 2439,
+      "sha256": "21348702f44225c929a8cfe5648e24c944b56084462bcfff87c15bb5d6874533"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/OWNER_STAGE_SOURCE_CI_R4_COMPLETE.json",
+      "bytes": 676,
+      "sha256": "9a22eb337b611f91b40b1a07b4ba579f0c800266bc4f992ba50c4cf265f1c737"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/OWNER_CI_VERIFY779_ARTIFACT_RESULT.json",
+      "bytes": 527,
+      "sha256": "e593f0f505815b1725adac1d829b1c5331908066d4e5f6b9ca43e88e35cbc698"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/owner-stage-verify-r4-raw.log",
+      "bytes": 3350650,
+      "sha256": "58c7c25f7cd34e84766ee6fc489c3a94cb8caef585f0c144e62758769976705a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/owner-stage-verify-r4-raw.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/owner-stage-audit-r4-raw.log",
+      "bytes": 46786,
+      "sha256": "96999b0052e3af2fcfd724e54fc09b8cb6c23a9ae74fe4b0ee1704e6cdf5d934"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/owner-stage-audit-r4-raw.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/owner-stage-security-r4-raw.log",
+      "bytes": 62051,
+      "sha256": "ea24174036690a9fcb772ca16f17d9c8dab084e8747ad733bea1f3c56e918605"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/owner-stage-security-r4-raw.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/owner-stage-electron-r4-raw.log",
+      "bytes": 84061,
+      "sha256": "83527c55f3ffeac2fe55b72269b68e087b1d2747ae638184864147cf839d8e1a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/owner-stage-electron-r4-raw.exit",
+      "bytes": 2,
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
     }
-  ]
+  ],
+  "softwareTaskState": "software-gates-passed",
+  "automaticAcceptanceScope": "local-standard-software-gates",
+  "remoteLinuxVerify": {
+    "conclusion": "failure",
+    "headSha": "77901d5b553cf782e3943f3027957884928212c7",
+    "jobs": [
+      {
+        "completedAt": "2026-10-01T16:23:53Z",
+        "conclusion": "success",
+        "databaseId": 110464952971,
+        "name": "verify",
+        "startedAt": "2026-10-01T16:15:25Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-01T16:15:27Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-01T16:15:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:29Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-10-01T16:15:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:30Z",
+            "conclusion": "success",
+            "name": "Node.js 22",
+            "number": 3,
+            "startedAt": "2026-10-01T16:15:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:36Z",
+            "conclusion": "success",
+            "name": "Install frozen workspace",
+            "number": 4,
+            "startedAt": "2026-10-01T16:15:30Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:36Z",
+            "conclusion": "success",
+            "name": "Validate control plane",
+            "number": 5,
+            "startedAt": "2026-10-01T16:15:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:36Z",
+            "conclusion": "success",
+            "name": "Validate security and product boundaries",
+            "number": 6,
+            "startedAt": "2026-10-01T16:15:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:36Z",
+            "conclusion": "success",
+            "name": "Scan workspace import cycles",
+            "number": 7,
+            "startedAt": "2026-10-01T16:15:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:23:48Z",
+            "conclusion": "success",
+            "name": "Verify platform-independent workspace (typecheck, unit tests, build; no Electron)",
+            "number": 8,
+            "startedAt": "2026-10-01T16:15:36Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:23:49Z",
+            "conclusion": "success",
+            "name": "Diff whitespace",
+            "number": 9,
+            "startedAt": "2026-10-01T16:23:48Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:23:50Z",
+            "conclusion": "success",
+            "name": "Preserve full verification log",
+            "number": 10,
+            "startedAt": "2026-10-01T16:23:49Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:23:50Z",
+            "conclusion": "success",
+            "name": "Post Node.js 22",
+            "number": 19,
+            "startedAt": "2026-10-01T16:23:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:23:50Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 20,
+            "startedAt": "2026-10-01T16:23:50Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:23:50Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 21,
+            "startedAt": "2026-10-01T16:23:50Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602070/job/110464952971"
+      },
+      {
+        "completedAt": "2026-10-01T16:15:37Z",
+        "conclusion": "failure",
+        "databaseId": 110464953412,
+        "name": "dependency-audit",
+        "startedAt": "2026-10-01T16:15:25Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-01T16:15:26Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-01T16:15:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:29Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-10-01T16:15:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:29Z",
+            "conclusion": "success",
+            "name": "Node.js 22",
+            "number": 3,
+            "startedAt": "2026-10-01T16:15:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:34Z",
+            "conclusion": "success",
+            "name": "Install frozen workspace",
+            "number": 4,
+            "startedAt": "2026-10-01T16:15:29Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:35Z",
+            "conclusion": "failure",
+            "name": "Production dependency audit",
+            "number": 5,
+            "startedAt": "2026-10-01T16:15:34Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:35Z",
+            "conclusion": "skipped",
+            "name": "Post Node.js 22",
+            "number": 9,
+            "startedAt": "2026-10-01T16:15:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:35Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 10,
+            "startedAt": "2026-10-01T16:15:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:35Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 11,
+            "startedAt": "2026-10-01T16:15:35Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602070/job/110464953412"
+      }
+    ],
+    "status": "completed"
+  },
+  "remoteSecurity": {
+    "conclusion": "success",
+    "headSha": "77901d5b553cf782e3943f3027957884928212c7",
+    "jobs": [
+      {
+        "completedAt": "2026-10-01T16:15:41Z",
+        "conclusion": "success",
+        "databaseId": 110464953007,
+        "name": "static-security",
+        "startedAt": "2026-10-01T16:15:23Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-01T16:15:25Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-01T16:15:24Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:26Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-10-01T16:15:25Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:27Z",
+            "conclusion": "success",
+            "name": "Node.js 22",
+            "number": 3,
+            "startedAt": "2026-10-01T16:15:26Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:31Z",
+            "conclusion": "success",
+            "name": "Install frozen workspace",
+            "number": 4,
+            "startedAt": "2026-10-01T16:15:27Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:31Z",
+            "conclusion": "success",
+            "name": "Validate machine control state",
+            "number": 5,
+            "startedAt": "2026-10-01T16:15:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:32Z",
+            "conclusion": "success",
+            "name": "Run boundary, loopback, secret and URL/query scans",
+            "number": 6,
+            "startedAt": "2026-10-01T16:15:31Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:32Z",
+            "conclusion": "success",
+            "name": "Scan workspace import cycles",
+            "number": 7,
+            "startedAt": "2026-10-01T16:15:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:39Z",
+            "conclusion": "success",
+            "name": "Run directed platform-independent security tests (no Electron)",
+            "number": 8,
+            "startedAt": "2026-10-01T16:15:32Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:39Z",
+            "conclusion": "success",
+            "name": "Post Node.js 22",
+            "number": 15,
+            "startedAt": "2026-10-01T16:15:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:40Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 16,
+            "startedAt": "2026-10-01T16:15:39Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:40Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 17,
+            "startedAt": "2026-10-01T16:15:40Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602111/job/110464953007"
+      }
+    ],
+    "status": "completed"
+  },
+  "remoteElectron": {
+    "conclusion": "success",
+    "headSha": "77901d5b553cf782e3943f3027957884928212c7",
+    "jobs": [
+      {
+        "completedAt": "2026-10-01T16:32:26Z",
+        "conclusion": "success",
+        "databaseId": 110464952656,
+        "name": "macos-electron-gate",
+        "startedAt": "2026-10-01T16:15:34Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completedAt": "2026-10-01T16:15:37Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "startedAt": "2026-10-01T16:15:35Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:41Z",
+            "conclusion": "success",
+            "name": "Checkout",
+            "number": 2,
+            "startedAt": "2026-10-01T16:15:37Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:41Z",
+            "conclusion": "success",
+            "name": "Prepare hosted runner evidence directories",
+            "number": 3,
+            "startedAt": "2026-10-01T16:15:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:42Z",
+            "conclusion": "success",
+            "name": "Node.js 22",
+            "number": 4,
+            "startedAt": "2026-10-01T16:15:41Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:55Z",
+            "conclusion": "success",
+            "name": "Install frozen workspace",
+            "number": 5,
+            "startedAt": "2026-10-01T16:15:42Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:15:58Z",
+            "conclusion": "success",
+            "name": "Install Electron binary from locked tree (official installer only)",
+            "number": 6,
+            "startedAt": "2026-10-01T16:15:55Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:17:57Z",
+            "conclusion": "success",
+            "name": "Electron startup, crash/restart, safeStorage vault and credential recovery gates",
+            "number": 7,
+            "startedAt": "2026-10-01T16:15:58Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:32:06Z",
+            "conclusion": "success",
+            "name": "Electron end-to-end flow (Playwright, production build)",
+            "number": 8,
+            "startedAt": "2026-10-01T16:17:57Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:32:19Z",
+            "conclusion": "success",
+            "name": "Preserve Electron logs and synthetic test artifacts",
+            "number": 9,
+            "startedAt": "2026-10-01T16:32:06Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:32:19Z",
+            "conclusion": "success",
+            "name": "Post Node.js 22",
+            "number": 17,
+            "startedAt": "2026-10-01T16:32:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:32:20Z",
+            "conclusion": "success",
+            "name": "Post Checkout",
+            "number": 18,
+            "startedAt": "2026-10-01T16:32:19Z",
+            "status": "completed"
+          },
+          {
+            "completedAt": "2026-10-01T16:32:23Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 19,
+            "startedAt": "2026-10-01T16:32:20Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602118/job/110464952656"
+      }
+    ],
+    "status": "completed"
+  },
+  "remoteCloseFailureProductionRegressionClosed": true,
+  "verifyArtifact779": {
+    "commit": "77901d5b553cf782e3943f3027957884928212c7",
+    "workflowId": 36890602070,
+    "artifactId": 11176458616,
+    "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-owner-implementation-jmrju2id/ci-verify-779-artifact-DRDhl8",
+    "actualExitCode": 0,
+    "actualSignal": null,
+    "timedOut": false,
+    "files": [
+      {
+        "path": "verify.log",
+        "bytes": 834111,
+        "sha256": "c803f1c2570a4c6f33edf456a48c57818ccf9ac62d19871f13f4cd07ab7123e5"
+      }
+    ],
+    "automaticRetry": false,
+    "complete": true
+  },
+  "dependencyAuditFresh": {
+    "workflowId": 36890602070,
+    "jobId": 110464953412,
+    "actualConclusion": "failure",
+    "moderate": 11,
+    "high": 8,
+    "newHigh": {
+      "package": "basic-ftp",
+      "installed": "5.3.1",
+      "patch": "6.2.1",
+      "exactParent": "get-uri@6.0.5",
+      "advisory": "https://github.com/advisories/GHSA-c475-qrg2-pj4r"
+    },
+    "nextTask": "MBP-009"
+  },
+  "reportCorrection": "b9544d3保存待补全草稿；后续最终报告补齐actual8high与全部远端终态，不改写历史"
 }

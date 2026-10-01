@@ -1,6 +1,6 @@
 # MBP-008：收藏读取热点与完整 Dataset Owner 隔离
 
-最终候选 `77901d5b553cf782e3943f3027957884928212c7` 的原完整本地软件门禁已通过；5000全量算法对照已完成，正在收齐本候选远端CI与最终报告提交回执。基线 `8253bc19c2f473943b304ac9418ad22f71a65f79`，开发分支 `codex/mbp-008-collection-batch`。局部算法快照 `4d84ccd`、完整owner首实现 `f810728`、失效票据与旧静态检查修订 `7791388`、共用领域类型修订 `957bd1c` 分别保留，不混用早期通过覆盖后来代码。
+最终候选 `77901d5b553cf782e3943f3027957884928212c7` 的原完整本地软件门禁已通过；5000全量算法对照、固定Linux关闭竞态复核、本地及远端Electron门禁已完成；本任务按软件范围收尾，依赖审计准确另列。基线 `8253bc19c2f473943b304ac9418ad22f71a65f79`，开发分支 `codex/mbp-008-collection-batch`。局部算法快照 `4d84ccd`、完整owner首实现 `f810728`、失效票据与旧静态检查修订 `7791388`、共用领域类型修订 `957bd1c` 分别保留，不混用早期通过覆盖后来代码。
 
 ## 改变的行为
 
@@ -65,6 +65,8 @@ Root独立行为测试复现未取得许可的Roon票据在旧来源对象回来
 
 ## 远端与后续
 
-4d84远端verify作业、security29和Electron104+原4skip通过；verify工作流的dependency-audit仍失败11moderate/7high。完整原始日志已保存，产物下载实际124/180秒超时、只取得部分，不宣称全部产物保留。957源码阶段非force开发分支push实际0，其security29和Electron104+原4skip通过，Linux关闭竞态失败已归因并修正。77901d5非force源码阶段push实际0且远端SHA相同；exact779远端security已通过，verify/Electron仍进行中，当前不宣称全部CI通过。依赖安全修复、完整v1纳入strict与最终全量/远端收口由009处理，保持API4.40.1、utils0.4.4与原审计门禁。
+4d84远端verify作业、security29和Electron104+原4skip通过；verify工作流的dependency-audit仍失败11moderate/7high。完整原始日志已保存，产物下载实际124/180秒超时、只取得部分，不宣称全部产物保留。957源码阶段非force开发分支push实际0，其security29和Electron104+原4skip通过，Linux关闭竞态失败已归因并修正。77901d5非force源码阶段push实际0且远端SHA相同；exact779远端security29/29、Linux verify（254/Core1948+原2skip/Desktop1219，全部类型/构建）与macOS startup4/Electron104+原4skip已通过。两个关闭失败用例均在Linux通过；verify工作流仅dependency-audit仍失败，新日志为11moderate/8high，第8项为API→pac-proxy-agent→get-uri→basic-ftp5.3.1的GHSA-c475-qrg2-pj4r，官方修复6.2.1。该数量绑定新快照，先前7high记录保持为各自旧运行。完整779 verify artifact下载actual0、无signal/timeout，834111字节原verify.log已保存；三项作业完整原始日志均保存，不宣称全部macOS产物已下载。依赖安全修复、完整v1纳入strict与最终全量/远端收口由009处理，保持API4.40.1、utils0.4.4与原审计门禁。
 
 最终报告提交由 `git log -1 --format=%H -- reports/MBP-008_COLLECTION_BATCH.md` 解析；报告开发分支推送回执在交付核验中记录，不在报告里自引用尚不存在的SHA。009从008最终报告HEAD建立独立分支。真实Provider/账号/Roon/音频/设备录音、GateB、Owner验收、main合并、正式App替换及发布均NOT_RUN；软件交付不等于V3完成。
+
+报告提交修订：`b9544d3` 提交了待补全草稿，进度仍9/11。新鲜8high与Linux/macOS终态在本次后续报告提交补齐，不改写已有Git历史；本任务最终报告身份取本文件最后一次提交。下一任务从本次最终报告HEAD开始。

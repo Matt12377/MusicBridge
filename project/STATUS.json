@@ -2661,13 +2661,13 @@
     "currentTask": "MBP-008",
     "plan": "project/PERFORMANCE_PLAN.json",
     "todo": "project/PERFORMANCE_TODO.md",
-    "implementationComplete": 9,
-    "automaticAcceptanceComplete": 9,
+    "implementationComplete": 10,
+    "automaticAcceptanceComplete": 10,
     "taskCount": 11,
     "implementationCommit": "77901d5b553cf782e3943f3027957884928212c7",
     "checks": {
       "currentTask": "MBP-008",
-      "softwareGates": "PASS fixed4d84: verify254/Core1922+original2skip/Desktop1214/types/build0; mockElectron4/4; fullE2E104+original4skip/0fail/0flaky; static0; source878 stable",
+      "softwareGates": "PASS exact779 local standard full范围；remoteLinux verify/security/macElectron PASS，dependency-audit FAIL11moderate8high",
       "baseline": "50/500/2000 COMPLETE;5000resume99/99 actual0/0failed, original5+new94, protected facts/source380/dist153 equal",
       "workerDecision": "REQUIRED_COMPLETE_DATASET_OWNER_ISOLATION; implementing external detached4d84 checkout; old gates do not cover new owner",
       "remoteCI": "4d84 verify job/security/Electron104+original4skip PASS; workflow dependency-audit FAIL11moderate7high",
@@ -2758,14 +2758,6 @@
       },
       "ownerRemoteCI": [
         {
-          "conclusion": "",
-          "databaseId": 36890602118,
-          "headSha": "77901d5b553cf782e3943f3027957884928212c7",
-          "status": "in_progress",
-          "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602118",
-          "workflowName": "electron-e2e"
-        },
-        {
           "conclusion": "success",
           "databaseId": 36890602111,
           "headSha": "77901d5b553cf782e3943f3027957884928212c7",
@@ -2774,12 +2766,20 @@
           "workflowName": "security"
         },
         {
-          "conclusion": "",
+          "conclusion": "failure",
           "databaseId": 36890602070,
           "headSha": "77901d5b553cf782e3943f3027957884928212c7",
-          "status": "in_progress",
+          "status": "completed",
           "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602070",
           "workflowName": "verify"
+        },
+        {
+          "conclusion": "success",
+          "databaseId": 36890602118,
+          "headSha": "77901d5b553cf782e3943f3027957884928212c7",
+          "status": "completed",
+          "url": "https://github.com/Matt12377/MusicBridge/actions/runs/36890602118",
+          "workflowName": "electron-e2e"
         }
       ],
       "ownerIsolationCandidateCommit": "77901d5b553cf782e3943f3027957884928212c7",
@@ -2791,13 +2791,14 @@
         "candidateParentActualExit": 3,
         "prior135ProvenanceSeparate": true,
         "finalVerificationSha256": "3442ef424820b6fed025cc45c20c338ba9bb6eb47aae68683947f02178916b9e"
-      }
+      },
+      "finalReportEvidence": "reports/MBP-008_EVIDENCE.json"
     },
     "realMacRoonAcceptance": "NOT_RUN",
     "realRecordingAcceptance": "NOT_RUN",
     "mainMerge": "NOT_RUN",
     "installedAppReplacement": "NOT_RUN",
-    "report": null,
+    "report": "reports/MBP-008_COLLECTION_BATCH.md",
     "currentTaskBase": "8253bc19c2f473943b304ac9418ad22f71a65f79",
     "previousTask": {
       "id": "MBP-007",
@@ -2809,10 +2810,10 @@
       "remoteCI": "007 exact825 security PASS; verify core/build PASS dependency-audit FAIL11moderate7high; fullElectron102pass4originalskip2fail; raw logs saved: task067 reload30s and task070 snapshots CoreIPC2s timeout, causes not yet closed",
       "report": "reports/MBP-007_VIRTUAL_ARTWORK.md"
     },
-    "pendingGate": "77901d5远端Linux修复复核、最终008报告commit/push，随后009",
+    "pendingGate": "008最终报告开发分支push/远端HEAD；009精确依赖安全/strict/兼容与原全量Gate",
     "automaticAcceptanceScope": "local-standard-software-gates",
     "baseCommit": "8253bc19c2f473943b304ac9418ad22f71a65f79",
-    "reportCommitResolution": null,
+    "reportCommitResolution": "commit-containing-reports/MBP-008_COLLECTION_BATCH.md",
     "agentPolicy": {
       "model": "gpt-6.1-sol",
       "reasoningEffort": "xhigh",
@@ -2825,10 +2826,10 @@
     "reportCommit": null,
     "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-008-root-i5_cre8_",
     "carryoverDependencyAudit": {
-      "lastVerifiedReport": "4ac88f5a9a3a3ae8ae36d1da14c02a284dd098c3",
+      "lastVerifiedReport": "77901d5b553cf782e3943f3027957884928212c7",
       "result": "FAIL",
       "moderate": 11,
-      "high": 7,
+      "high": 8,
       "closureTask": "MBP-009"
     }
   }
