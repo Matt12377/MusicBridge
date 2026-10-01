@@ -68,3 +68,7 @@ CoreRuntime新增getPlaybackStreamSnapshot():PlaybackStreamSnapshot|null与getPl
 独立R1复现旧恢复flight失败撤销已接纳新full的P2。Renderer用恢复令牌废弃被权威基准取代的读取，迟到成功/失败和finally不得影响新基准或后一incident；原测试保护保留，新加五个竞态用例，R2直接复核。
 
 上一报告78502a3远端verify作业另出现首录音测试等待provider entered未结算、后27项连带取消。Root额外只改recording-attempt.test.ts目标夹具：mock setTimeout，真实FS/FD/provider entered后推进原100/20ms；提前结算必须直接失败，清理始终观察假驱动拒绝。所有资源关闭断言与生产coordinator/input实现保持。独立受控复现说明start前耗尽期限的机制，不声称已量得Linux具体慢步骤。此精确测试delta并入同一R2；完整Gate覆盖最终源码。
+
+## 软件交付快照
+
+最终实现794e59ca8f5077c66a1375b1e6a17cc33c5bffdf：原完整verify247 / Core1824+原2skip / Desktop1078、三包类型与构建、mockElectron4、完整E2E104+原4skip、静态Gate均exit0。847源码指纹868efd15…前后相同；两轮独立审计结束，后续仅三个测试兼容delta，由Root自查并完整Gate覆盖。报告及266份证据Hash见reports/MBP-006_COMPACT_EVENTS.md、MBP-006_EVIDENCE.json。真实/远端与009依赖及旧v1类型债务边界保留。

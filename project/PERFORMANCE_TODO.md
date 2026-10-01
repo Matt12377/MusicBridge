@@ -1,6 +1,6 @@
 # MusicBridge 性能与正确性实施进度
 
-**实现完成：6/11 · 本地软件验收：6/11 · 真实 Mac/Roon：未执行**
+**实现完成：7/11 · 本地软件验收：7/11 · 真实 Mac/Roon：未执行**
 
 当前任务：**MBP-006 — 小进度事件、队列版本与重连恢复**。基线 `78502a3`，分支 `codex/mbp-006-compact-events`。
 
@@ -33,7 +33,7 @@ MBP-001 远端已结束：security 通过，verify/Electron E2E 失败。本地�
 | 5 | MBP-003A | 已完成A | 本地通过 | 短状态处理与优先控制；属于 MBP-003 的第一步 |
 | 6 | MBP-004 | 已完成 | 本地通过 | Roon 详情真分页与原始游标 |
 | 7 | MBP-003B | 已完成 | 本地通过 | Core 持有上下文，先播并按需补队列 |
-| 8 | MBP-006 | 实施中 | 未执行 | 小进度事件、队列版本与重连恢复 |
+| 8 | MBP-006 | 已完成 | 本地通过 | 小进度事件、队列版本与重连恢复 |
 | 9 | MBP-005 | 待开始 | 未执行 | 作用域缓存、网易云歌单快照、渐进搜索 |
 | 10 | MBP-007 | 待开始 | 未执行 | 虚拟网格、封面竞态修复和资源预算 |
 | 11 | MBP-008 | 待开始 | 未执行 | 批量 SQL、进度匹配与历史预算热点；worker 按测量决定 |
@@ -152,8 +152,8 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 - [x] 唯一Core publisher、真实owner/queueRevision、小进度与失败恢复；7文件冻结188/188、隔离类型通过，待独立/统一Gate。
 - [x] Main启动seed同步屏障、旧route回执隔离与tray去除tick全读；冻结81/81及隔离类型通过，待独立/统一Gate。
 - [x] Renderer单reducer、有界singleflight、连续覆盖暂存与clock owner身份；10文件首冻结82/82及隔离vue类型通过，待完整独立R1/原全量Gate。
-- [ ] 独立审计、50/500/5000结构对照、固定原全量Gate。
-- [ ] 独立报告/push、远端HEAD核对后接续005。
+- [x] 独立审计、50/500/5000结构对照、固定原全量Gate。
+- [x] 独立报告与266份证据Hash封存；报告提交后push并核远端HEAD接续005。
 
 006 Root阶段：Utility新增4实际RED→GREEN，原54+新增共58/58；实际Preload入口缺方法RED→GREEN，9/9。50/500/5000合成publisher+validator+JSON结构对照各100tick，小事件最多253字节、每组25152字节，队列源字段读取0；旧模式当前稳定队列每tick单full的总字节965158/9370358/94320558，不混用历史双tick。该结构测试首次GREEN，不伪称RED或真实Electron/Roon成绩，后续固定源码Gate仍待全部作者冻结。
 
@@ -170,3 +170,11 @@ MBP-004报告 `02125604ab19a62f85a7b75d84b400f9d0e3f105` 已推送，远端HEAD�
 上一报告 `78502a3` 远端最新检查已结束：security/Electron E2E通过；verify作业也失败，Core1772通过、28取消、原2跳过，首项为录音pre-spawn超时测试等待entered未结算，后续受父取消。依赖审计仍11moderate/7high。原始日志已外置保存，正在只读归因，不将28取消说成28个代码缺陷或已知旧失败。
 
 006唯一P2作者新增5项真实RED→GREEN，Renderer最终87/87，独立R2直接35/35通过，旧flight成功/失败均废弃；原Session测试前缀逐字保留。CI首录音用例改为确定性setTimeout，100/20期限和原资源断言保留，整份Attempt规格96/96退出0。独立审计将同轮复核这一夹具delta，然后固定最终源码跑原全量Gate。
+
+006 两轮独立审计已结束：指定33文件无未解决P1/P2。首个固定verify因旧Utility假运行时缺两个新增接口退出2；补齐null后第二次全量Core1824+原2跳过通过，Desktop1076通过/2静态seek断言失配。两断言仅增加同步ready保护，继续要求Zone明确seekAllowed；两规格38/38通过。最终固定 `889a00e` 重新跑原完整verify，后续Electron/完整E2E仍待执行，不沿用旧SHA通过。
+
+固定889a00e原完整verify退出0：Contracts247 / Core1824+原2skip / Desktop1078、三包构建；源码847文件指纹731990ff…前后相同。mockElectron4/4退出0。完整E2E首次退出1：100pass/4fail/原4skip/0flaky，四项是直接注入旧playback.changed而compact合同明确忽略；原断言仍在，作者仅修测试夹具，不修改生产或重新开第三轮独立审计。首次JSON和完整失败产物已外置保留，修后固定新SHA重跑原完整范围，总计仍6/11。
+
+四个E2E旧注入夹具已修：仅v1-ui.spec.ts，46条原断言及100+100进度循环逐字保留；实际targeted4/4退出0，新helper/四精确block隔离noEmit0。全v1显式检查与baseline相同30条旧诊断，原E2E类型配置未包含此文件，旧类型债务留009评估。最终固定794e59c重新跑原完整Gate；不把定向4项等同全量。
+
+最终固定794e59c：原完整verify247 / Core1824+原2skip / Desktop1078与三包类型/构建、mockElectron4、完整E2E104+原4skip、静态Gate均exit0；847源码SHA868efd15…Gate前后完全一致。软件完成7/11；远端CI、真实设备与Owner验收继续单列。
