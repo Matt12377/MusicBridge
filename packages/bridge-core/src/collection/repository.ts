@@ -81,6 +81,7 @@ export interface CollectionRepository {
   links: PhysicalLinksRepository;
   list(page: PageRequest, filter?: CollectionFilter): Page<CollectionModel>;
   exportReadonlyModels(): readonly CollectionModel[];
+  readonlySnapshotStamp(): { dataVersion: number; totalChanges: number };
   addPhoto(request: CollectionAddPhotoRequest): CollectionMutationResult;
   photo(photoId: string): CollectionPhotoImage;
   changePhoto(request: CollectionChangePhotoRequest): CollectionMutationResult;
@@ -541,6 +542,15 @@ export function createCollectionRepository(options: { filePath: string; stagingR
     sources: createSourceStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     drafts: createMasterDraftsRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     workspace: createRecordingWorkspaceStore({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
+    readonlySnapshotStamp() {
+      // 两个计数只来自同一作者连接；读取不产生写入，也不与其他连接的序号比较。
+      return guarded(db => {
+        const dataVersion = Number(db.prepare('PRAGMA data_version').get()?.data_version);
+        const totalChanges = Number(db.prepare('SELECT total_changes() AS n').get()?.n);
+        if (!Number.isSafeInteger(dataVersion) || dataVersion < 0 || !Number.isSafeInteger(totalChanges) || totalChanges < 0) return unavailable();
+        return { dataVersion, totalChanges };
+      });
+    },
     exportReadonlyModels() {
       return guarded(db => {
         // 同步读事务覆盖型号、库存和全部水合批次；不拼接公开分页，也不持有写锁。

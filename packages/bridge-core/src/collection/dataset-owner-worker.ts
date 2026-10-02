@@ -30,12 +30,36 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
   let preparation: Promise<OwnedDatasetDomain> | undefined;
   let commitment: Promise<void> | undefined;
   let bootCommitted = false;
+  let boundDatasetId: string | undefined;
+  let snapshotStamp: { dataVersion: number; totalChanges: number } | undefined;
+  let snapshotRevision: string | undefined;
   let closure: Promise<void> | undefined;
   let closing = false;
   let failed = false;
   let disconnected = false;
   const dispatches = new Set<Promise<unknown>>();
   const projections = new Map<string, PendingProjection>();
+
+  function readSnapshotStamp(): { dataVersion: number; totalChanges: number } {
+    if (domain?.readonlySnapshotStamp === undefined) throw new DatasetOwnerDispatchError(responseFailure('snapshot-version', 'NOT_READY', '收藏快照版本尚未就绪。'));
+    if (domain.datasetId !== boundDatasetId) throw new DatasetOwnerDispatchError(responseFailure('snapshot-version', 'OUTBOX_SCOPE_MISMATCH', '收藏快照不属于当前工作库。'));
+    const stamp = domain.readonlySnapshotStamp();
+    if (domain.datasetId !== boundDatasetId || !ownerRecord(stamp) || Object.keys(stamp).some(key => !['dataVersion', 'totalChanges'].includes(key))
+      || !Number.isSafeInteger(stamp.dataVersion) || stamp.dataVersion < 0 || !Number.isSafeInteger(stamp.totalChanges) || stamp.totalChanges < 0) {
+      throw new DatasetOwnerDispatchError(responseFailure('snapshot-version', 'INVENTORY_UNAVAILABLE', '收藏快照版本无效。'));
+    }
+    // 固定本次观测值，不能让领域返回的可变对象改写导出前的戳。
+    return { dataVersion: stamp.dataVersion, totalChanges: stamp.totalChanges };
+  }
+  function sameStamp(left: { dataVersion: number; totalChanges: number }, right: { dataVersion: number; totalChanges: number }): boolean {
+    return left.dataVersion === right.dataVersion && left.totalChanges === right.totalChanges;
+  }
+  function observeSnapshotStamp(stamp: { dataVersion: number; totalChanges: number }): void {
+    if (snapshotStamp === undefined || !sameStamp(snapshotStamp, stamp)) {
+      snapshotStamp = { ...stamp };
+      snapshotRevision = randomUUID();
+    }
+  }
 
   function projectFailure(id: string, error: unknown, command?: IpcCommand): IpcFailure {
     const failure = error instanceof DatasetOwnerDispatchError ? { ...error.failure, id }
@@ -125,7 +149,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
       try {
         preparation ??= Promise.resolve().then(() => options.prepare(request.epoch, projection)).then(prepared => {
           if (!isDatasetOwnerIdentity({ epoch: request.epoch, datasetId: prepared.datasetId })) throw new Error('领域身份无效。');
-          domain = prepared; return prepared;
+          domain = prepared; boundDatasetId = prepared.datasetId; return prepared;
         });
         const prepared = await preparation;
         reply(request, { epoch: request.epoch, datasetId: prepared.datasetId });
@@ -134,8 +158,35 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     }
     if (domain === undefined) { reject(request, new DatasetOwnerDispatchError(responseFailure(request.request?.id ?? request.requestId, 'NOT_READY', '领域所有者尚未准备完成。'))); return; }
     if (request.operation === 'commitBoot') {
-      try { commitment ??= Promise.resolve().then(() => domain!.commitBoot()); await commitment; bootCommitted = true; reply(request, undefined); }
+      try {
+        commitment ??= Promise.resolve().then(async () => {
+          await domain!.commitBoot();
+          // 旧领域mock仍可boot；版本操作只在成功boot且具备同连接戳时开放。
+          if (domain!.readonlySnapshotStamp !== undefined) observeSnapshotStamp(readSnapshotStamp());
+        });
+        await commitment; bootCommitted = true; reply(request, undefined);
+      }
       catch (error) { reject(request, error); }
+      return;
+    }
+    if (request.operation === 'getCollectionSnapshotVersion' || request.operation === 'exportVersionedCollectionSnapshot') {
+      try {
+        if (!bootCommitted || snapshotRevision === undefined || domain.readonlySnapshotStamp === undefined
+          || (request.operation === 'exportVersionedCollectionSnapshot' && domain.exportCollectionModels === undefined)) {
+          throw new DatasetOwnerDispatchError(responseFailure(request.requestId, 'NOT_READY', '收藏快照版本尚未就绪。'));
+        }
+        if (request.expectedDatasetId !== boundDatasetId || domain.datasetId !== boundDatasetId) throw new DatasetOwnerDispatchError(responseFailure(request.requestId, 'OUTBOX_SCOPE_MISMATCH', '收藏快照不属于当前工作库。'));
+        const before = readSnapshotStamp();
+        observeSnapshotStamp(before);
+        const version = { epoch: request.epoch, datasetId: boundDatasetId!, revision: snapshotRevision! };
+        if (request.operation === 'getCollectionSnapshotVersion') { reply(request, version); return; }
+        const models = domain.exportCollectionModels!();
+        const snapshot = { epoch: request.epoch, datasetId: boundDatasetId!, snapshotId: randomUUID(), models };
+        const after = readSnapshotStamp();
+        observeSnapshotStamp(after);
+        if (!sameStamp(before, after) || !isDatasetCollectionSnapshot(snapshot)) throw new DatasetOwnerDispatchError(responseFailure(request.requestId, 'INVENTORY_UNAVAILABLE', '收藏快照导出期间已经改变或超过当前预算。'));
+        reply(request, { snapshot, version });
+      } catch (error) { reject(request, error); }
       return;
     }
     if (request.operation === 'exportCollectionSnapshot') {

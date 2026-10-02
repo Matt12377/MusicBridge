@@ -123,3 +123,7 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [MBR-004](MBR-004-playback-read-tracing.md)：Owner 复测 MBR-003 后仍遇快切失败与 Roon 读取取消，授权继续修复。基线 `dbece1c`；修复冷队列请求争抢与旧补全，并在开发版逐请求追踪 `library:read`。软件门禁、真实服务恢复与发布分别记录，结果见 [报告](../reports/MBR-004_PLAYBACK_READ_TRACING.md)。
 
 - [RUST-001](RUST-001-readonly-sidecar.md)：Owner 已放行 Rust Core 第一阶段，从 MBR-004 最终报告 `2392b8f` 接续；冻结私有进程合同，接入显式可选的只读收藏快照端点，以真实 Rust 二进制完成差分和生命周期 Gate。生产默认仍使用 Node，数据库写入、真实迁移和安装发布均未准入；结果见 [报告](../reports/RUST-001_READONLY_SIDECAR.md)。后续 Rust 扩展须另立任务范围，不自动放行。
+
+- [RUST-002](RUST-002-atomic-snapshot-query.md)：完整原子 Node 收藏导出、Rust v2 筛选及受期限保护的显式工厂；最终报告基线 `763b5c6`，生产默认 Node。
+
+- [RUST-003](RUST-003-snapshot-refresh-routing.md)：Owner 持续开发授权下推进快照版本、显式刷新与可选读取路由；写入、关闭、身份与迟到结果围栏，完整成本与实际进程差分单列验证。

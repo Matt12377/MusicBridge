@@ -4,9 +4,9 @@ import type { IpcCommand, IpcRequest } from '@music-bridge/contracts';
 import { failureForError, responseFailure } from '../shared/ipc-failure.js';
 import {
   DATASET_OWNER_PROTOCOL_VERSION, DatasetOwnerDispatchError, DatasetOwnerTransportError,
-  isDatasetCollectionSnapshot, isDatasetOwnerFailure, isDatasetOwnerIdentity, isDatasetOwnerProjectionRequest, isDatasetOwnerResponse,
+  isDatasetCollectionSnapshot, isDatasetCollectionSnapshotVersion, isDatasetVersionedCollectionSnapshot, isDatasetOwnerFailure, isDatasetOwnerIdentity, isDatasetOwnerProjectionRequest, isDatasetOwnerResponse,
   isDatasetProjectionResult, isDatasetRequestEnvelope, ownerRecord,
-  type DatasetCollectionSnapshot, type DatasetOwnerSnapshotEndpoint, type DatasetOwnerFatalReason, type DatasetOwnerIdentity,
+  type DatasetCollectionSnapshot, type DatasetCollectionSnapshotVersion, type DatasetVersionedCollectionSnapshot, type DatasetOwnerVersionedSnapshotEndpoint, type DatasetOwnerFatalReason, type DatasetOwnerIdentity,
   type DatasetOwnerOperation, type DatasetOwnerProjectionHandler,
   type DatasetOwnerProjectionRequest, type DatasetOwnerProjectionResponse, type DatasetOwnerRequest,
 } from './dataset-owner-protocol.js';
@@ -27,7 +27,7 @@ export interface DatasetOwnerClientOptions {
 }
 
 // 只持有线程端口与窄投影；连接失败后保留原命令身份，不创建数据库或自动重放。
-export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): DatasetOwnerSnapshotEndpoint {
+export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): DatasetOwnerVersionedSnapshotEndpoint {
   const { worker } = options;
   const epoch = randomUUID();
   const pending = new Map<string, PendingRequest>();
@@ -112,9 +112,20 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     const publicId = item.publicId ?? message.requestId;
     if (!message.ok && message.failure.id !== publicId) { fatal('protocol-failure'); return; }
     if (message.ok && message.operation === 'prepare' && (!isDatasetOwnerIdentity(message.result) || message.result.epoch !== epoch)) { fatal('protocol-failure'); return; }
-    if (message.ok && message.operation === 'exportCollectionSnapshot') {
-      if (!isDatasetCollectionSnapshot(message.result) || message.result.epoch !== epoch || message.result.datasetId !== identity?.datasetId || snapshotIds.has(message.result.snapshotId)) { fatal('protocol-failure'); return; }
-      snapshotIds.add(message.result.snapshotId);
+    if (message.ok && message.operation === 'getCollectionSnapshotVersion') {
+      if (!isDatasetCollectionSnapshotVersion(message.result) || message.result.epoch !== epoch || message.result.datasetId !== identity?.datasetId) { fatal('protocol-failure'); return; }
+    }
+    if (message.ok && (message.operation === 'exportCollectionSnapshot' || message.operation === 'exportVersionedCollectionSnapshot')) {
+      let snapshot: DatasetCollectionSnapshot;
+      if (message.operation === 'exportVersionedCollectionSnapshot') {
+        if (!isDatasetVersionedCollectionSnapshot(message.result)) { fatal('protocol-failure'); return; }
+        snapshot = message.result.snapshot;
+      } else {
+        if (!isDatasetCollectionSnapshot(message.result)) { fatal('protocol-failure'); return; }
+        snapshot = message.result;
+      }
+      if (snapshot.epoch !== epoch || snapshot.datasetId !== identity?.datasetId || snapshotIds.has(snapshot.snapshotId)) { fatal('protocol-failure'); return; }
+      snapshotIds.add(snapshot.snapshotId);
     }
     if (message.ok && (message.operation === 'close' || message.operation === 'commitBoot') && message.result !== undefined) { fatal('protocol-failure'); return; }
     pending.delete(message.requestId);
@@ -162,6 +173,15 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
       if (identity === undefined || !bootCommitted || exporting || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
       exporting = true;
       return rpc('exportCollectionSnapshot', undefined, identity.datasetId).then(value => value as DatasetCollectionSnapshot).finally(() => { exporting = false; });
+    },
+    getCollectionSnapshotVersion() {
+      if (identity === undefined || !bootCommitted || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
+      return rpc('getCollectionSnapshotVersion', undefined, identity.datasetId).then(value => value as DatasetCollectionSnapshotVersion);
+    },
+    exportVersionedCollectionSnapshot() {
+      if (identity === undefined || !bootCommitted || exporting || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
+      exporting = true;
+      return rpc('exportVersionedCollectionSnapshot', undefined, identity.datasetId).then(value => value as DatasetVersionedCollectionSnapshot).finally(() => { exporting = false; });
     },
     close() {
       if (closure !== undefined) return closure;

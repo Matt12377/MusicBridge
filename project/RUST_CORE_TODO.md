@@ -1,23 +1,41 @@
 # Rust Core 开发进度
 
-更新：2026-10-02。当前任务 **RUST-002：原子收藏快照与只读筛选 — 已完成**。分支 `codex/rust-core-002-atomic-snapshot`，工作树 `worktree/rust-core-002`。
+更新：2026-10-02。当前任务 **RUST-003：快照版本、刷新与可选路由 — 开发中**。分支 `codex/rust-core-003-snapshot-refresh`，工作树 `worktree/rust-core-003`。
 
 此表随开发更新；只有实际验证通过的项目才打勾。默认应用仍使用 Node，真实账号、Roon、录音和用户数据不进入本期验证。
 
 ## 待办事项
 
+### RUST-003（收尾）
+
+- [ ] 保存独立实现提交、最终报告与证据提交，复核最终 HEAD、清洁工作树和远端分支。
+
 ### 后续升级路线（规划，尚未开工）
 
 - [ ] 依据本期测量选定下一处实际瓶颈，确定 Rust 承担的计算及 Node 保留的控制职责。
 - [ ] 规划大于 2,000 型号时的完整性与内存预算，避免用截断或跨时刻分页扩容。
-- [ ] 设计快照版本、刷新与失效通知；验证切库、关闭和旧响应不能覆盖新状态。
+- [ ] 快照版本、显式刷新与按读取失效检测由 RUST-003 实施；后续评估推送通知和批次失效的收益。
 - [ ] 为确认有收益的查询建立 Rust 索引及差分/规模回归，记录首次建立和重复查询成本。
-- [ ] 建立可选路由与可观测状态，保留明确的故障语义和 Node 读取路径。
+- [ ] 显式可选路由与内部可观测状态由 RUST-003 实施；正式应用启用与用户入口单列验收。
 - [ ] 验证 macOS 架构、打包资源、签名与二进制身份准入；生产默认启用单列验收。
 - [ ] 对可能的 Rust 持久化阶段梳理 schema、跨库事务、幂等回执、未知结果、不可变历史和恢复合同；在完整兼容证据前保持 Node 唯一作者。
 - [ ] 准备真实环境验证材料，分别记录 Roon、播放、录音和 Owner 结果；本地合成测试不替代这些验收。
 
 ## 已完成事项
+
+### RUST-003
+
+- [x] 从 `763b5c6` 建立独立分支/工作树与外置证据目录，冻结依赖安装退出 0。
+- [x] Node 同连接版本探测、版本化原子导出：新版本 11 项及原快照 9 项最终通过；前后配对、boot、scope、回滚、外部合成提交与可变 stamp 对象保护。
+- [x] 显式可选读取路由及内部状态：初始 Node，显式刷新，最多一个 child；完整单调期限与前后版本探测。
+- [x] Node/Rust 纯收藏读取代次围栏；潜在写入成功/unknown 原回执保留，来源 Owner 不 boot/close，不自动重放。
+- [x] 路由故障 36 项最终通过，包含工厂尚未返回时 prepare/boot/timeout 失败与延迟 kill 退出的 3 项 RED→GREEN 回归。
+- [x] 实际 Node 两库/Rust 集成 16 项通过（原 9＋本期 7），2,000 型号 32 个新差分页、写后失效/刷新、迟到真实候选自然退出、unknown 单次执行。
+- [x] 最终 Rust Gate 13 步全部退出 0：Rust 26、Sidecar 35、Node 原子 9、Node 版本 11、路由 36、实际集成 16；286 份源码、日志和二进制摘要一致。
+- [x] 完整工作区类型、3,591 项单元（原有 2 项条件跳过名称保持）、生产构建与三个静态 Gate 均通过；1,047 份源码指纹稳定。
+- [x] 两轮独立审查，唯一 P2 启动失败候选登记已闭合，剩余实质 P1/P2 为 0。
+- [x] 完整 warm 成本记录：Node 中位 3.778 ms、Rust 含前后探测与 TS 校验 2.440 ms，刷新 123.369 ms、关闭 3.068 ms；不冒称生产或冷盘收益。
+
 
 ### RUST-002
 
@@ -47,7 +65,7 @@
 
 报告：[RUST-001_READONLY_SIDECAR.md](../reports/RUST-001_READONLY_SIDECAR.md)。
 
-范围：[RUST-002-atomic-snapshot-query.md](../tasks/RUST-002-atomic-snapshot-query.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-002-kupkidlt`。
+当前范围：[RUST-003-snapshot-refresh-routing.md](../tasks/RUST-003-snapshot-refresh-routing.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-003-nlk69h67`。RUST-002 最终基线 `763b5c62283978c3ab4981c9cce60f4237d1f051`。
 
 ## 保留的验收边界
 

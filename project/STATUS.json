@@ -3201,8 +3201,8 @@
     }
   },
   "currentRustCoreTask": {
-    "task": "RUST-002",
-    "statusKey": "rustCoreAtomicSnapshot20261002"
+    "task": "RUST-003",
+    "statusKey": "rustCoreSnapshotRefresh20261002"
   },
   "rustCoreAtomicSnapshot20261002": {
     "task": "RUST-002",
@@ -3326,5 +3326,115 @@
       "matchingRefs": [],
       "pushed": false
     }
+  },
+  "rustCoreSnapshotRefresh20261002": {
+    "task": "RUST-003",
+    "branch": "codex/rust-core-003-snapshot-refresh",
+    "baseCommit": "763b5c62283978c3ab4981c9cce60f4237d1f051",
+    "state": "local-software-gates-passed-versioned-readonly-router",
+    "ownerAuthorization": "continue-development-with-up-to-four-sol-6.1-high-subagents",
+    "scope": "tasks/RUST-003-snapshot-refresh-routing.md",
+    "todo": "project/RUST_CORE_TODO.md",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-003-nlk69h67",
+    "productionDefault": "Node",
+    "nodeDatabaseWriteOwnerUnchanged": true,
+    "realProviderRoonAcceptance": "NOT_RUN",
+    "realRecording": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "realUserMigration": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "rustManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-003-nlk69h67/rust-gate/run-zPbgWm/manifest.json",
+    "binarySha256": "55043d477e44ce62ead4bca264e7d7fce89bb90f1d312973ae23e89f2075f6ac",
+    "agentPolicy": {
+      "primaryModel": "gpt-6.1-sol",
+      "primaryReasoningEffort": "max",
+      "subagentModel": "gpt-6.1-sol",
+      "subagentReasoningEffort": "high",
+      "maximumSubagents": 4,
+      "actualDevelopmentAndReviewAgents": 4,
+      "execution": "batched-platform-concurrency-limit",
+      "forbiddenModels": [
+        "gpt-6-sol"
+      ]
+    },
+    "validation": {
+      "rustGateExitCode": 0,
+      "rustPassed": 26,
+      "tsFaultPassed": 35,
+      "nodeAtomicSnapshotPassed": 9,
+      "nodeSnapshotVersionPassed": 11,
+      "routerFaultPassed": 36,
+      "actualRustIntegrationPassed": 16,
+      "actualRustIntegrationSkipped": 0,
+      "sqliteRefreshDifferentialPages": 32,
+      "rustSourceStable": true,
+      "rustSourceFiles": 286,
+      "softwareFull": "PASS",
+      "finalTypecheckExitCode": 0,
+      "contractsPassed": 254,
+      "corePassed": 2098,
+      "desktopPassed": 1239,
+      "unitPassed": 3591,
+      "unitFailed": 0,
+      "originalNativeConditionalSkips": 2,
+      "addedSkips": 0,
+      "fullUnitExitCode": 0,
+      "productionBuildExitCode": 0,
+      "controlPlaneExitCode": 0,
+      "boundariesExitCode": 0,
+      "cyclesExitCode": 0,
+      "cyclesFiles": 381,
+      "softwareSourceStable": true,
+      "softwareSourceFiles": 1047,
+      "diffCheckExitCode": 0,
+      "jsonValidationExitCode": 0
+    },
+    "review": {
+      "rounds": 2,
+      "blockingFindings": 0,
+      "fixed": [
+        "startup-failed-candidate-retirement-registration"
+      ],
+      "report": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-003-nlk69h67/review-final.json"
+    },
+    "report": "reports/RUST-003_SNAPSHOT_REFRESH_ROUTING.md",
+    "evidence": "reports/RUST-003_EVIDENCE.json",
+    "implementationCommit": null,
+    "implementationCommitResolution": "git-log-last-commit-touching-packages/bridge-core/src/rust-core/readonly-router.ts",
+    "reportCommit": null,
+    "reportCommitResolution": "git-log-last-commit-touching-reports/RUST-003_SNAPSHOT_REFRESH_ROUTING.md",
+    "nextBranchBaseResolution": "final-RUST-003-report-HEAD",
+    "readonlyCommands": [
+      "collection.list"
+    ],
+    "nodeReadonlyFences": [
+      "collection.list",
+      "collection.detail",
+      "collection.copy",
+      "collection.photo"
+    ],
+    "nodePrivateVersionOperations": [
+      "getCollectionSnapshotVersion",
+      "exportVersionedCollectionSnapshot"
+    ],
+    "workerProtocolVersion": 1,
+    "protocolVersions": [
+      1,
+      2
+    ],
+    "snapshotModelLimit": 2000,
+    "snapshotEncodedBytesLimit": 4194304,
+    "routerMaximumChildren": 1,
+    "sourceOwnerBorrowed": true,
+    "protocol": "docs/contracts/rust-readonly-router-v1.md",
+    "softwareManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-003-nlk69h67/software-final/software-manifest.json",
+    "fullElectronE2E": "NOT_RUN",
+    "carryover": [
+      "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
+      "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
+    ]
   }
 }

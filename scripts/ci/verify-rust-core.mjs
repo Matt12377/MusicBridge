@@ -64,6 +64,8 @@ function sourceManifest() {
     path.join(root, 'scripts/ci/verify-rust-core.mjs'), path.join(root, 'scripts/ci/verify-boundaries.mjs'),
     path.join(root, '.github/workflows/rust-core.yml'), path.join(root, 'packages/bridge-core/test/rust-sidecar-client.test.ts'),
     path.join(root, 'packages/bridge-core/test/dataset-collection-snapshot.test.ts'),
+    path.join(root, 'packages/bridge-core/test/dataset-snapshot-version.test.ts'),
+    path.join(root, 'packages/bridge-core/test/rust-readonly-router.test.ts'),
   ].sort().map(file => ({ path: path.relative(root, file), sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }));
 }
 const sources = sourceManifest();
@@ -100,24 +102,34 @@ const binarySha256 = createHash('sha256').update(fs.readFileSync(binary)).digest
 run('contracts-build', 'corepack', ['pnpm@10.17.1', '--filter', '@music-bridge/contracts', 'run', 'build']);
 run('ts-client', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/rust-sidecar-client.test.ts'], path.join(root, 'packages/bridge-core'));
 run('node-atomic-snapshot', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/dataset-collection-snapshot.test.ts'], path.join(root, 'packages/bridge-core'));
+run('node-snapshot-version', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/dataset-snapshot-version.test.ts'], path.join(root, 'packages/bridge-core'));
+run('ts-refresh-router', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/rust-readonly-router.test.ts'], path.join(root, 'packages/bridge-core'));
 const costReport = path.join(directory, 'atomic-snapshot-cost.json');
+const refreshCostReport = path.join(directory, 'refresh-routing-cost.json');
 run('ts-rust-integration', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
-  'test/rust-core/readonly-integration.test.ts', 'test/rust-core/atomic-snapshot-integration.test.ts'],
+  'test/rust-core/readonly-integration.test.ts', 'test/rust-core/atomic-snapshot-integration.test.ts', 'test/rust-core/refresh-routing-integration.test.ts'],
   path.join(root, 'packages/bridge-core'), { MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256,
-    MUSIC_BRIDGE_RUST_COST_REPORT: costReport });
+    MUSIC_BRIDGE_RUST_COST_REPORT: costReport, MUSIC_BRIDGE_RUST_REFRESH_COST_REPORT: refreshCostReport });
 const cost = JSON.parse(fs.readFileSync(costReport, 'utf8'));
 if (cost.task !== 'RUST-002' || cost.models !== 2_000 || cost.differentialPages !== 108 || cost.binarySha256 !== binarySha256
   || !['exportRoundtripMs', 'fromOwnerReadyMs', 'remainingStartupMs', 'closeAckAndNaturalExitMs'].every(key => Number.isFinite(cost[key]) && cost[key] >= 0)
   || !['nodeQueryRoundtripMs', 'rustQueryRoundtripIncludingTsValidationMs'].every(key => Array.isArray(cost[key]) && cost[key].length === 10 && cost[key].every(n => Number.isFinite(n) && n >= 0))) throw new Error('实际快照成本记录缺失或不属于本轮二进制。');
+const refreshCost = JSON.parse(fs.readFileSync(refreshCostReport, 'utf8'));
+if (refreshCost.task !== 'RUST-003' || refreshCost.models !== 2_000 || refreshCost.differentialPages !== 32
+  || refreshCost.binarySha256 !== binarySha256
+  || !['refreshMs', 'closeMs'].every(key => Number.isFinite(refreshCost[key]) && refreshCost[key] >= 0)
+  || !['nodeQueryRoundtripMs', 'rustQueryWithVersionProbesMs'].every(key => Array.isArray(refreshCost[key]) && refreshCost[key].length === 10 && refreshCost[key].every(n => Number.isFinite(n) && n >= 0))) throw new Error('版本化读取的完整成本缺失或不属于本轮二进制。');
 if (createHash('sha256').update(fs.readFileSync(binary)).digest('hex') !== binarySha256) throw new Error('Rust 二进制在验证期间改变。');
 if (JSON.stringify(sourceManifest()) !== JSON.stringify(sources)) throw new Error('Rust Gate 的受测源码在执行期间改变。');
 fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({
-  schemaVersion: 1, task: 'RUST-002', compiler, cargoVersion, sources,
+  schemaVersion: 1, task: 'RUST-003', compiler, cargoVersion, sources,
   binary: { path: binary, sha256: binarySha256, platform: process.platform, architecture: process.arch },
   packages: metadata.packages.map(p => ({ name: p.name, version: p.version })), runs,
   realServices: 'NOT_RUN', productionDefault: 'Node', readonlyCommands: ['collection.list'],
   protocolVersions: [1, 2], nodeAtomicSnapshot: true,
   filters: ['query', 'brand', 'decade', 'stockState'],
+  versionedSnapshots: true, explicitRefreshRouting: true, sourceOwnerBorrowed: true,
   costReport: { path: costReport, sha256: createHash('sha256').update(fs.readFileSync(costReport)).digest('hex') },
+  refreshCostReport: { path: refreshCostReport, sha256: createHash('sha256').update(fs.readFileSync(refreshCostReport)).digest('hex') },
 }, null, 2) + '\n');
 console.log('RUST_GATE=PASS manifest=' + path.join(directory, 'manifest.json'));

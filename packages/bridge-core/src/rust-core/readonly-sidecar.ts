@@ -15,7 +15,7 @@ const wireCodes = new Set(['INVALID_REQUEST', 'UNSUPPORTED_OPERATION', 'UNSUPPOR
   'SCOPE_MISMATCH', 'CAPACITY_EXCEEDED', 'NOT_READY', 'CLOSING', 'PROTOCOL_ERROR']);
 export type RustSidecarErrorCode = 'INVALID_REQUEST' | 'UNSUPPORTED_OPERATION' | 'UNSUPPORTED_COMMAND' | 'UNSUPPORTED_FILTER'
   | 'SCOPE_MISMATCH' | 'CAPACITY_EXCEEDED' | 'NOT_READY' | 'CLOSING' | 'PROTOCOL_ERROR'
-  | 'BINARY_PIN_MISMATCH' | 'TIMEOUT' | 'PROCESS_EXIT' | 'SNAPSHOT_UNAVAILABLE';
+  | 'BINARY_PIN_MISMATCH' | 'TIMEOUT' | 'PROCESS_EXIT' | 'SNAPSHOT_UNAVAILABLE' | 'STALE_SNAPSHOT';
 const messages: Record<RustSidecarErrorCode, string> = {
   INVALID_REQUEST: 'Rust 只读请求无效。', UNSUPPORTED_OPERATION: 'Rust 只读操作未准入。',
   UNSUPPORTED_COMMAND: 'Rust 快照端点不支持此命令。', UNSUPPORTED_FILTER: 'Rust 快照端点尚不支持筛选。',
@@ -24,6 +24,7 @@ const messages: Record<RustSidecarErrorCode, string> = {
   PROTOCOL_ERROR: 'Rust 只读协议校验失败。', BINARY_PIN_MISMATCH: 'Rust 可执行文件身份校验失败。',
   TIMEOUT: 'Rust 只读操作超过期限。', PROCESS_EXIT: 'Rust 进程未完成预期关闭。',
   SNAPSHOT_UNAVAILABLE: 'Node 收藏快照暂不可用。',
+  STALE_SNAPSHOT: '收藏快照已失效，请重新发起读取。',
 };
 export class RustSidecarError extends Error {
   constructor(readonly code: RustSidecarErrorCode) { super(messages[code]); this.name = 'RustSidecarError'; }
@@ -166,7 +167,11 @@ export function createRustReadonlyDatasetEndpoint(options: RustReadonlySidecarOp
 }
 
 /** 从已成功 commitBoot 的 Node Owner 建立显式就绪端点；失败只清理自己的原生进程。 */
-export async function createRustReadonlyDatasetEndpointFromOwner(options: RustReadonlyOwnerOptions): Promise<RustReadonlyDatasetEndpoint> {
+export async function createRustReadonlyDatasetEndpointFromOwner(
+  options: RustReadonlyOwnerOptions,
+  // 仅限内部生命周期登记；在任何原生启动之前把候选交给借用路由，不进入进程信封。
+  onEndpointCreated?: (endpoint: RustReadonlyDatasetEndpoint) => void,
+): Promise<RustReadonlyDatasetEndpoint> {
   const { owner, startupTimeoutMs, ...sidecarOptions } = options;
   const deadline = performance.now() + budget(startupTimeoutMs, 5_000);
   let revoked = false, endpoint: RustReadonlyDatasetEndpoint | undefined;
@@ -184,7 +189,9 @@ export async function createRustReadonlyDatasetEndpointFromOwner(options: RustRe
     }
     const snapshot = copySnapshot(exported); fresh();
     if (snapshot.epoch !== identity.epoch || snapshot.datasetId !== identity.datasetId) throw new RustSidecarError('SCOPE_MISMATCH');
-    endpoint = createEndpoint({ ...sidecarOptions, snapshot }, deadline); fresh();
+    endpoint = createEndpoint({ ...sidecarOptions, snapshot }, deadline);
+    onEndpointCreated?.(endpoint);
+    fresh();
     await endpoint.prepare(); fresh();
     await endpoint.commitBoot(); fresh();
     return endpoint;
