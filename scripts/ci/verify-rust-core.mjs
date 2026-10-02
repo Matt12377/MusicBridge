@@ -4,6 +4,7 @@ import os from 'node:os';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { verifyRustMainEvidence } from './rust-main-evidence.mjs';
 
 if (Number(process.versions.node.split('.')[0]) !== 22) throw new Error('Rust Gate 使用项目固定的 Node.js 22.x。');
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -58,10 +59,15 @@ function sourceManifest() {
     ...sourceFiles(path.join(root, 'packages/contracts/src')),
     ...sourceFiles(path.join(root, 'packages/bridge-core/test/helpers')),
     ...sourceFiles(path.join(root, 'packages/bridge-core/test/rust-core')),
+    ...sourceFiles(path.join(root, 'apps/desktop/src')),
+    ...sourceFiles(path.join(root, 'apps/desktop/test/helpers')),
+    ...sourceFiles(path.join(root, 'apps/desktop/test/rust-core')),
     path.join(root, 'rust-toolchain.toml'), path.join(root, 'package.json'),
     path.join(root, 'pnpm-lock.yaml'), path.join(root, 'pnpm-workspace.yaml'),
     path.join(root, 'packages/bridge-core/package.json'), path.join(root, 'packages/contracts/package.json'),
     path.join(root, 'scripts/ci/verify-rust-core.mjs'), path.join(root, 'scripts/ci/verify-boundaries.mjs'),
+    path.join(root, 'scripts/ci/rust-main-evidence.mjs'),
+    path.join(root, 'scripts/ci/test/rust-main-evidence.test.mjs'),
     path.join(root, '.github/workflows/rust-core.yml'), path.join(root, 'packages/bridge-core/test/rust-sidecar-client.test.ts'),
     path.join(root, 'packages/bridge-core/test/dataset-collection-snapshot.test.ts'),
     path.join(root, 'packages/bridge-core/test/dataset-snapshot-version.test.ts'),
@@ -73,6 +79,14 @@ function sourceManifest() {
     path.join(root, 'packages/bridge-core/test/rust-core-utility-options.test.ts'),
     path.join(root, 'packages/bridge-core/test/rust-readonly-node-reads.test.ts'),
     path.join(root, 'packages/bridge-core/test/rust-core-host-controls.test.ts'),
+    path.join(root, 'packages/bridge-core/test/rust-readonly-main-boundary.test.ts'),
+    path.join(root, 'apps/desktop/test/rust-core-host.test.ts'),
+    path.join(root, 'apps/desktop/test/native-output-device-package.test.ts'),
+    path.join(root, 'apps/desktop/package.json'), path.join(root, 'apps/desktop/tsconfig.json'),
+    path.join(root, 'apps/desktop/electron.vite.config.ts'),
+    ...sourceFiles(path.join(root, 'apps/desktop/e2e')).filter(file => /\/(?:private-rust-|rust-main-host)/.test(file)),
+    path.join(root, 'apps/desktop/electron-gate/rust-main-host.test.ts'),
+    path.join(root, 'apps/desktop/scripts/rust-main-host-gate.mjs'),
   ].sort().map(file => ({ path: path.relative(root, file), sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }));
 }
 const sources = sourceManifest();
@@ -138,6 +152,26 @@ run('ts-core-host-controls', process.execPath, ['--import', 'tsx', '--test', '--
 run('core-host-integration', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
   'test/rust-core/runtime-host-integration.test.ts'], path.join(root, 'packages/bridge-core'), {
   MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256, MUSIC_BRIDGE_RUST_HOST_REPORT: hostReport,
+});
+const mainComponentReport = path.join(directory, 'main-component-report.json');
+run('ts-main-read-boundary', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
+  'test/rust-readonly-main-boundary.test.ts'], path.join(root, 'packages/bridge-core'));
+run('desktop-core-host-adapter', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
+  'test/rust-core-host.test.ts'], path.join(root, 'apps/desktop'));
+const mainHostBuildRoot = path.join(directory, 'isolated-host');
+run('main-host-isolated-build', process.execPath, ['apps/desktop/scripts/rust-main-host-gate.mjs',
+  '--mode=build', '--output=' + mainHostBuildRoot], root, {
+  MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256,
+});
+run('main-background-components', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
+  'test/rust-core/runtime-main-background.test.ts'], path.join(root, 'apps/desktop'), {
+  MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256,
+  MUSIC_BRIDGE_RUST_MAIN_COMPONENT_REPORT: mainComponentReport,
+  MUSIC_BRIDGE_RUST_MAIN_HOST_BUILD_ROOT: mainHostBuildRoot,
+});
+run('main-evidence-acceptance', process.execPath, ['--test', 'scripts/ci/test/rust-main-evidence.test.mjs'], root, {
+  MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256,
+  MUSIC_BRIDGE_RUST_MAIN_HOST_BUILD_ROOT: mainHostBuildRoot, MUSIC_BRIDGE_RUST_MAIN_COMPONENT_REPORT: mainComponentReport,
 });
 const cost = JSON.parse(fs.readFileSync(costReport, 'utf8'));
 if (cost.task !== 'RUST-002' || cost.models !== 2_000 || cost.differentialPages !== 108 || cost.binarySha256 !== binarySha256
@@ -212,6 +246,7 @@ if (indexCost.baseline.status === 'RUN' && (indexCost.baseline.baseCommit !== 'd
   || !Array.isArray(indexCost.baseline.sourceModules) || indexCost.baseline.sourceModules.length !== 3
   || indexCost.baseline.sourceModules.some(module => !Object.hasOwn(baselineModulePins, module.name) || module.sha256 !== baselineModulePins[module.name])
   || new Set(indexCost.baseline.sourceModules.map(module => module.name)).size !== 3)) throw new Error('旧 RUST-004 完整路径对照身份或样本无效。');
+if (process.env.MUSIC_BRIDGE_RUST_BASELINE_ROUTER && indexCost.baseline.status !== 'RUN') throw new Error('已指定的旧完整路径基线没有运行。');
 const runtimeEvidence = JSON.parse(fs.readFileSync(runtimeReport, 'utf8'));
 if (runtimeEvidence.schemaVersion !== 1 || runtimeEvidence.task !== 'RUST-006' || runtimeEvidence.binarySha256 !== binarySha256
   || runtimeEvidence.nodeVersion !== process.version || runtimeEvidence.productionDefault !== 'Node'
@@ -369,10 +404,12 @@ if (thrownHost.resources.coreExit !== 1 || thrownHost.resources.nodePrepare !== 
 const parentHost = hostScene('parent-payload-non-admission');
 if (parentHost.resources.coreExit !== 1 || parentHost.resources.nodeSpawn !== 0 || parentHost.resources.rustSpawn !== 0
   || parentHost.observations.length) throw new Error('父启动字段进入了私有能力准入。');
+const mainComponents = JSON.parse(fs.readFileSync(mainComponentReport, 'utf8'));
+verifyRustMainEvidence(mainComponents, { root, buildRoot: mainHostBuildRoot, binaryPath: binary, binarySha256, layer: 'controlled-production-Main-components' });
 if (createHash('sha256').update(fs.readFileSync(binary)).digest('hex') !== binarySha256) throw new Error('Rust 二进制在验证期间改变。');
 if (JSON.stringify(sourceManifest()) !== JSON.stringify(sources)) throw new Error('Rust Gate 的受测源码在执行期间改变。');
 fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({
-  schemaVersion: 1, task: 'RUST-007', compiler, cargoVersion, sources,
+  schemaVersion: 1, task: 'RUST-008', compiler, cargoVersion, sources,
   binary: { path: binary, sha256: binarySha256, platform: process.platform, architecture: process.arch },
   packages: metadata.packages.map(p => ({ name: p.name, version: p.version })), runs,
   realServices: 'NOT_RUN', productionDefault: 'Node', readonlyCommands: ['collection.list'],
@@ -382,7 +419,10 @@ fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({
   defaultSnapshotProfile: 'v2-2000', optionalSnapshotProfile: 'v3-5000',
   boundedQueryIndex: true, requestResultCache: false, indexScaleModels: scales,
   optionalCoreRuntimeComposition: true, coreOwnsSourceOwner: true, publicRuntimeConfiguration: false,
-  trustedHostController: true, synchronousControllerDelivery: true, mixedNodeReadonlyCommands: mixedReadCommands,
+  trustedHostController: true, synchronousControllerDelivery: true,
+  mixedNodeReadonlyCommands: [...mixedReadCommands, 'commandOutbox.context', 'collectionProgress.modelLengths'],
+  conditionalEmptyClaimRetention: true, readCompletionBarrier: true, sharedDesktopCoreHost: true,
+  electronEvidenceLayer: 'separate-isolated-Electron-Gate',
   largeSnapshotModels: 5_000, largeSnapshotBytes: 8 * 1024 * 1024, uploadChunkModels: 128,
   costReport: { path: costReport, sha256: createHash('sha256').update(fs.readFileSync(costReport)).digest('hex') },
   refreshCostReport: { path: refreshCostReport, sha256: createHash('sha256').update(fs.readFileSync(refreshCostReport)).digest('hex') },
@@ -390,6 +430,7 @@ fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({
   indexCostReport: { path: indexCostReport, sha256: createHash('sha256').update(fs.readFileSync(indexCostReport)).digest('hex') },
   runtimeReport: { path: runtimeReport, sha256: createHash('sha256').update(fs.readFileSync(runtimeReport)).digest('hex') },
   hostReport: { path: hostReport, sha256: createHash('sha256').update(fs.readFileSync(hostReport)).digest('hex') },
+  mainComponentReport: { path: mainComponentReport, sha256: createHash('sha256').update(fs.readFileSync(mainComponentReport)).digest('hex') },
   baselineCompletePathComparison: indexCost.baseline.status,
 }, null, 2) + '\n');
 console.log('RUST_GATE=PASS manifest=' + path.join(directory, 'manifest.json'));

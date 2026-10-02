@@ -1,0 +1,5 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "allowJs": true, "checkJs": false, "lib": ["ES2023", "DOM"] },
+  "include": ["private-rust-*.ts", "private-rust-*.mjs", "rust-main-host.vite.config.ts", "../electron-gate/rust-main-host.test.ts", "../test/rust-core/runtime-main-background.test.ts", "../test/helpers/rust-main-background-*.ts", "../src/renderer/src/env.d.ts"]
+}

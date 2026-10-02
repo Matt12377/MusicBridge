@@ -1,10 +1,14 @@
 # Rust Core 开发进度
 
-更新：2026-10-02。当前任务 **RUST-007：可信主机显式控制与混合纯读取 — 本地完成**。分支 `codex/rust-core-007-host-refresh`，工作树 `worktree/rust-core-007`。
+更新：2026-10-02。当前任务 **RUST-008：正式 Main 初始化边界与隔离 Electron — 验证与两轮独审完成，提交收口中**。分支 `codex/rust-core-008-main-read-boundary`，工作树 `worktree/rust-core-008`。
 
 此表随开发更新；只有实际验证通过的项目才打勾。默认应用仍使用 Node，真实账号、Roon、录音和用户数据不进入本期验证。
 
 ## 待办事项
+
+### RUST-008（收口中）
+
+- [ ] 主代理：独立实现提交、结果报告提交、最终 HEAD/工作区/远端核对。
 
 ### 后续升级路线（规划，尚未开工）
 
@@ -12,12 +16,34 @@
 - [ ] 超过已验证的 5,000 型号 / 8 MiB 预算另立范围，禁止截断或跨时刻分页扩容。
 - [ ] 快照版本、显式刷新与按读取失效检测由 RUST-003 实施；后续评估推送通知和批次失效的收益。
 - [ ] RUST-005 结果后评估是否还有已证实的查询热点，扩展索引另立范围，保持成本证据。
-- [ ] 受控可信主机刷新与六种纯读由 RUST-007 实现；正式 Main 的 outbox/后台工作器初始化链尚未完整验证，实际 Electron 宿主与正式用户启用另列验收。
+- [ ] 受控可信主机刷新与六种纯读由 RUST-007 实现；正式 Main 的 outbox/后台链由 RUST-008 隔离 Electron 验证；实际收藏 UI 初始化、正式用户启用及真实服务仍需另列验收。
 - [ ] 验证 macOS 架构、打包资源、签名与二进制身份准入；生产默认启用单列验收。
 - [ ] 对可能的 Rust 持久化阶段梳理 schema、跨库事务、幂等回执、未知结果、不可变历史和恢复合同；在完整兼容证据前保持 Node 唯一作者。
 - [ ] 准备真实环境验证材料，分别记录 Roon、播放、录音和 Owner 结果；本地合成测试不替代这些验收。
 
 ## 已完成事项
+
+### RUST-008（当前阶段已完成）
+
+- [x] 子代理 4：两轮独审完成，剩余 P1/P2=0；41 审读源码、1,084 冻结文件、27＋6 步日志、875 输入/36 产物与 binary、54 次尝试和每个 child 资源身份匹配。
+
+- [x] 主代理：最终 v2 Rust Gate 27 步退出 0，43 Rust / 406 JS；实际 Electron 3/3，默认入口两种 startup 均通过。
+- [x] 主代理：完整软件最终六步退出 0，3,853 单元通过（原 2 条件 skip 保留）；1,084 源码 before=after=当前，875 宿主输入/36 编译产物及全部日志/二进制身份匹配。
+
+- [x] 主代理：首轮软件类型失败已定位为新 Node 测试缺 ES2023 数组声明；只修新测试，桌面完整类型专项退出 0，v1 失败与冻结保留。
+
+- [x] 主代理：最终 Rust Gate 27 步全部退出 0；43 Rust / 406 JS，569 份受测输入匹配，旧 RUST-004 完整基线 RUN；同批产物真实 Electron 3/3 再验通过。
+- [x] 主代理：默认生产入口的 development / production Electron mock-keychain startup 均退出 0，未启用 Rust。
+
+- [x] 子代理 3：受控组件 5/5，三规模各 34 完整差分页及有效 print 租约写失效；真实 Electron 3/3，默认 Node/原 preload outbox/显式刷新/后台空轮询通过。
+- [x] 主代理：独立核对私有05产物的 875 输入/36 编译文件及 binary、逐 child ACK/自然退出与证据分层；各步 SHA、初次失败和缓存准入偏差保留。
+- [x] 子代理 1：新 67＋原 119＝186/186 通过，零新增跳过；有效 RED、中间 fixture 失败及修补证据保留，Core 类型/差异检查退出 0。
+- [x] 子代理 4：第一轮生产代码独审及 Proxy 回执准入修补已核，剩余 P1/P2=0；本轮不宣称实际 Main/Electron 已通过。
+- [x] 子代理 2：默认六参数/显式可信转交有效 RED→GREEN，最终 11/11 通过；Worker 固定入口/有限环境/client 生命周期和非法准入覆盖。
+- [x] 主代理：静态入口资源保护跟随 adapter 抽取，4/4 回归通过；旧闭集分类样例按新合同更新，原断言和数量保留。
+- [x] RUST-007 最终报告/源码/提交/外置卷和依赖会话精确完成轮次核对；从 `50d2e85` 新建隔离分支，保留原仓库 WIP。
+- [x] 三名子代理完成正式 Main/outbox/打印工作器副作用与并发补审，源码摘要保存在外置证据；尚未把审计计为测试通过。
+- [x] 冻结任务、内部合同、ADR 与文件分工，转入三个实现代理并行；第四名保持独立审查。
 
 ### RUST-007（本地完成）
 
@@ -116,7 +142,7 @@
 
 报告：[RUST-001_READONLY_SIDECAR.md](../reports/RUST-001_READONLY_SIDECAR.md)。
 
-当前范围：[RUST-005-bounded-query-index.md](../tasks/RUST-005-bounded-query-index.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k`。RUST-004 最终基线 `d2676884a537bf3d232ed2cc957fef11b6d5cfeb`。
+当前范围：[RUST-008-main-read-boundary.md](../tasks/RUST-008-main-read-boundary.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6`。本期 base 为 RUST-007 最终报告 `50d2e8573dfdaea4cd97fee09ac1c85effe3f2da`。
 
 ## 保留的验收边界
 

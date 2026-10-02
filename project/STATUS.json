@@ -3201,8 +3201,10 @@
     }
   },
   "currentRustCoreTask": {
-    "task": "RUST-007",
-    "statusKey": "rustCoreHostControl20261002"
+    "task": "RUST-008",
+    "state": "implementation-and-gates-complete-report-pending",
+    "scope": "tasks/RUST-008-main-read-boundary.md",
+    "branch": "codex/rust-core-008-main-read-boundary"
   },
   "rustCoreAtomicSnapshot20261002": {
     "task": "RUST-002",
@@ -3974,6 +3976,155 @@
       "task": "RUST-008",
       "state": "NOT_STARTED",
       "scope": "审计并受控验证完整 Main/outbox/后台初始化请求与可选只读路由的生命周期，默认 Node 与生产唯一写入者保持。"
+    }
+  },
+  "rustCoreMainReadBoundary20261002": {
+    "task": "RUST-008",
+    "branch": "codex/rust-core-008-main-read-boundary",
+    "baseCommit": "50d2e8573dfdaea4cd97fee09ac1c85effe3f2da",
+    "state": "implementation-validated-final-report-pending",
+    "scope": "tasks/RUST-008-main-read-boundary.md",
+    "todo": "project/RUST_CORE_TODO.md",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6",
+    "productionDefault": "Node",
+    "nodeDatabaseWriteOwnerUnchanged": true,
+    "agentPolicy": {
+      "primaryModel": "gpt-6.1-sol",
+      "primaryReasoningEffort": "max",
+      "subagentModel": "gpt-6.1-sol",
+      "subagentReasoningEffort": "high",
+      "maximumSubagents": 4,
+      "execution": "three-authors-then-independent-review-within-platform-slots",
+      "furtherDelegation": false
+    },
+    "auditEvidence": [
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/node-read-boundary-audit.json",
+        "sha256": "dc6d805116c5246419473adfcdccc9e5515bc8b4448b89e881e5cad6f7330224"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/node-conditional-claim-audit.json",
+        "sha256": "4c0c3428ad8afb68ffb020d19698729d34c24db5796faf88909499555295b980"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/host-integration-audit.json",
+        "sha256": "2c4f989074e00ad9ad632d96c7ad99cf9f788efc2ed3685cf52dfa0b367646e2"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/scope-boundary-audit.json",
+        "sha256": "224981e39435aa1f6e12240c211b87e4ec38456143d4cab4aa59e8c28ffbf3ad"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/scope-boundary-claim-condition-audit.json",
+        "sha256": "30993db9afad4fc2e722faa3f91a3e06a0fcfcf48f4c9047e10f0efc00227dd0"
+      }
+    ],
+    "validation": {
+      "state": "PASS",
+      "desktopAdapterPassed": 11,
+      "entryResourceRegressionPassed": 4,
+      "finalBoundaryTargeted": "PASS",
+      "actualMainComponents": "PASS",
+      "actualElectron": "PASS",
+      "boundaryNewPassed": 67,
+      "boundaryWithExistingPassed": 186,
+      "targetedCoreTypecheckExitCode": 0,
+      "actualMainComponentTests": 5,
+      "actualElectronTests": 3,
+      "hostInputFiles": 875,
+      "hostCompiledArtifacts": 36,
+      "mainComponentDifferentialPages": 102,
+      "rustGateSteps": 27,
+      "rustPassed": 43,
+      "rustJavascriptPassed": 406,
+      "rustGateSourceFiles": 569,
+      "isolatedElectronMainGate": "PASS",
+      "rustGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/rust-gate/run-qvtn4O/manifest.json",
+        "sha256": "bb10e62e1439661bda4ac95c983a6cedade538b89b18cfa7a7ade17e147da4fa"
+      },
+      "freshElectronReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/electron-final-v2.json",
+        "sha256": "ffaccbd36d4f670d6c4d6e82f9ca67e3813e1c77554013fbadf69eef5dd4969b"
+      },
+      "firstSoftwareTypecheck": "FAIL-exit2-preserved",
+      "desktopTypecheckAfterLibRepair": "PASS-exit0",
+      "softwareSteps": 6,
+      "unitPassed": 3853,
+      "unitPackageCounts": {
+        "contracts": 254,
+        "bridgeCore": 2349,
+        "desktop": 1250
+      },
+      "originalConditionalSkips": 2,
+      "newSkips": 0,
+      "cyclesFiles": 384,
+      "wholeSourceFiles": 1084,
+      "sourceStable": true,
+      "checks": [
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/RUST_GATE_CHECK_V2.json",
+          "sha256": "016ed9386f74adf2099766c2275db4cbfd1aa1d7b8dda5e60ef3ca130b222209"
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/SOFTWARE_GATE_CHECK_V2.json",
+          "sha256": "1712daa553cb8edfda78dd8b391fcd784cb4ec36d5665b1f46e4c74b3d8fe32d"
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/MAIN_EVIDENCE_CHECK_V2.json",
+          "sha256": "a0bb8a4b8e21ab8b7188e80d4ef3df09d4686f4aa9d8a102258ff53bb3505339"
+        }
+      ],
+      "ledger": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/VALIDATION_LEDGER.json",
+        "sha256": "bb369b361152f73be578694f1b3d05b2be0c4b3236ee0d2b5b1d8d5a5ee1870d"
+      }
+    },
+    "fullElectronE2E": "NOT_RUN",
+    "realProviderRoonAcceptance": "NOT_RUN",
+    "realRecording": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "realUserMigration": "NOT_RUN",
+    "realSystemKeychain": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "carryover": [
+      "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
+      "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
+    ],
+    "progress": {
+      "readonlyRouter": "frozen-186-targeted-passed",
+      "desktopAdapter": "implemented-11-targeted-passed",
+      "isolatedElectron": "frozen-3-actual-Electron-and-5-controlled-components-passed",
+      "independentReview": "two-rounds-complete-zero-P1-P2",
+      "fullGate": "PASS-final-v2-all-six-software-27-rust-and-three-electron"
+    },
+    "review": {
+      "roundsCompleted": 2,
+      "remainingP1": 0,
+      "remainingP2": 0,
+      "round1": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/review-round1.json",
+        "sha256": "2c51c2f7a39c6e5ba68abcd8f7d786f370413f54cf63cc45e5e4b64f19eb164a"
+      },
+      "finalEvidenceReview": "PASS",
+      "final": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/review-final.json",
+        "sha256": "8d3742edb799fc98a6a7a2f86cab647579e3748bf3421c4fcf530b82fc51b4a2"
+      }
+    },
+    "dependencyBootstrapDeviation": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/electron-cache-deviation.json",
+      "sha256": "f29845f8979ea5a72129a0bc14e795813065af6a11fb6a78b3d6ef0667688dbc",
+      "boundary": "首次自动解压已记录；没有默认cache前置快照，临时写入不可断言不存在；后续关闭隐式下载并显式外置缓存。"
+    },
+    "runtimeVersions": {
+      "cliNode": "22.23.2",
+      "electron": "43.4.0",
+      "embeddedElectronNode": "24.18.1",
+      "rust": "1.95.0"
     }
   }
 }
