@@ -35,3 +35,4 @@ WAVE-2 历史风险保留在 `docs/07_RISK_REGISTER.md`。本文件只登记 V1 
 | R-028 | 忽略版本探测与刷新成本而误判 Rust 读取收益 | RUST-003 记录完整 warm Node/Rust 调用与两次探测、整段刷新/自然退出，不改变默认 Node | 依据固定源码与规模的完整测量决定下一计算热点；不得只引用裸 Native 耗时 |
 | R-029 | 大快照缺块、跨块重复或上传取消被误认为完整读取 | RUST-004 独立大 profile，manifest、128 型号/块、精确累计 ACK、规范/原始字节及全部 commitBoot；候选立即封闭且收口当前块再自然 close | 最终固定源码的真实 5,000 全页/筛选差分、部分关闭/崩溃与自动 Gate；分块不代表整库零内存或硬 RSS 上限 |
 | R-030 | 索引改变 Unicode/库存重叠/总数/顺序，或换代仍引用旧事实 | RUST-005 每代一次有界行投影与有序 posting，最小候选复核全部 AND；保留独立线性 oracle、完整 DTO 深比较与版本/代次围栏 | 四种规模真实 SQLite/Rust 差分、写后换代、构建/完整调用成本及固定源码 Gate；不以结构有界宣称硬 RSS 已验 |
+| R-031 | Core 提前 ready、丢失来源私有能力或漏关已启动/迟到 Rust 候选 | RUST-006 可选组合已通过 19 步 Rust 与 6 步软件 Gate、两轮独审；可信显式参数、owned Node / borrowed router、整体期限与提前关闭回归，默认六参数保持 | 实际 Core worker / Node owner / Rust 的多规模差分、失败收口和自然退出，固定源码自动 Gate；Electron、打包签名和生产默认准入另验 |

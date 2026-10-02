@@ -69,6 +69,8 @@ function sourceManifest() {
     path.join(root, 'packages/bridge-core/test/dataset-large-snapshot.test.ts'),
     path.join(root, 'packages/bridge-core/test/rust-large-sidecar.test.ts'),
     path.join(root, 'packages/bridge-core/test/rust-query-index.test.ts'),
+    path.join(root, 'packages/bridge-core/test/rust-core-owner-lifecycle.test.ts'),
+    path.join(root, 'packages/bridge-core/test/rust-core-utility-options.test.ts'),
   ].sort().map(file => ({ path: path.relative(root, file), sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }));
 }
 const sources = sourceManifest();
@@ -110,15 +112,22 @@ run('ts-refresh-router', process.execPath, ['--import', 'tsx', '--test', '--test
 run('node-large-snapshot', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/dataset-large-snapshot.test.ts'], path.join(root, 'packages/bridge-core'));
 run('ts-large-snapshot', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/rust-large-sidecar.test.ts'], path.join(root, 'packages/bridge-core'));
 run('ts-query-index', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/rust-query-index.test.ts'], path.join(root, 'packages/bridge-core'));
+run('ts-core-owner-lifecycle', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/rust-core-owner-lifecycle.test.ts'], path.join(root, 'packages/bridge-core'));
+run('ts-core-utility-options', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/rust-core-utility-options.test.ts'], path.join(root, 'packages/bridge-core'));
 const costReport = path.join(directory, 'atomic-snapshot-cost.json');
 const refreshCostReport = path.join(directory, 'refresh-routing-cost.json');
 const largeCostReport = path.join(directory, 'large-snapshot-cost.json');
 const indexCostReport = path.join(directory, 'indexed-query-cost.json');
+const runtimeReport = path.join(directory, 'runtime-lifecycle-report.json');
 run('ts-rust-integration', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
   'test/rust-core/readonly-integration.test.ts', 'test/rust-core/atomic-snapshot-integration.test.ts', 'test/rust-core/refresh-routing-integration.test.ts', 'test/rust-core/large-snapshot-integration.test.ts', 'test/rust-core/indexed-query-integration.test.ts'],
   path.join(root, 'packages/bridge-core'), { MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256,
     MUSIC_BRIDGE_RUST_COST_REPORT: costReport, MUSIC_BRIDGE_RUST_REFRESH_COST_REPORT: refreshCostReport,
     MUSIC_BRIDGE_RUST_LARGE_COST_REPORT: largeCostReport, MUSIC_BRIDGE_RUST_INDEX_COST_REPORT: indexCostReport });
+run('core-runtime-integration', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
+  'test/rust-core/runtime-lifecycle-integration.test.ts'], path.join(root, 'packages/bridge-core'), {
+  MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256, MUSIC_BRIDGE_RUST_RUNTIME_REPORT: runtimeReport,
+});
 const cost = JSON.parse(fs.readFileSync(costReport, 'utf8'));
 if (cost.task !== 'RUST-002' || cost.models !== 2_000 || cost.differentialPages !== 108 || cost.binarySha256 !== binarySha256
   || !['exportRoundtripMs', 'fromOwnerReadyMs', 'remainingStartupMs', 'closeAckAndNaturalExitMs'].every(key => Number.isFinite(cost[key]) && cost[key] >= 0)
@@ -192,10 +201,70 @@ if (indexCost.baseline.status === 'RUN' && (indexCost.baseline.baseCommit !== 'd
   || !Array.isArray(indexCost.baseline.sourceModules) || indexCost.baseline.sourceModules.length !== 3
   || indexCost.baseline.sourceModules.some(module => !Object.hasOwn(baselineModulePins, module.name) || module.sha256 !== baselineModulePins[module.name])
   || new Set(indexCost.baseline.sourceModules.map(module => module.name)).size !== 3)) throw new Error('旧 RUST-004 完整路径对照身份或样本无效。');
+const runtimeEvidence = JSON.parse(fs.readFileSync(runtimeReport, 'utf8'));
+if (runtimeEvidence.schemaVersion !== 1 || runtimeEvidence.task !== 'RUST-006' || runtimeEvidence.binarySha256 !== binarySha256
+  || runtimeEvidence.nodeVersion !== process.version || runtimeEvidence.productionDefault !== 'Node'
+  || runtimeEvidence.electron !== 'NOT_RUN' || runtimeEvidence.realServices !== 'NOT_RUN'
+  || runtimeEvidence.data !== 'synthetic-real-Core-worker-Node-two-database-owner-pinned-Rust'
+  || !Array.isArray(runtimeEvidence.scenarios) || runtimeEvidence.scenarios.length !== 10) throw new Error('Core 实际生命周期报告缺失或身份不匹配。');
+const runtimeEvents = (scenario, event) => scenario.observations.filter(value => value.event === event);
+const eventCount = (scenario, event, count) => runtimeEvents(scenario, event).length === count;
+const soleScenario = (name, models) => {
+  const matches = runtimeEvidence.scenarios.filter(scenario => scenario.scenario === name && (models === undefined || scenario.models === models));
+  if (matches.length !== 1) throw new Error('Core 生命周期场景缺失或重复。');
+  return matches[0];
+};
+const nodeClosedNaturally = scenario => eventCount(scenario, 'node.spawn', 1) && eventCount(scenario, 'node.close', 1)
+  && eventCount(scenario, 'node.closed', 1) && eventCount(scenario, 'node.exit', 1)
+  && runtimeEvents(scenario, 'node.exit')[0].code === 0 && eventCount(scenario, 'node.fatal', 0);
+for (const scenario of runtimeEvidence.scenarios) {
+  if (!Array.isArray(scenario.observations) || !scenario.observations.length
+    || scenario.observations.some((value, index) => value.type !== 'observation' || value.sequence !== index + 1
+      || !Number.isFinite(value.elapsedMs) || value.elapsedMs < 0
+      || index > 0 && value.elapsedMs < scenario.observations[index - 1].elapsedMs)
+    || !nodeClosedNaturally(scenario)) throw new Error('Core 场景观察序列或 Node 自然关闭证据无效。');
+}
+const legacyRuntime = soleScenario('legacy-node', 100);
+if (legacyRuntime.coreExit !== 0 || !eventCount(legacyRuntime, 'core.ready', 1) || !eventCount(legacyRuntime, 'node.boot', 1)
+  || !eventCount(legacyRuntime, 'node.version', 0) || !eventCount(legacyRuntime, 'rust.spawn', 0)
+  || ['node.export', 'node.exportLarge', 'node.exportPlain'].some(event => !eventCount(legacyRuntime, event, 0))) throw new Error('默认 Core 路径意外启用 Rust 能力。');
+for (const models of scales) {
+  const scenario = soleScenario('explicit-rust', models), frames = runtimeEvents(scenario, 'rust.frame');
+  const boots = frames.filter(frame => frame.operation === 'commitBoot'), chunks = frames.filter(frame => frame.operation === 'appendSnapshot');
+  const ready = runtimeEvents(scenario, 'core.ready'), exits = runtimeEvents(scenario, 'rust.exit');
+  const exported = runtimeEvents(scenario, 'node.exportComplete'), writing = runtimeEvents(scenario, 'node.dispatch');
+  if (scenario.coreExit !== 0 || scenario.differentialPages !== 32
+    || !Array.isArray(scenario.queryRoundtripMs) || scenario.queryRoundtripMs.length !== 32
+    || scenario.queryRoundtripMs.some(value => !Number.isFinite(value) || value < 0)
+    || !['node.prepare', 'node.boot', 'rust.spawn'].every(event => eventCount(scenario, event, 1))
+    || runtimeEvents(scenario, 'rust.spawn')[0].liveChildren !== 1
+    || boots.length !== 1 || boots[0].ok !== true || ready.length !== 1 || boots[0].sequence >= ready[0].sequence
+    || chunks.length !== (models === 5_000 ? 40 : 0) || chunks.some(frame => frame.ok !== true || frame.sequence >= boots[0].sequence)
+    || frames.filter(frame => frame.operation === 'dispatch').length !== 32
+    || exits.length !== 1 || exits[0].code !== 0 || exits[0].signal !== null || exits[0].liveChildren !== 0
+    || exported.length !== 1 || exported[0].models !== models || !Number.isSafeInteger(exported[0].jsonBytes)
+    || exported[0].jsonBytes < 1 || exported[0].jsonBytes > (models === 5_000 ? 8 : 4) * 1024 * 1024
+    || runtimeEvents(scenario, 'node.export').length + runtimeEvents(scenario, 'node.exportLarge').length !== 1
+    || writing.length !== 2 || writing.filter(event => event.command === 'collection.receive').length !== 1
+    || writing.filter(event => event.command === 'collection.list').length !== 1
+    || writing.some(event => event.sequence <= ready[0].sequence)) throw new Error('Core 四规模差分、ACK 准入或写后失效证据无效。');
+}
+const earlyShutdown = soleScenario('early-shutdown-before-ready');
+if (earlyShutdown.coreExit !== 0 || !['node.prepare', 'node.boot', 'node.bootSeeded'].every(event => eventCount(earlyShutdown, event, 1))
+  || !['core.ready', 'rust.spawn', 'node.bootComplete', 'node.version', 'node.dispatch', 'node.export', 'node.exportLarge'].every(event => eventCount(earlyShutdown, event, 0))) throw new Error('Core 提前 shutdown 被误判为启动成功或失败。');
+for (const name of ['bad-pin', 'missing-capabilities', 'capacity']) {
+  const scenario = soleScenario(name);
+  if (scenario.coreExit !== 1 || !eventCount(scenario, 'core.ready', 0) || !eventCount(scenario, 'rust.spawn', 0)
+    || !eventCount(scenario, 'node.boot', name === 'missing-capabilities' ? 0 : 1)) throw new Error('Core 启动拒绝没有确认资源收口。');
+}
+const killed = soleScenario('real-rust-sigkill-close-failure'), killedExits = runtimeEvents(killed, 'rust.exit');
+if (killed.forcedTestCleanup !== true || killed.coreExit !== 1 || !eventCount(killed, 'rust.spawn', 1)
+  || killedExits.length !== 1 || killedExits[0].code !== null || killedExits[0].signal !== 'SIGKILL'
+  || killedExits[0].liveChildren !== 0) throw new Error('受控 SIGKILL 被误记为正常关闭。');
 if (createHash('sha256').update(fs.readFileSync(binary)).digest('hex') !== binarySha256) throw new Error('Rust 二进制在验证期间改变。');
 if (JSON.stringify(sourceManifest()) !== JSON.stringify(sources)) throw new Error('Rust Gate 的受测源码在执行期间改变。');
 fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({
-  schemaVersion: 1, task: 'RUST-005', compiler, cargoVersion, sources,
+  schemaVersion: 1, task: 'RUST-006', compiler, cargoVersion, sources,
   binary: { path: binary, sha256: binarySha256, platform: process.platform, architecture: process.arch },
   packages: metadata.packages.map(p => ({ name: p.name, version: p.version })), runs,
   realServices: 'NOT_RUN', productionDefault: 'Node', readonlyCommands: ['collection.list'],
@@ -204,11 +273,13 @@ fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({
   versionedSnapshots: true, explicitRefreshRouting: true, sourceOwnerBorrowed: true,
   defaultSnapshotProfile: 'v2-2000', optionalSnapshotProfile: 'v3-5000',
   boundedQueryIndex: true, requestResultCache: false, indexScaleModels: scales,
+  optionalCoreRuntimeComposition: true, coreOwnsSourceOwner: true, publicRuntimeConfiguration: false,
   largeSnapshotModels: 5_000, largeSnapshotBytes: 8 * 1024 * 1024, uploadChunkModels: 128,
   costReport: { path: costReport, sha256: createHash('sha256').update(fs.readFileSync(costReport)).digest('hex') },
   refreshCostReport: { path: refreshCostReport, sha256: createHash('sha256').update(fs.readFileSync(refreshCostReport)).digest('hex') },
   largeCostReport: { path: largeCostReport, sha256: createHash('sha256').update(fs.readFileSync(largeCostReport)).digest('hex') },
   indexCostReport: { path: indexCostReport, sha256: createHash('sha256').update(fs.readFileSync(indexCostReport)).digest('hex') },
+  runtimeReport: { path: runtimeReport, sha256: createHash('sha256').update(fs.readFileSync(runtimeReport)).digest('hex') },
   baselineCompletePathComparison: indexCost.baseline.status,
 }, null, 2) + '\n');
 console.log('RUST_GATE=PASS manifest=' + path.join(directory, 'manifest.json'));

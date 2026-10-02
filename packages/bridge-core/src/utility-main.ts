@@ -51,6 +51,7 @@ import type { RoonTimeShapeSummary } from './roon/adapter.js';
 import type { RoonBrowseShapeSummary } from './roon/library.js';
 import { createLyricsMatchRepository } from './lyrics-matching/repository.js';
 import type { FfmpegConverter } from './recording/audio-converter.js';
+import { createRustReadonlyCoreDatasetOwner, type RustReadonlyCoreOptions } from './rust-core/core-dataset-owner.js';
 
 export interface UtilityPort {
   on(event: 'message', listener: (event: { data: unknown }) => void): unknown;
@@ -478,6 +479,7 @@ export async function runCoreUtilityProcess(
   createRecordingDeviceOutputHelper?: () => Promise<PinnedDeviceOutputHelper | undefined>,
   recordingGateBCandidate?: GateBCandidateIdentity | null,
   createDatasetOwner?: DatasetOwnerFactory,
+  rustReadonlyCollection?: RustReadonlyCoreOptions,
 ): Promise<void> {
   const traceEnabled = isLibraryReadTraceEnabled(env, env.NODE_ENV === 'development' && env.MUSIC_BRIDGE_CORE_TEST_MODE !== '1');
   const libraryReadTrace = traceEnabled ? createLibraryReadTraceWriter({ enabled: true, write: line => { process.stdout.write(line); } }) : undefined;
@@ -498,6 +500,7 @@ export async function runCoreUtilityProcess(
       let datasetOwnerEndpoint: DatasetOwnerEndpoint | undefined;
       let ownerIdentity: DatasetOwnerIdentity | undefined;
       let runtime: CoreRuntime | undefined;
+      let runtimeShutdown: Promise<void> | undefined;
       let projectionGateway: ReturnType<typeof createDatasetRoonProjectionGateway> | undefined;
       try {
         if (!isRecord(event.data) || event.data.type !== 'musicbridge.core.port' ||
@@ -508,17 +511,25 @@ export async function runCoreUtilityProcess(
         const playbackEventProtocol = event.data.playbackEventProtocol === 'compact-v1' ? 'compact-v1' as const : undefined;
         const playbackOptions = playbackEventProtocol ? { playbackEventProtocol } : {};
         const onEvent = (message: CoreRuntimeEvent) => { if (message.event !== 'core.ready') port.postMessage(message); };
+        if (rustReadonlyCollection !== undefined && !createDatasetOwner) {
+          throw new Error('Rust 只读配置需要显式 Dataset Owner 工厂。');
+        }
         if (createDatasetOwner) {
           const dataDirectory = env.MUSIC_BRIDGE_DATA_DIRECTORY;
           if (!dataDirectory || dataDirectory.length > 1024 || !path.isAbsolute(dataDirectory) || dataDirectory.includes('\0')) throw new Error('Core数据目录不可用。');
           projectionGateway = createDatasetRoonProjectionGateway(() => runtime?.getDatasetRoonLibrary?.(), {
             isCurrentOwner: epoch => ownerIdentity?.epoch === epoch,
           });
-          const client = createDatasetOwner({ projection: projectionGateway.handler, onFatal: () => {
+          const source = createDatasetOwner({ projection: projectionGateway.handler, onFatal: () => {
             projectionGateway?.close();
             // 致命owner故障复用Main既有Core监督与冷启恢复，禁止在活Core里偷偷重开writer。
             process.exit(72);
           } });
+          // 在能力准入前登记来源；同步拒绝配置时也必须清理已创建的 Node Owner。
+          datasetOwnerEndpoint = source;
+          // 私有快照能力属于原始来源；不可先经既有 IPC 包装而丢失能力。
+          const client = rustReadonlyCollection === undefined ? source
+            : createRustReadonlyCoreDatasetOwner(source, rustReadonlyCollection);
           datasetOwnerEndpoint = {
             prepare: async () => { ownerIdentity = await client.prepare(); return ownerIdentity; },
             dispatch: request => client.dispatch(request),
@@ -613,6 +624,11 @@ export async function runCoreUtilityProcess(
                 });
               })();
         }
+        if (rustReadonlyCollection !== undefined) {
+          const shutdown = runtime.shutdown.bind(runtime);
+          // 原 shutdown 的完成包含控制面清理和 stopped 状态；Owner close 完成不能代替它。
+          runtime.shutdown = () => runtimeShutdown ??= shutdown();
+        }
         await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true, beforeReady: () => datasetOwnerEndpoint ? datasetOwnerEndpoint.commitBoot() : dataset?.commit(), ...(libraryReadTrace ? { libraryReadTrace } : {}) });
         if (isCrashProbeEnabled(env)) {
           const configuredDelay = Number(env.MUSIC_BRIDGE_CORE_CRASH_DELAY_MS);
@@ -622,10 +638,17 @@ export async function runCoreUtilityProcess(
           setTimeout(() => process.exit(71), delayMs);
         }
       } catch {
-        try { await datasetOwnerEndpoint?.close(); } catch { /* 保留未确认关闭，不把启动失败冒充静止。 */ }
+        let cleanupSucceeded = false;
+        try { await datasetOwnerEndpoint?.close(); cleanupSucceeded = true; } catch { /* 保留未确认关闭，不把启动失败冒充静止。 */ }
         projectionGateway?.close();
         dataset?.fail();
         dataset?.close();
+        // 显式组合在正常 shutdown 时会封闭尚未完成的 boot；已确认 stopped 由原 attach 正常退出。
+        let shutdownSucceeded = false;
+        if (rustReadonlyCollection !== undefined && runtimeShutdown) {
+          try { await runtimeShutdown; shutdownSucceeded = true; } catch { /* shutdown 失败仍按启动失败退出。 */ }
+        }
+        if (rustReadonlyCollection !== undefined && cleanupSucceeded && shutdownSucceeded && runtime?.getState().runtime === 'stopped') return;
         process.exitCode = 1;
         process.exit(1);
       }
