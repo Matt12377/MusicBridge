@@ -139,7 +139,6 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     }
   }
   let activeCollectionLoader: ProgressiveCollectionLoader | undefined
-  let collectionPlaybackStartInFlight = false
   let disposed = false
   const currentTrack = computed(() => playbackState.value?.currentTrack)
 
@@ -777,7 +776,6 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     collectionOperation += 1
     activeCollectionLoader?.cancel()
     activeCollectionLoader = undefined
-    collectionPlaybackStartInFlight = false
   }
 
   async function continueCollectionQueue(
@@ -816,11 +814,10 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     openNowPlaying = true,
   ): Promise<void> {
     if (!playbackCommandsReady()) return
-    if (collectionPlaybackStartInFlight) return
+    // 新点击立即取代旧集合操作；旧请求的回执和错误只由其原代际消费。
     invalidateCollectionOperation()
     retryStopSource = undefined
     cancelRoonPlaybackPreparation()
-    collectionPlaybackStartInFlight = true
     const operation = ++collectionOperation
     clearActionError()
     const loader = createProgressiveCollectionLoader(loadPage, LIBRARY_PAGE_SIZE, initialPage)
@@ -828,7 +825,6 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     try {
       const firstBatch = await loader.next()
       if (operation !== collectionOperation || !firstBatch || firstBatch.tracks.length === 0) {
-        if (operation === collectionOperation) collectionPlaybackStartInFlight = false
         return
       }
       const initial = selectInitialCollectionPlayback(firstBatch.tracks, selectedTrackId)
@@ -839,7 +835,6 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       if (operation !== collectionOperation) return
       applyPlaybackState(snapshot)
       if (openNowPlaying) onEnterNowPlaying()
-      collectionPlaybackStartInFlight = false
       if (firstBatch.hasMore) {
         void continueCollectionQueue(loader, operation)
       } else {
@@ -848,12 +843,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     } catch (error) {
       if (operation === collectionOperation) onError(error)
       if (operation === collectionOperation) {
-        collectionPlaybackStartInFlight = false
         activeCollectionLoader = undefined
-      }
-    } finally {
-      if (operation === collectionOperation && collectionPlaybackStartInFlight && activeCollectionLoader !== loader) {
-        collectionPlaybackStartInFlight = false
       }
     }
   }

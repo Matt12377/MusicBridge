@@ -235,7 +235,6 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       if (!notified) onDetailReady('roon-album-detail', { type: 'roon-album', reference })
     } catch (error) {
       if (!current()) return
-      if (isLibraryReadCancelled(error)) { roonAlbumInitialLoading.value = false; roonAlbumLoadingMore.value = false; return }
       delete detailRequests.album
       if (initial) {
         roonAlbumInitialLoading.value = false
@@ -325,7 +324,6 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       if (!notified) onDetailReady('roon-artist-detail', { type: 'roon-artist', reference })
     } catch (error) {
       if (!current()) return
-      if (isLibraryReadCancelled(error)) { roonArtistInitialLoading.value = false; roonArtistLoadingMore.value = false; return }
       delete detailRequests.artist
       if (initial) {
         roonArtistInitialLoading.value = false
@@ -407,7 +405,6 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       if (!notified) onDetailReady('roon-genre-detail', { type: 'roon-genre', reference })
     } catch (error) {
       if (!current()) return
-      if (isLibraryReadCancelled(error)) { roonGenreInitialLoading.value = false; roonGenreLoadingMore.value = false; return }
       delete detailRequests.genre
       if (initial) {
         roonGenreInitialLoading.value = false
@@ -489,7 +486,6 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       if (!notified) onDetailReady('roon-playlist-detail', { type: 'roon-playlist', reference })
     } catch (error) {
       if (!current()) return
-      if (isLibraryReadCancelled(error)) { roonPlaylistInitialLoading.value = false; roonPlaylistLoadingMore.value = false; return }
       delete detailRequests.playlist
       if (initial) {
         roonPlaylistInitialLoading.value = false
@@ -600,7 +596,6 @@ export function useRoonBrowse(options: RoonBrowseOptions) {
       favoritesError.value = null
     } catch (error) {
       if (generation !== favoritesRequestGeneration || kind !== favoriteKind.value) return
-      if (isLibraryReadCancelled(error)) { favoritesInitialLoading.value = false; favoritesLoadingMore.value = false; return }
       pendingFavorite = undefined
       if (initial) {
         favoritesInitialLoading.value = false

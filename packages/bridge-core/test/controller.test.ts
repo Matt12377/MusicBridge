@@ -2397,6 +2397,98 @@ function mbpDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+test('快速歌单切换：同turn受理A/B/C只派发最后C', async () => {
+  const f = makeHarness();
+  const a = f.controller.replaceQueue([{ trackId: '99201' }]).catch(error => error);
+  const b = f.controller.replaceQueue([{ trackId: '99202' }]).catch(error => error);
+  const c = f.controller.replaceQueue([{ trackId: '99203' }]);
+  try {
+    await c;
+    assert.equal((await a).details?.reason, 'operation_cancelled');
+    assert.equal((await b).details?.reason, 'operation_cancelled');
+    assert.deepEqual(f.roon.playRequests.map(request => request.metadata.id), ['99203']);
+    assert.equal(f.controller.getPlaybackState().currentTrack?.id, '99203');
+    assert.equal(f.registry.size, 1);
+  } finally { await f.controller.stop(); }
+});
+
+test('快速歌单切换：A准备时受理B/C，未开始的B不得阻塞C', { timeout: 3000 }, async t => {
+  const f = makeHarness(), entered = mbpDeferred<void>(), oldGate = mbpDeferred<void>(), middleGate = mbpDeferred<void>();
+  const original = f.netease.getTrack.bind(f.netease);
+  const metadataCalls: string[] = [];
+  t.mock.method(f.netease, 'getTrack', async (id: string) => {
+    metadataCalls.push(id);
+    if (id === '99211') { entered.resolve(); await oldGate.promise; }
+    if (id === '99212') await middleGate.promise;
+    return original(id);
+  });
+  const a = f.controller.replaceQueue([{ trackId: '99211' }]).catch(error => error);
+  await entered.promise;
+  const b = f.controller.replaceQueue([{ trackId: '99212' }]).catch(error => error);
+  let latestSettled = false;
+  const c = f.controller.replaceQueue([{ trackId: '99213' }]).then(() => { latestSettled = true; }).catch(error => error);
+  try {
+    await waitFor(() => latestSettled, 500);
+    assert.equal(metadataCalls.includes('99212'), false);
+    assert.equal((await a).details?.reason, 'operation_cancelled');
+    assert.equal((await b).details?.reason, 'operation_cancelled');
+    assert.deepEqual(f.roon.playRequests.map(request => request.metadata.id), ['99213']);
+    assert.equal(f.controller.getPlaybackState().currentTrack?.id, '99213');
+  } finally {
+    oldGate.resolve(); middleGate.resolve();
+    await Promise.all([a, b, c]); await f.controller.stop();
+  }
+});
+
+test('快速歌单切换：B等待旧Stop时C取代B，真实关闭后只派发C', { timeout: 3000 }, async t => {
+  const f = makeHarness(), entered = mbpDeferred<void>(), gate = mbpDeferred<void>();
+  await f.controller.play({ trackId: '99221' });
+  const original = f.roon.stop.bind(f.roon);
+  t.mock.method(f.roon, 'stop', async () => { entered.resolve(); await gate.promise; return original(); });
+  const b = f.controller.replaceQueue([{ trackId: '99222' }]).catch(error => error);
+  await entered.promise;
+  const c = f.controller.replaceQueue([{ trackId: '99223' }]);
+  try {
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(f.roon.playRequests.map(request => request.metadata.id), ['99221']);
+    gate.resolve(); await c;
+    assert.equal((await b).details?.reason, 'operation_cancelled');
+    assert.deepEqual(f.roon.playRequests.map(request => request.metadata.id), ['99221', '99223']);
+    assert.equal(f.roon.stopCalls, 1);
+  } finally { gate.resolve(); await Promise.all([b, c]); await f.controller.stop(); }
+});
+
+test('快速歌单切换：原生Stop失败仍保留所有权，最后C不得越过未知停止', async t => {
+  const f = makeHarness(), entered = mbpDeferred<void>(), gate = mbpDeferred<void>();
+  await f.controller.playRoon(mbrNativeQueue(1)[0]!);
+  const original = f.nativeRoon.stop.bind(f.nativeRoon);
+  let failStop = true;
+  t.mock.method(f.nativeRoon, 'stop', async () => {
+    entered.resolve(); await gate.promise;
+    if (failStop) throw new BridgeError('ROON_TIMEOUT', '合成原生停止未知', { httpStatus: 504 });
+    return original();
+  });
+  const b = f.controller.replaceQueue([{ trackId: '99232' }]).catch(error => error);
+  await entered.promise;
+  const c = f.controller.replaceQueue([{ trackId: '99233' }]).catch(error => error);
+  try {
+    gate.resolve();
+    assert.equal((await b).code, 'ROON_TIMEOUT');
+    assert.equal((await c).code, 'ROON_TRANSPORT_UNAVAILABLE');
+    assert.equal(f.controller.hasPlaybackOwnership(), true);
+    assert.equal(f.controller.getPlaybackState().canStop, true);
+    assert.equal(f.nativeRoon.active, true);
+    assert.equal(f.roon.playRequests.length, 0);
+    assert.equal(f.registry.size, 0);
+    await assert.rejects(f.controller.replaceQueue([{ trackId: '99234' }]), { code: 'ROON_TRANSPORT_UNAVAILABLE' });
+    failStop = false; await f.controller.stop();
+    assert.equal(f.nativeRoon.active, false);
+    assert.equal(f.controller.hasPlaybackOwnership(), false);
+    await f.controller.replaceQueue([{ trackId: '99234' }]);
+    assert.equal(f.controller.getPlaybackState().currentTrack?.id, '99234');
+  } finally { gate.resolve(); failStop = false; await Promise.all([b, c]); await f.controller.stop(); }
+});
+
 for (const source of ['provider', 'native'] as const) {
   test(`MBP003A：${source}已确认播放成功停止，最后发布快照不保留已结束的Stop所有权`, async () => {
     const f = makeHarness();

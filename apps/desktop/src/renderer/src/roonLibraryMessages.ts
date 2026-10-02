@@ -38,6 +38,10 @@ export function roonLibraryMessage(
   }
 
   switch (code) {
+    case 'CANCELLED':
+      return '本次 Roon 读取已取消，请重新读取。'
+    case 'TIMEOUT':
+      return 'Roon 读取超时，请重新读取。'
     case 'ROON_CORE_NOT_CONNECTED':
       return 'Roon Core 未连接。'
     case 'ROON_LIBRARY_UNAVAILABLE':

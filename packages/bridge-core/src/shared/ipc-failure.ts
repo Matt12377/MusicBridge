@@ -64,6 +64,10 @@ export function failureForError(id: string, error: unknown, command: IpcRequest[
   if (error instanceof CollectionError) return responseFailure(id, error.code, error.message);
   if (error instanceof SpreadsheetReadError || error instanceof SpreadsheetParseError) return responseFailure(id, 'INVALID_IPC_REQUEST', error.message);
   const bridgeError = asBridgeError(error);
+  if (command.startsWith('playback.') && bridgeError.code === 'BAD_REQUEST'
+    && bridgeError.details?.reason === 'operation_cancelled') {
+    return responseFailure(id, 'CANCELLED', '播放操作已被更新的请求取代。');
+  }
   if (bridgeError.code === 'READ_CANCELLED') return responseFailure(id, 'CANCELLED', '读取已取消');
   if (bridgeError.code === 'READ_DEADLINE') return responseFailure(id, 'TIMEOUT', '读取期限已到');
   if (bridgeError.code === 'NETEASE_NOT_CONFIGURED') {
@@ -122,6 +126,13 @@ export function failureForError(id: string, error: unknown, command: IpcRequest[
   ) {
     return responseFailure(id, 'INVALID_IPC_REQUEST', 'Invalid Roon Library request');
   }
+  // 保留原公开错误码，只给已知播放失败有界说明；私有消息、URL 与错误栈不跨 IPC。
+  if (command.startsWith('playback.')) {
+    if (bridgeError.code === 'NETEASE_REQUEST_FAILED' || bridgeError.code === 'STREAM_UPSTREAM_FAILED') {
+      return responseFailure(id, 'INTERNAL_ERROR', '音频服务暂时不可用，请重试。');
+    }
+    if (bridgeError.code === 'ROON_MEDIA_ERROR') return responseFailure(id, 'INTERNAL_ERROR', 'Roon 报告媒体错误，请重试。');
+    if (bridgeError.code === 'STREAM_URL_EXPIRED') return responseFailure(id, 'INTERNAL_ERROR', '播放地址已过期，请重试。');
+  }
   return responseFailure(id, 'INTERNAL_ERROR', 'Core request failed');
 }
-

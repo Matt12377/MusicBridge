@@ -3,7 +3,7 @@ import { ref, type Ref } from 'vue'
 import { cacheIdentity, mergeRefreshedRoonPage, type PageCacheOwnerOptions } from './libraryPageCache.js'
 
 import { appendRoonPage, emptyRoonPage, nextRoonPageOffset, readRoonDatasetPage, RoonPageEpochChanged } from './roonLibraryPagination.js'
-import { isLibraryReadCancelled, type LibraryReadOptions } from './libraryReadScope.js'
+import type { LibraryReadOptions } from './libraryReadScope.js'
 
 export interface RoonCollectionLoader {
   page: Ref<RoonLibraryPage>
@@ -104,7 +104,7 @@ export function useRoonCollection(
       if (!isCurrent()) return
       initialLoading.value = false
       loadingMore.value = false
-      if (isLibraryReadCancelled(requestError)) return
+      // 离页和替换请求已由代际过滤；当前请求被 Core 撤销仍须显示重试状态。
       pendingRequest = undefined
       if (initial) {
         initialLoading.value = false

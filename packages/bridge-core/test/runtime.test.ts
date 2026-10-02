@@ -223,6 +223,36 @@ test('synthetic runtime exposes redacted diagnostics and clears resources on sto
   assert.equal(stopped.gates.find((gate) => gate.name === 'resource-cleanup')?.status, 'pass');
 });
 
+test('队列替换失败保留有界根因诊断，之后正常播放无需重启', async t => {
+  const f = await priorityRuntime(t);
+  let fail = true;
+  t.mock.method(StreamGateway.prototype, 'preflight', async () => {
+    if (fail) throw new BridgeError('STREAM_UPSTREAM_FAILED', 'https://synthetic.invalid/private?token=synthetic', { details: { reason: 'UPSTREAM_HTTPS_UNAVAILABLE' } });
+  });
+  await assert.rejects(f.runtime.replacePlaybackQueue([{ trackId: '1001', qualityPreference: 'lossless' }], 0), { code: 'STREAM_UPSTREAM_FAILED' });
+  const diagnostics = f.runtime.getDiagnostics();
+  const failure = diagnostics.timeline.find(event => event.event === 'queue_replace_failed');
+  assert.equal(failure?.code, 'STREAM_UPSTREAM_FAILED');
+  assert.equal(failure?.state, 'error');
+  assert.doesNotMatch(JSON.stringify(diagnostics), /synthetic\.invalid|private\?|token=|trackId/u);
+  fail = false;
+  const recovered = await f.runtime.replacePlaybackQueue([{ trackId: '1002', qualityPreference: 'lossless' }], 0);
+  assert.equal(recovered.currentTrack?.id, '1002');
+});
+
+test('较新队列替换造成的正常取消不记成播放故障', async t => {
+  const f = await priorityRuntime(t);
+  f.hold('metadata');
+  const first = f.runtime.replacePlaybackQueue([{ trackId: '1003', qualityPreference: 'lossless' }], 0);
+  const cancelled = assert.rejects(first, error => error instanceof BridgeError && error.details?.reason === 'operation_cancelled');
+  await turn();
+  const latest = f.runtime.replacePlaybackQueue([{ trackId: '1004', qualityPreference: 'lossless' }], 0);
+  f.metadata.resolve();
+  await cancelled;
+  assert.equal((await latest).currentTrack?.id, '1004');
+  assert.equal(f.runtime.getDiagnostics().timeline.some(event => event.event === 'queue_replace_failed'), false);
+});
+
 test('synthetic runtime exposes bounded account and daily recommendation seams', async () => {
   const runtime = createTestBridgeRuntime();
   await runtime.start();

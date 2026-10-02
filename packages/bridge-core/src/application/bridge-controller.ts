@@ -397,6 +397,8 @@ export class BridgeController {
   private pendingPlaybackCommands = 0;
   private commandEpoch = 0;
   private runningCommandEpoch = 0;
+  private queueReplacementGeneration = 0;
+  private runningQueueReplacementGeneration = 0;
   private owner: PlaybackOwner | undefined;
   private stopFlight: Promise<void> | undefined;
   private stopUnknown = false;
@@ -922,7 +924,7 @@ export class BridgeController {
       );
       await this.startQueueIndex(startIndex, true);
       return this.getState();
-    });
+    }, true);
   }
 
   async appendQueue(
@@ -2151,7 +2153,8 @@ export class BridgeController {
   }
 
   private guardCommand(): void {
-    if (this.runningCommandEpoch !== this.commandEpoch) throw this.cancelled();
+    if (this.runningCommandEpoch !== this.commandEpoch
+      || this.runningQueueReplacementGeneration !== this.queueReplacementGeneration) throw this.cancelled();
   }
 
   private cancelled(): BridgeError {
@@ -2206,14 +2209,17 @@ export class BridgeController {
     return result;
   }
 
-  private enqueuePlayback<T>(operation: () => Promise<T>): Promise<T> {
-    if (this.owner?.preparing) this.owner.abort.abort();
+  private enqueuePlayback<T>(operation: () => Promise<T>, replacesQueue = false): Promise<T> {
     const epoch = this.commandEpoch;
+    // 队列替换只保留最后已受理意图；Stop与Zone仍使用独立的命令失效域。
+    const replacementGeneration = replacesQueue ? ++this.queueReplacementGeneration : this.queueReplacementGeneration;
+    if (this.owner?.preparing) this.owner.abort.abort();
     ++this.pendingPlaybackCommands;
     const result = this.enqueue(() => {
       const result = this.playbackCommandTail.then(() => {
-        if (epoch !== this.commandEpoch) throw this.cancelled();
+        if (epoch !== this.commandEpoch || replacementGeneration !== this.queueReplacementGeneration) throw this.cancelled();
         this.runningCommandEpoch = epoch;
+        this.runningQueueReplacementGeneration = replacementGeneration;
         return operation();
       });
       this.playbackCommandTail = result.then(() => undefined, () => undefined);

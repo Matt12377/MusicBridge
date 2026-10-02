@@ -7,11 +7,35 @@ const epochA = '00000000-0000-4000-8000-000000000001', epochB = '00000000-0000-4
 function page(offset: number, sourceEpoch = epochA): RoonLibraryPage {
   return { items: [{ reference: `track:${sourceEpoch}:${offset}`, kind: 'track', title: '合成曲目' }], offset, limit: 24, sourceEpoch, complete: false, nextOffset: offset + 7, hasMore: true }
 }
-function harness(read: (reference: string, request: { offset: number; limit: number }) => Promise<RoonLibraryPage>) {
-  const api = { getRoonAlbumTracks: read, getRoonArtistAlbums: read, getRoonGenreItems: read, getRoonPlaylistTracks: read } as unknown as MusicBridgePublicApi
+function harness(read: (reference: string, request: { offset: number; limit: number }) => Promise<RoonLibraryPage>, apiOverrides: Partial<MusicBridgePublicApi> = {}) {
+  const api = { getRoonAlbumTracks: read, getRoonArtistAlbums: read, getRoonGenreItems: read, getRoonPlaylistTracks: read, ...apiOverrides } as unknown as MusicBridgePublicApi
   return useRoonBrowse({ api, formatError: () => '合成读取失败', getView: () => 'roon-album-detail', onDetailOpening: () => {}, onDetailReady: () => {}, onNavigateSource: () => {}, onPlayTrack: () => {}, onError: () => {}, onToast: () => {} })
 }
+test('当前收藏读取被取消时显示错误，不伪报空收藏', async t => {
+  const browse = harness(async (_reference, request) => page(request.offset), {
+    listFavorites: async () => { throw Object.assign(new Error('合成读取取消'), { code: 'CANCELLED' }) },
+  })
+  t.after(() => browse.dispose())
+  await browse.loadFavorites('album')
+  assert.equal(browse.favoritesInitialLoading.value, false)
+  assert.equal(browse.favoritesError.value, '合成读取失败')
+})
 for (const kind of ['Album', 'Artist', 'Genre', 'Playlist'] as const) {
+  test(`当前${kind}详情读取被取消时显示错误，重新读取可恢复`, async t => {
+    let cancelled = true
+    const browse = harness(async (_reference, request) => {
+      if (cancelled) throw Object.assign(new Error('合成读取取消'), { code: 'CANCELLED' })
+      return page(request.offset)
+    })
+    t.after(() => browse.dispose())
+    await browse[`loadRoon${kind}`]('album')
+    assert.equal(browse[`roon${kind}InitialLoading`].value, false)
+    assert.equal(browse[`roon${kind}Error`].value, '合成读取失败')
+    cancelled = false
+    await browse[`loadRoon${kind}`]('album')
+    assert.equal(browse[`roon${kind}Error`].value, null)
+    assert.equal(browse[`selectedRoon${kind}Page`].value.items.length, 1)
+  })
   test(`MBP004：${kind}详情混代只重读第一页一次，错误页不混入`, async t => {
     const calls: number[] = []; let starts = 0
     const browse = harness(async (_reference, request) => {

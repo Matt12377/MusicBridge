@@ -24,7 +24,7 @@ function createSession(
   apiOverrides: Partial<MusicBridgePublicApi> = {},
   getMatchResult: (trackId: string) => PublicTrackMatchResult | undefined = () => undefined,
   getRoonPlaybackContext: () => RoonPlaybackContext | undefined = () => undefined,
-  sessionOptions: { roonContextPlaybackEnabled?: boolean; onEnterNowPlaying?: () => void } = {},
+  sessionOptions: { roonContextPlaybackEnabled?: boolean; onEnterNowPlaying?: () => void; onError?: (error: unknown) => void } = {},
 ) {
   const calls = { lyrics: 0, like: 0, favorite: 0 }
   let nativeSnapshot = snapshot(track('1'), 0, 'roon')
@@ -62,6 +62,41 @@ function deferred<T>() {
   let resolve!: (value: T) => void
   const promise = new Promise<T>(onResolve => { resolve = onResolve })
   return { promise, resolve }
+}
+
+for (const lateResult of ['success', 'error'] as const) {
+  test(`快速歌单切换：A/B未结时接受C，旧${lateResult}不覆盖C或报错`, async t => {
+    const first = deferred<PlaybackSnapshot>();
+    let rejectSecond!: (error: unknown) => void;
+    let resolveSecond!: (value: PlaybackSnapshot) => void;
+    const second = new Promise<PlaybackSnapshot>((resolve, reject) => { resolveSecond = resolve; rejectSecond = reject; });
+    void second.catch(() => undefined);
+    const requested: string[] = [], errors: unknown[] = [];
+    const harness = createSession({ replaceQueue: async (items, index) => {
+      const id = items[index]!.trackId;
+      requested.push(id);
+      return id === 'A' ? first.promise : id === 'B' ? second : snapshot(track(id));
+    } }, undefined, undefined, { onError: error => { errors.push(error); } });
+    t.after(() => harness.session.dispose());
+    const page = { items: [track('A'), track('B'), track('C')], offset: 0, limit: 20, total: 3, hasMore: false };
+    const load = async () => page;
+    const a = harness.session.replaceAndPlayCollection(load, 'A', page, false);
+    await tick();
+    const b = harness.session.replaceAndPlayCollection(load, 'B', page, false);
+    await tick();
+    try {
+      await harness.session.replaceAndPlayCollection(load, 'C', page, false);
+      assert.deepEqual(requested, ['A', 'B', 'C']);
+      assert.equal(harness.session.currentTrack.value?.id, 'C');
+    } finally {
+      first.resolve(snapshot(track('A')));
+      if (lateResult === 'error') rejectSecond(new Error('合成旧B失败'));
+      else resolveSecond(snapshot(track('B')));
+      await Promise.all([a, b]);
+    }
+    assert.equal(harness.session.currentTrack.value?.id, 'C');
+    assert.deepEqual(errors, []);
+  });
 }
 
 test('MBR-001 单曲播放替换集合后，旧后台分页不得追加到新队列', async t => {

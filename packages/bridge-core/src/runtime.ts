@@ -1331,8 +1331,16 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       return readPlayback();
     },
     async replacePlaybackQueue(items, index) {
-      await controller.replaceQueue(items, index);
-      return readPlayback();
+      try {
+        await controller.replaceQueue(items, index);
+        return readPlayback();
+      } catch (error) {
+        const issue = asBridgeError(error);
+        if (issue.details?.reason !== 'operation_cancelled') {
+          recordDiagnostic('warn', 'queue_replace_failed', { code: issue.code, state: 'error' });
+        }
+        throw error;
+      }
     },
     async appendPlaybackQueue(items) {
       await controller.appendQueue(items);

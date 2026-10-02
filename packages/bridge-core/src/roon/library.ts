@@ -1,5 +1,6 @@
 import { assertLibraryReadCurrent, currentLibraryRead, libraryReadCancelled, libraryReadTimeout, remainingLibraryReadMs, withLibraryRead } from '../shared/library-read-lifetime.js';
 import { currentPerformanceContext, readPerformanceTime } from '../diagnostics/performance-trace.js';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
 import {
   isValidRoonImageBinary,
@@ -1050,7 +1051,8 @@ export function createRoonLibraryService(dependencies: {
     if (physicalKey) actualBrowseByKey.set(physicalKey, (actualBrowseByKey.get(physicalKey) ?? 0) + 1);
     if (read) outstandingReadBrowse++; else outstandingOtherBrowse++;
     try {
-      dependencies.browse[operation](requestOptions, (error, body) => {
+      // SDK 共享传输回调不保证请求上下文；读取与诊断都必须跟随自身派发。
+      dependencies.browse[operation](requestOptions, AsyncLocalStorage.bind<Parameters<RoonBrowseApi['browse']>[1]>((error, body) => {
         release();
         // 本地超时不冒充 Provider 已返回；迟到回调仍留下真正的返回标记。
         trace?.recorder.mark('provider', 'provider-response', trace.context);
@@ -1073,7 +1075,7 @@ export function createRoonLibraryService(dependencies: {
           return;
         }
         finish(undefined, body);
-      });
+      }));
     } catch {
       release();
       finish(new RoonLibraryError('ROON_LIBRARY_REQUEST_FAILED', `Roon ${operation} failed`));
@@ -2634,7 +2636,8 @@ export function createRoonLibraryService(dependencies: {
         const release = (): void => { if (!returned) { returned = true; outstandingImages--; } };
         outstandingImages++;
         try {
-          dependencies.image.get_image(imageKey, requestOptions, (error, contentType, body) => {
+          // 无读取作用域也显式绑定，不能继承共享 SDK 资源上的旧读取。
+          dependencies.image.get_image(imageKey, requestOptions, AsyncLocalStorage.bind<Parameters<RoonImageApi['get_image']>[2]>((error, contentType, body) => {
             release();
             try {
               dependencies.onImageShape?.(
@@ -2660,7 +2663,7 @@ export function createRoonLibraryService(dependencies: {
               return;
             }
             finish(undefined, { contentType, body });
-          });
+          }));
         } catch {
           release();
           finish(new RoonLibraryError('ROON_IMAGE_REQUEST_FAILED', 'Roon image request failed'));

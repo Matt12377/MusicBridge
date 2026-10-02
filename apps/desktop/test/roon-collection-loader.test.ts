@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import type { RoonLibraryPage } from '@music-bridge/contracts'
 import { useRoonCollection } from '../src/renderer/src/composables/useRoonCollection.js'
+import { roonLibraryMessage } from '../src/renderer/src/roonLibraryMessages.js'
 
 function page(reference: string, offset: number, hasMore: boolean): RoonLibraryPage {
   return {
@@ -13,6 +14,49 @@ function page(reference: string, offset: number, hasMore: boolean): RoonLibraryP
     hasMore,
   }
 }
+
+test('当前 Roon 首屏取消必须显示可重试状态，不能冒充 Core 返回空库', async () => {
+  let cancelled = true
+  const collection = useRoonCollection(async () => {
+    if (cancelled) throw Object.assign(new Error('合成上下文撤销'), { code: 'CANCELLED' })
+    return page('album:recovered', 0, false)
+  }, roonLibraryMessage, 1)
+  await collection.load()
+  assert.match(collection.error.value ?? '', /取消.*重新读取/u)
+  assert.equal(collection.initialLoading.value, false)
+  cancelled = false
+  await collection.retry()
+  assert.equal(collection.error.value, null)
+  assert.equal(collection.page.value.items[0]?.reference, 'album:recovered')
+})
+
+test('当前 Roon 刷新取消保留已有内容，同时提示刷新未完成', async () => {
+  let reads = 0
+  const collection = useRoonCollection(async () => {
+    if (++reads > 1) throw Object.assign(new Error('合成上下文撤销'), { code: 'CANCELLED' })
+    return page('album:kept', 0, false)
+  }, roonLibraryMessage, 1)
+  await collection.load()
+  await collection.retry()
+  assert.equal(collection.page.value.items[0]?.reference, 'album:kept')
+  assert.match(collection.refreshError.value ?? '', /取消.*重新读取/u)
+})
+
+test('离页取消的旧 Roon 请求仍保持静默，不污染新请求', async () => {
+  let rejectOld!: (error: Error) => void
+  let reads = 0
+  const collection = useRoonCollection(() => ++reads === 1
+    ? new Promise<RoonLibraryPage>((_, reject) => { rejectOld = reject })
+    : Promise.resolve(page('album:new', 0, false)), roonLibraryMessage, 1)
+  const old = collection.load()
+  collection.suspend()
+  await collection.load()
+  rejectOld(Object.assign(new Error('合成旧请求取消'), { code: 'CANCELLED' }))
+  await old
+  assert.equal(collection.error.value, null)
+  assert.equal(collection.refreshError.value, null)
+  assert.equal(collection.page.value.items[0]?.reference, 'album:new')
+})
 
 test('Roon collection loader shares initial, append and retry state without reordering', async () => {
   const calls: number[] = []
