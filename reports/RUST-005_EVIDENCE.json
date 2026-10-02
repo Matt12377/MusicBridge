@@ -1,0 +1,2489 @@
+{
+  "schemaVersion": 1,
+  "task": "RUST-005",
+  "identity": {
+    "task": "RUST-005",
+    "branch": "codex/rust-core-005-query-index",
+    "baseCommit": "d2676884a537bf3d232ed2cc957fef11b6d5cfeb",
+    "state": "local-complete-bounded-query-index",
+    "scope": "tasks/RUST-005-bounded-query-index.md",
+    "todo": "project/RUST_CORE_TODO.md",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k",
+    "productionDefault": "Node",
+    "nodeDatabaseWriteOwnerUnchanged": true,
+    "protocolVersions": [
+      1,
+      2,
+      3
+    ],
+    "maximumModels": 5000,
+    "requestResultCache": false,
+    "implementationCommit": "2ab380f5b897f73e60e8d479e1a69d180200638f",
+    "reportCommit": null,
+    "validation": {
+      "rustGateExitCode": 0,
+      "rustGateSteps": 16,
+      "rustSourceFiles": 294,
+      "nativePassed": 43,
+      "tsQueryIndexPassed": 6,
+      "targetedTsWithOldSuitesPassed": 98,
+      "javascriptGatePassed": 155,
+      "actualRustIntegrationPassed": 24,
+      "actualRustIntegrationSkipped": 0,
+      "completePages": 72,
+      "differentialPages": 432,
+      "writeAfterPages": 16,
+      "sourceStable": true,
+      "reviewRoundOneP1P2": 0,
+      "fullSoftware": "PASS",
+      "finalTypecheckExitCode": 0,
+      "fullUnitExitCode": 0,
+      "unitPassed": 3631,
+      "unitFailed": 0,
+      "originalNativeConditionalSkips": 2,
+      "addedSkips": 0,
+      "contractsPassed": 254,
+      "corePassed": 2138,
+      "desktopPassed": 1239,
+      "productionBuildExitCode": 0,
+      "controlPlaneExitCode": 0,
+      "boundariesExitCode": 0,
+      "cyclesExitCode": 0,
+      "cyclesFiles": 381,
+      "softwareSourceFiles": 1055,
+      "softwareSourceStable": true,
+      "diffCheckExitCode": 0,
+      "jsonValidationExitCode": 0
+    },
+    "realProviderRoonAcceptance": "NOT_RUN",
+    "realRecording": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "realUserMigration": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "agentPolicy": {
+      "primaryModel": "gpt-6.1-sol",
+      "primaryReasoningEffort": "max",
+      "subagentModel": "gpt-6.1-sol",
+      "subagentReasoningEffort": "high",
+      "maximumSubagents": 4,
+      "actualDevelopmentAndReviewAgents": 4
+    },
+    "carryover": [
+      "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
+      "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
+    ],
+    "ownerAuthorization": "continue-development-with-up-to-four-sol-6.1-high-subagents",
+    "binary": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/cargo-target/release/musicbridge-rust-core",
+      "sha256": "03624a10a1c9314842907142fd0cfb3931dd68edcb88a5dff6ea645832124a14",
+      "platform": "darwin",
+      "architecture": "arm64"
+    },
+    "rustManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/manifest.json",
+    "rustManifestSha256": "b88b42678e0063689532b6c27e814909e0e714cf9453ef3835172eea6d506f8e",
+    "softwareManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/software-final/software-manifest.json",
+    "softwareManifestSha256": "f847cb2674993ca1ad249a4a0940c7bd0d9a675793856e0533ac47c5a3106f74",
+    "report": "reports/RUST-005_BOUNDED_QUERY_INDEX.md",
+    "evidence": "reports/RUST-005_EVIDENCE.json",
+    "implementationCommitResolution": "git-log-last-commit-touching-native/rust-core/src/lib.rs",
+    "reportCommitResolution": "git-log-last-commit-touching-reports/RUST-005_BOUNDED_QUERY_INDEX.md",
+    "nextBranchBaseResolution": "final-RUST-005-report-HEAD",
+    "fullElectronE2E": "NOT_RUN",
+    "realSystemKeychain": "NOT_RUN",
+    "indexPostingEntryUpperBound": "7N-including-all-brand-year-and-four-overlapping-stock-postings",
+    "review": {
+      "rounds": 2,
+      "remainingP1": 0,
+      "remainingP2": 0,
+      "report": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/review-final.json",
+      "sha256": "851e1288e0390672166671d731feb08eab348609500f9d226ea644555904438f",
+      "secondRound": "final-gate-evidence-and-identities-only"
+    },
+    "remoteBranchSnapshot": {
+      "branch": "codex/rust-core-005-query-index",
+      "exitCode": 2,
+      "matchingRefs": [],
+      "pushed": false
+    },
+    "finalIdentityReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/FINAL_IDENTITY.json"
+  },
+  "rustGate": {
+    "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/manifest.json",
+    "manifestSha256": "b88b42678e0063689532b6c27e814909e0e714cf9453ef3835172eea6d506f8e",
+    "sources": 294,
+    "runs": [
+      {
+        "name": "rustc-version",
+        "command": "rustc",
+        "args": [
+          "--version"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/rustc-version.log",
+        "sha256": "32512bca3f2b468993dc0eb859b3871e2cd93162ded5f1e04b7c3e19f7c3c84c"
+      },
+      {
+        "name": "cargo-version",
+        "command": "cargo",
+        "args": [
+          "--version"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/cargo-version.log",
+        "sha256": "3c714d0667447a7d7d15db69796d9d66d9ec64c69751469acbc13f064de063f2"
+      },
+      {
+        "name": "fmt",
+        "command": "cargo",
+        "args": [
+          "fmt",
+          "--manifest-path",
+          "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-005/native/rust-core/Cargo.toml",
+          "--all",
+          "--",
+          "--check"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/fmt.log",
+        "sha256": "6a3f5e22c6a8460dce036c4e81bf096a3a20644275af1d7ceeb95af94f55c7d8"
+      },
+      {
+        "name": "clippy",
+        "command": "cargo",
+        "args": [
+          "clippy",
+          "--manifest-path",
+          "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-005/native/rust-core/Cargo.toml",
+          "--locked",
+          "--all-targets",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/clippy.log",
+        "sha256": "f93faeb69fcf61d859433adf838e4494f1978f3210e0ad28c7602f834a62dbaa"
+      },
+      {
+        "name": "rust-test",
+        "command": "cargo",
+        "args": [
+          "test",
+          "--manifest-path",
+          "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-005/native/rust-core/Cargo.toml",
+          "--locked"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/rust-test.log",
+        "sha256": "4df078d5d413e9e72f4546baecfd5a174cd229360ed22b881f553e4bd68dc72c"
+      },
+      {
+        "name": "metadata",
+        "command": "cargo",
+        "args": [
+          "metadata",
+          "--manifest-path",
+          "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-005/native/rust-core/Cargo.toml",
+          "--locked",
+          "--format-version=1"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/metadata.log",
+        "sha256": "7cb6d6b5a93a1c0a7836e4ce570d3856045e318050eb827779012ccdf0ba4b02"
+      },
+      {
+        "name": "rust-build",
+        "command": "cargo",
+        "args": [
+          "build",
+          "--manifest-path",
+          "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-005/native/rust-core/Cargo.toml",
+          "--locked",
+          "--release"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/rust-build.log",
+        "sha256": "01d89246c8c3e9b3c7a09c8b4338fe05fcad626d6f02ca335016f3e074466aa3"
+      },
+      {
+        "name": "contracts-build",
+        "command": "corepack",
+        "args": [
+          "pnpm@10.17.1",
+          "--filter",
+          "@music-bridge/contracts",
+          "run",
+          "build"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/contracts-build.log",
+        "sha256": "4139253f715ac1556010b982fa4d7ff0a9aeddb7e6283523880b326035ac81a9"
+      },
+      {
+        "name": "ts-client",
+        "command": "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "args": [
+          "--import",
+          "tsx",
+          "--test",
+          "--test-concurrency=1",
+          "test/rust-sidecar-client.test.ts"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/ts-client.log",
+        "sha256": "51233ef951e5d1fe921a62a46577bd3869d175fcc5638af26946749270dae880"
+      },
+      {
+        "name": "node-atomic-snapshot",
+        "command": "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "args": [
+          "--import",
+          "tsx",
+          "--test",
+          "--test-concurrency=1",
+          "test/dataset-collection-snapshot.test.ts"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/node-atomic-snapshot.log",
+        "sha256": "e450774e3fceb2e44261943b4be6feb4cf958d5e500d0234687cfa158edf76d2"
+      },
+      {
+        "name": "node-snapshot-version",
+        "command": "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "args": [
+          "--import",
+          "tsx",
+          "--test",
+          "--test-concurrency=1",
+          "test/dataset-snapshot-version.test.ts"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/node-snapshot-version.log",
+        "sha256": "12e7f09842743ada0f6b0bef54b777decd9e10969055c40f43d166d84e087a92"
+      },
+      {
+        "name": "ts-refresh-router",
+        "command": "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "args": [
+          "--import",
+          "tsx",
+          "--test",
+          "--test-concurrency=1",
+          "test/rust-readonly-router.test.ts"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/ts-refresh-router.log",
+        "sha256": "daf3075b211fa07bf336752d3f84a1d04133f41a0dc57bdad08e44b8f0e4777e"
+      },
+      {
+        "name": "node-large-snapshot",
+        "command": "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "args": [
+          "--import",
+          "tsx",
+          "--test",
+          "--test-concurrency=1",
+          "test/dataset-large-snapshot.test.ts"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/node-large-snapshot.log",
+        "sha256": "b75747ebbc906fee1d8ec1b0a91113d37669f3da52658353b1fdcb07f5e7def4"
+      },
+      {
+        "name": "ts-large-snapshot",
+        "command": "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "args": [
+          "--import",
+          "tsx",
+          "--test",
+          "--test-concurrency=1",
+          "test/rust-large-sidecar.test.ts"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/ts-large-snapshot.log",
+        "sha256": "0aa25322f587736a43b09b2b03d7f1a6857b5d8cb74b5a368b6e0d2a4fa8677d"
+      },
+      {
+        "name": "ts-query-index",
+        "command": "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "args": [
+          "--import",
+          "tsx",
+          "--test",
+          "--test-concurrency=1",
+          "test/rust-query-index.test.ts"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/ts-query-index.log",
+        "sha256": "5afc06fd197d4b45154316f82b2516d66d1e2ef67feddf89781427cdcf925903"
+      },
+      {
+        "name": "ts-rust-integration",
+        "command": "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "args": [
+          "--import",
+          "tsx",
+          "--test",
+          "--test-concurrency=1",
+          "test/rust-core/readonly-integration.test.ts",
+          "test/rust-core/atomic-snapshot-integration.test.ts",
+          "test/rust-core/refresh-routing-integration.test.ts",
+          "test/rust-core/large-snapshot-integration.test.ts",
+          "test/rust-core/indexed-query-integration.test.ts"
+        ],
+        "exitCode": 0,
+        "signal": null,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/ts-rust-integration.log",
+        "sha256": "0ea5f44359e29cdf1317794c39e2f6b55393fe0feada36338b5763d5322243a6"
+      }
+    ],
+    "counts": {
+      "rust-test": {
+        "passed": 43
+      },
+      "ts-client": {
+        "passed": 35,
+        "skipped": 0,
+        "failed": 0
+      },
+      "node-atomic-snapshot": {
+        "passed": 9,
+        "skipped": 0,
+        "failed": 0
+      },
+      "node-snapshot-version": {
+        "passed": 11,
+        "skipped": 0,
+        "failed": 0
+      },
+      "ts-refresh-router": {
+        "passed": 36,
+        "skipped": 0,
+        "failed": 0
+      },
+      "node-large-snapshot": {
+        "passed": 13,
+        "skipped": 0,
+        "failed": 0
+      },
+      "ts-large-snapshot": {
+        "passed": 21,
+        "skipped": 0,
+        "failed": 0
+      },
+      "ts-query-index": {
+        "passed": 6,
+        "skipped": 0,
+        "failed": 0
+      },
+      "ts-rust-integration": {
+        "passed": 24,
+        "skipped": 0,
+        "failed": 0
+      }
+    },
+    "binary": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/cargo-target/release/musicbridge-rust-core",
+      "sha256": "03624a10a1c9314842907142fd0cfb3931dd68edcb88a5dff6ea645832124a14",
+      "platform": "darwin",
+      "architecture": "arm64"
+    },
+    "overallExitCode": 0
+  },
+  "softwareGate": {
+    "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/software-final/software-manifest.json",
+    "manifestSha256": "f847cb2674993ca1ad249a4a0940c7bd0d9a675793856e0533ac47c5a3106f74",
+    "sources": 1055,
+    "runs": [
+      {
+        "name": "typecheck",
+        "argv": [
+          "corepack",
+          "pnpm@10.17.1",
+          "run",
+          "typecheck"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 24.917341708001914,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/software-final/software-typecheck.log",
+        "sha256": "f1fba355d87cfaaa88d947155632cbd639b20505bf1fe56de2a32bf362299033"
+      },
+      {
+        "name": "unit",
+        "argv": [
+          "corepack",
+          "pnpm@10.17.1",
+          "run",
+          "test"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 208.45221991700237,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/software-final/software-unit.log",
+        "sha256": "3a4c6e145c747289e52519fe6146cd9a94193691dfad0e4ef7b3b3edcc3a2dc4"
+      },
+      {
+        "name": "build",
+        "argv": [
+          "corepack",
+          "pnpm@10.17.1",
+          "run",
+          "build"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 19.61298804100079,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/software-final/software-build.log",
+        "sha256": "ab689fc12f1c88461d69bb2a50c6c4b30d8d4c0bf021814595a682b2b0b80634"
+      },
+      {
+        "name": "control-plane",
+        "argv": [
+          "node",
+          "scripts/ci/verify-control-plane.mjs"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 0.10033487500186311,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/software-final/software-control-plane.log",
+        "sha256": "b1563e95c83eee286a8ab50a451e731ebb18a8158efb6f0c0729bf9425d09045"
+      },
+      {
+        "name": "boundaries",
+        "argv": [
+          "node",
+          "scripts/ci/verify-boundaries.mjs"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 0.10390541699598543,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/software-final/software-boundaries.log",
+        "sha256": "7eaaf188763da2c6337b068355c36a7ae65a05912ae55dd363495da9154227ba"
+      },
+      {
+        "name": "cycles",
+        "argv": [
+          "node",
+          "scripts/ci/verify-cycles.mjs"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 0.057991458001197316,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/software-final/software-cycles.log",
+        "sha256": "a1dd8d2f2f4c19f08226ce1ff25788800ed7df5d96f256186caf4db5bdb13472"
+      }
+    ],
+    "counts": {
+      "tests": [
+        254,
+        2140,
+        1239
+      ],
+      "pass": [
+        254,
+        2138,
+        1239
+      ],
+      "fail": [
+        0,
+        0,
+        0
+      ],
+      "skipped": [
+        0,
+        2,
+        0
+      ]
+    },
+    "overallExitCode": 0,
+    "sourceStable": true,
+    "originalSkipNames": [
+      "实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
+      "Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
+    ],
+    "addedSkips": 0
+  },
+  "freeze": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/FREEZE_IDENTITY.json",
+    "sha256": "c9766bc77bd30220c34ee1a5a68e60b9b5bb060980210ba9284e54c0783ef3a1",
+    "sourceFiles": 1226,
+    "unchangedThroughFinalGates": true
+  },
+  "independentReview": {
+    "rounds": 2,
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/review-final.json",
+    "sha256": "851e1288e0390672166671d731feb08eab348609500f9d226ea644555904438f",
+    "decision": "PASS_NO_P1_P2_BLOCKERS",
+    "remainingP1": 0,
+    "remainingP2": 0,
+    "roundOnePath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/review-round1.json",
+    "roundOneSha256": "292b90c47829e53a16a80a592e428c08c32629d088d1d9d13230b2100bacc3e8"
+  },
+  "costReports": [
+    {
+      "name": "costReport",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/atomic-snapshot-cost.json",
+      "sha256": "c0448193b3075fa41c49b3f88d48b081087d2e9c374665ed462e3e2bffeeaf29"
+    },
+    {
+      "name": "refreshCostReport",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/refresh-routing-cost.json",
+      "sha256": "fe53ffcc7b63101a99fd0629cb0bd7de0b6564b4d502e698c9c74c96d1eef265"
+    },
+    {
+      "name": "largeCostReport",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/large-snapshot-cost.json",
+      "sha256": "9dc1d0db28b6eb8fe9a5710555f738d526655dec1c060664f6d458456995024b"
+    },
+    {
+      "name": "indexCostReport",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/indexed-query-cost.json",
+      "sha256": "2e59b2a081d9be9967fcfab1dab9856fbb84c71e568d7faac8bf41ba24c7845a"
+    }
+  ],
+  "indexedQueryCost": {
+    "schemaVersion": 1,
+    "task": "RUST-005",
+    "models": 5000,
+    "binary": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/cargo-target/release/musicbridge-rust-core",
+      "sha256": "03624a10a1c9314842907142fd0cfb3931dd68edcb88a5dff6ea645832124a14"
+    },
+    "binarySha256": "03624a10a1c9314842907142fd0cfb3931dd68edcb88a5dff6ea645832124a14",
+    "workloads": [
+      {
+        "name": "unfiltered",
+        "filter": {},
+        "nodeQueryRoundtripMs": [
+          1.9792499999994106,
+          1.8313749999997526,
+          1.7603339999996024,
+          1.8241250000000946,
+          1.7265000000006694,
+          1.7736249999998108,
+          1.6411660000003394,
+          1.7855420000005324,
+          1.649250000000393,
+          1.8477920000004815
+        ],
+        "rustQueryWithVersionProbesMs": [
+          2.0235839999995733,
+          2.021915999999692,
+          1.9836660000000848,
+          1.852791000000252,
+          1.8299999999999272,
+          1.858459000000039,
+          1.8927499999999782,
+          2.3598339999998643,
+          1.9866659999997864,
+          1.8817920000001322
+        ]
+      },
+      {
+        "name": "selective-brand-stock",
+        "filter": {
+          "brand": "TDK",
+          "stockState": "blank"
+        },
+        "nodeQueryRoundtripMs": [
+          6.9909999999999854,
+          7.2841669999997976,
+          7.327334000000519,
+          7.05895800000053,
+          7.024209000000155,
+          6.5534999999999854,
+          6.609375,
+          6.773083000000042,
+          7.503917000000001,
+          7.418541000000005
+        ],
+        "rustQueryWithVersionProbesMs": [
+          2.014999999999418,
+          1.6762919999991936,
+          1.8687499999996362,
+          1.703125,
+          2.1357499999994616,
+          1.660624999999527,
+          2.380833000000166,
+          1.7053329999998823,
+          1.8757500000001528,
+          1.7575839999999516
+        ]
+      },
+      {
+        "name": "literal-percent-underscore",
+        "filter": {
+          "query": "A_B%"
+        },
+        "nodeQueryRoundtripMs": [
+          6.727958000000399,
+          5.918582999999671,
+          5.8677910000005795,
+          6.08087500000056,
+          5.888582999999926,
+          6.2993749999996,
+          6.3272079999997,
+          5.606916999999157,
+          6.201834000000417,
+          6.343790999999328
+        ],
+        "rustQueryWithVersionProbesMs": [
+          2.056749999999738,
+          2.438250000000153,
+          2.104000000000269,
+          2.041457999999693,
+          1.983791999999994,
+          2.0453749999996944,
+          1.9337079999995694,
+          2.2726669999992737,
+          1.9657500000002983,
+          1.984332999999424
+        ]
+      },
+      {
+        "name": "unicode",
+        "filter": {
+          "query": "中文品牌🎵"
+        },
+        "nodeQueryRoundtripMs": [
+          6.956250000000182,
+          6.249791999999616,
+          6.607790999999452,
+          6.668750000000728,
+          6.80041700000038,
+          6.989542000000256,
+          6.899000000000342,
+          6.639625000000706,
+          7.285790999999335,
+          6.715416000000005
+        ],
+        "rustQueryWithVersionProbesMs": [
+          2.0095000000001164,
+          2.081083000000035,
+          1.8217500000000655,
+          2.1219580000006317,
+          1.8311659999999392,
+          2.1468329999997877,
+          1.908042000000023,
+          2.207083000000239,
+          2.0378749999999854,
+          2.1021249999994325
+        ]
+      },
+      {
+        "name": "decade",
+        "filter": {
+          "decade": 1990
+        },
+        "nodeQueryRoundtripMs": [
+          4.114416999999776,
+          3.9013340000001335,
+          3.6726669999998194,
+          3.985916999999972,
+          3.585167000000183,
+          4.12079200000062,
+          3.863583999999719,
+          3.8902080000007118,
+          3.8035829999998896,
+          3.6915420000004815
+        ],
+        "rustQueryWithVersionProbesMs": [
+          2.216707999999926,
+          1.8254579999993439,
+          1.8657499999999345,
+          1.700792000000547,
+          1.7832500000004075,
+          1.9458340000001044,
+          1.88799999999992,
+          2.0214590000005046,
+          1.6572919999998703,
+          1.6766250000000582
+        ]
+      },
+      {
+        "name": "empty-result",
+        "filter": {
+          "brand": "不存在"
+        },
+        "nodeQueryRoundtripMs": [
+          4.378375000000233,
+          4.183667000000241,
+          4.068999999999505,
+          4.220291999999972,
+          4.431124999999156,
+          4.226999999999862,
+          4.104959000000235,
+          4.25800000000072,
+          4.030832999999802,
+          4.265250000000378
+        ],
+        "rustQueryWithVersionProbesMs": [
+          0.43699999999989814,
+          0.4210000000002765,
+          0.37179100000048493,
+          0.4107499999990978,
+          0.3757500000001528,
+          0.32804099999975733,
+          0.374124999999367,
+          0.38174999999955617,
+          0.3196250000000873,
+          0.41241600000012113
+        ]
+      }
+    ],
+    "refreshMs": 330.69895799999995,
+    "closeMs": 4.7375419999998485,
+    "tsIndexBuildMs": [
+      3.2609999999995125,
+      2.889291999999841,
+      2.810208999999304,
+      3.280792000000474,
+      3.174750000000131,
+      2.9073749999997744,
+      3.600333999999748,
+      3.3066250000001673,
+      2.9239580000003116,
+      2.858208000000559
+    ],
+    "tsPureWorkloads": [
+      {
+        "name": "unfiltered",
+        "filter": {},
+        "linearFilterMs": [
+          0.24766700000054698,
+          0.26704200000040146,
+          0.2539999999999054,
+          0.2600830000001224,
+          0.24391599999944447,
+          0.24575000000004366,
+          0.24549999999999272,
+          0.24970800000028248,
+          0.24783399999978428,
+          0.24845800000002782
+        ],
+        "indexedFilterMs": [
+          0.208042000000205,
+          0.19804199999998673,
+          0.1892920000000231,
+          0.17766699999992852,
+          0.1744170000001759,
+          0.17399999999997817,
+          0.17891699999927368,
+          0.18158300000050076,
+          0.1774169999998776,
+          0.18166699999983393
+        ]
+      },
+      {
+        "name": "selective-brand-stock",
+        "filter": {
+          "brand": "TDK",
+          "stockState": "blank"
+        },
+        "linearFilterMs": [
+          0.8230419999999867,
+          1.0732910000006086,
+          1.3022920000003069,
+          0.8494590000000244,
+          0.8395829999999478,
+          0.9120830000001661,
+          0.7853329999998095,
+          0.784125000000131,
+          0.7759580000001733,
+          0.7689580000005662
+        ],
+        "indexedFilterMs": [
+          0.08862500000032014,
+          0.03204199999981938,
+          0.04620799999975134,
+          0.025332999999591266,
+          0.03370900000027177,
+          0.050790999999662745,
+          0.02562500000021828,
+          0.0242500000003929,
+          0.02420799999981682,
+          0.023917000000437838
+        ]
+      },
+      {
+        "name": "literal-percent-underscore",
+        "filter": {
+          "query": "A_B%"
+        },
+        "linearFilterMs": [
+          2.032749999999396,
+          2.2195840000003955,
+          2.001709000000119,
+          1.8993749999999636,
+          1.9060840000001917,
+          2.115708000000268,
+          2.212083999999777,
+          1.9624589999993987,
+          1.9267919999992955,
+          1.8919999999998254
+        ],
+        "indexedFilterMs": [
+          0.4666660000002594,
+          0.20941600000060134,
+          0.1861669999998412,
+          0.18579200000021956,
+          0.18266700000003766,
+          0.22237500000028376,
+          0.18383300000004965,
+          0.19700000000011642,
+          0.181999999999789,
+          0.182582999999795
+        ]
+      },
+      {
+        "name": "unicode",
+        "filter": {
+          "query": "中文品牌🎵"
+        },
+        "linearFilterMs": [
+          2.1688750000002983,
+          1.9403330000004644,
+          1.9039580000007845,
+          1.8696659999995973,
+          1.924250000000029,
+          1.9654169999994338,
+          2.128833000000668,
+          1.8445000000001528,
+          1.8411669999995866,
+          1.85883400000057
+        ],
+        "indexedFilterMs": [
+          0.1481659999999465,
+          0.16779199999928096,
+          0.12437500000032742,
+          0.13562500000080036,
+          0.12320900000031543,
+          0.14329100000031758,
+          0.12950000000000728,
+          0.12366599999950267,
+          0.12391699999989214,
+          0.12254200000006676
+        ]
+      },
+      {
+        "name": "decade",
+        "filter": {
+          "decade": 1990
+        },
+        "linearFilterMs": [
+          0.24362500000006548,
+          0.24033299999973678,
+          0.24441699999988487,
+          0.24458300000060262,
+          0.2422920000008162,
+          0.2969170000005761,
+          0.24666600000000471,
+          0.24487499999941065,
+          0.22954200000003766,
+          0.28604100000029575
+        ],
+        "indexedFilterMs": [
+          0.06158400000003894,
+          0.06320800000048621,
+          0.06383300000015879,
+          0.06270800000038435,
+          0.06295799999952578,
+          0.06833300000016607,
+          0.0641669999995429,
+          0.07099999999991269,
+          0.06187499999941792,
+          0.0907919999999649
+        ]
+      },
+      {
+        "name": "empty-result",
+        "filter": {
+          "brand": "不存在"
+        },
+        "linearFilterMs": [
+          0.9563749999997526,
+          1.1148330000005444,
+          0.9213749999998981,
+          0.8651250000002619,
+          0.8692499999997381,
+          0.8772079999998823,
+          0.8757919999998194,
+          0.8722080000006827,
+          0.8695410000000265,
+          0.9516250000006039
+        ],
+        "indexedFilterMs": [
+          0.00166700000045239,
+          0.0036250000002837623,
+          0.0014160000000629225,
+          0.0009170000002995948,
+          0.0009170000002995948,
+          0.0009579999996276456,
+          0.0007500000001527951,
+          0.0008750000006330083,
+          0.001291999999921245,
+          0.003832999999758613
+        ]
+      }
+    ],
+    "sourceModules": [
+      {
+        "name": "readonly-router.ts",
+        "sha256": "51e648e6920b08c2b25f263509c8868f408a27a6ed5ea2d547e2e9ebd02dd8c6"
+      },
+      {
+        "name": "readonly-sidecar.ts",
+        "sha256": "09b3bd25536a830b0d65ec49a66547f3cb3499db8c53a11f791889b225abae1e"
+      },
+      {
+        "name": "collection-query.ts",
+        "sha256": "a9bc02bccce474689a24bf8e563164569b50b285ffbdce8f73a776a7c9efa569"
+      }
+    ],
+    "nodeVersion": "v22.23.2",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "data": "synthetic-real-two-database-Node-owner-to-pinned-Rust-router",
+    "scales": [
+      {
+        "models": 0,
+        "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/tmp/rust-index-owner-ALBujW",
+        "snapshotProfile": "v2-2000",
+        "snapshotId": "46cf750e-498f-4f8d-b666-26f6aefcec7a",
+        "refreshMs": 5.530540999999971,
+        "closeMs": 0.96550000000002,
+        "exports": [
+          {
+            "snapshotId": "46cf750e-498f-4f8d-b666-26f6aefcec7a",
+            "revision": "53572d36-ddc2-4a1c-aa8b-d641254e6965",
+            "elapsedMs": 0.6591660000000275,
+            "models": 0,
+            "jsonBytes": 163
+          },
+          {
+            "snapshotId": "a8bab670-34bb-475d-b26f-6397f796dede",
+            "revision": "3e53409d-d409-4b6a-8353-e37ec145d4c4",
+            "elapsedMs": 0.6948750000000246,
+            "models": 1,
+            "jsonBytes": 558
+          }
+        ],
+        "calls": {
+          "prepare": 0,
+          "boot": 0,
+          "close": 0,
+          "version": 232,
+          "export": 2,
+          "dispatch": 1
+        },
+        "completePages": 1,
+        "differentialPages": 108,
+        "filters": 27,
+        "compared": "完整DTO、total、offset、limit、hasMore、导出ordinal",
+        "pureTs": {
+          "buildMs": [
+            0.01525000000003729,
+            0.004000000000019099,
+            0.08979200000010223,
+            0.01683299999990595,
+            0.0026669999999739957,
+            0.0016669999999976426,
+            0.0014580000000705695,
+            0.0014999999999645297,
+            0.0014999999999645297,
+            0.0014999999999645297
+          ],
+          "workloads": [
+            {
+              "name": "unfiltered",
+              "filter": {},
+              "linearFilterMs": [
+                0.0008750000000645741,
+                0.0007910000000492801,
+                0.0007500000000391083,
+                0.0007920000000467553,
+                0.0007920000000467553,
+                0.0006660000000238142,
+                0.0006660000000238142,
+                0.0009170000000722212,
+                0.0009579999999687061,
+                0.0009999999999763531
+              ],
+              "indexedFilterMs": [
+                0.0009579999999687061,
+                0.0007080000000314612,
+                0.0007500000000391083,
+                0.0007500000000391083,
+                0.0008750000000645741,
+                0.0007080000000314612,
+                0.0006660000000238142,
+                0.0007500000000391083,
+                0.0007090000000289365,
+                0.0007080000000314612
+              ]
+            },
+            {
+              "name": "selective-brand-stock",
+              "filter": {
+                "brand": "TDK",
+                "stockState": "blank"
+              },
+              "linearFilterMs": [
+                0.0009999999999763531,
+                0.0009579999999687061,
+                0.0010419999999840002,
+                0.0009169999999585343,
+                0.0009579999999687061,
+                0.0008750000000645741,
+                0.0009579999999687061,
+                0.0009169999999585343,
+                0.0009579999999687061,
+                0.0018340000000307555
+              ],
+              "indexedFilterMs": [
+                0.0012910000000374566,
+                0.0010839999999916472,
+                0.0009999999999763531,
+                0.0009999999999763531,
+                0.0010419999999840002,
+                0.00100000000009004,
+                0.0011660000000119908,
+                0.0009999999999763531,
+                0.0009999999999763531,
+                0.0014170000000603977
+              ]
+            },
+            {
+              "name": "literal-percent-underscore",
+              "filter": {
+                "query": "A_B%"
+              },
+              "linearFilterMs": [
+                0.0017910000000256332,
+                0.0009579999999687061,
+                0.0008339999999407155,
+                0.0007919999999330685,
+                0.0007909999999355932,
+                0.0007910000000492801,
+                0.0008330000000569271,
+                0.0008750000000645741,
+                0.0008330000000569271,
+                0.0008340000000544023
+              ],
+              "indexedFilterMs": [
+                0.0017080000000078144,
+                0.0007910000000492801,
+                0.0008750000000645741,
+                0.0008330000000569271,
+                0.0007500000000391083,
+                0.0007920000000467553,
+                0.0008339999999407155,
+                0.0009169999999585343,
+                0.0008340000000544023,
+                0.0008329999999432403
+              ]
+            },
+            {
+              "name": "unicode",
+              "filter": {
+                "query": "中文品牌🎵"
+              },
+              "linearFilterMs": [
+                0.0009159999999610591,
+                0.0009160000000747459,
+                0.0008340000000544023,
+                0.0008750000000645741,
+                0.0008330000000569271,
+                0.0008330000000569271,
+                0.0007920000000467553,
+                0.0008329999999432403,
+                0.0008749999999508873,
+                0.0007920000000467553
+              ],
+              "indexedFilterMs": [
+                0.0008749999999508873,
+                0.0007919999999330685,
+                0.0008329999999432403,
+                0.0008329999999432403,
+                0.0008329999999432403,
+                0.0008339999999407155,
+                0.0008329999999432403,
+                0.0008339999999407155,
+                0.0008339999999407155,
+                0.0008329999999432403
+              ]
+            },
+            {
+              "name": "decade",
+              "filter": {
+                "decade": 1990
+              },
+              "linearFilterMs": [
+                0.0005830000000059954,
+                0.0005830000000059954,
+                0.0005830000000059954,
+                0.0006250000000136424,
+                0.0007080000000314612,
+                0.0005830000000059954,
+                0.0005829999998923086,
+                0.0005840000000034706,
+                0.0006670000000212895,
+                0.0005419999999958236
+              ],
+              "indexedFilterMs": [
+                0.0007079999999177744,
+                0.0006250000000136424,
+                0.0006250000000136424,
+                0.0006670000000212895,
+                0.0006249999998999556,
+                0.0006250000000136424,
+                0.0006250000000136424,
+                0.0006250000000136424,
+                0.0008749999999508873,
+                0.0006250000000136424
+              ]
+            },
+            {
+              "name": "empty-result",
+              "filter": {
+                "brand": "不存在"
+              },
+              "linearFilterMs": [
+                0.0008329999999432403,
+                0.0008330000000569271,
+                0.0008330000000569271,
+                0.0008330000000569271,
+                0.0008340000000544023,
+                0.0008329999999432403,
+                0.0007919999999330685,
+                0.0008339999999407155,
+                0.0007919999999330685,
+                0.0008329999999432403
+              ],
+              "indexedFilterMs": [
+                0.0009169999999585343,
+                0.0008749999999508873,
+                0.0008749999999508873,
+                0.0008749999999508873,
+                0.0010410000001002118,
+                0.0008750000000645741,
+                0.0008750000000645741,
+                0.0008330000000569271,
+                0.0008330000000569271,
+                0.0007920000000467553
+              ]
+            }
+          ],
+          "scope": "只计衍生索引建立或纯filter调用，均返回完整匹配数组；不含JSON深拷贝、freeze、分页、线程/进程、DTO校验或assert。"
+        },
+        "writeAndRefresh": {
+          "pages": 4,
+          "refreshMs": 4.944417000000044,
+          "beforeSnapshotId": "46cf750e-498f-4f8d-b666-26f6aefcec7a",
+          "afterSnapshotId": "a8bab670-34bb-475d-b26f-6397f796dede",
+          "beforeModels": 0,
+          "afterModels": 1,
+          "changedModelId": "9e026edd-ee94-4830-a3c5-059211216095",
+          "operation": "receive-adds-overlapping-stock-postings"
+        }
+      },
+      {
+        "models": 100,
+        "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/tmp/rust-index-owner-Dtew4s",
+        "snapshotProfile": "v2-2000",
+        "snapshotId": "c79193eb-551e-4c35-89d7-f2a65521baff",
+        "refreshMs": 12.70962499999996,
+        "closeMs": 1.0887499999998909,
+        "exports": [
+          {
+            "snapshotId": "c79193eb-551e-4c35-89d7-f2a65521baff",
+            "revision": "f8a84c5f-f275-46d3-a32c-925d35645045",
+            "elapsedMs": 5.010415999999964,
+            "models": 100,
+            "jsonBytes": 40643
+          },
+          {
+            "snapshotId": "2ad37828-a320-477c-8a55-47f277a483bc",
+            "revision": "948bcb17-e22b-4ca9-bcb1-d8ae93b17d02",
+            "elapsedMs": 3.0105409999998756,
+            "models": 100,
+            "jsonBytes": 40643
+          }
+        ],
+        "calls": {
+          "prepare": 0,
+          "boot": 0,
+          "close": 0,
+          "version": 232,
+          "export": 2,
+          "dispatch": 1
+        },
+        "completePages": 1,
+        "differentialPages": 108,
+        "filters": 27,
+        "compared": "完整DTO、total、offset、limit、hasMore、导出ordinal",
+        "pureTs": {
+          "buildMs": [
+            0.1173750000000382,
+            0.09258399999998801,
+            0.08866699999998673,
+            0.10158400000000256,
+            0.09825000000000728,
+            0.11212499999987813,
+            0.08350000000018554,
+            0.08720799999991868,
+            0.08175000000005639,
+            0.08770800000002055
+          ],
+          "workloads": [
+            {
+              "name": "unfiltered",
+              "filter": {},
+              "linearFilterMs": [
+                0.008166999999957625,
+                0.010208999999804291,
+                0.008499999999912689,
+                0.00825000000008913,
+                0.008499999999912689,
+                0.007958000000144239,
+                0.007790999999997439,
+                0.007875000000012733,
+                0.007834000000002561,
+                0.007832999999891399
+              ],
+              "indexedFilterMs": [
+                0.004292000000077678,
+                0.005084000000124433,
+                0.004042000000026746,
+                0.004042000000026746,
+                0.004083000000036918,
+                0.004583000000138782,
+                0.0038329999999859865,
+                0.0038750000001073204,
+                0.0038340000000971486,
+                0.0038329999999859865
+              ]
+            },
+            {
+              "name": "selective-brand-stock",
+              "filter": {
+                "brand": "TDK",
+                "stockState": "blank"
+              },
+              "linearFilterMs": [
+                0.01862499999992906,
+                0.01841699999999946,
+                0.01883300000008603,
+                0.01883300000008603,
+                0.018667000000050393,
+                0.0185830000000351,
+                0.01933299999996052,
+                0.018708000000060565,
+                0.018499999999903594,
+                0.018500000000130967
+              ],
+              "indexedFilterMs": [
+                0.001291999999921245,
+                0.0011670000001231529,
+                0.001207999999905951,
+                0.0010839999999916472,
+                0.0010830000001078588,
+                0.0011660000000119908,
+                0.001125000000001819,
+                0.0010839999999916472,
+                0.0010829999998804851,
+                0.0010839999999916472
+              ]
+            },
+            {
+              "name": "literal-percent-underscore",
+              "filter": {
+                "query": "A_B%"
+              },
+              "linearFilterMs": [
+                0.04591699999991761,
+                0.04624999999987267,
+                0.04562500000020009,
+                0.04574999999999818,
+                0.04529099999990649,
+                0.04587500000002365,
+                0.04545800000005329,
+                0.04520800000000236,
+                0.04537500000014916,
+                0.046082999999953245
+              ],
+              "indexedFilterMs": [
+                0.005541999999877589,
+                0.004915999999866472,
+                0.004625000000032742,
+                0.004458000000113316,
+                0.004582999999911408,
+                0.004500000000007276,
+                0.004666999999926702,
+                0.004500000000007276,
+                0.004500000000007276,
+                0.004583000000138782
+              ]
+            },
+            {
+              "name": "unicode",
+              "filter": {
+                "query": "中文品牌🎵"
+              },
+              "linearFilterMs": [
+                0.04387499999984357,
+                0.043750000000045475,
+                0.0442920000000413,
+                0.04349999999999454,
+                0.04337499999996908,
+                0.043750000000045475,
+                0.045416999999815744,
+                0.07112499999993815,
+                0.047207999999955064,
+                0.049500000000080036
+              ],
+              "indexedFilterMs": [
+                0.0038749999998799467,
+                0.0034589999997933774,
+                0.003292000000101325,
+                0.003332999999884123,
+                0.003332999999884123,
+                0.003249999999979991,
+                0.004292000000077678,
+                0.007417000000032203,
+                0.004000000000132786,
+                0.0037090000000716827
+              ]
+            },
+            {
+              "name": "decade",
+              "filter": {
+                "decade": 1990
+              },
+              "linearFilterMs": [
+                0.009208999999827938,
+                0.01704199999994671,
+                0.011582999999973254,
+                0.0107500000001437,
+                0.009125000000040018,
+                0.009082999999918684,
+                0.009041999999908512,
+                0.009084000000029846,
+                0.009041999999908512,
+                0.009084000000029846
+              ],
+              "indexedFilterMs": [
+                0.0018330000000332802,
+                0.00258399999984249,
+                0.002167000000099506,
+                0.00179100000013932,
+                0.0017080000000078144,
+                0.0017080000000078144,
+                0.0017499999999017746,
+                0.0018749999999272404,
+                0.0017080000000078144,
+                0.0017499999999017746
+              ]
+            },
+            {
+              "name": "empty-result",
+              "filter": {
+                "brand": "不存在"
+              },
+              "linearFilterMs": [
+                0.01879100000019207,
+                0.018499999999903594,
+                0.018583999999918888,
+                0.018458000000009633,
+                0.018791999999848485,
+                0.01841699999999946,
+                0.018499999999903594,
+                0.0183750000001055,
+                0.019375000000081855,
+                0.02091700000005403
+              ],
+              "indexedFilterMs": [
+                0.0007920000000467553,
+                0.0006670000000212895,
+                0.0007090000001426233,
+                0.0006659999999101274,
+                0.0006659999999101274,
+                0.0006250000001273293,
+                0.0006670000000212895,
+                0.0006670000000212895,
+                0.000666000000137501,
+                0.0007500000001527951
+              ]
+            }
+          ],
+          "scope": "只计衍生索引建立或纯filter调用，均返回完整匹配数组；不含JSON深拷贝、freeze、分页、线程/进程、DTO校验或assert。"
+        },
+        "writeAndRefresh": {
+          "pages": 4,
+          "refreshMs": 9.283291999999847,
+          "beforeSnapshotId": "c79193eb-551e-4c35-89d7-f2a65521baff",
+          "afterSnapshotId": "2ad37828-a320-477c-8a55-47f277a483bc",
+          "beforeModels": 100,
+          "afterModels": 100,
+          "changedModelId": "46a04299-8562-4796-a033-011c80ac3d8a",
+          "operation": "materialize-and-reserve-removes-blank-posting"
+        }
+      },
+      {
+        "models": 2000,
+        "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/tmp/rust-index-owner-0qJ7Gn",
+        "snapshotProfile": "v2-2000",
+        "snapshotId": "e6325f2a-de11-4f7a-bdd0-6a7df14009a5",
+        "refreshMs": 117.62029199999984,
+        "closeMs": 2.103458000000046,
+        "exports": [
+          {
+            "snapshotId": "e6325f2a-de11-4f7a-bdd0-6a7df14009a5",
+            "revision": "ecacee44-9801-4ecc-85ea-3bd64cdbe8b9",
+            "elapsedMs": 55.88691700000004,
+            "models": 2000,
+            "jsonBytes": 808802
+          },
+          {
+            "snapshotId": "4f9dcc33-ba7e-4143-9c24-cc6f63ed1c4e",
+            "revision": "e37775ce-3634-4309-89f7-e820b2227485",
+            "elapsedMs": 44.65241699999979,
+            "models": 2000,
+            "jsonBytes": 808802
+          }
+        ],
+        "calls": {
+          "prepare": 0,
+          "boot": 0,
+          "close": 0,
+          "version": 308,
+          "export": 2,
+          "dispatch": 1
+        },
+        "completePages": 20,
+        "differentialPages": 108,
+        "filters": 27,
+        "compared": "完整DTO、total、offset、limit、hasMore、导出ordinal",
+        "pureTs": {
+          "buildMs": [
+            1.1988329999999223,
+            1.1664169999999103,
+            1.1743329999999332,
+            1.1884169999998448,
+            1.1606660000002194,
+            1.1961249999999382,
+            1.6087499999998727,
+            1.1484999999997854,
+            1.135707999999795,
+            1.1293749999999818
+          ],
+          "workloads": [
+            {
+              "name": "unfiltered",
+              "filter": {},
+              "linearFilterMs": [
+                0.09829100000024482,
+                0.09837500000003274,
+                0.09874999999965439,
+                0.0981669999996484,
+                0.10341700000026322,
+                0.09899999999970532,
+                0.09904099999994287,
+                0.10866699999996854,
+                0.10254200000008495,
+                0.09816700000010314
+              ],
+              "indexedFilterMs": [
+                0.0707500000003165,
+                0.07120899999972607,
+                0.07054199999993216,
+                0.07066699999995762,
+                0.07079199999998309,
+                0.0704169999999067,
+                0.07016699999985576,
+                0.07108300000027157,
+                0.07070799999974042,
+                0.07091600000012477
+              ]
+            },
+            {
+              "name": "selective-brand-stock",
+              "filter": {
+                "brand": "TDK",
+                "stockState": "blank"
+              },
+              "linearFilterMs": [
+                0.3234170000000631,
+                0.3194999999996071,
+                0.3317090000000462,
+                0.318416999999954,
+                0.3164170000000013,
+                0.3156669999998485,
+                0.8089580000000751,
+                0.3460840000002463,
+                0.3486250000000837,
+                0.32262500000024374
+              ],
+              "indexedFilterMs": [
+                0.010917000000063126,
+                0.010666000000128406,
+                0.010667000000012195,
+                0.010209000000031665,
+                0.01033400000005713,
+                0.013333999999758817,
+                0.0157920000001468,
+                0.013792000000194093,
+                0.027541999999812106,
+                0.01054100000010294
+              ]
+            },
+            {
+              "name": "literal-percent-underscore",
+              "filter": {
+                "query": "A_B%"
+              },
+              "linearFilterMs": [
+                0.7717910000001211,
+                0.7657500000000255,
+                0.7710419999998521,
+                0.7681670000001759,
+                0.7714999999998327,
+                0.769249999999829,
+                0.7875840000001517,
+                0.7733750000002146,
+                0.7699580000003152,
+                0.7924579999998969
+              ],
+              "indexedFilterMs": [
+                0.07387500000004366,
+                0.07349999999996726,
+                0.07287500000029468,
+                0.07349999999996726,
+                0.073334000000159,
+                0.07508299999972223,
+                0.0745839999999589,
+                0.07254199999988487,
+                0.07341600000017934,
+                0.33670900000015536
+              ]
+            },
+            {
+              "name": "unicode",
+              "filter": {
+                "query": "中文品牌🎵"
+              },
+              "linearFilterMs": [
+                0.7400000000002365,
+                0.7546250000000327,
+                0.7372910000003685,
+                0.7360829999997804,
+                0.7361660000001393,
+                0.7374999999997272,
+                0.771125000000211,
+                0.7585829999998168,
+                0.7730000000001382,
+                0.7616669999997612
+              ],
+              "indexedFilterMs": [
+                0.0527910000000702,
+                0.05095900000014808,
+                0.049333999999817024,
+                0.04958299999998417,
+                0.04954199999974662,
+                0.0494579999999587,
+                0.05124999999998181,
+                0.049250000000029104,
+                0.0527910000000702,
+                0.053875000000061846
+              ]
+            },
+            {
+              "name": "decade",
+              "filter": {
+                "decade": 1990
+              },
+              "linearFilterMs": [
+                0.09187500000007276,
+                0.09070800000017698,
+                0.10345900000038455,
+                0.09112499999991996,
+                0.09049999999979264,
+                0.0908329999997477,
+                0.0983339999997952,
+                0.09087499999986903,
+                0.09108299999979863,
+                0.09074999999984357
+              ],
+              "indexedFilterMs": [
+                0.02500000000009095,
+                0.02483299999994415,
+                0.0253339999999298,
+                0.02470900000025722,
+                0.02479200000016135,
+                0.02483299999994415,
+                0.024791999999706604,
+                0.030333000000155153,
+                0.024790999999822816,
+                0.02491699999973207
+              ]
+            },
+            {
+              "name": "empty-result",
+              "filter": {
+                "brand": "不存在"
+              },
+              "linearFilterMs": [
+                0.316124999999829,
+                0.31779199999982666,
+                0.3518340000000535,
+                0.48345900000003894,
+                0.3160840000000462,
+                0.31833300000016607,
+                0.31883300000026793,
+                0.3224579999996422,
+                0.31204099999968093,
+                0.31295799999998053
+              ],
+              "indexedFilterMs": [
+                0.0009589999999661813,
+                0.0007080000000314612,
+                0.004459000000224478,
+                0.002917000000252301,
+                0.000875000000178261,
+                0.0007919999998193816,
+                0.0007500000001527951,
+                0.0008330000000569271,
+                0.0007080000000314612,
+                0.0007500000001527951
+              ]
+            }
+          ],
+          "scope": "只计衍生索引建立或纯filter调用，均返回完整匹配数组；不含JSON深拷贝、freeze、分页、线程/进程、DTO校验或assert。"
+        },
+        "writeAndRefresh": {
+          "pages": 4,
+          "refreshMs": 101.72237499999983,
+          "beforeSnapshotId": "e6325f2a-de11-4f7a-bdd0-6a7df14009a5",
+          "afterSnapshotId": "4f9dcc33-ba7e-4143-9c24-cc6f63ed1c4e",
+          "beforeModels": 2000,
+          "afterModels": 2000,
+          "changedModelId": "32f2c99f-2532-47aa-9340-d5f8438a3a1d",
+          "operation": "materialize-and-reserve-removes-blank-posting"
+        }
+      },
+      {
+        "models": 5000,
+        "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/tmp/rust-index-owner-ibLCzV",
+        "snapshotProfile": "v3-5000",
+        "snapshotId": "1507bd28-844a-4aeb-aa45-7b6c8de9bbdd",
+        "refreshMs": 330.69895799999995,
+        "closeMs": 4.7375419999998485,
+        "exports": [
+          {
+            "snapshotId": "1507bd28-844a-4aeb-aa45-7b6c8de9bbdd",
+            "revision": "e5902d11-f1b2-44a9-81f7-412ceab59c07",
+            "elapsedMs": 115.85891599999968,
+            "models": 5000,
+            "jsonBytes": 2021759
+          },
+          {
+            "snapshotId": "32cc76e2-9121-439c-ae00-ba12529f7038",
+            "revision": "1a8174a1-adf6-4d40-b4db-fd244cb5c235",
+            "elapsedMs": 147.4664590000002,
+            "models": 5000,
+            "jsonBytes": 2021759
+          }
+        ],
+        "calls": {
+          "prepare": 0,
+          "boot": 0,
+          "close": 0,
+          "version": 560,
+          "export": 2,
+          "dispatch": 1
+        },
+        "completePages": 50,
+        "differentialPages": 108,
+        "filters": 27,
+        "compared": "完整DTO、total、offset、limit、hasMore、导出ordinal",
+        "pureTs": {
+          "buildMs": [
+            3.2609999999995125,
+            2.889291999999841,
+            2.810208999999304,
+            3.280792000000474,
+            3.174750000000131,
+            2.9073749999997744,
+            3.600333999999748,
+            3.3066250000001673,
+            2.9239580000003116,
+            2.858208000000559
+          ],
+          "workloads": [
+            {
+              "name": "unfiltered",
+              "filter": {},
+              "linearFilterMs": [
+                0.24766700000054698,
+                0.26704200000040146,
+                0.2539999999999054,
+                0.2600830000001224,
+                0.24391599999944447,
+                0.24575000000004366,
+                0.24549999999999272,
+                0.24970800000028248,
+                0.24783399999978428,
+                0.24845800000002782
+              ],
+              "indexedFilterMs": [
+                0.208042000000205,
+                0.19804199999998673,
+                0.1892920000000231,
+                0.17766699999992852,
+                0.1744170000001759,
+                0.17399999999997817,
+                0.17891699999927368,
+                0.18158300000050076,
+                0.1774169999998776,
+                0.18166699999983393
+              ]
+            },
+            {
+              "name": "selective-brand-stock",
+              "filter": {
+                "brand": "TDK",
+                "stockState": "blank"
+              },
+              "linearFilterMs": [
+                0.8230419999999867,
+                1.0732910000006086,
+                1.3022920000003069,
+                0.8494590000000244,
+                0.8395829999999478,
+                0.9120830000001661,
+                0.7853329999998095,
+                0.784125000000131,
+                0.7759580000001733,
+                0.7689580000005662
+              ],
+              "indexedFilterMs": [
+                0.08862500000032014,
+                0.03204199999981938,
+                0.04620799999975134,
+                0.025332999999591266,
+                0.03370900000027177,
+                0.050790999999662745,
+                0.02562500000021828,
+                0.0242500000003929,
+                0.02420799999981682,
+                0.023917000000437838
+              ]
+            },
+            {
+              "name": "literal-percent-underscore",
+              "filter": {
+                "query": "A_B%"
+              },
+              "linearFilterMs": [
+                2.032749999999396,
+                2.2195840000003955,
+                2.001709000000119,
+                1.8993749999999636,
+                1.9060840000001917,
+                2.115708000000268,
+                2.212083999999777,
+                1.9624589999993987,
+                1.9267919999992955,
+                1.8919999999998254
+              ],
+              "indexedFilterMs": [
+                0.4666660000002594,
+                0.20941600000060134,
+                0.1861669999998412,
+                0.18579200000021956,
+                0.18266700000003766,
+                0.22237500000028376,
+                0.18383300000004965,
+                0.19700000000011642,
+                0.181999999999789,
+                0.182582999999795
+              ]
+            },
+            {
+              "name": "unicode",
+              "filter": {
+                "query": "中文品牌🎵"
+              },
+              "linearFilterMs": [
+                2.1688750000002983,
+                1.9403330000004644,
+                1.9039580000007845,
+                1.8696659999995973,
+                1.924250000000029,
+                1.9654169999994338,
+                2.128833000000668,
+                1.8445000000001528,
+                1.8411669999995866,
+                1.85883400000057
+              ],
+              "indexedFilterMs": [
+                0.1481659999999465,
+                0.16779199999928096,
+                0.12437500000032742,
+                0.13562500000080036,
+                0.12320900000031543,
+                0.14329100000031758,
+                0.12950000000000728,
+                0.12366599999950267,
+                0.12391699999989214,
+                0.12254200000006676
+              ]
+            },
+            {
+              "name": "decade",
+              "filter": {
+                "decade": 1990
+              },
+              "linearFilterMs": [
+                0.24362500000006548,
+                0.24033299999973678,
+                0.24441699999988487,
+                0.24458300000060262,
+                0.2422920000008162,
+                0.2969170000005761,
+                0.24666600000000471,
+                0.24487499999941065,
+                0.22954200000003766,
+                0.28604100000029575
+              ],
+              "indexedFilterMs": [
+                0.06158400000003894,
+                0.06320800000048621,
+                0.06383300000015879,
+                0.06270800000038435,
+                0.06295799999952578,
+                0.06833300000016607,
+                0.0641669999995429,
+                0.07099999999991269,
+                0.06187499999941792,
+                0.0907919999999649
+              ]
+            },
+            {
+              "name": "empty-result",
+              "filter": {
+                "brand": "不存在"
+              },
+              "linearFilterMs": [
+                0.9563749999997526,
+                1.1148330000005444,
+                0.9213749999998981,
+                0.8651250000002619,
+                0.8692499999997381,
+                0.8772079999998823,
+                0.8757919999998194,
+                0.8722080000006827,
+                0.8695410000000265,
+                0.9516250000006039
+              ],
+              "indexedFilterMs": [
+                0.00166700000045239,
+                0.0036250000002837623,
+                0.0014160000000629225,
+                0.0009170000002995948,
+                0.0009170000002995948,
+                0.0009579999996276456,
+                0.0007500000001527951,
+                0.0008750000006330083,
+                0.001291999999921245,
+                0.003832999999758613
+              ]
+            }
+          ],
+          "scope": "只计衍生索引建立或纯filter调用，均返回完整匹配数组；不含JSON深拷贝、freeze、分页、线程/进程、DTO校验或assert。"
+        },
+        "fullRouterWarmCost": {
+          "workloads": [
+            {
+              "name": "unfiltered",
+              "filter": {},
+              "nodeQueryRoundtripMs": [
+                1.9792499999994106,
+                1.8313749999997526,
+                1.7603339999996024,
+                1.8241250000000946,
+                1.7265000000006694,
+                1.7736249999998108,
+                1.6411660000003394,
+                1.7855420000005324,
+                1.649250000000393,
+                1.8477920000004815
+              ],
+              "rustQueryWithVersionProbesMs": [
+                2.0235839999995733,
+                2.021915999999692,
+                1.9836660000000848,
+                1.852791000000252,
+                1.8299999999999272,
+                1.858459000000039,
+                1.8927499999999782,
+                2.3598339999998643,
+                1.9866659999997864,
+                1.8817920000001322
+              ]
+            },
+            {
+              "name": "selective-brand-stock",
+              "filter": {
+                "brand": "TDK",
+                "stockState": "blank"
+              },
+              "nodeQueryRoundtripMs": [
+                6.9909999999999854,
+                7.2841669999997976,
+                7.327334000000519,
+                7.05895800000053,
+                7.024209000000155,
+                6.5534999999999854,
+                6.609375,
+                6.773083000000042,
+                7.503917000000001,
+                7.418541000000005
+              ],
+              "rustQueryWithVersionProbesMs": [
+                2.014999999999418,
+                1.6762919999991936,
+                1.8687499999996362,
+                1.703125,
+                2.1357499999994616,
+                1.660624999999527,
+                2.380833000000166,
+                1.7053329999998823,
+                1.8757500000001528,
+                1.7575839999999516
+              ]
+            },
+            {
+              "name": "literal-percent-underscore",
+              "filter": {
+                "query": "A_B%"
+              },
+              "nodeQueryRoundtripMs": [
+                6.727958000000399,
+                5.918582999999671,
+                5.8677910000005795,
+                6.08087500000056,
+                5.888582999999926,
+                6.2993749999996,
+                6.3272079999997,
+                5.606916999999157,
+                6.201834000000417,
+                6.343790999999328
+              ],
+              "rustQueryWithVersionProbesMs": [
+                2.056749999999738,
+                2.438250000000153,
+                2.104000000000269,
+                2.041457999999693,
+                1.983791999999994,
+                2.0453749999996944,
+                1.9337079999995694,
+                2.2726669999992737,
+                1.9657500000002983,
+                1.984332999999424
+              ]
+            },
+            {
+              "name": "unicode",
+              "filter": {
+                "query": "中文品牌🎵"
+              },
+              "nodeQueryRoundtripMs": [
+                6.956250000000182,
+                6.249791999999616,
+                6.607790999999452,
+                6.668750000000728,
+                6.80041700000038,
+                6.989542000000256,
+                6.899000000000342,
+                6.639625000000706,
+                7.285790999999335,
+                6.715416000000005
+              ],
+              "rustQueryWithVersionProbesMs": [
+                2.0095000000001164,
+                2.081083000000035,
+                1.8217500000000655,
+                2.1219580000006317,
+                1.8311659999999392,
+                2.1468329999997877,
+                1.908042000000023,
+                2.207083000000239,
+                2.0378749999999854,
+                2.1021249999994325
+              ]
+            },
+            {
+              "name": "decade",
+              "filter": {
+                "decade": 1990
+              },
+              "nodeQueryRoundtripMs": [
+                4.114416999999776,
+                3.9013340000001335,
+                3.6726669999998194,
+                3.985916999999972,
+                3.585167000000183,
+                4.12079200000062,
+                3.863583999999719,
+                3.8902080000007118,
+                3.8035829999998896,
+                3.6915420000004815
+              ],
+              "rustQueryWithVersionProbesMs": [
+                2.216707999999926,
+                1.8254579999993439,
+                1.8657499999999345,
+                1.700792000000547,
+                1.7832500000004075,
+                1.9458340000001044,
+                1.88799999999992,
+                2.0214590000005046,
+                1.6572919999998703,
+                1.6766250000000582
+              ]
+            },
+            {
+              "name": "empty-result",
+              "filter": {
+                "brand": "不存在"
+              },
+              "nodeQueryRoundtripMs": [
+                4.378375000000233,
+                4.183667000000241,
+                4.068999999999505,
+                4.220291999999972,
+                4.431124999999156,
+                4.226999999999862,
+                4.104959000000235,
+                4.25800000000072,
+                4.030832999999802,
+                4.265250000000378
+              ],
+              "rustQueryWithVersionProbesMs": [
+                0.43699999999989814,
+                0.4210000000002765,
+                0.37179100000048493,
+                0.4107499999990978,
+                0.3757500000001528,
+                0.32804099999975733,
+                0.374124999999367,
+                0.38174999999955617,
+                0.3196250000000873,
+                0.41241600000012113
+              ]
+            }
+          ],
+          "counts": {
+            "nodeQueries": 60,
+            "rustQueries": 60,
+            "versionRoundtrips": 120,
+            "nodeFallbackQueries": 0,
+            "untimedWarmupNodeQueries": 6,
+            "untimedWarmupRustQueries": 6,
+            "untimedWarmupVersionRoundtrips": 12
+          }
+        },
+        "writeAndRefresh": {
+          "pages": 4,
+          "refreshMs": 361.45887500000026,
+          "beforeSnapshotId": "1507bd28-844a-4aeb-aa45-7b6c8de9bbdd",
+          "afterSnapshotId": "32cc76e2-9121-439c-ae00-ba12529f7038",
+          "beforeModels": 5000,
+          "afterModels": 5000,
+          "changedModelId": "00a06eed-0cd6-46ac-92cb-f16c5e27ee23",
+          "operation": "materialize-and-reserve-removes-blank-posting"
+        }
+      }
+    ],
+    "baseline": {
+      "status": "RUN",
+      "baseCommit": "d2676884a537bf3d232ed2cc957fef11b6d5cfeb",
+      "phase": "old-004-before-candidate-005-on-same-owner-and-database",
+      "models": 5000,
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/tmp/rust-index-owner-ibLCzV",
+      "binary": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-004-6uwdvhva/cargo-target/release/musicbridge-rust-core",
+        "sha256": "1e2b5164591204772196f987009ae254bda2fcb807471f5ff917ec65b5c105ea"
+      },
+      "binarySha256": "1e2b5164591204772196f987009ae254bda2fcb807471f5ff917ec65b5c105ea",
+      "routerPath": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-004/packages/bridge-core/src/rust-core/readonly-router.ts",
+      "sourceModules": [
+        {
+          "name": "readonly-router.ts",
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-004/packages/bridge-core/src/rust-core/readonly-router.ts",
+          "sha256": "51e648e6920b08c2b25f263509c8868f408a27a6ed5ea2d547e2e9ebd02dd8c6"
+        },
+        {
+          "name": "readonly-sidecar.ts",
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-004/packages/bridge-core/src/rust-core/readonly-sidecar.ts",
+          "sha256": "bd826746375fc15945b397efec9ec1e4fe5156c846cc943aab3fb05c90e84d02"
+        },
+        {
+          "name": "collection-query.ts",
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-004/packages/bridge-core/src/rust-core/collection-query.ts",
+          "sha256": "42a61da3f44484b64ad1f68ba7f1fdcf972df5d6d628cdd4865339a2f1e73a5b"
+        }
+      ],
+      "refreshMs": 345.16733299999987,
+      "closeMs": 4.319957999999588,
+      "exports": [
+        {
+          "snapshotId": "7c3ea390-f7c7-4644-8aa7-350646fafe75",
+          "revision": "e5902d11-f1b2-44a9-81f7-412ceab59c07",
+          "elapsedMs": 127.0903330000001,
+          "models": 5000,
+          "jsonBytes": 2021759
+        }
+      ],
+      "calls": {
+        "prepare": 0,
+        "boot": 0,
+        "close": 0,
+        "version": 134,
+        "export": 1,
+        "dispatch": 0
+      },
+      "workloads": [
+        {
+          "name": "unfiltered",
+          "filter": {},
+          "nodeQueryRoundtripMs": [
+            1.708625000000211,
+            1.7700839999997697,
+            2.226749999999811,
+            1.951082999999926,
+            1.5508749999999054,
+            1.565458000000035,
+            1.521458000000166,
+            1.5020840000001954,
+            1.4760420000002341,
+            1.6199169999999867
+          ],
+          "rustQueryWithVersionProbesMs": [
+            2.733165999999983,
+            2.2308750000001965,
+            1.9842919999996411,
+            2.567124999999578,
+            1.8940840000000208,
+            1.8410420000000158,
+            1.812249999999949,
+            1.8583330000001297,
+            1.7688749999997526,
+            1.8949580000003152
+          ]
+        },
+        {
+          "name": "selective-brand-stock",
+          "filter": {
+            "brand": "TDK",
+            "stockState": "blank"
+          },
+          "nodeQueryRoundtripMs": [
+            6.366708999999901,
+            6.467957999999726,
+            6.1352499999998145,
+            6.337542000000212,
+            6.071875000000091,
+            6.895541000000321,
+            6.877416999999696,
+            6.511540999999852,
+            6.415166999999656,
+            6.3964169999999285
+          ],
+          "rustQueryWithVersionProbesMs": [
+            3.6007909999998446,
+            3.248833999999988,
+            3.7001250000002983,
+            2.8027079999997113,
+            2.9618749999999636,
+            2.850417000000107,
+            2.9768330000001697,
+            2.791957999999795,
+            2.838583000000199,
+            2.8349169999996775
+          ]
+        },
+        {
+          "name": "literal-percent-underscore",
+          "filter": {
+            "query": "A_B%"
+          },
+          "nodeQueryRoundtripMs": [
+            6.292790999999852,
+            5.82141700000011,
+            5.788417000000209,
+            5.737999999999829,
+            5.549125000000004,
+            5.433457999999973,
+            5.662124999999833,
+            5.863415999999688,
+            5.564832999999908,
+            5.682832999999846
+          ],
+          "rustQueryWithVersionProbesMs": [
+            5.405083999999988,
+            5.29424999999992,
+            4.757708999999977,
+            4.868459000000257,
+            4.775458999999955,
+            4.719292000000223,
+            4.946166000000176,
+            4.810375000000022,
+            4.641000000000076,
+            4.761082999999871
+          ]
+        },
+        {
+          "name": "unicode",
+          "filter": {
+            "query": "中文品牌🎵"
+          },
+          "nodeQueryRoundtripMs": [
+            6.409333000000061,
+            6.262541999999939,
+            6.151834000000235,
+            6.197000000000116,
+            6.02829200000042,
+            6.16216600000007,
+            5.8707909999998265,
+            6.1725830000000315,
+            6.070666999999958,
+            6.0753749999998945
+          ],
+          "rustQueryWithVersionProbesMs": [
+            4.694292000000132,
+            4.599957999999788,
+            4.688916999999947,
+            4.615499999999884,
+            4.494416999999885,
+            5.487959000000046,
+            4.629500000000007,
+            4.519332999999733,
+            4.855250000000069,
+            4.639957999999751
+          ]
+        },
+        {
+          "name": "decade",
+          "filter": {
+            "decade": 1990
+          },
+          "nodeQueryRoundtripMs": [
+            3.514666000000034,
+            3.421624999999949,
+            3.395665999999892,
+            3.441957999999886,
+            3.3915830000000824,
+            3.390958999999839,
+            3.522917000000234,
+            3.3589999999999236,
+            3.4980000000000473,
+            3.6388340000003154
+          ],
+          "rustQueryWithVersionProbesMs": [
+            2.521624999999858,
+            2.1037500000002183,
+            2.3408329999997477,
+            2.1717090000001917,
+            2.2548329999999623,
+            2.1803749999999127,
+            2.1215830000001006,
+            2.0884580000001733,
+            2.414875000000393,
+            2.9129159999997682
+          ]
+        },
+        {
+          "name": "empty-result",
+          "filter": {
+            "brand": "不存在"
+          },
+          "nodeQueryRoundtripMs": [
+            4.417249999999967,
+            4.447833000000173,
+            4.118790999999874,
+            4.104874999999993,
+            4.178791999999703,
+            4.06079200000022,
+            4.030291999999918,
+            4.042625000000044,
+            4.037499999999909,
+            4.014874999999847
+          ],
+          "rustQueryWithVersionProbesMs": [
+            2.5227080000004207,
+            1.9870409999998628,
+            1.5533329999998386,
+            1.665791999999783,
+            1.5577089999997042,
+            1.3840829999999187,
+            1.4585419999998521,
+            1.3922089999996388,
+            1.3270419999998921,
+            1.4205409999999574
+          ]
+        }
+      ],
+      "counts": {
+        "nodeQueries": 60,
+        "rustQueries": 60,
+        "versionRoundtrips": 120,
+        "nodeFallbackQueries": 0,
+        "untimedWarmupNodeQueries": 6,
+        "untimedWarmupRustQueries": 6,
+        "untimedWarmupVersionRoundtrips": 12
+      }
+    },
+    "counts": {
+      "rustChildren": 9,
+      "peakLiveRustChildren": 1,
+      "naturalRustExits": [
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        },
+        {
+          "code": 0,
+          "signal": null
+        }
+      ],
+      "borrowedOwnerPrepare": 0,
+      "borrowedOwnerBoot": 0,
+      "borrowedOwnerClose": 0
+    },
+    "costScope": "Node计线程RPC与响应验证；完整Router计两次Node版本RPC、真实Rust往返及TS完整DTO核验；export、refresh、close单列；assert在计时外。",
+    "costLimitations": "六工作量各10次warm样本；旧004与本期005分阶段使用同一Owner/库但snapshotId不同，先旧后新；OS缓存、GC、调度未控制，不能代表冷盘、真实用户库、硬RSS上限或普遍性能结论。",
+    "productionDefault": "Node",
+    "realServices": "NOT_RUN"
+  },
+  "medianSummary": [
+    {
+      "name": "unfiltered",
+      "nodeMs": 1.7795835000001716,
+      "baseline004FullMs": 1.894521000000168,
+      "candidate005FullMs": 1.9382080000000315,
+      "linearTsMs": 0.24814599999990605,
+      "indexedTsMs": 0.18024999999988722
+    },
+    {
+      "name": "selective-brand-stock",
+      "nodeMs": 7.041583500000343,
+      "baseline004FullMs": 2.906146000000035,
+      "candidate005FullMs": 1.813166999999794,
+      "linearTsMs": 0.8313124999999673,
+      "indexedTsMs": 0.02883350000001883
+    },
+    {
+      "name": "literal-percent-underscore",
+      "nodeMs": 6.141354500000489,
+      "baseline004FullMs": 4.7929169999999885,
+      "candidate005FullMs": 2.0434164999996938,
+      "linearTsMs": 1.9820839999997588,
+      "indexedTsMs": 0.18597950000003038
+    },
+    {
+      "name": "unicode",
+      "nodeMs": 6.757916500000192,
+      "baseline004FullMs": 4.634728999999879,
+      "candidate005FullMs": 2.0594790000000103,
+      "linearTsMs": 1.9141040000004068,
+      "indexedTsMs": 0.12693750000016735
+    },
+    {
+      "name": "decade",
+      "nodeMs": 3.8768960000002153,
+      "baseline004FullMs": 2.2176039999999375,
+      "candidate005FullMs": 1.8456039999996392,
+      "linearTsMs": 0.24450000000024374,
+      "indexedTsMs": 0.0635205000003225
+    },
+    {
+      "name": "empty-result",
+      "nodeMs": 4.223645999999917,
+      "baseline004FullMs": 1.5059374999998454,
+      "candidate005FullMs": 0.3787499999998545,
+      "linearTsMs": 0.8764999999998508,
+      "indexedTsMs": 0.0011249999997744453
+    }
+  ],
+  "failureAndCorrectionLedger": [
+    {
+      "kind": "fixture-correction",
+      "reason": "初期合成collection.receive测试曾使用合法公共Model之外的receive识别状态partial，改为candidate后完成正式预检及最终Gate；该尝试仅在工具原输出中，没有单独失败日志，不作为生产代码RED。",
+      "durableInitialFailureLog": null
+    },
+    {
+      "kind": "pre-freeze-entry-repair",
+      "reason": "主代理静态核查移除本期随机路径硬编码，改用通用外置tmp及realpath准入；旧004对照由记录任意模块hash改为固定base/三模块/binary pin并结束复核。未改变受测生产算法，旧成功日志保留。",
+      "finalPortableLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/manual-portable/integration.log",
+      "finalPortableLogSha256": "10e2ee71803e985fbddbb9eda7be88fe14f899b4c79d4c8dd5928c94387c0e86"
+    },
+    {
+      "kind": "semantic-regression-not-red",
+      "reason": "优化要求结果与旧实现相同，新增Native/TS/SQLite差分及旧路径成本是语义和收益证据；不宣称所有新测试都在实现前RED或以易抖的速度阈值判通过。"
+    }
+  ],
+  "boundaries": [
+    "本审查核验主代理执行的最终日志、退出记录和全部身份，未独立重跑整套测试。",
+    "冻结代码审查与合成SQLite/Node Owner到真实Rust进程证据不代表真实用户库、Provider/Roon、播放或录音验收。",
+    "安装、签名、远端CI、GitHub push、发布和Owner验收未执行。",
+    "warm顺序样本的OS缓存、GC、调度未控制，不证明冷盘、普遍性能或硬RSS上限。",
+    "软件原有两项native输出/租约测试继续SKIP，未升级为通过。",
+    "最终提交、报告身份、远端HEAD和工作树清洁由主代理完成，本审查不将未提交冻结工作树声称为最终交付。"
+  ],
+  "reportCommitResolution": "git log -1 --format=%H -- reports/RUST-005_BOUNDED_QUERY_INDEX.md",
+  "nextBranchBaseResolution": "final-RUST-005-report-HEAD",
+  "postCommitIdentityReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/FINAL_IDENTITY.json"
+}
