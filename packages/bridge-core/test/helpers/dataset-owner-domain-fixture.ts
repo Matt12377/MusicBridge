@@ -13,6 +13,7 @@ attachDatasetOwnerWorkerPort(parentPort, {
       failureForError: domain.failureForError,
       commitBoot: () => domain.commitBoot(),
       exportCollectionModels: () => domain.exportCollectionModels!(),
+      exportLargeCollectionModels: () => domain.exportLargeCollectionModels!(),
       readonlySnapshotStamp: () => domain.readonlySnapshotStamp!(),
       async dispatch(request) {
         const observed = ['collection.list', 'collectionProgress.current', 'collectionProgress.snapshot'].includes(request.command);

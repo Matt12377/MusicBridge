@@ -1,10 +1,10 @@
 import { isCollectionId, isCommandOutboxDatasetId, type IpcRequest } from '@music-bridge/contracts';
-import type { DatasetCollectionSnapshotVersion, DatasetOwnerVersionedSnapshotEndpoint } from '../collection/dataset-owner-protocol.js';
-import { createRustReadonlyDatasetEndpointFromOwner, RustSidecarError,
+import type { DatasetCollectionSnapshotVersion, DatasetOwnerLargeSnapshotEndpoint, DatasetOwnerVersionedSnapshotEndpoint } from '../collection/dataset-owner-protocol.js';
+import { createRustReadonlyDatasetEndpointFromOwner, RustSidecarError, validateRustSnapshotProfile,
   type RustReadonlyDatasetEndpoint, type RustReadonlyOwnerOptions, type RustSidecarErrorCode } from './readonly-sidecar.js';
 
 export interface RustReadonlyCollectionRouterOptions extends Omit<RustReadonlyOwnerOptions, 'owner'> {
-  owner: DatasetOwnerVersionedSnapshotEndpoint;
+  owner: DatasetOwnerVersionedSnapshotEndpoint & Partial<Pick<DatasetOwnerLargeSnapshotEndpoint, 'exportLargeVersionedCollectionSnapshot'>>;
 }
 export interface RustReadonlyCollectionRouterStatus {
   readonly phase: 'node' | 'refreshing' | 'rust' | 'stale' | 'failed' | 'closed';
@@ -72,6 +72,8 @@ async function bounded<T>(operation: () => T | Promise<T>, deadline: number): Pr
 /** 仅绑定已 boot 的来源。默认仍由 Node 读取，显式刷新才建立只读 child。 */
 export async function createRustReadonlyCollectionRouter(options: RustReadonlyCollectionRouterOptions): Promise<RustReadonlyCollectionRouter> {
   options = { ...options, binary: { ...options.binary } };
+  const profile = validateRustSnapshotProfile(options.snapshotProfile);
+  if (profile === 'v3-5000' && typeof options.owner.exportLargeVersionedCollectionSnapshot !== 'function') throw new RustSidecarError('SNAPSHOT_UNAVAILABLE');
   const probeTimeout = budget(options.requestTimeoutMs, 5_000);
   const startupTimeout = budget(options.startupTimeoutMs, 5_000);
   budget(options.closeTimeoutMs, 5_000);
@@ -82,6 +84,7 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
   let errorCode: RustSidecarErrorCode | undefined, writes = 0;
   let active: { endpoint: RustReadonlyDatasetEndpoint; version: DatasetCollectionSnapshotVersion } | undefined;
   let refreshing: Promise<void> | undefined, closing: Promise<void> | undefined;
+  let refreshingCandidate: RustReadonlyDatasetEndpoint | undefined;
   let retiring = Promise.resolve(), retirementError: RustSidecarError | undefined;
   const retired = new WeakSet<RustReadonlyDatasetEndpoint>();
   const terminalFailureGeneration = new WeakMap<RustReadonlyDatasetEndpoint, number>();
@@ -111,6 +114,8 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
     const old = active;
     active = undefined;
     if (old) retire(old.endpoint);
+    // 上传中的候选同样属于本路由；撤销时立即封闭它，不等整体期限耗尽。
+    if (profile === 'v3-5000' && refreshingCandidate) retire(refreshingCandidate);
   }
   function fence(expectedGeneration: number): void {
     if (closed || generation !== expectedGeneration) throw new RustSidecarError('STALE_SNAPSHOT');
@@ -199,6 +204,12 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
                 exportedVersion = versionCopy(exported.version); scoped(exportedVersion);
                 return exported.snapshot;
               },
+              ...(profile === 'v3-5000' ? { exportLargeVersionedCollectionSnapshot: async () => {
+                const exported = await bounded(() => options.owner.exportLargeVersionedCollectionSnapshot!(), deadline); fresh();
+                if (!plain(exported, ['snapshot', 'version'])) throw new RustSidecarError('SNAPSHOT_UNAVAILABLE');
+                exportedVersion = versionCopy(exported.version); scoped(exportedVersion);
+                return exported;
+              } } : {}),
               dispatch: () => Promise.reject(new RustSidecarError('UNSUPPORTED_COMMAND')),
               commitBoot: () => Promise.reject(new RustSidecarError('UNSUPPORTED_OPERATION')),
               close: () => Promise.reject(new RustSidecarError('UNSUPPORTED_OPERATION')),
@@ -210,7 +221,7 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
               }
               observer(code);
             },
-          }, endpoint => { candidate = endpoint; });
+          }, endpoint => { candidate = endpoint; refreshingCandidate = endpoint; });
           fresh();
           const current = await probe(deadline); fresh(); scoped(current);
           if (!exportedVersion || !sameVersion(current, exportedVersion)) {
@@ -218,11 +229,14 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
             throw new RustSidecarError('STALE_SNAPSHOT');
           }
           active = { endpoint: candidate, version: exportedVersion };
+          refreshingCandidate = undefined;
           phase = 'rust'; errorCode = undefined;
         } catch (error) {
           if (candidate) retire(candidate);
           failCurrent(error, ownGeneration);
           throw safeError(error);
+        } finally {
+          if (refreshingCandidate === candidate) refreshingCandidate = undefined;
         }
       })();
       refreshing = work.finally(() => { if (refreshing === joined) refreshing = undefined; });

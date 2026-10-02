@@ -1,15 +1,19 @@
 # Rust Core 开发进度
 
-更新：2026-10-02。当前任务 **RUST-003：快照版本、刷新与可选路由 — 本地开发与验证完成**。分支 `codex/rust-core-003-snapshot-refresh`，工作树 `worktree/rust-core-003`。
+更新：2026-10-02。当前任务 **RUST-004：5,000 型号完整快照与有界分块 — 开发中**。分支 `codex/rust-core-004-bounded-transfer`，工作树 `worktree/rust-core-004`。
 
 此表随开发更新；只有实际验证通过的项目才打勾。默认应用仍使用 Node，真实账号、Roon、录音和用户数据不进入本期验证。
 
 ## 待办事项
 
+### RUST-004（交付收尾）
+
+- [ ] 实现和结果报告分别提交，核对最终 HEAD、清洁工作树与远端。
+
 ### 后续升级路线（规划，尚未开工）
 
 - [ ] 依据本期测量选定下一处实际瓶颈，确定 Rust 承担的计算及 Node 保留的控制职责。
-- [ ] 规划大于 2,000 型号时的完整性与内存预算，避免用截断或跨时刻分页扩容。
+- [ ] RUST-004 实施 5,000 型号 / 8 MiB 可选完整快照；超过本期预算仍需另立范围，禁止截断或跨时刻分页扩容。
 - [ ] 快照版本、显式刷新与按读取失效检测由 RUST-003 实施；后续评估推送通知和批次失效的收益。
 - [ ] 为确认有收益的查询建立 Rust 索引及差分/规模回归，记录首次建立和重复查询成本。
 - [ ] 显式可选路由与内部可观测状态由 RUST-003 实施；正式应用启用与用户入口单列验收。
@@ -18,6 +22,18 @@
 - [ ] 准备真实环境验证材料，分别记录 Roon、播放、录音和 Owner 结果；本地合成测试不替代这些验收。
 
 ## 已完成事项
+
+### RUST-004（已验证的子项）
+
+- [x] Node 大快照独立预算、一次读事务、版本配对与跨 API 在途保护；新 13 项及旧两套合计 33 项通过。
+- [x] Rust v3 manifest / 128 型号分块 / 完整 boot；旧 26＋新 14 共 40 项通过。
+- [x] TS 显式 profile、ACK 核验、整体期限与可选路由；旧 71＋新 21 共 92 项通过。
+- [x] 真实 Node 两库 / Rust 5,000 型号：50 完整页＋108 筛选页、刷新/部分关闭/崩溃/unknown 共 7 项通过。
+- [x] 最终六种工作量各 10 个 warm 完整样本，导出 136.145 ms、刷新 365.439 ms、关闭 3.508 ms；无筛选首屏 Rust 2.021 / Node 1.677 ms，不冒称全路径加速。
+- [x] Rust Gate 15 步全部退出 0，291 份源码/日志与二进制匹配；40 Rust / 148 JS（含实际集成 23）通过，无新增跳过。
+- [x] 完整软件 Gate：类型、3,625 项单元（保留原 2 项条件跳过）、生产 build、三个静态 Gate 全部通过；1,052 份源码稳定。
+- [x] 两轮独立审查完成，P1/P2 为 0；第二轮核完整软件新证据与 LF 文档澄清，原文件与失败日志保留。
+
 
 ### RUST-003
 
@@ -62,7 +78,7 @@
 
 报告：[RUST-001_READONLY_SIDECAR.md](../reports/RUST-001_READONLY_SIDECAR.md)。
 
-当前范围：[RUST-003-snapshot-refresh-routing.md](../tasks/RUST-003-snapshot-refresh-routing.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-003-nlk69h67`。RUST-002 最终基线 `763b5c62283978c3ab4981c9cce60f4237d1f051`。
+当前范围：[RUST-004-bounded-snapshot-transfer.md](../tasks/RUST-004-bounded-snapshot-transfer.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-004-6uwdvhva`。RUST-003 最终基线 `f3b398f7f872d5776ab8a65f3eb3ec5d7894c0af`。
 
 ## 保留的验收边界
 

@@ -163,6 +163,12 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       assertOpen();
       return models;
     },
+    exportLargeCollectionModels() {
+      assertOpen();
+      const models = collection.exportLargeReadonlyModels();
+      assertOpen();
+      return models;
+    },
     failureForError(id, error, command) { return (options.failureForError ?? failureForError)(id, error, command ?? 'commandOutbox.context'); },
     close(beforeConnectionClose) {
       if (closed) return closed;

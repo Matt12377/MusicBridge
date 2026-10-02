@@ -1,5 +1,5 @@
 import { traceDatabase } from '../diagnostics/performance-instrumentation.js';
-import { isDatasetCollectionModels, MAX_DATASET_COLLECTION_MODELS } from './dataset-owner-protocol.js';
+import { isDatasetCollectionModels, isDatasetLargeCollectionModels, MAX_DATASET_COLLECTION_MODELS, MAX_DATASET_LARGE_COLLECTION_MODELS } from './dataset-owner-protocol.js';
 import { createRecordingPrintStore, migrateRecordingPrints, migrateRecordingPrintVersions, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
 import { RecordingPrintError } from '../recording/print-integrity.js';
 import { createRecordingRecordStore, migrateRecordingRecords, type RecordingRecordStore } from '../recording/record-store.js';
@@ -81,6 +81,7 @@ export interface CollectionRepository {
   links: PhysicalLinksRepository;
   list(page: PageRequest, filter?: CollectionFilter): Page<CollectionModel>;
   exportReadonlyModels(): readonly CollectionModel[];
+  exportLargeReadonlyModels(): readonly CollectionModel[];
   readonlySnapshotStamp(): { dataVersion: number; totalChanges: number };
   addPhoto(request: CollectionAddPhotoRequest): CollectionMutationResult;
   photo(photoId: string): CollectionPhotoImage;
@@ -282,6 +283,20 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   function guarded<T>(operation: (db: DatabaseSync) => T): T {
     try { return operation(open()); }
     catch (error) { if (error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
+  }
+  function exportReadonlyModels(maxModels: number, modelsGuard: typeof isDatasetCollectionModels): readonly CollectionModel[] {
+    return guarded(db => {
+      // 同步读事务覆盖型号、库存和全部水合批次；不拼接公开分页，也不持有写锁。
+      db.exec('BEGIN');
+      try {
+        const rows = many<ModelRow>(db, 'SELECT id,descriptor,policy,minimum_sealed,revision FROM collection_models ORDER BY rowid DESC LIMIT ?', maxModels + 1);
+        if (rows.length > maxModels) return unavailable();
+        const models = listedModels(db, rows);
+        if (!modelsGuard(models)) return unavailable();
+        db.exec('COMMIT');
+        return models;
+      } catch (error) { db.exec('ROLLBACK'); throw error; }
+    });
   }
   function one<T>(db: DatabaseSync, sql: string, ...values: SQLInputValue[]): T | undefined {
     return db.prepare(sql).get(...values) as unknown as T | undefined;
@@ -552,18 +567,10 @@ export function createCollectionRepository(options: { filePath: string; stagingR
       });
     },
     exportReadonlyModels() {
-      return guarded(db => {
-        // 同步读事务覆盖型号、库存和全部水合批次；不拼接公开分页，也不持有写锁。
-        db.exec('BEGIN');
-        try {
-          const rows = many<ModelRow>(db, 'SELECT id,descriptor,policy,minimum_sealed,revision FROM collection_models ORDER BY rowid DESC LIMIT ?', MAX_DATASET_COLLECTION_MODELS + 1);
-          if (rows.length > MAX_DATASET_COLLECTION_MODELS) return unavailable();
-          const models = listedModels(db, rows);
-          if (!isDatasetCollectionModels(models)) return unavailable();
-          db.exec('COMMIT');
-          return models;
-        } catch (error) { db.exec('ROLLBACK'); throw error; }
-      });
+      return exportReadonlyModels(MAX_DATASET_COLLECTION_MODELS, isDatasetCollectionModels);
+    },
+    exportLargeReadonlyModels() {
+      return exportReadonlyModels(MAX_DATASET_LARGE_COLLECTION_MODELS, isDatasetLargeCollectionModels);
     },
     list(page, filter = {}) {
       if (!validPage(page) || !isCollectionFilter(filter)) return conflict('库存请求无效，请检查分页和筛选。');

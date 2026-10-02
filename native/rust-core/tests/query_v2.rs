@@ -403,7 +403,7 @@ fn rejects_projection_duplicate_keys_and_unsupported_versions() {
         s.handle(duplicate.as_bytes()).err(),
         Some(ErrorCode::ProtocolError)
     );
-    for version in [0, 3] {
+    for version in [0, 4] {
         assert_eq!(
             Sidecar::new()
                 .handle(

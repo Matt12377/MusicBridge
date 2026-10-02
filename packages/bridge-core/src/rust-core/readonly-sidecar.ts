@@ -7,9 +7,17 @@ import {
   isCollectionId, isCollectionModel, isCollectionPage, isCommandOutboxDatasetId, validateIpcRequest,
   validateIpcResponseForCommand, type CollectionFilter, type CollectionModel, type IpcRequest, type Page,
 } from '@music-bridge/contracts';
-import type { DatasetOwnerEndpoint, DatasetOwnerIdentity, DatasetOwnerSnapshotEndpoint } from '../collection/dataset-owner-protocol.js';
+import type { DatasetCollectionSnapshotVersion, DatasetOwnerEndpoint, DatasetOwnerIdentity, DatasetOwnerLargeSnapshotEndpoint, DatasetOwnerSnapshotEndpoint } from '../collection/dataset-owner-protocol.js';
 import { filterCollectionSnapshot, projectCollectionFilter } from './collection-query.js';
 
+export type RustSnapshotProfile = 'v2-2000' | 'v3-5000';
+export const RUST_LARGE_SNAPSHOT_LIMITS = Object.freeze({ models: 5_000, snapshotBytes: 8 * 1024 * 1024,
+  chunkModels: 128, chunkFrameBytes: 1024 * 1024, uploadBytes: 8 * 1024 * 1024 + 64 * 1024 });
+export function validateRustSnapshotProfile(value: unknown): RustSnapshotProfile {
+  if (value === undefined || value === 'v2-2000') return 'v2-2000';
+  if (value === 'v3-5000') return value;
+  throw new RustSidecarError('INVALID_REQUEST');
+}
 export const RUST_SIDECAR_LIMITS = Object.freeze({ frameBytes: 4_194_304, models: 2_000, inflight: 16, sequence: 65_536 });
 const wireCodes = new Set(['INVALID_REQUEST', 'UNSUPPORTED_OPERATION', 'UNSUPPORTED_COMMAND', 'UNSUPPORTED_FILTER',
   'SCOPE_MISMATCH', 'CAPACITY_EXCEEDED', 'NOT_READY', 'CLOSING', 'PROTOCOL_ERROR']);
@@ -41,12 +49,13 @@ export interface RustReadonlyDatasetEndpoint extends DatasetOwnerEndpoint {
 export interface RustReadonlySidecarOptions {
   binary: { path: string; sha256: string };
   snapshot: RustReadonlySnapshot;
+  snapshotProfile?: RustSnapshotProfile;
   requestTimeoutMs?: number;
   closeTimeoutMs?: number;
   onFatal?: (code: RustSidecarErrorCode) => void;
 }
 export interface RustReadonlyOwnerOptions extends Omit<RustReadonlySidecarOptions, 'snapshot'> {
-  owner: DatasetOwnerSnapshotEndpoint;
+  owner: DatasetOwnerSnapshotEndpoint & Partial<Pick<DatasetOwnerLargeSnapshotEndpoint, 'exportLargeVersionedCollectionSnapshot'>>;
   startupTimeoutMs?: number;
 }
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -126,23 +135,25 @@ export function freezeCollectionSnapshot(identity: DatasetOwnerIdentity, complet
     || page.hasMore || page.items.length !== page.total) throw new RustSidecarError('INVALID_REQUEST');
   return copySnapshot({ epoch: source.epoch, datasetId: source.datasetId, snapshotId: randomUUID(), models: page.items });
 }
-function copySnapshot(value: RustReadonlySnapshot): RustReadonlySnapshot {
+function copySnapshot(value: RustReadonlySnapshot, profile: RustSnapshotProfile = 'v2-2000'): RustReadonlySnapshot {
   const copy = jsonCopy(value);
   if (!record(copy) || !exact(copy, ['epoch', 'datasetId', 'snapshotId', 'models'])
     || ![copy.epoch, copy.snapshotId].every(isCollectionId) || !isCommandOutboxDatasetId(copy.datasetId) || !Array.isArray(copy.models)) throw new RustSidecarError('INVALID_REQUEST');
-  if (copy.models.length > RUST_SIDECAR_LIMITS.models) throw new RustSidecarError('CAPACITY_EXCEEDED');
+  if (copy.models.length > (profile === 'v3-5000' ? RUST_LARGE_SNAPSHOT_LIMITS.models : RUST_SIDECAR_LIMITS.models)) throw new RustSidecarError('CAPACITY_EXCEEDED');
   if (!copy.models.every(m => isCollectionModel(m) && typeof m.collectorPolicy === 'string')
     || new Set(copy.models.map(m => m.id)).size !== copy.models.length) throw new RustSidecarError('INVALID_REQUEST');
+  if (profile === 'v3-5000' && Buffer.byteLength(JSON.stringify(copy), 'utf8') > RUST_LARGE_SNAPSHOT_LIMITS.snapshotBytes) throw new RustSidecarError('CAPACITY_EXCEEDED');
   function freeze(v: unknown): void { if (v !== null && typeof v === 'object') { Object.values(v).forEach(freeze); Object.freeze(v); } }
   freeze(copy);
   return copy;
 }
-type Operation = 'prepare' | 'commitBoot' | 'dispatch' | 'close';
+type Operation = 'prepare' | 'appendSnapshot' | 'commitBoot' | 'dispatch' | 'close';
 interface Pending {
   operation: Operation; sequence: number; timer: NodeJS.Timeout;
   deadline: number; sent: boolean;
   resolve(value: unknown): void; reject(error: RustSidecarError): void; promise: Promise<unknown>;
   request?: IpcRequest;
+  append?: { chunkIndex: number; receivedModelCount: number };
 }
 function budget(value: number | undefined, fallback: number): number {
   const result = value ?? fallback;
@@ -173,6 +184,8 @@ export async function createRustReadonlyDatasetEndpointFromOwner(
   onEndpointCreated?: (endpoint: RustReadonlyDatasetEndpoint) => void,
 ): Promise<RustReadonlyDatasetEndpoint> {
   const { owner, startupTimeoutMs, ...sidecarOptions } = options;
+  const profile = validateRustSnapshotProfile(options.snapshotProfile);
+  if (profile === 'v3-5000' && typeof owner.exportLargeVersionedCollectionSnapshot !== 'function') throw new RustSidecarError('SNAPSHOT_UNAVAILABLE');
   const deadline = performance.now() + budget(startupTimeoutMs, 5_000);
   let revoked = false, endpoint: RustReadonlyDatasetEndpoint | undefined;
   const fresh = () => { if (revoked || performance.now() >= deadline) throw new RustSidecarError('TIMEOUT'); };
@@ -182,12 +195,21 @@ export async function createRustReadonlyDatasetEndpointFromOwner(
       fresh(); identity = jsonCopy(await owner.prepare()); fresh();
       if (!record(identity) || !exact(identity, ['epoch', 'datasetId'])
         || !isCollectionId(identity.epoch) || !isCommandOutboxDatasetId(identity.datasetId)) throw new RustSidecarError('SNAPSHOT_UNAVAILABLE');
-      exported = await owner.exportCollectionSnapshot(); fresh();
+      if (profile === 'v3-5000') {
+        const paired = jsonCopy(await owner.exportLargeVersionedCollectionSnapshot!()); fresh();
+        if (!record(paired) || !exact(paired, ['snapshot', 'version'])
+          || !record(paired.version) || !exact(paired.version, ['epoch', 'datasetId', 'revision'])) throw new RustSidecarError('SNAPSHOT_UNAVAILABLE');
+        const version = paired.version as unknown as DatasetCollectionSnapshotVersion;
+        if (!isCollectionId(version.epoch) || !isCommandOutboxDatasetId(version.datasetId)
+          || typeof version.revision !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(version.revision)) throw new RustSidecarError('SNAPSHOT_UNAVAILABLE');
+        exported = paired.snapshot;
+        if (exported.epoch !== version.epoch || exported.datasetId !== version.datasetId) throw new RustSidecarError('SCOPE_MISMATCH');
+      } else { exported = await owner.exportCollectionSnapshot(); fresh(); }
     } catch (error) {
       fresh();
       throw error instanceof RustSidecarError ? error : new RustSidecarError('SNAPSHOT_UNAVAILABLE');
     }
-    const snapshot = copySnapshot(exported); fresh();
+    const snapshot = copySnapshot(exported, profile); fresh();
     if (snapshot.epoch !== identity.epoch || snapshot.datasetId !== identity.datasetId) throw new RustSidecarError('SCOPE_MISMATCH');
     endpoint = createEndpoint({ ...sidecarOptions, snapshot }, deadline);
     onEndpointCreated?.(endpoint);
@@ -211,13 +233,15 @@ export async function createRustReadonlyDatasetEndpointFromOwner(
 }
 
 function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: number): RustReadonlyDatasetEndpoint {
-  const snapshot = copySnapshot(options.snapshot);
+  const profile = validateRustSnapshotProfile(options.snapshotProfile), large = profile === 'v3-5000';
+  const protocolVersion = large ? 3 : 2;
+  const snapshot = copySnapshot(options.snapshot, profile);
   const binary = { ...options.binary };
   const requestTimeout = budget(options.requestTimeoutMs, 5_000), closeTimeout = budget(options.closeTimeoutMs, 5_000);
   let child: ChildProcessWithoutNullStreams | undefined;
   let phase: 'new' | 'starting' | 'prepared' | 'ready' | 'closed' = 'new';
   let failure: RustSidecarError | undefined, closing = false, closeAck = false, exited = false, sequence = 0;
-  let closeDeadline = Infinity;
+  let closeDeadline = Infinity, effectiveStartupDeadline = startupDeadline, uploadBytes = 0;
   let preparePromise: Promise<DatasetOwnerIdentity> | undefined, bootPromise: Promise<void> | undefined, closePromise: Promise<void> | undefined;
   let writeTail = Promise.resolve();
   const pending = new Map<string, Pending>();
@@ -236,11 +260,16 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
   }
   function validateResult(item: Pending, result: unknown): boolean {
     if (item.operation === 'commitBoot' || item.operation === 'close') return result === null;
+    if (item.operation === 'appendSnapshot') {
+      return record(result) && exact(result, ['chunkIndex', 'receivedModelCount'])
+        && result.chunkIndex === item.append!.chunkIndex && result.receivedModelCount === item.append!.receivedModelCount;
+    }
     if (item.operation === 'prepare') {
-      return record(result) && exact(result, ['epoch', 'datasetId', 'snapshotId', 'readOnly', 'capabilities', 'modelCount'])
+      return record(result) && exact(result, ['epoch', 'datasetId', 'snapshotId', 'readOnly', 'capabilities', 'modelCount', ...(large ? ['expectedModelCount'] : [])])
         && result.epoch === snapshot.epoch && result.datasetId === snapshot.datasetId && result.snapshotId === snapshot.snapshotId
         && result.readOnly === true && Array.isArray(result.capabilities) && result.capabilities.length === 1
-        && result.capabilities[0] === 'collection.list' && result.modelCount === snapshot.models.length;
+        && result.capabilities[0] === 'collection.list' && result.modelCount === (large ? 0 : snapshot.models.length)
+        && (!large || result.expectedModelCount === snapshot.models.length);
     }
     const request = item.request!;
     const response = validateIpcResponseForCommand({ version: 1, id: request.id, ok: true, result }, 'collection.list');
@@ -255,7 +284,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
   function receive(value: unknown): void {
     if (failure || !record(value)) { fail('PROTOCOL_ERROR'); return; }
     const common = ['protocolVersion', 'requestId', 'epoch', 'datasetId', 'snapshotId', 'sequence', 'operation', 'ok'];
-    if (!exact(value, [...common, value.ok === true ? 'result' : 'error']) || value.protocolVersion !== 2
+    if (!exact(value, [...common, value.ok === true ? 'result' : 'error']) || value.protocolVersion !== protocolVersion
       || value.epoch !== snapshot.epoch || value.datasetId !== snapshot.datasetId || value.snapshotId !== snapshot.snapshotId
       || typeof value.requestId !== 'string') { fail('PROTOCOL_ERROR'); return; }
     const item = pending.get(value.requestId);
@@ -268,7 +297,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
     clearTimeout(item.timer); pending.delete(value.requestId);
     if (!value.ok) {
       item.reject(new RustSidecarError((value.error as { code: RustSidecarErrorCode }).code));
-      if (item.operation === 'close' || item.operation === 'prepare') fail('PROTOCOL_ERROR');
+      if (item.operation === 'close' || item.operation === 'prepare' || large && (item.operation === 'appendSnapshot' || item.operation === 'commitBoot')) fail('PROTOCOL_ERROR');
       return;
     }
     if (item.operation === 'close') closeAck = true;
@@ -291,9 +320,9 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
     }
   }
   function start(): void {
-    if (performance.now() >= startupDeadline) throw new RustSidecarError('TIMEOUT');
+    if (performance.now() >= effectiveStartupDeadline) throw new RustSidecarError('TIMEOUT');
     checkBinary(binary);
-    if (performance.now() >= startupDeadline) throw new RustSidecarError('TIMEOUT');
+    if (performance.now() >= effectiveStartupDeadline) throw new RustSidecarError('TIMEOUT');
     child = childProcess.spawn(binary.path, [], {
       shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
       cwd: path.dirname(binary.path), env: { LANG: 'C.UTF-8' },
@@ -313,22 +342,26 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
       } else fail('PROCESS_EXIT');
     });
   }
-  function rpc(operation: Operation, payload: unknown, request?: IpcRequest): Promise<unknown> {
+  function rpc(operation: Operation, payload: unknown, request?: IpcRequest, append?: Pending['append']): Promise<unknown> {
     if (failure) return Promise.reject(failure);
     if (pending.size >= RUST_SIDECAR_LIMITS.inflight || sequence >= RUST_SIDECAR_LIMITS.sequence - (operation === 'close' ? 0 : 1)) return Promise.reject(new RustSidecarError('CAPACITY_EXCEEDED'));
     const requestId = randomUUID(), nextSequence = sequence + 1;
-    const frame = Buffer.from(JSON.stringify({ protocolVersion: 2, requestId, epoch: snapshot.epoch, datasetId: snapshot.datasetId,
+    const frame = Buffer.from(JSON.stringify({ protocolVersion, requestId, epoch: snapshot.epoch, datasetId: snapshot.datasetId,
       snapshotId: snapshot.snapshotId, sequence: nextSequence, operation, payload }) + '\n');
     if (frame.length - 1 > RUST_SIDECAR_LIMITS.frameBytes) return Promise.reject(new RustSidecarError('CAPACITY_EXCEEDED'));
+    if (operation === 'appendSnapshot') {
+      if (frame.length - 1 > RUST_LARGE_SNAPSHOT_LIMITS.chunkFrameBytes || uploadBytes + frame.length > RUST_LARGE_SNAPSHOT_LIMITS.uploadBytes) return Promise.reject(new RustSidecarError('CAPACITY_EXCEEDED'));
+      uploadBytes += frame.length;
+    }
     sequence = nextSequence;
     let resolve!: Pending['resolve'], reject!: Pending['reject'];
     const promise = new Promise<unknown>((yes, no) => { resolve = yes; reject = no; });
     void promise.catch(() => {});
     const timeout = operation === 'close' ? closeDeadline - performance.now()
-      : operation === 'prepare' || operation === 'commitBoot' ? Math.min(requestTimeout, startupDeadline - performance.now()) : requestTimeout;
+      : operation === 'prepare' || operation === 'appendSnapshot' || operation === 'commitBoot' ? Math.min(requestTimeout, effectiveStartupDeadline - performance.now()) : requestTimeout;
     if (timeout <= 0) { fail('TIMEOUT'); reject(failure!); return promise; }
     const timer = setTimeout(() => fail('TIMEOUT'), timeout);
-    const item: Pending = { operation, sequence, resolve, reject, timer, promise, deadline: performance.now() + timeout, sent: false, ...(request ? { request } : {}) };
+    const item: Pending = { operation, sequence, resolve, reject, timer, promise, deadline: performance.now() + timeout, sent: false, ...(request ? { request } : {}), ...(append ? { append } : {}) };
     pending.set(requestId, item);
     writeTail = writeTail.then(() => new Promise<void>((yes, no) => {
       if (failure || !child || exited) { no(failure ?? new RustSidecarError('PROCESS_EXIT')); return; }
@@ -347,8 +380,24 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
       if (preparePromise) return preparePromise;
       phase = 'starting';
       preparePromise = (async () => {
-        try { start(); await rpc('prepare', { models: snapshot.models }); if (failure) throw failure; phase = 'prepared'; return { epoch: snapshot.epoch, datasetId: snapshot.datasetId }; }
-        catch (error) { fail(error instanceof RustSidecarError ? error.code : 'PROCESS_EXIT'); throw failure!; }
+        try {
+          if (large && effectiveStartupDeadline === Infinity) effectiveStartupDeadline = performance.now() + requestTimeout;
+          start();
+          await rpc('prepare', large ? { modelCount: snapshot.models.length } : { models: snapshot.models });
+          if (large) {
+            for (let offset = 0, chunkIndex = 0; offset < snapshot.models.length; offset += RUST_LARGE_SNAPSHOT_LIMITS.chunkModels, chunkIndex++) {
+              if (closing) throw new RustSidecarError('CLOSING');
+              const models = snapshot.models.slice(offset, offset + RUST_LARGE_SNAPSHOT_LIMITS.chunkModels);
+              await rpc('appendSnapshot', { chunkIndex, models }, undefined, { chunkIndex, receivedModelCount: offset + models.length });
+            }
+            if (closing) throw new RustSidecarError('CLOSING');
+          }
+          if (failure) throw failure;
+          phase = 'prepared'; return { epoch: snapshot.epoch, datasetId: snapshot.datasetId };
+        } catch (error) {
+          if (large && closing && error instanceof RustSidecarError && error.code === 'CLOSING' && !failure) throw error;
+          fail(error instanceof RustSidecarError ? error.code : 'PROCESS_EXIT'); throw failure!;
+        }
       })();
       return preparePromise;
     },
@@ -357,7 +406,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
       if (closing || phase === 'closed') return Promise.reject(new RustSidecarError('CLOSING'));
       if (bootPromise) return bootPromise;
       if (phase !== 'prepared') return Promise.reject(new RustSidecarError('NOT_READY'));
-      bootPromise = rpc('commitBoot', {}).then(() => { if (failure) throw failure; phase = 'ready'; });
+      bootPromise = rpc('commitBoot', {}).then(() => { if (failure) throw failure; if (large && closing) throw new RustSidecarError('CLOSING'); phase = 'ready'; });
       return bootPromise;
     },
     async dispatch(input) {
@@ -383,8 +432,13 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
         if (phase === 'new' && !failure) { phase = 'closed'; return; }
         const timer = setTimeout(() => fail('TIMEOUT'), closeTimeout);
         try {
-          if (preparePromise) await preparePromise;
-          if (bootPromise) await bootPromise;
+          const waitStartup = async (promise: Promise<unknown>) => {
+            try { await promise; } catch (error) {
+              if (!(large && error instanceof RustSidecarError && error.code === 'CLOSING' && !failure)) throw error;
+            }
+          };
+          if (preparePromise) await waitStartup(preparePromise);
+          if (bootPromise) await waitStartup(bootPromise);
           await Promise.allSettled([...pending.values()].map(item => item.promise));
           if (failure) throw failure;
           if (performance.now() >= closeDeadline) throw new RustSidecarError('TIMEOUT');

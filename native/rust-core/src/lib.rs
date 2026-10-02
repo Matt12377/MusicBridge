@@ -1,4 +1,4 @@
-//! 仅持有调用方提供的公开收藏快照，支持 v1 分页与 v2 筛选，不访问文件、网络或设备。
+//! 仅持有调用方提供的公开收藏快照，支持 v1 分页、v2 筛选与 v3 分块，不访问文件、网络或设备。
 use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{Map, Value, json};
 use std::collections::HashSet;
@@ -7,6 +7,12 @@ use std::io::{self, BufRead, Write};
 
 pub const MAX_FRAME_BYTES: usize = 4_194_304;
 pub const MAX_MODELS: usize = 2_000;
+pub const MAX_LARGE_MODELS: usize = 5_000;
+pub const SNAPSHOT_CHUNK_MODELS: usize = 128;
+pub const MAX_SNAPSHOT_CHUNKS: usize = 40;
+pub const MAX_APPEND_FRAME_BYTES: usize = 1024 * 1024;
+pub const MAX_LARGE_SNAPSHOT_BYTES: usize = 8 * 1024 * 1024;
+pub const MAX_APPEND_INPUT_BYTES: usize = MAX_LARGE_SNAPSHOT_BYTES + 64 * 1024;
 pub const MAX_REQUESTS: usize = 65_536;
 const MAX_PROJECTION_BYTES: usize = 8_192;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
@@ -246,10 +252,36 @@ fn parse(frame: &[u8]) -> Result<Value, ErrorCode> {
         .map_err(|_| ErrorCode::ProtocolError)
 }
 
+// DTO 的数值均是有界非负整数；按 JSON.stringify 的规范整数编码计算完整快照预算。
+fn canonical_bytes(value: &Value) -> Result<usize, ErrorCode> {
+    fn normalize(value: &mut Value) {
+        match value {
+            Value::Number(n) => {
+                if let Some(integer) = n.as_f64().filter(|n| n.fract() == 0.0) {
+                    *value = Value::from(integer as u64);
+                }
+            }
+            Value::Array(values) => values.iter_mut().for_each(normalize),
+            Value::Object(values) => values.values_mut().for_each(normalize),
+            _ => {}
+        }
+    }
+    let mut normalized = value.clone();
+    normalize(&mut normalized);
+    serde_json::to_vec(&normalized)
+        .map(|bytes| bytes.len())
+        .map_err(|_| ErrorCode::ProtocolError)
+}
+
 pub struct Sidecar {
     identity: Option<(Value, Value, Value)>,
     protocol_version: Option<u64>,
     models: Vec<Value>,
+    expected_model_count: Option<usize>,
+    next_chunk_index: usize,
+    append_input_bytes: usize,
+    snapshot_bytes: usize,
+    model_ids: HashSet<String>,
     next_sequence: u64,
     requests: HashSet<String>,
     ready: bool,
@@ -261,6 +293,11 @@ impl Default for Sidecar {
             identity: None,
             protocol_version: None,
             models: Vec::new(),
+            expected_model_count: None,
+            next_chunk_index: 0,
+            append_input_bytes: 0,
+            snapshot_bytes: 0,
+            model_ids: HashSet::new(),
             next_sequence: 1,
             requests: HashSet::new(),
             ready: false,
@@ -285,6 +322,11 @@ impl Sidecar {
         if outcome.as_ref().map_or(true, |reply| reply.exit) {
             self.closed = true;
             self.models.clear();
+            self.model_ids.clear();
+            self.expected_model_count = None;
+            self.next_chunk_index = 0;
+            self.append_input_bytes = 0;
+            self.snapshot_bytes = 0;
             self.identity = None;
         }
         outcome
@@ -307,14 +349,14 @@ impl Sidecar {
             "operation",
             "payload",
         ];
-        let protocol_version = integer(&v["protocolVersion"], 1, 2);
+        let protocol_version = integer(&v["protocolVersion"], 1, 3);
         if !keys(&v, &envelope)
             || v.as_object().is_none_or(|o| o.len() != envelope.len())
             || protocol_version.is_none()
             || !["requestId", "epoch", "snapshotId"]
                 .iter()
                 .all(|k| uuid(&v[k], true, false))
-            || !uuid(&v["datasetId"], protocol_version != Some(2), false)
+            || !uuid(&v["datasetId"], protocol_version == Some(1), false)
             || integer(&v["sequence"], 1, MAX_SAFE_INTEGER).is_none()
             || !text(&v["operation"], false, 64)
             || !v["payload"].is_object()
@@ -350,7 +392,9 @@ impl Sidecar {
         let payload = &v["payload"];
         let result = match v["operation"].as_str().unwrap() {
             "prepare" => {
-                if self.identity.is_some()
+                if protocol_version == 3 {
+                    self.prepare_manifest(&v)
+                } else if self.identity.is_some()
                     || !keys(payload, &["models"])
                     || !payload["models"].is_array()
                 {
@@ -380,11 +424,16 @@ impl Sidecar {
                     }
                 }
             }
+            "appendSnapshot" if protocol_version == 3 => self.append_snapshot(payload, frame.len()),
             "commitBoot" => {
                 if !keys(payload, &[]) {
                     Err(ErrorCode::InvalidRequest)
                 } else if self.identity.is_none() {
                     Err(ErrorCode::NotReady)
+                } else if protocol_version == 3
+                    && (self.ready || self.expected_model_count != Some(self.models.len()))
+                {
+                    Err(ErrorCode::InvalidRequest)
                 } else {
                     self.ready = true;
                     Ok(Value::Null)
@@ -409,7 +458,83 @@ impl Sidecar {
             }
             _ => Err(ErrorCode::UnsupportedOperation),
         };
-        Ok(self.reply(&v, result, self.closed))
+        // v3 启动失败必须退出并由 handle 清理部分事实；已提交查询沿用 v2 的非 fatal 回执。
+        let exit = self.closed
+            || (protocol_version == 3
+                && result.is_err()
+                && (!self.ready
+                    || matches!(
+                        v["operation"].as_str(),
+                        Some("prepare" | "appendSnapshot" | "commitBoot")
+                    )));
+        Ok(self.reply(&v, result, exit))
+    }
+    fn prepare_manifest(&mut self, v: &Value) -> Result<Value, ErrorCode> {
+        let payload = &v["payload"];
+        if self.identity.is_some() || !keys(payload, &["modelCount"]) {
+            return Err(ErrorCode::InvalidRequest);
+        }
+        let count = integer(&payload["modelCount"], 0, MAX_SAFE_INTEGER)
+            .ok_or(ErrorCode::InvalidRequest)?;
+        if count > MAX_LARGE_MODELS as u64 {
+            return Err(ErrorCode::CapacityExceeded);
+        }
+        self.snapshot_bytes = canonical_bytes(&json!({
+            "epoch": v["epoch"], "datasetId": v["datasetId"],
+            "snapshotId": v["snapshotId"], "models": []
+        }))?;
+        self.expected_model_count = Some(count as usize);
+        self.protocol_version = Some(3);
+        self.identity = Some((
+            v["epoch"].clone(),
+            v["datasetId"].clone(),
+            v["snapshotId"].clone(),
+        ));
+        Ok(
+            json!({"epoch": v["epoch"], "datasetId": v["datasetId"], "snapshotId": v["snapshotId"],
+            "readOnly": true, "capabilities": ["collection.list"], "modelCount": 0, "expectedModelCount": count}),
+        )
+    }
+    fn append_snapshot(&mut self, payload: &Value, frame_bytes: usize) -> Result<Value, ErrorCode> {
+        if self.ready || !keys(payload, &["chunkIndex", "models"]) {
+            return Err(ErrorCode::InvalidRequest);
+        }
+        let expected = self.expected_model_count.ok_or(ErrorCode::NotReady)?;
+        let chunk_index = integer(&payload["chunkIndex"], 0, MAX_SAFE_INTEGER)
+            .ok_or(ErrorCode::InvalidRequest)?;
+        let models = payload["models"]
+            .as_array()
+            .ok_or(ErrorCode::InvalidRequest)?;
+        if chunk_index != self.next_chunk_index as u64
+            || self.next_chunk_index >= MAX_SNAPSHOT_CHUNKS
+            || self.models.len() == expected
+            || models.len() != SNAPSHOT_CHUNK_MODELS.min(expected - self.models.len())
+        {
+            return Err(ErrorCode::InvalidRequest);
+        }
+        let input_bytes = self.append_input_bytes + frame_bytes + 1;
+        if frame_bytes > MAX_APPEND_FRAME_BYTES || input_bytes > MAX_APPEND_INPUT_BYTES {
+            return Err(ErrorCode::CapacityExceeded);
+        }
+        let mut snapshot_bytes = self.snapshot_bytes;
+        for (i, model) in models.iter().enumerate() {
+            if !is_collection_model(model)
+                || !self
+                    .model_ids
+                    .insert(model["id"].as_str().unwrap().to_owned())
+            {
+                return Err(ErrorCode::InvalidRequest);
+            }
+            snapshot_bytes += canonical_bytes(model)? + usize::from(self.models.len() + i > 0);
+            if snapshot_bytes > MAX_LARGE_SNAPSHOT_BYTES {
+                return Err(ErrorCode::CapacityExceeded);
+            }
+        }
+        self.models.extend_from_slice(models);
+        self.snapshot_bytes = snapshot_bytes;
+        self.append_input_bytes = input_bytes;
+        self.next_chunk_index += 1;
+        Ok(json!({"chunkIndex": chunk_index, "receivedModelCount": self.models.len()}))
     }
     fn reply(&self, v: &Value, result: Result<Value, ErrorCode>, exit: bool) -> Reply {
         let mut response = Map::new();
@@ -441,7 +566,7 @@ impl Sidecar {
         }
     }
     fn dispatch(&self, payload: &Value) -> Result<Value, ErrorCode> {
-        let filtered = self.protocol_version == Some(2);
+        let filtered = matches!(self.protocol_version, Some(2 | 3));
         if !keys(
             payload,
             if filtered {
@@ -608,7 +733,9 @@ pub fn run<R: BufRead, W: Write>(mut input: R, mut output: W) -> Result<(), Erro
         // fill_buf/consume 在追加前检查上限，避免 read_until 为超大帧无限分配。
         let chunk = input.fill_buf().map_err(|_| ErrorCode::ProtocolError)?;
         if chunk.is_empty() {
-            return if frame.is_empty() {
+            return if frame.is_empty()
+                && !(sidecar.protocol_version == Some(3) && !sidecar.ready && !sidecar.closed)
+            {
                 Ok(())
             } else {
                 Err(ErrorCode::ProtocolError)

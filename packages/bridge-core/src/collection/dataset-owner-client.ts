@@ -4,9 +4,9 @@ import type { IpcCommand, IpcRequest } from '@music-bridge/contracts';
 import { failureForError, responseFailure } from '../shared/ipc-failure.js';
 import {
   DATASET_OWNER_PROTOCOL_VERSION, DatasetOwnerDispatchError, DatasetOwnerTransportError,
-  isDatasetCollectionSnapshot, isDatasetCollectionSnapshotVersion, isDatasetVersionedCollectionSnapshot, isDatasetOwnerFailure, isDatasetOwnerIdentity, isDatasetOwnerProjectionRequest, isDatasetOwnerResponse,
+  isDatasetCollectionSnapshot, isDatasetCollectionSnapshotVersion, isDatasetVersionedCollectionSnapshot, isDatasetLargeVersionedCollectionSnapshot, isDatasetOwnerFailure, isDatasetOwnerIdentity, isDatasetOwnerProjectionRequest, isDatasetOwnerResponse,
   isDatasetProjectionResult, isDatasetRequestEnvelope, ownerRecord,
-  type DatasetCollectionSnapshot, type DatasetCollectionSnapshotVersion, type DatasetVersionedCollectionSnapshot, type DatasetOwnerVersionedSnapshotEndpoint, type DatasetOwnerFatalReason, type DatasetOwnerIdentity,
+  type DatasetCollectionSnapshot, type DatasetCollectionSnapshotVersion, type DatasetVersionedCollectionSnapshot, type DatasetOwnerLargeSnapshotEndpoint, type DatasetOwnerFatalReason, type DatasetOwnerIdentity,
   type DatasetOwnerOperation, type DatasetOwnerProjectionHandler,
   type DatasetOwnerProjectionRequest, type DatasetOwnerProjectionResponse, type DatasetOwnerRequest,
 } from './dataset-owner-protocol.js';
@@ -27,7 +27,7 @@ export interface DatasetOwnerClientOptions {
 }
 
 // 只持有线程端口与窄投影；连接失败后保留原命令身份，不创建数据库或自动重放。
-export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): DatasetOwnerVersionedSnapshotEndpoint {
+export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): DatasetOwnerLargeSnapshotEndpoint {
   const { worker } = options;
   const epoch = randomUUID();
   const pending = new Map<string, PendingRequest>();
@@ -115,10 +115,11 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     if (message.ok && message.operation === 'getCollectionSnapshotVersion') {
       if (!isDatasetCollectionSnapshotVersion(message.result) || message.result.epoch !== epoch || message.result.datasetId !== identity?.datasetId) { fatal('protocol-failure'); return; }
     }
-    if (message.ok && (message.operation === 'exportCollectionSnapshot' || message.operation === 'exportVersionedCollectionSnapshot')) {
+    if (message.ok && (message.operation === 'exportCollectionSnapshot' || message.operation === 'exportVersionedCollectionSnapshot' || message.operation === 'exportLargeVersionedCollectionSnapshot')) {
       let snapshot: DatasetCollectionSnapshot;
-      if (message.operation === 'exportVersionedCollectionSnapshot') {
-        if (!isDatasetVersionedCollectionSnapshot(message.result)) { fatal('protocol-failure'); return; }
+      if (message.operation === 'exportVersionedCollectionSnapshot' || message.operation === 'exportLargeVersionedCollectionSnapshot') {
+        const valid = message.operation === 'exportLargeVersionedCollectionSnapshot' ? isDatasetLargeVersionedCollectionSnapshot : isDatasetVersionedCollectionSnapshot;
+        if (!valid(message.result)) { fatal('protocol-failure'); return; }
         snapshot = message.result.snapshot;
       } else {
         if (!isDatasetCollectionSnapshot(message.result)) { fatal('protocol-failure'); return; }
@@ -182,6 +183,11 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
       if (identity === undefined || !bootCommitted || exporting || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
       exporting = true;
       return rpc('exportVersionedCollectionSnapshot', undefined, identity.datasetId).then(value => value as DatasetVersionedCollectionSnapshot).finally(() => { exporting = false; });
+    },
+    exportLargeVersionedCollectionSnapshot() {
+      if (identity === undefined || !bootCommitted || exporting || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
+      exporting = true;
+      return rpc('exportLargeVersionedCollectionSnapshot', undefined, identity.datasetId).then(value => value as DatasetVersionedCollectionSnapshot).finally(() => { exporting = false; });
     },
     close() {
       if (closure !== undefined) return closure;

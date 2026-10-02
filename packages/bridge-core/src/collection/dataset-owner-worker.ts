@@ -4,7 +4,7 @@ import { validateIpcRequest, type IpcCommand, type IpcFailure } from '@music-bri
 import { failureForError, responseFailure } from '../shared/ipc-failure.js';
 import {
   DATASET_OWNER_PROTOCOL_VERSION, DatasetOwnerDispatchError, DatasetOwnerTransportError,
-  isDatasetCollectionSnapshot, isDatasetOwnerFailure, isDatasetOwnerIdentity, isDatasetOwnerProjectionResponse, isDatasetOwnerRequest,
+  isDatasetCollectionSnapshot, isDatasetLargeCollectionSnapshot, isDatasetOwnerFailure, isDatasetOwnerIdentity, isDatasetOwnerProjectionResponse, isDatasetOwnerRequest,
   isDatasetProjectionPayload, isDatasetProjectionResult, ownerRecord,
   type DatasetOwnerProjectionRequest, type DatasetOwnerRequest, type DatasetOwnerResponse,
   type DatasetProjectionCommand, type DatasetProjectionCommandPayloads, type DatasetProjectionCommandResults,
@@ -169,10 +169,11 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
       catch (error) { reject(request, error); }
       return;
     }
-    if (request.operation === 'getCollectionSnapshotVersion' || request.operation === 'exportVersionedCollectionSnapshot') {
+    if (request.operation === 'getCollectionSnapshotVersion' || request.operation === 'exportVersionedCollectionSnapshot' || request.operation === 'exportLargeVersionedCollectionSnapshot') {
       try {
+        const exportModels = request.operation === 'exportLargeVersionedCollectionSnapshot' ? domain.exportLargeCollectionModels : domain.exportCollectionModels;
         if (!bootCommitted || snapshotRevision === undefined || domain.readonlySnapshotStamp === undefined
-          || (request.operation === 'exportVersionedCollectionSnapshot' && domain.exportCollectionModels === undefined)) {
+          || (request.operation !== 'getCollectionSnapshotVersion' && exportModels === undefined)) {
           throw new DatasetOwnerDispatchError(responseFailure(request.requestId, 'NOT_READY', '收藏快照版本尚未就绪。'));
         }
         if (request.expectedDatasetId !== boundDatasetId || domain.datasetId !== boundDatasetId) throw new DatasetOwnerDispatchError(responseFailure(request.requestId, 'OUTBOX_SCOPE_MISMATCH', '收藏快照不属于当前工作库。'));
@@ -180,11 +181,12 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
         observeSnapshotStamp(before);
         const version = { epoch: request.epoch, datasetId: boundDatasetId!, revision: snapshotRevision! };
         if (request.operation === 'getCollectionSnapshotVersion') { reply(request, version); return; }
-        const models = domain.exportCollectionModels!();
+        const models = exportModels!.call(domain);
         const snapshot = { epoch: request.epoch, datasetId: boundDatasetId!, snapshotId: randomUUID(), models };
         const after = readSnapshotStamp();
         observeSnapshotStamp(after);
-        if (!sameStamp(before, after) || !isDatasetCollectionSnapshot(snapshot)) throw new DatasetOwnerDispatchError(responseFailure(request.requestId, 'INVENTORY_UNAVAILABLE', '收藏快照导出期间已经改变或超过当前预算。'));
+        const validSnapshot = request.operation === 'exportLargeVersionedCollectionSnapshot' ? isDatasetLargeCollectionSnapshot : isDatasetCollectionSnapshot;
+        if (!sameStamp(before, after) || !validSnapshot(snapshot)) throw new DatasetOwnerDispatchError(responseFailure(request.requestId, 'INVENTORY_UNAVAILABLE', '收藏快照导出期间已经改变或超过当前预算。'));
         reply(request, { snapshot, version });
       } catch (error) { reject(request, error); }
       return;
