@@ -1,0 +1,41 @@
+name: Rust Core 只读原型
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-core:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      RUSTUP_TOOLCHAIN: '1.95.0'
+      MUSIC_BRIDGE_RUST_GATE_DIR: ${{ runner.temp }}/musicbridge-rust-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+      - name: 安装固定 Rust 工具链
+        run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
+      - name: 安装冻结工作区依赖
+        run: corepack pnpm@10.17.1 install --frozen-lockfile --ignore-scripts
+      - name: 验证实际 Rust 与 TypeScript 边界
+        run: corepack pnpm@10.17.1 run verify:rust
+      - name: 保留编译器、测试及源码与二进制清单
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-core-${{ matrix.os }}-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/musicbridge-rust-core/**/*.json
+            ${{ runner.temp }}/musicbridge-rust-core/**/*.log
+          if-no-files-found: warn
+          retention-days: 14

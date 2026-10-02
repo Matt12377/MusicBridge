@@ -69,9 +69,10 @@ if (!config.includes("streamHost !== '127.0.0.1' && streamHost !== '::1'")) fail
 
 const productFiles = [
   ...walk(path.join(root, 'packages/bridge-core/src')),
+  ...walk(path.join(root, 'native/rust-core/src')),
   ...walk(path.join(root, 'apps/desktop/src')),
   ...walk(path.join(root, 'scripts/deploy')),
-].filter((file) => /\.(ts|vue|js|mjs|sh)$/.test(file))
+].filter((file) => /\.(ts|vue|js|mjs|sh|rs)$/.test(file))
 for (const file of productFiles) {
   const relative = path.relative(root, file)
   const content = fs.readFileSync(file, 'utf8')
@@ -94,6 +95,7 @@ const workflows = [
   '.github/workflows/verify.yml',
   '.github/workflows/security.yml',
   '.github/workflows/electron-e2e.yml',
+  '.github/workflows/rust-core.yml',
 ]
 for (const relative of workflows) {
   const content = text(relative)

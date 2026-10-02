@@ -16,6 +16,7 @@
     "test:electron": "corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:electron",
     "test:e2e": "corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:e2e",
     "verify": "corepack pnpm@10.17.1 run typecheck && corepack pnpm@10.17.1 run test && corepack pnpm@10.17.1 run build",
+    "verify:rust": "node scripts/ci/verify-rust-core.mjs",
     "dev": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run dev",
     "start": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run start",
     "doctor": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run doctor",

@@ -121,3 +121,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [MBR-003](MBR-003-runtime-playback-roon.md)：Owner 2026-10-02 运行问题修复，基线 `e2eac26`、实现 `cc742c0`；快速歌单替换、Roon SDK 回调读取归属及取消 UI 修复。新鲜软件类型 / 原全量单元 / 静态 Gate 通过，结果见 [报告](../reports/MBR-003_RUNTIME_PLAYBACK_ROON.md)。真实网易云 / Roon 恢复、远端 CI、安装与发布待验。
 
 - [MBR-004](MBR-004-playback-read-tracing.md)：Owner 复测 MBR-003 后仍遇快切失败与 Roon 读取取消，授权继续修复。基线 `dbece1c`；修复冷队列请求争抢与旧补全，并在开发版逐请求追踪 `library:read`。软件门禁、真实服务恢复与发布分别记录，结果见 [报告](../reports/MBR-004_PLAYBACK_READ_TRACING.md)。
+
+- [RUST-001](RUST-001-readonly-sidecar.md)：Owner 已放行 Rust Core 第一阶段，从 MBR-004 最终报告 `2392b8f` 接续；冻结私有进程合同，接入显式可选的只读收藏快照端点，以真实 Rust 二进制完成差分和生命周期 Gate。生产默认仍使用 Node，数据库写入、真实迁移和安装发布均未准入；结果见 [报告](../reports/RUST-001_READONLY_SIDECAR.md)。后续 Rust 扩展须另立任务范围，不自动放行。

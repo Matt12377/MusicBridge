@@ -3105,5 +3105,99 @@
       "lsRemoteExitCode": 2,
       "pushed": false
     }
+  },
+  "rustCoreReadonly20261002": {
+    "task": "RUST-001",
+    "branch": "codex/rust-core-001-readonly-sidecar",
+    "baseCommit": "2392b8f69836f02e39ce58f6e6e6e2563c6cc5d4",
+    "state": "local-software-gates-passed-readonly-prototype",
+    "ownerAuthorization": "actual-development-after-MusicBridge-V3.7-completion-first-stage-readonly-sidecar",
+    "implementationCommit": null,
+    "implementationCommitResolution": "git-log-last-commit-touching-native/rust-core/src/lib.rs",
+    "report": "reports/RUST-001_READONLY_SIDECAR.md",
+    "evidence": "reports/RUST-001_EVIDENCE.json",
+    "reportCommit": null,
+    "reportCommitResolution": "git-log-last-commit-touching-reports/RUST-001_READONLY_SIDECAR.md",
+    "nextBranchBaseResolution": "final-RUST-001-report-HEAD-subject-to-next-scope-authorization",
+    "productionDefault": "Node",
+    "readonlyCommands": [
+      "collection.list"
+    ],
+    "nodeDatabaseWriteOwnerUnchanged": true,
+    "atomicLiveLargeLibraryExport": "NOT_IMPLEMENTED",
+    "snapshotExportHelperCompletePageLimit": 100,
+    "explicitSnapshotModelLimit": 2000,
+    "protocol": "docs/contracts/rust-readonly-sidecar-v1.md",
+    "validation": {
+      "rustGateExitCode": 0,
+      "rustPassed": 16,
+      "tsFaultPassed": 25,
+      "actualRustIntegrationPassed": 5,
+      "actualRustIntegrationSkipped": 0,
+      "finalTypecheckExitCode": 0,
+      "coreFullFinal": "PASS",
+      "contractsPassed": 254,
+      "corePassed": 2032,
+      "desktopPassed": 1239,
+      "unitPassed": 3525,
+      "unitFailed": 0,
+      "originalNativeConditionalSkips": 2,
+      "addedSkips": 0,
+      "fullUnitExitCode": 0,
+      "productionBuildExitCode": 0,
+      "controlPlaneExitCode": 0,
+      "boundariesExitCode": 0,
+      "cyclesExitCode": 0,
+      "diffCheckExitCode": 0,
+      "rustSourceStable": true,
+      "softwareSourceStable": true
+    },
+    "agentPolicy": {
+      "primaryModel": "gpt-6.1-sol",
+      "primaryReasoningEffort": "max",
+      "subagentModel": "gpt-6.1-sol",
+      "subagentReasoningEffort": "high",
+      "maximumSubagents": 4,
+      "actualDevelopmentAndReviewAgents": 4,
+      "execution": "batched-platform-concurrency-limit",
+      "forbiddenModels": [
+        "gpt-6-sol"
+      ]
+    },
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F",
+    "realProviderRoonAcceptance": "NOT_RUN",
+    "realRecording": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "fullElectronE2E": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "realUserMigration": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "carryover": [
+      "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
+      "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
+    ],
+    "rootUntrackedPreserved": [
+      "apps/desktop/test-results/",
+      "worktree/"
+    ],
+    "heartbeat": "musicbridge-v3-7-rust-core-PAUSED-after-development-takeover",
+    "binarySha256": "0d8bc499c06f05b7efcd70f47b4dee6450cc0ae83cc1fb0a45877826ec6e0465",
+    "rustManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate/run-RB1E0i/manifest.json",
+    "remoteBranchSnapshot": {
+      "branch": "codex/rust-core-001-readonly-sidecar",
+      "argv": [
+        "git",
+        "ls-remote",
+        "--exit-code",
+        "--heads",
+        "origin",
+        "refs/heads/codex/rust-core-001-readonly-sidecar"
+      ],
+      "exitCode": 2,
+      "matchingRefs": [],
+      "pushed": false
+    }
   }
 }

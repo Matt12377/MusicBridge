@@ -22,3 +22,11 @@ WAVE-2 历史风险保留在 `docs/07_RISK_REGISTER.md`。本文件只登记 V1 
 | R-021 | TASK073实际应用包正常Quit在纠正探针后仍15秒超时，仅Main残留 | 旧失败与既有清理证据保留；TASK078新包无CDP普通Quit复现15秒FAIL：Core exit0、print/outbox已收口，will-quit后Main等待；采样见系统钥匙串调用，原因未关闭。TERM5秒未close，后续PID消失但最终码未知；新隔离候选包两种mock-keychain普通Quit均code0/close且无持有进程残留，只是软件依赖隔离证据；不放松Fuses/sender，不将晚消失当PASS | 独立取得退出阶段/主线程根因证据，修复后实际包正常child close为code0且无强制信号；关闭前不宣称正常退出或发布验收通过 |
 | R-022 | 隔离FakeDriver的join/静止保证不能直接移植为真实HAL保证 | 新生命周期内核不链接应用或现有helper；Driver须封闭新派发并等待全部回调，超时不释放；只报告合成76断言及sanitizer证据 | 明确真实设备与配置/故障操作授权，实现并核验实际HAL屏障，按Gate B独立测量输出端无声及停止时限；不能用ACK、进程退出或源码编译代替 |
 | R-023 | Attempt/Record/Print 历史与对象闭包累计增长可能拖慢停止、检索、冷启和恢复 | TASK078已完成有界对象证书、receipt/预算增量校验与完整回退：history-limit正式generation/measure/queued-stop通过，objects-small cold/backup/full-recovery/queued-stop及Print write通过；10/25/50 objects非正式阶梯近线性。正式objects-limit window-02按“计划写入+10GiB余量”准入时短缺7,007,517,084B，未签发且不重放旧窗口；joint正式窗口继续等待。全部软件结果不冒充真实driver或输出端测量 | 提供安全存储准入后按新UUID顺序完成objects-limit generation/measure/queued-stop与joint正式窗口；真实设备接入后独立执行Gate B，不以软件ACK/close替代输出端停止 |
+
+## Rust Core 原型风险
+
+| ID | 风险 | 当前控制 | 后续准入条件 |
+|---|---|---|---|
+| R-024 | 多次分页拼接会混入不同时间的库存事实，旧快照也不能代表实时库 | RUST-001 只接受显式完整数组或一次完整公开页，使用独立 snapshotId；Node 后续写入不改变 Rust 快照；完整页帮助函数受现有每页 100 型号上限约束 | 扩展活跃大库读取前，建立 Node Owner 的原子导出或版本绑定合同及真实规模证据，不以合成 2,000 型号输入冒称完成全量实时导出 |
+| R-025 | 跨语言 JSON 往返或迟到回执改变事实/生命周期判断 | 固定顺序和 DTO，严格 JSON/枚举/Unicode 子集，负零归一化；身份、单调期限、序列及预算围栏；ACK 与自然退出共同决定关闭成功 | 扩展新命令前补齐实际 Rust 二进制差分、异常和关闭证据；写入迁移另行证明事务、幂等与 unknown 语义 |
+| R-026 | 开发二进制 pin 被误认作应用分发或 OS 权限隔离 | 显式绝对路径/SHA-256、无继承凭据环境；源码没有文件/网络/数据库能力，生产默认未接入；仅记录合成软件 Gate | 默认启用或打包前另行验证包内资源、签名、平台权限及安装；本期不宣称 OS 沙盒、真实账号/设备或 Owner 验收通过 |
