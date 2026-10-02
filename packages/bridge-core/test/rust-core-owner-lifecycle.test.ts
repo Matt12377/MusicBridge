@@ -176,10 +176,15 @@ test('router创建中的版本探测迟到不能启动child，关闭消费创建
 
 test('末次版本探测迟到越过整体期限时清理已boot候选，不能发布ready', async t => {
   const s = source(), f = spawnFake(t), held = deferred<DatasetCollectionSnapshotVersion>();
-  s.owner.getCollectionSnapshotVersion = () => ++s.calls.probes === 1 ? Promise.resolve(s.version) : held.promise;
+  // 刷新前锁定新增一次探测；按候选实际 boot 阶段挂起末次探测，避免借用调用序号。
+  s.owner.getCollectionSnapshotVersion = () => {
+    s.calls.probes++;
+    return f.frames.some(frame => frame.operation === 'commitBoot') ? held.promise : Promise.resolve(s.version);
+  };
   const core = createRustReadonlyCoreDatasetOwner(s.owner, { binary, startupTimeoutMs: 500 });
   await assert.rejects(core.commitBoot(), code('TIMEOUT'));
-  assert.equal(s.calls.probes, 2); assert.equal(f.spawn.mock.callCount(), 1);
+  assert.equal(s.calls.probes, 3); assert.equal(f.spawn.mock.callCount(), 1);
+  assert.equal(f.frames.filter(frame => frame.operation === 'commitBoot').length, 1);
   held.resolve(s.version); await tick();
   assert.equal(core.getStatus().phase, 'failed');
   await core.close(); assert.equal(f.live, 0); assert.equal(s.calls.closes, 1);

@@ -224,12 +224,17 @@ test('真实候选已boot但最终版本探测迟到，关闭等待候选自然�
   const s = observedOwner(f.owner), release = deferred<void>(), entered = deferred<void>(); let probes = 0;
   const source = { ...s.source, async getCollectionSnapshotVersion() {
     const version = await s.source.getCollectionSnapshotVersion();
-    if (++probes === 2) { entered.resolve(); await release.promise; }
+    probes++;
+    // 在真实候选完成 boot ACK 后暂停；刷新前新增的版本锁定不应抢占此观察点。
+    if (children.responses.some(frame => frame.operation === 'commitBoot' && frame.ok === true)) {
+      entered.resolve(); await release.promise;
+    }
     return version;
   } };
   const router = await createRustReadonlyCollectionRouter({ binary, owner: source }); t.after(() => router.close());
   const refresh = router.refresh(), refreshFailure = assert.rejects(refresh, code('STALE_SNAPSHOT'));
   await entered.promise;
+  assert.equal(probes, 3);
   assert.equal(children.spawn.mock.callCount(), 1); assert.equal(children.live, 1);
   assert.ok(children.responses.some(frame => frame.operation === 'commitBoot' && frame.ok === true));
   let closed = false; const closing = router.close().then(() => { closed = true; });

@@ -262,10 +262,15 @@ test('candidate末次探测版本错配会清理，不交付导出时的旧revis
 test('末次探测迟到不能越过整体期限，来源在途RPC保持合法', async t => {
   const f = spawnFake(t), s = source(), held = deferred<DatasetCollectionSnapshotVersion>();
   let probes = 0;
-  s.owner.getCollectionSnapshotVersion = () => ++probes === 1 ? Promise.resolve({ ...s.version }) : held.promise;
+  s.owner.getCollectionSnapshotVersion = () => {
+    probes++;
+    return f.frames.some(frame => frame.operation === 'commitBoot') ? held.promise : Promise.resolve({ ...s.version });
+  };
   const router = await createRustReadonlyCollectionRouter({ binary, owner: s.owner, startupTimeoutMs: 1_000, requestTimeoutMs: 5_000 });
   await assert.rejects(router.refresh(), code('TIMEOUT'));
-  assert.equal(probes, 2);
+  assert.equal(probes, 3);
+  assert.equal(f.spawn.mock.callCount(), 1);
+  assert.equal(f.frames.filter(frame => frame.operation === 'commitBoot').length, 1);
   const status = router.getStatus();
   held.resolve({ ...s.version });
   await new Promise<void>(resolve => setImmediate(resolve));
@@ -454,10 +459,15 @@ test('固定options来源及binary pin拷贝，不受调用方绑定后替换影
 test('finalprobe在invalidate后迟到不能覆盖新generation，child只清理', async t => {
   const s = source(), f = spawnFake(t), held = deferred<DatasetCollectionSnapshotVersion>();
   let probes = 0;
-  s.owner.getCollectionSnapshotVersion = () => ++probes === 1 ? Promise.resolve(s.version) : held.promise;
+  s.owner.getCollectionSnapshotVersion = () => {
+    probes++;
+    return f.frames.some(frame => frame.operation === 'commitBoot') ? held.promise : Promise.resolve(s.version);
+  };
   const router = await createRustReadonlyCollectionRouter({ binary, owner: s.owner });
   const refresh = router.refresh();
-  await until(() => probes === 2);
+  await until(() => probes === 3);
+  assert.equal(f.spawn.mock.callCount(), 1);
+  assert.equal(f.frames.filter(frame => frame.operation === 'commitBoot').length, 1);
   router.invalidate();
   const status = router.getStatus();
   held.resolve(s.version);

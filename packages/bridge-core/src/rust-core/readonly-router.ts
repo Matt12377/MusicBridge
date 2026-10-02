@@ -47,11 +47,14 @@ function versionCopy(value: unknown): DatasetCollectionSnapshotVersion {
 }
 const sameVersion = (a: DatasetCollectionSnapshotVersion, b: DatasetCollectionSnapshotVersion) =>
   a.epoch === b.epoch && a.datasetId === b.datasetId && a.revision === b.revision;
-// 审定已 boot Owner 的领域实现与辅助函数；只保留这八条精确纯读，不按前缀扩大。
+// 审定已 boot Owner 的领域实现与辅助函数；只保留这十六条精确纯读，不按前缀扩大。
 const nodeReadonlyCommands = new Set<IpcRequest['command']>([
   'collection.detail', 'collection.copy', 'collection.photo',
   'referenceCatalog.sources', 'referenceCatalog.history', 'referenceCatalog.revision',
   'commandOutbox.context', 'collectionProgress.modelLengths',
+  'collectionProgress.current', 'collectionProgress.wants', 'collectionProgress.wantHistory',
+  'collectionProgress.snapshots', 'collectionProgress.snapshot',
+  'referenceCatalog.snapshot', 'referenceCatalog.source', 'referenceCatalog.sourceZipReceipts',
 ]);
 const errorCodes = new Set<RustSidecarErrorCode>(['INVALID_REQUEST', 'UNSUPPORTED_OPERATION', 'UNSUPPORTED_COMMAND', 'UNSUPPORTED_FILTER',
   'SCOPE_MISMATCH', 'CAPACITY_EXCEEDED', 'NOT_READY', 'CLOSING', 'PROTOCOL_ERROR', 'BINARY_PIN_MISMATCH',
@@ -87,7 +90,9 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
   catch (error) { throw safeError(error); }
   let generation = 0, phase: RustReadonlyCollectionRouterStatus['phase'] = 'node', closed = false;
   let errorCode: RustSidecarErrorCode | undefined, writes = 0;
-  let claimWindows = 0, wakeReads!: () => void;
+  const claimWindows = new Map<number, number>();
+  const pendingClaims = (ownGeneration: number) => (claimWindows.get(ownGeneration) ?? 0) > 0;
+  let wakeReads!: () => void;
   let readWake = new Promise<void>(resolve => { wakeReads = resolve; });
   function notifyReads(): void {
     wakeReads();
@@ -96,6 +101,8 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
   let active: { endpoint: RustReadonlyDatasetEndpoint; version: DatasetCollectionSnapshotVersion } | undefined;
   let refreshing: Promise<void> | undefined, closing: Promise<void> | undefined;
   let refreshingCandidate: RustReadonlyDatasetEndpoint | undefined;
+  // 每次刷新独有的证书；首个可信探测锁定版本，导出和领取不得更换它。
+  let refreshCertificate: { generation: number; deadline: number; version?: DatasetCollectionSnapshotVersion } | undefined;
   let retiring = Promise.resolve(), retirementError: RustSidecarError | undefined;
   const retired = new WeakSet<RustReadonlyDatasetEndpoint>();
   const terminalFailureGeneration = new WeakMap<RustReadonlyDatasetEndpoint, number>();
@@ -123,12 +130,13 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
     // 撤销立即唤醒旧读，不让挂起的领取阻塞关闭／失效回执。
     notifyReads();
     phase = nextPhase;
+    refreshCertificate = undefined;
     errorCode = undefined;
     const old = active;
     active = undefined;
     if (old) retire(old.endpoint);
     // 上传中的候选同样属于本路由；撤销时立即封闭它，不等整体期限耗尽。
-    if (profile === 'v3-5000' && refreshingCandidate) retire(refreshingCandidate);
+    if (refreshingCandidate) retire(refreshingCandidate);
   }
   function fence(expectedGeneration: number): void {
     if (closed || generation !== expectedGeneration) throw new RustSidecarError('STALE_SNAPSHOT');
@@ -147,25 +155,36 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
   async function nodeRead(request: IpcRequest, expectedGeneration: number): Promise<unknown> {
     try {
       const result = await Promise.resolve().then(() => options.owner.dispatch(request));
-      while (claimWindows && !closed && generation === expectedGeneration) await readWake;
+      while (pendingClaims(expectedGeneration) && !closed && generation === expectedGeneration) await readWake;
       fence(expectedGeneration);
       return result;
     } catch (error) {
-      while (claimWindows && !closed && generation === expectedGeneration) await readWake;
+      while (pendingClaims(expectedGeneration) && !closed && generation === expectedGeneration) await readWake;
       fence(expectedGeneration); throw error;
     }
   }
-  async function conditionalClaim(request: IpcRequest, current: NonNullable<typeof active>): Promise<unknown> {
+  async function conditionalClaim(request: IpcRequest, current: typeof active, certificate: typeof refreshCertificate): Promise<unknown> {
     const ownGeneration = generation;
     // 首次 await 前登记完整窗口；领取不是纯读，仍由唯一 Node 作者执行。
-    writes++; claimWindows++;
-    const ownsCandidate = () => !closed && generation === ownGeneration && active === current;
+    writes++; claimWindows.set(ownGeneration, (claimWindows.get(ownGeneration) ?? 0) + 1);
+    const ownsCandidate = () => !closed && generation === ownGeneration
+      && (current ? active === current : !!certificate && refreshCertificate === certificate);
     const abandon = () => { if (ownsCandidate()) revoke('stale'); };
+    const deadline = certificate?.deadline ?? Infinity;
+    let expectedVersion = current?.version ?? certificate?.version;
     try {
       let unchanged = false;
       try {
-        const before = await probe(); scoped(before);
-        unchanged = ownsCandidate() && sameVersion(before, current.version);
+        const before = await probe(deadline); scoped(before);
+        if (ownsCandidate()) {
+          if (!expectedVersion) {
+            // 导出前的空领取也必须给该刷新锁定完整版本，不能只看到 null。
+            expectedVersion = before;
+            if (certificate) certificate.version ??= before;
+          }
+          unchanged = sameVersion(before, expectedVersion)
+            && (!certificate?.version || sameVersion(before, certificate.version));
+        }
       } catch { /* 辅助故障只能放弃保留，不覆盖原 Node 回执。 */ }
       if (!unchanged) abandon();
       let result: unknown;
@@ -173,20 +192,22 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
       catch (error) { abandon(); throw error; }
       let empty = false;
       try {
-        // Proxy 可伪造反射结果；先用内建检查拒绝，不能执行它的 trap 来证明空领取。
+        // Proxy 可伪造反射结果；先用内建检查拒绝，不能执行 trap 或 getter。
         empty = !types.isProxy(result) && plain(result, ['lease']) && Object.getOwnPropertyDescriptor(result, 'lease')?.value === null;
-      }
-      catch { /* 异常对象也不满足精确 own-data 空回执，不能触发 getter。 */ }
+      } catch { /* 异常对象不满足精确 own-data 空回执。 */ }
       if (!unchanged || !empty || !ownsCandidate()) { abandon(); return result; }
       try {
-        const after = await probe(); scoped(after);
-        if (!ownsCandidate() || !sameVersion(after, current.version)) abandon();
+        const after = await probe(deadline); scoped(after);
+        if (!ownsCandidate() || !expectedVersion || !sameVersion(after, expectedVersion)
+          || (certificate?.version && !sameVersion(after, certificate.version))) abandon();
       } catch { abandon(); }
-      // 仅不撤销仍有效的同一候选；不得重新发布已失效对象或自动刷新。
       return result;
     } finally {
-      writes--; claimWindows--;
-      if (!claimWindows) notifyReads();
+      writes--;
+      const pending = (claimWindows.get(ownGeneration) ?? 1) - 1;
+      if (pending) claimWindows.set(ownGeneration, pending); else claimWindows.delete(ownGeneration);
+      // 旧代窗口也消费自己的收口；新代等待只检查自己的计数。
+      notifyReads();
     }
   }
   const router: RustReadonlyCollectionRouter = {
@@ -198,7 +219,7 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
       if (request.command !== 'collection.list') {
         // Node 纯读借用当前代际；并发写入、刷新、失效或关闭仍撤销它的迟到回执。
         if (nodeReadonlyCommands.has(request.command)) return nodeRead(request, generation);
-        if (request.command === 'recordingPrintWorker.claim' && active) return conditionalClaim(request, active);
+        if (request.command === 'recordingPrintWorker.claim' && (active || refreshCertificate)) return conditionalClaim(request, active, refreshCertificate);
         revoke('stale');
         writes++;
         try {
@@ -212,7 +233,7 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
       let before: DatasetCollectionSnapshotVersion;
       try { before = await probe(); fence(ownGeneration); scoped(before); }
       catch (error) {
-        while (claimWindows && !closed && generation === ownGeneration) await readWake;
+        while (pendingClaims(ownGeneration) && !closed && generation === ownGeneration) await readWake;
         fence(ownGeneration); failCurrent(error, ownGeneration); throw safeError(error);
       }
       if (!sameVersion(before, current.version)) {
@@ -228,11 +249,11 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
           throw new RustSidecarError('STALE_SNAPSHOT');
         }
         // 判定与放行在同一同步片段；唤醒后再检查窗口，不能越过新领取。
-        while (claimWindows && !closed && generation === ownGeneration) await readWake;
+        while (pendingClaims(ownGeneration) && !closed && generation === ownGeneration) await readWake;
         fence(ownGeneration);
         return result;
       } catch (error) {
-        while (claimWindows && !closed && generation === ownGeneration) await readWake;
+        while (pendingClaims(ownGeneration) && !closed && generation === ownGeneration) await readWake;
         // child 自身的协议/进程错误要保持可观察；外部失效后的迟到结果仍受 fence 约束。
         if (!closed && terminalFailureGeneration.get(current.endpoint) === generation && generation === ownGeneration + 1) throw safeError(error);
         fence(ownGeneration);
@@ -246,12 +267,17 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
       if (writes) return Promise.reject(new RustSidecarError('NOT_READY'));
       revoke('refreshing');
       const ownGeneration = generation, deadline = performance.now() + startupTimeout;
+      const certificate: NonNullable<typeof refreshCertificate> = { generation: ownGeneration, deadline };
+      refreshCertificate = certificate;
       const fresh = () => { fence(ownGeneration); if (performance.now() >= deadline) throw new RustSidecarError('TIMEOUT'); };
       const work = (async () => {
         let candidate: RustReadonlyDatasetEndpoint | undefined, exportedVersion: DatasetCollectionSnapshotVersion | undefined;
         try {
           await bounded(() => retiring, deadline); fresh();
           if (retirementError) throw retirementError;
+          const initialVersion = await probe(deadline); fresh(); scoped(initialVersion);
+          if (certificate.version && !sameVersion(initialVersion, certificate.version)) throw new RustSidecarError('STALE_SNAPSHOT');
+          certificate.version ??= initialVersion;
           // 复用既有 pin、帧校验和进程期限；proxy 不启动或关闭来源 Owner。
           candidate = await createRustReadonlyDatasetEndpointFromOwner({
             ...options,
@@ -262,12 +288,14 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
                 const exported = await bounded(() => options.owner.exportVersionedCollectionSnapshot(), deadline); fresh();
                 if (!plain(exported, ['snapshot', 'version'])) throw new RustSidecarError('SNAPSHOT_UNAVAILABLE');
                 exportedVersion = versionCopy(exported.version); scoped(exportedVersion);
+                if (!certificate.version || !sameVersion(exportedVersion, certificate.version)) throw new RustSidecarError('STALE_SNAPSHOT');
                 return exported.snapshot;
               },
               ...(profile === 'v3-5000' ? { exportLargeVersionedCollectionSnapshot: async () => {
                 const exported = await bounded(() => options.owner.exportLargeVersionedCollectionSnapshot!(), deadline); fresh();
                 if (!plain(exported, ['snapshot', 'version'])) throw new RustSidecarError('SNAPSHOT_UNAVAILABLE');
                 exportedVersion = versionCopy(exported.version); scoped(exportedVersion);
+                if (!certificate.version || !sameVersion(exportedVersion, certificate.version)) throw new RustSidecarError('STALE_SNAPSHOT');
                 return exported;
               } } : {}),
               dispatch: () => Promise.reject(new RustSidecarError('UNSUPPORTED_COMMAND')),
@@ -275,9 +303,10 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
               close: () => Promise.reject(new RustSidecarError('UNSUPPORTED_OPERATION')),
             },
             onFatal: code => {
-              if (candidate && active?.endpoint === candidate && generation === ownGeneration) {
+              if (candidate && generation === ownGeneration && (active?.endpoint === candidate || refreshCertificate === certificate)) {
+                const wasActive = active?.endpoint === candidate;
                 failCurrent(new RustSidecarError(code), ownGeneration);
-                terminalFailureGeneration.set(candidate, generation);
+                if (wasActive) terminalFailureGeneration.set(candidate, generation);
               }
               observer(code);
             },
@@ -288,7 +317,16 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
             revoke('stale');
             throw new RustSidecarError('STALE_SNAPSHOT');
           }
+          // 发布与放行在同一同步片段；await 后复核窗口，不能越过刚打开的新 latch。
+          while (pendingClaims(ownGeneration)) {
+            // 同步捕获本次 latch；bounded 的微任务不能误借已经更换的新 latch。
+            const wake = readWake;
+            await bounded(() => wake, deadline); fresh();
+          }
+          fresh();
+          if (refreshCertificate !== certificate) throw new RustSidecarError('STALE_SNAPSHOT');
           active = { endpoint: candidate, version: exportedVersion };
+          refreshCertificate = undefined;
           refreshingCandidate = undefined;
           phase = 'rust'; errorCode = undefined;
         } catch (error) {
@@ -297,6 +335,7 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
           throw safeError(error);
         } finally {
           if (refreshingCandidate === candidate) refreshingCandidate = undefined;
+          if (refreshCertificate === certificate) refreshCertificate = undefined;
         }
       })();
       refreshing = work.finally(() => { if (refreshing === joined) refreshing = undefined; });

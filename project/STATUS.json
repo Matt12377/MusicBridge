@@ -4132,5 +4132,200 @@
     "reportCommit": null,
     "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-008_MAIN_READ_BOUNDARY.md",
     "nextBranchBaseline": "final-report-head"
+  },
+  "rustCoreCollectionUiRead20261002": {
+    "task": "RUST-009",
+    "branch": "codex/rust-core-009-collection-ui-read-boundary",
+    "baseCommit": "ae8a53fb1206c65632d3b23c66b929965e89a7d3",
+    "state": "local-validation-and-review-PASS-two-commits-pending",
+    "scope": "tasks/RUST-009-collection-ui-read-boundary.md",
+    "todo": "project/RUST_CORE_TODO.md",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4",
+    "scopeFreeze": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/SCOPE_FREEZE_V2.json",
+      "sha256": "7decde685eed5e819e1fc1562e35461909d65989b7be7c4045007ff1b934f53b"
+    },
+    "auditEvidence": [
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/node-collection-read-audit.json",
+        "sha256": "4c3f65da4af9a2fba8aadb31d2f04936f7f358d364cada32650237d3c66d8a5c",
+        "sourceFiles": 35,
+        "identityMeaning": "pre-implementation-source-audit-verified-at-scope-freeze"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/renderer-collection-host-audit.json",
+        "sha256": "18bbc6b3ad7e765af84e8fd436e1c72006143013cbc2dc46a0fad97f60c2960c",
+        "sourceFiles": 36,
+        "identityMeaning": "pre-implementation-source-audit-verified-at-scope-freeze"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/scope-and-evidence-audit.json",
+        "sha256": "76653672248d6c7ae884de1399bf671984844bd5599f0d212827ac59995a6521",
+        "sourceFiles": 32,
+        "identityMeaning": "pre-implementation-source-audit-verified-at-scope-freeze"
+      }
+    ],
+    "productionDefault": "Node",
+    "nodeDatabaseWriteOwnerUnchanged": true,
+    "newExactNodeReadonlyCommands": [
+      "collectionProgress.current",
+      "collectionProgress.wants",
+      "collectionProgress.wantHistory",
+      "collectionProgress.snapshots",
+      "collectionProgress.snapshot",
+      "referenceCatalog.snapshot",
+      "referenceCatalog.source",
+      "referenceCatalog.sourceZipReceipts"
+    ],
+    "agentPolicy": {
+      "primaryModel": "gpt-6.1-sol",
+      "primaryReasoningEffort": "max",
+      "subagentModel": "gpt-6.1-sol",
+      "subagentReasoningEffort": "high",
+      "maximumSubagents": 4,
+      "execution": "three-authors-then-independent-review-within-platform-slots",
+      "furtherDelegation": false
+    },
+    "progress": {
+      "coreBoundary": "55-new-behavior-and-18-node-purity-plus-38-domain-pass",
+      "actualCollectionUi": "real-Electron-5-of-5-pass",
+      "evidenceAcceptance": "actual-report-and-49-rejections-50-of-50-pass",
+      "independentReview": "round1-and-round2-complete-unresolved-P1-P2-zero",
+      "fullGate": "Rust-30-software-6-actual-Electron-5-acceptance-50-default-startup-2-PASS"
+    },
+    "validation": {
+      "state": "all-local-gates-PASS-final-review-and-commits-pending",
+      "effectiveRed": {
+        "record": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/collection-ui-router-red-02.json",
+        "exitCode": 1,
+        "tests": 50,
+        "passed": 9,
+        "failed": 41,
+        "skipped": 0
+      },
+      "nodeHotOwnerPurity": {
+        "record": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/rust-gate/run-v3FMk0/node-collection-ui-purity.log",
+        "exitCode": 0,
+        "passed": 18,
+        "skipped": 0
+      },
+      "targetedTypecheck": {
+        "record": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/collection-ui-typecheck-01.json",
+        "exitCode": 0
+      },
+      "actualElectron": {
+        "record": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/collection-ui-electron-05.json",
+        "report": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/collection-host-05/electron-report.json",
+        "passed": 5,
+        "skipped": 0,
+        "reportSha256": "ac40c4550a9fa80901f1a073d0525e321789fe8c15f35f843aa74433fec06e93",
+        "actionsAndScreenshots": 189,
+        "completeOracleReplies": 295,
+        "logSha256": "96b6071a33171a3e2fa6bc885872d35e271a1c3ef6b1ac537693c493502eebcf"
+      },
+      "evidenceRejectionTests": {
+        "record": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/collection-ui-acceptance-05.json",
+        "passed": 50,
+        "skipped": 0,
+        "actualReportAccepted": true,
+        "negativeVariantsRejected": 49,
+        "logSha256": "f000c968fc074ce8970e7174a8facd832eefba97bfeb9bcb54dcc9a198fe9d0f"
+      },
+      "sourceFreeze": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/FREEZE_IDENTITY_V4.json",
+        "sha256": "8b599889dca7d4a62ed7cd240dca6bbc475d1c3ade8dc29be5691486b7736f4f",
+        "sourceFiles": 1104
+      },
+      "firstRustGateFailure": {
+        "record": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/rust-gate-final.json",
+        "exitCode": 1,
+        "step": "ts-core-owner-lifecycle",
+        "repair": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/LIFECYCLE_PHASE_FIXTURE_REPAIR.json",
+        "preserved": true
+      },
+      "lifecycleFixtureGreen": {
+        "record": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/lifecycle-phase-fixture-green.json",
+        "exitCode": 0,
+        "passed": 23,
+        "skipped": 0
+      },
+      "refreshPhaseFixtureRepair": {
+        "record": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/REFRESH_PHASE_FIXTURE_REPAIR_V2.json",
+        "finalGreenRecord": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/refresh-phase-fixtures-green-02.json",
+        "passed": 43,
+        "exitCode": 0,
+        "skipped": 0,
+        "unchangedTestCount": true,
+        "unchangedDeadlines": true,
+        "productionChanged": false,
+        "preservedPreviousAttempt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/refresh-phase-fixtures-green.json",
+        "firstFocusedFailure": "missing-required-refresh-cost-report-path"
+      },
+      "rustGate": {
+        "record": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/rust-gate-final-v4.json",
+        "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/rust-gate/run-v3FMk0/manifest.json",
+        "manifestSha256": "f4c4e84053e0e89771327d9a813cc219a59787a97dcb95dc2adcf579cf96ed76",
+        "exitCode": 0,
+        "steps": 30,
+        "rustPassed": 43,
+        "jsPassed": 479,
+        "skipped": 0,
+        "sourceFiles": 589,
+        "previousMetadataRepair": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/CI_MANIFEST_METADATA_REPAIR.json"
+      },
+      "fullSoftware": {
+        "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/software-final-v4/software-manifest.json",
+        "manifestSha256": "57493945d4b93feaa3774642f9ec2c3e0b3c8e72b7c5b218967471bcda00180e",
+        "steps": 6,
+        "allExitCodesZero": true,
+        "sourceFiles": 1104,
+        "unitPassed": 3926,
+        "conditionalSkipped": 2,
+        "newSkipped": 0,
+        "cycleFiles": 384
+      },
+      "defaultStartup": {
+        "record": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/DEFAULT_STARTUP_IDENTITY.json",
+        "sha256": "9f63b1d9ff5dc87cef79e54a233d8b8f94507d5ca6506afe8777daa365b77262",
+        "developmentExitCode": 0,
+        "productionExitCode": 0,
+        "mode": "mock-keychain-default-Node"
+      },
+      "independentReview": {
+        "rounds": 2,
+        "remainingP1P2": 0,
+        "finalReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/review-round2.json",
+        "sha256": "2fdbc2335cca27091d048ff216f274f15c6367c45a076a7312063f6201675662",
+        "reviewedFiles": 45,
+        "uniqueLogs": 95,
+        "compiledArtifacts": 112,
+        "screenshots": 189
+      }
+    },
+    "realProviderRoonAcceptance": "NOT_RUN",
+    "realRecording": "NOT_RUN",
+    "realUserMigration": "NOT_RUN",
+    "realSystemKeychain": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "carryover": [
+      "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
+      "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
+    ],
+    "implementationCommit": null,
+    "reportCommit": null,
+    "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-009_COLLECTION_UI_READ_BOUNDARY.md",
+    "nextBranchBaseline": "final-report-head",
+    "electronDependencyReuse": {
+      "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/electron-dependency-manifest.json",
+      "sha256": "7a8b4da05e5ac305003f783bb73b69011668acf9e092bf0766ce01dfae88e073",
+      "files": 275,
+      "implicitDownload": false,
+      "installedApplication": "NOT_CHANGED",
+      "preparationNotes": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/PREPARATION_NOTES.json"
+    }
   }
 }

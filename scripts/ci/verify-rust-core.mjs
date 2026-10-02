@@ -68,6 +68,8 @@ function sourceManifest() {
     path.join(root, 'scripts/ci/verify-rust-core.mjs'), path.join(root, 'scripts/ci/verify-boundaries.mjs'),
     path.join(root, 'scripts/ci/rust-main-evidence.mjs'),
     path.join(root, 'scripts/ci/test/rust-main-evidence.test.mjs'),
+    path.join(root, 'scripts/ci/rust-collection-evidence.mjs'),
+    path.join(root, 'scripts/ci/test/rust-collection-evidence.test.mjs'),
     path.join(root, '.github/workflows/rust-core.yml'), path.join(root, 'packages/bridge-core/test/rust-sidecar-client.test.ts'),
     path.join(root, 'packages/bridge-core/test/dataset-collection-snapshot.test.ts'),
     path.join(root, 'packages/bridge-core/test/dataset-snapshot-version.test.ts'),
@@ -80,13 +82,17 @@ function sourceManifest() {
     path.join(root, 'packages/bridge-core/test/rust-readonly-node-reads.test.ts'),
     path.join(root, 'packages/bridge-core/test/rust-core-host-controls.test.ts'),
     path.join(root, 'packages/bridge-core/test/rust-readonly-main-boundary.test.ts'),
+    path.join(root, 'packages/bridge-core/test/rust-readonly-collection-ui.test.ts'),
+    path.join(root, 'packages/bridge-core/test/rust-collection-ui-node-purity.test.ts'),
     path.join(root, 'apps/desktop/test/rust-core-host.test.ts'),
     path.join(root, 'apps/desktop/test/native-output-device-package.test.ts'),
     path.join(root, 'apps/desktop/package.json'), path.join(root, 'apps/desktop/tsconfig.json'),
     path.join(root, 'apps/desktop/electron.vite.config.ts'),
-    ...sourceFiles(path.join(root, 'apps/desktop/e2e')).filter(file => /\/(?:private-rust-|rust-main-host)/.test(file)),
+    ...sourceFiles(path.join(root, 'apps/desktop/e2e')).filter(file => /\/(?:private-rust-|rust-main-host|rust-collection-host)/.test(file)),
     path.join(root, 'apps/desktop/electron-gate/rust-main-host.test.ts'),
     path.join(root, 'apps/desktop/scripts/rust-main-host-gate.mjs'),
+    path.join(root, 'apps/desktop/electron-gate/rust-collection-host.test.ts'),
+    path.join(root, 'apps/desktop/scripts/rust-collection-host-gate.mjs'),
   ].sort().map(file => ({ path: path.relative(root, file), sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }));
 }
 const sources = sourceManifest();
@@ -172,6 +178,16 @@ run('main-background-components', process.execPath, ['--import', 'tsx', '--test'
 run('main-evidence-acceptance', process.execPath, ['--test', 'scripts/ci/test/rust-main-evidence.test.mjs'], root, {
   MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256,
   MUSIC_BRIDGE_RUST_MAIN_HOST_BUILD_ROOT: mainHostBuildRoot, MUSIC_BRIDGE_RUST_MAIN_COMPONENT_REPORT: mainComponentReport,
+});
+run('ts-collection-ui-read-boundary', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
+  'test/rust-readonly-collection-ui.test.ts'], path.join(root, 'packages/bridge-core'));
+run('node-collection-ui-purity', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
+  'test/rust-collection-ui-node-purity.test.ts'], path.join(root, 'packages/bridge-core'));
+const collectionHostBuildRoot = path.join(directory, 'isolated-collection-host');
+// 跨平台 Rust Gate 证明专用类型与静态隔离构建；真实 Electron 与完整报告验收另列严格 Gate。
+run('collection-host-isolated-build', process.execPath, ['apps/desktop/scripts/rust-collection-host-gate.mjs',
+  '--mode=build', '--output=' + collectionHostBuildRoot], root, {
+  MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256,
 });
 const cost = JSON.parse(fs.readFileSync(costReport, 'utf8'));
 if (cost.task !== 'RUST-002' || cost.models !== 2_000 || cost.differentialPages !== 108 || cost.binarySha256 !== binarySha256
@@ -409,7 +425,7 @@ verifyRustMainEvidence(mainComponents, { root, buildRoot: mainHostBuildRoot, bin
 if (createHash('sha256').update(fs.readFileSync(binary)).digest('hex') !== binarySha256) throw new Error('Rust 二进制在验证期间改变。');
 if (JSON.stringify(sourceManifest()) !== JSON.stringify(sources)) throw new Error('Rust Gate 的受测源码在执行期间改变。');
 fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({
-  schemaVersion: 1, task: 'RUST-008', compiler, cargoVersion, sources,
+  schemaVersion: 1, task: 'RUST-009', compiler, cargoVersion, sources,
   binary: { path: binary, sha256: binarySha256, platform: process.platform, architecture: process.arch },
   packages: metadata.packages.map(p => ({ name: p.name, version: p.version })), runs,
   realServices: 'NOT_RUN', productionDefault: 'Node', readonlyCommands: ['collection.list'],
@@ -420,9 +436,18 @@ fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({
   boundedQueryIndex: true, requestResultCache: false, indexScaleModels: scales,
   optionalCoreRuntimeComposition: true, coreOwnsSourceOwner: true, publicRuntimeConfiguration: false,
   trustedHostController: true, synchronousControllerDelivery: true,
-  mixedNodeReadonlyCommands: [...mixedReadCommands, 'commandOutbox.context', 'collectionProgress.modelLengths'],
+  mixedNodeReadonlyCommands: [...mixedReadCommands, 'commandOutbox.context', 'collectionProgress.modelLengths',
+    'collectionProgress.current', 'collectionProgress.wants', 'collectionProgress.wantHistory',
+    'collectionProgress.snapshots', 'collectionProgress.snapshot', 'referenceCatalog.snapshot',
+    'referenceCatalog.source', 'referenceCatalog.sourceZipReceipts'],
   conditionalEmptyClaimRetention: true, readCompletionBarrier: true, sharedDesktopCoreHost: true,
+  refreshConditionalEmptyClaimRetention: true,
   electronEvidenceLayer: 'separate-isolated-Electron-Gate',
+  collectionUiEvidenceLayer: 'separate-actual-Electron-production-Main-collection-ui-Gate',
+  collectionUiHostBuild: {
+    path: path.join(collectionHostBuildRoot, 'artifact-manifest.json'),
+    sha256: createHash('sha256').update(fs.readFileSync(path.join(collectionHostBuildRoot, 'artifact-manifest.json'))).digest('hex'),
+  },
   largeSnapshotModels: 5_000, largeSnapshotBytes: 8 * 1024 * 1024, uploadChunkModels: 128,
   costReport: { path: costReport, sha256: createHash('sha256').update(fs.readFileSync(costReport)).digest('hex') },
   refreshCostReport: { path: refreshCostReport, sha256: createHash('sha256').update(fs.readFileSync(refreshCostReport)).digest('hex') },

@@ -282,7 +282,7 @@ for (const stage of ['前探测', 'Node', '后探测'] as const) test(`${stage}�
   await router.refresh(); assert.equal(router.getStatus().phase, 'rust'); assert.equal(f.spawn.mock.callCount(), 2);
 });
 
-for (const command of ['collectionProgress.current', 'collectionProgress.capture', 'recordingPrintWorker.complete', 'recordingPrintWorker.fail'] as const) {
+for (const command of ['referenceCatalog.previewSourceZip', 'collectionProgress.capture', 'recordingPrintWorker.complete', 'recordingPrintWorker.fail'] as const) {
   test(`${command}仍在闭集外保守撤销且原回执不重放`, async t => {
     const { s, router } = await ready(t), receipt = { 原领域回执: command }; let calls = 0;
     s.owner.dispatch = async () => { calls++; return receipt; };

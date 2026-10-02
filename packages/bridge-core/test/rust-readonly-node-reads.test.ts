@@ -230,9 +230,9 @@ for (const stage of ['调用前', '交付前'] as const) {
 
 for (const entry of [
   potentialWrite,
-  { command: 'referenceCatalog.source', payload: { id: randomUUID() } },
+  { command: 'referenceCatalog.previewSourceZip', payload: { id: randomUUID() } },
   { command: 'referenceCatalog.previewRevision', payload: { sourceId: randomUUID(), expectedCurrentRevisionId: null, items: [], mappings: [] } },
-  { command: 'collectionProgress.current', payload: {} },
+  { command: 'collectionProgress.capture', payload: {} },
 ] as Partial<IpcRequest>[]) {
   for (const outcome of ['成功', '未知'] as const) {
     test(`闭集外${entry.command}仍保守撤销，${outcome}原回执在关闭后保留且不重放`, async t => {
