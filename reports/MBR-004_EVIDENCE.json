@@ -1,0 +1,1736 @@
+{
+  "schemaVersion": 1,
+  "task": "MBR-004",
+  "recordedAt": "2026-10-02T04:54:32.530Z",
+  "baseCommit": "dbece1cb3beacf5dd2d8d24861feb9bf71829b26",
+  "branch": "codex/fix-playback-read-tracing",
+  "implementationCommit": "16132564d8bbb3bec900602fbf0cdefc86a09bd5",
+  "reportCommitResolution": "git-log-last-commit-touching-reports/MBR-004_PLAYBACK_READ_TRACING.md",
+  "environment": {
+    "node": "22.23.2",
+    "pnpm": "10.17.1",
+    "temporaryRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ",
+    "buildRoot": "/Volumes/LifeWeave/Developer/CommandLine",
+    "cacheRoot": "/Volumes/LifeWeave/Developer/CommandLine/Caches",
+    "mountedWritableExternalVolumeVerified": "disk10s1",
+    "keychainMode": "mock"
+  },
+  "validatedImplementationFiles": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "da81f0589425c8cd6bb1a6e5388964ad055b65da2365bc5ae6d7871185be94a4"
+    },
+    {
+      "path": "apps/desktop/electron.vite.config.ts",
+      "sha256": "5ecc9b23c6d970b6391b2b50d17abe60118aad70cd05c02286200b844c4660a6"
+    },
+    {
+      "path": "apps/desktop/src/main/core-environment.ts",
+      "sha256": "2c6657527d11bcb2ab75c6d77d0332414f0fccb37224e364a817ff7fa52bd6bd"
+    },
+    {
+      "path": "apps/desktop/src/main/core-supervisor.ts",
+      "sha256": "15c5982fae9f895a89caa47e13fdedd6ca6aa5459b642f2d0ed407a50101c484"
+    },
+    {
+      "path": "apps/desktop/src/main/index.ts",
+      "sha256": "4e870ae854e60697b40165296a165d084ce5336f6d22412c5fc609d11e33c464"
+    },
+    {
+      "path": "apps/desktop/src/main/library-read-ipc.ts",
+      "sha256": "6ed1412539b893e9d3e263b5eef835fefdc56bd11b7d399e749db2f56ce95078"
+    },
+    {
+      "path": "apps/desktop/src/preload/index.ts",
+      "sha256": "dcc0873752e0cd1e772b3415a59a27ccc1d4f08f6069596892259f7ee15874f0"
+    },
+    {
+      "path": "apps/desktop/src/preload/library-read-terminal.ts",
+      "sha256": "b7ed593e747fe2cf1a51140764bf3a2fc3f4e1c5e4559b6660762ad467da435f"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/RoonAlbumGrid.vue",
+      "sha256": "e289512120981a8d9234c57d7bafd3d7d26423c565d2bf4bfe9e9ccf0178a588"
+    },
+    {
+      "path": "apps/desktop/src/shared/library-read-trace.ts",
+      "sha256": "283d1cbe8a189da065e53a06085d05efe635b2c071c7e2f75266986b88b26b77"
+    },
+    {
+      "path": "apps/desktop/src/shared/playback-failure-trace.ts",
+      "sha256": "4c75a76fb263128b241bd80c180c6c2f38ed3169a502fbe47f96cf684a73d26e"
+    },
+    {
+      "path": "apps/desktop/test/library-read-ipc.test.ts",
+      "sha256": "c12621b3ca4c7da2a56e30675580a85e8f3831bed2a1cb247939559d43e41ef0"
+    },
+    {
+      "path": "apps/desktop/test/library-read-terminal.test.ts",
+      "sha256": "e9977b6a41e43c408cde8014dbb9b1bb3a58330bd4e9ab594bfe60a4499015f5"
+    },
+    {
+      "path": "apps/desktop/test/main-compact-ipc.test.ts",
+      "sha256": "3d2d77c8a6992a8694ef3ad0ce51d98b135a00b60a0c033fed3ab15befae268c"
+    },
+    {
+      "path": "apps/desktop/test/preload.test.ts",
+      "sha256": "815df7c88dcd860bcfaace27e97cc9dd5d34a0a6bfeaef68b546c5b48e7d7df4"
+    },
+    {
+      "path": "apps/desktop/test/roon-grid-mounted.test.ts",
+      "sha256": "c737f9ad44e73a2f7bb05d33b3d68ac535b7f120fcfc149292f114adf973f788"
+    },
+    {
+      "path": "apps/desktop/test/roon-library-ui.test.ts",
+      "sha256": "d761fbc2d67ef3b649c049074fb8b03e79856c1194e636becaec5ffa621ffc2a"
+    },
+    {
+      "path": "apps/desktop/test/startup-test-config.test.ts",
+      "sha256": "97921def28462d0ea08a7faca40d32ce77494ba70cf768ac8b7c9ea552be8cff"
+    },
+    {
+      "path": "packages/bridge-core/src/application/bridge-controller.ts",
+      "sha256": "2a7d3241b8fefb47c88b086fe32c06ee01fcfb2696fa1f9bbea8db37a1aebfad"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/client.ts",
+      "sha256": "2cff7ab1e211567024c2fb9a1f410d2e365cc8a86197f010e938b03671fb54ec"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/request-scheduler.ts",
+      "sha256": "082caad20077484064b8b2f8d68c2aee060e9015edea52335d88631c38d0c2d1"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/types.ts",
+      "sha256": "fbf5eca264de2f79d7c76a74ca2042b8f061ab7c3bf741dc5bd0c09d956df8fb"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/library.ts",
+      "sha256": "8fcf6d25c3332c840070ff845decdffe9f0df2f99d53a49c10b457f40b2e9390"
+    },
+    {
+      "path": "packages/bridge-core/src/runtime.ts",
+      "sha256": "5ec80b431dc57ad374d0cc15c9d3ce4c94a4804bbea8aa20cc5de063e4eeffc9"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/library-read-lifetime.ts",
+      "sha256": "91668e22e0263cb59c112527aaf4e1b16e848712d4fd321abac8d26a180c9b50"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/library-read-registry.ts",
+      "sha256": "ce40c775d46db9227580cb711e598764cd846397b0f5a56dcb1dbe7f0fa8e135"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/library-read-trace.ts",
+      "sha256": "6ae6397cade18c5210fa4a61f53e760dfa55cdd74383a615f567ed91388339e9"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/playback-failure-trace.ts",
+      "sha256": "76c2eee5fda80a6f3b8f83f5f8bcb543ffb14586f0a5bb92149febd9417c4cce"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/gateway.ts",
+      "sha256": "e6054a8b05face7f5e109f44886df72fd9edc9bc8595585b950c2b7bc280b243"
+    },
+    {
+      "path": "packages/bridge-core/src/utility-main.ts",
+      "sha256": "76a89e3a0d4b38c7dfec4b2be9168483587de0bfd8b704e396a01a28f36a77a2"
+    },
+    {
+      "path": "packages/bridge-core/test/controller.test.ts",
+      "sha256": "82e6863fbc57bd5ff1aa2f8d436bacf61fd103911daa61db675830f86d0cdf83"
+    },
+    {
+      "path": "packages/bridge-core/test/gateway.test.ts",
+      "sha256": "47a032ebff986fec57523c941d9a59dd3792211c4bfda1861695a07c1a748ea5"
+    },
+    {
+      "path": "packages/bridge-core/test/library-read-trace-safety.test.ts",
+      "sha256": "6ab5590687944f4732862b487677d8e69fc290507cd453e21854b2a365ccb22d"
+    },
+    {
+      "path": "packages/bridge-core/test/library-read-tracing.test.ts",
+      "sha256": "4438792ba4ff2068ad1b55e5fd6a9c81e1b5b8fdd2d499b663a6cb1d8cee9da1"
+    },
+    {
+      "path": "packages/bridge-core/test/netease-client.test.ts",
+      "sha256": "21839955f4e8a98afd088e056c09e1a2a553b6f61e8b1f211e3207f6646ce233"
+    },
+    {
+      "path": "packages/bridge-core/test/netease-playback-scheduling.test.ts",
+      "sha256": "7fe0b99f6acccf0ce679d313735a13892e3dab0553b3a61b9a2962352aff9395"
+    },
+    {
+      "path": "packages/bridge-core/test/playback-failure-trace.test.ts",
+      "sha256": "23710f8033d08b122fede80857662ca6dc7f0c85e1d455677c5e89bad547dde8"
+    },
+    {
+      "path": "packages/bridge-core/test/runtime.test.ts",
+      "sha256": "a3f76f76d659c4ce3e5e43bed335ac1282bcebfe8a0add4397cd058081aa5033"
+    },
+    {
+      "path": "tasks/00_TASK_INDEX.md",
+      "sha256": "700207e555916009c449b80841c544ebc9845ddc0e36a77d0fa2e65790a7ac68"
+    },
+    {
+      "path": "tasks/MBR-004-playback-read-tracing.md",
+      "sha256": "a252fbfe6ec23618bb47a37d1cdd5f3497f85f695bfdcffcfaee9ef0708716d3"
+    }
+  ],
+  "finalGates": [
+    {
+      "name": "unit-contracts-final",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/contracts",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "test/audio-conversion.test.ts",
+        "test/collection-copy.test.ts",
+        "test/collection-filter.test.ts",
+        "test/collection-progress.test.ts",
+        "test/command-outbox.test.ts",
+        "test/diagnostics.test.ts",
+        "test/execution-audio.test.ts",
+        "test/library-cache-contract.test.ts",
+        "test/library-read.test.ts",
+        "test/performance.test.ts",
+        "test/playback-stream.test.ts",
+        "test/preparation-export.test.ts",
+        "test/recording-activation.test.ts",
+        "test/recording-archive.test.ts",
+        "test/recording-attempts.test.ts",
+        "test/recording-backups.test.ts",
+        "test/recording-device-selection.test.ts",
+        "test/recording-execution.test.ts",
+        "test/recording-output.test.ts",
+        "test/recording-plans.test.ts",
+        "test/recording-prints.test.ts",
+        "test/recording-records.test.ts",
+        "test/recording-replica.test.ts",
+        "test/recording-workspace.test.ts",
+        "test/reference-catalog.test.ts",
+        "test/reference-source-zip.test.ts",
+        "test/roon-pagination.test.ts",
+        "test/roon-playback-context.test.ts",
+        "test/source-candidates.test.ts",
+        "test/spreadsheet-import.test.ts",
+        "test/v1-v2-integration.test.ts",
+        "test/validator.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/unit-contracts-final.log",
+      "logSha256": "51710f144c076672d56f32d9a2e6ca836a2f48a09303025c1e2967590461388c",
+      "counts": {
+        "tests": 254,
+        "pass": 254,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "unit-core-final-r2",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "test/archive-backup.test.ts",
+        "test/archive-files.test.ts",
+        "test/archive-restore.test.ts",
+        "test/archive-transactions.test.ts",
+        "test/archive-workflow.test.ts",
+        "test/audio-converter.test.ts",
+        "test/backup-index-details.test.ts",
+        "test/backup-workflow-migration.test.ts",
+        "test/backup-workflow-store-safety.test.ts",
+        "test/backup-workflow.test.ts",
+        "test/backup-zip-workflow.test.ts",
+        "test/backup-zip.test.ts",
+        "test/bundled-output-helper.test.ts",
+        "test/capacity-clean-clone-benchmark.test.ts",
+        "test/collection-filter.test.ts",
+        "test/collection-progress-store.test.ts",
+        "test/collection-repository-batch.test.ts",
+        "test/collection-repository.test.ts",
+        "test/command-outbox-core.test.ts",
+        "test/commercial-provenance.test.ts",
+        "test/config.test.ts",
+        "test/confirmed-track-action.test.ts",
+        "test/control-server.test.ts",
+        "test/controller-context.test.ts",
+        "test/controller.test.ts",
+        "test/dataset-domain.test.ts",
+        "test/dataset-identity.test.ts",
+        "test/dataset-owner-integration.test.ts",
+        "test/dataset-owner-recording.test.ts",
+        "test/dataset-owner.test.ts",
+        "test/dataset-roon-projection.test.ts",
+        "test/device-output-protocol.test.ts",
+        "test/device-output-runner.test.ts",
+        "test/device-selection-broker.test.ts",
+        "test/execution-assets.test.ts",
+        "test/execution-compiler.test.ts",
+        "test/execution-files.test.ts",
+        "test/execution-plan.test.ts",
+        "test/favorite-repository.test.ts",
+        "test/formal-device-attempt-provider.test.ts",
+        "test/gate-b-admission.test.ts",
+        "test/gateway.test.ts",
+        "test/ipc-playback-failures.test.ts",
+        "test/library-cache-lifetime.test.ts",
+        "test/library-read-lifecycle.test.ts",
+        "test/library-read-trace-safety.test.ts",
+        "test/library-read-tracing.test.ts",
+        "test/library.test.ts",
+        "test/local-lyrics-acceptance.test.ts",
+        "test/local-lyrics-manual-match.test.ts",
+        "test/local-lyrics-resolver.test.ts",
+        "test/local-track-signature.test.ts",
+        "test/lyrics-match-domain.test.ts",
+        "test/lyrics-match-repository.test.ts",
+        "test/lyrics.test.ts",
+        "test/master-drafts-coordinator.test.ts",
+        "test/master-versions.test.ts",
+        "test/match-candidate-resolution.test.ts",
+        "test/matching.test.ts",
+        "test/mbp-004-incremental-boundaries.test.ts",
+        "test/media-planning.test.ts",
+        "test/mixed-queue.test.ts",
+        "test/multi-disk-downstream.test.ts",
+        "test/native-device-catalog.test.ts",
+        "test/netease-client.test.ts",
+        "test/netease-playback-scheduling.test.ts",
+        "test/netease-playlist-snapshot-cache.test.ts",
+        "test/output-device-pump.test.ts",
+        "test/output-helper.test.ts",
+        "test/output-protocol.test.ts",
+        "test/output-run-lease.test.ts",
+        "test/output-run-recovery.test.ts",
+        "test/parse.test.ts",
+        "test/performance-instrumentation.test.ts",
+        "test/performance-trace.test.ts",
+        "test/physical-links-coordinator.test.ts",
+        "test/playback-event-load.test.ts",
+        "test/playback-event-publisher.test.ts",
+        "test/playback-failure-trace.test.ts",
+        "test/policy.test.ts",
+        "test/preparation-export.test.ts",
+        "test/preparation-files.test.ts",
+        "test/preparation-zip-runtime.test.ts",
+        "test/preparation.test.ts",
+        "test/prepared-files.test.ts",
+        "test/prepared-render.test.ts",
+        "test/provider-wrapper-contract.test.ts",
+        "test/qr-login.test.ts",
+        "test/readonly-audio-consumer.test.ts",
+        "test/record-page-migration-budget.test.ts",
+        "test/record-page-query.test.ts",
+        "test/recording-attempt-backup.test.ts",
+        "test/recording-attempt-migration.test.ts",
+        "test/recording-attempt-state.test.ts",
+        "test/recording-attempt.test.ts",
+        "test/recording-capacity-lineage-conformance.test.ts",
+        "test/recording-capacity-print-write.test.ts",
+        "test/recording-capacity-queued-stop.test.ts",
+        "test/recording-capacity.test.ts",
+        "test/recording-output-attempt-audit.test.ts",
+        "test/recording-output-run-barrier.test.ts",
+        "test/recording-output.test.ts",
+        "test/recording-plan.test.ts",
+        "test/recording-preflight-admission.test.ts",
+        "test/recording-print-backup.test.ts",
+        "test/recording-print-facts.test.ts",
+        "test/recording-print-migration.test.ts",
+        "test/recording-print-store.test.ts",
+        "test/recording-profile.test.ts",
+        "test/recording-record-backup.test.ts",
+        "test/recording-record-disposition.test.ts",
+        "test/recording-record-migration.test.ts",
+        "test/recording-record.test.ts",
+        "test/recording-replica-input.test.ts",
+        "test/recording-replica-session.test.ts",
+        "test/recording-replica-source.test.ts",
+        "test/recording-workspace.test.ts",
+        "test/reference-catalog-activation.test.ts",
+        "test/reference-catalog-store.test.ts",
+        "test/reference-source-zip.test.ts",
+        "test/registry.test.ts",
+        "test/render-conformance.test.ts",
+        "test/replica-device-output-provider.test.ts",
+        "test/restore-activation-files.test.ts",
+        "test/restore-activation-process.test.ts",
+        "test/restore-activation-store.test.ts",
+        "test/restore-content-binding.test.ts",
+        "test/restore-dataset-runtime.test.ts",
+        "test/roon-action-policy.test.ts",
+        "test/roon-adapter.test.ts",
+        "test/roon-display-lyrics.test.ts",
+        "test/roon-image-owner.test.ts",
+        "test/roon-library-registration.test.ts",
+        "test/roon-library.test.ts",
+        "test/roon-page-cache.test.ts",
+        "test/roon-playback-context.test.ts",
+        "test/roon-public-library.test.ts",
+        "test/roon-sdk-callback-context.test.ts",
+        "test/roon-volume.test.ts",
+        "test/runtime-compact-events.test.ts",
+        "test/runtime.test.ts",
+        "test/search.test.ts",
+        "test/source-candidates.test.ts",
+        "test/source-evidence.test.ts",
+        "test/spreadsheet-files.test.ts",
+        "test/spreadsheet-import-store.test.ts",
+        "test/spreadsheet-parser.test.ts",
+        "test/spreadsheet-zip.test.ts",
+        "test/track-action-confirmation.test.ts",
+        "test/utility-ipc.test.ts",
+        "test/utility-playback-stream.test.ts",
+        "test/v3-main-journey.test.ts",
+        "test/verified-zip.test.ts",
+        "test/version-planner.test.ts",
+        "test/zone-switch.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/unit-core-final-r2.log",
+      "logSha256": "245ceae24224b3db01a6ac8f662ac6162a19b4bc7c064eff5924767ee4899b7b",
+      "counts": {
+        "tests": 2009,
+        "pass": 2007,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 2,
+        "todo": 0
+      }
+    },
+    {
+      "name": "unit-desktop-final-r2",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "test/ambient-artwork.test.ts",
+        "test/ambient-preview-parity.test.ts",
+        "test/appearance-ipc.test.ts",
+        "test/appearance-preference.test.ts",
+        "test/bugfix-v2-renderer.test.ts",
+        "test/collection-display.test.ts",
+        "test/collection-photos.test.ts",
+        "test/collection-progress-ipc.test.ts",
+        "test/collection-progress-ui.test.ts",
+        "test/collection-reference-images.test.ts",
+        "test/collection-return-navigation.test.ts",
+        "test/collectionQueue.test.ts",
+        "test/command-outbox-executor.test.ts",
+        "test/command-outbox-ipc.test.ts",
+        "test/command-outbox-service.test.ts",
+        "test/command-outbox-store.test.ts",
+        "test/command-outbox-ui.test.ts",
+        "test/commercial-copies-panel.test.ts",
+        "test/config-migration.test.ts",
+        "test/core-environment.test.ts",
+        "test/core-supervisor-compact.test.ts",
+        "test/core-supervisor.test.ts",
+        "test/credential-provisioning.test.ts",
+        "test/credential-vault.test.ts",
+        "test/csp.test.ts",
+        "test/dat-cue-reminders.test.ts",
+        "test/dataset-owner-bootstrap.test.ts",
+        "test/diagnostics.test.ts",
+        "test/electron-vite-shim.test.ts",
+        "test/favorite-resolution.test.ts",
+        "test/favorite-window-resolution.test.ts",
+        "test/home-recommendations.test.ts",
+        "test/ipc-security.test.ts",
+        "test/library-cache-transport.test.ts",
+        "test/library-pagination.test.ts",
+        "test/library-read-ipc.test.ts",
+        "test/library-read-scope.test.ts",
+        "test/library-read-terminal.test.ts",
+        "test/lifecycle-probe.test.ts",
+        "test/main-compact-ipc.test.ts",
+        "test/main-window.test.ts",
+        "test/master-artwork-panel.test.ts",
+        "test/mbp-005-renderer-cache.test.ts",
+        "test/mbp-005-renderer-ui.test.ts",
+        "test/mbp-007-artwork-components.test.ts",
+        "test/mbp-007-artwork-cross-layer.test.ts",
+        "test/mbp-007-artwork-geometry.test.ts",
+        "test/mbp-007-artwork-lifecycle.test.ts",
+        "test/native-converter-package.test.ts",
+        "test/native-output-device-package.test.ts",
+        "test/native-output-package.test.ts",
+        "test/netease-library-session.test.ts",
+        "test/output-bootstrap.test.ts",
+        "test/page-journey-session.test.ts",
+        "test/performance-ipc.test.ts",
+        "test/physical-link-history-fence.test.ts",
+        "test/physical-relation-request-fence.test.ts",
+        "test/physical-relations-mounted.test.ts",
+        "test/playback-acceptance.test.ts",
+        "test/playback-matching.test.ts",
+        "test/playback-session.test.ts",
+        "test/playback-stream-reducer.test.ts",
+        "test/playback-stream-session.test.ts",
+        "test/playback-stream-ui.test.ts",
+        "test/playbackFavorites.test.ts",
+        "test/playbackStatus.test.ts",
+        "test/player-details.test.ts",
+        "test/player-motion.test.ts",
+        "test/preload.test.ts",
+        "test/preparation-zip-ipc.test.ts",
+        "test/preparation-zip-panel.test.ts",
+        "test/prepared-revocations.test.ts",
+        "test/protocol.test.ts",
+        "test/recording-attempt-ipc.test.ts",
+        "test/recording-attempt-panel.test.ts",
+        "test/recording-candidate-ipc.test.ts",
+        "test/recording-device-ipc.test.ts",
+        "test/recording-next-step.test.ts",
+        "test/recording-output-ipc.test.ts",
+        "test/recording-output-panel.test.ts",
+        "test/recording-panel-context.test.ts",
+        "test/recording-plan-ipc.test.ts",
+        "test/recording-plan-panel.test.ts",
+        "test/recording-plan.test.ts",
+        "test/recording-print-export.test.ts",
+        "test/recording-print-ipc.test.ts",
+        "test/recording-print-panel.test.ts",
+        "test/recording-print-renderer.test.ts",
+        "test/recording-print-worker.test.ts",
+        "test/recording-record-ipc.test.ts",
+        "test/recording-record-panel.test.ts",
+        "test/recording-replica-ipc.test.ts",
+        "test/recording-replica-panel.test.ts",
+        "test/recording-source-candidate-ui.test.ts",
+        "test/recording-theme-selector.test.ts",
+        "test/recording-workbench-order.test.ts",
+        "test/recording-workbench-projection.test.ts",
+        "test/recording-workflow-integration.test.ts",
+        "test/recording-workspace-controller.test.ts",
+        "test/recording-workspace-ipc.test.ts",
+        "test/reference-catalog-ipc.test.ts",
+        "test/reference-catalog-ui.test.ts",
+        "test/remote-core-preferences.test.ts",
+        "test/remote-core-tunnel.test.ts",
+        "test/renderer-lifecycle.test.ts",
+        "test/renderer-read-lifecycle.test.ts",
+        "test/renderer.test.ts",
+        "test/roon-artwork-cache.test.ts",
+        "test/roon-browse-pagination.test.ts",
+        "test/roon-collection-lifecycle.test.ts",
+        "test/roon-collection-loader.test.ts",
+        "test/roon-context-ipc.test.ts",
+        "test/roon-context-queue.test.ts",
+        "test/roon-demand-queue-ui.test.ts",
+        "test/roon-display-connection.test.ts",
+        "test/roon-display-protocol.test.ts",
+        "test/roon-grid-lifecycle.test.ts",
+        "test/roon-grid-mounted.test.ts",
+        "test/roon-grid-resolution.test.ts",
+        "test/roon-grid-window.test.ts",
+        "test/roon-image-ipc.test.ts",
+        "test/roon-library-messages.test.ts",
+        "test/roon-library-ui.test.ts",
+        "test/roon-playback-optimism.test.ts",
+        "test/roon-search-collection.test.ts",
+        "test/sakura-theme.test.ts",
+        "test/search-entities.test.ts",
+        "test/searchAggregation.test.ts",
+        "test/security.test.ts",
+        "test/settingsNavigation.test.ts",
+        "test/sidebar-controls.test.ts",
+        "test/source-picker.test.ts",
+        "test/spreadsheet-import-ipc.test.ts",
+        "test/spreadsheet-import-ui.test.ts",
+        "test/startup-gate.test.ts",
+        "test/startup-readiness.test.ts",
+        "test/startup-test-config.test.ts",
+        "test/tray.test.ts",
+        "test/virtualWindow.test.ts",
+        "test/volume-ipc.test.ts",
+        "test/zone-lifecycle.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/unit-desktop-final-r2.log",
+      "logSha256": "dadc755fbd6e9b8b3cc70247f1d081f07a5e371de070cfcb7044a5bf3513cc1a",
+      "counts": {
+        "tests": 1239,
+        "pass": 1239,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "typecheck-final-r3",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "corepack",
+        "pnpm@10.17.1",
+        "run",
+        "typecheck"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/typecheck-final-r3.log",
+      "logSha256": "c59665bd3f31048ca2050956641ad60186487c4bf0b082661e171d9772d583e0",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "root-playback-final",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/netease-playback-scheduling.test.ts",
+        "test/playback-failure-trace.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/root-playback-final.log",
+      "logSha256": "f8f1a1531def41782d35e446cc3d5a31458cde8efaad824a188aae4d0883890f",
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "client-reserve2-final",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/netease-client.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/client-reserve2-final.log",
+      "logSha256": "034ff26df6bbffb8bb796962110caceb92fb993611d067e6d0237391e871358e",
+      "counts": {
+        "tests": 18,
+        "pass": 18,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "controller-full-final",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/controller.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/controller-full-final.log",
+      "logSha256": "23f9ae3804a63201cb2531e60db9af11fa51733d1cfc94296d0ceea3fea0bdac",
+      "counts": {
+        "tests": 123,
+        "pass": 123,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "gateway-green",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/gateway.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/gateway-green.log",
+      "logSha256": "55e9c8e54b3957e0cd8a4bd740912886766898a30ff3bd14e76a368c62f66a59",
+      "counts": {
+        "tests": 24,
+        "pass": 24,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "production-build-final-r2",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "corepack",
+        "pnpm@10.17.1",
+        "run",
+        "build"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/production-build-final-r2.log",
+      "logSha256": "04aa4d30f91c1f5c0e116686ef5f73aa90fd6579880867264f9b07b361e37bfa",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "compiled-production-trace-final",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop",
+        "node",
+        "--import",
+        "tsx",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/compiled-trace-gate.mjs",
+        "production"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/compiled-production-trace-final.log",
+      "logSha256": "c158ff24428a135ba288fd922941a0c604681c0a9fdec9b1bc8cca086d3da385",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "development-build-final",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop",
+        "corepack",
+        "pnpm@10.17.1",
+        "exec",
+        "electron-vite",
+        "build",
+        "--mode",
+        "development"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/development-build-final.log",
+      "logSha256": "8a9d86c5c05aad49779b6ba8a2d58adea390a8df02a61d580cb0a4de3044923c",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "compiled-development-trace-final",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop",
+        "node",
+        "--import",
+        "tsx",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/compiled-trace-gate.mjs",
+        "development"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/compiled-development-trace-final.log",
+      "logSha256": "2d33666b7435405ced812760abaefffb618bf492c4f26fcafa8c2709f1d7ae6d",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "development-preload-final",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop",
+        "node",
+        "scripts/verify-preload-dependencies.mjs"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/development-preload-final.log",
+      "logSha256": "be1e862d2b37cbbd8ed211723acae78a641b1e58cbab8b2166e4f2493430a5c7",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "electron-mock-final",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "corepack",
+        "pnpm@10.17.1",
+        "--filter",
+        "@music-bridge/desktop",
+        "run",
+        "test:electron"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/electron-mock-final.log",
+      "logSha256": "f8ed170bce72d5ff86b2e4c849518b8e0a7e9380b508ff545dfb1053c75bbab7",
+      "counts": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "control-plane-delivery-final",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "node",
+        "scripts/ci/verify-control-plane.mjs"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/control-plane-delivery-final.log",
+      "logSha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "boundaries-final-r2",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "node",
+        "scripts/ci/verify-boundaries.mjs"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/boundaries-final-r2.log",
+      "logSha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "cycles-final-r2",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "node",
+        "scripts/ci/verify-cycles.mjs"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/cycles-final-r2.log",
+      "logSha256": "11f8c79796c2c51927330fb52f88eb10bab53aa22740b251194924b5a8094d20",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "diff-check-final",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "git",
+        "diff",
+        "--check"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/diff-check-final.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    }
+  ],
+  "priorRuns": [
+    {
+      "name": "controller-budget-red-clean",
+      "exitCode": 1,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-name-pattern=请求预算保护",
+        "test/controller.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/controller-budget-red-clean.log",
+      "logSha256": "8efa40a60fc2447ab525a8dd9df0726c00af1bb0a1365e47e3cf113e45233d4a",
+      "counts": {
+        "tests": 7,
+        "pass": 0,
+        "fail": 7,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "client-red",
+      "exitCode": 1,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-name-pattern",
+        "20项后台|9次快切|取消中的旧元数据|实际超时",
+        "test/netease-client.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/client-red.log",
+      "logSha256": "3209641ab1d46e6e5faac44f622413c684dd82e3b1008f1102de82f759720a85",
+      "counts": {
+        "tests": 4,
+        "pass": 0,
+        "fail": 4,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "gateway-red",
+      "exitCode": 1,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-name-pattern=预检",
+        "test/gateway.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/gateway-red.log",
+      "logSha256": "4d4a136efb251a9c31df1337b7eb5fbb1cc8e29e52508ad66f1639bd45a64264",
+      "counts": {
+        "tests": 4,
+        "pass": 1,
+        "fail": 3,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "client-deadline-red",
+      "exitCode": 1,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-name-pattern=旧物理请求到期释放后",
+        "test/netease-client.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/client-deadline-red.log",
+      "logSha256": "7d792711f039679d170512c8f94089f2b0a862cd057ebcf29528e7770bbf456d",
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "root-background-queue-red",
+      "exitCode": 1,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-name-pattern=后台等待队列满时",
+        "test/netease-playback-scheduling.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/root-background-queue-red.log",
+      "logSha256": "2307ef645bfd75daedae8265974ae3126028c5462cac1cafb300a0cc69001282",
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "runtime-reason-red",
+      "exitCode": 1,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-name-pattern=网易云队列失败",
+        "test/runtime.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/runtime-reason-red.log",
+      "logSha256": "80c4da21cef45b0165a6fc7b2a800cca0a8e40080893624a9a6a421ad748e5a9",
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "unit-desktop-final",
+      "exitCode": 1,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "test/ambient-artwork.test.ts",
+        "test/ambient-preview-parity.test.ts",
+        "test/appearance-ipc.test.ts",
+        "test/appearance-preference.test.ts",
+        "test/bugfix-v2-renderer.test.ts",
+        "test/collection-display.test.ts",
+        "test/collection-photos.test.ts",
+        "test/collection-progress-ipc.test.ts",
+        "test/collection-progress-ui.test.ts",
+        "test/collection-reference-images.test.ts",
+        "test/collection-return-navigation.test.ts",
+        "test/collectionQueue.test.ts",
+        "test/command-outbox-executor.test.ts",
+        "test/command-outbox-ipc.test.ts",
+        "test/command-outbox-service.test.ts",
+        "test/command-outbox-store.test.ts",
+        "test/command-outbox-ui.test.ts",
+        "test/commercial-copies-panel.test.ts",
+        "test/config-migration.test.ts",
+        "test/core-environment.test.ts",
+        "test/core-supervisor-compact.test.ts",
+        "test/core-supervisor.test.ts",
+        "test/credential-provisioning.test.ts",
+        "test/credential-vault.test.ts",
+        "test/csp.test.ts",
+        "test/dat-cue-reminders.test.ts",
+        "test/dataset-owner-bootstrap.test.ts",
+        "test/diagnostics.test.ts",
+        "test/electron-vite-shim.test.ts",
+        "test/favorite-resolution.test.ts",
+        "test/favorite-window-resolution.test.ts",
+        "test/home-recommendations.test.ts",
+        "test/ipc-security.test.ts",
+        "test/library-cache-transport.test.ts",
+        "test/library-pagination.test.ts",
+        "test/library-read-ipc.test.ts",
+        "test/library-read-scope.test.ts",
+        "test/library-read-terminal.test.ts",
+        "test/lifecycle-probe.test.ts",
+        "test/main-compact-ipc.test.ts",
+        "test/main-window.test.ts",
+        "test/master-artwork-panel.test.ts",
+        "test/mbp-005-renderer-cache.test.ts",
+        "test/mbp-005-renderer-ui.test.ts",
+        "test/mbp-007-artwork-components.test.ts",
+        "test/mbp-007-artwork-cross-layer.test.ts",
+        "test/mbp-007-artwork-geometry.test.ts",
+        "test/mbp-007-artwork-lifecycle.test.ts",
+        "test/native-converter-package.test.ts",
+        "test/native-output-device-package.test.ts",
+        "test/native-output-package.test.ts",
+        "test/netease-library-session.test.ts",
+        "test/output-bootstrap.test.ts",
+        "test/page-journey-session.test.ts",
+        "test/performance-ipc.test.ts",
+        "test/physical-link-history-fence.test.ts",
+        "test/physical-relation-request-fence.test.ts",
+        "test/physical-relations-mounted.test.ts",
+        "test/playback-acceptance.test.ts",
+        "test/playback-matching.test.ts",
+        "test/playback-session.test.ts",
+        "test/playback-stream-reducer.test.ts",
+        "test/playback-stream-session.test.ts",
+        "test/playback-stream-ui.test.ts",
+        "test/playbackFavorites.test.ts",
+        "test/playbackStatus.test.ts",
+        "test/player-details.test.ts",
+        "test/player-motion.test.ts",
+        "test/preload.test.ts",
+        "test/preparation-zip-ipc.test.ts",
+        "test/preparation-zip-panel.test.ts",
+        "test/prepared-revocations.test.ts",
+        "test/protocol.test.ts",
+        "test/recording-attempt-ipc.test.ts",
+        "test/recording-attempt-panel.test.ts",
+        "test/recording-candidate-ipc.test.ts",
+        "test/recording-device-ipc.test.ts",
+        "test/recording-next-step.test.ts",
+        "test/recording-output-ipc.test.ts",
+        "test/recording-output-panel.test.ts",
+        "test/recording-panel-context.test.ts",
+        "test/recording-plan-ipc.test.ts",
+        "test/recording-plan-panel.test.ts",
+        "test/recording-plan.test.ts",
+        "test/recording-print-export.test.ts",
+        "test/recording-print-ipc.test.ts",
+        "test/recording-print-panel.test.ts",
+        "test/recording-print-renderer.test.ts",
+        "test/recording-print-worker.test.ts",
+        "test/recording-record-ipc.test.ts",
+        "test/recording-record-panel.test.ts",
+        "test/recording-replica-ipc.test.ts",
+        "test/recording-replica-panel.test.ts",
+        "test/recording-source-candidate-ui.test.ts",
+        "test/recording-theme-selector.test.ts",
+        "test/recording-workbench-order.test.ts",
+        "test/recording-workbench-projection.test.ts",
+        "test/recording-workflow-integration.test.ts",
+        "test/recording-workspace-controller.test.ts",
+        "test/recording-workspace-ipc.test.ts",
+        "test/reference-catalog-ipc.test.ts",
+        "test/reference-catalog-ui.test.ts",
+        "test/remote-core-preferences.test.ts",
+        "test/remote-core-tunnel.test.ts",
+        "test/renderer-lifecycle.test.ts",
+        "test/renderer-read-lifecycle.test.ts",
+        "test/renderer.test.ts",
+        "test/roon-artwork-cache.test.ts",
+        "test/roon-browse-pagination.test.ts",
+        "test/roon-collection-lifecycle.test.ts",
+        "test/roon-collection-loader.test.ts",
+        "test/roon-context-ipc.test.ts",
+        "test/roon-context-queue.test.ts",
+        "test/roon-demand-queue-ui.test.ts",
+        "test/roon-display-connection.test.ts",
+        "test/roon-display-protocol.test.ts",
+        "test/roon-grid-lifecycle.test.ts",
+        "test/roon-grid-mounted.test.ts",
+        "test/roon-grid-resolution.test.ts",
+        "test/roon-grid-window.test.ts",
+        "test/roon-image-ipc.test.ts",
+        "test/roon-library-messages.test.ts",
+        "test/roon-library-ui.test.ts",
+        "test/roon-playback-optimism.test.ts",
+        "test/roon-search-collection.test.ts",
+        "test/sakura-theme.test.ts",
+        "test/search-entities.test.ts",
+        "test/searchAggregation.test.ts",
+        "test/security.test.ts",
+        "test/settingsNavigation.test.ts",
+        "test/sidebar-controls.test.ts",
+        "test/source-picker.test.ts",
+        "test/spreadsheet-import-ipc.test.ts",
+        "test/spreadsheet-import-ui.test.ts",
+        "test/startup-gate.test.ts",
+        "test/startup-readiness.test.ts",
+        "test/startup-test-config.test.ts",
+        "test/tray.test.ts",
+        "test/virtualWindow.test.ts",
+        "test/volume-ipc.test.ts",
+        "test/zone-lifecycle.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/unit-desktop-final.log",
+      "logSha256": "7f14dbafd0ca89f448febc3a467863a3d458d65e13959a937baa0ba57c65237c",
+      "counts": {
+        "tests": 1238,
+        "pass": 1230,
+        "fail": 8,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "desktop-eight-baseline",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/baseline-fixtures/apps/desktop",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "test/main-compact-ipc.test.ts",
+        "test/preload.test.ts",
+        "test/startup-test-config.test.ts",
+        "test/roon-library-ui.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/desktop-eight-baseline.log",
+      "logSha256": "80fb6a6fee6c28007af98d3da15fadcfe156cda5e9bad249852aa8d3edfaaea6",
+      "counts": {
+        "tests": 32,
+        "pass": 32,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "unit-core-final",
+      "exitCode": 1,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "test/archive-backup.test.ts",
+        "test/archive-files.test.ts",
+        "test/archive-restore.test.ts",
+        "test/archive-transactions.test.ts",
+        "test/archive-workflow.test.ts",
+        "test/audio-converter.test.ts",
+        "test/backup-index-details.test.ts",
+        "test/backup-workflow-migration.test.ts",
+        "test/backup-workflow-store-safety.test.ts",
+        "test/backup-workflow.test.ts",
+        "test/backup-zip-workflow.test.ts",
+        "test/backup-zip.test.ts",
+        "test/bundled-output-helper.test.ts",
+        "test/capacity-clean-clone-benchmark.test.ts",
+        "test/collection-filter.test.ts",
+        "test/collection-progress-store.test.ts",
+        "test/collection-repository-batch.test.ts",
+        "test/collection-repository.test.ts",
+        "test/command-outbox-core.test.ts",
+        "test/commercial-provenance.test.ts",
+        "test/config.test.ts",
+        "test/confirmed-track-action.test.ts",
+        "test/control-server.test.ts",
+        "test/controller-context.test.ts",
+        "test/controller.test.ts",
+        "test/dataset-domain.test.ts",
+        "test/dataset-identity.test.ts",
+        "test/dataset-owner-integration.test.ts",
+        "test/dataset-owner-recording.test.ts",
+        "test/dataset-owner.test.ts",
+        "test/dataset-roon-projection.test.ts",
+        "test/device-output-protocol.test.ts",
+        "test/device-output-runner.test.ts",
+        "test/device-selection-broker.test.ts",
+        "test/execution-assets.test.ts",
+        "test/execution-compiler.test.ts",
+        "test/execution-files.test.ts",
+        "test/execution-plan.test.ts",
+        "test/favorite-repository.test.ts",
+        "test/formal-device-attempt-provider.test.ts",
+        "test/gate-b-admission.test.ts",
+        "test/gateway.test.ts",
+        "test/ipc-playback-failures.test.ts",
+        "test/library-cache-lifetime.test.ts",
+        "test/library-read-lifecycle.test.ts",
+        "test/library-read-trace-safety.test.ts",
+        "test/library-read-tracing.test.ts",
+        "test/library.test.ts",
+        "test/local-lyrics-acceptance.test.ts",
+        "test/local-lyrics-manual-match.test.ts",
+        "test/local-lyrics-resolver.test.ts",
+        "test/local-track-signature.test.ts",
+        "test/lyrics-match-domain.test.ts",
+        "test/lyrics-match-repository.test.ts",
+        "test/lyrics.test.ts",
+        "test/master-drafts-coordinator.test.ts",
+        "test/master-versions.test.ts",
+        "test/match-candidate-resolution.test.ts",
+        "test/matching.test.ts",
+        "test/mbp-004-incremental-boundaries.test.ts",
+        "test/media-planning.test.ts",
+        "test/mixed-queue.test.ts",
+        "test/multi-disk-downstream.test.ts",
+        "test/native-device-catalog.test.ts",
+        "test/netease-client.test.ts",
+        "test/netease-playback-scheduling.test.ts",
+        "test/netease-playlist-snapshot-cache.test.ts",
+        "test/output-device-pump.test.ts",
+        "test/output-helper.test.ts",
+        "test/output-protocol.test.ts",
+        "test/output-run-lease.test.ts",
+        "test/output-run-recovery.test.ts",
+        "test/parse.test.ts",
+        "test/performance-instrumentation.test.ts",
+        "test/performance-trace.test.ts",
+        "test/physical-links-coordinator.test.ts",
+        "test/playback-event-load.test.ts",
+        "test/playback-event-publisher.test.ts",
+        "test/playback-failure-trace.test.ts",
+        "test/policy.test.ts",
+        "test/preparation-export.test.ts",
+        "test/preparation-files.test.ts",
+        "test/preparation-zip-runtime.test.ts",
+        "test/preparation.test.ts",
+        "test/prepared-files.test.ts",
+        "test/prepared-render.test.ts",
+        "test/provider-wrapper-contract.test.ts",
+        "test/qr-login.test.ts",
+        "test/readonly-audio-consumer.test.ts",
+        "test/record-page-migration-budget.test.ts",
+        "test/record-page-query.test.ts",
+        "test/recording-attempt-backup.test.ts",
+        "test/recording-attempt-migration.test.ts",
+        "test/recording-attempt-state.test.ts",
+        "test/recording-attempt.test.ts",
+        "test/recording-capacity-lineage-conformance.test.ts",
+        "test/recording-capacity-print-write.test.ts",
+        "test/recording-capacity-queued-stop.test.ts",
+        "test/recording-capacity.test.ts",
+        "test/recording-output-attempt-audit.test.ts",
+        "test/recording-output-run-barrier.test.ts",
+        "test/recording-output.test.ts",
+        "test/recording-plan.test.ts",
+        "test/recording-preflight-admission.test.ts",
+        "test/recording-print-backup.test.ts",
+        "test/recording-print-facts.test.ts",
+        "test/recording-print-migration.test.ts",
+        "test/recording-print-store.test.ts",
+        "test/recording-profile.test.ts",
+        "test/recording-record-backup.test.ts",
+        "test/recording-record-disposition.test.ts",
+        "test/recording-record-migration.test.ts",
+        "test/recording-record.test.ts",
+        "test/recording-replica-input.test.ts",
+        "test/recording-replica-session.test.ts",
+        "test/recording-replica-source.test.ts",
+        "test/recording-workspace.test.ts",
+        "test/reference-catalog-activation.test.ts",
+        "test/reference-catalog-store.test.ts",
+        "test/reference-source-zip.test.ts",
+        "test/registry.test.ts",
+        "test/render-conformance.test.ts",
+        "test/replica-device-output-provider.test.ts",
+        "test/restore-activation-files.test.ts",
+        "test/restore-activation-process.test.ts",
+        "test/restore-activation-store.test.ts",
+        "test/restore-content-binding.test.ts",
+        "test/restore-dataset-runtime.test.ts",
+        "test/roon-action-policy.test.ts",
+        "test/roon-adapter.test.ts",
+        "test/roon-display-lyrics.test.ts",
+        "test/roon-image-owner.test.ts",
+        "test/roon-library-registration.test.ts",
+        "test/roon-library.test.ts",
+        "test/roon-page-cache.test.ts",
+        "test/roon-playback-context.test.ts",
+        "test/roon-public-library.test.ts",
+        "test/roon-sdk-callback-context.test.ts",
+        "test/roon-volume.test.ts",
+        "test/runtime-compact-events.test.ts",
+        "test/runtime.test.ts",
+        "test/search.test.ts",
+        "test/source-candidates.test.ts",
+        "test/source-evidence.test.ts",
+        "test/spreadsheet-files.test.ts",
+        "test/spreadsheet-import-store.test.ts",
+        "test/spreadsheet-parser.test.ts",
+        "test/spreadsheet-zip.test.ts",
+        "test/track-action-confirmation.test.ts",
+        "test/utility-ipc.test.ts",
+        "test/utility-playback-stream.test.ts",
+        "test/v3-main-journey.test.ts",
+        "test/verified-zip.test.ts",
+        "test/version-planner.test.ts",
+        "test/zone-switch.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/unit-core-final.log",
+      "logSha256": "7a1e4733325f6c981830c6b26aa29f0ace853fa971ec0035ed4febe531e1192c",
+      "counts": {
+        "tests": 2009,
+        "pass": 2006,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 2,
+        "todo": 0
+      }
+    },
+    {
+      "name": "capacity-pid-baseline",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/baseline-fixtures/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-name-pattern=进程设施：错误PID",
+        "test/recording-capacity.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/capacity-pid-baseline.log",
+      "logSha256": "e092691ad21cfb9d975ef7f8c2bbb97da6f8f099590de1f355faa4256dbd8313",
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "capacity-pid-current",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-name-pattern=进程设施：错误PID",
+        "test/recording-capacity.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/capacity-pid-current.log",
+      "logSha256": "3c2f867cf4b1b38abf88adeb718a6c5f35e91ab3d8b9b57057cb5dc776a73532",
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "compiled-production-trace-baseline-red",
+      "exitCode": 1,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop",
+        "node",
+        "--import",
+        "tsx",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/compiled-trace-gate.mjs",
+        "production"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/compiled-production-trace-baseline-red.log",
+      "logSha256": "2f36af6d7da16fb89afe47db6ffefd7941af4ad19f006905ef7fed307363f0ff",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "compiled-production-trace-red",
+      "exitCode": 1,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "node",
+        "--import",
+        "tsx",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/compiled-trace-gate.mjs",
+        "production"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/compiled-production-trace-red.log",
+      "logSha256": "56364f464491713b16ffd70c9a51a3e7653b53d4143a711d63930df9c947e39e",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "client-typecheck",
+      "exitCode": 2,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json",
+        "--noEmit"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/client-typecheck.log",
+      "logSha256": "a451a6abb08871a5732c128582d5b6d60e95e31d05d4e9d6c30e38add9dbffdb",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "core-typecheck-pre-final",
+      "exitCode": 2,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json",
+        "--noEmit"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/core-typecheck-pre-final.log",
+      "logSha256": "051207f10fa8f5774b379ec456f99612ce7f86a64191a570e5500ced4c18ab3b",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    }
+  ],
+  "reportedAgentRuns": [
+    {
+      "name": "core-red",
+      "reportedBy": "roon_max",
+      "reportedExitCode": null,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-trace-vKObIF/core-red.log",
+      "logSha256": "e7ed13de0f5e095f85992774eab82c21e98bde48265e57d926e2130afbc65bbc",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "desktop-red",
+      "reportedBy": "roon_max",
+      "reportedExitCode": null,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-trace-vKObIF/desktop-red.log",
+      "logSha256": "c589a2bbe4e4205dbce727a2fc431e2e660fa49dc6c8302f8b8f97a9a2a0937f",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "core-final",
+      "reportedBy": "roon_max",
+      "reportedExitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-trace-vKObIF/core-final.log",
+      "logSha256": "56552be420125ec8dc46fd1663436083608c0b06137f4985f7d46b9b6dad0494",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "desktop-final",
+      "reportedBy": "roon_max",
+      "reportedExitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-trace-vKObIF/desktop-final.log",
+      "logSha256": "d8c76c2519e06f6a37dad8d054f272aa1734afac607dbc44f0ec1837b93d6b45",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    },
+    {
+      "name": "four-fixtures-final",
+      "reportedBy": "roon_max",
+      "reportedExitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-trace-vKObIF/four-fixtures-final.log",
+      "logSha256": "66514d0d052ff7fb58474d5be509a2d67d63a56e0a51a7334fcbecab06a1f1fe",
+      "counts": {
+        "tests": null,
+        "pass": null,
+        "fail": null,
+        "cancelled": null,
+        "skipped": null,
+        "todo": null
+      }
+    }
+  ],
+  "unmodifiedCapacityPidFiles": [
+    {
+      "path": "packages/bridge-core/test/recording-capacity.test.ts",
+      "baselineSha256": "9d4a9b94b400294f99632af98b25b523c6241abbbe492ec034947c4222d1dad8",
+      "currentSha256": "9d4a9b94b400294f99632af98b25b523c6241abbbe492ec034947c4222d1dad8"
+    },
+    {
+      "path": "packages/bridge-core/test/helpers/recording-capacity-process.ts",
+      "baselineSha256": "90714a7a97ad69ba6df34e4a624c5bc01ae9d18fa4d776a2de987cbd27c1935f",
+      "currentSha256": "90714a7a97ad69ba6df34e4a624c5bc01ae9d18fa4d776a2de987cbd27c1935f"
+    }
+  ],
+  "remoteBranchSnapshot": {
+    "name": "remote-branch-snapshot",
+    "exitCode": 2,
+    "argv": [
+      "/Volumes/LifeWeave/VSCode/MusicBridge",
+      "env",
+      "GIT_TERMINAL_PROMPT=0",
+      "GIT_SSH_COMMAND=ssh -o BatchMode=yes -o ConnectTimeout=10",
+      "git",
+      "ls-remote",
+      "--exit-code",
+      "origin",
+      "refs/heads/codex/fix-playback-read-tracing"
+    ],
+    "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/remote-branch-snapshot.log",
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "counts": {
+      "tests": null,
+      "pass": null,
+      "fail": null,
+      "cancelled": null,
+      "skipped": null,
+      "todo": null
+    },
+    "interpretation": "exit-2-no-matching-remote-branch",
+    "pushed": false
+  },
+  "compiledArtifacts": [
+    {
+      "mode": "production",
+      "defaultTraceEnabled": false,
+      "declaration": "const isLibraryReadTrace = isLibraryReadTraceEnabled(process.env, false);",
+      "files": [
+        {
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop/dist/main/index.js",
+          "sha256": "680c4f42e5c587e1bec6f7235f59e0a94b6221f4baa1b80217c03e033e5c0a71"
+        },
+        {
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop/dist/main/core.js",
+          "sha256": "b5adc978939448f7fce658bcbd308d98fe7a72e1516d0bcc39a92b65b679321d"
+        },
+        {
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop/dist/preload/index.cjs",
+          "sha256": "0f78c676b176653289a709b6bebe3de1069c61c6360e27dd43af359bf26495b1"
+        },
+        {
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop/dist/renderer/index.html",
+          "sha256": "49ffd2ff939b34a2d8793cbf9f09a46f7a6afc87d9da1e85f6ee456bb44ce4b1"
+        }
+      ]
+    },
+    {
+      "mode": "development",
+      "defaultTraceEnabled": true,
+      "declaration": "const isLibraryReadTrace = isLibraryReadTraceEnabled(process.env, !app.isPackaged && process.env.NODE_ENV !== \"production\" && !isStartupTest && !isUiE2e);",
+      "files": [
+        {
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop/dist/main/index.js",
+          "sha256": "9d9f51ac4fffe24df27c32f98e86ebcaebeba6e0251143ee57b92739175f01cf"
+        },
+        {
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop/dist/main/core.js",
+          "sha256": "b5adc978939448f7fce658bcbd308d98fe7a72e1516d0bcc39a92b65b679321d"
+        },
+        {
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop/dist/preload/index.cjs",
+          "sha256": "0f78c676b176653289a709b6bebe3de1069c61c6360e27dd43af359bf26495b1"
+        },
+        {
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop/dist/renderer/index.html",
+          "sha256": "49ffd2ff939b34a2d8793cbf9f09a46f7a6afc87d9da1e85f6ee456bb44ce4b1"
+        }
+      ]
+    }
+  ],
+  "originalCompleteUnitScope": {
+    "contracts": "test/*.test.ts",
+    "core": "test/*.test.ts",
+    "desktop": "test/*.test.ts",
+    "concurrency": 1,
+    "addedSkips": 0
+  },
+  "unitSummary": {
+    "pass": 3500,
+    "fail": 0,
+    "originalCoreNativeConditionalSkips": 2
+  },
+  "realServices": {
+    "provider": "NOT_RUN",
+    "roon": "NOT_RUN",
+    "ssh": "NOT_RUN",
+    "audio": "NOT_RUN",
+    "recording": "NOT_RUN",
+    "systemKeychain": "NOT_RUN",
+    "fullElectronE2E": "NOT_RUN",
+    "remoteCI": "NOT_RUN"
+  },
+  "unresolved": [
+    "Roon现场根因待逐请求日志确认",
+    "固定SDK不支持Owner物理abort，已验证实际timeout",
+    "运行准备工作的物理取消未证明"
+  ],
+  "releaseActions": {
+    "installedAppReplacement": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN"
+  },
+  "preservedUntracked": [
+    "apps/desktop/test-results/",
+    "worktree/"
+  ],
+  "baselineFixtureCheckout": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ/baseline-fixtures"
+}

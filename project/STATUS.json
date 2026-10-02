@@ -2996,7 +2996,7 @@
     "branch": "codex/fix-playback-roon-runtime",
     "baseCommit": "e2eac26eecb835224f2a00477552e1f0f727c5fb",
     "implementationCommit": "cc742c0fc7ef7981be2de23c7046098dfa7418b4",
-    "state": "implemented-software-gates-passed-owner-runtime-retest-pending",
+    "state": "software-gates-passed-owner-runtime-retest-failed-followup-MBR-004",
     "report": "reports/MBR-003_RUNTIME_PLAYBACK_ROON.md",
     "evidence": "reports/MBR-003_EVIDENCE.json",
     "reportCommit": null,
@@ -3023,6 +3023,87 @@
     "untrackedPreserved": [
       "apps/desktop/test-results/",
       "worktree/"
-    ]
+    ],
+    "ownerRuntimeRetest": {
+      "result": "FAILED",
+      "observedAt": "2026-10-02",
+      "playback": "INTERNAL_ERROR",
+      "libraryRead": "CANCELLED",
+      "followupTask": "MBR-004"
+    }
+  },
+  "currentRuntimeTask": {
+    "task": "MBR-004",
+    "statusKey": "runtimePlaybackReadTracing20261002"
+  },
+  "runtimePlaybackReadTracing20261002": {
+    "task": "MBR-004",
+    "branch": "codex/fix-playback-read-tracing",
+    "baseCommit": "dbece1cb3beacf5dd2d8d24861feb9bf71829b26",
+    "implementationCommit": "16132564d8bbb3bec900602fbf0cdefc86a09bd5",
+    "implementationCommitResolution": "git-log-last-commit-touching-packages/bridge-core/src/netease/request-scheduler.ts",
+    "state": "software-gates-passed-owner-runtime-retest-pending",
+    "report": "reports/MBR-004_PLAYBACK_READ_TRACING.md",
+    "evidence": "reports/MBR-004_EVIDENCE.json",
+    "reportCommit": null,
+    "reportCommitResolution": "git-log-last-commit-touching-reports/MBR-004_PLAYBACK_READ_TRACING.md",
+    "nextBranchBaseResolution": "final-MBR-004-report-HEAD-no-next-task-authorization",
+    "validation": {
+      "typecheckExitCode": 0,
+      "contractsPassed": 254,
+      "desktopPassed": 1239,
+      "coreFullFinal": "PASS",
+      "originalNativeConditionalSkips": 2,
+      "playbackClientGatewayIntegration": "8/8-exit-0",
+      "fixedSdkAxiosLoopback": "18/18-client-suite-exit-0",
+      "productionBuildExitCode": 0,
+      "developmentBuildExitCode": 0,
+      "compiledProductionTraceDefault": false,
+      "compiledDevelopmentTraceDefault": true,
+      "mockElectronProcessGate": "4/4-exit-0",
+      "boundariesExitCode": 0,
+      "cyclesExitCode": 0,
+      "corePassed": 2007,
+      "unitPassed": 3500,
+      "unitFailed": 0,
+      "addedSkips": 0,
+      "unitExitCode": 0,
+      "controlPlaneExitCode": 0,
+      "firstCoreRun": "2006-pass-1-fail-2-original-skip-exit-1; unchanged PID protocol test exceeded budget",
+      "secondCoreRun": "2007-pass-0-fail-2-original-skip-exit-0; original complete scope and original limits",
+      "firstDesktopRun": "1230-pass-8-fixture-or-text-contract-fail-exit-1",
+      "desktopBaselineComparison": "32/32-exit-0-on-dbece1c",
+      "desktopFixtureFinal": "33/33-exit-0",
+      "diffCheckExitCode": 0
+    },
+    "realProviderRoonAcceptance": "NOT_RUN",
+    "roonFieldRootCause": "UNCONFIRMED-trace-now-connected",
+    "fixedSdkPhysicalOwnerAbort": "UNSUPPORTED-timeout-verified-on-synthetic-loopback",
+    "apiRuntimePreparationPhysicalAbort": "UNPROVEN-local-wait-only",
+    "fullElectronE2E": "NOT_RUN",
+    "realSystemKeychain": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "realRecording": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-read-playback-fix-Z4QNBZ",
+    "agentPolicy": {
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "max",
+      "maximumSubagents": 3,
+      "forbiddenModels": [
+        "gpt-6-sol"
+      ]
+    },
+    "untrackedPreserved": [
+      "apps/desktop/test-results/",
+      "worktree/"
+    ],
+    "remoteBranchSnapshot": {
+      "matchingBranch": false,
+      "lsRemoteExitCode": 2,
+      "pushed": false
+    }
   }
 }
