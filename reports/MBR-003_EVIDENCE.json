@@ -1,0 +1,282 @@
+{
+  "schemaVersion": 1,
+  "task": "MBR-003",
+  "recordedAt": "2026-10-02T03:21:56.176636+00:00",
+  "baseCommit": "e2eac26eecb835224f2a00477552e1f0f727c5fb",
+  "implementationCommit": "cc742c0fc7ef7981be2de23c7046098dfa7418b4",
+  "branch": "codex/fix-playback-roon-runtime",
+  "validatedImplementationFiles": [
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "sha256": "fcb2b813acd6516da8b14691b2b8152d7f6dc2e6dce06355b910bd5bcc555fad"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useRoonBrowse.ts",
+      "sha256": "95a37d4067ee2b843e7baca62ca7d15201cfcb752fc7ddea443a8035aca082d3"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/useRoonCollection.ts",
+      "sha256": "f3320d219d70150e767bffd0bf9d04ebf115ede96aa141f77e2b21d61c8961f4"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/roonLibraryMessages.ts",
+      "sha256": "3b862f02d8b1c13417b57f6646fd0550e7e9ba9741806fa361d39f8caf8b5a67"
+    },
+    {
+      "path": "apps/desktop/test/playback-session.test.ts",
+      "sha256": "1dfe3c6ccf2aaf17c89c88486fafcb7126ca4bcf22b4d04838e3817d7b7a9673"
+    },
+    {
+      "path": "apps/desktop/test/roon-browse-pagination.test.ts",
+      "sha256": "261c91a04c66d903e7712b1ce94c48b44795aa77b70e9290d92c89bc58d6ca47"
+    },
+    {
+      "path": "apps/desktop/test/roon-collection-loader.test.ts",
+      "sha256": "b42f4e9541777f6590a8beda2f27f9b593951186bba84d7653a2ae0acf300861"
+    },
+    {
+      "path": "packages/bridge-core/src/application/bridge-controller.ts",
+      "sha256": "1ab761496d81b59f874f05aaf76edb89c897f08da95749e70d4b9095dfc635f7"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/library.ts",
+      "sha256": "4872fd425f67ba9db563efa53e2e4492050e1abba0031ad97a77a479b10fae4e"
+    },
+    {
+      "path": "packages/bridge-core/src/runtime.ts",
+      "sha256": "6d6b101d0535a21bf0cc051c63ea5b6997bb0694e0b5281be54e8901dc2d9bef"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/ipc-failure.ts",
+      "sha256": "7deee8f03eee2596850daf34fd0b642499aed1676245f7abea85435c6b6d178b"
+    },
+    {
+      "path": "packages/bridge-core/test/controller.test.ts",
+      "sha256": "1bc285772c4a88d22c48e815e9dfa5d4d526c573ad3e4e03c9aa7252396e16d8"
+    },
+    {
+      "path": "packages/bridge-core/test/ipc-playback-failures.test.ts",
+      "sha256": "ddf290ad11f3a12a38d6b41de93131878324bc97ebfd3f6f13259f734b5e7829"
+    },
+    {
+      "path": "packages/bridge-core/test/roon-sdk-callback-context.test.ts",
+      "sha256": "069d4ae85efffc5d55623c99ce01f226bced7e8e80133f6a29cccac4c4cfdfe7"
+    },
+    {
+      "path": "packages/bridge-core/test/runtime.test.ts",
+      "sha256": "a31f3e3b02945c8d83e2874d45a6b291b8a0fb4c57ba8816e5db950b1a83cfff"
+    },
+    {
+      "path": "tasks/MBR-003-runtime-playback-roon.md",
+      "sha256": "9d4c5c19e8a4e76edb0983567757c8a85ae4f487815ad7d6e64a3b5f1d3d7ed4"
+    }
+  ],
+  "gates": [
+    {
+      "name": "final-typecheck-r2",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "corepack",
+        "pnpm@10.17.1",
+        "run",
+        "typecheck"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/final-typecheck-r2.log",
+      "logSha256": "c59665bd3f31048ca2050956641ad60186487c4bf0b082661e171d9772d583e0"
+    },
+    {
+      "name": "final-unit-all",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "corepack",
+        "pnpm@10.17.1",
+        "run",
+        "test"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/final-unit-all.log",
+      "logSha256": "3a1d8ab8e3edd78b8522f7aab3c9f7c3ceb3348a6e57a7a732f3c80978f47a78"
+    },
+    {
+      "name": "final-renderer-lifecycle-r2",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/apps/desktop",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/roon-browse-pagination.test.ts",
+        "test/renderer-read-lifecycle.test.ts",
+        "test/mbp-005-renderer-cache.test.ts",
+        "test/roon-collection-lifecycle.test.ts",
+        "test/roon-collection-loader.test.ts",
+        "test/roon-library-messages.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/final-renderer-lifecycle-r2.log",
+      "logSha256": "9d5605cd333c4f10cee3b600e717565f75766ca73f229f11d269a9c950787488"
+    },
+    {
+      "name": "final-runtime-diagnostics-r3",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/runtime.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/final-runtime-diagnostics-r3.log",
+      "logSha256": "da629d94f06ffd6228135321400577e9b95136d72b74ffd7f20673ebb93fe14f"
+    },
+    {
+      "name": "playback-ipc-green",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/ipc-playback-failures.test.ts",
+        "test/utility-ipc.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/playback-ipc-green.log",
+      "logSha256": "6198fbd49aa44f8362f042924546cd85eb4851d4c87c637fa831292e9471ae28"
+    },
+    {
+      "name": "roon-sdk-context-green",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/roon-sdk-callback-context.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/roon-sdk-context-green.log",
+      "logSha256": "eed223c209ecf417386c8d2671a0734cfc3d46c45704fe844cfcd08ddd9aba01"
+    },
+    {
+      "name": "roon-sdk-context-regression",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/roon-sdk-callback-context.test.ts",
+        "test/roon-library.test.ts",
+        "test/roon-page-cache.test.ts",
+        "test/library-read-lifecycle.test.ts",
+        "test/roon-image-owner.test.ts",
+        "test/roon-public-library.test.ts"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/roon-sdk-context-regression.log",
+      "logSha256": "7f121d8b5913b7dfc4a7ac63f9bd21836557a68082a61b42a965cd0ba0b0099f"
+    },
+    {
+      "name": "roon-sdk-context-typecheck",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge/packages/bridge-core",
+        "node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json",
+        "--noEmit",
+        "--incremental",
+        "false"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/roon-sdk-context-typecheck.log",
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "final-control-plane",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "node",
+        "scripts/ci/verify-control-plane.mjs"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/final-control-plane.log",
+      "logSha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+    },
+    {
+      "name": "final-boundaries",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "node",
+        "scripts/ci/verify-boundaries.mjs"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/final-boundaries.log",
+      "logSha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+    },
+    {
+      "name": "final-cycles",
+      "exitCode": 0,
+      "argv": [
+        "/Volumes/LifeWeave/VSCode/MusicBridge",
+        "node",
+        "scripts/ci/verify-cycles.mjs"
+      ],
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/final-cycles.log",
+      "logSha256": "871347e60c2a9fcff3a421071b656a52fc8c944e1a85eb0223c34b7a6aac6573"
+    }
+  ],
+  "unitResults": {
+    "contracts": {
+      "pass": 254,
+      "fail": 0,
+      "skip": 0
+    },
+    "core": {
+      "pass": 1964,
+      "fail": 0,
+      "skip": 2
+    },
+    "desktop": {
+      "pass": 1229,
+      "fail": 0,
+      "skip": 0
+    }
+  },
+  "preservedNativeSkips": [
+    "ok 811 - 实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
+    "ok 817 - Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
+  ],
+  "agentQuickPlayEvidence": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/quick-play-final-exits.json",
+  "agentQuickPlayEvidenceSha256": "5754bc9144a3ccfeddc755b398ee4eeb8a4937b119607fdd4f06d2707f2202cb",
+  "independentReadAuditProbe": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/read-cancel-audit/protection-probe.ts",
+  "failedRunsPreserved": {
+    "roon-sdk-context-red": 1,
+    "roon-current-cancel-red": 1,
+    "playback-ipc-red": 1,
+    "final-runtime-diagnostics": 1,
+    "final-typecheck": 2
+  },
+  "acceptanceBoundary": {
+    "realProviderRoon": "NOT_RUN",
+    "fullElectronE2E": "NOT_RUN",
+    "productionAppBuildInstall": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN"
+  },
+  "reportCommitResolution": "git-log-last-commit-touching-reports/MBR-003_RUNTIME_PLAYBACK_ROON.md",
+  "independentReadAudit": {
+    "passed": 10,
+    "failed": 0,
+    "probe": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/read-cancel-audit/protection-probe.ts",
+    "probeSha256": "b89e3a4432da1945be0b53a12c47e5da3baa33797469669bd39b3c796afd2079",
+    "result": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-runtime-fix-n924wlut/read-cancel-audit/protection-green.json",
+    "resultSha256": "6a7c1b11fd2cf9332a37e76716de7dee464e597a3a8b3b9067d63cbfd69bacb8",
+    "agentReportedActualExitCode": 0
+  },
+  "newBranchRemoteHeadCheck": "git-ls-remote-exit-0-no-matching-ref-unpublished"
+}

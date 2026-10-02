@@ -2990,5 +2990,39 @@
     "deliveryCommitResolution": "git-log-last-commit-touching-project/PERFORMANCE_PLAN.json",
     "nextBranchBaseResolution": "final-development-delivery-HEAD-no-new-task-authorization",
     "finalDeliveryReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mbp-009-root-d9sa4fiu/FINAL_DELIVERY_RECEIPT.json"
+  },
+  "runtimePlaybackRoonFix20261002": {
+    "task": "MBR-003",
+    "branch": "codex/fix-playback-roon-runtime",
+    "baseCommit": "e2eac26eecb835224f2a00477552e1f0f727c5fb",
+    "implementationCommit": "cc742c0fc7ef7981be2de23c7046098dfa7418b4",
+    "state": "implemented-software-gates-passed-owner-runtime-retest-pending",
+    "report": "reports/MBR-003_RUNTIME_PLAYBACK_ROON.md",
+    "evidence": "reports/MBR-003_EVIDENCE.json",
+    "reportCommit": null,
+    "reportCommitResolution": "git-log-last-commit-touching-reports/MBR-003_RUNTIME_PLAYBACK_ROON.md",
+    "nextBranchBaseResolution": "final-MBR-003-report-HEAD",
+    "validation": {
+      "typecheckExitCode": 0,
+      "unitExitCode": 0,
+      "contractsPassed": 254,
+      "corePassed": 1964,
+      "coreOriginalNativeSkip": 2,
+      "desktopPassed": 1229,
+      "controlPlaneExitCode": 0,
+      "boundariesExitCode": 0,
+      "cyclesExitCode": 0,
+      "independentCancelProtection": "10/10-exit-0"
+    },
+    "realProviderRoonAcceptance": "NOT_RUN",
+    "fullElectronE2E": "NOT_RUN",
+    "appBuildInstall": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "untrackedPreserved": [
+      "apps/desktop/test-results/",
+      "worktree/"
+    ]
   }
 }
