@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "allowJs": true, "checkJs": false, "lib": ["ES2023", "DOM", "DOM.Iterable"] },
+  "include": [
+    "../scripts/rust-collection-human-session.ts",
+    "../test/helpers/rust-collection-human-evidence.ts",
+    "../test/helpers/rust-collection-host-seed.ts",
+    "../test/rust-core/rust-collection-human-*.test.ts",
+    "../src/renderer/src/env.d.ts"
+  ]
+}

@@ -1,0 +1,11 @@
+# ADR-047：有界可见合成人工验收会话
+
+状态：本期采用，Owner人工验收尚未执行。
+
+009已证明真实生产Renderer的自动控件/SQLite/后台领取与自然退出，但其窗口隐藏且自动流程后结束，不能交给Owner持续操作。本期新建独立可信driver复用静态组件与原生产页面，在全新外置合成profile中show/focus并提供status/refresh/quit。Node继续唯一写库，Rust配置只来自闭集编译入口，默认Node。
+
+采用30分钟有界一期，不声称当前测试observer无限常驻品质；正常app.quit和每层自然退出独立验收，mac红点隐藏不代表结束。完整预检在任何seed/启动前执行，绑定源/产物/bin/Electron，拒绝隐式下载、已有profile和本机存储回落。只读审计发现原Main远程Core启动并不受offline变量保护，因此新driver在显示前封闭范围外能力并验证实际拒绝；收藏与合成策略保持原handler。脚本smoke、Owner可交互会话及Owner反馈分开，不由计时器或脚本点击推定人工通过。
+
+实际启动中断暴露Playwright自己的SIGINT处理会提前退出driver，导致失败收据未持久化。本期在固定依赖源码身份下，仅于单次launch异步上下文隔离三条精确新增回调，保留其他监听器并恢复注册方法；driver自身负责中断失败记录和原app.quit。依赖漂移或既有Playwright会话拒绝准入，未修改依赖、生产Main或原009组件。该修复仍需真实中断Gate与独立收据验收，不能用行为测试代替实际Electron证据。
+
+实现只新增driver/专用类型/行为与证据拒绝测试及自动Gate/指南；生产和009测试组件原文保留。真实用户启用、服务、音频、签名安装及无限常驻另立范围，旧carryover保持。

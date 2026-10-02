@@ -3201,10 +3201,10 @@
     }
   },
   "currentRustCoreTask": {
-    "task": "RUST-008",
-    "state": "local-complete-validated-reviewed-unpushed",
-    "scope": "tasks/RUST-008-main-read-boundary.md",
-    "branch": "codex/rust-core-008-main-read-boundary"
+    "task": "RUST-010",
+    "state": "local-gates-pass-final-review-and-delivery-pending",
+    "scope": "tasks/RUST-010-synthetic-owner-session.md",
+    "branch": "codex/rust-core-010-synthetic-owner-session"
   },
   "rustCoreAtomicSnapshot20261002": {
     "task": "RUST-002",
@@ -4331,5 +4331,287 @@
     "report": "reports/RUST-009_COLLECTION_UI_READ_BOUNDARY.md",
     "evidence": "reports/RUST-009_EVIDENCE.json",
     "finalIdentityReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/FINAL_IDENTITY.json"
+  },
+  "rustCoreHumanSession20261002": {
+    "task": "RUST-010",
+    "baseCommit": "5fc369a46b37fec4ad50ebb909aa1f2c4bc09d09",
+    "branch": "codex/rust-core-010-synthetic-owner-session",
+    "state": "local-gates-pass-final-review-and-delivery-pending",
+    "scope": "tasks/RUST-010-synthetic-owner-session.md",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6",
+    "previousFinalIdentity": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/FINAL_IDENTITY.json",
+    "previousFinalIdentitySha256": "cf0b079a070c28f3b5e00469226b7d87499e35235a35946b8ba8d5efdddc3502",
+    "productionDefault": "Node",
+    "soleProductionDatabaseWriter": "Node",
+    "modes": [
+      "node100",
+      "rust100",
+      "rust2000",
+      "rust5000"
+    ],
+    "sessionBudgetMinutes": 30,
+    "fullSoftware": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/software-final-01/software-manifest.json",
+      "sha256": "2ba8a354632bd377efa4db19fa0283cf52ee2042ddae1f16e8070f71aa95731a",
+      "sourceFiles": 1110,
+      "sourceStable": true,
+      "runs": [
+        {
+          "name": "typecheck",
+          "argv": [
+            "corepack",
+            "pnpm@10.17.1",
+            "run",
+            "typecheck"
+          ],
+          "exitCode": 0,
+          "durationSeconds": 24.466478500005906,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/software-final-01/software-typecheck.log",
+          "sha256": "ec91a1bcecc7fdab28ac80f4bbf95efec994360658a99a8aa61111d6328f222f"
+        },
+        {
+          "name": "unit",
+          "argv": [
+            "corepack",
+            "pnpm@10.17.1",
+            "run",
+            "test"
+          ],
+          "exitCode": 0,
+          "durationSeconds": 206.42050154200115,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/software-final-01/software-unit.log",
+          "sha256": "6011fdf900a68a4f8ab1067af9747c96d7f794fa173e949444ac52a2e8957950"
+        },
+        {
+          "name": "build",
+          "argv": [
+            "corepack",
+            "pnpm@10.17.1",
+            "run",
+            "build"
+          ],
+          "exitCode": 0,
+          "durationSeconds": 15.408015291002812,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/software-final-01/software-build.log",
+          "sha256": "f6c55b50f3a137f1c9d580aebd279baded19875a712f4d8e7a97266e90a0f639"
+        },
+        {
+          "name": "control-plane",
+          "argv": [
+            "node",
+            "scripts/ci/verify-control-plane.mjs"
+          ],
+          "exitCode": 0,
+          "durationSeconds": 0.0820037919911556,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/software-final-01/software-control-plane.log",
+          "sha256": "1b2d1a1ab436c3ef7c356d63ab6923f33b43380dbe227a8b4e194091ba5c7c4f"
+        },
+        {
+          "name": "boundaries",
+          "argv": [
+            "node",
+            "scripts/ci/verify-boundaries.mjs"
+          ],
+          "exitCode": 0,
+          "durationSeconds": 0.07648966700071469,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/software-final-01/software-boundaries.log",
+          "sha256": "bdbde94cd207549421518ebf2107412ec20099b721efdcfc8b192e8c1788e0af"
+        },
+        {
+          "name": "cycles",
+          "argv": [
+            "node",
+            "scripts/ci/verify-cycles.mjs"
+          ],
+          "exitCode": 0,
+          "durationSeconds": 0.05508424999425188,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/software-final-01/software-cycles.log",
+          "sha256": "3acd4ff67dead3ef5a93f131ec1cb237e9efdc6f551367a2dcc0ea876b7f2d99"
+        }
+      ],
+      "unitCounts": {
+        "contractsPass": 254,
+        "corePass": 2422,
+        "desktopPass": 1250,
+        "totalPass": 3926,
+        "totalTests": 3928,
+        "fail": 0,
+        "skip": 2,
+        "newSkip": 0
+      },
+      "cycleFiles": 384,
+      "originalConditionalSkips": [
+        "实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致",
+        "Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑"
+      ]
+    },
+    "actualVisibleSmoke": "Gate06-PASS-four-modes-and-default-cli",
+    "sessionEvidenceAcceptance": {
+      "state": "PASS",
+      "passed": 96,
+      "skipped": 0,
+      "manifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/human-gate-06/acceptance-result.json",
+        "sha256": "bf0f0a9623613d682f2fd1633516ed2f1bfa6cee4dd53f4a17701b3048bf4ef1",
+        "exitCode": 0,
+        "tests": 96,
+        "passed": 96,
+        "failed": 0,
+        "skipped": 0
+      }
+    },
+    "ownerInteractiveSession": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "realServices": "NOT_RUN",
+    "realUserMigration": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-010_SYNTHETIC_OWNER_SESSION.md",
+    "nextBranchBaseline": "final-report-head",
+    "agentPolicy": {
+      "subagentModel": "gpt-6.1-sol",
+      "subagentReasoningEffort": "high",
+      "roles": 4,
+      "furtherDelegation": false
+    },
+    "sourceFreeze": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/FREEZE_IDENTITY_06.json",
+    "sourceFreezeSha256": "ec00577670bfee535799d149b496915b144799ebfd0deef03c74d824ae28bee2",
+    "sourceFiles": 1110,
+    "authorBehavior": {
+      "passed": 39,
+      "skipped": 0,
+      "scope": "本期CLI/串行与到期/生命周期/VM行为；实际可见与Owner另列"
+    },
+    "preparation": {
+      "dependencies": "PASS",
+      "contractsBuild": "PASS",
+      "electronFiles": 275,
+      "installerExecuted": false,
+      "implicitDownload": false
+    },
+    "visibleValidationCandidate": "human-gate-06",
+    "carryover": [
+      "MBR-004-real-Roon-root-cause-and-recovery",
+      "Gate-B-P4-P5",
+      "prior008-cache-I/O-preparation-boundary",
+      "synthetic-owner-feedback-pending",
+      "external-stage-and-pinned-dependencies-required-fail-closed-on-drift",
+      "three-tray-synthetic-playback-actions-not-part-of-acceptance"
+    ],
+    "startupInterruption": {
+      "state": "failed",
+      "classification": "controlled-driver-SIGINT-before-readiness",
+      "receiptPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/human-gate-06/owner-sessions/musicbridge-human-session-bI60HO/session.json",
+      "receiptSha256": "78c4baba75c631322e27a30ce11f013e347215b79fb212c08891b797824bad7f",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/human-gate-06/launcher-startup-interruption.log",
+      "logSha256": "d291816680dfa77564211b08b95ffb1e684db8b90147da9b7f80078876d43ad8",
+      "driverExit": {
+        "code": 1,
+        "signal": null
+      },
+      "electronExit": {
+        "code": 0,
+        "signal": null
+      },
+      "coreExit": 0,
+      "nodeOwnerExit": 0,
+      "beforeQuitObserved": true,
+      "lifecyclePath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/human-gate-06/owner-sessions/musicbridge-human-session-bI60HO/musicbridge-ui-e2e-human-KNma9F/human-lifecycle.json",
+      "lifecycleSha256": "35b9d3ae2ef877649cb0c54aaeee0023a069aa405ad1fbf98dad5566bae9860e",
+      "readinessCreated": false
+    },
+    "nativeRegression": {
+      "state": "PASS",
+      "classification": "current-unchanged-Core-real-native-regression",
+      "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/runtime-regression-01/manifest.json",
+      "manifestSha256": "8dc151bc95af0ff032ccb88b8e8428ba23e90584a463e274d35fb479ff792a62",
+      "passed": 26,
+      "skipped": 0,
+      "sourceFiles": 666,
+      "binaryReusedFrom": "RUST-009",
+      "nativeRebuilt": false
+    },
+    "sourceStableAfterDefaultBuilds": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/POST_SOFTWARE_IDENTITY.json",
+      "sha256": "35d7001a72faee3021df60f3fe813d9ce492dd8459a67352d510bfb24f912a4c"
+    },
+    "defaultStartup": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/default-startup-01/manifest.json",
+      "sha256": "4e21333283c6fde130410e8c3edeaa81de2e9f65117f9d4075277930cc437bba",
+      "runs": [
+        {
+          "mode": "development",
+          "argv": [
+            "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+            "scripts/startup-gate.mjs",
+            "development",
+            "--keychain=mock"
+          ],
+          "exitCode": 0,
+          "durationSeconds": 5.530879041994922,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/default-startup-01/development.log",
+          "sha256": "d817250770171f87a7c3f55b109989af87421a000c30586bbd5a60f523e9522a",
+          "mockKeychainMarker": true,
+          "defaultStartupMarker": true
+        },
+        {
+          "mode": "production",
+          "argv": [
+            "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+            "scripts/startup-gate.mjs",
+            "production",
+            "--keychain=mock"
+          ],
+          "exitCode": 0,
+          "durationSeconds": 5.343566166993696,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/default-startup-01/production.log",
+          "sha256": "46dd74b75054827152aad8af5f9c940ed20645f7cb5f2a0290855d29cda70d5a",
+          "mockKeychainMarker": true,
+          "defaultStartupMarker": true
+        }
+      ],
+      "environmentPolicy": "only-tooling-and-basic-system-whitelist-no-credential-or-service-settings",
+      "productionDefault": "Node",
+      "privateRustEntry": false,
+      "realKeychain": "NOT_RUN"
+    },
+    "launcher": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/human-gate-06/start-synthetic-owner.command",
+      "sha256": "38f63fdcbf3b3cd0c2511faf1589ed50f410c2d8c9869e3f1a0368e733479635",
+      "bytes": 1320,
+      "mode": 448,
+      "sessionParent": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/human-gate-06/owner-sessions"
+    },
+    "report": "reports/RUST-010_SYNTHETIC_OWNER_SESSION.md",
+    "machineEvidence": "reports/RUST-010_EVIDENCE.json",
+    "review": {
+      "round1": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/review-010-round1.json",
+        "sha256": "174ff4e93533dee02340ce996bb357937d1479965c039c36f888623efb2e30bc"
+      },
+      "round1OpenP1": 0,
+      "round1OpenP2": 0,
+      "round2": "PENDING",
+      "maxRounds": 2
+    },
+    "preservedFailedAttempts": {
+      "contracts-bootstrap": "PREPARATION_NONEXECUTION: 错误filter无匹配项目，退出0不代表构建",
+      "human-runtime-links-red-01": "PREPARATION_FAILURE: 错误tsx loader路径，不是有效RED",
+      "human-runtime-links-red-02": "VALID_RED: import-only合同包经CJS解析错误",
+      "human-session-behavior-red-01": "VALID_RED: 原CLI/串行行为缺口",
+      "human-session-expiry-red-09": "VALID_RED: 到期积压控制缺口",
+      "human-gate-build-01": "FAILED_GATE: CJS解析import-only依赖",
+      "human-gate-smoke-02": "FAILED_GATE: Electron VM生命周期记录器动态import失败",
+      "human-gate-smoke-03": "FAILED_GATE: Playwright信号处理抢占，实际driver退出130，正常场景仅局部通过",
+      "human-gate-smoke-04": "FAILED_GATE: 原bootstrap稳定前quit，实际Electron退出1",
+      "human-gate-acceptance-05": "FAILED_GATE: 95通过/1失败，越界路径先realpath得到ENOENT，原断言保留",
+      "human-session-signal-behavior-22": "FIXTURE_PREPARATION_FAILURE: 无活动句柄的未决top-level await退出13，不是生产RED",
+      "post-software-identity-01": "SUMMARY_PREPARATION_FAILURE: 只读汇总把sourceFiles计数误当数组；程序/测试未改",
+      "post-software-identity-02": "SUMMARY_PREPARATION_FAILURE: 只读汇总误读startupInterruption.driverExit字段；程序/测试未改"
+    }
   }
 }
