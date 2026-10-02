@@ -46,8 +46,11 @@ function versionCopy(value: unknown): DatasetCollectionSnapshotVersion {
 }
 const sameVersion = (a: DatasetCollectionSnapshotVersion, b: DatasetCollectionSnapshotVersion) =>
   a.epoch === b.epoch && a.datasetId === b.datasetId && a.revision === b.revision;
-// 按领域实现审定的纯收藏读取闭集；不按命令名猜测其余命令是否写入。
-const nodeReadonlyCommands = new Set<IpcRequest['command']>(['collection.detail', 'collection.copy', 'collection.photo']);
+// 审定已 boot Owner 的领域实现与辅助函数；只保留这六条精确纯读，不按前缀扩大。
+const nodeReadonlyCommands = new Set<IpcRequest['command']>([
+  'collection.detail', 'collection.copy', 'collection.photo',
+  'referenceCatalog.sources', 'referenceCatalog.history', 'referenceCatalog.revision',
+]);
 const errorCodes = new Set<RustSidecarErrorCode>(['INVALID_REQUEST', 'UNSUPPORTED_OPERATION', 'UNSUPPORTED_COMMAND', 'UNSUPPORTED_FILTER',
   'SCOPE_MISMATCH', 'CAPACITY_EXCEEDED', 'NOT_READY', 'CLOSING', 'PROTOCOL_ERROR', 'BINARY_PIN_MISMATCH',
   'TIMEOUT', 'PROCESS_EXIT', 'SNAPSHOT_UNAVAILABLE', 'STALE_SNAPSHOT']);
@@ -145,8 +148,9 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
       // 省略 scope 仍可用，但固定路由不得跨库交付来源的新身份。
       if (request.expectedDatasetId === undefined) request = { ...request, expectedDatasetId: binding.datasetId };
       if (request.command !== 'collection.list') {
-        revoke('stale');
+        // Node 纯读借用当前代际；并发写入、刷新、失效或关闭仍撤销它的迟到回执。
         if (nodeReadonlyCommands.has(request.command)) return nodeRead(request, generation);
+        revoke('stale');
         writes++;
         try {
           return await Promise.resolve().then(() => options.owner.dispatch(request));

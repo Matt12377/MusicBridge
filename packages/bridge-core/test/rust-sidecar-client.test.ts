@@ -259,11 +259,18 @@ test('超限帧不等换行即可失败', async t => {
 test('读取期限失败后，迟到数据不能恢复端点或自动重放', async t => {
   let late!: () => void;
   const f = fake(t, (frame, respond) => { if (frame.operation === 'dispatch') late = respond; else respond(); });
-  const s = snapshot(), endpoint = await ready({ binary, snapshot: s, requestTimeoutMs: 20 });
-  await assert.rejects(endpoint.dispatch(request(s)), code('TIMEOUT')); late();
+  // 同一 RPC 预算也覆盖 prepare/boot；留足正常启动时间，只有挂起读取制造期限失败。
+  const s = snapshot(), endpoint = await ready({ binary, snapshot: s, requestTimeoutMs: 1_000 });
+  assert.deepEqual(f.frames.map(frame => frame.operation), ['prepare', 'commitBoot']);
+  await assert.rejects(endpoint.dispatch(request(s)), code('TIMEOUT'));
+  assert.equal(typeof late, 'function', '读取请求确实发送后才进入超时断言。');
+  late();
   await assert.rejects(endpoint.dispatch(request(s)), code('TIMEOUT'));
   await assert.rejects(endpoint.close(), code('TIMEOUT'));
   assert.equal(f.frames.filter(v => v.operation === 'dispatch').length, 1);
+  assert.deepEqual(f.frames.map(frame => frame.operation), ['prepare', 'commitBoot', 'dispatch']);
+  assert.equal(f.spawnMock.mock.callCount(), 1);
+  assert.equal(f.killed, true);
 });
 
 test('v2投影保留Node Unicode归一化，筛选在分页前且不重排', async t => {

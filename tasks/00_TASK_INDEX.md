@@ -133,3 +133,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [RUST-005](RUST-005-bounded-query-index.md)：从 RUST-004 最终报告 `d267688` 接续，以不可变快照的有界衍生字段和 posting 优化查询；保留完整回执校验及旧协议，差分与建立/完整调用成本同时验证。
 
 - [RUST-006](RUST-006-runtime-lifecycle.md)：从 RUST-005 最终报告 `babce9ad` 接续，可信主机显式配置的 Core 只读路由与生命周期组合，默认 Node 不变；真实 Core worker / Node owner / Rust 子进程与故障单列验证。
+
+- [RUST-007](RUST-007-host-control-mixed-reads.md)：从 RUST-006 最终报告 `61df0b3` 接续，可信主机同步 narrow 控制能力、六条已审定 Node 纯读取保留 Rust；真实初始化/写后显式刷新和在途关闭单列验证，默认 Node。

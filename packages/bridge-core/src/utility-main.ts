@@ -52,6 +52,7 @@ import type { RoonBrowseShapeSummary } from './roon/library.js';
 import { createLyricsMatchRepository } from './lyrics-matching/repository.js';
 import type { FfmpegConverter } from './recording/audio-converter.js';
 import { createRustReadonlyCoreDatasetOwner, type RustReadonlyCoreOptions } from './rust-core/core-dataset-owner.js';
+import { createRustReadonlyCoreController, type RustReadonlyCoreController } from './rust-core/host-controller.js';
 
 export interface UtilityPort {
   on(event: 'message', listener: (event: { data: unknown }) => void): unknown;
@@ -480,6 +481,7 @@ export async function runCoreUtilityProcess(
   recordingGateBCandidate?: GateBCandidateIdentity | null,
   createDatasetOwner?: DatasetOwnerFactory,
   rustReadonlyCollection?: RustReadonlyCoreOptions,
+  onRustReadonlyCoreController?: (controller: RustReadonlyCoreController) => void,
 ): Promise<void> {
   const traceEnabled = isLibraryReadTraceEnabled(env, env.NODE_ENV === 'development' && env.MUSIC_BRIDGE_CORE_TEST_MODE !== '1');
   const libraryReadTrace = traceEnabled ? createLibraryReadTraceWriter({ enabled: true, write: line => { process.stdout.write(line); } }) : undefined;
@@ -511,6 +513,10 @@ export async function runCoreUtilityProcess(
         const playbackEventProtocol = event.data.playbackEventProtocol === 'compact-v1' ? 'compact-v1' as const : undefined;
         const playbackOptions = playbackEventProtocol ? { playbackEventProtocol } : {};
         const onEvent = (message: CoreRuntimeEvent) => { if (message.event !== 'core.ready') port.postMessage(message); };
+        if (onRustReadonlyCoreController !== undefined
+          && (typeof onRustReadonlyCoreController !== 'function' || rustReadonlyCollection === undefined)) {
+          throw new Error('Rust 主机控制需要显式只读配置与同步回调。');
+        }
         if (rustReadonlyCollection !== undefined && !createDatasetOwner) {
           throw new Error('Rust 只读配置需要显式 Dataset Owner 工厂。');
         }
@@ -528,14 +534,24 @@ export async function runCoreUtilityProcess(
           // 在能力准入前登记来源；同步拒绝配置时也必须清理已创建的 Node Owner。
           datasetOwnerEndpoint = source;
           // 私有快照能力属于原始来源；不可先经既有 IPC 包装而丢失能力。
-          const client = rustReadonlyCollection === undefined ? source
+          const rustClient = rustReadonlyCollection === undefined ? undefined
             : createRustReadonlyCoreDatasetOwner(source, rustReadonlyCollection);
+          const client = rustClient ?? source;
           datasetOwnerEndpoint = {
             prepare: async () => { ownerIdentity = await client.prepare(); return ownerIdentity; },
             dispatch: request => client.dispatch(request),
             commitBoot: () => client.commitBoot(),
             close: async () => { try { await client.close(); } finally { projectionGateway?.close(); } },
           };
+          if (rustClient && onRustReadonlyCoreController) {
+            // 先登记清理端点再同步交付能力；宿主不能借回调延长启动期限。
+            const returned: unknown = onRustReadonlyCoreController(createRustReadonlyCoreController(rustClient));
+            if (returned !== undefined) {
+              // void 回调也可能意外返回 Promise；消费拒绝，但不等待或准入异步回调。
+              void Promise.resolve(returned).catch(() => {});
+              throw new Error('Rust 主机控制回调必须同步返回空值。');
+            }
+          }
           await datasetOwnerEndpoint.prepare();
           const onRoonTimeShape = createRoonTimeShapeRecorder(env);
           const onRoonBrowseShape = createRoonBrowseShapeRecorder(env);

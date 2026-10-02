@@ -71,6 +71,8 @@ function sourceManifest() {
     path.join(root, 'packages/bridge-core/test/rust-query-index.test.ts'),
     path.join(root, 'packages/bridge-core/test/rust-core-owner-lifecycle.test.ts'),
     path.join(root, 'packages/bridge-core/test/rust-core-utility-options.test.ts'),
+    path.join(root, 'packages/bridge-core/test/rust-readonly-node-reads.test.ts'),
+    path.join(root, 'packages/bridge-core/test/rust-core-host-controls.test.ts'),
   ].sort().map(file => ({ path: path.relative(root, file), sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }));
 }
 const sources = sourceManifest();
@@ -119,6 +121,7 @@ const refreshCostReport = path.join(directory, 'refresh-routing-cost.json');
 const largeCostReport = path.join(directory, 'large-snapshot-cost.json');
 const indexCostReport = path.join(directory, 'indexed-query-cost.json');
 const runtimeReport = path.join(directory, 'runtime-lifecycle-report.json');
+const hostReport = path.join(directory, 'runtime-host-report.json');
 run('ts-rust-integration', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
   'test/rust-core/readonly-integration.test.ts', 'test/rust-core/atomic-snapshot-integration.test.ts', 'test/rust-core/refresh-routing-integration.test.ts', 'test/rust-core/large-snapshot-integration.test.ts', 'test/rust-core/indexed-query-integration.test.ts'],
   path.join(root, 'packages/bridge-core'), { MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256,
@@ -127,6 +130,14 @@ run('ts-rust-integration', process.execPath, ['--import', 'tsx', '--test', '--te
 run('core-runtime-integration', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
   'test/rust-core/runtime-lifecycle-integration.test.ts'], path.join(root, 'packages/bridge-core'), {
   MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256, MUSIC_BRIDGE_RUST_RUNTIME_REPORT: runtimeReport,
+});
+run('ts-node-mixed-reads', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
+  'test/rust-readonly-node-reads.test.ts'], path.join(root, 'packages/bridge-core'));
+run('ts-core-host-controls', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
+  'test/rust-core-host-controls.test.ts'], path.join(root, 'packages/bridge-core'));
+run('core-host-integration', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
+  'test/rust-core/runtime-host-integration.test.ts'], path.join(root, 'packages/bridge-core'), {
+  MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256, MUSIC_BRIDGE_RUST_HOST_REPORT: hostReport,
 });
 const cost = JSON.parse(fs.readFileSync(costReport, 'utf8'));
 if (cost.task !== 'RUST-002' || cost.models !== 2_000 || cost.differentialPages !== 108 || cost.binarySha256 !== binarySha256
@@ -261,10 +272,107 @@ const killed = soleScenario('real-rust-sigkill-close-failure'), killedExits = ru
 if (killed.forcedTestCleanup !== true || killed.coreExit !== 1 || !eventCount(killed, 'rust.spawn', 1)
   || killedExits.length !== 1 || killedExits[0].code !== null || killedExits[0].signal !== 'SIGKILL'
   || killedExits[0].liveChildren !== 0) throw new Error('受控 SIGKILL 被误记为正常关闭。');
+// 宿主报告必须同时证明真实业务差分、能力隔离与逐 child 的 ACK/自然退出。
+const host = JSON.parse(fs.readFileSync(hostReport, 'utf8'));
+const mixedReadCommands = ['collection.detail', 'collection.copy', 'collection.photo',
+  'referenceCatalog.sources', 'referenceCatalog.history', 'referenceCatalog.revision'];
+if (host.schemaVersion !== 1 || host.task !== 'RUST-007' || host.binaryPath !== binary
+  || host.binarySha256 !== binarySha256 || host.productionDefault !== 'Node'
+  || host.electron !== 'NOT_RUN' || host.realServices !== 'NOT_RUN' || host.ownerAcceptance !== 'NOT_RUN'
+  || !Array.isArray(host.scenarios) || host.scenarios.length !== 7) throw new Error('可信宿主实际报告身份或场景缺失。');
+const hostEvents = (scenario, name) => scenario.observations.filter(event => event.event === name);
+const hostScene = (name, models) => {
+  const found = host.scenarios.filter(scenario => scenario.scenario === name && (models === undefined || scenario.models === models));
+  if (found.length !== 1) throw new Error('可信宿主场景不是完整唯一记录：' + name);
+  return found[0];
+};
+for (const scenario of host.scenarios) {
+  if (!Array.isArray(scenario.observations) || scenario.resources?.forcedTestCleanup !== false
+    || scenario.observations.some((event, index, events) => !Number.isSafeInteger(event.sequence) || event.sequence < 1
+      || (index > 0 && event.sequence <= events[index - 1].sequence))) throw new Error('可信宿主报告缺少有序自然资源观察。');
+  if (scenario.scenario === 'parent-payload-non-admission') continue;
+  const nodeExits = hostEvents(scenario, 'node.exit'), children = hostEvents(scenario, 'rust.spawn');
+  const exits = hostEvents(scenario, 'rust.exit'), resources = scenario.resources;
+  if (nodeExits.length !== 1 || nodeExits[0].code !== 0 || hostEvents(scenario, 'node.close').length !== 1
+    || hostEvents(scenario, 'node.closed').length !== 1 || resources.nodeClose !== 1 || resources.nodeExit0 !== 1
+    || children.some(child => child.liveChildren !== 1) || children.length !== exits.length
+    || resources.rustSpawn !== children.length || resources.rustCloseAck !== children.length || resources.rustExit0 !== children.length
+    || !Array.isArray(resources.childResources) || resources.childResources.length !== children.length
+    || new Set(resources.childResources.map(child => child.pid)).size !== children.length) throw new Error('可信宿主没有确认 Node/Rust 资源收口。');
+  for (const [index, child] of children.entries()) {
+    const detail = resources.childResources.find(value => value.pid === child.pid);
+    const frames = hostEvents(scenario, 'rust.frame').filter(frame => frame.pid === child.pid);
+    const ack = operation => frames.filter(frame => frame.operation === operation && frame.ok === true);
+    const exit = exits.find(value => value.pid === child.pid);
+    const prepared = ack('prepare'), booted = ack('commitBoot'), closed = ack('close'), appended = ack('appendSnapshot');
+    const expectedAppend = scenario.scenario === 'real-inflight-refresh-shutdown-late-boot' ? 1 : scenario.models === 5_000 ? 40 : 0;
+    if (!detail || prepared.length !== 1 || booted.length !== 1 || closed.length !== 1 || appended.length !== expectedAppend
+      || prepared[0].sequence <= child.sequence || booted[0].sequence <= prepared[0].sequence
+      || appended.some(frame => frame.sequence <= prepared[0].sequence || frame.sequence >= booted[0].sequence)
+      || closed[0].sequence <= booted[0].sequence || !exit || exit.code !== 0 || exit.signal !== null || exit.liveChildren !== 0
+      || exit.sequence <= closed[0].sequence || (index > 0 && child.sequence <= resources.childResources[index - 1].exitSequence)
+      || detail.prepareAcks !== 1 || detail.bootAcks !== 1 || detail.closeAcks !== 1 || detail.appendAcks !== expectedAppend
+      || detail.spawnSequence !== child.sequence || detail.bootSequence !== booted[0].sequence
+      || detail.closeSequence !== closed[0].sequence || detail.exitSequence !== exit.sequence
+      || detail.exitCode !== 0 || detail.signal !== null) throw new Error('可信宿主 child ACK/分块/排空身份不匹配。');
+  }
+}
+const legacyHost = hostScene('legacy-node-env-public-non-admission');
+if (legacyHost.resources.coreExit !== 0 || legacyHost.resources.rustSpawn !== 0
+  || ['host.delivered', 'node.version', 'node.export', 'node.exportLarge', 'node.exportPlain'].some(name => hostEvents(legacyHost, name).length)) throw new Error('默认环境或公共消息取得了私有 Rust 能力。');
+for (const models of [100, 2_000, 5_000]) {
+  const scenario = hostScene('mixed-read-write-trusted-refresh', models);
+  const delivered = hostEvents(scenario, 'host.delivered'), prepare = hostEvents(scenario, 'node.prepare'), ready = hostEvents(scenario, 'core.ready');
+  const dispatches = hostEvents(scenario, 'node.dispatch'), ref = hostEvents(scenario, 'node.referenceSeeded');
+  const completed = hostEvents(scenario, 'host.controlComplete').filter(event => event.operation === 'refresh');
+  const first = scenario.initialStatus, stale = scenario.staleStatus, shared = scenario.concurrentRefresh;
+  if (scenario.resources.coreExit !== 0 || scenario.resources.rustSpawn !== 3 || scenario.resources.nodePrepare !== 1 || scenario.resources.nodeBoot !== 1
+    || scenario.differentialPages !== 38 || scenario.referenceSourceCount !== 1 || scenario.referenceRevisionCount !== 1
+    || scenario.missingPhoto !== 'original-safe-Node-error' || ref.length !== 1 || ref[0].writer !== 'Node'
+    || delivered.length !== 1 || !delivered[0].frozen || delivered[0].status?.phase !== 'new'
+    || JSON.stringify(delivered[0].keys) !== JSON.stringify(['refresh', 'invalidate', 'getStatus'])
+    || prepare.length !== 1 || delivered[0].sequence >= prepare[0].sequence || ready.length !== 1
+    || ready[0].sequence <= scenario.resources.childResources[0].bootSequence
+    || first?.phase !== 'ready' || first.router?.phase !== 'rust' || stale?.router?.phase !== 'stale'
+    || stale.router.generation <= first.router.generation || stale.router.snapshotId !== undefined
+    || !Array.isArray(shared) || shared.length !== 2 || JSON.stringify(shared[0]) !== JSON.stringify(shared[1])
+    || shared[0]?.router?.phase !== 'rust' || shared[0].router.snapshotId === first.router.snapshotId
+    || shared[0].router.revision === first.router.revision || shared[0].router.generation <= stale.router.generation
+    || !Number.isFinite(scenario.refreshRoundtripMs) || scenario.refreshRoundtripMs < 0
+    || !Array.isArray(scenario.queryRoundtripMs) || scenario.queryRoundtripMs.length !== 36
+    || scenario.queryRoundtripMs.some(value => !Number.isFinite(value) || value < 0)
+    || mixedReadCommands.some(command => scenario.pureNodeReadCounts?.[command] !== 1
+      || dispatches.filter(event => event.command === command).length !== 1)
+    || dispatches.filter(event => event.command === 'collection.setPolicy').length !== 1
+    || dispatches.filter(event => event.command === 'collection.list').length !== 2 || dispatches.length !== 9
+    || hostEvents(scenario, 'rust.frame').filter(frame => frame.operation === 'dispatch' && frame.ok).length !== 40
+    || hostEvents(scenario, 'node.export').length + hostEvents(scenario, 'node.exportLarge').length !== 3
+    || completed.length !== 3 || completed.some(event => !event.status?.router?.snapshotId || event.status.router.phase !== 'rust')
+    || !hostEvents(scenario, 'host.controlRejected').some(event => event.operation === 'refresh' && event.code === 'NOT_READY')
+    || !hostEvents(scenario, 'host.closedStatus').some(event => event.status?.phase === 'closed')
+    || !hostEvents(scenario, 'host.refreshAfterCloseRejected').some(event => event.code === 'CLOSING')) throw new Error('可信宿主混合读/写后显式刷新/关闭能力证据无效。');
+}
+const closingHost = hostScene('real-inflight-refresh-shutdown-late-boot');
+const held = hostEvents(closingHost, 'rust.commitBootHeld'), released = hostEvents(closingHost, 'rust.releaseHeldBoot');
+const rejected = hostEvents(closingHost, 'host.controlRejected').filter(event => event.operation === 'refresh');
+if (closingHost.resources.coreExit !== 0 || closingHost.resources.rustSpawn !== 2 || closingHost.inflightStatus?.router?.phase !== 'refreshing'
+  || closingHost.closingStatus?.phase !== 'closing' || !['CLOSING', 'STALE_SNAPSHOT'].includes(closingHost.refreshRejectedCode)
+  || held.length !== 1 || released.length !== 1 || held[0].pid !== released[0].pid
+  || held[0].sequence >= released[0].sequence || closingHost.resources.childResources[1].bootSequence <= released[0].sequence
+  || hostEvents(closingHost, 'core.ready').length !== 1 || rejected.length !== 1
+  || hostEvents(closingHost, 'host.controlComplete').some(event => event.operation === 'refresh')
+  || !hostEvents(closingHost, 'host.refreshAfterCloseRejected').some(event => event.code === 'CLOSING')) throw new Error('在途刷新关闭错误地交付成功或遗留 child。');
+const thrownHost = hostScene('host-callback-throw');
+if (thrownHost.resources.coreExit !== 1 || thrownHost.resources.nodePrepare !== 0 || thrownHost.resources.nodeBoot !== 0
+  || thrownHost.resources.rustSpawn !== 0 || hostEvents(thrownHost, 'host.delivered').length !== 1
+  || hostEvents(thrownHost, 'core.ready').length) throw new Error('可信回调失败没有关闭已登记 Node。');
+const parentHost = hostScene('parent-payload-non-admission');
+if (parentHost.resources.coreExit !== 1 || parentHost.resources.nodeSpawn !== 0 || parentHost.resources.rustSpawn !== 0
+  || parentHost.observations.length) throw new Error('父启动字段进入了私有能力准入。');
 if (createHash('sha256').update(fs.readFileSync(binary)).digest('hex') !== binarySha256) throw new Error('Rust 二进制在验证期间改变。');
 if (JSON.stringify(sourceManifest()) !== JSON.stringify(sources)) throw new Error('Rust Gate 的受测源码在执行期间改变。');
 fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({
-  schemaVersion: 1, task: 'RUST-006', compiler, cargoVersion, sources,
+  schemaVersion: 1, task: 'RUST-007', compiler, cargoVersion, sources,
   binary: { path: binary, sha256: binarySha256, platform: process.platform, architecture: process.arch },
   packages: metadata.packages.map(p => ({ name: p.name, version: p.version })), runs,
   realServices: 'NOT_RUN', productionDefault: 'Node', readonlyCommands: ['collection.list'],
@@ -274,12 +382,14 @@ fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({
   defaultSnapshotProfile: 'v2-2000', optionalSnapshotProfile: 'v3-5000',
   boundedQueryIndex: true, requestResultCache: false, indexScaleModels: scales,
   optionalCoreRuntimeComposition: true, coreOwnsSourceOwner: true, publicRuntimeConfiguration: false,
+  trustedHostController: true, synchronousControllerDelivery: true, mixedNodeReadonlyCommands: mixedReadCommands,
   largeSnapshotModels: 5_000, largeSnapshotBytes: 8 * 1024 * 1024, uploadChunkModels: 128,
   costReport: { path: costReport, sha256: createHash('sha256').update(fs.readFileSync(costReport)).digest('hex') },
   refreshCostReport: { path: refreshCostReport, sha256: createHash('sha256').update(fs.readFileSync(refreshCostReport)).digest('hex') },
   largeCostReport: { path: largeCostReport, sha256: createHash('sha256').update(fs.readFileSync(largeCostReport)).digest('hex') },
   indexCostReport: { path: indexCostReport, sha256: createHash('sha256').update(fs.readFileSync(indexCostReport)).digest('hex') },
   runtimeReport: { path: runtimeReport, sha256: createHash('sha256').update(fs.readFileSync(runtimeReport)).digest('hex') },
+  hostReport: { path: hostReport, sha256: createHash('sha256').update(fs.readFileSync(hostReport)).digest('hex') },
   baselineCompletePathComparison: indexCost.baseline.status,
 }, null, 2) + '\n');
 console.log('RUST_GATE=PASS manifest=' + path.join(directory, 'manifest.json'));

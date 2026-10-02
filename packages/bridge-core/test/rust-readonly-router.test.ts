@@ -96,7 +96,9 @@ for (const stage of ['prepare', 'commitBoot', 'timeout'] as const) {
         if (stage !== 'timeout') respond({ result: '坏启动回执' });
       } else respond();
     }, true);
-    const router = await createRustReadonlyCollectionRouter({ binary, owner: s.owner, requestTimeoutMs: 25 });
+    // 坏回执使用正常 RPC 预算，避免并行负载先触发计时器；刻意无回执仍验证 25ms 超时。
+    const router = await createRustReadonlyCollectionRouter({ binary, owner: s.owner,
+      ...(stage === 'timeout' ? { requestTimeoutMs: 25 } : {}) });
     t.after(async () => { await router.close().catch(() => {}); f.releaseKills(); });
     const expected = stage === 'timeout' ? 'TIMEOUT' : 'PROTOCOL_ERROR';
     await assert.rejects(router.refresh(), code(expected));
