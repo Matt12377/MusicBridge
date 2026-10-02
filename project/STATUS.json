@@ -3112,7 +3112,7 @@
     "baseCommit": "2392b8f69836f02e39ce58f6e6e6e2563c6cc5d4",
     "state": "local-software-gates-passed-readonly-prototype",
     "ownerAuthorization": "actual-development-after-MusicBridge-V3.7-completion-first-stage-readonly-sidecar",
-    "implementationCommit": null,
+    "implementationCommit": "79743f2cbb6afabff719cc38df61ead977415f25",
     "implementationCommitResolution": "git-log-last-commit-touching-native/rust-core/src/lib.rs",
     "report": "reports/RUST-001_READONLY_SIDECAR.md",
     "evidence": "reports/RUST-001_EVIDENCE.json",

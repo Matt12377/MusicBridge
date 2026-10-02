@@ -1,0 +1,2082 @@
+{
+  "schemaVersion": 1,
+  "task": "RUST-001",
+  "generatedUtc": "2026-10-02T06:22:46.251464+00:00",
+  "baseCommit": "2392b8f69836f02e39ce58f6e6e6e2563c6cc5d4",
+  "implementationCommit": "79743f2cbb6afabff719cc38df61ead977415f25",
+  "reportCommit": null,
+  "reportCommitResolution": "git-log-last-commit-touching-reports/RUST-001_READONLY_SIDECAR.md",
+  "nextBranchBaseResolution": "final-RUST-001-report-HEAD-subject-to-next-scope-authorization",
+  "worktree": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001",
+  "branch": "codex/rust-core-001-readonly-sidecar",
+  "toolchain": {
+    "node": "22.23.2",
+    "nodePath": "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+    "pnpm": "10.17.1",
+    "rustc": "rustc 1.95.0 (59807616e 2026-04-14)",
+    "cargo": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+    "localRustupSelector": "stable",
+    "actualRustVersionMatchesPin": true
+  },
+  "rustGate": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate/run-RB1E0i/manifest.json",
+    "sha256": "ce3ae8a794d6a2ac35506e34b5242473fe2ca201613f75eb2b078f075ed43d38",
+    "exitCode": 0,
+    "manifest": {
+      "schemaVersion": 1,
+      "task": "RUST-001",
+      "compiler": "rustc 1.95.0 (59807616e 2026-04-14)",
+      "cargoVersion": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)",
+      "sources": [
+        {
+          "path": ".github/workflows/rust-core.yml",
+          "sha256": "c23e52322028c199797c93d516ee438541825c5afc2c456a325dbee2243603c0"
+        },
+        {
+          "path": "native/rust-core/Cargo.lock",
+          "sha256": "4ce2ecf242118d14ce94f7546cfef377f0c6e98f0b922d60e13248595d7c4f8b"
+        },
+        {
+          "path": "native/rust-core/Cargo.toml",
+          "sha256": "86bbf4fd11fb425c53041de720b9e97805672690ca07550966b336e795d4ce5f"
+        },
+        {
+          "path": "native/rust-core/README.md",
+          "sha256": "ee3bc5b084499d18034ac7b4baf807a85969aed008fc29d69cb29d4e3214aee7"
+        },
+        {
+          "path": "native/rust-core/src/lib.rs",
+          "sha256": "60e617417751f62342e17c021e465c4d6aed90b5960776dbd93a910aeb48728f"
+        },
+        {
+          "path": "native/rust-core/src/main.rs",
+          "sha256": "40c62be0a0444e8db39f181907e7b426a84e840deb8e83f5154f3343ce9341fe"
+        },
+        {
+          "path": "native/rust-core/tests/protocol.rs",
+          "sha256": "de729da47595ad34739feca9f2ba0eebe89a7cead59fa12be7748dab55ddcb69"
+        },
+        {
+          "path": "package.json",
+          "sha256": "5e138ef0afd26db3a045af6271e50e6ae06674f20be02dda6e2cb1796a2b4bc2"
+        },
+        {
+          "path": "packages/bridge-core/package.json",
+          "sha256": "f206ff3c9f4f7ab8d4b70c4b73485cccbddb22b28bcc18ed2e62729c1bd79a40"
+        },
+        {
+          "path": "packages/bridge-core/src/application/bridge-controller.ts",
+          "sha256": "2a7d3241b8fefb47c88b086fe32c06ee01fcfb2696fa1f9bbea8db37a1aebfad"
+        },
+        {
+          "path": "packages/bridge-core/src/application/playback-event-publisher.ts",
+          "sha256": "bf77c32954493edc7e3fa7f711ac21c65855cc976ee6f326c166b64ef1732d59"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/collection-progress-store.ts",
+          "sha256": "04fa7b835e01598c40fe170a9265f22465366dd557aa0440066b41ac1deb53bc"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/commercial-provenance.ts",
+          "sha256": "6a640aef791de86349c25fe403d95e80a202191f72e52e883ebd837788d5cb43"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+          "sha256": "2710f279f4bc095e9c6e57753b0699cb6308bade491df159fafebc32fce8df7e"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-domain.ts",
+          "sha256": "95eaabcd12a7db3859eebf91fc51c542d86035f52e82e635279bdf532c86da6f"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-owner-client.ts",
+          "sha256": "ddecd6bf2898cdfe80f1e41981d446430047048e87bb57b91fd7942a4d0f47ff"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+          "sha256": "40f514805e1fad6e486917c446e61c7357a13591ef455de66c3271df021f49ce"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+          "sha256": "e96a8ec6a9d61df306f73b38e20397a026826f9d29136d7fb2cadaeb5e9fbe0e"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-roon-projection.ts",
+          "sha256": "88b90e6e71d45c21198b5fcc25a64d5563882cb718cd176de1fc02cde699ecab"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-services.ts",
+          "sha256": "62dd536e169def0b6188c9bd93a5858ac41273a7eff468f37fe40cb108624ddd"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/physical-links-coordinator.ts",
+          "sha256": "065f58e0baa3fdf83dab6abdf0338ab706dd8d663bcc4bb896e644065b5dfa5a"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/physical-links.ts",
+          "sha256": "799a72b360db61efd1b2cbd7ebe10dbd1dd79b2d6f1efd4b8c69702e47731f76"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/physical-music.ts",
+          "sha256": "589e7d8a7b199d95ac25b704ddabdba3a4d27c54a5dfd6d3fa0928ced55ac73e"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/reference-catalog-store.ts",
+          "sha256": "854324ee7d6f1f6b042297fac3b2aa7d1ba2b507cabd29ac4d8ede5b903cb308"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/reference-source-zip.ts",
+          "sha256": "1ff6a94f910f9c24ab50ffea944bb8c9f2abdc35184b421b325c77fa40b2f569"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/repository.ts",
+          "sha256": "df28f9226ecbff8c827dc95f0fa75a2e3a6843256c927bac88cf4f35abf68085"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/spreadsheet-csv.ts",
+          "sha256": "f9064642b582402d8c6a8d07967eebd25bc6591649d85776b02eb8c1d42687b3"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/spreadsheet-files.ts",
+          "sha256": "2f9fd4d4a44340da3204ef6aea5b48fb274cf27ecbdfd43fc64e60c90e5ed493"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/spreadsheet-import-rows.ts",
+          "sha256": "78c5345579c7f2370fcb2d289d2552dd376df9416b47abb8097669ae1f159114"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/spreadsheet-import-store.ts",
+          "sha256": "bdd60797f7d205b0a5f9891c174dd15af51a7fd0c1bc9e0049dfc9cefe08126d"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/spreadsheet-parser.ts",
+          "sha256": "ca0fc6026eace1184f221ed100be61558c9f8936b25fbbc649a66fd0469cf0b8"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/spreadsheet-worker.ts",
+          "sha256": "b8e42513f3e239c46c07a1d2a3f67ee528ec5c9c4a64e80cc797db9ddff35e6e"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/spreadsheet-zip.ts",
+          "sha256": "cd8bad658e216461622d4cca9a7a365b3b0f1fff25f27e4f14f85e7cb220e1e1"
+        },
+        {
+          "path": "packages/bridge-core/src/config/config.ts",
+          "sha256": "da33d6e90e857da761605fe5c5deb06c1684dcb927e06945510d09d8667d6e84"
+        },
+        {
+          "path": "packages/bridge-core/src/control/server.ts",
+          "sha256": "a7bf41239869a3bf134dfcc526d98d0e0ad00e747233a40db7c56dd0e2c2a2e6"
+        },
+        {
+          "path": "packages/bridge-core/src/diagnostics/performance-instrumentation.ts",
+          "sha256": "18e0be84aafea09f09b36ddba0d4abd783677a13e78640ec0ae428d8257d56af"
+        },
+        {
+          "path": "packages/bridge-core/src/diagnostics/performance-trace.ts",
+          "sha256": "d5652af50c4005fce1b5425ff972b213f83fdf3e77a4fccc11368d7323f6ac92"
+        },
+        {
+          "path": "packages/bridge-core/src/favorites/repository.ts",
+          "sha256": "e123f8aea0aed9c27ae4d2e85f3f5e8ec36abf8713e1af2efec05314425cfd6f"
+        },
+        {
+          "path": "packages/bridge-core/src/lyrics-matching/candidate-cluster.ts",
+          "sha256": "591ac4115f747a8c802d29ee492b7b6f191d83f32aff0159f2fcb400c8a16fbd"
+        },
+        {
+          "path": "packages/bridge-core/src/lyrics-matching/index.ts",
+          "sha256": "93fdca32c616e005cad45ccf298522d8ca2673b1b73444357a30c6e1733ed956"
+        },
+        {
+          "path": "packages/bridge-core/src/lyrics-matching/manual-controller.ts",
+          "sha256": "b0d1d6f696d810fbc271ab47f002c487232402e17b9f9007ce40c8e9bb5f014d"
+        },
+        {
+          "path": "packages/bridge-core/src/lyrics-matching/normalize.ts",
+          "sha256": "166cb9df24517fd7cb98f94f7d41da9a8e9b9512c03708a5956ee7547bebfb50"
+        },
+        {
+          "path": "packages/bridge-core/src/lyrics-matching/repository.ts",
+          "sha256": "ab3b1a2bdcb12b81a62142f2ae6e2ed6277f8a8891028ce6d40ba78be1962941"
+        },
+        {
+          "path": "packages/bridge-core/src/lyrics-matching/resolver.ts",
+          "sha256": "3355549b448736e63bc46ce22984b00fd401767d46a4b02146ee917f27a63202"
+        },
+        {
+          "path": "packages/bridge-core/src/lyrics-matching/scorer.ts",
+          "sha256": "687085c308d008478763b407cf766632ae05534505c9b971a474533503536dc5"
+        },
+        {
+          "path": "packages/bridge-core/src/lyrics-matching/signature.ts",
+          "sha256": "ae97e265dbae9f02e0768f3dfc67ab66442ecdf7bb16f97e725d3b3b590a5a73"
+        },
+        {
+          "path": "packages/bridge-core/src/lyrics-matching/types.ts",
+          "sha256": "264c57c9e32c3399ba245e76fccb584cfb49688c892a03dee17c2bdc1405f8d1"
+        },
+        {
+          "path": "packages/bridge-core/src/lyrics-matching/version-profile.ts",
+          "sha256": "e9b3823f48efdd9def41f50137502414e24920239f82fcff666d6ebdfde566a1"
+        },
+        {
+          "path": "packages/bridge-core/src/lyrics/coordinator.ts",
+          "sha256": "17315cdbb678a0a3b94f49453ecf7c2cfd3a9bad02ed48b8d3b7a2994aff94ef"
+        },
+        {
+          "path": "packages/bridge-core/src/lyrics/roon-display-store.ts",
+          "sha256": "8c97bde54422c5cde30a444c490be3bb0fa72fb84805fa92adb9934a9ef25f48"
+        },
+        {
+          "path": "packages/bridge-core/src/main.ts",
+          "sha256": "b64e4b20ee53276af780a9c257bf2141d487c3e4fc25cafa23413dba08217d21"
+        },
+        {
+          "path": "packages/bridge-core/src/matching/candidate-resolution.ts",
+          "sha256": "caf8aeee9900f728ffbf59f0eabf8803b9b035597b9dd6f6adc01b6cf96874ec"
+        },
+        {
+          "path": "packages/bridge-core/src/matching/index.ts",
+          "sha256": "3cc20b6ba584fd9e7825ea9a2a17790079b0b336599c40a0ab59359dd280bcf9"
+        },
+        {
+          "path": "packages/bridge-core/src/matching/mixed-queue.ts",
+          "sha256": "d9b7c5921a790e133384f4b1c760bc170d57b987e8f839a81519ad7f9166a1cf"
+        },
+        {
+          "path": "packages/bridge-core/src/matching/playback-resolver.ts",
+          "sha256": "d3351642e94f5b98e3828850d576e3a1b94e7a71de5c255b8bdf1fc973feb0e9"
+        },
+        {
+          "path": "packages/bridge-core/src/matching/types.ts",
+          "sha256": "23db4083b8f688a55a3a588baf749f0ede25331d1c37ddae1f4123cf49bbf8f9"
+        },
+        {
+          "path": "packages/bridge-core/src/netease/api-runtime.ts",
+          "sha256": "9f6c4488dd9cbe7d9814af7e9739876ade1fc00577571caff8249a2e12249b0b"
+        },
+        {
+          "path": "packages/bridge-core/src/netease/client.ts",
+          "sha256": "2cff7ab1e211567024c2fb9a1f410d2e365cc8a86197f010e938b03671fb54ec"
+        },
+        {
+          "path": "packages/bridge-core/src/netease/lyrics.ts",
+          "sha256": "746d60418399ef7d647837976baec2813d86296b4b65e85cfffe38beb3173847"
+        },
+        {
+          "path": "packages/bridge-core/src/netease/parse.ts",
+          "sha256": "4f9f8d66894ad9973b54398f8dd01fc6360788c3534335d6cc8bbe582cc94c61"
+        },
+        {
+          "path": "packages/bridge-core/src/netease/policy.ts",
+          "sha256": "71bf6698e69a160c132be4f0e3f02d9d39f8c5fbf19461f4435a35f2c973e976"
+        },
+        {
+          "path": "packages/bridge-core/src/netease/qr-login.ts",
+          "sha256": "3ec8bf119d66049e1d1ff26b63630658c4875835f1d3b1d008cc4a7209596e92"
+        },
+        {
+          "path": "packages/bridge-core/src/netease/read-snapshot-cache.ts",
+          "sha256": "a37742bbc5bc85c40e361758edcc2c34047f0a0843460b543f2e66067b0bd37b"
+        },
+        {
+          "path": "packages/bridge-core/src/netease/request-scheduler.ts",
+          "sha256": "082caad20077484064b8b2f8d68c2aee060e9015edea52335d88631c38d0c2d1"
+        },
+        {
+          "path": "packages/bridge-core/src/netease/types.ts",
+          "sha256": "fbf5eca264de2f79d7c76a74ca2042b8f061ab7c3bf741dc5bd0c09d956df8fb"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/archive-coordinator.ts",
+          "sha256": "0f42b17187bb4352fe367d5b9ef153f1beed73341675836cb9ac3af604d5d7d3"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/archive-files.ts",
+          "sha256": "41e3a2a4f9d2c0ff3d90b128a083bb8dbb314500966aaad04a4a62def1b58bb9"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/archive-input.ts",
+          "sha256": "92b494dc3c87cfa8dee6264fa39bddc5e576d8e6f41b5062a34848aa27c13537"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/archive-store.ts",
+          "sha256": "378eff11e4a22b88e156232d098b9dd4b42222f523376867c9f1925c849473d4"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/archive-transactions.ts",
+          "sha256": "fa0d62cd96afe69aa8e498a966695d5ce19aa7f623f2af42f2e2a1d02afb150c"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/archive-workflow-store.ts",
+          "sha256": "59049a0ded2ffb005d57bd92a668abe57981f3bc95bd01c583ea906dee6a45d1"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/attempt-coordinator.ts",
+          "sha256": "08c05c62b344f8e104bcae88b0ba4e25cc2db94de774537800ae828991a63d57"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/attempt-integrity.ts",
+          "sha256": "82b53e9d37985e14881d0388d7ad06a9bf78793c3d50037e036a06815a92ccfd"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/attempt-state.ts",
+          "sha256": "3e9151fa03fa61f04839b78f51b5598662a04dd3152001f18172db9d0ec9937b"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/attempt-store.ts",
+          "sha256": "577dfd9d3ac861484d436e93e2d24ed6cf47f90d3d85e5fe9bce20bbf4c4cd65"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/audio-converter.ts",
+          "sha256": "fa8820266a655912be93a5e663c397ff2ff2477f3f4ebea114232f4dd3cd2cbc"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/backup-coordinator.ts",
+          "sha256": "7d1bca9c7992d5170a12523120b2235e21a544b6177b136fd54e260b81aa0ef2"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/backup-files.ts",
+          "sha256": "b1a804dcca7aa983928954f26ace4a99f56caa47a13717ddf00d0a49a5d7d73a"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/backup-index.ts",
+          "sha256": "0a83045d83ea0a568761845a65cbd9374867941938ea9f51d3b0065889563a49"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/backup-package.ts",
+          "sha256": "7ebeeaf2beb00ad2bfd6358f501fb89b543685ae02b3d4fb66182779311d0cb0"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/backup-snapshot.ts",
+          "sha256": "efcf2283b67344cb6151f3a7a5b6ec941ea1f3c2096ce520f77c528e8928c32a"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/backup-workflow-store.ts",
+          "sha256": "2e8efd2778997553f92ce1fc76bd5fb3680d16d70da8c7ed2ee5a4c240ac6147"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/backup-zip.ts",
+          "sha256": "c71d063787743605ce7678c4172c6322a46b0d6fcd6b203ec32f6cd5c46ecf37"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/bundled-converter.ts",
+          "sha256": "01eb4372aa08e506ef7434438379394a84fe1fa4425746f66375d9e24059fdd2"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/bundled-device-output-helper.ts",
+          "sha256": "45402b9ad2973fa6d016c1db567f90732d8f105402b530e604bcea93e3190849"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/bundled-output-helper.ts",
+          "sha256": "c836cd1e483dc7cb770a4687d06b198e1750e2ad540d8f56a29f8c4422a4916d"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/conversion-process.ts",
+          "sha256": "7cb08ec73fac9828866793d1dea543ddcb1750331484ec73550a787ae00b2235"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/converted-compiler.ts",
+          "sha256": "39f9ce10a5ee728c6cbe4aad1c0c666c775a887e7a39c1c4ce380f7608ad5543"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/dataset-identity.ts",
+          "sha256": "2c00e20d3b2ae4b1663a939fe5dacd7faed5eea43e79e7d189432e2961a746a4"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/device-output-protocol.ts",
+          "sha256": "2ebdd048f7d82dd7bb89b9a3a18b2c0b5dd16c70d1bf60cbcfc17700bea05f00"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/device-output-runner.ts",
+          "sha256": "e235416a82ff1d138cf841326931771af14d4d36a8b8e2698cbe3a10d5662e62"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/device-selection-broker.ts",
+          "sha256": "23cdc1264fbac0924cc8d8e5b015c19ce0e1bcf1fb54f460ad854990bc4ff396"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/drafts-coordinator.ts",
+          "sha256": "5e06d382de91985de9b3eb9910a3cd29fc3ec90325d64df405944c725d674421"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/drafts.ts",
+          "sha256": "9d3a34945c82e099583f357367da104300c64ac500b4cbbf425d0f06c8cd37cb"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/execution-compiler.ts",
+          "sha256": "8ad392f6d0648ee948a529cfa23ce5dd03ae73cf68bdc8934a2da013cafc9877"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/execution-coordinator.ts",
+          "sha256": "3405b6f99d26f2fbc2ef3a95bdfbab900a1c54a56752677b3b3f10a9e3bb83fc"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/execution-plan.ts",
+          "sha256": "d572a1271f09ee8b0fbbde7680bb05f00af3ea783d2134454359429b453b1922"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/execution-store.ts",
+          "sha256": "1d53b410f41a788e912ab4da648c3cf863391b8f3de665b697c94bda4fd62b80"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/execution-wave.ts",
+          "sha256": "b2f17ab0a93750467916999f27840822cbb991b3e947b8bed312f67d0ac5b6fb"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/ffmpeg-build-policy.ts",
+          "sha256": "fe7c992340e65371e218bd845138a38af7da6136fce26009d01fcae10c8fae47"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/formal-device-attempt-provider.ts",
+          "sha256": "72e85dcdb3e05d7bbc0a37a440da9e8845d2b5458c9f67ee9d46f7c903e917fa"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/gate-b-admission.ts",
+          "sha256": "e69af944f6b2ce38ed343c581c6cf5820def0bf500d6c703f6862366e956c834"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/media-coordinator.ts",
+          "sha256": "6971516f56690c078242bb28b9c96ba17e0feec6d1172fc5cbe3dffb73a427bf"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/media-planner.ts",
+          "sha256": "5b83ec1fd09eb2e6555cf8e3821505798f9c558a57a0b2954858575ec1536995"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/media-store.ts",
+          "sha256": "c61c673bfb1dc3674845b357bb16d168ab3e364a104dbe16adf4f709e8c9cb38"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/native-device-catalog.ts",
+          "sha256": "8bcae0ddbbc3f08d01f1375ecfca742f56d0b5df48b503ceec0833a2489b8feb"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/object-audit-certificate.ts",
+          "sha256": "52a01e1c67ffcea79e73b98e31671a62d985d4e5adfa4e45f8106f173c1880ec"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/object-format-integrity.ts",
+          "sha256": "6442226e51e9205d924d2a388842d2dcc8289e9ceae236e0c997719d92b70be6"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/output-check.ts",
+          "sha256": "b3c2cbfd3b68a7c1a8a26891f545d0639194069979f78f603bc6b3d271bbd940"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/output-device-pump.ts",
+          "sha256": "1a4928c74df011e7ab9b57479833b71ee02eb13edb3f7ee39da7e8a50e8d97a4"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/output-error.ts",
+          "sha256": "473cbef852b22ad49568497ac5ec4771dc3f5f11a41db1c3728b91b95a36e06e"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/output-helper.ts",
+          "sha256": "18c5c0896ab665f0168ed1111f54d876d1b3f11f3aca58218e3ad275df1dba92"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/output-input.ts",
+          "sha256": "3286686e81c6dbe49a5160e3f41fd3d4ed383a9aac2581c80c4888b98ce65200"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/output-protocol.ts",
+          "sha256": "8a6f75ac2759b1cefd641ecb09be62592e699c2553dae1bf96294807109aecf0"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/output-run-barrier.ts",
+          "sha256": "bb35bccfcdcac1afed21a00a959692578c46b86412ee8ffeec54015010737713"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/output-run-lease.ts",
+          "sha256": "41e1bcf2e832a0337b71f5e5c53da3adc97cf3b3c5d20967f8aa67f317ce4162"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/output-run-recovery.ts",
+          "sha256": "c9b70d803ce0c0cc387609fa01361b9d69fe6bba409fc44af1cd4b0ecfb335f3"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/output-service.ts",
+          "sha256": "ffd0617df4c957d9e89176481cdf35132e9808ebd2fea8ae6bd6ac8be48ef4d9"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/plan-coordinator.ts",
+          "sha256": "fbd97d09d47ce2322e6795c1e74618f004053676bdc4c75f287daa61db70ae8c"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/plan-integrity.ts",
+          "sha256": "b7acee2093ab853d175718fbfe62d258ebe140f53226136ac78806f464914759"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/plan-store.ts",
+          "sha256": "c5a784837ce20e9ee859814b1bacd77e9f705eb08a8bd8a9045ba1ab168ac7cb"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/preparation-coordinator.ts",
+          "sha256": "d5009e90142cf173538d21426504bb4d13ae3b2e10e3db83c529a9e11fe21a27"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/preparation-export-coordinator.ts",
+          "sha256": "38ca339de3e521dfe997c3f9ebdd76c423734ac1433255c8e96b9dcc247cb068"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/preparation-export-files.ts",
+          "sha256": "207a94ed4d066d98c65982dee665030d27f7a0a0d0c09f828f0d3dbe1a145044"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/preparation-export-store.ts",
+          "sha256": "f33fd6a5b5ea5090547785e2188633b9165f63f6950d27d1e04202e3a90fc7dd"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/preparation-files.ts",
+          "sha256": "eb0a98a1fce2f7e3d13d8d0762b834bb131661b64be46e554db9b02084a1a613"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/preparation-store.ts",
+          "sha256": "dc66ce5dbbf1c677394b9217a64e7212d77f1fd715686e44539fc73b817d18b3"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/prepared-coordinator.ts",
+          "sha256": "c221488fccdbc4eaf0a0fe4f46f3a10ff68aa509919d7140410476309b4bcce5"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/prepared-store.ts",
+          "sha256": "ff75d5366594c8a3b1753c2dfbdbbaa99b3f2326df6d82bac3ced3f7db2a173f"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/print-coordinator.ts",
+          "sha256": "b21d1d5e40b0372132298d87a13af5c11d0dd6ea68e09422ce6622f6977013cf"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/print-facts.ts",
+          "sha256": "af0753999d918bbf5eeffaaf20d27fea3bf5c94e838ae8e16c479c39b53a060c"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/print-integrity.ts",
+          "sha256": "a9aff4ddc076677accf393be8c1567729089b81dea5ed1c8b76b4cdcf425645a"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/print-store.ts",
+          "sha256": "dc4cce460ae858466c02de4f3294ef93e9c0286bcab043e88288c68b9a7af202"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/profile-store.ts",
+          "sha256": "a44e84d548239fdadbec225dfd8e3387d585fa5c88f788a5f0ba287cfb0e0cf0"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/readonly-audio-consumer.ts",
+          "sha256": "784b3c9fe13a9fe5f4655daefa1a5dec09deeb58b62dc0563d10b5c3643d419b"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/record-coordinator.ts",
+          "sha256": "152333efd9baa3092159ec5505b7f4be81d3fbf3415b34aca8f0ece43a45d948"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/record-disposition.ts",
+          "sha256": "01d0118b0b0046b47f326aad52b4acfd68e6fe069b7a7c9cc78017b4cdb31ba8"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/record-integrity.ts",
+          "sha256": "519dc671e90a7edabba7c48ecd8b28b06c572f0bb014fdbfa00c17bd6946c8a0"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/record-page-index.ts",
+          "sha256": "502b2ed1e92d6af2a0dae5790f51722d81a17c2bd4d8d670d43708cfe888520f"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/record-projections.ts",
+          "sha256": "5e3c1889e64cbcff292bc3e4d26e71fc3d74bbd7e2e273dab80fd0529e0b4179"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/record-store.ts",
+          "sha256": "87d461a872813294dd1ec0db458bcbb824ffc616e86cb4eb52d223fbbe63ef1b"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/record-visuals.ts",
+          "sha256": "b1ebe38e9553721b14a233432fc0a832eaf4336e9b39e5b71eb507e6d9c591a9"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/render-conformance.ts",
+          "sha256": "8da4d41189e24145652a8873e36a3acb789fd9c6b1bdc5aeb8959a70100d41cb"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/replica-coordinator.ts",
+          "sha256": "484f472bf0833856ac117664479f1da5f676ff4b8c37bcbe8206d92fe7d54d12"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/replica-device-output-provider.ts",
+          "sha256": "87c4e56734c661eb0b668be4e8de1cb6aaf7ffcce52dce4de528fa7f0132b848"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/replica-device-session.ts",
+          "sha256": "bd9a9f71a259a039e30a7d043f094f6b429896f551bf395cbf9a456caaff102e"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/replica-error.ts",
+          "sha256": "b067bfcf9a0ec87a562421ce402f7df485e864ac99a11173f76be635e40f1cd2"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/replica-input.ts",
+          "sha256": "65a0dbbfceb4c3455d2d52c26939b7bc16f4bd68ebf69ae8abc3ab3ab24ba858"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/restore-activation-files.ts",
+          "sha256": "afb09b4552895153042363ce4f330f6a491677f8048a854f6bf00418187c5a3c"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/restore-activation-store.ts",
+          "sha256": "594af40c43b43d55b9ffe2e2af3c3e1404353bd40fb41811b984be2605b3bc08"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/restore-content-binding.ts",
+          "sha256": "827e2781dde09ee0646a77ecf4960d3fe6b7352d0adb52afbbdd560f625a7ece"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/restore-database.ts",
+          "sha256": "0060da0c21de469e3f98663f4b388e72363a61bfa9d1b2482cde1950da0865e1"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/restore-dataset-runtime.ts",
+          "sha256": "e88fd7237ab17f577c79b8b0137b8b6706a874c42b55fc0aece27ce13b85ef35"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/restore-index.ts",
+          "sha256": "f93e377f92327c5d95217ea5bf805a8c89961f7fa666fa46c7d32d6c3ceb3643"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/restore-package.ts",
+          "sha256": "9dbd3cb7cfb5aac8b0c4a8795ff0db7bdd4e5ca54ae13ddc9cafa366b0511b00"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/source-candidates.ts",
+          "sha256": "2a023629b16c8f49dccb9c4d7dbce34ff1f3d141b4124b0f1bd60358b336d071"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/source-evidence.ts",
+          "sha256": "48a05661e83dfb6ed77e608583da61d81a9366edf8ea7a4b854579c40be3b791"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/source-files.ts",
+          "sha256": "910bfbb0326fcf340de48a4261b330f2ca08a9db9c769e6d2e99a981fc49a7cc"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/source-store.ts",
+          "sha256": "1f53434dca15daf84a81ff49cb49a78e55bab8a3767255d3f758f6d3eb9f6989"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/verified-zip.ts",
+          "sha256": "ef7fb03dbda80117f67bc0076fd2a93040001da463b8c155d960d0874276b9bf"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/version-distribution.ts",
+          "sha256": "1331feb01ae01a1b2d93064dc5093587a959b56545de1202709c2e7c27379643"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/version-planner.ts",
+          "sha256": "a1895c74c86b0bede6be9d1c4bb6e31ddd57a317efecf120ca4bf30e277d7d86"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/versions-coordinator.ts",
+          "sha256": "235a4507f3839071f33b5e43fdef8f8f2b09372b0e8cbd28c6b62d384c675baf"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/versions-store.ts",
+          "sha256": "ee892dc20f7cdeef1d39d8bc2125f2831f712129b59fd27b26912a6450edf44c"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/workspace-context-store.ts",
+          "sha256": "e71d7360bb6177fa6fead2d562c55fd1c936b26be3ef6f1d05742996a5c29e58"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/action-policy.ts",
+          "sha256": "5443a6c503ab664da3105de1c62e2dfe96c76f52134ebfa7a596c2e590ce1e1c"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/adapter.ts",
+          "sha256": "77a072f9bf64bc5954acf05bd74e7c3e85fb6b58b9062981a5a81c57b12bf569"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/confirmed-track-action.ts",
+          "sha256": "3b6a5d830b161ab7ca1ecc40871a58c8ba4c78d235e9faab054ea40a86181471"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/image-read-owner.ts",
+          "sha256": "f420b6f5db6042466976dacc7b0870cc7530d39f6fc578fb43aa323b42f94db2"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/library.ts",
+          "sha256": "8fcf6d25c3332c840070ff845decdffe9f0df2f99d53a49c10b457f40b2e9390"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/playback-context.ts",
+          "sha256": "35fbabe1c40415a1bf670f5b6e735791585a2e04681441345031b4042963be10"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/public-library.ts",
+          "sha256": "fc250767f858bc3b88c838560461bdc6b81793ae6e802406eb31686f472efc98"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/sdk.ts",
+          "sha256": "c4d0de93e463563e802e16686ea3ffe17936681a1690f707bd412b129eb00040"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/synthetic-library.ts",
+          "sha256": "b39406c3248b21a268deab9c0fe2e457e34612967ae579eae279edf1a5fb4dcd"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/track-action-confirmation.ts",
+          "sha256": "e58116a6c222fcce188d842ff149141b65da10d08b69506c9663a67dcab413f7"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/types.ts",
+          "sha256": "3efd5636ca4341291bdb60ecc4878bc6d6aafb535e4a33ac59f8f2609accc1bb"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/volume.ts",
+          "sha256": "6a20c3e1f27a506675da63e1b324814165a586527a32e6013fbdfb8b2395a552"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/zone-switch.ts",
+          "sha256": "c7f2b36ce2bc4aa4d1ccd59b9e2c54265fc2a118e6f6e89efc460f49a6cf0fe1"
+        },
+        {
+          "path": "packages/bridge-core/src/runtime.ts",
+          "sha256": "5ec80b431dc57ad374d0cc15c9d3ce4c94a4804bbea8aa20cc5de063e4eeffc9"
+        },
+        {
+          "path": "packages/bridge-core/src/rust-core/readonly-sidecar.ts",
+          "sha256": "0722e913fe788e66b30593bc002e4b6b4a2b6527c34f1221f448459d33304df3"
+        },
+        {
+          "path": "packages/bridge-core/src/shared/errors.ts",
+          "sha256": "7f571ac136a544bbcb3e1fa6ad3d9e29135073b18b55b3f5705ca9c2ddebbab1"
+        },
+        {
+          "path": "packages/bridge-core/src/shared/ipc-failure.ts",
+          "sha256": "7deee8f03eee2596850daf34fd0b642499aed1676245f7abea85435c6b6d178b"
+        },
+        {
+          "path": "packages/bridge-core/src/shared/library-read-lifetime.ts",
+          "sha256": "91668e22e0263cb59c112527aaf4e1b16e848712d4fd321abac8d26a180c9b50"
+        },
+        {
+          "path": "packages/bridge-core/src/shared/library-read-registry.ts",
+          "sha256": "ce40c775d46db9227580cb711e598764cd846397b0f5a56dcb1dbe7f0fa8e135"
+        },
+        {
+          "path": "packages/bridge-core/src/shared/library-read-trace.ts",
+          "sha256": "6ae6397cade18c5210fa4a61f53e760dfa55cdd74383a615f567ed91388339e9"
+        },
+        {
+          "path": "packages/bridge-core/src/shared/logger.ts",
+          "sha256": "0c434cd744edabe0a72510edd88e1782d9000da41ab23be05d0bc797dd7633f4"
+        },
+        {
+          "path": "packages/bridge-core/src/shared/playback-failure-trace.ts",
+          "sha256": "76c2eee5fda80a6f3b8f83f5f8bcb543ffb14586f0a5bb92149febd9417c4cce"
+        },
+        {
+          "path": "packages/bridge-core/src/stream/gateway.ts",
+          "sha256": "e6054a8b05face7f5e109f44886df72fd9edc9bc8595585b950c2b7bc280b243"
+        },
+        {
+          "path": "packages/bridge-core/src/stream/registry.ts",
+          "sha256": "e30c821a1832314f7706754dc934e32772adb021f894a28a76c6de3f39acc1e1"
+        },
+        {
+          "path": "packages/bridge-core/src/stream/upstream-policy.ts",
+          "sha256": "b118691f4bd6a5fd7dc87ae62a639e2923809a5275458abca3adbfc5bbf6c1ba"
+        },
+        {
+          "path": "packages/bridge-core/src/utility-main.ts",
+          "sha256": "76a89e3a0d4b38c7dfec4b2be9168483587de0bfd8b704e396a01a28f36a77a2"
+        },
+        {
+          "path": "packages/bridge-core/src/vendor/roon-modules.d.ts",
+          "sha256": "1048682fc6d1628893ae961a8355c1ea76f26579c5b25cc193a198d16575ae26"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/archive-backup-fixture.ts",
+          "sha256": "6422bb09fcc0d4afbbac6e6a8be15bdd5a4d09345e5218b355adcf8a3bee1c2a"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/archive-crash-child.ts",
+          "sha256": "bade856ba0b47641c090ce64219c643489d7d74590949dae1aed99e82ddb757a"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/conversion-fixture.ts",
+          "sha256": "bc2b16e7ec76f157de04fbf7e7efac3ba6189d3a2d3860def49de1159b9cbf5b"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/dataset-owner-domain-fixture.ts",
+          "sha256": "51a7cc9d51c20f24b5c9ad4f0ebb98b1e2364137e8ff499cfdbd0619c992933b"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/dataset-owner-fixture.ts",
+          "sha256": "5562933fc0178ae61bea8848299970b73f8f86a04919cdef39d5ea7f1fb0f371"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/dataset-owner-recording-fixture.ts",
+          "sha256": "cf891015aeeb3fe1857ad6b0f0d3ae8e3911acdf4fdf67f1dc252c3276fc3a83"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/execution-fixture.ts",
+          "sha256": "2a0d469a2c9531b28c171657e86c53510bf9cd1d030322d7375ed7c7e7cac0c7"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/fake-plan-device-selection.ts",
+          "sha256": "9e3554f2deeb4981c4c79def4e410ba2a01ee403652937706bb960a227d85601"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/legacy-schema.ts",
+          "sha256": "3bd793f82d50414d92b513c6dc377047e2a5b10ad3fdf9849fd0996d9e09bca7"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/output-attempt-audit-fixture.ts",
+          "sha256": "134a5815badf6a9d99a7574c0a6a8cecdc64f3af2841a3297ad21b3cb1c8a286"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/output-helper-fixture.ts",
+          "sha256": "dba56e6e0c158431f8bf1409476b242c7ecc21a28912038e17f1723f85a104e9"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/output-run-ready.ts",
+          "sha256": "bb879c38c97a673afd181c8b01fc1ef89ec7ef6afc06f75b2d3fee7f81dea142"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/preparation-fixture.ts",
+          "sha256": "573a05d81535c154db53c8b895b60aa905ea570c01fba2c69b0822f7014516ce"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/prepared-execution-fixture.ts",
+          "sha256": "b22fecb0292bc4d4d2f9764a08e59057e50f20c50f35abc40ecec520edd2876c"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/rebuild-legacy-schema.ts",
+          "sha256": "16242271d2deff89320dc71323906224a718d48c64caf287979eb60b705dc031"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/recording-attempt-fixture.ts",
+          "sha256": "6948c617b592d851a29dba29cf665f804ecf1bb027ea8526ee31e916a6aec329"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/recording-capacity-child.ts",
+          "sha256": "d582bf24f0e800f26b15f0d021a305a18851296d7fbd9665f918f19611e295bf"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/recording-capacity-fixture.ts",
+          "sha256": "e9a688840b582825bfdfdcae1ba3bbe086dbe0b58e0dcc1c07cdadf0ef58eafb"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/recording-capacity-phases.ts",
+          "sha256": "d32bd106fbed2ef3b3d57410124b7026d6d57b9dff17f9595ea52f328dac9121"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/recording-capacity-process.ts",
+          "sha256": "90714a7a97ad69ba6df34e4a624c5bc01ae9d18fa4d776a2de987cbd27c1935f"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/recording-plan-fixture.ts",
+          "sha256": "c9ac5debc51a468e086a6372d525cef53b91cdc233e563881bac3abe8fe6695a"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/recording-profile-fixture.ts",
+          "sha256": "989d6aa13e9d53a625cef88212d3789cb2360387ed6fb891d7aff5cc4d219c51"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/recording-record-fixture.ts",
+          "sha256": "c894a1a646f547eceebd4eaffcc44228ab66a69797a9a71ddc68525dfee2037e"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/recording-replica-fixture.ts",
+          "sha256": "ebb5ee708ff8cb43da8871e4c387ac7fcc30661c0addb5c531ac84b3be9d6002"
+        },
+        {
+          "path": "packages/bridge-core/test/helpers/restore-activation-process-child.ts",
+          "sha256": "b373016114c0cbe97ca8e9d88324dc7da5c88b6c84ecb77f8fd20202a03d4525"
+        },
+        {
+          "path": "packages/bridge-core/test/rust-core/readonly-integration.test.ts",
+          "sha256": "ded41dbb4843e1d52dd75409e7396bc3217df84d04b753906a91c3f13c1469bc"
+        },
+        {
+          "path": "packages/bridge-core/test/rust-sidecar-client.test.ts",
+          "sha256": "8962d9b2dba7406eda8120ed7bbb62a7a4b3d7cac53ee51397bff43adcc0a2e2"
+        },
+        {
+          "path": "packages/contracts/package.json",
+          "sha256": "06eafaf198f194d7a0a23f4104ad5832b57c5304f5058e275537170fdf1ef9c2"
+        },
+        {
+          "path": "packages/contracts/src/aggregated-search.ts",
+          "sha256": "26786b533d3281a9f3710d3d48ff69d51323df9dbe312dd522d0b1b841bf87a3"
+        },
+        {
+          "path": "packages/contracts/src/audio-conversion.ts",
+          "sha256": "a46ad66f9a1814a26325a96be2e106370b4974a65f02fd385852329dbe8ee97a"
+        },
+        {
+          "path": "packages/contracts/src/collection-progress.ts",
+          "sha256": "e4eba0d8f1d55cb7344d76c049e24958f6c45d9dccf47e9d05c5fc8dd84fa9c2"
+        },
+        {
+          "path": "packages/contracts/src/collection.ts",
+          "sha256": "b9a22e5fa881bff540c6ee4121e1b5b65c13f0a2380d6186dce5d12f14c2bbad"
+        },
+        {
+          "path": "packages/contracts/src/command-outbox.ts",
+          "sha256": "63873be8d6a4c7e6db562e38c3c5aa0f2f88785a46edf39848deaf43dec00e95"
+        },
+        {
+          "path": "packages/contracts/src/converted-execution.ts",
+          "sha256": "7543b4451d98674693042bd5e73ead40b567d261a8b5966d214b3d1c6b9e2e28"
+        },
+        {
+          "path": "packages/contracts/src/diagnostics.ts",
+          "sha256": "dee5df9f69a4e991e589c97062a35c2f80d1584c51d055ffe4c5a8b42302622c"
+        },
+        {
+          "path": "packages/contracts/src/errors.ts",
+          "sha256": "baea3809a536c8ed7597650d205d60319c5d71d7f1dfd4b109a45d43d9796b3e"
+        },
+        {
+          "path": "packages/contracts/src/execution-assets.ts",
+          "sha256": "b8f0abb52669d09948e909f565550b9ad26a7a0dfd4366a0d109d3d4310ab91d"
+        },
+        {
+          "path": "packages/contracts/src/execution-audio.ts",
+          "sha256": "23dc8475ee5af5d2f75275a39a1d55a6d971076c2df0953a5df8c8590cadfa46"
+        },
+        {
+          "path": "packages/contracts/src/favorites.ts",
+          "sha256": "65ff3e2f4b0c7488e5933cfb43ae2c69f5ef35f8bd6d8a985be131ba60a3a386"
+        },
+        {
+          "path": "packages/contracts/src/index.ts",
+          "sha256": "0e08e1925f6af5adc1046969373c25529a34cd76cdc1cd112388d4e6ebf53f81"
+        },
+        {
+          "path": "packages/contracts/src/ipc-names.ts",
+          "sha256": "c32624621bcf53eb138118b6d826823de399d4a24d615ac7b77474cf1c92bbbb"
+        },
+        {
+          "path": "packages/contracts/src/ipc.ts",
+          "sha256": "8fd4d55b929628b1d2760b04e9ff225a7fb2a40c54d4666a33bfa4197d6ceb40"
+        },
+        {
+          "path": "packages/contracts/src/library-read.ts",
+          "sha256": "7196304d41499c6faf7aa8b54ba8fe923ec1b8b2edab280771c43736f2ab3ee9"
+        },
+        {
+          "path": "packages/contracts/src/library.ts",
+          "sha256": "3c1f4ae84f33ae19da5449b6ee6c23d99759d18902e4931441cad8a52a717106"
+        },
+        {
+          "path": "packages/contracts/src/lyrics.ts",
+          "sha256": "4650c22a2465ae83a7e2cc1813fb5254289550241fccd6f3c6b22af94694e7dc"
+        },
+        {
+          "path": "packages/contracts/src/master-drafts.ts",
+          "sha256": "87e7d0754226dadff0e44e27d7128dd8570dc421e334358a945fd3cb093db63f"
+        },
+        {
+          "path": "packages/contracts/src/master-versions.ts",
+          "sha256": "c1d14aa1b392e422d7cb837e0f75e035fa67acc2fdd9df6afaeb1448a22a512b"
+        },
+        {
+          "path": "packages/contracts/src/matching.ts",
+          "sha256": "4f70fee5d0605f9a1a74bdebc3e488de1a6b9701df4e6dd30ddcdc4904d05b81"
+        },
+        {
+          "path": "packages/contracts/src/media-planning.ts",
+          "sha256": "e70342473dd5a226d7cbde0e6656ae11bc511e161c184a21b426a6e1d86d112a"
+        },
+        {
+          "path": "packages/contracts/src/performance.ts",
+          "sha256": "5435b28ba9b024e99a325119b084e5dd2363161ed614fe7603efdf801b59a040"
+        },
+        {
+          "path": "packages/contracts/src/physical-links.ts",
+          "sha256": "57adc128337ece10967a90dab27a98ac2f9b6a26fd9bcbf0b9b03a67e32ade0f"
+        },
+        {
+          "path": "packages/contracts/src/physical-music.ts",
+          "sha256": "6e94053c06abd129fa7bd56d31ee1eae9d617e9d0ff3c9176366c77159c227a1"
+        },
+        {
+          "path": "packages/contracts/src/playback.ts",
+          "sha256": "db0cb59e9a22c5084b02d6a9728f57c5629dc76bc63925373f235389d016a05c"
+        },
+        {
+          "path": "packages/contracts/src/preparation-export.ts",
+          "sha256": "1b1e23683f776bd2cfb048b2eaca82dc143547a765713c00f1ece4a4baadbc30"
+        },
+        {
+          "path": "packages/contracts/src/preparation.ts",
+          "sha256": "f2ca1894caf6ae6b3d6f022e28c7d119537767e8bfc095321e131c15fc164a67"
+        },
+        {
+          "path": "packages/contracts/src/prepared-render.ts",
+          "sha256": "e3cb59759519744f09b03f2805700830477b225e328ff1371aff612ab4c34815"
+        },
+        {
+          "path": "packages/contracts/src/recording-activation.ts",
+          "sha256": "64a1501ec81b136299692cf7e0701ffd1919b9a64ce04e3f5d6e2ebd88eaeed9"
+        },
+        {
+          "path": "packages/contracts/src/recording-archive.ts",
+          "sha256": "ed540a199b3bbbae3b4049d9f78d238c3703aa7eb03d768bfbf4b8484b7c4693"
+        },
+        {
+          "path": "packages/contracts/src/recording-artwork.ts",
+          "sha256": "604a5200779fea7ce4590381b920f6c4ba4c50b35de5a3e5127c3a74b1dfc161"
+        },
+        {
+          "path": "packages/contracts/src/recording-attempts.ts",
+          "sha256": "4cced459b9db935f0fca7ae788e592b75e5c31efc720183269614145042f0ef4"
+        },
+        {
+          "path": "packages/contracts/src/recording-backups.ts",
+          "sha256": "28a7f9c428eabefe4ac53ec667f91995b4cc47a16fea69821755c46a284a3014"
+        },
+        {
+          "path": "packages/contracts/src/recording-device-selection.ts",
+          "sha256": "7c473f5b70b11f0457694cda36fb36150ec29b2baf29c14dc4ad56c5ae8e9f64"
+        },
+        {
+          "path": "packages/contracts/src/recording-output.ts",
+          "sha256": "187a9443bacfdcefc61d7f4904c60337735abd07d4fa6b737bf8e3c8060cb954"
+        },
+        {
+          "path": "packages/contracts/src/recording-plans.ts",
+          "sha256": "92341ba0918158942cdd0ddd6e6f72c23aad996579f4f786cb03050ae32f727b"
+        },
+        {
+          "path": "packages/contracts/src/recording-prints.ts",
+          "sha256": "2385c4e3ea7b3164a9bf524ef03862f12f2939da83dcb93ad5f0991774e567f8"
+        },
+        {
+          "path": "packages/contracts/src/recording-profile.ts",
+          "sha256": "eb08c0e146bebd74f04abe86fc99a80dedd5b59102236200b6dca1b61362717f"
+        },
+        {
+          "path": "packages/contracts/src/recording-records.ts",
+          "sha256": "2f094812599a7b10c48ad5ec37977538334ee021141a696de1672d2d424d0756"
+        },
+        {
+          "path": "packages/contracts/src/recording-replica.ts",
+          "sha256": "6410babef65b95f5b13e89f3161b36cecd025bf814dfb8b41886122f94fadd36"
+        },
+        {
+          "path": "packages/contracts/src/recording-workspace.ts",
+          "sha256": "edafc64e5f768110f4381b98947ecea6beba576716e7fa16be14240f33f2c087"
+        },
+        {
+          "path": "packages/contracts/src/reference-catalog.ts",
+          "sha256": "da12c1aadb161fcfb9ad564c46f77a9c793dbe6715ad80d2cfce7b2bd7273705"
+        },
+        {
+          "path": "packages/contracts/src/remote-core.ts",
+          "sha256": "acbc6ac9037ccacfaa5b51cc8f6f46e8196a53e0c37636f6e343727c5cc1b408"
+        },
+        {
+          "path": "packages/contracts/src/roon-display-lyrics.ts",
+          "sha256": "35de6ba8d186dae375a9942f4697c8c2bac03cc5e54dbf6f05749b71e2d62b45"
+        },
+        {
+          "path": "packages/contracts/src/roon.ts",
+          "sha256": "827583e7092a0db6f76f4407e00a95720b9bc96b1611d06cb65767e557a16da1"
+        },
+        {
+          "path": "packages/contracts/src/source-candidates.ts",
+          "sha256": "e644c42feef9cbf92d4699507bb97159463e2df90ac51323f3184309716edb7f"
+        },
+        {
+          "path": "packages/contracts/src/source-evidence.ts",
+          "sha256": "2f53a98ede41f8bb7d60b679cffcb74e14bf76de8fc437e6402c208c1563ef08"
+        },
+        {
+          "path": "packages/contracts/src/spreadsheet-import.ts",
+          "sha256": "fde7a14bda71e4ad7094f7a2e4cf96f20499472b22330b481bee921b81839bed"
+        },
+        {
+          "path": "packages/contracts/src/state.ts",
+          "sha256": "5ae9fd496847404237c88bce95b5a866ef9c6d9a51d6a9f431fdb0933bfbd327"
+        },
+        {
+          "path": "packages/contracts/src/validator.ts",
+          "sha256": "5388e42f13a0e9f07061eadcc007135e93817640b74eaa949c6012ca4664716c"
+        },
+        {
+          "path": "packages/contracts/src/volume.ts",
+          "sha256": "ecc343daea2417b80a36aee0093d6ddfdb85434a60099c6c6ac9b4f17eedc92d"
+        },
+        {
+          "path": "pnpm-lock.yaml",
+          "sha256": "46de57baa6d1b1a360af8cbeabec1ced2a33223db1eda13c589bbd867e62b99a"
+        },
+        {
+          "path": "pnpm-workspace.yaml",
+          "sha256": "372f045f2615a07aa6f55420bbdf81e4600260ddf431256ea19290ba482810ae"
+        },
+        {
+          "path": "rust-toolchain.toml",
+          "sha256": "7d21c66a15f41bad66b82ed06a289f5dc8a6e3751951d2696bbf20ce296f2b0f"
+        },
+        {
+          "path": "scripts/ci/verify-boundaries.mjs",
+          "sha256": "20de6a691d0d751babb3b5695060bdd143dfbd7f571f4c752cda731a7c485f02"
+        },
+        {
+          "path": "scripts/ci/verify-rust-core.mjs",
+          "sha256": "ef708519d5ab2eac1a3e9aad14815d2442a2d3d2cc92f1c3f01c91a0e775d3b5"
+        }
+      ],
+      "binary": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/cargo-target/release/musicbridge-rust-core",
+        "sha256": "0d8bc499c06f05b7efcd70f47b4dee6450cc0ae83cc1fb0a45877826ec6e0465",
+        "platform": "darwin",
+        "architecture": "arm64"
+      },
+      "packages": [
+        {
+          "name": "itoa",
+          "version": "1.0.18"
+        },
+        {
+          "name": "memchr",
+          "version": "2.8.3"
+        },
+        {
+          "name": "musicbridge-rust-core",
+          "version": "0.1.0"
+        },
+        {
+          "name": "proc-macro2",
+          "version": "1.0.107"
+        },
+        {
+          "name": "quote",
+          "version": "1.0.47"
+        },
+        {
+          "name": "serde",
+          "version": "1.0.228"
+        },
+        {
+          "name": "serde_core",
+          "version": "1.0.228"
+        },
+        {
+          "name": "serde_derive",
+          "version": "1.0.228"
+        },
+        {
+          "name": "serde_json",
+          "version": "1.0.149"
+        },
+        {
+          "name": "syn",
+          "version": "2.0.119"
+        },
+        {
+          "name": "unicode-ident",
+          "version": "1.0.26"
+        },
+        {
+          "name": "zmij",
+          "version": "1.0.23"
+        }
+      ],
+      "runs": [
+        {
+          "name": "rustc-version",
+          "command": "rustc",
+          "args": [
+            "--version"
+          ],
+          "exitCode": 0,
+          "signal": null,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate/run-RB1E0i/rustc-version.log",
+          "sha256": "575ec1180cbcadeab3e2d08762b41ead5cf8810288e1239377fd2fb0a3e6bbed"
+        },
+        {
+          "name": "cargo-version",
+          "command": "cargo",
+          "args": [
+            "--version"
+          ],
+          "exitCode": 0,
+          "signal": null,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate/run-RB1E0i/cargo-version.log",
+          "sha256": "873d11ac113934a517ed7663b9ce7cdfb24a317dfdcd5e4c28295b8a7ef0b53c"
+        },
+        {
+          "name": "fmt",
+          "command": "cargo",
+          "args": [
+            "fmt",
+            "--manifest-path",
+            "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001/native/rust-core/Cargo.toml",
+            "--all",
+            "--",
+            "--check"
+          ],
+          "exitCode": 0,
+          "signal": null,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate/run-RB1E0i/fmt.log",
+          "sha256": "c11fa5cacc3c9a823ba28e2a1b565cf3f5c0e567ad620d70f340970554f7ddab"
+        },
+        {
+          "name": "clippy",
+          "command": "cargo",
+          "args": [
+            "clippy",
+            "--manifest-path",
+            "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001/native/rust-core/Cargo.toml",
+            "--locked",
+            "--all-targets",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exitCode": 0,
+          "signal": null,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate/run-RB1E0i/clippy.log",
+          "sha256": "065122f2ac74b9612056f9530515499d92b283d1d28d2817cc7c65b8652d16ca"
+        },
+        {
+          "name": "rust-test",
+          "command": "cargo",
+          "args": [
+            "test",
+            "--manifest-path",
+            "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001/native/rust-core/Cargo.toml",
+            "--locked"
+          ],
+          "exitCode": 0,
+          "signal": null,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate/run-RB1E0i/rust-test.log",
+          "sha256": "860e1d12bd3da7f3e3970faa0791b8708cebc6c78ba2cab752640fa88c22039b"
+        },
+        {
+          "name": "metadata",
+          "command": "cargo",
+          "args": [
+            "metadata",
+            "--manifest-path",
+            "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001/native/rust-core/Cargo.toml",
+            "--locked",
+            "--format-version=1"
+          ],
+          "exitCode": 0,
+          "signal": null,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate/run-RB1E0i/metadata.log",
+          "sha256": "ab52c7a5300fbb7b388975ed0633c19ee3528a03c2832c608abe78e6f6c3a3fe"
+        },
+        {
+          "name": "rust-build",
+          "command": "cargo",
+          "args": [
+            "build",
+            "--manifest-path",
+            "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001/native/rust-core/Cargo.toml",
+            "--locked",
+            "--release"
+          ],
+          "exitCode": 0,
+          "signal": null,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate/run-RB1E0i/rust-build.log",
+          "sha256": "059aca4e22156b24f680002df7f516ce7ed5e8ed9afcf83f47966f8a4871da17"
+        },
+        {
+          "name": "contracts-build",
+          "command": "corepack",
+          "args": [
+            "pnpm@10.17.1",
+            "--filter",
+            "@music-bridge/contracts",
+            "run",
+            "build"
+          ],
+          "exitCode": 0,
+          "signal": null,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate/run-RB1E0i/contracts-build.log",
+          "sha256": "b9be37ea0b0d59b66b55376b2ea3ff481604f0432b49a93147ed83cf84f59e74"
+        },
+        {
+          "name": "ts-client",
+          "command": "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "args": [
+            "--import",
+            "tsx",
+            "--test",
+            "--test-concurrency=1",
+            "test/rust-sidecar-client.test.ts"
+          ],
+          "exitCode": 0,
+          "signal": null,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate/run-RB1E0i/ts-client.log",
+          "sha256": "dce0848e124a35da3bd8a1bbf9d7c34a53d83108437dbea635097be8cc11dc71"
+        },
+        {
+          "name": "ts-rust-integration",
+          "command": "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "args": [
+            "--import",
+            "tsx",
+            "--test",
+            "--test-concurrency=1",
+            "test/rust-core/readonly-integration.test.ts"
+          ],
+          "exitCode": 0,
+          "signal": null,
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate/run-RB1E0i/ts-rust-integration.log",
+          "sha256": "ac98e37d66467f7c1f095649920d82696867f8f463055fce766f79095665e255"
+        }
+      ],
+      "realServices": "NOT_RUN",
+      "productionDefault": "Node",
+      "readonlyCommands": [
+        "collection.list"
+      ]
+    }
+  },
+  "finalSoftwareGates": {
+    "runs": [
+      {
+        "name": "typecheck-final",
+        "argv": [
+          "corepack",
+          "pnpm@10.17.1",
+          "run",
+          "typecheck"
+        ],
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/typecheck-final.log",
+        "exitCode": 0,
+        "elapsedSeconds": 23.887,
+        "logSha256": "1a000be2dc80960c5099829dc0b73f6db9aee65251421d40ae13ac1bd86bb3b5"
+      },
+      {
+        "name": "core-full-final",
+        "argv": [
+          "node",
+          "--import",
+          "tsx",
+          "--test",
+          "--test-concurrency=1",
+          "--test-reporter=spec",
+          "test/archive-backup.test.ts",
+          "test/archive-files.test.ts",
+          "test/archive-restore.test.ts",
+          "test/archive-transactions.test.ts",
+          "test/archive-workflow.test.ts",
+          "test/audio-converter.test.ts",
+          "test/backup-index-details.test.ts",
+          "test/backup-workflow-migration.test.ts",
+          "test/backup-workflow-store-safety.test.ts",
+          "test/backup-workflow.test.ts",
+          "test/backup-zip-workflow.test.ts",
+          "test/backup-zip.test.ts",
+          "test/bundled-output-helper.test.ts",
+          "test/capacity-clean-clone-benchmark.test.ts",
+          "test/collection-filter.test.ts",
+          "test/collection-progress-store.test.ts",
+          "test/collection-repository-batch.test.ts",
+          "test/collection-repository.test.ts",
+          "test/command-outbox-core.test.ts",
+          "test/commercial-provenance.test.ts",
+          "test/config.test.ts",
+          "test/confirmed-track-action.test.ts",
+          "test/control-server.test.ts",
+          "test/controller-context.test.ts",
+          "test/controller.test.ts",
+          "test/dataset-domain.test.ts",
+          "test/dataset-identity.test.ts",
+          "test/dataset-owner-integration.test.ts",
+          "test/dataset-owner-recording.test.ts",
+          "test/dataset-owner.test.ts",
+          "test/dataset-roon-projection.test.ts",
+          "test/device-output-protocol.test.ts",
+          "test/device-output-runner.test.ts",
+          "test/device-selection-broker.test.ts",
+          "test/execution-assets.test.ts",
+          "test/execution-compiler.test.ts",
+          "test/execution-files.test.ts",
+          "test/execution-plan.test.ts",
+          "test/favorite-repository.test.ts",
+          "test/formal-device-attempt-provider.test.ts",
+          "test/gate-b-admission.test.ts",
+          "test/gateway.test.ts",
+          "test/ipc-playback-failures.test.ts",
+          "test/library-cache-lifetime.test.ts",
+          "test/library-read-lifecycle.test.ts",
+          "test/library-read-trace-safety.test.ts",
+          "test/library-read-tracing.test.ts",
+          "test/library.test.ts",
+          "test/local-lyrics-acceptance.test.ts",
+          "test/local-lyrics-manual-match.test.ts",
+          "test/local-lyrics-resolver.test.ts",
+          "test/local-track-signature.test.ts",
+          "test/lyrics-match-domain.test.ts",
+          "test/lyrics-match-repository.test.ts",
+          "test/lyrics.test.ts",
+          "test/master-drafts-coordinator.test.ts",
+          "test/master-versions.test.ts",
+          "test/match-candidate-resolution.test.ts",
+          "test/matching.test.ts",
+          "test/mbp-004-incremental-boundaries.test.ts",
+          "test/media-planning.test.ts",
+          "test/mixed-queue.test.ts",
+          "test/multi-disk-downstream.test.ts",
+          "test/native-device-catalog.test.ts",
+          "test/netease-client.test.ts",
+          "test/netease-playback-scheduling.test.ts",
+          "test/netease-playlist-snapshot-cache.test.ts",
+          "test/output-device-pump.test.ts",
+          "test/output-helper.test.ts",
+          "test/output-protocol.test.ts",
+          "test/output-run-lease.test.ts",
+          "test/output-run-recovery.test.ts",
+          "test/parse.test.ts",
+          "test/performance-instrumentation.test.ts",
+          "test/performance-trace.test.ts",
+          "test/physical-links-coordinator.test.ts",
+          "test/playback-event-load.test.ts",
+          "test/playback-event-publisher.test.ts",
+          "test/playback-failure-trace.test.ts",
+          "test/policy.test.ts",
+          "test/preparation-export.test.ts",
+          "test/preparation-files.test.ts",
+          "test/preparation-zip-runtime.test.ts",
+          "test/preparation.test.ts",
+          "test/prepared-files.test.ts",
+          "test/prepared-render.test.ts",
+          "test/provider-wrapper-contract.test.ts",
+          "test/qr-login.test.ts",
+          "test/readonly-audio-consumer.test.ts",
+          "test/record-page-migration-budget.test.ts",
+          "test/record-page-query.test.ts",
+          "test/recording-attempt-backup.test.ts",
+          "test/recording-attempt-migration.test.ts",
+          "test/recording-attempt-state.test.ts",
+          "test/recording-attempt.test.ts",
+          "test/recording-capacity-lineage-conformance.test.ts",
+          "test/recording-capacity-print-write.test.ts",
+          "test/recording-capacity-queued-stop.test.ts",
+          "test/recording-capacity.test.ts",
+          "test/recording-output-attempt-audit.test.ts",
+          "test/recording-output-run-barrier.test.ts",
+          "test/recording-output.test.ts",
+          "test/recording-plan.test.ts",
+          "test/recording-preflight-admission.test.ts",
+          "test/recording-print-backup.test.ts",
+          "test/recording-print-facts.test.ts",
+          "test/recording-print-migration.test.ts",
+          "test/recording-print-store.test.ts",
+          "test/recording-profile.test.ts",
+          "test/recording-record-backup.test.ts",
+          "test/recording-record-disposition.test.ts",
+          "test/recording-record-migration.test.ts",
+          "test/recording-record.test.ts",
+          "test/recording-replica-input.test.ts",
+          "test/recording-replica-session.test.ts",
+          "test/recording-replica-source.test.ts",
+          "test/recording-workspace.test.ts",
+          "test/reference-catalog-activation.test.ts",
+          "test/reference-catalog-store.test.ts",
+          "test/reference-source-zip.test.ts",
+          "test/registry.test.ts",
+          "test/render-conformance.test.ts",
+          "test/replica-device-output-provider.test.ts",
+          "test/restore-activation-files.test.ts",
+          "test/restore-activation-process.test.ts",
+          "test/restore-activation-store.test.ts",
+          "test/restore-content-binding.test.ts",
+          "test/restore-dataset-runtime.test.ts",
+          "test/roon-action-policy.test.ts",
+          "test/roon-adapter.test.ts",
+          "test/roon-display-lyrics.test.ts",
+          "test/roon-image-owner.test.ts",
+          "test/roon-library-registration.test.ts",
+          "test/roon-library.test.ts",
+          "test/roon-page-cache.test.ts",
+          "test/roon-playback-context.test.ts",
+          "test/roon-public-library.test.ts",
+          "test/roon-sdk-callback-context.test.ts",
+          "test/roon-volume.test.ts",
+          "test/runtime-compact-events.test.ts",
+          "test/runtime.test.ts",
+          "test/rust-sidecar-client.test.ts",
+          "test/search.test.ts",
+          "test/source-candidates.test.ts",
+          "test/source-evidence.test.ts",
+          "test/spreadsheet-files.test.ts",
+          "test/spreadsheet-import-store.test.ts",
+          "test/spreadsheet-parser.test.ts",
+          "test/spreadsheet-zip.test.ts",
+          "test/track-action-confirmation.test.ts",
+          "test/utility-ipc.test.ts",
+          "test/utility-playback-stream.test.ts",
+          "test/v3-main-journey.test.ts",
+          "test/verified-zip.test.ts",
+          "test/version-planner.test.ts",
+          "test/zone-switch.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001/packages/bridge-core",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/core-full-final.log",
+        "exitCode": 0,
+        "elapsedSeconds": 423.637,
+        "logSha256": "20160b7069a638aebaba7879c7c069c778578ca9ef546728f538cb3562e17a1a"
+      },
+      {
+        "name": "build-full-final",
+        "argv": [
+          "corepack",
+          "pnpm@10.17.1",
+          "run",
+          "build"
+        ],
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/build-full-final.log",
+        "exitCode": 0,
+        "elapsedSeconds": 16.22,
+        "logSha256": "be478a43ab06e7d49d4220dd05d7bcc219b61cda7a9c950e2966765391590c0c"
+      },
+      {
+        "name": "control-plane-final",
+        "argv": [
+          "node",
+          "scripts/ci/verify-control-plane.mjs"
+        ],
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/control-plane-final.log",
+        "exitCode": 0,
+        "elapsedSeconds": 0.081,
+        "logSha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+      },
+      {
+        "name": "boundaries-final",
+        "argv": [
+          "node",
+          "scripts/ci/verify-boundaries.mjs"
+        ],
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/boundaries-final.log",
+        "exitCode": 0,
+        "elapsedSeconds": 0.085,
+        "logSha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+      },
+      {
+        "name": "cycles-final",
+        "argv": [
+          "node",
+          "scripts/ci/verify-cycles.mjs"
+        ],
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/cycles-final.log",
+        "exitCode": 0,
+        "elapsedSeconds": 0.057,
+        "logSha256": "7ea74b61a355e715132991034dd2fbe84421b1ed63a1b33f59952d4a33693661"
+      },
+      {
+        "name": "diff-check-final",
+        "argv": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/diff-check-final.log",
+        "exitCode": 0,
+        "elapsedSeconds": 0.019,
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "sourceSnapshot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/software-source-final.json",
+    "sourceStable": true
+  },
+  "retainedUnaffectedCompleteGates": [
+    {
+      "name": "contracts-full",
+      "argv": [
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=spec",
+        "test/audio-conversion.test.ts",
+        "test/collection-copy.test.ts",
+        "test/collection-filter.test.ts",
+        "test/collection-progress.test.ts",
+        "test/command-outbox.test.ts",
+        "test/diagnostics.test.ts",
+        "test/execution-audio.test.ts",
+        "test/library-cache-contract.test.ts",
+        "test/library-read.test.ts",
+        "test/performance.test.ts",
+        "test/playback-stream.test.ts",
+        "test/preparation-export.test.ts",
+        "test/recording-activation.test.ts",
+        "test/recording-archive.test.ts",
+        "test/recording-attempts.test.ts",
+        "test/recording-backups.test.ts",
+        "test/recording-device-selection.test.ts",
+        "test/recording-execution.test.ts",
+        "test/recording-output.test.ts",
+        "test/recording-plans.test.ts",
+        "test/recording-prints.test.ts",
+        "test/recording-records.test.ts",
+        "test/recording-replica.test.ts",
+        "test/recording-workspace.test.ts",
+        "test/reference-catalog.test.ts",
+        "test/reference-source-zip.test.ts",
+        "test/roon-pagination.test.ts",
+        "test/roon-playback-context.test.ts",
+        "test/source-candidates.test.ts",
+        "test/spreadsheet-import.test.ts",
+        "test/v1-v2-integration.test.ts",
+        "test/validator.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001/packages/contracts",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/contracts-full.log",
+      "exitCode": 0,
+      "elapsedSeconds": 4.961,
+      "logSha256": "de97d75367f81a4e179d04603b40b43f49fc4a0abb89cf85e3bd2265942ea454",
+      "retentionReason": "源码与完整规格在最终修复后保持一致，无范围缩减。"
+    },
+    {
+      "name": "desktop-full",
+      "argv": [
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "--test-reporter=spec",
+        "test/ambient-artwork.test.ts",
+        "test/ambient-preview-parity.test.ts",
+        "test/appearance-ipc.test.ts",
+        "test/appearance-preference.test.ts",
+        "test/bugfix-v2-renderer.test.ts",
+        "test/collection-display.test.ts",
+        "test/collection-photos.test.ts",
+        "test/collection-progress-ipc.test.ts",
+        "test/collection-progress-ui.test.ts",
+        "test/collection-reference-images.test.ts",
+        "test/collection-return-navigation.test.ts",
+        "test/collectionQueue.test.ts",
+        "test/command-outbox-executor.test.ts",
+        "test/command-outbox-ipc.test.ts",
+        "test/command-outbox-service.test.ts",
+        "test/command-outbox-store.test.ts",
+        "test/command-outbox-ui.test.ts",
+        "test/commercial-copies-panel.test.ts",
+        "test/config-migration.test.ts",
+        "test/core-environment.test.ts",
+        "test/core-supervisor-compact.test.ts",
+        "test/core-supervisor.test.ts",
+        "test/credential-provisioning.test.ts",
+        "test/credential-vault.test.ts",
+        "test/csp.test.ts",
+        "test/dat-cue-reminders.test.ts",
+        "test/dataset-owner-bootstrap.test.ts",
+        "test/diagnostics.test.ts",
+        "test/electron-vite-shim.test.ts",
+        "test/favorite-resolution.test.ts",
+        "test/favorite-window-resolution.test.ts",
+        "test/home-recommendations.test.ts",
+        "test/ipc-security.test.ts",
+        "test/library-cache-transport.test.ts",
+        "test/library-pagination.test.ts",
+        "test/library-read-ipc.test.ts",
+        "test/library-read-scope.test.ts",
+        "test/library-read-terminal.test.ts",
+        "test/lifecycle-probe.test.ts",
+        "test/main-compact-ipc.test.ts",
+        "test/main-window.test.ts",
+        "test/master-artwork-panel.test.ts",
+        "test/mbp-005-renderer-cache.test.ts",
+        "test/mbp-005-renderer-ui.test.ts",
+        "test/mbp-007-artwork-components.test.ts",
+        "test/mbp-007-artwork-cross-layer.test.ts",
+        "test/mbp-007-artwork-geometry.test.ts",
+        "test/mbp-007-artwork-lifecycle.test.ts",
+        "test/native-converter-package.test.ts",
+        "test/native-output-device-package.test.ts",
+        "test/native-output-package.test.ts",
+        "test/netease-library-session.test.ts",
+        "test/output-bootstrap.test.ts",
+        "test/page-journey-session.test.ts",
+        "test/performance-ipc.test.ts",
+        "test/physical-link-history-fence.test.ts",
+        "test/physical-relation-request-fence.test.ts",
+        "test/physical-relations-mounted.test.ts",
+        "test/playback-acceptance.test.ts",
+        "test/playback-matching.test.ts",
+        "test/playback-session.test.ts",
+        "test/playback-stream-reducer.test.ts",
+        "test/playback-stream-session.test.ts",
+        "test/playback-stream-ui.test.ts",
+        "test/playbackFavorites.test.ts",
+        "test/playbackStatus.test.ts",
+        "test/player-details.test.ts",
+        "test/player-motion.test.ts",
+        "test/preload.test.ts",
+        "test/preparation-zip-ipc.test.ts",
+        "test/preparation-zip-panel.test.ts",
+        "test/prepared-revocations.test.ts",
+        "test/protocol.test.ts",
+        "test/recording-attempt-ipc.test.ts",
+        "test/recording-attempt-panel.test.ts",
+        "test/recording-candidate-ipc.test.ts",
+        "test/recording-device-ipc.test.ts",
+        "test/recording-next-step.test.ts",
+        "test/recording-output-ipc.test.ts",
+        "test/recording-output-panel.test.ts",
+        "test/recording-panel-context.test.ts",
+        "test/recording-plan-ipc.test.ts",
+        "test/recording-plan-panel.test.ts",
+        "test/recording-plan.test.ts",
+        "test/recording-print-export.test.ts",
+        "test/recording-print-ipc.test.ts",
+        "test/recording-print-panel.test.ts",
+        "test/recording-print-renderer.test.ts",
+        "test/recording-print-worker.test.ts",
+        "test/recording-record-ipc.test.ts",
+        "test/recording-record-panel.test.ts",
+        "test/recording-replica-ipc.test.ts",
+        "test/recording-replica-panel.test.ts",
+        "test/recording-source-candidate-ui.test.ts",
+        "test/recording-theme-selector.test.ts",
+        "test/recording-workbench-order.test.ts",
+        "test/recording-workbench-projection.test.ts",
+        "test/recording-workflow-integration.test.ts",
+        "test/recording-workspace-controller.test.ts",
+        "test/recording-workspace-ipc.test.ts",
+        "test/reference-catalog-ipc.test.ts",
+        "test/reference-catalog-ui.test.ts",
+        "test/remote-core-preferences.test.ts",
+        "test/remote-core-tunnel.test.ts",
+        "test/renderer-lifecycle.test.ts",
+        "test/renderer-read-lifecycle.test.ts",
+        "test/renderer.test.ts",
+        "test/roon-artwork-cache.test.ts",
+        "test/roon-browse-pagination.test.ts",
+        "test/roon-collection-lifecycle.test.ts",
+        "test/roon-collection-loader.test.ts",
+        "test/roon-context-ipc.test.ts",
+        "test/roon-context-queue.test.ts",
+        "test/roon-demand-queue-ui.test.ts",
+        "test/roon-display-connection.test.ts",
+        "test/roon-display-protocol.test.ts",
+        "test/roon-grid-lifecycle.test.ts",
+        "test/roon-grid-mounted.test.ts",
+        "test/roon-grid-resolution.test.ts",
+        "test/roon-grid-window.test.ts",
+        "test/roon-image-ipc.test.ts",
+        "test/roon-library-messages.test.ts",
+        "test/roon-library-ui.test.ts",
+        "test/roon-playback-optimism.test.ts",
+        "test/roon-search-collection.test.ts",
+        "test/sakura-theme.test.ts",
+        "test/search-entities.test.ts",
+        "test/searchAggregation.test.ts",
+        "test/security.test.ts",
+        "test/settingsNavigation.test.ts",
+        "test/sidebar-controls.test.ts",
+        "test/source-picker.test.ts",
+        "test/spreadsheet-import-ipc.test.ts",
+        "test/spreadsheet-import-ui.test.ts",
+        "test/startup-gate.test.ts",
+        "test/startup-readiness.test.ts",
+        "test/startup-test-config.test.ts",
+        "test/tray.test.ts",
+        "test/virtualWindow.test.ts",
+        "test/volume-ipc.test.ts",
+        "test/zone-lifecycle.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-001/apps/desktop",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/desktop-full.log",
+      "exitCode": 0,
+      "elapsedSeconds": 72.546,
+      "logSha256": "f075b89c623240569d28371d3377592960544df6dc8f6758ae09d4c0d936cdbf",
+      "retentionReason": "源码与完整规格在最终修复后保持一致，无范围缩减。"
+    }
+  ],
+  "softwareSourceSnapshot": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/software-source-final.json",
+    "sha256": "c06f1017607684fd1e7e58e95de3ad2016d963e01a005221971af96942d449e1",
+    "count": 989,
+    "stableDuringFinalChecks": true
+  },
+  "unitResults": {
+    "packages": {
+      "contracts": {
+        "tests": 254,
+        "pass": 254,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "core": {
+        "tests": 2034,
+        "pass": 2032,
+        "fail": 0,
+        "skipped": 2,
+        "cancelled": 0
+      },
+      "desktop": {
+        "tests": 1239,
+        "pass": 1239,
+        "fail": 0,
+        "skipped": 0,
+        "cancelled": 0
+      }
+    },
+    "passed": 3525,
+    "failed": 0,
+    "cancelled": 0,
+    "originalConditionalSkips": 2,
+    "addedSkips": 0,
+    "fullScope": "各包原 test/*.test.ts，显式 --test-concurrency=1，无过滤或新增 skip"
+  },
+  "rustResults": {
+    "nativePassed": 16,
+    "nativeFailed": 0,
+    "nativeIgnored": 0,
+    "tsFaultPassed": 25,
+    "tsFaultFailed": 0,
+    "actualRustIntegrationPassed": 5,
+    "actualRustIntegrationFailed": 0,
+    "actualRustIntegrationSkipped": 0,
+    "tsFaultTestsIncludedInCoreFullCount": true
+  },
+  "implementationFiles": [
+    {
+      "path": ".github/workflows/rust-core.yml",
+      "sha256": "c23e52322028c199797c93d516ee438541825c5afc2c456a325dbee2243603c0"
+    },
+    {
+      "path": "docs/adr/ADR-038-rust-readonly-sidecar.md",
+      "sha256": "eec1ce25b080c0a317aabfbe22a0aabe5e23048a7dcd4d41455b3e1c4da46949"
+    },
+    {
+      "path": "docs/contracts/rust-readonly-sidecar-v1.md",
+      "sha256": "f86a70782582f4876831e51ca5bd47bc26a6aa1647d84058889188e1589144bb"
+    },
+    {
+      "path": "native/rust-core/Cargo.lock",
+      "sha256": "4ce2ecf242118d14ce94f7546cfef377f0c6e98f0b922d60e13248595d7c4f8b"
+    },
+    {
+      "path": "native/rust-core/Cargo.toml",
+      "sha256": "86bbf4fd11fb425c53041de720b9e97805672690ca07550966b336e795d4ce5f"
+    },
+    {
+      "path": "native/rust-core/src/lib.rs",
+      "sha256": "60e617417751f62342e17c021e465c4d6aed90b5960776dbd93a910aeb48728f"
+    },
+    {
+      "path": "native/rust-core/src/main.rs",
+      "sha256": "40c62be0a0444e8db39f181907e7b426a84e840deb8e83f5154f3343ce9341fe"
+    },
+    {
+      "path": "native/rust-core/tests/protocol.rs",
+      "sha256": "de729da47595ad34739feca9f2ba0eebe89a7cead59fa12be7748dab55ddcb69"
+    },
+    {
+      "path": "package.json",
+      "sha256": "5e138ef0afd26db3a045af6271e50e6ae06674f20be02dda6e2cb1796a2b4bc2"
+    },
+    {
+      "path": "packages/bridge-core/src/rust-core/readonly-sidecar.ts",
+      "sha256": "0722e913fe788e66b30593bc002e4b6b4a2b6527c34f1221f448459d33304df3"
+    },
+    {
+      "path": "packages/bridge-core/test/rust-core/readonly-integration.test.ts",
+      "sha256": "ded41dbb4843e1d52dd75409e7396bc3217df84d04b753906a91c3f13c1469bc"
+    },
+    {
+      "path": "packages/bridge-core/test/rust-sidecar-client.test.ts",
+      "sha256": "8962d9b2dba7406eda8120ed7bbb62a7a4b3d7cac53ee51397bff43adcc0a2e2"
+    },
+    {
+      "path": "project/RISK_REGISTER.md",
+      "sha256": "ea43c5419de9970065223f25c85bd9631a00827449cdb80f0eb2804bc9a67707"
+    },
+    {
+      "path": "project/STATUS.json",
+      "sha256": "320f0bd770f96abd70b6bafc2eefac547e67ca2c83ed5aba43f815f88d524e38"
+    },
+    {
+      "path": "rust-toolchain.toml",
+      "sha256": "7d21c66a15f41bad66b82ed06a289f5dc8a6e3751951d2696bbf20ce296f2b0f"
+    },
+    {
+      "path": "scripts/ci/verify-boundaries.mjs",
+      "sha256": "20de6a691d0d751babb3b5695060bdd143dfbd7f571f4c752cda731a7c485f02"
+    },
+    {
+      "path": "scripts/ci/verify-rust-core.mjs",
+      "sha256": "ef708519d5ab2eac1a3e9aad14815d2442a2d3d2cc92f1c3f01c91a0e775d3b5"
+    },
+    {
+      "path": "tasks/00_TASK_INDEX.md",
+      "sha256": "514ba6b2a304fd9c98d068f8e41b246f9868994d893ac0ba9cf7a8082ad22362"
+    },
+    {
+      "path": "tasks/RUST-001-readonly-sidecar.md",
+      "sha256": "fbe935dd966a6c1581195c9fe665d7ac65b365c7b047113e45cb4b2fec6aecb5"
+    }
+  ],
+  "reportDocumentation": {
+    "native/rust-core/README.md": "ee3bc5b084499d18034ac7b4baf807a85969aed008fc29d69cb29d4e3214aee7",
+    "readmeAlreadyCoveredByFinalRustAndSoftwareManifest": true
+  },
+  "supplementalArtifacts": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/final-edge-red.log",
+      "sha256": "24eadfc98807b59b51b5302f34d48d51c085dea4361fad71d51cf9d545c537b2"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/final-edge-green.log",
+      "sha256": "b79a1a78834333279b325525af160d2f0e87dbaa5f6a03fa10d4b64e75083713"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate.log",
+      "sha256": "4da94b000ce1799bce55b2dbbd95ac33782b6259a732c9aa85ff3a57a6280fce"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate-fixed.log",
+      "sha256": "3475b2164c1343e45c0e1ea6c5efde543a61253bc8a5801d4f80bd019c3c4b1e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate-final.log",
+      "sha256": "7af811b4488b88b2e3ba558aba822353671a72684e6a6ae47460072ae6cd236b"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/typecheck-full.log",
+      "sha256": "1a000be2dc80960c5099829dc0b73f6db9aee65251421d40ae13ac1bd86bb3b5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/typecheck-final-node22.log",
+      "sha256": "1a000be2dc80960c5099829dc0b73f6db9aee65251421d40ae13ac1bd86bb3b5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/software-gates.json",
+      "sha256": "2ee7f136d5d51c45e1beb5c2962ff0743e9ae0e837df9e3878d48d7378426965"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/software-gates-final.json",
+      "sha256": "62f26094f8989d2e0f176c0df3119c9d96cae66c0d9ce40b3868e0ec5e4e37f8"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/software-source-final.json",
+      "sha256": "c06f1017607684fd1e7e58e95de3ad2016d963e01a005221971af96942d449e1"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/contract-evidence-review.log",
+      "sha256": "b4471c1e6f028c82fafe63158a653cb3ee14557ecbd00501d47f728860fe73e7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/review-facade.log",
+      "sha256": "15e4cea214ed4a1afb0ff1be080a96b35a432e6d1d9f57385549aca017161cd9"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/review-json-copy.log",
+      "sha256": "f19e744e99bdef13bde07014a363d2bf9e4f59a9efdbfff91add56f6a64051fb"
+    }
+  ],
+  "scope": {
+    "productionDefault": "Node",
+    "readonlyCommands": [
+      "collection.list"
+    ],
+    "snapshotHelperCompletePageLimit": 100,
+    "explicitCompleteArrayLimit": 2000,
+    "atomicLiveLargeLibraryExport": "NOT_IMPLEMENTED",
+    "nodeDatabaseWriteOwnerUnchanged": true,
+    "credentialsInheritedByRust": false,
+    "operatingSystemSandbox": "NOT_PROVEN",
+    "performanceBenefit": "NOT_MEASURED"
+  },
+  "review": {
+    "developmentAndReviewAgents": 4,
+    "subagentModel": "gpt-6.1-sol",
+    "subagentReasoningEffort": "high",
+    "execution": "分批运行；平台并发额度不足",
+    "primary": "gpt-6.1-sol/max",
+    "fixes": [
+      "单调期限阻止事件循环阻塞后的过期派发和回执",
+      "拒绝嵌套覆盖式 JSON 重复键",
+      "拒绝 toJSON/访问器/自定义原型重写事实",
+      "负零按 JSON 语义归一化",
+      "collectorPolicy 严格字符串枚举",
+      "只准入锁定 JSON 依赖的必要构建脚本",
+      "源码前后指纹和独立结果目录",
+      "mkdir 前检查真实祖先防止链接回落本机"
+    ]
+  },
+  "knownFailedOrSupersededEvidence": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/rust-gate.log",
+      "exitCode": 1,
+      "reason": "初次依赖 Gate 过度拒绝 serde 等必要 build.rs；默认 Node 25 环境不作最终证据。"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/final-edge-red.log",
+      "exitCode": 1,
+      "failedTests": 2,
+      "reason": "修复前实际捕获负零往返和策略数组未被拒绝。"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-001-w4lk0F/typecheck-full.log",
+      "exitCode": 0,
+      "reason": "早期默认 Node 25 运行；由最终 Node 22 类型检查取代。"
+    }
+  ],
+  "notRun": [
+    "real-Provider-Roon",
+    "real-recording-Gate-B-P4-P5",
+    "Owner-acceptance",
+    "full-Electron-E2E",
+    "real-system-keychain",
+    "installed-App-replacement",
+    "real-user-migration",
+    "remote-CI",
+    "push",
+    "main-merge"
+  ],
+  "remoteBranchSnapshot": {
+    "branch": "codex/rust-core-001-readonly-sidecar",
+    "argv": [
+      "git",
+      "ls-remote",
+      "--exit-code",
+      "--heads",
+      "origin",
+      "refs/heads/codex/rust-core-001-readonly-sidecar"
+    ],
+    "exitCode": 2,
+    "matchingRefs": [],
+    "pushed": false
+  },
+  "rootPreserved": {
+    "branch": "codex/fix-playback-read-tracing",
+    "head": "2392b8f69836f02e39ce58f6e6e6e2563c6cc5d4",
+    "untracked": [
+      "apps/desktop/test-results/",
+      "worktree/"
+    ]
+  },
+  "heartbeat": "musicbridge-v3-7-rust-core-PAUSED",
+  "referenceConversation": {
+    "url": "https://chatgpt.com/share/6abf2e64-df0c-83ee-b7e2-772435b2d141",
+    "bodyRead": false,
+    "usage": "参考链接未返回可读正文；结论依据最新代码、当前授权和实际验证。"
+  }
+}
