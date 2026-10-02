@@ -8,7 +8,7 @@ import {
   validateIpcResponseForCommand, type CollectionFilter, type CollectionModel, type IpcRequest, type Page,
 } from '@music-bridge/contracts';
 import type { DatasetCollectionSnapshotVersion, DatasetOwnerEndpoint, DatasetOwnerIdentity, DatasetOwnerLargeSnapshotEndpoint, DatasetOwnerSnapshotEndpoint } from '../collection/dataset-owner-protocol.js';
-import { filterCollectionSnapshot, projectCollectionFilter } from './collection-query.js';
+import { createCollectionSnapshotQueryIndex, projectCollectionFilter, type CollectionSnapshotQueryIndex } from './collection-query.js';
 
 export type RustSnapshotProfile = 'v2-2000' | 'v3-5000';
 export const RUST_LARGE_SNAPSHOT_LIMITS = Object.freeze({ models: 5_000, snapshotBytes: 8 * 1024 * 1024,
@@ -243,6 +243,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
   let failure: RustSidecarError | undefined, closing = false, closeAck = false, exited = false, sequence = 0;
   let closeDeadline = Infinity, effectiveStartupDeadline = startupDeadline, uploadBytes = 0;
   let preparePromise: Promise<DatasetOwnerIdentity> | undefined, bootPromise: Promise<void> | undefined, closePromise: Promise<void> | undefined;
+  let queryIndex: CollectionSnapshotQueryIndex | undefined;
   let writeTail = Promise.resolve();
   const pending = new Map<string, Pending>();
   let fragments: Buffer[] = [], fragmentBytes = 0;
@@ -252,6 +253,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
   function fail(code: RustSidecarErrorCode): void {
     if (failure) return;
     failure = new RustSidecarError(code);
+    queryIndex = undefined;
     fragments = []; fragmentBytes = 0;
     for (const item of pending.values()) { clearTimeout(item.timer); item.reject(failure); }
     pending.clear(); rejectExit(failure);
@@ -275,7 +277,8 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
     const response = validateIpcResponseForCommand({ version: 1, id: request.id, ok: true, result }, 'collection.list');
     if (!response.ok || !response.value.ok || !record(request.payload) || !record(request.payload.page)) return false;
     const page = response.value.result;
-    const filtered = filterCollectionSnapshot(snapshot.models, request.payload.filter as CollectionFilter | undefined);
+    if (!queryIndex) return false;
+    const filtered = queryIndex.filter(request.payload.filter as CollectionFilter | undefined);
     // 合法 DTO 仍不能把另一快照/分页内容混进本次读取。
     return page.offset === request.payload.page.offset && page.limit === request.payload.page.limit
       && page.total === filtered.length
@@ -406,7 +409,20 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
       if (closing || phase === 'closed') return Promise.reject(new RustSidecarError('CLOSING'));
       if (bootPromise) return bootPromise;
       if (phase !== 'prepared') return Promise.reject(new RustSidecarError('NOT_READY'));
-      bootPromise = rpc('commitBoot', {}).then(() => { if (failure) throw failure; if (large && closing) throw new RustSidecarError('CLOSING'); phase = 'ready'; });
+      const deadline = Math.min(effectiveStartupDeadline, performance.now() + requestTimeout);
+      bootPromise = rpc('commitBoot', {}).then(() => {
+        if (failure) throw failure;
+        if (large && closing) throw new RustSidecarError('CLOSING');
+        // 完整提交回执后才建立本代索引；重复合法 boot 复用原 promise。
+        try {
+          queryIndex = createCollectionSnapshotQueryIndex(snapshot.models);
+          if (performance.now() >= deadline) { fail('TIMEOUT'); throw failure!; }
+          phase = 'ready';
+        } catch (error) {
+          fail(error instanceof RustSidecarError ? error.code : 'PROTOCOL_ERROR');
+          throw failure!;
+        }
+      });
       return bootPromise;
     },
     async dispatch(input) {
@@ -450,7 +466,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
         } catch (error) {
           fail(error instanceof RustSidecarError ? error.code : 'PROTOCOL_ERROR');
           throw failure!;
-        } finally { clearTimeout(timer); }
+        } finally { queryIndex = undefined; clearTimeout(timer); }
       })();
       void closePromise.catch(() => {});
       return closePromise;

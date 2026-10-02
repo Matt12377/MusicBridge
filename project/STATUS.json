@@ -3201,8 +3201,8 @@
     }
   },
   "currentRustCoreTask": {
-    "task": "RUST-004",
-    "statusKey": "rustCoreBoundedTransfer20261002"
+    "task": "RUST-005",
+    "statusKey": "rustCoreQueryIndex20261002"
   },
   "rustCoreAtomicSnapshot20261002": {
     "task": "RUST-002",
@@ -3584,6 +3584,114 @@
         "origin",
         "refs/heads/codex/rust-core-004-bounded-transfer"
       ],
+      "exitCode": 2,
+      "matchingRefs": [],
+      "pushed": false
+    }
+  },
+  "rustCoreQueryIndex20261002": {
+    "task": "RUST-005",
+    "branch": "codex/rust-core-005-query-index",
+    "baseCommit": "d2676884a537bf3d232ed2cc957fef11b6d5cfeb",
+    "state": "local-software-gates-passed-bounded-query-index",
+    "scope": "tasks/RUST-005-bounded-query-index.md",
+    "todo": "project/RUST_CORE_TODO.md",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k",
+    "productionDefault": "Node",
+    "nodeDatabaseWriteOwnerUnchanged": true,
+    "protocolVersions": [
+      1,
+      2,
+      3
+    ],
+    "maximumModels": 5000,
+    "requestResultCache": false,
+    "implementationCommit": null,
+    "reportCommit": null,
+    "validation": {
+      "rustGateExitCode": 0,
+      "rustGateSteps": 16,
+      "rustSourceFiles": 294,
+      "nativePassed": 43,
+      "tsQueryIndexPassed": 6,
+      "targetedTsWithOldSuitesPassed": 98,
+      "javascriptGatePassed": 155,
+      "actualRustIntegrationPassed": 24,
+      "actualRustIntegrationSkipped": 0,
+      "completePages": 72,
+      "differentialPages": 432,
+      "writeAfterPages": 16,
+      "sourceStable": true,
+      "reviewRoundOneP1P2": 0,
+      "fullSoftware": "PASS",
+      "finalTypecheckExitCode": 0,
+      "fullUnitExitCode": 0,
+      "unitPassed": 3631,
+      "unitFailed": 0,
+      "originalNativeConditionalSkips": 2,
+      "addedSkips": 0,
+      "contractsPassed": 254,
+      "corePassed": 2138,
+      "desktopPassed": 1239,
+      "productionBuildExitCode": 0,
+      "controlPlaneExitCode": 0,
+      "boundariesExitCode": 0,
+      "cyclesExitCode": 0,
+      "cyclesFiles": 381,
+      "softwareSourceFiles": 1055,
+      "softwareSourceStable": true,
+      "diffCheckExitCode": 0,
+      "jsonValidationExitCode": 0
+    },
+    "realProviderRoonAcceptance": "NOT_RUN",
+    "realRecording": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "realUserMigration": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "agentPolicy": {
+      "primaryModel": "gpt-6.1-sol",
+      "primaryReasoningEffort": "max",
+      "subagentModel": "gpt-6.1-sol",
+      "subagentReasoningEffort": "high",
+      "maximumSubagents": 4,
+      "actualDevelopmentAndReviewAgents": 4
+    },
+    "carryover": [
+      "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
+      "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
+    ],
+    "ownerAuthorization": "continue-development-with-up-to-four-sol-6.1-high-subagents",
+    "binary": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/cargo-target/release/musicbridge-rust-core",
+      "sha256": "03624a10a1c9314842907142fd0cfb3931dd68edcb88a5dff6ea645832124a14",
+      "platform": "darwin",
+      "architecture": "arm64"
+    },
+    "rustManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/rust-gate/run-SoxVwn/manifest.json",
+    "rustManifestSha256": "b88b42678e0063689532b6c27e814909e0e714cf9453ef3835172eea6d506f8e",
+    "softwareManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/software-final/software-manifest.json",
+    "softwareManifestSha256": "f847cb2674993ca1ad249a4a0940c7bd0d9a675793856e0533ac47c5a3106f74",
+    "report": "reports/RUST-005_BOUNDED_QUERY_INDEX.md",
+    "evidence": "reports/RUST-005_EVIDENCE.json",
+    "implementationCommitResolution": "git-log-last-commit-touching-native/rust-core/src/lib.rs",
+    "reportCommitResolution": "git-log-last-commit-touching-reports/RUST-005_BOUNDED_QUERY_INDEX.md",
+    "nextBranchBaseResolution": "final-RUST-005-report-HEAD",
+    "fullElectronE2E": "NOT_RUN",
+    "realSystemKeychain": "NOT_RUN",
+    "indexPostingEntryUpperBound": "7N-including-all-brand-year-and-four-overlapping-stock-postings",
+    "review": {
+      "rounds": 2,
+      "remainingP1": 0,
+      "remainingP2": 0,
+      "report": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k/review-final.json",
+      "sha256": "851e1288e0390672166671d731feb08eab348609500f9d226ea644555904438f",
+      "secondRound": "final-gate-evidence-and-identities-only"
+    },
+    "remoteBranchSnapshot": {
+      "branch": "codex/rust-core-005-query-index",
       "exitCode": 2,
       "matchingRefs": [],
       "pushed": false

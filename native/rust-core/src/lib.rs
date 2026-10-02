@@ -1,7 +1,7 @@
 //! 仅持有调用方提供的公开收藏快照，支持 v1 分页、v2 筛选与 v3 分块，不访问文件、网络或设备。
 use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{Map, Value, json};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io::{self, BufRead, Write};
 
@@ -273,10 +273,148 @@ fn canonical_bytes(value: &Value) -> Result<usize, ErrorCode> {
         .map_err(|_| ErrorCode::ProtocolError)
 }
 
+// 只保存有界 DTO 的衍生字段与原导出 ordinal；每个 posting 的 ordinal 唯一且递增。
+struct QueryRow {
+    brand: String,
+    searchable: String,
+    year: Option<u16>,
+    stock: [bool; 4],
+}
+struct QueryIndex {
+    rows: Vec<QueryRow>,
+    all: Vec<usize>,
+    brands: HashMap<String, Vec<usize>>,
+    decades: [Vec<usize>; 31],
+    unknown_year: Vec<usize>,
+    stock: [Vec<usize>; 4],
+}
+struct QueryFilter<'a> {
+    brand: Option<&'a str>,
+    query: Option<&'a str>,
+    decade: Option<Option<u16>>,
+    stock: Option<usize>,
+}
+impl<'a> QueryFilter<'a> {
+    fn new(filter: Option<&Value>, projection: Option<&'a Value>) -> Self {
+        Self {
+            brand: projection
+                .and_then(|p| p.get("brand"))
+                .and_then(Value::as_str),
+            query: projection
+                .and_then(|p| p.get("query"))
+                .and_then(Value::as_str),
+            decade: filter.and_then(|f| f.get("decade")).map(|d| {
+                if d == "unknown" {
+                    None
+                } else {
+                    Some(integer(d, 1900, 2200).unwrap() as u16)
+                }
+            }),
+            stock: filter
+                .and_then(|f| f.get("stockState"))
+                .and_then(Value::as_str)
+                .and_then(|s| {
+                    ["identified", "needs-review", "blank", "recorded"]
+                        .iter()
+                        .position(|state| *state == s)
+                }),
+        }
+    }
+    fn is_empty(&self) -> bool {
+        self.brand.is_none()
+            && self.query.is_none()
+            && self.decade.is_none()
+            && self.stock.is_none()
+    }
+    fn matches(&self, row: &QueryRow) -> bool {
+        self.brand.is_none_or(|brand| row.brand == brand)
+            && self
+                .query
+                .is_none_or(|query| row.searchable.contains(query))
+            && self.decade.is_none_or(|decade| match decade {
+                None => row.year.is_none(),
+                Some(start) => row
+                    .year
+                    .is_some_and(|year| year >= start && year <= start + 9),
+            })
+            && self.stock.is_none_or(|stock| row.stock[stock])
+    }
+}
+impl QueryIndex {
+    fn build(models: &[Value]) -> Self {
+        let mut index = Self {
+            rows: Vec::with_capacity(models.len()),
+            all: (0..models.len()).collect(),
+            brands: HashMap::new(),
+            decades: std::array::from_fn(|_| Vec::new()),
+            unknown_year: Vec::new(),
+            stock: std::array::from_fn(|_| Vec::new()),
+        };
+        for (ordinal, model) in models.iter().enumerate() {
+            // 参数的 Unicode/NFKC 投影由 TS 提供；行端保持 SQLite 的 ASCII lower 语义。
+            let brand = model["brand"].as_str().unwrap().to_ascii_lowercase();
+            let searchable = format!(
+                "{} {} {}",
+                model["brand"].as_str().unwrap(),
+                model["name"].as_str().unwrap(),
+                model["edition"].as_str().unwrap()
+            )
+            .to_ascii_lowercase();
+            let year = integer(&model["year"], 1900, 2200).map(|year| year as u16);
+            let count = |key: &str| integer(&model["counts"][key], 0, 1_000_000).unwrap();
+            let stock = [
+                model["identification"] == "verified",
+                model["identification"] != "verified" || count("unknown") > 0,
+                count("sealedBlank") + count("openedBlank") > 0,
+                count("legacyUsed") + count("recorded") > 0,
+            ];
+            index.brands.entry(brand.clone()).or_default().push(ordinal);
+            match year {
+                Some(year) => index.decades[usize::from((year - 1900) / 10)].push(ordinal),
+                None => index.unknown_year.push(ordinal),
+            }
+            for (state, present) in stock.iter().enumerate() {
+                if *present {
+                    index.stock[state].push(ordinal);
+                }
+            }
+            index.rows.push(QueryRow {
+                brand,
+                searchable,
+                year,
+                stock,
+            });
+        }
+        index
+    }
+    fn candidates<'a>(&'a self, filter: &QueryFilter<'_>) -> &'a [usize] {
+        let mut smallest = self.all.as_slice();
+        let mut consider = |posting: &'a [usize]| {
+            if posting.len() < smallest.len() {
+                smallest = posting;
+            }
+        };
+        if let Some(brand) = filter.brand {
+            consider(self.brands.get(brand).map_or(&[], Vec::as_slice));
+        }
+        if let Some(decade) = filter.decade {
+            consider(match decade {
+                Some(year) => &self.decades[usize::from((year - 1900) / 10)],
+                None => &self.unknown_year,
+            });
+        }
+        if let Some(stock) = filter.stock {
+            consider(&self.stock[stock]);
+        }
+        smallest
+    }
+}
+
 pub struct Sidecar {
     identity: Option<(Value, Value, Value)>,
     protocol_version: Option<u64>,
     models: Vec<Value>,
+    query_index: Option<QueryIndex>,
     expected_model_count: Option<usize>,
     next_chunk_index: usize,
     append_input_bytes: usize,
@@ -293,6 +431,7 @@ impl Default for Sidecar {
             identity: None,
             protocol_version: None,
             models: Vec::new(),
+            query_index: None,
             expected_model_count: None,
             next_chunk_index: 0,
             append_input_bytes: 0,
@@ -322,6 +461,7 @@ impl Sidecar {
         if outcome.as_ref().map_or(true, |reply| reply.exit) {
             self.closed = true;
             self.models.clear();
+            self.query_index = None;
             self.model_ids.clear();
             self.expected_model_count = None;
             self.next_chunk_index = 0;
@@ -435,6 +575,10 @@ impl Sidecar {
                 {
                     Err(ErrorCode::InvalidRequest)
                 } else {
+                    // v2 合法重复 boot 保持同一索引；v3 部分上传在此前校验中拒绝。
+                    if self.query_index.is_none() {
+                        self.query_index = Some(QueryIndex::build(&self.models));
+                    }
                     self.ready = true;
                     Ok(Value::Null)
                 }
@@ -668,61 +812,27 @@ impl Sidecar {
         } else {
             None
         };
-        // 按 Node 导出的 rowid DESC 次序筛选；完整命中数与分页都来自同一不可变快照。
-        let matches: Vec<&Value> = self
-            .models
-            .iter()
-            .filter(|model| {
-                projection.is_none_or(|projection| matches_filter(model, filter, projection))
-            })
-            .collect();
-        let items: Vec<&Value> = matches.iter().skip(offset).take(limit).copied().collect();
-        Ok(
-            json!({"items": items, "offset": offset, "limit": limit, "total": matches.len(), "hasMore": offset + items.len() < matches.len()}),
-        )
-    }
-}
-
-fn matches_filter(model: &Value, filter: Option<&Value>, projection: &Value) -> bool {
-    // TS 负责投影的 NFKC/trim/空白合并/Unicode lower；原始型号与 SQLite lower 一致仅折叠 ASCII。
-    if projection.get("brand").is_some_and(|brand| {
-        model["brand"].as_str().unwrap().to_ascii_lowercase() != brand.as_str().unwrap()
-    }) || projection.get("query").is_some_and(|query| {
-        let searchable = format!(
-            "{} {} {}",
-            model["brand"].as_str().unwrap(),
-            model["name"].as_str().unwrap(),
-            model["edition"].as_str().unwrap()
-        )
-        .to_ascii_lowercase();
-        !searchable.contains(query.as_str().unwrap())
-    }) {
-        return false;
-    }
-    let Some(filter) = filter else {
-        return true;
-    };
-    if let Some(decade) = filter.get("decade") {
-        if decade == "unknown" {
-            if !model["year"].is_null() {
-                return false;
-            }
+        let filter = QueryFilter::new(filter, projection);
+        let index = self.query_index.as_ref().ok_or(ErrorCode::NotReady)?;
+        // 无有效筛选时直接分页；其余查询从最小 posting 逐项复核所有 AND 条件。
+        let mut total = 0;
+        let mut items = Vec::with_capacity(limit);
+        if filter.is_empty() {
+            total = self.models.len();
+            items.extend(self.models.iter().skip(offset).take(limit));
         } else {
-            let decade = integer(decade, 1900, 2200).unwrap();
-            if integer(&model["year"], 1900, 2200)
-                .is_none_or(|year| year < decade || year > decade + 9)
-            {
-                return false;
+            for &ordinal in index.candidates(&filter) {
+                if filter.matches(&index.rows[ordinal]) {
+                    if total >= offset && items.len() < limit {
+                        items.push(&self.models[ordinal]);
+                    }
+                    total += 1;
+                }
             }
         }
-    }
-    let count = |key: &str| integer(&model["counts"][key], 0, 1_000_000).unwrap();
-    match filter.get("stockState").and_then(Value::as_str) {
-        Some("identified") => model["identification"] == "verified",
-        Some("needs-review") => model["identification"] != "verified" || count("unknown") > 0,
-        Some("blank") => count("sealedBlank") + count("openedBlank") > 0,
-        Some("recorded") => count("legacyUsed") + count("recorded") > 0,
-        _ => true,
+        Ok(
+            json!({"items": items, "offset": offset, "limit": limit, "total": total, "hasMore": offset + items.len() < total}),
+        )
     }
 }
 

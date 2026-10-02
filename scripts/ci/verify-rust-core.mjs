@@ -68,6 +68,7 @@ function sourceManifest() {
     path.join(root, 'packages/bridge-core/test/rust-readonly-router.test.ts'),
     path.join(root, 'packages/bridge-core/test/dataset-large-snapshot.test.ts'),
     path.join(root, 'packages/bridge-core/test/rust-large-sidecar.test.ts'),
+    path.join(root, 'packages/bridge-core/test/rust-query-index.test.ts'),
   ].sort().map(file => ({ path: path.relative(root, file), sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex') }));
 }
 const sources = sourceManifest();
@@ -108,14 +109,16 @@ run('node-snapshot-version', process.execPath, ['--import', 'tsx', '--test', '--
 run('ts-refresh-router', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/rust-readonly-router.test.ts'], path.join(root, 'packages/bridge-core'));
 run('node-large-snapshot', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/dataset-large-snapshot.test.ts'], path.join(root, 'packages/bridge-core'));
 run('ts-large-snapshot', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/rust-large-sidecar.test.ts'], path.join(root, 'packages/bridge-core'));
+run('ts-query-index', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'test/rust-query-index.test.ts'], path.join(root, 'packages/bridge-core'));
 const costReport = path.join(directory, 'atomic-snapshot-cost.json');
 const refreshCostReport = path.join(directory, 'refresh-routing-cost.json');
 const largeCostReport = path.join(directory, 'large-snapshot-cost.json');
+const indexCostReport = path.join(directory, 'indexed-query-cost.json');
 run('ts-rust-integration', process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1',
-  'test/rust-core/readonly-integration.test.ts', 'test/rust-core/atomic-snapshot-integration.test.ts', 'test/rust-core/refresh-routing-integration.test.ts', 'test/rust-core/large-snapshot-integration.test.ts'],
+  'test/rust-core/readonly-integration.test.ts', 'test/rust-core/atomic-snapshot-integration.test.ts', 'test/rust-core/refresh-routing-integration.test.ts', 'test/rust-core/large-snapshot-integration.test.ts', 'test/rust-core/indexed-query-integration.test.ts'],
   path.join(root, 'packages/bridge-core'), { MUSIC_BRIDGE_RUST_BINARY: binary, MUSIC_BRIDGE_RUST_SHA256: binarySha256,
     MUSIC_BRIDGE_RUST_COST_REPORT: costReport, MUSIC_BRIDGE_RUST_REFRESH_COST_REPORT: refreshCostReport,
-    MUSIC_BRIDGE_RUST_LARGE_COST_REPORT: largeCostReport });
+    MUSIC_BRIDGE_RUST_LARGE_COST_REPORT: largeCostReport, MUSIC_BRIDGE_RUST_INDEX_COST_REPORT: indexCostReport });
 const cost = JSON.parse(fs.readFileSync(costReport, 'utf8'));
 if (cost.task !== 'RUST-002' || cost.models !== 2_000 || cost.differentialPages !== 108 || cost.binarySha256 !== binarySha256
   || !['exportRoundtripMs', 'fromOwnerReadyMs', 'remainingStartupMs', 'closeAckAndNaturalExitMs'].every(key => Number.isFinite(cost[key]) && cost[key] >= 0)
@@ -142,10 +145,57 @@ if (largeCost.task !== 'RUST-004' || largeCost.models !== 5_000 || largeCost.com
   || !Array.isArray(largeCost.counts?.naturalRustExits) || largeCost.counts.naturalRustExits.length !== 1
   || largeCost.counts.naturalRustExits[0]?.code !== 0 || largeCost.counts.naturalRustExits[0]?.signal !== null
   || !/^[a-f0-9]{64}$/.test(largeCost.protectedFactsSha256 ?? '')) throw new Error('本轮大快照完整差分、字节或多工作量成本证据无效。');
+const indexCost = JSON.parse(fs.readFileSync(indexCostReport, 'utf8'));
+const sampleArray = value => Array.isArray(value) && value.length === 10 && value.every(n => Number.isFinite(n) && n >= 0);
+const completeWorkloads = value => Array.isArray(value) && value.length === workloadNames.length
+  && value.every((workload, index) => workload.name === workloadNames[index]
+    && sampleArray(workload.nodeQueryRoundtripMs) && sampleArray(workload.rustQueryWithVersionProbesMs));
+const pureWorkloads = value => Array.isArray(value) && value.length === workloadNames.length
+  && value.every((workload, index) => workload.name === workloadNames[index]
+    && sampleArray(workload.linearFilterMs) && sampleArray(workload.indexedFilterMs));
+const warmCounts = value => value?.nodeQueries === 60 && value?.rustQueries === 60 && value?.versionRoundtrips === 120
+  && value?.nodeFallbackQueries === 0 && value?.untimedWarmupNodeQueries === 6
+  && value?.untimedWarmupRustQueries === 6 && value?.untimedWarmupVersionRoundtrips === 12;
+const scales = [0, 100, 2_000, 5_000], completePages = [1, 1, 20, 50];
+if (indexCost.task !== 'RUST-005' || indexCost.models !== 5_000 || indexCost.binarySha256 !== binarySha256
+  || !['refreshMs', 'closeMs'].every(key => Number.isFinite(indexCost[key]) && indexCost[key] >= 0)
+  || !completeWorkloads(indexCost.workloads) || !sampleArray(indexCost.tsIndexBuildMs) || !pureWorkloads(indexCost.tsPureWorkloads)
+  || !Array.isArray(indexCost.scales) || indexCost.scales.length !== scales.length
+  || indexCost.scales.some((scale, index) => scale.models !== scales[index] || scale.completePages !== completePages[index]
+    || scale.differentialPages !== 108 || scale.filters !== 27 || scale.writeAndRefresh?.pages !== 4
+    || scale.writeAndRefresh?.beforeModels !== scales[index] || scale.writeAndRefresh?.afterModels !== (scales[index] || 1)
+    || scale.writeAndRefresh?.beforeSnapshotId === scale.writeAndRefresh?.afterSnapshotId
+    || !Number.isFinite(scale.writeAndRefresh?.refreshMs) || scale.writeAndRefresh.refreshMs < 0
+    || scale.calls?.export !== 2 || !['prepare', 'boot', 'close'].every(key => scale.calls?.[key] === 0)
+    || !sampleArray(scale.pureTs?.buildMs) || !pureWorkloads(scale.pureTs?.workloads))
+  || !warmCounts(indexCost.scales[3]?.fullRouterWarmCost?.counts)
+  || indexCost.counts?.peakLiveRustChildren !== 1
+  || !['borrowedOwnerPrepare', 'borrowedOwnerBoot', 'borrowedOwnerClose'].every(key => indexCost.counts?.[key] === 0)
+  || !['RUN', 'NOT_RUN'].includes(indexCost.baseline?.status)
+  || indexCost.counts?.rustChildren !== (indexCost.baseline.status === 'RUN' ? 9 : 8)
+  || !Array.isArray(indexCost.counts?.naturalRustExits) || indexCost.counts.naturalRustExits.length !== indexCost.counts.rustChildren
+  || indexCost.counts.naturalRustExits.some(exit => exit.code !== 0 || exit.signal !== null)) throw new Error('本轮索引四规模差分、写后换代或完整成本证据无效。');
+const indexedModuleNames = ['readonly-router.ts', 'readonly-sidecar.ts', 'collection-query.ts'];
+if (!Array.isArray(indexCost.sourceModules) || indexCost.sourceModules.length !== indexedModuleNames.length
+  || new Set(indexCost.sourceModules.map(module => module.name)).size !== indexedModuleNames.length
+  || indexCost.sourceModules.some(module => !indexedModuleNames.includes(module.name)
+    || module.sha256 !== sources.find(source => source.path === 'packages/bridge-core/src/rust-core/' + module.name)?.sha256)) throw new Error('本轮索引模块与成本身份不匹配。');
+const baselineModulePins = {
+  'readonly-router.ts': '51e648e6920b08c2b25f263509c8868f408a27a6ed5ea2d547e2e9ebd02dd8c6',
+  'readonly-sidecar.ts': 'bd826746375fc15945b397efec9ec1e4fe5156c846cc943aab3fb05c90e84d02',
+  'collection-query.ts': '42a61da3f44484b64ad1f68ba7f1fdcf972df5d6d628cdd4865339a2f1e73a5b',
+};
+if (indexCost.baseline.status === 'RUN' && (indexCost.baseline.baseCommit !== 'd2676884a537bf3d232ed2cc957fef11b6d5cfeb'
+  || indexCost.baseline.models !== 5_000 || indexCost.baseline.binarySha256 !== '1e2b5164591204772196f987009ae254bda2fcb807471f5ff917ec65b5c105ea'
+  || !completeWorkloads(indexCost.baseline.workloads) || !warmCounts(indexCost.baseline.counts)
+  || !['refreshMs', 'closeMs'].every(key => Number.isFinite(indexCost.baseline[key]) && indexCost.baseline[key] >= 0)
+  || !Array.isArray(indexCost.baseline.sourceModules) || indexCost.baseline.sourceModules.length !== 3
+  || indexCost.baseline.sourceModules.some(module => !Object.hasOwn(baselineModulePins, module.name) || module.sha256 !== baselineModulePins[module.name])
+  || new Set(indexCost.baseline.sourceModules.map(module => module.name)).size !== 3)) throw new Error('旧 RUST-004 完整路径对照身份或样本无效。');
 if (createHash('sha256').update(fs.readFileSync(binary)).digest('hex') !== binarySha256) throw new Error('Rust 二进制在验证期间改变。');
 if (JSON.stringify(sourceManifest()) !== JSON.stringify(sources)) throw new Error('Rust Gate 的受测源码在执行期间改变。');
 fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({
-  schemaVersion: 1, task: 'RUST-004', compiler, cargoVersion, sources,
+  schemaVersion: 1, task: 'RUST-005', compiler, cargoVersion, sources,
   binary: { path: binary, sha256: binarySha256, platform: process.platform, architecture: process.arch },
   packages: metadata.packages.map(p => ({ name: p.name, version: p.version })), runs,
   realServices: 'NOT_RUN', productionDefault: 'Node', readonlyCommands: ['collection.list'],
@@ -153,9 +203,12 @@ fs.writeFileSync(path.join(directory, 'manifest.json'), JSON.stringify({
   filters: ['query', 'brand', 'decade', 'stockState'],
   versionedSnapshots: true, explicitRefreshRouting: true, sourceOwnerBorrowed: true,
   defaultSnapshotProfile: 'v2-2000', optionalSnapshotProfile: 'v3-5000',
+  boundedQueryIndex: true, requestResultCache: false, indexScaleModels: scales,
   largeSnapshotModels: 5_000, largeSnapshotBytes: 8 * 1024 * 1024, uploadChunkModels: 128,
   costReport: { path: costReport, sha256: createHash('sha256').update(fs.readFileSync(costReport)).digest('hex') },
   refreshCostReport: { path: refreshCostReport, sha256: createHash('sha256').update(fs.readFileSync(refreshCostReport)).digest('hex') },
   largeCostReport: { path: largeCostReport, sha256: createHash('sha256').update(fs.readFileSync(largeCostReport)).digest('hex') },
+  indexCostReport: { path: indexCostReport, sha256: createHash('sha256').update(fs.readFileSync(indexCostReport)).digest('hex') },
+  baselineCompletePathComparison: indexCost.baseline.status,
 }, null, 2) + '\n');
 console.log('RUST_GATE=PASS manifest=' + path.join(directory, 'manifest.json'));

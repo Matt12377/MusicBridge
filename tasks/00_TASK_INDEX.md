@@ -129,3 +129,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [RUST-003](RUST-003-snapshot-refresh-routing.md)：Owner 持续开发授权下推进快照版本、显式刷新与可选读取路由；写入、关闭、身份与迟到结果围栏，完整成本与实际进程差分单列验证。
 
 - [RUST-004](RUST-004-bounded-snapshot-transfer.md)：从 RUST-003 最终报告 `f3b398f` 继续，显式 5,000 型号完整原子快照与 Rust v3 有界分块，保留旧预算、协议和生产默认。
+
+- [RUST-005](RUST-005-bounded-query-index.md)：从 RUST-004 最终报告 `d267688` 接续，以不可变快照的有界衍生字段和 posting 优化查询；保留完整回执校验及旧协议，差分与建立/完整调用成本同时验证。

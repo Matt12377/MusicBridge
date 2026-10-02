@@ -1,23 +1,40 @@
 # Rust Core 开发进度
 
-更新：2026-10-02。当前任务 **RUST-004：5,000 型号完整快照与有界分块 — 本地开发验证完成**。分支 `codex/rust-core-004-bounded-transfer`，工作树 `worktree/rust-core-004`。
+更新：2026-10-02。当前任务 **RUST-005：不可变快照有界查询索引 — 开发中**。分支 `codex/rust-core-005-query-index`，工作树 `worktree/rust-core-005`。
 
 此表随开发更新；只有实际验证通过的项目才打勾。默认应用仍使用 Node，真实账号、Roon、录音和用户数据不进入本期验证。
 
 ## 待办事项
+
+### RUST-005（进行中）
+
+- [ ] 实现/报告分别提交、最终清洁、远端与下一阶段基线。
+
 
 ### 后续升级路线（规划，尚未开工）
 
 - [ ] 依据本期测量选定下一处实际瓶颈，确定 Rust 承担的计算及 Node 保留的控制职责。
 - [ ] 超过已验证的 5,000 型号 / 8 MiB 预算另立范围，禁止截断或跨时刻分页扩容。
 - [ ] 快照版本、显式刷新与按读取失效检测由 RUST-003 实施；后续评估推送通知和批次失效的收益。
-- [ ] 为确认有收益的查询建立 Rust 索引及差分/规模回归，记录首次建立和重复查询成本。
+- [ ] RUST-005 结果后评估是否还有已证实的查询热点，扩展索引另立范围，保持成本证据。
 - [ ] 显式可选路由与内部可观测状态由 RUST-003 实施；正式应用启用与用户入口单列验收。
 - [ ] 验证 macOS 架构、打包资源、签名与二进制身份准入；生产默认启用单列验收。
 - [ ] 对可能的 Rust 持久化阶段梳理 schema、跨库事务、幂等回执、未知结果、不可变历史和恢复合同；在完整兼容证据前保持 Node 唯一作者。
 - [ ] 准备真实环境验证材料，分别记录 Roon、播放、录音和 Owner 结果；本地合成测试不替代这些验收。
 
 ## 已完成事项
+
+### RUST-005（已验证的子项）
+
+- [x] Native 每代一次有界索引与清理/稳定分页；Rust 旧 40＋新 3＝43 项通过，新差分 2,800 组。
+- [x] TS 同代索引保留完整 DTO/total/深比较和独立线性参照；新 6 项及旧三套共 98 项通过。
+- [x] 确定性差分覆盖 Unicode/ASCII 不对称、字面子串、库存重叠、null/2200 年与 5,000 型号。
+- [x] 实际四规模 72 完整页＋432 筛选页＋16 写后页，与 SQLite/线性参照一致；9 child 峰值 1、全自然退出。
+- [x] 固定旧 RUST-004 完整路径与本期六工作量各 10 样本；同一版本/库分阶段对照，TS 建立中位 3.049 ms；无筛选旧 1.895 / 新 1.938 ms，不冒称全部加速。
+- [x] 最终 Rust Gate 16 步退出 0，294 份源码与日志/二进制匹配；43 Rust / 155 JS（含实际进程 24）通过，无新增跳过。
+- [x] 两轮独立审查完成，剩余 P1/P2 为 0；第二轮核最终 16＋6 步证据/日志/成本与新旧身份，没有重复全部测试。
+- [x] 完整软件 Gate：类型、3,631 单元（原 2 条件 skip）、生产构建与三个静态 Gate 各退出 0，1,055 份源码稳定。
+
 
 ### RUST-004
 
@@ -75,7 +92,7 @@
 
 报告：[RUST-001_READONLY_SIDECAR.md](../reports/RUST-001_READONLY_SIDECAR.md)。
 
-当前范围：[RUST-004-bounded-snapshot-transfer.md](../tasks/RUST-004-bounded-snapshot-transfer.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-004-6uwdvhva`。RUST-003 最终基线 `f3b398f7f872d5776ab8a65f3eb3ec5d7894c0af`。
+当前范围：[RUST-005-bounded-query-index.md](../tasks/RUST-005-bounded-query-index.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-005-yfoq1e5k`。RUST-004 最终基线 `d2676884a537bf3d232ed2cc957fef11b6d5cfeb`。
 
 ## 保留的验收边界
 

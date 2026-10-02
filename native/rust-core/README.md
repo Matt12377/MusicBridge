@@ -28,3 +28,5 @@ cargo build --locked --release --manifest-path native/rust-core/Cargo.toml
 ```
 
 本机已有的 stable 可以显式设置 `RUSTUP_TOOLCHAIN=stable`，但须先证明 `rustc --version` 精确等于锁定的 1.95.0。不得为构建此原型改变全局工具链或启用生产默认入口。
+
+RUST-005 在完整 commitBoot 前建立一次有界查询索引：ASCII 行搜索投影、品牌/年代/未知与四种库存 posting 保持原 ordinal，最小候选复核 AND，空筛选直接分页；close/fatal 清理。TS 同代索引继续核完整 DTO/total/页面逐项事实，旧线性参照和真实 SQLite 差分保留。完整启动期限、容量和 v1/v2/v3 合同没有扩大；详见 [ADR-042](../../docs/adr/ADR-042-bounded-query-index.md)。索引建立和完整 warm 调用同时记录，不只报告原生循环时间。
