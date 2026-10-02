@@ -1,0 +1,424 @@
+{
+  "schemaVersion": 1,
+  "task": "RUST-006",
+  "state": "local-complete-optional-core-runtime-lifecycle",
+  "identity": {
+    "baseCommit": "babce9ad7f933743e1ab23c4edbe6187e83840c7",
+    "branch": "codex/rust-core-006-runtime-integration",
+    "worktree": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-006",
+    "implementationCommit": "72d5691196391fe13538150431c6a75b14992cce",
+    "reportCommit": null,
+    "reportCommitResolution": "git log -1 --format=%H -- reports/RUST-006_CORE_RUNTIME_LIFECYCLE.md",
+    "nextBranchBaseResolution": "final-RUST-006-report-HEAD",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd"
+  },
+  "agentPolicy": {
+    "primaryModel": "gpt-6.1-sol",
+    "primaryReasoningEffort": "max",
+    "subagentModel": "gpt-6.1-sol",
+    "subagentReasoningEffort": "high",
+    "developmentAndReviewAgents": 4,
+    "furtherDelegation": false,
+    "execution": "three-development-agents-then-fourth-independent-review-within-platform-slots"
+  },
+  "behavior": {
+    "productionDefault": "Node",
+    "coreConfiguration": "trusted-seventh-argument-only; requires DatasetOwnerFactory",
+    "environmentOrRendererCanEnable": false,
+    "nodeDatabaseWriteOwnerUnchanged": true,
+    "coreOwnsNodeLifecycle": true,
+    "innerRouterBorrowsNode": true,
+    "readonlyCommands": [
+      "collection.list"
+    ],
+    "workerProtocolVersion": 1,
+    "sidecarProtocolVersions": [
+      1,
+      2,
+      3
+    ],
+    "defaultSnapshotProfile": "v2-2000",
+    "optionalSnapshotProfile": "v3-5000",
+    "nodeBootOnce": true,
+    "readyAfterCompleteRustBoot": true,
+    "initialBootSingleMonotonicDeadline": true,
+    "closeSingleMonotonicDeadline": true,
+    "frozenPreparedIdentity": true,
+    "earlyShutdownConfirmedOriginalRuntimePromise": true,
+    "autoRefreshOrWriteReplay": false,
+    "publicIpcShapeChanged": false
+  },
+  "validation": {
+    "rustSteps": 19,
+    "rustExitCode": 0,
+    "rustSourceFiles": 299,
+    "rustPassed": 43,
+    "javascriptPassed": 207,
+    "ownerLifecyclePassed": 23,
+    "utilityOptionsPassed": 18,
+    "utilityWithExistingPassed": 72,
+    "retainedActualIntegrationPassed": 24,
+    "newActualRuntimePassed": 11,
+    "newActualRuntimeScenarios": 10,
+    "newActualRuntimeDifferentialPages": 128,
+    "newActualRuntimeNodeNaturalExits": 10,
+    "newActualRuntimeRustChildren": 5,
+    "newActualRuntimeRustNaturalExits": 4,
+    "controlledRustSigkill": 1,
+    "peakRustChildrenPerCore": 1,
+    "softwareSteps": 6,
+    "softwareExitCode": 0,
+    "softwareSourceFiles": 1060,
+    "unitPassed": 3672,
+    "unitFailed": 0,
+    "originalNativeConditionalSkips": 2,
+    "addedSkips": 0,
+    "contractsPassed": 254,
+    "corePassed": 2179,
+    "desktopPassed": 1239,
+    "typecheckExitCode": 0,
+    "buildExitCode": 0,
+    "controlPlaneExitCode": 0,
+    "boundariesExitCode": 0,
+    "cyclesExitCode": 0,
+    "cyclesFiles": 382,
+    "diffCheckExitCode": 0,
+    "stagedDiffCheckExitCode": 0
+  },
+  "rustManifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/manifest.json",
+    "sha256": "02bf37684d6eeacd9e1b68919a619574bbd86763e93d17e461c79ca181a6403a"
+  },
+  "softwareManifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/software-final/software-manifest.json",
+    "sha256": "919c6402516c74c9be0dbc9064a0987c4e6aa47269e7498a5efd67a6ffaf6cec"
+  },
+  "binary": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/cargo-target/release/musicbridge-rust-core",
+    "sha256": "03624a10a1c9314842907142fd0cfb3931dd68edcb88a5dff6ea645832124a14",
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "runtimeReport": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/runtime-lifecycle-report.json",
+    "sha256": "627d4bad1b4bf07ed9f3713710b1d0df0e62f17440570b7bc56a896db8145cc2"
+  },
+  "retainedCostReports": {
+    "costReport": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/atomic-snapshot-cost.json",
+      "sha256": "432e1c02403c119fa879e4f6782baef56ce21dc40322b5a72159831dd3351cf8"
+    },
+    "refreshCostReport": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/refresh-routing-cost.json",
+      "sha256": "a2daf237f17ab99637c03cf541708b723839ec44adf65cce959eca2efeaa49bf"
+    },
+    "largeCostReport": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/large-snapshot-cost.json",
+      "sha256": "e6b288d307938fd3f9440deb184ffdb4035f25e4580fc31bdf1bc3d3ea45092f"
+    },
+    "indexCostReport": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/indexed-query-cost.json",
+      "sha256": "2762865875e3e73397bed4c4f77376512ee062f11ca967ed1f4c7d5b2ee9ef41"
+    }
+  },
+  "runtimeScenarioSummary": [
+    {
+      "scenario": "legacy-node",
+      "models": 100,
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/tmp/rust-runtime-XHizdf",
+      "coreExit": 0,
+      "nodePrepare": 1,
+      "nodeBoot": 1,
+      "nodeClose": 1,
+      "nodeExits": [
+        0
+      ],
+      "rustChildren": 0,
+      "rustExits": [],
+      "coreReady": 1,
+      "nodeExport": 0,
+      "publicNodeDispatch": 1
+    },
+    {
+      "scenario": "explicit-rust",
+      "models": 0,
+      "differentialPages": 32,
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/tmp/rust-runtime-iCY2mv",
+      "coreExit": 0,
+      "nodePrepare": 1,
+      "nodeBoot": 1,
+      "nodeClose": 1,
+      "nodeExits": [
+        0
+      ],
+      "rustChildren": 1,
+      "rustExits": [
+        {
+          "code": 0,
+          "signal": null
+        }
+      ],
+      "coreReady": 1,
+      "nodeExport": 1,
+      "publicNodeDispatch": 2
+    },
+    {
+      "scenario": "explicit-rust",
+      "models": 100,
+      "differentialPages": 32,
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/tmp/rust-runtime-bWZRP2",
+      "coreExit": 0,
+      "nodePrepare": 1,
+      "nodeBoot": 1,
+      "nodeClose": 1,
+      "nodeExits": [
+        0
+      ],
+      "rustChildren": 1,
+      "rustExits": [
+        {
+          "code": 0,
+          "signal": null
+        }
+      ],
+      "coreReady": 1,
+      "nodeExport": 1,
+      "publicNodeDispatch": 2
+    },
+    {
+      "scenario": "explicit-rust",
+      "models": 2000,
+      "differentialPages": 32,
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/tmp/rust-runtime-kEKHG7",
+      "coreExit": 0,
+      "nodePrepare": 1,
+      "nodeBoot": 1,
+      "nodeClose": 1,
+      "nodeExits": [
+        0
+      ],
+      "rustChildren": 1,
+      "rustExits": [
+        {
+          "code": 0,
+          "signal": null
+        }
+      ],
+      "coreReady": 1,
+      "nodeExport": 1,
+      "publicNodeDispatch": 2
+    },
+    {
+      "scenario": "explicit-rust",
+      "models": 5000,
+      "differentialPages": 32,
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/tmp/rust-runtime-OlrUZH",
+      "coreExit": 0,
+      "nodePrepare": 1,
+      "nodeBoot": 1,
+      "nodeClose": 1,
+      "nodeExits": [
+        0
+      ],
+      "rustChildren": 1,
+      "rustExits": [
+        {
+          "code": 0,
+          "signal": null
+        }
+      ],
+      "coreReady": 1,
+      "nodeExport": 1,
+      "publicNodeDispatch": 2
+    },
+    {
+      "scenario": "early-shutdown-before-ready",
+      "models": 100,
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/tmp/rust-runtime-sXZPYH",
+      "coreExit": 0,
+      "nodePrepare": 1,
+      "nodeBoot": 1,
+      "nodeClose": 1,
+      "nodeExits": [
+        0
+      ],
+      "rustChildren": 0,
+      "rustExits": [],
+      "coreReady": 0,
+      "nodeExport": 0,
+      "publicNodeDispatch": 0
+    },
+    {
+      "scenario": "bad-pin",
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/tmp/rust-runtime-umlyQg",
+      "coreExit": 1,
+      "nodePrepare": 1,
+      "nodeBoot": 1,
+      "nodeClose": 1,
+      "nodeExits": [
+        0
+      ],
+      "rustChildren": 0,
+      "rustExits": [],
+      "coreReady": 0,
+      "nodeExport": 1,
+      "publicNodeDispatch": 0
+    },
+    {
+      "scenario": "missing-capabilities",
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/tmp/rust-runtime-37EaC9",
+      "coreExit": 1,
+      "nodePrepare": 0,
+      "nodeBoot": 0,
+      "nodeClose": 1,
+      "nodeExits": [
+        0
+      ],
+      "rustChildren": 0,
+      "rustExits": [],
+      "coreReady": 0,
+      "nodeExport": 0,
+      "publicNodeDispatch": 0
+    },
+    {
+      "scenario": "capacity",
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/tmp/rust-runtime-JYvd7W",
+      "coreExit": 1,
+      "nodePrepare": 1,
+      "nodeBoot": 1,
+      "nodeClose": 1,
+      "nodeExits": [
+        0
+      ],
+      "rustChildren": 0,
+      "rustExits": [],
+      "coreReady": 0,
+      "nodeExport": 1,
+      "publicNodeDispatch": 0
+    },
+    {
+      "scenario": "real-rust-sigkill-close-failure",
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/rust-gate/run-nQMWkI/tmp/rust-runtime-KFPDRT",
+      "coreExit": 1,
+      "forcedTestCleanup": true,
+      "nodePrepare": 1,
+      "nodeBoot": 1,
+      "nodeClose": 1,
+      "nodeExits": [
+        0
+      ],
+      "rustChildren": 1,
+      "rustExits": [
+        {
+          "code": null,
+          "signal": "SIGKILL"
+        }
+      ],
+      "coreReady": 1,
+      "nodeExport": 1,
+      "publicNodeDispatch": 0
+    }
+  ],
+  "originalSkipNames": [
+    "实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
+    "Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
+  ],
+  "freeze": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/FREEZE_IDENTITY.json",
+    "sha256": "aa380daaf7630c1b2fa067ff0b34f5d6f96f04fbd4db5453e5ba2a30b5e0bbc3",
+    "files": 1234,
+    "stableThroughFinalGatesAndReview": true,
+    "postGateDocumentationMetadata": {
+      "path": "docs/adr/ADR-043-rust-core-runtime-lifecycle.md",
+      "beforeSha256": "60ca3ae7caf32ff814bb3edd8869a798ff4c9c94893029eb3fd39ab93b435482",
+      "afterSha256": "f516c9af6bace0dfb043f049db413ec6f0281c77138c6d86ddb4255435d7ab53",
+      "change": "仅更新 ADR 状态行为已通过本地 Gate；冻结技术合同和所有程序/测试/构建文件不变",
+      "verification": "git-diff-check-and-staged-diff-check"
+    },
+    "programSourceMatchesFinalManifests": true
+  },
+  "review": {
+    "rounds": 2,
+    "remainingP1": 0,
+    "remainingP2": 0,
+    "first": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/review-round1.json",
+      "sha256": "212cca2ad01c96d5507c9d5699fc3f6ad62316be170875db939d65d636201325"
+    },
+    "final": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/review-final.json",
+      "sha256": "db6726107cb5b1ea995a94247ed165c5ce6c9fb6c95b1501116c393e0081823e"
+    },
+    "secondRound": "final-gate-evidence-and-identities-only; no repeated tests"
+  },
+  "failureLedger": [
+    {
+      "steps": [
+        "owner-targeted-v1"
+      ],
+      "classification": "controlled-fixture-budget-or-expectation-failure",
+      "fixed": "stage-specific adequate startup budgets and pin-close failure expectation; no new success claim from the failed run"
+    },
+    {
+      "steps": [
+        "owner-typecheck-v1"
+      ],
+      "classification": "test excess-property type error",
+      "fixed": "typed source capability helper"
+    },
+    {
+      "steps": [
+        "utility-targeted-v1"
+      ],
+      "classification": "controlled-fixture-observation-and-exit-callback-timing",
+      "fixed": "wait for real fake-child close event and consume all exit callbacks"
+    },
+    {
+      "steps": [
+        "owner-targeted-v4-red"
+      ],
+      "classification": "behavior-RED",
+      "fixed": "frozen prepared identity and whole close deadline; 1 fail and 2 cancelled retained"
+    },
+    {
+      "steps": [
+        "utility-targeted-v4",
+        "utility-targeted-v5"
+      ],
+      "classification": "behavior-RED-and-incomplete-first-fix",
+      "fixed": "record original runtime shutdown Promise; owner cleanup/state alone cannot prove success; retain both failed logs"
+    }
+  ],
+  "timingBoundary": "runtime queryRoundtripMs includes the test-parent 5ms observation polling, IPC, Node version probes, Rust and TS validation; not precise Core latency or production performance",
+  "acceptance": {
+    "ElectronUtilityProcess": "NOT_RUN",
+    "realProviderAccount": "NOT_RUN",
+    "realRoon": "NOT_RUN",
+    "realPlaybackListening": "NOT_RUN",
+    "realRecording": "NOT_RUN",
+    "realUserDataMigration": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "packagingSigning": "NOT_RUN",
+    "realSystemKeychain": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN"
+  },
+  "carryover": [
+    "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
+    "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
+  ],
+  "remoteBranchStart": {
+    "exitCode": 2,
+    "matchingRefs": [],
+    "pushed": false
+  },
+  "finalIdentityReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/FINAL_IDENTITY.json",
+  "remoteBranchSnapshotBeforeReportCommit": {
+    "branch": "codex/rust-core-006-runtime-integration",
+    "exitCode": 2,
+    "matchingRefs": [],
+    "pushed": false
+  }
+}

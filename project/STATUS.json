@@ -3702,7 +3702,7 @@
     "task": "RUST-006",
     "branch": "codex/rust-core-006-runtime-integration",
     "baseCommit": "babce9ad7f933743e1ab23c4edbe6187e83840c7",
-    "state": "verified-runtime-lifecycle-report-pending",
+    "state": "local-complete-optional-core-runtime-lifecycle",
     "scope": "tasks/RUST-006-runtime-lifecycle.md",
     "todo": "project/RUST_CORE_TODO.md",
     "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd",
@@ -3715,7 +3715,8 @@
       "subagentModel": "gpt-6.1-sol",
       "subagentReasoningEffort": "high",
       "maximumSubagents": 4,
-      "execution": "three-development-agents-then-independent-review-within-platform-slots"
+      "execution": "three-development-agents-then-independent-review-within-platform-slots",
+      "actualDevelopmentAndReviewAgents": 4
     },
     "validation": {
       "state": "TARGETED_PASS_FULL_GATE_PENDING",
@@ -3795,6 +3796,23 @@
       "architecture": "arm64"
     },
     "softwareManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/software-final/software-manifest.json",
-    "softwareManifestSha256": "919c6402516c74c9be0dbc9064a0987c4e6aa47269e7498a5efd67a6ffaf6cec"
+    "softwareManifestSha256": "919c6402516c74c9be0dbc9064a0987c4e6aa47269e7498a5efd67a6ffaf6cec",
+    "implementationCommit": "72d5691196391fe13538150431c6a75b14992cce",
+    "reportCommit": null,
+    "report": "reports/RUST-006_CORE_RUNTIME_LIFECYCLE.md",
+    "evidence": "reports/RUST-006_EVIDENCE.json",
+    "implementationCommitResolution": "git-log-last-commit-touching-packages/bridge-core/src/rust-core/core-dataset-owner.ts",
+    "reportCommitResolution": "git-log-last-commit-touching-reports/RUST-006_CORE_RUNTIME_LIFECYCLE.md",
+    "nextBranchBaseResolution": "final-RUST-006-report-HEAD",
+    "finalIdentityReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-006-zmfuqlfd/FINAL_IDENTITY.json",
+    "fullElectronE2E": "NOT_RUN",
+    "realSystemKeychain": "NOT_RUN",
+    "packagingSigning": "NOT_RUN",
+    "remoteBranchSnapshot": {
+      "branch": "codex/rust-core-006-runtime-integration",
+      "exitCode": 2,
+      "matchingRefs": [],
+      "pushed": false
+    }
   }
 }
