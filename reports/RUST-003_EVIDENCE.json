@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 1,
+  "task": "RUST-003",
+  "branch": "codex/rust-core-003-snapshot-refresh",
+  "baseCommit": "763b5c62283978c3ab4981c9cce60f4237d1f051",
+  "state": "local-software-gates-passed-versioned-readonly-router",
+  "ownerAuthorization": "continue-development-with-up-to-four-sol-6.1-high-subagents",
+  "scope": "tasks/RUST-003-snapshot-refresh-routing.md",
+  "todo": "project/RUST_CORE_TODO.md",
+  "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-003-nlk69h67",
+  "productionDefault": "Node",
+  "nodeDatabaseWriteOwnerUnchanged": true,
+  "realProviderRoonAcceptance": "NOT_RUN",
+  "realRecording": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "realUserMigration": "NOT_RUN",
+  "installedAppReplacement": "NOT_RUN",
+  "remoteCI": "NOT_RUN",
+  "push": "NOT_RUN",
+  "mainMerge": "NOT_RUN",
+  "rustManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-003-nlk69h67/rust-gate/run-zPbgWm/manifest.json",
+  "binarySha256": "55043d477e44ce62ead4bca264e7d7fce89bb90f1d312973ae23e89f2075f6ac",
+  "agentPolicy": {
+    "primaryModel": "gpt-6.1-sol",
+    "primaryReasoningEffort": "max",
+    "subagentModel": "gpt-6.1-sol",
+    "subagentReasoningEffort": "high",
+    "maximumSubagents": 4,
+    "actualDevelopmentAndReviewAgents": 4,
+    "execution": "batched-platform-concurrency-limit",
+    "forbiddenModels": [
+      "gpt-6-sol"
+    ]
+  },
+  "validation": {
+    "rustGateExitCode": 0,
+    "rustPassed": 26,
+    "tsFaultPassed": 35,
+    "nodeAtomicSnapshotPassed": 9,
+    "nodeSnapshotVersionPassed": 11,
+    "routerFaultPassed": 36,
+    "actualRustIntegrationPassed": 16,
+    "actualRustIntegrationSkipped": 0,
+    "sqliteRefreshDifferentialPages": 32,
+    "rustSourceStable": true,
+    "rustSourceFiles": 286,
+    "softwareFull": "PASS",
+    "finalTypecheckExitCode": 0,
+    "contractsPassed": 254,
+    "corePassed": 2098,
+    "desktopPassed": 1239,
+    "unitPassed": 3591,
+    "unitFailed": 0,
+    "originalNativeConditionalSkips": 2,
+    "addedSkips": 0,
+    "fullUnitExitCode": 0,
+    "productionBuildExitCode": 0,
+    "controlPlaneExitCode": 0,
+    "boundariesExitCode": 0,
+    "cyclesExitCode": 0,
+    "cyclesFiles": 381,
+    "softwareSourceStable": true,
+    "softwareSourceFiles": 1047,
+    "diffCheckExitCode": 0,
+    "jsonValidationExitCode": 0
+  },
+  "review": {
+    "rounds": 2,
+    "blockingFindings": 0,
+    "fixed": [
+      "startup-failed-candidate-retirement-registration"
+    ],
+    "report": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-003-nlk69h67/review-final.json"
+  },
+  "report": "reports/RUST-003_SNAPSHOT_REFRESH_ROUTING.md",
+  "evidence": "reports/RUST-003_EVIDENCE.json",
+  "implementationCommit": "5194c5c09fe013b032c6d0ef3c199cdd7b57c84b",
+  "implementationCommitResolution": "git-log-last-commit-touching-packages/bridge-core/src/rust-core/readonly-router.ts",
+  "reportCommit": null,
+  "reportCommitResolution": "git-log-last-commit-touching-reports/RUST-003_SNAPSHOT_REFRESH_ROUTING.md",
+  "nextBranchBaseResolution": "final-RUST-003-report-HEAD",
+  "readonlyCommands": [
+    "collection.list"
+  ],
+  "nodeReadonlyFences": [
+    "collection.list",
+    "collection.detail",
+    "collection.copy",
+    "collection.photo"
+  ],
+  "nodePrivateVersionOperations": [
+    "getCollectionSnapshotVersion",
+    "exportVersionedCollectionSnapshot"
+  ],
+  "workerProtocolVersion": 1,
+  "protocolVersions": [
+    1,
+    2
+  ],
+  "snapshotModelLimit": 2000,
+  "snapshotEncodedBytesLimit": 4194304,
+  "routerMaximumChildren": 1,
+  "sourceOwnerBorrowed": true,
+  "protocol": "docs/contracts/rust-readonly-router-v1.md",
+  "softwareManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-003-nlk69h67/software-final/software-manifest.json",
+  "fullElectronE2E": "NOT_RUN",
+  "carryover": [
+    "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
+    "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
+  ],
+  "rustManifestSha256": "95104d2fad8ab9237f8e54b22d0ca0aac65fae8941e9ebe7b4bcb8937d57a397",
+  "softwareManifestSha256": "7a1533a72081150e33303310c18414a86f94e00d96435fa23eec22aacbc774bb",
+  "reviewSha256": "8d484359e1446f271c67c8e0175f78a30301d97e65c995c34871d88c98704135",
+  "cost": {
+    "schemaVersion": 1,
+    "task": "RUST-003",
+    "models": 2000,
+    "differentialPages": 32,
+    "binarySha256": "55043d477e44ce62ead4bca264e7d7fce89bb90f1d312973ae23e89f2075f6ac",
+    "nodeVersion": "v22.23.2",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "data": "synthetic-real-two-database-Node-owner-to-pinned-Rust-router",
+    "cacheState": "warm-Node-owner-and-OS-cache-not-controlled",
+    "refreshMs": 123.36858299999994,
+    "closeMs": 3.067957999999976,
+    "nodeQueryRoundtripMs": [
+      3.9700000000000273,
+      3.6302499999999327,
+      3.6239160000000084,
+      3.8530830000000833,
+      3.997624999999971,
+      3.7899999999999636,
+      3.7668330000000196,
+      3.801832999999988,
+      3.5217499999999973,
+      3.649832999999944
+    ],
+    "rustQueryWithVersionProbesMs": [
+      2.954499999999939,
+      2.4732910000000174,
+      2.4140409999999974,
+      2.920541999999955,
+      2.394999999999982,
+      2.780832999999916,
+      2.27212499999996,
+      2.4667500000000473,
+      2.2487499999999727,
+      2.2807920000000195
+    ],
+    "snapshotJsonBytes": 808802,
+    "counts": {
+      "refreshExports": 1,
+      "warmVersionRoundtrips": 20,
+      "warmRustQueries": 10,
+      "rustChildren": 1,
+      "peakLiveRustChildren": 1,
+      "naturalRustExits": [
+        {
+          "code": 0,
+          "signal": null
+        }
+      ],
+      "borrowedOwnerPrepare": 0,
+      "borrowedOwnerBoot": 0,
+      "borrowedOwnerClose": 0
+    },
+    "costScope": "Node基线含线程RPC与Node响应验证；Rust计时含前后两次Node版本RPC、Rust往返、TS结果验证，差分assert在计时之外。",
+    "costLimitations": "固定10次warm合成样本；OS缓存未控制，无冷启动/真实库/真实设备证据，不据此承诺性能收益。",
+    "realServices": "NOT_RUN",
+    "productionDefault": "Node"
+  },
+  "remoteBranchStart": {
+    "exitCode": 2,
+    "matchingRefs": [],
+    "pushed": false
+  },
+  "remoteBranchSnapshot": {
+    "branch": "codex/rust-core-003-snapshot-refresh",
+    "argv": [
+      "git",
+      "ls-remote",
+      "--exit-code",
+      "--heads",
+      "origin",
+      "refs/heads/codex/rust-core-003-snapshot-refresh"
+    ],
+    "exitCode": 2,
+    "matchingRefs": [],
+    "pushed": false
+  }
+}

@@ -3402,7 +3402,7 @@
     },
     "report": "reports/RUST-003_SNAPSHOT_REFRESH_ROUTING.md",
     "evidence": "reports/RUST-003_EVIDENCE.json",
-    "implementationCommit": null,
+    "implementationCommit": "5194c5c09fe013b032c6d0ef3c199cdd7b57c84b",
     "implementationCommitResolution": "git-log-last-commit-touching-packages/bridge-core/src/rust-core/readonly-router.ts",
     "reportCommit": null,
     "reportCommitResolution": "git-log-last-commit-touching-reports/RUST-003_SNAPSHOT_REFRESH_ROUTING.md",
@@ -3435,6 +3435,20 @@
     "carryover": [
       "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
       "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
-    ]
+    ],
+    "remoteBranchSnapshot": {
+      "branch": "codex/rust-core-003-snapshot-refresh",
+      "argv": [
+        "git",
+        "ls-remote",
+        "--exit-code",
+        "--heads",
+        "origin",
+        "refs/heads/codex/rust-core-003-snapshot-refresh"
+      ],
+      "exitCode": 2,
+      "matchingRefs": [],
+      "pushed": false
+    }
   }
 }
