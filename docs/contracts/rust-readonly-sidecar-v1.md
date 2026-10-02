@@ -1,5 +1,7 @@
 # Rust 只读快照进程协议 v1
 
+此文保留 RUST-001 的冻结合同。RUST-002 新增 [v2 原子导出与筛选](rust-readonly-sidecar-v2.md)；原生程序保留 v1 兼容，当前 TS 适配器采用 v2。
+
 RUST-001 从 MBR-004 最终报告提交 `2392b8f69836f02e39ce58f6e6e6e2563c6cc5d4` 开始。此协议只准入 `collection.list` 的无筛选快照分页；不是现有完整 Dataset Owner 的替代实现。正式入口默认保持 Node，不读写 SQLite、不接收数据库路径、Provider 凭据、Roon 会话、文件授权或音频。
 
 ## 传输与身份

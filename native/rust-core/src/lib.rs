@@ -1,4 +1,4 @@
-//! RUST-001：仅持有调用方提供的公开收藏快照，不访问文件、网络或设备。
+//! 仅持有调用方提供的公开收藏快照，支持 v1 分页与 v2 筛选，不访问文件、网络或设备。
 use serde::de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde_json::{Map, Value, json};
 use std::collections::HashSet;
@@ -8,6 +8,7 @@ use std::io::{self, BufRead, Write};
 pub const MAX_FRAME_BYTES: usize = 4_194_304;
 pub const MAX_MODELS: usize = 2_000;
 pub const MAX_REQUESTS: usize = 65_536;
+const MAX_PROJECTION_BYTES: usize = 8_192;
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -247,6 +248,7 @@ fn parse(frame: &[u8]) -> Result<Value, ErrorCode> {
 
 pub struct Sidecar {
     identity: Option<(Value, Value, Value)>,
+    protocol_version: Option<u64>,
     models: Vec<Value>,
     next_sequence: u64,
     requests: HashSet<String>,
@@ -257,6 +259,7 @@ impl Default for Sidecar {
     fn default() -> Self {
         Self {
             identity: None,
+            protocol_version: None,
             models: Vec::new(),
             next_sequence: 1,
             requests: HashSet::new(),
@@ -304,15 +307,24 @@ impl Sidecar {
             "operation",
             "payload",
         ];
+        let protocol_version = integer(&v["protocolVersion"], 1, 2);
         if !keys(&v, &envelope)
             || v.as_object().is_none_or(|o| o.len() != envelope.len())
-            || integer(&v["protocolVersion"], 1, 1).is_none()
-            || !["requestId", "epoch", "datasetId", "snapshotId"]
+            || protocol_version.is_none()
+            || !["requestId", "epoch", "snapshotId"]
                 .iter()
                 .all(|k| uuid(&v[k], true, false))
+            || !uuid(&v["datasetId"], protocol_version != Some(2), false)
             || integer(&v["sequence"], 1, MAX_SAFE_INTEGER).is_none()
             || !text(&v["operation"], false, 64)
             || !v["payload"].is_object()
+        {
+            return Err(ErrorCode::ProtocolError);
+        }
+        let protocol_version = protocol_version.unwrap();
+        if self
+            .protocol_version
+            .is_some_and(|bound| bound != protocol_version)
         {
             return Err(ErrorCode::ProtocolError);
         }
@@ -356,6 +368,7 @@ impl Sidecar {
                         Err(ErrorCode::InvalidRequest)
                     } else {
                         self.models = models.clone();
+                        self.protocol_version = Some(protocol_version);
                         self.identity = Some((
                             v["epoch"].clone(),
                             v["datasetId"].clone(),
@@ -428,7 +441,15 @@ impl Sidecar {
         }
     }
     fn dispatch(&self, payload: &Value) -> Result<Value, ErrorCode> {
-        if !keys(payload, &["request"]) {
+        let filtered = self.protocol_version == Some(2);
+        if !keys(
+            payload,
+            if filtered {
+                &["request", "filterProjection"]
+            } else {
+                &["request"]
+            },
+        ) {
             return Err(ErrorCode::InvalidRequest);
         }
         let r = &payload["request"];
@@ -497,18 +518,86 @@ impl Sidecar {
             {
                 return Err(ErrorCode::InvalidRequest);
             }
-            if !filter.as_object().unwrap().is_empty() {
+            if !filtered && !filter.as_object().unwrap().is_empty() {
                 return Err(ErrorCode::UnsupportedFilter);
             }
         }
-        let items = if offset >= self.models.len() {
-            &[][..]
+        let filter = p.get("filter");
+        let projection = if filtered {
+            let projection = &payload["filterProjection"];
+            if !keys(projection, &["query", "brand"])
+                || ["query", "brand"].iter().any(|key| {
+                    let required = filter.and_then(|f| f.get(*key)).is_some_and(|v| {
+                        !v.as_str().unwrap().trim_matches(js_whitespace).is_empty()
+                    });
+                    let supplied = projection.get(*key);
+                    required != supplied.is_some()
+                        || supplied.is_some_and(|v| {
+                            v.as_str().is_none_or(|s| s.len() > MAX_PROJECTION_BYTES)
+                        })
+                })
+            {
+                return Err(ErrorCode::InvalidRequest);
+            }
+            Some(projection)
         } else {
-            &self.models[offset..offset.saturating_add(limit).min(self.models.len())]
+            None
         };
+        // 按 Node 导出的 rowid DESC 次序筛选；完整命中数与分页都来自同一不可变快照。
+        let matches: Vec<&Value> = self
+            .models
+            .iter()
+            .filter(|model| {
+                projection.is_none_or(|projection| matches_filter(model, filter, projection))
+            })
+            .collect();
+        let items: Vec<&Value> = matches.iter().skip(offset).take(limit).copied().collect();
         Ok(
-            json!({"items": items, "offset": offset, "limit": limit, "total": self.models.len(), "hasMore": offset + items.len() < self.models.len()}),
+            json!({"items": items, "offset": offset, "limit": limit, "total": matches.len(), "hasMore": offset + items.len() < matches.len()}),
         )
+    }
+}
+
+fn matches_filter(model: &Value, filter: Option<&Value>, projection: &Value) -> bool {
+    // TS 负责投影的 NFKC/trim/空白合并/Unicode lower；原始型号与 SQLite lower 一致仅折叠 ASCII。
+    if projection.get("brand").is_some_and(|brand| {
+        model["brand"].as_str().unwrap().to_ascii_lowercase() != brand.as_str().unwrap()
+    }) || projection.get("query").is_some_and(|query| {
+        let searchable = format!(
+            "{} {} {}",
+            model["brand"].as_str().unwrap(),
+            model["name"].as_str().unwrap(),
+            model["edition"].as_str().unwrap()
+        )
+        .to_ascii_lowercase();
+        !searchable.contains(query.as_str().unwrap())
+    }) {
+        return false;
+    }
+    let Some(filter) = filter else {
+        return true;
+    };
+    if let Some(decade) = filter.get("decade") {
+        if decade == "unknown" {
+            if !model["year"].is_null() {
+                return false;
+            }
+        } else {
+            let decade = integer(decade, 1900, 2200).unwrap();
+            if integer(&model["year"], 1900, 2200)
+                .is_none_or(|year| year < decade || year > decade + 9)
+            {
+                return false;
+            }
+        }
+    }
+    let count = |key: &str| integer(&model["counts"][key], 0, 1_000_000).unwrap();
+    match filter.get("stockState").and_then(Value::as_str) {
+        Some("identified") => model["identification"] == "verified",
+        Some("needs-review") => model["identification"] != "verified" || count("unknown") > 0,
+        Some("blank") => count("sealedBlank") + count("openedBlank") > 0,
+        Some("recorded") => count("legacyUsed") + count("recorded") > 0,
+        _ => true,
     }
 }
 

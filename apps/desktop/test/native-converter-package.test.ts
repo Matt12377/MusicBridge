@@ -79,7 +79,7 @@ test('边界 Gate 只放行 Core 内固定策略模块，不放行外部转换�
   const root = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-boundary-'))
   const file = 'packages/bridge-core/src/recording/bundled-converter.ts'
   try {
-    for (const relative of ['apps/desktop/src/main/security.ts', 'packages/bridge-core/src/config/config.ts', '.github/workflows/verify.yml', '.github/workflows/security.yml', '.github/workflows/electron-e2e.yml']) {
+    for (const relative of ['apps/desktop/src/main/security.ts', 'packages/bridge-core/src/config/config.ts', '.github/workflows/verify.yml', '.github/workflows/security.yml', '.github/workflows/electron-e2e.yml', '.github/workflows/rust-core.yml']) {
       await mkdir(path.dirname(path.join(root, relative)), { recursive: true })
       await writeFile(path.join(root, relative), await readFile(path.join(project, relative)))
     }

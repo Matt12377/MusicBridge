@@ -4,7 +4,7 @@ import { validateIpcRequest, type IpcCommand, type IpcFailure } from '@music-bri
 import { failureForError, responseFailure } from '../shared/ipc-failure.js';
 import {
   DATASET_OWNER_PROTOCOL_VERSION, DatasetOwnerDispatchError, DatasetOwnerTransportError,
-  isDatasetOwnerFailure, isDatasetOwnerIdentity, isDatasetOwnerProjectionResponse, isDatasetOwnerRequest,
+  isDatasetCollectionSnapshot, isDatasetOwnerFailure, isDatasetOwnerIdentity, isDatasetOwnerProjectionResponse, isDatasetOwnerRequest,
   isDatasetProjectionPayload, isDatasetProjectionResult, ownerRecord,
   type DatasetOwnerProjectionRequest, type DatasetOwnerRequest, type DatasetOwnerResponse,
   type DatasetProjectionCommand, type DatasetProjectionCommandPayloads, type DatasetProjectionCommandResults,
@@ -29,6 +29,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
   let domain: OwnedDatasetDomain | undefined;
   let preparation: Promise<OwnedDatasetDomain> | undefined;
   let commitment: Promise<void> | undefined;
+  let bootCommitted = false;
   let closure: Promise<void> | undefined;
   let closing = false;
   let failed = false;
@@ -133,8 +134,20 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     }
     if (domain === undefined) { reject(request, new DatasetOwnerDispatchError(responseFailure(request.request?.id ?? request.requestId, 'NOT_READY', '领域所有者尚未准备完成。'))); return; }
     if (request.operation === 'commitBoot') {
-      try { commitment ??= Promise.resolve().then(() => domain!.commitBoot()); await commitment; reply(request, undefined); }
+      try { commitment ??= Promise.resolve().then(() => domain!.commitBoot()); await commitment; bootCommitted = true; reply(request, undefined); }
       catch (error) { reject(request, error); }
+      return;
+    }
+    if (request.operation === 'exportCollectionSnapshot') {
+      try {
+        if (!bootCommitted || domain.exportCollectionModels === undefined) throw new DatasetOwnerDispatchError(responseFailure(request.requestId, 'NOT_READY', '收藏快照导出尚未就绪。'));
+        if (request.expectedDatasetId !== domain.datasetId) throw new DatasetOwnerDispatchError(responseFailure(request.requestId, 'OUTBOX_SCOPE_MISMATCH', '收藏快照不属于当前工作库。'));
+        const datasetId = domain.datasetId;
+        const models = domain.exportCollectionModels();
+        const snapshot = { epoch: request.epoch, datasetId, snapshotId: randomUUID(), models };
+        if (domain.datasetId !== datasetId || !isDatasetCollectionSnapshot(snapshot)) throw new DatasetOwnerDispatchError(responseFailure(request.requestId, 'INVENTORY_UNAVAILABLE', '收藏快照无效或超过当前预算。'));
+        reply(request, snapshot);
+      } catch (error) { reject(request, error); }
       return;
     }
     const checked = validateIpcRequest(request.request);

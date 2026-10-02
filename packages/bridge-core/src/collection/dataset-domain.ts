@@ -151,6 +151,12 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       return pending.finally(() => pendingDispatches.delete(pending));
     },
     commitBoot() { assertOpen(); return options.commitBoot?.(); },
+    exportCollectionModels() {
+      assertOpen();
+      const models = collection.exportReadonlyModels();
+      assertOpen();
+      return models;
+    },
     failureForError(id, error, command) { return (options.failureForError ?? failureForError)(id, error, command ?? 'commandOutbox.context'); },
     close(beforeConnectionClose) {
       if (closed) return closed;

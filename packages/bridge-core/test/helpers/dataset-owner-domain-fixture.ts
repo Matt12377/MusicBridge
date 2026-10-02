@@ -12,6 +12,7 @@ attachDatasetOwnerWorkerPort(parentPort, {
       datasetId: domain.datasetId,
       failureForError: domain.failureForError,
       commitBoot: () => domain.commitBoot(),
+      exportCollectionModels: () => domain.exportCollectionModels!(),
       async dispatch(request) {
         const observed = ['collection.list', 'collectionProgress.current', 'collectionProgress.snapshot'].includes(request.command);
         if (observed && signals) Atomics.add(signals, 0, 1);

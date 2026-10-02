@@ -4,17 +4,18 @@ import { lstatSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import {
-  isCollectionId, isCollectionModel, isCollectionPage, validateIpcRequest,
-  validateIpcResponseForCommand, type CollectionModel, type IpcRequest, type Page,
+  isCollectionId, isCollectionModel, isCollectionPage, isCommandOutboxDatasetId, validateIpcRequest,
+  validateIpcResponseForCommand, type CollectionFilter, type CollectionModel, type IpcRequest, type Page,
 } from '@music-bridge/contracts';
-import type { DatasetOwnerEndpoint, DatasetOwnerIdentity } from '../collection/dataset-owner-protocol.js';
+import type { DatasetOwnerEndpoint, DatasetOwnerIdentity, DatasetOwnerSnapshotEndpoint } from '../collection/dataset-owner-protocol.js';
+import { filterCollectionSnapshot, projectCollectionFilter } from './collection-query.js';
 
 export const RUST_SIDECAR_LIMITS = Object.freeze({ frameBytes: 4_194_304, models: 2_000, inflight: 16, sequence: 65_536 });
 const wireCodes = new Set(['INVALID_REQUEST', 'UNSUPPORTED_OPERATION', 'UNSUPPORTED_COMMAND', 'UNSUPPORTED_FILTER',
   'SCOPE_MISMATCH', 'CAPACITY_EXCEEDED', 'NOT_READY', 'CLOSING', 'PROTOCOL_ERROR']);
 export type RustSidecarErrorCode = 'INVALID_REQUEST' | 'UNSUPPORTED_OPERATION' | 'UNSUPPORTED_COMMAND' | 'UNSUPPORTED_FILTER'
   | 'SCOPE_MISMATCH' | 'CAPACITY_EXCEEDED' | 'NOT_READY' | 'CLOSING' | 'PROTOCOL_ERROR'
-  | 'BINARY_PIN_MISMATCH' | 'TIMEOUT' | 'PROCESS_EXIT';
+  | 'BINARY_PIN_MISMATCH' | 'TIMEOUT' | 'PROCESS_EXIT' | 'SNAPSHOT_UNAVAILABLE';
 const messages: Record<RustSidecarErrorCode, string> = {
   INVALID_REQUEST: 'Rust 只读请求无效。', UNSUPPORTED_OPERATION: 'Rust 只读操作未准入。',
   UNSUPPORTED_COMMAND: 'Rust 快照端点不支持此命令。', UNSUPPORTED_FILTER: 'Rust 快照端点尚不支持筛选。',
@@ -22,6 +23,7 @@ const messages: Record<RustSidecarErrorCode, string> = {
   NOT_READY: 'Rust 快照尚未就绪。', CLOSING: 'Rust 快照端点已封闭。',
   PROTOCOL_ERROR: 'Rust 只读协议校验失败。', BINARY_PIN_MISMATCH: 'Rust 可执行文件身份校验失败。',
   TIMEOUT: 'Rust 只读操作超过期限。', PROCESS_EXIT: 'Rust 进程未完成预期关闭。',
+  SNAPSHOT_UNAVAILABLE: 'Node 收藏快照暂不可用。',
 };
 export class RustSidecarError extends Error {
   constructor(readonly code: RustSidecarErrorCode) { super(messages[code]); this.name = 'RustSidecarError'; }
@@ -41,6 +43,10 @@ export interface RustReadonlySidecarOptions {
   requestTimeoutMs?: number;
   closeTimeoutMs?: number;
   onFatal?: (code: RustSidecarErrorCode) => void;
+}
+export interface RustReadonlyOwnerOptions extends Omit<RustReadonlySidecarOptions, 'snapshot'> {
+  owner: DatasetOwnerSnapshotEndpoint;
+  startupTimeoutMs?: number;
 }
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const exact = (v: Record<string, unknown>, keys: readonly string[]) => Object.keys(v).length === keys.length && keys.every(k => Object.hasOwn(v, k));
@@ -122,7 +128,7 @@ export function freezeCollectionSnapshot(identity: DatasetOwnerIdentity, complet
 function copySnapshot(value: RustReadonlySnapshot): RustReadonlySnapshot {
   const copy = jsonCopy(value);
   if (!record(copy) || !exact(copy, ['epoch', 'datasetId', 'snapshotId', 'models'])
-    || ![copy.epoch, copy.datasetId, copy.snapshotId].every(isCollectionId) || !Array.isArray(copy.models)) throw new RustSidecarError('INVALID_REQUEST');
+    || ![copy.epoch, copy.snapshotId].every(isCollectionId) || !isCommandOutboxDatasetId(copy.datasetId) || !Array.isArray(copy.models)) throw new RustSidecarError('INVALID_REQUEST');
   if (copy.models.length > RUST_SIDECAR_LIMITS.models) throw new RustSidecarError('CAPACITY_EXCEEDED');
   if (!copy.models.every(m => isCollectionModel(m) && typeof m.collectorPolicy === 'string')
     || new Set(copy.models.map(m => m.id)).size !== copy.models.length) throw new RustSidecarError('INVALID_REQUEST');
@@ -156,6 +162,48 @@ function checkBinary(binary: RustReadonlySidecarOptions['binary']): void {
 }
 /** 显式只读适配器；不接收数据目录，也不改变正式 Core 的默认 owner。 */
 export function createRustReadonlyDatasetEndpoint(options: RustReadonlySidecarOptions): RustReadonlyDatasetEndpoint {
+  return createEndpoint(options, Infinity);
+}
+
+/** 从已成功 commitBoot 的 Node Owner 建立显式就绪端点；失败只清理自己的原生进程。 */
+export async function createRustReadonlyDatasetEndpointFromOwner(options: RustReadonlyOwnerOptions): Promise<RustReadonlyDatasetEndpoint> {
+  const { owner, startupTimeoutMs, ...sidecarOptions } = options;
+  const deadline = performance.now() + budget(startupTimeoutMs, 5_000);
+  let revoked = false, endpoint: RustReadonlyDatasetEndpoint | undefined;
+  const fresh = () => { if (revoked || performance.now() >= deadline) throw new RustSidecarError('TIMEOUT'); };
+  const work = (async () => {
+    let identity: DatasetOwnerIdentity, exported: RustReadonlySnapshot;
+    try {
+      fresh(); identity = jsonCopy(await owner.prepare()); fresh();
+      if (!record(identity) || !exact(identity, ['epoch', 'datasetId'])
+        || !isCollectionId(identity.epoch) || !isCommandOutboxDatasetId(identity.datasetId)) throw new RustSidecarError('SNAPSHOT_UNAVAILABLE');
+      exported = await owner.exportCollectionSnapshot(); fresh();
+    } catch (error) {
+      fresh();
+      throw error instanceof RustSidecarError ? error : new RustSidecarError('SNAPSHOT_UNAVAILABLE');
+    }
+    const snapshot = copySnapshot(exported); fresh();
+    if (snapshot.epoch !== identity.epoch || snapshot.datasetId !== identity.datasetId) throw new RustSidecarError('SCOPE_MISMATCH');
+    endpoint = createEndpoint({ ...sidecarOptions, snapshot }, deadline); fresh();
+    await endpoint.prepare(); fresh();
+    await endpoint.commitBoot(); fresh();
+    return endpoint;
+  })();
+  // 源 Owner 的合法 RPC 可以晚到；撤销发布权不篡改其在途状态，也不自动重放。
+  void work.catch(() => {});
+  let timer!: NodeJS.Timeout;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => { revoked = true; reject(new RustSidecarError('TIMEOUT')); }, Math.max(1, deadline - performance.now()));
+  });
+  try { return await Promise.race([work, timeout]); }
+  catch (error) {
+    revoked = true;
+    if (endpoint) await endpoint.close().catch(() => {});
+    throw error;
+  } finally { clearTimeout(timer); }
+}
+
+function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: number): RustReadonlyDatasetEndpoint {
   const snapshot = copySnapshot(options.snapshot);
   const binary = { ...options.binary };
   const requestTimeout = budget(options.requestTimeoutMs, 5_000), closeTimeout = budget(options.closeTimeoutMs, 5_000);
@@ -191,15 +239,16 @@ export function createRustReadonlyDatasetEndpoint(options: RustReadonlySidecarOp
     const response = validateIpcResponseForCommand({ version: 1, id: request.id, ok: true, result }, 'collection.list');
     if (!response.ok || !response.value.ok || !record(request.payload) || !record(request.payload.page)) return false;
     const page = response.value.result;
+    const filtered = filterCollectionSnapshot(snapshot.models, request.payload.filter as CollectionFilter | undefined);
     // 合法 DTO 仍不能把另一快照/分页内容混进本次读取。
     return page.offset === request.payload.page.offset && page.limit === request.payload.page.limit
-      && page.total === snapshot.models.length
-      && isDeepStrictEqual(page.items, snapshot.models.slice(page.offset, page.offset + page.limit));
+      && page.total === filtered.length
+      && isDeepStrictEqual(page.items, filtered.slice(page.offset, page.offset + page.limit));
   }
   function receive(value: unknown): void {
     if (failure || !record(value)) { fail('PROTOCOL_ERROR'); return; }
     const common = ['protocolVersion', 'requestId', 'epoch', 'datasetId', 'snapshotId', 'sequence', 'operation', 'ok'];
-    if (!exact(value, [...common, value.ok === true ? 'result' : 'error']) || value.protocolVersion !== 1
+    if (!exact(value, [...common, value.ok === true ? 'result' : 'error']) || value.protocolVersion !== 2
       || value.epoch !== snapshot.epoch || value.datasetId !== snapshot.datasetId || value.snapshotId !== snapshot.snapshotId
       || typeof value.requestId !== 'string') { fail('PROTOCOL_ERROR'); return; }
     const item = pending.get(value.requestId);
@@ -235,7 +284,9 @@ export function createRustReadonlyDatasetEndpoint(options: RustReadonlySidecarOp
     }
   }
   function start(): void {
+    if (performance.now() >= startupDeadline) throw new RustSidecarError('TIMEOUT');
     checkBinary(binary);
+    if (performance.now() >= startupDeadline) throw new RustSidecarError('TIMEOUT');
     child = childProcess.spawn(binary.path, [], {
       shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
       cwd: path.dirname(binary.path), env: { LANG: 'C.UTF-8' },
@@ -259,14 +310,16 @@ export function createRustReadonlyDatasetEndpoint(options: RustReadonlySidecarOp
     if (failure) return Promise.reject(failure);
     if (pending.size >= RUST_SIDECAR_LIMITS.inflight || sequence >= RUST_SIDECAR_LIMITS.sequence - (operation === 'close' ? 0 : 1)) return Promise.reject(new RustSidecarError('CAPACITY_EXCEEDED'));
     const requestId = randomUUID(), nextSequence = sequence + 1;
-    const frame = Buffer.from(JSON.stringify({ protocolVersion: 1, requestId, epoch: snapshot.epoch, datasetId: snapshot.datasetId,
+    const frame = Buffer.from(JSON.stringify({ protocolVersion: 2, requestId, epoch: snapshot.epoch, datasetId: snapshot.datasetId,
       snapshotId: snapshot.snapshotId, sequence: nextSequence, operation, payload }) + '\n');
     if (frame.length - 1 > RUST_SIDECAR_LIMITS.frameBytes) return Promise.reject(new RustSidecarError('CAPACITY_EXCEEDED'));
     sequence = nextSequence;
     let resolve!: Pending['resolve'], reject!: Pending['reject'];
     const promise = new Promise<unknown>((yes, no) => { resolve = yes; reject = no; });
     void promise.catch(() => {});
-    const timeout = operation === 'close' ? Math.max(1, closeDeadline - performance.now()) : requestTimeout;
+    const timeout = operation === 'close' ? closeDeadline - performance.now()
+      : operation === 'prepare' || operation === 'commitBoot' ? Math.min(requestTimeout, startupDeadline - performance.now()) : requestTimeout;
+    if (timeout <= 0) { fail('TIMEOUT'); reject(failure!); return promise; }
     const timer = setTimeout(() => fail('TIMEOUT'), timeout);
     const item: Pending = { operation, sequence, resolve, reject, timer, promise, deadline: performance.now() + timeout, sent: false, ...(request ? { request } : {}) };
     pending.set(requestId, item);
@@ -309,9 +362,9 @@ export function createRustReadonlyDatasetEndpoint(options: RustReadonlySidecarOp
       const request = jsonCopy(validated.value);
       if (request.command !== 'collection.list') throw new RustSidecarError('UNSUPPORTED_COMMAND');
       if (request.expectedDatasetId !== undefined && request.expectedDatasetId !== snapshot.datasetId) throw new RustSidecarError('SCOPE_MISMATCH');
-      const filter = (request.payload as { filter?: Record<string, unknown> }).filter;
-      if (filter && Object.keys(filter).length) throw new RustSidecarError('UNSUPPORTED_FILTER');
-      const result = await rpc('dispatch', { request }, request);
+      const filterProjection = projectCollectionFilter((request.payload as { filter?: CollectionFilter }).filter);
+      if (Object.values(filterProjection).some(text => Buffer.byteLength(text, 'utf8') > 8_192)) throw new RustSidecarError('CAPACITY_EXCEEDED');
+      const result = await rpc('dispatch', { request, filterProjection }, request);
       if (failure) throw failure;
       return result;
     },

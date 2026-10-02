@@ -3199,5 +3199,130 @@
       "matchingRefs": [],
       "pushed": false
     }
+  },
+  "currentRustCoreTask": {
+    "task": "RUST-002",
+    "statusKey": "rustCoreAtomicSnapshot20261002"
+  },
+  "rustCoreAtomicSnapshot20261002": {
+    "task": "RUST-002",
+    "branch": "codex/rust-core-002-atomic-snapshot",
+    "baseCommit": "abc716686061811cd708eeb733e81ec82a1e93b9",
+    "state": "local-software-gates-passed-atomic-readonly-prototype-report-pending",
+    "ownerAuthorization": "continue-development-with-up-to-four-sol-6.1-high-subagents",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "report": "reports/RUST-002_ATOMIC_SNAPSHOT_QUERY.md",
+    "evidence": "reports/RUST-002_EVIDENCE.json",
+    "todo": "project/RUST_CORE_TODO.md",
+    "productionDefault": "Node",
+    "nodeDatabaseWriteOwnerUnchanged": true,
+    "atomicCollectionExport": true,
+    "snapshotModelLimit": 2000,
+    "snapshotEncodedBytesLimit": 4194304,
+    "readonlyCommands": [
+      "collection.list"
+    ],
+    "filters": [
+      "query",
+      "brand",
+      "decade",
+      "stockState"
+    ],
+    "protocolVersions": [
+      1,
+      2
+    ],
+    "protocol": "docs/contracts/rust-readonly-sidecar-v2.md",
+    "validation": {
+      "rustGateExitCode": 0,
+      "rustPassed": 26,
+      "tsFaultPassed": 35,
+      "nodeSnapshotPassed": 9,
+      "actualRustIntegrationPassed": 9,
+      "actualRustIntegrationSkipped": 0,
+      "sqliteDifferentialPages": 108,
+      "softwareFull": "PASS",
+      "rustSourceStable": true,
+      "finalTypecheckExitCode": 0,
+      "coreFullFinal": "PASS",
+      "contractsPassed": 254,
+      "corePassed": 2051,
+      "desktopPassed": 1239,
+      "unitPassed": 3544,
+      "unitFailed": 0,
+      "originalNativeConditionalSkips": 2,
+      "addedSkips": 0,
+      "fullUnitExitCode": 0,
+      "productionBuildExitCode": 0,
+      "controlPlaneExitCode": 0,
+      "boundariesExitCode": 0,
+      "cyclesExitCode": 0,
+      "cyclesFiles": 380,
+      "softwareSourceStable": true,
+      "softwareSourceFiles": 1042
+    },
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-002-kupkidlt",
+    "rustManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-002-kupkidlt/rust-gate/run-CGkIjH/manifest.json",
+    "binarySha256": "55043d477e44ce62ead4bca264e7d7fce89bb90f1d312973ae23e89f2075f6ac",
+    "agentPolicy": {
+      "primaryModel": "gpt-6.1-sol",
+      "primaryReasoningEffort": "max",
+      "subagentModel": "gpt-6.1-sol",
+      "subagentReasoningEffort": "high",
+      "maximumSubagents": 4,
+      "actualDevelopmentAndReviewAgents": 4,
+      "execution": "batched-platform-concurrency-limit",
+      "forbiddenModels": [
+        "gpt-6-sol"
+      ]
+    },
+    "realProviderRoonAcceptance": "NOT_RUN",
+    "realRecording": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "realUserMigration": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "review": {
+      "blockingFindings": 0,
+      "fixed": [
+        "existing-dataset-uuid-versions",
+        "hosted-macos-test-temporary-directory"
+      ]
+    },
+    "implementationCommitResolution": "git-log-last-commit-touching-native/rust-core/src/lib.rs",
+    "reportCommitResolution": "git-log-last-commit-touching-reports/RUST-002_ATOMIC_SNAPSHOT_QUERY.md",
+    "nextBranchBaseResolution": "final-RUST-002-report-HEAD",
+    "softwareManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-002-kupkidlt/software-final/software-manifest.json",
+    "firstFullUnit": "254-contracts-pass;2051-core-pass;2-original-native-skip;1238-desktop-pass;1-fixture-fail;exit-1",
+    "desktopFixtureRepair": "copy-existing-rust-core-workflow-into-synthetic-boundary-root;3-pass;all-rejection-assertions-preserved",
+    "fullElectronE2E": "NOT_RUN",
+    "realSystemKeychain": "NOT_RUN",
+    "carryover": [
+      "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
+      "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged",
+      "over-2000-models-and-refresh-invalidation-contracts-next-scope",
+      "packaging-signing-and-default-routing-not-implemented"
+    ],
+    "rootUntrackedPreserved": [
+      "apps/desktop/test-results/",
+      "worktree/"
+    ],
+    "remoteBranchSnapshot": {
+      "branch": "codex/rust-core-002-atomic-snapshot",
+      "argv": [
+        "git",
+        "ls-remote",
+        "--exit-code",
+        "--heads",
+        "origin",
+        "refs/heads/codex/rust-core-002-atomic-snapshot"
+      ],
+      "exitCode": 2,
+      "matchingRefs": [],
+      "pushed": false
+    }
   }
 }

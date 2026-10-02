@@ -4,9 +4,9 @@ import type { IpcCommand, IpcRequest } from '@music-bridge/contracts';
 import { failureForError, responseFailure } from '../shared/ipc-failure.js';
 import {
   DATASET_OWNER_PROTOCOL_VERSION, DatasetOwnerDispatchError, DatasetOwnerTransportError,
-  isDatasetOwnerFailure, isDatasetOwnerIdentity, isDatasetOwnerProjectionRequest, isDatasetOwnerResponse,
+  isDatasetCollectionSnapshot, isDatasetOwnerFailure, isDatasetOwnerIdentity, isDatasetOwnerProjectionRequest, isDatasetOwnerResponse,
   isDatasetProjectionResult, isDatasetRequestEnvelope, ownerRecord,
-  type DatasetOwnerEndpoint, type DatasetOwnerFatalReason, type DatasetOwnerIdentity,
+  type DatasetCollectionSnapshot, type DatasetOwnerSnapshotEndpoint, type DatasetOwnerFatalReason, type DatasetOwnerIdentity,
   type DatasetOwnerOperation, type DatasetOwnerProjectionHandler,
   type DatasetOwnerProjectionRequest, type DatasetOwnerProjectionResponse, type DatasetOwnerRequest,
 } from './dataset-owner-protocol.js';
@@ -27,7 +27,7 @@ export interface DatasetOwnerClientOptions {
 }
 
 // 只持有线程端口与窄投影；连接失败后保留原命令身份，不创建数据库或自动重放。
-export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): DatasetOwnerEndpoint {
+export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): DatasetOwnerSnapshotEndpoint {
   const { worker } = options;
   const epoch = randomUUID();
   const pending = new Map<string, PendingRequest>();
@@ -35,6 +35,9 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
   let identity: DatasetOwnerIdentity | undefined;
   let preparation: Promise<DatasetOwnerIdentity> | undefined;
   let commitment: Promise<void> | undefined;
+  let bootCommitted = false;
+  let exporting = false;
+  const snapshotIds = new Set<string>();
   let closure: Promise<void> | undefined;
   let closing = false;
   let closeAcknowledged = false;
@@ -56,12 +59,13 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     try { options.onFatal?.(reason); } catch { /* 监督回调失败不能改写已发送操作的未知结果。 */ }
   }
 
-  function rpc(operation: DatasetOwnerOperation, request?: IpcRequest): Promise<unknown> {
+  function rpc(operation: DatasetOwnerOperation, request?: IpcRequest, expectedDatasetId?: string): Promise<unknown> {
     if (failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent', request?.id, request?.command));
     const requestId = randomUUID();
     const message: DatasetOwnerRequest = {
       version: DATASET_OWNER_PROTOCOL_VERSION, type: 'request', epoch, requestId,
       sequence: ++sequence, operation, ...(request === undefined ? {} : { request }),
+      ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }),
     };
     return new Promise((resolve, reject) => {
       const item: PendingRequest = { operation, sent: false, resolve, reject,
@@ -108,6 +112,10 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     const publicId = item.publicId ?? message.requestId;
     if (!message.ok && message.failure.id !== publicId) { fatal('protocol-failure'); return; }
     if (message.ok && message.operation === 'prepare' && (!isDatasetOwnerIdentity(message.result) || message.result.epoch !== epoch)) { fatal('protocol-failure'); return; }
+    if (message.ok && message.operation === 'exportCollectionSnapshot') {
+      if (!isDatasetCollectionSnapshot(message.result) || message.result.epoch !== epoch || message.result.datasetId !== identity?.datasetId || snapshotIds.has(message.result.snapshotId)) { fatal('protocol-failure'); return; }
+      snapshotIds.add(message.result.snapshotId);
+    }
     if (message.ok && (message.operation === 'close' || message.operation === 'commitBoot') && message.result !== undefined) { fatal('protocol-failure'); return; }
     pending.delete(message.requestId);
     if (!message.ok) {
@@ -147,8 +155,13 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     },
     commitBoot() {
       if (identity === undefined || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
-      commitment ??= rpc('commitBoot').then(() => undefined);
+      commitment ??= rpc('commitBoot').then(() => { bootCommitted = true; });
       return commitment;
+    },
+    exportCollectionSnapshot() {
+      if (identity === undefined || !bootCommitted || exporting || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
+      exporting = true;
+      return rpc('exportCollectionSnapshot', undefined, identity.datasetId).then(value => value as DatasetCollectionSnapshot).finally(() => { exporting = false; });
     },
     close() {
       if (closure !== undefined) return closure;

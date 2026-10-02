@@ -1,4 +1,5 @@
 import { traceDatabase } from '../diagnostics/performance-instrumentation.js';
+import { isDatasetCollectionModels, MAX_DATASET_COLLECTION_MODELS } from './dataset-owner-protocol.js';
 import { createRecordingPrintStore, migrateRecordingPrints, migrateRecordingPrintVersions, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
 import { RecordingPrintError } from '../recording/print-integrity.js';
 import { createRecordingRecordStore, migrateRecordingRecords, type RecordingRecordStore } from '../recording/record-store.js';
@@ -79,6 +80,7 @@ export interface CollectionRepository {
   prepared: PreparedStore;
   links: PhysicalLinksRepository;
   list(page: PageRequest, filter?: CollectionFilter): Page<CollectionModel>;
+  exportReadonlyModels(): readonly CollectionModel[];
   addPhoto(request: CollectionAddPhotoRequest): CollectionMutationResult;
   photo(photoId: string): CollectionPhotoImage;
   changePhoto(request: CollectionChangePhotoRequest): CollectionMutationResult;
@@ -316,7 +318,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
     const pools = new Map<string, { sealed: number; opened: number; legacy: number; unknown: number }>();
     const copies = new Map<string, { n: number; sealed: number; opened: number; unknown: number; recorded: number; reserved: number; unavailable: number }>();
     const photos = new Map<string, { count: number; featured: PhotoRow }>();
-    // 仅批量读取当前合法页；每条语句最多50个绑定参数，不持久缓存或改变连接所有权。
+    // 批量水合列表页或封闭只读快照；每条语句最多50个绑定参数，不持久缓存或改变连接所有权。
     for (let offset = 0; offset < ids.length; offset += 50) {
       const chunk = ids.slice(offset, offset + 50);
       const bindings = chunk.map(() => '?').join(',');
@@ -337,7 +339,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
         else photos.set(photo.model_id, { count: 1, featured: photo });
       }
     }
-    // 批查询内部顺序不充作列表顺序；严格恢复分页查询的rowid倒序，逐型号校验完整DTO。
+    // 批查询内部顺序不充作列表顺序；严格恢复查询的rowid倒序，逐型号校验完整DTO。
     return rows.map(row => {
       const pool = pools.get(row.id) ?? { sealed: 0, opened: 0, legacy: 0, unknown: 0 };
       const copy = copies.get(row.id) ?? { n: 0, sealed: 0, opened: 0, unknown: 0, recorded: 0, reserved: 0, unavailable: 0 };
@@ -539,6 +541,20 @@ export function createCollectionRepository(options: { filePath: string; stagingR
     sources: createSourceStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     drafts: createMasterDraftsRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     workspace: createRecordingWorkspaceStore({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
+    exportReadonlyModels() {
+      return guarded(db => {
+        // 同步读事务覆盖型号、库存和全部水合批次；不拼接公开分页，也不持有写锁。
+        db.exec('BEGIN');
+        try {
+          const rows = many<ModelRow>(db, 'SELECT id,descriptor,policy,minimum_sealed,revision FROM collection_models ORDER BY rowid DESC LIMIT ?', MAX_DATASET_COLLECTION_MODELS + 1);
+          if (rows.length > MAX_DATASET_COLLECTION_MODELS) return unavailable();
+          const models = listedModels(db, rows);
+          if (!isDatasetCollectionModels(models)) return unavailable();
+          db.exec('COMMIT');
+          return models;
+        } catch (error) { db.exec('ROLLBACK'); throw error; }
+      });
+    },
     list(page, filter = {}) {
       if (!validPage(page) || !isCollectionFilter(filter)) return conflict('库存请求无效，请检查分页和筛选。');
       const conditions: string[] = [], values: SQLInputValue[] = [];
