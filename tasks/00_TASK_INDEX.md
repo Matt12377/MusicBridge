@@ -138,4 +138,4 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 
 - [RUST-008](RUST-008-main-read-boundary.md)：从 RUST-007 最终报告 `50d2e85` 接续，Main/outbox 纯读与有条件打印领取完成屏障、共享桌面 adapter 和隔离真实 Electron Gate；生产默认 Node；本地实现、27＋6 步 Gate、实际 Electron 与两轮独审完成，见 [结果报告](../reports/RUST-008_MAIN_READ_BOUNDARY.md)。
 
-- [RUST-009](RUST-009-collection-ui-read-boundary.md)：从 RUST-008 最终报告 `ae8a53f` 接续，正式空白磁带页面及既有进度/求购/历史/参考资料只读链，八条新增精确 Node 纯读、刷新期间条件 claim 与发布屏障、真实 Vue 交互和独立证据准入；实施中，默认 Node、唯一数据库作者与原预算不变。
+- [RUST-009](RUST-009-collection-ui-read-boundary.md)：从 RUST-008 最终报告 `ae8a53f` 接续，正式空白磁带页面及既有进度/求购/历史/参考资料只读链，八条新增精确 Node 纯读、刷新期间条件 claim 与发布屏障、真实 Vue 交互和独立证据准入；本地实现/30＋6 步 Gate/真实 Electron/两轮独审完成，默认 Node、唯一数据库作者与原预算不变，见 [结果报告](../reports/RUST-009_COLLECTION_UI_READ_BOUNDARY.md)。

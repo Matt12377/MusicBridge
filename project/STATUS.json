@@ -4137,7 +4137,7 @@
     "task": "RUST-009",
     "branch": "codex/rust-core-009-collection-ui-read-boundary",
     "baseCommit": "ae8a53fb1206c65632d3b23c66b929965e89a7d3",
-    "state": "local-validation-and-review-PASS-two-commits-pending",
+    "state": "local-complete-owner-acceptance-NOT_RUN",
     "scope": "tasks/RUST-009-collection-ui-read-boundary.md",
     "todo": "project/RUST_CORE_TODO.md",
     "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4",
@@ -4191,10 +4191,11 @@
       "actualCollectionUi": "real-Electron-5-of-5-pass",
       "evidenceAcceptance": "actual-report-and-49-rejections-50-of-50-pass",
       "independentReview": "round1-and-round2-complete-unresolved-P1-P2-zero",
-      "fullGate": "Rust-30-software-6-actual-Electron-5-acceptance-50-default-startup-2-PASS"
+      "fullGate": "Rust-30-software-6-actual-Electron-5-acceptance-50-default-startup-2-PASS",
+      "delivery": "local-implementation-and-report-saved-final-identity-external"
     },
     "validation": {
-      "state": "all-local-gates-PASS-final-review-and-commits-pending",
+      "state": "local-PASS",
       "effectiveRed": {
         "record": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/collection-ui-router-red-02.json",
         "exitCode": 1,
@@ -4315,7 +4316,7 @@
       "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
       "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
     ],
-    "implementationCommit": null,
+    "implementationCommit": "a5e5add4955de6a36e488d1412a5965a9bfd5b6b",
     "reportCommit": null,
     "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-009_COLLECTION_UI_READ_BOUNDARY.md",
     "nextBranchBaseline": "final-report-head",
@@ -4326,6 +4327,9 @@
       "implicitDownload": false,
       "installedApplication": "NOT_CHANGED",
       "preparationNotes": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/PREPARATION_NOTES.json"
-    }
+    },
+    "report": "reports/RUST-009_COLLECTION_UI_READ_BOUNDARY.md",
+    "evidence": "reports/RUST-009_EVIDENCE.json",
+    "finalIdentityReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/FINAL_IDENTITY.json"
   }
 }

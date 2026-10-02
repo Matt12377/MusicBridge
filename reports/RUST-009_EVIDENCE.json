@@ -1,0 +1,310 @@
+{
+  "schemaVersion": 1,
+  "task": "RUST-009",
+  "state": "local-complete-owner-acceptance-NOT_RUN",
+  "baseCommit": "ae8a53fb1206c65632d3b23c66b929965e89a7d3",
+  "branch": "codex/rust-core-009-collection-ui-read-boundary",
+  "implementationCommit": "a5e5add4955de6a36e488d1412a5965a9bfd5b6b",
+  "reportCommit": null,
+  "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-009_COLLECTION_UI_READ_BOUNDARY.md",
+  "nextBranchBaseline": "final-report-head",
+  "sourceFreeze": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/FREEZE_IDENTITY_V4.json",
+    "sha256": "8b599889dca7d4a62ed7cd240dca6bbc475d1c3ade8dc29be5691486b7736f4f",
+    "sourceFileCount": 1104
+  },
+  "rustGate": {
+    "task": "RUST-009",
+    "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/rust-gate/run-v3FMk0/manifest.json",
+    "manifestSha256": "f4c4e84053e0e89771327d9a813cc219a59787a97dcb95dc2adcf579cf96ed76",
+    "stepCount": 30,
+    "allExitCodesZero": true,
+    "sourceFiles": 589,
+    "sourceHashesMatchCurrent": true,
+    "binary": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/cargo-target/release/musicbridge-rust-core",
+      "sha256": "03624a10a1c9314842907142fd0cfb3931dd68edcb88a5dff6ea645832124a14",
+      "platform": "darwin",
+      "architecture": "arm64"
+    },
+    "referencedArtifactCount": 9,
+    "allReferencedArtifactHashesMatch": true,
+    "rustTestsPassed": 43,
+    "jsTestsPassed": 479,
+    "jsPerStep": [
+      {
+        "step": "ts-client",
+        "passed": 35,
+        "skipped": 0
+      },
+      {
+        "step": "node-atomic-snapshot",
+        "passed": 9,
+        "skipped": 0
+      },
+      {
+        "step": "node-snapshot-version",
+        "passed": 11,
+        "skipped": 0
+      },
+      {
+        "step": "ts-refresh-router",
+        "passed": 36,
+        "skipped": 0
+      },
+      {
+        "step": "node-large-snapshot",
+        "passed": 13,
+        "skipped": 0
+      },
+      {
+        "step": "ts-large-snapshot",
+        "passed": 21,
+        "skipped": 0
+      },
+      {
+        "step": "ts-query-index",
+        "passed": 6,
+        "skipped": 0
+      },
+      {
+        "step": "ts-core-owner-lifecycle",
+        "passed": 23,
+        "skipped": 0
+      },
+      {
+        "step": "ts-core-utility-options",
+        "passed": 18,
+        "skipped": 0
+      },
+      {
+        "step": "ts-rust-integration",
+        "passed": 24,
+        "skipped": 0
+      },
+      {
+        "step": "core-runtime-integration",
+        "passed": 11,
+        "skipped": 0
+      },
+      {
+        "step": "ts-node-mixed-reads",
+        "passed": 83,
+        "skipped": 0
+      },
+      {
+        "step": "ts-core-host-controls",
+        "passed": 20,
+        "skipped": 0
+      },
+      {
+        "step": "core-host-integration",
+        "passed": 8,
+        "skipped": 0
+      },
+      {
+        "step": "ts-main-read-boundary",
+        "passed": 67,
+        "skipped": 0
+      },
+      {
+        "step": "desktop-core-host-adapter",
+        "passed": 11,
+        "skipped": 0
+      },
+      {
+        "step": "main-background-components",
+        "passed": 5,
+        "skipped": 0
+      },
+      {
+        "step": "main-evidence-acceptance",
+        "passed": 5,
+        "skipped": 0
+      },
+      {
+        "step": "ts-collection-ui-read-boundary",
+        "passed": 55,
+        "skipped": 0
+      },
+      {
+        "step": "node-collection-ui-purity",
+        "passed": 18,
+        "skipped": 0
+      }
+    ],
+    "baselineCompletePathComparison": "RUN",
+    "exactMixedNodeReadonlyCommands": [
+      "collection.detail",
+      "collection.copy",
+      "collection.photo",
+      "referenceCatalog.sources",
+      "referenceCatalog.history",
+      "referenceCatalog.revision",
+      "commandOutbox.context",
+      "collectionProgress.modelLengths",
+      "collectionProgress.current",
+      "collectionProgress.wants",
+      "collectionProgress.wantHistory",
+      "collectionProgress.snapshots",
+      "collectionProgress.snapshot",
+      "referenceCatalog.snapshot",
+      "referenceCatalog.source",
+      "referenceCatalog.sourceZipReceipts"
+    ],
+    "actualElectronLayerSeparate": true
+  },
+  "software": {
+    "task": "RUST-009",
+    "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/software-final-v4/software-manifest.json",
+    "manifestSha256": "57493945d4b93feaa3774642f9ec2c3e0b3c8e72b7c5b218967471bcda00180e",
+    "logicalSteps": 6,
+    "allExitCodesZero": true,
+    "sourceFiles": 1104,
+    "beforeAfterCurrentFreezeMatch": true,
+    "typecheckReuseRecord": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/final-typecheck-v4.json",
+    "typecheckSameFrozenSource": true,
+    "unitPassed": 3926,
+    "unitGroups": {
+      "contracts": 254,
+      "core": 2422,
+      "desktop": 1250
+    },
+    "originalConditionalSkipped": 2,
+    "originalSkipNames": [
+      "实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致",
+      "Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑"
+    ],
+    "newSkips": 0,
+    "cycleFiles": 384,
+    "productionBuild": "PASS",
+    "startup": "covered-by-separate-defaultStartup-receipts"
+  },
+  "defaultStartup": [
+    {
+      "name": "default-startup-development",
+      "argv": [
+        "corepack",
+        "pnpm@10.17.1",
+        "--filter",
+        "@music-bridge/desktop",
+        "exec",
+        "node",
+        "scripts/startup-gate.mjs",
+        "development",
+        "--keychain=mock"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 6.042946583002049,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/default-startup-development.log",
+      "sha256": "77275fd971b7527fb5c15530f4a68531e119a4817cfe15fa35841cec9541e89a"
+    },
+    {
+      "name": "default-startup-production",
+      "argv": [
+        "corepack",
+        "pnpm@10.17.1",
+        "--filter",
+        "@music-bridge/desktop",
+        "exec",
+        "node",
+        "scripts/startup-gate.mjs",
+        "production",
+        "--keychain=mock"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 5.978227124993282,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/default-startup-production.log",
+      "sha256": "fb3ae263edb07d038822839f1a98a9a301021495154005243e3739e25006a2c5"
+    }
+  ],
+  "actualCollectionUi": {
+    "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/collection-host-05/artifact-manifest.json",
+    "manifestSha256": "6fdb9a172b3cc82b396060430772845b5399d3cb19a06b58a83f5e3b86d5e4b9",
+    "report": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/collection-host-05/electron-report.json",
+    "reportSha256": "ac40c4550a9fa80901f1a073d0525e321789fe8c15f35f843aa74433fec06e93",
+    "sourceInputs": 893,
+    "compiledArtifacts": 38,
+    "actionsAndScreenshots": 189,
+    "completeDtoOracleReplies": 295,
+    "electronTestsPassed": 5,
+    "evidenceAcceptanceTestsPassed": 50,
+    "negativeVariants": 49,
+    "skipped": 0,
+    "rustChildCount": 6,
+    "nodeOwnerCoreElectronHostCountEach": 4,
+    "forcedCleanup": false,
+    "visibility": "hidden-actual-renderer",
+    "ownerAcceptance": "NOT_RUN",
+    "handoff": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/collection-host-final-handoff.json",
+    "handoffSha256": "8f8574357226bf535790c0f389541cf55785db82a07525886ecd2e81e4670af8"
+  },
+  "validationLedger": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/VALIDATION_LEDGER.json",
+    "sha256": "64cbcab41b394d1c4b069281d067f0676ee1d138f4f6db7488dbc0b85b057504",
+    "attemptCount": 60,
+    "failedAttemptCount": 15,
+    "countMeaning": "top-level receipts, not sum of nested tool commands"
+  },
+  "firstFailuresPreserved": true,
+  "fixtureRepairs": [
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/LEGACY_FIXTURE_CLASSIFICATION.json",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/REFRESH_PHASE_FIXTURE_REPAIR_V2.json",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/CI_MANIFEST_METADATA_REPAIR.json",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/PREPARATION_NOTES.json"
+  ],
+  "electronDependencyReuse": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/electron-dependency-manifest.json",
+    "sha256": "7a8b4da05e5ac305003f783bb73b69011668acf9e092bf0766ce01dfae88e073",
+    "filesAndLinks": 275,
+    "implicitDownload": false,
+    "installedApp": "NOT_CHANGED"
+  },
+  "reviewRound1": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/review-round1.json",
+    "sha256": "da925ea432c08ec397f7d8e354e35203d824b830e57b5b21fd6b091132e32836"
+  },
+  "reviewRound2": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/review-round2.json",
+    "sha256": "2fdbc2335cca27091d048ff216f274f15c6367c45a076a7312063f6201675662",
+    "remainingP1P2": 0,
+    "reviewedFiles": 45,
+    "uniqueLogs": 95,
+    "compiledArtifacts": 112,
+    "screenshots": 189
+  },
+  "productionDefault": "Node",
+  "soleProductionDatabaseWriter": "Node",
+  "bounds": {
+    "defaultModels": 2000,
+    "defaultBytes": 4194304,
+    "largeModels": 5000,
+    "largeBytes": 8388608,
+    "chunkModels": 128,
+    "maxChunks": 40,
+    "maxFrameBytes": 1048576
+  },
+  "realProviderRoonAccountRecording": "NOT_RUN",
+  "realUserMigration": "NOT_RUN",
+  "pdfDevice": "NOT_RUN",
+  "systemKeychain": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "installedAppReplacement": "NOT_RUN",
+  "remoteCI": "NOT_RUN",
+  "push": "NOT_RUN",
+  "publish": "NOT_RUN",
+  "mainMerge": "NOT_RUN",
+  "carryover": [
+    "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
+    "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged",
+    "008-first-Electron-cache-IO-trace-gap-unrepaired"
+  ],
+  "humanEntryAudit": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/human-acceptance-entry-audit.json",
+    "sha256": "3d941b6776eca4ca48cf1badb35d4ed03546b3b7f9051a6c5381e7d457d75994",
+    "state": "read-only-plan-not-implemented"
+  },
+  "implementationSourceGitBlobCount": 1104,
+  "implementationSourcesMatchFrozenAndTested": true,
+  "finalIdentityReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/FINAL_IDENTITY.json"
+}
