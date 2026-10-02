@@ -3455,7 +3455,7 @@
     "task": "RUST-004",
     "branch": "codex/rust-core-004-bounded-transfer",
     "baseCommit": "f3b398f7f872d5776ab8a65f3eb3ec5d7894c0af",
-    "state": "local-software-gates-passed-bounded-large-readonly-prototype",
+    "state": "local-complete-bounded-large-readonly-prototype",
     "ownerAuthorization": "continue-development-with-up-to-four-sol-6.1-high-subagents",
     "scope": "tasks/RUST-004-bounded-snapshot-transfer.md",
     "todo": "project/RUST_CORE_TODO.md",
@@ -3466,7 +3466,7 @@
     "optionalSnapshotProfile": "v3-5000",
     "snapshotModelLimit": 5000,
     "snapshotEncodedBytesLimit": 8388608,
-    "implementationCommit": null,
+    "implementationCommit": "1d3046b752c89c9aeed369906505d2c3978ddcc0",
     "reportCommit": null,
     "agentPolicy": {
       "primaryModel": "gpt-6.1-sol",
