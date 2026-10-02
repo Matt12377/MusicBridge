@@ -1,0 +1,656 @@
+{
+  "schemaVersion": 1,
+  "task": "RUST-007",
+  "state": "local-complete-trusted-host-control-mixed-reads",
+  "identity": {
+    "baseCommit": "61df0b33f087823920042f3bcebe4743961c9b74",
+    "branch": "codex/rust-core-007-host-refresh",
+    "worktree": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-007",
+    "implementationCommit": "3c8af2d7d1ce97850e1b23ba890eb5f56e2c6e33",
+    "reportCommit": null,
+    "reportCommitResolution": "git log -1 --format=%H -- reports/RUST-007_HOST_CONTROL_MIXED_READS.md",
+    "nextBranchBaseResolution": "final-RUST-007-report-HEAD",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd"
+  },
+  "agentPolicy": {
+    "primaryModel": "gpt-6.1-sol",
+    "primaryReasoningEffort": "max",
+    "subagentModel": "gpt-6.1-sol",
+    "subagentReasoningEffort": "high",
+    "maximumSubagents": 4,
+    "execution": "three-development-agents-then-independent-review-within-platform-slots",
+    "furtherDelegation": false,
+    "actualDevelopmentAndReviewAgents": 4
+  },
+  "behavior": {
+    "productionDefault": "Node",
+    "nodeDatabaseWriteOwnerUnchanged": true,
+    "trustedHostControllerMethods": [
+      "refresh",
+      "invalidate",
+      "getStatus"
+    ],
+    "synchronousFrozenDeliveryOnceBeforePrepare": true,
+    "publicRuntimeConfiguration": false,
+    "pureNodeReadonlyCommands": [
+      "collection.detail",
+      "collection.copy",
+      "collection.photo",
+      "referenceCatalog.sources",
+      "referenceCatalog.history",
+      "referenceCatalog.revision"
+    ],
+    "listVersionAndDtoValidationUnchanged": true,
+    "otherCommandsConservativelyInvalidate": true,
+    "writeReceiptAndUnknownPreserved": true,
+    "automaticRefreshOrWriteReplay": false,
+    "defaultSnapshotProfile": "v2-2000/4MiB",
+    "optionalSnapshotProfile": "v3-5000/8MiB",
+    "nativeSourceChanged": false
+  },
+  "validation": {
+    "state": "PASS",
+    "mixedNodeReadsPassed": 83,
+    "mixedWithExistingPassed": 119,
+    "hostControlsPassed": 20,
+    "hostWithExistingPassed": 38,
+    "actualHostPassed": 8,
+    "actualHostScenarios": 7,
+    "initialMixedDifferentialPages": 114,
+    "retainedActualRuntimePassed": 11,
+    "targetedCoreTypecheckExitCode": 0,
+    "historyRequestAlignedToActualRendererLimit": 1,
+    "rustGateExitCode": 0,
+    "rustGateSteps": 22,
+    "rustSourceStable": true,
+    "rustSourceFiles": 303,
+    "nativePassed": 43,
+    "javascriptGatePassed": 318,
+    "actualHostNodeNaturalExits": 6,
+    "actualHostRustNaturalExits": 11,
+    "actualHostForcedCleanups": 0,
+    "sourceFrozenForFinalGate": true,
+    "firstSoftwareUnitExitCode": 1,
+    "firstSoftwareCorePassed": 2280,
+    "firstSoftwareCoreFailed": 2,
+    "fixtureRepairTargetedPassed": 71,
+    "rustGateAfterFixtureRepair": "PASS",
+    "fullSoftwareAfterFixtureRepair": "PASS",
+    "softwareExitCode": 0,
+    "softwareSteps": 6,
+    "softwareSourceFiles": 1064,
+    "softwareSourceStable": true,
+    "unitPassed": 3775,
+    "unitFailed": 0,
+    "contractsPassed": 254,
+    "corePassed": 2282,
+    "desktopPassed": 1239,
+    "originalNativeConditionalSkips": 2,
+    "addedSkips": 0,
+    "typecheckExitCode": 0,
+    "buildExitCode": 0,
+    "controlPlaneExitCode": 0,
+    "boundariesExitCode": 0,
+    "cyclesExitCode": 0,
+    "cyclesFiles": 383,
+    "diffCheckExitCode": 0,
+    "stagedDiffCheckExitCode": 0,
+    "rustPassed": 43,
+    "javascriptPassed": 318,
+    "wholeFreezeFiles": 1241,
+    "wholeFreezeStable": true
+  },
+  "rustManifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/rust-gate/run-YdhVLS/manifest.json",
+    "sha256": "dc13246aa83f79813223237761d876abacf8a216589ef1049619f8a5b5a43549"
+  },
+  "softwareManifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/software-final-v2/software-manifest.json",
+    "sha256": "22b5a9cb823beaee7e21e34205ca9f7112b47c60e337a60d823e03091ce4659e"
+  },
+  "rustGateRunner": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/rust-gate-final-v2.log",
+    "sha256": "f18c24be8f6ebce0cff887f23b8e1be6c83ff7cd796b90720fc3ac084e103c7a"
+  },
+  "binary": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/cargo-target/release/musicbridge-rust-core",
+    "sha256": "03624a10a1c9314842907142fd0cfb3931dd68edcb88a5dff6ea645832124a14",
+    "platform": "darwin",
+    "architecture": "arm64"
+  },
+  "hostReport": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/rust-gate/run-YdhVLS/runtime-host-report.json",
+    "sha256": "00ae43d441b066cf7d4824aaac6dce6bab58173c38084e052808b5635a35c54e"
+  },
+  "retainedRuntimeReport": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/rust-gate/run-YdhVLS/runtime-lifecycle-report.json",
+    "sha256": "1baa1bd705ba9f9a3dceb969c5742b5c0dc01b43f83c5fe4728be614fed656a6"
+  },
+  "retainedCostReports": {
+    "costReport": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/rust-gate/run-YdhVLS/atomic-snapshot-cost.json",
+      "sha256": "b0eda846972202036f267a1149915e5a53f5f9b96bd21697d640794607f5ec26"
+    },
+    "refreshCostReport": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/rust-gate/run-YdhVLS/refresh-routing-cost.json",
+      "sha256": "69ee5cf3ed332649076edb3db4d5dae1437ed1717e877e0255094a154632d87f"
+    },
+    "largeCostReport": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/rust-gate/run-YdhVLS/large-snapshot-cost.json",
+      "sha256": "dc8022debaaa200504f461a3afd19a065b216c02ba4ea9c28da8f7745495386f"
+    },
+    "indexCostReport": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/rust-gate/run-YdhVLS/indexed-query-cost.json",
+      "sha256": "7025394cab9b76f06bd197cae9137309de2e25b28814fc49babc1ca85a7a7659"
+    }
+  },
+  "baselineCompletePathComparison": {
+    "state": "RUN",
+    "identity": {
+      "baseCommit": "d2676884a537bf3d232ed2cc957fef11b6d5cfeb",
+      "binary": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-004-6uwdvhva/cargo-target/release/musicbridge-rust-core",
+        "sha256": "1e2b5164591204772196f987009ae254bda2fcb807471f5ff917ec65b5c105ea"
+      },
+      "sourceModules": [
+        {
+          "name": "readonly-router.ts",
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-004/packages/bridge-core/src/rust-core/readonly-router.ts",
+          "sha256": "51e648e6920b08c2b25f263509c8868f408a27a6ed5ea2d547e2e9ebd02dd8c6"
+        },
+        {
+          "name": "readonly-sidecar.ts",
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-004/packages/bridge-core/src/rust-core/readonly-sidecar.ts",
+          "sha256": "bd826746375fc15945b397efec9ec1e4fe5156c846cc943aab3fb05c90e84d02"
+        },
+        {
+          "name": "collection-query.ts",
+          "path": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-004/packages/bridge-core/src/rust-core/collection-query.ts",
+          "sha256": "42a61da3f44484b64ad1f68ba7f1fdcf972df5d6d628cdd4865339a2f1e73a5b"
+        }
+      ]
+    }
+  },
+  "hostScenarioSummary": [
+    {
+      "scenario": "legacy-node-env-public-non-admission",
+      "models": 100,
+      "initialDifferentialPages": 0,
+      "postWriteRefreshInvalidateDifferentialPages": 0,
+      "pureNodeReadCounts": {},
+      "resources": {
+        "nodePrepare": 1,
+        "nodeBoot": 1,
+        "nodeClose": 1,
+        "nodeExit0": 1,
+        "rustSpawn": 0,
+        "rustCloseAck": 0,
+        "rustExit0": 0,
+        "coreExit": 0,
+        "forcedTestCleanup": false,
+        "childResources": []
+      },
+      "nodePublicDispatchCount": 1,
+      "rustDispatchAckCount": 0,
+      "harnessQuerySamples": 0,
+      "harnessQueryMedianMs": null,
+      "harnessRefreshRoundtripMs": null
+    },
+    {
+      "scenario": "mixed-read-write-trusted-refresh",
+      "models": 100,
+      "initialDifferentialPages": 38,
+      "postWriteRefreshInvalidateDifferentialPages": 4,
+      "pureNodeReadCounts": {
+        "referenceCatalog.sources": 1,
+        "referenceCatalog.history": 1,
+        "referenceCatalog.revision": 1,
+        "collection.detail": 1,
+        "collection.copy": 1,
+        "collection.photo": 1
+      },
+      "resources": {
+        "nodePrepare": 1,
+        "nodeBoot": 1,
+        "nodeClose": 1,
+        "nodeExit0": 1,
+        "rustSpawn": 3,
+        "rustCloseAck": 3,
+        "rustExit0": 3,
+        "coreExit": 0,
+        "forcedTestCleanup": false,
+        "childResources": [
+          {
+            "pid": 33679,
+            "prepareAcks": 1,
+            "appendAcks": 0,
+            "bootAcks": 1,
+            "closeAcks": 1,
+            "exitCode": 0,
+            "signal": null,
+            "spawnSequence": 14,
+            "bootSequence": 16,
+            "closeSequence": 156,
+            "exitSequence": 157
+          },
+          {
+            "pid": 33683,
+            "prepareAcks": 1,
+            "appendAcks": 0,
+            "bootAcks": 1,
+            "closeAcks": 1,
+            "exitCode": 0,
+            "signal": null,
+            "spawnSequence": 165,
+            "bootSequence": 167,
+            "closeSequence": 176,
+            "exitSequence": 177
+          },
+          {
+            "pid": 33684,
+            "prepareAcks": 1,
+            "appendAcks": 0,
+            "bootAcks": 1,
+            "closeAcks": 1,
+            "exitCode": 0,
+            "signal": null,
+            "spawnSequence": 182,
+            "bootSequence": 184,
+            "closeSequence": 191,
+            "exitSequence": 192
+          }
+        ]
+      },
+      "nodePublicDispatchCount": 9,
+      "rustDispatchAckCount": 40,
+      "harnessQuerySamples": 36,
+      "harnessQueryMedianMs": 12.074395999999979,
+      "harnessRefreshRoundtripMs": 15.94708300000002
+    },
+    {
+      "scenario": "mixed-read-write-trusted-refresh",
+      "models": 2000,
+      "initialDifferentialPages": 38,
+      "postWriteRefreshInvalidateDifferentialPages": 4,
+      "pureNodeReadCounts": {
+        "referenceCatalog.sources": 1,
+        "referenceCatalog.history": 1,
+        "referenceCatalog.revision": 1,
+        "collection.detail": 1,
+        "collection.copy": 1,
+        "collection.photo": 1
+      },
+      "resources": {
+        "nodePrepare": 1,
+        "nodeBoot": 1,
+        "nodeClose": 1,
+        "nodeExit0": 1,
+        "rustSpawn": 3,
+        "rustCloseAck": 3,
+        "rustExit0": 3,
+        "coreExit": 0,
+        "forcedTestCleanup": false,
+        "childResources": [
+          {
+            "pid": 33693,
+            "prepareAcks": 1,
+            "appendAcks": 0,
+            "bootAcks": 1,
+            "closeAcks": 1,
+            "exitCode": 0,
+            "signal": null,
+            "spawnSequence": 14,
+            "bootSequence": 16,
+            "closeSequence": 156,
+            "exitSequence": 157
+          },
+          {
+            "pid": 33695,
+            "prepareAcks": 1,
+            "appendAcks": 0,
+            "bootAcks": 1,
+            "closeAcks": 1,
+            "exitCode": 0,
+            "signal": null,
+            "spawnSequence": 165,
+            "bootSequence": 167,
+            "closeSequence": 176,
+            "exitSequence": 177
+          },
+          {
+            "pid": 33696,
+            "prepareAcks": 1,
+            "appendAcks": 0,
+            "bootAcks": 1,
+            "closeAcks": 1,
+            "exitCode": 0,
+            "signal": null,
+            "spawnSequence": 182,
+            "bootSequence": 184,
+            "closeSequence": 191,
+            "exitSequence": 192
+          }
+        ]
+      },
+      "nodePublicDispatchCount": 9,
+      "rustDispatchAckCount": 40,
+      "harnessQuerySamples": 36,
+      "harnessQueryMedianMs": 12.240979499999867,
+      "harnessRefreshRoundtripMs": 116.14429199999995
+    },
+    {
+      "scenario": "mixed-read-write-trusted-refresh",
+      "models": 5000,
+      "initialDifferentialPages": 38,
+      "postWriteRefreshInvalidateDifferentialPages": 4,
+      "pureNodeReadCounts": {
+        "referenceCatalog.sources": 1,
+        "referenceCatalog.history": 1,
+        "referenceCatalog.revision": 1,
+        "collection.detail": 1,
+        "collection.copy": 1,
+        "collection.photo": 1
+      },
+      "resources": {
+        "nodePrepare": 1,
+        "nodeBoot": 1,
+        "nodeClose": 1,
+        "nodeExit0": 1,
+        "rustSpawn": 3,
+        "rustCloseAck": 3,
+        "rustExit0": 3,
+        "coreExit": 0,
+        "forcedTestCleanup": false,
+        "childResources": [
+          {
+            "pid": 33708,
+            "prepareAcks": 1,
+            "appendAcks": 40,
+            "bootAcks": 1,
+            "closeAcks": 1,
+            "exitCode": 0,
+            "signal": null,
+            "spawnSequence": 14,
+            "bootSequence": 56,
+            "closeSequence": 196,
+            "exitSequence": 197
+          },
+          {
+            "pid": 33718,
+            "prepareAcks": 1,
+            "appendAcks": 40,
+            "bootAcks": 1,
+            "closeAcks": 1,
+            "exitCode": 0,
+            "signal": null,
+            "spawnSequence": 205,
+            "bootSequence": 247,
+            "closeSequence": 256,
+            "exitSequence": 257
+          },
+          {
+            "pid": 33728,
+            "prepareAcks": 1,
+            "appendAcks": 40,
+            "bootAcks": 1,
+            "closeAcks": 1,
+            "exitCode": 0,
+            "signal": null,
+            "spawnSequence": 262,
+            "bootSequence": 304,
+            "closeSequence": 311,
+            "exitSequence": 312
+          }
+        ]
+      },
+      "nodePublicDispatchCount": 9,
+      "rustDispatchAckCount": 40,
+      "harnessQuerySamples": 36,
+      "harnessQueryMedianMs": 17.67464599999994,
+      "harnessRefreshRoundtripMs": 340.0981249999995
+    },
+    {
+      "scenario": "real-inflight-refresh-shutdown-late-boot",
+      "models": 100,
+      "initialDifferentialPages": 0,
+      "postWriteRefreshInvalidateDifferentialPages": 0,
+      "pureNodeReadCounts": {},
+      "resources": {
+        "nodePrepare": 1,
+        "nodeBoot": 1,
+        "nodeClose": 1,
+        "nodeExit0": 1,
+        "rustSpawn": 2,
+        "rustCloseAck": 2,
+        "rustExit0": 2,
+        "coreExit": 0,
+        "forcedTestCleanup": false,
+        "childResources": [
+          {
+            "pid": 33730,
+            "prepareAcks": 1,
+            "appendAcks": 1,
+            "bootAcks": 1,
+            "closeAcks": 1,
+            "exitCode": 0,
+            "signal": null,
+            "spawnSequence": 11,
+            "bootSequence": 14,
+            "closeSequence": 20,
+            "exitSequence": 21
+          },
+          {
+            "pid": 33731,
+            "prepareAcks": 1,
+            "appendAcks": 1,
+            "bootAcks": 1,
+            "closeAcks": 1,
+            "exitCode": 0,
+            "signal": null,
+            "spawnSequence": 24,
+            "bootSequence": 34,
+            "closeSequence": 35,
+            "exitSequence": 36
+          }
+        ]
+      },
+      "nodePublicDispatchCount": 0,
+      "rustDispatchAckCount": 0,
+      "harnessQuerySamples": 0,
+      "harnessQueryMedianMs": null,
+      "harnessRefreshRoundtripMs": null
+    },
+    {
+      "scenario": "host-callback-throw",
+      "models": null,
+      "initialDifferentialPages": 0,
+      "postWriteRefreshInvalidateDifferentialPages": 0,
+      "pureNodeReadCounts": {},
+      "resources": {
+        "nodePrepare": 0,
+        "nodeBoot": 0,
+        "nodeClose": 1,
+        "nodeExit0": 1,
+        "rustSpawn": 0,
+        "rustCloseAck": 0,
+        "rustExit0": 0,
+        "coreExit": 1,
+        "forcedTestCleanup": false,
+        "childResources": []
+      },
+      "nodePublicDispatchCount": 0,
+      "rustDispatchAckCount": 0,
+      "harnessQuerySamples": 0,
+      "harnessQueryMedianMs": null,
+      "harnessRefreshRoundtripMs": null
+    },
+    {
+      "scenario": "parent-payload-non-admission",
+      "models": null,
+      "initialDifferentialPages": 0,
+      "postWriteRefreshInvalidateDifferentialPages": 0,
+      "pureNodeReadCounts": {},
+      "resources": {
+        "nodeSpawn": 0,
+        "rustSpawn": 0,
+        "coreExit": 1,
+        "forcedTestCleanup": false
+      },
+      "nodePublicDispatchCount": 0,
+      "rustDispatchAckCount": 0,
+      "harnessQuerySamples": 0,
+      "harnessQueryMedianMs": null,
+      "harnessRefreshRoundtripMs": null
+    }
+  ],
+  "originalSkipNames": [
+    "实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
+    "Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
+  ],
+  "freeze": {
+    "first": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/FREEZE_IDENTITY.json",
+      "sha256": "57e86cf12c7f8b6972dc0242ad7df3c1446a5990f0dd17d575e3e959ff2d94e5"
+    },
+    "final": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/FREEZE_IDENTITY_V2.json",
+      "sha256": "5356de1b1c6f596d4db087f5f761a29092f5e1bb8b1b05c2ce0b00c72d135849"
+    },
+    "wholeFreezeFiles": 1241,
+    "wholeFreezeStable": true,
+    "postGateChangesOnlyProjectMetadataAndReports": true
+  },
+  "review": {
+    "rounds": 2,
+    "remainingP1": 0,
+    "remainingP2": 0,
+    "first": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/review-round1.json",
+      "sha256": "b9239118bb996ac1f5aba9890454c16a16494b3fc625a779c9e809c7741f8546"
+    },
+    "final": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/review-final.json",
+      "sha256": "cf27fa10791260fc031b91443bf4167e52561422af3bd136f5b3d48efcd0128c"
+    },
+    "reviewedHead": "61df0b33f087823920042f3bcebe4743961c9b74",
+    "laterProjectMetadataAndReportIdentityCheckedBy": "primary"
+  },
+  "failureLedger": {
+    "allAttempts": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/VALIDATION_LEDGER.json",
+      "sha256": "da3f096e44b23a110c849583f6bfb453c2b1eea029a8d2e97f1689906a30f217"
+    },
+    "firstRustGate": {
+      "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/rust-gate/run-DHbdCq/manifest.json",
+      "sha256": "f82b8ef85622b0de17b5b3ade667e07e17b840cb471f9ab658cf82acf96cb239",
+      "exitCode": 0,
+      "steps": 22,
+      "sources": 303,
+      "nativePassed": 43,
+      "javascriptPassed": 318,
+      "scope": "before-test-fixture-repair"
+    },
+    "firstSoftwareFailure": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/software-final/software-failure.json",
+      "sha256": "111d2f1ee0ec6ad8a2a24a1471f55b9405167daf36f624eb06b2dc8b9a7b966d"
+    },
+    "firstSoftwareRuns": [
+      {
+        "name": "typecheck",
+        "argv": [
+          "corepack",
+          "pnpm@10.17.1",
+          "run",
+          "typecheck"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 24.879480791998503,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/software-final/software-typecheck.log",
+        "sha256": "8313fee051ce5478084b36b58f1fc7a28ec0b0504de78cd10d460a4b5d30b944"
+      },
+      {
+        "name": "unit",
+        "argv": [
+          "corepack",
+          "pnpm@10.17.1",
+          "run",
+          "test"
+        ],
+        "exitCode": 1,
+        "durationSeconds": 203.8860641249994,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/software-final/software-unit.log",
+        "sha256": "0c96478ffad19a5aed7742a3de9ed8701cc765999c2fd055b97111ac16666700"
+      }
+    ],
+    "firstSoftwareCounts": {
+      "contractsPassed": 254,
+      "corePassed": 2280,
+      "coreFailed": 2,
+      "oldNativeSkips": 2,
+      "desktopRun": false
+    },
+    "failedTestNames": [
+      "工厂尚未返回时prepare失败也登记候选，延迟强杀退出不能再启动或伪称关闭",
+      "读取期限失败后，迟到数据不能恢复端点或自动重放"
+    ],
+    "repair": {
+      "files": [
+        "packages/bridge-core/test/rust-readonly-router.test.ts",
+        "packages/bridge-core/test/rust-sidecar-client.test.ts"
+      ],
+      "productionBudgetsChanged": false,
+      "assertionsPreservedAndStrengthened": true,
+      "addedSkips": 0,
+      "targetedPassed": 71,
+      "targetedLog": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/timing-fixture-fix-targeted.log",
+        "sha256": "1e1ea629358cd3f24a0bc5bf24eacec5858c86c51cd4b4659b687629d355421d"
+      },
+      "finalBothGatesReexecutedAfterRepair": true
+    },
+    "preparationFailuresNotClaimedAsBehavioralRed": [
+      "host-controls-red.log",
+      "mixed-node-reads-red.log"
+    ],
+    "completeHostTargetedTap": "host-controls-green-complete.log",
+    "earlierHostStdoutTapCaptureLimit": "host-controls-green.log 的早期33 footer不是完整38项计数，完整重验与最终Gate为准。"
+  },
+  "timingBoundary": "5ms 观察轮询与合成 SQLite oracle 均计入成本，刷新含自然排空/导出/上传/校验；不是精确 Core 性能，也不推导真实媒体库性能。",
+  "acceptance": {
+    "realProvider": "NOT_RUN",
+    "realRoon": "NOT_RUN",
+    "realPlaybackListening": "NOT_RUN",
+    "realRecording": "NOT_RUN",
+    "realUserMigration": "NOT_RUN",
+    "electronUtilityProcess": "NOT_RUN",
+    "completeMainBackgroundInitialization": "NOT_RUN",
+    "packagingSigning": "NOT_RUN",
+    "installedAppReplacement": "NOT_RUN",
+    "realSystemKeychain": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "push": "NOT_RUN",
+    "publish": "NOT_RUN",
+    "mainMerge": "NOT_RUN"
+  },
+  "carryover": [
+    "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
+    "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
+  ],
+  "nextHostBoundaryAudit": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/NEXT_HOST_BOUNDARY_AUDIT.json",
+    "sha256": "b9ec59cd1b07c6cb197bcac715de9b363a41d2dcae63b6cfca1002cc51dae3f6"
+  },
+  "remoteBranchStart": {
+    "task": "RUST-007",
+    "exitCode": 2,
+    "matchingRefs": [],
+    "pushed": false
+  },
+  "remoteBranchSnapshotBeforeReportCommit": {
+    "exitCode": 2,
+    "matchingRefs": [],
+    "pushed": false
+  },
+  "finalIdentityReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/FINAL_IDENTITY.json"
+}

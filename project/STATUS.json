@@ -3820,7 +3820,7 @@
     "task": "RUST-007",
     "branch": "codex/rust-core-007-host-refresh",
     "baseCommit": "61df0b33f087823920042f3bcebe4743961c9b74",
-    "state": "local-validation-complete-report-pending",
+    "state": "local-complete-trusted-host-control-mixed-reads",
     "scope": "tasks/RUST-007-host-control-mixed-reads.md",
     "todo": "project/RUST_CORE_TODO.md",
     "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd",
@@ -3963,6 +3963,17 @@
     "mainBackgroundInitializationAcceptance": "NOT_RUN",
     "nextHostBoundaryAudit": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-007-iufy2wwd/NEXT_HOST_BOUNDARY_AUDIT.json",
     "initialMixedDifferentialPages": 114,
-    "postWriteRefreshInvalidateDifferentialPages": 12
+    "postWriteRefreshInvalidateDifferentialPages": 12,
+    "implementationCommit": "3c8af2d7d1ce97850e1b23ba890eb5f56e2c6e33",
+    "reportCommit": null,
+    "reportCommitResolution": "git log -1 --format=%H -- reports/RUST-007_HOST_CONTROL_MIXED_READS.md",
+    "report": "reports/RUST-007_HOST_CONTROL_MIXED_READS.md",
+    "evidenceReport": "reports/RUST-007_EVIDENCE.json",
+    "nextBranchBaseResolution": "final-RUST-007-report-HEAD",
+    "nextTaskCandidate": {
+      "task": "RUST-008",
+      "state": "NOT_STARTED",
+      "scope": "审计并受控验证完整 Main/outbox/后台初始化请求与可选只读路由的生命周期，默认 Node 与生产唯一写入者保持。"
+    }
   }
 }
