@@ -1,0 +1,406 @@
+{
+  "schemaVersion": 1,
+  "task": "RUST-008",
+  "state": "LOCAL_IMPLEMENTATION_GATES_REVIEW_COMPLETE",
+  "baseSha": "50d2e8573dfdaea4cd97fee09ac1c85effe3f2da",
+  "branch": "codex/rust-core-008-main-read-boundary",
+  "implementationCommit": "90823099d2f49ca6bbc7d1190c9a93767014d47f",
+  "reportCommit": null,
+  "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-008_MAIN_READ_BOUNDARY.md",
+  "nextBranchBaseline": "最终报告HEAD，由外置FINAL_IDENTITY.json解析",
+  "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6",
+  "productionDefault": "Node",
+  "nodeOnlyDatabaseWriteOwner": true,
+  "publicRustConfiguration": false,
+  "trustedOnlyReadonlyCommands": [
+    "collection.detail",
+    "collection.copy",
+    "collection.photo",
+    "referenceCatalog.sources",
+    "referenceCatalog.history",
+    "referenceCatalog.revision",
+    "commandOutbox.context",
+    "collectionProgress.modelLengths"
+  ],
+  "conservativeCurrentCommand": "collectionProgress.current",
+  "conditionalClaimWriteDispatches": 1,
+  "conditionalEmptyClaimNotPureRead": true,
+  "readCompletionBarrier": true,
+  "sourceFreeze": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/FREEZE_IDENTITY_V2.json",
+    "sha256": "d52b17f618f8bf730093779c800243cdc3ad8eb4555e545479f2cb11dc4ec276"
+  },
+  "implementationGitIdentity": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/IMPLEMENTATION_COMMIT.json",
+    "sha256": "71d3f76e960583b2a6ba5fd303674eb90e7338dd14c39218e6e81e486639b88c"
+  },
+  "rustGate": {
+    "task": "RUST-008",
+    "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/rust-gate/run-qvtn4O/manifest.json",
+    "sha256": "bb10e62e1439661bda4ac95c983a6cedade538b89b18cfa7a7ade17e147da4fa",
+    "steps": 27,
+    "sources": 569,
+    "nativePassed": 43,
+    "javascriptPassed": 406,
+    "counts": {
+      "ts-client": 35,
+      "node-atomic-snapshot": 9,
+      "node-snapshot-version": 11,
+      "ts-refresh-router": 36,
+      "node-large-snapshot": 13,
+      "ts-large-snapshot": 21,
+      "ts-query-index": 6,
+      "ts-core-owner-lifecycle": 23,
+      "ts-core-utility-options": 18,
+      "ts-rust-integration": 24,
+      "core-runtime-integration": 11,
+      "ts-node-mixed-reads": 83,
+      "ts-core-host-controls": 20,
+      "core-host-integration": 8,
+      "ts-main-read-boundary": 67,
+      "desktop-core-host-adapter": 11,
+      "main-background-components": 5,
+      "main-evidence-acceptance": 5
+    },
+    "artifacts": {
+      "binary": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/cargo-target/release/musicbridge-rust-core",
+        "sha256": "03624a10a1c9314842907142fd0cfb3931dd68edcb88a5dff6ea645832124a14",
+        "platform": "darwin",
+        "architecture": "arm64"
+      },
+      "costReport": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/rust-gate/run-qvtn4O/atomic-snapshot-cost.json",
+        "sha256": "4eecb807dc8aaa5e7dc9e81254c1560a23f41ad7d9b9d2e7d3254b8bef326b11"
+      },
+      "refreshCostReport": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/rust-gate/run-qvtn4O/refresh-routing-cost.json",
+        "sha256": "1a7b5f4bd5ceeb4ee9ae7001db591a777e6ea752f4327efab118dc00f71b1e09"
+      },
+      "largeCostReport": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/rust-gate/run-qvtn4O/large-snapshot-cost.json",
+        "sha256": "c98b732d1e0c7c87190bda6462b6960b83442e7ea8d0ad0a689a7c06a1a2c197"
+      },
+      "indexCostReport": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/rust-gate/run-qvtn4O/indexed-query-cost.json",
+        "sha256": "e75930022b7ace5ccc0d70aa763d5ce9ed561320960bca8b8d405139d7cee02d"
+      },
+      "runtimeReport": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/rust-gate/run-qvtn4O/runtime-lifecycle-report.json",
+        "sha256": "c314ce46b52c665c974a39d9b9cd5d7237998473592f70a3437977d429cd69fa"
+      },
+      "hostReport": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/rust-gate/run-qvtn4O/runtime-host-report.json",
+        "sha256": "f139cd7202170dacd1654cd14f6a1091c66a16c71d88762345f8aa91314aae66"
+      },
+      "mainComponentReport": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/rust-gate/run-qvtn4O/main-component-report.json",
+        "sha256": "8c03bed7807fd3f430ce0f897d3baa0b5d7a7327c35010e38b6a94043ec2b300"
+      }
+    },
+    "wholeFreezeFiles": 1084,
+    "wholeFreezeStable": true,
+    "freezeSha256": "d52b17f618f8bf730093779c800243cdc3ad8eb4555e545479f2cb11dc4ec276"
+  },
+  "softwareGate": {
+    "task": "RUST-008",
+    "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/software-final-v2/software-manifest.json",
+    "sha256": "ccb275605310b3cc177280d6b61fc26d9584b22a364b15d7446c98f2035ab4b0",
+    "steps": 6,
+    "sourceStable": true,
+    "sourceFiles": 1084,
+    "passed": 3853,
+    "packageCounts": {
+      "contracts": 254,
+      "bridge-core": 2349,
+      "desktop": 1250
+    },
+    "originalSkips": [
+      "实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
+      "Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
+    ],
+    "cyclesFiles": 384,
+    "wholeFreezeFiles": 1084,
+    "wholeFreezeStable": true
+  },
+  "isolatedMainEvidence": {
+    "task": "RUST-008",
+    "sourceAndArtifactIdentityStable": true,
+    "artifactManifest": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/rust-gate/run-qvtn4O/isolated-host/artifact-manifest.json",
+      "sha256": "b2b2b30970a0c74c0cdcd2e31f23c8af1d9055c299c134bf869c36543487f40e"
+    },
+    "binaryPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/cargo-target/release/musicbridge-rust-core",
+    "binarySha256": "03624a10a1c9314842907142fd0cfb3931dd68edcb88a5dff6ea645832124a14",
+    "records": [
+      {
+        "name": "components",
+        "reportPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/rust-gate/run-qvtn4O/main-component-report.json",
+        "sha256": "8c03bed7807fd3f430ce0f897d3baa0b5d7a7327c35010e38b6a94043ec2b300",
+        "layer": "controlled-production-Main-components",
+        "scenes": 4,
+        "inputFiles": 875,
+        "artifacts": 36,
+        "scenarios": [
+          {
+            "scenario": "controlled-Main-components-background-outbox-refresh",
+            "models": 100,
+            "differentialPages": 34,
+            "nodeHostPid": 86741,
+            "nodeThreadId": 4,
+            "nodeVersion": "v22.23.2",
+            "rustChildren": 2,
+            "forcedCleanup": false,
+            "dispatchCounts": {
+              "nodeReadonly": {
+                "collection.detail": 0,
+                "collection.copy": 0,
+                "collection.photo": 0,
+                "referenceCatalog.sources": 0,
+                "referenceCatalog.history": 0,
+                "referenceCatalog.revision": 0,
+                "commandOutbox.context": 5,
+                "collectionProgress.modelLengths": 0
+              },
+              "nodeList": 1,
+              "rustListAcks": 34,
+              "publicListRequests": 35,
+              "publicNullClaimReplies": 5,
+              "oracleCounting": "私有raw Node SQLite参照独立调用，不混入被测公开分派计数"
+            }
+          },
+          {
+            "scenario": "controlled-Main-components-background-outbox-refresh",
+            "models": 2000,
+            "differentialPages": 34,
+            "nodeHostPid": 86741,
+            "nodeThreadId": 6,
+            "nodeVersion": "v22.23.2",
+            "rustChildren": 2,
+            "forcedCleanup": false,
+            "dispatchCounts": {
+              "nodeReadonly": {
+                "collection.detail": 0,
+                "collection.copy": 0,
+                "collection.photo": 0,
+                "referenceCatalog.sources": 0,
+                "referenceCatalog.history": 0,
+                "referenceCatalog.revision": 0,
+                "commandOutbox.context": 5,
+                "collectionProgress.modelLengths": 0
+              },
+              "nodeList": 1,
+              "rustListAcks": 34,
+              "publicListRequests": 35,
+              "publicNullClaimReplies": 5,
+              "oracleCounting": "私有raw Node SQLite参照独立调用，不混入被测公开分派计数"
+            }
+          },
+          {
+            "scenario": "controlled-Main-components-background-outbox-refresh",
+            "models": 5000,
+            "differentialPages": 34,
+            "nodeHostPid": 86741,
+            "nodeThreadId": 8,
+            "nodeVersion": "v22.23.2",
+            "rustChildren": 2,
+            "forcedCleanup": false,
+            "dispatchCounts": {
+              "nodeReadonly": {
+                "collection.detail": 0,
+                "collection.copy": 0,
+                "collection.photo": 0,
+                "referenceCatalog.sources": 0,
+                "referenceCatalog.history": 0,
+                "referenceCatalog.revision": 0,
+                "commandOutbox.context": 5,
+                "collectionProgress.modelLengths": 0
+              },
+              "nodeList": 1,
+              "rustListAcks": 34,
+              "publicListRequests": 35,
+              "publicNullClaimReplies": 5,
+              "oracleCounting": "私有raw Node SQLite参照独立调用，不混入被测公开分派计数"
+            }
+          },
+          {
+            "scenario": "real-print-lease-write",
+            "nodeHostPid": 86741,
+            "nodeThreadId": 10,
+            "nodeVersion": "v22.23.2",
+            "rustChildren": 1,
+            "forcedCleanup": false,
+            "dispatchCounts": {
+              "nodeReadonly": {
+                "collection.detail": 0,
+                "collection.copy": 0,
+                "collection.photo": 0,
+                "referenceCatalog.sources": 0,
+                "referenceCatalog.history": 0,
+                "referenceCatalog.revision": 0,
+                "commandOutbox.context": 1,
+                "collectionProgress.modelLengths": 0
+              },
+              "nodeList": 0,
+              "rustListAcks": 0,
+              "publicListRequests": 0,
+              "publicNullClaimReplies": 0,
+              "oracleCounting": "私有raw Node SQLite参照独立调用，不混入被测公开分派计数"
+            }
+          }
+        ]
+      },
+      {
+        "name": "electron",
+        "reportPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/rust-gate/run-qvtn4O/isolated-host/electron-report.json",
+        "sha256": "25680d796b79047b559c8a9a1d94f2b74f7e44bbc37a69baba28597313d2ad18",
+        "layer": "real-Electron-production-Main",
+        "scenes": 2,
+        "inputFiles": 875,
+        "artifacts": 36,
+        "scenarios": [
+          {
+            "scenario": "default-node-real-Main",
+            "models": 100,
+            "nodeHostPid": 87276,
+            "nodeThreadId": 1,
+            "nodeVersion": "v24.18.1",
+            "rustChildren": 0,
+            "forcedCleanup": false,
+            "dispatchCounts": {
+              "nodeReadonly": {
+                "collection.detail": 0,
+                "collection.copy": 0,
+                "collection.photo": 0,
+                "referenceCatalog.sources": 0,
+                "referenceCatalog.history": 0,
+                "referenceCatalog.revision": 0,
+                "commandOutbox.context": 7,
+                "collectionProgress.modelLengths": 0
+              },
+              "nodeList": 1,
+              "rustListAcks": 0,
+              "publicListRequests": 1,
+              "publicNullClaimReplies": 2,
+              "oracleCounting": "私有raw Node SQLite参照独立调用，不混入被测公开分派计数"
+            },
+            "runtimeVersions": {
+              "node": "24.18.1",
+              "electron": "43.4.0",
+              "chrome": "150.0.7871.224"
+            },
+            "electronPid": 87272
+          },
+          {
+            "scenario": "explicit-rust-real-Main-outbox-refresh",
+            "models": 100,
+            "differentialPages": 3,
+            "nodeHostPid": 87292,
+            "nodeThreadId": 1,
+            "nodeVersion": "v24.18.1",
+            "rustChildren": 2,
+            "forcedCleanup": false,
+            "dispatchCounts": {
+              "nodeReadonly": {
+                "collection.detail": 0,
+                "collection.copy": 0,
+                "collection.photo": 0,
+                "referenceCatalog.sources": 0,
+                "referenceCatalog.history": 0,
+                "referenceCatalog.revision": 0,
+                "commandOutbox.context": 8,
+                "collectionProgress.modelLengths": 0
+              },
+              "nodeList": 1,
+              "rustListAcks": 2,
+              "publicListRequests": 3,
+              "publicNullClaimReplies": 4,
+              "oracleCounting": "私有raw Node SQLite参照独立调用，不混入被测公开分派计数"
+            },
+            "runtimeVersions": {
+              "node": "24.18.1",
+              "electron": "43.4.0",
+              "chrome": "150.0.7871.224"
+            },
+            "electronPid": 87288
+          }
+        ]
+      }
+    ]
+  },
+  "review": {
+    "rounds": 2,
+    "remainingP1": 0,
+    "remainingP2": 0,
+    "round1": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/review-round1.json",
+      "sha256": "2c51c2f7a39c6e5ba68abcd8f7d786f370413f54cf63cc45e5e4b64f19eb164a"
+    },
+    "final": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/review-final.json",
+      "sha256": "8d3742edb799fc98a6a7a2f86cab647579e3748bf3421c4fcf530b82fc51b4a2"
+    },
+    "finalEvidence": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/review-final-evidence.json",
+      "sha256": "28de69a6ede235ca2162d5731c3f382063cdea81d62a5782844fc09924c4803a"
+    }
+  },
+  "defaultElectronStartup": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/default-startup-development.json",
+      "sha256": "c5a78f4bb5e26095b6538d62d3642d05ab30c0be0341d8a4dc158d153c9f637e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/default-startup-production.json",
+      "sha256": "e5e7d048db6e9bd42cb64c0b068650ae8b01fce04f4b11a0d8a08563c77a0d69"
+    }
+  ],
+  "finalElectron": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/electron-final-v2.json",
+    "sha256": "ffaccbd36d4f670d6c4d6e82f9ca67e3813e1c77554013fbadf69eef5dd4969b"
+  },
+  "validationLedger": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/VALIDATION_LEDGER.json",
+    "sha256": "bb369b361152f73be578694f1b3d05b2be0c4b3236ee0d2b5b1d8d5a5ee1870d"
+  },
+  "typecheckRepair": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/TYPECHECK_ARRAY_LIB_FIX.json",
+    "sha256": "f13488142449c17df709294e6311a819e963cd60ec2a32f68f78ef89242eb06b"
+  },
+  "dependencyBootstrapDeviation": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6/electron-cache-deviation.json",
+    "sha256": "f29845f8979ea5a72129a0bc14e795813065af6a11fb6a78b3d6ef0667688dbc"
+  },
+  "cacheComplianceBoundary": "首次隐式安装没有本机cache前置快照/IO轨迹；不能宣称不存在本机临时写；后续显式exe/禁止下载/固定外置cache。",
+  "runtimeVersions": {
+    "cliNode": "22.23.2",
+    "electron": "43.4.0",
+    "embeddedElectronNode": "24.18.1",
+    "rust": "1.95.0",
+    "pnpm": "10.17.1"
+  },
+  "acceptance": {
+    "fullProductCollectionUI": "NOT_RUN",
+    "realAccount": "NOT_RUN",
+    "realProvider": "NOT_RUN",
+    "realRoon": "NOT_RUN",
+    "realAudio": "NOT_RUN",
+    "realRecording": "NOT_RUN",
+    "realPDFDevice": "NOT_RUN",
+    "realUserDatabase": "NOT_RUN",
+    "userMigration": "NOT_RUN",
+    "systemKeychain": "NOT_RUN",
+    "signingDistribution": "NOT_RUN",
+    "remoteCI": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "push": "NOT_RUN",
+    "publish": "NOT_RUN",
+    "mainMerge": "NOT_RUN"
+  },
+  "installedApplication": "NOT_CHANGED",
+  "carryover": [
+    "MBR-004-real-Roon-root-cause-and-recovery-unconfirmed",
+    "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
+  ],
+  "nextScope": "从最终报告HEAD审计实际收藏初始化/current副作用，再冻结可选只读UI；持久化/真实启用/超过5000-8MiB另列。"
+}

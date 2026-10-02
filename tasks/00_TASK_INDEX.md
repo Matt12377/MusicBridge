@@ -136,4 +136,4 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 
 - [RUST-007](RUST-007-host-control-mixed-reads.md)：从 RUST-006 最终报告 `61df0b3` 接续，可信主机同步 narrow 控制能力、六条已审定 Node 纯读取保留 Rust；真实初始化/写后显式刷新和在途关闭单列验证，默认 Node。
 
-- [RUST-008](RUST-008-main-read-boundary.md)：从 RUST-007 最终报告 `50d2e85` 接续，Main/outbox 纯读与有条件打印领取完成屏障、共享桌面 adapter 和隔离真实 Electron Gate；生产默认 Node；本地 Gate 已通过，最终独审/报告收口中。
+- [RUST-008](RUST-008-main-read-boundary.md)：从 RUST-007 最终报告 `50d2e85` 接续，Main/outbox 纯读与有条件打印领取完成屏障、共享桌面 adapter 和隔离真实 Electron Gate；生产默认 Node；本地实现、27＋6 步 Gate、实际 Electron 与两轮独审完成，见 [结果报告](../reports/RUST-008_MAIN_READ_BOUNDARY.md)。

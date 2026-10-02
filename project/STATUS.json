@@ -3202,7 +3202,7 @@
   },
   "currentRustCoreTask": {
     "task": "RUST-008",
-    "state": "implementation-and-gates-complete-report-pending",
+    "state": "local-complete-validated-reviewed-unpushed",
     "scope": "tasks/RUST-008-main-read-boundary.md",
     "branch": "codex/rust-core-008-main-read-boundary"
   },
@@ -3982,7 +3982,7 @@
     "task": "RUST-008",
     "branch": "codex/rust-core-008-main-read-boundary",
     "baseCommit": "50d2e8573dfdaea4cd97fee09ac1c85effe3f2da",
-    "state": "implementation-validated-final-report-pending",
+    "state": "local-complete-validated-reviewed-unpushed",
     "scope": "tasks/RUST-008-main-read-boundary.md",
     "todo": "project/RUST_CORE_TODO.md",
     "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-008-_or91fh6",
@@ -4095,9 +4095,9 @@
       "Gate-B-P4-P5-real-device-and-Owner-evidence-unchanged"
     ],
     "progress": {
-      "readonlyRouter": "frozen-186-targeted-passed",
-      "desktopAdapter": "implemented-11-targeted-passed",
-      "isolatedElectron": "frozen-3-actual-Electron-and-5-controlled-components-passed",
+      "readonlyRouter": "complete-final-gate-pass",
+      "desktopAdapter": "complete-final-default-startup-and-software-pass",
+      "isolatedElectron": "complete-final-v2-three-tests-pass",
       "independentReview": "two-rounds-complete-zero-P1-P2",
       "fullGate": "PASS-final-v2-all-six-software-27-rust-and-three-electron"
     },
@@ -4125,6 +4125,12 @@
       "electron": "43.4.0",
       "embeddedElectronNode": "24.18.1",
       "rust": "1.95.0"
-    }
+    },
+    "implementationCommit": "90823099d2f49ca6bbc7d1190c9a93767014d47f",
+    "report": "reports/RUST-008_MAIN_READ_BOUNDARY.md",
+    "evidence": "reports/RUST-008_EVIDENCE.json",
+    "reportCommit": null,
+    "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-008_MAIN_READ_BOUNDARY.md",
+    "nextBranchBaseline": "final-report-head"
   }
 }
