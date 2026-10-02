@@ -1,6 +1,7 @@
 import { assertLibraryReadCurrent, currentLibraryRead, libraryReadCancelled, remainingLibraryReadMs, waitLibraryRead } from '../shared/library-read-lifetime.js';
 import { randomUUID } from 'node:crypto';
 import { SnapshotReadFlights } from './read-snapshot-cache.js';
+import { assertNeteaseRequestCurrent, MAX_NETEASE_REQUEST_TIMEOUT_MS, NeteaseRequestScheduler, waitNeteaseRequest } from './request-scheduler.js';
 import { traceProviderApi } from '../diagnostics/performance-instrumentation.js';
 import { createRequire } from 'node:module';
 import { BridgeError } from '../shared/errors.js';
@@ -47,6 +48,7 @@ import type {
   TrackMetadata,
   PublicAccountProfile,
   CredentialVerificationStatus,
+  NeteaseRequestOptions,
 } from './types.js';
 import {
   parseLoginStatusResponse,
@@ -107,6 +109,8 @@ interface NeteaseClientOptions {
   snapshotReadMaximumFlights?: number;
   snapshotReadMaximumSubscribers?: number;
   snapshotReadTimeoutMs?: number;
+  requestMaximumQueued?: number;
+  requestTimeoutMs?: number;
 }
 
 function boundedCacheOption(value: number | undefined, maximum: number): number {
@@ -149,8 +153,8 @@ function localDayKey(now = Date.now()): string {
 }
 
 interface NeteaseApiModule {
-  song_detail(params: Record<string, unknown>): ApiResponse;
-  song_url_v1(params: Record<string, unknown>): ApiResponse;
+  song_detail(params: Record<string, unknown>, options?: NeteaseRequestOptions): ApiResponse;
+  song_url_v1(params: Record<string, unknown>, options?: NeteaseRequestOptions): ApiResponse;
   login_qr_key(params: Record<string, unknown>): ApiResponse;
   login_qr_create(params: Record<string, unknown>): ApiResponse;
   login_qr_check(params: Record<string, unknown>): ApiResponse;
@@ -168,20 +172,28 @@ interface NeteaseApiModule {
   user_playlist?(params: Record<string, unknown>): ApiResponse;
   playlist_detail?(params: Record<string, unknown>): ApiResponse;
   playlist_track_all?(params: Record<string, unknown>): ApiResponse;
-  lyric_new?(params: Record<string, unknown>): ApiResponse;
+  lyric_new?(params: Record<string, unknown>, options?: NeteaseRequestOptions): ApiResponse;
 }
 
 function loadApi(): NeteaseApiModule {
   enforceNeteaseSafetyEnvironment(process.env);
   const require = createRequire(import.meta.url);
-  return require('@neteasecloudmusicapienhanced/api') as NeteaseApiModule;
+  const provider = require('@neteasecloudmusicapienhanced/api') as NeteaseApiModule;
+  const wrapped = new Map<PropertyKey, unknown>();
+  // 固定SDK仅支持query.timeout；无signal透传入口，不能把本地取消冒充物理abort。
+  return new Proxy(provider, { get(target, property, receiver) {
+    const original = Reflect.get(target, property, receiver) as unknown;
+    if (typeof original !== 'function') return original;
+    if (!wrapped.has(property)) wrapped.set(property, (params: Record<string, unknown>) => original.call(target, { timeout: MAX_NETEASE_REQUEST_TIMEOUT_MS, ...params }));
+    return wrapped.get(property);
+  } });
 }
 
 export class NeteaseClient implements NeteasePort, QrLoginProvider {
   private cookie: string | undefined;
   private accountGeneration = 0;
   private outstandingReads = 0;
-  private outstandingOtherRequests = 0;
+  private readonly requestScheduler: NeteaseRequestScheduler;
   private readonly api: NeteaseApiModule;
   private readonly prepareApiRuntime: () => Promise<void>;
   private readonly metadataCache = new Map<string, CachedTrackMetadata>();
@@ -211,22 +223,32 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     options: NeteaseClientOptions = {},
   ) {
     this.cookie = cookie?.trim() || undefined;
+    this.requestScheduler = new NeteaseRequestScheduler({
+      ...(options.requestMaximumQueued === undefined ? {} : { maximumQueued: options.requestMaximumQueued }),
+      ...(options.requestTimeoutMs === undefined ? {} : { timeoutMs: options.requestTimeoutMs }),
+    });
     const providerApi = api ?? loadApi();
     const traced = process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? traceProviderApi(providerApi) : providerApi;
-    const readMethods = new Set(['search', 'artists', 'artist_detail', 'album', 'likelist', 'song_like_check', 'user_account', 'recommend_songs', 'user_playlist', 'playlist_detail', 'playlist_track_all', 'song_detail', 'lyric_new']);
+    const readMethods = new Set(['search', 'artists', 'artist_detail', 'album', 'likelist', 'song_like_check', 'user_account', 'recommend_songs', 'user_playlist', 'playlist_detail', 'playlist_track_all', 'song_detail', 'lyric_new', 'song_url_v1']);
+    const playbackMethods = new Set(['song_detail', 'lyric_new', 'song_url_v1']);
     const wrapped = new Map<PropertyKey, unknown>();
     this.api = new Proxy(traced, { get: (target, property, receiver) => {
       const original = Reflect.get(target, property, receiver) as unknown;
       if (typeof original !== 'function' || !readMethods.has(String(property))) return original;
       if (wrapped.has(property)) return wrapped.get(property);
-      const invoke = (params: Record<string, unknown>) => {
+      const invoke = (params: Record<string, unknown>, requestOptions?: NeteaseRequestOptions) => {
         assertLibraryReadCurrent();
         if (typeof params.cookie === 'string' && params.cookie !== this.cookie) throw libraryReadCancelled();
         const read = currentLibraryRead();
-        // 媒体库读取不能耗尽播放元数据与账户恢复所需的预留调用预算。
-        if ((read ? this.outstandingReads : this.outstandingOtherRequests) >= (read ? 32 : 8)) throw new BridgeError('NETEASE_REQUEST_FAILED', '未返回读取预算已满');
         const generation = this.accountGeneration;
-        if (read) this.outstandingReads++; else this.outstandingOtherRequests++;
+        if (!read) return this.requestScheduler.run(timeout => {
+          assertLibraryReadCurrent();
+          if (generation !== this.accountGeneration) throw libraryReadCancelled();
+          return original.call(target, playbackMethods.has(String(property)) || requestOptions !== undefined ? { ...params, timeout } : params);
+        }, requestOptions ?? { priority: property === 'song_url_v1' ? 'playback' : 'background' }, () => generation === this.accountGeneration && (typeof params.cookie !== 'string' || params.cookie === this.cookie));
+        // 媒体库读取不能耗尽播放元数据与账户恢复所需的预留调用预算。
+        if (this.outstandingReads >= 32) throw new BridgeError('NETEASE_REQUEST_FAILED', '未返回读取预算已满', { details: { reason: 'request-budget' } });
+        this.outstandingReads++;
         const work = Promise.resolve().then(() => {
           assertLibraryReadCurrent();
           if (generation !== this.accountGeneration) throw libraryReadCancelled();
@@ -235,7 +257,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
           assertLibraryReadCurrent();
           if (generation !== this.accountGeneration) throw libraryReadCancelled();
           return result;
-        }).finally(() => { if (read) this.outstandingReads--; else this.outstandingOtherRequests--; });
+        }).finally(() => { this.outstandingReads--; });
         return waitLibraryRead(work);
       };
       wrapped.set(property, invoke); return invoke;
@@ -261,6 +283,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     const nextCredential = credential.trim() || undefined;
     if (nextCredential !== this.cookie) {
       this.accountGeneration++;
+      this.requestScheduler.cancelAll();
       this.metadataCache.clear();
       this.likedTrackIdsCache = undefined;
       this.clearSnapshotCaches();
@@ -270,6 +293,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
 
   clearCredential(): void {
     this.accountGeneration++;
+    this.requestScheduler.cancelAll();
     this.cookie = undefined;
     this.metadataCache.clear();
     this.likedTrackIdsCache = undefined;
@@ -573,68 +597,75 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     }
   }
 
-  async getTrack(trackIdInput: string): Promise<TrackMetadata> {
+  async getTrack(trackIdInput: string, options: NeteaseRequestOptions = {}): Promise<TrackMetadata> {
     const trackId = normalizeTrackId(trackIdInput);
     const cookie = this.requireCookie();
+    const generation = this.accountGeneration;
+    const requestOptions: NeteaseRequestOptions = { ...options, priority: options.priority ?? 'playback' };
+    const isCurrent = () => generation === this.accountGeneration;
+    assertNeteaseRequestCurrent(requestOptions, isCurrent);
     const cached = this.cachedTrack(trackId);
     if (cached) return cached;
     try {
       const response = await this.api.song_detail({
         ids: trackId,
         cookie,
-      });
+      }, requestOptions);
+      assertNeteaseRequestCurrent(requestOptions, isCurrent);
       const metadata = parseTrackMetadata(response, trackId);
       this.rememberTrack(metadata);
       return cloneTrackMetadata(metadata);
     } catch (error) {
-      if (error instanceof BridgeError) throw error;
-      throw new BridgeError(
-        'NETEASE_REQUEST_FAILED',
-        'NetEase song metadata request failed',
-        { cause: error, httpStatus: 502, details: { trackId } },
-      );
+      throw this.playbackError(error, '网易云歌曲元数据请求失败', { trackId });
     }
   }
 
-  async getLyrics(trackIdInput: string) {
+  async getLyrics(trackIdInput: string, options: NeteaseRequestOptions = {}) {
     const trackId = normalizeTrackId(trackIdInput);
     const cookie = this.requireCookie();
+    const generation = this.accountGeneration;
+    const isCurrent = () => generation === this.accountGeneration;
+    assertNeteaseRequestCurrent(options, isCurrent);
     const lyricNew = this.api.lyric_new;
     if (!lyricNew) throw this.libraryApiUnavailable();
     try {
-      return parseLyricsResponse(await lyricNew({ id: trackId, cookie }));
+      const response = await lyricNew({ id: trackId, cookie }, { ...options, priority: options.priority ?? 'background' });
+      assertNeteaseRequestCurrent(options, isCurrent);
+      return parseLyricsResponse(response);
     } catch (error) {
-      if (error instanceof BridgeError) throw error;
-      throw new BridgeError(
-        'NETEASE_REQUEST_FAILED',
-        'NetEase lyrics request failed',
-        { cause: error, httpStatus: 502 },
-      );
+      throw this.playbackError(error, '网易云歌词请求失败');
     }
   }
 
   async resolveStream(
     trackIdInput: string,
     quality: QualityLevel,
+    options: NeteaseRequestOptions = {},
   ): Promise<ResolvedAudioStream> {
     const trackId = normalizeTrackId(trackIdInput);
     const cookie = this.requireCookie();
+    const generation = this.accountGeneration;
+    const requestOptions: NeteaseRequestOptions = { ...options, priority: options.priority ?? 'playback' };
+    const isCurrent = () => generation === this.accountGeneration;
+    assertNeteaseRequestCurrent(requestOptions, isCurrent);
     try {
-      await this.prepareApiRuntime();
-      // Intentionally no `unblock`, `source`, proxy, randomIP or match parameter.
+      try {
+        await waitNeteaseRequest(this.prepareApiRuntime(), requestOptions, isCurrent, this.requestScheduler.timeoutMs);
+      } catch (error) {
+        if (error instanceof BridgeError && (error.code !== 'NETEASE_REQUEST_FAILED' || error.details?.reason === 'request-timeout')) throw error;
+        throw new BridgeError('NETEASE_REQUEST_FAILED', '网易云音频服务准备失败', { cause: error, httpStatus: 502, details: { reason: 'runtime-prepare' } });
+      }
+      assertNeteaseRequestCurrent(requestOptions, isCurrent);
+      // 不传unblock、source、代理、随机IP或替代来源参数。
       const response = await this.api.song_url_v1({
         id: trackId,
         level: quality,
         cookie,
-      });
+      }, requestOptions);
+      assertNeteaseRequestCurrent(requestOptions, isCurrent);
       return parseResolvedAudioStream(response, trackId, quality);
     } catch (error) {
-      if (error instanceof BridgeError) throw error;
-      throw new BridgeError(
-        'NETEASE_REQUEST_FAILED',
-        'NetEase audio URL request failed',
-        { cause: error, httpStatus: 502, details: { trackId, quality } },
-      );
+      throw this.playbackError(error, '网易云音频URL请求失败', { trackId, quality });
     }
   }
 
@@ -648,6 +679,11 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
       );
     }
     return this.cookie;
+  }
+
+  private playbackError(error: unknown, message: string, details: Record<string, unknown> = {}): BridgeError {
+    if (error instanceof BridgeError && (error.code !== 'NETEASE_REQUEST_FAILED' || error.details?.reason !== undefined)) return error;
+    return new BridgeError('NETEASE_REQUEST_FAILED', message, { cause: error, httpStatus: error instanceof BridgeError ? error.httpStatus : 502, details: { ...details, reason: 'upstream-response' } });
   }
 
   private cachedTrack(trackId: string): TrackMetadata | undefined {

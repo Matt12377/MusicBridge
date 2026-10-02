@@ -20,6 +20,7 @@ test('006：实际Main factory进度广播不读取托盘，rollback只影响启
       coreDataDirectory: '', buildCoreEnvironment: () => ({}), shouldRefreshTrayForCoreEvent,
       mainDiagnostics: { performance: undefined, recordCoreEvent: () => diagnostics++ },
       performanceIpc: { context: () => undefined }, requestTrayRefresh: () => trayReads++,
+      libraryReadTrace: undefined,
       mainWindow: { isDestroyed: () => false, webContents: { send: (channel: string) => { assert.equal(channel, 'core:event'); sent++ } } },
     }
     runInNewContext(ts.transpileModule(source.slice(start, end) + '\ncreateCoreSupervisor("/synthetic");', { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText, context)

@@ -1,5 +1,6 @@
 import { PerformanceTraceRecorder } from '@music-bridge/contracts'
 import { createPerformanceInvoker, createPerformanceInteractions } from '../shared/performance-transport.js'
+import { createLibraryReadTerminalClient } from './library-read-terminal.js'
 import { createRecordingPrintClient } from './recording-print-client.js'
 import { createRecordingReplicaClient } from './recording-replica-client.js'
 import { createRecordingDeviceClient } from './recording-device-client.js'
@@ -372,7 +373,7 @@ contextBridge.exposeInMainWorld(
     preparationZipClient,
     createRecordingDeviceClient((channel, value) => invokePerformance(channel, value)),
     interactions.api,
-    { readLibrary: request => invokePerformance('library:read', request), cancelLibraryRead: id => invokePerformance('library:cancel-read', id) },
+    createLibraryReadTerminalClient(invokePerformance, process.argv?.includes('--music-bridge-library-read-trace=1') ?? false),
     { getPlaybackStreamSnapshot: () => invokePerformance('playback:get-stream-snapshot') },
   ),
 )

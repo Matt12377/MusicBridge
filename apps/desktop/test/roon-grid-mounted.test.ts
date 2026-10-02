@@ -51,6 +51,15 @@ async function mountGrid(t: test.TestContext, name: string, initial: Record<stri
   return { props, events, focusHistory, nodes: () => flatten(root), flush: async () => { await vue.nextTick(); await turn(); await vue.nextTick() } }
 }
 const items = (count: number, kind: 'album' | 'artist' = 'album') => Array.from({ length: count }, (_, i) => ({ reference: `ref-${i}`, kind, title: `合成条目${i}` }))
+test('逐请求诊断：初始空页和过滤空页不得声称 Core 返回零张专辑', async t => {
+  const h = await mountGrid(t, 'RoonAlbumGrid', { page: { items: [], offset: 0, limit: 24, total: 0, hasMore: false } })
+  const text = () => h.nodes().map(node => node.text).join(' ')
+  assert.doesNotMatch(text(), /Core.*0 张/u)
+  h.props.page = { items: [], offset: 0, limit: 24, total: 1, hasMore: false, complete: true, sourceEpoch: 'successful-filtered-page' }
+  await h.flush(); assert.doesNotMatch(text(), /Core.*0 张/u); assert.match(text(), /没有可显示的专辑/u)
+  h.props.page = { items: [], offset: 0, limit: 24, total: 0, hasMore: false, complete: true, sourceEpoch: 'successful-empty-page' }
+  await h.flush(); assert.match(text(), /本次读取未返回专辑/u)
+})
 for (const name of ['RoonAlbumGrid', 'RoonEntityGrid'] as const) test(`007 RED/GREEN mounted ${name}：5000条目只挂窗口且选择仍是原条目`, async t => {
   const page = { items: items(5000), offset: 0, limit: 24, hasMore: false }
   const h = await mountGrid(t, name, { page, entityLabel: '艺术家', emptyTitle: '空', emptyCopy: '空' })

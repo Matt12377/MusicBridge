@@ -20,6 +20,7 @@ import type {
   TrackSummary,
 } from '@music-bridge/contracts'
 import { createPreloadApi, PUBLIC_API_KEYS } from '../src/preload/api.js'
+import { createLibraryReadTerminalClient } from '../src/preload/library-read-terminal.js'
 import { summarizePreloadRoonImage } from '../src/preload/image-diagnostic.js'
 import { createRecordingAttemptClient } from '../src/preload/recording-attempt-client.js'
 import { createRecordingDeviceClient } from '../src/preload/recording-device-client.js'
@@ -40,6 +41,7 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
   const modules: Record<string, unknown> = {
     '@music-bridge/contracts': performanceContracts,
     '../shared/performance-transport.js': performanceTransport,
+    './library-read-terminal.js': { createLibraryReadTerminalClient },
     './recording-print-client.js': printModule,
     './recording-replica-client.js': replicaModule,
     './recording-record-client.js': recordModule,
@@ -61,7 +63,7 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
   const libraryRead = { id: 'renderer-read', command: 'library.search' as const, payload: { query: '合成查询', page: { offset: 0, limit: 24 } }, deadlineAtMs: Date.now() + 1000 }
   assert.equal(typeof exposed.readLibrary, 'function'); assert.equal(typeof exposed.cancelLibraryRead, 'function')
   assert.deepEqual(await exposed.readLibrary!(libraryRead), { reply: 'library:read' })
-  assert.deepEqual(await exposed.cancelLibraryRead!(libraryRead.id), { reply: 'library:cancel-read' })
+  assert.equal(await exposed.cancelLibraryRead!(libraryRead.id), undefined)
   assert.deepEqual(calls.slice(-2), [['library:read', libraryRead], ['library:cancel-read', libraryRead.id]])
   await exposed.playRoonTrack(`musicbridge-v2-entity-${runId}`, 'zone', undefined, runId)
   await exposed.playRoonTrack(`musicbridge-v2-entity-${runId}`, 'zone', [`musicbridge-v2-entity-${runId}`])

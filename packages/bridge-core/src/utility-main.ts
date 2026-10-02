@@ -3,6 +3,7 @@ import { createDatasetRoonProjectionGateway } from './collection/dataset-roon-pr
 import { isDatasetCommand, DatasetOwnerDispatchError, type DatasetOwnerEndpoint, type DatasetOwnerIdentity, type DatasetOwnerProjectionHandler } from './collection/dataset-owner-protocol.js';
 import { failureForError, responseFailure } from './shared/ipc-failure.js';
 import { LibraryReadRegistry } from './shared/library-read-registry.js';
+import { createLibraryReadTraceWriter, emitLibraryReadTrace, isLibraryReadTraceEnabled, libraryReadTraceFailure, type LibraryReadTraceSink } from './shared/library-read-trace.js';
 import { isLibraryReadCommand, isLibraryReadCancel } from '@music-bridge/contracts';
 import { withPerformanceContext } from './diagnostics/performance-trace.js';
 import type { VolumeRequest } from '@music-bridge/contracts';
@@ -359,9 +360,9 @@ function validateRoutedIpcRequest(runtime: CoreRuntimeForIpc, input: unknown) {
 export async function attachCoreRuntimePort(
   port: UtilityPort,
   runtime: CoreRuntimeForIpc,
-  options: { exitAfterShutdown?: boolean; beforeReady?: () => void | Promise<void> } = {},
+  options: { exitAfterShutdown?: boolean; beforeReady?: () => void | Promise<void>; libraryReadTrace?: LibraryReadTraceSink } = {},
 ): Promise<void> {
-  const reads = new LibraryReadRegistry(command => runtime.getLibraryReadScope?.(command) ?? 'runtime');
+  const reads = new LibraryReadRegistry(command => runtime.getLibraryReadScope?.(command) ?? 'runtime', Date.now, 64, 256, options.libraryReadTrace);
   port.on('message', (event) => {
     if (isLibraryReadCancel(event.data)) { reads.cancel(event.data.id); return; }
     void (async () => {
@@ -379,9 +380,9 @@ export async function attachCoreRuntimePort(
         let result: unknown;
         try {
           const operation = () => recorder ? withPerformanceContext(recorder, span?.context, () => dispatch(runtime, parsed.value)) : dispatch(runtime, parsed.value);
-          if (parsed.value.command === 'core.shutdown') reads.cancelAll();
-          if (['auth.setCredential', 'auth.clearCredential', 'auth.logout'].includes(parsed.value.command)) reads.cancelWhere(command => command.startsWith('library.'));
-          if (parsed.value.command === 'roon.selectZone') reads.cancelWhere(command => !command.startsWith('library.') || command === 'library.match' || command === 'library.aggregateSearch');
+          if (parsed.value.command === 'core.shutdown') reads.cancelAll('shutdown');
+          if (['auth.setCredential', 'auth.clearCredential', 'auth.logout'].includes(parsed.value.command)) reads.cancelWhere(command => command.startsWith('library.'), 'credential-changed');
+          if (parsed.value.command === 'roon.selectZone') reads.cancelWhere(command => !command.startsWith('library.') || command === 'library.match' || command === 'library.aggregateSearch', 'zone-changed');
           result = await (isLibraryReadCommand(parsed.value.command) ? reads.read(parsed.value, operation) : operation());
           span?.end('ok');
         } catch (error) { span?.end('error'); throw error; }
@@ -396,12 +397,14 @@ export async function attachCoreRuntimePort(
         if (parsed.value.command === 'playback.getStreamSnapshot' && !validateIpcResponseForCommand(response, 'playback.getStreamSnapshot').ok) {
           throw new Error('Core播放流回执无效');
         }
+        if (isLibraryReadCommand(parsed.value.command)) emitLibraryReadTrace(options.libraryReadTrace, { stage: 'core.return', coreReadId: parsed.value.id, command: parsed.value.command, outcome: 'ok' });
         port.postMessage(response);
         recorder?.mark('ipc', 'response-sent', span?.context, {}, { command: parsed.value.command });
         if (parsed.value.command === 'core.shutdown' && options.exitAfterShutdown) {
           setImmediate(() => process.exit(0));
         }
       } catch (error) {
+        if (isLibraryReadCommand(parsed.value.command)) emitLibraryReadTrace(options.libraryReadTrace, { stage: 'core.return', coreReadId: parsed.value.id, command: parsed.value.command, ...libraryReadTraceFailure(error) });
         port.postMessage(error instanceof DatasetOwnerDispatchError
           ? { ...error.failure, id: parsed.value.id }
           : failureForError(parsed.value.id, error, parsed.value.command));
@@ -476,6 +479,8 @@ export async function runCoreUtilityProcess(
   recordingGateBCandidate?: GateBCandidateIdentity | null,
   createDatasetOwner?: DatasetOwnerFactory,
 ): Promise<void> {
+  const traceEnabled = isLibraryReadTraceEnabled(env, env.NODE_ENV === 'development' && env.MUSIC_BRIDGE_CORE_TEST_MODE !== '1');
+  const libraryReadTrace = traceEnabled ? createLibraryReadTraceWriter({ enabled: true, write: line => { process.stdout.write(line); } }) : undefined;
   const parentPort = (process as unknown as ProcessWithParentPort).parentPort;
   if (!parentPort) {
     process.exitCode = 1;
@@ -608,7 +613,7 @@ export async function runCoreUtilityProcess(
                 });
               })();
         }
-        await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true, beforeReady: () => datasetOwnerEndpoint ? datasetOwnerEndpoint.commitBoot() : dataset?.commit() });
+        await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true, beforeReady: () => datasetOwnerEndpoint ? datasetOwnerEndpoint.commitBoot() : dataset?.commit(), ...(libraryReadTrace ? { libraryReadTrace } : {}) });
         if (isCrashProbeEnabled(env)) {
           const configuredDelay = Number(env.MUSIC_BRIDGE_CORE_CRASH_DELAY_MS);
           const delayMs = Number.isSafeInteger(configuredDelay) && configuredDelay >= 25

@@ -29,6 +29,7 @@ async function beforeSlowWork<T>(promise: Promise<T>, message: string): Promise<
 /** 真实runtime组合，只替换外部I/O；两个select回调均来自生产构造，不是合成runtime实现。 */
 async function priorityRuntime(t: test.TestContext, contextOptions: { enabled?: boolean; disabledFlag?: boolean; size?: number; protocol?: PlaybackEventProtocol } = {}) {
   const protocolEvents: TypedIpcEvent[] = [];
+  const warnings: Array<{ event: string; fields: Record<string, unknown> }> = [];
   const events: string[] = [], metadata = deferred<void>(), url = deferred<void>(), confirmation = deferred<void>(), stop = deferred<void>(), nativeResponse = deferred<void>();
   let holdMetadata = false, holdUrl = false, holdConfirmation = false, holdStop = false, holdNativeResponse = false, failStop = false;
   let state: RoonState = { status: 'ready', selectedZoneId: 'zone-A', transportState: 'stopped', canPause: true, canResume: true };
@@ -136,13 +137,13 @@ async function priorityRuntime(t: test.TestContext, contextOptions: { enabled?: 
     onEvent: event => protocolEvents.push(event),
     env: { NETEASE_COOKIE: 'synthetic-runtime-only', BRIDGE_CONTROL_HOST: '127.0.0.1', BRIDGE_STREAM_HOST: '127.0.0.1', ...(contextOptions.disabledFlag ? { MUSIC_BRIDGE_INCREMENTAL_ROON_QUEUE: '0' } : {}) },
     favoriteRepository: createLocalFavoriteRepository(),
-    logger: { debug() {}, info() {}, warn() {}, error() {} },
+    logger: { debug() {}, info() {}, warn(event, fields = {}) { warnings.push({ event, fields }); }, error() {} },
     roonSdk: { createApi: () => assert.fail('此夹具禁止真实Roon连接') } as never,
   });
   await runtime.start();
   t.after(async () => { metadata.resolve(); url.resolve(); confirmation.resolve(); stop.resolve(); nativeResponse.resolve(); failStop = false; await runtime.shutdown(); });
   return {
-    runtime, events, protocolEvents, metadata, url, confirmation, stop, nativeResponse,
+    runtime, events, protocolEvents, warnings, metadata, url, confirmation, stop, nativeResponse,
     select: (entry: 'runtime' | 'control', zoneId: string) => entry === 'runtime' ? runtime.selectZone(zoneId) : controlSelect(zoneId),
     controlSeek: (positionMs: number) => controlSeek(positionMs),
     nativePlay,
@@ -251,6 +252,25 @@ test('较新队列替换造成的正常取消不记成播放故障', async t => 
   await cancelled;
   assert.equal((await latest).currentTrack?.id, '1004');
   assert.equal(f.runtime.getDiagnostics().timeline.some(event => event.event === 'queue_replace_failed'), false);
+});
+
+test('网易云队列失败只将封闭原因写入诊断和终端，不透出原始错误', async t => {
+  const f = await priorityRuntime(t);
+  let reason = 'request-budget';
+  t.mock.method(NeteaseClient.prototype, 'getTrack', async () => {
+    throw new BridgeError('NETEASE_REQUEST_FAILED', 'https://synthetic.invalid/private?token=hidden', {
+      details: { reason, cookie: 'MUSIC_U=hidden' },
+    });
+  });
+  for (const value of ['request-budget', 'request-timeout', 'upstream-response', 'request-cancelled', 'runtime-prepare', 'MUSIC_U=hidden']) {
+    reason = value;
+    await assert.rejects(f.runtime.replacePlaybackQueue([{ trackId: '1005', qualityPreference: 'lossless' }], 0), { code: 'NETEASE_REQUEST_FAILED' });
+    const failure = f.runtime.getDiagnostics().timeline.filter(event => event.event === 'queue_replace_failed').at(-1);
+    const warning = f.warnings.filter(event => event.event === 'queue_replace_failed').at(-1);
+    assert.equal(failure?.state, value === 'MUSIC_U=hidden' ? 'error' : value);
+    assert.equal(warning?.fields.reason, value === 'MUSIC_U=hidden' ? 'unclassified' : value);
+    assert.doesNotMatch(JSON.stringify({ failure, warning }), /synthetic\.invalid|private\?|hidden|MUSIC_U|cookie/u);
+  }
 });
 
 test('synthetic runtime exposes bounded account and daily recommendation seams', async () => {

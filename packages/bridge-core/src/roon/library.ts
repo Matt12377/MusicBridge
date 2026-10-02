@@ -1,4 +1,5 @@
-import { assertLibraryReadCurrent, currentLibraryRead, libraryReadCancelled, libraryReadTimeout, remainingLibraryReadMs, withLibraryRead } from '../shared/library-read-lifetime.js';
+import { assertLibraryReadCurrent, currentLibraryRead, libraryReadCancelled, libraryReadTimeout, remainingLibraryReadMs, traceLibraryRead, withLibraryRead } from '../shared/library-read-lifetime.js';
+import { libraryReadTraceFailure } from '../shared/library-read-trace.js';
 import { currentPerformanceContext, readPerformanceTime } from '../diagnostics/performance-trace.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash, randomUUID } from 'node:crypto';
@@ -1019,6 +1020,10 @@ export function createRoonLibraryService(dependencies: {
         : {}),
     };
     let settled = false;
+    const sdkId = read?.trace ? randomUUID() : undefined;
+    const sdkTrace = (stage: string, fields: Record<string, unknown> = {}): void => {
+      if (sdkId) traceLibraryRead({ stage, sdkId, operation, ...fields });
+    };
     const trace = currentPerformanceContext();
     const span = trace?.recorder.start('provider', trace.context, { providerCallCount: 1, ...(operation === 'load' ? { pageCount: 1 } : {}) });
     const started = trace ? readPerformanceTime() : undefined;
@@ -1029,13 +1034,13 @@ export function createRoonLibraryService(dependencies: {
       clearTimeout(timeout); read?.signal.removeEventListener('abort', cancel);
       const completedAt = trace ? readPerformanceTime() : undefined;
       span?.end(error ? 'error' : 'ok', started !== undefined && completedAt !== undefined ? { providerDurationMs: Math.max(0, completedAt - started) } : {});
-      if (error) reject(error);
-      else { try { assertLibraryReadCurrent(); resolve(body); } catch (expired) { retireSession(options.multi_session_key); reject(expired); } }
+      if (error) { sdkTrace('sdk.finish', libraryReadTraceFailure(error)); reject(error); }
+      else { try { assertLibraryReadCurrent(); sdkTrace('sdk.finish', { outcome: 'ok' }); resolve(body); } catch (expired) { sdkTrace('sdk.finish', libraryReadTraceFailure(expired)); retireSession(options.multi_session_key); reject(expired); } }
     };
     const cancel = (): void => { retireSession(options.multi_session_key); finish(read?.signal.reason instanceof Error && 'code' in read.signal.reason && (read.signal.reason.code === 'READ_CANCELLED' || read.signal.reason.code === 'READ_DEADLINE') ? read.signal.reason : libraryReadCancelled()); };
     const timeout = setTimeout(() => {
       retireSession(options.multi_session_key);
-      if (read && read.now() >= read.deadlineAtMs) { finish(libraryReadTimeout()); return; }
+      if (read && read.now() >= read.deadlineAtMs) { finish(libraryReadTimeout('sdk-deadline')); return; }
       finish(new RoonLibraryError(
         'ROON_LIBRARY_REQUEST_FAILED',
         `Roon ${operation} timed out`,
@@ -1051,9 +1056,22 @@ export function createRoonLibraryService(dependencies: {
     if (physicalKey) actualBrowseByKey.set(physicalKey, (actualBrowseByKey.get(physicalKey) ?? 0) + 1);
     if (read) outstandingReadBrowse++; else outstandingOtherBrowse++;
     try {
+      sdkTrace('sdk.dispatch', { ...(typeof options.offset === 'number' ? { offset: options.offset } : {}), ...(typeof options.count === 'number' ? { limit: options.count } : {}) });
       // SDK 共享传输回调不保证请求上下文；读取与诊断都必须跟随自身派发。
       dependencies.browse[operation](requestOptions, AsyncLocalStorage.bind<Parameters<RoonBrowseApi['browse']>[1]>((error, body) => {
         release();
+        if (sdkId) {
+          try {
+            const shape = summarizeRoonBrowsePayload(operation, requestOptions, body);
+            const rawItems = asRecord(body)?.items;
+            const hintCounts = shape.hintCounts && Array.isArray(rawItems) ? { ...shape.hintCounts,
+              missing: rawItems.filter(item => asRecord(item)?.hint === undefined).length,
+              null: rawItems.filter(item => asRecord(item)?.hint === null).length } : undefined;
+            sdkTrace('sdk.callback', { late: settled, outcome: error ? 'error' : 'ok', ...(error ? { reason: 'sdk-error' } : {}),
+              ...(shape.count === undefined ? {} : { count: shape.count }), ...(shape.itemCount === undefined ? {} : { itemCount: shape.itemCount }),
+              ...(shape.itemKeyCount === undefined ? {} : { itemKeyCount: shape.itemKeyCount }), ...(hintCounts ? { hintCounts } : {}) });
+          } catch { sdkTrace('sdk.callback', { late: settled, outcome: error ? 'error' : 'ok' }); }
+        }
         // 本地超时不冒充 Provider 已返回；迟到回调仍留下真正的返回标记。
         trace?.recorder.mark('provider', 'provider-response', trace.context);
         try {
@@ -1307,6 +1325,8 @@ export function createRoonLibraryService(dependencies: {
         sourceOffset: offset,
         registerPath: (signature, value) => { stagedPaths.set(signature, value); },
       }).filter((item) => item.itemKey !== undefined && item.hint === 'list');
+      traceLibraryRead({ stage: 'core.map', hierarchy, offset, rawCount: loaded.items.length, mappedCount: items.length, filteredCount: loaded.items.length - items.length,
+        ...(list.count === undefined ? {} : { total: list.count }), hasMore: list.count === undefined ? loaded.items.length > 0 : nextOffset < list.count });
       const stagedSizes = new Map([...stagedPaths].map(([signature, value]) => [signature, browseValueBytes(value, MAX_PATH_CACHE_BYTES)]));
       const additions = [...stagedPaths.keys()].filter(signature => !pathsBySignature.has(signature)).length;
       const delta = [...stagedSizes].reduce((sum, [signature, bytes]) => sum + bytes - (pathSizes.get(signature) ?? 0), 0);

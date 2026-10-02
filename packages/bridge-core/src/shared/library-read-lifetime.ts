@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { BridgeError } from './errors.js';
+import { emitLibraryReadTrace, type LibraryReadTraceEvent, type LibraryReadTraceReason, type LibraryReadTraceSink } from './library-read-trace.js';
 
 export interface LibraryReadLifetime {
   signal: AbortSignal;
@@ -7,6 +8,7 @@ export interface LibraryReadLifetime {
   cacheMode?: 'reload';
   now: () => number;
   isCurrent: () => boolean;
+  trace?: { coreReadId: string; flightId: string; command: NonNullable<LibraryReadTraceEvent['command']>; emit: LibraryReadTraceSink };
 }
 const reads = new AsyncLocalStorage<LibraryReadLifetime>();
 export const currentLibraryRead = (): LibraryReadLifetime | undefined => reads.getStore();
@@ -14,11 +16,15 @@ export function assertLibraryReadCurrent(): void {
   const read = reads.getStore();
   if (!read) return;
   if (read.signal.aborted) throw read.signal.reason instanceof BridgeError ? read.signal.reason : libraryReadCancelled();
-  if (!read.isCurrent()) throw libraryReadCancelled();
+  if (!read.isCurrent()) throw libraryReadCancelled('scope-changed');
   if (read.now() >= read.deadlineAtMs) throw libraryReadTimeout();
 }
-export const libraryReadCancelled = (): BridgeError => new BridgeError('READ_CANCELLED', '读取已取消');
-export const libraryReadTimeout = (): BridgeError => new BridgeError('READ_DEADLINE', '读取期限已到');
+export const libraryReadCancelled = (source: LibraryReadTraceReason = 'unknown'): BridgeError => Object.assign(new BridgeError('READ_CANCELLED', '读取已取消'), { libraryReadSource: source });
+export const libraryReadTimeout = (source: LibraryReadTraceReason = 'subscriber-deadline'): BridgeError => Object.assign(new BridgeError('READ_DEADLINE', '读取期限已到'), { libraryReadSource: source });
+export function traceLibraryRead(event: LibraryReadTraceEvent): void {
+  const trace = reads.getStore()?.trace;
+  if (trace) emitLibraryReadTrace(trace.emit, { ...event, coreReadId: trace.coreReadId, flightId: trace.flightId, command: trace.command });
+}
 export function withLibraryRead<T>(read: LibraryReadLifetime, operation: () => T): T {
   return reads.run(read, () => { assertLibraryReadCurrent(); return operation(); });
 }

@@ -1,5 +1,8 @@
 import { createLibraryReadBroker } from './library-read-ipc.js'
 import { createPerformanceIpcBridge } from "./performance-ipc.js"
+import { createLibraryReadTraceWriter, isLibraryReadTraceEnabled } from '../shared/library-read-trace.js'
+
+declare const __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: boolean
 import { isVolumeRequest } from '@music-bridge/contracts'
 import { normalizeRoonDisplayUrl } from '@music-bridge/contracts'
 import { RoonDisplayConnection } from './roon-display-connection.js'
@@ -180,6 +183,8 @@ const electronColdStartStage: ElectronColdStartStage | undefined =
 const isElectronColdStartGate = electronColdStartStage !== undefined
 const isRoonTimeGate = process.env.MUSIC_BRIDGE_ROON_TIME_GATE === '1'
 const isRoonBrowseGate = process.env.MUSIC_BRIDGE_ROON_BROWSE_GATE === '1'
+const isLibraryReadTrace = isLibraryReadTraceEnabled(process.env, __MUSIC_BRIDGE_DEVELOPMENT_BUILD__ && !app.isPackaged && process.env.NODE_ENV !== 'production' && !isStartupTest && !isUiE2e)
+const libraryReadTrace = isLibraryReadTrace ? createLibraryReadTraceWriter({ enabled: true, write: line => { process.stdout.write(line) } }) : undefined
 const isRoonImageGate = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE === '1'
 const roonImageGatePath = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
 
@@ -1036,23 +1041,23 @@ function registerIpcHandlers(
       return { recorded: true }
     })
   }
-  const libraryReads = createLibraryReadBroker(supervisor)
+  const libraryReads = createLibraryReadBroker(supervisor, { ...(libraryReadTrace ? { trace: libraryReadTrace } : {}) })
   const readOwners = new Set<number>()
-  registerPerformanceHandler('library:read', (event, value: unknown) => invokeCore(event, async () => {
+  registerPerformanceHandler('library:read', (event, value: unknown, metadata?: unknown) => invokeCore(event, async () => {
     if (event.senderFrame !== event.sender.mainFrame) return publicIpcFailure('NOT_READY', '读取仅允许可信主页面')
     const owner = event.sender.id
     if (!readOwners.has(owner)) {
       readOwners.add(owner)
-      event.sender.once('destroyed', () => { libraryReads.cancelOwner(owner); readOwners.delete(owner) })
+      event.sender.once('destroyed', () => { libraryReads.cancelOwner(owner, 'owner-destroyed'); readOwners.delete(owner) })
       event.sender.on('did-start-navigation', (_event, _url, isInPlace, isMainFrame) => {
-        if (isMainFrame && !isInPlace) libraryReads.cancelOwner(owner)
+        if (isMainFrame && !isInPlace) libraryReads.cancelOwner(owner, 'owner-navigation')
       })
     }
-    return libraryReads.read(owner, value)
+    return libraryReads.read(owner, value, metadata)
   }))
-  registerPerformanceHandler('library:cancel-read', (event, id: unknown) => invokeCore(event, async () => {
+  registerPerformanceHandler('library:cancel-read', (event, id: unknown, metadata?: unknown) => invokeCore(event, async () => {
     if (event.senderFrame !== event.sender.mainFrame) return publicIpcFailure('NOT_READY', '读取取消仅允许可信主页面')
-    libraryReads.cancel(event.sender.id, id)
+    libraryReads.cancel(event.sender.id, id, metadata)
   }))
   registerPerformanceHandler('app:set-appearance-theme', (event, theme: unknown) => {
     const target = requireTrustedRenderer(event)
@@ -1734,7 +1739,7 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
       ...buildBrowserWindowWebPreferences(),
       ...(isUiE2e ? { backgroundThrottling: false } : {}),
       preload: path.join(currentDirectory, '../preload/index.cjs'),
-      additionalArguments: process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? ['--music-bridge-performance-trace=1'] : [],
+      additionalArguments: [...(process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? ['--music-bridge-performance-trace=1'] : []), ...(isLibraryReadTrace ? ['--music-bridge-library-read-trace=1'] : [])],
     },
   })
   mainWindow = window
@@ -1808,6 +1813,7 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
     roonTimeGate: isRoonTimeGate,
     roonBrowseGate: isRoonBrowseGate,
     roonImageGate: isRoonImageGate,
+    libraryReadTrace: isLibraryReadTrace,
     remoteCoreMode: coreMode,
     ...(coreDataDirectory !== undefined ? { dataDirectory: coreDataDirectory } : {}),
     ...(remoteStreamPort !== undefined ? { remoteStreamPort } : {}),
@@ -1898,6 +1904,7 @@ function createCoreSupervisor(
     },
     performance: mainDiagnostics.performance,
     performanceContext: () => performanceIpc.context(),
+    ...(libraryReadTrace ? { libraryReadTrace } : {}),
     onReady: options.onReady,
     onLifecycle: options.onLifecycle,
     onEvent: (event: TypedIpcEvent) => {

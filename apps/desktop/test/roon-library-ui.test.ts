@@ -49,14 +49,16 @@ test('Roon library pagination de-duplicates runtime references without reorderin
   })
 })
 
-test('empty Roon views report the Core library result instead of claiming pairing is missing', async () => {
+test('Roon 空页区分本次读取无结果与尚无可显示条目，不冒称 Core 空库或未配对', async () => {
   const albumGrid = await readFile(
     new URL('../src/renderer/src/components/RoonAlbumGrid.vue', import.meta.url),
     'utf8',
   )
   const app = await readFile(new URL('../src/renderer/src/App.vue', import.meta.url), 'utf8')
 
-  assert.match(albumGrid, /Roon Core 当前返回 0 张专辑/)
+  assert.match(albumGrid, /本次读取未返回专辑/)
+  assert.match(albumGrid, /当前没有可显示的专辑/)
+  assert.doesNotMatch(albumGrid, /Roon Core 当前返回 0 张专辑/)
   assert.doesNotMatch(albumGrid, /请确认 Roon Core 已配对/)
   assert.match(app, /Roon Core 当前返回 0 位艺术家/)
   assert.match(app, /Roon Core 当前返回 0 个流派/)

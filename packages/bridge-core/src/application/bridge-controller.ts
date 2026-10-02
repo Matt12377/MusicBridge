@@ -121,6 +121,11 @@ interface PlaybackOwner {
   dispatched: boolean;
   token?: string;
 }
+interface QueueHydration {
+  generation: number;
+  owner: PlaybackOwner | undefined;
+  abort: AbortController;
+}
 interface QueueContext {
   lease: RoonPlaybackContextLease;
   generation: number;
@@ -143,7 +148,8 @@ const SKIPPABLE_QUEUE_ERRORS = new Set([
   'TRACK_PREVIEW_ONLY',
 ]);
 const MAX_QUEUE_ITEMS = MAX_PLAYBACK_QUEUE_ITEMS;
-const QUEUE_HYDRATION_BATCH_SIZE = 20;
+const QUEUE_HYDRATION_INLINE_LIMIT = 20;
+const QUEUE_HYDRATION_CONCURRENCY = 2;
 
 function normalizeQueueItem(input: QueueInput): QueueItem {
   const preferenceInput = input.qualityPreference ?? input.quality;
@@ -404,6 +410,7 @@ export class BridgeController {
   private stopUnknown = false;
   private readonly externalTasks = new Set<Promise<unknown>>();
   private queueHydrationGeneration = 0;
+  private queueHydration: QueueHydration | undefined;
   private queueContextGeneration = 0;
   private queueContext: QueueContext | undefined;
   private readonly pendingQueueContexts = new Set<QueueContext>();
@@ -412,6 +419,7 @@ export class BridgeController {
   private nextPreparation: {
     item: QueueItem;
     quality: QualityLevel;
+    abort: AbortController;
     result: Promise<{ metadata: TrackMetadata; stream: ResolvedAudioStream; resolvedAtMs: number; expiresAtMs: number } | undefined>;
   } | undefined;
   private preparationInFlight = false;
@@ -453,7 +461,7 @@ export class BridgeController {
 
         this.clearActiveResources();
         if (reason !== 'ended' || !playbackWasPlaying) {
-          this.nextPreparation = undefined;
+          this.cancelNextPreparation();
           this.playbackState = reason === 'stopped' || reason === 'ended' ? 'idle' : 'error';
           this.lastPlaybackError = reason === 'media_error'
             ? 'ROON_MEDIA_ERROR'
@@ -679,6 +687,8 @@ export class BridgeController {
   }
 
   private cancelQueueContext(): void {
+    this.cancelQueueHydration();
+    this.cancelNextPreparation();
     ++this.queueContextGeneration;
     const contexts = new Set(this.pendingQueueContexts);
     if (this.queueContext) contexts.add(this.queueContext);
@@ -833,7 +843,7 @@ export class BridgeController {
       ? this.nextInsertionCursor : this.queueIndex >= 0 ? this.queueIndex + 1 : 0 : this.queue.length;
     this.queue.splice(index, 0, ...items);
     if (insert) { this.nextInsertionQueueIndex = this.queueIndex; this.nextInsertionCursor = index + items.length; }
-    const generation = ++this.queueHydrationGeneration;
+    const generation = this.cancelQueueHydration();
     this.queueProjectionDirty = true; this.notifyPlaybackChanged(); this.scheduleQueueHydration(items, generation);
   }
 
@@ -886,7 +896,7 @@ export class BridgeController {
     this.cancelQueueContext();
 
     return this.enqueuePlayback(async () => {
-      const hydrationGeneration = ++this.queueHydrationGeneration;
+      const hydrationGeneration = this.cancelQueueHydration();
       const activePlayback = this.activePlayback;
       const preserveActivePlayback = activePlayback !== undefined &&
         this.playbackState === 'playing' &&
@@ -916,12 +926,6 @@ export class BridgeController {
       this.queueIndex = startIndex;
       this.queueProjectionDirty = true;
       this.clearPlaybackIssue();
-      // 当前歌曲等待 Roon SessionBegan/Playing 时，先并行填充后续队列；
-      // 这样 Next 与队列内容不再被 Core 启动延迟串行阻塞。
-      this.scheduleQueueHydration(
-        normalizedItems.filter((_item, index) => index !== startIndex),
-        hydrationGeneration,
-      );
       await this.startQueueIndex(startIndex, true);
       return this.getState();
     }, true);
@@ -945,13 +949,13 @@ export class BridgeController {
       const acceptedItems = normalizedItems.slice(0, availableSlots);
       if (acceptedItems.length === 0) return this.getState();
 
-      const hydrationGeneration = ++this.queueHydrationGeneration;
-      const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
+      const hydrationGeneration = this.cancelQueueHydration();
+      const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_INLINE_LIMIT;
       this.queue.push(...acceptedItems);
       this.queueProjectionDirty = true;
       this.notifyPlaybackChanged();
       if (shouldHydrateInline) {
-        await this.hydrateQueueItems(acceptedItems);
+        await this.hydrateQueueItems(acceptedItems, hydrationGeneration);
         if (hydrationGeneration === this.queueHydrationGeneration) this.notifyPlaybackChanged();
       } else this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
       return this.getState();
@@ -989,8 +993,8 @@ export class BridgeController {
       const acceptedItems = normalizedItems.slice(0, availableSlots);
       if (acceptedItems.length === 0) return this.getState();
 
-      const hydrationGeneration = ++this.queueHydrationGeneration;
-      const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_BATCH_SIZE;
+      const hydrationGeneration = this.cancelQueueHydration();
+      const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_INLINE_LIMIT;
       const insertionIndex = this.nextInsertionQueueIndex === this.queueIndex && this.nextInsertionCursor !== undefined
         ? this.nextInsertionCursor
         : this.queueIndex >= 0 ? this.queueIndex + 1 : 0;
@@ -1000,7 +1004,7 @@ export class BridgeController {
       this.nextInsertionCursor = insertionIndex + acceptedItems.length;
       this.notifyPlaybackChanged();
       if (shouldHydrateInline) {
-        await this.hydrateQueueItems(acceptedItems);
+        await this.hydrateQueueItems(acceptedItems, hydrationGeneration);
         if (hydrationGeneration === this.queueHydrationGeneration) this.notifyPlaybackChanged();
       } else this.scheduleQueueHydration(acceptedItems, hydrationGeneration);
       return this.getState();
@@ -1150,7 +1154,7 @@ export class BridgeController {
     ++this.commandEpoch;
     this.owner?.abort.abort();
     return this.enqueue(async () => {
-      this.nextPreparation = undefined;
+      this.cancelNextPreparation();
       await this.stopActive(true);
       return this.getState();
     });
@@ -1202,7 +1206,7 @@ export class BridgeController {
     ++this.commandEpoch;
     this.owner?.abort.abort();
     return this.enqueue(async () => {
-      this.nextPreparation = undefined;
+      this.cancelNextPreparation();
       if (this.hasPlaybackOwnership()) {
         await this.stopActive(true);
       } else {
@@ -1382,7 +1386,7 @@ export class BridgeController {
     this.positionMs = observation.positionMs !== undefined && Number.isSafeInteger(observation.positionMs)
       && observation.positionMs >= 0 && observation.positionMs <= 24 * 60 * 60 * 1000 ? observation.positionMs : 0;
     this.playbackState = observation.state;
-    this.nextPreparation = undefined;
+    this.cancelNextPreparation();
     this.clearPlaybackIssue();
     this.lastPositionPublishedAt = this.now();
     this.notifyPlaybackChanged();
@@ -1393,7 +1397,7 @@ export class BridgeController {
     ++this.commandEpoch;
     this.owner?.abort.abort();
     return this.enqueue(async () => {
-      this.nextPreparation = undefined;
+      this.cancelNextPreparation();
       this.queueHydrationGeneration += 1;
       await this.stopActive(true);
       this.queue = [];
@@ -1411,7 +1415,7 @@ export class BridgeController {
     ++this.commandEpoch;
     this.owner?.abort.abort();
     await this.enqueue(async () => {
-      this.nextPreparation = undefined;
+      this.cancelNextPreparation();
       this.queueHydrationGeneration += 1;
       await this.stopActive(true);
       this.queue = [];
@@ -1506,7 +1510,7 @@ export class BridgeController {
       if (unavailable) {
         // 缺少观测不能证明停止或自然结束；冻结现态并保留再次停止的身份。
         this.playbackGeneration += 1;
-        this.nextPreparation = undefined;
+        this.cancelNextPreparation();
         this.playbackState = 'error';
         this.lastPlaybackError = 'ROON_TRANSPORT_UNAVAILABLE';
         this.lastPlaybackIssue = {
@@ -1523,7 +1527,7 @@ export class BridgeController {
           || this.lastNativeRoonPlaybackState !== 'stopped') return;
         // 暂停后确认停止不代表歌曲自然播完，不自动开启下一首。
         this.clearActiveResources();
-        this.nextPreparation = undefined;
+        this.cancelNextPreparation();
         this.playbackState = 'idle';
         this.clearPlaybackIssue();
         this.notifyPlaybackChanged();
@@ -1681,7 +1685,13 @@ export class BridgeController {
       };
       this.owner = owner;
       try {
-        await this.startItem(item, owner, startupTrace);
+        this.cancelQueueHydration();
+        // 先派发当前曲的元数据/URL，再补全队列；不等待 Roon 启动确认。
+        const starting = this.startItem(item, owner, startupTrace);
+        this.scheduleQueueHydration(
+          this.queue.filter(value => value !== item), this.queueHydrationGeneration, owner,
+        );
+        await starting;
         this.guardOwner(owner);
         owner.preparing = false;
         if (skippedError) {
@@ -1692,7 +1702,8 @@ export class BridgeController {
         return;
       } catch (error) {
         if (this.owner !== owner || owner.abort.signal.aborted) throw this.cancelled();
-        if (!owner.dispatched && !this.stopUnknown) this.owner = undefined;
+        this.cancelQueueHydration();
+        if (!owner.dispatched && !this.stopUnknown) { owner.abort.abort(); this.owner = undefined; }
         const bridgeError = asBridgeError(error);
         if (!skipUnavailable || !isSkippableQueueError(error)) {
           this.playbackState = 'error';
@@ -1739,8 +1750,17 @@ export class BridgeController {
 
     const requestedQuality = resolveQualityPreference(item.qualityPreference);
     const preparation = this.nextPreparation;
-    const candidate = preparation?.item === item && preparation.quality === requestedQuality
-      ? await this.waitOwned(owner, preparation.result) : undefined;
+    let candidate: Awaited<NonNullable<typeof preparation>['result']>;
+    if (preparation?.item === item && preparation.quality === requestedQuality) {
+      // Next 可以接管已准备的下一首，但接管后仍须响应新 Owner 的撤销。
+      const cancel = () => preparation.abort.abort();
+      owner.abort.signal.addEventListener('abort', cancel, { once: true });
+      try { candidate = await this.waitOwned(owner, preparation.result); }
+      finally { owner.abort.signal.removeEventListener('abort', cancel); }
+    } else {
+      this.cancelNextPreparation();
+      candidate = undefined;
+    }
     if (this.nextPreparation === preparation) this.nextPreparation = undefined;
     const prepared = candidate && candidate.expiresAtMs > this.now() ? candidate : undefined;
     let metadata: TrackMetadata;
@@ -1753,18 +1773,22 @@ export class BridgeController {
     } else if (item.preferredSource === 'smart') {
       metadata = item.track
         ? { ...item.track, artists: [...item.track.artists] }
-        : await this.waitOwned(owner, this.dependencies.netease.getTrack(item.trackId));
+        : await this.waitOwned(owner, this.dependencies.netease.getTrack(item.trackId, {
+          signal: owner.abort.signal, priority: 'playback',
+        }));
       this.reportStartupStage(startupTrace, 'metadata-ready');
     } else {
       const metadataRequest: Promise<TrackMetadata> = item.track
         ? Promise.resolve({ ...item.track, artists: [...item.track.artists] })
-        : this.dependencies.netease.getTrack(item.trackId);
+        : this.dependencies.netease.getTrack(item.trackId, { signal: owner.abort.signal, priority: 'playback' });
       [metadata, initialStream] = await this.waitOwned(owner, Promise.all([
         metadataRequest.then((value) => {
           this.reportStartupStage(startupTrace, 'metadata-ready');
           return value;
         }),
-        this.dependencies.netease.resolveStream(item.trackId, requestedQuality).then((value) => {
+        this.dependencies.netease.resolveStream(item.trackId, requestedQuality, {
+          signal: owner.abort.signal, priority: 'playback',
+        }).then((value) => {
           this.reportStartupStage(startupTrace, 'stream-url-ready');
           return value;
         }),
@@ -1811,11 +1835,11 @@ export class BridgeController {
     this.queueProjectionDirty = true;
     if (!initialStream) {
       initialStream = await this.waitOwned(owner, this.dependencies.netease.resolveStream(
-        item.trackId, requestedQuality,
+        item.trackId, requestedQuality, { signal: owner.abort.signal, priority: 'playback' },
       ));
       this.reportStartupStage(startupTrace, 'stream-url-ready');
     }
-    if (!prepared) await this.waitOwned(owner, this.dependencies.gateway.preflight(initialStream));
+    if (!prepared) await this.waitOwned(owner, this.dependencies.gateway.preflight(initialStream, owner.abort.signal));
     this.guardOwner(owner);
     this.reportStartupStage(startupTrace, 'gateway-preflight-ready');
 
@@ -1823,6 +1847,7 @@ export class BridgeController {
       item.trackId,
       requestedQuality,
       initialStream,
+      owner,
       prepared?.resolvedAtMs,
     );
     const registration = this.dependencies.registry.register({
@@ -2053,7 +2078,7 @@ export class BridgeController {
         });
       } catch (error) {
         this.stopUnknown = true;
-        this.nextPreparation = undefined;
+        this.cancelNextPreparation();
         this.playbackState = 'error';
         this.lastPlaybackError = asBridgeError(error).code;
         this.lastPlaybackIssue = { ...this.issueForError(error), message: '停止尚未确认，请重试停止', retryable: true, action: 'retry' };
@@ -2078,34 +2103,69 @@ export class BridgeController {
     return closing;
   }
 
-  private async hydrateQueueItems(items: readonly QueueItem[]): Promise<void> {
-    for (let start = 0; start < items.length; start += QUEUE_HYDRATION_BATCH_SIZE) {
-      const batch = items.slice(start, start + QUEUE_HYDRATION_BATCH_SIZE);
-      await Promise.all(batch.map(async (item) => {
-        if (item.track) return;
+  private cancelQueueHydration(): number {
+    this.queueHydration?.abort.abort();
+    this.queueHydration = undefined;
+    return ++this.queueHydrationGeneration;
+  }
+
+  private hydrationIsCurrent(hydration: QueueHydration): boolean {
+    return this.queueHydration === hydration && hydration.generation === this.queueHydrationGeneration
+      && !hydration.abort.signal.aborted && this.owner === hydration.owner
+      && !hydration.owner?.abort.signal.aborted;
+  }
+
+  private async hydrateQueueItems(
+    items: readonly QueueItem[],
+    generation: number,
+    owner = this.owner,
+  ): Promise<void> {
+    if (generation !== this.queueHydrationGeneration) return;
+    this.queueHydration?.abort.abort();
+    const hydration: QueueHydration = { generation, owner, abort: new AbortController() };
+    this.queueHydration = hydration;
+    const cancel = () => hydration.abort.abort();
+    owner?.abort.signal.addEventListener('abort', cancel, { once: true });
+    if (owner?.abort.signal.aborted) cancel();
+    let cursor = 0;
+    const worker = async () => {
+      while (this.hydrationIsCurrent(hydration)) {
+        const item = items[cursor++];
+        if (!item) return;
+        if (item.track || !this.queue.includes(item) || item === this.owner?.item) continue;
         try {
-          const track = toTrackSummary(await this.dependencies.netease.getTrack(item.trackId));
-          if (!this.queue.includes(item)) return;
+          const track = toTrackSummary(await this.dependencies.netease.getTrack(item.trackId, {
+            signal: hydration.abort.signal, priority: 'background',
+          }));
+          if (!this.hydrationIsCurrent(hydration) || !this.queue.includes(item)) return;
           item.track = track;
-          // 分批 hydration 的 await 间隙可能穿插进度回报。
+          // worker 的 await 间隙可能穿插进度回报，写回后立即使投影失效。
           this.queueProjectionDirty = true;
         } catch {
-          // 元数据不可用时，构建队列仍保持非破坏性；歌曲成为当前项时再重新确认。
+          // 补全失败不破坏队列；成为当前项时再通过播放请求确认。
         }
-      }));
+      }
+    };
+    try {
+      await Promise.all(Array.from({ length: Math.min(QUEUE_HYDRATION_CONCURRENCY, items.length) }, worker));
+    } finally {
+      owner?.abort.signal.removeEventListener('abort', cancel);
+      if (this.queueHydration === hydration) this.queueHydration = undefined;
     }
   }
 
   private scheduleQueueHydration(
     items: readonly QueueItem[],
     generation: number,
+    owner = this.owner,
   ): void {
-    void this.hydrateQueueItems(items).then(() => {
+    void this.hydrateQueueItems(items, generation, owner).then(() => {
       if (generation === this.queueHydrationGeneration) this.notifyPlaybackChanged();
     });
   }
 
   private clearActiveResources(): void {
+    this.cancelQueueHydration();
     this.owner?.abort.abort();
     this.owner = undefined;
     this.stopUnknown = false;
@@ -2210,6 +2270,8 @@ export class BridgeController {
   }
 
   private enqueuePlayback<T>(operation: () => Promise<T>, replacesQueue = false): Promise<T> {
+    // 受理新意图即停止旧补全，不能等到命令实际执行或最终 notify。
+    this.cancelQueueHydration();
     const epoch = this.commandEpoch;
     // 队列替换只保留最后已受理意图；Stop与Zone仍使用独立的命令失效域。
     const replacementGeneration = replacesQueue ? ++this.queueReplacementGeneration : this.queueReplacementGeneration;
@@ -2267,24 +2329,38 @@ export class BridgeController {
   }
 
   /** 仅提前解析紧邻下一首的短期URL和响应头，不下载音频、不注册流或占用Roon会话。 */
+  private cancelNextPreparation(): void {
+    this.nextPreparation?.abort.abort();
+    this.nextPreparation = undefined;
+  }
+
   private scheduleNextPreparation(): void {
     if (!this.activePlayback || this.playbackState !== 'playing' || !this.dependencies.netease.configured) return;
     const item = this.queue[this.queueIndex + 1];
     if (!item || item.roonReference || item.preferredSource === 'roon' || item.preferredSource === 'smart') {
-      this.nextPreparation = undefined;
+      this.cancelNextPreparation();
       return;
     }
     const quality = resolveQualityPreference(item.qualityPreference);
-    if (this.preparationInFlight || this.nextPreparation?.item === item && this.nextPreparation.quality === quality) return;
+    if (this.nextPreparation?.item === item && this.nextPreparation.quality === quality
+      && !this.nextPreparation.abort.signal.aborted) return;
+    this.cancelNextPreparation();
+    if (this.preparationInFlight) return;
+    const abort = new AbortController();
+    const isCurrent = () => !abort.signal.aborted && this.queue.includes(item)
+      && (this.nextPreparation?.abort === abort || this.owner?.item === item);
     this.preparationInFlight = true;
     const result = (async () => {
       try {
         const resolvedAtMs = this.now();
         const [metadata, stream] = await Promise.all([
-          item.track ? Promise.resolve({ ...item.track, artists: [...item.track.artists] }) : this.dependencies.netease.getTrack(item.trackId),
-          this.dependencies.netease.resolveStream(item.trackId, quality),
+          item.track ? Promise.resolve({ ...item.track, artists: [...item.track.artists] })
+            : this.dependencies.netease.getTrack(item.trackId, { signal: abort.signal, priority: 'background' }),
+          this.dependencies.netease.resolveStream(item.trackId, quality, { signal: abort.signal, priority: 'background' }),
         ]);
-        await this.dependencies.gateway.preflight(stream);
+        if (!isCurrent()) return undefined;
+        await this.dependencies.gateway.preflight(stream, abort.signal);
+        if (!isCurrent()) return undefined;
         const expiresAtMs = resolvedAtMs + Math.max(0, (stream.expiresInSeconds ?? 120) * 1000 - 30_000);
         return { metadata, stream, resolvedAtMs, expiresAtMs };
       } catch {
@@ -2293,16 +2369,17 @@ export class BridgeController {
       } finally {
         this.preparationInFlight = false;
         // 队列可能在请求期间被替换，只为当前紧邻下一首调度后继请求。
-        if (this.queue[this.queueIndex + 1] !== item) queueMicrotask(() => this.scheduleNextPreparation());
+        if (abort.signal.aborted || this.queue[this.queueIndex + 1] !== item) queueMicrotask(() => this.scheduleNextPreparation());
       }
     })();
-    this.nextPreparation = { item, quality, result };
+    this.nextPreparation = { item, quality, abort, result };
   }
 
   private createRefreshingResolver(
     trackId: string,
     quality: QualityLevel,
     initial: ResolvedAudioStream,
+    owner: PlaybackOwner,
     initialResolvedAtMs = this.now(),
   ): (request?: StreamResolveRequest) => Promise<ResolvedAudioStream> {
     let cached = initial;
@@ -2324,7 +2401,10 @@ export class BridgeController {
 
       refreshUsed = true;
       try {
-        cached = await this.dependencies.netease.resolveStream(trackId, quality);
+        this.guardOwner(owner);
+        cached = await this.dependencies.netease.resolveStream(trackId, quality, {
+          signal: owner.abort.signal, priority: 'playback',
+        });
       } catch (error) {
         const bridgeError = asBridgeError(error);
         if (bridgeError.code === 'AUTH_EXPIRED') throw error;

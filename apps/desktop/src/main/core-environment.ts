@@ -28,6 +28,7 @@ export interface CoreEnvironmentOptions {
   roonTimeGate?: boolean
   roonBrowseGate?: boolean
   roonImageGate?: boolean
+  libraryReadTrace?: boolean
   remoteCoreMode?: RemoteCoreMode
   remoteStreamPort?: number
   remoteLocalPorts?: RemoteCoreLocalPorts
@@ -69,6 +70,7 @@ export function buildCoreEnvironment(
     const value = parent[key]
     if (value !== undefined) environment[key] = value
   }
+  if (options.libraryReadTrace !== undefined) environment.MUSIC_BRIDGE_LIBRARY_READ_TRACE = options.libraryReadTrace ? '1' : '0'
 
   if (options.dataDirectory !== undefined) {
     if (

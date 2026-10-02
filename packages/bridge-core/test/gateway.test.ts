@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { request as httpRequest } from 'node:http';
+import { getEventListeners } from 'node:events';
 import test from 'node:test';
 import { createLogger } from '../src/shared/logger.js';
 import { StreamGateway } from '../src/stream/gateway.js';
@@ -9,6 +10,7 @@ import {
   type GatewayFetch,
 } from '../src/stream/upstream-policy.js';
 import type { Logger } from '../src/shared/logger.js';
+import { BridgeError } from '../src/shared/errors.js';
 
 function recordingLogger(): {
   logger: Logger;
@@ -490,6 +492,90 @@ test('gateway preflight aborts a timed-out fetch', async () => {
       error instanceof Error && error.message.includes('UPSTREAM_HTTPS_UNAVAILABLE'),
   );
   assert.equal(aborted, true);
+});
+
+test('预检 Owner 已取消时不派发请求或创建计时器', async () => {
+  const owner = new AbortController();
+  owner.abort();
+  let calls = 0;
+  const gateway = new StreamGateway({
+    host: '127.0.0.1', port: 0, publicBaseUrl: 'http://127.0.0.1:0',
+    registry: new StreamRegistry(), logger: createLogger('error'),
+    fetcher: async () => { calls++; return new Response(null, { status: 206 }); },
+  });
+  const preflight = gateway.preflight.bind(gateway) as (
+    stream: ReturnType<typeof resolvedStream>, signal?: AbortSignal,
+  ) => Promise<void>;
+  await assert.rejects(() => preflight(resolvedStream(), owner.signal),
+    error => error instanceof BridgeError && error.details?.reason === 'operation_cancelled');
+  assert.equal(calls, 0);
+  assert.equal(gateway.getDiagnosticResourceCounters().timerCount, 0);
+  assert.equal(getEventListeners(owner.signal, 'abort').length, 0);
+});
+
+test('预检 Owner 取消实际 fetch，回执为取消且计时器与监听器释放', async () => {
+  const owner = new AbortController();
+  let fetchSignal: AbortSignal | null | undefined;
+  const gateway = new StreamGateway({
+    host: '127.0.0.1', port: 0, publicBaseUrl: 'http://127.0.0.1:0',
+    registry: new StreamRegistry(), logger: createLogger('error'), preflightTimeoutMs: 15,
+    fetcher: async (_url, init) => {
+      fetchSignal = init.signal;
+      return new Promise<Response>((_resolve, reject) => {
+        init.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true });
+      });
+    },
+  });
+  const preflight = gateway.preflight.bind(gateway) as (
+    stream: ReturnType<typeof resolvedStream>, signal?: AbortSignal,
+  ) => Promise<void>;
+  const pending = preflight(resolvedStream(), owner.signal);
+  owner.abort();
+  await assert.rejects(pending,
+    error => error instanceof BridgeError && error.details?.reason === 'operation_cancelled');
+  assert.equal(fetchSignal?.aborted, true);
+  assert.equal(gateway.getDiagnosticResourceCounters().timerCount, 0);
+  assert.equal(getEventListeners(owner.signal, 'abort').length, 0);
+});
+
+test('预检成功后移除 Owner 监听，后续取消不会撤销已完成请求', async () => {
+  const owner = new AbortController();
+  let fetchSignal: AbortSignal | null | undefined;
+  const gateway = new StreamGateway({
+    host: '127.0.0.1', port: 0, publicBaseUrl: 'http://127.0.0.1:0',
+    registry: new StreamRegistry(), logger: createLogger('error'),
+    fetcher: async (_url, init) => { fetchSignal = init.signal; return new Response(null, { status: 206 }); },
+  });
+  const preflight = gateway.preflight.bind(gateway) as (
+    stream: ReturnType<typeof resolvedStream>, signal?: AbortSignal,
+  ) => Promise<void>;
+  await preflight(resolvedStream(), owner.signal);
+  assert.equal(getEventListeners(owner.signal, 'abort').length, 0);
+  assert.equal(gateway.getDiagnosticResourceCounters().timerCount, 0);
+  owner.abort();
+  assert.equal(fetchSignal?.aborted, false);
+});
+
+test('预检取消后迟到响应仍关闭响应体，不产生成功回执', async () => {
+  const owner = new AbortController();
+  let settle!: (value: Response) => void;
+  let closed = 0;
+  const gateway = new StreamGateway({
+    host: '127.0.0.1', port: 0, publicBaseUrl: 'http://127.0.0.1:0',
+    registry: new StreamRegistry(), logger: createLogger('error'),
+    fetcher: async () => new Promise<Response>(resolve => { settle = resolve; }),
+  });
+  const preflight = gateway.preflight.bind(gateway) as (
+    stream: ReturnType<typeof resolvedStream>, signal?: AbortSignal,
+  ) => Promise<void>;
+  const pending = preflight(resolvedStream(), owner.signal);
+  owner.abort();
+  settle(new Response(new ReadableStream({ cancel() { closed++; } }), { status: 206 }));
+  await assert.rejects(pending,
+    error => error instanceof BridgeError && error.details?.reason === 'operation_cancelled');
+  assert.equal(closed, 1);
+  assert.equal(gateway.getDiagnosticResourceCounters().timerCount, 0);
+  assert.equal(getEventListeners(owner.signal, 'abort').length, 0);
 });
 
 test('secure gateway follows HTTPS redirects and rejects HTTP or private redirects before fetching them', async (t) => {

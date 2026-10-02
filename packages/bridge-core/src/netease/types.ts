@@ -24,6 +24,13 @@ export type QualityLevel = (typeof QUALITY_LEVELS)[number];
 
 export type CredentialVerificationStatus = 'authorized' | 'expired' | 'unavailable';
 
+export interface NeteaseRequestOptions {
+  signal?: AbortSignal;
+  priority?: 'playback' | 'background';
+  /** 排队等待与实际请求各自的期限，均不超过10秒；音频服务准备另有同样的等待期限。 */
+  timeoutMs?: number;
+}
+
 export type TransportSecurity = 'https-native' | 'https-upgraded';
 
 export interface TrackMetadata {
@@ -65,10 +72,11 @@ export interface ResolvedAudioStream {
 
 export interface NeteasePort {
   readonly configured: boolean;
-  getTrack(trackId: string): Promise<TrackMetadata>;
+  getTrack(trackId: string, options?: NeteaseRequestOptions): Promise<TrackMetadata>;
   resolveStream(
     trackId: string,
     quality: QualityLevel,
+    options?: NeteaseRequestOptions,
   ): Promise<ResolvedAudioStream>;
   searchTracks(query: string, page: PageRequest): Promise<Page<TrackSummary>>;
   searchArtists(query: string, page: PageRequest): Promise<Page<ArtistSummary>>;
@@ -82,5 +90,5 @@ export interface NeteasePort {
   getPlaylist(playlistId: string, page: PageRequest): Promise<PlaylistDetail>;
   getPublicAccountProfile(): Promise<PublicAccountProfile>;
   getDailyRecommendations(): Promise<DailyRecommendationsSnapshot>;
-  getLyrics?(trackId: string): Promise<LyricsSnapshot>;
+  getLyrics?(trackId: string, options?: NeteaseRequestOptions): Promise<LyricsSnapshot>;
 }

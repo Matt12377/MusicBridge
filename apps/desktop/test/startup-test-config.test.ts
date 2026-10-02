@@ -9,6 +9,7 @@ import ts from 'typescript'
 
 import { readStartupTestConfiguration } from '../src/main/startup-test-config.js'
 import * as startupConfiguration from '../src/main/startup-test-config.js'
+import { createLibraryReadTraceWriter, isLibraryReadTraceEnabled, type LibraryReadTraceSink } from '../src/shared/library-read-trace.js'
 
 // 执行 Main 的原始顶层配置与 bootstrap；Host 不打开 Electron 或真实默认目录。
 function mainStartupHost(environment: NodeJS.ProcessEnv, options: {
@@ -16,6 +17,7 @@ function mainStartupHost(environment: NodeJS.ProcessEnv, options: {
   alreadyReady?: boolean
   failPath?: string
   writes?: Array<[string, string]>
+  developmentBuild?: boolean
 } = {}) {
   const sourceText = readFileSync(new URL('../src/main/index.ts', import.meta.url), 'utf8')
   const source = ts.createSourceFile('index.ts', sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
@@ -32,7 +34,7 @@ function mainStartupHost(environment: NodeJS.ProcessEnv, options: {
   const compiled = ts.transpileModule([
     ...source.statements.slice(configStart, configEnd).map(statement => statement.getText(source)),
     ...functions,
-    '({ bootstrap })',
+    '({ bootstrap, isLibraryReadTrace, libraryReadTrace })',
   ].join('\n'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText
   const paths: Record<string, string> = { userData: 'default-user-data', sessionData: 'default-session-data' }
   const writes = options.writes ?? []
@@ -48,6 +50,8 @@ function mainStartupHost(environment: NodeJS.ProcessEnv, options: {
   let ready = options.alreadyReady ?? false
   const entry = runInNewContext(compiled, {
     ...startupConfiguration,
+    createLibraryReadTraceWriter, isLibraryReadTraceEnabled,
+    __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: options.developmentBuild ?? true,
     readStartupTestConfiguration: () => readStartupTestConfiguration(environment),
     process: { env: environment, platform: 'darwin' },
     app: {
@@ -72,7 +76,7 @@ function mainStartupHost(environment: NodeJS.ProcessEnv, options: {
     buildContentSecurityPolicy: () => 'default-src none',
     createLifecycleProbe: () => ({ mark() {} }), installApplicationMenu() {},
     prepareCoreDataDirectory: async () => { throw stopped },
-  }) as { bootstrap(): Promise<void> }
+  }) as { bootstrap(): Promise<void>; isLibraryReadTrace: boolean; libraryReadTrace?: LibraryReadTraceSink }
   return { ...entry, paths, writes, atReady, sessionPaths, stopped }
 }
 
@@ -121,6 +125,15 @@ test('普通Main启动不创建测试目录、不读取或修改默认路径', (
   void host.bootstrap()
   assert.deepEqual(host.writes, [])
   assert.deepEqual(host.atReady, [{ userData: 'default-user-data', sessionData: 'default-session-data' }])
+})
+
+test('实际 Main 的 production 编译常量默认关闭读取终端日志，显式开关可覆盖', () => {
+  const production = mainStartupHost({}, { developmentBuild: false })
+  assert.equal(production.isLibraryReadTrace, false)
+  assert.equal(production.libraryReadTrace, undefined)
+  const explicit = mainStartupHost({ MUSIC_BRIDGE_LIBRARY_READ_TRACE: '1' }, { developmentBuild: false })
+  assert.equal(explicit.isLibraryReadTrace, true)
+  assert.equal(typeof explicit.libraryReadTrace, 'function')
 })
 
 test('非法测试目录在任何路径切换与ready调用前拒绝', () => {

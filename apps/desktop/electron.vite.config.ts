@@ -11,9 +11,10 @@ const converterBuild = await captureNativeConverter(currentDirectory)
 const outputBuild = await captureNativeOutput(currentDirectory)
 const outputDeviceBuild = await captureNativeOutputDevice(currentDirectory)
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   main: {
     define: {
+      __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: JSON.stringify(mode === 'development'),
       __MUSIC_BRIDGE_FFMPEG_MANIFEST_SHA256__: JSON.stringify(converterBuild.manifestSha256),
       __MUSIC_BRIDGE_OUTPUT_MANIFEST_SHA256__: JSON.stringify(outputBuild.manifestSha256),
       __MUSIC_BRIDGE_OUTPUT_DEVICE_MANIFEST_SHA256__: JSON.stringify(outputDeviceBuild.manifestSha256),
@@ -61,4 +62,4 @@ export default defineConfig({
     },
     plugins: [vue()],
   },
-})
+}))

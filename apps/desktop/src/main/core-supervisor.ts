@@ -1,5 +1,7 @@
 import { isLibraryReadCommand } from '@music-bridge/contracts'
 import { randomUUID } from 'node:crypto'
+import { createLibraryReadTraceStreamReader, emitLibraryReadTrace, libraryReadTraceFailure, type LibraryReadTraceSink } from '../shared/library-read-trace.js'
+import { createPlaybackFailureTraceStreamReader } from '../shared/playback-failure-trace.js'
 
 import {
   IPC_VERSION,
@@ -36,6 +38,8 @@ export interface CoreChildProcess {
   postMessage(message: unknown, transfer?: CoreMessagePort[]): void
   once(event: 'exit', listener: (code: number) => void): unknown
   kill(): boolean
+  stdout?: { on(event: 'data', listener: (chunk: { toString(): string }) => void): unknown } | null
+  stderr?: { on(event: 'data', listener: (chunk: unknown) => void): unknown } | null
 }
 
 export interface CoreSupervisorDependencies {
@@ -46,7 +50,7 @@ export interface CoreSupervisorDependencies {
     options: {
       cwd: string
       env: NodeJS.ProcessEnv
-      stdio: 'ignore'
+      stdio: 'ignore' | 'pipe'
       serviceName: string
     },
   ): CoreChildProcess
@@ -84,6 +88,7 @@ interface StartupAttempt {
 }
 
 interface PendingRequest {
+  rendererReadId?: string
   performanceSpan?: PerformanceSpan
   detachReadAbort?: () => void
   readDeadlineAtMs?: number
@@ -140,6 +145,7 @@ export class CoreSupervisor {
       onLifecycle?: (event: CoreSupervisorLifecycle) => void
       performance?: PerformanceTraceRecorder
       performanceContext?: () => PerformanceTraceContext | undefined
+      libraryReadTrace?: LibraryReadTraceSink
     },
   ) {
     const timeout = options.startupTimeoutMs
@@ -199,7 +205,7 @@ export class CoreSupervisor {
     command: TCommand,
     payload: IpcCommandPayloads[TCommand],
     expectedDatasetId?: string,
-    read?: { signal?: AbortSignal; deadlineAtMs?: number; cacheMode?: 'reload' },
+    read?: { signal?: AbortSignal; deadlineAtMs?: number; cacheMode?: 'reload'; trace?: { rendererReadId: string } },
   ): Promise<IpcCommandResults[TCommand]> {
     const route = this.startupAttempt
     const result = await this.sendRequest(command, payload, false, expectedDatasetId, undefined, read)
@@ -227,7 +233,7 @@ export class CoreSupervisor {
     internal: boolean,
     expectedDatasetId?: string,
     startup?: StartupAttempt,
-    read?: { signal?: AbortSignal; deadlineAtMs?: number; cacheMode?: 'reload' },
+    read?: { signal?: AbortSignal; deadlineAtMs?: number; cacheMode?: 'reload'; trace?: { rendererReadId: string } },
     accept?: (value: unknown) => void,
   ): Promise<unknown> {
     if (read && !isLibraryReadCommand(command)) throw new CoreIpcError('INVALID_IPC_REQUEST', '写命令不能使用读取取消协议')
@@ -241,6 +247,9 @@ export class CoreSupervisor {
       throw new CoreIpcError('NOT_READY', 'Core is not ready')
     }
     const id = randomUUID()
+    const emitRead = (stage: string, fields: Record<string, unknown> = {}): void => {
+      if (isLibraryReadCommand(command)) emitLibraryReadTrace(this.options.libraryReadTrace, { stage, command, coreReadId: id, ...(read?.trace ? { rendererReadId: read.trace.rendererReadId } : {}), ...fields })
+    }
     const recorder = this.options.performance
     let parent: import('@music-bridge/contracts').PerformanceTraceContext | undefined
     if (recorder?.isEnabled()) {
@@ -275,20 +284,24 @@ export class CoreSupervisor {
         if (!pending) return
         clearTimeout(pending.timer); this.removePending(id); cancelCoreRead()
         performanceSpan?.cancel(); performanceSpan?.end('cancelled')
-        reject(new CoreIpcError('CANCELLED', '读取已取消'))
+        const failure = libraryReadTraceFailure(read?.signal?.reason)
+        emitRead('main.cancel', { outcome: 'cancelled', reason: failure.reason ?? 'main-signal' })
+        reject(Object.assign(new CoreIpcError('CANCELLED', '读取已取消'), { libraryReadSource: failure.reason ?? 'main-signal' }))
       }
       const timer = setTimeout(() => {
         this.removePending(id)
         cancelCoreRead()
         performanceSpan?.cancel()
         performanceSpan?.end('cancelled')
+        emitRead('main.cancel', { outcome: 'timeout', reason: 'main-deadline' })
         reject(new CoreIpcError('TIMEOUT', 'Core request timed out'))
       }, deadlineAtMs === undefined ? timeoutMs : Math.max(1, deadlineAtMs - Date.now()))
       read?.signal?.addEventListener('abort', abort, { once: true })
-      this.pending.set(id, { command, internal, timer, resolve, reject, ...(accept ? { accept } : {}), ...(deadlineAtMs === undefined ? {} : { readDeadlineAtMs: deadlineAtMs, cancelCoreRead }), ...(read?.signal ? { detachReadAbort: () => read.signal?.removeEventListener('abort', abort) } : {}), ...(performanceSpan ? { performanceSpan } : {}) })
+      this.pending.set(id, { command, internal, timer, resolve, reject, ...(read?.trace ? { rendererReadId: read.trace.rendererReadId } : {}), ...(accept ? { accept } : {}), ...(deadlineAtMs === undefined ? {} : { readDeadlineAtMs: deadlineAtMs, cancelCoreRead }), ...(read?.signal ? { detachReadAbort: () => read.signal?.removeEventListener('abort', abort) } : {}), ...(performanceSpan ? { performanceSpan } : {}) })
       recorder?.setGauge('activeRequestCount', this.pending.size)
       try {
         if (read?.signal?.aborted) { abort(); return }
+        emitRead('main.dispatch')
         port?.postMessage(request)
       } catch {
         clearTimeout(timer)
@@ -411,10 +424,16 @@ export class CoreSupervisor {
       {
         cwd: this.options.cwd,
         env: { ...(this.options.env ?? {}) },
-        stdio: 'ignore',
+        stdio: this.options.libraryReadTrace ? 'pipe' : 'ignore',
         serviceName: 'Music Bridge Core',
       },
     )
+    if (this.options.libraryReadTrace) {
+      const consume = createLibraryReadTraceStreamReader(this.options.libraryReadTrace)
+      child.stdout?.on('data', chunk => { try { consume(chunk.toString()) } catch { /* 只允许封闭诊断行进入父终端。 */ } })
+      const consumePlaybackFailure = createPlaybackFailureTraceStreamReader(line => { process.stderr.write(line) })
+      child.stderr?.on('data', chunk => { try { consumePlaybackFailure(String(chunk)) } catch { /* 其他 SDK 输出和错误栈只消费、不转发。 */ } })
+    }
     this.child = child
     this.port = channel.port2
     this._status = 'starting'
@@ -571,6 +590,8 @@ export class CoreSupervisor {
       clearTimeout(pending.timer)
       this.removePending(message.id)
       pending.performanceSpan?.end(response.value.ok ? 'ok' : 'error')
+      if (isLibraryReadCommand(pending.command)) emitLibraryReadTrace(this.options.libraryReadTrace, { stage: 'main.response', command: pending.command, coreReadId: message.id,
+        ...(pending.rendererReadId ? { rendererReadId: pending.rendererReadId } : {}), ...(response.value.ok ? { outcome: 'ok' } : { ...libraryReadTraceFailure(response.value.error), reason: 'upstream-response' }) })
       if (response.value.ok) {
         try { pending.accept?.(response.value.result); pending.resolve(response.value.result) }
         catch (error) { pending.reject(error instanceof CoreIpcError ? error : new CoreIpcError('INTERNAL_ERROR', 'Core 启动恢复未完成')) }

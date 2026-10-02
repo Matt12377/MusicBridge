@@ -206,6 +206,7 @@ export class StreamGateway {
   private server: Server | undefined;
   private readonly stageObservers = new Map<string, GatewayStageObserver>();
   private activeTimerCount = 0;
+  private activePreflightOwnerListenerCount = 0;
 
   constructor(
     private readonly options: {
@@ -259,7 +260,7 @@ export class StreamGateway {
 
   getDiagnosticResourceCounters(): { listenerCount: number; timerCount: number } {
     return {
-      listenerCount: this.stageObservers.size,
+      listenerCount: this.stageObservers.size + this.activePreflightOwnerListenerCount,
       timerCount: this.activeTimerCount,
     };
   }
@@ -277,7 +278,12 @@ export class StreamGateway {
     return `http://${host}:${address.port}`;
   }
 
-  async preflight(resolved: ResolvedAudioStream): Promise<void> {
+  async preflight(resolved: ResolvedAudioStream, ownerSignal?: AbortSignal): Promise<void> {
+    const cancelled = () => new BridgeError('BAD_REQUEST', '播放操作已取消', {
+      httpStatus: 409,
+      details: { reason: 'operation_cancelled' },
+    });
+    if (ownerSignal?.aborted) throw cancelled();
     let upstreamUrl: string;
     try {
       upstreamUrl = assertSafeAudioUrl(resolved.upstreamUrl);
@@ -290,6 +296,12 @@ export class StreamGateway {
     headers.set('Range', 'bytes=0-0');
 
     const abortController = new AbortController();
+    const abortForOwner = () => abortController.abort(cancelled());
+    if (ownerSignal) {
+      ownerSignal.addEventListener('abort', abortForOwner, { once: true });
+      this.activePreflightOwnerListenerCount += 1;
+      if (ownerSignal.aborted) abortForOwner();
+    }
     this.activeTimerCount += 1;
     const timeout = setTimeout(
       () => abortController.abort(),
@@ -298,6 +310,7 @@ export class StreamGateway {
 
     try {
       const fetcher = this.options.fetcher ?? secureGatewayFetch;
+      if (ownerSignal?.aborted) throw cancelled();
       const upstream = await fetcher(upstreamUrl, {
         method: 'GET',
         headers,
@@ -306,13 +319,16 @@ export class StreamGateway {
       });
 
       try {
+        abortController.signal.throwIfAborted();
         if (upstream.status !== 200 && upstream.status !== 206) {
           throw preflightFailure(undefined, upstream.status);
         }
       } finally {
         if (upstream.body !== null) await upstream.body.cancel();
       }
+      abortController.signal.throwIfAborted();
     } catch (error) {
+      if (ownerSignal?.aborted) throw cancelled();
       if (
         error instanceof BridgeError &&
         error.message.startsWith('UPSTREAM_HTTPS_UNAVAILABLE:')
@@ -321,6 +337,10 @@ export class StreamGateway {
       }
       throw preflightFailure(error);
     } finally {
+      if (ownerSignal) {
+        ownerSignal.removeEventListener('abort', abortForOwner);
+        this.activePreflightOwnerListenerCount = Math.max(0, this.activePreflightOwnerListenerCount - 1);
+      }
       clearTimeout(timeout);
       this.activeTimerCount = Math.max(0, this.activeTimerCount - 1);
     }

@@ -4,6 +4,16 @@ import { createLibraryReadBroker } from '../src/main/library-read-ipc.js'
 import { CoreIpcError, type CoreSupervisor } from '../src/main/core-supervisor.js'
 const value = { id: 'read-1', command: 'library.search', payload: { query: 'x', page: { offset: 0, limit: 24 } }, deadlineAtMs: Date.now() + 1000 }
 
+test('逐请求诊断：Main 每个有效读取均有首尾，绝不打印 payload 或任意错误文本', async () => {
+  const events: Array<Record<string, unknown>> = []
+  const secret = 'credential-cookie-and-private-search'
+  const supervisor = { request: async () => { throw Object.assign(new Error(secret), { code: 'CANCELLED' }) } } as unknown as Pick<CoreSupervisor, 'request'>
+  const broker = createLibraryReadBroker(supervisor, { trace: event => events.push(event) })
+  await assert.rejects(broker.read(1, { ...value, payload: { ...value.payload, query: secret } }), /credential-cookie/u)
+  assert.deepEqual(events.map(event => event.stage), ['main.receive', 'main.finish'])
+  assert.equal(events[1]?.outcome, 'cancelled'); assert.doesNotMatch(JSON.stringify(events), /credential-cookie/u)
+})
+
 test('MBP-002：Main 读取白名单拒绝写命令、未知字段与原参数非法值', async () => {
   let calls = 0
   const supervisor = { request: async () => { calls++; return [] } } as unknown as Pick<CoreSupervisor, 'request'>

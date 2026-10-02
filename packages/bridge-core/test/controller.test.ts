@@ -2397,6 +2397,158 @@ function mbpDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+type SyntheticPlaybackRequestOptions = {
+  signal?: AbortSignal;
+  priority?: 'playback' | 'background';
+  timeoutMs?: number;
+};
+
+for (const length of [9, 20]) {
+  test(`请求预算保护：${length}项冷队列先派发当前曲且每代补全最多2并发`, { timeout: 3000 }, async t => {
+    const f = makeHarness(), gate = mbpDeferred<void>();
+    const original = f.netease.getTrack.bind(f.netease);
+    const currentId = '99300';
+    const calls: { id: string; priority?: string }[] = [];
+    const backgroundBySignal = new Map<AbortSignal | undefined, number>();
+    let outstanding = 0, background = 0, maximumBackground = 0, maximumGeneration = 0;
+    t.mock.method(f.netease, 'getTrack', async (id: string, options?: SyntheticPlaybackRequestOptions) => {
+      calls.push({ id, ...(options?.priority ? { priority: options.priority } : {}) });
+      if (outstanding >= 8) throw new BridgeError('NETEASE_REQUEST_FAILED', '合成物理请求预算已满');
+      outstanding++;
+      if (id !== currentId) {
+        background++; maximumBackground = Math.max(maximumBackground, background);
+        const active = (backgroundBySignal.get(options?.signal) ?? 0) + 1;
+        backgroundBySignal.set(options?.signal, active);
+        maximumGeneration = Math.max(maximumGeneration, active);
+      }
+      try {
+        if (id !== currentId) await gate.promise;
+        return await original(id);
+      } finally {
+        outstanding--;
+        if (id !== currentId) {
+          background--;
+          backgroundBySignal.set(options?.signal, (backgroundBySignal.get(options?.signal) ?? 1) - 1);
+        }
+      }
+    });
+    try {
+      await f.controller.replaceQueue(Array.from({ length }, (_, index) => ({ trackId: String(99300 + index) })));
+      assert.equal(f.controller.getPlaybackState().state, 'playing');
+      assert.equal(calls[0]?.id, currentId, '后台补全不得先占用当前曲请求预算');
+      assert.equal(calls[0]?.priority, 'playback');
+      assert.ok(maximumGeneration <= 2, `同一补全取消域的请求峰值为${maximumGeneration}`);
+      // 此 Fake 不模拟 Client 全局调度；另一个取消域是紧邻下一首预准备。
+      assert.ok(maximumBackground <= 3, `补全与单份预准备的请求峰值为${maximumBackground}`);
+      assert.equal(backgroundBySignal.has(undefined), false, '背景请求必须绑定可撤销的生命周期');
+      assert.ok(calls.filter(call => call.id !== currentId).every(call => call.priority === 'background'));
+    } finally { gate.resolve(); await f.controller.stop(); }
+  });
+}
+
+test('请求预算保护：换队列立即撤销旧补全，迟到响应不派发41项队列后继请求', { timeout: 3000 }, async t => {
+  const f = makeHarness(), gate = mbpDeferred<void>();
+  const original = f.netease.getTrack.bind(f.netease);
+  const calls: string[] = [], signals: AbortSignal[] = [];
+  t.mock.method(f.netease, 'getTrack', async (id: string, options?: SyntheticPlaybackRequestOptions) => {
+    calls.push(id);
+    if (id !== '99400' && id !== '99500') {
+      if (options?.signal) signals.push(options.signal);
+      await gate.promise;
+    }
+    return original(id);
+  });
+  try {
+    await f.controller.replaceQueue(Array.from({ length: 41 }, (_, index) => ({ trackId: String(99400 + index) })));
+    const oldCalls = calls.filter(id => id !== '99400');
+    await f.controller.replaceQueue([{ trackId: '99500' }]);
+    assert.ok(signals.length > 0, '补全请求必须获得独立取消信号');
+    assert.ok(signals.every(signal => signal.aborted), '新意图受理时撤销旧补全');
+    gate.resolve();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(calls.filter(id => id !== '99400' && id !== '99500'), oldCalls);
+    assert.equal(f.controller.getPlaybackState().currentTrack?.id, '99500');
+  } finally { gate.resolve(); await f.controller.stop(); }
+});
+
+for (const stage of ['metadata', 'url', 'preflight'] as const) {
+  test(`请求预算保护：切歌把${stage}实际请求的Owner信号撤销`, { timeout: 3000 }, async t => {
+    const f = makeHarness(), gate = mbpDeferred<void>(), entered = mbpDeferred<void>();
+    const originalTrack = f.netease.getTrack.bind(f.netease), originalStream = f.netease.resolveStream.bind(f.netease), originalPreflight = f.gateway.preflight.bind(f.gateway);
+    let signal: AbortSignal | undefined, priority: string | undefined;
+    if (stage === 'metadata') t.mock.method(f.netease, 'getTrack', async (id: string, options?: SyntheticPlaybackRequestOptions) => {
+      if (id === '99600') { signal = options?.signal; priority = options?.priority; entered.resolve(); await gate.promise; }
+      return originalTrack(id);
+    });
+    if (stage === 'url') t.mock.method(f.netease, 'resolveStream', async (id: string, quality: QualityLevel, options?: SyntheticPlaybackRequestOptions) => {
+      if (id === '99600') { signal = options?.signal; priority = options?.priority; entered.resolve(); await gate.promise; }
+      return originalStream(id, quality);
+    });
+    if (stage === 'preflight') t.mock.method(f.gateway, 'preflight', async (stream: ResolvedAudioStream, ownerSignal?: AbortSignal) => {
+      if (stream.trackId === '99600') { signal = ownerSignal; entered.resolve(); await gate.promise; }
+      return originalPreflight(stream);
+    });
+    const old = f.controller.replaceQueue([{ trackId: '99600' }]).catch(error => error);
+    let latest: Promise<unknown> | undefined;
+    try {
+      await entered.promise;
+      latest = f.controller.replaceQueue([{ trackId: '99601' }]).catch(error => error);
+      assert.ok(signal, '生产请求必须接收Owner取消信号');
+      assert.equal(signal.aborted, true);
+      if (stage !== 'preflight') assert.equal(priority, 'playback');
+      await latest;
+      assert.equal((await old).details?.reason, 'operation_cancelled');
+      assert.deepEqual(f.roon.playRequests.map(request => request.metadata.id), ['99601']);
+    } finally { gate.resolve(); await Promise.all([old, latest]); await f.controller.stop(); }
+  });
+}
+
+test('请求预算保护：下一首预准备使用背景信号，换队列后不预检旧结果', { timeout: 3000 }, async t => {
+  const f = makeHarness(), gate = mbpDeferred<void>(), entered = mbpDeferred<void>();
+  const originalStream = f.netease.resolveStream.bind(f.netease), originalPreflight = f.gateway.preflight.bind(f.gateway);
+  let signal: AbortSignal | undefined, priority: string | undefined;
+  const preflightIds: string[] = [];
+  t.mock.method(f.netease, 'resolveStream', async (id: string, quality: QualityLevel, options?: SyntheticPlaybackRequestOptions) => {
+    if (id === '99701') { signal = options?.signal; priority = options?.priority; entered.resolve(); await gate.promise; }
+    return originalStream(id, quality);
+  });
+  t.mock.method(f.gateway, 'preflight', async (stream: ResolvedAudioStream) => { preflightIds.push(stream.trackId); return originalPreflight(stream); });
+  try {
+    await f.controller.replaceQueue([{ trackId: '99700' }, { trackId: '99701' }]);
+    await entered.promise;
+    await f.controller.replaceQueue([{ trackId: '99700' }, { trackId: '99702' }]);
+    assert.equal(priority, 'background');
+    assert.ok(signal?.aborted);
+    gate.resolve();
+    await waitFor(() => preflightIds.includes('99702'));
+    assert.equal(preflightIds.includes('99701'), false, '过期预准备不得继续派发HTTP预检');
+    await f.controller.next();
+    assert.equal(f.controller.getPlaybackState().currentTrack?.id, '99702');
+  } finally { gate.resolve(); await f.controller.stop(); }
+});
+
+test('请求预算保护：Next接管未完成预准备后，更新播放意图仍撤销该请求', { timeout: 3000 }, async t => {
+  const f = makeHarness(), gate = mbpDeferred<void>(), entered = mbpDeferred<void>();
+  const original = f.netease.resolveStream.bind(f.netease);
+  let preparationSignal: AbortSignal | undefined;
+  t.mock.method(f.netease, 'resolveStream', async (id: string, quality: QualityLevel, options?: SyntheticPlaybackRequestOptions) => {
+    if (id === '99801') { preparationSignal = options?.signal; entered.resolve(); await gate.promise; }
+    return original(id, quality);
+  });
+  let advancing: Promise<unknown> | undefined;
+  try {
+    await f.controller.replaceQueue([{ trackId: '99800' }, { trackId: '99801' }]);
+    await entered.promise;
+    advancing = f.controller.next().catch(error => error);
+    await waitFor(() => f.controller.getPlaybackState().queue.index === 1);
+    assert.ok(preparationSignal && !preparationSignal.aborted, 'Next保留匹配的未完成预准备');
+    await f.controller.replaceQueue([{ trackId: '99802' }]);
+    assert.equal(preparationSignal.aborted, true, '接管后的新Owner仍能撤销预准备物理请求');
+    assert.equal((await advancing as BridgeError).details?.reason, 'operation_cancelled');
+    assert.deepEqual(f.roon.playRequests.map(request => request.metadata.id), ['99800', '99802']);
+  } finally { gate.resolve(); await advancing; await f.controller.stop(); }
+});
+
 test('快速歌单切换：同turn受理A/B/C只派发最后C', async () => {
   const f = makeHarness();
   const a = f.controller.replaceQueue([{ trackId: '99201' }]).catch(error => error);

@@ -1337,7 +1337,12 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       } catch (error) {
         const issue = asBridgeError(error);
         if (issue.details?.reason !== 'operation_cancelled') {
-          recordDiagnostic('warn', 'queue_replace_failed', { code: issue.code, state: 'error' });
+          const candidate = issue.details?.reason;
+          const reason = typeof candidate === 'string'
+            && ['request-budget', 'request-timeout', 'upstream-response', 'request-cancelled', 'runtime-prepare'].includes(candidate)
+            ? candidate : 'unclassified';
+          recordDiagnostic('warn', 'queue_replace_failed', { code: issue.code, state: reason === 'unclassified' ? 'error' : reason });
+          logger.warn('queue_replace_failed', { code: issue.code, reason });
         }
         throw error;
       }

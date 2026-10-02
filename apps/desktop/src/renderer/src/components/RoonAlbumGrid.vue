@@ -62,6 +62,8 @@ onUnmounted(() => intersectionObserver?.disconnect())
 const gridRoot = ref<HTMLElement | null>(null)
 const grid = useGridWindow(computed(() => props.page.items), gridRoot, { profile: item => item.year ? 'year' : 'plain', prepareProbe: prepareRoonCardProbe })
 const artworkRetry = useGridArtworkRetry(computed(() => grid.rendered.value.map(entry => entry.item)), item => item.reference)
+// 初始占位页也有 total=0；只有带成功读取身份且已完成的首页才能确认空结果。
+const confirmedEmptyRead = computed(() => props.page.offset === 0 && props.page.total === 0 && props.page.complete === true && typeof props.page.sourceEpoch === 'string')
 </script>
 
 <template>
@@ -78,7 +80,7 @@ const artworkRetry = useGridArtworkRetry(computed(() => grid.rendered.value.map(
   <div v-else-if="!props.page.items.length" class="empty-state roon-library-state">
     <span class="empty-glyph" aria-hidden="true">♫</span>
     <h3>{{ searching ? '没有匹配的本地专辑' : '还没有可显示的专辑' }}</h3>
-    <p>{{ searching ? '换一个关键词，或清除搜索查看全部专辑。' : 'Roon Core 当前返回 0 张专辑。请在 Roon 中检查存储位置与资料库内容后重新读取。' }}</p>
+    <p>{{ searching ? '换一个关键词，或清除搜索查看全部专辑。' : confirmedEmptyRead ? '本次读取未返回专辑。可在 Roon 中检查资料库内容后重新读取。' : '当前没有可显示的专辑，请重新读取。若仍为空，可在 Roon 中检查资料库内容。' }}</p>
     <button type="button" class="secondary-button" @click="emit('retry')">重新读取</button>
   </div>
   <template v-else>
