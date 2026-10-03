@@ -5006,10 +5006,10 @@
   },
   "rustCoreUserOptionalReadonly20261003": {
     "task": "RUST-014",
-    "state": "implementation-validated-final-review-pending",
+    "state": "local-complete-validated-reviewed-unpushed",
     "branch": "codex/rust-core-014-user-optional-readonly-controls",
     "baseCommit": "e35ad579ef276075d09d0b52fc6bb8158c418b26",
-    "implementationCommit": null,
+    "implementationCommit": "040e9c1c3525b3b26a6335a545f47ba8ad2e0bdd",
     "reportCommit": null,
     "reportCommitResolution": "commit-containing-reports/RUST-014_USER_OPTIONAL_READONLY_CONTROLS.md",
     "scope": "normal-user-optional-readonly-rust-settings-refresh-node-sole-writer",
@@ -5018,7 +5018,7 @@
     "validation": {
       "sourceTests": "SOFTWARE02_SIX_EXIT0_4023_PASS_2_EXISTING_SKIP_SOURCE04",
       "actualSignedPackages": "GATE04_PASS_112_ZERO_FAIL_SKIP_FOUR_PACKAGES_SIX_RUNS_SOURCE04",
-      "ordinaryCUA": "FINAL04_11_AX_JPEG_NATIVE_INPUT_2_WRITES_REFRESH_FALLBACK_OFF_ON_MAIN_EXIT0_SQL_REVIEW_PENDING",
+      "ordinaryCUA": "FINAL04_11_AX_JPEG_NATIVE_INPUT_2_WRITES_REFRESH_FALLBACK_OFF_ON_MAIN_CORE_EXIT0_SQL_INDEPENDENT_PASS",
       "realServices": "NOT_RUN",
       "installedReplacement": "NOT_RUN",
       "ownerAcceptance": "NOT_RUN",
@@ -5030,7 +5030,8 @@
       "rootCycleRepair": "EXISTING_CYCLES_FAIL_VALID_RED_SHARED_ERROR_MOVE_GREEN_EXIT0",
       "rootDetailRefresh": "VALID_RED_1_FAIL_GREEN_4_PASS_REAL_TEMPLATE_AND_CUA",
       "signedNative": "30_PASS_ZERO_SKIP_ACTUAL_SIGNED_BINARY_IDENTICAL_CANDIDATE03_04",
-      "packagedBootstrap": "11_PASS_ZERO_SKIP_SOURCE04_ACTUAL_SIGNED_RESOURCE"
+      "packagedBootstrap": "11_PASS_ZERO_SKIP_SOURCE04_ACTUAL_SIGNED_RESOURCE",
+      "independentReview": "TWO_ROUNDS_PASS_ZERO_UNRESOLVED_P1_P2"
     },
     "agents": {
       "authors": [
@@ -5045,6 +5046,12 @@
     "push": "NOT_RUN",
     "preservedWorktrees": 14,
     "preservedDirtyFiles": 7,
-    "sourceSha256": "bbcf1601805f9e6d1b32e993d8e08321be7d3cad9f865d31cc8a50955e0a8a17"
+    "sourceSha256": "bbcf1601805f9e6d1b32e993d8e08321be7d3cad9f865d31cc8a50955e0a8a17",
+    "review": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-014-w08_nmgh/review-014-round2.json",
+      "sha256": "a300a8dbce42a5085cf1c0f40bd8de05deb16c2cf051ed77a34ba0896bdae58e",
+      "bytes": 251904
+    },
+    "finalIdentityResolution": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-014-w08_nmgh/FINAL_IDENTITY.json"
   }
 }
