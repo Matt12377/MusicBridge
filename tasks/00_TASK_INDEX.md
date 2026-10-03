@@ -143,3 +143,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [RUST-010](RUST-010-synthetic-owner-session.md)：从009最终报告 `5fc369a` 接续，全新外置合成profile的可见30分钟入口、可信status/refresh/quit、精确信号所有权及原app.quit收口；39行为/96准入/26真实回归/完整软件六步与两种默认mock启动通过，两轮独审及独立实现/报告完成。Owner 已确认合成窗口控件可用；开发测试由代理承担，最终成品使用反馈独立保留，默认Node。见 [初始结果报告](../reports/RUST-010_SYNTHETIC_OWNER_SESSION.md) 与 [验收补充](../reports/RUST-010_OWNER_ACCEPTANCE_2026-10-03.md)。
 
 - [RUST-011](RUST-011-native-candidate-package.md)：从010验收补充最终HEAD接续；macOS arm64最终资源/清单pin/签名/ASAR/Fuses、实际Node→包内Rust协议、原默认Node自然启动、163专项＋26旧回归＋完整软件六步通过；默认Node，包内Main/Core Rust路由另列。见 [结果报告](../reports/RUST-011_NATIVE_CANDIDATE_PACKAGE.md)。
+
+- [RUST-012](RUST-012-packaged-readonly-route.md)：从011最终报告 `13b2a14f` 接续，候选包内可信Main/Core可选只读Rust路由；四独立签名包、171专项、Rust43/旧26和完整软件六步通过，最终独审与报告交付中，生产默认Node。

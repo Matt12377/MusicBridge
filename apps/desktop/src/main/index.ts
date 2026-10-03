@@ -3,6 +3,8 @@ import { createPerformanceIpcBridge } from "./performance-ipc.js"
 import { createLibraryReadTraceWriter, isLibraryReadTraceEnabled } from '../shared/library-read-trace.js'
 
 declare const __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: boolean
+declare const __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: boolean
+import { assertPackagedRouteDiagnosticEnvironment, createPackagedRouteMainProbe } from './packaged-route-main-probe.js'
 import { isVolumeRequest } from '@music-bridge/contracts'
 import { normalizeRoonDisplayUrl } from '@music-bridge/contracts'
 import { RoonDisplayConnection } from './roon-display-connection.js'
@@ -172,7 +174,9 @@ const startupTestConfiguration = readStartupTestConfiguration()
 const isStartupTest = startupTestConfiguration.isStartupTest
 const isUiE2e = process.env.MUSIC_BRIDGE_UI_E2E === '1'
 const isOfflineUiE2e = isUiE2e && process.env.MUSIC_BRIDGE_UI_E2E_OFFLINE === '1'
+if (__MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__) assertPackagedRouteDiagnosticEnvironment(process.env)
 const syntheticUserDataDirectory = initializeStartupTestPaths(startupTestConfiguration, isUiE2e, app)
+const packagedRouteProbe = __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__ ? createPackagedRouteMainProbe() : undefined
 const lifecycleProbe = createLifecycleProbe({ enabled: isUiE2e, sink: line => console.log(line.trimEnd()) })
 const isCoreCrashGate = startupTestConfiguration.coreCrashGate
 const isCredentialVaultGate = startupTestConfiguration.credentialVaultGate
@@ -1889,18 +1893,27 @@ function createCoreSupervisor(
     dependencies: {
       createChannel: () => {
         const channel = new MessageChannelMain()
+        packagedRouteProbe?.observePublicPort(channel.port2 as unknown as CoreMessagePort)
         return {
           port1: channel.port1 as unknown as CoreMessagePort,
           port2: channel.port2 as unknown as CoreMessagePort,
         }
       },
-      fork: (entryPath, args, options) =>
-        utilityProcess.fork(entryPath, args, {
+      fork: (entryPath, args, options) => {
+        const child = utilityProcess.fork(entryPath, args, {
           cwd: options.cwd,
-          env: options.env as Record<string, string>,
-          stdio: options.stdio,
+          env: (packagedRouteProbe ? { ...options.env,
+            TMPDIR: process.env.TMPDIR, DEV_BUILD_ROOT: process.env.DEV_BUILD_ROOT, DEV_CACHE_ROOT: process.env.DEV_CACHE_ROOT,
+          } : options.env) as Record<string, string>,
+          stdio: packagedRouteProbe ? 'pipe' : options.stdio,
           serviceName: options.serviceName,
-        }) as unknown as CoreChildProcess,
+        }) as unknown as CoreChildProcess
+        if (packagedRouteProbe) {
+          const diagnostic = new MessageChannelMain()
+          packagedRouteProbe.observeChild(child, entryPath, args, diagnostic as unknown as { port1: CoreMessagePort; port2: CoreMessagePort })
+        }
+        return child
+      },
     },
     performance: mainDiagnostics.performance,
     performanceContext: () => performanceIpc.context(),
@@ -1988,6 +2001,7 @@ async function waitForCoreRestartCredentialRecovery(
 }
 
 async function bootstrap(): Promise<void> {
+  if (packagedRouteProbe && !app.isPackaged) throw new Error('固定路由诊断必须运行实际候选应用包。')
   lifecycleProbe.mark('bootstrap-start')
   await app.whenReady()
   if (isUiE2e && process.platform === 'darwin') app.setActivationPolicy('accessory')
@@ -2055,6 +2069,11 @@ async function bootstrap(): Promise<void> {
     await prepared.credentialVault.save('v'.repeat(32))
   }
   await supervisor.start()
+  if (packagedRouteProbe) {
+    await packagedRouteProbe.run(supervisor)
+    app.quit()
+    return
+  }
   roonDisplayConnection = new RoonDisplayConnection({
     settingsPath: path.join(syntheticUserDataDirectory ?? app.getPath('userData'), 'roon-display.json'),
     forward: event => supervisor.requestInternal('lyrics.display.update', event),
@@ -2134,6 +2153,7 @@ void bootstrap().catch(() => {
 })
 
 app.on('before-quit', (event) => {
+  packagedRouteProbe?.emit('main.beforeQuit')
   roonDisplayConnection?.stop()
   lifecycleProbe.mark('before-quit')
   if (quitAfterCoreShutdown) {
@@ -2166,7 +2186,7 @@ app.on('before-quit', (event) => {
   })
 })
 
-app.on('will-quit', () => lifecycleProbe.mark('will-quit'))
+app.on('will-quit', () => { lifecycleProbe.mark('will-quit'); packagedRouteProbe?.emit('main.willQuit') })
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' && !quitAfterCoreShutdown) {

@@ -3200,7 +3200,7 @@
       "pushed": false
     }
   },
-  "currentRustCoreTask": "RUST-011",
+  "currentRustCoreTask": "RUST-012",
   "rustCoreAtomicSnapshot20261002": {
     "task": "RUST-002",
     "branch": "codex/rust-core-002-atomic-snapshot",
@@ -4762,5 +4762,83 @@
     "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-011_NATIVE_CANDIDATE_PACKAGE.md",
     "nextBranchBaseline": "final-report-head"
   },
-  "nextRustCoreTask": "RUST-012-packaged-trusted-readonly-route"
+  "rustCorePackagedRoute20261003": {
+    "task": "RUST-012",
+    "state": "local-validation-complete-review-pending",
+    "baseCommit": "13b2a14f03831ed7a98bdc5d1b9ab288644fc502",
+    "branch": "codex/rust-core-012-packaged-readonly-route",
+    "scope": "tasks/RUST-012-packaged-readonly-route.md",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt",
+    "productionDefault": "Node",
+    "soleProductionDatabaseWriter": "Node",
+    "ownerIntermediateTestActionsRequired": false,
+    "ownerAcceptance": "NOT_RUN",
+    "agentPolicy": {
+      "subagentModel": "gpt-6.1-sol",
+      "subagentReasoningEffort": "high",
+      "roles": 4,
+      "furtherDelegation": false
+    },
+    "implementationCommit": null,
+    "reportCommit": null,
+    "push": "NOT_RUN",
+    "installation": "NOT_RUN",
+    "realServices": "NOT_RUN",
+    "contract": "docs/contracts/RUST-012_PACKAGED_READONLY_ROUTE_V1.md",
+    "adr": "docs/adr/ADR-049-packaged-readonly-route-and-static-diagnostics.md",
+    "authorFocused": {
+      "A": "54/54-zero-skip",
+      "B": "10/10-focused-and114/114-regression-zero-skip",
+      "C": "71/71-actual-evidence-zero-skip"
+    },
+    "candidateGate": {
+      "state": "PASS",
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03",
+      "tests": 171,
+      "pass": 171,
+      "fail": 0,
+      "skipped": 0,
+      "sourceSha256": "e8f6852f958b84fff1ebe0972b616b682bf478a2e2babf4fbeec93b8b58e0069"
+    },
+    "softwareGate": {
+      "checks": 6,
+      "exitCodes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tests": 3975,
+      "pass": 3973,
+      "fail": 0,
+      "skipped": 2,
+      "skipClassification": "two-original-native-conditional-skips"
+    },
+    "nativeUnit": {
+      "tests": 43,
+      "pass": 43,
+      "fail": 0,
+      "skipped": 0
+    },
+    "signedNativeRegression": {
+      "tests": 26,
+      "pass": 26,
+      "fail": 0,
+      "skipped": 0
+    },
+    "postCloseSyntheticSqlite": {
+      "state": "PASS",
+      "profiles": 2,
+      "acknowledgements": 10,
+      "mode": "read-only-immutable",
+      "realUserData": "NOT_RUN"
+    },
+    "sourceCount": 1086,
+    "rendererAcceptance": "NOT_RUN",
+    "nextBranchBaseline": "final-report-head",
+    "implementationCommitResolver": "git log -1 --format=%H -- apps/desktop/src/main/packaged-rust-core-bootstrap.ts",
+    "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-012_PACKAGED_READONLY_ROUTE.md"
+  }
 }

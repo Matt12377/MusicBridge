@@ -1,6 +1,7 @@
 import { Worker, type WorkerOptions } from 'node:worker_threads'
 import { runCoreUtilityProcess, type DatasetOwnerFactory } from '../../../../packages/bridge-core/src/utility-main.js'
 import { createDatasetOwnerClient } from '../../../../packages/bridge-core/src/collection/dataset-owner-client.js'
+import type { DatasetOwnerEndpoint } from '../../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
 import { datasetOwnerEnvironment } from './dataset-owner-bootstrap.js'
 
 /** Rust 能力只由同进程可信源码显式传入，不从环境、父启动数据或公开 IPC 选择。 */
@@ -8,9 +9,11 @@ export interface DesktopCoreHostOptions {
   env?: NodeJS.ProcessEnv
   rustReadonlyCollection?: Parameters<typeof runCoreUtilityProcess>[6]
   onRustReadonlyCoreController?: Parameters<typeof runCoreUtilityProcess>[7]
+  createRustReadonlyCollection?: Parameters<typeof runCoreUtilityProcess>[8]
   dependencies?: {
     runCoreUtilityProcess?: typeof runCoreUtilityProcess
     createWorker?: (entry: URL, options: WorkerOptions) => Worker
+    decorateDatasetOwner?: (owner: DatasetOwnerEndpoint) => DatasetOwnerEndpoint
   }
 }
 
@@ -29,10 +32,24 @@ export function runDesktopCoreHost(options: DesktopCoreHostOptions = {}): Promis
         resourcesDirectory: process.resourcesPath,
       },
     })
-    return createDatasetOwnerClient({ worker, projection, onFatal })
+    const owner = createDatasetOwnerClient({ worker, projection, onFatal })
+    if (!options.dependencies?.decorateDatasetOwner) return owner
+    try {
+      const decorated = options.dependencies.decorateDatasetOwner(owner)
+      if (!decorated || ['prepare', 'dispatch', 'commitBoot', 'close'].some(key =>
+        typeof decorated[key as keyof DatasetOwnerEndpoint] !== 'function')) throw new Error('可信 Owner 装饰无效。')
+      return decorated
+    } catch (error) {
+      // 装饰失败仍先交付清理端点；utility 原启动 catch 必须等唯一 Owner 关闭回执。
+      return { prepare: () => Promise.reject(error), dispatch: () => Promise.reject(error),
+        commitBoot: () => Promise.reject(error), close: () => owner.close() }
+    }
   }
   const args = [env, undefined, undefined, undefined, null, createDatasetOwner] as const
   // 原入口维持恰六参数；显式能力仍由 utility 的既有准入和清理规则处理。
+  if (options.createRustReadonlyCollection !== undefined) {
+    return run(...args, options.rustReadonlyCollection, options.onRustReadonlyCoreController, options.createRustReadonlyCollection)
+  }
   if (options.onRustReadonlyCoreController !== undefined) {
     return run(...args, options.rustReadonlyCollection, options.onRustReadonlyCoreController)
   }

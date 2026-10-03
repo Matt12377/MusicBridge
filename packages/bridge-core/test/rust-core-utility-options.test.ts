@@ -20,8 +20,8 @@ function deferred() {
   const promise = new Promise<void>(yes => { resolve = yes; });
   return { promise, resolve };
 }
-async function until(check: () => boolean): Promise<void> {
-  const deadline = performance.now() + 2_000;
+async function until(check: () => boolean, timeoutMs = 2_000): Promise<void> {
+  const deadline = performance.now() + timeoutMs;
   while (!check()) {
     if (performance.now() > deadline) throw new Error('受控启动链未及时到达。');
     await new Promise<void>(resolve => setImmediate(resolve));
@@ -90,7 +90,7 @@ function fakeRust(t: test.TestContext, hooks: { boot?: Promise<void>; badBoot?: 
   });
   return { frames, spawn, get live() { return live; } };
 }
-async function start(t: test.TestContext, factory?: DatasetOwnerFactory, options?: RustReadonlyCoreOptions, overrides: NodeJS.ProcessEnv = {}, message: unknown = { type: 'musicbridge.core.port' }) {
+async function start(t: test.TestContext, factory?: DatasetOwnerFactory, options?: RustReadonlyCoreOptions, overrides: NodeJS.ProcessEnv = {}, message: unknown = { type: 'musicbridge.core.port' }, trustedFactory?: () => Promise<RustReadonlyCoreOptions>, onController?: Parameters<typeof runCoreUtilityProcess>[7]) {
   const descriptor = Object.getOwnPropertyDescriptor(process, 'parentPort'), previousExitCode = process.exitCode;
   let listener!: (event: { data: unknown; ports: UtilityPort[] }) => void;
   const exits: (number | string | null | undefined)[] = [];
@@ -101,7 +101,12 @@ async function start(t: test.TestContext, factory?: DatasetOwnerFactory, options
     else Reflect.deleteProperty(process, 'parentPort');
     process.exitCode = previousExitCode;
   });
-  if (options === undefined) await runCoreUtilityProcess({ ...env, ...overrides }, undefined, undefined, undefined, undefined, factory);
+  if (trustedFactory !== undefined) {
+    const trustedRun = runCoreUtilityProcess as (...args: unknown[]) => Promise<void>;
+    const started = trustedRun({ ...env, ...overrides }, undefined, undefined, undefined, undefined, factory, options, onController, trustedFactory);
+    assert.equal(typeof listener, 'function', '可信异步资源解析之前必须同步登记父启动监听。');
+    await started;
+  } else if (options === undefined) await runCoreUtilityProcess({ ...env, ...overrides }, undefined, undefined, undefined, undefined, factory);
   else await runCoreUtilityProcess({ ...env, ...overrides }, undefined, undefined, undefined, undefined, factory, options);
   const port = new Port();
   listener({ data: message, ports: [port] });
@@ -254,4 +259,108 @@ test('Node 领域异常继续原安全 IPC 映射，不泄漏路径或 Rust pin'
   assert.deepEqual(response, { version: 1, id: response.id, ok: false, error: { code: 'INTERNAL_ERROR', message: 'Core request failed' } });
   await shutdown(port, exits);
   assert.equal(JSON.stringify(port.messages).includes(binary.sha256), false);
+});
+
+
+test('可信异步资源工厂等父端口闭集验证后才执行，准入完成前没有 Owner 或 ready', async t => {
+  let release!: (options: RustReadonlyCoreOptions) => void;
+  const pending = new Promise<RustReadonlyCoreOptions>(resolve => { release = resolve; });
+  const s = source(), rust = fakeRust(t);
+  let factoryCalls = 0, owners = 0, controller: Parameters<NonNullable<Parameters<typeof runCoreUtilityProcess>[7]>>[0] | undefined;
+  const { port, exits } = await start(t, () => { owners++; return s.owner; }, undefined, {}, undefined,
+    () => { factoryCalls++; return pending; }, value => { controller = value; });
+  assert.equal(factoryCalls, 1); assert.equal(owners, 0); assert.equal(port.ready, false);
+  release({ binary, snapshotProfile: 'v2-2000' });
+  await until(() => port.ready);
+  assert.equal(owners, 1); assert.equal(factoryCalls, 1); assert.equal(controller?.getStatus().phase, 'ready');
+  const response = await port.response(port.request('collection.list', { page: { offset: 0, limit: 25 } }));
+  assert.equal(response.ok, true); assert.equal(s.requests.length, 0);
+  await shutdown(port, exits);
+  assert.equal(s.counts.closes, 1); assert.equal(rust.live, 0);
+});
+
+for (const mode of ['throw', 'reject', 'undefined', 'null', 'getter', 'proxy'] as const) {
+  test(`可信资源工厂 ${mode} 不退回默认 Node，不创建作者，不泄漏私有错误`, async t => {
+    let owners = 0, calls = 0;
+    const rust = fakeRust(t);
+    const privateFailure = new Error('合成秘密 pin 与 /私有资源路径');
+    const factory = (() => {
+      calls++;
+      if (mode === 'throw') throw privateFailure;
+      if (mode === 'reject') return Promise.reject(privateFailure);
+      if (mode === 'undefined') return Promise.resolve(undefined);
+      if (mode === 'null') return Promise.resolve(null);
+      if (mode === 'proxy') return Promise.resolve(new Proxy({ binary }, {}));
+      return Promise.resolve(Object.defineProperty({}, 'binary', { enumerable: true, get() { throw privateFailure; } }));
+    }) as () => Promise<RustReadonlyCoreOptions>;
+    const { port, exits } = await start(t, () => { owners++; return source().owner; }, undefined, {}, undefined, factory);
+    await until(() => exits.includes(1));
+    assert.equal(calls, 1); assert.equal(owners, 0); assert.equal(port.ready, false); assert.equal(rust.spawn.mock.callCount(), 0);
+    assert.deepEqual(port.messages, []);
+  });
+}
+
+for (const mode of ['parent', 'double', 'no-owner', 'bad-controller'] as const) {
+  test(`可信资源工厂在 ${mode} 合同拒绝后不执行`, async t => {
+    let calls = 0, owners = 0;
+    const factory = async () => { calls++; return { binary }; };
+    const sourceFactory = mode === 'no-owner' ? undefined : () => { owners++; return source().owner; };
+    const { port, exits } = await start(t, sourceFactory, mode === 'double' ? { binary } : undefined, {},
+      mode === 'parent' ? { type: 'musicbridge.core.port', createRustReadonlyCollection: true } : undefined,
+      factory, mode === 'bad-controller' ? true as unknown as Parameters<typeof runCoreUtilityProcess>[7] : undefined);
+    await until(() => exits.includes(1));
+    assert.equal(calls, 0); assert.equal(owners, 0); assert.equal(port.ready, false);
+  });
+}
+
+const invalidFactoryValues: [string, Record<string, unknown>][] = [
+  ['profile', { snapshotProfile: 'invalid' }],
+  ...['startupTimeoutMs', 'requestTimeoutMs', 'closeTimeoutMs'].flatMap(key =>
+    [0, 30_001, NaN, 1.5].map(value => [`${key}:${String(value)}`, { [key]: value }] as [string, Record<string, unknown>])),
+  ['relative-path', { binary: { ...binary, path: 'relative/musicbridge-rust-core' } }],
+  ['nul-path', { binary: { ...binary, path: '/合成/\0非法' } }],
+  ['bad-sha', { binary: { ...binary, sha256: 'invalid' } }],
+  ['fatal-callback', { onFatal: true }], ['observation-callback', { onObservation: true }],
+  ['proxy-callback', { onObservation: new Proxy(() => {}, {}) }],
+]
+for (const [name, supplied] of invalidFactoryValues) {
+  test(`可信资源值${name}在创建Owner、prepare、boot和spawn之前拒绝`, async t => {
+    let owners = 0
+    const s = source(), rust = fakeRust(t)
+    const { port, exits } = await start(t, () => { owners++; return s.owner }, undefined, {}, undefined,
+      async () => ({ binary, ...supplied }) as unknown as RustReadonlyCoreOptions)
+    await until(() => exits.includes(1) || port.ready)
+    const wasReady = port.ready
+    if (wasReady) await shutdown(port, exits)
+    assert.equal(owners, 0); assert.equal(s.counts.prepares, 0); assert.equal(s.counts.boots, 0)
+    assert.equal(rust.spawn.mock.callCount(), 0); assert.equal(wasReady, false); assert.deepEqual(exits, [1])
+  })
+}
+
+test('可信资源工厂固定五秒期限；超时后消费迟到拒绝，不重试或建立 Node 作者', async t => {
+  let rejectLate!: (error: Error) => void;
+  const pending = new Promise<RustReadonlyCoreOptions>((_resolve, reject) => { rejectLate = reject; });
+  let calls = 0, owners = 0;
+  const beginning = performance.now();
+  const { port, exits } = await start(t, () => { owners++; return source().owner; }, undefined, {}, undefined,
+    () => { calls++; return pending; });
+  await until(() => exits.includes(1), 6_500);
+  assert.ok(performance.now() - beginning >= 4_900, '准入不能缩短固定五秒期限。');
+  assert.equal(calls, 1); assert.equal(owners, 0); assert.equal(port.ready, false);
+  rejectLate(new Error('迟到私有拒绝'));
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.deepEqual(exits, [1]); assert.equal(owners, 0);
+});
+
+test('资源准入超时的迟到成功不创建来源、不发布ready', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let resolveLate!: (options: RustReadonlyCoreOptions) => void;
+  const pending = new Promise<RustReadonlyCoreOptions>(resolve => { resolveLate = resolve; });
+  let owners = 0;
+  const { port, exits } = await start(t, () => { owners++; return source().owner; }, undefined, {}, undefined, () => pending);
+  t.mock.timers.tick(5_000);
+  await until(() => exits.includes(1));
+  resolveLate({ binary });
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(owners, 0); assert.equal(port.ready, false); assert.deepEqual(exits, [1]);
 });

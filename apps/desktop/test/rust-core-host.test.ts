@@ -200,3 +200,40 @@ test('真实 utility 拒绝非法 profile 后关闭原 Owner Client 并等待受
   assert.deepEqual(result.workers[0]!.requests.map(request => request.operation), ['close'])
   assert.deepEqual(result.messages, [])
 })
+
+
+test('可信资源工厂精确位于第九参数，原控制回调保持第八参数', async () => {
+  const { calls, run } = capture();
+  const factory = async () => rust;
+  const callback: NonNullable<DesktopCoreHostOptions['onRustReadonlyCoreController']> = () => {};
+  await runDesktopCoreHost({ env, createRustReadonlyCollection: factory, onRustReadonlyCoreController: callback,
+    dependencies: { runCoreUtilityProcess: run } } as DesktopCoreHostOptions);
+  assert.equal(calls.length, 1); assert.equal(calls[0]!.length, 9);
+  assert.equal(calls[0]![6], undefined); assert.equal(calls[0]![7], callback);
+  assert.equal((calls[0] as unknown[])[8], factory);
+});
+
+test('可信 Owner 装饰只在原工厂创建后调用，原身份/prepare/boot/close保持', async () => {
+  const { calls, run } = capture(), worker = new OwnerWorker();
+  let decorated = 0;
+  await runDesktopCoreHost({ env, dependencies: { runCoreUtilityProcess: run, createWorker: () => worker.asWorker(),
+    decorateDatasetOwner(owner: import('../../../packages/bridge-core/src/collection/dataset-owner-protocol.js').DatasetOwnerEndpoint) {
+      decorated++; return owner;
+    } } } as DesktopCoreHostOptions);
+  assert.equal(decorated, 0);
+  const owner = calls[0]![5]!({ projection: async () => { throw new Error('不投影'); }, onFatal: () => {} });
+  assert.equal(decorated, 1);
+  await owner.prepare(); await owner.commitBoot(); await owner.close();
+  assert.deepEqual(worker.requests.map(request => request.operation), ['prepare', 'commitBoot', 'close']);
+});
+
+for (const mode of ['throw', 'invalid'] as const) {
+  test(`可信 Owner 装饰 ${mode} 仍保留原作者的可等待清理端点`, async () => {
+    const { calls, run } = capture(), worker = new OwnerWorker();
+    await runDesktopCoreHost({ env, dependencies: { runCoreUtilityProcess: run, createWorker: () => worker.asWorker(),
+      decorateDatasetOwner() { if (mode === 'throw') throw new Error('合成装饰失败'); return null as unknown as import('../../../packages/bridge-core/src/collection/dataset-owner-protocol.js').DatasetOwnerEndpoint; } } });
+    const owner = calls[0]![5]!({ projection: async () => { throw new Error('不投影'); }, onFatal: () => {} });
+    await assert.rejects(owner.prepare()); await owner.close();
+    assert.deepEqual(worker.requests.map(request => request.operation), ['close']);
+  });
+}

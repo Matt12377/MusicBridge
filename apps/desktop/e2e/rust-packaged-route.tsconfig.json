@@ -1,0 +1,26 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
+  },
+  "include": [
+    "../src/main/core-host.ts",
+    "../src/main/index.ts",
+    "../src/main/packaged-*.ts",
+    "../scripts/rust-packaged-route-runtime.mjs",
+    "../scripts/rust-packaged-route-runtime.d.mts",
+    "../test/rust-core-host.test.ts",
+    "../test/packaged-route-*.test.ts",
+    "../test/helpers/rust-packaged-route-evidence.ts",
+    "../test/rust-core/packaged-rust-core-bootstrap.test.ts",
+    "../test/rust-core/rust-packaged-route-*.test.ts",
+    "../../../packages/bridge-core/src/utility-main.ts",
+    "../../../packages/bridge-core/src/rust-core/readonly-sidecar.ts",
+    "../../../packages/bridge-core/test/rust-core-utility-options.test.ts",
+    "../../../packages/bridge-core/test/rust-core/sidecar-observation.test.ts",
+    "../src/renderer/src/env.d.ts",
+    "../src/assets.d.ts"
+  ]
+}

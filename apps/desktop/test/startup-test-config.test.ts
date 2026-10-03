@@ -52,6 +52,7 @@ function mainStartupHost(environment: NodeJS.ProcessEnv, options: {
     ...startupConfiguration,
     createLibraryReadTraceWriter, isLibraryReadTraceEnabled,
     __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: options.developmentBuild ?? true,
+    __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: false,
     readStartupTestConfiguration: () => readStartupTestConfiguration(environment),
     process: { env: environment, platform: 'darwin' },
     app: {

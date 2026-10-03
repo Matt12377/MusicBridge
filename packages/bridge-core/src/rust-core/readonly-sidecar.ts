@@ -53,7 +53,14 @@ export interface RustReadonlySidecarOptions {
   requestTimeoutMs?: number;
   closeTimeoutMs?: number;
   onFatal?: (code: RustSidecarErrorCode) => void;
+  /** 同进程可信只读诊断；不进入进程配置、IPC或资源选择。 */
+  onObservation?: (value: RustSidecarObservation) => void;
 }
+export type RustSidecarObservation =
+  | { readonly event: 'spawn'; readonly pid: number | null; readonly binary: Readonly<{ path: string; sha256: string }> }
+  | { readonly event: 'request' | 'validated-reply'; readonly pid: number | null; readonly frame: Readonly<Record<string, unknown>> }
+  | { readonly event: 'exit'; readonly pid: number | null; readonly code: number | null; readonly signal: string | null; readonly closeAcknowledged: boolean; readonly pendingRequests: number }
+  | { readonly event: 'kill-request'; readonly pid: number | null; readonly signal: 'SIGKILL'; readonly reason: RustSidecarErrorCode };
 export interface RustReadonlyOwnerOptions extends Omit<RustReadonlySidecarOptions, 'snapshot'> {
   owner: DatasetOwnerSnapshotEndpoint & Partial<Pick<DatasetOwnerLargeSnapshotEndpoint, 'exportLargeVersionedCollectionSnapshot'>>;
   startupTimeoutMs?: number;
@@ -246,6 +253,17 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
   let queryIndex: CollectionSnapshotQueryIndex | undefined;
   let writeTail = Promise.resolve();
   const pending = new Map<string, Pending>();
+  const observationSink = options.onObservation;
+  function observe(value: RustSidecarObservation): void {
+    if (!observationSink) return;
+    try {
+      const copy = jsonCopy(value);
+      const freeze = (item: unknown): void => { if (item && typeof item === 'object') { Object.values(item).forEach(freeze); Object.freeze(item); } };
+      freeze(copy);
+      const returned: unknown = observationSink(copy);
+      if (returned !== undefined) void Promise.resolve(returned).catch(() => {});
+    } catch { /* 观察失败不能改变原始协议、预算或关闭结论。 */ }
+  }
   let fragments: Buffer[] = [], fragmentBytes = 0;
   let resolveExit!: () => void, rejectExit!: (error: RustSidecarError) => void;
   const exitPromise = new Promise<void>((resolve, reject) => { resolveExit = resolve; rejectExit = reject; });
@@ -257,7 +275,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
     fragments = []; fragmentBytes = 0;
     for (const item of pending.values()) { clearTimeout(item.timer); item.reject(failure); }
     pending.clear(); rejectExit(failure);
-    if (child && !exited) child.kill('SIGKILL');
+    if (child && !exited) { observe({ event: 'kill-request', pid: child.pid ?? null, signal: 'SIGKILL', reason: code }); child.kill('SIGKILL'); }
     try { options.onFatal?.(code); } catch { /* 诊断观察者不能改变清理。 */ }
   }
   function validateResult(item: Pending, result: unknown): boolean {
@@ -297,6 +315,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
       || typeof value.error.code !== 'string' || !wireCodes.has(value.error.code)
       || typeof value.error.message !== 'string' || value.error.message.length > 160) { fail('PROTOCOL_ERROR'); return; }
     if (performance.now() >= item.deadline) { fail('TIMEOUT'); return; }
+    observe({ event: 'validated-reply', pid: child?.pid ?? null, frame: value });
     clearTimeout(item.timer); pending.delete(value.requestId);
     if (!value.ok) {
       item.reject(new RustSidecarError((value.error as { code: RustSidecarErrorCode }).code));
@@ -330,6 +349,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
       shell: false, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
       cwd: path.dirname(binary.path), env: { LANG: 'C.UTF-8' },
     });
+    observe({ event: 'spawn', pid: child.pid ?? null, binary });
     child.on('error', () => fail('PROCESS_EXIT'));
     child.stdin.on('error', () => fail('PROCESS_EXIT'));
     child.stdout.on('data', consume);
@@ -337,6 +357,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
     child.stderr.on('data', () => { /* 原生 stderr 只消费，不转发或持有。 */ });
     child.on('close', (code, signal) => {
       exited = true;
+      observe({ event: 'exit', pid: child?.pid ?? null, code, signal, closeAcknowledged: closeAck, pendingRequests: pending.size });
       if (!failure && closeAck && closing && code === 0 && signal === null && pending.size === 0) {
         try {
           checkBinary(binary);
@@ -370,6 +391,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
       if (failure || !child || exited) { no(failure ?? new RustSidecarError('PROCESS_EXIT')); return; }
       if (performance.now() >= item.deadline) { fail('TIMEOUT'); no(failure!); return; }
       item.sent = true;
+      if (observationSink) observe({ event: 'request', pid: child.pid ?? null, frame: JSON.parse(frame.toString('utf8')) as Record<string, unknown> });
       child.stdin.write(frame, error => { if (error) no(error); else yes(); });
     }));
     void writeTail.catch(() => fail('PROCESS_EXIT'));

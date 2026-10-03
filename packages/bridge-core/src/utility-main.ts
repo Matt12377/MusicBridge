@@ -25,6 +25,7 @@ import { DatasetScopeError } from './recording/dataset-identity.js';
 import { createSyntheticRoonLibrary } from './roon/synthetic-library.js';
 import { appendFileSync, chmodSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { types } from 'node:util';
 import { CollectionError, type CollectionRepository } from './collection/repository.js';
 import { openCollectionDataset } from './recording/restore-dataset-runtime.js';
 import {
@@ -53,6 +54,7 @@ import { createLyricsMatchRepository } from './lyrics-matching/repository.js';
 import type { FfmpegConverter } from './recording/audio-converter.js';
 import { createRustReadonlyCoreDatasetOwner, type RustReadonlyCoreOptions } from './rust-core/core-dataset-owner.js';
 import { createRustReadonlyCoreController, type RustReadonlyCoreController } from './rust-core/host-controller.js';
+import { validateRustSnapshotProfile } from './rust-core/readonly-sidecar.js';
 
 export interface UtilityPort {
   on(event: 'message', listener: (event: { data: unknown }) => void): unknown;
@@ -473,6 +475,68 @@ export type DatasetOwnerFactory = (options: {
   onFatal: (error: unknown) => void;
 }) => DatasetOwnerEndpoint;
 
+/** 仅同进程可信源码提供；不能由环境或父端口选择。 */
+export type RustReadonlyCoreFactory = () => Promise<RustReadonlyCoreOptions>;
+const RUST_RESOURCE_ADMISSION_TIMEOUT_MS = 5_000;
+
+function admittedRustFactoryOptions(value: unknown): RustReadonlyCoreOptions {
+  const plain = (object: unknown): object is Record<string, unknown> => {
+    if (object === null || typeof object !== 'object' || types.isProxy(object) || Array.isArray(object)) return false;
+    const prototype = Object.getPrototypeOf(object);
+    return prototype === Object.prototype || prototype === null;
+  };
+  if (!plain(value)) throw new Error('可信 Rust 资源配置无效。');
+  const allowed = ['binary', 'snapshotProfile', 'requestTimeoutMs', 'closeTimeoutMs', 'startupTimeoutMs', 'onFatal', 'onObservation'];
+  const keys = Reflect.ownKeys(value), descriptors = Object.getOwnPropertyDescriptors(value);
+  if (!keys.includes('binary') || keys.some(key => typeof key !== 'string' || !allowed.includes(key))
+    || Object.values(descriptors).some(field => !field.enumerable || !Object.hasOwn(field, 'value'))) {
+    throw new Error('可信 Rust 资源配置无效。');
+  }
+  const binary = descriptors.binary!.value as unknown;
+  if (!plain(binary)) throw new Error('可信 Rust 资源配置无效。');
+  const binaryKeys = Reflect.ownKeys(binary), binaryFields = Object.getOwnPropertyDescriptors(binary);
+  if (binaryKeys.length !== 2 || binaryKeys.some(key => key !== 'path' && key !== 'sha256')
+    || Object.values(binaryFields).some(field => !field.enumerable || !Object.hasOwn(field, 'value'))
+    || typeof binaryFields.path?.value !== 'string' || typeof binaryFields.sha256?.value !== 'string') {
+    throw new Error('可信 Rust 资源配置无效。');
+  }
+  const binaryPath = binaryFields.path.value as string, binarySha = binaryFields.sha256.value as string;
+  if (!path.isAbsolute(binaryPath) || binaryPath.length > 1024 || binaryPath.includes('\0') || !/^[a-f0-9]{64}$/.test(binarySha)) {
+    throw new Error('可信 Rust 资源配置无效。');
+  }
+  validateRustSnapshotProfile(descriptors.snapshotProfile?.value);
+  for (const key of ['startupTimeoutMs', 'requestTimeoutMs', 'closeTimeoutMs']) {
+    const budget = descriptors[key]?.value;
+    if (budget !== undefined && (!Number.isSafeInteger(budget) || budget < 1 || budget > 30_000)) {
+      throw new Error('可信 Rust 资源配置无效。');
+    }
+  }
+  for (const key of ['onFatal', 'onObservation']) {
+    const callback = descriptors[key]?.value;
+    if (callback !== undefined && (typeof callback !== 'function' || types.isProxy(callback))) {
+      throw new Error('可信 Rust 资源配置无效。');
+    }
+  }
+  // 首次交付前固定数据字段；后续修改工厂返回对象不能替换在途身份。
+  return Object.freeze({ ...value, binary: Object.freeze({ path: binaryPath, sha256: binarySha }) }) as RustReadonlyCoreOptions;
+}
+
+async function admitRustReadonlyFactory(factory: RustReadonlyCoreFactory): Promise<RustReadonlyCoreOptions> {
+  const deadline = performance.now() + RUST_RESOURCE_ADMISSION_TIMEOUT_MS;
+  const work = Promise.resolve().then(factory);
+  // 超时只终止准入；迟到拒绝仍被消费，迟到成功不能接着创建来源。
+  void work.catch(() => {});
+  let timer!: NodeJS.Timeout;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error('可信 Rust 资源准入超时。')), RUST_RESOURCE_ADMISSION_TIMEOUT_MS);
+  });
+  try {
+    const result = await Promise.race([work, timeout]);
+    if (performance.now() >= deadline) throw new Error('可信 Rust 资源准入超时。');
+    return admittedRustFactoryOptions(result);
+  } finally { clearTimeout(timer); }
+}
+
 export async function runCoreUtilityProcess(
   env: NodeJS.ProcessEnv = process.env,
   createRecordingConverter?: () => Promise<FfmpegConverter | undefined>,
@@ -482,6 +546,7 @@ export async function runCoreUtilityProcess(
   createDatasetOwner?: DatasetOwnerFactory,
   rustReadonlyCollection?: RustReadonlyCoreOptions,
   onRustReadonlyCoreController?: (controller: RustReadonlyCoreController) => void,
+  createRustReadonlyCollection?: RustReadonlyCoreFactory,
 ): Promise<void> {
   const traceEnabled = isLibraryReadTraceEnabled(env, env.NODE_ENV === 'development' && env.MUSIC_BRIDGE_CORE_TEST_MODE !== '1');
   const libraryReadTrace = traceEnabled ? createLibraryReadTraceWriter({ enabled: true, write: line => { process.stdout.write(line); } }) : undefined;
@@ -503,6 +568,7 @@ export async function runCoreUtilityProcess(
       let ownerIdentity: DatasetOwnerIdentity | undefined;
       let runtime: CoreRuntime | undefined;
       let runtimeShutdown: Promise<void> | undefined;
+      let resolvedRustReadonlyCollection = rustReadonlyCollection;
       let projectionGateway: ReturnType<typeof createDatasetRoonProjectionGateway> | undefined;
       try {
         if (!isRecord(event.data) || event.data.type !== 'musicbridge.core.port' ||
@@ -514,12 +580,17 @@ export async function runCoreUtilityProcess(
         const playbackOptions = playbackEventProtocol ? { playbackEventProtocol } : {};
         const onEvent = (message: CoreRuntimeEvent) => { if (message.event !== 'core.ready') port.postMessage(message); };
         if (onRustReadonlyCoreController !== undefined
-          && (typeof onRustReadonlyCoreController !== 'function' || rustReadonlyCollection === undefined)) {
+          && (typeof onRustReadonlyCoreController !== 'function' || rustReadonlyCollection === undefined && createRustReadonlyCollection === undefined)) {
           throw new Error('Rust 主机控制需要显式只读配置与同步回调。');
         }
-        if (rustReadonlyCollection !== undefined && !createDatasetOwner) {
+        if (createRustReadonlyCollection !== undefined
+          && (typeof createRustReadonlyCollection !== 'function' || types.isProxy(createRustReadonlyCollection) || rustReadonlyCollection !== undefined)) {
+          throw new Error('可信 Rust 资源工厂无效或配置冲突。');
+        }
+        if ((rustReadonlyCollection !== undefined || createRustReadonlyCollection !== undefined) && !createDatasetOwner) {
           throw new Error('Rust 只读配置需要显式 Dataset Owner 工厂。');
         }
+        if (createRustReadonlyCollection !== undefined) resolvedRustReadonlyCollection = await admitRustReadonlyFactory(createRustReadonlyCollection);
         if (createDatasetOwner) {
           const dataDirectory = env.MUSIC_BRIDGE_DATA_DIRECTORY;
           if (!dataDirectory || dataDirectory.length > 1024 || !path.isAbsolute(dataDirectory) || dataDirectory.includes('\0')) throw new Error('Core数据目录不可用。');
@@ -534,8 +605,8 @@ export async function runCoreUtilityProcess(
           // 在能力准入前登记来源；同步拒绝配置时也必须清理已创建的 Node Owner。
           datasetOwnerEndpoint = source;
           // 私有快照能力属于原始来源；不可先经既有 IPC 包装而丢失能力。
-          const rustClient = rustReadonlyCollection === undefined ? undefined
-            : createRustReadonlyCoreDatasetOwner(source, rustReadonlyCollection);
+          const rustClient = resolvedRustReadonlyCollection === undefined ? undefined
+            : createRustReadonlyCoreDatasetOwner(source, resolvedRustReadonlyCollection);
           const client = rustClient ?? source;
           datasetOwnerEndpoint = {
             prepare: async () => { ownerIdentity = await client.prepare(); return ownerIdentity; },
@@ -640,7 +711,7 @@ export async function runCoreUtilityProcess(
                 });
               })();
         }
-        if (rustReadonlyCollection !== undefined) {
+        if (resolvedRustReadonlyCollection !== undefined) {
           const shutdown = runtime.shutdown.bind(runtime);
           // 原 shutdown 的完成包含控制面清理和 stopped 状态；Owner close 完成不能代替它。
           runtime.shutdown = () => runtimeShutdown ??= shutdown();
@@ -661,10 +732,10 @@ export async function runCoreUtilityProcess(
         dataset?.close();
         // 显式组合在正常 shutdown 时会封闭尚未完成的 boot；已确认 stopped 由原 attach 正常退出。
         let shutdownSucceeded = false;
-        if (rustReadonlyCollection !== undefined && runtimeShutdown) {
+        if (resolvedRustReadonlyCollection !== undefined && runtimeShutdown) {
           try { await runtimeShutdown; shutdownSucceeded = true; } catch { /* shutdown 失败仍按启动失败退出。 */ }
         }
-        if (rustReadonlyCollection !== undefined && cleanupSucceeded && shutdownSucceeded && runtime?.getState().runtime === 'stopped') return;
+        if (resolvedRustReadonlyCollection !== undefined && cleanupSucceeded && shutdownSucceeded && runtime?.getState().runtime === 'stopped') return;
         process.exitCode = 1;
         process.exit(1);
       }

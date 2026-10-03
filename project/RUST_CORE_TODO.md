@@ -1,15 +1,22 @@
 # Rust Core 开发进度
 
-更新：2026-10-03。**RUST-011：macOS arm64离线候选包原生资源准入 — 本地交付完成**。分支 `codex/rust-core-011-native-candidate-package`，实现 `5f56611`；下一项从最终报告HEAD接续。开发期间全部测试由代理完成，Owner只负责最终成品使用反馈。
+更新：2026-10-03。当前 **RUST-012：候选包内可信可选只读Rust路由 — 四包/171专项/3973软件回归通过，最终独审与交付中**。分支 `codex/rust-core-012-packaged-readonly-route`，工作树 `worktree/rust-core-012`，基线011最终报告 `13b2a14f`。
 
-正式编号 **11 个task均本地交付完成**。8条后续方向中的资源/签名部分已由011完成，包内可信可选路由下一项拆分；跨架构、生产签名、默认启用和写入迁移仍未完成，整体迁移任务数未冻结。
+正式编号 **12个task：11个本地交付完成，1个开发中**。完整生产迁移尚未完成，8条后续方向仍逐项拆分。开发验证全由代理承担，Owner只负责最终成品使用反馈。
 
 ## 待办事项
 
-- [ ] 接续RUST-012独立分支：把可信固定Resources准入接入候选包内原Main/Core可选只读Rust路由，保持生产默认Node与唯一Node作者。
-- [ ] 代理：补齐包内实际路由、失败准入、写后Node回退/可信刷新、自然收口及完整软件验证；Owner不承担中间测试。
-- [ ] 最终成品交付后的Owner使用反馈；本地合成候选不代表完整生产迁移或真实服务验收。
-- [ ] 下方8条后续方向继续按实际瓶颈与授权逐项冻结，不把规划计作已完成。
+- [x] 主代理：核011最终HEAD/报告/候选产物/原11工作树WIP与可写外置卷；建立012独立分支，保留全部旧改动。
+- [x] A：可信factory/静态pin/默认路径与准入拒绝实现，54/54专项零skip与专用类型通过；实际签包仍待Gate。
+- [x] B：固定Main流程、Core/Node/Rust观察与直接候选运行实现，10专项和114相关回归零skip、Vue类型通过；未代替actualApp。
+- [x] 主代理：三审计73输入核对、合同/ADR与文件范围冻结；离线新鲜Rust编译通过。
+- [x] C：严格包内路由收据71项通过，实际输入及重新计算SHA后的深入串改均覆盖，零skip。
+- [x] 主代理：最终四份候选打包/签名/ASAR/Fuses及原Main→Core→Node/Rust实跑通过，171/171专项零skip；错误pin拒绝、写后回退/可信刷新、正常资源自然退出均核对。
+- [x] 主代理：旧启动VM夹具补齐默认关闭的编译常量，原13项断言完整通过；旧完整软件7项失败保留。
+- [x] 主代理：同一1086输入完整软件六步全0，3973通过/原2条件skip；Rust43与最终签后binary旧26项零skip。两个关闭合成库10条回执、4命令去重、4型号/4批次/0实体及库存值只读核对通过。
+- [x] 主代理：当前1086源码、29生产dist、275Electron缓存、四完整签名包与原12工作树/7个WIP文件均保持已验证身份。
+- [ ] 第四角色：两轮独立审查、实现/报告提交与最终Git/产物/原WIP身份。
+- [ ] 最终成品交付后的Owner使用反馈；不承担中间测试或内部路由判断。
 
 ## 已完成事项
 
@@ -62,7 +69,7 @@
 - [ ] 快照版本、显式刷新与按读取失效检测由 RUST-003 实施；后续评估推送通知和批次失效的收益。
 - [ ] RUST-005 结果后评估是否还有已证实的查询热点，扩展索引另立范围，保持成本证据。
 - [ ] 受控主机、正式Main与空白磁带UI已由RUST-007/008/009本地验证；实体音乐库等相邻领域、正式用户启用及真实服务仍须另列范围和验收。
-- [ ] 验证 macOS 架构、打包资源、签名与二进制身份准入；生产默认启用单列验收。
+- [ ] macOS arm64资源、签名、ASAR/Fuses与包内只读路由已由RUST-011/012验证；x64/universal、Developer ID/公证和正式用户启用继续单列验收。
 - [ ] 对可能的 Rust 持久化阶段梳理 schema、跨库事务、幂等回执、未知结果、不可变历史和恢复合同；在完整兼容证据前保持 Node 唯一作者。
 - [ ] 准备真实环境验证材料，分别记录 Roon、播放、录音和 Owner 结果；本地合成测试不替代这些验收。
 
@@ -201,7 +208,7 @@
 
 报告：[RUST-001_READONLY_SIDECAR.md](../reports/RUST-001_READONLY_SIDECAR.md)。
 
-当前范围：[RUST-011-native-candidate-package.md](../tasks/RUST-011-native-candidate-package.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-011-3samm9m1`。本期 base 为010最终HEAD `ed40e39c39db908200e946c0c13dcfc1ddc0a206`。
+当前范围：[RUST-012-packaged-readonly-route.md](../tasks/RUST-012-packaged-readonly-route.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt`。本期base为011最终报告HEAD `13b2a14f03831ed7a98bdc5d1b9ab288644fc502`。
 
 ## 保留的验收边界
 
