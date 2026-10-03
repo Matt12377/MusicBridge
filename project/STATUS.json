@@ -5855,5 +5855,79 @@
     "overallCiPass": false,
     "overallReleaseApproved": false,
     "securityBaselineBlocker": "INHERITED_PRODUCTION_NODE_FORGE_HIGH_AUDIT_FAILURE_NOT_CLOSED"
+  },
+  "currentPostRustTask": "MBRS-000",
+  "postRustBaseline20261004": {
+    "task": "MBRS-000",
+    "state": "baseline-delivered-g0-not-admitted",
+    "branch": "codex/mbrs-000-baseline-admission",
+    "baseCommit": "044e6b24edf81b64030d4c96741082670532971c",
+    "inheritedRustImplementationCommit": "8c58fdee4309a781dbf6640d8aeba46bb8fe1bd3",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-000_BASELINE_ADMISSION.md",
+    "todo": "project/POSTRUST_TODO.md",
+    "plan": "project/POSTRUST_PLAN.json",
+    "report": "reports/MBRS-000_BASELINE_ADMISSION.md",
+    "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s",
+    "admissionMode": "EXPLICIT_PHASE_HANDOFF",
+    "g0Decision": "NOT_ADMITTED",
+    "fullRustMigrationCompleted": false,
+    "productionDefault": "node-rust-collection-readonly-default-off",
+    "businessDatabaseWriter": "node-dataset-owner-worker",
+    "outboxWriter": "electron-main-command-outbox-store",
+    "productWriter": "root-serial-integration-after-product_writer-freeze",
+    "actors": {
+      "primary": "gpt-6.1-sol/max",
+      "subagents": [
+        "gpt-6.1-sol/high",
+        "gpt-6.1-sol/high",
+        "gpt-6.1-sol/high"
+      ],
+      "descendants": false
+    },
+    "baselineCarryoverSourceCount": 14,
+    "reuseCount": 12,
+    "taskCount": 18,
+    "acceptanceCount": 156,
+    "freshInheritedCI": {
+      "commit": "044e6b24edf81b64030d4c96741082670532971c",
+      "staticSecurity": "success",
+      "verify": "failure-18-desktop-preparation-failures",
+      "electron": "failure-4-system-pass-2-rust-build-root-import-fail",
+      "rustWorkflow": "failure-zero-jobs-invalid-context",
+      "productionAudit": "failure-node-forge-high"
+    },
+    "nextTask": "RUST-016-ci-security-portability",
+    "ownerActionRequired": false,
+    "realServices": "NOT_RUN",
+    "sourceFileWrites": "NOT_RUN",
+    "installation": "NOT_RUN",
+    "mainMerge": "NOT_RUN",
+    "release": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "push": "NOT_RUN_AT_IMPLEMENTATION_DRAFT",
+    "validation": {
+      "structureBehavior": {
+        "exitCode": 0,
+        "passed": 13,
+        "failed": 0,
+        "skipped": 0,
+        "cancelled": 0
+      },
+      "structureSourceExitCode": 0,
+      "controlPlaneExitCode": 0,
+      "boundariesExitCode": 0,
+      "app": "NOT_RUN",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN"
+    },
+    "review": {
+      "scope": "frozen-20-files",
+      "round": 1,
+      "confirmedP1P2": 0,
+      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/review-mbrs000-round1.json"
+    },
+    "implementationCommitResolution": "git log -1 --format=%H -- scripts/ci/verify-postrust-baseline.mjs"
   }
 }

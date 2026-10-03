@@ -1,0 +1,1575 @@
+{
+  "schema_version": "1.2",
+  "plan_version": "1.2",
+  "purpose": "all_application_cases_are_planned_not_run",
+  "case_status_values": [
+    "NOT_TESTED",
+    "PASS",
+    "PARTIAL",
+    "BLOCKED_ENV",
+    "FAIL",
+    "NEEDS_REVIEW"
+  ],
+  "cases": [
+    {
+      "id": "MBRS-AT-000-01",
+      "task": "MBRS-000",
+      "kind": "integration",
+      "requirement": "真实Rust基线、实际构建命令、存储/IPC和工作区修改边界可核验。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-000-02",
+      "task": "MBRS-000",
+      "kind": "integration",
+      "requirement": "现有网易云/官方Roon/启动测试有结果，旧失败未被删除或隐瞒。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-000-03",
+      "task": "MBRS-000",
+      "kind": "unit",
+      "requirement": "本地来源接入复用唯一coordinator；新的本地route仅roon_audio_input。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-000-04",
+      "task": "MBRS-000",
+      "kind": "integration",
+      "requirement": "旧任务映射和复用表完整，无第二套真曲库/状态机。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-000-05",
+      "task": "MBRS-000",
+      "kind": "integration",
+      "requirement": "隔离环境、测试Zone/目录授权及媒体服务访问范围有记录，不扰动迁移工作区。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-001-01",
+      "task": "MBRS-001",
+      "kind": "live_roon",
+      "requirement": "至少一个Roon未入库本地文件经官方AudioInput真实播放，无Browse/内部协议匹配前置。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-001-02",
+      "task": "MBRS-001",
+      "kind": "integration",
+      "requirement": "整文件GET和代表Range内容与原文件一致，HEAD无body；不是系统音频回采。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-001-03",
+      "task": "MBRS-001",
+      "kind": "live_roon",
+      "requirement": "同名不同内容样本分别选中正确源，Playing/Time与attempt相关。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-001-04",
+      "task": "MBRS-001",
+      "kind": "live_roon",
+      "requirement": "Core能访问网关的真实地址，部署记录没有把异机loopback当可用地址。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-001-05",
+      "task": "MBRS-001",
+      "kind": "live_roon",
+      "requirement": "pause/resume/seek及track/channel行为逐项记录，不将许可字段当功能证明。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-001-06",
+      "task": "MBRS-001",
+      "kind": "integration",
+      "requirement": "超时/取消/终态关闭了所属会话和媒体资源，无旧回调处理新会话。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-001-07",
+      "task": "MBRS-001",
+      "kind": "integration",
+      "requirement": "内部增强关闭且本地库无映射表时仍能重复完成新点播。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-001-08",
+      "task": "MBRS-001",
+      "kind": "integration",
+      "requirement": "真实音频/路径/secret不入Git，POC没有改变Rust迁移工作区或自动写音乐。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-002-01",
+      "task": "MBRS-002",
+      "kind": "unit",
+      "requirement": "本地ID独立于路径/名称/RoonID；同文件多片段和不同发行版不合并。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-002-02",
+      "task": "MBRS-002",
+      "kind": "integration",
+      "requirement": "旧库副本迁移后收藏录音和队列旧引用保留，无隐式删除。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-002-03",
+      "task": "MBRS-002",
+      "kind": "unit",
+      "requirement": "play intent不接受任意URL/path/backend，来源快照与目标Zone/Core显式存在。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-002-04",
+      "task": "MBRS-002",
+      "kind": "unit",
+      "requirement": "HTTP完成不能直接生成Playing；所有播放观察有attempt/session或明确unknown。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-002-05",
+      "task": "MBRS-002",
+      "kind": "unit",
+      "requirement": "持久数据、UI DTO与公开日志没有media secret/完整URL/session句柄。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-002-06",
+      "task": "MBRS-002",
+      "kind": "integration",
+      "requirement": "重复迁移、失败回滚、后续新增数据保留方案可演练。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-002-07",
+      "task": "MBRS-002",
+      "kind": "unit",
+      "requirement": "无需构建RoonEntityMapping即可建立并读取LocalTrack和准备播放。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-003-01",
+      "task": "MBRS-003",
+      "kind": "integration",
+      "requirement": "首次/增量/恢复扫描不重复入库，未变文件不重复重解析。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-003-02",
+      "task": "MBRS-003",
+      "kind": "fault",
+      "requirement": "离线/部分权限/坏文件/超时/取消不造成全库删除或UI阻塞。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-003-03",
+      "task": "MBRS-003",
+      "kind": "unit",
+      "requirement": "标签/技术参数/封面/CUE各自支持矩阵明确，不能靠扩展名判成功。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-003-04",
+      "task": "MBRS-003",
+      "kind": "integration",
+      "requirement": "扫描前后源音频、标签和封面内容不变。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-003-05",
+      "task": "MBRS-003",
+      "kind": "integration",
+      "requirement": "外部改名/整库重挂后能重新定位并保留有证据的曲目身份，多候选不误合并。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-003-06",
+      "task": "MBRS-003",
+      "kind": "load",
+      "requirement": "扫描使用有界工作与分批事件，不影响媒体读取优先级。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-004-01",
+      "task": "MBRS-004",
+      "kind": "unit",
+      "requirement": "全部继承适用golden样例通过，有意偏离逐例说明。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-004-02",
+      "task": "MBRS-004",
+      "kind": "unit",
+      "requirement": "1989/24K/演唱会/混音等语义不被误删，版本token与原文保留。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-004-03",
+      "task": "MBRS-004",
+      "kind": "unit",
+      "requirement": "同名不同版不合并，不以封面/名称作为曲目身份。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-004-04",
+      "task": "MBRS-004",
+      "kind": "unit",
+      "requirement": "1/20标签有效不形成高可信全专辑结论，并列候选明确待确认。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-004-05",
+      "task": "MBRS-004",
+      "kind": "integration",
+      "requirement": "人工名称/专辑边界在扫描后保留，CD目录不机械拆专辑。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-004-06",
+      "task": "MBRS-004",
+      "kind": "integration",
+      "requirement": "关闭AI/外网仍可建库和开始直送播放，不需CoverDrop单独运行。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-005-01",
+      "task": "MBRS-005",
+      "kind": "integration",
+      "requirement": "完整GET与源文件同hash，任意受测Range与准确切片一致，HEAD无body。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-005-02",
+      "task": "MBRS-005",
+      "kind": "unit",
+      "requirement": "206/416/Content-Range/Length/后缀和开放Range正确，大整数/畸形多range有界。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-005-03",
+      "task": "MBRS-005",
+      "kind": "unit",
+      "requirement": "If-Range和validator策略正确，不把新版文件放到旧lease；弱证据不冒充强ETag。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-005-04",
+      "task": "MBRS-005",
+      "kind": "security",
+      "requirement": "任意path/URL、路径逃逸、链接越界、未授权根、无效secret与非GET/HEAD被拒绝。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-005-05",
+      "task": "MBRS-005",
+      "kind": "security",
+      "requirement": "只有媒体读服务按批准LAN设置开放，控制IPC不外泄；日志/渲染层无secret。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-005-06",
+      "task": "MBRS-005",
+      "kind": "live_roon",
+      "requirement": "实际Core成功完成探测/拉流/seek多请求，HEAD不消费一次性token。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-005-07",
+      "task": "MBRS-005",
+      "kind": "fault",
+      "requirement": "暂停跨闲置期恢复、有限预取/取消与正常终态后lease资源正确。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-005-08",
+      "task": "MBRS-005",
+      "kind": "fault",
+      "requirement": "文件改名/替换/截断、NAS离线、连接断开不混合字节、不泄露句柄或无限重试。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-005-09",
+      "task": "MBRS-005",
+      "kind": "integration",
+      "requirement": "活跃/暂停读lease与写入独占互斥，确认后开始播放也能阻止源写操作。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-005-10",
+      "task": "MBRS-005",
+      "kind": "load",
+      "requirement": "大文件和重复Range无随文件长度增长的常驻内存，慢读取不会阻塞UI控制。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-006-01",
+      "task": "MBRS-006",
+      "kind": "live_roon",
+      "requirement": "20样本含未入库和同名不同版通过本地ID→文件lease→AudioInput真正播放。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-006-02",
+      "task": "MBRS-006",
+      "kind": "integration",
+      "requirement": "无映射表/内部侧车/封面网络仍可新点播，代码依赖图与测试证明。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-006-03",
+      "task": "MBRS-006",
+      "kind": "unit",
+      "requirement": "准备/提交/等待/Playing/未知/失败分开；HTTP完成不触发下一首。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-006-04",
+      "task": "MBRS-006",
+      "kind": "live_roon",
+      "requirement": "pause/resume/seek与状态/歌词时间正确，显示许可字段不替代实际能力。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-006-05",
+      "task": "MBRS-006",
+      "kind": "fault",
+      "requirement": "提交后回报丢失先核对，无重复开始或重复队列副作用。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-006-06",
+      "task": "MBRS-006",
+      "kind": "fault",
+      "requirement": "A→B、旧epoch、旧session终态不覆盖B或清理B资源；已发送A的取消边界明确。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-006-07",
+      "task": "MBRS-006",
+      "kind": "live_roon",
+      "requirement": "原生客户端接管或Zone移除后MB不抢回、不停止外部正在播放。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-006-08",
+      "task": "MBRS-006",
+      "kind": "integration",
+      "requirement": "关闭增强无影响；真正退出媒体进程可能影响流且按提示/策略处理。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-006-09",
+      "task": "MBRS-006",
+      "kind": "integration",
+      "requirement": "既有网易云和Roon原生入口不回退，也不被自动当本地失败fallback。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-007-01",
+      "task": "MBRS-007",
+      "kind": "live_roon",
+      "requirement": "专辑盘轨顺序、MB追加/下一首/重排/移除按真实结果工作，未就绪曲目不静默跳过。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-007-02",
+      "task": "MBRS-007",
+      "kind": "unit",
+      "requirement": "MB队列entry_id与Roon原生queue_id类型不同，不假装双向同步。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-007-03",
+      "task": "MBRS-007",
+      "kind": "fault",
+      "requirement": "预取失败、取消/重排、重复终态不会错播或重复插入，lease被准确引用。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-007-04",
+      "task": "MBRS-007",
+      "kind": "live_roon",
+      "requirement": "暂停后继续、前后seek和快速上一首下一首在声明格式上验证。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-007-05",
+      "task": "MBRS-007",
+      "kind": "live_audio",
+      "requirement": "同格式连续素材边界有测量证据；gapless未过明确缺口且不能自动缩减目标。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-007-06",
+      "task": "MBRS-007",
+      "kind": "live_audio",
+      "requirement": "跨采样率/格式的切换间隔及设备重锁定独立记录，不误标同一gapless证明。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-007-07",
+      "task": "MBRS-007",
+      "kind": "unit",
+      "requirement": "CUE只索引/全文件/片段能力区分，不支持精确片段时拒绝隐式整文件替代。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-007-08",
+      "task": "MBRS-007",
+      "kind": "integration",
+      "requirement": "既有网易云序列与显式支持的跨源场景回归，未支持的混排有明确预检结果。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-007-09",
+      "task": "MBRS-007",
+      "kind": "fault",
+      "requirement": "外部接管后pending停止提交，重连不无授权自动播放旧队列。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-007-10",
+      "task": "MBRS-007",
+      "kind": "integration",
+      "requirement": "队列持久化没有临时URL/secret/内部oid，重启重新解析本地文件。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-008-01",
+      "task": "MBRS-008",
+      "kind": "integration",
+      "requirement": "受测源文件与完整/区间HTTP逐字节一致，无隐藏音频变换。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-008-02",
+      "task": "MBRS-008",
+      "kind": "live_roon",
+      "requirement": "同源/Zone/设置对照Signal Path记录了输入、增益/处理及输出，不仅看24/96标签。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-008-03",
+      "task": "MBRS-008",
+      "kind": "live_roon",
+      "requirement": "核心格式/参数组逐项标支持、不支持或未测，不能拿原生支持表替代。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-008-04",
+      "task": "MBRS-008",
+      "kind": "live_roon",
+      "requirement": "DSD测试分清原DSD接收、PCM转换及输出；未测不声明DSD直通。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-008-05",
+      "task": "MBRS-008",
+      "kind": "integration",
+      "requirement": "Q1/Q2/Q3/Q4独立状态与证据，缺Q3不宣称端到端位精确。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-008-06",
+      "task": "MBRS-008",
+      "kind": "live_audio",
+      "requirement": "gapless/边界失败在能力与总报告中可见，不用连续切歌成功掩盖。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-008-07",
+      "task": "MBRS-008",
+      "kind": "integration",
+      "requirement": "测试音量/DSP经授权且结束恢复；音频素材不上传公共仓库。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-008-08",
+      "task": "MBRS-008",
+      "kind": "ui",
+      "requirement": "文件参数与Roon实际输出/质量证据分开，未知显示未知而非假绿灯。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-009-01",
+      "task": "MBRS-009",
+      "kind": "ui",
+      "requirement": "单一本地入口完成加入目录→搜索→选版本→直送/明确失败，不被Roon未入库阻断。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-009-02",
+      "task": "MBRS-009",
+      "kind": "ui",
+      "requirement": "首次无库、扫描中/部分失败、文件离线、Roon断开和格式不支持均有准确状态。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-009-03",
+      "task": "MBRS-009",
+      "kind": "load",
+      "requirement": "10万条查询/滚动分页虚拟化，不拉全库/原图到UI。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-009-04",
+      "task": "MBRS-009",
+      "kind": "ui",
+      "requirement": "本地曲目仅显示Roon目标Zone，没有新增非Roon后端切换。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-009-05",
+      "task": "MBRS-009",
+      "kind": "ui",
+      "requirement": "MB队列与原生外部播放状态能区分，不显示错归属的下一首或旧参数。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-009-06",
+      "task": "MBRS-009",
+      "kind": "ui",
+      "requirement": "文件/根重新定位可用且不删除旧收藏，改展示名不改音频。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-009-07",
+      "task": "MBRS-009",
+      "kind": "integration",
+      "requirement": "真实界面可操作证据齐全，不以mock原型当实现。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-010-01",
+      "task": "MBRS-010",
+      "kind": "integration",
+      "requirement": "本地独立图/内嵌图/缺封面都可处理，候选优先级和来源可追溯。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-010-02",
+      "task": "MBRS-010",
+      "kind": "ui",
+      "requirement": "在MB中搜索/拖入/比较/应用真实可用，不需另开CoverDrop。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-010-03",
+      "task": "MBRS-010",
+      "kind": "security",
+      "requirement": "伪图片、大图、重定向、恶意URL和取消有界，无任意内网抓取。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-010-04",
+      "task": "MBRS-010",
+      "kind": "integration",
+      "requirement": "仅MB选图不改原文件，写回需独立计划确认。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-010-05",
+      "task": "MBRS-010",
+      "kind": "unit",
+      "requirement": "封面不参与自动版本合并或质量真实性判断。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-010-06",
+      "task": "MBRS-010",
+      "kind": "integration",
+      "requirement": "封面服务关闭/失败不阻塞当前和新直送；Roon封面传递实测状态单列。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-011-01",
+      "task": "MBRS-011",
+      "kind": "ui",
+      "requirement": "MB-only信息修正/预览/撤销可用，源标签默认不变。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-011-02",
+      "task": "MBRS-011",
+      "kind": "unit",
+      "requirement": "过期/变更/错误scope确认被拒绝，operation_id不能重复副作用。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-011-03",
+      "task": "MBRS-011",
+      "kind": "unit",
+      "requirement": "活跃lease/冻结/只读根/空间不足/重名冲突在计划和执行两次校验。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-011-04",
+      "task": "MBRS-011",
+      "kind": "integration",
+      "requirement": "人工覆盖与raw可并列看，增量扫描不撤销修正。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-011-05",
+      "task": "MBRS-011",
+      "kind": "fault",
+      "requirement": "取消/崩溃/恢复不把未写项显示成功。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-011-06",
+      "task": "MBRS-011",
+      "kind": "integration",
+      "requirement": "确认后临时开始播放不被并行写入破坏，锁获取有界且可取消。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-012-01",
+      "task": "MBRS-012",
+      "kind": "integration",
+      "requirement": "每个允许writer/格式目标字段正确，音频与非目标元数据不变，备份可读可验证。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-012-02",
+      "task": "MBRS-012",
+      "kind": "fault",
+      "requirement": "替换/DB提交各阶段故障有journal恢复，无隐瞒半写。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-012-03",
+      "task": "MBRS-012",
+      "kind": "unit",
+      "requirement": "过期计划/源变/未授权/冻结/不支持格式被拒绝。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-012-04",
+      "task": "MBRS-012",
+      "kind": "integration",
+      "requirement": "活跃/暂停/预取/录音lease时写入延期或安全阻止，不打断原样读取。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-012-05",
+      "task": "MBRS-012",
+      "kind": "integration",
+      "requirement": "写后原ID保留，新lease取新revision；旧URL不可返回新内容。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-012-06",
+      "task": "MBRS-012",
+      "kind": "integration",
+      "requirement": "撤销前后外部变更产生冲突，不恢复旧备份覆盖新修改。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-012-07",
+      "task": "MBRS-012",
+      "kind": "ui",
+      "requirement": "MB-only/目录封面/音频内嵌/标签写回范围清楚，原生Roon待刷新不阻断本地直送。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-013-01",
+      "task": "MBRS-013",
+      "kind": "integration",
+      "requirement": "同卷移动/重命名后ID、收藏歌单和录音引用保持，新URL从新位置送同文件。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-013-02",
+      "task": "MBRS-013",
+      "kind": "live_roon",
+      "requirement": "未等待Roon重新导入/对照更新，移动后的已确认本地曲目仍能重新直送。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-013-03",
+      "task": "MBRS-013",
+      "kind": "fault",
+      "requirement": "跨卷断开/磁盘满/校验失败/重名不丢源，journal支持恢复或回退。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-013-04",
+      "task": "MBRS-013",
+      "kind": "unit",
+      "requirement": "大小写/Unicode/根越界/符号链接/卷替换安全处理。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-013-05",
+      "task": "MBRS-013",
+      "kind": "integration",
+      "requirement": "活动读lease时移动被延期，旧lease不会读取同名替代文件。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-013-06",
+      "task": "MBRS-013",
+      "kind": "integration",
+      "requirement": "外部移动/多个相同副本/整库重挂显示准确待定位与确认，不瞎合并。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-013-07",
+      "task": "MBRS-013",
+      "kind": "ui",
+      "requirement": "预览和逐项结果展示伴随文件、源保留/清理与不可恢复风险。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-014-01",
+      "task": "MBRS-014",
+      "kind": "integration",
+      "requirement": "旧数据副本迁移后数量/ID/双向关系与历史来源保留，无孤儿或猜测迁移。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-014-02",
+      "task": "MBRS-014",
+      "kind": "unit",
+      "requirement": "实体发行与数字记录独立，解除/撤销只改关系。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-014-03",
+      "task": "MBRS-014",
+      "kind": "integration",
+      "requirement": "Frozen/Prepared/Archive在标签/路径/封面变动时无静默改史。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-014-04",
+      "task": "MBRS-014",
+      "kind": "integration",
+      "requirement": "活动录音/冻结来源能阻止或版本化源操作，12/13未放行前有保护测试。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-014-05",
+      "task": "MBRS-014",
+      "kind": "ui",
+      "requirement": "旧未绑定native引用仍可使用既有入口，标明未建立本地关联而不阻断整个本地库。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-014-06",
+      "task": "MBRS-014",
+      "kind": "integration",
+      "requirement": "J-Card、磁带墙、库存和图片回归，未因新增来源清空数据。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-015-01",
+      "task": "MBRS-015",
+      "kind": "integration",
+      "requirement": "已有POC实证按SHA/build/字段继承，没有证据时保持NOT_TESTED。",
+      "release_scope": "ENRICHMENT_ADDON",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-015-02",
+      "task": "MBRS-015",
+      "kind": "security",
+      "requirement": "只读allowlist拒绝播放/暂停/音量/入库/收藏/删除/重扫/任意RPC。",
+      "release_scope": "ENRICHMENT_ADDON",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-015-03",
+      "task": "MBRS-015",
+      "kind": "live_roon",
+      "requirement": "每个开启字段有真实响应及真值核对，空值/重复实体不假exact。",
+      "release_scope": "ENRICHMENT_ADDON",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-015-04",
+      "task": "MBRS-015",
+      "kind": "fault",
+      "requirement": "连接/释放/超时/退出/不兼容无无限重试，旧oid/epoch不复用。",
+      "release_scope": "ENRICHMENT_ADDON",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-015-05",
+      "task": "MBRS-015",
+      "kind": "integration",
+      "requirement": "增强完全未安装/关闭/损坏时，核心20样本新直送与音质路径不变。",
+      "release_scope": "ENRICHMENT_ADDON",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-015-06",
+      "task": "MBRS-015",
+      "kind": "ui",
+      "requirement": "可选增强状态独立展示，未完成不宣称已接入，关闭不会隐藏本地主播放按钮。",
+      "release_scope": "ENRICHMENT_ADDON",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-016-01",
+      "task": "MBRS-016",
+      "kind": "load",
+      "requirement": "搜索/首屏/点播排队达到记录的预算或有明确回归分析，统计不是估算。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-016-02",
+      "task": "MBRS-016",
+      "kind": "fault",
+      "requirement": "反复播放/seek/暂停/下一首/取消/断线/重启后资源有界，无持续句柄/内存增长。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-016-03",
+      "task": "MBRS-016",
+      "kind": "security",
+      "requirement": "网关授权/范围/网络边界/secret与写入白名单全过，UI不能读任意文件。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-016-04",
+      "task": "MBRS-016",
+      "kind": "integration",
+      "requirement": "增强关闭时依然可用，不因Roon未入库或无映射误阻断本地来源。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-016-05",
+      "task": "MBRS-016",
+      "kind": "integration",
+      "requirement": "现有网易云/原生入口/歌词/设备/收藏/录音/磁带/J-Card与基线比无新回退。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-016-06",
+      "task": "MBRS-016",
+      "kind": "live_roon",
+      "requirement": "用户完整流程从导入到直送、封面、移动再播、外部接管恢复均有证据。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-016-07",
+      "task": "MBRS-016",
+      "kind": "integration",
+      "requirement": "格式、Q层级、gapless及可选增强的不同完成状态如实汇总。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-017-01",
+      "task": "MBRS-017",
+      "kind": "integration",
+      "requirement": "正式安装无需开发命令常驻，Roon配对/媒体文件授权和退出策略可用。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-017-02",
+      "task": "MBRS-017",
+      "kind": "integration",
+      "requirement": "Core与Gateway退出/升级/回退行为和提示符合实际，不干扰外部拥有的音频。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-017-03",
+      "task": "MBRS-017",
+      "kind": "integration",
+      "requirement": "数据库兼容和源文件恢复有演练，升级后新增收藏录音不会被旧备份覆盖。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-017-04",
+      "task": "MBRS-017",
+      "kind": "ui",
+      "requirement": "仅Roon界面/帮助，格式/队列/gapless/服务依赖与附加增强状态清楚。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-017-05",
+      "task": "MBRS-017",
+      "kind": "integration",
+      "requirement": "完整交付物含真实证据/提交/许可证/限制，所有声称支持的功能有适用范围。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-000-06",
+      "task": "MBRS-000",
+      "kind": "integration",
+      "requirement": "准入记录区分完整Rust迁移与显式阶段交接；RUST-015通过不自动开放G0，绑定最终报告提交和实际组件所有权；准入前置不得交给依赖G0的后续任务反向完成。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-000-07",
+      "task": "MBRS-000",
+      "kind": "integration",
+      "requirement": "当前所有未完成Rust待办已逐项登记唯一主任务、继续/共享/保留及验收责任；转交不等于完成。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-000-08",
+      "task": "MBRS-000",
+      "kind": "integration",
+      "requirement": "复用表记录实际代码或重命名后的等价符号、基线Hash、最小增量与不重建项；当前WIP不被覆盖。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-000-09",
+      "task": "MBRS-000",
+      "kind": "unit",
+      "requirement": "包校验PASS、计划批准、软件通过、实机通过、最终使用接受为不同状态，不互相推导。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-000-10",
+      "task": "MBRS-000",
+      "kind": "integration",
+      "requirement": "源文件有限写权限和Roon-only作用范围已形成有效规则修订；旧录音与历史保护未被取消。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-001-09",
+      "task": "MBRS-001",
+      "kind": "integration",
+      "requirement": "POC隔离资源与正式产品分开，使用已有Adapter可行时复用；未新增通用播放器框架。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-002-08",
+      "task": "MBRS-002",
+      "kind": "integration",
+      "requirement": "每个数据库唯一写入者和每个逻辑Asset唯一权威已登记；新增表不冒称Rust writer迁移完成。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-002-09",
+      "task": "MBRS-002",
+      "kind": "security",
+      "requirement": "公开点播请求拒绝客户端注入generation/attempt/session/任意路径；内部代际由原coordinator创建并校验。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-002-10",
+      "task": "MBRS-002",
+      "kind": "integration",
+      "requirement": "原PlaybackSnapshot与compact事件的兼容映射覆盖旧客户端和新local来源；没有第二套状态权威。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-002-11",
+      "task": "MBRS-002",
+      "kind": "unit",
+      "requirement": "同库跨领域事务与跨库journal边界明确；故障恢复不制造全局原子承诺或重复业务写入。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-003-07",
+      "task": "MBRS-003",
+      "kind": "integration",
+      "requirement": "普通标签扫描未复用录音全Hash作为必经路径，旧录音严格探测与SourceLock仍保持。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-003-08",
+      "task": "MBRS-003",
+      "kind": "load",
+      "requirement": "100k/300k数字曲目预算不套用2000/5000收藏快照限制，不把全库快照复制到Renderer。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-005-11",
+      "task": "MBRS-005",
+      "kind": "security",
+      "requirement": "跨根别名、硬链接和共享cover资源通过统一物理资源身份协调读写，单按asset_id加锁不能绕过保护。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-005-12",
+      "task": "MBRS-005",
+      "kind": "unit",
+      "requirement": "PREPARED租约可在SessionBegan前存在，ACTIVE/PAUSED绑定已确认会话；旧attempt不能重新激活。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-006-10",
+      "task": "MBRS-006",
+      "kind": "integration",
+      "requirement": "同一BridgeController/RoonAdapter增量接入本地来源；不重写既有网易云/原生播放控制器。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-006-11",
+      "task": "MBRS-006",
+      "kind": "unit",
+      "requirement": "本地ID命名空间不会被网易云数字ID转换或smart匹配接管，来源在事件与歌词身份中一致。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-007-11",
+      "task": "MBRS-007",
+      "kind": "integration",
+      "requirement": "能力宣告、暂停/seek真实结果、顺序播放、gapless分别取证；下一曲准备不提前抢占当前会话。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-009-08",
+      "task": "MBRS-009",
+      "kind": "ui",
+      "requirement": "新本地库沿用既有页面/播放条；保留原生入口和收藏控件，不以新Schema复制第二套UI。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-010-07",
+      "task": "MBRS-010",
+      "kind": "integration",
+      "requirement": "数字音乐封面、磁带参考图、个人实物照片和冻结MasterArtwork保持独立身份与用途。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-011-07",
+      "task": "MBRS-011",
+      "kind": "unit",
+      "requirement": "MB_ONLY元数据覆盖不占音频文件独占锁；SOURCE_FILES才执行文件保护，原播放不被无关编辑阻塞。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-012-08",
+      "task": "MBRS-012",
+      "kind": "integration",
+      "requirement": "有效规则仅授予受控Organizer具体计划写权限；原录音读模块仍不可写，Frozen默认拒绝修改。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-012-09",
+      "task": "MBRS-012",
+      "kind": "security",
+      "requirement": "plan_hash、scope、操作集合和授权引用由服务端验证；Schema正确或客户端approval字段不能授权写文件。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-013-08",
+      "task": "MBRS-013",
+      "kind": "integration",
+      "requirement": "重定位保留逻辑AssetID但更新revision；历史SourceBinding的Hash不被位置变更或标签写回静默更新。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-014-07",
+      "task": "MBRS-014",
+      "kind": "integration",
+      "requirement": "既有参考目录/库存/实物照片不重导、不重编号；尚未导入的新磁带资料包另立内容导入任务，不能默认已完成。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-014-08",
+      "task": "MBRS-014",
+      "kind": "integration",
+      "requirement": "普通Roon-only/不转码不删除既有录音FFmpeg、OutputNative或执行资产；MBRS音频验收不抵扣Gate B/P4/P5。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-016-08",
+      "task": "MBRS-016",
+      "kind": "integration",
+      "requirement": "复用的旧证据绑定相同源码/环境/语义，必要新回归已执行；没有跨版本直接复制PASS。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-016-09",
+      "task": "MBRS-016",
+      "kind": "integration",
+      "requirement": "Rust未完事项、旧录音未验事项、MBRS主线和增强分别汇总，无被静默删除的开放条目。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-017-06",
+      "task": "MBRS-017",
+      "kind": "integration",
+      "requirement": "arm64/x64/universal、ad-hoc/Developer ID、公证各有单独目标与真实结果；未纳入本期者仍保留原待办。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-017-07",
+      "task": "MBRS-017",
+      "kind": "integration",
+      "requirement": "最终安装包内保留既有录音资源并纳入新网关；不把只含Rust资源的候选包称完整媒体包。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    },
+    {
+      "id": "MBRS-AT-017-08",
+      "task": "MBRS-017",
+      "kind": "integration",
+      "requirement": "交付提交、实现提交、测试输入和schema可追溯；最终Owner反馈不由机器或代理代签。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "NOT_TESTED",
+      "evidence_refs": []
+    }
+  ]
+}

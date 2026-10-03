@@ -1,0 +1,767 @@
+{
+  "schema_version": "1.2",
+  "plan_version": "1.2",
+  "created_on": "2026-10-03",
+  "purpose": "implementation_plan_not_execution_report",
+  "new_local_playback_route": "roon_audio_input",
+  "explicitly_excluded_new_backends": [
+    "aurender_direct",
+    "upnp",
+    "dlna",
+    "local_audio_output"
+  ],
+  "preserve_existing_recording_output": true,
+  "tasks": [
+    {
+      "id": "MBRS-000",
+      "title": "确认真实Rust基线、复用关系与准入边界",
+      "scope": "CORE",
+      "depends_on": [],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-000",
+      "goal": "接住实际已经交付的开发线，建立一次实现、跨表引用的任务边界；不是再做Rust迁移。",
+      "steps": [
+        "读取AGENTS、最新任务索引、Rust TODO、git worktree与dirty状态。将本包22:02的观察仅作线索，按最终交付提交重新核验，不从旧main或脏工作树机械接续。",
+        "按11_BASELINE_AND_ADMISSION.md冻结准入范围：沿用已批准的Rust退出里程碑；阶段共存接入必须有既有明确授权依据。没有依据时完成隔离研究，不冒称全迁移已完成。",
+        "核对REUSE_MAP.md中的真实符号或其后继实现，列出现有语言/进程/库/唯一写入者；填写templates/BASELINE_TEMPLATE.md和templates/DATA_OWNERSHIP_TEMPLATE.md。",
+        "把当前所有未完Rust条目映射到rust-to-mbrs-map.json；每项一个主实施者，转交仅记录关联，不能勾成PASS。冻结源写入规则和Roon-only范围的有限ADR。",
+        "盘点网易云网关、注册表、Roon Adapter、BridgeController、播放事件、歌词时钟、outbox、SourceRoot、UI和打包；定义LocalFileAsset最小接入点，不建立第二队列权威。",
+        "复用最新基线适用证据，执行必要基线回归；已知失败、环境缺口与新失败分开。记录测试Zone/目录授权及媒体LAN范围，不改实际音量/DSP。"
+      ],
+      "outputs": [
+        "BASELINE.md",
+        "DATA_OWNERSHIP.md",
+        "REUSE_MAP_RESOLVED.md",
+        "RUST_TO_MBRS_RESOLVED.json",
+        "ADMISSION_DECISION.json",
+        "已落地的有限ADR",
+        "基线回归与失败台账"
+      ],
+      "forbidden": "禁止把RUST-015通过直接当作完整迁移；禁止清理他人WIP或重新生成全部旧基础框架。",
+      "blocked_policy": "基线未准入只阻断产品接入。读源码、离线模型和授权隔离POC可继续，不启动另一名迁移写主控。",
+      "acceptance_ids": [
+        "MBRS-AT-000-01",
+        "MBRS-AT-000-02",
+        "MBRS-AT-000-03",
+        "MBRS-AT-000-04",
+        "MBRS-AT-000-05",
+        "MBRS-AT-000-06",
+        "MBRS-AT-000-07",
+        "MBRS-AT-000-08",
+        "MBRS-AT-000-09",
+        "MBRS-AT-000-10"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-001",
+      "title": "原文件→Audio Input隔离小样本POC",
+      "scope": "CORE",
+      "depends_on": [],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-001",
+      "goal": "先验证Roon未入库文件能直送播放，再扩大到生产网关和全库。",
+      "steps": [
+        "锁定项目实际SDK和已实现Adapter行为，优先复用track模式；最小文件HTTP原型只服务隔离获准样本，不连接正式用户库。",
+        "先1～3首整文件，经GET/HEAD/Range→begin/play→Playing/Time/终态；记录有限track与channel差别、精确真实参数及回调，禁止猜next-slot。",
+        "至少一首位于Roon未监控、未入库的目录；禁用增强、禁止Browse/Resolver作为前置，记录来源真值及媒体租约。",
+        "两份同名不同内容样本分别点播；完整和局部HTTP字节对照；本机/异机地址按实际部署核验。",
+        "验证pause/resume/seek、结束及取消资源回收；未有实机记录的能力保持NOT_TESTED。将结果沉淀为生产005/006可继承的接口观察，不将原型直接当生产安全实现。"
+      ],
+      "outputs": [
+        "DIRECT_STREAM_POC_RESULT.md",
+        "API_BEHAVIOR_NOTES.md",
+        "小样本复现工具",
+        "格式初测矩阵"
+      ],
+      "forbidden": "禁止native查歌/内部控制/M3U替代，不将SDK无异常当出声，不修改Roon监控目录来让样本先入库。",
+      "blocked_policy": "缺Core或明确Zone/样本许可时仅实机项BLOCKED_ENV，继续HTTP与合同测试。",
+      "acceptance_ids": [
+        "MBRS-AT-001-01",
+        "MBRS-AT-001-02",
+        "MBRS-AT-001-03",
+        "MBRS-AT-001-04",
+        "MBRS-AT-001-05",
+        "MBRS-AT-001-06",
+        "MBRS-AT-001-07",
+        "MBRS-AT-001-08",
+        "MBRS-AT-001-09"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": false,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-002",
+      "title": "本地对象、音源合同与存储增量",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-000"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-002",
+      "goal": "以稳定本地身份串起文件、播放、收藏和录音，且只有一份曲库真相。",
+      "steps": [
+        "按13_MODEL_AND_STATE_MAPPING.md定义/扩展LibraryRoot、AudioAsset、LocalTrack/segment、AlbumEdition、raw/override、持久ScanJob、MBQueueEntry；不以路径、Hash、Roon ID作主键。",
+        "记录每个库唯一writer及逻辑实体权威；沿已验收持久化/回执路径扩展。新增本地领域不意味着把旧领域迁Rust；跨库操作定义journal/补偿，不假装全局事务。",
+        "SourceResolver区分local_file与RemoteProviderStream；local不经过Roon库匹配。现有smart/netease/roon语义保持，增加类型区分而不伪装成云曲目。",
+        "公开请求使用local-play-request.schema.json；服务端原coordinator分配attempt/generation/queue revision，内部playback-intent不是客户端可控制时序。",
+        "按当前IPC与compact事件做兼容增量，未知提交和ownership用原协调器表达；本包schema不是原PlaybackSnapshot全局替换件。",
+        "在合成/明确许可旧库副本演练迁移、重放、失败恢复、新数据保留；稳定ID可以持久化，URL/secret/session handle不能。"
+      ],
+      "outputs": [
+        "MODEL_MAPPING.md",
+        "DATA_OWNERSHIP.md增量",
+        "迁移代码与回退测试",
+        "本地来源IPC/DTO",
+        "事件版本兼容测试"
+      ],
+      "forbidden": "禁止UI/扫描器/sidecar各自写同一数据库；禁止把加表算作Rust writer迁移。",
+      "blocked_policy": "无实机可完成合同和合成库测试；未准入G0不能改正在迁移的产品工作树。",
+      "acceptance_ids": [
+        "MBRS-AT-002-01",
+        "MBRS-AT-002-02",
+        "MBRS-AT-002-03",
+        "MBRS-AT-002-04",
+        "MBRS-AT-002-05",
+        "MBRS-AT-002-06",
+        "MBRS-AT-002-07",
+        "MBRS-AT-002-08",
+        "MBRS-AT-002-09",
+        "MBRS-AT-002-10",
+        "MBRS-AT-002-11"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-003",
+      "title": "持久增量扫描、标签与位置恢复",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-002"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-003",
+      "goal": "离线可浏览、逐批可用的数字音乐索引，不复用录音候选扫描的容量假设。",
+      "steps": [
+        "多根角色/重叠检测、分批导入、断点/取消/局部重扫与增量事件；通过统一writer提交，未变文件不反复解析。",
+        "复用SourceRoot/路径/句柄安全原语，单独提供有界metadata reader；不将录音全Hash和严格技术头规则改松，也不要求首扫几十TB先做全Hash或全解码。",
+        "FLAC/MP3/M4A ALAC/AAC/WAV/AIFF为核心读取目标；APE/DSF/DFF/CUE逐项评估。标签、技术参数、封面、片段和播放能力分别记录。",
+        "限标签文本、嵌入图、递归深度、单文件解析资源；持久jobs与监控/轮询/人工重扫协作。空闲或低优先级读取不挤占当前音频。",
+        "离线/权限不足/部分扫描不删库；明确重新定位按根身份和证据保留逻辑ID，同名/相似mtime不自动exact。CUE按实际时间基记录，不承诺片段点播。",
+        "索引10万/30万测试与收藏2000/5000快照完全分开；分页结果不传全库到UI，原图不复制到每条记录。"
+      ],
+      "outputs": [
+        "Scanner与MetadataReader",
+        "持久ScanJob",
+        "FILE_FORMAT_READ_SUPPORT.md",
+        "重定位服务/UI",
+        "增量与故障夹具"
+      ],
+      "forbidden": "禁止只放大旧3000项/200候选/5秒参数冒充全库；禁止默认联网或改源标签。",
+      "blocked_policy": "坏文件逐项隔离，其他可读文件继续；核心格式缺口如实保留到发布。",
+      "acceptance_ids": [
+        "MBRS-AT-003-01",
+        "MBRS-AT-003-02",
+        "MBRS-AT-003-03",
+        "MBRS-AT-003-04",
+        "MBRS-AT-003-05",
+        "MBRS-AT-003-06",
+        "MBRS-AT-003-07",
+        "MBRS-AT-003-08"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-004",
+      "title": "CoverDrop名称、专辑结构与版本证据",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-002"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-004",
+      "goal": "移植名称识别规则和适用测试，不移植整个CoverDrop应用。",
+      "steps": [
+        "按upstream-lock.json发现并锁定已批准实际提交，读取名称规则及全部适用golden；旧来源快照只作线索，许可证逐仓核验。",
+        "将规则移入当前纯规则层或合适Rust模块；Swift正则/Unicode行为逐例对照，有意差异有理由和测试。",
+        "保留原始标签/目录、展示名、搜索别名及版本token来源；人工覆盖优先，名称/封面一致不自动合并发行版。",
+        "CD1/CD2、合辑、散落目录、多盘/CUE和目录角色结合标签判断；有效候选一致性与全专辑覆盖率是两项指标。",
+        "AI仅可选候选，不外发完整私有路径/音频；关闭网络或AI仍能建库和播放。包内8个示例不是上游全部golden，不能只跑这8项宣称迁移全过。"
+      ],
+      "outputs": [
+        "名称/专辑规则",
+        "COVERDROP_PORT_MAP.md",
+        "完整适用golden与差异说明",
+        "版本证据测试"
+      ],
+      "forbidden": "禁止复制CoverDrop AppModel/UI/数据库；禁止清洗后丢失首版/重制/格式来源。",
+      "blocked_policy": "外部服务失败不阻断确定性规则；无法读取上游源码时不虚构移植已完成。",
+      "acceptance_ids": [
+        "MBRS-AT-004-01",
+        "MBRS-AT-004-02",
+        "MBRS-AT-004-03",
+        "MBRS-AT-004-04",
+        "MBRS-AT-004-05",
+        "MBRS-AT-004-06"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-005",
+      "title": "生产原文件Gateway与统一读租约",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-001",
+        "MBRS-002"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-005",
+      "goal": "在已有HTTP基础增加本地数据来源，不放松远程上游安全规则。",
+      "steps": [
+        "以实际StreamGateway/Registry后继实现为基础，加入LocalFileSource和Lease；本地FD读取与远程fetch allowlist分开，不使用file://绕过secureGatewayFetch。",
+        "租约固定asset/root revision与已打开句柄。PREPARED可在真实SessionBegan前存在，确认后绑定会话；URL secret只在服务端内存。",
+        "完整GET、HEAD、单Range、If-Range与206/416；逐段对照原字节，不gzip、不转码、不重封装。固定多Range策略和整数/长度预算。",
+        "同机loopback；异机只在批准LAN媒体接口暴露，控制IPC不外泄；advertised URL来自可信配置，Core可达性由实际请求证明。",
+        "多个GET/HEAD/Range、暂停续期、当前/下一曲引用、有界FD/连接/缓冲与取消。HTTP完成不等于播放结束，不过早撤销seek资源。",
+        "同Organizer和录音读者共享资源互斥；规范资源身份覆盖跨根别名、硬链接与共享cover文件。可观察替换/截断立即失效，不能在旧lease输出新旧混合字节。",
+        "对任意第三方隐蔽原地修改明确能力限制；不借此无授权复制整个音乐库。错误、过期、关闭和异常自然收尾可复现。"
+      ],
+      "outputs": [
+        "本地Gateway增量",
+        "AssetLease与锁协调",
+        "HTTP/字节/安全测试",
+        "NETWORK_ACCESS.md"
+      ],
+      "forbidden": "禁止任意path参数/目录列表/远程安全降级；禁止照搬8小时token宣称完整文件租约。",
+      "blocked_policy": "无异机测试只声明同机范围；缺本地文件服务不能暗中fallback原生播放。",
+      "acceptance_ids": [
+        "MBRS-AT-005-01",
+        "MBRS-AT-005-02",
+        "MBRS-AT-005-03",
+        "MBRS-AT-005-04",
+        "MBRS-AT-005-05",
+        "MBRS-AT-005-06",
+        "MBRS-AT-005-07",
+        "MBRS-AT-005-08",
+        "MBRS-AT-005-09",
+        "MBRS-AT-005-10",
+        "MBRS-AT-005-11",
+        "MBRS-AT-005-12"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-006",
+      "title": "现有播放器接入本地Audio Input",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-005",
+        "MBRS-002"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-006",
+      "goal": "同一播放协调器接入具体本地版本，并保持原网易云和原生Roon入口。",
+      "steps": [
+        "复用BridgeController/RoonAdapter后继实现，LocalFileAsset走统一SourceResolver；本包名称不要求创建同名类。",
+        "根据001实证映射实际有限track/metadata/control，不把本包DTO直接当SDK参数；能力许可字段不能代替真实pause/seek。",
+        "准备、提交、待观察、Playing、未知、外部接管分开；用本次attempt/session/文件请求关联到所选asset revision，不能只比较标题。",
+        "旧A在B后返回不得覆盖B或释放B资源；提交后超时先reconcile，不盲重放，不声称已经发出的命令可被本地撤回。",
+        "本地来源身份进入歌词/进度/事件时保持命名空间，不经网易云ID强转；当前Zone无能力时明确失败，不改系统输出。",
+        "外部接管/Zone分组与断连后暂停后续提交，不全局stop别人；窗口关闭和真正core退出按既有策略分开。",
+        "完成20真值样本，包括未入库、同名不同版、移动找回、增强关闭；受测格式和Core build单列。"
+      ],
+      "outputs": [
+        "本地播放用例",
+        "原coordinator状态增量",
+        "20样本证据",
+        "API_BEHAVIOR_MAPPING.md"
+      ],
+      "forbidden": "禁止第二套播放器或状态权威；禁止local故障隐式转云/native/internal/M3U。",
+      "blocked_policy": "实机缺口记PARTIAL/BLOCKED_ENV，继续本地读库和离线保护测试。",
+      "acceptance_ids": [
+        "MBRS-AT-006-01",
+        "MBRS-AT-006-02",
+        "MBRS-AT-006-03",
+        "MBRS-AT-006-04",
+        "MBRS-AT-006-05",
+        "MBRS-AT-006-06",
+        "MBRS-AT-006-07",
+        "MBRS-AT-006-08",
+        "MBRS-AT-006-09",
+        "MBRS-AT-006-10",
+        "MBRS-AT-006-11"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-007",
+      "title": "MB队列、预取、控制与无缝",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-006",
+        "MBRS-003"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-007",
+      "goal": "让直送序列具有实际可用的控制和边界行为，不混称原生队列或gapless。",
+      "steps": [
+        "扩展原MB队列为稳定entry_id和来源快照，专辑盘轨顺序、追加、下一首、移除重排和坏曲预检；明确支持的跨源混排，不暗换来源。",
+        "只为当前所需下一曲做有界预检/租约；沿实际SDK支持方式准备，不能猜next-slot或提前抢占。",
+        "原终态/取消/快速切歌代际复用；持久逻辑ID而非媒体secret，重启重新解析，不自动重播或接管。",
+        "pause/resume/前后seek/上一首下一首逐格式参数组实测。Roon原生队列ID与MB条目ID不互当。",
+        "同格式连续素材做静音/丢样/重复测量；跨采样率重锁间隔分列。只在EndedNaturally后顺序提交不能称无缝。",
+        "CUE精确起止另测。未有片段证据时拒绝片段点播，用户可明确选整文件；不靠字节比例、定时stop或拼接整张专辑掩盖。"
+      ],
+      "outputs": [
+        "队列/预取增量",
+        "GAPLESS_EVIDENCE.md",
+        "控制与片段能力表",
+        "队列恢复测试"
+      ],
+      "forbidden": "禁止原生队列冒充MB镜像；禁止新增本地音频引擎拼整碟。",
+      "blocked_policy": "无缝缺口不能删目标；继续其他功能，受限发布须明确接受限制。",
+      "acceptance_ids": [
+        "MBRS-AT-007-01",
+        "MBRS-AT-007-02",
+        "MBRS-AT-007-03",
+        "MBRS-AT-007-04",
+        "MBRS-AT-007-05",
+        "MBRS-AT-007-06",
+        "MBRS-AT-007-07",
+        "MBRS-AT-007-08",
+        "MBRS-AT-007-09",
+        "MBRS-AT-007-10",
+        "MBRS-AT-007-11"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-008",
+      "title": "原样音质、格式与边界证据",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-006",
+        "MBRS-007"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-008",
+      "goal": "把字节透明、Roon处理、设备数据与曲目边界分开证明。",
+      "steps": [
+        "按格式能力矩阵验证核心与扩展格式；解析、HTTP、AudioInput、seek、sequential、gapless、写回各轴独立。",
+        "Q1完整/Range字节一致；Q2同源同Zone同设置的原生与直送Signal Path。记录音量均衡/未知响度/ReplayGain/DSD转换，不只看24/96标识。",
+        "已有并获准的数字捕获/厂商测试条件可做Q3；没有条件就NOT_TESTED，不以主观听感声称位精确。安全音量与DSP变化需许可并恢复。",
+        "纳入007的Q4边界方法、时钟对齐误差、重复次数和原生基线；离线解码用于验证不进入生产播放链。",
+        "结论限定构建、Core、格式、Zone和设置。允许实机截图人工观察，但代理或合成结果不能代签Owner最终反馈。"
+      ],
+      "outputs": [
+        "AUDIO_TRANSPARENCY_REPORT.md",
+        "FORMAT_CAPABILITY_MATRIX.json",
+        "私有音频证据索引",
+        "边界与限制报告"
+      ],
+      "forbidden": "禁止用文件Hash代替设备数据；禁止无实证标DSD直通/完整无损。",
+      "blocked_policy": "Q3缺环境单列，核心播放和无缝目标未过不能隐藏为CORE_READY。",
+      "acceptance_ids": [
+        "MBRS-AT-008-01",
+        "MBRS-AT-008-02",
+        "MBRS-AT-008-03",
+        "MBRS-AT-008-04",
+        "MBRS-AT-008-05",
+        "MBRS-AT-008-06",
+        "MBRS-AT-008-07",
+        "MBRS-AT-008-08"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-009",
+      "title": "正式本地库UI与直送入口",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-003",
+        "MBRS-004"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-009",
+      "goal": "在现有导航和播放器内完成导入、检索、版本选择与明确播放状态。",
+      "steps": [
+        "复用侧栏、design tokens、玻璃背景、播放条和virtualWindow；只增本地索引数据与流程，不整体重设计。",
+        "首用无库、扫描中部分可用、暂停/取消、权限/坏文件、根离线、Roon断开和格式不支持均准确显示；详情不等全库/联网封面。",
+        "读取006/007实际播放器状态，单一本地入口只选Roon Zone；本地播放不弹必须先匹配提示。",
+        "原始与覆盖、发行/格式/音频参数分层展示，unknown不填假值；重新定位保留收藏，预览源写范围明确。",
+        "10万虚拟列表与分页、滚动返回/焦点/键盘操作实际检查。未完成播放时明确未就绪；任务可开发但整体验收等待006/007。"
+      ],
+      "outputs": [
+        "本地查询UI",
+        "真实App流程截图/录屏",
+        "状态/可访问性回归"
+      ],
+      "forbidden": "禁止第二侧栏/第二播放条；禁止把截图原型当正式实现。",
+      "blocked_policy": "离线UI可先开发，端到端状态不提前PASS。",
+      "acceptance_ids": [
+        "MBRS-AT-009-01",
+        "MBRS-AT-009-02",
+        "MBRS-AT-009-03",
+        "MBRS-AT-009-04",
+        "MBRS-AT-009-05",
+        "MBRS-AT-009-06",
+        "MBRS-AT-009-07",
+        "MBRS-AT-009-08"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-010",
+      "title": "CoverDrop封面选择与缓存",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-009",
+        "MBRS-004"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-010",
+      "goal": "将封面查找、比较和应用放进MB，不要求CoverDrop单独常驻。",
+      "steps": [
+        "继承本地独立图/内嵌图优先级、候选staging和按需查找规则，固定provider/版本/许可证。",
+        "支持拖图/选图/候选比较，保存来源、尺寸和Hash。默认只改MB ArtworkSelection及缓存，不写cover.jpg/音频。",
+        "复用SafeArtwork和有界缓存，检查类型/解码像素/压缩大小/重定向/SSRF/取消；禁止默认全库联网。",
+        "数字专辑图、磁带参考图、个人照片、冻结MasterArtwork分别建关系，不能混成一个覆盖对象。",
+        "本地UI立即更新；Roon封面传递只用实证字段，不能凭UI有图声称Core收到。文件写回只生成Organizer计划。"
+      ],
+      "outputs": [
+        "ArtworkService增量",
+        "provider与候选工作流",
+        "图像安全/来源/缓存测试"
+      ],
+      "forbidden": "禁止把图片相同当发行相同；禁止底层replace操作冒充撤销。",
+      "blocked_policy": "provider失败保留本地选图可用，但失败provider不得标接入完成。",
+      "acceptance_ids": [
+        "MBRS-AT-010-01",
+        "MBRS-AT-010-02",
+        "MBRS-AT-010-03",
+        "MBRS-AT-010-04",
+        "MBRS-AT-010-05",
+        "MBRS-AT-010-06",
+        "MBRS-AT-010-07"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-011",
+      "title": "MB信息整理与明确修改计划",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-009"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-011",
+      "goal": "默认只改MB，任何源文件操作都形成可审查、可恢复的具体计划。",
+      "steps": [
+        "单曲/专辑/批量字段、版本说明、分组合并建议和撤销仅作用MB override；增量扫描不抹人工编辑。",
+        "preview列old/new、scope、root/asset revision、伴随文件、活动lease、冻结引用、备份空间与冲突；源文件计划必须含精确资源集合。",
+        "服务端规范化计划内容再Hash，确认绑定同一body/scope/操作集合，源/权限改变失效。operation_id去重不能隐藏部分失败。",
+        "MB_ONLY元数据编辑不需要音频独占锁；SOURCE_FILES执行前再次核所有读者并取统一排他许可，允许取消/有界等待。",
+        "journal记录提议、确认、执行、逐项失败和恢复。Schema中的approval仅为数据表示，不是权限判据。"
+      ],
+      "outputs": [
+        "Organizer preview/confirm",
+        "MB-only整理UI",
+        "授权/Hash/journal合同",
+        "恢复状态测试"
+      ],
+      "forbidden": "禁止自动写清洗结果；禁止用一次宽泛许可覆盖任意未来文件。",
+      "blocked_policy": "writer未完成时MB-only可用，不能声称磁盘整理完成。",
+      "acceptance_ids": [
+        "MBRS-AT-011-01",
+        "MBRS-AT-011-02",
+        "MBRS-AT-011-03",
+        "MBRS-AT-011-04",
+        "MBRS-AT-011-05",
+        "MBRS-AT-011-06",
+        "MBRS-AT-011-07"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-012",
+      "title": "安全标签/封面写回与活动保护",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-010",
+        "MBRS-011",
+        "MBRS-014",
+        "MBRS-005"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-012",
+      "goal": "执行有限的、逐计划授权的源文件写入例外，保持旧录音只读与历史证据。",
+      "steps": [
+        "先落地有限ADR和规则矩阵，原SourceEvidence/录音读模块仍不写文件。仅受测writer/格式/字段进入allowlist。",
+        "执行前复核计划Hash/授权/revision/空间与Frozen/录音/当前/暂停/预取lease；共享封面等多资源按稳定顺序取锁，不强停音频。",
+        "备份、journal、临时替换、数据库提交分别设计崩溃恢复；备份/staging不扫入音乐库，未验备份不自动删。",
+        "仅改选中字段、保留多值与未知标签及音频payload，独立回读验证；整文件Hash可因标签改变而改变，不能更新历史绑定来掩盖。",
+        "逻辑AssetID保留、revision递增；旧lease不能取新版。Frozen默认拒绝原地修改，版本化例外需要保全旧字节和独立确认，不是改个revision就放行。",
+        "撤销前核外部后续变化，冲突即停止；旧native关系可标STALE但不挡新直送。"
+      ],
+      "outputs": [
+        "writer allowlist",
+        "共享资源锁",
+        "写回/故障/恢复证据",
+        "有限规则修订落地记录"
+      ],
+      "forbidden": "禁止为新功能弱化旧录音校验、直接改冻结Hash或静默转码。",
+      "blocked_policy": "未证音频不变的格式保持只读；不以跳过writer声称完整整理交付。",
+      "acceptance_ids": [
+        "MBRS-AT-012-01",
+        "MBRS-AT-012-02",
+        "MBRS-AT-012-03",
+        "MBRS-AT-012-04",
+        "MBRS-AT-012-05",
+        "MBRS-AT-012-06",
+        "MBRS-AT-012-07",
+        "MBRS-AT-012-08",
+        "MBRS-AT-012-09"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-013",
+      "title": "改名、移动、根迁移与找回",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-012"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-013",
+      "goal": "保留逻辑身份与历史引用，让下次点播使用新位置，不等待Roon重扫。",
+      "steps": [
+        "同卷大小写/Unicode改名、跨卷复制→完整验证→登记→按授权处理源；不覆盖同名目标，目标未验不删源。",
+        "分析CUE/歌词/图片/清单等伴随文件，未知引用先提示；计划精确包含将修改的所有资源。",
+        "贯穿预检与执行的统一lease/Frozen保护；进程中断、NAS离线、满盘和部分登记由journal恢复，不能声称跨卷全局原子。",
+        "已授权新位置保留Asset/TrackID、更新revision，避免扫描自有移动产生重复；外部未知移动保留候选供确认。",
+        "根重关联核底层卷/共享身份，不按同挂载名认同一根。历史SourceBinding的旧Hash/版本不被位置变化覆盖；直送验证新路径无需Roon入库。"
+      ],
+      "outputs": [
+        "路径整理与重关联",
+        "跨卷journal恢复",
+        "伴随文件预览",
+        "移动后播放与引用回归"
+      ],
+      "forbidden": "禁止自动去重删除或用同名替代文件满足旧lease。",
+      "blocked_policy": "真实多卷缺环境单列，保留合成故障测试但不升级实机状态。",
+      "acceptance_ids": [
+        "MBRS-AT-013-01",
+        "MBRS-AT-013-02",
+        "MBRS-AT-013-03",
+        "MBRS-AT-013-04",
+        "MBRS-AT-013-05",
+        "MBRS-AT-013-06",
+        "MBRS-AT-013-07",
+        "MBRS-AT-013-08"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-014",
+      "title": "旧收藏、录音和冻结来源兼容",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-002",
+        "MBRS-009"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-014",
+      "goal": "新本地身份是关联增量，不重建磁带库或改写录音历史。",
+      "steps": [
+        "盘点旧native/remote引用、实体发行、Reference Catalog、库存/照片、Master/Prepared/Frozen/Archive/J-Card；记录ID/数量/关系对照。",
+        "只有证据充分才增加local关联；实体对象与数字对象独立，解除关系只改边。旧未关联Roon入口继续存在。",
+        "为活动录音与冻结来源注册统一资源保护，旧来源尚无AssetID时也通过文件身份/保守拒绝防止绕过。",
+        "当前封面/名称修改不能改变已导出J-Card及历史快照。既有磁带目录不重导/重编号；尚未入库的新资料包单立内容任务并核实际版本，不假设早已导入。",
+        "新Roon-only与不转码仅管普通直送，不删除原录音编译/FFmpeg/OutputNative/Execution Asset；旧Gate B/P4/P5独立保留。",
+        "原编号虽靠后但写回012以前保护必须有效；UI可先并行，头部保护设计在002就冻结。"
+      ],
+      "outputs": [
+        "旧新引用映射",
+        "兼容迁移副本证据",
+        "Frozen/录音读者锁接入",
+        "磁带/J-Card回归"
+      ],
+      "forbidden": "禁止重导已完成资料库、填猜测映射、借新播放验收关闭旧录音待办。",
+      "blocked_policy": "没有获准真实库副本先做合成；真实迁移状态保持未验。",
+      "acceptance_ids": [
+        "MBRS-AT-014-01",
+        "MBRS-AT-014-02",
+        "MBRS-AT-014-03",
+        "MBRS-AT-014-04",
+        "MBRS-AT-014-05",
+        "MBRS-AT-014-06",
+        "MBRS-AT-014-07",
+        "MBRS-AT-014-08"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-015",
+      "title": "可选Roon内部协议只读增强",
+      "scope": "ENRICHMENT_ADDON",
+      "depends_on": [
+        "MBRS-000",
+        "MBRS-002"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-015",
+      "goal": "保留有证据的信息增强，不为主播放建立依赖。",
+      "steps": [
+        "查找已有独立POC原始证据、确切SHA/Core build；旧口头成功不继承，固定上游版本与NOTICE。",
+        "只开放审核后的信息读取allowlist、页数/并发/超时/释放；拒绝通用RPC和播放/暂停/音量/入库/收藏/删除/重扫。",
+        "按少量授权真值逐字段核返回类型和含义，内部整数用无损字符串；定义存在不代表LIVE_VERIFIED。",
+        "可增加信息详情与STALE/歧义关系，但playLocal不查它、不等它，不建设全库ID互转工程。",
+        "关闭、不兼容、崩溃均独立终止并报告，无无限重连、不重启Core；未安装仍通过核心20样本。此任务不是RUST-015。"
+      ],
+      "outputs": [
+        "可选只读适配",
+        "逐字段能力报告",
+        "可选信息UI",
+        "上游锁与NOTICE"
+      ],
+      "forbidden": "禁止内部协议控制/播放；禁止将GE设为核心发布硬依赖。",
+      "blocked_policy": "本任务失败不阻断CORE_READY评估，但FULL_WITH_ENRICHMENT必须有GE实证。",
+      "acceptance_ids": [
+        "MBRS-AT-015-01",
+        "MBRS-AT-015-02",
+        "MBRS-AT-015-03",
+        "MBRS-AT-015-04",
+        "MBRS-AT-015-05",
+        "MBRS-AT-015-06"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-016",
+      "title": "综合性能、安全与旧业务回归",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-001",
+        "MBRS-002",
+        "MBRS-003",
+        "MBRS-004",
+        "MBRS-005",
+        "MBRS-006",
+        "MBRS-007",
+        "MBRS-008",
+        "MBRS-009",
+        "MBRS-010",
+        "MBRS-011",
+        "MBRS-012",
+        "MBRS-013",
+        "MBRS-014"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-016",
+      "goal": "验证新增能力共同运行，不将模块通过或旧PASS当整体成功。",
+      "steps": [
+        "10万/30万合成曲目、实际release构建和授权小样本；按同clock记录点击到提交/paint、Main、Core、HTTP和Roon观察，冷暖分列。",
+        "播放/控制/查询/预取/扫描/封面优先级，文件变化/外部接管/退出/中断整理共同测试，旧修复不得回退。",
+        "保留原全量测试范围与跳过事实；证据复用按源码/构建/语义/环境适用性核验，不反复重建未变原件证明。",
+        "授权根、媒体LAN、secret、图像provider、writer、锁/事务和旧引用安全测试。增强关闭/未安装仍完整新点播。",
+        "分别汇总Rust未完、旧录音门槛、MBRS主线、GE附加、格式/Q层级/gapless；重复记录指向同一主任务，不能消失。",
+        "完整运行异常只修证据消费者的真实缺陷时保留原件与有效RED；测试基础设施预算与产品超时分离，不能靠放松断言变绿。"
+      ],
+      "outputs": [
+        "INTEGRATION_RESULT.md",
+        "性能/安全/故障报告",
+        "逐项验收矩阵",
+        "开放事项及限制清单"
+      ],
+      "forbidden": "禁止禁用核心功能/删除失败测例来宣称全过；禁止以package validation代替软件测试。",
+      "blocked_policy": "缺实机只阻断相应验收，继续独立工作；核心闭环不齐不能CORE_READY。",
+      "acceptance_ids": [
+        "MBRS-AT-016-01",
+        "MBRS-AT-016-02",
+        "MBRS-AT-016-03",
+        "MBRS-AT-016-04",
+        "MBRS-AT-016-05",
+        "MBRS-AT-016-06",
+        "MBRS-AT-016-07",
+        "MBRS-AT-016-08",
+        "MBRS-AT-016-09"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    },
+    {
+      "id": "MBRS-017",
+      "title": "打包、使用指南与可恢复交付",
+      "scope": "CORE",
+      "depends_on": [
+        "MBRS-016"
+      ],
+      "status": "NOT_STARTED",
+      "implementation_owner": "MBRS-017",
+      "goal": "一个正常可运行的最终安装包，同时保留旧功能、用户新增数据和明确限制。",
+      "steps": [
+        "复用现有CoreSupervisor/资源清单/ASAR/Fuses/签名链，打包Roon SDK与媒体Gateway；用户不需终端常驻，旧录音媒体资源不能遗漏。",
+        "按release-profile.json逐项记录arm64、x64/universal、ad-hoc、Developer ID、公证目标和结果；未纳入当前用户平台的不冒称完成，原Rust条目继续保留。",
+        "演练安装/根授权/配对/后台/退出/异常/升级；数据库兼容、文件journal撤销、服务停止三层回退分开，新数据不被旧备份覆盖。",
+        "说明导入、版本/Zone、格式、CUE、无缝、MB队列、NAS离线、增强开关与真正退出网关影响；限定普通直送，旧录音能力另章。",
+        "绑定实现/报告/构建输入/最终包/依赖/schema和测试证据；更新主台账共享引用。用户使用反馈只由用户给出，代理测试不代签。",
+        "main合并、正式App替换、公网发布仍按实际授权分别执行；技术开发批准不扩展成任意文件写入/设备动作许可。"
+      ],
+      "outputs": [
+        "最终安装包",
+        "RELEASE_NOTES.md",
+        "用户指南/回退手册",
+        "FINAL_REPORT.md",
+        "RELEASE_PROFILE_RESULT.json",
+        "开放Rust与录音清单"
+      ],
+      "forbidden": "禁止把ad-hoc候选说成已公证，禁止只含Rust资源的候选当完整媒体安装包。",
+      "blocked_policy": "缺签名凭据不阻断已授权离线构建，但对应发布承诺保持未完成；受限功能需明确接受。",
+      "acceptance_ids": [
+        "MBRS-AT-017-01",
+        "MBRS-AT-017-02",
+        "MBRS-AT-017-03",
+        "MBRS-AT-017-04",
+        "MBRS-AT-017-05",
+        "MBRS-AT-017-06",
+        "MBRS-AT-017-07",
+        "MBRS-AT-017-08"
+      ],
+      "reuse_map_required": true,
+      "g0_product_integration_required": true,
+      "optional_inputs": []
+    }
+  ]
+}

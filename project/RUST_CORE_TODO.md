@@ -1,5 +1,21 @@
 # Rust Core 开发进度
 
+## 2026-10-04 新主控当前进度
+
+以下是新任务维护的当前记录；后文 RUST-015 报告提交时的原始快照与失败记录完整保留，不补写成当前 CI 或发布通过。
+
+- [x] 换届身份：主会话实际 `gpt-6.1-sol/max`，三个实际 `gpt-6.1-sol/high` 角色，唯一产品写作者与主控串行交接；从最终报告 `044e6b24` 建 `codex/mbrs-000-baseline-admission`，旧 015 树保持封存。
+- [x] 交接输入：8 份指定原件字节/SHA、97 包文件/96 内部校验和、015 六 Git 输入与远端最终 HEAD 已核；新保护快照覆盖全部 83 个注册树，目录型 untracked 仅登记、常规脏文件保留流式摘要。
+- [x] MBRS-000 首批基线/12 复用/14 原始未完框的唯一主责/18 任务156验收/3 有限 ADR 已落实；转交保持 OPEN，不把 Node writer 或默认 OFF 收藏 Rust 写成完整迁移。
+- [x] MBRS-000 新鲜结构 Gate 与13行为正负例、control-plane/boundaries退出0，首轮独审无确认P1/P2；实现/报告/推送精确身份由000结果报告与提交后外置收据解析，整体 G0 仍 NOT_ADMITTED。
+- [ ] RUST-016-ci-security-portability：本轮拟登记的下一独立修复任务，C01+C06 唯一主责；关闭工作流校验、Linux 18 准备失败、两个 Rust host 输出接线、历史 raw 可移植输入与生产高危依赖，保留门禁及原失败。
+- [ ] RUST-017～025 的原控件、成本、推送、索引、相邻领域、平台媒体、持久化、live 与 Owner 主责分别保留 PLANNED/NOT_STARTED；具体 scope/依赖见 `docs/postrust/MBRS-000/RUST_TO_MBRS_RESOLVED.json`，登记不等于已准入或完成。
+- [ ] 完整媒体/平台签名公证/安装/真实服务、旧录音 Gate B/P4/P5、GE 与 Owner 最终成品反馈分别保留；代理负责中间验证，未取得具体许可的动作仅阻断其自身。
+
+当前 MBRS 完成/待办并列入口为 [POSTRUST_TODO](POSTRUST_TODO.md)，机器状态为 `STATUS.json` 的独立 PostRust 段。015 最新远端已完成：static-security success；verify/Electron/Rust workflow failure，生产 audit high 未闭合；精确 run/原件在本轮外置 `ci-security-audit/CI_CAPTURE_MANIFEST.json`。
+
+## RUST-015 报告提交时的历史快照
+
 更新：2026-10-04。本文件是RUST-015报告提交时的进度快照。**正式Rust编号15个task均完成限定范围的本地交付；完整Rust迁移尚未完成。** 默认应用仍是Node，可选Rust收藏查询默认OFF。实际最终报告HEAD与提交后远端推送结果见外置FINAL_IDENTITY及推送收据，后续仅从该最终HEAD接续。
 
 ## 待办事项

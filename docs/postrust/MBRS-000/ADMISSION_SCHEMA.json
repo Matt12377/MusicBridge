@@ -1,0 +1,300 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.2"
+    },
+    "kind": {
+      "const": "HANDOFF_RECORD_NOT_AUTHORIZATION"
+    },
+    "is_synthetic": {
+      "type": "boolean"
+    },
+    "mode": {
+      "enum": [
+        "UNRESOLVED",
+        "APPROVED_RUST_EXIT",
+        "EXPLICIT_PHASE_HANDOFF"
+      ]
+    },
+    "decision": {
+      "enum": [
+        "NOT_ADMITTED",
+        "ADMITTED"
+      ]
+    },
+    "repository": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "branch": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "implementation_commit": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        }
+      ]
+    },
+    "final_report_commit": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+        }
+      ]
+    },
+    "authority_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "scope_definition_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "carryover_mapping_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 4096
+    },
+    "component_owners": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "database_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "writer_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "process": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "language": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        },
+        "required": [
+          "domain",
+          "database_id",
+          "writer_id",
+          "process",
+          "language"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 1024
+    },
+    "exit_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "required_for_admission": {
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "OPEN",
+              "PASS",
+              "DEFERRED"
+            ]
+          },
+          "primary_owner": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4096
+            },
+            "minItems": 0,
+            "maxItems": 1024
+          }
+        },
+        "required": [
+          "id",
+          "description",
+          "required_for_admission",
+          "status",
+          "primary_owner",
+          "evidence_refs"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0,
+      "maxItems": 1024
+    },
+    "dirty_range_reviewed": {
+      "type": "boolean"
+    },
+    "full_rust_migration_completed": {
+      "type": "boolean"
+    },
+    "protected_untracked_paths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "minItems": 0,
+      "maxItems": 1024
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096
+      },
+      "minItems": 0,
+      "maxItems": 1024
+    }
+  },
+  "required": [
+    "schema_version",
+    "kind",
+    "is_synthetic",
+    "mode",
+    "decision",
+    "repository",
+    "branch",
+    "implementation_commit",
+    "final_report_commit",
+    "authority_ref",
+    "scope_definition_ref",
+    "carryover_mapping_ref",
+    "component_owners",
+    "exit_items",
+    "dirty_range_reviewed",
+    "full_rust_migration_completed",
+    "protected_untracked_paths",
+    "evidence_refs"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:musicbridge:baseline-admission:1.2",
+  "title": "Planned MusicBridge baseline-admission; not upstream SDK or authorization",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "ADMITTED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "mode": {
+            "enum": [
+              "APPROVED_RUST_EXIT",
+              "EXPLICIT_PHASE_HANDOFF"
+            ]
+          },
+          "branch": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "implementation_commit": {
+            "type": "string",
+            "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+          },
+          "final_report_commit": {
+            "type": "string",
+            "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+          },
+          "authority_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "scope_definition_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "carryover_mapping_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          },
+          "component_owners": {
+            "minItems": 1
+          },
+          "exit_items": {
+            "minItems": 1
+          },
+          "dirty_range_reviewed": {
+            "const": true
+          },
+          "evidence_refs": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}

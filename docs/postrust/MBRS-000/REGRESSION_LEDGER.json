@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.2",
+  "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+  "current_structure_gate": {
+    "state": "PASS_STRUCTURE_BASELINE_ONLY",
+    "command": "node scripts/ci/verify-postrust-baseline.mjs",
+    "exit_code": 0,
+    "behavior_tests": {
+      "passed": 13,
+      "failed": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "exit_code": 0
+    },
+    "fresh_gate_refs": [
+      "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs000-structure-behavior-01/result.json",
+      "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs000-structure-source-01/result.json",
+      "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs000-control-plane-01/result.json",
+      "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs000-boundaries-01/result.json"
+    ]
+  },
+  "fresh_baseline_ci": {
+    "state": "FAIL_INHERITED_BASELINE",
+    "input_ref": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-audit/CI_CAPTURE_MANIFEST.json",
+    "verify": "desktop1331：1313 pass / 18 fail（TMPDIR undefined 1、collection-scale-observation硬编码路径pipe及共享profile 16、受控profile路径未准入1）",
+    "electron": "4 system pass / 2 Rust helper编译树准备 fail；后续Playwright skipped",
+    "static_security": "success",
+    "rust_workflow": "jobs=0；非Rust测试PASS",
+    "production_audit": "node-forge high尚未闭合",
+    "primary_owner": "RUST-016-ci-security-portability",
+    "source": "本轮主控采集，具体SHA/run/完整失败保留在外置manifest；本角色未重跑",
+    "commit": "044e6b24edf81b64030d4c96741082670532971c",
+    "capture_identity": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-audit/CI_CAPTURE_MANIFEST.json",
+      "bytes": 10360,
+      "sha256": "16b1361def8423287746c325517ff3dc0bf18eb7da44ff182c00d51eb3cad935"
+    }
+  },
+  "reused_rust015": {
+    "state": "HISTORICAL_APPLICABLE_SCOPE_ONLY",
+    "implementation_commit": "8c58fdee4309a781dbf6640d8aeba46bb8fe1bd3",
+    "report_commit": "044e6b24edf81b64030d4c96741082670532971c",
+    "software": "Source15 4051 pass / 2原条件skip；只引用原范围",
+    "app": "七签包/十三run/十二SQL与两普通CUA；只引用原收藏容量范围",
+    "new_source_or_product_acceptance": "NOT_RUN"
+  },
+  "not_run": [
+    "本轮完整软件回归",
+    "本轮App运行",
+    "真实账号/Roon/扫描/发声",
+    "源文件写入",
+    "DSP/音量/Core重启",
+    "完整媒体包/平台签名/安装/发布",
+    "Owner最终成品使用"
+  ],
+  "forbidden_shortcuts": [
+    "降低audit阈值",
+    "新增skip绕过失败",
+    "伪造编译或目录",
+    "删除Provider既有功能",
+    "mock提升live",
+    "push前报告冒充最新push"
+  ]
+}

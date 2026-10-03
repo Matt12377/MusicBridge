@@ -1,0 +1,647 @@
+{
+  "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+  "source": {
+    "path": "project/RUST_CORE_TODO.md",
+    "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+    "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+    "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+    "bytes": 37988
+  },
+  "source_open_checkbox_count": 14,
+  "entries": [
+    {
+      "id": "TODO-L007",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 7,
+        "text": "- [ ] 换届：当前交付身份与审计push完成后，创建gpt-6.1-sol/max新主会话，三个gpt-6.1-sol/high子代理；读取PostRust v1.2 CODEX_START_PROMPT并持续开发，Owner只做最终成品使用验收。"
+      },
+      "primary_task": "MBRS-000",
+      "task_registration_status": "EXISTING_BASELINE_PRECHECK",
+      "disposition": "CONTINUE",
+      "status": "OPEN",
+      "scope": "换届身份/范围记录",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "PRECHECK",
+      "transfer_is_completion": false,
+      "acceptance_owner": "MBRS-000"
+    },
+    {
+      "id": "TODO-L008",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 8,
+        "text": "- [ ] **R15-C06强制基线阻塞**：014远端verify/Electron/Rust工作流失败和一项生产node-forge高危公告已确认，015相关输入相同；新会话先修测试环境/编译接线/工作流及依赖安全，不降低门禁。当前没有整体CI/发布/安全放行，受影响真实验收停止；具体证据见015报告与外置分类。"
+      },
+      "primary_task": "RUST-016-ci-security-portability",
+      "task_registration_status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "disposition": "CONTINUE",
+      "status": "OPEN",
+      "scope": "C06强制基线修复",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "YES",
+      "transfer_is_completion": false,
+      "acceptance_owner": "RUST-016-ci-security-portability"
+    },
+    {
+      "id": "TODO-L009",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 9,
+        "text": "- [ ] MBRS-000先核最新真实基线、语言/进程/唯一writer、代码复用、全部未完Rust事项的唯一主责及明确阶段交接授权；v1.2替代v1.1，包内MBRS-000～017共18个任务此刻仍未开始，不把RUST-015交付当完整迁移或自动G0。"
+      },
+      "primary_task": "MBRS-000",
+      "task_registration_status": "EXISTING_BASELINE_PRECHECK",
+      "disposition": "CONTINUE",
+      "status": "OPEN",
+      "scope": "完整基线/所有权/未完映射",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "PRECHECK",
+      "transfer_is_completion": false,
+      "acceptance_owner": "MBRS-000"
+    },
+    {
+      "id": "TODO-L010",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 10,
+        "text": "- [ ] R15-C01：为三条Source05/08历史raw无条件依赖安排唯一后续Rust任务；保存来源SHA/提取证明，以可移植冻结输入和针对性串改拒绝补齐，当前clean clone/远端CI未验证。"
+      },
+      "primary_task": "RUST-016-ci-security-portability",
+      "task_registration_status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "disposition": "CONTINUE",
+      "status": "OPEN",
+      "scope": "C01可移植原raw冻结",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "YES",
+      "transfer_is_completion": false,
+      "acceptance_owner": "RUST-016-ci-security-portability"
+    },
+    {
+      "id": "TODO-L011",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 11,
+        "text": "- [ ] R15-C02：另立原生UI可操作性范围验证其它保护策略选择；本期normal保留量0→2与工程collector/2分层通过，不能互相替代。"
+      },
+      "primary_task": "RUST-017-native-policy-controls",
+      "task_registration_status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "disposition": "CONTINUE",
+      "status": "OPEN",
+      "scope": "C02其它原保护策略普通可操作性",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "UNRESOLVED_EXIT_SCOPE_NOT_AUTOMATIC_OFFLINE_PREREQUISITE",
+      "transfer_is_completion": false,
+      "acceptance_owner": "RUST-017-native-policy-controls"
+    },
+    {
+      "id": "TODO-L012",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 12,
+        "text": "- [ ] R15-C03～C05：依据完整成本继续分配热点、批次失效通知、索引、相邻领域、持久化兼容、完整媒体、平台签名与真实服务各自的唯一任务；七条既有后续方向仍见后文，不重复实现已有协调器、网关、writer及UI。"
+      },
+      "primary_task": "RUST-018-cost-hotspot-scope",
+      "task_registration_status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "disposition": "SHARED",
+      "status": "OPEN",
+      "scope": "C03–C05总括链接七方向，不复制实现",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "UNRESOLVED_EXIT_SCOPE_NOT_AUTOMATIC_OFFLINE_PREREQUISITE",
+      "transfer_is_completion": false,
+      "acceptance_owner": "RUST-018-cost-hotspot-scope",
+      "referenced_source_items": [
+        "TODO-L128",
+        "TODO-L129",
+        "TODO-L130",
+        "TODO-L131",
+        "TODO-L132",
+        "TODO-L133",
+        "TODO-L134"
+      ]
+    },
+    {
+      "id": "TODO-L013",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 13,
+        "text": "- [ ] 最终成品交付后的Owner使用反馈；所有中间开发、自动/应用验证由代理承担，真实写文件/发声/账号/设备等仅在具体已有授权范围执行。"
+      },
+      "primary_task": "RUST-025-final-owner-feedback",
+      "task_registration_status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "disposition": "RETAIN",
+      "status": "OPEN",
+      "scope": "最终成品实际Owner反馈，不代签",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "UNRESOLVED_EXIT_SCOPE_NOT_AUTOMATIC_OFFLINE_PREREQUISITE",
+      "transfer_is_completion": false,
+      "acceptance_owner": "RUST-025-final-owner-feedback"
+    },
+    {
+      "id": "TODO-L128",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 128,
+        "text": "- [ ] 规模与热点：依据实际全链成本对照确定Rust计算职责；超过已验证5,000型号/8 MiB预算单列完整原子协议/资源验收，不截断或跨时刻分页。"
+      },
+      "primary_task": "RUST-018-cost-hotspot-scope",
+      "task_registration_status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "disposition": "CONTINUE",
+      "status": "OPEN",
+      "scope": "收藏规模/成本/v3原子预算",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "UNRESOLVED_EXIT_SCOPE_NOT_AUTOMATIC_OFFLINE_PREREQUISITE",
+      "transfer_is_completion": false,
+      "acceptance_owner": "RUST-018-cost-hotspot-scope"
+    },
+    {
+      "id": "TODO-L129",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 129,
+        "text": "- [ ] 快照版本、显式刷新与按读取失效检测由 RUST-003 实施；后续评估推送通知和批次失效的收益。"
+      },
+      "primary_task": "RUST-019-snapshot-notification-evaluation",
+      "task_registration_status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "disposition": "RETAIN",
+      "status": "OPEN",
+      "scope": "仅推送/批次失效未来评估；已完成版本/显式刷新不重做",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "UNRESOLVED_EXIT_SCOPE_NOT_AUTOMATIC_OFFLINE_PREREQUISITE",
+      "transfer_is_completion": false,
+      "acceptance_owner": "RUST-019-snapshot-notification-evaluation"
+    },
+    {
+      "id": "TODO-L130",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 130,
+        "text": "- [ ] RUST-005 结果后评估是否还有已证实的查询热点，扩展索引另立范围，保持成本证据。"
+      },
+      "primary_task": "RUST-020-index-hotspot-evaluation",
+      "task_registration_status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "disposition": "RETAIN",
+      "status": "OPEN",
+      "scope": "RUST005后新热点证据/必要性",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "UNRESOLVED_EXIT_SCOPE_NOT_AUTOMATIC_OFFLINE_PREREQUISITE",
+      "transfer_is_completion": false,
+      "acceptance_owner": "RUST-020-index-hotspot-evaluation"
+    },
+    {
+      "id": "TODO-L131",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 131,
+        "text": "- [ ] 受控主机、正式Main与空白磁带UI已由RUST-007/008/009本地验证；实体音乐库等相邻领域、正式用户启用及真实服务仍须另列范围和验收。"
+      },
+      "primary_task": "RUST-021-adjacent-domain-scope",
+      "task_registration_status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "disposition": "SHARED",
+      "status": "OPEN",
+      "scope": "实体相邻领域、启用与服务边界；未授权迁移仅设计",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "UNRESOLVED_EXIT_SCOPE_NOT_AUTOMATIC_OFFLINE_PREREQUISITE",
+      "transfer_is_completion": false,
+      "acceptance_owner": "RUST-021-adjacent-domain-scope"
+    },
+    {
+      "id": "TODO-L132",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 132,
+        "text": "- [ ] macOS arm64资源、签名、ASAR/Fuses与包内只读路由已由RUST-011/012验证；x64/universal、Developer ID/公证和正式用户启用继续单列验收。"
+      },
+      "primary_task": "RUST-022-platform-media-admission",
+      "task_registration_status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "disposition": "RETAIN",
+      "status": "OPEN",
+      "scope": "x64/universal/DeveloperID/公证/完整媒体逐层",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "UNRESOLVED_EXIT_SCOPE_NOT_AUTOMATIC_OFFLINE_PREREQUISITE",
+      "transfer_is_completion": false,
+      "acceptance_owner": "RUST-022-platform-media-admission"
+    },
+    {
+      "id": "TODO-L133",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 133,
+        "text": "- [ ] 对可能的 Rust 持久化阶段梳理 schema、跨库事务、幂等回执、未知结果、不可变历史和恢复合同；在完整兼容证据前保持 Node 唯一作者。"
+      },
+      "primary_task": "RUST-023-persistence-compatibility-design",
+      "task_registration_status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "disposition": "RETAIN",
+      "status": "OPEN",
+      "scope": "schema/事务/unknown/幂等/历史/恢复设计；Node作者不切换",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "UNRESOLVED_EXIT_SCOPE_NOT_AUTOMATIC_OFFLINE_PREREQUISITE",
+      "transfer_is_completion": false,
+      "acceptance_owner": "RUST-023-persistence-compatibility-design"
+    },
+    {
+      "id": "TODO-L134",
+      "source": {
+        "path": "project/RUST_CORE_TODO.md",
+        "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+        "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+        "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d",
+        "bytes": 37988,
+        "line": 134,
+        "text": "- [ ] 准备真实环境验证材料，分别记录 Roon、播放、录音和 Owner 结果；本地合成测试不替代这些验收。"
+      },
+      "primary_task": "RUST-024-live-service-gates",
+      "task_registration_status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "disposition": "RETAIN",
+      "status": "OPEN",
+      "scope": "真实Roon/播放/旧GateB/P4/P5按具体授权",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md:79-98",
+        "tasks/RUST-001-readonly-sidecar.md:7-20"
+      ],
+      "g0_prerequisite": "UNRESOLVED_EXIT_SCOPE_NOT_AUTOMATIC_OFFLINE_PREREQUISITE",
+      "transfer_is_completion": false,
+      "acceptance_owner": "RUST-024-live-service-gates"
+    }
+  ],
+  "numbering_note": "RUST-016及以后仅为本轮拟登记的独立任务，PLANNED_NOT_STARTED；不是历史存在或已验收任务。主控须先冻结对应任务和分支再实施。",
+  "scope_note": "只找到RUST001只读阶段明确退出Gate；未找到完整Rust writer迁移退出授权。Owner换届足以隔离MBRS000/合同/纯规则/合成HTTP/安全离线修复；整体G0因C06仍NOT_ADMITTED。",
+  "dependency_edges": [
+    {
+      "prerequisite": "RUST-016-ci-security-portability",
+      "dependent": "G0"
+    },
+    {
+      "prerequisite": "MBRS-000",
+      "dependent": "G0"
+    },
+    {
+      "prerequisite": "G0",
+      "dependent": "MBRS-002-to-017-product-integration"
+    },
+    {
+      "prerequisite": "RUST-015",
+      "dependent": "RUST-016-ci-security-portability",
+      "kind": "PROPOSED_PLANNED_SEQUENCE"
+    },
+    {
+      "prerequisite": "RUST-016-ci-security-portability",
+      "dependent": "RUST-017-native-policy-controls",
+      "kind": "PROPOSED_PLANNED_SEQUENCE"
+    },
+    {
+      "prerequisite": "RUST-017-native-policy-controls",
+      "dependent": "RUST-018-cost-hotspot-scope",
+      "kind": "PROPOSED_PLANNED_SEQUENCE"
+    },
+    {
+      "prerequisite": "RUST-018-cost-hotspot-scope",
+      "dependent": "RUST-019-snapshot-notification-evaluation",
+      "kind": "PROPOSED_PLANNED_SEQUENCE"
+    },
+    {
+      "prerequisite": "RUST-019-snapshot-notification-evaluation",
+      "dependent": "RUST-020-index-hotspot-evaluation",
+      "kind": "PROPOSED_PLANNED_SEQUENCE"
+    },
+    {
+      "prerequisite": "RUST-020-index-hotspot-evaluation",
+      "dependent": "RUST-021-adjacent-domain-scope",
+      "kind": "PROPOSED_PLANNED_SEQUENCE"
+    },
+    {
+      "prerequisite": "RUST-021-adjacent-domain-scope",
+      "dependent": "RUST-022-platform-media-admission",
+      "kind": "PROPOSED_PLANNED_SEQUENCE"
+    },
+    {
+      "prerequisite": "RUST-022-platform-media-admission",
+      "dependent": "RUST-023-persistence-compatibility-design",
+      "kind": "PROPOSED_PLANNED_SEQUENCE"
+    },
+    {
+      "prerequisite": "RUST-023-persistence-compatibility-design",
+      "dependent": "RUST-024-live-service-gates",
+      "kind": "PROPOSED_PLANNED_SEQUENCE"
+    },
+    {
+      "prerequisite": "RUST-024-live-service-gates",
+      "dependent": "RUST-025-final-owner-feedback",
+      "kind": "PROPOSED_PLANNED_SEQUENCE"
+    }
+  ],
+  "purpose": "ALL_OPEN_BASELINE_TODO_ONE_PRIMARY_OWNER_NOT_COMPLETION",
+  "full_rust_migration_completed": false,
+  "planned_task_registry": [
+    {
+      "task": "RUST-016-ci-security-portability",
+      "status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "source_items": [
+        "TODO-L008",
+        "TODO-L010"
+      ],
+      "depends_on": [
+        "RUST-015"
+      ],
+      "authority": "仅登记唯一主责；冻结具体任务/分支后才实施，未扩大生产/live许可",
+      "scope": "C06强制基线修复；C01可移植原raw冻结",
+      "dependency_status": "PROPOSED_SEQUENCE_NOT_APPROVED_EXIT_REQUIREMENT",
+      "product_integration": false,
+      "scope_ref": "原source_items及reports/RUST-015_CAPACITY_COST_VALIDATION.md；实施前冻结，不将规划范围当具体live授权"
+    },
+    {
+      "task": "RUST-017-native-policy-controls",
+      "status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "source_items": [
+        "TODO-L011"
+      ],
+      "depends_on": [
+        "RUST-016-ci-security-portability"
+      ],
+      "authority": "仅登记唯一主责；冻结具体任务/分支后才实施，未扩大生产/live许可",
+      "scope": "C02其它原保护策略普通可操作性",
+      "dependency_status": "PROPOSED_SEQUENCE_NOT_APPROVED_EXIT_REQUIREMENT",
+      "product_integration": false,
+      "scope_ref": "原source_items及reports/RUST-015_CAPACITY_COST_VALIDATION.md；实施前冻结，不将规划范围当具体live授权"
+    },
+    {
+      "task": "RUST-018-cost-hotspot-scope",
+      "status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "source_items": [
+        "TODO-L012",
+        "TODO-L128"
+      ],
+      "depends_on": [
+        "RUST-017-native-policy-controls"
+      ],
+      "authority": "仅登记唯一主责；冻结具体任务/分支后才实施，未扩大生产/live许可",
+      "scope": "C03–C05总括链接七方向，不复制实现；收藏规模/成本/v3原子预算",
+      "dependency_status": "PROPOSED_SEQUENCE_NOT_APPROVED_EXIT_REQUIREMENT",
+      "product_integration": false,
+      "scope_ref": "原source_items及reports/RUST-015_CAPACITY_COST_VALIDATION.md；实施前冻结，不将规划范围当具体live授权"
+    },
+    {
+      "task": "RUST-019-snapshot-notification-evaluation",
+      "status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "source_items": [
+        "TODO-L129"
+      ],
+      "depends_on": [
+        "RUST-018-cost-hotspot-scope"
+      ],
+      "authority": "仅登记唯一主责；冻结具体任务/分支后才实施，未扩大生产/live许可",
+      "scope": "仅推送/批次失效未来评估；已完成版本/显式刷新不重做",
+      "dependency_status": "PROPOSED_SEQUENCE_NOT_APPROVED_EXIT_REQUIREMENT",
+      "product_integration": false,
+      "scope_ref": "原source_items及reports/RUST-015_CAPACITY_COST_VALIDATION.md；实施前冻结，不将规划范围当具体live授权"
+    },
+    {
+      "task": "RUST-020-index-hotspot-evaluation",
+      "status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "source_items": [
+        "TODO-L130"
+      ],
+      "depends_on": [
+        "RUST-019-snapshot-notification-evaluation"
+      ],
+      "authority": "仅登记唯一主责；冻结具体任务/分支后才实施，未扩大生产/live许可",
+      "scope": "RUST005后新热点证据/必要性",
+      "dependency_status": "PROPOSED_SEQUENCE_NOT_APPROVED_EXIT_REQUIREMENT",
+      "product_integration": false,
+      "scope_ref": "原source_items及reports/RUST-015_CAPACITY_COST_VALIDATION.md；实施前冻结，不将规划范围当具体live授权"
+    },
+    {
+      "task": "RUST-021-adjacent-domain-scope",
+      "status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "source_items": [
+        "TODO-L131"
+      ],
+      "depends_on": [
+        "RUST-020-index-hotspot-evaluation"
+      ],
+      "authority": "仅登记唯一主责；冻结具体任务/分支后才实施，未扩大生产/live许可",
+      "scope": "实体相邻领域、启用与服务边界；未授权迁移仅设计",
+      "dependency_status": "PROPOSED_SEQUENCE_NOT_APPROVED_EXIT_REQUIREMENT",
+      "product_integration": false,
+      "scope_ref": "原source_items及reports/RUST-015_CAPACITY_COST_VALIDATION.md；实施前冻结，不将规划范围当具体live授权"
+    },
+    {
+      "task": "RUST-022-platform-media-admission",
+      "status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "source_items": [
+        "TODO-L132"
+      ],
+      "depends_on": [
+        "RUST-021-adjacent-domain-scope"
+      ],
+      "authority": "仅登记唯一主责；冻结具体任务/分支后才实施，未扩大生产/live许可",
+      "scope": "x64/universal/DeveloperID/公证/完整媒体逐层",
+      "dependency_status": "PROPOSED_SEQUENCE_NOT_APPROVED_EXIT_REQUIREMENT",
+      "product_integration": false,
+      "scope_ref": "原source_items及reports/RUST-015_CAPACITY_COST_VALIDATION.md；实施前冻结，不将规划范围当具体live授权"
+    },
+    {
+      "task": "RUST-023-persistence-compatibility-design",
+      "status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "source_items": [
+        "TODO-L133"
+      ],
+      "depends_on": [
+        "RUST-022-platform-media-admission"
+      ],
+      "authority": "仅登记唯一主责；冻结具体任务/分支后才实施，未扩大生产/live许可",
+      "scope": "schema/事务/unknown/幂等/历史/恢复设计；Node作者不切换",
+      "dependency_status": "PROPOSED_SEQUENCE_NOT_APPROVED_EXIT_REQUIREMENT",
+      "product_integration": false,
+      "scope_ref": "原source_items及reports/RUST-015_CAPACITY_COST_VALIDATION.md；实施前冻结，不将规划范围当具体live授权"
+    },
+    {
+      "task": "RUST-024-live-service-gates",
+      "status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "source_items": [
+        "TODO-L134"
+      ],
+      "depends_on": [
+        "RUST-023-persistence-compatibility-design"
+      ],
+      "authority": "仅登记唯一主责；冻结具体任务/分支后才实施，未扩大生产/live许可",
+      "scope": "真实Roon/播放/旧GateB/P4/P5按具体授权",
+      "dependency_status": "PROPOSED_SEQUENCE_NOT_APPROVED_EXIT_REQUIREMENT",
+      "product_integration": false,
+      "scope_ref": "原source_items及reports/RUST-015_CAPACITY_COST_VALIDATION.md；实施前冻结，不将规划范围当具体live授权"
+    },
+    {
+      "task": "RUST-025-final-owner-feedback",
+      "status": "PLANNED_NOT_STARTED_REQUIRES_FROZEN_TASK",
+      "source_items": [
+        "TODO-L013"
+      ],
+      "depends_on": [
+        "RUST-024-live-service-gates"
+      ],
+      "authority": "仅登记唯一主责；冻结具体任务/分支后才实施，未扩大生产/live许可",
+      "scope": "最终成品实际Owner反馈，不代签",
+      "dependency_status": "PROPOSED_SEQUENCE_NOT_APPROVED_EXIT_REQUIREMENT",
+      "product_integration": false,
+      "scope_ref": "原source_items及reports/RUST-015_CAPACITY_COST_VALIDATION.md；实施前冻结，不将规划范围当具体live授权"
+    }
+  ],
+  "carryover_topics": [
+    {
+      "id": "R15-C01",
+      "primary_task": "RUST-016-ci-security-portability",
+      "status": "OPEN",
+      "source_items": [
+        "TODO-L010"
+      ],
+      "evidence": "历史Source05/08原件、提取证明及精准负例独立保留"
+    },
+    {
+      "id": "R15-C02",
+      "primary_task": "RUST-017-native-policy-controls",
+      "status": "OPEN",
+      "source_items": [
+        "TODO-L011"
+      ],
+      "evidence": "normal0到2普通证据和工程collector2分层；其它原策略未验收"
+    },
+    {
+      "id": "R15-C03",
+      "primary_task": "RUST-023-persistence-compatibility-design",
+      "status": "OPEN",
+      "source_items": [
+        "TODO-L012",
+        "TODO-L129",
+        "TODO-L131",
+        "TODO-L133"
+      ],
+      "evidence": "其余主题共享引用唯一实施任务；Node writer未迁，完整Rust迁移未完成"
+    },
+    {
+      "id": "R15-C04",
+      "primary_task": "RUST-022-platform-media-admission",
+      "status": "OPEN",
+      "source_items": [
+        "TODO-L132",
+        "TODO-L134",
+        "TODO-L013"
+      ],
+      "evidence": "全媒体/平台签名归022；真实Roon/账号/旧GateB-P4-P5归024；Owner归025，互不抵扣",
+      "shared_owners_by_scope": {
+        "real_services_old_recording": "RUST-024-live-service-gates",
+        "owner_final_feedback": "RUST-025-final-owner-feedback"
+      }
+    },
+    {
+      "id": "R15-C05",
+      "primary_task": "RUST-018-cost-hotspot-scope",
+      "status": "OPEN",
+      "source_items": [
+        "TODO-L128",
+        "TODO-L130"
+      ],
+      "evidence": "Source15成本无普遍加速；收藏v2与歌曲模型分离，新索引另立成本范围"
+    },
+    {
+      "id": "R15-C06",
+      "primary_task": "RUST-016-ci-security-portability",
+      "status": "OPEN",
+      "source_items": [
+        "TODO-L008"
+      ],
+      "required_for_admission": true,
+      "evidence": "015最新远端CI与生产high保留；不把前置移给MBRS002到017"
+    }
+  ]
+}

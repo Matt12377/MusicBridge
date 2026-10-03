@@ -8,7 +8,16 @@
 - 主代理划分子任务与文件修改范围，负责整合、审查和最终验证，避免多个代理同时修改同一文件。
 - 模型规则须与实际会话及子代理启动参数核对；修改本文件不代表当前会话模型已自动切换。
 
-## 任务推进
+## PostRust v1.2 换届与有限规则（2026-10-04）
+
+- 本次 Owner 明确指定主代理 `gpt-6.1-sol/max`，三个子代理 `gpt-6.1-sol/high`，禁止再派生；此轮子代理 high 覆盖上述旧 max 记录。一个产品写作者、最多两个只读调查者，主控整合与写作者串行交接。
+- 从 RUST-015 最终报告 HEAD `044e6b24edf81b64030d4c96741082670532971c` 的独立隔离树接续 v1.2。当前进度见 `project/POSTRUST_TODO.md`、`project/POSTRUST_PLAN.json` 和 `project/STATUS.json`，真实基线及唯一主责见 `docs/postrust/MBRS-000/`。
+- MBRS-000 的基线交付与产品 G0 准入分开；R15-C01/C06 未闭合期间整体 G0 仍未放行，继续已授权的隔离合同、纯规则、合成 HTTP 与安全离线修复，不接入受影响真实账号、发声或生产发布。
+- 普通扫描、播放、默认封面选择及旧录音读链继续只读原文件；`library_write_enabled` 默认 OFF。仅后续经具体计划授权、通过保护测试的 SOURCE_FILES Organizer 可写精确根/文件/字段/路径/plan_hash 范围，并须统一资源锁、备份、journal、回读与恢复。MB_ONLY 编辑不取得无关音频排他锁；活动读者和 Frozen/Prepared/Archive 历史默认阻止源写，旧 Hash 和历史绑定不改。
+- Roon-only 仅限制本期新增普通本地点播，唯一新 route 为 `roon_audio_input`，复用 BridgeController 与原 UI；保留旧网易云/native Roon、FFmpeg、OutputNative、冻结执行资产、录音与 J-Card，不新建第二队列或 writer。
+- 有效规则与来源分别见 `docs/adr/ADR-MBRS-001-BASELINE-AND-OWNERSHIP.md`、`ADR-MBRS-002-ORGANIZER-EXCEPTION.md`、`ADR-MBRS-003-PLAYBACK-SCOPE.md`；本段不是具体真实文件、Zone、main 合并、安装或发布许可。
+
+## 原任务推进约定
 
 任务按 `tasks/00_TASK_INDEX.md` 与 `project/WAVE-3.yaml` 的线性顺序推进。每个任务必须有独立分支、实现提交、结果报告提交、自动 Gate；下一任务从上一任务最终 HEAD 创建。只有 Owner 明确放行的任务才可开始。
 

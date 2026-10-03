@@ -1,0 +1,1877 @@
+{
+  "plan_version": "1.2",
+  "purpose": "BASELINE_SOURCE_MAPPING_NOT_PRODUCT_ACCEPTANCE",
+  "entries": [
+    {
+      "id": "REUSE-01",
+      "capability": "唯一播放协调器",
+      "observed_paths": [
+        "packages/bridge-core/src/application/bridge-controller.ts"
+      ],
+      "symbol_hints": [
+        "BridgeController",
+        "PlaybackOwner"
+      ],
+      "consumers": [
+        "MBRS-002",
+        "MBRS-006",
+        "MBRS-007"
+      ],
+      "action": "EXTEND",
+      "minimal_delta": "local来源、asset/revision、attempt未知结果与队列投影增量",
+      "do_not_rebuild": "不得新建第二个全局播放器、owner、队列或歌词时钟",
+      "evidence_status": "SOURCE_RESOLVED_NOT_RETESTED",
+      "must_resolve_at_handoff": false,
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "language_process": "Node Core utilityProcess",
+      "resolved_files": [
+        {
+          "path": "packages/bridge-core/src/application/bridge-controller.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "8934963323652e10f9ac3bef143a1facadcd9ba1",
+          "sha256": "2a7d3241b8fefb47c88b086fe32c06ee01fcfb2696fa1f9bbea8db37a1aebfad",
+          "bytes": 108537,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 52,
+              "declaration": "export interface ActivePlayback {"
+            },
+            {
+              "line": 64,
+              "declaration": "export interface BridgeState {"
+            },
+            {
+              "line": 73,
+              "declaration": "export type QueueItem = PlaybackQueueEntry & {"
+            },
+            {
+              "line": 85,
+              "declaration": "export interface NativeRoonQueueInput {"
+            },
+            {
+              "line": 90,
+              "declaration": "export interface SmartRoonResolution {"
+            },
+            {
+              "line": 94,
+              "declaration": "export type PlaybackStartupStage ="
+            },
+            {
+              "line": 100,
+              "declaration": "export interface PlaybackStartupTrace {"
+            },
+            {
+              "line": 143,
+              "declaration": "export interface PlaybackChangeMetadata { readonly kind: 'full' | 'position' }"
+            },
+            {
+              "line": 144,
+              "declaration": "export type PlaybackChangedListener = (snapshot: PlaybackSnapshot, metadata?: PlaybackChangeMetadata) => void;"
+            },
+            {
+              "line": 154,
+              "declaration": "function normalizeQueueItem(input: QueueInput): QueueItem {"
+            },
+            {
+              "line": 167,
+              "declaration": "function normalizeNativeRoonQueueItem(input: NativeRoonQueueInput): QueueItem {"
+            },
+            {
+              "line": 186,
+              "declaration": "function toTrackSummary(track: TrackMetadata): TrackSummary {"
+            },
+            {
+              "line": 198,
+              "declaration": "function cloneTrackSummary(track: TrackSummary): TrackSummary {"
+            },
+            {
+              "line": 213,
+              "declaration": "function cloneRoonItem(item: RoonLibraryItem): RoonLibraryItem {"
+            },
+            {
+              "line": 223,
+              "declaration": "function normalizeContextItem(input: RoonPlaybackContextItem, zoneId: string): QueueItem {"
+            },
+            {
+              "line": 231,
+              "declaration": "function freezeQueuePublication(queue: PlaybackQueueSnapshot): PlaybackQueueSnapshot {"
+            },
+            {
+              "line": 245,
+              "declaration": "function freezePlaybackPublication(snapshot: PlaybackSnapshot): PlaybackSnapshot {"
+            },
+            {
+              "line": 255,
+              "declaration": "function normalizedPlaybackIdentity(value: string): string {"
+            },
+            {
+              "line": 264,
+              "declaration": "function timeEventMatchesTrack(event: Pick<RoonTimeEvent, 'nowPlaying'>, track: TrackSummary): boolean {"
+            },
+            {
+              "line": 276,
+              "declaration": "function isSkippableQueueError(error: unknown): boolean {"
+            },
+            {
+              "line": 280,
+              "declaration": "function playbackIssueCode(error: BridgeError): PlaybackIssueCode {"
+            },
+            {
+              "line": 311,
+              "declaration": "function playbackIssueMessage(code: PlaybackIssueCode): {"
+            },
+            {
+              "line": 348,
+              "declaration": "function makePlaybackIssue("
+            },
+            {
+              "line": 356,
+              "declaration": "function makeTerminalIssue("
+            },
+            {
+              "line": 370,
+              "declaration": "export class BridgeController {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        }
+      ],
+      "primary_task": "MBRS-006"
+    },
+    {
+      "id": "REUSE-02",
+      "capability": "官方Roon Audio Input/Transport",
+      "observed_paths": [
+        "packages/bridge-core/src/roon/adapter.ts",
+        "packages/bridge-core/src/roon/types.ts",
+        "packages/bridge-core/src/roon/sdk.ts"
+      ],
+      "symbol_hints": [
+        "RoonPlayRequest",
+        "RoonPort",
+        "playbackMode",
+        "begin_session"
+      ],
+      "consumers": [
+        "MBRS-001",
+        "MBRS-006",
+        "MBRS-007"
+      ],
+      "action": "EXTEND",
+      "minimal_delta": "复用track提交/Time/控制/旧回调围栏，补本地来源实机验证",
+      "do_not_rebuild": "不从channel示例重造已有Adapter；不声称已有代码等于gapless通过",
+      "evidence_status": "SOURCE_RESOLVED_NOT_RETESTED",
+      "must_resolve_at_handoff": false,
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "language_process": "Node Core utilityProcess",
+      "resolved_files": [
+        {
+          "path": "packages/bridge-core/src/roon/adapter.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "c41744a9ee6cd4773d6aa377810e76762465dc83",
+          "sha256": "77a072f9bf64bc5954acf05bd74e7c3e85fb6b58b9062981a5a81c57b12bf569",
+          "bytes": 65239,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 73,
+              "declaration": "function cancelledOperation(signal?: AbortSignal): BridgeError {"
+            },
+            {
+              "line": 79,
+              "declaration": "export type SanitizedRoonErrorClass ="
+            },
+            {
+              "line": 88,
+              "declaration": "export interface RoonResponseBodySummary {"
+            },
+            {
+              "line": 97,
+              "declaration": "export interface RoonAudioInputAdapterOptions {"
+            },
+            {
+              "line": 118,
+              "declaration": "export interface RoonTimeCandidateSummary {"
+            },
+            {
+              "line": 127,
+              "declaration": "export interface RoonTimeShapeSummary {"
+            },
+            {
+              "line": 135,
+              "declaration": "function messageName(message: unknown): string {"
+            },
+            {
+              "line": 144,
+              "declaration": "function readSessionId(value: unknown): string | undefined {"
+            },
+            {
+              "line": 152,
+              "declaration": "function valueType(value: unknown): string {"
+            },
+            {
+              "line": 158,
+              "declaration": "function isSafeKey(value: string): boolean {"
+            },
+            {
+              "line": 162,
+              "declaration": "function safeKeys(value: Record<string, unknown>): string[] {"
+            },
+            {
+              "line": 169,
+              "declaration": "function summarizeCandidate(path: string, value: unknown): RoonTimeCandidateSummary {"
+            },
+            {
+              "line": 183,
+              "declaration": "export function summarizeRoonTimePayload(value: unknown): RoonTimeShapeSummary {"
+            },
+            {
+              "line": 211,
+              "declaration": "function readRoonTimeMs("
+            },
+            {
+              "line": 237,
+              "declaration": "function readErrorMessage(body: unknown): string | undefined {"
+            },
+            {
+              "line": 254,
+              "declaration": "function classifyRoonError(message: string | undefined): SanitizedRoonErrorClass {"
+            },
+            {
+              "line": 267,
+              "declaration": "function safeErrorText(errorClass: SanitizedRoonErrorClass): string | undefined {"
+            },
+            {
+              "line": 286,
+              "declaration": "export const FORMAL_ROON_EXTENSION_ID = 'com.musicbridgeforroon.netease.poc';"
+            },
+            {
+              "line": 287,
+              "declaration": "export const DEVELOPMENT_ROON_EXTENSION_ID = 'com.musicbridgeforroon.netease.dev';"
+            },
+            {
+              "line": 288,
+              "declaration": "export const FORMAL_ROON_DISPLAY_NAME = 'Music Bridge for Roon';"
+            },
+            {
+              "line": 289,
+              "declaration": "export const DEVELOPMENT_ROON_DISPLAY_NAME = 'Music Bridge for Roon — Dev Mac';"
+            },
+            {
+              "line": 290,
+              "declaration": "export const DEVELOPMENT_ROON_SETTINGS_KEY = 'settings.remote-core-development';"
+            },
+            {
+              "line": 292,
+              "declaration": "function isLocalPngIconUrl(value: string, expectedPort: number): boolean {"
+            },
+            {
+              "line": 310,
+              "declaration": "function readGatewayStage(value: unknown): RoonGatewayStage {"
+            },
+            {
+              "line": 323,
+              "declaration": "export function summarizeRoonResponseBody(body: unknown): RoonResponseBodySummary {"
+            },
+            {
+              "line": 342,
+              "declaration": "function isConnectionErrorEvent(event: string): boolean {"
+            },
+            {
+              "line": 348,
+              "declaration": "function timeoutError(phase: RoonPlaybackPhase): BridgeError {"
+            },
+            {
+              "line": 359,
+              "declaration": "function protocolError("
+            },
+            {
+              "line": 374,
+              "declaration": "function readSettings(value: unknown): SettingsState {"
+            },
+            {
+              "line": 391,
+              "declaration": "function readSettingsInput(value: unknown): SettingsState {"
+            },
+            {
+              "line": 396,
+              "declaration": "function readZoneId(value: unknown): string | undefined {"
+            },
+            {
+              "line": 405,
+              "declaration": "function isRoonZone(value: unknown): value is RoonZone {"
+            },
+            {
+              "line": 412,
+              "declaration": "function readZonePositionMs(zone: RoonZone | undefined): number | undefined {"
+            },
+            {
+              "line": 424,
+              "declaration": "function readDisplayLine(value: unknown): string | undefined {"
+            },
+            {
+              "line": 430,
+              "declaration": "function readZoneNowPlaying(zone: RoonZone | undefined): RoonPlaybackObservation['nowPlaying'] {"
+            },
+            {
+              "line": 458,
+              "declaration": "function normalizedIdentity(value: string): string {"
+            },
+            {
+              "line": 462,
+              "declaration": "function normalizedTrackIdentity(value: string): string {"
+            },
+            {
+              "line": 469,
+              "declaration": "function relatedIdentity(left: string, right: string): boolean {"
+            },
+            {
+              "line": 477,
+              "declaration": "function observationMatchesTrack("
+            },
+            {
+              "line": 504,
+              "declaration": "function observationMatchesRequest("
+            },
+            {
+              "line": 524,
+              "declaration": "export class RoonAudioInputAdapter implements RoonPort {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/types.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "df80ecb1406c48a6ca0e114c3f1888612d0ac0fc",
+          "sha256": "3efd5636ca4341291bdb60ecc4878bc6d6aafb535e4a33ac59f8f2609accc1bb",
+          "bytes": 3597,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 3,
+              "declaration": "export type RoonConnectionStatus ="
+            },
+            {
+              "line": 11,
+              "declaration": "export type RoonTransportState = 'playing' | 'paused' | 'loading' | 'stopped';"
+            },
+            {
+              "line": 13,
+              "declaration": "export interface RoonState {"
+            },
+            {
+              "line": 24,
+              "declaration": "export type RoonGatewayStage ="
+            },
+            {
+              "line": 33,
+              "declaration": "export interface RoonOperationOptions {"
+            },
+            {
+              "line": 38,
+              "declaration": "export interface RoonPlayRequest extends RoonOperationOptions {"
+            },
+            {
+              "line": 48,
+              "declaration": "export type RoonTerminalReason ="
+            },
+            {
+              "line": 54,
+              "declaration": "export type RoonNativePlaybackState = 'playing' | 'paused' | 'loading' | 'stopped';"
+            },
+            {
+              "line": 56,
+              "declaration": "export interface RoonNowPlayingIdentity {"
+            },
+            {
+              "line": 63,
+              "declaration": "export interface RoonPlaybackObservation {"
+            },
+            {
+              "line": 75,
+              "declaration": "export interface RoonPlaybackConfirmationRequest {"
+            },
+            {
+              "line": 92,
+              "declaration": "export interface RoonTimeEvent {"
+            },
+            {
+              "line": 101,
+              "declaration": "export interface RoonPort {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "packages/bridge-core/src/roon/sdk.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "e63c251474498014636f7aea6abd0f3af6279d0d",
+          "sha256": "c4d0de93e463563e802e16686ea3ffe17936681a1690f707bd412b129eb00040",
+          "bytes": 6556,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 4,
+              "declaration": "export interface RoonZoneOutput {"
+            },
+            {
+              "line": 10,
+              "declaration": "export interface RoonZone {"
+            },
+            {
+              "line": 31,
+              "declaration": "export interface RoonZoneChangeMessage {"
+            },
+            {
+              "line": 39,
+              "declaration": "export type RoonZoneChangeCallback = ("
+            },
+            {
+              "line": 44,
+              "declaration": "export type RoonTransportControl = 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next';"
+            },
+            {
+              "line": 45,
+              "declaration": "export type RoonTransportTarget = string | RoonZone | RoonZoneOutput | { zone_id: string };"
+            },
+            {
+              "line": 47,
+              "declaration": "export interface RoonTransportService {"
+            },
+            {
+              "line": 63,
+              "declaration": "export interface RoonAudioInputSession {"
+            },
+            {
+              "line": 67,
+              "declaration": "export interface RoonAudioInputPlayInfo {"
+            },
+            {
+              "line": 76,
+              "declaration": "export interface RoonAudioInputPlayOptions {"
+            },
+            {
+              "line": 86,
+              "declaration": "export interface RoonAudioInputService {"
+            },
+            {
+              "line": 101,
+              "declaration": "export interface RoonCore {"
+            },
+            {
+              "line": 111,
+              "declaration": "export interface RoonSettingsRequest {"
+            },
+            {
+              "line": 115,
+              "declaration": "export interface RoonSettingsOptions {"
+            },
+            {
+              "line": 124,
+              "declaration": "export interface RoonSettingsService {}"
+            },
+            {
+              "line": 126,
+              "declaration": "export interface RoonStatusService {"
+            },
+            {
+              "line": 130,
+              "declaration": "export type RoonRequiredServiceConstructor = new ("
+            },
+            {
+              "line": 134,
+              "declaration": "export interface RoonApiOptions {"
+            },
+            {
+              "line": 147,
+              "declaration": "export interface RoonApiInstance {"
+            },
+            {
+              "line": 161,
+              "declaration": "export interface RoonWsConnectOptions {"
+            },
+            {
+              "line": 168,
+              "declaration": "export interface RoonSdk {"
+            },
+            {
+              "line": 218,
+              "declaration": "export function createProductionRoonSdk(): RoonSdk {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        }
+      ],
+      "primary_task": "MBRS-006"
+    },
+    {
+      "id": "REUSE-03",
+      "capability": "远程流Gateway基础",
+      "observed_paths": [
+        "packages/bridge-core/src/stream/gateway.ts",
+        "packages/bridge-core/src/stream/upstream-policy.ts"
+      ],
+      "symbol_hints": [
+        "StreamGateway",
+        "secureGatewayFetch"
+      ],
+      "consumers": [
+        "MBRS-005",
+        "MBRS-006"
+      ],
+      "action": "EXTEND",
+      "minimal_delta": "本地FD读取、Range/If-Range、文件revision与统一锁；原远程策略保持",
+      "do_not_rebuild": "不得用放宽SSRF/任意path/file URL支持本地，不复制整套服务生命周期",
+      "evidence_status": "SOURCE_RESOLVED_NOT_RETESTED",
+      "must_resolve_at_handoff": false,
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "language_process": "Node Core utilityProcess",
+      "resolved_files": [
+        {
+          "path": "packages/bridge-core/src/stream/gateway.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "5a4eed038322c5344b7083174aca2080452644fa",
+          "sha256": "e6054a8b05face7f5e109f44886df72fd9edc9bc8595585b950c2b7bc280b243",
+          "bytes": 21164,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 33,
+              "declaration": "export type MediaExtension ="
+            },
+            {
+              "line": 45,
+              "declaration": "function normalizeFormat(format: string | undefined): string {"
+            },
+            {
+              "line": 49,
+              "declaration": "export function mediaExtensionForFormat(format: string | undefined): MediaExtension {"
+            },
+            {
+              "line": 70,
+              "declaration": "function routeExtensionForFormat(format: string | undefined): string {"
+            },
+            {
+              "line": 75,
+              "declaration": "function fallbackContentTypeForFormat(format: string | undefined): string | undefined {"
+            },
+            {
+              "line": 107,
+              "declaration": "function contentTypeBase(value: string | null): string | undefined {"
+            },
+            {
+              "line": 113,
+              "declaration": "function isGenericContentType(value: string | null): boolean {"
+            },
+            {
+              "line": 122,
+              "declaration": "function classifyContentType(value: string | null): ContentTypeClass {"
+            },
+            {
+              "line": 150,
+              "declaration": "function classifyRange(value: string | undefined):"
+            },
+            {
+              "line": 163,
+              "declaration": "function readContentLength(value: string | null): number | undefined {"
+            },
+            {
+              "line": 169,
+              "declaration": "function preflightFailure(cause?: unknown, status?: number): BridgeError {"
+            },
+            {
+              "line": 186,
+              "declaration": "function isExpiredUpstreamStatus(status: number): boolean {"
+            },
+            {
+              "line": 190,
+              "declaration": "function sendJson("
+            },
+            {
+              "line": 205,
+              "declaration": "export class StreamGateway {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "packages/bridge-core/src/stream/upstream-policy.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "5766b6163b22e2f8d75c8ef71f8a8cd8f04d235b",
+          "sha256": "b118691f4bd6a5fd7dc87ae62a639e2923809a5275458abca3adbfc5bbf6c1ba",
+          "bytes": 3186,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 8,
+              "declaration": "function isPrivateIpv4(address: string): boolean {"
+            },
+            {
+              "line": 25,
+              "declaration": "function isPrivateIpv6(address: string): boolean {"
+            },
+            {
+              "line": 37,
+              "declaration": "export async function assertPublicHttpsUrl(urlValue: string): Promise<URL> {"
+            },
+            {
+              "line": 67,
+              "declaration": "export type GatewayFetch = ("
+            },
+            {
+              "line": 72,
+              "declaration": "export const secureGatewayFetch: GatewayFetch = async ("
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        }
+      ],
+      "primary_task": "MBRS-005"
+    },
+    {
+      "id": "REUSE-04",
+      "capability": "媒体注册和资源清理",
+      "observed_paths": [
+        "packages/bridge-core/src/stream/registry.ts"
+      ],
+      "symbol_hints": [
+        "StreamRegistry",
+        "StreamRegistration"
+      ],
+      "consumers": [
+        "MBRS-005",
+        "MBRS-007"
+      ],
+      "action": "EXTEND",
+      "minimal_delta": "会话感知的本地FD lease、暂停/预取引用、可撤销secret",
+      "do_not_rebuild": "现有8小时token不是完整本地文件租约；不持久化媒体secret",
+      "evidence_status": "SOURCE_RESOLVED_NOT_RETESTED",
+      "must_resolve_at_handoff": false,
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "language_process": "Node Core utilityProcess",
+      "resolved_files": [
+        {
+          "path": "packages/bridge-core/src/stream/registry.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "3472844d285c4c16a23d8b808d2ed50d44c412b1",
+          "sha256": "e30c821a1832314f7706754dc934e32772adb021f894a28a76c6de3f39acc1e1",
+          "bytes": 2471,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 5,
+              "declaration": "export interface StreamResolveRequest {"
+            },
+            {
+              "line": 10,
+              "declaration": "export type StreamResolver = ("
+            },
+            {
+              "line": 14,
+              "declaration": "export interface StreamRegistration {"
+            },
+            {
+              "line": 23,
+              "declaration": "export class StreamRegistry {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        }
+      ],
+      "primary_task": "MBRS-005"
+    },
+    {
+      "id": "REUSE-05",
+      "capability": "根/路径/FD安全原语",
+      "observed_paths": [
+        "packages/bridge-core/src/recording/source-files.ts",
+        "packages/contracts/src/source-evidence.ts"
+      ],
+      "symbol_hints": [
+        "RootCapability",
+        "authorizeSourceDirectory",
+        "withVerifiedReadonlySource"
+      ],
+      "consumers": [
+        "MBRS-003",
+        "MBRS-005",
+        "MBRS-012",
+        "MBRS-013",
+        "MBRS-014"
+      ],
+      "action": "REUSE_AND_SEPARATE_POLICY",
+      "minimal_delta": "共享安全底层，普通标签扫描与旧录音严格证据分策略",
+      "do_not_rebuild": "不放宽录音Hash/技术规则，不建立互不知情的根授权/锁",
+      "evidence_status": "SOURCE_RESOLVED_NOT_RETESTED",
+      "must_resolve_at_handoff": false,
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "language_process": "Node Dataset Owner Worker",
+      "resolved_files": [
+        {
+          "path": "packages/bridge-core/src/recording/source-files.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "ebf2edf578be38ac348daf66d0afed529167e47f",
+          "sha256": "910bfbb0326fcf340de48a4261b330f2ca08a9db9c769e6d2e99a981fc49a7cc",
+          "bytes": 24611,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 10,
+              "declaration": "export class SourceFileError extends Error { constructor(readonly code: SourceFailure) { super(code); } }"
+            },
+            {
+              "line": 11,
+              "declaration": "export interface RootCapability { id: string; path: string; dev: string; ino: string; authorized: boolean; label: string }"
+            },
+            {
+              "line": 12,
+              "declaration": "export interface FileEvidence { sha256: string; size: number; signature: string; modifiedAt: string; verifiedAt: string; technical: SourceTechnical }"
+            },
+            {
+              "line": 17,
+              "declaration": "function technicalHeader(prefix: Buffer, size: number): { bytes: Buffer; mimeType: string; virtualSize: number; sampleFrames: number; durationMs?: number } {"
+            },
+            {
+              "line": 65,
+              "declaration": "export async function authorizeSourceDirectory(absolutePath: string): Promise<Omit<RootCapability, 'id'>> {"
+            },
+            {
+              "line": 73,
+              "declaration": "export async function sourceRootAvailability(root: RootCapability): Promise<'ONLINE' | 'SOURCE_ROOT_OFFLINE' | 'REVOKED'> {"
+            },
+            {
+              "line": 78,
+              "declaration": "export function sourceRelativePath(root: RootCapability, absolutePath: string): string {"
+            },
+            {
+              "line": 103,
+              "declaration": "export async function readonlySourceDirectoryEntries(root: RootCapability, relative: string, remaining: number, signal: AbortSignal, deadlineMs: number): Promise<{ entries: Dirent[]; truncated: boolean }> {"
+            },
+            {
+              "line": 144,
+              "declaration": "export async function readonlySourceCandidateMetadata(root: RootCapability, relative: string): Promise<{ signature: string; directoryIds: readonly string[]; size: number; modifiedAt: string }> {"
+            },
+            {
+              "line": 151,
+              "declaration": "export async function sourceFileAvailability(root: RootCapability, relative: string, expected: string): Promise<SourceAvailability> {"
+            },
+            {
+              "line": 156,
+              "declaration": "export async function withVerifiedReadonlySource<T>(root: RootCapability, relative: string, expected: { sha256: string; size: number }, signal: AbortSignal, consume: (handle: FileHandle, check: () => void) => Promise<T>, checkOperation: () => void = () => undefined): Promise<T> {"
+            },
+            {
+              "line": 177,
+              "declaration": "export interface ReplicaSourceLeaseOptions {"
+            },
+            {
+              "line": 192,
+              "declaration": "export async function withVerifiedReadonlyReplicaSource<T>(root: RootCapability, relative: string, expected: { sha256: string; size: number }, signal: AbortSignal,"
+            },
+            {
+              "line": 240,
+              "declaration": "export async function copyReadonlySource(root: RootCapability, relative: string, expected: { sha256: string; size: number }, destination: FileHandle, signal: AbortSignal): Promise<{ sha256: string; size: number }> {"
+            },
+            {
+              "line": 283,
+              "declaration": "export async function probeReadonlySource(root: RootCapability, relative: string, signal: AbortSignal): Promise<FileEvidence> {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "packages/contracts/src/source-evidence.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "90bdaa961d8ec327a3f9e9a253f3209c5525e8cd",
+          "sha256": "2f53a98ede41f8bb7d60b679cffcb74e14bf76de8fc437e6402c208c1563ef08",
+          "bytes": 8366,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 4,
+              "declaration": "export type SourceAcquisition = 'userFileBind' | 'roonDesktopExport';"
+            },
+            {
+              "line": 5,
+              "declaration": "export type SourceAvailability = 'ONLINE' | 'SOURCE_ROOT_OFFLINE' | 'MISSING' | 'CONTENT_CHANGED' | 'REVOKED';"
+            },
+            {
+              "line": 6,
+              "declaration": "export interface SourceRoot { id: string; label: string; authorized: boolean; availability: 'ONLINE' | 'SOURCE_ROOT_OFFLINE' | 'REVOKED' }"
+            },
+            {
+              "line": 7,
+              "declaration": "export interface SourceTechnical { container: string; codec: string; sampleRate: number; channels: number; durationMs: number; bitsPerSample?: number; lossless: boolean; sampleFrames?: number; frameEvidence?: 'container-declared' }"
+            },
+            {
+              "line": 8,
+              "declaration": "export interface SourceBinding {"
+            },
+            {
+              "line": 14,
+              "declaration": "export type SourceJobState = 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted';"
+            },
+            {
+              "line": 15,
+              "declaration": "export type SourceFailure = 'SOURCE_ROOT_OFFLINE' | 'MISSING' | 'CONTENT_CHANGED' | 'REVOKED' | 'OUTSIDE_ROOT' | 'UNSUPPORTED' | 'LIMIT_EXCEEDED' | 'IO_ERROR' | 'CANCELLED' | 'DRAFT_CHANGED' | 'HASH_MISMATCH' | 'CANDIDATE_CHANGED';"
+            },
+            {
+              "line": 16,
+              "declaration": "export interface SourceJob { id: string; draftId: string; trackId: string; rootId: string; state: SourceJobState; bindingId?: string; failure?: SourceFailure }"
+            },
+            {
+              "line": 17,
+              "declaration": "export interface DraftSourceSnapshot { draftId: string; sourceLockEligible: boolean; tracks: readonly { trackId: string; binding?: SourceBinding; jobs: readonly SourceJob[] }[] }"
+            },
+            {
+              "line": 19,
+              "declaration": "export interface SourceCandidateIdentity { scanId: string; candidateId: string; expectedDraftRevision: number }"
+            },
+            {
+              "line": 20,
+              "declaration": "export interface SourceSelection { commandId: string; draftId: string; trackId: string; rootId: string; acquisition: SourceAcquisition; relocateBindingId?: string; candidate?: SourceCandidateIdentity }"
+            },
+            {
+              "line": 21,
+              "declaration": "export interface SourceAction { commandId: string; id: string }"
+            },
+            {
+              "line": 22,
+              "declaration": "export interface SourceConfirmation extends SourceAction { draftId: string; trackId: string; userConfirmed: true }"
+            },
+            {
+              "line": 23,
+              "declaration": "export interface RecordingSourcesPublicApi {"
+            },
+            {
+              "line": 38,
+              "declaration": "export const isSourceAcquisition = (v: unknown): v is SourceAcquisition => one(v, ['userFileBind', 'roonDesktopExport']);"
+            },
+            {
+              "line": 39,
+              "declaration": "export const isSourceAction = (v: unknown): v is SourceAction => record(v) && keys(v, ['commandId', 'id']) && isCollectionId(v.commandId) && isCollectionId(v.id);"
+            },
+            {
+              "line": 40,
+              "declaration": "export const isSourceConfirmation = (v: unknown): v is SourceConfirmation => record(v) && keys(v, ['commandId', 'id', 'draftId', 'trackId', 'userConfirmed']) && ['commandId', 'id', 'draftId', 'trackId'].every(k => isCollectionId(v[k])) && v.userConfirmed === true;"
+            },
+            {
+              "line": 41,
+              "declaration": "export function isSourceCandidateIdentity(v: unknown): v is SourceCandidateIdentity { return record(v) && keys(v, ['scanId', 'candidateId', 'expectedDraftRevision']) && isCollectionId(v.scanId) && isCollectionId(v.candidateId) && integer(v.expectedDraftRevision, 1, 1_000_000); }"
+            },
+            {
+              "line": 42,
+              "declaration": "export function isSourceSelection(v: unknown): v is SourceSelection { return record(v) && keys(v, ['commandId', 'draftId', 'trackId', 'rootId', 'acquisition', 'relocateBindingId', 'candidate']) && ['commandId', 'draftId', 'trackId', 'rootId'].every(k => isCollectionId(v[k])) && isSourceAcquisition(v.acquisition) && (v.relocateBindingId === undefined || isCollectionId(v.relocateBindingId)) && (v.candidate === undefined || isSourceCandidateIdentity(v.candidate)); }"
+            },
+            {
+              "line": 43,
+              "declaration": "export function isSourceRoot(v: unknown): v is SourceRoot { return record(v) && keys(v, ['id', 'label', 'authorized', 'availability']) && isCollectionId(v.id) && isDraftText(v.label) && typeof v.authorized === 'boolean' && one(v.availability, ['ONLINE', 'SOURCE_ROOT_OFFLINE', 'REVOKED']) && (v.authorized === (v.availability !== 'REVOKED')); }"
+            },
+            {
+              "line": 44,
+              "declaration": "export function isSourceTechnical(v: unknown): v is SourceTechnical { return record(v) && keys(v, ['container', 'codec', 'sampleRate', 'channels', 'durationMs', 'bitsPerSample', 'lossless', 'sampleFrames', 'frameEvidence']) && isDraftText(v.container) && isDraftText(v.codec) && integer(v.sampleRate, 1, 50_000_000) && integer(v.channels, 1, 64) && integer(v.durationMs, 1, 86_400_000) && (v.bitsPerSample === undefined || integer(v.bitsPerSample, 1, 64)) && typeof v.lossless === 'boolean' && (v.sampleFrames === undefined ? v.frameEvidence === undefined : integer(v.sampleFrames, 1, Number.MAX_SAFE_INTEGER) && v.frameEvidence === 'container-declared' && Math.round(v.sampleFrames / v.sampleRate * 1000) === v.durationMs); }"
+            },
+            {
+              "line": 45,
+              "declaration": "export function isSourceBinding(v: unknown): v is SourceBinding {"
+            },
+            {
+              "line": 48,
+              "declaration": "export function isSourceJob(v: unknown): v is SourceJob { return record(v) && keys(v, ['id', 'draftId', 'trackId', 'rootId', 'state', 'bindingId', 'failure']) && ['id', 'draftId', 'trackId', 'rootId'].every(k => isCollectionId(v[k])) && one(v.state, ['running', 'completed', 'failed', 'cancelled', 'interrupted']) && (v.bindingId === undefined || isCollectionId(v.bindingId)) && (v.failure === undefined || one(v.failure, ['SOURCE_ROOT_OFFLINE', 'MISSING', 'CONTENT_CHANGED', 'REVOKED', 'OUTSIDE_ROOT', 'UNSUPPORTED', 'LIMIT_EXCEEDED', 'IO_ERROR', 'CANCELLED', 'DRAFT_CHANGED', 'HASH_MISMATCH', 'CANDIDATE_CHANGED'])) && (v.state !== 'completed' || isCollectionId(v.bindingId)); }"
+            },
+            {
+              "line": 49,
+              "declaration": "export function isDraftSourceSnapshot(v: unknown): v is DraftSourceSnapshot { return record(v) && keys(v, ['draftId', 'sourceLockEligible', 'tracks']) && isCollectionId(v.draftId) && typeof v.sourceLockEligible === 'boolean' && Array.isArray(v.tracks) && v.tracks.length <= 200 && v.tracks.every(t => record(t) && keys(t, ['trackId', 'binding', 'jobs']) && isCollectionId(t.trackId) && (t.binding === undefined || isSourceBinding(t.binding)) && Array.isArray(t.jobs) && t.jobs.length <= 20 && t.jobs.every(isSourceJob)) && v.sourceLockEligible === (v.tracks.length > 0 && v.tracks.every(t => (t as {binding?: SourceBinding}).binding?.sourceLockEligible === true)); }"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        }
+      ],
+      "primary_task": "MBRS-014"
+    },
+    {
+      "id": "REUSE-06",
+      "capability": "录音候选扫描",
+      "observed_paths": [
+        "packages/bridge-core/src/recording/source-candidates.ts"
+      ],
+      "symbol_hints": [
+        "createSourceCandidateService"
+      ],
+      "consumers": [
+        "MBRS-003"
+      ],
+      "action": "PRESERVE_WITH_NEW_DOMAIN",
+      "minimal_delta": "新增持久数字音乐扫描、断点、多格式标签和大库分页",
+      "do_not_rebuild": "不能只改3000/200/5秒限额冒充全库，也不能把候选内存当持久索引",
+      "evidence_status": "SOURCE_RESOLVED_NOT_RETESTED",
+      "must_resolve_at_handoff": false,
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "language_process": "Node Dataset Owner Worker",
+      "resolved_files": [
+        {
+          "path": "packages/bridge-core/src/recording/source-candidates.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "128e072e90026b63575c68c448a8f328b158f404",
+          "sha256": "2a023629b16c8f49dccb9c4d7dbce34ff1f3d141b4124b0f1bd60358b336d071",
+          "bytes": 17675,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 36,
+              "declaration": "export function createSourceCandidateService({ store, drafts, sources, checkRoot = sourceRootAvailability, inspect = readonlySourceCandidateMetadata, list = readonlySourceDirectoryEntries, now = Date.now }: {"
+            },
+            {
+              "line": 250,
+              "declaration": "export type SourceCandidateService = ReturnType<typeof createSourceCandidateService>;"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        }
+      ],
+      "primary_task": "MBRS-003"
+    },
+    {
+      "id": "REUSE-07",
+      "capability": "数据owner和领域持久化",
+      "observed_paths": [
+        "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+        "packages/bridge-core/src/collection/dataset-owner-client.ts",
+        "packages/bridge-core/src/collection/dataset-dispatch.ts",
+        "packages/bridge-core/src/collection/dataset-services.ts"
+      ],
+      "symbol_hints": [
+        "DatasetOwnerEndpoint"
+      ],
+      "consumers": [
+        "MBRS-002",
+        "MBRS-011",
+        "MBRS-014"
+      ],
+      "action": "EXTEND",
+      "minimal_delta": "按实际已验收writer扩展领域/迁移/幂等；跨库journal显式",
+      "do_not_rebuild": "新schema不是writer迁移；UI/扫描/sidecar不得各自直接写库",
+      "evidence_status": "SOURCE_RESOLVED_NOT_RETESTED",
+      "must_resolve_at_handoff": false,
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "language_process": "Node Dataset Owner Worker",
+      "resolved_files": [
+        {
+          "path": "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "7595f84a198cd61e52cc174dc8b622cbe3815a15",
+          "sha256": "31d45976d744b1fc723f3b2e33609c174f8fad5ae54270d85847824702540173",
+          "bytes": 15017,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 14,
+              "declaration": "export interface DatasetOwnerWorkerOptions {"
+            },
+            {
+              "line": 26,
+              "declaration": "export function attachDatasetOwnerWorkerPort(port: MessagePort, options: DatasetOwnerWorkerOptions): void {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-owner-client.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "badb883ff55bc9e5c01ad54b63d3cdf44d83d177",
+          "sha256": "d567c9785f29d654b8978eea29a2bddd94f6af75b6f90eeb0c3b91c24df8c2fb",
+          "bytes": 12154,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 23,
+              "declaration": "export interface DatasetOwnerClientOptions {"
+            },
+            {
+              "line": 30,
+              "declaration": "export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): DatasetOwnerLargeSnapshotEndpoint {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "3d0eae6238b62134a21a4155862328cb71f48b41",
+          "sha256": "2710f279f4bc095e9c6e57753b0699cb6308bade491df159fafebc32fce8df7e",
+          "bytes": 40373,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 14,
+              "declaration": "export type DatasetDispatchTarget = Partial<DatasetServices>;"
+            },
+            {
+              "line": 16,
+              "declaration": "function backupsFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 21,
+              "declaration": "function collectionFor(runtime: DatasetDispatchTarget): CollectionRepository {"
+            },
+            {
+              "line": 26,
+              "declaration": "function sourcesFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 31,
+              "declaration": "function candidatesFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 36,
+              "declaration": "function masterVersionsFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 40,
+              "declaration": "function executionFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 44,
+              "declaration": "function recordingReplicaFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 48,
+              "declaration": "function recordingDeviceFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 52,
+              "declaration": "function recordingPrintsFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 56,
+              "declaration": "function recordingRecordsFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 60,
+              "declaration": "function recordingAttemptsFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 64,
+              "declaration": "function recordingOutputFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 68,
+              "declaration": "function recordingPlansFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 72,
+              "declaration": "function archiveFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 76,
+              "declaration": "function preparedFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 80,
+              "declaration": "function preparationFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 84,
+              "declaration": "function preparationZipFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 89,
+              "declaration": "function mediaPlanningFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 94,
+              "declaration": "function masterDraftsFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 99,
+              "declaration": "function physicalLinksFor(runtime: DatasetDispatchTarget) {"
+            },
+            {
+              "line": 104,
+              "declaration": "export async function dispatchDatasetCommand("
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-services.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "148441d14cead4d1d9c29d8d4f5614dfb97fd45c",
+          "sha256": "62dd536e169def0b6188c9bd93a5858ac41273a7eff468f37fe40cb108624ddd",
+          "bytes": 2935,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 24,
+              "declaration": "export interface DatasetServices {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        }
+      ],
+      "primary_task": "MBRS-002"
+    },
+    {
+      "id": "REUSE-08",
+      "capability": "公开播放模型与紧凑事件",
+      "observed_paths": [
+        "packages/contracts/src/playback.ts",
+        "packages/bridge-core/src/application/playback-event-publisher.ts"
+      ],
+      "symbol_hints": [
+        "PlaybackSnapshot",
+        "PlaybackStreamStamp",
+        "PlaybackResolvedSource"
+      ],
+      "consumers": [
+        "MBRS-002",
+        "MBRS-006",
+        "MBRS-009"
+      ],
+      "action": "EXTEND",
+      "minimal_delta": "local命名空间、内部attempt与来源revision兼容映射",
+      "do_not_rebuild": "新JSON schema不能替换全部旧状态，不允许客户端控制真实代际",
+      "evidence_status": "SOURCE_RESOLVED_NOT_RETESTED",
+      "must_resolve_at_handoff": false,
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "language_process": "合同无独立进程；发布器Node Core utilityProcess",
+      "resolved_files": [
+        {
+          "path": "packages/contracts/src/playback.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "74ff30d2dc7365715a2172d651978026c416959d",
+          "sha256": "db0cb59e9a22c5084b02d6a9728f57c5629dc76bc63925373f235389d016a05c",
+          "bytes": 4474,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 4,
+              "declaration": "export const PLAYBACK_QUALITY_LEVELS = ["
+            },
+            {
+              "line": 11,
+              "declaration": "export type PlaybackQuality = (typeof PLAYBACK_QUALITY_LEVELS)[number]"
+            },
+            {
+              "line": 13,
+              "declaration": "export const PLAYBACK_QUALITY_PREFERENCES = ["
+            },
+            {
+              "line": 18,
+              "declaration": "export type PlaybackQualityPreference = (typeof PLAYBACK_QUALITY_PREFERENCES)[number]"
+            },
+            {
+              "line": 19,
+              "declaration": "export type PlaybackActualQuality = PlaybackQuality | 'unknown'"
+            },
+            {
+              "line": 22,
+              "declaration": "export const MAX_PLAYBACK_QUEUE_ITEMS = 5_000"
+            },
+            {
+              "line": 24,
+              "declaration": "export const PLAYBACK_SOURCE_PREFERENCES = ['smart', 'netease', 'roon'] as const"
+            },
+            {
+              "line": 25,
+              "declaration": "export type PlaybackSourcePreference = (typeof PLAYBACK_SOURCE_PREFERENCES)[number]"
+            },
+            {
+              "line": 26,
+              "declaration": "export type PlaybackResolvedSource = Exclude<PlaybackSourcePreference, 'smart'>"
+            },
+            {
+              "line": 28,
+              "declaration": "export type PlaybackState ="
+            },
+            {
+              "line": 39,
+              "declaration": "export interface PlaybackQueueRequestItem {"
+            },
+            {
+              "line": 46,
+              "declaration": "export interface PlaybackQueueEntry {"
+            },
+            {
+              "line": 60,
+              "declaration": "export type PlaybackQueueItem = PlaybackQueueEntry"
+            },
+            {
+              "line": 62,
+              "declaration": "export interface PlaybackQueueSnapshot {"
+            },
+            {
+              "line": 75,
+              "declaration": "export const PLAYBACK_ISSUE_CODES = ["
+            },
+            {
+              "line": 92,
+              "declaration": "export type PlaybackIssueCode = (typeof PLAYBACK_ISSUE_CODES)[number]"
+            },
+            {
+              "line": 94,
+              "declaration": "export type PlaybackRecoveryAction ="
+            },
+            {
+              "line": 101,
+              "declaration": "export interface PlaybackIssue {"
+            },
+            {
+              "line": 109,
+              "declaration": "export interface PlaybackSnapshot {"
+            },
+            {
+              "line": 133,
+              "declaration": "export type PlaybackEventProtocol = 'compact-v1'"
+            },
+            {
+              "line": 135,
+              "declaration": "export interface PlaybackEventProtocolAck {"
+            },
+            {
+              "line": 141,
+              "declaration": "export interface PlaybackStreamStamp {"
+            },
+            {
+              "line": 151,
+              "declaration": "export interface PlaybackStreamSnapshot {"
+            },
+            {
+              "line": 156,
+              "declaration": "export type PlaybackStateProjection = Omit<PlaybackSnapshot, 'queue' | 'stream'>"
+            },
+            {
+              "line": 158,
+              "declaration": "export interface PlaybackStreamState {"
+            },
+            {
+              "line": 164,
+              "declaration": "export interface PlaybackStreamProgress {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "packages/bridge-core/src/application/playback-event-publisher.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "3faa858446a2802fe56132fee0e6cfe8171ddbc6",
+          "sha256": "bf77c32954493edc7e3fa7f711ac21c65855cc976ee6f326c166b64ef1732d59",
+          "bytes": 6247,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 8,
+              "declaration": "export interface PlaybackPublicationMetadata {"
+            },
+            {
+              "line": 12,
+              "declaration": "export interface PlaybackEventPublisher {"
+            },
+            {
+              "line": 20,
+              "declaration": "export function createPlaybackEventPublisher("
+            },
+            {
+              "line": 90,
+              "declaration": "function increment(value: number): number {"
+            },
+            {
+              "line": 94,
+              "declaration": "function withoutQueue(snapshot: PlaybackSnapshot): PlaybackStateProjection {"
+            },
+            {
+              "line": 98,
+              "declaration": "function withoutPosition(state: PlaybackStateProjection): Omit<PlaybackStateProjection, 'positionMs'> {"
+            },
+            {
+              "line": 103,
+              "declaration": "function immutableCopy<T>(value: T): T {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        }
+      ],
+      "primary_task": "MBRS-002"
+    },
+    {
+      "id": "REUSE-09",
+      "capability": "原UI和图像/虚拟化",
+      "observed_paths": [
+        "apps/desktop/src/renderer/src/composables/virtualWindow.ts",
+        "apps/desktop/src/renderer/src/components/SafeArtwork.vue",
+        "apps/desktop/src/renderer/src/composables/useCollection.ts"
+      ],
+      "symbol_hints": [
+        "virtualWindow",
+        "SafeArtwork",
+        "useCollection"
+      ],
+      "consumers": [
+        "MBRS-009",
+        "MBRS-010"
+      ],
+      "action": "REUSE",
+      "minimal_delta": "新数据/状态与候选图接入原UI；数字图与磁带图身份分开",
+      "do_not_rebuild": "不增第二侧栏/播放条或改掉已确认收藏控件",
+      "evidence_status": "SOURCE_RESOLVED_NOT_RETESTED",
+      "must_resolve_at_handoff": false,
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "language_process": "Electron Renderer",
+      "resolved_files": [
+        {
+          "path": "apps/desktop/src/renderer/src/composables/virtualWindow.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "d83c2b519939f87d846466df6f617613488424f9",
+          "sha256": "1deb4f239b8c47bcebce227efad9dbb13999979b9d87e04d14c802bebf30c045",
+          "bytes": 989,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 1,
+              "declaration": "export interface VirtualWindow {"
+            },
+            {
+              "line": 9,
+              "declaration": "export function calculateVirtualWindow("
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/SafeArtwork.vue",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "034be31337cd5de7da1766a2761409b143960600",
+          "sha256": "52cd015d3343886af507fa47b937f293fa0e8cf09d23cf4469d17fa47e6b2779",
+          "bytes": 928,
+          "language": "Vue/TypeScript",
+          "exports": [
+            {
+              "line": 24,
+              "declaration": "function onError(event: Event): void {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/composables/useCollection.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "fab9835306ddb186bad02eecf4b95211c65ab325",
+          "sha256": "c5e8a41fe5b2f8c91d8eeeee2ca828adf34fd6f9df6e671f148823a4ea2aa9de",
+          "bytes": 7135,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 7,
+              "declaration": "export function useCollection() {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        }
+      ],
+      "primary_task": "MBRS-009"
+    },
+    {
+      "id": "REUSE-10",
+      "capability": "Core生命周期与资源打包",
+      "observed_paths": [
+        "apps/desktop/src/main/core-supervisor.ts",
+        "apps/desktop/src/main/core-entry.ts",
+        "apps/desktop/src/main/rust-core-resource.ts",
+        "apps/desktop/electron.vite.config.ts"
+      ],
+      "symbol_hints": [
+        "CoreSupervisor"
+      ],
+      "consumers": [
+        "MBRS-000",
+        "MBRS-017"
+      ],
+      "action": "EXTEND",
+      "minimal_delta": "最终媒体资源、网关退出/恢复/升级纳入原链",
+      "do_not_rebuild": "不重建监督框架，不把仅Rust资源候选当完整媒体包",
+      "evidence_status": "SOURCE_RESOLVED_NOT_RETESTED",
+      "must_resolve_at_handoff": false,
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "language_process": "Electron Main/Node Core utilityProcess",
+      "resolved_files": [
+        {
+          "path": "apps/desktop/src/main/core-supervisor.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "ee247ba0bee0ab702e78ee92bb3abf27ba1bd0a8",
+          "sha256": "15c5982fae9f895a89caa47e13fdedd6ca6aa5459b642f2d0ed407a50101c484",
+          "bytes": 32940,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 30,
+              "declaration": "export interface CoreMessagePort {"
+            },
+            {
+              "line": 37,
+              "declaration": "export interface CoreChildProcess {"
+            },
+            {
+              "line": 45,
+              "declaration": "export interface CoreSupervisorDependencies {"
+            },
+            {
+              "line": 59,
+              "declaration": "export type CoreSupervisorStatus = 'stopped' | 'starting' | 'ready' | 'failed'"
+            },
+            {
+              "line": 61,
+              "declaration": "export type CoreSupervisorLifecycle ="
+            },
+            {
+              "line": 65,
+              "declaration": "export class CoreIpcError extends Error {"
+            },
+            {
+              "line": 75,
+              "declaration": "export interface CoreStartupClient {"
+            },
+            {
+              "line": 105,
+              "declaration": "export function shouldRefreshTrayForCoreEvent(event: TypedIpcEvent): boolean {"
+            },
+            {
+              "line": 117,
+              "declaration": "export class CoreSupervisor {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "apps/desktop/src/main/core-entry.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "36379be883319f0cdc52d9c3da05c2c2fd8e37e3",
+          "sha256": "2f243083feebffd5c17f3ec63422863d86ebb6588b37c234466bbe8e1a150024",
+          "bytes": 1716,
+          "language": "TypeScript",
+          "exports": [],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "apps/desktop/src/main/rust-core-resource.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "1d031b99340edda39dc4fcbce9aea9e364a047df",
+          "sha256": "85caba25ceb00d3d92d4367f182ed66fdad7a640a4b17014876633460693cf5c",
+          "bytes": 3943,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 6,
+              "declaration": "export interface RustCoreResourceOptions {"
+            },
+            {
+              "line": 11,
+              "declaration": "export interface RustCoreResource {"
+            },
+            {
+              "line": 20,
+              "declaration": "function reject(message: string): never {"
+            },
+            {
+              "line": 24,
+              "declaration": "function trustedOptions(value: RustCoreResourceOptions): RustCoreResourceOptions {"
+            },
+            {
+              "line": 50,
+              "declaration": "export async function resolveRustCoreResource(supplied: RustCoreResourceOptions): Promise<RustCoreResource> {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "apps/desktop/electron.vite.config.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "e343f864a9aaed27d45ee70b600e2a49f8ca8296",
+          "sha256": "49bd3361f8841ba1170085cdba40467b58ffafea337301f216f39d60557d244e",
+          "bytes": 3499,
+          "language": "TypeScript",
+          "exports": [],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        }
+      ],
+      "primary_task": "MBRS-017"
+    },
+    {
+      "id": "REUSE-11",
+      "capability": "旧录音/归档/冻结与照片",
+      "observed_paths": [
+        "packages/bridge-core/src/recording/source-store.ts",
+        "packages/bridge-core/src/recording/archive-store.ts",
+        "packages/bridge-core/src/recording/output-run-lease.ts",
+        "apps/desktop/src/renderer/src/components/recording/MasterArtworkPanel.vue"
+      ],
+      "symbol_hints": [
+        "SourceStore",
+        "SourceBinding",
+        "MasterArtwork"
+      ],
+      "consumers": [
+        "MBRS-012",
+        "MBRS-014",
+        "MBRS-017"
+      ],
+      "action": "PRESERVE_AND_LINK",
+      "minimal_delta": "新local关联、统一锁、历史字节保护和旧业务回归",
+      "do_not_rebuild": "不重建/重导库存历史、不改冻结Hash、不删FFmpeg/OutputNative",
+      "evidence_status": "SOURCE_RESOLVED_NOT_RETESTED",
+      "must_resolve_at_handoff": false,
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "language_process": "Node Dataset Owner Worker；照片Renderer/Main",
+      "resolved_files": [
+        {
+          "path": "packages/bridge-core/src/recording/source-store.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "a46a0bd8276e5d20c3233b942c09ae36c45569c0",
+          "sha256": "1f53434dca15daf84a81ff49cb49a78e55bab8a3767255d3f758f6d3eb9f6989",
+          "bytes": 13549,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 6,
+              "declaration": "export const sourceEvidenceMigration = `"
+            },
+            {
+              "line": 16,
+              "declaration": "export interface StoredBinding { id: string; rootId: string; relative: string; acquisition: SourceSelection['acquisition']; evidence: FileEvidence; userConfirmed: boolean; invalidated: boolean }"
+            },
+            {
+              "line": 18,
+              "declaration": "export interface CandidateFileConstraint { fileSignature: string; directoryIds: readonly string[]; rootDev: string; rootIno: string }"
+            },
+            {
+              "line": 19,
+              "declaration": "export interface StoredJob { public: SourceJob; selection: SourceSelection; relative: string; previousBindingId: string | null; recheck: boolean; candidateConstraint?: CandidateFileConstraint }"
+            },
+            {
+              "line": 21,
+              "declaration": "export const sourceFingerprint = (v: unknown): string => createHash('sha256').update(JSON.stringify(v)).digest('hex');"
+            },
+            {
+              "line": 22,
+              "declaration": "export function createSourceStore({ read, conflict, beforeCommit }: Access) {"
+            },
+            {
+              "line": 134,
+              "declaration": "export type SourceStore = ReturnType<typeof createSourceStore>;"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/archive-store.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "5c89706e77bd14f5ff73edd8126a6596fd354bd8",
+          "sha256": "378eff11e4a22b88e156232d098b9dd4b42222f523376867c9f1925c849473d4",
+          "bytes": 14323,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 7,
+              "declaration": "export const archiveMigration = `"
+            },
+            {
+              "line": 22,
+              "declaration": "export interface ArchiveRequest {"
+            },
+            {
+              "line": 26,
+              "declaration": "export interface StoredArchiveOperation {"
+            },
+            {
+              "line": 31,
+              "declaration": "export function createArchiveStore({ read, conflict, beforeCommit }: Access) {"
+            },
+            {
+              "line": 139,
+              "declaration": "export type ArchiveStore = ReturnType<typeof createArchiveStore>;"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/output-run-lease.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "86fb055357d7dd8b51f479c238aaf378d7ca6f88",
+          "sha256": "41e1bcf2e832a0337b71f5e5c53da3adc97cf3b3c5d20967f8aa67f317ce4162",
+          "bytes": 9264,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 17,
+              "declaration": "export class OutputRunLeaseError extends Error {"
+            },
+            {
+              "line": 21,
+              "declaration": "export interface OutputRunLeaseBinding {"
+            },
+            {
+              "line": 26,
+              "declaration": "export interface OutputRunLeaseHandle {"
+            },
+            {
+              "line": 41,
+              "declaration": "function binding(value: OutputRunLeaseBinding): void {"
+            },
+            {
+              "line": 47,
+              "declaration": "function leasePath(value: OutputRunLeaseBinding): string {"
+            },
+            {
+              "line": 50,
+              "declaration": "function putId(bytes: Buffer, offset: number, value: string): void { idBytes(value).copy(bytes, offset); }"
+            },
+            {
+              "line": 51,
+              "declaration": "function putHash(bytes: Buffer, offset: number, value: string): void { Buffer.from(value, 'hex').copy(bytes, offset); }"
+            },
+            {
+              "line": 52,
+              "declaration": "function matches(bytes: Buffer, value: OutputRunLeaseBinding, database: FileIdentity, lease: FileIdentity): boolean {"
+            },
+            {
+              "line": 85,
+              "declaration": "export async function createOutputRunLease(value: OutputRunLeaseBinding): Promise<OutputRunLeaseHandle> {"
+            },
+            {
+              "line": 126,
+              "declaration": "export async function revokeOutputRunLease(value: OutputRunLeaseBinding): Promise<boolean> {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/recording/MasterArtworkPanel.vue",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "6735d7ddb74e1424bf619a1d76d51901c2eb83c0",
+          "sha256": "3e6ee52f34bc8ed75c386b1bd65d7949ec310e5a43b6793c37928b63108436a1",
+          "bytes": 6195,
+          "language": "Vue/TypeScript",
+          "exports": [
+            {
+              "line": 8,
+              "declaration": "function close(){if(controller.canClose()){controller.dispose();emit('close')}}"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        }
+      ],
+      "primary_task": "MBRS-014"
+    },
+    {
+      "id": "REUSE-12",
+      "capability": "Rust收藏只读sidecar",
+      "observed_paths": [
+        "native/rust-core/README.md",
+        "native/rust-core/src/lib.rs",
+        "packages/bridge-core/src/rust-core/readonly-router.ts",
+        "packages/bridge-core/src/rust-core/optional-readonly-manager.ts"
+      ],
+      "symbol_hints": [
+        "collection.list",
+        "OptionalReadonlyStatus"
+      ],
+      "consumers": [
+        "MBRS-000",
+        "MBRS-003",
+        "MBRS-016"
+      ],
+      "action": "PRESERVE",
+      "minimal_delta": "维持原能力和快照边界；复用成本方法而不是数字库数据模型",
+      "do_not_rebuild": "不把2k/5k收藏快照当歌曲上限，不能据此宣称全部Rust完成",
+      "evidence_status": "SOURCE_RESOLVED_NOT_RETESTED",
+      "must_resolve_at_handoff": false,
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "language_process": "Rust child + Node Core只读路由",
+      "resolved_files": [
+        {
+          "path": "native/rust-core/README.md",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "c113fc5542be0c1f5d9c60dfc73c1e262638eff1",
+          "sha256": "1353f2e080cac37e65f634e067f8db5f923c24f3f137592df18f58cb86139f1e",
+          "bytes": 4365,
+          "language": "Markdown",
+          "exports": [],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "native/rust-core/src/lib.rs",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "9f7800f0f333da56e3d65ad6b4395e2cc7fc3a89",
+          "sha256": "e478bf180203e4c6327688d92fe201fda23111397b7ba6a45fc5e43eccdc335b",
+          "bytes": 34286,
+          "language": "Rust",
+          "exports": [
+            {
+              "line": 21,
+              "declaration": "pub enum ErrorCode {"
+            },
+            {
+              "line": 116,
+              "declaration": "pub fn is_collection_model(v: &Value) -> bool {"
+            },
+            {
+              "line": 413,
+              "declaration": "pub struct Sidecar {"
+            },
+            {
+              "line": 447,
+              "declaration": "pub struct Reply {"
+            },
+            {
+              "line": 839,
+              "declaration": "pub fn run<R: BufRead, W: Write>(mut input: R, mut output: W) -> Result<(), ErrorCode> {"
+            },
+            {
+              "line": 884,
+              "declaration": "pub fn run_stdio() -> Result<(), ErrorCode> {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "packages/bridge-core/src/rust-core/readonly-router.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "a99bad1ff6e53db835e0daf27490421318620dc8",
+          "sha256": "ee23da566bdb0ea532abfa7e1fb8a16629f1ac553dae4b5b4a3e050105043f68",
+          "bytes": 24393,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 7,
+              "declaration": "export interface RustReadonlyCollectionRouterOptions extends Omit<RustReadonlyOwnerOptions, 'owner'> {"
+            },
+            {
+              "line": 10,
+              "declaration": "export interface RustReadonlyCollectionRouterStatus {"
+            },
+            {
+              "line": 19,
+              "declaration": "export interface RustReadonlyCollectionRouter {"
+            },
+            {
+              "line": 26,
+              "declaration": "function budget(value: number | undefined, fallback: number): number {"
+            },
+            {
+              "line": 31,
+              "declaration": "function plain(value: unknown, keys: readonly string[]): value is Record<string, unknown> {"
+            },
+            {
+              "line": 40,
+              "declaration": "function versionCopy(value: unknown): DatasetCollectionSnapshotVersion {"
+            },
+            {
+              "line": 81,
+              "declaration": "export async function createRustReadonlyCollectionRouter(options: RustReadonlyCollectionRouterOptions): Promise<RustReadonlyCollectionRouter> {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        },
+        {
+          "path": "packages/bridge-core/src/rust-core/optional-readonly-manager.ts",
+          "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+          "git_blob": "c2bf955a9c2826617de78e5ca1f1a71dbd6440c7",
+          "sha256": "aa4a8ddab59d26782345d8dfd09ed097b82e77dda04b9dad7824b938e1a22ec9",
+          "bytes": 10334,
+          "language": "TypeScript",
+          "exports": [
+            {
+              "line": 5,
+              "declaration": "export interface OptionalReadonlyStatus {"
+            },
+            {
+              "line": 12,
+              "declaration": "export interface OptionalReadonlyRefreshResult { refreshed: boolean; status: OptionalReadonlyStatus }"
+            },
+            {
+              "line": 13,
+              "declaration": "export interface OptionalRustReadonlyManagerOptions {"
+            },
+            {
+              "line": 20,
+              "declaration": "export interface OptionalRustReadonlyManager {"
+            },
+            {
+              "line": 28,
+              "declaration": "export function createOptionalRustReadonlyManager(options: OptionalRustReadonlyManagerOptions): OptionalRustReadonlyManager {"
+            }
+          ],
+          "successor": "原路径仍存在；符号名称见exports，不恢复旧架构"
+        }
+      ],
+      "primary_task": "RUST-015"
+    }
+  ],
+  "supporting_authority_files": [
+    {
+      "path": "apps/desktop/src/main/dataset-owner-entry.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "3726b8e2f14b8c793279af6111b87e8302e856df",
+      "sha256": "2c5c7f9a71cc61520d8611acfdad2717765637db8f1d32b6c123fab966d41394",
+      "bytes": 1311
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-domain.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "9b548a9de9f502b3fbba8341e536f75ddde3ca5f",
+      "sha256": "75b100f40290e94d83524e180f87addb4986fd6e5f642222cba076a5c881a7c0",
+      "bytes": 20454
+    },
+    {
+      "path": "apps/desktop/src/main/command-outbox-store.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "a728c8f6c908e3f0f38506747ff894307a22718b",
+      "sha256": "85664655c1e771e19ca821f84eef0c1f92c9de63b589669f076300994785d008",
+      "bytes": 17043
+    },
+    {
+      "path": "apps/desktop/src/main/command-outbox-service.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "beb5c8c4b2888a58f0ef1ae9c5f41ffa41c72c88",
+      "sha256": "6a7955f3587023cb7c653f67bc7d024ff7eb470edd7149d7b846ff104b2ed01b",
+      "bytes": 8372
+    },
+    {
+      "path": "apps/desktop/src/main/index.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "4a6fb42a4fb60e6d637a498194c2ad74806ec4dc",
+      "sha256": "1d0cdac24d0efa86065f43e02b8448d607d7763cbc9fc1794906c7f1cb16f471",
+      "bytes": 102728
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "958161087d7c556407474bc655a6f06b2a491ca5",
+      "sha256": "fcb2b813acd6516da8b14691b2b8152d7f6dc2e6dce06355b910bd5bcc555fad",
+      "bytes": 48253
+    },
+    {
+      "path": "apps/desktop/src/main/collection-readonly-settings.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "ba2298e3b9bcd8548f4b12ff4535cd5ed74528be",
+      "sha256": "4c93fab74c4d561e332a2fb6b0f963428a55917d9153184b270f53d7e4aedae8",
+      "bytes": 8111
+    },
+    {
+      "path": "packages/bridge-core/src/recording/restore-dataset-runtime.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "bd7f8d41f773a14e5206436cf9c3b088dd858e95",
+      "sha256": "e88fd7237ab17f577c79b8b0137b8b6706a874c42b55fc0aece27ce13b85ef35",
+      "bytes": 11936
+    }
+  ],
+  "authority_findings": {
+    "business_writer": "唯一Node Dataset Owner Worker：dataset-owner-entry.ts prepare→prepareOwnedDatasetDomain；dataset-domain.ts 215–239打开两库并建全部领域服务；collection.repository和maintenance库事务留owner，Core仅endpoint派发。",
+    "main_outbox_writer": "唯一Electron Main：index.ts 1071建立command-outbox.v1.sqlite、1079建立service；command-outbox-store.ts 57起开库/事务/uncertain/ack；这是transport ledger，不是业务库第二writer。",
+    "queue_clock": "BridgeController.ts 370–439拥有queue/queueIndex/playbackState/positionMs/playbackGeneration/owner及operation/playback/control/queueEdit tails；Renderer usePlaybackSession.ts 451基于owner(coreInstanceId/generation/zone/track/source)形成playbackClockIdentity，保留显示时钟/歌词语义，无第二队列或coordinator。",
+    "rust": "optional-readonly-manager.ts31初始enabled=false；collection-readonly-settings.ts13/45默认OFF；Rust只接不可变CollectionModel快照，不收SQLite/path。Node继续作者。普通v2 2000/4MiB与显式v3 5000/8MiB非数字歌曲库模型。",
+    "roots": "createSourceStore source_roots/source_ledger由Node业务owner写；RootCapability(id/path/dev/ino/authorized/label) + authorizeSourceDirectory + rootAvailability/checkedFile + O_NOFOLLOW + named/FD identity/hash保障旧严格源读取。",
+    "leases_locks": "StreamRegistry仅内存randomBytes token + 默认8小时TTL/撤销；withVerifiedReadonlyReplicaSource持本次handle/身份/hash并释放；output-run-lease绑定数据库/run/attempt/plan/pin并O_EXCL创建，属于录音device helper生命周期，不是通用文件锁。现有源码未提供涵盖普通播放/暂停/预取/Organizer及跨进程别名/硬链接的全局排它锁authority；需未来002/005/012/014同一权威设计，不能各自建锁表。",
+    "database_paths": "restore-dataset-runtime.ts100: <dataDirectory>/backup-maintenance.v1.sqlite；138: <privateRoot.path>/collection.v1.sqlite默认；142: restore激活后<selectedDataset.database.path>/collection.sqlite；143 identities.bind绑定工作库。Main index1071: <coreDataDirectory>/command-outbox.v1.sqlite。三角色库不可混写。"
+  }
+}

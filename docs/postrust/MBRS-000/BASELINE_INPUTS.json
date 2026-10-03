@@ -1,0 +1,428 @@
+{
+  "schema_version": "1.2",
+  "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+  "implementation_commit": "8c58fdee4309a781dbf6640d8aeba46bb8fe1bd3",
+  "final_report_commit": "044e6b24edf81b64030d4c96741082670532971c",
+  "source_inputs": [
+    {
+      "path": "AGENTS.md",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "45cc95eccb4a4ddb0748f413092a80d248016097",
+      "bytes": 10812,
+      "sha256": "07e1281ab5d0d6bc97c15aa55bf8d40659540204ae3b40e0e47286ed1afebb19"
+    },
+    {
+      "path": "apps/desktop/electron.vite.config.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "e343f864a9aaed27d45ee70b600e2a49f8ca8296",
+      "bytes": 3499,
+      "sha256": "49bd3361f8841ba1170085cdba40467b58ffafea337301f216f39d60557d244e"
+    },
+    {
+      "path": "apps/desktop/src/main/collection-readonly-settings.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "ba2298e3b9bcd8548f4b12ff4535cd5ed74528be",
+      "bytes": 8111,
+      "sha256": "4c93fab74c4d561e332a2fb6b0f963428a55917d9153184b270f53d7e4aedae8"
+    },
+    {
+      "path": "apps/desktop/src/main/command-outbox-service.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "beb5c8c4b2888a58f0ef1ae9c5f41ffa41c72c88",
+      "bytes": 8372,
+      "sha256": "6a7955f3587023cb7c653f67bc7d024ff7eb470edd7149d7b846ff104b2ed01b"
+    },
+    {
+      "path": "apps/desktop/src/main/command-outbox-store.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "a728c8f6c908e3f0f38506747ff894307a22718b",
+      "bytes": 17043,
+      "sha256": "85664655c1e771e19ca821f84eef0c1f92c9de63b589669f076300994785d008"
+    },
+    {
+      "path": "apps/desktop/src/main/core-entry.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "36379be883319f0cdc52d9c3da05c2c2fd8e37e3",
+      "bytes": 1716,
+      "sha256": "2f243083feebffd5c17f3ec63422863d86ebb6588b37c234466bbe8e1a150024"
+    },
+    {
+      "path": "apps/desktop/src/main/core-supervisor.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "ee247ba0bee0ab702e78ee92bb3abf27ba1bd0a8",
+      "bytes": 32940,
+      "sha256": "15c5982fae9f895a89caa47e13fdedd6ca6aa5459b642f2d0ed407a50101c484"
+    },
+    {
+      "path": "apps/desktop/src/main/dataset-owner-entry.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "3726b8e2f14b8c793279af6111b87e8302e856df",
+      "bytes": 1311,
+      "sha256": "2c5c7f9a71cc61520d8611acfdad2717765637db8f1d32b6c123fab966d41394"
+    },
+    {
+      "path": "apps/desktop/src/main/index.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "4a6fb42a4fb60e6d637a498194c2ad74806ec4dc",
+      "bytes": 102728,
+      "sha256": "1d0cdac24d0efa86065f43e02b8448d607d7763cbc9fc1794906c7f1cb16f471"
+    },
+    {
+      "path": "apps/desktop/src/main/rust-core-resource.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "1d031b99340edda39dc4fcbce9aea9e364a047df",
+      "bytes": 3943,
+      "sha256": "85caba25ceb00d3d92d4367f182ed66fdad7a640a4b17014876633460693cf5c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/SafeArtwork.vue",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "034be31337cd5de7da1766a2761409b143960600",
+      "bytes": 928,
+      "sha256": "52cd015d3343886af507fa47b937f293fa0e8cf09d23cf4469d17fa47e6b2779"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/MasterArtworkPanel.vue",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "6735d7ddb74e1424bf619a1d76d51901c2eb83c0",
+      "bytes": 6195,
+      "sha256": "3e6ee52f34bc8ed75c386b1bd65d7949ec310e5a43b6793c37928b63108436a1"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "958161087d7c556407474bc655a6f06b2a491ca5",
+      "bytes": 48253,
+      "sha256": "fcb2b813acd6516da8b14691b2b8152d7f6dc2e6dce06355b910bd5bcc555fad"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/useCollection.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "fab9835306ddb186bad02eecf4b95211c65ab325",
+      "bytes": 7135,
+      "sha256": "c5e8a41fe5b2f8c91d8eeeee2ca828adf34fd6f9df6e671f148823a4ea2aa9de"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/virtualWindow.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "d83c2b519939f87d846466df6f617613488424f9",
+      "bytes": 989,
+      "sha256": "1deb4f239b8c47bcebce227efad9dbb13999979b9d87e04d14c802bebf30c045"
+    },
+    {
+      "path": "native/rust-core/README.md",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "c113fc5542be0c1f5d9c60dfc73c1e262638eff1",
+      "bytes": 4365,
+      "sha256": "1353f2e080cac37e65f634e067f8db5f923c24f3f137592df18f58cb86139f1e"
+    },
+    {
+      "path": "native/rust-core/src/lib.rs",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "9f7800f0f333da56e3d65ad6b4395e2cc7fc3a89",
+      "bytes": 34286,
+      "sha256": "e478bf180203e4c6327688d92fe201fda23111397b7ba6a45fc5e43eccdc335b"
+    },
+    {
+      "path": "package.json",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "7e9019f578a83c3387b3ffd18fb2e74b48b56450",
+      "bytes": 2030,
+      "sha256": "a8b90f4ba0ab6cfc9ca482c90f0b87057b069d4ad848b10f470075da3a839aad"
+    },
+    {
+      "path": "packages/bridge-core/src/application/bridge-controller.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "8934963323652e10f9ac3bef143a1facadcd9ba1",
+      "bytes": 108537,
+      "sha256": "2a7d3241b8fefb47c88b086fe32c06ee01fcfb2696fa1f9bbea8db37a1aebfad"
+    },
+    {
+      "path": "packages/bridge-core/src/application/playback-event-publisher.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "3faa858446a2802fe56132fee0e6cfe8171ddbc6",
+      "bytes": 6247,
+      "sha256": "bf77c32954493edc7e3fa7f711ac21c65855cc976ee6f326c166b64ef1732d59"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "3d0eae6238b62134a21a4155862328cb71f48b41",
+      "bytes": 40373,
+      "sha256": "2710f279f4bc095e9c6e57753b0699cb6308bade491df159fafebc32fce8df7e"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-domain.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "9b548a9de9f502b3fbba8341e536f75ddde3ca5f",
+      "bytes": 20454,
+      "sha256": "75b100f40290e94d83524e180f87addb4986fd6e5f642222cba076a5c881a7c0"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-client.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "badb883ff55bc9e5c01ad54b63d3cdf44d83d177",
+      "bytes": 12154,
+      "sha256": "d567c9785f29d654b8978eea29a2bddd94f6af75b6f90eeb0c3b91c24df8c2fb"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "7595f84a198cd61e52cc174dc8b622cbe3815a15",
+      "bytes": 15017,
+      "sha256": "31d45976d744b1fc723f3b2e33609c174f8fad5ae54270d85847824702540173"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-services.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "148441d14cead4d1d9c29d8d4f5614dfb97fd45c",
+      "bytes": 2935,
+      "sha256": "62dd536e169def0b6188c9bd93a5858ac41273a7eff468f37fe40cb108624ddd"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/archive-store.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "5c89706e77bd14f5ff73edd8126a6596fd354bd8",
+      "bytes": 14323,
+      "sha256": "378eff11e4a22b88e156232d098b9dd4b42222f523376867c9f1925c849473d4"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/output-run-lease.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "86fb055357d7dd8b51f479c238aaf378d7ca6f88",
+      "bytes": 9264,
+      "sha256": "41e1bcf2e832a0337b71f5e5c53da3adc97cf3b3c5d20967f8aa67f317ce4162"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-candidates.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "128e072e90026b63575c68c448a8f328b158f404",
+      "bytes": 17675,
+      "sha256": "2a023629b16c8f49dccb9c4d7dbce34ff1f3d141b4124b0f1bd60358b336d071"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-files.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "ebf2edf578be38ac348daf66d0afed529167e47f",
+      "bytes": 24611,
+      "sha256": "910bfbb0326fcf340de48a4261b330f2ca08a9db9c769e6d2e99a981fc49a7cc"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-store.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "a46a0bd8276e5d20c3233b942c09ae36c45569c0",
+      "bytes": 13549,
+      "sha256": "1f53434dca15daf84a81ff49cb49a78e55bab8a3767255d3f758f6d3eb9f6989"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/adapter.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "c41744a9ee6cd4773d6aa377810e76762465dc83",
+      "bytes": 65239,
+      "sha256": "77a072f9bf64bc5954acf05bd74e7c3e85fb6b58b9062981a5a81c57b12bf569"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/sdk.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "e63c251474498014636f7aea6abd0f3af6279d0d",
+      "bytes": 6556,
+      "sha256": "c4d0de93e463563e802e16686ea3ffe17936681a1690f707bd412b129eb00040"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/types.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "df80ecb1406c48a6ca0e114c3f1888612d0ac0fc",
+      "bytes": 3597,
+      "sha256": "3efd5636ca4341291bdb60ecc4878bc6d6aafb535e4a33ac59f8f2609accc1bb"
+    },
+    {
+      "path": "packages/bridge-core/src/rust-core/optional-readonly-manager.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "c2bf955a9c2826617de78e5ca1f1a71dbd6440c7",
+      "bytes": 10334,
+      "sha256": "aa4a8ddab59d26782345d8dfd09ed097b82e77dda04b9dad7824b938e1a22ec9"
+    },
+    {
+      "path": "packages/bridge-core/src/rust-core/readonly-router.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "a99bad1ff6e53db835e0daf27490421318620dc8",
+      "bytes": 24393,
+      "sha256": "ee23da566bdb0ea532abfa7e1fb8a16629f1ac553dae4b5b4a3e050105043f68"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/gateway.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "5a4eed038322c5344b7083174aca2080452644fa",
+      "bytes": 21164,
+      "sha256": "e6054a8b05face7f5e109f44886df72fd9edc9bc8595585b950c2b7bc280b243"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/registry.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "3472844d285c4c16a23d8b808d2ed50d44c412b1",
+      "bytes": 2471,
+      "sha256": "e30c821a1832314f7706754dc934e32772adb021f894a28a76c6de3f39acc1e1"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/upstream-policy.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "5766b6163b22e2f8d75c8ef71f8a8cd8f04d235b",
+      "bytes": 3186,
+      "sha256": "b118691f4bd6a5fd7dc87ae62a639e2923809a5275458abca3adbfc5bbf6c1ba"
+    },
+    {
+      "path": "packages/contracts/src/playback.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "74ff30d2dc7365715a2172d651978026c416959d",
+      "bytes": 4474,
+      "sha256": "db0cb59e9a22c5084b02d6a9728f57c5629dc76bc63925373f235389d016a05c"
+    },
+    {
+      "path": "packages/contracts/src/source-evidence.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "90bdaa961d8ec327a3f9e9a253f3209c5525e8cd",
+      "bytes": 8366,
+      "sha256": "2f53a98ede41f8bb7d60b679cffcb74e14bf76de8fc437e6402c208c1563ef08"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "6cc3f0163114291d7e93c727584be0e93ddb7d0e",
+      "bytes": 192123,
+      "sha256": "46de57baa6d1b1a360af8cbeabec1ced2a33223db1eda13c589bbd867e62b99a"
+    },
+    {
+      "path": "project/RUST_CORE_TODO.md",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "af4cfc9392ccb1157398c006a9fc5c9d0b1186e3",
+      "bytes": 37988,
+      "sha256": "2bd77e37cab205bf7007099a21a692e426ed1021287f88743153106591321e7d"
+    },
+    {
+      "path": "project/STATUS.json",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "1f4b838e02245062ab0d85705746c72ff35a0218",
+      "bytes": 268183,
+      "sha256": "c5cb125eb67f946b76122e74396d59cec7bab5dfeb2eb7f00963ea93681f5cb1"
+    },
+    {
+      "path": "reports/RUST-015_CAPACITY_COST_VALIDATION.md",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "8041f0c554383479c948d85e32be2db2e7301814",
+      "bytes": 14555,
+      "sha256": "65192aaf0bc44e124c58a83d662ef8b5ce161fb859e38d18321f72263e8b44ff"
+    },
+    {
+      "path": "reports/RUST-015_EVIDENCE.json",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "b493e5936f349a429d053ce129e4059704666bbb",
+      "bytes": 49386,
+      "sha256": "ecd7bc16f3c78e7affcdd9f7e9ee4ce44fcbb27f78dc540bbe7a1b76338e9ada"
+    },
+    {
+      "path": "tasks/00_TASK_INDEX.md",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "fed0db1fc72e72e6965c6625ea70abca6ec8bd4a",
+      "bytes": 17568,
+      "sha256": "73a2b27a26b3a2b8b44e5bae1c6bf02113b6ab66bf8b8754189458072badd775"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/restore-dataset-runtime.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "bd7f8d41f773a14e5206436cf9c3b088dd858e95",
+      "bytes": 11936,
+      "sha256": "e88fd7237ab17f577c79b8b0137b8b6706a874c42b55fc0aece27ce13b85ef35"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/backup-workflow-store.ts",
+      "base_sha": "044e6b24edf81b64030d4c96741082670532971c",
+      "git_blob": "137703aa575111144f6c6454e6b679c9d2d13364",
+      "bytes": 19690,
+      "sha256": "2e8efd2778997553f92ce1fc76bd5fb3680d16d70da8c7ed2ee5a4c240ac6147"
+    }
+  ],
+  "pack_root": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/postrust-v1.2-readonly/MusicBridge_PostRust_Execution_Pack_v1.2",
+  "pack_inputs": [
+    {
+      "path": "CODEX_START_PROMPT.txt",
+      "bytes": 3489,
+      "sha256": "8901a415e148c600be95a947e17f7774530ccceb0f7e52df44bf3b08fa24f8f1"
+    },
+    {
+      "path": "00_START_HERE.md",
+      "bytes": 3997,
+      "sha256": "f2596eaad5249102a74abc41b44fd31a92901d00e9a6dc3f031c4101b00c6b5d"
+    },
+    {
+      "path": "11_BASELINE_AND_ADMISSION.md",
+      "bytes": 4148,
+      "sha256": "1914dff08a8e985a37a9150657d802e4cc81c551949a72f74cfa5773bc946ae6"
+    },
+    {
+      "path": "12_RULES_AND_AUTHORIZATION.md",
+      "bytes": 3056,
+      "sha256": "241e951db85e9ffa87652f91f05509a3422cb1d36e4d94572e2be979c630b6fa"
+    },
+    {
+      "path": "13_MODEL_AND_STATE_MAPPING.md",
+      "bytes": 4914,
+      "sha256": "0a8ccb718473c9dc2e5aecffb37eeb7754fcbc72eaf09f335d308fd270b966b5"
+    },
+    {
+      "path": "03_TASK_GRAPH.md",
+      "bytes": 3437,
+      "sha256": "0d5a83a6a1e0772ee0d968a508a100440c83023469553953606df342e9c25ba8"
+    },
+    {
+      "path": "15_VERIFICATION_AND_EVIDENCE.md",
+      "bytes": 3139,
+      "sha256": "d3fbad6c8c059d8ede6c780e724e1e369630b64da501f4496660dbd8039ca878"
+    },
+    {
+      "path": "REUSE_MAP.md",
+      "bytes": 5821,
+      "sha256": "fcd36d3cb3c6ab5cf0cec10e266cb2fbc6930e3d8a1c7db2c1baaf2a39912688"
+    },
+    {
+      "path": "RUST_TO_MBRS_MAP.md",
+      "bytes": 4488,
+      "sha256": "6760a6f74115c287b50ff2686755a37247cdf0c33780b3c29246a518d0d38eb4"
+    },
+    {
+      "path": "taskboard.json",
+      "bytes": 38001,
+      "sha256": "b26a933bc7ef84a80c32f417a6a39af9386c6e35f9af9a87c6bc01f6c2a8deec"
+    },
+    {
+      "path": "acceptance/acceptance_matrix.json",
+      "bytes": 51702,
+      "sha256": "19edef0a2a16c8516517d1262396414e25569898e6eb40d58fb1b2032c2d75a4"
+    },
+    {
+      "path": "contracts/baseline-admission.schema.json",
+      "bytes": 6493,
+      "sha256": "bc92e56f4aa9e5e39a14b53d0d03ca5b9840a80d8dcee63deeb6d2ee1866ede1"
+    },
+    {
+      "path": "tasks/MBRS-000.md",
+      "bytes": 4613,
+      "sha256": "41ead1e1962a00f16bd5d613ab56641da4c260992ad7594039b0153d8a7c5b07"
+    }
+  ],
+  "external_identity": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/HANDOFF_INPUT_IDENTITY.json",
+    "bytes": 4109,
+    "sha256": "9255934a63830582a89cc3ebb89dcadda4954ea03e70239066734e140e949b58"
+  },
+  "scope": "Git关联与记录快照；不表示新软件或应用验证通过",
+  "external_model_roles": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/MODEL_AND_ROLES.json",
+    "bytes": 1734,
+    "sha256": "4825ae9a95ea241ee08f6ee827cad84e5d1ec092d29aa616c6c9161e216ae1e4"
+  },
+  "external_ci_capture": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-audit/CI_CAPTURE_MANIFEST.json",
+    "bytes": 10360,
+    "sha256": "16b1361def8423287746c325517ff3dc0bf18eb7da44ff182c00d51eb3cad935"
+  }
+}
