@@ -4707,7 +4707,7 @@
   },
   "rustCoreNativeCandidate20261003": {
     "task": "RUST-011",
-    "state": "validated-awaiting-report-final-review",
+    "state": "local-complete-validated-reviewed-unpushed",
     "baseCommit": "ed40e39c39db908200e946c0c13dcfc1ddc0a206",
     "branch": "codex/rust-core-011-native-candidate-package",
     "scope": "tasks/RUST-011-native-candidate-package.md",
@@ -4722,7 +4722,7 @@
       "roles": 4,
       "furtherDelegation": false
     },
-    "implementationCommit": null,
+    "implementationCommit": "5f56611e3ef77a2630a17fb57abf8a914cc412db",
     "reportCommit": null,
     "push": "NOT_RUN",
     "installation": "NOT_RUN",
@@ -4753,9 +4753,14 @@
     },
     "independentReview": {
       "round1": "PASS_IN_SCOPE",
+      "round2": "PASS_IN_SCOPE",
       "unresolvedP1": 0,
-      "unresolvedP2": 0,
-      "round2": "PENDING"
-    }
-  }
+      "unresolvedP2": 0
+    },
+    "report": "reports/RUST-011_NATIVE_CANDIDATE_PACKAGE.md",
+    "evidence": "reports/RUST-011_EVIDENCE.json",
+    "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-011_NATIVE_CANDIDATE_PACKAGE.md",
+    "nextBranchBaseline": "final-report-head"
+  },
+  "nextRustCoreTask": "RUST-012-packaged-trusted-readonly-route"
 }

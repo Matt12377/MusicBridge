@@ -1,21 +1,29 @@
 # Rust Core 开发进度
 
-更新：2026-10-03。当前任务 **RUST-011：macOS arm64 离线候选包原生资源准入 — 开发中**。分支 `codex/rust-core-011-native-candidate-package`，工作树 `worktree/rust-core-011`。开发期间全部测试由代理完成，Owner只负责最终成品使用反馈。
+更新：2026-10-03。**RUST-011：macOS arm64离线候选包原生资源准入 — 本地交付完成**。分支 `codex/rust-core-011-native-candidate-package`，实现 `5f56611`；下一项从最终报告HEAD接续。开发期间全部测试由代理完成，Owner只负责最终成品使用反馈。
 
-正式编号 **11 个 task：10 个本地交付完成，1 个开发中**。8条后续方向中的“架构/资源/签名准入”已部分拆为011；跨架构、生产签名和默认启用仍待后续，整体迁移任务数未冻结。
+正式编号 **11 个task均本地交付完成**。8条后续方向中的资源/签名部分已由011完成，包内可信可选路由下一项拆分；跨架构、生产签名、默认启用和写入迁移仍未完成，整体迁移任务数未冻结。
 
 ## 待办事项
 
-- [x] 主代理：核对010最终HEAD、依赖精确完成轮次、审计输入、外置卷与原WIP；建立011独立分支并冻结合同和文件范围。
-- [x] 作者 A：资源API冻结；新011二进制实际签名夹具48/48通过、零skip，专用类型通过，完整候选Gate待集成。
-- [x] 作者 B：可信固定Resources bootstrap与独立pin冻结；新011二进制行为22/22、零skip，专用类型通过，默认入口未调用。
-- [x] 作者 C：实际 Node两库→最终Resources Rust协议，56完整DTO对照/59请求与ACK、主库与WAL只读身份、写拒绝和自然退出；严格证据84项全部通过。
-- [x] 主代理：fresh03候选包Gate通过；专项类型及163/163行为零skip，实际ASAR/Fuses/最终native与bundle签名、原默认Node ready和Core/Electron自然退出0。
-- [x] 主代理：1069输入保持；完整软件六步全0，3926通过/原2条件skip；签后资源26/26零skip，29份dist与候选包内容一致。
-- [ ] 第四角色：两轮独立审查、实现/报告提交与最终Git/产物/原WIP身份。
-- [ ] 最终成品交付后的 Owner 使用反馈；不要求 Owner 运行中间测试或判断内部路由状态。
+- [ ] 接续RUST-012独立分支：把可信固定Resources准入接入候选包内原Main/Core可选只读Rust路由，保持生产默认Node与唯一Node作者。
+- [ ] 代理：补齐包内实际路由、失败准入、写后Node回退/可信刷新、自然收口及完整软件验证；Owner不承担中间测试。
+- [ ] 最终成品交付后的Owner使用反馈；本地合成候选不代表完整生产迁移或真实服务验收。
+- [ ] 下方8条后续方向继续按实际瓶颈与授权逐项冻结，不把规划计作已完成。
 
 ## 已完成事项
+
+### RUST-011（本地已验证）
+
+- [x] 原010最终HEAD、依赖精确轮次、外置卷、11工作树及7个WIP文件身份保持；独立任务分支及合同冻结。
+- [x] 资源48、可信固定定位22、实际协议9、严格证据84，最终163/163、零skip；专用TS类型和两个JS语法检查分别通过。
+- [x] fresh03候选包完整Gate：native/bundle最终ad-hoc签名、manifest pin、完整ASAR/header integrity、实际9位Fuse、29dist与275Electron缓存身份匹配。
+- [x] 真实Node两库→最终Resources Rust的56完整DTO/59请求与ACK、主库/WAL只读身份、写拒绝、两个Node与Rust自然0；不是包内Main/Core Rust路由。
+- [x] 原候选默认Node ready1/fail0、Core/Electron自然0，无强制清理；两次before-quit保留原实际顺序。
+- [x] 同一1069输入完整软件六步全0，3926通过/原2条件skip；签后包内binary旧生命周期/主机/刷新26/26零skip。
+- [x] 两轮独审通过，未解决P1/P2=0；旧两次失败及有效RED保留，实现与报告独立提交，最终Git/remote/产物/WIP由外置收据绑定。
+
+详见 [RUST-011报告](../reports/RUST-011_NATIVE_CANDIDATE_PACKAGE.md) 与 [机器证据](../reports/RUST-011_EVIDENCE.json)。
 
 ### RUST-010（本地已验证）
 
