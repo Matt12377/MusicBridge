@@ -3200,7 +3200,7 @@
       "pushed": false
     }
   },
-  "currentRustCoreTask": "RUST-014",
+  "currentRustCoreTask": "RUST-015",
   "rustCoreAtomicSnapshot20261002": {
     "task": "RUST-002",
     "branch": "codex/rust-core-002-atomic-snapshot",
@@ -5053,5 +5053,807 @@
       "bytes": 251904
     },
     "finalIdentityResolution": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-014-w08_nmgh/FINAL_IDENTITY.json"
+  },
+  "rustCoreCapacityCost20261003": {
+    "task": "RUST-015",
+    "state": "local-complete-validated-reviewed-unpushed",
+    "branch": "codex/rust-core-015-capacity-cost-validation",
+    "baseCommit": "906a3841df3424fff05b6071f4342f312d0c7de9",
+    "implementationCommit": "8c58fdee4309a781dbf6640d8aeba46bb8fe1bd3",
+    "reportCommit": null,
+    "reportCommitResolution": "git log -1 --format=%H -- reports/RUST-015_CAPACITY_COST_VALIDATION.md；实际完整SHA另见提交后外置FINAL_IDENTITY.json",
+    "scope": "normal-fixed-v2-capacity-node-fallback-exact-frame-full-chain-cost",
+    "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7",
+    "ownerActionRequired": false,
+    "validation": {
+      "sourceTests": "A306_SIGNED_NATIVE53_PLUS16_B48_C116_ROOT_GATE39_LEGACY_MAIN2_SEPARATE_COUNTS_CURRENT_SOURCE15",
+      "actualSignedPackages": "PASS_SOURCE15_7_SIGNED_13_RUNS_12_SQL_6_AGGREGATES_270_BEHAVIOR_ZERO_FAIL_SKIP_CANCEL",
+      "ordinaryCUA": "PASS_FINAL_DEFAULT_DIAGNOSTICS_FALSE_100_AND2001_NATIVE_CUA_11_REQUIRED_STEPS_EACH_SINGLE_NORMAL_RESERVE2_WRITES_FULL_CLOSED_SQL",
+      "realServices": "NOT_RUN",
+      "installedReplacement": "NOT_RUN",
+      "ownerAcceptance": "NOT_RUN",
+      "defaultStartup": "FINAL_SIGNED_DEFAULT_NODE_OFF_DIAGNOSTICS_FALSE_READY_MAIN_NATURAL0_PLUS_TWO_ORDINARY_CORE0_AND_OUTBOX_CLOSE_NO_FORCE",
+      "independentReview": "TWO_CAPACITY_SCOPE_FORMAL_ROUNDS_PASS_NO_NEW_CAPACITY_P1P2_INHERITED_REMOTE_CI_SECURITY_BLOCKERS_OPEN",
+      "fullSoftware": "SIX_STEP_ALL0_4051_PASS_2_EXISTING_CONDITIONAL_SKIP_SOURCE15",
+      "remoteCi": "SOURCE15_NOT_RUN_AT_REPORT_SNAPSHOT_BASE014_THREE_WORKFLOWS_FAILURE_RECORDED",
+      "productionDependencyAudit": "INHERITED_BASE014_HIGH_FAILURE_015_LOCKFILE_UNCHANGED"
+    },
+    "agents": {
+      "authors": [
+        "gpt-6.1-sol/high",
+        "gpt-6.1-sol/high",
+        "gpt-6.1-sol/high"
+      ],
+      "independentReview": "gpt-6.1-sol/high-fourth-role",
+      "descendants": false
+    },
+    "productionDefault": "node-rust-disabled",
+    "normalOptionalProfile": "v2-2000",
+    "push": "NOT_RUN",
+    "preservedWorktrees": 15,
+    "preservedDirtyFiles": 7,
+    "sourceFreeze": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/SOURCE_FREEZE_015_15.json",
+      "bytes": 233726,
+      "sha256": "cbea9b520d16836721759405ee6f8da043b844b0173041cb5c767db4cef5d17f",
+      "sourceSha256": "694f910efd15166f866e977cc71bfb58872d56f18b8b10e748469313f175fa7b",
+      "sourceCount": 1170
+    },
+    "candidate": "candidate-015-15",
+    "preservedFailures": [
+      {
+        "step": "actual-gate-015-01",
+        "kind": "diagnostic-build-tool-cwd-configuration",
+        "exitCode": 1,
+        "actualAppRuns": 0
+      },
+      {
+        "step": "actual-gate-015-02",
+        "kind": "default-startup-fixture-guard-mismatch-controlled-abort",
+        "exitCode": 143,
+        "businessCoreBootEvidence": "NOT_OBSERVED",
+        "realUserDatabaseUnchanged": "NOT_INDEPENDENTLY_OBSERVED",
+        "ownedProcessesClosed": true
+      },
+      {
+        "step": "actual-gate-015-03",
+        "kind": "original-clear-control-absent-in-unfiltered-state",
+        "exitCode": 1,
+        "defaultStartup": "READY_MAIN0",
+        "scale0Fresh": "PROBE_FAILED_NATURAL_CLOSED",
+        "laterRuns": "NOT_RUN"
+      },
+      {
+        "step": "actual-gate-015-04",
+        "kind": "browser-derived-trusted-input-change-reset-observation-action-id",
+        "exitCode": 1,
+        "defaultStartup": "READY_MAIN0",
+        "scale0Fresh": "RUST_ENABLE_READY_BUT_OBSERVATION_ACTION_MISMATCH",
+        "nativeCloseAck": "ACTUAL_TRUE_PENDING0_EXIT0",
+        "nodeCoreMainExit": "ACTUAL0",
+        "laterRuns": "NOT_RUN"
+      },
+      {
+        "step": "actual-gate-015-05",
+        "kind": "original-empty-string-filter-and-multiple-auto-load-vs-single-warm-expectation",
+        "exitCode": 1,
+        "defaultStartup": "READY_MAIN0",
+        "scale0Fresh": "ACTIVATION_CHAIN_PASSED_ORIGINAL_SUBMIT_PAINT_OBSERVED_BUT_WARM_EXPECTATION_REJECTED",
+        "catalogRequests": 3,
+        "backgroundReviewRequests": 2,
+        "nativeCloseAck": "ACTUAL_TRUE_PENDING0_EXIT0",
+        "nodeCoreMainExit": "ACTUAL0",
+        "laterRuns": "NOT_RUN",
+        "classification": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ACTUAL_FAILURE_CLASSIFICATION_015_05.json",
+          "bytes": 29955,
+          "sha256": "1338337a8818e1b5d962224d03fe033476bd534c2bbd6f3a7a9396101684ac12"
+        }
+      },
+      {
+        "step": "actual-gate-015-06",
+        "kind": "cold100-core-diagnostic-stream-rejected-sequence31-through43-missing",
+        "exitCode": 1,
+        "defaultStartup": "READY_MAIN0",
+        "completedRuns": [
+          "default-node",
+          "scale-0-fresh",
+          "scale-0-cold",
+          "scale-100-fresh",
+          "scale-100-cold"
+        ],
+        "sevenSignedPackages": "PREPARED_NOT_GATE_PASS",
+        "nodeCoreMainLifecycle": "OBSERVED_NATURAL0",
+        "coreSequenceCompleteness": "COLD100_MISSING31_THROUGH43",
+        "laterRuns": "NOT_RUN_FAIL_FAST",
+        "classification": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ACTUAL_FAILURE_CLASSIFICATION_015_06.json",
+          "bytes": 56442,
+          "sha256": "00df24418387b8f0480c1c31bc82aae96abfa43adee7b6984c0dd967d1ffcf5f"
+        }
+      },
+      {
+        "step": "actual-gate-015-07",
+        "kind": "failed-node-background-empty-claim-invalidated-valid-needs-review-node-reply",
+        "exitCode": 1,
+        "actualAppRuns": 10,
+        "actorSequenceCompleteness": "ALL_THREE_CONTINUOUS",
+        "nodeSqlReply": "ACTUAL_VALID_EMPTY_PAGE",
+        "mainCoreNodeOutbox": "OBSERVED_NATURAL0",
+        "laterRuns": "NOT_RUN_FAIL_FAST",
+        "classification": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ACTUAL_FAILURE_CLASSIFICATION_015_07.json",
+          "bytes": 16869,
+          "sha256": "1ad69e823ead99aa0f988d5a9ee28753302f316f3a9fd8b4c5c03e4132cbea69"
+        }
+      },
+      {
+        "step": "actual-gate-015-08",
+        "kind": "DIAGNOSTIC_DRIVER_QUIT_BEFORE_ORIGINAL_UI_BACKGROUND_NEEDS_REVIEW_IPC_SETTLED_PRODUCTION_CLOSE_FENCE_CORRECT",
+        "exitCode": 1,
+        "actualAppRuns": 11,
+        "actorSequenceCompleteness": "ALL_THREE_CONTINUOUS",
+        "originalNodeReply": "VALID_EMPTY_PAGE_ARRIVED_AFTER_CORRECT_NODE_CLOSE_FENCE",
+        "laterRuns": "SCALE5001_FRESH_COLD_NOT_RUN",
+        "classification": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ACTUAL_FAILURE_CLASSIFICATION_015_08.json",
+          "bytes": 16931,
+          "sha256": "dcec6b91295f5b98d4cfb622aa3b85ba477e6a30fca7c0b1a6262180ef41668c"
+        }
+      },
+      {
+        "step": "actual-gate-015-09",
+        "kind": "COST_DERIVE_REJECTED_BEFORE_COST_FILE_FULL_CONSUMER_NOT_RUN",
+        "exitCode": 1,
+        "actualAppRuns": 13,
+        "closedSqliteAggregates": 6,
+        "classification": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ACTUAL_FAILURE_CLASSIFICATION_015_09.json",
+          "bytes": 7372,
+          "sha256": "e0070ae20ad87b54eff5254d6409ddc8f0b95f06055d748ce0773b6611f10850"
+        },
+        "diagnosis": "OBSERVED_CORE_ROUTER_COST_SCOPE_INCLUDED_94_AUXILIARY_COMMANDS_WITHOUT_PUBLIC_REQUEST_OBSERVATION_1577_ALLOWED_COST_IDENTITIES_MATCH"
+      },
+      {
+        "step": "actual-gate-015-10",
+        "kind": "FIRST_FULL_ACCEPT_REJECTED_AFTER_COST_FILE_SAVED",
+        "exitCode": 1,
+        "actualAppRuns": 13,
+        "closedSqliteAggregates": 6,
+        "costBytes": 51899345,
+        "classification": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ACTUAL_FAILURE_CLASSIFICATION_015_10.json",
+          "bytes": 8256,
+          "sha256": "b0c6535f845a0cb953e8058e3294fe8ff86d68fe4c6cc0689a1f0da4a864588b"
+        },
+        "diagnosis": "UNIQUE_PRE_ACTION_INITIAL_READY_WAIT_NULL_ACTION_MISCLASSIFIED_AS_ACTIONED_SETTINGS",
+        "readonlyDiagnosis": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-c/source10-first-accept-refusal-classification.json",
+          "bytes": 21754,
+          "sha256": "49dfb3704bb8fc1bdea94db5063b64cd3668d1e8ecfd4607dc60881dee9761d1"
+        }
+      },
+      {
+        "step": "actual-gate-015-12",
+        "kind": "complete-evidence-mutation-suite-generic-180-second-budget",
+        "exitCode": 1,
+        "actualAppRuns": 13,
+        "closedSqliteAggregates": 6,
+        "fullAccept": "PASS_SEPARATE",
+        "typecheck": "PASS_SEPARATE",
+        "wholeGate": "FAIL",
+        "classification": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ACTUAL_FAILURE_CLASSIFICATION_015_12.json",
+          "bytes": 12407,
+          "sha256": "359130785199f6eb055e5f1e9a719489bd3d64847d148ae96225ccf1755c4815"
+        }
+      }
+    ],
+    "perRunClosureGuard": "ROOT32_VALID_RED21_PASS11_FAIL_GREEN32_ACTOR_PID_SEQUENCE_CLOCK_NATIVE_ACK_UI_ID_REPLY_DRAIN_NODE_CORE_OUTBOX",
+    "contractFreeze": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/CONTRACT_FREEZE_015_15.json",
+      "bytes": 3696,
+      "sha256": "d0b3c9381e57501e9630bc3069247c45b192dad6ae6dc54bee05347372b7c05a"
+    },
+    "remoteAuditAuthorization": {
+      "ownerRequest": "在适当的时候推送远端仓库方便外部审计",
+      "policy": "VALIDATED_REVIEWED_DOUBLE_COMMIT_AND_CLEAN_BRANCH_ONLY_NO_MAIN_MERGE_OR_RELEASE",
+      "rust014Push": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/REMOTE_AUDIT_PUSH_RUST014_01.json",
+        "bytes": 1265,
+        "sha256": "89e9ef55ac2cd7405b5b3d78ab56375576b5c393002c3a460cacf9a5e7d7dc3d"
+      },
+      "rust014RemoteHead": "906a3841df3424fff05b6071f4342f312d0c7de9",
+      "rust015Push": "PENDING_FINAL_VALIDATION_AND_REPORT"
+    },
+    "nextContractFreeze": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/CONTRACT_FREEZE_015_12B.json",
+      "bytes": 14056,
+      "sha256": "f176e38cec5d004613d65d4314f01a226323da8e5b3af71ae199b24e79b4e1a5"
+    },
+    "diagnosticRepair": "B36_REAL_NONBLOCKING_PIPE_RED_GREEN_ORIGINAL_BUFFER_SAVED_SCOPE_FROZEN",
+    "rssSchemaRepair": "C42_TYPES0_FROZEN_POSITIVE_RSS_AND_CLOSED_ZERO_READINGS_SEPARATE_OLD06_STILL_REJECTED",
+    "nodeFallbackRepair": {
+      "owner": "root-sole-A-router-and-new-node-fallback-test-writer",
+      "productionFiles": [
+        "packages/bridge-core/src/rust-core/readonly-router.ts"
+      ],
+      "testFiles": [
+        "packages/bridge-core/test/rust-core/optional-scale-node-fallback.test.ts"
+      ],
+      "newTests": 16,
+      "newGate": "NOT_RUN",
+      "newSourceFreeze": "SOURCE_FREEZE_015_08.json",
+      "matchedUnitTests": 306,
+      "signedNativeTests": 53,
+      "additionalControlledUnitsInNativeRun": 16,
+      "sourceReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ROOT_AUTHOR_A_REPAIR_FREEZE_015_08.json",
+        "bytes": 7860,
+        "sha256": "288785a05633247735f7b084d680030578c987cdd44b266ee7412a359c138337"
+      }
+    },
+    "driverStatusAndDrainRepair": {
+      "BsourceReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-b-repair09.json",
+        "bytes": 7664,
+        "sha256": "5c9edbaf788eb70f000f98aae4e8d6e91373747be7d04b7a444d7530c5c9e7bd"
+      },
+      "CsourceReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-c/implementation-receipt-06-status-paint-ipc-drain.json",
+        "bytes": 12308,
+        "sha256": "e477adc5e757f442fd1e6d6b8244ed3e30e0bf85718799a2421d0595f7ab2bf2"
+      },
+      "publicReplySuccessBoundary": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-c/source09-public-reply-success-boundary.json",
+        "bytes": 1456,
+        "sha256": "edc91a501ab3f09ad26e4c2e1e4a0c6334719fe53aa0b48520427c41fce31f59"
+      },
+      "currentSourceChangedPaths": [
+        "apps/desktop/scripts/collection-scale-runtime.mjs",
+        "apps/desktop/src/main/collection-scale-main-probe.ts",
+        "apps/desktop/test/collection-scale-observation.test.ts",
+        "apps/desktop/test/helpers/collection-scale-evidence.ts",
+        "apps/desktop/test/rust-core/collection-scale-evidence.test.ts",
+        "apps/desktop/test/rust-core/collection-scale-gate-fail-fast.test.ts",
+        "apps/desktop/test/rust-core/collection-scale-runtime.test.ts",
+        "scripts/ci/verify-rust-collection-scale.mjs"
+      ],
+      "productionCoreSource08Unchanged": true,
+      "newActualGate": "SOURCE09_RUN_CLOSURE_PASS_WHOLE_GATE_COST_FAILED"
+    },
+    "costObservationRepair": {
+      "source": "Source10",
+      "changedPaths": [
+        "apps/desktop/src/main/collection-scale-core-observer.ts",
+        "apps/desktop/test/collection-scale-observation.test.ts",
+        "apps/desktop/test/helpers/collection-scale-evidence.ts",
+        "apps/desktop/test/rust-core/collection-scale-cost.test.ts"
+      ],
+      "BsourceReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-b-repair10.json",
+        "bytes": 7484,
+        "sha256": "11d39cc2ddec50f7566e1e36002510f1ea15016b5fdcc39deff78494879efd6e"
+      },
+      "CsourceReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-c/implementation-receipt-07-local-renderer-view-reuse.json",
+        "bytes": 10892,
+        "sha256": "6aa90c2f99ad4f5d596ea9ed2645a0697d269070dd1853e808c1bc4a19ecc69f"
+      },
+      "diagnosis": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-c/source09-cost-first-refusal-classification.json",
+        "bytes": 19404,
+        "sha256": "5842f9007293351c73683951ed32766e6d583e926b9ce5acc904bbf2cfcffeeb"
+      },
+      "allowedOperationsUnchanged": 6,
+      "otherCostStagesUnchanged": 7,
+      "consumerMissingRequestRejectionPreserved": true,
+      "localViewReuse": "ONE_DERIVE_INVOCATION_ONLY_PUBLIC_SELECTOR_REVALIDATES_RAW_EACH_CALL",
+      "actualGate": "SOURCE10_COST_DERIVE_PASSED_FIRST_FULL_ACCEPT_FAILED"
+    },
+    "actualSource10Progress": {
+      "rawRunCount": 13,
+      "rawRunKeys": [
+        "default-node",
+        "scale-0-cold",
+        "scale-0-fresh",
+        "scale-100-cold",
+        "scale-100-fresh",
+        "scale-2000-cold",
+        "scale-2000-fresh",
+        "scale-2001-cold",
+        "scale-2001-fresh",
+        "scale-5000-cold",
+        "scale-5000-fresh",
+        "scale-5001-cold",
+        "scale-5001-fresh"
+      ],
+      "fullGate": "FAIL",
+      "costWritten": true,
+      "ordinaryCUA": "NOT_RUN",
+      "softwareSixStep": "NOT_RUN",
+      "sqlAggregateCount": 6,
+      "fullAccept": "FIRST_REFUSAL",
+      "acceptedReport": false
+    },
+    "initialEngineeringWaitRepair": {
+      "changedFiles": [
+        "apps/desktop/test/helpers/collection-scale-evidence.ts",
+        "apps/desktop/test/rust-core/collection-scale-evidence.test.ts"
+      ],
+      "producerUnchanged": true,
+      "initialNullWait": "UNIQUE_FIRST_SETTLED_BEFORE_EVERY_ACTION_COMPLETE_ORIGINAL_SNAPSHOT",
+      "actionedSettingsAndDrain": "UNCHANGED",
+      "tests": "ELEVEN_TARGETED_AND_EIGHTY_FIVE_MATCHED_PASS_ZERO_SKIP_SOURCE11",
+      "original10WithNewConsumerPrecheck": "FAIL_NEW_FIRST_REFUSAL_ACTION_CHANNEL_EVERY_BEFORE_SETTLED",
+      "newSourceFreeze": "PENDING",
+      "newActualGate": "NOT_RUN_SOURCE11_NOT_FROZEN",
+      "precheck": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-c/source11-consumer-source10-report-precheck-result.json",
+        "bytes": 35345,
+        "sha256": "f5aeb57f07acdc73186c2f9a0070d82fa2486177bb3f65140ab7f997c5ea9a87"
+      }
+    },
+    "backgroundReplyBoundaryRepair": {
+      "changedFiles": [
+        "apps/desktop/test/helpers/collection-scale-evidence.ts",
+        "apps/desktop/test/rust-core/collection-scale-evidence.test.ts"
+      ],
+      "producerUnchanged": true,
+      "BsourceStaticReview": "CONFIRMED_ORIGINAL_VOID_CATALOG_WATCH_NOT_AWAITED_BY_FOREGROUND_PAINT",
+      "readonlyClassification": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-c/source11-precheck-first-refusal-classification.json",
+        "bytes": 9878,
+        "sha256": "24ecb8261f256adaf94a30cdbc8ac5f99cc195caba3f840166dcf7afdd71ea50"
+      },
+      "rendererAndDrainBoundary": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-c/source11-first-late-review-read-observation-boundary.json",
+        "bytes": 4100,
+        "sha256": "f0016c6926b0cfbd5346962ddcfd70736e84e4b6ad36a319aaa3a7753f7075bb"
+      },
+      "allowedLateType": "EXACT_COLLECTION_LIST_OFFSET0_LIMIT1_NEEDS_REVIEW_NULL_ORDINAL_TRUSTED_UNIQUE_ORIGINAL_PUBLIC_FULL_DTO_BEFORE_FINAL_DRAIN",
+      "allOtherReplyBounds": "UNCHANGED_BEFORE_DOM_SETTLED_WITH_TRUE_CATALOG24_REQUIRED",
+      "tests": "THIRTY_ONE_TARGETED_AND_ONE_HUNDRED_SIXTEEN_MATCHED_PASS_ZERO_SKIP_TYPES0_SOURCE12",
+      "original10WithNewConsumerPrecheck": "PASS_SINGLE_COMPLETE_ACCEPT_INPUTS_STABLE_NOT_FRESH_APP_GATE",
+      "newSourceFreeze": "SOURCE_FREEZE_015_12.json",
+      "newActualGate": "SOURCE12_THIRTEEN_APP_SQL_ACCEPT_TYPES_PASS_WHOLE_GATE_BUDGET_FAIL",
+      "BsourceStaticReviewReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-b-source12-background-boundary-static.json",
+        "bytes": 15428,
+        "sha256": "4b264ba601640ca7a19b6b78b451325a5f33b96b1ef9e6b975c7f26d8d8ac6c5"
+      },
+      "observedLateReadCounts": {
+        "withinOriginalActionScope": 14,
+        "additionalOriginalActions": 2,
+        "totalCoveredByFinalDrain": 16
+      },
+      "originalActionScopeUnchanged": [
+        "workload",
+        "clear",
+        "target",
+        "next",
+        "previous",
+        "detail-open",
+        "policy-save",
+        "refresh",
+        "readonly-on",
+        "readonly-off"
+      ],
+      "sourceReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-c/implementation-receipt-08-background-read-boundary.json",
+        "bytes": 23294,
+        "sha256": "cd226f2c14b5d44d31bc10e780fe3ef7402cea180ca81c69c9fe7fbffa99a63d"
+      },
+      "precheck": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-c/source12-consumer-source10-report-precheck-result.json",
+        "bytes": 34201,
+        "sha256": "72f9a102e05401f30f3d5d82f88548598decb203b505bc86d14eb49b709891c9"
+      }
+    },
+    "priorSource10Freeze": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/SOURCE_FREEZE_015_10.json",
+      "bytes": 226370,
+      "sha256": "744cda59d8e653748261edfaaa0a18b871252b1672e9a48ce7dfb64377de10f6",
+      "sourceSha256": "27f0e99fb0f29dbd2a8aa2bebf3d7e5b225eaebd7f7cf79058decad4a2d05125",
+      "sourceCount": 1170
+    },
+    "source12PreliminaryReview": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/review-015-preliminary-source12-init-background-boundary.json",
+      "bytes": 2229,
+      "sha256": "b0f1d01484eb99e6d316c80258564b8d88ef90b57968b4a97ff8c681ed757a55"
+    },
+    "actualSource12Progress": {
+      "actualRunCount": 13,
+      "closedSqliteRunCount": 12,
+      "closedSqliteAggregateCount": 6,
+      "fullAccept": "PASS",
+      "costEvidence": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/candidate-015-12/collection-scale-cost.json",
+        "bytes": 51936488,
+        "sha256": "667a57f71971f1f4973fc9c3f0b6c6fb03d82f73db09eb2ea88d163e39874771"
+      },
+      "acceptedReport": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/candidate-015-12/collection-scale-report.json",
+        "bytes": 471391503,
+        "sha256": "21aaf9d3252270d08092f22a247ebdfd575ab3a6a80872d6346937320538a618"
+      },
+      "dedicatedTypes": "PASS_EXIT0",
+      "wholeGate": "FAIL_TEST_PROCESS_GENERIC_180_SECOND_BUDGET",
+      "ordinaryCUA": "NOT_RUN",
+      "softwareSixStep": "NOT_RUN",
+      "classification": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ACTUAL_FAILURE_CLASSIFICATION_015_12.json",
+        "bytes": 12407,
+        "sha256": "359130785199f6eb055e5f1e9a719489bd3d64847d148ae96225ccf1755c4815"
+      }
+    },
+    "priorSource12Freeze": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/SOURCE_FREEZE_015_12.json",
+      "bytes": 229076,
+      "sha256": "051e92add4d2815a3623eb59d636ee22a227a2f5afd9a9e3b799cc5d34f46557",
+      "sourceSha256": "e462f6922ab50875c60a7744ed99d542f10f87ab87b7e15a411fe13b675f397e",
+      "sourceCount": 1170
+    },
+    "evidenceTestBudgetRepair": {
+      "scope": "complete-evidence-test-process-only",
+      "deadlineMs": 2400000,
+      "genericAppRequestCloseDrain": "UNCHANGED",
+      "rootSourceReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ROOT_EVIDENCE_BUDGET_REPAIR_015_13.json",
+        "bytes": 5813,
+        "sha256": "7c08c583434ba9d0acf18cc52901252df2d98b1168b606df0ec8342535f07d29"
+      },
+      "matchedTests": 39,
+      "newActualGate": "RUNNING_SOURCE13",
+      "preservedOriginalGate12": "FAIL"
+    },
+    "ordinaryOtherNativePolicySelection": "NOT_VERIFIED_BOUNDED_CARRYOVER",
+    "source13FailureClassification": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/SOFTWARE_FAILURE_CLASSIFICATION_015_13.json",
+    "source13OrdinaryCalibration": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ORDINARY_CUA_CALIBRATION_015_13B.json",
+    "source14FailureClassification": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ACTUAL_FAILURE_CLASSIFICATION_015_14.json",
+      "bytes": 6749,
+      "sha256": "1eca408e9d5888853f1f24e5beda4cad2470132a2716be9e5d07a7c80374c7f4"
+    },
+    "source15DiagnosticDrain": {
+      "state": "FROZEN_B48_AND_ROOT_LEGACY2_PASS",
+      "scope": [
+        "apps/desktop/src/main/collection-scale-main-probe.ts",
+        "apps/desktop/test/collection-scale-observation.test.ts",
+        "apps/desktop/src/main/index.ts"
+      ],
+      "controlledRed": "REAL_PASSTHROUGH_EXIT_LISTENER_REMOVAL_LATE_CORE_FRAMES",
+      "deadlineMs": 5000,
+      "businessClose": "UNCHANGED",
+      "defaultPackage": "NO_DIAGNOSTIC_WAIT",
+      "freshSoftware": "ALL_SIX_EXIT0_4051_PASS_2_EXISTING_CONDITIONAL_SKIP",
+      "freshActualGate": "PASS_SOURCE15",
+      "rootReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ROOT_DIAGNOSTIC_DRAIN_INTEGRATION_015_15.json",
+        "bytes": 2494,
+        "sha256": "e0eb52c189dc52bbc32f4213d58bb1ec0f997f786af2a25306b15e9274e296b1"
+      },
+      "bReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-b-repair15.json",
+        "bytes": 12382,
+        "sha256": "2adae624fc2ca5fa6609043e8d1859e867d0d4357410d2feb3589ec59414aedc"
+      }
+    },
+    "nextHandoff": "OWNER_EXPLICIT_PHASE_HANDOFF_MBRS000_SAFE_BASELINE_OFFLINE_REPAIR_FIRST_NO_AUTOMATIC_OVERALL_G0_OR_SECURITY_RELEASE_APPROVAL",
+    "source14Software": "PASS_ALL_SIX_STEPS_4045_PASS_2_EXISTING_CONDITIONAL_SKIP_NOT_CURRENT15",
+    "source14Actual": "FAIL_MISSING_NODE_EXIT_NOT_PROMOTED",
+    "fullSoftware": "ALL_SIX_EXIT0_4051_PASS_2_EXISTING_CONDITIONAL_SKIP_SOURCE15",
+    "actualSigned": "PASS_SOURCE15_7_SIGNED_13_RUNS_12_SQL_270_BEHAVIOR_ZERO_FAIL_SKIP_CANCEL",
+    "softwareSixStep15": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/SOFTWARE_SIX_STEP_015_15.json",
+      "bytes": 3474,
+      "sha256": "8cfba989e03c549c2900b918cd6c4dcc8bf5bfe37500b6a5e9839e8a9241f17a"
+    },
+    "actualSignedReceipt": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/actual-gate-015-15.json",
+      "bytes": 609,
+      "sha256": "7afc49d308504df285a621e3632464554f7a5cf96a6f5ad47021e56b910b133e"
+    },
+    "actualSealedInputs": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ACTUAL_SEALED_INPUTS_015_15.json",
+      "bytes": 2862,
+      "sha256": "6d93b1e6464a3b55e01e4529275471afbcb62a9e9aa40934c26c2aea234529c9"
+    },
+    "ordinaryCUA": {
+      "state": "TWO_FRESH_DEFAULT_NATIVE_CUA_NATURAL0_AND_CLOSED_SQL_PASS",
+      "runs": [
+        {
+          "run": "ordinary-cua-100-15",
+          "modelCount": 100,
+          "runtime": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ordinary-cua-100-15/runtime.json",
+            "bytes": 5553,
+            "sha256": "ff417ba9835289ed7d43f5698f5700461ac9ce8b67c2c0988931a99f37a06564"
+          },
+          "ui": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ordinary-cua-100-15/ui-evidence.json",
+            "bytes": 11411,
+            "sha256": "b46f0e7882ad5057f32441f5705858d7449ab18b4800f40e67e6145b36012ccb"
+          },
+          "closedSql": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ordinary-cua-100-15/closed-sqlite/ordinary-closed-reference.json",
+            "bytes": 154582,
+            "sha256": "35be7c4bba92680eb54067155fa715a1c980644470daebef28fe5ee80ab0e160"
+          },
+          "launch": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ordinary-cua-100-15/launch.json",
+            "bytes": 3276,
+            "sha256": "7a71586b121bb6524858adfef18cb4e73b7f261b183c6e618f1115f84457c983"
+          },
+          "captures": 18,
+          "requiredSteps": 11,
+          "observations": {
+            "defaultEnabled": false,
+            "pageChanged": true,
+            "targetFilterExact": true,
+            "enabledState": "ready-rust",
+            "policyBefore": "normal",
+            "reserveBefore": 0,
+            "policyAfter": "normal",
+            "reserveAfter": 2,
+            "writeMode": "node",
+            "refreshState": "ready-rust",
+            "finalEnabled": true,
+            "finalState": "ready-rust",
+            "quitMechanism": "original-cmd-q"
+          },
+          "normalPolicyReserveChange": [
+            0,
+            2
+          ],
+          "revisionAfter": 2,
+          "businessWrites": 1,
+          "outboxAcknowledged": 1,
+          "rootPixelSemanticReview": "VIEWED_ORIGINAL_NATIVE_CONTROLS_AND_STATUS_WITH_FULL_AX_PLUS_ACTUAL_PIXELS",
+          "ownerAcceptance": "NOT_RUN"
+        },
+        {
+          "run": "ordinary-cua-2001-16",
+          "modelCount": 2001,
+          "runtime": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ordinary-cua-2001-16/runtime.json",
+            "bytes": 5560,
+            "sha256": "a4f1beb7dfbd6e04807ced1ab1a0bf2b937c9246645ffadbcab02006c63cd569"
+          },
+          "ui": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ordinary-cua-2001-16/ui-evidence.json",
+            "bytes": 7230,
+            "sha256": "301804b0119872d95438dab37b505abbd7e208bcd018aaf50bd5fed18e7aea89"
+          },
+          "closedSql": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ordinary-cua-2001-16/closed-sqlite/ordinary-closed-reference.json",
+            "bytes": 2952733,
+            "sha256": "fcb25578ed0c97203efae14bf0801b0f97731ab6d5d208f969b35738b159b143"
+          },
+          "launch": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ordinary-cua-2001-16/launch.json",
+            "bytes": 3283,
+            "sha256": "babcf123ff30ea12ddd3dd32e3dd4db5ca00ceeedf9ba8ea867562a1d26afd48"
+          },
+          "captures": 11,
+          "requiredSteps": 11,
+          "observations": {
+            "defaultEnabled": false,
+            "pageChanged": true,
+            "targetFilterExact": true,
+            "enabledState": "failed-node",
+            "policyBefore": "normal",
+            "reserveBefore": 0,
+            "policyAfter": "normal",
+            "reserveAfter": 2,
+            "writeMode": "node",
+            "refreshState": "failed-node",
+            "finalEnabled": true,
+            "finalState": "failed-node",
+            "quitMechanism": "original-cmd-q"
+          },
+          "normalPolicyReserveChange": [
+            0,
+            2
+          ],
+          "revisionAfter": 2,
+          "businessWrites": 1,
+          "outboxAcknowledged": 1,
+          "rootPixelSemanticReview": "VIEWED_ORIGINAL_NATIVE_CONTROLS_AND_STATUS_WITH_FULL_AX_PLUS_ACTUAL_PIXELS",
+          "ownerAcceptance": "NOT_RUN"
+        }
+      ],
+      "interruptedPrior": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ORDINARY_INTERRUPTION_015_2001_15.json",
+        "bytes": 18787,
+        "sha256": "4862dd0d52d5fa7d5df5cdf8f67f0561d9a42590e858baaa42588e930c36345b"
+      },
+      "otherNativePolicySelection": "NOT_VERIFIED_BOUNDED_CARRYOVER"
+    },
+    "fixedReportDraft": {
+      "json": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/REPORT_DRAFT_RUST015_SOURCE15.json",
+        "bytes": 40910,
+        "sha256": "b09659dc5dfe9f85203125168cf96e09b31e1f068e3136613c337509b20e7238"
+      },
+      "markdown": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/REPORT_DRAFT_RUST015_SOURCE15.md",
+        "bytes": 10639,
+        "sha256": "615896276174404e42f28b26269065ab96aa2c5bdc4c14b99dec3dc8dfb9163d"
+      }
+    },
+    "costSummary": {
+      "json": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-b-source15-cost-summary.json",
+        "bytes": 1763219,
+        "sha256": "6f9679f23df28463d33437d57d219c30072b3bdecbfe83c1bd0ea8c73d5765eb"
+      },
+      "markdown": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-b-source15-cost-summary.md",
+        "bytes": 8469,
+        "sha256": "d9da8d2d4c27d5a25ba7e8fb7baca0711be69a4eccb661607495135c4ca34dff"
+      },
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-b-source15-cost-summary-receipt.json",
+        "bytes": 13916,
+        "sha256": "5ba8a91cf42bb46c4896092f4d04b23909788d522e09a22846fa06c2b0ba6334"
+      },
+      "warmGroups": 36,
+      "samplesPerGroup": 10,
+      "warmupsExcluded": 36,
+      "pairedGroups": 18,
+      "main2000MedianNodeRustMs": {
+        "all": [
+          1.343,
+          2.043
+        ],
+        "brand-stock": [
+          4.633,
+          2.205
+        ],
+        "literal": [
+          3.932,
+          2.116
+        ],
+        "unicode": [
+          4.267,
+          2.117
+        ],
+        "decade": [
+          2.574,
+          1.96
+        ],
+        "empty": [
+          5.527,
+          1.354
+        ]
+      },
+      "all0And100MainRustSlower": true,
+      "renderer2000AllDoubleRafMsNodeRust": [
+        23.0,
+        29.1
+      ],
+      "closeIncludesDiagnosticIO": true,
+      "diagnosticIODuration": "NOT_INDEPENDENTLY_OBSERVED",
+      "rssSamplingMs": 100,
+      "rssHardPeak": false,
+      "stagesMayOverlapDoNotSum": true,
+      "crossProcessClockDifference": "NOT_USED",
+      "universalSpeedup": "NOT_ESTABLISHED"
+    },
+    "carryoverOwners": [
+      {
+        "id": "R15-C01",
+        "owner": "PostRust新主线程MBRS-000先核主责、后建独立Rust测试可移植任务",
+        "state": "NOT_VERIFIED_CLEAN_CLONE_REMOTE_CI",
+        "description": "cost:86,100与evidence:105三条测试无条件读取旧candidate-015-05/08本机raw；必须保留准入断言，后续用来源身份和提取证据绑定的可移植片段替代依赖，含通过对照与针对性串改拒绝。"
+      },
+      {
+        "id": "R15-C02",
+        "owner": "MBRS-000分配独立原生UI可操作性任务",
+        "state": "NOT_VERIFIED_OTHER_NATIVE_POLICY_SELECTION",
+        "description": "本期普通原表单只证明normal策略下数量0→2；其他策略下拉选择未验收，工程collector2为独立合成证据。"
+      },
+      {
+        "id": "R15-C03",
+        "owner": "MBRS-000/RUST_TO_MBRS_MAP以真实代码与Owner阶段换届授权核对",
+        "state": "FULL_RUST_MIGRATION_NOT_COMPLETE",
+        "description": "默认Node、唯一业务库写作者、Roon/Provider/播放录音仍是Node。TODO未完热点/失效通知/相邻域/持久化兼容/真实服务/平台签名保留，不把RUST015变成完整迁移退出证据。"
+      },
+      {
+        "id": "R15-C04",
+        "owner": "MBRS-016交付质量范围及后续独立发布验收",
+        "state": "NOT_RUN_FULL_MEDIA_PACKAGE_OTHER_ARCH_SIGNING_INSTALL_REAL_SERVICES_OWNER",
+        "description": "七包仅macOS arm64/ad-hoc有限Rust资源候选；未带完整media资源，不代表FFmpeg/OutputNative完整分发、DeveloperID/公证/x64/universal/安装替换/真实账号Roon播放录音/Owner/远端CI通过。"
+      },
+      {
+        "id": "R15-C05",
+        "owner": "MBRS-000根据Source15成本表分配唯一热点任务",
+        "state": "NO_GENERAL_ACCELERATION_OR_REAL_LIBRARY_PERFORMANCE_CLAIM",
+        "description": "普通固定v2-2000/4MiB不升级，v3已有5000/8MiB只作协议对照；小规模和2000all更慢，firstON/refresh摊销未给盈亏平衡，双RAF非截图语义，RSS非硬峰值。"
+      },
+      {
+        "id": "R15-C06",
+        "kind": "MANDATORY_INHERITED_REMOTE_CI_AND_HIGH_DEPENDENCY_BASELINE_BLOCKER",
+        "state": "OPEN_CONFIRMED_BASE014_FAILURE_CURRENT_INPUTS_UNCHANGED",
+        "owner": "新会话MBRS-000先分配唯一CI/测试可移植性/宿主与依赖安全修复任务；相关整体G0/正式安装/发布/真实账号及live验收保持阻断，完成真实Gate再解锁。",
+        "evidence": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/REMOTE_BASELINE_CI_CLASSIFICATION_015_01.json",
+          "bytes": 10697,
+          "sha256": "b3716440cdd528f8cb99c289a33e49e452a25c936a158e7ad3bb14ea1f91ce17"
+        },
+        "details": "014 verify两Linux用例环境失败；Electron两Rust host缺编译树且后E2E skip（原system startup/Core crash子项pass）；Rust workflow行20 runner.temp上下文无效、零job不是代码测试；生产audit7项含node-forge一high。公告无patched版，实际可达利用性未知，不降低audit阈值或删既有功能；015自身remoteCI在本快照未运行。",
+        "relationToR15C01": "合并测试可移植性唯一主责，但05/08历史原件与新远端014错误的来源/证据分别保留。"
+      }
+    ],
+    "review": {
+      "formalRoundCount": 2,
+      "state": "TWO_FORMAL_ROUNDS_CAPACITY_SCOPE_PASS_INHERITED_CI_SECURITY_BLOCKERS_REMAIN",
+      "round1": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/review-015-round1-correction-01.json",
+        "bytes": 81472,
+        "sha256": "feb3ba5651ca0552a447e4a05d97d41f6915fca7cca7c5efba967fbf27c99aa9"
+      },
+      "round1OriginalPreserved": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/review-015-round1.json",
+        "bytes": 79369,
+        "sha256": "9fc16c06b3cf4e724152e6fe02f37a1b954465c47286bbd23f3760bc043c623b"
+      },
+      "round1ProjectionCorrection": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/review-015-round1-projection-supplement-01.json",
+        "bytes": 2336,
+        "sha256": "20c70308f304d35b8c6a29c6a51f0377e70735e34f6dda493872378cde293b9c"
+      },
+      "round2": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/review-015-round2.json",
+        "identityResolution": "提交后外置 FINAL_IDENTITY.json 绑定第二轮回执的实际 bytes/SHA；本文件仅在该轮实际通过后原样采用。"
+      },
+      "round1CorrectionScope": "审查自身错误带入工程updated_at；普通原八列投影全部一致，原件保留，同轮纠正，不是新产品缺陷或第二轮。",
+      "sourceEditsAfterFreeze": false,
+      "remainingConfirmedNewCapacityTaskP1P2": 0,
+      "overallReleaseApproved": false,
+      "confirmedInheritedHighDependencyAuditBlocker": 1,
+      "scope": "仅Source15本地容量行为/成本及相应Git与证据审查；继承远端CI/安全Gate未闭合不能整体放行。"
+    },
+    "independentFinalEvidenceStability": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-c/final-evidence-stability-015-17-result-02.json",
+      "bytes": 918021,
+      "sha256": "df36d95099c37dd213654d7785636ff9632400036fdd26d4e0406fdfa1069ea1"
+    },
+    "independentFinalExecution": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/author-c/final-evidence-stability-015-17-execution-02.json",
+      "bytes": 3078,
+      "sha256": "73974dd4a1b00d47f30debe0709dc1bfdbe793db5bf8c8aa0d66eba945405d98"
+    },
+    "rootNativePixelSemanticReview": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/ROOT_ORDINARY_CUA_PIXEL_REVIEW_015_16.json",
+      "bytes": 25915,
+      "sha256": "e091d29850c44e08f7d2bd10d71bf1c05297096d735a3c34c2ea15cc83c96149"
+    },
+    "implementationGitIdentity": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/IMPLEMENTATION_IDENTITY.json",
+      "bytes": 3648,
+      "sha256": "136dd6b791c7b9326f83e363ef8b56d7ffc55ddc072beb3f6f07be2fcba8eac8"
+    },
+    "reportSnapshotPushBoundary": "NOT_RUN_AT_THIS_REPORT_COMMIT_ACTUAL_REMOTE_HEAD_RESOLVED_BY_EXTERNAL_AUDIT_PUSH_RECEIPT",
+    "finalStabilityCounts": {
+      "stableInputFiles": 1761,
+      "sourceFiles": 1170,
+      "authorFiles": 33,
+      "contractFiles": 4,
+      "ordinaryFullDtoRows": 2101,
+      "acceptCalls": 0,
+      "deriveCalls": 0
+    },
+    "phaseIdentityBoundary": "工程fresh/cold共享profile；12份各阶段immutable SQL保留原SHA。现存共享源文件按cold最终身份核验，fresh历史源SHA不冒称当前SHA。markerPath与completedPath分别匹配自身markerSha256与completedMarkerSha256。见C准备收据与最终before=after1761。",
+    "fullRustMigrationComplete": false,
+    "inheritedRemoteBaselineCi": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/REMOTE_BASELINE_CI_CLASSIFICATION_015_01.json",
+      "bytes": 10697,
+      "sha256": "b3716440cdd528f8cb99c289a33e49e452a25c936a158e7ad3bb14ea1f91ce17"
+    },
+    "overallCiPass": false,
+    "overallReleaseApproved": false,
+    "securityBaselineBlocker": "INHERITED_PRODUCTION_NODE_FORGE_HIGH_AUDIT_FAILURE_NOT_CLOSED"
   }
 }

@@ -148,4 +148,6 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 
 - [RUST-013](RUST-013-packaged-renderer-validation.md)：从012最终报告 `822594b` 接续，签名包内原控件/可信IPC/持久Main outbox与唯一Node作者、26型号原分页筛选、保护单写/可信刷新及同profile冷启；代理承担全部验证，四包六run/131专项、完整软件六步与两轮独审完成，生产默认Node。见 [结果报告](../reports/RUST-013_PACKAGED_RENDERER_VALIDATION.md)。Owner/真实服务/安装发布分别保留，下一期正式用户刷新/可选启用从最终报告HEAD接续。
 
-- [RUST-014](RUST-014-user-optional-readonly-controls.md)：从013最终报告 `e35ad579` 接续，正常设置可选只读Rust开关与库存刷新、原Node先boot/唯一作者、私有nonce控制及真实关闭屏障；默认关闭，代理已完成四包六run/112专项、完整软件六步、普通CUA/独立闭库SQL与两轮独审；实现和报告独立保存，本地交付未push。见 [结果报告](../reports/RUST-014_USER_OPTIONAL_READONLY_CONTROLS.md)。
+- [RUST-014](RUST-014-user-optional-readonly-controls.md)：从013最终报告 `e35ad579` 接续，正常设置可选只读Rust开关与库存刷新、原Node先boot/唯一作者、私有nonce控制及真实关闭屏障；默认关闭，代理已完成四包六run/112专项、完整软件六步、普通CUA/独立闭库SQL与两轮独审；实现和报告独立保存，2026-10-03另按Owner授权推送最终HEAD `906a3841`，远端对应分支相符。见 [结果报告](../reports/RUST-014_USER_OPTIONAL_READONLY_CONTROLS.md) 和 [外部审计分支](https://github.com/Matt12377/music-bridge-for-roon/tree/codex/rust-core-014-user-optional-readonly-controls)。原报告的未push是交付当时状态。
+
+- [RUST-015](RUST-015-capacity-cost-validation.md)：从014最终报告 `906a3841` 接续，本地限定交付完成；实现 `8c58fdee`，Source15软件/七签包十三run十二SQL/两普通CUA/两轮独审通过，详见[结果报告](../reports/RUST-015_CAPACITY_COST_VALIDATION.md)。完整迁移未完成，继承远端CI/生产高危依赖未闭合，不代表整体安全或发布通过；默认OFF与唯一Node作者保持；PostRust v1.2由新会话先做MBRS-000真实基线与剩余主责核对。

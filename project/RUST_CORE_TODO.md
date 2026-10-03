@@ -1,28 +1,58 @@
 # Rust Core 开发进度
 
-更新：2026-10-03。当前 **RUST-014：普通用户可选 Rust 查询与刷新 — 本地交付完成，四包六run、普通CUA/闭库SQL、完整回归与两轮独审通过**。分支 `codex/rust-core-014-user-optional-readonly-controls`，工作树 `worktree/rust-core-014`，基线013最终报告 `e35ad579`。
-
-正式编号 **14个task：14个本地交付完成，0个开发中**。完整生产迁移尚未完成；后续方向按下方顺序接续。开发决策与验证全部由代理承担，Owner只负责最终成品使用反馈。
+更新：2026-10-04。本文件是RUST-015报告提交时的进度快照。**正式Rust编号15个task均完成限定范围的本地交付；完整Rust迁移尚未完成。** 默认应用仍是Node，可选Rust收藏查询默认OFF。实际最终报告HEAD与提交后远端推送结果见外置FINAL_IDENTITY及推送收据，后续仅从该最终HEAD接续。
 
 ## 待办事项
 
-- [x] 主代理：核013最终报告/双提交/完整验证身份，从最终HEAD建立独立014分支；保护14原工作树和7个未提交文件，确认外置卷。
-- [x] 主代理：冻结普通设置/刷新、Node先boot/借用Rust读者、默认OFF零能力与未知关闭封禁的生命周期合同；核A21/B34前置审计，唯一差异为013最终任务索引文档。
-- [x] 主代理：离线锁定依赖退出0，复用精确275文件Electron43.4.0缓存；准备外置分角色证据与runner。
-- [x] A（Core）：默认OFF零能力、boot后optional manager/nonce控制与真实关闭已实现；33行为+4实际binary/Core/Desktop类型全0。跨代refresh及首次错误不重投已修并验证；尚待最终签包复核。
-- [x] B（Main/界面）：boolean原子保存、可信IPC/preload、设置开关/库存刷新完成；32行为回归、桌面/E2E类型全0，17文件冻结。尚待actual原控件签包复核。
-- [x] C（受控验证）：被动Core/Main观察、原DOM控件驱动和严格四包六run/冷启/SQLite准入已实现；首轮实际包暴露设置选择器错误，真实Vue结构RED后修复；刷新实际列表/详情完成等待已补强，16行为与8拒绝及类型通过。27写入与26型号的准入规则保持。
-- [x] 主代理：固定资源捕获/编译pin/签前准入与实际签后资源已通过 Gate03；3新增构建身份与28旧启动回归保持，最终源循环修补由Gate04重新绑定。
-- [x] 主代理：最终candidate04四签名包/六run与112专项全部通过，四闭库SQL退出0；原outbox单写、写后失效/普通刷新、OFF→ON、同包持久意图冷启均通过。
-- [x] 主代理：Gate01设置驱动和Gate02详情无刷新入口失败现场保留；新增真实模板有效RED后补入口。Gate03四包六run/112专项通过。完整软件4023通过/2既有skip，但cycles发现循环；共享错误类移到协议层，循环检查已绿，1143输入冻结04，重新签包。
-- [x] 主代理：candidate04普通CUA完成一型号两次业务保存、列表/详情两次刷新、写后回退、保护值保留及OFF→ON；11组AX/JPEG与Main/Core自然关闭0，独立闭库SQL确认1型号/2唯一账本和ACK/revision2/normal/reserve1，读前后SHA不变。历史candidate03另有16组AX/JPEG。
-- [x] 主代理：最终1143输入完整软件六步02全部0，4023通过/2原条件skip；已签binary实际30回归、包内资源/旧bootstrap11通过，零skip；原cycles失败及修后绿证据保留。
-- [x] 第四角色：两轮独审通过，未解决P1/P2=0；最终1143输入/实现blobs、40证据引用/C55原件、四包完整树与14保护树/7WIP一致，未重复运行App或全量测试。
-- [x] 主代理：实现040e9c1c与结果报告独立提交，自动Gate通过；报告HEAD/清洁/remote和原工作区由外置FINAL_IDENTITY绑定。后续任务仅从014最终报告HEAD建立。
-- [ ] 后续规模/热点、相邻领域、其他平台/签名与兼容合同；完整迁移不能由本期通过推定。
-- [ ] 最终成品交付后的Owner使用反馈；不承担中间测试或内部路由判断。
+- [ ] 换届：当前交付身份与审计push完成后，创建gpt-6.1-sol/max新主会话，三个gpt-6.1-sol/high子代理；读取PostRust v1.2 CODEX_START_PROMPT并持续开发，Owner只做最终成品使用验收。
+- [ ] **R15-C06强制基线阻塞**：014远端verify/Electron/Rust工作流失败和一项生产node-forge高危公告已确认，015相关输入相同；新会话先修测试环境/编译接线/工作流及依赖安全，不降低门禁。当前没有整体CI/发布/安全放行，受影响真实验收停止；具体证据见015报告与外置分类。
+- [ ] MBRS-000先核最新真实基线、语言/进程/唯一writer、代码复用、全部未完Rust事项的唯一主责及明确阶段交接授权；v1.2替代v1.1，包内MBRS-000～017共18个任务此刻仍未开始，不把RUST-015交付当完整迁移或自动G0。
+- [ ] R15-C01：为三条Source05/08历史raw无条件依赖安排唯一后续Rust任务；保存来源SHA/提取证明，以可移植冻结输入和针对性串改拒绝补齐，当前clean clone/远端CI未验证。
+- [ ] R15-C02：另立原生UI可操作性范围验证其它保护策略选择；本期normal保留量0→2与工程collector/2分层通过，不能互相替代。
+- [ ] R15-C03～C05：依据完整成本继续分配热点、批次失效通知、索引、相邻领域、持久化兼容、完整媒体、平台签名与真实服务各自的唯一任务；七条既有后续方向仍见后文，不重复实现已有协调器、网关、writer及UI。
+- [ ] 最终成品交付后的Owner使用反馈；所有中间开发、自动/应用验证由代理承担，真实写文件/发声/账号/设备等仅在具体已有授权范围执行。
 
 ## 已完成事项
+
+### RUST-015（限定本地交付完成，普通规模边界与全链成本）
+
+- [x] 实现 `8c58fdee4309a781dbf6640d8aeba46bb8fe1bd3`，40个本任务明确路径；1,170程序及4合同、1,174 Git blobs和七完整包树匹配；保护15工作树/7未提交WIP。
+- [x] Source15软件六步全部0，4,051通过/原2条件skip；新鲜七签包、十三run、十二闭库SQL、六聚合、完整consumer/类型和270完整行为零fail/skip/cancel。普通v2固定2,000/4MiB，超限完整Node回退；默认OFF/Node唯一作者保持。
+- [x] 两全新默认包普通CUA：100/2001各11必需步、原normal保留量0→2一次Save、revision2/唯一ledger及outbox成功ACK、完整库存SQL/原Cmd-Q自然0；29组AX/实际像素由Root查看。被会话中断的2001-15保留NOT_ACCEPTED。
+- [x] 36组×10warm/36预热排除/18配对成本封存；0/100及2,000无筛选更慢，关闭含诊断IO、RSS有界采样、阶段时钟/重叠与未独立拆分限制明确，不宣称通用加速。
+- [x] 最终独立1,761输入before=after、两ordinary完整immutable SQL通过；两轮正式独审未发现本期新容量P1/P2，继承CI/依赖安全阻塞另列，审查自身普通投影误报同轮补正且原件保留。实现与报告分开提交，Git/remote/next HEAD由提交后外置身份收据核验。
+- [x] v1.2执行包已只读校验并阅读：97文件安全复制外置、96内部校验和匹配；新会话模型、三high子代理、MBRS-000准入与五项剩余事项及新增R15-C06强制基线阻塞交接范围已明确，尚未在本会话开始MBRS实现。
+
+详见[RUST-015报告](../reports/RUST-015_CAPACITY_COST_VALIDATION.md)与[机器证据](../reports/RUST-015_EVIDENCE.json)。此快照在push前生成，实际push收据另存，不能据此声称真实服务、安装发布或Owner接受。
+
+#### RUST-015保留的阶段记录
+
+以下是各阶段当时的完成/失败记录；其中当时的“待Gate”等措辞不是当前状态，当前结论以上述最终报告为准。所有失败原件保留。
+
+- [x] 主代理：核014最终双提交/报告/外置FINAL_IDENTITY/remote与完整验证，从最终HEAD建015分支；15保护树/7WIP保持，外置卷已核。
+- [x] 主代理：冻结固定普通v2-2000/4MiB、超限完整Node回退、精确帧与同clock成本合同；旧v3仅对照，默认OFF/原作者不变。
+- [x] 主代理：锁定依赖退出0、Electron43.4.0/275条与已签native精确复用，contracts初始构建由主代理串行完成；各角色文件范围已核，编译默认false待最终签包核。
+- [x] A（Core）与主代理接管修复：10文件新冻结；306匹配回归、53已签native加16受控行为与Core类型均0。精确frame有效RED→预编码修复→GREEN，六规模/过界/恢复/迟到/首失败不重投/关闭屏障通过；实际signed raw-wire预算负例分记，不冒称canonical可达。
+- [x] B（界面/Main）：原非阻塞pipe/Buffer、status commit/tick/paint及动态UI排空保持；Source10仅两文件将routerDispatch成本限定原六个可观测命令，其他七阶段保持。有效RED→GREEN，最终42专项/tsc/vue/diff均0，全13文件已冻结；新App证据待主Gate。
+- [x] C（准入）：Source10仅两文件在一次推导内复用完整核验后的Renderer读取视图，公开入口每次仍从原始事件核验且不跨调用缓存；最终74专项/tsc/vue/diff均0，10文件已冻结。完整实际及新增全图重封串改拒绝待主Gate。
+- [x] 主代理：Source10完整1,170程序输入冻结，较Source09仅B2/C2四文件变化；A10和Root三文件字节保持，15保护树/7WIP、合同与所有原失败绑定。
+- [x] 主代理：Source15七份实际签包、十三轮/十二SQL、完整consumer/类型与270行为通过；六规模/默认OFF零能力/完整Node回退/原策略单写/冷启意图和普通CUA完成。
+- [x] 主代理：普通CUA准备层补11必需步骤/来源/结果/有序文件准入；空清单旧验证片段有效RED→九项形状专项GREEN，已预审；真实普通窗口与闭库SQL仍未运行。
+- [x] 主代理：前六轮失败现场保留；06原五轮Main自然0，0/100fresh各132warm动作已实际执行，但100cold Core诊断seq31..43缺失，不能计完整native链或Gate PASS。Root逐轮guard正确阻断后续四规模；关闭检查有效RED→原17专项GREEN；新增actor/pid连续seq与本clock负例有效RED→21专项GREEN。
+- [x] 主代理：第七轮七签包/十实际运行现场保留；5,000项唯一后台Node查询被空打印领取误撤权，三actor完整/自然关闭。两文件最小修复，新增16行为：初15有效RED13通过2失败，最终匹配306通过、签名组53实际加16受控通过且零跳过；未尝试Rust仍无额外probe，其他写入、异常、版本变、OFF/close仍撤权。
+- [x] 主代理：第八輪七签包/十一实际运行原件保留；5,000cold驱动过早quit遇正常Node关闭围栏。Root排空声明必须从原UIinvoke/publicreply逐项重算，有效RED21通过11失败→GREEN32通过零跳过；B/C补原statuspaint与真实动态排空，不放宽业务close。
+- [x] 主代理：第九轮原件保留；全部13轮Root退出检查和12次闭库SQL已完成，首次成本推导写文件前断言失败。C一次只读诊断确认94条相邻辅助成本缺公共请求观察，1,577条原六命令成本身份一致；修复生产观察范围，未让consumer忽略缺失证据。原09无cost/完整consumer/全图串改正例。
+- [x] 主代理：第十轮原件保留；十三轮Root退出与十二SQL阶段完成，成本文件51,899,345字节和未认证总输入保存；首次完整consumer拒绝，完整实际专项与报告未执行，C唯一只读定位。
+- [x] C/主代理：Source11仅consumer初始化修复的11专项/85匹配通过；旧10全原件/新11consumer唯一预检在精确后台limit1晚回复边界拒绝，非新实际App Gate。B原producer与第四角色只读核实，14条均为needs-review原后台，最终全部drain；前景目录已paint，后台自身无Renderer paint声明。
+- [x] C/主代理：Source12仅上述两文件精确修复，局部31/31、匹配116/116零跳过，tsc/vue/diff全0；对Source10原始完整报告的唯一新consumer预检通过、原件前后哈希保持，未计作新AppGate。最终1,170程序输入冻结，A10/B13/Root3及C其他8字节保持。
+- [x] 主代理：Source12实际七签包/十三run/十二SQL与完整consumer/类型通过后，完整串改组被继承通用180秒预算中断；原整轮FAIL与5完整重封图保留。Source13仅Root Gate/声明/测试三文件，39/39与类型/syntax/diff0，专用有限40分钟证据测试预算、完整唯一TAP与真实子进程负例冻结；A/B/C及产品期限不变。
+- [x] 主代理：Source13新鲜七签包/十三run/十二SQL及完整准入/类型自然0，264/264完整行为零skip；标准软件仅旧VM上下文缺binding失败，保留原件。Source14只补该测试一行，2/2通过，三作者33与Root Gate3/所有产品字节保持，新冻结已完成。
+- [x] 主代理：100-15/2001-16全新默认包普通CUA各11步、normal数量0→2、revision2/唯一ledger与原outboxACK/全库存闭库SQL通过；两窗口Cmd-Q自然0。2001-15会话中断原件保留不接受；其它native策略选择NOT_VERIFIED另任务。
+- [x] 主代理：Source14完整软件六步均0，4,045通过/原2条件skip，输入前后同1,170哈希；局部Root旧VM2、Gate39、普通准入准备11与作者专项均保存。必要实际native及完整链路最终结果随新鲜Gate单列。
+- [x] B成本：36组×10warm/36预热排除/18配对封存；0/100全部Main及2000无筛选更慢，firstON/refresh与含诊断IO关闭、100ms采样RSS及未独立拆分限制保持。
+- [x] 独立最终核验：1,761输入before=after，1,170程序/33作者/4合同匹配；100/2001完整immutable SQL独立核验通过，未重跑App/测试/构建。
+- [x] 外部审计：Owner已授权适时push；014最终HEAD `906a3841`已推[对应远端分支](https://github.com/Matt12377/music-bridge-for-roon/tree/codex/rust-core-014-user-optional-readonly-controls)，远端SHA再次核对相符。015未完成源不推，历史报告当时状态保留。
+
 
 ### RUST-014（本地已验证，普通设置与刷新）
 
@@ -238,12 +268,12 @@
 
 报告：[RUST-001_READONLY_SIDECAR.md](../reports/RUST-001_READONLY_SIDECAR.md)。
 
-当前范围：[RUST-013-packaged-renderer-validation.md](../tasks/RUST-013-packaged-renderer-validation.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-013-okq8m8xs`。本期base为012最终报告HEAD `822594bcccff302c011121ce0a813ee74d5756cc`。
+历史 RUST-013 范围：[任务](../tasks/RUST-013-packaged-renderer-validation.md)，证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-013-okq8m8xs`，当时base为012最终报告HEAD `822594bcccff302c011121ce0a813ee74d5756cc`。当前范围为 [RUST-015](../tasks/RUST-015-capacity-cost-validation.md)。
 
 ## 保留的验收边界
 
 - 默认 Node 控制面和数据库唯一写入所有者保持不变。
-- 真实 Provider/Roon、录音、Owner 验收、安装替换、远端 CI、push 和发布均未执行，不由本地测试代替。
+- 本期真实 Provider/Roon、录音、Owner 验收、安装替换、远端 CI 和发布均未执行，不由本地测试代替；RUST-014 审计分支已推送，RUST-015 待最终验证与报告后推送。
 - 后续阶段依据本期真实结果继续规划；完成本期后以最终报告提交作为下一分支基线。
 
 上一任务009最终本地验证：Rust V4 30步（43 Rust / 479 JS）、六步软件（3,926通过／原2条件skip）、实际隐藏渲染Electron四场景及完整验收、默认Node两模式启动均退出0。009两轮独审完成、独立实现/报告保存；这些历史结果不代替010的新可见会话验证，Owner人工验收仍NOT_RUN。
