@@ -4854,7 +4854,7 @@
   },
   "rustCorePackagedRenderer20261003": {
     "task": "RUST-013",
-    "state": "validated-awaiting-final-review-and-delivery",
+    "state": "local-complete-validated-reviewed-unpushed",
     "baseCommit": "822594bcccff302c011121ce0a813ee74d5756cc",
     "branch": "codex/rust-core-013-packaged-renderer-validation",
     "scope": "tasks/RUST-013-packaged-renderer-validation.md",
@@ -4887,7 +4887,7 @@
       "pin-rejected"
     ],
     "fixtureModels": 26,
-    "implementationCommit": null,
+    "implementationCommit": "dec447f49905be112969586dc08cd1be0812a5e5",
     "reportCommit": null,
     "push": "NOT_RUN",
     "installation": "NOT_RUN",
@@ -4903,7 +4903,12 @@
       "fail": 0,
       "manifestSha256": "56d63ae40a04ee54b20f8f6e3ebf2d150cb6f67c26c70f49466b17c7a9ff3f87"
     },
-    "independentReview": "round2-open-final-inputs-pending;round1-two-P2-closed-on-freeze02",
+    "independentReview": {
+      "state": "FINAL_REVIEW_PASS",
+      "rounds": 2,
+      "unresolvedP1P2": 0,
+      "round2Sha256": "d646254266d2a9b63369009bb19458910a2b2f8687f31002d73a153623df2e39"
+    },
     "authorFocused": {
       "A": "18-new/31-original/owned-type-exit0;candidate-Core-close-tail-repaired",
       "B": "16-new/dedicated-type-exit0;config-declaration/full-desktop-E2E-type/build-rejection-exit0",
@@ -4991,6 +4996,12 @@
       "fail": 0,
       "skip": 0,
       "artifact": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-013-okq8m8xs/native-regression-02/manifest.json"
-    }
+    },
+    "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-013_PACKAGED_RENDERER_VALIDATION.md",
+    "report": "reports/RUST-013_PACKAGED_RENDERER_VALIDATION.md",
+    "evidence": "reports/RUST-013_EVIDENCE.json",
+    "nextTask": "RUST-014-user-optional-readonly-controls",
+    "nextBranchBaseline": "final-report-head",
+    "finalIdentityPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-013-okq8m8xs/FINAL_IDENTITY.json"
   }
 }
