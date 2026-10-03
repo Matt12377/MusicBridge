@@ -54,11 +54,13 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "a83c39b552ba949c16a3bfe717e4e7183d617334",
       "report_commit": null,
       "validation_status": "PASS_STRUCTURE_BASELINE_ONLY",
       "evidence_refs": [
-        "docs/postrust/MBRS-000/BASELINE.md"
+        "docs/postrust/MBRS-000/BASELINE.md",
+        "reports/MBRS-000_BASELINE_ADMISSION.md",
+        "reports/MBRS-000_EVIDENCE.json"
       ],
       "completion_scope": "BASELINE_DELIVERED_G0_NOT_ADMITTED",
       "implementation_commit_resolution": "git log -1 --format=%H -- scripts/ci/verify-postrust-baseline.mjs",

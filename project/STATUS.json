@@ -5863,7 +5863,7 @@
     "branch": "codex/mbrs-000-baseline-admission",
     "baseCommit": "044e6b24edf81b64030d4c96741082670532971c",
     "inheritedRustImplementationCommit": "8c58fdee4309a781dbf6640d8aeba46bb8fe1bd3",
-    "implementationCommit": null,
+    "implementationCommit": "a83c39b552ba949c16a3bfe717e4e7183d617334",
     "reportCommit": null,
     "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-000_BASELINE_ADMISSION.md",
     "todo": "project/POSTRUST_TODO.md",
@@ -5906,7 +5906,7 @@
     "mainMerge": "NOT_RUN",
     "release": "NOT_RUN",
     "ownerAcceptance": "NOT_RUN",
-    "push": "NOT_RUN_AT_IMPLEMENTATION_DRAFT",
+    "push": "NOT_RUN_AT_REPORT_SNAPSHOT",
     "validation": {
       "structureBehavior": {
         "exitCode": 0,
@@ -5926,7 +5926,7 @@
       "scope": "frozen-20-files",
       "round": 1,
       "confirmedP1P2": 0,
-      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/review-mbrs000-round1.json"
+      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/review-mbrs000-round1-final.json"
     },
     "implementationCommitResolution": "git log -1 --format=%H -- scripts/ci/verify-postrust-baseline.mjs"
   }

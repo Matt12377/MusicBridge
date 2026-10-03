@@ -1,0 +1,143 @@
+{
+  "task": "MBRS-000",
+  "state": "PASS_BASELINE_RECORDS_G0_NOT_ADMITTED",
+  "baseCommit": "044e6b24edf81b64030d4c96741082670532971c",
+  "implementationCommit": "a83c39b552ba949c16a3bfe717e4e7183d617334",
+  "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-000_BASELINE_ADMISSION.md",
+  "scope": "仅基线/所有权/复用/有限规则/任务与验收结构；无新产品运行结论",
+  "g0Decision": "NOT_ADMITTED",
+  "admissionMode": "EXPLICIT_PHASE_HANDOFF",
+  "fullRustMigrationCompleted": false,
+  "identity": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/HANDOFF_INPUT_IDENTITY.json",
+    "bytes": 4109,
+    "sha256": "9255934a63830582a89cc3ebb89dcadda4954ea03e70239066734e140e949b58"
+  },
+  "models": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/MODEL_AND_ROLES.json",
+    "bytes": 1734,
+    "sha256": "4825ae9a95ea241ee08f6ee827cad84e5d1ec092d29aa616c6c9161e216ae1e4"
+  },
+  "protectedBefore": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/PROTECTED_WORKTREES_BEFORE.json",
+    "bytes": 30743,
+    "sha256": "f34dca736de0e1dfc422b2b71d04656efd3476af144b1eb1e816741123235505"
+  },
+  "protectedFinal": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/PROTECTED_WORKTREES_MBR000_FINAL.json",
+    "bytes": 15649,
+    "sha256": "c25c5aeefa8e7ba7667eb2ac7d01f8b8cd493e6ce019eb79b2ed39993246b6c8"
+  },
+  "writerFreeze": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/PRODUCT_WRITER_FREEZE_01.json",
+    "bytes": 3850,
+    "sha256": "c4ebd3598b396b0bf0efe4105ee1b2e921784a255fd31858861073c6a9649b8e"
+  },
+  "rootIntegrationFreeze": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ROOT_MBR000_INTEGRATION_FREEZE_01.json",
+    "bytes": 4325,
+    "sha256": "8cb351b805a0391e27e2da5dfd13ff56fad1503ac8ba1077246efb75afc686f9"
+  },
+  "review": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/review-mbrs000-round1-final.json",
+    "bytes": 11794,
+    "sha256": "11b6c7c68cce69cde697eacb35b952d61cdca31fb34bc3172128ba4cc597c5fc"
+  },
+  "latestBaselineCI": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-audit/CI_CAPTURE_MANIFEST.json",
+    "bytes": 10360,
+    "sha256": "16b1361def8423287746c325517ff3dc0bf18eb7da44ff182c00d51eb3cad935"
+  },
+  "gateResults": [
+    {
+      "name": "mbrs000-final-structure-02",
+      "exitCode": 0,
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs000-final-structure-02/result.json",
+        "bytes": 704,
+        "sha256": "95b78579f4707ce604107c890e08cbce9b79f23ef708bababb2486bff9fa8b3f"
+      },
+      "log": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs000-final-structure-02/output.log",
+        "bytes": 283,
+        "sha256": "f59291a8131177249a583e6253758aa2ecd72798a2ce208a49135fe2d36e5543"
+      }
+    },
+    {
+      "name": "mbrs000-final-behavior-02",
+      "exitCode": 0,
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs000-final-behavior-02/result.json",
+        "bytes": 722,
+        "sha256": "e859bdb2a78f80dc5ee8c4336c87e7781c262fb0616a2d8df008d2a2dc00556d"
+      },
+      "log": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs000-final-behavior-02/output.log",
+        "bytes": 962,
+        "sha256": "9cba5533fc669aa11af51e164f6b1fde279e41e92c6fb5cb0845b88d15ac4e38"
+      }
+    },
+    {
+      "name": "mbrs000-control-plane-01",
+      "exitCode": 0,
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs000-control-plane-01/result.json",
+        "bytes": 696,
+        "sha256": "d1ed6e821e6da0565c9c01a43a90ac5a66b2fd4da2bae4e4c9b7702e103e548e"
+      },
+      "log": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs000-control-plane-01/output.log",
+        "bytes": 19,
+        "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+      }
+    },
+    {
+      "name": "mbrs000-boundaries-01",
+      "exitCode": 0,
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs000-boundaries-01/result.json",
+        "bytes": 687,
+        "sha256": "ee3920618108163fa79212617a89f7e4d9d4b98d9e89f543176592ff32d2f3e9"
+      },
+      "log": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs000-boundaries-01/output.log",
+        "bytes": 16,
+        "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+      }
+    }
+  ],
+  "testCounts": {
+    "passed": 13,
+    "failed": 0,
+    "skipped": 0,
+    "cancelled": 0,
+    "scope": "结构行为最终单轮，不累加前一轮"
+  },
+  "records": {
+    "reuse": 12,
+    "sourceOpenRustCheckboxes": 14,
+    "mbrsTasks": 18,
+    "acceptanceCases": 156,
+    "baselinePassCases": 8,
+    "partialCases": [
+      "MBRS-AT-000-02",
+      "MBRS-AT-000-03"
+    ]
+  },
+  "nextTask": "RUST-016-ci-security-portability",
+  "carryover": [
+    "R15-C01/C06测试可移植性、宿主输出及依赖安全前置仍OPEN",
+    "R15-C02原控件其它保护策略NOT_VERIFIED",
+    "R15-C03/C05七Rust方向及成本热点PLANNED_NOT_STARTED",
+    "R15-C04完整媒体、平台签名/公证/安装/真实服务",
+    "旧Gate B/P4/P5、GE、Owner最终使用反馈独立保留"
+  ],
+  "realServices": "NOT_RUN",
+  "sourceFileWrites": "NOT_RUN",
+  "newAppRuns": "NOT_RUN",
+  "installation": "NOT_RUN",
+  "mainMerge": "NOT_RUN",
+  "release": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "push": "NOT_RUN_AT_REPORT_SNAPSHOT"
+}
