@@ -3200,14 +3200,7 @@
       "pushed": false
     }
   },
-  "currentRustCoreTask": {
-    "task": "RUST-010",
-    "state": "local-complete-development-validated-synthetic-controls-owner-accepted",
-    "scope": "tasks/RUST-010-synthetic-owner-session.md",
-    "branch": "codex/rust-core-010-synthetic-owner-session",
-    "ownerFollowupReport": "reports/RUST-010_OWNER_ACCEPTANCE_2026-10-03.md",
-    "ownerIntermediateTestActionsRequired": false
-  },
+  "currentRustCoreTask": "RUST-011",
   "rustCoreAtomicSnapshot20261002": {
     "task": "RUST-002",
     "branch": "codex/rust-core-002-atomic-snapshot",
@@ -4710,6 +4703,59 @@
       ],
       "runtimeOwnerAcceptance": "NOT_RUN",
       "priorIncompleteSessions": "PRESERVED_NOT_ACCEPTED"
+    }
+  },
+  "rustCoreNativeCandidate20261003": {
+    "task": "RUST-011",
+    "state": "validated-awaiting-report-final-review",
+    "baseCommit": "ed40e39c39db908200e946c0c13dcfc1ddc0a206",
+    "branch": "codex/rust-core-011-native-candidate-package",
+    "scope": "tasks/RUST-011-native-candidate-package.md",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-011-3samm9m1",
+    "productionDefault": "Node",
+    "soleProductionDatabaseWriter": "Node",
+    "packagedRustMainCoreRoute": "NOT_IN_SCOPE",
+    "ownerIntermediateTestActionsRequired": false,
+    "agentPolicy": {
+      "subagentModel": "gpt-6.1-sol",
+      "subagentReasoningEffort": "high",
+      "roles": 4,
+      "furtherDelegation": false
+    },
+    "implementationCommit": null,
+    "reportCommit": null,
+    "push": "NOT_RUN",
+    "installation": "NOT_RUN",
+    "realServices": "NOT_RUN",
+    "sourceSha256": "d06fd33f0beebf7debec3a7e87dd9e11d846dc669ef3a097a520a92c048c8163",
+    "candidateGate": "PASS",
+    "candidateReport": "candidate-final-03/candidate-report.json",
+    "candidateReportSha256": "69399e586effca0d6429873abae5bc88140a9e4f40f773a0caa99e123227fd34",
+    "candidateBehavior": {
+      "tests": 163,
+      "pass": 163,
+      "fail": 0,
+      "skipped": 0
+    },
+    "ownerAcceptance": "NOT_RUN",
+    "softwareGate": "PASS",
+    "softwareCounts": {
+      "tests": 3928,
+      "pass": 3926,
+      "fail": 0,
+      "skipped": 2,
+      "skipClassification": "two-original-native-conditional"
+    },
+    "nativeRegression": {
+      "pass": 26,
+      "fail": 0,
+      "skipped": 0
+    },
+    "independentReview": {
+      "round1": "PASS_IN_SCOPE",
+      "unresolvedP1": 0,
+      "unresolvedP2": 0,
+      "round2": "PENDING"
     }
   }
 }

@@ -1,11 +1,18 @@
 # Rust Core 开发进度
 
-更新：2026-10-03。当前任务 **RUST-010：可见合成人工验收入口 — 本地完成，Owner 已确认合成窗口控件可用**。开发期间的测试由代理承担，保护设置保存、Node 回退及刷新恢复已由代理在全新隔离合成会话中复验通过。分支 `codex/rust-core-010-synthetic-owner-session`，工作树 `worktree/rust-core-010`。
+更新：2026-10-03。当前任务 **RUST-011：macOS arm64 离线候选包原生资源准入 — 开发中**。分支 `codex/rust-core-011-native-candidate-package`，工作树 `worktree/rust-core-011`。开发期间全部测试由代理完成，Owner只负责最终成品使用反馈。
 
-正式编号 **10 个 task：10 个本地交付完成**；Owner 合成控件验收已记录，最终成品使用反馈单独保留。另有 8 条后续方向尚未拆为固定 task，整体升级任务总数尚未冻结。
+正式编号 **11 个 task：10 个本地交付完成，1 个开发中**。8条后续方向中的“架构/资源/签名准入”已部分拆为011；跨架构、生产签名和默认启用仍待后续，整体迁移任务数未冻结。
 
 ## 待办事项
 
+- [x] 主代理：核对010最终HEAD、依赖精确完成轮次、审计输入、外置卷与原WIP；建立011独立分支并冻结合同和文件范围。
+- [x] 作者 A：资源API冻结；新011二进制实际签名夹具48/48通过、零skip，专用类型通过，完整候选Gate待集成。
+- [x] 作者 B：可信固定Resources bootstrap与独立pin冻结；新011二进制行为22/22、零skip，专用类型通过，默认入口未调用。
+- [x] 作者 C：实际 Node两库→最终Resources Rust协议，56完整DTO对照/59请求与ACK、主库与WAL只读身份、写拒绝和自然退出；严格证据84项全部通过。
+- [x] 主代理：fresh03候选包Gate通过；专项类型及163/163行为零skip，实际ASAR/Fuses/最终native与bundle签名、原默认Node ready和Core/Electron自然退出0。
+- [x] 主代理：1069输入保持；完整软件六步全0，3926通过/原2条件skip；签后资源26/26零skip，29份dist与候选包内容一致。
+- [ ] 第四角色：两轮独立审查、实现/报告提交与最终Git/产物/原WIP身份。
 - [ ] 最终成品交付后的 Owner 使用反馈；不要求 Owner 运行中间测试或判断内部路由状态。
 
 ## 已完成事项
@@ -186,7 +193,7 @@
 
 报告：[RUST-001_READONLY_SIDECAR.md](../reports/RUST-001_READONLY_SIDECAR.md)。
 
-当前范围：[RUST-010-synthetic-owner-session.md](../tasks/RUST-010-synthetic-owner-session.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6`。本期 base 为 RUST-009 最终报告 `5fc369a46b37fec4ad50ebb909aa1f2c4bc09d09`。
+当前范围：[RUST-011-native-candidate-package.md](../tasks/RUST-011-native-candidate-package.md)。证据目录：`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-011-3samm9m1`。本期 base 为010最终HEAD `ed40e39c39db908200e946c0c13dcfc1ddc0a206`。
 
 ## 保留的验收边界
 

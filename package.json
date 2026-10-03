@@ -22,6 +22,7 @@
     "doctor": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run doctor",
     "play": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run play",
     "stop": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run stop",
-    "state": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run state"
+    "state": "corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run state",
+    "verify:rust:candidate": "node scripts/ci/verify-rust-offline-candidate.mjs"
   }
 }

@@ -1,0 +1,23 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ]
+  },
+  "include": [
+    "../scripts/rust-native-package.mjs",
+    "../scripts/rust-native-package.d.mts",
+    "../src/main/rust-core-resource.ts",
+    "../test/helpers/rust-offline-candidate-evidence.ts",
+    "../test/helpers/rust-offline-candidate-protocol.ts",
+    "../test/rust-core/rust-native-package.test.ts",
+    "../test/rust-core/rust-core-resource.test.ts",
+    "../test/rust-core/rust-offline-candidate-*.test.ts",
+    "../src/renderer/src/env.d.ts"
+  ]
+}

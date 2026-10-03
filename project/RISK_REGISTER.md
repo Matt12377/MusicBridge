@@ -38,3 +38,9 @@ WAVE-2 历史风险保留在 `docs/07_RISK_REGISTER.md`。本文件只登记 V1 
 | R-031 | Core 提前 ready、丢失来源私有能力或漏关已启动/迟到 Rust 候选 | RUST-006 可选组合已通过 19 步 Rust 与 6 步软件 Gate、两轮独审；可信显式参数、owned Node / borrowed router、整体期限与提前关闭回归，默认六参数保持 | 实际 Core worker / Node owner / Rust 的多规模差分、失败收口和自然退出，固定源码自动 Gate；Electron、打包签名和生产默认准入另验 |
 
 | R-032 | 纯读取撤销 Rust 导致接入失效，或主机能力扩大到公开 IPC/数据库生命周期 | RUST-007 精确六命令纯读审计、原代次围栏；第八可信同步 callback 只交付冻结 refresh/invalidate/getStatus，Core 继续拥有关闭；22 步 Rust 与 6 步软件 Gate 通过 | 合成两库实际 Core/Node/Rust 初始化、混合读、写后显式刷新及关闭竞态；完整 Main/outbox 后台初始化与 Electron/生产启用仍待验证 |
+
+## RUST-011 离线候选包资源
+
+- 只证明macOS arm64资源身份、实际最终包签名、最终资源协议及原默认Node启动；完整包内可选Rust路由未纳入本期。
+- 本地ad-hoc签名不是Developer ID、公证、正式安装或发布，x64/universal及生产默认启用保持后续。
+- Fuse会重新深签bundle；最终native SHA/CDHash/manifest pin需在所有签名后复核，保留源缓存，准入失败不能重新信任邻接清单。
