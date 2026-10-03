@@ -13,7 +13,7 @@ if (!path.isAbsolute(output) || !path.isAbsolute(binary) || !/^[a-f0-9]{64}$/.te
 if (process.platform === 'darwin' && !realpathSync(path.dirname(output)).startsWith('/Volumes/LifeWeave/Developer/CommandLine/')) throw new Error('隔离编译输出必须在外置工作根。')
 const entry = (name: string) => path.join(desktop, name)
 // 编译时固化 pin；运行中的 Main/Core 不解析这些环境变量。
-const define = { __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: 'false', __MUSIC_BRIDGE_FFMPEG_MANIFEST_SHA256__: 'null',
+const define = { __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: 'false', __MUSIC_BRIDGE_FFMPEG_MANIFEST_SHA256__: 'null',
   __MUSIC_BRIDGE_OUTPUT_MANIFEST_SHA256__: 'null', __MUSIC_BRIDGE_OUTPUT_DEVICE_MANIFEST_SHA256__: 'null', __MUSIC_BRIDGE_OUTPUT_DEVICE_CANDIDATE__: 'null',
   __RUST_COLLECTION_HOST_BINARY__: JSON.stringify(binary), __RUST_COLLECTION_HOST_SHA256__: JSON.stringify(sha256) }
 export default defineConfig({

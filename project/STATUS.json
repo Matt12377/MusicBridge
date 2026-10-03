@@ -4851,5 +4851,146 @@
     "report": "reports/RUST-012_PACKAGED_READONLY_ROUTE.md",
     "evidence": "reports/RUST-012_EVIDENCE.json",
     "finalIdentityPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/FINAL_IDENTITY.json"
+  },
+  "rustCorePackagedRenderer20261003": {
+    "task": "RUST-013",
+    "state": "validated-awaiting-final-review-and-delivery",
+    "baseCommit": "822594bcccff302c011121ce0a813ee74d5756cc",
+    "branch": "codex/rust-core-013-packaged-renderer-validation",
+    "scope": "tasks/RUST-013-packaged-renderer-validation.md",
+    "contract": "docs/contracts/RUST-013_PACKAGED_RENDERER_VALIDATION_V1.md",
+    "adr": "docs/adr/ADR-050-packaged-renderer-controls-and-durable-outbox.md",
+    "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-013-okq8m8xs",
+    "productionDefault": "Node",
+    "soleProductionDatabaseWriter": "Node",
+    "mainOutboxWriter": "Main",
+    "ownerIntermediateTestActionsRequired": false,
+    "ownerAcceptance": "NOT_RUN",
+    "agentPolicy": {
+      "subagentModel": "gpt-6.1-sol",
+      "subagentReasoningEffort": "high",
+      "roles": 4,
+      "furtherDelegation": false
+    },
+    "packages": [
+      "default-node",
+      "node-renderer",
+      "rust-renderer",
+      "pin-rejected"
+    ],
+    "runs": [
+      "default-node",
+      "node-fresh",
+      "node-cold",
+      "rust-fresh",
+      "rust-cold",
+      "pin-rejected"
+    ],
+    "fixtureModels": 26,
+    "implementationCommit": null,
+    "reportCommit": null,
+    "push": "NOT_RUN",
+    "installation": "NOT_RUN",
+    "realServices": "NOT_RUN",
+    "candidateGate": "PASS-final-attempt-03-131/131-zero-skip",
+    "softwareGate": {
+      "state": "PASS",
+      "attempt": 2,
+      "checks": 6,
+      "pass": 3983,
+      "totalTests": 3985,
+      "conditionalSkip": 2,
+      "fail": 0,
+      "manifestSha256": "56d63ae40a04ee54b20f8f6e3ebf2d150cb6f67c26c70f49466b17c7a9ff3f87"
+    },
+    "independentReview": "round2-open-final-inputs-pending;round1-two-P2-closed-on-freeze02",
+    "authorFocused": {
+      "A": "18-new/31-original/owned-type-exit0;candidate-Core-close-tail-repaired",
+      "B": "16-new/dedicated-type-exit0;config-declaration/full-desktop-E2E-type/build-rejection-exit0",
+      "C": "actual-graph-controls/all-26-persisted-count-and-length/37-cost/strict-runtime-and-SQL-layer-rejections-verified"
+    },
+    "nativeUnit": {
+      "state": "PASS",
+      "pass": 43,
+      "fail": 0
+    },
+    "nativeRelease": "exit0",
+    "originalStartupFixture": "13/13-exit0",
+    "candidateAttempts": [
+      {
+        "attempt": 1,
+        "stage": "candidate-01",
+        "gateExitCode": 1,
+        "mainRuntime": "six-completed",
+        "closedSyntheticSqlite": "four-immutable-references-validated",
+        "costAnalysis": "public-vs-native-request-ID-correlation-rejected",
+        "analysis": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-013-okq8m8xs/FAILURE_ANALYSIS_013_01.json",
+        "analysisSha256": "b027b8ab6cf668c4664796b969e2e19eeacb3c182ea9a6bf4ca716b749b156a7"
+      },
+      {
+        "attempt": 2,
+        "stage": "candidate-02",
+        "gateExitCode": 0,
+        "sourceSha256": "7851cbcc57dc2ba575b539ce4f286db0392df89460564c867b2e72dfdaaf7d5e",
+        "behavior": {
+          "tests": 131,
+          "pass": 131,
+          "fail": 0,
+          "skip": 0
+        },
+        "reportSha256": "2f4055feb7d7086d629ce30da18c10fca523805569c0db89199268a22967cbcf",
+        "gateManifestSha256": "a9f01f753196c5943884d51e34bac1373a9a58a7c2a350b2e5e94dc85125f336",
+        "classification": "signed-packaged-controls-synthetic-data;requires-new-Gate-after-declaration-change"
+      },
+      {
+        "attempt": 3,
+        "stage": "candidate-03",
+        "gateExitCode": 0,
+        "sourceSha256": "07431725dda913651e7e808136d65dac9d97f1be5228790440175074c3164d68",
+        "behavior": {
+          "tests": 131,
+          "pass": 131,
+          "fail": 0,
+          "skip": 0
+        },
+        "reportSha256": "5e234d386da3cdaf7ff6f34287bf3efa0f69d06a33f8dfb07fd4a5250c252f35",
+        "gateManifestSha256": "3b5b6fd244168dfa9fb25481f3199e95327509b665eb04c739adb3025c6cd1cb",
+        "classification": "final-fresh-signed-packaged-controls-synthetic-data"
+      }
+    ],
+    "verificationRepairs": [
+      "request-id-and-owner-scope-binding",
+      "mutated-artifact-graph-and-unchanged-repack-controls",
+      "all-persisted-model-count-and-length-reconstruction",
+      "candidate-Core-observer-sync-write-prevents-observation-tail-loss-with-original-close-ACK-preserved",
+      "full-project-strict-MJS-module-declaration-preserving-runtime-rejections"
+    ],
+    "softwareAttempts": [
+      {
+        "attempt": 1,
+        "exitCode": 2,
+        "step": "typecheck",
+        "reason": "TS7016: rust-packaged-renderer.vite.config.mjs module declaration missing in full-project strict typecheck",
+        "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-013-okq8m8xs/software-final-01-typecheck.json",
+        "logSha256": "f0d416377f8b25583bb17f570e23879a66a8cb27ba2cfa05ac7ce0a9ddaee1aa",
+        "remainingSteps": "NOT_RUN"
+      },
+      {
+        "attempt": 2,
+        "state": "PASS",
+        "checks": 6,
+        "sourceSha256": "07431725dda913651e7e808136d65dac9d97f1be5228790440175074c3164d68",
+        "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-013-okq8m8xs/software-final-02-manifest.json"
+      }
+    ],
+    "sourceFreeze": "SOURCE_FREEZE_013_03.json",
+    "sourceSha256": "07431725dda913651e7e808136d65dac9d97f1be5228790440175074c3164d68",
+    "signedNativeRegression": {
+      "state": "PASS",
+      "pass": 26,
+      "fail": 0,
+      "skip": 0,
+      "artifact": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-013-okq8m8xs/native-regression-02/manifest.json"
+    }
   }
 }

@@ -42,5 +42,11 @@ WAVE-2 历史风险保留在 `docs/07_RISK_REGISTER.md`。本文件只登记 V1 
 ## RUST-011 离线候选包资源
 
 - 只证明macOS arm64资源身份、实际最终包签名、最终资源协议及原默认Node启动；完整包内可选Rust路由未纳入本期。
+
+## RUST-013 原控件与持久账本证据
+
+- 首轮实际六次运行发现公共请求ID与Rust传输ID的验收关联错误，以及自然退出时Core观察stdout丢尾；原Main关闭ACK实际存在。保留原失败，只按真实事件与完整依赖重新准入，不从退出码补造ACK。
+- SQLite参照必须从不可变副本重新读行并重建全部型号的数量与时长；日志/收据/SQL/成本重封装须先有无修改通过对照，再证明具体串改被拒绝。
+- 26型号Main往返包含候选观察与同步日志开销，固定DOM输入为isTrusted=false，Renderer完整DTO未独立观察。正式用户刷新/可选启用、规模收益、真实账号/设备及安装发布分别保留证据边界。
 - 本地ad-hoc签名不是Developer ID、公证、正式安装或发布，x64/universal及生产默认启用保持后续。
 - Fuse会重新深签bundle；最终native SHA/CDHash/manifest pin需在所有签名后复核，保留源缓存，准入失败不能重新信任邻接清单。

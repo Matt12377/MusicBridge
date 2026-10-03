@@ -14,6 +14,7 @@ const outputDeviceBuild = await captureNativeOutputDevice(currentDirectory)
 export default defineConfig(({ mode }) => ({
   main: {
     define: {
+      __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: 'false',
       __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: 'false',
       __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: JSON.stringify(mode === 'development'),
       __MUSIC_BRIDGE_FFMPEG_MANIFEST_SHA256__: JSON.stringify(converterBuild.manifestSha256),

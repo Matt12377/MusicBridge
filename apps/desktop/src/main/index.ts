@@ -4,7 +4,10 @@ import { createLibraryReadTraceWriter, isLibraryReadTraceEnabled } from '../shar
 
 declare const __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: boolean
 declare const __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: boolean
+declare const __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: boolean
 import { assertPackagedRouteDiagnosticEnvironment, createPackagedRouteMainProbe } from './packaged-route-main-probe.js'
+import { assertPackagedRendererDiagnosticEnvironment, createPackagedRendererMainProbe } from './packaged-renderer-main-probe.js'
+import { observePackagedRendererIpc } from './packaged-renderer-ipc-observer.js'
 import { isVolumeRequest } from '@music-bridge/contracts'
 import { normalizeRoonDisplayUrl } from '@music-bridge/contracts'
 import { RoonDisplayConnection } from './roon-display-connection.js'
@@ -175,9 +178,22 @@ const isStartupTest = startupTestConfiguration.isStartupTest
 const isUiE2e = process.env.MUSIC_BRIDGE_UI_E2E === '1'
 const isOfflineUiE2e = isUiE2e && process.env.MUSIC_BRIDGE_UI_E2E_OFFLINE === '1'
 if (__MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__) assertPackagedRouteDiagnosticEnvironment(process.env)
+if (__MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__) {
+  if (__MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__) throw new Error('候选诊断编译模式冲突。')
+  assertPackagedRendererDiagnosticEnvironment(process.env)
+}
 const syntheticUserDataDirectory = initializeStartupTestPaths(startupTestConfiguration, isUiE2e, app)
 const packagedRouteProbe = __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__ ? createPackagedRouteMainProbe() : undefined
-const lifecycleProbe = createLifecycleProbe({ enabled: isUiE2e, sink: line => console.log(line.trimEnd()) })
+const packagedRendererProbe = __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__ ? createPackagedRendererMainProbe() : undefined
+const lifecycleProbe = createLifecycleProbe({ enabled: isUiE2e, sink: line => {
+  console.log(line.trimEnd())
+  if (packagedRendererProbe) {
+    try {
+      const value = JSON.parse(line.slice('TASK078_LIFECYCLE '.length)) as { phase: string; exitCode?: number }
+      packagedRendererProbe.observeMainEvent('main.lifecycle', { event: value.phase, ...(value.exitCode === undefined ? {} : { code: value.exitCode }) })
+    } catch { /* 原合成生命周期日志保留，旁路失败不改变退出。 */ }
+  }
+} })
 const isCoreCrashGate = startupTestConfiguration.coreCrashGate
 const isCredentialVaultGate = startupTestConfiguration.credentialVaultGate
 const isCoreRestartCredentialRecoveryGate =
@@ -229,7 +245,16 @@ let quitAfterCoreShutdown = false
 const mainDiagnostics = new MainDiagnosticRecorder()
 const performanceIpc = createPerformanceIpcBridge(mainDiagnostics.performance)
 const registerPerformanceHandler: typeof ipcMain.handle = (channel, listener) => {
-  ipcMain.handle(channel, performanceIpc.wrap(listener, event => {
+  const observed = packagedRendererProbe ? observePackagedRendererIpc({ channel, listener,
+    trustedSender: event => {
+      try {
+        requireTrustedRenderer(event)
+        return { webContentsId: event.sender.id, rendererPid: event.sender.getOSProcessId(), frameUrl: event.senderFrame?.url ?? '', trusted: true as const }
+      } catch { return undefined }
+    },
+    observe: (event, data) => packagedRendererProbe.observeMainEvent(event, data),
+  }) : listener
+  ipcMain.handle(channel, performanceIpc.wrap(observed, event => {
     try { requireTrustedRenderer(event); return true } catch { return false }
   }))
 }
@@ -1737,7 +1762,7 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
     minWidth: 720,
     minHeight: 480,
     // E2E 默认不弹出原生窗口；后台仍渲染，保留截图和 DOM 键盘测试。
-    show: !isStartupTest && !isUiE2e,
+    show: !!packagedRendererProbe || !isStartupTest && !isUiE2e,
     backgroundColor: '#f2edf1',
     webPreferences: {
       ...buildBrowserWindowWebPreferences(),
@@ -1894,6 +1919,7 @@ function createCoreSupervisor(
       createChannel: () => {
         const channel = new MessageChannelMain()
         packagedRouteProbe?.observePublicPort(channel.port2 as unknown as CoreMessagePort)
+        packagedRendererProbe?.observePublicPort(channel.port2 as unknown as CoreMessagePort)
         return {
           port1: channel.port1 as unknown as CoreMessagePort,
           port2: channel.port2 as unknown as CoreMessagePort,
@@ -1902,15 +1928,16 @@ function createCoreSupervisor(
       fork: (entryPath, args, options) => {
         const child = utilityProcess.fork(entryPath, args, {
           cwd: options.cwd,
-          env: (packagedRouteProbe ? { ...options.env,
+          env: (packagedRouteProbe || packagedRendererProbe ? { ...options.env,
             TMPDIR: process.env.TMPDIR, DEV_BUILD_ROOT: process.env.DEV_BUILD_ROOT, DEV_CACHE_ROOT: process.env.DEV_CACHE_ROOT,
           } : options.env) as Record<string, string>,
-          stdio: packagedRouteProbe ? 'pipe' : options.stdio,
+          stdio: packagedRouteProbe || packagedRendererProbe ? 'pipe' : options.stdio,
           serviceName: options.serviceName,
         }) as unknown as CoreChildProcess
-        if (packagedRouteProbe) {
+        const diagnosticProbe = packagedRouteProbe ?? packagedRendererProbe
+        if (diagnosticProbe) {
           const diagnostic = new MessageChannelMain()
-          packagedRouteProbe.observeChild(child, entryPath, args, diagnostic as unknown as { port1: CoreMessagePort; port2: CoreMessagePort })
+          diagnosticProbe.observeChild(child, entryPath, args, diagnostic as unknown as { port1: CoreMessagePort; port2: CoreMessagePort })
         }
         return child
       },
@@ -2002,9 +2029,10 @@ async function waitForCoreRestartCredentialRecovery(
 
 async function bootstrap(): Promise<void> {
   if (packagedRouteProbe && !app.isPackaged) throw new Error('固定路由诊断必须运行实际候选应用包。')
+  if (packagedRendererProbe && !app.isPackaged) throw new Error('原控件诊断必须运行实际候选应用包。')
   lifecycleProbe.mark('bootstrap-start')
   await app.whenReady()
-  if (isUiE2e && process.platform === 'darwin') app.setActivationPolicy('accessory')
+  if (isUiE2e && process.platform === 'darwin') app.setActivationPolicy(packagedRendererProbe ? 'regular' : 'accessory')
   app.setAboutPanelOptions({ applicationName: APPLICATION_NAME })
   installApplicationMenu()
   await installRendererProtocol()
@@ -2035,7 +2063,7 @@ async function bootstrap(): Promise<void> {
     onReady: async client => {
       lifecycleProbe.mark('core-ready-received')
       await startRecordingPrintWorker(client)
-      if (!initialProvisioningComplete) { lifecycleProbe.mark('onready-complete'); return }
+      if (!initialProvisioningComplete || packagedRendererProbe) { lifecycleProbe.mark('onready-complete'); return }
       await restoreProviderCredential({
         vault: prepared.credentialVault,
         core: {
@@ -2089,7 +2117,7 @@ async function bootstrap(): Promise<void> {
   }
   if (electronColdStartStage === 'restore') {
     await restoreProviderCredential({ vault: prepared.credentialVault, core: credentialCore })
-  } else {
+  } else if (!packagedRendererProbe) {
     await provisionProviderCredential({
       vault: prepared.credentialVault,
       environment: process.env,
@@ -2127,8 +2155,14 @@ async function bootstrap(): Promise<void> {
     return
   }
   registerIpcHandlers(supervisor, prepared.credentialVault)
-  createWindow(supervisor)
+  const window = createWindow(supervisor)
   createTray(supervisor)
+  if (packagedRendererProbe) {
+    try { await packagedRendererProbe.run(window) }
+    catch { packagedRendererProbe.emit('main.probeFailed', { code: 'PROBE_FAILED' }) }
+    app.quit()
+    return
+  }
   if (isCoreCrashGate) {
     const passed = await waitForCoreCrashFailure(() => ({ status: supervisor.status, restarts: supervisor.restarts }))
     process.stdout.write(`${passed ? 'CORE_CRASH_GATE_PASS' : 'CORE_CRASH_GATE_FAIL'}\n`)
@@ -2154,6 +2188,7 @@ void bootstrap().catch(() => {
 
 app.on('before-quit', (event) => {
   packagedRouteProbe?.emit('main.beforeQuit')
+  packagedRendererProbe?.emit('main.beforeQuit')
   roonDisplayConnection?.stop()
   lifecycleProbe.mark('before-quit')
   if (quitAfterCoreShutdown) {
@@ -2186,7 +2221,7 @@ app.on('before-quit', (event) => {
   })
 })
 
-app.on('will-quit', () => { lifecycleProbe.mark('will-quit'); packagedRouteProbe?.emit('main.willQuit') })
+app.on('will-quit', () => { lifecycleProbe.mark('will-quit'); packagedRouteProbe?.emit('main.willQuit'); packagedRendererProbe?.emit('main.willQuit') })
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' && !quitAfterCoreShutdown) {
