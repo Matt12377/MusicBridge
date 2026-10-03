@@ -116,8 +116,13 @@
       "onlyLoadAppFromAsar": true,
       "grantFileProtocolExtraPrivileges": false
     },
-    "beforePack": "./scripts/native-converter-package.mjs",
+    "beforePack": "./scripts/native-rust-package.mjs",
     "extraResources": [
+      {
+        "from": "native/rust-core/darwin-arm64",
+        "to": "rust-core/darwin-arm64",
+        "filter": ["manifest.json", "bin/musicbridge-rust-core"]
+      },
       {
         "from": "native/output/darwin-arm64",
         "to": "output/darwin-arm64",

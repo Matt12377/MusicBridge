@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppearanceSettings from './AppearanceSettings.vue'
+import CollectionReadonlySettings from './CollectionReadonlySettings.vue'
 import RoonDisplaySettings from './RoonDisplaySettings.vue'
 import type { AppInfo } from '../../../../preload/api.js'
 import type { PlaybackQualityPreference, PublicAccountState, PublicAuthState, PublicRoonZone, RemoteCoreTunnelState } from '@music-bridge/contracts'
@@ -167,6 +168,7 @@ function paneId(category: SettingsCategory): string {
 
     <div v-else-if="activeCategory === 'application'" id="settings-pane-application" class="settings-pane settings-pane-application" role="tabpanel" aria-labelledby="settings-tab-application">
       <AppearanceSettings />
+      <CollectionReadonlySettings />
       <article class="settings-card settings-glass-panel">
         <div class="panel-heading"><div><p class="section-kicker">应用</p><h3>应用信息</h3></div></div>
         <dl class="detail-list"><div><dt>版本</dt><dd>{{ props.appInfo?.version ?? '读取中' }}</dd></div><div><dt>构建模式</dt><dd>{{ props.appInfo?.buildMode === 'development' ? '开发' : '生产' }}</dd></div><div><dt>平台</dt><dd>{{ props.appInfo?.platform ?? '读取中' }}</dd></div></dl>

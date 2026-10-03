@@ -9,14 +9,19 @@ export function useCollection() {
   const filter = ref<CollectionFilter>({})
   const loading = ref(false)
   const saving = ref(false)
+  const refreshing = ref(false)
   const error = ref('')
   const notice = ref('')
   const pending = shallowRef<(() => Promise<CollectionMutationResult>)>()
   let listGeneration = 0
   let detailGeneration = 0
   let active = true
+  let refreshGeneration = 0
+  let requestedOffset = 0
+  let requestedDetail: { modelId: string; offset: number } | undefined
 
   async function load(offset = catalog.value?.offset ?? 0): Promise<void> {
+    requestedOffset = offset
     const generation = ++listGeneration
     loading.value = true
     try {
@@ -27,6 +32,7 @@ export function useCollection() {
     } finally { if (active && generation === listGeneration) loading.value = false }
   }
   async function openModel(modelId: string, offset = 0): Promise<void> {
+    requestedDetail = { modelId, offset }
     const generation = ++detailGeneration
     try {
       const result = await window.musicBridge.getCollectionModel(modelId, { offset, limit: 20 })
@@ -35,7 +41,29 @@ export function useCollection() {
       if (active && generation === detailGeneration) error.value = '无法读取型号详情，请刷新后重试。'
     }
   }
-  function closeModel(): void { ++detailGeneration; detail.value = undefined }
+  function closeModel(): void { ++detailGeneration; requestedDetail = undefined; detail.value = undefined }
+
+  async function refresh(): Promise<void> {
+    if (!active || refreshing.value || saving.value || pending.value) return
+    const generation = ++refreshGeneration
+    ++listGeneration; ++detailGeneration
+    refreshing.value = true; loading.value = false; notice.value = ''
+    try {
+      const result = await window.musicBridge.refreshCollection()
+      if (!active || generation !== refreshGeneration) return
+      // 刷新等待期间的筛选/翻页/详情意图始终优先，旧读取不能回跳。
+      await load(requestedOffset)
+      if (!active || generation !== refreshGeneration) return
+      const selected = requestedDetail
+      if (selected) await openModel(selected.modelId, selected.offset)
+      if (active && generation === refreshGeneration && !error.value) notice.value = result.refreshed
+        ? '库存已刷新，Rust 收藏查询已就绪。'
+        : result.settings.state === 'failed' || result.settings.state === 'blocked'
+          ? '已通过标准查询刷新库存；Rust 查询暂不可用。' : '库存已通过标准查询刷新。'
+    } catch {
+      if (active && generation === refreshGeneration) error.value = '库存刷新未完成。原有数据保留，请重试。'
+    } finally { if (active && generation === refreshGeneration) refreshing.value = false }
+  }
 
   async function retry(): Promise<boolean> {
     if (!pending.value || saving.value) return false
@@ -61,13 +89,13 @@ export function useCollection() {
     } finally { saving.value = false }
   }
   async function mutate(operation: () => Promise<CollectionMutationResult>): Promise<boolean> {
-    if (saving.value || pending.value) return false
+    if (saving.value || pending.value || refreshing.value) return false
     notice.value = ''
     pending.value = operation
     return retry()
   }
   async function addPhoto(physicalId?: string): Promise<void> {
-    if (saving.value || pending.value || !detail.value) return
+    if (saving.value || pending.value || refreshing.value || !detail.value) return
     const modelId = detail.value.model.id
     saving.value = true; error.value = ''; notice.value = ''
     try {
@@ -81,6 +109,6 @@ export function useCollection() {
     } finally { saving.value = false }
   }
   onMounted(() => { void load() })
-  onUnmounted(() => { active = false; ++listGeneration; ++detailGeneration })
-  return { catalog, detail, filter, loading, saving, error, notice, pending, blocked: computed(() => saving.value || !!pending.value), load, openModel, closeModel, mutate, retry, addPhoto }
+  onUnmounted(() => { active = false; ++listGeneration; ++detailGeneration; ++refreshGeneration })
+  return { catalog, detail, filter, loading, saving, refreshing, error, notice, pending, blocked: computed(() => saving.value || !!pending.value || refreshing.value), load, refresh, openModel, closeModel, mutate, retry, addPhoto }
 }

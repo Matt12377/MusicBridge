@@ -1,4 +1,4 @@
-import type { LibraryReadPublicApi } from '@music-bridge/contracts'
+import type { LibraryReadPublicApi, CollectionReadonlyPublicApi } from '@music-bridge/contracts'
 import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts'
 import type { RecordingPrintsPublicApi } from '@music-bridge/contracts'
 import type { RecordingWorkspacePublicApi } from '@music-bridge/contracts'
@@ -75,7 +75,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends Partial<LibraryReadPublicApi>, RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends Partial<LibraryReadPublicApi>, CollectionReadonlyPublicApi, RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   performanceDiagnostics?: import('../shared/performance-transport.js').PerformanceInteractionDiagnostics
   getVolume: () => Promise<VolumeSnapshot>
   setVolume: (request: VolumeRequest) => Promise<VolumeSnapshot>
@@ -159,6 +159,9 @@ export interface MusicBridgePublicApi extends Partial<LibraryReadPublicApi>, Rec
 export const PUBLIC_LIBRARY_READ_API_KEYS = ['readLibrary', 'cancelLibraryRead'] as const
 export const PUBLIC_API_KEYS = [
   'setAppearanceTheme',
+  'getCollectionReadonlySettings',
+  'setCollectionReadonlyEnabled',
+  'refreshCollection',
   'getRoonDisplaySettings',
   'configureRoonDisplay',
   'getVolume',
@@ -612,12 +615,14 @@ export function createPreloadApi(
   performanceDiagnostics: import('../shared/performance-transport.js').PerformanceInteractionDiagnostics = { begin: () => undefined, use: () => {}, end: () => {} },
   libraryReadApi?: LibraryReadPublicApi,
   playbackStreamApi?: { getPlaybackStreamSnapshot: () => Promise<PlaybackStreamSnapshot | null> },
+  collectionReadonlyApi?: CollectionReadonlyPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
   return Object.freeze({
     ...(libraryReadApi ? { readLibrary: libraryReadApi.readLibrary, cancelLibraryRead: libraryReadApi.cancelLibraryRead } : {}),
     setAppearanceTheme,
+    ...(collectionReadonlyApi ?? { getCollectionReadonlySettings: collectionUnavailable, setCollectionReadonlyEnabled: collectionUnavailable, refreshCollection: collectionUnavailable }),
     ...(displayApi ?? { getRoonDisplaySettings: async () => ({ url: '', status: 'disabled' as const }), configureRoonDisplay: collectionUnavailable }),
     ...(volumeApi ?? {getVolume: async () => ({zoneId: '', outputs: []}), setVolume: collectionUnavailable}),
     ...(recordingPrintsApi ?? { getMasterArtwork: collectionUnavailable, pickMasterArtwork: collectionUnavailable, pickRecordingPrintImage: collectionUnavailable, saveMasterArtwork: collectionUnavailable, listRecordingPrints: collectionUnavailable, requestRecordingPrint: collectionUnavailable, retryRecordingPrint: collectionUnavailable, getRecordingPrint: collectionUnavailable, exportRecordingPrint: collectionUnavailable }),

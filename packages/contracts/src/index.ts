@@ -52,3 +52,4 @@ export * from './recording-artwork.js';
 export * from './recording-prints.js';
 
 export * from './volume.js';
+export * from './collection-readonly.js';

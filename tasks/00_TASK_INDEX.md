@@ -147,3 +147,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [RUST-012](RUST-012-packaged-readonly-route.md)：从011最终报告 `13b2a14f` 接续，候选包内可信Main/Core可选只读Rust路由；四独立签名包、171专项、Rust43/旧26、完整软件六步与两轮独审完成，本地交付、未push，生产默认Node。见 [结果报告](../reports/RUST-012_PACKAGED_READONLY_ROUTE.md)。
 
 - [RUST-013](RUST-013-packaged-renderer-validation.md)：从012最终报告 `822594b` 接续，签名包内原控件/可信IPC/持久Main outbox与唯一Node作者、26型号原分页筛选、保护单写/可信刷新及同profile冷启；代理承担全部验证，四包六run/131专项、完整软件六步与两轮独审完成，生产默认Node。见 [结果报告](../reports/RUST-013_PACKAGED_RENDERER_VALIDATION.md)。Owner/真实服务/安装发布分别保留，下一期正式用户刷新/可选启用从最终报告HEAD接续。
+
+- [RUST-014](RUST-014-user-optional-readonly-controls.md)：从013最终报告 `e35ad579` 接续，正常设置可选只读Rust开关与库存刷新、原Node先boot/唯一作者、私有nonce控制及真实关闭屏障；默认关闭，由代理承担全部开发验证，当前实现进行中。

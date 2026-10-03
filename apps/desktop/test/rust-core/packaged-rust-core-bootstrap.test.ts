@@ -110,12 +110,14 @@ test('邻近清单更换后拒绝原编译pin，不重新读取可信pin、不�
   await assert.rejects(factory()); assert.equal(notifications, 0)
 })
 
-test('候选入口固定编译pin与同步观察安装，原生产入口继续零选项Node', async () => {
+test('候选固定编译pin，正常入口默认关闭并惰性附加固定只读manager', async () => {
   const candidate = await readFile(new URL('../../src/main/packaged-rust-core-entry.ts', import.meta.url), 'utf8')
   const production = await readFile(new URL('../../src/main/core-entry.ts', import.meta.url), 'utf8')
   assert.match(candidate, /installPackagedRouteCoreObserver\('rust'\)/u)
   assert.match(candidate, /startPackagedRustCoreHost\(__MUSIC_BRIDGE_RUST_MANIFEST_SHA256__, hooks\)/u)
   assert.doesNotMatch(candidate, /process\.env|process\.argv|utilityProcess\.fork/u)
-  assert.match(production, /void runDesktopCoreHost\(\)/u)
-  assert.doesNotMatch(production, /packaged|rust|process\.env/u)
+  assert.match(production, /createOptionalRustReadonlyManager/u)
+  assert.match(production, /createPackagedRustReadonlyFactory\(__MUSIC_BRIDGE_RUST_MANIFEST_SHA256__, hooks\)/u)
+  assert.match(production, /void runDesktopCoreHost\(\{ optionalReadonlyManager: manager/u)
+  assert.doesNotMatch(production, /process\.env|process\.argv|startPackagedRustCoreHost/u)
 })

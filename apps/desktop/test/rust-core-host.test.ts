@@ -71,9 +71,11 @@ async function invalidStart(t: test.TestContext, options: DesktopCoreHostOptions
   return { exits, messages, workers }
 }
 
-test('正式入口只调用零选项共享宿主，导入 adapter 本身不启动 Core', async () => {
+test('正式入口使用固定可选manager，导入 adapter 本身不启动 Core', async () => {
   const entry = await readFile(new URL('../src/main/core-entry.ts', import.meta.url), 'utf8')
-  assert.match(entry, /void runDesktopCoreHost\(\)/u)
+  assert.match(entry, /void runDesktopCoreHost\(\{ optionalReadonlyManager: manager/u)
+  assert.match(entry, /__MUSIC_BRIDGE_COLLECTION_READONLY_DIAGNOSTICS__ === true/u)
+  assert.match(entry, /createOptions: async/u)
   assert.doesNotMatch(entry, /process\.env|rustReadonlyCollection|onRustReadonlyCoreController|new Worker/u)
 })
 
@@ -237,3 +239,19 @@ for (const mode of ['throw', 'invalid'] as const) {
     assert.deepEqual(worker.requests.map(request => request.operation), ['close']);
   });
 }
+
+
+test('可选manager装饰仅借用原Owner，普通utility始终六参数且OFF零资源', async () => {
+  const { createOptionalRustReadonlyManager } = await import('../../../packages/bridge-core/src/rust-core/optional-readonly-manager.js')
+  let factories = 0
+  const manager = createOptionalRustReadonlyManager({ createOptions: async () => { factories++; throw new Error('OFF不准许能力解析') } })
+  const { calls, run } = capture(), worker = new OwnerWorker()
+  let observers = 0
+  await runDesktopCoreHost({ env, optionalReadonlyManager: manager, dependencies: { runCoreUtilityProcess: run,
+    createWorker: () => worker.asWorker(), decorateDatasetOwner(owner) { observers++; return owner } } })
+  assert.equal(calls.length, 1); assert.equal(calls[0]!.length, 6)
+  const owner = calls[0]![5]!({ projection: async () => { throw new Error('本场景不投影') }, onFatal: () => {} })
+  await owner.prepare(); await owner.commitBoot(); const close = owner.close(); assert.equal(close, owner.close()); await close
+  assert.equal(factories, 0); assert.equal(observers, 1)
+  assert.deepEqual(worker.requests.map(request => request.operation), ['prepare', 'commitBoot', 'close'])
+})

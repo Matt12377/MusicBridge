@@ -3200,7 +3200,7 @@
       "pushed": false
     }
   },
-  "currentRustCoreTask": "RUST-012",
+  "currentRustCoreTask": "RUST-014",
   "rustCoreAtomicSnapshot20261002": {
     "task": "RUST-002",
     "branch": "codex/rust-core-002-atomic-snapshot",
@@ -5003,5 +5003,48 @@
     "nextTask": "RUST-014-user-optional-readonly-controls",
     "nextBranchBaseline": "final-report-head",
     "finalIdentityPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-013-okq8m8xs/FINAL_IDENTITY.json"
+  },
+  "rustCoreUserOptionalReadonly20261003": {
+    "task": "RUST-014",
+    "state": "implementation-validated-final-review-pending",
+    "branch": "codex/rust-core-014-user-optional-readonly-controls",
+    "baseCommit": "e35ad579ef276075d09d0b52fc6bb8158c418b26",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "reportCommitResolution": "commit-containing-reports/RUST-014_USER_OPTIONAL_READONLY_CONTROLS.md",
+    "scope": "normal-user-optional-readonly-rust-settings-refresh-node-sole-writer",
+    "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-014-w08_nmgh",
+    "ownerActionRequired": false,
+    "validation": {
+      "sourceTests": "SOFTWARE02_SIX_EXIT0_4023_PASS_2_EXISTING_SKIP_SOURCE04",
+      "actualSignedPackages": "GATE04_PASS_112_ZERO_FAIL_SKIP_FOUR_PACKAGES_SIX_RUNS_SOURCE04",
+      "ordinaryCUA": "FINAL04_11_AX_JPEG_NATIVE_INPUT_2_WRITES_REFRESH_FALLBACK_OFF_ON_MAIN_EXIT0_SQL_REVIEW_PENDING",
+      "realServices": "NOT_RUN",
+      "installedReplacement": "NOT_RUN",
+      "ownerAcceptance": "NOT_RUN",
+      "authorsA": "33-behavior-4-actual-binary-core-desktop-types-exit-0",
+      "authorsB": "32-behavior-preload-desktop-e2e-types-exit-0",
+      "rootPreliminary": "3-build-identity-28-startup-compatibility-exit-0",
+      "authorsC": "16-observer-dom-runtime-8-baseline-refusal-types-exit-0",
+      "rootClientGeneration": "RED-1-fail-GREEN-27-pass-exit-0",
+      "rootCycleRepair": "EXISTING_CYCLES_FAIL_VALID_RED_SHARED_ERROR_MOVE_GREEN_EXIT0",
+      "rootDetailRefresh": "VALID_RED_1_FAIL_GREEN_4_PASS_REAL_TEMPLATE_AND_CUA",
+      "signedNative": "30_PASS_ZERO_SKIP_ACTUAL_SIGNED_BINARY_IDENTICAL_CANDIDATE03_04",
+      "packagedBootstrap": "11_PASS_ZERO_SKIP_SOURCE04_ACTUAL_SIGNED_RESOURCE"
+    },
+    "agents": {
+      "authors": [
+        "gpt-6.1-sol/high",
+        "gpt-6.1-sol/high",
+        "gpt-6.1-sol/high"
+      ],
+      "independentReview": "gpt-6.1-sol/high-after-author-slot-releases",
+      "descendants": false
+    },
+    "productionDefault": "node-rust-disabled",
+    "push": "NOT_RUN",
+    "preservedWorktrees": 14,
+    "preservedDirtyFiles": 7,
+    "sourceSha256": "bbcf1601805f9e6d1b32e993d8e08321be7d3cad9f865d31cc8a50955e0a8a17"
   }
 }

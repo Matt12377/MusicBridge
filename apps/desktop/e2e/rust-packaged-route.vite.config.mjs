@@ -19,7 +19,7 @@ export async function createPackagedRouteBuildConfiguration({ coreEntry, manifes
     main: {
       root: desktop,
       define: {
-        __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: 'false',
+        __MUSIC_BRIDGE_COLLECTION_READONLY_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_COLLECTION_READONLY_PROBE_EXPECTATION__: 'null', __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: 'false',
         __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: 'true',
         __MUSIC_BRIDGE_RUST_MANIFEST_SHA256__: JSON.stringify(manifestPin),
         __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: 'false',

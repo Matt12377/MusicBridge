@@ -61,7 +61,7 @@ function closeReference(): void { referenceOpen.value = false; void loadReferenc
 
 const inventory = useCollection()
 const collectionApi = window.musicBridge
-const { catalog, detail, filter, loading, saving, error, notice, pending, blocked } = inventory
+const { catalog, detail, filter, loading, saving, refreshing, error, notice, pending, blocked } = inventory
 const inventoryView = ref<'wall' | 'inventory'>('wall')
 const reviewTotal = ref<number>()
 let reviewRead = 0
@@ -192,8 +192,11 @@ const views = [
     <div v-for="view in views" v-show="selectedView === view.id" :id="`collection-panel-${view.id}`" :key="view.id"
       class="collection-panel" role="region" :aria-label="view.label">
       <div v-if="view.id === 'tapes'" class="inventory-feedback" aria-live="polite">
-        <p v-if="error" role="alert">{{ error }} <button v-if="pending && !receiving" :disabled="saving" @click="retry">重试原操作</button><button v-else-if="!pending" :disabled="loading" @click="inventory.load(); detail && inventory.openModel(detail.model.id)">刷新库存</button></p>
+        <p v-if="error" role="alert">{{ error }} <button v-if="pending && !receiving" :disabled="saving" @click="retry">重试原操作</button><button v-else-if="!pending" :disabled="loading || blocked" @click="inventory.refresh()">刷新库存</button></p>
         <p v-else-if="notice" role="status">{{ notice }} <button v-if="returnLocationStale" type="button" :disabled="relocating || blocked" @click="relocatePhysical">重新定位这盘</button></p>
+      </div>
+      <div v-if="view.id === 'tapes' && detail" class="collection-actions collection-detail-actions">
+        <button class="reference-entry" type="button" :disabled="loading || blocked" @click="inventory.refresh()">{{ refreshing ? '刷新中…' : '刷新库存' }}</button>
       </div>
       <CollectionModelDetail v-if="view.id === 'tapes' && detail" :detail="detail" :busy="blocked"
         :focus-physical-id="returnLocation?.physicalId" :reference-candidates="referenceCandidates(detail.model)"
@@ -214,7 +217,7 @@ const views = [
           <label class="state-filter"><span class="filter-label">收藏状态</span><select v-model="filterDraft.stockState" @change="applyFilter"><option value="">全部收藏状态</option><option value="identified">版次已确认</option><option value="needs-review">信息待整理</option><option value="blank">有空白库存</option><option value="recorded">已录音 / 已用库存</option></select></label>
           <button type="submit" :disabled="loading">筛选</button><button v-if="hasFilter" type="button" :disabled="loading" @click="clearFilter">清除</button>
         </form>
-          <div class="collection-actions"><button ref="spreadsheetTrigger" class="reference-entry" type="button" aria-label="库存表导入" @click="spreadsheetOpen = true">导入库存</button><button class="collection-add" type="button" :disabled="blocked || !catalog" @click="beginReceive()"><span aria-hidden="true">＋</span> 添加磁带</button></div></div>
+          <div class="collection-actions"><button class="reference-entry" type="button" :disabled="loading || blocked" @click="inventory.refresh()">{{ refreshing ? '刷新中…' : '刷新库存' }}</button><button ref="spreadsheetTrigger" class="reference-entry" type="button" aria-label="库存表导入" @click="spreadsheetOpen = true">导入库存</button><button class="collection-add" type="button" :disabled="blocked || !catalog" @click="beginReceive()"><span aria-hidden="true">＋</span> 添加磁带</button></div></div>
         </header>
         <nav class="inventory-subviews" aria-label="磁带收藏内容">
           <button type="button" :aria-pressed="inventoryView === 'wall'" @click="inventoryView = 'wall'">磁带墙</button>

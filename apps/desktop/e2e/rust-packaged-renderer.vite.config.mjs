@@ -15,7 +15,7 @@ export async function createPackagedRendererBuildConfiguration({ coreEntry, mani
   const outputBuild = await captureNativeOutput(desktop)
   const outputDeviceBuild = await captureNativeOutputDevice(desktop)
   return { main: { root: desktop, define: {
-    __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: 'true',
+    __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_COLLECTION_READONLY_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_COLLECTION_READONLY_PROBE_EXPECTATION__: 'null', __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: 'true',
     __MUSIC_BRIDGE_RUST_MANIFEST_SHA256__: JSON.stringify(manifestPin), __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: 'false',
     __MUSIC_BRIDGE_FFMPEG_MANIFEST_SHA256__: JSON.stringify(converterBuild.manifestSha256),
     __MUSIC_BRIDGE_OUTPUT_MANIFEST_SHA256__: JSON.stringify(outputBuild.manifestSha256),

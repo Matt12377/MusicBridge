@@ -125,7 +125,7 @@ test('构建和打包入口携带独立设备pin与资源，不借旧synthetic�
   assert.match(config, /output-device-build\.json/u)
   assert.match(config, /__MUSIC_BRIDGE_OUTPUT_DEVICE_CANDIDATE__/u)
   assert.match(config, /'dataset-owner': path\.join\(currentDirectory, 'src\/main\/dataset-owner-entry\.ts'\)/u)
-  assert.match(coreEntry, /void runDesktopCoreHost\(\)/u)
+  assert.match(coreEntry, /void runDesktopCoreHost\(\{ optionalReadonlyManager: manager/u)
   assert.match(coreHost, /createWorker\(new URL\('\.\/dataset-owner\.js'/u)
   assert.match(ownerEntry, /await loadRecordingDependenciesForOwner/u)
   assert.match(entry, /loadBundledDeviceOutputHelper/u)

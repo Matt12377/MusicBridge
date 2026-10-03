@@ -17,6 +17,8 @@ function subject(candidate: boolean, fails = false) {
     emit(event: string, data: unknown) { assert.equal(event, 'main.probeFailed'); assert.deepEqual(JSON.parse(JSON.stringify(data)), { code: 'PROBE_FAILED' }); calls.push('failed') } } : undefined
   const context = {
     packagedRouteProbe: undefined, packagedRendererProbe: probe, coreSupervisor: undefined,
+    collectionReadonlyProbe: undefined, collectionReadonlySettings: undefined,
+    createCollectionReadonlySettings: () => ({ async restore() {} }),
     isUiE2e: true, isOfflineUiE2e: true, isStartupTest: false, isCredentialVaultGate: false, isCoreRestartCredentialRecoveryGate: false,
     isElectronColdStartGate: false, electronColdStartStage: undefined, isCoreCrashGate: false,
     APPLICATION_NAME: '合成应用', process: { platform: 'darwin', env: {} }, path: { join: (...parts: string[]) => parts.join('/') },

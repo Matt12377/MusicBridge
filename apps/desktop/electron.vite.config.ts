@@ -5,15 +5,20 @@ import { fileURLToPath } from 'node:url'
 import { captureNativeConverter } from './scripts/native-converter-package.mjs'
 import { captureNativeOutput } from './scripts/native-output-package.mjs'
 import { captureNativeOutputDevice } from './scripts/native-output-device-package.mjs'
+import { captureNativeRust } from './scripts/native-rust-package.mjs'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
 const converterBuild = await captureNativeConverter(currentDirectory)
 const outputBuild = await captureNativeOutput(currentDirectory)
 const outputDeviceBuild = await captureNativeOutputDevice(currentDirectory)
+const rustBuild = await captureNativeRust(currentDirectory)
 
 export default defineConfig(({ mode }) => ({
   main: {
     define: {
+      __MUSIC_BRIDGE_COLLECTION_READONLY_DIAGNOSTICS__: 'false',
+      __MUSIC_BRIDGE_COLLECTION_READONLY_PROBE_EXPECTATION__: 'null',
+      __MUSIC_BRIDGE_RUST_MANIFEST_SHA256__: JSON.stringify(rustBuild.manifestSha256),
       __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: 'false',
       __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: 'false',
       __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: JSON.stringify(mode === 'development'),
@@ -28,6 +33,7 @@ export default defineConfig(({ mode }) => ({
         this.emitFile({ type: 'asset', fileName: 'converter-build.json', source: JSON.stringify(converterBuild) + '\n' })
         this.emitFile({ type: 'asset', fileName: 'output-build.json', source: JSON.stringify(outputBuild) + '\n' })
         this.emitFile({ type: 'asset', fileName: 'output-device-build.json', source: JSON.stringify(outputDeviceBuild) + '\n' })
+        this.emitFile({ type: 'asset', fileName: 'rust-core-build.json', source: JSON.stringify(rustBuild) + '\n' })
       },
     }],
     build: {

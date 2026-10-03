@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "lib": ["ES2023", "DOM", "DOM.Iterable"] },
+  "include": [
+    "../src/main/index.ts", "../src/main/collection-readonly-*.ts", "../src/main/core-entry.ts", "../src/main/core-host.ts",
+    "../scripts/collection-readonly-runtime.d.mts", "./collection-readonly.vite.config.d.mts",
+    "../test/collection-readonly-*.test.ts", "../test/native-rust-package.test.ts",
+    "../test/helpers/collection-readonly-*.ts", "../test/rust-core/collection-readonly-*.test.ts",
+    "../src/renderer/src/env.d.ts", "../src/assets.d.ts"
+  ]
+}

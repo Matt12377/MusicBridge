@@ -24,4 +24,5 @@ apps/desktop/release/
 apps/desktop/native/ffmpeg/
 apps/desktop/native/output/
 apps/desktop/native/output-device/
+apps/desktop/native/rust-core/
 native/output-helper/.build/

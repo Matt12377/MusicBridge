@@ -45,7 +45,7 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
     './recording-print-client.js': printModule,
     './recording-replica-client.js': replicaModule,
     './recording-record-client.js': recordModule,
-    electron: { contextBridge: { exposeInMainWorld: (name: string, api: ReturnType<typeof createPreloadApi>) => { assert.equal(name, 'musicBridge'); exposed = api } }, ipcRenderer: { invoke: async (channel: string, payload: unknown, ...args: unknown[]) => { calls.push([channel, structuredClone(payload)]); if (channel === 'roon:library:play') contextPlayCalls.push([payload, ...args]); return channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } } } },
+    electron: { contextBridge: { exposeInMainWorld: (name: string, api: ReturnType<typeof createPreloadApi>) => { assert.equal(name, 'musicBridge'); exposed = api } }, ipcRenderer: { invoke: async (channel: string, payload: unknown, ...args: unknown[]) => { calls.push([channel, structuredClone(payload)]); if (channel === 'roon:library:play') contextPlayCalls.push([payload, ...args]); return channel === 'collection:readonly-settings' || channel === 'collection:set-readonly-enabled' ? { schemaVersion: 1, enabled: payload === true, mode: 'node', state: 'off' } : channel === 'collection:refresh' ? { schemaVersion: 1, refreshed: false, settings: { schemaVersion: 1, enabled: false, mode: 'node', state: 'off' } } : channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } } } },
     './recording-attempt-client.js': { createRecordingAttemptClient }, './recording-device-client.js': { createRecordingDeviceClient }, './recording-workspace-client.js': { createRecordingWorkspaceClient }, './recording-candidate-client.js': { createRecordingCandidateClient }, './preparation-zip-client.js': { createPreparationZipClient }, './api.js': { createPreloadApi }, './command-outbox-client.js': { createCommandOutboxClient, createCommandOutboxDatasetScope },
     './image-diagnostic.js': { summarizePreloadRoonImage }, '../roon-image-ipc.js': { unwrapRoonImageIpc },
   }
@@ -138,6 +138,12 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
   assert.deepEqual(calls.pop(), ['app:set-appearance-theme', 'dark'])
   assert.deepEqual(await exposed.startRemoteCore('roonstation@macmini'), { reply: 'remote-core:start' })
   assert.deepEqual(calls, [['remote-core:start', 'roonstation@macmini']])
+  calls.length = 0
+  assert.equal((await exposed.getCollectionReadonlySettings()).enabled, false)
+  assert.equal((await exposed.setCollectionReadonlyEnabled(true)).enabled, true)
+  assert.equal((await exposed.refreshCollection()).refreshed, false)
+  await assert.rejects(exposed.setCollectionReadonlyEnabled('true' as unknown as boolean))
+  assert.deepEqual(calls, [['collection:readonly-settings', undefined], ['collection:set-readonly-enabled', true], ['collection:refresh', undefined]])
 })
 
 test('Preload 图片诊断保持 sandbox 本地实现，不引入 contracts 运行期依赖', async () => {
@@ -252,6 +258,9 @@ test('Preload exposes only sanitized business methods', async () => {
   }
   assert.deepEqual(PUBLIC_API_KEYS, [
     'setAppearanceTheme',
+    'getCollectionReadonlySettings',
+    'setCollectionReadonlyEnabled',
+    'refreshCollection',
     'getRoonDisplaySettings',
     'configureRoonDisplay',
     'getVolume',

@@ -1,4 +1,4 @@
-import { PerformanceTraceRecorder } from '@music-bridge/contracts'
+import { PerformanceTraceRecorder, isCollectionReadonlySettings, isCollectionRefreshResult } from '@music-bridge/contracts'
 import { createPerformanceInvoker, createPerformanceInteractions } from '../shared/performance-transport.js'
 import { createLibraryReadTerminalClient } from './library-read-terminal.js'
 import { createRecordingPrintClient } from './recording-print-client.js'
@@ -375,5 +375,10 @@ contextBridge.exposeInMainWorld(
     interactions.api,
     createLibraryReadTerminalClient(invokePerformance, process.argv?.includes('--music-bridge-library-read-trace=1') ?? false),
     { getPlaybackStreamSnapshot: () => invokePerformance('playback:get-stream-snapshot') },
+    {
+      getCollectionReadonlySettings: async () => { const value: unknown = await invokePerformance('collection:readonly-settings'); if (!isCollectionReadonlySettings(value)) throw new Error('收藏查询设置回执无效。'); return value },
+      setCollectionReadonlyEnabled: async enabled => { if (typeof enabled !== 'boolean') throw new Error('收藏查询开关无效。'); const value: unknown = await invokePerformance('collection:set-readonly-enabled', enabled); if (!isCollectionReadonlySettings(value)) throw new Error('收藏查询设置回执无效。'); return value },
+      refreshCollection: async () => { const value: unknown = await invokePerformance('collection:refresh'); if (!isCollectionRefreshResult(value)) throw new Error('收藏刷新回执无效。'); return value },
+    },
   ),
 )
