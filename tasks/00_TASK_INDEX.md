@@ -144,4 +144,4 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 
 - [RUST-011](RUST-011-native-candidate-package.md)：从010验收补充最终HEAD接续；macOS arm64最终资源/清单pin/签名/ASAR/Fuses、实际Node→包内Rust协议、原默认Node自然启动、163专项＋26旧回归＋完整软件六步通过；默认Node，包内Main/Core Rust路由另列。见 [结果报告](../reports/RUST-011_NATIVE_CANDIDATE_PACKAGE.md)。
 
-- [RUST-012](RUST-012-packaged-readonly-route.md)：从011最终报告 `13b2a14f` 接续，候选包内可信Main/Core可选只读Rust路由；四独立签名包、171专项、Rust43/旧26和完整软件六步通过，最终独审与报告交付中，生产默认Node。
+- [RUST-012](RUST-012-packaged-readonly-route.md)：从011最终报告 `13b2a14f` 接续，候选包内可信Main/Core可选只读Rust路由；四独立签名包、171专项、Rust43/旧26、完整软件六步与两轮独审完成，本地交付、未push，生产默认Node。见 [结果报告](../reports/RUST-012_PACKAGED_READONLY_ROUTE.md)。

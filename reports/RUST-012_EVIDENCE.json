@@ -1,0 +1,1104 @@
+{
+  "schemaVersion": 1,
+  "task": "RUST-012",
+  "state": "local-complete-validated-reviewed-unpushed",
+  "baseCommit": "13b2a14f03831ed7a98bdc5d1b9ab288644fc502",
+  "branch": "codex/rust-core-012-packaged-readonly-route",
+  "sourceRoot": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-012",
+  "buildSourceCommit": "13b2a14f03831ed7a98bdc5d1b9ab288644fc502",
+  "implementationCommit": "697763759704789460c72e733e42321a71046ac5",
+  "reportCommit": null,
+  "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-012_PACKAGED_READONLY_ROUTE.md",
+  "nextBranchBaseline": "final-report-head",
+  "sourceFreeze": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/ROOT_PROGRAM_FREEZE_012_03.json",
+    "sha256": "318a6fb588c508bf1b0e7f0a87b4ab91ff5c884bcbf08259453aa397dc804c0f"
+  },
+  "sourceSha256": "e8f6852f958b84fff1ebe0972b616b682bf478a2e2babf4fbeec93b8b58e0069",
+  "sourceCount": 1086,
+  "changedProgramInputs": [
+    {
+      "path": "apps/desktop/e2e/rust-packaged-route.tsconfig.json",
+      "sha256": "7f959ab7cff8110a06ddc9d6df5c920c5976ca5f13305eb9d7ea88bdb696ab2d"
+    },
+    {
+      "path": "apps/desktop/e2e/rust-packaged-route.vite.config.mjs",
+      "sha256": "6b7ad1af9c2f561c81d55358e91fd5a15ac2f293380e9248248ce40d3f4cb005"
+    },
+    {
+      "path": "apps/desktop/electron.vite.config.ts",
+      "sha256": "606041d80f8028edf2643d817b0fedcaa75b41c834fa23d0cbd2ca6fac6151b6"
+    },
+    {
+      "path": "apps/desktop/scripts/rust-packaged-route-runtime.d.mts",
+      "sha256": "18fdf11eaac3d8d8ce38d39f9ce86b38f6809aa506512eca7fd47f5a3a3de015"
+    },
+    {
+      "path": "apps/desktop/scripts/rust-packaged-route-runtime.mjs",
+      "sha256": "be2d47ddd8dad70054ce732e350f4a5a31ade65df79e20f9362d12e240ff9b41"
+    },
+    {
+      "path": "apps/desktop/src/main/core-host.ts",
+      "sha256": "d1db74470a5d5880577846bdcb691948ca60eddbb1aecf76d62eccd68a6bd86f"
+    },
+    {
+      "path": "apps/desktop/src/main/index.ts",
+      "sha256": "eba9c950a1bb9904c5a779efb59f8fc185060e2c168bb30f3a4055a8874bc2f7"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-node-core-entry.ts",
+      "sha256": "c29d464c4ad0e2afd234653067388556fd2cbe92257bd6f602ec6377dfc76c16"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-route-core-observer.ts",
+      "sha256": "08135ebae4737a7b7d2a5ad56b605b8f0836309e30d62f1568256e5e59e3fc5b"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-route-main-probe.ts",
+      "sha256": "b1e23cf174691a73a896c8278f3762cd5e2a9bcfc89666dd77ea4bbb0bcfa92a"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-rust-core-bootstrap.ts",
+      "sha256": "b827f09f02a2abb13922d5d340c4d579f6f4e12af66481b0da815970f5568d0a"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-rust-core-entry.ts",
+      "sha256": "1d2ec9c9dd4b6bca3b7468410c50cc1cba1765a5c6068c606879f94f78ed4d00"
+    },
+    {
+      "path": "apps/desktop/test/helpers/rust-packaged-route-evidence.ts",
+      "sha256": "9c5f07f51ab19b929895481d41cf45624319f59c7d7de97d3794ed1c0a6024b1"
+    },
+    {
+      "path": "apps/desktop/test/packaged-route-core-observer.test.ts",
+      "sha256": "f90b063615bab01b13d4d1ff21d4953c5e046e31d97ea4c15b5c39e38df3f4bf"
+    },
+    {
+      "path": "apps/desktop/test/packaged-route-main-probe.test.ts",
+      "sha256": "9e4235d2a28ad88a691cecfe4e56b55633310f7f859318b105552560d5807bfe"
+    },
+    {
+      "path": "apps/desktop/test/rust-core-host.test.ts",
+      "sha256": "ff60edba99f7049d8e7a5ede1b5ef61d107e5384d3a3e76ab8056b6a13e393c9"
+    },
+    {
+      "path": "apps/desktop/test/rust-core/packaged-rust-core-bootstrap.test.ts",
+      "sha256": "029cdfbd3be8945b726516529d9b02e7b347947b5b291f304b922c96156f273c"
+    },
+    {
+      "path": "apps/desktop/test/rust-core/rust-packaged-route-evidence.test.ts",
+      "sha256": "13965a23f3101f8fa724e82dab1d60008fd6d3f1bc37a28faa6f6e7892c71a50"
+    },
+    {
+      "path": "apps/desktop/test/rust-core/rust-packaged-route-runtime.test.ts",
+      "sha256": "a4495bfeaacacdf8ef062726f73b99a61d2bfec8de8733265b8d276337b2bdc9"
+    },
+    {
+      "path": "apps/desktop/test/startup-test-config.test.ts",
+      "sha256": "fc3a3e73ca11626913284f5f7d78331ff0aa7368f1ee20e63b3746184ef525c9"
+    },
+    {
+      "path": "packages/bridge-core/src/rust-core/readonly-sidecar.ts",
+      "sha256": "af8af7c696c3728e3ce55ae64b5d2efbf16b3d777c90aad500f1abd490e4f2d8"
+    },
+    {
+      "path": "packages/bridge-core/src/utility-main.ts",
+      "sha256": "35e3a4c47129beb5004af46991cb2ad13a6d4ed571fb5d1d3a8b947172723b1f"
+    },
+    {
+      "path": "packages/bridge-core/test/rust-core-utility-options.test.ts",
+      "sha256": "07cc6a47dfec33dd997a9a6720ed47ab91269f8abb04089401976156a792eed6"
+    },
+    {
+      "path": "packages/bridge-core/test/rust-core/sidecar-observation.test.ts",
+      "sha256": "d79d7d7f25b97338f8014e289463f7592c714a321052d0f5dfd8c39f044a09f1"
+    },
+    {
+      "path": "scripts/ci/verify-rust-packaged-route.mjs",
+      "sha256": "40cd16cc30749995d5e17f88843d70fa9dd736d91619ab707bbede1f392407a0"
+    }
+  ],
+  "candidateGate": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/gate-manifest.json",
+    "sha256": "81994e9121cc71711c7cc19bce576125a9367dac07971502f556aa5d4d0bb118"
+  },
+  "candidateReport": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/route-report.json",
+    "sha256": "b81eda933e08d7fe3e6cc6ce55eeb47dd5c2bebefe2449277c63ecff2c37dafd"
+  },
+  "candidateExpectedIdentity": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/expected-identity.json",
+    "sha256": "ab63d75d9b822a61b18280736aafb42aee4faf8c16ce8831a098d63ef20c390d"
+  },
+  "candidatePreparation": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/preparation.json",
+    "sha256": "529bc75937ce3b7bda5882534e8585601fe4efd87a68f3bea8671d0baaabf0cd"
+  },
+  "candidateGateInvocation": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-gate-03.json",
+    "sha256": "e69a3982588f7c23ecb741d875927661434d8939350e06c7c086bb28bea799dd"
+  },
+  "candidateIdentities": {
+    "default-node": {
+      "appPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/default-node/package/mac-arm64/MusicBridge Rust Route default-node.app",
+      "executableSha256": "5e2fa3af9583e65ddd4ac4f27f2beb69d08bba6f06eaada4d7d7742f33729970",
+      "manifestSha256": "e49f29b545a7a5aaf1f115175c55d009432b5512e7a4fb37e2c54f6c73c040ac",
+      "native": {
+        "manifest": {
+          "schemaVersion": 1,
+          "kind": "musicbridge-rust-readonly-resource",
+          "platform": "darwin",
+          "arch": "arm64",
+          "protocolVersion": 2,
+          "source": {
+            "commit": "13b2a14f03831ed7a98bdc5d1b9ab288644fc502",
+            "sha256": "2a4e6297c44d92495e8a54a74ea2738646c5942a8cf84c0b497f400f04170565"
+          },
+          "binary": {
+            "relativePath": "bin/musicbridge-rust-core",
+            "sha256": "2feb6d5fbe2d875228c5b0de26f016abe6377aee05a7e48977503ece899f21ef",
+            "size": 586368,
+            "cdHash": "b4ce71c41b0998158a9bcb15451354114b0a52ed"
+          }
+        },
+        "manifestSha256": "e49f29b545a7a5aaf1f115175c55d009432b5512e7a4fb37e2c54f6c73c040ac",
+        "binaryPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/default-node/package/mac-arm64/MusicBridge Rust Route default-node.app/Contents/Resources/rust-core/darwin-arm64/bin/musicbridge-rust-core",
+        "binarySha256": "2feb6d5fbe2d875228c5b0de26f016abe6377aee05a7e48977503ece899f21ef",
+        "cdHash": "b4ce71c41b0998158a9bcb15451354114b0a52ed"
+      },
+      "asar": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/default-node/package/mac-arm64/MusicBridge Rust Route default-node.app/Contents/Resources/app.asar",
+        "sha256": "894bbf4c4f640794abb6d04fa5774b1d86bb439fc4ff850c56c20b0e91c22279",
+        "headerSha256": "5fce94774b7e12591b382f3e97b7dd3c78b583fc39a113a456202ae14662c894",
+        "main": "dist/main/index.js",
+        "defaultEntries": [
+          {
+            "path": "dist/main/index.js",
+            "sha256": "f1bdbfd1cee5cbca52cb64a748159737a324995d3d406bfd43a4efc045c3aff7"
+          },
+          {
+            "path": "dist/main/core.js",
+            "sha256": "94e64553533dde759d628660c8025a0f4c0bbe3d54c80f75c0115bc0c2d89c26"
+          }
+        ]
+      },
+      "fuses": {
+        "0": 48,
+        "1": 49,
+        "2": 48,
+        "3": 48,
+        "4": 49,
+        "5": 49,
+        "6": 48,
+        "7": 48,
+        "8": 49,
+        "version": "1"
+      },
+      "bundleCDHash": "4909d814fd98d2b2dfccb888f817ddc5f8d0721b",
+      "infoPlistSha256": "db2dd48a46eb07b9dea2f11ce7806925daa21a1cab05276bca1db1168b87f1cb",
+      "bundleFiles": 284,
+      "compile": {
+        "diagnostics": false,
+        "coreEntry": "core-entry.ts",
+        "manifestPin": null,
+        "snapshotProfile": null
+      }
+    },
+    "node-diagnostic": {
+      "appPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/node-diagnostic/package/mac-arm64/MusicBridge Rust Route node-diagnostic.app",
+      "executableSha256": "59376ca34a8fb1154cf97ee19c7ea3d19380b84b551bf09b56a85173aea6e1bf",
+      "manifestSha256": "e49f29b545a7a5aaf1f115175c55d009432b5512e7a4fb37e2c54f6c73c040ac",
+      "native": {
+        "manifest": {
+          "schemaVersion": 1,
+          "kind": "musicbridge-rust-readonly-resource",
+          "platform": "darwin",
+          "arch": "arm64",
+          "protocolVersion": 2,
+          "source": {
+            "commit": "13b2a14f03831ed7a98bdc5d1b9ab288644fc502",
+            "sha256": "2a4e6297c44d92495e8a54a74ea2738646c5942a8cf84c0b497f400f04170565"
+          },
+          "binary": {
+            "relativePath": "bin/musicbridge-rust-core",
+            "sha256": "2feb6d5fbe2d875228c5b0de26f016abe6377aee05a7e48977503ece899f21ef",
+            "size": 586368,
+            "cdHash": "b4ce71c41b0998158a9bcb15451354114b0a52ed"
+          }
+        },
+        "manifestSha256": "e49f29b545a7a5aaf1f115175c55d009432b5512e7a4fb37e2c54f6c73c040ac",
+        "binaryPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/node-diagnostic/package/mac-arm64/MusicBridge Rust Route node-diagnostic.app/Contents/Resources/rust-core/darwin-arm64/bin/musicbridge-rust-core",
+        "binarySha256": "2feb6d5fbe2d875228c5b0de26f016abe6377aee05a7e48977503ece899f21ef",
+        "cdHash": "b4ce71c41b0998158a9bcb15451354114b0a52ed"
+      },
+      "asar": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/node-diagnostic/package/mac-arm64/MusicBridge Rust Route node-diagnostic.app/Contents/Resources/app.asar",
+        "sha256": "8bbbdd57572515f4175f3c5c86f07cf6022dafd2652997b5692361901e21dcac",
+        "headerSha256": "8733e440134b2dafd61c67bbf649d6f447375dba1313712724bc1bb62e263c73",
+        "main": "dist/main/index.js",
+        "defaultEntries": [
+          {
+            "path": "dist/main/index.js",
+            "sha256": "3eb9ff6485de8cd7420b350862e50cabf91e6f9b32a6b545ac6b231aa9df5ca2"
+          },
+          {
+            "path": "dist/main/core.js",
+            "sha256": "e6e38b4ba9bae7b32d4b6fd67a0067d2ffef1ec81c534c35135f5ff5e07d292d"
+          }
+        ]
+      },
+      "fuses": {
+        "0": 48,
+        "1": 49,
+        "2": 48,
+        "3": 48,
+        "4": 49,
+        "5": 49,
+        "6": 48,
+        "7": 48,
+        "8": 49,
+        "version": "1"
+      },
+      "bundleCDHash": "7f7023548decfaf44ebe6ad67b0f4403474d10e3",
+      "infoPlistSha256": "6dd3aef0241d44482feda5b17750378cce72dacd7a43169b41b0b46f22d404cd",
+      "bundleFiles": 284,
+      "compile": {
+        "diagnostics": true,
+        "coreEntry": "packaged-node-core-entry.ts",
+        "manifestPin": null,
+        "snapshotProfile": null
+      }
+    },
+    "rust-diagnostic": {
+      "appPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/rust-diagnostic/package/mac-arm64/MusicBridge Rust Route rust-diagnostic.app",
+      "executableSha256": "bd5905c648a52b334e7a8c1383440d48c2f5f1a6c18ffbfa75d9f6005f444863",
+      "manifestSha256": "e49f29b545a7a5aaf1f115175c55d009432b5512e7a4fb37e2c54f6c73c040ac",
+      "native": {
+        "manifest": {
+          "schemaVersion": 1,
+          "kind": "musicbridge-rust-readonly-resource",
+          "platform": "darwin",
+          "arch": "arm64",
+          "protocolVersion": 2,
+          "source": {
+            "commit": "13b2a14f03831ed7a98bdc5d1b9ab288644fc502",
+            "sha256": "2a4e6297c44d92495e8a54a74ea2738646c5942a8cf84c0b497f400f04170565"
+          },
+          "binary": {
+            "relativePath": "bin/musicbridge-rust-core",
+            "sha256": "2feb6d5fbe2d875228c5b0de26f016abe6377aee05a7e48977503ece899f21ef",
+            "size": 586368,
+            "cdHash": "b4ce71c41b0998158a9bcb15451354114b0a52ed"
+          }
+        },
+        "manifestSha256": "e49f29b545a7a5aaf1f115175c55d009432b5512e7a4fb37e2c54f6c73c040ac",
+        "binaryPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/rust-diagnostic/package/mac-arm64/MusicBridge Rust Route rust-diagnostic.app/Contents/Resources/rust-core/darwin-arm64/bin/musicbridge-rust-core",
+        "binarySha256": "2feb6d5fbe2d875228c5b0de26f016abe6377aee05a7e48977503ece899f21ef",
+        "cdHash": "b4ce71c41b0998158a9bcb15451354114b0a52ed"
+      },
+      "asar": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/rust-diagnostic/package/mac-arm64/MusicBridge Rust Route rust-diagnostic.app/Contents/Resources/app.asar",
+        "sha256": "3f3edc15e93dccc023a90219ca8c4a503c4b7b198ef2f4fcd8db199dd34d38c1",
+        "headerSha256": "99702fad6916c08bfa07ce115eb2ef78e087403d014876defbe61050a8548e0d",
+        "main": "dist/main/index.js",
+        "defaultEntries": [
+          {
+            "path": "dist/main/index.js",
+            "sha256": "3eb9ff6485de8cd7420b350862e50cabf91e6f9b32a6b545ac6b231aa9df5ca2"
+          },
+          {
+            "path": "dist/main/core.js",
+            "sha256": "95b2536a6dbe14370cd7ca04b0f19a78e48799b7051a561f1d69e9d4521a0878"
+          }
+        ]
+      },
+      "fuses": {
+        "0": 48,
+        "1": 49,
+        "2": 48,
+        "3": 48,
+        "4": 49,
+        "5": 49,
+        "6": 48,
+        "7": 48,
+        "8": 49,
+        "version": "1"
+      },
+      "bundleCDHash": "f8373134d1a91d6fd82afc8b5f6b7f0d198653c6",
+      "infoPlistSha256": "614b9ad19eb450ba4bf8300acbafce1e9df4b140e83151ad19bcdb189721a755",
+      "bundleFiles": 284,
+      "compile": {
+        "diagnostics": true,
+        "coreEntry": "packaged-rust-core-entry.ts",
+        "manifestPin": "e49f29b545a7a5aaf1f115175c55d009432b5512e7a4fb37e2c54f6c73c040ac",
+        "snapshotProfile": "v2-2000"
+      }
+    },
+    "pin-rejected": {
+      "appPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/pin-rejected/package/mac-arm64/MusicBridge Rust Route pin-rejected.app",
+      "executableSha256": "c4977fc9d8cb9629b651c6880fb028b4f2a0ceabc11f3b745a871de78dd47f2b",
+      "manifestSha256": "e49f29b545a7a5aaf1f115175c55d009432b5512e7a4fb37e2c54f6c73c040ac",
+      "native": {
+        "manifest": {
+          "schemaVersion": 1,
+          "kind": "musicbridge-rust-readonly-resource",
+          "platform": "darwin",
+          "arch": "arm64",
+          "protocolVersion": 2,
+          "source": {
+            "commit": "13b2a14f03831ed7a98bdc5d1b9ab288644fc502",
+            "sha256": "2a4e6297c44d92495e8a54a74ea2738646c5942a8cf84c0b497f400f04170565"
+          },
+          "binary": {
+            "relativePath": "bin/musicbridge-rust-core",
+            "sha256": "2feb6d5fbe2d875228c5b0de26f016abe6377aee05a7e48977503ece899f21ef",
+            "size": 586368,
+            "cdHash": "b4ce71c41b0998158a9bcb15451354114b0a52ed"
+          }
+        },
+        "manifestSha256": "e49f29b545a7a5aaf1f115175c55d009432b5512e7a4fb37e2c54f6c73c040ac",
+        "binaryPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/pin-rejected/package/mac-arm64/MusicBridge Rust Route pin-rejected.app/Contents/Resources/rust-core/darwin-arm64/bin/musicbridge-rust-core",
+        "binarySha256": "2feb6d5fbe2d875228c5b0de26f016abe6377aee05a7e48977503ece899f21ef",
+        "cdHash": "b4ce71c41b0998158a9bcb15451354114b0a52ed"
+      },
+      "asar": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/pin-rejected/package/mac-arm64/MusicBridge Rust Route pin-rejected.app/Contents/Resources/app.asar",
+        "sha256": "d6c6d26a6a1f1d4c854a4f02b4506eca694b90524e40078239a6db390818c2f8",
+        "headerSha256": "5007d6813354d1fb218cf0dd12949febede64c19868504ec0e015f3c1438aeeb",
+        "main": "dist/main/index.js",
+        "defaultEntries": [
+          {
+            "path": "dist/main/index.js",
+            "sha256": "3eb9ff6485de8cd7420b350862e50cabf91e6f9b32a6b545ac6b231aa9df5ca2"
+          },
+          {
+            "path": "dist/main/core.js",
+            "sha256": "07dfa4cd07ac431adeee57cfe6c58267d3e065c91654ca9887350c5822e1cba0"
+          }
+        ]
+      },
+      "fuses": {
+        "0": 48,
+        "1": 49,
+        "2": 48,
+        "3": 48,
+        "4": 49,
+        "5": 49,
+        "6": 48,
+        "7": 48,
+        "8": 49,
+        "version": "1"
+      },
+      "bundleCDHash": "d5991be0df6f61e32e1498f06a4a7133e025bde0",
+      "infoPlistSha256": "59878f15736e27963a370bf7eb612e8e9155b1bc7296aed32db1b93d6e27c66e",
+      "bundleFiles": 284,
+      "compile": {
+        "diagnostics": true,
+        "coreEntry": "packaged-rust-core-entry.ts",
+        "manifestPin": "0000000000000000000000000000000000000000000000000000000000000000",
+        "snapshotProfile": "v2-2000"
+      }
+    }
+  },
+  "counts": {
+    "candidate": {
+      "tests": 171,
+      "pass": 171,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0
+    },
+    "strictEvidence": {
+      "tests": 71,
+      "pass": 71,
+      "fail": 0,
+      "skipped": 0,
+      "includedInCandidate": true
+    },
+    "software": {
+      "tests": 3975,
+      "pass": 3973,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0,
+      "skipClassification": "two-original-native-conditional-skips"
+    },
+    "nativeUnit": {
+      "tests": 43,
+      "pass": 43,
+      "fail": 0,
+      "skipped": 0
+    },
+    "signedNativeRegression": {
+      "tests": 26,
+      "pass": 26,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "software": {
+    "manifest": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/software-final-02-manifest.json",
+      "sha256": "3c7e83c37eb6daacd82d1c20ee61b936dd0be4fceb977fd0ebaa17c002132195"
+    },
+    "runs": [
+      {
+        "name": "software-final-02-typecheck",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "/Volumes/LifeWeave/Developer/CommandLine/Caches/corepack/v1/pnpm/10.17.1/bin/pnpm.cjs",
+          "run",
+          "typecheck"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 25.14989504100231,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/software-final-02-typecheck.log",
+        "sha256": "52884e281c0ab0f5752c7bf22500dc63a1e369f64cb0638de70310dacea0e714"
+      },
+      {
+        "name": "software-final-02-test",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "/Volumes/LifeWeave/Developer/CommandLine/Caches/corepack/v1/pnpm/10.17.1/bin/pnpm.cjs",
+          "run",
+          "test"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 204.45262725000794,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/software-final-02-test.log",
+        "sha256": "d6ef75e2e39efc8d9e45722675304803483c38f70713291fc86b87ddddd80dd4",
+        "tapSummaries": [
+          {
+            "key": "tests",
+            "value": 254
+          },
+          {
+            "key": "pass",
+            "value": 254
+          },
+          {
+            "key": "fail",
+            "value": 0
+          },
+          {
+            "key": "cancelled",
+            "value": 0
+          },
+          {
+            "key": "skipped",
+            "value": 0
+          },
+          {
+            "key": "todo",
+            "value": 0
+          },
+          {
+            "key": "tests",
+            "value": 2456
+          },
+          {
+            "key": "pass",
+            "value": 2454
+          },
+          {
+            "key": "fail",
+            "value": 0
+          },
+          {
+            "key": "cancelled",
+            "value": 0
+          },
+          {
+            "key": "skipped",
+            "value": 2
+          },
+          {
+            "key": "todo",
+            "value": 0
+          },
+          {
+            "key": "tests",
+            "value": 1265
+          },
+          {
+            "key": "pass",
+            "value": 1265
+          },
+          {
+            "key": "fail",
+            "value": 0
+          },
+          {
+            "key": "cancelled",
+            "value": 0
+          },
+          {
+            "key": "skipped",
+            "value": 0
+          },
+          {
+            "key": "todo",
+            "value": 0
+          }
+        ]
+      },
+      {
+        "name": "software-final-02-build",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "/Volumes/LifeWeave/Developer/CommandLine/Caches/corepack/v1/pnpm/10.17.1/bin/pnpm.cjs",
+          "run",
+          "build"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 16.214053583011264,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/software-final-02-build.log",
+        "sha256": "45251394cb14cb6fe979eb3e8748ef83f42afa97e4e61fd2976e20eb63498d94"
+      },
+      {
+        "name": "software-final-02-control-plane",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "scripts/ci/verify-control-plane.mjs"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 0.08808279200457036,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/software-final-02-control-plane.log",
+        "sha256": "19c50b216852e4ff415a22551c3db1c8f3a7dcd2f9f0972ed7c23fc054b922a5"
+      },
+      {
+        "name": "software-final-02-boundaries",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "scripts/ci/verify-boundaries.mjs"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 0.07866979199752677,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/software-final-02-boundaries.log",
+        "sha256": "94c20a932061839cc1b9af0c8c6476e230901fc5e63db0aa6ba667a173e38f06"
+      },
+      {
+        "name": "software-final-02-cycles",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "scripts/ci/verify-cycles.mjs"
+        ],
+        "exitCode": 0,
+        "durationSeconds": 0.0608853339945199,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/software-final-02-cycles.log",
+        "sha256": "218a6fac24e2ebc68f47b6225e61b697f7a12a9a3fcdf9cf64e55baa8c8c2e34"
+      }
+    ]
+  },
+  "nativeUnit": {
+    "invocation": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/native-unit-01.json",
+      "sha256": "4cf5db3aeb704cc06fb803baf8208f3f515447ff7d0fa04564da7e5e0fb352d3"
+    },
+    "run": {
+      "name": "native-unit-01",
+      "argv": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "--manifest-path",
+        "native/rust-core/Cargo.toml"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 22.269113458009087,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/native-unit-01.log",
+      "sha256": "2c0a5de3e25f3ad9198001f1589796029b1173ee1aae1f08e5d9bdd1941ef25d"
+    },
+    "sourceSha256": "2a4e6297c44d92495e8a54a74ea2738646c5942a8cf84c0b497f400f04170565",
+    "classification": "fresh-offline-locked-Rust-unit-source-unchanged-through-final-freeze"
+  },
+  "signedNativeRegression": {
+    "manifest": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/native-regression-02/manifest.json",
+      "sha256": "8eefa38d22bb8dbbfd50aafdcb8fb2db53ce3b264921f5e46cfc5bbacb647bef"
+    },
+    "binary": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-03/rust-diagnostic/package/mac-arm64/MusicBridge Rust Route rust-diagnostic.app/Contents/Resources/rust-core/darwin-arm64/bin/musicbridge-rust-core",
+      "sha256": "2feb6d5fbe2d875228c5b0de26f016abe6377aee05a7e48977503ece899f21ef"
+    },
+    "runs": [
+      {
+        "name": "lifecycle",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "tsx",
+          "--test",
+          "test/rust-core/runtime-lifecycle-integration.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-012/packages/bridge-core",
+        "exitCode": 0,
+        "durationSeconds": 8.579924499994377,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/native-regression-02/lifecycle.log",
+        "logSha256": "a47c9d605469ef0e72cd5c1e4d29253740bce4057128abed423942a39f4de601",
+        "counts": {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "report": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/native-regression-02/lifecycle-report.json",
+        "reportSha256": "1c4fdec51270e64ef2a8197c5e0eddf62dc189e2073d25deae6b8e9f9be417a4"
+      },
+      {
+        "name": "host",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "tsx",
+          "--test",
+          "test/rust-core/runtime-host-integration.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-012/packages/bridge-core",
+        "exitCode": 0,
+        "durationSeconds": 9.611410917001194,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/native-regression-02/host.log",
+        "logSha256": "a64121ada9f2cb7a8a9e3ae13f1a032d6dd2efd8137bc03c3cfb23edda0c6e34",
+        "counts": {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "report": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/native-regression-02/host-report.json",
+        "reportSha256": "97f7fbd18c36a474b8dac8685c2c113f5089aaab27bc24c8be9e5ad57c1c1dec"
+      },
+      {
+        "name": "refresh",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "tsx",
+          "--test",
+          "test/rust-core/refresh-routing-integration.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-012/packages/bridge-core",
+        "exitCode": 0,
+        "durationSeconds": 4.754903915993054,
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/native-regression-02/refresh.log",
+        "logSha256": "19955ddcbc78f74bede8ec9566012338f42cf172ec9ea958b208ff286e412fda",
+        "counts": {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "report": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/native-regression-02/refresh-report.json",
+        "reportSha256": "44437ccdd1e59cd57e997a9028bca94f7504bbfa59b82617748a60e79b2353cc"
+      }
+    ],
+    "controlledSigkillNegativePreserved": true
+  },
+  "postCloseSqliteReference": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/CLOSED_SQLITE_REFERENCE_012_03.json",
+    "sha256": "ba1759d78a758941dbf755e9ae4fa15d6087ff466b41673b1b2096dd40e237e1"
+  },
+  "postSoftwareIdentity": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/POST_SOFTWARE_IDENTITY_012_03.json",
+    "sha256": "d6f1917a24ca7bdac13fd3f0ed9b1eb81d8059e43652791bd2dc7841d7f2e4b5"
+  },
+  "implementationGitIdentity": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/IMPLEMENTATION_GIT_IDENTITY.json",
+    "sha256": "bb3f1258d5f971428d966618753793bee122213df957b0aabd41e4238123ee49"
+  },
+  "runtimeProof": {
+    "node-diagnostic": {
+      "mainRequests": 25,
+      "mainResponses": 25,
+      "coreRequests": 25,
+      "coreReplies": 25,
+      "nodeDispatches": 24,
+      "nodeReplies": 24,
+      "mainCommands": {
+        "commandOutbox.context": 2,
+        "recordingPrintWorker.claim": 1,
+        "collection.list": 16,
+        "commandOutbox.execute": 5,
+        "core.shutdown": 1
+      },
+      "mainExit": {
+        "code": 0,
+        "signal": null
+      },
+      "coreExits": [
+        {
+          "code": 0,
+          "pid": 68313
+        }
+      ],
+      "nodeExits": [
+        {
+          "threadId": 1,
+          "code": 0
+        }
+      ],
+      "rustRequests": 0,
+      "rustValidatedReplies": 0,
+      "rustExits": [],
+      "rustKillRequests": 0,
+      "snapshotVersionProbes": 0,
+      "atomicSnapshotExports": [],
+      "beforeQuitPhases": 2,
+      "forceKilled": false,
+      "timedOut": false
+    },
+    "rust-diagnostic": {
+      "mainRequests": 25,
+      "mainResponses": 25,
+      "coreRequests": 25,
+      "coreReplies": 25,
+      "nodeDispatches": 10,
+      "nodeReplies": 10,
+      "mainCommands": {
+        "commandOutbox.context": 2,
+        "recordingPrintWorker.claim": 1,
+        "collection.list": 16,
+        "commandOutbox.execute": 5,
+        "core.shutdown": 1
+      },
+      "mainExit": {
+        "code": 0,
+        "signal": null
+      },
+      "coreExits": [
+        {
+          "code": 0,
+          "pid": 68351
+        }
+      ],
+      "nodeExits": [
+        {
+          "threadId": 1,
+          "code": 0
+        }
+      ],
+      "rustRequests": 23,
+      "rustValidatedReplies": 23,
+      "rustExits": [
+        {
+          "pid": 68354,
+          "code": 0,
+          "signal": null,
+          "closeAcknowledged": true,
+          "pendingRequests": 0
+        },
+        {
+          "pid": 68355,
+          "code": 0,
+          "signal": null,
+          "closeAcknowledged": true,
+          "pendingRequests": 0
+        },
+        {
+          "pid": 68356,
+          "code": 0,
+          "signal": null,
+          "closeAcknowledged": true,
+          "pendingRequests": 0
+        }
+      ],
+      "rustKillRequests": 0,
+      "snapshotVersionProbes": 37,
+      "atomicSnapshotExports": [
+        {
+          "version": {
+            "epoch": "8acadb25-8e8d-474e-85fa-22566867b7e1",
+            "datasetId": "94d87ed6-42ab-465c-8c71-371ea57fa28e",
+            "revision": "326be902-0385-4b56-8874-e8dff38cbdf1"
+          },
+          "snapshotId": "aee5f322-de9c-4cd2-9e4e-b267c9247d56",
+          "modelCount": 0,
+          "modelsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "version": {
+            "epoch": "8acadb25-8e8d-474e-85fa-22566867b7e1",
+            "datasetId": "94d87ed6-42ab-465c-8c71-371ea57fa28e",
+            "revision": "861c6ba3-6182-427b-89aa-86186cb97ee0"
+          },
+          "snapshotId": "beecf949-39ec-4680-8452-cd783588451d",
+          "modelCount": 3,
+          "modelsSha256": "7b44d4716610d5fd0befcdd67f03784e26acdac0b8b03db653914f4d7bc60d69"
+        },
+        {
+          "version": {
+            "epoch": "8acadb25-8e8d-474e-85fa-22566867b7e1",
+            "datasetId": "94d87ed6-42ab-465c-8c71-371ea57fa28e",
+            "revision": "d3060c9b-d404-4f70-bd8c-520f8b12815c"
+          },
+          "snapshotId": "a0e8807f-8d6b-4626-b580-56b009865fba",
+          "modelCount": 4,
+          "modelsSha256": "bb8c948e6133db0de010ae607226aaf75e64591d6131881b8a5f3cb1e0d5ac0e"
+        }
+      ],
+      "beforeQuitPhases": 2,
+      "forceKilled": false,
+      "timedOut": false,
+      "collectionRepliesByRouterPhase": {
+        "rust": 14,
+        "stale": 2
+      },
+      "nodeFallbackCollectionReplies": 2,
+      "nativePeakLive": 1
+    },
+    "pin-rejected": {
+      "mainExit": {
+        "code": 1,
+        "signal": null
+      },
+      "startupFailed": true,
+      "startupReady": false,
+      "coreSpawns": 2,
+      "coreExits": [
+        {
+          "code": 1,
+          "pid": 68384
+        },
+        {
+          "code": 1,
+          "pid": 68385
+        }
+      ],
+      "nodeSpawns": 0,
+      "rustSpawns": 0,
+      "coreReady": 0,
+      "forceKilled": false,
+      "timedOut": false
+    },
+    "default-node": {
+      "mainExit": {
+        "code": 0,
+        "signal": null
+      },
+      "startupReady": true,
+      "startupFailed": false,
+      "diagnosticEventCount": 0,
+      "forceKilled": false,
+      "workerExit": "NOT_INDEPENDENTLY_OBSERVED",
+      "classification": "original-default-startup-and-static-Node-entry-only"
+    }
+  },
+  "productionPreservation": {
+    "productionDefault": "Node",
+    "soleProductionDatabaseWriter": "Node",
+    "defaultEntries": [
+      {
+        "path": "dist/main/index.js",
+        "sha256": "f1bdbfd1cee5cbca52cb64a748159737a324995d3d406bfd43a4efc045c3aff7"
+      },
+      {
+        "path": "dist/main/core.js",
+        "sha256": "94e64553533dde759d628660c8025a0f4c0bbe3d54c80f75c0115bc0c2d89c26"
+      }
+    ],
+    "desktopPackageSha256": "d77ab1b3e80323feaca63bdaae8df52fde19538c5f0a7d7c309dcbc5d6a7632d",
+    "nativeBeforePackSha256": "eaa4389449148080beb9eb9ff901dacfd5000e88f16b3ba206bbde77612b4028",
+    "electronCacheFiles": 275,
+    "electronCacheUnchanged": true,
+    "distFiles": 29,
+    "distMatchesFreshProductionBuild": true,
+    "productionPreloadRendererAndCoreEntryUnchanged": true,
+    "diagnosticCompileMainDiffersFromProduction": true,
+    "diagnosticCoreStdioPipePrivateSecondPortExternalTmpDeclared": true,
+    "runtimeRustSelectors": false,
+    "asarExternalJavascriptWrappers": false,
+    "inspectEnabled": false,
+    "implicitDownload": false
+  },
+  "syntaxChecks": [
+    {
+      "name": "syntax-route-gate-final-01",
+      "argv": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--check",
+        "scripts/ci/verify-rust-packaged-route.mjs"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 0.028761207999195904,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/syntax-route-gate-final-01.log",
+      "sha256": "c30f575b1f4a100ded08a2c3253bc5db13c93fdbc1754f299af0ee09a781c28f"
+    },
+    {
+      "name": "syntax-route-runtime-final-01",
+      "argv": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--check",
+        "apps/desktop/scripts/rust-packaged-route-runtime.mjs"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 0.02894691600522492,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/syntax-route-runtime-final-01.log",
+      "sha256": "ab1af51f5593edfcbd316c1c83efe9bf16a4972603d1575c5eeb9cd0fba880b6"
+    },
+    {
+      "name": "syntax-route-build-config-final-01",
+      "argv": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--check",
+        "apps/desktop/e2e/rust-packaged-route.vite.config.mjs"
+      ],
+      "exitCode": 0,
+      "durationSeconds": 0.028940999996848404,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/syntax-route-build-config-final-01.log",
+      "sha256": "2d94a7948ba9bedf90cf9a2bd6f11080f89efea86cc940a5e2d30d4dce57fc8d"
+    }
+  ],
+  "typeCheckBoundary": "route vue-tsc covers TS and declaration/callers; checkJs:false is not JS implementation type proof; three mjs syntax checks and actual Gate/behavior separately certify executable behavior; original root startup test covered by full Desktop typecheck and 13 behavior assertions",
+  "historicalAuthorReceipts": {
+    "A": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/author-a/implementation-receipt.json",
+      "sha256": "641c537d6101f037669f9d6850e9ea9b9f2de7a7b290a2494e3322787b4d6095"
+    },
+    "B": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/author-b/implementation-receipt.json",
+      "sha256": "fb3eaabca69d17117b1f0180161450fbc3e0a8224d2559b95777d3ea5d309dce"
+    },
+    "C": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/author-c/implementation-receipt-03.json",
+      "sha256": "ecf565fdf033da0c1188613b46de15830cb3000c7b07692536d83b421f04248e"
+    },
+    "classification": "author-scope-at-time-of-freeze; final root171 certifies later review fixes and original startup VM fixture"
+  },
+  "scopeAudit": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/SCOPE_AUDITS_VERIFIED.json",
+    "sha256": "2699924e8902586640c37ae838989b47193e5f647db31697ba3fe28bc30d1965"
+  },
+  "failures": {
+    "candidate01": {
+      "state": "FAILED_NOT_PASS",
+      "outerExitCode": 1,
+      "invocation": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-gate-01.json",
+        "sha256": "0522b03fdf94c1a14c17444400a3c07619704b2b48b35f1477cfdd162efc4cd3"
+      },
+      "reason": "actual Core exit PID cleared, startupFailed stderr marker not recognized, Worker entry URL encoding and internal lease:null response validator mismatch; original receipt and FAIL retained"
+    },
+    "candidate02": {
+      "state": "PASS",
+      "invocation": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/candidate-gate-02.json",
+        "sha256": "6fd96b9188268d1bc8071052fe957d4f368eba5935b06f8b2d0858db5168109c"
+      },
+      "tests": 158,
+      "classification": "historical-source-before-original-startup-fixture-and-final-Gate-list-change"
+    },
+    "software01": {
+      "state": "FAILED_NOT_PASS",
+      "outerExitCode": 1,
+      "classification": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/SOFTWARE_FINAL_01_FAILURE_CLASSIFICATION.json",
+        "sha256": "a9f3faa4fcc6a384a7064c64e8881854e3faa7d5659e8f465f37bad67a7e25bd"
+      },
+      "reason": "seven original startup Main VM fixture failures; default compiled diagnostics false missing; original assertions preserved and final thirteen passed"
+    },
+    "postCloseWrongPhysicalCount": {
+      "state": "FAILED_ASSUMPTION_NOT_PRODUCT_FAILURE",
+      "reference": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/CLOSED_SQLITE_REFERENCE_FAILURE_01.json",
+        "sha256": "902040f4172a67e7d7e0ecb8551c5a037ee86a64a720cb53131825e812e76f37"
+      },
+      "reason": "blank receive produces inventory_lots; physicalization separate, correct physical_copies count zero"
+    },
+    "reviewFixesRed": {
+      "invocation": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/review-fixes-red-01.json",
+        "sha256": "40786c4620c85c641bb2c0e9a4fdd72ff53bac2b2fc32f7156226fb445276b78"
+      },
+      "tests": 23,
+      "pass": 0,
+      "fail": 23,
+      "classification": "valid-behavior-RED-factory-admission-before-owner-observer-transparency-exit-PID-and-marker"
+    },
+    "reviewFixesGreen": {
+      "invocation": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/review-fixes-green-01.json",
+        "sha256": "1595a7e5bd500965d02fb47823516f1ea87093a3545d1f3e5d223124c8ce0408"
+      },
+      "tests": 23,
+      "pass": 23,
+      "fail": 0,
+      "classification": "historical-focused-GREEN; later async-sink test and final source covered171"
+    },
+    "preparationErrors": [
+      "post-close exploratory event accessor used response instead of actual reply; read-only lookup failed before producing an acceptance record; corrected shape then final03 ten acknowledgements independently passed",
+      "report summarizer initially expected node router phase for fallback; actual stale phase is intentional; actual matching node.dispatch requests proved two fallback reads; no program change or acceptance record produced by failed summarizer"
+    ]
+  },
+  "review": {
+    "round1": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/review-012/round1.json",
+      "sha256": "677e95ec1f9afcfae88b766bfaa21d523587e47a871f4d1c06c5fafddad1a0c1"
+    },
+    "round1State": "CHANGES_REQUESTED",
+    "round1OpenP1": 0,
+    "round1OpenP2": 5,
+    "round1Fixes": "all five resolved in final independent round2; retained RED23/GREEN23 and final actual171",
+    "round2": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/review-012/round2.json",
+      "sha256": "6bdb24129d0fd57e311a3be976564c42035c4b15d6af3e3d263cf2071c6bcd11"
+    },
+    "round2State": "PASS",
+    "maxRounds": 2,
+    "round1ResolvedP2": 5,
+    "round2OpenP1": 0,
+    "round2OpenP2": 0
+  },
+  "protectedWorktreesBaseline": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/PROTECTED_WORKTREES_BEFORE.json",
+    "sha256": "e0410304a42a76d336abbccd3710b094223fae427516cbb25aac7d8c0cf6effa",
+    "count": 12,
+    "dirtyFiles": 7
+  },
+  "scope": {
+    "resourceSchemaVersion": 1,
+    "defaultSnapshotWireVersion": 2,
+    "snapshotProfile": "v2-2000",
+    "publicNodeIpcVersion": 1,
+    "platform": "darwin",
+    "arch": "arm64",
+    "signature": "local-ad-hoc",
+    "packagedRustMainCoreReadonlyRoute": "PASS",
+    "ownerAcceptance": "NOT_RUN",
+    "rendererAcceptance": "NOT_RUN",
+    "ownerIntermediateTestActionsRequired": false,
+    "mainDurableCommandOutboxRecovery": "NOT_IN_SCOPE"
+  },
+  "notRun": [
+    "Developer-ID",
+    "notarization",
+    "x64-or-universal-resource-admission",
+    "large-wire3-candidate-admission",
+    "production-default-Rust",
+    "installed-app-replacement",
+    "real-Provider-or-Roon",
+    "real-playback-or-recording",
+    "real-user-data-migration",
+    "Rust-production-database-ownership",
+    "remote-CI",
+    "push",
+    "release",
+    "main-merge"
+  ],
+  "carryover": [
+    "MBR-004-real-Roon-recovery",
+    "Gate-B-real-output-device",
+    "production-native-audio-beforePack-not-certified-by-this-offline-candidate",
+    "original-missing-audio-extraResources-warnings-preserved",
+    "x64-universal-Developer-ID-notarization-production-opt-in-separate",
+    "Renderer-ordinary-product-route-activation-and-final-product-use-separate"
+  ],
+  "finalIdentityPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-012-912_vagt/FINAL_IDENTITY.json"
+}
