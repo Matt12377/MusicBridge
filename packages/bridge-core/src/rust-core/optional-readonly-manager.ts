@@ -1,6 +1,6 @@
 import type { DatasetOwnerEndpoint, DatasetOwnerVersionedSnapshotEndpoint } from '../collection/dataset-owner-protocol.js';
 import { createRustReadonlyCollectionRouter, type RustReadonlyCollectionRouter, type RustReadonlyCollectionRouterOptions } from './readonly-router.js';
-import { RustSidecarError } from './readonly-sidecar.js';
+import { RustSidecarError, type RustReadonlyCostObservation } from './readonly-sidecar.js';
 
 export interface OptionalReadonlyStatus {
   schemaVersion: 1;
@@ -15,6 +15,7 @@ export interface OptionalRustReadonlyManagerOptions {
   // 测试和同进程可信宿主接口；不能由父消息或 Renderer 选择。
   createRouter?: typeof createRustReadonlyCollectionRouter;
   operationTimeoutMs?: number;
+  onCostObservation?: (value: RustReadonlyCostObservation) => void;
 }
 export interface OptionalRustReadonlyManager {
   decorate<T extends DatasetOwnerEndpoint>(owner: T): T;
@@ -117,6 +118,7 @@ export function createOptionalRustReadonlyManager(options: OptionalRustReadonlyM
         if (!current(token)) return getStatus();
         const creation = track(Promise.resolve().then(() => (options.createRouter ?? createRustReadonlyCollectionRouter)({
           ...configuration, owner: owner as DatasetOwnerVersionedSnapshotEndpoint,
+          ...(options.onCostObservation ? { onCostObservation: options.onCostObservation } : {}),
           onFatal: code => {
             try { configuration.onFatal?.(code); }
             finally {

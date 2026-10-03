@@ -6,6 +6,8 @@ import { createCollectionReadonlySettings, installCollectionReadonlyHandlers } f
 import { createCollectionReadonlyControlClient, type CollectionReadonlyControlChild, type CollectionReadonlyControlPort } from './collection-readonly-control-client.js'
 import { createCollectionReadonlyMainProbe } from './collection-readonly-main-probe.js'
 declare const __MUSIC_BRIDGE_COLLECTION_READONLY_DIAGNOSTICS__: boolean
+declare const __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__: boolean
+import { createCollectionScaleMainProbe } from './collection-scale-main-probe.js'
 
 declare const __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: boolean
 declare const __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: boolean
@@ -191,9 +193,11 @@ const syntheticUserDataDirectory = initializeStartupTestPaths(startupTestConfigu
 const packagedRouteProbe = __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__ ? createPackagedRouteMainProbe() : undefined
 const packagedRendererProbe = __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__ ? createPackagedRendererMainProbe() : undefined
 const collectionReadonlyProbe = __MUSIC_BRIDGE_COLLECTION_READONLY_DIAGNOSTICS__ ? createCollectionReadonlyMainProbe() : undefined
+const collectionScaleProbe = typeof __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__ === 'boolean' && __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__ ? createCollectionScaleMainProbe() : undefined
 let collectionReadonlySettings: ReturnType<typeof createCollectionReadonlySettings> | undefined
 const lifecycleProbe = createLifecycleProbe({ enabled: isUiE2e, sink: line => {
   console.log(line.trimEnd())
+  if (collectionScaleProbe) { try { const value = JSON.parse(line.slice('TASK078_LIFECYCLE '.length)); collectionScaleProbe.observeLifecycle(value.phase, value.exitCode) } catch { /* 被动观察不改变原生命周期。 */ } }
   if (collectionReadonlyProbe) { try { const value = JSON.parse(line.slice('TASK078_LIFECYCLE '.length)); collectionReadonlyProbe.observeLifecycle(value.phase, value.exitCode) } catch { /* 被动观察不改变原生命周期。 */ } }
   if (packagedRendererProbe) {
     try {
@@ -265,7 +269,10 @@ const registerPerformanceHandler: typeof ipcMain.handle = (channel, listener) =>
   const withCollectionObservation = collectionReadonlyProbe ? collectionReadonlyProbe.observeIpc({ channel, listener: observed, trustedSender: event => {
     try { requireTrustedRenderer(event); return { webContentsId: event.sender.id, rendererPid: event.sender.getOSProcessId(), frameUrl: event.senderFrame?.url ?? '', trusted: true as const } } catch { return undefined }
   } }) : observed
-  ipcMain.handle(channel, performanceIpc.wrap(withCollectionObservation, event => {
+  const withScaleObservation = collectionScaleProbe ? collectionScaleProbe.observeIpc({ channel, listener: withCollectionObservation, trustedSender: event => {
+    try { requireTrustedRenderer(event); return { webContentsId: event.sender.id, rendererPid: event.sender.getOSProcessId(), frameUrl: event.senderFrame?.url ?? '', trusted: true as const } } catch { return undefined }
+  } }) : withCollectionObservation
+  ipcMain.handle(channel, performanceIpc.wrap(withScaleObservation, event => {
     try { requireTrustedRenderer(event); return true } catch { return false }
   }))
 }
@@ -1783,7 +1790,7 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
     minWidth: 720,
     minHeight: 480,
     // E2E 默认不弹出原生窗口；后台仍渲染，保留截图和 DOM 键盘测试。
-    show: !!collectionReadonlyProbe || !!packagedRendererProbe || !isStartupTest && !isUiE2e,
+    show: !!collectionScaleProbe || !!collectionReadonlyProbe || !!packagedRendererProbe || !isStartupTest && !isUiE2e,
     backgroundColor: '#f2edf1',
     webPreferences: {
       ...buildBrowserWindowWebPreferences(),
@@ -1810,11 +1817,13 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
   window.on('closed', () => {
     if (mainWindow === window) mainWindow = undefined
   })
+  collectionScaleProbe?.observeRenderer(window)
   void window.loadURL(`${RENDERER_SCHEME}://${RENDERER_HOST}${RENDERER_ENTRY_PATH}`)
 
   window.webContents.once('did-finish-load', () => {
     lifecycleProbe.mark('ui-loaded')
     collectionReadonlyProbe?.observeWindow(window)
+    collectionScaleProbe?.observeWindow(window)
     if (isStartupTest && !isCoreCrashGate && supervisor.status === 'ready') {
       void window.webContents
         .executeJavaScript(
@@ -1942,6 +1951,7 @@ function createCoreSupervisor(
       createChannel: () => {
         const channel = new MessageChannelMain()
         collectionReadonlyProbe?.observePublicPort(channel.port2 as unknown as CoreMessagePort)
+        collectionScaleProbe?.observePublicPort(channel.port2 as unknown as CoreMessagePort)
         packagedRouteProbe?.observePublicPort(channel.port2 as unknown as CoreMessagePort)
         packagedRendererProbe?.observePublicPort(channel.port2 as unknown as CoreMessagePort)
         return {
@@ -1952,14 +1962,15 @@ function createCoreSupervisor(
       fork: (entryPath, args, options) => {
         const child = utilityProcess.fork(entryPath, args, {
           cwd: options.cwd,
-          env: (packagedRouteProbe || packagedRendererProbe || collectionReadonlyProbe ? { ...options.env,
+          env: (packagedRouteProbe || packagedRendererProbe || collectionReadonlyProbe || collectionScaleProbe ? { ...options.env,
             TMPDIR: process.env.TMPDIR, DEV_BUILD_ROOT: process.env.DEV_BUILD_ROOT, DEV_CACHE_ROOT: process.env.DEV_CACHE_ROOT,
           } : options.env) as Record<string, string>,
-          stdio: packagedRouteProbe || packagedRendererProbe || collectionReadonlyProbe ? 'pipe' : options.stdio,
+          stdio: packagedRouteProbe || packagedRendererProbe || collectionReadonlyProbe || collectionScaleProbe ? 'pipe' : options.stdio,
           serviceName: options.serviceName,
         }) as unknown as CoreChildProcess
         currentCollectionChild = child
         collectionReadonlyProbe?.observeChild(child, entryPath, args)
+        collectionScaleProbe?.observeChild(child, entryPath, args)
         const diagnosticProbe = packagedRouteProbe ?? packagedRendererProbe
         if (diagnosticProbe) {
           const diagnostic = new MessageChannelMain()
@@ -1975,13 +1986,16 @@ function createCoreSupervisor(
       if (collectionReadonlySettings && currentCollectionChild && boundCollectionChild !== currentCollectionChild) {
         boundCollectionChild = currentCollectionChild
         try {
-          collectionReadonlySettings.attach(createCollectionReadonlyControlClient({ child: currentCollectionChild as unknown as CollectionReadonlyControlChild, channel: new MessageChannelMain() as unknown as { port1: CollectionReadonlyControlPort; port2: CollectionReadonlyControlPort } }))
+          const channel = new MessageChannelMain() as unknown as { port1: CollectionReadonlyControlPort; port2: CollectionReadonlyControlPort }
+          collectionScaleProbe?.observeControlPort(channel.port2)
+          collectionReadonlySettings.attach(createCollectionReadonlyControlClient({ child: currentCollectionChild as unknown as CollectionReadonlyControlChild, channel }))
         } catch { collectionReadonlySettings.detach() /* 可选控制绑定失败不改变原Node ready与恢复。 */ }
       }
       await options.onReady?.(client)
     },
     onLifecycle: event => {
       collectionReadonlyProbe?.observeLifecycle(event)
+      collectionScaleProbe?.observeLifecycle(event)
       if (event.event === 'exit' || event.event === 'failed' || event.event === 'stopped') collectionReadonlySettings?.detach()
       options.onLifecycle?.(event)
     },
@@ -2070,7 +2084,7 @@ async function bootstrap(): Promise<void> {
   if (packagedRendererProbe && !app.isPackaged) throw new Error('原控件诊断必须运行实际候选应用包。')
   lifecycleProbe.mark('bootstrap-start')
   await app.whenReady()
-  if (isUiE2e && process.platform === 'darwin') app.setActivationPolicy(packagedRendererProbe || collectionReadonlyProbe ? 'regular' : 'accessory')
+  if (isUiE2e && process.platform === 'darwin') app.setActivationPolicy(packagedRendererProbe || collectionReadonlyProbe || collectionScaleProbe ? 'regular' : 'accessory')
   app.setAboutPanelOptions({ applicationName: APPLICATION_NAME })
   installApplicationMenu()
   await installRendererProtocol()
@@ -2095,7 +2109,7 @@ async function bootstrap(): Promise<void> {
     return
   }
 
-  collectionReadonlySettings = createCollectionReadonlySettings({ file: path.join(syntheticUserDataDirectory ?? app.getPath('userData'), 'collection-readonly.json') })
+  collectionReadonlySettings = createCollectionReadonlySettings({ file: path.join(syntheticUserDataDirectory ?? app.getPath('userData'), 'collection-readonly.json'), ...(collectionScaleProbe ? { write: collectionScaleProbe.writePreference } : {}) })
   await collectionReadonlySettings.restore()
   let initialProvisioningComplete = false
   let supervisor: CoreSupervisor
@@ -2197,6 +2211,10 @@ async function bootstrap(): Promise<void> {
   registerIpcHandlers(supervisor, prepared.credentialVault)
   const window = createWindow(supervisor)
   createTray(supervisor)
+  if (collectionScaleProbe) {
+    try { await collectionScaleProbe.runWindowProbe(window) } catch { collectionScaleProbe.emit('main.probeFailed', { code: 'PROBE_FAILED' }) }
+    app.quit(); return
+  }
   if (collectionReadonlyProbe) {
     try { await collectionReadonlyProbe.runWindowProbe(window) } catch { collectionReadonlyProbe.emit('main.probeFailed', { code: 'PROBE_FAILED' }) }
     app.quit(); return
@@ -2234,6 +2252,7 @@ app.on('before-quit', (event) => {
   packagedRouteProbe?.emit('main.beforeQuit')
   packagedRendererProbe?.emit('main.beforeQuit')
   collectionReadonlyProbe?.emit('main.beforeQuit')
+  collectionScaleProbe?.emit('main.beforeQuit')
   roonDisplayConnection?.stop()
   lifecycleProbe.mark('before-quit')
   if (quitAfterCoreShutdown) {
@@ -2261,12 +2280,17 @@ app.on('before-quit', (event) => {
         if (closing) lifecycleProbe.observe(closing, 'outbox-close-end', 'outbox-close-end')
         await Promise.race([closing, new Promise<void>(resolve => { timer = setTimeout(() => { lifecycleProbe.mark('outbox-close-timeout'); resolve() }, 1000) })])
       }
-      finally { if (timer) clearTimeout(timer); destroyTray(); lifecycleProbe.mark('app-quit-reissued'); app.quit() }
+      finally {
+        if (timer) clearTimeout(timer)
+        // 仅诊断包排空原Core输出；原业务关闭已完成，失败由probe记录并交Gate拒绝。
+        if (collectionScaleProbe) { try { await collectionScaleProbe.flushCoreEvidence() } catch { /* 保留诊断失败，不改变原退出结果。 */ } }
+        destroyTray(); lifecycleProbe.mark('app-quit-reissued'); app.quit()
+      }
     })
   })
 })
 
-app.on('will-quit', () => { lifecycleProbe.mark('will-quit'); packagedRouteProbe?.emit('main.willQuit'); packagedRendererProbe?.emit('main.willQuit'); collectionReadonlyProbe?.emit('main.willQuit') })
+app.on('will-quit', () => { lifecycleProbe.mark('will-quit'); packagedRouteProbe?.emit('main.willQuit'); packagedRendererProbe?.emit('main.willQuit'); collectionReadonlyProbe?.emit('main.willQuit'); collectionScaleProbe?.emit('main.willQuit') })
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' && !quitAfterCoreShutdown) {

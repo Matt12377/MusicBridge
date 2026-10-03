@@ -1,5 +1,6 @@
 import { computed, onMounted, onUnmounted, ref, shallowRef } from 'vue'
 import type { CollectionDetail, CollectionFilter, CollectionModel, CollectionMutationResult, Page } from '@music-bridge/contracts'
+import { beginCollectionScaleRead, observeCollectionScaleInvoke, finishCollectionScaleRead } from '../collection-scale-observation'
 
 const firstPage = { offset: 0, limit: 24 }
 
@@ -23,21 +24,27 @@ export function useCollection() {
   async function load(offset = catalog.value?.offset ?? 0): Promise<void> {
     requestedOffset = offset
     const generation = ++listGeneration
+    const observation = beginCollectionScaleRead('catalog', generation, { page: { ...firstPage, offset }, filter: { ...filter.value } })
     loading.value = true
     try {
-      const result = await window.musicBridge.listCollection({ ...firstPage, offset }, { ...filter.value })
+      const result = await observeCollectionScaleInvoke(window.musicBridge.listCollection({ ...firstPage, offset }, { ...filter.value }), observation)
       if (active && generation === listGeneration) { catalog.value = result; if (!pending.value) error.value = '' }
+      finishCollectionScaleRead(observation, active && generation === listGeneration, result, () => active && generation === listGeneration)
     } catch {
+      finishCollectionScaleRead(observation, false)
       if (active && generation === listGeneration) error.value = '无法读取库存。请重试；现有数据不会被清空。'
     } finally { if (active && generation === listGeneration) loading.value = false }
   }
   async function openModel(modelId: string, offset = 0): Promise<void> {
     requestedDetail = { modelId, offset }
     const generation = ++detailGeneration
+    const observation = beginCollectionScaleRead('detail', generation, { modelId, page: { offset, limit: 20 } })
     try {
-      const result = await window.musicBridge.getCollectionModel(modelId, { offset, limit: 20 })
+      const result = await observeCollectionScaleInvoke(window.musicBridge.getCollectionModel(modelId, { offset, limit: 20 }), observation)
       if (active && generation === detailGeneration) { detail.value = result; if (!pending.value) error.value = '' }
+      finishCollectionScaleRead(observation, active && generation === detailGeneration, result, () => active && generation === detailGeneration)
     } catch {
+      finishCollectionScaleRead(observation, false)
       if (active && generation === detailGeneration) error.value = '无法读取型号详情，请刷新后重试。'
     }
   }
@@ -46,21 +53,24 @@ export function useCollection() {
   async function refresh(): Promise<void> {
     if (!active || refreshing.value || saving.value || pending.value) return
     const generation = ++refreshGeneration
+    const observation = beginCollectionScaleRead('refresh', generation, {})
     ++listGeneration; ++detailGeneration
     refreshing.value = true; loading.value = false; notice.value = ''
     try {
-      const result = await window.musicBridge.refreshCollection()
-      if (!active || generation !== refreshGeneration) return
+      const result = await observeCollectionScaleInvoke(window.musicBridge.refreshCollection(), observation)
+      if (!active || generation !== refreshGeneration) { finishCollectionScaleRead(observation, false); return }
       // 刷新等待期间的筛选/翻页/详情意图始终优先，旧读取不能回跳。
       await load(requestedOffset)
-      if (!active || generation !== refreshGeneration) return
+      if (!active || generation !== refreshGeneration) { finishCollectionScaleRead(observation, false); return }
       const selected = requestedDetail
       if (selected) await openModel(selected.modelId, selected.offset)
       if (active && generation === refreshGeneration && !error.value) notice.value = result.refreshed
         ? '库存已刷新，Rust 收藏查询已就绪。'
         : result.settings.state === 'failed' || result.settings.state === 'blocked'
           ? '已通过标准查询刷新库存；Rust 查询暂不可用。' : '库存已通过标准查询刷新。'
+      finishCollectionScaleRead(observation, active && generation === refreshGeneration, result, () => active && generation === refreshGeneration)
     } catch {
+      finishCollectionScaleRead(observation, false)
       if (active && generation === refreshGeneration) error.value = '库存刷新未完成。原有数据保留，请重试。'
     } finally { if (active && generation === refreshGeneration) refreshing.value = false }
   }

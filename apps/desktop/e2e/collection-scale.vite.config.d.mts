@@ -1,0 +1,1 @@
+export function createCollectionScaleBuildConfiguration(options: { modelCount: 0 | 100 | 2000 | 2001 | 5000 | 5001; manifestPin: string; mainOutDir: string; rendererOutDir: string }): Promise<{ main: import('vite').UserConfig; renderer: import('vite').UserConfig }>

@@ -40,7 +40,7 @@ test('实际Main在原ready后仅绑定一次第二父port，保留正常恢复�
   const context = {
     coreDataDirectory: undefined, CoreSupervisor: class { constructor(options: typeof captured) { captured = options } },
     path: { join: (...parts: string[]) => parts.join('/') }, currentDirectory: '/fixed/main', buildCoreEnvironment: () => ({}), process: { env: {} },
-    MessageChannelMain: Channel, packagedRouteProbe: undefined, packagedRendererProbe: undefined, collectionReadonlyProbe: undefined,
+    MessageChannelMain: Channel, packagedRouteProbe: undefined, packagedRendererProbe: undefined, collectionReadonlyProbe: undefined, collectionScaleProbe: undefined,
     utilityProcess: { fork: (entry: string, args: string[]) => { assert.equal(entry, '/fixed/main/core.js'); assert.deepEqual([...args], []); return makeChild() } },
     mainDiagnostics: { performance: {} }, performanceIpc: { context() {} }, libraryReadTrace: undefined,
     collectionReadonlySettings: { attach: (client: unknown) => attached.push(client), detach: () => { detaches++ } },

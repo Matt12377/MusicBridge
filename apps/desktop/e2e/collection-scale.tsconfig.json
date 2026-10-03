@@ -1,0 +1,28 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "lib": [
+      "ES2023",
+      "DOM",
+      "DOM.Iterable"
+    ]
+  },
+  "include": [
+    "../src/main/index.ts",
+    "../src/main/core-entry.ts",
+    "../src/main/core-host.ts",
+    "../src/main/collection-scale-*.ts",
+    "../src/renderer/src/collection-scale-observation.ts",
+    "./collection-scale-dom-driver.ts",
+    "./collection-scale.vite.config.d.mts",
+    "../scripts/collection-scale-seed.ts",
+    "../scripts/collection-scale-runtime.d.mts",
+    "../test/helpers/collection-scale-*.ts",
+    "../test/rust-core/collection-scale-*.test.ts",
+    "../test/collection-scale-*.test.ts",
+    "../src/renderer/src/env.d.ts",
+    "../src/assets.d.ts",
+    "../src/renderer/src/composables/useCollection.ts",
+    "../src/renderer/src/components/settings/collection-readonly-preference.ts"
+  ]
+}

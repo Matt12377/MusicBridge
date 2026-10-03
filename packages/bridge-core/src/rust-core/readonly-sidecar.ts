@@ -55,6 +55,29 @@ export interface RustReadonlySidecarOptions {
   onFatal?: (code: RustSidecarErrorCode) => void;
   /** 同进程可信只读诊断；不进入进程配置、IPC或资源选择。 */
   onObservation?: (value: RustSidecarObservation) => void;
+  /** Core 本地 clock 的包围耗时；观察者不能成为业务等待条件。 */
+  onCostObservation?: (value: RustReadonlyCostObservation) => void;
+}
+export interface RustReadonlyCostObservation {
+  readonly stage: 'versionProbe' | 'snapshotExport' | 'snapshotCopyFreeze' | 'frameEncoding' | 'nativeRpc' | 'tsIndexBuild' | 'routerDispatch' | 'routerRefresh';
+  readonly durationMs: number;
+  readonly outcome: 'fulfilled' | 'rejected';
+  readonly snapshotProfile: RustSnapshotProfile;
+  readonly requestId?: string;
+  readonly generation?: number;
+  readonly snapshotId?: string;
+  readonly datasetId?: string;
+  readonly epoch?: string;
+  readonly revision?: string;
+  readonly operation?: string;
+  readonly modelCount?: number;
+  readonly encodedBytes?: number;
+}
+/** 有限标量事件，不复制 DTO；异常或晚到 Promise 不更改原业务回执。 */
+export function observeRustReadonlyCost(sink: RustReadonlySidecarOptions['onCostObservation'], value: RustReadonlyCostObservation): void {
+  if (!sink) return;
+  try { const returned: unknown = sink(Object.freeze(value)); if (returned !== undefined) void Promise.resolve(returned).catch(() => {}); }
+  catch { /* 被动计时写入失败只影响证据。 */ }
 }
 export type RustSidecarObservation =
   | { readonly event: 'spawn'; readonly pid: number | null; readonly binary: Readonly<{ path: string; sha256: string }> }
@@ -161,6 +184,7 @@ interface Pending {
   resolve(value: unknown): void; reject(error: RustSidecarError): void; promise: Promise<unknown>;
   request?: IpcRequest;
   append?: { chunkIndex: number; receivedModelCount: number };
+  costStarted?: number;
 }
 function budget(value: number | undefined, fallback: number): number {
   const result = value ?? fallback;
@@ -216,7 +240,15 @@ export async function createRustReadonlyDatasetEndpointFromOwner(
       fresh();
       throw error instanceof RustSidecarError ? error : new RustSidecarError('SNAPSHOT_UNAVAILABLE');
     }
-    const snapshot = copySnapshot(exported, profile); fresh();
+    const copyStarted = options.onCostObservation ? performance.now() : undefined;
+    let snapshot: RustReadonlySnapshot;
+    try { snapshot = copySnapshot(exported, profile); }
+    catch (error) {
+      if (copyStarted !== undefined) observeRustReadonlyCost(options.onCostObservation, { stage: 'snapshotCopyFreeze', durationMs: performance.now() - copyStarted, outcome: 'rejected', snapshotProfile: profile, operation: 'owner' });
+      throw error;
+    }
+    if (copyStarted !== undefined) observeRustReadonlyCost(options.onCostObservation, { stage: 'snapshotCopyFreeze', durationMs: performance.now() - copyStarted, outcome: 'fulfilled', snapshotProfile: profile, operation: 'owner', snapshotId: snapshot.snapshotId, datasetId: snapshot.datasetId, epoch: snapshot.epoch, modelCount: snapshot.models.length });
+    fresh();
     if (snapshot.epoch !== identity.epoch || snapshot.datasetId !== identity.datasetId) throw new RustSidecarError('SCOPE_MISMATCH');
     endpoint = createEndpoint({ ...sidecarOptions, snapshot }, deadline);
     onEndpointCreated?.(endpoint);
@@ -242,7 +274,9 @@ export async function createRustReadonlyDatasetEndpointFromOwner(
 function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: number): RustReadonlyDatasetEndpoint {
   const profile = validateRustSnapshotProfile(options.snapshotProfile), large = profile === 'v3-5000';
   const protocolVersion = large ? 3 : 2;
+  const copyStarted = options.onCostObservation ? performance.now() : undefined;
   const snapshot = copySnapshot(options.snapshot, profile);
+  if (copyStarted !== undefined) observeRustReadonlyCost(options.onCostObservation, { stage: 'snapshotCopyFreeze', durationMs: performance.now() - copyStarted, outcome: 'fulfilled', snapshotProfile: profile, operation: 'endpoint', snapshotId: snapshot.snapshotId, datasetId: snapshot.datasetId, epoch: snapshot.epoch, modelCount: snapshot.models.length });
   const binary = { ...options.binary };
   const requestTimeout = budget(options.requestTimeoutMs, 5_000), closeTimeout = budget(options.closeTimeoutMs, 5_000);
   let child: ChildProcessWithoutNullStreams | undefined;
@@ -254,6 +288,11 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
   let writeTail = Promise.resolve();
   const pending = new Map<string, Pending>();
   const observationSink = options.onObservation;
+  const costSink = options.onCostObservation;
+  function rpcCost(requestId: string, item: Pending, outcome: RustReadonlyCostObservation['outcome']): void {
+    if (item.costStarted !== undefined) observeRustReadonlyCost(costSink, { stage: 'nativeRpc', durationMs: performance.now() - item.costStarted, outcome,
+      snapshotProfile: profile, requestId, operation: item.operation, snapshotId: snapshot.snapshotId, datasetId: snapshot.datasetId, epoch: snapshot.epoch });
+  }
   function observe(value: RustSidecarObservation): void {
     if (!observationSink) return;
     try {
@@ -273,7 +312,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
     failure = new RustSidecarError(code);
     queryIndex = undefined;
     fragments = []; fragmentBytes = 0;
-    for (const item of pending.values()) { clearTimeout(item.timer); item.reject(failure); }
+    for (const [requestId, item] of pending) { clearTimeout(item.timer); rpcCost(requestId, item, 'rejected'); item.reject(failure); }
     pending.clear(); rejectExit(failure);
     if (child && !exited) { observe({ event: 'kill-request', pid: child.pid ?? null, signal: 'SIGKILL', reason: code }); child.kill('SIGKILL'); }
     try { options.onFatal?.(code); } catch { /* 诊断观察者不能改变清理。 */ }
@@ -317,6 +356,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
     if (performance.now() >= item.deadline) { fail('TIMEOUT'); return; }
     observe({ event: 'validated-reply', pid: child?.pid ?? null, frame: value });
     clearTimeout(item.timer); pending.delete(value.requestId);
+    rpcCost(value.requestId, item, value.ok ? 'fulfilled' : 'rejected');
     if (!value.ok) {
       item.reject(new RustSidecarError((value.error as { code: RustSidecarErrorCode }).code));
       if (item.operation === 'close' || item.operation === 'prepare' || large && (item.operation === 'appendSnapshot' || item.operation === 'commitBoot')) fail('PROTOCOL_ERROR');
@@ -366,13 +406,23 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
       } else fail('PROCESS_EXIT');
     });
   }
-  function rpc(operation: Operation, payload: unknown, request?: IpcRequest, append?: Pending['append']): Promise<unknown> {
-    if (failure) return Promise.reject(failure);
-    if (pending.size >= RUST_SIDECAR_LIMITS.inflight || sequence >= RUST_SIDECAR_LIMITS.sequence - (operation === 'close' ? 0 : 1)) return Promise.reject(new RustSidecarError('CAPACITY_EXCEEDED'));
+  function encode(operation: Operation, payload: unknown) {
+    const started = costSink ? performance.now() : undefined;
     const requestId = randomUUID(), nextSequence = sequence + 1;
     const frame = Buffer.from(JSON.stringify({ protocolVersion, requestId, epoch: snapshot.epoch, datasetId: snapshot.datasetId,
       snapshotId: snapshot.snapshotId, sequence: nextSequence, operation, payload }) + '\n');
-    if (frame.length - 1 > RUST_SIDECAR_LIMITS.frameBytes) return Promise.reject(new RustSidecarError('CAPACITY_EXCEEDED'));
+    const exceeded = frame.length - 1 > RUST_SIDECAR_LIMITS.frameBytes;
+    if (started !== undefined) observeRustReadonlyCost(costSink, { stage: 'frameEncoding', durationMs: performance.now() - started, outcome: exceeded ? 'rejected' : 'fulfilled', snapshotProfile: profile,
+      requestId, operation, snapshotId: snapshot.snapshotId, datasetId: snapshot.datasetId, epoch: snapshot.epoch, encodedBytes: frame.length - 1 });
+    if (exceeded) throw new RustSidecarError('CAPACITY_EXCEEDED');
+    return { requestId, nextSequence, frame };
+  }
+  function rpc(operation: Operation, payload: unknown, request?: IpcRequest, append?: Pending['append'], encoded?: ReturnType<typeof encode>): Promise<unknown> {
+    if (failure) return Promise.reject(failure);
+    if (pending.size >= RUST_SIDECAR_LIMITS.inflight || sequence >= RUST_SIDECAR_LIMITS.sequence - (operation === 'close' ? 0 : 1)) return Promise.reject(new RustSidecarError('CAPACITY_EXCEEDED'));
+    let wire: ReturnType<typeof encode>;
+    try { wire = encoded ?? encode(operation, payload); } catch (error) { return Promise.reject(error); }
+    const { requestId, nextSequence, frame } = wire;
     if (operation === 'appendSnapshot') {
       if (frame.length - 1 > RUST_LARGE_SNAPSHOT_LIMITS.chunkFrameBytes || uploadBytes + frame.length > RUST_LARGE_SNAPSHOT_LIMITS.uploadBytes) return Promise.reject(new RustSidecarError('CAPACITY_EXCEEDED'));
       uploadBytes += frame.length;
@@ -386,6 +436,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
     if (timeout <= 0) { fail('TIMEOUT'); reject(failure!); return promise; }
     const timer = setTimeout(() => fail('TIMEOUT'), timeout);
     const item: Pending = { operation, sequence, resolve, reject, timer, promise, deadline: performance.now() + timeout, sent: false, ...(request ? { request } : {}), ...(append ? { append } : {}) };
+    if (costSink) item.costStarted = performance.now();
     pending.set(requestId, item);
     writeTail = writeTail.then(() => new Promise<void>((yes, no) => {
       if (failure || !child || exited) { no(failure ?? new RustSidecarError('PROCESS_EXIT')); return; }
@@ -403,12 +454,15 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
       if (failure) return Promise.reject(failure);
       if (closing || phase === 'closed') return Promise.reject(new RustSidecarError('CLOSING'));
       if (preparePromise) return preparePromise;
-      phase = 'starting';
       preparePromise = (async () => {
         try {
+          // 先完整编码同一个实际帧并检查既有预算，再创建 child；不是降低未知关闭屏障。
+          const payload = large ? { modelCount: snapshot.models.length } : { models: snapshot.models };
+          const encoded = encode('prepare', payload);
+          phase = 'starting';
           if (large && effectiveStartupDeadline === Infinity) effectiveStartupDeadline = performance.now() + requestTimeout;
           start();
-          await rpc('prepare', large ? { modelCount: snapshot.models.length } : { models: snapshot.models });
+          await rpc('prepare', payload, undefined, undefined, encoded);
           if (large) {
             for (let offset = 0, chunkIndex = 0; offset < snapshot.models.length; offset += RUST_LARGE_SNAPSHOT_LIMITS.chunkModels, chunkIndex++) {
               if (closing) throw new RustSidecarError('CLOSING');
@@ -420,6 +474,7 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
           if (failure) throw failure;
           phase = 'prepared'; return { epoch: snapshot.epoch, datasetId: snapshot.datasetId };
         } catch (error) {
+          if (!child && phase === 'new' && error instanceof RustSidecarError && error.code === 'CAPACITY_EXCEEDED') throw error;
           if (large && closing && error instanceof RustSidecarError && error.code === 'CLOSING' && !failure) throw error;
           fail(error instanceof RustSidecarError ? error.code : 'PROCESS_EXIT'); throw failure!;
         }
@@ -437,7 +492,10 @@ function createEndpoint(options: RustReadonlySidecarOptions, startupDeadline: nu
         if (large && closing) throw new RustSidecarError('CLOSING');
         // 完整提交回执后才建立本代索引；重复合法 boot 复用原 promise。
         try {
+          const indexStarted = costSink ? performance.now() : undefined;
           queryIndex = createCollectionSnapshotQueryIndex(snapshot.models);
+          if (indexStarted !== undefined) observeRustReadonlyCost(costSink, { stage: 'tsIndexBuild', durationMs: performance.now() - indexStarted, outcome: 'fulfilled', snapshotProfile: profile,
+            snapshotId: snapshot.snapshotId, datasetId: snapshot.datasetId, epoch: snapshot.epoch, modelCount: snapshot.models.length });
           if (performance.now() >= deadline) { fail('TIMEOUT'); throw failure!; }
           phase = 'ready';
         } catch (error) {

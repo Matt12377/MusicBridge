@@ -1,0 +1,107 @@
+# RUST-015 收藏规模与成本证据合同 v1
+
+Source14仅补旧隔离Main测试的编译关闭`collectionScaleProbe: undefined`上下文；生产与A/B/C观察合同、所有原期限及完整准入不变。Source13实际完整Gate通过与标准软件旧fixture失败分开保留；新1,170程序输入须重新通过完整软件和实际Gate。
+
+普通native CUA独立于十二轮诊断工程动作。最终默认包两diagnostics=false，以全新100/2001合成profile按11必需步骤验证；原Window菜单显示测试模式隐藏窗口。唯一原保护设置保存为正常使用策略下最低保留数量0→2，写后revision2、Node回退、100刷新Rust/2001继续failed-node、OFF/ON与原Cmd-Q自然关闭，独立闭库全部DTO/顺序/SKU/库存、唯一ledger及原持久outbox成功ACK必须一致。工程collector/2不变。native其它策略选择记NOT_VERIFIED，不能把数量变更、工程DOM或Owner之前反馈替代该选择证据；旧严格工具与失败/校准原件保留。新普通准入只固定上述policy=normal的事实期待，其余来源、步骤、唯一写入、哈希、完整SQL与自然关闭断言不变。
+
+Source13只为完整证据测试子进程单列有限40分钟总预算。Source12实际13run/12闭库SQL与完整准入通过后，该471MB完整报告的串改合集被继承014通用180秒检查中断；旧整轮保持FAIL。新增专用runner只供`collection-scale-behavior`，逐项记录`scope='complete-evidence-test-process-only'`、`childPid`、`deadlineMs=2400000`、`timedOut`和`forcedCleanup`；完整测试须自然code0、signal=null、failure=null、timedOut=false、forcedCleanup=false，并且最终TAP计数唯一且tests>0、pass=tests、fail/cancelled/skipped全部0。短期限只用于本函数真实受控子进程负例且不能超过该有限常量。不得用部分日志、超时、取消或跳过替代通过，也不自动重试。通用014 helper/构建/编译/SQL/类型检查、实际App600秒watchdog、原协议请求/native关闭/30秒UI排空与源事件合同均不变；A/B/C字节保持，Root三既有文件和本合同重新冻结后才跑新鲜完整Gate。
+
+基线906a3841df3424fff05b6071f4342f312d0c7de9；本合同不修改公开IPC和v2/v3协议。普通固定factory为v2-2000，默认OFF。14期正常boolean/status/refresh及单私有nonce通道继续有效，禁止环境/Renderer/父消息选择profile或能力。诊断只接受编译固定的六种数量0/100/2000/2001/5000/5001和正常入口；生产编译定义false/null。
+
+## 合成事实和进程身份
+
+全新外置0700 profile与0600固定种类/UUID标记；测试工具以Node原Repository/schema准备库后批量装入合成事实，不读取现有用户路径，完成后关闭全部句柄。规模标签是事实期待，不是运行时权限。Main验证编译期待与标记/库事实，正常Core原公开bootstrap只传原公开端口，附加014已有私有控制仍为一条。不得复用009强宿主、替换Core入口或增加第二条测试控制端口作为本期普通能力证明。
+
+原Main策略保存、原持久outbox、唯一Node领域作者及ACK验证必须独立于fixture seed。默认OFF应零资源解析/快照导出/native创建。导出总量超限整体拒绝，不截断；enabled保留、failed/node、refresh false及后续Node完整读取。已知本地UTF8或编码帧预算失败与已spawn未知关闭分开记录，后者永久blocked当前Core。
+
+## 被动分层成本
+
+每条原件至少包含schemaVersion、actor、pid、连续sequence、进程内elapsedMs、event、有限data；跨层通过已有业务requestId/诊断actionId与snapshot/generation关联，不能用跨进程时间戳相减。观察保持原Promise和原ACK，不增加业务异步等待屏障；观察异常只能使证据拒绝，不能修饰业务结果。仅编译诊断候选的同步输出开销包含在观测成本中，生产关闭该诊断。
+
+Core沿原fd1同步输出，处理真实非阻塞pipe的可恢复背压：每条诊断行最多16MiB、可恢复错误的重试总预算2秒、最多4096次尝试，遇到EAGAIN/EWOULDBLOCK/EINTR才以5ms退避重试。永久错误或预算耗尽使本sink失效，不再将后续行拼到未完成前缀。不得以未drain的异步队列替代后冒称完整关闭；原utility shutdown后process.exit语义保持。JavaScript重试deadline不能中断单个已进入的阻塞系统调用，不能将其描述为硬2秒墙钟超时；Runtime总watchdog仍独立有效。同步输出及退避不是生产无诊断耗时，报告必须明确此限制；原Runtime总输出512MiB和600秒预算保持。
+
+Main对无效JSON、转发失败或未终结fragment输出`main.coreEvidenceRejected`，data严格包含5字段：`reason`仅INVALID_JSON/FORWARD_FAILED/INCOMPLETE_FRAGMENT，`rawBytes`、`rawSha256`绑定收到的原Buffer行/fragment，`rawLinePath`为null或已验证合成profile内nonce与本PID确定的文件名，`rawSaved`为boolean。最多保留4份、每份不超过16MiB，排他写入0600并拒绝符号链接；保存失败仍拒绝证据，不补造旧缺行或将摘要当原字节内容。UTF8跨chunk与关闭尾部必须验证。该事件始终使本轮失败。
+
+RSS由原Runtime以100ms采样，仅正整数读数进入`samples`。`ps`成功返回0的读数单列`rss.zeroReadings`，每条严格为`{pid,elapsedMs,rssKiB:0,psStatus:0}`，pid必须属于本轮已观察的Main/Core/native；不把0计作活跃内存样本，也不凭它断言僵尸或退出时刻。成本报告单列`excludedZeroReadingCount`，不混入RSS峰值和分布。原`errors`仍必须为空，负数/非有限值/未知字段不得冒充零读数；旧06默认回执仍是严格准入失败原件，不补写新字段来升级旧结果。
+
+- Renderer：原真实控件动作/加载发起、preload原invoke往返、最新catalog/detail提交、nextTick和requestAnimationFrame完成；记录旧请求被代际拒绝，不能算作成功paint。控制总量单独，不用500ms设置轮询或DOM等待代替产品延迟。
+- Main：可信原IPC进入到实际结果返回、原公开Core request/reply、boolean原子保存、可选控制和最终outbox-close-end。固定requestId/command/完整DTO事实摘要；测量开销与全DTO诊断序列化明确标识。
+- Core：原Node版本RPC、原子完整快照导出、copy/freeze/TS索引、实际native prepare/boot/query验证和router总量，使用Core本地clock；不能把裸native/纯TS索引计时作为完整查询成本。
+- Worker/native：已有真实生命周期、请求/validated reply、自然关闭ACK/pending0/exit。无法独立拆出的SQLite水合/序列化或native内部阶段必须标为未独立观测；可以记录实际同进程包围值，不能编造细分。RSS采样必须给pid、采样间隔、scope及观测峰值，不能称硬上限。
+
+六工作量为无筛选、品牌库存、字面%/_、Unicode、年代、空结果。0/100/2000的每个mode/工作量保留至少10warm原值；明确预热次数、Node OFF/Rust ON交替顺序，同库dataset/version/profile/native/hash和请求关联。首启、firstON、刷新与自然关闭另列，超限路径单独。对照需验证同完整DTO/total/稳定顺序，不以速度阈值决定Gate。报告中位数、范围、样本数、完整刷新成本和读写比例摊销；不能挑有利筛选或声称真实库普遍收益。
+
+## 字节与型号边界
+
+Node完整snapshot UTF8 JSON v2 4MiB、v3 8MiB，与实际prepare/append帧除LF预算及累计上传包括LF预算是独立事实。v2最大2000、v3最大5000；v3每chunk最多128型/1MiB、最多40chunks、累计8MiB+64KiB。精确±1测试记录实际编码原件长度/摘要和合法DTOguards，损坏UTF/超长单字段负例分开。生产单次原子导出和native guards保持。
+
+若实际测试证明已知不可编码prepare会不必要spawn或导致错误关闭分类，可先完整预编码、检查预算后再spawn；这是提前验证同一既有预算，不扩大能力。未知退出/真实关闭失败及缓存close失败不可降低为安全拒绝，也不得透明将首个失败请求重投Node。
+
+## 严格验收和证据边界
+
+完整原日志、实际签名包树/native/pin/编译默认、源输入before/after、运行进程和所有closed SQL事实身份须相互绑定。串改拒绝必须覆盖缺样本、重复request/action、跨库/跨代、错误cost范围/clock、错mode/profile/native、预算截断、缺自然关闭/ACK、缺唯一策略写入、旧前置输入漂移和normal包诊断能力泄漏。
+
+每轮运行返回后、捕获SQL或启动下一轮之前立即核验自然Main退出、完整原件解析及本轮失败信号，同时核各actor/pid自己的连续sequence与单调本地clock；即使没有显式解析拒绝，静默整行缺失也必须停止。十二轮诊断还必须具备Node关闭ACK/自然退出、Core关闭及原Main outbox关闭观察，native每代自然关闭ACK与pending=0；缺失或失败即停止。默认包沿用原startup入口，只能独立证明DESKTOP_STARTUP_READY、自然Main退出0和编译关闭诊断；该入口不输出Node/Core/outbox关闭观察，三者记NOT_INDEPENDENTLY_OBSERVED，不补造ACK，也不据此扩大默认启动结论。
+
+闭库SQLite以immutable只读打开实际新合成库，不使用请求返回复制品伪称独立参照。全部模型与完整DTO/稳定顺序、过滤/page边界和策略/outbox/回执比对；读前后库bytes/SHA不变，未闭库不计PASS。固定DOM工程动作isTrusted=false，普通native CUA与Owner使用分层。未拆出阶段写NOT_INDEPENDENTLY_OBSERVED；未运行写NOT_RUN。性能结果只支持所测fixture/包/机器/缓存状态。
+
+## 实现对接的固定证据形状
+
+七包键为default-node及scale-0/100/2000/2001/5000/5001；13run为default-node与每scale的fresh/cold。packages.compile严格七字段：diagnostics、rendererDiagnostics、coreEntry='core-entry.ts'、manifestPin、snapshotProfile='v2-2000'、defaultEnabled=false、modelCount=null或六静态数值；不增probeExpectation。default两diagnostics=false/modelCount=null，六候选两diagnostics=true/modelCount固定。
+
+costEvidence是独立原件{path,sha256,bytes}，deriveCollectionScaleCostEvidence(runs)从13份{receipt,evidence}重算；其中12诊断run按actor本地clock核samples/controls/phaseCosts/RSS/driverWait。report.rendererFullDtoObservation固定PASSIVE_RENDERER_COMMIT_FULL_DTO_AND_PAINT_OPPORTUNITY：证明诊断Renderer原返回/最新state提交完整DTO与Main及闭库SQL一致、nextTick/rAF机会；不证明实际像素绘制、普通CUA全DTO或Owner。
+
+15期固定DOM快照独立扩展filterClearVisible，只表示原“清除”按钮实际可见，不修改14期快照合同。原界面无筛选时没有此按钮；仅当最近一次原limit=24的catalog IPC属于精确无筛选事实且快照确无按钮时，工程驱动可记录main.domResetSkipped，reason固定original-clear-control-absent-in-unfiltered-state，省略不存在的清除动作。观察等价仅允许删除已知query/brand字段的精确空字符串；原控件真实发送的{query:'',brand:''}与{}在此等价，原IPC payload、bytes、SHA和完整返回保持原样。非空字符串、未知字段和无效结构不能被规范化掩盖，非空筛选缺按钮仍拒绝。
+
+六种工作量全部实际点击原“筛选”提交，暂时禁用的控件有界等待至可用再点击，不伪造成功动作。原年代/库存select各有change自动读取，另有limit=1的needs-review后台读取；同一固定动作允许这些原请求与中间paint存在。warm样本只绑定最终原submit之后、该action最新已提交并完成paint机会的catalog observation/generation及其原IPC invoke和公开Core request身份，不能凭相同DTO、stdout相邻行或第一个请求猜关联。各actor用自己的sequence证明顺序，跨actor只通过显式身份和原page/filter/完整返回关联。每个action最终只形成一个warm样本，原自动读取/后台读取和早期paint完整保留、全部进行原路由及闭库SQL验收，并单列次数；不累加为产品单请求成本、不删除以伪称原控件只读一次。
+
+固定私有观察字段：Renderer begin/invokeReply/commit/nextTick/paint附加triggerSequence:number|null、triggerDomEvent:click|input|change|submit|null、catalogOrdinal:number|null；原Main ipcRequest/ipcReply附加catalogOrdinal:number|null，原Main request/response附加invokeId:string|null及catalogOrdinal:number|null。仅诊断旁路用AsyncLocalStorage关联原invoke的公开postMessage，不改变原IPC参数/返回或原端口能力。catalogOrdinal在各actor对同action的原limit=24目录读取按实际顺序连续计数，全部次数及page/filter必须一一相符；原limit=1后台读取保留且不占该序号。
+
+main.warmSample.selection严格七字段：finalSubmitRendererSequence、observationId、generation、catalogOrdinal、invokeId、requestId、paintRendererSequence。它必须绑定最后真实FORM submit之后、该action最大catalog generation的唯一完整begin/invoke/commit/nextTick/paint，以及原Main IPC与公开Core request/reply；不能把早期paint换成最终样本。缺失原读取、序号错位、非submit原因、跨代或错请求身份均拒绝。AsyncLocalStorage、序号关联和被动诊断全DTO序列化开销包含在观测值中，不能把其结果冒称关闭诊断后的纯产品性能。
+
+固定HTMLElement.click产生的click为isTrusted=false，但浏览器激活该控件后派生的input/change/submit可以为isTrusted=true。所有原件保留实际值；同一固定动作的派生事件必须保持其actionId，不能仅因派生事件trusted就重建为另一项人工操作。真正的新原生用户点击单独归属；工程来源由已绑定的Main动作与Renderer上下文证明，不以单个isTrusted=true冒称native CUA或Owner。
+
+main.domExecution记录actionId、同Main clock的durationMs和scope=engineering-execute-and-control-ready-wait，是executeJavaScript与原控件可用等待的工程成本，单独汇总。它与driverWait均不替代Renderer原invoke/完整DTO提交及paint机会，不与重叠的Main/Core父子区间相加。观测事件、全DTO日志序列化、RSS采样本身的开销和无法独立拆出的阶段继续显式披露。
+
+fresh marker与completed marker分别闭集绑定nonce/profile/数量及datasetId/唯一commandIds/outboxIds/policyModelId/revision。0例无型号，业务写/策略目标为0/null；其他fresh原策略1写、cold0。fixture批量装入没有领域业务ledger/outbox，seedledger=0，原策略ledger/outbox另记。工具进程完全关闭后才启动App。
+
+cold在任何成本动作之前先观察原持久ON意图与同库事实；随后固定成本驱动允许普通refresh/OFF→ON及多代native，它们属于显式测试动作，不冒称纯自发冷启。所有cold业务写仍为0，不把成本采样的刷新与14期纯冷启零刷新证据混用。
+
+普通生产Renderer关闭观察，候选诊断Renderer单独记录资产身份；原preload与Node/Main outbox源码身份保持。复用14期已签native及manifest，manifest.source.commit仍e35ad579、source.sha为2a4e6297c44d92495e8a54a74ea2738646c5942a8cf84c0b497f400f04170565；15源码/构建HEAD906a独立记录，不改写旧产物来源或声称新Rust编译。
+
+## 容量失败后的原Node并发边界
+
+Source07实际5,000项轮次证明：普通ON容量拒绝后，原Node的needs-review查询返回合法空DTO；并发原打印worker空领取却在无Rust候选时触发泛写撤权，导致已成功的Node回执被旧代fence拒绝。该轮仍为FAIL，完整原件和自然关闭证据保留，不能通过删除背景查询或放宽失败门禁消除。
+
+已经显式尝试刷新Rust的路由中，原recordingPrintWorker.claim均进入既有条件领取窗口。无active及无refreshCertificate时，窗口同样锁定完整epoch/datasetId/revision，并要求前后版本一致、唯一Node领取返回精确own-data的{lease:null}且无Proxy/getter、同generation且未关闭、窗口仍无新候选；只有完整证明成立才保持原Node代际和failed状态。Node读取仍等所属代的全部领取窗口收口再fence；多个空窗口不能互相代替。非空回执、领取或探测异常、版本变化、外部失效/OFF/refresh/close仍撤权，原领取结果或错误对象不被改写；其他业务写入继续使用原同步撤权。尚未尝试Rust的Node路由沿用原单次领取和原错误，不新增辅助版本探测；旧RUST-006的该项行为测试保持。
+
+此修复只调整既有辅助路由的空领取证明，不增加公开命令、Rust能力、容量或任何写入所有权。新Node-only版本探测与等待开销包含在实际Main/Core/Renderer成本中；普通默认OFF仍不经过该路由。
+
+## 原设置状态和退出前UI请求屏障
+
+Source07的0项cold原status已返回ON/ready，但设置容器仍显示初始OFF，驱动过早形成DOM收据；Source08偶然在status commit之后取到正确值，不替代修复。每次settings-open必须等待同action最新status observation/generation的原invokeReply、完整DTO commit、nextTick与paint机会，并与原readonly-settings IPC/私有控制reply完整DTO一致；DOM的enabled/mode/state只与该原DTO投影核对。缺失、discarded、旧代或来自后动作的paint不能满足屏障。setEnabled和其finally自动status分别关联，不能互相替代；cold的原ON意图断言保持。
+
+main.domSettled由原五字段固定扩为六字段，新增settingsStatusSelection；settings-open为严格五键对象{observationId,generation,invokeId,requestId,paintRendererSequence}，其他动作固定null。它记录Main实际收到并选择的原最新status paint，以及关联的原readonly-settings invoke和私有status请求ID；消费者通过原Renderer阶段、Main invoke/private reply全DTO及该选择身份独立核对。Main选择声明与自身domSettled序号是接收事实，不以merged stdout顺序或跨actor elapsed比较替代因果。
+
+Source11明确原初始化等待边界：Main在首个navigate动作之前以actionId=null等待readyState=complete，该记录没有domAction，settingsStatusSelection固定null。它必须是该run唯一且首个domSettled，并在同Main/PID序列中先于所有domAction；完整snapshot形状和页面地址仍需核验。不能准入重复、动作后的null等待或携带status选择的null记录。所有非null动作仍须匹配唯一原domAction；settings-open的最新代际、完整DTO、IPC/private请求身份和paint检查不变，不得用初始化记录代替、隐藏或降低原设置动作检查。初始化等待只属于工程driverWait，不计为Renderer产品时长或warm样本。该约定修复consumer对原producer的误分类，不改变原窗口、初始等待、设置轮询或任何业务行为。
+
+Source12明确原后台汇总与动作屏障：CollectionView的catalog watch以void触发原listCollection({offset:0,limit:1},{stockState:'needs-review'})，没有独立Renderer begin/commit/paint身份，不能冒称其Renderer产品提交。原目录24的最新paint不等待该汇总Promise；Main动作domSettled也不是每动作全部UI invoke排空声明。动作回复边界保持原controlsFor检查集合：workload、clear、target、next、previous、detail-open、policy-save、refresh、readonly-on/off；不在本修复扩展navigate/settings-close/policy-open/detail-close的每动作准入。仅在该既有检查集合内，channel=collection:list、args精确两项且page精确{offset:0,limit:1}/filter精确{stockState:'needs-review'}、catalogOrdinal严格null、可信sender以及同action/invoke/channel的原唯一完整关联允许后台回复晚于settled。其Main IPC请求必须在本动作之后、settled之前已观察；对应唯一public request的collection.list命令、完整payload、requestId/invokeId/action、成功public reply与IPC完整DTO必须一致，所有回复严格在唯一最终drain之前。额外page/filter键、相似limit或filter、非nullordinal、缺失/重复/错关联、失败或DTO漂移不能取得此例外。该既有检查集合内其他目录24、详情、刷新与控制回复仍逐条先于该动作settled；要求catalog的动作及refresh的collection:list必须至少有真正24limit、正catalogOrdinal的原成功前景回执先于settled，不能仅靠后台回复满足通道存在。原refresh.refreshed边界、warm最终submit选择、settings最新paint及全UI最终drain计数/ID/成功回复/完整DTO/SQL/路由准入均不变。实际诊断范围中该既有集合有14条晚汇总，另有navigate/settings-close各1条同类晚汇总；这额外2条仍由原全UI最终drain完整核验，不扩大每动作检查集合，不计后台Renderer产品提交。此修复不改producer或业务，只修consumer对既有后台行为的误分类；Source11仅有局部通过和旧Source10原件的新consumer预检失败，没有新实际App Gate。
+
+Source08的5,000项cold在最后catalog paint后直接quit，尚未返回的原needs-review后台UI查询被正常关闭fence拒绝，整轮保留FAIL。驱动在最终catalog paint和原DOM/微任务观察后，动态等待所有已观察Renderer IPC及UI-owned公开请求的原成功回复，覆盖此前action与limit=1背景读取，不冻结早期ID集合、不删除背景查询。原Main周期打印领取没有UI invoke，由原退出流程停止，不要求周期任务永远全局零。
+
+新增诊断事件main.rendererIpcDrained严格五字段：scope='before-original-quit'、pendingCount=0、requestCount为原main.ipcRequest总数、replyCount为原main.ipcReply总数、rejectedCount=0。其计数和排空必须从原观察实时取得，有界预算30秒；在完成标记持久写入后同步复核并发出，随后才probe完成和原app.quit。严格消费者逐项从原件重算invoke身份、公开request/reply、成功结果、计数与同Main时序；声明pending0不足以通过，排空后出现UI请求或提前退出仍拒绝。逐轮Root Gate同样拒绝缺声明、错计数、缺/错/晚reply、late请求及提前退出；原Node/Core/Native/outbox关闭保护与失败门禁不放宽。
+
+## Core成本观察范围与准入端局部视图
+
+Source09原十三轮自然关闭、闭库SQL已完成，但第一次成本推导拒绝：router对所有dispatch发出成本，原public observer却只观察固定六命令。94条辅助成本属于referenceCatalog.sources与collectionProgress.modelLengths，没有同范围公开原件；该轮仍FAIL，不把1577条已关联请求或退出通过升级为完整成本通过。
+
+Core.cost中stage=routerDispatch的发送范围必须复用原public observer同一六命令闭集：commandOutbox.context、commandOutbox.execute、collection.list、collection.detail、core.shutdown、recordingPrintWorker.claim。闭集之外或operation缺失的routerDispatch不发送此私有成本观察；不能在消费者中以“没有requestId匹配”事后吞掉已声明的成本。其余versionProbe、snapshotExport、snapshotCopyFreeze、frameEncoding、nativeRpc、tsIndexBuild、routerRefresh阶段仍按原真实观察发送。原辅助请求、参数、Promise、返回和ACK保持；UI总量、包和RSS仍包含这些实际运行辅助调用的开销，但没有独立辅助routerDispatch成本，不宣称整个领域的每条辅助请求已分层观测。
+
+成本准入每次derive调用对每个run的当前raw Renderer事件完整核验一次，私有warm选择函数仅复用本次同run已验证局部视图。原公开selectCollectionScaleWarmObservation仍每次自行从raw完整验证；不增加可由外部提交的可信cache参数、协议字段或跨调用/跨对象缓存。每个warm的最终原FORM、最新generation、所有原读取次数/ordinal、page/filter、完整DTO、invoke/public request、原路由和Core关联仍逐项核验。同一raw对象在后续调用中被修改、未选早读漂移、错最新paint或不完整Renderer阶段仍拒绝。局部视图只降低准入工具重复扫描的开销，不改变产品时钟数据、样本选择或速度结论。
+
+
+## Source15原stdout退出尾部与诊断IO预算
+
+Electron v43.4.0 UtilityProcess在exit回调finally删除stdout监听。诊断观察器保留原Readable，exit同步pause并在microtask仅恢复自己的data/end/close监听后resume；原Core事件仍必须从原stdout完整LF帧到达，不能从Main公开shutdown ACK推造node.exit或close完成。实际Source14缺关闭尾部仍是FAIL；受控真实PassThrough复现只证明该监听移除窗口，不证明原run不存在fd1错误。
+
+仅诊断编译包在原Core shutdown和原Main outbox关闭之后等待flushCoreEvidence；默认包不等待。该缓存Promise整体最多5000ms，等待真正EOF/close与Main stdout队列flush，重复EOF/调用幂等、失败记录main.probeFailed并由Gate拒绝；不延后原业务ACK、不改变Worker/Core/naturalExit语义，不提前填齐事件。main.closeCost的before-quit→will-quit范围因此包含诊断IO收口，不是未观测生产包的纯关闭性能。其他actor本地clock/连续sequence、四条原关闭尾部、完整DTO/SQL/窗口/关闭与成本准入全部保持。

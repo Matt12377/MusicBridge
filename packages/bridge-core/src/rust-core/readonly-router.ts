@@ -2,7 +2,7 @@ import { isCollectionId, isCommandOutboxDatasetId, type IpcRequest } from '@musi
 import { types } from 'node:util';
 import type { DatasetCollectionSnapshotVersion, DatasetOwnerLargeSnapshotEndpoint, DatasetOwnerVersionedSnapshotEndpoint } from '../collection/dataset-owner-protocol.js';
 import { createRustReadonlyDatasetEndpointFromOwner, RustSidecarError, validateRustSnapshotProfile,
-  type RustReadonlyDatasetEndpoint, type RustReadonlyOwnerOptions, type RustSidecarErrorCode } from './readonly-sidecar.js';
+  observeRustReadonlyCost, type RustReadonlyCostObservation, type RustReadonlyDatasetEndpoint, type RustReadonlyOwnerOptions, type RustSidecarErrorCode } from './readonly-sidecar.js';
 
 export interface RustReadonlyCollectionRouterOptions extends Omit<RustReadonlyOwnerOptions, 'owner'> {
   owner: DatasetOwnerVersionedSnapshotEndpoint & Partial<Pick<DatasetOwnerLargeSnapshotEndpoint, 'exportLargeVersionedCollectionSnapshot'>>;
@@ -81,14 +81,28 @@ async function bounded<T>(operation: () => T | Promise<T>, deadline: number): Pr
 export async function createRustReadonlyCollectionRouter(options: RustReadonlyCollectionRouterOptions): Promise<RustReadonlyCollectionRouter> {
   options = { ...options, binary: { ...options.binary } };
   const profile = validateRustSnapshotProfile(options.snapshotProfile);
+  const costSink = options.onCostObservation;
+  function measured<T>(stage: RustReadonlyCostObservation['stage'], operation: () => Promise<T>, fields: Partial<RustReadonlyCostObservation> = {}, completed?: (result: T) => Partial<RustReadonlyCostObservation>): Promise<T> {
+    if (!costSink) return operation();
+    const started = performance.now(), work = operation();
+    const emit = (outcome: RustReadonlyCostObservation['outcome'], result?: T) => {
+      const durationMs = performance.now() - started;
+      let extra: Partial<RustReadonlyCostObservation> = {};
+      // 摘要序列化是额外诊断开销，排除在该 RPC 包围值外；父子阶段不可直接求和。
+      if (outcome === 'fulfilled' && completed) { try { extra = completed(result as T); } catch { /* 摘要失败不更改业务结果。 */ } }
+      observeRustReadonlyCost(costSink, { ...fields, ...extra, stage, snapshotProfile: profile, durationMs, outcome });
+    };
+    void work.then(result => emit('fulfilled', result), () => emit('rejected'));
+    return work;
+  }
   if (profile === 'v3-5000' && typeof options.owner.exportLargeVersionedCollectionSnapshot !== 'function') throw new RustSidecarError('SNAPSHOT_UNAVAILABLE');
   const probeTimeout = budget(options.requestTimeoutMs, 5_000);
   const startupTimeout = budget(options.startupTimeoutMs, 5_000);
   budget(options.closeTimeoutMs, 5_000);
   let binding: DatasetCollectionSnapshotVersion;
-  try { binding = versionCopy(await bounded(() => options.owner.getCollectionSnapshotVersion(), performance.now() + probeTimeout)); }
+  try { binding = await measured('versionProbe', async () => versionCopy(await bounded(() => options.owner.getCollectionSnapshotVersion(), performance.now() + probeTimeout)), { operation: 'bind' }, version => version); }
   catch (error) { throw safeError(error); }
-  let generation = 0, phase: RustReadonlyCollectionRouterStatus['phase'] = 'node', closed = false;
+  let generation = 0, phase: RustReadonlyCollectionRouterStatus['phase'] = 'node', closed = false, refreshAttempted = false;
   let errorCode: RustSidecarErrorCode | undefined, writes = 0;
   const claimWindows = new Map<number, number>();
   const pendingClaims = (ownGeneration: number) => (claimWindows.get(ownGeneration) ?? 0) > 0;
@@ -145,7 +159,7 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
     if (version.epoch !== binding.epoch || version.datasetId !== binding.datasetId) throw new RustSidecarError('SCOPE_MISMATCH');
   }
   async function probe(deadline = Infinity): Promise<DatasetCollectionSnapshotVersion> {
-    return versionCopy(await bounded(() => options.owner.getCollectionSnapshotVersion(), Math.min(deadline, performance.now() + probeTimeout)));
+    return measured('versionProbe', async () => versionCopy(await bounded(() => options.owner.getCollectionSnapshotVersion(), Math.min(deadline, performance.now() + probeTimeout))), { generation, operation: 'probe' }, version => version);
   }
   function failCurrent(error: unknown, expectedGeneration: number): void {
     if (closed || generation !== expectedGeneration) return;
@@ -168,7 +182,7 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
     // 首次 await 前登记完整窗口；领取不是纯读，仍由唯一 Node 作者执行。
     writes++; claimWindows.set(ownGeneration, (claimWindows.get(ownGeneration) ?? 0) + 1);
     const ownsCandidate = () => !closed && generation === ownGeneration
-      && (current ? active === current : !!certificate && refreshCertificate === certificate);
+      && (current ? active === current : certificate ? refreshCertificate === certificate : !active && !refreshCertificate);
     const abandon = () => { if (ownsCandidate()) revoke('stale'); };
     const deadline = certificate?.deadline ?? Infinity;
     let expectedVersion = current?.version ?? certificate?.version;
@@ -178,7 +192,7 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
         const before = await probe(deadline); scoped(before);
         if (ownsCandidate()) {
           if (!expectedVersion) {
-            // 导出前的空领取也必须给该刷新锁定完整版本，不能只看到 null。
+            // 导出前或容量失败后的空领取都锁定完整版本，不能只看到 null。
             expectedVersion = before;
             if (certificate) certificate.version ??= before;
           }
@@ -219,7 +233,8 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
       if (request.command !== 'collection.list') {
         // Node 纯读借用当前代际；并发写入、刷新、失效或关闭仍撤销它的迟到回执。
         if (nodeReadonlyCommands.has(request.command)) return nodeRead(request, generation);
-        if (request.command === 'recordingPrintWorker.claim' && (active || refreshCertificate)) return conditionalClaim(request, active, refreshCertificate);
+        // 显式刷新后的Node回退也核空领取；未尝试Rust的原Node路径不增加探测。
+        if (request.command === 'recordingPrintWorker.claim' && refreshAttempted) return conditionalClaim(request, active, refreshCertificate);
         revoke('stale');
         writes++;
         try {
@@ -265,6 +280,7 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
       if (closed) return Promise.reject(new RustSidecarError('CLOSING'));
       if (refreshing) return refreshing;
       if (writes) return Promise.reject(new RustSidecarError('NOT_READY'));
+      refreshAttempted = true;
       revoke('refreshing');
       const ownGeneration = generation, deadline = performance.now() + startupTimeout;
       const certificate: NonNullable<typeof refreshCertificate> = { generation: ownGeneration, deadline };
@@ -285,14 +301,18 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
             owner: {
               prepare: async () => { fresh(); return { epoch: binding.epoch, datasetId: binding.datasetId }; },
               exportCollectionSnapshot: async () => {
-                const exported = await bounded(() => options.owner.exportVersionedCollectionSnapshot(), deadline); fresh();
+                const exported = await measured('snapshotExport', () => bounded(() => options.owner.exportVersionedCollectionSnapshot(), deadline), { generation: ownGeneration, operation: 'exportVersionedCollectionSnapshot' }, value => ({
+                  ...value.version, snapshotId: value.snapshot.snapshotId, modelCount: value.snapshot.models.length, encodedBytes: Buffer.byteLength(JSON.stringify(value.snapshot), 'utf8'),
+                })); fresh();
                 if (!plain(exported, ['snapshot', 'version'])) throw new RustSidecarError('SNAPSHOT_UNAVAILABLE');
                 exportedVersion = versionCopy(exported.version); scoped(exportedVersion);
                 if (!certificate.version || !sameVersion(exportedVersion, certificate.version)) throw new RustSidecarError('STALE_SNAPSHOT');
                 return exported.snapshot;
               },
               ...(profile === 'v3-5000' ? { exportLargeVersionedCollectionSnapshot: async () => {
-                const exported = await bounded(() => options.owner.exportLargeVersionedCollectionSnapshot!(), deadline); fresh();
+                const exported = await measured('snapshotExport', () => bounded(() => options.owner.exportLargeVersionedCollectionSnapshot!(), deadline), { generation: ownGeneration, operation: 'exportLargeVersionedCollectionSnapshot' }, value => ({
+                  ...value.version, snapshotId: value.snapshot.snapshotId, modelCount: value.snapshot.models.length, encodedBytes: Buffer.byteLength(JSON.stringify(value.snapshot), 'utf8'),
+                })); fresh();
                 if (!plain(exported, ['snapshot', 'version'])) throw new RustSidecarError('SNAPSHOT_UNAVAILABLE');
                 exportedVersion = versionCopy(exported.version); scoped(exportedVersion);
                 if (!certificate.version || !sameVersion(exportedVersion, certificate.version)) throw new RustSidecarError('STALE_SNAPSHOT');
@@ -360,5 +380,22 @@ export async function createRustReadonlyCollectionRouter(options: RustReadonlyCo
       return closing;
     },
   };
+  if (costSink) {
+    const dispatch = router.dispatch, refresh = router.refresh;
+    router.dispatch = request => measured('routerDispatch', () => dispatch(request), { requestId: request.id, generation, datasetId: binding.datasetId, epoch: binding.epoch, operation: request.command,
+      ...(active ? { snapshotId: active.endpoint.snapshotId, revision: active.version.revision } : {}) });
+    // 附加观察，不替换单航班返回的 Promise 身份；同一次 flight 只登记一次。
+    const observedFlights = new WeakSet<Promise<void>>();
+    router.refresh = () => {
+      const started = performance.now(), work = refresh(), ownGeneration = generation;
+      if (!observedFlights.has(work)) {
+        observedFlights.add(work);
+        const emit = (outcome: RustReadonlyCostObservation['outcome']) => observeRustReadonlyCost(costSink, { stage: 'routerRefresh', durationMs: performance.now() - started,
+          outcome, snapshotProfile: profile, generation: ownGeneration, datasetId: binding.datasetId, epoch: binding.epoch, ...(active ? { snapshotId: active.endpoint.snapshotId, revision: active.version.revision } : {}) });
+        void work.then(() => emit('fulfilled'), () => emit('rejected'));
+      }
+      return work;
+    };
+  }
   return router;
 }

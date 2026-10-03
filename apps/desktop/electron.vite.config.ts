@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => ({
   main: {
     define: {
       __MUSIC_BRIDGE_COLLECTION_READONLY_DIAGNOSTICS__: 'false',
+      __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__: 'false',
+      __MUSIC_BRIDGE_COLLECTION_SCALE_MODELS__: 'null',
       __MUSIC_BRIDGE_COLLECTION_READONLY_PROBE_EXPECTATION__: 'null',
       __MUSIC_BRIDGE_RUST_MANIFEST_SHA256__: JSON.stringify(rustBuild.manifestSha256),
       __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: 'false',
@@ -65,6 +67,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   renderer: {
+    define: { __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_COLLECTION_SCALE_MODELS__: 'null' },
     build: {
       outDir: 'dist/renderer',
     },
