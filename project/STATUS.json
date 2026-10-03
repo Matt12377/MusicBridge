@@ -3202,9 +3202,11 @@
   },
   "currentRustCoreTask": {
     "task": "RUST-010",
-    "state": "local-complete-validated-reviewed-unpushed-awaiting-owner",
+    "state": "local-complete-development-validated-synthetic-controls-owner-accepted",
     "scope": "tasks/RUST-010-synthetic-owner-session.md",
-    "branch": "codex/rust-core-010-synthetic-owner-session"
+    "branch": "codex/rust-core-010-synthetic-owner-session",
+    "ownerFollowupReport": "reports/RUST-010_OWNER_ACCEPTANCE_2026-10-03.md",
+    "ownerIntermediateTestActionsRequired": false
   },
   "rustCoreAtomicSnapshot20261002": {
     "task": "RUST-002",
@@ -4336,7 +4338,7 @@
     "task": "RUST-010",
     "baseCommit": "5fc369a46b37fec4ad50ebb909aa1f2c4bc09d09",
     "branch": "codex/rust-core-010-synthetic-owner-session",
-    "state": "local-complete-validated-reviewed-unpushed-awaiting-owner",
+    "state": "local-complete-development-validated-synthetic-controls-owner-accepted",
     "scope": "tasks/RUST-010-synthetic-owner-session.md",
     "evidenceDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6",
     "previousFinalIdentity": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-009-8v4uf3j4/FINAL_IDENTITY.json",
@@ -4460,8 +4462,8 @@
         "skipped": 0
       }
     },
-    "ownerInteractiveSession": "NOT_RUN",
-    "ownerAcceptance": "NOT_RUN",
+    "ownerInteractiveSession": "CONTROLS_ACCEPTED",
+    "ownerAcceptance": "ACCEPTED_SYNTHETIC_CONTROLS_ONLY",
     "realServices": "NOT_RUN",
     "realUserMigration": "NOT_RUN",
     "installedAppReplacement": "NOT_RUN",
@@ -4469,9 +4471,9 @@
     "push": "NOT_RUN",
     "mainMerge": "NOT_RUN",
     "implementationCommit": "cffb57998e5a6e29da7244f1132eb73a7530e623",
-    "reportCommit": null,
+    "reportCommit": "fb3316d9c5b47f66e4fc9b478f73063c8abe6a9e",
     "reportCommitResolver": "git log -1 --format=%H -- reports/RUST-010_SYNTHETIC_OWNER_SESSION.md",
-    "nextBranchBaseline": "final-report-head",
+    "nextBranchBaseline": "acceptance-followup-final-head",
     "agentPolicy": {
       "subagentModel": "gpt-6.1-sol",
       "subagentReasoningEffort": "high",
@@ -4498,7 +4500,7 @@
       "MBR-004-real-Roon-root-cause-and-recovery",
       "Gate-B-P4-P5",
       "prior008-cache-I/O-preparation-boundary",
-      "synthetic-owner-feedback-pending",
+      "final-product-owner-use-pending",
       "external-stage-and-pinned-dependencies-required-fail-closed-on-drift",
       "three-tray-synthetic-playback-actions-not-part-of-acceptance"
     ],
@@ -4621,6 +4623,93 @@
     "implementationGitIdentity": {
       "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/IMPLEMENTATION_GIT_IDENTITY.json",
       "sha256": "e3f8e777b4f4d9f785d154768b32ee9b4444df744148499b4f02e8e1b4309ca8"
+    },
+    "ownerFeedback20261003": {
+      "source": "direct-owner-chat",
+      "date": "2026-10-03",
+      "controls": "ACCEPTED_SYNTHETIC_CONTROLS_ONLY",
+      "manualPolicyWriteAndFallback": "NOT_CONFIRMED",
+      "developmentTestingResponsibility": "agent",
+      "finalProductUseResponsibility": "Owner",
+      "ownerIntermediateTestActionsRequired": false,
+      "finalProductUse": "NOT_RUN"
+    },
+    "ownerFollowupReport": "reports/RUST-010_OWNER_ACCEPTANCE_2026-10-03.md",
+    "ownerFollowupEvidence": "reports/RUST-010_OWNER_ACCEPTANCE_2026-10-03.json",
+    "ownerFollowupCommitResolver": "git log -1 --format=%H -- reports/RUST-010_OWNER_ACCEPTANCE_2026-10-03.md",
+    "agentDevelopmentValidation20261003": {
+      "state": "PASS",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/AGENT_DEVELOPMENT_VALIDATION_20261003.json",
+        "sha256": "98a42129c951590e81e8a9fa182c60b32c12d2afd217310fc5b03893df938b2c"
+      },
+      "ownerSessionReadonlyEvidence": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/OWNER_FEEDBACK_SESSION_EVIDENCE_20261003.json",
+        "sha256": "9212ab6dffa538d7c912c3e2a07cdb53a90f72043434a0785271a7f4a9fce73a"
+      },
+      "currentModes": [
+        "node100",
+        "rust100",
+        "rust2000",
+        "rust5000"
+      ],
+      "strictEvidenceCounts": {
+        "tests": 96,
+        "passed": 96,
+        "failed": 0,
+        "skipped": 0
+      },
+      "acknowledgedSinglePolicyWrites": 3,
+      "storedPolicyAndExactRevisionVerified": true,
+      "nodeFallbackAndSingleExplicitRefresh": "PASS",
+      "normalSessions": 5,
+      "normalElectronCoreAndNodeExit": 0,
+      "rustChildrenNaturalExitZero": 6,
+      "forcedCleanup": false,
+      "controlledStartupInterruption": "PASS_DRIVER_FAILED_NO_READINESS_RESOURCES_NATURAL_ZERO",
+      "commandReceipts": [
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/owner-feedback-session-verification-20261003-01.json",
+          "sha256": "67011a798dfff407bdd2a71546bc3a7023aec790c70aea199bc2935caaac738b",
+          "exitCode": 0
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/agent-validation-prepare-20261003-01.json",
+          "sha256": "32bdccd4cf2c203e7b27834deee59e0fbfda65c71098322c8427bc4fe2979eb4",
+          "exitCode": 0
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/agent-development-smoke-20261003-01.json",
+          "sha256": "8ba2c5cc7f60f221b31838aed93d1ded847142177a958e684dd62dee007b220c",
+          "exitCode": 0
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/agent-development-acceptance-20261003-01.json",
+          "sha256": "498b32aefde8b87b305f98db4fc7b51f5a62422a38d82dabb5e3e6dea5dc21da",
+          "exitCode": 0
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-010-9ytao7v6/agent-development-durable-verification-20261003-01.json",
+          "sha256": "fe438f35147f1ab092a8c50c3c93dc6a49623d886723087803aa73fa4d18afbd",
+          "exitCode": 0
+        }
+      ],
+      "componentRebuilt": false,
+      "fullSoftwareRerun": false,
+      "unchangedDriverInputs": 8,
+      "componentInputs": 898,
+      "componentArtifacts": 38,
+      "initialFullFreezeInputs": 1110,
+      "unchangedFullFreezeInputs": 1109,
+      "guidanceOnlyDifferences": [
+        {
+          "path": "AGENTS.md",
+          "previousSha256": "da81f0589425c8cd6bb1a6e5388964ad055b65da2365bc5ae6d7871185be94a4",
+          "currentSha256": "07e1281ab5d0d6bc97c15aa55bf8d40659540204ae3b40e0e47286ed1afebb19"
+        }
+      ],
+      "runtimeOwnerAcceptance": "NOT_RUN",
+      "priorIncompleteSessions": "PRESERVED_NOT_ACCEPTED"
     }
   }
 }
