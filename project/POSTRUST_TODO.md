@@ -7,7 +7,7 @@
 - [x] MBRS-000 基线交付：12复用 / 14原框映射 / 18任务156验收 / 有限ADR已落实，13结构正负例、Git来源Gate、control-plane与boundaries均退出0，首轮独审无确认P1/P2。实现与报告分开提交解析，000报告快照G0为NOT_ADMITTED，当前准入另见R16新记录；AT-000-02/03的原记录保持PARTIAL。
 - [x] RUST-016-ci-security-portability：限定软件/实际CI Gate通过；base000 final `dd2a7e5`，实现最终 `043a5635`。原Rust30、Electron12、E2E104+4原skip、远端4workflow/6job、48准备/82加密与原high审计均通过；6moderate、完整迁移/live/平台/Owner另保留。报告提交/远端身份与有限G0新记录随后解析；见 `reports/RUST-016_CI_SECURITY_PORTABILITY.md`。
 - [ ] 其它Rust剩余职责：原14框逐行在 `docs/postrust/MBRS-000/RUST_TO_MBRS_RESOLVED.json`，拟任务登记仅定位主责，未完成、不自动获准生产执行。原Rust路线、平台 / live / Owner分别保留。
-- [ ] MBRS-001：原文件→官方Audio Input隔离POC，NOT_STARTED；没有新增目录 / Zone / 网络 / 发声许可时仅离线准备。
+- [x] MBRS-001 隔离软件阶段：实现 `c0ad30a9` 已push；32新行为+118原定点回归/noEmit/offline全通过，9原AT分别3软件PASS/2PARTIAL/4liveBLOCKED_ENV。整体PARTIAL，真实Roon/格式/最终Owner仍待；源CI4workflow/6job success；195MB Electron补充artifact仍待、6moderate与原skip保留。报告与实际CI独立交付见 `reports/MBRS-001_ISOLATED_OFFLINE_POC.md`。
 - [ ] MBRS-002：本地对象、音源合同与存储增量，NOT_STARTED，产品依赖000与真实G0；不迁旧writer。
 - [ ] MBRS-003/004：持久增量扫描与CoverDrop纯规则，NOT_STARTED；真实扫描另核目录许可，纯规则可隔离准备。
 - [ ] MBRS-005/006：固定FD lease / Gateway / 统一资源协调与原播放器增量，NOT_STARTED；原SSRF与唯一coordinator保留。

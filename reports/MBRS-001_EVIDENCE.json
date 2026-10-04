@@ -1,0 +1,192 @@
+{
+  "schema": "mbrs001.delivery-evidence.v1",
+  "task": "MBRS-001",
+  "status": "PARTIAL",
+  "base_sha": "6f1cc0edcb0c59b78a2dfd0828b8e6196e816e47",
+  "implementation_commit": "c0ad30a9df471e772a0c9e9268bd7b0c41cb8763",
+  "report_commit": null,
+  "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-001_ISOLATED_OFFLINE_POC.md",
+  "source_aggregate": "894a9b9d1a2b97ba939a3ece5daf28c17c30cfbd16bdbac62e205c99dbdb498f",
+  "source_files": [
+    {
+      "path": ".github/workflows/verify.yml",
+      "bytes": 3856,
+      "sha256": "f74f5b55a6b7793351840b869df2b10ce088be69357a2d070b0e87c83fa9f153"
+    },
+    {
+      "path": "packages/bridge-core/scripts/mbrs001/attempt.ts",
+      "bytes": 6866,
+      "sha256": "9a9271d70c1dc6b4fe027b79fd29876801dd019bd3b6165e2fbcec9587bd2729"
+    },
+    {
+      "path": "packages/bridge-core/scripts/mbrs001/fake-roon-sdk.ts",
+      "bytes": 12055,
+      "sha256": "b4ab109701fb6f42e83ef821e01d15aa4cf7d820d14a8c65e0b5e103d81af95f"
+    },
+    {
+      "path": "packages/bridge-core/scripts/mbrs001/file-http.ts",
+      "bytes": 13142,
+      "sha256": "53f4f269c6a5db731f90a8d95a222dc9dc077edb658dd8df9569fee051fc28d1"
+    },
+    {
+      "path": "packages/bridge-core/scripts/mbrs001/offline-poc.ts",
+      "bytes": 8100,
+      "sha256": "ca461cd86de749735fa809fc545f88053385380a729e6f2c29e347a34c3c043e"
+    },
+    {
+      "path": "packages/bridge-core/scripts/mbrs001/test/attempt-lifecycle.test.ts",
+      "bytes": 19601,
+      "sha256": "bb138b94bd4faf0464c470784f8dba8a7e5a76e0a3601ef97d094c79dad7cc80"
+    },
+    {
+      "path": "packages/bridge-core/scripts/mbrs001/test/file-http.test.ts",
+      "bytes": 9318,
+      "sha256": "6dd5409529885c08a4079b7d7174e5b73f0101eb6d2933bbbab1aae46cec6923"
+    },
+    {
+      "path": "packages/bridge-core/scripts/mbrs001/test/official-adapter.test.ts",
+      "bytes": 7558,
+      "sha256": "5250a0d40912e7faadc9dc58841e38e65c0a38ac7752cc05d5e5a5af7940c149"
+    },
+    {
+      "path": "packages/bridge-core/scripts/mbrs001/tsconfig.json",
+      "bytes": 216,
+      "sha256": "e3d7b176571af4effdadc6162c4162bf1e44355ba826413de157ee3ac0898527"
+    },
+    {
+      "path": "scripts/ci/verify-mbrs001-offline.mjs",
+      "bytes": 14851,
+      "sha256": "35ad160e0f58c0eea0cbb22ae0f4d948955c13c05857eaa3134c18aa9552ab3d"
+    }
+  ],
+  "local": {
+    "noemit_exit": 0,
+    "new_tests": 32,
+    "original_focused_tests": 118,
+    "fail": 0,
+    "skip": 0,
+    "cancel": 0,
+    "poc_exit": 0,
+    "control_plane_exit": 0,
+    "boundaries_exit": 0
+  },
+  "review": {
+    "formal_rounds": 2,
+    "after_round2_root_disposition": true,
+    "third_independent_review": false,
+    "root_remaining_p1": 0,
+    "root_remaining_p2": 0
+  },
+  "ci": {
+    "commit": "c0ad30a9df471e772a0c9e9268bd7b0c41cb8763",
+    "status": "SUCCESS_RUNS_AND_TASK_OFFLINE_ARTIFACT_VERIFIED",
+    "workflow_count": 4,
+    "job_count": 6,
+    "run_attempt": 1,
+    "run_and_job_logs_complete": true,
+    "downloaded_artifact_count": 3,
+    "artifact_verification_complete": false,
+    "pending_electron_artifact": {
+      "id": 11292814353,
+      "expectedZipBytes": 195752407,
+      "status": "DOWNLOAD_PENDING",
+      "verification": "NOT_COMPLETE",
+      "hostMainContentVerification": "NOT_RUN",
+      "transportObservation": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs001-source01/electron-download-transport-observation02.json",
+        "bytes": 511,
+        "sha256": "d0b66058815ad10a80a852a164ce0f5577759c5ce747339f35617b38580c87cc"
+      },
+      "originalDownloadContinues": true,
+      "futureSupplementIsSeparateImmutableReceipt": true
+    },
+    "workspace_tests_passed": 4142,
+    "workspace_original_conditional_skips": 2,
+    "preparation_tests_passed": 48,
+    "original_history_tests_passed": 4,
+    "new_offline_tests_passed": 32,
+    "old_offline_regressions_passed": 118,
+    "electron_tests_passed": 12,
+    "playwright_passed": 104,
+    "playwright_original_skips": 4,
+    "dependency_audit_moderate": 6,
+    "dependency_audit_high": 0,
+    "dependency_audit_critical": 0,
+    "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs001-source01/SOURCE_CI_FINITE_SOFTWARE_DELIVERY_01.json",
+    "receipt_sha256": "07a1918a7a64550c84985f5fb48ff0e496fbebac9ad5ca25c2c7b5c2c4cce277",
+    "report_ci": "PENDING_ACTUAL_SEPARATE_REPORT_COMMIT"
+  },
+  "live": "BLOCKED_ENV",
+  "app": "NOT_RUN",
+  "owner": "NOT_RUN",
+  "g0": "ADMITTED_SOFTWARE_PHASE_ONLY",
+  "known_production_gaps_remain": true,
+  "refs": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/MBRS001_ROOT_FINAL_SOURCE_FREEZE_05.json",
+      "bytes": 4700,
+      "sha256": "b9d7827e6258bdc74a0919f87520cc43ecb1e834823f5782fa1f88418631c18e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/MBRS001_ROOT_ROUND2_DISPOSITION_01.json",
+      "bytes": 2594,
+      "sha256": "8d5101b7705a86cecc94c0b5c222677f82d23cf947a4a5e821cba1750db439ca"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/MBRS001_FULL_GATE_HISTORY_01.json",
+      "bytes": 21402,
+      "sha256": "53c4437b5550adfefa879de510a7cc74bd518665eebeda8068ba56ddb3754c7f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs001-offline/gate-green-04/manifest.json",
+      "bytes": 9713,
+      "sha256": "26b8974a95ef7cef5cba95c4b473fcca9fbcfcc91b6f5d6816b93a48d65d91bd"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs001-offline/gate-green-04/poc/result.json",
+      "bytes": 3171,
+      "sha256": "22c9d4d11fafc3533d02a1391793990264f75c1e7d6798d83b8693443c01fb60"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/MBRS001_INITIAL_GATE_FAILURE_HISTORY_01.json",
+      "bytes": 2509,
+      "sha256": "b37fff5a1cd2968df8ff839d6a301ea9e2f261dda90c3afa2633d5467c0c292e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/MBRS001_CORRECTED_GATE_BEHAVIOR_FAILURE_01.json",
+      "bytes": 1951,
+      "sha256": "09a186c764ab500858be731b5398726d965324b6de6b2506373ab5a04e58d273"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs001-report-structure-01/result.json",
+      "bytes": 773,
+      "sha256": "a58e7039155891185c84c79cc9a62697e59a874dcbe743eecf3885cc50f85985"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs001-report-structure-01/output.log",
+      "bytes": 3127,
+      "sha256": "4f1cf8b902967243d43727630571eb83cee192c93ccf9472fc0b120bc21c8122"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs001-source01/SOURCE_CI_FINITE_SOFTWARE_DELIVERY_01.json",
+      "bytes": 63103,
+      "sha256": "07a1918a7a64550c84985f5fb48ff0e496fbebac9ad5ca25c2c7b5c2c4cce277"
+    }
+  ],
+  "final_identity_receipt": "EXTERNAL_POSTCOMMIT_PENDING",
+  "next_task": "MBRS-002",
+  "next_base_resolution": "FINAL_REPORT_HEAD_AFTER_DELIVERY_IDENTITY",
+  "historical_structure_check": {
+    "exit_code": 1,
+    "tests": 13,
+    "passed": 12,
+    "failed": 1,
+    "skipped": 0,
+    "cancelled": 0,
+    "reason": "G0_DECISION_MISMATCH_INHERITED_FROM_R16",
+    "scope": "HISTORICAL_000_COMPARATOR_ON_CURRENT_LEDGER",
+    "base_and_impl_same_g0_fields": true,
+    "historical_seal_or_verifier_rewritten": false,
+    "current_increment_receipt_resolution": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/MBRS001_CURRENT_REPORT_INCREMENT_CHECK_01.json"
+  }
+}

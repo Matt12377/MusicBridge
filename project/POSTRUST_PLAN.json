@@ -71,7 +71,7 @@
       "title": "原文件→Audio Input隔离小样本POC",
       "scope": "CORE",
       "depends_on": [],
-      "status": "NOT_STARTED",
+      "status": "PARTIAL",
       "implementation_owner": "MBRS-001",
       "goal": "先验证Roon未入库文件能直送播放，再扩大到生产网关和全库。",
       "steps": [
@@ -103,10 +103,19 @@
       "reuse_map_required": true,
       "g0_product_integration_required": false,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "c0ad30a9df471e772a0c9e9268bd7b0c41cb8763",
       "report_commit": null,
-      "validation_status": "NOT_RUN",
-      "evidence_refs": []
+      "validation_status": "PASS_ISOLATED_SOFTWARE_LIVE_ITEMS_PENDING",
+      "evidence_refs": [
+        "reports/MBRS-001_EVIDENCE.json",
+        "reports/MBRS-001_ISOLATED_OFFLINE_POC.md",
+        "docs/postrust/MBRS-001/DIRECT_STREAM_POC_RESULT.md"
+      ],
+      "execution_base_sha": "6f1cc0edcb0c59b78a2dfd0828b8e6196e816e47",
+      "branch": "codex/mbrs-001-isolated-offline-poc",
+      "completion_scope": "ISOLATED_OFFLINE_SOFTWARE_ONLY_LIVE_ITEMS_PENDING",
+      "implementation_commit_resolution": "git log -1 --format=%H -- scripts/ci/verify-mbrs001-offline.mjs",
+      "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-001_ISOLATED_OFFLINE_POC.md"
     },
     {
       "id": "MBRS-002",
@@ -960,12 +969,16 @@
       "requirement": "至少一个Roon未入库本地文件经官方AudioInput真实播放，无Browse/内部协议匹配前置。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
+      "status": "BLOCKED_ENV",
+      "evidence_refs": [
+        "reports/MBRS-001_EVIDENCE.json",
+        "docs/postrust/MBRS-001/DIRECT_STREAM_POC_RESULT.md"
+      ],
       "software_status": "NOT_RUN",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "ISOLATED_SYNTHETIC_SOFTWARE_ONLY"
     },
     {
       "id": "MBRS-AT-001-02",
@@ -974,12 +987,16 @@
       "requirement": "整文件GET和代表Range内容与原文件一致，HEAD无body；不是系统音频回采。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "reports/MBRS-001_EVIDENCE.json",
+        "docs/postrust/MBRS-001/DIRECT_STREAM_POC_RESULT.md"
+      ],
+      "software_status": "PASS_SYNTHETIC_SCOPE",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "ISOLATED_SYNTHETIC_SOFTWARE_ONLY"
     },
     {
       "id": "MBRS-AT-001-03",
@@ -988,12 +1005,16 @@
       "requirement": "同名不同内容样本分别选中正确源，Playing/Time与attempt相关。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "BLOCKED_ENV",
+      "evidence_refs": [
+        "reports/MBRS-001_EVIDENCE.json",
+        "docs/postrust/MBRS-001/DIRECT_STREAM_POC_RESULT.md"
+      ],
+      "software_status": "SUPPLEMENTAL_SYNTHETIC_ONLY",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "ISOLATED_SYNTHETIC_SOFTWARE_ONLY"
     },
     {
       "id": "MBRS-AT-001-04",
@@ -1002,12 +1023,16 @@
       "requirement": "Core能访问网关的真实地址，部署记录没有把异机loopback当可用地址。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
+      "status": "BLOCKED_ENV",
+      "evidence_refs": [
+        "reports/MBRS-001_EVIDENCE.json",
+        "docs/postrust/MBRS-001/DIRECT_STREAM_POC_RESULT.md"
+      ],
       "software_status": "NOT_RUN",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "ISOLATED_SYNTHETIC_SOFTWARE_ONLY"
     },
     {
       "id": "MBRS-AT-001-05",
@@ -1016,12 +1041,16 @@
       "requirement": "pause/resume/seek及track/channel行为逐项记录，不将许可字段当功能证明。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "BLOCKED_ENV",
+      "evidence_refs": [
+        "reports/MBRS-001_EVIDENCE.json",
+        "docs/postrust/MBRS-001/DIRECT_STREAM_POC_RESULT.md"
+      ],
+      "software_status": "SUPPLEMENTAL_SYNTHETIC_ONLY",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "ISOLATED_SYNTHETIC_SOFTWARE_ONLY"
     },
     {
       "id": "MBRS-AT-001-06",
@@ -1030,12 +1059,16 @@
       "requirement": "超时/取消/终态关闭了所属会话和媒体资源，无旧回调处理新会话。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "reports/MBRS-001_EVIDENCE.json",
+        "docs/postrust/MBRS-001/DIRECT_STREAM_POC_RESULT.md"
+      ],
+      "software_status": "PARTIAL_SYNTHETIC_SCOPE",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "ISOLATED_SYNTHETIC_SOFTWARE_ONLY"
     },
     {
       "id": "MBRS-AT-001-07",
@@ -1044,12 +1077,16 @@
       "requirement": "内部增强关闭且本地库无映射表时仍能重复完成新点播。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "reports/MBRS-001_EVIDENCE.json",
+        "docs/postrust/MBRS-001/DIRECT_STREAM_POC_RESULT.md"
+      ],
+      "software_status": "PARTIAL_SYNTHETIC_SCOPE",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "ISOLATED_SYNTHETIC_SOFTWARE_ONLY"
     },
     {
       "id": "MBRS-AT-001-08",
@@ -1058,12 +1095,16 @@
       "requirement": "真实音频/路径/secret不入Git，POC没有改变Rust迁移工作区或自动写音乐。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "reports/MBRS-001_EVIDENCE.json",
+        "docs/postrust/MBRS-001/DIRECT_STREAM_POC_RESULT.md"
+      ],
+      "software_status": "PASS_SYNTHETIC_SCOPE",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "ISOLATED_SYNTHETIC_SOFTWARE_ONLY"
     },
     {
       "id": "MBRS-AT-002-01",
@@ -2759,12 +2800,16 @@
       "requirement": "POC隔离资源与正式产品分开，使用已有Adapter可行时复用；未新增通用播放器框架。",
       "release_scope": "CORE",
       "introduced_in": "1.2",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "reports/MBRS-001_EVIDENCE.json",
+        "docs/postrust/MBRS-001/DIRECT_STREAM_POC_RESULT.md"
+      ],
+      "software_status": "PASS_SYNTHETIC_SCOPE",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "ISOLATED_SYNTHETIC_SOFTWARE_ONLY"
     },
     {
       "id": "MBRS-AT-002-08",
