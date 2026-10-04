@@ -66,6 +66,8 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          export MUSIC_BRIDGE_RUST_ELECTRON_REPORT="$MUSIC_BRIDGE_RUST_MAIN_HOST_BUILD_ROOT/electron-report.json"
+          export MUSIC_BRIDGE_RUST_COLLECTION_ELECTRON_REPORT="$MUSIC_BRIDGE_RUST_COLLECTION_HOST_BUILD_ROOT/electron-report.json"
           corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:electron 2>&1 | tee "$RUNNER_TEMP/musicbridge-electron/electron-gates.log"
 
       - name: Electron end-to-end flow (Playwright, production build)
