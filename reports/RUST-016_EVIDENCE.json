@@ -1,0 +1,564 @@
+{
+  "task": "RUST-016",
+  "state": "PASS_SOFTWARE_CI_SCOPE_POST_REPORT_IDENTITY_PENDING",
+  "baseCommit": "dd2a7e537039d10151af840945a717701fb5ea1b",
+  "implementationCommit": "043a56357a62966e4091da567d007332e5df223f",
+  "implementationCommits": [
+    "a1d45db8b55e8ef34d06f9c2f5e105508731e391",
+    "2b20d35168aaf5899e522005b4fa4346e4890b27",
+    "e43b201b4d827b8a164970ee0915a0765d28e491",
+    "043a56357a62966e4091da567d007332e5df223f"
+  ],
+  "reportCommitResolution": "git log -1 --format=%H -- reports/RUST-016_CI_SECURITY_PORTABILITY.md",
+  "reportSourceFreeze": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/RUST016_ROOT_NATIVE_ENV_AND_E2E_SOURCE_FREEZE_06.json",
+    "bytes": 19153,
+    "sha256": "8e15bad835c5f1c8dde03b1371e86ab258d0e4df1763c1f3e7486acc872dc9bb"
+  },
+  "gateHistory": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/RUST016_FINAL_GATE_HISTORY_01.json",
+    "bytes": 116240,
+    "sha256": "81bb4deb2cdaa8acb32385644e4a4505aa86662f39ca54ff7b2779904424a4a8"
+  },
+  "latestLocalGates": [
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-source06-normal-push-01/result.json",
+        "bytes": 729,
+        "sha256": "8a2dea532f08827d4504ca3228cb4a404210c52c340bbe39baf259ab66d836bc"
+      },
+      "result": {
+        "name": "rust016-source06-normal-push-01",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016",
+        "head": "043a56357a62966e4091da567d007332e5df223f",
+        "argv": [
+          "git",
+          "push",
+          "origin",
+          "codex/rust-core-016-ci-security-portability"
+        ],
+        "startedAt": "2026-10-04T01:18:08.392246+00:00",
+        "completedAt": "2026-10-04T01:18:10.566138+00:00",
+        "durationSeconds": 2.1737766669830307,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-source06-normal-push-01/output.log",
+          "bytes": 301,
+          "sha256": "eaa0d1ae5c331d218ac4865ea5a146985a48faa0d72da2e6da5e301accaecc19"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    },
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-final-preparation-boundaries-03/result.json",
+        "bytes": 1121,
+        "sha256": "8a4964279ce1523ebc20fb438a0f092df32e358fab073c7f378856964d481142"
+      },
+      "result": {
+        "name": "rust016-final-preparation-boundaries-03",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016",
+        "head": "e43b201b4d827b8a164970ee0915a0765d28e491",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--test",
+          "scripts/ci/test/build-storage-root.test.mjs",
+          "scripts/ci/test/rust016-workflow-context.test.mjs",
+          "scripts/ci/test/rust-electron-host-receipt.test.mjs",
+          "scripts/ci/test/electron-archive-tree.test.mjs",
+          "scripts/ci/test/electron-preparation-order.test.mjs",
+          "scripts/ci/test/rust-host-gate-cli.test.mjs",
+          "scripts/ci/test/rust-private-host-environment.test.mjs"
+        ],
+        "startedAt": "2026-10-04T01:10:52.248246+00:00",
+        "completedAt": "2026-10-04T01:10:54.923590+00:00",
+        "durationSeconds": 2.6752367919834796,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-final-preparation-boundaries-03/output.log",
+          "bytes": 9594,
+          "sha256": "609b0dd4634541c0de8f1a9308968cb67795ab5e1b93691e5e08086633c2fa22"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    },
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-provider-crypto-final-format-green-03/result.json",
+        "bytes": 829,
+        "sha256": "b87020f8b64f159e0eae15a0abc18ad07ef355d66a2c822039b22f84cb79363e"
+      },
+      "result": {
+        "name": "rust016-provider-crypto-final-format-green-03",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016/apps/desktop",
+        "head": "dd2a7e537039d10151af840945a717701fb5ea1b",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "tsx",
+          "--test",
+          "test/provider-crypto-native-rsa.test.ts"
+        ],
+        "startedAt": "2026-10-04T00:24:01.830542+00:00",
+        "completedAt": "2026-10-04T00:24:02.107226+00:00",
+        "durationSeconds": 0.27654429100221023,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-provider-crypto-final-format-green-03/output.log",
+          "bytes": 13895,
+          "sha256": "c18c46d97e2325e9d653f5a6dc3160760b087ac73ef5b5eb0be05a01925e22a4"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    },
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-c01-portable-original-behaviors-01/result.json",
+        "bytes": 978,
+        "sha256": "a0a42ce0a5e10c74260f584710145a56ae76eb1789933cc86bc632b84b32ed0b"
+      },
+      "result": {
+        "name": "rust016-c01-portable-original-behaviors-01",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016/apps/desktop",
+        "head": "dd2a7e537039d10151af840945a717701fb5ea1b",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "tsx",
+          "--test",
+          "--test-name-pattern=成本05实际|Source08原settings|当前合法settings完整选择",
+          "test/rust-core/collection-scale-cost.test.ts",
+          "test/rust-core/collection-scale-evidence.test.ts"
+        ],
+        "startedAt": "2026-10-03T23:30:34.209589+00:00",
+        "completedAt": "2026-10-03T23:30:34.703266+00:00",
+        "durationSeconds": 0.49355704098707065,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-c01-portable-original-behaviors-01/output.log",
+          "bytes": 1384,
+          "sha256": "2486ab9e0644d8498775351469e157903a4f4037761010dbceb2bb6b1c8ed670"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    },
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-production-audit-high-standard-02/result.json",
+        "bytes": 852,
+        "sha256": "1530ded2288f39486b33b0e415bcc0cf80f7fd4a347aa5d147bff74682482f28"
+      },
+      "result": {
+        "name": "rust016-production-audit-high-standard-02",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016",
+        "head": "dd2a7e537039d10151af840945a717701fb5ea1b",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/corepack",
+          "pnpm@10.17.1",
+          "audit",
+          "--prod",
+          "--audit-level",
+          "high",
+          "--registry",
+          "https://registry.npmjs.org"
+        ],
+        "startedAt": "2026-10-04T00:04:07.067957+00:00",
+        "completedAt": "2026-10-04T00:04:08.676857+00:00",
+        "durationSeconds": 1.6086202500155196,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-production-audit-high-standard-02/output.log",
+          "bytes": 45,
+          "sha256": "f77170c79de6f0aefc9728dd3e182b9480b7ab83467f224cec08e544a0aa3925"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    },
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-full-workspace-verify-02/result.json",
+        "bytes": 741,
+        "sha256": "0bac0d91c0073c02f02f9bd31287f2dca123b145e33a57977e4c5616ca1148f3"
+      },
+      "result": {
+        "name": "rust016-full-workspace-verify-02",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016",
+        "head": "dd2a7e537039d10151af840945a717701fb5ea1b",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/corepack",
+          "pnpm@10.17.1",
+          "verify"
+        ],
+        "startedAt": "2026-10-04T00:04:54.852646+00:00",
+        "completedAt": "2026-10-04T00:09:09.808023+00:00",
+        "durationSeconds": 254.95542241600924,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-full-workspace-verify-02/output.log",
+          "bytes": 1003102,
+          "sha256": "c4465bb318c7710e84befd31eda3e0a4e239b2f1fade01ab44514596a3a0685f"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    },
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-control-plane-01/result.json",
+        "bytes": 726,
+        "sha256": "08348b54d8e7da5c39cd83fb49a45c8bff127a8bafa9945cbcc78ceb05053fd7"
+      },
+      "result": {
+        "name": "rust016-control-plane-01",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016",
+        "head": "dd2a7e537039d10151af840945a717701fb5ea1b",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "scripts/ci/verify-control-plane.mjs"
+        ],
+        "startedAt": "2026-10-04T00:09:30.378836+00:00",
+        "completedAt": "2026-10-04T00:09:30.528911+00:00",
+        "durationSeconds": 0.14981445801095106,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-control-plane-01/output.log",
+          "bytes": 19,
+          "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    },
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-boundaries-01/result.json",
+        "bytes": 717,
+        "sha256": "1b3d2204d78b116cfe7e69c3df028220dd7e71c0bb1c81fcddd9198059c90629"
+      },
+      "result": {
+        "name": "rust016-boundaries-01",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016",
+        "head": "dd2a7e537039d10151af840945a717701fb5ea1b",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "scripts/ci/verify-boundaries.mjs"
+        ],
+        "startedAt": "2026-10-04T00:09:47.038973+00:00",
+        "completedAt": "2026-10-04T00:09:47.181954+00:00",
+        "durationSeconds": 0.14287387501099147,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-boundaries-01/output.log",
+          "bytes": 16,
+          "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    },
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-cycles-01/result.json",
+        "bytes": 705,
+        "sha256": "10e614c3381d0744077a8cc2b69cf88917d890ab83c42a488ce8627baed1e66d"
+      },
+      "result": {
+        "name": "rust016-cycles-01",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016",
+        "head": "dd2a7e537039d10151af840945a717701fb5ea1b",
+        "argv": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "scripts/ci/verify-cycles.mjs"
+        ],
+        "startedAt": "2026-10-04T00:09:47.255998+00:00",
+        "completedAt": "2026-10-04T00:09:47.346796+00:00",
+        "durationSeconds": 0.09067800000775605,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-cycles-01/output.log",
+          "bytes": 22,
+          "sha256": "c481c4362af41c055d09c5dce65adb37c7e2d9207ed483bdee6db13023c1de25"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    },
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-full-rust-and-two-hosts-native-env-fix-04/result.json",
+        "bytes": 1029,
+        "sha256": "ca98d6fd4695cf060f55aca93898ffd3af071cf90dde04986c7931c066def6e5"
+      },
+      "result": {
+        "name": "rust016-full-rust-and-two-hosts-native-env-fix-04",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016",
+        "head": "043a56357a62966e4091da567d007332e5df223f",
+        "argv": [
+          "/usr/bin/env",
+          "RUSTUP_TOOLCHAIN=1.95.0",
+          "CARGO_HOME=/Volumes/LifeWeave/Developer/CommandLine/Caches/Cargo",
+          "MUSIC_BRIDGE_RUST_GATE_DIR=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/rust016-rust-gate",
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "scripts/ci/prepare-rust-electron-hosts.mjs"
+        ],
+        "startedAt": "2026-10-04T01:18:46.426849+00:00",
+        "completedAt": "2026-10-04T01:21:48.310295+00:00",
+        "durationSeconds": 181.88323674999992,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-full-rust-and-two-hosts-native-env-fix-04/output.log",
+          "bytes": 1319,
+          "sha256": "bb31b7cde454c8aa379a9545947f3696d455b281ab30a99191de08f99dbc5c07"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    },
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-final-rust-electron-consumer-identity-02/result.json",
+        "bytes": 1431,
+        "sha256": "6265eb8518f041657ad0e3619650402d95959c6ed42bcac830fc11dfab88d5c1"
+      },
+      "result": {
+        "name": "rust016-final-rust-electron-consumer-identity-02",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016",
+        "head": "043a56357a62966e4091da567d007332e5df223f",
+        "argv": [
+          "/usr/bin/env",
+          "MUSIC_BRIDGE_ELECTRON_IDENTITY_RECEIPT=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/tmp/musicbridge-electron-identity-CYmA38/receipt.json",
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--input-type=module",
+          "-e",
+          "import { readRustElectronHostsReceipt } from \"./scripts/ci/rust-electron-host-receipt.mjs\"; import { verifiedElectronExecution } from \"./apps/desktop/scripts/electron-identity.mjs\"; const receipt=readRustElectronHostsReceipt(\"/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/rust016-rust-gate/run-0VY4KW/electron-hosts-receipt.json\",process.cwd()); console.log(JSON.stringify({rust:receipt,electron:verifiedElectronExecution()},null,2));"
+        ],
+        "startedAt": "2026-10-04T01:22:26.563721+00:00",
+        "completedAt": "2026-10-04T01:22:27.809525+00:00",
+        "durationSeconds": 1.2455095420009457,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-final-rust-electron-consumer-identity-02/output.log",
+          "bytes": 1984,
+          "sha256": "9d1235266ef2c93844987c35de9b15196e63c4a0cce161fbe82db80bf240ddbb"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    },
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-full-electron-native-env-fix-02/result.json",
+        "bytes": 1924,
+        "sha256": "3d6f4a533207c31becc87e8af8eede9d4726a6a8051ca8021b90a1e069bd348b"
+      },
+      "result": {
+        "name": "rust016-full-electron-native-env-fix-02",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016",
+        "head": "043a56357a62966e4091da567d007332e5df223f",
+        "argv": [
+          "/usr/bin/env",
+          "MUSIC_BRIDGE_TEST_KEYCHAIN_MODE=system",
+          "MUSIC_BRIDGE_RUST_HOSTS_RECEIPT=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/rust016-rust-gate/run-0VY4KW/electron-hosts-receipt.json",
+          "MUSIC_BRIDGE_RUST_MAIN_HOST_BUILD_ROOT=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/rust016-rust-gate/run-0VY4KW/isolated-host",
+          "MUSIC_BRIDGE_RUST_COLLECTION_HOST_BUILD_ROOT=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/rust016-rust-gate/run-0VY4KW/isolated-collection-host",
+          "MUSIC_BRIDGE_RUST_ELECTRON_REPORT=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/rust016-rust-gate/run-0VY4KW/isolated-host/electron-report.json",
+          "MUSIC_BRIDGE_RUST_COLLECTION_ELECTRON_REPORT=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/rust016-rust-gate/run-0VY4KW/isolated-collection-host/electron-report.json",
+          "MUSIC_BRIDGE_ELECTRON_IDENTITY_RECEIPT=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/tmp/musicbridge-electron-identity-CYmA38/receipt.json",
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/corepack",
+          "pnpm@10.17.1",
+          "--filter",
+          "@music-bridge/desktop",
+          "run",
+          "test:electron"
+        ],
+        "startedAt": "2026-10-04T01:22:48.974843+00:00",
+        "completedAt": "2026-10-04T01:24:43.168212+00:00",
+        "durationSeconds": 114.19229704199824,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-full-electron-native-env-fix-02/output.log",
+          "bytes": 2492,
+          "sha256": "0aa48a75c8db715fb5327a365073e2c3ebe6da5b1ebf84c645be5b3d9781c68a"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    },
+    {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-full-e2e-native-env-and-locator-fix-02/result.json",
+        "bytes": 1562,
+        "sha256": "7b61869d5a622e2231ead289cc5148cb2f334a3d340854e1c5e064d9fc4f6b60"
+      },
+      "result": {
+        "name": "rust016-full-e2e-native-env-and-locator-fix-02",
+        "cwd": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016",
+        "head": "043a56357a62966e4091da567d007332e5df223f",
+        "argv": [
+          "/usr/bin/env",
+          "MUSIC_BRIDGE_TEST_KEYCHAIN_MODE=system",
+          "MUSIC_BRIDGE_RUST_HOSTS_RECEIPT=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/rust016-rust-gate/run-0VY4KW/electron-hosts-receipt.json",
+          "MUSIC_BRIDGE_RUST_MAIN_HOST_BUILD_ROOT=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/rust016-rust-gate/run-0VY4KW/isolated-host",
+          "MUSIC_BRIDGE_RUST_COLLECTION_HOST_BUILD_ROOT=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/rust016-rust-gate/run-0VY4KW/isolated-collection-host",
+          "MUSIC_BRIDGE_ELECTRON_IDENTITY_RECEIPT=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/tmp/musicbridge-electron-identity-CYmA38/receipt.json",
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/corepack",
+          "pnpm@10.17.1",
+          "--filter",
+          "@music-bridge/desktop",
+          "run",
+          "test:e2e"
+        ],
+        "startedAt": "2026-10-04T01:24:58.009382+00:00",
+        "completedAt": "2026-10-04T01:30:10.085903+00:00",
+        "durationSeconds": 312.07632170800935,
+        "exitCode": 0,
+        "timedOut": false,
+        "signal": null,
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-full-e2e-native-env-and-locator-fix-02/output.log",
+          "bytes": 20407,
+          "sha256": "143e610cece93e6db3939766d0e939a12cdaf9cd4196e99d14af585886e981cd"
+        }
+      },
+      "classification": "自然成功；具体source/Gate范围按对应freeze闭集核，不由旧HEAD元数据提升"
+    }
+  ],
+  "remoteCI": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-audit/rust016-source06-remote-ci-final01.json",
+    "bytes": 53437,
+    "sha256": "49251b947593fda4f71d8097063f0ccd49d15fb7914df9697369873fbc1cf7a0"
+  },
+  "remoteRuns": [
+    {
+      "id": 37167594003,
+      "workflow": "Rust Core 只读原型",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37167594003"
+    },
+    {
+      "id": 37167593936,
+      "workflow": "electron-e2e",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37167593936"
+    },
+    {
+      "id": 37167593888,
+      "workflow": "verify",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37167593888"
+    },
+    {
+      "id": 37167593953,
+      "workflow": "security",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37167593953"
+    }
+  ],
+  "playwrightOriginal": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/rust016-full-e2e-native-env-and-locator-fix-02/playwright-report.json",
+    "bytes": 125235,
+    "sha256": "c49eaad9b0c06297b91c5f7249b806f65543f29a1e9e75b54cce54ee7f294cb2"
+  },
+  "playwrightStats": {
+    "startTime": "2026-10-04T01:25:05.576Z",
+    "duration": 304407.399,
+    "expected": 104,
+    "skipped": 4,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "electronReportsPreserved": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/evidence-delivery-audit/rust016-electron-native-env-fix-02-two-reports-preserved.json",
+    "bytes": 11474843,
+    "sha256": "5c1281db11340f987d273bca3eef1b52df021935702aeb95608b0ae3ae3c0203"
+  },
+  "otherEvidence": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/RUST016_PATCH_OVERRIDE_SENSITIVITY_01.json",
+      "bytes": 7177,
+      "sha256": "8f1db21ee1ecc042f5d0a60fbb959872c00eee6f19758f96021527918820f27d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/RUST016_E2E_FAILED_REPORT_PRESERVED_01.json",
+      "bytes": 744,
+      "sha256": "a26b999ab6418c2afcb03728e065d8f30f43a4a4c83a2c56f369dc2ef876312a"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/rust016-fork-env-probe/observations.json",
+      "bytes": 1466,
+      "sha256": "5eb063ce576cb55b4dae223ee539e92d947c829b350eb03aabfed41066069e26"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-audit/rust016-review-round2.json",
+      "bytes": 10530,
+      "sha256": "da7a7ca7dbc3a3cbe1fc73b1e4b25279a07de0d609979b055843288627b940ca"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ownership-reuse-audit/rust016-review-round2.json",
+      "bytes": 6256,
+      "sha256": "31cd23da18e21f8ad7bc26f6b31cbdc8006fb0e80f68a84e6481e4355a91e268"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-audit/rust016-remote-ci-final01.json",
+      "bytes": 38573,
+      "sha256": "f54f33969f15c3e01a053dde2a93ecc8a6c04e952f28cfb5b1461744a6b8e7ab"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-audit/rust016-source04-remote-ci-final01.json",
+      "bytes": 41426,
+      "sha256": "3be5ff4d8aeadf294689a65d4c65c50e3adb75a3b76227dfd38fc4ed3c7a99fc"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-audit/rust016-source05-remote-ci-final01.json",
+      "bytes": 44167,
+      "sha256": "04f3db25a493a2b46244d43609506a06f27c95a580aa98df4455cd9f7fc51bf5"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/product-writer/MBRS001_MINIMAL_OFFLINE_IMPLEMENTATION_BOUNDARY.md",
+      "bytes": 17697,
+      "sha256": "12d428e3339e0cf76340cc4db502178b2af2f75d6656a075cd0f539aab7921c8"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/RUST016_ORIGINAL_SCOPE_AND_SEALED_REPORTS_PREDELIVERY_01.json",
+      "bytes": 3623,
+      "sha256": "70b33386718f1027d521c5a1c813a722aeb314f96774f79ead3cfce5687cf32c"
+    }
+  ],
+  "formalSourceReviewRounds": 2,
+  "rootPostReviewCorrections": "五组实际CI/格式/原生env与locator修正，由主控按新证据处理；没有第三轮源码审查",
+  "g0": "READY_FOR_POST_REPORT_IDENTITY_CHECK_NOT_YET_ADMITTED",
+  "authorityRef": "docs/postrust/MBRS-000/AUTHORITY_SCOPE.md#owner-current-session-explicit-phase-handoff",
+  "nodeWriter": "node-dataset-owner-worker",
+  "mainOutboxWriter": "electron-main-command-outbox-store",
+  "rustCollectionReadonlyDefault": "OFF",
+  "fullRustMigrationCompleted": false,
+  "realServices": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "installation": "NOT_RUN",
+  "mainMerge": "NOT_RUN",
+  "release": "NOT_RUN",
+  "carryover": [
+    "6项既有moderate依赖，不提升为零风险或发布验收",
+    "提取器已有输出保护P3保持bounded观察",
+    "原RUST017～025与14原未完框继续按唯一主责",
+    "旧录音Gate B/P4/P5、媒体完整包、平台签名/公证/真实Roon/Owner独立保留"
+  ],
+  "nextTask": "MBRS-001隔离POC；从本轮最终交付HEAD继续，live仅缺环境阻断，软件HTTP与合同连续推进"
+}

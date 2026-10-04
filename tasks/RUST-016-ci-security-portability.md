@@ -1,6 +1,6 @@
 # RUST-016：CI、安全与历史证据可移植基线
 
-状态：IN_PROGRESS。基线：`dd2a7e537039d10151af840945a717701fb5ea1b`（MBRS-000 最终报告）；分支：`codex/rust-core-016-ci-security-portability`。MBRS-000 实现 `a83c39b`、报告 `dd2a7e5` 已正常推送，本轮实际身份由外置收据核，不改封存000/015。
+状态：软件与实际CI Gate通过，独立报告/精确交付身份待本轮解析。基线：`dd2a7e537039d10151af840945a717701fb5ea1b`（MBRS-000 最终报告）；分支：`codex/rust-core-016-ci-security-portability`。MBRS-000 实现 `a83c39b`、报告 `dd2a7e5` 已正常推送，本轮实际身份由外置收据核，不改封存000/015。
 
 Owner 已明确连续执行 v1.2；本任务为 C01+C06 唯一 Rust 基线前置修复，允许隔离离线实现与合成验证。产品 G0 继续 NOT_ADMITTED，直到真实受影响 CI / 安全 Gate 闭合；本任务不接入本地曲库 / 播放、不移交 Node writer 或 Main outbox。仅一个产品写作者 gpt-6.1-sol/high；主控串行安装 / 构建 / tests / 报告 / push，两个审计角色只读，不派生代理。
 
@@ -75,3 +75,12 @@ C01 focused入口仅运行原Source05两行为、Source08原拒绝与合法setti
 两个host脚本build/components入口继续原合同，明确electron/acceptance消费本轮完整prepare的成功树与收据；不新增第二pipeline或单host fallback。原完整Rust producer两调用与human-session构建均已显式build；本轮不重写历史任务/报告。新增廉价入口为 `scripts/ci/test/electron-preparation-order.test.mjs` 与 `scripts/ci/test/rust-host-gate-cli.test.mjs`，已接原verify工作流明确离线边界步骤。startup原test新增调用/拒绝及非法mode覆盖，仍保留mock/system参数、marker与自然close断言。
 
 写作者只执行 `git diff --check`，不运行安装、测试、构建、App或Core。root接回后先frozen install、startup原test及上述精准边界测试/fullverify，随后一次原Rust prepare、官方Electron身份与Gate；正式审计第2轮依据最新freeze与真实收据。提取器已有输出保护P3仅记bounded carryover，原冻结提取器/历史事件字节不改。
+
+
+## 主控后续实测处置与结果
+
+两正式源码审查已结束，四P2关闭；实际CI随后暴露hosted夹具硬编码和private host env包含undefined，本机完整E2E暴露两同名重试按钮定位歧义。主控按原边界修复，原生产根/正式Core环境白名单/所有业务断言/原skip不削弱；新增12条实际wrapper行为测试接原verify准备步骤（共48）。两末尾报告路径显式传入。补丁格式修正由真实pnpm重新生成锁hash，没有手写锁身份。
+
+最终source06实现043a5635：原Rust30、完整Electron12、完整E2E104+4原skip、真实远端四workflow六job均自然成功，完整verify远端4142+2原skip，原标准high审计0/6moderate。全部旧失败、反事实、原始stdout/退出和来源SHA保留，见reports/RUST-016_CI_SECURITY_PORTABILITY.md与RUST-016_EVIDENCE.json。两formal源码审查只对各freeze作结论，主控后续处置不冒称第三独审。第四角色仅最终证据round2封存。
+
+本轮C01/C06软件及实际CI条件通过；报告commit/push和闭集重核后新记录有限G0，原000/015历史不改。下一001仅隔离合成HTTP与官方薄SDK/原Adapter合同，缺真实样本/Zone/Core/网络许可不偷偷播放。完整迁移、原14未完框、旧录音/平台/live/Owner另保留。

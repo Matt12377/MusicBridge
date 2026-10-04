@@ -2,13 +2,13 @@
 
 ## Owner 授权的 PostRust v1.2 隔离接续（2026-10-04）
 
-当前隔离生产前置为 [RUST-016](RUST-016-ci-security-portability.md)，从000最终报告 `dd2a7e5` 接续。六组实现及局部软件Gate已有新鲜证据，完整回归/编译/远端CI仍待执行；C01/C06继续OPEN，G0未准入。
+当前 [RUST-016](RUST-016-ci-security-portability.md) 已通过限定软件与实际CI Gate，实现最终 `043a5635`；[结果报告](../reports/RUST-016_CI_SECURITY_PORTABILITY.md) 独立提交，远端精确身份及有限G0新记录随后核。完整Rust迁移、live与Owner另保留。
 
 从 RUST-015 最终报告 `044e6b24edf81b64030d4c96741082670532971c` 接手；[MBRS-000](MBRS-000-baseline-admission.md) 先交付真实基线、唯一 writer、代码复用及全部 Rust 剩余主责。基线记录可交付而产品 G0 继续 NOT_ADMITTED；已授权隔离合同/纯规则/合成 HTTP/安全离线修复继续，真实动作按具体准入处理。
 
 当前 [PostRust TODO](../project/POSTRUST_TODO.md) 与 [机器任务/验收](../project/POSTRUST_PLAN.json) 保存完成和待办；18 个任务、126+30 条验收原文保持。MBRS-014 是 012/013 源写前置，可选 MBRS-015 无主线反向依赖，RUST-015 与 MBRS-015 不同。
 
-下一原 Rust 基线修复主责拟定为 `RUST-016-ci-security-portability`（C01/C06，PLANNED/NOT_STARTED），从 MBRS-000 最终报告 HEAD 新建独立分支；工作流、可移植夹具、真实编译输出和保留 Provider 功能的安全修复统一闭合后再核 G0，不把该前置移交到依赖 G0 的 MBRS 后继。
+RUST-016为C01/C06唯一主责；上述软件/实际CI前置已验证，有限G0仍须精确报告交付身份并以新记录落地，不重写000/015封存。下一001从本轮最终交付HEAD接续隔离HTTP/合同，真实样本/Zone/Core缺口独立。
 
 剩余 Rust 范围与 source/依赖见 [唯一主责映射](../docs/postrust/MBRS-000/RUST_TO_MBRS_RESOLVED.json)，转交仍 OPEN。旧各 WAVE、录音、实机、安装发布和 Owner 状态维持独立，旧报告原件不重写。
 
