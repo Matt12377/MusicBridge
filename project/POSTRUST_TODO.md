@@ -1,10 +1,10 @@
 # PostRust v1.2 开发与验收台账
 
-更新：2026-10-04。真实 base 为 RUST-015 final `044e6b24edf81b64030d4c96741082670532971c`。当前 Node 控制面与唯一业务库作者保持；Rust 可选收藏只读默认 OFF，完整迁移未完成。当前阶段为明确换届的隔离准备，产品 G0 **NOT_ADMITTED**。
+更新：2026-10-04。真实 base 为 RUST-015 final `044e6b24edf81b64030d4c96741082670532971c`。当前 Node 控制面与唯一业务库作者保持；Rust 可选收藏只读默认 OFF，完整迁移未完成。当前有限Node+Rust软件阶段 G0 **ADMITTED**（EXPLICIT_PHASE_HANDOFF）；真实动作/完整迁移/Owner边界独立。
 
 机器入口：`project/POSTRUST_PLAN.json` 保存18任务和156条原验收（126条v1.1保留、30条v1.2衔接），每条分别登记软件、App、live与Owner。包PASS、计划批准、软件通过、App操作、实机与最终反馈互不推导。
 
-- [x] MBRS-000 基线交付：12复用 / 14原框映射 / 18任务156验收 / 有限ADR已落实，13结构正负例、Git来源Gate、control-plane与boundaries均退出0，首轮独审无确认P1/P2。实现与报告分开提交解析，整体 G0 继续 NOT_ADMITTED；AT-000-02/03保持PARTIAL。
+- [x] MBRS-000 基线交付：12复用 / 14原框映射 / 18任务156验收 / 有限ADR已落实，13结构正负例、Git来源Gate、control-plane与boundaries均退出0，首轮独审无确认P1/P2。实现与报告分开提交解析，000报告快照G0为NOT_ADMITTED，当前准入另见R16新记录；AT-000-02/03的原记录保持PARTIAL。
 - [x] RUST-016-ci-security-portability：限定软件/实际CI Gate通过；base000 final `dd2a7e5`，实现最终 `043a5635`。原Rust30、Electron12、E2E104+4原skip、远端4workflow/6job、48准备/82加密与原high审计均通过；6moderate、完整迁移/live/平台/Owner另保留。报告提交/远端身份与有限G0新记录随后解析；见 `reports/RUST-016_CI_SECURITY_PORTABILITY.md`。
 - [ ] 其它Rust剩余职责：原14框逐行在 `docs/postrust/MBRS-000/RUST_TO_MBRS_RESOLVED.json`，拟任务登记仅定位主责，未完成、不自动获准生产执行。原Rust路线、平台 / live / Owner分别保留。
 - [ ] MBRS-001：原文件→官方Audio Input隔离POC，NOT_STARTED；没有新增目录 / Zone / 网络 / 发声许可时仅离线准备。
@@ -21,3 +21,5 @@
 依赖以机器表为准，不按编号强行执行：014在012前；017依赖016；可选015不是CORE主线前置。任务完成后相同共享实现由唯一主任务存证，其它任务引用，不复制PASS。
 
 当前没有新产品 App/live/Owner PASS；000八条为基线/规则记录及结构PASS，AT-000-02/03保持PARTIAL。旧 Source15 4051软件通过与七候选包 / 两普通CUA仅复用适用收藏容量范围；新鲜015远端verify/Electron失败、Rust零job和high依赖阻塞记录在 `REGRESSION_LEDGER.json`。Owner只负责最终成品使用反馈，中间验证由代理承担，不把机器结果代签为接受。
+
+RUST-016报告已实际独立交付并核remote/clean/不变输入；有限G0新记录为 `docs/postrust/RUST-016/ADMISSION_DECISION.json`（EXPLICIT_PHASE_HANDOFF/ADMITTED），仅Node+Rust软件阶段。000/015的NOT_ADMITTED是封存快照；新记录不改其原件，不关闭完整迁移/live/平台/Owner。最终第四证据round2由提交后外置原件解析。

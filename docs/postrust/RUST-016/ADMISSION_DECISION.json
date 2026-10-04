@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.2",
+  "kind": "HANDOFF_RECORD_NOT_AUTHORIZATION",
+  "is_synthetic": false,
+  "mode": "EXPLICIT_PHASE_HANDOFF",
+  "decision": "ADMITTED",
+  "repository": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/rust-core-016",
+  "branch": "codex/rust-core-016-ci-security-portability",
+  "implementation_commit": "043a56357a62966e4091da567d007332e5df223f",
+  "final_report_commit": "e37b3ad70a23c2c80e649a462626046473ad75cd",
+  "authority_ref": "docs/postrust/MBRS-000/AUTHORITY_SCOPE.md#owner-current-session-explicit-phase-handoff",
+  "scope_definition_ref": "docs/postrust/RUST-016/ADMISSION_SCOPE.md",
+  "carryover_mapping_ref": "docs/postrust/MBRS-000/RUST_TO_MBRS_RESOLVED.json",
+  "component_owners": [
+    {
+      "domain": "工作库收藏/来源/录音历史",
+      "database_id": "owned-dataset-sqlite",
+      "writer_id": "node-dataset-owner-worker",
+      "process": "Node Core worker",
+      "language": "TypeScript"
+    },
+    {
+      "domain": "备份维护工作流",
+      "database_id": "backup-maintenance.v1.sqlite",
+      "writer_id": "node-dataset-owner-worker",
+      "process": "Node Core worker",
+      "language": "TypeScript"
+    },
+    {
+      "domain": "Main命令outbox",
+      "database_id": "command-outbox.v1.sqlite",
+      "writer_id": "electron-main-command-outbox-store",
+      "process": "Electron Main",
+      "language": "TypeScript"
+    },
+    {
+      "domain": "播放/队列/代际",
+      "database_id": null,
+      "writer_id": "BridgeController",
+      "process": "Node Core utilityProcess",
+      "language": "TypeScript"
+    },
+    {
+      "domain": "可选收藏只读",
+      "database_id": null,
+      "writer_id": null,
+      "process": "Rust sidecar",
+      "language": "Rust"
+    }
+  ],
+  "exit_items": [
+    {
+      "id": "RUST-015-LOCAL-DELIVERY",
+      "description": "RUST-015限定本地容量交付；不是完整迁移",
+      "required_for_admission": true,
+      "status": "PASS",
+      "primary_owner": "RUST-015",
+      "evidence_refs": [
+        "reports/RUST-015_CAPACITY_COST_VALIDATION.md",
+        "reports/RUST-015_EVIDENCE.json"
+      ]
+    },
+    {
+      "id": "R15-C06",
+      "description": "标准high审计与verify/Rust/Electron/E2E实际CI通过；6moderate保留",
+      "required_for_admission": true,
+      "status": "PASS",
+      "primary_owner": "RUST-016-ci-security-portability",
+      "evidence_refs": [
+        "reports/RUST-016_CI_SECURITY_PORTABILITY.md",
+        "reports/RUST-016_EVIDENCE.json",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/RUST016_FINAL_GATE_HISTORY_01.json",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/RUST016_REPORT_POSTCOMMIT_IDENTITY_01.json"
+      ]
+    },
+    {
+      "id": "R15-C01",
+      "description": "历史来源可移植+实际CI通过",
+      "required_for_admission": true,
+      "status": "PASS",
+      "primary_owner": "RUST-016-ci-security-portability",
+      "evidence_refs": [
+        "reports/RUST-016_CI_SECURITY_PORTABILITY.md",
+        "reports/RUST-016_EVIDENCE.json",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/RUST016_FINAL_GATE_HISTORY_01.json",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/RUST016_REPORT_POSTCOMMIT_IDENTITY_01.json"
+      ]
+    },
+    {
+      "id": "MBRS-000-STRUCTURE",
+      "description": "本轮基线/映射/结构新鲜Gate及13正负例通过；不替代C01/C06、应用或实机准入",
+      "required_for_admission": true,
+      "status": "PASS",
+      "primary_owner": "MBRS-000",
+      "evidence_refs": [
+        "docs/postrust/MBRS-000/BASELINE.md",
+        "docs/postrust/MBRS-000/REGRESSION_LEDGER.json"
+      ]
+    }
+  ],
+  "dirty_range_reviewed": true,
+  "full_rust_migration_completed": false,
+  "protected_untracked_paths": [
+    "worktree/rust-core-015/",
+    "其它工作树与WIP见外置PROTECTED_WORKTREES_BEFORE.json；不公开复制用户内容"
+  ],
+  "evidence_refs": [
+    "docs/postrust/MBRS-000/BASELINE_INPUTS.json",
+    "reports/RUST-015_CAPACITY_COST_VALIDATION.md",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/HANDOFF_INPUT_IDENTITY.json",
+    "reports/RUST-016_CI_SECURITY_PORTABILITY.md",
+    "reports/RUST-016_EVIDENCE.json",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/RUST016_REPORT_POSTCOMMIT_IDENTITY_01.json"
+  ]
+}

@@ -5933,7 +5933,7 @@
   "rustCore016CiSecurityPortability20261004": {
     "task": "RUST-016",
     "name": "ci-security-portability",
-    "state": "SOFTWARE_CI_GATES_PASSED_DELIVERY_PENDING",
+    "state": "PASS_SOFTWARE_CI_SCOPE_REPORT_DELIVERED",
     "branch": "codex/rust-core-016-ci-security-portability",
     "baseSha": "dd2a7e537039d10151af840945a717701fb5ea1b",
     "scope": [
@@ -6042,13 +6042,11 @@
       "laterRootCorrections": "source03格式/source04hosted夹具/source05报告env/source06原生env与E2E locator，主控实测处置，不冒充第三轮独审"
     },
     "pending": [
-      "独立报告提交与远端精确身份",
-      "报告提交后有限G0新记录",
-      "第四角色最终证据round2封存"
+      "第四角色final round2外置封存解析；不再修改原件或开启第三源码审"
     ],
     "c01": "SOFTWARE_AND_ACTUAL_CI_PASS",
     "c06": "SOFTWARE_HIGH_AUDIT_AND_ACTUAL_CI_PASS",
-    "g0": "READY_FOR_POST_REPORT_IDENTITY_CHECK_NOT_YET_ADMITTED",
+    "g0": "ADMITTED",
     "productionDefault": "Node",
     "rustCollectionReadonlyDefault": "OFF",
     "fullRustMigrationCompleted": false,
@@ -6061,7 +6059,7 @@
       "e43b201b4d827b8a164970ee0915a0765d28e491",
       "043a56357a62966e4091da567d007332e5df223f"
     ],
-    "reportCommit": null,
+    "reportCommit": "e37b3ad70a23c2c80e649a462626046473ad75cd",
     "reportCommitResolution": "git log -1 --format=%H -- reports/RUST-016_CI_SECURITY_PORTABILITY.md",
     "reportRef": "reports/RUST-016_CI_SECURITY_PORTABILITY.md",
     "evidenceRef": "reports/RUST-016_EVIDENCE.json",
@@ -6069,6 +6067,17 @@
       "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/RUST016_FINAL_GATE_HISTORY_01.json",
       "bytes": 116240,
       "sha256": "81bb4deb2cdaa8acb32385644e4a4505aa86662f39ca54ff7b2779904424a4a8"
+    },
+    "g0Mode": "EXPLICIT_PHASE_HANDOFF",
+    "admissionRef": "docs/postrust/RUST-016/ADMISSION_DECISION.json",
+    "admissionScopeRef": "docs/postrust/RUST-016/ADMISSION_SCOPE.md",
+    "reportDeliveryIdentity": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/RUST016_REPORT_POSTCOMMIT_IDENTITY_01.json",
+    "finalEvidenceResolution": {
+      "role": "evidence_delivery_audit",
+      "round": 2,
+      "statusAtRecordWrite": "FINAL_SEAL_AFTER_THIS_COMMIT",
+      "artifact": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/evidence-delivery-audit/rust016-evidence-round2-final.json",
+      "meaning": "精确SHA/最终HEAD由提交后外置收据解析，不自造review PASS"
     }
   }
 }

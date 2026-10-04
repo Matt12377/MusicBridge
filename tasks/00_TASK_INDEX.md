@@ -2,7 +2,7 @@
 
 ## Owner 授权的 PostRust v1.2 隔离接续（2026-10-04）
 
-当前 [RUST-016](RUST-016-ci-security-portability.md) 已通过限定软件与实际CI Gate，实现最终 `043a5635`；[结果报告](../reports/RUST-016_CI_SECURITY_PORTABILITY.md) 独立提交，远端精确身份及有限G0新记录随后核。完整Rust迁移、live与Owner另保留。
+当前 [RUST-016](RUST-016-ci-security-portability.md) 已通过限定软件与实际CI Gate，实现最终 `043a5635`；[结果报告](../reports/RUST-016_CI_SECURITY_PORTABILITY.md) 独立提交，报告交付远端身份已核；有限G0新记录已落地，最终证据round2随后从外置收据解析。完整Rust迁移、live与Owner另保留。
 
 从 RUST-015 最终报告 `044e6b24edf81b64030d4c96741082670532971c` 接手；[MBRS-000](MBRS-000-baseline-admission.md) 先交付真实基线、唯一 writer、代码复用及全部 Rust 剩余主责。基线记录可交付而产品 G0 继续 NOT_ADMITTED；已授权隔离合同/纯规则/合成 HTTP/安全离线修复继续，真实动作按具体准入处理。
 
@@ -163,3 +163,5 @@ WAVE-5 是 Owner 于 2026-08-27 认可 Preview 02 后授权启动的 V3 开发�
 - [RUST-014](RUST-014-user-optional-readonly-controls.md)：从013最终报告 `e35ad579` 接续，正常设置可选只读Rust开关与库存刷新、原Node先boot/唯一作者、私有nonce控制及真实关闭屏障；默认关闭，代理已完成四包六run/112专项、完整软件六步、普通CUA/独立闭库SQL与两轮独审；实现和报告独立保存，2026-10-03另按Owner授权推送最终HEAD `906a3841`，远端对应分支相符。见 [结果报告](../reports/RUST-014_USER_OPTIONAL_READONLY_CONTROLS.md) 和 [外部审计分支](https://github.com/Matt12377/music-bridge-for-roon/tree/codex/rust-core-014-user-optional-readonly-controls)。原报告的未push是交付当时状态。
 
 - [RUST-015](RUST-015-capacity-cost-validation.md)：从014最终报告 `906a3841` 接续，本地限定交付完成；实现 `8c58fdee`，Source15软件/七签包十三run十二SQL/两普通CUA/两轮独审通过，详见[结果报告](../reports/RUST-015_CAPACITY_COST_VALIDATION.md)。完整迁移未完成，继承远端CI/生产高危依赖未闭合，不代表整体安全或发布通过；默认OFF与唯一Node作者保持；PostRust v1.2由新会话先做MBRS-000真实基线与剩余主责核对。
+
+RUST-016独立报告已核精确远端身份；新有限G0见 [准入记录](../docs/postrust/RUST-016/ADMISSION_DECISION.json) 与 [范围](../docs/postrust/RUST-016/ADMISSION_SCOPE.md)。旧000/015封存不重写；从本轮最终交付HEAD连续开展001隔离软件POC，live缺环境独立。

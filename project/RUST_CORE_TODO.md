@@ -7,12 +7,15 @@
 - [x] 换届身份：主会话实际 `gpt-6.1-sol/max`，三个实际 `gpt-6.1-sol/high` 角色，唯一产品写作者与主控串行交接；从最终报告 `044e6b24` 建 `codex/mbrs-000-baseline-admission`，旧 015 树保持封存。
 - [x] 交接输入：8 份指定原件字节/SHA、97 包文件/96 内部校验和、015 六 Git 输入与远端最终 HEAD 已核；新保护快照覆盖全部 83 个注册树，目录型 untracked 仅登记、常规脏文件保留流式摘要。
 - [x] MBRS-000 首批基线/12 复用/14 原始未完框的唯一主责/18 任务156验收/3 有限 ADR 已落实；转交保持 OPEN，不把 Node writer 或默认 OFF 收藏 Rust 写成完整迁移。
-- [x] MBRS-000 新鲜结构 Gate 与13行为正负例、control-plane/boundaries退出0，首轮独审无确认P1/P2；实现/报告/推送精确身份由000结果报告与提交后外置收据解析，整体 G0 仍 NOT_ADMITTED。
+- [x] MBRS-000 新鲜结构 Gate 与13行为正负例、control-plane/boundaries退出0，首轮独审无确认P1/P2；实现/报告/推送精确身份由000结果报告与提交后外置收据解析，000报告时G0仍NOT_ADMITTED；当前新准入记录另列。
 - [x] RUST-016-ci-security-portability：限定软件/实际CI Gate通过；base000 final `dd2a7e5`，实现最终 `043a5635`。原Rust30、Electron12、E2E104+4原skip、远端4workflow/6job、48准备/82加密与原high审计均通过；6moderate、完整迁移/live/平台/Owner另保留。报告提交/远端身份与有限G0新记录随后解析；见 `reports/RUST-016_CI_SECURITY_PORTABILITY.md`。
 - [ ] RUST-017～025 的原控件、成本、推送、索引、相邻领域、平台媒体、持久化、live 与 Owner 主责分别保留 PLANNED/NOT_STARTED；具体 scope/依赖见 `docs/postrust/MBRS-000/RUST_TO_MBRS_RESOLVED.json`，登记不等于已准入或完成。
 - [ ] 完整媒体/平台签名公证/安装/真实服务、旧录音 Gate B/P4/P5、GE 与 Owner 最终成品反馈分别保留；代理负责中间验证，未取得具体许可的动作仅阻断其自身。
 
 当前 MBRS 完成/待办并列入口为 [POSTRUST_TODO](POSTRUST_TODO.md)，机器状态为 `STATUS.json` 的独立 PostRust 段。015 最新远端已完成：static-security success；verify/Electron/Rust workflow failure，生产 audit high 未闭合；精确 run/原件在本轮外置 `ci-security-audit/CI_CAPTURE_MANIFEST.json`。
+
+
+RUST-016报告已实际独立交付并核remote/clean/不变输入；有限G0新记录为 `docs/postrust/RUST-016/ADMISSION_DECISION.json`（EXPLICIT_PHASE_HANDOFF/ADMITTED），仅Node+Rust软件阶段。000/015的NOT_ADMITTED是封存快照；新记录不改其原件，不关闭完整迁移/live/平台/Owner。最终第四证据round2由提交后外置原件解析。
 
 ## RUST-015 报告提交时的历史快照
 

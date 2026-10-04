@@ -1,6 +1,6 @@
 # RUST-016：CI、安全与历史证据可移植基线
 
-状态：软件与实际CI Gate通过，独立报告/精确交付身份待本轮解析。基线：`dd2a7e537039d10151af840945a717701fb5ea1b`（MBRS-000 最终报告）；分支：`codex/rust-core-016-ci-security-portability`。MBRS-000 实现 `a83c39b`、报告 `dd2a7e5` 已正常推送，本轮实际身份由外置收据核，不改封存000/015。
+状态：限定软件与实际CI Gate通过、独立报告已交付、有限G0已录入；最终证据round2由提交后外置原件解析。基线：`dd2a7e537039d10151af840945a717701fb5ea1b`（MBRS-000 最终报告）；分支：`codex/rust-core-016-ci-security-portability`。MBRS-000 实现 `a83c39b`、报告 `dd2a7e5` 已正常推送，本轮实际身份由外置收据核，不改封存000/015。
 
 Owner 已明确连续执行 v1.2；本任务为 C01+C06 唯一 Rust 基线前置修复，允许隔离离线实现与合成验证。产品 G0 继续 NOT_ADMITTED，直到真实受影响 CI / 安全 Gate 闭合；本任务不接入本地曲库 / 播放、不移交 Node writer 或 Main outbox。仅一个产品写作者 gpt-6.1-sol/high；主控串行安装 / 构建 / tests / 报告 / push，两个审计角色只读，不派生代理。
 
@@ -84,3 +84,5 @@ C01 focused入口仅运行原Source05两行为、Source08原拒绝与合法setti
 最终source06实现043a5635：原Rust30、完整Electron12、完整E2E104+4原skip、真实远端四workflow六job均自然成功，完整verify远端4142+2原skip，原标准high审计0/6moderate。全部旧失败、反事实、原始stdout/退出和来源SHA保留，见reports/RUST-016_CI_SECURITY_PORTABILITY.md与RUST-016_EVIDENCE.json。两formal源码审查只对各freeze作结论，主控后续处置不冒称第三独审。第四角色仅最终证据round2封存。
 
 本轮C01/C06软件及实际CI条件通过；报告commit/push和闭集重核后新记录有限G0，原000/015历史不改。下一001仅隔离合成HTTP与官方薄SDK/原Adapter合同，缺真实样本/Zone/Core/网络许可不偷偷播放。完整迁移、原14未完框、旧录音/平台/live/Owner另保留。
+
+报告提交已实际解析为 `e37b3ad70a23c2c80e649a462626046473ad75cd`，remote/clean/source06闭集与原18task156AT均实核。新ADMISSION_DECISION符合原schema，mode=EXPLICIT_PHASE_HANDOFF/decision=ADMITTED，准确指向已有Owner授权及本轮范围；完整迁移/真实动作/Owner不由G0软件记录授权。准入记录与当前入口单独提交，下一001从最终HEAD接续；第四最终证据round2外置封存仍待本次提交后解析。
