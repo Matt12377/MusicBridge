@@ -2,7 +2,7 @@
 
 ## Owner 授权的 PostRust v1.2 隔离接续（2026-10-04）
 
-当前 [MBRS-002](MBRS-002_LOCAL_SOURCE_CONTRACTS.md) 从001最终报告 `f34dd904` 接续：schema31与唯一Node作者的本地音源合同已完成有限软件验证，67项自动Gate全部通过，完整回归4142通过/2既有条件跳过，两路正式审查已完成。原11AT登记7项有限软件PASS、4项PARTIAL，实现/报告提交与自然CI交付进行中；扫描/队列持久化及播放器接线归003/006/007，App/live/Owner未测试。以下000/015旧G0文字为历史基线，当前有限G0为R16新记录ADMITTED。
+当前 [MBRS-002](MBRS-002_LOCAL_SOURCE_CONTRACTS.md) 从001最终报告 `f34dd904` 接续：schema31与唯一Node作者的本地音源合同已完成有限软件验证，67项自动Gate全部通过，完整回归4142通过/2既有条件跳过，两路正式审查已完成。原11AT登记7项有限软件PASS、4项PARTIAL，初始实现 `49d9d8a3` 的三处旧schema E2E断言失败保留；三条完整流程修正后实际全通过，修正实现 `8a1d3f6c` 已普通push并核远端HEAD，新SHA自然CI实际4workflow/6job全success，新exactHost归档82/82字节核验通过，GateZIP超时/跨Gate未知、宽ZIP未下载/Main未核，整体归档PARTIAL；独立报告提交身份按报告Git历史解析，报告自然CI另行取证；扫描/队列持久化及播放器接线归003/006/007，App/live/Owner未测试。以下000/015旧G0文字为历史基线，当前有限G0为R16新记录ADMITTED。
 
 当前 [RUST-016](RUST-016-ci-security-portability.md) 已通过限定软件与实际CI Gate，实现最终 `043a5635`；[结果报告](../reports/RUST-016_CI_SECURITY_PORTABILITY.md) 独立提交，报告交付远端身份已核；有限G0新记录已落地，最终证据round2随后从外置收据解析。完整Rust迁移、live与Owner另保留。
 

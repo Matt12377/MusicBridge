@@ -124,7 +124,7 @@
       "depends_on": [
         "MBRS-000"
       ],
-      "status": "IN_PROGRESS",
+      "status": "PARTIAL",
       "implementation_owner": "MBRS-002",
       "goal": "以稳定本地身份串起文件、播放、收藏和录音，且只有一份曲库真相。",
       "steps": [
@@ -160,9 +160,9 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "8a1d3f6c65e194bee8beab6dfd6d9db373ae8a84",
       "report_commit": null,
-      "validation_status": "LOCAL_FINITE_SOFTWARE_PASS_TWO_FORMAL_REVIEWS_DELIVERY_PENDING",
+      "validation_status": "FINITE_SOFTWARE_AND_SOURCE_CI_SUCCESS_7PASS_4PARTIAL_ARCHIVE_PARTIAL_REPORT_CI_PENDING",
       "evidence_refs": [
         "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/MBRS002_ISOLATED_ENTRY_IDENTITY_01.json",
         "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/MBRS002_B0_ROOT_PREEXECUTION_FREEZE_01.json",
@@ -182,11 +182,22 @@
         "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs002-formal-r1-ci-boundary-01/FORMAL_R1_CI_BOUNDARY_REVIEW_01.json",
         "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/evidence-delivery-high/mbrs002-formal-r2-evidence-audit-01/FORMAL_R2_ACCEPTANCE_EVIDENCE_FINAL_01.json",
         "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
-        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-format-final-validation-03/FINAL_FORMAT_ONLY_ROOT_VALIDATION_03.json"
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-format-final-validation-03/FINAL_FORMAT_ONLY_ROOT_VALIDATION_03.json",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-implementation-identity-01/IMPLEMENTATION_COMMIT_IDENTITY_01.json",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-source-push-identity-01/SOURCE_PUSH_REMOTE_IDENTITY_01.json",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-e2e-schema31-validation-01/E2E_SCHEMA31_ROOT_VALIDATION_01.json",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-corrective-source-identity-01/CORRECTIVE_SOURCE_PUSH_IDENTITY_01.json",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs002-source-delivery-final-01/SOURCE_CI_FINITE_SOFTWARE_DELIVERY_01.json",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-new-source-ci-terminal-01/SOURCE_CI_TERMINAL_ROOT_BINDING_01.json",
+        "reports/MBRS-002_LOCAL_SOURCE_CONTRACTS.md",
+        "reports/MBRS-002_EVIDENCE.json",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs002-corrective-source-delivery-final-01/SOURCE_CI_FINITE_SOFTWARE_DELIVERY_01.json"
       ],
       "execution_base_sha": "f34dd904a473893f213a2a894b858c4ddfbf4423",
       "branch": "codex/mbrs-002-local-source-contracts",
-      "completion_scope": "SYNTHETIC_SOFTWARE_ONLY_PRODUCT_INTEGRATIONS_PENDING"
+      "completion_scope": "LIMITED_SOFTWARE_PHASE_DELIVERED_ORIGINAL_AT_PARTIAL_PRODUCT_INTEGRATIONS_PENDING",
+      "initial_implementation_commit": "49d9d8a3e9264587b171ec96965a0317b034ce35",
+      "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-002_LOCAL_SOURCE_CONTRACTS.md"
     },
     {
       "id": "MBRS-003",

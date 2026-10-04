@@ -6425,5 +6425,31 @@
   },
   "sourceInputsRecheckedAfterCurrentNormalGate": true,
   "actualOutputsRecheckedAfterCurrentNormalGate": true,
-  "workspaceVerifyApplicability": "4142_PASS_2_EXISTING_SKIP_REUSED_PRODUCTION_AND_FULL_RUNTIME_TEST_INPUTS_UNCHANGED_NESTED_EOF_LF_ONLY_NOT_NEW_FULL_RUN"
+  "workspaceVerifyApplicability": "REUSED_UNCHANGED_PRODUCTION_FULL_TEST_SELECTION_LF_FORMAT_AND_THREE_E2E_ONLY_FIX_NOT_NEW_FULL_RERUN",
+  "implementationCommit": "8a1d3f6c65e194bee8beab6dfd6d9db373ae8a84",
+  "implementationSourceGitBlobBinding": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-corrective-source-identity-01/CORRECTIVE_SOURCE_PUSH_IDENTITY_01.json",
+    "bytes": 2784,
+    "sha256": "944d86b2e730a7ed75b5d9065537609e1f53c1ba1dea8ead289f6a0eb541cb9f"
+  },
+  "localExecutedGateGitHeadRemainsBase": true,
+  "initialImplementationCommit": "49d9d8a3e9264587b171ec96965a0317b034ce35",
+  "initialImplementationSourceGitBlobBinding": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-implementation-identity-01/IMPLEMENTATION_COMMIT_IDENTITY_01.json",
+    "bytes": 1399,
+    "sha256": "af7a40742d6032e681aba54308ce461a3ad29110ba76ca8d4e5fc3b86d41fa1f"
+  },
+  "additionalThreeE2eByteBinding": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-e2e-schema31-validation-01/E2E_SCHEMA31_ROOT_VALIDATION_01.json",
+    "bytes": 6390,
+    "sha256": "8671e850de11b5a231f21ea897c2557db8db68c075ec193fc7598f6819f6cf7a"
+  },
+  "implementationBindingScope": "DECLARED1040_UNCHANGED_PLUS_SEPARATE_THREE_E2E_BYTES_NOT_FULL_TRANSITIVE_CLOSURE",
+  "sourceFinalDeliveryReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs002-corrective-source-delivery-final-01/SOURCE_CI_FINITE_SOFTWARE_DELIVERY_01.json",
+    "bytes": 120232,
+    "sha256": "347f44f8968fb4aaeaee89b9dd5a7be671502145dbd7f710a73927424942de9c"
+  },
+  "sourceCiArchiveScope": "Host82bytePASS; newGateZIP and crossGate UNKNOWN; wideZIP/Main NOT_VERIFIED; source1040/local168 identity is separate",
+  "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-002_LOCAL_SOURCE_CONTRACTS.md"
 }

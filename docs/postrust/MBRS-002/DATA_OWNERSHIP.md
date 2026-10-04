@@ -1,6 +1,6 @@
 # MBRS-002 数据与资源权威登记
 
-实际基线 `f34dd904a473893f213a2a894b858c4ddfbf4423`。默认Node；可选Rust收藏只读默认OFF，library_write_enabled及source files写入OFF。B1/B2/B3/B4与新refs在最终自动Gate中实际67项通过，三包类型检查、新编译56合同源/168产物及声明输入身份通过；完整工作区回归已通过：4144总/4142通过/2既有native条件跳过；独立审查和提交待。真实用户DB、媒体、Roon、Provider帐号及Owner验收未运行。
+实际基线 `f34dd904a473893f213a2a894b858c4ddfbf4423`。默认Node；可选Rust收藏只读默认OFF，library_write_enabled及source files写入OFF。B1/B2/B3/B4与新refs在最终自动Gate中实际67项通过，三包类型检查、新编译56合同源/168产物及声明输入身份通过；完整工作区回归已通过：4144总/4142通过/2既有native条件跳过；两路正式审查已封存，状态文档P2同轮闭合；初始49d9d8a3自然CI旧schema断言失败保留；三条完整合成Electron流程修正后全部通过，修正实现8a1d3f6c已push并核远端HEAD，新SHA源自然CI实际4workflow/6job全success，新exactHost归档82/82字节核验通过；新GateZIP超时及跨Gate身份未知、宽ElectronZIP未下载/Main未核，归档整体PARTIAL；独立报告身份按报告Git历史解析，报告自然CI另行取证。单LF格式修正后完整回归精确复用、未再次full执行。真实用户DB、媒体、Roon、Provider帐号及Owner验收未运行。
 
 | 领域/库 | 实际进程/唯一writer与逻辑权威 | 命令、事务和读者边界 | 已有证据及后续职责 |
 |---|---|---|---|
@@ -21,4 +21,4 @@
 
 最终Gate实际16/41/10项TAP全部通过，所有16个适用nested测试文件均在冻结名单并执行，56合同源/168新产物和1040声明输入前后保持。完整旧回归类型/构建exit0，4144总/4142通过/2既有native条件跳过；正式审查与实现/报告提交身份由root继续取得并记录。本文件不改原001封存或R16/000结论。
 
-最终根证据：ROOT=`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s`，`mbrs002-final-gate-normal-01/manifest.json` SHA256 `985b55df484ea204b3fc112c83497e98e227823fe62b415bdd146874b432a6d8`；最终编译出口与单次EIO后验各退出0。输入身份为声明范围，不是完整传递依赖闭包。refs segment隐藏键问题在原第4case实际RED后，只修本叶闭集，原6case在最终Gate通过；旧catalog/旧协议生产guard保持。
+历史首轮根证据（由本文最终Gate03覆盖）：ROOT=`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s`，`mbrs002-final-gate-normal-01/manifest.json` SHA256 `985b55df484ea204b3fc112c83497e98e227823fe62b415bdd146874b432a6d8`；最终编译出口与单次EIO后验各退出0。输入身份为声明范围，不是完整传递依赖闭包。refs segment隐藏键问题在原第4case实际RED后，只修本叶闭集，原6case在最终Gate通过；旧catalog/旧协议生产guard保持。

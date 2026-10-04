@@ -1,6 +1,6 @@
 {
   "schema": "mbrs002.at-report-preparation.v1",
-  "status": "FINITE_SOFTWARE_7PASS_4PARTIAL_REVIEWED_DELIVERY_PENDING",
+  "status": "FINITE_SOFTWARE_7PASS_4PARTIAL_SOURCE_CI_SUCCESS_ARCHIVE_PARTIAL_REPORT_CI_PENDING",
   "base": "f34dd904a473893f213a2a894b858c4ddfbf4423",
   "originalTaskAndATIdentityPreserved": true,
   "entries": [
@@ -346,7 +346,7 @@
     "bytes": 2566,
     "sha256": "da720b13dfb5d2ee26c7da5448dd1508c1d7830402b37057b76d373ce5c676c3"
   },
-  "updatedAt": "2026-10-04T09:11:29.422782+00:00",
+  "updatedAt": "2026-10-04T10:56:57.672874+00:00",
   "previousNormalGateManifest": {
     "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-01/manifest.json",
     "bytes": 270180,
@@ -361,5 +361,140 @@
     "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-format-final-validation-03/FINAL_FORMAT_ONLY_ROOT_VALIDATION_03.json",
     "bytes": 4276,
     "sha256": "cce75ff7a1610e393d17ad45251bc75127ae3c86c55ea3e8a9518eaec792ca78"
-  }
+  },
+  "implementationCommit": "8a1d3f6c65e194bee8beab6dfd6d9db373ae8a84",
+  "sourcePushReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-source-push-identity-01/SOURCE_PUSH_REMOTE_IDENTITY_01.json",
+    "bytes": 1296,
+    "sha256": "f6d58ec5abc929df41f3d1158b27d829ab7d0e64d1ef744bd454bc780bde2780"
+  },
+  "implementationIdentityReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-implementation-identity-01/IMPLEMENTATION_COMMIT_IDENTITY_01.json",
+    "bytes": 1399,
+    "sha256": "af7a40742d6032e681aba54308ce461a3ad29110ba76ca8d4e5fc3b86d41fa1f"
+  },
+  "sourceCi": "CORRECTIVE_EXACT_SHA_4_WORKFLOWS_6_JOBS_ALL_SUCCESS_INITIAL_FAILURE_RETAINED",
+  "reportCommit": "RESOLVE_FROM_REPORT_FILE_GIT_LOG",
+  "initialImplementationCommit": "49d9d8a3e9264587b171ec96965a0317b034ce35",
+  "initialSourceCiReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs002-source-delivery-final-01/SOURCE_CI_FINITE_SOFTWARE_DELIVERY_01.json",
+    "bytes": 71439,
+    "sha256": "5185814c2a295dc791c25e7c70280d2c2abe46c2c1eef4fb226395b4d67171d6"
+  },
+  "correctiveE2eValidation": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-e2e-schema31-validation-01/E2E_SCHEMA31_ROOT_VALIDATION_01.json",
+    "bytes": 6390,
+    "sha256": "8671e850de11b5a231f21ea897c2557db8db68c075ec193fc7598f6819f6cf7a"
+  },
+  "correctiveSourceIdentity": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-corrective-source-identity-01/CORRECTIVE_SOURCE_PUSH_IDENTITY_01.json",
+    "bytes": 2784,
+    "sha256": "944d86b2e730a7ed75b5d9065537609e1f53c1ba1dea8ead289f6a0eb541cb9f"
+  },
+  "sourceCiTerminalBinding": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-new-source-ci-terminal-01/SOURCE_CI_TERMINAL_ROOT_BINDING_01.json",
+    "bytes": 1843,
+    "sha256": "af44a981207514be15d15fd2c8e6564642acfc9a663bb45dc4fe191dd7fcf5d0"
+  },
+  "sourceFinalDeliveryReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs002-corrective-source-delivery-final-01/SOURCE_CI_FINITE_SOFTWARE_DELIVERY_01.json",
+    "bytes": 120232,
+    "sha256": "347f44f8968fb4aaeaee89b9dd5a7be671502145dbd7f710a73927424942de9c"
+  },
+  "sourceCiStrictFinalIdentity": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs002-corrective-source-final-identity-01/IDENTITY_POSTCHECK_01.json",
+    "bytes": 12802,
+    "sha256": "98337b38cd1cb7fedea17c79264c36bfe19fdd2e7e322baec50907e30543fb3c"
+  },
+  "remoteArchiveVerification": {
+    "overallComplete": false,
+    "status": "PARTIAL_WITH_EXPLICIT_ARCHIVE_CARRIES",
+    "newExactHost": {
+      "artifactId": 11301000305,
+      "runId": 37194093867,
+      "attempt": 1,
+      "zip": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs002-corrective-source-ci-materialize-01/artifact-11301000305-zip.raw",
+        "bytes": 7049288,
+        "sha256": "8c644be8dd23a6525b592bb8f22418957afff2e6845db7436508e4713aa46d69"
+      },
+      "postcheck": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs002-corrective-source-hosts-zip-postcheck-01/ZIP_POSTCHECK_01.json",
+        "bytes": 993676,
+        "sha256": "51949ff3efe444c3f68cef8b984f30cd8954bf41368300c9dc4a793eec6352b8"
+      },
+      "expected": 82,
+      "actual": 82,
+      "missing": 0,
+      "extra": 0,
+      "hashMismatch": 0,
+      "compiledHostFullByteRehashComplete": true,
+      "hosts": [
+        {
+          "task": "RUST-008",
+          "declared": 38,
+          "present": 38,
+          "trackedSourceCount": 881,
+          "trackedInputsMatchFinalGitBlobs": true,
+          "generatedInputCount": 168,
+          "generatedInputCrossNewGate": "UNKNOWN_NOT_VERIFIED",
+          "installedDependencyCount": 1
+        },
+        {
+          "task": "RUST-009",
+          "declared": 40,
+          "present": 40,
+          "trackedSourceCount": 883,
+          "trackedInputsMatchFinalGitBlobs": true,
+          "generatedInputCount": 168,
+          "generatedInputCrossNewGate": "UNKNOWN_NOT_VERIFIED",
+          "installedDependencyCount": 1
+        }
+      ],
+      "hostCrossNewGateHashChain": "UNKNOWN_NOT_VERIFIED",
+      "targetRustBinaryArchived": false,
+      "electronMainEvidence": "NOT_VALIDATED_BY_THIS_EXACT_COMPILED_ZIP_ENTRYPOINT",
+      "fullTransitiveDependencyClosure": false
+    },
+    "newGate": {
+      "artifactId": 11300485981,
+      "declaredBytes": 24599135,
+      "actualApiDeclaredDigest": "sha256:51ac6d7f73e80a0bcab8cb7de400a7e346ba9fed6dc77c4de39b767f718dffed",
+      "download": {
+        "durationSeconds": 600.029,
+        "limitSeconds": 600,
+        "exit": -9,
+        "signal": 9,
+        "timedOut": true,
+        "closeObserved": true,
+        "partial": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs002-corrective-source-ci-materialize-01/artifact-11300485981-zip.partial",
+          "bytes": 13991936,
+          "sha256": "071866c61e6db53c55c17939dc2d874c609435f70bd8c8f5d792ddb826bc667d"
+        },
+        "transport": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs002-corrective-source-ci-materialize-01/artifact-11300485981-zip.transport.json",
+          "bytes": 1348,
+          "sha256": "cb9d05a1a9e4c30d18e254b9a290ed7d2ae01ef6d3873cfaa260707a774a5a80"
+        }
+      },
+      "digestMatch": false,
+      "67CaseManifestBytePostcheck": "UNKNOWN_NOT_VERIFIED",
+      "1040Gitblob56Source168OutputManifestBytePostcheck": "UNKNOWN_NOT_VERIFIED",
+      "HostCrossGateHashChain": "UNKNOWN_NOT_VERIFIED",
+      "notReplacedByOld49dOrLocalGate": true,
+      "additionalRecoveryBudgetUsed": false
+    },
+    "newWideElectron": {
+      "artifactId": 11300821176,
+      "declaredBytes": 197707193,
+      "apiMetadataDigest": "sha256:6876619cc7c4dc2369a0b91a1f1ff5de0c48ac1a7214448d9228f79337031758",
+      "uploadIdAndMetadataBound": true,
+      "status": "NOT_DOWNLOADED_BOUNDED_CARRY",
+      "Main": "NOT_VERIFIED",
+      "oldMainEvidenceReused": false,
+      "downloadRequested": false
+    }
+  },
+  "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-002_LOCAL_SOURCE_CONTRACTS.md"
 }

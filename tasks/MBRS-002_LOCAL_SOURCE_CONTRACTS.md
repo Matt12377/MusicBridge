@@ -20,7 +20,7 @@ SourceStore是许可/path/dev/ino唯一权威。LibraryRoot逻辑ID独立SourceR
 
 002不创建第二队列、coordinator、generation counter、publisher或来源真相。公开local请求九字段与target闭集拒URL/path/backend/generation/attempt/session；private local_file明确区分remote upstreamUrl，准备不执行播放动作、不读取真实媒体、不发Playing。旧PlaybackSnapshot位置仍非负safeinteger、compact-v1仅roon/netease；新local未知null不得伪装旧DTO或云来源，兼容无法表达须显式unsupported。
 
-实际播放代际/回调/观察接线归006，旧内存到持久队列引用归007，权威扫描ingest归003，固定FD/Gateway读权限归005；未接部分保留PARTIAL，不用纯guard补integration/security PASS。原11AT整体尚未完整验证；已执行的有效RED与聚焦GREEN分别证明具体行为，不替代其余合同/接线。整体尚未实现提交、报告提交或push。
+实际播放代际/回调/观察接线归006，旧内存到持久队列引用归007，权威扫描ingest归003，固定FD/Gateway读权限归005；未接部分保留PARTIAL，不用纯guard补integration/security PASS。原11AT整体尚未完整验证；已执行的有效RED与聚焦GREEN分别证明具体行为，不替代其余合同/接线。该句为2026-10-04首轮实现提交前的历史阶段记录。最新源实现8a1d3f6c65e194bee8beab6dfd6d9db373ae8a84已提交、普通push并核远端HEAD；源自然CI实际4workflow/6job全success，归档为有限PARTIAL，报告提交身份由reports/MBRS-002_LOCAL_SOURCE_CONTRACTS.md的git log实际解析。
 
 输入与证据：ROOT为`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s`；原任务SHA`f5f71eba7c138b412d79d71b1d2009a1b1decd35c1a29d9fbfbc7c82af13c1ac`；已冻结原11AT来自POSTRUST_PLAN/PACK_ACCEPTANCE。ROOT/MBRS002_ISOLATED_ENTRY_IDENTITY_01.json、MBRS002_B0_ROOT_PREEXECUTION_FREEZE_01.json、MBRS002_MEANINGFUL_SCHEMA30_RED_01.json逐字节SHA原件可核。旧000当前G0比较器继承差异保留，历史seal与脚本不改，002增量Gate绑定final001 base与实际src/dist，不添加宽豁免。
 
@@ -48,6 +48,6 @@ root实际自动Gate新编译56合同源/168输出，contracts16、core41、desk
 
 B4首轮桌面6失败来自两处不符合旧正十进制合同的合成曲目ID；只修夹具ID，7case名称和来源/位置/队列/暂停/拒绝断言保留，同7项通过。refs第4case补隐藏locator/symbol/自定义prototype/非枚举必填字段控制，原6项实际5通过/1失败，hiddenLocator的actualtrue/expectedfalse证明真实guard缺口；仅新refs叶先核本叶record+Reflect闭集，再复用原片段整数语义，同6项在最终Gate通过。旧catalog guard与51原case/7fixture不改。
 
-首fresh日志写入EIO只注入一个私有run：编译exit0、实际close、Gate真实exit1；原失败ledger与脱敏捕获恢复内容/168新产物/1040源身份保留，严格外置后验exit0。故障run没有执行行为组，不能算另一组67PASS；总预算kill分支未测。两workflow及selector/Gate/post后验语法检查exit0，21项CI边界测试全部通过。完整工作区verify退出0：contracts254/254，core2468总/2466通过/2既有native条件跳过，desktop1422/1422，合计4144总/4142通过、无fail/cancel/todo，类型与生产构建/Preload依赖门禁通过。两路正式审查已完成，有限范围内未闭实质P1/P2为0，R2元数据P2同轮修复并封存；实现提交/报告提交/push与自然CI尚待。
+首fresh日志写入EIO只注入一个私有run：编译exit0、实际close、Gate真实exit1；原失败ledger与脱敏捕获恢复内容/168新产物/1040源身份保留，严格外置后验exit0。故障run没有执行行为组，不能算另一组67PASS；总预算kill分支未测。两workflow及selector/Gate/post后验语法检查exit0，21项CI边界测试全部通过。完整工作区verify退出0：contracts254/254，core2468总/2466通过/2既有native条件跳过，desktop1422/1422，合计4144总/4142通过、无fail/cancel/todo，类型与生产构建/Preload依赖门禁通过。两路正式审查已完成，有限范围内未闭实质P1/P2为0，R2元数据P2同轮修复并封存；初始实现 `49d9d8a3e9264587b171ec96965a0317b034ce35` 自然CI实际4workflow/6job中5success/1 Electron E2E失败，失败是三个当前库版本断言仍期待30。每处仅1字节改为31后，三条完整合成Electron流程实际3PASS、零失败/跳过/重试；修正实现 `8a1d3f6c65e194bee8beab6dfd6d9db373ae8a84` 已普通push并核远端HEAD，新SHA自然CI实际4workflow/6job全success，新exactHost归档82/82字节核验通过；新GateZIP超时及跨Gate身份未知、宽ElectronZIP未下载/Main未核，归档整体PARTIAL；独立报告身份按报告Git历史解析，报告自然CI另行取证。原1040声明输入/168合同产物重新逐字节核同，额外三E2E另作绑定，不扩成全传递闭包；完整回归与67原结果按生产/full选择不变复用。初始002 exactHost归档82/82字节闭集已通过，宽ZIP一次超时及Main未后验保留；不改001历史39/37缺口。
 
 提交前新增test末尾多1 LF导致暂存diff-check退出2；唯一writer严格只删最后1 LF（全部生产/断言/名称字节不变），root再次实跑7阶段67项全部通过。当前manifest为ROOT/mbrs002-final-gate-normal-03/manifest.json，root格式差异/新鲜输出/原完整回归适用性证明见ROOT/mbrs002-root-format-final-validation-03/FINAL_FORMAT_ONLY_ROOT_VALIDATION_03.json。原R1/R2首封与初次失败保留，不增加第三正式审查，也不把格式后复用完整回归写为再次全量执行。
