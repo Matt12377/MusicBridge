@@ -21,7 +21,9 @@ export async function startPrivateMainHost(rust) {
     if (entry !== standard) throw new Error('隔离 Main 不允许未知 Core 入口。')
     main.push({ sequence: ++sequence, event: 'main.coreFork', entry: 'production-CoreSupervisor-static-private-entry' })
     const channel = new MessageChannelMain(), child = original(privateEntry, args, { ...options, stdio: 'pipe', env: { ...options.env,
-      TMPDIR: process.env.TMPDIR, DEV_BUILD_ROOT: process.env.DEV_BUILD_ROOT, DEV_CACHE_ROOT: process.env.DEV_CACHE_ROOT } })
+      TMPDIR: process.env.TMPDIR,
+      ...(process.env.DEV_BUILD_ROOT === undefined ? {} : { DEV_BUILD_ROOT: process.env.DEV_BUILD_ROOT }),
+      ...(process.env.DEV_CACHE_ROOT === undefined ? {} : { DEV_CACHE_ROOT: process.env.DEV_CACHE_ROOT }) } })
     // 合成进程的启动异常只进入私有审计，不改变生产公共回执。
     child.stderr?.on('data', chunk => { main.push({ sequence: ++sequence, event: 'main.coreStderr', text: String(chunk) }) })
     child.once('spawn', () => { main.push({ sequence: ++sequence, event: 'main.coreSpawn', pid: child.pid }) })

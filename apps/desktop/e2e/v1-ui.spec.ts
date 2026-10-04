@@ -1654,7 +1654,7 @@ test('V3 库存读取失败不显示空库，重试原命令且提交回执丢�
   await page.locator('[data-sidebar-source="collection"]').click()
   await expect(page.getByRole('alert')).toContainText('无法读取库存')
   await expect(page.getByText('还没有磁带库存', { exact: true })).toHaveCount(0)
-  await page.getByRole('button', { name: '刷新库存', exact: true }).click()
+  await page.getByRole('alert').getByRole('button', { name: '刷新库存', exact: true }).click()
   await page.getByRole('button', { name: '添加磁带', exact: true }).click()
   const form = page.getByRole('dialog', { name: '添加磁带' })
   await form.getByLabel('品牌', { exact: true }).fill('测试重试')

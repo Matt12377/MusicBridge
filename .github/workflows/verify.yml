@@ -56,7 +56,7 @@ jobs:
           corepack pnpm@10.17.1 verify 2>&1 | tee "$RUNNER_TEMP/musicbridge-verify/verify.log"
 
       - name: Verify offline preparation boundaries
-        run: node --test scripts/ci/test/build-storage-root.test.mjs scripts/ci/test/rust016-workflow-context.test.mjs scripts/ci/test/rust-electron-host-receipt.test.mjs scripts/ci/test/electron-archive-tree.test.mjs scripts/ci/test/electron-preparation-order.test.mjs scripts/ci/test/rust-host-gate-cli.test.mjs
+        run: node --test scripts/ci/test/build-storage-root.test.mjs scripts/ci/test/rust016-workflow-context.test.mjs scripts/ci/test/rust-electron-host-receipt.test.mjs scripts/ci/test/electron-archive-tree.test.mjs scripts/ci/test/electron-preparation-order.test.mjs scripts/ci/test/rust-host-gate-cli.test.mjs scripts/ci/test/rust-private-host-environment.test.mjs
 
       - name: Diff whitespace
         run: git diff --check
