@@ -1,5 +1,8 @@
+import { LOCAL_CATALOG_COMMANDS } from './local-catalog.js';
 // IPC 名称白名单独立于业务结果与诊断合同，避免互相依赖。
 export const IPC_COMMANDS = [
+  ...LOCAL_CATALOG_COMMANDS,
+  'localCatalog.prepare',
   'spreadsheetImports.sources',
   'spreadsheetImports.source',
   'spreadsheetImports.sourceRows',

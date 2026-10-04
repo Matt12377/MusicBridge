@@ -16,6 +16,7 @@ import { verifyRecordingWorkspaceDatabase } from './workspace-context-store.js';
 import { verifyCommercialProvenanceDatabase } from '../collection/commercial-provenance.js';
 import { verifyOutputRunBarrierDatabase } from './output-run-barrier.js';
 import { verifyPreparationZipDatabase, verifyPreparationZipSessionDatabase } from './preparation-export-store.js';
+import { verifyLocalCatalogDatabase } from '../collection/local-catalog-store.js';
 
 export interface BackupObject { sha256: string; size: number; rootIds: string[] }
 export interface BackupOperation { operationId: string; rootId: string; manifestHash: string; manifestSize: number }
@@ -27,7 +28,7 @@ export function readBackupIndex(databasePath: string): { index: BackupIndex; own
   try {
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
     const version = db.prepare('PRAGMA user_version').get()?.user_version;
-    if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18 && version !== 19 && version !== 20 && version !== 21 && version !== 22 && version !== 23 && version !== 24 && version !== 25 && version !== 26 && version !== 27 && version !== 28 && version !== 29 && version !== 30 || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').all().length) backupFail();
+    if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18 && version !== 19 && version !== 20 && version !== 21 && version !== 22 && version !== 23 && version !== 24 && version !== 25 && version !== 26 && version !== 27 && version !== 28 && version !== 29 && version !== 30 && version !== 31 || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').all().length) backupFail();
     verifyVersionDistributionDatabase(db);
     if (Number(version) >= 15) verifyReferenceCatalogDatabase(db);
     if (Number(version) >= 16) verifySpreadsheetImportDatabase(db);
@@ -43,6 +44,7 @@ export function readBackupIndex(databasePath: string): { index: BackupIndex; own
     if (Number(version) >= 28) verifyReferenceCatalogZipDatabase(db);
     if (Number(version) >= 29) verifyRecordingRecordPageSearch(db);
     if (Number(version) >= 30) verifyPreparationZipSessionDatabase(db);
+    if (Number(version) >= 31) verifyLocalCatalogDatabase(db);
     const count = Number(db.prepare('SELECT count(*) n FROM archive_operations').get()?.n);
     if (count > 10000) backupFail();
     const operations: BackupOperation[] = [], owned: OwnedArchiveOperation[] = [], incompleteOperationIds: string[] = [];

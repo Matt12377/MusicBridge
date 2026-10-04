@@ -260,7 +260,7 @@ test('固定schema17迁移失败完整回滚；重试21逐列保留旧事实', a
   const repository = createCollectionRepository({ filePath }); t.after(() => repository.close());
   repository.recordingPlans.version({ id: randomUUID() });
   const migrated = new DatabaseSync(filePath, { readOnly: true }); t.after(() => migrated.close());
-  assert.equal(migrated.prepare('PRAGMA user_version').get()!.user_version, 30);
+  assert.equal(migrated.prepare('PRAGMA user_version').get()!.user_version, 31);
   verifyRecordingPlanDatabase(migrated); assert.deepEqual(historicalRows(migrated, 17), before);
 });
 

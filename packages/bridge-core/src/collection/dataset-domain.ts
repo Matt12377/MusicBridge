@@ -41,7 +41,7 @@ import { createRoonPublicLibrary, type RoonPublicLibrary } from '../roon/public-
 import { openCollectionDataset } from '../recording/restore-dataset-runtime.js';
 import { reconcileOutputRunRecovery } from '../recording/output-run-recovery.js';
 import { failureForError } from '../shared/ipc-failure.js';
-import { dispatchDatasetCommand } from './dataset-dispatch.js';
+import { dispatchDatasetCommand, dispatchInternalDatasetCommand } from './dataset-dispatch.js';
 import type { DatasetServices } from './dataset-services.js';
 import type { DatasetProjectionPort, DatasetProjectionTicket, OwnedDatasetDomain } from './dataset-owner-protocol.js';
 
@@ -147,6 +147,11 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     ...(recordingDeviceSelection ? { recordingDeviceSelection } : {}), recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingPrints, recordingReplica, physicalLinks, masterDrafts, assertOpen,
     dispatch(request) {
       const pending = dispatchDatasetCommand(domain, request);
+      pendingDispatches.add(pending);
+      return pending.finally(() => pendingDispatches.delete(pending));
+    },
+    dispatchInternal(request) {
+      const pending = dispatchInternalDatasetCommand(domain, request);
       pendingDispatches.add(pending);
       return pending.finally(() => pendingDispatches.delete(pending));
     },

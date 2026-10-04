@@ -1,3 +1,5 @@
+import { isLocalPlayRequest, isLocalSourceUnsupported } from './local-play-request.js';
+import { isLocalCatalogCommand, isLocalCatalogInternalCommand, isLocalCatalogCommandPayload, isLocalCatalogCommandResult } from './local-catalog.js';
 import { copyPerformanceTraceContext, isPerformanceTraceSnapshot } from './performance.js';
 import { isLibraryReadCommand, isLibraryReadContext } from './library-read.js';
 import { isVolumeRequest, isVolumeSnapshot } from './volume.js';
@@ -1018,6 +1020,8 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
+  if (command === 'localCatalog.prepare') return isLocalPlayRequest(payload);
+  if (isLocalCatalogCommand(command)) return isLocalCatalogCommandPayload(command, payload);
   if (command === 'collectionProgress.wants') return isListWantEntriesRequest(payload);
   if (command === 'collectionProgress.saveWant') return isSaveWantEntryRequest(payload);
   if (command === 'collectionProgress.cancelWant') return isCancelWantEntryRequest(payload);
@@ -1648,6 +1652,8 @@ function isCommandResult(
   value: unknown,
   allowInternalResult = false,
 ): boolean {
+  if (command === 'localCatalog.prepare') return isLocalSourceUnsupported(value);
+  if (isLocalCatalogCommand(command)) return (allowInternalResult || !isLocalCatalogInternalCommand(command)) && isLocalCatalogCommandResult(command, value);
   if (command === 'lyrics.display.update') return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['applied']) && typeof value.applied === 'boolean';
   switch (command) {
     case 'collectionProgress.wants': return isWantEntriesPage(value);
@@ -2010,10 +2016,20 @@ function isEventPayload(event: IpcEventName, payload: unknown): boolean {
   }
 }
 
-export function validateIpcRequest(
-  input: unknown,
-): ValidationResult<IpcRequest<unknown>> {
+export function validateIpcRequest(input: unknown): ValidationResult<IpcRequest<unknown>> {
+  return validateRequest(input, false);
+}
+
+/** 仅既有Main/Core私有端口的内部调用方使用；普通入口不可传可信观察。 */
+export function validateIpcInternalRequest(input: unknown): ValidationResult<IpcRequest<unknown>> {
+  return validateRequest(input, true);
+}
+
+function validateRequest(input: unknown, internal: boolean): ValidationResult<IpcRequest<unknown>> {
   if (!isRecord(input)) return invalidRequest();
+  if ((isLocalCatalogCommand(input.command) || input.command === 'localCatalog.prepare') && ((!internal && isLocalCatalogInternalCommand(input.command))
+    || !isCommandOutboxDatasetId(input.expectedDatasetId)
+    || !hasOnlyKeys(input, ['version','id','command','payload','expectedDatasetId','performanceTrace']))) return invalidRequest();
 
   if (input.version !== IPC_VERSION) {
     return {

@@ -1,0 +1,365 @@
+{
+  "schema": "mbrs002.at-report-preparation.v1",
+  "status": "FINITE_SOFTWARE_7PASS_4PARTIAL_REVIEWED_DELIVERY_PENDING",
+  "base": "f34dd904a473893f213a2a894b858c4ddfbf4423",
+  "originalTaskAndATIdentityPreserved": true,
+  "entries": [
+    {
+      "id": "MBRS-AT-002-01",
+      "kind": "unit",
+      "requirement": "本地ID独立于路径/名称/RoonID；同文件多片段和不同发行版不合并。",
+      "originalAssertion": "本地ID独立于路径/名称/RoonID；同文件多片段和不同发行版不合并。",
+      "originalLine": 33,
+      "proposedStatusAtPreparation": "PASS_LIMITED_SOFTWARE",
+      "finalRootAssignedStatus": "PASS_LIMITED_SOFTWARE",
+      "boundedEvidenceText": "独立根/asset/track/segment/edition UUID与修订；同Hash同名不合并、位置与内容分修订、多片段与发行版关系实际通过。",
+      "evidenceCaseFamilies": [
+        "B3/core-regressions: stable/root/segment/editions",
+        "B2 readbudget core regressions"
+      ],
+      "carryover": "扫描/CUE实际解析、真实片段可播放及100k/300k负载仍由003/005/007取证。",
+      "B4AndNewRefsRunStatus": "ACTUAL_FINAL67_ALL_PASS_ZERO_FAIL_SKIP_CANCEL_TODO",
+      "countsNotToClaim": "67为本次真实7阶段Gate的完整实际TAP；不代表App/live/Owner或全部11AT通过。",
+      "formalReview": "R1_R2_COMPLETE_METADATA_P2_CLOSED_FINITE_SCOPE_ONLY",
+      "introduced_in": "1.1",
+      "finalGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
+        "bytes": 270180,
+        "sha256": "2d4053a20070884cf1b235d08a846ccf3f9dc2157401f6c947e1182915704e4c"
+      }
+    },
+    {
+      "id": "MBRS-AT-002-02",
+      "kind": "integration",
+      "requirement": "旧库副本迁移后收藏录音和队列旧引用保留，无隐式删除。",
+      "originalAssertion": "旧库副本迁移后收藏录音和队列旧引用保留，无隐式删除。",
+      "originalLine": 35,
+      "proposedStatusAtPreparation": "PARTIAL",
+      "finalRootAssignedStatus": "PARTIAL",
+      "boundedEvidenceText": "自然schema30→31后103旧表SQL/全部列/typed cells/行序/账本EXACT，13实际API在两次冷开同对象同ID；111全事实冷开稳定。非空旧record/plan/attempt/master/layout/SourceBinding/收藏关联已有合成事实。",
+      "evidenceCaseFamilies": [
+        "B3/core-regressions: nonempty migration",
+        "nonempty migration root/addendum"
+      ],
+      "carryover": "Prepared与legacyManual为空，不能称全部Frozen非空覆盖；旧队列只有内存，新增DTO/JSON往返不能补成旧队列SQLite持久迁移，006/007继续关闭。",
+      "B4AndNewRefsRunStatus": "ACTUAL_FINAL67_ALL_PASS_ZERO_FAIL_SKIP_CANCEL_TODO",
+      "countsNotToClaim": "67为本次真实7阶段Gate的完整实际TAP；不代表App/live/Owner或全部11AT通过。",
+      "formalReview": "R1_R2_COMPLETE_METADATA_P2_CLOSED_FINITE_SCOPE_ONLY",
+      "introduced_in": "1.1",
+      "finalGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
+        "bytes": 270180,
+        "sha256": "2d4053a20070884cf1b235d08a846ccf3f9dc2157401f6c947e1182915704e4c"
+      }
+    },
+    {
+      "id": "MBRS-AT-002-03",
+      "kind": "unit",
+      "requirement": "play intent不接受任意URL/path/backend，来源快照与目标Zone/Core显式存在。",
+      "originalAssertion": "play intent不接受任意URL/path/backend，来源快照与目标Zone/Core显式存在。",
+      "originalLine": 37,
+      "proposedStatusAtPreparation": "PASS_LIMITED_SOFTWARE",
+      "finalRootAssignedStatus": "PASS_LIMITED_SOFTWARE",
+      "boundedEvidenceText": "原公开九字段与target闭集、结构拒URL/path/backend/时序扩展；内部意图只做结构；私有来源快照与Core/Zone显式存在。",
+      "evidenceCaseFamilies": [
+        "B3 contracts behavior 3 cases + 154 compiled vectors",
+        "B3 private readonly descriptor cases"
+      ],
+      "carryover": "descriptor是私有合成单测，不是公开prepared；真实普通worker三个动作均unsupported，当前没有服务端目标权威，不声称实际播放。",
+      "B4AndNewRefsRunStatus": "ACTUAL_FINAL67_ALL_PASS_ZERO_FAIL_SKIP_CANCEL_TODO",
+      "countsNotToClaim": "67为本次真实7阶段Gate的完整实际TAP；不代表App/live/Owner或全部11AT通过。",
+      "formalReview": "R1_R2_COMPLETE_METADATA_P2_CLOSED_FINITE_SCOPE_ONLY",
+      "introduced_in": "1.1",
+      "finalGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
+        "bytes": 270180,
+        "sha256": "2d4053a20070884cf1b235d08a846ccf3f9dc2157401f6c947e1182915704e4c"
+      }
+    },
+    {
+      "id": "MBRS-AT-002-04",
+      "kind": "unit",
+      "requirement": "HTTP完成不能直接生成Playing；所有播放观察有attempt/session或明确unknown。",
+      "originalAssertion": "HTTP完成不能直接生成Playing；所有播放观察有attempt/session或明确unknown。",
+      "originalLine": 39,
+      "proposedStatusAtPreparation": "PARTIAL",
+      "finalRootAssignedStatus": "PARTIAL",
+      "boundedEvidenceText": "B3只读prepare无FD/HTTP/入队/Playing；B4独立leaf要求Playing的observed/session/correlation字段，兼容链测试在最终Gate实际通过。",
+      "evidenceCaseFamilies": [
+        "B3 readonly preparation tests",
+        "B4 applied contract/source, behavior FINAL_GATE_PASS"
+      ],
+      "carryover": "结构字段不能证明原Controller创建attempt/session或Roon真实观察；完整Controller链由006，HTTP完成不生成Playing的实机链未运行。",
+      "B4AndNewRefsRunStatus": "ACTUAL_FINAL67_ALL_PASS_ZERO_FAIL_SKIP_CANCEL_TODO",
+      "countsNotToClaim": "67为本次真实7阶段Gate的完整实际TAP；不代表App/live/Owner或全部11AT通过。",
+      "formalReview": "R1_R2_COMPLETE_METADATA_P2_CLOSED_FINITE_SCOPE_ONLY",
+      "introduced_in": "1.1",
+      "finalGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
+        "bytes": 270180,
+        "sha256": "2d4053a20070884cf1b235d08a846ccf3f9dc2157401f6c947e1182915704e4c"
+      }
+    },
+    {
+      "id": "MBRS-AT-002-05",
+      "kind": "unit",
+      "requirement": "持久数据、UI DTO与公开日志没有media secret/完整URL/session句柄。",
+      "originalAssertion": "持久数据、UI DTO与公开日志没有media secret/完整URL/session句柄。",
+      "originalLine": 41,
+      "proposedStatusAtPreparation": "PASS_LIMITED_SOFTWARE",
+      "finalRootAssignedStatus": "PASS_LIMITED_SOFTWARE",
+      "boundedEvidenceText": "本地公开catalog DTO与普通IPC负例拒定位/许可副本/私密额外字段；raw/override闭集；新持久引用叶无媒体URL/session/provider字段。",
+      "evidenceCaseFamilies": [
+        "B3 inherited B2 contracts/core/desktop negatives",
+        "applied refs closed guard, behavior FINAL_GATE_PASS"
+      ],
+      "carryover": "限本地合成域与已验证普通IPC；private descriptor不得进入UI或日志；独立observation leaf不是已注册公开事件。refs负例已在最终Gate绑定，报告/公开日志继续按声明范围审核，真实Provider环境未运行。",
+      "B4AndNewRefsRunStatus": "ACTUAL_FINAL67_ALL_PASS_ZERO_FAIL_SKIP_CANCEL_TODO",
+      "countsNotToClaim": "67为本次真实7阶段Gate的完整实际TAP；不代表App/live/Owner或全部11AT通过。",
+      "formalReview": "R1_R2_COMPLETE_METADATA_P2_CLOSED_FINITE_SCOPE_ONLY",
+      "introduced_in": "1.1",
+      "finalGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
+        "bytes": 270180,
+        "sha256": "2d4053a20070884cf1b235d08a846ccf3f9dc2157401f6c947e1182915704e4c"
+      }
+    },
+    {
+      "id": "MBRS-AT-002-06",
+      "kind": "integration",
+      "requirement": "重复迁移、失败回滚、后续新增数据保留方案可演练。",
+      "originalAssertion": "重复迁移、失败回滚、后续新增数据保留方案可演练。",
+      "originalLine": 43,
+      "proposedStatusAtPreparation": "PASS_LIMITED_SOFTWARE",
+      "finalRootAssignedStatus": "PASS_LIMITED_SOFTWARE",
+      "boundedEvidenceText": "固定30迁移DDL/commit故障回滚、重复迁移冷开、新增31对象/人工覆盖经默认和激活备份恢复保留，future schema拒绝且保留字节。",
+      "evidenceCaseFamilies": [
+        "B3 inherited migration/store/restore regressions",
+        "B1 scale old regressions 211"
+      ],
+      "carryover": "不把事务回滚/备份恢复称为旧二进制直接降版兼容；保留新库，旧版恢复必须独立候选，未运行发布回退或Owner。",
+      "B4AndNewRefsRunStatus": "ACTUAL_FINAL67_ALL_PASS_ZERO_FAIL_SKIP_CANCEL_TODO",
+      "countsNotToClaim": "67为本次真实7阶段Gate的完整实际TAP；不代表App/live/Owner或全部11AT通过。",
+      "formalReview": "R1_R2_COMPLETE_METADATA_P2_CLOSED_FINITE_SCOPE_ONLY",
+      "introduced_in": "1.1",
+      "finalGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
+        "bytes": 270180,
+        "sha256": "2d4053a20070884cf1b235d08a846ccf3f9dc2157401f6c947e1182915704e4c"
+      }
+    },
+    {
+      "id": "MBRS-AT-002-07",
+      "kind": "unit",
+      "requirement": "无需构建RoonEntityMapping即可建立并读取LocalTrack和准备播放。",
+      "originalAssertion": "无需构建RoonEntityMapping即可建立并读取LocalTrack和准备播放。",
+      "originalLine": 45,
+      "proposedStatusAtPreparation": "PASS_LIMITED_SOFTWARE",
+      "finalRootAssignedStatus": "PASS_LIMITED_SOFTWARE",
+      "boundedEvidenceText": "真实Repository建立读取LocalTrack不需RoonEntityMapping；私有只读local准备以真实Repo/SourceStore事实和合成server authority产descriptor，local零cloud/远程resolver调用，remote正分支保持。",
+      "evidenceCaseFamilies": [
+        "B3 private source branching/readonly prepare cases"
+      ],
+      "carryover": "普通公开owner仍unsupported；私有descriptor单测不能称实际可点播；006接真实selectedCore/Zone及Controller。",
+      "B4AndNewRefsRunStatus": "ACTUAL_FINAL67_ALL_PASS_ZERO_FAIL_SKIP_CANCEL_TODO",
+      "countsNotToClaim": "67为本次真实7阶段Gate的完整实际TAP；不代表App/live/Owner或全部11AT通过。",
+      "formalReview": "R1_R2_COMPLETE_METADATA_P2_CLOSED_FINITE_SCOPE_ONLY",
+      "introduced_in": "1.1",
+      "finalGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
+        "bytes": 270180,
+        "sha256": "2d4053a20070884cf1b235d08a846ccf3f9dc2157401f6c947e1182915704e4c"
+      }
+    },
+    {
+      "id": "MBRS-AT-002-08",
+      "kind": "integration",
+      "requirement": "每个数据库唯一写入者和每个逻辑Asset唯一权威已登记；新增表不冒称Rust writer迁移完成。",
+      "originalAssertion": "每个数据库唯一写入者和每个逻辑Asset唯一权威已登记；新增表不冒称Rust writer迁移完成。",
+      "originalLine": 47,
+      "proposedStatusAtPreparation": "PASS_LIMITED_SOFTWARE",
+      "finalRootAssignedStatus": "PASS_LIMITED_SOFTWARE",
+      "boundedEvidenceText": "原Node DatasetOwner私有port→dispatcher→同CollectionRepository/SourceStore，同库local catalog一份权威；真实worker/scope/close测试通过，trusted六观察普通入口/outbox/Main零发送拒绝。",
+      "evidenceCaseFamilies": [
+        "B3 inherited B2 owner/worker/Main tests"
+      ],
+      "carryover": "Main outbox与维护库各原owner独立；此登记及新8表不代表Node→Rust writer迁移；新ScanJob/Queue DTO不新增实际DB writer。",
+      "B4AndNewRefsRunStatus": "ACTUAL_FINAL67_ALL_PASS_ZERO_FAIL_SKIP_CANCEL_TODO",
+      "countsNotToClaim": "67为本次真实7阶段Gate的完整实际TAP；不代表App/live/Owner或全部11AT通过。",
+      "formalReview": "R1_R2_COMPLETE_METADATA_P2_CLOSED_FINITE_SCOPE_ONLY",
+      "introduced_in": "1.2",
+      "finalGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
+        "bytes": 270180,
+        "sha256": "2d4053a20070884cf1b235d08a846ccf3f9dc2157401f6c947e1182915704e4c"
+      }
+    },
+    {
+      "id": "MBRS-AT-002-09",
+      "kind": "security",
+      "requirement": "公开点播请求拒绝客户端注入generation/attempt/session/任意路径；内部代际由原coordinator创建并校验。",
+      "originalAssertion": "公开点播请求拒绝客户端注入generation/attempt/session/任意路径；内部代际由原coordinator创建并校验。",
+      "originalLine": 49,
+      "proposedStatusAtPreparation": "PARTIAL",
+      "finalRootAssignedStatus": "PARTIAL",
+      "boundedEvidenceText": "公开九字段拒attempt/generation/session/path与segment扩展；内部intent结构及owner scope边界已测，普通client不能自报权限/target authority。",
+      "evidenceCaseFamilies": [
+        "B3 contracts/public vectors and scope tests"
+      ],
+      "carryover": "原coordinator实际创建/校验内部代际尚待006；不能由大整数字符串guard或合成authority证明内部origin真实性。",
+      "B4AndNewRefsRunStatus": "ACTUAL_FINAL67_ALL_PASS_ZERO_FAIL_SKIP_CANCEL_TODO",
+      "countsNotToClaim": "67为本次真实7阶段Gate的完整实际TAP；不代表App/live/Owner或全部11AT通过。",
+      "formalReview": "R1_R2_COMPLETE_METADATA_P2_CLOSED_FINITE_SCOPE_ONLY",
+      "introduced_in": "1.2",
+      "finalGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
+        "bytes": 270180,
+        "sha256": "2d4053a20070884cf1b235d08a846ccf3f9dc2157401f6c947e1182915704e4c"
+      }
+    },
+    {
+      "id": "MBRS-AT-002-10",
+      "kind": "integration",
+      "requirement": "原PlaybackSnapshot与compact事件的兼容映射覆盖旧客户端和新local来源；没有第二套状态权威。",
+      "originalAssertion": "原PlaybackSnapshot与compact事件的兼容映射覆盖旧客户端和新local来源；没有第二套状态权威。",
+      "originalLine": 51,
+      "proposedStatusAtPreparation": "PARTIAL",
+      "finalRootAssignedStatus": "PARTIAL",
+      "boundedEvidenceText": "B4已应用旧roon/netease publisher→validateIpcEvent→compact reducer及legacy session消费者正控制、新local明确拒绝/不填假0的测试；10新case在最终Gate实际通过。",
+      "evidenceCaseFamilies": [
+        "B4 actual applied source/test freeze"
+      ],
+      "carryover": "legacy/compact-v1仍只roon/netease；新local leaf不替换全局snapshot，compat接点目前仅测试调用，原Controller生产投影/协商与无第二状态权威由006/007继续关闭。",
+      "B4AndNewRefsRunStatus": "ACTUAL_FINAL67_ALL_PASS_ZERO_FAIL_SKIP_CANCEL_TODO",
+      "countsNotToClaim": "67为本次真实7阶段Gate的完整实际TAP；不代表App/live/Owner或全部11AT通过。",
+      "formalReview": "R1_R2_COMPLETE_METADATA_P2_CLOSED_FINITE_SCOPE_ONLY",
+      "introduced_in": "1.2",
+      "finalGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
+        "bytes": 270180,
+        "sha256": "2d4053a20070884cf1b235d08a846ccf3f9dc2157401f6c947e1182915704e4c"
+      }
+    },
+    {
+      "id": "MBRS-AT-002-11",
+      "kind": "unit",
+      "requirement": "同库跨领域事务与跨库journal边界明确；故障恢复不制造全局原子承诺或重复业务写入。",
+      "originalAssertion": "同库跨领域事务与跨库journal边界明确；故障恢复不制造全局原子承诺或重复业务写入。",
+      "originalLine": 53,
+      "proposedStatusAtPreparation": "PASS_LIMITED_SOFTWARE",
+      "finalRootAssignedStatus": "PASS_LIMITED_SOFTWARE",
+      "boundedEvidenceText": "同库entity+完整body receipt短事务；改body指纹冲突拒绝；两个DB实际commit-before-reply/成功ACK落盘失败保持UNKNOWN，冷恢复零自动重执，显式retry同ID同body查原回执。",
+      "evidenceCaseFamilies": [
+        "B3 inherited B2 two outbox fault cases",
+        "B1 transaction rollback case"
+      ],
+      "carryover": "Main outbox/业务DB/维护DB/文件没有全局事务；非自动重播，不新造commandId；文件journal/资源锁005/011/012/014后续实作。",
+      "B4AndNewRefsRunStatus": "ACTUAL_FINAL67_ALL_PASS_ZERO_FAIL_SKIP_CANCEL_TODO",
+      "countsNotToClaim": "67为本次真实7阶段Gate的完整实际TAP；不代表App/live/Owner或全部11AT通过。",
+      "formalReview": "R1_R2_COMPLETE_METADATA_P2_CLOSED_FINITE_SCOPE_ONLY",
+      "introduced_in": "1.2",
+      "finalGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
+        "bytes": 270180,
+        "sha256": "2d4053a20070884cf1b235d08a846ccf3f9dc2157401f6c947e1182915704e4c"
+      }
+    }
+  ],
+  "awaitingActualFinalGate": false,
+  "appLiveOwner": "NOT_RUN",
+  "formalRoundsConsumedByThisWork": 2,
+  "createdAt": "2026-10-04T08:43:01.567911+00:00",
+  "fullWorkspaceVerify": {
+    "suites": [
+      {
+        "package": "contracts",
+        "tests": 254,
+        "passCount": 254,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      {
+        "package": "bridge-core",
+        "tests": 2468,
+        "passCount": 2466,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 2,
+        "todo": 0
+      },
+      {
+        "package": "desktop",
+        "tests": 1422,
+        "passCount": 1422,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    ],
+    "tests": 4144,
+    "passCount": 4142,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0,
+    "existingConditionalNativeSkips": [
+      "ok 896 - 实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
+      "ok 902 - Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
+    ],
+    "typecheckAndProductionBuildExit": 0,
+    "electronOrAppRuntimeClaim": false,
+    "currentSnapshotApplicability": "REUSED_UNCHANGED_PRODUCTION_AND_FULL_TEST_SELECTION_SINGLE_NESTED_EOF_LF_ONLY_NOT_NEW_FULL_RERUN"
+  },
+  "normalGateManifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-03/manifest.json",
+    "bytes": 270180,
+    "sha256": "2d4053a20070884cf1b235d08a846ccf3f9dc2157401f6c947e1182915704e4c"
+  },
+  "singleEioPostVerifier": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs002-gate-fault-postcheck-eio-02/result.json",
+    "bytes": 1033,
+    "sha256": "bec07d8a9554f903e7d117b4b9f116348a3eea096641263a872290cfe91af07c"
+  },
+  "sourceScope": "DECLARED_1040_INPUTS_NOT_FULL_TRANSITIVE_CLOSURE",
+  "rootValidationReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/MBRS002_FINAL_ROOT_VALIDATION_01.json",
+    "bytes": 15990,
+    "sha256": "eec6f191b596becd0f718c2dcbc9aa3257cc33fe0e44b1600ca186e7b8545afa"
+  },
+  "formalReviewReceipts": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/ci-security-delivery-high/mbrs002-formal-r1-ci-boundary-01/FORMAL_R1_CI_BOUNDARY_REVIEW_01.json",
+      "bytes": 40123,
+      "sha256": "d92a360fa75c657d7b2af6cbd01a568cadc07ad93c42f31b135adb1c0969b16f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/evidence-delivery-high/mbrs002-formal-r2-evidence-audit-01/FORMAL_R2_ACCEPTANCE_EVIDENCE_FINAL_01.json",
+      "bytes": 37202,
+      "sha256": "f3f4b1e1f2e8a967732b28c6772d451d0318384bb33187687256ed51c0ce4171"
+    }
+  ],
+  "formalR2MetadataP2Repair": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-r2-metadata-p2-repair-01/R2_METADATA_P2_ROOT_REPAIR_01.json",
+    "bytes": 2566,
+    "sha256": "da720b13dfb5d2ee26c7da5448dd1508c1d7830402b37057b76d373ce5c676c3"
+  },
+  "updatedAt": "2026-10-04T09:11:29.422782+00:00",
+  "previousNormalGateManifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-final-gate-normal-01/manifest.json",
+    "bytes": 270180,
+    "sha256": "985b55df484ea204b3fc112c83497e98e227823fe62b415bdd146874b432a6d8"
+  },
+  "currentRootValidationReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-format-final-validation-03/FINAL_FORMAT_ONLY_ROOT_VALIDATION_03.json",
+    "bytes": 4276,
+    "sha256": "cce75ff7a1610e393d17ad45251bc75127ae3c86c55ea3e8a9518eaec792ca78"
+  },
+  "finalFormatOnlyProof": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs002-root-format-final-validation-03/FINAL_FORMAT_ONLY_ROOT_VALIDATION_03.json",
+    "bytes": 4276,
+    "sha256": "cce75ff7a1610e393d17ad45251bc75127ae3c86c55ea3e8a9518eaec792ca78"
+  }
+}

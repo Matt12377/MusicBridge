@@ -1,3 +1,4 @@
+import { isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcRequest, validateIpcInternalRequest } from '@music-bridge/contracts';
 import { IPC_VERSION, isCommandOutboxExecute, type IpcCommand, type IpcCommandPayloads, type IpcRequest } from '@music-bridge/contracts';
 import { CollectionError, type CollectionRepository } from './repository.js';
 import { BridgeError } from '../shared/errors.js';
@@ -105,14 +106,58 @@ export async function dispatchDatasetCommand(
   runtime: DatasetDispatchTarget,
   request: IpcRequest,
 ): Promise<unknown> {
+  return dispatchDataset(runtime, request, false);
+}
+
+/** 仅既有owner私有通路；内部许可不由请求payload中的标志授予。 */
+export async function dispatchInternalDatasetCommand(runtime: DatasetDispatchTarget, request: IpcRequest): Promise<unknown> {
+  if (!isLocalCatalogInternalCommand(request.command)) throw new BridgeError('BAD_REQUEST', '内部本地观察命令无效。');
+  return dispatchDataset(runtime, request, true);
+}
+
+async function dispatchDataset(runtime: DatasetDispatchTarget, request: IpcRequest, internal: boolean): Promise<unknown> {
   if (!isDatasetCommand(request.command)) throw new BridgeError('BAD_REQUEST', '工作库命令无效。');
   runtime.assertOpen?.();
+  if (isLocalCatalogCommand(request.command) || request.command === 'localCatalog.prepare') {
+    const checked = internal ? validateIpcInternalRequest(request) : validateIpcRequest(request);
+    if (!checked.ok) throw new BridgeError('BAD_REQUEST', '本地目录请求无效。');
+    if (!runtime.commandOutbox) throw new DatasetScopeError();
+  }
   if ((request.command.startsWith('recordingAttempts.') || request.command.startsWith('recordingRecords.') || request.command.startsWith('recordingReplica.') || request.command.startsWith('recordingDevice.') || request.command.startsWith('recordingWorkspace.') || request.command.startsWith('recordingCandidates.') || request.command.startsWith('recordingPreparationZip.') || request.command === 'collection.copy' || request.command.startsWith('masterArtwork.') || request.command.startsWith('recordingPrints.') || request.command.startsWith('recordingPrintWorker.')) && (!request.expectedDatasetId || !runtime.commandOutbox)) throw new DatasetScopeError();
   if (request.expectedDatasetId !== undefined) {
     if (!runtime.commandOutbox) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库身份尚未就绪。');
     runtime.commandOutbox.assertScope(request.expectedDatasetId);
   }
   switch (request.command as IpcCommand) {
+    // 当前owner没有稳定Core/Zone权威；禁止用公开target自证准备或执行播放动作。
+    case 'localCatalog.prepare': return { status: 'unsupported', reason: 'TARGET_AUTHORITY_UNAVAILABLE' } satisfies import('@music-bridge/contracts').LocalSourceUnsupported;
+    case 'localCatalog.registerRoot': return collectionFor(runtime).localCatalog.registerRoot(request.payload as IpcCommandPayloads['localCatalog.registerRoot']);
+    case 'localCatalog.relinkRoot': return collectionFor(runtime).localCatalog.relinkRoot(request.payload as IpcCommandPayloads['localCatalog.relinkRoot']);
+    case 'localCatalog.registerAsset': return collectionFor(runtime).localCatalog.registerAsset(request.payload as IpcCommandPayloads['localCatalog.registerAsset']);
+    case 'localCatalog.moveAsset': return collectionFor(runtime).localCatalog.moveAsset(request.payload as IpcCommandPayloads['localCatalog.moveAsset']);
+    case 'localCatalog.replaceAsset': return collectionFor(runtime).localCatalog.replaceAsset(request.payload as IpcCommandPayloads['localCatalog.replaceAsset']);
+    case 'localCatalog.createTrack': return collectionFor(runtime).localCatalog.createTrack(request.payload as IpcCommandPayloads['localCatalog.createTrack']);
+    case 'localCatalog.selectAsset': return collectionFor(runtime).localCatalog.selectAsset(request.payload as IpcCommandPayloads['localCatalog.selectAsset']);
+    case 'localCatalog.createEdition': return collectionFor(runtime).localCatalog.createEdition(request.payload as IpcCommandPayloads['localCatalog.createEdition']);
+    case 'localCatalog.linkEditionTrack': return collectionFor(runtime).localCatalog.linkEditionTrack(request.payload as IpcCommandPayloads['localCatalog.linkEditionTrack']);
+    case 'localCatalog.removeEditionTrack': return collectionFor(runtime).localCatalog.removeEditionTrack(request.payload as IpcCommandPayloads['localCatalog.removeEditionTrack']);
+    case 'localCatalog.observeMetadata': return collectionFor(runtime).localCatalog.observeMetadata(request.payload as IpcCommandPayloads['localCatalog.observeMetadata']);
+    case 'localCatalog.overrideMetadata': return collectionFor(runtime).localCatalog.overrideMetadata(request.payload as IpcCommandPayloads['localCatalog.overrideMetadata']);
+    case 'localCatalog.pageTracks': return collectionFor(runtime).localCatalog.pageTracks(request.payload as IpcCommandPayloads['localCatalog.pageTracks']);
+    case 'localCatalog.root': return collectionFor(runtime).localCatalog.root((request.payload as IpcCommandPayloads['localCatalog.root']).rootId);
+    case 'localCatalog.asset': return collectionFor(runtime).localCatalog.asset((request.payload as IpcCommandPayloads['localCatalog.asset']).assetId);
+    case 'localCatalog.track': return collectionFor(runtime).localCatalog.track((request.payload as IpcCommandPayloads['localCatalog.track']).trackId);
+    case 'localCatalog.edition': return collectionFor(runtime).localCatalog.edition((request.payload as IpcCommandPayloads['localCatalog.edition']).editionId);
+    case 'localCatalog.editionTracks': return collectionFor(runtime).localCatalog.editionTracks((request.payload as IpcCommandPayloads['localCatalog.editionTracks']).editionId);
+    case 'localCatalog.observations': return collectionFor(runtime).localCatalog.observations((request.payload as IpcCommandPayloads['localCatalog.observations']).trackId);
+    case 'localCatalog.metadata': return collectionFor(runtime).localCatalog.metadata((request.payload as IpcCommandPayloads['localCatalog.metadata']).trackId);
+    case 'localCatalog.roots': return collectionFor(runtime).localCatalog.roots();
+    case 'localCatalog.receipt': {
+      const value = request.payload as IpcCommandPayloads['localCatalog.receipt'];
+      const receipt = collectionFor(runtime).localCatalog.receipt(value.commandId);
+      if (receipt && (receipt.operation !== value.operation || receipt.fingerprint !== value.fingerprint)) throw new CollectionError('INVENTORY_CONFLICT', '回执与原完整请求不一致。');
+      return receipt;
+    }
     case 'recordingBackups.activationReceipt': return backupsFor(runtime).activationReceipt(request.payload as IpcCommandPayloads['recordingBackups.activationReceipt']);
     case 'commandOutbox.context': {
       if (!runtime.commandOutbox) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库身份尚未就绪。');

@@ -1,3 +1,4 @@
+import { isCommandOutboxExecute } from '@music-bridge/contracts';
 import assert from 'node:assert/strict';
 import { parentPort, workerData } from 'node:worker_threads';
 import { attachDatasetOwnerWorkerPort } from '../../src/collection/dataset-owner-worker.js';
@@ -15,6 +16,7 @@ attachDatasetOwnerWorkerPort(parentPort, {
       exportCollectionModels: () => domain.exportCollectionModels!(),
       exportLargeCollectionModels: () => domain.exportLargeCollectionModels!(),
       readonlySnapshotStamp: () => domain.readonlySnapshotStamp!(),
+      dispatchInternal: request => domain.dispatchInternal!(request),
       async dispatch(request) {
         const observed = ['collection.list', 'collectionProgress.current', 'collectionProgress.snapshot'].includes(request.command);
         if (observed && signals) Atomics.add(signals, 0, 1);
@@ -26,6 +28,7 @@ attachDatasetOwnerWorkerPort(parentPort, {
         try {
           const result = await domain.dispatch(request);
           // 合成断链发生在实际持久写入之后、公开回执之前，不能伪称未受理。
+          if (workerData.crashAfterLocalCommand === request.command || request.command === 'commandOutbox.execute' && isCommandOutboxExecute(request.payload) && workerData.crashAfterLocalCommand === request.payload.command) process.exit(19);
           if (workerData.crashAfterReceive && request.command === 'collection.receive') process.exit(19);
           return result;
         } finally { if (observed && signals) Atomics.add(signals, 1, 1); }

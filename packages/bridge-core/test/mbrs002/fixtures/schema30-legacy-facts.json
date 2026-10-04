@@ -1,0 +1,5136 @@
+{
+  "kind": "REAL_EXISTING_REPOSITORY_SCHEMA30_SYNTHETIC_LEGACY_FACTS",
+  "hashAlgorithm": "sha256 of JSON sorted object keys recursively; rows sorted by canonical JSON, no unicode normalization",
+  "userVersion": 30,
+  "tables": [
+    {
+      "name": "archive_candidates",
+      "sql": "CREATE TABLE archive_candidates(id TEXT PRIMARY KEY,data TEXT NOT NULL,authorized INTEGER NOT NULL CHECK(authorized IN (0,1))) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "authorized",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "7f501820b5e232dcc16520ecaad76fbd0fd636c7daac1b6aae4278c1f547f9f9",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "4cbb9436f33b7f617c518dd11dac882bd4641f4bd2b3de0c1b42600e4b0dac3c"
+    },
+    {
+      "name": "archive_objects",
+      "sql": "CREATE TABLE archive_objects(root_id TEXT NOT NULL REFERENCES archive_roots(id),sha256 TEXT NOT NULL,size INTEGER NOT NULL CHECK(size>0),PRIMARY KEY(root_id,sha256)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "root_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "sha256",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 2
+        },
+        {
+          "cid": 2,
+          "name": "size",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "e65b3d6d86bd4339dd3d99d6d35fb470299784d304ed555672983d8a785361ea",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "383f332b956b9692e48e86856a3ddf5e7c3c4f9113c6c55d5eac881857abb0dc"
+    },
+    {
+      "name": "archive_operations",
+      "sql": "CREATE TABLE archive_operations(id TEXT PRIMARY KEY,root_id TEXT NOT NULL REFERENCES archive_roots(id),asset_id TEXT NOT NULL REFERENCES execution_assets(id),fingerprint TEXT NOT NULL,phase TEXT NOT NULL CHECK(phase IN ('REQUESTED','INTENT_WRITTEN','STAGED','VERIFIED','PROMOTED','DB_COMMITTED','FINALIZED')),data TEXT NOT NULL,issue TEXT CHECK(issue IS NULL OR issue IN ('ARCHIVE_RECOVERY_REQUIRED','ARCHIVE_ROOT_INVALID','ARCHIVE_DISK_FULL','CANCELLED'))) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "root_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "asset_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "phase",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 6,
+          "name": "issue",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "f61c19a0356e8879f3a265a1b61703b9c925f94954af458503d210ee6efbb062",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "04171fcfe72de4c8aa0b1709c79fbf2c5a4c707ab08c606427d9a7f13fbbbaf3"
+    },
+    {
+      "name": "archive_references",
+      "sql": "CREATE TABLE archive_references(operation_id TEXT NOT NULL REFERENCES archive_operations(id),root_id TEXT NOT NULL,role TEXT NOT NULL,name TEXT NOT NULL,sha256 TEXT NOT NULL,PRIMARY KEY(operation_id,role,name),FOREIGN KEY(root_id,sha256) REFERENCES archive_objects(root_id,sha256)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "operation_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "root_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "role",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 2
+        },
+        {
+          "cid": 3,
+          "name": "name",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 3
+        },
+        {
+          "cid": 4,
+          "name": "sha256",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "796074e68634c2c26e2d717eeb28e06e17a203fb18ef11c80025de56e0fa7913",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "440683e11b08731fb18a294a5031ad3770a98a98c5bf49f3b47b2617ffb8c42e"
+    },
+    {
+      "name": "archive_roots",
+      "sql": "CREATE TABLE archive_roots(id TEXT PRIMARY KEY,data TEXT NOT NULL,authorized INTEGER NOT NULL CHECK(authorized IN (0,1))) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "authorized",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "7f501820b5e232dcc16520ecaad76fbd0fd636c7daac1b6aae4278c1f547f9f9",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "f9ef575ff04188ac12370491443165b44d4ba51333de09f3651d1b1ae22fb041"
+    },
+    {
+      "name": "archive_workflow_ledger",
+      "sql": "CREATE TABLE archive_workflow_ledger(command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result_id TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "result_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "36d546583199500edabddbd113f05511a88e1096806852cbcda71db7ae52bc1b",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "3a888b7229389413ca0d29405b55456987f5607050d9ccc4258ca177ea1b4823"
+    },
+    {
+      "name": "collection_featured_photos",
+      "sql": "CREATE TABLE collection_featured_photos (\n  model_id TEXT PRIMARY KEY REFERENCES collection_models(id),\n  photo_id TEXT NOT NULL REFERENCES collection_photos(id) ON DELETE CASCADE\n) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "model_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "photo_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "03e3a5e895e55dc3a8d781696effabad654b94b04f1d54b2f0a85d098e0bb33c",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "6029f86d19461c62eb596f2c3d56ba1975b7f90d887244cade422181046f931f"
+    },
+    {
+      "name": "collection_models",
+      "sql": "CREATE TABLE collection_models (\n  id TEXT PRIMARY KEY, identity_key TEXT NOT NULL UNIQUE, descriptor TEXT NOT NULL,\n  policy TEXT NOT NULL DEFAULT 'normal' CHECK(policy IN ('normal','prefer-opened','preserve-sealed','collector')),\n  minimum_sealed INTEGER NOT NULL DEFAULT 0 CHECK(minimum_sealed BETWEEN 0 AND 1000000),\n  revision INTEGER NOT NULL DEFAULT 1 CHECK(revision > 0)\n) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "identity_key",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "descriptor",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "policy",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": "'normal'",
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "minimum_sealed",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": "0",
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": "1",
+          "pk": 0
+        }
+      ],
+      "rows": [
+        {
+          "id": "a89c76c3-e02b-48a2-b364-746cc83a864b",
+          "identity_key": "94b2d0bab907ccf9d87db09ada73f00c45801a91fdc096eb531fa2007adc8763",
+          "descriptor": "{\"brand\":\"合成夹具\",\"name\":\"schema30固定磁带\",\"edition\":\"1990\",\"year\":1990,\"format\":\"cassette\",\"tapeType\":\"II\",\"identification\":\"verified\"}",
+          "policy": "preserve-sealed",
+          "minimum_sealed": 2,
+          "revision": 2
+        },
+        {
+          "id": "82f61983-94d6-49fe-a197-183cf1150617",
+          "identity_key": "4569a56d3b825ed6d3aec3e203a1d5c06e69774f0331a6b212b8755e3dd2c182",
+          "descriptor": "{\"brand\":\"合成夹具\",\"name\":\"schema30固定磁带\",\"edition\":\"1992\",\"year\":1992,\"format\":\"cassette\",\"tapeType\":\"II\",\"identification\":\"verified\"}",
+          "policy": "normal",
+          "minimum_sealed": 0,
+          "revision": 1
+        }
+      ],
+      "rowCount": 2,
+      "columnsSha256": "4aa0f7f43ec61da97203e5a2028397d0ac8793eb0e8a718a88f559cf1c58141c",
+      "rowsSha256": "5ecabd104b7e0b6212995c865a5c06c7f0232b1ea3d9ecb2396733282da05491",
+      "schemaSqlSha256": "58d2eb09269ba7502dbf6e540d0fe1843eb8bfe6c7d775f8cf39de501b05ab7c"
+    },
+    {
+      "name": "collection_photos",
+      "sql": "CREATE TABLE collection_photos (\n  id TEXT PRIMARY KEY, model_id TEXT NOT NULL REFERENCES collection_models(id),\n  physical_id TEXT REFERENCES physical_copies(physical_id),\n  content BLOB NOT NULL CHECK(length(content) BETWEEN 4 AND 1048576),\n  content_hash TEXT NOT NULL, width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 1200),\n  height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 1200)\n) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "model_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "physical_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "content",
+          "type": "BLOB",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "content_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "width",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 6,
+          "name": "height",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "bece0d68dd1f8d1717c541c48dd61cf61bf40aa13326b16e1445cda53ef30ff4",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "6a039edf9c98069c4793ea0bc9223292ee6860da39fa64fd6ca209839f950de7"
+    },
+    {
+      "name": "collection_progress_ledger",
+      "sql": "CREATE TABLE collection_progress_ledger(command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,kind TEXT NOT NULL,request TEXT NOT NULL,result TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "kind",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "request",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "5429e9d14e05a031f33d867d6727fe2e39679c6f92e66a7dbc6459c45739a740",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "4204b5948184d98ccf5ebb6cb8e9b698046cf0f00a5c247864e1dbd9954e7477"
+    },
+    {
+      "name": "collection_progress_snapshots",
+      "sql": "CREATE TABLE collection_progress_snapshots(id TEXT PRIMARY KEY,revision_id TEXT NOT NULL REFERENCES reference_catalog_revisions(id),match_version INTEGER NOT NULL CHECK(match_version>=0),command_id TEXT NOT NULL UNIQUE REFERENCES collection_progress_ledger(command_id) DEFERRABLE INITIALLY DEFERRED,data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "revision_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "match_version",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "4556a7841a07f312a6a5c37a374793f419aa3dcee46f9997c07436e2c181c214",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "9f5a3cd838cfe1d91f408058e0f56b97e0da16bbe865ac22307412344d92206b"
+    },
+    {
+      "name": "collection_skus",
+      "sql": "CREATE TABLE collection_skus (\n  id TEXT PRIMARY KEY, model_id TEXT NOT NULL REFERENCES collection_models(id),\n  minutes INTEGER NOT NULL CHECK(minutes BETWEEN 0 AND 360), UNIQUE(model_id, minutes)\n) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "model_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "minutes",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [
+        {
+          "id": "86fe3ded-270a-4b04-b0e6-092bc57ff526",
+          "model_id": "a89c76c3-e02b-48a2-b364-746cc83a864b",
+          "minutes": 90
+        },
+        {
+          "id": "9aa0c81e-cc57-49f0-99d3-1ca29ce683e8",
+          "model_id": "82f61983-94d6-49fe-a197-183cf1150617",
+          "minutes": 90
+        },
+        {
+          "id": "a05e1f60-179f-4d68-bb20-57ca5e3cffe7",
+          "model_id": "a89c76c3-e02b-48a2-b364-746cc83a864b",
+          "minutes": 60
+        }
+      ],
+      "rowCount": 3,
+      "columnsSha256": "3e3705185effc79902defb660b68778b0aae44e283be639b8dff7781c2a2280e",
+      "rowsSha256": "fac02d9d096e86366681e3375f808056437d9f669538e065b13b51df4578d93a",
+      "schemaSqlSha256": "0089aef90edea3f4dee068dcb18facb3aae09ad7a2c1b727d7bafbc379ab9d12"
+    },
+    {
+      "name": "collection_want_events",
+      "sql": "CREATE TABLE collection_want_events(id TEXT NOT NULL REFERENCES collection_wants(id),version INTEGER NOT NULL CHECK(version>0),revision_id TEXT NOT NULL REFERENCES reference_catalog_revisions(id),command_id TEXT NOT NULL UNIQUE REFERENCES collection_progress_ledger(command_id) DEFERRABLE INITIALLY DEFERRED,data TEXT NOT NULL,PRIMARY KEY(id,version)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "version",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 2
+        },
+        {
+          "cid": 2,
+          "name": "revision_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "3204fd87a48bd4e3b94071f30cddc95945864dac764551b870476a351c11867a",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "6760ba119af05b144ca193fc59f1aa2f89c951a8a5682741ba34fcbff693b6b6"
+    },
+    {
+      "name": "collection_wants",
+      "sql": "CREATE TABLE collection_wants(id TEXT PRIMARY KEY,version INTEGER NOT NULL CHECK(version>0),revision_id TEXT NOT NULL REFERENCES reference_catalog_revisions(id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "version",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "revision_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "c0fe7f326f6e5fefc470cd022d29601a6b36dcd932c273eec4f855f2964373da",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "190163e884ee237dc1c2c2089971e6cb919909f1ce26c356fe71ce4534e8dd7f"
+    },
+    {
+      "name": "commercial_copy_details",
+      "sql": "CREATE TABLE commercial_copy_details (\n  copy_id TEXT PRIMARY KEY REFERENCES commercial_release_copies(id),\n  data TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>0)\n) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "copy_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "cc96cded8c1ed703f17ebd9ccd23e074c7adb06609ad1312d281aafd9ef2fd63",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "34582e43178eea6ed8dc7639c5a9d8890cb029677967d5d621c394ae9dca634f"
+    },
+    {
+      "name": "commercial_copy_photos",
+      "sql": "CREATE TABLE commercial_copy_photos (\n  photo_id TEXT PRIMARY KEY REFERENCES music_photos(id) ON DELETE CASCADE,\n  copy_id TEXT NOT NULL REFERENCES commercial_release_copies(id)\n) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "photo_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "copy_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "edefa37fb6d88b201290c238291bca8dbd46f92fd8e9126c4de33ed4be6acde3",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "05f749df236ff2e2d6e2ff832c8e8c0249023343208c4d2d58cc60cff902b382"
+    },
+    {
+      "name": "commercial_release_copies",
+      "sql": "CREATE TABLE commercial_release_copies (\n  id TEXT PRIMARY KEY, release_id TEXT NOT NULL REFERENCES music_releases(id),\n  assigned_at TEXT NOT NULL\n) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "release_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "assigned_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "003e15b747f6c4af51cd9fe20c93f70501abfe560fe50367012c3abb3bd5a2d5",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "d8037e04c42ad61e7c93e71cf359b18939fc4e581b7dd94fde56084e22a36e3c"
+    },
+    {
+      "name": "digital_albums",
+      "sql": "CREATE TABLE digital_albums (id TEXT PRIMARY KEY, metadata TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>0), physical_absent INTEGER NOT NULL DEFAULT 0 CHECK(physical_absent IN (0,1))) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "metadata",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "physical_absent",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": "0",
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "78c87135f86f69a2c23d775a7ba4b6d28c940dcc65c61094041168681fce09eb",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "b2765b0495edf4e1076461f13ab51c983ac0467e262c3a8d6b3072ada01f3b64"
+    },
+    {
+      "name": "draft_source_links",
+      "sql": "CREATE TABLE draft_source_links (draft_id TEXT NOT NULL REFERENCES master_drafts(id),track_id TEXT NOT NULL,binding_id TEXT NOT NULL REFERENCES source_bindings(id),PRIMARY KEY(draft_id,track_id)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "track_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 2
+        },
+        {
+          "cid": 2,
+          "name": "binding_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "1baf6d0fb62e9d60366a7615a50629b6a1693dbcd8a1f23dbfa0de3ed73513ec",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "9df027a63de2c06e79fdc9b39b08659e6058c14bd4bd5d4b4c024d9197427ffc"
+    },
+    {
+      "name": "execution_assets",
+      "sql": "CREATE TABLE execution_assets (id TEXT PRIMARY KEY REFERENCES execution_jobs(id),draft_id TEXT NOT NULL REFERENCES master_drafts(id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "91798078a6339b52f59626a0faaefc64c9518105b455ae798bb78466c80269ef",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "63b60d145d5fb50cec65aa1dff3cbd7d82e059a7853393b7f1949387b0056636"
+    },
+    {
+      "name": "execution_jobs",
+      "sql": "CREATE TABLE execution_jobs (id TEXT PRIMARY KEY,draft_id TEXT NOT NULL REFERENCES master_drafts(id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "91798078a6339b52f59626a0faaefc64c9518105b455ae798bb78466c80269ef",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "643b4d36cb9ba6768c96047c0fcaaec7aafb8811a48c664f1a39dc4d777faf9b"
+    },
+    {
+      "name": "execution_ledger",
+      "sql": "CREATE TABLE execution_ledger (command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "153130ae56121caeb1b239db95c6e7bd800490fd3b1012d6eb86d852d9b3acb3",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "6f75f25cee193fde4e745685cfcba128103ae6b1b05a836db323856e9b2ec0e2"
+    },
+    {
+      "name": "inventory_ledger",
+      "sql": "CREATE TABLE inventory_ledger (\n  command_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, action TEXT NOT NULL,\n  result TEXT NOT NULL, event_data TEXT NOT NULL, created_at TEXT NOT NULL\n) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "action",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "event_data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [
+        {
+          "command_id": "44444444-4444-4444-8444-444444444444",
+          "fingerprint": "4a52d5c04c18d672bf0ad68fe2bc151880028902af736391cbf75d169768c555",
+          "action": "materialize",
+          "result": "{\"modelId\":\"a89c76c3-e02b-48a2-b364-746cc83a864b\",\"lotId\":\"5487799f-fb32-4307-a35f-8722b05efdfc\",\"physicalId\":\"MB-C-00001\"}",
+          "event_data": "{\"kind\":\"POOL_TO_COPY\",\"bucket\":\"sealedBlank\",\"before\":8,\"after\":7,\"packaging\":\"opened\",\"usage\":\"blank\",\"origin\":\"blank-pool\"}",
+          "created_at": "2026-10-04T04:07:42.519Z"
+        },
+        {
+          "command_id": "11111111-1111-4111-8111-111111111111",
+          "fingerprint": "18e2968f925a3e477c10b8472877a2fc261ab63c4c4e35902b00772f201b0baa",
+          "action": "receive",
+          "result": "{\"modelId\":\"a89c76c3-e02b-48a2-b364-746cc83a864b\",\"lotId\":\"5487799f-fb32-4307-a35f-8722b05efdfc\"}",
+          "event_data": "{\"kind\":\"RECEIVE\",\"quantityAcquired\":14,\"quantities\":{\"sealedBlank\":8,\"openedBlank\":2,\"legacyUsed\":1,\"unclassified\":3}}",
+          "created_at": "2026-10-04T04:07:42.517Z"
+        },
+        {
+          "command_id": "22222222-2222-4222-8222-222222222222",
+          "fingerprint": "0e5e67e8e23ae0ae6b588fa1fa8370dbe51bb9b11f0e4d95bad15f7b4dc61f93",
+          "action": "receive",
+          "result": "{\"modelId\":\"a89c76c3-e02b-48a2-b364-746cc83a864b\",\"lotId\":\"0dff82ef-f581-401b-9811-88e06e20af03\"}",
+          "event_data": "{\"kind\":\"RECEIVE\",\"quantityAcquired\":3,\"quantities\":{\"sealedBlank\":2,\"openedBlank\":1,\"legacyUsed\":0,\"unclassified\":0}}",
+          "created_at": "2026-10-04T04:07:42.518Z"
+        },
+        {
+          "command_id": "33333333-3333-4333-8333-333333333333",
+          "fingerprint": "7dd4f307516505ea8c18cb8156691f3c5fe357570a19bfbd7a82f64ccca97588",
+          "action": "receive",
+          "result": "{\"modelId\":\"82f61983-94d6-49fe-a197-183cf1150617\",\"lotId\":\"4e77c2ec-fa42-4aca-87fe-e439e8ca364e\"}",
+          "event_data": "{\"kind\":\"RECEIVE\",\"quantityAcquired\":1,\"quantities\":{\"sealedBlank\":1,\"openedBlank\":0,\"legacyUsed\":0,\"unclassified\":0}}",
+          "created_at": "2026-10-04T04:07:42.518Z"
+        },
+        {
+          "command_id": "55555555-5555-4555-8555-555555555555",
+          "fingerprint": "62aaabe96ae8a999ffa600551a5305b84289747fa12f3eb9950c2e538e463849",
+          "action": "set-policy",
+          "result": "{\"modelId\":\"a89c76c3-e02b-48a2-b364-746cc83a864b\"}",
+          "event_data": "{\"kind\":\"POLICY_CHANGED\",\"before\":{\"policy\":\"normal\",\"minimumSealedReserve\":0},\"after\":{\"policy\":\"preserve-sealed\",\"minimumSealedReserve\":2}}",
+          "created_at": "2026-10-04T04:07:42.520Z"
+        }
+      ],
+      "rowCount": 5,
+      "columnsSha256": "674806e7da85509606ded504ecea9877159dd6d07884b6cfcd1f4e5bb28d34c8",
+      "rowsSha256": "e147fd3720b6cdf01daee0c48ac46caf4bc809ecd3965402c4077f9ce4c8576b",
+      "schemaSqlSha256": "798f62ee6ea35392b1fd42eb2019017cb694a9430f1217891ad01fb4342c2109"
+    },
+    {
+      "name": "inventory_lots",
+      "sql": "CREATE TABLE \"inventory_lots\" (\n id TEXT PRIMARY KEY,sku_id TEXT NOT NULL REFERENCES collection_skus(id),\n acquired INTEGER NOT NULL CHECK(acquired BETWEEN 1 AND 10000),\n sealed INTEGER NOT NULL CHECK(sealed>=0),opened INTEGER NOT NULL CHECK(opened>=0),\n legacy INTEGER NOT NULL CHECK(legacy>=0),unknown INTEGER NOT NULL CHECK(unknown>=0),\n quantity_adjustment INTEGER NOT NULL DEFAULT 0 CHECK(quantity_adjustment BETWEEN -1000000 AND 1000000),\n CHECK(acquired+quantity_adjustment BETWEEN 0 AND 1000000),\n CHECK(sealed+opened+legacy+unknown<=acquired+quantity_adjustment)\n) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "sku_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "acquired",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "sealed",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "opened",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "legacy",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 6,
+          "name": "unknown",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 7,
+          "name": "quantity_adjustment",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": "0",
+          "pk": 0
+        }
+      ],
+      "rows": [
+        {
+          "id": "4e77c2ec-fa42-4aca-87fe-e439e8ca364e",
+          "sku_id": "9aa0c81e-cc57-49f0-99d3-1ca29ce683e8",
+          "acquired": 1,
+          "sealed": 1,
+          "opened": 0,
+          "legacy": 0,
+          "unknown": 0,
+          "quantity_adjustment": 0
+        },
+        {
+          "id": "5487799f-fb32-4307-a35f-8722b05efdfc",
+          "sku_id": "86fe3ded-270a-4b04-b0e6-092bc57ff526",
+          "acquired": 14,
+          "sealed": 7,
+          "opened": 2,
+          "legacy": 1,
+          "unknown": 3,
+          "quantity_adjustment": 0
+        },
+        {
+          "id": "0dff82ef-f581-401b-9811-88e06e20af03",
+          "sku_id": "a05e1f60-179f-4d68-bb20-57ca5e3cffe7",
+          "acquired": 3,
+          "sealed": 2,
+          "opened": 1,
+          "legacy": 0,
+          "unknown": 0,
+          "quantity_adjustment": 0
+        }
+      ],
+      "rowCount": 3,
+      "columnsSha256": "5e4bc660867bb8bc1497f80e9f2a7a25ceb4104be98a08cc4b24cc994e699cf1",
+      "rowsSha256": "a1b2d0d4648e26bd3da23a83f7bae79bb8b5505d43c461b440c1c9ac8bed146e",
+      "schemaSqlSha256": "eefd2ae31d1a44c4f539acbe52c15a9e0ff41605e1420187dd046e46b837de80"
+    },
+    {
+      "name": "layout_versions",
+      "sql": "CREATE TABLE layout_versions (id TEXT PRIMARY KEY,draft_id TEXT NOT NULL REFERENCES master_drafts(id),master_id TEXT NOT NULL REFERENCES master_versions(id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "master_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "9f8000848ed47b4c71e36681fc1bdde83a529a0df03e9b52db3bf166994511d7",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "489cb61f9e494d42a7186ce4b04041ebaf4f85c28b2d7743c0b80f382fb769f4"
+    },
+    {
+      "name": "legacy_recording_content",
+      "sql": "CREATE TABLE legacy_recording_content (physical_id TEXT PRIMARY KEY REFERENCES physical_copies(physical_id), data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "physical_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "b9735ca95c1e02058b73493b432900a4a774cf645d58e8a197a98274169626d5",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "1f6efc886393f89e1c8e211647a6fc1620f1c71c3ae54a8ddb089424b6515783"
+    },
+    {
+      "name": "master_artwork_current",
+      "sql": "CREATE TABLE master_artwork_current(master_id TEXT PRIMARY KEY REFERENCES master_versions(id),version_id TEXT NOT NULL UNIQUE REFERENCES master_artwork_versions(id)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "master_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "version_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "a8dcabe69e8733104250abb71f36d85ab6c3a9d02efb0d5aaee179db4a83e846",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "a47228f6e148d612d15cb75624facc74d49c4267d0692f3a4a586aff6b52723f"
+    },
+    {
+      "name": "master_artwork_versions",
+      "sql": "CREATE TABLE master_artwork_versions(id TEXT PRIMARY KEY,master_id TEXT NOT NULL REFERENCES master_versions(id),sequence INTEGER NOT NULL,sha256 TEXT NOT NULL REFERENCES recording_print_objects(sha256),data TEXT NOT NULL,UNIQUE(master_id,sequence)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "master_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "sequence",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "sha256",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "91f2af659876085dece7ed64ab9c19e83cbadbb9f247caad10695db6b68504b6",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "970ed9965e03ca53e92c056a30f2cbedea76372ad117c78c89b3ef04dfd12793"
+    },
+    {
+      "name": "master_drafts",
+      "sql": "CREATE TABLE master_drafts (id TEXT PRIMARY KEY, data TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>0), updated_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "880ac0a088ad705bdf988957b44af1a3530dd97903ca81b6cbc226749867ebce",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "10880bd1ca9d796ef5f2ae87b4c347ea8174722c30e7278db6a2894791a44055"
+    },
+    {
+      "name": "master_drafts_ledger",
+      "sql": "CREATE TABLE master_drafts_ledger (command_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "153130ae56121caeb1b239db95c6e7bd800490fd3b1012d6eb86d852d9b3acb3",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "c163b4643b89e1495c75987804bce92050c5e8303ae4ec1ed61b70c635e38985"
+    },
+    {
+      "name": "master_versions",
+      "sql": "CREATE TABLE master_versions (id TEXT PRIMARY KEY,draft_id TEXT NOT NULL REFERENCES master_drafts(id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "91798078a6339b52f59626a0faaefc64c9518105b455ae798bb78466c80269ef",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "0dc77c4bf35e1004b3944312488cf83532e2769ca9081237a6803a0184356635"
+    },
+    {
+      "name": "media_ledger",
+      "sql": "CREATE TABLE media_ledger (command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "153130ae56121caeb1b239db95c6e7bd800490fd3b1012d6eb86d852d9b3acb3",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "29ea192aae3f7d1e36b46d0acf057842093b4cb01cf43041738963579cad3c45"
+    },
+    {
+      "name": "media_plans",
+      "sql": "CREATE TABLE media_plans (id TEXT PRIMARY KEY,draft_id TEXT NOT NULL REFERENCES master_drafts(id),data TEXT NOT NULL,revision INTEGER NOT NULL CHECK(revision>0)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "df41a66a811d862ac98f805024a4c6fe3f3c2340b02f345d1807abc7e3dda54a",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "c8eaf0f683a8ba805de5d8f43c6f3ba3e0cd6c078696828012b1f77423aa45bb"
+    },
+    {
+      "name": "media_reservations",
+      "sql": "CREATE TABLE media_reservations (plan_id TEXT PRIMARY KEY REFERENCES media_plans(id),physical_id TEXT NOT NULL UNIQUE REFERENCES physical_copies(physical_id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "plan_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "physical_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "5c1e2209c93a426e12c38c9219128bae855331c434aaa5e758e957f616905c8c",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "ef425afe182c935b301bb17c116c1db2d834b937020ecf4dd0e743c867ae4da5"
+    },
+    {
+      "name": "music_ledger",
+      "sql": "CREATE TABLE music_ledger (command_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, action TEXT NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "action",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "8f95c82bb307d4be9ae90d6cced28ecc1081317b763dcec50705048075bd749b",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "92b7502d10893eb2498f21cbbb4bd1cd4d384f709abca52e47f7b21d7970ae09"
+    },
+    {
+      "name": "music_photos",
+      "sql": "CREATE TABLE music_photos (id TEXT PRIMARY KEY, release_id TEXT NOT NULL REFERENCES music_releases(id), content BLOB NOT NULL CHECK(length(content) BETWEEN 4 AND 1048576), content_hash TEXT NOT NULL, width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 1200), height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 1200), UNIQUE(release_id,content_hash)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "release_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "content",
+          "type": "BLOB",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "content_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "width",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "height",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "91ad49cd52ab81fe3945a05b8a637a47c92f99d502b00445b448b164d1538b03",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "31b70bc895cab66124fb5710d4fad255c336a9d43c8aeb753bc9022927490374"
+    },
+    {
+      "name": "music_releases",
+      "sql": "CREATE TABLE music_releases (id TEXT PRIMARY KEY, data TEXT NOT NULL, revision INTEGER NOT NULL CHECK(revision>0)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "4d51768bc00cc22203add795be66c474d8b377670a9004f56d3021e496098a38",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "4868d3aeaa16753d2a64ecac1806c9076a1e7602873e04b8d80e941fe8a48807"
+    },
+    {
+      "name": "output_run_barrier_events",
+      "sql": "CREATE TABLE output_run_barrier_events(attempt_id TEXT NOT NULL REFERENCES recording_attempts(id),side TEXT NOT NULL CHECK(side IN ('A','B','Program')),run_id TEXT NOT NULL,phase TEXT NOT NULL CHECK(phase IN ('pending','verified','failed')),plan_content_hash TEXT NOT NULL,audio_sha256 TEXT NOT NULL,at TEXT NOT NULL,reason TEXT,CHECK((phase='failed')=(reason IS NOT NULL)),PRIMARY KEY(attempt_id,side,phase)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "attempt_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "side",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 2
+        },
+        {
+          "cid": 2,
+          "name": "run_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "phase",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 3
+        },
+        {
+          "cid": 4,
+          "name": "plan_content_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "audio_sha256",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 6,
+          "name": "at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 7,
+          "name": "reason",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "aa82229176ddde2597231e91675c64a18292e0542fccc265e089d8dc890f17d8",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "a9a245f45532248b55209c1165270d3901fcb864f259a1ddab14c9ad403d173e"
+    },
+    {
+      "name": "output_run_legacy_attempts",
+      "sql": "CREATE TABLE output_run_legacy_attempts(attempt_id TEXT PRIMARY KEY REFERENCES recording_attempts(id),status TEXT NOT NULL CHECK(status IN ('in-progress','aborted','failed','interrupted','completed')),revision INTEGER NOT NULL CHECK(revision>0),head_sha256 TEXT NOT NULL,terminal_event_hash TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "attempt_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "status",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "head_sha256",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "terminal_event_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "c7fa68cb33ac6804987a3d6f877414670eac49bb9f2d262983477c37f637d0ee",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "9dfe8b99c68e7604ebcdef23ec585b7a0f7992fb016dc9278b41d39621a5ab9f"
+    },
+    {
+      "name": "physical_copies",
+      "sql": "CREATE TABLE \"physical_copies\" (\n  physical_id TEXT PRIMARY KEY, lot_id TEXT NOT NULL REFERENCES inventory_lots(id),\n  packaging TEXT NOT NULL CHECK(packaging IN ('sealed','opened','unknown')),\n  usage TEXT NOT NULL CHECK(usage IN ('blank','reserved','recorded','unknown','erased')),\n  available INTEGER NOT NULL CHECK(available IN (0,1)),\n  origin TEXT NOT NULL CHECK(origin IN ('blank-pool','legacy-registration','unclassified')),\n  revision INTEGER NOT NULL DEFAULT 1 CHECK(revision > 0), reserved_from TEXT,\n  CHECK((usage='reserved' AND reserved_from IN ('blank','erased','recorded','unknown')) OR (usage<>'reserved' AND reserved_from IS NULL))\n) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "physical_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "lot_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "packaging",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "usage",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "available",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "origin",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 6,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": "1",
+          "pk": 0
+        },
+        {
+          "cid": 7,
+          "name": "reserved_from",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [
+        {
+          "physical_id": "MB-C-00001",
+          "lot_id": "5487799f-fb32-4307-a35f-8722b05efdfc",
+          "packaging": "opened",
+          "usage": "blank",
+          "available": 1,
+          "origin": "blank-pool",
+          "revision": 1,
+          "reserved_from": null
+        }
+      ],
+      "rowCount": 1,
+      "columnsSha256": "cff796390dddd4ee3329bd80c4223a2db8719e232cb79f0a496503a2bf2dd8aa",
+      "rowsSha256": "ac2129503f0ad2c9b4cb825958617defcac1708d82e3bfcd7c51c253be4976ef",
+      "schemaSqlSha256": "084601b240dea9405ae7719fa2f8e4ce8de675f3bcb64000ad90287ee13936b4"
+    },
+    {
+      "name": "physical_digital_absence",
+      "sql": "CREATE TABLE physical_digital_absence (release_id TEXT PRIMARY KEY REFERENCES music_releases(id), confirmed INTEGER NOT NULL CHECK(confirmed IN (0,1))) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "release_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "confirmed",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "b044fa5799569ac23a34e713606a28398a8e372cd439034ab46f0987882c9e7a",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "35368dec9d117983323adf4f679b77df3f22594ce305be06a136506bb7f05651"
+    },
+    {
+      "name": "physical_digital_links",
+      "sql": "CREATE TABLE physical_digital_links (id TEXT PRIMARY KEY, release_id TEXT NOT NULL REFERENCES music_releases(id), digital_id TEXT NOT NULL REFERENCES digital_albums(id), relation TEXT NOT NULL CHECK(relation IN ('exact','probable','related')), rip_confirmed INTEGER NOT NULL CHECK(rip_confirmed IN (0,1)), revision INTEGER NOT NULL CHECK(revision>0), UNIQUE(release_id,digital_id)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "release_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "digital_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "relation",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "rip_confirmed",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "4712a89f0483ed089f1c2a972c4ce281e2b039376c0740287bfa4ef88271e0d0",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "902bffe4f58ed6f2f33c5217d27e84f687d14f8cbc81f9e5a8796228442b20b2"
+    },
+    {
+      "name": "physical_link_history",
+      "sql": "CREATE TABLE physical_link_history (\n  id TEXT PRIMARY KEY, release_id TEXT NOT NULL REFERENCES music_releases(id),\n  event_json TEXT NOT NULL\n) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "release_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "event_json",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "afe0af1db7ccda8803299b859cf72d78ae68764f3baaf3e8cbf889ce014467ed",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "ce3aaad1f2abdea55a0dedbf4b01377e5b311ba6dafb632fe9941db5bf0ad4a2"
+    },
+    {
+      "name": "physical_links_ledger",
+      "sql": "CREATE TABLE physical_links_ledger (command_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, result TEXT NOT NULL, created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "153130ae56121caeb1b239db95c6e7bd800490fd3b1012d6eb86d852d9b3acb3",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "99ded58df7c7e4649d438f552ed2d92aeb4ff1f54e6f70e2d5c23de3206eb4d0"
+    },
+    {
+      "name": "physical_sequences",
+      "sql": "CREATE TABLE physical_sequences (format TEXT PRIMARY KEY, next_value INTEGER NOT NULL CHECK(next_value > 0)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "format",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "next_value",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [
+        {
+          "format": "cassette",
+          "next_value": 2
+        },
+        {
+          "format": "dat",
+          "next_value": 1
+        }
+      ],
+      "rowCount": 2,
+      "columnsSha256": "5b84e6e6e230019e7e2cc5484952560a243c2c826725504965b974d95f2e3d88",
+      "rowsSha256": "d1f516297c48df5579b5d93d2ee63a4d1534e36ec86ee995a81af4dbe10ead6f",
+      "schemaSqlSha256": "2eb0eba9f048b9db8277d3c99712e426e4ff361e08a13a94b2ff6444bc99d0d8"
+    },
+    {
+      "name": "preparation_destinations",
+      "sql": "CREATE TABLE preparation_destinations (id TEXT PRIMARY KEY,data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "fc8a6b0682559d77947e0da887385a3abe69e500f4112a5f841290390e870885",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "5387a9222e2ee4d37c53c7223685aaa7dfbc6459bcee3fe04a871f2d764908dc"
+    },
+    {
+      "name": "preparation_jobs",
+      "sql": "CREATE TABLE preparation_jobs (id TEXT PRIMARY KEY,draft_id TEXT NOT NULL REFERENCES master_drafts(id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "91798078a6339b52f59626a0faaefc64c9518105b455ae798bb78466c80269ef",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "91a0e0f23801cc0e9705400f4aa0d57f0872ea43f8b04aca44dee6d874e532b6"
+    },
+    {
+      "name": "preparation_ledger",
+      "sql": "CREATE TABLE preparation_ledger (command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "153130ae56121caeb1b239db95c6e7bd800490fd3b1012d6eb86d852d9b3acb3",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "a3ac4b5da4168bfb9d037362d2408deaee6686660b8313ce9924fd9cbe448610"
+    },
+    {
+      "name": "preparation_workspaces",
+      "sql": "CREATE TABLE preparation_workspaces (id TEXT PRIMARY KEY,draft_id TEXT NOT NULL REFERENCES master_drafts(id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "91798078a6339b52f59626a0faaefc64c9518105b455ae798bb78466c80269ef",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "242b57c44a65286153ab533b5f9578863717ec6a02cf820705b4254910ed7bbe"
+    },
+    {
+      "name": "preparation_zip_jobs",
+      "sql": "CREATE TABLE preparation_zip_jobs (id TEXT PRIMARY KEY,workspace_id TEXT NOT NULL REFERENCES preparation_workspaces(id),draft_id TEXT NOT NULL REFERENCES master_drafts(id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "workspace_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "135b451ad93b3dd3c2e9b0e7486617df889199c891fdedb3064fee0b71c543f9",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "960bad653b035b26a42c46cf954e5f57a0a7883930f969ff75f9f3fc865890d9"
+    },
+    {
+      "name": "preparation_zip_ledger",
+      "sql": "CREATE TABLE preparation_zip_ledger (command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,job_id TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "job_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "49f9d25cf945c69742df0b08c0a06d5d4aa058e4a78b6eb2bde8a76c3353b99d",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "0af75c18016f3666600d3b0f9202638452d8bcdc3641cc7ceed9b38f26266a93"
+    },
+    {
+      "name": "preparation_zip_session",
+      "sql": "CREATE TABLE preparation_zip_session (id INTEGER PRIMARY KEY CHECK(id=1),epoch INTEGER NOT NULL CHECK(epoch BETWEEN 0 AND 9007199254740991)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "epoch",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [
+        {
+          "id": 1,
+          "epoch": 0
+        }
+      ],
+      "rowCount": 1,
+      "columnsSha256": "9dedf23acc1bd2ec0ba6e21ad7638652aa9aa804dfe9af757cc64568a8fa9c1c",
+      "rowsSha256": "b10cedfdadef39a9767f537276989462538e286af15763c3af0bd1dcacfe16c5",
+      "schemaSqlSha256": "9dde9440ac8b484ea5440c7687f60aeb559a84b3ebe14941717108228bbd3737"
+    },
+    {
+      "name": "preparation_zip_targets",
+      "sql": "CREATE TABLE preparation_zip_targets (id TEXT PRIMARY KEY,epoch INTEGER NOT NULL,dataset_id TEXT NOT NULL,scope_id TEXT NOT NULL,generation INTEGER NOT NULL,expires_at TEXT NOT NULL,fingerprint TEXT NOT NULL,revoked_at TEXT) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "epoch",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "dataset_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "scope_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "generation",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "expires_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 6,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 7,
+          "name": "revoked_at",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "484ab20a3f684c5825dacdba171d231fc4c3b345a0ab25744189566a54ded9fb",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "efb780bb7925f3addae2b694c692cefcafbf57ca0088e384809207a2ff65576f"
+    },
+    {
+      "name": "prepared_jobs",
+      "sql": "CREATE TABLE prepared_jobs (id TEXT PRIMARY KEY,draft_id TEXT NOT NULL REFERENCES master_drafts(id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "91798078a6339b52f59626a0faaefc64c9518105b455ae798bb78466c80269ef",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "620addc3e9172f2871f16cb83cd721d0d132b89b608609a4f66b947dc7eac141"
+    },
+    {
+      "name": "prepared_ledger",
+      "sql": "CREATE TABLE prepared_ledger (command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "153130ae56121caeb1b239db95c6e7bd800490fd3b1012d6eb86d852d9b3acb3",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "29600de8804b57a2d4614cfebeec82359a3d0f1bb1011b6242ac114c8fa65862"
+    },
+    {
+      "name": "prepared_selections",
+      "sql": "CREATE TABLE prepared_selections (id TEXT PRIMARY KEY,data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "fc8a6b0682559d77947e0da887385a3abe69e500f4112a5f841290390e870885",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "2816fba54a494e4f0a4b9ab7263442c35ef7e8938b2206c1dcc30e46d18b1b34"
+    },
+    {
+      "name": "prepared_versions",
+      "sql": "CREATE TABLE prepared_versions (id TEXT PRIMARY KEY,draft_id TEXT NOT NULL REFERENCES master_drafts(id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "91798078a6339b52f59626a0faaefc64c9518105b455ae798bb78466c80269ef",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "02be403a9b2f90d068348fd1780df85314aaba4f1dfd7e02fabe58590d02daa4"
+    },
+    {
+      "name": "recording_attempt_events",
+      "sql": "CREATE TABLE recording_attempt_events(attempt_id TEXT NOT NULL REFERENCES recording_attempts(id) DEFERRABLE INITIALLY DEFERRED,revision INTEGER NOT NULL CHECK(revision>0),kind TEXT NOT NULL,data TEXT NOT NULL,previous_hash TEXT NOT NULL,event_hash TEXT NOT NULL,PRIMARY KEY(attempt_id,revision)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "attempt_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 2
+        },
+        {
+          "cid": 2,
+          "name": "kind",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "previous_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "event_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "754a30cac86c2e08ce5db6ae7537960dfcd937f976d2e5fb44b5f767627add9f",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "d97332182e0552f68f5503442e34877f063c1e0431dd0baf06e2abf33b1f535d"
+    },
+    {
+      "name": "recording_attempt_receipts",
+      "sql": "CREATE TABLE recording_attempt_receipts(command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,request TEXT NOT NULL,attempt_id TEXT NOT NULL,revision INTEGER NOT NULL,result TEXT NOT NULL,FOREIGN KEY(attempt_id,revision) REFERENCES recording_attempt_events(attempt_id,revision)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "request",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "attempt_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "7d970c1e176ddd9a2ef72481358596fa9a3ebf11c942d2dec8c46160630904ff",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "e997f73c91362d3a219e65ac4b5dd27aed74d48207383a11cf4c26a9acc9adf1"
+    },
+    {
+      "name": "recording_attempts",
+      "sql": "CREATE TABLE recording_attempts(id TEXT PRIMARY KEY,plan_id TEXT NOT NULL REFERENCES recording_plan_versions(id),draft_id TEXT NOT NULL REFERENCES master_drafts(id),physical_id TEXT NOT NULL REFERENCES physical_copies(physical_id),status TEXT NOT NULL,revision INTEGER NOT NULL CHECK(revision>0),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "plan_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "physical_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "status",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 6,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "31b23ed3b89549c97dfc922c1be87fcee6d19137a7d1656ec85fd3ce5a13722e",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "52cc598b45b357b456b9b5d09c1f1b1562b654e0356c57d68289b88374ef5f74"
+    },
+    {
+      "name": "recording_plan_ledger",
+      "sql": "CREATE TABLE recording_plan_ledger(command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,request TEXT NOT NULL,plan_id TEXT NOT NULL UNIQUE REFERENCES recording_plan_versions(id)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "request",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "plan_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "4ef93ee509d5faf285bc1404b9f6bd20e3b18efc45e23151eb16487ac4c7eae4",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "f2704feb8d2198f7037f6dc807ece577d59103c4c07bf2931fa31e2eaafbd05c"
+    },
+    {
+      "name": "recording_plan_versions",
+      "sql": "CREATE TABLE recording_plan_versions(id TEXT PRIMARY KEY,draft_id TEXT NOT NULL REFERENCES master_drafts(id),sequence INTEGER NOT NULL,parent_id TEXT REFERENCES recording_plan_versions(id),asset_id TEXT NOT NULL REFERENCES execution_assets(id),archive_id TEXT NOT NULL REFERENCES archive_operations(id),physical_id TEXT NOT NULL REFERENCES physical_copies(physical_id),data TEXT NOT NULL,UNIQUE(draft_id,sequence)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "sequence",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "parent_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "asset_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "archive_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 6,
+          "name": "physical_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 7,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "9a26f39eb0c4a66203e588849abb319dfec3d7627649db0dcbb7d90142a9cd72",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "a33f9039c3a4c124fa6a3e9ae16cc4a787d6fd3761b11a3523dd12b3f8d0dd13"
+    },
+    {
+      "name": "recording_print_artifacts",
+      "sql": "CREATE TABLE recording_print_artifacts(id TEXT PRIMARY KEY,request_id TEXT NOT NULL UNIQUE REFERENCES recording_print_requests(id),pdf_sha TEXT NOT NULL REFERENCES recording_print_objects(sha256),preview_sha TEXT NOT NULL REFERENCES recording_print_objects(sha256),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "request_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "pdf_sha",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "preview_sha",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "bd051c4d94cad3428afbfbebbd01f3b7ea085ad8e120e816bd33d443adc8e357",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "beb08bbe517c1e85f046b8e73e9f6f29bc02c72ec6f0450966ea179d70d4b96d"
+    },
+    {
+      "name": "recording_print_events",
+      "sql": "CREATE TABLE recording_print_events(job_id TEXT NOT NULL REFERENCES recording_print_jobs(id),revision INTEGER NOT NULL,kind TEXT NOT NULL,data TEXT NOT NULL,previous_hash TEXT NOT NULL,event_hash TEXT NOT NULL,PRIMARY KEY(job_id,revision)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "job_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 2
+        },
+        {
+          "cid": 2,
+          "name": "kind",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "previous_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "event_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "416b97f18a3ef9234d084e7c65ae327a81021354000e8562496fac35b0c21914",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "41424101b5f899e40bba860f0116ae9f2c9d965fe3cc758a153e1f6dc557bedb"
+    },
+    {
+      "name": "recording_print_jobs",
+      "sql": "CREATE TABLE recording_print_jobs(id TEXT PRIMARY KEY,request_id TEXT NOT NULL UNIQUE REFERENCES recording_print_requests(id),data TEXT NOT NULL,lease TEXT) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "request_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "lease",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "fa22f8c4d9fdc31588ef92a8bbc574ba4eba794083362c33b480d5bd9bfed8fe",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "0c7f71955546263cb064d1a18782c8a102af4dcc74ab772072ed1217011bcca0"
+    },
+    {
+      "name": "recording_print_objects",
+      "sql": "CREATE TABLE recording_print_objects(sha256 TEXT PRIMARY KEY,mime TEXT NOT NULL,content BLOB NOT NULL,width INTEGER,height INTEGER) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "sha256",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "mime",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "content",
+          "type": "BLOB",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "width",
+          "type": "INTEGER",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "height",
+          "type": "INTEGER",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "5e167c5ad30d4e223d3cd5f53d4ff4181b936969eaec1d9af56cfc7a1f0d1369",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "bdadb0e78189a1b268cf3003abc695330862fefda0f210a02d220f5561d61c04"
+    },
+    {
+      "name": "recording_print_receipts",
+      "sql": "CREATE TABLE recording_print_receipts(id TEXT PRIMARY KEY,kind TEXT NOT NULL,fingerprint TEXT NOT NULL,request TEXT NOT NULL,result TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "kind",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "request",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "46b5ccb45dd2d020fd4f5236f887972b2f7500e70a6cab9d5dbc013cd375cadf",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "974353c7843e50161413dea0ec62c37d64984a4860550bcc03579778126e360f"
+    },
+    {
+      "name": "recording_print_requests",
+      "sql": "CREATE TABLE \"recording_print_requests\"(id TEXT PRIMARY KEY,recording_id TEXT NOT NULL REFERENCES recording_records(id),data TEXT NOT NULL,facts TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "recording_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "facts",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "ed276b4e3d025c09c3918e7dc656d84c7095228258ba3e4a6b9d544f077133b1",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "3d97bed3c3f80303770f2ece22272e41c8d6a13ec683709a0e373e274301d8cb"
+    },
+    {
+      "name": "recording_profile_ledger",
+      "sql": "CREATE TABLE recording_profile_ledger (command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "153130ae56121caeb1b239db95c6e7bd800490fd3b1012d6eb86d852d9b3acb3",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "0aae8dd918d19bc4954c2a73dc2b6f56bdf12066cccfad079be082cb14bd0284"
+    },
+    {
+      "name": "recording_profile_versions",
+      "sql": "CREATE TABLE recording_profile_versions (id TEXT PRIMARY KEY,profile_id TEXT NOT NULL REFERENCES recording_profiles(id),sequence INTEGER NOT NULL,data TEXT NOT NULL,UNIQUE(profile_id,sequence)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "profile_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "sequence",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "0c8ff36bd891cc2267ebd9eedb7e704922862af11b662d1e8837f96a82de3509",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "aecd7501593d95718dbf1a29a143a4755a43141166041e4523d2119b9fd0a201"
+    },
+    {
+      "name": "recording_profiles",
+      "sql": "CREATE TABLE recording_profiles (id TEXT PRIMARY KEY,current_version_id TEXT NOT NULL REFERENCES recording_profile_versions(id) DEFERRABLE INITIALLY DEFERRED) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "current_version_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "0b90d68cf384c2faaa9eae6e12f4c48ded149086090ba5d81b41f4d4c216a942",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "6e1d63a800f3a8b87e8af1a29c077ac8dcf5cfa5fc220901624fc3159b15e0cb"
+    },
+    {
+      "name": "recording_record_current",
+      "sql": "CREATE TABLE recording_record_current(physical_id TEXT PRIMARY KEY REFERENCES physical_copies(physical_id),revision INTEGER NOT NULL,data TEXT NOT NULL,event_hash TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "physical_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "event_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "18830b92413850554001015754e7a2fec6138645eac54dd962cb1507f9e04ae6",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "eb0415e2a14bb41e1c7657ce49552ce61bb923d5d25431fe149b39d630bcdfbe"
+    },
+    {
+      "name": "recording_record_events",
+      "sql": "CREATE TABLE recording_record_events(physical_id TEXT NOT NULL REFERENCES physical_copies(physical_id),revision INTEGER NOT NULL,kind TEXT NOT NULL,data TEXT NOT NULL,previous_hash TEXT NOT NULL,event_hash TEXT NOT NULL,PRIMARY KEY(physical_id,revision)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "physical_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 2
+        },
+        {
+          "cid": 2,
+          "name": "kind",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "previous_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "event_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "cbf404ef710cd4bfd21b2788e92474fa9351548d93db0002c71bed2e0e91ede7",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "1b6e3cadff5e54040e29fef4c6b63221663a4b1b1301655f91e3a526ed5add8b"
+    },
+    {
+      "name": "recording_record_permits",
+      "sql": "CREATE TABLE recording_record_permits(id TEXT NOT NULL,revision INTEGER NOT NULL,physical_id TEXT NOT NULL REFERENCES physical_copies(physical_id),state TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(id,revision)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 2
+        },
+        {
+          "cid": 2,
+          "name": "physical_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "state",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "ebc45df8cbf59218149f96856f4de10c1f2a4fbf52b5759f61d7346a63447c18",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "f62bf5108b8c5128b3c909b0cf04c153b8d4d9cd1095c6f246650c6b37014870"
+    },
+    {
+      "name": "recording_record_receipts",
+      "sql": "CREATE TABLE recording_record_receipts(command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,request TEXT NOT NULL,result TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "request",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "65ebe1ba8924275acecb7a6b74796151c3004e09b4fafdb3a0ed854478354c50",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "c8cf3b650a5a401529fade041d338a36fa65e24aadab35ec890482b930164471"
+    },
+    {
+      "name": "recording_record_visuals",
+      "sql": "CREATE TABLE recording_record_visuals(sha256 TEXT PRIMARY KEY,content BLOB NOT NULL,width INTEGER NOT NULL,height INTEGER NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "sha256",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "content",
+          "type": "BLOB",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "width",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "height",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "41c08c0c1a8a10bbc35a3ca60e40b05b326dc3d6271b750279f0a330098ea79a",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "573ecb3568678f1f78c4732cec4714e4f63b2bef7514b21d17ee43e91b9c7c21"
+    },
+    {
+      "name": "recording_record_write_guard",
+      "sql": "CREATE TABLE recording_record_write_guard(physical_id TEXT PRIMARY KEY,action TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "physical_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "action",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "7ee3d9365dd766c52fe0428183b2acf639ff77221759a860a15019c6158f3368",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "c85590c027b700285d21ac6828ccb7e2bc2712dc913bea5551b3046357a6c847"
+    },
+    {
+      "name": "recording_records",
+      "sql": "CREATE TABLE recording_records(id TEXT PRIMARY KEY,attempt_id TEXT NOT NULL UNIQUE,attempt_revision INTEGER NOT NULL,physical_id TEXT NOT NULL REFERENCES physical_copies(physical_id),plan_id TEXT NOT NULL REFERENCES recording_plan_versions(id),data TEXT NOT NULL,FOREIGN KEY(attempt_id,attempt_revision) REFERENCES recording_attempt_events(attempt_id,revision)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "attempt_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "attempt_revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "physical_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "plan_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "fb2c55d882f92f5bb295378053e263058386a9b4d21dc152ae5775e91c298fb0",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "772f0ad937fd58d9faba4166412715ca4118a29a9e2bf4840347d8403361346f"
+    },
+    {
+      "name": "recording_sessions",
+      "sql": "CREATE TABLE recording_sessions (draft_id TEXT PRIMARY KEY REFERENCES master_drafts(id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "25c0c197448c4dfadc7a22ca679aeee4e640495af5202cf991184c9b2d4ca249",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "7e5169fc9a93154067d7d62b4b4750e5958836d0de68c8e4d30192425ae95c65"
+    },
+    {
+      "name": "recording_workspace_contexts",
+      "sql": "CREATE TABLE recording_workspace_contexts (\n  draft_id TEXT PRIMARY KEY REFERENCES master_drafts(id),\n  draft_revision INTEGER NOT NULL CHECK(draft_revision>0),\n  context_revision INTEGER NOT NULL CHECK(context_revision>0),\n  selection TEXT NOT NULL,\n  page_position TEXT NOT NULL,\n  updated_at TEXT NOT NULL\n) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "draft_revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "context_revision",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "selection",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "page_position",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "updated_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "9072b1b933c9ea67aa48c4906015e6a92b01a9d8a8769c42c00641588957af91",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "5914474425276e92cf398cb8463010d0d4b0847226275735ef7cb8ded9e5e1e6"
+    },
+    {
+      "name": "recording_workspace_ledger",
+      "sql": "CREATE TABLE recording_workspace_ledger (command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "153130ae56121caeb1b239db95c6e7bd800490fd3b1012d6eb86d852d9b3acb3",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "262a2dd963a8e8714595e808d9bca53d71d9c33688fe851dca9e77e9dac804ab"
+    },
+    {
+      "name": "recordpage_search",
+      "sql": "CREATE TABLE recordpage_search(record_id TEXT PRIMARY KEY NOT NULL REFERENCES recording_records(id),physical_id TEXT NOT NULL,master_version_id TEXT NOT NULL,completed_at TEXT NOT NULL,master_text TEXT NOT NULL,media_brand_text TEXT NOT NULL,media_series_text TEXT NOT NULL,track_text TEXT NOT NULL,artist_text TEXT NOT NULL,artist_display TEXT NOT NULL,equipment_text TEXT NOT NULL,query_text TEXT NOT NULL,record_content_hash TEXT NOT NULL,plan_content_hash TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "record_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "physical_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "master_version_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "completed_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "master_text",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "media_brand_text",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 6,
+          "name": "media_series_text",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 7,
+          "name": "track_text",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 8,
+          "name": "artist_text",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 9,
+          "name": "artist_display",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 10,
+          "name": "equipment_text",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 11,
+          "name": "query_text",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 12,
+          "name": "record_content_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 13,
+          "name": "plan_content_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "1f7a6a44d161d2b17d7118580d0c51da9ca87c3cb47052ce5aa19596a86d52c2",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "28d34ff973d800bb6678babd13f40e9a9a582b91705b0f86cc1b66f8ede25d68"
+    },
+    {
+      "name": "reference_catalog_heads",
+      "sql": "CREATE TABLE reference_catalog_heads(book_id TEXT PRIMARY KEY,current_revision_id TEXT NOT NULL REFERENCES reference_catalog_revisions(id)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "book_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "current_revision_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "5bf937bd9da9a60c939aab3a91cb1239f0559c2efd8b2b87a27d4324b34549fc",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "5b47bdb03adf7a714f93d31852268b8d433117ea8233a91fe9fdc9b79f9fdf5d"
+    },
+    {
+      "name": "reference_catalog_ledger",
+      "sql": "CREATE TABLE reference_catalog_ledger(command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,kind TEXT NOT NULL,result TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "kind",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "d9aaf5098f32ed240e4cdc5345841133290136d59fe681ac4d3bdb20c39a5a5c",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "a62cf6ac132055444d9833bb14ec1b123fbf0a6e17ae0a5bd58be463b26cb9af"
+    },
+    {
+      "name": "reference_catalog_matches",
+      "sql": "CREATE TABLE reference_catalog_matches(revision_id TEXT PRIMARY KEY REFERENCES reference_catalog_revisions(id),version INTEGER NOT NULL CHECK(version>=0),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "revision_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "version",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "edc9638f9fc78e90ca6238296cbed2a14388ccc42cf752cc77b7236bc3751605",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "2c2eb9c1f7c2e0c7dd610dd1ec13c33ce290bb2233e860da9cb84a29dca74462"
+    },
+    {
+      "name": "reference_catalog_revisions",
+      "sql": "CREATE TABLE reference_catalog_revisions(id TEXT PRIMARY KEY,book_id TEXT NOT NULL,source_id TEXT NOT NULL REFERENCES reference_sources(id),sequence INTEGER NOT NULL,previous_id TEXT REFERENCES reference_catalog_revisions(id),data TEXT NOT NULL,UNIQUE(book_id,sequence)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "book_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "source_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "sequence",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "previous_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "bbe0e931a62ed3a5ab9ff37d1baf481f7511cffd5e3ea6325a37d8a501c555fe",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "b95175ca03a44ec37e247901389ae2a1cbdd980739993307405539d7743c1b83"
+    },
+    {
+      "name": "reference_catalog_snapshots",
+      "sql": "CREATE TABLE reference_catalog_snapshots(id TEXT PRIMARY KEY,revision_id TEXT NOT NULL REFERENCES reference_catalog_revisions(id),match_version INTEGER NOT NULL CHECK(match_version>=0),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "revision_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "match_version",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "4b017cf5b66e688663c042fa76aa8da20d5f3011872a38734c5019a7a6bdc062",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "414b0c2327df725a6d06bcf15a10d4f453fd59fc4687c949dc2144176f84218c"
+    },
+    {
+      "name": "reference_source_zip_receipts",
+      "sql": "CREATE TABLE reference_source_zip_receipts(id TEXT PRIMARY KEY,source_id TEXT NOT NULL REFERENCES reference_sources(id),zip_hash TEXT NOT NULL,zip_bytes INTEGER NOT NULL,entry_name TEXT NOT NULL,raw_pack_hash TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(source_id,zip_hash)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "source_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "zip_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "zip_bytes",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "entry_name",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "raw_pack_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 6,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "e5456c51e3a68c94673179be1bcc507b0eda3642200138c20abe06f350af511f",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "5af31710c24a674f2e50416fb494d48cc1949914abc3d6531eb56e50c0e92f95"
+    },
+    {
+      "name": "reference_sources",
+      "sql": "CREATE TABLE reference_sources(id TEXT PRIMARY KEY,book_id TEXT NOT NULL,pack_hash TEXT NOT NULL,raw_pack TEXT NOT NULL,data TEXT NOT NULL,UNIQUE(book_id,pack_hash)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "book_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "pack_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "raw_pack",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "ba0fac23134fe725bfdea09152185fc5718d30756dbba6524cbaea837d95df0d",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "6bc7552e95b00fe62ee58c2a3b81ef6c0be997213ac8bf19e6ab6ac372ae3730"
+    },
+    {
+      "name": "source_bindings",
+      "sql": "CREATE TABLE source_bindings (id TEXT PRIMARY KEY,data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "fc8a6b0682559d77947e0da887385a3abe69e500f4112a5f841290390e870885",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "6e559a10d6dc059e8c744f7fc573f43ab365ac1935ff00b02f2e4c68d13a37af"
+    },
+    {
+      "name": "source_jobs",
+      "sql": "CREATE TABLE source_jobs (id TEXT PRIMARY KEY,data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "fc8a6b0682559d77947e0da887385a3abe69e500f4112a5f841290390e870885",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "281d497c6879cc16495227443e2151cba74a25890688398e7fcc2fa269802358"
+    },
+    {
+      "name": "source_ledger",
+      "sql": "CREATE TABLE source_ledger (command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "153130ae56121caeb1b239db95c6e7bd800490fd3b1012d6eb86d852d9b3acb3",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "5d420b69e2923e9839a9e2726ed09181a69d21e36c7310159bffd19d40118353"
+    },
+    {
+      "name": "source_roots",
+      "sql": "CREATE TABLE source_roots (id TEXT PRIMARY KEY,data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "fc8a6b0682559d77947e0da887385a3abe69e500f4112a5f841290390e870885",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "e3c7d775b44861703b99a775801327e6e044a7dbec7ae3101ea1e79fe8f5f3c8"
+    },
+    {
+      "name": "spreadsheet_adjustments",
+      "sql": "CREATE TABLE spreadsheet_adjustments(id TEXT PRIMARY KEY,revision_id TEXT NOT NULL REFERENCES spreadsheet_revisions(id),row_id TEXT NOT NULL REFERENCES spreadsheet_rows(id),effect_id TEXT NOT NULL REFERENCES spreadsheet_effects(id),legacy_delta INTEGER NOT NULL,unknown_delta INTEGER NOT NULL,data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "revision_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "row_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "effect_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "legacy_delta",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "unknown_delta",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 6,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "a272148445c89e60812eabfeb61b8f1c027d309b870af90ace3d8a23c6356046",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "cfe0ca90a2fd1c3747f92dfc919b974a5c9d88b07c8eea741b37e3210939f94b"
+    },
+    {
+      "name": "spreadsheet_effects",
+      "sql": "CREATE TABLE spreadsheet_effects(id TEXT PRIMARY KEY,lot_id TEXT NOT NULL UNIQUE REFERENCES inventory_lots(id),model_id TEXT NOT NULL REFERENCES collection_models(id),command_id TEXT NOT NULL UNIQUE REFERENCES inventory_ledger(command_id),quantity INTEGER NOT NULL,legacy INTEGER NOT NULL,unknown INTEGER NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "lot_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "model_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "quantity",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "legacy",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 6,
+          "name": "unknown",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "737ddd32289585ce430d6106f745d9865d4d52f57b13242db0a2a69aa36762ee",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "f583cf084628a3f96c7ff6aa6a375b4f80ffd558f55cdb27ae99d7496e91b004"
+    },
+    {
+      "name": "spreadsheet_heads",
+      "sql": "CREATE TABLE spreadsheet_heads(lineage_id TEXT PRIMARY KEY,current_id TEXT NOT NULL REFERENCES spreadsheet_revisions(id)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "lineage_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "current_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "41457f8b2687b73c3cf96c4540a97e44afa6bbddaff952b6c08148ef404d1094",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "88b4b5f406d8f391e8f399ebca102c32bd982ab879d26ec00a6d48ea39b89f8a"
+    },
+    {
+      "name": "spreadsheet_ledger",
+      "sql": "CREATE TABLE spreadsheet_ledger(command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,kind TEXT NOT NULL,result TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "kind",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "d9aaf5098f32ed240e4cdc5345841133290136d59fe681ac4d3bdb20c39a5a5c",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "5fd8b41f4eaa5a725aeb2d288cf858a621b167b383f719be503e2b555f1cc56c"
+    },
+    {
+      "name": "spreadsheet_revisions",
+      "sql": "CREATE TABLE spreadsheet_revisions(id TEXT PRIMARY KEY,source_id TEXT NOT NULL REFERENCES spreadsheet_sources(id),sheet_name TEXT NOT NULL,previous_id TEXT REFERENCES spreadsheet_revisions(id),lineage_id TEXT NOT NULL,data TEXT NOT NULL,UNIQUE(source_id,sheet_name)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "source_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "sheet_name",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "previous_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "lineage_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 5,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "fa21153b7525c80c0c7d15e052de3dceee5be4ea7bcf1b5d8b96dae715c25735",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "6119cd53ef693e3bad88b037c5f743b8a9f0c91bec5cdceab0e679341050d1ac"
+    },
+    {
+      "name": "spreadsheet_rows",
+      "sql": "CREATE TABLE spreadsheet_rows(id TEXT PRIMARY KEY,revision_id TEXT NOT NULL REFERENCES spreadsheet_revisions(id),row_index INTEGER NOT NULL,effect_id TEXT REFERENCES spreadsheet_effects(id),data TEXT NOT NULL,UNIQUE(revision_id,row_index)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "revision_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "row_index",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "effect_id",
+          "type": "TEXT",
+          "notnull": 0,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 4,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "d0f518e79de4acfda5f62dba74962c6bd57501bf0a79acfa19aaf14a765c1d08",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "fcabc609fe1943c68ade721ad16a9fbe28edc54514d1519bd7609dd82f008255"
+    },
+    {
+      "name": "spreadsheet_source_rows",
+      "sql": "CREATE TABLE spreadsheet_source_rows(source_id TEXT NOT NULL REFERENCES spreadsheet_sources(id),sheet_name TEXT NOT NULL,row_index INTEGER NOT NULL,data TEXT NOT NULL,PRIMARY KEY(source_id,sheet_name,row_index)) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "source_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "sheet_name",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 2
+        },
+        {
+          "cid": 2,
+          "name": "row_index",
+          "type": "INTEGER",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 3
+        },
+        {
+          "cid": 3,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "1f4a9a60d49d201d9595fdb8ce8c46e7357a17d60bef54230fa2f6d169b8bbd4",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "eb20f4237bb3d463ab55a0cd5b8f2ea02f07f3ef1e50d38c065dc3e6bfab73ec"
+    },
+    {
+      "name": "spreadsheet_sources",
+      "sql": "CREATE TABLE spreadsheet_sources(id TEXT PRIMARY KEY,workbook_hash TEXT NOT NULL UNIQUE,bytes BLOB NOT NULL,data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "workbook_hash",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "bytes",
+          "type": "BLOB",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "e76d78a913405bd26de7c41bbfca0b7b6a1cf542fd400c6dce7b910463b42109",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "98f38c76b73aa012e8dfe86e46b01004acd1c12c904421ac78e351d5f9a33b2a"
+    },
+    {
+      "name": "version_jobs",
+      "sql": "CREATE TABLE version_jobs (id TEXT PRIMARY KEY,draft_id TEXT NOT NULL REFERENCES master_drafts(id),data TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "draft_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "data",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "91798078a6339b52f59626a0faaefc64c9518105b455ae798bb78466c80269ef",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "5a6b73a6dfaf789e2c3c61870e7c17ad43d7e0e462c951728961caf29024738f"
+    },
+    {
+      "name": "version_ledger",
+      "sql": "CREATE TABLE version_ledger (command_id TEXT PRIMARY KEY,fingerprint TEXT NOT NULL,result TEXT NOT NULL,created_at TEXT NOT NULL) STRICT",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "command_id",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 1
+        },
+        {
+          "cid": 1,
+          "name": "fingerprint",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 2,
+          "name": "result",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        },
+        {
+          "cid": 3,
+          "name": "created_at",
+          "type": "TEXT",
+          "notnull": 1,
+          "dflt_value": null,
+          "pk": 0
+        }
+      ],
+      "rows": [],
+      "rowCount": 0,
+      "columnsSha256": "153130ae56121caeb1b239db95c6e7bd800490fd3b1012d6eb86d852d9b3acb3",
+      "rowsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "schemaSqlSha256": "ff7f081b6f9a3c1368ca44801e1fc1c40fc834cff4418d65d12ecb2c2d72ab63"
+    }
+  ],
+  "apiResults": {
+    "requests": [
+      {
+        "commandId": "11111111-1111-4111-8111-111111111111",
+        "model": {
+          "brand": "合成夹具",
+          "name": "schema30固定磁带",
+          "edition": "1990",
+          "year": 1990,
+          "format": "cassette",
+          "tapeType": "II",
+          "identification": "verified"
+        },
+        "lengthMinutes": 90,
+        "quantities": {
+          "sealedBlank": 8,
+          "openedBlank": 2,
+          "legacyUsed": 1,
+          "unclassified": 3
+        }
+      },
+      {
+        "commandId": "22222222-2222-4222-8222-222222222222",
+        "model": {
+          "brand": "合成夹具",
+          "name": "schema30固定磁带",
+          "edition": "1990",
+          "year": 1990,
+          "format": "cassette",
+          "tapeType": "II",
+          "identification": "verified"
+        },
+        "lengthMinutes": 60,
+        "quantities": {
+          "sealedBlank": 2,
+          "openedBlank": 1,
+          "legacyUsed": 0,
+          "unclassified": 0
+        }
+      },
+      {
+        "commandId": "33333333-3333-4333-8333-333333333333",
+        "model": {
+          "brand": "合成夹具",
+          "name": "schema30固定磁带",
+          "edition": "1992",
+          "year": 1992,
+          "format": "cassette",
+          "tapeType": "II",
+          "identification": "verified"
+        },
+        "lengthMinutes": 90,
+        "quantities": {
+          "sealedBlank": 1,
+          "openedBlank": 0,
+          "legacyUsed": 0,
+          "unclassified": 0
+        }
+      }
+    ],
+    "received": [
+      {
+        "modelId": "a89c76c3-e02b-48a2-b364-746cc83a864b",
+        "lotId": "5487799f-fb32-4307-a35f-8722b05efdfc"
+      },
+      {
+        "modelId": "a89c76c3-e02b-48a2-b364-746cc83a864b",
+        "lotId": "0dff82ef-f581-401b-9811-88e06e20af03"
+      },
+      {
+        "modelId": "82f61983-94d6-49fe-a197-183cf1150617",
+        "lotId": "4e77c2ec-fa42-4aca-87fe-e439e8ca364e"
+      }
+    ],
+    "materialized": {
+      "modelId": "a89c76c3-e02b-48a2-b364-746cc83a864b",
+      "lotId": "5487799f-fb32-4307-a35f-8722b05efdfc",
+      "physicalId": "MB-C-00001"
+    },
+    "policy": {
+      "modelId": "a89c76c3-e02b-48a2-b364-746cc83a864b"
+    },
+    "listed": {
+      "items": [
+        {
+          "brand": "合成夹具",
+          "name": "schema30固定磁带",
+          "edition": "1992",
+          "year": 1992,
+          "format": "cassette",
+          "tapeType": "II",
+          "identification": "verified",
+          "id": "82f61983-94d6-49fe-a197-183cf1150617",
+          "collectorPolicy": "normal",
+          "minimumSealedReserve": 0,
+          "revision": 1,
+          "lengths": [
+            90
+          ],
+          "counts": {
+            "total": 1,
+            "sealedBlank": 1,
+            "openedBlank": 0,
+            "legacyUsed": 0,
+            "unknown": 0,
+            "recorded": 0,
+            "reserved": 0,
+            "unavailable": 0
+          },
+          "photoCount": 0
+        },
+        {
+          "brand": "合成夹具",
+          "name": "schema30固定磁带",
+          "edition": "1990",
+          "year": 1990,
+          "format": "cassette",
+          "tapeType": "II",
+          "identification": "verified",
+          "id": "a89c76c3-e02b-48a2-b364-746cc83a864b",
+          "collectorPolicy": "preserve-sealed",
+          "minimumSealedReserve": 2,
+          "revision": 2,
+          "lengths": [
+            60,
+            90
+          ],
+          "counts": {
+            "total": 17,
+            "sealedBlank": 9,
+            "openedBlank": 4,
+            "legacyUsed": 1,
+            "unknown": 3,
+            "recorded": 0,
+            "reserved": 0,
+            "unavailable": 0
+          },
+          "photoCount": 0
+        }
+      ],
+      "offset": 0,
+      "limit": 100,
+      "total": 2,
+      "hasMore": false
+    },
+    "details": [
+      {
+        "model": {
+          "brand": "合成夹具",
+          "name": "schema30固定磁带",
+          "edition": "1990",
+          "year": 1990,
+          "format": "cassette",
+          "tapeType": "II",
+          "identification": "verified",
+          "id": "a89c76c3-e02b-48a2-b364-746cc83a864b",
+          "collectorPolicy": "preserve-sealed",
+          "minimumSealedReserve": 2,
+          "revision": 2,
+          "lengths": [
+            60,
+            90
+          ],
+          "counts": {
+            "total": 17,
+            "sealedBlank": 9,
+            "openedBlank": 4,
+            "legacyUsed": 1,
+            "unknown": 3,
+            "recorded": 0,
+            "reserved": 0,
+            "unavailable": 0
+          },
+          "photoCount": 0
+        },
+        "photos": [],
+        "lots": {
+          "items": [
+            {
+              "id": "0dff82ef-f581-401b-9811-88e06e20af03",
+              "skuId": "a05e1f60-179f-4d68-bb20-57ca5e3cffe7",
+              "lengthMinutes": 60,
+              "quantityAcquired": 3,
+              "quantityAdjustment": 0,
+              "quantities": {
+                "sealedBlank": 2,
+                "openedBlank": 1,
+                "legacyUsed": 0,
+                "unclassified": 0
+              }
+            },
+            {
+              "id": "5487799f-fb32-4307-a35f-8722b05efdfc",
+              "skuId": "86fe3ded-270a-4b04-b0e6-092bc57ff526",
+              "lengthMinutes": 90,
+              "quantityAcquired": 14,
+              "quantityAdjustment": 0,
+              "quantities": {
+                "sealedBlank": 7,
+                "openedBlank": 2,
+                "legacyUsed": 1,
+                "unclassified": 3
+              }
+            }
+          ],
+          "offset": 0,
+          "limit": 100,
+          "total": 2,
+          "hasMore": false
+        },
+        "copies": {
+          "items": [
+            {
+              "physicalId": "MB-C-00001",
+              "lotId": "5487799f-fb32-4307-a35f-8722b05efdfc",
+              "skuId": "86fe3ded-270a-4b04-b0e6-092bc57ff526",
+              "lengthMinutes": 90,
+              "packaging": "opened",
+              "usage": "blank",
+              "available": true,
+              "origin": "blank-pool",
+              "revision": 1
+            }
+          ],
+          "offset": 0,
+          "limit": 100,
+          "total": 1,
+          "hasMore": false
+        }
+      },
+      {
+        "model": {
+          "brand": "合成夹具",
+          "name": "schema30固定磁带",
+          "edition": "1992",
+          "year": 1992,
+          "format": "cassette",
+          "tapeType": "II",
+          "identification": "verified",
+          "id": "82f61983-94d6-49fe-a197-183cf1150617",
+          "collectorPolicy": "normal",
+          "minimumSealedReserve": 0,
+          "revision": 1,
+          "lengths": [
+            90
+          ],
+          "counts": {
+            "total": 1,
+            "sealedBlank": 1,
+            "openedBlank": 0,
+            "legacyUsed": 0,
+            "unknown": 0,
+            "recorded": 0,
+            "reserved": 0,
+            "unavailable": 0
+          },
+          "photoCount": 0
+        },
+        "photos": [],
+        "lots": {
+          "items": [
+            {
+              "id": "4e77c2ec-fa42-4aca-87fe-e439e8ca364e",
+              "skuId": "9aa0c81e-cc57-49f0-99d3-1ca29ce683e8",
+              "lengthMinutes": 90,
+              "quantityAcquired": 1,
+              "quantityAdjustment": 0,
+              "quantities": {
+                "sealedBlank": 1,
+                "openedBlank": 0,
+                "legacyUsed": 0,
+                "unclassified": 0
+              }
+            }
+          ],
+          "offset": 0,
+          "limit": 100,
+          "total": 1,
+          "hasMore": false
+        },
+        "copies": {
+          "items": [],
+          "offset": 0,
+          "limit": 100,
+          "total": 0,
+          "hasMore": false
+        }
+      }
+    ]
+  }
+}

@@ -1,3 +1,4 @@
+import { LOCAL_CATALOG_OUTBOX_COMMANDS, isLocalCatalogCommandPayload, isLocalCatalogCommandResult, type LocalCatalogCommandPayloads, type LocalCatalogCommandResults } from './local-catalog.js';
 import { isFreezeRecordingPlanRequest, isRecordingPlanVersion } from './recording-plans.js';
 import { isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookSource, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, type ChooseSpreadsheetWorkbookRequest, type SpreadsheetWorkbookSource } from './spreadsheet-import.js';
 import { isSaveWantEntryRequest, isCancelWantEntryRequest, isCaptureCollectionProgressRequest, isWantEntry, isCollectionProgressSnapshotSummary } from './collection-progress.js';
@@ -25,6 +26,7 @@ import { isActivateRestoredDataset, isRestoreActivationView, type ActivateRestor
 
 /** 只允许原有公开领域写命令，不能从任意 IPC 名称推导重放权限。 */
 export const COMMAND_OUTBOX_COMMANDS = [
+  ...LOCAL_CATALOG_OUTBOX_COMMANDS,
   'collectionProgress.saveWant', 'collectionProgress.cancelWant', 'collectionProgress.capture',
   'spreadsheetImports.apply', 'spreadsheetImports.adjust',
   'referenceCatalog.registerSource', 'referenceCatalog.registerSourceZip', 'referenceCatalog.publishRevision', 'referenceCatalog.setMatch',
@@ -54,6 +56,13 @@ export type CommandOutboxSpecialCommand = typeof COMMAND_OUTBOX_SPECIAL_COMMANDS
 export type CommandOutboxTrackedCommand = CommandOutboxCommand | CommandOutboxSpecialCommand;
 /** 复用叶级领域验证器；不反向导入总 IPC validator，避免运行时模块循环。 */
 const ordinaryValidators = {
+  'localCatalog.createTrack': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.createTrack'] => isLocalCatalogCommandPayload('localCatalog.createTrack', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.createTrack'] => isLocalCatalogCommandResult('localCatalog.createTrack', v)],
+  'localCatalog.selectAsset': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.selectAsset'] => isLocalCatalogCommandPayload('localCatalog.selectAsset', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.selectAsset'] => isLocalCatalogCommandResult('localCatalog.selectAsset', v)],
+  'localCatalog.createEdition': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.createEdition'] => isLocalCatalogCommandPayload('localCatalog.createEdition', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.createEdition'] => isLocalCatalogCommandResult('localCatalog.createEdition', v)],
+  'localCatalog.linkEditionTrack': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.linkEditionTrack'] => isLocalCatalogCommandPayload('localCatalog.linkEditionTrack', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.linkEditionTrack'] => isLocalCatalogCommandResult('localCatalog.linkEditionTrack', v)],
+  'localCatalog.removeEditionTrack': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.removeEditionTrack'] => isLocalCatalogCommandPayload('localCatalog.removeEditionTrack', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.removeEditionTrack'] => isLocalCatalogCommandResult('localCatalog.removeEditionTrack', v)],
+  'localCatalog.overrideMetadata': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.overrideMetadata'] => isLocalCatalogCommandPayload('localCatalog.overrideMetadata', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.overrideMetadata'] => isLocalCatalogCommandResult('localCatalog.overrideMetadata', v)],
+
   'collectionProgress.saveWant': [isSaveWantEntryRequest, isWantEntry],
   'collectionProgress.cancelWant': [isCancelWantEntryRequest, isWantEntry],
   'collectionProgress.capture': [isCaptureCollectionProgressRequest, isCollectionProgressSnapshotSummary],

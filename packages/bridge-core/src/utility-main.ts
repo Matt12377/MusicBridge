@@ -1,4 +1,5 @@
-import { dispatchDatasetCommand } from './collection/dataset-dispatch.js';
+import { isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcInternalRequest } from '@music-bridge/contracts';
+import { dispatchDatasetCommand, dispatchInternalDatasetCommand } from './collection/dataset-dispatch.js';
 import { createDatasetRoonProjectionGateway } from './collection/dataset-roon-projection.js';
 import { isDatasetCommand, DatasetOwnerDispatchError, type DatasetOwnerEndpoint, type DatasetOwnerIdentity, type DatasetOwnerProjectionHandler } from './collection/dataset-owner-protocol.js';
 import { failureForError, responseFailure } from './shared/ipc-failure.js';
@@ -102,6 +103,13 @@ async function dispatch(
   runtime: CoreRuntimeForIpc,
   request: IpcRequest,
 ): Promise<unknown> {
+  if (isLocalCatalogInternalCommand(request.command)) {
+    if (runtime.datasetOwnerEndpoint) {
+      if (!runtime.datasetOwnerEndpoint.dispatchInternal) throw new DatasetOwnerDispatchError(responseFailure(request.id, 'NOT_READY', '可信观察入口未就绪。'));
+      return runtime.datasetOwnerEndpoint.dispatchInternal(request);
+    }
+    return dispatchInternalDatasetCommand(runtime, request);
+  }
   if (isDatasetCommand(request.command)) {
     return runtime.datasetOwnerEndpoint
       ? runtime.datasetOwnerEndpoint.dispatch(request)
@@ -352,6 +360,7 @@ async function dispatch(
 }
 
 function validateRoutedIpcRequest(runtime: CoreRuntimeForIpc, input: unknown) {
+  if (isRecord(input) && isLocalCatalogCommand(input.command)) return isLocalCatalogInternalCommand(input.command) ? validateIpcInternalRequest(input) : validateIpcRequest(input);
   if (runtime.datasetOwnerEndpoint && isRecord(input) && isDatasetCommand(input.command) && isRecord(input.payload)) {
     // 仅用原core.ping合同核小信封；原领域命令和完整payload由owner再执行原完整validator。
     // 数据集命令不在library read白名单，readContext仍由原validator拒绝。

@@ -2,6 +2,8 @@
 
 ## Owner 授权的 PostRust v1.2 隔离接续（2026-10-04）
 
+当前 [MBRS-002](MBRS-002_LOCAL_SOURCE_CONTRACTS.md) 从001最终报告 `f34dd904` 接续：schema31与唯一Node作者的本地音源合同已完成有限软件验证，67项自动Gate全部通过，完整回归4142通过/2既有条件跳过，两路正式审查已完成。原11AT登记7项有限软件PASS、4项PARTIAL，实现/报告提交与自然CI交付进行中；扫描/队列持久化及播放器接线归003/006/007，App/live/Owner未测试。以下000/015旧G0文字为历史基线，当前有限G0为R16新记录ADMITTED。
+
 当前 [RUST-016](RUST-016-ci-security-portability.md) 已通过限定软件与实际CI Gate，实现最终 `043a5635`；[结果报告](../reports/RUST-016_CI_SECURITY_PORTABILITY.md) 独立提交，报告交付远端身份已核；有限G0新记录已落地，最终证据round2随后从外置收据解析。完整Rust迁移、live与Owner另保留。
 
 从 RUST-015 最终报告 `044e6b24edf81b64030d4c96741082670532971c` 接手；[MBRS-000](MBRS-000-baseline-admission.md) 先交付真实基线、唯一 writer、代码复用及全部 Rust 剩余主责。基线记录可交付而产品 G0 继续 NOT_ADMITTED；已授权隔离合同/纯规则/合成 HTTP/安全离线修复继续，真实动作按具体准入处理。

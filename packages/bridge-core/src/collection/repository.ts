@@ -27,6 +27,7 @@ import { mediaPlanningMigration, createMediaPlanningStore, type MediaPlanningSto
 import type { MediaStockCandidate } from '../recording/media-planner.js';
 import type { MediaReservation, ReserveMediaRequest, ReleaseMediaRequest } from '@music-bridge/contracts';
 import { sourceEvidenceMigration, createSourceStore, type SourceStore } from '../recording/source-store.js';
+import { localCatalogMigration, verifyLocalCatalogDatabase, createLocalCatalogStore, type LocalCatalogStore } from './local-catalog-store.js';
 import { masterDraftsMigration, createMasterDraftsRepository, type MasterDraftsRepository } from '../recording/drafts.js';
 import { recordingWorkspaceMigration, createRecordingWorkspaceStore, verifyRecordingWorkspaceDatabase, type RecordingWorkspaceStore } from '../recording/workspace-context-store.js';
 import { physicalLinksMigration, createPhysicalLinksRepository, type PhysicalLinksRepository } from './physical-links.js';
@@ -59,6 +60,7 @@ const conflict = (message: string): never => { throw new CollectionError('INVENT
 const unavailable = (): never => { throw new CollectionError('INVENTORY_UNAVAILABLE', '库存暂时不可用，请重试；现有数据不会被自动清除。'); };
 
 export interface CollectionRepository {
+  localCatalog: LocalCatalogStore;
   recordingRecords: RecordingRecordStore;
   recordingPrints: RecordingPrintStore;
   recordingAttempts: RecordingAttemptStore;
@@ -222,17 +224,17 @@ export function createCollectionRepository(options: { filePath: string; stagingR
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30].includes(version)) return unavailable();
+      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version < 30) {
+      if (version < 31) {
         // 重建被其他表引用的批次表：事务外暂关检查，提交前核验，退出时始终恢复。
         db.exec('PRAGMA foreign_keys=OFF');
         db.exec('BEGIN IMMEDIATE');
         try {
           // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
           const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30].includes(currentVersion)) return unavailable();
+          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31].includes(currentVersion)) return unavailable();
           if (currentVersion === 0) db.exec(schema);
           if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
           if (currentVersion < 3) { db.exec(physicalMusicMigration); options.beforeCommit?.('migrate-music'); }
@@ -263,6 +265,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
           if (currentVersion < 28) { db.exec(referenceCatalogZipMigration); options.beforeCommit?.('migrate-reference-source-zips'); }
           if (currentVersion < 29) { migrateRecordingRecordPageSearch(db); options.beforeCommit?.('migrate-recording-record-page-search'); }
           if (currentVersion < 30) { db.exec(preparationZipSessionMigration); options.beforeCommit?.('migrate-preparation-zip-session'); }
+          if (currentVersion < 31) { db.exec(localCatalogMigration); verifyLocalCatalogDatabase(db); options.beforeCommit?.('migrate-local-catalog'); }
           if (db.prepare('PRAGMA foreign_key_check').get()) return unavailable();
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
@@ -271,6 +274,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
       db.exec('BEGIN IMMEDIATE');
       try {
         verifyVersionDistributionDatabase(db); verifyRecordingRecordDatabase(db); verifyRecordingWorkspaceDatabase(db); verifyCommercialProvenanceDatabase(db); verifyOutputRunBarrierDatabase(db); verifyPreparationZipDatabase(db); verifyRecordingRecordPageIndex(db); verifyReferenceCatalogZipDatabase(db); verifyRecordingRecordPageSearch(db); verifyPreparationZipSessionDatabase(db); recoverRecordingPrints(db);
+        verifyLocalCatalogDatabase(db);
         const attemptCandidate = recoverRecordingAttempts(db, new Date().toISOString(), options.beforeCommit ? undefined : attemptAudit);
         options.beforeCommit?.('recover-recording-attempts'); db.exec('COMMIT');
         if (!options.beforeCommit) attemptAudit.publish(db, attemptCandidate);
@@ -533,9 +537,11 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   }
 
   const music = createPhysicalMusicRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
+  const sources = createSourceStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const links = createPhysicalLinksRepository({ read: guarded, conflict, unavailable, music, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const media = createMediaPlanningStore({ read: guarded, conflict, unavailable, stock: mediaStock, stockOne: mediaStockOne, reservationStock: reservedMediaStock, reserve: reserveMediaStock, release: releaseMediaStock, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   return {
+    localCatalog: createLocalCatalogStore({ read: guarded, sources, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingPrints: createRecordingPrintStore({ read: guarded, objectCertificates, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingRecords: createRecordingRecordStore({ read: guarded, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingAttempts: createRecordingAttemptStore({ read: guarded, attemptAudit, objectCertificates, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
@@ -554,7 +560,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
     preparationZips: createPreparationZipStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     versions: createMasterVersionsStore({ read: guarded, conflict, media, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     media,
-    sources: createSourceStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
+    sources,
     drafts: createMasterDraftsRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     workspace: createRecordingWorkspaceStore({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     readonlySnapshotStamp() {

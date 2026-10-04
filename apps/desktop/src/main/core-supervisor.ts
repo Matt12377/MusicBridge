@@ -10,6 +10,7 @@ import {
   validateIpcInternalResponseForCommand,
   validateIpcResponseForCommand,
   validateIpcRequest,
+  validateIpcInternalRequest,
   type IpcCommand,
   type IpcCommandPayloads,
   type IpcCommandResults,
@@ -271,7 +272,7 @@ export class CoreSupervisor {
     const deadlineAtMs = isLibraryReadCommand(command) ? Math.min(Date.now() + timeoutMs, read?.deadlineAtMs ?? Infinity) : undefined
     if (deadlineAtMs !== undefined && deadlineAtMs <= Date.now()) { performanceSpan?.end('cancelled'); throw new CoreIpcError('TIMEOUT', '读取期限已到') }
     const request = { version: IPC_VERSION, id, command, payload, ...(deadlineAtMs === undefined ? {} : { readContext: { deadlineAtMs, ...(read?.cacheMode !== undefined ? { cacheMode: read.cacheMode } : {}) } }), ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }), ...(traceContext ? { performanceTrace: traceContext } : {}) }
-    const validated = validateIpcRequest(request)
+    const validated = internal ? validateIpcInternalRequest(request) : validateIpcRequest(request)
     if (!validated.ok) {
       performanceSpan?.end('error')
       throw new CoreIpcError(validated.error.code, validated.error.message)

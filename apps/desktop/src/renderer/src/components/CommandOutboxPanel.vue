@@ -13,6 +13,12 @@ const state = shallowRef(controller.state)
 const entries = computed(() => state.value.overview?.entries.filter((item) => !item.acknowledged && item.state !== 'dismissed') ?? [])
 const visibleEntries = computed(() => entries.value.slice(0, visibleCount.value))
 const labels: Record<CommandOutboxTrackedCommand, string> = {
+  'localCatalog.createTrack': '创建本地曲目',
+  'localCatalog.selectAsset': '更换本地曲目资产',
+  'localCatalog.createEdition': '创建本地专辑发行版',
+  'localCatalog.linkEditionTrack': '关联发行版曲目',
+  'localCatalog.removeEditionTrack': '移除发行版曲目关联',
+  'localCatalog.overrideMetadata': '保存本地人工元数据',
   'collectionProgress.saveWant': '保存求购目标', 'collectionProgress.cancelWant': '取消求购目标', 'collectionProgress.capture': '保存完成度快照',
   'spreadsheetImports.chooseWorkbook': '选择Excel工作簿', 'spreadsheetImports.apply': '确认Excel导入修订', 'spreadsheetImports.adjust': '确认Excel库存数量更正',
   'referenceCatalog.registerSource': '登记参考资料版本', 'referenceCatalog.registerSourceZip': '登记参考资料 ZIP 来源', 'referenceCatalog.publishRevision': '发布参考目录修订', 'referenceCatalog.setMatch': '确认目录关联与缺失状态',

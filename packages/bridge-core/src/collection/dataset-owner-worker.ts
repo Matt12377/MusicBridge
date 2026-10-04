@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { MessagePort } from 'node:worker_threads';
-import { validateIpcRequest, type IpcCommand, type IpcFailure } from '@music-bridge/contracts';
+import { validateIpcRequest, validateIpcInternalRequest, isLocalCatalogInternalCommand, type IpcCommand, type IpcFailure } from '@music-bridge/contracts';
 import { failureForError, responseFailure } from '../shared/ipc-failure.js';
 import {
   DATASET_OWNER_PROTOCOL_VERSION, DatasetOwnerDispatchError, DatasetOwnerTransportError,
@@ -203,11 +203,15 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
       } catch (error) { reject(request, error); }
       return;
     }
-    const checked = validateIpcRequest(request.request);
+    const internal = request.operation === 'dispatchInternal';
+    const checked = internal ? validateIpcInternalRequest(request.request) : validateIpcRequest(request.request);
     if (!checked.ok) { reject(request, new DatasetOwnerDispatchError({ version: 1, id: request.request!.id, ok: false, error: checked.error })); return; }
     // 不等待整个异步命令才接收下一条；同步SQL仍完整地在同一个owner线程执行。
     let dispatch: Promise<unknown>;
-    try { dispatch = Promise.resolve(domain.dispatch(checked.value)); }
+    try {
+      if (internal && (!isLocalCatalogInternalCommand(checked.value.command) || !domain.dispatchInternal)) throw new DatasetOwnerDispatchError(responseFailure(checked.value.id, 'INVALID_IPC_REQUEST', '可信观察入口未就绪。'));
+      dispatch = Promise.resolve(internal ? domain.dispatchInternal!(checked.value) : domain.dispatch(checked.value));
+    }
     catch (error) { reject(request, error); return; }
     dispatches.add(dispatch);
     try { reply(request, await dispatch); } catch (error) { reject(request, error); }

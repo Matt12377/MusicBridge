@@ -32,7 +32,7 @@ test('固定旧schema14迁移为当前schema28，库存/照片/永久编号和�
   repository.close();
   const after = new DatabaseSync(filePath, { readOnly: true });
   try {
-    assert.equal(after.prepare('PRAGMA user_version').get()?.user_version, 30);
+    assert.equal(after.prepare('PRAGMA user_version').get()?.user_version, 31);
     verifyReferenceCatalogDatabase(after);
     verifyReferenceCatalogZipDatabase(after);
     assert.deepEqual(inventoryBytes(after), inventory);
@@ -54,7 +54,7 @@ test('schema14目录迁移提交前中断回滚整个迁移，冷开可再次迁
   try { assert.equal(recovered.list(page).items[0]?.counts.total, 5); } finally { recovered.close(); }
   const after = new DatabaseSync(filePath, { readOnly: true });
   try {
-    assert.equal(after.prepare('PRAGMA user_version').get()?.user_version, 30);
+    assert.equal(after.prepare('PRAGMA user_version').get()?.user_version, 31);
     verifyReferenceCatalogDatabase(after);
     verifyReferenceCatalogZipDatabase(after);
     assert.deepEqual(inventoryBytes(after), inventory);

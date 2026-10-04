@@ -76,6 +76,52 @@ jobs:
           set -o pipefail
           corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:e2e 2>&1 | tee "$RUNNER_TEMP/musicbridge-electron/electron-e2e.log"
 
+      # 仅从本次成功移交收据选择已声明产物；不扫描宿主根或依赖链接。
+      - name: Select declared synthetic Rust Host artifacts
+        id: rust-host-artifacts
+        if: ${{ always() && env.MUSIC_BRIDGE_RUST_HOSTS_RECEIPT != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { readFileSync, realpathSync, appendFileSync } from 'node:fs';
+          import path from 'node:path';
+          import { randomUUID } from 'node:crypto';
+          import { readRustElectronHostsReceipt } from './scripts/ci/rust-electron-host-receipt.mjs';
+          try {
+            const receiptPath = process.env.MUSIC_BRIDGE_RUST_HOSTS_RECEIPT;
+            const receipt = readRustElectronHostsReceipt(receiptPath, realpathSync('.'));
+            const files = [receiptPath, receipt.manifestPath];
+            for (const root of [receipt.mainHostBuildRoot, receipt.collectionHostBuildRoot]) {
+              const manifestPath = path.join(root, 'artifact-manifest.json');
+              const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+              files.push(manifestPath, ...manifest.artifacts.map(item => path.join(root, item.path)));
+            }
+            const unique = [...new Set(files)];
+            for (const file of unique) {
+              // upload-artifact 会解释通配符；拒绝它们以保持逐文件声明闭集。
+              if ([...'*?[]{}!\r\n\0'].some(char => file.includes(char))) throw new Error('不规范路径');
+            }
+            const delimiter = 'MB_HOST_ARTIFACTS_' + randomUUID().replaceAll('-', '');
+            appendFileSync(process.env.GITHUB_OUTPUT, `paths<<${delimiter}\n${unique.join('\n')}\n${delimiter}\n`);
+            console.log(`已选择 ${unique.length} 个本轮声明文件。`);
+          } catch {
+            console.error('本轮合成宿主产物闭集未确认，拒绝上传编译产物。');
+            process.exitCode = 1;
+          }
+          NODE
+
+      - name: Preserve declared synthetic Rust Host compiled artifacts
+        if: ${{ always() && steps.rust-host-artifacts.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-host-compiled-${{ github.sha }}
+          path: ${{ steps.rust-host-artifacts.outputs.paths }}
+          # 只对逐文件声明的专属artifact启用，避免扩大原logs/cache上传范围。
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Preserve Electron logs and synthetic test artifacts
         if: always()
         uses: actions/upload-artifact@v4

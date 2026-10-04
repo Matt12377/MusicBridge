@@ -17,6 +17,7 @@ import { verifyPreparationZipDatabase, verifyPreparationZipSessionDatabase } fro
 import { verifyRecordingRecordPageIndex, verifyRecordingRecordPageSearch } from './record-page-index.js';
 import { verifyReferenceCatalogZipDatabase } from '../collection/reference-catalog-store.js';
 import { verifyVersionDistributionDatabase } from './versions-store.js';
+import { verifyLocalCatalogDatabase } from '../collection/local-catalog-store.js';
 
 export interface OpenCollectionDataset {
   readonly datasetId: string; readonly databaseFile: string; assertIdentity(): void;
@@ -72,7 +73,7 @@ function openRepository(file: string, required: boolean, check: () => void): Col
     try {
       inspection.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
       const version = Number(inspection.prepare('PRAGMA user_version').get()?.user_version);
-      if (!Number.isInteger(version) || version < 1 || version > 30 || inspection.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || inspection.prepare('PRAGMA foreign_key_check').all().length) unavailable();
+      if (!Number.isInteger(version) || version < 1 || version > 31 || inspection.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || inspection.prepare('PRAGMA foreign_key_check').all().length) unavailable();
       if (version >= 8) verifyVersionDistributionDatabase(inspection);
       if (version >= 25) verifyOutputRunBarrierDatabase(inspection);
       if (version >= 26) verifyPreparationZipDatabase(inspection);
@@ -80,6 +81,7 @@ function openRepository(file: string, required: boolean, check: () => void): Col
       if (version >= 28) verifyReferenceCatalogZipDatabase(inspection);
       if (version >= 29) verifyRecordingRecordPageSearch(inspection);
       if (version >= 30) verifyPreparationZipSessionDatabase(inspection);
+      if (version >= 31) verifyLocalCatalogDatabase(inspection);
       inspection.prepare('SELECT id FROM collection_models LIMIT 1').all();
     } finally { inspection.close(); }
   }

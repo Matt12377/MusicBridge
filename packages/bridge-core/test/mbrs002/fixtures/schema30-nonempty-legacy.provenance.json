@@ -1,0 +1,50 @@
+{
+  "schema": "mbrs002.nonempty-schema30-fixture.v1",
+  "synthetic": true,
+  "fixtureSchemaVersion": 30,
+  "originSourceBase": "f34dd904a473893f213a2a894b858c4ddfbf4423",
+  "producerVersionSha256": "de2b5cab67024561fc0a9ecf1afa6d0f6ebbceb376c79fcbff0d71d126468569",
+  "producerNode": "22.23.2",
+  "rawProducerProvenanceSha256": "45a89e9dc5a5136066a1d8d3c0db275f75eaa21fc6c790f0df613337fd28f9f8",
+  "originalSchema20SqlSha256": "8b141f2d158ff74983e57f050688300402112438bfb1a78f2fac31d845363777",
+  "originalSchema20FullFactsSha256": "eb804e4ab5656be139feb469c36c27d2931549b72c4edaef976a8be6df2068fa",
+  "derivation": "EXACT_F34_SCHEMA20_SQL_NATURAL_REPOSITORY20_TO30_PLUS_EXPLICIT_SYNTHETIC_MUSIC_LINK",
+  "baselineTables": 103,
+  "nonemptyCounts": {
+    "recording_plan_versions": 1,
+    "recording_records": 1,
+    "recording_attempts": 1,
+    "recording_attempt_events": 8,
+    "master_versions": 1,
+    "layout_versions": 1,
+    "source_bindings": 3,
+    "source_ledger": 10,
+    "music_releases": 1,
+    "music_ledger": 1,
+    "physical_digital_links": 1,
+    "physical_links_ledger": 1
+  },
+  "files": [
+    {
+      "file": "schema30-nonempty-legacy.sqlite",
+      "bytes": 1228800,
+      "sha256": "5205a95ec06f1d10b87b31731c6d0295dee156ed06567dc7bc9f912d4117da62"
+    },
+    {
+      "file": "schema30-nonempty-full-facts.json",
+      "bytes": 323581,
+      "sha256": "12d87c78f17a2e52251010aaebfe1fbc0ddbe08d3e8fb93d18f4617d18e01154"
+    },
+    {
+      "file": "schema30-nonempty-cold-api.json",
+      "bytes": 120642,
+      "sha256": "f759add15de51f919dedbe413aded78796e6a743ad3c25e2d02aa73037b8fdaa"
+    }
+  ],
+  "frozenPrepared": "EMPTY_NOT_COVERED",
+  "legacyManualContent": "EMPTY_NOT_COVERED",
+  "queue": "OLD_MEMORY_REFERENCES_SEPARATE_006_007",
+  "actualMediaReadWrite": "NOT_RUN",
+  "wholeAT00202": "PARTIAL",
+  "candidateMetadataStatus": "PREPARED_NOT_APPLIED_TO_REPO_NOT_TESTED_IN_CI"
+}

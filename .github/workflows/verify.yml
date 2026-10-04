@@ -61,6 +61,13 @@ jobs:
       - name: Verify isolated MBRS-001 offline POC
         run: node scripts/ci/verify-mbrs001-offline.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs001-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
+      - name: MBRS002 本地合同 Gate
+        timeout-minutes: 8
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/ci/verify-mbrs002-contracts.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs002-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
       - name: Diff whitespace
         run: git diff --check
 

@@ -1,0 +1,53 @@
+# MBRS-002 本地对象、音源合同与存储增量执行范围
+
+原v1.2任务与11AT不改断言/层级。独立分支`codex/mbrs-002-local-source-contracts`，准确base为001最终报告`f34dd904a473893f213a2a894b858c4ddfbf4423`；001实现`c0ad30a9`源CI4workflow/6job全success且新离线artifact已完整核。001报告提交实际CI3workflow/5job与3份artifact已核；源195MB Electron补充ZIP摘要和6份Main记录已核，Host实际编译文件归档仅1/40与1/38。归档字节缺口与真实产品/Owner验收继续独立记录。
+
+本任务由既有连续开发授权与R16有限软件G0覆盖，只合成数据/纯合同/隔离产品源码增量。默认Node、可选Rust收藏只读OFF、library_write_enabled OFF。没有真实用户库、音乐目录、Provider/Core/Zone/发声/安装/main merge/release行为。
+
+## 当前已执行
+
+新树入口准确、初始clean、remote002分支原不存在。Node22.23.2/pnpm10.17.1 frozen install --ignore-scripts退出0，原contracts fresh build退出0。固定schema30合成库来自旧现Repository，1093632B SHA`3cf4fd2319904cf5e683f06b6eec6ef58ae1f3ef8a3ed694cb1fad32e08e2344`，不能由新版重生成或改PRAGMA伪装。首test实际打开外置私有副本，5旧表全部列/行、5行六列账本及旧list/detail完整结果均保持；noEmit0，唯一目标实际30/期望31的1case RED退出1、无skip/cancel/todo。执行前4测试/夹具原件及240基线TS+156 fresh contracts输出已冻结，执行后全无漂移。固定库没有非空录音/frozen/queue事实，不能把该RED升级完整AT02。
+
+## 单写者与分批范围
+
+产品源码唯一writer为ownership_contracts_high（gpt-6.1-sol/high）；root主控（gpt-6.1-sol/max）独占task/metadata/docs/reports/自动Gate并串行完成全部中间测试/整合/普通提交push。CI与证据两角色只读；同一时刻最多3子代理，无派生，两轮正式代码独审以内。
+
+B0仅nested迁移test与schema30固定sqlite/provenance/legacy-facts四文件。B1已放行：collection/repository.ts、recording/restore-dataset-runtime.ts、restore-database.ts、backup-index.ts四旧文件，同owner local-catalog-store.ts、新contracts/local-catalog.ts及index.ts出口；必要nested store/restore/migration行为tests。13旧test中25处“当前迁移目标”30断言改31，固定旧夹具/历史rollback14/18等断言保留。真实schema31必须新表+完整性verify+beforeCommit故障rollback；不能只改版本号。默认collection.v1.sqlite与激活collection.sqlite均演练，新local/raw/override数据恢复保留且SourceStore许可恢复撤销。
+
+B2闭集owner/outbox、B3local请求/private resolver准备、B4旧compact producer/validator/consumer兼容、B5自动Gate/最终交付，按外置已冻结mbrs002-complete-sequence逐批推进。非空旧库迁移已由root实测通过后，B2已允许唯一产品writer将闭集候选应用到仓库：原contracts guard/outbox、DatasetOwner protocol/dispatch/client/worker/domain、既有Utility与Main private supervisor必要叶子及对应行为tests；没有新Renderer handler/preload。B3/B4已完成本轮合同/合成单测与显式unsupported兼容接点；最终自动Gate67项通过，实际生产Controller接线仍归006/007。每次contracts源改动后root新编译并绑定实际dist/index.js与index.d.ts及输出，不能沿旧dist存在判通过。nested tests须显式发现；现core tsconfig.test含test/**/*.ts，但runtime test/*.test.ts不会发现nested。
+
+SourceStore是许可/path/dev/ino唯一权威。LibraryRoot逻辑ID独立SourceRoot许可ID与关联revision；asset/track/segment/edition随机稳定身份，路径/名称/hash/Roon ID不作主键，raw观察与人工override分离。同业务库多表/receipt一短事务、完整body fingerprint拒commandId冲突；维护库与Main outbox各自既有writer，跨库/文件分阶段journal/对账，不承诺全局COMMIT，不重放UNKNOWN。
+
+002不创建第二队列、coordinator、generation counter、publisher或来源真相。公开local请求九字段与target闭集拒URL/path/backend/generation/attempt/session；private local_file明确区分remote upstreamUrl，准备不执行播放动作、不读取真实媒体、不发Playing。旧PlaybackSnapshot位置仍非负safeinteger、compact-v1仅roon/netease；新local未知null不得伪装旧DTO或云来源，兼容无法表达须显式unsupported。
+
+实际播放代际/回调/观察接线归006，旧内存到持久队列引用归007，权威扫描ingest归003，固定FD/Gateway读权限归005；未接部分保留PARTIAL，不用纯guard补integration/security PASS。原11AT整体尚未完整验证；已执行的有效RED与聚焦GREEN分别证明具体行为，不替代其余合同/接线。整体尚未实现提交、报告提交或push。
+
+输入与证据：ROOT为`/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s`；原任务SHA`f5f71eba7c138b412d79d71b1d2009a1b1decd35c1a29d9fbfbc7c82af13c1ac`；已冻结原11AT来自POSTRUST_PLAN/PACK_ACCEPTANCE。ROOT/MBRS002_ISOLATED_ENTRY_IDENTITY_01.json、MBRS002_B0_ROOT_PREEXECUTION_FREEZE_01.json、MBRS002_MEANINGFUL_SCHEMA30_RED_01.json逐字节SHA原件可核。旧000当前G0比较器继承差异保留，历史seal与脚本不改，002增量Gate绑定final001 base与实际src/dist，不添加宽豁免。
+
+## B2 owner、outbox与单次读取的实际证据
+
+当前36项聚焦测试全部通过：B1 19项、B2 13项、非空旧库迁移1项和同一固定读取预算测试3项。root重新编译53份contracts源码，159份实际产物均在本次编译启动后写入；contracts/core/desktop类型检查及真实编译出口检查均退出0。581声明输入与159新产物执行前后相同，无fail/skip/cancel/todo。收据ROOT/MBRS002_B2_READBUDGET_ROOT_GREEN_RECEIPT_01.json，14604B SHA`5df2dc294482b4c1a10ad767e17e1ed3442add8f8fa54fafcda15a48f5897646`；该身份范围为声明输入，不声称完整传递依赖闭包。
+
+B2闭集22命令沿实际DatasetOwnerWorker dispatch，六个可信观察被普通入口拒绝，scope/epoch/close门禁保留。两种UNKNOWN故障分别覆盖commit-before-reply worker退出与Main成功回执落盘故障；冷重启后零自动发送，未经确认重试拒绝，显式同body重试仅一份业务/ledger。supervisor私有端口用受控Fake证明入口拒绝，未操作真实App。
+
+原core首类型失败两个TS6059通过把两个Main/outbox测试迁入desktop修复；desktop首类型失败TS2740通过既有panel字典补六个标签修复。owner首行为4通过/2取消来自测试自身旧epoch消息错误消耗当前sequence；只修测试顺序及fatal/exit失败检测，原生产协议保持。同类类型/测试支架失败不算产品RED，失败原件保留。
+
+只读审查发现三集合读取缺单次边界后，固定13409B/SHA`1cc34024e9bac793e11665e958fe4b30da98f66eb3e902925b97e7d74aeef41f`测试实际3失败，合法501条时旧实现全部物化。修复仅Store与contracts两叶：SQL LIMIT201作超限sentinel，超过200在解析/聚合前以现有私有budget错误拒绝，公开仍为INVENTORY_UNAVAILABLE；两个数组结果guard先查长度。相同测试现3通过：200条成功，201与501有限拒绝，501阶段三路径实际集合返回201条；最新raw与manual override保持。原36测试与7夹具未改。这是单次返回行数边界，不是SQLite VM扫描、时延或完整heap峰值承诺；总目录容量与schema31不改，003承接分页/快照与100k/300k负载。
+
+非空迁移固定五叶已按原SHA应用，新nested case实际通过旧103表全列/typed facts、111表冷事实和13API两次冷开；FrozenPrepared/legacyManual空与旧内存queue仍未覆盖。本段36项为早期B2阶段证据。最新B3/B4及ScanJob/local-only MBQueueEntry合同已应用，最终7阶段Gate67项实际通过；B5日志EIO失败恢复已核。完整工作区回归已退出0（4144总/4142通过/2既有native条件跳过），两路正式审查已完成，R2元数据P2同轮闭合；不把软件GREEN登记为全部11AT或真实产品验收。
+
+## B1容量修复的实际证据
+
+固定容量测试未改目标；root执行新noEmit退出0，同两RED目标2/2 GREEN，B0 1、store13、restore3合计17，及13旧测试文件211/211全部退出0、无失败/skip/cancel/todo。262冻结源码/测试输入与159实际fresh合同产物前后全相同。合法50000曲目、100004实体与回执行、29501588目录TEXT总字节的冷开和分页通过；1024旧曲目中新写whole-track实际返回SQLite Statement行9（原3142，固定预算128），完整SQLite审计0（原1）。读行不是SQLite VM扫描数量或时延基准，不宣称原003的100k/300k负载通过。收据ROOT/MBRS002_B1_SCALE_ROOT_GREEN_RECEIPT_01.json，10620B SHA`654630be6feb497db5344e6754f67170780ff00535a05315904333563a872d62`。
+
+另由001 f34 Repository真实20→30产生带非空录音计划/录音记录/尝试事件、冻结母版布局、SourceBinding与实物数字关联的103表基线，完整typed列/行与13冷API已冻结。首次30→31候选在私有副本迁移前比较时，因SQLite PRAGMA列行null原型与JSON对象原型不同退出1；root精确诊断仅规范列对象原型后所有103表SQL/列/typed cells/行完全相等。该失败不是产品RED；原件、失败私有副本保留。新候选03规范列对象原型并增加旧SQL精确断言，root实际30→31 Gate退出0：旧103表SQL/完整列/typed cells/行序EXACT保持，13API两次冷开对象EXACT，全部111表事实冷开不变。收据ROOT/MBRS002_NONEMPTY_MIGRATION_ROOT_RECEIPT_02.json SHA`950f15ba275779776542d78d98144283cf68b33dd19877b9150728af14162e99`；其中一条主控文件摘要断言原未生效，补充ROOT/MBRS002_NONEMPTY_MIGRATION_DATABASE_IDENTITY_ADDENDUM_02.json SHA`3a83b1389d065e300010233ddf800c2d8836661ff45d6c2d3cc0e2fe3c9539ce`已独立核数据库1314816B与摘要一致，首封不覆盖。FrozenPrepared/legacyManual仍空，旧队列仅内存，未覆盖部分仍归相应后续任务。
+
+## 最终67项自动 Gate 与受控故障
+
+root实际自动Gate新编译56合同源/168输出，contracts16、core41、desktop10共67项全部通过，7阶段exit0且无fail/cancel/skip/todo；1040声明输入与实际新产物执行前后相同。root另核154公开请求向量与新增实际编译出口，exit0。Gate收据为ROOT/mbrs002-final-gate-normal-01/manifest.json；范围仍是声明输入，不声称完整传递依赖闭包。
+
+B4首轮桌面6失败来自两处不符合旧正十进制合同的合成曲目ID；只修夹具ID，7case名称和来源/位置/队列/暂停/拒绝断言保留，同7项通过。refs第4case补隐藏locator/symbol/自定义prototype/非枚举必填字段控制，原6项实际5通过/1失败，hiddenLocator的actualtrue/expectedfalse证明真实guard缺口；仅新refs叶先核本叶record+Reflect闭集，再复用原片段整数语义，同6项在最终Gate通过。旧catalog guard与51原case/7fixture不改。
+
+首fresh日志写入EIO只注入一个私有run：编译exit0、实际close、Gate真实exit1；原失败ledger与脱敏捕获恢复内容/168新产物/1040源身份保留，严格外置后验exit0。故障run没有执行行为组，不能算另一组67PASS；总预算kill分支未测。两workflow及selector/Gate/post后验语法检查exit0，21项CI边界测试全部通过。完整工作区verify退出0：contracts254/254，core2468总/2466通过/2既有native条件跳过，desktop1422/1422，合计4144总/4142通过、无fail/cancel/todo，类型与生产构建/Preload依赖门禁通过。两路正式审查已完成，有限范围内未闭实质P1/P2为0，R2元数据P2同轮修复并封存；实现提交/报告提交/push与自然CI尚待。
+
+提交前新增test末尾多1 LF导致暂存diff-check退出2；唯一writer严格只删最后1 LF（全部生产/断言/名称字节不变），root再次实跑7阶段67项全部通过。当前manifest为ROOT/mbrs002-final-gate-normal-03/manifest.json，root格式差异/新鲜输出/原完整回归适用性证明见ROOT/mbrs002-root-format-final-validation-03/FINAL_FORMAT_ONLY_ROOT_VALIDATION_03.json。原R1/R2首封与初次失败保留，不增加第三正式审查，也不把格式后复用完整回归写为再次全量执行。

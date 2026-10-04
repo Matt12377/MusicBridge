@@ -1,3 +1,5 @@
+import type { LocalPlayRequest, LocalSourceUnsupported } from './local-play-request.js';
+import type { LocalCatalogCommandPayloads, LocalCatalogCommandResults, LocalCatalogInternalCommand } from './local-catalog.js';
 import type { VolumeRequest, VolumeSnapshot } from './volume.js';
 import type { RoonDisplayLyricsEvent } from './roon-display-lyrics.js';
 import type { GetMasterArtworkRequest, SaveMasterArtworkRequest, MasterArtworkResult, MasterArtworkVersion } from './recording-artwork.js';
@@ -111,7 +113,8 @@ export type IpcResponse<TResult = unknown> =
 
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
-export interface IpcCommandPayloads {
+export interface IpcCommandPayloads extends LocalCatalogCommandPayloads {
+  'localCatalog.prepare': LocalPlayRequest;
   'commandOutbox.context': Record<string, never>;
   'commandOutbox.execute': CommandOutboxExecute;
   'spreadsheetImports.sources': SpreadsheetPageRequest;
@@ -398,7 +401,8 @@ export interface IpcCommandPayloads {
   'playback.insertNext': { items: readonly PlaybackQueueRequestItem[] };
 }
 
-export interface IpcCommandResults {
+export interface IpcCommandResults extends LocalCatalogCommandResults {
+  'localCatalog.prepare': LocalSourceUnsupported;
   'commandOutbox.context': CommandOutboxContext;
   'commandOutbox.execute': CommandOutboxResult;
   'spreadsheetImports.sources': SpreadsheetSourcePage;
@@ -694,9 +698,9 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = 'lyrics.display.update' | 'recordingPrintWorker.claim' | 'recordingPrintWorker.complete' | 'recordingPrintWorker.fail' | 'recordingPrintWorker.pdf' | 'spreadsheetImports.registerWorkbook' | 'spreadsheetImports.workbookReceipt' | 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'recordingPreparationZip.authorizeTarget' | 'recordingPreparationZip.invalidateScope' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
+export type IpcInternalCommand = LocalCatalogInternalCommand | 'lyrics.display.update' | 'recordingPrintWorker.claim' | 'recordingPrintWorker.complete' | 'recordingPrintWorker.fail' | 'recordingPrintWorker.pdf' | 'spreadsheetImports.registerWorkbook' | 'spreadsheetImports.workbookReceipt' | 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'recordingPreparationZip.authorizeTarget' | 'recordingPreparationZip.invalidateScope' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
-export interface IpcInternalCommandResults {
+export interface IpcInternalCommandResults extends Pick<LocalCatalogCommandResults, LocalCatalogInternalCommand> {
   'lyrics.display.update': { applied: boolean };
   'recordingPrintWorker.claim': { lease: RecordingPrintLease | null };
   'recordingPrintWorker.complete': RecordingPrintJob;

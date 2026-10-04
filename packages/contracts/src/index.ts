@@ -53,3 +53,9 @@ export * from './recording-prints.js';
 
 export * from './volume.js';
 export * from './collection-readonly.js';
+export * from './local-catalog.js';
+
+export * from './local-play-request.js';
+
+export * from './local-playback-compat.js';
+export * from './local-domain-references.js';
