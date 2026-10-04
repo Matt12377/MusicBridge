@@ -58,6 +58,9 @@ jobs:
       - name: Verify offline preparation boundaries
         run: node --test scripts/ci/test/build-storage-root.test.mjs scripts/ci/test/rust016-workflow-context.test.mjs scripts/ci/test/rust-electron-host-receipt.test.mjs scripts/ci/test/electron-archive-tree.test.mjs scripts/ci/test/electron-preparation-order.test.mjs scripts/ci/test/rust-host-gate-cli.test.mjs scripts/ci/test/rust-private-host-environment.test.mjs
 
+      - name: Verify isolated MBRS-001 offline POC
+        run: node scripts/ci/verify-mbrs001-offline.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs001-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
       - name: Diff whitespace
         run: git diff --check
 
