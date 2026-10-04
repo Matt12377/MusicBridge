@@ -2,6 +2,8 @@
 
 ## Owner 授权的 PostRust v1.2 隔离接续（2026-10-04）
 
+当前隔离生产前置为 [RUST-016](RUST-016-ci-security-portability.md)，从000最终报告 `dd2a7e5` 接续。六组实现及局部软件Gate已有新鲜证据，完整回归/编译/远端CI仍待执行；C01/C06继续OPEN，G0未准入。
+
 从 RUST-015 最终报告 `044e6b24edf81b64030d4c96741082670532971c` 接手；[MBRS-000](MBRS-000-baseline-admission.md) 先交付真实基线、唯一 writer、代码复用及全部 Rust 剩余主责。基线记录可交付而产品 G0 继续 NOT_ADMITTED；已授权隔离合同/纯规则/合成 HTTP/安全离线修复继续，真实动作按具体准入处理。
 
 当前 [PostRust TODO](../project/POSTRUST_TODO.md) 与 [机器任务/验收](../project/POSTRUST_PLAN.json) 保存完成和待办；18 个任务、126+30 条验收原文保持。MBRS-014 是 012/013 源写前置，可选 MBRS-015 无主线反向依赖，RUST-015 与 MBRS-015 不同。

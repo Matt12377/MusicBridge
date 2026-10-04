@@ -1,6 +1,7 @@
+import { verifiedElectronExecution } from '../scripts/electron-identity.mjs'
+import { readRustElectronHostsReceipt } from '../../../scripts/ci/rust-electron-host-receipt.mjs'
+import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
-import { createRequire } from 'node:module'
-import { existsSync, readFileSync } from 'node:fs'
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -13,12 +14,10 @@ import { seedCollectionHost } from '../test/helpers/rust-collection-host-seed.js
 import { buildRoot, manifest, manifestPath, manifestSha256, sha256, count, naturalResources, scrubbedEnvironment, until, type HostSnapshot, type HostObservation } from '../test/helpers/rust-collection-host-evidence.js'
 
 const reports: Record<string, unknown>[] = []
-const require = createRequire(import.meta.url), electronPackage = path.dirname(require.resolve('electron/package.json'))
-const electronPathFile = path.join(electronPackage, 'path.txt')
-assert.ok(existsSync(electronPathFile), '缺少既有Electron；禁止隐式安装。')
-const executablePath = path.join(electronPackage, 'dist', readFileSync(electronPathFile, 'utf8').trim())
-assert.ok(existsSync(executablePath), '缺少真实Electron可执行文件。')
-assert.equal(sha256(executablePath), '1af684f056a8eb13e49fbd677072e437316086b076e3b9b92de3ddb343edc5b1')
+const electronIdentity = verifiedElectronExecution()
+const executablePath = electronIdentity.executablePath
+const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url)).replace(/\/$/u, '')
+assert.equal(readRustElectronHostsReceipt(process.env.MUSIC_BRIDGE_RUST_HOSTS_RECEIPT ?? '', repositoryRoot).collectionHostBuildRoot, buildRoot)
 async function control(application: ElectronApplication, operation: string, parameters: Record<string, unknown> = {}) {
   return application.evaluate(async (_electron, input) => {
     const host = (globalThis as typeof globalThis & { __rust009Host: { control(operation: string, parameters?: unknown): Promise<unknown> } }).__rust009Host

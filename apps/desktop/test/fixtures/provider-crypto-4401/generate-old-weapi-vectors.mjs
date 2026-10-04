@@ -1,0 +1,34 @@
+// 原官方API旧源码的离线黄金输入准备；不运行新代码，不接账号或网络。
+import fs from 'node:fs';
+import path from 'node:path';
+import vm from 'node:vm';
+import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
+const sourceFile = fs.realpathSync(process.argv[2]), output = process.argv[3];
+const source = fs.readFileSync(sourceFile, 'utf8');
+const sha = value => createHash('sha256').update(value).digest('hex');
+const expectedSource = '192556e34ed897e367be23349b633db245dd65751ac45a5c055f765bba62e462';
+if (sha(source) !== expectedSource) throw new Error('原官方源码SHA不符，停止黄金输入准备。');
+const dependency = createRequire(sourceFile);
+const base62 = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const secrets = [...base62].map(char => char.repeat(16));
+secrets.push('aZ09bcDEFghiJKlm', '0123456789AaZz09');
+const vectors = secrets.map((secret, index) => {
+  let calls = 0;
+  const math = Object.create(Math);
+  math.random = () => { const char = secret[calls++]; if (!char) throw new Error('随机调用越出16字节合同。'); return base62.indexOf(char) / 61; };
+  const module = { exports: {} };
+  vm.runInNewContext(source, { module, exports: module.exports, require: dependency, Buffer, console, Math: math }, { filename: sourceFile });
+  const payload = { id: 'synthetic-' + index, title: index % 2 ? '离线樱花🎵' : 'ASCII JSON', items: [null, true, false, 0, -1, 3.25, { value: '引号"与反斜线\\' }], number: index };
+  const expected = module.exports.weapi(payload);
+  if (calls !== 16 || !/^[a-f0-9]{256}$/.test(expected.encSecKey)) throw new Error('官方旧RSA输出格式或随机合同异常。');
+  return { id: index, secret, payload, expected };
+});
+const dataset = { schemaVersion: 1, purpose: '官方API4.40.1旧forge weapi冻结字节oracle，合成输入', sourceSha256: expectedSource, sourcePackage: { name: '@neteasecloudmusicapienhanced/api', version: '4.40.1', integrity: 'sha512-RUpVnxUCkeEt0yYeElc+UvCXqucikI/PIlJaLj18FlwHQ8X9wk4QkM/h7C+qePC97COMODcmgRXKgWO94YLuWA==' }, alphabet: base62, vectors };
+const file = path.join(output, 'old-weapi-64-golden.json');
+fs.writeFileSync(file, JSON.stringify(dataset, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+const oraclePackage = dependency('node-forge/package.json');
+const identity = { kind: 'DATA_PREPARATION_NOT_TEST_OR_NEW_IMPLEMENTATION_GATE', sourceSha256: expectedSource, sourceBytes: Buffer.byteLength(source), node: process.version, forgeVersion: oraclePackage.version, vectorCount: vectors.length, fixture: { file: path.basename(file), bytes: fs.statSync(file).size, sha256: sha(fs.readFileSync(file)) }, producer: { file: path.basename(import.meta.filename), sha256: sha(fs.readFileSync(import.meta.filename)) } };
+fs.writeFileSync(path.join(output, 'OLD_ORACLE_IDENTITY.json'), JSON.stringify(identity, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+if (sha(fs.readFileSync(sourceFile)) !== expectedSource) throw new Error('原官方源码在准备期间改变。');
+console.log(JSON.stringify(identity));

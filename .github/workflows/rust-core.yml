@@ -17,12 +17,23 @@ jobs:
     timeout-minutes: 20
     env:
       RUSTUP_TOOLCHAIN: '1.95.0'
-      MUSIC_BRIDGE_RUST_GATE_DIR: ${{ runner.temp }}/musicbridge-rust-core
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22.x
+      - name: 准备真实hosted专用构建根
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = "true"
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          test -d "$RUNNER_TEMP"
+          umask 077
+          mkdir -p "$RUNNER_TEMP/musicbridge-rust-core/tmp" "$RUNNER_TEMP/musicbridge-rust-core/cache"
+          chmod 700 "$RUNNER_TEMP/musicbridge-rust-core/tmp"
+          printf 'TMPDIR=%s\nDEV_CACHE_ROOT=%s\nMUSIC_BRIDGE_RUST_GATE_DIR=%s\n' "$RUNNER_TEMP/musicbridge-rust-core/tmp" "$RUNNER_TEMP/musicbridge-rust-core/cache" "$RUNNER_TEMP/musicbridge-rust-core" >> "$GITHUB_ENV"
+          printf 'COREPACK_HOME=%s\nnpm_config_cache=%s\nELECTRON_CACHE=%s\nelectron_config_cache=%s\nXDG_CACHE_HOME=%s\n' "$RUNNER_TEMP/musicbridge-rust-core/cache/corepack" "$RUNNER_TEMP/musicbridge-rust-core/cache/npm" "$RUNNER_TEMP/musicbridge-rust-core/cache/Electron" "$RUNNER_TEMP/musicbridge-rust-core/cache/Electron" "$RUNNER_TEMP/musicbridge-rust-core/cache" >> "$GITHUB_ENV"
       - name: 安装固定 Rust 工具链
         run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
       - name: 安装冻结工作区依赖

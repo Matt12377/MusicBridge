@@ -1,3 +1,4 @@
+import { historicalScaleFragment } from '../helpers/historical-scale-fragments.js'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import path from 'node:path'
@@ -102,7 +103,7 @@ const settingsMutations:Record<string,(e:any[])=>void>={
  '最新begin无paint':e=>e.splice(10,0,event('renderer',6,'renderer.begin',{...e[1].data,observationId:'newer',generation:2})),
  '错statusoperation':e=>e[1].data.request={operation:'setEnabled',enabled:true},'缺commit':e=>e.splice(7,1),'重复paint':e=>e.splice(10,0,clone(e[9]))}
 for(const [name,mutate] of Object.entries(settingsMutations))test('Source09 settings最新status独立拒绝：'+name,()=>{const e=settingsFixture();mutate(e);assert.throws(()=>assertCollectionScaleSettingsPaint(e))})
-test('Source08原settings先settled后discard实际原件必须拒绝，不能升级正例',()=>{const v=JSON.parse(readFileSync(path.join(stage,'../candidate-015-08/runs/scale-0-fresh/runtime-evidence.json'),'utf8'));assert.throws(()=>assertCollectionScaleSettingsPaint(v.events))})
+test('Source08原settings先settled后discard实际原件必须拒绝，不能升级正例',()=>{const v=historicalScaleFragment('source08-settings-discard-fragment.json');const settled=v.events.find(e=>e.event==='main.domSettled');assert.equal(Object.hasOwn(settled.data,'settingsStatusSelection'),false);assert.equal(v.events.filter(e=>e.event==='renderer.paint').length,0);assert.equal(v.events.filter(e=>e.event==='renderer.discarded').length,1);assert.throws(()=>assertCollectionScaleSettingsPaint(v.events))})
 
 test('Source09真实未改raw全图控制及最新状态/关闭选择串改拒绝',()=>{
  const original=actual(),control=repack(original,()=>{});acceptCollectionScaleEvidence(control.report,control.expected)
@@ -198,3 +199,5 @@ test('Source12局部Main边界：前台正常收口与refresh原语义保持',()
 })
 
 test('Source12局部Main边界：非背景detail晚回复仍拒绝',()=>{const e=actionReplyFixture();for(const i of [5,8])e[i].data.channel='collection:detail';assert.throws(()=>assertCollectionScaleActionReplies(e,e[0],['collection:list','collection:detail'],0))})
+
+test('当前合法settings完整选择仅注入discarded，精准拒绝同一代际',()=>{const e=settingsFixture();assertCollectionScaleSettingsPaint(e);e.push(event('renderer',6,'renderer.discarded',{...e[1].data}));assert.throws(()=>assertCollectionScaleSettingsPaint(e),/settings同代际已discarded/u)})

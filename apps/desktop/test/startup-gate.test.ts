@@ -130,6 +130,7 @@ function gateScript(file: 'startup-gate.mjs' | 'cold-start-credential-gate.mjs',
   holdClose?: 'seed' | 'restore' | 'build'
   fastTimeout?: boolean
   missingMarker?: boolean
+  identityReject?: boolean
   failure?: { stage: 'build' | 'seed' | 'restore'; code?: number; signal?: string; spawnError?: boolean }
 } = {}) {
   type Child = EventEmitter & { stdout: EventEmitter & { destroy(): void }; stderr: EventEmitter & { destroy(): void }; pid: number; exitCode: number | null; signalCode: string | null; kill(signal: string): boolean; unref(): void }
@@ -137,6 +138,7 @@ function gateScript(file: 'startup-gate.mjs' | 'cold-start-credential-gate.mjs',
   const removals: string[] = []
   const logs: string[] = []
   const directories: string[] = []
+  const identityCalls: string[] = []
   const timerBudgets: number[] = []
   const closed = new Set<string>()
   let vaultExists = false
@@ -184,7 +186,13 @@ function gateScript(file: 'startup-gate.mjs' | 'cold-start-credential-gate.mjs',
   }
   const moduleCache = new Map<string, unknown>()
   const load = (name: string): any => {
-    const builtins: Record<string, unknown> = { 'node:fs/promises': files, 'node:os': os, 'node:path': path, 'node:url': { fileURLToPath }, 'node:child_process': { spawn: spawnControlled }, electron: '/synthetic/electron' }
+    // 官方ZIP/实际执行树属于独立外部准备边界；此VM只验证调用、拒绝与原进程收口。
+    const identity = { verifiedElectronExecution() {
+      identityCalls.push('verify')
+      if (configuration.identityReject) throw new Error('合成身份拒绝')
+      return { kind: 'SYNTHETIC_VM_IDENTITY_NOT_OFFICIAL_ELECTRON', executablePath: '/synthetic/electron' }
+    } }
+    const builtins: Record<string, unknown> = { './electron-identity.mjs': identity, 'node:fs/promises': files, 'node:os': os, 'node:path': path, 'node:url': { fileURLToPath }, 'node:child_process': { spawn: spawnControlled }, electron: '/synthetic/electron' }
     if (name in builtins) return builtins[name]
     if (moduleCache.has(name)) return moduleCache.get(name)
     const location = new URL('../scripts/' + name.replace(/^\.\//u, ''), import.meta.url)
@@ -204,7 +212,7 @@ function gateScript(file: 'startup-gate.mjs' | 'cold-start-credential-gate.mjs',
   const source = readFileSync(location, 'utf8').replaceAll('import.meta.url', JSON.stringify(location.href))
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true } }).outputText
   const finished: Promise<unknown> = runInNewContext('(async () => {\n' + compiled + '\n})()', { ...sandbox, exports: {} }).then(() => undefined, (error: unknown) => error)
-  return { calls, removals, logs, directories, timerBudgets, scriptProcess, finished, finishClose }
+  return { calls, removals, logs, directories, identityCalls, timerBudgets, scriptProcess, finished, finishClose }
 }
 
 const nextTurn = () => new Promise<void>(resolve => setImmediate(resolve))
@@ -213,6 +221,7 @@ test('startup显式mock必须传给Electron且报告软件模式，默认system�
   for (const mode of ['mock', 'system']) {
     const gate = gateScript('startup-gate.mjs', { args: ['development', '--keychain=' + mode] })
     assert.equal(await gate.finished, undefined)
+    assert.deepEqual(gate.identityCalls, ['verify'])
     assert.equal(gate.calls.find(call => call.stage === 'startup')?.args.includes('--use-mock-keychain'), mode === 'mock')
     assert.ok(gate.logs.includes('KEYCHAIN_MODE=' + mode))
     if (mode === 'mock') {
@@ -297,7 +306,7 @@ test('脚本非法CLI在创建目录或spawn前退出且错误不包含参数', 
     const gate = gateScript(file, { args: [...(file === 'startup-gate.mjs' ? ['development'] : []), '--keychain=合成秘密'] })
     await gate.finished
     assert.equal(gate.scriptProcess.exitCode, 2)
-    assert.deepEqual(gate.calls, []); assert.deepEqual(gate.directories, [])
+    assert.deepEqual(gate.calls, []); assert.deepEqual(gate.directories, []); assert.deepEqual(gate.identityCalls, [])
     assert.deepEqual(gate.logs, ['测试钥匙串模式无效'])
   }
 })
@@ -386,4 +395,19 @@ test('Electron Gate wrapper显式传模式、命名分类且外层预算覆盖�
     assert.ok(calls.filter(call => !call.args[0].includes('cold-start')).every(call => call.timeout > 120_000 + 60_000 + 6_000))
     assert.ok(calls.find(call => call.args[0].includes('cold-start'))!.timeout > 120_000 + 2 * 60_000 + 9_000)
   }
+})
+
+
+test('startup合法CLI身份拒绝先于任何目录或子进程，不回落未核Electron', async () => {
+  const gate = gateScript('startup-gate.mjs', { args: ['production', '--keychain=mock'], identityReject: true })
+  const failure = await gate.finished
+  assert.ok(failure instanceof Error); assert.equal(failure.message, '合成身份拒绝')
+  assert.deepEqual(gate.identityCalls, ['verify']); assert.deepEqual(gate.directories, []); assert.deepEqual(gate.calls, [])
+  assert.ok(!gate.logs.some(value => value.includes('PASS')))
+})
+test('startup非法mode在身份调用及创建目录或spawn前退出2', async () => {
+  const gate = gateScript('startup-gate.mjs', { args: ['unknown-mode', '--keychain=mock'], identityReject: true })
+  await gate.finished
+  assert.equal(gate.scriptProcess.exitCode, 2); assert.deepEqual(gate.identityCalls, [])
+  assert.deepEqual(gate.directories, []); assert.deepEqual(gate.calls, [])
 })

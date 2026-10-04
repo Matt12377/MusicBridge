@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import electron from 'electron'
+import { verifiedElectronExecution } from './electron-identity.mjs'
 import { runStartupProcess } from './startup-gate-process.mjs'
 import { parseTestKeychainMode, testElectronArguments } from './test-keychain.mjs'
 
@@ -24,6 +24,7 @@ try { keychainMode = parseTestKeychainMode(process.argv.slice(3)) } catch {
   console.error('测试钥匙串模式无效')
   process.exit(2)
 }
+const electron = verifiedElectronExecution().executablePath
 console.log(`KEYCHAIN_MODE=${keychainMode}`)
 if (keychainMode === 'mock') console.log('REAL_KEYCHAIN_GATE=NOT_RUN')
 

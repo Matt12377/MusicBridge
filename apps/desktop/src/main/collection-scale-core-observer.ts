@@ -12,13 +12,13 @@ import { createCollectionScaleEvidenceWriter, readCollectionScaleProfile } from 
 
 declare const __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__: boolean
 interface ParentPort { once(event: 'message', listener: (event: { data: unknown; ports?: UtilityPort[] }) => void): unknown }
-export interface CollectionScaleCoreObserverOptions { getStatus(): unknown; parent?: ParentPort; sink?: (line: string) => void; env?: NodeJS.ProcessEnv }
+export interface CollectionScaleCoreObserverOptions { getStatus(): unknown; parent?: ParentPort; sink?: (line: string) => void; env?: NodeJS.ProcessEnv; profileReader?: typeof readCollectionScaleProfile }
 const allowed = new Set(['commandOutbox.context', 'commandOutbox.execute', 'collection.list', 'collection.detail', 'core.shutdown', 'recordingPrintWorker.claim'])
-export function assertCollectionScaleCoreObserverEnvironment(env: NodeJS.ProcessEnv): void {
+export function assertCollectionScaleCoreObserverEnvironment(env: NodeJS.ProcessEnv, profileReader: typeof readCollectionScaleProfile = readCollectionScaleProfile): void {
   if (typeof __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__ !== 'boolean' || !__MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__
     || env.MUSIC_BRIDGE_CORE_TEST_MODE !== '1' || env.MUSIC_BRIDGE_UI_E2E !== '1' || !env.MUSIC_BRIDGE_DATA_DIRECTORY) throw new Error('Core只读观察仅允许编译候选与原离线合成环境。')
   const profile = path.dirname(env.MUSIC_BRIDGE_DATA_DIRECTORY)
-  readCollectionScaleProfile({ ...env, MUSIC_BRIDGE_UI_E2E_OFFLINE: "1", MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: profile })
+  profileReader({ ...env, MUSIC_BRIDGE_UI_E2E_OFFLINE: "1", MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: profile })
 }
 /** 固定fd1同步被动观察；输出异常由收据拒绝，不改变原ACK或Promise。 */
 export function createCollectionScaleCoreEvidenceSink(): (line: string) => void {
@@ -45,7 +45,7 @@ export function createCollectionScaleCoreEvidenceSink(): (line: string) => void 
   }
 }
 export function installCollectionScaleCoreObserver(options: CollectionScaleCoreObserverOptions) {
-  assertCollectionScaleCoreObserverEnvironment(options.env ?? process.env)
+  assertCollectionScaleCoreObserverEnvironment(options.env ?? process.env, options.profileReader)
   const parent = options.parent ?? (process as typeof process & { parentPort?: ParentPort }).parentPort
   if (!parent || typeof options.getStatus !== 'function') throw new Error('Core观察缺少原父端口或可信状态旁路。')
   const emit = createCollectionScaleEvidenceWriter('core', options.sink ?? createCollectionScaleCoreEvidenceSink())

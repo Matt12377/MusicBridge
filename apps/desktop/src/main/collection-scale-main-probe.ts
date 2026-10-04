@@ -1,9 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { Readable } from 'node:stream'
-import { closeSync, constants, lstatSync, openSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { closeSync, constants, lstatSync, openSync, readFileSync, writeFileSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { externalSyntheticProfileRoot, validateSyntheticProfileDirectory, type SyntheticProfileRoot } from './synthetic-profile-root.js'
 import { isDeepStrictEqual } from 'node:util'
 import { isCollectionModel, isCollectionReadonlySettings, validateIpcRequest, validateIpcResponseForCommand, type CollectionModel, type IpcRequest } from '@music-bridge/contracts'
 import type { BrowserWindow } from 'electron'
@@ -29,13 +30,18 @@ export function createCollectionScaleEvidenceWriter(actor: 'main' | 'core', sink
   }
 }
 export interface CollectionScaleCompletedMarker { schemaVersion: 1; kind: 'rust015-completed-profile'; nonce: string; modelCount: number; datasetId: string; commandIds: string[]; outboxIds: string[]; policyModelId: string | null; policyRevision: number | null }
-export function readCollectionScaleProfile(env: NodeJS.ProcessEnv) {
+function assertCollectionScaleProfileEnvironment(env: NodeJS.ProcessEnv): void {
   if (typeof __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__ !== 'boolean' || !__MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__ || typeof __MUSIC_BRIDGE_COLLECTION_SCALE_MODELS__ !== 'number' || !counts.includes(__MUSIC_BRIDGE_COLLECTION_SCALE_MODELS__ as typeof counts[number])
     || env.MUSIC_BRIDGE_UI_E2E !== '1' || env.MUSIC_BRIDGE_UI_E2E_OFFLINE !== '1' || env.MUSIC_BRIDGE_STARTUP_TEST !== undefined) throw new Error('规模观察仅允许静态候选与固定离线profile。')
-  const directory = env.MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR
-  if (!directory || !directory.startsWith('/Volumes/LifeWeave/Developer/CommandLine/tmp/') || path.resolve(directory) !== directory || !/^musicbridge-ui-diagnostics-[A-Za-z0-9._-]+$/u.test(path.basename(directory))) throw new Error('规模profile词法边界未准入。')
-  const volume = lstatSync('/Volumes/LifeWeave', { bigint: true }), identity = lstatSync(directory, { bigint: true })
-  if (!identity.isDirectory() || identity.isSymbolicLink() || identity.dev !== volume.dev || (identity.mode & 0o077n) !== 0n || realpathSync(directory) !== directory) throw new Error('规模profile真实身份无效。')
+}
+export function readCollectionScaleProfile(env: NodeJS.ProcessEnv) {
+  assertCollectionScaleProfileEnvironment(env)
+  return readCollectionScaleProfileWithinRoot(env, externalSyntheticProfileRoot())
+}
+export function readCollectionScaleProfileWithinRoot(env: NodeJS.ProcessEnv, trustedRoot: SyntheticProfileRoot) {
+  assertCollectionScaleProfileEnvironment(env)
+  const directory = env.MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR ?? ''
+  const identity = validateSyntheticProfileDirectory(directory, trustedRoot)
   const read = (file: string, max: bigint): Buffer => { const info = lstatSync(file, { bigint: true }); if (!info.isFile() || info.isSymbolicLink() || info.nlink !== 1n || (info.mode & 0o077n) !== 0n || info.size > max) throw new Error('规模标记真实身份无效。'); return readFileSync(file) }
   const markerBytes = read(path.join(directory, 'rust015-profile.json'), 4096n), marker: unknown = JSON.parse(markerBytes.toString())
   if (!exact(marker, ['schemaVersion', 'kind', 'nonce', 'modelCount', 'seedReceipt']) || marker.schemaVersion !== 1 || marker.kind !== 'rust015-synthetic-profile' || !uuid(marker.nonce) || marker.modelCount !== __MUSIC_BRIDGE_COLLECTION_SCALE_MODELS__ || !exact(marker.seedReceipt, ['path', 'sha256']) || typeof marker.seedReceipt.path !== 'string' || !/^[a-f0-9]{64}$/u.test(marker.seedReceipt.sha256)) throw new Error('规模标记与静态期待不一致。')
@@ -186,8 +192,8 @@ export function collectionScaleResetRequired(snapshot: Pick<CollectionScaleDomSn
   if (snapshot.filterClearVisible !== false || !collectionScaleFilterEquivalent(lastFilter, {})) throw new Error('原清除控件缺失但上一查询并非无筛选。')
   return false
 }
-export function createCollectionScaleMainProbe(options: { sink?: (line: string) => void; flush?: () => Promise<void> } = {}) {
-  const profile = readCollectionScaleProfile(process.env), sink = options.sink ?? (line => { process.stdout.write(line) }), writeEvidence = createCollectionScaleEvidenceWriter('main', sink)
+export function createCollectionScaleMainProbe(options: { sink?: (line: string) => void; flush?: () => Promise<void>; profileReader?: typeof readCollectionScaleProfile } = {}) {
+  const profile = (options.profileReader ?? readCollectionScaleProfile)(process.env), sink = options.sink ?? (line => { process.stdout.write(line) }), writeEvidence = createCollectionScaleEvidenceWriter('main', sink)
   const evidence: WarmEvidence = { main: [], renderer: [] }, emit = (event: string, data: Record<string, unknown> = {}) => { evidence.main.push({ event, data }); writeEvidence(event, data) }
   const ipcOwner = new AsyncLocalStorage<{ actionId: string | null; invokeId: string | null; catalogOrdinal: number | null }>(), catalogOrdinals = new Map<string, number>()
   const requests = new Map<string, { request: IpcRequest; started: number; actionId: string | null; invokeId: string | null; catalogOrdinal: number | null }>(), invocations = new Map<string, { data: any; started: number; actionId: string | null }>()

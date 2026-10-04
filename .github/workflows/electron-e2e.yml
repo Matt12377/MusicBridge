@@ -8,6 +8,11 @@ on:
       - 'apps/desktop/**'
       - 'packages/bridge-core/**'
       - 'packages/contracts/**'
+      - 'native/rust-core/**'
+      - 'scripts/ci/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'patches/**'
       - '.github/workflows/electron-e2e.yml'
 
 permissions:
@@ -26,9 +31,13 @@ jobs:
         run: |
           set -euo pipefail
           test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          test "$GITHUB_ACTIONS" = "true"
           test -d "$RUNNER_TEMP"
-          mkdir -p "$RUNNER_TEMP/musicbridge-electron/tmp" "$RUNNER_TEMP/musicbridge-electron/results"
-          printf 'TMPDIR=%s\nMUSIC_BRIDGE_E2E_OUTPUT_DIR=%s\n' "$RUNNER_TEMP/musicbridge-electron/tmp" "$RUNNER_TEMP/musicbridge-electron/results" >> "$GITHUB_ENV"
+          umask 077
+          mkdir -p "$RUNNER_TEMP/musicbridge-electron/tmp" "$RUNNER_TEMP/musicbridge-electron/results" "$RUNNER_TEMP/musicbridge-electron/cache" "$RUNNER_TEMP/musicbridge-rust-core"
+          chmod 700 "$RUNNER_TEMP/musicbridge-electron/tmp"
+          printf 'TMPDIR=%s\nMUSIC_BRIDGE_E2E_OUTPUT_DIR=%s\nDEV_CACHE_ROOT=%s\nMUSIC_BRIDGE_RUST_GATE_DIR=%s\n' "$RUNNER_TEMP/musicbridge-electron/tmp" "$RUNNER_TEMP/musicbridge-electron/results" "$RUNNER_TEMP/musicbridge-electron/cache" "$RUNNER_TEMP/musicbridge-rust-core" >> "$GITHUB_ENV"
+          printf 'COREPACK_HOME=%s\nnpm_config_cache=%s\nELECTRON_CACHE=%s\nelectron_config_cache=%s\nXDG_CACHE_HOME=%s\n' "$RUNNER_TEMP/musicbridge-electron/cache/corepack" "$RUNNER_TEMP/musicbridge-electron/cache/npm" "$RUNNER_TEMP/musicbridge-electron/cache/Electron" "$RUNNER_TEMP/musicbridge-electron/cache/Electron" "$RUNNER_TEMP/musicbridge-electron/cache" >> "$GITHUB_ENV"
 
       - name: Node.js 22
         uses: actions/setup-node@v4
@@ -38,9 +47,20 @@ jobs:
       - name: Install frozen workspace
         run: corepack pnpm@10.17.1 install --frozen-lockfile --ignore-scripts
 
+      - name: Prepare Rust toolchain
+        run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
+
+      - name: Build and verify both Rust hosts once in this job
+        run: node scripts/ci/prepare-rust-electron-hosts.mjs
+        env:
+          RUSTUP_TOOLCHAIN: '1.95.0'
+
       - name: Install Electron binary from locked tree (official installer only)
         run: node node_modules/electron/install.js
         working-directory: apps/desktop
+
+      - name: Verify official Electron archive and actual execution tree
+        run: node apps/desktop/scripts/prepare-electron-identity.mjs
 
       - name: Electron startup, crash/restart, safeStorage vault and credential recovery gates
         shell: bash
@@ -59,6 +79,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: electron-e2e-${{ github.sha }}
-          path: ${{ runner.temp }}/musicbridge-electron/
+          path: |
+            ${{ runner.temp }}/musicbridge-electron/
+            ${{ runner.temp }}/musicbridge-rust-core/**/*.json
+            ${{ runner.temp }}/musicbridge-rust-core/**/*.log
           if-no-files-found: warn
           retention-days: 14

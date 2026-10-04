@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "package": "@neteasecloudmusicapienhanced/api",
+  "version": "4.40.1",
+  "npmIntegrity": "sha512-RUpVnxUCkeEt0yYeElc+UvCXqucikI/PIlJaLj18FlwHQ8X9wk4QkM/h7C+qePC97COMODcmgRXKgWO94YLuWA==",
+  "tarballSha256": "5a90c58d4f5df207714067a7925f2166cb1ea2796b882b8313609b49fb0ffd20",
+  "originalCryptoSha256": "192556e34ed897e367be23349b633db245dd65751ac45a5c055f765bba62e462",
+  "patchedCryptoSha256": "2fb5a857004faf85f669f0c5bf2755d53859bf27011dfe0410969f62bc8570a6",
+  "patchSha256": "afef546c3d494fb934f17734e7717793bfde7fb18095021f0335303a01fa45a8",
+  "goldenSha256": "b88286b1900b2f9590bff0189617e9d71ca1bb0823ed0cdc38df89ad9dcf570a",
+  "contract": "仅weapi原16字节base62参数；不声称超模数/任意字符串的旧forge错误语义等价",
+  "scope": "离线合成输入，不连接Provider，不删除任何API功能"
+}

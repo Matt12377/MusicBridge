@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { syntheticFixtureRoot } from './helpers/synthetic-profile-root.js'
+const controlledPackagedProfile = (env: NodeJS.ProcessEnv) => readPackagedRendererProfileWithinRoot(env, syntheticFixtureRoot())
 import { EventEmitter } from 'node:events'
 import { randomUUID } from 'node:crypto'
 import { mkdtemp, writeFile, readFile, rm, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
-import { createPackagedRendererMainProbe, parsePackagedRendererRefreshRequest, createPackagedRendererEvidenceWriter, readPackagedRendererProfile } from '../src/main/packaged-renderer-main-probe.js'
+import { createPackagedRendererMainProbe, parsePackagedRendererRefreshRequest, createPackagedRendererEvidenceWriter, readPackagedRendererProfile, readPackagedRendererProfileWithinRoot } from '../src/main/packaged-renderer-main-probe.js'
 import { PACKAGED_RENDERER_FIXTURE, packagedRendererDomExpression } from '../src/main/packaged-renderer-dom-driver.js'
 
 test('固定DOM fixture有26种且拒绝任意表达式、越界型号和selector输入', () => {
@@ -28,7 +30,7 @@ test('私有refresh只准闭集、精确顺序和数据属性', () => {
 
 test('真实公共端口仅旁路观察，保留完整信封和实际往返计时', () => {
   const lines: string[] = [], sent: unknown[] = [], events = new EventEmitter()
-  const probe = createPackagedRendererMainProbe({ sink: line => { lines.push(line) } })
+  const probe = createPackagedRendererMainProbe({ profileReader: controlledPackagedProfile, sink: line => { lines.push(line) } })
   const port = { on: events.on.bind(events), start() {}, close() {}, postMessage(value: unknown) { sent.push(value) } }
   probe.observePublicPort(port)
   const request = { version: 1, id: '65d3e2ae-9ad2-49f2-8633-7719f3e10a37', command: 'collection.list', payload: { page: { offset: 24, limit: 24 }, filter: { brand: 'RUST013合成甲' } } }
@@ -44,7 +46,7 @@ test('真实公共端口仅旁路观察，保留完整信封和实际往返计�
 })
 
 test('MainIPC旁路保留原DTO，sink拒绝不影响原事件调用', async () => {
-  const probe = createPackagedRendererMainProbe({ sink: (() => Promise.reject(new Error('受控sink'))) as never })
+  const probe = createPackagedRendererMainProbe({ profileReader: controlledPackagedProfile, sink: (() => Promise.reject(new Error('受控sink'))) as never })
   assert.doesNotThrow(() => probe.observeMainEvent('main.ipcReply', { invokeId: 'ipc-1', channel: 'collection:list', result: { items: [], total: 0 } }))
   await new Promise(resolve => setImmediate(resolve))
   const emit = createPackagedRendererEvidenceWriter('main', () => { throw new Error('受控sink') })
@@ -52,7 +54,7 @@ test('MainIPC旁路保留原DTO，sink拒绝不影响原事件调用', async () 
 })
 
 test('实际spawn PID在Electron清除pid后仍关联退出，原kill行为不替换', () => {
-  const lines: string[] = [], probe = createPackagedRendererMainProbe({ sink: line => { lines.push(line) } })
+  const lines: string[] = [], probe = createPackagedRendererMainProbe({ profileReader: controlledPackagedProfile, sink: line => { lines.push(line) } })
   let killCount = 0
   const child = Object.assign(new EventEmitter(), { pid: 9876 as number | undefined, postMessage() {}, kill() { killCount++; return true } })
   const port = { on() {}, start() {}, close() {}, postMessage() {} }
@@ -69,10 +71,10 @@ test('profile标记拒绝额外权限字段和symlink，不碰真实用户目录
   const env = { MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_UI_E2E_OFFLINE: '1', MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: directory }
   const marker = path.join(directory, 'rust013-profile.json')
   await writeFile(marker, JSON.stringify({ schemaVersion: 1, kind: 'rust013-synthetic-profile', nonce: randomUUID(), route: 'node' }), { mode: 0o600 })
-  assert.throws(() => readPackagedRendererProfile(env))
+  assert.throws(() => controlledPackagedProfile(env))
   await rm(marker)
   const target = path.join(directory, 'controlled.json'); await writeFile(target, JSON.stringify({ schemaVersion: 1, kind: 'rust013-synthetic-profile', nonce: randomUUID() }), { mode: 0o600 })
-  await symlink(target, marker); assert.throws(() => readPackagedRendererProfile(env))
+  await symlink(target, marker); assert.throws(() => controlledPackagedProfile(env))
   assert.throws(() => readPackagedRendererProfile({ ...env, MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR: '/Users/yihe/Library/Application Support/MusicBridge' }))
 })
 
@@ -87,7 +89,7 @@ test('受控窗口流程：26原表单回执+单次策略、两次refresh，cold
   const datasetId = randomUUID(), stored: any[] = [], actions: string[] = [], lines: string[] = [], refreshes: number[] = []
   let totalWrites = 0
   async function launch(cold: boolean) {
-    const probe = createPackagedRendererMainProbe({ sink: line => { lines.push(line) } }), portEvents = new EventEmitter(), diagnosticEvents = new EventEmitter()
+    const probe = createPackagedRendererMainProbe({ profileReader: controlledPackagedProfile, sink: line => { lines.push(line) } }), portEvents = new EventEmitter(), diagnosticEvents = new EventEmitter()
     let ipc = 0, offset = 0, filter = '', detail: any, dialog = false
     const publicPort = { on: portEvents.on.bind(portEvents), start() {}, close() {}, postMessage(_value: unknown) {} }
     probe.observePublicPort(publicPort)

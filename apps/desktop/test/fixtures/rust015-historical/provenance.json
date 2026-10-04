@@ -1,0 +1,144 @@
+{
+  "kind": "HISTORICAL_LOCAL_FRAGMENTS_NOT_APP_GATE",
+  "sources": {
+    "05": {
+      "raw_sha256": "03ed7e49782d32c422da6d6d8ec653442862b48f830610f743fd3119391026ef",
+      "raw_bytes": 306052,
+      "raw_event_count": 516,
+      "source_relative_ref": "candidate-015-05/runs/scale-0-fresh/runtime-evidence.json"
+    },
+    "08": {
+      "raw_sha256": "4cf19b78de49a243b425bcf56a67d6ceea3bdaf287568e4b91e0555001f2b4c5",
+      "raw_bytes": 12113740,
+      "raw_event_count": 17660,
+      "source_relative_ref": "candidate-015-08/runs/scale-0-fresh/runtime-evidence.json"
+    }
+  },
+  "fragments": [
+    {
+      "file": "source05-multi-read-fragment.json",
+      "sha256": "d0ebfd169c398327bcb47baa935a4161a8bc520368ff2104dcd1babb88dfefbf",
+      "bytes": 20256,
+      "events": 47,
+      "indices": [
+        418,
+        419,
+        420,
+        421,
+        422,
+        423,
+        424,
+        425,
+        426,
+        427,
+        428,
+        429,
+        430,
+        431,
+        432,
+        433,
+        440,
+        441,
+        444,
+        445,
+        446,
+        447,
+        448,
+        449,
+        450,
+        451,
+        452,
+        457,
+        458,
+        459,
+        460,
+        461,
+        462,
+        463,
+        464,
+        469,
+        470,
+        471,
+        472,
+        473,
+        474,
+        475,
+        476,
+        481,
+        482,
+        483,
+        484
+      ],
+      "selector": {
+        "action_id": "bbff1a25-949c-4054-812d-5a8c755a2130"
+      },
+      "field_policy": "完整原事件对象；不改字段、顺序、PID、actor序号或时钟"
+    },
+    {
+      "file": "source05-reset-1-fragment.json",
+      "sha256": "14af66cbe56573bea2ddc78d6a5253d36c6fdf635ab5f8934e2ba1560679fbfe",
+      "bytes": 2372,
+      "events": 6,
+      "indices": [
+        129,
+        136,
+        140,
+        148,
+        151,
+        152
+      ],
+      "selector": {
+        "skip_main_sequence": 74,
+        "algorithm": "原测试same latestCatalog/settled/background/skip六事件"
+      },
+      "field_policy": "完整原事件对象；不改字段、顺序、PID、actor序号或时钟"
+    },
+    {
+      "file": "source05-reset-2-fragment.json",
+      "sha256": "92a6c853e1eac4389a3edd15939ab86cb660731e11bd1e3aa8910b4a2f7e0322",
+      "bytes": 2385,
+      "events": 6,
+      "indices": [
+        395,
+        402,
+        405,
+        413,
+        416,
+        417
+      ],
+      "selector": {
+        "skip_main_sequence": 150,
+        "algorithm": "原测试same latestCatalog/settled/background/skip六事件"
+      },
+      "field_policy": "完整原事件对象；不改字段、顺序、PID、actor序号或时钟"
+    },
+    {
+      "file": "source08-settings-discard-fragment.json",
+      "sha256": "c9ee7c0991a70b1d52f626b6acd9fc6277ae10291e67e6d1c92bdc12d42138f4",
+      "bytes": 6332,
+      "events": 15,
+      "indices": [
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        149
+      ],
+      "selector": {
+        "first_settings_open_action_id": "8e59b23a-7d4f-4d14-b03d-ac5efb8e0b38",
+        "algorithm": "原action所有事件；完整保留settled和late renderer.discarded"
+      },
+      "field_policy": "完整原事件对象；不改字段、顺序、PID、actor序号或时钟"
+    }
+  ]
+}

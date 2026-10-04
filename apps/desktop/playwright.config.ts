@@ -1,7 +1,9 @@
+import { verifiedElectronExecution } from './scripts/electron-identity.mjs'
 import { defineConfig } from '@playwright/test'
 import path from 'node:path'
 import { e2eTemporaryRoot } from './e2e/temporary-root.js'
 
+verifiedElectronExecution()
 const temporaryRoot = e2eTemporaryRoot()
 
 export default defineConfig({

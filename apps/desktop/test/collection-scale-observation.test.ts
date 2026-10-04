@@ -12,9 +12,11 @@ import { transpileModule, ModuleKind, ScriptTarget } from 'typescript'
 import { nextTick } from 'vue'
 import * as contracts from '@music-bridge/contracts'
 import { collectionScaleDomExpression, COLLECTION_SCALE_WORKLOADS } from '../e2e/collection-scale-dom-driver.js'
-import { createCollectionScaleEvidenceWriter, createCollectionScaleMainProbe, readCollectionScaleProfile, collectionScaleResetRequired, collectionScaleFilterEquivalent, selectCollectionScaleWarmRead, selectCollectionScaleSettingsStatus, createCollectionScaleCoreStreamDrain, waitForCollectionScaleEvidenceDrain } from '../src/main/collection-scale-main-probe.js'
+import { createCollectionScaleEvidenceWriter, createCollectionScaleMainProbe, readCollectionScaleProfile, readCollectionScaleProfileWithinRoot, collectionScaleResetRequired, collectionScaleFilterEquivalent, selectCollectionScaleWarmRead, selectCollectionScaleSettingsStatus, createCollectionScaleCoreStreamDrain, waitForCollectionScaleEvidenceDrain } from '../src/main/collection-scale-main-probe.js'
 import { installCollectionScaleCoreObserver } from '../src/main/collection-scale-core-observer.js'
 import { spawn } from 'node:child_process'
+import { syntheticFixtureRoot } from './helpers/synthetic-profile-root.js'
+const controlledScaleProfile = (env: NodeJS.ProcessEnv) => readCollectionScaleProfileWithinRoot(env, syntheticFixtureRoot())
 
 test('Core同步sink短写可恢复，固定预算或永久失败后毒化且不再拼新行', () => {
   const source = readFileSync(new URL('../src/main/collection-scale-core-observer.ts', import.meta.url), 'utf8'), sinkSource = source.match(/export function createCollectionScaleCoreEvidenceSink\(\)[\s\S]*?\n\}/u)![0]
@@ -38,7 +40,7 @@ test('Core同步sink短写可恢复，固定预算或永久失败后毒化且不
 })
 test('Main原Core pipe保留分块UTF8、坏行原bytes和end尾片段，拒绝保存有界且不覆盖', async t => {
   await profile(t)
-  const lines: string[] = [], probe = createCollectionScaleMainProbe({ sink: line => lines.push(line) }), stream = new EventEmitter(), child = new EventEmitter() as any
+  const lines: string[] = [], probe = createCollectionScaleMainProbe({ profileReader: controlledScaleProfile, sink: line => lines.push(line) }), stream = new EventEmitter(), child = new EventEmitter() as any
   child.stdout = stream; probe.observeChild(child, '/synthetic-core.js', [])
   const good = Buffer.from('RUST015_EVIDENCE ' + JSON.stringify({ schemaVersion: 1, actor: 'core', pid: 1, sequence: 1, elapsedMs: 0, event: 'test.unicode', data: { text: '樱花🌸' } }) + '\n')
   const emoji = good.indexOf(Buffer.from('🌸')); stream.emit('data', good.subarray(0, emoji + 1)); stream.emit('data', good.subarray(emoji + 1, emoji + 3)); stream.emit('data', good.subarray(emoji + 3))
@@ -56,7 +58,7 @@ test('Main原Core pipe保留分块UTF8、坏行原bytes和end尾片段，拒绝�
   assert.deepEqual(all.map(event => event.data.rawSaved), [true, true, true, true, false, false]); assert.ok(all.slice(4).every(event => event.data.rawLinePath === null)); assert.deepEqual(readFileSync(rejected[0].data.rawLinePath), invalid)
 })
 test('Main转发失败仍保存原行，拒绝文件symlink/wx碰撞不覆盖原目标', async t => {
-  const fixture = await profile(t), lines: string[] = [], probe = createCollectionScaleMainProbe({ sink: line => { if (line.includes('"actor":"core"')) throw new Error('受控转发失败'); lines.push(line) } }), stream = new EventEmitter(), child = new EventEmitter() as any
+  const fixture = await profile(t), lines: string[] = [], probe = createCollectionScaleMainProbe({ profileReader: controlledScaleProfile, sink: line => { if (line.includes('"actor":"core"')) throw new Error('受控转发失败'); lines.push(line) } }), stream = new EventEmitter(), child = new EventEmitter() as any
   child.stdout = stream; probe.observeChild(child, '/synthetic-core.js', [])
   const protectedFile = path.join(fixture.directory, 'protected-raw.bin'), firstPath = path.join(fixture.directory, `rust015-core-rejected-${fixture.marker.nonce}-${process.pid}-1.bin`)
   await writeFile(protectedFile, '原目标'); await symlink(protectedFile, firstPath)
@@ -67,7 +69,7 @@ test('Main转发失败仍保存原行，拒绝文件symlink/wx碰撞不覆盖原
 })
 
 test('真实非阻塞pipe慢消费仍完整写完Core同步证据，不吞EAGAIN或拼接后续行', async t => {
-  const directory = await mkdtemp('/Volumes/LifeWeave/Developer/CommandLine/tmp/musicbridge-ui-diagnostics-rust015-b-pipe-')
+  const directory = await mkdtemp(path.join(syntheticFixtureRoot().directory, 'musicbridge-ui-diagnostics-rust015-b-pipe-'))
   const source = readFileSync(new URL('../src/main/collection-scale-core-observer.ts', import.meta.url), 'utf8'), sink = source.match(/export function createCollectionScaleCoreEvidenceSink\(\)[\s\S]*?\n\}/u)![0]
   const compiled = transpileModule(`import { writeSync } from 'node:fs'\n${sink}`, { compilerOptions: { module: ModuleKind.CommonJS, target: ScriptTarget.ES2022 } }).outputText
   const lines = Array.from({ length: 20 }, (_, index) => 'RUST015_EVIDENCE ' + JSON.stringify({ schemaVersion: 1, actor: 'core', pid: 1, sequence: index + 1, elapsedMs: index, event: 'test.pipe', data: { synthetic: '樱花🌸'.repeat(6000) } }) + '\n')
@@ -169,7 +171,7 @@ test('空筛选观察等价只接受原query/brand严格空字符串，不吞非
 })
 test('原IPC被动owner关联跨await公开请求，后台limit1不占catalog次序', async t => {
   await profile(t)
-  const lines: string[] = [], probe = createCollectionScaleMainProbe({ sink: line => lines.push(line) }), port = new EventEmitter() as any
+  const lines: string[] = [], probe = createCollectionScaleMainProbe({ profileReader: controlledScaleProfile, sink: line => lines.push(line) }), port = new EventEmitter() as any
   port.postMessage = (_value: unknown) => {}; probe.observePublicPort(port)
   const requests: any[] = []
   const listener = probe.observeIpc({ channel: 'collection:list', listener: async (_event: unknown, page: any, filter: any) => {
@@ -245,7 +247,7 @@ test('真实jsdom checkbox.click激活的可信input/change保留固定action UU
   preference.close(); dom.window.close()
 })
 async function profile(t: test.TestContext) {
-  const directory = await mkdtemp('/Volumes/LifeWeave/Developer/CommandLine/tmp/musicbridge-ui-diagnostics-rust015-b-test-'); await chmod(directory, 0o700)
+  const directory = await mkdtemp(path.join(syntheticFixtureRoot().directory, 'musicbridge-ui-diagnostics-rust015-b-test-')); await chmod(directory, 0o700)
   const seed = Buffer.from('{}\n'), receipt = path.join(directory, 'seed.json'); await writeFile(receipt, seed, { mode: 0o600 })
   const marker = { schemaVersion: 1, kind: 'rust015-synthetic-profile', nonce: randomUUID(), modelCount: 0, seedReceipt: { path: receipt, sha256: createHash('sha256').update(seed).digest('hex') } }
   await writeFile(path.join(directory, 'rust015-profile.json'), JSON.stringify(marker), { mode: 0o600 })
@@ -256,11 +258,33 @@ async function profile(t: test.TestContext) {
   t.after(() => { for (const key of Object.keys(process.env)) if (!Object.hasOwn(prior, key)) delete process.env[key]; Object.assign(process.env, prior); names.forEach((name, index) => { if (descriptors[index]) Object.defineProperty(globalThis, name, descriptors[index]!); else Reflect.deleteProperty(globalThis, name) }) })
   return { directory, marker }
 }
+test('RUST016 受控profileReader必须由Main诊断factory显式调用一次', async t => {
+  const fixture = await profile(t)
+  let calls = 0
+  const options = {
+    sink: (_line: string) => {},
+    profileReader: (env: NodeJS.ProcessEnv) => {
+      calls++
+      assert.equal(env.MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR, fixture.directory)
+      return controlledScaleProfile(env)
+    },
+  } as Parameters<typeof createCollectionScaleMainProbe>[0] & { profileReader(env: NodeJS.ProcessEnv): ReturnType<typeof readCollectionScaleProfile> }
+  createCollectionScaleMainProbe(options)
+  assert.equal(calls, 1, 'Main诊断factory必须消费受控reader，不能忽略后仍走正式路径。')
+})
+test('RUST016 受控profileReader拒绝必须传播，不能悄悄回到正式reader', async t => {
+  await profile(t)
+  const options = {
+    sink: (_line: string) => {},
+    profileReader: (_env: NodeJS.ProcessEnv): ReturnType<typeof readCollectionScaleProfile> => { throw new Error('受控可信根拒绝') },
+  } as Parameters<typeof createCollectionScaleMainProbe>[0] & { profileReader(env: NodeJS.ProcessEnv): ReturnType<typeof readCollectionScaleProfile> }
+  assert.throws(() => createCollectionScaleMainProbe(options), /受控可信根拒绝/u)
+})
 /** 受控Main窗口/原listener旁路测试；不作为真实App或DOM验收证据。 */
 async function controlledColdWindow(t: test.TestContext, options: { delayStatus?: boolean; background?: 'resolve' | 'reject' | 'missing'; mainClaim?: boolean; afterBarrier?: () => void } = {}) {
   const fixture = await profile(t), datasetId = randomUUID()
   await writeFile(path.join(fixture.directory, 'rust015-completed.json'), JSON.stringify({ schemaVersion: 1, kind: 'rust015-completed-profile', nonce: fixture.marker.nonce, modelCount: 0, datasetId, commandIds: [], outboxIds: [], policyModelId: null, policyRevision: null }), { mode: 0o600 })
-  const events: any[] = [], probe = createCollectionScaleMainProbe({ sink: line => events.push(JSON.parse(line.slice('RUST015_EVIDENCE '.length))) }), web = new EventEmitter() as any
+  const events: any[] = [], probe = createCollectionScaleMainProbe({ profileReader: controlledScaleProfile, sink: line => events.push(JSON.parse(line.slice('RUST015_EVIDENCE '.length))) }), web = new EventEmitter() as any
   web.getOSProcessId = () => 71
   const window = { webContents: web } as any; probe.observeRenderer(window)
   const publicPort = new EventEmitter() as any, controlPort = new EventEmitter() as any
@@ -382,13 +406,13 @@ test('settings status只选settle边界最新周期读取，早paint/错DTO/错s
   ]) { const invalid = structuredClone(second); mutate(invalid); assert.throws(() => selectCollectionScaleSettingsStatus(actionId, snapshot, invalid), /status/u) }
 })
 test('静态型号期待与seed收据身份拒绝串改，生产false拒绝诊断', async t => {
-  const value = await profile(t); assert.equal(readCollectionScaleProfile(process.env).modelCount, 0)
-  await writeFile(value.marker.seedReceipt.path, 'changed\n', { mode: 0o600 }); assert.throws(() => readCollectionScaleProfile(process.env), /收据身份不一致/u)
+  const value = await profile(t); assert.equal(controlledScaleProfile(process.env).modelCount, 0)
+  await writeFile(value.marker.seedReceipt.path, 'changed\n', { mode: 0o600 }); assert.throws(() => controlledScaleProfile(process.env), /收据身份不一致/u)
   Object.defineProperty(globalThis, '__MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__', { configurable: true, value: false }); assert.throws(() => readCollectionScaleProfile(process.env), /静态候选/u)
 })
 test('原IPC Promise身份/参数与原公开端口不被被动成本观察修改', async t => {
   await profile(t)
-  const lines: string[] = [], probe = createCollectionScaleMainProbe({ sink: line => lines.push(line) }), expected = Promise.resolve({ items: [], total: 0, offset: 0, limit: 24 })
+  const lines: string[] = [], probe = createCollectionScaleMainProbe({ profileReader: controlledScaleProfile, sink: line => lines.push(line) }), expected = Promise.resolve({ items: [], total: 0, offset: 0, limit: 24 })
   let actualArgs: unknown[] = []
   const listener = probe.observeIpc({ channel: 'collection:list', listener: (_event: unknown, ...args: unknown[]) => { actualArgs = args; return expected }, trustedSender: () => ({ webContentsId: 1, rendererPid: 2, frameUrl: 'musicbridge://app/index.html', trusted: true }) })
   assert.equal(listener({}, { offset: 0, limit: 24 }, {}), expected); await expected; await new Promise(resolve => setImmediate(resolve)); assert.deepEqual(actualArgs, [{ offset: 0, limit: 24 }, {}])
@@ -431,7 +455,7 @@ test('Renderer旧代际不产生paint，原invoke Promise身份保持；伪造/�
 })
 
 test('Core同clock成本旁路保留原Owner Promise、原public bootstrap与原异常', async t => {
-  const value = await profile(t), lines: string[] = [], parent = new EventEmitter(), hooks = installCollectionScaleCoreObserver({ parent, env: { ...process.env, MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_DATA_DIRECTORY: path.join(value.directory, 'data') }, getStatus: () => ({ enabled: false, mode: 'node', state: 'off' }), sink: line => lines.push(line) })
+  const value = await profile(t), lines: string[] = [], parent = new EventEmitter(), hooks = installCollectionScaleCoreObserver({ profileReader: controlledScaleProfile, parent, env: { ...process.env, MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_DATA_DIRECTORY: path.join(value.directory, 'data') }, getStatus: () => ({ enabled: false, mode: 'node', state: 'off' }), sink: line => lines.push(line) })
   const source = { prepare: () => Promise.resolve({}), commitBoot: () => Promise.resolve(), dispatch: () => Promise.resolve({ ok: true }), close: () => Promise.resolve(), getCollectionSnapshotVersion: () => Promise.resolve({ datasetId: randomUUID(), epoch: '1', revision: '1' }) } as any
   const expected = source.getCollectionSnapshotVersion(); source.getCollectionSnapshotVersion = () => expected
   const wrapped = hooks.dependencies.decorateDatasetOwner!(source) as any
@@ -443,7 +467,7 @@ test('Core同clock成本旁路保留原Owner Promise、原public bootstrap与原
   const operation = events.find(event => event.event === 'node.snapshotOperation'); assert.equal(operation.data.operation, 'getCollectionSnapshotVersion'); assert.ok(operation.data.durationMs >= 0); assert.equal(events.find(event => event.event === 'core.cost').data.durationMs, 2)
 })
 test('Core routerDispatch成本与原public六命令同闭集，辅助业务Promise保留且其它成本阶段照旧', async t => {
-  const fixture = await profile(t), lines: string[] = [], parent = new EventEmitter(), hooks = installCollectionScaleCoreObserver({ parent, env: { ...process.env, MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_DATA_DIRECTORY: path.join(fixture.directory, 'data') }, getStatus: () => ({ enabled: false, mode: 'node', state: 'off' }), sink: line => lines.push(line) })
+  const fixture = await profile(t), lines: string[] = [], parent = new EventEmitter(), hooks = installCollectionScaleCoreObserver({ profileReader: controlledScaleProfile, parent, env: { ...process.env, MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_DATA_DIRECTORY: path.join(fixture.directory, 'data') }, getStatus: () => ({ enabled: false, mode: 'node', state: 'off' }), sink: line => lines.push(line) })
   const allowed = ['commandOutbox.context', 'commandOutbox.execute', 'collection.list', 'collection.detail', 'core.shutdown', 'recordingPrintWorker.claim'], auxiliary = ['referenceCatalog.sources', 'collectionProgress.modelLengths'], received: unknown[] = [], original = Promise.resolve({ synthetic: true })
   const source = { dispatch: (request: unknown) => { received.push(request); return original } } as any, decorated = hooks.dependencies.decorateDatasetOwner!(source)
   for (const operation of auxiliary) {
@@ -465,7 +489,7 @@ test('真实PassThrough复现Utility exit finally清监听窗口：晚到四帧�
   await profile(t)
   const lines: string[] = [], stream = new PassThrough(), child = new EventEmitter() as any
   child.stdout = stream
-  const probe = createCollectionScaleMainProbe({ sink: line => lines.push(line) })
+  const probe = createCollectionScaleMainProbe({ profileReader: controlledScaleProfile, sink: line => lines.push(line) })
   probe.observeChild(child, '/synthetic-core.js', [])
   const tail = ['node.exit', 'node.closeCompleted', 'core.publicReply', 'core.closedStatus'].map((event, index) => 'RUST015_EVIDENCE ' + JSON.stringify({ schemaVersion: 1, actor: 'core', pid: 123, sequence: index + 1, elapsedMs: index, event, data: { text: '樱花🌸' } }) + '\n')
   // 精确模拟官方43.4.0：同步exit回调结束后finally清缓存stdout监听，再交付已写尾帧。
@@ -481,7 +505,7 @@ test('Core输出排空等真正EOF和Main最后flush，重复调用复用原等�
   const lines: string[] = [], stream = new PassThrough(), child = new EventEmitter() as any
   let flushCalls = 0, acceptFlush!: () => void, completed = false
   const lastFlush = new Promise<void>(resolve => { acceptFlush = resolve })
-  const probe = createCollectionScaleMainProbe({ sink: line => lines.push(line), flush: () => ++flushCalls === 1 ? Promise.resolve() : lastFlush })
+  const probe = createCollectionScaleMainProbe({ profileReader: controlledScaleProfile, sink: line => lines.push(line), flush: () => ++flushCalls === 1 ? Promise.resolve() : lastFlush })
   child.stdout = stream; probe.observeChild(child, '/synthetic-core.js', [])
   child.emit('exit', 0); stream.removeAllListeners()
   const waiting = probe.flushCoreEvidence(); assert.equal(probe.flushCoreEvidence(), waiting)
@@ -541,7 +565,7 @@ test('Main stdout flush失败原错误拒绝，清理监听且沿原PROBE_FAILED
   await profile(t)
   const lines: string[] = [], error = new Error('受控Main flush失败'), stream = new PassThrough(), child = new EventEmitter() as any
   child.stdout = stream
-  const probe = createCollectionScaleMainProbe({ sink: line => lines.push(line), flush: () => Promise.reject(error) })
+  const probe = createCollectionScaleMainProbe({ profileReader: controlledScaleProfile, sink: line => lines.push(line), flush: () => Promise.reject(error) })
   probe.observeChild(child, '/synthetic-core.js', [])
   const failure = probe.flushCoreEvidence(); assert.equal(probe.flushCoreEvidence(), failure)
   await assert.rejects(failure, actual => actual === error)

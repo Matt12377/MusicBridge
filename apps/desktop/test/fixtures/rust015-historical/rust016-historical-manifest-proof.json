@@ -1,0 +1,27 @@
+{
+  "base": "dd2a7e537039d10151af840945a717701fb5ea1b",
+  "sources": {
+    "05": {
+      "preparation_sha256": "e4a77491c1cbb95d21d74e85177d0977b7d3f4dfe52a95d593b4daf0cbe7f981",
+      "source_entries_count": 1169,
+      "source_manifest_sha256": "9fa9588818a0aa9a806cf32f3fd479530017b1feb83c56a2d13e3fd7438a214d",
+      "algorithm": "sha256 UTF8 concat original sorted entries path+NUL+sha256+LF",
+      "sourceCommit_role": "historical HEAD locator, dirty-source byte manifest is actual build input identity",
+      "sourceCommit": "906a3841df3424fff05b6071f4342f312d0c7de9",
+      "verified_manifest_digest": true,
+      "git_commit_equivalence_claimed": false
+    },
+    "08": {
+      "preparation_sha256": "8cfac659d27723107963359e855152c42ef9eaca97146c73cb5971bf85b26fa6",
+      "source_entries_count": 1170,
+      "source_manifest_sha256": "12661b7e0723c1d137b8ada2a0b292bca45c7f9ac62f4b7ea84b84c502d8470c",
+      "algorithm": "sha256 UTF8 concat original sorted entries path+NUL+sha256+LF",
+      "sourceCommit_role": "historical HEAD locator, dirty-source byte manifest is actual build input identity",
+      "sourceCommit": "906a3841df3424fff05b6071f4342f312d0c7de9",
+      "verified_manifest_digest": true,
+      "git_commit_equivalence_claimed": false
+    }
+  },
+  "validation_kind": "只读来源清单摘要重算，不构建、不运行测试/consumer",
+  "producer_algorithm_ref": "scripts/ci/verify-rust-collection-readonly.mjs:51-55"
+}

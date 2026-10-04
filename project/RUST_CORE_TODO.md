@@ -8,7 +8,7 @@
 - [x] 交接输入：8 份指定原件字节/SHA、97 包文件/96 内部校验和、015 六 Git 输入与远端最终 HEAD 已核；新保护快照覆盖全部 83 个注册树，目录型 untracked 仅登记、常规脏文件保留流式摘要。
 - [x] MBRS-000 首批基线/12 复用/14 原始未完框的唯一主责/18 任务156验收/3 有限 ADR 已落实；转交保持 OPEN，不把 Node writer 或默认 OFF 收藏 Rust 写成完整迁移。
 - [x] MBRS-000 新鲜结构 Gate 与13行为正负例、control-plane/boundaries退出0，首轮独审无确认P1/P2；实现/报告/推送精确身份由000结果报告与提交后外置收据解析，整体 G0 仍 NOT_ADMITTED。
-- [ ] RUST-016-ci-security-portability：本轮拟登记的下一独立修复任务，C01+C06 唯一主责；关闭工作流校验、Linux 18 准备失败、两个 Rust host 输出接线、历史 raw 可移植输入与生产高危依赖，保留门禁及原失败。
+- [ ] RUST-016-ci-security-portability：IN_PROGRESS，基线000 final `dd2a7e5`，C01+C06唯一主责。六组实现与真实pnpm锁已冻结；typecheck、27准备边界、82加密兼容/64黄金、4历史行为和原high审计退出0，6项既有moderate保留。完整verify/Rust/Electron/E2E、独审/远端CI待执行，G0仍NOT_ADMITTED；后文015封存快照保持原状。
 - [ ] RUST-017～025 的原控件、成本、推送、索引、相邻领域、平台媒体、持久化、live 与 Owner 主责分别保留 PLANNED/NOT_STARTED；具体 scope/依赖见 `docs/postrust/MBRS-000/RUST_TO_MBRS_RESOLVED.json`，登记不等于已准入或完成。
 - [ ] 完整媒体/平台签名公证/安装/真实服务、旧录音 Gate B/P4/P5、GE 与 Owner 最终成品反馈分别保留；代理负责中间验证，未取得具体许可的动作仅阻断其自身。
 

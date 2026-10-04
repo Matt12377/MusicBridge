@@ -1,4 +1,5 @@
 import vue from '@vitejs/plugin-vue'
+import { buildStoragePolicy } from '../scripts/build-storage-root.mjs'
 import { defineConfig } from 'electron-vite'
 import { createHash } from 'node:crypto'
 import { readFileSync, realpathSync } from 'node:fs'
@@ -10,7 +11,10 @@ const output = process.env.MUSIC_BRIDGE_RUST_COLLECTION_HOST_BUILD_ROOT ?? ''
 const binary = process.env.MUSIC_BRIDGE_RUST_BINARY ?? '', sha256 = process.env.MUSIC_BRIDGE_RUST_SHA256 ?? ''
 if (!path.isAbsolute(output) || !path.isAbsolute(binary) || !/^[a-f0-9]{64}$/.test(sha256)
   || createHash('sha256').update(readFileSync(binary)).digest('hex') !== sha256) throw new Error('隔离编译必须给出外置输出与真实固定 pin。')
-if (process.platform === 'darwin' && !realpathSync(path.dirname(output)).startsWith('/Volumes/LifeWeave/Developer/CommandLine/')) throw new Error('隔离编译输出必须在外置工作根。')
+const storage = buildStoragePolicy()
+storage.check(output)
+storage.check(process.env.TMPDIR ?? '', { mustExist: true })
+if (process.env.DEV_CACHE_ROOT) storage.check(process.env.DEV_CACHE_ROOT)
 const entry = (name: string) => path.join(desktop, name)
 // 编译时固化 pin；运行中的 Main/Core 不解析这些环境变量。
 const define = { __MUSIC_BRIDGE_COLLECTION_READONLY_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_RUST_MANIFEST_SHA256__: 'null', __MUSIC_BRIDGE_COLLECTION_READONLY_PROBE_EXPECTATION__: 'null', __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: 'false', __MUSIC_BRIDGE_FFMPEG_MANIFEST_SHA256__: 'null',

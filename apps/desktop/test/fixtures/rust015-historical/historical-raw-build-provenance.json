@@ -1,0 +1,88 @@
+{
+  "05": {
+    "preparation_relative_ref": "candidate-015-05/preparation.json",
+    "preparation_sha256": "e4a77491c1cbb95d21d74e85177d0977b7d3f4dfe52a95d593b4daf0cbe7f981",
+    "baseCommit": "906a3841df3424fff05b6071f4342f312d0c7de9",
+    "sourceCommit": "906a3841df3424fff05b6071f4342f312d0c7de9",
+    "source_manifest_identity": {
+      "sha256": "9fa9588818a0aa9a806cf32f3fd479530017b1feb83c56a2d13e3fd7438a214d"
+    },
+    "source_entries_count": 1169,
+    "executable_sha256": "1838eeadecf567f801a1812f90c6a132a5165053252ab46eedba0fd401bbf2cc",
+    "executable_sha256_after": "1838eeadecf567f801a1812f90c6a132a5165053252ab46eedba0fd401bbf2cc",
+    "historical_failure": {
+      "mainExit": {
+        "code": 0,
+        "signal": null
+      },
+      "timedOut": false,
+      "forceKilled": false,
+      "completion": "closed"
+    },
+    "relevant_source_entries": [
+      {
+        "path": "apps/desktop/src/main/collection-readonly-dom-driver.ts",
+        "sha256": "db7acdc0f7ec94847ac6397fc6b87e921e217d0100d491904e2b63473cb4c42e"
+      },
+      {
+        "path": "apps/desktop/src/main/collection-scale-main-probe.ts",
+        "sha256": "0345b022f34059e2fbb9656345077531b9f827155a4db72d4c5609d89ce0d27a"
+      },
+      {
+        "path": "apps/desktop/test/helpers/collection-scale-evidence.ts",
+        "sha256": "8753978f82fffa2f6667a8edec384d9bd76e20ceb764543fd0d0dab783fd0760"
+      },
+      {
+        "path": "apps/desktop/test/rust-core/collection-scale-cost.test.ts",
+        "sha256": "8c2cc42e08a9d2d2a97e2bd63a304966f32a17b5be337f6e74c134a774fd17a3"
+      },
+      {
+        "path": "apps/desktop/test/rust-core/collection-scale-evidence.test.ts",
+        "sha256": "08e2cb0574789dc66c30e297e531e0d6cc40b46264837ee784b510261fd3b1a1"
+      }
+    ]
+  },
+  "08": {
+    "preparation_relative_ref": "candidate-015-08/preparation.json",
+    "preparation_sha256": "8cfac659d27723107963359e855152c42ef9eaca97146c73cb5971bf85b26fa6",
+    "baseCommit": "906a3841df3424fff05b6071f4342f312d0c7de9",
+    "sourceCommit": "906a3841df3424fff05b6071f4342f312d0c7de9",
+    "source_manifest_identity": {
+      "sha256": "12661b7e0723c1d137b8ada2a0b292bca45c7f9ac62f4b7ea84b84c502d8470c"
+    },
+    "source_entries_count": 1170,
+    "executable_sha256": "92a482661c20ac4f7084ecd3f6d7d86388b67e68a09267ba82aa3ff689b20859",
+    "executable_sha256_after": "92a482661c20ac4f7084ecd3f6d7d86388b67e68a09267ba82aa3ff689b20859",
+    "historical_failure": {
+      "mainExit": {
+        "code": 0,
+        "signal": null
+      },
+      "timedOut": false,
+      "forceKilled": false,
+      "completion": "closed"
+    },
+    "relevant_source_entries": [
+      {
+        "path": "apps/desktop/src/main/collection-readonly-dom-driver.ts",
+        "sha256": "db7acdc0f7ec94847ac6397fc6b87e921e217d0100d491904e2b63473cb4c42e"
+      },
+      {
+        "path": "apps/desktop/src/main/collection-scale-main-probe.ts",
+        "sha256": "7b5375f843638fd2f4f1b2d8515be75fa98f08e7623db24bccd08aba5838ecc7"
+      },
+      {
+        "path": "apps/desktop/test/helpers/collection-scale-evidence.ts",
+        "sha256": "01b1399cfbb0c4939405c6bb150621e448bc43736004bfee03abc458480349e2"
+      },
+      {
+        "path": "apps/desktop/test/rust-core/collection-scale-cost.test.ts",
+        "sha256": "daa7403744e79cfefd4e3300046b682da66d1b31c08553baea6687c9d3de0b0f"
+      },
+      {
+        "path": "apps/desktop/test/rust-core/collection-scale-evidence.test.ts",
+        "sha256": "10793c85a6858d385291ce406ed1209da547277bf609d4ba5f7b711ea2f4858f"
+      }
+    ]
+  }
+}

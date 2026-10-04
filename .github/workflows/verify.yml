@@ -23,6 +23,19 @@ jobs:
         with:
           node-version: 22.x
 
+      - name: Prepare strict hosted verification directories
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_ACTIONS" = "true"
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          test -d "$RUNNER_TEMP"
+          umask 077
+          mkdir -p "$RUNNER_TEMP/musicbridge-verify/tmp" "$RUNNER_TEMP/musicbridge-verify/cache"
+          chmod 700 "$RUNNER_TEMP/musicbridge-verify/tmp"
+          printf 'TMPDIR=%s\nDEV_CACHE_ROOT=%s\n' "$RUNNER_TEMP/musicbridge-verify/tmp" "$RUNNER_TEMP/musicbridge-verify/cache" >> "$GITHUB_ENV"
+          printf 'COREPACK_HOME=%s\nnpm_config_cache=%s\nELECTRON_CACHE=%s\nelectron_config_cache=%s\nXDG_CACHE_HOME=%s\n' "$RUNNER_TEMP/musicbridge-verify/cache/corepack" "$RUNNER_TEMP/musicbridge-verify/cache/npm" "$RUNNER_TEMP/musicbridge-verify/cache/Electron" "$RUNNER_TEMP/musicbridge-verify/cache/Electron" "$RUNNER_TEMP/musicbridge-verify/cache" >> "$GITHUB_ENV"
+
       - name: Install frozen workspace
         run: corepack pnpm@10.17.1 install --frozen-lockfile --ignore-scripts
 
@@ -42,8 +55,15 @@ jobs:
           mkdir -p "$RUNNER_TEMP/musicbridge-verify"
           corepack pnpm@10.17.1 verify 2>&1 | tee "$RUNNER_TEMP/musicbridge-verify/verify.log"
 
+      - name: Verify offline preparation boundaries
+        run: node --test scripts/ci/test/build-storage-root.test.mjs scripts/ci/test/rust016-workflow-context.test.mjs scripts/ci/test/rust-electron-host-receipt.test.mjs scripts/ci/test/electron-archive-tree.test.mjs scripts/ci/test/electron-preparation-order.test.mjs scripts/ci/test/rust-host-gate-cli.test.mjs
+
       - name: Diff whitespace
         run: git diff --check
+
+      - name: Verify pinned historical fragments and current discarded rejection
+        working-directory: apps/desktop
+        run: node --import tsx --test --test-name-pattern='成本05实际|Source08原settings|当前合法settings完整选择' test/rust-core/collection-scale-cost.test.ts test/rust-core/collection-scale-evidence.test.ts
 
       - name: Preserve full verification log
         if: always()
@@ -70,4 +90,4 @@ jobs:
         run: corepack pnpm@10.17.1 install --frozen-lockfile --ignore-scripts
 
       - name: Production dependency audit
-        run: corepack pnpm@10.17.1 audit --prod --audit-level high
+        run: corepack pnpm@10.17.1 audit --prod --audit-level high --registry https://registry.npmjs.org

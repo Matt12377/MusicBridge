@@ -1,3 +1,4 @@
+import { historicalScaleFragment } from '../helpers/historical-scale-fragments.js'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { COLLECTION_SCALE_RUN_KEYS, deriveCollectionScaleCostEvidence } from '../helpers/collection-scale-evidence.js'
@@ -82,9 +83,7 @@ test('成本空filter只允许原query/brand空串等价，原payload保持',asy
  assert.deepEqual(normalizeCollectionScaleObservedFilter({query:' ',brand:'甲'}),{query:' ',brand:'甲'})
 })
 test('成本05实际失败前缀固定原SHA，三次目录读/两次paint不能当单读',async()=>{
- const {readFileSync}=await import('node:fs'),{createHash}=await import('node:crypto')
- const bytes=readFileSync('/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/candidate-015-05/runs/scale-0-fresh/runtime-evidence.json');assert.equal(createHash('sha256').update(bytes).digest('hex'),'03ed7e49782d32c422da6d6d8ec653442862b48f830610f743fd3119391026ef')
- const runtime=JSON.parse(bytes.toString()),actionId='bbff1a25-949c-4054-812d-5a8c755a2130',own=runtime.events.filter((e:any)=>e.data.actionId===actionId),catalog=own.filter((e:any)=>e.event==='main.request'&&e.data.request.command==='collection.list'&&e.data.request.payload.page.limit===24),paint=own.filter((e:any)=>e.event==='renderer.paint'&&e.data.layer==='catalog')
+ const own=historicalScaleFragment('source05-multi-read-fragment.json').events,catalog=own.filter((e:any)=>e.event==='main.request'&&e.data.request.command==='collection.list'&&e.data.request.payload.page.limit===24),paint=own.filter((e:any)=>e.event==='renderer.paint'&&e.data.layer==='catalog')
  assert.equal(catalog.length,3);assert.equal(paint.length,2);assert.equal(own.filter((e:any)=>e.event==='main.request'&&e.data.request.payload?.page?.limit===1).length,2)
  for(const request of catalog)assert.deepEqual(request.data.request.payload.filter,{query:'',brand:''})
  // 历史单读约束对真实原UI必失败；当前新私有身份并未补造进旧样本。
@@ -96,12 +95,12 @@ test('成本最新submit私有身份闭集与早期discarded元数据可解析',
  for(const mutate of [(v:any)=>delete v.data.selection,(v:any)=>v.data.selection.extra=true,(v:any)=>v.data.selection.catalogOrdinal=0]){const copy=structuredClone(warm);mutate(copy);assert.throws(()=>parseCollectionScaleEvent(copy))}
 })
 test('成本05实际reset片段应排除背景limit1后绑定最近原24limit回执',async()=>{
- const {readFileSync}=await import('node:fs'),{createHash}=await import('node:crypto'),{assertCollectionScaleEngineeringObservations}=await import('../helpers/collection-scale-evidence.js')
- const bytes=readFileSync('/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/candidate-015-05/runs/scale-0-fresh/runtime-evidence.json');assert.equal(createHash('sha256').update(bytes).digest('hex'),'03ed7e49782d32c422da6d6d8ec653442862b48f830610f743fd3119391026ef')
- const main=JSON.parse(bytes.toString()).events.filter((e:any)=>e.actor==='main'),skips=main.filter((e:any)=>e.event==='main.domResetSkipped');assert.equal(skips.length,2)
- for(const skip of skips){const prefix=main.filter((e:any)=>e.sequence<skip.sequence),settled=prefix.filter((e:any)=>e.event==='main.domSettled').at(-1),last=prefix.filter((e:any)=>e.event==='main.ipcReply'&&e.data.channel==='collection:list').at(-1),latestCatalog=prefix.filter((e:any)=>e.event==='main.ipcReply'&&prefix.some((r:any)=>r.event==='main.ipcRequest'&&r.data.invokeId===e.data.invokeId&&r.data.channel==='collection:list'&&r.data.args[0]?.limit===24)).at(-1),catalogRequest=prefix.find((e:any)=>e.event==='main.ipcRequest'&&e.data.invokeId===latestCatalog.data.invokeId),backgroundRequest=prefix.find((e:any)=>e.event==='main.ipcRequest'&&e.data.invokeId===last.data.invokeId);assert.equal(backgroundRequest.data.args[0].limit,1)
-  // 只验证原reset片段，无动作执行/完整运行/成本PASS声明。
-  const fragment=[settled,catalogRequest,latestCatalog,backgroundRequest,last,skip].sort((a:any,b:any)=>a.sequence-b.sequence);assertCollectionScaleEngineeringObservations(fragment)
+ const {assertCollectionScaleEngineeringObservations}=await import('../helpers/collection-scale-evidence.js')
+ for(const name of ['source05-reset-1-fragment.json','source05-reset-2-fragment.json'] as const){
+  const fragment=historicalScaleFragment(name).events
+  assert.equal(fragment.length,6);assert.equal(fragment.filter(e=>e.event==='main.domResetSkipped').length,1)
+  assert.equal(fragment.filter(e=>e.event==='main.ipcRequest'&&e.data.args[0].limit===1).length,1)
+  assertCollectionScaleEngineeringObservations(fragment)
   for(const change of [(v:any[])=>{v.find(e=>e.event==='main.ipcRequest'&&e.data.args[0].limit===24).data.args[1]={query:'非空'}},(v:any[])=>{v.find(e=>e.event==='main.ipcRequest'&&e.data.args[0].limit===24).data.args[0].limit=1},(v:any[])=>{v.find(e=>e.event==='main.ipcRequest'&&e.data.args[0].limit===24).data.args[1]={unknown:''}}]){const copy=structuredClone(fragment);change(copy);assert.throws(()=>assertCollectionScaleEngineeringObservations(copy))}
  }
 })

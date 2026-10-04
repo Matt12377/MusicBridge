@@ -1,0 +1,17 @@
+{
+  "kind": "DATA_PREPARATION_NOT_TEST_OR_NEW_IMPLEMENTATION_GATE",
+  "sourceSha256": "192556e34ed897e367be23349b633db245dd65751ac45a5c055f765bba62e462",
+  "sourceBytes": 9746,
+  "node": "v22.23.2",
+  "forgeVersion": "1.4.0",
+  "vectorCount": 64,
+  "fixture": {
+    "file": "old-weapi-64-golden.json",
+    "bytes": 61786,
+    "sha256": "b88286b1900b2f9590bff0189617e9d71ca1bb0823ed0cdc38df89ad9dcf570a"
+  },
+  "producer": {
+    "file": "generate-old-weapi-vectors.mjs",
+    "sha256": "811810bbeaa2766cbb98fc5704edef48cebf39b7a088ac6790184030cfed957c"
+  }
+}

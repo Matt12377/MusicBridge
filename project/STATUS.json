@@ -3200,7 +3200,7 @@
       "pushed": false
     }
   },
-  "currentRustCoreTask": "RUST-015",
+  "currentRustCoreTask": "RUST-016",
   "rustCoreAtomicSnapshot20261002": {
     "task": "RUST-002",
     "branch": "codex/rust-core-002-atomic-snapshot",
@@ -5929,5 +5929,62 @@
       "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/review-mbrs000-round1-final.json"
     },
     "implementationCommitResolution": "git log -1 --format=%H -- scripts/ci/verify-postrust-baseline.mjs"
+  },
+  "rustCore016CiSecurityPortability20261004": {
+    "task": "RUST-016",
+    "name": "ci-security-portability",
+    "state": "IN_PROGRESS",
+    "branch": "codex/rust-core-016-ci-security-portability",
+    "baseSha": "dd2a7e537039d10151af840945a717701fb5ea1b",
+    "scope": [
+      "R15-C01",
+      "R15-C06"
+    ],
+    "taskRef": "tasks/RUST-016-ci-security-portability.md",
+    "localCompleted": {
+      "typecheck": {
+        "exitCode": 0
+      },
+      "ciPreparationBoundaries": {
+        "passed": 27,
+        "failed": 0,
+        "skipped": 0
+      },
+      "providerCryptoCompatibility": {
+        "passed": 82,
+        "failed": 0,
+        "skipped": 0,
+        "goldenVectors": 64
+      },
+      "portableHistoricalBehaviors": {
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0
+      },
+      "productionAuditHigh": {
+        "exitCode": 0,
+        "high": 0,
+        "critical": 0,
+        "moderate": 6
+      }
+    },
+    "pending": [
+      "完整verify",
+      "原完整Rust Gate与双host同run复用",
+      "官方Electron完整树与Electron/E2E",
+      "独立审计",
+      "远端CI",
+      "报告/提交/远端精确身份"
+    ],
+    "c01": "LOCAL_PASS_REMOTE_PENDING",
+    "c06": "OPEN_REMOTE_AND_COMPLETE_GATES_PENDING",
+    "g0": "NOT_ADMITTED",
+    "productionDefault": "Node",
+    "rustCollectionReadonlyDefault": "OFF",
+    "fullRustMigrationCompleted": false,
+    "realServices": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "implementationCommit": null,
+    "reportCommit": null
   }
 }

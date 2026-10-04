@@ -5,7 +5,7 @@
 机器入口：`project/POSTRUST_PLAN.json` 保存18任务和156条原验收（126条v1.1保留、30条v1.2衔接），每条分别登记软件、App、live与Owner。包PASS、计划批准、软件通过、App操作、实机与最终反馈互不推导。
 
 - [x] MBRS-000 基线交付：12复用 / 14原框映射 / 18任务156验收 / 有限ADR已落实，13结构正负例、Git来源Gate、control-plane与boundaries均退出0，首轮独审无确认P1/P2。实现与报告分开提交解析，整体 G0 继续 NOT_ADMITTED；AT-000-02/03保持PARTIAL。
-- [ ] RUST-016-ci-security-portability：本轮拟登记，PLANNED / NOT_STARTED；C01+C06唯一前置主责。分别保留历史Source05/08 raw来源与最新015远端失败 / high依赖证据；不新增skip或降低audit，不删Provider功能。任务冻结与新分支由主控接续。
+- [ ] RUST-016-ci-security-portability：IN_PROGRESS；从000最终报告 `dd2a7e5` 建独立分支并冻结六组实现，真实锁文件/frozen install、全工作区typecheck、27准备边界、82加密兼容/64黄金与4历史行为已通过，原high审计退出0（仍有6项既有moderate）。完整verify、Rust/Electron/E2E、独审和远端CI尚待验证，C01/C06不提前关闭，G0保持NOT_ADMITTED。
 - [ ] 其它Rust剩余职责：原14框逐行在 `docs/postrust/MBRS-000/RUST_TO_MBRS_RESOLVED.json`，拟任务登记仅定位主责，未完成、不自动获准生产执行。原Rust路线、平台 / live / Owner分别保留。
 - [ ] MBRS-001：原文件→官方Audio Input隔离POC，NOT_STARTED；没有新增目录 / Zone / 网络 / 发声许可时仅离线准备。
 - [ ] MBRS-002：本地对象、音源合同与存储增量，NOT_STARTED，产品依赖000与真实G0；不迁旧writer。

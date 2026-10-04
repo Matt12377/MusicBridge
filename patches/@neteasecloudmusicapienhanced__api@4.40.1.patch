@@ -1,0 +1,26 @@
+diff --git a/util/crypto.js b/util/crypto.js
+--- a/util/crypto.js
++++ b/util/crypto.js
+@@ -1,6 +1,5 @@
+ const CryptoJS = require('crypto-js')
+ const crypto = require('crypto')
+-const forge = require('node-forge')
+ const zlib = require('zlib')
+ const iv = '0102030405060708'
+ const presetKey = '0CoJUm6Qyw8W8jud'
+@@ -56,7 +55,12 @@
+   return bytes
+ }
+ const rsaEncrypt = (str, key) => {
+-  const forgePublicKey = forge.pki.publicKeyFromPem(key)
+-  const encrypted = forgePublicKey.encrypt(str, 'NONE')
+-  return forge.util.bytesToHex(encrypted)
++  const publicKey = crypto.createPublicKey(key)
++  const width = Math.ceil(publicKey.asymmetricKeyDetails.modulusLength / 8)
++  const input = Buffer.from(str, 'latin1')
++  if (input.length > width) throw new RangeError('raw RSA输入超过模数宽度')
++  // weapi固定16字节base62逆序输入；左补零保留原NONE的整数与小写定宽hex。
++  const block = Buffer.alloc(width)
++  input.copy(block, width - input.length)
++  return crypto.publicEncrypt({ key: publicKey, padding: crypto.constants.RSA_NO_PADDING }, block).toString('hex')
+ }

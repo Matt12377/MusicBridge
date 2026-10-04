@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { syntheticFixtureRoot } from './helpers/synthetic-profile-root.js'
 import path from 'node:path'
 import { mkdtemp, writeFile, stat, symlink } from 'node:fs/promises'
 import { createCollectionReadonlySettings, readCollectionReadonlyPreference, writeCollectionReadonlyPreference, installCollectionReadonlyHandlers, type CollectionReadonlyControl } from '../src/main/collection-readonly-settings.js'
@@ -20,7 +21,7 @@ test('公共回执闭集拒绝内部selector/getter及伪刷新', () => {
 })
 
 test('Main真实原子偏好0600与坏/缺/超限/链接安全默认', async () => {
-  const directory = await mkdtemp(path.join(process.env.TMPDIR!, 'readonly-preference-'))
+  const directory = await mkdtemp(path.join(syntheticFixtureRoot().directory, 'readonly-preference-'))
   const file = path.join(directory, 'collection-readonly.json')
   assert.equal(await readCollectionReadonlyPreference(file), false)
   await writeCollectionReadonlyPreference(file, true)

@@ -1,0 +1,1549 @@
+{
+  "schemaVersion": 1,
+  "purpose": "官方API4.40.1旧forge weapi冻结字节oracle，合成输入",
+  "sourceSha256": "192556e34ed897e367be23349b633db245dd65751ac45a5c055f765bba62e462",
+  "sourcePackage": {
+    "name": "@neteasecloudmusicapienhanced/api",
+    "version": "4.40.1",
+    "integrity": "sha512-RUpVnxUCkeEt0yYeElc+UvCXqucikI/PIlJaLj18FlwHQ8X9wk4QkM/h7C+qePC97COMODcmgRXKgWO94YLuWA=="
+  },
+  "alphabet": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+  "vectors": [
+    {
+      "id": 0,
+      "secret": "aaaaaaaaaaaaaaaa",
+      "payload": {
+        "id": "synthetic-0",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 0
+      },
+      "expected": {
+        "params": "c6kaeNc0dZTR+MOOJH0IrRR65YcqiDBgQLKIZKTUK8Rhq3LFaP/xAzDVuDQMnaVFJFOg3/zr9KWgyesbUaefpPvMX0MsMyX+9Do7W6yrFidAexzR9lDWuQ2xOrGmDGaHo2QF06LW/WnK3I3gMVnkg1IgsSpxDZKwbC16QXsB1i2k+TOKQulR9qQ+1kZBkqzvj+y0oBPGP+eUbHiXXZIGoVWWNfaZeV+ggCg6NG65S6Y=",
+        "encSecKey": "d473b9eca232f1b4090dd606b0df86de318748dd2eec307e4ed4345030fc4ee30331e598f41d5a6f5befaab94630ea1a1eda7cfade84fbec1a907913d2e4d2c8744bc572b99a050075e075b4537f645ecfa994f95906c32818e076aeda6bdb906bfa0bb96c4cf4bc3ed6d9ab76cf08441153d9d85e1ea3d78fa8d9210d581cee"
+      }
+    },
+    {
+      "id": 1,
+      "secret": "bbbbbbbbbbbbbbbb",
+      "payload": {
+        "id": "synthetic-1",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 1
+      },
+      "expected": {
+        "params": "A7kNuoPuTcK3OoNRG0TBpoPQ/FjfubnLp7vsZk7ZLpfMUXNBZDNxE/G7AOvaQM8ajhn70ipfN0kJMH+YR4pQ1oO0FZQ2xo3j0EAVLNkXgn/EafZZ+vxbcNr5pTzhF6cmO3aq4WdANfaB3z/F/l+USvW4SA6GDhWAqdLDIsIwf48FqYKenh9/XOHa2mOBBVZqQGVzrnG91ZyfDBV9od3/GJPCuC8SHmbyCodq9aSroZL60V2mOHBUG/r4OP6aKyEis3LUC7K9bahQRXGj4UrrZw==",
+        "encSecKey": "d6a34827fd6bba769c5b065f7606b2c1ee0deb44ffcdb85448736fe313460305dc79f4b2661c7ef20ad385b7d5556d97e6b7aa9996a6d37debaa755ee103cc0019520f9cae9cf9c7427836af585a10e0074872a348fc300d7bf00d1de32ac03832f1a73bf66c5a8bbb29bdb23c6b7f42d1c0865857abe651f3ee6452fb017cb5"
+      }
+    },
+    {
+      "id": 2,
+      "secret": "cccccccccccccccc",
+      "payload": {
+        "id": "synthetic-2",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 2
+      },
+      "expected": {
+        "params": "T1qctpZnujge8mlRuUJh7/FohWW+qvmtzB3q/Qv2yH2dKR7CWW0Bu9p6vpjmk/N77639cxnDQCzFWb1MEWFJRjVRZnYYUXat8Bq+ooLWTXEGtsWGDoyJ1wlwrcmgotfrGaTvJmlhJWCTbv6XqyicmGC8aKGpxjboABbooay3rvxWluswSpv5Oag50mqaAWmNupxrovf90E3aSvZJLuzWpxuRYs9wTqOYOWzR3QbkicE=",
+        "encSecKey": "0fff0e6d04898b8e914f1f1b4ddbb4df4145bfc3f407938b0c1eb3848f46a6a7869b18ec298339f3db736e8f605c113e6df5391410d55937f8eb4740d9972406752d9db87213a38b28ce3d5a8859808ec34a9acfc28f4d2cbad3c5626976956da1c9aea305244ad2f4aa371c1e2e2158995570ca88acf4f6a72a016f9ddabf1f"
+      }
+    },
+    {
+      "id": 3,
+      "secret": "dddddddddddddddd",
+      "payload": {
+        "id": "synthetic-3",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 3
+      },
+      "expected": {
+        "params": "JiagyAbaHI3uS0Ev/2QluYxpSYS92o1eLahXZNzpQsi1UIwPiGFXNEQelPXbeykKqzZofpex2673gBz/K77SqUidYID+8kd/fMxkIxTPDR/QHvIt2w6iSdaPAWZKiMBLCbORWDifKbnzzqJ1PGanZ3PRt0FPtGp+pI4wV4F70XgTLeFmEikOAMcFbwZLwH4HjI6SkL9MFTz/fm6uPed3txu8DF0+1W8J0vnVyzn/UtMauGHTEQNyPNK+E/Ug+crp6JTZdCaQ0rRi7b42C6NhPg==",
+        "encSecKey": "a3900fba80ea8bacae6852164c5be86676c1299bd6866f73efbc4c5e4f23707ffa6aa03648bdc0e61749fd14cba9f789883f2fdb488f8bcf7305415f92941f3025b3097b5c16fe1b5727bc1c359ab4ffa672a9588c46a9a1756225fe6fe2c461f3e8f7d0b971efa90bb0b3bf795e261fbe89277c94bb79dbfcdfcf5449bd931b"
+      }
+    },
+    {
+      "id": 4,
+      "secret": "eeeeeeeeeeeeeeee",
+      "payload": {
+        "id": "synthetic-4",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 4
+      },
+      "expected": {
+        "params": "ayNXTr2yWvUy/kLWBC5R1O6J246GK5UpVpKOgckvFNehTJX70iluPTN+Hbwqh0ihbmZ/cKdNE2dUFjsyXv5mXNn7FlzLHQhiFlfT5fxZwy3JU6nJma6vsekoZLRwLtdYOup/+6MOCG/hViKwIxkJcraNdtW5i4tLLMgFnNHCgJXTs+K9AkSyaRZJvcF716nIBOnZpZlIsxHBpFwyeqba7W4zsF3ZXQQFMSgMw0mUz1o=",
+        "encSecKey": "57e9483cde23990a0d9b822c73f95004804d0560c2e48e7369e131442a4c6589f7bc40912fcd59808ae65515b080a192294f2aaddf452d6b64072940e5b39fe754f23ad0758c5622af8e947981930b4f30423e033ea065b3a0befdede626bc27d0d46ba94dae743171c2514a7087b79fd767813006748973e83231c73e82efb9"
+      }
+    },
+    {
+      "id": 5,
+      "secret": "ffffffffffffffff",
+      "payload": {
+        "id": "synthetic-5",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 5
+      },
+      "expected": {
+        "params": "QnNaD5i5+/h7CNyAorrnP4CWe4HT1xdpO/RDFwKLereLVkf5iNlKhwgRS0ehnbTVrVMr+CD1awd2GfeuX+Ina1In/nvGyffakUqT1WCOLl7Lyvt6V3RXMPZD+KLB0A5/JRwrdw0xeWTi5m+TXJFGzPDg9SKDLzF47ZmD5OAtVw8DK1jybGue/qUIBJFIvBpA4UUiqskyoH7J/OWW9LZB7+G+LhuTCd9O0wUj3k//LBjJ5fmP1g4oc0SjsqORJG0VY02yqQBoWVRsJz0Le+xykw==",
+        "encSecKey": "cf9dff26e87f90e1ae5bd8cc400d1cb9a8cd97739f6305c6ca17069715cdd3c3c249cc016f338867b9fe77b9e17a58c263a233467889d4bb76c0b5f15ec1147aa6e707cde8d586a6010ef0872b0bdfce51adf58e45086b60537276198f4475c6560388f25ec3d38f36908b221e168bdd2a59254f8b15ceaa2df74ba0dff3499c"
+      }
+    },
+    {
+      "id": 6,
+      "secret": "gggggggggggggggg",
+      "payload": {
+        "id": "synthetic-6",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 6
+      },
+      "expected": {
+        "params": "ee9zO9t/14iRW9N2GGVU8hjIL9XvdBhzYvDZIlk3/b+dYJ630+X3snMtBZZMNHFn5mTqOiTvPflIKhzhL/7m2YZIkVX6Am8XHrzGgTiLeDSoDugx3JaWMPGehGF3DWr8aMJaahXz2Z63WetL/HQ6FsMTuLkzMyA3GSdpRhtp1q8dk/ls9zoki49pXVXOSHhQYOSjU2FBW6TpzohdjlwPRKO0cD9HiuFpMFdTe2WL/G4=",
+        "encSecKey": "533d75610e4baea233e82afa85351a244d9721a49d9df0af2795a9369b646ad1824c1cd85f99ea64a50cf166a3061020aebe79325d5911ecd9449c1a284604251327d20a16dbe9f1f18c09449ea32daea3278333d1dd66c3ed4d275aec62fb5fd8455629336dfa5d2e0ab636e2f476ba34bd6f70825b495c76369995c700c954"
+      }
+    },
+    {
+      "id": 7,
+      "secret": "hhhhhhhhhhhhhhhh",
+      "payload": {
+        "id": "synthetic-7",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 7
+      },
+      "expected": {
+        "params": "Cda6qOwmBzg8YGOUih1V8W69Nh9nJyc0MXOBWFN9lmqsQqRKfSlSLma24KuAvk+u8LzDIb9JhusUPzy/NlimqoblxkcIAHXaKjiVP+qcFlNeCgtnXeCNPQ81zvyooewfEkg+LS6cfcW6D78E66f7wFdC1OeuSDxOo5edD/ch6rJoZF3+zdset57fJM6mRPs2iF1XDMFQTTyx3xCRnuiUH/15ad+lkhwPqnZPwhcq2XM8XG/akfrvjaDVPz2P6cm2KlMQyFCG7N0pbDfAoBLf0A==",
+        "encSecKey": "574cca36eb4d9ec62e9450ea6c2df1500b6c9e36fccdd392de6ae2da3fa1305d793fb9f8773c42dadad1b56df91f51301256bcbee98f510aab5f96d449b5d2dc18fa7c99c646207d0c4b042b43aebe73daa7e7c6d9b1a511cb3e814b105ece3ebc6e3ee00254f3df9b3f78b367b4353e1d8dc5a722ddc23aae6c0dd4cd60c76c"
+      }
+    },
+    {
+      "id": 8,
+      "secret": "iiiiiiiiiiiiiiii",
+      "payload": {
+        "id": "synthetic-8",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 8
+      },
+      "expected": {
+        "params": "K/qvPz4N0swIoC5uESk4OtelFL3MlHwC6sLKwYQCPK1Sm6t2l/bFL0zSDU402LwIKDccq/j96W4nSBZ5UQZ0mELGpClEbnOB+iGVXWvlFOm/8GlJtyMIjKzwrqeMMwrvWKCXQ7WX38lEnycBmA1hoIbs+OKuhAZ97c47I2kOEzdGH3e1/BkgMDGYUcAQ9hJnvdd1CWR5e8hM4Gn7iQe1Y1F+rIm7oWtOLWyrl3qDx4c=",
+        "encSecKey": "619041cecd719722c80d48d54ab2b2b5c20f33f31a9ee281c52d07f9318e171210210b3e1a6adb46912c01fa97952f2e06b4608289e71b1bd34f6139c4b98dcbf37077e51fe749270beb1275c58b8c79b335ea1ee0bd5ba11e4fa9ce6d3f98e0180196c071cc6852b66b165a5ed016d045b184fb3053345949ab512083fccd50"
+      }
+    },
+    {
+      "id": 9,
+      "secret": "jjjjjjjjjjjjjjjj",
+      "payload": {
+        "id": "synthetic-9",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 9
+      },
+      "expected": {
+        "params": "jR7mAAtcGdkm6nlB3niWMOWbHgOrmEs4yfynptBcJ//TPTYya1EHXzRF5zhR8bH5EFSR0wpMeRMfZb7+CPHZH66Axl6RZHCqv7KHP/eI2evXdG83rDtI6huXfYHjLkc+92AA7/MbMsx+XnhBm+ya9t8asVHBZFRjjy3HMBtXpxFTXfnO8lMRrVnhys2VPUcbEDIC4nnGF6xT1sWmL54gO5eyUV88QsNtlphZeZqi4v/5GKm6WCofvG0kE3Hn+KcUt22EaQ7xudPSsnio0BhMaw==",
+        "encSecKey": "ad3a08ed63543b774102a50a8fd1a3ef30706729de05c90164f26c0857570e9f5830f823579dc66c5d01e646961dca550d565ebc873d19fcea2ecfcd0bda2b47ab6058a4cc5ce66c6544611f8351c69bcbf6f99066c76b94de95e6a0e44f546cf7689ae378ac77e2d4a9920fa80ad8537e47cc4b874115447b18c97abfd02097"
+      }
+    },
+    {
+      "id": 10,
+      "secret": "kkkkkkkkkkkkkkkk",
+      "payload": {
+        "id": "synthetic-10",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 10
+      },
+      "expected": {
+        "params": "j28OUuylQpu3EPP7SA7T13iSv0LL1msPWyK2WQo2xcNgOW/5kKj164Jk2+TpV1Sdhmdbn0c5QiOZm/bcX78cx+KTq1E0Z0duZoSw1ynba1lldn+ECj9G480cbey1ETZlBuNNWZNn2sfgJ1W5MQ98j0GQhRN/UeyS7vQdSLlWf+Awz+v80AOFDUOva6UXNEae36b0lDIpRTeSUC/WJp3DMnfnvTwBjrs/n8SpovCdbAs=",
+        "encSecKey": "b6e3cd0aa5b30a5dc04b5718caa0af43a2bf3cc3243431e9051b73619910c88b91382af1cabcd38abd075513ccf58a827722b52be853ef8a09d28c5fdc117b7357792d34733b429a90f3fd0d468c82762be7356300520ef364a2ce050a4fea3f460babcd0bbb91c5796f44fbee880cbae0f60c85ddaee29a5b179bd096f16452"
+      }
+    },
+    {
+      "id": 11,
+      "secret": "llllllllllllllll",
+      "payload": {
+        "id": "synthetic-11",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 11
+      },
+      "expected": {
+        "params": "2pnv7eD6p00uDdwXfCgPmM8U7LUzxJODDWrMX4v4yXbuxvl8DwC+MFitHI4yULXSMJpd8wJezH+tIg0abZWSY9XaK8Cw+gaP0RC4t1yhJEsF41O2jC76IoD+rwKsc3+5JtzIfD07Guc+6nSBGyqy07prrAnp1nhXH8EoAzqqb07eeny3XydZuq+CBpFb5d2XOCz0KP1Wm5wSNTTX65CDcHBXaOLDM0NNiR0+cUTNlx2RiwSdCDqFlNJ1ZelLQpcYvJcGmqWbpJjojS8E5y7q1A==",
+        "encSecKey": "361706e29cfe9bd6da23cfd0b60ce183f086c1379f5d372489c44a6eed6bbe8025b286dbbbd82cc6f77d53a8698f35e4938407a3b7823d46b33948f1b0cc8b32c3364ec0399f5f2213b45756f8a026d8fefe7b510afd1341e34f9bcc8af04d086be9bd6d063be80b3be5d06420dfcdf4efc3a382e7f995d78df1d048b2b6dcca"
+      }
+    },
+    {
+      "id": 12,
+      "secret": "mmmmmmmmmmmmmmmm",
+      "payload": {
+        "id": "synthetic-12",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 12
+      },
+      "expected": {
+        "params": "EhzDOFydlSl49UA46zrJ43guLJcsw/94Xqx96SaDM/otLohI8/7gcwDIkcEw+VYCkkTXEk6kqpPPu1Cgf4K3g0ZBnFlpwDnBgpaMBH+ZQsguSq4B4kBMD48V9px7DLhUuegOuestgOyBv5xTyNN4bwG67qqQfyBJxVXQ6/XuFgJ6WW0XUVqHH/Vw/XG9U4y3/7zjHEzjxC6QsspIpVWBdCZF0qiQO+UOI0IEANr51hI=",
+        "encSecKey": "8e8799ba48f1d81efb61d44c07d72e3d8ac139b0fc727a8d3ebcae3e34893a9ea6fb2bf19b2372f5ac517427c96c6b2ca427a589cb4c60b64d6ee5113f340be8657b93e3314bd8aa7e7a2fdc81a0702c5ed0de11f7943ae88ef98978ac93aa8831cf6986ff4997771a1590d70b8d57f3bd46d9a7c88aa2df90e0730e473e0768"
+      }
+    },
+    {
+      "id": 13,
+      "secret": "nnnnnnnnnnnnnnnn",
+      "payload": {
+        "id": "synthetic-13",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 13
+      },
+      "expected": {
+        "params": "U/3s6F0lgtgA9gBPvZ3f9dEIfJM4aKbexWOJdtLCwmZTEP1QOMahDyFkYis0Y5e7CuJiMIuaIDZENMeh/+3UYHU+1DBqCBLmkiZXH98A2RPJclqQVVpq8Tj7vQa0bNmLKcenXR55MWjscaOKJarOw6do3HhZGMdYR/NBWVBB7KkmMuihleA8Mgw0EnMxU999Z7Z1ftQxd2s8Ljf5gsxAKYyyiWeQ6jQ7WdCZZXYV2H/Z6iOJkfr/q+cv77p0oOxnGl35olpPwdEoVsMyaC+smA==",
+        "encSecKey": "a98a5bbc7b82ccef7eae15f70d16efd18c1e65fac5d592017e96debe934c4ebe08fb0e3416fa77e7ef5377465a1482623cb57c462e3c5e76469ab0cbc59d462e07fff3cd929c196c0d0111cea315daa07a3609e7a06d1ccd1d093dc6f4bd6147f77b5a59dd4260b68fafa9aff211a796fd54d985b4ba4f606668c472fbd4ab25"
+      }
+    },
+    {
+      "id": 14,
+      "secret": "oooooooooooooooo",
+      "payload": {
+        "id": "synthetic-14",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 14
+      },
+      "expected": {
+        "params": "6ShnsmNNk9QIf6HPaJgCEInpaSc03FeP2Do09Te5E4ZPCXTDiTyTgpwVHfa+WpRV6pbZADZdFW+NQx2y/LmXtkPEcoS5yLOHx6Ii5IiBJ+/nN5gGBJ5s5zPvLt4HxabrqcsRUokwkjqfI8cRS65ijeBFwSz69LLezzfq3PFCKE7W7AqhJsiUtsShyQyI+1fam98wbupnMPgjc59T5hVrg5R72wATO0k+2Mx7U3zaFp0=",
+        "encSecKey": "96f8250c4f8a3879a6662ca0d12111da6b605af25026c09b5a45368dd7184b401abbb46618b61285f46a88e83b9db2fe048226b87d94829ebd8574cfac23f8563519669d6f44c5622be2a379b3cd015713cbd6aa2f36b1c5d4a98abc2bb61cbd47e1ad1c56fe523df9f9bb6b4e489a31b394768b8e18aaaa0581d6c9d629b5dd"
+      }
+    },
+    {
+      "id": 15,
+      "secret": "pppppppppppppppp",
+      "payload": {
+        "id": "synthetic-15",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 15
+      },
+      "expected": {
+        "params": "Omq5f4p+X9p+KMD82mqM8My37cLWlnqqiYX5walfgVlyMPr+F873vnOlwTLrWTMSQm3sUDxVwVuo/Bq1jyC3ji2xMK/CkFchKS5fRlEVGp4nE6lz4knmZ3/6thaWs7mulbpWe9mi8Tn2G3ImmwP/2gL5IiUGOt/ncP8FP7jaUcj18Bz4VUJat/7b/r4GbzuDRBe/W97KjNnbPl+uT1+bNGZdWHcWb1tgeWD7bg2fb56oJ866v5jJ/otcurTbgH46YnHS7AlYZGJRB84dxF9xuA==",
+        "encSecKey": "d571259ee779c40016dcd8456ee76ec0668228ab9d7873275215adb6872bacc5ca4b6062b399303863af64e3999bf981fe2638edeb2a8fc791ac20edce7598b8fac0571dda6aea083a4ff651996a0deed7ce46756acb8716e86aab55a039746baee9b9ffe26081c588d450053a37b98ab01ee92677e139ac9370187593a64bc9"
+      }
+    },
+    {
+      "id": 16,
+      "secret": "qqqqqqqqqqqqqqqq",
+      "payload": {
+        "id": "synthetic-16",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 16
+      },
+      "expected": {
+        "params": "AcHNSymBS5AV+7jYP1sCGfpuig+sTW9QJZUrnzjv79BHNFQ0baWoHPPm5sdxWWVcf5MAyBVxAU0hg/DYDwLWz4VTdpPE+nFgO6zpUqXvMfOLo2MEvOqN8/JpaLa7M/SyZO3wbvl3t7gz+J/FvScYwHH26JC9LqpiqVW+b7hQRosXGY5er1qQZ9Fjsxd2raTP3eN91Jo40tlNwrCJQ59BurxRpak7gxDQBGrEqS1hMj8=",
+        "encSecKey": "1183d655ab298a78af9e52d95a5b7355ccfa2142ee7fd45aa31d56c35a4c780c93f7dec1f13d17a21dd9bb8186b083f1b1f612e7adbb118ff40a50e0a8e8118506810f0d503f00caef57ec6973feed6ec2443366a2f240ec270778cc3c4c7a45cc87bcb4a254b0cf25897fe8302d6a3910817816f216b3d1e232bcf33023df8d"
+      }
+    },
+    {
+      "id": 17,
+      "secret": "rrrrrrrrrrrrrrrr",
+      "payload": {
+        "id": "synthetic-17",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 17
+      },
+      "expected": {
+        "params": "CHB5JdPMEwybZmfw0NnDJcNtd6Cg/Bke9w7ZTsNp10AtjF7GXKIe1JdMCFpV6GDS16iKUDQq6vDITzmA3jqfSZ7uPYBRBqAhKqpDznV9WKpXIh6LPDqTBBY6G3C73qFle687Gly+z3fAu34pMsuUgZgZfuDk4oIs/lPMElfYx62d5kysI2RqpOI3/NRovg2GtssUdYSeKLvck2aipKczBov0aFjkQvVF6NNyGzODOK7pds/fr0KyzmB5JYZi9KC5kRHV5DRS50B0MT1y3joT8g==",
+        "encSecKey": "0e28a1a840dd6bcb7dfc4f5b02f8345cac09b84003c386ff752a4530b3a7ef92e1a607d15a45239c7e67fbb653c8b2acd0fda3016a18d033dda72da4bb2d5a2d4ae417c038104368e5390c877e49a240dd8eec97da77a7cfaacb4eaaaf31d23baed5e85fc59b54ef3a23c2bab6a0c366bb761f54442dc31bdeb225683326687a"
+      }
+    },
+    {
+      "id": 18,
+      "secret": "ssssssssssssssss",
+      "payload": {
+        "id": "synthetic-18",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 18
+      },
+      "expected": {
+        "params": "W33h0xJt3fSx2WSvab82fNLtyB043b7tkW3L4GOHSTLlVuFSkm2pURmamGxhh6I85Sfwr8l9yy3fHFfx0pxLpqFcjQrU5w7qI0hxGlcQBasYhHS8Fo8f6eJcf99JGv9bQCzwn5I5kUtMDF10OjYgLNs8msRdFVVCht2jLZDDTv4EF8pKW9HEjWt6DV7JDE3E1eJBZkFGYkG/2iJZVboBAYSeCg9Da/yaJyGJ7liNXC0=",
+        "encSecKey": "753abb439df0b33b3e788756200e2be24e41163c0f055e3fc03e3ba799c5a72d5c5cf0324380ad9c6840cff09fb354216f04a546007a88468720fc035a7f1b700339cfd3304c4372f81acd929d702959a5dbf7a60d2460b69a3fb9fd6d95a5935ac144b77020e45839c1ddc95124c7825fa841a6f8b0828eecc72e06c38b545e"
+      }
+    },
+    {
+      "id": 19,
+      "secret": "tttttttttttttttt",
+      "payload": {
+        "id": "synthetic-19",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 19
+      },
+      "expected": {
+        "params": "kuoBYis7vft8xAZ6YGhONuqAL5JYfJO232GtL7GNGtq1bShBbZTZJJ98Cz1wEOnzmmF4r9hG6OeyWlbDkJnqA5fzYtOBERyerrx1U4lwKYhKqdNPzgg4ZPt3tKJKapLX/Oe4gsn4pNvdkqEiP04EZGuv+Vn9lT5MFTwqDbM/Tol+SM+N8fjG2Sl99W0rJSYQaLItyriiMThCy/TfthEs/CiVkW9qjsPTdskXvZdnUckHvGooEQDAE57IeoY1t6f6X7XSb21FwycdvR33OJ/VLA==",
+        "encSecKey": "af32b2e0998084941f71f91676bb643687c512a3764828af8bb5eba28937be5482a1f42beb8c87a9fe8876c65c12990aa6b5407c123425254e0be891dc124b81f80e5d5dc274ddee0a10eede61cfd44b446d623a128c336110e9a758bcabfd5ce05e57780dc699ebba87e68d5aa8829489fddc33430a256670cb8055bbdadf93"
+      }
+    },
+    {
+      "id": 20,
+      "secret": "uuuuuuuuuuuuuuuu",
+      "payload": {
+        "id": "synthetic-20",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 20
+      },
+      "expected": {
+        "params": "WTxifMOjWylGH1XG7OF6+ztMAq62B1jLlDV5i7+1OANaiNMvpZp0tj0CRpVSI0OqdWCsYZQDwecf1WIbycx69R8OwWzhSYYCMjOplPbLZGNFFdr7IYy41WebZEeCQtO5xnJMLtiDrtb5sc5zqFo22rX8Fa97hHXhQPXvCn1QTa9AASxYcaxzW8AgCul5S4kgL7rkzjOMSnLtcFHpzOlVXf8rteaIv5v9MB85iwtsSxg=",
+        "encSecKey": "2b7b22dcfc31c04000fd98ea2f5d7edd16e645783cc46441935dd335f513fffec2a5a5a3422cd1fd37b1fcfdddad7e057add9fde071945f6b03ef501334ce628ab0ae275ace53c790cd8e04aa66c33b3bd0b0819d011efdb4e336f7680e067d4f13a83c65366c32992faa7bb6ae4d42648bc8e3cf20c48f45dac03f1f7d12446"
+      }
+    },
+    {
+      "id": 21,
+      "secret": "vvvvvvvvvvvvvvvv",
+      "payload": {
+        "id": "synthetic-21",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 21
+      },
+      "expected": {
+        "params": "ycyveWR0vScB4sjxrsQreC241wn0BqWm3gOrkQFN6HVmz3FdO5EO7FnJv5Lm8vdlpn9oRQ9nAiNVFFzem1+UPBQe1fx/ueDIKnIrkwxUHMedw9GWnSCfVJzSAMnmwAMa+MTMwZ22Gutogo7sajfezP09kt+1NPajYfn0E45vrutuwEfwnLmqatCL7BKAlwLhaTqpljP8PBckuP2BQdi+LZclklnhwTpX8vXHidvSljTpS6Ne07eklH/9JKZy1/t3QD6dI7KbBd+ps1kOBBVXzA==",
+        "encSecKey": "c033f09d3263040e5614ea9cc44f7ce12eb3114f6a229daf47109d8c0c583a05609926e28ad918f51befb82672e124490fdbd63ada1cd54ce41b5baa533a5a950b066897b65f77a84cbdd7ad56988d5396bd988aceb883c7380c85d7a1707ce81570e5aff0fd9cf0e93aba47c3b80a811c6fc4e317fbc35bb2f05038cda924fe"
+      }
+    },
+    {
+      "id": 22,
+      "secret": "wwwwwwwwwwwwwwww",
+      "payload": {
+        "id": "synthetic-22",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 22
+      },
+      "expected": {
+        "params": "vjAzbX/3yoEHyj4zL5VYmga4IzooxGqi4enXXFFfZmTtSWxX/2RIzos6DeSiCH/wkjopn82lkniFeRsZ4TvZIZBWFbg5B3MvjMIvN10mDOiyeivSBoAyYBp05brBptsXErNPRJssq+p8lMWeDaL2ysAxXLQr9uyOcZbf5gK61iZKBA1SKJTgofuCTGdjtw2DHuBavUVsJKg8W77J5jCo6XdsAfNuRjlC24Z2YIPDu9Y=",
+        "encSecKey": "73a9832a15b7f5c824ce3f81483474d0fc04d0bfc468510e74a7b5d815168792d065f62a76881b80727467eb08e60bf3a0f99cec2f62478392ca42c4ac79110120b569c60f5d237d33f75bfee75c62ecf515852c5dff99ee1e680a8eb5f7166281c87796f92a2c82bcfef26544f93ff398806c32bf6455bf4c578f4b0546e700"
+      }
+    },
+    {
+      "id": 23,
+      "secret": "xxxxxxxxxxxxxxxx",
+      "payload": {
+        "id": "synthetic-23",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 23
+      },
+      "expected": {
+        "params": "adMhSS08ew+NjHW1FtaDTR2LzsQ9hqyUBYf6v3Ke1TaCvKHwSVaOy1Y/qoO0E2g78XndPGScWxq4r51wT+kdqA7wvOog1g9brO2XswGDwuh6tpEii2aHwjBEU+lLl6bx0k3/hZr/7/5IlOMUhMUGy6IGGCA9R6Bhejw+B2hwmYsIyd7rm9P/yj4vnl3t65nA9OJIEbnm9ioI5tBJu4qk4W8901qIcID3SAX9yPOo5cImrHomXEb9zbw8LiTUIw3M9mZTZiGuwbGUjz0IiKFSww==",
+        "encSecKey": "6ec953f8d70d16f868cf19312416104ae7ebe3092ecf03403f160ab2988497a465e70734bfaea29afc6cac65c86825ff8536cbf0485739a296a50ed0e18f2a31bcd0d4206084e6f7c84246c2bd71d74a110d42c68a3e536278c6ffeded7f5924e993600258f7639f709ad0ea3ffffe2cea301ec61e184681f8c401e4a8c03226"
+      }
+    },
+    {
+      "id": 24,
+      "secret": "yyyyyyyyyyyyyyyy",
+      "payload": {
+        "id": "synthetic-24",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 24
+      },
+      "expected": {
+        "params": "Uc/qyHblEdlXj/9zAXfq3ioFuk0Hr6GtX2BIhnYoxCdqlDTnaaE823WgJ5fAAGxBFKw8CFRC78AgktPqfjgA8vVqf3LTkgs1xzYz8HXBrKfTHTc4JOZtkbXL3f5Cc64l7kbrZca5C20ozH24449rwyFyCT1HabeydKifqutfG2EDtSWmh5MxLT+pj3xF4lMHtXmBnFcmgaiFOOTCxu3if8RCHZst4rEs2bOHlGzzfqA=",
+        "encSecKey": "c4c79da536e628699e7e47b0e4ecf0195e5e85ad58ee5b92337f3df7c1e2d379990484703c49da2b88f08b7d760e61cdd3682f6347a742adf55a50463a4af4df403176682455ea9edba1ed022d890dab03b312307a79a1d13626dc51c17b5bb0a87794f08e187495f8c17583b661ab8989bcf8eab1a6e846dcdf3fb922c85a69"
+      }
+    },
+    {
+      "id": 25,
+      "secret": "zzzzzzzzzzzzzzzz",
+      "payload": {
+        "id": "synthetic-25",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 25
+      },
+      "expected": {
+        "params": "zgUwO+QOU2LYrGtsge65Z3Fc9CD5VStb0z7bUhCS4WuAeUAvnAv811D1UsiV2fFQoTEhdITuwRM1+dU/9f2rUvX2O5ZurmayVcxyQIXpUaquo9mTxLFSc9BItvMkYKDZYMIsLDrC/jrcHdxxj1uhkCSTujFB4V5v+mYsGfsaNNJnqZYrb17TIR+G8uq/frH6jC032/0dkQHq0jPPzDK8NV7k7AlAKh1khD35v2ar5UDM1WQ6Gs2n6lUzK0aEKsPSXUfXv7ZsT+fznAtEoEXDhw==",
+        "encSecKey": "2c621acc2fc41e64a5c577e4136df4fc4aeb5ef4542ce24271394a50c74f11753175bce4b33f29c3a4e4dc2c7329b8a88d269efdba48b1314a7c7dfcd8edbc99fbfdaf5276d3463129bca9955e6a16f6fdce258b23f29c57b0b4238efa8bc251767cc4c86a9da5b32382ba83f6fda8ed9fed0e6184acc0857dc4b93368a712dd"
+      }
+    },
+    {
+      "id": 26,
+      "secret": "AAAAAAAAAAAAAAAA",
+      "payload": {
+        "id": "synthetic-26",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 26
+      },
+      "expected": {
+        "params": "Vc5Af51Z2WMP7dxXDQY/Yp5iGVoXpbngAo8HQ4rViqQIEysd5l+oi8C/4YTM5077zXyAhlsrYBvAEShJ6svaArK98jz7o9HCRexVe0i39NDB/YQ/G8iD9E6vQ+t8Kr4w7D1SVKtaKuMUtl7auLnonGNG6jEcSKTEvwkn8Aa9niL6LNDnvSl0dpB5ECR2F3PNSJTuKdSB15Nxr/5LSzLqZzkXn3M/xM2rhMakkw91iZw=",
+        "encSecKey": "093601d1eae1e2c4478ba94b7f407da4b5feb00ff5e5383e4710bceac5f567739a5708c19e13f4d286a106720ec6d8af850b90d442aa623810a2c42fe43a66a879bde7031b99ab059bd28ad193501406923db7748b59468a13402bf65a0dedbf36351d15175067d722db5bb386b7dd079c1d76ddd194cb342d307705264608dd"
+      }
+    },
+    {
+      "id": 27,
+      "secret": "BBBBBBBBBBBBBBBB",
+      "payload": {
+        "id": "synthetic-27",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 27
+      },
+      "expected": {
+        "params": "KL9mjHchIcEg0B8FVMYvHQojyIibS6yi1REp7lplvkrBDG3r7FFEiAdu1yYsnHD5z9lYXV1IU9rIvy6b7UR0Y3jp92CQytuTFkT9N+LX9CvEX7XgvKdCpf5DIskoMCPkX1vOIIsq4lobaBOQ8HFIasm/i7lSUgZL47UuR0DR5kupDDp8aH8dyyH15Sm7q7Ne0MdZYXs/WXEPH3zRcc8n6R+fOUg7w9WQA5SsET69Phdzh5E46ozEJduY354z9LBW50ia5i/zq1y1J3/eH1GQuw==",
+        "encSecKey": "bd1b5330f7ad96acf381282457b6e47b542a9cb291adbcff7e954eb5867d9cfb398928ecdbede6e6d15acbe22396e057f2f042c26c9127d2750bc31af7bbcffb7c7671eaefd61320a2dd489811eb462106c18d790dd79dc7c65050c1e33bd8a72f7fc30b7b22261e78ec7aa6f07352b70612fa070222d76a2fcd2877eb52725c"
+      }
+    },
+    {
+      "id": 28,
+      "secret": "CCCCCCCCCCCCCCCC",
+      "payload": {
+        "id": "synthetic-28",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 28
+      },
+      "expected": {
+        "params": "NfD/Ep1q9OUUCmOI+xMWRkq1lm+bzJOM7D3MU8uI4EfI/4Jl/c6OI3MWjHsSgwJbm1+mto2aA1Cq20pqli4bYokCAZOtEIdqfhwDtdWRkMmXNehXT+o+YL/9ENNbpRIA6sH22Hh+iud6Z/mHcgVhUnHFB+mJ0sjmDyBBLjuN21jEN6FUkTAloQodNC0ovLhYJZozh+U5bjZ9U8m8FK+zdd/zocDzQtOlFq1CvSYsYgE=",
+        "encSecKey": "a09f029d17505db0a2ea5e0709e979b656423855f2a47e51d8ab84478f24f1c308f31fc21a451f5ce397d4764397c2540e4776c93f740e6e0a84e06effce77d56dbb40a66c3dd55b1b40dda6f8e2d42018a316c01c5f4a9676ad67236090065bf41aaff096a91b81572739d06ef91cc2e78f0a68cbc9ee7583580574c9736d04"
+      }
+    },
+    {
+      "id": 29,
+      "secret": "DDDDDDDDDDDDDDDD",
+      "payload": {
+        "id": "synthetic-29",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 29
+      },
+      "expected": {
+        "params": "p9+EYIKMGlL/HfDwZ8l/3fUICUcu4VROrKhJ3ZuF4OyGzjhKBm8/SwLvJjXa/fWwwJgQl5gVl7alt0Zy5aK4ySQCS6zkEqPxhJlfGDWrhQp+yTnV3zT/DT9EAHiMy8DJ7QKFduDoLtl28/sTXJfoGlqAwY5Jn+AZHQ4eOysKzzRW9d+nukIfngk4paIhQGx0Z+H+8CnAzpThnkUlG1crQ4n0X8vL/irw3yoLa5a34o/ybGvJu7fhOTCpAo3tvyhzHW0Vb3c0g8s40zYAiBCGUw==",
+        "encSecKey": "2c87dc1439b5f1f16c0c679236856a7a55712a6d6423cb6498fbc84b7af88b080fdde16d0fc8c7e171b5a92fa5f60b66f45ac6a665d9981b2c97ee7c62e9ca9e42cc7fb0470442710cd8831b1162ed68530ba0a33f257b9d3b8cd7bd119a5a7fccee174a189e072336a9c5506c8ecc4b6c16d9f1868a8c5b02c457cd5f903a7a"
+      }
+    },
+    {
+      "id": 30,
+      "secret": "EEEEEEEEEEEEEEEE",
+      "payload": {
+        "id": "synthetic-30",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 30
+      },
+      "expected": {
+        "params": "VNMxKPaVbHLlJwwDYIaXldXyUnuffHTM8NVMWtVAvnvdegJjfYs9R83ONtQhjkEtBiltToGBHgClhzwjFYnD7McEL0mOY+rSBPS69vYjbUxLKP0WpQuxYQE3WvSDV3rmhavZIFFY5Tu7x4HvIpEY9WXfAnuhEdsVVkMBytpMXLN/L2miq9SbNOAT2IYN4aAf/uDbST+ex5NfvbcInt0QI5gwFhxyUF1+rOZztvj43R4=",
+        "encSecKey": "427127cbba907b3e58ec789c3c19b5840137d559d172f104f12e5c0072aca0669252108c58cbbafa45c24b122bb8317213630c936ceef928f2884749e363e6ee5370e49ee845eef16705e0b4064e4d3bdb053777cba6305767a7b385ca774b1dfb6221e4664ba92b3f817a99d0c4646b782d4a2225abde875707f55d7f0bd00a"
+      }
+    },
+    {
+      "id": 31,
+      "secret": "FFFFFFFFFFFFFFFF",
+      "payload": {
+        "id": "synthetic-31",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 31
+      },
+      "expected": {
+        "params": "gbyd1r5SjDAs7+XppbhEfeiAfWMKt9QnsQHCJxdpiBDYcCRV1/iNXBjPzZIBUMi4eyr7XWZpwD/2UJVLNqYDUUSOMpxbT4+QPaLr+iheqPpNKn4KU723CkSZF383xIwP7DfyRA53LR+cWppI1V7+tkVlSCLoQCz3WaX9ZBbhW8OiDCjghJXGAKl25mZUl1ZAwqYBt7tKHcRoKBHPV/EhVKLXjARABcJG/l1cxJuHCYyh0Sq/44bODB3Bgz25w2TyAQS9YLkJSPqNXe8JbORclw==",
+        "encSecKey": "257348aecb5e556c066de214e531faadd1c55d814f9be95fd06d6bff9f4c7a41f831f6394d5a3fd2e3881736d94a02ca919d952872e7d0a50ebfa1769a7a62d512f5f1ca21aec60bc3819a9c3ffca5eca9a0dba6d6f7249b06f5965ecfff3695b54e1c28f3f624750ed39e7de08fc8493242e26dbc4484a01c76f739e135637c"
+      }
+    },
+    {
+      "id": 32,
+      "secret": "GGGGGGGGGGGGGGGG",
+      "payload": {
+        "id": "synthetic-32",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 32
+      },
+      "expected": {
+        "params": "pOJ+NytgCWb6f0kpYGjytLpzkSOqh9eIkjQOibgBXAGJKxBAmreTmPe1QM3ManowlbAP1pRIyvDgQ50ypucVmxDHy2lqKmt2ICan1LJV4cHy5BgRKNDwFHyE8GpdG+gPJDxk+1S+KsFSNGsMnmA288vROdm7JBF26alZ/chLvqlt/PSC0sbq0AJSFSkmm58wA6nQyD3T7m6H4Fn3g3IJmeJBNJn1mc02rzt4unYaANQ=",
+        "encSecKey": "2297b290ce3eb903dd3bf456d458a0c5caab21ee4b3d7dbac680c8959e4a3da214e6337a7f4f4100b90832e9b1eaf44a8077b4b7bcdf431413acf769a0bd0c9aa549bc886948589e0a45a930ac4df4287c923c300147dc20402e2e026766acdd3212dd9030d626ee7c558fa0fbb1163ed383432fcde9da8ab302f6a511100252"
+      }
+    },
+    {
+      "id": 33,
+      "secret": "HHHHHHHHHHHHHHHH",
+      "payload": {
+        "id": "synthetic-33",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 33
+      },
+      "expected": {
+        "params": "Ylby/2DrngNTugYAasS5gFaACOgxr6e8ytYVGZulN6sIZ7WaTiTkgRHJDyCwqoQdE+C/bfr5C8pTcugB5/tk5xYyEuIfe+amHsOuNp1GPST/icKpx224DGcQSBAIh6mf5hwfc6Cs1aHi2/4pSbQup+vTNIHtIbnR0EjmvDZC0nBTHaWsQI4vyYJmrw0zPVx2ctaJPCzphuEHjGhFjQc+65Zl2rgEXSw7LjpL4dsoqqao+muWbrztCS7jOs/byT2V4BrsWiUlAOy+8KlnMsOF4w==",
+        "encSecKey": "12b422a613994b183be26318a23bb3f37c138331024522b19f12b93c2e2bbefe341493331b0da3ddc792d55765565f8103bca6712155eafd5cc1dcd92643b90ed96b223f39ea2e3db32a8234a782c206d36569deda831cffb6ea1b1ba276bb2abe1160d94a8ab9490b5ef3bf086c7541642db7ad4ecb2c0d0e12e0ca1bfc4b5c"
+      }
+    },
+    {
+      "id": 34,
+      "secret": "IIIIIIIIIIIIIIII",
+      "payload": {
+        "id": "synthetic-34",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 34
+      },
+      "expected": {
+        "params": "v0cz3OUT2TlRTks+XaFDHIgBP7jog8dMIpkuWzGgpzslRjTv+DqCWL0rrwjBvX8PUIQee1nNIRoCBUOY5+yvbRtSs/3maRjYeJ6/sW+fBsXPw8RnahtSgu5v4omd+g2VVdX4xoSGe0okKPgYmpHi6thxVuj5EeT+Zcw02hh306yFJBe9briqrZTxfYj5tB1SJhO7Fi98qb1lam96v4ujwjJOHhfFCgASwEoPnnXZSOU=",
+        "encSecKey": "943dab70bac62778b997edb0c1a7feaf6ef2d7340c0610932065052b7c55df2cd4ae77b1ab7039d67a99e4bfb9cc4d04478b015848892ed73a5c238097345f292039a242415cf91bccaee7d522e43c3379c54194c99b26121729bd77f2ab0d5eb5b9ca03993a261cadb17c78e76b426c1de8f65a37320562024a3851872f6119"
+      }
+    },
+    {
+      "id": 35,
+      "secret": "JJJJJJJJJJJJJJJJ",
+      "payload": {
+        "id": "synthetic-35",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 35
+      },
+      "expected": {
+        "params": "oCpZEo7pTJ21NaHsYRRvx/5imqBlt2UhF0n4z3v0B2YEQ/UV89foXd9g06SFbLr8Il+WkUcleRZUzh1gd6BssyrNNtK+vNBp+jLk7/RNxGfqPMzpekY911zCI5d3WdHznDTUoc0Rc7QhjpVAGwTsvhfgjPxU4vHl8h18cKLGZ+XQWz8HNBDDip/Revrbq96W9ZJ+sEyhN4KzBPCSvF3WhZ542Sow8exZa9FYXI+H6KRsP9jyO1Wa2t7FpEQxany/A/ToxEgythvMC6Ft76tWyA==",
+        "encSecKey": "82c255fa2818eb3bceb9634b1dcb2337a81ec14684c0a7e857e5265544a9e3bb8c059cba39373eb6d90042c91fef4c0cabcdb459063b5139e873eeb7b0d7edb4b0dc174931936a256332cc1a7c8817334ae4cdf787b5c84930064b0866163ddaf5abfde473946f2dab90bd49c099b6524c8b09f7782f84106884aa33f5e8baac"
+      }
+    },
+    {
+      "id": 36,
+      "secret": "KKKKKKKKKKKKKKKK",
+      "payload": {
+        "id": "synthetic-36",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 36
+      },
+      "expected": {
+        "params": "L+01jVI6K6sh0YZGCnRG73PCltO7fBf7UkAFviYJbwiAwtuodEiQJYdwO0WVPCQElVFqON+9pS5SyP1pfYpS7EEv7DDEpX5HJpMgjTtu3sq9hlm4cM8UmpfRjjhDIYAfgoPF+K2ZBALE3/1cqXLQ9FoVgGLQUSenL7AZ3PLAvwe6bVE5Hgk4B9pZrlyW08jtaQm3oMJNGP26ikmSWoGGZ+YObas3FHF0l0a7DVaG9Ik=",
+        "encSecKey": "0e6adb0a26cbb9953c614de79c15deb80ae9322e1f28fd0674adf63d7315b029eb09a00e2200b251c595574c7ee14127c8638d1849c105a958bc4299fa677711adbef14059ca134aee8a11dcb146446442848c7913fb63df1c22e1b461f8db530f16629b55894b39afce7ecebac65783a076c81698f02d2649d15eb8b98bed72"
+      }
+    },
+    {
+      "id": 37,
+      "secret": "LLLLLLLLLLLLLLLL",
+      "payload": {
+        "id": "synthetic-37",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 37
+      },
+      "expected": {
+        "params": "gMo/Vl3DlbH0j4IISJPwNnJFIvWzeAWM6kyfoCwAcbFp+1Qut4HRLM6AlxcBN4P7LLlFxLLfL49Ei+m5bqoTG1xvabHMgkrrEnp2UWw5o+hei4+yd50Z3IjKQbQKBcEfU4IXGoSL5MtoicRx9qUEyhcwn5cUijw4dhVQZf/l1RPddJAj7tNK9zAoI9m8TimcQmS54CrZ1R67r5wx++/XdqmOfoLUmoRjhgvX5rYvEgFvAcqnpdwAiHroWELKf5xWEjQG/kFD3KpJ670huYlsqw==",
+        "encSecKey": "6b7ad854d3c3bf38ed45081fcfb1732b04c87011f3e9122711da61597c7e79c84375624decbbf0cb4fc4eb275281d339f52e2e0062f26f2a0c5a8245adb12b2b5392e793ce9ce868eaf3411800fa723acc977daa417243b4e4663df139ee04d5f2036a61060c2dffca55d10132e6b8f7fafd1a00d6800df1a169cb434ca56be2"
+      }
+    },
+    {
+      "id": 38,
+      "secret": "MMMMMMMMMMMMMMMM",
+      "payload": {
+        "id": "synthetic-38",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 38
+      },
+      "expected": {
+        "params": "vbsGIHRgb/wGVFPlNusZMY9gbzPt1GAEj1wJxUKiQFnLeFw+TdGrzWwBKWaI37gqYO944e+0M5er+4b4eOdoRnO3OIsIjcYZFlyKtpreaDrIU/+Wx2VxA2XXFHttKiZrGG4yVM2tylK8ZGTYrhG+u1qfwnWnfNFbmJiQ8rCUUypM1x641QlkohLrl2OzT9Rpyzqnb3e6vOrtW1ucgViuXVNMyqX78dGmrNaepUw7oqs=",
+        "encSecKey": "beada1397406dbd7a266e0bd0ff8f1bde770bab2f9e4ba650765d884df81726213fd4144162928097b83bc04b578c384dbf737f201de7a84daa9181bf752ed0a5a9a12807abedee2262fbeeabbfae83f18d821a5e26aa4bd1bbf7ebc7fb31ac997092c0357f5655bfba928c1cb0e5ce12f6f8dec40dd3ab345f99459519ad56e"
+      }
+    },
+    {
+      "id": 39,
+      "secret": "NNNNNNNNNNNNNNNN",
+      "payload": {
+        "id": "synthetic-39",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 39
+      },
+      "expected": {
+        "params": "rpDM8UUiUyyWca8jwXbKGp4ocqpheb/hNGF5ueT/aFN74cfFyefwZOovcphSqad548IB0gxfV94AuLynXQW1pv/I1MzA0jRhINd+QwY9isantDJbntJctFgY6ub17iIKYcND3qItENT2kdyRjaCo/aRYMomTrN/rQeHiPYFzMUkD4s3E1shMYkk6y0h8pzqMz9cc3s8doDxYtfa6kw6EwEjx5DfVAF8eI06ddQ+tZXefWqGAlcqAgO5wgj2JxlWRCGHuCiYhvdgu2JmyVahwTA==",
+        "encSecKey": "818f32f0ea0d472ed58add3659d8b871d820f1b90ede3644e5f6dc3ec4ad0932fad2ce92a382d20d37abaf996b31dddd7d9b2be5ac997cd494c4900c28cd24642ba31187812efd50fe521425a5ea6196518f49a280e7af1f7bb654c63b48c152004414e7418ae4c73af2c8298f8cbc78cd392b03c880a6685f6a123325e36cfe"
+      }
+    },
+    {
+      "id": 40,
+      "secret": "OOOOOOOOOOOOOOOO",
+      "payload": {
+        "id": "synthetic-40",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 40
+      },
+      "expected": {
+        "params": "igrQhw51hfMhdHV9nD3KuQ+qu30LHairj0e2veT2kzUwqu1XHUXXCeooE/OroUatagpj2uGufU6up1iWeZK6rPZSL72uLmSjQE4vD2a8rvoXdTLf4w/BxXrrAYH1Gi9l47rWEXoskUnxn2DH7gAmalOr49SXZZrPXMRP9C3G6AfK1O5QOpjY9maVU1OSSU14SVdP2VzeCnETq5yRh+He98G7dyI0L02JCrFykPiD9Eg=",
+        "encSecKey": "d87b121e828b0a1a1256d034487865bcde03eb9b4655e3f42ed6b488c4bab8e80499ceee3b148a7571e364fc2268b9f96cf2c93251d6dd96b9421238420be1b0a6cf2da987b7f2ac94329fe220fa5737fae4cc5ab2e3f4c13f18a23b8459f6232e9d72f9a462a428a579714b1e1d0792366c17898385f309d062a8aa127d1e97"
+      }
+    },
+    {
+      "id": 41,
+      "secret": "PPPPPPPPPPPPPPPP",
+      "payload": {
+        "id": "synthetic-41",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 41
+      },
+      "expected": {
+        "params": "RFIiQ6hTGbcNyQ+Tc0xc5QOK1dkYneHVXu5SB+gcg6JlgnTLYqZvBWx6w2QzTOTlmYAnrLIDOt+NloxDcEBZzwazzcrC1pU4/Etg+5E5QZyn9JZnNybeL+K7HW49DRoPCBEghKlsFPbgVECOQCyvsfNv0XCg9wL3W92hcxI2o2F45ZBCfxgjYmOtVo7wATro1GH5gojc2r2YkYwqV6HZWlOjh6AJSMdm6OmoFgi6RzPXmURipKY39mIOAXW+bxtvagNUuDNVcvmcMMH5SPrXbQ==",
+        "encSecKey": "3c2c2ed01064a71013139f160c2b828d4bc8cfd1a7fbcd010540c6bed91ac43800c462403041c186bf1c9cd3e66ca70749efdd534d74cc06b1f13a15b00d44f23e352edd635e252dcf5f6b3573311630d078c5485b95b52b81e5b56495c14ef481764282ef17b2a5176a7aeca51fe55470cbdfcf59b3f6e52986eaac366c3abe"
+      }
+    },
+    {
+      "id": 42,
+      "secret": "QQQQQQQQQQQQQQQQ",
+      "payload": {
+        "id": "synthetic-42",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 42
+      },
+      "expected": {
+        "params": "5TkhU4lk/7L5a7xjD9GzasRNA9WfumMXQuy9ZzWDr+olv5L1TUFF3WxCP8kMouv+g5ReEoY7H5fJOxmuhBea+KV79AXe/qLgAzo9unBeDPfKjHqxxNchTVDBmXcPPlPse8y2ZHd0j2jBBsaI0X6zLOwjlzoU+z/CRXWDyIGYipH+Htd5tGH/oMkLHsMSgnAPftzDP9BGTI9kpVViR/Lwc3N4gSY2ewsuxHO9lZUvTCA=",
+        "encSecKey": "18a3be67629b22fa93f0b55248f717c4f780cd85c55b5d2c9e12ab45b1510eaa0c281951f3e8b6a8b46b6d36a4d0b867e7592a2e91c06a523ccc3cf823bba955c09d2cc9ddf9daf8fa9c08318b9a7ae09c4b9207ac5f4e3555b7d4aefa6ccc6d082f5e2f8a8f9d581c03f2f114ad9945fb01677999e0e0bb9ca77d30e2a376a3"
+      }
+    },
+    {
+      "id": 43,
+      "secret": "RRRRRRRRRRRRRRRR",
+      "payload": {
+        "id": "synthetic-43",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 43
+      },
+      "expected": {
+        "params": "6bY4VOB9UIhhut3JcvBy1CkFjcTscmjNhOw2paQWN2OrVX7TTCFTdO4+Jh6UhIQFsFOLFTQpmEMr8SJRYNUd7UhQJ5eUZl9hz+vLIIZlnU4+eSm4elW47lxwxaZven0p17pM5pynXsumzsp1ah3P5RHEgngjutZ/iSRXja/IijJ3JAPXvioiBGUy9p7rvPvCQpB1clj4o1Zt6AJ6FUPzYI/GWwnxDFZ0WbvJaFYG6CJ1D8QdXWNGBh2G3siFp28H6ZobTTZqOHBgoy/kgg5KwA==",
+        "encSecKey": "df9db78b38e5bd7f8f63eb7802400426cbdafa22aac34b2c0720720d5ef66a47ca86499c03807bfed5b6e6e1035872603f1332ca94acde02946ec1a5db39bfcacfb4be8757c12442c4d088547572101af0fd268ae50e4233928e31f08673b9fd65c8a17d604035fe828185b83cc93c7ec2bbbd0bd9604922a72019d1e223d94b"
+      }
+    },
+    {
+      "id": 44,
+      "secret": "SSSSSSSSSSSSSSSS",
+      "payload": {
+        "id": "synthetic-44",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 44
+      },
+      "expected": {
+        "params": "7zKJ00MKPCW3uQQEQHC8/st4sTBRmOjxWAQJ/QfrycaML4M55iRxEc93WwdawR1nEUpvKLmltG5YVJq0hQ7kLrcHefWexic0IYl5oV18fQ4MVcfT4WP6m+c1RDEasRHnNPJBSVpV/IJ1D+NEZVU7s7NvhNr5H3fAFmLP/g1dGj4S9+3JHMc0R47BJ91i4gTaKDQ10tie3oY2FLxlFI3WiTwB4VDkhLk9Y1ELYbpfGiM=",
+        "encSecKey": "0f609ec364896bfa45bdb84cbfca1fefca2b5e5548d94a437f6c5b04dc53b0798095612bca106c15814dc262e30dd0be9c60b27223aac631a9d08ee5f7acb87470c37648a46f733a9304c43131d12c2c36cedd89d826089e169af7d31a0e404420ad3f3b2a9aef95f8d7926513921397eba58ccccc2ee6b6fd75b0a9805062e9"
+      }
+    },
+    {
+      "id": 45,
+      "secret": "TTTTTTTTTTTTTTTT",
+      "payload": {
+        "id": "synthetic-45",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 45
+      },
+      "expected": {
+        "params": "RiuFtC+E3eATprizVBQN6TEI4qnsFjrAZx8raLHLq4lNlCMHf1ESWxecypfKw5SJgFP+abz/PdCDNHhAMma5Na51Iqcnqf8pI1so+sblTQMz+GVPiUEoJuJexrAbqTqHaUNpXVxq1B8Yak09nwrt0glADsmw7FsJ7or4tmAy5kIMr86viklVG4k00EeU4acG1T23jOT2Q5dx8YeIMHVoE5UB9IDucslHny4cW4/9WQ1ACesxuOR1BIaFJyZY9GPTQyZRN32k9Z1V8ykV18PZew==",
+        "encSecKey": "c417a326dede6c620c70740447448b7645bf6751263f28317272948079042881b523b8d1f85d3b10fc81ccdb13a663c943b0f7d4187baae90d8fabe7bbd321c62c138c27452b281d11abc5c216ceb6da6ae24dc4e3d8a708be0f8fe6bd0dbb9ee35aa30ba921698fd3e91ee7774513d4e406003b492720e52e901794dfca2551"
+      }
+    },
+    {
+      "id": 46,
+      "secret": "UUUUUUUUUUUUUUUU",
+      "payload": {
+        "id": "synthetic-46",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 46
+      },
+      "expected": {
+        "params": "dBB8SDHM91SgDQbDupm1n7BQ0qy8dPRAN2u1aP90psTrjC34jX+hKX/fEhx62ZlR6RI0W6J+8RW2HmsrWHA6GtcNN1VRnZYXNA5nRE2+vYfd0nuiG5rra5rgrVDyW9yX0Wfhzx8kWjxq7niSXCkicQo3fiwc2ykuIzB/h4g8tjhXOOBGbyH8Mub0/341Vv0IXfAyFRnTUYLEUcDuLX119MVdKHYniR80o/bwyqRZ0a8=",
+        "encSecKey": "01a5e0c3c96ca1f0777633f35b118ed35c584867bb3ad0bea38127ebd6df625ffc98b697dae625255d1463fa84ca80cf046a56dda97640fbc0aec1c93d99991b18779465e393a8b56ab625b50475acc3b8c465f49fb8aa935c84012f1a5fe6ab2c6eda4a5353f27d1ee30098fdc012818f21578de0f4b189251169b2ece8d2f5"
+      }
+    },
+    {
+      "id": 47,
+      "secret": "VVVVVVVVVVVVVVVV",
+      "payload": {
+        "id": "synthetic-47",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 47
+      },
+      "expected": {
+        "params": "VJfIXpWYnccUWMsdAlbcpMwjV486DeA7KeO7luu031St+/y/mkaY6Ks7nl85jO4fPQuKMxAQ+yTP/2eike3seSf1R7DV6rwVXrvL53sbvrB4KSfhTWfZJ+BHaeEPRQZx1MAHgkMjDIqT6Ws4RvDoKww2/F1C7ZrA6cDOAdJVnWEssU1o5hiM1GDlLX7jpjlx4bEWvSQbAq9Mv9PFI0qkN7Scl6lfnz1X2a6Ksi+hXl1fUftKrWe73XZXR9kXklhE/pwmy/wKSQWG2iv6DhGNpg==",
+        "encSecKey": "1818e7e96e0667b327a41ef3d84d0685bc9c09b6cd210ba6f00a3566464082b985304d563d40755458ce9897b123c1e3697bd4a243df3d89bac007e2b737cd87045b09f924eddc7771c55f4861b530077e1d4debafd11609ecb46bd5a9f0922f4185d95e586eec30b33cd2627a4d277fbba0a2b4f2a87575dab8d9560e6e6fb1"
+      }
+    },
+    {
+      "id": 48,
+      "secret": "WWWWWWWWWWWWWWWW",
+      "payload": {
+        "id": "synthetic-48",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 48
+      },
+      "expected": {
+        "params": "Ac7pcjdTkVG7aevjHMYsmdGoNqe3wsU/rjVlvlDigRESVFmmqmFhNxhXinimaafXTOChpxppkVJujkSBNz0sxRAi2fkRq2VMfMr/43v3PZsAis8+eeBQJPGOipZpqOJP3CoJ0RACdRV6c8iznABWe2dA6keqSb3taOvnykCkKiDTMG3yxi92DEo1qNLBPdLBK0zWiMVjqnyLcvSB3ygGBkiOPw1KfNFRpIXTUX4UA9Q=",
+        "encSecKey": "68d73943269c7f697945dd4ffe018f45191f9fd9b0dfb2ab5dba4ec98e37188c12c1d850d46300254d431f993b360b2f3d72ffcd26c4fef7e3a5a1ea6d1224ec3a8abe4f67a0ad7cdcb183a2a941754b7cb262a4f58aa6020bf504734bb9f8e6151925ab3821e1aac7bfef889a81c9a3a8dc54efb30633dd1a9ef23393570650"
+      }
+    },
+    {
+      "id": 49,
+      "secret": "XXXXXXXXXXXXXXXX",
+      "payload": {
+        "id": "synthetic-49",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 49
+      },
+      "expected": {
+        "params": "xxcjogzIhuIRY5wtIwKa/0GCSMQj7libmpO27qpY27LiAIqDsHGg+fYJvTvTF6FA9X6iShjVC7O2SzozGzSPC/i1iNJGNBdnD3z9zJmFo/cialuF5b4zQ2JKIsucY+TKJr1JyFkJcpN96Ndg2BtMvw3RNGyq8ay2cGQkZoydJ8D+DaYiWC23NuW4JgzKCV5g8yWNCoNQnZ6I+Sxk688hubKC5RkRjmKTKmhbOHnNaJ+Bt/c5qNKGxxnZ82YH75SvlB66osuRU4s3xfTHFf9xew==",
+        "encSecKey": "a7fec3d33aafd0aa9eec0488e18703a25c86602c1ec8e8b212b250c69398d35e7bfa37fc7c0ee4d7170b33ce55d69cb7eb161d1d7aec14714eede452c2076226e3cf49c7ed299b7e2bb2a1ce123eca03ef0dcd752f7f716d133405a01f24e8ab81ebb2c432866959b6bbb54b004921f9f690df6ff538434d591350db9ac328f6"
+      }
+    },
+    {
+      "id": 50,
+      "secret": "YYYYYYYYYYYYYYYY",
+      "payload": {
+        "id": "synthetic-50",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 50
+      },
+      "expected": {
+        "params": "XU+Rme9dnzGtqFIH+CbMPP+QSV00ed6VIJ76GFFdLmKPICkEDoZMoh+HGB8DVnTqt8Ehn6cEK9gpEuGUV04b0NsfI0PU8FOsLmMvXhLJNkqdKCtMbrRBDqFE8/I3zC2K9KWFecqEpjSbMHvcfPdy24MvTqzeWj4ZUMOlWuoyKvwtHc0CPAVrwzfz8nYk2vflP7ZVY36JrIeOJ3ORnq1DO0ksYhbTpfFQg3zObp0qa4w=",
+        "encSecKey": "dd935a0e5590be3e076f59a1c29225bf5c3d3edc85f1366d564e93f52fe194f25bd16744a5bf8baeb78fb0ead7e439c1429717c7d8fe7590cb2c5851040b5a7e51930849f184d651a595c26aaa9cc8b278ff194618fcb2bfc84c75e8def2af5881292e445210cf90be214473f826a25128322565f9bda62c861a0a0d69c6021e"
+      }
+    },
+    {
+      "id": 51,
+      "secret": "ZZZZZZZZZZZZZZZZ",
+      "payload": {
+        "id": "synthetic-51",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 51
+      },
+      "expected": {
+        "params": "WiRFJ7vbbjhmcBL0nLKZhAVIuvgcxIQzxXTRr6HYsx0WujcLdgi4QmIDIFQLC/U9r3Guk0ZGCqKcG9HSzBnJQKdbo2nOinr1fhHQvlJDsjtU4185UeLKb4Qrd/DQw5Ca55BmgiJmkgP/JxDfyBGHpbHgRGH6rkOd1yerXj+fWavK0jbbarULfLMgVg9FZVKZSRFdgPg7TvWBSuHDfBqDSmFnZtTY+PuFSKS9jTOrAZSFQGPf2xaTot/3qbcx0/7Jy45PqO2+UDVmxpPs98THeA==",
+        "encSecKey": "22449c56c569d7fc126043a4f497d6dbef959e9eaac5bf5608d1df7f4973c1afe090a51d9d463973b5029e8cce9b67edee850cf413bcea79f52c66b95e7dd75cac30a1fc9e1c139f43eb04093521d9f1b77f275fe0c6787a5389e87439bc6c236e4b9f45bc12fd4dccbcc7c5cc067e5736c69567057dd618ed32c4730d3056c2"
+      }
+    },
+    {
+      "id": 52,
+      "secret": "0000000000000000",
+      "payload": {
+        "id": "synthetic-52",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 52
+      },
+      "expected": {
+        "params": "4Zvhnazmk1M3p36YyJuXl6oHLY+NgLqO4Jus1yR/eqtteUjmqVl5HabP5CwYCsqFamAseiZ2N6HFyXy0bqZin03nNVoZ4B9bXzgqW2EtQudWOe7G6hEVa1B3lqO9mCE8EwO9Pezofxfe5jhHbVkXllGI/h1xVQ+//hM/fm91PxaIRl93JLfltL3QGtkUhBXTnRuT7B1Mxjc76K0GcppgG2aJK375d0equL1TGKy5crs=",
+        "encSecKey": "babc57ca9e9ffb0a879ae290ac6cba6f60620aa9ae3b36a84585e23bbc73d73b13a2ebab4aa2ee80544d255727adc5a04db613d77d02a62a52b3a03134d16f191d54675f560f797c7f03e3a30c43df8b1b49878fd225b62f5f78041427debc3e95b93582f130618630702621da4eda9c71af91836cc39ab3b760b033643a1889"
+      }
+    },
+    {
+      "id": 53,
+      "secret": "1111111111111111",
+      "payload": {
+        "id": "synthetic-53",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 53
+      },
+      "expected": {
+        "params": "+AkyRjxe2npcQAdNWrA1jPfJmC7uLXufLmmUTHxASbVpE+Y4AEzekPP+5bgz3SLXIN0sCmH0OUHw8wNuoH0omJhZmwJXl3YEk0Xc/0dVl9xZBx6Gw6CwRdoUeITA64cxXozZ35XNnetNzFI+LCFlHoWe/Z42JocjhAcXwDWFr0Ddy75x0bNUbw/YB9pe9teWyWc9Y+7BOtrqHZustpdO5RCC4gYQGNGQ4VrvNwR9nnAVO0Fv3BG3QKtTVCYlxPgjce4U2L2ZJGha5Vay5qGbOg==",
+        "encSecKey": "c59f2dfe098badc924dc9de20d4f1e3f7ad6b1ac154554c93802328e3fdf635bfa524479b28eb14d15f7bca9a3055c59e65b1a70bec7fd3b804778d2e21ccffab17667d68c98bcc7853d70bdc10af1e7319f986f48017eacb3a9d13242336a4134332254f476ee50a02a488edd0ea4fa507418422cac3fc4d6970376b79badc5"
+      }
+    },
+    {
+      "id": 54,
+      "secret": "2222222222222222",
+      "payload": {
+        "id": "synthetic-54",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 54
+      },
+      "expected": {
+        "params": "ZApkx0bDI+AgWzgJguhGV1y4dmPr/sL26We1ImPiBj0herV2u2ARksbkP+jxKGb9tKlt68RIWeIFHOK7wRTYdg8XY6m4Rw6ru5Tj6tbfSJl++mg802gjnFek2yhTNIgrH2gvu7mHXGw1/Q0FSG5odXGSQZXzaEC6NllPtklqlm67MMHPSKojVGylgOGINfPnzkBN8DfSYmLhRlHIheqSbw4aHss+XkBYXCq2xP+8pe8=",
+        "encSecKey": "212d5af6d92d2e8088042aa2ac3e2491b598986b45706e58e4da2af27c25596c01c08edb13e8c8c8897ce1408d3c7a9f9e0b8ae3cd7600aac63586e510de6ea4dc8617688ae977f52338f2c60febe00a4678d4d4884497bb79b435e9eeeed3523c0b5c24483ac3b32405ef5f1295eb45aa7327d0c85f0e23c1fc7d86daa70581"
+      }
+    },
+    {
+      "id": 55,
+      "secret": "3333333333333333",
+      "payload": {
+        "id": "synthetic-55",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 55
+      },
+      "expected": {
+        "params": "24Ky0zFrw12MsvQ0OeMwzOcvJkfwjeQ1fLZt05MssU00dgQCAofquEdBR32zx4Xa50aoBdW/+TXkKwcH36EQZzPeAK6G0A/+vnO+w6J/BzSfHJsNqlDB8x8LgVN2BRJEcqKmbjj0F7faIPxv0Hf+8fry+XOgmB9YGRBOSSkxbRE3msSCJb78y3q7cMt4d8kPSWOJHncLNpWSl8JuvwqJwyB3DV76gAYxvbF1g6c2+DaIhNCFRdTwIAtDLL2Ggh8QIx5H7W0nzMqPL4PcP8/rDA==",
+        "encSecKey": "215ad3bf6449581b250c588b1e43f543fda8f4893c5592aaf175382361865d8f4b237da55681d2a82c10db1a0acca39a9f980db5a7f63cf17efad2a4ddc9005341c8b8fbf3ddb90797acccc00bee4defb879722ae2bfbb32edb99345027eace46968601a5243b25e4ce51978a76ecf0c88f2f4ad3cf369ad39076d03ea345a57"
+      }
+    },
+    {
+      "id": 56,
+      "secret": "4444444444444444",
+      "payload": {
+        "id": "synthetic-56",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 56
+      },
+      "expected": {
+        "params": "FcRDdoazXEHMw8RMWaKeSjdb1EmuD8w0Dbnlh4DGNmQa5Ku7w3oWxViujx2qa/6R5YvPvW3FLDgz5E5kVm2agASdx+Hv/N6zXk8e/Gs+kS4VcnUa8MU7JkPztOUTabEPFFO4kFZbOZKMhJVBDt81pBNG+MyXlwS70+kBgNY7TU+HSY5gbbCa6b0vz+FQlzf2+OJ3QpkMxD90kpWmKpEynSbTqCZkZ83YI7tSj9xTGUM=",
+        "encSecKey": "95e7be120397111b359825ecd96f7a56addfec239ad9746a85369ceb2da0326a63a724f1d74589bf5422cd53ca9aea87dad407c22ff8b9d3dbda159f448c96c263990d8b582dbea23965f808e37552e511ba6ab8b12bbbfdabe06a2787f64008136a91d60355efa69cf52b272f3384e58bc4af30641943e5af53e20e55b61adb"
+      }
+    },
+    {
+      "id": 57,
+      "secret": "5555555555555555",
+      "payload": {
+        "id": "synthetic-57",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 57
+      },
+      "expected": {
+        "params": "6pVTuWd7usQdkNVU1KAwLR09Jso1dK3tekxv/VWjcHKrdYfbJkVwfGqQcaH4lJvweGG6aDHuoyY3I3z5MUj4QX5DbA7O5GaAwHJLvs5toCIOWhma8gGak3p4+ABMo5vz3b5bVtsNRZD1/8vMrB60tQaiybXOpK7hTe90BIWVBXGbe9wYjiM3zcU1fZ/pJIi0nP612kptL9MpajjYPh5llCuu8nxt3bBQc5YGp04hoI7VbBegGEfuPxdTYXgD485r+q+KYgKBxSZYLxdou98IsA==",
+        "encSecKey": "5ca6faaed3b388d9759e0d110bf71b6e5851f511e7243f921dbf5b4fd69aef3ca11ea5a09b78528e7c479c230cda527d3f20f6decc86914a44c2d9f4d8ff9ec9cf4ff8e54c7a5ef43d756beb06ffac87f0cbe566a2630d6d02168c5d1c913d64978189b9cc4cb24b70ffa56b1a244501ef3904ca9a8541e0f0e9df206e35bf8a"
+      }
+    },
+    {
+      "id": 58,
+      "secret": "6666666666666666",
+      "payload": {
+        "id": "synthetic-58",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 58
+      },
+      "expected": {
+        "params": "bGl3DfJHlxzJy2OamnYwx1zmyF6kN+QuE1Z/2JYPtAuAspZJOyrVo3k37kynlkXBS/1BQThDTKxUdfVQ4uqVZHr3wuYBQb/6FzH9tAHY7LKjgQDezxnuQNPgL16WGwO4tg+3ZdOTJBoA+CAaNiZwqRBAboysC2FG2/Q2Zs3yKHiQisNMsEsxyNx5YP5t89QOgQwwkDNjQliFJ4puRRGeHjr9+joHBRT3ZCwT+/rTKPw=",
+        "encSecKey": "31a4b468d481385fe2d9e6d5625f083da996efda8c08169ee5bc548914a491e3cd48d9a95e1fc2f59697db3b7a86b32e05afa862814fe5666386a2cef4e36595039611a2c072017f881381ae3c5540cfdb173f818587b7a3eb844a30ada7e4a1289712d366f977ba101b95de4fec6a5c031e3624b581188286565c890aa1d041"
+      }
+    },
+    {
+      "id": 59,
+      "secret": "7777777777777777",
+      "payload": {
+        "id": "synthetic-59",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 59
+      },
+      "expected": {
+        "params": "OOSUPHAEuPFp2ojg5JNscDsfg5UcgNBU58K92nmqOoBALONZOc95KvcwxHMQWz0qs53tvph0Nj3eieK0HyOm23iRHmQrZOZi15SQZX65SE2ND26kH8f/DxFKdq7zHMRUflIlFUvhzwy31hCezHgrcMyKYFyin+yqt0ww4HOLzeqe5oCN0uyD/XE6bZtNTiivEcOq5dBCuFg5xfq72UAwhrHlZPV3XVEqxmICoFAxMmXpOvjM939jzS7HOSlv4BqMiZvthKsbDvOhNCZ9ofaMNA==",
+        "encSecKey": "125eb058f5272a94103d8f04bdb112994438b9b39c88788d5df663b43bb57075b222d1b9307f23be2ad0ab79887e17ee7d6d56f41dcba7e80f5d2a4b82f59d8874c8d15fa07f3e75cbc9d18ed438bb3b5fdea8156920755cd59bc4b477f67fd35a624b06c5f834e8dc0571a5edbd0ae0f4f1756a1b18871011595d3f765f04e7"
+      }
+    },
+    {
+      "id": 60,
+      "secret": "8888888888888888",
+      "payload": {
+        "id": "synthetic-60",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 60
+      },
+      "expected": {
+        "params": "58auAV8nb82IdlrTxi5KigjyzAfcwQ4tVQXbUPrSbipP8UkM3wXtq5ODrFAKRKIuMVRw3F8owCPq67Sb4bwXCQdYryBB+0bRSrAsf6+GiLZ0KHEGM1x7/3cmcedkluT5WfkF1CZbzWdaAewxwmYoT3tBz2RpuuOmTjyKtEZLndcYV/B3iKmLxrkJxnFTsUhzuimBIh+cKWQjcLWBS49giZSuUZkcnZDOsGfV0dFS3yY=",
+        "encSecKey": "7ea8b57b4871340a0c3cabae038070782db4954bd580092f3cb056c23f50756258bfafb52d5a3d769356fb504a3266b9beb9089bd33501187da59e26e24b178c3bde91520a4143e42fca7c824feafb01683abc1d8e9d41e2783286d690427e12da47bb88323e61a96d07c5c53933f50d0fc3695f31564adf625390f227e6f407"
+      }
+    },
+    {
+      "id": 61,
+      "secret": "9999999999999999",
+      "payload": {
+        "id": "synthetic-61",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 61
+      },
+      "expected": {
+        "params": "0AVgkZMakJffzViMVZAUg8Ip/EhJDR5en/BP8jQXPw8dHKIQck8+ihDREYDPVa0WusO6v3rOsUqJ4hT46hXga/b5EggV1ZpM9QOa6qBSUAGFd8ms8Qvx0XpD/z1KVw29cC9LmnbuNUlnGSkU6+mV/w+vpl7ySZXDBgvB1AtGsQ3OkEdVo9SpYLKiSNt841j7RT2pQP4duHRmW5j4puZKbEUOB00iaPzVV8I1L4nfcLuC4/sASgIl5WPV+6nH6wQzg/WTR8eJP9mE99E8qQqdQg==",
+        "encSecKey": "d772ace19cac89d6f896749fc8dc9473cd2fe7cf136f722a150a2fcb9cb086839b9e83f87478f0d9f8c2ac0ab949b418c52c2098c54381f1485e2ae5b27c8bdcaa610b02d6e3bfc7f36b4c8bf0f097ac58d07c84c1654910bb8e175eafe67031ebbdc349a03d466c536a24e2e427f5e038c10bab4ff0678ec09667647a13069b"
+      }
+    },
+    {
+      "id": 62,
+      "secret": "aZ09bcDEFghiJKlm",
+      "payload": {
+        "id": "synthetic-62",
+        "title": "ASCII JSON",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 62
+      },
+      "expected": {
+        "params": "dkzOewOuPsVZdVsm0GPGjX64o0R2zy8b0b+53Bzfky9KZmsg/eQwiTvQlK5BTyQ8s1vDuKRZTe34z/f1X1T0faiUAb9iY/yTPdLWPJXMw1/uEu7dhISPM2KcONhr5z6416WRaGBPcy7dXvVjJFAY+zL3q5OW5CFI+V28XUjOpC+Qd4A8YOYopiZ7O/0p+Sp6Wtb4+C4eu7bAYw1lob2g4YY9DfBoLN6ZIUrsMXfS+Ps=",
+        "encSecKey": "b3056ac39a5bbcc3e45b06846ca006bf81af1b77c28cb1efb3d8c9db5fc6ea75ff0065b17c15a22ca2ebce99bf9607fe8a2ca95e6e86fc867c367b654de8251565cf408a44b1e07ccfb32bb08a17f03ce704805f36aca550c3c7b758d8b532a3f0a436e1395c5b12397718ecc440e9db6ba2e696853b33cdc1ebb335c4fcb0c9"
+      }
+    },
+    {
+      "id": 63,
+      "secret": "0123456789AaZz09",
+      "payload": {
+        "id": "synthetic-63",
+        "title": "离线樱花🎵",
+        "items": [
+          null,
+          true,
+          false,
+          0,
+          -1,
+          3.25,
+          {
+            "value": "引号\"与反斜线\\"
+          }
+        ],
+        "number": 63
+      },
+      "expected": {
+        "params": "PyQvbqOZrPzh/VFbkX++0oNdPYJE5mWf6t3wH/sMJjuHVlmNJKaIypL5KhaJHQGF4t8iMOw13FKp5WbRRmRQUPWdc3YvMw/EA0VY/VWBplOFr6ykhTGomDAs71S+0S84QzR90U9XGuZyo3nb9bLEmVff1HzP2H6YIDJnAM6vNul+ps8cAwcZxVkidxHCaULtrOIUMHlx034vdAmEK1lVWWrMb2z4YMy6hFP5bBawY+chOj9MAjB/8q9Fok+XmQl8BkJvdoVH55tiHdWeb0+BiA==",
+        "encSecKey": "7dfc7c4e717441750350f1e00579cc54467b0fe607542c8fc825ef9938d0261c420b6123dcc05fc486c53bd6f1f3591cba7d55b050a6a6dc2bb58465123a07a4e2aec544a867186daf48d2cf0625d6ae6a8b74aa92c186744541df519745f5c6ffeeab9aed3e6339fb8ebffbc9b987f464b1aca718e82ff7e9cae88e99232eb8"
+      }
+    }
+  ]
+}

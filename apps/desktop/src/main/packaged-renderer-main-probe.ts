@@ -1,7 +1,8 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { lstatSync, readFileSync, realpathSync } from 'node:fs'
+import { lstatSync, readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { externalSyntheticProfileRoot, validateSyntheticProfileDirectory, type SyntheticProfileRoot } from './synthetic-profile-root.js'
 import { StringDecoder } from 'node:string_decoder'
 import { isDeepStrictEqual } from 'node:util'
 import { validateIpcRequest, validateIpcResponseForCommand, isCollectionModel, type CollectionModel, type IpcRequest } from '@music-bridge/contracts'
@@ -34,7 +35,6 @@ export function assertPackagedRendererDiagnosticEnvironment(env: NodeJS.ProcessE
   if (env.MUSIC_BRIDGE_UI_E2E !== '1' || env.MUSIC_BRIDGE_UI_E2E_OFFLINE !== '1'
     || !env.MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR || env.MUSIC_BRIDGE_STARTUP_TEST !== undefined) throw new Error('候选诊断只接受固定离线合成工作库。')
 }
-const externalRoot = '/Volumes/LifeWeave/Developer/CommandLine/tmp'
 const uuid = (value: unknown): value is string => typeof value === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/u.test(value)
 const sha = (bytes: Buffer): string => createHash('sha256').update(bytes).digest('hex')
 const exact = (value: unknown, keys: readonly string[]): value is Record<string, any> => !!value && typeof value === 'object' && !Array.isArray(value) && Reflect.ownKeys(value).length === keys.length && keys.every(key => { const field = Object.getOwnPropertyDescriptor(value, key); return field?.enumerable && Object.hasOwn(field, 'value') })
@@ -44,10 +44,12 @@ export interface PackagedRendererCompletedMarker {
 }
 export function readPackagedRendererProfile(env: NodeJS.ProcessEnv) {
   assertPackagedRendererDiagnosticEnvironment(env)
+  return readPackagedRendererProfileWithinRoot(env, externalSyntheticProfileRoot())
+}
+export function readPackagedRendererProfileWithinRoot(env: NodeJS.ProcessEnv, trustedRoot: SyntheticProfileRoot) {
+  assertPackagedRendererDiagnosticEnvironment(env)
   const directory = env.MUSIC_BRIDGE_UI_E2E_USER_DATA_DIR!
-  if (!directory.startsWith(externalRoot + '/') || path.resolve(directory) !== directory || !/^musicbridge-ui-diagnostics-[A-Za-z0-9._-]+$/u.test(path.basename(directory))) throw new Error('合成工作库路径未准入。')
-  const volume = lstatSync('/Volumes/LifeWeave', { bigint: true }), profile = lstatSync(directory, { bigint: true })
-  if (!profile.isDirectory() || profile.isSymbolicLink() || profile.dev !== volume.dev || (profile.mode & 0o077n) !== 0n || realpathSync(directory) !== directory) throw new Error('合成工作库真实身份无效。')
+  const profile = validateSyntheticProfileDirectory(directory, trustedRoot)
   const markerPath = path.join(directory, 'rust013-profile.json'), markerIdentity = lstatSync(markerPath, { bigint: true })
   if (!markerIdentity.isFile() || markerIdentity.isSymbolicLink() || markerIdentity.nlink !== 1n || (markerIdentity.mode & 0o077n) !== 0n || markerIdentity.size > 1024n) throw new Error('合成工作库标记无效。')
   const bytes = readFileSync(markerPath), marker: unknown = JSON.parse(bytes.toString())
@@ -68,7 +70,7 @@ export function readPackagedRendererProfile(env: NodeJS.ProcessEnv) {
   return { directory, nonce: marker.nonce as string, profileDev: String(profile.dev), profileIno: String(profile.ino), markerSha256: sha(bytes), completedPath, completed, completedMarkerSha256 }
 }
 const observedCommands = new Set(['commandOutbox.context', 'commandOutbox.execute', 'collection.list', 'collection.detail', 'core.shutdown', 'recordingPrintWorker.claim'])
-export function createPackagedRendererMainProbe(options: { sink?: (line: string) => void } = {}) {
+export function createPackagedRendererMainProbe(options: { sink?: (line: string) => void; profileReader?: typeof readPackagedRendererProfile } = {}) {
   const sink = options.sink ?? (line => { process.stdout.write(line) }), emit = createPackagedRendererEvidenceWriter('main', sink)
   const requests = new Map<string, { request: IpcRequest; started: number; actionId: string | null }>()
   const ipcRequests = new Map<string, Record<string, any>>(), submissions: { commandId: string; outboxId: string; datasetId: string; command: string; payload: any; result: any }[] = [], acknowledged = new Set<string>(), models = new Map<string, CollectionModel>()
@@ -184,7 +186,7 @@ export function createPackagedRendererMainProbe(options: { sink?: (line: string)
       if (executed) throw new Error('固定控件流程不能重复启动。')
       executed = true
       try {
-        const profile = readPackagedRendererProfile(process.env), start = performance.now(), web = window.webContents
+        const profile = (options.profileReader ?? readPackagedRendererProfile)(process.env), start = performance.now(), web = window.webContents
         emit('main.profileValidated', { profileDirectory: profile.directory, profileDev: profile.profileDev, profileIno: profile.profileIno, markerSha256: profile.markerSha256, nonce: profile.nonce })
         const imageDirectory = path.join(profile.directory, `rust013-screenshots-${randomUUID()}`)
         await mkdir(imageDirectory, { mode: 0o700 })

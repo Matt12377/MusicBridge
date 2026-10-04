@@ -1,7 +1,8 @@
+import { verifiedElectronExecution } from '../scripts/electron-identity.mjs'
+import { readRustElectronHostsReceipt } from '../../../scripts/ci/rust-electron-host-receipt.mjs'
+import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { createRequire } from 'node:module'
-import { existsSync, readFileSync } from 'node:fs'
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -15,11 +16,10 @@ import { buildRoot, manifest, manifestPath, manifestSha256, count, dispatchCount
 
 interface MainEvidence { observations: HostObservation[]; main: Record<string, unknown>[]; final: HostSnapshot; coreExit: number; rustConfigured: boolean }
 const reports: Record<string, unknown>[] = []
-const require = createRequire(import.meta.url), electronPackage = path.dirname(require.resolve('electron/package.json'))
-const electronPathFile = path.join(electronPackage, 'path.txt')
-assert.ok(existsSync(electronPathFile), '真实Electron依赖未准备；禁止测试隐式下载或安装。')
-const electronExecutable = path.join(electronPackage, 'dist', readFileSync(electronPathFile, 'utf8').trim())
-assert.ok(existsSync(electronExecutable), '真实Electron可执行文件缺失；不能用Worker代替此Gate。')
+const electronIdentity = verifiedElectronExecution()
+const electronExecutable = electronIdentity.executablePath
+const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url)).replace(/\/$/u, '')
+assert.equal(readRustElectronHostsReceipt(process.env.MUSIC_BRIDGE_RUST_HOSTS_RECEIPT ?? '', repositoryRoot).mainHostBuildRoot, buildRoot)
 async function control(application: ElectronApplication, operation: string, parameters: Record<string, unknown> = {}) {
   return application.evaluate(async (_electron, input) => {
     const host = (globalThis as typeof globalThis & { __rust008Host: { control(operation: string, parameters?: unknown): Promise<unknown> } }).__rust008Host

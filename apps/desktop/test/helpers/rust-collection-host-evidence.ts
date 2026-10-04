@@ -1,3 +1,4 @@
+import { readRustElectronHostsReceipt } from '../../../../scripts/ci/rust-electron-host-receipt.mjs'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -9,6 +10,11 @@ export interface HostObservation { sequence: number; elapsedMs: number; event: s
 export interface HostSnapshot { rustConfigured: boolean; configuredModels: number; observations: HostObservation[]; controller?: RustReadonlyCoreDatasetOwnerStatus }
 export interface BuildManifest { schemaVersion: number; task: string; sourceSha: string; sourceAggregateSha256: string; binaryPath: string; binarySha256: string; artifacts: { path: string; sha256: string; bytes: number }[]; sources: { path: string; sha256: string }[] }
 export const buildRoot = process.env.MUSIC_BRIDGE_RUST_COLLECTION_HOST_BUILD_ROOT ?? ''
+if (process.env.MUSIC_BRIDGE_RUST_HOSTS_RECEIPT) {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../..')
+  const receipt = readRustElectronHostsReceipt(process.env.MUSIC_BRIDGE_RUST_HOSTS_RECEIPT, repositoryRoot)
+  assert.equal(buildRoot, receipt.collectionHostBuildRoot)
+}
 assert.ok(path.isAbsolute(buildRoot), '主机集成必须提供本轮外置编译树；不得 skip。')
 export const manifestPath = path.join(buildRoot, 'artifact-manifest.json')
 export const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as BuildManifest
