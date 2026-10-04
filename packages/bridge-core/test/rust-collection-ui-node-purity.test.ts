@@ -11,6 +11,7 @@ import { validateIpcRequest } from '@music-bridge/contracts';
 import type { CanonicalReference, CatalogRevisionDetail, CollectionMutationResult, CollectionProgress, CollectionProgressSnapshotSummary, IpcRequest, ReferenceSourceVersion, WantEntry } from '@music-bridge/contracts';
 import { DatasetOwnerDispatchError } from '../src/collection/dataset-owner-protocol.js';
 import { createDatasetOwnerClient } from '../src/collection/dataset-owner-client.js';
+import { buildStoragePolicy } from '../../../apps/desktop/scripts/build-storage-root.mjs';
 const page = { offset: 0, limit: 25 };
 const hash = (raw: string) => createHash('sha256').update(raw).digest('hex');
 const item = (id: string): CanonicalReference => ({ referenceId: id, bookId: 'rust009-book', brand: '合成品牌', series: '系列', model: id, edition: '1990', lengths: [46, 90], iec: 'II', era: '1990', image: { kind: 'none' }, pages: ['1'], notes: '', confidence: 'high' });
@@ -22,8 +23,10 @@ function tables(file: string) {
   } finally { db.close(); }
 }
 async function fixture(t: test.TestContext) {
-  const external = '/Volumes/LifeWeave/Developer/CommandLine/tmp', temporary = path.resolve(tmpdir());
-  if (process.platform === 'darwin') assert.ok(temporary === external || temporary.startsWith(external + path.sep), '纯度夹具必须使用外置TMPDIR。');
+  const storage = buildStoragePolicy(), external = '/Volumes/LifeWeave/Developer/CommandLine/tmp';
+  const temporary = storage.check(path.resolve(tmpdir()), { mustExist: true });
+  // Hosted沿用同一严格根与专用子树检查；本机macOS仍只使用外置临时根。
+  if (process.platform === 'darwin' && !storage.hosted) assert.ok(temporary === external || temporary.startsWith(external + path.sep), '纯度夹具必须使用外置TMPDIR。');
   const directory = await mkdtemp(path.join(temporary, 'rust009-purity-'));
   const worker = new Worker(new URL('./helpers/dataset-owner-domain-fixture.ts', import.meta.url), { execArgv: ['--import', 'tsx'], workerData: { dataDirectory: directory } });
   const owner = createDatasetOwnerClient({ worker }); const identity = await owner.prepare(); await owner.commitBoot();
