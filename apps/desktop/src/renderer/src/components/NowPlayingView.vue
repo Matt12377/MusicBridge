@@ -170,7 +170,7 @@ const actualQualityDetail = computed(() => {
               @click="qualityDetailsOpen = !qualityDetailsOpen"
             ><span>{{ props.playbackSource === 'local_file' ? '文件' : '来源' }}</span>{{ qualityDetailsOpen ? actualQualityDetail : props.playbackSource === 'local_file' ? (props.playbackState?.local?.file_parameters?.container ?? '参数未知') : props.qualityLabel(props.playbackState?.actualQuality) }}<SidebarIcon name="chevron-down" :size="12" /></button>
           </div>
-          <div v-if="qualityDetailsOpen || props.playbackSource === 'local_file'" class="artist-line" aria-label="音质证据详情"><p>{{ evidenceDetails.file }}</p><p>{{ evidenceDetails.provider }}</p><p>{{ evidenceDetails.output }}</p><p>{{ evidenceDetails.evidence }}</p></div>
+          <div v-if="qualityDetailsOpen || props.playbackSource === 'local_file'" class="artist-line now-playing-quality-details" aria-label="音质证据详情"><p>{{ evidenceDetails.file }}</p><p>{{ evidenceDetails.provider }}</p><p>{{ evidenceDetails.output }}</p><p>{{ evidenceDetails.evidence }}</p></div>
           <div class="transport-controls" aria-label="歌曲切换控制">
             <button type="button" class="transport-button transport-button-secondary" :disabled="!props.playbackState?.canPrevious" aria-label="上一首" @click="emit('previous')"><SidebarIcon name="previous" :size="21" /></button>
             <button
@@ -217,3 +217,9 @@ const actualQualityDetail = computed(() => {
     <p v-if="props.qualityNotice" class="persistent-error">{{ props.playbackIssueMessage(props.qualityNotice) }}<span>诊断标识：{{ props.qualityNotice.diagnosticId }}</span></p>
   </section>
 </template>
+
+<style scoped>
+/* 证据分层紧凑排布，避免段落默认外边距把播放控制挤出窗口。 */
+.now-playing-quality-details { display: grid; gap: 4px; margin-bottom: 12px; }
+.now-playing-quality-details p { margin: 0; }
+</style>

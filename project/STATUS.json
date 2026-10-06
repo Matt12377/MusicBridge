@@ -46087,7 +46087,7 @@
         "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-current-file-parameters-red-01/result.json"
       },
       "gate": {
-        "status": "PASS_AFTER_CI_PREPARATION_REPAIR",
+        "status": "PASS_AFTER_CI_GUARD_AND_LAYOUT_REPAIR",
         "tests": 370,
         "new": 36,
         "regression": 334,
@@ -46096,7 +46096,7 @@
         "freshOutputs": 38,
         "actualVueSsr": 2,
         "privateBindings": 3,
-        "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/REPAIR_FINAL_LOCAL_GATE_SUMMARY.json",
+        "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/FINAL_SUCCESS_LOCAL_GATE_SUMMARY.json",
         "exitCode": 0
       },
       "standardCorePreparationRepair": {
@@ -46105,18 +46105,36 @@
         "exitCode": 0,
         "preparationClockEndedBeforeSuccessfulPostChecks": true,
         "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/STANDARD_READER_REPAIR_BINDING_CHECK.json"
+      },
+      "rendererGuardRepair": {
+        "tests": 36,
+        "passed": 36,
+        "failed": 0,
+        "exitCode": 0,
+        "effectiveRed": "RENDERER_GUARD_EFFECTIVE_RED_IDENTITY.json",
+        "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-renderer-regression-green-02/result.json"
+      },
+      "electronQualityLayoutRepair": {
+        "originalGeometryAndInteractionFlowPassed": true,
+        "originalThresholdPreserved": true,
+        "fieldsRetained": true,
+        "exitCode": 0,
+        "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-electron-layout-green-02/result.json",
+        "layer": "SYNTHETIC_PRODUCTION_ELECTRON_NOT_ORDINARY_APP"
       }
     },
-    "push": "REPAIR_SOURCE_PENDING_NORMAL_PUSH",
+    "push": "COMBINED_REPAIR_SOURCE_PENDING_NORMAL_PUSH",
     "ci": {
       "initialSourceCommit": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
       "initialSource": "VERIFY_PREPARATION_AND_TWO_OLD_E2E_SELECTORS_FAILED_RETAINED",
-      "newSource": "PENDING_NORMAL_REPAIR_COMMIT_AND_NATURAL_CI",
-      "rerunCancel": false
+      "newSource": "PENDING_NORMAL_COMBINED_REPAIR_COMMIT_AND_NATURAL_CI",
+      "rerunCancel": false,
+      "firstRepairSourceCommit": "8d9814311a2c7cae8801847a062dd6a7cfd9388c",
+      "firstRepairSource": "FULL_CORE_PASS_OLD_RENDERER_GUARD_AND_QUALITY_LAYOUT_E2E_FAILED_RETAINED"
     },
     "mainMerge": "NOT_AUTHORIZED",
     "release": "NOT_AUTHORIZED",
-    "updatedAt": "2026-10-06T14:02:25.769959+00:00",
+    "updatedAt": "2026-10-06T14:37:12.959956+00:00",
     "softwareValidation": {
       "targetedTests": 370,
       "new": 36,

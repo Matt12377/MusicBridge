@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import test from 'node:test'
+import { parse } from '@vue/compiler-sfc'
 
 const rendererRoot = path.resolve('src/renderer')
 const applicationRoot = path.resolve('src/renderer/src/composables/application')
@@ -104,11 +105,36 @@ test('Lyrics follow uses explicit programmatic and user scroll states', async ()
   assert.match(source, /@pointerdown="beginUserScroll"/)
 })
 
+const lyricsEngineeringFields = /score|confidence|evidence|algorithmVersion|LocalTrackSignature|roonReference|searchQuery/iu
+
+// 只截取真实歌词节点；音质详情的内部证据变量不属于歌词呈现。
+function nowPlayingLyricsTemplate(source: string): string {
+  const parsed = parse(source)
+  assert.equal(parsed.errors.length, 0, '歌词template解析失败，不能忽略')
+  const ast = parsed.descriptor.template?.ast
+  assert.ok(ast, 'NowPlaying缺少可核template AST')
+  type TemplateNode = typeof ast.children[number]
+  const lyrics: string[] = []
+  const drawers: string[] = []
+  const visit = (node: TemplateNode): void => {
+    if (node.type !== 1) return
+    if (node.props.some(prop => prop.type === 6 && prop.name === 'class'
+      && prop.value?.content.split(/\s+/u).includes('now-playing-lyrics'))) lyrics.push(node.loc.source)
+    if (node.tag === 'LocalLyricsMatchDrawer') drawers.push(node.loc.source)
+    node.children.forEach(visit)
+  }
+  ast.children.forEach(visit)
+  assert.ok(lyrics.length > 0, 'NowPlaying缺少now-playing-lyrics实际元素')
+  assert.ok(drawers.length > 0, 'NowPlaying缺少LocalLyricsMatchDrawer实际元素')
+  assert.ok([...lyrics, ...drawers].every(value => value.length > 0), '歌词节点原件为空')
+  return [...lyrics, ...drawers].join('\n')
+}
+
 test('Local lyrics manual matching uses an accessible project-native drawer without exposing engineering data', async () => {
   const panel = await readFile(path.resolve('src/renderer/src/components/LyricsPanel.vue'), 'utf8')
   const nowPlaying = await readFile(path.resolve('src/renderer/src/components/NowPlayingView.vue'), 'utf8')
   const drawer = await readFile(path.resolve('src/renderer/src/components/LocalLyricsMatchDrawer.vue'), 'utf8')
-  const combined = `${panel}\n${nowPlaying}\n${drawer}`
+  const combined = `${panel}\n${nowPlayingLyricsTemplate(nowPlaying)}\n${drawer}`
 
   assert.match(combined, /歌词来源：网易云/u)
   assert.match(combined, /选择匹配歌词/u)
@@ -121,8 +147,27 @@ test('Local lyrics manual matching uses an accessible project-native drawer with
   assert.match(drawer, /暂无匹配歌曲|没有找到可用候选/u)
   assert.match(drawer, /网易云尚未登录|网易云暂时不可用/u)
   assert.match(drawer, /@media\s*\(max-width:/u)
-  assert.doesNotMatch(combined, /score|confidence|evidence|algorithmVersion|LocalTrackSignature|roonReference|searchQuery/iu)
+  assert.doesNotMatch(combined, lyricsEngineeringFields)
   assert.doesNotMatch(drawer, /<select\b/iu)
+})
+
+test('歌词工程字段guard只检查实际歌词节点，质量区不误判且缺节点/解析错误不漏检', () => {
+  const source = `<template><section>
+    <aside>{{ qualityDetails.evidence }}</aside>
+    <div class="now-playing-lyrics"><p>歌词</p></div>
+    <LocalLyricsMatchDrawer :state="candidate" />
+  </section></template>`
+  const check = (value: string, panel = '<template><p>歌词面板</p></template>', drawer = '<template><p>候选歌曲</p></template>') => {
+    assert.doesNotMatch(`${panel}\n${nowPlayingLyricsTemplate(value)}\n${drawer}`, lyricsEngineeringFields)
+  }
+  check(source)
+  assert.throws(() => check(source.replace('<p>歌词</p>', '{{ candidate.score }}')), assert.AssertionError)
+  assert.throws(() => check(source.replace(':state="candidate"', ':state="candidate.evidence"')), assert.AssertionError)
+  assert.throws(() => check(source, '<template>{{ candidate.confidence }}</template>'), assert.AssertionError)
+  assert.throws(() => check(source, undefined, '<template>{{ candidate.evidence }}</template>'), assert.AssertionError)
+  assert.throws(() => check(source.replace('now-playing-lyrics', 'another-region')), /缺少now-playing-lyrics/u)
+  assert.throws(() => check(source.replace('<LocalLyricsMatchDrawer :state="candidate" />', '')), /缺少LocalLyricsMatchDrawer/u)
+  assert.throws(() => check('<template><div class="now-playing-lyrics"></template>'), /解析失败/u)
 })
 
 test('Renderer exposes the v2 Music Source Sidebar information architecture', async () => {
