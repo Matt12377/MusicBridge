@@ -206,7 +206,7 @@
       "depends_on": [
         "MBRS-002"
       ],
-      "status": "OWNER_ACCEPTED_STAGE_SOFTWARE_COMPLETE_COMMITS_PENDING",
+      "status": "OWNER_ACCEPTED_STAGE_COMPLETE_WITH_CARRYOVER",
       "implementation_owner": "MBRS-003",
       "goal": "离线可浏览、逐批可用的数字音乐索引，不复用录音候选扫描的容量假设。",
       "steps": [
@@ -239,7 +239,7 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "251eae9bd354f916a2904e4899c6b061ac3371ec",
       "report_commit": null,
       "validation_status": "FINAL_LOCAL_SOFTWARE_GATE_PASSED_WITH_OWNER_SCALE_CARRYOVER",
       "evidence_refs": [
@@ -31677,7 +31677,49 @@
         "currentFullScaleObserved": false,
         "newScaleRunStarted": false
       },
-      "initial_implementation_commit": "6e01a1d9e8f14282eedaef6065ad1368355674b8"
+      "initial_implementation_commit": "6e01a1d9e8f14282eedaef6065ad1368355674b8",
+      "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md",
+      "implementation_natural_ci": {
+        "status": "IN_PROGRESS",
+        "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+        "runs": [
+          {
+            "conclusion": "success",
+            "databaseId": 37397810860,
+            "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+            "status": "completed",
+            "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397810860",
+            "workflowName": "security"
+          },
+          {
+            "conclusion": "",
+            "databaseId": 37397811054,
+            "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+            "status": "in_progress",
+            "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397811054",
+            "workflowName": "electron-e2e"
+          },
+          {
+            "conclusion": "",
+            "databaseId": 37397810844,
+            "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+            "status": "in_progress",
+            "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397810844",
+            "workflowName": ".github/workflows/rust-core.yml"
+          },
+          {
+            "conclusion": "",
+            "databaseId": 37397811047,
+            "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+            "status": "in_progress",
+            "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397811047",
+            "workflowName": "verify"
+          }
+        ],
+        "notBorrowedFromPreviousCommit": true
+      },
+      "report_path": "reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md",
+      "handoff_path": "docs/postrust/MBRS-003/HANDOFF_NEXT_SESSION.md"
     },
     {
       "id": "MBRS-004",

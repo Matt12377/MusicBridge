@@ -1,0 +1,194 @@
+{
+  "schema": "mbrs003.stage-delivery-evidence.v1",
+  "status": "OWNER_ACCEPTED_STAGE_REPORT_PREPARED",
+  "baseSha": "a7b27b5b6a5168bd146a3cbe61b579efd5639263",
+  "branch": "codex/mbrs-003-persistent-incremental-scan",
+  "initialImplementationCommit": "6e01a1d9e8f14282eedaef6065ad1368355674b8",
+  "implementationCommit": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+  "reportCommit": null,
+  "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md",
+  "ownerDecisionRef": {
+    "path": "docs/postrust/MBRS-003/OWNER_STAGE_ACCEPTANCE_2026-10-06.json",
+    "bytes": 3420,
+    "sha256": "6ab7f18a134b614a6dbace50443354fe69484cf3bca061dd86f74118401e879f"
+  },
+  "ownerStageAccepted": true,
+  "currentFullScalePass": false,
+  "currentFullScaleObserved": false,
+  "finalRealLibraryAcceptance": "DEFERRED_UNTIL_COMPLETE_PRODUCT",
+  "new100k300kStarted": false,
+  "original156ATUnchanged": true,
+  "original8AT": [
+    {
+      "id": "MBRS-AT-003-01",
+      "status": "PASS_LIMITED_SOFTWARE_AND_OFFLINE_APP",
+      "boundary": "首次/增量/恢复、幂等与未变零解析；最终真实库待验"
+    },
+    {
+      "id": "MBRS-AT-003-02",
+      "status": "PARTIAL_FINAL_REAL_LIBRARY_DEFERRED",
+      "boundary": "软件坏文件/权限/取消/超时隔离通过；普通App原生3秒超时及扫描中交互响应未观察"
+    },
+    {
+      "id": "MBRS-AT-003-03",
+      "status": "PASS_EXPLICIT_SUPPORT_MATRIX",
+      "boundary": "六核心格式样本与CUE关联通过；APE/DSF/DFF明确UNSUPPORTED，片段播放未验"
+    },
+    {
+      "id": "MBRS-AT-003-04",
+      "status": "PASS_SYNTHETIC_SOURCE_BYTES_PRESERVED",
+      "boundary": "短合成原件内容前后保持；无真实曲库全量证据"
+    },
+    {
+      "id": "MBRS-AT-003-05",
+      "status": "PASS_LIMITED_SOFTWARE_AND_OFFLINE_APP",
+      "boundary": "确认定位保留有证据身份，多候选拒误合并；最终真实重挂待验"
+    },
+    {
+      "id": "MBRS-AT-003-06",
+      "status": "PARTIAL_FINAL_REAL_PLAYBACK_DEFERRED",
+      "boundary": "有界Reader和Controller/Gateway媒体优先级13项通过；真实播放并发待最终验"
+    },
+    {
+      "id": "MBRS-AT-003-07",
+      "status": "PASS_LIMITED_SOFTWARE",
+      "boundary": "普通标签有界读与旧严格探测/全Hash分离，SourceLock保护保持"
+    },
+    {
+      "id": "MBRS-AT-003-08",
+      "status": "OWNER_ACCEPTED_HISTORICAL_SCALE_WITH_CARRYOVER",
+      "boundary": "接受历史300k 299975/25作为阶段放行；取消当前100k/300k重测，最终真实库验收"
+    }
+  ],
+  "finalLocalSoftwareGate": {
+    "manifestRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-software-manifest.json",
+      "bytes": 1485288,
+      "sha256": "211c3414fb40ad5e5f874f5d601f09c32befcadfa3423a68cf9b86a04105c726"
+    },
+    "software-wrapperRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-software-wrapper.json",
+      "bytes": 1394,
+      "sha256": "cad5ee27ac6902eaf4e2bdea302fee5ac013672b8b015c2d0bd7721b92a8ac94"
+    },
+    "security-correctionRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-security-correction.json",
+      "bytes": 1212,
+      "sha256": "f413935a0be01993081da3ad17972f5c86e465b5c3cfafcbdcc5dd76643b1849"
+    },
+    "build-order-typecheckRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-build-order-typecheck.json",
+      "bytes": 1268,
+      "sha256": "6c9fb3fd156233684082c4f9e2e5a90e547cfd9bda00aa83898d0412a90798ec"
+    },
+    "status": "FINITE_SOFTWARE_GATE_SUCCESS_WITH_OWNER_SCALE_CARRYOVER",
+    "functionalTests": 124,
+    "runnerTests": 34,
+    "directedSecurityTests": {
+      "tests": 29,
+      "pass": 29,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stageCount": 13,
+    "sourceInputCount": 1209,
+    "sourceInputsUnchanged": true,
+    "outputsIdentityUnchanged": true,
+    "wrapperExitCode": 0,
+    "archiveExitCode": 0,
+    "currentFullScalePass": false,
+    "newScaleRunStarted": false
+  },
+  "finalImplementationGateGitBlobBinding": {
+    "schema": "mbrs003.local-gate-commit-binding.v1",
+    "gateCapturedGitHead": "6e01a1d9e8f14282eedaef6065ad1368355674b8",
+    "finalImplementationCommit": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+    "verifiedGitBlobCount": 1209,
+    "allDeclaredSourceBytesMatch": true,
+    "fullTransitiveDependencyClosureClaim": false,
+    "currentFullScalePass": false
+  },
+  "initialCiFailureRef": {
+    "path": "docs/postrust/MBRS-003/evidence/initial-implementation-ci-failures.json",
+    "bytes": 1049,
+    "sha256": "fb493c6947115ea20e890c23a73c815ffee72183642a292ef3e0f456cf5029c9"
+  },
+  "implementationNaturalCi": {
+    "status": "IN_PROGRESS",
+    "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+    "runs": [
+      {
+        "conclusion": "success",
+        "databaseId": 37397810860,
+        "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+        "status": "completed",
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397810860",
+        "workflowName": "security"
+      },
+      {
+        "conclusion": "",
+        "databaseId": 37397811054,
+        "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+        "status": "in_progress",
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397811054",
+        "workflowName": "electron-e2e"
+      },
+      {
+        "conclusion": "",
+        "databaseId": 37397810844,
+        "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+        "status": "in_progress",
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397810844",
+        "workflowName": ".github/workflows/rust-core.yml"
+      },
+      {
+        "conclusion": "",
+        "databaseId": 37397811047,
+        "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+        "status": "in_progress",
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397811047",
+        "workflowName": "verify"
+      }
+    ],
+    "notBorrowedFromPreviousCommit": true
+  },
+  "reportNaturalCi": "NOT_STARTED_UNTIL_REPORT_PUSH",
+  "historicalScaleCounts": {
+    "visited": 300000,
+    "accepted": 299975,
+    "rejected": 25,
+    "timeout": 20,
+    "workerStartTimeout": 5
+  },
+  "physicalCause": "UNKNOWN",
+  "itemIdentifiers": "UNKNOWN_NOT_EXPORTED",
+  "historicalScaleTechnicalStatus": "FAILURE_PRESERVED",
+  "historicalStagesFourAndFive": "NOT_RUN_PRESERVED",
+  "trial": {
+    "entry": "docs/postrust/MBRS-003/TRY_OFFLINE.command",
+    "readme": "docs/postrust/MBRS-003/TRY_OFFLINE.md",
+    "fixedBuild": "N42",
+    "mode": "OFFLINE_SYNTHETIC_SERVICES_MOCK_KEYCHAIN",
+    "delivery": {
+      "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-offline-trial-155-01",
+      "launchFile": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-offline-trial-155-01/启动离线试用.command",
+      "productionInputsCompared": 596,
+      "desktopOutputs": 20,
+      "electronVersion": "43.4.0",
+      "syntaxExitCode": 0,
+      "appLaunched": false,
+      "manifestPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-offline-trial-155-01/TRIAL_DELIVERY.json"
+    },
+    "runtimeInputsHeld": 595,
+    "metadataOnlyDelta": "Core pretypecheck构建命令",
+    "desktopOutputsHeld": 20,
+    "launchExecutedForThisDelivery": false
+  },
+  "handoffAfter003": true,
+  "nextTask": "MBRS-004",
+  "nextTaskStarted": false,
+  "nextBranchBaseline": "RESOLVE_FINAL_REPORT_HEAD_FROM_GIT_PATH",
+  "realAccountsProviderRoonAudio": "NOT_ACCEPTED_BY_STAGE_EXCEPTION"
+}

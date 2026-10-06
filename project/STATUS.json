@@ -6986,10 +6986,10 @@
   },
   "postRustPersistentIncrementalScan20261004": {
     "task": "MBRS-003",
-    "state": "OWNER_ACCEPTED_STAGE_SOFTWARE_COMPLETE_COMMITS_PENDING",
+    "state": "OWNER_ACCEPTED_STAGE_COMPLETE_WITH_CARRYOVER",
     "branch": "codex/mbrs-003-persistent-incremental-scan",
     "baseFinalReportCommit": "a7b27b5b6a5168bd146a3cbe61b579efd5639263",
-    "implementationCommit": null,
+    "implementationCommit": "251eae9bd354f916a2904e4899c6b061ac3371ec",
     "reportCommit": null,
     "previous002ImplementationCommit": "8a1d3f6c65e194bee8beab6dfd6d9db373ae8a84",
     "previous002ReportNaturalCi": "ACTUAL_3_WORKFLOWS_5_JOBS_SUCCESS_STRICT_CLOSED",
@@ -45595,7 +45595,7 @@
       "current100k300kRerunRequired": false,
       "currentFullScalePass": false,
       "finalRealLibraryAcceptance": "DEFERRED_UNTIL_COMPLETE_PRODUCT",
-      "implementationDelivery": "FINAL_SOFTWARE_PASSED_IMPLEMENTATION_COMMIT_PENDING",
+      "implementationDelivery": "IMPLEMENTATION_PUSHED_REPORT_ID_RESOLVED_FROM_GIT_PATH",
       "fullOriginal8AT": "NOT_INFERRED_FROM_SCALE_EXCEPTION",
       "priorFailureAndUnknownCausePreserved": true
     },
@@ -45685,6 +45685,49 @@
       "path": "docs/postrust/MBRS-003/evidence/initial-implementation-ci-failures.json",
       "bytes": 1049,
       "sha256": "fb493c6947115ea20e890c23a73c815ffee72183642a292ef3e0f456cf5029c9"
-    }
+    },
+    "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md",
+    "implementationNaturalCi": {
+      "status": "IN_PROGRESS",
+      "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+      "runs": [
+        {
+          "conclusion": "success",
+          "databaseId": 37397810860,
+          "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+          "status": "completed",
+          "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397810860",
+          "workflowName": "security"
+        },
+        {
+          "conclusion": "",
+          "databaseId": 37397811054,
+          "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+          "status": "in_progress",
+          "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397811054",
+          "workflowName": "electron-e2e"
+        },
+        {
+          "conclusion": "",
+          "databaseId": 37397810844,
+          "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+          "status": "in_progress",
+          "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397810844",
+          "workflowName": ".github/workflows/rust-core.yml"
+        },
+        {
+          "conclusion": "",
+          "databaseId": 37397811047,
+          "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+          "status": "in_progress",
+          "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397811047",
+          "workflowName": "verify"
+        }
+      ],
+      "notBorrowedFromPreviousCommit": true
+    },
+    "reportPath": "reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md",
+    "evidencePath": "reports/MBRS-003_EVIDENCE.json",
+    "handoffPath": "docs/postrust/MBRS-003/HANDOFF_NEXT_SESSION.md"
   }
 }

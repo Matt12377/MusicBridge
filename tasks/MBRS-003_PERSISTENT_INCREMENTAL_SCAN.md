@@ -1,5 +1,7 @@
 # MBRS-003 持久增量扫描执行范围
 
+当前交付（2026-10-06）：Owner阶段接受历史规模，最后软件124项和安全29项通过；实现已推送251eae9，结果报告与换届交接独立交付。当前100k/300k不重测，最终完整产品用真实曲库验收。以下开发过程与原8条断言作为历史和约束保留；当前结论见 reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md。
+
 准确基线是002最终报告 `a7b27b5b6a5168bd146a3cbe61b579efd5639263`，独立分支 `codex/mbrs-003-persistent-incremental-scan`。前任务限定软件源CI4工作流/6作业、报告CI3工作流/5作业实际成功；报告最终严格原件收据另行封存。前任务原11AT7有限PASS/4PARTIAL及归档PARTIAL继续保留，不把源Gate ZIP超时、宽ZIP未下载/Main未核写成通过。
 
 B0迁移已完成有限软件验证：真实旧API构造schema31合成私有库，冻结旧表SQL/列/typed cells/ID/raw/manual/ledger；同一迁移case有效31→32 RED转GREEN，schema32已实现。普通扫描与录音全Hash/严格技术探测分开，来源只读，扫描与数据库各沿原唯一权威。首次、增量、冷恢复、取消、分页、坏文件和实际FD/worker退出分别取证；100k/300k数字曲目负载独立于2000/5000实物收藏。
