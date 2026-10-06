@@ -5856,7 +5856,7 @@
     "overallReleaseApproved": false,
     "securityBaselineBlocker": "INHERITED_PRODUCTION_NODE_FORGE_HIGH_AUDIT_FAILURE_NOT_CLOSED"
   },
-  "currentPostRustTask": "MBRS-003",
+  "currentPostRustTask": "MBRS-004",
   "postRustBaseline20261004": {
     "task": "MBRS-000",
     "state": "baseline-delivered-g0-not-admitted",
@@ -45763,5 +45763,43 @@
       "manifestPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-current-offline-trial-181-01/TRIAL_DELIVERY.json"
     },
     "terminalCiResolution": "读取外置mbrs003-root-delivery-154-01最新FINAL_DELIVERY_RECEIPT；所有预期CI终态成功后才能结束003。"
+  },
+  "postRustNameRules20261006": {
+    "task": "MBRS-004",
+    "branch": "codex/mbrs-004-coverdrop-name-version-rules",
+    "baseCommit": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+    "state": "LOCAL_SOFTWARE_COMPLETE_PENDING_REMOTE_AND_REPORT",
+    "scope": "PURE_RULES_AND_SYNTHETIC_EXISTING_CATALOG_SCAN_INTEGRATION",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "sourceCommit": "93fa28f3245da50cf9b5341e0df1466fa4f6a0e7",
+    "sourceLock": "docs/postrust/MBRS-004/upstream-lock.json",
+    "taskSpec": "tasks/MBRS-004_COVERDROP_NAME_VERSION_RULES.md",
+    "validationStatus": "LOCAL_SOFTWARE_PASS",
+    "aiRequired": false,
+    "sourceFilesWrite": "OFF",
+    "new100k300kStarted": false,
+    "realLibraryAccountsRoonPlayback": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "at006Playback": "DEFERRED_TO_MBRS005_MBRS006_AND_FINAL_ACCEPTANCE",
+    "iosContractStatus": "OBSERVED_ADOPTION_PENDING_NO_TASK_REORDER",
+    "localValidation": {
+      "tests": 4250,
+      "pass": 4248,
+      "fail": 0,
+      "existingConditionalSkipped": 2,
+      "typesAndProductionBuild": "PASS",
+      "specializedGatePass": 106,
+      "gateStages": 5,
+      "gateRunnerPass": 10,
+      "controlPlaneExitCode": 0,
+      "boundariesExitCode": 0,
+      "cyclesExitCode": 0
+    },
+    "implementationCommitResolution": "git log -1 --format=%H -- packages/bridge-core/src/library/local-name-rules.ts",
+    "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-004_NAME_VERSION_RULES.md",
+    "localValidationSummary": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/FINAL_LOCAL_VALIDATION_SUMMARY.json",
+    "declaredSourceInputs": 641,
+    "transitiveDependencyClosure": false
   }
 }

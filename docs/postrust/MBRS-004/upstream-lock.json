@@ -1,0 +1,90 @@
+{
+  "repository": "/Volumes/LifeWeave/Swift/CoverDrop",
+  "origin": "https://github.com/Matt12377/CoverDrop.git",
+  "branch": "main",
+  "head": "93fa28f3245da50cf9b5341e0df1466fa4f6a0e7",
+  "selectedCommit": "93fa28f3245da50cf9b5341e0df1466fa4f6a0e7",
+  "readPolicy": "git show selectedCommit:path only; working files never read",
+  "license": "UNKNOWN: selected commit tree has no LICENSE/COPYING/NOTICE; README contains no license statement",
+  "wip": {
+    "modified": 40,
+    "untrackedStatusEntries": 111,
+    "preserved": true
+  },
+  "sources": [
+    {
+      "path": "CoverDrop/Domain/Policies/AlbumNameCleaning.swift",
+      "blob": "5325374897dc72b1dea0b565c89e41a6777fb2e6",
+      "lines": 465,
+      "bytes": 20057,
+      "sha256": "4d6b474671b19c5be1df75307c95adc828547aac527e9b44b34de76b9e281341"
+    },
+    {
+      "path": "CoverDrop/Domain/Policies/AlbumDisplayNameCleaning.swift",
+      "blob": "96f8d5d13b92e8c0ec98f37cd2eb504da852aa3b",
+      "lines": 138,
+      "bytes": 4990,
+      "sha256": "0621c36f3f9635099e75a64c675475212d12ec14a47f661d446c2df6b4fa23ab"
+    },
+    {
+      "path": "CoverDrop/Infrastructure/FileSystem/FileSystemLibraryScanner.swift",
+      "blob": "c319790a76b1a4673762ca5a4cca4d30a2f6b99a",
+      "lines": 986,
+      "bytes": 37436,
+      "sha256": "595fa924e7a628dfccd03a622b586c77b5d75e5f83cb3eb0a116599c37c0f569"
+    },
+    {
+      "path": "CoverDrop/App/AppConfiguration.swift",
+      "blob": "d077e5324cfd31a0d7dc9e30e8a1dccd96d61476",
+      "lines": 224,
+      "bytes": 7912,
+      "sha256": "cd18675aa0fe6cafb3c01e181847d3d2569a55d001c0968bacfa68f4f1ad1878"
+    },
+    {
+      "path": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "blob": "e9d9d4a4889f521b2cbdf18042ff6d73bb824b9e",
+      "lines": 102,
+      "bytes": 5421,
+      "sha256": "395c890be4891054f373eef719b9a2ad8750e79b44e3ea2160318ca069e4e4f4"
+    },
+    {
+      "path": "CoverDropTests/Unit/AlbumDisplayNameCleaningTests.swift",
+      "blob": "aa6aac04057180ef92ea8914c2bb5f50e57be32c",
+      "lines": 235,
+      "bytes": 7594,
+      "sha256": "f1d37c4525acc5e0d7f6f785732057326aa21925e8da9c6184b952760d22bff4"
+    },
+    {
+      "path": "CoverDropTests/Unit/AlbumNameEnhancementTests.swift",
+      "blob": "ded483eaaa830278394876e3d8ddde9eb31f9ee6",
+      "lines": 235,
+      "bytes": 8865,
+      "sha256": "0f5b055957b41ff66717520e6f6ec1ee155d23a6787d0ad18d12c971a716b239"
+    },
+    {
+      "path": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "blob": "44089d34a034dbc1749ccadc6cb631910d6da50c",
+      "lines": 842,
+      "bytes": 33594,
+      "sha256": "8e420904e1c918709db315c3224de8f29b01504a7d5ab3ed4b973f9f1f07ba73"
+    },
+    {
+      "path": "CoverDropTests/Unit/AppConfigurationTests.swift",
+      "blob": "598bc5120f4015b4a8cce13b14e5ae733a94ac95",
+      "lines": 91,
+      "bytes": 3986,
+      "sha256": "dad1b3121fe6d8c51fa293481f356ec74061d033dd2801f218b6ae6af698e765"
+    }
+  ],
+  "schema": "mbrs004.upstream-lock.v1",
+  "packRepositoryHint": "Matt12377/CoverMate",
+  "resolvedRepository": "Matt12377/CoverDrop",
+  "implementationPolicy": "INDEPENDENT_TYPESCRIPT_PURE_RULES_AND_ADAPTED_SYNTHETIC_GOLDEN",
+  "excluded": [
+    "AppModel",
+    "UI",
+    "database",
+    "network",
+    "scanner I/O"
+  ]
+}

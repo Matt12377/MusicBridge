@@ -1,0 +1,1572 @@
+{
+  "selectedCommit": "93fa28f3245da50cf9b5341e0df1466fa4f6a0e7",
+  "counts": {
+    "nameInputs": 60,
+    "displayGroups": 7,
+    "sharedEnhancementGroups": 4,
+    "directoryGroups": 20,
+    "keywordGroups": 1
+  },
+  "albumAndArtistNameCases": [
+    {
+      "input": "2002-坚持到底",
+      "artist": "阿杜",
+      "expected": "坚持到底",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-01",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 9
+    },
+    {
+      "input": "[2013]天使與魔鬼的對話",
+      "artist": "蔡健雅",
+      "expected": "天使与魔鬼的对话",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-02",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 10
+    },
+    {
+      "input": "[Qobuz] 蔡健雅 - Bored 1997 [24-96]",
+      "artist": "蔡健雅",
+      "expected": "Bored",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-03",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 11
+    },
+    {
+      "input": "[Sony] - 蔡健雅 - 若你碰到他 - 16-44",
+      "artist": "蔡健雅",
+      "expected": "若你碰到他",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-04",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 12
+    },
+    {
+      "input": "蔡琴 - [(1983) 昨夜之灯] (FLAC)",
+      "artist": "蔡琴",
+      "expected": "昨夜之灯",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-05",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 13
+    },
+    {
+      "input": "蔡琴 - [(1999) 机遇 第一版] (黄色版) (FLAC)",
+      "artist": "蔡琴",
+      "expected": "机遇",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-06",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 14
+    },
+    {
+      "input": "蔡琴-《机遇.淡水小镇原声带》2004 DSD DFF",
+      "artist": "蔡琴",
+      "expected": "机遇.淡水小镇原声带",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-07",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 15
+    },
+    {
+      "input": "半吨兄弟《2023VIP数字专辑(1)》[FLAC+CUE]",
+      "artist": "半吨兄弟",
+      "expected": "2023VIP数字专辑(1)",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-08",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 16
+    },
+    {
+      "input": "1、阿梨粤《难得有情人》1：1母盘直刻限量编号[正版原抓WAV+CUE]",
+      "artist": "阿梨粤",
+      "expected": "难得有情人",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-09",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 17
+    },
+    {
+      "input": "白晓 - 寂寞秋思(HQCD) 2012 1644",
+      "artist": "白晓",
+      "expected": "寂寞秋思",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-10",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 18
+    },
+    {
+      "input": "1994-03郭富城 - AK-47（港首版+华星）",
+      "artist": "郭富城",
+      "expected": "AK-47",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-11",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 19
+    },
+    {
+      "input": "1997-04郭富城 - 分享自由-分享愛（珍藏版3寸CD）（港首版+华纳）",
+      "artist": "郭富城",
+      "expected": "分享自由-分享爱",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-12",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 20
+    },
+    {
+      "input": "2001.07.09 - 孙燕姿 - 《风筝》",
+      "artist": "孙燕姿",
+      "expected": "风筝",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-13",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 21
+    },
+    {
+      "input": "[Hires]孙燕姿《跳舞的梵谷》24-96",
+      "artist": "孙燕姿",
+      "expected": "跳舞的梵谷",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-14",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 22
+    },
+    {
+      "input": "东升魔音唱片 孙露 第九张专辑《寂寞诱惑》WAV+CUE",
+      "artist": "孙露",
+      "expected": "寂寞诱惑",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-15",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 23
+    },
+    {
+      "input": "陈明.-.[寂寞让我如此美丽].专辑.(APE)",
+      "artist": "陈明",
+      "expected": "寂寞让我如此美丽",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-16",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 24
+    },
+    {
+      "input": "莫文蔚.-.[超级金曲精选].专辑.(FLAC)",
+      "artist": "莫文蔚",
+      "expected": "超级金曲精选",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-17",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 25
+    },
+    {
+      "input": "蔡琴（你的眼神）专辑",
+      "artist": "蔡琴",
+      "expected": "你的眼神",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-18",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 26
+    },
+    {
+      "input": "1994- Alan Tam 24K Gold 金藏集 4CD[天龙版][WAV]",
+      "artist": "谭咏麟",
+      "expected": "Alan Tam 24K Gold 金藏集",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-19",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 27
+    },
+    {
+      "input": "最好的蔡琴 Tsai Chin BEST - 1bit 2.8224MHz",
+      "artist": "蔡琴",
+      "expected": "最好的蔡琴 Tsai Chin BEST",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-20",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 28
+    },
+    {
+      "input": "1988-20 GREATEST HITS",
+      "artist": "林子祥",
+      "expected": "20 GREATEST HITS",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-21",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 29
+    },
+    {
+      "input": "2013 [The Best of G.E.M. 2008~2012]",
+      "artist": "邓紫棋",
+      "expected": "The Best of G.E.M. 2008~2012",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-22",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 30
+    },
+    {
+      "input": "2003-2002年的第一场雪[WAV]",
+      "artist": "刀郎",
+      "expected": "2002年的第一场雪",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-23",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 31
+    },
+    {
+      "input": "林子祥精选集 [百代珍藏套装之7]",
+      "artist": "林子祥",
+      "expected": "林子祥精选集",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-24",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 32
+    },
+    {
+      "input": "[Hires]林忆莲 - 0 2024 24-96",
+      "artist": "林忆莲",
+      "expected": "0",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-25",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 33
+    },
+    {
+      "input": "[Qobuz]陈奕迅 - 是但求其爱 2020 [FLAC24bit48Khz]",
+      "artist": "陈奕迅",
+      "expected": "是但求其爱",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-26",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 34
+    },
+    {
+      "input": "张国荣好精选(SACD)[新宝艺]",
+      "artist": "张国荣",
+      "expected": "张国荣好精选",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-27",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 35
+    },
+    {
+      "input": "张国荣.-.[告别当年情珍藏版].专辑.(APE)",
+      "artist": "张国荣",
+      "expected": "告别当年情珍藏版",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-28",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 36
+    },
+    {
+      "input": "赵传2014-歌声传情 3CD[广东音像][WAV+CUE]CD1",
+      "artist": "赵传",
+      "expected": "歌声传情",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-29",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 37
+    },
+    {
+      "input": "1999郭富城 - 我知道你要什么(单曲港首+华纳)",
+      "artist": "郭富城",
+      "expected": "我知道你要什么",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-30",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 38
+    },
+    {
+      "input": "【炫舞e时空收藏】韩宝仪《2010-抒情精粹》VOL.1[WAV+CUE]",
+      "artist": "韩宝仪",
+      "expected": "抒情精粹",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-31",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 39
+    },
+    {
+      "input": "《韩宝仪[1993-男女对唱歌集》[WAV]",
+      "artist": "韩宝仪",
+      "expected": "男女对唱歌集",
+      "kind": "album",
+      "idempotent": true,
+      "id": "name-32",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 40
+    },
+    {
+      "input": "1989",
+      "artist": null,
+      "expected": "1989",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-33",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 56
+    },
+    {
+      "input": "2001 A Space Odyssey",
+      "artist": null,
+      "expected": "2001 A Space Odyssey",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-34",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 57
+    },
+    {
+      "input": "1989 Taylor's Version",
+      "artist": null,
+      "expected": "1989 Taylor's Version",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-35",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 58
+    },
+    {
+      "input": "20 GREATEST HITS",
+      "artist": null,
+      "expected": "20 GREATEST HITS",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-36",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 29
+    },
+    {
+      "input": "No.1",
+      "artist": null,
+      "expected": "No.1",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-37",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 60
+    },
+    {
+      "input": "24K Magic",
+      "artist": null,
+      "expected": "24K Magic",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-38",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 61
+    },
+    {
+      "input": "J-GAME",
+      "artist": null,
+      "expected": "J-GAME",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-39",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 62
+    },
+    {
+      "input": "AK-47",
+      "artist": null,
+      "expected": "AK-47",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-40",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 19
+    },
+    {
+      "input": "AC/DC",
+      "artist": null,
+      "expected": "AC/DC",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-41",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 64
+    },
+    {
+      "input": "Blink-182",
+      "artist": null,
+      "expected": "Blink-182",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-42",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 65
+    },
+    {
+      "input": "A-ha",
+      "artist": null,
+      "expected": "A-ha",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-43",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 66
+    },
+    {
+      "input": "2023VIP数字专辑(1)",
+      "artist": null,
+      "expected": "2023VIP数字专辑(1)",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-44",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 16
+    },
+    {
+      "input": "银色月光下(演唱会)",
+      "artist": null,
+      "expected": "银色月光下(演唱会)",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-45",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 68
+    },
+    {
+      "input": "The Best of G.E.M. 2008-2012",
+      "artist": null,
+      "expected": "The Best of G.E.M. 2008-2012",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-46",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 69
+    },
+    {
+      "input": "3 Years",
+      "artist": null,
+      "expected": "3 Years",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-47",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 70
+    },
+    {
+      "input": "8.15pm",
+      "artist": null,
+      "expected": "8.15pm",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-48",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 71
+    },
+    {
+      "input": "Dahlia II",
+      "artist": null,
+      "expected": "Dahlia II",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-49",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 72
+    },
+    {
+      "input": "家 III",
+      "artist": null,
+      "expected": "家 III",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-50",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 73
+    },
+    {
+      "input": "No.13 作品 - 跳舞的梵谷",
+      "artist": null,
+      "expected": "No.13 作品 - 跳舞的梵谷",
+      "kind": "album",
+      "idempotent": false,
+      "id": "name-51",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 74
+    },
+    {
+      "input": "張學友",
+      "expected": "张学友",
+      "kind": "artist",
+      "idempotent": true,
+      "id": "name-52",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 85
+    },
+    {
+      "input": "动力火车合集【qobuz】",
+      "expected": "动力火车",
+      "kind": "artist",
+      "idempotent": true,
+      "id": "name-53",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 86
+    },
+    {
+      "input": "SHE合集【qobuz】",
+      "expected": "SHE",
+      "kind": "artist",
+      "idempotent": true,
+      "id": "name-54",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 87
+    },
+    {
+      "input": "无印良品专辑",
+      "expected": "无印良品",
+      "kind": "artist",
+      "idempotent": true,
+      "id": "name-55",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 88
+    },
+    {
+      "input": "白晓专辑",
+      "expected": "白晓",
+      "kind": "artist",
+      "idempotent": true,
+      "id": "name-56",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 89
+    },
+    {
+      "input": "陈佳 专辑",
+      "expected": "陈佳",
+      "kind": "artist",
+      "idempotent": true,
+      "id": "name-57",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 90
+    },
+    {
+      "input": "Blink-182",
+      "expected": "Blink-182",
+      "kind": "artist",
+      "idempotent": true,
+      "id": "name-58",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 65
+    },
+    {
+      "input": "逃跑计划",
+      "expected": "逃跑计划",
+      "kind": "artist",
+      "idempotent": true,
+      "id": "name-59",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 92
+    },
+    {
+      "input": "传奇再现",
+      "expected": "传奇再现",
+      "kind": "artist",
+      "idempotent": true,
+      "id": "name-60",
+      "source": "CoverDropTests/Unit/AlbumNameCleaningTests.swift",
+      "line": 93
+    }
+  ],
+  "displayCases": [
+    {
+      "id": "display-covered",
+      "test": "coveredAlbumNamesAreCleanedForDisplayAndSearch",
+      "input": {
+        "artist": "張學友",
+        "album": "1999 - [WAV] 愛與交響曲【港版】 [ape]",
+        "hasCover": true,
+        "tracks": []
+      },
+      "expected": {
+        "artist": "张学友",
+        "album": "爱与交响曲",
+        "keyword": "张学友 爱与交响曲"
+      },
+      "source": "CoverDropTests/Unit/AlbumDisplayNameCleaningTests.swift",
+      "lineRange": [
+        7,
+        28
+      ]
+    },
+    {
+      "id": "display-missing",
+      "test": "missingCoverAlbumNamesAreCleanedForDisplayAndSearch",
+      "input": {
+        "artist": "張學友",
+        "album": "1999 - [WAV] 愛與交響曲【港版】",
+        "hasCover": false,
+        "tracks": []
+      },
+      "expected": {
+        "artist": "张学友",
+        "album": "爱与交响曲",
+        "keyword": "张学友 爱与交响曲"
+      },
+      "source": "CoverDropTests/Unit/AlbumDisplayNameCleaningTests.swift",
+      "lineRange": [
+        30,
+        50
+      ]
+    },
+    {
+      "id": "display-majority",
+      "test": "corroboratedMetadataMajorityImprovesDisplayNames",
+      "input": {
+        "artist": "SHE合集【qobuz】",
+        "album": "2005-I...Do",
+        "tracks": [
+          {
+            "album": "I DO",
+            "artist": "S.H.E",
+            "albumArtist": "S.H.E"
+          },
+          {
+            "album": "I DO",
+            "artist": "S.H.E",
+            "albumArtist": "S.H.E"
+          },
+          {
+            "album": "I DO",
+            "artist": "S.H.E",
+            "albumArtist": "S.H.E"
+          },
+          {
+            "album": "I DO",
+            "artist": "S.H.E",
+            "albumArtist": "S.H.E"
+          },
+          {
+            "album": "I DO",
+            "artist": "S.H.E",
+            "albumArtist": "S.H.E"
+          },
+          {
+            "album": "I DO",
+            "artist": "S.H.E",
+            "albumArtist": "S.H.E"
+          },
+          {
+            "album": "I DO",
+            "artist": "S.H.E",
+            "albumArtist": "S.H.E"
+          },
+          {
+            "album": "错误标签 7",
+            "artist": "S.H.E",
+            "albumArtist": "S.H.E"
+          },
+          {
+            "album": "错误标签 8",
+            "artist": "S.H.E",
+            "albumArtist": "S.H.E"
+          },
+          {
+            "album": "错误标签 9",
+            "artist": "S.H.E",
+            "albumArtist": "S.H.E"
+          }
+        ],
+        "hasCover": true
+      },
+      "expected": {
+        "artist": "S.H.E",
+        "album": "I DO"
+      },
+      "source": "CoverDropTests/Unit/AlbumDisplayNameCleaningTests.swift",
+      "lineRange": [
+        52,
+        76
+      ]
+    },
+    {
+      "id": "display-conflict",
+      "test": "conflictingOrUncorroboratedMetadataFallsBackToFolderName",
+      "input": {
+        "artist": "阿杜",
+        "album": "2002-Original Title",
+        "tracks": [
+          {
+            "album": "Wrong One",
+            "artist": "错误歌手",
+            "albumArtist": "错误歌手"
+          },
+          {
+            "album": "Wrong One",
+            "artist": "错误歌手",
+            "albumArtist": "错误歌手"
+          },
+          {
+            "album": "Wrong One",
+            "artist": "错误歌手",
+            "albumArtist": "错误歌手"
+          },
+          {
+            "album": "Wrong One",
+            "artist": "错误歌手",
+            "albumArtist": "错误歌手"
+          },
+          {
+            "album": "Wrong One",
+            "artist": "错误歌手",
+            "albumArtist": "错误歌手"
+          },
+          {
+            "album": "Wrong One",
+            "artist": "错误歌手",
+            "albumArtist": "错误歌手"
+          },
+          {
+            "album": "Wrong Two",
+            "artist": "错误歌手",
+            "albumArtist": "错误歌手"
+          },
+          {
+            "album": "Wrong Two",
+            "artist": "错误歌手",
+            "albumArtist": "错误歌手"
+          },
+          {
+            "album": "Wrong Two",
+            "artist": "错误歌手",
+            "albumArtist": "错误歌手"
+          },
+          {
+            "album": "Wrong Two",
+            "artist": "错误歌手",
+            "albumArtist": "错误歌手"
+          }
+        ],
+        "hasCover": true
+      },
+      "expected": {
+        "artist": "阿杜",
+        "album": "Original Title"
+      },
+      "source": "CoverDropTests/Unit/AlbumDisplayNameCleaningTests.swift",
+      "lineRange": [
+        78,
+        102
+      ]
+    },
+    {
+      "id": "display-placeholder-override",
+      "test": "placeholderMetadataAndSuggestionsAreNotOverridden",
+      "input": {
+        "artist": "阿杜",
+        "album": "2005-I...Do",
+        "tracks": [
+          {
+            "album": "CDImage",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          },
+          {
+            "album": "CDImage",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          },
+          {
+            "album": "CDImage",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          }
+        ],
+        "override": {
+          "artist": "A-Do",
+          "album": "Custom Album"
+        },
+        "hasCover": true
+      },
+      "expected": {
+        "withoutOverrideAlbum": "I...Do",
+        "withOverrideArtist": "A-Do",
+        "withOverrideAlbum": "Custom Album"
+      },
+      "source": "CoverDropTests/Unit/AlbumDisplayNameCleaningTests.swift",
+      "lineRange": [
+        104,
+        134
+      ]
+    },
+    {
+      "id": "display-placeholder-denominator",
+      "test": "placeholderMetadataStillCountsTowardMajorityDenominator",
+      "input": {
+        "artist": "阿杜",
+        "album": "2005-I...Do",
+        "tracks": [
+          {
+            "album": "CDImage",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          },
+          {
+            "album": "CDImage",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          },
+          {
+            "album": "CDImage",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          },
+          {
+            "album": "CDImage",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          },
+          {
+            "album": "CDImage",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          },
+          {
+            "album": "CDImage",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          },
+          {
+            "album": "I DO",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          },
+          {
+            "album": "I DO",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          },
+          {
+            "album": "I DO",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          },
+          {
+            "album": "I DO",
+            "artist": "阿杜",
+            "albumArtist": "阿杜"
+          }
+        ],
+        "hasCover": true
+      },
+      "expected": {
+        "album": "I...Do"
+      },
+      "source": "CoverDropTests/Unit/AlbumDisplayNameCleaningTests.swift",
+      "lineRange": [
+        136,
+        159
+      ]
+    },
+    {
+      "id": "display-repeat",
+      "test": "repeatedMetadataValuesStayWithinWallBuildBudget",
+      "input": {
+        "artist": "SHE合集【qobuz】",
+        "album": "2005-I...Do",
+        "tracks": [
+          {
+            "album": "I DO",
+            "artist": "S.H.E",
+            "albumArtist": "S.H.E",
+            "repeatCount": 5000
+          }
+        ],
+        "hasCover": true
+      },
+      "expected": {
+        "artist": "S.H.E",
+        "album": "I DO",
+        "elapsedLessThanSeconds": 0.5
+      },
+      "source": "CoverDropTests/Unit/AlbumDisplayNameCleaningTests.swift",
+      "lineRange": [
+        161,
+        235
+      ]
+    }
+  ],
+  "sharedEnhancementCases": [
+    {
+      "test": "cleansDatePrefixFromOllamaAlbumName",
+      "cases": [
+        {
+          "input": "1981 - 林子祥精选集",
+          "artist": "林子祥",
+          "expected": "林子祥精选集"
+        },
+        {
+          "input": "1988-20 GREATEST HITS",
+          "artist": "林子祥",
+          "expected": "20 GREATEST HITS"
+        }
+      ],
+      "source": "CoverDropTests/Unit/AlbumNameEnhancementTests.swift",
+      "lineRange": [
+        122,
+        164
+      ]
+    },
+    {
+      "test": "keepsNumbersThatBelongToAlbumName",
+      "cases": [
+        {
+          "input": "20 GREATEST HITS",
+          "artist": null,
+          "expected": "20 GREATEST HITS"
+        },
+        {
+          "input": "No.1",
+          "artist": null,
+          "expected": "No.1"
+        },
+        {
+          "input": "24K Magic",
+          "artist": null,
+          "expected": "24K Magic"
+        },
+        {
+          "input": "1989",
+          "artist": null,
+          "expected": "1989"
+        }
+      ],
+      "source": "CoverDropTests/Unit/AlbumNameEnhancementTests.swift",
+      "lineRange": [
+        122,
+        164
+      ]
+    },
+    {
+      "test": "cleansTrailingBoxSetAndFormatBrackets",
+      "cases": [
+        {
+          "input": "1981-林子祥精选集[百代珍藏套装之7][WAV]",
+          "artist": "林子祥",
+          "expected": "林子祥精选集"
+        },
+        {
+          "input": "林子祥精选集 [百代珍藏套装之7]",
+          "artist": null,
+          "expected": "林子祥精选集"
+        },
+        {
+          "input": "林子祥精选集 (Remastered)",
+          "artist": null,
+          "expected": "林子祥精选集"
+        },
+        {
+          "input": "No.1",
+          "artist": null,
+          "expected": "No.1"
+        }
+      ],
+      "source": "CoverDropTests/Unit/AlbumNameEnhancementTests.swift",
+      "lineRange": [
+        122,
+        164
+      ]
+    },
+    {
+      "test": "ollamaOutputUsesSharedNameCleaningRules",
+      "cases": [
+        {
+          "input": "動力火車合集【qobuz】",
+          "expected": "动力火车",
+          "kind": "artist"
+        },
+        {
+          "input": "[Qobuz] 動力火車 - 背叛情歌 1999 [24-96]",
+          "artist": "動力火車合集【qobuz】",
+          "expected": "背叛情歌"
+        },
+        {
+          "input": "A-Lin - LINK",
+          "artist": "A-Lin",
+          "expected": "LINK"
+        }
+      ],
+      "source": "CoverDropTests/Unit/AlbumNameEnhancementTests.swift",
+      "lineRange": [
+        122,
+        164
+      ]
+    }
+  ],
+  "directoryFactCases": [
+    {
+      "test": "scansLibraryBoundariesAndLooseAudio",
+      "input": {
+        "role": "library",
+        "root": "",
+        "audioPaths": [
+          "周杰伦/七里香/01.flac",
+          "周杰伦/七里香/02.wav",
+          "周杰伦/叶惠美/整轨.ape",
+          "只有散曲/单曲.mp3",
+          "根目录散曲.dsf"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumNames": [
+          "七里香",
+          "叶惠美"
+        ],
+        "albumCounts": [
+          2,
+          1
+        ],
+        "looseAudioPaths": [
+          "只有散曲/单曲.mp3",
+          "根目录散曲.dsf"
+        ],
+        "lastAlbumIssues": [
+          {
+            "type": "singleFileNeedsConfirmation",
+            "hasCue": false
+          }
+        ]
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        7,
+        23
+      ]
+    },
+    {
+      "test": "singleImageAlbumWithCueRecordsCueSheet",
+      "input": {
+        "role": "library",
+        "root": "",
+        "audioPaths": [
+          "歌手/整轨专辑/album.ape"
+        ],
+        "cuePaths": [
+          "歌手/整轨专辑/album.cue"
+        ],
+        "directoryPaths": []
+      },
+      "expected": {
+        "relativeAudioPaths": [
+          "album.ape"
+        ],
+        "relativeCuePaths": [
+          "album.cue"
+        ],
+        "issues": [
+          {
+            "type": "singleFileNeedsConfirmation",
+            "hasCue": true
+          }
+        ]
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        25,
+        38
+      ]
+    },
+    {
+      "test": "multiTrackAlbumWithCueDoesNotBecomeSingleImageIssue",
+      "input": {
+        "role": "library",
+        "root": "",
+        "audioPaths": [
+          "歌手/已分轨专辑/01.flac",
+          "歌手/已分轨专辑/02.flac"
+        ],
+        "cuePaths": [
+          "歌手/已分轨专辑/album.cue"
+        ],
+        "directoryPaths": []
+      },
+      "expected": {
+        "relativeCuePaths": [
+          "album.cue"
+        ],
+        "noIssue": "singleFileNeedsConfirmation"
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        40,
+        56
+      ]
+    },
+    {
+      "test": "mergesDiscFoldersAndSortsByMetadata",
+      "input": {
+        "role": "album",
+        "root": "",
+        "audioPaths": [
+          "CD1/02.flac",
+          "CD1/01.flac",
+          "CD2/01.flac"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumCount": 1,
+        "relativeAudioPaths": [
+          "CD1/01.flac",
+          "CD1/02.flac",
+          "CD2/01.flac"
+        ],
+        "sortFacts": "CDn supplies stub metadata discNumber; numeric stem supplies trackNumber"
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        58,
+        72
+      ]
+    },
+    {
+      "test": "mergesPlainNumberedDiscFoldersIntoAlbumBoundary",
+      "input": {
+        "role": "artist",
+        "root": "韩宝仪",
+        "audioPaths": [
+          "韩宝仪/1996-旧情绵绵 经典金系列2CD[荣机构经典金系列][WAV]/01/01.wav",
+          "韩宝仪/1996-旧情绵绵 经典金系列2CD[荣机构经典金系列][WAV]/02/01.wav"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumCount": 1,
+        "artist": "韩宝仪",
+        "album": "1996-旧情绵绵 经典金系列2CD[荣机构经典金系列][WAV]",
+        "boundary": "韩宝仪/1996-旧情绵绵 经典金系列2CD[荣机构经典金系列][WAV]",
+        "relativeAudioPaths": [
+          "01/01.wav",
+          "02/01.wav"
+        ]
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        74,
+        102
+      ]
+    },
+    {
+      "test": "skipsGenericAlbumFolderAndNumberedShell",
+      "input": {
+        "role": "artist",
+        "root": "歌手/album",
+        "audioPaths": [
+          "歌手/album/011/真正专辑名/01.wav"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumCount": 1,
+        "artist": "歌手",
+        "album": "真正专辑名",
+        "boundary": "歌手/album/011/真正专辑名"
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        104,
+        124
+      ]
+    },
+    {
+      "test": "skipsNumberedShellUnderArtistRoot",
+      "input": {
+        "role": "artist",
+        "root": "歌手",
+        "audioPaths": [
+          "歌手/001/真正专辑名/01.wav"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumCount": 1,
+        "artist": "歌手",
+        "album": "真正专辑名",
+        "boundary": "歌手/001/真正专辑名"
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        126,
+        146
+      ]
+    },
+    {
+      "test": "keepsRegularArtistAlbumBoundary",
+      "input": {
+        "role": "artist",
+        "root": "歌手",
+        "audioPaths": [
+          "歌手/真正专辑名/01.wav"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumCount": 1,
+        "artist": "歌手",
+        "album": "真正专辑名",
+        "boundary": "歌手/真正专辑名"
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        148,
+        165
+      ]
+    },
+    {
+      "test": "keepsDiscFolderInsideAlbumBoundary",
+      "input": {
+        "role": "artist",
+        "root": "歌手",
+        "audioPaths": [
+          "歌手/真正专辑名/CD1/01.wav"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumCount": 1,
+        "artist": "歌手",
+        "album": "真正专辑名",
+        "boundary": "歌手/真正专辑名",
+        "relativeAudioPaths": [
+          "CD1/01.wav"
+        ]
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        167,
+        185
+      ]
+    },
+    {
+      "test": "mergesDiscFoldersUnderArtistAlbumBoundary",
+      "input": {
+        "role": "artist",
+        "root": "歌手",
+        "audioPaths": [
+          "歌手/真正专辑名/CD1/01.wav",
+          "歌手/真正专辑名/CD2/01.wav"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumCount": 1,
+        "album": "真正专辑名",
+        "relativeAudioPaths": [
+          "CD1/01.wav",
+          "CD2/01.wav"
+        ]
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        187,
+        203
+      ]
+    },
+    {
+      "test": "mergesFormatFolderIntoAlbumBoundary",
+      "input": {
+        "role": "artist",
+        "root": "歌手",
+        "audioPaths": [
+          "歌手/真正专辑名/WAV/01.wav"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumCount": 1,
+        "album": "真正专辑名",
+        "boundary": "歌手/真正专辑名",
+        "relativeAudioPaths": [
+          "WAV/01.wav"
+        ]
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        205,
+        222
+      ]
+    },
+    {
+      "test": "splitsCollectionContainerIntoNestedAlbums",
+      "input": {
+        "role": "artist",
+        "root": "歌手",
+        "audioPaths": [
+          "歌手/专辑汇总/专辑A/01.wav",
+          "歌手/专辑汇总/专辑B/01.wav"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumNames": [
+          "专辑A",
+          "专辑B"
+        ]
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        224,
+        237
+      ]
+    },
+    {
+      "test": "mergesTrackFoldersIntoAlbumBoundary",
+      "input": {
+        "role": "artist",
+        "root": "歌手",
+        "audioPaths": [
+          "歌手/真正专辑名/01 第一首/track.flac",
+          "歌手/真正专辑名/02 第二首/track.flac"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumCount": 1,
+        "album": "真正专辑名",
+        "relativeAudioPaths": [
+          "01 第一首/track.flac",
+          "02 第二首/track.flac"
+        ],
+        "needsAttention": true,
+        "hasIssue": "trackNamedAudioFiles"
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        239,
+        263
+      ]
+    },
+    {
+      "test": "marksVersionDirectoriesAsUncertain",
+      "input": {
+        "role": "artist",
+        "root": "歌手",
+        "audioPaths": [
+          "歌手/真正专辑名/港版/01.wav",
+          "歌手/真正专辑名/日本版/01.wav"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumCount": 2,
+        "allNeedAttention": true,
+        "hasIssue": "uncertainAlbumBoundary"
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        265,
+        283
+      ]
+    },
+    {
+      "test": "findsNestedAlbumInsideCollectionContainer",
+      "input": {
+        "role": "artist",
+        "root": "张国荣",
+        "audioPaths": [
+          "张国荣/张国荣 10张[DSD]/Leslie Cheung - Dou Feng Xin Qing/01.dff"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumCount": 1,
+        "artist": "张国荣",
+        "album": "Leslie Cheung - Dou Feng Xin Qing"
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        285,
+        303
+      ]
+    },
+    {
+      "test": "artistRootWithAlbumCountSuffixKeepsArtistName",
+      "input": {
+        "role": "artist",
+        "root": "华语/孙燕姿 15张",
+        "audioPaths": [
+          "华语/孙燕姿 15张/[Qobuz] 孙燕姿 - No.13 作品 - 跳舞的梵谷 2017[24-96]/01.flac"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "albumCount": 1,
+        "artist": "孙燕姿",
+        "artistNot": "华语",
+        "album": "[Qobuz] 孙燕姿 - No.13 作品 - 跳舞的梵谷 2017[24-96]"
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        305,
+        324
+      ]
+    },
+    {
+      "test": "metadataFailureBecomesAlbumIssue",
+      "input": {
+        "role": "album",
+        "root": "",
+        "audioPaths": [
+          "01.flac",
+          "坏文件.wav"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "audioCount": 2,
+        "readErrors": [
+          "坏文件.wav"
+        ],
+        "issues": [
+          {
+            "type": "metadataReadFailed",
+            "paths": [
+              "坏文件.wav"
+            ]
+          }
+        ]
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        326,
+        343
+      ]
+    },
+    {
+      "test": "rescanningReflectsAddedWAVTracks",
+      "input": {
+        "role": "album",
+        "root": "",
+        "audioPaths": [
+          "01.wav",
+          "02.wav",
+          "03.wav"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "beforeAudioPaths": [
+          "01.wav"
+        ],
+        "afterAudioPaths": [
+          "01.wav",
+          "02.wav",
+          "03.wav"
+        ]
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        492,
+        509
+      ]
+    },
+    {
+      "test": "artistWithoutAlbumIsRejected",
+      "input": {
+        "role": "artist",
+        "root": "",
+        "audioPaths": [
+          "散曲.mp3"
+        ],
+        "cuePaths": [],
+        "directoryPaths": []
+      },
+      "expected": {
+        "error": "noAlbumsFound"
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        511,
+        520
+      ]
+    },
+    {
+      "test": "audioExtensionDirectoryIsNotScannedAsTrack",
+      "input": {
+        "role": "album",
+        "root": "",
+        "audioPaths": [
+          "01.wav"
+        ],
+        "cuePaths": [],
+        "directoryPaths": [
+          "不是音频.flac"
+        ]
+      },
+      "expected": {
+        "relativeAudioPaths": [
+          "01.wav"
+        ]
+      },
+      "source": "CoverDropTests/Integration/FileSystemLibraryScannerTests.swift",
+      "lineRange": [
+        522,
+        535
+      ]
+    }
+  ],
+  "keywordCases": [
+    {
+      "test": "coverSearchKeywordUsesArtistAndAlbum",
+      "input": {
+        "artist": " 周杰伦 ",
+        "album": " 七里香 "
+      },
+      "expected": "周杰伦 七里香",
+      "source": "CoverDropTests/Unit/AppConfigurationTests.swift",
+      "lineRange": [
+        57,
+        64
+      ]
+    }
+  ]
+}

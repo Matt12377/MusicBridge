@@ -1,0 +1,32 @@
+{
+  "schema": "mbrs004.rule-scope.v1",
+  "baseSha": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+  "implementationComplete": true,
+  "countsConfirmed": true,
+  "groups": [
+    {
+      "name": "core-rules-and-scan",
+      "directory": "packages/bridge-core",
+      "expectedTests": 106,
+      "tests": [
+        "test/mbrs004/directory-golden.test.ts",
+        "test/mbrs004/name-rules-scan-integration.test.ts",
+        "test/mbrs004/name-rules.test.ts",
+        "test/mbrs004/upstream-golden.test.ts"
+      ]
+    }
+  ],
+  "upstreamCommit": "93fa28f3245da50cf9b5341e0df1466fa4f6a0e7",
+  "goldenCounts": {
+    "nameInputs": 60,
+    "displayGroups": 7,
+    "sharedEnhancementGroups": 4,
+    "directoryGroups": 20,
+    "keywordGroups": 1
+  },
+  "additionalBehaviorTests": 13,
+  "existingScanIntegrationTests": 1,
+  "stageCount": 5,
+  "contractsValidation": "FRESH_BUILD_AND_TYPECHECK_NO_MIRROR_RUNTIME_TEST",
+  "at006Playback": "DEFERRED"
+}

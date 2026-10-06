@@ -88,6 +88,15 @@ jobs:
           node --test scripts/ci/test/verify-mbrs003-scan.test.mjs scripts/ci/test/mbrs003-owner-stage-scale.test.mjs scripts/ci/test/metadata-reader-fixed-bundle-v2.test.mjs scripts/ci/test/mbrs003-scale-new-round-receipts.test.mjs
           node scripts/ci/verify-mbrs003-scan.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs003-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
+      - name: MBRS004 名称与版本规则 Gate
+        timeout-minutes: 8
+        shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: |
+          set -euo pipefail
+          node --test scripts/ci/test/verify-mbrs004-rules.test.mjs
+          node scripts/ci/verify-mbrs004-rules.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs004-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
       - name: Diff whitespace
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: git diff --check

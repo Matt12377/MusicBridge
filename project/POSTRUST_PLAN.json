@@ -31742,7 +31742,7 @@
       "depends_on": [
         "MBRS-002"
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "implementation_owner": "MBRS-004",
       "goal": "移植名称识别规则和适用测试，不移植整个CoverDrop应用。",
       "steps": [
@@ -31773,8 +31773,25 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "NOT_RUN",
-      "evidence_refs": []
+      "validation_status": "LOCAL_SOFTWARE_PASS_REMOTE_AND_REPORT_PENDING",
+      "evidence_refs": [
+        "tasks/MBRS-004_COVERDROP_NAME_VERSION_RULES.md",
+        "docs/postrust/MBRS-004/upstream-lock.json",
+        "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
+        "docs/postrust/MBRS-004/IOS_CONTRACT_STATUS.md"
+      ],
+      "base_sha": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+      "branch": "codex/mbrs-004-coverdrop-name-version-rules",
+      "local_software_validation": {
+        "tests": 4250,
+        "pass": 4248,
+        "fail": 0,
+        "existing_conditional_skipped": 2,
+        "specialized_gate_pass": 106,
+        "gate_runner_pass": 10
+      },
+      "implementation_commit_resolution": "git log -1 --format=%H -- packages/bridge-core/src/library/local-name-rules.ts",
+      "report_path": "reports/MBRS-004_NAME_VERSION_RULES.md"
     },
     {
       "id": "MBRS-005",
@@ -32855,12 +32872,16 @@
       "requirement": "全部继承适用golden样例通过，有意偏离逐例说明。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/gates/final-rules-repaired-02/manifest.json"
+      ],
+      "software_status": "PASS_PURE_RULES",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "PURE_RULES_AND_SYNTHETIC_EXISTING_CATALOG_SCAN_INTEGRATION"
     },
     {
       "id": "MBRS-AT-004-02",
@@ -32869,12 +32890,16 @@
       "requirement": "1989/24K/演唱会/混音等语义不被误删，版本token与原文保留。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/gates/final-rules-repaired-02/manifest.json"
+      ],
+      "software_status": "PASS_PURE_RULES",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "PURE_RULES_AND_SYNTHETIC_EXISTING_CATALOG_SCAN_INTEGRATION"
     },
     {
       "id": "MBRS-AT-004-03",
@@ -32883,12 +32908,16 @@
       "requirement": "同名不同版不合并，不以封面/名称作为曲目身份。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/gates/final-rules-repaired-02/manifest.json"
+      ],
+      "software_status": "PASS_PURE_RULES",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "PURE_RULES_AND_SYNTHETIC_EXISTING_CATALOG_SCAN_INTEGRATION"
     },
     {
       "id": "MBRS-AT-004-04",
@@ -32897,12 +32926,16 @@
       "requirement": "1/20标签有效不形成高可信全专辑结论，并列候选明确待确认。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/gates/final-rules-repaired-02/manifest.json"
+      ],
+      "software_status": "PASS_PURE_RULES",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "PURE_RULES_AND_SYNTHETIC_EXISTING_CATALOG_SCAN_INTEGRATION"
     },
     {
       "id": "MBRS-AT-004-05",
@@ -32911,12 +32944,16 @@
       "requirement": "人工名称/专辑边界在扫描后保留，CD目录不机械拆专辑。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/gates/final-rules-repaired-02/manifest.json"
+      ],
+      "software_status": "PASS_SYNTHETIC_EXISTING_SCANNER_WRITER",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "PURE_RULES_AND_SYNTHETIC_EXISTING_CATALOG_SCAN_INTEGRATION"
     },
     {
       "id": "MBRS-AT-004-06",
@@ -32925,12 +32962,17 @@
       "requirement": "关闭AI/外网仍可建库和开始直送播放，不需CoverDrop单独运行。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/gates/final-rules-repaired-02/manifest.json"
+      ],
+      "software_status": "PASS_PURE_RULES_AND_SYNTHETIC_CATALOG_PLAYBACK_DEFERRED",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "PURE_RULES_AND_SYNTHETIC_EXISTING_CATALOG_SCAN_INTEGRATION",
+      "carryover": "原AT开始直送播放由005/006与最终真实验收承担，整条未全通过。"
     },
     {
       "id": "MBRS-AT-005-01",
