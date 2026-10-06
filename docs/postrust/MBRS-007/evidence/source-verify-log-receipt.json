@@ -1,0 +1,291 @@
+{
+  "schema": "mbrs007.actual-job-log.v1",
+  "capturedAt": "2026-10-06T11:46:36.782741+00:00",
+  "repository": "Matt12377/MusicBridge",
+  "runId": 37456044285,
+  "jobId": 112243792361,
+  "headSha": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+  "jobConclusion": "success",
+  "job": {
+    "id": 112243792361,
+    "run_id": 37456044285,
+    "workflow_name": "verify",
+    "head_branch": "codex/mbrs-007-queue-prefetch-control",
+    "run_url": "https://api.github.com/repos/Matt12377/MusicBridge/actions/runs/37456044285",
+    "run_attempt": 1,
+    "node_id": "CR_kwDOT-VC-c8AAAAaIkBZ6Q",
+    "head_sha": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+    "url": "https://api.github.com/repos/Matt12377/MusicBridge/actions/jobs/112243792361",
+    "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37456044285/job/112243792361",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-10-06T11:23:10Z",
+    "started_at": "2026-10-06T11:23:13Z",
+    "completed_at": "2026-10-06T11:44:05Z",
+    "name": "verify",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-10-06T11:23:14Z",
+        "completed_at": "2026-10-06T11:23:14Z"
+      },
+      {
+        "name": "Checkout",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-10-06T11:23:14Z",
+        "completed_at": "2026-10-06T11:23:17Z"
+      },
+      {
+        "name": "Node.js 22",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-10-06T11:23:17Z",
+        "completed_at": "2026-10-06T11:23:17Z"
+      },
+      {
+        "name": "Prepare strict hosted verification directories",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-10-06T11:23:17Z",
+        "completed_at": "2026-10-06T11:23:17Z"
+      },
+      {
+        "name": "判定精确父源码CI可复用的报告提交",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-10-06T11:23:17Z",
+        "completed_at": "2026-10-06T11:23:18Z"
+      },
+      {
+        "name": "Prepare source-pinned build workspace mirror",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-10-06T11:23:18Z",
+        "completed_at": "2026-10-06T11:23:19Z"
+      },
+      {
+        "name": "Install frozen workspace",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-10-06T11:23:19Z",
+        "completed_at": "2026-10-06T11:23:24Z"
+      },
+      {
+        "name": "Validate control plane",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-10-06T11:23:24Z",
+        "completed_at": "2026-10-06T11:23:24Z"
+      },
+      {
+        "name": "Validate security and product boundaries",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 9,
+        "started_at": "2026-10-06T11:23:24Z",
+        "completed_at": "2026-10-06T11:23:24Z"
+      },
+      {
+        "name": "Scan workspace import cycles",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 10,
+        "started_at": "2026-10-06T11:23:24Z",
+        "completed_at": "2026-10-06T11:23:25Z"
+      },
+      {
+        "name": "Verify platform-independent workspace (typecheck, unit tests, build; no Electron)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 11,
+        "started_at": "2026-10-06T11:23:25Z",
+        "completed_at": "2026-10-06T11:32:41Z"
+      },
+      {
+        "name": "Verify offline preparation boundaries",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 12,
+        "started_at": "2026-10-06T11:32:41Z",
+        "completed_at": "2026-10-06T11:32:44Z"
+      },
+      {
+        "name": "Verify isolated MBRS-001 offline POC",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 13,
+        "started_at": "2026-10-06T11:32:44Z",
+        "completed_at": "2026-10-06T11:32:54Z"
+      },
+      {
+        "name": "MBRS002 本地合同 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 14,
+        "started_at": "2026-10-06T11:32:54Z",
+        "completed_at": "2026-10-06T11:33:54Z"
+      },
+      {
+        "name": "MBRS003 阶段软件 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-10-06T11:33:54Z",
+        "completed_at": "2026-10-06T11:35:55Z"
+      },
+      {
+        "name": "MBRS004 名称与版本规则 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-10-06T11:35:55Z",
+        "completed_at": "2026-10-06T11:36:28Z"
+      },
+      {
+        "name": "MBRS005 本地文件网关与资源租约 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-10-06T11:36:28Z",
+        "completed_at": "2026-10-06T11:37:34Z"
+      },
+      {
+        "name": "MBRS006 本地Audio Input与会话隔离 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-10-06T11:37:34Z",
+        "completed_at": "2026-10-06T11:39:26Z"
+      },
+      {
+        "name": "MBRS007 队列预取与持久恢复 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-10-06T11:39:26Z",
+        "completed_at": "2026-10-06T11:43:44Z"
+      },
+      {
+        "name": "验证报告CI准入正负例",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 20,
+        "started_at": "2026-10-06T11:43:44Z",
+        "completed_at": "2026-10-06T11:43:45Z"
+      },
+      {
+        "name": "Diff whitespace",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 21,
+        "started_at": "2026-10-06T11:43:45Z",
+        "completed_at": "2026-10-06T11:43:45Z"
+      },
+      {
+        "name": "Verify pinned historical fragments and current discarded rejection",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 22,
+        "started_at": "2026-10-06T11:43:45Z",
+        "completed_at": "2026-10-06T11:43:46Z"
+      },
+      {
+        "name": "Preserve full verification log",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 23,
+        "started_at": "2026-10-06T11:43:46Z",
+        "completed_at": "2026-10-06T11:44:02Z"
+      },
+      {
+        "name": "Post Node.js 22",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 45,
+        "started_at": "2026-10-06T11:44:02Z",
+        "completed_at": "2026-10-06T11:44:02Z"
+      },
+      {
+        "name": "Post Checkout",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 46,
+        "started_at": "2026-10-06T11:44:02Z",
+        "completed_at": "2026-10-06T11:44:02Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 47,
+        "started_at": "2026-10-06T11:44:02Z",
+        "completed_at": "2026-10-06T11:44:02Z"
+      }
+    ],
+    "check_run_url": "https://api.github.com/repos/Matt12377/MusicBridge/check-runs/112243792361",
+    "labels": [
+      "ubuntu-latest"
+    ],
+    "runner_id": 1000001685,
+    "runner_name": "GitHub Actions 1000001685",
+    "runner_group_id": 0,
+    "runner_group_name": "GitHub Actions"
+  },
+  "command": [
+    "gh",
+    "run",
+    "view",
+    "37456044285",
+    "--repo",
+    "Matt12377/MusicBridge",
+    "--job",
+    "112243792361",
+    "--log"
+  ],
+  "exitCode": 0,
+  "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ci/SOURCE_VERIFY.log",
+  "bytes": 4408032,
+  "sha256": "6c0e4b2e05c37632ef3a0706c2afd6cb18527619b0cd71ed32573a40460ca966",
+  "workspaceTapSummaries": [
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:24:36.3207212Z # tests 258",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:24:36.3207760Z # pass 258",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:24:36.3208020Z # fail 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:24:36.3208282Z # cancelled 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:24:36.3208749Z # skipped 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:24:36.3209012Z # todo 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:30:20.2789169Z # tests 2681",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:30:20.2789873Z # pass 2679",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:30:20.2790180Z # fail 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:30:20.2790476Z # cancelled 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:30:20.2790794Z # skipped 2",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:30:20.2791123Z # todo 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:30:25.6299501Z # tests 8",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:30:25.6299986Z # pass 8",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:30:25.6300163Z # fail 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:30:25.6306995Z # cancelled 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:30:25.6307406Z # skipped 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:30:25.6307663Z # todo 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:31:47.6280689Z # tests 1428",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:31:47.6281248Z # pass 1428",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:31:47.6281526Z # fail 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:31:47.6281798Z # cancelled 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:31:47.6282080Z # skipped 0",
+    "verify\tVerify platform-independent workspace (typecheck, unit tests, build; no Electron)\t2026-10-06T11:31:47.6282344Z # todo 0"
+  ],
+  "ciModeLines": [
+    "verify\t判定精确父源码CI可复用的报告提交\t2026-10-06T11:23:18.2191182Z CI_MODE=full reason=SOURCE_SCOPE_OR_AUTHORITY_CHANGED"
+  ],
+  "artifactContentDownloaded": false,
+  "evidenceScope": "ACTUAL_JOB_LOG_NOT_ARTIFACT_CONTENT"
+}

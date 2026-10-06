@@ -420,7 +420,12 @@
   "schemaCompatibilityFullCaseEvidence": "docs/postrust/MBRS-007/evidence/electron-schema33-full-cases.json",
   "latestLocalE2eBuildMode": "development",
   "initialProductionModeBuild": "checks/root-desktop-production-final-01/result.json",
-  "finalProductionModeBuild": "PENDING_EXACT_FINAL_SOURCE_CI",
+  "finalProductionModeBuild": {
+    "scope": "EXACT_FINAL_SOURCE_REMOTE_CI",
+    "evidence": "docs/postrust/MBRS-007/evidence/source-verify-log-receipt.json",
+    "headSha": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+    "jobConclusion": "success"
+  },
   "actualRuntimeDependencySideEffectRecorded": "docs/postrust/MBRS-007/evidence/electron-schema33-full-cases.json",
   "initialCiFailuresPreserved": "docs/postrust/MBRS-007/evidence/initial-source-ci-followup.json"
 }

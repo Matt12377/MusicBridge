@@ -1,0 +1,208 @@
+{
+  "schema": "mbrs007.actual-job-log.v1",
+  "capturedAt": "2026-10-06T11:50:34.606283+00:00",
+  "repository": "Matt12377/MusicBridge",
+  "runId": 37456044179,
+  "jobId": 112243791357,
+  "headSha": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+  "jobConclusion": "success",
+  "job": {
+    "id": 112243791357,
+    "run_id": 37456044179,
+    "workflow_name": "electron-e2e",
+    "head_branch": "codex/mbrs-007-queue-prefetch-control",
+    "run_url": "https://api.github.com/repos/Matt12377/MusicBridge/actions/runs/37456044179",
+    "run_attempt": 1,
+    "node_id": "CR_kwDOT-VC-c8AAAAaIkBV_Q",
+    "head_sha": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+    "url": "https://api.github.com/repos/Matt12377/MusicBridge/actions/jobs/112243791357",
+    "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37456044179/job/112243791357",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-10-06T11:23:10Z",
+    "started_at": "2026-10-06T11:23:19Z",
+    "completed_at": "2026-10-06T11:47:29Z",
+    "name": "macos-electron-gate",
+    "steps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-10-06T11:23:20Z",
+        "completed_at": "2026-10-06T11:23:21Z"
+      },
+      {
+        "name": "Checkout",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-10-06T11:23:21Z",
+        "completed_at": "2026-10-06T11:23:25Z"
+      },
+      {
+        "name": "Prepare hosted runner evidence directories",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-10-06T11:23:25Z",
+        "completed_at": "2026-10-06T11:23:25Z"
+      },
+      {
+        "name": "Node.js 22",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-10-06T11:23:25Z",
+        "completed_at": "2026-10-06T11:23:26Z"
+      },
+      {
+        "name": "Prepare source-pinned build workspace mirror",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-10-06T11:23:26Z",
+        "completed_at": "2026-10-06T11:23:28Z"
+      },
+      {
+        "name": "Install frozen workspace",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-10-06T11:23:28Z",
+        "completed_at": "2026-10-06T11:23:39Z"
+      },
+      {
+        "name": "Prepare fresh Core fixed Worker before existing Electron gates",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-10-06T11:23:39Z",
+        "completed_at": "2026-10-06T11:24:05Z"
+      },
+      {
+        "name": "Prepare Rust toolchain",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-10-06T11:24:05Z",
+        "completed_at": "2026-10-06T11:24:15Z"
+      },
+      {
+        "name": "Build and verify both Rust hosts once in this job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 9,
+        "started_at": "2026-10-06T11:24:15Z",
+        "completed_at": "2026-10-06T11:29:48Z"
+      },
+      {
+        "name": "Install Electron binary from locked tree (official installer only)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 10,
+        "started_at": "2026-10-06T11:29:48Z",
+        "completed_at": "2026-10-06T11:29:52Z"
+      },
+      {
+        "name": "Verify official Electron archive and actual execution tree",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 11,
+        "started_at": "2026-10-06T11:29:52Z",
+        "completed_at": "2026-10-06T11:29:54Z"
+      },
+      {
+        "name": "Electron startup, crash/restart, safeStorage vault and credential recovery gates",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 12,
+        "started_at": "2026-10-06T11:29:54Z",
+        "completed_at": "2026-10-06T11:33:38Z"
+      },
+      {
+        "name": "Electron end-to-end flow (Playwright, production build)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 13,
+        "started_at": "2026-10-06T11:33:38Z",
+        "completed_at": "2026-10-06T11:46:11Z"
+      },
+      {
+        "name": "Select declared synthetic Rust Host artifacts",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 14,
+        "started_at": "2026-10-06T11:46:11Z",
+        "completed_at": "2026-10-06T11:46:12Z"
+      },
+      {
+        "name": "Preserve declared synthetic Rust Host compiled artifacts",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-10-06T11:46:12Z",
+        "completed_at": "2026-10-06T11:46:16Z"
+      },
+      {
+        "name": "Preserve Electron logs and synthetic test artifacts",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-10-06T11:46:16Z",
+        "completed_at": "2026-10-06T11:47:20Z"
+      },
+      {
+        "name": "Post Node.js 22",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 31,
+        "started_at": "2026-10-06T11:47:20Z",
+        "completed_at": "2026-10-06T11:47:20Z"
+      },
+      {
+        "name": "Post Checkout",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 32,
+        "started_at": "2026-10-06T11:47:20Z",
+        "completed_at": "2026-10-06T11:47:21Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 33,
+        "started_at": "2026-10-06T11:47:21Z",
+        "completed_at": "2026-10-06T11:47:23Z"
+      }
+    ],
+    "check_run_url": "https://api.github.com/repos/Matt12377/MusicBridge/check-runs/112243791357",
+    "labels": [
+      "macos-latest"
+    ],
+    "runner_id": 1000001684,
+    "runner_name": "GitHub Actions 1000001684",
+    "runner_group_id": 0,
+    "runner_group_name": "GitHub Actions"
+  },
+  "command": [
+    "gh",
+    "run",
+    "view",
+    "37456044179",
+    "--repo",
+    "Matt12377/MusicBridge",
+    "--job",
+    "112243791357",
+    "--log"
+  ],
+  "exitCode": 0,
+  "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ci/SOURCE_ELECTRON.log",
+  "bytes": 165769,
+  "sha256": "2c27e43b4911ef7f11bfcd1cfc6c45a992081d0df80de2c4d3e604fd2be14092",
+  "workspaceTapSummaries": [],
+  "ciModeLines": [],
+  "artifactContentDownloaded": false,
+  "evidenceScope": "ACTUAL_JOB_LOG_NOT_ARTIFACT_CONTENT"
+}

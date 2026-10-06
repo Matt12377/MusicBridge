@@ -1,0 +1,687 @@
+{
+  "schema": "mbrs007.delivery-evidence.v1",
+  "task": "MBRS-007",
+  "baseFinalReportCommit": "b464dd2066346121a26824da516969b726f0cfe0",
+  "implementationCommit": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+  "initialSourceCommit": "4622189ed36db5c15f7b82c50e77093220c12b22",
+  "reportCommit": null,
+  "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md",
+  "localSoftware": {
+    "schema": "mbrs007.local-software-evidence.v1",
+    "task": "MBRS-007",
+    "at": "2026-10-06T11:21:41.555726+00:00",
+    "baseSha": "b464dd2066346121a26824da516969b726f0cfe0",
+    "functionalTests": 963,
+    "newTaskTests": 45,
+    "inheritedRegressionTests": 918,
+    "gateStages": 11,
+    "freshOutputs": 44,
+    "declaredInputs": 1210,
+    "privateBindings": 2,
+    "runnerCiTests": 32,
+    "gateManifest": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/gate-final-02/manifest.json",
+      "bytes": 253512,
+      "sha256": "b2292d3cde209824cc02bf59bc00a653d31aa9c335ee1f078f16a66c71b8ebd2"
+    },
+    "gateCommandReceipt": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-queue-gate-final-02/result.json",
+      "bytes": 918,
+      "sha256": "d4347f61f62849cd1951b3559ccc8260e6611745c1e9c37a26dcd66ac8959831"
+    },
+    "checks": [
+      {
+        "label": "root-queue-gate-final-02",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-queue-gate-final-02/result.json",
+          "bytes": 918,
+          "sha256": "d4347f61f62849cd1951b3559ccc8260e6611745c1e9c37a26dcd66ac8959831"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-queue-gate-final-02/output.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "label": "root-ci-runner-tests-02",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-ci-runner-tests-02/result.json",
+          "bytes": 938,
+          "sha256": "64ac4cd2870c8d9fe01299fe219380d3b633955b7591434c88d58d6869253481"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-ci-runner-tests-02/output.log",
+          "bytes": 6823,
+          "sha256": "aae341132461bd78e2627014b5daf0bc277e886e5d39690d6477fcd939e4bda4"
+        }
+      },
+      {
+        "label": "root-desktop-production-final-02",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-desktop-production-final-02/result.json",
+          "bytes": 904,
+          "sha256": "4755aea1251b554a1a65445d0d210450e88fa83c32037589d2c983d045920a22"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-desktop-production-final-02/output.log",
+          "bytes": 1829,
+          "sha256": "7926e0071952888975b36026d84a992a3dcb98eae283f93e7abf55342c935e83"
+        }
+      },
+      {
+        "label": "root-private-core-e2e-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-private-core-e2e-final-01/result.json",
+          "bytes": 954,
+          "sha256": "499565389e12ed7b9a8e41311481123a386ba05b618fffc715a02df46b81d518"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-private-core-e2e-final-01/output.log",
+          "bytes": 568,
+          "sha256": "3953273679aae5804f1d3650ac8687085b4919ca2bf3f6f8a2d009601649b8ce"
+        }
+      },
+      {
+        "label": "root-electron-schema33-full-cases-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-electron-schema33-full-cases-01/result.json",
+          "bytes": 1117,
+          "sha256": "fa4efc511f69b7eac80b6df7e1f0fff9e7bacf69526988b1edd2a9970c0cd5d6"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-electron-schema33-full-cases-01/output.log",
+          "bytes": 1128,
+          "sha256": "30bef6667f365d41ac63cf51b76d55508ca672470ad859ee8ef84451d74881bf"
+        }
+      },
+      {
+        "label": "root-official-electron-identity-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-official-electron-identity-01/result.json",
+          "bytes": 892,
+          "sha256": "7e1d83ea79efd7d0a533320d9c97a91bfa535aeee7325c83ddcdb83e7aa9fff8"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-official-electron-identity-01/output.log",
+          "bytes": 373,
+          "sha256": "9c4309986ff8bfe3ed03188563c98e810b566e7497a3c20a1fc6e40453aec009"
+        }
+      },
+      {
+        "label": "root-playwright-electron-actual-tree-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-playwright-electron-actual-tree-01/result.json",
+          "bytes": 1248,
+          "sha256": "05fb0cd75e033ba2e1185c1e76b20fba617f2fd76155ea8bbd193d7b80a952d9"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-playwright-electron-actual-tree-01/output.log",
+          "bytes": 424,
+          "sha256": "4f412aaccdad5503389335298072e866f0215181ba4d91c3ff41944bec49f0b1"
+        }
+      },
+      {
+        "label": "root-desktop-production-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-desktop-production-final-01/result.json",
+          "bytes": 902,
+          "sha256": "fe88e865f9354592740e26964b0a565563ad41929379e291fdf601fae0c8e32d"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-desktop-production-final-01/output.log",
+          "bytes": 1826,
+          "sha256": "599ed02362cae34a4f879c5329d6b8e4dfbd05a48defd76faa91ba4a08e0d166"
+        }
+      },
+      {
+        "label": "root-preload-dependencies-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-preload-dependencies-final-01/result.json",
+          "bytes": 865,
+          "sha256": "d11b9fb8b62612d69b0502fc87f6b0a78e882c3e52b6517280afa53195b13cab"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checkout/../checks/root-preload-dependencies-final-01/output.log",
+          "bytes": 185,
+          "sha256": "e544509a5b22f2b2e9e60acb6a3713c3f7f8f2c52e38a22c8cc3d3799c0bada3"
+        }
+      },
+      {
+        "label": "root-control-plane-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-control-plane-final-01/result.json",
+          "bytes": 834,
+          "sha256": "edd7a53504d6a9e10ab871bef2c5c6c263024664d69ad5fa5da6ae14360f6acc"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checkout/../checks/root-control-plane-final-01/output.log",
+          "bytes": 19,
+          "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+        }
+      },
+      {
+        "label": "root-boundaries-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-boundaries-final-01/result.json",
+          "bytes": 825,
+          "sha256": "ab4c2c875567be78055bd6d28438295fcb7f2a4c4690dc9f46a18f1b3d508704"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checkout/../checks/root-boundaries-final-01/output.log",
+          "bytes": 16,
+          "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+        }
+      },
+      {
+        "label": "root-cycles-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-cycles-final-01/result.json",
+          "bytes": 813,
+          "sha256": "6d9b7082836cd55f44450f295263a37e557e33fe5fcbfd342fd844a8d0097172"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checkout/../checks/root-cycles-final-01/output.log",
+          "bytes": 22,
+          "sha256": "930fd89624705daf8c8fb32ee167a2cee190dbc8d103fec33cf29886cae8534e"
+        }
+      },
+      {
+        "label": "root-diff-check-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-diff-check-final-01/result.json",
+          "bytes": 767,
+          "sha256": "ffad5d63b915cd7e7cd296d21be8591db327b5331db591597599d378933d617b"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checkout/../checks/root-diff-check-final-01/output.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    ],
+    "stageSummary": [
+      {
+        "name": "fresh-contracts-build",
+        "exitCode": 0,
+        "tap": null
+      },
+      {
+        "name": "contracts-types",
+        "exitCode": 0,
+        "tap": null
+      },
+      {
+        "name": "fresh-core-build",
+        "exitCode": 0,
+        "tap": null
+      },
+      {
+        "name": "fresh-core-worker-bundle",
+        "exitCode": 0,
+        "tap": null
+      },
+      {
+        "name": "core-types",
+        "exitCode": 0,
+        "tap": null
+      },
+      {
+        "name": "desktop-types",
+        "exitCode": 0,
+        "tap": null
+      },
+      {
+        "name": "desktop-e2e-types",
+        "exitCode": 0,
+        "tap": null
+      },
+      {
+        "name": "core-mb-queue",
+        "exitCode": 0,
+        "tap": {
+          "tests": 41,
+          "pass": 41,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      },
+      {
+        "name": "core-affected-regression",
+        "exitCode": 0,
+        "tap": {
+          "tests": 733,
+          "pass": 733,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      },
+      {
+        "name": "contracts-queue-identity",
+        "exitCode": 0,
+        "tap": {
+          "tests": 66,
+          "pass": 66,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      },
+      {
+        "name": "desktop-queue-consumer",
+        "exitCode": 0,
+        "tap": {
+          "tests": 123,
+          "pass": 123,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      }
+    ],
+    "inputsAndSelectedOutputsAfterDesktopBuildUnchanged": true,
+    "identityScope": "DECLARED_SOURCE_AND_FRESH_MB_QUEUE_OUTPUTS_NOT_TRANSITIVE_DEPENDENCY_CLOSURE",
+    "formalRounds": 2,
+    "rootClosureOpenP1P2": 0,
+    "realServicesAudioLanNasAppOwner": "NOT_RUN",
+    "new100k300k": false,
+    "fullWorkspaceLocal": "NOT_RUN_RISK_BASED_TARGETED_SCOPE",
+    "schemaCompatibility": "33_WITH_FIXED_OLD_INPUTS_AND_NEGATIVE_CASES_PRESERVED",
+    "initialChecksPreserved": [
+      {
+        "label": "root-queue-gate-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-queue-gate-final-01/result.json",
+          "bytes": 917,
+          "sha256": "e0a1286b47b8160cbb8bb1d3c81876a9014a2b0b2ba3e24d98a228dff099b5a4"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-queue-gate-final-01/output.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "label": "root-ci-runner-tests-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-ci-runner-tests-01/result.json",
+          "bytes": 939,
+          "sha256": "4f38729c2092ae9a564853099801df53981b5df1eaac02e21ee1cf03f69203a9"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-ci-runner-tests-01/output.log",
+          "bytes": 6823,
+          "sha256": "e558c3ef234e3eed98577932fc7055a5de1cd348f533bfd99d6c487f70983516"
+        }
+      },
+      {
+        "label": "root-desktop-production-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-desktop-production-final-01/result.json",
+          "bytes": 902,
+          "sha256": "fe88e865f9354592740e26964b0a565563ad41929379e291fdf601fae0c8e32d"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-desktop-production-final-01/output.log",
+          "bytes": 1826,
+          "sha256": "599ed02362cae34a4f879c5329d6b8e4dfbd05a48defd76faa91ba4a08e0d166"
+        }
+      },
+      {
+        "label": "root-preload-dependencies-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-preload-dependencies-final-01/result.json",
+          "bytes": 865,
+          "sha256": "d11b9fb8b62612d69b0502fc87f6b0a78e882c3e52b6517280afa53195b13cab"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checkout/../checks/root-preload-dependencies-final-01/output.log",
+          "bytes": 185,
+          "sha256": "e544509a5b22f2b2e9e60acb6a3713c3f7f8f2c52e38a22c8cc3d3799c0bada3"
+        }
+      },
+      {
+        "label": "root-control-plane-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-control-plane-final-01/result.json",
+          "bytes": 834,
+          "sha256": "edd7a53504d6a9e10ab871bef2c5c6c263024664d69ad5fa5da6ae14360f6acc"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checkout/../checks/root-control-plane-final-01/output.log",
+          "bytes": 19,
+          "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+        }
+      },
+      {
+        "label": "root-boundaries-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-boundaries-final-01/result.json",
+          "bytes": 825,
+          "sha256": "ab4c2c875567be78055bd6d28438295fcb7f2a4c4690dc9f46a18f1b3d508704"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checkout/../checks/root-boundaries-final-01/output.log",
+          "bytes": 16,
+          "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+        }
+      },
+      {
+        "label": "root-cycles-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-cycles-final-01/result.json",
+          "bytes": 813,
+          "sha256": "6d9b7082836cd55f44450f295263a37e557e33fe5fcbfd342fd844a8d0097172"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checkout/../checks/root-cycles-final-01/output.log",
+          "bytes": 22,
+          "sha256": "930fd89624705daf8c8fb32ee167a2cee190dbc8d103fec33cf29886cae8534e"
+        }
+      },
+      {
+        "label": "root-diff-check-final-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-diff-check-final-01/result.json",
+          "bytes": 767,
+          "sha256": "ffad5d63b915cd7e7cd296d21be8591db327b5331db591597599d378933d617b"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checkout/../checks/root-diff-check-final-01/output.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      }
+    ],
+    "schemaCompatibilityFullElectronCases": {
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0
+    },
+    "schemaCompatibilityFullCaseEvidence": "docs/postrust/MBRS-007/evidence/electron-schema33-full-cases.json",
+    "latestLocalE2eBuildMode": "development",
+    "initialProductionModeBuild": "checks/root-desktop-production-final-01/result.json",
+    "finalProductionModeBuild": {
+      "scope": "EXACT_FINAL_SOURCE_REMOTE_CI",
+      "evidence": "docs/postrust/MBRS-007/evidence/source-verify-log-receipt.json",
+      "headSha": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+      "jobConclusion": "success"
+    },
+    "actualRuntimeDependencySideEffectRecorded": "docs/postrust/MBRS-007/evidence/electron-schema33-full-cases.json",
+    "initialCiFailuresPreserved": "docs/postrust/MBRS-007/evidence/initial-source-ci-followup.json"
+  },
+  "sourceIdentity": "docs/postrust/MBRS-007/evidence/source-input-blob-binding.json",
+  "sourceCi": "docs/postrust/MBRS-007/evidence/source-ci-terminal.json",
+  "sourceCiSummary": [
+    {
+      "id": 37456044218,
+      "workflow": ".github/workflows/security.yml",
+      "headSha": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37456044218"
+    },
+    {
+      "id": 37456044234,
+      "workflow": ".github/workflows/rust-core.yml",
+      "headSha": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37456044234"
+    },
+    {
+      "id": 37456044285,
+      "workflow": ".github/workflows/verify.yml",
+      "headSha": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37456044285"
+    },
+    {
+      "id": 37456044179,
+      "workflow": ".github/workflows/electron-e2e.yml",
+      "headSha": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37456044179"
+    }
+  ],
+  "remoteFullWorkspace": {
+    "tests": 4375,
+    "pass": 4373,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "remoteWorkspaceGroups": [
+    {
+      "tests": 258,
+      "pass": 258,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "tests": 2681,
+      "pass": 2679,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "tests": 1428,
+      "pass": 1428,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ],
+  "remoteElectronE2eCounts": {
+    "passed": 104,
+    "skipped": 4,
+    "failed": 0
+  },
+  "sourceActualLogs": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ci/SOURCE_VERIFY.log",
+      "bytes": 4408032,
+      "sha256": "6c0e4b2e05c37632ef3a0706c2afd6cb18527619b0cd71ed32573a40460ca966"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ci/SOURCE_ELECTRON.log",
+      "bytes": 165769,
+      "sha256": "2c27e43b4911ef7f11bfcd1cfc6c45a992081d0df80de2c4d3e604fd2be14092"
+    }
+  ],
+  "artifactContentDownloaded": false,
+  "initialSourceCiFailuresPreserved": "docs/postrust/MBRS-007/evidence/initial-source-ci-followup.json",
+  "localFullSchemaCompatibilityCases": "docs/postrust/MBRS-007/evidence/electron-schema33-full-cases.json",
+  "localDevelopmentE2eBuildMode": "development",
+  "finalProductionBuildEvidence": "EXACT_FINAL_SOURCE_REMOTE_CI_SEPARATE_FROM_LOCAL_DEVELOPMENT_E2E",
+  "reportCiAtCommit": "PENDING_NATURAL_CI_FINAL_RECEIPT_IS_AUTHORITATIVE",
+  "finalDeliveryReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/FINAL_DELIVERY_RECEIPT.json",
+  "acceptanceCases": [
+    {
+      "id": "MBRS-AT-007-01",
+      "kind": "live_roon",
+      "status": "NOT_TESTED",
+      "software_status": "PARTIAL",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅受控SDK顺序与控制证据；原live_roon保持NOT_TESTED，真实结果未执行。"
+    },
+    {
+      "id": "MBRS-AT-007-02",
+      "kind": "unit",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅限定生产Controller/Owner/固定FD及受控SDK软件层；真实Roon、音频与Owner未执行。"
+    },
+    {
+      "id": "MBRS-AT-007-03",
+      "kind": "fault",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅限定生产Controller/Owner/固定FD及受控SDK软件层；真实Roon、音频与Owner未执行。"
+    },
+    {
+      "id": "MBRS-AT-007-04",
+      "kind": "live_roon",
+      "status": "NOT_TESTED",
+      "software_status": "PARTIAL",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅受控SDK顺序与控制证据；原live_roon保持NOT_TESTED，真实结果未执行。"
+    },
+    {
+      "id": "MBRS-AT-007-05",
+      "kind": "live_audio",
+      "status": "NOT_TESTED",
+      "software_status": "NOT_RUN",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "原live_audio未执行，顺序播放和下一曲预备不等于无缝或重锁测量。"
+    },
+    {
+      "id": "MBRS-AT-007-06",
+      "kind": "live_audio",
+      "status": "NOT_TESTED",
+      "software_status": "NOT_RUN",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "原live_audio未执行，顺序播放和下一曲预备不等于无缝或重锁测量。"
+    },
+    {
+      "id": "MBRS-AT-007-07",
+      "kind": "unit",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅限定生产Controller/Owner/固定FD及受控SDK软件层；真实Roon、音频与Owner未执行。"
+    },
+    {
+      "id": "MBRS-AT-007-08",
+      "kind": "integration",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅限定生产Controller/Owner/固定FD及受控SDK软件层；真实Roon、音频与Owner未执行。"
+    },
+    {
+      "id": "MBRS-AT-007-09",
+      "kind": "fault",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅限定生产Controller/Owner/固定FD及受控SDK软件层；真实Roon、音频与Owner未执行。"
+    },
+    {
+      "id": "MBRS-AT-007-10",
+      "kind": "integration",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅限定生产Controller/Owner/固定FD及受控SDK软件层；真实Roon、音频与Owner未执行。"
+    },
+    {
+      "id": "MBRS-AT-007-11",
+      "kind": "integration",
+      "status": "PARTIAL",
+      "software_status": "PARTIAL",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "NEXT零提前SDK与软件顺序/控制通过；真实暂停/seek与gapless分别未测。"
+    }
+  ],
+  "review": {
+    "formalRounds": 2,
+    "r1UniqueP2": 3,
+    "r2UniqueP2": 1,
+    "r2OriginalResult": "CHANGES_REQUIRED_ON_FREEZE_02",
+    "rootLocalClosureOpenP1P2": 0,
+    "rootClosure": "MINIMAL_CURSOR_RED_GREEN_AND_FINAL963_GATE_NO_R3",
+    "record": "docs/postrust/MBRS-007/evidence/review-disposition.json"
+  },
+  "preservedFailures": "docs/postrust/MBRS-007/evidence/failure-ledger.json",
+  "carryover": [
+    "真实Roon盘轨编辑/控制AT01/04",
+    "同格式gapless AT05",
+    "跨格式设备重锁AT06",
+    "CUE精确片段unsupported",
+    "普通App与Owner接受",
+    "001/002/004/005/006原真实层",
+    "003历史25拒收的物理根因UNKNOWN",
+    "回执容量256满拒绝与SDK发送后HTTP观察UNKNOWN",
+    "005不可观察第三方原地字节变化的能力界限",
+    "上游许可与Rust未完事项",
+    "旧录音Gate B/P4/P5另待验",
+    "iOS UI1.1.0合同Mac采纳PENDING_MBM000"
+  ],
+  "sourceFileWrites": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+  "new100k300kStarted": false,
+  "nextBaseline": "FINAL_INDEPENDENT_REPORT_HEAD",
+  "nextTask": "MBRS-008",
+  "mainMergeInstallRelease": "NOT_AUTHORIZED_NOT_RUN"
+}

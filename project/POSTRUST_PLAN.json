@@ -31933,7 +31933,7 @@
         "MBRS-006",
         "MBRS-003"
       ],
-      "status": "LOCAL_SOFTWARE_PASS_SOURCE_CI_PENDING",
+      "status": "SOFTWARE_COMPLETE_WITH_LIVE_CARRYOVER",
       "implementation_owner": "MBRS-007",
       "goal": "让直送序列具有实际可用的控制和边界行为，不混称原生队列或gapless。",
       "steps": [
@@ -31968,13 +31968,16 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "3e171ec487278e9ebae4006fa4c739c609f00f59",
       "report_commit": null,
-      "validation_status": "PASS_FINITE_SOFTWARE_SCOPE_LIVE_CARRYOVER",
+      "validation_status": "SOFTWARE_GATE_AND_EXACT_SOURCE_CI_PASS_LIVE_CARRYOVER",
       "evidence_refs": [
         "docs/postrust/MBRS-007/EXECUTION_SCOPE.json",
         "docs/postrust/MBRS-007/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-007/evidence/review-disposition.json"
+        "docs/postrust/MBRS-007/evidence/review-disposition.json",
+        "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md",
+        "reports/MBRS-007_EVIDENCE.json",
+        "docs/postrust/MBRS-007/evidence/source-ci-terminal.json"
       ],
       "branch": "codex/mbrs-007-queue-prefetch-control",
       "base_final_report_commit": "b464dd2066346121a26824da516969b726f0cfe0",
@@ -33400,7 +33403,8 @@
       "status": "NOT_TESTED",
       "evidence_refs": [
         "docs/postrust/MBRS-007/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md"
       ],
       "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
@@ -33418,7 +33422,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-007/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33436,7 +33441,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-007/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33454,7 +33460,8 @@
       "status": "NOT_TESTED",
       "evidence_refs": [
         "docs/postrust/MBRS-007/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md"
       ],
       "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
@@ -33472,7 +33479,8 @@
       "status": "NOT_TESTED",
       "evidence_refs": [
         "docs/postrust/MBRS-007/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md"
       ],
       "software_status": "NOT_RUN",
       "app_status": "NOT_RUN",
@@ -33490,7 +33498,8 @@
       "status": "NOT_TESTED",
       "evidence_refs": [
         "docs/postrust/MBRS-007/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md"
       ],
       "software_status": "NOT_RUN",
       "app_status": "NOT_RUN",
@@ -33508,7 +33517,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-007/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33526,7 +33536,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-007/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33544,7 +33555,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-007/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33562,7 +33574,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-007/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -34793,7 +34806,8 @@
       "status": "PARTIAL",
       "evidence_refs": [
         "docs/postrust/MBRS-007/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md"
       ],
       "software_status": "PARTIAL",
       "app_status": "NOT_RUN",

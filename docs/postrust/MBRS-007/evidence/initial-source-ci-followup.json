@@ -41,10 +41,17 @@
     "testsBudgetsAndThresholdsUnchanged": true,
     "uploadExclusionAdded": "!${{ runner.temp }}/musicbridge-verify/**/tmp/**",
     "stableLogsManifestsAndBindingsRetained": true,
-    "fixedUploadActualResult": "NEW_EXACT_SOURCE_CI_PENDING"
+    "fixedUploadActualResult": "SUCCESS_ON_EXACT_FINAL_SOURCE_NATURAL_CI"
   },
   "scope": "FINITE_WHOLE_JOB_WRAPPER_AND_TRANSIENT_TMP_COLLECTOR_PLUS_THREE_CURRENT_SCHEMA_EXPECTATIONS",
   "oldRunsRerunOrCancelledByAgent": false,
-  "naturalNewSourceCi": "PENDING",
-  "formalR3": false
+  "naturalNewSourceCi": {
+    "headSha": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+    "workflows": 4,
+    "jobs": 6,
+    "status": "COMPLETE_SUCCESS",
+    "attempt": 1
+  },
+  "formalR3": false,
+  "finalSourceEvidence": "docs/postrust/MBRS-007/evidence/source-ci-terminal.json"
 }
