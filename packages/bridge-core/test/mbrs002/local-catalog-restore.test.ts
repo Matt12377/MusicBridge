@@ -39,9 +39,9 @@ function retained(repository: CollectionRepository, facts: Awaited<ReturnType<ty
   assert.deepEqual(repository.sources.root(facts.source.id), { ...facts.source, authorized: !revoked });
   if (revoked) assert.throws(() => catalog.registerAsset({ commandId: randomUUID(), libraryRootId: facts.root.id, expectedRootRevision: '1', relative: '新文件.flac', sha256: null, sampleFrames: null, timebaseHz: null }), /授权/u);
 }
-function schema31(file: string): void {
+function schema32(file: string): void {
   const db = new DatabaseSync(file, { readOnly: true, allowExtension: false });
-  try { assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 31); assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok'); assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []); }
+  try { assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 32); assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok'); assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []); }
   finally { db.close(); }
 }
 function localRows(file: string) {
@@ -60,17 +60,17 @@ test('MBRS002 restore：固定30默认collection.v1.sqlite正式迁移、冷启�
   let facts: Awaited<ReturnType<typeof seed>>;
   try { assert.equal(opened.databaseFile, file); facts = await seed(opened.repository, directory); }
   finally { opened.close(); }
-  schema31(file);
+  schema32(file);
   const expectedRows = localRows(file);
   const cold = await openCollectionDataset(directory);
   const snapshotPath = path.join(directory, '隔离快照'); await mkdir(snapshotPath);
   try {
     assert.equal(cold.datasetId, datasetId); retained(cold.repository, facts, false);
     const snapshot = await cold.repository.backupSnapshot({ ...await authorizeSourceDirectory(snapshotPath), id: randomUUID() });
-    assert.equal(snapshot.schemaVersion, 31); assert.equal(snapshot.relative, 'collection.sqlite');
+    assert.equal(snapshot.schemaVersion, 32); assert.equal(snapshot.relative, 'collection.sqlite');
   } finally { cold.close(); }
   const restoredFile = path.join(snapshotPath, 'collection.sqlite');
-  schema31(restoredFile); readBackupIndex(restoredFile); isolateRestoredDatabase(restoredFile);
+  schema32(restoredFile); readBackupIndex(restoredFile); isolateRestoredDatabase(restoredFile);
   verifyRestoredDatabaseIsolation(restoredFile); readBackupIndex(restoredFile);
   assert.deepEqual(localRows(restoredFile), expectedRows);
   for (let pass = 0; pass < 2; pass++) {
@@ -120,7 +120,7 @@ test('MBRS002 restore：实际备份→核验→隔离恢复→激活collection.
     assert.equal(path.basename(activeFile), 'collection.sqlite'); assert.notEqual(activeFile, defaultFile);
     retained(active.repository, facts, true); active.commit();
   } finally { active.close(); }
-  schema31(activeFile); verifyRestoredDatabaseIsolation(activeFile); readBackupIndex(activeFile);
+  schema32(activeFile); verifyRestoredDatabaseIsolation(activeFile); readBackupIndex(activeFile);
   assert.deepEqual(localRows(activeFile), expectedRows);
   const cold = await openCollectionDataset(privatePath);
   try {
@@ -140,7 +140,7 @@ test('MBRS002 restore：未来schema拒绝备份索引、隔离写入及默认�
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, 'collection.v1.sqlite'), repository = createCollectionRepository({ filePath: file });
   repository.list({ offset: 0, limit: 1 }); repository.close();
-  const db = new DatabaseSync(file); try { db.exec('PRAGMA user_version=32'); } finally { db.close(); }
+  const db = new DatabaseSync(file); try { db.exec('PRAGMA user_version=33'); } finally { db.close(); }
   const bytes = await readFile(file);
   assert.throws(() => readBackupIndex(file)); assert.throws(() => isolateRestoredDatabase(file)); assert.throws(() => verifyRestoredDatabaseIsolation(file));
   await assert.rejects(openCollectionDataset(directory)); assert.deepEqual(await readFile(file), bytes);

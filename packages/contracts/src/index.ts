@@ -59,3 +59,5 @@ export * from './local-play-request.js';
 
 export * from './local-playback-compat.js';
 export * from './local-domain-references.js';
+export * from './local-scan.js';
+export * from './local-relocation.js';

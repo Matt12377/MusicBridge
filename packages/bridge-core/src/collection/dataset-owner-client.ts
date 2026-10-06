@@ -1,4 +1,5 @@
-import { isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcRequest, validateIpcInternalRequest, isLocalCatalogCommandResult } from '@music-bridge/contracts';
+import {LOCAL_RELOCATION_COMMANDS,isLocalRelocationCommand,isLocalRelocationInternalCommand,isLocalRelocationCommandResult} from '@music-bridge/contracts';
+import { isLocalScanCommand, isLocalScanInternalCommand, isLocalScanCommandResult, isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcRequest, validateIpcInternalRequest, isLocalCatalogCommandResult } from '@music-bridge/contracts';
 import { randomUUID } from 'node:crypto';
 import type { Worker } from 'node:worker_threads';
 import type { IpcCommand, IpcRequest } from '@music-bridge/contracts';
@@ -130,6 +131,8 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
       snapshotIds.add(snapshot.snapshotId);
     }
     if (message.ok && (message.operation === 'close' || message.operation === 'commitBoot') && message.result !== undefined) { fatal('protocol-failure'); return; }
+    if (message.ok && isLocalRelocationCommand(item.command) && !isLocalRelocationCommandResult(item.command,message.result)) { fatal('protocol-failure');return; }
+    if (message.ok && isLocalScanCommand(item.command) && !isLocalScanCommandResult(item.command,message.result)) { fatal('protocol-failure'); return; }
     if (message.ok && isLocalCatalogCommand(item.command) && !isLocalCatalogCommandResult(item.command, message.result)) { fatal('protocol-failure'); return; }
     pending.delete(message.requestId);
     if (!message.ok) {
@@ -165,13 +168,13 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
       const { id, command } = request;
       if (identity === undefined || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent', id, command));
       if (!isDatasetRequestEnvelope(request)) return Promise.reject(new DatasetOwnerDispatchError(responseFailure(id, 'INVALID_IPC_REQUEST', '领域命令不在允许范围或信封无效。')));
-      if (isLocalCatalogCommand(command) && !validateIpcRequest(request).ok) return Promise.reject(new DatasetOwnerDispatchError(responseFailure(id, 'INVALID_IPC_REQUEST', '本地目录请求无效。')));
+      if ((isLocalCatalogCommand(command) || isLocalScanCommand(command) || isLocalRelocationCommand(command)) && !validateIpcRequest(request).ok) return Promise.reject(new DatasetOwnerDispatchError(responseFailure(id, 'INVALID_IPC_REQUEST', '本地目录请求无效。')));
       return rpc('dispatch', request);
     },
     dispatchInternal(request) {
       const { id, command } = request;
       if (identity === undefined || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent', id, command));
-      if (!isLocalCatalogInternalCommand(command) || !isDatasetRequestEnvelope(request, true) || !validateIpcInternalRequest(request).ok) return Promise.reject(new DatasetOwnerDispatchError(responseFailure(id, 'INVALID_IPC_REQUEST', '可信本地观察请求无效。')));
+      if (!(isLocalCatalogInternalCommand(command) || isLocalScanInternalCommand(command) || isLocalRelocationInternalCommand(command)) || !isDatasetRequestEnvelope(request, true) || !validateIpcInternalRequest(request).ok) return Promise.reject(new DatasetOwnerDispatchError(responseFailure(id, 'INVALID_IPC_REQUEST', '可信本地观察请求无效。')));
       return rpc('dispatchInternal', request);
     },
     commitBoot() {

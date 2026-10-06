@@ -1,0 +1,34 @@
+{
+  "name": "mbrs003-owner-final-software-gate-153-01",
+  "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-003-persistent-incremental-scan",
+  "head": "a7b27b5b6a5168bd146a3cbe61b579efd5639263",
+  "argv": [
+    "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+    "scripts/ci/verify-mbrs003-scan.mjs",
+    "--output-root=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-owner-final-software-gate-153-01"
+  ],
+  "startedAt": "2026-10-06T00:52:46.613631+00:00",
+  "completedAt": "2026-10-06T00:53:51.719960+00:00",
+  "durationSeconds": 65.106373167,
+  "exitCode": 0,
+  "timedOut": false,
+  "signal": null,
+  "log": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs003-owner-final-software-gate-153-01/output.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "deadlineGuard": {
+    "ownBudgetSeconds": 390.0,
+    "absoluteDeadlineMonotonicNs": "163230007105041",
+    "originalWholeDeadlineSupplied": false,
+    "childWaitAllocatedSeconds": 379.998796666,
+    "ownChildPid": 20093,
+    "actualChildWaitCompleted": true,
+    "archivePid": 21022,
+    "archiveExitCode": 0,
+    "terminationSignals": [],
+    "allDescendantsQuiet": "NOT_PROVEN_BY_THIS_WRAPPER",
+    "kernelIoHardDeadlineGuarantee": false
+  }
+}

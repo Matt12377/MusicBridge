@@ -1,3 +1,4 @@
+import { createScanReadAdmission, type ScanReadAdmission } from './library/scan-read-admission.js';
 import { createTestDatasetDomain } from './collection/dataset-domain.js';
 import type { DatasetOwnerEndpoint } from './collection/dataset-owner-protocol.js';
 import { assertLibraryReadCurrent, currentLibraryRead, type LibraryReadLifetime } from './shared/library-read-lifetime.js';
@@ -139,6 +140,8 @@ export interface CoreRuntime {
   readonly datasetOwnerEndpoint?: DatasetOwnerEndpoint;
   /** 仅可信所有者元数据桥接使用，不属于公开IPC对象。 */
   getDatasetRoonLibrary?(): RoonPublicLibrary;
+  /** 只供唯一DatasetOwner私有投影使用，不进入普通IPC DTO。 */
+  getDatasetScanReadAdmission?(): ScanReadAdmission;
   getLibraryReadScope?(command: import('@music-bridge/contracts').IpcCommand): string;
   readonly performance?: import('@music-bridge/contracts').PerformanceTraceRecorder;
   readonly commandOutbox?: ReturnType<typeof createDatasetCommandBoundary>;
@@ -390,6 +393,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const lyricsMatchRepository = options.lyricsMatchRepository ?? createLyricsMatchRepository();
   const matchCache = createMatchCache();
   let matchLibraryAvailable = roon.getLibraryService() !== undefined;
+  let scanReadAdmission: ScanReadAdmission | undefined;
+  let observedRoonReadBusy = false;
+  const sampleRoonReadBusy = (): void => {
+    const state = roon.getSelectedZonePlaybackState();
+    if (state === 'playing' || state === 'loading') observedRoonReadBusy = true;
+    else if (state === 'stopped') observedRoonReadBusy = false;
+    // 暂停或观测丢失不证明已停止；初始从未活跃的离线来源仍可扫描。
+  };
   const gateway = new StreamGateway({
     host: config.streamHost,
     port: config.streamPort,
@@ -397,6 +408,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     registry,
     logger,
     remoteDevelopmentMode: config.mode === 'remote-core-development',
+    onMediaReadActivityChanged: () => { scanReadAdmission?.observe(); },
   });
   let notifyProviderExpired: () => void = () => undefined;
   let resolveSmartSource: (track: TrackSummary) => Promise<SmartRoonResolution | undefined> = async () => undefined;
@@ -414,6 +426,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     return selected;
   };
   const controller = new BridgeController({
+    onReadPriorityChanged: () => { scanReadAdmission?.observe(); },
     netease,
     roon,
     registry,
@@ -560,6 +573,11 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   });
 
   let shutdownStarted = false;
+  scanReadAdmission = createScanReadAdmission({ isBusy: () => {
+    sampleRoonReadBusy();
+    return runtime !== 'ready' || shutdownStarted || controller.hasPlaybackOwnership()
+      || observedRoonReadBusy || gateway.getActiveMediaReadCount() > 0;
+  } });
   const diagnostics = new DiagnosticRingBuffer();
   const performanceMonitor = createNodePerformanceTrace({ component: 'core', enabled: (options.env ?? process.env).MUSIC_BRIDGE_PERFORMANCE_TRACE === '1', monitorEventLoop: true });
   const performanceTrace = performanceMonitor.recorder;
@@ -899,6 +917,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   });
 
   roon.setStateHandler(() => {
+    sampleRoonReadBusy(); scanReadAdmission?.observe();
     const libraryAvailable = roon.getLibraryService() !== undefined;
     if (!libraryAvailable) roonLibrary.invalidateReferences();
     if (libraryAvailable !== matchLibraryAvailable) {
@@ -994,6 +1013,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     assertCurrent: assertReplicaCurrent, assertAttemptIdle: () => recordingAttempts.assertExecutionIdle(),
   }) : undefined;
   const cleanup = async (): Promise<void> => {
+    scanReadAdmission?.close();
     let ownerCloseFailed = false;
     let ownerCloseError: unknown;
     try { await options.datasetOwnerEndpoint?.close(); }
@@ -1096,6 +1116,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     performance: performanceTrace,
     ...(options.datasetOwnerEndpoint ? { datasetOwnerEndpoint: options.datasetOwnerEndpoint } : {}),
     getDatasetRoonLibrary: () => roonLibrary,
+    getDatasetScanReadAdmission: () => scanReadAdmission!,
     async start(): Promise<void> {
       if (runtime === 'ready') return;
       if (shutdownStarted) {
@@ -1107,6 +1128,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
         await roon.start();
         await control.start();
         runtime = 'ready';
+        scanReadAdmission?.observe();
         startupLatencyMs = Date.now() - runtimeStartedAt;
         recordDiagnostic('info', 'core_ready', { state: runtime, durationMs: startupLatencyMs });
         emit(eventWithState('core.ready', publicState()));
@@ -1135,6 +1157,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     async shutdown(): Promise<void> {
       if (shutdownStarted) return;
       shutdownStarted = true;
+      scanReadAdmission?.close();
       try {
         await cleanup();
       } finally {
@@ -1538,12 +1561,15 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
         }
     : { status: 'missing' };
   let playbackState = emptyPlaybackState();
+  // 仅安全合成runtime的自身状态驱动；复用真实票据本体，不冒生产Controller或设备所有权。
+  const syntheticScanReadAdmission = createScanReadAdmission({ isBusy: () => state.runtime !== 'ready'
+    || playbackState.state !== 'idle' || playbackState.canStop || state.activePlaybackPresent || state.activeStreamCount > 0 });
   // 合成流程独立模拟 owner 代次，不能冒称真实设备所有权。
   let syntheticGeneration = 0;
   const publishPlaybackEvents = createPlaybackEventPublisher(event => options.onEvent?.(event), { ...(options.playbackEventProtocol ? { protocol: options.playbackEventProtocol } : {}) });
   const playbackMetadata = () => ({ generation: syntheticGeneration, kind: 'full' as const });
   const readPlayback = () => publishPlaybackEvents.stamp(playbackState, playbackMetadata());
-  const publishPlayback = () => { publishPlaybackEvents(playbackState, playbackMetadata()); return readPlayback(); };
+  const publishPlayback = () => { syntheticScanReadAdmission.observe(); publishPlaybackEvents(playbackState, playbackMetadata()); return readPlayback(); };
   publishPlaybackEvents(playbackState, playbackMetadata());
   let syntheticVolume = 40;
   let selectedZoneId: string | undefined;
@@ -1644,12 +1670,16 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     performance: performanceTrace,
     ...(options.datasetOwnerEndpoint ? { datasetOwnerEndpoint: options.datasetOwnerEndpoint } : {}),
     getDatasetRoonLibrary: () => datasetRoonLibrary,
+    getDatasetScanReadAdmission: () => syntheticScanReadAdmission,
     async start() {
       datasetDomain?.commandOutbox.context();
       state = { ...state, runtime: 'ready', roon: 'ready' };
+      syntheticScanReadAdmission.observe();
       diagnostics.record({ component: 'core', level: 'info', event: 'core_ready', state: 'ready' });
     },
     async shutdown() {
+      // 先解决owner撤销watch再await其关闭；未确认quiet的票据仍由本体保留，不能伪造归零。
+      syntheticScanReadAdmission.close();
       try {
       await options.datasetOwnerEndpoint?.close();
       await datasetDomain?.close();
@@ -1688,6 +1718,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       authState = { status: 'idle' };
       accountState = { status: 'missing' };
       playbackState = emptyPlaybackState();
+      syntheticScanReadAdmission.observe();
       return state;
     },
     getAccountState: () => ({
@@ -1733,6 +1764,7 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
       authState = { status: 'idle' };
       accountState = { status: 'missing' };
       playbackState = emptyPlaybackState();
+      syntheticScanReadAdmission.observe();
       return { ...authState };
     },
     async searchTracks(query, page) {

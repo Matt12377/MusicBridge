@@ -1,0 +1,468 @@
+{
+  "schema": "mbrs003.digital-audio-scale-observation.v3",
+  "status": "FAILURE",
+  "rehearsal": false,
+  "maxMilliseconds": 64800000,
+  "count": 300000,
+  "scanElapsedMs": 16748811.268416999,
+  "independentPostHashElapsedMs": 86262.0725830011,
+  "sourcePreHashElapsedMs": 95864.989417,
+  "sourcePreChecks": {
+    "count": 300000,
+    "manifestSha256": "9218a391e404daf5ea704d2e45fd40a595ed60cf87b04c492b6a665393a8efb2",
+    "baseline": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-current-scale-results-06-01/result300k.json.source-precheck.jsonl",
+      "sha256": "a507ecc1e23a5e17f041c4cc3ac84c2025355fef05d586931508bfd0cca362a7"
+    },
+    "allBytesAndObjectsHeld": true,
+    "mtimeBoundary": "唯一本次自有复制品+2s，其它mtimeNs完全保持"
+  },
+  "sourcePostChecks": {
+    "count": 300000,
+    "manifestSha256": "9218a391e404daf5ea704d2e45fd40a595ed60cf87b04c492b6a665393a8efb2",
+    "baseline": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-current-scale-results-06-01/result300k.json.source-precheck.jsonl",
+      "sha256": "a507ecc1e23a5e17f041c4cc3ac84c2025355fef05d586931508bfd0cca362a7"
+    },
+    "allBytesAndObjectsHeld": true,
+    "mtimeBoundary": "唯一本次自有复制品+2s，其它mtimeNs完全保持"
+  },
+  "currentSourceFilesHeld": true,
+  "runtimeBindingReference": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-new-round300k-binding-preflight03-actual-01/FRESH_RUNTIME_BINDING_SCALE_SNAPSHOT05_FOR300K_PREPARED_01.json",
+    "bytes": 1080142,
+    "sha256": "8356000f24d645050c842215dcfb429b9bb880ed5e1c752b35b05d636517570a"
+  },
+  "runtimeSourceFilesDigest": "8a014fe4a18870b73b835e20592e6a4357566ed14f17480c9222a9269967a362",
+  "databaseDirectory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-current-scale300k-db-06-01",
+  "databaseDirectoryObject": {
+    "dev": 16777258,
+    "inode": 48119570
+  },
+  "sameRunToken": "c3183dcc-a4c3-4109-ba04-d4c6c2fde18c",
+  "ownMtimeChange": null,
+  "storage": {
+    "samples": 1816627,
+    "sqlite": {
+      "main": {
+        "name": "library.sqlite",
+        "peakLogicalBytes": 1618812928,
+        "peakAllocatedBytes": 1627455488,
+        "last": {
+          "state": "PRESENT",
+          "logicalBytes": 1618812928,
+          "allocatedBytes": 1627455488
+        }
+      },
+      "wal": {
+        "name": "library.sqlite-wal",
+        "peakLogicalBytes": 8330672,
+        "peakAllocatedBytes": 8392704,
+        "last": {
+          "state": "ABSENT",
+          "logicalBytes": 0,
+          "allocatedBytes": 0
+        }
+      },
+      "shm": {
+        "name": "library.sqlite-shm",
+        "peakLogicalBytes": 32768,
+        "peakAllocatedBytes": 32768,
+        "last": {
+          "state": "ABSENT",
+          "logicalBytes": 0,
+          "allocatedBytes": 0
+        }
+      }
+    },
+    "peakSqliteTotalLogicalBytes": 1626090928,
+    "peakSqliteTotalAllocatedBytes": 1635880960,
+    "outputAxes": {
+      "result": 0,
+      "progress": 272181,
+      "sourceBaseline": 20700000
+    },
+    "volumeAvailableBefore": 5398737858560,
+    "volumeAvailableAfter": 5369991598080,
+    "closeSnapshots": [
+      {
+        "label": "opened-context",
+        "sqliteTotalLogicalBytes": 1347056,
+        "sqliteTotalAllocatedBytes": 1347584,
+        "files": {
+          "main": {
+            "state": "PRESENT",
+            "logicalBytes": 4096,
+            "allocatedBytes": 4096
+          },
+          "wal": {
+            "state": "PRESENT",
+            "logicalBytes": 1310192,
+            "allocatedBytes": 1310720
+          },
+          "shm": {
+            "state": "PRESENT",
+            "logicalBytes": 32768,
+            "allocatedBytes": 32768
+          }
+        },
+        "volumeAvailableBytes": 5398737858560
+      },
+      {
+        "label": "after-quiet-close",
+        "sqliteTotalLogicalBytes": 3444736,
+        "sqliteTotalAllocatedBytes": 4259840,
+        "files": {
+          "main": {
+            "state": "PRESENT",
+            "logicalBytes": 3444736,
+            "allocatedBytes": 4259840
+          },
+          "wal": {
+            "state": "ABSENT",
+            "logicalBytes": 0,
+            "allocatedBytes": 0
+          },
+          "shm": {
+            "state": "ABSENT",
+            "logicalBytes": 0,
+            "allocatedBytes": 0
+          }
+        },
+        "volumeAvailableBytes": 5398735368192
+      },
+      {
+        "label": "opened-context",
+        "sqliteTotalLogicalBytes": 3477504,
+        "sqliteTotalAllocatedBytes": 4292608,
+        "files": {
+          "main": {
+            "state": "PRESENT",
+            "logicalBytes": 3444736,
+            "allocatedBytes": 4259840
+          },
+          "wal": {
+            "state": "PRESENT",
+            "logicalBytes": 0,
+            "allocatedBytes": 0
+          },
+          "shm": {
+            "state": "PRESENT",
+            "logicalBytes": 32768,
+            "allocatedBytes": 32768
+          }
+        },
+        "volumeAvailableBytes": 5398735335424
+      },
+      {
+        "label": "after-quiet-close",
+        "sqliteTotalLogicalBytes": 5623808,
+        "sqliteTotalAllocatedBytes": 6356992,
+        "files": {
+          "main": {
+            "state": "PRESENT",
+            "logicalBytes": 5623808,
+            "allocatedBytes": 6356992
+          },
+          "wal": {
+            "state": "ABSENT",
+            "logicalBytes": 0,
+            "allocatedBytes": 0
+          },
+          "shm": {
+            "state": "ABSENT",
+            "logicalBytes": 0,
+            "allocatedBytes": 0
+          }
+        },
+        "volumeAvailableBytes": 5398733250560
+      },
+      {
+        "label": "opened-context",
+        "sqliteTotalLogicalBytes": 5656576,
+        "sqliteTotalAllocatedBytes": 6389760,
+        "files": {
+          "main": {
+            "state": "PRESENT",
+            "logicalBytes": 5623808,
+            "allocatedBytes": 6356992
+          },
+          "wal": {
+            "state": "PRESENT",
+            "logicalBytes": 0,
+            "allocatedBytes": 0
+          },
+          "shm": {
+            "state": "PRESENT",
+            "logicalBytes": 32768,
+            "allocatedBytes": 32768
+          }
+        },
+        "volumeAvailableBytes": 5398732357632
+      },
+      {
+        "label": "after-quiet-close",
+        "sqliteTotalLogicalBytes": 1618812928,
+        "sqliteTotalAllocatedBytes": 1627455488,
+        "files": {
+          "main": {
+            "state": "PRESENT",
+            "logicalBytes": 1618812928,
+            "allocatedBytes": 1627455488
+          },
+          "wal": {
+            "state": "ABSENT",
+            "logicalBytes": 0,
+            "allocatedBytes": 0
+          },
+          "shm": {
+            "state": "ABSENT",
+            "logicalBytes": 0,
+            "allocatedBytes": 0
+          }
+        },
+        "volumeAvailableBytes": 5369954213888
+      },
+      {
+        "label": "terminal-before-result",
+        "sqliteTotalLogicalBytes": 1618812928,
+        "sqliteTotalAllocatedBytes": 1627455488,
+        "files": {
+          "main": {
+            "state": "PRESENT",
+            "logicalBytes": 1618812928,
+            "allocatedBytes": 1627455488
+          },
+          "wal": {
+            "state": "ABSENT",
+            "logicalBytes": 0,
+            "allocatedBytes": 0
+          },
+          "shm": {
+            "state": "ABSENT",
+            "logicalBytes": 0,
+            "allocatedBytes": 0
+          }
+        },
+        "volumeAvailableBytes": 5369991598080
+      }
+    ],
+    "failure": null,
+    "boundary": "1s与stage/close有限stat样本峰值，非连续峰值/SQL/全目录总磁盘；staging与registry/cache总量需Root独立FS证据"
+  },
+  "timedOut": false,
+  "safeError": {
+    "name": "AssertionError",
+    "code": "ERR_ASSERTION"
+  },
+  "metrics": {
+    "readerCalls": 300000,
+    "ok": 299975,
+    "failures": 25,
+    "wholeAudioHashFalse": 299975,
+    "wholeAudioDecodeFalse": 299975,
+    "bytesRead": 113690525,
+    "readCalls": 3299725,
+    "maxReadBytes": 220,
+    "maxBatch": 200,
+    "batches": 1505,
+    "preparedItems": 300800,
+    "reusedItems": 800,
+    "workerStarts": 300000,
+    "workerExits": 300000,
+    "fdReleased": 300000,
+    "peakReaderFD": 1,
+    "peakWorker": 1,
+    "peakRSS": 178634752,
+    "peakMainHeapUsed": 56135048,
+    "workerOnline": 299995,
+    "workerStartupMsSum": 4042634.463446527,
+    "workerStartupMsMax": 2728.6318330001086,
+    "workerLifetimeMsSum": 15648754.03647237,
+    "workerLifetimeMsMax": 7373.890374999959,
+    "preparedFrontierMaximum": 100,
+    "catalogPageMaximum": 0,
+    "catalogItems": 0,
+    "catalogPages": 0,
+    "stages": [
+      {
+        "name": "first-pause-after-real-committed-batches",
+        "elapsedMs": 22641.106457999995,
+        "jobId": "159596b9-9115-4a35-99d5-03c26af91d21",
+        "phase": "paused",
+        "progress": {
+          "visited": "400",
+          "accepted": "400",
+          "rejected": "0"
+        },
+        "jobRevision": "5",
+        "checkpointRef": "1aa59ccf-dddd-4e79-b27d-26953980849a",
+        "delta": {
+          "readerCalls": 400,
+          "ok": 400,
+          "failures": 0,
+          "wholeAudioHashFalse": 400,
+          "wholeAudioDecodeFalse": 400,
+          "bytesRead": 151600,
+          "readCalls": 4400,
+          "batches": 2,
+          "preparedItems": 400,
+          "reusedItems": 0,
+          "workerStarts": 400,
+          "workerExits": 400,
+          "fdReleased": 400,
+          "workerOnline": 400,
+          "workerStartupMsSum": 5742.8350459998765,
+          "workerLifetimeMsSum": 21615.981180999894,
+          "catalogItems": 0,
+          "catalogPages": 0
+        },
+        "peaksCumulative": {
+          "rss": 147406848,
+          "mainHeapUsed": 28840576,
+          "readerFD": 1,
+          "workers": 1
+        }
+      },
+      {
+        "name": "cold-reopen-explicit-resume-then-terminal-cancel",
+        "elapsedMs": 22036.788333999983,
+        "jobId": "159596b9-9115-4a35-99d5-03c26af91d21",
+        "phase": "cancelled",
+        "progress": {
+          "visited": "800",
+          "accepted": "800",
+          "rejected": "0"
+        },
+        "jobRevision": "9",
+        "checkpointRef": "edfa769c-5eb3-4799-ab4d-cb435d26cb7a",
+        "delta": {
+          "readerCalls": 400,
+          "ok": 400,
+          "failures": 0,
+          "wholeAudioHashFalse": 400,
+          "wholeAudioDecodeFalse": 400,
+          "bytesRead": 151600,
+          "readCalls": 4400,
+          "batches": 2,
+          "preparedItems": 400,
+          "reusedItems": 0,
+          "workerStarts": 400,
+          "workerExits": 400,
+          "fdReleased": 400,
+          "workerOnline": 400,
+          "workerStartupMsSum": 5520.322415999923,
+          "workerLifetimeMsSum": 21174.159743000055,
+          "catalogItems": 0,
+          "catalogPages": 0
+        },
+        "peaksCumulative": {
+          "rss": 160186368,
+          "mainHeapUsed": 31901832,
+          "readerFD": 1,
+          "workers": 1
+        }
+      },
+      {
+        "name": "new-job-after-cancel-completes-first-corpus",
+        "elapsedMs": 16700798.699666,
+        "jobId": "72f357c0-88b1-4cae-964b-8d57a6fecb1f",
+        "phase": "completed",
+        "progress": {
+          "visited": "300000",
+          "accepted": "299975",
+          "rejected": "25"
+        },
+        "jobRevision": "1503",
+        "checkpointRef": "b76a793e-2ab7-4b08-99c3-a82f42470046",
+        "delta": {
+          "readerCalls": 299200,
+          "ok": 299175,
+          "failures": 25,
+          "wholeAudioHashFalse": 299175,
+          "wholeAudioDecodeFalse": 299175,
+          "bytesRead": 113387325,
+          "readCalls": 3290925,
+          "batches": 1501,
+          "preparedItems": 300000,
+          "reusedItems": 800,
+          "workerStarts": 299200,
+          "workerExits": 299200,
+          "fdReleased": 299200,
+          "workerOnline": 299195,
+          "workerStartupMsSum": 4031371.305984527,
+          "workerLifetimeMsSum": 15605963.895548372,
+          "catalogItems": 0,
+          "catalogPages": 0
+        },
+        "peaksCumulative": {
+          "rss": 178634752,
+          "mainHeapUsed": 56135048,
+          "readerFD": 1,
+          "workers": 1
+        }
+      }
+    ],
+    "catalogIdentityTimings": [],
+    "quietCloses": [
+      {
+        "stage": "first-pause-after-real-committed-batches",
+        "coordinatorJoined": true,
+        "contextClosed": true,
+        "coordinatorJoinMs": 0.07850000000325963,
+        "contextCloseMs": 1.6086660000000848
+      },
+      {
+        "stage": "cold-reopen-explicit-resume-then-terminal-cancel",
+        "coordinatorJoined": true,
+        "contextClosed": true,
+        "coordinatorJoinMs": 0.014082999987294897,
+        "contextCloseMs": 4.7539580000157
+      },
+      {
+        "stage": "new-job-after-cancel-completes-first-corpus",
+        "coordinatorJoined": true,
+        "contextClosed": true,
+        "coordinatorJoinMs": 0.08179200068116188,
+        "contextCloseMs": 41.8537090010941
+      }
+    ],
+    "cancelledColdPersistence": {
+      "jobId": "159596b9-9115-4a35-99d5-03c26af91d21",
+      "commandId": "6249de31-80ed-4cda-8316-1311e0091126",
+      "jobExact": true,
+      "receiptExact": true,
+      "checkpointExact": true,
+      "noAutomaticRead": true
+    },
+    "newJobAfterCancel": {
+      "jobId": "72f357c0-88b1-4cae-964b-8d57a6fecb1f",
+      "previousJobId": "159596b9-9115-4a35-99d5-03c26af91d21",
+      "different": true
+    }
+  },
+  "timingBoundary": {
+    "runtimeBudgetMs": 64800000,
+    "catalogIdentityElapsedMs": 0,
+    "invocationWallToResultAssemblyMs": 16931305.593917,
+    "aggregateRuntimeExcludingCatalogIdentityMs": 16748811.268416999,
+    "aggregateIncludes": "context/cold audit/scan/commit/control/close and catalog identity; not pure Reader time",
+    "excludes": "binding/hash/import before started; postSHA; final output write/close",
+    "budgetScope": "timer from before initial context open until scan/control closure; synchronous DB can delay timer; postSHA after clearTimeout",
+    "externalProcessWallMs": "UNKNOWN_ROOT_GATE_MUST_CAPTURE",
+    "externalTerminationSignal": "UNKNOWN_ROOT_GATE_MUST_CAPTURE"
+  },
+  "lifecycleFailure": null,
+  "evidenceBoundary": {
+    "mainRSS": "同进程所有线程RSS；不是owner独立进程峰值",
+    "mainHeap": "主线程heap，非worker heap",
+    "FD": "逐生命周期Reader FD exact峰值；非系统所有FD",
+    "workers": "Reader实际Worker峰值",
+    "renderer": "Repository分页；Renderer/App NOT_RUN",
+    "wholeHash": "生产metadata readEvidence全false；独立前后合成夹具SHA不计入metadata行为",
+    "mediaPriority": "真实admission本体+空闲控制；不证明Controller/Gateway busy",
+    "cue": "当前默认CUE依赖闭集，但纯WAV负载没有CUE item，非CUE规模",
+    "snapshot": "只覆盖Root新冻结当前source snapshot，不是旧04恢复/重试",
+    "storage": "仅SQLite main/WAL/SHM有限stat、结果轴与卷余量；不是总磁盘或连续真实峰值"
+  }
+}

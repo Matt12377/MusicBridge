@@ -206,6 +206,7 @@ export class StreamGateway {
   private server: Server | undefined;
   private readonly stageObservers = new Map<string, GatewayStageObserver>();
   private activeTimerCount = 0;
+  private activeMediaReadCount = 0;
   private activePreflightOwnerListenerCount = 0;
 
   constructor(
@@ -216,10 +217,25 @@ export class StreamGateway {
       registry: StreamRegistry;
       logger: Logger;
       fetcher?: GatewayFetch;
+      /** 真实上游读取生命周期通知；不是token注册量或公开播放状态。 */
+      onMediaReadActivityChanged?: () => void;
       preflightTimeoutMs?: number;
       remoteDevelopmentMode?: boolean;
     },
   ) {}
+
+  getActiveMediaReadCount(): number { return this.activeMediaReadCount; }
+
+  private beginMediaRead(): () => void {
+    ++this.activeMediaReadCount;
+    const notify = (): void => {
+      try { this.options.onMediaReadActivityChanged?.(); }
+      catch { this.options.logger.warn('scan_media_activity_listener_failed', {}); }
+    };
+    notify();
+    let released = false;
+    return () => { if (!released) { released = true; --this.activeMediaReadCount; notify(); } };
+  }
 
   async start(): Promise<void> {
     if (this.server) return;
@@ -308,6 +324,7 @@ export class StreamGateway {
       this.options.preflightTimeoutMs ?? DEFAULT_PREFLIGHT_TIMEOUT_MS,
     );
 
+    const releaseMediaRead = this.beginMediaRead();
     try {
       const fetcher = this.options.fetcher ?? secureGatewayFetch;
       if (ownerSignal?.aborted) throw cancelled();
@@ -337,6 +354,7 @@ export class StreamGateway {
       }
       throw preflightFailure(error);
     } finally {
+      releaseMediaRead();
       if (ownerSignal) {
         ownerSignal.removeEventListener('abort', abortForOwner);
         this.activePreflightOwnerListenerCount = Math.max(0, this.activePreflightOwnerListenerCount - 1);
@@ -474,6 +492,7 @@ export class StreamGateway {
     let upstreamBodyErrored = false;
     let clientAbortBeforeUpstreamBodyError = false;
     let bytesForwarded = 0;
+    let releaseMediaRead: (() => void) | undefined;
 
     const onRequestAborted = (): void => {
       if (!upstreamBodyErrored) clientAbortBeforeUpstreamBodyError = true;
@@ -493,6 +512,7 @@ export class StreamGateway {
 
     try {
       const registration = this.options.registry.get(token);
+      releaseMediaRead = this.beginMediaRead();
       let resolved = await registration.resolve();
       const range = request.headers.range;
       const ifRangeValue = request.headers['if-range'];
@@ -626,6 +646,7 @@ export class StreamGateway {
       }
       throw error;
     } finally {
+      releaseMediaRead?.();
       request.off('aborted', onRequestAborted);
       response.off('finish', onResponseFinish);
       response.off('close', onResponseClose);

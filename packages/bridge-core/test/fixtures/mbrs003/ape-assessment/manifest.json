@@ -1,0 +1,72 @@
+{
+  "schema": "mbrs003.synthetic-ape-assessment-portable.v1",
+  "synthetic": true,
+  "fixture": {
+    "file": "silence_mono8k.ape",
+    "bytes": 174,
+    "sha256": "e49c9f3a28587d9f10644d64a72e047432249a8b3a8ff34f2c8f61fe4c07ba1c",
+    "gitBlobSHA1": "1591dafc45d63e2136029e8d760d97dd1f7d4989",
+    "expectedCurrentReader": {
+      "status": "failure",
+      "code": "UNSUPPORTED"
+    }
+  },
+  "source": {
+    "repository": "https://github.com/OxideAV/oxideav-ape",
+    "relativePath": "tests/fixtures/silence_mono8k.ape",
+    "treeSHA": "ea6e8ca2848b18716a49ca6de0fe4d8d26d4893a",
+    "gitBlobSHA1": "1591dafc45d63e2136029e8d760d97dd1f7d4989",
+    "immutableGitBlobURL": "https://api.github.com/repos/OxideAV/oxideav-ape/git/blobs/1591dafc45d63e2136029e8d760d97dd1f7d4989",
+    "authorSyntheticProvenance": "作者测试工程生成PCM；参考Monkey’s Audio console encoder v13.18/file version3990黑盒完整编码；level1000、0.2秒、单声道8kHz静音。",
+    "authorVendorFixtureSource": {
+      "rootOriginal": "mbrs003-root-ape-finite-assessment-01/AUTHOR_VENDOR_FIXTURE_TEST_TEXT_01.rs",
+      "bytes": 19023,
+      "sha256": "fe5f4b9772f0797d0e5811a5ffa9cf315fdb02dbe1bb7854865f19535bfee8ba"
+    }
+  },
+  "license": {
+    "copyright": "Copyright (c) 2026 Karpelès Lab Inc.",
+    "license": "MIT",
+    "inference": "作者工程自生成测试夹具按仓库MIT处理；同一tree未观察到单独夹具许可条目，不宣称独立法律确认或第三方音乐许可。"
+  },
+  "documents": [
+    {
+      "file": "LICENSE-MIT.txt",
+      "bytes": 1075,
+      "sha256": "4ecae6b086e0d2663c8629e7d3d7ab7d8b39958e8853f9e1371159499a0c3bf2"
+    },
+    {
+      "file": "NOTICE.md",
+      "bytes": 2530,
+      "sha256": "cb5ff406d9096afc1a495281c218f91d5abd0541c7ba78490caadee0620f5b33"
+    }
+  ],
+  "rootActualCompleteness": {
+    "receipt": {
+      "path": "mbrs003-root-ape-finite-assessment-01/SINGLE_APE_PROBE_DECODE_ACTUAL_RECEIPT_01.json",
+      "bytes": 4494,
+      "sha256": "f2136143369df31948def289af570e3dc1f93673ee45cadae8b23598a022ac93"
+    },
+    "gateResult": {
+      "path": "gates/mbrs003-first-single-ape-complete-probe-decode-01/result.json",
+      "bytes": 888,
+      "sha256": "514ad3b3f57e1bf8ec36aa0796b4ab8ddc51d56d9374f6945661a91a19efef23"
+    },
+    "probeExit": 0,
+    "decodeExit": 0,
+    "gateExit": 0,
+    "attempt": 1,
+    "retry": 0,
+    "timeoutPerCommandSeconds": 20,
+    "sampleRateHz": 8000,
+    "channels": 1,
+    "bitsPerSample": 16,
+    "sampleCount": 1600,
+    "durationSeconds": 0.2,
+    "decodedPCMBytes": 3200,
+    "decodedPCMSHA256": "5a312281df4bd8dfbb4d4a94ad0bf44d01bb8cfced1206b90e21b4ca0568cdb1",
+    "decodedPCMCRC32": "CB7B98A6",
+    "productReaderWasRun": false
+  },
+  "assessment": "仅默认Reader负向格式评估；无Scanner/产品正向APE支持、全Hash/解码/标签/封面或真实媒体priority证明。"
+}

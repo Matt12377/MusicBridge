@@ -1,3 +1,6 @@
+import {createLocalRelocationCoordinator} from './local-relocation-coordinator.js';
+import { createLocalScanCoordinator } from './local-scan-coordinator.js';
+import type { MetadataReaderPort } from '../library/metadata-reader-types.js';
 import { createRecordingPrintCoordinator } from '../recording/print-coordinator.js';
 import { createRecordingReplicaInput } from '../recording/replica-input.js';
 import { createReplicaDeviceSessionCoordinator } from '../recording/replica-device-session.js';
@@ -64,6 +67,7 @@ export interface DatasetDomainOptions {
   failureForError?: typeof failureForError;
 }
 export interface TestDatasetDomainOptions extends Partial<Omit<DatasetDomainOptions, 'projection'>> {
+  scanMetadataReader?: MetadataReaderPort;
   /** 合成注入仅供明确测试工厂；生产工厂没有这些字段。 */
   recordingAttemptAdmissionProvider?: RecordingAttemptAdmissionProvider;
   recordingPlanDeviceSelection?: RecordingDeviceSelectionBroker;
@@ -103,9 +107,13 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const assertDataset = () => identity.assertCurrent();
   const assertOpen = () => { if (closing) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库正在关闭，请重新读取当前状态。'); assertDataset(); };
   const pendingDispatches = new Set<Promise<unknown>>();
+  let scanBootReady=!options.commitBoot;
+  const localScan=createLocalScanCoordinator({repository:collection,datasetId:identity.datasetId,assertCurrent:assertDataset,assertReady:()=>{if(!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE','扫描owner尚未commitBoot。');},
+    ...(options.projection ? {projection:options.projection}:{}),...(test?.scanMetadataReader ? {reader:test.scanMetadataReader}:{})});
   // BackupCoordinator仍使用唯一原store的方法与事务；其close只提出关闭请求。
   // domain必须等录音清理、激活/文件回调及在途dispatch收口后，才真正关闭维护库连接。
   const maintenanceForCoordinator: BackupWorkflowStore = { ...maintenance, close() {} };
+  const localRelocation=createLocalRelocationCoordinator({repository:collection,assertCurrent:assertDataset,assertReady:()=>{if(!scanBootReady)throw new CollectionError('INVENTORY_UNAVAILABLE','owner尚未commitBoot。');},beforeMutation:()=>localScan.yieldForMedia()});
   const backups = createBackupCoordinator({ store: maintenanceForCoordinator, repository: collection, ...(options.backupPrivateRoot ? { privateRoot: options.backupPrivateRoot } : {}), ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) });
   const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts, validateAuthorization: root => assertSourceOutsideArchives(root.path, collection.archive) });
   const sourceCandidates = createSourceCandidateService({ store: collection.sources, drafts: collection.drafts, sources });
@@ -143,7 +151,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const physicalLinks = projection ? createProjectedPhysicalLinksCoordinator({ repository: collection.links, projection, assertCurrent: assertOpen }) : createPhysicalLinksCoordinator({ repository: collection.links, library: library! });
   const masterDrafts = projection ? createProjectedMasterDraftsCoordinator({ repository: collection.drafts, projection, assertCurrent: assertOpen }) : createMasterDraftsCoordinator({ repository: collection.drafts, library: library! });
   const domain: DatasetDomain = {
-    datasetId: identity.datasetId, collection, commandOutbox, sources, sourceCandidates, mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, backups, archive,
+    datasetId: identity.datasetId, collection, localScan, localRelocation, commandOutbox, sources, sourceCandidates, mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, backups, archive,
     ...(recordingDeviceSelection ? { recordingDeviceSelection } : {}), recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingPrints, recordingReplica, physicalLinks, masterDrafts, assertOpen,
     dispatch(request) {
       const pending = dispatchDatasetCommand(domain, request);
@@ -155,7 +163,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       pendingDispatches.add(pending);
       return pending.finally(() => pendingDispatches.delete(pending));
     },
-    commitBoot() { assertOpen(); return options.commitBoot?.(); },
+    async commitBoot() { assertOpen();await options.commitBoot?.();scanBootReady=true; },
     readonlySnapshotStamp() {
       assertOpen();
       const stamp = collection.readonlySnapshotStamp();
@@ -185,6 +193,8 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
         await stop(() => recordingReplica.close()); await stop(() => recordingPrints.close()); await stop(() => recordingRecords.close()); await stop(() => recordingAttempts.close());
         await stop(() => recordingDeviceSelection?.close()); await stop(() => recordingOutput.close()); await stop(() => recordingPlans.close());
         await stop(() => backups.close()); await stop(() => archive.close()); await stop(() => execution.close()); await stop(() => prepared.close()); await stop(() => preparationZips.close()); await stop(() => preparation.close()); await stop(() => masterVersions.close());
+        await stop(() => localScan.close());
+        await stop(() => localRelocation.close());
         await stop(() => sourceCandidates.close()); await stop(() => sources.close());
         await Promise.allSettled([...pendingDispatches]);
         await stop(() => beforeConnectionClose?.());
@@ -208,6 +218,8 @@ export interface OwnedDatasetDomainOptions {
   dataDirectory: string;
   epoch: string;
   testMode?: boolean;
+  /** 仅真实worker测试传入有lifecycle观测的真实Reader，不来自公开IPC。 */
+  scanMetadataReader?: MetadataReaderPort;
   projection: DatasetProjectionPort;
   recordingDependencies?: {
     recordingConverter?: FfmpegConverter;
@@ -236,6 +248,6 @@ export async function prepareOwnedDatasetDomain(options: OwnedDatasetDomainOptio
       projection: options.projection, commitBoot: dataset.commit, closeConnections: () => { dataset.fail(); dataset.close(); }, ...(options.failureForError ? { failureForError: options.failureForError } : {}),
     };
     // 测试模式仅禁用设备准入，不从环境或IPC取得合成provider资格。
-    return options.testMode ? composeDatasetDomain(common, {}) : createDatasetDomain(common);
+    return options.testMode ? composeDatasetDomain(common, { ...(options.scanMetadataReader ? {scanMetadataReader:options.scanMetadataReader}:{}) }) : createDatasetDomain(common);
   } catch (error) { dataset.fail(); dataset.close(); throw error; }
 }

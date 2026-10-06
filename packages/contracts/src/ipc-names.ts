@@ -1,7 +1,11 @@
+import {LOCAL_RELOCATION_COMMANDS} from './local-relocation.js';
+import { LOCAL_SCAN_COMMANDS } from './local-scan.js';
 import { LOCAL_CATALOG_COMMANDS } from './local-catalog.js';
 // IPC 名称白名单独立于业务结果与诊断合同，避免互相依赖。
 export const IPC_COMMANDS = [
   ...LOCAL_CATALOG_COMMANDS,
+  ...LOCAL_SCAN_COMMANDS,
+  ...LOCAL_RELOCATION_COMMANDS,
   'localCatalog.prepare',
   'spreadsheetImports.sources',
   'spreadsheetImports.source',

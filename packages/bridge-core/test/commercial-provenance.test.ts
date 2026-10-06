@@ -57,7 +57,7 @@ test('23→24只加逐件与未知历史标记；旧发行原文、照片字节�
   assert.equal(history.total, 1)
   assert.deepEqual({ kind: history.items[0]?.kind, occurredAt: history.items[0]?.occurredAt, evidence: history.items[0]?.evidence }, { kind: 'historical-unknown', occurredAt: null, evidence: undefined })
   const after = at(filePath)
-  assert.equal(after.prepare('PRAGMA user_version').get()?.user_version, 31)
+  assert.equal(after.prepare('PRAGMA user_version').get()?.user_version, 32)
   assert.deepEqual(oldRows(after, created.id), before)
   assert.deepEqual(after.prepare('PRAGMA foreign_key_check').all(), [])
   after.close()

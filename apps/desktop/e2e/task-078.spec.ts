@@ -289,7 +289,7 @@ test('V3同数据集7盘：幂等Completed、Replica历史核验、真实J-Card�
     await expect(page.evaluate(request => window.musicBridge.startRecordingReplica(request), { runId, recordingId, target: 'actual-execution' as const, side: 'A' as const, expectedFingerprint: inspection.fingerprint, userConfirmed: true as const })).rejects.toThrow(/NOT_READY/u)
     expect(await page.evaluate(id => window.musicBridge.getRecordingReplicaRun(id), runId)).toEqual({ run: null })
     const stableFacts = await databaseFacts(database)
-    expect(stableFacts.schema).toBe(31)
+    expect(stableFacts.schema).toBe(32)
 
     const backupDirectory = path.join(directory, '完整备份'), restoreDirectory = path.join(directory, '隔离恢复')
     await mkdir(backupDirectory); await mkdir(restoreDirectory)

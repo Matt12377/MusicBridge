@@ -78,7 +78,7 @@ function assertLegacyFacts(actual: ReturnType<typeof inspectLegacy>, expected: F
   // 前面的deepEqual覆盖5行的全部6列；这里额外固定真实账本形状。
 }
 
-test('MBRS002 schema30实际迁移：旧型号批次账本保留且升级31', async t => {
+test('MBRS002 schema30实际迁移：旧型号批次账本保留且升级32', async t => {
   assert.equal(process.versions.node.split('.')[0], '22', '此夹具准入使用Node22');
   const temporaryRoot = process.env.TMPDIR;
   assert.ok(temporaryRoot && path.isAbsolute(temporaryRoot), 'root必须提供批准的私有TMPDIR');
@@ -142,6 +142,6 @@ test('MBRS002 schema30实际迁移：旧型号批次账本保留且升级31', as
   assert.equal(hash(await readFile(factsFile)), pinned.factsSha256);
   assert.equal(hash(await readFile(provenanceFile)), pinned.provenanceSha256);
 
-  // 唯一目标断言：旧实现实际为30；新schema31实现应在真实首次读取时迁移。
-  assert.equal(after.userVersion, 31, '现有Repository应将固定schema30副本迁移到31');
+  // 固定输入仍为30；当前实现应在真实首次读取时完整迁移到32。
+  assert.equal(after.userVersion, 32, '现有Repository应将固定schema30副本迁移到32');
 });

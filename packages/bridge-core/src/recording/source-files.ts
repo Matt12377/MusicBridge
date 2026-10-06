@@ -152,6 +152,45 @@ export async function sourceFileAvailability(root: RootCapability, relative: str
   try { return signature((await checkedFile(root, relative)).info) === expected ? 'ONLINE' : 'CONTENT_CHANGED'; }
   catch (error) { const code = error instanceof SourceFileError ? error.code : 'IO_ERROR'; return code === 'REVOKED' || code === 'SOURCE_ROOT_OFFLINE' || code === 'MISSING' ? code : 'CONTENT_CHANGED'; }
 }
+export class MetadataLeaseReleaseError extends Error { constructor() { super('元数据只读租期的句柄关闭未确认。'); } }
+export interface MetadataSourceLeaseEvent { type: 'lease-acquired' | 'lease-released'; fd: number }
+/** 标签扫描的stat身份租期：不全Hash、不调用旧录音技术探测；消费必须先join实际worker。 */
+export async function withCheckedReadonlyMetadataSource<T>(root: RootCapability, relative: string, expectedSignature: string, signal: AbortSignal,
+  consume: (handle: FileHandle, size: number) => Promise<T>, assertCurrent?: () => void,
+  onLeaseEvent?: (event: MetadataSourceLeaseEvent) => void): Promise<T> {
+  const check = (): void => { assertCurrent?.(); if (signal.aborted) fail('CANCELLED'); };
+  check();
+  if (relative.includes('\0') || relative.length > 4096) return fail('OUTSIDE_ROOT');
+  const first = await checkedFile(root,relative); check();
+  if (typeof expectedSignature !== 'string' || expectedSignature.length > 256 || signature(first.info) !== expectedSignature) return fail('CONTENT_CHANGED');
+  if (first.info.nlink !== 1n) return fail('OUTSIDE_ROOT');
+  if (first.info.size < 1n || first.info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
+  const handle = await open(first.absolute,constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR'));
+  const fd = handle.fd;
+  const emit = (type: MetadataSourceLeaseEvent['type']): void => { try { onLeaseEvent?.({type,fd}); } catch { /* 观察者不能阻止关闭。 */ } };
+  try {
+    emit('lease-acquired');
+    const before = await handle.stat({bigint:true});
+    const verify = async (): Promise<void> => {
+      const opened = await handle.stat({bigint:true}), named = await checkedFile(root,relative);
+      if (opened.nlink !== 1n || named.info.nlink !== 1n || signature(opened) !== expectedSignature || signature(named.info) !== expectedSignature
+        || JSON.stringify(named.directoryIds) !== JSON.stringify(first.directoryIds)) return fail('CONTENT_CHANGED');
+    };
+    if (signature(before) !== expectedSignature) return fail('CONTENT_CHANGED');
+    await verify(); check();
+    let value: T | undefined, caught = false, originalError: unknown;
+    try { value = await consume(handle,Number(before.size)); }
+    catch (error) { caught = true; originalError = error; }
+    // 取消/解析失败也等consume实际终结之后重核，不race释放仍在使用的FD。
+    await verify(); assertCurrent?.();
+    if (caught) throw originalError;
+    check(); return value as T;
+  } finally {
+    try { await handle.close(); }
+    catch { throw new MetadataLeaseReleaseError(); }
+    emit('lease-released');
+  }
+}
 /** Core 内部只读句柄租期：完整 Hash 后读取，结束时重核文件与授权身份；不公开句柄或路径。 */
 export async function withVerifiedReadonlySource<T>(root: RootCapability, relative: string, expected: { sha256: string; size: number }, signal: AbortSignal, consume: (handle: FileHandle, check: () => void) => Promise<T>, checkOperation: () => void = () => undefined): Promise<T> {
   const deadline = Date.now() + 15 * 60_000;

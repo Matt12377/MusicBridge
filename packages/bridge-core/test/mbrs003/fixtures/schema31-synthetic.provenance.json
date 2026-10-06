@@ -1,0 +1,60 @@
+{
+  "synthetic": true,
+  "fixtureSchemaVersion": 31,
+  "originBase": "a7b27b5b6a5168bd146a3cbe61b579efd5639263",
+  "node": "v22.23.2",
+  "producerScript": {
+    "bytes": 18268,
+    "sha256": "b8594fc3396b284348644fa85a7e3b18d7f8717142b75f07b697db5faf3c3a31"
+  },
+  "producerInputIdentity": {
+    "bytes": 71449,
+    "sha256": "df36e05b70dc50286aaac12c16593edbbfd03a6fbf4edf129d6f78fb0b003d22"
+  },
+  "sourceFixtures": [
+    {
+      "file": "schema30-nonempty-legacy.sqlite",
+      "bytes": 1228800,
+      "sha256": "5205a95ec06f1d10b87b31731c6d0295dee156ed06567dc7bc9f912d4117da62"
+    },
+    {
+      "file": "schema30-nonempty-full-facts.json",
+      "bytes": 323581,
+      "sha256": "12d87c78f17a2e52251010aaebfe1fbc0ddbe08d3e8fb93d18f4617d18e01154"
+    },
+    {
+      "file": "schema30-nonempty-cold-api.json",
+      "bytes": 120642,
+      "sha256": "f759add15de51f919dedbe413aded78796e6a743ad3c25e2d02aa73037b8fdaa"
+    },
+    {
+      "file": "schema30-nonempty-legacy.provenance.json",
+      "bytes": 1905,
+      "sha256": "5c21e9398f406f758f5669e2c866e26700f89cf5cc071d7fe5e3c2ea638ac48e"
+    }
+  ],
+  "files": [
+    {
+      "file": "schema31-nonempty-local.sqlite",
+      "bytes": 1323008,
+      "sha256": "cff9762879a3f678715f07cd866fc20e4e1deb26c364b1fdd930f1ac29112fb6"
+    },
+    {
+      "file": "schema31-full-facts.json",
+      "bytes": 524520,
+      "sha256": "4ab53a237f9df7d1e14251e20b2e9837a566551e8dafbb4ce54c951ee7ccf5eb"
+    },
+    {
+      "file": "schema31-cold-api.json",
+      "bytes": 278451,
+      "sha256": "afe50fdac7d23d4ba47da54f1da9d96b86abcbae3883795b4f91a9bc7ffe0a89"
+    }
+  ],
+  "wholeTables": 111,
+  "oldLegacyApiObjects": 13,
+  "localCatalogCommandReceipts": 10,
+  "evidence": "真实旧API自然30→31后以旧catalog API新增合成授权/资产/whole+segment/raw/manual/edition/link；无媒体或parser执行",
+  "preparedLegacyManual": "EMPTY_NOT_COVERED",
+  "queue": "NOT_COVERED",
+  "privateSourceRoot": "合成空目录，不复制用户根"
+}

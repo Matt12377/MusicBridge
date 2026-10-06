@@ -1,3 +1,5 @@
+import {isLocalRelocationConfirm,isLocalRootRelink,isLocalRelocationCommandResult} from './local-relocation.js';
+import type {LibraryRoot} from './local-catalog.js';
 import { LOCAL_CATALOG_OUTBOX_COMMANDS, isLocalCatalogCommandPayload, isLocalCatalogCommandResult, type LocalCatalogCommandPayloads, type LocalCatalogCommandResults } from './local-catalog.js';
 import { isFreezeRecordingPlanRequest, isRecordingPlanVersion } from './recording-plans.js';
 import { isChooseSpreadsheetWorkbookRequest, isSpreadsheetWorkbookSource, isApplySpreadsheetImportRequest, isSpreadsheetImportResult, isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment, type ChooseSpreadsheetWorkbookRequest, type SpreadsheetWorkbookSource } from './spreadsheet-import.js';
@@ -27,6 +29,7 @@ import { isActivateRestoredDataset, isRestoreActivationView, type ActivateRestor
 /** 只允许原有公开领域写命令，不能从任意 IPC 名称推导重放权限。 */
 export const COMMAND_OUTBOX_COMMANDS = [
   ...LOCAL_CATALOG_OUTBOX_COMMANDS,
+  'localRelocation.confirm','localRelocation.relinkRoot',
   'collectionProgress.saveWant', 'collectionProgress.cancelWant', 'collectionProgress.capture',
   'spreadsheetImports.apply', 'spreadsheetImports.adjust',
   'referenceCatalog.registerSource', 'referenceCatalog.registerSourceZip', 'referenceCatalog.publishRevision', 'referenceCatalog.setMatch',
@@ -47,6 +50,7 @@ export const COMMAND_OUTBOX_COMMANDS = [
   'recordingBackups.start', 'recordingBackups.cancel', 'recordingBackups.revoke',
 ] as const;
 export const COMMAND_OUTBOX_SPECIAL_COMMANDS = [
+  'localLibrary.chooseRoot',
   'spreadsheetImports.chooseWorkbook',
   'recordingSources.chooseRoot', 'recordingSources.choose', 'recordingPreparation.chooseDestination',
   'recordingPrepared.choose', 'recordingArchive.choose', 'recordingBackups.choose', 'recordingBackups.activate',
@@ -56,6 +60,8 @@ export type CommandOutboxSpecialCommand = typeof COMMAND_OUTBOX_SPECIAL_COMMANDS
 export type CommandOutboxTrackedCommand = CommandOutboxCommand | CommandOutboxSpecialCommand;
 /** 复用叶级领域验证器；不反向导入总 IPC validator，避免运行时模块循环。 */
 const ordinaryValidators = {
+  'localRelocation.confirm':[isLocalRelocationConfirm,(v:unknown):v is import('./local-catalog.js').AudioAsset=>isLocalRelocationCommandResult('localRelocation.confirm',v)],
+  'localRelocation.relinkRoot':[isLocalRootRelink,(v:unknown):v is LibraryRoot=>isLocalRelocationCommandResult('localRelocation.relinkRoot',v)],
   'localCatalog.createTrack': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.createTrack'] => isLocalCatalogCommandPayload('localCatalog.createTrack', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.createTrack'] => isLocalCatalogCommandResult('localCatalog.createTrack', v)],
   'localCatalog.selectAsset': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.selectAsset'] => isLocalCatalogCommandPayload('localCatalog.selectAsset', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.selectAsset'] => isLocalCatalogCommandResult('localCatalog.selectAsset', v)],
   'localCatalog.createEdition': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.createEdition'] => isLocalCatalogCommandPayload('localCatalog.createEdition', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.createEdition'] => isLocalCatalogCommandResult('localCatalog.createEdition', v)],
@@ -130,6 +136,7 @@ type Guarded<F> = F extends (value: unknown) => value is infer V ? V : never;
 export type CommandOutboxExecute = { [C in CommandOutboxCommand]: { datasetId: string; command: C; payload: Guarded<typeof ordinaryValidators[C][0]> } }[CommandOutboxCommand];
 export type CommandOutboxResult = { [C in CommandOutboxCommand]: { command: C; result: Guarded<typeof ordinaryValidators[C][1]> } }[CommandOutboxCommand];
 export interface CommandOutboxSpecialPayloads {
+  'localLibrary.chooseRoot':{commandId:string};
   'spreadsheetImports.chooseWorkbook': ChooseSpreadsheetWorkbookRequest;
   'recordingSources.chooseRoot': { commandId: string };
   'recordingSources.choose': SourceSelection;
@@ -140,6 +147,7 @@ export interface CommandOutboxSpecialPayloads {
   'recordingBackups.activate': ActivateRestoredDataset;
 }
 export interface CommandOutboxSpecialResults {
+  'localLibrary.chooseRoot':LibraryRoot|null;
   'spreadsheetImports.chooseWorkbook': SpreadsheetWorkbookSource | null;
   'recordingSources.chooseRoot': SourceRoot | null;
   'recordingSources.choose': SourceJob | null;
@@ -202,6 +210,7 @@ export function isCommandOutboxRequest(v: unknown): v is CommandOutboxRequest {
   if (!envelope(v)) return false;
   if (isCommandOutboxCommand(v.command)) return isCommandOutboxExecute(v);
   switch (v.command) {
+    case 'localLibrary.chooseRoot': return record(v.payload) && Reflect.ownKeys(v.payload).length===1 && Object.prototype.propertyIsEnumerable.call(v.payload,'commandId') && isCollectionId(v.payload.commandId);
     case 'recordingSources.chooseRoot': case 'recordingPreparation.chooseDestination': case 'recordingArchive.choose': return record(v.payload) && keys(v.payload, ['commandId']);
     case 'recordingSources.choose': return isSourceSelection(v.payload);
     case 'recordingPrepared.choose': return isSelectPreparedRequest(v.payload);
@@ -219,6 +228,7 @@ export function isCommandOutboxDispatchResult(v: unknown): v is CommandOutboxDis
   if (!record(v) || !keys(v, ['command', 'result'])) return false;
   if (isCommandOutboxCommand(v.command)) return isCommandOutboxResult(v);
   switch (v.command) {
+    case 'localLibrary.chooseRoot': return v.result===null || isLocalRelocationCommandResult('localRelocation.registerRoot',v.result);
     case 'recordingSources.chooseRoot': return v.result === null || isSourceRoot(v.result);
     case 'recordingSources.choose': return v.result === null || isSourceJob(v.result);
     case 'recordingPreparation.chooseDestination': return v.result === null || isPreparationDestination(v.result);

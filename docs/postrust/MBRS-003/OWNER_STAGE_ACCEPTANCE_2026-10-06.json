@@ -1,0 +1,69 @@
+{
+  "schema": "mbrs003.owner-stage-scale-acceptance.v1",
+  "status": "OWNER_ACCEPTED_HISTORICAL_SCALE_WITH_CARRYOVER",
+  "accepted": true,
+  "recordedAt": "2026-10-06T00:43:58.454223+00:00",
+  "authority": "OWNER_DIRECT_MESSAGE_IN_CURRENT_CHAT",
+  "decision": "接受既有规模结果作为开发阶段放行；取消当前版本十万和三十万首重测，继续后续开发，完整产品最终使用真实曲库验收。",
+  "ownerMessageSha256": "81f0737523b4e444d0800b4f606f3838f61a8624ca24f21a63fded8066ce724f",
+  "rerunCurrent100k300k": false,
+  "currentFullScalePass": false,
+  "currentFullScaleObserved": false,
+  "finalRealLibraryAcceptance": "DEFERRED_UNTIL_COMPLETE_PRODUCT",
+  "historicalCounts": {
+    "visited": 300000,
+    "accepted": 299975,
+    "rejected": 25,
+    "timeout": 20,
+    "workerStartTimeout": 5
+  },
+  "physicalCause": "UNKNOWN",
+  "historicalTechnicalStatus": "FAILURE_PRESERVED",
+  "historicalStagesFourAndFive": "NOT_RUN_PRESERVED",
+  "historicalEvidence": {
+    "result": {
+      "path": "docs/postrust/MBRS-003/evidence/historical-new06-result300k.json",
+      "bytes": 15127,
+      "sha256": "0aa22d70c90bb3b486ccea0577a759d5903abb679c884f0f9c7ea5741639ae91",
+      "originalRef": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-current-scale-results-06-01/result300k.json",
+        "bytes": 15127,
+        "sha256": "0aa22d70c90bb3b486ccea0577a759d5903abb679c884f0f9c7ea5741639ae91"
+      }
+    },
+    "gate": {
+      "path": "docs/postrust/MBRS-003/evidence/historical-new06-gate.json",
+      "bytes": 2304,
+      "sha256": "0eb667f1a3e912bbcd8e05955dc62918661ff970ffb491868ec925502a73efff",
+      "originalRef": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs003-current-source-real-digital300k-snapshot05-newround06-actual-01/result.json",
+        "bytes": 2304,
+        "sha256": "0eb667f1a3e912bbcd8e05955dc62918661ff970ffb491868ec925502a73efff"
+      }
+    },
+    "diagnostic": {
+      "path": "docs/postrust/MBRS-003/evidence/historical-new06-timeout-code-counts.json",
+      "bytes": 1817,
+      "sha256": "860013d75351c4f0c93eb4231d2d56d8995f42e13f0b3e86e0ddffeff83e3822",
+      "originalRef": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-closed-new06-code-diagnostic-actual-01/CLOSED_NEW06_COMMITTED_FAILURE_CODE_COUNTS_ACTUAL_01.json",
+        "bytes": 1817,
+        "sha256": "860013d75351c4f0c93eb4231d2d56d8995f42e13f0b3e86e0ddffeff83e3822"
+      }
+    },
+    "diagnosticClosure": {
+      "path": "docs/postrust/MBRS-003/evidence/historical-new06-timeout-code-closure.json",
+      "bytes": 5128,
+      "sha256": "34027d341d5ef190ca50fac99c08d78bd8c408fb365e71268e86ab2a4e0507b0",
+      "originalRef": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-closed-new06-code-diagnostic-actual-01/ROOT_ACTUAL_CLOSED_NEW06_CODE_DIAGNOSTIC04_EXECUTION_CLOSURE_01.json",
+        "bytes": 5128,
+        "sha256": "34027d341d5ef190ca50fac99c08d78bd8c408fb365e71268e86ab2a4e0507b0"
+      }
+    }
+  },
+  "newScaleRunStarted": false,
+  "newScaleRoundAuthorized": false,
+  "originalEightATAcceptance": "NOT_INFERRED_FROM_OWNER_SCALE_EXCEPTION",
+  "appliesTo": "MBRS-003阶段交付和后续开发放行；最终产品、真实曲库及播放验收继续保留。"
+}

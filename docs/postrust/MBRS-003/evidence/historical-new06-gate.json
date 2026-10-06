@@ -1,0 +1,40 @@
+{
+  "name": "mbrs003-current-source-real-digital300k-snapshot05-newround06-actual-01",
+  "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-003-persistent-incremental-scan",
+  "head": "a7b27b5b6a5168bd146a3cbe61b579efd5639263",
+  "argv": [
+    "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-current-source-scale-runtime-snapshot-05-01/scale-tools/run-real-digital-scan-scale.mjs",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/evidence-delivery-high/mbrs003-real-corpus-generation-01/corpus300k",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-current-scale-results-06-01/result300k.json",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-new-round300k-binding-preflight03-actual-01/FRESH_RUNTIME_BINDING_SCALE_SNAPSHOT05_FOR300K_PREPARED_01.json",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-current-source-scale-runtime-snapshot-05-01/scale-tools/production-idle-scale-context.mjs",
+    "64800000",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-current-scale300k-db-06-01",
+    "8356000f24d645050c842215dcfb429b9bb880ed5e1c752b35b05d636517570a"
+  ],
+  "startedAt": "2026-10-05T03:16:10.332541+00:00",
+  "completedAt": "2026-10-05T07:58:22.025026+00:00",
+  "durationSeconds": 16931.699458625,
+  "exitCode": 1,
+  "timedOut": false,
+  "signal": null,
+  "log": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs003-current-source-real-digital300k-snapshot05-newround06-actual-01/output.log",
+    "bytes": 169,
+    "sha256": "75d9188d7602aab5cf2ee1474b4567e33b0a82689cd72bd78cb4dbe7e49bb23c"
+  },
+  "deadlineGuard": {
+    "ownBudgetSeconds": 66033.0,
+    "absoluteDeadlineMonotonicNs": "151076702902500",
+    "originalWholeDeadlineSupplied": true,
+    "childWaitAllocatedSeconds": 66022.995784792,
+    "ownChildPid": 64344,
+    "actualChildWaitCompleted": true,
+    "archivePid": 83788,
+    "archiveExitCode": 0,
+    "terminationSignals": [],
+    "allDescendantsQuiet": "NOT_PROVEN_BY_THIS_WRAPPER",
+    "kernelIoHardDeadlineGuarantee": false
+  }
+}

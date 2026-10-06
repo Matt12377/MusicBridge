@@ -29,7 +29,7 @@ test('固定schema15迁移30保留原库存/实体/照片/目录快照，新增�
   try { assert.equal(repository.list(page).items[0]?.counts.total, 5); } finally { DatabaseSync.prototype.exec = exec; repository.close(); }
   const db = new DatabaseSync(filePath, { readOnly: true });
   try {
-    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 31); assert.deepEqual(preserved(db), history);
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 32); assert.deepEqual(preserved(db), history);
     assert.equal(db.prepare('SELECT SUM(quantity_adjustment) n FROM inventory_lots').get()?.n, 0);
     assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []); assert.ok(restored.includes(1));
   } finally { db.close(); }

@@ -1,0 +1,267 @@
+{
+  "schema": "mbrs003.synthetic-audio-portable.v1",
+  "synthetic": true,
+  "fixturePreparationOnly": true,
+  "readerExecution": "NOT_RUN",
+  "boundaryProfile": {
+    "maxTextFieldBytes": 4096,
+    "maxCoverBytes": 65536,
+    "trustedTestOptionsOnly": true,
+    "productionDefaultsFrozen": false
+  },
+  "files": [
+    {
+      "id": "cover-small",
+      "file": "inputs/cover-small.png",
+      "bytes": 681,
+      "sha256": "243ddd560483dfae4f0ac0cce1e922a7828baab254b6df5d3402d0fec4f06e45",
+      "kind": "png"
+    },
+    {
+      "id": "cover-limit",
+      "file": "inputs/cover-limit-65536.png",
+      "bytes": 65536,
+      "sha256": "50a1b8b40470ebaaad40b59faf293cda7bb9735a27ccc57774c4f4d1e6035f97",
+      "kind": "png"
+    },
+    {
+      "id": "cover-over",
+      "file": "inputs/cover-over-65537.png",
+      "bytes": 65537,
+      "sha256": "b3eae1e07aa423f998e2e7e05d2a6ab4f89a5ebcd97821987e6225c280d4584c",
+      "kind": "png"
+    },
+    {
+      "id": "core-flac",
+      "file": "fixtures/core-flac.flac",
+      "bytes": 13496,
+      "sha256": "7855d2ac4f793ee88429bb4b682c3bdf9785d31a2f3253c5df3fc9f322e90ef5",
+      "kind": "audio",
+      "observedAudio": {
+        "codec": "flac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "expectedTags": {
+        "title": "MBRS003 core-flac title",
+        "artist": "MBRS003 core-flac artist",
+        "album": "MBRS003 core-flac album"
+      },
+      "expectedCover": {
+        "bytes": 681,
+        "sha256": "243ddd560483dfae4f0ac0cce1e922a7828baab254b6df5d3402d0fec4f06e45",
+        "mime": "image/png",
+        "width": 16,
+        "height": 16
+      }
+    },
+    {
+      "id": "core-mp3",
+      "file": "fixtures/core-mp3.mp3",
+      "bytes": 6625,
+      "sha256": "af1ac122d94d43fa7de1371978b5d5dbd16cdaa908786bcba469270ac490d641",
+      "kind": "audio",
+      "observedAudio": {
+        "codec": "mp3",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "expectedTags": {
+        "title": "MBRS003 core-mp3 title",
+        "artist": "MBRS003 core-mp3 artist",
+        "album": "MBRS003 core-mp3 album"
+      }
+    },
+    {
+      "id": "core-m4a-alac",
+      "file": "fixtures/core-m4a-alac.m4a",
+      "bytes": 7015,
+      "sha256": "7030e4191c9d0aec2ec30845f21627db7e4b20f7a31593fc5224934d88f38eb0",
+      "kind": "audio",
+      "observedAudio": {
+        "codec": "alac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "expectedTags": {
+        "title": "MBRS003 core-m4a-alac title",
+        "artist": "MBRS003 core-m4a-alac artist",
+        "album": "MBRS003 core-m4a-alac album"
+      }
+    },
+    {
+      "id": "core-m4a-aac",
+      "file": "fixtures/core-m4a-aac.m4a",
+      "bytes": 5522,
+      "sha256": "aef87a36849f113fc00975afae322b7cd6fc1ff0483f1bfb2e02624a4edc1617",
+      "kind": "audio",
+      "observedAudio": {
+        "codec": "aac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "expectedTags": {
+        "title": "MBRS003 core-m4a-aac title",
+        "artist": "MBRS003 core-m4a-aac artist",
+        "album": "MBRS003 core-m4a-aac album"
+      }
+    },
+    {
+      "id": "core-wav",
+      "file": "fixtures/core-wav.wav",
+      "bytes": 61914,
+      "sha256": "cc1eaac76af6c2b237f97c908202e3ded3b1aff6d7052bf20846a487243e5340",
+      "kind": "audio",
+      "observedAudio": {
+        "codec": "pcm_s16le",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "expectedTags": {
+        "title": "MBRS003 core-wav title",
+        "artist": "MBRS003 core-wav artist",
+        "album": "MBRS003 core-wav album"
+      }
+    },
+    {
+      "id": "core-aiff",
+      "file": "fixtures/core-aiff.aiff",
+      "bytes": 61986,
+      "sha256": "966dc36ae29687fc11538983ba7700c2fa92cfc88c3703e282e4552822497a73",
+      "kind": "audio",
+      "observedAudio": {
+        "codec": "pcm_s16be",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "expectedTags": {
+        "title": "MBRS003 core-aiff title",
+        "artist": "MBRS003 core-aiff artist",
+        "album": "MBRS003 core-aiff album"
+      }
+    },
+    {
+      "id": "extracted-core-cover",
+      "file": "inputs/extracted-core-flac-cover.png",
+      "bytes": 681,
+      "sha256": "243ddd560483dfae4f0ac0cce1e922a7828baab254b6df5d3402d0fec4f06e45",
+      "kind": "png"
+    },
+    {
+      "id": "wrong-extension",
+      "file": "fixtures/flac-wrong-extension.mp3",
+      "bytes": 13496,
+      "sha256": "7855d2ac4f793ee88429bb4b682c3bdf9785d31a2f3253c5df3fc9f322e90ef5",
+      "kind": "audio",
+      "observedAudio": {
+        "codec": "flac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "expectedTags": {
+        "title": "MBRS003 core-flac title",
+        "artist": "MBRS003 core-flac artist",
+        "album": "MBRS003 core-flac album"
+      }
+    },
+    {
+      "id": "truncated-flac",
+      "file": "fixtures/truncated-flac.flac",
+      "bytes": 48,
+      "sha256": "1b932831d40128e2603b51821b066c473eeea489286b157317ac7f2f7805c17b",
+      "kind": "audio",
+      "expectedReadable": false
+    },
+    {
+      "id": "invalid-magic",
+      "file": "fixtures/not-audio.flac",
+      "bytes": 42,
+      "sha256": "8db6c261d6e910b5e35c1048f32b5173aba81f8f53fb04a568aba901afc76079",
+      "kind": "audio",
+      "observedAudio": {
+        "codec": "flac",
+        "sampleRate": 0,
+        "channels": 0
+      },
+      "expectedReadable": false
+    },
+    {
+      "id": "tag-limit",
+      "file": "fixtures/tag-limit.flac",
+      "bytes": 12479,
+      "sha256": "f5d2507e3753d56c3d68d459b113f933e44e1d0561185674efe9d6924999a13b",
+      "kind": "audio",
+      "observedAudio": {
+        "codec": "flac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "expectedTitleBytes": 4096
+    },
+    {
+      "id": "tag-over",
+      "file": "fixtures/tag-over.flac",
+      "bytes": 12480,
+      "sha256": "ac8856129440367b13d6e59f9ce5b672fcfb8d5e439e6908dc27c10fc75e7b99",
+      "kind": "audio",
+      "observedAudio": {
+        "codec": "flac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "expectedTitleBytes": 4097
+    },
+    {
+      "id": "cover-limit-flac",
+      "file": "fixtures/cover-limit-flac.flac",
+      "bytes": 73990,
+      "sha256": "939bd1e63511f7094e48487b9d44baa64c34ca678304718a94eee4bf1dc8c4fb",
+      "kind": "audio",
+      "observedAudio": {
+        "codec": "flac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "expectedCover": {
+        "bytes": 65536,
+        "sha256": "50a1b8b40470ebaaad40b59faf293cda7bb9735a27ccc57774c4f4d1e6035f97",
+        "mime": "image/png",
+        "width": 16,
+        "height": 16
+      }
+    },
+    {
+      "id": "cover-over-flac",
+      "file": "fixtures/cover-over-flac.flac",
+      "bytes": 73990,
+      "sha256": "d3acb83baa4c35d3283ad00dc1c037881a6fd7bc78fb9db7ad0f5fbaa00a7121",
+      "kind": "audio",
+      "observedAudio": {
+        "codec": "flac",
+        "sampleRate": 44100,
+        "channels": 2
+      },
+      "expectedCover": {
+        "bytes": 65537,
+        "sha256": "b3eae1e07aa423f998e2e7e05d2a6ab4f89a5ebcd97821987e6225c280d4584c",
+        "mime": "image/png",
+        "width": 16,
+        "height": 16
+      }
+    },
+    {
+      "id": "extracted-limit-cover",
+      "file": "inputs/cover-limit-flac-extracted.png",
+      "bytes": 65536,
+      "sha256": "50a1b8b40470ebaaad40b59faf293cda7bb9735a27ccc57774c4f4d1e6035f97",
+      "kind": "png"
+    },
+    {
+      "id": "extracted-over-cover",
+      "file": "inputs/cover-over-flac-extracted.png",
+      "bytes": 65537,
+      "sha256": "b3eae1e07aa423f998e2e7e05d2a6ab4f89a5ebcd97821987e6225c280d4584c",
+      "kind": "png"
+    }
+  ]
+}

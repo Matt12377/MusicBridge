@@ -1,7 +1,8 @@
-import { isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcInternalRequest } from '@music-bridge/contracts';
+import {isLocalRelocationCommand,isLocalRelocationInternalCommand} from '@music-bridge/contracts';
+import { isLocalCatalogCommand, isLocalCatalogInternalCommand, isLocalScanCommand, isLocalScanInternalCommand, validateIpcInternalRequest } from '@music-bridge/contracts';
 import { dispatchDatasetCommand, dispatchInternalDatasetCommand } from './collection/dataset-dispatch.js';
 import { createDatasetRoonProjectionGateway } from './collection/dataset-roon-projection.js';
-import { isDatasetCommand, DatasetOwnerDispatchError, type DatasetOwnerEndpoint, type DatasetOwnerIdentity, type DatasetOwnerProjectionHandler } from './collection/dataset-owner-protocol.js';
+import { isDatasetProjectionPayload, type DatasetProjectionCommand, type DatasetProjectionCommandPayloads, isDatasetCommand, DatasetOwnerDispatchError, type DatasetOwnerEndpoint, type DatasetOwnerIdentity, type DatasetOwnerProjectionHandler } from './collection/dataset-owner-protocol.js';
 import { failureForError, responseFailure } from './shared/ipc-failure.js';
 import { LibraryReadRegistry } from './shared/library-read-registry.js';
 import { createLibraryReadTraceWriter, emitLibraryReadTrace, isLibraryReadTraceEnabled, libraryReadTraceFailure, type LibraryReadTraceSink } from './shared/library-read-trace.js';
@@ -103,7 +104,7 @@ async function dispatch(
   runtime: CoreRuntimeForIpc,
   request: IpcRequest,
 ): Promise<unknown> {
-  if (isLocalCatalogInternalCommand(request.command)) {
+  if (isLocalCatalogInternalCommand(request.command) || isLocalScanInternalCommand(request.command) || isLocalRelocationInternalCommand(request.command)) {
     if (runtime.datasetOwnerEndpoint) {
       if (!runtime.datasetOwnerEndpoint.dispatchInternal) throw new DatasetOwnerDispatchError(responseFailure(request.id, 'NOT_READY', '可信观察入口未就绪。'));
       return runtime.datasetOwnerEndpoint.dispatchInternal(request);
@@ -360,7 +361,7 @@ async function dispatch(
 }
 
 function validateRoutedIpcRequest(runtime: CoreRuntimeForIpc, input: unknown) {
-  if (isRecord(input) && isLocalCatalogCommand(input.command)) return isLocalCatalogInternalCommand(input.command) ? validateIpcInternalRequest(input) : validateIpcRequest(input);
+  if (isRecord(input) && (isLocalCatalogCommand(input.command) || isLocalScanCommand(input.command) || isLocalRelocationCommand(input.command))) return isLocalCatalogInternalCommand(input.command) || isLocalScanInternalCommand(input.command) || isLocalRelocationInternalCommand(input.command) ? validateIpcInternalRequest(input) : validateIpcRequest(input);
   if (runtime.datasetOwnerEndpoint && isRecord(input) && isDatasetCommand(input.command) && isRecord(input.payload)) {
     // 仅用原core.ping合同核小信封；原领域命令和完整payload由owner再执行原完整validator。
     // 数据集命令不在library read白名单，readContext仍由原validator拒绝。
@@ -606,7 +607,21 @@ export async function runCoreUtilityProcess(
           projectionGateway = createDatasetRoonProjectionGateway(() => runtime?.getDatasetRoonLibrary?.(), {
             isCurrentOwner: epoch => ownerIdentity?.epoch === epoch,
           });
-          const source = createDatasetOwner({ projection: projectionGateway.handler, onFatal: () => {
+          const project = async (command: DatasetProjectionCommand, payload: DatasetProjectionCommandPayloads[DatasetProjectionCommand], context: { epoch: string; datasetId?: string }): Promise<unknown> => {
+            if (command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
+              if (!isDatasetProjectionPayload(command, payload) || !ownerIdentity || context.epoch !== ownerIdentity.epoch
+                || context.datasetId !== ownerIdentity.datasetId) throw new DatasetOwnerDispatchError(responseFailure(context.epoch, 'NOT_READY', '扫描读取私有来源已失效。'));
+              const admission = runtime?.getDatasetScanReadAdmission?.();
+              if (!admission || context.datasetId === undefined) throw new DatasetOwnerDispatchError(responseFailure(context.epoch, 'NOT_READY', '扫描读取准入尚未就绪。'));
+              const scope = { epoch: context.epoch, datasetId: context.datasetId };
+              if (command === 'scanReadAcquire') return admission.acquire(scope);
+              const permitId = (payload as { permitId: string }).permitId;
+              return command === 'scanReadWatchRevocation' ? admission.watchRevocation(scope, permitId) : admission.release(scope, permitId);
+            }
+            return projectionGateway!.handler(command, payload as DatasetProjectionCommandPayloads[typeof command], context);
+          };
+          const source = createDatasetOwner({ projection: project as DatasetOwnerProjectionHandler, onFatal: () => {
+            runtime?.getDatasetScanReadAdmission?.().close();
             projectionGateway?.close();
             // 致命owner故障复用Main既有Core监督与冷启恢复，禁止在活Core里偷偷重开writer。
             process.exit(72);
@@ -620,8 +635,14 @@ export async function runCoreUtilityProcess(
           datasetOwnerEndpoint = {
             prepare: async () => { ownerIdentity = await client.prepare(); return ownerIdentity; },
             dispatch: request => client.dispatch(request),
+            ...(client.dispatchInternal === undefined ? {} : {
+              dispatchInternal: (request: IpcRequest) => client.dispatchInternal!(request),
+            }),
             commitBoot: () => client.commitBoot(),
-            close: async () => { try { await client.close(); } finally { projectionGateway?.close(); } },
+            close: async () => {
+              runtime?.getDatasetScanReadAdmission?.().close();
+              try { await client.close(); } finally { projectionGateway?.close(); }
+            },
           };
           if (rustClient && onRustReadonlyCoreController) {
             // 先登记清理端点再同步交付能力；宿主不能借回调延长启动期限。

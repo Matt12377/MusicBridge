@@ -36,43 +36,64 @@ jobs:
           printf 'TMPDIR=%s\nDEV_CACHE_ROOT=%s\n' "$RUNNER_TEMP/musicbridge-verify/tmp" "$RUNNER_TEMP/musicbridge-verify/cache" >> "$GITHUB_ENV"
           printf 'COREPACK_HOME=%s\nnpm_config_cache=%s\nELECTRON_CACHE=%s\nelectron_config_cache=%s\nXDG_CACHE_HOME=%s\n' "$RUNNER_TEMP/musicbridge-verify/cache/corepack" "$RUNNER_TEMP/musicbridge-verify/cache/npm" "$RUNNER_TEMP/musicbridge-verify/cache/Electron" "$RUNNER_TEMP/musicbridge-verify/cache/Electron" "$RUNNER_TEMP/musicbridge-verify/cache" >> "$GITHUB_ENV"
 
+      - name: Prepare source-pinned build workspace mirror
+        run: node scripts/ci/prepare-build-workspace-mirror.mjs --source "$GITHUB_WORKSPACE" --destination "$RUNNER_TEMP/musicbridge-verify/workspace" --expected-head "${{ github.sha }}"
+
       - name: Install frozen workspace
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: corepack pnpm@10.17.1 install --frozen-lockfile --ignore-scripts
 
       - name: Validate control plane
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node scripts/ci/verify-control-plane.mjs
 
       - name: Validate security and product boundaries
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node scripts/ci/verify-boundaries.mjs
 
       - name: Scan workspace import cycles
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node scripts/ci/verify-cycles.mjs
 
       - name: Verify platform-independent workspace (typecheck, unit tests, build; no Electron)
         shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: |
           set -o pipefail
           mkdir -p "$RUNNER_TEMP/musicbridge-verify"
           corepack pnpm@10.17.1 verify 2>&1 | tee "$RUNNER_TEMP/musicbridge-verify/verify.log"
 
       - name: Verify offline preparation boundaries
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node --test scripts/ci/test/build-storage-root.test.mjs scripts/ci/test/rust016-workflow-context.test.mjs scripts/ci/test/rust-electron-host-receipt.test.mjs scripts/ci/test/electron-archive-tree.test.mjs scripts/ci/test/electron-preparation-order.test.mjs scripts/ci/test/rust-host-gate-cli.test.mjs scripts/ci/test/rust-private-host-environment.test.mjs
 
       - name: Verify isolated MBRS-001 offline POC
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node scripts/ci/verify-mbrs001-offline.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs001-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS002 本地合同 Gate
         timeout-minutes: 8
         shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: |
           set -euo pipefail
           node scripts/ci/verify-mbrs002-contracts.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs002-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
+      - name: MBRS003 阶段软件 Gate
+        timeout-minutes: 8
+        shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: |
+          set -euo pipefail
+          node --test scripts/ci/test/verify-mbrs003-scan.test.mjs scripts/ci/test/mbrs003-owner-stage-scale.test.mjs scripts/ci/test/metadata-reader-fixed-bundle-v2.test.mjs scripts/ci/test/mbrs003-scale-new-round-receipts.test.mjs
+          node scripts/ci/verify-mbrs003-scan.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs003-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
       - name: Diff whitespace
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: git diff --check
 
       - name: Verify pinned historical fragments and current discarded rejection
-        working-directory: apps/desktop
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}/apps/desktop
         run: node --import tsx --test --test-name-pattern='成本05实际|Source08原settings|当前合法settings完整选择' test/rust-core/collection-scale-cost.test.ts test/rust-core/collection-scale-evidence.test.ts
 
       - name: Preserve full verification log
@@ -80,7 +101,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: verify-${{ github.sha }}
-          path: ${{ runner.temp }}/musicbridge-verify/
+          path: |
+            ${{ runner.temp }}/musicbridge-verify/
+            !${{ runner.temp }}/musicbridge-verify/workspace/**
           if-no-files-found: warn
           retention-days: 14
 
@@ -96,8 +119,13 @@ jobs:
         with:
           node-version: 22.x
 
+      - name: Prepare source-pinned build workspace mirror
+        run: node scripts/ci/prepare-build-workspace-mirror.mjs --source "$GITHUB_WORKSPACE" --destination "$RUNNER_TEMP/musicbridge-dependency-audit/workspace" --expected-head "${{ github.sha }}"
+
       - name: Install frozen workspace
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: corepack pnpm@10.17.1 install --frozen-lockfile --ignore-scripts
 
       - name: Production dependency audit
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: corepack pnpm@10.17.1 audit --prod --audit-level high --registry https://registry.npmjs.org

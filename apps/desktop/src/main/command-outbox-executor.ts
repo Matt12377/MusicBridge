@@ -45,6 +45,13 @@ export function createCommandOutboxExecutor(options: {
     if (datasetId !== request.datasetId) return fail('OUTBOX_SCOPE_MISMATCH')
     const scope = request.datasetId
     switch (request.command) {
+      case 'localLibrary.chooseRoot': {
+        // Outbox与catalog指纹域不同；由既有私有registerRoot完整原请求回执恢复，不能伪造查询指纹。
+        const prior=await supervisor.requestInternal('recordingSources.rootReceipt',request.payload,scope)
+        let source=prior.root
+        if(!source){const absolutePath=await pick({title:'加入本地只读音乐库',message:'仅授权读取所选目录。授权与库根关联是独立的原事务，失败后保留授权，可显式重试。',properties:['openDirectory']});if(absolutePath===null)return null;source=await supervisor.requestInternal('recordingSources.authorize',{...request.payload,absolutePath},scope)}
+        return supervisor.requestInternal('localRelocation.registerRoot',{commandId:request.payload.commandId,sourceRootId:source.id},scope)
+      }
       case 'spreadsheetImports.chooseWorkbook': {
         const prior = await supervisor.requestInternal('spreadsheetImports.workbookReceipt', request.payload, scope)
         if (prior.source) return prior.source

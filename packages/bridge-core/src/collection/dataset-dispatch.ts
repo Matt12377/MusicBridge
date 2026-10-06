@@ -1,4 +1,6 @@
-import { isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcRequest, validateIpcInternalRequest } from '@music-bridge/contracts';
+import {isLocalRelocationCommand,isLocalRelocationInternalCommand} from '@music-bridge/contracts';
+import { isScanPreparedBatch } from './local-scan-store.js';
+import { isLocalScanCommand, isLocalScanInternalCommand, isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcRequest, validateIpcInternalRequest } from '@music-bridge/contracts';
 import { IPC_VERSION, isCommandOutboxExecute, type IpcCommand, type IpcCommandPayloads, type IpcRequest } from '@music-bridge/contracts';
 import { CollectionError, type CollectionRepository } from './repository.js';
 import { BridgeError } from '../shared/errors.js';
@@ -24,6 +26,9 @@ function collectionFor(runtime: DatasetDispatchTarget): CollectionRepository {
   return runtime.collection;
 }
 
+function scanFor(runtime:DatasetDispatchTarget) {
+  if(!runtime.localScan) throw new CollectionError('INVENTORY_UNAVAILABLE','扫描owner尚未就绪。');return runtime.localScan;
+}
 function sourcesFor(runtime: DatasetDispatchTarget) {
   if (!runtime.sources) throw new BridgeError('BAD_REQUEST', '源文件服务尚未就绪。', { httpStatus: 503 });
   return runtime.sources;
@@ -111,14 +116,14 @@ export async function dispatchDatasetCommand(
 
 /** 仅既有owner私有通路；内部许可不由请求payload中的标志授予。 */
 export async function dispatchInternalDatasetCommand(runtime: DatasetDispatchTarget, request: IpcRequest): Promise<unknown> {
-  if (!isLocalCatalogInternalCommand(request.command)) throw new BridgeError('BAD_REQUEST', '内部本地观察命令无效。');
+  if (!(isLocalCatalogInternalCommand(request.command) || isLocalScanInternalCommand(request.command) || isLocalRelocationInternalCommand(request.command))) throw new BridgeError('BAD_REQUEST', '内部本地观察命令无效。');
   return dispatchDataset(runtime, request, true);
 }
 
 async function dispatchDataset(runtime: DatasetDispatchTarget, request: IpcRequest, internal: boolean): Promise<unknown> {
   if (!isDatasetCommand(request.command)) throw new BridgeError('BAD_REQUEST', '工作库命令无效。');
   runtime.assertOpen?.();
-  if (isLocalCatalogCommand(request.command) || request.command === 'localCatalog.prepare') {
+  if (isLocalCatalogCommand(request.command) || isLocalScanCommand(request.command) || isLocalRelocationCommand(request.command) || request.command === 'localCatalog.prepare') {
     const checked = internal ? validateIpcInternalRequest(request) : validateIpcRequest(request);
     if (!checked.ok) throw new BridgeError('BAD_REQUEST', '本地目录请求无效。');
     if (!runtime.commandOutbox) throw new DatasetScopeError();
@@ -128,7 +133,27 @@ async function dispatchDataset(runtime: DatasetDispatchTarget, request: IpcReque
     if (!runtime.commandOutbox) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库身份尚未就绪。');
     runtime.commandOutbox.assertScope(request.expectedDatasetId);
   }
+  // 原录音SourceLock/严格证据不变；读文件/正式输出入口先等待scan实际quiet，再进入原业务门禁。
+  if (runtime.localScan && ['recordingSources.start','recordingAttempts.confirm','recordingAttempts.beginSide','recordingReplica.start','recordingExecution.start'].includes(request.command)) await runtime.localScan.yieldForMedia();
   switch (request.command as IpcCommand) {
+    case 'localRelocation.roots': if(!runtime.localRelocation)throw new CollectionError('INVENTORY_UNAVAILABLE','重定位owner未就绪。');return runtime.localRelocation.roots();
+    case 'localRelocation.registerRoot': if(!runtime.localRelocation)throw new CollectionError('INVENTORY_UNAVAILABLE','重定位owner未就绪。');return runtime.localRelocation.registerRoot(request.payload as IpcCommandPayloads['localRelocation.registerRoot']);
+    case 'localRelocation.capture': if(!runtime.localRelocation)throw new CollectionError('INVENTORY_UNAVAILABLE','重定位owner未就绪。');return runtime.localRelocation.capture(request.payload as IpcCommandPayloads['localRelocation.capture']);
+    case 'localRelocation.confirm': if(!runtime.localRelocation)throw new CollectionError('INVENTORY_UNAVAILABLE','重定位owner未就绪。');return runtime.localRelocation.confirm(request.payload as IpcCommandPayloads['localRelocation.confirm']);
+    case 'localRelocation.relinkRoot': if(!runtime.localRelocation)throw new CollectionError('INVENTORY_UNAVAILABLE','重定位owner未就绪。');return runtime.localRelocation.relinkRoot(request.payload as IpcCommandPayloads['localRelocation.relinkRoot']);
+    case 'localScan.start': return scanFor(runtime).start(request.payload as IpcCommandPayloads['localScan.start']);
+    case 'localScan.pause': return scanFor(runtime).pause(request.payload as IpcCommandPayloads['localScan.pause']);
+    case 'localScan.resume': return scanFor(runtime).resume(request.payload as IpcCommandPayloads['localScan.resume']);
+    case 'localScan.cancel': return scanFor(runtime).cancel(request.payload as IpcCommandPayloads['localScan.cancel']);
+    case 'localScan.get': return scanFor(runtime).get((request.payload as IpcCommandPayloads['localScan.get']).jobId);
+    case 'localScan.page': return scanFor(runtime).page(request.payload as IpcCommandPayloads['localScan.page']);
+    case 'localScan.receipt': return scanFor(runtime).receipt((request.payload as IpcCommandPayloads['localScan.receipt']).commandId);
+    case 'localScan.prepareBatch': {
+      const value=request.payload as IpcCommandPayloads['localScan.prepareBatch'];
+      if(!isScanPreparedBatch(value.batch)) throw new BridgeError('BAD_REQUEST','可信扫描批结构无效。');
+      return scanFor(runtime).prepareBatch({...value,batch:value.batch});
+    }
+    case 'localScan.commitBatch': return scanFor(runtime).commitBatch(request.payload as IpcCommandPayloads['localScan.commitBatch']);
     // 当前owner没有稳定Core/Zone权威；禁止用公开target自证准备或执行播放动作。
     case 'localCatalog.prepare': return { status: 'unsupported', reason: 'TARGET_AUTHORITY_UNAVAILABLE' } satisfies import('@music-bridge/contracts').LocalSourceUnsupported;
     case 'localCatalog.registerRoot': return collectionFor(runtime).localCatalog.registerRoot(request.payload as IpcCommandPayloads['localCatalog.registerRoot']);

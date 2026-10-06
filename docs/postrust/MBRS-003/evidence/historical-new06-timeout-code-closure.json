@@ -1,0 +1,102 @@
+{
+  "schema": "mbrs003.root.actual-tool-execution-closure.v1",
+  "status": "ROOT_ACTUAL_TOOL_RETURN_WAIT_STDIO_CLOSED",
+  "component": "CLOSED_NEW06_COMMITTED_FAILURE_CODES_PRODUCER04",
+  "observedAt": "2026-10-05T10:47:09.174088+00:00",
+  "rootObservedMonotonicNs": "112102554814166",
+  "wrapperArgv": [
+    "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-deadline-aware-closure-gate-runner-03/run_closure_gate_deadline_03.py",
+    "--repo",
+    "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-003-persistent-incremental-scan",
+    "--name",
+    "mbrs003-closed-new06-clone-metadata-diagnostic04-root-actual-01",
+    "--timeout",
+    "180",
+    "--absolute-deadline-monotonic-ns",
+    "151377066685041",
+    "--",
+    "/usr/bin/env",
+    "-i",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "TMPDIR=/Volumes/LifeWeave/Developer/CommandLine/tmp",
+    "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "-B",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-closed-new06-db-clone-preparer-01/RUN_ONE_CLOSED_NEW06_CLONE_AND_CODE_DIAGNOSTIC_ROOT_ONLY_01.py",
+    "--producer",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-closed-new06-db-clone-preparer-01/AGGREGATE_CLOSED_NEW06_COMMITTED_CODES_ROOT_ONLY_04_FINAL.py",
+    "--producer-sha",
+    "d20c434eb7f08b53d0afb9f8d84225bf7e1209a662f89901b2d7be13d82de01b"
+  ],
+  "childArgv": [
+    "/usr/bin/env",
+    "-i",
+    "PYTHONDONTWRITEBYTECODE=1",
+    "TMPDIR=/Volumes/LifeWeave/Developer/CommandLine/tmp",
+    "/opt/homebrew/opt/python@3.14/bin/python3.14",
+    "-B",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-closed-new06-db-clone-preparer-01/RUN_ONE_CLOSED_NEW06_CLONE_AND_CODE_DIAGNOSTIC_ROOT_ONLY_01.py",
+    "--producer",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-closed-new06-db-clone-preparer-01/AGGREGATE_CLOSED_NEW06_COMMITTED_CODES_ROOT_ONLY_04_FINAL.py",
+    "--producer-sha",
+    "d20c434eb7f08b53d0afb9f8d84225bf7e1209a662f89901b2d7be13d82de01b"
+  ],
+  "initialToolSessionId": 46582,
+  "actualToolFinalSessionId": null,
+  "actualWrapperExitCode": 0,
+  "actualToolChunkId": "963f69",
+  "actualWrapperWaitCompleted": true,
+  "actualWrapperStdiosClosed": true,
+  "actualChildWaitCompleted": true,
+  "actualArchiveWaitCompleted": true,
+  "archiveExitCode": 0,
+  "actualToolFinalReturnRef": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-closed-new06-code-diagnostic-actual-01/ROOT_ACTUAL_CLOSED_NEW06_CODE_DIAGNOSTIC_TOOL_FINAL_RETURN_01.json",
+    "bytes": 2114,
+    "sha256": "06b61733d71813795e2cc0298675d0c029b0246b4a1492edc70c53d0c8e5c739"
+  },
+  "gateResultRef": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs003-closed-new06-clone-metadata-diagnostic04-root-actual-01/result.json",
+    "bytes": 1853,
+    "sha256": "c887095b9e19f2e144df27b7d2d0f4ef5f23cd307dfc0e1067368d3d6af64ef8"
+  },
+  "executionSealRef": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs003-closed-new06-clone-metadata-diagnostic04-root-actual-01/RUNNER_SEAL_ACTUAL_01.json",
+    "bytes": 451,
+    "sha256": "36eaf9997df2a0ddfd08aa84ae51acd4533981b2668326944f9dfc2084a31e2f"
+  },
+  "diagnosticRef": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-closed-new06-code-diagnostic-actual-01/CLOSED_NEW06_COMMITTED_FAILURE_CODE_COUNTS_ACTUAL_01.json",
+    "bytes": 1817,
+    "sha256": "860013d75351c4f0c93eb4231d2d56d8995f42e13f0b3e86e0ddffeff83e3822"
+  },
+  "sourceCloneFsPostcheckRef": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-closed-new06-code-diagnostic-actual-01/CLOSED_NEW06_DIAGNOSTIC_SOURCE_CLONE_AND_FS_POSTCHECK_ACTUAL_01.json",
+    "bytes": 4078,
+    "sha256": "c6e60e99049c036ae01af45d0bbcd0a1d9ef79e1497f1b1e6481ce21423c5079"
+  },
+  "producerSourceRef": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-closed-new06-db-clone-preparer-01/AGGREGATE_CLOSED_NEW06_COMMITTED_CODES_ROOT_ONLY_04_FINAL.py",
+    "bytes": 26461,
+    "sha256": "d20c434eb7f08b53d0afb9f8d84225bf7e1209a662f89901b2d7be13d82de01b"
+  },
+  "driverSourceRef": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-closed-new06-db-clone-preparer-01/RUN_ONE_CLOSED_NEW06_CLONE_AND_CODE_DIAGNOSTIC_ROOT_ONLY_01.py",
+    "bytes": 8064,
+    "sha256": "c1ac55cfda312b0e6f1ac134def4087b56d58f80d58f7131f157299e12c7c191"
+  },
+  "classifiedRejectedCount": 25,
+  "safeKnownCodeCounts": {
+    "TIMEOUT": 20,
+    "WORKER_START_TIMEOUT": 5
+  },
+  "unknownCodeCount": 0,
+  "physicalCause": "UNKNOWN",
+  "itemIdentifiers": "UNKNOWN_NOT_EXPORTED",
+  "originalDatabaseSQLiteOpened": false,
+  "newScanStarted": false,
+  "ReaderStarted": false,
+  "WorkerStarted": false,
+  "scalePass": false,
+  "whole003Pass": false
+}

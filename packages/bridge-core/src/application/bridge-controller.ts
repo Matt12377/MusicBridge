@@ -442,6 +442,8 @@ export class BridgeController {
       now?: () => number;
       diagnosticId?: () => string;
       onProviderAuthExpired?: () => void;
+      /** 仅通知同Core私有扫描准入；原Controller仍是播放所有权真相。 */
+      onReadPriorityChanged?: () => void;
     },
   ) {
     this.dependencies.roon.setTerminalHandler((reason) => {
@@ -2184,13 +2186,20 @@ export class BridgeController {
     this.lastPositionPublishedAt = this.now();
   }
 
+  private notifyReadPriorityChanged(): void {
+    try { this.dependencies.onReadPriorityChanged?.(); }
+    catch { this.dependencies.logger.warn('scan_read_priority_listener_failed', {}); }
+  }
+
   private notifyPlaybackChanged(kind: 'full' | 'position' = 'full'): void {
+    this.notifyReadPriorityChanged();
     this.scheduleNextPreparation();
     const snapshot = this.playbackPublication(kind);
     this.publishPlayback(snapshot, kind);
   }
 
   private notifyPlaybackChangedIfDifferent(): void {
+    this.notifyReadPriorityChanged();
     const snapshot = this.playbackPublication('full');
     if (this.lastPublishedPlayback && isDeepStrictEqual(this.lastPublishedPlayback, snapshot)) return;
     this.scheduleNextPreparation();
@@ -2277,6 +2286,7 @@ export class BridgeController {
     const replacementGeneration = replacesQueue ? ++this.queueReplacementGeneration : this.queueReplacementGeneration;
     if (this.owner?.preparing) this.owner.abort.abort();
     ++this.pendingPlaybackCommands;
+    this.notifyReadPriorityChanged();
     const result = this.enqueue(() => {
       const result = this.playbackCommandTail.then(() => {
         if (epoch !== this.commandEpoch || replacementGeneration !== this.queueReplacementGeneration) throw this.cancelled();
@@ -2289,6 +2299,7 @@ export class BridgeController {
     });
     return result.finally(() => {
       --this.pendingPlaybackCommands;
+      this.notifyReadPriorityChanged();
       // 最后意图结算后同步公开能力，避免取消准备留下过期的可停止状态。
       if (this.pendingPlaybackCommands === 0) this.notifyPlaybackChangedIfDifferent();
     });

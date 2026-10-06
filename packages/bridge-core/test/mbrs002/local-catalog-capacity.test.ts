@@ -19,7 +19,7 @@ function canonical(value: unknown): string {
 }
 const bodyFingerprint = (request: unknown): string => createHash('sha256').update(canonical(['create-track', request])).digest('hex');
 
-/** Repository产生真实31结构和root/asset；只在关闭后的本测试私有副本批量加入合法合成whole-track历史。 */
+/** Repository产生真实32结构和root/asset；只在关闭后的本测试私有副本批量加入合法合成whole-track历史。 */
 async function syntheticCatalog(t: test.TestContext, trackCount: number) {
   const storage = buildStoragePolicy(), temporary = storage.check(process.env.TMPDIR!, { mustExist: true });
   const directory = await mkdtemp(path.join(temporary, 'musicbridge-local-capacity-')); storage.check(directory, { mustExist: true });
@@ -44,7 +44,7 @@ async function syntheticCatalog(t: test.TestContext, trackCount: number) {
   let rows = 0, bytes = 0;
   try {
     db.exec('PRAGMA trusted_schema=OFF;');
-    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 31, '版本必须来自实际Repository的正式迁移');
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 32, '版本必须来自实际Repository的正式迁移');
     const insertTrack = db.prepare('INSERT INTO local_catalog_tracks(id,asset_id,data) VALUES(?,?,?)');
     const insertReceipt = db.prepare('INSERT INTO local_catalog_ledger(command_id,fingerprint,operation,request,result,created_at) VALUES(?,?,?,?,?,?)');
     db.exec('BEGIN IMMEDIATE');
@@ -120,7 +120,7 @@ test('MBRS002 capacity：合法50000曲目累计100004实体与回执行可冷�
   const f = await syntheticCatalog(t, 50_000);
   assert.ok(f.rows > 100_000); t.diagnostic(`独立合法事实：${JSON.stringify({ tracks: f.trackCount, entityAndLedgerRows: f.rows, bytes: f.bytes, sqliteIntegrity: 'ok', foreignKeys: 0 })}`);
   let page: ReturnType<typeof f.repository.localCatalog.pageTracks> | undefined;
-  assert.doesNotThrow(() => { page = f.repository.localCatalog.pageTracks({ offset: 0, limit: 20 }); }, '目标：独立合法schema31私有库应能cold-open，累计实体与ledger不能套用曲目数量上限');
+  assert.doesNotThrow(() => { page = f.repository.localCatalog.pageTracks({ offset: 0, limit: 20 }); }, '目标：独立合法schema32私有库应能cold-open，累计实体与ledger不能套用曲目数量上限');
   assert.ok(page); assert.equal(page.total, 50_000); assert.deepEqual(page.items, f.firstPage); assert.equal(page.hasMore, true);
   const tail = f.repository.localCatalog.pageTracks({ offset: 49_980, limit: 20 }); assert.equal(tail.items.length, 20); assert.equal(tail.hasMore, false);
   for (const track of tail.items) assert.equal(isLocalTrack(track), true);

@@ -1,3 +1,5 @@
+import type {LocalRelocationCommandPayloads,LocalRelocationCommandResults,LocalRelocationInternalCommand} from './local-relocation.js';
+import type { LocalScanCommandPayloads, LocalScanCommandResults, LocalScanInternalCommand } from './local-scan.js';
 import type { LocalPlayRequest, LocalSourceUnsupported } from './local-play-request.js';
 import type { LocalCatalogCommandPayloads, LocalCatalogCommandResults, LocalCatalogInternalCommand } from './local-catalog.js';
 import type { VolumeRequest, VolumeSnapshot } from './volume.js';
@@ -113,7 +115,7 @@ export type IpcResponse<TResult = unknown> =
 
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
-export interface IpcCommandPayloads extends LocalCatalogCommandPayloads {
+export interface IpcCommandPayloads extends LocalCatalogCommandPayloads, LocalScanCommandPayloads, LocalRelocationCommandPayloads {
   'localCatalog.prepare': LocalPlayRequest;
   'commandOutbox.context': Record<string, never>;
   'commandOutbox.execute': CommandOutboxExecute;
@@ -401,7 +403,7 @@ export interface IpcCommandPayloads extends LocalCatalogCommandPayloads {
   'playback.insertNext': { items: readonly PlaybackQueueRequestItem[] };
 }
 
-export interface IpcCommandResults extends LocalCatalogCommandResults {
+export interface IpcCommandResults extends LocalCatalogCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
   'localCatalog.prepare': LocalSourceUnsupported;
   'commandOutbox.context': CommandOutboxContext;
   'commandOutbox.execute': CommandOutboxResult;
@@ -698,9 +700,9 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = LocalCatalogInternalCommand | 'lyrics.display.update' | 'recordingPrintWorker.claim' | 'recordingPrintWorker.complete' | 'recordingPrintWorker.fail' | 'recordingPrintWorker.pdf' | 'spreadsheetImports.registerWorkbook' | 'spreadsheetImports.workbookReceipt' | 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'recordingPreparationZip.authorizeTarget' | 'recordingPreparationZip.invalidateScope' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
+export type IpcInternalCommand = LocalCatalogInternalCommand | LocalScanInternalCommand | LocalRelocationInternalCommand | 'lyrics.display.update' | 'recordingPrintWorker.claim' | 'recordingPrintWorker.complete' | 'recordingPrintWorker.fail' | 'recordingPrintWorker.pdf' | 'spreadsheetImports.registerWorkbook' | 'spreadsheetImports.workbookReceipt' | 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'recordingPreparationZip.authorizeTarget' | 'recordingPreparationZip.invalidateScope' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
-export interface IpcInternalCommandResults extends Pick<LocalCatalogCommandResults, LocalCatalogInternalCommand> {
+export interface IpcInternalCommandResults extends Pick<LocalCatalogCommandResults, LocalCatalogInternalCommand>, Pick<LocalScanCommandResults, LocalScanInternalCommand>, Pick<LocalRelocationCommandResults,LocalRelocationInternalCommand> {
   'lyrics.display.update': { applied: boolean };
   'recordingPrintWorker.claim': { lease: RecordingPrintLease | null };
   'recordingPrintWorker.complete': RecordingPrintJob;

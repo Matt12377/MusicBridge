@@ -6,12 +6,14 @@ import { captureNativeConverter } from './scripts/native-converter-package.mjs'
 import { captureNativeOutput } from './scripts/native-output-package.mjs'
 import { captureNativeOutputDevice } from './scripts/native-output-device-package.mjs'
 import { captureNativeRust } from './scripts/native-rust-package.mjs'
+import { fixedMetadataWorkerBundlePlugin } from './scripts/metadata-worker-bundle-package.mjs'
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
 const converterBuild = await captureNativeConverter(currentDirectory)
 const outputBuild = await captureNativeOutput(currentDirectory)
 const outputDeviceBuild = await captureNativeOutputDevice(currentDirectory)
 const rustBuild = await captureNativeRust(currentDirectory)
+const metadataWorker = await fixedMetadataWorkerBundlePlugin(path.resolve(currentDirectory, '../../packages/bridge-core'))
 
 export default defineConfig(({ mode }) => ({
   main: {
@@ -29,7 +31,7 @@ export default defineConfig(({ mode }) => ({
       __MUSIC_BRIDGE_OUTPUT_DEVICE_MANIFEST_SHA256__: JSON.stringify(outputDeviceBuild.manifestSha256),
       __MUSIC_BRIDGE_OUTPUT_DEVICE_CANDIDATE__: JSON.stringify(outputDeviceBuild.candidate),
     },
-    plugins: [{
+    plugins: [metadataWorker, {
       name: 'fixed-converter-build-identity',
       generateBundle() {
         this.emitFile({ type: 'asset', fileName: 'converter-build.json', source: JSON.stringify(converterBuild) + '\n' })
@@ -45,6 +47,7 @@ export default defineConfig(({ mode }) => ({
           index: path.join(currentDirectory, 'src/main/index.ts'),
           core: path.join(currentDirectory, 'src/main/core-entry.ts'),
           'dataset-owner': path.join(currentDirectory, 'src/main/dataset-owner-entry.ts'),
+          'chunks/cue-sidecar-worker': path.join(currentDirectory, '../../packages/bridge-core/src/library/cue-sidecar-worker.ts'),
           'spreadsheet-worker': path.join(currentDirectory, '../../packages/bridge-core/src/collection/spreadsheet-worker.ts'),
         },
         output: {

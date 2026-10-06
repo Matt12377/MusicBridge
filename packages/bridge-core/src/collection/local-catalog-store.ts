@@ -395,74 +395,74 @@ export function createLocalCatalogStore(access: Access) {
     }
     return row;
   }
+  /** 私有mutator只核相关对象并写实体+原完整子账本；事务与audit发布由调用者掌握。 */
+  function mutate<T extends dto.LocalCatalogResult>(db: DatabaseSync, certificate: AuditCertificate,
+    operation: dto.LocalCatalogOperation, request: Command, apply: (db: DatabaseSync) => T): { result: T; certificate: AuditCertificate; changed: boolean; beforeChanges: number } {
+    if (!validRequest(operation, request)) return access.conflict('本地目录请求无效。');
+    const digest = fingerprint(operation, request), previous = db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(request.commandId);
+    if (previous) {
+      if (previous.fingerprint !== digest || previous.operation !== operation) return access.conflict('同一操作编号不能用于不同本地目录请求。');
+      return { result: verifyReceipt(previous, operation, request) as T, certificate, changed: false, beforeChanges: Number(db.prepare('SELECT total_changes() n').get()?.n) };
+    }
+    const beforeChanges = Number(db.prepare('SELECT total_changes() n').get()?.n), audit = mutationAudit(db, operation, request);
+    const result = apply(db); if (!dto.isLocalCatalogResult(operation, result)) return corrupt();
+    db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(request.commandId, digest, operation, JSON.stringify(request), JSON.stringify(result), new Date().toISOString());
+    const entity = verifyMutation(db, operation, request, result, audit), receipt = db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(request.commandId)!;
+    verifyReceipt(receipt, operation, request, result);
+    const counts = new Map(certificate.rows), entityCount = counts.get(audit.table)! + (audit.before ? 0 : 1), ledgerCount = counts.get('local_catalog_ledger')! + 1;
+    checkBudget(`${audit.table}行数`, entityCount, rowBudgets[audit.table]); checkBudget('local_catalog_ledger行数', ledgerCount, rowBudgets.local_catalog_ledger);
+    counts.set(audit.table, entityCount); counts.set('local_catalog_ledger', ledgerCount);
+    const bytes = certificate.bytes + rowBytes(entity) - (audit.before ? rowBytes(audit.before) : 0) + rowBytes(receipt);
+    checkBudget('目录总文本字节', bytes, maxCatalogTextBytes);
+    if (Number(db.prepare('SELECT total_changes() n').get()?.n) !== beforeChanges + 2) return corrupt();
+    return { result, certificate: { rows: counts, bytes, dataVersion: certificate.dataVersion }, changed: true, beforeChanges };
+  }
+  function certificateFor(db: DatabaseSync): AuditCertificate {
+    const certificate = audits.get(db);
+    if (!certificate || dataVersion(db) !== certificate.dataVersion || db.prepare('PRAGMA foreign_keys').get()?.foreign_keys !== 1) {
+      throw new Error('工作库完整核验凭证或写入约束已改变，请关闭并重新冷开核验；现有数据保留。');
+    }
+    return certificate;
+  }
   function transaction<T extends dto.LocalCatalogResult>(operation: dto.LocalCatalogOperation, request: Command, apply: (db: DatabaseSync) => T): T {
     if (!validRequest(operation, request)) return access.conflict('本地目录请求无效。');
     return access.read(db => {
       db.exec('BEGIN IMMEDIATE');
       try {
-        const certificate = audits.get(db);
-        // 单作者连接以外的提交使凭证失效；拒热写，重新冷开才允许完整核验并建立新凭证。
-        if (!certificate || dataVersion(db) !== certificate.dataVersion || db.prepare('PRAGMA foreign_keys').get()?.foreign_keys !== 1) {
-          throw new Error('工作库完整核验凭证或写入约束已改变，请关闭并重新冷开核验；现有数据保留。');
+        const candidate = mutate(db, certificateFor(db), operation, request, apply);
+        if (candidate.changed) {
+          access.beforeCommit?.(`local-catalog:${operation}`);
+          if (Number(db.prepare('SELECT total_changes() n').get()?.n) !== candidate.beforeChanges + 2) return corrupt();
         }
-        const digest = fingerprint(operation, request), previous = db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(request.commandId);
-        if (previous) {
-          if (previous.fingerprint !== digest || previous.operation !== operation) return access.conflict('同一操作编号不能用于不同本地目录请求。');
-          const result = verifyReceipt(previous, operation, request) as T; db.exec('COMMIT'); return result;
-        }
-        const beforeChanges = Number(db.prepare('SELECT total_changes() n').get()?.n), audit = mutationAudit(db, operation, request);
-        const result = apply(db); if (!dto.isLocalCatalogResult(operation, result)) return corrupt();
-        db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(request.commandId, digest, operation, JSON.stringify(request), JSON.stringify(result), new Date().toISOString());
-        const entity = verifyMutation(db, operation, request, result, audit), receipt = db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(request.commandId)!;
-        verifyReceipt(receipt, operation, request, result);
-        const counts = new Map(certificate.rows), entityCount = counts.get(audit.table)! + (audit.before ? 0 : 1), ledgerCount = counts.get('local_catalog_ledger')! + 1;
-        checkBudget(`${audit.table}行数`, entityCount, rowBudgets[audit.table]); checkBudget('local_catalog_ledger行数', ledgerCount, rowBudgets.local_catalog_ledger);
-        counts.set(audit.table, entityCount); counts.set('local_catalog_ledger', ledgerCount);
-        const bytes = certificate.bytes + rowBytes(entity) - (audit.before ? rowBytes(audit.before) : 0) + rowBytes(receipt);
-        checkBudget('目录总文本字节', bytes, maxCatalogTextBytes);
-        access.beforeCommit?.(`local-catalog:${operation}`);
-        if (Number(db.prepare('SELECT total_changes() n').get()?.n) !== beforeChanges + 2) return corrupt();
-        db.exec('COMMIT'); audits.set(db, { rows: counts, bytes, dataVersion: certificate.dataVersion }); return result;
+        db.exec('COMMIT'); audits.set(db, candidate.certificate); return candidate.result;
       } catch (error) { db.exec('ROLLBACK'); throw error; }
     });
   }
   const id = (value: string): void => { if (!dto.isCollectionId(value)) access.conflict('本地对象身份无效。'); };
   const checkTrackSegment = (value: dto.LocalTrack, selected: dto.AudioAsset): void => { try { checkSegment(value, selected); } catch { access.conflict('片段时间基或范围与所选资产不一致。'); } };
-  return {
-    registerRoot(request: RegisterLibraryRoot): dto.LibraryRoot {
-      return transaction('register-root', request, db => {
+  function applyRegisterRoot(db: DatabaseSync, request: RegisterLibraryRoot): dto.LibraryRoot {
         const source = authorized(request.sourceRootId); overlap(db, source);
         const result: dto.LibraryRoot = { id: randomUUID(), sourceRootId: source.id, role: request.role, revision: '1' };
         db.prepare('INSERT INTO local_catalog_roots VALUES(?,?,?)').run(result.id, source.id, JSON.stringify(result)); return result;
-      });
-    },
-    relinkRoot(request: RelinkLibraryRoot): dto.LibraryRoot {
-      return transaction('relink-root', request, db => {
+  }
+  function applyRelinkRoot(db: DatabaseSync, request: RelinkLibraryRoot): dto.LibraryRoot {
         const old = root(db, request.rootId); if (old.revision !== request.expectedRevision) return access.conflict('本地目录关联修订已改变。');
         const source = authorized(request.sourceRootId); overlap(db, source, old.id);
         const result = { ...old, sourceRootId: source.id, role: request.role, revision: next(old.revision) };
         db.prepare('UPDATE local_catalog_roots SET source_root_id=?,data=? WHERE id=?').run(source.id, JSON.stringify(result), old.id); return result;
-      });
-    },
-    root(rootId: string): dto.LibraryRoot { id(rootId); return access.read(db => root(db, rootId)); },
-    roots(): dto.LibraryRoot[] { return access.read(db => db.prepare('SELECT * FROM local_catalog_roots ORDER BY rowid').all().map(readRoot)); },
-    registerAsset(request: RegisterAudioAsset): dto.AudioAsset {
-      return transaction('register-asset', request, db => {
+  }
+  function applyRegisterAsset(db: DatabaseSync, request: RegisterAudioAsset): dto.AudioAsset {
         const selected = currentRoot(db, request.libraryRootId, request.expectedRootRevision);
         const result: dto.AudioAsset = { id: randomUUID(), libraryRootId: selected.id, sourceRootId: selected.sourceRootId, rootRevision: selected.revision, fileRevision: '1', locationRevision: '1', sampleFrames: request.sampleFrames, timebaseHz: request.timebaseHz };
         db.prepare('INSERT INTO local_catalog_assets VALUES(?,?,?,?,?,?)').run(result.id, selected.id, selected.sourceRootId, request.relative, request.sha256, JSON.stringify(result)); return result;
-      });
-    },
-    moveAsset(request: MoveAudioAsset): dto.AudioAsset {
-      return transaction('move-asset', request, db => {
+  }
+  function applyMoveAsset(db: DatabaseSync, request: MoveAudioAsset): dto.AudioAsset {
         const old = asset(db, request.assetId), selected = currentRoot(db, old.libraryRootId, request.expectedRootRevision);
         if (old.locationRevision !== request.expectedLocationRevision || old.sourceRootId !== selected.sourceRootId) return access.conflict('位置或根关联已改变，需要新的资产观察。');
         const result = { ...old, rootRevision: selected.revision, locationRevision: next(old.locationRevision) };
         db.prepare('UPDATE local_catalog_assets SET relative=?,data=? WHERE id=?').run(request.relative, JSON.stringify(result), old.id); return result;
-      });
-    },
-    replaceAsset(request: ReplaceAudioAsset): dto.AudioAsset {
-      return transaction('replace-asset', request, db => {
+  }
+  function applyReplaceAsset(db: DatabaseSync, request: ReplaceAudioAsset): dto.AudioAsset {
         const old = asset(db, request.assetId), selected = currentRoot(db, request.libraryRootId, request.expectedRootRevision);
         if (old.fileRevision !== request.expectedFileRevision || old.locationRevision !== request.expectedLocationRevision || old.libraryRootId !== selected.id) return access.conflict('资产修订或逻辑目录已改变。');
         const oldLocation = one(db, 'local_catalog_assets', old.id);
@@ -470,8 +470,82 @@ export function createLocalCatalogStore(access: Access) {
         const result = { ...old, sourceRootId: selected.sourceRootId, rootRevision: selected.revision, fileRevision: next(old.fileRevision), locationRevision: moved ? next(old.locationRevision) : old.locationRevision, sampleFrames: request.sampleFrames, timebaseHz: request.timebaseHz };
         for (const row of db.prepare('SELECT * FROM local_catalog_tracks WHERE asset_id=?').iterate(old.id)) checkTrackSegment(readTrack(row), result);
         db.prepare('UPDATE local_catalog_assets SET source_root_id=?,relative=?,sha256=?,data=? WHERE id=?').run(selected.sourceRootId, request.relative, request.sha256, JSON.stringify(result), old.id); return result;
+  }
+  function applyCreateTrack(db: DatabaseSync, request: CreateLocalTrack): dto.LocalTrack {
+        const selected = asset(db, request.assetId);
+        const result: dto.LocalTrack = { id: randomUUID(), assetId: selected.id, selectionRevision: '1', segment: request.segment === null ? null : { ...request.segment, id: randomUUID() } };
+        checkTrackSegment(result, selected); db.prepare('INSERT INTO local_catalog_tracks VALUES(?,?,?)').run(result.id, result.assetId, JSON.stringify(result)); return result;
+  }
+  function applySelectAsset(db: DatabaseSync, request: SelectLocalAsset): dto.LocalTrack {
+        const old = track(db, request.trackId); if (old.selectionRevision !== request.expectedSelectionRevision) return access.conflict('曲目选择修订已改变。');
+        const selected = asset(db, request.assetId), result = { ...old, assetId: selected.id, selectionRevision: next(old.selectionRevision) };
+        checkTrackSegment(result, selected); db.prepare('UPDATE local_catalog_tracks SET asset_id=?,data=? WHERE id=?').run(selected.id, JSON.stringify(result), old.id); return result;
+  }
+  function applyCreateEdition(db: DatabaseSync, request: CreateAlbumEdition): dto.AlbumEdition {const result: dto.AlbumEdition = { id: randomUUID(), title: request.title, edition: request.edition, revision: '1' }; db.prepare('INSERT INTO local_catalog_editions VALUES(?,?)').run(result.id, JSON.stringify(result)); return result;
+  }
+  function applyLinkEditionTrack(db: DatabaseSync, request: LinkEditionTrack): dto.AlbumEditionTrack {
+        one(db, 'local_catalog_editions', request.editionId); track(db, request.trackId);
+        if (db.prepare("SELECT 1 FROM local_catalog_edition_tracks WHERE edition_id=? AND json_extract(data,'$.sequence')=? AND json_extract(data,'$.active')=1").get(request.editionId, request.sequence)) return access.conflict('发行版序号已存在。');
+        const result: dto.AlbumEditionTrack = { id: randomUUID(), editionId: request.editionId, trackId: request.trackId, disc: request.disc, trackNumber: request.trackNumber, sequence: request.sequence, revision: '1', active: true };
+        db.prepare('INSERT INTO local_catalog_edition_tracks VALUES(?,?,?,?)').run(result.id, result.editionId, result.trackId, JSON.stringify(result)); return result;
+  }
+  function applyRemoveEditionTrack(db: DatabaseSync, request: RemoveEditionTrack): dto.AlbumEditionTrack {
+        const old = parse(one(db, 'local_catalog_edition_tracks', request.id).data, dto.isAlbumEditionTrack);
+        if (old.revision !== request.expectedRevision || !old.active) return access.conflict('发行版关系修订已改变。');
+        const result = { ...old, revision: next(old.revision), active: false }; db.prepare('UPDATE local_catalog_edition_tracks SET data=? WHERE id=?').run(JSON.stringify(result), old.id); return result;
+  }
+  function applyObserveMetadata(db: DatabaseSync, request: ObserveLocalMetadata): dto.LocalMetadataObservation {
+        track(db, request.trackId);
+        const previous = db.prepare('SELECT data FROM local_catalog_observations WHERE track_id=? ORDER BY rowid DESC LIMIT 1').get(request.trackId);
+        const result: dto.LocalMetadataObservation = { id: randomUUID(), trackId: request.trackId, revision: previous ? next(parse(previous.data, dto.isLocalMetadataObservation).revision) : '1', source: request.source, parserVersion: request.parserVersion, fields: { ...request.fields } };
+        db.prepare('INSERT INTO local_catalog_observations VALUES(?,?,?)').run(result.id, result.trackId, JSON.stringify(result)); return result;
+  }
+  function applyOverrideMetadata(db: DatabaseSync, request: OverrideLocalMetadata): dto.LocalMetadataOverride {
+        track(db, request.trackId); const previous = db.prepare('SELECT data FROM local_catalog_overrides WHERE track_id=?').get(request.trackId);
+        const old = previous ? parse(previous.data, dto.isLocalMetadataOverride) : null;
+        if ((old?.revision ?? null) !== request.expectedRevision) return access.conflict('人工元数据修订已改变。');
+        const result: dto.LocalMetadataOverride = { trackId: request.trackId, revision: old ? next(old.revision) : '1', fields: { ...request.fields } };
+        db.prepare('INSERT INTO local_catalog_overrides VALUES(?,?) ON CONFLICT(track_id) DO UPDATE SET data=excluded.data').run(result.trackId, JSON.stringify(result)); return result;
+  }
+  return {
+    /** Node owner唯一连接的私有批提交接点；callback必须同步，不读取文件、不返回Promise。 */
+    privateBatch<T>(operation: (db: DatabaseSync, mutate: (name: dto.LocalCatalogOperation, request: Command & Row) => dto.LocalCatalogResult) => T): T {
+      return access.read(db => {
+        db.exec('BEGIN IMMEDIATE');
+        try {
+          let certificate = certificateFor(db);
+          const apply = (name: dto.LocalCatalogOperation, request: Command & Row): dto.LocalCatalogResult => {
+            const operation = name;
+            if (!validRequest(operation, request)) return access.conflict('本地目录私有批请求无效。');
+            switch (operation) {
+              case 'register-root': { const candidate = mutate(db, certificate, operation, request, d => applyRegisterRoot(d, request as unknown as RegisterLibraryRoot)); certificate = candidate.certificate; return candidate.result; }
+              case 'relink-root': { const candidate = mutate(db, certificate, operation, request, d => applyRelinkRoot(d, request as unknown as RelinkLibraryRoot)); certificate = candidate.certificate; return candidate.result; }
+              case 'register-asset': { const candidate = mutate(db, certificate, operation, request, d => applyRegisterAsset(d, request as unknown as RegisterAudioAsset)); certificate = candidate.certificate; return candidate.result; }
+              case 'move-asset': { const candidate = mutate(db, certificate, operation, request, d => applyMoveAsset(d, request as unknown as MoveAudioAsset)); certificate = candidate.certificate; return candidate.result; }
+              case 'replace-asset': { const candidate = mutate(db, certificate, operation, request, d => applyReplaceAsset(d, request as unknown as ReplaceAudioAsset)); certificate = candidate.certificate; return candidate.result; }
+              case 'create-track': { const candidate = mutate(db, certificate, operation, request, d => applyCreateTrack(d, request as unknown as CreateLocalTrack)); certificate = candidate.certificate; return candidate.result; }
+              case 'select-asset': { const candidate = mutate(db, certificate, operation, request, d => applySelectAsset(d, request as unknown as SelectLocalAsset)); certificate = candidate.certificate; return candidate.result; }
+              case 'create-edition': { const candidate = mutate(db, certificate, operation, request, d => applyCreateEdition(d, request as unknown as CreateAlbumEdition)); certificate = candidate.certificate; return candidate.result; }
+              case 'link-edition-track': { const candidate = mutate(db, certificate, operation, request, d => applyLinkEditionTrack(d, request as unknown as LinkEditionTrack)); certificate = candidate.certificate; return candidate.result; }
+              case 'remove-edition-track': { const candidate = mutate(db, certificate, operation, request, d => applyRemoveEditionTrack(d, request as unknown as RemoveEditionTrack)); certificate = candidate.certificate; return candidate.result; }
+              case 'observe-metadata': { const candidate = mutate(db, certificate, operation, request, d => applyObserveMetadata(d, request as unknown as ObserveLocalMetadata)); certificate = candidate.certificate; return candidate.result; }
+              case 'override-metadata': { const candidate = mutate(db, certificate, operation, request, d => applyOverrideMetadata(d, request as unknown as OverrideLocalMetadata)); certificate = candidate.certificate; return candidate.result; }
+            }
+          };
+          const result = operation(db, apply);
+          if (result instanceof Promise) return corrupt();
+          access.beforeCommit?.('local-scan:commit-batch');
+          db.exec('COMMIT'); audits.set(db, certificate); return result;
+        } catch (error) { db.exec('ROLLBACK'); throw error; }
       });
     },
+    registerRoot(request: RegisterLibraryRoot): dto.LibraryRoot { return transaction('register-root', request, db => applyRegisterRoot(db, request)); },
+    relinkRoot(request: RelinkLibraryRoot): dto.LibraryRoot { return transaction('relink-root', request, db => applyRelinkRoot(db, request)); },
+    root(rootId: string): dto.LibraryRoot { id(rootId); return access.read(db => root(db, rootId)); },
+    roots(): dto.LibraryRoot[] { return access.read(db => db.prepare('SELECT * FROM local_catalog_roots ORDER BY rowid').all().map(readRoot)); },
+    registerAsset(request: RegisterAudioAsset): dto.AudioAsset { return transaction('register-asset', request, db => applyRegisterAsset(db, request)); },
+    moveAsset(request: MoveAudioAsset): dto.AudioAsset { return transaction('move-asset', request, db => applyMoveAsset(db, request)); },
+    replaceAsset(request: ReplaceAudioAsset): dto.AudioAsset { return transaction('replace-asset', request, db => applyReplaceAsset(db, request)); },
     asset(assetId: string): dto.AudioAsset { id(assetId); return access.read(db => asset(db, assetId)); },
     /** 仅Node owner私有准备接点；不经公开DTO/IPC暴露locator，也不新增授权真相。 */
     privateAssetLocator(assetId: string): { asset: dto.AudioAsset; relative: string } {
@@ -481,44 +555,17 @@ export function createLocalCatalogStore(access: Access) {
         return { asset: { ...selected }, relative: row.relative };
       });
     },
-    createTrack(request: CreateLocalTrack): dto.LocalTrack {
-      return transaction('create-track', request, db => {
-        const selected = asset(db, request.assetId);
-        const result: dto.LocalTrack = { id: randomUUID(), assetId: selected.id, selectionRevision: '1', segment: request.segment === null ? null : { ...request.segment, id: randomUUID() } };
-        checkTrackSegment(result, selected); db.prepare('INSERT INTO local_catalog_tracks VALUES(?,?,?)').run(result.id, result.assetId, JSON.stringify(result)); return result;
-      });
-    },
-    selectAsset(request: SelectLocalAsset): dto.LocalTrack {
-      return transaction('select-asset', request, db => {
-        const old = track(db, request.trackId); if (old.selectionRevision !== request.expectedSelectionRevision) return access.conflict('曲目选择修订已改变。');
-        const selected = asset(db, request.assetId), result = { ...old, assetId: selected.id, selectionRevision: next(old.selectionRevision) };
-        checkTrackSegment(result, selected); db.prepare('UPDATE local_catalog_tracks SET asset_id=?,data=? WHERE id=?').run(selected.id, JSON.stringify(result), old.id); return result;
-      });
-    },
+    createTrack(request: CreateLocalTrack): dto.LocalTrack { return transaction('create-track', request, db => applyCreateTrack(db, request)); },
+    selectAsset(request: SelectLocalAsset): dto.LocalTrack { return transaction('select-asset', request, db => applySelectAsset(db, request)); },
     track(trackId: string): dto.LocalTrack { id(trackId); return access.read(db => track(db, trackId)); },
     pageTracks(page: dto.PageRequest): dto.Page<dto.LocalTrack> {
       if (!record(page) || !keys(page, ['offset', 'limit']) || !Number.isSafeInteger(page.offset) || page.offset < 0 || !Number.isSafeInteger(page.limit) || page.limit < 1 || page.limit > 200) return access.conflict('本地目录分页无效。');
       return access.read(db => { const total = Number(db.prepare('SELECT count(*) n FROM local_catalog_tracks').get()!.n), items = db.prepare('SELECT * FROM local_catalog_tracks ORDER BY rowid LIMIT ? OFFSET ?').all(page.limit, page.offset).map(readTrack); return { ...page, total, items, hasMore: page.offset + items.length < total }; });
     },
-    createEdition(request: CreateAlbumEdition): dto.AlbumEdition {
-      return transaction('create-edition', request, db => { const result: dto.AlbumEdition = { id: randomUUID(), title: request.title, edition: request.edition, revision: '1' }; db.prepare('INSERT INTO local_catalog_editions VALUES(?,?)').run(result.id, JSON.stringify(result)); return result; });
-    },
+    createEdition(request: CreateAlbumEdition): dto.AlbumEdition { return transaction('create-edition', request, db => applyCreateEdition(db, request)); },
     edition(editionId: string): dto.AlbumEdition { id(editionId); return access.read(db => parse(one(db, 'local_catalog_editions', editionId).data, dto.isAlbumEdition)); },
-    linkEditionTrack(request: LinkEditionTrack): dto.AlbumEditionTrack {
-      return transaction('link-edition-track', request, db => {
-        one(db, 'local_catalog_editions', request.editionId); track(db, request.trackId);
-        if (db.prepare("SELECT 1 FROM local_catalog_edition_tracks WHERE edition_id=? AND json_extract(data,'$.sequence')=? AND json_extract(data,'$.active')=1").get(request.editionId, request.sequence)) return access.conflict('发行版序号已存在。');
-        const result: dto.AlbumEditionTrack = { id: randomUUID(), editionId: request.editionId, trackId: request.trackId, disc: request.disc, trackNumber: request.trackNumber, sequence: request.sequence, revision: '1', active: true };
-        db.prepare('INSERT INTO local_catalog_edition_tracks VALUES(?,?,?,?)').run(result.id, result.editionId, result.trackId, JSON.stringify(result)); return result;
-      });
-    },
-    removeEditionTrack(request: RemoveEditionTrack): dto.AlbumEditionTrack {
-      return transaction('remove-edition-track', request, db => {
-        const old = parse(one(db, 'local_catalog_edition_tracks', request.id).data, dto.isAlbumEditionTrack);
-        if (old.revision !== request.expectedRevision || !old.active) return access.conflict('发行版关系修订已改变。');
-        const result = { ...old, revision: next(old.revision), active: false }; db.prepare('UPDATE local_catalog_edition_tracks SET data=? WHERE id=?').run(JSON.stringify(result), old.id); return result;
-      });
-    },
+    linkEditionTrack(request: LinkEditionTrack): dto.AlbumEditionTrack { return transaction('link-edition-track', request, db => applyLinkEditionTrack(db, request)); },
+    removeEditionTrack(request: RemoveEditionTrack): dto.AlbumEditionTrack { return transaction('remove-edition-track', request, db => applyRemoveEditionTrack(db, request)); },
     editionTracks(editionId: string): dto.AlbumEditionTrack[] {
       id(editionId); return access.read(db => {
         one(db, 'local_catalog_editions', editionId);
@@ -527,23 +574,8 @@ export function createLocalCatalogStore(access: Access) {
         return rows.map(row => parse(row.data, dto.isAlbumEditionTrack));
       });
     },
-    observeMetadata(request: ObserveLocalMetadata): dto.LocalMetadataObservation {
-      return transaction('observe-metadata', request, db => {
-        track(db, request.trackId);
-        const previous = db.prepare('SELECT data FROM local_catalog_observations WHERE track_id=? ORDER BY rowid DESC LIMIT 1').get(request.trackId);
-        const result: dto.LocalMetadataObservation = { id: randomUUID(), trackId: request.trackId, revision: previous ? next(parse(previous.data, dto.isLocalMetadataObservation).revision) : '1', source: request.source, parserVersion: request.parserVersion, fields: { ...request.fields } };
-        db.prepare('INSERT INTO local_catalog_observations VALUES(?,?,?)').run(result.id, result.trackId, JSON.stringify(result)); return result;
-      });
-    },
-    overrideMetadata(request: OverrideLocalMetadata): dto.LocalMetadataOverride {
-      return transaction('override-metadata', request, db => {
-        track(db, request.trackId); const previous = db.prepare('SELECT data FROM local_catalog_overrides WHERE track_id=?').get(request.trackId);
-        const old = previous ? parse(previous.data, dto.isLocalMetadataOverride) : null;
-        if ((old?.revision ?? null) !== request.expectedRevision) return access.conflict('人工元数据修订已改变。');
-        const result: dto.LocalMetadataOverride = { trackId: request.trackId, revision: old ? next(old.revision) : '1', fields: { ...request.fields } };
-        db.prepare('INSERT INTO local_catalog_overrides VALUES(?,?) ON CONFLICT(track_id) DO UPDATE SET data=excluded.data').run(result.trackId, JSON.stringify(result)); return result;
-      });
-    },
+    observeMetadata(request: ObserveLocalMetadata): dto.LocalMetadataObservation { return transaction('observe-metadata', request, db => applyObserveMetadata(db, request)); },
+    overrideMetadata(request: OverrideLocalMetadata): dto.LocalMetadataOverride { return transaction('override-metadata', request, db => applyOverrideMetadata(db, request)); },
     observations(trackId: string): dto.LocalMetadataObservation[] {
       id(trackId); return access.read(db => {
         track(db, trackId);
@@ -562,6 +594,23 @@ export function createLocalCatalogStore(access: Access) {
         const row = db.prepare('SELECT data FROM local_catalog_overrides WHERE track_id=?').get(trackId), override = row ? parse(row.data, dto.isLocalMetadataOverride) : null;
         return { raw, override, effective: { ...raw, ...override?.fields } };
       });
+    },
+    privateReceiptRequest(commandId: string): { operation: dto.LocalCatalogOperation; request: Record<string,unknown>; result: dto.LocalCatalogResult } | null {
+      id(commandId);return access.read(db=>{
+        const row=db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(commandId);if(!row)return null;boundedRow(row);
+        const operation=row.operation;if(typeof operation!=='string'||!(dto.LOCAL_CATALOG_OPERATIONS as readonly string[]).includes(operation))return corrupt();
+        const typedOperation=operation as dto.LocalCatalogOperation;
+        const request:unknown=JSON.parse(String(row.request)),result:unknown=JSON.parse(String(row.result));
+        const receipt={commandId,operation:typedOperation,fingerprint:row.fingerprint,result};
+        if(!validRequest(typedOperation,request)||!dto.isLocalCatalogReceipt(receipt)||row.fingerprint!==fingerprint(typedOperation,request))return corrupt();
+        return {operation:typedOperation,request:{...request},result:receipt.result};
+      });
+    },
+    privateAssetHasExactEvidence(assetId: string): boolean {
+      id(assetId);return access.read(db=>!!db.prepare("SELECT id FROM local_catalog_assets WHERE id=? AND (sha256 IS NOT NULL OR json_extract(data,'$.sampleFrames') IS NOT NULL OR json_extract(data,'$.timebaseHz') IS NOT NULL) LIMIT 1").get(assetId));
+    },
+    privateRootHasExactAssets(rootId: string): boolean {
+      id(rootId);return access.read(db=>!!db.prepare("SELECT id FROM local_catalog_assets WHERE root_id=? AND (sha256 IS NOT NULL OR json_extract(data,'$.sampleFrames') IS NOT NULL OR json_extract(data,'$.timebaseHz') IS NOT NULL) LIMIT 1").get(rootId));
     },
     receipt(commandId: string): dto.LocalCatalogReceipt | null {
       id(commandId); return access.read(db => {

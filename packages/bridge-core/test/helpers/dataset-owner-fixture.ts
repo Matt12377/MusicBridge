@@ -12,6 +12,22 @@ if (mode === 'stale') port.on('message', message => {
 });
 attachDatasetOwnerWorkerPort(port, {
   async prepare(_epoch, projection) {
+    if(mode === 'scan-real') {
+      const {prepareOwnedDatasetDomain}=await import('../../dist/collection/dataset-domain.js');
+      const {createMetadataReader}=await import('../../dist/library/metadata-reader.js');
+      const counters=workerData.lifecycle ? new Int32Array(workerData.lifecycle as SharedArrayBuffer):undefined;
+      const reader=createMetadataReader({concurrency:1,maxPending:1,onLifecycle(event) {
+        const index=event.type === 'lease-acquired' ? 0:event.type === 'worker-start' ? 1:event.type === 'worker-exit' ? 2:event.type === 'lease-released' ? 3:event.type === 'read-complete' ? 4:-1;
+        if(counters && index>=0) {Atomics.add(counters,index,1);Atomics.notify(counters,index);}
+      }});
+      const domain=await prepareOwnedDatasetDomain({dataDirectory:String(workerData.dataDirectory),epoch:_epoch,testMode:true,projection,scanMetadataReader:reader});
+      const wrap:OwnedDatasetDomain={...domain,async dispatch(request) {
+        const result=await domain.dispatch(request);
+        if(workerData.crashAfterScanCommand === request.command) process.exit(17);
+        return result;
+      }};
+      return wrap;
+    }
     let active = 0;
     let commits = 0;
     let stopped = false;

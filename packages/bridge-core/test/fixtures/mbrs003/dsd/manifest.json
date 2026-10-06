@@ -1,0 +1,47 @@
+{
+  "schema": "mbrs003.synthetic-dsd-portable.v1",
+  "synthetic": true,
+  "files": [
+    {
+      "file": "synthetic-balanced-dsd64.dsf",
+      "bytes": 8284,
+      "sha256": "10d760c280ef0cad105cb30d0cb9c8f18057a58874d0c3f84163dbd85e8f9a47",
+      "container": "DSF",
+      "dsdClockRateHz": 2822400,
+      "oneBitSamplesPerChannel": 32768,
+      "channels": 2,
+      "actualFfprobeCodec": "dsd_lsbf_planar",
+      "actualFfprobeDecodedRateHz": 352800,
+      "actualFfprobeDurationSeconds": "0.011610",
+      "independentFiniteDecodeExit": 0,
+      "tagFixture": "NOT_PRESENT",
+      "coverFixture": "NOT_PRESENT",
+      "expectedCurrentReader": {
+        "status": "failure",
+        "code": "UNSUPPORTED"
+      }
+    },
+    {
+      "file": "synthetic-balanced-dsd64.dff",
+      "bytes": 8310,
+      "sha256": "a110f3bb71e01c91b925bfffe310a8988880ce07d64369b647e28e227444cefe",
+      "container": "DFF",
+      "dsdClockRateHz": 2822400,
+      "oneBitSamplesPerChannel": 32768,
+      "channels": 2,
+      "actualFfprobeCodec": "dsd_msbf",
+      "actualFfprobeDecodedRateHz": 352800,
+      "actualFfprobeDurationSeconds": "0.011610",
+      "independentFiniteDecodeExit": 0,
+      "tagFixture": "NOT_PRESENT",
+      "coverFixture": "NOT_PRESENT",
+      "expectedCurrentReader": {
+        "status": "failure",
+        "code": "UNSUPPORTED"
+      }
+    }
+  ],
+  "clockAndDecodedRatesAreDifferent": true,
+  "upstreamOrFfmpegValidationIsNotMusicBridgeSupport": true,
+  "runtimeFixtureGenerationRequired": false
+}

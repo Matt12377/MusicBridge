@@ -1,3 +1,5 @@
+import {installLocalLibraryHandlers} from './local-library-ipc.js'
+import type {CommandOutboxPickOptions} from './command-outbox-executor.js'
 import { createLibraryReadBroker } from './library-read-ipc.js'
 import { createPerformanceIpcBridge } from "./performance-ipc.js"
 import { createLibraryReadTraceWriter, isLibraryReadTraceEnabled } from '../shared/library-read-trace.js'
@@ -1070,12 +1072,14 @@ function registerIpcHandlers(
   if (!coreDataDirectory) throw new Error('命令outbox缺少私有数据目录')
   const store = createCommandOutboxStore({ filePath: path.join(coreDataDirectory, 'command-outbox.v1.sqlite') })
   let sourcePickerBusy = false
-  const executor = createCommandOutboxExecutor({ supervisor, pick: async options => {
+  const pickLocalLibrary = async (options:CommandOutboxPickOptions) => {
     if (sourcePickerBusy || quitAfterCoreShutdown || !mainWindow || mainWindow.isDestroyed()) throw new CoreIpcError('NOT_READY', '目录或文件选择器暂不可用')
     sourcePickerBusy = true
     try { return await dialog.showOpenDialog(mainWindow, options) }
     finally { sourcePickerBusy = false }
-  } })
+  }
+  const executor = createCommandOutboxExecutor({supervisor,pick:pickLocalLibrary})
+  installLocalLibraryHandlers({handle:(channel,handler)=>registerPerformanceHandler(channel,handler),requireTrusted:requireTrustedRenderer,supervisor,pick:pickLocalLibrary})
   commandOutbox = createCommandOutboxService({ store, currentDataset: async () => (await supervisor.request('commandOutbox.context', {})).datasetId, ...executor })
   installCommandOutboxIpc<Electron.IpcMainInvokeEvent>({
     handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer,

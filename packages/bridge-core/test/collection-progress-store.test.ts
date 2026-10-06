@@ -146,7 +146,7 @@ test('固定schema16迁移21逐列保留XLSX原bytes/更正/实体照片/目录�
   assert.throws(() => repository.list(page), /库存暂时不可用/u);
   db = new DatabaseSync(filePath, { readOnly: true }); assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 16); assert.deepEqual(facts(db), before); db.close();
   fail = false; repository.list(page); repository.close(); db = new DatabaseSync(filePath, { readOnly: true });
-  try { assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 31); assert.deepEqual(facts(db), before); assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []); } finally { db.close(); }
+  try { assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 32); assert.deepEqual(facts(db), before); assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []); } finally { db.close(); }
 });
 test('Owned90再Wanted46仍分子1，品牌/系列守恒，读取不改库存与目录历史', async t => {
   const { repository, filePath } = await fixture(t), modelId = repository.list(page).items.find(m => m.name === '固定旧库型号')!.id;

@@ -11,6 +11,7 @@ import { revokePreparationZipForRestore, verifyPreparationZipDatabase, verifyPre
 import { verifyRecordingRecordPageIndex, verifyRecordingRecordPageSearch } from './record-page-index.js';
 import { verifyReferenceCatalogZipDatabase } from '../collection/reference-catalog-store.js';
 import { verifyVersionDistributionDatabase } from './versions-store.js';
+import { verifyLocalScanDatabase, recoverLocalScanJobs } from '../collection/local-scan-store.js';
 import { verifyLocalCatalogDatabase } from '../collection/local-catalog-store.js';
 
 /** 只修改恢复目录内的独立副本；所有不可变版本/账本/旧路径事实原样保留。 */
@@ -19,7 +20,7 @@ export function isolateRestoredDatabase(filePath: string): void {
   try {
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA foreign_keys=ON;');
     const initialVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-    if (!Number.isInteger(initialVersion) || initialVersion < 14 || initialVersion > 31) backupFail();
+    if (!Number.isInteger(initialVersion) || initialVersion < 14 || initialVersion > 32) backupFail();
     verifyVersionDistributionDatabase(db);
     // 损坏历史必须在journal模式变更之前拒绝，连数据库文件头也不提前改写。
     if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 19) verifyRecordingAttemptDatabase(db);
@@ -33,14 +34,16 @@ export function isolateRestoredDatabase(filePath: string): void {
     if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 29) verifyRecordingRecordPageSearch(db);
     if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 30) verifyPreparationZipSessionDatabase(db);
     if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 31) verifyLocalCatalogDatabase(db);
+    if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 32) verifyLocalScanDatabase(db);
     db.exec('PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; BEGIN IMMEDIATE;');
     try {
       const version = db.prepare('PRAGMA user_version').get()?.user_version;
-      if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18 && version !== 19 && version !== 20 && version !== 21 && version !== 22 && version !== 23 && version !== 24 && version !== 25 && version !== 26 && version !== 27 && version !== 28 && version !== 29 && version !== 30 && version !== 31) backupFail();
+      if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18 && version !== 19 && version !== 20 && version !== 21 && version !== 22 && version !== 23 && version !== 24 && version !== 25 && version !== 26 && version !== 27 && version !== 28 && version !== 29 && version !== 30 && version !== 31 && version !== 32) backupFail();
       if (Number(version) >= 19) { verifyRecordingAttemptDatabase(db); recoverRecordingAttempts(db, new Date().toISOString()); }
       if (Number(version) >= 25) verifyOutputRunBarrierDatabase(db);
       if (Number(version) >= 26) revokePreparationZipForRestore(db);
       if (Number(version) >= 21) recoverRecordingPrints(db);
+      const publishScanAudit = Number(version) >= 32 ? recoverLocalScanJobs(db, 'restore') : undefined;
       for (const table of ['source_roots', 'preparation_destinations']) db.exec(`UPDATE ${table} SET data=json_set(data,'$.authorized',json('false'))`);
       db.exec("UPDATE prepared_selections SET data=json_set(data,'$.root.authorized',json('false')); UPDATE archive_roots SET authorized=0; UPDATE archive_candidates SET authorized=0;");
       for (const table of ['source_jobs', 'version_jobs', 'preparation_jobs', 'prepared_jobs', 'execution_jobs']) {
@@ -53,7 +56,8 @@ export function isolateRestoredDatabase(filePath: string): void {
       if (Number(version) >= 29) verifyRecordingRecordPageSearch(db);
       if (Number(version) >= 30) verifyPreparationZipSessionDatabase(db);
       if (Number(version) >= 31) verifyLocalCatalogDatabase(db);
-      db.exec('COMMIT');
+      if (Number(version) >= 32) verifyLocalScanDatabase(db);
+      db.exec('COMMIT'); publishScanAudit?.();
     } catch (error) { db.exec('ROLLBACK'); throw error; }
   } finally { db.close(); }
 }
@@ -62,7 +66,7 @@ export function verifyRestoredDatabaseIsolation(filePath: string): void {
   try {
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
     const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-    if (!Number.isInteger(version) || version < 14 || version > 31) backupFail();
+    if (!Number.isInteger(version) || version < 14 || version > 32) backupFail();
     verifyVersionDistributionDatabase(db);
     if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 19) {
       verifyRecordingAttemptDatabase(db);
@@ -76,8 +80,10 @@ export function verifyRestoredDatabaseIsolation(filePath: string): void {
       if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 29) verifyRecordingRecordPageSearch(db);
       if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 30) verifyPreparationZipSessionDatabase(db);
       if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 31) verifyLocalCatalogDatabase(db);
+      if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 32) verifyLocalScanDatabase(db);
       if (db.prepare("SELECT 1 FROM recording_attempts WHERE status='in-progress' LIMIT 1").get()) backupFail();
     }
+    if (version >= 32 && db.prepare("SELECT 1 FROM local_scan_jobs WHERE json_extract(data,'$.phase')='running' LIMIT 1").get()) backupFail();
     for (const table of ['source_roots', 'preparation_destinations']) {
       if (db.prepare(`SELECT 1 FROM ${table} WHERE json_extract(data,'$.authorized') IS NOT 0 LIMIT 1`).get()) backupFail();
     }

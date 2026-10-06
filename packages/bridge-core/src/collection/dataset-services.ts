@@ -1,3 +1,5 @@
+import type {LocalRelocationCoordinator} from './local-relocation-coordinator.js';
+import type { LocalScanCoordinator } from './local-scan-coordinator.js';
 import type { CollectionRepository } from './repository.js';
 import type { PhysicalLinksCoordinator, ProjectedPhysicalLinksCoordinator } from './physical-links-coordinator.js';
 import type { createDatasetCommandBoundary } from '../recording/dataset-identity.js';
@@ -23,6 +25,8 @@ import type { MasterDraftsCoordinator, ProjectedMasterDraftsCoordinator } from '
 /** 组合与派发共用领域类型；派发层不反向依赖组合工厂。 */
 export interface DatasetServices {
   collection: CollectionRepository;
+  localScan: LocalScanCoordinator;
+  localRelocation: LocalRelocationCoordinator;
   commandOutbox: ReturnType<typeof createDatasetCommandBoundary>;
   sources: SourceEvidenceService;
   sourceCandidates: SourceCandidateService;

@@ -30,6 +30,9 @@ importers:
       '@neteasecloudmusicapienhanced/api':
         specifier: 4.40.1
         version: 4.40.1(patch_hash=5794b1e31014590ccbef952492ca10fa683478c369ca62b0841c06c39ff62f0e)
+      music-metadata:
+        specifier: 11.15.0
+        version: 11.15.0
       node-roon-api:
         specifier: github:RoonLabs/node-roon-api#055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8
         version: https://codeload.github.com/RoonLabs/node-roon-api/tar.gz/055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8
@@ -112,6 +115,9 @@ importers:
       music-metadata:
         specifier: 11.15.0
         version: 11.15.0
+      strtok3:
+        specifier: 10.3.5
+        version: 10.3.5
       node-roon-api:
         specifier: github:RoonLabs/node-roon-api#055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8
         version: https://codeload.github.com/RoonLabs/node-roon-api/tar.gz/055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8
@@ -143,6 +149,9 @@ importers:
         specifier: 3.3.1
         version: 3.3.1
     devDependencies:
+      esbuild:
+        specifier: 0.28.2
+        version: 0.28.2
       '@types/node':
         specifier: 22.20.1
         version: 22.20.1

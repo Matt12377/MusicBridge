@@ -1,0 +1,61 @@
+{
+  "committedFileCount": 300000,
+  "accepted": 299975,
+  "rejected": 25,
+  "committedBatchCount": 1501,
+  "readerFailureCodeCounts": {
+    "REVOKED": 0,
+    "SOURCE_ROOT_OFFLINE": 0,
+    "OUTSIDE_ROOT": 0,
+    "MISSING": 0,
+    "CONTENT_CHANGED": 0,
+    "IO_ERROR": 0,
+    "BUDGET_EXCEEDED": 0,
+    "PARSE_FAILED": 0,
+    "UNSUPPORTED": 0,
+    "TIMEOUT": 20,
+    "WORKER_START_TIMEOUT": 5,
+    "CANCELLED": 0,
+    "CLOSED": 0,
+    "QUEUE_FULL": 0,
+    "WORKER_FAILED": 0,
+    "LEASE_RELEASE_FAILED": 0,
+    "ADMISSION_FAILED": 0
+  },
+  "catalogFailureCodeCounts": {
+    "CATALOG_METADATA_INVALID": 0,
+    "CATALOG_FIELD_INVALID_TITLE": 0,
+    "CATALOG_FIELD_INVALID_ARTIST": 0,
+    "CATALOG_FIELD_INVALID_ALBUM": 0,
+    "CATALOG_FIELD_INVALID_YEAR": 0,
+    "CATALOG_FIELD_INVALID_DISC": 0,
+    "CATALOG_FIELD_INVALID_TRACK": 0
+  },
+  "unknownCodeCount": 0,
+  "coverageAndConsistency": {
+    "metadataCoverageComplete": true,
+    "countsMatchExpected": true,
+    "checkpointChainVerified": true,
+    "batchItemPairingVerified": true,
+    "physicalCause": "UNKNOWN",
+    "scalePass": false,
+    "whole003Pass": false
+  },
+  "metadataInputDigest": "a58aca89bee2bb1df168ef8afe1330c49cbae37094b09e74ba535103b6d3076a",
+  "databaseCloneIdentity": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-closed-new06-db-clone-actual-01/closed-new06-library.sqlite",
+    "bytes": 1618812928,
+    "sha256": "f0e3aa9f397b5a01335671731ca8d48ad7b848c5aa0f4967ad9f0863a0425b8d",
+    "object": {
+      "dev": "16777258",
+      "ino": "48598394",
+      "mode": "33152",
+      "nlink": "1",
+      "uid": "501",
+      "size": "1618812928",
+      "mtimeNs": "1791187015407022959",
+      "ctimeNs": "1791197067012622169"
+    }
+  },
+  "actualToolAndFsClosure": "PENDING_ROOT_EXTERNAL_CLOSURE"
+}

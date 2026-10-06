@@ -7,7 +7,7 @@
   "productName": "Music Bridge for Roon",
   "scripts": {
     "prebuild": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
-    "build": "electron-vite build --mode production",
+    "build": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && electron-vite build --mode production",
     "postbuild": "node scripts/verify-preload-dependencies.mjs",
     "pretypecheck": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.e2e.json",
@@ -19,16 +19,17 @@
     "test:electron": "node --import tsx --test electron-gate/*.test.ts",
     "pretest:security": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "test:security": "node --import tsx --test test/security.test.ts test/ipc-security.test.ts test/csp.test.ts test/protocol.test.ts test/preload.test.ts test/credential-provisioning.test.ts test/credential-vault.test.ts",
-    "dev": "electron-vite build --mode development && node scripts/verify-preload-dependencies.mjs && electron dist/main/index.js",
+    "dev": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && electron-vite build --mode development && node scripts/verify-preload-dependencies.mjs && electron dist/main/index.js",
     "start": "node scripts/verify-preload-dependencies.mjs && electron dist/main/index.js",
     "pack": "electron-builder --dir",
     "pack:beta": "electron-builder --mac --arm64",
     "test:startup": "node scripts/startup-gate.mjs development && node scripts/startup-gate.mjs production",
-    "test:e2e": "electron-vite build --mode production && node scripts/verify-preload-dependencies.mjs && electron-vite build --config e2e/private-core.vite.config.ts --mode development && playwright test"
+    "test:e2e": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && electron-vite build --mode production && node scripts/verify-preload-dependencies.mjs && electron-vite build --config e2e/private-core.vite.config.ts --mode development && playwright test"
   },
   "dependencies": {
     "@music-bridge/contracts": "workspace:*",
     "@neteasecloudmusicapienhanced/api": "4.40.1",
+    "music-metadata": "11.15.0",
     "node-roon-api": "github:RoonLabs/node-roon-api#055dae6c2ac45b6c738aa3b9e5ac1fd722ed60e8",
     "node-roon-api-audioinput": "github:RoonLabs/node-roon-api-audioinput#21ff59e52a12cf36a21bb9d3fd546f3e6d70581f",
     "node-roon-api-browse": "github:RoonLabs/node-roon-api-browse#98adcbaba3a30fd6ce109c1f04cd361536143222",

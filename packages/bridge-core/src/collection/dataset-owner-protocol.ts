@@ -1,4 +1,5 @@
-import { LOCAL_CATALOG_COMMANDS, isLocalCatalogInternalCommand } from '@music-bridge/contracts';
+import {LOCAL_RELOCATION_COMMANDS,isLocalRelocationCommand,isLocalRelocationInternalCommand,isLocalRelocationCommandResult} from '@music-bridge/contracts';
+import { LOCAL_CATALOG_COMMANDS, LOCAL_SCAN_COMMANDS, isLocalScanInternalCommand, isLocalCatalogInternalCommand } from '@music-bridge/contracts';
 import { IPC_VERSION, isCollectionId, isCollectionModel, isCommandOutboxDatasetId, isRoonAlbumReference, isDigitalAlbumMetadata, isDraftTrackMetadata, validateIpcRequest, validateIpcResponse, validateIpcResponseForCommand,
   type CollectionModel, type IpcCommand, type IpcFailure, type IpcRequest, type PageRequest, type RoonLibraryPage, type DigitalAlbumMetadata, type DraftTrackMetadata } from '@music-bridge/contracts';
 
@@ -6,6 +7,7 @@ export const DATASET_OWNER_PROTOCOL_VERSION = 1 as const;
 // 来自当前领域作者COMMAND_MAP的208个明确命令；新命令必须显式加入，不能按前缀自动授权。
 export const DATASET_COMMANDS = [
   ...LOCAL_CATALOG_COMMANDS,
+  ...LOCAL_SCAN_COMMANDS, ...LOCAL_RELOCATION_COMMANDS,
   'localCatalog.prepare',
   'recordingBackups.activationReceipt',
   'commandOutbox.context',
@@ -246,6 +248,9 @@ export interface DatasetOwnerLargeSnapshotEndpoint extends DatasetOwnerVersioned
   exportLargeVersionedCollectionSnapshot(): Promise<DatasetVersionedCollectionSnapshot>;
 }
 export interface DatasetProjectionCommandPayloads {
+  scanReadAcquire: Record<string, never>;
+  scanReadWatchRevocation: {permitId:string};
+  scanReadRelease: {permitId:string};
   browseAlbumCandidates: { query: string; page: PageRequest };
   captureAlbumMetadata: { reference: string };
   captureTrackMetadataBatch: { references: readonly string[] };
@@ -255,6 +260,9 @@ export interface DatasetProjectionCommandPayloads {
 export interface DatasetProjectionTicket<T> { scope: string; projectionId: string; metadata: T }
 export interface DatasetProjectionPermit { scope: string; projectionId: string; permitId: string }
 export interface DatasetProjectionCommandResults {
+  scanReadAcquire: {status:'granted';permitId:string}|{status:'deferred'};
+  scanReadWatchRevocation: {reason:'media-busy'|'admission-closed'|'permit-released'|'renew'};
+  scanReadRelease: {released:true};
   browseAlbumCandidates: RoonLibraryPage;
   captureAlbumMetadata: DatasetProjectionTicket<DigitalAlbumMetadata>;
   captureTrackMetadataBatch: DatasetProjectionTicket<readonly DraftTrackMetadata[]>;
@@ -332,7 +340,7 @@ export function isDatasetLargeVersionedCollectionSnapshot(value: unknown): value
 export function isDatasetRequestEnvelope(value: unknown, internal = false): value is IpcRequest {
   // 公开id与原validateIpcRequest保持一致；私有epoch/requestId继续使用UUID校验。
   return ownerRecord(value) && keys(value, ['version','id','command','payload','readContext','performanceTrace','expectedDatasetId']) && value.version === IPC_VERSION && typeof value.id === 'string' && value.id.trim().length > 0 && value.id.length <= 128
-    && isDatasetCommand(value.command) && (internal || !isLocalCatalogInternalCommand(value.command)) && ownerRecord(value.payload) && (value.expectedDatasetId === undefined || isCommandOutboxDatasetId(value.expectedDatasetId));
+    && isDatasetCommand(value.command) && (internal || !(isLocalCatalogInternalCommand(value.command) || isLocalScanInternalCommand(value.command) || isLocalRelocationInternalCommand(value.command))) && ownerRecord(value.payload) && (value.expectedDatasetId === undefined || isCommandOutboxDatasetId(value.expectedDatasetId));
 }
 export function isDatasetOwnerRequest(value: unknown): value is DatasetOwnerRequest {
   if (!ownerRecord(value) || !keys(value, ['version','epoch','type','requestId','sequence','operation','request','expectedDatasetId']) || value.version !== DATASET_OWNER_PROTOCOL_VERSION || value.type !== 'request' || !isCollectionId(value.epoch) || !isCollectionId(value.requestId)
@@ -340,7 +348,7 @@ export function isDatasetOwnerRequest(value: unknown): value is DatasetOwnerRequ
   if (['exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot'].includes(String(value.operation))) return value.request === undefined && isCommandOutboxDatasetId(value.expectedDatasetId);
   if (Object.hasOwn(value, 'expectedDatasetId')) return false;
   return value.operation === 'dispatch' || value.operation === 'dispatchInternal' ? isDatasetRequestEnvelope(value.request, true)
-    && (value.operation !== 'dispatchInternal' || ownerRecord(value.request) && isLocalCatalogInternalCommand(value.request.command)) : value.request === undefined;
+    && (value.operation !== 'dispatchInternal' || ownerRecord(value.request) && (isLocalCatalogInternalCommand(value.request.command) || isLocalScanInternalCommand(value.request.command) || isLocalRelocationInternalCommand(value.request.command))) : value.request === undefined;
 }
 export function isDatasetOwnerFailure(value: unknown): value is IpcFailure {
   if (!ownerRecord(value) || !keys(value, ['version','id','ok','error'])) return false;
@@ -351,9 +359,12 @@ export function isDatasetOwnerResponse(value: unknown): value is DatasetOwnerRes
     || !['prepare','dispatch','dispatchInternal','commitBoot','exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot','close'].includes(String(value.operation))) return false;
   return value.ok === true ? value.failure === undefined && Object.hasOwn(value,'result') : value.ok === false && value.result === undefined && isDatasetOwnerFailure(value.failure);
 }
-export const DATASET_PROJECTION_COMMANDS = ['browseAlbumCandidates','captureAlbumMetadata','captureTrackMetadataBatch','acquirePermit','releasePermit'] as const;
+export const DATASET_PROJECTION_COMMANDS = ['browseAlbumCandidates','captureAlbumMetadata','captureTrackMetadataBatch','acquirePermit','releasePermit','scanReadAcquire','scanReadWatchRevocation','scanReadRelease'] as const;
 export function isDatasetProjectionPayload(command: unknown, payload: unknown): payload is DatasetProjectionCommandPayloads[DatasetProjectionCommand] {
   if (!ownerRecord(payload)) return false;
+  if (command === 'scanReadAcquire') return Reflect.ownKeys(payload).length === 0 && [Object.prototype,null].includes(Object.getPrototypeOf(payload));
+  if (command === 'scanReadWatchRevocation' || command === 'scanReadRelease') return Reflect.ownKeys(payload).length === 1
+    && Object.prototype.propertyIsEnumerable.call(payload,'permitId') && isCollectionId(payload.permitId) && [Object.prototype,null].includes(Object.getPrototypeOf(payload));
   if (command === 'browseAlbumCandidates') return validateIpcRequest({version:IPC_VERSION,id:'projection',command:'physicalLinks.search',payload}).ok;
   if (command === 'captureAlbumMetadata') return keys(payload,['reference']) && isRoonAlbumReference(payload.reference);
   if (command === 'captureTrackMetadataBatch') return keys(payload,['references']) && Array.isArray(payload.references) && payload.references.length > 0 && payload.references.length <= 100 && payload.references.every(isRoonAlbumReference);
@@ -362,6 +373,12 @@ export function isDatasetProjectionPayload(command: unknown, payload: unknown): 
   return false;
 }
 export function isDatasetProjectionResult(command: DatasetProjectionCommand, value: unknown): boolean {
+  if (command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
+    if (!ownerRecord(value) || ![Object.prototype,null].includes(Object.getPrototypeOf(value))) return false;
+    const closedScan=(names:readonly string[])=>Reflect.ownKeys(value).length === names.length && names.every(k=>Object.prototype.propertyIsEnumerable.call(value,k));
+    if(command === 'scanReadAcquire') return value.status === 'deferred' ? closedScan(['status']) : value.status === 'granted' && closedScan(['status','permitId']) && isCollectionId(value.permitId);
+    return command === 'scanReadRelease' ? closedScan(['released']) && value.released === true : closedScan(['reason']) && ['media-busy','admission-closed','permit-released','renew'].includes(String(value.reason));
+  }
   if (command === 'browseAlbumCandidates') return validateIpcResponseForCommand({version:IPC_VERSION,id:'projection',ok:true,result:value},'physicalLinks.search').ok;
   if (!ownerRecord(value)) return false;
   if (command === 'releasePermit') return keys(value,['released']) && value.released === true;

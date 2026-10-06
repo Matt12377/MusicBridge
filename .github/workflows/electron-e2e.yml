@@ -44,26 +44,38 @@ jobs:
         with:
           node-version: 22.x
 
+      - name: Prepare source-pinned build workspace mirror
+        run: node scripts/ci/prepare-build-workspace-mirror.mjs --source "$GITHUB_WORKSPACE" --destination "$RUNNER_TEMP/musicbridge-electron/workspace" --expected-head "${{ github.sha }}"
+
       - name: Install frozen workspace
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: corepack pnpm@10.17.1 install --frozen-lockfile --ignore-scripts
 
+      - name: Prepare fresh Core fixed Worker before existing Electron gates
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build
+
       - name: Prepare Rust toolchain
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
 
       - name: Build and verify both Rust hosts once in this job
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node scripts/ci/prepare-rust-electron-hosts.mjs
         env:
           RUSTUP_TOOLCHAIN: '1.95.0'
 
       - name: Install Electron binary from locked tree (official installer only)
         run: node node_modules/electron/install.js
-        working-directory: apps/desktop
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}/apps/desktop
 
       - name: Verify official Electron archive and actual execution tree
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node apps/desktop/scripts/prepare-electron-identity.mjs
 
       - name: Electron startup, crash/restart, safeStorage vault and credential recovery gates
         shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: |
           set -o pipefail
           export MUSIC_BRIDGE_RUST_ELECTRON_REPORT="$MUSIC_BRIDGE_RUST_MAIN_HOST_BUILD_ROOT/electron-report.json"
@@ -72,6 +84,7 @@ jobs:
 
       - name: Electron end-to-end flow (Playwright, production build)
         shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: |
           set -o pipefail
           corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:e2e 2>&1 | tee "$RUNNER_TEMP/musicbridge-electron/electron-e2e.log"
@@ -81,6 +94,7 @@ jobs:
         id: rust-host-artifacts
         if: ${{ always() && env.MUSIC_BRIDGE_RUST_HOSTS_RECEIPT != '' }}
         shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
@@ -129,6 +143,7 @@ jobs:
           name: electron-e2e-${{ github.sha }}
           path: |
             ${{ runner.temp }}/musicbridge-electron/
+            !${{ runner.temp }}/musicbridge-electron/workspace/**
             ${{ runner.temp }}/musicbridge-rust-core/**/*.json
             ${{ runner.temp }}/musicbridge-rust-core/**/*.log
           if-no-files-found: warn

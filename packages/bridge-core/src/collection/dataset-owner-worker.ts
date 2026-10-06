@@ -1,6 +1,7 @@
+import {LOCAL_RELOCATION_COMMANDS,isLocalRelocationCommand,isLocalRelocationInternalCommand,isLocalRelocationCommandResult} from '@music-bridge/contracts';
 import { randomUUID } from 'node:crypto';
 import type { MessagePort } from 'node:worker_threads';
-import { validateIpcRequest, validateIpcInternalRequest, isLocalCatalogInternalCommand, type IpcCommand, type IpcFailure } from '@music-bridge/contracts';
+import { validateIpcRequest, validateIpcInternalRequest, isLocalCatalogInternalCommand, isLocalScanInternalCommand, type IpcCommand, type IpcFailure } from '@music-bridge/contracts';
 import { failureForError, responseFailure } from '../shared/ipc-failure.js';
 import {
   DATASET_OWNER_PROTOCOL_VERSION, DatasetOwnerDispatchError, DatasetOwnerTransportError,
@@ -209,7 +210,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     // 不等待整个异步命令才接收下一条；同步SQL仍完整地在同一个owner线程执行。
     let dispatch: Promise<unknown>;
     try {
-      if (internal && (!isLocalCatalogInternalCommand(checked.value.command) || !domain.dispatchInternal)) throw new DatasetOwnerDispatchError(responseFailure(checked.value.id, 'INVALID_IPC_REQUEST', '可信观察入口未就绪。'));
+      if (internal && (!(isLocalCatalogInternalCommand(checked.value.command) || isLocalScanInternalCommand(checked.value.command) || isLocalRelocationInternalCommand(checked.value.command)) || !domain.dispatchInternal)) throw new DatasetOwnerDispatchError(responseFailure(checked.value.id, 'INVALID_IPC_REQUEST', '可信观察入口未就绪。'));
       dispatch = Promise.resolve(internal ? domain.dispatchInternal!(checked.value) : domain.dispatch(checked.value));
     }
     catch (error) { reject(request, error); return; }
