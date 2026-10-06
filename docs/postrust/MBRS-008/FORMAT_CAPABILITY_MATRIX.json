@@ -1,0 +1,420 @@
+{
+  "plan_version": "1.2",
+  "purpose": "test_targets_not_claimed_support",
+  "policy": "Metadata, transfer, playback, Q3 and writer capabilities are independent; required target failures remain visible.",
+  "rows": [
+    {
+      "id": "FMT-01",
+      "container": "FLAC",
+      "profile": "16/44.1 stereo",
+      "target_scope": "CORE_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿"
+      ]
+    },
+    {
+      "id": "FMT-02",
+      "container": "FLAC",
+      "profile": "24/96 stereo",
+      "target_scope": "CORE_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿"
+      ]
+    },
+    {
+      "id": "FMT-03",
+      "container": "WAV PCM",
+      "profile": "16/44.1 stereo",
+      "target_scope": "CORE_TARGET",
+      "status_by_axis": {
+        "metadata_read": "SOFTWARE_VERIFIED",
+        "http_raw_file": "SOFTWARE_VERIFIED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": "EXACT_SOURCE_INPUTS_BOUND_BY_FINAL_GATE_AND_SOURCE_GIT_BLOBS",
+      "zone_profile": null,
+      "sample_refs": [
+        "PRIVATE_SELF_GENERATED_WAVE_8236_BYTES"
+      ],
+      "evidence_refs": [
+        "AUDIO_TRANSPARENCY_REPORT.md",
+        "../../../reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+      ],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿",
+        "仅合成16bit/44100/2ch真实Reader与14请求字节审计，受控Endpoint/SDK，非真实Roon或普通App"
+      ]
+    },
+    {
+      "id": "FMT-04",
+      "container": "WAV PCM",
+      "profile": "24/96 stereo",
+      "target_scope": "CORE_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿"
+      ]
+    },
+    {
+      "id": "FMT-05",
+      "container": "MP3",
+      "profile": "44.1 stereo VBR/CBR",
+      "target_scope": "CORE_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿"
+      ]
+    },
+    {
+      "id": "FMT-06",
+      "container": "M4A ALAC",
+      "profile": "16/44.1 stereo",
+      "target_scope": "CORE_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿"
+      ]
+    },
+    {
+      "id": "FMT-07",
+      "container": "M4A AAC",
+      "profile": "44.1 stereo",
+      "target_scope": "CORE_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿"
+      ]
+    },
+    {
+      "id": "FMT-08",
+      "container": "AIFF PCM",
+      "profile": "24/96 stereo",
+      "target_scope": "CORE_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿"
+      ]
+    },
+    {
+      "id": "FMT-09",
+      "container": "FLAC",
+      "profile": "24/192 stereo",
+      "target_scope": "EXTENDED_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿"
+      ]
+    },
+    {
+      "id": "FMT-10",
+      "container": "APE",
+      "profile": "user-authorized profile",
+      "target_scope": "EXTENDED_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿"
+      ]
+    },
+    {
+      "id": "FMT-11",
+      "container": "DSF/DSD",
+      "profile": "DSD64 and actual user profiles",
+      "target_scope": "EXTENDED_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿"
+      ]
+    },
+    {
+      "id": "FMT-12",
+      "container": "DFF/DSD",
+      "profile": "user-authorized profile",
+      "target_scope": "EXTENDED_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿"
+      ]
+    },
+    {
+      "id": "FMT-13",
+      "container": "CUE+whole asset",
+      "profile": "whole-file explicit selection",
+      "target_scope": "CORE_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "NOT_TESTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿"
+      ]
+    },
+    {
+      "id": "FMT-14",
+      "container": "CUE exact segments",
+      "profile": "verified boundaries required",
+      "target_scope": "EXACT_SEGMENT_TARGET",
+      "status_by_axis": {
+        "metadata_read": "NOT_TESTED",
+        "http_raw_file": "NOT_TESTED",
+        "audioinput_play": "NOT_TESTED",
+        "pause_resume": "NOT_TESTED",
+        "seek": "NOT_TESTED",
+        "sequential": "NOT_TESTED",
+        "gapless": "NOT_TESTED",
+        "exact_segment": "UNSUPPORTED",
+        "source_format_preserved": "NOT_TESTED",
+        "signal_path_observed": "NOT_TESTED",
+        "digital_output_verified": "NOT_TESTED",
+        "tag_write": "NOT_TESTED"
+      },
+      "core_build": null,
+      "zone_profile": null,
+      "sample_refs": [],
+      "evidence_refs": [],
+      "limitations": [
+        "真实AudioInput/设备/Zone参数组未测；不从上游原生支持表填绿",
+        "整文件或CUE解析不抵扣精确片段"
+      ]
+    }
+  ],
+  "execution": "FINITE_SOFTWARE_MEASUREMENT_NOT_REAL_FORMAT_PLAYBACK",
+  "software_summary": {
+    "tests": 370,
+    "new": 36,
+    "regression": 334,
+    "source": "ACTUAL_COMPLETE_TAP",
+    "real_audioinput": "NOT_RUN",
+    "device_output": "NOT_RUN"
+  },
+  "offline_analysis_examples": {
+    "profile": "FMT-04",
+    "scope": "SYNTHETIC_PCM_ALGORITHM_ONLY_NOT_REAL_AUDIOINPUT",
+    "sample_rates_hz": [
+      96000
+    ],
+    "bits": [
+      16,
+      24,
+      32
+    ],
+    "repetition_limits": [
+      3,
+      16
+    ],
+    "valid_exact": "MATCH",
+    "injected_boundary_failures": "MISMATCH_WITH_ALL_TRIAL_ISSUES_PRESERVED",
+    "device_axis_status": "NOT_TESTED"
+  }
+}

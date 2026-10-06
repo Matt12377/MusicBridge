@@ -1,0 +1,65 @@
+{
+  "schema": "mbrs008.audio-scope.v1",
+  "baseSha": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+  "implementationComplete": true,
+  "countsConfirmed": true,
+  "groups": [
+    {
+      "name": "core-audio-evidence",
+      "directory": "packages/bridge-core",
+      "expectedTests": 263,
+      "tests": [
+        "test/local-file-gateway.test.ts",
+        "test/mbrs006/controller-local.test.ts",
+        "test/mbrs006/local-facts-fence.test.ts",
+        "test/mbrs006/local-session-lifecycle.test.ts",
+        "test/mbrs006/owner-facts-integration.test.ts",
+        "test/mbrs006/runtime-local.test.ts",
+        "test/playback-event-publisher.test.ts",
+        "test/roon-adapter.test.ts",
+        "test/source-evidence.test.ts",
+        "test/mbrs007/controller-queue.test.ts",
+        "test/mbrs007/edition-queue.test.ts",
+        "test/mbrs007/runtime-queue-protocol.test.ts",
+        "test/recording-workspace.test.ts",
+        "test/recording-capacity-queued-stop.test.ts",
+        "test/mbrs008/file-parameters.test.ts",
+        "test/mbrs008/http-byte-evidence.test.ts",
+        "test/mbrs008/pcm-evidence.test.ts",
+        "test/mbrs008/quality-reduction.test.ts"
+      ]
+    },
+    {
+      "name": "contracts-audio-evidence",
+      "directory": "packages/contracts",
+      "expectedTests": 58,
+      "tests": [
+        "test/validator.test.ts",
+        "test/playback-stream.test.ts",
+        "test/mbrs002/local-playback-compat.test.ts",
+        "test/mbrs006/local-playback-contract.test.ts",
+        "test/mbrs008/audio-quality.test.ts"
+      ]
+    },
+    {
+      "name": "desktop-audio-evidence",
+      "directory": "apps/desktop",
+      "expectedTests": 49,
+      "tests": [
+        "test/player-details.test.ts",
+        "test/playback-stream-reducer.test.ts",
+        "test/playback-stream-session.test.ts",
+        "test/mbrs006-local-consumer.test.ts",
+        "test/mbrs002/local-playback-compat.test.ts",
+        "test/mbrs008-audio-quality.test.ts"
+      ]
+    }
+  ],
+  "gateBudget": {
+    "totalMs": 360000,
+    "stageMs": 180000
+  },
+  "actualRoonLanAudio": "NOT_RUN",
+  "new100k300k": "NOT_RUN",
+  "countEvidence": "ACTUAL_ROOT_COMPLETE_TAP_370_36_NEW_334_REGRESSION"
+}

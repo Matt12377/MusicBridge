@@ -64,3 +64,5 @@ export * from './local-relocation.js';
 export * from './local-name-rules.js';
 
 export * from './mb-queue.js';
+
+export * from './audio-quality.js';

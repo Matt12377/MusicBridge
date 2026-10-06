@@ -1,3 +1,4 @@
+import { safeFileParameters, untestedAudioQuality } from './audio-quality-evidence.js';
 import {isMBQueueNeedsReview,isMBQueueUnavailable} from '../collection/mb-queue-owner-types.js';
 import { logicalQueueEntry, localQueueIdentity } from './mb-queue.js';
 import { isAlbumEdition, isMBQueueEditRequest, type MBQueueRecord, type MBQueueLogicalSource, isMBEditionQueueRequest, type MBEditionQueueRequest, type MBQueueEditRequest } from '@music-bridge/contracts';
@@ -959,9 +960,10 @@ export class BridgeController {
     }
     const {capture,fence}=owner.local,attempt=owner.local.poolAttempt!;
     const metadata={...capture.metadata,...(item.edition?.edition?{version:item.edition.edition}:{})};
+    const fileParameters=safeFileParameters(capture.fileParameters);
     this.localObservation={schema_version:'1.2',request_id:request.request_id,attempt_id:`${this.localLaneIds[owner.local.lane!]!}_${attempt}`,intent_generation:String(this.playbackGeneration),route:'roon_audio_input',local_track_id:request.local_track_id,asset_id:request.asset_id,asset_revision:request.expected_asset_revision,target:{...request.target},session_epoch:null,
       phase:'PREPARING',ownership:'MB_PENDING',queue_owner:'MB',delivery_state:'NOT_STARTED',roon_observation:{event:'NONE',observed:false,correlation:'UNKNOWN'},position_ms:null,
-      quality:{http_bytes:'NOT_TESTED',signal_path:'NOT_TESTED',digital_output:'NOT_TESTED',gapless:'NOT_TESTED'},error_code:null};
+      quality:untestedAudioQuality(),...(fileParameters?{file_parameters:fileParameters}:{}),error_code:null};
     this.playbackState='preparing';this.notifyPlaybackChanged();
     try {
       registration ??= await this.dependencies.registry.registerLocalSource({source_kind:'local_file',status:'prepared_descriptor',request_id:request.request_id,action:request.action,target:request.target,facts:capture.facts},{ownerId:this.localLaneIds[owner.local.lane!]!,attempt,isCurrent:()=>this.localCurrent(owner)},capture.format);

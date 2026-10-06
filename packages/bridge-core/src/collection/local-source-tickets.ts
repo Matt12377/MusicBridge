@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import type { LocalPlayRequest } from '@music-bridge/contracts';
+import { isFileAudioParameters, type LocalPlayRequest } from '@music-bridge/contracts';
 import { captureLocalFactsReadonly } from '../application/local-source-resolver.js';
 import type { CollectionRepository } from './repository.js';
 import { LocalFactsFenceBusy, LocalSourceFence } from '../stream/local-source-fence.js';
@@ -27,10 +27,16 @@ export function createLocalSourceTickets(repository: CollectionRepository, epoch
     capture(selection: LocalPlayRequest): LocalSourceCaptureResult {
       assertOpen(); if (closed || tickets.size >= 16) throw new Error('本地事实票据关闭或达到有限容量。');
       const facts = captureLocalFactsReadonly(selection,repository), effective = repository.localCatalog.metadata(facts.track.id).effective;
+      const current = repository.localScan.privateCurrentFileState(facts.root.id, facts.relative)?.value;
+      const technical = current?.outcome === 'accepted' && current.signature === facts.observation?.signature
+        && current.assetId === facts.asset.id && current.trackId === facts.track.id ? current.readFacts?.technical : undefined;
+      const parameters = technical ? { container: technical.container, codec: technical.codec, lossless: technical.lossless, sampleRateHz: technical.sampleRateHz,
+        channels: technical.channels, bitsPerSample: technical.bitsPerSample, durationMs: technical.durationSeconds === null ? null : Math.round(technical.durationSeconds * 1000), evidence: technical.evidence } : undefined;
       const fence = LocalSourceFence.create(), result: LocalSourceCaptureResult = {
         ticketId: randomUUID(), epoch, datasetId, buffer: fence.buffer, facts,
         metadata: { id: facts.track.id, title: effective.title || path.basename(facts.relative,path.extname(facts.relative)), artists: effective.artist ? [effective.artist] : [], album: effective.album || '' },
         format: path.extname(facts.relative).slice(1).toLowerCase(),
+        ...(isFileAudioParameters(parameters) ? {fileParameters:parameters} : {}),
       };
       if (!isLocalSourceCaptureResult(result)) { fence.revoke(); throw new Error('本地捕获事实不符合私有读取合同。'); }
       tickets.set(result.ticketId,{selection:structuredClone(selection), result:structuredClone(result),fence}); return result;

@@ -5856,7 +5856,7 @@
     "overallReleaseApproved": false,
     "securityBaselineBlocker": "INHERITED_PRODUCTION_NODE_FORGE_HIGH_AUDIT_FAILURE_NOT_CLOSED"
   },
-  "currentPostRustTask": "MBRS-007",
+  "currentPostRustTask": "MBRS-008",
   "postRustBaseline20261004": {
     "task": "MBRS-000",
     "state": "baseline-delivered-g0-not-admitted",
@@ -46058,5 +46058,58 @@
     "finalDeliveryReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/FINAL_DELIVERY_RECEIPT.json",
     "nextTask": "MBRS-008",
     "nextBranchBaseline": "最终独立报告HEAD；报告身份按Git历史解析，不从实现提交接续"
+  },
+  "postRustAudioTransparency20261006": {
+    "task": "MBRS-008",
+    "state": "SOFTWARE_SOURCE_VALIDATED_REPORT_PENDING",
+    "branch": "codex/mbrs-008-audio-transparency",
+    "baseFinalReportCommit": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "taskScope": "FINITE_SOFTWARE_ONLY_REAL_LAYERS_PENDING",
+    "executionScope": "docs/postrust/MBRS-008/EXECUTION_SCOPE.json",
+    "productWriter": "rules_writer",
+    "g0Decision": "ADMITTED_FINITE_SOFTWARE_SCOPE",
+    "productionDefault": "NODE_OPTIONAL_RUST_OFF",
+    "sourceFileWrites": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+    "realServices": "NOT_RUN",
+    "ordinaryApp": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9",
+    "validation": {
+      "effectiveRed": {
+        "tests": 1,
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "exitCode": 1,
+        "cause": "EXISTING_CAPTURE_FILE_PARAMETERS_UNDEFINED_AFTER_TRUE_WAVE_READER_SCANNER_ACCEPTED",
+        "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-current-file-parameters-red-01/result.json"
+      },
+      "gate": "PENDING_FRESH_RUN"
+    },
+    "push": "PENDING",
+    "ci": "PENDING",
+    "mainMerge": "NOT_AUTHORIZED",
+    "release": "NOT_AUTHORIZED",
+    "updatedAt": "2026-10-06T12:34:20.594321+00:00",
+    "softwareValidation": {
+      "targetedTests": 370,
+      "new": 36,
+      "regression": 334,
+      "groups": [
+        263,
+        58,
+        49
+      ],
+      "allPass": true,
+      "skipCancelTodo": 0,
+      "ordinaryApp": "NOT_RUN",
+      "actualVueSsrScenes": 2
+    },
+    "releaseClaim": "SOFTWARE_ONLY_NOT_CORE_READY",
+    "evidence": {
+      "localSourcePhase": "ACTUAL_370_TARGETED_TYPES_FRESH_READER_CUE_AND_TWO_VUE_SSR_PASS"
+    }
   }
 }

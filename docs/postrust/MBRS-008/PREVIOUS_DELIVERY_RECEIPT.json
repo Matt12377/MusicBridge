@@ -1,0 +1,124 @@
+{
+  "schema": "mbrs007.final-delivery-receipt.v1",
+  "at": "2026-10-06T11:58:54.049827+00:00",
+  "baseFinalReportCommit": "b464dd2066346121a26824da516969b726f0cfe0",
+  "implementationCommit": "3e171ec487278e9ebae4006fa4c739c609f00f59",
+  "finalReportCommit": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+  "branch": "codex/mbrs-007-queue-prefetch-control",
+  "reportDirectChildOfSource": true,
+  "reportSemanticScope": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/REPORT_STAGED_SCOPE_CHECK.json",
+    "bytes": 2222,
+    "sha256": "513c3601e46fdb8d6d1203cc5325f999b8bc2960511563b4e46f6758c6e9ce71"
+  },
+  "sourceCi": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ci/source-terminal.json",
+    "bytes": 96655,
+    "sha256": "07361070adfa32c12053e39f43649c7fd59b789cc0b37df96466703c082ef302"
+  },
+  "sourceCiWorkflows": 4,
+  "sourceCiJobs": 6,
+  "reportCi": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ci/report-terminal.json",
+    "bytes": 47598,
+    "sha256": "93beda945a2fa759f16a655387c29eab287a9023fc0d42e492b866263b09d2a7"
+  },
+  "reportCiWorkflows": 2,
+  "reportCiJobs": 3,
+  "reportActualMode": "report-only",
+  "sourceActualMode": "full",
+  "ciReruns": 0,
+  "localSoftware": {
+    "tests": 963,
+    "new": 45,
+    "regression": 918,
+    "stages": 11,
+    "runnerTests": 32
+  },
+  "remoteFullWorkspace": {
+    "tests": 4375,
+    "pass": 4373,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "remoteElectronE2eCounts": {
+    "passed": 104,
+    "skipped": 4,
+    "failed": 0
+  },
+  "sourceInputs": {
+    "count": 1210,
+    "record": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/SOURCE_INPUT_BLOB_BINDING.json",
+      "bytes": 304644,
+      "sha256": "6815b21cc3f3bd99e3c27e38ec41575d0ba2e79640b25814b0669a11db010d30"
+    },
+    "gitBlobAndDiskBoundToSource": true
+  },
+  "selectedFreshOutputsStillUnchanged": 44,
+  "privateReaderCueBindingsStillUnchanged": 2,
+  "sourceIdentityScope": "DECLARED_INPUTS_SELECTED_OUTPUTS_NOT_TRANSITIVE_DEPENDENCY_CLOSURE",
+  "gateManifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/gate-final-02/manifest.json",
+    "bytes": 253512,
+    "sha256": "b2292d3cde209824cc02bf59bc00a653d31aa9c335ee1f078f16a66c71b8ebd2"
+  },
+  "sourceInputsAfterReportStillMatch": true,
+  "initialSourceCommit": "4622189ed36db5c15f7b82c50e77093220c12b22",
+  "initialNaturalCiFailuresPreserved": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ci/initial-source-terminal.json",
+    "bytes": 58321,
+    "sha256": "1e80bcc20423feb00b84c13da9e1aed10433af82b6c2cf1ca0789c4b68084e04"
+  },
+  "localFullOriginalSchemaCases": {
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0
+  },
+  "localSchemaCasesBuildMode": "development",
+  "localRuntimeDependencySideEffectRecorded": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ROOT_ELECTRON_RUNTIME_RESOLUTION_01.json",
+    "bytes": 2039,
+    "sha256": "241506ac44da31201f545ba2f7fc3f9da30ce95ea8de8c1a34bebc6eb786e289"
+  },
+  "localHead": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+  "remoteHead": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+  "ordinaryNonForceSourceAndReportPush": true,
+  "worktreeClean": true,
+  "mainUnrelatedWipPreserved": [
+    "?? apps/desktop/test-results/",
+    "?? docs/MusicBridge_PostRust_Execution_Pack_v1.2.zip",
+    "?? worktree/"
+  ],
+  "taskboardCount": 18,
+  "originalAcceptanceCount": 156,
+  "thisTaskAtCount": 11,
+  "formalRounds": 2,
+  "r1UniqueP2": 3,
+  "r2UniqueP2": 1,
+  "rootLocalClosureOpenP1P2": 0,
+  "thirdFormalRound": false,
+  "artifactContentDownloaded": false,
+  "realAccountsRoonAudioLanNasOrdinaryAppOwnerAcceptance": "NOT_RUN",
+  "new100k300kStarted": false,
+  "mainMergeInstallRelease": "NOT_AUTHORIZED_NOT_RUN",
+  "nextTask": "MBRS-008",
+  "nextBranchBaseline": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+  "laterOrder": [
+    "MBRS-008",
+    "MBRS-009",
+    "MBRS-010",
+    "MBRS-011",
+    "MBRS-014",
+    "MBRS-012",
+    "MBRS-013",
+    "MBRS-015_OPTIONAL",
+    "MBRS-016",
+    "MBRS-017"
+  ],
+  "mobileMbm": "AFTER_ORIGINAL017_MAC_ADOPTION_PENDING_NO_NEW_MAINLINE_GATE",
+  "iosSuccessorRecord": "docs/postrust/MBRS-007/evidence/ios-successor-identity.json",
+  "status": "SOFTWARE_DELIVERED_WITH_EXPLICIT_LIVE_CARRYOVER"
+}

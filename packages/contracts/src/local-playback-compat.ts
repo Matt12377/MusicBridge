@@ -1,3 +1,4 @@
+import { isFileAudioParameters, type FileAudioParameters, type AudioQualityAxes } from './audio-quality.js';
 /** 独立兼容接点：不能把结构合法提升为 Controller/Roon 观察真实性。 */
 export type LocalPlaybackCompatibility =
   | { supported: true; protocol: 'legacy' | 'compact-v1'; source: 'roon' | 'netease' | 'local_file' }
@@ -18,7 +19,8 @@ export interface LocalPlaybackObservationLeaf {
   delivery_state: 'NOT_STARTED' | 'READ_REQUESTED' | 'SENDING' | 'BYTES_SENT' | 'FAILED' | 'UNKNOWN';
   roon_observation: { event: 'NONE' | 'PLAYING' | 'PAUSED' | 'TIME' | 'ENDED' | 'ERROR' | 'SESSION_ENDED' | 'EXTERNAL_TAKEOVER' | 'UNKNOWN'; observed: boolean; correlation: 'ATTEMPT_CONFIRMED' | 'PARTIAL' | 'UNKNOWN' };
   position_ms: number | null;
-  quality: { http_bytes: 'NOT_TESTED' | 'SAMPLE_VERIFIED' | 'FAILED'; signal_path: 'NOT_TESTED' | 'OBSERVED' | 'MISMATCH'; digital_output: 'NOT_TESTED' | 'TEST_CONDITIONS_VERIFIED' | 'FAILED'; gapless: 'NOT_TESTED' | 'TEST_CONDITIONS_VERIFIED' | 'UNSUPPORTED' | 'FAILED' };
+  quality: AudioQualityAxes;
+  file_parameters?: FileAudioParameters;
   error_code: string | null;
 }
 const record = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -28,7 +30,8 @@ const decimal = (v: unknown): v is string => typeof v === 'string' && v.length <
 const one = (v: unknown, choices: readonly string[]): boolean => typeof v === 'string' && choices.includes(v);
 /** 只验证本地 attempt 叶结构与一致性，不注册 IPC event/ACK，不分配代际或生成 Playing。 */
 export function isLocalPlaybackObservationLeaf(v: unknown): v is LocalPlaybackObservationLeaf {
-  if (!record(v) || !closed(v, ['schema_version','request_id','attempt_id','intent_generation','route','local_track_id','asset_id','asset_revision','target','session_epoch','phase','ownership','queue_owner','delivery_state','roon_observation','position_ms','quality','error_code'])
+  if (!record(v) || !closed(v, ['schema_version','request_id','attempt_id','intent_generation','route','local_track_id','asset_id','asset_revision','target','session_epoch','phase','ownership','queue_owner','delivery_state','roon_observation','position_ms','quality','error_code', ...(Object.hasOwn(v, 'file_parameters') ? ['file_parameters'] : [])])
+    || (v.file_parameters !== undefined && !isFileAudioParameters(v.file_parameters))
     || v.schema_version !== '1.2' || v.route !== 'roon_audio_input' || !text(v.request_id) || !text(v.attempt_id)
     || !text(v.local_track_id) || !text(v.asset_id) || !decimal(v.intent_generation) || !decimal(v.asset_revision)
     || !record(v.target) || !closed(v.target, ['core_id','zone_id']) || !text(v.target.core_id) || !text(v.target.zone_id)

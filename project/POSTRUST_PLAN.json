@@ -31994,7 +31994,7 @@
         "MBRS-006",
         "MBRS-007"
       ],
-      "status": "NOT_STARTED",
+      "status": "SOFTWARE_SOURCE_VALIDATED_REPORT_PENDING",
       "implementation_owner": "MBRS-008",
       "goal": "把字节透明、Roon处理、设备数据与曲目边界分开证明。",
       "steps": [
@@ -32027,8 +32027,13 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "NOT_RUN",
-      "evidence_refs": []
+      "validation_status": "PASS_370_TARGETED_SOFTWARE_FINAL_GATE_AND_CI_IN_REPORT",
+      "evidence_refs": [
+        "docs/postrust/MBRS-008/EXECUTION_SCOPE.json",
+        "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
+        "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
+        "tasks/MBRS-008_AUDIO_TRANSPARENCY.md"
+      ]
     },
     {
       "id": "MBRS-009",
@@ -33590,12 +33595,17 @@
       "requirement": "受测源文件与完整/区间HTTP逐字节一致，无隐藏音频变换。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
+        "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅受测合成WAVE8236字节、真实Reader/Scanner/SQLite票据/固定FD/Gateway与14请求；Endpoint/SDK受控。"
     },
     {
       "id": "MBRS-AT-008-02",
@@ -33605,11 +33615,16 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
+        "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "双scope与Signal Path消费者软件通过；真实同源同Zone同设置路径未测。"
     },
     {
       "id": "MBRS-AT-008-03",
@@ -33619,11 +33634,16 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
+        "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "14行12轴显式矩阵与受测FMT03解析/HTTP通过；实际各格式AudioInput未测。"
     },
     {
       "id": "MBRS-AT-008-04",
@@ -33633,11 +33653,16 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
+        "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "DSD接收/PCM转换/输出分段消费者通过；真实DSD三段未测。"
     },
     {
       "id": "MBRS-AT-008-05",
@@ -33646,12 +33671,17 @@
       "requirement": "Q1/Q2/Q3/Q4独立状态与证据，缺Q3不宣称端到端位精确。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
+        "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "四轴独立、防伪/不可变/失败优先，缺Q3不签端到端位精确。"
     },
     {
       "id": "MBRS-AT-008-06",
@@ -33661,11 +33691,16 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
+        "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "有限非静音标记边界/native基线与混合失败可见软件通过；实际gapless/重锁未测。"
     },
     {
       "id": "MBRS-AT-008-07",
@@ -33674,12 +33709,17 @@
       "requirement": "测试音量/DSP经授权且结束恢复；音频素材不上传公共仓库。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
+        "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "授权/安全/实际恢复记录检查与私有素材上传排除软件通过；实际设置未操作，恢复实机未测。"
     },
     {
       "id": "MBRS-AT-008-08",
@@ -33688,12 +33728,17 @@
       "requirement": "文件参数与Roon实际输出/质量证据分开，未知显示未知而非假绿灯。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
+        "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "当前文件参数与来源/Roon输出未知分开；安全合同、UI消费者和两场景实际Vue SSR通过，普通App/Owner未测。"
     },
     {
       "id": "MBRS-AT-009-01",

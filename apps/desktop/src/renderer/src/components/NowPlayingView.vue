@@ -6,6 +6,7 @@ import TrackArtwork from './TrackArtwork.vue'
 import LyricsLines from './LyricsLines.vue'
 import LocalLyricsMatchDrawer from './LocalLyricsMatchDrawer.vue'
 import { createPlaybackClock } from './player/playbackClock.js'
+import { audioQualityDetails, playbackSourceLabel } from './player/details.js'
 import { roonQueueContextStatus } from '../roon-queue-context-status.js'
 
 const props = defineProps<{
@@ -124,7 +125,9 @@ function transportLabel(state: PlaybackSnapshot['state'] | undefined): string {
   return '播放当前歌曲'
 }
 
+const evidenceDetails = computed(() => audioQualityDetails(props.playbackState ?? {}))
 const actualQualityDetail = computed(() => {
+  if (props.playbackSource === 'local_file') return evidenceDetails.value.file
   const bitrate = formatBitrate(props.playbackState?.bitrate)
   const format = props.playbackState?.format?.trim()
   if (bitrate && format) return `${bitrate} · ${format.toUpperCase()}`
@@ -147,7 +150,7 @@ const actualQualityDetail = computed(() => {
         <div class="now-playing-copy">
           <div class="now-playing-track-heading">
             <p class="section-kicker">正在播放</p>
-            <div class="now-playing-title-row"><h2 id="listening-heading">{{ props.currentTrack?.title ?? '还没有正在播放的歌曲' }}</h2><span v-if="props.currentTrack" class="source-badge">{{ props.playbackSource === 'roon' ? 'Roon 本地' : '网易云' }}</span><button v-if="props.currentTrack && props.trackLikeAvailable" type="button" class="now-playing-like" :class="{ 'is-liked': props.trackLikeState === 'liked' }" :disabled="props.trackLikeState === 'loading'" :aria-pressed="props.trackLikeState === 'liked'" aria-label="喜欢这首歌" @click="emit('toggle-like')">{{ props.trackLikeState === 'liked' ? '♥' : '♡' }}</button></div>
+            <div class="now-playing-title-row"><h2 id="listening-heading">{{ props.currentTrack?.title ?? '还没有正在播放的歌曲' }}</h2><span v-if="props.currentTrack" class="source-badge">{{ playbackSourceLabel(props.playbackSource) }}</span><button v-if="props.currentTrack && props.trackLikeAvailable" type="button" class="now-playing-like" :class="{ 'is-liked': props.trackLikeState === 'liked' }" :disabled="props.trackLikeState === 'loading'" :aria-pressed="props.trackLikeState === 'liked'" aria-label="喜欢这首歌" @click="emit('toggle-like')">{{ props.trackLikeState === 'liked' ? '♥' : '♡' }}</button></div>
             <p class="artist-line">{{ props.currentTrack ? `${props.currentTrack.artists.join('、')} · ${props.currentTrack.album}` : '从歌曲列表选择内容开始。' }}</p>
           </div>
           <div class="now-playing-progress" aria-label="播放进度">
@@ -158,15 +161,16 @@ const actualQualityDetail = computed(() => {
             </div>
             <div class="now-playing-progress-meta"><span>{{ formatTime(progressMs) }}</span><span>{{ formatTime(durationMs) }}</span></div>
           </div>
-          <div class="now-playing-quality-row" aria-label="当前实际音质">
+          <div class="now-playing-quality-row" aria-label="文件与音质证据">
             <button
               type="button"
               class="now-playing-quality-button"
               :aria-expanded="qualityDetailsOpen"
-              :aria-label="`当前实际音质 ${props.qualityLabel(props.playbackState?.actualQuality)}`"
+              :aria-label="props.playbackSource === 'local_file' ? evidenceDetails.file : `来源返回音质 ${props.qualityLabel(props.playbackState?.actualQuality)}`"
               @click="qualityDetailsOpen = !qualityDetailsOpen"
-            ><span>实际</span>{{ qualityDetailsOpen ? actualQualityDetail : props.qualityLabel(props.playbackState?.actualQuality) }}<SidebarIcon name="chevron-down" :size="12" /></button>
+            ><span>{{ props.playbackSource === 'local_file' ? '文件' : '来源' }}</span>{{ qualityDetailsOpen ? actualQualityDetail : props.playbackSource === 'local_file' ? (props.playbackState?.local?.file_parameters?.container ?? '参数未知') : props.qualityLabel(props.playbackState?.actualQuality) }}<SidebarIcon name="chevron-down" :size="12" /></button>
           </div>
+          <div v-if="qualityDetailsOpen || props.playbackSource === 'local_file'" class="artist-line" aria-label="音质证据详情"><p>{{ evidenceDetails.file }}</p><p>{{ evidenceDetails.provider }}</p><p>{{ evidenceDetails.output }}</p><p>{{ evidenceDetails.evidence }}</p></div>
           <div class="transport-controls" aria-label="歌曲切换控制">
             <button type="button" class="transport-button transport-button-secondary" :disabled="!props.playbackState?.canPrevious" aria-label="上一首" @click="emit('previous')"><SidebarIcon name="previous" :size="21" /></button>
             <button

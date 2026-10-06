@@ -1,11 +1,11 @@
-import { isAudioAsset, isLibraryRoot, isLocalTrack, isLocalPlayRequest, type LocalPlayRequest } from '@music-bridge/contracts';
+import { isFileAudioParameters, type FileAudioParameters, isAudioAsset, isLibraryRoot, isLocalTrack, isLocalPlayRequest, type LocalPlayRequest } from '@music-bridge/contracts';
 import type { LocalSourceFacts } from '../application/local-source-facts.js';
 import type { TrackMetadata } from '../netease/types.js';
 import { LocalSourceFence } from '../stream/local-source-fence.js';
 import path from 'node:path';
 export interface LocalSourceCaptureResult {
   ticketId: string; epoch: string; datasetId: string; buffer: SharedArrayBuffer;
-  facts: LocalSourceFacts; metadata: TrackMetadata; format?: string;
+  facts: LocalSourceFacts; metadata: TrackMetadata; format?: string; fileParameters?: FileAudioParameters;
 }
 export type LocalSourcePrivatePayload = { selection: LocalPlayRequest } | { ticketId: string };
 const record = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -16,9 +16,10 @@ export function isLocalSourcePrivatePayload(operation: string, v: unknown): v is
 }
 /** 私有响应也是闭合合同，不能靠cast把未认证快照升级为读取资格。 */
 export function isLocalSourceCaptureResult(v: unknown): v is LocalSourceCaptureResult {
-  if (!record(v) || !closed(v,['ticketId','epoch','datasetId','buffer','facts','metadata'],['format']) || !text(v.ticketId) || !text(v.epoch) || !text(v.datasetId)) return false;
+  if (!record(v) || !closed(v,['ticketId','epoch','datasetId','buffer','facts','metadata'],['format','fileParameters']) || !text(v.ticketId) || !text(v.epoch) || !text(v.datasetId)) return false;
   try { new LocalSourceFence(v.buffer as SharedArrayBuffer); } catch { return false; }
   try { if (Buffer.byteLength(JSON.stringify({...v,buffer:undefined}), 'utf8') > 64 * 1024) return false; } catch { return false; }
+  if (v.fileParameters !== undefined && !isFileAudioParameters(v.fileParameters)) return false;
   const f = v.facts;
   if (!record(f) || !closed(f,['track','asset','root','sourceRoot','relative','observation']) || !isLocalTrack(f.track) || f.track.segment !== null || !isAudioAsset(f.asset) || !isLibraryRoot(f.root)
     || !text(f.relative,4096) || path.isAbsolute(f.relative) || f.relative.split(/[\\/]/u).some(p => !p || p === '.' || p === '..')) return false;

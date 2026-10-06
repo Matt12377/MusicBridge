@@ -1,0 +1,189 @@
+{
+  "schema": "mbrs008.execution-scope.v1",
+  "task": "MBRS-008",
+  "state": "SOURCE_CANDIDATE_SOFTWARE_VALIDATED",
+  "branch": "codex/mbrs-008-audio-transparency",
+  "baseFinalReportCommit": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+  "g0Decision": "ADMITTED_FINITE_SOFTWARE_SCOPE",
+  "g0Ref": "docs/postrust/RUST-016/ADMISSION_DECISION.json",
+  "ownerGoal": "原连续005至017软件任务授权；每独立任务代码/报告/自动Gate/TODO/普通push闭环，Owner最终成品试用",
+  "authorizationRef": "project/POSTRUST_TODO.md",
+  "originalTask": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/postrust-v1.2-readonly/MusicBridge_PostRust_Execution_Pack_v1.2/tasks/MBRS-008.md",
+    "copy": "tasks/MBRS-008_AUDIO_TRANSPARENCY.md",
+    "bytes": 3404,
+    "sha256": "e327d9f894d2d47ec5b8ad978a4853ee65bab67761623d6fb430f84c190997d6",
+    "acceptanceCount": 8,
+    "acceptanceKinds": {
+      "integration": 3,
+      "live_roon": 3,
+      "live_audio": 1,
+      "ui": 1
+    }
+  },
+  "models": {
+    "root": {
+      "model": "gpt-6.1-sol",
+      "effort": "max",
+      "actualCurrentMetadataVerified": true
+    },
+    "existingAgents": {
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "currentMetadataVerified": true,
+      "count": 3,
+      "newSpawns": 0,
+      "noChildren": true,
+      "ownerHighOverrideRawMessage": "NOT_FOUND_IN_CURRENT_ROLLOUT_OR_CURRENT_THREAD_READ",
+      "overrideProvenance": "PRESERVED_PRIOR_CONTEXT_NOT_CURRENT_RAW_VERIFICATION",
+      "noClaimThatAgEntsMatchesActual": true,
+      "agentsDocumentEffort": "max in original section; high in 2026-10-04 current-turn section",
+      "documentedOverrideRef": "AGENTS.md:13"
+    }
+  },
+  "roles": {
+    "productWriter": "rules_writer",
+    "readonly": [
+      "boundary_review",
+      "source_golden_audit"
+    ],
+    "rootOwned": [
+      "tasks",
+      "docs/postrust/MBRS-008",
+      "project",
+      "scripts/ci",
+      ".github/workflows",
+      "package.json",
+      "packages/*/package.json",
+      "apps/*/package.json"
+    ]
+  },
+  "implementation": [
+    "实际既有Scanner/唯一Owner/current accepted technical→原LocalSource票据→Controller/public snapshot安全投影，维持同revision/attempt并清除旧参数；缺事实unknown",
+    "在既有NowPlaying/QualityControl中分开源文件参数与实际Roon输入/处理/输出以及四轴未测状态，纠正local_file来源标签，不重制UI",
+    "闭合有界Q1–Q4语义与格式能力证据consumer，拒绝同名/Hash/24-96/顺序切歌/静音伪位精确/旧scope升级",
+    "Q1复用实际Scanner/SQLite Owner/固定FD pool Registry Gateway，通过真实loopback GET/HEAD/首尾中间开放后缀Range与独立bytes oracle核验；私有复制已封存合成fixtures，源变更/shortread/cancel拒绝",
+    "Q3/Q4有限离线非静音双声道/有效低位PCM比较、标记边界/重复native基线/时钟误差与relock独立分析，只在验证脚本使用，未执行设备捕获",
+    "14格式参数行和12轴逐项引用本轮实际软件/旧封存/NOT_TESTED，原live_roon/live_audio不升PASS"
+  ],
+  "limits": {
+    "evidenceRecords": 64,
+    "matrixRows": 14,
+    "pcmMaxFrames": 65536,
+    "pcmChannels": 2,
+    "offlineBoundaryRepetitions": 3,
+    "evidenceIndexPrivate": true,
+    "noNewDatabaseWriter": true,
+    "noSchemaMigration": true,
+    "privateCaptureBytesUnchanged": 65536,
+    "noNewAudioBackend": true,
+    "noProductionDecodeTranscodeOrDownload": true,
+    "q1AuditSourceBytes": 8388608,
+    "offlineBoundaryMaxRepetitions": 16
+  },
+  "productionDefault": "NODE_UNCHANGED_OPTIONAL_RUST_OFF",
+  "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+  "realAccountsRoonLanNasAudio": "NOT_RUN",
+  "ordinaryApp": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "new100k300kStarted": false,
+  "mainMergeInstallRelease": "NOT_AUTHORIZED",
+  "caseStatusChanges": "ONLY_008_AFTER_ACTUAL_EVIDENCE_ORIGINAL_TEXT_KIND_PRESERVED",
+  "formalReview": {
+    "maximumRounds": 2,
+    "initialReadonlyInvestigations": "NOT_FORMAL_R1"
+  },
+  "preflightRefs": [
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/reviews/BOUNDARY_PREFLIGHT.json",
+    "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/reviews/QUALITY_PREFLIGHT.json"
+  ],
+  "releaseClaim": "SOFTWARE_SCOPE_ONLY_NOT_CORE_READY",
+  "frozenAt": "2026-10-06T12:24:13.385134+00:00",
+  "productWriterFileAllowlist": [
+    "packages/contracts/src/audio-quality.ts",
+    "packages/contracts/src/index.ts",
+    "packages/contracts/src/local-playback-compat.ts",
+    "packages/bridge-core/src/collection/local-source-ticket-types.ts",
+    "packages/bridge-core/src/collection/local-source-tickets.ts",
+    "packages/bridge-core/src/application/audio-quality-evidence.ts",
+    "packages/bridge-core/src/application/pcm-evidence.ts",
+    "packages/bridge-core/src/application/bridge-controller.ts",
+    "packages/bridge-core/src/stream/http-byte-evidence.ts",
+    "apps/desktop/src/renderer/src/components/player/details.ts",
+    "apps/desktop/src/renderer/src/components/BottomPlayer.vue",
+    "apps/desktop/src/renderer/src/components/NowPlayingView.vue",
+    "apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+    "packages/contracts/test/mbrs008/audio-quality.test.ts",
+    "packages/contracts/test/audio-quality.test.ts",
+    "packages/bridge-core/test/mbrs008/http-byte-evidence.test.ts",
+    "packages/bridge-core/test/mbrs008/quality-reduction.test.ts",
+    "packages/bridge-core/test/mbrs008/pcm-evidence.test.ts",
+    "packages/bridge-core/test/mbrs008/file-parameters.test.ts",
+    "packages/bridge-core/test/audio-quality.test.ts",
+    "apps/desktop/test/mbrs008-audio-quality.test.ts"
+  ],
+  "preflightReceipts": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/writer/PREFLIGHT.json",
+      "bytes": 5396,
+      "sha256": "98e8b2f5529dccdcdf46b9b74e08034db285037685c7a60a68412e98dbeb82aa"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/reviews/BOUNDARY_PREFLIGHT.json",
+      "bytes": 8638,
+      "sha256": "054b6e3b2508172be409f6ea5633229253c8c1f5fc321ec8f5b7aa4a97f7c9c7"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/reviews/QUALITY_PREFLIGHT.json",
+      "bytes": 29878,
+      "sha256": "3b24fa22797d36a53d996e82aab540ebe2b6f9845b56802a0abd48753a107493"
+    }
+  ],
+  "regressionTests": [
+    "packages/bridge-core/test/local-file-gateway.test.ts",
+    "packages/bridge-core/test/mbrs006/controller-local.test.ts",
+    "packages/bridge-core/test/mbrs006/local-facts-fence.test.ts",
+    "packages/bridge-core/test/mbrs006/local-session-lifecycle.test.ts",
+    "packages/bridge-core/test/mbrs006/owner-facts-integration.test.ts",
+    "packages/bridge-core/test/mbrs006/runtime-local.test.ts",
+    "packages/bridge-core/test/playback-event-publisher.test.ts",
+    "packages/bridge-core/test/roon-adapter.test.ts",
+    "packages/bridge-core/test/source-evidence.test.ts",
+    "packages/bridge-core/test/mbrs007/controller-queue.test.ts",
+    "packages/bridge-core/test/mbrs007/edition-queue.test.ts",
+    "packages/bridge-core/test/mbrs007/runtime-queue-protocol.test.ts",
+    "packages/bridge-core/test/recording-workspace.test.ts",
+    "packages/bridge-core/test/recording-capacity-queued-stop.test.ts",
+    "packages/contracts/test/validator.test.ts",
+    "packages/contracts/test/playback-stream.test.ts",
+    "packages/contracts/test/mbrs002/local-playback-compat.test.ts",
+    "packages/contracts/test/mbrs006/local-playback-contract.test.ts",
+    "apps/desktop/test/player-details.test.ts",
+    "apps/desktop/test/playback-stream-reducer.test.ts",
+    "apps/desktop/test/playback-stream-session.test.ts",
+    "apps/desktop/test/mbrs006-local-consumer.test.ts",
+    "apps/desktop/test/mbrs002/local-playback-compat.test.ts"
+  ],
+  "gateCounts": {
+    "tests": 370,
+    "new": 36,
+    "regression": 334,
+    "groups": {
+      "core": 263,
+      "contracts": 58,
+      "desktop": 49
+    },
+    "expectedFromActualTap": true
+  },
+  "sourcePhaseValidation": {
+    "candidate": "CANDIDATE_03",
+    "rootCandidate21ShaVerified": true,
+    "targetedTests": "PASS_370_NO_FAILURE_SKIP_CANCEL_TODO",
+    "readerPreparation": "FRESH_3_STAGES_2_BINDINGS_PASS",
+    "strictCoreVueE2eTypes": "PASS",
+    "actualVueSsr": "PASS_TWO_SCENES_NO_HTTP_OR_WS_LISTENER",
+    "validRed": "ORIGINAL_1_CASE_AND_R1_7_CASES",
+    "finalGateAndCiEvidence": "INDEPENDENT_RESULT_REPORT_AND_EXTERNAL_RECEIPTS"
+  },
+  "evidenceScope": "DECLARED_INPUTS_SELECTED_OUTPUTS_NOT_TRANSITIVE_DEPENDENCY_CLOSURE"
+}

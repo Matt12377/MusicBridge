@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { PlaybackQueueItem, PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
-import { qualityDetails } from '../player/details.js'
+import { qualityDetails, audioQualityDetails } from '../player/details.js'
 import TrackArtwork from '../TrackArtwork.vue'
 import { calculateVirtualWindow } from '../../composables/virtualWindow.js'
 import { roonQueueContextStatus } from '../../roon-queue-context-status.js'
@@ -24,6 +24,8 @@ const queueViewportHeight = ref(420)
 const QUEUE_VIRTUALIZATION_THRESHOLD = 200
 const QUEUE_ROW_HEIGHT = 80
 const contextStatus = computed(() => roonQueueContextStatus(props.playbackState?.queue.context))
+
+const evidenceDetails = computed(() => audioQualityDetails(props.playbackState ?? {}))
 
 const currentEntry = computed(() => {
   const state = props.playbackState
@@ -86,7 +88,8 @@ function entryAlbum(item: PlaybackQueueItem): string {
           <span>正在播放</span>
           <strong>{{ props.currentTrack?.title ?? (currentEntry ? entryTitle(currentEntry) : '当前歌曲') }}</strong>
           <small>{{ props.currentTrack?.artists.join('、') ?? (currentEntry ? entryArtists(currentEntry) : '—') }} · {{ props.currentTrack?.album ?? (currentEntry ? entryAlbum(currentEntry) : '—') }}</small>
-          <small v-if="props.playbackState?.requestedQuality">本次请求 {{ props.qualityLabel(props.playbackState.requestedQuality) }} · Provider 返回 {{ props.qualityLabel(props.playbackState.actualQuality) }}</small>
+          <small v-if="props.playbackState?.requestedQuality && props.playbackState.source !== 'local_file'">本次请求 {{ props.qualityLabel(props.playbackState.requestedQuality) }} · 来源返回 {{ props.qualityLabel(props.playbackState.actualQuality) }}</small>
+          <small>{{ evidenceDetails.file }}</small><small>{{ evidenceDetails.output }}</small><small>{{ evidenceDetails.evidence }}</small>
         </div>
         <div v-if="!upcomingEntries.length && props.playbackState?.queue.context?.afterComplete !== false" class="empty-copy">队列已播放完</div>
         <div ref="queueViewport" class="queue-upcoming-viewport" :class="{ 'is-virtualized': isQueueVirtualized }" @scroll="onQueueScroll">
