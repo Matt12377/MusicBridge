@@ -1,0 +1,24 @@
+{
+  "implementationCommit": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+  "initialImplementationCommit": "4587a213888aaedf686cf342ffe541833ad3c268",
+  "declaredSourceInputs": 1155,
+  "sourceInputsGitBlobBytesMatch119Gate": true,
+  "gateRerunAfterCommit": false,
+  "productSourceTreesUnchangedByTestCorrection": {
+    "packages/contracts/src": "7090735752b95672405d5e1d2d2d4133c80dce60",
+    "packages/bridge-core/src": "65d3b89799fb27321ca333dd69c35b17cd79539e",
+    "apps/desktop/src": "94676d3e05626e925c72742b612964365cd33b27"
+  },
+  "localProductionBuildReusableSameProductSource": true,
+  "originalReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/CORRECTED_IMPLEMENTATION_INPUT_BINDING.json",
+    "bytes": 593,
+    "sha256": "35dcfb49a4f07e20686c63fc7ebc15465504fd887fa2524b70ebfb3d1a4c1daa"
+  },
+  "gateManifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/gate-final-02/manifest.json",
+    "bytes": 232897,
+    "sha256": "32dd2c473981c397073563c88ea2398dcfd7885829c9ba7bedb9411573a49a7d"
+  },
+  "scope": "DECLARED_INPUTS_AND_WITHIN_GATE_OUTPUTS_NOT_FULL_TRANSITIVE_DEPENDENCY_CLOSURE"
+}

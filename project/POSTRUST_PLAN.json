@@ -31807,7 +31807,7 @@
         "MBRS-001",
         "MBRS-002"
       ],
-      "status": "LOCAL_SOFTWARE_COMPLETE_WITH_LIVE_CARRYOVER",
+      "status": "SOFTWARE_COMPLETE_WITH_EXPLICIT_LIVE_CARRYOVER",
       "implementation_owner": "MBRS-005",
       "goal": "在已有HTTP基础增加本地数据来源，不放松远程上游安全规则。",
       "steps": [
@@ -31844,19 +31844,23 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
       "report_commit": null,
-      "validation_status": "TARGETED_119_GATE_AND_BUILD_PASS_SOURCE_CI_CORRECTION_PENDING",
+      "validation_status": "TARGETED_119_GATE_BUILD_AND_FOUR_SOURCE_CI_SUCCESS_LIVE_NOT_RUN",
       "evidence_refs": [
+        "reports/MBRS-005_LOCAL_FILE_GATEWAY.md",
+        "reports/MBRS-005_EVIDENCE.json",
         "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-005/evidence/source-ci-terminal.json",
         "docs/postrust/MBRS-005/NETWORK_ACCESS.md"
       ],
       "branch": "codex/mbrs-005-local-file-gateway",
       "base_final_report_commit": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
       "task_scope": "tasks/MBRS-005_LOCAL_FILE_GATEWAY.md",
-      "implementation_commit_resolution": "git log -1 --format=%H -- packages/bridge-core/src/stream/local-file-source.ts",
+      "implementation_commit_resolution": "最终源提交 afece74；初始产品实现4587a21与后继严格宿主测试/Gate修正分开记录",
       "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-005_LOCAL_FILE_GATEWAY.md",
-      "report_path": "reports/MBRS-005_LOCAL_FILE_GATEWAY.md"
+      "report_path": "reports/MBRS-005_LOCAL_FILE_GATEWAY.md",
+      "terminal_ci_receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/FINAL_DELIVERY_RECEIPT.json"
     },
     {
       "id": "MBRS-006",
@@ -33010,7 +33014,8 @@
       "introduced_in": "1.1",
       "status": "PASS_SOFTWARE",
       "evidence_refs": [
-        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "reports/MBRS-005_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33028,7 +33033,8 @@
       "introduced_in": "1.1",
       "status": "PASS_SOFTWARE",
       "evidence_refs": [
-        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "reports/MBRS-005_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33046,7 +33052,8 @@
       "introduced_in": "1.1",
       "status": "PASS_SOFTWARE",
       "evidence_refs": [
-        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "reports/MBRS-005_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33064,7 +33071,8 @@
       "introduced_in": "1.1",
       "status": "PASS_SOFTWARE",
       "evidence_refs": [
-        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "reports/MBRS-005_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33082,7 +33090,8 @@
       "introduced_in": "1.1",
       "status": "PARTIAL",
       "evidence_refs": [
-        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "reports/MBRS-005_EVIDENCE.json"
       ],
       "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
       "app_status": "NOT_RUN",
@@ -33100,7 +33109,8 @@
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
       "evidence_refs": [
-        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "reports/MBRS-005_EVIDENCE.json"
       ],
       "software_status": "NOT_APPLICABLE_LIVE_ROON",
       "app_status": "NOT_RUN",
@@ -33118,7 +33128,8 @@
       "introduced_in": "1.1",
       "status": "PARTIAL",
       "evidence_refs": [
-        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "reports/MBRS-005_EVIDENCE.json"
       ],
       "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
       "app_status": "NOT_RUN",
@@ -33136,7 +33147,8 @@
       "introduced_in": "1.1",
       "status": "PARTIAL",
       "evidence_refs": [
-        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "reports/MBRS-005_EVIDENCE.json"
       ],
       "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
       "app_status": "NOT_RUN",
@@ -33154,7 +33166,8 @@
       "introduced_in": "1.1",
       "status": "PARTIAL",
       "evidence_refs": [
-        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "reports/MBRS-005_EVIDENCE.json"
       ],
       "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
       "app_status": "NOT_RUN",
@@ -33172,7 +33185,8 @@
       "introduced_in": "1.1",
       "status": "PARTIAL",
       "evidence_refs": [
-        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "reports/MBRS-005_EVIDENCE.json"
       ],
       "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
       "app_status": "NOT_RUN",
@@ -34593,7 +34607,8 @@
       "introduced_in": "1.2",
       "status": "PASS_SOFTWARE",
       "evidence_refs": [
-        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "reports/MBRS-005_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -34611,7 +34626,8 @@
       "introduced_in": "1.2",
       "status": "PASS_SOFTWARE",
       "evidence_refs": [
-        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "reports/MBRS-005_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",

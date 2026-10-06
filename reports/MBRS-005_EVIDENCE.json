@@ -1,0 +1,288 @@
+{
+  "schema": "mbrs005.delivery-evidence.v1",
+  "task": "MBRS-005",
+  "baseFinalReportCommit": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+  "initialImplementationCommit": "4587a213888aaedf686cf342ffe541833ad3c268",
+  "implementationCommit": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+  "reportCommit": null,
+  "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-005_LOCAL_FILE_GATEWAY.md",
+  "localSoftware": {
+    "functionalTests": 119,
+    "newTaskTests": 34,
+    "inheritedRegressionTests": 85,
+    "gateExitCode": 0,
+    "gateStages": 9,
+    "freshOutputs": 20,
+    "declaredInputs": 1155,
+    "runnerCiTests": 29,
+    "typecheck": "PASS",
+    "desktopProductionBuild": "PASS",
+    "localFullWorkspace": "NOT_RUN_RISK_BASED_TARGETED_SCOPE",
+    "record": "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+    "gateManifest": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/gate-final-02/manifest.json",
+      "bytes": 232897,
+      "sha256": "32dd2c473981c397073563c88ea2398dcfd7885829c9ba7bedb9411573a49a7d"
+    },
+    "gateCommandReceipt": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/gateway-final-02/result.json",
+      "bytes": 890,
+      "sha256": "2325c79c1c330b7b5c1fc0e48ec50fc3e8eb3ace0eb3347db2eb64118987190e"
+    }
+  },
+  "sourceIdentity": "docs/postrust/MBRS-005/evidence/corrected-source-input-binding.json",
+  "sourceCi": "docs/postrust/MBRS-005/evidence/source-ci-terminal.json",
+  "remoteFullWorkspace": {
+    "tests": 4284,
+    "pass": 4282,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "sourceCiSummary": [
+    {
+      "id": 37415678695,
+      "workflow": ".github/workflows/rust-core.yml",
+      "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37415678695"
+    },
+    {
+      "id": 37415678709,
+      "workflow": ".github/workflows/security.yml",
+      "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37415678709"
+    },
+    {
+      "id": 37415678655,
+      "workflow": ".github/workflows/verify.yml",
+      "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37415678655"
+    },
+    {
+      "id": 37415678701,
+      "workflow": ".github/workflows/electron-e2e.yml",
+      "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37415678701"
+    }
+  ],
+  "reportCiAtCommit": "PENDING_NATURAL_CI_FINAL_RECEIPT_IS_AUTHORITATIVE",
+  "finalDeliveryReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/FINAL_DELIVERY_RECEIPT.json",
+  "acceptanceCases": [
+    {
+      "id": "MBRS-AT-005-01",
+      "kind": "integration",
+      "status": "PASS_SOFTWARE",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅当前软件/自有合成HTTP与FD行为证据，不认证App/live/Owner"
+    },
+    {
+      "id": "MBRS-AT-005-02",
+      "kind": "unit",
+      "status": "PASS_SOFTWARE",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅当前软件/自有合成HTTP与FD行为证据，不认证App/live/Owner"
+    },
+    {
+      "id": "MBRS-AT-005-03",
+      "kind": "unit",
+      "status": "PASS_SOFTWARE",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅当前软件/自有合成HTTP与FD行为证据，不认证App/live/Owner"
+    },
+    {
+      "id": "MBRS-AT-005-04",
+      "kind": "security",
+      "status": "PASS_SOFTWARE",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅当前软件/自有合成HTTP与FD行为证据，不认证App/live/Owner"
+    },
+    {
+      "id": "MBRS-AT-005-05",
+      "kind": "security",
+      "status": "PARTIAL",
+      "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "只验证可信媒体配置拒绝、私有token及控制隔离；实际LAN部署未运行"
+    },
+    {
+      "id": "MBRS-AT-005-06",
+      "kind": "live_roon",
+      "status": "NOT_TESTED",
+      "software_status": "NOT_APPLICABLE_LIVE_ROON",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "原live_roon kind保持，实际Core探测/拉流/seek/音频未运行，交006及最终真实验收"
+    },
+    {
+      "id": "MBRS-AT-005-07",
+      "kind": "fault",
+      "status": "PARTIAL",
+      "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "合成confirmed会话、有限池、暂停续期、quiet后取消已证；真实Controller与预取归006/007"
+    },
+    {
+      "id": "MBRS-AT-005-08",
+      "kind": "fault",
+      "status": "PARTIAL",
+      "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "自有FS替换/截断/断连和受控read错误已证；真实NAS离线未运行"
+    },
+    {
+      "id": "MBRS-AT-005-09",
+      "kind": "integration",
+      "status": "PARTIAL",
+      "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "共享SAB/真实Worker/自有FD与独占准入互斥已证；真实确认会话与Organizer源写未启用"
+    },
+    {
+      "id": "MBRS-AT-005-10",
+      "kind": "load",
+      "status": "PARTIAL",
+      "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "128MiB稀疏文件与64KiB块、背压和异步控制已证；实际UI慢NAS/长时驻留未运行"
+    },
+    {
+      "id": "MBRS-AT-005-11",
+      "kind": "security",
+      "status": "PASS_SOFTWARE",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅当前软件/自有合成HTTP与FD行为证据，不认证App/live/Owner"
+    },
+    {
+      "id": "MBRS-AT-005-12",
+      "kind": "unit",
+      "status": "PASS_SOFTWARE",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "仅当前软件/自有合成HTTP与FD行为证据，不认证App/live/Owner"
+    }
+  ],
+  "preservedFailures": {
+    "initialSourceCi": "4587a213888aaedf686cf342ffe541833ad3c268",
+    "selectedActualArchiveProof": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/ci/INITIAL_RUST_HOST_FAILURE_PROOF.json",
+      "bytes": 1847,
+      "sha256": "88fee4c5ad9929df2fc16eb6c50d950194b95b54707a6b45742f6ead2b3fdd12"
+    },
+    "localStrictHostTestRed": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/rust-host-adapter-repro-01/result.json",
+      "bytes": 881,
+      "sha256": "add00dff71160aa35f28b71d705db3701e450e43a83f83cf458d81bee5553e54"
+    },
+    "strictHostTestFix": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/writer/RUST_HOST_ADAPTER_TEST_FIX.json",
+      "bytes": 1514,
+      "sha256": "0fdd7f11ec2e3b3190601dbd10587293bf0761a2165fbd980f97eb44adf120d1"
+    },
+    "cycleAndObservationRed": {
+      "cycleBeforeTypeLeafSplit": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/cycles-final-01/result.json",
+        "bytes": 778,
+        "sha256": "bbb9a4911b3925601b29c8cf3699f2a6515d1f6132266b1b7324f17a788b2a40"
+      },
+      "meaningfulObservationRed": "writer/r1-observation-red.log 六项失败 → r1-observation-green.log六项通过"
+    },
+    "oldCiReruns": 0
+  },
+  "reviewScope": "产品两轮；CI一轮；类型leaf及宿主测试/Gate补入由Root定点自查，旧审查hash不宣称覆盖后继字节",
+  "carryover": {
+    "realAccountsRoonLanNasAudio": "NOT_RUN",
+    "ordinaryApp": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "controllerConnection": "MBRS-006",
+    "prefetchAndQueue": "MBRS-007",
+    "protectedSourceWrites": "MBRS-012_AFTER_MBRS-014",
+    "historical300k": {
+      "visited": 300000,
+      "accepted": 299975,
+      "rejected": 25,
+      "readTimeout": 20,
+      "workerStartTimeout": 5,
+      "physicalCauses": "UNKNOWN",
+      "ownerException": "STAGE_ONLY_NOT_LOAD_PASS"
+    },
+    "iosContractAdoption": "PENDING",
+    "upstreamLicense": "UNKNOWN"
+  },
+  "sourceFilesWrites": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+  "new100k300kStarted": false,
+  "nextBaseline": {
+    "task": "MBRS-006",
+    "head": "FINAL_REPORT_HEAD_RESOLVED_BY_GIT",
+    "started": false
+  },
+  "mainMergeInstallRelease": "NOT_RUN",
+  "reportLocalChecks": {
+    "report-control-plane-01": {
+      "exitCode": 0,
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/report-control-plane-01/result.json",
+        "bytes": 800,
+        "sha256": "edf8ad8e4d1d9a6c24b72c6f01ec8c368356cb7c9af498f2e36e208c215bbcec"
+      }
+    },
+    "report-boundaries-01": {
+      "exitCode": 0,
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/report-boundaries-01/result.json",
+        "bytes": 792,
+        "sha256": "cfc8cd2d77e25f5ffb338553e8e12fd0ddddba7fda2f1333423660ae4d470811"
+      }
+    },
+    "scopeCheck": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/REPORT_STAGED_SCOPE_CHECK.json",
+      "bytes": 1405,
+      "sha256": "c8c4cd462c3676f917bc860bac45e819fb5f9f57c6fbaab0ad127d9d5a1ca725"
+    },
+    "scopePreparationFailure": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/REPORT_SCOPE_CHECK_BUFFER_FAILURE.json",
+      "bytes": 342,
+      "sha256": "d3c8650d523cecce684247d026317221790595b54d2b6a585f50a2ef887375ed"
+    }
+  }
+}
