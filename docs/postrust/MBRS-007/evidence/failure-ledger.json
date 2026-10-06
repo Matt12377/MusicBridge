@@ -66,5 +66,12 @@
   },
   "originalFailuresPreserved": true,
   "blindReruns": false,
-  "finalGatePassOnly": "gate-final-01"
+  "finalGatePassOnly": "gate-final-01",
+  "initialNaturalSourceCi": "docs/postrust/MBRS-007/evidence/initial-source-ci-followup.json",
+  "automaticElectronDependencyPreparationObserved": "docs/postrust/MBRS-007/evidence/electron-schema33-full-cases.json",
+  "matchingFollowupGatePassOnly": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/gate-final-02/manifest.json",
+    "bytes": 253512,
+    "sha256": "b2292d3cde209824cc02bf59bc00a653d31aa9c335ee1f078f16a66c71b8ebd2"
+  }
 }

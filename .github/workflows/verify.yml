@@ -11,7 +11,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -159,6 +159,7 @@ jobs:
           path: |
             ${{ runner.temp }}/musicbridge-verify/
             !${{ runner.temp }}/musicbridge-verify/workspace/**
+            !${{ runner.temp }}/musicbridge-verify/**/tmp/**
           if-no-files-found: warn
           retention-days: 14
 

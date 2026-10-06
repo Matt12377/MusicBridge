@@ -1,0 +1,67 @@
+{
+  "at": "2026-10-06T11:01:17.688029+00:00",
+  "route": "repos/Matt12377/MusicBridge/check-runs/112226386516/annotations?per_page=100",
+  "annotations": [
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Matt12377/MusicBridge/blob/4622189ed36db5c15f7b82c50e77093220c12b22/.github",
+      "start_line": 1,
+      "start_column": null,
+      "end_line": 1,
+      "end_column": null,
+      "annotation_level": "failure",
+      "title": "",
+      "message": "The job has exceeded the maximum execution time of 20m0s",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Matt12377/MusicBridge/blob/4622189ed36db5c15f7b82c50e77093220c12b22/.github",
+      "start_line": 6,
+      "start_column": null,
+      "end_line": 6,
+      "end_column": null,
+      "annotation_level": "warning",
+      "title": "",
+      "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Matt12377/MusicBridge/blob/4622189ed36db5c15f7b82c50e77093220c12b22/.github",
+      "start_line": 28,
+      "start_column": null,
+      "end_line": 28,
+      "end_column": null,
+      "annotation_level": "failure",
+      "title": "",
+      "message": "ENOENT: no such file or directory, stat '/home/runner/work/_temp/musicbridge-verify/mbrs007-37450729530-1/tmp/musicbridge-progress-IoAH4q'",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Matt12377/MusicBridge/blob/4622189ed36db5c15f7b82c50e77093220c12b22/.github",
+      "start_line": 72,
+      "start_column": null,
+      "end_line": 72,
+      "end_column": null,
+      "annotation_level": "failure",
+      "title": "",
+      "message": "The operation was canceled.",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Matt12377/MusicBridge/blob/4622189ed36db5c15f7b82c50e77093220c12b22/.github",
+      "start_line": 1,
+      "start_column": null,
+      "end_line": 1,
+      "end_column": null,
+      "annotation_level": "notice",
+      "title": "",
+      "message": "\"The ubuntu-latest label will migrate to Ubuntu 26 beginning October 19, 2026. For more information, see https://github.com/actions/runner-images/issues/14748\"",
+      "raw_details": ""
+    }
+  ],
+  "source": "4622189ed36db5c15f7b82c50e77093220c12b22"
+}

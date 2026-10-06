@@ -1,0 +1,85 @@
+{
+  "schema": "mbrs007.schema33-full-electron-cases.v1",
+  "initialSourceCommit": "4622189ed36db5c15f7b82c50e77093220c12b22",
+  "command": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-electron-schema33-full-cases-01/result.json",
+    "bytes": 1117,
+    "sha256": "fa4efc511f69b7eac80b6df7e1f0fff9e7bacf69526988b1edd2a9970c0cd5d6"
+  },
+  "fullPlaywrightReport": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-electron-schema33-full-cases-01/tmp/musicbridge-playwright-report.json",
+    "bytes": 6385,
+    "sha256": "f3238a4ee7bfe0cacc85cd0d624feb712c4a25960788e29974f96a93e4ce8f13"
+  },
+  "stats": {
+    "startTime": "2026-10-06T11:14:08.448Z",
+    "duration": 19308.911,
+    "expected": 3,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "fullOriginalCases": [
+    {
+      "file": "task-069.spec.ts",
+      "line": 60,
+      "title": "V3 Excel：真实XLSX/XLS与11API，重导不增量、修订保留旧Lot且独立更正跨冷启动",
+      "status": "PASSED"
+    },
+    {
+      "file": "task-070.spec.ts",
+      "line": 98,
+      "title": "V3完成度：真实九API，Owned与Wanted正交、长度守恒及取消后的不可变历史跨冷启",
+      "status": "PASSED"
+    },
+    {
+      "file": "task-078.spec.ts",
+      "line": 131,
+      "title": "V3同数据集7盘：幂等Completed、Replica历史核验、真实J-Card与完整备份激活冷启守恒",
+      "status": "PASSED"
+    }
+  ],
+  "schemaChange": "THREE_CURRENT_32_TO_33_EXPECTATIONS_ONLY",
+  "prior70ProductTestBytesUnchanged": true,
+  "fullTailsReached": [
+    "inventory_and_ledger",
+    "immutable_history_cold_restart",
+    "record_replica_jcard_backup_restore_activation_cold_restart"
+  ],
+  "actualRuntimeResolution": {
+    "schema": "mbrs007.actual-electron-runtime-resolution.v1",
+    "desktopResolvedBeforeRun": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/electron-identity-01/receipt.json",
+      "bytes": 966,
+      "sha256": "695ac293be37ca9c9320ed2eaad4d0956ad45cbf76eb37fef9850af89aca0aa8"
+    },
+    "playwrightDefaultRuntimePackageRoot": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/node_modules/.pnpm/electron@43.4.0/node_modules/electron",
+    "resolution": "PINNED_PLAYWRIGHT_CORE_DEFAULT_REQUIRE_ELECTRON_INDEX_FROM_REUSED_DEPENDENCY_TREE",
+    "observedLog": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-electron-schema33-full-cases-01/output.log",
+      "bytes": 1128,
+      "sha256": "30bef6667f365d41ac63cf51b76d55508ca672470ad859ee8ef84451d74881bf"
+    },
+    "automaticInstallMessageObserved": true,
+    "sideEffect": "DEFAULT_PLAYWRIGHT_ELECTRON_INDEX_AUTO_PREPARED_REUSED_006_IGNORED_DEPENDENCY_DIST_PATH_AND_VERSION",
+    "readonlyReuseClaim": false,
+    "actualRuntimePostRunOfficialArchiveCheck": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/checks/root-playwright-electron-actual-tree-01/result.json",
+      "bytes": 1248,
+      "sha256": "05fb0cd75e033ba2e1185c1e76b20fba617f2fd76155ea8bbd193d7b80a952d9"
+    },
+    "actualRuntime": {
+      "treeSha256": "c5e4bfd4a56e67e4fc0463606654101474ef86e965dc26615f204843f62b1041",
+      "archiveEntries": 585,
+      "fileEntries": 275,
+      "executablePath": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/node_modules/.pnpm/electron@43.4.0/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+      "executableSha256": "1af684f056a8eb13e49fbd677072e437316086b076e3b9b92de3ddb343edc5b1"
+    },
+    "archiveSha256": "827f9f182566f46846377575b51c547b9926b111637313a373b6f717462aebac",
+    "sharedProductSourceOrUserDataChanged": false,
+    "furtherInstallOrCleanup": "NOT_RUN",
+    "ordinaryAppRealServicesOwner": "NOT_RUN"
+  },
+  "formalR3": false,
+  "realAccountsRoonAudioLanNasOrdinaryAppOwner": "NOT_RUN"
+}

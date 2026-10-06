@@ -1,7 +1,7 @@
 {
   "schema": "mbrs007.execution-scope.v1",
   "task": "MBRS-007",
-  "state": "FINITE_SOFTWARE_CANDIDATE_FROZEN_FINAL_GATE_PENDING",
+  "state": "FINITE_SOFTWARE_CANDIDATE_FROZEN_MATCHING_CI_COMPAT_GATE_PENDING",
   "branch": "codex/mbrs-007-queue-prefetch-control",
   "baseFinalReportCommit": "b464dd2066346121a26824da516969b726f0cfe0",
   "ownerGoal": "持续开发到017；每独立task完成更新待办并普通push；未完成独立task不停止在TODO；按风险选择测试规模",
@@ -126,7 +126,7 @@
     "total": 963,
     "newTests": 45,
     "oldRegressionTests": 918,
-    "finalFreshGate": "PENDING"
+    "finalFreshGate": "INITIAL_963_PASS_MATCHING_CI_COMPAT_FOLLOWUP_PENDING"
   },
   "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen",
   "previousDeliveryReceipt": "docs/postrust/MBRS-007/PREVIOUS_DELIVERY_RECEIPT.json",
@@ -136,7 +136,7 @@
     "roundsPerformed": 2,
     "r1UniqueP2": 3,
     "r2UniqueP2": 1,
-    "rootCursorDisposition": "LOCAL_SAME_CASE_RED_GREEN_FINAL_GATE_PENDING_NO_R3"
+    "rootCursorDisposition": "LOCAL_SAME_CASE_RED_GREEN_INITIAL_FINAL_GATE963_PASS_NO_R3"
   },
   "designSha256": "ded619250f51e9d16c11de2e4fffa60fa6437d15e22d6594b80829ad4fa69e99",
   "framePreflightSha256": "68f0aee466736724436cde155cf37f625e7d72f92b591235055219ce2d84b566",
@@ -161,6 +161,57 @@
     "regressionFiles": 76
   },
   "localPlaybackProtocol": "COMPACT_V1_REQUIRED_AT_COMMON_LOCAL_START_AND_NEXT_PREPARATION_INCLUDING_RESTORED_ENTRY_INDEX_NAVIGATION_CLOUD_NATIVE_COMPATIBLE",
-  "candidateFreezeSha256": "a94b04d9bd59d47299a5510a2adecca73581a07ffe917ecd053172608ded510e",
-  "schemaCompatibility": "ONLY_CURRENT_SCHEMA_TARGET_ASSERTIONS_33_117_OLD_FIXED_INPUTS_AND_NEGATIVE_FACTS_UNCHANGED"
+  "candidateFreezeSha256": "45d4b7dd688a3462093c71b5d7bbbed920bc4869cc813a2a184964f1e0b8dc94",
+  "schemaCompatibility": "CURRENT_33_117_TARGETS_PLUS_THREE_CURRENT_E2E_33_EXPECTATIONS_FIXED_OLD_INPUTS_AND_ALL_NEGATIVE_TAILS_PRESERVED",
+  "ciCompatibilityFollowup": {
+    "schema": "mbrs007.initial-source-ci-followup.v1",
+    "initialSourceCommit": "4622189ed36db5c15f7b82c50e77093220c12b22",
+    "initialTerminal": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ci/initial-source-terminal.json",
+      "bytes": 58321,
+      "sha256": "1e80bcc20423feb00b84c13da9e1aed10433af82b6c2cf1ca0789c4b68084e04"
+    },
+    "initialVerifyAnnotations": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ci/INITIAL_SOURCE_VERIFY_ANNOTATIONS.json",
+      "bytes": 2669,
+      "sha256": "444d86279b2b675716f654d40f4a40d811160ea4489c7143b2aa69a87d0a2ec8"
+    },
+    "initialVerifyLog": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ci/INITIAL_SOURCE_VERIFY_LOG_RECEIPT.json",
+      "bytes": 11799,
+      "sha256": "12568c6a43b6e7805a58a9d3b0a795c87bb6cb81231e10ff6fa9164a4796d447"
+    },
+    "initialElectronLog": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ci/INITIAL_SOURCE_ELECTRON_LOG_RECEIPT.json",
+      "bytes": 6727,
+      "sha256": "74bd91d709bbbd2ae6c94d4fbbd4b75a35f29efc83a842224cffa1310022b4af"
+    },
+    "initialElectronCounts": {
+      "passed": 101,
+      "failed": 3,
+      "originalSkipped": 4
+    },
+    "rootLocalFullFailedCases": {
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "evidence": "docs/postrust/MBRS-007/evidence/electron-schema33-full-cases.json"
+    },
+    "workflowChange": {
+      "verifyJobMinutesFrom": 20,
+      "verifyJobMinutesTo": 25,
+      "stageMinutesUnchanged": 8,
+      "mbrs007TotalBudgetMsUnchanged": 360000,
+      "mbrs007StageBudgetMsUnchanged": 180000,
+      "testsBudgetsAndThresholdsUnchanged": true,
+      "uploadExclusionAdded": "!${{ runner.temp }}/musicbridge-verify/**/tmp/**",
+      "stableLogsManifestsAndBindingsRetained": true,
+      "fixedUploadActualResult": "NEW_EXACT_SOURCE_CI_PENDING"
+    },
+    "scope": "FINITE_WHOLE_JOB_WRAPPER_AND_TRANSIENT_TMP_COLLECTOR_PLUS_THREE_CURRENT_SCHEMA_EXPECTATIONS",
+    "oldRunsRerunOrCancelledByAgent": false,
+    "naturalNewSourceCi": "PENDING",
+    "formalR3": false
+  },
+  "declaredInputCountForMatchingGate": 1210
 }

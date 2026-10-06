@@ -45988,7 +45988,7 @@
   },
   "postRustQueuePrefetchControl20261006": {
     "task": "MBRS-007",
-    "state": "LOCAL_SOFTWARE_PASS_SOURCE_COMMIT_CI_PENDING",
+    "state": "MATCHING_LOCAL_SOFTWARE_PASS_CI_COMPAT_SOURCE_COMMIT_PENDING",
     "branch": "codex/mbrs-007-queue-prefetch-control",
     "baseFinalReportCommit": "b464dd2066346121a26824da516969b726f0cfe0",
     "implementationCommit": null,
@@ -46014,7 +46014,7 @@
       "gateStages": 11,
       "freshOutputs": 44,
       "privateBindings": 2,
-      "declaredInputs": 1207,
+      "declaredInputs": 1210,
       "typecheck": "PASS",
       "desktopProductionBuild": "PASS",
       "preloadDependencies": "PASS",
@@ -46029,7 +46029,14 @@
       "r2UniqueP2": 1,
       "openP1P2": 0,
       "rootClosure": "MINIMAL_SAME_CASE_RED_GREEN_AND_FINAL_GATE_NO_R3",
-      "evidence": "docs/postrust/MBRS-007/evidence/local-software-checks.json"
+      "evidence": "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+      "schemaCompatibilityFullElectronCases": {
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0
+      },
+      "schemaCasesBuildMode": "development",
+      "runtimeResolutionSideEffect": "RECORDED_IN_SOFTWARE_EVIDENCE"
     },
     "implementationCommitResolution": "git log -1 --format=%H -- scripts/ci/verify-mbrs007-queue.mjs",
     "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md",
@@ -46038,6 +46045,8 @@
     "ci": "NOT_RUN",
     "mainMerge": "NOT_AUTHORIZED",
     "release": "NOT_AUTHORIZED",
-    "updatedAt": "2026-10-06T10:33:27.960414+00:00"
+    "updatedAt": "2026-10-06T11:21:41.555726+00:00",
+    "initialImplementationCommit": "4622189ed36db5c15f7b82c50e77093220c12b22",
+    "initialCi": "VERIFY_JOB_TIMEOUT_AND_THREE_CURRENT_SCHEMA_EXPECTATIONS_FAILED_PRESERVED"
   }
 }

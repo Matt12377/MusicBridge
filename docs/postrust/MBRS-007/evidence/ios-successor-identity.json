@@ -1,0 +1,126 @@
+{
+  "schema": "mbrs007.ios-successor-coordination.v1",
+  "at": "2026-10-06T10:36:40.883306+00:00",
+  "scope": "READONLY_NORMAL_REPORT_HANDOFF_NOT_007_GATE_OR_MAC_ADOPTION",
+  "latestReadonlyIdentity": {
+    "schema": "mbrs007.ios-contracts-readonly.v1",
+    "at": "2026-10-06T10:31:00.593366+00:00",
+    "source": "6179f16ff81920ac2402e9cb7fca8f8ded83c4cc",
+    "report": "8de0f3cbfe76c93ef8dfc90bc58d3e653efde0b7",
+    "observedSupplement": "3c357b12c53fa3346f55922bce2c2085b299f55d",
+    "remoteObservedByGhReceipt": "receipt.json",
+    "supplementDirectReportChild": true,
+    "supplementMetadataPaths": [
+      "README.md",
+      "docs/integration/V3_9_IOS_INTERFACE_HANDOFF.md",
+      "project/CURRENT_TASK.md",
+      "project/STATUS.json",
+      "reports/IOS-013_HOME_LIKED_PLAYLIST_ARCHIVE_SUPPLEMENT.md",
+      "reports/evidence/IOS-013_HOME_LIKED_PLAYLIST_ARCHIVE/archive-inputs.json",
+      "reports/evidence/IOS-013_HOME_LIKED_PLAYLIST_ARCHIVE/manifest.json",
+      "reports/evidence/IOS-013_HOME_LIKED_PLAYLIST_ARCHIVE/mock-build.json",
+      "reports/evidence/IOS-013_HOME_LIKED_PLAYLIST_ARCHIVE/mock-build.log.gz",
+      "reports/evidence/IOS-013_HOME_LIKED_PLAYLIST_ARCHIVE/production-build.json",
+      "reports/evidence/IOS-013_HOME_LIKED_PLAYLIST_ARCHIVE/production-build.log.gz",
+      "reports/evidence/IOS-013_HOME_LIKED_PLAYLIST_ARCHIVE/production-isolation.json",
+      "reports/evidence/IOS-013_HOME_LIKED_PLAYLIST_ARCHIVE/validation-receipt.json"
+    ],
+    "contracts": [
+      {
+        "revision": "6179f16ff81920ac2402e9cb7fca8f8ded83c4cc",
+        "path": "Contracts/openapi.yaml",
+        "bytes": 27446,
+        "sha256": "03056740fbb8443e2ab862e27d7af7927ab467a3f7cb44babfb6b79ee442480d"
+      },
+      {
+        "revision": "6179f16ff81920ac2402e9cb7fca8f8ded83c4cc",
+        "path": "Contracts/proposals/UI_V39.openapi.json",
+        "bytes": 30633,
+        "sha256": "12b5b155ec44869ec6adfc648769a37e1bd9cc0692fdbd338b4218de429cac13"
+      },
+      {
+        "revision": "6179f16ff81920ac2402e9cb7fca8f8ded83c4cc",
+        "path": "docs/integration/UI_V39_CONTROL_COVERAGE.json",
+        "bytes": 27066,
+        "sha256": "dec3c42e7120eebfe0fb02fee261aa755b9e877a2dda29491c9696f92d93f386"
+      },
+      {
+        "revision": "8de0f3cbfe76c93ef8dfc90bc58d3e653efde0b7",
+        "path": "Contracts/openapi.yaml",
+        "bytes": 27446,
+        "sha256": "03056740fbb8443e2ab862e27d7af7927ab467a3f7cb44babfb6b79ee442480d"
+      },
+      {
+        "revision": "8de0f3cbfe76c93ef8dfc90bc58d3e653efde0b7",
+        "path": "Contracts/proposals/UI_V39.openapi.json",
+        "bytes": 30633,
+        "sha256": "12b5b155ec44869ec6adfc648769a37e1bd9cc0692fdbd338b4218de429cac13"
+      },
+      {
+        "revision": "8de0f3cbfe76c93ef8dfc90bc58d3e653efde0b7",
+        "path": "docs/integration/UI_V39_CONTROL_COVERAGE.json",
+        "bytes": 27066,
+        "sha256": "dec3c42e7120eebfe0fb02fee261aa755b9e877a2dda29491c9696f92d93f386"
+      },
+      {
+        "revision": "3c357b12c53fa3346f55922bce2c2085b299f55d",
+        "path": "Contracts/openapi.yaml",
+        "bytes": 27446,
+        "sha256": "03056740fbb8443e2ab862e27d7af7927ab467a3f7cb44babfb6b79ee442480d"
+      },
+      {
+        "revision": "3c357b12c53fa3346f55922bce2c2085b299f55d",
+        "path": "Contracts/proposals/UI_V39.openapi.json",
+        "bytes": 30633,
+        "sha256": "12b5b155ec44869ec6adfc648769a37e1bd9cc0692fdbd338b4218de429cac13"
+      },
+      {
+        "revision": "3c357b12c53fa3346f55922bce2c2085b299f55d",
+        "path": "docs/integration/UI_V39_CONTROL_COVERAGE.json",
+        "bytes": 27066,
+        "sha256": "dec3c42e7120eebfe0fb02fee261aa755b9e877a2dda29491c9696f92d93f386"
+      }
+    ],
+    "runtimeReexecuted": false,
+    "sourceBuildAssertions": "UPSTREAM_REPORTED_NOT_ROOT_RERUN",
+    "macAdoption": "PENDING_MBM000",
+    "flacProof": "FUTURE_NON_SILENT_LOW_BITS_STEREO_SAME_ROUND_SOURCE_PCM_NOT_OLD_SILENCE_FIXTURES"
+  },
+  "olderAuditReference": {
+    "source": "e7d4218b32f615f1e5d910a0d0a8e697ee04ad9e",
+    "report": "2e7d5ec4aacc1c1ae266d6262cc405fb8b4c7f17",
+    "auditSupplement": "f35feebcb99d81aeef867913cff97fcb5550b4a7",
+    "cooperationDocs": "42e3de8748f378eb94c57d5e3d82040e2f1e2bd3"
+  },
+  "candidate": {
+    "baseApi": "0.1.0",
+    "uiApi": "1.1.0",
+    "capabilityWire": "1.0.0",
+    "controls": 68,
+    "intents": 46,
+    "getRoutes": {
+      "base": 20,
+      "candidate": 6
+    },
+    "macAdoption": "PENDING_MBM000",
+    "newLikedRoutes": [
+      "/mobile/v1/ui/netease/liked-playlist",
+      "/mobile/v1/ui/netease/liked-playlist/tracks"
+    ],
+    "accountPlaylistRevisionPagingFence": "REQUIRED",
+    "summaryTotalLimitAndFullPlaylistLoadFailure": "NO_PARTIAL_QUEUE_SUCCESS"
+  },
+  "clientBuildTests": "UPSTREAM_REPORTED_NOT_ROOT_RERUN",
+  "clientExactArchiveSupplement": "3c357b12c53fa3346f55922bce2c2085b299f55d",
+  "oldSilenceFixtureEvidence": "NOT_NONZERO_LOW_BITS_STEREO_OR_FIDELITY_PROOF",
+  "futureFlac": "LOSSLESS_DIRECT_OR_CONTROLLED_LOSSLESS_ALAC_PCM_WAV_NO_AAC_MP3_OR_CODEC_WHITELIST_WORKAROUND",
+  "mobileAfterOriginalMbrs017": [
+    "MBM-000",
+    "MBM-001",
+    "MBM-002",
+    "MBM-003",
+    "MBM-004"
+  ],
+  "newMainlineHardGate": false,
+  "realServicesPhoneAudioOwner": "NOT_RUN"
+}
