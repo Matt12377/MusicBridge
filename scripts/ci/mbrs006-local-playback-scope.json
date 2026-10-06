@@ -21,7 +21,7 @@
     {
       "name": "core-affected-regression",
       "directory": "packages/bridge-core",
-      "expectedTests": 381,
+      "expectedTests": 389,
       "tests": [
         "test/controller.test.ts",
         "test/roon-adapter.test.ts",
@@ -37,7 +37,8 @@
         "test/runtime-compact-events.test.ts",
         "scripts/mbrs001/test/file-http.test.ts",
         "scripts/mbrs001/test/official-adapter.test.ts",
-        "scripts/mbrs001/test/attempt-lifecycle.test.ts"
+        "scripts/mbrs001/test/attempt-lifecycle.test.ts",
+        "test/recording-capacity-queued-stop.test.ts"
       ]
     },
     {

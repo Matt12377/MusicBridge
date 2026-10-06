@@ -9,7 +9,7 @@
     "pretypecheck": "corepack pnpm@10.17.1 run build",
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "pretest": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
-    "test": "node --import tsx --test test/*.test.ts",
+    "test": "node ../../scripts/ci/run-core-tests.mjs",
     "verify": "corepack pnpm@10.17.1 run typecheck && corepack pnpm@10.17.1 run test && corepack pnpm@10.17.1 run build",
     "dev": "node --env-file-if-exists=.env --import tsx src/main.ts",
     "start": "node --env-file-if-exists=.env dist/main.js",

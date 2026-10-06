@@ -34,7 +34,7 @@
 
 自动Gate复用001的外置/hosted准入和TAP完整性校验，重建contracts/Core/固定metadata worker，再核contracts、Core、Desktop与E2E类型及四组行为。产品数量只由完整实际TAP冻结，不用声明数、准备失败或旧报告代替。总预算6分钟、单阶段3分钟；本机路径均在外置LifeWeave，不重跑100k/300k。最终报告记录冻结源码与新鲜产物身份、原失败保留和证据层级；007队列/预取、008音质、009正式库UI及012/014源写保护仍分别负责后续范围。
 
-候选新增46项：Core41、contracts2、Desktop3；最终有限Gate额外保留555项受影响回归，总601。计数由完整已执行TAP冻结，最终Gate仍需重新验证各组数量与fresh产物。行为入口为`packages/bridge-core/test/mbrs006/`、`packages/contracts/test/mbrs006/`和`apps/desktop/test/mbrs006-local-consumer.test.ts`；实际Owner/SQLite/扫描→FD、Controller/SDK Fake三动作、迟到/UNKNOWN/目标变更、终态与默认Node utility阻塞IO/fatal均分别取证。
+候选新增46项：Core41、contracts2、Desktop3；最终有限Gate额外保留563项受影响回归，总609。计数由完整已执行TAP冻结，最终Gate仍需重新验证各组数量与fresh产物。行为入口为`packages/bridge-core/test/mbrs006/`、`packages/contracts/test/mbrs006/`和`apps/desktop/test/mbrs006-local-consumer.test.ts`；实际Owner/SQLite/扫描→FD、Controller/SDK Fake三动作、迟到/UNKNOWN/目标变更、终态与默认Node utility阻塞IO/fatal均分别取证。
 
 R1四项根因通过同case有效RED后修正：重复shutdown共用先登记的完成/拒绝flight；旧分页context；本地确定终态；Zone/group ABA。正式审查最多两轮，最后结果和原失败指针进独立报告。20真值样本、四轴音质、真实账号/Roon/LAN/NAS/普通App及Owner均未运行，不用上述软件计数抵扣。
 
@@ -42,4 +42,6 @@ R1四项根因通过同case有效RED后修正：重复shutdown共用先登记的
 
 初始源b50261e的实际security与workspace仅同一个旧preload方法闭集期待失败；原29安全case中28通过，工作区4330总/4327通过/1失败/2原条件跳过。仅给原strict期待加已审的playLocalLibraryTrack，不放宽其它keys/私有负例；原54冻结路径不变，完整安全29及Desktop组合121重新通过。7文件定向安全组并入最终Gate，原失败保留，旧CI不rerun。
 
-第二源5dd13d2的workspace4330总/4328通过/2原条件跳过已成功，后继001离线Gate实际失败；同源本机复现32总/31通过/1旧SessionEnded通知期待失败。仅更新旧测试与合成POC的同根因期待，保持严格资源/迟到负例、32case和118既有回归；完整001软件Gate已通过。原55路径不变，最新57冻结；该32项与八个直接输入并入006有限Gate，重新绑定601组计数，不修改历史001报告或升级真实验收。
+第二源5dd13d2的workspace4330总/4328通过/2原条件跳过已成功，后继001离线Gate实际失败；同源本机复现32总/31通过/1旧SessionEnded通知期待失败。仅更新旧测试与合成POC的同根因期待，保持严格资源/迟到负例、32case和118既有回归；完整001软件Gate已通过。原55路径不变，最新57冻结；该32项与八个直接输入并入006有限Gate，重新绑定609组计数，不修改历史001报告或升级真实验收。
+
+第三源 a940c340 的远端 Core 单测在原 recording-capacity-queued-stop 的 progressMs≤100ms 断言失败；实际值未输出，不能由2803ms整条case耗时推算。Contracts256通过，Core2648总/2645通过/1失败/2原条件skip，Desktop未执行。该产品源码与第二源完整workspace通过时相同；跨文件争用为待证推断。Root只把原8项墙钟测试移至全Core普通阶段自然成功后的独立阶段，其余文件保留原默认并行，全部case及100/250/500/2000ms阈值、原105-child窗口和历史收据不变。原文件并入有限回归，389项与32脚本已通过，最终609 Gate另以新收据绑定。

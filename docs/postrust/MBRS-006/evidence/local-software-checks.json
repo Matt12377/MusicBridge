@@ -3,29 +3,29 @@
   "task": "MBRS-006",
   "baseFinalReportCommit": "cce8594f4b6e9872afd576bb1b032f526c93af72",
   "gateManifest": {
-    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/gate-final-03/manifest.json",
-    "bytes": 241849,
-    "sha256": "3e61caf6a3c822c5b67ad76af7eefd71399e24f288abacfb564c143af457535d"
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/gate-final-04/manifest.json",
+    "bytes": 242178,
+    "sha256": "3a1e9d77458527090966729b7cbb77f382d2ecd90f354854e8c035a5f748af16"
   },
   "gateCommandReceipt": {
-    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/local-playback-gate-final-03/result.json",
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/local-playback-gate-final-04/result.json",
     "bytes": 950,
-    "sha256": "1be5cecbb71e0a8ddba02a3ca57b74b89d6e7a7082f036ca5a76c86a93fb8bb4"
+    "sha256": "c88f68b3c61a8c5dabf3dccb01fc2dfd5a7389e8bf9876f2a52a2c2bcba11dea"
   },
   "gateSuccess": true,
-  "functionalTests": 601,
+  "functionalTests": 609,
   "newTaskTests": 46,
-  "inheritedRegressionTests": 555,
+  "inheritedRegressionTests": 563,
   "gateStages": 11,
   "freshOutputs": 28,
-  "declaredInputs": 1183,
+  "declaredInputs": 1185,
   "runs": [
     {
       "name": "fresh-contracts-build",
       "directory": "packages/contracts",
       "expectedTests": null,
-      "startedAt": "2026-10-06T07:07:39.204Z",
-      "startedMs": 1791270459204,
+      "startedAt": "2026-10-06T07:39:50.262Z",
+      "startedMs": 1791272390262,
       "limitMs": 180000,
       "exitCode": 0,
       "signal": null,
@@ -36,7 +36,7 @@
       "preparationFailed": false,
       "groupTerminationFailed": false,
       "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "durationMs": 2591.8014160000002,
+      "durationMs": 2696.203291,
       "testCounts": null,
       "testSummaryValid": null,
       "log": "fresh-contracts-build.log",
@@ -47,8 +47,8 @@
       "name": "contracts-types",
       "directory": "packages/contracts",
       "expectedTests": null,
-      "startedAt": "2026-10-06T07:07:41.796Z",
-      "startedMs": 1791270461796,
+      "startedAt": "2026-10-06T07:39:52.959Z",
+      "startedMs": 1791272392959,
       "limitMs": 180000,
       "exitCode": 0,
       "signal": null,
@@ -59,7 +59,7 @@
       "preparationFailed": false,
       "groupTerminationFailed": false,
       "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "durationMs": 2932.6819579999997,
+      "durationMs": 2604.2025419999995,
       "testCounts": null,
       "testSummaryValid": null,
       "log": "contracts-types.log",
@@ -70,8 +70,8 @@
       "name": "fresh-core-build",
       "directory": "packages/bridge-core",
       "expectedTests": null,
-      "startedAt": "2026-10-06T07:07:44.730Z",
-      "startedMs": 1791270464730,
+      "startedAt": "2026-10-06T07:39:55.564Z",
+      "startedMs": 1791272395564,
       "limitMs": 180000,
       "exitCode": 0,
       "signal": null,
@@ -82,7 +82,7 @@
       "preparationFailed": false,
       "groupTerminationFailed": false,
       "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "durationMs": 4256.932540999999,
+      "durationMs": 4129.133166,
       "testCounts": null,
       "testSummaryValid": null,
       "log": "fresh-core-build.log",
@@ -93,8 +93,8 @@
       "name": "fresh-core-worker-bundle",
       "directory": "packages/bridge-core",
       "expectedTests": null,
-      "startedAt": "2026-10-06T07:07:48.988Z",
-      "startedMs": 1791270468988,
+      "startedAt": "2026-10-06T07:39:59.694Z",
+      "startedMs": 1791272399694,
       "limitMs": 180000,
       "exitCode": 0,
       "signal": null,
@@ -105,7 +105,7 @@
       "preparationFailed": false,
       "groupTerminationFailed": false,
       "rawSha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6",
-      "durationMs": 221.66520800000035,
+      "durationMs": 249.56695899999977,
       "testCounts": null,
       "testSummaryValid": null,
       "log": "fresh-core-worker-bundle.log",
@@ -116,8 +116,8 @@
       "name": "core-types",
       "directory": "packages/bridge-core",
       "expectedTests": null,
-      "startedAt": "2026-10-06T07:07:49.212Z",
-      "startedMs": 1791270469212,
+      "startedAt": "2026-10-06T07:39:59.946Z",
+      "startedMs": 1791272399946,
       "limitMs": 180000,
       "exitCode": 0,
       "signal": null,
@@ -128,7 +128,7 @@
       "preparationFailed": false,
       "groupTerminationFailed": false,
       "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "durationMs": 7108.044334000002,
+      "durationMs": 7095.030875000002,
       "testCounts": null,
       "testSummaryValid": null,
       "log": "core-types.log",
@@ -139,8 +139,8 @@
       "name": "desktop-types",
       "directory": "apps/desktop",
       "expectedTests": null,
-      "startedAt": "2026-10-06T07:07:56.321Z",
-      "startedMs": 1791270476321,
+      "startedAt": "2026-10-06T07:40:07.042Z",
+      "startedMs": 1791272407042,
       "limitMs": 180000,
       "exitCode": 0,
       "signal": null,
@@ -151,7 +151,7 @@
       "preparationFailed": false,
       "groupTerminationFailed": false,
       "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "durationMs": 11289.872375000003,
+      "durationMs": 9878.155583,
       "testCounts": null,
       "testSummaryValid": null,
       "log": "desktop-types.log",
@@ -162,8 +162,8 @@
       "name": "desktop-e2e-types",
       "directory": "apps/desktop",
       "expectedTests": null,
-      "startedAt": "2026-10-06T07:08:07.611Z",
-      "startedMs": 1791270487611,
+      "startedAt": "2026-10-06T07:40:16.920Z",
+      "startedMs": 1791272416920,
       "limitMs": 180000,
       "exitCode": 0,
       "signal": null,
@@ -174,7 +174,7 @@
       "preparationFailed": false,
       "groupTerminationFailed": false,
       "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "durationMs": 2881.6384169999983,
+      "durationMs": 2884.055457999999,
       "testCounts": null,
       "testSummaryValid": null,
       "log": "desktop-e2e-types.log",
@@ -185,8 +185,8 @@
       "name": "core-local-playback",
       "directory": "packages/bridge-core",
       "expectedTests": 41,
-      "startedAt": "2026-10-06T07:08:10.493Z",
-      "startedMs": 1791270490493,
+      "startedAt": "2026-10-06T07:40:19.805Z",
+      "startedMs": 1791272419805,
       "limitMs": 180000,
       "exitCode": 0,
       "signal": null,
@@ -196,8 +196,8 @@
       "captureFailed": false,
       "preparationFailed": false,
       "groupTerminationFailed": false,
-      "rawSha256": "be47f7dfd55aaaf0177a79926480fc32f966100a80a3a6cb197df24e6b52809f",
-      "durationMs": 6037.996625000003,
+      "rawSha256": "5650d6d94fb7d1d2888b8bf1f783955c60fd2286dc8aad01f7fdf976c262ce1d",
+      "durationMs": 7333.911708999996,
       "testCounts": {
         "tests": 41,
         "pass": 41,
@@ -214,9 +214,9 @@
     {
       "name": "core-affected-regression",
       "directory": "packages/bridge-core",
-      "expectedTests": 381,
-      "startedAt": "2026-10-06T07:08:16.532Z",
-      "startedMs": 1791270496532,
+      "expectedTests": 389,
+      "startedAt": "2026-10-06T07:40:27.139Z",
+      "startedMs": 1791272427139,
       "limitMs": 180000,
       "exitCode": 0,
       "signal": null,
@@ -226,11 +226,11 @@
       "captureFailed": false,
       "preparationFailed": false,
       "groupTerminationFailed": false,
-      "rawSha256": "a10c358c913ae6a7901778cf5b8f38933209b54f0ddba122e690d086775c346a",
-      "durationMs": 17136.229667,
+      "rawSha256": "3227ddcc12e357f6cf69fa416e1ad33dab05b3f3882ddf6e8a78d6802656eac7",
+      "durationMs": 22236.949458999996,
       "testCounts": {
-        "tests": 381,
-        "pass": 381,
+        "tests": 389,
+        "pass": 389,
         "fail": 0,
         "cancelled": 0,
         "skipped": 0,
@@ -238,15 +238,15 @@
       },
       "testSummaryValid": true,
       "log": "core-affected-regression.log",
-      "logSha256": "779f2e1a0182167b3b99875070c3fa5c368a3d89275ce38469727b4e612706a1",
+      "logSha256": "ca74148046c80d482561a5300719306c89047170fcbafe97e648cda2c2fca591",
       "success": true
     },
     {
       "name": "contracts-local-identity",
       "directory": "packages/contracts",
       "expectedTests": 58,
-      "startedAt": "2026-10-06T07:08:33.669Z",
-      "startedMs": 1791270513669,
+      "startedAt": "2026-10-06T07:40:49.378Z",
+      "startedMs": 1791272449378,
       "limitMs": 180000,
       "exitCode": 0,
       "signal": null,
@@ -256,8 +256,8 @@
       "captureFailed": false,
       "preparationFailed": false,
       "groupTerminationFailed": false,
-      "rawSha256": "7aa7896878683c12ee9ddde8959bbdf57d0926c9e7e8c578f23706ce0e0607c2",
-      "durationMs": 837.5048749999987,
+      "rawSha256": "81c7a17e1abe3cd18a7d314e13dc77225d9ca7b82fb97be78cbef24948ed4c92",
+      "durationMs": 839.5645000000004,
       "testCounts": {
         "tests": 58,
         "pass": 58,
@@ -275,8 +275,8 @@
       "name": "desktop-local-consumer",
       "directory": "apps/desktop",
       "expectedTests": 121,
-      "startedAt": "2026-10-06T07:08:34.507Z",
-      "startedMs": 1791270514507,
+      "startedAt": "2026-10-06T07:40:50.218Z",
+      "startedMs": 1791272450218,
       "limitMs": 180000,
       "exitCode": 0,
       "signal": null,
@@ -286,8 +286,8 @@
       "captureFailed": false,
       "preparationFailed": false,
       "groupTerminationFailed": false,
-      "rawSha256": "e3d5c8cc7bbfb15f2951536229699a0d0c71b9cdf883113777d8deb523ec5291",
-      "durationMs": 5948.807083,
+      "rawSha256": "9ba3ff6d803b98574301544b15a6f52b21927047a1bc988499a69046b0a79f03",
+      "durationMs": 6328.371959000004,
       "testCounts": {
         "tests": 121,
         "pass": 121,
@@ -730,9 +730,189 @@
         "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
         "realAccountsRoonPlayback": "NOT_RUN"
       }
+    },
+    "core-regressions-final-03": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/core-regressions-final-03/result.json",
+        "bytes": 1588,
+        "sha256": "bb9b51d76d3f4f49b896163846345e80ce2db24ccf24acc1dbe89a4381612d4b"
+      },
+      "result": {
+        "schema": "mbrs006.command-check.v1",
+        "label": "core-regressions-final-03",
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "tsx",
+          "--test",
+          "--test-concurrency=1",
+          "--test-reporter=tap",
+          "test/controller.test.ts",
+          "test/roon-adapter.test.ts",
+          "test/runtime.test.ts",
+          "test/playback-event-publisher.test.ts",
+          "test/dataset-owner.test.ts",
+          "test/dataset-owner-integration.test.ts",
+          "test/source-evidence.test.ts",
+          "test/mbrs002/local-source-resolver.test.ts",
+          "test/utility-playback-stream.test.ts",
+          "test/controller-context.test.ts",
+          "test/roon-sdk-callback-context.test.ts",
+          "test/runtime-compact-events.test.ts",
+          "scripts/mbrs001/test/file-http.test.ts",
+          "scripts/mbrs001/test/official-adapter.test.ts",
+          "scripts/mbrs001/test/attempt-lifecycle.test.ts",
+          "test/recording-capacity-queued-stop.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+        "gitHead": "a940c34081ca36b0fdda669ffb675baf59e2567d",
+        "startedAt": "2026-10-06T07:38:23.654140+00:00",
+        "completedAt": "2026-10-06T07:38:46.662749+00:00",
+        "durationSeconds": 23.009,
+        "exitCode": 0,
+        "logSha256": "cbb54a4616109fed89e74428e7a7fa0c33fed6d46295d50e9d1d58b506b1b418",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/core-regressions-final-03/output.log",
+        "node": "22.23.2",
+        "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+        "realAccountsRoonPlayback": "NOT_RUN"
+      }
+    },
+    "runner-admission-final-04": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/runner-admission-final-04/result.json",
+        "bytes": 967,
+        "sha256": "bf186fd7bfc8f8c6563a3e694e4e86435a9726f3d226cc2dc95d0913f53a26ed"
+      },
+      "result": {
+        "schema": "mbrs006.command-check.v1",
+        "label": "runner-admission-final-04",
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--test",
+          "scripts/ci/test/verify-mbrs006-local-playback.test.mjs",
+          "scripts/ci/test/report-only-admission.test.mjs",
+          "scripts/ci/test/run-core-tests.test.mjs"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input",
+        "gitHead": "a940c34081ca36b0fdda669ffb675baf59e2567d",
+        "startedAt": "2026-10-06T07:38:49.019302+00:00",
+        "completedAt": "2026-10-06T07:38:49.749719+00:00",
+        "durationSeconds": 0.73,
+        "exitCode": 0,
+        "logSha256": "8715c787bbcfedc4f0d63beb2af75aa4622881a94f0808568ef3f69899484759",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/runner-admission-final-04/output.log",
+        "node": "22.23.2",
+        "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+        "realAccountsRoonPlayback": "NOT_RUN"
+      }
+    },
+    "local-playback-gate-final-04": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/local-playback-gate-final-04/result.json",
+        "bytes": 950,
+        "sha256": "c88f68b3c61a8c5dabf3dccb01fc2dfd5a7389e8bf9876f2a52a2c2bcba11dea"
+      },
+      "result": {
+        "schema": "mbrs006.command-check.v1",
+        "label": "local-playback-gate-final-04",
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "scripts/ci/verify-mbrs006-local-playback.mjs",
+          "--output-root=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/gate-final-04"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input",
+        "gitHead": "a940c34081ca36b0fdda669ffb675baf59e2567d",
+        "startedAt": "2026-10-06T07:39:49.993864+00:00",
+        "completedAt": "2026-10-06T07:40:56.719692+00:00",
+        "durationSeconds": 66.726,
+        "exitCode": 0,
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/local-playback-gate-final-04/output.log",
+        "node": "22.23.2",
+        "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+        "realAccountsRoonPlayback": "NOT_RUN"
+      }
+    },
+    "control-plane-final-03": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/control-plane-final-03/result.json",
+        "bytes": 828,
+        "sha256": "afc106a8811f983b1603a1da4250a4cc5ea8feefb4ced79bab020cf02a394f0e"
+      },
+      "result": {
+        "schema": "mbrs006.command-check.v1",
+        "label": "control-plane-final-03",
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "scripts/ci/verify-control-plane.mjs"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input",
+        "gitHead": "a940c34081ca36b0fdda669ffb675baf59e2567d",
+        "startedAt": "2026-10-06T07:41:51.499895+00:00",
+        "completedAt": "2026-10-06T07:41:51.642285+00:00",
+        "durationSeconds": 0.142,
+        "exitCode": 0,
+        "logSha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/control-plane-final-03/output.log",
+        "node": "22.23.2",
+        "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+        "realAccountsRoonPlayback": "NOT_RUN"
+      }
+    },
+    "boundaries-final-03": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/boundaries-final-03/result.json",
+        "bytes": 819,
+        "sha256": "87b9e7fca5a20eab042803fac206549ca1d23af6b1e3ec765b58f55f9f48d7ac"
+      },
+      "result": {
+        "schema": "mbrs006.command-check.v1",
+        "label": "boundaries-final-03",
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "scripts/ci/verify-boundaries.mjs"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input",
+        "gitHead": "a940c34081ca36b0fdda669ffb675baf59e2567d",
+        "startedAt": "2026-10-06T07:41:51.499893+00:00",
+        "completedAt": "2026-10-06T07:41:51.658883+00:00",
+        "durationSeconds": 0.159,
+        "exitCode": 0,
+        "logSha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/boundaries-final-03/output.log",
+        "node": "22.23.2",
+        "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+        "realAccountsRoonPlayback": "NOT_RUN"
+      }
+    },
+    "cycles-final-02": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/cycles-final-02/result.json",
+        "bytes": 807,
+        "sha256": "d1dde44f7d9d0caa123bb5ef9d43a084933de2a99774ab0eec8d28a20480f1b7"
+      },
+      "result": {
+        "schema": "mbrs006.command-check.v1",
+        "label": "cycles-final-02",
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "scripts/ci/verify-cycles.mjs"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input",
+        "gitHead": "a940c34081ca36b0fdda669ffb675baf59e2567d",
+        "startedAt": "2026-10-06T07:41:51.499906+00:00",
+        "completedAt": "2026-10-06T07:41:51.641973+00:00",
+        "durationSeconds": 0.142,
+        "exitCode": 0,
+        "logSha256": "7370c0f3ec36fb64a9e1a64954fcb79b747df4feab25025f61535b1cf370d109",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/cycles-final-02/output.log",
+        "node": "22.23.2",
+        "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+        "realAccountsRoonPlayback": "NOT_RUN"
+      }
     }
   },
-  "runnerCiTests": 27,
+  "runnerCiTests": 32,
   "desktopProductionBuild": "PASS",
   "localFullWorkspace": "NOT_RUN_RISK_BASED_TARGETED_SCOPE",
   "productFreeze": {
@@ -1414,6 +1594,24 @@
       },
       "formalThirdRound": false,
       "remoteManifestContentDownloaded": false
+    },
+    "queuedStopIsolation": {
+      "thirdFailure": "docs/postrust/MBRS-006/evidence/third-source-failure.json",
+      "originalTestFileUnchanged": true,
+      "thresholdsUnchanged": true,
+      "oldWindowsUnchanged": true,
+      "allOriginalTopLevelCoreTestsRetained": true,
+      "generalPhaseConcurrency": "ORIGINAL_DEFAULT",
+      "queuedStopPhaseConcurrency": 1,
+      "remoteCause": "INFERENCE_NOT_PROVED",
+      "current609Gate": "PASS",
+      "rootIntegration32": "PASS",
+      "formalThirdRound": false
     }
+  },
+  "priorGate601": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/gate-final-03/manifest.json",
+    "bytes": 241849,
+    "sha256": "3e61caf6a3c822c5b67ad76af7eefd71399e24f288abacfb564c143af457535d"
   }
 }

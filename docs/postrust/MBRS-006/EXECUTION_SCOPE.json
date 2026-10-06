@@ -72,12 +72,12 @@
   "mainMergeInstallRelease": "NOT_AUTHORIZED",
   "caseStatusChanges": "ONLY_THIS_TASK_AFTER_ACTUAL_EVIDENCE",
   "gateCounts": {
-    "functionalTests": 601,
+    "functionalTests": 609,
     "newTaskTests": 46,
-    "inheritedRegressions": 555,
+    "inheritedRegressions": 563,
     "groups": [
       41,
-      381,
+      389,
       58,
       121
     ],
@@ -109,6 +109,21 @@
       "nested32AndExisting118Gate": "PASS",
       "current601Gate": "REQUIRED_BEFORE_FINAL_SOURCE_COMMIT_SEE_BOUND_COMMAND_RECEIPT",
       "formalThirdRound": false
+    },
+    "queuedStopIsolation": {
+      "source": "a940c34081ca36b0fdda669ffb675baf59e2567d",
+      "scope": "ROOT_TEST_EXECUTION_PARTITION_ONLY_ORIGINAL_PRODUCT_AND_8_CASE_FILE_UNCHANGED",
+      "cause": "CROSS_FILE_CONTENTION_INFERENCE_NOT_REMOTE_CAUSAL_PROOF",
+      "originalThresholdsUnchanged": true,
+      "allTopLevelCoreTestFilesRetainedExactlyOnce": true,
+      "generalPhase": "ORIGINAL_DEFAULT_CONCURRENCY",
+      "isolatedPhase": "QUEUED_STOP_FILE_AFTER_GENERAL_NATURAL_SUCCESS_CONCURRENCY_1",
+      "localAffected389": "PASS",
+      "runner32": "PASS",
+      "current609Gate": "REQUIRED_BEFORE_FINAL_SOURCE_COMMIT_SEE_BOUND_COMMAND_RECEIPT",
+      "newFormalCapacityWindows": "NOT_RUN",
+      "formalThirdRound": false
     }
-  }
+  },
+  "rootIntegrationConfigurationOwner": "ROOT_PACKAGES_BRIDGE_CORE_TEST_SCRIPT_AND_SCRIPTS_CI_ONLY"
 }

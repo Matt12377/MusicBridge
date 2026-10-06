@@ -16,7 +16,7 @@ const valid = () => ({
         'test/dataset-owner-integration.test.ts', 'test/source-evidence.test.ts',
         'test/mbrs002/local-source-resolver.test.ts', 'test/utility-playback-stream.test.ts',
         'test/controller-context.test.ts', 'test/roon-sdk-callback-context.test.ts', 'test/runtime-compact-events.test.ts',
-        'scripts/mbrs001/test/file-http.test.ts', 'scripts/mbrs001/test/official-adapter.test.ts', 'scripts/mbrs001/test/attempt-lifecycle.test.ts'] },
+        'scripts/mbrs001/test/file-http.test.ts', 'scripts/mbrs001/test/official-adapter.test.ts', 'scripts/mbrs001/test/attempt-lifecycle.test.ts', 'test/recording-capacity-queued-stop.test.ts'] },
     { name: 'contracts-local-identity', directory: 'packages/contracts', expectedTests: 1,
       tests: ['test/playback-stream.test.ts', 'test/validator.test.ts', 'test/mbrs002/local-play-request.test.ts', 'test/mbrs002/local-playback-compat.test.ts'] },
     { name: 'desktop-local-consumer', directory: 'apps/desktop', expectedTests: 1,
@@ -59,6 +59,7 @@ test('006 Gate：新增产品测试漏列或重复列入拒绝', () => {
 test('006 Gate：漏原Adapter、运行时、收藏consumer或合同回归拒绝', () => {
   for (const [group, name] of [[1, 'test/roon-adapter.test.ts'], [1, 'test/runtime.test.ts'],
     [1, 'scripts/mbrs001/test/attempt-lifecycle.test.ts'],
+    [1, 'test/recording-capacity-queued-stop.test.ts'],
     [2, 'test/validator.test.ts'], [3, 'test/playbackFavorites.test.ts'],
     [3, 'test/mbrs003/local-library-front-boundary.test.ts']]) {
     rejects(scope => { scope.groups[group].tests = scope.groups[group].tests.filter(item => item !== name); },

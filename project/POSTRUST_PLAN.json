@@ -31870,7 +31870,7 @@
         "MBRS-005",
         "MBRS-002"
       ],
-      "status": "CORRECTED_LOCAL_SOFTWARE_PASS_NEW_SOURCE_CI_PENDING",
+      "status": "LOCAL_609_SOFTWARE_PASS_FOURTH_SOURCE_CI_PENDING",
       "implementation_owner": "MBRS-006",
       "goal": "同一播放协调器接入具体本地版本，并保持原网易云和原生Roon入口。",
       "steps": [
@@ -31908,7 +31908,7 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "TARGETED_601_GATE_BUILD_AND_TWO_REVIEWS_PASS_THIRD_SOURCE_CI_PENDING",
+      "validation_status": "TARGETED_609_GATE_BUILD_TWO_REVIEWS_PASS_FOURTH_SOURCE_CI_PENDING_ORIGINAL_THRESHOLDS_UNCHANGED",
       "evidence_refs": [
         "docs/postrust/MBRS-006/EXECUTION_SCOPE.json",
         "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",

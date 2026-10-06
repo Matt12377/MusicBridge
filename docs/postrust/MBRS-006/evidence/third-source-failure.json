@@ -1,0 +1,75 @@
+{
+  "schema": "mbrs006.third-source-ci-failure.v1",
+  "sourceCommit": "a940c34081ca36b0fdda669ffb675baf59e2567d",
+  "runId": 37428265642,
+  "jobId": 112152823621,
+  "conclusion": "failure",
+  "actualJobLogReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/VERIFY_THIRD_SOURCE_FAILURE_LOG_RECEIPT.json",
+    "bytes": 9882,
+    "sha256": "4e8e7c0634ba2c0ce77b4ffb8f82b4fcd97c380b149ae9077136b12b13b96f4e"
+  },
+  "actualJobLog": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/VERIFY_THIRD_SOURCE_FAILURE.log",
+    "bytes": 2868942,
+    "sha256": "00776eb4add1b099e5433c6755abfec859c4c216e366ba24aeabf169509a7e10"
+  },
+  "remoteCounts": {
+    "contracts": {
+      "tests": 256,
+      "pass": 256,
+      "fail": 0,
+      "skipped": 0
+    },
+    "core": {
+      "tests": 2648,
+      "pass": 2645,
+      "fail": 1,
+      "skipped": 2
+    },
+    "desktop": "NOT_REACHED"
+  },
+  "failure": {
+    "file": "packages/bridge-core/test/recording-capacity-queued-stop.test.ts",
+    "line": 50,
+    "assertion": "progressMs <= 100",
+    "actualProgressMs": "UNKNOWN_NOT_PRINTED_BEFORE_ASSERTION",
+    "wholeCaseDurationMs": 2803.114633,
+    "wholeCaseDurationNotProgressMeasurement": true
+  },
+  "sameProductSourcesAsSecondSourceWorkspaceSuccess": true,
+  "hypothesis": "CROSS_FILE_CONTENTION_INFERENCE_NOT_REMOTE_CAUSAL_PROOF",
+  "localOriginal8": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-queued-stop-isolated-01/result.json",
+    "bytes": 941,
+    "sha256": "40e4b0c14ee5bf60756fed91607cae0bda1801f616cb764ef47f86f127648f02"
+  },
+  "localAffected389": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/core-regressions-final-03/result.json",
+    "bytes": 1588,
+    "sha256": "bb9b51d76d3f4f49b896163846345e80ce2db24ccf24acc1dbe89a4381612d4b"
+  },
+  "rootIntegration32": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/runner-admission-final-04/result.json",
+    "bytes": 967,
+    "sha256": "bf186fd7bfc8f8c6563a3e694e4e86435a9726f3d226cc2dc95d0913f53a26ed"
+  },
+  "executionChange": {
+    "rootOnly": true,
+    "testScript": "packages/bridge-core/package.json",
+    "launcher": "scripts/ci/run-core-tests.mjs",
+    "allOriginalTestFilesRetained": true,
+    "queuedStopIsolatedAfterOtherCoreTests": true,
+    "original8TestFile": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core/test/recording-capacity-queued-stop.test.ts",
+      "bytes": 18754,
+      "sha256": "f181937ae421d5fbebd67c842e6b5c56d4d12f2bdee0569d4bbc0a67926e969a"
+    },
+    "thresholdChanges": false,
+    "sourceProductChanges": false,
+    "newFormalCapacityWindows": false
+  },
+  "oldCiReruns": 0,
+  "artifactContentDownloaded": false,
+  "realRoonAccountsAudio": "NOT_RUN"
+}
