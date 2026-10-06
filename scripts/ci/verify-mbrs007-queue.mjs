@@ -57,6 +57,13 @@ function nestedTests() {
   return found.sort();
 }
 
+export function mbQueueTestStage(group) {
+  // 仅此组的独立文件进程并行；原Scope、完整计数、预算和其他入口不变。
+  const testConcurrency = group.name === 'core-affected-regression' && group.directory === 'packages/bridge-core' ? 2 : 1;
+  return { ...group, testConcurrency,
+    args: ['--import', 'tsx', '--test', `--test-concurrency=${testConcurrency}`, '--test-reporter=tap', ...group.tests] };
+}
+
 export async function runMbQueueGate(argv = process.argv.slice(2), env = process.env) {
   const startedAt = new Date().toISOString(), started = performance.now(), totalLimitMs = 360_000;
   const remaining = () => totalLimitMs - (performance.now() - started);
@@ -96,7 +103,7 @@ export async function runMbQueueGate(argv = process.argv.slice(2), env = process
     { name: 'core-types', directory: packages[1], args: [tsc, '-p', 'tsconfig.test.json', '--noEmit'] },
     { name: 'desktop-types', directory: packages[2], args: [desktopRequire.resolve('vue-tsc/bin/vue-tsc.js'), '-p', 'tsconfig.json', '--noEmit'] },
     { name: 'desktop-e2e-types', directory: packages[2], args: [tsc, '-p', 'tsconfig.e2e.json', '--noEmit'] },
-    ...groups.map(group => ({ ...group, args: ['--import', 'tsx', '--test', '--test-concurrency=1', '--test-reporter=tap', ...group.tests] })),
+    ...groups.map(mbQueueTestStage),
   ];
   const run = createPrivateRun(admission), runs = [], failures = [], freshOutputs = [], testBindings = [];
   let inputsUnchanged = false, outputsUnchanged = false, testBindingsUnchanged = false, freshCoreCompilation = null;
@@ -109,6 +116,7 @@ export async function runMbQueueGate(argv = process.argv.slice(2), env = process
     check();
     const stageStarted = performance.now(), limitMs = Math.min(180_000, remaining());
     const result = { name: stage.name, directory: stage.directory, expectedTests: stage.expectedTests ?? null,
+      testConcurrency: stage.testConcurrency ?? null,
       startedAt: new Date().toISOString(), startedMs: Date.now(), limitMs, exitCode: null, signal: null, closeObserved: false,
       timedOut: false, overflow: false, captureFailed: false, preparationFailed: false, groupTerminationFailed: false };
     const chunks = []; let length = 0, child, timer;

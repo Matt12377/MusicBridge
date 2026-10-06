@@ -46087,7 +46087,7 @@
         "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-current-file-parameters-red-01/result.json"
       },
       "gate": {
-        "status": "PASS_AFTER_CI_GUARD_AND_LAYOUT_REPAIR",
+        "status": "PREVIOUS_COMMITTED_SOURCE_PASS_FRESH_BINDING_REQUIRED_AFTER_EXECUTION_REPAIR",
         "tests": 370,
         "new": 36,
         "regression": 334,
@@ -46121,20 +46121,40 @@
         "exitCode": 0,
         "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-electron-layout-green-02/result.json",
         "layer": "SYNTHETIC_PRODUCTION_ELECTRON_NOT_ORDINARY_APP"
+      },
+      "hosted007RegressionRepair": {
+        "status": "ACTUAL_963_ORIGINAL_SCOPE_AND_CONTROLLED_PROCESS_RULES_PASS_NEW_HOSTED_CI_PENDING",
+        "group": "core-affected-regression",
+        "testConcurrency": 2,
+        "groupFiles": 53,
+        "tests": 963,
+        "stageLimitMs": 180000,
+        "totalLimitMs": 360000,
+        "scopeAndCountContract": "UNCHANGED",
+        "standardCoreStopIsolation": "UNCHANGED",
+        "repairWriter": "root",
+        "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/REPAIR02_007_EXECUTION_REPAIR_EVIDENCE.json",
+        "localTestsPassed": 963,
+        "ruleTestsPassed": 30,
+        "elapsedMs": 132952.59325,
+        "coreRegressionElapsedMs": 83780.513833,
+        "exitCode": 0
       }
     },
-    "push": "COMBINED_REPAIR_SOURCE_PENDING_NORMAL_PUSH",
+    "push": "BOUNDED_007_EXECUTION_REPAIR_SOURCE_PENDING_NORMAL_PUSH",
     "ci": {
       "initialSourceCommit": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
       "initialSource": "VERIFY_PREPARATION_AND_TWO_OLD_E2E_SELECTORS_FAILED_RETAINED",
-      "newSource": "PENDING_NORMAL_COMBINED_REPAIR_COMMIT_AND_NATURAL_CI",
+      "newSource": "PENDING_BOUNDED_007_EXECUTION_REPAIR_COMMIT_AND_NEW_NATURAL_CI",
       "rerunCancel": false,
       "firstRepairSourceCommit": "8d9814311a2c7cae8801847a062dd6a7cfd9388c",
-      "firstRepairSource": "FULL_CORE_PASS_OLD_RENDERER_GUARD_AND_QUALITY_LAYOUT_E2E_FAILED_RETAINED"
+      "firstRepairSource": "FULL_CORE_PASS_OLD_RENDERER_GUARD_AND_QUALITY_LAYOUT_E2E_FAILED_RETAINED",
+      "secondRepairSourceCommit": "dbcfa7bba96f513bd272dd6517ba8ec0351c8ae1",
+      "secondRepairSource": "FULL_WORKSPACE_AND_ELECTRON_PASS_007_REGRESSION_STAGE_TIMEOUT_008_STEP_SKIPPED_RETAINED"
     },
     "mainMerge": "NOT_AUTHORIZED",
     "release": "NOT_AUTHORIZED",
-    "updatedAt": "2026-10-06T14:37:12.959956+00:00",
+    "updatedAt": "2026-10-06T15:59:53.974374+00:00",
     "softwareValidation": {
       "targetedTests": 370,
       "new": 36,
