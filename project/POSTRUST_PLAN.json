@@ -31598,6 +31598,52 @@
         "priorFailureAndUnknownCausePreserved": true
       },
       "final_local_software_gate": {
+        "manifestRef": {
+          "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-software-manifest.json",
+          "bytes": 1485288,
+          "sha256": "211c3414fb40ad5e5f874f5d601f09c32befcadfa3423a68cf9b86a04105c726"
+        },
+        "software-wrapperRef": {
+          "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-software-wrapper.json",
+          "bytes": 1394,
+          "sha256": "cad5ee27ac6902eaf4e2bdea302fee5ac013672b8b015c2d0bd7721b92a8ac94"
+        },
+        "security-correctionRef": {
+          "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-security-correction.json",
+          "bytes": 1212,
+          "sha256": "f413935a0be01993081da3ad17972f5c86e465b5c3cfafcbdcc5dd76643b1849"
+        },
+        "build-order-typecheckRef": {
+          "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-build-order-typecheck.json",
+          "bytes": 1268,
+          "sha256": "6c9fb3fd156233684082c4f9e2e5a90e547cfd9bda00aa83898d0412a90798ec"
+        },
+        "status": "FINITE_SOFTWARE_GATE_SUCCESS_WITH_OWNER_SCALE_CARRYOVER",
+        "functionalTests": 124,
+        "runnerTests": 34,
+        "directedSecurityTests": {
+          "tests": 29,
+          "pass": 29,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "stageCount": 13,
+        "sourceInputCount": 1209,
+        "sourceInputsUnchanged": true,
+        "outputsIdentityUnchanged": true,
+        "wrapperExitCode": 0,
+        "archiveExitCode": 0,
+        "currentFullScalePass": false,
+        "newScaleRunStarted": false
+      },
+      "handoff_after_completion": {
+        "requested": true,
+        "next_task": "MBRS-004",
+        "next_task_started": false
+      },
+      "previous_final_local_software_gate": {
         "status": "FINITE_SOFTWARE_GATE_SUCCESS_WITH_OWNER_SCALE_CARRYOVER",
         "manifestRef": {
           "path": "docs/postrust/MBRS-003/evidence/final-local-software-manifest.json",
@@ -31631,11 +31677,7 @@
         "currentFullScaleObserved": false,
         "newScaleRunStarted": false
       },
-      "handoff_after_completion": {
-        "requested": true,
-        "next_task": "MBRS-004",
-        "next_task_started": false
-      }
+      "initial_implementation_commit": "6e01a1d9e8f14282eedaef6065ad1368355674b8"
     },
     {
       "id": "MBRS-004",

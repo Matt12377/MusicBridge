@@ -1,3 +1,5 @@
+最终交付补充：首个CI暴露的构建顺序与旧Preload测试表已修正；当前T原124项和新鲜编译再次实际通过，定向安全测试29/29通过。当前软件记录为 evidence/final-ci-corrected-software-manifest.json，早期记录保留。
+
 当前交付补充（2026-10-06）：当前T正式软件Gate再次实际覆盖原33叶124项及新鲜编译，124 PASS/0 FAIL；34项验收运行器测试通过。Owner接受历史规模结果作为阶段放行，本轮没有新100k/300k；该决定不增加格式支持、真实曲库或播放声明。精确记录见 evidence/final-local-software-manifest.json。
 
 # MBRS-003 文件读取能力矩阵

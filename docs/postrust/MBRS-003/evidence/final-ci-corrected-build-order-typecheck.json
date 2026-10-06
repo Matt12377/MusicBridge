@@ -1,0 +1,37 @@
+{
+  "name": "mbrs003-clean-build-order-core-typecheck-159-01",
+  "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-003-persistent-incremental-scan",
+  "head": "6e01a1d9e8f14282eedaef6065ad1368355674b8",
+  "argv": [
+    "corepack",
+    "pnpm@10.17.1",
+    "--filter",
+    "@music-bridge/bridge-core",
+    "run",
+    "typecheck"
+  ],
+  "startedAt": "2026-10-06T01:06:33.413622+00:00",
+  "completedAt": "2026-10-06T01:06:47.030170+00:00",
+  "durationSeconds": 13.616576375,
+  "exitCode": 0,
+  "timedOut": false,
+  "signal": null,
+  "log": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/gates/mbrs003-clean-build-order-core-typecheck-159-01/output.log",
+    "bytes": 1161,
+    "sha256": "edc159b19c76908da08754dcf9511d0a6594b28314f920665eb41f89f8b70ed8"
+  },
+  "deadlineGuard": {
+    "ownBudgetSeconds": 120.0,
+    "absoluteDeadlineMonotonicNs": "163786808138708",
+    "originalWholeDeadlineSupplied": false,
+    "childWaitAllocatedSeconds": 109.999145167,
+    "ownChildPid": 35946,
+    "actualChildWaitCompleted": true,
+    "archivePid": 36094,
+    "archiveExitCode": 0,
+    "terminationSignals": [],
+    "allDescendantsQuiet": "NOT_PROVEN_BY_THIS_WRAPPER",
+    "kernelIoHardDeadlineGuarantee": false
+  }
+}

@@ -35741,6 +35741,48 @@
     "priorFailureAndUnknownCausePreserved": true
   },
   "finalLocalSoftwareGate": {
+    "manifestRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-software-manifest.json",
+      "bytes": 1485288,
+      "sha256": "211c3414fb40ad5e5f874f5d601f09c32befcadfa3423a68cf9b86a04105c726"
+    },
+    "software-wrapperRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-software-wrapper.json",
+      "bytes": 1394,
+      "sha256": "cad5ee27ac6902eaf4e2bdea302fee5ac013672b8b015c2d0bd7721b92a8ac94"
+    },
+    "security-correctionRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-security-correction.json",
+      "bytes": 1212,
+      "sha256": "f413935a0be01993081da3ad17972f5c86e465b5c3cfafcbdcc5dd76643b1849"
+    },
+    "build-order-typecheckRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-build-order-typecheck.json",
+      "bytes": 1268,
+      "sha256": "6c9fb3fd156233684082c4f9e2e5a90e547cfd9bda00aa83898d0412a90798ec"
+    },
+    "status": "FINITE_SOFTWARE_GATE_SUCCESS_WITH_OWNER_SCALE_CARRYOVER",
+    "functionalTests": 124,
+    "runnerTests": 34,
+    "directedSecurityTests": {
+      "tests": 29,
+      "pass": 29,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "stageCount": 13,
+    "sourceInputCount": 1209,
+    "sourceInputsUnchanged": true,
+    "outputsIdentityUnchanged": true,
+    "wrapperExitCode": 0,
+    "archiveExitCode": 0,
+    "currentFullScalePass": false,
+    "newScaleRunStarted": false
+  },
+  "currentFullScalePassClaim": false,
+  "previousFinalLocalSoftwareGate": {
     "status": "FINITE_SOFTWARE_GATE_SUCCESS_WITH_OWNER_SCALE_CARRYOVER",
     "manifestRef": {
       "path": "docs/postrust/MBRS-003/evidence/final-local-software-manifest.json",
@@ -35774,5 +35816,31 @@
     "currentFullScaleObserved": false,
     "newScaleRunStarted": false
   },
-  "currentFullScalePassClaim": false
+  "initialCiPreparationAndFixtureCorrection": {
+    "schema": "mbrs003.initial-ci-failure-summary.v1",
+    "headSha": "6e01a1d9e8f14282eedaef6065ad1368355674b8",
+    "verify": {
+      "runId": 37396977069,
+      "conclusion": "failure",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37396977069",
+      "reason": "干净CI未在类型检查前构建Core dist，compiled fixture产生两项TS2307和一项连带TS7006",
+      "mbrs003Gate": "SKIPPED"
+    },
+    "security": {
+      "runId": 37396977333,
+      "conclusion": "failure",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37396977333",
+      "tests": 29,
+      "pass": 27,
+      "fail": 2,
+      "reason": "旧Preload VM依赖表和具名API表未同步新增本地库客户端与九个接口",
+      "boundaryScans": "SUCCESS"
+    },
+    "minimalCorrection": [
+      "Core pretypecheck复用既有build，保留真实compiled dist fixture入口",
+      "测试仅增加精确local-library-client依赖与九个API；未知依赖拒收与6次scope断言保留"
+    ],
+    "productionBehaviorChanged": false,
+    "currentScaleTestRun": false
+  }
 }
