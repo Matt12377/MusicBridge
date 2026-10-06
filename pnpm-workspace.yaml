@@ -11,3 +11,5 @@ overrides:
   '@neteasecloudmusicapienhanced/api@4.40.1>axios': '1.20.0'
   '@neteasecloudmusicapienhanced/unblockmusic-utils@0.4.4>axios': '1.20.0'
   'get-uri@6.0.5>basic-ftp': '6.2.1'
+  proxy-addr: '2.0.8'
+  source-map-js: '1.2.2'

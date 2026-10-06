@@ -1,3 +1,4 @@
+import { installSyntheticDocumentRealm, syntheticRootNode } from './helpers/synthetic-dom-realm.js'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
@@ -96,10 +97,10 @@ async function mounted(t: test.TestContext, api: unknown, document = focusDocume
     new Function('require', 'module', 'exports', compile(template.code))(load, module, module.exports)
     return module.exports.render
   }
+  const restoreDocument = installSyntheticDocumentRealm(document)
+  let unmount = () => {}
+  t.after(() => { try { unmount() } finally { restoreDocument() } })
   if (options.actualTemplate) {
-    const previous = Object.getOwnPropertyDescriptor(globalThis, 'document')
-    Object.defineProperty(globalThis, 'document', { configurable: true, value: document })
-    t.after(() => { if (previous) Object.defineProperty(globalThis, 'document', previous); else Reflect.deleteProperty(globalThis, 'document') })
     const { descriptor } = parse(await readFile(new URL('../src/renderer/src/components/recording/BackupRestorePanel.vue', import.meta.url), 'utf8'))
     const script = compileScript(descriptor, { id: 'backup-activation-behavior' }), module = { exports: {} as { default: import('vue').Component } }
     new Function('require', 'module', 'exports', 'window', compile(script.content))(load, module, module.exports, window)
@@ -112,13 +113,15 @@ async function mounted(t: test.TestContext, api: unknown, document = focusDocume
   const module = { exports: {} as { default: import('vue').Component } }
   const code = ts.transpileModule(script.content, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
   new Function('require', 'module', 'exports', 'window', 'document', code)(load, module, module.exports, window, document)
-  interface Host { tag: string; text: string; props: Record<string, unknown>; parent: Host | null; children: Host[]; isConnected: boolean; value: unknown; readonly options: Host[]; focus(): void; showModal(): void; close(): void; addEventListener(): void; closest(selector: string): Host | null; querySelector(selector: string): Host | undefined }
-  const node = (tag = ''): Host => vue.markRaw({ tag, text: '', props: {}, parent: null, children: [], isConnected: true, value: '', get options() { return this.children.filter((child: Host) => child.tag === 'option') }, focus() { document.activeElement = this }, showModal() {}, close() {}, addEventListener() {}, closest(selector: string) { let parent = this.parent; while (parent) { if (parent.tag === selector) return parent; parent = parent.parent } return null }, querySelector(selector: string) { return all(this).find(child => selector === '#' + child.props.id) } })
+  let mountedRoot: Host | null = null
+  interface Host { readonly ownerDocument: typeof document; getRootNode(): Host | object; tag: string; text: string; props: Record<string, unknown>; parent: Host | null; children: Host[]; isConnected: boolean; value: unknown; readonly options: Host[]; focus(): void; showModal(): void; close(): void; addEventListener(): void; closest(selector: string): Host | null; querySelector(selector: string): Host | undefined }
+  const node = (tag = ''): Host => vue.markRaw({ ownerDocument: document, getRootNode(): Host | object { return syntheticRootNode<Host>(this, mountedRoot, document) }, tag, text: '', props: {}, parent: null, children: [], isConnected: true, value: '', get options() { return this.children.filter((child: Host) => child.tag === 'option') }, focus() { document.activeElement = this }, showModal() {}, close() {}, addEventListener() {}, closest(selector: string) { let parent = this.parent; while (parent) { if (parent.tag === selector) return parent; parent = parent.parent } return null }, querySelector(selector: string) { return all(this).find(child => selector === '#' + child.props.id) } })
   const renderer = vue.createRenderer<Host, Host>({ createElement: node, createText: text => ({ ...node('#text'), text }), createComment: () => node('#comment'),
     setText(item, text) { item.text = text }, setElementText(item, text) { item.text = text; item.children = [] }, patchProp(item, key, _old, value) { item.props[key] = key === 'disabled' && value === '' ? true : value; if (key === 'value') item.value = value },
     insert(child, parent, anchor) { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = parent; const i = anchor ? parent.children.indexOf(anchor) : -1; if (i < 0) parent.children.push(child); else parent.children.splice(i, 0, child) },
     remove(child) { child.isConnected = false; if (document.activeElement === child) document.activeElement = document.body; child.parent?.children.splice(child.parent.children.indexOf(child), 1); child.parent = null }, parentNode: item => item.parent, nextSibling: item => item.parent?.children[(item.parent?.children.indexOf(item) ?? -1) + 1] ?? null })
-  const root = node(), all = (current = root): Host[] => [current, ...current.children.flatMap(child => all(child))]
+  const root = node(); mountedRoot = root
+  const all = (current = root): Host[] => [current, ...current.children.flatMap(child => all(child))]
   const text = (current = root): string => current.text + current.children.map(child => text(child)).join(' ')
   const recordingComponent = { ...module.exports.default, render: options.actualTemplate ? renderTemplate(descriptor, script, 'RecordingView.vue') : () => null }
   let hostComponent = recordingComponent
@@ -161,7 +164,7 @@ async function mounted(t: test.TestContext, api: unknown, document = focusDocume
     ...(!options.appNavigation ? { onReservationNavigationConsumed: () => { events.reservationNavigationConsumed++ }, onInitialPhysicalConsumed: () => { events.initialPhysicalConsumed++ } } : {}) }), instance = app.mount(root)
   if (options.appNavigation) canLeaveRecording = () => ((instance.$.subTree.component as unknown as { exposed?: { canLeave?: () => boolean } })?.exposed?.canLeave?.() ?? false)
   const hostSetup = (instance.$ as unknown as { setupState: Record<string, unknown> }).setupState
-  t.after(() => app.unmount())
+  unmount = () => app.unmount()
   const hostJourney = options.appNavigation ? hostSetup.journey as ReturnType<typeof usePageJourney> : undefined
   if (hostJourney) hostJourney.navigateSource({ type: 'recording' })
   await new Promise<void>(resolve => setImmediate(resolve)); await vue.nextTick()

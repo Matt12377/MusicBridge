@@ -1,3 +1,4 @@
+import { installSyntheticDocumentRealm, syntheticRootNode } from './synthetic-dom-realm.js'
 import assert from 'node:assert/strict'
 import type test from 'node:test'
 import { createRequire } from 'node:module'
@@ -41,7 +42,9 @@ export async function mounted(t: test.TestContext, filename: string, api: c.Reco
   const { parse, compileScript, compileTemplate } = require('@vue/compiler-sfc') as typeof import('@vue/compiler-sfc'), ts = require('typescript') as typeof import('typescript')
   const controllers: Record<string, unknown> = { './master-artwork-controller': await import('../../src/renderer/src/components/recording/master-artwork-controller.js'), './recording-print-controller': await import('../../src/renderer/src/components/recording/recording-print-controller.js'), './recording-replica-controller': await import('../../src/renderer/src/components/recording/recording-replica-controller.js') }
   const document = { body: {}, activeElement: undefined as unknown }; document.activeElement = document.body
-  const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document'); Object.defineProperty(globalThis, 'document', { configurable: true, value: document }); t.after(() => { if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument); else Reflect.deleteProperty(globalThis, 'document') })
+  const restoreDocument = installSyntheticDocumentRealm(document)
+  let unmount = () => {}
+  t.after(() => { try { unmount() } finally { restoreDocument() } })
   const compile = (content: string) => ts.transpileModule(content, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
   const modules = new Map<string, import('vue').Component>()
   function loadSfc(filename: string): import('vue').Component {
@@ -54,11 +57,12 @@ export async function mounted(t: test.TestContext, filename: string, api: c.Reco
     const render = { exports: {} as { render: (...args: unknown[]) => unknown } }; new Function('require', 'module', 'exports', compile(template.code))(load, render, render.exports)
     const result = { ...module.exports.default, render: render.exports.render }; modules.set(filename, result); return result
   }
-  interface Host { tag: string; text: string; children: Host[]; parent: Host | null; props: Record<string, unknown>; focus(): void; showModal(): void; close(): void; addEventListener(): void; readonly options: Host[]; value: unknown }
-  const node = (tag = ''): Host => vue.markRaw({ tag, text: '', children: [], parent: null, props: {}, value: '', get options() { return this.children.filter((n: Host) => n.tag === 'option') }, addEventListener() {}, focus() { document.activeElement = this }, showModal() {}, close() {} })
+  let mountedRoot: Host | null = null
+  interface Host { readonly ownerDocument: typeof document; getRootNode(): Host | object; tag: string; text: string; children: Host[]; parent: Host | null; props: Record<string, unknown>; focus(): void; showModal(): void; close(): void; addEventListener(): void; readonly options: Host[]; value: unknown }
+  const node = (tag = ''): Host => vue.markRaw({ ownerDocument: document, getRootNode(): Host | object { return syntheticRootNode<Host>(this, mountedRoot, document) }, tag, text: '', children: [], parent: null, props: {}, value: '', get options() { return this.children.filter((n: Host) => n.tag === 'option') }, addEventListener() {}, focus() { document.activeElement = this }, showModal() {}, close() {} })
   const renderer = vue.createRenderer<Host, Host>({ createElement: node, createText: text => ({ ...node('#text'), text }), createComment: () => node('#comment'), setText(n, text) { n.text = text }, setElementText(n, text) { n.text = text; n.children = [] }, patchProp(n, key, _old, value) { if (key === 'value') n.value = value; n.props[key] = key === 'disabled' && value === '' ? true : value; if (key === 'disabled' && (value === true || value === '') && document.activeElement === n) document.activeElement = document.body }, insert(child, parent, anchor) { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = parent; const i = anchor ? parent.children.indexOf(anchor) : -1; if (i < 0) parent.children.push(child); else parent.children.splice(i, 0, child) }, remove(child) { if (document.activeElement === child) document.activeElement = document.body; child.parent?.children.splice(child.parent.children.indexOf(child), 1); child.parent = null }, parentNode: n => n.parent, nextSibling: n => n.parent?.children[(n.parent?.children.indexOf(n) ?? -1) + 1] ?? null })
-  const component = loadSfc(new URL('../../src/renderer/src/components/recording/' + filename, import.meta.url).pathname), root = node(); let closed = 0
-  const app = renderer.createApp({ setup: () => () => vue.h(component, { ...props, onClose: () => { closed++ } }) }); app.mount(root); t.after(() => app.unmount())
+  const component = loadSfc(new URL('../../src/renderer/src/components/recording/' + filename, import.meta.url).pathname), root = node(); mountedRoot = root; let closed = 0
+  const app = renderer.createApp({ setup: () => () => vue.h(component, { ...props, onClose: () => { closed++ } }) }); app.mount(root); unmount = () => app.unmount()
   const tick = async () => { await new Promise<void>(done => setImmediate(done)); await vue.nextTick() }; await tick()
   const all = (current = root): Host[] => [current, ...current.children.flatMap(child => all(child))], text = (current = root): string => current.text + current.children.map(child => text(child)).join(' ')
   const button = (label: string) => { const value = all().find(n => n.tag === 'button' && text(n).trim() === label); assert.ok(value, label); return value }
