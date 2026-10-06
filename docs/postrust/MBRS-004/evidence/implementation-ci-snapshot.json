@@ -1,0 +1,43 @@
+{
+  "schema": "mbrs004.ci-snapshot.v1",
+  "recordedAt": "2026-10-06T03:24:54.572875+00:00",
+  "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+  "status": "IN_PROGRESS",
+  "expectedWorkflowCount": 4,
+  "runs": [
+    {
+      "conclusion": "",
+      "databaseId": 37408320024,
+      "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+      "status": "in_progress",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408320024",
+      "workflowName": "verify"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 37408319997,
+      "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+      "status": "completed",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408319997",
+      "workflowName": "security"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 37408319999,
+      "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+      "status": "in_progress",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408319999",
+      "workflowName": "electron-e2e"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 37408320036,
+      "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+      "status": "completed",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408320036",
+      "workflowName": ".github/workflows/rust-core.yml"
+    }
+  ],
+  "finalResolution": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/FINAL_DELIVERY_RECEIPT.json",
+  "notTerminalUnlessAllExpectedRunsCompleteSuccess": true
+}

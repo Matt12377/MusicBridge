@@ -1,0 +1,19 @@
+{
+  "schema": "mbrs004.command-check.v1",
+  "label": "control-plane-report-status",
+  "command": [
+    "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+    "scripts/ci/verify-control-plane.mjs"
+  ],
+  "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules",
+  "gitHead": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+  "startedAt": "2026-10-06T03:25:22.286704+00:00",
+  "completedAt": "2026-10-06T03:25:22.517206+00:00",
+  "durationSeconds": 0.23,
+  "exitCode": 0,
+  "logSha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf",
+  "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/checks/control-plane-report-status/output.log",
+  "node": "22.23.2",
+  "sourceFilesWrite": "OFF",
+  "realAccountsRoonPlayback": "NOT_RUN"
+}

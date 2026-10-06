@@ -1,0 +1,22 @@
+{
+  "schema": "mbrs004.command-check.v1",
+  "label": "final-review-target-red",
+  "command": [
+    "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+    "--import",
+    "tsx",
+    "--test",
+    "test/mbrs004/name-rules.test.ts"
+  ],
+  "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules/packages/bridge-core",
+  "gitHead": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+  "startedAt": "2026-10-06T03:05:21.462831+00:00",
+  "completedAt": "2026-10-06T03:05:21.680831+00:00",
+  "durationSeconds": 0.218,
+  "exitCode": 1,
+  "logSha256": "a23344bf1ff8bd8ebec17f5bbac55e3e7814efa2042bcdf50be7a608ca4e46be",
+  "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/checks/final-review-target-red/output.log",
+  "node": "22.23.2",
+  "sourceFilesWrite": "OFF",
+  "realAccountsRoonPlayback": "NOT_RUN"
+}

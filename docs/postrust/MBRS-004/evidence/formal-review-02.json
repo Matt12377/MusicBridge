@@ -1,0 +1,86 @@
+{
+  "round": 2,
+  "finalReviewRound": true,
+  "observedAtUtc": "2026-10-06T03:00:55.418352+00:00",
+  "worktree": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules",
+  "files": [
+    {
+      "path": "packages/contracts/src/local-name-rules.ts",
+      "sha256": "4158dc40969f58bc9f1c78e437c3f599a4181da01310c933549ad6d3f5f0cf47"
+    },
+    {
+      "path": "packages/bridge-core/src/library/local-name-rules.ts",
+      "sha256": "da9673c4813b1d00c05dcb277485b145ac27318f4f8fecf31fd8c14adcfb558a"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/upstream-golden.test.ts",
+      "sha256": "818d1bcd43e895d1089d3db8d427a13f36585dca5b1a4b1086a65a41f251cb52"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/directory-golden.test.ts",
+      "sha256": "f7514da61a387f48e15af5a67472d007b8a5be3ed545152ff45f8c1a2b378fb8"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/name-rules.test.ts",
+      "sha256": "b210c29935392344db584baafaddcd56ec54dd792b14ed35bc9036c2650d5983"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts",
+      "sha256": "4449ad1cbcc97000423c37273e0221a017f6afdc1a2be69f49ba09d933ace28c"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/golden-facts.json",
+      "sha256": "cf7d3ffe91dfbbdc393b478938d07ae65b0476335eb1c1f5eff47f158543a3bb"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
+      "sha256": "f4043c8d98b9eddc7024c8566f1fa19a97fb0ad3e9dd87c85b12ff17461d5fca"
+    }
+  ],
+  "checks": {
+    "all92GoldenFactsExactCopy": true,
+    "goldenAssertionsRemainComplete": true,
+    "idempotenceAnd5000PerformanceAssertionsRemain": true,
+    "yearLiveRemixClosed": true,
+    "noiseShortSubstringCorroborationClosed": true,
+    "uncorroboratedCandidateRequiresConfirmationClosed": true,
+    "original5FormatTokenReprosClosed": true,
+    "rawAndStableIdPreservation": true,
+    "rawUtf16TokenSourceAndSlices": true,
+    "interleavedMultiArtistBoundariesPureReproPassed": true,
+    "105ManifestStructure": "92golden+12behavior+1syntheticCoordinatorIntegration",
+    "integrationBoundary": "production coordinator/stat/admission/writer with stub Reader and self-owned synthetic files; not real audio or provider"
+  },
+  "remainingFindings": [
+    {
+      "priority": "P2",
+      "path": "packages/bridge-core/src/library/local-name-rules.ts",
+      "line": 113,
+      "title": "格式token同根因尚未覆盖所有已清洗技术语法",
+      "repros": [
+        {
+          "input": "专辑 96 24",
+          "actualDisplay": "专辑",
+          "actualTokens": []
+        },
+        {
+          "input": "专辑 [24bit192kHz]",
+          "actualDisplay": "专辑",
+          "actualTokens": []
+        }
+      ],
+      "sourceSupportedGrammar": "stripPlainNoise已有sampleRate bits反向顺序；technicalNumbers已有bit和rate无分隔语法",
+      "documentationImpact": "COVERDROP_PORT_MAP中所有已清除的技术格式保留raw token仍过强",
+      "riskHandling": "主控完成最后风险处理，不派发第三轮审查；补共享格式语法及最小断言或准确标为未闭合P2"
+    }
+  ],
+  "boundaries": [
+    "58对有限繁简表和NFKC兼容折叠均有文档与测试，未宣称ICU/Swift通用等价",
+    "目录结构上归一层的继承限制已明确，未宣称深层CD/WAV完整归并",
+    "coverage/consistency与needsConfirmation语义现有文档准确；high不等于自动替换",
+    "许可UNKNOWN，CoverDrop WIP未复制",
+    "未运行旧App、真实扫描、100k/300k或新建测试文件；只读静态与Node22纯函数复现"
+  ],
+  "newP1Count": 0,
+  "remainingP2Count": 1
+}

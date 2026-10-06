@@ -1,0 +1,28 @@
+{
+  "schema": "mbrs004.review-closure.v1",
+  "formalReviewRounds": 2,
+  "thirdFormalReviewStarted": false,
+  "lastReviewSourceSha256": "da9673c4813b1d00c05dcb277485b145ac27318f4f8fecf31fd8c14adcfb558a",
+  "finalImplementationSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+  "finalRuleSourceSha256": "f11f0b3e735ce8bf5028d69e994fbbea84a914222388a77f50777b431b9ef225",
+  "rootHandledRemainingRisks": [
+    {
+      "issue": "格式和版次token清洗后漏证据",
+      "repair": "提取原文span时复用清洗技术语法与版次判定，保留正反向、紧贴bit/kHz及首批银圈；文档声明支持范围",
+      "before": "final-repair-red.json: 13项中2失败之一",
+      "after": "final-repair-green.json: 13项全部通过"
+    },
+    {
+      "issue": "Waves/Aperitif/FlacDream因格式词头而误上归父目录",
+      "repair": "格式目录仅接受完整格式名称或明确数字/bit/rate技术后缀",
+      "before": "final-repair-red.json: 13项中2失败之一",
+      "after": "final-repair-green.json: 13项全部通过"
+    }
+  ],
+  "finalGoldenCount": 92,
+  "finalBehaviorCount": 13,
+  "finalSyntheticExistingScannerIntegrationCount": 1,
+  "finalSpecializedPass": 106,
+  "realAppLibraryPlayback": "NOT_RUN",
+  "prior105GateAndInterruptedFullVerify": "HISTORICAL_PRE_REPAIR_NOT_FINAL_PASS"
+}

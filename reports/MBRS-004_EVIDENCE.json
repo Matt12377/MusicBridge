@@ -1,0 +1,317 @@
+{
+  "schema": "mbrs004.result-evidence.v1",
+  "recordedAt": "2026-10-06T03:24:54.572875+00:00",
+  "task": "MBRS-004",
+  "sessionName": "v3.9",
+  "baseSha": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+  "branch": "codex/mbrs-004-coverdrop-name-version-rules",
+  "implementationCommit": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+  "reportCommit": null,
+  "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-004_NAME_VERSION_RULES.md",
+  "state": "LOCAL_SOFTWARE_COMPLETE_WITH_EXPLICIT_PLAYBACK_CARRYOVER_CI_PENDING",
+  "source": {
+    "repo": "Matt12377/CoverDrop",
+    "selectedCommit": "93fa28f3245da50cf9b5341e0df1466fa4f6a0e7",
+    "license": "UNKNOWN",
+    "readFromGitCommitOnly": true,
+    "wipCopied": false,
+    "independentTypeScriptBehaviorImplementation": true,
+    "lock": "docs/postrust/MBRS-004/upstream-lock.json"
+  },
+  "localValidation": {
+    "workspace": {
+      "exitCode": 0,
+      "tests": 4250,
+      "pass": 4248,
+      "fail": 0,
+      "cancelled": 0,
+      "existingConditionalSkipped": 2,
+      "typesAndProductionBuild": "PASS",
+      "durationSeconds": 356.657
+    },
+    "specializedGate": {
+      "exitCode": 0,
+      "stages": 5,
+      "tests": 106,
+      "pass": 106,
+      "fail": 0,
+      "goldenInputsOrGroups": 92,
+      "additionalBehaviorTests": 13,
+      "syntheticExistingScannerWriterTests": 1,
+      "declaredInputs": 641,
+      "allMatchImplementationGitBlobs": true,
+      "freshOutputs": 6,
+      "sourceIdentityScope": "DECLARED_SOURCE_AND_FRESH_RULE_OUTPUTS_NOT_TRANSITIVE_DEPENDENCY_CLOSURE"
+    },
+    "runner": {
+      "exitCode": 0,
+      "tests": 10,
+      "pass": 10
+    },
+    "controlPlaneExitCode": 0,
+    "boundariesExitCode": 0,
+    "cyclesExitCode": 0
+  },
+  "acceptance": [
+    {
+      "id": "MBRS-AT-004-01",
+      "status": "PASS",
+      "evidenceScope": "PURE_RULES_AND_SYNTHETIC_EXISTING_SCANNER_WRITER",
+      "app": "NOT_RUN",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN"
+    },
+    {
+      "id": "MBRS-AT-004-02",
+      "status": "PASS",
+      "evidenceScope": "PURE_RULES_AND_SYNTHETIC_EXISTING_SCANNER_WRITER",
+      "app": "NOT_RUN",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN"
+    },
+    {
+      "id": "MBRS-AT-004-03",
+      "status": "PASS",
+      "evidenceScope": "PURE_RULES_AND_SYNTHETIC_EXISTING_SCANNER_WRITER",
+      "app": "NOT_RUN",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN"
+    },
+    {
+      "id": "MBRS-AT-004-04",
+      "status": "PASS",
+      "evidenceScope": "PURE_RULES_AND_SYNTHETIC_EXISTING_SCANNER_WRITER",
+      "app": "NOT_RUN",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN"
+    },
+    {
+      "id": "MBRS-AT-004-05",
+      "status": "PASS",
+      "evidenceScope": "PURE_RULES_AND_SYNTHETIC_EXISTING_SCANNER_WRITER",
+      "app": "NOT_RUN",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN"
+    },
+    {
+      "id": "MBRS-AT-004-06",
+      "status": "PARTIAL",
+      "evidenceScope": "PURE_RULES_AND_SYNTHETIC_EXISTING_SCANNER_WRITER",
+      "app": "NOT_RUN",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN",
+      "remaining": "开始直送播放由005/006及最终真实验收验证。"
+    }
+  ],
+  "failuresRetained": {
+    "lastRepairRed": {
+      "exitCode": 1,
+      "tests": 13,
+      "pass": 11,
+      "fail": 2,
+      "ref": "docs/postrust/MBRS-004/evidence/final-repair-red.json"
+    },
+    "lastRepairGreen": {
+      "exitCode": 0,
+      "tests": 13,
+      "pass": 13,
+      "fail": 0,
+      "ref": "docs/postrust/MBRS-004/evidence/final-repair-green.json"
+    },
+    "preRepairFullVerify": {
+      "exitCode": -15,
+      "reason": "ROOT_STOPPED_OWNED_CHECK_BEFORE_FINAL_REPAIR",
+      "notNaturalProductTestFailureOrCompletePass": true,
+      "ref": "docs/postrust/MBRS-004/evidence/interrupted-pre-repair-check.json"
+    },
+    "prior105Gate": "HISTORICAL_PRE_REPAIR_ONLY"
+  },
+  "limitations": [
+    "有限58对繁简映射与NFKC，不宣称通用Swift或ICU等价。",
+    "目录事实只上归一层，不推断深层CD/WAV完整结构。",
+    "候选confidence与needsConfirmation同时解读；未佐证不自动替换。",
+    "合成集成复用真实coordinator/stat/admission/唯一writer，但Reader返回受控标签，不证明真实音频解析。",
+    "第三轮主动修改自有合成副本并读入新raw；不能称原件从未改变。",
+    "CoverDrop许可UNKNOWN，发布阶段继续核实；未复制其应用源码。"
+  ],
+  "carryover": {
+    "at006ActualPlayback": "DEFERRED_TO_MBRS005_MBRS006_AND_FINAL_ACCEPTANCE",
+    "realLibraryAccountsRoonAudioOwnerAcceptance": "NOT_RUN",
+    "sourceFilesWrite": "OFF",
+    "new100k300kStarted": false,
+    "historical300k": {
+      "visited": 300000,
+      "accepted": 299975,
+      "rejected": 25,
+      "readTimeout": 20,
+      "workerStartTimeout": 5,
+      "technicalResult": "HISTORICAL_FAILURE_UNCHANGED",
+      "physicalRootCausesAndPerItemIdentity": "UNKNOWN",
+      "ownerScaleException": "STAGE_PROGRESSION_ONLY"
+    },
+    "iosContract": "OBSERVED_ADOPTION_PENDING_NO_IMPLEMENTATION_OR_TASK_REORDER",
+    "rustDefault": "NODE_DEFAULT_RUST_OPTIONAL_OFF"
+  },
+  "implementationCi": {
+    "status": "IN_PROGRESS",
+    "expectedWorkflowCount": 4,
+    "expectedWorkflows": [
+      "verify",
+      "security",
+      ".github/workflows/rust-core.yml",
+      "electron-e2e"
+    ],
+    "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+    "runs": [
+      {
+        "conclusion": "",
+        "databaseId": 37408320024,
+        "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+        "status": "in_progress",
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408320024",
+        "workflowName": "verify"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 37408319997,
+        "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+        "status": "completed",
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408319997",
+        "workflowName": "security"
+      },
+      {
+        "conclusion": "",
+        "databaseId": 37408319999,
+        "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+        "status": "in_progress",
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408319999",
+        "workflowName": "electron-e2e"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 37408320036,
+        "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+        "status": "completed",
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408320036",
+        "workflowName": ".github/workflows/rust-core.yml"
+      }
+    ]
+  },
+  "reportCi": {
+    "status": "NOT_STARTED",
+    "expectedWorkflowCount": 3,
+    "expectedWorkflows": [
+      "verify",
+      "security",
+      ".github/workflows/rust-core.yml"
+    ],
+    "headSha": null,
+    "runs": []
+  },
+  "nextBaseline": {
+    "task": "MBRS-005",
+    "commit": null,
+    "commitResolution": "MBRS-004最终报告HEAD，经远端与报告CI核对",
+    "started": false,
+    "ownerReleaseRequired": true
+  },
+  "evidenceRefs": [
+    {
+      "path": "docs/postrust/MBRS-004/evidence/boundaries.json",
+      "bytes": 814,
+      "sha256": "13891eaac033445c6d8545baabfb7ad00f2f77a90bad18221bb0b7f378fc39f2"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/control-plane.json",
+      "bytes": 820,
+      "sha256": "2bee6316bbc4daebb9c0a2395a4bc73d1b7aac5d129528fbe4ffaeea1a7b5cce"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/cycles.json",
+      "bytes": 802,
+      "sha256": "db568675d8a4600e2471aeda4b597d4a9cb03b8384658389ad1f62c676078633"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/final-local-validation-summary.json",
+      "bytes": 2586,
+      "sha256": "596d667147949200fe72e89fd64a03427c106705e954da8c687ed5a99bdafcbb"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/final-repair-green.json",
+      "bytes": 874,
+      "sha256": "1000bdacee2dbaf24c4c22acc17009af5c4bd1ec891b127e09370cedf5f23e3c"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/final-repair-red.json",
+      "bytes": 871,
+      "sha256": "a427ca2782f02b341c3930175ef9145e79d0710152b4c48fc2d3eb0104751dc5"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/final-rules-gate.json",
+      "bytes": 128208,
+      "sha256": "c2f9aff9f2f65b09210306dc1595fffb102e1d00b9c07e89e91167f77ba07ee5"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/final-workspace-check.json",
+      "bytes": 826,
+      "sha256": "1a82b96a615da4ba02739df9b248bcc400a18165e41242ac2cc6ae061d4e409d"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/formal-review-01.json",
+      "bytes": 5146,
+      "sha256": "15a71ee72521e0c9c0b7912786ae3fd163a3a3776dde9d8f8b05d2885dc7cead"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/formal-review-02.json",
+      "bytes": 3719,
+      "sha256": "94a1b3c37f3ec227c1070a33cce067f277c2a84ecf0ac41d8773e6fe982c6242"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/gate-runner.json",
+      "bytes": 825,
+      "sha256": "c13dc2bddd154e4674e01309d060d36917179aeacafedb1850d0f294a78a97ed"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/handoff-admission.json",
+      "bytes": 2227,
+      "sha256": "7ec1fe56c00131f12f33615a8c474c9412f85ebc5a23e632c4f3cdae49f43eae"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/implementation-identity.json",
+      "bytes": 762,
+      "sha256": "02f9a19029935d2aac06ffd1edfc2746e22f08e5ca1aaec463518562169a97eb"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/interrupted-pre-repair-check.json",
+      "bytes": 810,
+      "sha256": "a3ee3b339947d09e573b2f8241f0f48c39168f3d339cef5d713761dedc0665eb"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/interrupted-pre-repair-stop.json",
+      "bytes": 480,
+      "sha256": "46b13a351ecb94ad367379ee00607896a32bf0a49dd557a2cfef3b3fe4a55370"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/ios-contract-observation.json",
+      "bytes": 1449,
+      "sha256": "9f42d33f17f4893e4436ad9a12f446cbdfc3a4d96dad1a835121d07961174eba"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/review-closure.json",
+      "bytes": 1327,
+      "sha256": "8056286a93525a05f1e1f63c0fed9d077d46ea1aa317885ef8ce2566e3047f6a"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/source-freeze-observation.json",
+      "bytes": 467,
+      "sha256": "329c2392f517553d0ac93dad22281791f96c40471b0c76db6294fcc7fdadbd30"
+    },
+    {
+      "path": "docs/postrust/MBRS-004/evidence/implementation-ci-snapshot.json",
+      "bytes": 1544,
+      "sha256": "ee4c503d4757cbf9b7e0ae982f682c562acb6efcff8d107ceaa5e049f857b9ea"
+    }
+  ],
+  "terminalReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/FINAL_DELIVERY_RECEIPT.json",
+  "terminalReceiptMeaning": "报告自指提交与最后CI状态在提交后封存；仓内仅为报告写入时的真实快照，收据不可借旧HEAD结果。"
+}

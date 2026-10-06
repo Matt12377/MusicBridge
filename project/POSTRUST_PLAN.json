@@ -31742,7 +31742,7 @@
       "depends_on": [
         "MBRS-002"
       ],
-      "status": "IN_PROGRESS",
+      "status": "SOFTWARE_COMPLETE_WITH_EXPLICIT_PLAYBACK_CARRYOVER",
       "implementation_owner": "MBRS-004",
       "goal": "移植名称识别规则和适用测试，不移植整个CoverDrop应用。",
       "steps": [
@@ -31771,14 +31771,18 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
       "report_commit": null,
-      "validation_status": "LOCAL_SOFTWARE_PASS_REMOTE_AND_REPORT_PENDING",
+      "validation_status": "LOCAL_SOFTWARE_PASS_TERMINAL_SOURCE_AND_REPORT_CI_PENDING",
       "evidence_refs": [
         "tasks/MBRS-004_COVERDROP_NAME_VERSION_RULES.md",
         "docs/postrust/MBRS-004/upstream-lock.json",
         "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
-        "docs/postrust/MBRS-004/IOS_CONTRACT_STATUS.md"
+        "docs/postrust/MBRS-004/IOS_CONTRACT_STATUS.md",
+        "docs/postrust/MBRS-004/evidence/final-rules-gate.json",
+        "reports/MBRS-004_NAME_VERSION_RULES.md",
+        "reports/MBRS-004_EVIDENCE.json",
+        "docs/postrust/MBRS-004/HANDOFF_NEXT_SESSION.md"
       ],
       "base_sha": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
       "branch": "codex/mbrs-004-coverdrop-name-version-rules",
@@ -31791,7 +31795,9 @@
         "gate_runner_pass": 10
       },
       "implementation_commit_resolution": "git log -1 --format=%H -- packages/bridge-core/src/library/local-name-rules.ts",
-      "report_path": "reports/MBRS-004_NAME_VERSION_RULES.md"
+      "report_path": "reports/MBRS-004_NAME_VERSION_RULES.md",
+      "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-004_NAME_VERSION_RULES.md",
+      "terminal_ci_receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/FINAL_DELIVERY_RECEIPT.json"
     },
     {
       "id": "MBRS-005",
@@ -32875,7 +32881,9 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
-        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/gates/final-rules-repaired-02/manifest.json"
+        "docs/postrust/MBRS-004/evidence/final-rules-gate.json",
+        "reports/MBRS-004_NAME_VERSION_RULES.md",
+        "reports/MBRS-004_EVIDENCE.json"
       ],
       "software_status": "PASS_PURE_RULES",
       "app_status": "NOT_RUN",
@@ -32893,7 +32901,9 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
-        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/gates/final-rules-repaired-02/manifest.json"
+        "docs/postrust/MBRS-004/evidence/final-rules-gate.json",
+        "reports/MBRS-004_NAME_VERSION_RULES.md",
+        "reports/MBRS-004_EVIDENCE.json"
       ],
       "software_status": "PASS_PURE_RULES",
       "app_status": "NOT_RUN",
@@ -32911,7 +32921,9 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
-        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/gates/final-rules-repaired-02/manifest.json"
+        "docs/postrust/MBRS-004/evidence/final-rules-gate.json",
+        "reports/MBRS-004_NAME_VERSION_RULES.md",
+        "reports/MBRS-004_EVIDENCE.json"
       ],
       "software_status": "PASS_PURE_RULES",
       "app_status": "NOT_RUN",
@@ -32929,7 +32941,9 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
-        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/gates/final-rules-repaired-02/manifest.json"
+        "docs/postrust/MBRS-004/evidence/final-rules-gate.json",
+        "reports/MBRS-004_NAME_VERSION_RULES.md",
+        "reports/MBRS-004_EVIDENCE.json"
       ],
       "software_status": "PASS_PURE_RULES",
       "app_status": "NOT_RUN",
@@ -32947,7 +32961,9 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
-        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/gates/final-rules-repaired-02/manifest.json"
+        "docs/postrust/MBRS-004/evidence/final-rules-gate.json",
+        "reports/MBRS-004_NAME_VERSION_RULES.md",
+        "reports/MBRS-004_EVIDENCE.json"
       ],
       "software_status": "PASS_SYNTHETIC_EXISTING_SCANNER_WRITER",
       "app_status": "NOT_RUN",
@@ -32965,7 +32981,9 @@
       "status": "PARTIAL",
       "evidence_refs": [
         "docs/postrust/MBRS-004/COVERDROP_PORT_MAP.md",
-        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/gates/final-rules-repaired-02/manifest.json"
+        "docs/postrust/MBRS-004/evidence/final-rules-gate.json",
+        "reports/MBRS-004_NAME_VERSION_RULES.md",
+        "reports/MBRS-004_EVIDENCE.json"
       ],
       "software_status": "PASS_PURE_RULES_AND_SYNTHETIC_CATALOG_PLAYBACK_DEFERRED",
       "app_status": "NOT_RUN",

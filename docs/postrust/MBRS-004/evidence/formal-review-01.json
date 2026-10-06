@@ -1,0 +1,139 @@
+{
+  "observedAtUtc": "2026-10-06T02:52:41.104249+00:00",
+  "worktree": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules",
+  "readScope": "live writer WIP; source hashes identify read version; no repository writes and no scan",
+  "files": [
+    {
+      "path": "packages/contracts/src/local-name-rules.ts",
+      "sha256": "4158dc40969f58bc9f1c78e437c3f599a4181da01310c933549ad6d3f5f0cf47"
+    },
+    {
+      "path": "packages/bridge-core/src/library/local-name-rules.ts",
+      "sha256": "3fde4f730a842477b0dbeccd93a367ec8875c952f6209b76edae2f05368a4c56"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/upstream-golden.test.ts",
+      "sha256": "818d1bcd43e895d1089d3db8d427a13f36585dca5b1a4b1086a65a41f251cb52"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/directory-golden.test.ts",
+      "sha256": "f7514da61a387f48e15af5a67472d007b8a5be3ed545152ff45f8c1a2b378fb8"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/name-rules.test.ts",
+      "sha256": "47c8c650d7555bf8b3c2f0ca4d1a7beba17877fc82c3fe11a088ddb19b74c752"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/golden-facts.json",
+      "sha256": "cf7d3ffe91dfbbdc393b478938d07ae65b0476335eb1c1f5eff47f158543a3bb"
+    }
+  ],
+  "golden": {
+    "exactCopyOfSourceAuditJson": true,
+    "all92InputsGroupsHaveAssertions": true,
+    "nameIdempotence": true,
+    "performance5000LessThanPoint5": true
+  },
+  "findings": [
+    {
+      "priority": "P2",
+      "line": 78,
+      "title": "年份标题带Live或Remix方括号被误当日期前缀",
+      "repro": [
+        {
+          "input": "1989 [Live]",
+          "actual": "Live"
+        },
+        {
+          "input": "1989 [Remix]",
+          "actual": "Remix"
+        }
+      ],
+      "impact": "展示和canonicalKey丢失核心标题1989；raw保留不能替代展示语义正确",
+      "suggestion": "保留年份+语义括号；限定日期前缀规则，加专辑display而非仅trackTitle断言"
+    },
+    {
+      "priority": "P2",
+      "line": 109,
+      "title": "格式清洗与版本采集规则不一致",
+      "repro": [
+        {
+          "input": "专辑 1bit 2.8224MHz",
+          "actualDisplay": "专辑",
+          "actualTokens": []
+        },
+        {
+          "input": "专辑 [FLAC24bit48Khz]",
+          "actualDisplay": "专辑",
+          "actualTokens": []
+        },
+        {
+          "input": "专辑 [SACDISO]",
+          "actualDisplay": "专辑",
+          "actualTokens": []
+        },
+        {
+          "input": "专辑 1644",
+          "actualDisplay": "专辑",
+          "actualTokens": []
+        },
+        {
+          "input": "专辑 [LPCD45]",
+          "actualDisplay": "专辑",
+          "actualTokens": []
+        }
+      ],
+      "impact": "部分golden已有格式来源从展示移除而未形成结构化version token",
+      "suggestion": "format token覆盖所有会被清洗的格式/码率语法，并逐例检查raw slice和source"
+    },
+    {
+      "priority": "P2",
+      "line": 143,
+      "title": "子串佐证会将技术格式或单字符标签自动替换成专辑名",
+      "repro": [
+        {
+          "folder": "真实专辑 [WAV]",
+          "tags": "10/10 WAV",
+          "actualDisplay": "WAV",
+          "confidence": "high",
+          "needsConfirmation": false
+        },
+        {
+          "folder": "Dark Side of the Moon",
+          "tags": "10/10 a",
+          "actualDisplay": "a",
+          "confidence": "high",
+          "needsConfirmation": false
+        }
+      ],
+      "upstreamStatus": "includes substring是上游既有行为；004可靠候选合同需要明确有意收紧",
+      "suggestion": "拒绝noise-only高可信候选；清洗后目录canonical等价或严格短key佐证，支持已有S.H.E/I...Do golden"
+    },
+    {
+      "priority": "P2",
+      "line": 135,
+      "title": "无目录佐证的标签候选仍high且无需确认",
+      "repro": {
+        "folder": "Original Album",
+        "tags": "10/10 Wrong Album",
+        "actualDisplay": "Original Album",
+        "candidateConfidence": "high",
+        "candidateNeedsConfirmation": false
+      },
+      "upstreamStatus": "上游最终展示需stableCandidate与corroborates两者满足；没有这种对外high候选合同",
+      "suggestion": "目录冲突候选needsConfirmation=true或明确不佐证字段；coverage/consistency仍分别保留"
+    }
+  ],
+  "documentedDifferences": [
+    {
+      "topic": "有限繁简映射",
+      "status": "源码已声明有限；PORT_MAP仅说必须说明，尚缺具体映射范围/未覆盖示例、NFKC强于宽度折叠的差异测试",
+      "suggestion": "添加例如藝→藝未转换、張→张；明确NFKC兼容字符折叠边界，不宣称全Unicode等价"
+    },
+    {
+      "topic": "嵌套结构层",
+      "status": "专辑/CD1/WAV与专辑/CD2/WAV产出CD1/CD2两个候选，上游albumRoot同样只上一层；92golden不含此组合",
+      "suggestion": "登记继承的单层限制；主控按004范围决定是否本轮修，不把它伪装已满足任意多层CD合并"
+    }
+  ]
+}

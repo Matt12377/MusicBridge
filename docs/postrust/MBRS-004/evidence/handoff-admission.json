@@ -1,0 +1,73 @@
+{
+  "schema": "mbrs004.handoff-admission.v1",
+  "observedAt": "2026-10-06T02:43:53.452416+00:00",
+  "sessionName": "v3.9",
+  "baseSha": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+  "reportIdentity": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+  "remoteHead": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+  "deliveredTreeClean": true,
+  "receiptSha256": "4cdc49cf8e6e299e25011539c52bb9c29bdeb368265e14ac67501de15ca378dd",
+  "implementationCi": [
+    {
+      "head": "85841879bf6d31b3efd0970f235c8431fed980e8",
+      "workflow": "electron-e2e",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "head": "85841879bf6d31b3efd0970f235c8431fed980e8",
+      "workflow": "verify",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "head": "85841879bf6d31b3efd0970f235c8431fed980e8",
+      "workflow": "security",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "head": "85841879bf6d31b3efd0970f235c8431fed980e8",
+      "workflow": ".github/workflows/rust-core.yml",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "reportCi": [
+    {
+      "head": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+      "workflow": "security",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "head": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+      "workflow": ".github/workflows/rust-core.yml",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "head": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+      "workflow": "verify",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "newWorktree": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules",
+  "branch": "codex/mbrs-004-coverdrop-name-version-rules",
+  "mainAgent": {
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "max",
+    "verifiedLatestTurnContext": true
+  },
+  "children": {
+    "count": 3,
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "high",
+    "verifiedLatestTurnContext": true,
+    "noFurtherDelegation": true
+  },
+  "scaleRunsAuthorized": false,
+  "sourceFilesWrite": "OFF",
+  "accountsPlaybackRelease": "NOT_AUTHORIZED_BY_THIS_ADMISSION"
+}

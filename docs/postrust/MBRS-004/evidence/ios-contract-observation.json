@@ -1,0 +1,39 @@
+{
+  "schema": "mbrs004.ios-contract-observation.v1",
+  "adoption": "PENDING",
+  "newImplementationAuthorization": false,
+  "taskOrderChanged": false,
+  "iosBranch": "codex/ios-013-compact-development-menu",
+  "iosHead": "095a9ad345d7cf40b4e7570074fa53e4d496f1d9",
+  "iosTreeHasWip": true,
+  "files": [
+    {
+      "path": "/Users/yihe/Downloads/START_MB_CODEX.md",
+      "bytes": 1678,
+      "sha256": "c8c9b22c43b8c2116dc9ef362fb614b19d340c02f805e9f73d143cc30910e0b9"
+    },
+    {
+      "path": "/Volumes/LifeWeave/VSCode/MusicBridge-ios/Contracts/openapi.yaml",
+      "bytes": 27446,
+      "sha256": "03056740fbb8443e2ab862e27d7af7927ab467a3f7cb44babfb6b79ee442480d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/VSCode/MusicBridge-ios/DevelopmentSupport/ExecutionPack/contracts/openapi.yaml",
+      "bytes": 27446,
+      "sha256": "03056740fbb8443e2ab862e27d7af7927ab467a3f7cb44babfb6b79ee442480d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/VSCode/MusicBridge-ios/DevelopmentSupport/ExecutionPack/templates/MB_ADOPTION.md",
+      "bytes": 613,
+      "sha256": "4821ff79c9a71ce2b25184a8ef9ce9cdfc0e41f92112499b00c7c272d4dcd09e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/VSCode/MusicBridge-ios/docs/delivery/ENGINEERING_HANDOFF.md",
+      "bytes": 8133,
+      "sha256": "fec8d9c42e0c7d6d6c7cae2acbafc46af97033648847a5984b8409a7f3499cf0"
+    }
+  ],
+  "iosFilesWritten": false,
+  "contractSnapshotWritten": false,
+  "messagesSent": false
+}

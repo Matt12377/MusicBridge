@@ -1,0 +1,16 @@
+{
+  "schema": "mbrs004.implementation-identity.v1",
+  "observedAt": "2026-10-06T03:19:20.215168+00:00",
+  "baseSha": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+  "implementationSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+  "branch": "codex/mbrs-004-coverdrop-name-version-rules",
+  "remoteHeadAtImplementationPush": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+  "implementationPushExitCode": 0,
+  "declaredInputCount": 641,
+  "allDeclaredInputBytesMatchImplementationGitBlobs": true,
+  "preCommitFinalWorkspaceSourcesMatchImplementationGate": true,
+  "compiledOutputCount": 6,
+  "sourceIdentityScope": "DECLARED_SOURCE_AND_FRESH_RULE_OUTPUTS_NOT_TRANSITIVE_DEPENDENCY_CLOSURE",
+  "original156AcceptanceTextUnchanged": true,
+  "nextTaskNotStarted": true
+}

@@ -1,0 +1,19 @@
+{
+  "schema": "mbrs004.command-check.v1",
+  "label": "boundaries-repaired-final",
+  "command": [
+    "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+    "scripts/ci/verify-boundaries.mjs"
+  ],
+  "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules",
+  "gitHead": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+  "startedAt": "2026-10-06T03:10:08.507857+00:00",
+  "completedAt": "2026-10-06T03:10:08.685119+00:00",
+  "durationSeconds": 0.177,
+  "exitCode": 0,
+  "logSha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825",
+  "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/checks/boundaries-repaired-final/output.log",
+  "node": "22.23.2",
+  "sourceFilesWrite": "OFF",
+  "realAccountsRoonPlayback": "NOT_RUN"
+}
