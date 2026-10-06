@@ -87,9 +87,9 @@
   "previousDeliveryReceipt": "docs/postrust/MBRS-006/PREVIOUS_DELIVERY_RECEIPT.json",
   "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6",
   "productFreeze": {
-    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/writer/FREEZE_05.json",
-    "files": 57,
-    "sha256": "59a85f4c83a6a1e7228096256ec37cc5f6b5171f9662a4f91c96e0a965592efc"
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/writer/FREEZE_06.json",
+    "files": 58,
+    "sha256": "365052666a585b0cb10b2ca9b088e7a3f425c1175ef8df7a4c1bd7c1aabc9ad3"
   },
   "formalReview": {
     "maximumRounds": 2,
@@ -122,6 +122,21 @@
       "runner32": "PASS",
       "current609Gate": "REQUIRED_BEFORE_FINAL_SOURCE_COMMIT_SEE_BOUND_COMMAND_RECEIPT",
       "newFormalCapacityWindows": "NOT_RUN",
+      "formalThirdRound": false
+    },
+    "old085StrictLocator": {
+      "source": "a940c34081ca36b0fdda669ffb675baf59e2567d",
+      "remoteCounts": {
+        "passed": 103,
+        "failed": 1,
+        "skipped": 4
+      },
+      "scope": "ONE_OLD_E2E_ASSERTION_STATUS_SUCCESS_NOTICE_ONLY",
+      "prior57Unchanged": true,
+      "originalCaseAndThresholdsUnchanged": true,
+      "localNativeResult": "PREPARATION_NOT_REACHED_TEST_OFFICIAL_RECEIPT_AND_EXECUTABLE_UNAVAILABLE",
+      "actualGreen": "REQUIRED_NEW_NATURAL_ELECTRON_CI_NOT_LOCAL_BUILD",
+      "current609Gate": "REQUIRED_BEFORE_FINAL_SOURCE_COMMIT_SEE_BOUND_COMMAND_RECEIPT",
       "formalThirdRound": false
     }
   },

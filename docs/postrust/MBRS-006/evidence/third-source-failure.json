@@ -71,5 +71,45 @@
   },
   "oldCiReruns": 0,
   "artifactContentDownloaded": false,
-  "realRoonAccountsAudio": "NOT_RUN"
+  "realRoonAccountsAudio": "NOT_RUN",
+  "additionalElectronFailure": {
+    "runId": 37428265660,
+    "jobId": 112152823515,
+    "headSha": "a940c34081ca36b0fdda669ffb675baf59e2567d",
+    "conclusion": "failure",
+    "actualLog": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/ELECTRON_THIRD_SOURCE_FAILURE.log",
+      "bytes": 172474,
+      "sha256": "36193bb9c2e81c4821fbcd2a67c6d3dd02b0b66180ae66253050ff933b14a983"
+    },
+    "actualLogReceipt": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/ELECTRON_THIRD_SOURCE_FAILURE_LOG_RECEIPT.json",
+      "bytes": 6728,
+      "sha256": "dde6c9edc0806db71ced1dfc2897bec4ab9a8fac0ba2adca3a2ed55f2bb996f3"
+    },
+    "counts": {
+      "passed": 103,
+      "failed": 1,
+      "skipped": 4
+    },
+    "case": "TASK-085 J03/J04/C11",
+    "assertionLine": 324,
+    "cause": "TEXT_LOCATOR_MATCHED_SUCCESS_STATUS_AND_STATIC_HINT_STRICT_MODE_VIOLATION",
+    "independentOfQueuedStopTiming": true,
+    "oneOriginalAssertionChanged": "ROLE_STATUS_WITH_FULL_SUCCESS_NOTICE_PREFIX",
+    "original57Unchanged": true,
+    "localPreparationOnly": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old085-e2e-preparation-01/result.json",
+      "bytes": 974,
+      "sha256": "b329529e431a91359aa301602b6b579dd356139c223aeeae7e706cf6f37ccdbd"
+    },
+    "localBehaviorGreen": "NOT_RUN_PREPARATION_NOT_REACHED_TEST",
+    "actualGreen": "REQUIRED_NEW_NATURAL_CI",
+    "nativeInstallation": false
+  },
+  "allSource3Terminal": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/source-third-terminal-observation-02.json",
+    "bytes": 58267,
+    "sha256": "2cb24af50211f7cb264da6bd84200c239c1c2be1c8139b1255759b5a496c2bb1"
+  }
 }

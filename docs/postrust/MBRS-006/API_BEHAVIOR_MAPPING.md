@@ -45,3 +45,5 @@ R1四项根因通过同case有效RED后修正：重复shutdown共用先登记的
 第二源5dd13d2的workspace4330总/4328通过/2原条件跳过已成功，后继001离线Gate实际失败；同源本机复现32总/31通过/1旧SessionEnded通知期待失败。仅更新旧测试与合成POC的同根因期待，保持严格资源/迟到负例、32case和118既有回归；完整001软件Gate已通过。原55路径不变，最新57冻结；该32项与八个直接输入并入006有限Gate，重新绑定609组计数，不修改历史001报告或升级真实验收。
 
 第三源 a940c340 的远端 Core 单测在原 recording-capacity-queued-stop 的 progressMs≤100ms 断言失败；实际值未输出，不能由2803ms整条case耗时推算。Contracts256通过，Core2648总/2645通过/1失败/2原条件skip，Desktop未执行。该产品源码与第二源完整workspace通过时相同；跨文件争用为待证推断。Root只把原8项墙钟测试移至全Core普通阶段自然成功后的独立阶段，其余文件保留原默认并行，全部case及100/250/500/2000ms阈值、原105-child窗口和历史收据不变。原文件并入有限回归，389项与32脚本已通过，最终609 Gate另以新收据绑定。
+
+同一第三源另有旧Electron E2E严格定位失败：TASK-085成功回执和静态hint都包含“原 ZIP 不长期归档。”，原getByText命中两元素，103通过/1失败/4原skip。此为独立根因，不归因排队Stop耗时。只修一行原断言为role=status并匹配完整成功回执前缀，其余case/阈值/产品不变；先前57文件保持、冻结共58。本机单case入口因官方Electron本轮身份收据和native可执行前置缺失而未进入测试，退出1记PREPARATION_NOT_REACHED_TEST，不称GREEN。新自然CI实际E2E结果另封存。旧E2E文件加入声明输入，有限功能Gate仍609项。

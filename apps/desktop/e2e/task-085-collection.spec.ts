@@ -321,7 +321,7 @@ test('TASK-085 J03/J04/C11：库存表原行到目录合并拆分、求购快照
     await expect.poll(inventoryTotal).toBe(15)
     await reference.getByLabel('我已核对 ZIP 与原 JSON 身份，确认登记；不发布目录、不创建库存，原 ZIP 不长期归档').check()
     await reference.getByRole('button', { name: '登记 ZIP 资料版本' }).click()
-    await expect(reference.getByText('原 ZIP 不长期归档。', { exact: false })).toBeVisible()
+    await expect(reference.getByRole('status').filter({ hasText: '原 JSON 已登记，ZIP 的 SHA、大小和入口名已留不可变回执；原 ZIP 不长期归档。' })).toBeVisible()
     await expect(reference.getByRole('heading', { name: '当前来源的 ZIP 容器回执' })).toBeVisible()
     await expect(reference.getByText(zip.sha256, { exact: true })).toBeVisible()
     await selectReferenceSource(reference)
