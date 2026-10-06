@@ -1,0 +1,35 @@
+{
+  "schema": "mbrs006.fifth-source-input-binding.v1",
+  "at": "2026-10-06T07:56:19.130140+00:00",
+  "implementationCommit": "9c8d48a25505de372b23f80605dfcd27fd07ebbf",
+  "initialImplementationCommit": "b50261ee942bb0d88f6cb2fae0377547846e0234",
+  "secondImplementationCommit": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+  "thirdImplementationCommit": "a940c34081ca36b0fdda669ffb675baf59e2567d",
+  "fourthImplementationCommit": "522ef22f66957f89e7155bf744be445ccb40cf72",
+  "baseFinalReportCommit": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+  "sourceInputsGitBlobAndDiskBytesMatch609Gate": true,
+  "declaredInputs": 1186,
+  "freshOutputsStillMatch": 28,
+  "frozenFiles": 58,
+  "prior54ReviewCoveredFilesUnchanged": true,
+  "prior55SupplementFilesUnchanged": true,
+  "prior57WriterFilesUnchanged": true,
+  "productSourcesUnchangedSinceInitialSource": true,
+  "originalQueuedStopCaseFileAndThresholdsUnchanged": true,
+  "oneOldE2eAssertionOnlyChanged": "ROLE_STATUS_SUCCESS_NOTICE",
+  "localE2e": "PREPARATION_NOT_REACHED_TEST",
+  "actualGreen": "REQUIRED_NEW_NATURAL_CI",
+  "desktopProductionBuildReuse": "UNCHANGED_PRODUCT_SOURCE_NOT_NEW_BUILD_AT_FIFTH_HEAD",
+  "scope": "DECLARED_INPUTS_AND_WITHIN_GATE_OUTPUTS_NOT_FULL_TRANSITIVE_DEPENDENCY_CLOSURE",
+  "gitClean": true,
+  "originalReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/SOURCE5_IMPLEMENTATION_INPUT_BINDING.json",
+    "bytes": 1277,
+    "sha256": "c9799f114ec1011bda1fc234a24667c3549b94b0e71ca7ebc17ba03de262ae4d"
+  },
+  "gateManifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/gate-final-05/manifest.json",
+    "bytes": 242350,
+    "sha256": "9ad1b8da8acbcd94af128b85709d2f8d5cf56967cbd66cb0122f9bf28bfd3958"
+  }
+}

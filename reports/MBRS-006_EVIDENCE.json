@@ -1,0 +1,928 @@
+{
+  "schema": "mbrs006.delivery-evidence.v1",
+  "task": "MBRS-006",
+  "baseFinalReportCommit": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+  "initialImplementationCommit": "b50261ee942bb0d88f6cb2fae0377547846e0234",
+  "secondImplementationCommit": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+  "thirdImplementationCommit": "a940c34081ca36b0fdda669ffb675baf59e2567d",
+  "fourthImplementationCommit": "522ef22f66957f89e7155bf744be445ccb40cf72",
+  "implementationCommit": "9c8d48a25505de372b23f80605dfcd27fd07ebbf",
+  "reportCommit": null,
+  "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-006_LOCAL_AUDIO_INPUT.md",
+  "localSoftware": {
+    "functionalTests": 609,
+    "newTaskTests": 46,
+    "inheritedRegressionTests": 563,
+    "gateExitCode": 0,
+    "gateStages": 11,
+    "freshOutputs": 28,
+    "declaredInputs": 1186,
+    "runnerCiTests": 32,
+    "typecheck": "PASS",
+    "desktopProductionBuild": "PASS",
+    "productionBuildIdentity": "UNCHANGED_PRODUCT_SOURCE_REUSE_OF_INITIAL_SOURCE_BUILD_NOT_NEW_CORRECTED_HEAD_BUILD",
+    "localFullWorkspace": "NOT_RUN_RISK_BASED_TARGETED_SCOPE",
+    "record": "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+    "gateManifest": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/gate-final-05/manifest.json",
+      "bytes": 242350,
+      "sha256": "9ad1b8da8acbcd94af128b85709d2f8d5cf56967cbd66cb0122f9bf28bfd3958"
+    },
+    "gateCommandReceipt": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/local-playback-gate-final-05/result.json",
+      "bytes": 950,
+      "sha256": "b5f130b8c14c55c136b12aaddcd83db1c4a634c505bae12e8973726419637075"
+    }
+  },
+  "sourceIdentity": "docs/postrust/MBRS-006/evidence/corrected-source-input-binding.json",
+  "sourceCi": "docs/postrust/MBRS-006/evidence/source-ci-terminal.json",
+  "remoteFullWorkspace": {
+    "tests": 4330,
+    "pass": 4328,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "remoteElectronE2eCounts": {
+    "passed": 104,
+    "skipped": 4,
+    "failed": 0
+  },
+  "sourceCiSummary": [
+    {
+      "id": 37432815229,
+      "workflow": ".github/workflows/security.yml",
+      "headSha": "9c8d48a25505de372b23f80605dfcd27fd07ebbf",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37432815229"
+    },
+    {
+      "id": 37432815276,
+      "workflow": ".github/workflows/rust-core.yml",
+      "headSha": "9c8d48a25505de372b23f80605dfcd27fd07ebbf",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37432815276"
+    },
+    {
+      "id": 37432814992,
+      "workflow": ".github/workflows/verify.yml",
+      "headSha": "9c8d48a25505de372b23f80605dfcd27fd07ebbf",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37432814992"
+    },
+    {
+      "id": 37432815088,
+      "workflow": ".github/workflows/electron-e2e.yml",
+      "headSha": "9c8d48a25505de372b23f80605dfcd27fd07ebbf",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37432815088"
+    }
+  ],
+  "reportCiAtCommit": "PENDING_NATURAL_CI_FINAL_RECEIPT_IS_AUTHORITATIVE",
+  "finalDeliveryReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/FINAL_DELIVERY_RECEIPT.json",
+  "acceptanceCases": [
+    {
+      "id": "MBRS-AT-006-01",
+      "kind": "live_roon",
+      "status": "NOT_TESTED",
+      "software_status": "PARTIAL",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "受控SDK/真实Worker SQLite与固定FD仅软件链证据；原live_roon及20真实样本未运行，不改变kind。"
+    },
+    {
+      "id": "MBRS-AT-006-02",
+      "kind": "integration",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
+    },
+    {
+      "id": "MBRS-AT-006-03",
+      "kind": "unit",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
+    },
+    {
+      "id": "MBRS-AT-006-04",
+      "kind": "live_roon",
+      "status": "NOT_TESTED",
+      "software_status": "PARTIAL",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "受控SDK/真实Worker SQLite与固定FD仅软件链证据；原live_roon及20真实样本未运行，不改变kind。"
+    },
+    {
+      "id": "MBRS-AT-006-05",
+      "kind": "fault",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
+    },
+    {
+      "id": "MBRS-AT-006-06",
+      "kind": "fault",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
+    },
+    {
+      "id": "MBRS-AT-006-07",
+      "kind": "live_roon",
+      "status": "NOT_TESTED",
+      "software_status": "PARTIAL",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "受控SDK/真实Worker SQLite与固定FD仅软件链证据；原live_roon及20真实样本未运行，不改变kind。"
+    },
+    {
+      "id": "MBRS-AT-006-08",
+      "kind": "integration",
+      "status": "PARTIAL",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "生产runtime/实际utility fatal与受控退出、真实固定FD quiet通过；普通App窗口策略、真实进程退出与提示尚未操作。"
+    },
+    {
+      "id": "MBRS-AT-006-09",
+      "kind": "integration",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
+    },
+    {
+      "id": "MBRS-AT-006-10",
+      "kind": "integration",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
+    },
+    {
+      "id": "MBRS-AT-006-11",
+      "kind": "unit",
+      "status": "PASS",
+      "software_status": "PASS",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
+    }
+  ],
+  "preservedFailures": {
+    "initialSourceCi": "b50261ee942bb0d88f6cb2fae0377547846e0234",
+    "initialSourceFailure": "docs/postrust/MBRS-006/evidence/initial-source-failure.json",
+    "initialTerminalSnapshot": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/source-initial-terminal-observation-03.json",
+      "bytes": 58219,
+      "sha256": "9da57822ac445dff4d36dcbeda6e47a065d610f689007ea350438fc21b8e63df"
+    },
+    "secondTerminalSnapshot": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/source-second-terminal-observation-02.json",
+      "bytes": 58259,
+      "sha256": "d9fa1ddc4b06977f924c53a2caa2ed96b36a343a0982c76ba86e4c1685ac132f"
+    },
+    "thirdTerminalSnapshot": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/source-third-terminal-observation-02.json",
+      "bytes": 58267,
+      "sha256": "2cb24af50211f7cb264da6bd84200c239c1c2be1c8139b1255759b5a496c2bb1"
+    },
+    "fourthTerminalSnapshot": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/source-fourth-observation-05.json",
+      "bytes": 96389,
+      "sha256": "ac0ac577e355b1f5d761e272e9519ac99939512fce60d23ebf40c6205dc5dc41"
+    },
+    "secondSourceFailure": "docs/postrust/MBRS-006/evidence/second-source-failure.json",
+    "thirdSourceFailure": "docs/postrust/MBRS-006/evidence/third-source-failure.json",
+    "localFailures": [
+      {
+        "label": "counts-contracts-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/counts-contracts-01/result.json",
+          "bytes": 1109,
+          "sha256": "9e4b70cfcc40de51e065069754628ff1521bf9a023db117935037f94dbd207ec"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/counts-contracts-01/output.log",
+          "bytes": 14559,
+          "sha256": "3e96dd074c4621e87c9ba12af3db51d2ccc5cadb7d3c03171a68e66c8d0c3582"
+        }
+      },
+      {
+        "label": "writer-contracts-build-phase2-01",
+        "exitCode": 2,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-contracts-build-phase2-01/result.json",
+          "bytes": 864,
+          "sha256": "ef0779e3006edafca539071aa8029f3508820b0f4076da4f39b6aea6f60f1f5d"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-contracts-build-phase2-01/output.log",
+          "bytes": 167,
+          "sha256": "048d4a43f6037f58df19439ae934c35dbf857b45b01318c082d9ba3fe4eef27a"
+        }
+      },
+      {
+        "label": "writer-contracts-new-group-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-contracts-new-group-01/result.json",
+          "bytes": 894,
+          "sha256": "1421a0513ef78e35deee82e0a4d2a2efde845001a4ec6436fe460151e93df241"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-contracts-new-group-01/output.log",
+          "bytes": 1604,
+          "sha256": "9e8fd282e2193d0fdbe1489cfae5d885134dd0f2e79fd205ba9cd42b6f89d942"
+        }
+      },
+      {
+        "label": "writer-controller-local-green-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-controller-local-green-01/result.json",
+          "bytes": 881,
+          "sha256": "bf19c495bfb2dd0332c3f4596d8e4e1624a5ec68a23c70a8414e5853344ae1db"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-controller-local-green-01/output.log",
+          "bytes": 1251,
+          "sha256": "198e1d4ad02fe31b7abc8402e438a076f92273f16a2c7fb4b75ffe2cba43fbdc"
+        }
+      },
+      {
+        "label": "writer-controller-local-green-02",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-controller-local-green-02/result.json",
+          "bytes": 882,
+          "sha256": "4a73457352f77fc4a0b4f52ef84e8989c005da988428699f78fc16a5aa7e11fb"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-controller-local-green-02/output.log",
+          "bytes": 5674,
+          "sha256": "a4c76ae69feb15b1c3ba25b6f05270453ed26b5a64041d8403f762367bdf1607"
+        }
+      },
+      {
+        "label": "writer-controller-local-green-03",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-controller-local-green-03/result.json",
+          "bytes": 883,
+          "sha256": "9c84285e285fa1a234d5631d2a3a92caebbd1e7412c09cef093ba22a4e1665c8"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-controller-local-green-03/output.log",
+          "bytes": 6365,
+          "sha256": "0c418d0a41794b95f20beddd62128369588bf709f48ff89dd8582c103f1ac97d"
+        }
+      },
+      {
+        "label": "writer-controller-local-green-04",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-controller-local-green-04/result.json",
+          "bytes": 882,
+          "sha256": "f80b8bab26af8166fb1b29a3c4b54dd1d3f585afe61f6e1219bf2504c3aed440"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-controller-local-green-04/output.log",
+          "bytes": 3080,
+          "sha256": "248cc8fd21b6d8c3e476b9b5d4ed625e94f4fcde67ddc7e97f95c5df3b2ae850"
+        }
+      },
+      {
+        "label": "writer-core-build-phase7-01",
+        "exitCode": 2,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-build-phase7-01/result.json",
+          "bytes": 886,
+          "sha256": "314c6244c234d9caa72dfdc2f40a6146aeb0237fc86f1f4fda9d1b1b647ea7bb"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-build-phase7-01/output.log",
+          "bytes": 2875,
+          "sha256": "db06bcab268e78661ab83f91b89753d83f5867fb01965cc0c033e426729d7263"
+        }
+      },
+      {
+        "label": "writer-core-build-phase8-01",
+        "exitCode": 2,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-build-phase8-01/result.json",
+          "bytes": 886,
+          "sha256": "c3544de30d229d027ff36f4857186b1e4fe3124c014f7d2266e472e72a0a3070"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-build-phase8-01/output.log",
+          "bytes": 98,
+          "sha256": "5aa1567052c3c01646b101829b69a2aa3510f214c5b6b9abba1144a63e9b4409"
+        }
+      },
+      {
+        "label": "writer-core-new-group-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-new-group-01/result.json",
+          "bytes": 856,
+          "sha256": "be31d3c26dab79185d77cfdbd75575670b3f228565095ec6615e002d27a0937a"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-new-group-01/output.log",
+          "bytes": 7852,
+          "sha256": "ca7555a8fe8f1d814e49b83f6eafd974df9ae07c6c0ded03ac4253ff5fd7369b"
+        }
+      },
+      {
+        "label": "writer-core-new-group-02",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-new-group-02/result.json",
+          "bytes": 886,
+          "sha256": "c170be202f1a658bbbecaa2197178a7da6966e98dbdad67943aed49663f070a5"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-new-group-02/output.log",
+          "bytes": 6999,
+          "sha256": "658b4f91808d60b4c7d2541d680f6181024f0e7a6f7f1750cf7ee665fd3c0d02"
+        }
+      },
+      {
+        "label": "writer-core-test-types-01",
+        "exitCode": 2,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-test-types-01/result.json",
+          "bytes": 902,
+          "sha256": "e0bfd7ce012ac4a6c12f6ad33ab48c27c871c58ac07e97d37dc564d6f336f6a6"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-test-types-01/output.log",
+          "bytes": 5166,
+          "sha256": "4ed6db0d2c1d6bbe6e2594cf2c3fbdda225cac8af5eec47bec4e38388148c7d2"
+        }
+      },
+      {
+        "label": "writer-core-types-phase2-01",
+        "exitCode": 2,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-types-phase2-01/result.json",
+          "bytes": 872,
+          "sha256": "1df54fe838193dfb6a886551892b6852ab920d2eef72fb2dcb30bee9e457efed"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-types-phase2-01/output.log",
+          "bytes": 875,
+          "sha256": "06b9a4daf1439770d86a45c6cec36873d31a4fbba313b712b808204d66522f3b"
+        }
+      },
+      {
+        "label": "writer-core-types-phase3-01",
+        "exitCode": 2,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-types-phase3-01/result.json",
+          "bytes": 872,
+          "sha256": "b7d68c41c124a6eb0a5d9aa0b4c3fc51285070df98a7943354aa85997d5ebda4"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-types-phase3-01/output.log",
+          "bytes": 94,
+          "sha256": "53c18bba8b12bab0fa91544a6967a4b74be4964e9fa4bdc16ef29ba86bbee0d0"
+        }
+      },
+      {
+        "label": "writer-core-types-phase6-01",
+        "exitCode": 2,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-types-phase6-01/result.json",
+          "bytes": 902,
+          "sha256": "d97bda3d12dfeb2f841e070beaf0642f52161660df3f4a12759535d282257299"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-types-phase6-01/output.log",
+          "bytes": 331,
+          "sha256": "805ee05865187b4c56d88dafa2d312f7e9868c6288f973f82ea70624b931df29"
+        }
+      },
+      {
+        "label": "writer-cycles-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-cycles-01/result.json",
+          "bytes": 809,
+          "sha256": "68e9cdaa2038ee0f1bd3df5846dc41c1b21be183340d37fb39b2a0ccefdf9cb2"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-cycles-01/output.log",
+          "bytes": 320,
+          "sha256": "62590943d08e96046fe4eef821eacd26d65663ddb62bf339198fa3ce439cd455"
+        }
+      },
+      {
+        "label": "writer-desktop-new-group-02",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-desktop-new-group-02/result.json",
+          "bytes": 892,
+          "sha256": "4b980f75831553646a22976e24e12b1d620c4960743ea32ef298c9754f8aef31"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-desktop-new-group-02/output.log",
+          "bytes": 1587,
+          "sha256": "3154d628a8d0bcea1316de6200b3a010c8a6a0c6f5733fe3ad2ed199f8f084c8"
+        }
+      },
+      {
+        "label": "writer-desktop-types-phase1-01",
+        "exitCode": 2,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-desktop-types-phase1-01/result.json",
+          "bytes": 875,
+          "sha256": "62ebd3c40c602c34c3fe82fc54051e95c8926a6293f32b478d75b028a75117f7"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-desktop-types-phase1-01/output.log",
+          "bytes": 457,
+          "sha256": "f9d9decded0c680344dd64bd658d3ece3e9be5c66209854979607811b11d1421"
+        }
+      },
+      {
+        "label": "writer-desktop-types-phase2-01",
+        "exitCode": 2,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-desktop-types-phase2-01/result.json",
+          "bytes": 905,
+          "sha256": "914e4c035ecf54e2e2e276daf9792508b208a5ab1d836d3d8adf114e6ae42b82"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-desktop-types-phase2-01/output.log",
+          "bytes": 125,
+          "sha256": "ada634fb3b2c20f3329298dee368d844dec7bf6c614f64816a735f98f5ba8621"
+        }
+      },
+      {
+        "label": "writer-desktop-types-phase3-01",
+        "exitCode": 2,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-desktop-types-phase3-01/result.json",
+          "bytes": 905,
+          "sha256": "ba22e70fb3661f85b105c93e9d8f7de38d46042d6a9fef0eb3712c5cb5df2b49"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-desktop-types-phase3-01/output.log",
+          "bytes": 385,
+          "sha256": "f5f1d9c3c049032808c48f60c8c9c615315e1aff04f4017594eb7d5fed50b23d"
+        }
+      },
+      {
+        "label": "writer-owner-facts-green-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-owner-facts-green-01/result.json",
+          "bytes": 878,
+          "sha256": "6209fc47bd79a52a40a331d4276ccdc2a9224c5d1f6f99ce9a274d91d3070166"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-owner-facts-green-01/output.log",
+          "bytes": 6261,
+          "sha256": "b58fd7cbb08b21858c883d84092311aa241c2a98a78fc8b45bd23122650f7329"
+        }
+      },
+      {
+        "label": "writer-r1-context-red-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-context-red-01/result.json",
+          "bytes": 950,
+          "sha256": "759a14de6042d378fae0f03e9801b6d68ffd83e4ca0a027694e66d73db144974"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-context-red-01/output.log",
+          "bytes": 3408,
+          "sha256": "1872dafc317512e32d08a75b18e98846a9f63a305a6a9d0693d2996bbf901310"
+        }
+      },
+      {
+        "label": "writer-r1-controller-green-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-controller-green-01/result.json",
+          "bytes": 906,
+          "sha256": "dcf84b1b383087acf1653af82c185e031dbd808d964e5596446184a981d13d01"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-controller-green-01/output.log",
+          "bytes": 7245,
+          "sha256": "9bf90d29135b8bcb90a0daaf1778d2b0c28fced1bd7c940cbcace3711ee8831f"
+        }
+      },
+      {
+        "label": "writer-r1-core-new-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-core-new-01/result.json",
+          "bytes": 880,
+          "sha256": "c28a8fa3ea5876d1aa3c1f0bc4318fcc3e4adc68d29b95a7fe97abc262c2b8ec"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-core-new-01/output.log",
+          "bytes": 11813,
+          "sha256": "9984c548f97a4a25666597bb24634ce0d47ce49c79c738e3a40f043db233bffd"
+        }
+      },
+      {
+        "label": "writer-r1-shutdown-red-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-shutdown-red-01/result.json",
+          "bytes": 898,
+          "sha256": "38182ba2f5b409d95392785a07ebb264f90a31a8ff674e1c35867dee74aa14dc"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-shutdown-red-01/output.log",
+          "bytes": 1581,
+          "sha256": "f51e3df0214bac38c80a83d678af6e36e4d46780c611c23dd559e99f942e7d2d"
+        }
+      },
+      {
+        "label": "writer-r1-shutdown-red-02",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-shutdown-red-02/result.json",
+          "bytes": 898,
+          "sha256": "b3f99bbc0af16da15b1facbd616b58d041b60e928c250a58703b68cd34fe3615"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-shutdown-red-02/output.log",
+          "bytes": 1664,
+          "sha256": "0c66819376e91e1dd395dd838c3d6540c871367d4e2c54e694aae91bb740f273"
+        }
+      },
+      {
+        "label": "writer-r1-shutdown-red-03",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-shutdown-red-03/result.json",
+          "bytes": 898,
+          "sha256": "13e8b152db7ac5857863094e7191aee9b3c833caa0a87f6dc982ba37396d22df"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-shutdown-red-03/output.log",
+          "bytes": 1792,
+          "sha256": "c44869f9772354bac4d74fcc5bd16da91e9e1592fed0186a2cf26fd86409b7db"
+        }
+      },
+      {
+        "label": "writer-r1-shutdown-red-04",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-shutdown-red-04/result.json",
+          "bytes": 898,
+          "sha256": "f31d382e37eac4725867f0d70bb13e1d7163bf22924af97f18de91d28488d582"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-shutdown-red-04/output.log",
+          "bytes": 1635,
+          "sha256": "da19367a006ad88dfea872d43ebff44678ce3d2222b611fe95b1d0a72fd297e4"
+        }
+      },
+      {
+        "label": "writer-r1-terminal-target-red-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-terminal-target-red-01/result.json",
+          "bytes": 912,
+          "sha256": "043778955c219b598153044c98fdb3f533e55be1734b4923667075f5c9e1a9fc"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-terminal-target-red-01/output.log",
+          "bytes": 9184,
+          "sha256": "7e710614fc785c5e3c1a3cfc56ee3476e33175785681bdaa8e699e6f6377f290"
+        }
+      },
+      {
+        "label": "writer-r1-test-types-01",
+        "exitCode": 2,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-test-types-01/result.json",
+          "bytes": 900,
+          "sha256": "e017a4629e19f885988e7d1addc865728b33264b35eb406708c4e9900c5ec351"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-test-types-01/output.log",
+          "bytes": 320,
+          "sha256": "a02c95ae74aa8e2dd6bcde55d97e54448dfdc5016b1a6cdbd9c578a01eb1f744"
+        }
+      },
+      {
+        "label": "writer-r1-test-types-02",
+        "exitCode": 2,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-test-types-02/result.json",
+          "bytes": 899,
+          "sha256": "84214e1378e92925bd8ddf0e12a7a4c130e5fc72f02200b33eacdeef9763d57a"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-test-types-02/output.log",
+          "bytes": 235,
+          "sha256": "95cea78aa338f2e5b05d75a7886db36bfa7e2edb935b67c6c04e8f88e519963d"
+        }
+      },
+      {
+        "label": "writer-security-preload-red-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-security-preload-red-01/result.json",
+          "bytes": 883,
+          "sha256": "8460035c8e2bbcc25d27ad02f3feba67149bd6217fd36a2790776afd60bee66f"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-security-preload-red-01/output.log",
+          "bytes": 20884,
+          "sha256": "5c9c736b1cc9c56bb7d40e05fb5ef6d01bbbc7a8d7cc96e0eae9a7df73486dc2"
+        }
+      },
+      {
+        "label": "writer-security-seven-green-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-security-seven-green-01/result.json",
+          "bytes": 1079,
+          "sha256": "69bbc17cd45c2e57b315993e3e78475023fd82206b6d51587bae06ec29fcb415"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-security-seven-green-01/output.log",
+          "bytes": 25143,
+          "sha256": "e4236f611f66dacca38aef3ae36e9a948fb8ec1a0096908a4b75ec8a732ae973"
+        }
+      },
+      {
+        "label": "writer-session-terminal-red-01",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-session-terminal-red-01/result.json",
+          "bytes": 885,
+          "sha256": "04a4a80471ba1aa91e2975eff8f07d33f0676402b3d74db9d6d54b5a9031a2f0"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-session-terminal-red-01/output.log",
+          "bytes": 2521,
+          "sha256": "d3588fcaab2a00801197bad1fb2706085bbe1ed3a46f5e6374be8d3fde40f388"
+        }
+      },
+      {
+        "label": "writer-session-terminal-red-02",
+        "exitCode": 1,
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-session-terminal-red-02/result.json",
+          "bytes": 885,
+          "sha256": "7c7d839dd2931170d0124553299140d547588ab6ce3920c7917cccf0dbd6e95f"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-session-terminal-red-02/output.log",
+          "bytes": 1142,
+          "sha256": "943dedd24038b18e74a8c8180c2529277e0d99b6514c7fca2b33b41c2ae6591a"
+        }
+      },
+      {
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/old001-count-red-01/result.json",
+          "bytes": 930,
+          "sha256": "ee00ac4135d334ec268d17c8df2d720458974a05f31a946f5acd14d8eb643bf8"
+        },
+        "result": {
+          "schema": "mbrs006.command-check.v1",
+          "label": "old001-count-red-01",
+          "command": [
+            "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+            "scripts/ci/verify-mbrs001-offline.mjs",
+            "--output-root=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/old001-count-red-01"
+          ],
+          "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input",
+          "gitHead": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+          "startedAt": "2026-10-06T07:00:50.329858+00:00",
+          "completedAt": "2026-10-06T07:00:58.078875+00:00",
+          "durationSeconds": 7.749,
+          "exitCode": 1,
+          "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/old001-count-red-01/output.log",
+          "node": "22.23.2",
+          "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+          "realAccountsRoonPlayback": "NOT_RUN"
+        }
+      },
+      {
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/old001-nested-raw-red-01/result.json",
+          "bytes": 1031,
+          "sha256": "94addda46793b0b703210a07743e370a1dea23ee9a6397f08c1fe324e2e60bd9"
+        },
+        "result": {
+          "schema": "mbrs006.command-check.v1",
+          "label": "old001-nested-raw-red-01",
+          "command": [
+            "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+            "--import",
+            "tsx",
+            "--test",
+            "--test-reporter=tap",
+            "scripts/mbrs001/test/file-http.test.ts",
+            "scripts/mbrs001/test/official-adapter.test.ts",
+            "scripts/mbrs001/test/attempt-lifecycle.test.ts"
+          ],
+          "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+          "gitHead": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+          "startedAt": "2026-10-06T07:01:34.064775+00:00",
+          "completedAt": "2026-10-06T07:01:41.385663+00:00",
+          "durationSeconds": 7.297,
+          "exitCode": 1,
+          "logSha256": "5079d5a5ed38bd824c16f576d87571ad436c3087d35a3918003830dcf19f12e8",
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/old001-nested-raw-red-01/output.log",
+          "node": "22.23.2",
+          "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+          "realAccountsRoonPlayback": "NOT_RUN"
+        }
+      },
+      {
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-session-red-01/result.json",
+          "bytes": 958,
+          "sha256": "47e86c07e36c31b17af790c0272b2d60df9d4a7dbc5b038f3c625c593b97109c"
+        },
+        "result": {
+          "schema": "mbrs006.command-check.v1",
+          "label": "writer-old001-session-red-01",
+          "command": [
+            "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+            "--import",
+            "tsx",
+            "--test",
+            "--test-name-pattern=SessionEnded-only",
+            "scripts/mbrs001/test/attempt-lifecycle.test.ts"
+          ],
+          "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+          "gitHead": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+          "startedAt": "2026-10-06T07:02:50.799773+00:00",
+          "completedAt": "2026-10-06T07:02:51.198773+00:00",
+          "durationSeconds": 0.399,
+          "exitCode": 1,
+          "logSha256": "2d3ff665642dad5c4fedfd61b15a8829228c300392365a12cc05c46f0f1994ea",
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-session-red-01/output.log",
+          "node": "22.23.2",
+          "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+          "realAccountsRoonPlayback": "NOT_RUN"
+        }
+      },
+      {
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-poc-red-01/result.json",
+          "bytes": 1000,
+          "sha256": "fb936e75bb9c8213f2cffedd309fa3edc2529ee5b7fc01e4483d6882453c7d0c"
+        },
+        "result": {
+          "schema": "mbrs006.command-check.v1",
+          "label": "writer-old001-poc-red-01",
+          "command": [
+            "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+            "--import",
+            "tsx",
+            "scripts/mbrs001/offline-poc.ts",
+            "--output-root=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-poc-red-output-01"
+          ],
+          "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+          "gitHead": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+          "startedAt": "2026-10-06T07:03:12.340214+00:00",
+          "completedAt": "2026-10-06T07:03:12.679168+00:00",
+          "durationSeconds": 0.339,
+          "exitCode": 1,
+          "logSha256": "576beb3e77b7749b544bf64b654785364ed455555f12a894f640df60e93e7614",
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-poc-red-01/output.log",
+          "node": "22.23.2",
+          "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+          "realAccountsRoonPlayback": "NOT_RUN"
+        }
+      },
+      {
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old085-e2e-preparation-01/result.json",
+          "bytes": 974,
+          "sha256": "b329529e431a91359aa301602b6b579dd356139c223aeeae7e706cf6f37ccdbd"
+        },
+        "result": {
+          "schema": "mbrs006.command-check.v1",
+          "label": "writer-old085-e2e-preparation-01",
+          "command": [
+            "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+            "node_modules/@playwright/test/cli.js",
+            "test",
+            "e2e/task-085-collection.spec.ts",
+            "--grep",
+            "TASK-085 J03/J04/C11",
+            "--workers=1"
+          ],
+          "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/apps/desktop",
+          "gitHead": "522ef22f66957f89e7155bf744be445ccb40cf72",
+          "startedAt": "2026-10-06T07:49:15.186717+00:00",
+          "completedAt": "2026-10-06T07:49:15.697580+00:00",
+          "durationSeconds": 0.511,
+          "exitCode": 1,
+          "logSha256": "1b80cf3f753766ef2e82927b7d886b498ee1afe3fb29861ae7f65402096454c9",
+          "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old085-e2e-preparation-01/output.log",
+          "node": "22.23.2",
+          "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+          "realAccountsRoonPlayback": "NOT_RUN"
+        },
+        "scope": "PREPARATION_NOT_REACHED_TEST_NOT_BEHAVIOR_RED_OR_GREEN"
+      }
+    ],
+    "strictPreloadRed": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-security-preload-red-01/result.json",
+      "bytes": 883,
+      "sha256": "8460035c8e2bbcc25d27ad02f3feba67149bd6217fd36a2790776afd60bee66f"
+    },
+    "strictSevenSecurityGreen": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-security-seven-green-02/result.json",
+      "bytes": 1079,
+      "sha256": "36946e0dadb675e05f46408dc8f6f703171eb3965cc156510682e0e5ac390111"
+    },
+    "oldCiReruns": 0
+  },
+  "review": {
+    "formalRounds": 2,
+    "openP1P2": 0,
+    "r2ProductFiles": 54,
+    "latestFrozenFiles": 58,
+    "prior54Unchanged": true,
+    "strictOldTestAndDirectedGate": "ROOT_INTEGRATION_SELF_CHECK_NOT_THIRD_FORMAL_REVIEW",
+    "old001SyntheticSupplement": "TWO_OLD_FIXTURE_PATHS_57_FREEZE_PRIOR55_UNCHANGED",
+    "old085E2eSupplement": "ONE_ORIGINAL_ASSERTION_58_FREEZE_PRIOR57_UNCHANGED_LOCAL_PREPARATION_NOT_REACHED_TEST",
+    "redSourceIdentity": "ORIGINAL_LOG_AND_PRIOR_PRODUCT_FREEZE_NO_SEPARATE_COMPLETE_RED_FREEZE",
+    "disposition": "docs/postrust/MBRS-006/evidence/review-disposition.json"
+  },
+  "carryover": {
+    "realAccountsRoonLanNasAudio": "NOT_RUN",
+    "ordinaryApp": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "real20Samples": "20_NOT_TESTED",
+    "qualityFourAxes": "NOT_TESTED",
+    "localHttpObservation": "UNKNOWN",
+    "localOwnerTicketLimit": 16,
+    "localRequestReceiptLimit": 256,
+    "receiptRecoveryAndPrefetch": "MBRS-007",
+    "cueSegment": "NON_NULL_SEGMENT_UNSUPPORTED_NO_WHOLE_FILE_FALLBACK",
+    "localLyrics": "UNAVAILABLE_NO_IMPLICIT_CLOUD_OR_NATIVE",
+    "protectedSourceWrites": "MBRS-012_AFTER_MBRS-014",
+    "historical300k": {
+      "visited": 300000,
+      "accepted": 299975,
+      "rejected": 25,
+      "readTimeout": 20,
+      "workerStartTimeout": 5,
+      "physicalCauses": "UNKNOWN",
+      "ownerException": "STAGE_ONLY_NOT_LOAD_PASS"
+    },
+    "iosContractAdoption": "PENDING",
+    "upstreamLicense": "UNKNOWN"
+  },
+  "sourceFileWrites": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+  "new100k300kStarted": false,
+  "nextBaseline": {
+    "task": "MBRS-007",
+    "head": "FINAL_REPORT_HEAD_RESOLVED_BY_GIT",
+    "started": false
+  },
+  "mainMergeInstallRelease": "NOT_RUN"
+}

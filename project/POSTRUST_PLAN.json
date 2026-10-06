@@ -31870,7 +31870,7 @@
         "MBRS-005",
         "MBRS-002"
       ],
-      "status": "LOCAL_609_SOFTWARE_PASS_FIFTH_SOURCE_ELECTRON_GREEN_PENDING",
+      "status": "SOFTWARE_COMPLETE_WITH_EXPLICIT_LIVE_CARRYOVER",
       "implementation_owner": "MBRS-006",
       "goal": "同一播放协调器接入具体本地版本，并保持原网易云和原生Roon入口。",
       "steps": [
@@ -31906,13 +31906,14 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "9c8d48a25505de372b23f80605dfcd27fd07ebbf",
       "report_commit": null,
-      "validation_status": "TARGETED_609_GATE_BUILD_TWO_REVIEWS_PASS_FINAL_SOURCE_NATURAL_CI_REQUIRED_OLD_E2E_LOCAL_PREPARATION_ONLY",
+      "validation_status": "TARGETED_609_GATE_BUILD_TWO_REVIEWS_AND_FOUR_SOURCE_CI_SUCCESS_LIVE_NOT_RUN",
       "evidence_refs": [
-        "docs/postrust/MBRS-006/EXECUTION_SCOPE.json",
-        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-006_LOCAL_AUDIO_INPUT.md",
+        "reports/MBRS-006_EVIDENCE.json",
         "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/evidence/source-ci-terminal.json",
         "docs/postrust/MBRS-006/evidence/review-disposition.json",
         "docs/postrust/MBRS-006/20_SAMPLES.json"
       ],
@@ -31921,7 +31922,7 @@
       "task_scope": "tasks/MBRS-006_LOCAL_AUDIO_INPUT.md",
       "report_path": "reports/MBRS-006_LOCAL_AUDIO_INPUT.md",
       "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-006_LOCAL_AUDIO_INPUT.md",
-      "implementation_commit_resolution": "git log -1 --format=%H -- scripts/ci/verify-mbrs006-local-playback.mjs",
+      "implementation_commit_resolution": "最终源9c8d48a25505de372b23f80605dfcd27fd07ebbf；初始b50261e、第二源5dd13d2、第三源a940c34、第四源522ef22及旧合成/录音隔离/旧E2E定位补修分列",
       "terminal_ci_receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/FINAL_DELIVERY_RECEIPT.json"
     },
     {
@@ -33218,7 +33219,8 @@
       "status": "NOT_TESTED",
       "evidence_refs": [
         "docs/postrust/MBRS-006/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-006_EVIDENCE.json"
       ],
       "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
@@ -33236,7 +33238,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-006/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-006_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33254,7 +33257,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-006/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-006_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33272,7 +33276,8 @@
       "status": "NOT_TESTED",
       "evidence_refs": [
         "docs/postrust/MBRS-006/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-006_EVIDENCE.json"
       ],
       "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
@@ -33290,7 +33295,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-006/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-006_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33308,7 +33314,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-006/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-006_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33326,7 +33333,8 @@
       "status": "NOT_TESTED",
       "evidence_refs": [
         "docs/postrust/MBRS-006/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-006_EVIDENCE.json"
       ],
       "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
@@ -33344,7 +33352,8 @@
       "status": "PARTIAL",
       "evidence_refs": [
         "docs/postrust/MBRS-006/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-006_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33362,7 +33371,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-006/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-006_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -34695,7 +34705,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-006/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-006_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -34713,7 +34724,8 @@
       "status": "PASS",
       "evidence_refs": [
         "docs/postrust/MBRS-006/evidence/local-software-checks.json",
-        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "reports/MBRS-006_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
