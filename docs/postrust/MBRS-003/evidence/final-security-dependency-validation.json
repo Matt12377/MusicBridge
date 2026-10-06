@@ -1,0 +1,86 @@
+[
+  {
+    "name": "frozen-install",
+    "argv": [
+      "corepack",
+      "pnpm@10.17.1",
+      "install",
+      "--frozen-lockfile",
+      "--ignore-scripts",
+      "--registry",
+      "https://registry.npmjs.org"
+    ],
+    "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-003-persistent-incremental-scan",
+    "head": "03f8abb61c7c03f82a5a7baecc9b10f49cc3a766",
+    "startedAt": "2026-10-06T01:39:49.715612+00:00",
+    "completedAt": "2026-10-06T01:39:51.417539+00:00",
+    "durationSeconds": 1.7017570830066688,
+    "budgetSeconds": 180,
+    "exitCode": 0,
+    "signal": null,
+    "timedOut": false,
+    "terminationSignals": [],
+    "log": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-delivery-154-01/dependency-security-validation-175-01/frozen-install.log",
+      "bytes": 344,
+      "sha256": "16bed81f78ceaf5851b4a9f96a32876e70b7150ec302310c67a540999b92befd"
+    },
+    "originalWholeDeadlineSupplied": false,
+    "allDescendantsQuiet": "NOT_PROVEN_BY_THIS_WRAPPER"
+  },
+  {
+    "name": "production-audit",
+    "argv": [
+      "corepack",
+      "pnpm@10.17.1",
+      "audit",
+      "--prod",
+      "--audit-level",
+      "high",
+      "--registry",
+      "https://registry.npmjs.org"
+    ],
+    "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-003-persistent-incremental-scan",
+    "head": "03f8abb61c7c03f82a5a7baecc9b10f49cc3a766",
+    "startedAt": "2026-10-06T01:39:51.418085+00:00",
+    "completedAt": "2026-10-06T01:39:52.593517+00:00",
+    "durationSeconds": 1.1754697079886682,
+    "budgetSeconds": 90,
+    "exitCode": 0,
+    "signal": null,
+    "timedOut": false,
+    "terminationSignals": [],
+    "log": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-delivery-154-01/dependency-security-validation-175-01/production-audit.log",
+      "bytes": 45,
+      "sha256": "f77170c79de6f0aefc9728dd3e182b9480b7ab83467f224cec08e544a0aa3925"
+    },
+    "originalWholeDeadlineSupplied": false,
+    "allDescendantsQuiet": "NOT_PROVEN_BY_THIS_WRAPPER"
+  },
+  {
+    "name": "workspace-verify",
+    "argv": [
+      "corepack",
+      "pnpm@10.17.1",
+      "verify"
+    ],
+    "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-003-persistent-incremental-scan",
+    "head": "03f8abb61c7c03f82a5a7baecc9b10f49cc3a766",
+    "startedAt": "2026-10-06T01:39:52.594057+00:00",
+    "completedAt": "2026-10-06T01:44:22.829194+00:00",
+    "durationSeconds": 270.23517149998224,
+    "budgetSeconds": 600,
+    "exitCode": 1,
+    "signal": null,
+    "timedOut": false,
+    "terminationSignals": [],
+    "log": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-delivery-154-01/dependency-security-validation-175-01/workspace-verify.log",
+      "bytes": 1014972,
+      "sha256": "44983a1757fbb6ddca31387842c48d3d8902b1a93a3e4ce16b0c43caa780744e"
+    },
+    "originalWholeDeadlineSupplied": false,
+    "allDescendantsQuiet": "NOT_PROVEN_BY_THIS_WRAPPER"
+  }
+]

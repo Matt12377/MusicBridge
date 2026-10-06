@@ -6,9 +6,9 @@ if ! /sbin/mount | /usr/bin/grep -Fq ' on /Volumes/LifeWeave ('; then
   print -u2 'LifeWeave外置卷未挂载，不能启动试用。'
   exit 1
 fi
-desktop='/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-selected18-package-cli-37-01/workspace/apps/desktop'
+desktop='/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-current-offline-trial-181-01/workspace/apps/desktop'
 electron='/Volumes/LifeWeave/VSCode/MusicBridge/worktree/mbrs-002-local-source-contracts/node_modules/.pnpm/electron@43.4.0/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'
-runs='/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-offline-trial-155-01/runs'
+runs='/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-current-offline-trial-181-01/runs'
 if [[ ! -x "$electron" || ! -f "$desktop/dist/main/index.js" || ! -d "$runs" || ! -w "$runs" ]]; then
   print -u2 '试用运行时或外置目录不可用，请检查交接说明中的路径。'
   exit 1

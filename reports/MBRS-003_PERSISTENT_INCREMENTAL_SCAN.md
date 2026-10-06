@@ -1,26 +1,24 @@
-# MBRS-003 持久增量扫描：阶段结果报告
+# MBRS-003 持久增量扫描结果报告
 
-MBRS-003 按Owner最新决定阶段收口：接受已有规模结果，取消当前版本100k/300k重测，完整产品完成后统一用真实曲库验收。25条超时、历史失败和未知根因保留。此阶段交付不宣称当前版本完整规模通过。
+本次最终实现为85841879bf6d31b3efd0970f235c8431fed980e8。Owner已接受历史规模结果用于阶段推进，不重跑当前100k/300k；完整产品最终用真实曲库验收。本轮不启动004，完成003自动检查后换届。
 
-基线：a7b27b5b6a5168bd146a3cbe61b579efd5639263。初始实现：6e01a1d9e8f14282eedaef6065ad1368355674b8。最终实现：251eae9bd354f916a2904e4899c6b061ac3371ec。分支：codex/mbrs-003-persistent-incremental-scan。报告提交由本文件Git历史解析，避免自引用；交付后远端HEAD与报告CI单独记录。
+## 当前验证与安全收口
 
-## 实现与验证
+本机固定pnpm10.17.1冻结安装退出0，原high级生产依赖审计退出0：高危0、严重0，仍有6项moderate。标准workspace verify在当前实现HEAD自然退出0，类型检查、254项合同测试、2468项Core测试（2466通过/2既有条件跳过）、1422项Desktop测试及生产构建通过；合计4142通过、2跳过、零失败。003专用13阶段/124项软件Gate通过，1210份声明输入逐字绑定最终实现Git blob；安全29项和控制平面/边界/循环检查退出0。它不是完整依赖源码递归闭包或当前全规模PASS。
+
+前一报告03f8abb的生产依赖审计自然退出1：1critical＋2high＋6moderate。这些版本已在002基线存在，报告与前实现之间的依赖树无变化；两次npm审计响应不同，具体更新/缓存原因未证实。保留该失败，不借前实现的审计绿灯替代。最小修订保持原patch、override、xlsx校验值及审计阈值，仅固定proxy-addr2.0.8、source-map-js1.2.2，并将Vue与compiler-sfc同升3.5.42。依据：[proxy-addr公告](https://github.com/advisories/GHSA-jqcg-44mw-7w3h)、[source-map-js公告](https://github.com/advisories/GHSA-68fv-2mgg-jv7q)、[Vue公告](https://github.com/advisories/GHSA-g2v6-rqmx-r4w6)。
+
+升级后的首轮workspace verify保留真实5项Desktop失败：新版Vue使用getRootNode和Document/ShadowRoot身份，原合成DOM欠缺接口。只补共有测试环境及三处harness，保持全部既有测试声明、断言和产品SFC；四个原测试文件71项GREEN，再完整workspace verify GREEN。没有吞异常、跳用例、增等待或降低安全门槛。
+
+此前6e01a1d的Core构建顺序与Preload旧表错误在251eae9中修复，原失败保留；251eae9自然CI四项最后均成功，但不替8584187的新CI。当前实现CI及本报告CI分别记录，报告封存时未终结的状态如实保留，最后终态见外置mbrs003-root-delivery-154-01的FINAL_DELIVERY_RECEIPT。
+
+## 实现与身份
+
+基线：a7b27b5b6a5168bd146a3cbe61b579efd5639263。初始实现6e01a1d9e8f14282eedaef6065ad1368355674b8；前次CI修正251eae9bd354f916a2904e4899c6b061ac3371ec；最终实现85841879bf6d31b3efd0970f235c8431fed980e8。分支codex/mbrs-003-persistent-incremental-scan。报告提交从本文件Git历史解析，远端HEAD和报告CI另核。
 
 新增持久扫描任务、分批写入、暂停/继续/取消与冷恢复、增量识别、分页本地库、CUE关联、确认重定位和设置页入口。普通metadata扫描使用有界只读Reader，保持原唯一业务库writer、源文件只读和旧录音严格探测；Node仍为默认，Rust可选只读保持OFF。
 
-| 实际检查 | 结果 |
-| --- | --- |
-| 最终本机软件Gate | 13阶段、33测试文件、124项全部通过；功能分组8/65/28/13/10，0失败/跳过 |
-| 验收运行器有限测试 | 34/34通过，包含Owner例外不能伪装fullScalePASS的负控 |
-| 修正后的安全测试 | 29/29通过，未知Preload依赖仍拒收 |
-| 构建顺序与类型 | 修正前置Core build后typecheck退出0；最终Gate新鲜编译、Worker v2及声明输入/输出保持 |
-| 提交绑定 | 最终实现1209份声明源码/测试/夹具/配置Git blob逐字节等于本机Gate输入 |
-| 控制面、边界、循环检查 | 全部退出0；循环检查431文件 |
-| 自然CI | 报告封存时：最终251eae9源安全/依赖审计/Rust成功，完整verify与Electron仍运行；提交后终态由独立交付收据记录 |
-
-最后一次本机Gate约66秒，软件整体上限360秒/阶段180秒，外层390秒；没有启动规模扫描。它只核固定Owner决定和四份历史JSON，不打开旧数据库或重放任务。源/编译绑定并非完整传递依赖闭包。
-
-首个6e01a1d自然CI失败保留：verify在干净Core dist缺失时先做类型检查，出现两项TS2307和连带TS7006，003 Gate被跳过；security为29总/27通过/2失败，旧VM依赖表和具名API表漏新增本地库接口。251eae9只修前置构建命令及旧测试表，未改变产品行为；不能将首轮失败改写为通过。
+当前Gate约61.35秒，软件整体360秒/阶段180秒、外层390秒，未运行规模扫描。它只核固定Owner决定与四份历史JSON，不打开旧数据库。运行器此前34/34有限测试证据保持，当前提交CI按原入口重新执行；当前计数与终态按各自运行身份记录。
 
 ## 25条超时：已知与未知
 
@@ -47,7 +45,7 @@ MBRS-003 按Owner最新决定阶段收口：接受已有规模结果，取消当
 
 ## 试用与换届
 
-试用入口：docs/postrust/MBRS-003/TRY_OFFLINE.command。它使用已构建的固定N42，新的独立外置资料、合成服务和模拟钥匙串；从菜单栏托盘选择Open Music Bridge显示，Quit Music Bridge退出。595份运行源码/配置与当前实现相同，只有Core包pretypecheck命令差异；20份固定桌面产物保持。本轮没有再启动额外App验收。
+试用入口：docs/postrust/MBRS-003/TRY_OFFLINE.command。当前独立试用树绑定8584187与1210份声明输入，使用新生产构建的798份编译文件（含20份Desktop产物）、官方Electron43.4.0、每次全新外置资料目录、离线合成服务与模拟钥匙串；zsh语法检查0。本轮未额外启动App，旧N42/O不改。这是工程试用，真实曲库、账号、播放与成品Owner验收仍待最终。
 
 Owner要求003完成后换届，本轮不启动004。下一届读取 docs/postrust/MBRS-003/HANDOFF_NEXT_SESSION.md，从003最终报告HEAD创建004独立分支，继续名称/专辑/版本规则；完整产品后做真实曲库及播放验收。002、RUST历史carryover仍按原边界保留。
 

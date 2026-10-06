@@ -1,0 +1,17 @@
+{
+  "schema": "mbrs003.local-gate-commit-binding.v1",
+  "gateCapturedGitHead": "03f8abb61c7c03f82a5a7baecc9b10f49cc3a766",
+  "finalImplementationCommit": "85841879bf6d31b3efd0970f235c8431fed980e8",
+  "verifiedGitBlobCount": 1210,
+  "allDeclaredSourceBytesMatch": true,
+  "fullTransitiveDependencyClosureClaim": false,
+  "currentFullScalePass": false,
+  "manifestSha256": "efecc9269a71ba182ece56a75913964c6f4cd4caecc0e28ef22943d14f0d20c6",
+  "functionalTests": 124,
+  "currentFullScaleObserved": false,
+  "gateSuccess": true,
+  "status": "FINITE_SOFTWARE_GATE_SUCCESS_WITH_OWNER_SCALE_CARRYOVER",
+  "failedStages": [],
+  "supersedesReceipt": "SECURITY_IMPLEMENTATION_GATE_BLOB_BINDING_180.json",
+  "derivationCorrection": "原收据误读counts字段导致派生计数为0；实际字段testCounts汇总为124，原Git字节匹配验证保持有效。"
+}

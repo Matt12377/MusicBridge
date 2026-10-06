@@ -1,0 +1,50 @@
+{
+  "name": "mbrs003-final-workspace-verify-179-01",
+  "argv": [
+    "corepack",
+    "pnpm@10.17.1",
+    "verify"
+  ],
+  "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-003-persistent-incremental-scan",
+  "head": "85841879bf6d31b3efd0970f235c8431fed980e8",
+  "startedAt": "2026-10-06T01:54:16.592670+00:00",
+  "completedAt": "2026-10-06T01:58:53.240891+00:00",
+  "durationSeconds": 276.6481461249932,
+  "budgetSeconds": 600,
+  "exitCode": 0,
+  "signal": null,
+  "timedOut": false,
+  "terminationSignals": [],
+  "testGroups": [
+    {
+      "tests": 254,
+      "pass": 254,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "tests": 2468,
+      "pass": 2466,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    {
+      "tests": 1422,
+      "pass": 1422,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ],
+  "log": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-delivery-154-01/final-workspace-verify-179-01/workspace-verify.log",
+    "bytes": 1006972,
+    "sha256": "112e08962a55ab67b1cde6106f1a9e32efef5f4886be6594d6ae9b82b7fb3605"
+  },
+  "allDescendantsQuiet": "NOT_PROVEN_BY_THIS_WRAPPER"
+}

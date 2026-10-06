@@ -1,0 +1,26 @@
+{
+  "name": "mbrs003-software",
+  "argv": [
+    "node",
+    "scripts/ci/verify-mbrs003-scan.mjs",
+    "--output-root=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-dependency-fixed-software-gate-177-01"
+  ],
+  "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-003-persistent-incremental-scan",
+  "head": "03f8abb61c7c03f82a5a7baecc9b10f49cc3a766",
+  "startedAt": "2026-10-06T01:51:25.212357+00:00",
+  "completedAt": "2026-10-06T01:52:26.564156+00:00",
+  "durationSeconds": 61.35186712499126,
+  "budgetSeconds": 390,
+  "exitCode": 0,
+  "signal": null,
+  "timedOut": false,
+  "terminationSignals": [],
+  "counts": {},
+  "log": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-delivery-154-01/dependency-fixed-software-validation-177-01/mbrs003-software.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "originalWholeDeadlineSupplied": false,
+  "allDescendantsQuiet": "NOT_PROVEN_BY_THIS_WRAPPER"
+}

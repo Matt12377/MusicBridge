@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "node",
+    "--import",
+    "tsx",
+    "--test",
+    "test/master-artwork-panel.test.ts",
+    "test/recording-print-panel.test.ts",
+    "test/recording-record-panel.test.ts",
+    "test/recording-workflow-integration.test.ts"
+  ],
+  "budgetSeconds": 90,
+  "elapsedSeconds": 2.654381036758423,
+  "exitCode": 0,
+  "counts": {
+    "tests": 71,
+    "pass": 71,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "logBytes": 16869,
+  "logSha256": "e9b1f8bdbb3b59e1135d11cfb7be92c9417a3bd11e7c4e2e4697e990b5eac70f"
+}

@@ -1,10 +1,10 @@
 {
   "schema": "mbrs003.stage-delivery-evidence.v1",
-  "status": "OWNER_ACCEPTED_STAGE_REPORT_PREPARED",
+  "status": "OWNER_ACCEPTED_STAGE_DELIVERY_CI_TERMINAL_REQUIRED",
   "baseSha": "a7b27b5b6a5168bd146a3cbe61b579efd5639263",
   "branch": "codex/mbrs-003-persistent-incremental-scan",
   "initialImplementationCommit": "6e01a1d9e8f14282eedaef6065ad1368355674b8",
-  "implementationCommit": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+  "implementationCommit": "85841879bf6d31b3efd0970f235c8431fed980e8",
   "reportCommit": null,
   "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md",
   "ownerDecisionRef": {
@@ -62,6 +62,124 @@
   ],
   "finalLocalSoftwareGate": {
     "manifestRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-dependency-fixed-software-manifest.json",
+      "bytes": 1485467,
+      "sha256": "efecc9269a71ba182ece56a75913964c6f4cd4caecc0e28ef22943d14f0d20c6"
+    },
+    "wrapperRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-dependency-fixed-software-wrapper.json",
+      "bytes": 1067,
+      "sha256": "6bce243ee812c572ca7cf77e498810e74ccdea1723268c685ab33b34e2c4a1e7"
+    },
+    "status": "FINITE_SOFTWARE_GATE_SUCCESS_WITH_OWNER_SCALE_CARRYOVER",
+    "functionalTests": 124,
+    "stageCount": 13,
+    "sourceInputCount": 1210,
+    "sourceInputsUnchanged": true,
+    "outputsIdentityUnchanged": true,
+    "wrapperExitCode": 0,
+    "currentFullScalePass": false,
+    "newScaleRunStarted": false
+  },
+  "finalImplementationGateGitBlobBinding": {
+    "schema": "mbrs003.local-gate-commit-binding.v1",
+    "gateCapturedGitHead": "03f8abb61c7c03f82a5a7baecc9b10f49cc3a766",
+    "finalImplementationCommit": "85841879bf6d31b3efd0970f235c8431fed980e8",
+    "verifiedGitBlobCount": 1210,
+    "allDeclaredSourceBytesMatch": true,
+    "fullTransitiveDependencyClosureClaim": false,
+    "currentFullScalePass": false,
+    "manifestSha256": "efecc9269a71ba182ece56a75913964c6f4cd4caecc0e28ef22943d14f0d20c6",
+    "functionalTests": 124,
+    "currentFullScaleObserved": false,
+    "gateSuccess": true,
+    "status": "FINITE_SOFTWARE_GATE_SUCCESS_WITH_OWNER_SCALE_CARRYOVER",
+    "failedStages": [],
+    "supersedesReceipt": "SECURITY_IMPLEMENTATION_GATE_BLOB_BINDING_180.json",
+    "derivationCorrection": "原收据误读counts字段导致派生计数为0；实际字段testCounts汇总为124，原Git字节匹配验证保持有效。"
+  },
+  "initialCiFailureRef": {
+    "path": "docs/postrust/MBRS-003/evidence/initial-implementation-ci-failures.json",
+    "bytes": 1049,
+    "sha256": "fb493c6947115ea20e890c23a73c815ffee72183642a292ef3e0f456cf5029c9"
+  },
+  "implementationNaturalCi": {
+    "status": "IN_PROGRESS",
+    "headSha": "85841879bf6d31b3efd0970f235c8431fed980e8",
+    "runs": [
+      {
+        "conclusion": "",
+        "databaseId": 37401458600,
+        "headSha": "85841879bf6d31b3efd0970f235c8431fed980e8",
+        "status": "in_progress",
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37401458600",
+        "workflowName": "electron-e2e"
+      },
+      {
+        "conclusion": "",
+        "databaseId": 37401458614,
+        "headSha": "85841879bf6d31b3efd0970f235c8431fed980e8",
+        "status": "in_progress",
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37401458614",
+        "workflowName": "verify"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 37401458625,
+        "headSha": "85841879bf6d31b3efd0970f235c8431fed980e8",
+        "status": "completed",
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37401458625",
+        "workflowName": "security"
+      },
+      {
+        "conclusion": "success",
+        "databaseId": 37401458648,
+        "headSha": "85841879bf6d31b3efd0970f235c8431fed980e8",
+        "status": "completed",
+        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37401458648",
+        "workflowName": ".github/workflows/rust-core.yml"
+      }
+    ],
+    "notBorrowedFromPreviousCommit": true
+  },
+  "reportNaturalCi": "NOT_STARTED_UNTIL_REPORT_PUSH",
+  "historicalScaleCounts": {
+    "visited": 300000,
+    "accepted": 299975,
+    "rejected": 25,
+    "timeout": 20,
+    "workerStartTimeout": 5
+  },
+  "physicalCause": "UNKNOWN",
+  "itemIdentifiers": "UNKNOWN_NOT_EXPORTED",
+  "historicalScaleTechnicalStatus": "FAILURE_PRESERVED",
+  "historicalStagesFourAndFive": "NOT_RUN_PRESERVED",
+  "trial": {
+    "entry": "docs/postrust/MBRS-003/TRY_OFFLINE.command",
+    "readme": "docs/postrust/MBRS-003/TRY_OFFLINE.md",
+    "sourceHead": "85841879bf6d31b3efd0970f235c8431fed980e8",
+    "fixedBuild": "CURRENT_IMPLEMENTATION_FRESH_PRODUCTION",
+    "mode": "OFFLINE_SYNTHETIC_SERVICES_MOCK_KEYCHAIN",
+    "directory": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-current-offline-trial-181-01",
+    "launchFile": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-current-offline-trial-181-01/启动离线试用.command",
+    "sourceInputCount": 1210,
+    "compiledOutputCount": 798,
+    "desktopOutputs": 20,
+    "electronVersion": "43.4.0",
+    "syntaxExitCode": 0,
+    "appLaunchedForThisDelivery": false,
+    "priorNAndOUntouched": true,
+    "manifestPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-current-offline-trial-181-01/TRIAL_DELIVERY.json"
+  },
+  "handoffAfter003": true,
+  "nextTask": "MBRS-004",
+  "nextTaskStarted": false,
+  "nextBranchBaseline": "RESOLVE_FINAL_REPORT_HEAD_FROM_GIT_PATH",
+  "realAccountsProviderRoonAudio": "NOT_ACCEPTED_BY_STAGE_EXCEPTION",
+  "previousImplementationCommit": "251eae9bd354f916a2904e4899c6b061ac3371ec",
+  "previousReportCommit": "03f8abb61c7c03f82a5a7baecc9b10f49cc3a766",
+  "previousFinalLocalSoftwareGate": {
+    "manifestRef": {
       "path": "docs/postrust/MBRS-003/evidence/final-ci-corrected-software-manifest.json",
       "bytes": 1485288,
       "sha256": "211c3414fb40ad5e5f874f5d601f09c32befcadfa3423a68cf9b86a04105c726"
@@ -101,72 +219,67 @@
     "currentFullScalePass": false,
     "newScaleRunStarted": false
   },
-  "finalImplementationGateGitBlobBinding": {
-    "schema": "mbrs003.local-gate-commit-binding.v1",
-    "gateCapturedGitHead": "6e01a1d9e8f14282eedaef6065ad1368355674b8",
-    "finalImplementationCommit": "251eae9bd354f916a2904e4899c6b061ac3371ec",
-    "verifiedGitBlobCount": 1209,
-    "allDeclaredSourceBytesMatch": true,
-    "fullTransitiveDependencyClosureClaim": false,
-    "currentFullScalePass": false
+  "finalWorkspaceVerify": {
+    "receiptRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-workspace-verify.json",
+      "bytes": 1283,
+      "sha256": "8582bca7d2c73a506209772611d8c12b121dfb15d31bbfc276a4a3f5d97c30b7"
+    },
+    "exitCode": 0,
+    "tests": 4144,
+    "pass": 4142,
+    "conditionalSkipped": 2,
+    "fail": 0,
+    "typecheckAndProductionBuild": "PASS"
   },
-  "initialCiFailureRef": {
-    "path": "docs/postrust/MBRS-003/evidence/initial-implementation-ci-failures.json",
-    "bytes": 1049,
-    "sha256": "fb493c6947115ea20e890c23a73c815ffee72183642a292ef3e0f456cf5029c9"
+  "finalDirectedSecurity": {
+    "receiptRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-dependency-fixed-security-validation.json",
+      "bytes": 5125,
+      "sha256": "20c2bc310c0ee2d65b1048ca6b07cf73ce2656544e601b47a2ed8dc985e0b81b"
+    },
+    "tests": 29,
+    "pass": 29,
+    "fail": 0,
+    "controlPlaneExitCode": 0,
+    "boundariesExitCode": 0,
+    "cyclesExitCode": 0
   },
-  "implementationNaturalCi": {
-    "status": "IN_PROGRESS",
-    "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
-    "runs": [
-      {
-        "conclusion": "success",
-        "databaseId": 37397810860,
-        "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
-        "status": "completed",
-        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397810860",
-        "workflowName": "security"
-      },
-      {
-        "conclusion": "",
-        "databaseId": 37397811054,
-        "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
-        "status": "in_progress",
-        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397811054",
-        "workflowName": "electron-e2e"
-      },
-      {
-        "conclusion": "",
-        "databaseId": 37397810844,
-        "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
-        "status": "in_progress",
-        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397810844",
-        "workflowName": ".github/workflows/rust-core.yml"
-      },
-      {
-        "conclusion": "",
-        "databaseId": 37397811047,
-        "headSha": "251eae9bd354f916a2904e4899c6b061ac3371ec",
-        "status": "in_progress",
-        "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37397811047",
-        "workflowName": "verify"
-      }
-    ],
-    "notBorrowedFromPreviousCommit": true
+  "domCompatibility": {
+    "receiptRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-dom-compatibility-green.json",
+      "bytes": 550,
+      "sha256": "273ca6ef8221d8ab421b5f7c9a4ef11ffa2b61864a969947c73929ca27605780"
+    },
+    "tests": 71,
+    "pass": 71,
+    "fail": 0,
+    "originalFiveFailuresPreserved": true,
+    "allExistingAssertionsUnchanged": true
   },
-  "reportNaturalCi": "NOT_STARTED_UNTIL_REPORT_PUSH",
-  "historicalScaleCounts": {
-    "visited": 300000,
-    "accepted": 299975,
-    "rejected": 25,
-    "timeout": 20,
-    "workerStartTimeout": 5
+  "securityDependencyCorrection": {
+    "failureRun": 37398816587,
+    "failureJob": 112061081166,
+    "failureHead": "03f8abb61c7c03f82a5a7baecc9b10f49cc3a766",
+    "failureLogPath": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-delivery-154-01/REPORT_CI_DEPENDENCY_AUDIT_FAILURE_173.log",
+    "failureLogSha256": "e000d79214c2dae0849f7a3d715471ceee95e04f77edf1d1b7bd131689ee8360",
+    "existingIn002Baseline": true,
+    "productionAuditExactCommandExitCode": 0,
+    "currentHigh": 0,
+    "currentCritical": 0,
+    "currentModerate": 6,
+    "auditThresholdUnchanged": "high",
+    "proxyAddr": "2.0.8",
+    "sourceMapJs": "1.2.2",
+    "vueAndCompilerSfc": "3.5.42",
+    "validationRef": {
+      "path": "docs/postrust/MBRS-003/evidence/final-security-dependency-validation.json",
+      "bytes": 3080,
+      "sha256": "79df7560db6916c97c88c64933dfed3152742af97b7bfe231e7665b26a46c2fc"
+    }
   },
-  "physicalCause": "UNKNOWN",
-  "itemIdentifiers": "UNKNOWN_NOT_EXPORTED",
-  "historicalScaleTechnicalStatus": "FAILURE_PRESERVED",
-  "historicalStagesFourAndFive": "NOT_RUN_PRESERVED",
-  "trial": {
+  "terminalCiResolution": "读取外置mbrs003-root-delivery-154-01最新FINAL_DELIVERY_RECEIPT；所有预期CI终态成功后才能结束003。",
+  "previousTrial": {
     "entry": "docs/postrust/MBRS-003/TRY_OFFLINE.command",
     "readme": "docs/postrust/MBRS-003/TRY_OFFLINE.md",
     "fixedBuild": "N42",
@@ -185,10 +298,5 @@
     "metadataOnlyDelta": "Core pretypecheck构建命令",
     "desktopOutputsHeld": 20,
     "launchExecutedForThisDelivery": false
-  },
-  "handoffAfter003": true,
-  "nextTask": "MBRS-004",
-  "nextTaskStarted": false,
-  "nextBranchBaseline": "RESOLVE_FINAL_REPORT_HEAD_FROM_GIT_PATH",
-  "realAccountsProviderRoonAudio": "NOT_ACCEPTED_BY_STAGE_EXCEPTION"
+  }
 }
