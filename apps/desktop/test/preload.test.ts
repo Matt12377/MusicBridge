@@ -539,7 +539,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'reconnectRemoteCore',
     'onRemoteCoreEvent',
   ])
-  assert.deepEqual(Object.keys(api), PUBLIC_API_KEYS)
+  assert.deepEqual(Object.keys(api), ['playLocalLibraryTrack', ...PUBLIC_API_KEYS])
   assert.equal(Object.isFrozen(api), true)
   assert.deepEqual(await api.getAppInfo(), appInfo)
   assert.deepEqual(await api.getCoreHealth(), state)

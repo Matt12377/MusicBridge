@@ -21,7 +21,8 @@ const valid = () => ({
     { name: 'desktop-local-consumer', directory: 'apps/desktop', expectedTests: 1,
       tests: ['test/mbrs002/local-playback-compat.test.ts', 'test/playback-session.test.ts', 'test/playbackFavorites.test.ts',
         'test/playback-stream-reducer.test.ts', 'test/dataset-owner-bootstrap.test.ts', 'test/rust-core-host.test.ts',
-        'test/mbrs003/local-library-front-boundary.test.ts', 'test/mbrs003/local-library-ipc.test.ts', 'test/mbrs003/local-library-client.test.ts'] },
+        'test/mbrs003/local-library-front-boundary.test.ts', 'test/mbrs003/local-library-ipc.test.ts', 'test/mbrs003/local-library-client.test.ts',
+        'test/security.test.ts', 'test/ipc-security.test.ts', 'test/csp.test.ts', 'test/protocol.test.ts', 'test/preload.test.ts', 'test/credential-provisioning.test.ts', 'test/credential-vault.test.ts'] },
   ],
 });
 const inventory = scope => scope.groups.flatMap(group => group.tests

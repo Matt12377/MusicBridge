@@ -72,14 +72,14 @@
   "mainMergeInstallRelease": "NOT_AUTHORIZED",
   "caseStatusChanges": "ONLY_THIS_TASK_AFTER_ACTUAL_EVIDENCE",
   "gateCounts": {
-    "functionalTests": 540,
+    "functionalTests": 569,
     "newTaskTests": 46,
-    "inheritedRegressions": 494,
+    "inheritedRegressions": 523,
     "groups": [
       41,
       349,
       58,
-      92
+      121
     ],
     "stages": 11,
     "freshOutputs": 28
@@ -87,13 +87,20 @@
   "previousDeliveryReceipt": "docs/postrust/MBRS-006/PREVIOUS_DELIVERY_RECEIPT.json",
   "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6",
   "productFreeze": {
-    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/writer/FREEZE_03.json",
-    "files": 54,
-    "sha256": "40eb968e389e1667e16f5b78c330ce170803095c37e09fa1a4beb6de37dd8b45"
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/writer/FREEZE_04.json",
+    "files": 55,
+    "sha256": "f0110febcb65dc7a708f4d1b641cf93ee8daf5a9e4811d7bffda7f1e0d66ac40"
   },
   "formalReview": {
     "maximumRounds": 2,
     "r1RootCauses": 4,
     "r2": "LAST_SECOND_ROUND_RESULT_IN_INDEPENDENT_REPORT"
+  },
+  "ciCorrection": {
+    "initialSource": "b50261ee942bb0d88f6cb2fae0377547846e0234",
+    "scope": "ONE_OLD_STRICT_PRELOAD_METHOD_LIST_EXPECTATION_AND_DIRECTED_SECURITY_GATE",
+    "product54Unchanged": true,
+    "security29Passed": true,
+    "formalThirdRound": false
   }
 }

@@ -1,0 +1,49 @@
+{
+  "schema": "mbrs006.initial-source-failure.v1",
+  "sourceCommit": "b50261ee942bb0d88f6cb2fae0377547846e0234",
+  "knownRootCause": "OLD_STRICT_PRELOAD_EXPECTATION_MISSING_APPROVED_FIXED_LOCAL_METHOD",
+  "security": {
+    "runId": 37424057832,
+    "jobId": 112139602679,
+    "counts": {
+      "tests": 29,
+      "pass": 28,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "actualLog": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/SECURITY_SOURCE_FAILURE.log",
+      "bytes": 147240,
+      "sha256": "3ec14ccfd51411ac0276aa80849bcc71e92381a984d1cc4c4a9283adb7cabf51"
+    }
+  },
+  "workspace": {
+    "runId": 37424057858,
+    "jobId": 112139603137,
+    "counts": {
+      "tests": 4330,
+      "pass": 4327,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    "actualLog": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/VERIFY_INITIAL_SOURCE_FAILURE.log",
+      "bytes": 4306954,
+      "sha256": "69d000fff1b665283072abed20196651293715f1cdfb5dca11b51d289aa0525a"
+    }
+  },
+  "strictFix": {
+    "changedPath": "apps/desktop/test/preload.test.ts",
+    "sourceProductsUnchanged": true,
+    "newTaskTestCountUnchanged": 46,
+    "newGate": 569,
+    "existingNegativeAssertionsUnchanged": true
+  },
+  "oldCiReruns": 0,
+  "allWorkflowsTerminal": "RESOLVED_LATER_IN_FINAL_RECEIPT",
+  "artifactContentDownloaded": false
+}

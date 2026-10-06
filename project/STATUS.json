@@ -45912,7 +45912,7 @@
   },
   "postRustLocalAudioInput20261006": {
     "task": "MBRS-006",
-    "state": "LOCAL_SOFTWARE_PASS_PENDING_SOURCE_AND_REPORT_CI_WITH_LIVE_CARRYOVER",
+    "state": "CORRECTED_LOCAL_SOFTWARE_PASS_NEW_SOURCE_CI_PENDING",
     "branch": "codex/mbrs-006-local-audio-input",
     "baseFinalReportCommit": "cce8594f4b6e9872afd576bb1b032f526c93af72",
     "implementationCommit": null,
@@ -45932,9 +45932,9 @@
     "validation": {
       "status": "LOCAL_TARGETED_SOFTWARE_PASS",
       "frozenInstallExitCode": 0,
-      "functionalTests": 540,
+      "functionalTests": 569,
       "newTaskTests": 46,
-      "inheritedRegressionTests": 494,
+      "inheritedRegressionTests": 523,
       "gateStages": 11,
       "freshOutputs": 28,
       "declaredInputs": 1175,
@@ -45951,20 +45951,24 @@
       "openP1P2": 0,
       "evidence": "docs/postrust/MBRS-006/evidence/local-software-checks.json"
     },
-    "implementationCommitResolution": "git log -1 --format=%H -- packages/bridge-core/test/local-playback.test.ts",
+    "implementationCommitResolution": "git log -1 --format=%H -- scripts/ci/mbrs006-local-playback-scope.json",
     "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-006_LOCAL_AUDIO_INPUT.md",
     "report": "reports/MBRS-006_LOCAL_AUDIO_INPUT.md",
     "evidence": "reports/MBRS-006_EVIDENCE.json",
     "push": "NOT_YET_SOURCE_COMMIT_PUSH",
     "ci": {
-      "sourceStatus": "NOT_YET_SOURCE_COMMIT_PUSH",
-      "reportStatus": "NOT_YET_SEPARATE_REPORT"
+      "initialSourceCommit": "b50261ee942bb0d88f6cb2fae0377547846e0234",
+      "initialFailurePreserved": true,
+      "sourceStatus": "CORRECTED_SOURCE_NOT_YET_PUSHED",
+      "reportStatus": "NOT_YET_SEPARATE_REPORT",
+      "reruns": 0
     },
     "mainMerge": "NOT_AUTHORIZED",
     "release": "NOT_AUTHORIZED",
-    "updatedAt": "2026-10-06T06:28:21.318735+00:00",
+    "updatedAt": "2026-10-06T06:47:04.568897+00:00",
     "finalDeliveryReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/FINAL_DELIVERY_RECEIPT.json",
     "nextTask": "MBRS-007",
-    "nextBranchBaseline": "最终独立报告HEAD，不从实现提交接续"
+    "nextBranchBaseline": "最终独立报告HEAD，不从实现提交接续",
+    "initialImplementationCommit": "b50261ee942bb0d88f6cb2fae0377547846e0234"
   }
 }
