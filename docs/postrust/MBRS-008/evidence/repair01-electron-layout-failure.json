@@ -1,0 +1,38 @@
+{
+  "schema": "mbrs008.repair01-electron-layout-failure.v1",
+  "at": "2026-10-06T14:31:55.207750+00:00",
+  "sourceCommit": "8d9814311a2c7cae8801847a062dd6a7cfd9388c",
+  "runId": 37475813525,
+  "jobId": 112310793834,
+  "actualLog": {
+    "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/SOURCE_REPAIR_01_ELECTRON_FAILED.log",
+    "bytes": 169800,
+    "sha256": "aac3e77a80e8db8b781bc8e323ef311f24b1cae51bc2213f78f748811c69784a",
+    "exitCode": 0,
+    "jobConclusion": "failure"
+  },
+  "electron": {
+    "passed": 103,
+    "failed": 1,
+    "originalConditionalSkipped": 4
+  },
+  "failedCase": "v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation",
+  "failedAssertion": "normal transport-controls bottom <= window.innerHeight + 1",
+  "actual": {
+    "viewportHeight": 608,
+    "allowedBottom": 609,
+    "observedBottom": 629.125
+  },
+  "rootCause": "音质四段详情沿用默认p外边距，打开详情增加固有高度",
+  "repair": "原NowPlaying只为详情增加专属class及scoped grid 4px gap/margin-bottom12px/p margin0；保留所有证据文字、按钮、条件与尺寸assert",
+  "productChangedFromCandidate": {
+    "apps/desktop/src/renderer/src/components/NowPlayingView.vue": {
+      "candidateSha256": "e4350e06ffe6336960b92bda495f25d57b39b799593ae59be09d73ef784cf6a6",
+      "currentSha256": "2dae25dfb4a3c097809bb9cb36826b4f5b0da035faa7bdb637fe1543ceb906a6"
+    }
+  },
+  "product20Unchanged": true,
+  "gateAndGreen": "PENDING",
+  "ordinaryAppRealAudioOwner": "NOT_RUN",
+  "noRerunCancel": true
+}

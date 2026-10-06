@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-06T14:39:55.955134+00:00",
+  "sourceCommit": "dbcfa7bba96f513bd272dd6517ba8ec0351c8ae1",
+  "phase": "POST_COMMIT_FRESH_OUTPUT_IDENTITY_BEFORE_FINAL_BINDING",
+  "exitCode": 1,
+  "source1224InputsStillMatchCommittedCandidate": true,
+  "drift": [
+    {
+      "path": "packages/bridge-core/dist/library/metadata-reader-worker.bundle.build.json",
+      "gateSha256": "a933f5ac14c996716dddd26eb7282a9d0fa6593bd6cf168f618633e6fd68a670",
+      "afterProductionBuildSha256": "bc90d08bab7c387efadfb76219fba696db6b7bd9fb64413514ea470c59a1c1cd"
+    }
+  ],
+  "reason": "后续必要production构建重建Worker生成产物，Gate03产物当前hash不再一致，拒绝升级身份",
+  "resolution": "在当前精确已提交源上运行同预算/同370 Gate04；保持Gate03与生产/界面通过历史原件；不再构建覆盖Gate04产物"
+}

@@ -1,0 +1,50 @@
+{
+  "schema": "mbrs008.bounded-ci-execution-source.v1",
+  "at": "2026-10-06T16:00:38.968063+00:00",
+  "sourceCommit": "186694e105f8ace61d33b48cfc25710dff419632",
+  "parentSourceCommit": "dbcfa7bba96f513bd272dd6517ba8ec0351c8ae1",
+  "branch": "codex/mbrs-008-audio-transparency",
+  "paths": [
+    "project/POSTRUST_TODO.md",
+    "project/STATUS.json",
+    "scripts/ci/test/verify-mbrs007-queue.test.mjs",
+    "scripts/ci/verify-mbrs007-queue.mjs",
+    "scripts/ci/verify-mbrs008-audio.mjs"
+  ],
+  "files": [
+    {
+      "path": "project/POSTRUST_TODO.md",
+      "sha256": "621203bd4a12bac0bcdf3199fef5ffbbccd78e8ad3b061517abb233e09ffed6b"
+    },
+    {
+      "path": "project/STATUS.json",
+      "sha256": "15e6c695033769799d458f408dbe346b1c1d016ce39b908aa8a0b094d38f005d"
+    },
+    {
+      "path": "scripts/ci/test/verify-mbrs007-queue.test.mjs",
+      "sha256": "616438d4875488f7f9abc1cdddbaa56cb4518bf7f8526b1a18472f58ff4b64c9"
+    },
+    {
+      "path": "scripts/ci/verify-mbrs007-queue.mjs",
+      "sha256": "c9d8c1d1605ea08b2754e6058440940dbcede505b3b0c90f44c81a8adee94471"
+    },
+    {
+      "path": "scripts/ci/verify-mbrs008-audio.mjs",
+      "sha256": "c00e66b3c5ce423352bdfdc79be458b973d9b8a695ec5569b579cfb039cc4527"
+    }
+  ],
+  "original007ScopeTests": 963,
+  "original007BudgetsMs": [
+    180000,
+    360000
+  ],
+  "gate008Tests": 370,
+  "gate008DeclaredInputsPendingFreshRun": 1226,
+  "controlledRuleTests": 30,
+  "rootSoleRepairWriter": true,
+  "formalR3": false,
+  "product21UnchangedFromParent": true,
+  "normalCommit": true,
+  "push": "PENDING",
+  "freshCommitted008Binding": "PENDING"
+}

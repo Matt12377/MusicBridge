@@ -1,0 +1,57 @@
+{
+  "schema": "mbrs008.public-ci-producer-metadata.v1",
+  "capturedAt": "2026-10-06T13:49:15.181815+00:00",
+  "repository": "Matt12377/MusicBridge",
+  "repositoryId": 1340424953,
+  "headSha": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+  "allCompleteSuccess": false,
+  "allTerminal": true,
+  "artifactContentDownloaded": false,
+  "runs": [
+    {
+      "id": 37471103808,
+      "path": ".github/workflows/security.yml",
+      "head_sha": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+      "head_branch": "codex/mbrs-008-audio-transparency",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37471103808"
+    },
+    {
+      "id": 37471103770,
+      "path": ".github/workflows/verify.yml",
+      "head_sha": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+      "head_branch": "codex/mbrs-008-audio-transparency",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "failure",
+      "run_attempt": 1,
+      "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37471103770"
+    },
+    {
+      "id": 37471103889,
+      "path": ".github/workflows/rust-core.yml",
+      "head_sha": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+      "head_branch": "codex/mbrs-008-audio-transparency",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37471103889"
+    },
+    {
+      "id": 37471103983,
+      "path": ".github/workflows/electron-e2e.yml",
+      "head_sha": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+      "head_branch": "codex/mbrs-008-audio-transparency",
+      "event": "push",
+      "status": "completed",
+      "conclusion": "failure",
+      "run_attempt": 1,
+      "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37471103983"
+    }
+  ],
+  "proofs": []
+}

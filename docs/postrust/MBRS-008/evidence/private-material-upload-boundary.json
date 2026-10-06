@@ -1,0 +1,15 @@
+{
+  "schema": "mbrs008.private-material-upload-boundary.v1",
+  "at": "2026-10-06T14:12:34.158163+00:00",
+  "sourceCommit": "8d9814311a2c7cae8801847a062dd6a7cfd9388c",
+  "newTrackedAudioFiles": [],
+  "newWaveOraclePrivate": true,
+  "waveBytes": 8236,
+  "waveSha256": "d97a71e8c22c573cbd49e3da2456d6d018cdd7921b6694ad907aea199c87a76d",
+  "ssrOutputsPrivateTmpExcluded": 2,
+  "newStandardPreparationRootInsideApprovedTmp": true,
+  "workflowUploadExcludesAllTemporarySubtrees": true,
+  "artifactContentDownloaded": false,
+  "initialCheckDisposition": "RELATIVE_PREFIX_COMPARISON_PREPARATION_ERROR_CORRECTED_TO_ABSOLUTE_ROOT_NOT_UPLOAD_FAILURE",
+  "evidenceScope": "STATIC_PATH_EXCLUSION_AND_ACTUAL_LOCAL_PRIVATE_OBJECT_IDENTITY_NOT_REMOTE_ARTIFACT_CONTENT"
+}

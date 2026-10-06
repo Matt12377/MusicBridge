@@ -1,0 +1,48 @@
+{
+  "schema": "mbrs008.deferred-mobile-successor.v1",
+  "oldCandidateSha256": "28bd12d7404504f11d1ada5a21fd64cd84fc8288a48213a0cb995d88b24005b7",
+  "base": "5f5938b69b1f47e4ebb919f7a6476b9d4dc78b50",
+  "implementation": "558f3456794e9e208195528a6a0fd7d154275662",
+  "report": "2991df3eb1989519260dc0411179afaa1de2d57c",
+  "branch": "codex/ios-personal-favorites-audit",
+  "parentChainLocallyVerified": true,
+  "files": [
+    {
+      "file": "Contracts/proposals/UI_V39.openapi.json",
+      "bytes": 50478,
+      "sha256": "cb970a8017908058b9fefb18324261723b5dfd42622697540af50fe6291b43a4",
+      "sourceAndReportBytesSame": true
+    },
+    {
+      "file": "docs/integration/UI_V39_CONTROL_COVERAGE.json",
+      "bytes": 30359,
+      "sha256": "fbb7deae2744f4ea79f2c850d2875769f91d92a00e40808100f30926800489bb",
+      "sourceAndReportBytesSame": true
+    }
+  ],
+  "candidateInfoVersion": "1.2.0",
+  "operationCount": 11,
+  "operations": [
+    "getUIContentCapabilities",
+    "listRecentlyAddedAlbums",
+    "getNeteaseDailyRecommendations",
+    "getExactTrackLyrics",
+    "getNeteaseLikedPlaylist",
+    "listNeteaseLikedPlaylistTracks",
+    "listFavoriteAlbums",
+    "getFavoriteAlbumState",
+    "setAlbumFavorite",
+    "listFavoriteAlbumTracks",
+    "setTrackFavorite"
+  ],
+  "macAdoption": "PENDING_MBM000_AFTER_MBRS017",
+  "ownerLiveBackendAudio": "NOT_VERIFIED_THIS_TASK",
+  "doesNotReplace008OriginalTaskAndAt": true,
+  "remoteVerified": {
+    "ref": "refs/heads/codex/ios-personal-favorites-audit",
+    "sha": "2991df3eb1989519260dc0411179afaa1de2d57c",
+    "commandExit": 0,
+    "method": "READONLY_GIT_LS_REMOTE",
+    "at": "2026-10-06T13:39:42.261569+00:00"
+  }
+}

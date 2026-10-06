@@ -46061,10 +46061,10 @@
   },
   "postRustAudioTransparency20261006": {
     "task": "MBRS-008",
-    "state": "SOFTWARE_SOURCE_VALIDATED_REPORT_PENDING",
+    "state": "SOFTWARE_COMPLETE_SOURCE_CI_SUCCESS_WITH_LIVE_CARRYOVER",
     "branch": "codex/mbrs-008-audio-transparency",
     "baseFinalReportCommit": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
-    "implementationCommit": null,
+    "implementationCommit": "186694e105f8ace61d33b48cfc25710dff419632",
     "reportCommit": null,
     "taskScope": "FINITE_SOFTWARE_ONLY_REAL_LAYERS_PENDING",
     "executionScope": "docs/postrust/MBRS-008/EXECUTION_SCOPE.json",
@@ -46141,20 +46141,77 @@
         "exitCode": 0
       }
     },
-    "push": "BOUNDED_007_EXECUTION_REPAIR_SOURCE_PENDING_NORMAL_PUSH",
+    "push": "SOURCE_PUSH_SUCCESS_REPORT_PUSH_AND_TERMINAL_CI_RESOLVED_IN_FINAL_RECEIPT",
     "ci": {
-      "initialSourceCommit": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
-      "initialSource": "VERIFY_PREPARATION_AND_TWO_OLD_E2E_SELECTORS_FAILED_RETAINED",
-      "newSource": "PENDING_BOUNDED_007_EXECUTION_REPAIR_COMMIT_AND_NEW_NATURAL_CI",
-      "rerunCancel": false,
+      "sourceStatus": "FOUR_WORKFLOWS_SIX_JOBS_COMPLETE_SUCCESS",
+      "sourceCommit": "186694e105f8ace61d33b48cfc25710dff419632",
+      "sourceSnapshot": "docs/postrust/MBRS-008/evidence/source-ci-terminal.json",
+      "initialSourceFailureRetained": true,
+      "reruns": 0,
+      "reportStatus": "PENDING_AT_REPORT_COMMIT_FINAL_RECEIPT_IS_AUTHORITATIVE",
       "firstRepairSourceCommit": "8d9814311a2c7cae8801847a062dd6a7cfd9388c",
-      "firstRepairSource": "FULL_CORE_PASS_OLD_RENDERER_GUARD_AND_QUALITY_LAYOUT_E2E_FAILED_RETAINED",
       "secondRepairSourceCommit": "dbcfa7bba96f513bd272dd6517ba8ec0351c8ae1",
-      "secondRepairSource": "FULL_WORKSPACE_AND_ELECTRON_PASS_007_REGRESSION_STAGE_TIMEOUT_008_STEP_SKIPPED_RETAINED"
+      "allThreeFailedSourceAttemptsRetained": true,
+      "finalCommittedSourceLocalGate": {
+        "schema": "mbrs008.final-committed-source-local-gate-summary.v1",
+        "at": "2026-10-06T16:04:12.179205+00:00",
+        "sourceCommit": "186694e105f8ace61d33b48cfc25710dff419632",
+        "manifest": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/gate-final-05/manifest.json",
+          "bytes": 255821,
+          "sha256": "e55f4b81b7814c7a04a5442945486e8a104d49791e8229d940448a640fc86a09"
+        },
+        "success": true,
+        "inputs": 1226,
+        "freshOutputs": 38,
+        "freshUiOutputs": 2,
+        "privateTestBindings": 3,
+        "stages": 11,
+        "tests": 370,
+        "new": 36,
+        "regression": 334,
+        "counts": [
+          {
+            "tests": 263,
+            "pass": 263,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 58,
+            "pass": 58,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          {
+            "tests": 49,
+            "pass": 49,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        ],
+        "budget": {
+          "totalLimitMs": 360000,
+          "stageLimitMs": 180000,
+          "elapsedMs": 59040.481709,
+          "clock": "MONOTONIC_PERFORMANCE"
+        },
+        "sourceInputsCurrentlyUnchanged": true,
+        "priorGeneratedBuildIdentityDriftRetained": "FINAL_OUTPUT_BINDING_AFTER_PRODUCTION_BUILD_FAILURE.json",
+        "claim": "SOFTWARE_ONLY_NOT_REAL_ROON_OR_ORDINARY_APP"
+      },
+      "hosted007RegressionRepair": "PASS_ON_EXACT_FINAL_SOURCE_CI",
+      "sourcePhaseValidationPreservedAsHistory": true
     },
     "mainMerge": "NOT_AUTHORIZED",
     "release": "NOT_AUTHORIZED",
-    "updatedAt": "2026-10-06T15:59:53.974374+00:00",
+    "updatedAt": "2026-10-06T16:31:32.074317+00:00",
     "softwareValidation": {
       "targetedTests": 370,
       "new": 36,
@@ -46170,8 +46227,11 @@
       "actualVueSsrScenes": 2
     },
     "releaseClaim": "SOFTWARE_ONLY_NOT_CORE_READY",
-    "evidence": {
-      "localSourcePhase": "ACTUAL_370_TARGETED_TYPES_FRESH_READER_CUE_AND_TWO_VUE_SSR_PASS"
-    }
+    "evidence": "reports/MBRS-008_EVIDENCE.json",
+    "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+    "report": "reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+    "finalDeliveryReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/FINAL_DELIVERY_RECEIPT.json",
+    "nextTask": "MBRS-009",
+    "nextBranchBaseline": "最终独立报告HEAD；报告身份按Git历史解析，不从实现提交接续"
   }
 }

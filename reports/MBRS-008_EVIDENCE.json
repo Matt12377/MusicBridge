@@ -1,0 +1,1510 @@
+{
+  "schema": "mbrs008.delivery-evidence.v1",
+  "task": "MBRS-008",
+  "baseFinalReportCommit": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+  "implementationCommit": "186694e105f8ace61d33b48cfc25710dff419632",
+  "initialSourceCommit": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+  "reportCommit": null,
+  "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+  "localSoftware": {
+    "schema": "mbrs008.local-software-evidence.v1",
+    "task": "MBRS-008",
+    "at": "2026-10-06T16:31:32.074317+00:00",
+    "baseSha": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+    "sourceCommit": "186694e105f8ace61d33b48cfc25710dff419632",
+    "functionalTests": 370,
+    "newTaskTests": 36,
+    "inheritedRegressionTests": 334,
+    "groups": [
+      263,
+      58,
+      49
+    ],
+    "gateStages": 11,
+    "declaredInputs": 1226,
+    "freshCompiledOutputs": 38,
+    "actualVueSsrScenes": 2,
+    "privateReaderCueUiBindings": 3,
+    "gateManifest": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/gate-final-05/manifest.json",
+      "bytes": 255821,
+      "sha256": "e55f4b81b7814c7a04a5442945486e8a104d49791e8229d940448a640fc86a09"
+    },
+    "gateSummary": {
+      "schema": "mbrs008.final-committed-source-local-gate-summary.v1",
+      "at": "2026-10-06T16:04:12.179205+00:00",
+      "sourceCommit": "186694e105f8ace61d33b48cfc25710dff419632",
+      "manifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/gate-final-05/manifest.json",
+        "bytes": 255821,
+        "sha256": "e55f4b81b7814c7a04a5442945486e8a104d49791e8229d940448a640fc86a09"
+      },
+      "success": true,
+      "inputs": 1226,
+      "freshOutputs": 38,
+      "freshUiOutputs": 2,
+      "privateTestBindings": 3,
+      "stages": 11,
+      "tests": 370,
+      "new": 36,
+      "regression": 334,
+      "counts": [
+        {
+          "tests": 263,
+          "pass": 263,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 58,
+          "pass": 58,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 49,
+          "pass": 49,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ],
+      "budget": {
+        "totalLimitMs": 360000,
+        "stageLimitMs": 180000,
+        "elapsedMs": 59040.481709,
+        "clock": "MONOTONIC_PERFORMANCE"
+      },
+      "sourceInputsCurrentlyUnchanged": true,
+      "priorGeneratedBuildIdentityDriftRetained": "FINAL_OUTPUT_BINDING_AFTER_PRODUCTION_BUILD_FAILURE.json",
+      "claim": "SOFTWARE_ONLY_NOT_REAL_ROON_OR_ORDINARY_APP"
+    },
+    "runnerRuleCounts": {
+      "groups": {
+        "tests": [
+          22
+        ],
+        "pass": [
+          22
+        ],
+        "fail": [
+          0
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ],
+        "todo": [
+          0
+        ]
+      },
+      "totals": {
+        "tests": 22,
+        "pass": 22,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    "checks": [
+      {
+        "label": "root-audio-gate-final-05",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-audio-gate-final-05/result.json",
+          "bytes": 873,
+          "sha256": "3e46ef2fd1d177c594666aa4721cce7ba7836f4bfb2380aa09d2d48ee25b9083"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-audio-gate-final-05/output.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "label": "root-queue-execution-rules-green-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-queue-execution-rules-green-01/result.json",
+          "bytes": 946,
+          "sha256": "7e4912f5df2923aeb9c06d6c2b87b205a7efa1529bb51feada9f806386104397"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-queue-execution-rules-green-01/output.log",
+          "bytes": 5833,
+          "sha256": "f3e3bf98435f8c314f424a985747b3aa5d50f6895909e3d859b2e36af6a7dddd"
+        }
+      },
+      {
+        "label": "root-queue-original-scope-parallel-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-queue-original-scope-parallel-01/result.json",
+          "bytes": 917,
+          "sha256": "0a47b4b1744709bc1fbc6ecdad365fb7cd21f470c6ea8117a85ffd7d704597e9"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-queue-original-scope-parallel-01/output.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      {
+        "label": "root-renderer-regression-green-02",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-renderer-regression-green-02/result.json",
+          "bytes": 857,
+          "sha256": "3892b284bb0e31702ba10fd403f16d447650f1fdbf0af82224a506c81f7ad8f9"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-renderer-regression-green-02/output.log",
+          "bytes": 8438,
+          "sha256": "8a9ab6246f7e632799a1ead83f06e3cae1d54bfdbaf3c1c5d2072de8c79b5130"
+        }
+      },
+      {
+        "label": "root-ci-preparation-runner-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-ci-preparation-runner-01/result.json",
+          "bytes": 897,
+          "sha256": "63312acf3c8443f5ec04777c3ec5f61d3600f9298074285d54fddd0817752069"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-ci-preparation-runner-01/output.log",
+          "bytes": 4193,
+          "sha256": "7e9a654b0a41aa4821edf504bedc6f7f8cf6191fc307458e140c26fca88f8750"
+        }
+      },
+      {
+        "label": "root-standard-reader-preparation-repair-01",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-standard-reader-preparation-repair-01/result.json",
+          "bytes": 915,
+          "sha256": "cf53c47d1b85abc9c12336129a636f68863a5edbb91ba89fdbe6c8895005ad1e"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-standard-reader-preparation-repair-01/output.log",
+          "bytes": 1915,
+          "sha256": "03a025d5497889e9a1975e0f53810efaa24d616fa945de40dfff1a043a6b68da"
+        }
+      },
+      {
+        "label": "root-production-build-final-03",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-production-build-final-03/result.json",
+          "bytes": 834,
+          "sha256": "87dedf8fc16c044ae55a40f36bdfcc75c90734e0856cb1c64883c28fc8e5cc9a"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-production-build-final-03/output.log",
+          "bytes": 3693,
+          "sha256": "47ccdab5d3b6b4bfcc937a4d79feaa0706a9763ea3f8da72f72706fa13f9d4d9"
+        }
+      },
+      {
+        "label": "root-electron-layout-green-02",
+        "exitCode": 0,
+        "result": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-electron-layout-green-02/result.json",
+          "bytes": 831,
+          "sha256": "5bdec9a68080a230cf1f4650d603b432ebe1c0e4333778516efea8fdcc23ab64"
+        },
+        "log": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-electron-layout-green-02/output.log",
+          "bytes": 1167,
+          "sha256": "2dc6c550353aaebbcb34747d3b608d6a2af5baf882517ad29b849d6da814f9d1"
+        }
+      }
+    ],
+    "declaredGitBlobBinding": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/DELIVERY_SOURCE_INPUT_BLOB_BINDING.json",
+      "bytes": 434582,
+      "sha256": "4faf15469f7c3aeb3068c2d4010174eb6d915577bbdefd24ea577d6d6e55147e"
+    },
+    "sourceRepairIdentity": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/SOURCE_EXECUTION_REPAIR_IDENTITY.json",
+      "bytes": 1607,
+      "sha256": "6d2bc823f07c2b061102372c52447e9a910cb01a04a976c2c345f24aabeaa589"
+    },
+    "committedSourceFreshGate": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/DELIVERY_COMMITTED_SOURCE_LOCAL_GATE_SUMMARY.json",
+      "bytes": 1328,
+      "sha256": "f4de216a0a0bc06eeb09032887ecaa08dd06cafc0de0115969c6683a81cd183a"
+    },
+    "previousCiEntryRepairIdentity": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/SOURCE_REPAIR_IDENTITY.json",
+      "bytes": 3411,
+      "sha256": "d51037c2abc8ffac623e5b94d15cd874f454360ac8bdde001973e0822d1659a6"
+    },
+    "boundedQueueExecutionRepair": {
+      "schema": "mbrs008.bounded-007-execution-repair.v1",
+      "at": "2026-10-06T15:59:53.974374+00:00",
+      "parentSourceCommit": "dbcfa7bba96f513bd272dd6517ba8ec0351c8ae1",
+      "sourceIdentityScope": "DECLARED_SOURCE_INPUTS_NOT_TRANSITIVE_CLOSURE",
+      "changedGroup": "core-affected-regression",
+      "processConcurrency": 2,
+      "originalScope": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checkout/scripts/ci/mbrs007-queue-scope.json",
+        "bytes": 5194,
+        "sha256": "4332eb3a64f5f9170e9b6b678e2862f8403398c2c6120c47cb3e40fbb63983df"
+      },
+      "scopeFiles": 53,
+      "tests": 963,
+      "scopePathsAndCountContractUnchanged": true,
+      "originalBudgets": {
+        "totalLimitMs": 360000,
+        "stageLimitMs": 180000,
+        "elapsedMs": 132952.59325,
+        "clock": "MONOTONIC_PERFORMANCE"
+      },
+      "stageCount": 11,
+      "actualGroups": [
+        {
+          "name": "core-mb-queue",
+          "directory": "packages/bridge-core",
+          "expectedTests": 41,
+          "testConcurrency": 1,
+          "startedAt": "2026-10-06T15:55:45.964Z",
+          "startedMs": 1791302145964,
+          "limitMs": 180000,
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "timedOut": false,
+          "overflow": false,
+          "captureFailed": false,
+          "preparationFailed": false,
+          "groupTerminationFailed": false,
+          "captureCompletedAt": "2026-10-06T15:55:55.053Z",
+          "rawSha256": "88d19fcb7e33de17044f16f799a3326c8f55af604fb6446aa06fc28637222917",
+          "durationMs": 9088.711917,
+          "testCounts": {
+            "tests": 41,
+            "pass": 41,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          "testSummaryValid": true,
+          "log": "core-mb-queue.log",
+          "logSha256": "697d0dc450c04b3e13c727f5c2c4ae8cdc7e36523226094e21f87e26930b0571",
+          "success": true
+        },
+        {
+          "name": "core-affected-regression",
+          "directory": "packages/bridge-core",
+          "expectedTests": 733,
+          "testConcurrency": 2,
+          "startedAt": "2026-10-06T15:55:55.054Z",
+          "startedMs": 1791302155054,
+          "limitMs": 180000,
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "timedOut": false,
+          "overflow": false,
+          "captureFailed": false,
+          "preparationFailed": false,
+          "groupTerminationFailed": false,
+          "captureCompletedAt": "2026-10-06T15:57:18.833Z",
+          "rawSha256": "8c1adfe9dae7cc4ab001c4102bf09cbffe2a5f0bc88dcaa331a6ed31336afbca",
+          "durationMs": 83780.513833,
+          "testCounts": {
+            "tests": 733,
+            "pass": 733,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          "testSummaryValid": true,
+          "log": "core-affected-regression.log",
+          "logSha256": "a202a118136a57dd4680a7849c340ac3815d315f6e57569579ea13fd87a19464",
+          "success": true
+        },
+        {
+          "name": "contracts-queue-identity",
+          "directory": "packages/contracts",
+          "expectedTests": 66,
+          "testConcurrency": 1,
+          "startedAt": "2026-10-06T15:57:18.837Z",
+          "startedMs": 1791302238837,
+          "limitMs": 180000,
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "timedOut": false,
+          "overflow": false,
+          "captureFailed": false,
+          "preparationFailed": false,
+          "groupTerminationFailed": false,
+          "captureCompletedAt": "2026-10-06T15:57:19.976Z",
+          "rawSha256": "b5e56e54cf06c731d406e1c6d413b2aa623c6f02d0d1306edd53371b56c441b6",
+          "durationMs": 1139.5694999999978,
+          "testCounts": {
+            "tests": 66,
+            "pass": 66,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          "testSummaryValid": true,
+          "log": "contracts-queue-identity.log",
+          "logSha256": "226e043bf8f8e6a0efe09231c09e8dcafdbe3366655c429b50724a2458f55482",
+          "success": true
+        },
+        {
+          "name": "desktop-queue-consumer",
+          "directory": "apps/desktop",
+          "expectedTests": 123,
+          "testConcurrency": 1,
+          "startedAt": "2026-10-06T15:57:19.977Z",
+          "startedMs": 1791302239977,
+          "limitMs": 180000,
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "timedOut": false,
+          "overflow": false,
+          "captureFailed": false,
+          "preparationFailed": false,
+          "groupTerminationFailed": false,
+          "captureCompletedAt": "2026-10-06T15:57:25.985Z",
+          "rawSha256": "04251b9967d9e2e827704ab99393bb54b76df68491aa43e7dcd0a9cefda559e9",
+          "durationMs": 6008.31629100001,
+          "testCounts": {
+            "tests": 123,
+            "pass": 123,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          "testSummaryValid": true,
+          "log": "desktop-queue-consumer.log",
+          "logSha256": "bf533111490e8e4b93e719fca8fac377701cf0e2999bd75fe448e72f8438801b",
+          "success": true
+        }
+      ],
+      "actualGateManifest": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/gate-queue-execution-repair-01/manifest.json",
+        "bytes": 256088,
+        "sha256": "1055d79a0cdb21eda46830fcf4edf5f91290dc5baa3a6ff453d16820e0143028"
+      },
+      "actualGateCommand": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-queue-original-scope-parallel-01/result.json",
+        "bytes": 917,
+        "sha256": "0a47b4b1744709bc1fbc6ecdad365fb7cd21f470c6ea8117a85ffd7d704597e9"
+      },
+      "controlledRed": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/REPAIR02_007_CONTROLLED_RED_AND_PREPARATION_FAILURE.json",
+        "bytes": 2190,
+        "sha256": "f1510deb7ad2004477d92f4f59c207fe8ddc07a990bb7abe4e6eb047a95cd209"
+      },
+      "actualThirtyRulesAndProcessIsolation": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-queue-execution-rules-green-01/result.json",
+        "bytes": 946,
+        "sha256": "7e4912f5df2923aeb9c06d6c2b87b205a7efa1529bb51feada9f806386104397"
+      },
+      "staticScanOnlyNotProcessProof": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/REPAIR02_007_PROCESS_ISOLATION_SCAN.json",
+        "bytes": 37204,
+        "sha256": "4c4c0ec080f56a9f9fd6eb70874b7d1d67902625d5ac1b30f1ae72327b75b54e"
+      },
+      "originalStopFullCoreIsolationUnchanged": true,
+      "product21UnchangedFromParent": true,
+      "allActualCountsCompleteNoSkipCancelTodo": true,
+      "formalR3": false,
+      "rootSelfReview": "ONLY_NAMED_CORE_GROUP_TWO_PROCESSES_OTHER_GROUPS_ONE_ORIGINAL_TERMINATION_OUTPUT_CAPTURE_AND_COMPLETE_TAP_GATES_PRESERVED",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realServicesOrdinaryAppOwner": "NOT_RUN"
+    },
+    "queuePrecommitFinalSourceBlobBinding": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/QUEUE_PRECOMMIT_FINAL_SOURCE_BLOB_BINDING.json",
+      "bytes": 359076,
+      "sha256": "e45f3656a37150dd5a305f361b34639efe8446db7d100e594a62e3b32650abc8"
+    },
+    "ordinaryApp": "NOT_RUN",
+    "realRoonLanNasAudio": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "notClaimed": [
+      "TRANSITIVE_DEPENDENCY_CLOSURE",
+      "ALL_FORMAT_AUDIOINPUT_SUPPORT",
+      "END_TO_END_BIT_EXACT",
+      "CORE_READY"
+    ]
+  },
+  "sourceCi": {
+    "schema": "mbrs008.public-ci-producer-metadata.v1",
+    "capturedAt": "2026-10-06T16:30:01.341666+00:00",
+    "repository": "Matt12377/MusicBridge",
+    "repositoryId": 1340424953,
+    "headSha": "186694e105f8ace61d33b48cfc25710dff419632",
+    "allCompleteSuccess": true,
+    "allTerminal": true,
+    "artifactContentDownloaded": false,
+    "runs": [
+      {
+        "id": 37492861402,
+        "path": ".github/workflows/security.yml",
+        "head_sha": "186694e105f8ace61d33b48cfc25710dff419632",
+        "head_branch": "codex/mbrs-008-audio-transparency",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37492861402"
+      },
+      {
+        "id": 37492861758,
+        "path": ".github/workflows/rust-core.yml",
+        "head_sha": "186694e105f8ace61d33b48cfc25710dff419632",
+        "head_branch": "codex/mbrs-008-audio-transparency",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37492861758"
+      },
+      {
+        "id": 37492861368,
+        "path": ".github/workflows/verify.yml",
+        "head_sha": "186694e105f8ace61d33b48cfc25710dff419632",
+        "head_branch": "codex/mbrs-008-audio-transparency",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37492861368"
+      },
+      {
+        "id": 37492861659,
+        "path": ".github/workflows/electron-e2e.yml",
+        "head_sha": "186694e105f8ace61d33b48cfc25710dff419632",
+        "head_branch": "codex/mbrs-008-audio-transparency",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37492861659"
+      }
+    ],
+    "proofs": [
+      {
+        "runId": 37492861402,
+        "jobs": [
+          {
+            "id": 112369785770,
+            "name": "static-security",
+            "run_id": 37492861402,
+            "head_sha": "186694e105f8ace61d33b48cfc25710dff419632",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1,
+                "started_at": "2026-10-06T16:05:06Z",
+                "completed_at": "2026-10-06T16:05:07Z"
+              },
+              {
+                "name": "Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2,
+                "started_at": "2026-10-06T16:05:07Z",
+                "completed_at": "2026-10-06T16:05:10Z"
+              },
+              {
+                "name": "Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3,
+                "started_at": "2026-10-06T16:05:10Z",
+                "completed_at": "2026-10-06T16:05:10Z"
+              },
+              {
+                "name": "Install frozen workspace",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4,
+                "started_at": "2026-10-06T16:05:10Z",
+                "completed_at": "2026-10-06T16:05:17Z"
+              },
+              {
+                "name": "Validate machine control state",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5,
+                "started_at": "2026-10-06T16:05:17Z",
+                "completed_at": "2026-10-06T16:05:17Z"
+              },
+              {
+                "name": "Run boundary, loopback, secret and URL/query scans",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6,
+                "started_at": "2026-10-06T16:05:17Z",
+                "completed_at": "2026-10-06T16:05:17Z"
+              },
+              {
+                "name": "Scan workspace import cycles",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7,
+                "started_at": "2026-10-06T16:05:17Z",
+                "completed_at": "2026-10-06T16:05:17Z"
+              },
+              {
+                "name": "Run directed platform-independent security tests (no Electron)",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8,
+                "started_at": "2026-10-06T16:05:17Z",
+                "completed_at": "2026-10-06T16:05:25Z"
+              },
+              {
+                "name": "Post Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15,
+                "started_at": "2026-10-06T16:05:25Z",
+                "completed_at": "2026-10-06T16:05:26Z"
+              },
+              {
+                "name": "Post Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 16,
+                "started_at": "2026-10-06T16:05:26Z",
+                "completed_at": "2026-10-06T16:05:26Z"
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 17,
+                "started_at": "2026-10-06T16:05:26Z",
+                "completed_at": "2026-10-06T16:05:26Z"
+              }
+            ]
+          }
+        ],
+        "artifacts": []
+      },
+      {
+        "runId": 37492861758,
+        "jobs": [
+          {
+            "id": 112369786782,
+            "name": "rust-core (macos-latest)",
+            "run_id": 37492861758,
+            "head_sha": "186694e105f8ace61d33b48cfc25710dff419632",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1,
+                "started_at": "2026-10-06T16:05:08Z",
+                "completed_at": "2026-10-06T16:05:09Z"
+              },
+              {
+                "name": "Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2,
+                "started_at": "2026-10-06T16:05:09Z",
+                "completed_at": "2026-10-06T16:05:12Z"
+              },
+              {
+                "name": "Run actions/setup-node@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3,
+                "started_at": "2026-10-06T16:05:12Z",
+                "completed_at": "2026-10-06T16:05:12Z"
+              },
+              {
+                "name": "准备真实hosted专用构建根",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4,
+                "started_at": "2026-10-06T16:05:12Z",
+                "completed_at": "2026-10-06T16:05:12Z"
+              },
+              {
+                "name": "安装固定 Rust 工具链",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5,
+                "started_at": "2026-10-06T16:05:12Z",
+                "completed_at": "2026-10-06T16:05:19Z"
+              },
+              {
+                "name": "安装冻结工作区依赖",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6,
+                "started_at": "2026-10-06T16:05:19Z",
+                "completed_at": "2026-10-06T16:05:24Z"
+              },
+              {
+                "name": "验证实际 Rust 与 TypeScript 边界",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7,
+                "started_at": "2026-10-06T16:05:24Z",
+                "completed_at": "2026-10-06T16:08:44Z"
+              },
+              {
+                "name": "保留编译器、测试及源码与二进制清单",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8,
+                "started_at": "2026-10-06T16:08:44Z",
+                "completed_at": "2026-10-06T16:08:46Z"
+              },
+              {
+                "name": "Post Run actions/setup-node@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15,
+                "started_at": "2026-10-06T16:08:46Z",
+                "completed_at": "2026-10-06T16:08:46Z"
+              },
+              {
+                "name": "Post Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 16,
+                "started_at": "2026-10-06T16:08:46Z",
+                "completed_at": "2026-10-06T16:08:47Z"
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 17,
+                "started_at": "2026-10-06T16:08:47Z",
+                "completed_at": "2026-10-06T16:08:48Z"
+              }
+            ]
+          },
+          {
+            "id": 112369787344,
+            "name": "rust-core (ubuntu-latest)",
+            "run_id": 37492861758,
+            "head_sha": "186694e105f8ace61d33b48cfc25710dff419632",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1,
+                "started_at": "2026-10-06T16:05:06Z",
+                "completed_at": "2026-10-06T16:05:07Z"
+              },
+              {
+                "name": "Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2,
+                "started_at": "2026-10-06T16:05:07Z",
+                "completed_at": "2026-10-06T16:05:09Z"
+              },
+              {
+                "name": "Run actions/setup-node@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3,
+                "started_at": "2026-10-06T16:05:09Z",
+                "completed_at": "2026-10-06T16:05:09Z"
+              },
+              {
+                "name": "准备真实hosted专用构建根",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4,
+                "started_at": "2026-10-06T16:05:09Z",
+                "completed_at": "2026-10-06T16:05:09Z"
+              },
+              {
+                "name": "安装固定 Rust 工具链",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5,
+                "started_at": "2026-10-06T16:05:09Z",
+                "completed_at": "2026-10-06T16:05:18Z"
+              },
+              {
+                "name": "安装冻结工作区依赖",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6,
+                "started_at": "2026-10-06T16:05:18Z",
+                "completed_at": "2026-10-06T16:05:23Z"
+              },
+              {
+                "name": "验证实际 Rust 与 TypeScript 边界",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7,
+                "started_at": "2026-10-06T16:05:23Z",
+                "completed_at": "2026-10-06T16:10:14Z"
+              },
+              {
+                "name": "保留编译器、测试及源码与二进制清单",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8,
+                "started_at": "2026-10-06T16:10:14Z",
+                "completed_at": "2026-10-06T16:10:18Z"
+              },
+              {
+                "name": "Post Run actions/setup-node@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15,
+                "started_at": "2026-10-06T16:10:18Z",
+                "completed_at": "2026-10-06T16:10:18Z"
+              },
+              {
+                "name": "Post Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 16,
+                "started_at": "2026-10-06T16:10:18Z",
+                "completed_at": "2026-10-06T16:10:18Z"
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 17,
+                "started_at": "2026-10-06T16:10:18Z",
+                "completed_at": "2026-10-06T16:10:18Z"
+              }
+            ]
+          }
+        ],
+        "artifacts": [
+          {
+            "id": 11426392446,
+            "name": "rust-core-ubuntu-latest-186694e105f8ace61d33b48cfc25710dff419632",
+            "digest": "sha256:264f424a97279f69c4aeea029c94ce54a5ef4433d88d5fab77a585cd271a5aab",
+            "expired": false,
+            "expires_at": "2026-10-20T16:10:15Z",
+            "workflow_run": {
+              "id": 37492861758,
+              "repository_id": 1340424953,
+              "head_repository_id": 1340424953,
+              "head_branch": "codex/mbrs-008-audio-transparency",
+              "head_sha": "186694e105f8ace61d33b48cfc25710dff419632"
+            }
+          },
+          {
+            "id": 11425744636,
+            "name": "rust-core-macos-latest-186694e105f8ace61d33b48cfc25710dff419632",
+            "digest": "sha256:7595556a4552274abd140c417c2434207ea5d38288a47691c532206a0dc78e38",
+            "expired": false,
+            "expires_at": "2026-10-20T16:08:44Z",
+            "workflow_run": {
+              "id": 37492861758,
+              "repository_id": 1340424953,
+              "head_repository_id": 1340424953,
+              "head_branch": "codex/mbrs-008-audio-transparency",
+              "head_sha": "186694e105f8ace61d33b48cfc25710dff419632"
+            }
+          }
+        ]
+      },
+      {
+        "runId": 37492861368,
+        "jobs": [
+          {
+            "id": 112369785144,
+            "name": "verify",
+            "run_id": 37492861368,
+            "head_sha": "186694e105f8ace61d33b48cfc25710dff419632",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1,
+                "started_at": "2026-10-06T16:05:05Z",
+                "completed_at": "2026-10-06T16:05:06Z"
+              },
+              {
+                "name": "Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2,
+                "started_at": "2026-10-06T16:05:06Z",
+                "completed_at": "2026-10-06T16:05:09Z"
+              },
+              {
+                "name": "Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3,
+                "started_at": "2026-10-06T16:05:09Z",
+                "completed_at": "2026-10-06T16:05:10Z"
+              },
+              {
+                "name": "Prepare strict hosted verification directories",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4,
+                "started_at": "2026-10-06T16:05:10Z",
+                "completed_at": "2026-10-06T16:05:10Z"
+              },
+              {
+                "name": "判定精确父源码CI可复用的报告提交",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5,
+                "started_at": "2026-10-06T16:05:10Z",
+                "completed_at": "2026-10-06T16:05:10Z"
+              },
+              {
+                "name": "Prepare source-pinned build workspace mirror",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6,
+                "started_at": "2026-10-06T16:05:10Z",
+                "completed_at": "2026-10-06T16:05:11Z"
+              },
+              {
+                "name": "Install frozen workspace",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7,
+                "started_at": "2026-10-06T16:05:11Z",
+                "completed_at": "2026-10-06T16:05:16Z"
+              },
+              {
+                "name": "Validate control plane",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8,
+                "started_at": "2026-10-06T16:05:16Z",
+                "completed_at": "2026-10-06T16:05:16Z"
+              },
+              {
+                "name": "Validate security and product boundaries",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 9,
+                "started_at": "2026-10-06T16:05:16Z",
+                "completed_at": "2026-10-06T16:05:16Z"
+              },
+              {
+                "name": "Scan workspace import cycles",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 10,
+                "started_at": "2026-10-06T16:05:16Z",
+                "completed_at": "2026-10-06T16:05:16Z"
+              },
+              {
+                "name": "Verify platform-independent workspace (typecheck, unit tests, build; no Electron)",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 11,
+                "started_at": "2026-10-06T16:05:16Z",
+                "completed_at": "2026-10-06T16:15:38Z"
+              },
+              {
+                "name": "Verify offline preparation boundaries",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 12,
+                "started_at": "2026-10-06T16:15:38Z",
+                "completed_at": "2026-10-06T16:15:40Z"
+              },
+              {
+                "name": "Verify isolated MBRS-001 offline POC",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 13,
+                "started_at": "2026-10-06T16:15:40Z",
+                "completed_at": "2026-10-06T16:15:50Z"
+              },
+              {
+                "name": "MBRS002 本地合同 Gate",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14,
+                "started_at": "2026-10-06T16:15:50Z",
+                "completed_at": "2026-10-06T16:16:43Z"
+              },
+              {
+                "name": "MBRS003 阶段软件 Gate",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15,
+                "started_at": "2026-10-06T16:16:43Z",
+                "completed_at": "2026-10-06T16:18:34Z"
+              },
+              {
+                "name": "MBRS004 名称与版本规则 Gate",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 16,
+                "started_at": "2026-10-06T16:18:34Z",
+                "completed_at": "2026-10-06T16:19:03Z"
+              },
+              {
+                "name": "MBRS005 本地文件网关与资源租约 Gate",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 17,
+                "started_at": "2026-10-06T16:19:03Z",
+                "completed_at": "2026-10-06T16:20:00Z"
+              },
+              {
+                "name": "MBRS006 本地Audio Input与会话隔离 Gate",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 18,
+                "started_at": "2026-10-06T16:20:00Z",
+                "completed_at": "2026-10-06T16:21:46Z"
+              },
+              {
+                "name": "MBRS007 队列预取与持久恢复 Gate",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 19,
+                "started_at": "2026-10-06T16:21:46Z",
+                "completed_at": "2026-10-06T16:25:10Z"
+              },
+              {
+                "name": "MBRS008 原样字节与独立质量证据 Gate",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 20,
+                "started_at": "2026-10-06T16:25:10Z",
+                "completed_at": "2026-10-06T16:26:51Z"
+              },
+              {
+                "name": "验证报告CI准入正负例",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 21,
+                "started_at": "2026-10-06T16:26:51Z",
+                "completed_at": "2026-10-06T16:26:52Z"
+              },
+              {
+                "name": "Diff whitespace",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 22,
+                "started_at": "2026-10-06T16:26:52Z",
+                "completed_at": "2026-10-06T16:26:52Z"
+              },
+              {
+                "name": "Verify pinned historical fragments and current discarded rejection",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 23,
+                "started_at": "2026-10-06T16:26:52Z",
+                "completed_at": "2026-10-06T16:26:53Z"
+              },
+              {
+                "name": "Preserve full verification log",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 24,
+                "started_at": "2026-10-06T16:26:53Z",
+                "completed_at": "2026-10-06T16:27:07Z"
+              },
+              {
+                "name": "Post Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 47,
+                "started_at": "2026-10-06T16:27:07Z",
+                "completed_at": "2026-10-06T16:27:07Z"
+              },
+              {
+                "name": "Post Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 48,
+                "started_at": "2026-10-06T16:27:07Z",
+                "completed_at": "2026-10-06T16:27:07Z"
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 49,
+                "started_at": "2026-10-06T16:27:07Z",
+                "completed_at": "2026-10-06T16:27:07Z"
+              }
+            ]
+          },
+          {
+            "id": 112369785636,
+            "name": "dependency-audit",
+            "run_id": 37492861368,
+            "head_sha": "186694e105f8ace61d33b48cfc25710dff419632",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1,
+                "started_at": "2026-10-06T16:05:04Z",
+                "completed_at": "2026-10-06T16:05:05Z"
+              },
+              {
+                "name": "Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2,
+                "started_at": "2026-10-06T16:05:05Z",
+                "completed_at": "2026-10-06T16:05:07Z"
+              },
+              {
+                "name": "Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3,
+                "started_at": "2026-10-06T16:05:07Z",
+                "completed_at": "2026-10-06T16:05:08Z"
+              },
+              {
+                "name": "Prepare source-pinned build workspace mirror",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4,
+                "started_at": "2026-10-06T16:05:08Z",
+                "completed_at": "2026-10-06T16:05:09Z"
+              },
+              {
+                "name": "Install frozen workspace",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5,
+                "started_at": "2026-10-06T16:05:09Z",
+                "completed_at": "2026-10-06T16:05:13Z"
+              },
+              {
+                "name": "Production dependency audit",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6,
+                "started_at": "2026-10-06T16:05:13Z",
+                "completed_at": "2026-10-06T16:05:15Z"
+              },
+              {
+                "name": "Post Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 11,
+                "started_at": "2026-10-06T16:05:15Z",
+                "completed_at": "2026-10-06T16:05:15Z"
+              },
+              {
+                "name": "Post Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 12,
+                "started_at": "2026-10-06T16:05:15Z",
+                "completed_at": "2026-10-06T16:05:15Z"
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 13,
+                "started_at": "2026-10-06T16:05:15Z",
+                "completed_at": "2026-10-06T16:05:15Z"
+              }
+            ]
+          }
+        ],
+        "artifacts": [
+          {
+            "id": 11426563956,
+            "name": "verify-186694e105f8ace61d33b48cfc25710dff419632",
+            "digest": "sha256:28f49dd9200399425cd226ca40dbb8e786daef4fe7a8c8028584e294ed2433f8",
+            "expired": false,
+            "expires_at": "2026-10-20T16:26:55Z",
+            "workflow_run": {
+              "id": 37492861368,
+              "repository_id": 1340424953,
+              "head_repository_id": 1340424953,
+              "head_branch": "codex/mbrs-008-audio-transparency",
+              "head_sha": "186694e105f8ace61d33b48cfc25710dff419632"
+            }
+          }
+        ]
+      },
+      {
+        "runId": 37492861659,
+        "jobs": [
+          {
+            "id": 112369789508,
+            "name": "macos-electron-gate",
+            "run_id": 37492861659,
+            "head_sha": "186694e105f8ace61d33b48cfc25710dff419632",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1,
+                "started_at": "2026-10-06T16:05:11Z",
+                "completed_at": "2026-10-06T16:05:13Z"
+              },
+              {
+                "name": "Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2,
+                "started_at": "2026-10-06T16:05:13Z",
+                "completed_at": "2026-10-06T16:05:16Z"
+              },
+              {
+                "name": "Prepare hosted runner evidence directories",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3,
+                "started_at": "2026-10-06T16:05:16Z",
+                "completed_at": "2026-10-06T16:05:16Z"
+              },
+              {
+                "name": "Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4,
+                "started_at": "2026-10-06T16:05:16Z",
+                "completed_at": "2026-10-06T16:05:17Z"
+              },
+              {
+                "name": "Prepare source-pinned build workspace mirror",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5,
+                "started_at": "2026-10-06T16:05:17Z",
+                "completed_at": "2026-10-06T16:05:18Z"
+              },
+              {
+                "name": "Install frozen workspace",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6,
+                "started_at": "2026-10-06T16:05:18Z",
+                "completed_at": "2026-10-06T16:05:29Z"
+              },
+              {
+                "name": "Prepare fresh Core fixed Worker before existing Electron gates",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7,
+                "started_at": "2026-10-06T16:05:29Z",
+                "completed_at": "2026-10-06T16:05:52Z"
+              },
+              {
+                "name": "Prepare Rust toolchain",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8,
+                "started_at": "2026-10-06T16:05:52Z",
+                "completed_at": "2026-10-06T16:06:02Z"
+              },
+              {
+                "name": "Build and verify both Rust hosts once in this job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 9,
+                "started_at": "2026-10-06T16:06:02Z",
+                "completed_at": "2026-10-06T16:11:46Z"
+              },
+              {
+                "name": "Install Electron binary from locked tree (official installer only)",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 10,
+                "started_at": "2026-10-06T16:11:46Z",
+                "completed_at": "2026-10-06T16:11:48Z"
+              },
+              {
+                "name": "Verify official Electron archive and actual execution tree",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 11,
+                "started_at": "2026-10-06T16:11:48Z",
+                "completed_at": "2026-10-06T16:11:50Z"
+              },
+              {
+                "name": "Electron startup, crash/restart, safeStorage vault and credential recovery gates",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 12,
+                "started_at": "2026-10-06T16:11:50Z",
+                "completed_at": "2026-10-06T16:15:22Z"
+              },
+              {
+                "name": "Electron end-to-end flow (Playwright, production build)",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 13,
+                "started_at": "2026-10-06T16:15:22Z",
+                "completed_at": "2026-10-06T16:27:08Z"
+              },
+              {
+                "name": "Select declared synthetic Rust Host artifacts",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14,
+                "started_at": "2026-10-06T16:27:08Z",
+                "completed_at": "2026-10-06T16:27:09Z"
+              },
+              {
+                "name": "Preserve declared synthetic Rust Host compiled artifacts",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15,
+                "started_at": "2026-10-06T16:27:09Z",
+                "completed_at": "2026-10-06T16:27:12Z"
+              },
+              {
+                "name": "Preserve Electron logs and synthetic test artifacts",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 16,
+                "started_at": "2026-10-06T16:27:12Z",
+                "completed_at": "2026-10-06T16:28:04Z"
+              },
+              {
+                "name": "Post Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 31,
+                "started_at": "2026-10-06T16:28:04Z",
+                "completed_at": "2026-10-06T16:28:04Z"
+              },
+              {
+                "name": "Post Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 32,
+                "started_at": "2026-10-06T16:28:04Z",
+                "completed_at": "2026-10-06T16:28:05Z"
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 33,
+                "started_at": "2026-10-06T16:28:05Z",
+                "completed_at": "2026-10-06T16:28:08Z"
+              }
+            ]
+          }
+        ],
+        "artifacts": [
+          {
+            "id": 11427452684,
+            "name": "rust-host-compiled-186694e105f8ace61d33b48cfc25710dff419632",
+            "digest": "sha256:afd0662ab95e4dd733a102ad9b6903073470c6ccc2673887e57d6a2b7dad5ba5",
+            "expired": false,
+            "expires_at": "2026-10-20T16:27:10Z",
+            "workflow_run": {
+              "id": 37492861659,
+              "repository_id": 1340424953,
+              "head_repository_id": 1340424953,
+              "head_branch": "codex/mbrs-008-audio-transparency",
+              "head_sha": "186694e105f8ace61d33b48cfc25710dff419632"
+            }
+          },
+          {
+            "id": 11427383050,
+            "name": "electron-e2e-186694e105f8ace61d33b48cfc25710dff419632",
+            "digest": "sha256:13720f425aa747a93321dc0165446f6c70010ee2c858ef55119ae97aa4cdfe4e",
+            "expired": false,
+            "expires_at": "2026-10-20T16:27:17Z",
+            "workflow_run": {
+              "id": 37492861659,
+              "repository_id": 1340424953,
+              "head_repository_id": 1340424953,
+              "head_branch": "codex/mbrs-008-audio-transparency",
+              "head_sha": "186694e105f8ace61d33b48cfc25710dff419632"
+            }
+          }
+        ]
+      }
+    ],
+    "workspaceCountsFromActualFullJobLog": {
+      "groups": {
+        "tests": [
+          261,
+          2711,
+          8,
+          1432
+        ],
+        "pass": [
+          261,
+          2709,
+          8,
+          1432
+        ],
+        "fail": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "cancelled": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "skipped": [
+          0,
+          2,
+          0,
+          0
+        ],
+        "todo": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "totals": {
+        "tests": 4412,
+        "pass": 4410,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 2,
+        "todo": 0
+      }
+    },
+    "electronCountsFromActualFullJobLog": {
+      "passed": 104,
+      "originalConditionalSkipped": 4,
+      "failed": 0
+    },
+    "actualJobLogReceipts": [
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/SOURCE_DELIVERY_VERIFY_LOG_RECEIPT.json",
+        "bytes": 12052,
+        "sha256": "9f5aab9c031c7b2917fd156807e57b2b8d0abf071137c6bed54f05d7fbe38672"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/SOURCE_DELIVERY_ELECTRON_LOG_RECEIPT.json",
+        "bytes": 6724,
+        "sha256": "95ed1347bcd4abee53b4ace9c898995e38be066730af60bc14ab1737a760c519"
+      }
+    ]
+  },
+  "initialSourceCi": {
+    "schema": "mbrs008.public-ci-producer-metadata.v1",
+    "capturedAt": "2026-10-06T13:49:15.181815+00:00",
+    "repository": "Matt12377/MusicBridge",
+    "repositoryId": 1340424953,
+    "headSha": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+    "allCompleteSuccess": false,
+    "allTerminal": true,
+    "artifactContentDownloaded": false,
+    "runs": [
+      {
+        "id": 37471103808,
+        "path": ".github/workflows/security.yml",
+        "head_sha": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+        "head_branch": "codex/mbrs-008-audio-transparency",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37471103808"
+      },
+      {
+        "id": 37471103770,
+        "path": ".github/workflows/verify.yml",
+        "head_sha": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+        "head_branch": "codex/mbrs-008-audio-transparency",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "failure",
+        "run_attempt": 1,
+        "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37471103770"
+      },
+      {
+        "id": 37471103889,
+        "path": ".github/workflows/rust-core.yml",
+        "head_sha": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+        "head_branch": "codex/mbrs-008-audio-transparency",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "success",
+        "run_attempt": 1,
+        "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37471103889"
+      },
+      {
+        "id": 37471103983,
+        "path": ".github/workflows/electron-e2e.yml",
+        "head_sha": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+        "head_branch": "codex/mbrs-008-audio-transparency",
+        "event": "push",
+        "status": "completed",
+        "conclusion": "failure",
+        "run_attempt": 1,
+        "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37471103983"
+      }
+    ],
+    "proofs": []
+  },
+  "reviewDisposition": "docs/postrust/MBRS-008/evidence/review-disposition.json",
+  "ciPreparationFailure": "docs/postrust/MBRS-008/evidence/ci-preparation-failure.json",
+  "deferredMobileSuccessor": "docs/postrust/MBRS-008/evidence/deferred-mobile-successor.json",
+  "reportCiAtCommit": "PENDING_FUTURE_NATURAL_CI",
+  "finalDeliveryReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/FINAL_DELIVERY_RECEIPT.json",
+  "releaseClaim": "SOFTWARE_ONLY_NOT_CORE_READY",
+  "realOwnerLayers": "NOT_RUN",
+  "carryover": [
+    "003_25_HISTORICAL_TIMEOUTS_PHYSICAL_CAUSE_UNKNOWN",
+    "256_RECEIPT_CAPACITY",
+    "HTTP_OBSERVATION_UNKNOWN",
+    "UPSTREAM_LICENSE_UNKNOWN",
+    "UNFINISHED_RUST",
+    "OLD_RECORDING_GATE_B_P4_P5",
+    "REAL_FORMAT_ROON_AUDIO_DEVICE_GAPLESS_RELOCK_APP_OWNER"
+  ],
+  "nextTask": "MBRS-009",
+  "nextBranchBaseline": "FINAL_INDEPENDENT_REPORT_HEAD_RESOLVED_BY_GIT_HISTORY"
+}

@@ -1,0 +1,51 @@
+{
+  "schema": "mbrs008.queue-process-controlled-red.v1",
+  "preparationFailure": {
+    "schema": "mbrs008.command-check.v1",
+    "label": "root-queue-process-isolation-red-01",
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=1",
+      "scripts/ci/test/verify-mbrs007-queue.test.mjs"
+    ],
+    "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checkout",
+    "gitHead": "dbcfa7bba96f513bd272dd6517ba8ec0351c8ae1",
+    "startedAt": "2026-10-06T15:52:58.246321+00:00",
+    "completedAt": "2026-10-06T15:52:58.508762+00:00",
+    "durationSeconds": 0.262,
+    "exitCode": 1,
+    "logSha256": "d5f67304c4921bcc6d884380a1c5e67c8ab8be89dc3c7467003cdd08005f462c",
+    "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-queue-process-isolation-red-01/output.log",
+    "node": "22.23.2",
+    "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+    "realAccountsRoonPlayback": "NOT_RUN",
+    "classification": "NODE_TEST_CONTEXT_INHERITANCE_NOT_EFFECTIVE_RED"
+  },
+  "effectiveRed": {
+    "schema": "mbrs008.command-check.v1",
+    "label": "root-queue-process-isolation-red-02",
+    "command": [
+      "node",
+      "--test",
+      "--test-concurrency=1",
+      "scripts/ci/test/verify-mbrs007-queue.test.mjs"
+    ],
+    "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checkout",
+    "gitHead": "dbcfa7bba96f513bd272dd6517ba8ec0351c8ae1",
+    "startedAt": "2026-10-06T15:53:35.063101+00:00",
+    "completedAt": "2026-10-06T15:53:45.177902+00:00",
+    "durationSeconds": 10.115,
+    "exitCode": 1,
+    "logSha256": "c3a04e3aeed6626f17e804b7ab3c02b86da0ced8332aacee25791294ef61bd3e",
+    "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-queue-process-isolation-red-02/output.log",
+    "node": "22.23.2",
+    "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+    "realAccountsRoonPlayback": "NOT_RUN",
+    "classification": "SERIAL_EXECUTION_CANNOT_REACH_TWO_PROCESS_BARRIER"
+  },
+  "originalSevenScopeRulesPassed": true,
+  "newControlledBehaviorTests": 1,
+  "notProductTestCounts": true,
+  "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES"
+}

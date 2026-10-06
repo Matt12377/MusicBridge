@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "8d9814311a2c7cae8801847a062dd6a7cfd9388c",
+  "testFile": "apps/desktop/test/renderer.test.ts",
+  "testMatchesCommittedBlobAfterRed": true,
+  "testSha256": "f55de30b74018111d7ae6142d73657b6def93a0db5d510347a1a1b38f0225d23",
+  "tests": 35,
+  "pass": 34,
+  "fail": 1,
+  "logSha256": "37cd2ceff67d78f10d63dd66d22d5448692724067449f27160e6aba7fd73a65a",
+  "validRendererGuardRed": true
+}

@@ -1,0 +1,52 @@
+{
+  "schema": "mbrs008.final-local-gate-summary.v1",
+  "at": "2026-10-06T13:23:20.116492+00:00",
+  "manifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/gate-final-01/manifest.json",
+    "bytes": 255309,
+    "sha256": "d9fb6138d2616a04dcb18a6a6e0f6606464ebf85576729eefb09e25dc1c6158d"
+  },
+  "success": true,
+  "inputs": 1223,
+  "freshOutputs": 38,
+  "freshUiOutputs": 2,
+  "privateTestBindings": 3,
+  "stages": 11,
+  "tests": 370,
+  "new": 36,
+  "regression": 334,
+  "counts": [
+    {
+      "tests": 263,
+      "pass": 263,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "tests": 58,
+      "pass": 58,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "tests": 49,
+      "pass": 49,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ],
+  "budget": {
+    "totalLimitMs": 360000,
+    "stageLimitMs": 180000,
+    "elapsedMs": 69520.716209,
+    "clock": "MONOTONIC_PERFORMANCE"
+  },
+  "sourceInputsCurrentlyUnchanged": true,
+  "claim": "SOFTWARE_ONLY_NOT_REAL_Roon_OR_ORDINARY_APP"
+}

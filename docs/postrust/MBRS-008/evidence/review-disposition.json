@@ -1,0 +1,269 @@
+{
+  "schema": "mbrs008.r1-disposition.v1",
+  "baseSha": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+  "state": "ROOT_CLOSED_AFTER_FINAL_R2_AND_LOCAL_FRESH_GATE",
+  "reviews": [
+    {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/reviews/BOUNDARY_R1.md",
+      "bytes": 8556,
+      "sha256": "b8593849d286bb83f47d728264c66708be4f78341b094d14f723564c6055dd98"
+    },
+    {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/reviews/BOUNDARY_R1.json",
+      "bytes": 12045,
+      "sha256": "837b00f3c78751468cfbca6abf9d2b191b76f4ef8ee598f50755f82669c4c118"
+    },
+    {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/reviews/QUALITY_R1.md",
+      "bytes": 7837,
+      "sha256": "89c4ad57fedc1da33922258f97db8ad5176d6328efc9b3d843d870cee2fcbc32"
+    },
+    {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/reviews/QUALITY_R1.json",
+      "bytes": 9721,
+      "sha256": "510a0dcea6409efbd439457e7484e30edf4e5a6914b1063c3ce862b3275b246d"
+    }
+  ],
+  "distinctP2": [
+    {
+      "id": "008-R1-P2-01",
+      "subject": "CI私有证据目录准入",
+      "state": "CLOSED_VALID_RED_GREEN_AND_R2"
+    },
+    {
+      "id": "008-R1-P2-02",
+      "subject": "混合trial已证失败优先且保留全部问题",
+      "state": "CLOSED_VALID_RED_GREEN_AND_R2"
+    },
+    {
+      "id": "008-R1-P2-03",
+      "subject": "Q2至Q4受控分析工厂身份与结果不可变",
+      "state": "CLOSED_VALID_RED_GREEN_AND_R2"
+    },
+    {
+      "id": "008-R1-P2-04",
+      "subject": "14行12轴默认显式状态",
+      "state": "CLOSED_VALID_RED_GREEN_AND_R2"
+    }
+  ],
+  "additionalSelfReview": [
+    "Q2分别绑定原生/直送scope",
+    "严格类型错误局部兼容修复"
+  ],
+  "sourceR1Snapshot": "CANDIDATE_01",
+  "formalReviewLimit": 2,
+  "updatedAt": "2026-10-06T13:02:26.315871+00:00",
+  "redEvidence": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-r1-behavior-red-01/result.json",
+      "bytes": 981,
+      "sha256": "ce32dd365f41ecb72c5695a50bba7867c8324cb43cece2e04988a78d9e67027d",
+      "result": {
+        "schema": "mbrs008.command-check.v1",
+        "label": "root-r1-behavior-red-01",
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "tsx",
+          "--test",
+          "--test-reporter=tap",
+          "--test-name-pattern=008 R1",
+          "test/mbrs008/quality-reduction.test.ts",
+          "test/mbrs008/pcm-evidence.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checkout/packages/bridge-core",
+        "gitHead": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+        "startedAt": "2026-10-06T12:59:53.037442+00:00",
+        "completedAt": "2026-10-06T12:59:53.601602+00:00",
+        "durationSeconds": 0.564,
+        "exitCode": 1,
+        "logSha256": "3e7dc44d383d151070cfe148d07650d6a78790b00103b850a6710b68f2d845c9",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-r1-behavior-red-01/output.log",
+        "node": "22.23.2",
+        "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+        "realAccountsRoonPlayback": "NOT_RUN"
+      },
+      "classification": "SIX_BEHAVIOR_FAILURES_ONE_SANDBOX_PREPARATION_FAILURE"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-r1-behavior-red-02/result.json",
+      "bytes": 981,
+      "sha256": "f9356026d2ecffd19e5ff8bb55e8a3f2a12464353a20e1ffee57379091e61a91",
+      "result": {
+        "schema": "mbrs008.command-check.v1",
+        "label": "root-r1-behavior-red-02",
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "tsx",
+          "--test",
+          "--test-reporter=tap",
+          "--test-name-pattern=008 R1",
+          "test/mbrs008/quality-reduction.test.ts",
+          "test/mbrs008/pcm-evidence.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checkout/packages/bridge-core",
+        "gitHead": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+        "startedAt": "2026-10-06T13:00:23.895818+00:00",
+        "completedAt": "2026-10-06T13:00:24.255211+00:00",
+        "durationSeconds": 0.359,
+        "exitCode": 1,
+        "logSha256": "1f70f7766e259867d3e291d25e101d2d299c2123ec1707012959f93936d5c1c3",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-r1-behavior-red-02/output.log",
+        "node": "22.23.2",
+        "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+        "realAccountsRoonPlayback": "NOT_RUN"
+      },
+      "classification": "VALID_SEVEN_BEHAVIOR_RED"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-core-types-01b/result.json",
+      "bytes": 875,
+      "sha256": "759f78d15602b829ecc517f1594234ab5d3df11fe00eabb7a86826ac7c20c609",
+      "result": {
+        "schema": "mbrs008.command-check.v1",
+        "label": "root-core-types-01b",
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "-p",
+          "tsconfig.test.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checkout/packages/bridge-core",
+        "gitHead": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+        "startedAt": "2026-10-06T12:59:53.037453+00:00",
+        "completedAt": "2026-10-06T13:00:01.529632+00:00",
+        "durationSeconds": 8.492,
+        "exitCode": 0,
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-core-types-01b/output.log",
+        "node": "22.23.2",
+        "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+        "realAccountsRoonPlayback": "NOT_RUN"
+      },
+      "classification": "TYPECHECK_PASS"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-desktop-types-01b/result.json",
+      "bytes": 873,
+      "sha256": "dfe9653d28631bda8a1016f54977525f407188e5e336fe91e4fcb98f5ad4a0d3",
+      "result": {
+        "schema": "mbrs008.command-check.v1",
+        "label": "root-desktop-types-01b",
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "node_modules/vue-tsc/bin/vue-tsc.js",
+          "--noEmit",
+          "-p",
+          "tsconfig.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checkout/apps/desktop",
+        "gitHead": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+        "startedAt": "2026-10-06T12:59:53.037451+00:00",
+        "completedAt": "2026-10-06T13:00:04.588550+00:00",
+        "durationSeconds": 11.551,
+        "exitCode": 0,
+        "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-desktop-types-01b/output.log",
+        "node": "22.23.2",
+        "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+        "realAccountsRoonPlayback": "NOT_RUN"
+      },
+      "classification": "TYPECHECK_PASS"
+    }
+  ],
+  "redCounts": {
+    "tests": 7,
+    "pass": 0,
+    "fail": 7,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "r1ActualGreenCases": [
+    {
+      "name": "008 R1边界先失败后未知及反向均保留已证失败，矩阵不降未测",
+      "pass": true
+    },
+    {
+      "name": "008 R1Q3失败结果不能被改MATCH，裸结果/clone也不被consumer认证",
+      "pass": true
+    },
+    {
+      "name": "008 R1Q4结果/逐次测量深冻结，clone/裸MATCH不代替有效边界原件",
+      "pass": true
+    },
+    {
+      "name": "008 R1私有证据Hosted只准RUNNER_TEMP专用树，拒绝外逃/755/符号链",
+      "pass": true
+    },
+    {
+      "name": "008 R1默认矩阵14行12轴显式未测，精确CUE独立不支持",
+      "pass": true
+    },
+    {
+      "name": "008 R1Q2 native/direct必须分别同源Core Zone settings revision，单scope不能自证配对",
+      "pass": true
+    },
+    {
+      "name": "008 R1Q2裸结果与JSON克隆不能注册OBSERVED，受控结果与DSD叶冻结",
+      "pass": true
+    },
+    {
+      "name": "008 R1Q2真实工厂原件可消费，但不能用另一assessment scope重新包装",
+      "pass": true
+    }
+  ],
+  "r1GreenScope": "EIGHT_CASES_PASS_WITHIN_FIRST_263_CORE_RUN_ONE_DISTINCT_NEW_FIXTURE_FAILURE",
+  "concentratedProductP2Fixes": "CLOSED_VALID_RED_GREEN_R2_AND_FINAL_FRESH_GATE",
+  "fixtureFailure": {
+    "log": "checks/root-core-targets-green-01/output.log",
+    "rootCause": "A/B fixture deleted parameters by capture count, but Controller captures preflight plus playback; use exact B asset identity",
+    "sourceChangeRequired": false
+  },
+  "formalRounds": 2,
+  "rootOpenP1": 0,
+  "rootOpenP2": 0,
+  "thirdRound": false,
+  "r2Reports": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/reviews/BOUNDARY_R2.md",
+      "bytes": 6086,
+      "sha256": "75fa0065c205f0db95df7667e85a2c259b036b420f6de6e7011ef45188d0c74f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/reviews/BOUNDARY_R2.json",
+      "bytes": 25565,
+      "sha256": "223c0293eb72bc548e35435e37185c9b5b22242557103d9a53d41aec18dc1acf"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/reviews/QUALITY_R2.md",
+      "bytes": 6183,
+      "sha256": "eac3120aaf2c61978cb3acf509ebec3f7167cf23481ff4059d6863293935e59f"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/reviews/QUALITY_R2.json",
+      "bytes": 20343,
+      "sha256": "5b0ea90440dfba94c76d636ef357e54ccaf4b3ca4aeb50e931c0c0c16bfcbdfd"
+    }
+  ],
+  "originalPrivateDisposition": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/R1_DISPOSITION.json",
+    "bytes": 10047,
+    "sha256": "92cb8fc3abc7fc3299beb0b01bbf3c122febf3ced27c432e0d974c49268bfc5e"
+  },
+  "finalFreshGate": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/gate-final-05/manifest.json",
+    "bytes": 255821,
+    "sha256": "e55f4b81b7814c7a04a5442945486e8a104d49791e8229d940448a640fc86a09"
+  },
+  "product21UnchangedAcrossFirstCiEntryRepair": true,
+  "product20UnchangedAcrossFinalLayoutRepair": true,
+  "finalQualityLayoutOnlyChange": true,
+  "ciEntryRepairRootSelfReview": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/SOURCE_REPAIR_SELF_REVIEW.json",
+    "bytes": 829,
+    "sha256": "edfea4c16ed008ab62db29bd1e3acc70619feb51ef074d36d35af14f8d82aa5b"
+  }
+}

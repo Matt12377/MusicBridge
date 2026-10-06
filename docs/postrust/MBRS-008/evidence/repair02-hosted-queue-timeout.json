@@ -1,0 +1,160 @@
+{
+  "schema": "mbrs008.third-source-hosted-queue-timeout.v1",
+  "sourceCommit": "dbcfa7bba96f513bd272dd6517ba8ec0351c8ae1",
+  "ci": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/source-final-terminal-failed.json",
+    "bytes": 58303,
+    "sha256": "99513b7d60eb8a26ec0a2f382a2ba0a79360069aff6f3a1b22df621b39deb536"
+  },
+  "verifyActualLog": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/SOURCE_FINAL_01_VERIFY_FAILED_LOG_RECEIPT.json",
+    "bytes": 12059,
+    "sha256": "37e6919c5aa0dc3a6fc15eeb94b29cfd2cd79358995daf435f4ef0863ff1a49c"
+  },
+  "electronActualLog": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/SOURCE_FINAL_01_ELECTRON_SUCCESS_LOG_RECEIPT.json",
+    "bytes": 6732,
+    "sha256": "6bb719ce6958139b4a1c5066ccf4e5fd8e9fdeecda0cb9cb005b9630efd5f838"
+  },
+  "fullWorkspaceCounts": {
+    "tests": 4412,
+    "pass": 4410,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "electron": {
+    "pass": 104,
+    "originalConditionalSkip": 4,
+    "fail": 0
+  },
+  "failedGate": {
+    "manifest": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/source-final-01-failed-gate-artifact-03/09-manifest.json",
+      "bytes": 253752,
+      "sha256": "19b33bdb270721fde88381715132de348da34397bd9fece2e7e4303d0e92cb61"
+    },
+    "scope": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/source-final-01-failed-gate-artifact-03/selected-entry-receipt.json",
+      "bytes": 13251,
+      "sha256": "b35bb81e8f000393ee7c50366dc8c67cd30aee7f807177c040b5a3f4f432d529"
+    },
+    "failures": [
+      "MB_QUEUE_STAGE_TIMEOUT",
+      "MB_QUEUE_STAGES_INCOMPLETE"
+    ],
+    "gateBudget": {
+      "totalLimitMs": 360000,
+      "stageLimitMs": 180000,
+      "elapsedMs": 262220.756553,
+      "clock": "MONOTONIC_PERFORMANCE"
+    },
+    "runs": [
+      {
+        "name": "fresh-contracts-build",
+        "limitMs": 180000,
+        "durationMs": 5123.330443,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "testCounts": null,
+        "success": true
+      },
+      {
+        "name": "contracts-types",
+        "limitMs": 180000,
+        "durationMs": 5388.193872999999,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "testCounts": null,
+        "success": true
+      },
+      {
+        "name": "fresh-core-build",
+        "limitMs": 180000,
+        "durationMs": 9440.825785999998,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "testCounts": null,
+        "success": true
+      },
+      {
+        "name": "fresh-core-worker-bundle",
+        "limitMs": 180000,
+        "durationMs": 431.52293799999825,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "testCounts": null,
+        "success": true
+      },
+      {
+        "name": "core-types",
+        "limitMs": 180000,
+        "durationMs": 16041.870227,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "testCounts": null,
+        "success": true
+      },
+      {
+        "name": "desktop-types",
+        "limitMs": 180000,
+        "durationMs": 22356.928564,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "testCounts": null,
+        "success": true
+      },
+      {
+        "name": "desktop-e2e-types",
+        "limitMs": 180000,
+        "durationMs": 7042.502148,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "testCounts": null,
+        "success": true
+      },
+      {
+        "name": "core-mb-queue",
+        "limitMs": 180000,
+        "durationMs": 16048.802588000006,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "testCounts": {
+          "tests": 41,
+          "pass": 41,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "success": true
+      },
+      {
+        "name": "core-affected-regression",
+        "limitMs": 180000,
+        "durationMs": 180010.55182399997,
+        "exitCode": null,
+        "signal": "SIGKILL",
+        "timedOut": true,
+        "testCounts": null,
+        "success": false
+      }
+    ],
+    "inputsUnchanged": true,
+    "outputsUnchanged": true,
+    "testBindingsUnchanged": true
+  },
+  "008CiStep": "SKIPPED_NOT_EXECUTED_NOT_PASS",
+  "artifactContentDownloaded": "ONLY_007_SELECTED_TEN_TEXT_LOG_MANIFEST_ENTRIES_AND_ZIP_DIRECTORY_METADATA_NOT_WHOLE_ARCHIVE_OR_MEDIA",
+  "rerunCancel": false,
+  "incompleteTapMustNotBeClaimed733Pass": true
+}

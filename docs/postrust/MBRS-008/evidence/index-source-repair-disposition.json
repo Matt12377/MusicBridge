@@ -1,0 +1,13 @@
+{
+  "schema": "mbrs008.index-source-repair-disposition.v1",
+  "at": "2026-10-06T13:48:28.712457+00:00",
+  "supersedesDecisionOnly": "INDEX_SYNC_DISPOSITION.json",
+  "newEvidence": "FIRST_SOURCE_CI_REQUIRES_NORMAL_REPAIR_IMPLEMENTATION_COMMIT",
+  "path": "tasks/00_TASK_INDEX.md",
+  "syncPhase": "NORMAL_SOURCE_REPAIR_COMMIT_WITH_FULL_SOURCE_CI",
+  "historicalBodyUnchanged": true,
+  "reportOnlyWhitelist": "UNCHANGED",
+  "reportScope": "NORMAL_METADATA_ONLY_AFTER_EXACT_NEW_PARENT_SOURCE_CI_SUCCESS",
+  "futureReportMode": "DETERMINE_ACTUAL_STAGED_SCOPE_AND_CI",
+  "noExtraProductGateRelaxation": true
+}

@@ -1,0 +1,56 @@
+{
+  "schema": "mbrs008.first-source-ci-failures.v1",
+  "at": "2026-10-06T13:55:51.933973+00:00",
+  "sourceCommit": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+  "workspaceFailure": {
+    "schema": "mbrs008.source-ci-preparation-failure.v1",
+    "at": "2026-10-06T13:46:19.952015+00:00",
+    "sourceCommit": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+    "runId": 37471103770,
+    "jobId": 112294504261,
+    "jobConclusion": "failure",
+    "logBytes": 2937240,
+    "logSha256": "af0a4911ef9454190ea7b8e9fa3d43f9f6d8f0b663c329eac13149b4dffb2b7f",
+    "logExitCode": 0,
+    "actualFailedCases": 1,
+    "failureCase": "008真实WAVE Reader/扫描/唯一Owner捕获投影当前文件参数，不能用扩展名代替",
+    "classification": "STANDARD_CORE_ENTRY_MISSING_FRESH_READER_BINDING_PREPARATION",
+    "businessAssertionsReached": false,
+    "repairScope": [
+      "scripts/ci/run-core-tests.mjs",
+      "scripts/ci/test/run-core-tests.test.mjs"
+    ],
+    "noRerunCancelSkipMockOldDist": true,
+    "firstSourceCiRetained": true
+  },
+  "electronFailure": {
+    "runId": 37471103983,
+    "jobId": 112294504076,
+    "log": {
+      "path": "ci/SOURCE_INITIAL_ELECTRON_FAILED.log",
+      "bytes": 175223,
+      "sha256": "4b223d2fbb4cab34d16a758ff6bd32199a7ee6f69f2ddc3a209f95cc6cf7f14e"
+    },
+    "receipt": {
+      "path": "ci/SOURCE_INITIAL_ELECTRON_FAILED_LOG_RECEIPT.json",
+      "bytes": 6730,
+      "sha256": "240855369ca15723e05653deab467893e1265a839c6e0694f13eb5cf8bd0d1d3"
+    },
+    "pass": 102,
+    "fail": 2,
+    "originalConditionalSkip": 4,
+    "cause": "TWO_OLD_ACCESSIBLE_NAME_SELECTORS_CURRENT_QUALITY_VS_SOURCE_RETURNED_QUALITY",
+    "testFile": "apps/desktop/e2e/v1-ui.spec.ts",
+    "assertionsRetained": true
+  },
+  "intermediateRepairBudgetIssue": {
+    "detectedBeforeExecution": true,
+    "originalFullCoreObservedMs": 397303.591829,
+    "issue": "TARGETED_GATE_BUDGET_WRONGLY_APPLIED_TO_FULL_CORE_REGRESSION",
+    "resolution": "FINITE_PREPARATION_BUDGET_ONLY_POST_PREPARATION_HASH_CHECKS_HAVE_NO_PREPARATION_DEADLINE_OR_NEW_TEST_PHASE_TIMEOUT",
+    "originalVerifyJobMinutes": 25
+  },
+  "oldCiRerunOrCancel": false,
+  "newSourceRepairRequiresFreshGate": true,
+  "newDeclaredInputsExpected": 1224
+}

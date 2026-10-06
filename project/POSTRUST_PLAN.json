@@ -31994,7 +31994,7 @@
         "MBRS-006",
         "MBRS-007"
       ],
-      "status": "SOFTWARE_SOURCE_VALIDATED_REPORT_PENDING",
+      "status": "SOFTWARE_COMPLETE_WITH_LIVE_CARRYOVER",
       "implementation_owner": "MBRS-008",
       "goal": "把字节透明、Roon处理、设备数据与曲目边界分开证明。",
       "steps": [
@@ -32025,15 +32025,21 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "186694e105f8ace61d33b48cfc25710dff419632",
       "report_commit": null,
-      "validation_status": "PASS_370_TARGETED_SOFTWARE_FINAL_GATE_AND_CI_IN_REPORT",
+      "validation_status": "SOFTWARE_GATE_AND_EXACT_SOURCE_CI_PASS_LIVE_CARRYOVER",
       "evidence_refs": [
         "docs/postrust/MBRS-008/EXECUTION_SCOPE.json",
-        "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
-        "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
-        "tasks/MBRS-008_AUDIO_TRANSPARENCY.md"
-      ]
+        "docs/postrust/MBRS-008/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-008/evidence/review-disposition.json",
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+        "reports/MBRS-008_EVIDENCE.json",
+        "docs/postrust/MBRS-008/evidence/source-ci-terminal.json",
+        "docs/postrust/MBRS-008/evidence/deferred-mobile-successor.json"
+      ],
+      "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+      "implementation_commit_resolution": "git log -1 --format=%H -- scripts/ci/verify-mbrs008-audio.mjs",
+      "report_path": "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
     },
     {
       "id": "MBRS-009",
@@ -33599,7 +33605,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
         "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
-        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+        "docs/postrust/MBRS-008/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-008/evidence/source-ci-terminal.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33618,7 +33626,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
         "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
-        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+        "docs/postrust/MBRS-008/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-008/evidence/source-ci-terminal.json"
       ],
       "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
@@ -33637,7 +33647,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
         "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
-        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+        "docs/postrust/MBRS-008/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-008/evidence/source-ci-terminal.json"
       ],
       "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
@@ -33656,7 +33668,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
         "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
-        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+        "docs/postrust/MBRS-008/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-008/evidence/source-ci-terminal.json"
       ],
       "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
@@ -33675,7 +33689,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
         "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
-        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+        "docs/postrust/MBRS-008/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-008/evidence/source-ci-terminal.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33694,7 +33710,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
         "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
-        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+        "docs/postrust/MBRS-008/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-008/evidence/source-ci-terminal.json"
       ],
       "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
@@ -33713,7 +33731,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
         "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
-        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+        "docs/postrust/MBRS-008/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-008/evidence/source-ci-terminal.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",
@@ -33732,7 +33752,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-008/AUDIO_TRANSPARENCY_REPORT.md",
         "docs/postrust/MBRS-008/FORMAT_CAPABILITY_MATRIX.json",
-        "reports/MBRS-008_AUDIO_TRANSPARENCY.md"
+        "reports/MBRS-008_AUDIO_TRANSPARENCY.md",
+        "docs/postrust/MBRS-008/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-008/evidence/source-ci-terminal.json"
       ],
       "software_status": "PASS",
       "app_status": "NOT_RUN",

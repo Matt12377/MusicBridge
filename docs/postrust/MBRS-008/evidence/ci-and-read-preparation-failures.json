@@ -1,0 +1,93 @@
+{
+  "at": "2026-10-06T16:23:05.212521+00:00",
+  "scope": "READONLY_METADATA_OR_TEXT_EVIDENCE_PREPARATION_FAILURES_NOT_PRODUCT_TEST_FAILURES",
+  "records": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/CI_DELIVERY_FIRST_DISCOVERY_NOT_READY_RETAINED.json",
+      "sha256": "f8ca38d54959f6a45dcf5df3db0d945607536d50a593063adc1a341d324a2a7f",
+      "record": {
+        "at": "2026-10-06T16:05:59.728982+00:00",
+        "sourceCommit": "186694e105f8ace61d33b48cfc25710dff419632",
+        "sourcePushExitCode": 0,
+        "remoteHeadVerified": true,
+        "initialWorkflowDiscoveryExitCode": 1,
+        "classification": "EXACT_FOUR_NATURAL_WORKFLOWS_NOT_YET_AVAILABLE_IN_FIRST_LISTING",
+        "partialWorkflowCount": "NOT_CAPTURED_UNKNOWN",
+        "ciProductResult": "NOT_INFERRED",
+        "ciRerunCancel": false
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/CI_DELIVERY_MONITOR_NAME_COLLISION_RETAINED.json",
+      "sha256": "3dbebc184e9350ae99c9078d31305fa14da072bbd1e795b2f70cf20421c931b4",
+      "record": {
+        "at": "2026-10-06T16:08:17.886876+00:00",
+        "sourceCommit": "186694e105f8ace61d33b48cfc25710dff419632",
+        "classification": "MONITOR_USED_HISTORICAL_SOURCE_FINAL_WATCH_NAME",
+        "exitCode": 1,
+        "existingSnapshotsOverwritten": false,
+        "correctedUniquePrefix": "source-delivery",
+        "ciProductConclusion": "NOT_INFERRED",
+        "rerunCancel": false
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/CI_DELIVERY_MONITOR_TLS_FAILURE_RETAINED.json",
+      "sha256": "3f5cb650800d500d58079eeddaa955a55e80162e9a505669e838bd6d05468cd2",
+      "record": {
+        "at": "2026-10-06T16:19:18.513579+00:00",
+        "sourceCommit": "186694e105f8ace61d33b48cfc25710dff419632",
+        "classification": "READONLY_GITHUB_LIST_TLS_HANDSHAKE_TIMEOUT",
+        "monitorExitCode": 1,
+        "actualCiStillRunningFromIndependentJobSnapshot": true,
+        "productConclusion": "NOT_INFERRED_FROM_LOCAL_READ_FAILURE",
+        "rerunCancel": false
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/SOURCE_PLAN_CHECK_PREPARATION_FAILURE_RETAINED.json",
+      "sha256": "a7e7aa2eea27290316b154fbb9cf85a43a0f8e93dfef33972cb81fb287303e53",
+      "record": {
+        "at": "2026-10-06T16:04:12.179205+00:00",
+        "classification": "READONLY_GIT_LOOKUP_ASSUMED_CANONICAL_TASK_PATH_EXISTS_IN_007_BASE",
+        "exitCode": 128,
+        "productTestRun": false,
+        "oldBase": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+        "canonicalTaskPath": "tasks/MBRS-008_AUDIO_TRANSPARENCY.md",
+        "correctedSourceOfFrozenTaskBytes": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+        "originalSpecHashVerified": true,
+        "taskSpecNotChanged": true
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/source-final-01-failed-gate-artifact/reader-preparation-failure.json",
+      "sha256": "aba8db92cc3d61147b00f8a9f38d73e0b869da29f77bf0d3ff412afa6fbd5e29",
+      "record": {
+        "at": "2026-10-06T15:14:20.816796+00:00",
+        "phase": "ZIP_DIRECTORY_SUFFIX_RANGE_READ",
+        "commandExit": 1,
+        "timeoutSeconds": 60,
+        "wholeArchiveSaved": false,
+        "selectedEntriesSaved": false,
+        "nextRead": "改用已知ZIP大小的正数绝对Range，仍只提取007文本"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/source-final-01-failed-gate-artifact-02/reader-preparation-failure.json",
+      "sha256": "f16a8371b8ff10b04ece52b38611e01b76ed5965ee3cef4da90def8072dd1130",
+      "record": {
+        "at": "2026-10-06T15:18:39.723426+00:00",
+        "phase": "ZIP_CENTRAL_DIRECTORY_RANGE_READ",
+        "firstPositiveTailRangeSucceeded": true,
+        "knownArchiveBytes": 90769049,
+        "knownCentralDirectoryRange": "87897055-90769026",
+        "timeoutSeconds": 30,
+        "selectedEntriesSaved": false,
+        "wholeArchiveSaved": false,
+        "nextRead": "只读22字节EOCD，分小块读取2.87MB ZIP目录并保存目录缓存；不调整任何Gate预算"
+      }
+    }
+  ],
+  "existingFailuresOverwritten": false,
+  "ciRerunCancel": false
+}

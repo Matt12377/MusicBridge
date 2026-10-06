@@ -1,0 +1,41 @@
+{
+  "schema": "mbrs008.repair01-ci-renderer-guard-failure.v1",
+  "at": "2026-10-06T14:21:24.991477+00:00",
+  "sourceCommit": "8d9814311a2c7cae8801847a062dd6a7cfd9388c",
+  "runId": 37475813479,
+  "jobId": 112310792620,
+  "logBytes": 4418363,
+  "logSha256": "6c00ffc403c6e973c673ee61c8e35d2ee991417a8a9c27fd1158b8217eb6b9c7",
+  "actualWorkspaceGroups": {
+    "contracts": {
+      "tests": 261,
+      "pass": 261,
+      "fail": 0,
+      "skip": 0
+    },
+    "coreMain": {
+      "tests": 2711,
+      "pass": 2709,
+      "fail": 0,
+      "skip": 2
+    },
+    "coreStop": {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "skip": 0
+    },
+    "desktop": {
+      "tests": 1431,
+      "pass": 1430,
+      "fail": 1,
+      "skip": 0
+    }
+  },
+  "actualFailures": 1,
+  "newFreshReaderAndFullCoreActuallyPassed": true,
+  "failureFile": "apps/desktop/test/renderer.test.ts",
+  "classification": "GLOBAL_LYRICS_ONLY_STATIC_GUARD_FALSE_POSITIVE_ON_NEW_AUDIO_EVIDENCE_INTERNAL_SOURCE",
+  "nextRepair": "SCOPE_LYRICS_TEMPLATE_AST_KEEP_ALL_LEAK_AND_ACCESSIBILITY_ASSERTIONS",
+  "oldCiRerunCancel": false
+}
