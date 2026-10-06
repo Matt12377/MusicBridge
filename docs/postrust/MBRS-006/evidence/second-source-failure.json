@@ -1,0 +1,57 @@
+{
+  "schema": "mbrs006.second-source-failure.v1",
+  "headSha": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+  "verifyRunId": 37425762479,
+  "verifyJobId": 112144922386,
+  "actualFailedStep": "Verify isolated MBRS-001 offline POC",
+  "remoteWorkspace": {
+    "tests": 4330,
+    "pass": 4328,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "actualJobLogReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/VERIFY_CORRECTED_SOURCE_FAILURE_LOG_RECEIPT.json",
+    "bytes": 10717,
+    "sha256": "2b0c41e3aeab7bcb7c2aa63ccdbccd1d44f31dbd8e053581a2ae6c1b9cf570f4"
+  },
+  "localIdenticalSourceRed": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/old001-count-red-01/manifest.json",
+    "bytes": 7558,
+    "sha256": "9fd5ae95bd3bdad2c0e7f1e26ecf88ca3348f4da9997cc6dbb0b3f3dc7b938ca"
+  },
+  "localRawRed": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/old001-nested-raw-red-01/result.json",
+    "bytes": 1031,
+    "sha256": "94addda46793b0b703210a07743e370a1dea23ee9a6397f08c1fe324e2e60bd9"
+  },
+  "causeValidation": "LOCAL_IDENTICAL_SOURCE_REPRO_NOT_REMOTE_MANIFEST_CONTENT_VALIDATION",
+  "cause": "OLD_SESSION_ENDED_ONLY_EXPECTATION_WAS_FALSE_AFTER_ACTUAL_006_TERMINAL_REPAIR",
+  "writerSupplementFreeze": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/writer/FREEZE_05.json",
+    "bytes": 37966,
+    "sha256": "59a85f4c83a6a1e7228096256ec37cc5f6b5171f9662a4f91c96e0a965592efc"
+  },
+  "old001Green": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-gate-output-01/manifest.json",
+    "bytes": 9714,
+    "sha256": "28bc416fe6d737eb9107feb3a0c80a53994ef6133a9393305fbd64c844463b50"
+  },
+  "prior55Unchanged": true,
+  "productSourcesUnchanged": true,
+  "originalCaseCountsUnchanged": [
+    32,
+    118
+  ],
+  "oldCiReruns": 0,
+  "artifactContentDownloaded": false,
+  "failedArtifactMetadata": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/ci/CORRECTED_FAILED_VERIFY_ARTIFACT_METADATA.json",
+    "bytes": 956,
+    "sha256": "8ae5576168b98de8abceb3ac7de7b737acc7f7f7c140b16a12e52fccdfaff6d4"
+  },
+  "failedArtifactBytesNotDownloaded": 108652961,
+  "allWorkflowTerminalStates": "SEALED_LATER_IN_FINAL_RECEIPT"
+}

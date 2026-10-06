@@ -1,0 +1,877 @@
+{
+  "schema": "mbrs006.writer-freeze.v1",
+  "frozenAt": "2026-10-06T07:04:05.300390+00:00",
+  "base": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+  "worktree": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input",
+  "files": [
+    {
+      "path": "apps/desktop/src/main/local-library-ipc.ts",
+      "sha256": "96816f79127f211bf15fac6d6a88e58fb564b82bc38da5b830a0f1dfab25a053"
+    },
+    {
+      "path": "apps/desktop/src/preload/api.ts",
+      "sha256": "782f3307575c802d3c13be4eeea0865240f92cdccfd7fc4970e6b04fcaf6b533"
+    },
+    {
+      "path": "apps/desktop/src/preload/local-library-client.ts",
+      "sha256": "f528bb23e52a53af9b1b8c62383f1c855fecc55f3492c8619fc5d06bdb908661"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/NowPlayingView.vue",
+      "sha256": "d928025c8722878eb697fd4188f452e3e54de627eca16d8e427d17c94fa2ef11"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/playbackSnapshot.ts",
+      "sha256": "adf155d7c91f0d010c09c90c28d6cb9ade13cf71c26d3ae7cbfdbfd0362f3f85"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "sha256": "3bd0a845c476a7923f4108c8331a40e333c8eb98133d26cffbdbd0ceca94bde6"
+    },
+    {
+      "path": "apps/desktop/test/mbrs002/local-playback-compat.test.ts",
+      "sha256": "3e5f8c6de52116906e1ae31fdb200155eed193fc1a9d55a3eec1e67b21ad2804"
+    },
+    {
+      "path": "apps/desktop/test/mbrs006-local-consumer.test.ts",
+      "sha256": "3bea3b7c173dc9b4d5634945dcd975f7cafe78bd21dd7005e5638be6abf48cd4"
+    },
+    {
+      "path": "apps/desktop/test/preload.test.ts",
+      "sha256": "547e11d6b509c2bb07880152639aaa1166ff37761f91e569dfdc3cd69baa55b4"
+    },
+    {
+      "path": "packages/bridge-core/scripts/mbrs001/offline-poc.ts",
+      "sha256": "b6b9417d1f9cb8a09558db74b83838446ca4d68c468d7e81069596b256ad6d71"
+    },
+    {
+      "path": "packages/bridge-core/scripts/mbrs001/test/attempt-lifecycle.test.ts",
+      "sha256": "19673e6306f948cc7f848f321c51083a0daf887144df10118e9e1ffcdf73f510"
+    },
+    {
+      "path": "packages/bridge-core/src/application/bridge-controller.ts",
+      "sha256": "2bce5bd7faf6baa046af00a5ef2b0b3a1a0f6cfaf26a6ac18996c4fb2d4a3f70"
+    },
+    {
+      "path": "packages/bridge-core/src/application/local-source-facts.ts",
+      "sha256": "c3816761e29913e185d24ff554c51265888cf98af63b42e0026b00a993ce1aff"
+    },
+    {
+      "path": "packages/bridge-core/src/application/local-source-resolver.ts",
+      "sha256": "400263aca9f161fba087984c905f45639c82903456dad1f33b77ad5a4a5f7d06"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "sha256": "a97fabdd57f9f8fa7fc429ca0f873072ee125a72af3f412031b99b0025117d52"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-domain.ts",
+      "sha256": "b6af8e26f784f5f1d816e7f6cf99bc1ece70ce8aec39d3bd034e717e8e5f1c09"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-client.ts",
+      "sha256": "55c52b1dbb20a0a05b618c30bed4d08b843dd9ebc329b031a13bc31b9555e42d"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+      "sha256": "dce3df0885d535b5ab22f6d9327d2a65907bc39c4019091d4ee3c5ae0ddda17e"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+      "sha256": "f5f04ce638563a4294c5053bac4c0dd39f215c64d4efd886b5b130b70655d1c2"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "sha256": "25835d41eb5716dcea0a5c81cc1e293603771c71d4fb3e333f063c9024a1c395"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-relocation-coordinator.ts",
+      "sha256": "d447c4c1ace3c947ebfc5345f9c351f1dc33270dbda31ab58ba82c1e56c62497"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-coordinator.ts",
+      "sha256": "7d57a5adf67cafae3f123fd1c56736c1541a971794e088f54fb79a531533fd99"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-ticket-types.ts",
+      "sha256": "c4ea7a4e731f7268ad81ea2f30240cde152608aec37e7d442cd72c18cd5a270e"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-tickets.ts",
+      "sha256": "4311c787928a7a40633ab685d02e8cbfd90070222bba62bc3cb418db748285c0"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/repository.ts",
+      "sha256": "e0681d7ac48c7b8038680a136aa1d15530e0713caad7988ab078db45e5ac59ac"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics/coordinator.ts",
+      "sha256": "52985dc89fac5f101e02f73da9d941454087161c9b34964123aa88f44d929f57"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-evidence.ts",
+      "sha256": "2a342296818755c0913c2e87797c564d660bacc9c5c57dedb6edfc3362938ce8"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-store.ts",
+      "sha256": "1cdd230ed40b5907921a02427e76752b0e4660187cdeac870d3fd568bb5561ca"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/adapter.ts",
+      "sha256": "83501413ed5e06cc9653c69c30a90d459f384272ec7c9a2bd100ebba6df3a4d8"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/sdk.ts",
+      "sha256": "02cccf91814bece1e0663bc066d650fe26fd1056527173f0cf7747798ea16ae5"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/types.ts",
+      "sha256": "c95086643ffdc763c079cc8e204acfca4d486e4357aeb9bde722fa8683dd00ca"
+    },
+    {
+      "path": "packages/bridge-core/src/runtime.ts",
+      "sha256": "75ae9c0db6d4d17897088d6e4be7c7b6d6b7ea8b387a0ed4cbbb7f92cb17567c"
+    },
+    {
+      "path": "packages/bridge-core/src/rust-core/core-dataset-owner.ts",
+      "sha256": "14de5f05c8f76f2728b81fba2006789a976aec4fb9142435228bcfc69529779d"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/local-source-fence.ts",
+      "sha256": "3269660df229efa73eb8ad0d6f8f87b476e066d9fa59b3645f1f891a45e91335"
+    },
+    {
+      "path": "packages/bridge-core/src/utility-main.ts",
+      "sha256": "e8276c198ccdda063c5dc45d8d660fbf9753f2876dc9a181a0c1f593f7e2cc82"
+    },
+    {
+      "path": "packages/bridge-core/test/local-playback.test.ts",
+      "sha256": "9381c2b4600da8efae7c5198803baf4a829a749464c99e5d515cb280bcabf3e8"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/adapter-fixture.ts",
+      "sha256": "25b6068ff2c392a9e617935a5b53e633b806afab1138912bec1c99c6ea8ffd87"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/catalog-fixture.ts",
+      "sha256": "4b86a627fa1983f8e658826f2d24368a20480eb5400fe369d4cebe1fa8da7863"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/claim-worker.ts",
+      "sha256": "2f7418afd87ab9973c8bc56813c19d866dd459b1aef0e7553931062c28fd1f56"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/controller-local.test.ts",
+      "sha256": "452d35c0d5b2717ad902cc098ecd0c5b789608ee0e058d065b56415bd12e5364"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/local-facts-fence.test.ts",
+      "sha256": "20039ad4049256f7544ebc7f9e2f8516ed9be4ed4f849df2258e25499c12e5ad"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/local-session-lifecycle.test.ts",
+      "sha256": "04a8c4a32cc4d03f886fe82b0f2855b2258f966fd0678aaf38094e0d95f49b84"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/owner-facts-integration.test.ts",
+      "sha256": "48cd853386616e5b9c5b185e6260cc90d03057f44d3c9a356f8aee364ce3bd93"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/owner-worker-integration.test.ts",
+      "sha256": "c155f358452706aee78605c0231ec9eb8976efc12753c42fc06f00b00dc3e559"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/owner-worker.ts",
+      "sha256": "04eb0f66241e1da67883d77756c44a31405d59ed2eaa73c3644490ca7133d98d"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/runtime-local.test.ts",
+      "sha256": "7cd8b49bad6a5ca57859b30ed274f4b8420b1b30ba156ab203ee9e69f62db1eb"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/runtime-shutdown.test.ts",
+      "sha256": "1f3ec394344ee7d6f378fc17e3d0c8260a1257cd1e8c6a7785cb150e4e7550ec"
+    },
+    {
+      "path": "packages/contracts/src/ipc.ts",
+      "sha256": "5e6752dcdf1acf1843fd4dfb974a0bb87d1db9e4f94c3859e1d8d0327b0c1283"
+    },
+    {
+      "path": "packages/contracts/src/local-play-request.ts",
+      "sha256": "e47b46e0681bd9e342f1eb119b181a7d1adac31475cafdf6d07650370cf33530"
+    },
+    {
+      "path": "packages/contracts/src/local-playback-compat.ts",
+      "sha256": "56dc0ed669dc7d214eabda883bcf6a5a72ff9373221df3ce394db73b909f48b8"
+    },
+    {
+      "path": "packages/contracts/src/local-relocation.ts",
+      "sha256": "20905fb7986adf652c523c8915c07eec46902a373581dab408fc441bcd88a519"
+    },
+    {
+      "path": "packages/contracts/src/playback.ts",
+      "sha256": "5d3431173fb749988eeb0423f3f383df2e7a178b5beef5409bac6ab9869e42b9"
+    },
+    {
+      "path": "packages/contracts/src/validator.ts",
+      "sha256": "11abdc1360cc7cc7fe272479a8992ffe8100fc50d7fa44418f89c32d939dd8cb"
+    },
+    {
+      "path": "packages/contracts/test/local-playback.test.ts",
+      "sha256": "162d3042079b6927f4b56a1af82f4092e26cd839f7195403b2aa584cef6f58f7"
+    },
+    {
+      "path": "packages/contracts/test/mbrs002/local-playback-compat.test.ts",
+      "sha256": "e076ab253e73f5375f751c0126cad2a3127c2b734be374fe3ddff9be638404b7"
+    },
+    {
+      "path": "packages/contracts/test/mbrs006/fixture.ts",
+      "sha256": "9062f6fa228931aa33ab185edb6880b2408ff93300802e856f04fe04489a9442"
+    },
+    {
+      "path": "packages/contracts/test/mbrs006/local-playback-contract.test.ts",
+      "sha256": "dd40fc82f53272fe01e4062b07dd96e6536f878b467a83bb4a2ce977de024dc5"
+    }
+  ],
+  "newTests": {
+    "core": 41,
+    "contracts": 2,
+    "desktop": 3,
+    "total": 46
+  },
+  "coreGroups": {
+    "local-facts-fence": 5,
+    "local-session-lifecycle": 1,
+    "owner-facts-integration": 10,
+    "controller-local": 21,
+    "owner-worker-integration": 1,
+    "runtime-local": 1,
+    "runtime-shutdown": 2
+  },
+  "regressions": {
+    "core": 313,
+    "desktop": 54
+  },
+  "checks": [
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-core-build-phase8-02",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.json"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:04:48.262800+00:00",
+      "completedAt": "2026-10-06T06:04:52.354319+00:00",
+      "durationSeconds": 4.091,
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-build-phase8-02/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-metadata-bundle-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "scripts/build-metadata-reader-worker.mjs"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:05:01.825905+00:00",
+      "completedAt": "2026-10-06T06:05:02.233449+00:00",
+      "durationSeconds": 0.407,
+      "exitCode": 0,
+      "logSha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-metadata-bundle-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-core-test-types-03",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json",
+        "--noEmit"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:05:01.825992+00:00",
+      "completedAt": "2026-10-06T06:05:09.057034+00:00",
+      "durationSeconds": 7.231,
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-test-types-03/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-contracts-types-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json",
+        "--noEmit"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/contracts",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:04:09.331290+00:00",
+      "completedAt": "2026-10-06T06:04:12.123016+00:00",
+      "durationSeconds": 2.791,
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-contracts-types-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-desktop-types-phase4-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "node_modules/vue-tsc/bin/vue-tsc.js",
+        "--noEmit",
+        "-p",
+        "tsconfig.json"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/apps/desktop",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:03:02.851381+00:00",
+      "completedAt": "2026-10-06T06:03:13.917593+00:00",
+      "durationSeconds": 11.066,
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-desktop-types-phase4-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-cycles-02",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "scripts/ci/verify-cycles.mjs"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:04:09.331304+00:00",
+      "completedAt": "2026-10-06T06:04:09.493821+00:00",
+      "durationSeconds": 0.162,
+      "exitCode": 0,
+      "logSha256": "7370c0f3ec36fb64a9e1a64954fcb79b747df4feab25025f61535b1cf370d109",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-cycles-02/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-core-new-group-05",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/local-playback.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:05:01.825921+00:00",
+      "completedAt": "2026-10-06T06:05:05.652564+00:00",
+      "durationSeconds": 3.826,
+      "exitCode": 0,
+      "logSha256": "1675f3f30b60c651fff4466b6cf57635359155df64ec38e83f901363ada4c40b",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-new-group-05/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-contracts-new-group-03",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/local-playback.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/contracts",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:05:01.825934+00:00",
+      "completedAt": "2026-10-06T06:05:02.206619+00:00",
+      "durationSeconds": 0.38,
+      "exitCode": 0,
+      "logSha256": "37f53a777da235fab71b91e65eace644e78033eeda3ae798fade2da6110e8ab9",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-contracts-new-group-03/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-desktop-new-group-03",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/mbrs006-local-consumer.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/apps/desktop",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T05:58:12.934670+00:00",
+      "completedAt": "2026-10-06T05:58:13.311043+00:00",
+      "durationSeconds": 0.376,
+      "exitCode": 0,
+      "logSha256": "223eb0e5a59a42e8d84c5afa4fb4b631fff20a5504874bdc6dab3bd15d38d1cf",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-desktop-new-group-03/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-core-affected-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/controller.test.ts",
+        "test/controller-context.test.ts",
+        "test/roon-adapter.test.ts",
+        "test/roon-sdk-callback-context.test.ts",
+        "test/runtime.test.ts",
+        "test/runtime-compact-events.test.ts",
+        "test/dataset-owner.test.ts",
+        "test/dataset-owner-integration.test.ts",
+        "test/mbrs002/local-source-resolver.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:03:41.789335+00:00",
+      "completedAt": "2026-10-06T06:03:45.551521+00:00",
+      "durationSeconds": 3.762,
+      "exitCode": 0,
+      "logSha256": "15beca3f911a45216f1e74f231bff2bf206f40e8c91b2af409e5c7ebc7043451",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-core-affected-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-desktop-affected-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/mbrs006-local-consumer.test.ts",
+        "test/mbrs002/local-playback-compat.test.ts",
+        "test/mbrs003/local-library-front-boundary.test.ts",
+        "test/mbrs003/local-library-ipc.test.ts",
+        "test/mbrs003/local-library-client.test.ts",
+        "test/playback-session.test.ts",
+        "test/playbackFavorites.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/apps/desktop",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:03:41.789351+00:00",
+      "completedAt": "2026-10-06T06:03:44.403190+00:00",
+      "durationSeconds": 2.614,
+      "exitCode": 0,
+      "logSha256": "2994805082baf775cf5801c276beb7649695ca1ed2c03abcbd50b985adf0b2a2",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-desktop-affected-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    }
+  ],
+  "effectiveRed": "writer-session-terminal-red-02",
+  "noInflight": true,
+  "productWritesStopped": true,
+  "realRoonLANAudio": "NOT_RUN",
+  "priorFreeze": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/writer/FREEZE_04.json",
+  "unchangedPriorHashes": 52,
+  "supplement": {
+    "path": "packages/contracts/test/mbrs002/local-playback-compat.test.ts",
+    "scope": "仅既有第1case描述与compact-v1 local_file期待；原3case数量不变",
+    "redLog": "checks/counts-contracts-01/output.log",
+    "green": {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-contracts-compat-supplement-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/playback-stream.test.ts",
+        "test/validator.test.ts",
+        "test/mbrs002/local-play-request.test.ts",
+        "test/mbrs002/local-playback-compat.test.ts",
+        "test/mbrs006/local-playback-contract.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/contracts",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:08:48.455074+00:00",
+      "completedAt": "2026-10-06T06:08:48.836618+00:00",
+      "durationSeconds": 0.381,
+      "exitCode": 0,
+      "logSha256": "6112e1e01cb303f8e553824f32f6368cea5420196fffa3840042df9f39369e8d",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-contracts-compat-supplement-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    "actualTAP": 58
+  },
+  "r1Delta": [
+    "packages/bridge-core/src/application/bridge-controller.ts",
+    "packages/bridge-core/src/roon/adapter.ts",
+    "packages/bridge-core/src/runtime.ts",
+    "packages/bridge-core/test/local-playback.test.ts",
+    "packages/bridge-core/test/mbrs006/controller-local.test.ts",
+    "packages/bridge-core/test/mbrs006/runtime-shutdown.test.ts"
+  ],
+  "r1Checks": [
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-r1-core-new-03",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/local-playback.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:19:14.225176+00:00",
+      "completedAt": "2026-10-06T06:19:18.880458+00:00",
+      "durationSeconds": 4.655,
+      "exitCode": 0,
+      "logSha256": "a06c44dec6060d328818f2e178f7d166c9027d4c1ff804608f665d28faf84ee0",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-core-new-03/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-r1-core-build-02",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.json"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:19:14.225183+00:00",
+      "completedAt": "2026-10-06T06:19:18.463993+00:00",
+      "durationSeconds": 4.238,
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-core-build-02/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-r1-test-types-04",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "node_modules/typescript/bin/tsc",
+        "-p",
+        "tsconfig.test.json",
+        "--noEmit"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:19:40.040238+00:00",
+      "completedAt": "2026-10-06T06:19:47.122695+00:00",
+      "durationSeconds": 7.082,
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-test-types-04/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-r1-cycles-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "scripts/ci/verify-cycles.mjs"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:19:14.225185+00:00",
+      "completedAt": "2026-10-06T06:19:14.363192+00:00",
+      "durationSeconds": 0.138,
+      "exitCode": 0,
+      "logSha256": "7370c0f3ec36fb64a9e1a64954fcb79b747df4feab25025f61535b1cf370d109",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-cycles-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-r1-context-old-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/controller-context.test.ts",
+        "test/roon-sdk-callback-context.test.ts",
+        "test/runtime-compact-events.test.ts",
+        "test/runtime.test.ts",
+        "test/rust-core-utility-options.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:17:02.875024+00:00",
+      "completedAt": "2026-10-06T06:17:18.697705+00:00",
+      "durationSeconds": 15.823,
+      "exitCode": 0,
+      "logSha256": "ca3db96dd229dc4a6ba6019235ee791593f41bb02fa8e5a99d72e6e0841537c3",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-context-old-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-r1-runtime-final-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/runtime.test.ts",
+        "test/rust-core-utility-options.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "startedAt": "2026-10-06T06:19:40.040236+00:00",
+      "completedAt": "2026-10-06T06:19:46.604533+00:00",
+      "durationSeconds": 6.564,
+      "exitCode": 0,
+      "logSha256": "20359af2f71044adc6461180585108bd3a22358b4797132ea809d8cbc3c95a63",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-runtime-final-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    }
+  ],
+  "effectiveR1Red": [
+    "writer-r1-shutdown-red-04",
+    "writer-r1-terminal-target-red-01",
+    "writer-r1-context-red-01"
+  ],
+  "sourceHead": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+  "prior54Unchanged": true,
+  "securitySupplementChecks": [
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-security-preload-red-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/preload.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/apps/desktop",
+      "gitHead": "b50261ee942bb0d88f6cb2fae0377547846e0234",
+      "startedAt": "2026-10-06T06:36:48.481181+00:00",
+      "completedAt": "2026-10-06T06:36:49.288251+00:00",
+      "durationSeconds": 0.807,
+      "exitCode": 1,
+      "logSha256": "5c9c736b1cc9c56bb7d40e05fb5ef6d01bbbc7a8d7cc96e0eae9a7df73486dc2",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-security-preload-red-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-security-seven-green-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/security.test.ts",
+        "test/ipc-security.test.ts",
+        "test/csp.test.ts",
+        "test/protocol.test.ts",
+        "test/preload.test.ts",
+        "test/credential-provisioning.test.ts",
+        "test/credential-vault.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/apps/desktop",
+      "gitHead": "b50261ee942bb0d88f6cb2fae0377547846e0234",
+      "startedAt": "2026-10-06T06:37:02.132022+00:00",
+      "completedAt": "2026-10-06T06:37:02.930040+00:00",
+      "durationSeconds": 0.798,
+      "exitCode": 1,
+      "logSha256": "e4236f611f66dacca38aef3ae36e9a948fb8ec1a0096908a4b75ec8a732ae973",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-security-seven-green-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-security-seven-green-02",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "test/security.test.ts",
+        "test/ipc-security.test.ts",
+        "test/csp.test.ts",
+        "test/protocol.test.ts",
+        "test/preload.test.ts",
+        "test/credential-provisioning.test.ts",
+        "test/credential-vault.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/apps/desktop",
+      "gitHead": "b50261ee942bb0d88f6cb2fae0377547846e0234",
+      "startedAt": "2026-10-06T06:37:19.593292+00:00",
+      "completedAt": "2026-10-06T06:37:20.445264+00:00",
+      "durationSeconds": 0.852,
+      "exitCode": 0,
+      "logSha256": "37fcd9b98e60a06b4b91ea604ccc5bee23d13b36ea631030724f555464c5ae68",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-security-seven-green-02/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    }
+  ],
+  "securityTests": 29,
+  "securityCaseCountChanged": false,
+  "inflight": false,
+  "prior55Unchanged": true,
+  "old001SupplementChecks": [
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-old001-session-red-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-name-pattern=SessionEnded-only",
+        "scripts/mbrs001/test/attempt-lifecycle.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+      "startedAt": "2026-10-06T07:02:50.799773+00:00",
+      "completedAt": "2026-10-06T07:02:51.198773+00:00",
+      "durationSeconds": 0.399,
+      "exitCode": 1,
+      "logSha256": "2d3ff665642dad5c4fedfd61b15a8829228c300392365a12cc05c46f0f1994ea",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-session-red-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-old001-poc-red-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "scripts/mbrs001/offline-poc.ts",
+        "--output-root=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-poc-red-output-01"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+      "startedAt": "2026-10-06T07:03:12.340214+00:00",
+      "completedAt": "2026-10-06T07:03:12.679168+00:00",
+      "durationSeconds": 0.339,
+      "exitCode": 1,
+      "logSha256": "576beb3e77b7749b544bf64b654785364ed455555f12a894f640df60e93e7614",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-poc-red-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-old001-nested-green-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-reporter=tap",
+        "scripts/mbrs001/test/file-http.test.ts",
+        "scripts/mbrs001/test/official-adapter.test.ts",
+        "scripts/mbrs001/test/attempt-lifecycle.test.ts"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input/packages/bridge-core",
+      "gitHead": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+      "startedAt": "2026-10-06T07:03:12.746314+00:00",
+      "completedAt": "2026-10-06T07:03:19.392107+00:00",
+      "durationSeconds": 6.646,
+      "exitCode": 0,
+      "logSha256": "e3031e371e88806628d62293fe94f5c3efb434c90f26d203e0218eef7e41f8d8",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-nested-green-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    },
+    {
+      "schema": "mbrs006.command-check.v1",
+      "label": "writer-old001-gate-green-01",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "scripts/ci/verify-mbrs001-offline.mjs",
+        "--output-root=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-gate-output-01"
+      ],
+      "cwd": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input",
+      "gitHead": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+      "startedAt": "2026-10-06T07:03:19.482370+00:00",
+      "completedAt": "2026-10-06T07:03:27.947311+00:00",
+      "durationSeconds": 8.465,
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-gate-green-01/output.log",
+      "node": "22.23.2",
+      "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+      "realAccountsRoonPlayback": "NOT_RUN"
+    }
+  ],
+  "old001Gate": {
+    "manifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-old001-gate-output-01/manifest.json",
+    "manifestSha256": "28bc416fe6d737eb9107feb3a0c80a53994ef6133a9393305fbd64c844463b50",
+    "nestedTests": 32,
+    "existingTests": 118,
+    "success": true
+  }
+}

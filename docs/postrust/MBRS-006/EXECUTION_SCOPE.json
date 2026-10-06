@@ -72,12 +72,12 @@
   "mainMergeInstallRelease": "NOT_AUTHORIZED",
   "caseStatusChanges": "ONLY_THIS_TASK_AFTER_ACTUAL_EVIDENCE",
   "gateCounts": {
-    "functionalTests": 569,
+    "functionalTests": 601,
     "newTaskTests": 46,
-    "inheritedRegressions": 523,
+    "inheritedRegressions": 555,
     "groups": [
       41,
-      349,
+      381,
       58,
       121
     ],
@@ -87,9 +87,9 @@
   "previousDeliveryReceipt": "docs/postrust/MBRS-006/PREVIOUS_DELIVERY_RECEIPT.json",
   "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6",
   "productFreeze": {
-    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/writer/FREEZE_04.json",
-    "files": 55,
-    "sha256": "f0110febcb65dc7a708f4d1b641cf93ee8daf5a9e4811d7bffda7f1e0d66ac40"
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/writer/FREEZE_05.json",
+    "files": 57,
+    "sha256": "59a85f4c83a6a1e7228096256ec37cc5f6b5171f9662a4f91c96e0a965592efc"
   },
   "formalReview": {
     "maximumRounds": 2,
@@ -101,6 +101,14 @@
     "scope": "ONE_OLD_STRICT_PRELOAD_METHOD_LIST_EXPECTATION_AND_DIRECTED_SECURITY_GATE",
     "product54Unchanged": true,
     "security29Passed": true,
-    "formalThirdRound": false
+    "formalThirdRound": false,
+    "old001Supplement": {
+      "source": "5dd13d2e5e8d10c9fb9301bfc14aa0afe60b943f",
+      "scope": "TWO_OLD_SYNTHETIC_SESSION_ENDED_EXPECTATIONS_ONLY",
+      "prior55Unchanged": true,
+      "nested32AndExisting118Gate": "PASS",
+      "current601Gate": "REQUIRED_BEFORE_FINAL_SOURCE_COMMIT_SEE_BOUND_COMMAND_RECEIPT",
+      "formalThirdRound": false
+    }
   }
 }

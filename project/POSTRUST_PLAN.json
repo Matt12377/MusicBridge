@@ -31908,7 +31908,7 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "TARGETED_569_GATE_BUILD_AND_TWO_REVIEWS_PASS_CORRECTED_SOURCE_CI_PENDING",
+      "validation_status": "TARGETED_601_GATE_BUILD_AND_TWO_REVIEWS_PASS_THIRD_SOURCE_CI_PENDING",
       "evidence_refs": [
         "docs/postrust/MBRS-006/EXECUTION_SCOPE.json",
         "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",

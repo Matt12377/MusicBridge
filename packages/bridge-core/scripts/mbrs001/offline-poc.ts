@@ -75,10 +75,13 @@ export async function runOfflinePoc(argv: string[] = process.argv.slice(2)): Pro
         const stop = attempt.stop(); await nextTurn(); sdk.moo.replyEnd(0); await stop;
         await attempt.disposeLocal();
       } else {
-        // 有效Playing前缀之后捕获原Adapter的已知通知缺口，不假补terminal。
+        // 有效Playing前缀之后核验Adapter实际终态；原资源观察不替代会话回执。
         sdk.moo.emitBegin(index, 'SessionEnded'); await attempt.waitForLocalCleanup();
-        assert.equal(attempt.observation().adapterTerminalNotified, false);
-        assert.equal(attempt.observation().knownGap, 'KNOWN_GAP_SESSION_ENDED_WITHOUT_ADAPTER_TERMINAL');
+        assert.equal(attempt.observation().adapterTerminalNotified, true);
+        assert.deepEqual(attempt.observation().adapterTerminalReasons, ['ended']);
+        assert.equal(attempt.observation().knownGap, null);
+        assert.equal(attempt.observation().cleanupOrigin, 'ADAPTER_TERMINAL');
+        assert.equal(attempt.observation().sessionConfirmedClosed, true);
       }
       observations.push(attempt.observation()); attempt.detach();
     }
@@ -95,10 +98,10 @@ export async function runOfflinePoc(argv: string[] = process.argv.slice(2)): Pro
       observations, localResources: { ...service.resourceSnapshot(), actualClosedHandleProbe,
         fakeSdkCallbackSlots: sdk.moo.callbackSlots(), fakeSdkObservers: sdk.moo.observerCount(), fakeTransportSubscriptions: sdk.transport.subscriptionCount(),
         adapterTimerCount: adapter.getDiagnosticResourceCounters().timerCount },
-      forbiddenPortCalls: sdk.forbiddenCalls, knownGapCapturedNotRepaired: true,
+      forbiddenPortCalls: sdk.forbiddenCalls, knownGapCapturedNotRepaired: false,
       acceptance: { 'MBRS-AT-001-01': 'BLOCKED_ENV', 'MBRS-AT-001-02': 'SYNTHETIC_BYTES_ONLY',
         'MBRS-AT-001-03': 'BLOCKED_ENV', 'MBRS-AT-001-04': 'BLOCKED_ENV', 'MBRS-AT-001-05': 'BLOCKED_ENV',
-        'MBRS-AT-001-06': 'PARTIAL_KNOWN_GAP_CAPTURED', 'MBRS-AT-001-07': 'SYNTHETIC_SUBMISSION_ONLY',
+        'MBRS-AT-001-06': 'SYNTHETIC_SESSION_ENDED_TERMINAL_ONLY', 'MBRS-AT-001-07': 'SYNTHETIC_SUBMISSION_ONLY',
         'MBRS-AT-001-08': 'SYNTHETIC_ISOLATION_ONLY', 'MBRS-AT-001-09': 'SYNTHETIC_ADAPTER_REUSE_ONLY' },
       formats: ['wav', 'flac', 'mp3'].map(format => ({ format, liveDecode: 'NOT_TESTED', actualSound: 'NOT_TESTED' })),
     });

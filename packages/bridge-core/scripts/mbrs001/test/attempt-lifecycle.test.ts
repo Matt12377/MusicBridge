@@ -70,13 +70,14 @@ test('MBRS001 cancel无explicit-stop对照：latebegin不自动end，远端保�
   // 不为finally虚构关闭确认；原shutdown可能停止超时，fixture清理只关闭本地资源。
 });
 
-test('MBRS001 B1：SessionEnded-only独立观察closed，但原Adapter通知缺口不遮盖', async t => {
+test('MBRS001 B1：SessionEnded-only确认closed并由Adapter终态收口，旧回调不恢复', async t => {
   const harness = await fixture(t); const attempt = harness.attempt(); await startPlaying(harness, attempt);
   harness.sdk.moo.emitBegin(0, 'SessionEnded'); await attempt.waitForLocalCleanup();
   const observation = attempt.observation();
-  assert.equal(observation.sessionConfirmedClosed, true); assert.equal(observation.adapterTerminalNotified, false);
-  assert.equal(observation.knownGap, 'KNOWN_GAP_SESSION_ENDED_WITHOUT_ADAPTER_TERMINAL');
-  assert.equal(observation.cleanupOrigin, 'HARNESS_RAW_SESSION_ENDED_RESOURCE_CLEANUP');
+  assert.equal(observation.sessionConfirmedClosed, true); assert.equal(observation.adapterTerminalNotified, true);
+  assert.deepEqual(observation.adapterTerminalReasons, ['ended']);
+  assert.equal(observation.knownGap, null);
+  assert.equal(observation.cleanupOrigin, 'ADAPTER_TERMINAL');
   assert.equal(harness.adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
   assert.equal(harness.service.resourceSnapshot().closedFds, 1);
   harness.sdk.moo.emitPlay(0, 'Playing'); harness.sdk.moo.emitPlay(0, 'Time', { seek_position_ms: 99 });
