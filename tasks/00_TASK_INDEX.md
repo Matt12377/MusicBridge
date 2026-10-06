@@ -1,6 +1,6 @@
 # 任务索引
 
-当前 PostRust 任务：[MBRS-006](MBRS-006_LOCAL_AUDIO_INPUT.md)开发中；005软件及源/报告自然CI已完成，从最终报告 `cce8594f` 接续006。Owner已授权持续到017、每任务更新待办并push；当前状态见[待办清单](../project/POSTRUST_TODO.md)。
+当前 PostRust 任务：[MBRS-008](MBRS-008_AUDIO_TRANSPARENCY.md)，从007最终报告 `8140124a` 接续；有限软件、源码与报告自然CI分别取证，真实Roon、音频和普通App验收保留。下一项MBRS-009从008最终独立报告HEAD接续。Owner已授权持续到017、每任务更新待办并push；当前状态见[待办清单](../project/POSTRUST_TODO.md)。
 
 [MBRS-003结果](../reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md)与[换届交接](../docs/postrust/MBRS-003/HANDOFF_NEXT_SESSION.md)：Owner阶段接受既有规模结果，当前版十万／三十万首不重测；25条超时保留。004已从003最终报告HEAD完成独立软件交付；完整产品后用真实曲库验收。下方历史过程记录保留原时点。
 

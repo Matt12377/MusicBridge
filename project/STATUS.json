@@ -46086,13 +46086,37 @@
         "cause": "EXISTING_CAPTURE_FILE_PARAMETERS_UNDEFINED_AFTER_TRUE_WAVE_READER_SCANNER_ACCEPTED",
         "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/checks/root-current-file-parameters-red-01/result.json"
       },
-      "gate": "PENDING_FRESH_RUN"
+      "gate": {
+        "status": "PASS_AFTER_CI_PREPARATION_REPAIR",
+        "tests": 370,
+        "new": 36,
+        "regression": 334,
+        "stages": 11,
+        "declaredInputs": 1224,
+        "freshOutputs": 38,
+        "actualVueSsr": 2,
+        "privateBindings": 3,
+        "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/REPAIR_FINAL_LOCAL_GATE_SUMMARY.json",
+        "exitCode": 0
+      },
+      "standardCorePreparationRepair": {
+        "ruleTests": 22,
+        "realWaveCases": 2,
+        "exitCode": 0,
+        "preparationClockEndedBeforeSuccessfulPostChecks": true,
+        "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/STANDARD_READER_REPAIR_BINDING_CHECK.json"
+      }
     },
-    "push": "PENDING",
-    "ci": "PENDING",
+    "push": "REPAIR_SOURCE_PENDING_NORMAL_PUSH",
+    "ci": {
+      "initialSourceCommit": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+      "initialSource": "VERIFY_PREPARATION_AND_TWO_OLD_E2E_SELECTORS_FAILED_RETAINED",
+      "newSource": "PENDING_NORMAL_REPAIR_COMMIT_AND_NATURAL_CI",
+      "rerunCancel": false
+    },
     "mainMerge": "NOT_AUTHORIZED",
     "release": "NOT_AUTHORIZED",
-    "updatedAt": "2026-10-06T12:34:20.594321+00:00",
+    "updatedAt": "2026-10-06T14:02:25.769959+00:00",
     "softwareValidation": {
       "targetedTests": 370,
       "new": 36,
