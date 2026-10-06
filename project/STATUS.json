@@ -45872,9 +45872,9 @@
     "ownerAcceptance": "NOT_RUN",
     "validation": {
       "status": "LOCAL_TARGETED_SOFTWARE_PASS",
-      "functionalTests": 103,
+      "functionalTests": 119,
       "newTaskTests": 34,
-      "inheritedRegressionTests": 69,
+      "inheritedRegressionTests": 85,
       "gateStages": 9,
       "freshOutputs": 20,
       "declaredInputs": 1155,
@@ -45896,7 +45896,11 @@
     "report": "reports/MBRS-005_LOCAL_FILE_GATEWAY.md",
     "evidence": "reports/MBRS-005_EVIDENCE.json",
     "ci": {
-      "status": "NOT_RUN_AT_LOCAL_FREEZE"
-    }
+      "status": "INITIAL_SOURCE_VERIFY_RUST_ELECTRON_FAILED_STRICT_BOOTSTRAP_ASSERTION_FIXED",
+      "initialSnapshot": "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+      "nextNaturalCi": "PENDING_NEW_CORRECTION_COMMIT",
+      "reruns": 0
+    },
+    "initialImplementationCommit": "4587a213888aaedf686cf342ffe541833ad3c268"
   }
 }

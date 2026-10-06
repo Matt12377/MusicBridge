@@ -26,6 +26,7 @@ test('005 Gate：新增测试漏列拒绝', () => {
 });
 test('005 Gate：漏远程gateway或Owner回归拒绝', () => {
   rejects(scope => { scope.groups[1].tests = scope.groups[1].tests.filter(name => name !== 'test/gateway.test.ts'); }, 'GATEWAY_REQUIRED_REGRESSION_MISSING');
+  rejects(scope => { scope.groups[2].tests = scope.groups[2].tests.filter(name => name !== 'test/rust-core-host.test.ts'); }, 'GATEWAY_REQUIRED_REGRESSION_MISSING');
   rejects(scope => { scope.groups.pop(); }, 'GATEWAY_REQUIRED_REGRESSION_MISSING');
 });
 test('005 Gate：重复测试或组名拒绝', () => {

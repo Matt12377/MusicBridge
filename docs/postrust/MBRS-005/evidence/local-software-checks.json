@@ -5,16 +5,16 @@
   "implementationCommit": null,
   "implementationCommitResolution": "源实现提交后用Git blob逐项绑定1155份声明输入；不是重跑Gate",
   "gateManifest": {
-    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/gate-final-01/manifest.json",
-    "bytes": 232902,
-    "sha256": "30f33f9289fc0ee9a68a3752a76c1e3769f3f948de3b978f1de93444f53446a7"
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/gate-final-02/manifest.json",
+    "bytes": 232897,
+    "sha256": "32dd2c473981c397073563c88ea2398dcfd7885829c9ba7bedb9411573a49a7d"
   },
   "gateExitCode": 0,
   "stages": 9,
-  "functionalTests": 103,
+  "functionalTests": 119,
   "newTaskTests": 34,
-  "inheritedRegressionTests": 69,
-  "pass": 103,
+  "inheritedRegressionTests": 85,
+  "pass": 119,
   "fail": 0,
   "skipped": 0,
   "declaredSourceInputs": 1155,
@@ -29,7 +29,8 @@
       "sha256": "de7a44ad39112fb22d0b70f24f9f9e1e2b8310616f4f17058ffe9acc6eb951c5"
     },
     "exitCode": 0,
-    "logSha256": "7bd5626ed6eb483d418cac60be2838d2999c76c1a91f2999b65cf33fb4b3f0e2"
+    "logSha256": "7bd5626ed6eb483d418cac60be2838d2999c76c1a91f2999b65cf33fb4b3f0e2",
+    "sameProductSourceAfterTestFix": true
   },
   "preloadDependencyGate": "PASS_REQUIRE_ELECTRON_ONLY",
   "runnerCiTests": 29,
@@ -87,6 +88,14 @@
       },
       "exitCode": 0,
       "logSha256": "7bd5626ed6eb483d418cac60be2838d2999c76c1a91f2999b65cf33fb4b3f0e2"
+    },
+    "ci-and-gate-tests-03": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/ci-and-gate-tests-03/result.json",
+        "bytes": 932,
+        "sha256": "c681a3f6242547febad5a5b3e20e7c514dc428d5b2d14d18070a2eb29d94d592"
+      },
+      "exitCode": 0
     }
   },
   "reviews": {
@@ -119,5 +128,40 @@
   "new100k300kStarted": false,
   "realAccountsRoonLanNasAudio": "NOT_RUN",
   "ordinaryApp": "NOT_RUN",
-  "ownerAcceptance": "NOT_RUN"
+  "ownerAcceptance": "NOT_RUN",
+  "previous103Gate": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/gate-final-01/manifest.json",
+    "bytes": 232902,
+    "sha256": "30f33f9289fc0ee9a68a3752a76c1e3769f3f948de3b978f1de93444f53446a7"
+  },
+  "gateCommandReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/gateway-final-02/result.json",
+    "bytes": 890,
+    "sha256": "2325c79c1c330b7b5c1fc0e48ec50fc3e8eb3ace0eb3347db2eb64118987190e"
+  },
+  "initialImplementationCommit": "4587a213888aaedf686cf342ffe541833ad3c268",
+  "initialCiFailure": {
+    "snapshot": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/ci/source-04.json",
+      "bytes": 58229,
+      "sha256": "11e549a05a7ada237032e19f39400244ae455b6c1693cd9d28484de9b057300a"
+    },
+    "rustHostActualSelectedArchiveLogs": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/ci/INITIAL_RUST_HOST_FAILURE_PROOF.json",
+      "bytes": 1847,
+      "sha256": "88fee4c5ad9929df2fc16eb6c50d950194b95b54707a6b45742f6ead2b3fdd12"
+    },
+    "localRed": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/rust-host-adapter-repro-01/result.json",
+      "bytes": 881,
+      "sha256": "add00dff71160aa35f28b71d705db3701e450e43a83f83cf458d81bee5553e54"
+    },
+    "fix": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/writer/RUST_HOST_ADAPTER_TEST_FIX.json",
+      "bytes": 1514,
+      "sha256": "0fdd7f11ec2e3b3190601dbd10587293bf0761a2165fbd980f97eb44adf120d1"
+    },
+    "reason": "既有宿主第5case仍要求workerData两键；现在保留严格白名单并验证同一私有SAB，16回归加入统一Gate；产品代码未再修改",
+    "ciRerun": false
+  }
 }

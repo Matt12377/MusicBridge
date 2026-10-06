@@ -7,6 +7,7 @@ import type { Worker, WorkerOptions } from 'node:worker_threads'
 import { runDesktopCoreHost, type DesktopCoreHostOptions } from '../src/main/core-host.js'
 import { runCoreUtilityProcess, type UtilityPort } from '../../../packages/bridge-core/src/utility-main.js'
 import type { DatasetOwnerProjectionResponse, DatasetOwnerRequest } from '../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
+import { physicalResourceLocks, PHYSICAL_RESOURCE_BUFFER_BYTES } from '../../../packages/bridge-core/src/stream/physical-resource-locks.js'
 
 type UtilityArguments = Parameters<typeof runCoreUtilityProcess>
 const env = { NODE_ENV: 'test', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_DATA_DIRECTORY: '/synthetic/data' }
@@ -110,7 +111,7 @@ test('只指定 Rust 配置保留既有第七参数行为，不要求主机 call
   assert.equal(calls[0]![7], undefined)
 })
 
-test('Worker 使用固定 Owner 文件、名称、两键身份和有限环境；原 Client 准备启动关闭各一次', async t => {
+test('Worker 使用固定 Owner 文件、名称、三键身份、同一物理锁SAB和有限环境；原 Client 准备启动关闭各一次', async t => {
   const descriptor = Object.getOwnPropertyDescriptor(process, 'resourcesPath')
   Object.defineProperty(process, 'resourcesPath', { configurable: true, value: '/synthetic/resources' })
   t.after(() => { if (descriptor) Object.defineProperty(process, 'resourcesPath', descriptor); else Reflect.deleteProperty(process, 'resourcesPath') })
@@ -130,7 +131,12 @@ test('Worker 使用固定 Owner 文件、名称、两键身份和有限环境；
   assert.equal(creations.length, 1)
   assert.equal(creations[0]!.entry.href, new URL('../src/main/dataset-owner.js', import.meta.url).href)
   assert.equal(creations[0]!.options.name, 'MusicBridge Dataset Owner')
-  assert.deepEqual(creations[0]!.options.workerData, { dataDirectory: '/synthetic/data', resourcesDirectory: '/synthetic/resources' })
+  const workerData = creations[0]!.options.workerData
+  assert.deepEqual(workerData, { dataDirectory: '/synthetic/data', resourcesDirectory: '/synthetic/resources', physicalResourceBuffer: physicalResourceLocks.buffer })
+  assert.deepEqual(Object.keys(workerData).sort(), ['dataDirectory', 'physicalResourceBuffer', 'resourcesDirectory'])
+  assert.equal(workerData.physicalResourceBuffer, physicalResourceLocks.buffer)
+  assert.ok(workerData.physicalResourceBuffer instanceof SharedArrayBuffer)
+  assert.equal(workerData.physicalResourceBuffer.byteLength, PHYSICAL_RESOURCE_BUFFER_BYTES)
   assert.deepEqual(creations[0]!.options.env, allowed)
   const identity = await owner.prepare()
   assert.equal(identity.datasetId, worker.datasetId)

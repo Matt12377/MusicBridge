@@ -31846,7 +31846,7 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "TARGETED_103_GATE_AND_BUILD_PASS_SOURCE_CI_PENDING",
+      "validation_status": "TARGETED_119_GATE_AND_BUILD_PASS_SOURCE_CI_CORRECTION_PENDING",
       "evidence_refs": [
         "docs/postrust/MBRS-005/evidence/local-software-checks.json",
         "docs/postrust/MBRS-005/NETWORK_ACCESS.md"

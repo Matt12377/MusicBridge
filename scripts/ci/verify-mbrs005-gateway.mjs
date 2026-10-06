@@ -10,7 +10,7 @@ const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 const baseSha = '52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58';
 const scopeFile = 'scripts/ci/mbrs005-gateway-scope.json';
 const packages = ['packages/contracts', 'packages/bridge-core', 'apps/desktop'];
-const regression = ['packages/bridge-core/test/gateway.test.ts', 'packages/bridge-core/test/config.test.ts', 'packages/bridge-core/test/registry.test.ts', 'packages/bridge-core/test/source-evidence.test.ts', 'packages/bridge-core/test/mbrs002/local-source-resolver.test.ts', 'apps/desktop/test/dataset-owner-bootstrap.test.ts'];
+const regression = ['packages/bridge-core/test/gateway.test.ts', 'packages/bridge-core/test/config.test.ts', 'packages/bridge-core/test/registry.test.ts', 'packages/bridge-core/test/source-evidence.test.ts', 'packages/bridge-core/test/mbrs002/local-source-resolver.test.ts', 'apps/desktop/test/dataset-owner-bootstrap.test.ts', 'apps/desktop/test/rust-core-host.test.ts'];
 const hash = value => createHash('sha256').update(value).digest('hex');
 const reject = code => { const error = new Error('005网关Gate未准入。'); error.code = code; throw error; };
 

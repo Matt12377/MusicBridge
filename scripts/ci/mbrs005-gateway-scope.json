@@ -31,16 +31,17 @@
     {
       "name": "desktop-private-bootstrap",
       "directory": "apps/desktop",
-      "expectedTests": 6,
+      "expectedTests": 22,
       "tests": [
         "test/dataset-owner-bootstrap.test.ts",
-        "test/mbrs005-dataset-owner-bootstrap.test.ts"
+        "test/mbrs005-dataset-owner-bootstrap.test.ts",
+        "test/rust-core-host.test.ts"
       ]
     }
   ],
   "stageCount": 9,
   "newTaskTests": 34,
-  "inheritedRegressionTests": 69,
+  "inheritedRegressionTests": 85,
   "freshOutputs": 20,
   "actualRoonLanAudio": "NOT_RUN",
   "new100k300k": "NOT_RUN"
