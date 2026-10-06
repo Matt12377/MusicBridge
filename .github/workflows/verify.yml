@@ -128,6 +128,16 @@ jobs:
           node --test scripts/ci/test/verify-mbrs006-local-playback.test.mjs scripts/ci/test/run-core-tests.test.mjs
           node scripts/ci/verify-mbrs006-local-playback.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs006-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
+      - name: MBRS007 队列预取与持久恢复 Gate
+        if: steps.ci-mode.outputs.mode != 'report-only'
+        timeout-minutes: 8
+        shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: |
+          set -euo pipefail
+          node --test scripts/ci/test/verify-mbrs007-queue.test.mjs
+          node scripts/ci/verify-mbrs007-queue.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs007-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
       - name: 验证报告CI准入正负例
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node --test scripts/ci/test/report-only-admission.test.mjs

@@ -1,0 +1,31 @@
+import {materializeMBEdition} from '../../src/collection/mb-queue-materializer.js';
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import {randomUUID} from 'node:crypto';
+import {roonTrackIdFromReference} from '@music-bridge/contracts';
+import type {RoonPlaybackContextItem,RoonPlaybackContextLease,RoonPlaybackContextPage} from '../../src/roon/playback-context.js';
+import type {LocalPlayRequest} from '@music-bridge/contracts';
+import {validateIpcEvent} from '@music-bridge/contracts';
+import {BridgeController} from '../../src/application/bridge-controller.js';
+import {StreamGateway} from '../../src/stream/gateway.js';
+import {LocalFileSourcePool} from '../../src/stream/local-file-source.js';
+import {StreamRegistry} from '../../src/stream/registry.js';
+import {createLyricsRequestContext} from '../../src/lyrics/coordinator.js';
+import {createPlaybackEventPublisher} from '../../src/application/playback-event-publisher.js';
+import type {DatasetOwnerEndpoint} from '../../src/collection/dataset-owner-protocol.js';
+import type {NeteasePort} from '../../src/netease/types.js';
+import {adapterFixture,silentLogger,tick} from '../mbrs006/adapter-fixture.js';
+import {catalogFixture} from '../mbrs006/catalog-fixture.js';
+import {eventually} from '../mbrs005/fixture.js';
+export async function queueFixture(t:test.TestContext,timeout=500,roonLibrary?:NonNullable<ConstructorParameters<typeof BridgeController>[0]['roonLibrary']>){
+ let failSave=false;const f=await catalogFixture(t,op=>{if(failSave&&op==='save-mb-queue')throw new Error('受控SQLite提交前失败');});let now=Date.now();const pool=new LocalFileSourcePool({now:()=>now}),registry=new StreamRegistry({localSourcePool:pool}),gateway=new StreamGateway({host:'127.0.0.1',port:0,publicBaseUrl:'http://127.0.0.1:0',registry,logger:silentLogger});await gateway.start();const sdk=await adapterFixture(timeout,Number(new URL(gateway.iconUrl()).port));
+ let alive=true,captures=0,gate:Promise<void>|undefined;
+ const localSources:DatasetOwnerEndpoint={materializeMBEdition:async request=>materializeMBEdition(f.repository,request),loadMBQueue:async()=>f.repository.mbQueue.load(f.datasetId),saveMBQueue:async request=>f.repository.mbQueue.save(request),prepare:async()=>({epoch:f.epoch,datasetId:f.datasetId}),dispatch:async request=>request.command==='localCatalog.edition'?f.repository.localCatalog.edition((request.payload as {editionId:string}).editionId):undefined,commitBoot:async()=>{},close:async()=>{},isLocalSourceCurrent:()=>alive,sealLocalSources(){alive=false;f.tickets.seal();},captureLocalSource:async request=>{captures++;if(gate)await gate;return f.tickets.capture(request);},revalidateLocalSource:async ticket=>f.tickets.revalidate(ticket),releaseLocalSource:async ticket=>f.tickets.release(ticket)};
+ const controller=new BridgeController({now:()=>now,roon:sdk.adapter,registry,gateway,logger:silentLogger,localSources,...(roonLibrary?{roonLibrary}:{}),netease:new Proxy({configured:true},{get(target,key){if(key==='configured')return true;return ()=>{throw new Error('本地点播禁止调用云或隐式fallback');};}}) as NeteasePort});
+ t.after(async()=>{await controller.shutdown();await sdk.adapter.shutdown();await gateway.stop();});
+ const request=(i=0,action:LocalPlayRequest['action']='PLAY_NOW')=>({...f.requests[i]!,request_id:randomUUID(),action});
+ const start=async(i=0)=>{const req=request(i),work=controller.playLocal(req);await eventually(()=>sdk.sessions.length>sdk.sends.length,'已发起唯一begin');sdk.sessions.at(-1)!('SessionBegan',{session_id:`controlled-${sdk.sessions.length}`});await work;return req;};
+ return {...f,...sdk,localSources,setSaveFailure(value:boolean){failSave=value;},advance(ms:number){now+=ms;},controller,pool,registry,gateway,request,start,captures:()=>captures,setGate(value?:Promise<void>){gate=value;}};
+}

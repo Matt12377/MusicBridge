@@ -39,7 +39,7 @@ async function fixture(t: test.TestContext) {
       repository.close();
       const db = new DatabaseSync(file, { readOnly: true, allowExtension: false, enableForeignKeyConstraints: true });
       try {
-        assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 32);
+        assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 33);
         assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok'); assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
         assert.equal(db.prepare(`SELECT count(*) n FROM ${table}`).get()?.n, count);
         assert.equal(db.prepare('SELECT count(*) n FROM local_catalog_ledger').get()?.n, expectedLedger);

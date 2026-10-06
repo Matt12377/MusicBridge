@@ -82,7 +82,7 @@ function inspectCopy(workcopy: string): Facts {
   } finally { database.close(); }
 }
 function assertOld103(actual: Facts, baseline: Facts): void {
-  assert.equal(actual.schemaVersion, 32, '当前Repository必须自然迁移为32');
+  assert.equal(actual.schemaVersion, 33, '当前Repository必须自然迁移为33');
   assert.equal(baseline.schemaVersion, 30, '固定输入必须为30');
   assert.equal(baseline.tables.length, 103, '完整旧表基线必须为103');
   const byName = new Map(actual.tables.map(table => [table.name, table]));
@@ -191,21 +191,21 @@ test('MBRS002 nonempty schema30自然迁移：103旧表完整事实和13 API跨�
     assert.equal(hash(await readFile(workcopy)), pinned[0].sha256, '私有副本初始字节须与fixture相同');
     phase = 'BASELINE103_BEFORE_MIGRATION';
     exact(inspectCopy(workcopy), baseline, '迁移前仅副本重算全部103 SQL/列/typed cells与原序等于冻结基线');
-    phase = 'ACTUAL_REPOSITORY_30_TO32';
+    phase = 'ACTUAL_REPOSITORY_30_TO33';
     const first = createCollectionRepository({ filePath: workcopy });
     try { first.list({ offset: 0, limit: 1 }); } finally { first.close(); }
     const migrated = inspectCopy(workcopy); assertOld103(migrated, baseline);
-    assert.equal(migrated.tables.length, 116, 'schema32实际完整116表');
+    assert.equal(migrated.tables.length, 117, 'schema33实际完整117表');
     const oldNames = new Set(baseline.tables.map(table => table.name));
     const newTables = migrated.tables.filter(table => !oldNames.has(table.name));
-    exact(newTables.map(table => table.name).sort(), [...localTables, 'local_scan_jobs', 'local_scan_batches', 'local_scan_checkpoints', 'local_scan_file_state', 'local_scan_receipts'].sort(), '自然迁移只新增既定八张目录表与五张扫描表');
+    exact(newTables.map(table => table.name).sort(), [...localTables, 'local_scan_jobs', 'local_scan_batches', 'local_scan_checkpoints', 'local_scan_file_state', 'local_scan_receipts','mb_playback_queue'].sort(), '自然迁移只新增既定八张目录表、五张扫描表与一张逻辑队列表');
     assert.equal(newTables.every(table => table.rows.length === 0), true, '本迁移不伪造新local业务事实');
     for (const cycle of [1, 2] as const) {
       phase = cycle === 1 ? 'COLD_API_CYCLE_1' : 'COLD_API_CYCLE_2';
       exact(readAllApi(workcopy, baselineApi), baselineApi, 'same ids全部13实际API持久对象须EXACT等于f34基线');
       phase = cycle === 1 ? 'FULL_FACTS_AFTER_COLD_1' : 'FULL_FACTS_AFTER_COLD_2';
       const after = inspectCopy(workcopy); assertOld103(after, baseline);
-      exact(after, migrated, '两次独立冷开后116完整事实不得产生隐式改写或删除');
+      exact(after, migrated, '两次独立冷开后117完整事实不得产生隐式改写或删除');
     }
     phase = 'CHECKPOINT_OWN_COPY';
     const closing = new DatabaseSync(workcopy, { allowExtension: false });
@@ -215,8 +215,8 @@ test('MBRS002 nonempty schema30自然迁移：103旧表完整事实和13 API跨�
     } finally { closing.close(); }
     await ownFile(workcopy); exact(await sidecars(workcopy), [false, false], '关闭后的私有副本无sidecar');
     const finalBytes = await readFile(workcopy);
-    assert.equal(finalBytes.readUInt32BE(60), 32, '最终副本header32');
-    exact(inspectCopy(workcopy), migrated, 'checkpoint后116 SQL/列/typed cells与原序仍不变');
+    assert.equal(finalBytes.readUInt32BE(60), 33, '最终副本header33');
+    exact(inspectCopy(workcopy), migrated, 'checkpoint后117 SQL/列/typed cells与原序仍不变');
     phase = 'ORIGINAL_INPUT_FENCE';
     const endInputs = await fixtureBytes();
     exact(endInputs.map(bytes => hash(bytes)), inputs.map(bytes => hash(bytes)), '四个原fixture字节hash前后保持');
@@ -224,7 +224,7 @@ test('MBRS002 nonempty schema30自然迁移：103旧表完整事实和13 API跨�
     const empty = migrated.tables.filter(table => ['prepared_versions', 'legacy_recording_content'].includes(table.name));
     assert.equal(empty.length === 2 && empty.every(table => table.rows.length === 0), true, 'Prepared与手工旧录音为空，仅保留事实边界');
     phase = 'COMPLETE';
-    t.diagnostic(JSON.stringify({ synthetic: true, oldTablesExact: 103, wholeFactsTables: 116, apiObjects: 13, coldCycles: 2,
+    t.diagnostic(JSON.stringify({ synthetic: true, oldTablesExact: 103, wholeFactsTables: 117, apiObjects: 13, coldCycles: 2,
       originalFixtureUnchanged: true, preparedLegacyManual: 'EMPTY_NOT_COVERED', queue: 'SEPARATE_006_007', realMediaOwner: 'NOT_RUN', at00202: 'PARTIAL' }));
   } catch {
     // 屏蔽错误消息、历史定位字段与内部栈；固定阶段保留准备/目标失败归因，不给失败假成功。

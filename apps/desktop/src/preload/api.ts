@@ -143,6 +143,9 @@ export interface MusicBridgePublicApi extends LocalLibraryPublicApi, Partial<Lib
   stop: () => Promise<PlaybackSnapshot>
   next: () => Promise<PlaybackSnapshot>
   previous: () => Promise<PlaybackSnapshot>
+  editPlaybackQueue: import('@music-bridge/contracts').MBQueuePublicApi['editPlaybackQueue']
+  playQueueEntry: import('@music-bridge/contracts').MBQueuePublicApi['playQueueEntry']
+  queueLocalEdition: import('@music-bridge/contracts').MBQueuePublicApi['queueLocalEdition']
   playQueueIndex: (index: number) => Promise<PlaybackSnapshot>
   replaceQueue: (items: readonly PlaybackQueueRequestItem[], index: number) => Promise<PlaybackSnapshot>
   appendQueue: (items: readonly PlaybackQueueRequestItem[]) => Promise<PlaybackSnapshot>
@@ -436,6 +439,9 @@ export const PUBLIC_API_KEYS = [
   'stop',
   'next',
   'previous',
+  'editPlaybackQueue',
+  'playQueueEntry',
+  'queueLocalEdition',
   'playQueueIndex',
   'replaceQueue',
   'appendQueue',
@@ -628,6 +634,7 @@ export function createPreloadApi(
   playbackStreamApi?: { getPlaybackStreamSnapshot: () => Promise<PlaybackStreamSnapshot | null> },
   collectionReadonlyApi?: CollectionReadonlyPublicApi,
   localLibraryApi?:LocalLibraryPublicApi,
+  mbQueueApi?:import('@music-bridge/contracts').MBQueuePublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
@@ -769,6 +776,9 @@ export function createPreloadApi(
     stop,
     next,
     previous,
+    editPlaybackQueue:mbQueueApi?.editPlaybackQueue ?? collectionUnavailable,
+    playQueueEntry:mbQueueApi?.playQueueEntry ?? collectionUnavailable,
+    queueLocalEdition:mbQueueApi?.queueLocalEdition ?? collectionUnavailable,
     playQueueIndex,
     replaceQueue,
     appendQueue,

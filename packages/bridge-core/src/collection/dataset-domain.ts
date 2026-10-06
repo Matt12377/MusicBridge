@@ -1,3 +1,4 @@
+import {materializeMBEdition} from './mb-queue-materializer.js';
 import { createLocalSourceTickets } from './local-source-tickets.js';
 import {createLocalRelocationCoordinator} from './local-relocation-coordinator.js';
 import { createLocalScanCoordinator } from './local-scan-coordinator.js';
@@ -166,6 +167,9 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       pendingDispatches.add(pending);
       return pending.finally(() => pendingDispatches.delete(pending));
     },
+    materializeMBEdition: request => {assertOpen();if(!scanBootReady)throw new CollectionError('INVENTORY_UNAVAILABLE','队列Owner尚未就绪。');return materializeMBEdition(collection,request);},
+    loadMBQueue: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE','队列Owner尚未就绪。'); return collection.mbQueue.load(identity.datasetId); },
+    saveMBQueue: request => { assertOpen(); if (!scanBootReady || request.queue.datasetId !== identity.datasetId) throw new CollectionError('INVENTORY_UNAVAILABLE','队列工作库不匹配。'); return collection.mbQueue.save(request); },
     captureLocalSource: selection => localTickets.capture(selection),
     revalidateLocalSource: ticketId => localTickets.revalidate(ticketId),
     releaseLocalSource: ticketId => localTickets.release(ticketId),

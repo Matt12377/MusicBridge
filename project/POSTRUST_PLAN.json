@@ -31933,7 +31933,7 @@
         "MBRS-006",
         "MBRS-003"
       ],
-      "status": "NOT_STARTED",
+      "status": "LOCAL_SOFTWARE_PASS_SOURCE_CI_PENDING",
       "implementation_owner": "MBRS-007",
       "goal": "让直送序列具有实际可用的控制和边界行为，不混称原生队列或gapless。",
       "steps": [
@@ -31970,8 +31970,18 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "NOT_RUN",
-      "evidence_refs": []
+      "validation_status": "PASS_FINITE_SOFTWARE_SCOPE_LIVE_CARRYOVER",
+      "evidence_refs": [
+        "docs/postrust/MBRS-007/EXECUTION_SCOPE.json",
+        "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-007/evidence/review-disposition.json"
+      ],
+      "branch": "codex/mbrs-007-queue-prefetch-control",
+      "base_final_report_commit": "b464dd2066346121a26824da516969b726f0cfe0",
+      "task_scope": "tasks/MBRS-007_QUEUE_PREFETCH_CONTROL.md",
+      "report_path": "reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md",
+      "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md",
+      "implementation_commit_resolution": "git log -1 --format=%H -- scripts/ci/verify-mbrs007-queue.mjs"
     },
     {
       "id": "MBRS-008",
@@ -33388,11 +33398,15 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅受控SDK顺序与控制证据；原live_roon保持NOT_TESTED，真实结果未执行。"
     },
     {
       "id": "MBRS-AT-007-02",
@@ -33401,12 +33415,16 @@
       "requirement": "MB队列entry_id与Roon原生queue_id类型不同，不假装双向同步。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅限定生产Controller/Owner/固定FD及受控SDK软件层；真实Roon、音频与Owner未执行。"
     },
     {
       "id": "MBRS-AT-007-03",
@@ -33415,12 +33433,16 @@
       "requirement": "预取失败、取消/重排、重复终态不会错播或重复插入，lease被准确引用。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅限定生产Controller/Owner/固定FD及受控SDK软件层；真实Roon、音频与Owner未执行。"
     },
     {
       "id": "MBRS-AT-007-04",
@@ -33430,11 +33452,15 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅受控SDK顺序与控制证据；原live_roon保持NOT_TESTED，真实结果未执行。"
     },
     {
       "id": "MBRS-AT-007-05",
@@ -33444,11 +33470,15 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
+      "evidence_refs": [
+        "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+      ],
       "software_status": "NOT_RUN",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "原live_audio未执行，顺序播放和下一曲预备不等于无缝或重锁测量。"
     },
     {
       "id": "MBRS-AT-007-06",
@@ -33458,11 +33488,15 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
+      "evidence_refs": [
+        "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+      ],
       "software_status": "NOT_RUN",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "原live_audio未执行，顺序播放和下一曲预备不等于无缝或重锁测量。"
     },
     {
       "id": "MBRS-AT-007-07",
@@ -33471,12 +33505,16 @@
       "requirement": "CUE只索引/全文件/片段能力区分，不支持精确片段时拒绝隐式整文件替代。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅限定生产Controller/Owner/固定FD及受控SDK软件层；真实Roon、音频与Owner未执行。"
     },
     {
       "id": "MBRS-AT-007-08",
@@ -33485,12 +33523,16 @@
       "requirement": "既有网易云序列与显式支持的跨源场景回归，未支持的混排有明确预检结果。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅限定生产Controller/Owner/固定FD及受控SDK软件层；真实Roon、音频与Owner未执行。"
     },
     {
       "id": "MBRS-AT-007-09",
@@ -33499,12 +33541,16 @@
       "requirement": "外部接管后pending停止提交，重连不无授权自动播放旧队列。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅限定生产Controller/Owner/固定FD及受控SDK软件层；真实Roon、音频与Owner未执行。"
     },
     {
       "id": "MBRS-AT-007-10",
@@ -33513,12 +33559,16 @@
       "requirement": "队列持久化没有临时URL/secret/内部oid，重启重新解析本地文件。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅限定生产Controller/Owner/固定FD及受控SDK软件层；真实Roon、音频与Owner未执行。"
     },
     {
       "id": "MBRS-AT-008-01",
@@ -34740,12 +34790,16 @@
       "requirement": "能力宣告、暂停/seek真实结果、顺序播放、gapless分别取证；下一曲准备不提前抢占当前会话。",
       "release_scope": "CORE",
       "introduced_in": "1.2",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-007/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-007/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "NEXT零提前SDK与软件顺序/控制通过；真实暂停/seek与gapless分别未测。"
     },
     {
       "id": "MBRS-AT-009-08",

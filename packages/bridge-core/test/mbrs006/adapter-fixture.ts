@@ -18,7 +18,7 @@ export async function adapterFixture(timeout = 30,iconPort=38502) {
   await adapter.start(); apiOptions.core_paired(core);
   zoneCallback('Subscribed',{zones:[{zone_id:'synthetic-zone',display_name:'受控Zone',outputs:[{output_id:'synthetic-output'}],is_pause_allowed:true,is_play_allowed:true,is_seek_allowed:true}]});
   adapter.selectZone('synthetic-zone');
-  return {adapter,sessions,plays,sends,core,unpair(){apiOptions.core_unpaired(core);},zoneCallback,ends:()=>ends,controls:()=>controls};
+  return {adapter,sessions,plays,sends,core,pair(){apiOptions.core_paired(core);},unpair(){apiOptions.core_unpaired(core);},zoneCallback,ends:()=>ends,controls:()=>controls};
 }
 export const syntheticPlayRequest = {mediaUrl:'http://127.0.0.1:38502/local_stream/synthetic-secret',iconUrl:'http://127.0.0.1:38502/assets/icon.png',metadata:{id:'local-test',title:'合成曲目',artists:['合成作者'],album:'合成专辑'}};
 export const tick = () => new Promise<void>(resolve=>setImmediate(resolve));

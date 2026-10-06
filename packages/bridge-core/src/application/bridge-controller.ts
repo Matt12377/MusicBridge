@@ -1,3 +1,6 @@
+import {isMBQueueNeedsReview,isMBQueueUnavailable} from '../collection/mb-queue-owner-types.js';
+import { logicalQueueEntry, localQueueIdentity } from './mb-queue.js';
+import { isAlbumEdition, isMBQueueEditRequest, type MBQueueRecord, type MBQueueLogicalSource, isMBEditionQueueRequest, type MBEditionQueueRequest, type MBQueueEditRequest } from '@music-bridge/contracts';
 import {LocalSourcePreparationError} from './local-source-resolver.js';
 import {DatasetOwnerDispatchError} from '../collection/dataset-owner-protocol.js';
 import { isLocalPlayRequest, type LocalPlayRequest, type LocalPlayAccepted, type LocalPlaybackObservationLeaf } from '@music-bridge/contracts';
@@ -81,10 +84,14 @@ interface LocalOwnerResources {
   capture: LocalSourceCaptureResult; fence: LocalSourceFence; lease?: AssetLease; session?: ConfirmedLocalSession;
   timer?: ReturnType<typeof setInterval>; renewing?: Promise<void>; disposing?: Promise<void>;
   isOwned?: () => boolean; nextRenewal?: number;
+  lane?: number; poolAttempt?: number;
   target: NonNullable<ReturnType<NonNullable<RoonPort['captureLocalTarget']>>>;
 }
 export type QueueItem = PlaybackQueueEntry & {
   localSelection?: LocalPlayRequest;
+  logicalSource?: MBQueueLogicalSource;
+  edition?: import('@music-bridge/contracts').AlbumEdition;
+  preflight?: {state:'NEEDS_REVALIDATION'|'PREPARED'|'FAILED';reason:'SOURCE_UNAVAILABLE'|'SEGMENT_UNSUPPORTED'|'UNSUPPORTED_NATIVE_RESTORE'|null};
   localExpected?: LocalSourceCaptureResult['facts'];
   localTarget?: LocalOwnerResources['target'];
   /** 运行期引用只存在 Core 内存中，绝不进入公开队列快照。 */
@@ -129,6 +136,8 @@ interface NativeRoonPlaybackPort {
   seek?(positionMs: number, options?: RoonOperationOptions): Promise<void>;
 }
 interface PlaybackOwner {
+  /** 稳定entry入口在准备期间的队列资格；进入Playing后不阻止合法队列编辑。 */
+  queueAdmission?: () => void;
   local?: LocalOwnerResources;
   item: QueueItem;
   zoneId: string;
@@ -175,6 +184,7 @@ function normalizeQueueItem(input: QueueInput): QueueItem {
     ? input.preferredSource
     : 'netease';
   return {
+    entryId: randomUUID(),
     trackId: normalizeTrackId(input.trackId),
     qualityPreference,
     ...(preferredSource !== 'netease' ? { preferredSource } : {}),
@@ -191,6 +201,7 @@ function normalizeNativeRoonQueueItem(input: NativeRoonQueueInput): QueueItem {
     throw new BridgeError('BAD_REQUEST', 'Roon queue reference is invalid', { httpStatus: 400 });
   }
   return {
+    entryId: randomUUID(),
     trackId: normalizeTrackId(input.track.id),
     qualityPreference: 'auto',
     preferredSource: 'roon',
@@ -394,6 +405,16 @@ export class BridgeController {
     observedIdentity?: RoonNowPlayingIdentity;
   } | undefined;
   private readonly localPoolOwner = randomUUID();
+  private readonly localLaneIds=[randomUUID(),randomUUID()];
+  private readonly localLaneAttempts=[0,0];
+  private readonly localLaneBusy=[false,false];
+  private readonly localLaneQuiet:Promise<void>[]=[Promise.resolve(),Promise.resolve()];
+  private localNext: {item:QueueItem;owner:PlaybackOwner;created:number;promoted?:PlaybackOwner;work:Promise<void>;failed:boolean} | undefined;
+  private queueId: string = randomUUID();
+  private logicalRevision = '0';
+  private queueDatasetId: string | undefined;
+  private queuePersistence: 'SAVED' | 'UNAVAILABLE' | 'NEEDS_REVALIDATION' = 'UNAVAILABLE';
+  private queueSaveTail: Promise<void> = Promise.resolve();
   private localAttempt = 0;
   private localClosing = false;
   private localObservation: LocalPlaybackObservationLeaf | undefined;
@@ -456,6 +477,7 @@ export class BridgeController {
   constructor(
     private readonly dependencies: {
       localSources?: DatasetOwnerEndpoint;
+      isLocalPlaybackAllowed?: () => boolean;
       netease: NeteasePort;
       roon: RoonPort;
       registry: StreamRegistry;
@@ -554,7 +576,11 @@ export class BridgeController {
     const hasNext = hasQueue && this.queueIndex >= 0 && (this.queueIndex < this.queue.length - 1 || Boolean(context && !context.afterComplete));
     const hasPrevious = hasQueue && (this.queueIndex > 0 || Boolean(context && context.before > 0));
     return {
+      queueId: this.queueId, revision: this.logicalRevision, persistence: this.queuePersistence,
       items: this.queue.map((item, index) => ({
+        entryId: item.entryId!,
+        ...(item.edition?{edition:{...item.edition}}:{}),
+        ...(item.preflight?{preflight:{...item.preflight}}:{}),
         trackId: item.trackId,
         qualityPreference: item.qualityPreference,
         ...(item.track ? { track: cloneTrackSummary(item.track) } : {}),
@@ -666,12 +692,106 @@ export class BridgeController {
     return this.enqueuePlayback(async () => {
       await this.stopActive();
       this.guardCommand();
-      this.queue = [item];
+      const replacementId=randomUUID();await this.persistQueue([item],0,replacementId);
+      this.queueId=replacementId;this.queue = [item];
       this.queueIndex = 0;
-      this.queueProjectionDirty = true;
+      this.queueProjectionDirty = true;this.guardCommand();
       this.clearPlaybackIssue();
-      await this.startQueueIndex(0, false, input.startupTrace);
+      await this.startQueueIndex(0, false, input.startupTrace,true);
       return this.getState();
+    });
+  }
+
+  /** Boot之后只恢复逻辑队列；不打开FD、不begin_session。 */
+  async restoreLogicalQueue(): Promise<void> {
+    const port=this.dependencies.localSources;
+    if (!port?.loadMBQueue || this.localClosing) return;
+    const identity=await port.prepare();if(this.localClosing || !port.isLocalSourceCurrent?.())throw this.cancelled();
+    this.queueDatasetId=identity.datasetId;const saved=await port.loadMBQueue();
+    if(this.localClosing || !port.isLocalSourceCurrent?.())throw this.cancelled();
+    if(!saved)return;
+    if(isMBQueueUnavailable(saved)){this.queuePersistence='UNAVAILABLE';this.queueProjectionDirty=true;this.playbackState='idle';this.notifyPlaybackChanged();return;}
+    if(isMBQueueNeedsReview(saved)){this.logicalRevision=saved.revision;this.queuePersistence='NEEDS_REVALIDATION';this.queueProjectionDirty=true;this.playbackState='idle';this.notifyPlaybackChanged();return;}
+    this.queueId=saved.queueId;this.logicalRevision=saved.revision;
+    this.queue=saved.entries.map(entry=>({entryId:entry.entryId,logicalSource:structuredClone(entry.source),trackId:entry.source.kind==='local_file'?entry.source.snapshot.trackId:entry.source.kind==='roon'?'0':entry.source.trackId,
+      qualityPreference:entry.quality,...(entry.source.kind==='local_file'?{resolvedSource:'local_file' as const,local:localQueueIdentity(entry.source)}:entry.source.kind==='roon'?{preferredSource:'roon' as const,preflight:{state:'FAILED' as const,reason:'UNSUPPORTED_NATIVE_RESTORE' as const}}:{preferredSource:entry.source.kind})}));
+    this.queueIndex=saved.currentEntryId?this.queue.findIndex(entry=>entry.entryId===saved.currentEntryId):-1;
+    this.queuePersistence='NEEDS_REVALIDATION';this.playbackState='idle';this.queueProjectionDirty=true;this.notifyPlaybackChanged();
+  }
+  private persistQueue(items:QueueItem[]=this.queue,index:number=this.queueIndex,queueId:string=this.queueId): Promise<void> {
+    const candidate=[...items],acceptedRevision=this.logicalRevision;
+    const port=this.dependencies.localSources;if(!port?.saveMBQueue)return Promise.resolve();
+    const work=this.queueSaveTail.then(async()=>{
+      if(this.localClosing || !port.isLocalSourceCurrent?.())throw this.cancelled();
+      if(!this.queueDatasetId){const identity=await port.prepare();this.queueDatasetId=identity.datasetId;}
+      if(this.localClosing || !port.isLocalSourceCurrent?.())throw this.cancelled();
+      if(this.logicalRevision!==acceptedRevision && queueId===this.queueId)throw this.cancelled();
+      const expectedRevision=this.logicalRevision;
+      const queue:MBQueueRecord={schemaVersion:'1.2',datasetId:this.queueDatasetId!,queueId,revision:String(BigInt(expectedRevision)+1n),
+        currentEntryId:candidate[index]?.entryId ?? null,restartPolicy:{reResolve:true,autoplay:false},
+        entries:candidate.map(logicalQueueEntry)};
+      const result=await port.saveMBQueue!({expectedRevision,queue});
+      if(this.localClosing || !port.isLocalSourceCurrent?.() || result.revision!==queue.revision || result.queueId!==queue.queueId)throw this.cancelled();
+      this.logicalRevision=result.revision;this.queuePersistence='SAVED';this.queueProjectionDirty=true;
+    });
+    this.queueSaveTail=work.catch(()=>{this.queuePersistence='UNAVAILABLE';this.queueProjectionDirty=true;});return work;
+  }
+  queueLocalEdition(request:MBEditionQueueRequest):Promise<BridgeState> {
+    if(!isMBEditionQueueRequest(request))return Promise.reject(this.cancelled());
+    if(request.action==='PLAY_NOW')this.cancelQueueContext();
+    const epoch=this.commandEpoch,replacement=this.queueReplacementGeneration,target=this.dependencies.roon.captureLocalTarget?.();
+    const current=()=>{if(this.localClosing||epoch!==this.commandEpoch||request.action!=='PLAY_NOW'&&replacement!==this.queueReplacementGeneration||!target?.isCurrent())throw this.cancelled();if(request.action==='PLAY_NOW')this.guardCommand();};
+    const run=async()=>{
+      current();const port=this.dependencies.localSources;if(!port?.materializeMBEdition)throw this.cancelled();
+      const snapshot=await port.materializeMBEdition(request);current();
+      if(snapshot.edition.id!==request.editionId||snapshot.edition.revision!==request.expectedRevision||snapshot.sources.length===0||snapshot.sources.length>MAX_QUEUE_ITEMS)throw this.cancelled();
+      if(snapshot.sources.some(source=>source.snapshot.segment!==null))throw new BridgeError('BAD_REQUEST','LOCAL_SEGMENT_UNSUPPORTED',{httpStatus:409});
+      const items:QueueItem[]=snapshot.sources.map(source=>({entryId:randomUUID(),trackId:source.snapshot.trackId,qualityPreference:'auto',resolvedSource:'local_file',local:localQueueIdentity(source),logicalSource:structuredClone(source),edition:{...snapshot.edition},preflight:{state:'NEEDS_REVALIDATION',reason:null}}));
+      if(request.action==='PLAY_NOW'){
+        await this.stopActive();current();const replacementId=randomUUID();await this.persistQueue(items,0,replacementId);this.queueId=replacementId;this.queue=items;this.queueIndex=0;this.queueProjectionDirty=true;current();await this.startQueueIndex(0,false,undefined,true);current();
+      }else if(this.queueContext||this.pendingQueueContexts.size)await this.editContextQueue(items,request.action==='PLAY_NEXT_MB_QUEUE',current);
+      else await this.commitQueueEdit(items,request.action==='PLAY_NEXT_MB_QUEUE',current);
+      current();return this.getState();
+    };
+    return request.action==='PLAY_NOW'?this.enqueuePlayback(run,true):run();
+  }
+  playQueueEntry(request:{queueId:string;expectedRevision:string;entryId:string}):Promise<BridgeState>{
+    const target=this.queue.find(item=>item.entryId===request.entryId);
+    let revision=request.expectedRevision;const contextGeneration=this.queueContextGeneration;
+    const current=()=>{if(contextGeneration!==this.queueContextGeneration || !target || request.queueId!==this.queueId || revision!==this.logicalRevision || !this.queue.includes(target))throw this.cancelled();};
+    try{current();}catch(error){return Promise.reject(error);}
+    return this.enqueuePlayback(async()=>{
+      current();this.guardCommand();
+      if(target===this.queue[this.queueIndex] && (this.activePlayback || this.activeRoonPlayback))return this.getState();
+      await this.stopActive();current();this.guardCommand();
+      const candidate=this.queue,index=candidate.indexOf(target!);
+      // 本次cursor保存也经CAS；只接受本次ACK推进的一个revision，不能自证其它编辑。
+      const committedRevision=this.dependencies.localSources?.saveMBQueue?String(BigInt(revision)+1n):revision;
+      await this.persistQueue(candidate,index);revision=committedRevision;
+      // ACK先安装已持久的逻辑cursor；Stop只封派发，不能让公开cursor落后于磁盘。
+      // 新成员/替换/另一ACK已安装时，旧命令不得回退覆盖它们。
+      if(request.queueId===this.queueId && revision===this.logicalRevision && this.queue===candidate && candidate[index]===target){
+        this.queueIndex=index;this.queueProjectionDirty=true;this.notifyPlaybackChanged();
+      }
+      current();this.guardCommand();
+      await this.startQueueIndex(index,false,undefined,true,current);current();return this.getState();
+    });
+  }
+
+  editLogicalQueue(request:MBQueueEditRequest):Promise<BridgeState> {
+    if(!isMBQueueEditRequest(request))return Promise.reject(this.cancelled());
+    const epoch=this.commandEpoch;return this.enqueue(async()=>{
+      if(epoch!==this.commandEpoch || request.queueId!==this.queueId || request.expectedRevision!==this.logicalRevision || this.queueContext)throw this.cancelled();
+      const current=this.queue[this.queueIndex],old=this.queue;
+      const ids=new Set(request.entryIds);if(request.entryIds.some(id=>!old.some(item=>item.entryId===id)))throw this.cancelled();
+      const next=request.action==='REMOVE'?old.filter(item=>!ids.has(item.entryId!)):request.entryIds.map(id=>old.find(item=>item.entryId===id)!);
+      if(request.action==='REORDER' && next.length!==old.length)throw this.cancelled();
+      const index=current?next.indexOf(current):-1;
+      await this.persistQueue(next,index);
+      this.cancelNextPreparation();this.queue=next;this.queueIndex=index;this.queueProjectionDirty=true;this.notifyPlaybackChanged();
+      if(epoch!==this.commandEpoch)throw this.cancelled();
+      if(current && !next.includes(current)){await this.stopActive(true);this.playbackState='idle';}
+      this.queueProjectionDirty=true;this.notifyPlaybackChanged();this.scheduleNextPreparation();return this.getState();
     });
   }
 
@@ -693,11 +813,11 @@ export class BridgeController {
       const fence=new LocalSourceFence(capture.buffer);
       try {
         guardIntent(); if(this.localClosing || !target.isCurrent() || !port.isLocalSourceCurrent?.() || !fence.current) throw this.cancelled();
-        const item:QueueItem={trackId:request.local_track_id,qualityPreference:'auto',resolvedSource:'local_file',track:toTrackSummary(capture.metadata),localSelection:structuredClone(request),localExpected:capture.facts,localTarget:target,
+        const item:QueueItem={entryId:randomUUID(),logicalSource:{kind:'local_file',snapshot:{sourceKind:'local_file',trackId:capture.facts.track.id,assetId:capture.facts.asset.id,libraryRootId:capture.facts.root.id,sourceRootId:capture.facts.sourceRoot.id,rootRevision:capture.facts.root.revision,fileRevision:capture.facts.asset.fileRevision,locationRevision:capture.facts.asset.locationRevision,selectionRevision:capture.facts.track.selectionRevision,segment:capture.facts.track.segment},edition:null},trackId:request.local_track_id,qualityPreference:'auto',resolvedSource:'local_file',track:toTrackSummary(capture.metadata),localSelection:structuredClone(request),localExpected:capture.facts,localTarget:target,
           local:{local_track_id:request.local_track_id,asset_id:request.asset_id,asset_revision:request.expected_asset_revision,selection_revision:capture.facts.track.selectionRevision,location_revision:capture.facts.asset.locationRevision,root_revision:capture.facts.root.revision}};
         if(request.action==='PLAY_NOW') {
           await this.stopActive();guardIntent();if(!target.isCurrent() || !fence.current) throw this.cancelled();
-          this.queue=[item];this.queueIndex=0;this.queueProjectionDirty=true;
+          const replacementId=randomUUID();await this.persistQueue([item],0,replacementId);this.queueId=replacementId;this.queue=[item];this.queueIndex=0;this.queueProjectionDirty=true;guardIntent();
         } else {
           const current=()=>{guardIntent();if(!target.isCurrent() || !port.isLocalSourceCurrent?.() || !fence.current)throw this.cancelled();};
           const insert=request.action==='PLAY_NEXT_MB_QUEUE';
@@ -707,13 +827,14 @@ export class BridgeController {
         }
       } finally {fence.revoke();await port.releaseLocalSource(capture.ticketId);}
       guardIntent();
-      if(request.action==='PLAY_NOW') await this.startQueueIndex(0,false);
+      if(request.action==='PLAY_NOW') await this.startQueueIndex(0,false,undefined,true);
       return {status:'accepted',request_id:request.request_id,action:request.action} as LocalPlayAccepted;
     };
     const work=request.action==='PLAY_NOW' ? this.enqueuePlayback(run,true) : run();
     this.localRequests.set(request.request_id,{fingerprint,work});return work;
   }
   private localCurrent(owner:PlaybackOwner):boolean {
+    try{owner.queueAdmission?.();this.assertLocalProtocol();}catch{return false;}
     return !this.localClosing && this.owner===owner && !owner.abort.signal.aborted && this.queue[this.queueIndex]===owner.item
       && !!owner.local?.fence.current && owner.local.target.isCurrent() && this.dependencies.localSources?.isLocalSourceCurrent?.()===true;
   }
@@ -734,29 +855,119 @@ export class BridgeController {
   private trackLocalCleanup(work:Promise<unknown>):void {this.localTasks.add(work);void work.finally(()=>this.localTasks.delete(work)).catch(()=>undefined);}
   private disposeLocal(owner:PlaybackOwner):Promise<void> {
     const local=owner.local;if(!local) return Promise.resolve();
-    return local.disposing ??= (async()=>{local.fence.revoke();if(local.timer)clearInterval(local.timer);await local.renewing?.catch(()=>undefined);
+    if(local.disposing)return local.disposing;
+    const quiet=local.disposing = (async()=>{local.fence.revoke();if(local.timer)clearInterval(local.timer);await local.renewing?.catch(()=>undefined);
       if(owner.token)await this.dependencies.registry.revokeLocal(owner.token);else await local.lease?.close();
       await this.dependencies.localSources?.releaseLocalSource?.(local.capture.ticketId);
+      if(local.lane!==undefined){this.localLaneBusy[local.lane]=false;queueMicrotask(()=>this.scheduleNextPreparation());}
     })();
+    if(local.lane!==undefined)this.localLaneQuiet[local.lane]=quiet;return quiet;
   }
-  private async startLocalItem(item:QueueItem,owner:PlaybackOwner):Promise<void> {
-    const request=item.localSelection!,port=this.dependencies.localSources!,target=item.localTarget;
-    if(!target?.isCurrent() || !port.captureLocalSource || !port.releaseLocalSource) throw this.cancelled();
-    this.guardOwner(owner);const attempt=++this.localAttempt;
-    const capture=await port.captureLocalSource(request),fence=new LocalSourceFence(capture.buffer);
-    if(this.owner!==owner || owner.abort.signal.aborted || !target.isCurrent() || !fence.current || JSON.stringify(capture.facts)!==JSON.stringify(item.localExpected)) {
-      fence.revoke();await port.releaseLocalSource(capture.ticketId);throw this.cancelled();
+  private assertLogicalLocalFacts(item:QueueItem,capture:LocalSourceCaptureResult):void {
+    const source=item.logicalSource;if(source?.kind!=='local_file')return;
+    const expected=source.snapshot,f=capture.facts;
+    if(expected.trackId!==f.track.id || expected.assetId!==f.asset.id || expected.libraryRootId!==f.root.id || expected.sourceRootId!==f.sourceRoot.id
+      || expected.fileRevision!==f.asset.fileRevision || expected.rootRevision!==f.root.revision || expected.locationRevision!==f.asset.locationRevision
+      || expected.selectionRevision!==f.track.selectionRevision || !isDeepStrictEqual(expected.segment,f.track.segment)) {
+      throw new BridgeError('BAD_REQUEST','本地队列来源修订已变化，请明确重新点播。',{httpStatus:409});
     }
-    owner.local={capture,fence,target};
-    this.localObservation={schema_version:'1.2',request_id:request.request_id,attempt_id:`${this.localPoolOwner}_${attempt}`,intent_generation:String(this.playbackGeneration),route:'roon_audio_input',local_track_id:request.local_track_id,asset_id:request.asset_id,asset_revision:request.expected_asset_revision,target:{...request.target},session_epoch:null,
+  }
+  private assertLocalProtocol():void {
+    if(this.dependencies.isLocalPlaybackAllowed?.()===false)throw new BridgeError('BAD_REQUEST','LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED',{httpStatus:409});
+  }
+  private async resolveQueueEdition(item:QueueItem):Promise<void> {
+    const source=item.logicalSource;if(source?.kind!=='local_file' || !source.edition)return;
+    let result:unknown;
+    try{result=await this.dependencies.localSources!.dispatch({version:1,id:randomUUID(),command:'localCatalog.edition',payload:{editionId:source.edition.id}});}
+    catch{throw new BridgeError('BAD_REQUEST','LOCAL_EDITION_NEEDS_REVALIDATION',{httpStatus:409});}
+    if(!isAlbumEdition(result) || result.id!==source.edition.id || result.revision!==source.edition.revision)throw new BridgeError('BAD_REQUEST','LOCAL_EDITION_NEEDS_REVALIDATION',{httpStatus:409});
+    item.edition={id:result.id,revision:result.revision,title:result.title,edition:result.edition};
+    this.queueProjectionDirty=true;
+  }
+  private localRequest(item:QueueItem):LocalPlayRequest {
+    this.assertLocalProtocol();
+    if(item.localSelection)return item.localSelection;
+    const source=item.logicalSource,target=this.dependencies.roon.captureLocalTarget?.();
+    if(source?.kind!=='local_file' || source.snapshot.segment!==null || !target?.isCurrent())throw this.cancelled();
+    return {schema_version:'1.2',request_id:randomUUID(),route:'roon_audio_input',source_kind:'local_file',local_track_id:source.snapshot.trackId,asset_id:source.snapshot.assetId,
+      expected_asset_revision:source.snapshot.fileRevision,target:{...target.target},action:'PLAY_NOW'};
+  }
+  private cancelLocalNext():void {
+    const next=this.localNext;if(!next)return;this.localNext=undefined;next.owner.abort.abort();
+    const quiet=next.work.catch(()=>undefined).then(()=>this.disposeLocal(next.owner));this.trackLocalCleanup(quiet);
+  }
+  private scheduleLocalNext(item:QueueItem):void {
+    if(this.localNext?.item===item)return;
+    this.cancelLocalNext();if(this.localClosing || this.playbackState!=='playing' || this.dependencies.isLocalPlaybackAllowed?.()===false)return;
+    const lane=this.localLaneBusy.findIndex(busy=>!busy);if(lane<0)return;
+    const port=this.dependencies.localSources;if(!port?.captureLocalSource || !port.releaseLocalSource)return;
+    const target=this.dependencies.roon.captureLocalTarget?.();if(!target?.isCurrent())return;
+    const owner:PlaybackOwner={item,zoneId:target.target.zone_id,source:'local_file',abort:new AbortController(),preparing:true,dispatched:false};
+    this.localLaneBusy[lane]=true;const attempt=++this.localLaneAttempts[lane]!;
+    const next:{item:QueueItem;owner:PlaybackOwner;created:number;promoted?:PlaybackOwner;work:Promise<void>;failed:boolean}={item,owner,created:this.now(),work:Promise.resolve(),failed:false};
+    const current=()=>next.promoted?this.owner===next.promoted && !next.promoted.abort.signal.aborted && this.queue[this.queueIndex]===item && target.isCurrent() && !!owner.local?.fence.current && port.isLocalSourceCurrent?.()===true:this.localNext===next && !owner.abort.signal.aborted && this.queue[this.queueIndex+1]===item
+      && target.isCurrent() && !!owner.local?.fence.current && port.isLocalSourceCurrent?.()===true;
+    this.localNext=next;
+    next.work=(async()=>{
+      try {
+        const request=this.localRequest(item);await this.resolveQueueEdition(item);
+        if(this.localNext!==next || owner.abort.signal.aborted || this.queue[this.queueIndex+1]!==item || !target.isCurrent())throw this.cancelled();
+        this.assertLocalProtocol();const capture=await port.captureLocalSource!(request),fence=new LocalSourceFence(capture.buffer);
+        owner.local={capture,fence,target,lane,poolAttempt:attempt};
+        this.assertLogicalLocalFacts(item,capture);
+        if(!current())throw this.cancelled();
+        const registration=await this.dependencies.registry.registerLocalSource({source_kind:'local_file',status:'prepared_descriptor',request_id:request.request_id,action:request.action,target:request.target,facts:capture.facts},
+          {ownerId:this.localLaneIds[lane]!,attempt,isCurrent:current},capture.format);
+        owner.token=registration.token;owner.local.lease=registration.lease;
+        if(!current())throw this.cancelled();item.preflight={state:'PREPARED',reason:null};this.queueProjectionDirty=true;this.notifyPlaybackChanged();
+      } catch {
+        next.failed=true;item.preflight={state:'FAILED',reason:'SOURCE_UNAVAILABLE'};this.queueProjectionDirty=true;await this.disposeLocal(owner);if(!owner.local)this.localLaneBusy[lane]=false;if(!this.localClosing)this.notifyPlaybackChanged();
+        // 明确失败，当前entry保留；不扫描后面的曲目，也不循环重开。
+      }
+    })();this.trackLocalCleanup(next.work);
+  }
+
+  private async startLocalItem(item:QueueItem,owner:PlaybackOwner):Promise<void> {
+    const request=this.localRequest(item),port=this.dependencies.localSources!,target=item.localTarget ?? this.dependencies.roon.captureLocalTarget?.();
+    if(!target?.isCurrent() || !port.captureLocalSource || !port.releaseLocalSource) throw this.cancelled();
+    this.guardOwner(owner);await this.resolveQueueEdition(item);this.guardOwner(owner);this.assertLocalProtocol();if(!target.isCurrent())throw this.cancelled();++this.localAttempt;
+    let registration:{token:string;lease:AssetLease}|undefined;
+    const prepared=this.localNext;
+    if(prepared?.item===item){
+      prepared.promoted=owner;
+      await prepared.work;this.guardOwner(owner);
+      if(prepared.failed)throw new BridgeError('BAD_REQUEST','下一曲预检失败，请明确重新点播。',{httpStatus:409});
+      if(this.now()-prepared.created>=30_000 || prepared.owner.local?.lease?.state!=='PREPARED'){
+        this.cancelLocalNext();await this.disposeLocal(prepared.owner);this.guardOwner(owner);
+      }else{
+        if(!await port.revalidateLocalSource?.(prepared.owner.local!.capture.ticketId)){this.cancelLocalNext();throw this.cancelled();}
+        this.guardOwner(owner);if(!target.isCurrent() || !prepared.owner.local!.fence.current)throw this.cancelled();
+        owner.local=prepared.owner.local;owner.token=prepared.owner.token!;prepared.promoted=owner;this.localNext=undefined;
+        registration={token:owner.token!,lease:owner.local!.lease!};
+      }
+    }
+    if(!owner.local){
+      const lane=this.localLaneBusy.findIndex(busy=>!busy);if(lane<0){await Promise.allSettled(this.localLaneQuiet);this.guardOwner(owner);}
+      const available=this.localLaneBusy.findIndex(busy=>!busy);if(available<0)throw this.cancelled();
+      this.localLaneBusy[available]=true;const poolAttempt=++this.localLaneAttempts[available]!;
+      let capture:LocalSourceCaptureResult;try{capture=await port.captureLocalSource(request);}catch(error){this.localLaneBusy[available]=false;throw error;}
+      const fence=new LocalSourceFence(capture.buffer);owner.local={capture,fence,target,lane:available,poolAttempt};
+      if(this.owner!==owner || owner.abort.signal.aborted || !target.isCurrent() || !fence.current || item.localExpected && JSON.stringify(capture.facts)!==JSON.stringify(item.localExpected)) {
+        await this.disposeLocal(owner);throw this.cancelled();
+      }
+      try{this.assertLogicalLocalFacts(item,capture);}catch(error){await this.disposeLocal(owner);throw error;}
+    }
+    const {capture,fence}=owner.local,attempt=owner.local.poolAttempt!;
+    const metadata={...capture.metadata,...(item.edition?.edition?{version:item.edition.edition}:{})};
+    this.localObservation={schema_version:'1.2',request_id:request.request_id,attempt_id:`${this.localLaneIds[owner.local.lane!]!}_${attempt}`,intent_generation:String(this.playbackGeneration),route:'roon_audio_input',local_track_id:request.local_track_id,asset_id:request.asset_id,asset_revision:request.expected_asset_revision,target:{...request.target},session_epoch:null,
       phase:'PREPARING',ownership:'MB_PENDING',queue_owner:'MB',delivery_state:'NOT_STARTED',roon_observation:{event:'NONE',observed:false,correlation:'UNKNOWN'},position_ms:null,
       quality:{http_bytes:'NOT_TESTED',signal_path:'NOT_TESTED',digital_output:'NOT_TESTED',gapless:'NOT_TESTED'},error_code:null};
     this.playbackState='preparing';this.notifyPlaybackChanged();
     try {
-      const registration=await this.dependencies.registry.registerLocalSource({source_kind:'local_file',status:'prepared_descriptor',request_id:request.request_id,action:request.action,target:request.target,facts:capture.facts},{ownerId:this.localPoolOwner,attempt,isCurrent:()=>this.localCurrent(owner)},capture.format);
+      registration ??= await this.dependencies.registry.registerLocalSource({source_kind:'local_file',status:'prepared_descriptor',request_id:request.request_id,action:request.action,target:request.target,facts:capture.facts},{ownerId:this.localLaneIds[owner.local.lane!]!,attempt,isCurrent:()=>this.localCurrent(owner)},capture.format);
       owner.token=registration.token;owner.local.lease=registration.lease;
       this.assertLocal(owner);this.activeToken=registration.token;
-      this.activePlayback={track:capture.metadata,qualityPreference:'auto',requestedQuality:'standard',actualQuality:'unknown',...(capture.format?{format:capture.format}:{}),sizeBytes:registration.lease.size,startedAt:new Date(this.now()).toISOString()};
+      this.activePlayback={track:metadata,qualityPreference:'auto',requestedQuality:'standard',actualQuality:'unknown',...(capture.format?{format:capture.format}:{}),sizeBytes:registration.lease.size,startedAt:new Date(this.now()).toISOString()};
       const local=owner.local;
       local.timer=setInterval(()=>{
         if(!this.localCurrent(owner) || local.lease?.state==='CLOSED'){this.loseLocal(owner);return;}
@@ -764,8 +975,9 @@ export class BridgeController {
         const work=(async()=>{if(!await port.revalidateLocalSource?.(capture.ticketId))throw this.cancelled();this.assertLocal(owner);local.lease!.renew(local.session!);})();
         local.renewing=work;void work.catch(()=>this.loseLocal(owner)).finally(()=>{delete local.renewing;});
       },250);local.timer.unref();
+      item.preflight={state:'PREPARED',reason:null};this.queueProjectionDirty=true;
       this.localPhase(owner,'SUBMITTING');this.notifyPlaybackChanged();
-      await this.device(()=>{this.assertLocal(owner);return this.dependencies.roon.play({...this.ownerOptions(owner),mediaUrl:this.dependencies.gateway.localStreamUrl(registration.token),iconUrl:this.dependencies.gateway.iconUrl(),metadata:capture.metadata,
+      await this.device(()=>{this.assertLocal(owner);return this.dependencies.roon.play({...this.ownerOptions(owner),mediaUrl:this.dependencies.gateway.localStreamUrl(registration!.token),iconUrl:this.dependencies.gateway.iconUrl(),metadata,
         onDispatch:()=>{this.assertLocal(owner);owner.dispatched=true;this.localObservation={...this.localObservation!,delivery_state:'UNKNOWN'};this.localPhase(owner,'AWAITING_ROON');},
         onLocalSession:observation=>{
           if(this.owner!==owner || owner.abort.signal.aborted) return;
@@ -778,7 +990,7 @@ export class BridgeController {
           if(observation.event==='SESSION' && observation.sessionId){
             local.isOwned=observation.isOwned;local.session={attempt,sessionId:observation.sessionId,isConfirmed:observation.isConfirmed};local.lease!.confirmSession(local.session);
             this.localObservation={...this.localObservation!,session_epoch:randomUUID()};
-            this.positionContext={generation:this.playbackGeneration,trackId:capture.metadata.id,zoneId:owner.zoneId,source:'local_file',playbackEpoch:observation.generation};
+            this.positionContext={generation:this.playbackGeneration,trackId:metadata.id,zoneId:owner.zoneId,source:'local_file',playbackEpoch:observation.generation};
           } else if(observation.event==='PLAYING'){if(!local.session?.isConfirmed())return;local.lease!.renew(local.session);this.localPhase(owner,'PLAYING','PLAYING');this.playbackState='playing';owner.preparing=false;}
           else if(observation.event==='PAUSED'){if(!local.session?.isConfirmed())return;local.lease!.pause(local.session);this.localPhase(owner,'PAUSED','PAUSED');this.playbackState='paused';owner.preparing=false;}
           else if(observation.event==='ENDED')this.localPhase(owner,'ENDED','SESSION_ENDED');
@@ -786,6 +998,7 @@ export class BridgeController {
         }});});
       this.assertLocal(owner);
     } catch(error) {
+      item.preflight={state:'FAILED',reason:'SOURCE_UNAVAILABLE'};this.queueProjectionDirty=true;
       if(!owner.dispatched || !this.localCurrent(owner) || asBridgeError(error).code==='ROON_MEDIA_ERROR'){
         if(this.localObservation?.phase!=='OWNERSHIP_LOST')this.localTerminal(owner,owner.abort.signal.aborted?'CANCELLED':'FAILED',owner.abort.signal.aborted?null:asBridgeError(error).code,asBridgeError(error).code==='ROON_MEDIA_ERROR'?'ERROR':'NONE');
         await this.disposeLocal(owner);throw error;
@@ -825,10 +1038,11 @@ export class BridgeController {
         this.pendingQueueContexts.delete(context);
         this.queueContext = context;
         ++this.queueHydrationGeneration;
-        this.queue = items; this.queueIndex = selectedIndex;
+        const replacementId=randomUUID();await this.persistQueue(items,selectedIndex,replacementId);
+        this.queueId=replacementId;this.queue = items; this.queueIndex = selectedIndex;this.queueProjectionDirty=true;this.guardCommand();this.assertQueueContext(context);
         context.activate();
         this.queueProjectionDirty = true; this.clearPlaybackIssue();
-        await this.startQueueIndex(this.queueIndex, false);
+        await this.startQueueIndex(this.queueIndex, false,undefined,true);
         this.assertQueueContext(context);
         // Transport 确认后只预取一页；读页不进入设备链或播放命令链。
         if (!context.afterComplete) void this.expandQueueContext(context, 'after', false).catch(() => undefined);
@@ -930,11 +1144,14 @@ export class BridgeController {
           this.assertQueueContext(context);
           if (context.before !== before || context.after !== after) throw this.cancelled();
           this.contextCapacity(this.queue.length + items.length);
-          const current = this.queue[this.queueIndex];
-          if (direction === 'after') { this.queue.push(...items); context.after = cursor; context.afterComplete = complete; }
-          else { this.queue.unshift(...items); context.before = offset; this.rebaseInsertion(items.length); }
-          if (current) this.queueIndex = this.queue.indexOf(current);
-          this.queueProjectionDirty = true; this.notifyPlaybackChanged();
+          const original=this.queue,current = original[this.queueIndex];
+          const candidate=direction==='after'?[...original,...items]:[...items,...original];
+          const selected=current?candidate.indexOf(current):this.queueIndex;
+          await this.persistQueue(candidate,selected);
+          this.queue=candidate;this.queueIndex=selected;
+          if (direction === 'after') { context.after = cursor; context.afterComplete = complete; }
+          else { context.before = offset; this.rebaseInsertion(items.length); }
+          this.queueProjectionDirty = true; this.notifyPlaybackChanged();this.assertQueueContext(context);
         });
         if (!requireTrack || items.length) return;
       }
@@ -979,11 +1196,15 @@ export class BridgeController {
           assertCurrent();this.assertQueueContext(context);
           if (epoch !== this.commandEpoch || context.before !== originalBefore || context.after !== originalAfter) throw this.cancelled();
           this.contextCapacity(this.queue.length + before.length + after.length + items.length);
-          const current = this.queue[this.queueIndex];
-          this.queue = [...before, ...this.queue, ...after];
-          this.rebaseInsertion(before.length); if (current) this.queueIndex = this.queue.indexOf(current);
+          const original=this.queue,current = original[this.queueIndex],materialized=[...before,...original,...after];
+          const selected=current?materialized.indexOf(current):-1;
+          const slot=insert?this.nextInsertionQueueIndex===this.queueIndex&&this.nextInsertionCursor!==undefined?this.nextInsertionCursor+before.length:selected>=0?selected+1:0:materialized.length;
+          const candidate=[...materialized.slice(0,slot),...items,...materialized.slice(slot)];
+          await this.persistQueue(candidate,selected);
+          this.queue=candidate;this.queueIndex=selected;this.queueProjectionDirty=true;this.notifyPlaybackChanged();assertCurrent();this.assertQueueContext(context);
+          this.queue=materialized;this.rebaseInsertion(before.length);this.queueIndex=selected;
           context.before = 0; context.after = cursor; context.afterComplete = true;
-          this.applyQueueEdit(items, insert);
+          this.applyQueueEdit(items,insert);this.notifyPlaybackChanged();
           return this.getState();
         });
       });
@@ -993,16 +1214,28 @@ export class BridgeController {
   }
 
   private applyQueueEdit(items: QueueItem[], insert: boolean): void {
+    this.cancelNextPreparation();
     const index = insert ? this.nextInsertionQueueIndex === this.queueIndex && this.nextInsertionCursor !== undefined
       ? this.nextInsertionCursor : this.queueIndex >= 0 ? this.queueIndex + 1 : 0 : this.queue.length;
     this.queue.splice(index, 0, ...items);
     if (insert) { this.nextInsertionQueueIndex = this.queueIndex; this.nextInsertionCursor = index + items.length; }
     const generation = this.cancelQueueHydration();
-    this.queueProjectionDirty = true; this.notifyPlaybackChanged(); this.scheduleQueueHydration(items, generation);
+    this.queueProjectionDirty = true; this.scheduleQueueHydration(items, generation);
   }
 
   private commitQueueEdit(items: QueueItem[], insert: boolean, assertCurrent:()=>void=()=>undefined): Promise<BridgeState> {
-    return this.enqueue(async () => { assertCurrent();this.contextCapacity(this.queue.length + items.length); this.applyQueueEdit(items, insert); return this.getState(); });
+    const result=this.queueEditTail.then(()=>this.enqueue(async () => {
+      assertCurrent();this.contextCapacity(this.queue.length + items.length);
+      const old=this.queue,index=this.queueIndex;
+      const slot=insert?this.nextInsertionQueueIndex===index&&this.nextInsertionCursor!==undefined?this.nextInsertionCursor:index>=0?index+1:0:old.length;
+      const candidate=[...old.slice(0,slot),...items,...old.slice(slot)];
+      await this.persistQueue(candidate,index);
+      this.queue=candidate;this.queueIndex=index;this.cancelNextPreparation();
+      if(insert){this.nextInsertionQueueIndex=index;this.nextInsertionCursor=slot+items.length;}
+      this.queueProjectionDirty=true;this.notifyPlaybackChanged();assertCurrent();
+      const generation=this.cancelQueueHydration();this.scheduleQueueHydration(items,generation);return this.getState();
+    }));
+    this.queueEditTail=result.then(()=>undefined,()=>undefined);return result;
   }
 
   async replaceRoonQueue(inputs: readonly NativeRoonQueueInput[], startIndex: number): Promise<BridgeState> {
@@ -1017,11 +1250,12 @@ export class BridgeController {
       ++this.queueHydrationGeneration;
       await this.stopActive();
       this.guardCommand();
-      this.queue = items;
+      const replacementId=randomUUID();await this.persistQueue(items,startIndex,replacementId);
+      this.queueId=replacementId;this.queue = items;
       this.queueIndex = startIndex;
-      this.queueProjectionDirty = true;
+      this.queueProjectionDirty = true;this.guardCommand();
       this.clearPlaybackIssue();
-      await this.startQueueIndex(startIndex, false);
+      await this.startQueueIndex(startIndex, false,undefined,true);
       return this.getState();
     });
   }
@@ -1064,10 +1298,11 @@ export class BridgeController {
           activeItem.requestedQuality = activePlayback.requestedQuality;
           activeItem.actualQuality = activePlayback.actualQuality;
         }
+        const replacementId=randomUUID();await this.persistQueue(normalizedItems,startIndex,replacementId);
         if (this.owner && activeItem) this.owner.item = activeItem;
-        this.queue = normalizedItems;
+        this.queueId=replacementId;this.queue = normalizedItems;
         this.queueIndex = startIndex;
-        this.queueProjectionDirty = true;
+        this.queueProjectionDirty = true;this.guardCommand();
         this.clearPlaybackIssue();
         this.notifyPlaybackChanged();
         this.scheduleQueueHydration(normalizedItems, hydrationGeneration);
@@ -1076,11 +1311,12 @@ export class BridgeController {
 
       await this.stopActive();
       this.guardCommand();
-      this.queue = normalizedItems;
+      const replacementId=randomUUID();await this.persistQueue(normalizedItems,startIndex,replacementId);
+      this.queueId=replacementId;this.queue = normalizedItems;
       this.queueIndex = startIndex;
-      this.queueProjectionDirty = true;
+      this.queueProjectionDirty = true;this.guardCommand();
       this.clearPlaybackIssue();
-      await this.startQueueIndex(startIndex, true);
+      await this.startQueueIndex(startIndex, true,undefined,true);
       return this.getState();
     }, true);
   }
@@ -1100,11 +1336,13 @@ export class BridgeController {
           details: { capacity: MAX_QUEUE_ITEMS },
         });
       }
-      const acceptedItems = normalizedItems.slice(0, availableSlots);
+      if(normalizedItems.length>availableSlots)throw new BridgeError('BAD_REQUEST','队列容量超过5000，未追加任何条目。',{httpStatus:413});
+      const acceptedItems = normalizedItems;
       if (acceptedItems.length === 0) return this.getState();
 
       const hydrationGeneration = this.cancelQueueHydration();
       const shouldHydrateInline = acceptedItems.length <= QUEUE_HYDRATION_INLINE_LIMIT;
+      await this.persistQueue([...this.queue,...acceptedItems],this.queueIndex);
       this.queue.push(...acceptedItems);
       this.queueProjectionDirty = true;
       this.notifyPlaybackChanged();
@@ -1121,7 +1359,8 @@ export class BridgeController {
     if (this.queueContext || this.pendingQueueContexts.size) return this.editContextQueue([item], false);
     return this.enqueue(async () => {
       const availableSlots = Math.max(0, MAX_QUEUE_ITEMS - this.queue.length);
-      if (availableSlots === 0) return this.getState();
+      if(availableSlots===0)throw new BridgeError('BAD_REQUEST','队列容量超过5000。',{httpStatus:413});
+      await this.persistQueue([...this.queue,item],this.queueIndex);
       this.queue.push(item);
       this.queueProjectionDirty = true;
       this.notifyPlaybackChanged();
@@ -1144,7 +1383,8 @@ export class BridgeController {
           details: { capacity: MAX_QUEUE_ITEMS },
         });
       }
-      const acceptedItems = normalizedItems.slice(0, availableSlots);
+      if(normalizedItems.length>availableSlots)throw new BridgeError('BAD_REQUEST','队列容量超过5000，未追加任何条目。',{httpStatus:413});
+      const acceptedItems = normalizedItems;
       if (acceptedItems.length === 0) return this.getState();
 
       const hydrationGeneration = this.cancelQueueHydration();
@@ -1152,6 +1392,7 @@ export class BridgeController {
       const insertionIndex = this.nextInsertionQueueIndex === this.queueIndex && this.nextInsertionCursor !== undefined
         ? this.nextInsertionCursor
         : this.queueIndex >= 0 ? this.queueIndex + 1 : 0;
+      await this.persistQueue([...this.queue.slice(0,insertionIndex),...acceptedItems,...this.queue.slice(insertionIndex)],this.queueIndex);
       this.queue.splice(insertionIndex, 0, ...acceptedItems);
       this.queueProjectionDirty = true;
       this.nextInsertionQueueIndex = this.queueIndex;
@@ -1169,8 +1410,9 @@ export class BridgeController {
     const item = normalizeNativeRoonQueueItem(input);
     if (this.queueContext || this.pendingQueueContexts.size) return this.editContextQueue([item], true);
     return this.enqueue(async () => {
-      if (this.queue.length >= MAX_QUEUE_ITEMS) return this.getState();
+      if (this.queue.length >= MAX_QUEUE_ITEMS)throw new BridgeError('BAD_REQUEST','队列容量超过5000。',{httpStatus:413});
       const insertionIndex = this.queueIndex >= 0 ? this.queueIndex + 1 : 0;
+      await this.persistQueue([...this.queue.slice(0,insertionIndex),item,...this.queue.slice(insertionIndex)],this.queueIndex);
       this.queue.splice(insertionIndex, 0, item);
       this.queueProjectionDirty = true;
       this.notifyPlaybackChanged();
@@ -1583,7 +1825,7 @@ export class BridgeController {
       this.dependencies.registry.revokeAll();
     }); } finally {
       if(this.owner?.local)this.clearActiveResources();
-      await Promise.allSettled([...this.localTasks]);
+      await Promise.allSettled([...this.localTasks,this.queueSaveTail]);
       await this.dependencies.registry.closeLocal();
     }
   }
@@ -1821,8 +2063,11 @@ export class BridgeController {
     index: number,
     skipUnavailable: boolean,
     startupTrace?: PlaybackStartupTrace,
+    alreadySaved=false,
+    queueAdmission?:()=>void,
   ): Promise<void> {
-    this.guardCommand();
+    queueAdmission?.();this.guardCommand();
+    if(!alreadySaved)await this.persistQueue(this.queue,index);this.guardCommand();
     this.nextInsertionQueueIndex = undefined;
     this.nextInsertionCursor = undefined;
     let candidate = index;
@@ -1840,8 +2085,8 @@ export class BridgeController {
         break;
       }
       const owner: PlaybackOwner = {
-        item, zoneId: item.roonZoneId ?? this.dependencies.roon.getState().selectedZoneId ?? '',
-        source: item.localSelection ? 'local_file' : item.roonReference || item.preferredSource === 'roon' ? 'roon' : 'netease',
+        ...(queueAdmission?{queueAdmission}:{}),item, zoneId: item.roonZoneId ?? this.dependencies.roon.getState().selectedZoneId ?? '',
+        source: item.localSelection || item.logicalSource?.kind==='local_file' ? 'local_file' : item.roonReference || item.preferredSource === 'roon' ? 'roon' : 'netease',
         abort: new AbortController(), preparing: true, dispatched: false,
       };
       this.owner = owner;
@@ -1854,7 +2099,7 @@ export class BridgeController {
         );
         await starting;
         this.guardOwner(owner);
-        owner.preparing = false;
+        owner.preparing = false;delete owner.queueAdmission;
         if (skippedError) {
           this.lastPlaybackError = skippedError.code;
           this.lastPlaybackIssue = this.issueForError(skippedError);
@@ -1866,7 +2111,7 @@ export class BridgeController {
         this.cancelQueueHydration();
         if (!owner.dispatched && !this.stopUnknown) { owner.abort.abort(); this.owner = undefined; }
         const bridgeError = asBridgeError(error);
-        if (!skipUnavailable || !isSkippableQueueError(error)) {
+        if (item.localSelection || item.logicalSource?.kind==='local_file' || !skipUnavailable || !isSkippableQueueError(error)) {
           this.playbackState = 'error';
           this.setPlaybackError(bridgeError);
           this.notifyPlaybackChanged();
@@ -1892,9 +2137,10 @@ export class BridgeController {
     owner: PlaybackOwner,
     startupTrace?: PlaybackStartupTrace,
   ): Promise<void> {
-    if (item.localSelection) {
+    if (item.logicalSource?.kind==='roon') throw new BridgeError('BAD_REQUEST','UNSUPPORTED_NATIVE_RESTORE',{httpStatus:409});
+    if (item.localSelection || item.logicalSource?.kind==='local_file') {
       const task=this.startLocalItem(item,owner);this.localTasks.add(task);
-      try {await task;} finally {this.localTasks.delete(task);}
+      try {await task;} catch(error){item.preflight={state:'FAILED',reason:'SOURCE_UNAVAILABLE'};this.queueProjectionDirty=true;throw error;} finally {this.localTasks.delete(task);}
       return;
     }
     this.localObservation=undefined;
@@ -2300,7 +2546,7 @@ export class BridgeController {
       while (this.hydrationIsCurrent(hydration)) {
         const item = items[cursor++];
         if (!item) return;
-        if (item.localSelection || item.track || !this.queue.includes(item) || item === this.owner?.item) continue;
+        if (item.localSelection || item.logicalSource || item.track || !this.queue.includes(item) || item === this.owner?.item) continue;
         try {
           const track = toTrackSummary(await this.dependencies.netease.getTrack(item.trackId, {
             signal: hydration.abort.signal, priority: 'background',
@@ -2400,6 +2646,7 @@ export class BridgeController {
   }
 
   private guardOwner(owner: PlaybackOwner): void {
+    owner.queueAdmission?.();
     if (this.owner !== owner || owner.abort.signal.aborted || this.queue[this.queueIndex] !== owner.item
       || (this.dependencies.roon.getState().selectedZoneId ?? '') !== owner.zoneId
       || (owner.token !== undefined && this.activeToken !== owner.token)) throw this.cancelled();
@@ -2411,7 +2658,7 @@ export class BridgeController {
   }
 
   private ownerOptions(owner: PlaybackOwner | undefined): RoonOperationOptions {
-    return { ...(owner ? { signal: owner.abort.signal, expectedZoneId: owner.zoneId } : {}),...(owner?.local ? {assertCurrent:()=>this.assertLocal(owner),withDispatch:<T>(send:()=>T)=>owner.local!.fence.dispatch(send,()=>this.assertLocal(owner))} : {}) };
+    return { ...(owner ? { signal: owner.abort.signal, expectedZoneId: owner.zoneId,assertCurrent:()=>this.guardOwner(owner) } : {}),...(owner?.local ? {assertCurrent:()=>this.assertLocal(owner),withDispatch:<T>(send:()=>T)=>owner.local!.fence.dispatch(send,()=>this.assertLocal(owner))} : {}) };
   }
 
   private waitOwned<T>(owner: PlaybackOwner, work: Promise<T>): Promise<T> {
@@ -2511,13 +2758,16 @@ export class BridgeController {
 
   /** 仅提前解析紧邻下一首的短期URL和响应头，不下载音频、不注册流或占用Roon会话。 */
   private cancelNextPreparation(): void {
+    this.cancelLocalNext();
     this.nextPreparation?.abort.abort();
     this.nextPreparation = undefined;
   }
 
   private scheduleNextPreparation(): void {
-    if (!this.activePlayback || this.playbackState !== 'playing' || !this.dependencies.netease.configured) return;
+    if (!this.activePlayback || this.playbackState !== 'playing') return;
     const item = this.queue[this.queueIndex + 1];
+    if(item && (item.localSelection || item.logicalSource?.kind==='local_file')){this.nextPreparation?.abort.abort();this.nextPreparation=undefined;this.scheduleLocalNext(item);return;}
+    this.cancelLocalNext();if(!this.dependencies.netease.configured)return;
     if (!item || item.localSelection || item.roonReference || item.preferredSource === 'roon' || item.preferredSource === 'smart') {
       this.cancelNextPreparation();
       return;

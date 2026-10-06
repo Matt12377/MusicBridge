@@ -86,7 +86,7 @@ const {
   refreshPlayback, selectLocalLyricsMatch, revokeLocalLyricsMatch,
   toggleTrackLike, playTrack, playRoonLibraryTrack, queueRoonLibraryTrack,
   appendTrack, insertTrackNext, replaceAndPlayCollection, appendCollection,
-  invalidateCollectionOperation, playQueueItem, togglePlayback, stopPlayback,
+  invalidateCollectionOperation, playQueueItem, editQueueEntry, togglePlayback, stopPlayback,
   nextTrack, previousTrack, seekPlayback, cancelRoonPlaybackPreparation, retryLastPlaybackAction,
 } = playback
 const zones = ref<readonly PublicRoonZone[]>([])
@@ -1326,6 +1326,7 @@ onUnmounted(() => {
         :quality-label="qualityLabel"
         @close="closeInspector"
         @play-queue-item="playQueueItem"
+        @edit-queue-entry="editQueueEntry"
       />
       </div>
 

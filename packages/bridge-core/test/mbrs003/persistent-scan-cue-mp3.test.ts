@@ -52,7 +52,7 @@ function projection(datasetId:string) {
 function persistentRows(file:string) {
   const db=new DatabaseSync(file,{readOnly:true,allowExtension:false});
   try {
-    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version,32);
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version,33);
     assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check,'ok');assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
     return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name GLOB 'local_catalog_*' OR name GLOB 'local_scan_*' OR name GLOB 'local_cue_*') ORDER BY name").all()
       .map(row=>[row.name,db.prepare('SELECT * FROM "'+String(row.name)+'" ORDER BY rowid').all()]);

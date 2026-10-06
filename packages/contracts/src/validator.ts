@@ -1,3 +1,5 @@
+import {isMBQueueEditRequest,isMBQueuePlayEntryRequest,isMBEditionQueueRequest} from './mb-queue.js';
+import {isAlbumEdition,isLocalExactInteger} from './local-catalog.js';
 import { isLocalPlayAccepted, isLocalQueueIdentity } from './local-play-request.js';
 import { isLocalPlaybackObservationLeaf } from './local-playback-compat.js';
 import {isLocalRelocationCommand,isLocalRelocationInternalCommand,isLocalRelocationCommandPayload,isLocalRelocationCommandResult} from './local-relocation.js';
@@ -395,6 +397,9 @@ function isPlaybackQueueEntry(value: unknown): value is PlaybackQueueEntry {
     isRecord(value) &&
     hasOnlyKeys(value, [
       'trackId',
+      'entryId',
+      'edition',
+      'preflight',
       'local',
       'qualityPreference',
       'track',
@@ -404,8 +409,11 @@ function isPlaybackQueueEntry(value: unknown): value is PlaybackQueueEntry {
       'actualQuality',
       'roonItem',
     ]) &&
+    (value.entryId === undefined || isCollectionId(value.entryId)) &&
+    (value.edition === undefined || isAlbumEdition(value.edition)) &&
+    (value.preflight === undefined || isRecord(value.preflight) && hasOnlyKeys(value.preflight,['state','reason']) && ['NEEDS_REVALIDATION','PREPARED','FAILED'].includes(String(value.preflight.state)) && (value.preflight.reason===null || ['SOURCE_UNAVAILABLE','SEGMENT_UNSUPPORTED','UNSUPPORTED_NATIVE_RESTORE'].includes(String(value.preflight.reason)))) &&
     safeString(value.trackId, 128) &&
-    (value.resolvedSource === 'local_file' ? isLocalQueueIdentity(value.local) && value.local.local_track_id === value.trackId : /^\d+$/.test(value.trackId) && value.trackId !== '0' && value.local === undefined) &&
+    (value.resolvedSource === 'local_file' ? isLocalQueueIdentity(value.local) && value.local.local_track_id === value.trackId : (value.trackId==='0' && value.preferredSource==='roon' && isRecord(value.preflight) && value.preflight.reason==='UNSUPPORTED_NATIVE_RESTORE' || /^\d+$/.test(value.trackId) && value.trackId !== '0') && value.local === undefined) &&
     isPlaybackQualityPreference(value.qualityPreference) &&
     (value.track === undefined || isTrackSummary(value.track, value.resolvedSource === 'local_file' && isLocalQueueIdentity(value.local) ? value.local.local_track_id : undefined)) &&
     (value.preferredSource === undefined || isPlaybackSourcePreference(value.preferredSource)) &&
@@ -430,7 +438,10 @@ function isQueueContext(value: unknown): boolean {
 function isPlaybackQueueSnapshot(value: unknown): value is PlaybackQueueSnapshot {
   if (
     !isRecord(value) ||
-    !hasOnlyKeys(value, ['items', 'index', 'hasNext', 'hasPrevious', 'context']) ||
+    !hasOnlyKeys(value, ['queueId','revision','persistence','items', 'index', 'hasNext', 'hasPrevious', 'context']) ||
+    (value.queueId !== undefined && !isCollectionId(value.queueId)) ||
+    (value.revision !== undefined && !isLocalExactInteger(value.revision)) ||
+    (value.persistence !== undefined && !['SAVED','UNAVAILABLE','NEEDS_REVALIDATION'].includes(String(value.persistence))) ||
     !Array.isArray(value.items) ||
     value.items.length > MAX_QUEUE_ITEMS ||
     !value.items.every((item) => isPlaybackQueueEntry(item)) ||
@@ -1261,6 +1272,9 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'roon.volume.get') return isRecord(payload) && Object.keys(payload).length === 0;
   if (command === 'roon.volume.set') return isVolumeRequest(payload);
   if (command === 'playback.seek') return isPlaybackSeekPayload(payload);
+  if(command === 'playback.editQueue')return isMBQueueEditRequest(payload);
+  if(command === 'playback.playQueueEntry')return isMBQueuePlayEntryRequest(payload);
+  if(command === 'playback.queueLocalEdition')return isMBEditionQueueRequest(payload);
   if (command === 'playback.playQueueIndex') return isPlaybackQueueIndexPayload(payload);
   if (command === 'roon.library.image') return isRoonImagePayload(payload);
   if (command === 'roon.library.play' || command === 'roon.library.queue') {
@@ -1968,6 +1982,9 @@ function isCommandResult(
     case 'playback.stop':
     case 'playback.next':
     case 'playback.previous':
+    case 'playback.editQueue':
+    case 'playback.playQueueEntry':
+    case 'playback.queueLocalEdition':
     case 'playback.playQueueIndex':
     case 'playback.replaceQueue':
     case 'playback.appendQueue':

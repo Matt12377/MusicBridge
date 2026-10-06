@@ -1,3 +1,4 @@
+import { mbQueueMigration, verifyMBQueueDatabase, createMBQueueStore, MBQueueStoreError, type MBQueueStore } from './mb-queue-store.js';
 import { LocalFactsFenceBusy, LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import { traceDatabase } from '../diagnostics/performance-instrumentation.js';
 import { isDatasetCollectionModels, isDatasetLargeCollectionModels, MAX_DATASET_COLLECTION_MODELS, MAX_DATASET_LARGE_COLLECTION_MODELS } from './dataset-owner-protocol.js';
@@ -66,6 +67,7 @@ export interface CollectionRepository {
   privateInstallLocalFactsFence(check: () => void, seal: () => void): void;
   localCatalog: LocalCatalogStore;
   localScan: LocalScanStore;
+  mbQueue: MBQueueStore;
   recordingRecords: RecordingRecordStore;
   recordingPrints: RecordingPrintStore;
   recordingAttempts: RecordingAttemptStore;
@@ -233,17 +235,17 @@ export function createCollectionRepository(options: { filePath: string; stagingR
       // WAL 恢复期间，首次版本读取也可能遇到短暂锁；先设置等待，再访问数据库内容。
       db.exec('PRAGMA busy_timeout=1000');
       const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32].includes(version)) return unavailable();
+      if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33].includes(version)) return unavailable();
       if (version === 0 && Number(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").get()?.n) !== 0) return unavailable();
       db.exec('PRAGMA trusted_schema=OFF; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
-      if (version < 32) {
+      if (version < 33) {
         // 重建被其他表引用的批次表：事务外暂关检查，提交前核验，退出时始终恢复。
         db.exec('PRAGMA foreign_keys=OFF');
         db.exec('BEGIN IMMEDIATE');
         try {
           // 等待写锁后重读版本，避免两个首次连接同时执行迁移。
           const currentVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32].includes(currentVersion)) return unavailable();
+          if (![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33].includes(currentVersion)) return unavailable();
           if (currentVersion === 0) db.exec(schema);
           if (currentVersion < 2) { db.exec(photoMigration); options.beforeCommit?.('migrate-photos'); }
           if (currentVersion < 3) { db.exec(physicalMusicMigration); options.beforeCommit?.('migrate-music'); }
@@ -276,6 +278,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
           if (currentVersion < 30) { db.exec(preparationZipSessionMigration); options.beforeCommit?.('migrate-preparation-zip-session'); }
           if (currentVersion < 31) { db.exec(localCatalogMigration); verifyLocalCatalogDatabase(db); options.beforeCommit?.('migrate-local-catalog'); }
           if (currentVersion < 32) { db.exec(localScanMigration); verifyLocalScanDatabase(db); options.beforeCommit?.('migrate-local-scan'); }
+          if (currentVersion < 33) { db.exec(mbQueueMigration); verifyMBQueueDatabase(db); options.beforeCommit?.('migrate-mb-queue'); }
           if (db.prepare('PRAGMA foreign_key_check').get()) return unavailable();
           db.exec('COMMIT');
         } catch (error) { db.exec('ROLLBACK'); throw error; }
@@ -284,7 +287,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
       db.exec('BEGIN IMMEDIATE');
       try {
         verifyVersionDistributionDatabase(db); verifyRecordingRecordDatabase(db); verifyRecordingWorkspaceDatabase(db); verifyCommercialProvenanceDatabase(db); verifyOutputRunBarrierDatabase(db); verifyPreparationZipDatabase(db); verifyRecordingRecordPageIndex(db); verifyReferenceCatalogZipDatabase(db); verifyRecordingRecordPageSearch(db); verifyPreparationZipSessionDatabase(db); recoverRecordingPrints(db);
-        verifyLocalCatalogDatabase(db); verifyLocalScanDatabase(db); const publishScanAudit = recoverLocalScanJobs(db, 'cold-open');
+        verifyLocalCatalogDatabase(db); verifyLocalScanDatabase(db); verifyMBQueueDatabase(db,false); const publishScanAudit = recoverLocalScanJobs(db, 'cold-open');
         const attemptCandidate = recoverRecordingAttempts(db, new Date().toISOString(), options.beforeCommit ? undefined : attemptAudit);
         options.beforeCommit?.('recover-recording-attempts'); db.exec('COMMIT'); publishScanAudit();
         if (!options.beforeCommit) attemptAudit.publish(db, attemptCandidate);
@@ -296,7 +299,8 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   }
   function guarded<T>(operation: (db: DatabaseSync) => T): T {
     try { if(localFactsFatal)throw new LocalFactsCommitFatal();return operation(open()); }
-    catch (error) { if (error instanceof LocalFactsCommitFatal || error instanceof LocalFactsFenceBusy || error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
+    catch (error) { if (error instanceof MBQueueStoreError) throw error;
+      if (error instanceof LocalFactsCommitFatal || error instanceof LocalFactsFenceBusy || error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
   }
   function exportReadonlyModels(maxModels: number, modelsGuard: typeof isDatasetCollectionModels): readonly CollectionModel[] {
     return guarded(db => {
@@ -554,6 +558,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   return {
     privateInstallLocalFactsFence(check,seal) { if (privateFactsFence) throw new Error('本地来源提交接点不能重复安装。'); privateFactsFence = check; privateSealLocalFacts=seal; },
     localCatalog,
+    mbQueue: createMBQueueStore({ read: guarded, onFatal: failLocalFacts, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     localScan: createLocalScanStore({ read: guarded, catalog: localCatalog, sources, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingPrints: createRecordingPrintStore({ read: guarded, objectCertificates, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingRecords: createRecordingRecordStore({ read: guarded, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),

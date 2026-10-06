@@ -46,6 +46,9 @@ export interface PlaybackQueueRequestItem {
 }
 
 export interface PlaybackQueueEntry {
+  entryId?: string;
+  edition?: import('./local-catalog.js').AlbumEdition;
+  preflight?: {state:'NEEDS_REVALIDATION'|'PREPARED'|'FAILED';reason:'SOURCE_UNAVAILABLE'|'SEGMENT_UNSUPPORTED'|'UNSUPPORTED_NATIVE_RESTORE'|null};
   local?: LocalQueueIdentity
   trackId: string
   qualityPreference: PlaybackQualityPreference
@@ -63,6 +66,9 @@ export interface PlaybackQueueEntry {
 export type PlaybackQueueItem = PlaybackQueueEntry
 
 export interface PlaybackQueueSnapshot {
+  queueId?: string;
+  revision?: string;
+  persistence?: 'SAVED' | 'UNAVAILABLE' | 'NEEDS_REVALIDATION';
   items: readonly PlaybackQueueItem[]
   index: number
   hasNext: boolean

@@ -1,3 +1,4 @@
+import { verifyMBQueueDatabase } from '../collection/mb-queue-store.js';
 import { verifyRecordingRecordDatabase } from './record-integrity.js';
 import { verifyRecordingPlanDatabase } from './plan-integrity.js';
 import { verifyRecordingAttemptDatabase } from './attempt-integrity.js';
@@ -29,7 +30,7 @@ export function readBackupIndex(databasePath: string): { index: BackupIndex; own
   try {
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
     const version = db.prepare('PRAGMA user_version').get()?.user_version;
-    if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18 && version !== 19 && version !== 20 && version !== 21 && version !== 22 && version !== 23 && version !== 24 && version !== 25 && version !== 26 && version !== 27 && version !== 28 && version !== 29 && version !== 30 && version !== 31 && version !== 32 || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').all().length) backupFail();
+    if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18 && version !== 19 && version !== 20 && version !== 21 && version !== 22 && version !== 23 && version !== 24 && version !== 25 && version !== 26 && version !== 27 && version !== 28 && version !== 29 && version !== 30 && version !== 31 && version !== 32 && version !== 33 || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || db.prepare('PRAGMA foreign_key_check').all().length) backupFail();
     verifyVersionDistributionDatabase(db);
     if (Number(version) >= 15) verifyReferenceCatalogDatabase(db);
     if (Number(version) >= 16) verifySpreadsheetImportDatabase(db);
@@ -47,6 +48,7 @@ export function readBackupIndex(databasePath: string): { index: BackupIndex; own
     if (Number(version) >= 30) verifyPreparationZipSessionDatabase(db);
     if (Number(version) >= 31) verifyLocalCatalogDatabase(db);
     if (Number(version) >= 32) verifyLocalScanDatabase(db);
+    if (Number(version) >= 33) verifyMBQueueDatabase(db);
     const count = Number(db.prepare('SELECT count(*) n FROM archive_operations').get()?.n);
     if (count > 10000) backupFail();
     const operations: BackupOperation[] = [], owned: OwnedArchiveOperation[] = [], incompleteOperationIds: string[] = [];

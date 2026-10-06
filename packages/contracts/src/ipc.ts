@@ -398,6 +398,9 @@ export interface IpcCommandPayloads extends LocalCatalogCommandPayloads, LocalSc
   'playback.stop': Record<string, never>;
   'playback.next': Record<string, never>;
   'playback.previous': Record<string, never>;
+  'playback.editQueue': import('./mb-queue.js').MBQueueEditRequest;
+  'playback.playQueueEntry': import('./mb-queue.js').MBQueuePlayEntryRequest;
+  'playback.queueLocalEdition': import('./mb-queue.js').MBEditionQueueRequest;
   'playback.playQueueIndex': { index: number };
   'playback.replaceQueue': { items: readonly PlaybackQueueRequestItem[]; index: number };
   'playback.appendQueue': { items: readonly PlaybackQueueRequestItem[] };
@@ -679,6 +682,9 @@ export interface IpcCommandResults extends LocalCatalogCommandResults, LocalScan
   'playback.stop': PlaybackSnapshot;
   'playback.next': PlaybackSnapshot;
   'playback.previous': PlaybackSnapshot;
+  'playback.editQueue': PlaybackSnapshot;
+  'playback.playQueueEntry': PlaybackSnapshot;
+  'playback.queueLocalEdition': PlaybackSnapshot;
   'playback.playQueueIndex': PlaybackSnapshot;
   'playback.replaceQueue': PlaybackSnapshot;
   'playback.appendQueue': PlaybackSnapshot;

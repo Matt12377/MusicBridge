@@ -1,3 +1,4 @@
+import {createMBQueueClient} from './mb-queue-client.js'
 import {createLocalLibraryClient} from './local-library-client.js'
 import { PerformanceTraceRecorder, isCollectionReadonlySettings, isCollectionRefreshResult } from '@music-bridge/contracts'
 import { createPerformanceInvoker, createPerformanceInteractions } from '../shared/performance-transport.js'
@@ -382,5 +383,6 @@ contextBridge.exposeInMainWorld(
       refreshCollection: async () => { const value: unknown = await invokePerformance('collection:refresh'); if (!isCollectionRefreshResult(value)) throw new Error('收藏刷新回执无效。'); return value },
     },
     createLocalLibraryClient(invokeScoped,getDatasetId,{chooseRoot:commandId=>outbox.submit('localLibrary.chooseRoot',{commandId}),confirm:request=>outbox.submit('localRelocation.confirm',request),relink:request=>outbox.submit('localRelocation.relinkRoot',request)}),
+    createMBQueueClient(invokeScoped),
   ),
 )

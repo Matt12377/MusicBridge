@@ -899,11 +899,22 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     if (!items?.[index]) return
     cancelRoonPlaybackPreparation()
     try {
-      applyPlaybackState(await api.playQueueIndex(index))
+      const queue=playbackState.value!.queue,item=queue.items[index]!;
+      applyPlaybackState(await (queue.queueId && queue.revision && item.entryId ? api.playQueueEntry({queueId:queue.queueId,expectedRevision:queue.revision,entryId:item.entryId}):api.playQueueIndex(index)))
       onEnterNowPlaying()
     } catch (error) {
       onError(error)
     }
+  }
+
+  async function editQueueEntry(entryId:string,direction:'remove'|'up'|'down'):Promise<void>{
+    if(!playbackCommandsReady())return;const queue=playbackState.value?.queue;
+    if(!queue?.queueId||!queue.revision||queue.context)return;
+    const ids=queue.items.map(item=>item.entryId),index=ids.indexOf(entryId);
+    if(index<0||ids.some(id=>!id))return;
+    const order=ids as string[],other=direction==='up'?index-1:index+1;
+    if(direction!=='remove'){if(other<0||other>=order.length)return;[order[index],order[other]]=[order[other]!,order[index]!];}
+    try{applyPlaybackState(await api.editPlaybackQueue({queueId:queue.queueId,expectedRevision:queue.revision,action:direction==='remove'?'REMOVE':'REORDER',entryIds:direction==='remove'?[entryId]:order}));}catch(error){onError(error);}
   }
 
   async function togglePlayback(): Promise<void> {
@@ -1098,7 +1109,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     selectLocalLyricsMatch, revokeLocalLyricsMatch, toggleTrackLike, refreshPlayback,
     playTrack, playRoonLibraryTrack, queueRoonLibraryTrack, appendTrack, insertTrackNext,
     replaceAndPlayCollection, appendCollection, playTracks, invalidateCollectionOperation,
-    playQueueItem, togglePlayback, stopPlayback, retryLastPlaybackAction, nextTrack, previousTrack, seekPlayback,
+    playQueueItem, editQueueEntry, togglePlayback, stopPlayback, retryLastPlaybackAction, nextTrack, previousTrack, seekPlayback,
     cancelRoonPlaybackPreparation, resetRoonSession, dispose,
   }
 }

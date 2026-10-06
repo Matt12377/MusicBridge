@@ -88,14 +88,14 @@ test('真实Root CUE先发现仍持久关联75fps声明，冷开与未变增量�
 
 test('旧五表32原事实兼容，CUE原子扩展与提交fault回滚，冷prepared变更显式abandon重读',async t=>{
   let fail:string|undefined;const u=await unit(t,valid,undefined,action=>{if(action === fail) throw new Error('合成单次提交故障');});
-  const oldList=u.repo.list({offset:0,limit:1});assert.equal(facts(u.file).version,32);assert.equal(facts(u.file).names.filter(r=>String(r.name).startsWith('local_cue_')).length,0);
+  const oldList=u.repo.list({offset:0,limit:1});assert.equal(facts(u.file).version,33);assert.equal(facts(u.file).names.filter(r=>String(r.name).startsWith('local_cue_')).length,0);
   await u.coordinator.close();u.repo.close();const cold=createCollectionRepository({filePath:u.file});assert.deepEqual(cold.list({offset:0,limit:1}),oldList);cold.close();
   // 独立私有副本：partial扩展不得被cold-open悄悄补修；future33仍拒绝。
   const partial=path.join(u.directory,'partial32.sqlite'),future=path.join(u.directory,'future33.sqlite');await copyFile(u.file,partial);await copyFile(u.file,future);
   const partialDb=new DatabaseSync(partial,{allowExtension:false});partialDb.exec('CREATE TABLE local_cue_sources(id TEXT PRIMARY KEY,sidecar_id TEXT NOT NULL,library_root_id TEXT NOT NULL REFERENCES local_catalog_roots(id),relative TEXT NOT NULL,batch_id TEXT NOT NULL REFERENCES local_scan_batches(id),data TEXT NOT NULL) STRICT');partialDb.close();
   const invalid=createCollectionRepository({filePath:partial});assert.throws(()=>invalid.list({offset:0,limit:1}));invalid.close();
   const inspection=new DatabaseSync(partial,{readOnly:true,allowExtension:false});assert.equal(inspection.prepare("SELECT count(*) n FROM sqlite_master WHERE type='table' AND name IN ('local_cue_sources','local_cue_tracks')").get()?.n,1);inspection.close();
-  const futureDb=new DatabaseSync(future,{allowExtension:false});futureDb.exec('PRAGMA user_version=33');futureDb.close();const newer=createCollectionRepository({filePath:future});assert.throws(()=>newer.list({offset:0,limit:1}));newer.close();
+  const futureDb=new DatabaseSync(future,{allowExtension:false});futureDb.exec('PRAGMA user_version=34');futureDb.close();const newer=createCollectionRepository({filePath:future});assert.throws(()=>newer.list({offset:0,limit:1}));newer.close();
 
   // 实际新repo延续原五表32，可信批准备故障不能留下半张CUE表。
   const injected:string[]=[];const repo=createCollectionRepository({filePath:u.file,beforeCommit:action=>{if(action === fail){injected.push(action);throw new Error('合成提交故障');}}});t.after(()=>repo.close());

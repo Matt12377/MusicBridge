@@ -1,0 +1,166 @@
+{
+  "schema": "mbrs007.execution-scope.v1",
+  "task": "MBRS-007",
+  "state": "FINITE_SOFTWARE_CANDIDATE_FROZEN_FINAL_GATE_PENDING",
+  "branch": "codex/mbrs-007-queue-prefetch-control",
+  "baseFinalReportCommit": "b464dd2066346121a26824da516969b726f0cfe0",
+  "ownerGoal": "持续开发到017；每独立task完成更新待办并普通push；未完成独立task不停止在TODO；按风险选择测试规模",
+  "g0Decision": "ADMITTED_FINITE_SOFTWARE_SCOPE",
+  "g0Ref": "docs/postrust/RUST-016/ADMISSION_DECISION.json",
+  "originalTask": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/postrust-v1.2-readonly/MusicBridge_PostRust_Execution_Pack_v1.2/tasks/MBRS-007.md",
+    "sha256": "4119856250d5ed57b6cb3316b6e5c4ea9340d68cb90e3f2d9f28a6e7c80dfd6a",
+    "bytes": 4003,
+    "copy": "tasks/MBRS-007_QUEUE_PREFETCH_CONTROL.md",
+    "acceptanceCount": 11,
+    "acceptanceKinds": {
+      "live_roon": 2,
+      "live_audio": 2,
+      "unit": 2,
+      "fault": 2,
+      "integration": 3
+    }
+  },
+  "models": {
+    "root": {
+      "model": "gpt-6.1-sol",
+      "effort": "max",
+      "verifiedFromCurrentTurnContext": true
+    },
+    "threeExistingAgents": {
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "verifiedFromExistingSpawnArguments": true,
+      "newSpawns": 0,
+      "noChildren": true
+    }
+  },
+  "roles": {
+    "productWriter": "rules_writer",
+    "readonly": [
+      "boundary_review",
+      "source_golden_audit"
+    ],
+    "rootOwned": [
+      "tasks",
+      "docs/postrust/MBRS-007",
+      "project",
+      "AGENTS.md",
+      "scripts/ci",
+      ".github/workflows",
+      "package.json",
+      "packages/*/package.json",
+      "apps/*/package.json"
+    ]
+  },
+  "implementation": [
+    "原Controller稳定entry/queue身份与精确revision，编辑/发行有界物化、明确坏曲预检",
+    "固定双lane下一项预备、30s过期、取消/quiet/promotion，原SDK/lease保护不放松",
+    "唯一SQLite Owner闭合逻辑队列CAS与schema32→33，相关备份/恢复schema验证",
+    "真正自然结束一次推进、控制/晚回报/UNKNOWN/接管/重连零自动派发",
+    "同Owner冷启恢复到idle、显式用户动作才重新解析，不存私有IO/会话/凭据",
+    "固定Main/preload/Core具名入口和原queue消费者的必要增量，不重制UI"
+  ],
+  "persistence": {
+    "writer": "node-dataset-owner-worker",
+    "database": "EXISTING_OWNED_DATASET_SQLITE",
+    "schemaFrom": 32,
+    "schemaTo": 33,
+    "table": "mb_playback_queue",
+    "maxEntries": 5000,
+    "maxSerializedUtf8Bytes": 16777216,
+    "maxSaveFlights": 1,
+    "maxLoadFlights": 1,
+    "privateOperationBudget": "NEW_CLOSED_QUEUE_OPERATION_SPECIFIC_NOT_CAPTURE_FRAME_CHANGE",
+    "captureResultMaxBytesUnchanged": 65536,
+    "snapshot": "CLOSED_COMPACT_LOGICAL_ID_REVISION_SOURCE_ORDER_WITH_HEADER_ONCE",
+    "sourceOrArtworkUrlsSecretsIoHandles": "FORBIDDEN",
+    "commit": "ONE_OWNER_CONNECTION_ONE_CAS_TRANSACTION_ACK_THEN_SUCCESS",
+    "unknownCommit": "NO_BLIND_RETRY_RECONCILE_EXACT_REVISION_OR_SEAL",
+    "sourceExclusiveLocks": "NO_QUEUE_ONLY_LOCK_OR_UNRELATED_SOURCE_FENCE_REVOCATION",
+    "restore": "IDLE_RERESOLVE_TRUE_AUTOPLAY_FALSE_NO_FD_OR_SDK_SEND",
+    "capacityEvidence": "5000_MINIMAL_AND_LEGAL_MAX_UTF8_OR_EXPLICIT_BYTE_BUDGET_NEGATIVE_NO_SILENT_TRUNCATION",
+    "restoredDatasetMismatch": "BOOT_PRESERVES_ROW_REPORTS_NEEDS_REVALIDATION_NO_AUTOMATIC_DATASET_REBIND",
+    "explicitNewQueueAfterDatasetRestore": "INDEPENDENT_USER_INTENT_NEW_QUEUE_ID_CURRENT_DATASET_FRESH_SOURCE_TARGET_EXACT_OLD_REVISION_CAS_NO_VOLATILE_SUCCESS",
+    "corruptQueue": "CLOSED_LOGICAL_ROW_DAMAGE_LOADS_UNAVAILABLE_NO_REVISION_EMPTY_IDLE_SAVE_QUEUE_INVALID_PRESERVE_ROW_NO_AUTO_REPAIR",
+    "databaseFatal": "SQLITE_IO_INTEGRITY_DDL_OR_OTHER_BUSINESS_DAMAGE_RETAINS_ORIGINAL_FATAL_POLICY",
+    "backupValidation": "STILL_STRICT_QUEUE_CONTENT_VALIDATION_NO_CORRUPT_PACKAGE_ACCEPTANCE",
+    "restoredEditionFacts": "SAME_OWNER_CLOSED_EDITION_READ_EXACT_SAVED_ID_REVISION_BEFORE_FD_OR_SDK_NO_PERSISTED_DISPLAY_TEXT",
+    "cursorAck": "ACK_INSTALLS_MATCHING_DURABLE_INACTIVE_CURSOR_BEFORE_INTENT_GUARD_ZERO_LATE_SDK_NO_NEW_SNAPSHOT_ROLLBACK"
+  },
+  "editionQueue": {
+    "maxEntries": 5000,
+    "publicEditionTracksSinglePageBudgetUnchanged": 200,
+    "privateMaterialization": "BOUNDED_OWNER_CURRENT_SNAPSHOT_OR_200_ITEM_PAGES_SAME_REVISION",
+    "eligibility": "ACTIVE_LINKS_ONLY_NUMERIC_DISC_TRACK_SEQUENCE_STABLE_ID_TIE",
+    "overLimit": "EXPLICIT_CAPACITY_BEFORE_SIDE_EFFECTS_NO_TRUNCATION",
+    "version": "SOURCE_PROVIDED_EXPLICIT_EDITION_ID_REVISION_NO_TITLE_GUESS"
+  },
+  "nextPreparation": {
+    "stablePoolLanes": 2,
+    "poolOwnerHistoryLimitUnchanged": 16,
+    "poolFdLimitUnchanged": 8,
+    "ownerTicketLimitUnchanged": 16,
+    "preparedTtlMsUnchanged": 30000,
+    "receiptCapacityUnchanged": 256,
+    "sdkNextSlot": "NOT_ASSUMED",
+    "preparedSessionDispatch": "FORBIDDEN",
+    "promotion": "SAME_LEASE_TICKET_ATTEMPT_AFTER_REVALIDATE_TARGET_ENTRY_FENCE",
+    "laneReuse": "ONLY_AFTER_ACTUAL_IO_QUIET",
+    "failure": "EXPLICIT_NEEDS_REVALIDATION_OR_FAILED_NO_SCAN_AHEAD_OR_REPEAT_OPEN_LOOP"
+  },
+  "productionDefault": "NODE_UNCHANGED_OPTIONAL_RUST_OFF",
+  "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+  "actualRoonAccountsLanNasAudio": "NOT_RUN",
+  "ordinaryApp": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "new100k300kStarted": false,
+  "mainMergeInstallRelease": "NOT_AUTHORIZED",
+  "mobileMbmInserted": false,
+  "caseStatusChanges": "ONLY_THIS_TASK_AFTER_ACTUAL_EVIDENCE_ORIGINAL_TEXT_KIND_PRESERVED",
+  "gateCounts": {
+    "coreMbQueue": 41,
+    "coreAffectedRegression": 733,
+    "contractsQueueIdentity": 66,
+    "desktopQueueConsumer": 123,
+    "total": 963,
+    "newTests": 45,
+    "oldRegressionTests": 918,
+    "finalFreshGate": "PENDING"
+  },
+  "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen",
+  "previousDeliveryReceipt": "docs/postrust/MBRS-007/PREVIOUS_DELIVERY_RECEIPT.json",
+  "formalReview": {
+    "maximumRounds": 2,
+    "initialReadonlyInvestigations": "NOT_FORMAL_R1",
+    "roundsPerformed": 2,
+    "r1UniqueP2": 3,
+    "r2UniqueP2": 1,
+    "rootCursorDisposition": "LOCAL_SAME_CASE_RED_GREEN_FINAL_GATE_PENDING_NO_R3"
+  },
+  "designSha256": "ded619250f51e9d16c11de2e4fffa60fa6437d15e22d6594b80829ad4fa69e99",
+  "framePreflightSha256": "68f0aee466736724436cde155cf37f625e7d72f92b591235055219ce2d84b566",
+  "openRealProof": [
+    "real_Roon_order_controls",
+    "same_format_gapless_measurement",
+    "cross_format_device_relock",
+    "ordinary_App",
+    "Owner_acceptance",
+    "historical_003_25_timeouts",
+    "upstream_license",
+    "ios_adoption_pending"
+  ],
+  "regressionBindings": {
+    "factories": "EXISTING_MBR003_READER_V2_AND_CUE",
+    "declaredFreshOutputs": 44,
+    "privateBindings": 2,
+    "readerCueSources": 6,
+    "stagesUnchanged": 11,
+    "totalBudgetMsUnchanged": 360000,
+    "priorDistReuse": false,
+    "regressionFiles": 76
+  },
+  "localPlaybackProtocol": "COMPACT_V1_REQUIRED_AT_COMMON_LOCAL_START_AND_NEXT_PREPARATION_INCLUDING_RESTORED_ENTRY_INDEX_NAVIGATION_CLOUD_NATIVE_COMPATIBLE",
+  "candidateFreezeSha256": "a94b04d9bd59d47299a5510a2adecca73581a07ffe917ecd053172608ded510e",
+  "schemaCompatibility": "ONLY_CURRENT_SCHEMA_TARGET_ASSERTIONS_33_117_OLD_FIXED_INPUTS_AND_NEGATIVE_FACTS_UNCHANGED"
+}

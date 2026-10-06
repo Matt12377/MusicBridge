@@ -15,6 +15,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   'play-queue-item': [item: PlaybackQueueItem, index: number]
+  'edit-queue-entry':[entryId:string,direction:'remove'|'up'|'down']
 }>()
 
 const queueViewport = ref<HTMLElement | null>(null)
@@ -57,7 +58,7 @@ function onQueueScroll(event: Event): void {
 }
 
 function entryTitle(item: PlaybackQueueItem): string {
-  return item.track?.title ?? '正在读取歌曲信息'
+  return item.track?.title ?? (item.preflight?.reason==='UNSUPPORTED_NATIVE_RESTORE'?'原生来源需重新选择':item.edition?.title ?? '待解析本地曲目')
 }
 
 function entryArtists(item: PlaybackQueueItem): string {
@@ -65,7 +66,7 @@ function entryArtists(item: PlaybackQueueItem): string {
 }
 
 function entryAlbum(item: PlaybackQueueItem): string {
-  return item.track?.album ?? '—'
+  return item.track?.album ?? item.edition?.title ?? '—'
 }
 </script>
 
@@ -90,10 +91,17 @@ function entryAlbum(item: PlaybackQueueItem): string {
         <div v-if="!upcomingEntries.length && props.playbackState?.queue.context?.afterComplete !== false" class="empty-copy">队列已播放完</div>
         <div ref="queueViewport" class="queue-upcoming-viewport" :class="{ 'is-virtualized': isQueueVirtualized }" @scroll="onQueueScroll">
           <div v-if="isQueueVirtualized" aria-hidden="true" :style="{ height: `${queueWindow.topSpacer}px` }"></div>
-          <button v-for="entry in visibleUpcomingEntries" :key="`${entry.item.trackId}-${entry.index}`" type="button" class="queue-row" @click="emit('play-queue-item', entry.item, entry.index)">
+          <div v-for="entry in visibleUpcomingEntries" :key="entry.item.entryId ?? `${entry.item.trackId}-${entry.index}`" role="button" tabindex="0" class="queue-row" @keydown.enter="emit('play-queue-item', entry.item, entry.index)" @click="emit('play-queue-item', entry.item, entry.index)">
             <span>{{ String(entry.index + 1).padStart(2, '0') }}</span><TrackArtwork class="queue-row-art" :track="entry.item.track" :alt="`${entryTitle(entry.item)} 封面`" />
             <span class="queue-row-copy"><strong>{{ entryTitle(entry.item) }}</strong><small>{{ entryArtists(entry.item) }} · {{ entryAlbum(entry.item) }}</small><small v-if="entry.item.track?.artworkReference">{{ qualityDetails(entry.item.track ?? {}) }}</small></span>
-          </button>
+            <small v-if="entry.item.edition?.edition">{{ entry.item.edition.edition }}</small>
+            <small v-if="entry.item.preflight?.state==='FAILED'" role="status">预检未通过，点击后明确重试</small>
+            <span v-if="entry.item.entryId && !props.playbackState?.queue.context" class="queue-edit-actions" @click.stop @keydown.stop>
+              <button type="button" aria-label="队列上移" @click="emit('edit-queue-entry',entry.item.entryId,'up')">↑</button>
+              <button type="button" aria-label="队列下移" @click="emit('edit-queue-entry',entry.item.entryId,'down')">↓</button>
+              <button type="button" aria-label="从队列移除" @click="emit('edit-queue-entry',entry.item.entryId,'remove')">×</button>
+            </span>
+          </div>
           <div v-if="isQueueVirtualized" aria-hidden="true" :style="{ height: `${queueWindow.bottomSpacer}px` }"></div>
         </div>
       </template>

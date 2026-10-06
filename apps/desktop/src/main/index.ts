@@ -1,3 +1,4 @@
+import {isMBQueueEditRequest,isMBQueuePlayEntryRequest,isMBEditionQueueRequest} from '@music-bridge/contracts'
 import {installLocalLibraryHandlers} from './local-library-ipc.js'
 import type {CommandOutboxPickOptions} from './command-outbox-executor.js'
 import { createLibraryReadBroker } from './library-read-ipc.js'
@@ -1730,6 +1731,9 @@ function registerIpcHandlers(
   registerPerformanceHandler('playback:previous', (event) =>
     invokeCore(event, () => supervisor.request('playback.previous', {})),
   )
+  registerPerformanceHandler('playback:edit-queue',(event,request:unknown)=>invokeCore(event,()=>{if(!isMBQueueEditRequest(request))throw new Error('队列编辑请求无效');return supervisor.request('playback.editQueue',request)}))
+  registerPerformanceHandler('playback:play-queue-entry',(event,request:unknown)=>invokeCore(event,()=>{if(!isMBQueuePlayEntryRequest(request))throw new Error('队列条目请求无效');return supervisor.request('playback.playQueueEntry',request)}))
+  registerPerformanceHandler('playback:queue-local-edition',(event,request:unknown)=>invokeCore(event,()=>{if(!isMBEditionQueueRequest(request))throw new Error('发行版队列请求无效');return supervisor.request('playback.queueLocalEdition',request)}))
   registerPerformanceHandler('playback:play-queue-index', (event, index: unknown) =>
     invokeCore(event, () =>
       supervisor.request('playback.playQueueIndex', {

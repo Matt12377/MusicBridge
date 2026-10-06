@@ -1,0 +1,40 @@
+{
+  "schema": "mbrs007.root-r2-final-disposition.v1",
+  "at": "2026-10-06T10:21:27.223138+00:00",
+  "formalRounds": 2,
+  "thirdFormalRound": false,
+  "r1UniqueP1": 0,
+  "r1UniqueP2": 3,
+  "r2UniqueP1": 0,
+  "r2UniqueP2": 1,
+  "r2ReportsResult": "CHANGES_REQUIRED_ON_FREEZE_02",
+  "rootFinalFreeze": "writer/FREEZE_04.json",
+  "finalFreezeSha256": "a94b04d9bd59d47299a5510a2adecca73581a07ffe917ecd053172608ded510e",
+  "changedFromReviewedCandidate": [
+    "packages/bridge-core/src/application/bridge-controller.ts",
+    "packages/bridge-core/test/mbrs007/r1-regressions.test.ts"
+  ],
+  "other67BytesUnchanged": true,
+  "disposition": "ROOT_VERIFIED_MINIMAL_CURSOR_FIX_AND_FINAL_GATE_PASS_NO_R3",
+  "sourceGuard": "AFTER_TRUE_ACK_MATCH_QUEUE_ID_OWN_REVISION_SAME_CANDIDATE_ARRAY_AND_MEMBER_INSTALL_INACTIVE_CURSOR_DIRTY_NOTIFY_THEN_INTENT_GUARD",
+  "noLateSdk": true,
+  "doesNotRollbackNewerSnapshot": true,
+  "red": "checks/writer-r2-cursor-red-02/result.json",
+  "green": "checks/writer-r2-cursor-green-01/result.json",
+  "closure": "checks/writer-r2-behavior-closure/result.json",
+  "closureTap": {
+    "tests": 207,
+    "pass": 207,
+    "fail": 0,
+    "skipped": 0
+  },
+  "openCodeP1P2AfterLocalClosure": 0,
+  "finalGate": "PASS_963_963_11_STAGES",
+  "realRoonAudioAppOwner": "NOT_RUN",
+  "schemaCompatibilityDisposition": "TWO_TEST_FILES_ONLY_CURRENT_SCHEMA33_TABLE117_TARGETS_FIXED_NEGATIVE_AND_FIXED_INPUT_FACTS_UNCHANGED",
+  "gateManifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/gate-final-01/manifest.json",
+    "bytes": 253005,
+    "sha256": "28a485408f72aa36d46502920e7bda709867df30fba151ae412f8e92f7264c47"
+  }
+}

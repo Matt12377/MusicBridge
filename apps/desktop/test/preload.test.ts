@@ -21,6 +21,7 @@ import type {
 } from '@music-bridge/contracts'
 import { createPreloadApi, PUBLIC_API_KEYS } from '../src/preload/api.js'
 import { createLibraryReadTerminalClient } from '../src/preload/library-read-terminal.js'
+import {createMBQueueClient} from '../src/preload/mb-queue-client.js'
 import { createLocalLibraryClient } from '../src/preload/local-library-client.js'
 import { summarizePreloadRoonImage } from '../src/preload/image-diagnostic.js'
 import { createRecordingAttemptClient } from '../src/preload/recording-attempt-client.js'
@@ -44,6 +45,7 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
     '../shared/performance-transport.js': performanceTransport,
     './library-read-terminal.js': { createLibraryReadTerminalClient },
     './local-library-client.js': { createLocalLibraryClient },
+    './mb-queue-client.js': {createMBQueueClient},
     './recording-print-client.js': printModule,
     './recording-replica-client.js': replicaModule,
     './recording-record-client.js': recordModule,
@@ -527,6 +529,9 @@ test('Preload exposes only sanitized business methods', async () => {
     'stop',
     'next',
     'previous',
+    'editPlaybackQueue',
+    'playQueueEntry',
+    'queueLocalEdition',
     'playQueueIndex',
     'replaceQueue',
     'appendQueue',

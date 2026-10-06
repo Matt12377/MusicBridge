@@ -344,6 +344,12 @@ async function dispatch(
       return runtime.playbackNext();
     case 'playback.previous':
       return runtime.playbackPrevious();
+    case 'playback.editQueue':
+      if(!runtime.playbackEditLogicalQueue)throw new BridgeError('BAD_REQUEST','队列编辑尚未就绪',{httpStatus:409});return runtime.playbackEditLogicalQueue(request.payload as import('@music-bridge/contracts').MBQueueEditRequest);
+    case 'playback.playQueueEntry':
+      if(!runtime.playbackPlayQueueEntry)throw new BridgeError('BAD_REQUEST','队列入口尚未就绪',{httpStatus:409});return runtime.playbackPlayQueueEntry(request.payload as import('@music-bridge/contracts').MBQueuePlayEntryRequest);
+    case 'playback.queueLocalEdition':
+      if(!runtime.playbackQueueLocalEdition)throw new BridgeError('BAD_REQUEST','发行队列尚未就绪',{httpStatus:409});return runtime.playbackQueueLocalEdition(request.payload as import('@music-bridge/contracts').MBEditionQueueRequest);
     case 'playback.playQueueIndex':
       return runtime.playbackPlayQueueIndex(
         (request.payload as { index: number }).index,
@@ -643,6 +649,9 @@ export async function runCoreUtilityProcess(
             ...(client.dispatchInternal === undefined ? {} : {
               dispatchInternal: (request: IpcRequest) => client.dispatchInternal!(request),
             }),
+            ...(client.materializeMBEdition?{materializeMBEdition:(request:import('@music-bridge/contracts').MBEditionQueueRequest)=>client.materializeMBEdition!(request)}:{}),
+            ...(client.loadMBQueue ? { loadMBQueue: () => client.loadMBQueue!() } : {}),
+            ...(client.saveMBQueue ? { saveMBQueue: (request: import('@music-bridge/contracts').MBQueueSaveRequest) => client.saveMBQueue!(request) } : {}),
             ...(client.captureLocalSource?{captureLocalSource: (selection:import('@music-bridge/contracts').LocalPlayRequest)=>client.captureLocalSource!(selection)}:{}),
             ...(client.revalidateLocalSource?{revalidateLocalSource:(ticket:string)=>client.revalidateLocalSource!(ticket)}:{}),
             ...(client.releaseLocalSource?{releaseLocalSource:(ticket:string)=>client.releaseLocalSource!(ticket)}:{}),
@@ -756,7 +765,7 @@ export async function runCoreUtilityProcess(
           // 原 shutdown 的完成包含控制面清理和 stopped 状态；Owner close 完成不能代替它。
           runtime.shutdown = () => runtimeShutdown ??= shutdown();
         }
-        await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true, beforeReady: () => datasetOwnerEndpoint ? datasetOwnerEndpoint.commitBoot() : dataset?.commit(), ...(libraryReadTrace ? { libraryReadTrace } : {}) });
+        await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true, beforeReady: async () => { if(datasetOwnerEndpoint)await datasetOwnerEndpoint.commitBoot();else await dataset?.commit();await runtime!.restoreLogicalQueue?.(); }, ...(libraryReadTrace ? { libraryReadTrace } : {}) });
         if (isCrashProbeEnabled(env)) {
           const configuredDelay = Number(env.MUSIC_BRIDGE_CORE_CRASH_DELAY_MS);
           const delayMs = Number.isSafeInteger(configuredDelay) && configuredDelay >= 25

@@ -1,3 +1,4 @@
+import { MBQueueStoreError } from './mb-queue-store.js';
 import {LocalSourcePreparationError} from '../application/local-source-resolver.js';
 import { LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import {LOCAL_RELOCATION_COMMANDS,isLocalRelocationCommand,isLocalRelocationInternalCommand,isLocalRelocationCommandResult} from '@music-bridge/contracts';
@@ -82,7 +83,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     post(message);
   }
   function reject(request: DatasetOwnerRequest, error: unknown): void {
-    if(error instanceof LocalFactsCommitFatal){domain?.sealLocalSources?.();protocolFailure();return;}
+    if(error instanceof LocalFactsCommitFatal || error instanceof MBQueueStoreError && error.code === 'QUEUE_COMMIT_UNKNOWN'){domain?.sealLocalSources?.();protocolFailure();return;}
     const message: DatasetOwnerResponse = { version: DATASET_OWNER_PROTOCOL_VERSION, type: 'response', epoch: request.epoch, requestId: request.requestId, operation: request.operation, ok: false,
       failure: projectFailure(request.request?.id ?? request.requestId, error, request.request?.command) };
     post(message);
@@ -174,7 +175,19 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
       catch (error) { reject(request, error); }
       return;
     }
-    if (request.operation === 'getCollectionSnapshotVersion' || request.operation === 'exportVersionedCollectionSnapshot' || request.operation === 'exportLargeVersionedCollectionSnapshot') {
+    if(request.operation==='materializeMBEdition'){
+      try{if(!bootCommitted||request.expectedDatasetId!==boundDatasetId||domain.datasetId!==boundDatasetId||!domain.materializeMBEdition||!request.edition)throw new DatasetOwnerTransportError('not-sent');reply(request,domain.materializeMBEdition(request.edition));}catch(error){reject(request,error);}return;
+    }
+    if (request.operation === 'loadMBQueue' || request.operation === 'saveMBQueue') {
+      try {
+        if (!bootCommitted || request.expectedDatasetId !== boundDatasetId || domain.datasetId !== boundDatasetId) throw new DatasetOwnerTransportError('not-sent');
+        if (request.operation === 'loadMBQueue' && domain.loadMBQueue) reply(request, domain.loadMBQueue());
+        else if (request.operation === 'saveMBQueue' && domain.saveMBQueue && request.queue) reply(request, domain.saveMBQueue(request.queue));
+        else throw new DatasetOwnerTransportError('not-sent');
+      } catch (error) { reject(request, error); }
+      return;
+    }
+    if (request.operation === 'getCollectionSnapshotVersion'  || request.operation === 'exportVersionedCollectionSnapshot' || request.operation === 'exportLargeVersionedCollectionSnapshot') {
       try {
         const exportModels = request.operation === 'exportLargeVersionedCollectionSnapshot' ? domain.exportLargeCollectionModels : domain.exportCollectionModels;
         if (!bootCommitted || snapshotRevision === undefined || domain.readonlySnapshotStamp === undefined

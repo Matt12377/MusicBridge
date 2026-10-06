@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {randomUUID} from 'node:crypto';
+import {createBridgeRuntime} from '../../src/runtime.js';
+import {RoonAudioInputAdapter} from '../../src/roon/adapter.js';
+import {NeteaseClient} from '../../src/netease/client.js';
+import {ControlServer} from '../../src/control/server.js';
+import {StreamGateway} from '../../src/stream/gateway.js';
+import {StreamRegistry} from '../../src/stream/registry.js';
+import {catalogFixture} from '../mbrs006/catalog-fixture.js';
+import {silentLogger} from '../mbrs006/adapter-fixture.js';
+import {materializeMBEdition} from '../../src/collection/mb-queue-materializer.js';
+import type {RoonPlayRequest} from '../../src/roon/types.js';
+import type {DatasetOwnerEndpoint} from '../../src/collection/dataset-owner-protocol.js';
+import {validateIpcEvent} from '@music-bridge/contracts';
+
+for(const compact of [false,true])test(`007 R1实际${compact?'compact-v1':'legacy'} runtime冷恢复经entry/index/next/previous共同本地准入`,async t=>{
+ const f=await catalogFixture(t);let captures=0,plays=0,opens=0;
+ const edition=f.repository.localCatalog.createEdition({commandId:randomUUID(),title:'合成恢复',edition:''});
+ for(const [i,track] of f.tracks.entries())f.repository.localCatalog.linkEditionTrack({commandId:randomUUID(),editionId:edition.id,trackId:track.id,disc:1,trackNumber:i+1,sequence:i+1});
+ const snapshot=materializeMBEdition(f.repository,{editionId:edition.id,expectedRevision:edition.revision,action:'APPEND_MB_QUEUE'}),entries=snapshot.sources.map(source=>({entryId:randomUUID(),entryRevision:'1',source:{...source,edition:null},quality:'auto' as const}));
+ f.repository.mbQueue.save({expectedRevision:'0',queue:{schemaVersion:'1.2',datasetId:f.datasetId,queueId:randomUUID(),revision:'1',currentEntryId:entries[0]!.entryId,restartPolicy:{reResolve:true,autoplay:false},entries}});
+ t.mock.method(RoonAudioInputAdapter.prototype,'start',async()=>{});t.mock.method(RoonAudioInputAdapter.prototype,'shutdown',async()=>{});
+ t.mock.method(RoonAudioInputAdapter.prototype,'getState',()=>({status:'ready',selectedZoneId:'synthetic-zone',transportState:'playing'}));
+ t.mock.method(RoonAudioInputAdapter.prototype,'captureLocalTarget',()=>({target:{core_id:'synthetic-core',zone_id:'synthetic-zone'},isCurrent:()=>true}));
+ t.mock.method(RoonAudioInputAdapter.prototype,'play',async (request:RoonPlayRequest)=>{request.assertCurrent?.();request.onDispatch?.();plays++;request.onLocalSession?.({event:'SESSION',generation:plays,sessionId:`controlled-${plays}`,isConfirmed:()=>true,isOwned:()=>true});request.onLocalSession?.({event:'PLAYING',generation:plays,isConfirmed:()=>true,isOwned:()=>true});});
+ t.mock.method(RoonAudioInputAdapter.prototype,'stop',async()=>{});
+ const startGateway=StreamGateway.prototype.start;t.mock.method(StreamGateway.prototype,'start',async function(this:StreamGateway){(this as any).options.port=0;await startGateway.call(this);});t.mock.method(StreamGateway.prototype,'preflight',async()=>{});t.mock.method(ControlServer.prototype,'start',async()=>{});t.mock.method(ControlServer.prototype,'stop',async()=>{});
+ t.mock.method(NeteaseClient.prototype,'getPublicAccountProfile',async()=>({displayName:'受控合成'}));
+ const register=StreamRegistry.prototype.registerLocalSource;t.mock.method(StreamRegistry.prototype,'registerLocalSource',async function(this:StreamRegistry,...args:Parameters<typeof register>){opens++;return register.apply(this,args);});
+ const port:DatasetOwnerEndpoint={prepare:async()=>({epoch:f.epoch,datasetId:f.datasetId}),dispatch:async()=>{},commitBoot:async()=>{},close:async()=>{},loadMBQueue:async()=>f.repository.mbQueue.load(f.datasetId),saveMBQueue:async request=>f.repository.mbQueue.save(request),captureLocalSource:async request=>{captures++;return f.tickets.capture(request);},revalidateLocalSource:async id=>f.tickets.revalidate(id),releaseLocalSource:async id=>f.tickets.release(id),isLocalSourceCurrent:()=>true,sealLocalSources:()=>f.tickets.seal()};
+ const runtime=createBridgeRuntime({logger:silentLogger,env:{},datasetOwnerEndpoint:port,...(compact?{playbackEventProtocol:'compact-v1' as const}:{})});t.after(()=>runtime.shutdown());await runtime.start();
+ await runtime.restoreLogicalQueue!();assert.equal(runtime.getPlaybackState().state,'idle');assert.equal(captures,0);assert.equal(opens,0);assert.equal(plays,0);
+ const run=async(action:()=>Promise<unknown>)=>{if(compact){await action();assert.ok(validateIpcEvent({version:1,event:'playback.changed',payload:{state:runtime.getPlaybackState()}}).ok);}else await assert.rejects(action(),/LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED/u);};
+ const q=runtime.getPlaybackState().queue;
+ await run(()=>runtime.playbackPlayQueueEntry!({queueId:q.queueId!,expectedRevision:q.revision!,entryId:q.items[1]!.entryId!}));
+ await runtime.restoreLogicalQueue!();await run(()=>runtime.playbackPlayQueueIndex(0));
+ await runtime.restoreLogicalQueue!();await run(()=>runtime.playbackNext());
+ await runtime.restoreLogicalQueue!();await runtime.playbackPlayQueueIndex(1).catch(()=>undefined);await run(()=>runtime.playbackPrevious());
+ if(compact){assert.ok(captures>=4);assert.ok(opens>=4);assert.ok(plays>=4);}else{assert.equal(captures,0);assert.equal(opens,0);assert.equal(plays,0);}
+});

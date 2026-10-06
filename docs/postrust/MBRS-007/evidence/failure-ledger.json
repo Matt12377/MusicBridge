@@ -1,0 +1,70 @@
+{
+  "schema": "mbrs007.failure-ledger.v1",
+  "preparation": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ROOT_PREPARATION_FAILURE_01.json",
+      "bytes": 552,
+      "sha256": "be0fa957d1b17c6f1a49094667ab9ea8d1cc4c65b861c1cd7145d133b1b1a2b1"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ROOT_PREPARATION_FAILURE_02.json",
+      "bytes": 453,
+      "sha256": "6e3c35d287f96dcb065f6730a7826aafc8a17045dbb2ed7315f4c8093215a539"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ROOT_PREPARATION_FAILURE_03.json",
+      "bytes": 708,
+      "sha256": "58f340dec20a91c6f1af3ba58b3c86a04ab8aa4c00c716ee0e650e034f444ce6"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ROOT_PREPARATION_FAILURE_04.json",
+      "bytes": 751,
+      "sha256": "dfb0892434f6c3a83d78c5bd3a55ded22c0167dfaf25e2d2272cbb4718c01e55"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ROOT_PREPARATION_FAILURE_04_DIAGNOSIS.json",
+      "bytes": 1226,
+      "sha256": "281669c3b21dbc98f0fcd26d5365113ae5a1a4c82da0f3964bc3d5c49d40c7c3"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/ROOT_PREPARATION_FAILURE_05.json",
+      "bytes": 1933,
+      "sha256": "47fe114728cad7021102b62839aa63a52b6f8638ff07b2b8131c869e51b66287"
+    }
+  ],
+  "writerLedger": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/writer/HANDOFF_01.md",
+      "bytes": 7877,
+      "sha256": "507ac87ecaf6378ca5fd693cc3409faa0f1aaefebda77e1294861a6bbd964846"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/writer/HANDOFF_02.md",
+      "bytes": 4617,
+      "sha256": "82773b53c5a6f13a58faa72727c835f770849a09068a1232eb65482e186f9c5e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/writer/HANDOFF_03.md",
+      "bytes": 2150,
+      "sha256": "4bb0186b72bcbdc61e9e6cadd18cc1a3e88960b3256c4ad6142c624706b8dad0"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/writer/HANDOFF_04.md",
+      "bytes": 2144,
+      "sha256": "22938ca756e1633070a967d90376984b064fe729f57732cdc513b6798efdaa1e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs007-4w1zusen/writer/R1_CHECK_LEDGER.json",
+      "bytes": 8079,
+      "sha256": "7cae671b0ac7ade928860b2bb0b144756d4c83af74979d227950429844e8a494"
+    }
+  ],
+  "behaviorRed": {
+    "r1": "checks/writer-r1-stable-edition-red-03/result.json",
+    "cursor": "checks/writer-r2-cursor-red-02/result.json",
+    "classification": "EFFECTIVE_BEHAVIOR_REDS_DISTINCT_FROM_PREPARATION_SCHEMA_ASSERTION_AND_ENVIRONMENT_FAILURES"
+  },
+  "originalFailuresPreserved": true,
+  "blindReruns": false,
+  "finalGatePassOnly": "gate-final-01"
+}

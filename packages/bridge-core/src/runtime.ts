@@ -208,6 +208,10 @@ export interface CoreRuntime {
   getPlaybackState(): PlaybackSnapshot;
   getPlaybackStreamSnapshot(): PlaybackStreamSnapshot | null;
   getPlaybackEventProtocol(): PlaybackEventProtocolAck | null;
+  restoreLogicalQueue?(): Promise<void>;
+  playbackEditLogicalQueue?(request: import('@music-bridge/contracts').MBQueueEditRequest): Promise<PlaybackSnapshot>;
+  playbackPlayQueueEntry?(request:import('@music-bridge/contracts').MBQueuePlayEntryRequest):Promise<PlaybackSnapshot>;
+  playbackQueueLocalEdition?(request:import('@music-bridge/contracts').MBEditionQueueRequest):Promise<PlaybackSnapshot>;
   playbackPlayLocal?(request: import('@music-bridge/contracts').LocalPlayRequest): Promise<import('@music-bridge/contracts').LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported>;
   playbackPlay(
     trackId: string,
@@ -429,6 +433,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     return selected;
   };
   const controller = new BridgeController({
+    isLocalPlaybackAllowed: () => publishPlaybackEvents.getProtocol()?.protocol==='compact-v1',
     onReadPriorityChanged: () => { scanReadAdmission?.observe(); },
     netease,
     roon,
@@ -1301,6 +1306,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     getPlaybackState: readPlayback,
     getPlaybackStreamSnapshot: capturePlayback,
     getPlaybackEventProtocol: publishPlaybackEvents.getProtocol,
+    restoreLogicalQueue: () => controller.restoreLogicalQueue(),
+    playbackEditLogicalQueue: async request => {await controller.editLogicalQueue(request);return readPlayback();},
+    playbackPlayQueueEntry: async request => {await controller.playQueueEntry(request);return readPlayback();},
+    playbackQueueLocalEdition: async request => {if(publishPlaybackEvents.getProtocol()?.protocol!=='compact-v1')throw new BridgeError('BAD_REQUEST','LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED',{httpStatus:409});await controller.queueLocalEdition(request);return readPlayback();},
     playbackPlayLocal: request => publishPlaybackEvents.getProtocol()?.protocol==='compact-v1' ? controller.playLocal(request) : Promise.resolve({status:'unsupported',reason:'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED'}),
     async playbackPlay(trackId, qualityPreference, rendererClickAtMs) {
       const coreReceivedAtMs = options.now?.() ?? Date.now();

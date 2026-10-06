@@ -1,3 +1,5 @@
+import {isMBQueueLoadResult,isMBQueueNeedsReview,isMBQueueUnavailable,type MBQueueLoadResult} from './mb-queue-owner-types.js';
+import { isMBEditionQueueRequest, isMBEditionQueueSnapshot, type MBEditionQueueRequest, type MBEditionQueueSnapshot, isMBQueueRecord, isMBQueueSaveRequest, type MBQueueRecord, type MBQueueSaveRequest } from '@music-bridge/contracts';
 import { LocalSourceFence } from '../stream/local-source-fence.js';
 import { isLocalSourceCaptureResult, type LocalSourceCaptureResult, type LocalSourcePrivatePayload } from './local-source-ticket-types.js';
 import {LOCAL_RELOCATION_COMMANDS,isLocalRelocationCommand,isLocalRelocationInternalCommand,isLocalRelocationCommandResult} from '@music-bridge/contracts';
@@ -66,12 +68,13 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     try { options.onFatal?.(reason); } catch { /* 监督回调失败不能改写已发送操作的未知结果。 */ }
   }
 
-  function rpc(operation: DatasetOwnerOperation, request?: IpcRequest, expectedDatasetId?: string, local?: LocalSourcePrivatePayload): Promise<unknown> {
+  let queueLoading = false, queueSaving = false;
+  function rpc(operation: DatasetOwnerOperation, request?: IpcRequest, expectedDatasetId?: string, local?: LocalSourcePrivatePayload, queue?: MBQueueSaveRequest, edition?:MBEditionQueueRequest): Promise<unknown> {
     if (failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent', request?.id, request?.command));
     const requestId = randomUUID();
     const message: DatasetOwnerRequest = {
       version: DATASET_OWNER_PROTOCOL_VERSION, type: 'request', epoch, requestId,
-      sequence: ++sequence, operation, ...(local === undefined ? {} : { local }), ...(request === undefined ? {} : { request }),
+      sequence: ++sequence, operation, ...(local === undefined ? {} : { local }), ...(queue === undefined ? {} : { queue }), ...(edition === undefined ? {} : { edition }), ...(request === undefined ? {} : { request }),
       ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }),
     };
     return new Promise((resolve, reject) => {
@@ -119,6 +122,11 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     const publicId = item.publicId ?? message.requestId;
     if (!message.ok && message.failure.id !== publicId) { fatal('protocol-failure'); return; }
     if (message.ok && message.operation === 'prepare' && (!isDatasetOwnerIdentity(message.result) || message.result.epoch !== epoch)) { fatal('protocol-failure'); return; }
+    if(message.ok&&message.operation==='materializeMBEdition'&&!isMBEditionQueueSnapshot(message.result)){fatal('protocol-failure');return;}
+    if(message.ok&&message.operation==='loadMBQueue'){
+      if(!isMBQueueLoadResult(message.result)||message.result!==null&&!isMBQueueNeedsReview(message.result)&&!isMBQueueUnavailable(message.result)&&message.result.datasetId!==identity?.datasetId){fatal('protocol-failure');return;}
+    }
+    if(message.ok&&message.operation==='saveMBQueue'&&(!isMBQueueRecord(message.result)||message.result.datasetId!==identity?.datasetId)){fatal('protocol-failure');return;}
     if (message.ok && message.operation === 'captureLocalSource') {
       if (!isLocalSourceCaptureResult(message.result) || message.result.epoch !== epoch || message.result.datasetId !== identity?.datasetId || localFences.has(message.result.ticketId) || localFences.size >= 16) { fatal('protocol-failure'); return; }
       const fence = new LocalSourceFence(message.result.buffer); if (!localAlive) fence.revoke(); localFences.set(message.result.ticketId,fence);
@@ -174,6 +182,20 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
         identity = value; return value;
       });
       return preparation;
+    },
+    materializeMBEdition(request) {
+      if(!identity||!bootCommitted||queueLoading||closing||failed||exited||!isMBEditionQueueRequest(request))return Promise.reject(new DatasetOwnerTransportError('not-sent'));
+      queueLoading=true;return rpc('materializeMBEdition',undefined,identity.datasetId,undefined,undefined,request).then(value=>value as MBEditionQueueSnapshot).finally(()=>{queueLoading=false;});
+    },
+    loadMBQueue() {
+      if (!identity || !bootCommitted || queueLoading || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
+      queueLoading = true;
+      return rpc('loadMBQueue', undefined, identity.datasetId).then(value => value as MBQueueLoadResult).finally(() => { queueLoading = false; });
+    },
+    saveMBQueue(request) {
+      if (!identity || !bootCommitted || queueSaving || closing || failed || exited || !isMBQueueSaveRequest(request) || request.queue.datasetId !== identity.datasetId) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
+      queueSaving = true;
+      return rpc('saveMBQueue', undefined, identity.datasetId, undefined, structuredClone(request)).then(value => value as MBQueueRecord).finally(() => { queueSaving = false; });
     },
     sealLocalSources,
     isLocalSourceCurrent: () => localAlive && !closing && !failed && !exited && identity !== undefined && bootCommitted,

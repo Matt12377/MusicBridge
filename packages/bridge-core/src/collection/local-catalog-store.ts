@@ -569,6 +569,14 @@ export function createLocalCatalogStore(access: Access) {
     edition(editionId: string): dto.AlbumEdition { id(editionId); return access.read(db => parse(one(db, 'local_catalog_editions', editionId).data, dto.isAlbumEdition)); },
     linkEditionTrack(request: LinkEditionTrack): dto.AlbumEditionTrack { return transaction('link-edition-track', request, db => applyLinkEditionTrack(db, request)); },
     removeEditionTrack(request: RemoveEditionTrack): dto.AlbumEditionTrack { return transaction('remove-edition-track', request, db => applyRemoveEditionTrack(db, request)); },
+    privateQueueEditionTracks(editionId: string): dto.AlbumEditionTrack[] {
+      id(editionId);return access.read(db=>{
+        one(db,'local_catalog_editions',editionId);
+        const rows=db.prepare("SELECT data FROM local_catalog_edition_tracks WHERE edition_id=? AND json_extract(data,'$.active')=1 ORDER BY json_extract(data,'$.disc'),json_extract(data,'$.trackNumber'),json_extract(data,'$.sequence'),id LIMIT 5001").all(editionId);
+        if(rows.length>5000)throw new LocalCatalogBudgetError('发行版队列容量',rows.length,5000);
+        return rows.map(row=>parse(row.data,dto.isAlbumEditionTrack));
+      });
+    },
     editionTracks(editionId: string): dto.AlbumEditionTrack[] {
       id(editionId); return access.read(db => {
         one(db, 'local_catalog_editions', editionId);
