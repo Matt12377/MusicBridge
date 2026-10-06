@@ -99,6 +99,7 @@ export interface RoonAudioInputService {
 }
 
 export interface RoonCore {
+  core_id?: string;
   display_name?: string;
   services: {
     RoonApiAudioInput: RoonAudioInputService;

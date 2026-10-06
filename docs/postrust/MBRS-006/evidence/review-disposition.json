@@ -1,0 +1,33 @@
+{
+  "schema": "mbrs006.review-disposition.v1",
+  "rounds": 2,
+  "r1": {
+    "P1": 1,
+    "P2": 3,
+    "rootCauses": 4
+  },
+  "r2": {
+    "result": "PASS",
+    "openP1P2": 0
+  },
+  "findings": [
+    "CONCURRENT_SHUTDOWN_FLIGHT",
+    "NATIVE_CONTEXT_LOCAL_QUEUE_EDIT",
+    "LOCAL_DEFINITE_TERMINAL_PROJECTION",
+    "SELECTED_TARGET_IRREVERSIBLE_EPOCH"
+  ],
+  "sourceIdentity": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/writer/FREEZE_03.json",
+    "bytes": 29137,
+    "sha256": "40eb968e389e1667e16f5b78c330ce170803095c37e09fa1a4beb6de37dd8b45"
+  },
+  "formalThirdRound": false,
+  "localFreshFinalGate": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/gate-final-01/manifest.json",
+    "bytes": 240309,
+    "sha256": "cd91f4feb37e91228ff4ef57bb16320a525521926916f9a9ec0aa9fceea7244f"
+  },
+  "realRoonAudioOwner": "NOT_RUN",
+  "freezeMetadataNote": "FREEZE03 inherited unchangedPriorHashes=52 describes prior supplemental freeze; actual delta48 unchanged/5 changed/1 added; per-file hashes used",
+  "effectiveRedIdentityNote": "original valid failure logs preserved, no independent red-source freeze; final54 hashes and declared Gate inputs freshly bound"
+}

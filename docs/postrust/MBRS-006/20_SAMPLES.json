@@ -1,0 +1,129 @@
+{
+  "schema": "mbrs006.real-sample-plan.v1",
+  "task": "MBRS-006",
+  "status": "NOT_TESTED",
+  "scope": "20真实真值样本登记；当前无真实文件/账号/设备证据",
+  "samples": [
+    {
+      "id": "MBRS006-S01",
+      "condition": "未入Roon的整文件",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S02",
+      "condition": "同名原版",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S03",
+      "condition": "同名另一版本",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S04",
+      "condition": "移动前位置版本",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S05",
+      "condition": "移动后重新找到",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S06",
+      "condition": "同标题不同艺人/资产",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S07",
+      "condition": "多碟专辑具体track",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S08",
+      "condition": "增强关闭",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S09",
+      "condition": "没有网易云配置",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S10",
+      "condition": "没有网络封面",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S11",
+      "condition": "暂停后恢复",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S12",
+      "condition": "seek中段",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S13",
+      "condition": "多HEAD/Range探测",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S14",
+      "condition": "原生客户端接管",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S15",
+      "condition": "Zone移除",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S16",
+      "condition": "Zone分组变化",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S17",
+      "condition": "begin回报丢失",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S18",
+      "condition": "Playing回报丢失",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S19",
+      "condition": "本地与旧来源混合队列",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    },
+    {
+      "id": "MBRS006-S20",
+      "condition": "提交前文件/选择变化",
+      "liveStatus": "NOT_TESTED",
+      "softwareEvidence": null
+    }
+  ],
+  "softwareIsNotLiveSubstitution": true
+}

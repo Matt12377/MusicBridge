@@ -1,3 +1,4 @@
+import { LocalFactsFenceBusy, LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import { traceDatabase } from '../diagnostics/performance-instrumentation.js';
 import { isDatasetCollectionModels, isDatasetLargeCollectionModels, MAX_DATASET_COLLECTION_MODELS, MAX_DATASET_LARGE_COLLECTION_MODELS } from './dataset-owner-protocol.js';
 import { createRecordingPrintStore, migrateRecordingPrints, migrateRecordingPrintVersions, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
@@ -61,6 +62,8 @@ const conflict = (message: string): never => { throw new CollectionError('INVENT
 const unavailable = (): never => { throw new CollectionError('INVENTORY_UNAVAILABLE', '库存暂时不可用，请重试；现有数据不会被自动清除。'); };
 
 export interface CollectionRepository {
+  /** 唯一Owner安装的同步提交资格接点，不进入公开IPC。 */
+  privateInstallLocalFactsFence(check: () => void, seal: () => void): void;
   localCatalog: LocalCatalogStore;
   localScan: LocalScanStore;
   recordingRecords: RecordingRecordStore;
@@ -197,6 +200,10 @@ function paged<T>(items: T[], page: PageRequest, total: number): Page<T> {
 }
 
 export function createCollectionRepository(options: { filePath: string; stagingRoot?: string; beforeCommit?: (action: string) => void }): CollectionRepository {
+  let privateFactsFence: (() => void) | undefined;
+  let privateSealLocalFacts:(() => void)|undefined, localFactsFatal=false;
+  const checkLocalFacts = () => privateFactsFence?.();
+  const failLocalFacts=()=>{localFactsFatal=true;privateSealLocalFacts?.();};
   let database: DatabaseSync | undefined;
   let closed = false;
   let activeSnapshots = 0;
@@ -288,8 +295,8 @@ export function createCollectionRepository(options: { filePath: string; stagingR
     } catch (error) { db.close(); throw error; }
   }
   function guarded<T>(operation: (db: DatabaseSync) => T): T {
-    try { return operation(open()); }
-    catch (error) { if (error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
+    try { if(localFactsFatal)throw new LocalFactsCommitFatal();return operation(open()); }
+    catch (error) { if (error instanceof LocalFactsCommitFatal || error instanceof LocalFactsFenceBusy || error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
   }
   function exportReadonlyModels(maxModels: number, modelsGuard: typeof isDatasetCollectionModels): readonly CollectionModel[] {
     return guarded(db => {
@@ -540,11 +547,12 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   }
 
   const music = createPhysicalMusicRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
-  const sources = createSourceStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
+  const sources = createSourceStore({ read: guarded, conflict, beforeLocalFactsCommit: checkLocalFacts, onLocalFactsFatal:failLocalFacts, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const links = createPhysicalLinksRepository({ read: guarded, conflict, unavailable, music, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const media = createMediaPlanningStore({ read: guarded, conflict, unavailable, stock: mediaStock, stockOne: mediaStockOne, reservationStock: reservedMediaStock, reserve: reserveMediaStock, release: releaseMediaStock, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
-  const localCatalog = createLocalCatalogStore({ read: guarded, sources, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
+  const localCatalog = createLocalCatalogStore({ read: guarded, sources, conflict, beforeLocalFactsCommit: checkLocalFacts, onLocalFactsFatal:failLocalFacts, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   return {
+    privateInstallLocalFactsFence(check,seal) { if (privateFactsFence) throw new Error('本地来源提交接点不能重复安装。'); privateFactsFence = check; privateSealLocalFacts=seal; },
     localCatalog,
     localScan: createLocalScanStore({ read: guarded, catalog: localCatalog, sources, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingPrints: createRecordingPrintStore({ read: guarded, objectCertificates, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),

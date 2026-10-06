@@ -18,7 +18,7 @@ const props = defineProps<{
   playbackIssueMessage: (issue: PlaybackIssue) => string
   trackLikeState: 'idle' | 'loading' | 'liked' | 'not-liked' | 'error'
   trackLikeAvailable: boolean
-  playbackSource: 'roon' | 'netease'
+  playbackSource: 'roon' | 'netease' | 'local_file'
   seekAllowed: boolean
   localLyricsMatchState: LocalLyricsMatchSnapshot
   localLyricsMatchBusy?: boolean

@@ -1,0 +1,301 @@
+{
+  "schema": "mbrs005.final-delivery-receipt.v1",
+  "sealedAt": "2026-10-06T05:18:46.990794+00:00",
+  "task": "MBRS-005",
+  "state": "SOFTWARE_DELIVERED_WITH_EXPLICIT_LIVE_CARRYOVER",
+  "baseSha": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+  "initialImplementationSha": "4587a213888aaedf686cf342ffe541833ad3c268",
+  "implementationSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+  "reportSha": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+  "branch": "codex/mbrs-005-local-file-gateway",
+  "worktree": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-005-local-file-gateway",
+  "localHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+  "remoteHead": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+  "worktreeClean": true,
+  "diffCheckExitCode": 0,
+  "reportIdentityMatchesHead": true,
+  "reportDirectParentIsVerifiedSource": true,
+  "implementationAndReportPushExitCode": 0,
+  "implementationCi": [
+    {
+      "workflow": ".github/workflows/rust-core.yml",
+      "runId": 37415678695,
+      "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37415678695",
+      "jobs": [
+        {
+          "id": 112113651455,
+          "name": "rust-core (macos-latest)",
+          "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+          "conclusion": "success"
+        },
+        {
+          "id": 112113651599,
+          "name": "rust-core (ubuntu-latest)",
+          "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11391480201,
+          "name": "rust-core-macos-latest-afece74b55bdba56cd802e03e1dca7fa886f26a7",
+          "digest": "sha256:3ac31e4fefffa4942bb21f65be29b937d752c48371895b35650dd3e0966fc0ea",
+          "expired": false
+        },
+        {
+          "id": 11391300225,
+          "name": "rust-core-ubuntu-latest-afece74b55bdba56cd802e03e1dca7fa886f26a7",
+          "digest": "sha256:de2d9271c6c4fc50c4530dd7b1f62f259af93b6535de3e537dc6733102c99e01",
+          "expired": false
+        }
+      ]
+    },
+    {
+      "workflow": ".github/workflows/security.yml",
+      "runId": 37415678709,
+      "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37415678709",
+      "jobs": [
+        {
+          "id": 112113651474,
+          "name": "static-security",
+          "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": []
+    },
+    {
+      "workflow": ".github/workflows/verify.yml",
+      "runId": 37415678655,
+      "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37415678655",
+      "jobs": [
+        {
+          "id": 112113651363,
+          "name": "dependency-audit",
+          "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+          "conclusion": "success"
+        },
+        {
+          "id": 112113651486,
+          "name": "verify",
+          "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11392110595,
+          "name": "verify-afece74b55bdba56cd802e03e1dca7fa886f26a7",
+          "digest": "sha256:0471959d3ae041439fb0a53a4d8efa5ce71b56d3e09b406785e5788163734cbd",
+          "expired": false
+        }
+      ]
+    },
+    {
+      "workflow": ".github/workflows/electron-e2e.yml",
+      "runId": 37415678701,
+      "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37415678701",
+      "jobs": [
+        {
+          "id": 112113651477,
+          "name": "macos-electron-gate",
+          "headSha": "afece74b55bdba56cd802e03e1dca7fa886f26a7",
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11391601386,
+          "name": "rust-host-compiled-afece74b55bdba56cd802e03e1dca7fa886f26a7",
+          "digest": "sha256:660d4d9376653bf58982b5285ee7f490952d105a4193ef4a7c87c43ad3b665b8",
+          "expired": false
+        },
+        {
+          "id": 11391501648,
+          "name": "electron-e2e-afece74b55bdba56cd802e03e1dca7fa886f26a7",
+          "digest": "sha256:c1cd8234500033ba011d337749b1a242e605e6d37e668f5ebd5e224628300778",
+          "expired": false
+        }
+      ]
+    }
+  ],
+  "reportCi": [
+    {
+      "workflow": ".github/workflows/verify.yml",
+      "runId": 37417592404,
+      "headSha": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37417592404",
+      "jobs": [
+        {
+          "id": 112119552201,
+          "name": "dependency-audit",
+          "headSha": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+          "conclusion": "success"
+        },
+        {
+          "id": 112119552355,
+          "name": "verify",
+          "headSha": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11392092006,
+          "name": "verify-cce8594f4b6e9872afd576bb1b032f526c93af72",
+          "digest": "sha256:50c5308994ad49dd2d79be111cfce16f13f3a4799fd02b3838cd18c6bb33d3a7",
+          "expired": false
+        }
+      ]
+    },
+    {
+      "workflow": ".github/workflows/security.yml",
+      "runId": 37417592350,
+      "headSha": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "attempt": 1,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37417592350",
+      "jobs": [
+        {
+          "id": 112119551828,
+          "name": "static-security",
+          "headSha": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+          "conclusion": "success"
+        }
+      ],
+      "artifacts": []
+    }
+  ],
+  "allExpectedCiSuccess": true,
+  "sourceCiWorkflowCount": 4,
+  "sourceCiJobCount": 6,
+  "reportCiWorkflowCount": 2,
+  "reportCiJobCount": 3,
+  "reportActualCiMode": "report-only",
+  "exactParentSourceProductResultsReused": true,
+  "reportMandatoryStaticAndAdmissionChecksAndFreshProductionAudit": "SUCCESS",
+  "reportCiModeProof": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/ci/REPORT_ACTUAL_CI_MODE_PROOF.json",
+    "bytes": 1489,
+    "sha256": "297f3d19ea947e2fa6ec1ce90378e90947c605b9896657cbecac7f280f0b1e60"
+  },
+  "localSoftware": {
+    "functionalTests": 119,
+    "newTaskTests": 34,
+    "inheritedRegressionTests": 85,
+    "runnerCiTests": 29,
+    "gateStages": 9,
+    "freshOutputsWithinGate": 20,
+    "gateExitCode": 0,
+    "desktopProductionBuild": "PASS",
+    "localFullWorkspace": "NOT_RUN_RISK_BASED_TARGETED_SCOPE"
+  },
+  "remoteFullWorkspace": {
+    "tests": 4284,
+    "pass": 4282,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0,
+    "scope": "ACTUAL_VERIFY_JOB_LOG_NOT_ARTIFACT_CONTENT"
+  },
+  "declaredInputs": 1155,
+  "declaredInputsGitAndDiskMatchVerified119Gate": true,
+  "sourceIdentity": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/REPORT_FINAL_SOURCE_IDENTITY.json",
+    "bytes": 726,
+    "sha256": "dc589419383f299c3f3687b6b08708e91c97bf4ddb986790e277527ec16af37d"
+  },
+  "sourceIdentityScope": "DECLARED_INPUTS_AND_WITHIN_GATE_OUTPUTS_NOT_TRANSITIVE_DEPENDENCY_OR_ARCHIVE_CONTENT_CLOSURE",
+  "artifactContentValidation": "CURRENT_SOURCE_AND_REPORT_NOT_DOWNLOADED_PLATFORM_PRODUCER_AND_DIGEST_METADATA_ONLY",
+  "sourceCiSnapshot": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/ci/source-corrected-terminal-01.json",
+    "bytes": 96127,
+    "sha256": "51c0b45111a0c0cae3941cedc7d360971b42bee1af2784aa95d1d1364e4c51e3"
+  },
+  "reportCiSnapshot": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/ci/report-02.json",
+    "bytes": 47005,
+    "sha256": "e4182485378b91faf66a8542f1ccbe07b0cc3381f5f9c343fa354660db8b37b9"
+  },
+  "initialCiFailure": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/ci/source-initial-terminal.json",
+    "bytes": 58231,
+    "sha256": "5e44f3da86facebecab3cf01161fafd16027bc5300ffd8f95610b3e8241ed9a8"
+  },
+  "initialRustSelectedFailureLogsActualArchiveProof": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/ci/INITIAL_RUST_HOST_FAILURE_PROOF.json",
+    "bytes": 1847,
+    "sha256": "88fee4c5ad9929df2fc16eb6c50d950194b95b54707a6b45742f6ead2b3fdd12"
+  },
+  "rootScopePreparationFailurePreserved": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/REPORT_SCOPE_CHECK_BUFFER_FAILURE.json",
+    "bytes": 342,
+    "sha256": "d3c8650d523cecce684247d026317221790595b54d2b6a585f50a2ef887375ed"
+  },
+  "correctedActualScopeAdmission": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/REPORT_STAGED_SCOPE_CHECK.json",
+    "bytes": 1405,
+    "sha256": "c8c4cd462c3676f917bc860bac45e819fb5f9f57c6fbaab0ad127d9d5a1ca725"
+  },
+  "reruns": 0,
+  "original18TasksAnd156AcceptanceTextPreserved": true,
+  "thisTaskOnlyWrote005Worktree": true,
+  "acceptanceCaseStatuses": {
+    "PASS_SOFTWARE": 6,
+    "PARTIAL": 5,
+    "NOT_TESTED": 1
+  },
+  "carryover": {
+    "originalAt00506LiveRoon": "NOT_TESTED",
+    "realAccountsRoonCoreZoneLanNasAudio": "NOT_RUN",
+    "ordinaryApp": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "controllerConnection": "MBRS-006",
+    "queuePrefetch": "MBRS-007",
+    "actualProtectedSourceWrites": "MBRS-012_AFTER_MBRS-014",
+    "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+    "new100k300kStarted": false,
+    "historical300k": {
+      "visited": 300000,
+      "accepted": 299975,
+      "rejected": 25,
+      "readTimeout": 20,
+      "workerStartTimeout": 5,
+      "physicalCauses": "UNKNOWN",
+      "ownerStageException": "NOT_LOAD_PASS"
+    },
+    "iosContract": "ADOPTION_PENDING",
+    "upstreamLicense": "UNKNOWN",
+    "rustDefault": "NODE_DEFAULT_OPTIONAL_RUST_OFF"
+  },
+  "ownerCurrentInstruction": "持续开发到017；完成一个task更新待办清单并push GitHub；未完成独立task不停止报告TODO；测试规模按难易选择",
+  "nextBaseline": {
+    "task": "MBRS-006",
+    "head": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+    "started": false,
+    "currentGoalAdmissionCoversContinuation": true
+  },
+  "reportSnapshotCiStatus": "PENDING_WHEN_REPORT_COMMITTED_FINAL_TERMINAL_STATUS_SEALED_HERE",
+  "mainMergeInstallRelease": "NOT_RUN"
+}

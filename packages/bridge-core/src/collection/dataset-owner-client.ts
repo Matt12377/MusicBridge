@@ -1,3 +1,5 @@
+import { LocalSourceFence } from '../stream/local-source-fence.js';
+import { isLocalSourceCaptureResult, type LocalSourceCaptureResult, type LocalSourcePrivatePayload } from './local-source-ticket-types.js';
 import {LOCAL_RELOCATION_COMMANDS,isLocalRelocationCommand,isLocalRelocationInternalCommand,isLocalRelocationCommandResult} from '@music-bridge/contracts';
 import { isLocalScanCommand, isLocalScanInternalCommand, isLocalScanCommandResult, isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcRequest, validateIpcInternalRequest, isLocalCatalogCommandResult } from '@music-bridge/contracts';
 import { randomUUID } from 'node:crypto';
@@ -32,6 +34,9 @@ export interface DatasetOwnerClientOptions {
 export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): DatasetOwnerLargeSnapshotEndpoint {
   const { worker } = options;
   const epoch = randomUUID();
+  let localAlive = true;
+  const localFences = new Map<string,LocalSourceFence>();
+  const sealLocalSources = () => { localAlive = false; for (const fence of localFences.values()) fence.revoke(); };
   const pending = new Map<string, PendingRequest>();
   let sequence = 0;
   let identity: DatasetOwnerIdentity | undefined;
@@ -53,7 +58,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
 
   function fatal(reason: DatasetOwnerFatalReason): void {
     if (failed) return;
-    failed = true;
+    failed = true; sealLocalSources();
     for (const item of pending.values()) item.reject(new DatasetOwnerTransportError(item.sent ? 'unknown' : 'not-sent', item.publicId, item.command));
     pending.clear();
     exitReject(new DatasetOwnerTransportError('unknown'));
@@ -61,12 +66,12 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     try { options.onFatal?.(reason); } catch { /* 监督回调失败不能改写已发送操作的未知结果。 */ }
   }
 
-  function rpc(operation: DatasetOwnerOperation, request?: IpcRequest, expectedDatasetId?: string): Promise<unknown> {
+  function rpc(operation: DatasetOwnerOperation, request?: IpcRequest, expectedDatasetId?: string, local?: LocalSourcePrivatePayload): Promise<unknown> {
     if (failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent', request?.id, request?.command));
     const requestId = randomUUID();
     const message: DatasetOwnerRequest = {
       version: DATASET_OWNER_PROTOCOL_VERSION, type: 'request', epoch, requestId,
-      sequence: ++sequence, operation, ...(request === undefined ? {} : { request }),
+      sequence: ++sequence, operation, ...(local === undefined ? {} : { local }), ...(request === undefined ? {} : { request }),
       ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }),
     };
     return new Promise((resolve, reject) => {
@@ -114,6 +119,12 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     const publicId = item.publicId ?? message.requestId;
     if (!message.ok && message.failure.id !== publicId) { fatal('protocol-failure'); return; }
     if (message.ok && message.operation === 'prepare' && (!isDatasetOwnerIdentity(message.result) || message.result.epoch !== epoch)) { fatal('protocol-failure'); return; }
+    if (message.ok && message.operation === 'captureLocalSource') {
+      if (!isLocalSourceCaptureResult(message.result) || message.result.epoch !== epoch || message.result.datasetId !== identity?.datasetId || localFences.has(message.result.ticketId) || localFences.size >= 16) { fatal('protocol-failure'); return; }
+      const fence = new LocalSourceFence(message.result.buffer); if (!localAlive) fence.revoke(); localFences.set(message.result.ticketId,fence);
+    }
+    if (message.ok && message.operation === 'revalidateLocalSource' && typeof message.result !== 'boolean') { fatal('protocol-failure'); return; }
+    if (message.ok && message.operation === 'releaseLocalSource' && message.result !== undefined) { fatal('protocol-failure'); return; }
     if (message.ok && message.operation === 'getCollectionSnapshotVersion') {
       if (!isDatasetCollectionSnapshotVersion(message.result) || message.result.epoch !== epoch || message.result.datasetId !== identity?.datasetId) { fatal('protocol-failure'); return; }
     }
@@ -164,6 +175,21 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
       });
       return preparation;
     },
+    sealLocalSources,
+    isLocalSourceCurrent: () => localAlive && !closing && !failed && !exited && identity !== undefined && bootCommitted,
+    captureLocalSource(selection) {
+      if (!localAlive || !identity || !bootCommitted || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
+      return rpc('captureLocalSource',undefined,identity.datasetId,{selection}).then(value => value as LocalSourceCaptureResult);
+    },
+    revalidateLocalSource(ticketId) {
+      if (!localAlive || !identity || !localFences.has(ticketId)) return Promise.resolve(false);
+      return rpc('revalidateLocalSource',undefined,identity.datasetId,{ticketId}).then(value => value as boolean);
+    },
+    async releaseLocalSource(ticketId) {
+      const fence=localFences.get(ticketId); if (!fence) return; fence.revoke(); fence.assertQuiet();
+      if (!identity || failed || exited) { localFences.delete(ticketId); return; }
+      await rpc('releaseLocalSource',undefined,identity.datasetId,{ticketId}); localFences.delete(ticketId);
+    },
     dispatch(request) {
       const { id, command } = request;
       if (identity === undefined || closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent', id, command));
@@ -203,7 +229,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     },
     close() {
       if (closure !== undefined) return closure;
-      closing = true;
+      closing = true; sealLocalSources();
       // 发close即封入口；owner先停止coordinator，再等待在途dispatch，然后关闭连接。
       closure = rpc('close').then(() => naturalExit);
       return closure;

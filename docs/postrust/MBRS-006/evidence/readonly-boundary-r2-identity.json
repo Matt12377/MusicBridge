@@ -1,0 +1,622 @@
+{
+  "schema": "mbrs006.boundary-review-r2.v1",
+  "capturedAt": "2026-10-06T06:23:34.982955+00:00",
+  "base": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+  "head": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+  "branch": "codex/mbrs-006-local-audio-input",
+  "worktree": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-006-local-audio-input",
+  "freezeManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/writer/FREEZE_03.json",
+  "freezeSha256": "40eb968e389e1667e16f5b78c330ce170803095c37e09fa1a4beb6de37dd8b45",
+  "fileCount": 54,
+  "mismatches": [],
+  "deltaCountFrom02": 6,
+  "unchangedActualFrom02": 48,
+  "sourceFiles": [
+    {
+      "path": "apps/desktop/src/main/local-library-ipc.ts",
+      "sha256": "96816f79127f211bf15fac6d6a88e58fb564b82bc38da5b830a0f1dfab25a053",
+      "actualSha256": "96816f79127f211bf15fac6d6a88e58fb564b82bc38da5b830a0f1dfab25a053",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "apps/desktop/src/preload/api.ts",
+      "sha256": "782f3307575c802d3c13be4eeea0865240f92cdccfd7fc4970e6b04fcaf6b533",
+      "actualSha256": "782f3307575c802d3c13be4eeea0865240f92cdccfd7fc4970e6b04fcaf6b533",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "apps/desktop/src/preload/local-library-client.ts",
+      "sha256": "f528bb23e52a53af9b1b8c62383f1c855fecc55f3492c8619fc5d06bdb908661",
+      "actualSha256": "f528bb23e52a53af9b1b8c62383f1c855fecc55f3492c8619fc5d06bdb908661",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/NowPlayingView.vue",
+      "sha256": "d928025c8722878eb697fd4188f452e3e54de627eca16d8e427d17c94fa2ef11",
+      "actualSha256": "d928025c8722878eb697fd4188f452e3e54de627eca16d8e427d17c94fa2ef11",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/playbackSnapshot.ts",
+      "sha256": "adf155d7c91f0d010c09c90c28d6cb9ade13cf71c26d3ae7cbfdbfd0362f3f85",
+      "actualSha256": "adf155d7c91f0d010c09c90c28d6cb9ade13cf71c26d3ae7cbfdbfd0362f3f85",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "sha256": "3bd0a845c476a7923f4108c8331a40e333c8eb98133d26cffbdbd0ceca94bde6",
+      "actualSha256": "3bd0a845c476a7923f4108c8331a40e333c8eb98133d26cffbdbd0ceca94bde6",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "apps/desktop/test/mbrs002/local-playback-compat.test.ts",
+      "sha256": "3e5f8c6de52116906e1ae31fdb200155eed193fc1a9d55a3eec1e67b21ad2804",
+      "actualSha256": "3e5f8c6de52116906e1ae31fdb200155eed193fc1a9d55a3eec1e67b21ad2804",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "apps/desktop/test/mbrs006-local-consumer.test.ts",
+      "sha256": "3bea3b7c173dc9b4d5634945dcd975f7cafe78bd21dd7005e5638be6abf48cd4",
+      "actualSha256": "3bea3b7c173dc9b4d5634945dcd975f7cafe78bd21dd7005e5638be6abf48cd4",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/application/bridge-controller.ts",
+      "sha256": "2bce5bd7faf6baa046af00a5ef2b0b3a1a0f6cfaf26a6ac18996c4fb2d4a3f70",
+      "actualSha256": "2bce5bd7faf6baa046af00a5ef2b0b3a1a0f6cfaf26a6ac18996c4fb2d4a3f70",
+      "matches": true,
+      "deltaFrom02": true
+    },
+    {
+      "path": "packages/bridge-core/src/application/local-source-facts.ts",
+      "sha256": "c3816761e29913e185d24ff554c51265888cf98af63b42e0026b00a993ce1aff",
+      "actualSha256": "c3816761e29913e185d24ff554c51265888cf98af63b42e0026b00a993ce1aff",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/application/local-source-resolver.ts",
+      "sha256": "400263aca9f161fba087984c905f45639c82903456dad1f33b77ad5a4a5f7d06",
+      "actualSha256": "400263aca9f161fba087984c905f45639c82903456dad1f33b77ad5a4a5f7d06",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "sha256": "a97fabdd57f9f8fa7fc429ca0f873072ee125a72af3f412031b99b0025117d52",
+      "actualSha256": "a97fabdd57f9f8fa7fc429ca0f873072ee125a72af3f412031b99b0025117d52",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-domain.ts",
+      "sha256": "b6af8e26f784f5f1d816e7f6cf99bc1ece70ce8aec39d3bd034e717e8e5f1c09",
+      "actualSha256": "b6af8e26f784f5f1d816e7f6cf99bc1ece70ce8aec39d3bd034e717e8e5f1c09",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-client.ts",
+      "sha256": "55c52b1dbb20a0a05b618c30bed4d08b843dd9ebc329b031a13bc31b9555e42d",
+      "actualSha256": "55c52b1dbb20a0a05b618c30bed4d08b843dd9ebc329b031a13bc31b9555e42d",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+      "sha256": "dce3df0885d535b5ab22f6d9327d2a65907bc39c4019091d4ee3c5ae0ddda17e",
+      "actualSha256": "dce3df0885d535b5ab22f6d9327d2a65907bc39c4019091d4ee3c5ae0ddda17e",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+      "sha256": "f5f04ce638563a4294c5053bac4c0dd39f215c64d4efd886b5b130b70655d1c2",
+      "actualSha256": "f5f04ce638563a4294c5053bac4c0dd39f215c64d4efd886b5b130b70655d1c2",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "sha256": "25835d41eb5716dcea0a5c81cc1e293603771c71d4fb3e333f063c9024a1c395",
+      "actualSha256": "25835d41eb5716dcea0a5c81cc1e293603771c71d4fb3e333f063c9024a1c395",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-relocation-coordinator.ts",
+      "sha256": "d447c4c1ace3c947ebfc5345f9c351f1dc33270dbda31ab58ba82c1e56c62497",
+      "actualSha256": "d447c4c1ace3c947ebfc5345f9c351f1dc33270dbda31ab58ba82c1e56c62497",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-coordinator.ts",
+      "sha256": "7d57a5adf67cafae3f123fd1c56736c1541a971794e088f54fb79a531533fd99",
+      "actualSha256": "7d57a5adf67cafae3f123fd1c56736c1541a971794e088f54fb79a531533fd99",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-ticket-types.ts",
+      "sha256": "c4ea7a4e731f7268ad81ea2f30240cde152608aec37e7d442cd72c18cd5a270e",
+      "actualSha256": "c4ea7a4e731f7268ad81ea2f30240cde152608aec37e7d442cd72c18cd5a270e",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-tickets.ts",
+      "sha256": "4311c787928a7a40633ab685d02e8cbfd90070222bba62bc3cb418db748285c0",
+      "actualSha256": "4311c787928a7a40633ab685d02e8cbfd90070222bba62bc3cb418db748285c0",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/collection/repository.ts",
+      "sha256": "e0681d7ac48c7b8038680a136aa1d15530e0713caad7988ab078db45e5ac59ac",
+      "actualSha256": "e0681d7ac48c7b8038680a136aa1d15530e0713caad7988ab078db45e5ac59ac",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics/coordinator.ts",
+      "sha256": "52985dc89fac5f101e02f73da9d941454087161c9b34964123aa88f44d929f57",
+      "actualSha256": "52985dc89fac5f101e02f73da9d941454087161c9b34964123aa88f44d929f57",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-evidence.ts",
+      "sha256": "2a342296818755c0913c2e87797c564d660bacc9c5c57dedb6edfc3362938ce8",
+      "actualSha256": "2a342296818755c0913c2e87797c564d660bacc9c5c57dedb6edfc3362938ce8",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-store.ts",
+      "sha256": "1cdd230ed40b5907921a02427e76752b0e4660187cdeac870d3fd568bb5561ca",
+      "actualSha256": "1cdd230ed40b5907921a02427e76752b0e4660187cdeac870d3fd568bb5561ca",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/roon/adapter.ts",
+      "sha256": "83501413ed5e06cc9653c69c30a90d459f384272ec7c9a2bd100ebba6df3a4d8",
+      "actualSha256": "83501413ed5e06cc9653c69c30a90d459f384272ec7c9a2bd100ebba6df3a4d8",
+      "matches": true,
+      "deltaFrom02": true
+    },
+    {
+      "path": "packages/bridge-core/src/roon/sdk.ts",
+      "sha256": "02cccf91814bece1e0663bc066d650fe26fd1056527173f0cf7747798ea16ae5",
+      "actualSha256": "02cccf91814bece1e0663bc066d650fe26fd1056527173f0cf7747798ea16ae5",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/roon/types.ts",
+      "sha256": "c95086643ffdc763c079cc8e204acfca4d486e4357aeb9bde722fa8683dd00ca",
+      "actualSha256": "c95086643ffdc763c079cc8e204acfca4d486e4357aeb9bde722fa8683dd00ca",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/runtime.ts",
+      "sha256": "75ae9c0db6d4d17897088d6e4be7c7b6d6b7ea8b387a0ed4cbbb7f92cb17567c",
+      "actualSha256": "75ae9c0db6d4d17897088d6e4be7c7b6d6b7ea8b387a0ed4cbbb7f92cb17567c",
+      "matches": true,
+      "deltaFrom02": true
+    },
+    {
+      "path": "packages/bridge-core/src/rust-core/core-dataset-owner.ts",
+      "sha256": "14de5f05c8f76f2728b81fba2006789a976aec4fb9142435228bcfc69529779d",
+      "actualSha256": "14de5f05c8f76f2728b81fba2006789a976aec4fb9142435228bcfc69529779d",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/stream/local-source-fence.ts",
+      "sha256": "3269660df229efa73eb8ad0d6f8f87b476e066d9fa59b3645f1f891a45e91335",
+      "actualSha256": "3269660df229efa73eb8ad0d6f8f87b476e066d9fa59b3645f1f891a45e91335",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/src/utility-main.ts",
+      "sha256": "e8276c198ccdda063c5dc45d8d660fbf9753f2876dc9a181a0c1f593f7e2cc82",
+      "actualSha256": "e8276c198ccdda063c5dc45d8d660fbf9753f2876dc9a181a0c1f593f7e2cc82",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/test/local-playback.test.ts",
+      "sha256": "9381c2b4600da8efae7c5198803baf4a829a749464c99e5d515cb280bcabf3e8",
+      "actualSha256": "9381c2b4600da8efae7c5198803baf4a829a749464c99e5d515cb280bcabf3e8",
+      "matches": true,
+      "deltaFrom02": true
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/adapter-fixture.ts",
+      "sha256": "25b6068ff2c392a9e617935a5b53e633b806afab1138912bec1c99c6ea8ffd87",
+      "actualSha256": "25b6068ff2c392a9e617935a5b53e633b806afab1138912bec1c99c6ea8ffd87",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/catalog-fixture.ts",
+      "sha256": "4b86a627fa1983f8e658826f2d24368a20480eb5400fe369d4cebe1fa8da7863",
+      "actualSha256": "4b86a627fa1983f8e658826f2d24368a20480eb5400fe369d4cebe1fa8da7863",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/claim-worker.ts",
+      "sha256": "2f7418afd87ab9973c8bc56813c19d866dd459b1aef0e7553931062c28fd1f56",
+      "actualSha256": "2f7418afd87ab9973c8bc56813c19d866dd459b1aef0e7553931062c28fd1f56",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/controller-local.test.ts",
+      "sha256": "452d35c0d5b2717ad902cc098ecd0c5b789608ee0e058d065b56415bd12e5364",
+      "actualSha256": "452d35c0d5b2717ad902cc098ecd0c5b789608ee0e058d065b56415bd12e5364",
+      "matches": true,
+      "deltaFrom02": true
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/local-facts-fence.test.ts",
+      "sha256": "20039ad4049256f7544ebc7f9e2f8516ed9be4ed4f849df2258e25499c12e5ad",
+      "actualSha256": "20039ad4049256f7544ebc7f9e2f8516ed9be4ed4f849df2258e25499c12e5ad",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/local-session-lifecycle.test.ts",
+      "sha256": "04a8c4a32cc4d03f886fe82b0f2855b2258f966fd0678aaf38094e0d95f49b84",
+      "actualSha256": "04a8c4a32cc4d03f886fe82b0f2855b2258f966fd0678aaf38094e0d95f49b84",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/owner-facts-integration.test.ts",
+      "sha256": "48cd853386616e5b9c5b185e6260cc90d03057f44d3c9a356f8aee364ce3bd93",
+      "actualSha256": "48cd853386616e5b9c5b185e6260cc90d03057f44d3c9a356f8aee364ce3bd93",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/owner-worker-integration.test.ts",
+      "sha256": "c155f358452706aee78605c0231ec9eb8976efc12753c42fc06f00b00dc3e559",
+      "actualSha256": "c155f358452706aee78605c0231ec9eb8976efc12753c42fc06f00b00dc3e559",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/owner-worker.ts",
+      "sha256": "04eb0f66241e1da67883d77756c44a31405d59ed2eaa73c3644490ca7133d98d",
+      "actualSha256": "04eb0f66241e1da67883d77756c44a31405d59ed2eaa73c3644490ca7133d98d",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/runtime-local.test.ts",
+      "sha256": "7cd8b49bad6a5ca57859b30ed274f4b8420b1b30ba156ab203ee9e69f62db1eb",
+      "actualSha256": "7cd8b49bad6a5ca57859b30ed274f4b8420b1b30ba156ab203ee9e69f62db1eb",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/runtime-shutdown.test.ts",
+      "sha256": "1f3ec394344ee7d6f378fc17e3d0c8260a1257cd1e8c6a7785cb150e4e7550ec",
+      "actualSha256": "1f3ec394344ee7d6f378fc17e3d0c8260a1257cd1e8c6a7785cb150e4e7550ec",
+      "matches": true,
+      "deltaFrom02": true
+    },
+    {
+      "path": "packages/contracts/src/ipc.ts",
+      "sha256": "5e6752dcdf1acf1843fd4dfb974a0bb87d1db9e4f94c3859e1d8d0327b0c1283",
+      "actualSha256": "5e6752dcdf1acf1843fd4dfb974a0bb87d1db9e4f94c3859e1d8d0327b0c1283",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/contracts/src/local-play-request.ts",
+      "sha256": "e47b46e0681bd9e342f1eb119b181a7d1adac31475cafdf6d07650370cf33530",
+      "actualSha256": "e47b46e0681bd9e342f1eb119b181a7d1adac31475cafdf6d07650370cf33530",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/contracts/src/local-playback-compat.ts",
+      "sha256": "56dc0ed669dc7d214eabda883bcf6a5a72ff9373221df3ce394db73b909f48b8",
+      "actualSha256": "56dc0ed669dc7d214eabda883bcf6a5a72ff9373221df3ce394db73b909f48b8",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/contracts/src/local-relocation.ts",
+      "sha256": "20905fb7986adf652c523c8915c07eec46902a373581dab408fc441bcd88a519",
+      "actualSha256": "20905fb7986adf652c523c8915c07eec46902a373581dab408fc441bcd88a519",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/contracts/src/playback.ts",
+      "sha256": "5d3431173fb749988eeb0423f3f383df2e7a178b5beef5409bac6ab9869e42b9",
+      "actualSha256": "5d3431173fb749988eeb0423f3f383df2e7a178b5beef5409bac6ab9869e42b9",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/contracts/src/validator.ts",
+      "sha256": "11abdc1360cc7cc7fe272479a8992ffe8100fc50d7fa44418f89c32d939dd8cb",
+      "actualSha256": "11abdc1360cc7cc7fe272479a8992ffe8100fc50d7fa44418f89c32d939dd8cb",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/contracts/test/local-playback.test.ts",
+      "sha256": "162d3042079b6927f4b56a1af82f4092e26cd839f7195403b2aa584cef6f58f7",
+      "actualSha256": "162d3042079b6927f4b56a1af82f4092e26cd839f7195403b2aa584cef6f58f7",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/contracts/test/mbrs002/local-playback-compat.test.ts",
+      "sha256": "e076ab253e73f5375f751c0126cad2a3127c2b734be374fe3ddff9be638404b7",
+      "actualSha256": "e076ab253e73f5375f751c0126cad2a3127c2b734be374fe3ddff9be638404b7",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/contracts/test/mbrs006/fixture.ts",
+      "sha256": "9062f6fa228931aa33ab185edb6880b2408ff93300802e856f04fe04489a9442",
+      "actualSha256": "9062f6fa228931aa33ab185edb6880b2408ff93300802e856f04fe04489a9442",
+      "matches": true,
+      "deltaFrom02": false
+    },
+    {
+      "path": "packages/contracts/test/mbrs006/local-playback-contract.test.ts",
+      "sha256": "dd40fc82f53272fe01e4062b07dd96e6536f878b467a83bb4a2ce977de024dc5",
+      "actualSha256": "dd40fc82f53272fe01e4062b07dd96e6536f878b467a83bb4a2ce977de024dc5",
+      "matches": true,
+      "deltaFrom02": false
+    }
+  ],
+  "rootFilesReadSnapshot": [
+    {
+      "path": "scripts/ci/verify-mbrs006-local-playback.mjs",
+      "sha256": "017fb62ac4f1ef0f64003fa43162e7b30343608fa4c848ab80abaeaaecd43323"
+    },
+    {
+      "path": "scripts/ci/test/verify-mbrs006-local-playback.test.mjs",
+      "sha256": "b3a1f90e5df536fc62980d7c09d32f3de606ee20823b5b50ff8980869b44f567"
+    },
+    {
+      "path": "scripts/ci/mbrs006-local-playback-scope.json",
+      "sha256": "c43ed14d277443c2ef7424618286aa0f6f0bcec1badc0c341bf1b4020d630f09"
+    },
+    {
+      "path": ".github/workflows/verify.yml",
+      "sha256": "c7fbb6e8b602aa2565ece2f7c80a35f8fb751564e88738aac7bb779ddc8da303"
+    },
+    {
+      "path": "tasks/MBRS-006_LOCAL_AUDIO_INPUT.md",
+      "sha256": "9c883ada0a5066fc96fe5fedfb2be365eeb758ef404b3d9ec7b4277a67136c8a"
+    },
+    {
+      "path": "docs/postrust/MBRS-006/EXECUTION_SCOPE.json",
+      "sha256": "930d784985a4339d5b2f9b49194c5b403803190e8a80216f098de37795799715"
+    },
+    {
+      "path": "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+      "sha256": "90c3a34251f370361686cc6b909348834407562e92a097411433660315bfa359"
+    }
+  ],
+  "rootScopeSnapshot": {
+    "schema": "mbrs006.local-playback-scope.v1",
+    "baseSha": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+    "implementationComplete": true,
+    "countsConfirmed": true,
+    "groups": [
+      {
+        "name": "core-local-playback",
+        "directory": "packages/bridge-core",
+        "expectedTests": 41,
+        "tests": [
+          "test/mbrs006/controller-local.test.ts",
+          "test/mbrs006/local-facts-fence.test.ts",
+          "test/mbrs006/local-session-lifecycle.test.ts",
+          "test/mbrs006/owner-facts-integration.test.ts",
+          "test/mbrs006/owner-worker-integration.test.ts",
+          "test/mbrs006/runtime-local.test.ts",
+          "test/mbrs006/runtime-shutdown.test.ts"
+        ]
+      },
+      {
+        "name": "core-affected-regression",
+        "directory": "packages/bridge-core",
+        "expectedTests": 349,
+        "tests": [
+          "test/controller.test.ts",
+          "test/roon-adapter.test.ts",
+          "test/runtime.test.ts",
+          "test/playback-event-publisher.test.ts",
+          "test/dataset-owner.test.ts",
+          "test/dataset-owner-integration.test.ts",
+          "test/source-evidence.test.ts",
+          "test/mbrs002/local-source-resolver.test.ts",
+          "test/utility-playback-stream.test.ts",
+          "test/controller-context.test.ts",
+          "test/roon-sdk-callback-context.test.ts",
+          "test/runtime-compact-events.test.ts"
+        ]
+      },
+      {
+        "name": "contracts-local-identity",
+        "directory": "packages/contracts",
+        "expectedTests": 58,
+        "tests": [
+          "test/playback-stream.test.ts",
+          "test/validator.test.ts",
+          "test/mbrs002/local-play-request.test.ts",
+          "test/mbrs002/local-playback-compat.test.ts",
+          "test/mbrs006/local-playback-contract.test.ts"
+        ]
+      },
+      {
+        "name": "desktop-local-consumer",
+        "directory": "apps/desktop",
+        "expectedTests": 92,
+        "tests": [
+          "test/mbrs002/local-playback-compat.test.ts",
+          "test/playback-session.test.ts",
+          "test/playbackFavorites.test.ts",
+          "test/playback-stream-reducer.test.ts",
+          "test/dataset-owner-bootstrap.test.ts",
+          "test/rust-core-host.test.ts",
+          "test/mbrs003/local-library-front-boundary.test.ts",
+          "test/mbrs003/local-library-ipc.test.ts",
+          "test/mbrs003/local-library-client.test.ts",
+          "test/mbrs006-local-consumer.test.ts"
+        ]
+      }
+    ],
+    "gateBudget": {
+      "totalMs": 360000,
+      "stageMs": 180000
+    },
+    "actualRoonLanAudio": "NOT_RUN",
+    "new100k300k": "NOT_RUN"
+  },
+  "r1ChecksReadOnlyVerified": [
+    {
+      "label": "writer-r1-core-new-03",
+      "receiptExitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-core-new-03/output.log",
+      "sha256": "a06c44dec6060d328818f2e178f7d166c9027d4c1ff804608f665d28faf84ee0",
+      "hashMatches": true,
+      "tap": {
+        "tests": 41,
+        "pass": 41,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "label": "writer-r1-core-build-02",
+      "receiptExitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-core-build-02/output.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "hashMatches": true,
+      "tap": {}
+    },
+    {
+      "label": "writer-r1-test-types-04",
+      "receiptExitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-test-types-04/output.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "hashMatches": true,
+      "tap": {}
+    },
+    {
+      "label": "writer-r1-cycles-01",
+      "receiptExitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-cycles-01/output.log",
+      "sha256": "7370c0f3ec36fb64a9e1a64954fcb79b747df4feab25025f61535b1cf370d109",
+      "hashMatches": true,
+      "tap": {}
+    },
+    {
+      "label": "writer-r1-context-old-01",
+      "receiptExitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-context-old-01/output.log",
+      "sha256": "ca3db96dd229dc4a6ba6019235ee791593f41bb02fa8e5a99d72e6e0841537c3",
+      "hashMatches": true,
+      "tap": {
+        "tests": 128,
+        "pass": 128,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "label": "writer-r1-runtime-final-01",
+      "receiptExitCode": 0,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-runtime-final-01/output.log",
+      "sha256": "20359af2f71044adc6461180585108bd3a22358b4797132ea809d8cbc3c95a63",
+      "hashMatches": true,
+      "tap": {
+        "tests": 86,
+        "pass": 86,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ],
+  "effectiveRedRead": [
+    {
+      "label": "writer-r1-shutdown-red-04",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-shutdown-red-04/output.log",
+      "sha256": "da19367a006ad88dfea872d43ebff44678ce3d2222b611fe95b1d0a72fd297e4",
+      "tap": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "label": "writer-r1-terminal-target-red-01",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-terminal-target-red-01/output.log",
+      "sha256": "7e710614fc785c5e3c1a3cfc56ee3476e33175785681bdaa8e699e6f6377f290",
+      "tap": {
+        "tests": 18,
+        "pass": 12,
+        "fail": 6,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "label": "writer-r1-context-red-01",
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/checks/writer-r1-context-red-01/output.log",
+      "sha256": "1872dafc317512e32d08a75b18e98846a9f63a305a6a9d0693d2996bbf901310",
+      "tap": {
+        "tests": 3,
+        "pass": 0,
+        "fail": 3,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ],
+  "result": "PASS_READONLY_SOFTWARE_REVIEW",
+  "openP1": 0,
+  "openP2": 0,
+  "r1RootCausesClosed": 4,
+  "reviewerBuildOrProductTestRuns": 0,
+  "formalRoundsCompleted": 2,
+  "thirdRound": "NOT_REQUESTED_NOT_STARTED",
+  "realRoonAudioLAN20SamplesOwnerAcceptance": "NOT_RUN",
+  "finalRootGate": "Root runs independently; this review does not claim the gate passed",
+  "declaredFinalGateTests": 540
+}

@@ -1,3 +1,4 @@
+import { commitLocalFacts, rollbackLocalFacts } from '../stream/local-source-fence.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { SourceSelection, SourceJob, SourceFailure, SourceAction, SourceConfirmation } from '@music-bridge/contracts';
@@ -17,9 +18,9 @@ export interface StoredBinding { id: string; rootId: string; relative: string; a
 /** 只由 Core 扫描器提供，不接受 Renderer 自报的文件/根身份。 */
 export interface CandidateFileConstraint { fileSignature: string; directoryIds: readonly string[]; rootDev: string; rootIno: string }
 export interface StoredJob { public: SourceJob; selection: SourceSelection; relative: string; previousBindingId: string | null; recheck: boolean; candidateConstraint?: CandidateFileConstraint }
-interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; beforeCommit?: (action: string) => void }
+interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; beforeCommit?: (action: string) => void; beforeLocalFactsCommit?: () => void; onLocalFactsFatal?: () => void }
 export const sourceFingerprint = (v: unknown): string => createHash('sha256').update(JSON.stringify(v)).digest('hex');
-export function createSourceStore({ read, conflict, beforeCommit }: Access) {
+export function createSourceStore({ read, conflict, beforeCommit, beforeLocalFactsCommit, onLocalFactsFatal }: Access) {
   const get = <T>(db: DatabaseSync, table: string, id: string): T | undefined => { const row = db.prepare(`SELECT data FROM ${table} WHERE id=?`).get(id); return row ? JSON.parse(String(row.data)) as T : undefined; };
   const all = <T>(db: DatabaseSync, table: string): T[] => db.prepare(`SELECT data FROM ${table} ORDER BY rowid`).all().map(r => JSON.parse(String(r.data)) as T);
   const put = (db: DatabaseSync, table: string, id: string, data: unknown): void => { db.prepare(`INSERT INTO ${table} VALUES (?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data`).run(id, JSON.stringify(data)); };
@@ -31,7 +32,7 @@ export function createSourceStore({ read, conflict, beforeCommit }: Access) {
     if (!draft?.tracks.some(t => t.id === trackId)) conflict('草稿曲目已改变，请刷新。');
   }
   function transaction<T>(action: string, fn: (db: DatabaseSync) => T): T {
-    return read(db => { db.exec('BEGIN IMMEDIATE'); try { const result = fn(db); beforeCommit?.(action); db.exec('COMMIT'); return result; } catch (error) { db.exec('ROLLBACK'); throw error; } });
+    return read(db => { db.exec('BEGIN IMMEDIATE'); try { const result = fn(db); beforeCommit?.(action); if (action === 'revoke-source-root') beforeLocalFactsCommit?.(); commitLocalFacts(db,onLocalFactsFatal); return result; } catch (error) { rollbackLocalFacts(db,error,onLocalFactsFatal); } });
   }
   function cached(db: DatabaseSync, commandId: string, fingerprint: string): string | undefined {
     const row = db.prepare('SELECT fingerprint,result FROM source_ledger WHERE command_id=?').get(commandId);

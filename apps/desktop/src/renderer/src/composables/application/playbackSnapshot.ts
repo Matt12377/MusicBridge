@@ -34,7 +34,8 @@ function sameQueueItem(left: PlaybackQueueItem, right: PlaybackQueueItem): boole
     && left.resolvedSource === right.resolvedSource
     && left.requestedQuality === right.requestedQuality
     && left.actualQuality === right.actualQuality
-    && sameRoonItem(left.roonItem, right.roonItem))
+    && sameRoonItem(left.roonItem, right.roonItem)
+    && JSON.stringify(left.local) === JSON.stringify(right.local))
 }
 
 function sameRoonItem(left: RoonLibraryItem | undefined, right: RoonLibraryItem | undefined): boolean {
@@ -92,7 +93,7 @@ export function projectPlaybackSnapshot(previous: PlaybackSnapshot | null, incom
     && previous.canStop === incoming.canStop && previous.canPause === incoming.canPause
     && previous.canResume === incoming.canResume && previous.currentTrack === currentTrack
     && previous.queue === queue && previous.lastIssue === lastIssue
-    && previous.qualityNotice === qualityNotice) return previous
+    && previous.qualityNotice === qualityNotice && JSON.stringify(previous.local) === JSON.stringify(incoming.local)) return previous
   return {
     ...incoming,
     ...(currentTrack === undefined ? {} : { currentTrack }),

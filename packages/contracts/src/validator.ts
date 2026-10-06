@@ -1,3 +1,5 @@
+import { isLocalPlayAccepted, isLocalQueueIdentity } from './local-play-request.js';
+import { isLocalPlaybackObservationLeaf } from './local-playback-compat.js';
 import {isLocalRelocationCommand,isLocalRelocationInternalCommand,isLocalRelocationCommandPayload,isLocalRelocationCommandResult} from './local-relocation.js';
 import { isLocalScanCommand, isLocalScanInternalCommand, isLocalScanCommandPayload, isLocalScanCommandResult } from './local-scan.js';
 import { isLocalPlayRequest, isLocalSourceUnsupported } from './local-play-request.js';
@@ -351,7 +353,7 @@ function isPlaybackSourcePreference(value: unknown): value is PlaybackSourcePref
 }
 
 function isPlaybackResolvedSource(value: unknown): value is PlaybackResolvedSource {
-  return value === 'roon' || value === 'netease';
+  return value === 'roon' || value === 'netease' || value === 'local_file';
 }
 
 function isPlaybackSeekPayload(value: unknown): value is { positionMs: number } {
@@ -393,6 +395,7 @@ function isPlaybackQueueEntry(value: unknown): value is PlaybackQueueEntry {
     isRecord(value) &&
     hasOnlyKeys(value, [
       'trackId',
+      'local',
       'qualityPreference',
       'track',
       'preferredSource',
@@ -402,10 +405,9 @@ function isPlaybackQueueEntry(value: unknown): value is PlaybackQueueEntry {
       'roonItem',
     ]) &&
     safeString(value.trackId, 128) &&
-    /^\d+$/.test(value.trackId) &&
-    value.trackId !== '0' &&
+    (value.resolvedSource === 'local_file' ? isLocalQueueIdentity(value.local) && value.local.local_track_id === value.trackId : /^\d+$/.test(value.trackId) && value.trackId !== '0' && value.local === undefined) &&
     isPlaybackQualityPreference(value.qualityPreference) &&
-    (value.track === undefined || isTrackSummary(value.track)) &&
+    (value.track === undefined || isTrackSummary(value.track, value.resolvedSource === 'local_file' && isLocalQueueIdentity(value.local) ? value.local.local_track_id : undefined)) &&
     (value.preferredSource === undefined || isPlaybackSourcePreference(value.preferredSource)) &&
     (value.resolvedSource === undefined || isPlaybackResolvedSource(value.resolvedSource)) &&
     (value.requestedQuality === undefined || isPlaybackQuality(value.requestedQuality)) &&
@@ -474,6 +476,7 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
     !isRecord(value) ||
     !hasOnlyKeys(value, [
       'state',
+      'local',
       'queue',
       'currentTrack',
       'source',
@@ -495,8 +498,10 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
       'stream',
     ]) ||
     !isPlaybackState(value.state) ||
+    (value.local !== undefined && !isLocalPlaybackObservationLeaf(value.local)) ||
+    (value.source === 'local_file' && (!isLocalPlaybackObservationLeaf(value.local) || !isTrackSummary(value.currentTrack,value.local.local_track_id) || value.currentTrack.id !== value.local.local_track_id)) ||
     !isPlaybackQueueSnapshot(value.queue) ||
-    (value.currentTrack !== undefined && !isTrackSummary(value.currentTrack)) ||
+    (value.currentTrack !== undefined && !isTrackSummary(value.currentTrack,value.source === 'local_file' && isLocalPlaybackObservationLeaf(value.local) ? value.local.local_track_id : undefined)) ||
     (value.source !== undefined && !isPlaybackResolvedSource(value.source)) ||
     (value.qualityPreference !== undefined && !isPlaybackQualityPreference(value.qualityPreference)) ||
     (value.requestedQuality !== undefined && !isPlaybackQuality(value.requestedQuality)) ||
@@ -817,7 +822,7 @@ function isArtworkUrl(value: unknown): value is string {
   }
 }
 
-function isTrackSummary(value: unknown): value is TrackSummary {
+function isTrackSummary(value: unknown, localId?: string): value is TrackSummary {
   if (!isRecord(value) || !hasOnlyKeys(value, [
     'id',
     'title',
@@ -834,13 +839,12 @@ function isTrackSummary(value: unknown): value is TrackSummary {
   }
   return (
     safeString(value.id, 128) &&
-    /^\d+$/.test(value.id) &&
-    value.id !== '0' &&
+    (localId !== undefined ? value.id === localId : /^\d+$/.test(value.id) && value.id !== '0') &&
     safeString(value.title, 512) &&
     Array.isArray(value.artists) &&
     value.artists.length <= 64 &&
     value.artists.every((artist) => safeString(artist, 256)) &&
-    safeString(value.album, 512) &&
+    (safeString(value.album, 512) || localId !== undefined && value.album === '') &&
     (value.durationMs === undefined ||
       (typeof value.durationMs === 'number' &&
         Number.isSafeInteger(value.durationMs) &&
@@ -1658,7 +1662,7 @@ function isCommandResult(
 ): boolean {
   if (isLocalRelocationCommand(command)) return (allowInternalResult || !isLocalRelocationInternalCommand(command)) && isLocalRelocationCommandResult(command,value);
   if (isLocalScanCommand(command)) return (allowInternalResult || !isLocalScanInternalCommand(command)) && isLocalScanCommandResult(command,value);
-  if (command === 'localCatalog.prepare') return isLocalSourceUnsupported(value);
+  if (command === 'localCatalog.prepare') return isLocalSourceUnsupported(value) || isLocalPlayAccepted(value);
   if (isLocalCatalogCommand(command)) return (allowInternalResult || !isLocalCatalogInternalCommand(command)) && isLocalCatalogCommandResult(command, value);
   if (command === 'lyrics.display.update') return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['applied']) && typeof value.applied === 'boolean';
   switch (command) {

@@ -1,0 +1,76 @@
+{
+  "schema": "mbrs006.local-playback-scope.v1",
+  "baseSha": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+  "implementationComplete": true,
+  "countsConfirmed": true,
+  "groups": [
+    {
+      "name": "core-local-playback",
+      "directory": "packages/bridge-core",
+      "expectedTests": 41,
+      "tests": [
+        "test/mbrs006/controller-local.test.ts",
+        "test/mbrs006/local-facts-fence.test.ts",
+        "test/mbrs006/local-session-lifecycle.test.ts",
+        "test/mbrs006/owner-facts-integration.test.ts",
+        "test/mbrs006/owner-worker-integration.test.ts",
+        "test/mbrs006/runtime-local.test.ts",
+        "test/mbrs006/runtime-shutdown.test.ts"
+      ]
+    },
+    {
+      "name": "core-affected-regression",
+      "directory": "packages/bridge-core",
+      "expectedTests": 349,
+      "tests": [
+        "test/controller.test.ts",
+        "test/roon-adapter.test.ts",
+        "test/runtime.test.ts",
+        "test/playback-event-publisher.test.ts",
+        "test/dataset-owner.test.ts",
+        "test/dataset-owner-integration.test.ts",
+        "test/source-evidence.test.ts",
+        "test/mbrs002/local-source-resolver.test.ts",
+        "test/utility-playback-stream.test.ts",
+        "test/controller-context.test.ts",
+        "test/roon-sdk-callback-context.test.ts",
+        "test/runtime-compact-events.test.ts"
+      ]
+    },
+    {
+      "name": "contracts-local-identity",
+      "directory": "packages/contracts",
+      "expectedTests": 58,
+      "tests": [
+        "test/playback-stream.test.ts",
+        "test/validator.test.ts",
+        "test/mbrs002/local-play-request.test.ts",
+        "test/mbrs002/local-playback-compat.test.ts",
+        "test/mbrs006/local-playback-contract.test.ts"
+      ]
+    },
+    {
+      "name": "desktop-local-consumer",
+      "directory": "apps/desktop",
+      "expectedTests": 92,
+      "tests": [
+        "test/mbrs002/local-playback-compat.test.ts",
+        "test/playback-session.test.ts",
+        "test/playbackFavorites.test.ts",
+        "test/playback-stream-reducer.test.ts",
+        "test/dataset-owner-bootstrap.test.ts",
+        "test/rust-core-host.test.ts",
+        "test/mbrs003/local-library-front-boundary.test.ts",
+        "test/mbrs003/local-library-ipc.test.ts",
+        "test/mbrs003/local-library-client.test.ts",
+        "test/mbrs006-local-consumer.test.ts"
+      ]
+    }
+  ],
+  "gateBudget": {
+    "totalMs": 360000,
+    "stageMs": 180000
+  },
+  "actualRoonLanAudio": "NOT_RUN",
+  "new100k300k": "NOT_RUN"
+}

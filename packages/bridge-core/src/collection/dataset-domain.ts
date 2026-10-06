@@ -1,3 +1,4 @@
+import { createLocalSourceTickets } from './local-source-tickets.js';
 import {createLocalRelocationCoordinator} from './local-relocation-coordinator.js';
 import { createLocalScanCoordinator } from './local-scan-coordinator.js';
 import type { MetadataReaderPort } from '../library/metadata-reader-types.js';
@@ -49,6 +50,7 @@ import type { DatasetServices } from './dataset-services.js';
 import type { DatasetProjectionPort, DatasetProjectionTicket, OwnedDatasetDomain } from './dataset-owner-protocol.js';
 
 export interface DatasetDomainOptions {
+  localSourceEpoch?: string;
   collectionRepository: CollectionRepository;
   backupWorkflowStore: BackupWorkflowStore;
   collectionDatasetIdentity?: DatasetIdentity;
@@ -108,6 +110,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const assertOpen = () => { if (closing) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库正在关闭，请重新读取当前状态。'); assertDataset(); };
   const pendingDispatches = new Set<Promise<unknown>>();
   let scanBootReady=!options.commitBoot;
+  const localTickets = createLocalSourceTickets(collection, options.localSourceEpoch ?? randomUUID(), identity.datasetId, () => { assertOpen(); if (!scanBootReady) throw new Error('本地事实Owner尚未boot。'); });
   const localScan=createLocalScanCoordinator({repository:collection,datasetId:identity.datasetId,assertCurrent:assertDataset,assertReady:()=>{if(!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE','扫描owner尚未commitBoot。');},
     ...(options.projection ? {projection:options.projection}:{}),...(test?.scanMetadataReader ? {reader:test.scanMetadataReader}:{})});
   // BackupCoordinator仍使用唯一原store的方法与事务；其close只提出关闭请求。
@@ -163,6 +166,10 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       pendingDispatches.add(pending);
       return pending.finally(() => pendingDispatches.delete(pending));
     },
+    captureLocalSource: selection => localTickets.capture(selection),
+    revalidateLocalSource: ticketId => localTickets.revalidate(ticketId),
+    releaseLocalSource: ticketId => localTickets.release(ticketId),
+    sealLocalSources: () => localTickets.seal(),
     async commitBoot() { assertOpen();await options.commitBoot?.();scanBootReady=true; },
     readonlySnapshotStamp() {
       assertOpen();
@@ -185,7 +192,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     failureForError(id, error, command) { return (options.failureForError ?? failureForError)(id, error, command ?? 'commandOutbox.context'); },
     close(beforeConnectionClose) {
       if (closed) return closed;
-      closing = true;
+      closing = true; localTickets.seal();
       closed = (async () => {
         const failures: unknown[] = [];
         const stop = async (operation: () => unknown) => { try { await operation(); } catch (error) { failures.push(error); } };
@@ -241,7 +248,7 @@ export async function prepareOwnedDatasetDomain(options: OwnedDatasetDomainOptio
       } catch { outputRunRecovery = { safe: false, pendingRuns: 0, reason: 'OUTPUT_RUN_UNVERIFIED' }; }
     }
     const common: DatasetDomainOptions = {
-      collectionRepository: dataset.repository, backupWorkflowStore: dataset.store,
+      localSourceEpoch: options.epoch, collectionRepository: dataset.repository, backupWorkflowStore: dataset.store,
       collectionDatasetIdentity: { datasetId: dataset.datasetId, assertCurrent: dataset.assertIdentity },
       backupPrivateRoot: dataset.privateRoot, ...(dataset.contentBinding ? { backupContentBinding: dataset.contentBinding } : {}),
       ...dependencies, ...(outputRunRecovery ? { recordingOutputRunRecovery: outputRunRecovery } : {}), recordingLeaseDatabaseFile: dataset.databaseFile,

@@ -208,6 +208,7 @@ export interface CoreRuntime {
   getPlaybackState(): PlaybackSnapshot;
   getPlaybackStreamSnapshot(): PlaybackStreamSnapshot | null;
   getPlaybackEventProtocol(): PlaybackEventProtocolAck | null;
+  playbackPlayLocal?(request: import('@music-bridge/contracts').LocalPlayRequest): Promise<import('@music-bridge/contracts').LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported>;
   playbackPlay(
     trackId: string,
     quality: PlaybackQualityPreference,
@@ -434,6 +435,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     registry,
     gateway,
     logger,
+    ...(options.datasetOwnerEndpoint?{localSources:options.datasetOwnerEndpoint}:{}),
     roonLibrary: {
       resolveArtwork: imageKey => roonLibrary.registerNowPlayingArtwork(imageKey),
       play: async (reference, zoneId, track, operation: RoonOperationOptions & {
@@ -575,6 +577,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   });
 
   let shutdownStarted = false;
+  let shutdownFlight: Promise<void> | undefined;
   scanReadAdmission = createScanReadAdmission({ isBusy: () => {
     sampleRoonReadBusy();
     return runtime !== 'ready' || shutdownStarted || controller.hasPlaybackOwnership()
@@ -1016,6 +1019,10 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   }) : undefined;
   const cleanup = async (): Promise<void> => {
     scanReadAdmission?.close();
+    options.datasetOwnerEndpoint?.sealLocalSources?.();
+    let localCloseError:unknown;
+    try{await controller.shutdown();}catch(error){localCloseError=error;}
+    await registry.closeLocal();
     let ownerCloseFailed = false;
     let ownerCloseError: unknown;
     try { await options.datasetOwnerEndpoint?.close(); }
@@ -1038,13 +1045,13 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     await sources?.close();
     options.collectionRepository?.close();
     await control.stop();
-    await controller.shutdown();
     removeControllerListener();
     await roon.shutdown();
     lyrics.shutdown();
     registry.revokeAll();
     await gateway.stop();
     if (ownerCloseFailed) throw ownerCloseError;
+    if(localCloseError)throw localCloseError;
   };
 
   const diagnosticCounters = (): DiagnosticResourceCounters => {
@@ -1156,18 +1163,23 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       }
     },
 
-    async shutdown(): Promise<void> {
-      if (shutdownStarted) return;
+    shutdown(): Promise<void> {
+      if (shutdownFlight) return shutdownFlight;
       shutdownStarted = true;
-      scanReadAdmission?.close();
-      try {
-        await cleanup();
-      } finally {
-        performanceMonitor.dispose();
-        runtime = 'stopped';
-        recordDiagnostic('info', 'core_shutdown', { state: runtime });
-        emitHealth();
-      }
+      let sealFailed=false,sealError:unknown;
+      // 先保存共享flight，再进入任何可能触发Owner fatal的关闭回调；拒绝也保持同一收据。
+      shutdownFlight = Promise.resolve().then(async () => {
+        try { await cleanup();if(sealFailed)throw sealError; }
+        finally {
+          performanceMonitor.dispose();
+          runtime = 'stopped';
+          recordDiagnostic('info', 'core_shutdown', { state: runtime });
+          emitHealth();
+        }
+      });
+      try {scanReadAdmission?.close();options.datasetOwnerEndpoint?.sealLocalSources?.();}
+      catch(error){sealFailed=true;sealError=error;}
+      return shutdownFlight;
     },
 
     ping: () => ({ pong: true as const }),
@@ -1289,6 +1301,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     getPlaybackState: readPlayback,
     getPlaybackStreamSnapshot: capturePlayback,
     getPlaybackEventProtocol: publishPlaybackEvents.getProtocol,
+    playbackPlayLocal: request => publishPlaybackEvents.getProtocol()?.protocol==='compact-v1' ? controller.playLocal(request) : Promise.resolve({status:'unsupported',reason:'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED'}),
     async playbackPlay(trackId, qualityPreference, rendererClickAtMs) {
       const coreReceivedAtMs = options.now?.() ?? Date.now();
       const startedAt = Math.min(rendererClickAtMs ?? coreReceivedAtMs, coreReceivedAtMs);

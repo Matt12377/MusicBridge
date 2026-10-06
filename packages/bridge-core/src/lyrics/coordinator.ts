@@ -59,6 +59,7 @@ export function createLyricsRequestContext(
   const track = snapshot.currentTrack;
   const item = snapshot.queue.items[snapshot.queue.index];
   if (!track || (!item && snapshot.source !== 'roon')) return undefined;
+  if(snapshot.source==='local_file'){const local=snapshot.local;return {kind:'unavailable',playbackGeneration,cacheKey:`local_file:${local?.local_track_id}:${local?.asset_id}:${local?.asset_revision}:${local?.attempt_id}`};}
   const directRoon = item?.preferredSource === 'roon' || (!item && snapshot.source === 'roon');
   const smartRoon = item?.preferredSource === 'smart' && snapshot.source === 'roon';
   if (!directRoon && !smartRoon) {

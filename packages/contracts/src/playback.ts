@@ -1,3 +1,5 @@
+import type { LocalPlaybackObservationLeaf } from './local-playback-compat.js'
+import type { LocalQueueIdentity } from './local-play-request.js'
 import type { TrackSummary } from './library.js'
 import type { RoonLibraryItem } from './roon.js'
 
@@ -23,7 +25,7 @@ export const MAX_PLAYBACK_QUEUE_ITEMS = 5_000
 
 export const PLAYBACK_SOURCE_PREFERENCES = ['smart', 'netease', 'roon'] as const
 export type PlaybackSourcePreference = (typeof PLAYBACK_SOURCE_PREFERENCES)[number]
-export type PlaybackResolvedSource = Exclude<PlaybackSourcePreference, 'smart'>
+export type PlaybackResolvedSource = Exclude<PlaybackSourcePreference, 'smart'> | 'local_file'
 
 export type PlaybackState =
   | 'idle'
@@ -44,6 +46,7 @@ export interface PlaybackQueueRequestItem {
 }
 
 export interface PlaybackQueueEntry {
+  local?: LocalQueueIdentity
   trackId: string
   qualityPreference: PlaybackQualityPreference
   track?: TrackSummary
@@ -107,6 +110,7 @@ export interface PlaybackIssue {
 }
 
 export interface PlaybackSnapshot {
+  local?: LocalPlaybackObservationLeaf
   /** 仅紧凑事件模式响应；请求不能注入。 */
   stream?: PlaybackStreamStamp
   state: PlaybackState

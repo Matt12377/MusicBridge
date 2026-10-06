@@ -81,7 +81,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       ...value, canNext: false, canPrevious: false, canStop: false, canPause: false, canResume: false,
     }
   })
-  const playbackSource = ref<'roon' | 'netease'>('netease')
+  const playbackSource = ref<'roon' | 'netease' | 'local_file'>('netease')
   const nativeRoonHasNeteaseMatch = ref(false)
   const lyricsSnapshot = shallowRef<LyricsSnapshot>(emptyLyricsSnapshot())
   const localLyricsMatchState = shallowRef<LocalLyricsMatchSnapshot>(emptyLocalLyricsMatchSnapshot())
@@ -128,7 +128,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   let roonPlaybackOperation = 0
   let pendingRoonPlaybackOperation: number | undefined
   let optimisticRoonTrackId: string | undefined
-  let retryStopSource: 'roon' | 'netease' | undefined
+  let retryStopSource: 'roon' | 'netease' | 'local_file' | undefined
 
   function cancelRoonPlaybackPreparation(): void {
     ++roonPlaybackOperation
@@ -224,7 +224,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
 
   function isCurrentFavoriteContext(
     trackId: string,
-    source: 'roon' | 'netease',
+    source: 'roon' | 'netease' | 'local_file',
     nativeMatch: boolean,
     descriptor: FavoriteEntityDescriptor | null,
     operation: number,
@@ -242,7 +242,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     const source = playbackSource.value
     const nativeMatch = nativeRoonHasNeteaseMatch.value
     const isRoonPlayback = source === 'roon'
-    const hasNeteaseIdentity = !isRoonPlayback || nativeMatch
+    const hasNeteaseIdentity = source === 'netease' || (isRoonPlayback && nativeMatch)
     const descriptor = isRoonPlayback ? localTrackFavoriteDescriptor.value : null
     trackLikeState.value = 'loading'
     neteaseTrackLiked.value = null
@@ -283,7 +283,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     const source = playbackSource.value
     const nativeMatch = nativeRoonHasNeteaseMatch.value
     const isRoonPlayback = source === 'roon'
-    const hasNeteaseIdentity = !isRoonPlayback || nativeMatch
+    const hasNeteaseIdentity = source === 'netease' || (isRoonPlayback && nativeMatch)
     if (
       !trackId ||
       trackLikeState.value === 'loading' ||
@@ -398,8 +398,8 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       neteaseTrackLiked.value = null
     }
     // 队列外 Roon 曲目只有观测身份，不能把它放进会按网易云 ID 再次播放的最近列表。
-    const replayableTrack = projected.source !== 'roon' || nativeRoonHasNeteaseMatch.value
-      || (projected.currentTrack !== undefined && roonQueueDescriptors.has(projected.currentTrack.id))
+    const replayableTrack = projected.source === 'netease' || (projected.source === 'roon' && (nativeRoonHasNeteaseMatch.value
+      || (projected.currentTrack !== undefined && roonQueueDescriptors.has(projected.currentTrack.id))))
     if (projected.state === 'playing' && projected.currentTrack && replayableTrack && (!wasPlaying || previousTrackId !== projected.currentTrack.id)) {
       recentTracks.value = [
         projected.currentTrack,
@@ -412,7 +412,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       || nativeRoonHasNeteaseMatch.value !== previousNeteaseMatch
       || !sameFavoriteDescriptor(previousDescriptor, localTrackFavoriteDescriptor.value)
     if (trackId && identityChanged) {
-      if (playbackSource.value !== 'roon' || nativeRoonHasNeteaseMatch.value) void loadLyrics(trackId)
+      if (playbackSource.value === 'netease' || (playbackSource.value === 'roon' && nativeRoonHasNeteaseMatch.value)) void loadLyrics(trackId)
       else {
         // 原生 Roon 的歌词由 Core 事件推送；事件可能先于播放快照到达。
         lyricsOperation += 1
@@ -936,7 +936,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     await stopPlaybackForSource(playbackSource.value)
   }
 
-  async function stopPlaybackForSource(source: 'roon' | 'netease'): Promise<void> {
+  async function stopPlaybackForSource(source: 'roon' | 'netease' | 'local_file'): Promise<void> {
     invalidateCollectionOperation()
     const operation = collectionOperation
     cancelRoonPlaybackPreparation()

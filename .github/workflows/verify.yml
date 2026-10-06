@@ -118,6 +118,16 @@ jobs:
           node --test scripts/ci/test/verify-mbrs005-gateway.test.mjs
           node scripts/ci/verify-mbrs005-gateway.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs005-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
+      - name: MBRS006 本地Audio Input与会话隔离 Gate
+        if: steps.ci-mode.outputs.mode != 'report-only'
+        timeout-minutes: 8
+        shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: |
+          set -euo pipefail
+          node --test scripts/ci/test/verify-mbrs006-local-playback.test.mjs
+          node scripts/ci/verify-mbrs006-local-playback.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs006-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
       - name: 验证报告CI准入正负例
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node --test scripts/ci/test/report-only-admission.test.mjs

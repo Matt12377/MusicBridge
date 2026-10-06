@@ -1,3 +1,4 @@
+import { withLocalFactsMutation } from '../stream/local-source-fence.js';
 import {isLocalRelocationCommand,isLocalRelocationInternalCommand} from '@music-bridge/contracts';
 import { isScanPreparedBatch } from './local-scan-store.js';
 import { isLocalScanCommand, isLocalScanInternalCommand, isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcRequest, validateIpcInternalRequest } from '@music-bridge/contracts';
@@ -157,12 +158,12 @@ async function dispatchDataset(runtime: DatasetDispatchTarget, request: IpcReque
     // 当前owner没有稳定Core/Zone权威；禁止用公开target自证准备或执行播放动作。
     case 'localCatalog.prepare': return { status: 'unsupported', reason: 'TARGET_AUTHORITY_UNAVAILABLE' } satisfies import('@music-bridge/contracts').LocalSourceUnsupported;
     case 'localCatalog.registerRoot': return collectionFor(runtime).localCatalog.registerRoot(request.payload as IpcCommandPayloads['localCatalog.registerRoot']);
-    case 'localCatalog.relinkRoot': return collectionFor(runtime).localCatalog.relinkRoot(request.payload as IpcCommandPayloads['localCatalog.relinkRoot']);
+    case 'localCatalog.relinkRoot': return withLocalFactsMutation(() => collectionFor(runtime).localCatalog.relinkRoot(request.payload as IpcCommandPayloads['localCatalog.relinkRoot']));
     case 'localCatalog.registerAsset': return collectionFor(runtime).localCatalog.registerAsset(request.payload as IpcCommandPayloads['localCatalog.registerAsset']);
-    case 'localCatalog.moveAsset': return collectionFor(runtime).localCatalog.moveAsset(request.payload as IpcCommandPayloads['localCatalog.moveAsset']);
-    case 'localCatalog.replaceAsset': return collectionFor(runtime).localCatalog.replaceAsset(request.payload as IpcCommandPayloads['localCatalog.replaceAsset']);
+    case 'localCatalog.moveAsset': return withLocalFactsMutation(() => collectionFor(runtime).localCatalog.moveAsset(request.payload as IpcCommandPayloads['localCatalog.moveAsset']));
+    case 'localCatalog.replaceAsset': return withLocalFactsMutation(() => collectionFor(runtime).localCatalog.replaceAsset(request.payload as IpcCommandPayloads['localCatalog.replaceAsset']));
     case 'localCatalog.createTrack': return collectionFor(runtime).localCatalog.createTrack(request.payload as IpcCommandPayloads['localCatalog.createTrack']);
-    case 'localCatalog.selectAsset': return collectionFor(runtime).localCatalog.selectAsset(request.payload as IpcCommandPayloads['localCatalog.selectAsset']);
+    case 'localCatalog.selectAsset': return withLocalFactsMutation(() => collectionFor(runtime).localCatalog.selectAsset(request.payload as IpcCommandPayloads['localCatalog.selectAsset']));
     case 'localCatalog.createEdition': return collectionFor(runtime).localCatalog.createEdition(request.payload as IpcCommandPayloads['localCatalog.createEdition']);
     case 'localCatalog.linkEditionTrack': return collectionFor(runtime).localCatalog.linkEditionTrack(request.payload as IpcCommandPayloads['localCatalog.linkEditionTrack']);
     case 'localCatalog.removeEditionTrack': return collectionFor(runtime).localCatalog.removeEditionTrack(request.payload as IpcCommandPayloads['localCatalog.removeEditionTrack']);

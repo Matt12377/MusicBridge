@@ -1,3 +1,4 @@
+import type { LocalPlayTarget } from '@music-bridge/contracts';
 import type { TrackMetadata } from '../netease/types.js';
 
 export type RoonConnectionStatus =
@@ -31,11 +32,19 @@ export type RoonGatewayStage =
 
 /** Core内部的操作身份与取消；不进入公开DTO或IPC。 */
 export interface RoonOperationOptions {
+  assertCurrent?(): void;
+  withDispatch?<T>(send: () => T): T;
   signal?: AbortSignal;
   expectedZoneId?: string;
 }
 
+export interface LocalRoonSessionObservation {
+  event: 'DISPATCHED' | 'SESSION' | 'PLAYING' | 'PAUSED' | 'UNKNOWN' | 'ENDED' | 'OWNERSHIP_LOST';
+  generation: number; sessionId?: string; isConfirmed(): boolean; isOwned(): boolean;
+}
 export interface RoonPlayRequest extends RoonOperationOptions {
+  /** 私有会话事实，不进入公开IPC。 */
+  onLocalSession?(observation: LocalRoonSessionObservation): void;
   mediaUrl: string;
   iconUrl: string;
   metadata: TrackMetadata;
@@ -99,6 +108,7 @@ export interface RoonTimeEvent {
 }
 
 export interface RoonPort {
+  captureLocalTarget?(): {target: LocalPlayTarget; isCurrent(): boolean} | null;
   setTerminalHandler(handler: (reason: RoonTerminalReason) => void): void;
   setTimeHandler?(handler: (event: RoonTimeEvent) => void): void;
   start(): Promise<void>;

@@ -31870,7 +31870,7 @@
         "MBRS-005",
         "MBRS-002"
       ],
-      "status": "NOT_STARTED",
+      "status": "LOCAL_SOFTWARE_PASS_PENDING_SOURCE_AND_REPORT_CI_WITH_LIVE_CARRYOVER",
       "implementation_owner": "MBRS-006",
       "goal": "同一播放协调器接入具体本地版本，并保持原网易云和原生Roon入口。",
       "steps": [
@@ -31908,8 +31908,21 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "NOT_RUN",
-      "evidence_refs": []
+      "validation_status": "TARGETED_540_GATE_BUILD_AND_TWO_REVIEWS_PASS_SOURCE_CI_PENDING",
+      "evidence_refs": [
+        "docs/postrust/MBRS-006/EXECUTION_SCOPE.json",
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md",
+        "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/evidence/review-disposition.json",
+        "docs/postrust/MBRS-006/20_SAMPLES.json"
+      ],
+      "branch": "codex/mbrs-006-local-audio-input",
+      "base_final_report_commit": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+      "task_scope": "tasks/MBRS-006_LOCAL_AUDIO_INPUT.md",
+      "report_path": "reports/MBRS-006_LOCAL_AUDIO_INPUT.md",
+      "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-006_LOCAL_AUDIO_INPUT.md",
+      "implementation_commit_resolution": "git log -1 --format=%H -- packages/bridge-core/test/local-playback.test.ts",
+      "terminal_ci_receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/FINAL_DELIVERY_RECEIPT.json"
     },
     {
       "id": "MBRS-007",
@@ -33203,11 +33216,15 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "受控SDK/真实Worker SQLite与固定FD仅软件链证据；原live_roon及20真实样本未运行，不改变kind。"
     },
     {
       "id": "MBRS-AT-006-02",
@@ -33216,12 +33233,16 @@
       "requirement": "无映射表/内部侧车/封面网络仍可新点播，代码依赖图与测试证明。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
     },
     {
       "id": "MBRS-AT-006-03",
@@ -33230,12 +33251,16 @@
       "requirement": "准备/提交/等待/Playing/未知/失败分开；HTTP完成不触发下一首。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
     },
     {
       "id": "MBRS-AT-006-04",
@@ -33245,11 +33270,15 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "受控SDK/真实Worker SQLite与固定FD仅软件链证据；原live_roon及20真实样本未运行，不改变kind。"
     },
     {
       "id": "MBRS-AT-006-05",
@@ -33258,12 +33287,16 @@
       "requirement": "提交后回报丢失先核对，无重复开始或重复队列副作用。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
     },
     {
       "id": "MBRS-AT-006-06",
@@ -33272,12 +33305,16 @@
       "requirement": "A→B、旧epoch、旧session终态不覆盖B或清理B资源；已发送A的取消边界明确。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
     },
     {
       "id": "MBRS-AT-006-07",
@@ -33287,11 +33324,15 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "受控SDK/真实Worker SQLite与固定FD仅软件链证据；原live_roon及20真实样本未运行，不改变kind。"
     },
     {
       "id": "MBRS-AT-006-08",
@@ -33300,12 +33341,16 @@
       "requirement": "关闭增强无影响；真正退出媒体进程可能影响流且按提示/策略处理。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "生产runtime/实际utility fatal与受控退出、真实固定FD quiet通过；普通App窗口策略、真实进程退出与提示尚未操作。"
     },
     {
       "id": "MBRS-AT-006-09",
@@ -33314,12 +33359,16 @@
       "requirement": "既有网易云和Roon原生入口不回退，也不被自动当本地失败fallback。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
     },
     {
       "id": "MBRS-AT-007-01",
@@ -34643,12 +34692,16 @@
       "requirement": "同一BridgeController/RoonAdapter增量接入本地来源；不重写既有网易云/原生播放控制器。",
       "release_scope": "CORE",
       "introduced_in": "1.2",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
     },
     {
       "id": "MBRS-AT-006-11",
@@ -34657,12 +34710,16 @@
       "requirement": "本地ID命名空间不会被网易云数字ID转换或smart匹配接管，来源在事件与歌词身份中一致。",
       "release_scope": "CORE",
       "introduced_in": "1.2",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-006/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-006/API_BEHAVIOR_MAPPING.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "限定软件层PASS；真实账号/Roon/音频与Owner验收另列，不由Fake代签。"
     },
     {
       "id": "MBRS-AT-007-11",

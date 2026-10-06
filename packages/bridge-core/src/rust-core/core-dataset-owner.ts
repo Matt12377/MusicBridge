@@ -108,6 +108,13 @@ export function createRustReadonlyCoreDatasetOwner(owner: DatasetOwnerEndpoint, 
     } : {}),
   };
   const endpoint: RustReadonlyCoreDatasetOwner = {
+    ...(owner.captureLocalSource ? {captureLocalSource: (selection: import('@music-bridge/contracts').LocalPlayRequest) => {usable();if(phase!=='ready')return Promise.reject(new RustSidecarError('NOT_READY'));return owner.captureLocalSource!(selection);}} : {}),
+    ...(owner.revalidateLocalSource ? {revalidateLocalSource: (ticketId:string) => {usable();return owner.revalidateLocalSource!(ticketId);}} : {}),
+    ...(owner.releaseLocalSource ? {releaseLocalSource: (ticketId:string) => owner.releaseLocalSource!(ticketId)} : {}),
+    ...(owner.sealLocalSources ? {sealLocalSources: () => owner.sealLocalSources!()} : {}),
+    ...(owner.isLocalSourceCurrent ? {isLocalSourceCurrent: () => !sealed && phase==='ready' && owner.isLocalSourceCurrent!()} : {}),
+    ...(owner.dispatchInternal ? {dispatchInternal: (request:IpcRequest) => {usable();return owner.dispatchInternal!(request);}} : {}),
+
     prepare() {
       try { usable(); } catch (error) { return Promise.reject(error); }
       if (preparation) return preparation;

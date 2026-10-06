@@ -1,3 +1,4 @@
+import { commitLocalFacts, rollbackLocalFacts } from '../stream/local-source-fence.js';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
@@ -68,7 +69,7 @@ export interface LinkEditionTrack extends Command { editionId: string; trackId: 
 export interface RemoveEditionTrack extends Command { id: string; expectedRevision: string }
 export interface ObserveLocalMetadata extends Command { trackId: string; source: 'tag' | 'synthetic'; parserVersion: string; fields: dto.LocalMetadata }
 export interface OverrideLocalMetadata extends Command { trackId: string; expectedRevision: string | null; fields: dto.LocalMetadata }
-interface Access { read<T>(operation: (db: DatabaseSync) => T): T; sources: Pick<SourceStore, 'root'>; conflict(message: string): never; beforeCommit?: (action: string) => void }
+interface Access { read<T>(operation: (db: DatabaseSync) => T): T; sources: Pick<SourceStore, 'root'>; conflict(message: string): never; beforeCommit?: (action: string) => void; beforeLocalFactsCommit?: () => void; onLocalFactsFatal?: () => void }
 type Row = Record<string, unknown>;
 const rowBytes = (row: Row): number => Object.values(row).reduce<number>((bytes, value) => bytes + (typeof value === 'string' ? Buffer.byteLength(value) : 0), 0);
 const boundedRow = (row: Row): void => { if (rowBytes(row) > maxRowTextBytes) corrupt(); };
@@ -434,8 +435,9 @@ export function createLocalCatalogStore(access: Access) {
           access.beforeCommit?.(`local-catalog:${operation}`);
           if (Number(db.prepare('SELECT total_changes() n').get()?.n) !== candidate.beforeChanges + 2) return corrupt();
         }
-        db.exec('COMMIT'); audits.set(db, candidate.certificate); return candidate.result;
-      } catch (error) { db.exec('ROLLBACK'); throw error; }
+        access.beforeLocalFactsCommit?.();
+        commitLocalFacts(db,access.onLocalFactsFatal); audits.set(db, candidate.certificate); return candidate.result;
+      } catch (error) { rollbackLocalFacts(db,error,access.onLocalFactsFatal); }
     });
   }
   const id = (value: string): void => { if (!dto.isCollectionId(value)) access.conflict('本地对象身份无效。'); };
@@ -535,8 +537,9 @@ export function createLocalCatalogStore(access: Access) {
           const result = operation(db, apply);
           if (result instanceof Promise) return corrupt();
           access.beforeCommit?.('local-scan:commit-batch');
-          db.exec('COMMIT'); audits.set(db, certificate); return result;
-        } catch (error) { db.exec('ROLLBACK'); throw error; }
+          access.beforeLocalFactsCommit?.();
+          commitLocalFacts(db,access.onLocalFactsFatal); audits.set(db, certificate); return result;
+        } catch (error) { rollbackLocalFacts(db,error,access.onLocalFactsFatal); }
       });
     },
     registerRoot(request: RegisterLibraryRoot): dto.LibraryRoot { return transaction('register-root', request, db => applyRegisterRoot(db, request)); },

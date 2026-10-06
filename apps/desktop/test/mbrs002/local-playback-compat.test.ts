@@ -75,14 +75,13 @@ test('MBRS002 B4 local非法legacy经publisher和validator拒绝，原session不
     for(const positionMs of [null,-1,1.5,Number.MAX_SAFE_INTEGER+1]) assert.equal(validateIpcEvent({version:1,event:'playback.changed',payload:{state:{...snapshot('roon'),positionMs}}}).ok,false);
   }finally{h.session.dispose();}
 });
-test('MBRS002 B4 明确unsupported接点使local零publisher调用，unknown仅新叶不注册旧事件',()=> {
+test('MBRS002/006 B4 legacy拒local，compact可用但仅合法身份叶进入现有事件',()=> {
   const leaf={"schema_version": "1.2", "request_id": "synthetic-request", "attempt_id": "synthetic-attempt", "intent_generation": "9007199254740993", "route": "roon_audio_input", "local_track_id": "synthetic-local", "asset_id": "synthetic-asset", "asset_revision": "1", "target": {"core_id": "synthetic-core", "zone_id": "synthetic-zone"}, "session_epoch": null, "phase": "PREPARING", "ownership": "MB_PENDING", "queue_owner": "NONE", "delivery_state": "NOT_STARTED", "roon_observation": {"event": "NONE", "observed": false, "correlation": "UNKNOWN"}, "position_ms": null, "quality": {"http_bytes": "NOT_TESTED", "signal_path": "NOT_TESTED", "digital_output": "NOT_TESTED", "gapless": "NOT_TESTED"}, "error_code": null};
   assert.equal(isLocalPlaybackObservationLeaf(leaf),true);assert.equal(leaf.position_ms,null);
   for(const protocol of ['legacy','compact-v1']) {
     let publisherCalls=0;const publisher=createPlaybackEventPublisher(()=>publisherCalls++,protocol==='compact-v1'?{protocol:'compact-v1'}:{});
     const gate=evaluateLocalPlaybackCompatibility(protocol,'local_file');
-    if(gate.supported) publisher(snapshot(gate.source));
-    assert.deepEqual(gate,{supported:false,code:'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED'});assert.equal(publisherCalls,0);
+    assert.deepEqual(gate,protocol==='legacy'?{supported:false,code:'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED'}:{supported:true,protocol:'compact-v1',source:'local_file'});assert.equal(publisherCalls,0);
   }
   assert.equal(validateIpcEvent({version:1,event:'playback.local',payload:leaf}).ok,false);
   assert.equal(leaf.phase,'PREPARING');

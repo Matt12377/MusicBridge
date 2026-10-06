@@ -1,6 +1,6 @@
 # 任务索引
 
-当前 PostRust 任务：[MBRS-005](MBRS-005_LOCAL_FILE_GATEWAY.md) 开发中；MBRS-004 软件及远端源/报告检查已完成，从最终报告 `52c9ffe0` 接续005。本轮Owner已授权连续开发到017，任务状态见 [待办清单](../project/POSTRUST_TODO.md)。
+当前 PostRust 任务：[MBRS-006](MBRS-006_LOCAL_AUDIO_INPUT.md)开发中；005软件及源/报告自然CI已完成，从最终报告 `cce8594f` 接续006。Owner已授权持续到017、每任务更新待办并push；当前状态见[待办清单](../project/POSTRUST_TODO.md)。
 
 [MBRS-003结果](../reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md)与[换届交接](../docs/postrust/MBRS-003/HANDOFF_NEXT_SESSION.md)：Owner阶段接受既有规模结果，当前版十万／三十万首不重测；25条超时保留。004已从003最终报告HEAD完成独立软件交付；完整产品后用真实曲库验收。下方历史过程记录保留原时点。
 

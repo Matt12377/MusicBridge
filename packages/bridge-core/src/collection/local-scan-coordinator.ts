@@ -1,3 +1,4 @@
+import { withLocalFactsMutation } from '../stream/local-source-fence.js';
 import { randomUUID } from 'node:crypto';
 import { lstat, opendir, realpath } from 'node:fs/promises';
 import type { Dir } from 'node:fs';
@@ -207,6 +208,13 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
     for(const cue of batch.cueItems ?? []) if(cue.result && !await currentCueReferences(job,cue.result)) return false;
     return true;
   }
+  async function commitFenced(request:{commandId:string;jobId:string;batchId:string;expectedRevision:string},signal?:AbortSignal):Promise<ScanJobRecord> {
+    return withLocalFactsMutation(() => {assertEntry();signal?.throwIfAborted();return store.privateCommitBatch(request);},async () => {
+      assertEntry();signal?.throwIfAborted();const job=scoped(request.jobId),batch=store.privatePreparedBatches(request.jobId).find(b=>b.batchId===request.batchId);
+      if(!store.receipt(request.commandId) && (!batch || !await revalidate(job,batch))) throw new Error('派发quiet后扫描提交事实已改变。');
+      assertEntry();signal?.throwIfAborted();
+    });
+  }
   async function execute(jobId:string,signal:AbortSignal):Promise<void> {
     let walk:Walk|undefined,walkCue=false,walkTokens=false;
     try {
@@ -218,7 +226,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
           const batch=pending[0]!;
           if(!await revalidate(job,batch)) {store.privateAbandonBatch({commandId:randomUUID(),jobId,batchId:batch.batchId,expectedRevision:job.jobRevision,reason:'CONTENT_CHANGED'});continue;}
           if(signal.aborted) break;
-          job=store.privateCommitBatch({commandId:randomUUID(),jobId,batchId:batch.batchId,expectedRevision:job.jobRevision});continue;
+          job=await commitFenced({commandId:randomUUID(),jobId,batchId:batch.batchId,expectedRevision:job.jobRevision},signal);continue;
         }
         const before=store.privateCheckpoint(jobId),frontier=before?.frontier ?? [''],allowCueTokens=store.privateCueAwareCheckpoint(jobId),cueMode=allowCueTokens && (frontier[0]?.startsWith('~cue-v1/') ?? false);
         if(cueMode !== walkCue || allowCueTokens !== walkTokens){await walk.close();walk=new Walk(authority(job),signal,()=>{authority(job);},cueMode,allowCueTokens);walkCue=cueMode;walkTokens=allowCueTokens;}
@@ -241,7 +249,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
         store.privatePrepareBatch({commandId:randomUUID(),jobId,batch});
         if(!await revalidate(job,batch)) {store.privateAbandonBatch({commandId:randomUUID(),jobId,batchId:batch.batchId,expectedRevision:job.jobRevision,reason:'CONTENT_CHANGED'});await walk.close();continue;}
         if(signal.aborted || closing) throw new ScanYield('control');
-        job=store.privateCommitBatch({commandId:randomUUID(),jobId,batchId:batch.batchId,expectedRevision:job.jobRevision});
+        job=await commitFenced({commandId:randomUUID(),jobId,batchId:batch.batchId,expectedRevision:job.jobRevision},signal);
       }
     } catch(error) {
       if(error instanceof ScanFatal) {fatal=error;throw error;}
@@ -277,7 +285,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
       // 第一张CUE-aware checkpoint只由生产Walk捕获/提交；可信IPC也不能给旧cursor换解释。
       if(request.batch.kind === 'cue-sidecars-v1' && !store.privateCueAwareCheckpoint(request.jobId)) throw new Error('CUE阶段尚无实际持久checkpoint/receipt来源。');if(!await revalidate(scoped(request.jobId),request.batch)) throw new Error('扫描准备事实已改变。');return store.privatePrepareBatch(request);},
     async commitBatch(request:{commandId:string;jobId:string;batchId:string;expectedRevision:string}) {assertEntry();scoped(request.jobId);await quiet(request.jobId);const batch=store.privatePreparedBatches(request.jobId).find(b=>b.batchId === request.batchId);
-      if(!store.receipt(request.commandId) && (!batch || !await revalidate(scoped(request.jobId),batch))) throw new Error('扫描提交事实已改变。');return store.privateCommitBatch(request);},
+      if(!store.receipt(request.commandId) && (!batch || !await revalidate(scoped(request.jobId),batch))) throw new Error('扫描提交事实已改变。');return commitFenced(request);},
     async yieldForMedia():Promise<void> {assertEntry();for(const jobId of [...runs.keys()]) {await quiet(jobId);const job=scoped(jobId);if(job.phase === 'running') store.pause({commandId:randomUUID(),jobId,expectedRevision:job.jobRevision});}},
     close():Promise<void> {if(closed) return closed;closing=true;closed=(async()=>{for(const run of runs.values()) run.controller.abort(new ScanYield('control'));await Promise.all([...runs.values()].map(r=>r.done));await Promise.all([reader.close(),cueReader.close()]);if(fatal) throw fatal;})();return closed;},
     privateWait(jobId:string):Promise<void> {return runs.get(jobId)?.done ?? Promise.resolve();},

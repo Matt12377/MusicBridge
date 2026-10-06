@@ -11,9 +11,11 @@ export interface LocalPlaybackIntent extends LocalPlayRequest {
   segment: { segment_id: string; start_frame: string; end_frame_exclusive: string; timebase_hz: number } | null;
   selection_revision: string; autoplay_after_restart: false;
 }
-export interface LocalSourceUnsupported { status: 'unsupported'; reason: 'TARGET_AUTHORITY_UNAVAILABLE' }
-const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
-const keys = (v: Record<string, unknown>, required: readonly string[]): boolean => required.every(k => Object.hasOwn(v, k)) && Object.keys(v).length === required.length && Object.keys(v).every(k => required.includes(k));
+export interface LocalSourceUnsupported { status: 'unsupported'; reason: 'TARGET_AUTHORITY_UNAVAILABLE' | 'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED' | 'LOCAL_SEGMENT_UNSUPPORTED' }
+export interface LocalPlayAccepted { status: 'accepted'; request_id: string; action: LocalPlayAction }
+export interface LocalQueueIdentity { local_track_id: string; asset_id: string; asset_revision: string; selection_revision: string; location_revision: string; root_revision: string }
+const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v) && [Object.prototype,null].includes(Object.getPrototypeOf(v));
+const keys = (v: Record<string, unknown>, required: readonly string[]): boolean => required.every(k => Object.hasOwn(v, k)) && Reflect.ownKeys(v).length === required.length && Reflect.ownKeys(v).every(k => typeof k === 'string' && required.includes(k) && Object.getOwnPropertyDescriptor(v,k)?.enumerable === true && Object.hasOwn(Object.getOwnPropertyDescriptor(v,k)!, 'value'));
 const text = (v: unknown): v is string => typeof v === 'string' && v.length >= 1 && v.length <= 512 && Array.from(v).length <= 256;
 // 保留原pack pattern/maxLength与0/20位范围，不使用目录positive-u64或Number。
 export const isLocalPlayDecimal = (v: unknown): v is string => typeof v === 'string' && v.length <= 20 && /^(0|[1-9][0-9]*)$/u.test(v);
@@ -33,4 +35,7 @@ export function isLocalPlaybackIntent(v: unknown): v is LocalPlaybackIntent {
       && text(segment.segment_id) && isLocalPlayDecimal(segment.start_frame) && isLocalPlayDecimal(segment.end_frame_exclusive)
       && typeof segment.timebase_hz === 'number' && Number.isInteger(segment.timebase_hz) && segment.timebase_hz >= 1 && segment.timebase_hz <= 1_000_000_000);
 }
-export const isLocalSourceUnsupported = (v: unknown): v is LocalSourceUnsupported => record(v) && keys(v, ['status','reason']) && v.status === 'unsupported' && v.reason === 'TARGET_AUTHORITY_UNAVAILABLE';
+export const isLocalSourceUnsupported = (v: unknown): v is LocalSourceUnsupported => record(v) && keys(v, ['status','reason']) && v.status === 'unsupported' && (v.reason === 'TARGET_AUTHORITY_UNAVAILABLE' || v.reason === 'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED' || v.reason === 'LOCAL_SEGMENT_UNSUPPORTED');
+
+export const isLocalPlayAccepted = (v: unknown): v is LocalPlayAccepted => record(v) && keys(v,['status','request_id','action']) && v.status === 'accepted' && text(v.request_id) && (LOCAL_PLAY_ACTIONS as readonly unknown[]).includes(v.action);
+export const isLocalQueueIdentity = (v: unknown): v is LocalQueueIdentity => record(v) && keys(v,['local_track_id','asset_id','asset_revision','selection_revision','location_revision','root_revision']) && text(v.local_track_id) && text(v.asset_id) && ['asset_revision','selection_revision','location_revision','root_revision'].every(k=>isLocalPlayDecimal(v[k]));

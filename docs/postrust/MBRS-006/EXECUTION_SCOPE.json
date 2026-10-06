@@ -1,0 +1,99 @@
+{
+  "schema": "mbrs006.execution-scope.v1",
+  "task": "MBRS-006",
+  "state": "FINITE_SOFTWARE_CANDIDATE_FROZEN_FINAL_GATE_REQUIRED",
+  "branch": "codex/mbrs-006-local-audio-input",
+  "baseFinalReportCommit": "cce8594f4b6e9872afd576bb1b032f526c93af72",
+  "ownerGoal": "持续开发到017；每独立task完成更新待办并push；未完成独立task不停止报告TODO；按难易选择测试规模",
+  "g0Decision": "ADMITTED_FINITE_SOFTWARE_SCOPE",
+  "g0Ref": "docs/postrust/RUST-016/ADMISSION_DECISION.json",
+  "originalTask": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/postrust-v1.2-readonly/MusicBridge_PostRust_Execution_Pack_v1.2/tasks/MBRS-006.md",
+    "sha256": "912e64ca4a0c3904c5b32fe2488dc31c61033a872b567a22a0db56ca2b494486",
+    "bytes": 4144,
+    "acceptanceCount": 11,
+    "acceptanceKinds": {
+      "live_roon": 3,
+      "integration": 4,
+      "unit": 2,
+      "fault": 2
+    }
+  },
+  "models": {
+    "root": {
+      "model": "gpt-6.1-sol",
+      "effort": "max",
+      "verifiedFromLatestTurnContext": true
+    },
+    "threeExistingAgents": {
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "verifiedFromSpawnArguments": true,
+      "newSpawns": 0
+    }
+  },
+  "roles": {
+    "productWriter": "rules_writer",
+    "rootOwned": [
+      "tasks",
+      "docs/postrust/MBRS-006",
+      "project",
+      "AGENTS.md",
+      "scripts/ci",
+      ".github/workflows"
+    ],
+    "readonly": [
+      "boundary_review",
+      "source_golden_audit"
+    ]
+  },
+  "implementation": [
+    "同一Controller三动作本地点播及原Adapter Audio Input",
+    "唯一Owner私有capture/revalidate/release与不可逆共享撤销",
+    "实际SQL提交口与短dispatch claim的有限已回滚协调",
+    "旧attempt/会话/epoch隔离、UNKNOWN/reconcile、接管不global stop",
+    "实际事件与歌词/consumer local namespace",
+    "正常及Owner故障先封派发、join本地IO/FD、再退出"
+  ],
+  "reuse": [
+    "docs/postrust/MBRS-000/REUSE_MAP_RESOLVED.md",
+    "docs/postrust/MBRS-000/RUST_TO_MBRS_RESOLVED.json",
+    "docs/postrust/MBRS-001/API_BEHAVIOR_NOTES.md",
+    "reports/MBRS-002_LOCAL_SOURCE_CONTRACTS.md",
+    "reports/MBRS-005_LOCAL_FILE_GATEWAY.md"
+  ],
+  "defaultRoute": "roon_audio_input",
+  "productionDefault": "NODE_UNCHANGED_OPTIONAL_RUST_OFF",
+  "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+  "actualRoonAccountsLanNasAudio": "NOT_RUN",
+  "ordinaryApp": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "new100k300kStarted": false,
+  "mainMergeInstallRelease": "NOT_AUTHORIZED",
+  "caseStatusChanges": "ONLY_THIS_TASK_AFTER_ACTUAL_EVIDENCE",
+  "gateCounts": {
+    "functionalTests": 540,
+    "newTaskTests": 46,
+    "inheritedRegressions": 494,
+    "groups": [
+      41,
+      349,
+      58,
+      92
+    ],
+    "stages": 11,
+    "freshOutputs": 28
+  },
+  "previousDeliveryReceipt": "docs/postrust/MBRS-006/PREVIOUS_DELIVERY_RECEIPT.json",
+  "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6",
+  "productFreeze": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs006-tdh6dag6/writer/FREEZE_03.json",
+    "files": 54,
+    "sha256": "40eb968e389e1667e16f5b78c330ce170803095c37e09fa1a4beb6de37dd8b45"
+  },
+  "formalReview": {
+    "maximumRounds": 2,
+    "r1RootCauses": 4,
+    "r2": "LAST_SECOND_ROUND_RESULT_IN_INDEPENDENT_REPORT"
+  }
+}

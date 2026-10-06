@@ -1,3 +1,5 @@
+import {LocalSourcePreparationError} from '../application/local-source-resolver.js';
+import { LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import {LOCAL_RELOCATION_COMMANDS,isLocalRelocationCommand,isLocalRelocationInternalCommand,isLocalRelocationCommandResult} from '@music-bridge/contracts';
 import { randomUUID } from 'node:crypto';
 import type { MessagePort } from 'node:worker_threads';
@@ -63,6 +65,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
   }
 
   function projectFailure(id: string, error: unknown, command?: IpcCommand): IpcFailure {
+    if(error instanceof LocalSourcePreparationError && error.code==='SEGMENT_UNSUPPORTED')return responseFailure(id,'INVALID_IPC_REQUEST','[LOCAL_SEGMENT_UNSUPPORTED] 本地点播当前仅支持整文件，CUE/segment尚未支持。');
     const failure = error instanceof DatasetOwnerDispatchError ? { ...error.failure, id }
       : domain === undefined ? failureForError(id, error, command ?? 'physicalLinks.search') : domain.failureForError(id, error, command);
     return isDatasetOwnerFailure(failure) ? failure : responseFailure(id, 'INTERNAL_ERROR', '领域操作失败。');
@@ -79,6 +82,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     post(message);
   }
   function reject(request: DatasetOwnerRequest, error: unknown): void {
+    if(error instanceof LocalFactsCommitFatal){domain?.sealLocalSources?.();protocolFailure();return;}
     const message: DatasetOwnerResponse = { version: DATASET_OWNER_PROTOCOL_VERSION, type: 'response', epoch: request.epoch, requestId: request.requestId, operation: request.operation, ok: false,
       failure: projectFailure(request.request?.id ?? request.requestId, error, request.request?.command) };
     post(message);
@@ -108,7 +112,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     await Promise.allSettled([...dispatches, ...(commitment === undefined ? [] : [commitment])]);
   }
   function closeDomain(): Promise<void> {
-    closing = true;
+    closing = true; domain?.sealLocalSources?.();
     closure ??= (async () => {
       if (preparation !== undefined) {
         try { await preparation; } catch { /* 准备失败的factory负责回滚和释放自身资源。 */ }
@@ -202,6 +206,17 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
         if (domain.datasetId !== datasetId || !isDatasetCollectionSnapshot(snapshot)) throw new DatasetOwnerDispatchError(responseFailure(request.requestId, 'INVENTORY_UNAVAILABLE', '收藏快照无效或超过当前预算。'));
         reply(request, snapshot);
       } catch (error) { reject(request, error); }
+      return;
+    }
+    if (['captureLocalSource','revalidateLocalSource','releaseLocalSource'].includes(request.operation)) {
+      try {
+        if (!bootCommitted || request.expectedDatasetId !== boundDatasetId || domain.datasetId !== boundDatasetId) throw new Error('本地私有来源未就绪或epoch不符。');
+        const payload = request.local!;
+        if (request.operation === 'captureLocalSource' && 'selection' in payload && domain.captureLocalSource) reply(request,domain.captureLocalSource(payload.selection));
+        else if (request.operation === 'revalidateLocalSource' && 'ticketId' in payload && domain.revalidateLocalSource) reply(request,domain.revalidateLocalSource(payload.ticketId));
+        else if (request.operation === 'releaseLocalSource' && 'ticketId' in payload && domain.releaseLocalSource) {domain.releaseLocalSource(payload.ticketId);reply(request,undefined);}
+        else throw new Error('本地私有来源能力缺失。');
+      } catch (error) { reject(request,error); }
       return;
     }
     const internal = request.operation === 'dispatchInternal';

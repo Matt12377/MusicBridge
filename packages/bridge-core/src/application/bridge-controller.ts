@@ -1,3 +1,10 @@
+import {LocalSourcePreparationError} from './local-source-resolver.js';
+import {DatasetOwnerDispatchError} from '../collection/dataset-owner-protocol.js';
+import { isLocalPlayRequest, type LocalPlayRequest, type LocalPlayAccepted, type LocalPlaybackObservationLeaf } from '@music-bridge/contracts';
+import type { DatasetOwnerEndpoint } from '../collection/dataset-owner-protocol.js';
+import { LocalSourceFence } from '../stream/local-source-fence.js';
+import type { LocalSourceCaptureResult } from '../collection/local-source-ticket-types.js';
+import type { AssetLease, ConfirmedLocalSession } from '../stream/local-file-source.js';
 import { currentPerformanceContext, readPerformanceTime } from '../diagnostics/performance-trace.js';
 import { randomUUID } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
@@ -70,7 +77,16 @@ export interface BridgeState {
   activeStreamCount: number;
 }
 
+interface LocalOwnerResources {
+  capture: LocalSourceCaptureResult; fence: LocalSourceFence; lease?: AssetLease; session?: ConfirmedLocalSession;
+  timer?: ReturnType<typeof setInterval>; renewing?: Promise<void>; disposing?: Promise<void>;
+  isOwned?: () => boolean; nextRenewal?: number;
+  target: NonNullable<ReturnType<NonNullable<RoonPort['captureLocalTarget']>>>;
+}
 export type QueueItem = PlaybackQueueEntry & {
+  localSelection?: LocalPlayRequest;
+  localExpected?: LocalSourceCaptureResult['facts'];
+  localTarget?: LocalOwnerResources['target'];
   /** 运行期引用只存在 Core 内存中，绝不进入公开队列快照。 */
   roonReference?: string;
   roonZoneId?: string;
@@ -113,6 +129,7 @@ interface NativeRoonPlaybackPort {
   seek?(positionMs: number, options?: RoonOperationOptions): Promise<void>;
 }
 interface PlaybackOwner {
+  local?: LocalOwnerResources;
   item: QueueItem;
   zoneId: string;
   source: PlaybackResolvedSource;
@@ -376,6 +393,12 @@ export class BridgeController {
     zoneId: string;
     observedIdentity?: RoonNowPlayingIdentity;
   } | undefined;
+  private readonly localPoolOwner = randomUUID();
+  private localAttempt = 0;
+  private localClosing = false;
+  private localObservation: LocalPlaybackObservationLeaf | undefined;
+  private readonly localTasks = new Set<Promise<unknown>>();
+  private readonly localRequests = new Map<string,{fingerprint:string;work:Promise<LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported>}>();
   private queue: QueueItem[] = [];
   private queueIndex = -1;
   private playbackState: PlaybackState = 'idle';
@@ -432,6 +455,7 @@ export class BridgeController {
 
   constructor(
     private readonly dependencies: {
+      localSources?: DatasetOwnerEndpoint;
       netease: NeteasePort;
       roon: RoonPort;
       registry: StreamRegistry;
@@ -461,6 +485,12 @@ export class BridgeController {
         if (this.stopFlight) await this.stopFlight.catch(() => undefined);
         if (generation !== this.playbackGeneration || token !== this.activeToken) return;
 
+        if(this.owner?.local){
+          if(reason==='media_error')this.localTerminal(this.owner,'FAILED','ROON_MEDIA_ERROR','ERROR');
+          else if(reason==='zone_lost')this.localPhase(this.owner,'OWNERSHIP_LOST','UNKNOWN');
+          else if(reason==='ended')this.localTerminal(this.owner,'ENDED',null,'ENDED');
+          else if(this.localObservation?.phase!=='ENDED')this.localTerminal(this.owner,'CANCELLED');
+        }
         this.clearActiveResources();
         if (reason !== 'ended' || !playbackWasPlaying) {
           this.cancelNextPreparation();
@@ -530,6 +560,7 @@ export class BridgeController {
         ...(item.track ? { track: cloneTrackSummary(item.track) } : {}),
         ...(item.preferredSource ? { preferredSource: item.preferredSource } : {}),
         ...(item.resolvedSource ? { resolvedSource: item.resolvedSource } : {}),
+        ...(item.local ? {local:{...item.local}} : {}),
         ...(item.roonItem ? { roonItem: Object.freeze(cloneRoonItem(item.roonItem)) } : {}),
         ...(index === this.queueIndex && this.activePlayback
           ? {
@@ -563,6 +594,7 @@ export class BridgeController {
 
     return {
       state: effectiveState,
+      ...(this.localObservation ? {local:structuredClone(this.localObservation)} : {}),
       queue,
       ...(currentTrack ? { currentTrack } : {}),
       ...(source ? { source } : {}),
@@ -643,6 +675,125 @@ export class BridgeController {
     });
   }
 
+  /** 九字段公开请求进入原队列；重复requestId只回同一受理结果。 */
+  playLocal(request: LocalPlayRequest): Promise<LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported> {
+    if(!isLocalPlayRequest(request) || this.localClosing) return Promise.reject(this.cancelled());
+    const fingerprint=JSON.stringify(request), prior=this.localRequests.get(request.request_id);
+    if(prior) return prior.fingerprint===fingerprint ? prior.work : Promise.reject(this.cancelled());
+    if(this.localRequests.size>=256) return Promise.reject(new BridgeError('BAD_REQUEST','本地请求回执达到有限容量。',{httpStatus:429}));
+    if(request.action==='PLAY_NOW')this.cancelQueueContext();
+    const acceptedEpoch=this.commandEpoch,acceptedReplacement=this.queueReplacementGeneration;
+    const guardIntent=()=>{if(this.localClosing || acceptedEpoch!==this.commandEpoch || (request.action!=='PLAY_NOW' && acceptedReplacement!==this.queueReplacementGeneration))throw this.cancelled();if(request.action==='PLAY_NOW')this.guardCommand();};
+    const run=async()=>{
+      guardIntent(); const port=this.dependencies.localSources,target=this.dependencies.roon.captureLocalTarget?.();
+      if(!port?.captureLocalSource || !port.releaseLocalSource || !port.isLocalSourceCurrent?.() || !target?.isCurrent()
+        || target.target.core_id!==request.target.core_id || target.target.zone_id!==request.target.zone_id) throw this.cancelled();
+      let capture:LocalSourceCaptureResult;
+      try{capture=request.action==='PLAY_NOW' ? await port.captureLocalSource(request) : await this.enqueue(()=>{guardIntent();return port.captureLocalSource!(request);});}catch(error){guardIntent();if(error instanceof LocalSourcePreparationError && error.code==='SEGMENT_UNSUPPORTED' || error instanceof DatasetOwnerDispatchError && error.failure.error.code==='INVALID_IPC_REQUEST' && error.failure.error.message.startsWith('[LOCAL_SEGMENT_UNSUPPORTED]'))return {status:'unsupported' as const,reason:'LOCAL_SEGMENT_UNSUPPORTED' as const};throw error;}
+      const fence=new LocalSourceFence(capture.buffer);
+      try {
+        guardIntent(); if(this.localClosing || !target.isCurrent() || !port.isLocalSourceCurrent?.() || !fence.current) throw this.cancelled();
+        const item:QueueItem={trackId:request.local_track_id,qualityPreference:'auto',resolvedSource:'local_file',track:toTrackSummary(capture.metadata),localSelection:structuredClone(request),localExpected:capture.facts,localTarget:target,
+          local:{local_track_id:request.local_track_id,asset_id:request.asset_id,asset_revision:request.expected_asset_revision,selection_revision:capture.facts.track.selectionRevision,location_revision:capture.facts.asset.locationRevision,root_revision:capture.facts.root.revision}};
+        if(request.action==='PLAY_NOW') {
+          await this.stopActive();guardIntent();if(!target.isCurrent() || !fence.current) throw this.cancelled();
+          this.queue=[item];this.queueIndex=0;this.queueProjectionDirty=true;
+        } else {
+          const current=()=>{guardIntent();if(!target.isCurrent() || !port.isLocalSourceCurrent?.() || !fence.current)throw this.cancelled();};
+          const insert=request.action==='PLAY_NEXT_MB_QUEUE';
+          if(this.queueContext || this.pendingQueueContexts.size)await this.editContextQueue([item],insert,current);
+          else await this.commitQueueEdit([item],insert,current);
+          current();
+        }
+      } finally {fence.revoke();await port.releaseLocalSource(capture.ticketId);}
+      guardIntent();
+      if(request.action==='PLAY_NOW') await this.startQueueIndex(0,false);
+      return {status:'accepted',request_id:request.request_id,action:request.action} as LocalPlayAccepted;
+    };
+    const work=request.action==='PLAY_NOW' ? this.enqueuePlayback(run,true) : run();
+    this.localRequests.set(request.request_id,{fingerprint,work});return work;
+  }
+  private localCurrent(owner:PlaybackOwner):boolean {
+    return !this.localClosing && this.owner===owner && !owner.abort.signal.aborted && this.queue[this.queueIndex]===owner.item
+      && !!owner.local?.fence.current && owner.local.target.isCurrent() && this.dependencies.localSources?.isLocalSourceCurrent?.()===true;
+  }
+  private assertLocal(owner:PlaybackOwner):void {if(!this.localCurrent(owner))throw this.cancelled();}
+  private localPhase(owner:PlaybackOwner,phase:LocalPlaybackObservationLeaf['phase'],event:LocalPlaybackObservationLeaf['roon_observation']['event']='NONE'):void {
+    if(this.owner!==owner || !this.localObservation) return;
+    const confirmed=owner.local?.session?.isConfirmed()===true;
+    this.localObservation={...this.localObservation,phase,ownership:phase==='PLAYING'||phase==='PAUSED'?'MB_OWNED':phase==='OWNERSHIP_LOST'?'UNKNOWN':phase==='SUBMISSION_UNKNOWN'?'UNKNOWN':phase==='ENDED'||phase==='FAILED'||phase==='CANCELLED'?'NONE':'MB_PENDING',
+      roon_observation:{event,observed:event!=='NONE'&&event!=='UNKNOWN',correlation:confirmed?'ATTEMPT_CONFIRMED':'UNKNOWN'}};
+  }
+  private localTerminal(owner:PlaybackOwner,phase:'FAILED'|'CANCELLED'|'ENDED',errorCode:string|null=null,event:LocalPlaybackObservationLeaf['roon_observation']['event']='NONE'):void {
+    if(this.owner!==owner || !this.localObservation)return;
+    this.localPhase(owner,phase,event);this.localObservation={...this.localObservation!,error_code:errorCode};
+  }
+  private loseLocal(owner:PlaybackOwner):void {
+    if(this.owner!==owner) return;this.localPhase(owner,'OWNERSHIP_LOST','UNKNOWN');this.clearActiveResources();this.playbackState='error';this.cancelNextPreparation();this.notifyPlaybackChanged();
+  }
+  private trackLocalCleanup(work:Promise<unknown>):void {this.localTasks.add(work);void work.finally(()=>this.localTasks.delete(work)).catch(()=>undefined);}
+  private disposeLocal(owner:PlaybackOwner):Promise<void> {
+    const local=owner.local;if(!local) return Promise.resolve();
+    return local.disposing ??= (async()=>{local.fence.revoke();if(local.timer)clearInterval(local.timer);await local.renewing?.catch(()=>undefined);
+      if(owner.token)await this.dependencies.registry.revokeLocal(owner.token);else await local.lease?.close();
+      await this.dependencies.localSources?.releaseLocalSource?.(local.capture.ticketId);
+    })();
+  }
+  private async startLocalItem(item:QueueItem,owner:PlaybackOwner):Promise<void> {
+    const request=item.localSelection!,port=this.dependencies.localSources!,target=item.localTarget;
+    if(!target?.isCurrent() || !port.captureLocalSource || !port.releaseLocalSource) throw this.cancelled();
+    this.guardOwner(owner);const attempt=++this.localAttempt;
+    const capture=await port.captureLocalSource(request),fence=new LocalSourceFence(capture.buffer);
+    if(this.owner!==owner || owner.abort.signal.aborted || !target.isCurrent() || !fence.current || JSON.stringify(capture.facts)!==JSON.stringify(item.localExpected)) {
+      fence.revoke();await port.releaseLocalSource(capture.ticketId);throw this.cancelled();
+    }
+    owner.local={capture,fence,target};
+    this.localObservation={schema_version:'1.2',request_id:request.request_id,attempt_id:`${this.localPoolOwner}_${attempt}`,intent_generation:String(this.playbackGeneration),route:'roon_audio_input',local_track_id:request.local_track_id,asset_id:request.asset_id,asset_revision:request.expected_asset_revision,target:{...request.target},session_epoch:null,
+      phase:'PREPARING',ownership:'MB_PENDING',queue_owner:'MB',delivery_state:'NOT_STARTED',roon_observation:{event:'NONE',observed:false,correlation:'UNKNOWN'},position_ms:null,
+      quality:{http_bytes:'NOT_TESTED',signal_path:'NOT_TESTED',digital_output:'NOT_TESTED',gapless:'NOT_TESTED'},error_code:null};
+    this.playbackState='preparing';this.notifyPlaybackChanged();
+    try {
+      const registration=await this.dependencies.registry.registerLocalSource({source_kind:'local_file',status:'prepared_descriptor',request_id:request.request_id,action:request.action,target:request.target,facts:capture.facts},{ownerId:this.localPoolOwner,attempt,isCurrent:()=>this.localCurrent(owner)},capture.format);
+      owner.token=registration.token;owner.local.lease=registration.lease;
+      this.assertLocal(owner);this.activeToken=registration.token;
+      this.activePlayback={track:capture.metadata,qualityPreference:'auto',requestedQuality:'standard',actualQuality:'unknown',...(capture.format?{format:capture.format}:{}),sizeBytes:registration.lease.size,startedAt:new Date(this.now()).toISOString()};
+      const local=owner.local;
+      local.timer=setInterval(()=>{
+        if(!this.localCurrent(owner) || local.lease?.state==='CLOSED'){this.loseLocal(owner);return;}
+        if(!local.session || local.renewing || this.now() < (local.nextRenewal ?? 0)) return;local.nextRenewal=this.now()+30_000;
+        const work=(async()=>{if(!await port.revalidateLocalSource?.(capture.ticketId))throw this.cancelled();this.assertLocal(owner);local.lease!.renew(local.session!);})();
+        local.renewing=work;void work.catch(()=>this.loseLocal(owner)).finally(()=>{delete local.renewing;});
+      },250);local.timer.unref();
+      this.localPhase(owner,'SUBMITTING');this.notifyPlaybackChanged();
+      await this.device(()=>{this.assertLocal(owner);return this.dependencies.roon.play({...this.ownerOptions(owner),mediaUrl:this.dependencies.gateway.localStreamUrl(registration.token),iconUrl:this.dependencies.gateway.iconUrl(),metadata:capture.metadata,
+        onDispatch:()=>{this.assertLocal(owner);owner.dispatched=true;this.localObservation={...this.localObservation!,delivery_state:'UNKNOWN'};this.localPhase(owner,'AWAITING_ROON');},
+        onLocalSession:observation=>{
+          if(this.owner!==owner || owner.abort.signal.aborted) return;
+          local.isOwned=observation.isOwned;
+          if(observation.event==='DISPATCHED')return;
+          if(observation.event==='OWNERSHIP_LOST'){this.loseLocal(owner);return;}
+          if(!this.localCurrent(owner)){this.loseLocal(owner);return;}
+          if(observation.event==='UNKNOWN'){this.localPhase(owner,'SUBMISSION_UNKNOWN','UNKNOWN');this.playbackState='error';this.notifyPlaybackChanged();return;}
+          this.assertLocal(owner);
+          if(observation.event==='SESSION' && observation.sessionId){
+            local.isOwned=observation.isOwned;local.session={attempt,sessionId:observation.sessionId,isConfirmed:observation.isConfirmed};local.lease!.confirmSession(local.session);
+            this.localObservation={...this.localObservation!,session_epoch:randomUUID()};
+            this.positionContext={generation:this.playbackGeneration,trackId:capture.metadata.id,zoneId:owner.zoneId,source:'local_file',playbackEpoch:observation.generation};
+          } else if(observation.event==='PLAYING'){if(!local.session?.isConfirmed())return;local.lease!.renew(local.session);this.localPhase(owner,'PLAYING','PLAYING');this.playbackState='playing';owner.preparing=false;}
+          else if(observation.event==='PAUSED'){if(!local.session?.isConfirmed())return;local.lease!.pause(local.session);this.localPhase(owner,'PAUSED','PAUSED');this.playbackState='paused';owner.preparing=false;}
+          else if(observation.event==='ENDED')this.localPhase(owner,'ENDED','SESSION_ENDED');
+          this.notifyPlaybackChanged();
+        }});});
+      this.assertLocal(owner);
+    } catch(error) {
+      if(!owner.dispatched || !this.localCurrent(owner) || asBridgeError(error).code==='ROON_MEDIA_ERROR'){
+        if(this.localObservation?.phase!=='OWNERSHIP_LOST')this.localTerminal(owner,owner.abort.signal.aborted?'CANCELLED':'FAILED',owner.abort.signal.aborted?null:asBridgeError(error).code,asBridgeError(error).code==='ROON_MEDIA_ERROR'?'ERROR':'NONE');
+        await this.disposeLocal(owner);throw error;
+      }
+      this.localPhase(owner,'SUBMISSION_UNKNOWN','UNKNOWN');this.playbackState='error';this.notifyPlaybackChanged();
+      // 已发送只能调和本次会话；返回受理结果不会重复begin/play或入队。
+    }
+  }
   async playRoon(input: NativeRoonQueueInput): Promise<BridgeState> {
     return this.replaceRoonQueue([input], 0);
   }
@@ -796,15 +947,16 @@ export class BridgeController {
     if (this.nextInsertionCursor !== undefined) this.nextInsertionCursor += prefix;
   }
 
-  private editContextQueue(items: QueueItem[], insert: boolean): Promise<BridgeState> {
+  private editContextQueue(items: QueueItem[], insert: boolean, assertCurrent:()=>void=()=>undefined): Promise<BridgeState> {
     const context = this.queueContext ?? [...this.pendingQueueContexts].at(-1);
     const epoch = this.commandEpoch;
     const result = this.queueEditTail.then(async () => {
+      assertCurrent();
       if (epoch !== this.commandEpoch) throw this.cancelled();
-      if (!context) return this.commitQueueEdit(items, insert);
-      await context.ready;
+      if (!context) return this.commitQueueEdit(items, insert,assertCurrent);
+      await context.ready;assertCurrent();
       return this.contextTask(context, async () => {
-        this.assertQueueContext(context);
+        assertCurrent();this.assertQueueContext(context);
         this.contextCapacity(this.queue.length + items.length);
         const before: QueueItem[] = [], after: QueueItem[] = [];
         const originalBefore = context.before, originalAfter = context.after;
@@ -812,7 +964,7 @@ export class BridgeController {
         while (cursor < originalBefore) {
           if (++reads > 128) throw new BridgeError('ROON_LIBRARY_REQUEST_FAILED', '播放上下文读取工作量超限', { httpStatus: 502 });
           const loaded = await this.readQueueContext(context, cursor, Math.min(100, originalBefore - cursor));
-          before.push(...loaded.items); cursor = loaded.page.nextOffset;
+          assertCurrent();before.push(...loaded.items); cursor = loaded.page.nextOffset;
           this.contextCapacity(this.queue.length + before.length + items.length);
           if (loaded.page.complete && cursor < originalBefore) throw this.cancelled();
         }
@@ -820,11 +972,11 @@ export class BridgeController {
         while (!complete) {
           if (++reads > 128) throw new BridgeError('ROON_LIBRARY_REQUEST_FAILED', '播放上下文读取工作量超限', { httpStatus: 502 });
           const loaded = await this.readQueueContext(context, cursor, 100);
-          after.push(...loaded.items); cursor = loaded.page.nextOffset; complete = loaded.page.complete;
+          assertCurrent();after.push(...loaded.items); cursor = loaded.page.nextOffset; complete = loaded.page.complete;
           this.contextCapacity(this.queue.length + before.length + after.length + items.length);
         }
         return this.enqueue(async () => {
-          this.assertQueueContext(context);
+          assertCurrent();this.assertQueueContext(context);
           if (epoch !== this.commandEpoch || context.before !== originalBefore || context.after !== originalAfter) throw this.cancelled();
           this.contextCapacity(this.queue.length + before.length + after.length + items.length);
           const current = this.queue[this.queueIndex];
@@ -849,8 +1001,8 @@ export class BridgeController {
     this.queueProjectionDirty = true; this.notifyPlaybackChanged(); this.scheduleQueueHydration(items, generation);
   }
 
-  private commitQueueEdit(items: QueueItem[], insert: boolean): Promise<BridgeState> {
-    return this.enqueue(async () => { this.contextCapacity(this.queue.length + items.length); this.applyQueueEdit(items, insert); return this.getState(); });
+  private commitQueueEdit(items: QueueItem[], insert: boolean, assertCurrent:()=>void=()=>undefined): Promise<BridgeState> {
+    return this.enqueue(async () => { assertCurrent();this.contextCapacity(this.queue.length + items.length); this.applyQueueEdit(items, insert); return this.getState(); });
   }
 
   async replaceRoonQueue(inputs: readonly NativeRoonQueueInput[], startIndex: number): Promise<BridgeState> {
@@ -1311,6 +1463,7 @@ export class BridgeController {
 
   syncRoonTransportState(): void {
     if (!this.activePlayback && !this.activeRoonPlayback) return;
+    if(this.owner?.local){ if(!this.localCurrent(this.owner)) this.loseLocal(this.owner); return; }
     this.syncNativeRoonTrack();
     const transportState = this.dependencies.roon.getState().transportState;
     if (
@@ -1413,10 +1566,11 @@ export class BridgeController {
   }
 
   async shutdown(): Promise<void> {
+    this.localClosing=true; this.dependencies.localSources?.sealLocalSources?.();
     this.cancelQueueContext();
     ++this.commandEpoch;
     this.owner?.abort.abort();
-    await this.enqueue(async () => {
+    try { await this.enqueue(async () => {
       this.cancelNextPreparation();
       this.queueHydrationGeneration += 1;
       await this.stopActive(true);
@@ -1427,7 +1581,11 @@ export class BridgeController {
       this.clearPlaybackIssue();
       this.notifyPlaybackChanged();
       this.dependencies.registry.revokeAll();
-    });
+    }); } finally {
+      if(this.owner?.local)this.clearActiveResources();
+      await Promise.allSettled([...this.localTasks]);
+      await this.dependencies.registry.closeLocal();
+    }
   }
 
   updateRoonTime(
@@ -1444,7 +1602,7 @@ export class BridgeController {
       ? toTrackSummary(this.activePlayback.track)
       : this.activeRoonPlayback?.track;
     const activeSource: PlaybackResolvedSource | undefined = this.activePlayback
-      ? 'netease'
+      ? (this.owner?.local ? 'local_file' : 'netease')
       : this.activeRoonPlayback
         ? 'roon'
         : undefined;
@@ -1464,7 +1622,7 @@ export class BridgeController {
         && positionContext.minimumRevision !== undefined
         && event.revision < positionContext.minimumRevision) ||
       (event !== undefined
-        && positionContext.source === 'netease'
+        && (positionContext.source === 'netease' || positionContext.source === 'local_file')
         && ((event.source !== 'audio-input' && event.source !== 'zone')
           || event.playbackEpoch !== positionContext.playbackEpoch)) ||
       (event !== undefined
@@ -1476,6 +1634,7 @@ export class BridgeController {
     ) {
       return false;
     }
+    if(this.owner?.local){if(!this.localCurrent(this.owner))return false;this.localObservation={...this.localObservation!,position_ms:positionMs};}
     this.positionMs = positionMs;
     if (event && this.queueContext && positionContext.source === 'roon') this.recordContextPlaying(event);
     const now = this.now();
@@ -1682,7 +1841,7 @@ export class BridgeController {
       }
       const owner: PlaybackOwner = {
         item, zoneId: item.roonZoneId ?? this.dependencies.roon.getState().selectedZoneId ?? '',
-        source: item.roonReference || item.preferredSource === 'roon' ? 'roon' : 'netease',
+        source: item.localSelection ? 'local_file' : item.roonReference || item.preferredSource === 'roon' ? 'roon' : 'netease',
         abort: new AbortController(), preparing: true, dispatched: false,
       };
       this.owner = owner;
@@ -1733,6 +1892,12 @@ export class BridgeController {
     owner: PlaybackOwner,
     startupTrace?: PlaybackStartupTrace,
   ): Promise<void> {
+    if (item.localSelection) {
+      const task=this.startLocalItem(item,owner);this.localTasks.add(task);
+      try {await task;} finally {this.localTasks.delete(task);}
+      return;
+    }
+    this.localObservation=undefined;
     if (item.preferredSource === 'roon' || item.roonReference) {
       await this.startRoonItem(item, owner);
       return;
@@ -2076,6 +2241,7 @@ export class BridgeController {
             if (!this.dependencies.roonLibrary) throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', '本地 Roon 停止不可用', { httpStatus: 503 });
             return this.dependencies.roonLibrary.stop({ ...(zoneId ? { expectedZoneId: zoneId } : {}) });
           }
+          if(owner?.local && (!owner.local.target.isCurrent() || !owner.local.isOwned?.())) return Promise.resolve();
           return this.dependencies.roon.stop({ ...(zoneId ? { expectedZoneId: zoneId } : {}) });
         });
       } catch (error) {
@@ -2134,7 +2300,7 @@ export class BridgeController {
       while (this.hydrationIsCurrent(hydration)) {
         const item = items[cursor++];
         if (!item) return;
-        if (item.track || !this.queue.includes(item) || item === this.owner?.item) continue;
+        if (item.localSelection || item.track || !this.queue.includes(item) || item === this.owner?.item) continue;
         try {
           const track = toTrackSummary(await this.dependencies.netease.getTrack(item.trackId, {
             signal: hydration.abort.signal, priority: 'background',
@@ -2168,7 +2334,10 @@ export class BridgeController {
 
   private clearActiveResources(): void {
     this.cancelQueueHydration();
+    const localOwner=this.owner;
+    if(localOwner?.local && this.localObservation && !['ENDED','FAILED','CANCELLED','OWNERSHIP_LOST'].includes(this.localObservation.phase))this.localTerminal(localOwner,'CANCELLED');
     this.owner?.abort.abort();
+    if(localOwner?.local) this.trackLocalCleanup(this.disposeLocal(localOwner));
     this.owner = undefined;
     this.stopUnknown = false;
     if (this.activeToken) {
@@ -2238,10 +2407,11 @@ export class BridgeController {
 
   private guardControl(owner: PlaybackOwner | undefined, generation: number): void {
     if (this.owner !== owner || this.playbackGeneration !== generation || owner?.abort.signal.aborted) throw this.cancelled();
+    if(owner?.local) this.assertLocal(owner);
   }
 
   private ownerOptions(owner: PlaybackOwner | undefined): RoonOperationOptions {
-    return { ...(owner ? { signal: owner.abort.signal, expectedZoneId: owner.zoneId } : {}) };
+    return { ...(owner ? { signal: owner.abort.signal, expectedZoneId: owner.zoneId } : {}),...(owner?.local ? {assertCurrent:()=>this.assertLocal(owner),withDispatch:<T>(send:()=>T)=>owner.local!.fence.dispatch(send,()=>this.assertLocal(owner))} : {}) };
   }
 
   private waitOwned<T>(owner: PlaybackOwner, work: Promise<T>): Promise<T> {
@@ -2348,7 +2518,7 @@ export class BridgeController {
   private scheduleNextPreparation(): void {
     if (!this.activePlayback || this.playbackState !== 'playing' || !this.dependencies.netease.configured) return;
     const item = this.queue[this.queueIndex + 1];
-    if (!item || item.roonReference || item.preferredSource === 'roon' || item.preferredSource === 'smart') {
+    if (!item || item.localSelection || item.roonReference || item.preferredSource === 'roon' || item.preferredSource === 'smart') {
       this.cancelNextPreparation();
       return;
     }

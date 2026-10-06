@@ -1,8 +1,8 @@
 import path from 'node:path';
 import { isLocalPlayRequest, isLocalPlayTarget, isAudioAsset, isLibraryRoot, isLocalTrack,
-  type LocalPlayRequest, type LocalPlayTarget, type LocalSourceUnsupported, type LocalTrack, type AudioAsset, type LibraryRoot } from '@music-bridge/contracts';
-import type { CollectionRepository } from '../collection/repository.js';
+  type LocalPlayRequest, type LocalPlayTarget, type LocalSourceUnsupported } from '@music-bridge/contracts';
 import type { RootCapability } from '../recording/source-files.js';
+import type { CollectionRepository } from '../collection/repository.js';
 import type { ResolvedAudioStream } from '../netease/types.js';
 import type { StreamResolver, StreamResolveRequest } from '../stream/resolver-types.js';
 
@@ -10,12 +10,8 @@ import type { StreamResolver, StreamResolveRequest } from '../stream/resolver-ty
 export interface LocalSourceAuthority {
   captureCurrentTarget(): { target: LocalPlayTarget; isCurrent(): boolean } | null;
 }
-/** 唯一Owner扫描stat证据与本次逻辑选择的绑定；只在Node私有通路流动。 */
-export interface LocalSourceObservation {
-  signature: string; assetId: string; trackId: string; libraryRootId: string; sourceRootId: string;
-  fileRevision: string; rootRevision: string; locationRevision: string; selectionRevision: string;
-}
-export interface LocalSourceFacts { track: LocalTrack; asset: AudioAsset; root: LibraryRoot; sourceRoot: RootCapability; relative: string; observation?: LocalSourceObservation }
+import type { LocalSourceFacts, LocalSourceObservation } from './local-source-facts.js';
+export type { LocalSourceFacts, LocalSourceObservation } from './local-source-facts.js';
 /** Node私有描述符：没有FD/lease/HTTP/session/Playing；locator不进入公开合同。 */
 export interface PreparedLocalSource {
   source_kind: 'local_file'; status: 'prepared_descriptor'; request_id: string;
@@ -23,7 +19,7 @@ export interface PreparedLocalSource {
 }
 export interface RemoteProviderSource { source_kind: 'remote_provider'; stream: ResolvedAudioStream }
 export class LocalSourcePreparationError extends Error {
-  constructor(readonly code: 'INVALID_REQUEST' | 'TARGET_CHANGED' | 'FACTS_CHANGED' | 'UNAUTHORIZED_ROOT') { super(`本地源准备拒绝：${code}`); }
+  constructor(readonly code: 'INVALID_REQUEST' | 'TARGET_CHANGED' | 'FACTS_CHANGED' | 'UNAUTHORIZED_ROOT' | 'SEGMENT_UNSUPPORTED') { super(`本地源准备拒绝：${code}`); }
 }
 const fail = (code: LocalSourcePreparationError['code']): never => { throw new LocalSourcePreparationError(code); };
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
@@ -60,6 +56,14 @@ function facts(repository: CollectionRepository, request: LocalPlayRequest): Loc
   // 002的纯descriptor可以没有扫描观察；005取得FD资格时必须拒绝这种未证明输入。
   return { track: { ...track, segment: track.segment === null ? null : { ...track.segment } }, asset: { ...asset }, root: { ...root }, sourceRoot: { ...sourceRoot }, relative: locator.relative,
     ...(observation ? { observation } : {}) };
+}
+/** Owner只证明目录/观察事实，Core目标权威另由原Adapter与Controller绑定。 */
+export function captureLocalFactsReadonly(request: LocalPlayRequest, repository: CollectionRepository): LocalSourceFacts {
+  if (!isLocalPlayRequest(request)) return fail('INVALID_REQUEST');
+  const before = facts(repository, request), after = facts(repository, request);
+  if(after.track.segment!==null)return fail('SEGMENT_UNSUPPORTED');
+  if (!same(before, after) || !after.observation) return fail('FACTS_CHANGED');
+  return after;
 }
 export function prepareLocalSourceReadonly(request: unknown, repository: CollectionRepository, authority?: LocalSourceAuthority, previous?: PreparedLocalSource): PreparedLocalSource | LocalSourceUnsupported {
   if (!isLocalPlayRequest(request)) return fail('INVALID_REQUEST');

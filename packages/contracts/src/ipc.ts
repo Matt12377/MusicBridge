@@ -1,3 +1,4 @@
+import type { LocalPlayAccepted } from './local-play-request.js';
 import type {LocalRelocationCommandPayloads,LocalRelocationCommandResults,LocalRelocationInternalCommand} from './local-relocation.js';
 import type { LocalScanCommandPayloads, LocalScanCommandResults, LocalScanInternalCommand } from './local-scan.js';
 import type { LocalPlayRequest, LocalSourceUnsupported } from './local-play-request.js';
@@ -404,7 +405,7 @@ export interface IpcCommandPayloads extends LocalCatalogCommandPayloads, LocalSc
 }
 
 export interface IpcCommandResults extends LocalCatalogCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
-  'localCatalog.prepare': LocalSourceUnsupported;
+  'localCatalog.prepare': LocalSourceUnsupported | LocalPlayAccepted;
   'commandOutbox.context': CommandOutboxContext;
   'commandOutbox.execute': CommandOutboxResult;
   'spreadsheetImports.sources': SpreadsheetSourcePage;

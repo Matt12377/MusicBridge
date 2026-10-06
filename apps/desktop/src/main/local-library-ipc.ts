@@ -2,10 +2,10 @@ import {randomUUID} from 'node:crypto'
 import * as dto from '@music-bridge/contracts'
 import {CoreIpcError,type CoreSupervisor} from './core-supervisor.js'
 import type {CommandOutboxPickOptions} from './command-outbox-executor.js'
-const ordinary=['localRelocation.roots','localCatalog.pageTracks','localCatalog.asset','localCatalog.metadata','localScan.start','localScan.pause','localScan.resume','localScan.cancel','localScan.get','localScan.page','localScan.receipt'] as const
+const ordinary=['localCatalog.prepare','localRelocation.roots','localCatalog.pageTracks','localCatalog.asset','localCatalog.metadata','localScan.start','localScan.pause','localScan.resume','localScan.cancel','localScan.get','localScan.page','localScan.receipt'] as const
 const record=(v:unknown):v is Record<string,unknown>=>typeof v==='object'&&v!==null&&!Array.isArray(v)&&[Object.prototype,null].includes(Object.getPrototypeOf(v))
 const closed=(v:Record<string,unknown>,names:readonly string[])=>Reflect.ownKeys(v).length===names.length&&Reflect.ownKeys(v).every(k=>typeof k==='string'&&names.includes(k)&&Object.prototype.propertyIsEnumerable.call(v,k))
-/** 原生picker保留Main路径边界，普通扫描channel固定七命令，不提供批执行或通用Core转发。 */
+/** 原生picker保留Main路径边界，普通channel仅固定本地点播与扫描闭集，不提供批执行或通用Core转发。 */
 export function installLocalLibraryHandlers<E>(options:{handle(channel:string,handler:(event:E,value?:unknown)=>unknown):void;requireTrusted(event:E):void;supervisor:Pick<CoreSupervisor,'request'|'requestInternal'>;pick(options:CommandOutboxPickOptions):Promise<{canceled:boolean;filePaths:string[]}>}):void{
  options.handle('localLibrary:request',async(event,value)=>{
   options.requireTrusted(event)

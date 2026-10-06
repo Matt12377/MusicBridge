@@ -55,6 +55,7 @@ export function isLocalRelocationCommandPayload<C extends LocalRelocationCommand
 export function isLocalRelocationCommandResult<C extends LocalRelocationCommand>(command:C,v:unknown):v is LocalRelocationCommandResults[C]{switch(command){case 'localRelocation.roots':return array(v,100)&&v.every(isLocalRootView);case 'localRelocation.registerRoot':case 'localRelocation.relinkRoot':return resultRoot(v);case 'localRelocation.capture':return isLocalRelocationCandidates(v);case 'localRelocation.confirm':return resultAsset(v);}return false;}
 export type LocalLibraryScanCommand=Exclude<keyof LocalScanCommandPayloads,LocalScanInternalCommand>;
 export interface LocalLibraryPublicApi {
+ playLocalLibraryTrack(request:import('./local-play-request.js').LocalPlayRequest):Promise<import('./local-play-request.js').LocalPlayAccepted|import('./local-play-request.js').LocalSourceUnsupported>;
  listLocalLibraryRoots():Promise<LocalRootView[]>;
  chooseLocalLibraryRoot(commandId:string):Promise<LibraryRoot|null>;
  chooseLocalRelocationCandidates(request:LocalRelocationSelection):Promise<LocalRelocationCandidates|null>;

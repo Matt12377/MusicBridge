@@ -54,6 +54,8 @@ interface ActiveRoonPlaybackContext {
   zoneId: string;
   dispatched?: boolean;
   session?: RoonAudioInputSession;
+  sessionId?: string;
+  localRequest?: RoonPlayRequest;
   cancel?: () => void;
   stopping?: boolean;
   stopFailed?: boolean;
@@ -522,6 +524,8 @@ function observationMatchesRequest(
 }
 
 export class RoonAudioInputAdapter implements RoonPort {
+  private connectionEpoch = 0;
+  private localTargetEpoch = 0;
   private roon: RoonApiInstance | undefined;
   private core: RoonCore | undefined;
   private statusService: RoonStatusService | undefined;
@@ -698,6 +702,20 @@ export class RoonAudioInputAdapter implements RoonPort {
     this.setStatus('discovering', 'Ready to pair', true);
   }
 
+  captureLocalTarget(): {target: import('@music-bridge/contracts').LocalPlayTarget; isCurrent(): boolean} | null {
+    const core=this.core,zone=this.selectedZone,epoch=this.connectionEpoch,targetEpoch=this.localTargetEpoch;
+    if(!core || typeof core.core_id!=='string' || !core.core_id || !zone) return null;
+    const group=(value: RoonZone | undefined) => JSON.stringify([value?.zone_id,...(value?.outputs ?? []).map(o=>o.output_id).sort()]);
+    const identity=group(zone);
+    return {target:{core_id:core.core_id,zone_id:zone.zone_id},isCurrent:()=>this.core===core && epoch===this.connectionEpoch && targetEpoch===this.localTargetEpoch && group(this.selectedZone)===identity};
+  }
+  private sdkDispatch<T>(options:RoonOperationOptions,send:()=>T):T { options.assertCurrent?.(); return options.withDispatch ? options.withDispatch(send) : send(); }
+  private localObservation(context:ActiveRoonPlaybackContext,event:import('./types.js').LocalRoonSessionObservation['event']):void {
+    const request=context.localRequest; if(!request?.onLocalSession) return;
+    request.onLocalSession({event,generation:context.generation,...(context.sessionId?{sessionId:context.sessionId}:{}),isConfirmed:()=>{
+      try {request.assertCurrent?.();return this.activePlaybackContext===context && !context.stopping && !!context.sessionId;} catch{return false;}
+    },isOwned:()=>this.activePlaybackContext===context});
+  }
   async play(request: RoonPlayRequest): Promise<void> {
     if (!this.core || !this.audioInput) {
       throw new BridgeError('ROON_NOT_PAIRED', 'Roon is not paired with the extension', {
@@ -754,7 +772,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       });
     }
     const generation = ++this.playbackGeneration;
-    const playbackContext: ActiveRoonPlaybackContext = { generation, trackId, zoneId: capturedZone };
+    const playbackContext: ActiveRoonPlaybackContext = { generation, trackId, zoneId: capturedZone, ...(request.onLocalSession ? {localRequest:request} : {}) };
     this.activePlaybackContext = playbackContext;
 
     await new Promise<void>((resolve, reject) => {
@@ -771,11 +789,11 @@ export class RoonAudioInputAdapter implements RoonPort {
       };
 
       const finish = (error?: Error): void => {
-        if (settled) return;
+        if (settled) {if(!error)releaseTimeout();return;}
         settled = true;
         request.signal?.removeEventListener('abort', onAbort);
         releaseTimeout();
-        if (error && !playbackContext.stopping) this.clearPlaybackContext(generation);
+        if (error && !playbackContext.stopping) { if (request.onLocalSession && playbackContext.dispatched) this.localObservation(playbackContext,'UNKNOWN'); else this.clearPlaybackContext(generation); }
         if (error) reject(error);
         else resolve();
       };
@@ -855,6 +873,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         }
         switch (event) {
           case 'Playing':
+            try {request.assertCurrent?.();this.localObservation(playbackContext,'PLAYING');} catch {this.localObservation(playbackContext,'OWNERSHIP_LOST');return;}
             this.setStatus('playing', 'Playing', false);
             this.setTransportState('playing');
             try {
@@ -881,6 +900,7 @@ export class RoonAudioInputAdapter implements RoonPort {
             }
             break;
           case 'EndedNaturally':
+            this.localObservation(playbackContext,'ENDED');
             this.setStatus('ready', 'Ready', false);
             this.setTransportState('stopped');
             this.terminalHandler('ended');
@@ -895,6 +915,7 @@ export class RoonAudioInputAdapter implements RoonPort {
             if (!settled) finish(protocolError('awaiting_playing', 'stopped_before_playing', event));
             break;
           case 'Paused':
+            try {request.assertCurrent?.();this.localObservation(playbackContext,'PAUSED');} catch {this.localObservation(playbackContext,'OWNERSHIP_LOST');return;}
             // Audio Input reports an external Roon pause through this callback.
             // It is a live session state, not a terminal stop.
             this.setStatus('paused', 'Paused', false);
@@ -945,7 +966,8 @@ export class RoonAudioInputAdapter implements RoonPort {
         }
 
         if (sessionEvent === 'SessionBegan') {
-          if (settled) return;
+          if (settled && !request.onLocalSession) return;
+          if (playbackContext.sessionId) return;
           if (!sessionId) {
             this.logger.warn('roon_session_began', {
               phase,
@@ -968,7 +990,8 @@ export class RoonAudioInputAdapter implements RoonPort {
 
           try {
             this.operationZone(request, capturedZone);
-            audioInput.update_transport_controls(
+            playbackContext.sessionId=sessionId;this.localObservation(playbackContext,'SESSION');
+            this.sdkDispatch(request,()=>audioInput.update_transport_controls(
               {
                 session_id: sessionId,
                 controls: {
@@ -977,7 +1000,7 @@ export class RoonAudioInputAdapter implements RoonPort {
                 },
               },
               () => undefined,
-            );
+            ));
             this.logger.info('roon_play_requested', { phase: 'awaiting_playing' });
             const playOptions: RoonAudioInputPlayOptions = {
               session_id: sessionId,
@@ -1008,7 +1031,7 @@ export class RoonAudioInputAdapter implements RoonPort {
             };
             this.operationZone(request, capturedZone);
             if (playbackContext.stopping) return;
-            audioInput.play(playOptions, handlePlayEvent);
+            this.sdkDispatch(request,()=>audioInput.play(playOptions, handlePlayEvent));
           } catch (error) {
             this.logger.warn('roon_connection_error', {
               phase: 'awaiting_playing',
@@ -1036,6 +1059,8 @@ export class RoonAudioInputAdapter implements RoonPort {
         }
 
         if (sessionEvent === 'SessionEnded') {
+          this.localObservation(playbackContext,'ENDED');
+          this.terminalHandler(request.onLocalSession ? 'stopped' : 'ended');
           this.setStatus('ready', 'Ready', false);
           this.clearPlaybackContext(generation);
           if (!settled) finish(protocolError(phase, 'session_ended', sessionEvent));
@@ -1074,16 +1099,16 @@ export class RoonAudioInputAdapter implements RoonPort {
         this.operationZone(request, capturedZone);
         if (settled || playbackContext.stopping) throw cancelledOperation(request.signal);
         playbackContext.dispatched = true;
-        const session = audioInput.begin_session(
+        const session = this.sdkDispatch(request,()=>audioInput.begin_session(
           {
             zone_id: selectedZoneSnapshot.zone_id,
             display_name: this.displayName,
             icon_url: request.iconUrl,
           },
           handleSessionEvent,
-        );
+        ));
         if (this.isCurrentPlaybackGeneration(generation)) {
-          playbackContext.session = session;
+          playbackContext.session = session;this.localObservation(playbackContext,'DISPATCHED');
         } else {
           session.end_session(() => undefined);
         }
@@ -1138,7 +1163,7 @@ export class RoonAudioInputAdapter implements RoonPort {
     }
     await this.runTransportRequest(
       'seek',
-      (callback) => transport.seek(zone.zone_id, 'absolute', positionMs / 1_000, callback),
+      (callback) => this.sdkDispatch(options,()=>transport.seek(zone.zone_id, 'absolute', positionMs / 1_000, callback)),
       () => new BridgeError('ROON_TIMEOUT', 'Roon seek request failed', { httpStatus: 502 }),
     );
     await this.waitForSelectedZonePlayback({
@@ -1179,7 +1204,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       : undefined;
     await this.runTransportRequest(
       control,
-      (callback) => transport.control(zone.zone_id, control, callback),
+      (callback) => this.sdkDispatch(options,()=>transport.control(zone.zone_id, control, callback)),
       () => new BridgeError('ROON_TIMEOUT', 'Roon transport request failed', { httpStatus: 502 }),
     );
     if (beforeStop) {
@@ -1466,6 +1491,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   }
 
   private onCorePaired(core: RoonCore): void {
+    this.connectionEpoch++;
     this.core = core;
     this.audioInput = core.services.RoonApiAudioInput;
     this.libraryService =
@@ -1500,7 +1526,7 @@ export class RoonAudioInputAdapter implements RoonPort {
           for (const zone of message.zones_changed ?? []) this.storeZone(zone);
           for (const zone of message.zones_removed ?? []) {
             const zoneId = readZoneId(zone);
-            if (zoneId) { this.zones.delete(zoneId); this.zoneRevisions.delete(zoneId); this.zonePlaybackRevisions.delete(zoneId); }
+            if (zoneId) { if(this.selectedZone?.zone_id===zoneId)this.localTargetEpoch++; this.zones.delete(zoneId); this.zoneRevisions.delete(zoneId); this.zonePlaybackRevisions.delete(zoneId); }
           }
           for (const value of message.zones_seek_changed ?? []) {
             const zoneId = readZoneId(value);
@@ -1535,6 +1561,8 @@ export class RoonAudioInputAdapter implements RoonPort {
   }
 
   private onCoreUnpaired(): void {
+    this.connectionEpoch++;
+    if(this.activePlaybackContext?.localRequest){this.localObservation(this.activePlaybackContext,'OWNERSHIP_LOST');this.clearPlaybackContext(this.activePlaybackContext.generation);}
     this.rejectPlaybackConfirmations(new BridgeError(
       'ROON_ZONE_NOT_SELECTED',
       'Roon Core disconnected before playback confirmation',
@@ -1555,13 +1583,21 @@ export class RoonAudioInputAdapter implements RoonPort {
 
   private storeZone(value: unknown): void {
     if (isRoonZone(value)) {
+      const previous=this.zones.get(value.zone_id),outputId=this.settings.output?.output_id;
+      const selected=previous?.zone_id===this.selectedZone?.zone_id || value.zone_id===this.selectedZone?.zone_id
+        || !!outputId && (previous?.outputs?.some(o=>o.output_id===outputId) || value.outputs?.some(o=>o.output_id===outputId));
+      if(selected && this.localTargetIdentity(previous)!==this.localTargetIdentity(value))this.localTargetEpoch++;
       this.zones.set(value.zone_id, value);
       this.zoneRevisions.set(value.zone_id, ++this.zoneRevision);
       this.zonePlaybackRevisions.set(value.zone_id, this.zoneRevision);
     }
   }
 
+  private localTargetIdentity(zone: RoonZone | undefined): string {
+    return JSON.stringify([zone?.zone_id,...(zone?.outputs ?? []).map(o=>o.output_id).sort()]);
+  }
   private updateSelectedZone(): void {
+    const previousIdentity=this.localTargetIdentity(this.selectedZone);
     const outputId = this.settings.output?.output_id;
     this.selectedZone = undefined;
 
@@ -1574,6 +1610,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       }
     }
 
+    if(previousIdentity!==this.localTargetIdentity(this.selectedZone))this.localTargetEpoch++;
     if (!this.core) {
       this.state = { status: 'discovering' };
       this.setStatus('discovering', 'Ready to pair', true);
@@ -1647,6 +1684,7 @@ export class RoonAudioInputAdapter implements RoonPort {
   }
 
   private operationZone(options: RoonOperationOptions, capturedZoneId?: string): RoonZone {
+    options.assertCurrent?.();
     if (options.signal?.aborted) throw cancelledOperation(options.signal);
     const zone = this.selectedZone;
     if (!zone || (options.expectedZoneId !== undefined && zone.zone_id !== options.expectedZoneId)
@@ -1677,7 +1715,7 @@ export class RoonAudioInputAdapter implements RoonPort {
     const transport = this.core.services.RoonApiTransport;
     await this.runTransportRequest(
       control,
-      (callback) => transport.control(zone, control, callback),
+      (callback) => this.sdkDispatch(options,()=>transport.control(zone, control, callback)),
       (cause) => new BridgeError('ROON_MEDIA_ERROR', `Roon transport ${control} failed`, {
         httpStatus: 502,
         ...(cause !== undefined ? { cause } : {}),

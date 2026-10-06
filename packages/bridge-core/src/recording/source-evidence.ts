@@ -1,3 +1,4 @@
+import { withLocalFactsMutation } from '../stream/local-source-fence.js';
 import path from 'node:path';
 import { isCollectionId, isSourceSelection, isSourceAction, isSourceConfirmation, type SourceRoot, type SourceBinding, type SourceSelection, type SourceAction, type SourceConfirmation, type DraftSourceSnapshot, type SourceFailure } from '@music-bridge/contracts';
 import { BridgeError } from '../shared/errors.js';
@@ -78,7 +79,7 @@ export function createSourceEvidenceService({ store, drafts, probe = probeReadon
     async rootReceipt(commandId: string) { if (!isCollectionId(commandId)) return invalid(); const root = store.rootReceipt(commandId); return { root: root ? await publicRoot(root) : null }; },
     async context(id: string) { if (!isCollectionId(id)) return invalid(); const root = store.root(id); if (await sourceRootAvailability(root) !== 'ONLINE') return invalid('源目录当前未授权或离线。'); return { absolutePath: root.path }; },
     async revoke(request: SourceAction) {
-      if (!isSourceAction(request)) return invalid(); const root = store.revoke(request);
+      if (!isSourceAction(request)) return invalid(); const root = await withLocalFactsMutation(() => { if (closed) return invalid('来源服务已关闭。'); return store.revoke(request); });
       for (const listener of revocationListeners) listener(root.id);
       for (const [id, job] of active) if (job.rootId === root.id) { store.fail(id, 'REVOKED'); job.controller.abort(); }
       return publicRoot(root);

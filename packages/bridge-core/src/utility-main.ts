@@ -111,6 +111,10 @@ async function dispatch(
     }
     return dispatchInternalDatasetCommand(runtime, request);
   }
+  if(request.command==='localCatalog.prepare' && runtime.playbackPlayLocal){
+    if(request.expectedDatasetId!==undefined){const identity=await runtime.datasetOwnerEndpoint?.prepare();if(!identity || identity.datasetId!==request.expectedDatasetId)throw new DatasetScopeError();}
+    return runtime.playbackPlayLocal(request.payload as import('@music-bridge/contracts').LocalPlayRequest);
+  }
   if (isDatasetCommand(request.command)) {
     return runtime.datasetOwnerEndpoint
       ? runtime.datasetOwnerEndpoint.dispatch(request)
@@ -623,8 +627,9 @@ export async function runCoreUtilityProcess(
           const source = createDatasetOwner({ projection: project as DatasetOwnerProjectionHandler, onFatal: () => {
             runtime?.getDatasetScanReadAdmission?.().close();
             projectionGateway?.close();
-            // 致命owner故障复用Main既有Core监督与冷启恢复，禁止在活Core里偷偷重开writer。
-            process.exit(72);
+            datasetOwnerEndpoint?.sealLocalSources?.();
+            // 先封派发，再join自有FD；退出不能抢在阻塞读取静止之前。
+            if(runtime)void runtime.shutdown().then(()=>process.exit(72),()=>process.exit(72));else process.exit(72);
           } });
           // 在能力准入前登记来源；同步拒绝配置时也必须清理已创建的 Node Owner。
           datasetOwnerEndpoint = source;
@@ -638,6 +643,11 @@ export async function runCoreUtilityProcess(
             ...(client.dispatchInternal === undefined ? {} : {
               dispatchInternal: (request: IpcRequest) => client.dispatchInternal!(request),
             }),
+            ...(client.captureLocalSource?{captureLocalSource: (selection:import('@music-bridge/contracts').LocalPlayRequest)=>client.captureLocalSource!(selection)}:{}),
+            ...(client.revalidateLocalSource?{revalidateLocalSource:(ticket:string)=>client.revalidateLocalSource!(ticket)}:{}),
+            ...(client.releaseLocalSource?{releaseLocalSource:(ticket:string)=>client.releaseLocalSource!(ticket)}:{}),
+            ...(client.sealLocalSources?{sealLocalSources:()=>client.sealLocalSources!()}:{}),
+            ...(client.isLocalSourceCurrent?{isLocalSourceCurrent:()=>client.isLocalSourceCurrent!()}:{}),
             commitBoot: () => client.commitBoot(),
             close: async () => {
               runtime?.getDatasetScanReadAdmission?.().close();

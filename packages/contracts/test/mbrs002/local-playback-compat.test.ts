@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { evaluateLocalPlaybackCompatibility, isLocalPlaybackObservationLeaf } from '../../src/local-playback-compat.js';
 const leaf = {"schema_version": "1.2", "request_id": "synthetic-request", "attempt_id": "synthetic-attempt", "intent_generation": "9007199254740993", "route": "roon_audio_input", "local_track_id": "synthetic-local", "asset_id": "synthetic-asset", "asset_revision": "1", "target": {"core_id": "synthetic-core", "zone_id": "synthetic-zone"}, "session_epoch": null, "phase": "PREPARING", "ownership": "MB_PENDING", "queue_owner": "NONE", "delivery_state": "NOT_STARTED", "roon_observation": {"event": "NONE", "observed": false, "correlation": "UNKNOWN"}, "position_ms": null, "quality": {"http_bytes": "NOT_TESTED", "signal_path": "NOT_TESTED", "digital_output": "NOT_TESTED", "gapless": "NOT_TESTED"}, "error_code": null};
-test('MBRS002 B4合同：legacy与compact-v1仅旧来源可兼容，local显式unsupported不产生投影', () => {
+test('MBRS002 B4合同及006增量：legacy拒绝local，compact-v1支持local并保留旧来源兼容', () => {
   for (const protocol of ['legacy','compact-v1']) {
     for (const source of ['roon','netease']) assert.deepEqual(evaluateLocalPlaybackCompatibility(protocol,source),{supported:true,protocol,source});
-    assert.deepEqual(evaluateLocalPlaybackCompatibility(protocol,'local_file'),{supported:false,code:'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED'});
+    assert.deepEqual(evaluateLocalPlaybackCompatibility(protocol,'local_file'),protocol==='legacy'
+      ? {supported:false,code:'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED'}
+      : {supported:true,protocol:'compact-v1',source:'local_file'});
   }
   assert.equal(evaluateLocalPlaybackCompatibility('local-v2','local_file').supported,false);
   assert.equal(evaluateLocalPlaybackCompatibility('compact-v1','smart').supported,false);

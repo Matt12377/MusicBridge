@@ -1,10 +1,10 @@
 /** 独立兼容接点：不能把结构合法提升为 Controller/Roon 观察真实性。 */
 export type LocalPlaybackCompatibility =
-  | { supported: true; protocol: 'legacy' | 'compact-v1'; source: 'roon' | 'netease' }
+  | { supported: true; protocol: 'legacy' | 'compact-v1'; source: 'roon' | 'netease' | 'local_file' }
   | { supported: false; code: 'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED' | 'PLAYBACK_PROTOCOL_UNSUPPORTED' | 'PLAYBACK_SOURCE_UNSUPPORTED' };
 export function evaluateLocalPlaybackCompatibility(protocol: unknown, source: unknown): LocalPlaybackCompatibility {
   if (protocol !== 'legacy' && protocol !== 'compact-v1') return { supported: false, code: 'PLAYBACK_PROTOCOL_UNSUPPORTED' };
-  if (source === 'local_file') return { supported: false, code: 'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED' };
+  if (source === 'local_file') return protocol === 'compact-v1' ? {supported:true,protocol,source} : { supported: false, code: 'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED' };
   if (source !== 'roon' && source !== 'netease') return { supported: false, code: 'PLAYBACK_SOURCE_UNSUPPORTED' };
   return { supported: true, protocol, source };
 }
