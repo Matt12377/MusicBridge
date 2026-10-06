@@ -1,0 +1,57 @@
+{
+  "schema": "mbrs005.execution-scope.v1",
+  "task": "MBRS-005",
+  "startedAt": "2026-10-06T03:56:34.333357+00:00",
+  "branch": "codex/mbrs-005-local-file-gateway",
+  "worktree": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-005-local-file-gateway",
+  "baseFinalReportCommit": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+  "previousImplementationCommit": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+  "previousDeliveryReceipt": {
+    "path": "docs/postrust/MBRS-005/PREVIOUS_DELIVERY_RECEIPT.json",
+    "sha256": "08bc66683e15b45f8ae30093b24990c2ad0c819bd79c0513aa035abcad41293c",
+    "allExpectedCiSuccess": true
+  },
+  "ownerInstruction": "持续开发到017 在适当的时候push github，完成一个task更新待办清单。根据开发任务的难易调整测试的规模 简单的任务不需要全量测试",
+  "goalThread": "01a10f14-9bf4-70b0-b61c-f112319bc385",
+  "taskStartAuthorization": [
+    "MBRS-005",
+    "MBRS-006",
+    "MBRS-007",
+    "MBRS-008",
+    "MBRS-009",
+    "MBRS-010",
+    "MBRS-011",
+    "MBRS-012",
+    "MBRS-013",
+    "MBRS-014",
+    "MBRS-015",
+    "MBRS-016",
+    "MBRS-017"
+  ],
+  "g0Resolution": "docs/postrust/RUST-016/ADMISSION_DECISION.json",
+  "originalTask": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-rust-core-015-i0qxwbi7/postrust-v1.2-readonly/MusicBridge_PostRust_Execution_Pack_v1.2/tasks/MBRS-005.md",
+    "sha256": "993466441e7a8e75aa63bdfed0508eef4c28644fc1dc422def804f86630ebc5b",
+    "acceptanceCount": 12,
+    "textAndKindsRetained": true
+  },
+  "testPolicy": "按风险选择定点行为/类型/构建与适用CI；源读、网络、跨Worker互斥为高风险；简单文档不自动全量。",
+  "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k",
+  "actors": {
+    "productWriter": "rules_writer",
+    "readOnly": [
+      "boundary_review",
+      "source_golden_audit"
+    ],
+    "integrator": "root",
+    "children": 3,
+    "descendants": 0
+  },
+  "realServices": "NOT_RUN_NOT_EXPANDED",
+  "sourceFileWrites": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+  "installation": "NOT_AUTHORIZED",
+  "mainMerge": "NOT_AUTHORIZED",
+  "release": "NOT_AUTHORIZED",
+  "newScaleRuns": "NOT_AUTHORIZED",
+  "originalHistorical25Timeouts": "PRESERVED_UNRESOLVED"
+}

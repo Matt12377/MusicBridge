@@ -1,0 +1,47 @@
+{
+  "schema": "mbrs005.gateway-scope.v1",
+  "baseSha": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+  "implementationComplete": true,
+  "countsConfirmed": true,
+  "groups": [
+    {
+      "name": "core-local-gateway",
+      "directory": "packages/bridge-core",
+      "expectedTests": 33,
+      "tests": [
+        "test/mbrs005/lifecycle.test.ts",
+        "test/mbrs005/http.test.ts",
+        "test/mbrs005/locks.test.ts",
+        "test/mbrs005/config-integration.test.ts",
+        "test/mbrs005/observation-binding.test.ts"
+      ]
+    },
+    {
+      "name": "core-affected-regression",
+      "directory": "packages/bridge-core",
+      "expectedTests": 64,
+      "tests": [
+        "test/gateway.test.ts",
+        "test/config.test.ts",
+        "test/registry.test.ts",
+        "test/source-evidence.test.ts",
+        "test/mbrs002/local-source-resolver.test.ts"
+      ]
+    },
+    {
+      "name": "desktop-private-bootstrap",
+      "directory": "apps/desktop",
+      "expectedTests": 6,
+      "tests": [
+        "test/dataset-owner-bootstrap.test.ts",
+        "test/mbrs005-dataset-owner-bootstrap.test.ts"
+      ]
+    }
+  ],
+  "stageCount": 9,
+  "newTaskTests": 34,
+  "inheritedRegressionTests": 69,
+  "freshOutputs": 20,
+  "actualRoonLanAudio": "NOT_RUN",
+  "new100k300k": "NOT_RUN"
+}

@@ -1,0 +1,123 @@
+{
+  "schema": "mbrs005.local-software-validation.v1",
+  "baseFinalReportCommit": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+  "workingTreeSourceBytesValidated": true,
+  "implementationCommit": null,
+  "implementationCommitResolution": "源实现提交后用Git blob逐项绑定1155份声明输入；不是重跑Gate",
+  "gateManifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/gate-final-01/manifest.json",
+    "bytes": 232902,
+    "sha256": "30f33f9289fc0ee9a68a3752a76c1e3769f3f948de3b978f1de93444f53446a7"
+  },
+  "gateExitCode": 0,
+  "stages": 9,
+  "functionalTests": 103,
+  "newTaskTests": 34,
+  "inheritedRegressionTests": 69,
+  "pass": 103,
+  "fail": 0,
+  "skipped": 0,
+  "declaredSourceInputs": 1155,
+  "inputsUnchanged": true,
+  "freshOutputsInGate": 20,
+  "outputsUnchangedWithinGate": true,
+  "transitiveDependencyClosure": false,
+  "desktopProductionBuild": {
+    "receipt": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/desktop-production-final-01/result.json",
+      "bytes": 860,
+      "sha256": "de7a44ad39112fb22d0b70f24f9f9e1e2b8310616f4f17058ffe9acc6eb951c5"
+    },
+    "exitCode": 0,
+    "logSha256": "7bd5626ed6eb483d418cac60be2838d2999c76c1a91f2999b65cf33fb4b3f0e2"
+  },
+  "preloadDependencyGate": "PASS_REQUIRE_ELECTRON_ONLY",
+  "runnerCiTests": 29,
+  "checks": {
+    "ci-and-gate-tests-02": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/ci-and-gate-tests-02/result.json",
+        "bytes": 931,
+        "sha256": "7a52fe0fca2018bfcfcadaeb9ec0adad69ec8f56629427a285ff0a408ff64898"
+      },
+      "exitCode": 0,
+      "logSha256": "ab0016b702d543e23d8db8408e570254341b801d81a790d7e0ad0afcd0bd7c11"
+    },
+    "control-plane-final-01": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/control-plane-final-01/result.json",
+        "bytes": 798,
+        "sha256": "e25e765bc78f7ada6be59f2093528e58483d4bc497d02070bb3ec50be6e7b796"
+      },
+      "exitCode": 0,
+      "logSha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+    },
+    "boundaries-final-01": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/boundaries-final-01/result.json",
+        "bytes": 790,
+        "sha256": "959a91c43536bb0ec930ea4543ce8dd88325b1b525bd23352963e68f1a025ca4"
+      },
+      "exitCode": 0,
+      "logSha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+    },
+    "cycles-final-02": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/cycles-final-02/result.json",
+        "bytes": 778,
+        "sha256": "92c85940c76e29e4b99d4f5aa08ebf93ca6b5311bafdb5d0ee2cab549d70ec86"
+      },
+      "exitCode": 0,
+      "logSha256": "a50ca653f56b876f3b03c6b14ef1f09d218679db173900acb10609e94e489cdc"
+    },
+    "gateway-final-01": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/gateway-final-01/result.json",
+        "bytes": 889,
+        "sha256": "05aa4bee36218e380309e6d0439c1cf1dca49181797ae8343a24e3ae61dfe8cc"
+      },
+      "exitCode": 0,
+      "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "desktop-production-final-01": {
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/desktop-production-final-01/result.json",
+        "bytes": 860,
+        "sha256": "de7a44ad39112fb22d0b70f24f9f9e1e2b8310616f4f17058ffe9acc6eb951c5"
+      },
+      "exitCode": 0,
+      "logSha256": "7bd5626ed6eb483d418cac60be2838d2999c76c1a91f2999b65cf33fb4b3f0e2"
+    }
+  },
+  "reviews": {
+    "writer/WRITER_FREEZE_FINAL.json": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/writer/WRITER_FREEZE_FINAL.json",
+      "bytes": 8668,
+      "sha256": "fd86fb72ebdbc6a4277bc719adae2274de191c2fa85bd26ef1d83b5a2fdbeb8a"
+    },
+    "boundary-review-02/REVIEW_02.json": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/boundary-review-02/REVIEW_02.json",
+      "bytes": 7296,
+      "sha256": "93854cebfeff89e14dcf7ab2c01ec56a1049415db508c669965db742434dbb6d"
+    },
+    "ci-review-01/REVIEW.json": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/ci-review-01/REVIEW.json",
+      "bytes": 7167,
+      "sha256": "62f2875b68fbc8123bcb5a331bab633ca2b025dab93e5ec611c021fc57055dee"
+    }
+  },
+  "preservedFailures": {
+    "cycleBeforeTypeLeafSplit": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k/checks/cycles-final-01/result.json",
+      "bytes": 778,
+      "sha256": "bbb9a4911b3925601b29c8cf3699f2a6515d1f6132266b1b7324f17a788b2a40"
+    },
+    "meaningfulObservationRed": "writer/r1-observation-red.log 六项失败 → r1-observation-green.log六项通过"
+  },
+  "sourceIdentityScope": "DECLARED_INPUTS_AND_WITHIN_GATE_OUTPUTS_NOT_FULL_TRANSITIVE_DEPENDENCY_CLOSURE",
+  "postGateDesktopBuild": "另一次桌面production编译使用相同源码，metadata Worker fresh receipt按其时间更新；不声称旧Gate输出在所有后续构建后仍逐字保持",
+  "new100k300kStarted": false,
+  "realAccountsRoonLanNasAudio": "NOT_RUN",
+  "ordinaryApp": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN"
+}

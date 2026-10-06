@@ -31807,7 +31807,7 @@
         "MBRS-001",
         "MBRS-002"
       ],
-      "status": "NOT_STARTED",
+      "status": "LOCAL_SOFTWARE_COMPLETE_WITH_LIVE_CARRYOVER",
       "implementation_owner": "MBRS-005",
       "goal": "在已有HTTP基础增加本地数据来源，不放松远程上游安全规则。",
       "steps": [
@@ -31846,8 +31846,17 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "NOT_RUN",
-      "evidence_refs": []
+      "validation_status": "TARGETED_103_GATE_AND_BUILD_PASS_SOURCE_CI_PENDING",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json",
+        "docs/postrust/MBRS-005/NETWORK_ACCESS.md"
+      ],
+      "branch": "codex/mbrs-005-local-file-gateway",
+      "base_final_report_commit": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+      "task_scope": "tasks/MBRS-005_LOCAL_FILE_GATEWAY.md",
+      "implementation_commit_resolution": "git log -1 --format=%H -- packages/bridge-core/src/stream/local-file-source.ts",
+      "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-005_LOCAL_FILE_GATEWAY.md",
+      "report_path": "reports/MBRS-005_LOCAL_FILE_GATEWAY.md"
     },
     {
       "id": "MBRS-006",
@@ -32999,12 +33008,16 @@
       "requirement": "完整GET与源文件同hash，任意受测Range与准确切片一致，HEAD无body。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS_SOFTWARE",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅当前软件/自有合成HTTP与FD行为证据，不认证App/live/Owner",
+      "evidence_scope": "OWN_SYNTHETIC_FILES_REAL_HTTP_FD_WORKER_AND_CONTROLLED_AUTHORITY_NOT_REAL_SERVICES"
     },
     {
       "id": "MBRS-AT-005-02",
@@ -33013,12 +33026,16 @@
       "requirement": "206/416/Content-Range/Length/后缀和开放Range正确，大整数/畸形多range有界。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS_SOFTWARE",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅当前软件/自有合成HTTP与FD行为证据，不认证App/live/Owner",
+      "evidence_scope": "OWN_SYNTHETIC_FILES_REAL_HTTP_FD_WORKER_AND_CONTROLLED_AUTHORITY_NOT_REAL_SERVICES"
     },
     {
       "id": "MBRS-AT-005-03",
@@ -33027,12 +33044,16 @@
       "requirement": "If-Range和validator策略正确，不把新版文件放到旧lease；弱证据不冒充强ETag。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS_SOFTWARE",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅当前软件/自有合成HTTP与FD行为证据，不认证App/live/Owner",
+      "evidence_scope": "OWN_SYNTHETIC_FILES_REAL_HTTP_FD_WORKER_AND_CONTROLLED_AUTHORITY_NOT_REAL_SERVICES"
     },
     {
       "id": "MBRS-AT-005-04",
@@ -33041,12 +33062,16 @@
       "requirement": "任意path/URL、路径逃逸、链接越界、未授权根、无效secret与非GET/HEAD被拒绝。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS_SOFTWARE",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅当前软件/自有合成HTTP与FD行为证据，不认证App/live/Owner",
+      "evidence_scope": "OWN_SYNTHETIC_FILES_REAL_HTTP_FD_WORKER_AND_CONTROLLED_AUTHORITY_NOT_REAL_SERVICES"
     },
     {
       "id": "MBRS-AT-005-05",
@@ -33055,12 +33080,16 @@
       "requirement": "只有媒体读服务按批准LAN设置开放，控制IPC不外泄；日志/渲染层无secret。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+      ],
+      "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "只验证可信媒体配置拒绝、私有token及控制隔离；实际LAN部署未运行",
+      "evidence_scope": "OWN_SYNTHETIC_FILES_REAL_HTTP_FD_WORKER_AND_CONTROLLED_AUTHORITY_NOT_REAL_SERVICES"
     },
     {
       "id": "MBRS-AT-005-06",
@@ -33070,11 +33099,15 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+      ],
+      "software_status": "NOT_APPLICABLE_LIVE_ROON",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "原live_roon kind保持，实际Core探测/拉流/seek/音频未运行，交006及最终真实验收",
+      "evidence_scope": "OWN_SYNTHETIC_FILES_REAL_HTTP_FD_WORKER_AND_CONTROLLED_AUTHORITY_NOT_REAL_SERVICES"
     },
     {
       "id": "MBRS-AT-005-07",
@@ -33083,12 +33116,16 @@
       "requirement": "暂停跨闲置期恢复、有限预取/取消与正常终态后lease资源正确。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+      ],
+      "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "合成confirmed会话、有限池、暂停续期、quiet后取消已证；真实Controller与预取归006/007",
+      "evidence_scope": "OWN_SYNTHETIC_FILES_REAL_HTTP_FD_WORKER_AND_CONTROLLED_AUTHORITY_NOT_REAL_SERVICES"
     },
     {
       "id": "MBRS-AT-005-08",
@@ -33097,12 +33134,16 @@
       "requirement": "文件改名/替换/截断、NAS离线、连接断开不混合字节、不泄露句柄或无限重试。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+      ],
+      "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "自有FS替换/截断/断连和受控read错误已证；真实NAS离线未运行",
+      "evidence_scope": "OWN_SYNTHETIC_FILES_REAL_HTTP_FD_WORKER_AND_CONTROLLED_AUTHORITY_NOT_REAL_SERVICES"
     },
     {
       "id": "MBRS-AT-005-09",
@@ -33111,12 +33152,16 @@
       "requirement": "活跃/暂停读lease与写入独占互斥，确认后开始播放也能阻止源写操作。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+      ],
+      "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "共享SAB/真实Worker/自有FD与独占准入互斥已证；真实确认会话与Organizer源写未启用",
+      "evidence_scope": "OWN_SYNTHETIC_FILES_REAL_HTTP_FD_WORKER_AND_CONTROLLED_AUTHORITY_NOT_REAL_SERVICES"
     },
     {
       "id": "MBRS-AT-005-10",
@@ -33125,12 +33170,16 @@
       "requirement": "大文件和重复Range无随文件长度增长的常驻内存，慢读取不会阻塞UI控制。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+      ],
+      "software_status": "PASS_WITH_EXPLICIT_SCOPE_LIMIT",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "128MiB稀疏文件与64KiB块、背压和异步控制已证；实际UI慢NAS/长时驻留未运行",
+      "evidence_scope": "OWN_SYNTHETIC_FILES_REAL_HTTP_FD_WORKER_AND_CONTROLLED_AUTHORITY_NOT_REAL_SERVICES"
     },
     {
       "id": "MBRS-AT-006-01",
@@ -34542,12 +34591,16 @@
       "requirement": "跨根别名、硬链接和共享cover资源通过统一物理资源身份协调读写，单按asset_id加锁不能绕过保护。",
       "release_scope": "CORE",
       "introduced_in": "1.2",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS_SOFTWARE",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅当前软件/自有合成HTTP与FD行为证据，不认证App/live/Owner",
+      "evidence_scope": "OWN_SYNTHETIC_FILES_REAL_HTTP_FD_WORKER_AND_CONTROLLED_AUTHORITY_NOT_REAL_SERVICES"
     },
     {
       "id": "MBRS-AT-005-12",
@@ -34556,12 +34609,16 @@
       "requirement": "PREPARED租约可在SessionBegan前存在，ACTIVE/PAUSED绑定已确认会话；旧attempt不能重新激活。",
       "release_scope": "CORE",
       "introduced_in": "1.2",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PASS_SOFTWARE",
+      "evidence_refs": [
+        "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "limitation": "仅当前软件/自有合成HTTP与FD行为证据，不认证App/live/Owner",
+      "evidence_scope": "OWN_SYNTHETIC_FILES_REAL_HTTP_FD_WORKER_AND_CONTROLLED_AUTHORITY_NOT_REAL_SERVICES"
     },
     {
       "id": "MBRS-AT-006-10",

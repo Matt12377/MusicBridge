@@ -9,6 +9,25 @@ import type { PlaybackQualityPreference } from '@music-bridge/contracts';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+export interface TrustedLocalMediaNetwork { readonly bindAddress: string; readonly port: number; readonly advertisedBaseUrl: string; readonly allowedPeers: readonly string[] }
+const trustedMediaNetworks = new WeakSet<object>();
+const privateIpv4 = (value: string): boolean => {
+  const numbers = value.split('.').map(Number);
+  return /^\d{1,3}(?:\.\d{1,3}){3}$/u.test(value) && numbers.every(n => n >= 0 && n <= 255)
+    && (numbers[0] === 10 || numbers[0] === 192 && numbers[1] === 168 || numbers[0] === 172 && numbers[1]! >= 16 && numbers[1]! <= 31);
+};
+/** 仅可信Core启动源码选择此接口；环境/Renderer不能自动启用LAN。 */
+export function createTrustedLocalMediaNetwork(input: TrustedLocalMediaNetwork): TrustedLocalMediaNetwork {
+  let url: URL; try { url = new URL(input.advertisedBaseUrl); } catch { throw new BridgeError('CONFIG_INVALID', '本地媒体网络配置无效'); }
+  if (!privateIpv4(input.bindAddress) || !Number.isSafeInteger(input.port) || input.port < 1 || input.port > 65535
+    || url.protocol !== 'http:' || url.hostname !== input.bindAddress || Number(url.port || 80) !== input.port || url.username || url.password
+    || url.pathname !== '/' || url.search || url.hash || !Array.isArray(input.allowedPeers) || input.allowedPeers.length < 1 || input.allowedPeers.length > 16
+    || input.allowedPeers.some(peer => !privateIpv4(peer))) throw new BridgeError('CONFIG_INVALID', '本地媒体网络配置无效');
+  const result = Object.freeze({ bindAddress: input.bindAddress, port: input.port, advertisedBaseUrl: url.origin, allowedPeers: Object.freeze([...input.allowedPeers]) });
+  trustedMediaNetworks.add(result); return result;
+}
+export const isTrustedLocalMediaNetwork = (value: unknown): value is TrustedLocalMediaNetwork => typeof value === 'object' && value !== null && trustedMediaNetworks.has(value);
+
 export interface BridgeConfig {
   mode: RemoteCoreMode;
   controlHost: string;

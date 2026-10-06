@@ -1,0 +1,180 @@
+import { execFileSync } from 'node:child_process';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const equal = (a, b) => JSON.stringify(sortObject(a)) === JSON.stringify(sortObject(b));
+function sortObject(value) {
+  if (Array.isArray(value)) return value.map(sortObject);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.keys(value).sort().map(key => [key, sortObject(value[key])]));
+}
+const without = (value, fields) => Object.fromEntries(Object.entries(value ?? {}).filter(([key]) => !fields.includes(key)));
+const statusFields = ['state', 'implementationCommit', 'implementationCommitResolution', 'reportCommit',
+  'reportCommitResolution', 'report', 'evidence', 'push', 'ci', 'updatedAt', 'finalDeliveryReceipt',
+  'nextTask', 'nextBranchBaseline'];
+const taskFields = ['status', 'implementation_commit', 'implementation_commit_resolution', 'report_commit',
+  'report_commit_resolution', 'report_path', 'validation_status', 'evidence_refs', 'terminal_ci_receipt'];
+
+/** 报告路径白名单之外，机器授权/范围/验收层级也须保持；未知字段改变回退完整检查。 */
+export function classifyReportChanges({ task, parent, beforeStatus, afterStatus, beforePlan, afterPlan, changes }) {
+  if (!/^MBRS-0(?:0[5-9]|1[0-7])$/u.test(task) || !/^[a-f0-9]{40}$/u.test(parent)
+    || beforeStatus.currentPostRustTask !== task || afterStatus.currentPostRustTask !== task
+    || !Array.isArray(changes) || !changes.length) return false;
+  const keys = Object.keys(afterStatus).filter(key => afterStatus[key]?.task === task);
+  if (keys.length !== 1) return false;
+  const key = keys[0], before = beforeStatus[key], after = afterStatus[key];
+  if (!before || after.implementationCommit !== parent || !equal(without(before, statusFields), without(after, statusFields))
+    || !equal(without(beforeStatus, [key]), without(afterStatus, [key]))) return false;
+  if (!Array.isArray(beforePlan.tasks) || !Array.isArray(afterPlan.tasks)
+    || !Array.isArray(beforePlan.acceptance_cases) || !Array.isArray(afterPlan.acceptance_cases)) return false;
+  const normalizePlan = plan => ({
+    ...plan,
+    tasks: plan.tasks.map(row => row.id === task ? without(row, taskFields) : row),
+    acceptance_cases: plan.acceptance_cases.map(row => row.task === task ? without(row, ['evidence_refs']) : row),
+  });
+  if (!equal(normalizePlan(beforePlan), normalizePlan(afterPlan))) return false;
+  const code = task.slice(-3);
+  let reportPresent = false;
+  for (const entry of changes) {
+    if (!['A', 'M'].includes(entry.status) || entry.newMode !== '100644'
+      || entry.status === 'M' && entry.oldMode !== '100644'
+      || entry.status === 'A' && entry.oldMode !== '000000') return false;
+    const name = entry.path;
+    const report = new RegExp('^reports/' + task + '_[A-Z0-9_]+\\.(?:md|json)$', 'u').test(name);
+    const evidence = new RegExp('^docs/postrust/' + task + '/evidence/[A-Za-z0-9_-]+\\.(?:json|md)$', 'u').test(name);
+    const metadata = ['project/STATUS.json', 'project/POSTRUST_PLAN.json',
+      'project/POSTRUST_TODO.md', 'project/POSTRUST_PROGRESS.md'].includes(name);
+    if (!report && !evidence && !metadata) return false;
+    if (report) reportPresent = true;
+  }
+  return reportPresent && code !== '';
+}
+
+/** 使用原始模式，拒绝删改类型、链接、可执行“文档”和重命名。 */
+export function parseRawDiff(raw) {
+  const fields = raw.split('\0'), entries = [];
+  for (let i = 0; fields[i]; i += 2) {
+    const match = /^:(\d{6}) (\d{6}) [a-f0-9]+ [a-f0-9]+ ([A-Z])$/u.exec(fields[i]);
+    if (!match || !fields[i + 1]) throw new Error('REPORT_DIFF_UNKNOWN');
+    entries.push({ oldMode: match[1], newMode: match[2], status: match[3], path: fields[i + 1] });
+  }
+  return entries;
+}
+
+const workflowPaths = ['.github/workflows/verify.yml', '.github/workflows/security.yml',
+  '.github/workflows/rust-core.yml', '.github/workflows/electron-e2e.yml'];
+const requiredSteps = {
+  '.github/workflows/verify.yml': ['Verify platform-independent workspace (typecheck, unit tests, build; no Electron)',
+    'Production dependency audit'],
+  '.github/workflows/security.yml': ['Run directed platform-independent security tests (no Electron)'],
+  '.github/workflows/rust-core.yml': ['验证实际 Rust 与 TypeScript 边界'],
+  '.github/workflows/electron-e2e.yml': ['Electron startup, crash/restart, safeStorage vault and credential recovery gates',
+    'Electron end-to-end flow (Playwright, production build)'],
+};
+export function validateParentCi({ task, repositoryId, parent, branch, runs, proofs, now = Date.now() }) {
+  if (!/^MBRS-0(?:0[5-9]|1[0-7])$/u.test(task) || !Number.isSafeInteger(repositoryId) || repositoryId < 1 || !/^[a-f0-9]{40}$/u.test(parent)
+    || !Array.isArray(runs) || !Array.isArray(proofs)) return false;
+  for (const file of workflowPaths) {
+    const candidates = runs.filter(run => run.path === file && run.head_sha === parent && run.head_branch === branch && run.event === 'push');
+    if (candidates.length !== 1) return false;
+    const run = candidates[0], proof = proofs.find(value => value.runId === run.id);
+    if (run.status !== 'completed' || run.conclusion !== 'success' || run.run_attempt !== 1
+      || run.repository?.id !== repositoryId || run.head_repository?.id !== repositoryId || !proof
+      || !Array.isArray(proof.jobs) || !proof.jobs.length
+      || proof.jobs.some(job => job.run_id !== run.id || job.head_sha !== parent
+        || job.status !== 'completed' || job.conclusion !== 'success')) return false;
+    if (requiredSteps[file].some(name => !proof.jobs.some(job => job.steps?.some(step => step.name === name && step.conclusion === 'success')))) return false;
+    // 每个任务都必须有自己的成功Gate，不能把前一任务的成功当作新任务结果。
+    if (file.endsWith('/verify.yml') && !proof.jobs.some(job => job.steps?.some(step =>
+      new RegExp('^MBRS' + task.slice(-3) + '(?:\\s|$)', 'u').test(step.name ?? '') && step.conclusion === 'success'))) return false;
+    if (file === '.github/workflows/rust-core.yml'
+      && (proof.jobs.length !== 2 || proof.jobs.some(job => !job.steps?.some(step => step.name === requiredSteps[file][0] && step.conclusion === 'success')))) return false;
+    const artifacts = proof.artifacts;
+    const names = file.endsWith('/verify.yml') ? ['verify-' + parent]
+      : file.endsWith('/rust-core.yml') ? ['rust-core-ubuntu-latest-' + parent, 'rust-core-macos-latest-' + parent]
+        : file.endsWith('/electron-e2e.yml') ? ['electron-e2e-' + parent, 'rust-host-compiled-' + parent] : [];
+    if (names.length && !Array.isArray(artifacts)) return false;
+    for (const name of names) {
+      const matching = artifacts.filter(artifact => artifact.name === name);
+      if (matching.length !== 1) return false;
+      const artifact = matching[0];
+      if (!Number.isSafeInteger(artifact.id) || artifact.id < 1 || artifact.expired !== false
+        || !/^sha256:[a-f0-9]{64}$/u.test(artifact.digest ?? '') || Date.parse(artifact.expires_at) <= now
+        || !Number.isFinite(Date.parse(artifact.expires_at)) || artifact.workflow_run?.id !== run.id
+        || artifact.workflow_run?.head_sha !== parent || artifact.workflow_run?.repository_id !== repositoryId
+        || artifact.workflow_run?.head_repository_id !== repositoryId) return false;
+    }
+  }
+  return true;
+}
+
+export async function inspectReportOnly(env = process.env, directory = root, getJson) {
+  const full = reason => ({ mode: 'full', reason, productResultsReused: false });
+  if (env.GITHUB_ACTIONS !== 'true' || env.RUNNER_ENVIRONMENT !== 'github-hosted'
+    || env.GITHUB_EVENT_NAME !== 'push' || env.GITHUB_API_URL !== 'https://api.github.com'
+    || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(env.GITHUB_REPOSITORY ?? '')
+    || !/^[a-f0-9]{40}$/u.test(env.GITHUB_SHA ?? '')) return full('NOT_PUBLIC_HOSTED_PUSH_CONTEXT');
+  const git = args => execFileSync('git', args, { cwd: directory, encoding: 'utf8', timeout: 10000, maxBuffer: 4 * 1024 * 1024 });
+  try {
+    if (git(['rev-parse', 'HEAD']).trim() !== env.GITHUB_SHA || git(['status', '--porcelain']).trim()) return full('CHECKOUT_NOT_PINNED_CLEAN');
+    const parents = git(['rev-list', '--parents', '-n', '1', 'HEAD']).trim().split(' ');
+    if (parents.length !== 2) return full('NOT_SINGLE_PARENT');
+    const parent = parents[1], branch = git(['branch', '--show-current']).trim() || env.GITHUB_REF_NAME;
+    const json = (revision, name) => JSON.parse(git(['show', revision + ':' + name]));
+    const afterStatus = json('HEAD', 'project/STATUS.json'), task = afterStatus.currentPostRustTask;
+    if (!classifyReportChanges({ task, parent, afterStatus, beforeStatus: json(parent, 'project/STATUS.json'),
+      afterPlan: json('HEAD', 'project/POSTRUST_PLAN.json'), beforePlan: json(parent, 'project/POSTRUST_PLAN.json'),
+      changes: parseRawDiff(git(['diff', '--raw', '-z', '--no-renames', parent, 'HEAD'])) })) return full('SOURCE_SCOPE_OR_AUTHORITY_CHANGED');
+    const started = performance.now();
+    const api = getJson ?? (async route => {
+      if (performance.now() - started >= 90000) throw new Error('REPORT_API_BUDGET');
+      // 当前仓库为公开仓库。仅用公开只读API，不增加workflow token权限，也不传任何凭据。
+      const response = await fetch('https://api.github.com/repos/' + env.GITHUB_REPOSITORY + route, {
+        headers: { Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!response.ok) throw new Error('REPORT_API_UNAVAILABLE');
+      const text = await response.text(); if (text.length > 2 * 1024 * 1024) throw new Error('REPORT_API_OVERFLOW');
+      return JSON.parse(text);
+    });
+    const repo = await api(''); if (!Number.isSafeInteger(repo.id) || repo.private !== false || repo.full_name !== env.GITHUB_REPOSITORY) return full('REPOSITORY_IDENTITY_UNKNOWN');
+    const listing = await api('/actions/runs?head_sha=' + parent + '&event=push&per_page=100');
+    if (!Number.isSafeInteger(listing.total_count) || listing.total_count > 100 || listing.total_count !== listing.workflow_runs?.length) return full('RUN_LIST_INCOMPLETE');
+    const runs = listing.workflow_runs, selected = workflowPaths.map(file => runs.filter(run => run.path === file));
+    if (selected.some(items => items.length !== 1)) return full('REQUIRED_SOURCE_RUN_MISSING_OR_AMBIGUOUS');
+    const proofs = [];
+    for (const [run] of selected) {
+      const jobs = await api('/actions/runs/' + run.id + '/attempts/1/jobs?per_page=100');
+      if (!Number.isSafeInteger(jobs.total_count) || jobs.total_count > 100 || jobs.total_count !== jobs.jobs?.length) return full('JOB_LIST_INCOMPLETE');
+      let artifacts = [];
+      if (!run.path.endsWith('/security.yml')) {
+        const listing = await api('/actions/runs/' + run.id + '/artifacts?per_page=100');
+        if (!Number.isSafeInteger(listing.total_count) || listing.total_count > 100 || listing.total_count !== listing.artifacts?.length) return full('ARTIFACT_LIST_INCOMPLETE');
+        artifacts = listing.artifacts;
+      }
+      proofs.push({ runId: run.id, jobs: jobs.jobs, artifacts });
+    }
+    if (!validateParentCi({ task, repositoryId: repo.id, parent, branch, runs, proofs })) return full('PARENT_PRODUCT_GATE_NOT_PROVEN');
+    return { schema: 'musicbridge.report-only-ci.v1', mode: 'report-only', reason: 'EXACT_PARENT_PRODUCT_CI_SUCCESS',
+      task, reportSha: env.GITHUB_SHA, parentSourceSha: parent, repositoryId: repo.id,
+      productResultsReused: true, artifactContentDownloaded: false,
+      evidenceScope: 'PUBLIC_PLATFORM_PRODUCER_AND_ARTIFACT_DIGEST_METADATA_NOT_CONTENT_VALIDATION',
+      workflows: proofs.map(proof => ({ runId: proof.runId, jobIds: proof.jobs.map(job => job.id),
+        artifacts: proof.artifacts.map(({ id, name, digest, expired }) => ({ id, name, digest, expired })) })) };
+  } catch { return full('UNKNOWN_IDENTITY_OR_API_STATE'); }
+}
+
+async function main() {
+  const result = await inspectReportOnly();
+  const output = process.env.GITHUB_OUTPUT;
+  if (output) writeFileSync(output, 'mode=' + result.mode + '\n', { flag: 'a' });
+  const evidence = process.env.RUNNER_TEMP;
+  if (evidence && process.env.GITHUB_ACTIONS === 'true' && process.env.RUNNER_ENVIRONMENT === 'github-hosted') {
+    const directory = path.join(evidence, 'musicbridge-verify'); mkdirSync(directory, { recursive: true, mode: 0o700 });
+    writeFileSync(path.join(directory, 'report-only-admission.json'), JSON.stringify(result, null, 2) + '\n', { mode: 0o600 });
+  }
+  console.log('CI_MODE=' + result.mode + ' reason=' + result.reason);
+}
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) main().catch(() => { process.exitCode = 1; });

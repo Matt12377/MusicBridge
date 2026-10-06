@@ -4,13 +4,18 @@ import { isLocalPlayRequest, isLocalPlayTarget, isAudioAsset, isLibraryRoot, isL
 import type { CollectionRepository } from '../collection/repository.js';
 import type { RootCapability } from '../recording/source-files.js';
 import type { ResolvedAudioStream } from '../netease/types.js';
-import type { StreamResolver, StreamResolveRequest } from '../stream/registry.js';
+import type { StreamResolver, StreamResolveRequest } from '../stream/resolver-types.js';
 
 /** 合成UNIT可提供；生产来源与原Controller currentness在006接入，此类型不认证origin。 */
 export interface LocalSourceAuthority {
   captureCurrentTarget(): { target: LocalPlayTarget; isCurrent(): boolean } | null;
 }
-export interface LocalSourceFacts { track: LocalTrack; asset: AudioAsset; root: LibraryRoot; sourceRoot: RootCapability; relative: string }
+/** 唯一Owner扫描stat证据与本次逻辑选择的绑定；只在Node私有通路流动。 */
+export interface LocalSourceObservation {
+  signature: string; assetId: string; trackId: string; libraryRootId: string; sourceRootId: string;
+  fileRevision: string; rootRevision: string; locationRevision: string; selectionRevision: string;
+}
+export interface LocalSourceFacts { track: LocalTrack; asset: AudioAsset; root: LibraryRoot; sourceRoot: RootCapability; relative: string; observation?: LocalSourceObservation }
 /** Node私有描述符：没有FD/lease/HTTP/session/Playing；locator不进入公开合同。 */
 export interface PreparedLocalSource {
   source_kind: 'local_file'; status: 'prepared_descriptor'; request_id: string;
@@ -40,7 +45,21 @@ function facts(repository: CollectionRepository, request: LocalPlayRequest): Loc
     || track.assetId !== asset.id || asset.fileRevision !== request.expected_asset_revision
     || root.id !== asset.libraryRootId || root.revision !== asset.rootRevision || root.sourceRootId !== asset.sourceRootId) return fail('FACTS_CHANGED');
   if (!rootShape(sourceRoot, root.sourceRootId) || sourceRoot.authorized !== true) return fail('UNAUTHORIZED_ROOT');
-  return { track: { ...track, segment: track.segment === null ? null : { ...track.segment } }, asset: { ...asset }, root: { ...root }, sourceRoot: { ...sourceRoot }, relative: locator.relative };
+  // 未扫描的002逻辑descriptor不因同名独立asset丢失原有表达能力；它没有005读取资格。
+  // 先确认此位置确有扫描事实，再由受当前locator约束的接点取得物理观察，绝不回退到旧path历史。
+  const observed = repository.localScan.privateFileState(root.id, locator.relative)
+    ? repository.localScan.privateCurrentFileState(root.id, locator.relative) : null;
+  let observation: LocalSourceObservation | undefined;
+  if (observed?.value.outcome === 'accepted' && observed.value.assetId === asset.id && observed.value.trackId === track.id) {
+    const job = repository.localScan.get(observed.jobId);
+    if (job.rootRevision === root.revision && job.sourceRootId === sourceRoot.id) observation = {
+      signature: observed.value.signature, assetId: asset.id, trackId: track.id, libraryRootId: root.id, sourceRootId: sourceRoot.id,
+      fileRevision: asset.fileRevision, rootRevision: root.revision, locationRevision: asset.locationRevision, selectionRevision: track.selectionRevision,
+    };
+  }
+  // 002的纯descriptor可以没有扫描观察；005取得FD资格时必须拒绝这种未证明输入。
+  return { track: { ...track, segment: track.segment === null ? null : { ...track.segment } }, asset: { ...asset }, root: { ...root }, sourceRoot: { ...sourceRoot }, relative: locator.relative,
+    ...(observation ? { observation } : {}) };
 }
 export function prepareLocalSourceReadonly(request: unknown, repository: CollectionRepository, authority?: LocalSourceAuthority, previous?: PreparedLocalSource): PreparedLocalSource | LocalSourceUnsupported {
   if (!isLocalPlayRequest(request)) return fail('INVALID_REQUEST');

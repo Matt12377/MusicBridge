@@ -5856,7 +5856,7 @@
     "overallReleaseApproved": false,
     "securityBaselineBlocker": "INHERITED_PRODUCTION_NODE_FORGE_HIGH_AUDIT_FAILURE_NOT_CLOSED"
   },
-  "currentPostRustTask": "MBRS-004",
+  "currentPostRustTask": "MBRS-005",
   "postRustBaseline20261004": {
     "task": "MBRS-000",
     "state": "baseline-delivered-g0-not-admitted",
@@ -45850,5 +45850,53 @@
     "terminalCiResolution": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs004-v39-IxGZaG/FINAL_DELIVERY_RECEIPT.json",
     "nextTask": "MBRS-005",
     "nextTaskStarted": false
+  },
+  "postRustLocalFileGateway20261006": {
+    "task": "MBRS-005",
+    "state": "LOCAL_SOFTWARE_COMPLETE_SOURCE_CI_PENDING_WITH_LIVE_CARRYOVER",
+    "branch": "codex/mbrs-005-local-file-gateway",
+    "baseFinalReportCommit": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "taskScope": "tasks/MBRS-005_LOCAL_FILE_GATEWAY.md",
+    "executionScope": "docs/postrust/MBRS-005/EXECUTION_SCOPE.json",
+    "evidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs005-zfe0d69k",
+    "ownerAuthorization": "持续开发到017 在适当的时候push github，完成一个task更新待办清单。根据开发任务的难易调整测试的规模 简单的任务不需要全量测试",
+    "previousDeliveryReceipt": "docs/postrust/MBRS-005/PREVIOUS_DELIVERY_RECEIPT.json",
+    "productWriter": "rules_writer",
+    "g0Decision": "ADMITTED_FINITE_SOFTWARE_SCOPE",
+    "productionDefault": "NODE_UNCHANGED_RUST_OFF",
+    "sourceFileWrites": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+    "realServices": "NOT_RUN",
+    "ordinaryApp": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "validation": {
+      "status": "LOCAL_TARGETED_SOFTWARE_PASS",
+      "functionalTests": 103,
+      "newTaskTests": 34,
+      "inheritedRegressionTests": 69,
+      "gateStages": 9,
+      "freshOutputs": 20,
+      "declaredInputs": 1155,
+      "runnerCiTests": 29,
+      "typecheck": "PASS",
+      "desktopProductionBuild": "PASS",
+      "controlPlaneExitCode": 0,
+      "boundariesExitCode": 0,
+      "cyclesExitCode": 0,
+      "diffCheckExitCode": 0,
+      "localFullWorkspace": "NOT_RUN_RISK_BASED_TARGETED_SCOPE",
+      "evidence": "docs/postrust/MBRS-005/evidence/local-software-checks.json"
+    },
+    "push": "IMPLEMENTATION_NOT_YET",
+    "mainMerge": "NOT_AUTHORIZED",
+    "release": "NOT_AUTHORIZED",
+    "implementationCommitResolution": "git log -1 --format=%H -- packages/bridge-core/src/stream/local-file-source.ts",
+    "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-005_LOCAL_FILE_GATEWAY.md",
+    "report": "reports/MBRS-005_LOCAL_FILE_GATEWAY.md",
+    "evidence": "reports/MBRS-005_EVIDENCE.json",
+    "ci": {
+      "status": "NOT_RUN_AT_LOCAL_FREEZE"
+    }
   }
 }

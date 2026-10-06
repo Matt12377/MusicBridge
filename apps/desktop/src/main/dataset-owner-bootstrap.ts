@@ -1,4 +1,5 @@
 import path from 'node:path'
+import { PHYSICAL_RESOURCE_BUFFER_BYTES } from '../../../../packages/bridge-core/src/stream/physical-resource-locks.js'
 
 export function datasetOwnerEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const result: NodeJS.ProcessEnv = {}
@@ -11,15 +12,16 @@ export function datasetOwnerEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessE
   return result
 }
 
-export function parseDatasetOwnerWorkerData(value: unknown): { dataDirectory: string; resourcesDirectory: string } {
+export function parseDatasetOwnerWorkerData(value: unknown): { dataDirectory: string; resourcesDirectory: string; physicalResourceBuffer?: SharedArrayBuffer } {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) throw new Error('数据集所有者启动身份无效。')
   const input = value as Record<string, unknown>
-  if (Object.keys(input).length !== 2 || Object.keys(input).some(key => !['dataDirectory', 'resourcesDirectory'].includes(key))
+  if (![2,3].includes(Object.keys(input).length) || Object.keys(input).some(key => !['dataDirectory', 'resourcesDirectory', 'physicalResourceBuffer'].includes(key))
+    || Object.hasOwn(input, 'physicalResourceBuffer') && (!(input.physicalResourceBuffer instanceof SharedArrayBuffer) || input.physicalResourceBuffer.byteLength !== PHYSICAL_RESOURCE_BUFFER_BYTES)
     || typeof input.dataDirectory !== 'string' || !path.isAbsolute(input.dataDirectory)
     || input.dataDirectory.length > 1024 || input.dataDirectory.includes('\0')
     || typeof input.resourcesDirectory !== 'string' || !path.isAbsolute(input.resourcesDirectory)
     || input.resourcesDirectory.length > 1024 || input.resourcesDirectory.includes('\0')) {
     throw new Error('数据集所有者启动身份无效。')
   }
-  return { dataDirectory: input.dataDirectory, resourcesDirectory: input.resourcesDirectory }
+  return { dataDirectory: input.dataDirectory, resourcesDirectory: input.resourcesDirectory, ...(input.physicalResourceBuffer instanceof SharedArrayBuffer ? { physicalResourceBuffer: input.physicalResourceBuffer } : {}) }
 }

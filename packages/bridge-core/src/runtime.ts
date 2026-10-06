@@ -246,6 +246,7 @@ export interface CoreRuntime {
 }
 
 export interface BridgeRuntimeOptions {
+  localMediaNetwork?: import('./config/config.js').TrustedLocalMediaNetwork;
   datasetOwnerEndpoint?: DatasetOwnerEndpoint;
   collectionDatasetIdentity?: DatasetIdentity;
   /** 仅由受信任的 Core 组合层注入；不从 Renderer 或系统 PATH 自动配置。 */
@@ -408,6 +409,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     registry,
     logger,
     remoteDevelopmentMode: config.mode === 'remote-core-development',
+    ...(options.localMediaNetwork ? { localMediaNetwork: options.localMediaNetwork } : {}),
     onMediaReadActivityChanged: () => { scanReadAdmission?.observe(); },
   });
   let notifyProviderExpired: () => void = () => undefined;

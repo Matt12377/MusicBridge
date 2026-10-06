@@ -1,15 +1,10 @@
 import { randomBytes } from 'node:crypto';
 import { BridgeError } from '../shared/errors.js';
-import type { ResolvedAudioStream, TrackMetadata } from '../netease/types.js';
-
-export interface StreamResolveRequest {
-  reason?: 'upstream_expired';
-  status?: number;
-}
-
-export type StreamResolver = (
-  request?: StreamResolveRequest,
-) => Promise<ResolvedAudioStream>;
+import type { TrackMetadata } from '../netease/types.js';
+import type { StreamResolver } from './resolver-types.js';
+export type { StreamResolveRequest, StreamResolver } from './resolver-types.js';
+import { LocalFileSourcePool, type AssetLease, type LocalLeaseAuthority } from './local-file-source.js';
+import type { PreparedLocalSource } from '../application/local-source-resolver.js';
 
 export interface StreamRegistration {
   token: string;
@@ -21,14 +16,31 @@ export interface StreamRegistration {
 }
 
 export class StreamRegistry {
+  private readonly localRegistrations = new Map<string, { lease: AssetLease; format?: string }>();
+  private readonly localSourcePool: LocalFileSourcePool;
+  private localClosing = false;
   private readonly registrations = new Map<string, StreamRegistration>();
   private readonly now: () => number;
   private readonly defaultTtlMs: number;
 
-  constructor(options: { now?: () => number; defaultTtlMs?: number } = {}) {
+  constructor(options: { now?: () => number; defaultTtlMs?: number; localSourcePool?: LocalFileSourcePool } = {}) {
     this.now = options.now ?? Date.now;
     this.defaultTtlMs = options.defaultTtlMs ?? 8 * 60 * 60 * 1000;
+    this.localSourcePool = options.localSourcePool ?? new LocalFileSourcePool();
   }
+
+  /** 仅Core私有调用，能力secret没有公开IPC字段或落盘序列化。 */
+  async registerLocalSource(descriptor: PreparedLocalSource, authority: LocalLeaseAuthority, format?: string): Promise<{ token: string; lease: AssetLease }> {
+    if (this.localClosing) throw new BridgeError('STREAM_NOT_FOUND', '本地租约已关闭', { httpStatus: 404 });
+    for (const [token, value] of this.localRegistrations) if (value.lease.state === 'CLOSED') this.localRegistrations.delete(token);
+    if (this.localRegistrations.size >= 16) throw new BridgeError('BAD_REQUEST', '本地租约容量已满', { httpStatus: 429 });
+    const lease = await this.localSourcePool.prepare(descriptor, authority), token = randomBytes(32).toString('base64url');
+    if (this.localClosing) { await lease.close(); throw new BridgeError('STREAM_NOT_FOUND', '本地租约已关闭', { httpStatus: 404 }); }
+    this.localRegistrations.set(token, { lease, ...(format ? { format } : {}) }); return { token, lease };
+  }
+  getLocal(token: string): { lease: AssetLease; format?: string } | undefined { const value = this.localRegistrations.get(token); return value && value.lease.state !== 'CLOSING' && value.lease.state !== 'CLOSED' ? value : undefined; }
+  async revokeLocal(token: string): Promise<void> { const registration = this.localRegistrations.get(token); if (registration) { this.localRegistrations.delete(token); await registration.lease.close(); } }
+  async closeLocal(): Promise<void> { this.localClosing = true; this.localRegistrations.clear(); await this.localSourcePool.close(); }
 
   register(input: {
     metadata: TrackMetadata;

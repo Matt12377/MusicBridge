@@ -2,7 +2,41 @@ name: Rust Core 只读原型
 
 on:
   push:
+    paths:
+      - '*'
+      - 'packages/**'
+      - 'apps/**'
+      - 'native/**'
+      - 'scripts/**'
+      - 'vendor/**'
+      - 'patches/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.github/workflows/**'
+      - 'AGENTS.md'
+      - 'tasks/**'
+      - 'docs/adr/**'
+      - 'docs/postrust/RUST-*/**'
+      - 'docs/postrust/MBRS-000/**'
   pull_request:
+    paths:
+      - '*'
+      - 'packages/**'
+      - 'apps/**'
+      - 'native/**'
+      - 'scripts/**'
+      - 'vendor/**'
+      - 'patches/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - '.github/workflows/**'
+      - 'AGENTS.md'
+      - 'tasks/**'
+      - 'docs/adr/**'
+      - 'docs/postrust/RUST-*/**'
+      - 'docs/postrust/MBRS-000/**'
   workflow_dispatch:
 
 permissions:

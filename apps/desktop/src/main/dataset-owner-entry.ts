@@ -5,12 +5,14 @@ import { attachDatasetOwnerWorkerPort } from '../../../../packages/bridge-core/s
 import { prepareOwnedDatasetDomain } from '../../../../packages/bridge-core/src/collection/dataset-domain.js'
 import { loadRecordingDependenciesForOwner } from './recording-bootstrap.js'
 import { parseDatasetOwnerWorkerData } from './dataset-owner-bootstrap.js'
+import { installPhysicalResourceCoordinator } from '../../../../packages/bridge-core/src/stream/physical-resource-locks.js'
 
 // 此入口只由受信任的Core组合层创建；不从Renderer、PATH或普通配置补造设备资格。
 if (!parentPort) {
   throw new Error('数据集所有者启动身份无效。')
 }
-const { dataDirectory, resourcesDirectory } = parseDatasetOwnerWorkerData(workerData)
+const { dataDirectory, resourcesDirectory, physicalResourceBuffer } = parseDatasetOwnerWorkerData(workerData)
+if (physicalResourceBuffer) installPhysicalResourceCoordinator(physicalResourceBuffer)
 const env = process.env
 const testMode = env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
 

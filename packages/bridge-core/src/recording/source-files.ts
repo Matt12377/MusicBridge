@@ -4,6 +4,7 @@ import { lstat, open, opendir, realpath } from 'node:fs/promises';
 import type { BigIntStats, Dirent } from 'node:fs';
 import type { FileHandle } from 'node:fs/promises';
 import path from 'node:path';
+import { physicalResourceLocks, type PhysicalResourceGuard } from '../stream/physical-resource-locks.js';
 import { parseBuffer } from 'music-metadata';
 import { isSourceTechnical, type SourceTechnical, type SourceFailure, type SourceAvailability } from '@music-bridge/contracts';
 
@@ -99,6 +100,33 @@ async function checkedFile(root: RootCapability, relative: string): Promise<{ ab
   } catch (error) { if (error instanceof SourceFileError) throw error; return fail((error as NodeJS.ErrnoException).code === 'ENOENT' ? 'MISSING' : 'IO_ERROR'); }
   return fail('OUTSIDE_ROOT');
 }
+
+async function protectedReadonlyOpen(absolute: string): Promise<{ handle: FileHandle; guard: PhysicalResourceGuard }> {
+  const handle = await open(absolute, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR'));
+  try { const info = await handle.stat({ bigint: true }); return { handle, guard: physicalResourceLocks.acquireRead([{ dev: String(info.dev), ino: String(info.ino) }]) }; }
+  catch (error) { await handle.close(); throw error; }
+}
+/** 普通播放专用只读FD；允许已授权根内硬链接，但不放宽Scanner或录音检查。
+ * stat/命名身份只能拒绝可观察变化，不能证明NAS缓存或恢复时间戳的隐蔽原地修改不存在。
+ * 此租约没有完整Hash证书，不能替代旧录音的严格内容证明。
+ */
+export async function openLocalPlaybackReadonlySource(root: RootCapability, relative: string, expectedSignature?: string): Promise<{ handle: FileHandle; size: number; signature: string; verify(): Promise<void>; close(): Promise<void> }> {
+  if (typeof relative !== 'string' || relative.length > 4096 || relative.includes('\0')) return fail('OUTSIDE_ROOT');
+  const first = await checkedFile(root, relative);
+  // Pool必须传唯一Owner捕获的signature；不能在这里以当前stat替旧catalog修订自证。
+  if (expectedSignature !== undefined && (typeof expectedSignature !== 'string' || expectedSignature.length > 256 || signature(first.info) !== expectedSignature)) return fail('CONTENT_CHANGED');
+  if (first.info.size < 1n || first.info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
+  const { handle, guard } = await protectedReadonlyOpen(first.absolute); let closing: Promise<void> | undefined;
+  const close = (): Promise<void> => closing ??= (async () => { await handle.close(); await guard.release(); })();
+  const verify = async (): Promise<void> => {
+    const opened = await handle.stat({ bigint: true }), named = await checkedFile(root, relative);
+    if (signature(opened) !== (expectedSignature ?? signature(first.info)) || signature(named.info) !== (expectedSignature ?? signature(first.info))
+      || opened.birthtimeNs !== first.info.birthtimeNs || JSON.stringify(named.directoryIds) !== JSON.stringify(first.directoryIds)) return fail('CONTENT_CHANGED');
+  };
+  try { await verify(); return { handle, size: Number(first.info.size), signature: signature(first.info), verify, close }; }
+  catch (error) { await close(); throw error; }
+}
+
 /** 候选扫描只枚举目录项；进入和离开目录时都核验根内目录身份，不跟随符号链接。 */
 export async function readonlySourceDirectoryEntries(root: RootCapability, relative: string, remaining: number, signal: AbortSignal, deadlineMs: number): Promise<{ entries: Dirent[]; truncated: boolean }> {
   const check = (): void => { if (signal.aborted) fail('CANCELLED'); if (Date.now() > deadlineMs) fail('LIMIT_EXCEEDED'); };
@@ -165,7 +193,7 @@ export async function withCheckedReadonlyMetadataSource<T>(root: RootCapability,
   if (typeof expectedSignature !== 'string' || expectedSignature.length > 256 || signature(first.info) !== expectedSignature) return fail('CONTENT_CHANGED');
   if (first.info.nlink !== 1n) return fail('OUTSIDE_ROOT');
   if (first.info.size < 1n || first.info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
-  const handle = await open(first.absolute,constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR'));
+  const { handle, guard } = await protectedReadonlyOpen(first.absolute);
   const fd = handle.fd;
   const emit = (type: MetadataSourceLeaseEvent['type']): void => { try { onLeaseEvent?.({type,fd}); } catch { /* 观察者不能阻止关闭。 */ } };
   try {
@@ -188,6 +216,7 @@ export async function withCheckedReadonlyMetadataSource<T>(root: RootCapability,
   } finally {
     try { await handle.close(); }
     catch { throw new MetadataLeaseReleaseError(); }
+    await guard.release();
     emit('lease-released');
   }
 }
@@ -197,7 +226,7 @@ export async function withVerifiedReadonlySource<T>(root: RootCapability, relati
   const check = (): void => { checkOperation(); if (signal.aborted) fail('CANCELLED'); if (Date.now() > deadline) fail('LIMIT_EXCEEDED'); };
   check(); const first = await checkedFile(root, relative);
   if (!/^[a-f0-9]{64}$/u.test(expected.sha256) || !Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size)) return fail('CONTENT_CHANGED');
-  const handle = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR'));
+  const { handle, guard } = await protectedReadonlyOpen(first.absolute);
   try {
     const before = await handle.stat({ bigint: true });
     if (signature(before) !== signature(first.info) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
@@ -211,7 +240,7 @@ export async function withVerifiedReadonlySource<T>(root: RootCapability, relati
     check(); const result = await consume(handle, check); check();
     if (signature(await handle.stat({ bigint: true })) !== signature(before) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
     return result;
-  } finally { await handle.close(); }
+  } finally { await handle.close(); await guard.release(); }
 }
 export interface ReplicaSourceLeaseOptions {
   /** 必须由冻结帧数/采样率计算；公开请求没有时长或期限参数。 */
@@ -243,11 +272,12 @@ export async function withVerifiedReadonlyReplicaSource<T>(root: RootCapability,
     try { checkOperation(); if (now() > Math.min(deadline, totalDeadline)) fail('LIMIT_EXCEEDED'); }
     catch (error) { abort(error); throw error; }
   };
+  let guard: PhysicalResourceGuard | undefined;
   let handle: FileHandle | undefined, control: ReturnType<typeof setInterval> | undefined, watcher: ReturnType<typeof setInterval> | undefined, watching: Promise<void> | undefined;
   try {
     check(); const first = await checkedFile(root, relative);
     if (!/^[a-f0-9]{64}$/u.test(expected.sha256) || !Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size) || first.info.nlink !== 1n) return fail('CONTENT_CHANGED');
-    handle = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR'));
+    const protectedFile = await protectedReadonlyOpen(first.absolute); handle = protectedFile.handle; guard = protectedFile.guard;
     options.onLeaseEvent?.('acquired');
     const opened = handle, before = await opened.stat({ bigint: true });
     const verifyIdentity = async () => { check(); const current = await opened.stat({ bigint: true }), named = (await checkedFile(root, relative)).info; check(); if (current.nlink !== 1n || named.nlink !== 1n || signature(current) !== signature(before) || signature(named) !== signature(before)) fail('CONTENT_CHANGED'); };
@@ -270,7 +300,7 @@ export async function withVerifiedReadonlyReplicaSource<T>(root: RootCapability,
     clearInterval(control); clearInterval(watcher); signal.removeEventListener('abort', forwarded);
     if (watching) await watching;
     if (handle) {
-      try { await handle.close(); options.onLeaseEvent?.('released'); }
+      try { await handle.close(); await guard?.release(); options.onLeaseEvent?.('released'); }
       catch (error) { options.onLeaseEvent?.('release-unverified'); throw error; }
     }
   }
@@ -280,7 +310,7 @@ export async function copyReadonlySource(root: RootCapability, relative: string,
   const checkAbort = (): void => { if (signal.aborted) fail('CANCELLED'); };
   checkAbort(); const first = await checkedFile(root, relative);
   if (!Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size)) return fail('CONTENT_CHANGED');
-  const source = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW);
+  const protectedFile = await protectedReadonlyOpen(first.absolute), source = protectedFile.handle;
   try {
     const before = await source.stat({ bigint: true }), target = await destination.stat({ bigint: true });
     if (signature(before) !== signature(first.info) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
@@ -316,14 +346,14 @@ export async function copyReadonlySource(root: RootCapability, relative: string,
     if ((await destination.stat()).size !== expected.size || outputHash.digest('hex') !== expected.sha256) return fail('HASH_MISMATCH');
     if (signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
     return { sha256: expected.sha256, size: expected.size };
-  } finally { await source.close(); }
+  } finally { await source.close(); await protectedFile.guard.release(); }
 }
 /** 原件始终只读；完整 Hash 与头部技术探测是独立证据，不宣称音频逐帧解码通过。 */
 export async function probeReadonlySource(root: RootCapability, relative: string, signal: AbortSignal): Promise<FileEvidence> {
   const checkAbort = (): void => { if (signal.aborted) fail('CANCELLED'); };
   checkAbort(); const first = await checkedFile(root, relative);
   if (first.info.size <= 0n || first.info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
-  const handle = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR'));
+  const { handle, guard } = await protectedReadonlyOpen(first.absolute);
   try {
     const before = await handle.stat({ bigint: true });
     if (signature(before) !== signature(first.info) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
@@ -350,5 +380,5 @@ export async function probeReadonlySource(root: RootCapability, relative: string
     checkAbort();
     if (signature(await handle.stat({ bigint: true })) !== signature(before) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
     return { sha256: hash.digest('hex'), size: Number(before.size), signature: signature(before), modifiedAt: new Date(Number(before.mtimeNs / 1_000_000n)).toISOString(), verifiedAt: new Date().toISOString(), technical };
-  } finally { await handle.close(); }
+  } finally { await handle.close(); await guard.release(); }
 }

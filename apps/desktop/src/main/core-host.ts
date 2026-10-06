@@ -5,6 +5,7 @@ import type { DatasetOwnerEndpoint } from '../../../../packages/bridge-core/src/
 import { datasetOwnerEnvironment } from './dataset-owner-bootstrap.js'
 import type { OptionalRustReadonlyManager } from '../../../../packages/bridge-core/src/rust-core/optional-readonly-manager.js'
 import { installCollectionReadonlyCoreBridge, type CollectionReadonlyCoreParent } from './collection-readonly-core-bridge.js'
+import { physicalResourceLocks } from '../../../../packages/bridge-core/src/stream/physical-resource-locks.js'
 
 /** Rust 能力只由同进程可信源码显式传入，不从环境、父启动数据或公开 IPC 选择。 */
 export interface DesktopCoreHostOptions {
@@ -37,6 +38,7 @@ export function runDesktopCoreHost(options: DesktopCoreHostOptions = {}): Promis
       workerData: {
         dataDirectory: env.MUSIC_BRIDGE_DATA_DIRECTORY,
         resourcesDirectory: process.resourcesPath,
+        physicalResourceBuffer: physicalResourceLocks.buffer,
       },
     })
     const owner = createDatasetOwnerClient({ worker, projection, onFatal })

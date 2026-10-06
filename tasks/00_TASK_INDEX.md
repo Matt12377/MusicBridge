@@ -1,8 +1,8 @@
 # 任务索引
 
-当前 PostRust 任务：MBRS-003 阶段完成并交接；下一任务 MBRS-004 尚未开始。
+当前 PostRust 任务：[MBRS-005](MBRS-005_LOCAL_FILE_GATEWAY.md) 开发中；MBRS-004 软件及远端源/报告检查已完成，从最终报告 `52c9ffe0` 接续005。本轮Owner已授权连续开发到017，任务状态见 [待办清单](../project/POSTRUST_TODO.md)。
 
-[MBRS-003结果](../reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md)与[换届交接](../docs/postrust/MBRS-003/HANDOFF_NEXT_SESSION.md)：Owner阶段接受既有规模结果，当前版十万／三十万首不重测；25条超时保留。下一届从003最终报告HEAD接续004，完整产品后用真实曲库验收。
+[MBRS-003结果](../reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md)与[换届交接](../docs/postrust/MBRS-003/HANDOFF_NEXT_SESSION.md)：Owner阶段接受既有规模结果，当前版十万／三十万首不重测；25条超时保留。004已从003最终报告HEAD完成独立软件交付；完整产品后用真实曲库验收。下方历史过程记录保留原时点。
 
 ## Owner 授权的 PostRust v1.2 隔离接续（2026-10-04）
 

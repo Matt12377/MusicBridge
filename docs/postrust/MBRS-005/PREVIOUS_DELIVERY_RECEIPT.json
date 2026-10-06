@@ -1,0 +1,280 @@
+{
+  "schema": "mbrs004.final-delivery-receipt.v1",
+  "sealedAt": "2026-10-06T03:39:54.983749+00:00",
+  "task": "MBRS-004",
+  "state": "SOFTWARE_COMPLETE_WITH_EXPLICIT_PLAYBACK_CARRYOVER",
+  "baseSha": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+  "implementationSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+  "reportSha": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+  "localHead": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+  "remoteHead": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+  "branch": "codex/mbrs-004-coverdrop-name-version-rules",
+  "worktree": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules",
+  "worktreeClean": true,
+  "diffCheckExitCode": 0,
+  "reportIdentityMatchesHead": true,
+  "implementationAndReportPushExitCode": 0,
+  "implementationCi": [
+    {
+      "conclusion": "success",
+      "databaseId": 37408320036,
+      "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+      "status": "completed",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408320036",
+      "workflowName": ".github/workflows/rust-core.yml"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 37408319997,
+      "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+      "status": "completed",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408319997",
+      "workflowName": "security"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 37408319999,
+      "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+      "status": "completed",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408319999",
+      "workflowName": "electron-e2e"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 37408320024,
+      "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+      "status": "completed",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408320024",
+      "workflowName": "verify"
+    }
+  ],
+  "reportCi": [
+    {
+      "conclusion": "success",
+      "databaseId": 37408939596,
+      "headSha": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+      "status": "completed",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408939596",
+      "workflowName": "security"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 37408939629,
+      "headSha": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+      "status": "completed",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408939629",
+      "workflowName": ".github/workflows/rust-core.yml"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 37408939628,
+      "headSha": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+      "status": "completed",
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37408939628",
+      "workflowName": "verify"
+    }
+  ],
+  "allExpectedCiSuccess": true,
+  "ciSpecializedGateSteps": [
+    {
+      "kind": "implementation",
+      "headSha": "341bcaa2d4b66a6633e9e66e15aca3570a2bfe66",
+      "runId": 37408320024,
+      "jobUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/37408320024/job/112090800039",
+      "ruleGateStep": {
+        "completedAt": "2026-10-06T03:32:14Z",
+        "conclusion": "success",
+        "name": "MBRS004 名称与版本规则 Gate",
+        "number": 15,
+        "startedAt": "2026-10-06T03:31:38Z",
+        "status": "completed"
+      },
+      "dependencyAudit": "completed/success"
+    },
+    {
+      "kind": "report",
+      "headSha": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+      "runId": 37408939628,
+      "jobUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/37408939628/job/112092754728",
+      "ruleGateStep": {
+        "completedAt": "2026-10-06T03:37:21Z",
+        "conclusion": "success",
+        "name": "MBRS004 名称与版本规则 Gate",
+        "number": 15,
+        "startedAt": "2026-10-06T03:36:53Z",
+        "status": "completed"
+      },
+      "dependencyAudit": "completed/success"
+    }
+  ],
+  "declaredInputCount": 641,
+  "declaredInputsStillMatchVerifiedImplementation": true,
+  "compiledRuleOutputsCount": 6,
+  "compiledRuleOutputsUnchanged": true,
+  "sourceScope": "DECLARED_SOURCE_AND_FRESH_RULE_OUTPUTS_NOT_TRANSITIVE_DEPENDENCY_CLOSURE",
+  "workspaceValidation": {
+    "exitCode": 0,
+    "tests": 4250,
+    "pass": 4248,
+    "fail": 0,
+    "cancelled": 0,
+    "existingConditionalSkipped": 2,
+    "typesAndProductionBuild": "PASS",
+    "durationSeconds": 356.657
+  },
+  "specializedGate": {
+    "exitCode": 0,
+    "stages": 5,
+    "tests": 106,
+    "pass": 106,
+    "fail": 0,
+    "goldenInputsOrGroups": 92,
+    "additionalBehaviorTests": 13,
+    "syntheticExistingScannerWriterTests": 1,
+    "declaredInputs": 641,
+    "allMatchImplementationGitBlobs": true,
+    "freshOutputs": 6,
+    "sourceIdentityScope": "DECLARED_SOURCE_AND_FRESH_RULE_OUTPUTS_NOT_TRANSITIVE_DEPENDENCY_CLOSURE"
+  },
+  "runner": {
+    "exitCode": 0,
+    "tests": 10,
+    "pass": 10
+  },
+  "original18TasksAnd156AcceptanceTextPreserved": true,
+  "otherTrees": [
+    {
+      "name": "main",
+      "path": "/Volumes/LifeWeave/VSCode/MusicBridge",
+      "head": "2392b8f69836f02e39ce58f6e6e6e2563c6cc5d4",
+      "branch": "codex/fix-playback-read-tracing",
+      "statusSha256": "69b68e05aeb3b9adbf7007d683401204f395827d08f5cae0c7abacd771e48184",
+      "statusEntries": 3,
+      "clean": false,
+      "sameHeadBranchAndStatusAsBeforeDelivery": true
+    },
+    {
+      "name": "previous003",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-003-persistent-incremental-scan",
+      "head": "7570d51973cc23d2a9894f63ba09d6444b9f484a",
+      "branch": "codex/mbrs-003-persistent-incremental-scan",
+      "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "statusEntries": 0,
+      "clean": true,
+      "sameHeadBranchAndStatusAsBeforeDelivery": true
+    },
+    {
+      "name": "ios",
+      "path": "/Volumes/LifeWeave/VSCode/MusicBridge-ios",
+      "head": "095a9ad345d7cf40b4e7570074fa53e4d496f1d9",
+      "branch": "codex/ios-013-compact-development-menu",
+      "statusSha256": "b71ef846e1d6d395620497dc7175e8fcf0fdc0de14b48ac10e3e46546bed7a6b",
+      "statusEntries": 36,
+      "clean": false,
+      "sameHeadBranchAndStatusAsBeforeDelivery": false
+    },
+    {
+      "name": "coverdrop",
+      "path": "/Volumes/LifeWeave/Swift/CoverDrop",
+      "head": "93fa28f3245da50cf9b5341e0df1466fa4f6a0e7",
+      "branch": "main",
+      "statusSha256": "9bfae2888733c78ce40c2691bbc18889326486fff5883d5f1b8b72706089e47c",
+      "statusEntries": 151,
+      "clean": false,
+      "sameHeadBranchAndStatusAsBeforeDelivery": true
+    }
+  ],
+  "thisTaskOnlyWrote004Worktree": true,
+  "parallelOtherTreeStatusChangesObserved": [
+    {
+      "name": "ios",
+      "path": "/Volumes/LifeWeave/VSCode/MusicBridge-ios",
+      "head": "095a9ad345d7cf40b4e7570074fa53e4d496f1d9",
+      "branch": "codex/ios-013-compact-development-menu",
+      "statusSha256": "b71ef846e1d6d395620497dc7175e8fcf0fdc0de14b48ac10e3e46546bed7a6b",
+      "statusEntries": 36,
+      "clean": false,
+      "sameHeadBranchAndStatusAsBeforeDelivery": false
+    }
+  ],
+  "iosContractFilesStillMatchAdmission": [
+    {
+      "path": "/Volumes/LifeWeave/VSCode/MusicBridge-ios/Contracts/openapi.yaml",
+      "bytes": 27446,
+      "sha256": "03056740fbb8443e2ab862e27d7af7927ab467a3f7cb44babfb6b79ee442480d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/VSCode/MusicBridge-ios/DevelopmentSupport/ExecutionPack/contracts/openapi.yaml",
+      "bytes": 27446,
+      "sha256": "03056740fbb8443e2ab862e27d7af7927ab467a3f7cb44babfb6b79ee442480d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/VSCode/MusicBridge-ios/DevelopmentSupport/ExecutionPack/templates/MB_ADOPTION.md",
+      "bytes": 613,
+      "sha256": "4821ff79c9a71ce2b25184a8ef9ce9cdfc0e41f92112499b00c7c272d4dcd09e"
+    },
+    {
+      "path": "/Volumes/LifeWeave/VSCode/MusicBridge-ios/docs/delivery/ENGINEERING_HANDOFF.md",
+      "bytes": 8133,
+      "sha256": "fec8d9c42e0c7d6d6c7cae2acbafc46af97033648847a5984b8409a7f3499cf0"
+    }
+  ],
+  "carryover": {
+    "at006ActualPlayback": "DEFERRED_TO_MBRS005_MBRS006_AND_FINAL_ACCEPTANCE",
+    "realLibraryAccountsRoonAudioOwnerAcceptance": "NOT_RUN",
+    "sourceFilesWrite": "OFF",
+    "new100k300kStarted": false,
+    "historical300k": {
+      "visited": 300000,
+      "accepted": 299975,
+      "rejected": 25,
+      "readTimeout": 20,
+      "workerStartTimeout": 5,
+      "technicalResult": "HISTORICAL_FAILURE_UNCHANGED",
+      "physicalRootCausesAndPerItemIdentity": "UNKNOWN",
+      "ownerScaleException": "STAGE_PROGRESSION_ONLY"
+    },
+    "iosContract": "OBSERVED_ADOPTION_PENDING_NO_IMPLEMENTATION_OR_TASK_REORDER",
+    "rustDefault": "NODE_DEFAULT_RUST_OPTIONAL_OFF"
+  },
+  "iosContractStatus": "OBSERVED_ADOPTION_PENDING",
+  "nextBaseline": {
+    "task": "MBRS-005",
+    "head": "52c9ffe0aec3c581fe4682a8fd3ba8edf1a74f58",
+    "started": false,
+    "ownerReleaseRequired": true
+  },
+  "reportSnapshotCiStatus": "IN_PROGRESS_WHEN_REPORT_COMMITTED_FINAL_STATUS_SEALED_HERE",
+  "reportFiles": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules/reports/MBRS-004_NAME_VERSION_RULES.md",
+      "bytes": 6040,
+      "sha256": "c650c1d57dadb2b4c42bb28c290e476f093aa118cb2f0a7c09eff8c36ad8e6a9"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules/reports/MBRS-004_EVIDENCE.json",
+      "bytes": 10950,
+      "sha256": "d8d238bdabc06b286bdeb76fb9e48ebb920f67b247dc0f3248ef027a5990e804"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules/project/POSTRUST_PLAN.json",
+      "bytes": 2028730,
+      "sha256": "4b5821cebe625959ee9a9e968f09f94c9aa6bd84a66d352b98718df4ced5c050"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules/project/STATUS.json",
+      "bytes": 2516916,
+      "sha256": "8c2e2fbfd5c2b0ed6c85261e093846e878b5545bef8316ae4559557e8198735d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules/project/POSTRUST_TODO.md",
+      "bytes": 2064,
+      "sha256": "b0cf4de14d1f57fa6015739e5e833951aa9a4bf4132cec6f38cdd7e857b5a20d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/worktrees/musicbridge-mbrs-004-coverdrop-name-version-rules/docs/postrust/MBRS-004/HANDOFF_NEXT_SESSION.md",
+      "bytes": 3979,
+      "sha256": "80d47d2d2c1ec92c3a4a93f88dd7691abae7864750ab72958fa59b8fc3a2a899"
+    }
+  ]
+}

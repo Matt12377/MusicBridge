@@ -8,6 +8,8 @@ import type { RoonGatewayStage } from '../roon/types.js';
 import type { Logger } from '../shared/logger.js';
 import type { StreamRegistry } from './registry.js';
 import { secureGatewayFetch, type GatewayFetch } from './upstream-policy.js';
+import { serveLocalFile } from './local-file-http.js';
+import { isTrustedLocalMediaNetwork, type TrustedLocalMediaNetwork } from '../config/config.js';
 
 const FORWARDED_RESPONSE_HEADERS = [
   'accept-ranges',
@@ -204,6 +206,8 @@ function sendJson(
 
 export class StreamGateway {
   private server: Server | undefined;
+  private localMediaServer: Server | undefined;
+  private localRequests = 0;
   private readonly stageObservers = new Map<string, GatewayStageObserver>();
   private activeTimerCount = 0;
   private activeMediaReadCount = 0;
@@ -221,6 +225,8 @@ export class StreamGateway {
       onMediaReadActivityChanged?: () => void;
       preflightTimeoutMs?: number;
       remoteDevelopmentMode?: boolean;
+      /** 独立媒体接口。默认缺席；绝不改变原控制与远程Gateway监听。 */
+      localMediaNetwork?: TrustedLocalMediaNetwork;
     },
   ) {}
 
@@ -239,6 +245,7 @@ export class StreamGateway {
 
   async start(): Promise<void> {
     if (this.server) return;
+    if (this.options.localMediaNetwork && !isTrustedLocalMediaNetwork(this.options.localMediaNetwork)) throw new BridgeError('CONFIG_INVALID', '本地媒体网络未经可信启动组合准入');
     this.server = createServer((request, response) => {
       void this.handle(request, response);
     });
@@ -249,16 +256,43 @@ export class StreamGateway {
         resolve();
       });
     });
+    const network = this.options.localMediaNetwork;
+    if (network) {
+      this.localMediaServer = createServer((request, response) => {
+        const peer = request.socket.remoteAddress?.replace(/^::ffff:/u, '');
+        if (!peer || !network.allowedPeers.includes(peer)) { response.writeHead(404); response.end(); return; }
+        // 此监听不路由health、控制、旧remote fetch或诊断资产。
+        void this.handleLocal(request, response).then(handled => { if (!handled) { response.writeHead(404); response.end(); } }).catch(() => response.destroy());
+      });
+      try { await new Promise<void>((resolve, reject) => { this.localMediaServer!.once('error', reject); this.localMediaServer!.listen(network.port, network.bindAddress, () => { this.localMediaServer!.off('error', reject); resolve(); }); }); }
+      catch (error) { await this.stop(); throw error; }
+    }
   }
 
   async stop(): Promise<void> {
     const server = this.server;
     this.server = undefined;
     this.stageObservers.clear();
-    if (!server) return;
-    await new Promise<void>((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
+    const media = this.localMediaServer; this.localMediaServer = undefined;
+    await this.options.registry.closeLocal();
+    await Promise.all([server, media].filter((value): value is Server => Boolean(value)).map(value => new Promise<void>((resolve, reject) => { value.close(error => error ? reject(error) : resolve()); value.closeIdleConnections(); })));
+  }
+
+  localStreamUrl(token: string): string {
+    if (!/^[A-Za-z0-9_-]{43}$/u.test(token) || !this.options.registry.getLocal(token)) throw new BridgeError('STREAM_NOT_FOUND', '本地媒体租约不可用', { httpStatus: 404 });
+    return `${this.options.localMediaNetwork?.advertisedBaseUrl ?? this.localBaseUrl()}/local-stream/${token}`;
+  }
+  private async handleLocal(request: IncomingMessage, response: ServerResponse): Promise<boolean> {
+    if (!(request.url ?? '').startsWith('/local-stream/')) return false;
+    const match = /^\/local-stream\/([A-Za-z0-9_-]{43})$/u.exec(request.url ?? '');
+    const registration = match ? this.options.registry.getLocal(match[1]!) : undefined;
+    if (!registration || request.method !== 'GET' && request.method !== 'HEAD') { response.writeHead(404, { 'Content-Length': 0 }); response.end(); return true; }
+    if (this.localRequests >= 8) { response.writeHead(429, { 'Content-Length': 0 }); response.end(); return true; }
+    this.localRequests++; const release = this.beginMediaRead();
+    this.options.logger.info('roon_gateway_local_request', { method: request.method, routeClass: 'local-file', rangeClass: classifyRange(request.headers.range) });
+    try { await serveLocalFile(registration.lease, request, response, fallbackContentTypeForFormat(registration.format)); }
+    finally { this.localRequests--; release(); }
+    return true;
   }
 
   streamUrl(
@@ -369,6 +403,7 @@ export class StreamGateway {
     response: ServerResponse,
   ): Promise<void> {
     try {
+      if (await this.handleLocal(request, response)) return;
       const requestUrl = new URL(
         request.url ?? '/',
         `http://${request.headers.host ?? 'localhost'}`,
