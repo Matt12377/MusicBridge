@@ -30,6 +30,7 @@ import { isActivateRestoredDataset, isRestoreActivationView, type ActivateRestor
 
 /** 只允许原有公开领域写命令，不能从任意 IPC 名称推导重放权限。 */
 export const COMMAND_OUTBOX_COMMANDS = [
+  'localOrganizer.confirm', 'localOrganizer.undo',
   ...LOCAL_CATALOG_OUTBOX_COMMANDS,
   'localArtwork.apply', 'localArtwork.createEdition',
   'localRelocation.confirm','localRelocation.relinkRoot',
@@ -73,6 +74,8 @@ const ordinaryValidators = {
   'localCatalog.linkEditionTrack': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.linkEditionTrack'] => isLocalCatalogCommandPayload('localCatalog.linkEditionTrack', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.linkEditionTrack'] => isLocalCatalogCommandResult('localCatalog.linkEditionTrack', v)],
   'localCatalog.removeEditionTrack': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.removeEditionTrack'] => isLocalCatalogCommandPayload('localCatalog.removeEditionTrack', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.removeEditionTrack'] => isLocalCatalogCommandResult('localCatalog.removeEditionTrack', v)],
   'localCatalog.overrideMetadata': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.overrideMetadata'] => isLocalCatalogCommandPayload('localCatalog.overrideMetadata', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.overrideMetadata'] => isLocalCatalogCommandResult('localCatalog.overrideMetadata', v)],
+  'localOrganizer.confirm': [(v: unknown): v is ConfirmLocalOrganizer => isLocalOrganizerCommandPayload('localOrganizer.confirm', v), (v: unknown): v is LocalOrganizerPlan => isLocalOrganizerCommandResult('localOrganizer.confirm', v)],
+  'localOrganizer.undo': [(v: unknown): v is ChangeLocalOrganizer => isLocalOrganizerCommandPayload('localOrganizer.undo', v), (v: unknown): v is LocalOrganizerPlan => isLocalOrganizerCommandResult('localOrganizer.undo', v)],
 
   'collectionProgress.saveWant': [isSaveWantEntryRequest, isWantEntry],
   'collectionProgress.cancelWant': [isCancelWantEntryRequest, isWantEntry],
@@ -259,3 +262,4 @@ export function isCommandOutboxOverview(v: unknown): v is CommandOutboxOverview 
 }
 export function isCommandOutboxAction(v: unknown): v is CommandOutboxAction { return record(v) && keys(v, ['id', 'userConfirmed']) && isCollectionId(v.id) && v.userConfirmed === true; }
 export function isCommandOutboxAcknowledge(v: unknown): v is CommandOutboxAcknowledge { return record(v) && keys(v, ['id']) && isCollectionId(v.id); }
+import { isLocalOrganizerCommandPayload, isLocalOrganizerCommandResult, type ConfirmLocalOrganizer, type ChangeLocalOrganizer, type LocalOrganizerPlan } from './local-organizer.js';

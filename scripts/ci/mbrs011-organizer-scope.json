@@ -1,0 +1,48 @@
+{
+  "schema": "mbrs011.organizer-scope.v1",
+  "baseSha": "db4cded876e8eda7755d781ed4827dfc38332a10",
+  "implementationComplete": true,
+  "countsConfirmed": true,
+  "sourceFilesWrite": "OFF",
+  "groups": [
+    {
+      "name": "organizer-contracts-and-regression",
+      "directory": "packages/contracts",
+      "tests": [
+        "test/mbrs011/contract.test.ts",
+        "test/validator.test.ts",
+        "test/mbrs002/local-catalog.test.ts"
+      ],
+      "expectedTests": 48
+    },
+    {
+      "name": "organizer-core-and-regression",
+      "directory": "packages/bridge-core",
+      "tests": [
+        "test/mbrs011/journal.test.ts",
+        "test/mbrs011/organizer.test.ts",
+        "test/mbrs002/local-catalog-store.test.ts",
+        "test/mbrs002/local-catalog-restore.test.ts",
+        "test/mbrs003/persistent-scan-store.test.ts",
+        "test/mbrs005/locks.test.ts"
+      ],
+      "expectedTests": 55
+    },
+    {
+      "name": "organizer-desktop-and-regression",
+      "directory": "apps/desktop",
+      "tests": [
+        "test/mbrs011-organizer-ipc.test.ts",
+        "test/mbrs011-organizer-session.test.ts",
+        "test/mbrs011-organizer-ui.test.ts",
+        "test/command-outbox-service.test.ts",
+        "test/command-outbox-executor.test.ts",
+        "test/mbrs009-local-library-session.test.ts",
+        "test/mbrs009-local-library-ui.test.ts",
+        "test/preload.test.ts"
+      ],
+      "expectedTests": 123
+    }
+  ],
+  "state": "FROZEN_FRESH_COUNTS_MB_ONLY_SOURCE_FILES_OFF"
+}

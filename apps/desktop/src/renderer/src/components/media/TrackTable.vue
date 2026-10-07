@@ -179,8 +179,9 @@ onUnmounted(() => {
       <h3>{{ props.emptyTitle }}</h3>
       <p>{{ props.emptyCopy }}</p>
     </div>
-    <div v-else ref="virtualViewport" class="track-table" :class="{ 'is-virtualized': isVirtualized, 'is-range-window': !!props.rangeWindow, 'track-table-no-artwork': !props.showArtwork }" role="table" aria-label="歌曲列表" :aria-colcount="3" :aria-rowcount="props.rangeWindow ? rowCount + 1 : undefined" @scroll="onVirtualScroll">
+    <div v-else ref="virtualViewport" class="track-table" :class="{ 'is-virtualized': isVirtualized, 'is-range-window': !!props.rangeWindow, 'track-table-no-artwork': !props.showArtwork, 'has-row-leading': !!$slots['row-leading'] }" role="table" aria-label="歌曲列表" :aria-colcount="$slots['row-leading'] ? 4 : 3" :aria-rowcount="props.rangeWindow ? rowCount + 1 : undefined" @scroll="onVirtualScroll">
       <div class="track-table-header" role="row">
+        <span v-if="$slots['row-leading']" role="columnheader">选择</span>
         <span role="columnheader">歌曲</span><span role="columnheader">时长</span><span role="columnheader">操作</span>
       </div>
       <div v-if="isVirtualized" aria-hidden="true" :style="{ height: `${virtualWindow.topSpacer}px` }"></div>
@@ -195,7 +196,8 @@ onUnmounted(() => {
         @keydown.enter.self.prevent="requestPlay(entry.track)"
         @contextmenu="showContextMenu($event, entry.track)"
       >
-        <span class="track-index" aria-hidden="true"><span class="track-number">{{ entry.index + 1 }}</span><span class="track-play-mark">▶</span></span>
+        <span v-if="$slots['row-leading']" class="track-leading" role="cell"><slot name="row-leading" :track="entry.track" /></span>
+        <span v-else class="track-index" aria-hidden="true"><span class="track-number">{{ entry.index + 1 }}</span><span class="track-play-mark">▶</span></span>
         <TrackArtwork v-if="props.showArtwork" class="track-art" :track="entry.track" alt="" aria-hidden="true" />
         <span class="track-copy" role="cell"><strong>{{ entry.track.title }}</strong><small>{{ entry.track.artists.join('、') }}<span v-if="entry.track.album" class="track-inline-album"> · {{ entry.track.album }}</span></small><span v-if="entry.track.version || props.matchStates?.[entry.track.id] === 'CONFIRMED' || props.matchStates?.[entry.track.id] === 'POSSIBLE'" class="track-quality-details"><span v-if="entry.track.version">{{ entry.track.version }}</span><span v-if="props.matchStates?.[entry.track.id] === 'CONFIRMED'" class="track-source-badge">Roon 已匹配</span><span v-else-if="props.matchStates?.[entry.track.id] === 'POSSIBLE'" class="track-source-badge is-muted" title="存在多个候选，保持 Provider 播放">Smart 匹配不唯一</span></span></span>
         <span class="track-album" aria-hidden="true">{{ entry.track.album }}</span>
@@ -206,7 +208,7 @@ onUnmounted(() => {
           <slot name="row-detail" :track="entry.track" />
         </span>
       </div>
-      <div v-else class="track-row track-row-placeholder" role="row" :aria-rowindex="entry.index + 2" aria-disabled="true"><span class="track-index" aria-hidden="true">{{ entry.index + 1 }}</span><span class="track-copy" role="cell">正在读取这一页…</span><span class="placeholder-cell" role="cell">时长暂未读取</span><span class="placeholder-cell" role="cell">操作暂不可用</span></div>
+      <div v-else class="track-row track-row-placeholder" role="row" :aria-rowindex="entry.index + 2" aria-disabled="true"><span v-if="$slots['row-leading']" class="track-leading" role="cell" aria-label="选择暂不可用"></span><span v-else class="track-index" aria-hidden="true">{{ entry.index + 1 }}</span><span class="track-copy" role="cell">正在读取这一页…</span><span class="placeholder-cell" role="cell">时长暂未读取</span><span class="placeholder-cell" role="cell">操作暂不可用</span></div>
       </template>
       <div v-if="isVirtualized" aria-hidden="true" :style="{ height: `${virtualWindow.bottomSpacer}px` }"></div>
     </div>
@@ -241,6 +243,9 @@ onUnmounted(() => {
 .track-table .track-table-header, .track-table .placeholder-cell { display: flex !important; position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .track-table.is-range-window .track-row { height: 84px; min-height: 84px; grid-template-columns: 24px 64px minmax(0, 1fr) 60px 142px; }
 .track-table.is-range-window.track-table-no-artwork .track-row { grid-template-columns: 24px minmax(0, 1fr) 60px 142px; }
+.track-table.is-range-window.has-row-leading .track-row { grid-template-columns: 44px 64px minmax(0, 1fr) 60px 142px; }
+.track-table.is-range-window.has-row-leading.track-table-no-artwork .track-row { grid-template-columns: 44px minmax(0, 1fr) 60px 142px; }
+.track-leading { display:flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; }
 .track-table.is-range-window .row-actions { width: 142px; opacity: 1; display: flex; gap: 5px; grid-column: auto; }
 .track-table.is-range-window .row-actions button { display: inline-flex; flex: 0 0 44px; width: 44px; min-width: 44px; min-height: 44px; padding-inline: 0; align-items: center; justify-content: center; }
 .track-table.is-range-window .track-row-placeholder .track-copy { grid-column: 3; color: var(--mb-text-secondary); }
@@ -251,5 +256,7 @@ onUnmounted(() => {
   .track-table.is-range-window .track-row .track-index, .track-table.is-range-window .track-row .track-art { display: none; }
   .track-table.is-range-window .track-row .track-duration { display: block; position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .track-table.is-range-window .track-row-placeholder .track-copy, .track-table.is-range-window.track-table-no-artwork .track-row-placeholder .track-copy { grid-column: 1; }
+  .track-table.is-range-window.has-row-leading .track-row, .track-table.is-range-window.has-row-leading.track-table-no-artwork .track-row { grid-template-columns:44px minmax(0, 1fr) 142px; }
+  .track-table.is-range-window.has-row-leading .track-row-placeholder .track-copy { grid-column:2; }
 }
 </style>

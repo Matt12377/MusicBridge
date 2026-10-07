@@ -32161,7 +32161,7 @@
       "depends_on": [
         "MBRS-009"
       ],
-      "status": "NOT_STARTED",
+      "status": "SOURCE_READY_LOCAL_SOFTWARE_APP_PASS_CI_PENDING",
       "implementation_owner": "MBRS-011",
       "goal": "默认只改MB，任何源文件操作都形成可审查、可恢复的具体计划。",
       "steps": [
@@ -32193,8 +32193,17 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "NOT_RUN",
-      "evidence_refs": []
+      "validation_status": "MB_ONLY_SOFTWARE_PASS_CONTROLLED_APP_PARTIAL_LIVE_OWNER_NOT_RUN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/EXECUTION_SCOPE.json",
+        "docs/postrust/MBRS-011/SCHEDULING_CORRECTION.md",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-011/STATE_MATRIX.json"
+      ],
+      "execution_base_sha": "db4cded876e8eda7755d781ed4827dfc38332a10",
+      "branch": "codex/mbrs-011-mb-only-organizer",
+      "report_path": "reports/MBRS-011_METADATA_ORGANIZER.md",
+      "report_commit_resolution": "commit-containing-reports/MBRS-011_METADATA_ORGANIZER.md"
     },
     {
       "id": "MBRS-012",
@@ -32340,7 +32349,7 @@
         "MBRS-000",
         "MBRS-002"
       ],
-      "status": "NOT_STARTED",
+      "status": "OWNER_CANCELLED",
       "implementation_owner": "MBRS-015",
       "goal": "保留有证据的信息增强，不为主播放建立依赖。",
       "steps": [
@@ -32371,8 +32380,18 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "NOT_RUN",
-      "evidence_refs": []
+      "validation_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json"
+      ],
+      "cancellation": {
+        "status": "OWNER_CANCELLED",
+        "recordedOn": "2026-10-07",
+        "sourceThreadId": "01a11009-6c6c-7a12-adf5-7e9374e24fc4",
+        "sourceUserMessageId": "01a1161d-eda4-7182-80dc-453f5dead45c",
+        "ref": "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json",
+        "reason": "可选 Roon 内部协议增强无核心硬依赖；本期本地库、可靠播放、FLAC 和移动端目标不要求启用它。"
+      }
     },
     {
       "id": "MBRS-016",
@@ -34063,10 +34082,13 @@
       "requirement": "MB-only信息修正/预览/撤销可用，源标签默认不变。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/STATE_MATRIX.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json"
+      ],
+      "software_status": "PASS",
+      "app_status": "PARTIAL",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
     },
@@ -34077,10 +34099,13 @@
       "requirement": "过期/变更/错误scope确认被拒绝，operation_id不能重复副作用。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/STATE_MATRIX.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json"
+      ],
+      "software_status": "PASS",
+      "app_status": "PARTIAL",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
     },
@@ -34091,9 +34116,12 @@
       "requirement": "活跃lease/冻结/只读根/空间不足/重名冲突在计划和执行两次校验。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/STATE_MATRIX.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
@@ -34105,10 +34133,13 @@
       "requirement": "人工覆盖与raw可并列看，增量扫描不撤销修正。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/STATE_MATRIX.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json"
+      ],
+      "software_status": "PASS",
+      "app_status": "PARTIAL",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
     },
@@ -34119,10 +34150,13 @@
       "requirement": "取消/崩溃/恢复不把未写项显示成功。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/STATE_MATRIX.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json"
+      ],
+      "software_status": "PASS",
+      "app_status": "PARTIAL",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
     },
@@ -34133,9 +34167,12 @@
       "requirement": "确认后临时开始播放不被并行写入破坏，锁获取有界且可取消。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/STATE_MATRIX.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
@@ -34427,12 +34464,14 @@
       "requirement": "已有POC实证按SHA/build/字段继承，没有证据时保持NOT_TESTED。",
       "release_scope": "ENRICHMENT_ADDON",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
-      "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json"
+      ],
+      "software_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "app_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "live_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "owner_status": "NOT_APPLICABLE_OWNER_CANCELLED"
     },
     {
       "id": "MBRS-AT-015-02",
@@ -34441,12 +34480,14 @@
       "requirement": "只读allowlist拒绝播放/暂停/音量/入库/收藏/删除/重扫/任意RPC。",
       "release_scope": "ENRICHMENT_ADDON",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
-      "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json"
+      ],
+      "software_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "app_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "live_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "owner_status": "NOT_APPLICABLE_OWNER_CANCELLED"
     },
     {
       "id": "MBRS-AT-015-03",
@@ -34455,12 +34496,14 @@
       "requirement": "每个开启字段有真实响应及真值核对，空值/重复实体不假exact。",
       "release_scope": "ENRICHMENT_ADDON",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
-      "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json"
+      ],
+      "software_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "app_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "live_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "owner_status": "NOT_APPLICABLE_OWNER_CANCELLED"
     },
     {
       "id": "MBRS-AT-015-04",
@@ -34469,12 +34512,14 @@
       "requirement": "连接/释放/超时/退出/不兼容无无限重试，旧oid/epoch不复用。",
       "release_scope": "ENRICHMENT_ADDON",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
-      "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json"
+      ],
+      "software_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "app_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "live_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "owner_status": "NOT_APPLICABLE_OWNER_CANCELLED"
     },
     {
       "id": "MBRS-AT-015-05",
@@ -34483,12 +34528,14 @@
       "requirement": "增强完全未安装/关闭/损坏时，核心20样本新直送与音质路径不变。",
       "release_scope": "ENRICHMENT_ADDON",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
-      "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json"
+      ],
+      "software_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "app_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "live_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "owner_status": "NOT_APPLICABLE_OWNER_CANCELLED"
     },
     {
       "id": "MBRS-AT-015-06",
@@ -34497,12 +34544,14 @@
       "requirement": "可选增强状态独立展示，未完成不宣称已接入，关闭不会隐藏本地主播放按钮。",
       "release_scope": "ENRICHMENT_ADDON",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
-      "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json"
+      ],
+      "software_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "app_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "live_status": "NOT_APPLICABLE_OWNER_CANCELLED",
+      "owner_status": "NOT_APPLICABLE_OWNER_CANCELLED"
     },
     {
       "id": "MBRS-AT-016-01",
@@ -35042,9 +35091,12 @@
       "requirement": "MB_ONLY元数据覆盖不占音频文件独占锁；SOURCE_FILES才执行文件保护，原播放不被无关编辑阻塞。",
       "release_scope": "CORE",
       "introduced_in": "1.2",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-011/STATE_MATRIX.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json"
+      ],
+      "software_status": "PARTIAL",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
@@ -35350,5 +35402,18 @@
       "meaning": "精确SHA/最终HEAD由提交后外置收据解析，不自造review PASS"
     }
   },
-  "g0_resolution_ref": "docs/postrust/RUST-016/ADMISSION_DECISION.json"
+  "g0_resolution_ref": "docs/postrust/RUST-016/ADMISSION_DECISION.json",
+  "effective_scope": {
+    "originalTasks": 18,
+    "originalAcceptanceCases": 156,
+    "activeTasks": 17,
+    "activeAcceptanceCases": 150,
+    "ownerCancelledTasks": 1,
+    "notApplicableAcceptanceCases": 6,
+    "cancelledTaskIds": [
+      "MBRS-015"
+    ],
+    "ref": "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json",
+    "fullWithEnrichment": "NOT_CLAIMED"
+  }
 }

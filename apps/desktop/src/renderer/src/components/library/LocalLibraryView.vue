@@ -4,6 +4,7 @@ import type { PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
 import type { useLocalLibrary } from '../../composables/application/useLocalLibrary.js'
 import TrackTable from '../media/TrackTable.vue'
 import LocalArtworkDialog from './LocalArtworkDialog.vue'
+import LocalOrganizerDialog from './LocalOrganizerDialog.vue'
 import SafeArtwork from '../SafeArtwork.vue'
 import LocalLibrarySettings from '../settings/LocalLibrarySettings.vue'
 import { localLibraryPlaybackStatus, mbQueueOwnershipStatus } from '../player/details.js'
@@ -21,6 +22,18 @@ const rootAvailability = { ONLINE: '目录可读取', SOURCE_ROOT_OFFLINE: '源�
 const tokenSource = { title: '标题', artist: '艺术家', album: '专辑', albumArtist: '专辑艺术家', directory: '目录' }
 
 function search(): void { void model.search(queryDraft.value, rootDraft.value || null) }
+function openOrganizerTrack(): void {
+  const current = model.detail
+  if (current) void props.session.organizer.open({ mode: 'single', trackId: current.track.id }, current.metadata.effective.title ?? '当前曲目', current.editions, current.metadata.effective, current.metadata.override?.annotations)
+}
+function openOrganizerEdition(editionId: string): void {
+  const current = model.detail, edition = current?.editions.find(value => value.id === editionId)
+  if (current && edition) void props.session.organizer.open({ mode: 'edition', editionId }, `${edition.title}${edition.edition ? ` · ${edition.edition}` : ''} · 发行 ${edition.id.slice(-8)}`, current.editions)
+}
+function openOrganizerBatch(): void {
+  if (model.selectedTrackIds.length) void props.session.organizer.open({ mode: 'batch', trackIds: [...model.selectedTrackIds] }, `明确选择的 ${model.selectedTrackIds.length} 首`, model.detail?.editions ?? [])
+}
+function organizerReturnFocus(): void { (detailHeading.value ?? searchInput.value)?.focus({ preventScroll: true }) }
 function openDetail(track: TrackSummary, event?: Event): void {
   focusGeneration++; detailTrigger = event?.currentTarget as HTMLElement | null
   const entry = model.rangeWindow.entries.find(value => value.track.id === track.id)
@@ -59,6 +72,8 @@ onUnmounted(() => { focusGeneration++; model.suspend() })
       <div class="local-search-controls"><input id="local-library-query" ref="searchInput" v-model="queryDraft" type="search" autocomplete="off" placeholder="保留版本信息的名称" aria-describedby="local-library-query-hint"><label class="local-root-filter"><span>目录</span><select v-model="rootDraft" aria-label="搜索目录"><option value="">全部已加入目录</option><option v-for="root in model.roots" :key="root.root.id" :value="root.root.id">{{ root.label }} · {{ rootAvailability[root.availability] }}</option></select></label><button type="submit">搜索</button><button type="button" @click="model.refresh()">刷新</button></div>
       <p id="local-library-query-hint" class="local-note">最多 256 个字符，匹配原始与显示名称。每页读取 100 首，滚动时按需加载。</p>
     </form>
+    <div class="local-organizer-toolbar" aria-label="本地信息整理"><button type="button" :aria-pressed="model.selectionMode" @click="model.selectionMode = !model.selectionMode">{{ model.selectionMode ? '结束选择' : '选择曲目' }}</button><span aria-live="polite">已选 {{ model.selectedTrackIds.length }} / 100 首</span><button type="button" :disabled="!model.selectedTrackIds.length" @click="openOrganizerBatch">整理已选曲目</button><button type="button" :disabled="!model.selectedTrackIds.length" @click="model.clearTrackSelection()">清空选择</button><button type="button" @click="props.session.organizer.openHistory()">整理历史</button></div>
+    <p v-if="model.selectionMode" class="local-note">按曲目选择，翻页与搜索会保留已选内容；保存前逐项预览。</p><p v-if="model.selectionError" class="local-error" role="alert">{{ model.selectionError }}</p>
     <p v-if="model.error" class="local-error" role="alert">{{ model.error }} <button type="button" @click="model.ensureRange(Math.floor(model.scrollTop / 84), Math.floor(model.scrollTop / 84) + 24)">重试读取</button></p>
     <p v-if="model.actionError" class="local-error" role="alert">{{ model.actionError }}</p>
     <p v-if="model.pendingOverride || model.pendingRelocation || model.relocationUnknown" class="local-note">请核对已有请求。<button type="button" @click="emit('open-outbox')">打开未确认操作</button></p>
@@ -70,6 +85,7 @@ onUnmounted(() => { focusGeneration++; model.suspend() })
           @visible-range="model.ensureRange" @update:scroll-top="model.scrollTop = $event"
           @play="model.playTrack($event.id)" @queue="model.playTrack($event.id, 'APPEND_MB_QUEUE')" @play-next="model.playTrack($event.id, 'PLAY_NEXT_MB_QUEUE')">
           <template #row-detail="{ track }"><button type="button" class="row-action local-detail-button" :data-local-detail-track="track.id" :aria-label="`查看 ${track.title} 的版本与文件详情`" @click.stop="openDetail(track, $event)">详情</button></template>
+          <template v-if="model.selectionMode" #row-leading="{ track }"><label class="local-track-choice" @click.stop @dblclick.stop @keydown.enter.stop><input type="checkbox" :checked="model.selectedTrackIds.includes(track.id)" :aria-label="`选择 ${track.title}`" @change="model.toggleTrackSelection(track.id)"></label></template>
         </TrackTable>
         <p v-else class="local-note" role="status">尚未成功读取本地音乐库，请重试读取。</p>
       </div>
@@ -82,8 +98,9 @@ onUnmounted(() => { focusGeneration++; model.suspend() })
           <div class="local-detail-actions"><button type="button" :disabled="model.actionBusy || model.detail.track.segment !== null" @click="model.playTrack(model.detail.track.id)">原文件直送</button><button type="button" :disabled="model.actionBusy || model.detail.track.segment !== null" @click="model.playTrack(model.detail.track.id, 'APPEND_MB_QUEUE')">加入 MB 队列</button><button type="button" :disabled="model.actionBusy || model.detail.track.segment !== null" @click="model.playTrack(model.detail.track.id, 'PLAY_NEXT_MB_QUEUE')">MB 下一首</button></div>
           <p v-if="model.detail.track.segment !== null" class="local-note">这是已保存的 CUE 段落；段落直送尚不支持，曲目身份与信息保留。</p>
           <div class="local-detail-actions"><button type="button" @click="props.session.artwork.open(model.detail.track.id)">选择封面</button><span class="local-note">只保存到 MB；封面不改变版本与音质信息。</span></div>
+          <div class="local-detail-actions"><button type="button" @click="openOrganizerTrack">整理此曲目信息</button></div>
           <div v-if="model.detailArtwork?.selection?.candidate" class="local-detail-artwork"><SafeArtwork :src="model.detailArtwork.selection.candidate.display.dataUrl" alt="MB 已保存的独立发行封面" loading="eager" style="width:100px;height:100px;flex:none" /><p class="local-note">MB 已保存封面 · {{ model.detailArtwork.selection.candidate.sourceLabel }}<br>Roon 封面接收状态另行验证。</p></div>
-          <h3>版本</h3><ul v-if="model.detail.editions.length"><li v-for="edition in model.detail.editions" :key="edition.id">{{ edition.title }} · {{ edition.edition || '未注明版本' }}</li></ul><p v-else class="local-note">尚无已保存的独立发行关系。</p>
+          <h3>版本</h3><ul v-if="model.detail.editions.length"><li v-for="edition in model.detail.editions" :key="edition.id">{{ edition.title }} · {{ edition.edition || '未注明版本' }} · 发行 {{ edition.id.slice(-8) }} <button type="button" :aria-label="`整理具体发行 ${edition.title} ${edition.edition} ${edition.id}`" @click="openOrganizerEdition(edition.id)">整理这个发行</button></li></ul><p v-else class="local-note">尚无已保存的独立发行关系。</p>
           <p v-if="model.detail.versionTokens.length" class="local-note">名称线索：<span v-for="(token, index) in model.detail.versionTokens" :key="`${token.source}-${token.start}-${index}`">{{ token.raw }}（{{ tokenSource[token.source] }}）{{ index + 1 < model.detail.versionTokens.length ? ' · ' : '' }}</span>。名称线索用于辨认版本。</p>
           <h3>原始标签与显示信息</h3><div class="local-metadata-wrap"><table class="local-metadata"><caption>已保存的来源、人工更正与生效信息</caption><thead><tr><th scope="col">字段</th><th scope="col">原始标签</th><th scope="col">显示更正</th><th scope="col">生效信息</th></tr></thead><tbody><tr v-for="field in metadataFields" :key="field.key"><th scope="row">{{ field.label }}</th><td>{{ model.detail.metadata.raw[field.key] || '未提供' }}</td><td>{{ model.detail.metadata.override?.fields[field.key] ?? '未更正' }}</td><td>{{ model.detail.metadata.effective[field.key] || '未提供' }}</td></tr></tbody></table></div>
           <form class="local-title-form" @submit.prevent="model.saveTitle()"><label for="local-display-title">仅修改 MB 显示名称</label><input id="local-display-title" v-model="model.titleDraft" :disabled="model.actionBusy || !!model.pendingOverride" autocomplete="off"><p class="local-note">更正只保存在音乐库中，音频字节与文件标签保留。已有收藏与关联不会删除。</p><button type="submit" :disabled="model.actionBusy || !!model.pendingOverride">保存显示更正</button></form>
@@ -94,11 +111,16 @@ onUnmounted(() => { focusGeneration++; model.suspend() })
       </section>
     </div>
     <LocalArtworkDialog v-if="props.session.artwork.isOpen.value" :session="props.session.artwork" />
+    <LocalOrganizerDialog v-if="props.session.organizer.isOpen.value" :session="props.session.organizer" @open-outbox="emit('open-outbox')" @return-focus="organizerReturnFocus" />
   </section>
 </template>
 
 <style scoped>
 .local-detail-artwork { display:flex; gap:16px; align-items:center; margin:16px 0; }
+.local-organizer-toolbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:12px 0; }
+.local-organizer-toolbar span { color:var(--mb-text-secondary); font-variant-numeric:tabular-nums; }
+.local-track-choice { display:flex; align-items:center; justify-content:center; width:44px; min-height:44px; cursor:pointer; }
+.local-track-choice input { width:18px; height:18px; margin:0; accent-color:var(--mb-accent); }
 .local-library-view { padding-bottom: 170px; }
 .local-library-heading, .local-detail-heading, .local-search-controls, .local-detail-actions, .local-results-summary { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .local-library-heading { justify-content: space-between; margin-bottom: 16px; }

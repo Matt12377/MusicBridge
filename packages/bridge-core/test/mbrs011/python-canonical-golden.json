@@ -1,0 +1,37 @@
+{
+  "producer": "Python3 json.dumps ensure_ascii=false sort_keys=true separators no-whitespace allow_nan=false",
+  "syntheticOriginalPackExample": true,
+  "body": {
+    "created_at": "2026-10-03T00:00:00Z",
+    "scope": "MB_ONLY",
+    "operations": [
+      {
+        "operation_id": "synthetic-op-1",
+        "kind": "MB_OVERRIDE",
+        "root_id": "synthetic-root-1",
+        "target_asset_id": "synthetic-asset-1",
+        "expected_asset_revision": "1",
+        "source_relative_path": "Synthetic Album/01.flac",
+        "target_relative_path": null,
+        "field_patch": {
+          "title": "示例曲目"
+        },
+        "backup_required": false
+      }
+    ],
+    "root_mapping_revisions": {
+      "synthetic-root-1": "1"
+    },
+    "conflicts": [],
+    "resource_guards": {
+      "require_exclusive_asset_lock": false,
+      "defer_if_read_lease": false,
+      "protect_frozen_sources": true,
+      "recheck_at_execution": true
+    }
+  },
+  "canonical": "{\"conflicts\":[],\"created_at\":\"2026-10-03T00:00:00Z\",\"operations\":[{\"backup_required\":false,\"expected_asset_revision\":\"1\",\"field_patch\":{\"title\":\"示例曲目\"},\"kind\":\"MB_OVERRIDE\",\"operation_id\":\"synthetic-op-1\",\"root_id\":\"synthetic-root-1\",\"source_relative_path\":\"Synthetic Album/01.flac\",\"target_asset_id\":\"synthetic-asset-1\",\"target_relative_path\":null}],\"resource_guards\":{\"defer_if_read_lease\":false,\"protect_frozen_sources\":true,\"recheck_at_execution\":true,\"require_exclusive_asset_lock\":false},\"root_mapping_revisions\":{\"synthetic-root-1\":\"1\"},\"scope\":\"MB_ONLY\"}",
+  "sha256": "a6f38f3bc45ee4ce7b47ca4df6b076c2057bfd6bd23ebeea3e9d9da6ecc8cb48",
+  "declaredExampleHash": "a6f38f3bc45ee4ce7b47ca4df6b076c2057bfd6bd23ebeea3e9d9da6ecc8cb48",
+  "exampleHashMatches": true
+}

@@ -6,6 +6,7 @@ import * as dto from '@music-bridge/contracts';
 import type { SourceStore } from '../recording/source-store.js';
 import type { RootCapability } from '../recording/source-files.js';
 import { extractVersionTokens } from '../library/local-name-rules.js';
+import { ORGANIZER_JOURNAL, isOrganizerEvent, organizerHash, organizerCanonical, readOrganizerEvent, verifyOrganizerJournalRow, type OrganizerEvent } from './local-organizer-journal.js';
 
 const tables = {
   local_catalog_roots: 'CREATE TABLE local_catalog_roots(id TEXT PRIMARY KEY,source_root_id TEXT NOT NULL REFERENCES source_roots(id),data TEXT NOT NULL) STRICT',
@@ -69,7 +70,7 @@ export interface CreateAlbumEdition extends Command { title: string; edition: st
 export interface LinkEditionTrack extends Command { editionId: string; trackId: string; disc: number; trackNumber: number; sequence: number }
 export interface RemoveEditionTrack extends Command { id: string; expectedRevision: string }
 export interface ObserveLocalMetadata extends Command { trackId: string; source: 'tag' | 'synthetic'; parserVersion: string; fields: dto.LocalMetadata }
-export interface OverrideLocalMetadata extends Command { trackId: string; expectedRevision: string | null; fields: dto.LocalMetadata }
+export interface OverrideLocalMetadata extends Command { trackId: string; expectedRevision: string | null; fields: dto.LocalMetadata; annotations?: dto.LocalMetadataAnnotations }
 interface Access { read<T>(operation: (db: DatabaseSync) => T): T; sources: Pick<SourceStore, 'root'>; conflict(message: string): never; beforeCommit?: (action: string) => void; beforeLocalFactsCommit?: () => void; onLocalFactsFatal?: () => void }
 type Row = Record<string, unknown>;
 const rowBytes = (row: Row): number => Object.values(row).reduce<number>((bytes, value) => bytes + (typeof value === 'string' ? Buffer.byteLength(value) : 0), 0);
@@ -113,7 +114,7 @@ function validRequest(operation: dto.LocalCatalogOperation, v: unknown): v is Ro
     case 'link-edition-track': return keys(v, ['commandId', 'editionId', 'trackId', 'disc', 'trackNumber', 'sequence']) && dto.isCollectionId(v.editionId) && dto.isCollectionId(v.trackId) && ordinal(v.disc) && ordinal(v.trackNumber) && ordinal(v.sequence);
     case 'remove-edition-track': return keys(v, ['commandId', 'id', 'expectedRevision']) && dto.isCollectionId(v.id) && dto.isLocalCatalogRevision(v.expectedRevision);
     case 'observe-metadata': return keys(v, ['commandId', 'trackId', 'source', 'parserVersion', 'fields']) && dto.isCollectionId(v.trackId) && (v.source === 'tag' || v.source === 'synthetic') && dto.isLocalCatalogText(v.parserVersion) && dto.isLocalMetadata(v.fields) && Object.keys(v.fields).length > 0;
-    case 'override-metadata': return keys(v, ['commandId', 'trackId', 'expectedRevision', 'fields']) && dto.isCollectionId(v.trackId) && (v.expectedRevision === null || dto.isLocalCatalogRevision(v.expectedRevision)) && dto.isLocalMetadata(v.fields);
+    case 'override-metadata': return keys(v, ['commandId', 'trackId', 'expectedRevision', 'fields', ...(Object.hasOwn(v, 'annotations') ? ['annotations'] : [])]) && dto.isCollectionId(v.trackId) && (v.expectedRevision === null || dto.isLocalCatalogRevision(v.expectedRevision)) && dto.isLocalMetadata(v.fields) && (!Object.hasOwn(v, 'annotations') || dto.isLocalMetadataAnnotations(v.annotations));
   }
 }
 function parse<T>(value: unknown, guard: (v: unknown) => v is T): T {
@@ -234,7 +235,8 @@ function verifyHistoryStep(db: DatabaseSync, operation: dto.LocalCatalogOperatio
       if (old !== undefined && !dto.isLocalMetadataOverride(old)) return corrupt();
       const previous = old as dto.LocalMetadataOverride | undefined;
       if ((previous?.revision ?? null) !== request.expectedRevision) return corrupt();
-      equal({ trackId: selected.id, revision: previous ? next(previous.revision) : '1', fields: request.fields }); break;
+      const annotations = Object.hasOwn(request, 'annotations') ? request.annotations : previous?.annotations;
+      equal({ trackId: selected.id, revision: previous ? next(previous.revision) : '1', fields: request.fields, ...(annotations === undefined ? {} : { annotations }) }); break;
     }
   }
 }
@@ -265,6 +267,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   let immutableObservations = 0;
   for (const row of db.prepare('SELECT * FROM local_catalog_ledger ORDER BY rowid').iterate()) {
     boundedRow(row);
+    if (row.operation === ORGANIZER_JOURNAL) { verifyOrganizerJournalRow(db, row, latest); continue; }
     const operation = row.operation as dto.LocalCatalogOperation;
     if (!(dto.LOCAL_CATALOG_OPERATIONS as readonly unknown[]).includes(operation) || !dto.isCollectionId(row.command_id)
       || typeof row.created_at !== 'string' || !Number.isFinite(Date.parse(row.created_at))) return corrupt();
@@ -527,17 +530,21 @@ export function createLocalCatalogStore(access: Access) {
         track(db, request.trackId); const previous = db.prepare('SELECT data FROM local_catalog_overrides WHERE track_id=?').get(request.trackId);
         const old = previous ? parse(previous.data, dto.isLocalMetadataOverride) : null;
         if ((old?.revision ?? null) !== request.expectedRevision) return access.conflict('人工元数据修订已改变。');
-        const result: dto.LocalMetadataOverride = { trackId: request.trackId, revision: old ? next(old.revision) : '1', fields: { ...request.fields } };
+        const annotations = request.annotations ?? old?.annotations;
+        const result: dto.LocalMetadataOverride = { trackId: request.trackId, revision: old ? next(old.revision) : '1', fields: { ...request.fields }, ...(annotations === undefined ? {} : { annotations: structuredClone(annotations) }) };
         db.prepare('INSERT INTO local_catalog_overrides VALUES(?,?) ON CONFLICT(track_id) DO UPDATE SET data=excluded.data').run(result.trackId, JSON.stringify(result)); return result;
   }
   return {
     /** Node owner唯一连接的私有批提交接点；callback必须同步，不读取文件、不返回Promise。 */
-    privateBatch<T>(operation: (db: DatabaseSync, mutate: (name: dto.LocalCatalogOperation, request: Command & Row) => dto.LocalCatalogResult) => T): T {
+    privateRead<T>(operation: (db: DatabaseSync) => T): T { return access.read(db => { certificateFor(db); return operation(db); }); },
+    privateBatch<T>(operation: (db: DatabaseSync, mutate: (name: dto.LocalCatalogOperation, request: Command & Row) => dto.LocalCatalogResult, appendJournal: (event: OrganizerEvent) => void) => T, action = 'local-scan:commit-batch'): T {
       return access.read(db => {
         db.exec('BEGIN IMMEDIATE');
         try {
           let certificate = certificateFor(db);
-          const apply = (name: dto.LocalCatalogOperation, request: Command & Row): dto.LocalCatalogResult => {
+          let expectedChanges = Number(db.prepare('SELECT total_changes() n').get()?.n);
+          const journalRows: Row[] = [];
+          const applyMutation = (name: dto.LocalCatalogOperation, request: Command & Row): dto.LocalCatalogResult => {
             const operation = name;
             if (!validRequest(operation, request)) return access.conflict('本地目录私有批请求无效。');
             switch (operation) {
@@ -555,9 +562,29 @@ export function createLocalCatalogStore(access: Access) {
               case 'override-metadata': { const candidate = mutate(db, certificate, operation, request, d => applyOverrideMetadata(d, request as unknown as OverrideLocalMetadata)); certificate = candidate.certificate; return candidate.result; }
             }
           };
-          const result = operation(db, apply);
+          const apply = (name: dto.LocalCatalogOperation, request: Command & Row): dto.LocalCatalogResult => {
+            const before = Number(db.prepare('SELECT total_changes() n').get()?.n), result = applyMutation(name, request);
+            expectedChanges += Number(db.prepare('SELECT total_changes() n').get()?.n) - before; return result;
+          };
+          const appendJournal = (event: OrganizerEvent): void => {
+            if (!isOrganizerEvent(event)) return corrupt();
+            const digest = organizerHash(event), previous = db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(event.eventId);
+            if (previous) { if (previous.operation !== ORGANIZER_JOURNAL || previous.fingerprint !== digest) return access.conflict('整理事件编号已绑定其他内容。'); readOrganizerEvent(previous); return; }
+            if (journalRows.length >= 256) throw new LocalCatalogBudgetError('单事务整理事件', journalRows.length + 1, 256);
+            db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(event.eventId, digest, ORGANIZER_JOURNAL, organizerCanonical(event), organizerCanonical({ eventId: event.eventId, eventHash: digest }), new Date().toISOString());
+            const row = db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(event.eventId)!; boundedRow(row); readOrganizerEvent(row);
+            const counts = new Map(certificate.rows), count = counts.get('local_catalog_ledger')! + 1;
+            checkBudget('local_catalog_ledger行数', count, rowBudgets.local_catalog_ledger); counts.set('local_catalog_ledger', count);
+            const bytes = certificate.bytes + rowBytes(row); checkBudget('目录总文本字节', bytes, maxCatalogTextBytes);
+            certificate = { rows: counts, bytes, dataVersion: certificate.dataVersion }; journalRows.push(row); expectedChanges++;
+          };
+          const result = operation(db, apply, appendJournal);
           if (result instanceof Promise) return corrupt();
-          access.beforeCommit?.('local-scan:commit-batch');
+          for (const row of journalRows) verifyOrganizerJournalRow(db, row);
+          // Scanner在原批事务中还写自己的检查点/文件事实，由其原审计负责；整理只允许目录和私有事件。
+          if (action.startsWith('local-organizer:') && Number(db.prepare('SELECT total_changes() n').get()?.n) !== expectedChanges) return corrupt();
+          access.beforeCommit?.(action);
+          if (action.startsWith('local-organizer:') && Number(db.prepare('SELECT total_changes() n').get()?.n) !== expectedChanges) return corrupt();
           access.beforeLocalFactsCommit?.();
           commitLocalFacts(db,access.onLocalFactsFatal); audits.set(db, certificate); return result;
         } catch (error) { rollbackLocalFacts(db,error,access.onLocalFactsFatal); }

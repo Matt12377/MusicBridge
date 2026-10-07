@@ -22,7 +22,10 @@ export interface LocalMetadata { title?: string; artist?: string; album?: string
 export interface LocalMetadataObservation {
   id: string; trackId: string; revision: LocalCatalogRevision; source: 'tag' | 'synthetic'; parserVersion: string; fields: LocalMetadata;
 }
-export interface LocalMetadataOverride { trackId: string; revision: LocalCatalogRevision; fields: LocalMetadata }
+/** 人工说明及分组建议只属于MB；不会生成发行身份或源标签。 */
+export interface LocalGroupingSuggestion { editionId: string; expectedRevision: string; reason: string }
+export interface LocalMetadataAnnotations { versionDescription?: string; groupingSuggestions?: LocalGroupingSuggestion[] }
+export interface LocalMetadataOverride { trackId: string; revision: LocalCatalogRevision; fields: LocalMetadata; annotations?: LocalMetadataAnnotations }
 export const LOCAL_CATALOG_OPERATIONS = [
   'register-root', 'relink-root', 'register-asset', 'move-asset', 'replace-asset',
   'create-track', 'select-asset', 'create-edition', 'link-edition-track', 'remove-edition-track',
@@ -85,7 +88,20 @@ export function isLocalMetadataObservation(v: unknown): v is LocalMetadataObserv
     && isLocalCatalogText(v.parserVersion) && isLocalMetadata(v.fields) && Object.keys(v.fields).length > 0;
 }
 export function isLocalMetadataOverride(v: unknown): v is LocalMetadataOverride {
-  return record(v) && keys(v, ['trackId', 'revision', 'fields']) && isCollectionId(v.trackId) && isLocalCatalogRevision(v.revision) && isLocalMetadata(v.fields);
+  return record(v) && keys(v, ['trackId', 'revision', 'fields'], ['annotations']) && isCollectionId(v.trackId) && isLocalCatalogRevision(v.revision) && isLocalMetadata(v.fields)
+    && (!Object.hasOwn(v, 'annotations') || isLocalMetadataAnnotations(v.annotations));
+}
+export function isLocalMetadataAnnotations(v: unknown): v is LocalMetadataAnnotations {
+  const closed = (value: unknown, names: readonly string[]): value is Record<string, unknown> => record(value)
+    && [Object.prototype, null].includes(Object.getPrototypeOf(value)) && Reflect.ownKeys(value).every(k => typeof k === 'string' && names.includes(k)
+      && Object.getOwnPropertyDescriptor(value, k)?.enumerable === true && Object.hasOwn(Object.getOwnPropertyDescriptor(value, k)!, 'value'));
+  if (!closed(v, ['versionDescription', 'groupingSuggestions'])) return false;
+  if (Object.hasOwn(v, 'versionDescription') && !isLocalCatalogText(v.versionDescription, true)) return false;
+  if (!Object.hasOwn(v, 'groupingSuggestions')) return true;
+  const values = v.groupingSuggestions;
+  return libraryArray(values, 8) && values.every(s => closed(s, ['editionId', 'expectedRevision', 'reason']) && Reflect.ownKeys(s).length === 3
+    && isCollectionId(s.editionId) && isLocalCatalogRevision(s.expectedRevision) && isLocalCatalogText(s.reason))
+    && new Set(values.map(s => (s as LocalGroupingSuggestion).editionId)).size === values.length;
 }
 export function isLocalCatalogResult(operation: LocalCatalogOperation, v: unknown): v is LocalCatalogResult {
   switch (operation) {
@@ -118,7 +134,7 @@ export interface CreateAlbumEditionRequest extends CatalogCommand { title: strin
 export interface LinkEditionTrackRequest extends CatalogCommand { editionId: string; trackId: string; disc: number; trackNumber: number; sequence: number }
 export interface RemoveEditionTrackRequest extends CatalogCommand { id: string; expectedRevision: string }
 export interface ObserveLocalMetadataRequest extends CatalogCommand { trackId: string; source: 'tag' | 'synthetic'; parserVersion: string; fields: LocalMetadata }
-export interface OverrideLocalMetadataRequest extends CatalogCommand { trackId: string; expectedRevision: string | null; fields: LocalMetadata }
+export interface OverrideLocalMetadataRequest extends CatalogCommand { trackId: string; expectedRevision: string | null; fields: LocalMetadata; annotations?: LocalMetadataAnnotations }
 export interface LocalMetadataView { raw: LocalMetadata; override: LocalMetadataOverride | null; effective: LocalMetadata }
 /** 查询只携带本地逻辑对象；名字证据不生成发行身份，详情不携带定位或读票据。 */
 export interface LocalLibraryQuery { query: string; rootId: string | null; offset: number; limit: number }
@@ -159,7 +175,7 @@ export function isLocalLibraryQueryPage(v: unknown): v is LocalLibraryQueryPage 
 export function isLocalLibraryTrackDetail(v: unknown): v is LocalLibraryTrackDetail {
   return record(v) && libraryClosed(v, ['track', 'asset', 'metadata', 'versionTokens', 'editions', 'fileParameters']) && libraryIdentity(v)
     && record(v.metadata) && libraryClosed(v.metadata, ['raw', 'override', 'effective']) && libraryMetadata(v.metadata.raw) && libraryMetadata(v.metadata.effective)
-    && (v.metadata.override === null || record(v.metadata.override) && libraryClosed(v.metadata.override, ['trackId', 'revision', 'fields'])
+    && (v.metadata.override === null || record(v.metadata.override) && libraryClosed(v.metadata.override, ['trackId', 'revision', 'fields', ...(Object.hasOwn(v.metadata.override, 'annotations') ? ['annotations'] : [])])
       && libraryMetadata(v.metadata.override.fields) && isLocalMetadataOverride(v.metadata.override) && v.metadata.override.trackId === (v.track as LocalTrack).id) && isLocalMetadataView(v.metadata)
     && libraryTokens(v.versionTokens) && libraryArray(v.editions, 200) && v.editions.every(e => record(e) && libraryClosed(e, ['id', 'title', 'edition', 'revision']) && isAlbumEdition(e))
     && (v.fileParameters === null || record(v.fileParameters) && libraryClosed(v.fileParameters, ['container', 'codec', 'lossless', 'sampleRateHz', 'channels', 'bitsPerSample', 'durationMs', 'evidence']) && isFileAudioParameters(v.fileParameters)) && new TextEncoder().encode(JSON.stringify(v)).byteLength <= 2 * 1024 * 1024;
@@ -257,7 +273,7 @@ export function isLocalCatalogCommandPayload<C extends LocalCatalogCommand>(comm
     case 'localCatalog.linkEditionTrack': return keys(v, ['commandId','editionId','trackId','disc','trackNumber','sequence']) && id('editionId') && id('trackId') && ordinal(v.disc) && ordinal(v.trackNumber) && ordinal(v.sequence);
     case 'localCatalog.removeEditionTrack': return keys(v, ['commandId','id','expectedRevision']) && id('id') && revision('expectedRevision');
     case 'localCatalog.observeMetadata': return keys(v, ['commandId','trackId','source','parserVersion','fields']) && id('trackId') && (v.source === 'tag' || v.source === 'synthetic') && isLocalCatalogText(v.parserVersion) && isLocalMetadata(v.fields) && Object.keys(v.fields).length > 0;
-    case 'localCatalog.overrideMetadata': return keys(v, ['commandId','trackId','expectedRevision','fields']) && id('trackId') && (v.expectedRevision === null || revision('expectedRevision')) && isLocalMetadata(v.fields);
+    case 'localCatalog.overrideMetadata': return keys(v, ['commandId','trackId','expectedRevision','fields'], ['annotations']) && id('trackId') && (v.expectedRevision === null || revision('expectedRevision')) && isLocalMetadata(v.fields) && (!Object.hasOwn(v, 'annotations') || isLocalMetadataAnnotations(v.annotations));
     case 'localCatalog.root': return keys(v, ['rootId']) && id('rootId');
     case 'localCatalog.roots': return keys(v, []);
     case 'localCatalog.asset': return keys(v, ['assetId']) && id('assetId');

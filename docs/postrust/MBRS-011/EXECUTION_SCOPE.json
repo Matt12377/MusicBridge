@@ -1,0 +1,59 @@
+{
+  "schema": "mbrs011.execution-scope.v1",
+  "task": "MBRS-011",
+  "baseSha": "db4cded876e8eda7755d781ed4827dfc38332a10",
+  "branch": "codex/mbrs-011-mb-only-organizer",
+  "g0": "ADMITTED_INHERITED_PHASE_HANDOFF",
+  "g0Ref": "docs/postrust/RUST-016/ADMISSION_DECISION.json",
+  "taskSpec": {
+    "path": "tasks/MBRS-011_METADATA_ORGANIZER.md",
+    "bytes": 3163,
+    "sha256": "ad6f239dbdb2fd9e3a2bad861996f87ad638efc72f8a8afb61660fb50b390600"
+  },
+  "predecessorFinalSeal": {
+    "archiveId": "MBRS010_AUDIT_DELIVERY_RECEIPT",
+    "bytes": 10954,
+    "sha256": "af1334abfe6ce90e6994e5adf401268bbfcddb26def9f7731e9baac944dc1e59",
+    "completionScope": "LIMITED_AUDIT_DELIVERY_PRODUCT_PARTIAL"
+  },
+  "scheduling": {
+    "hardDependencies": [
+      "MBRS-009"
+    ],
+    "ownerContinuousAuthorization": "AGENTS.md 原任务推进约定，Owner 连续开发 MBRS-005～017 并按任务普通 push",
+    "amendmentRef": "docs/postrust/MBRS-011/SCHEDULING_CORRECTION.md",
+    "010ProductCompletionRequired": false
+  },
+  "sourceFilesWrite": "OFF",
+  "defaultCore": "Node",
+  "optionalRustReadonly": "OFF",
+  "ownerTrial": "FINAL_PRODUCT_ONLY_NOT_RUN",
+  "realProviderAccountRoonAudio": "NOT_RUN",
+  "originalTaskCount": 18,
+  "originalAcceptanceCount": 156,
+  "taskAcceptanceCount": 7,
+  "implementationBoundary": "MB_ONLY 字段编辑、具体选择/发行批量、preview/confirm/undo、服务端 canonical Hash、原 outbox 与唯一 Node 库作者、逐项 journal、取消/恢复；SOURCE_FILES 保守拒绝执行。",
+  "modelVerified": {
+    "root": "gpt-6.1-sol",
+    "reasoningEffort": "max",
+    "children": "gpt-6.1-sol/max",
+    "childrenCount": 3,
+    "source": "本会话 latest turn_context 与三次显式 spawn 参数",
+    "currentOwnerMaxOverridesHistoricalHigh": true
+  },
+  "workOrder": "一名产品写作者、最多两名只读调查者；主控整合与写作者串行交接。",
+  "writeRoles": {
+    "organizer_core_inventory011": "Backend27文件已交接并停止；窄修草稿交Root，不再编译或修改",
+    "organizer_contract_inventory011": "第二轮只读冻结后台审查，无编译/修改",
+    "organizer_ui_inventory011": "Renderer10文件已交接并停止产品/编译；95项行为与最终Vue/E2E types退出0，App/Gate尚未运行",
+    "root": "当前唯一产品写者与编译者；整合撤销预算窄修、最终full verify/Gate/正式App/自然CI/独立任务提交推送"
+  },
+  "preserve": {
+    "originalCheckoutDirty": "三个既有 untracked 保留",
+    "other011And014PreflightTrees": "只读线索；不采用 WIP 或旧测试结论",
+    "010FailuresAndCarryover": "完整保留 provider 检索失败、实际拖入未跑及七项 PARTIAL"
+  },
+  "noNewApproval": true,
+  "productConfirmMeaning": "用户在成品内确认具体编辑计划是 Organizer 功能，不是代理工作逐步审批。",
+  "effectiveScopeRef": "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json"
+}

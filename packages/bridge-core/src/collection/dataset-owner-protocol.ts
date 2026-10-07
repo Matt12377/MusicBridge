@@ -1,4 +1,5 @@
 import { LOCAL_ARTWORK_COMMANDS, isLocalArtworkInternalCommand } from '@music-bridge/contracts';
+import { LOCAL_ORGANIZER_COMMANDS } from '@music-bridge/contracts';
 import type {MBQueueLoadResult} from './mb-queue-owner-types.js';
 import { isMBEditionQueueRequest, type MBEditionQueueRequest, type MBEditionQueueSnapshot, isMBQueueSaveRequest, type MBQueueRecord, type MBQueueSaveRequest } from '@music-bridge/contracts';
 import { isLocalSourcePrivatePayload, type LocalSourcePrivatePayload, type LocalSourceCaptureResult } from './local-source-ticket-types.js';
@@ -12,6 +13,7 @@ export const DATASET_OWNER_PROTOCOL_VERSION = 1 as const;
 // 原领域作者命令及本地库只读入口组成固定闭集；新命令必须显式加入，不能按前缀自动授权。
 export const DATASET_COMMANDS = [
   ...LOCAL_ARTWORK_COMMANDS,
+  ...LOCAL_ORGANIZER_COMMANDS,
   ...LOCAL_CATALOG_COMMANDS,
   ...LOCAL_LIBRARY_READ_COMMANDS,
   ...LOCAL_SCAN_COMMANDS, ...LOCAL_RELOCATION_COMMANDS,

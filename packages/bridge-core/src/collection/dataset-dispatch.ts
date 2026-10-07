@@ -1,4 +1,5 @@
 import { isLocalArtworkCommand, isLocalArtworkInternalCommand } from '@music-bridge/contracts';
+import { isLocalOrganizerCommand } from '@music-bridge/contracts';
 import { withLocalFactsMutation } from '../stream/local-source-fence.js';
 import {isLocalRelocationCommand,isLocalRelocationInternalCommand} from '@music-bridge/contracts';
 import { isScanPreparedBatch } from './local-scan-store.js';
@@ -129,7 +130,7 @@ export async function dispatchInternalDatasetCommand(runtime: DatasetDispatchTar
 async function dispatchDataset(runtime: DatasetDispatchTarget, request: IpcRequest, internal: boolean): Promise<unknown> {
   if (!isDatasetCommand(request.command)) throw new BridgeError('BAD_REQUEST', '工作库命令无效。');
   runtime.assertOpen?.();
-  if (isLocalArtworkCommand(request.command) || isLocalCatalogCommand(request.command) || isLocalScanCommand(request.command) || isLocalRelocationCommand(request.command) || request.command === 'localCatalog.prepare') {
+  if (isLocalOrganizerCommand(request.command) || isLocalArtworkCommand(request.command) || isLocalCatalogCommand(request.command) || isLocalScanCommand(request.command) || isLocalRelocationCommand(request.command) || request.command === 'localCatalog.prepare') {
     const checked = internal ? validateIpcInternalRequest(request) : validateIpcRequest(request);
     if (!checked.ok) throw new BridgeError('BAD_REQUEST', '本地目录请求无效。');
     if (!runtime.commandOutbox) throw new DatasetScopeError();
@@ -142,6 +143,12 @@ async function dispatchDataset(runtime: DatasetDispatchTarget, request: IpcReque
   // 原录音SourceLock/严格证据不变；读文件/正式输出入口先等待scan实际quiet，再进入原业务门禁。
   if (runtime.localScan && ['recordingSources.start','recordingAttempts.confirm','recordingAttempts.beginSide','recordingReplica.start','recordingExecution.start'].includes(request.command)) await runtime.localScan.yieldForMedia();
   switch (request.command as IpcCommand) {
+    case 'localOrganizer.preview': if (!runtime.localOrganizer) throw new CollectionError('INVENTORY_UNAVAILABLE', '整理owner尚未就绪。'); return runtime.localOrganizer.preview(request.payload as IpcCommandPayloads['localOrganizer.preview']);
+    case 'localOrganizer.get': if (!runtime.localOrganizer) throw new CollectionError('INVENTORY_UNAVAILABLE', '整理owner尚未就绪。'); return runtime.localOrganizer.get(request.payload as IpcCommandPayloads['localOrganizer.get']);
+    case 'localOrganizer.history': if (!runtime.localOrganizer) throw new CollectionError('INVENTORY_UNAVAILABLE', '整理owner尚未就绪。'); return runtime.localOrganizer.history(request.payload as IpcCommandPayloads['localOrganizer.history']);
+    case 'localOrganizer.confirm': if (!runtime.localOrganizer) throw new CollectionError('INVENTORY_UNAVAILABLE', '整理owner尚未就绪。'); return runtime.localOrganizer.confirm(request.payload as IpcCommandPayloads['localOrganizer.confirm']);
+    case 'localOrganizer.undo': if (!runtime.localOrganizer) throw new CollectionError('INVENTORY_UNAVAILABLE', '整理owner尚未就绪。'); return runtime.localOrganizer.undo(request.payload as IpcCommandPayloads['localOrganizer.undo']);
+    case 'localOrganizer.cancel': if (!runtime.localOrganizer) throw new CollectionError('INVENTORY_UNAVAILABLE', '整理owner尚未就绪。'); return runtime.localOrganizer.cancel(request.payload as IpcCommandPayloads['localOrganizer.cancel']);
     case 'localArtwork.context': return artworkFor(runtime).context(request.payload as IpcCommandPayloads['localArtwork.context']);
     case 'localArtwork.apply': return artworkFor(runtime).apply(request.payload as IpcCommandPayloads['localArtwork.apply']);
     case 'localArtwork.createEdition': return artworkFor(runtime).createEdition(request.payload as IpcCommandPayloads['localArtwork.createEdition']);

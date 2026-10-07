@@ -1043,6 +1043,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (isLocalScanCommand(command)) return isLocalScanCommandPayload(command, payload);
   if (command === 'localCatalog.prepare') return isLocalPlayRequest(payload);
   if (command === 'playback.localTarget') return isRecord(payload) && Reflect.ownKeys(payload).length === 0;
+  if (isLocalOrganizerCommand(command)) return isLocalOrganizerCommandPayload(command, payload);
   if (isLocalCatalogCommand(command)) return isLocalCatalogCommandPayload(command, payload);
   if (command === 'collectionProgress.wants') return isListWantEntriesRequest(payload);
   if (command === 'collectionProgress.saveWant') return isSaveWantEntryRequest(payload);
@@ -1682,6 +1683,7 @@ function isCommandResult(
   if (isLocalScanCommand(command)) return (allowInternalResult || !isLocalScanInternalCommand(command)) && isLocalScanCommandResult(command,value);
   if (command === 'localCatalog.prepare') return isLocalSourceUnsupported(value) || isLocalPlayAccepted(value);
   if (command === 'playback.localTarget') return value === null || isLocalPlayTarget(value);
+  if (isLocalOrganizerCommand(command)) return isLocalOrganizerCommandResult(command, value);
   if (isLocalCatalogCommand(command)) return (allowInternalResult || !isLocalCatalogInternalCommand(command)) && isLocalCatalogCommandResult(command, value);
   if (command === 'lyrics.display.update') return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['applied']) && typeof value.applied === 'boolean';
   switch (command) {
@@ -2064,7 +2066,7 @@ function validateRequest(input: unknown, internal: boolean): ValidationResult<Ip
   if ((isLocalArtworkCommand(input.command) || isLocalScanCommand(input.command) || isLocalRelocationCommand(input.command)) && (![Object.prototype,null].includes(Object.getPrototypeOf(input))
     || Reflect.ownKeys(input).some(k=>typeof k !== 'string' || !['version','id','command','payload','expectedDatasetId','performanceTrace'].includes(k)
       || !Object.prototype.propertyIsEnumerable.call(input,k)))) return invalidRequest();
-  if ((isLocalArtworkCommand(input.command) || isLocalCatalogCommand(input.command) || isLocalScanCommand(input.command) || isLocalRelocationCommand(input.command) || input.command === 'localCatalog.prepare') && ((!internal && (isLocalArtworkInternalCommand(input.command) || isLocalCatalogInternalCommand(input.command) || isLocalScanInternalCommand(input.command) || isLocalRelocationInternalCommand(input.command)))
+  if ((isLocalOrganizerCommand(input.command) || isLocalArtworkCommand(input.command) || isLocalCatalogCommand(input.command) || isLocalScanCommand(input.command) || isLocalRelocationCommand(input.command) || input.command === 'localCatalog.prepare') && ((!internal && (isLocalArtworkInternalCommand(input.command) || isLocalCatalogInternalCommand(input.command) || isLocalScanInternalCommand(input.command) || isLocalRelocationInternalCommand(input.command)))
     || !isCommandOutboxDatasetId(input.expectedDatasetId)
     || !hasOnlyKeys(input, ['version','id','command','payload','expectedDatasetId','performanceTrace']))) return invalidRequest();
 
@@ -2232,3 +2234,4 @@ export function parseIpcRuntimeMessage(
 }
 
 function isSourcePrivatePath(value: unknown): value is string { return typeof value === 'string' && value.startsWith('/') && value.length <= 4096 && !/[\u0000-\u001f\u007f]/u.test(value); }
+import { isLocalOrganizerCommand, isLocalOrganizerCommandPayload, isLocalOrganizerCommandResult } from './local-organizer.js';

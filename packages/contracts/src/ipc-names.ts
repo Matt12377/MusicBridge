@@ -4,6 +4,7 @@ import { LOCAL_SCAN_COMMANDS } from './local-scan.js';
 import { LOCAL_CATALOG_COMMANDS, LOCAL_LIBRARY_READ_COMMANDS } from './local-catalog.js';
 // IPC 名称白名单独立于业务结果与诊断合同，避免互相依赖。
 export const IPC_COMMANDS = [
+  ...LOCAL_ORGANIZER_COMMANDS,
   ...LOCAL_ARTWORK_COMMANDS,
   ...LOCAL_CATALOG_COMMANDS,
   ...LOCAL_LIBRARY_READ_COMMANDS,
@@ -309,3 +310,4 @@ export const IPC_EVENTS = [
 ] as const;
 
 export type IpcEvent = (typeof IPC_EVENTS)[number];
+import { LOCAL_ORGANIZER_COMMANDS } from './local-organizer.js';

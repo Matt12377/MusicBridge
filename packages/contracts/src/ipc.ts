@@ -117,7 +117,7 @@ export type IpcResponse<TResult = unknown> =
 
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
-export interface IpcCommandPayloads extends LocalArtworkCommandPayloads, LocalCatalogCommandPayloads, LocalLibraryReadCommandPayloads, LocalScanCommandPayloads, LocalRelocationCommandPayloads {
+export interface IpcCommandPayloads extends LocalOrganizerCommandPayloads, LocalArtworkCommandPayloads, LocalCatalogCommandPayloads, LocalLibraryReadCommandPayloads, LocalScanCommandPayloads, LocalRelocationCommandPayloads {
   'localCatalog.prepare': LocalPlayRequest;
   'playback.localTarget': Record<string, never>;
   'commandOutbox.context': Record<string, never>;
@@ -409,7 +409,7 @@ export interface IpcCommandPayloads extends LocalArtworkCommandPayloads, LocalCa
   'playback.insertNext': { items: readonly PlaybackQueueRequestItem[] };
 }
 
-export interface IpcCommandResults extends LocalArtworkCommandResults, LocalCatalogCommandResults, LocalLibraryReadCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
+export interface IpcCommandResults extends LocalOrganizerCommandResults, LocalArtworkCommandResults, LocalCatalogCommandResults, LocalLibraryReadCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
   'localCatalog.prepare': LocalSourceUnsupported | LocalPlayAccepted;
   'playback.localTarget': import('./local-play-request.js').LocalPlayTarget | null;
   'commandOutbox.context': CommandOutboxContext;
@@ -767,3 +767,4 @@ export type TypedIpcEvent<TEvent extends IpcEventName = IpcEventName> =
     : never;
 
 export type IpcRuntimeMessage = IpcResponse<unknown> | TypedIpcEvent;
+import type { LocalOrganizerCommandPayloads, LocalOrganizerCommandResults } from './local-organizer.js';

@@ -1,0 +1,55 @@
+{
+  "base": "843e6e55f18c2d4d5aecb6c88df888752c3104b3",
+  "source": "0d4899f217384c731a09727839e8810a06b53626",
+  "report": "e304817ebbc46e208df2da78d6cdaa3ae3ca0b9b",
+  "candidateVersion": "1.4.0",
+  "operations": 20,
+  "candidateSha256": "2d3d5691912bc75d0c49260f07474cc03bde99b060f674706b500b3a2bc6e13a",
+  "controls": 102,
+  "presentationIntents": 65,
+  "verifiedInThisTask": {
+    "archiveGitBlobInputs": 651,
+    "eachBuildInputs": 202,
+    "portableExportFiles": 10,
+    "sourceFilesChanged": 7,
+    "nativeBuildReexecuted": false
+  },
+  "receipt": {
+    "archiveId": "MBRS011_DEFERRED_IOS_PLAYER_SUCCESSOR_READONLY",
+    "bytes": 1412,
+    "sha256": "60695a9e23d3d052bad8def24c29ca09d1ec5452683ff3c5bd26c483b7224b4f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "producerNativeMock": "EXACT_IMPLEMENTATION_INSTALLED_AND_PLAYER_UI_OBSERVED",
+  "producerVolumeAdjustment": "NOT_VERIFIED_SIMULATOR_SYSTEM_CONTROL_UNAVAILABLE",
+  "formalAdoption": "DEFERRED_AFTER_MBRS017",
+  "realMacBackendPhysicalDeviceAudioOwner": "NOT_RUN_OR_PENDING",
+  "010Pointer": "SEALED_HISTORICAL_7890483_UNCHANGED",
+  "history": [
+    {
+      "base": "7890483bd17f46944bdcc765b549b138a2a3a7d5",
+      "source": "a11d1b209465a2e4a0d101ecd58ddae04c096783",
+      "report": "843e6e55f18c2d4d5aecb6c88df888752c3104b3",
+      "candidateVersion": "1.4.0",
+      "operations": 20,
+      "candidateSha256": "2d3d5691912bc75d0c49260f07474cc03bde99b060f674706b500b3a2bc6e13a",
+      "verifiedInThisTask": {
+        "archiveGitBlobInputs": 634,
+        "eachBuildInputs": 202,
+        "portableExportFiles": 15,
+        "sourceFilesChanged": 10,
+        "nativeBuildReexecuted": false
+      },
+      "receipt": {
+        "archiveId": "MBRS011_DEFERRED_IOS_MOTION_SUCCESSOR_READONLY",
+        "bytes": 2189,
+        "sha256": "db450ff381cb6b753aab9ec8257cb8354de9f871b7ef8cab74c4d0908a39f07f",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "formalAdoption": "DEFERRED_AFTER_MBRS017",
+      "realMacBackendPhysicalDeviceAudioOwner": "NOT_RUN_OR_PENDING",
+      "newPlayerControls": "OTHER_CHAT_ONGOING_NOT_INCLUDED",
+      "010Pointer": "SEALED_HISTORICAL_7890483_UNCHANGED"
+    }
+  ]
+}

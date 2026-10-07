@@ -5856,7 +5856,7 @@
     "overallReleaseApproved": false,
     "securityBaselineBlocker": "INHERITED_PRODUCTION_NODE_FORGE_HIGH_AUDIT_FAILURE_NOT_CLOSED"
   },
-  "currentPostRustTask": "MBRS-010",
+  "currentPostRustTask": "MBRS-011",
   "postRustBaseline20261004": {
     "task": "MBRS-000",
     "state": "baseline-delivered-g0-not-admitted",
@@ -46637,5 +46637,53 @@
     "updatedAt": "2026-10-07T10:31:32.399497+00:00",
     "finalDeliveryReceipt": "private-archive:MBRS010_AUDIT_DELIVERY_RECEIPT",
     "nextBranchBaseline": "PENDING_MBRS010_PRODUCT_COMPLETION_AND_FINAL_ACCEPTED_REPORT_HEAD"
+  },
+  "mbrs011MetadataOrganizer": {
+    "task": "MBRS-011",
+    "state": "SOURCE_READY_LOCAL_SOFTWARE_APP_PASS_CI_PENDING",
+    "branch": "codex/mbrs-011-mb-only-organizer",
+    "baseCommit": "db4cded876e8eda7755d781ed4827dfc38332a10",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "scope": "docs/postrust/MBRS-011/EXECUTION_SCOPE.json",
+    "originalAcceptanceCount": 7,
+    "productAcceptance": "PARTIAL",
+    "sourceFileWrites": "OFF",
+    "ownerAcceptance": "NOT_RUN",
+    "nextTask": "MBRS-014",
+    "schedulingCorrection": "docs/postrust/MBRS-011/SCHEDULING_CORRECTION.md",
+    "deferredMobileSuccessor": "docs/postrust/MBRS-011/DEFERRED_MOBILE_SUCCESSOR.json",
+    "report": "reports/MBRS-011_METADATA_ORGANIZER.md",
+    "reportCommitResolution": "commit-containing-reports/MBRS-011_METADATA_ORGANIZER.md",
+    "evidence": {
+      "localValidation": "docs/postrust/MBRS-011/LOCAL_VALIDATION.json",
+      "acceptanceMatrix": "docs/postrust/MBRS-011/STATE_MATRIX.json"
+    },
+    "push": "PENDING_NORMAL_SOURCE_PUSH",
+    "ci": "PENDING_EXACT_SOURCE_NATURAL_CI",
+    "nextBranchBaseline": "RESOLVED_FINAL_REPORT_COMMIT_AFTER_NATURAL_CI_AND_CLEAN_SEAL"
+  },
+  "postRustEffectiveScope": {
+    "originalTasks": 18,
+    "originalAcceptanceCases": 156,
+    "activeTasks": 17,
+    "activeAcceptanceCases": 150,
+    "ownerCancelledTasks": 1,
+    "notApplicableAcceptanceCases": 6,
+    "cancelledTaskIds": [
+      "MBRS-015"
+    ],
+    "ref": "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json",
+    "fullWithEnrichment": "NOT_CLAIMED"
+  },
+  "mbrs015OwnerCancellation": {
+    "task": "MBRS-015",
+    "state": "OWNER_CANCELLED",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "acceptance": "NOT_APPLICABLE_OWNER_CANCELLED",
+    "acceptanceCount": 6,
+    "reason": "可选 Roon 内部协议增强无核心硬依赖；本期本地库、可靠播放、FLAC 和移动端目标不要求启用它。",
+    "ref": "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json"
   }
 }

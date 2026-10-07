@@ -20,6 +20,7 @@
     "e2e/collection-preview.spec.ts",
     "src/renderer/src/env.d.ts",
     "e2e/mbrs009-local-library.spec.ts",
+    "e2e/mbrs011-organizer.spec.ts",
     "e2e/playback-keyboard.spec.ts"
   ]
 }

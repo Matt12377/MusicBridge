@@ -1,0 +1,36 @@
+{
+  "schema": "mbrs.scope-owner-amendment.v1",
+  "task": "MBRS-015",
+  "decision": {
+    "status": "OWNER_CANCELLED",
+    "recordedOn": "2026-10-07",
+    "sourceThreadId": "01a11009-6c6c-7a12-adf5-7e9374e24fc4",
+    "sourceUserMessageId": "01a1161d-eda4-7182-80dc-453f5dead45c",
+    "ref": "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json",
+    "reason": "可选 Roon 内部协议增强无核心硬依赖；本期本地库、可靠播放、FLAC 和移动端目标不要求启用它。"
+  },
+  "effectiveScope": {
+    "originalTasks": 18,
+    "originalAcceptanceCases": 156,
+    "activeTasks": 17,
+    "activeAcceptanceCases": 150,
+    "ownerCancelledTasks": 1,
+    "notApplicableAcceptanceCases": 6,
+    "cancelledTaskIds": [
+      "MBRS-015"
+    ],
+    "ref": "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json",
+    "fullWithEnrichment": "NOT_CLAIMED"
+  },
+  "frozenPackFilesChanged": false,
+  "existingCodePocDataDeleted": false,
+  "dependentTasks": [],
+  "preserved": [
+    "官方 Roon 连接、浏览、封面、播放状态、Zone 与音量",
+    "原生播放业务",
+    "核心 20 样本与已有独立回归要求",
+    "FLAC 实际播放与移动端任务",
+    "RUST-015 与 MBRS-014 独立范围"
+  ],
+  "notCompletionOrPass": true
+}

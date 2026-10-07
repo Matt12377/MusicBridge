@@ -1,13 +1,14 @@
 import { useLocalArtwork } from './useLocalArtwork.js'
+import { useLocalOrganizer } from './useLocalOrganizer.js'
 import { computed, markRaw, ref, shallowRef } from 'vue'
-import { isCommandOutboxOverview, isLocalArtworkContext, isLocalCatalogText, isLocalLibraryQueryPage, isLocalLibraryTrackDetail, isLocalPlayTarget, type LocalArtworkContext } from '@music-bridge/contracts'
+import { LOCAL_ORGANIZER_LIMIT, isCollectionId, isCommandOutboxOverview, isLocalArtworkContext, isLocalCatalogText, isLocalLibraryQueryPage, isLocalLibraryTrackDetail, isLocalPlayTarget, type LocalArtworkContext } from '@music-bridge/contracts'
 import type { CommandOutboxOverview, CommandOutboxPublicApi, LocalLibraryPublicApi, LocalLibraryQueryPage, LocalLibraryTrackSummary, LocalLibraryTrackDetail, LocalMetadata, LocalPlayAccepted, LocalPlayAction, LocalPlayRequest, LocalPlayTarget, LocalSourceUnsupported, LocalRootView, LocalRelocationSelection, LocalRelocationCandidates, LocalRelocationConfirm, LocalCatalogCommandPayloads, PublicRoonZone, TrackSummary } from '@music-bridge/contracts'
 import type { LocalLibraryPlayReceipt } from '../../components/player/details.js'
 
 export const LOCAL_LIBRARY_PAGE_SIZE = 100
 export const LOCAL_LIBRARY_CACHE_PAGES = 6
 export interface LocalLibraryOptions {
-  api: LocalLibraryPublicApi & Partial<import('@music-bridge/contracts').LocalArtworkPublicApi> & Partial<Pick<CommandOutboxPublicApi, 'getCommandOutbox'>>
+  api: LocalLibraryPublicApi & Partial<import('@music-bridge/contracts').LocalArtworkPublicApi> & Partial<import('@music-bridge/contracts').LocalOrganizerPublicApi> & Partial<Pick<CommandOutboxPublicApi, 'getCommandOutbox'>>
   getSelectedZone: () => PublicRoonZone | undefined
   play: (request: LocalPlayRequest) => Promise<LocalPlayAccepted | LocalSourceUnsupported>
 }
@@ -20,6 +21,17 @@ export function localLibraryTrackPresentation(item: LocalLibraryTrackSummary): T
 export function useLocalLibrary(options: LocalLibraryOptions) {
   const artworkUnavailable=async():Promise<never>=>{throw new Error('封面服务暂不可用，原选择保留。')}
   const artwork=markRaw(useLocalArtwork({api:{getLocalArtworkContext:options.api.getLocalArtworkContext??artworkUnavailable,findLocalArtworkCandidates:options.api.findLocalArtworkCandidates??artworkUnavailable,searchLocalArtworkCandidates:options.api.searchLocalArtworkCandidates??artworkUnavailable,chooseLocalArtworkFile:options.api.chooseLocalArtworkFile??artworkUnavailable,importLocalArtworkBytes:options.api.importLocalArtworkBytes??artworkUnavailable,applyLocalArtworkSelection:options.api.applyLocalArtworkSelection??artworkUnavailable,createLocalArtworkEdition:options.api.createLocalArtworkEdition??artworkUnavailable,cancelLocalArtworkLookup:options.api.cancelLocalArtworkLookup??artworkUnavailable,...(options.api.getCommandOutbox?{getCommandOutbox:options.api.getCommandOutbox}:{})},onApplied:()=>{if(selectedId.value)void selectTrack(selectedId.value,true)}}))
+  const organizerUnavailable = async (): Promise<never> => { throw new Error('整理服务暂不可用，原信息保留。') }
+  const organizer = markRaw(useLocalOrganizer({ api: {
+    previewLocalOrganizer: options.api.previewLocalOrganizer ?? organizerUnavailable,
+    getLocalOrganizerPlan: options.api.getLocalOrganizerPlan ?? organizerUnavailable,
+    listLocalOrganizerHistory: options.api.listLocalOrganizerHistory ?? organizerUnavailable,
+    confirmLocalOrganizer: options.api.confirmLocalOrganizer ?? organizerUnavailable,
+    undoLocalOrganizer: options.api.undoLocalOrganizer ?? organizerUnavailable,
+    cancelLocalOrganizer: options.api.cancelLocalOrganizer ?? organizerUnavailable,
+    ...(options.api.getCommandOutbox ? { getCommandOutbox: options.api.getCommandOutbox } : {}),
+  }, onApplied: () => { if (active && !disposed) void refreshBusiness() } }))
+  const selectionMode = ref(false), selectedTrackIds = shallowRef<string[]>([]), selectionError = ref('')
   const query = ref(''), rootId = ref<string | null>(null), total = ref(0), scrollTop = ref(0)
   const loaded = ref(false), loading = ref(false), stale = ref(false), error = ref(''), detailError = ref(''), actionError = ref('')
   const roots = shallowRef<LocalRootView[]>([]), target = shallowRef<LocalPlayTarget | null>(null)
@@ -181,6 +193,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
   }
   function observeOutbox(overview: CommandOutboxOverview): void {
     artwork.observeOutbox(overview);
+    organizer.observeOutbox(overview)
     if (disposed || !isCommandOutboxOverview(overview) || overview.datasetId !== sessionDatasetId) return
     const originalOverride = overrideBinding, originalRelocation = pendingRelocation.value
     const confirmed = (binding: Pending<{ commandId: string }> | null, command: 'localCatalog.overrideMetadata' | 'localRelocation.confirm') => {
@@ -211,8 +224,16 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     const [reconciled] = await Promise.all([refreshOutbox(), refreshContext(), pump(), selectedId.value ? selectTrack(selectedId.value, true) : Promise.resolve()])
     if (reconciled && active && !disposed) await refreshBusiness()
   }
-  function suspend(): void { artwork.close(); active = false; queryGeneration++; detailGeneration++; contextGeneration++; actionGeneration++; outboxGeneration++; loading.value = false; detailLoading.value = false; target.value = null }
-  function dispose(): void { artwork.dispose(); suspend(); disposed = true; pages.clear(); cacheVersion.value++ }
+  function suspend(): void { artwork.close(); organizer.close(); active = false; queryGeneration++; detailGeneration++; contextGeneration++; actionGeneration++; outboxGeneration++; loading.value = false; detailLoading.value = false; target.value = null }
+  function dispose(): void { artwork.dispose(); organizer.dispose(); suspend(); disposed = true; pages.clear(); cacheVersion.value++ }
+  function toggleTrackSelection(trackId: string): void {
+    if (!isCollectionId(trackId)) return
+    selectionError.value = ''
+    if (selectedTrackIds.value.includes(trackId)) selectedTrackIds.value = selectedTrackIds.value.filter(value => value !== trackId)
+    else if (selectedTrackIds.value.length >= LOCAL_ORGANIZER_LIMIT) selectionError.value = '每次最多选择 100 首，请先整理当前选择。'
+    else selectedTrackIds.value = [...selectedTrackIds.value, trackId]
+  }
+  function clearTrackSelection(): void { selectedTrackIds.value = []; selectionError.value = '' }
 
   async function playTrack(trackId: string, action: LocalPlayAction = 'PLAY_NOW'): Promise<void> {
     if (actionBusy.value || !active) return
@@ -311,5 +332,6 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
   return { query, rootId, total, scrollTop, loaded, loading, stale, error, roots, target, targetLabel, rangeWindow, tracks, cachePageCount,
     selectedId, detail, detailLoading, detailStale, detailError, detailReturnTarget, selectedRoot, actionBusy, actionError, titleDraft, pendingOverride, lastPlay,
     candidates, relocationSelection, relocationConfirmed, relocationUnknown, pendingRelocation,
-    artwork, detailArtwork, activate, suspend, dispose, refresh, refreshContext, observeOutbox, search, ensureRange, selectTrack, closeDetail, playTrack, saveTitle, locateSelected, confirmCandidate }
+    artwork, detailArtwork, organizer, selectionMode, selectedTrackIds, selectionError, toggleTrackSelection, clearTrackSelection,
+    activate, suspend, dispose, refresh, refreshContext, observeOutbox, search, ensureRange, selectTrack, closeDetail, playTrack, saveTitle, locateSelected, confirmCandidate }
 }

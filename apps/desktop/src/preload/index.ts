@@ -1,3 +1,4 @@
+import { createLocalOrganizerClient } from './local-organizer-client.js'
 import { createLocalArtworkClient } from './local-artwork-client.js'
 import {createMBQueueClient} from './mb-queue-client.js'
 import {createLocalLibraryClient} from './local-library-client.js'
@@ -386,5 +387,6 @@ contextBridge.exposeInMainWorld(
     createLocalLibraryClient(invokeScoped,getDatasetId,{chooseRoot:commandId=>outbox.submit('localLibrary.chooseRoot',{commandId}),confirm:request=>outbox.submit('localRelocation.confirm',request),relink:request=>outbox.submit('localRelocation.relinkRoot',request),override:request=>outbox.submit('localCatalog.overrideMetadata',request)}),
     createMBQueueClient(invokeScoped),
     createLocalArtworkClient(invokeScoped,getDatasetId,{apply:request=>outbox.submit('localArtwork.apply',request),create:request=>outbox.submit('localArtwork.createEdition',request)}),
+    createLocalOrganizerClient(invokeScoped,getDatasetId,{confirm:request=>outbox.submit('localOrganizer.confirm',request),undo:request=>outbox.submit('localOrganizer.undo',request)}),
   ),
 )

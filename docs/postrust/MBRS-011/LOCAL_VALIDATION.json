@@ -1,0 +1,182 @@
+{
+  "schema": 34,
+  "task": "MBRS-011",
+  "baseSha": "db4cded876e8eda7755d781ed4827dfc38332a10",
+  "sourceCommit": "RESOLVED_BY_COMMIT_CONTAINING_THIS_SOURCE_RECORD",
+  "scope": "LIMITED_MB_ONLY_SOFTWARE_AND_CONTROLLED_APP_PRODUCT_PARTIAL",
+  "gate": {
+    "tests": 226,
+    "pass": 226,
+    "fail": 0,
+    "stages": 10,
+    "exitCode": 0,
+    "beforeAfterDeclaredInputsUnchanged": true,
+    "receipt": {
+      "archiveId": "MBRS011_PRECOMMIT_GATE02",
+      "fileName": "summary.json",
+      "bytes": 264171,
+      "sha256": "8b221882a7e895ac6bf591f524994226e9eef53e09447cedbe80ad5030ec2b93",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "standardVerify": {
+    "command": "corepack pnpm@10.17.1 verify",
+    "exitCode": 0,
+    "counts": {
+      "tests": 4666,
+      "pass": 4664,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    "typesAndProductionBuild": "PASS",
+    "nested011Coverage": "SEPARATE_226_GATE_NOT_ADDITIVE",
+    "receipt": {
+      "archiveId": "MBRS011_FULL_VERIFY02",
+      "fileName": "ROOT_FULL_VERIFY_TAP_RECEIPT.json",
+      "bytes": 1276,
+      "sha256": "215299208c0b038ed4ecc16ddaf617f320be180f2b0873f25b2a9fa032b487c3",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "log": {
+      "file": "root-full-verify02.log",
+      "bytes": 1127210,
+      "sha256": "c664db21cbf83ebfa10663abdcf7bcf1274ddda9002dfd93bcb4c50b8935e094"
+    }
+  },
+  "staticGates": {
+    "controlPlane": 0,
+    "boundaries": 0,
+    "cycles": 0,
+    "gateUnitTests": {
+      "tests": 14,
+      "pass": 14,
+      "exitCode": 0
+    }
+  },
+  "productionOfflineApp": {
+    "tests": 2,
+    "pass": 2,
+    "fail": 0,
+    "old009AndNew011": true,
+    "naturalExits": [
+      {
+        "exitCode": 0,
+        "signal": null
+      },
+      {
+        "exitCode": 0,
+        "signal": null
+      }
+    ],
+    "sourceSamples": "4_VALID_NONZERO_STEREO_PCM_WAV_WITH_RIFF_INFO",
+    "sourceShaUnchanged": true,
+    "sameFivePersistedConfirmUndoBindingsAfterRestart": true,
+    "networkBeforeWindow": true,
+    "externalAttempts": 0,
+    "pageErrors": 0,
+    "schema": 34,
+    "foreignKeyViolations": 0,
+    "receipt": {
+      "archiveId": "MBRS011_PRODUCTION_E2E02",
+      "fileName": "ROOT_PRODUCTION_E2E_PERSISTENCE.json",
+      "bytes": 1338,
+      "sha256": "2e863ce92de9959bd6954e92977f3a4f10d2fe12811ce0fc9665c746ca663014",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "scene": {
+      "archiveId": "MBRS011_PRODUCTION_E2E02_SCENE",
+      "fileName": "011-organizer-evidence.json",
+      "bytes": 32666,
+      "sha256": "c2fce19cdfc1ed8b374eac0ed4b719ca08d6087c96dc17d8ab73d7e7dacb1e36",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "ordinaryApp": {
+    "scope": "CUA_NATIVE_ON_SELF_OWNED_SYNTHETIC_PROFILE",
+    "previewCancel": "PASS",
+    "naturalExitCode": 0,
+    "forced": false,
+    "sourceAndCompiledOutputsAndWavShaUnchanged": true,
+    "oldFourPlanTerminalStatesUnchanged": true,
+    "newCancelledPreviewPlans": 1,
+    "outboxExecuteUndoBindings": 5,
+    "noNewExecuteUndoRequest": true,
+    "cancelProtocol": "DIRECT_IPC_WITH_PERSISTENT_JOURNAL",
+    "cancelledTitleNotInOverrides": true,
+    "nativeSaveUndo": "NOT_RUN_SEPARATE_PRODUCTION_E2E",
+    "receipt": {
+      "archiveId": "MBRS011_ORDINARY_APP_NATIVE",
+      "fileName": "ROOT_ORDINARY_APP_EVIDENCE.json",
+      "bytes": 2310,
+      "sha256": "e1efac3bcf1709c60a48a6efe4bf3379e7dd0950316bb6a2a9673207332dd1b8",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "failuresPreserved": [
+    {
+      "stage": "initial_full_verify",
+      "failure": "SELF_OWNED_PRIVATE_TMP_MODE_755_REJECTED_BEFORE_CORE_TEST_DISPATCH",
+      "change": "ONLY_SELF_OWNED_TMP_TO_700_NO_PRODUCT_OR_TEST_BUDGET_CHANGE",
+      "receipt": {
+        "archiveId": "MBRS011_TMP_CORRECTION",
+        "fileName": "ROOT_PRIVATE_TMP_CORRECTION.json",
+        "bytes": 393,
+        "sha256": "adc3acfbdcfe8e18eadd7ff9cd857930c1c78d7294b29e4840ab196599340cae",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "stage": "initial_production_e2e",
+      "failure": "NEW_TEST_EXPECTED_ACKED_ROWS_IN_UNACKNOWLEDGED_PUBLIC_LIST",
+      "change": "ONLY_NEW011_ASSERTION_READS_DURABLE_OUTBOX_AFTER_NATURAL_EXIT",
+      "oldTestsAndTimeoutsUnchanged": true,
+      "receipt": {
+        "archiveId": "MBRS011_FIRST_E2E_FAILURE",
+        "fileName": "ROOT_PRODUCTION_E2E_FIRST_FAILURE.json",
+        "bytes": 1115,
+        "sha256": "947e71cc6618d4ad628cdc12e0e623c425b659a1c4f64bff7e114063475881ce",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "stage": "new_contract_and_core_red",
+      "failure": "REVISION_BUDGET_CONFLICT_EMPTY_STRING_AND_INVALID_CALENDAR",
+      "change": "RESERVE_TERMINAL_AND_INVERSE_HISTORY_REVISIONS_REQUIRE_NONEMPTY_CONFLICT_AND_EXACT_CALENDAR",
+      "receipt": {
+        "archiveId": "MBRS011_REVISION_FIX",
+        "fileName": "ROOT_REVISION_UNDO_FIX_RECEIPT.json",
+        "bytes": 8173,
+        "sha256": "4b301b707027e804f26acd64e228dd559079fc14c49dc54e58a1dc5b68867104",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    }
+  ],
+  "compiledOutputAndSourceBoundary": {
+    "archiveId": "MBRS011_E2E_ONLY_CORRECTION_BOUNDARY",
+    "fileName": "ROOT_E2E_CORRECTION_SOURCE_BOUNDARY.json",
+    "bytes": 693,
+    "sha256": "9eaa32de3cec013673a5c87c109f12545d3bf81f61d3dcbf2c76593c86d41e25",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "nodeOnlyWriter": true,
+  "optionalRustReadonly": "OFF",
+  "sourceFilesWrite": "OFF",
+  "realProviderRoonNasLanFlacDeviceAudio": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "allSevenOriginalAcceptance": "PARTIAL",
+  "sourcePostCommitGate": "REQUIRED_FRESH_EXACT_COMMIT_BINDING",
+  "naturalSourceCi": "PENDING_NORMAL_PUSH_NO_RERUN_OR_CANCELLATION",
+  "ordinaryUiObservation": "已取消、保存禁用与未写入正确；逐项附加通用失效提示作为轻微文案观察保留，不增范围。",
+  "evidenceBoundary": "私有原始日志、profile、数据库不上传；公开字段仅身份Hash、退出码和限定结论。"
+}

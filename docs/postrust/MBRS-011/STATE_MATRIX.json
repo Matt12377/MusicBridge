@@ -1,0 +1,105 @@
+{
+  "schema": "mbrs011.state-matrix.v1",
+  "task": "MBRS-011",
+  "purpose": "FRESH_LAYERED_EVIDENCE_MB_ONLY_SOURCE_FILES_OFF_NOT_FULL_PRODUCT_ACCEPTANCE",
+  "cases": [
+    {
+      "id": "MBRS-AT-011-01",
+      "originalRequirement": "MB-only信息修正/预览/撤销可用，源标签默认不变。",
+      "software": "PASS",
+      "app": "PARTIAL",
+      "realRoonAudioOwner": "NOT_RUN",
+      "sourceWriter": "OFF",
+      "completion": "PARTIAL",
+      "boundary": "MB_ONLY单曲、指定发行及精确批量字段/注释、具体预览与新逆向计划；生产离线App保存/撤销/重启与普通CUA预览取消，源4份有效合成WAV字节保持。真实账号、Roon与Owner未跑。",
+      "evidence": [
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.md"
+      ]
+    },
+    {
+      "id": "MBRS-AT-011-02",
+      "originalRequirement": "过期/变更/错误scope确认被拒绝，operation_id不能重复副作用。",
+      "software": "PASS",
+      "app": "PARTIAL",
+      "realRoonAudioOwner": "NOT_RUN",
+      "sourceWriter": "OFF",
+      "completion": "PARTIAL",
+      "boundary": "软件拒绝过期、上下文变动、错误scope/hash/revision及重复副作用；生产App五条confirm/undo持久请求重启后原绑定不变。App内未穷举过期/权限/故障组合。",
+      "evidence": [
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.md"
+      ]
+    },
+    {
+      "id": "MBRS-AT-011-03",
+      "originalRequirement": "活跃lease/冻结/只读根/空间不足/重名冲突在计划和执行两次校验。",
+      "software": "PARTIAL",
+      "app": "NOT_RUN",
+      "realRoonAudioOwner": "NOT_RUN",
+      "sourceWriter": "OFF",
+      "completion": "PARTIAL",
+      "boundary": "SOURCE_FILES始终OFF；未知或不完整保护观察只产生BLOCKED，确认执行硬拒绝。完整lease/冻结/空间/重名保护的源文件执行二次校验待014及012，未实现writer。",
+      "evidence": [
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.md"
+      ]
+    },
+    {
+      "id": "MBRS-AT-011-04",
+      "originalRequirement": "人工覆盖与raw可并列看，增量扫描不撤销修正。",
+      "software": "PASS",
+      "app": "PARTIAL",
+      "realRoonAudioOwner": "NOT_RUN",
+      "sourceWriter": "OFF",
+      "completion": "PARTIAL",
+      "boundary": "软件持久化与增量扫描保留人工字段和MB注释；生产App扫描、cold restart、raw/override/effective并列，普通CUA核对原始与已改标题。真实曲库未跑。",
+      "evidence": [
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.md"
+      ]
+    },
+    {
+      "id": "MBRS-AT-011-05",
+      "originalRequirement": "取消/崩溃/恢复不把未写项显示成功。",
+      "software": "PASS",
+      "app": "PARTIAL",
+      "realRoonAudioOwner": "NOT_RUN",
+      "sourceWriter": "OFF",
+      "completion": "PARTIAL",
+      "boundary": "受控软件覆盖取消、事务回滚、未知COMMIT、cold恢复与不自动重放；生产App普通重启，CUA取消计划已持久且未保存。实际App崩溃注入与所有故障组合未跑。",
+      "evidence": [
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.md"
+      ]
+    },
+    {
+      "id": "MBRS-AT-011-06",
+      "originalRequirement": "确认后临时开始播放不被并行写入破坏，锁获取有界且可取消。",
+      "software": "PARTIAL",
+      "app": "NOT_RUN",
+      "realRoonAudioOwner": "NOT_RUN",
+      "sourceWriter": "OFF",
+      "completion": "PARTIAL",
+      "boundary": "MB_ONLY不取音频独占锁；软件对受控读取lease隔离有证据。SOURCE_FILES有界排他许可及真实播放开始/持续运行中的源写未实现或未验证。",
+      "evidence": [
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.md"
+      ]
+    },
+    {
+      "id": "MBRS-AT-011-07",
+      "originalRequirement": "MB_ONLY元数据覆盖不占音频文件独占锁；SOURCE_FILES才执行文件保护，原播放不被无关编辑阻塞。",
+      "software": "PARTIAL",
+      "app": "NOT_RUN",
+      "realRoonAudioOwner": "NOT_RUN",
+      "sourceWriter": "OFF",
+      "completion": "PARTIAL",
+      "boundary": "软件证明MB_ONLY覆盖不持有音频独占锁、SOURCE_FILES关闭时拒绝执行。源文件保护与真实Roon并行播放待后续，原播放无阻塞不作真实结论。",
+      "evidence": [
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-011/LOCAL_VALIDATION.md"
+      ]
+    }
+  ]
+}

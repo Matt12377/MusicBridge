@@ -1,4 +1,4 @@
-import type {LocalLibraryPublicApi,LocalArtworkPublicApi} from '@music-bridge/contracts'
+import type {LocalLibraryPublicApi,LocalArtworkPublicApi,LocalOrganizerPublicApi} from '@music-bridge/contracts'
 import type { LibraryReadPublicApi, CollectionReadonlyPublicApi } from '@music-bridge/contracts'
 import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts'
 import type { RecordingPrintsPublicApi } from '@music-bridge/contracts'
@@ -76,7 +76,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends LocalArtworkPublicApi, LocalLibraryPublicApi, Partial<LibraryReadPublicApi>, CollectionReadonlyPublicApi, RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends LocalOrganizerPublicApi, LocalArtworkPublicApi, LocalLibraryPublicApi, Partial<LibraryReadPublicApi>, CollectionReadonlyPublicApi, RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   performanceDiagnostics?: import('../shared/performance-transport.js').PerformanceInteractionDiagnostics
   getVolume: () => Promise<VolumeSnapshot>
   setVolume: (request: VolumeRequest) => Promise<VolumeSnapshot>
@@ -162,6 +162,7 @@ export interface MusicBridgePublicApi extends LocalArtworkPublicApi, LocalLibrar
 /** 可选的只读能力；旧客户端仍只暴露下面的固定具名入口。 */
 export const PUBLIC_LIBRARY_READ_API_KEYS = ['readLibrary', 'cancelLibraryRead'] as const
 export const PUBLIC_API_KEYS = [
+  'previewLocalOrganizer', 'getLocalOrganizerPlan', 'listLocalOrganizerHistory', 'confirmLocalOrganizer', 'undoLocalOrganizer', 'cancelLocalOrganizer',
   'getLocalArtworkContext', 'findLocalArtworkCandidates', 'searchLocalArtworkCandidates', 'chooseLocalArtworkFile', 'importLocalArtworkBytes', 'applyLocalArtworkSelection', 'createLocalArtworkEdition', 'cancelLocalArtworkLookup',
   'listLocalLibraryRoots',
   'chooseLocalLibraryRoot',
@@ -641,10 +642,12 @@ export function createPreloadApi(
   localLibraryApi?:LocalLibraryPublicApi,
   mbQueueApi?:import('@music-bridge/contracts').MBQueuePublicApi,
   localArtworkApi?:LocalArtworkPublicApi,
+  localOrganizerApi?:LocalOrganizerPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
   return Object.freeze({
+    ...(localOrganizerApi ?? {previewLocalOrganizer:collectionUnavailable,getLocalOrganizerPlan:collectionUnavailable,listLocalOrganizerHistory:collectionUnavailable,confirmLocalOrganizer:collectionUnavailable,undoLocalOrganizer:collectionUnavailable,cancelLocalOrganizer:collectionUnavailable}),
     ...(localArtworkApi ?? {getLocalArtworkContext:collectionUnavailable,findLocalArtworkCandidates:collectionUnavailable,searchLocalArtworkCandidates:collectionUnavailable,chooseLocalArtworkFile:collectionUnavailable,importLocalArtworkBytes:collectionUnavailable,applyLocalArtworkSelection:collectionUnavailable,createLocalArtworkEdition:collectionUnavailable,cancelLocalArtworkLookup:collectionUnavailable}),
     ...(localLibraryApi ?? { playLocalLibraryTrack:collectionUnavailable,listLocalLibraryRoots:collectionUnavailable, chooseLocalLibraryRoot:collectionUnavailable, chooseLocalRelocationCandidates:collectionUnavailable, confirmLocalRelocation:collectionUnavailable, relinkLocalLibraryRoot:collectionUnavailable,queryLocalLibraryTracks:collectionUnavailable,getLocalLibraryTrackDetail:collectionUnavailable,getLocalLibraryPlaybackTarget:collectionUnavailable,overrideLocalLibraryMetadata:collectionUnavailable,localLibraryScan:collectionUnavailable, listLocalLibraryTracks:collectionUnavailable, getLocalLibraryAsset:collectionUnavailable, getLocalLibraryMetadata:collectionUnavailable}),
     ...(libraryReadApi ? { readLibrary: libraryReadApi.readLibrary, cancelLibraryRead: libraryReadApi.cancelLibraryRead } : {}),
