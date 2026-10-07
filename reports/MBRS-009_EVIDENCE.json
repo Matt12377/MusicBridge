@@ -1,0 +1,334 @@
+{
+  "schema": "mbrs009.final-evidence.public-projection.v1",
+  "createdAt": "2026-10-07T03:27:03.381596+00:00",
+  "baseSha": "418389708ca9400dbe347da448a829b9481dbb84",
+  "implementationCommit": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
+  "reportCommit": null,
+  "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-009_LOCAL_LIBRARY_UI.md",
+  "branch": "codex/mbrs-009-local-library-ui",
+  "status": "FINITE_SOFTWARE_AND_CONTROLLED_APP_DELIVERABLE_SOURCE_CI_SUCCESS_REPORT_CI_PENDING",
+  "originalProductImplementationCommit": "bb121676a63c489656c4155b4e81e6615a50c7fe",
+  "ciRepairScope": "docs/postrust/MBRS-009/CI_REPAIR_SCOPE.json",
+  "productFiles": 28,
+  "allowedTestFiles": 10,
+  "candidateSha256": "36e6c34fd80b300e0c8dc952247069bc6aeb278a6fa288d0b612e4c9772c03f2",
+  "localSoftware": {
+    "schema": "mbrs009.final-committed-source-local-gate.public-projection.v1",
+    "at": "2026-10-07T01:43:01.887466+00:00",
+    "sourceCommit": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
+    "success": true,
+    "manifest": {
+      "bytes": 257679,
+      "sha256": "950485b905e9cde5bafc8739dce4a3438b1aea37e832df86dcadf42f97c6578b",
+      "archiveId": "MBRS009_GATE04_MANIFEST",
+      "fileName": "manifest.json",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "inputs": 1236,
+    "freshOutputs": 38,
+    "freshSsrHtml": 2,
+    "privateTestBindings": 3,
+    "stages": 11,
+    "tests": 220,
+    "new": 53,
+    "regression": 167,
+    "groups": [
+      {
+        "name": "core-local-library",
+        "counts": {
+          "tests": 87,
+          "pass": 87,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "actualExitCode": 0
+      },
+      {
+        "name": "contracts-local-library",
+        "counts": {
+          "tests": 54,
+          "pass": 54,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "actualExitCode": 0
+      },
+      {
+        "name": "desktop-local-library",
+        "counts": {
+          "tests": 79,
+          "pass": 79,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "actualExitCode": 0
+      }
+    ],
+    "budget": {
+      "totalLimitMs": 360000,
+      "stageLimitMs": 180000,
+      "elapsedMs": 54094.831916,
+      "clock": "MONOTONIC_PERFORMANCE"
+    },
+    "inputOutputBindingCheckedNow": true,
+    "sourceInputsCurrentlyUnchanged": true,
+    "workingTreeClean": true,
+    "fullDependencyClosure": "NOT_CLAIMED",
+    "realRoonAudioOwner": "NOT_RUN",
+    "ordinaryApp": "SEPARATE_ROOT_CUA_NOT_THIS_GATE",
+    "publicProjection": {
+      "schema": "mbrs009.private-evidence-public-projection.v1",
+      "privateOriginal": {
+        "archiveId": "MBRS009_GATE04_CHECK_RECEIPT",
+        "fileName": "final-committed-source-gate.json",
+        "schema": "mbrs009.final-committed-source-local-gate.v1",
+        "bytes": 1671,
+        "sha256": "d4dae03d9bcc12a7c03711bc653d30dbbc18d304c4dec0c852c4c2976cf6a428"
+      },
+      "originalReceiptIdentityMeaning": "bytes和SHA标识私有原始收据；不标识此公开投影的内容。",
+      "replacedFields": [
+        "manifest.path"
+      ],
+      "sourceEvidenceValuesChanged": false,
+      "privateOriginalPreserved": true
+    }
+  },
+  "countInterpretation": {
+    "schema": "mbrs009.test-count-interpretation.v1",
+    "totalFreshGate": 220,
+    "groups": [
+      87,
+      54,
+      79
+    ],
+    "taskSpecificFilesTests": 53,
+    "existingPathSuiteTests": 167,
+    "existingSuiteIncludesOneNew009NavigationGuard": true,
+    "addedBehaviorTestsRelativeToBase": 54,
+    "priorBaseCasesInSelectedPaths": 166,
+    "interpretation": "来源冻结的53/167是任务专项文件与既有路径套件分组。既有page-journey文件另加1项009导航守卫，不能称167项全是base已有case。各实际TAP总数不变，不重跑、不改scope/预算/原AT。",
+    "evidence": {
+      "path": "apps/desktop/test/page-journey-session.test.ts",
+      "baseTopLevelTests": 2,
+      "currentTopLevelTests": 3
+    },
+    "sourceAndTestsMutated": false
+  },
+  "sourceInputs": {
+    "count": 1236,
+    "binding": "docs/postrust/MBRS-009/evidence/source-input-git-blob-binding.json",
+    "gitBlobAndCurrentDiskBound": true
+  },
+  "formalReview": {
+    "rounds": 2,
+    "remaining": 0,
+    "newP0P1P2": 0,
+    "r1P2Closed": 7,
+    "boundedP3": "原更多菜单完整键盘模型；不自动展开第三轮。",
+    "detailFocus": "R1修复，实际Root原生CUA已核。",
+    "sourceR2InputSnapshot": "docs/postrust/MBRS-009/evidence/state-matrix-r2-snapshot.json"
+  },
+  "production": {
+    "build": "PASS_PRODUCTION_02_CURRENT_SOURCE_CANDIDATE",
+    "inputCount": 554,
+    "outputCount": 20,
+    "receipt": "docs/postrust/MBRS-009/evidence/production-build-02.json",
+    "dependencyAudit": "PASS",
+    "electronIdentity": "官方43.4.0 darwin-arm64缓存ZIP/当前执行树核验，无新下载。"
+  },
+  "engineeringE2e": {
+    "tests": 1,
+    "passed": 1,
+    "skipped": 0,
+    "receipt": "docs/postrust/MBRS-009/evidence/production-e2e-01.json",
+    "substitution": "仅原native picker结果使用自有fixture；原生产UI/Core/Node/Scanner实际执行。",
+    "widths": [
+      720,
+      780,
+      800,
+      801,
+      1024
+    ],
+    "rowHeight": 84,
+    "actionsWidth": 142,
+    "minimumButton": 44,
+    "sourceBytes": "3/3 fresh full SHA unchanged",
+    "images": "六PNG属于工程E2E；Root另操作普通CUA，不互相代替。"
+  },
+  "rootOrdinaryCua": {
+    "operator": "MusicBridge V3.9 主控对话内的根代理",
+    "status": "PARTIAL_CONTROLLED_SYNTHETIC_243",
+    "receipt": "docs/postrust/MBRS-009/evidence/root-controlled-cua.json",
+    "scanned": 245,
+    "accepted": 243,
+    "rejected": 2,
+    "freshAudioHashes": 244,
+    "untouchedPermissionFaultNoFreshHash": 1,
+    "fileRelocation": "同asset/track/override，fileRevision1保持、locationRevision1到2；只读SQLite证明。",
+    "rootManualOwnedFixtureRename": 1,
+    "productOrganizerSourceWriteClaim": false,
+    "quitExitCode": 0,
+    "notVerified": [
+      "暂停/取消完整操作",
+      "文件/根离线全状态",
+      "旧真实收藏/根迁移",
+      "格式不支持全状态",
+      "真实外部接管/播放/无缝",
+      "真实Roon/NAS/LAN/Owner",
+      "十万首当前版负载"
+    ]
+  },
+  "sourceCi": {
+    "headSha": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
+    "workflows": 4,
+    "jobs": 6,
+    "allConclusion": "success",
+    "runAttempt": 1,
+    "actualMode": "full",
+    "terminal": "docs/postrust/MBRS-009/evidence/source-ci-terminal.json",
+    "workspaceCountsFromActualFullJobLog": {
+      "groups": {
+        "tests": [
+          261,
+          2711,
+          8,
+          1473
+        ],
+        "pass": [
+          261,
+          2709,
+          8,
+          1473
+        ],
+        "fail": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "cancelled": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "skipped": [
+          0,
+          2,
+          0,
+          0
+        ],
+        "todo": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "total": 4453,
+      "passed": 4451,
+      "skipped": 2,
+      "failed": 0,
+      "source": "ACTUAL_COMPLETE_JOB_STEP_TAP_NOT_INFERRED_FROM_LOCAL_TESTS"
+    },
+    "electronCountsFromActualFullJobLog": {
+      "passed": 105,
+      "skipped": 4,
+      "failed": 0,
+      "flaky": 0,
+      "source": "ACTUAL_COMPLETE_JOB_PLAYWRIGHT_FOOTER",
+      "new009SpecObservedInJob": true
+    },
+    "sourceArtifactContentDownloaded": false,
+    "producerDigestMetadata": "按原严格parent CI准入核；不称完整运行时/依赖闭包。"
+  },
+  "reportCi": "PENDING_NOT_CLAIMED_IN_OWN_REPORT_COMMIT",
+  "finalDeliveryReceipt": "private-archive:MBRS009_FINAL_DELIVERY_RECEIPT",
+  "acceptance": {
+    "count": 8,
+    "overall": {
+      "pass": 4,
+      "partial": 3,
+      "notTested": 1
+    },
+    "actual100k00903": "NOT_TESTED_ORIGINAL_KIND_LOAD",
+    "owner": "NOT_RUN"
+  },
+  "invariants": {
+    "tasks": 18,
+    "acceptance": 156,
+    "otherTasks": 17,
+    "otherAcceptance": 148,
+    "original009DefinitionsUnchanged": true,
+    "originalTaskFileUnchanged": true
+  },
+  "preservedFailures": [
+    "Writer71原运行包含准备/RED/失败GREEN，原命令与原实际退出保留。",
+    "RootGate01合成WAV枚举错误：只修SSR fixture为WAVE，失败与同SHA诊断仍保留。",
+    "Root候选证明准备失败、旧App01初始化及PID探测失败均外置保留。",
+    "原两次公开审批拒绝和后续8文件修复首次拒绝均未创建推送进程；各自具体Owner直接授权核实后普通push退出0。",
+    "原bb自然verify超过25分钟被取消，Electron因旧夹具CSS配置失败；全部原件保留。Gate04默认沙盒卷身份准备失败未创建构建/产品测试，受控同脚本准备后通过。"
+  ],
+  "initialSourceCiFailures": "docs/postrust/MBRS-009/evidence/source-ci-initial-failures.json",
+  "repair": {
+    "keyboardRedExitCode": 1,
+    "keyboardGreenExitCode": 0,
+    "originalAssertionsUnchanged": true,
+    "outerVerifyJobMinutes": 30,
+    "internalGateBudgetsUnchanged": true,
+    "initialRunsRerunCancel": false
+  },
+  "serialHandoff": {
+    "status": "OWNER_AND_COORDINATOR_CONFIRMED_SERIAL_IMPLEMENTATION",
+    "010": "MusicBridge V3.9 主控对话",
+    "011": "既有011对话等待010最终报告HEAD",
+    "014": "既有014对话等待011最终报告HEAD",
+    "sharedOwnerAndContracts": "MusicBridge V3.9 主控对话统一整合",
+    "proposalsAreNotPermissions": true
+  },
+  "sourceFilesWrite": "OFF_EXCEPT_ROOT_OWN_FIXTURE_MANUAL_RENAME",
+  "realRoonAudioNasLanOwner": "NOT_RUN",
+  "mainMergeInstallSignRelease": "NOT_RUN",
+  "nextTask": "MBRS-010",
+  "nextBranchBaseline": "FINAL009_INDEPENDENT_REPORT_HEAD_AFTER_REPORT_CI_AND_REMOTE_SEAL",
+  "laterOrder": [
+    "MBRS-010",
+    "MBRS-011",
+    "MBRS-014",
+    "MBRS-012",
+    "MBRS-013",
+    "MBRS-015_OPTIONAL",
+    "MBRS-016",
+    "MBRS-017"
+  ],
+  "mobile": "原017后MBM-000～004；有效可读FLAC实际可播放要求保留，当前不提前接入Mac后端/真实手机或扩大LAN许可。",
+  "publicProjection": {
+    "schema": "mbrs009.private-evidence-public-projection.v1",
+    "privateOriginal": {
+      "archiveId": "MBRS009_ORIGINAL_FINAL_EVIDENCE_RECEIPT",
+      "fileName": "MBRS-009_EVIDENCE.json",
+      "schema": "mbrs009.final-evidence.v1",
+      "bytes": 9587,
+      "sha256": "bec549a46155a9399522376c10d919af42c80e448293e29cf4ab9a7c3da683d6"
+    },
+    "originalReceiptIdentityMeaning": "bytes和SHA标识私有原始收据；不标识此公开投影的内容。",
+    "replacedFields": [
+      "localSoftware.manifest.path",
+      "finalDeliveryReceipt"
+    ],
+    "sourceEvidenceValuesChanged": false,
+    "privateOriginalPreserved": true,
+    "pendingFinalDeliveryReceipt": {
+      "archiveId": "MBRS009_FINAL_DELIVERY_RECEIPT",
+      "fileName": "FINAL_DELIVERY_RECEIPT.json",
+      "state": "NOT_CREATED_NO_BYTES_OR_HASH_CLAIMED"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "mbrs009.test-count-interpretation.v1",
+  "totalFreshGate": 220,
+  "groups": [
+    87,
+    54,
+    79
+  ],
+  "taskSpecificFilesTests": 53,
+  "existingPathSuiteTests": 167,
+  "existingSuiteIncludesOneNew009NavigationGuard": true,
+  "addedBehaviorTestsRelativeToBase": 54,
+  "priorBaseCasesInSelectedPaths": 166,
+  "interpretation": "来源冻结的53/167是任务专项文件与既有路径套件分组。既有page-journey文件另加1项009导航守卫，不能称167项全是base已有case。各实际TAP总数不变，不重跑、不改scope/预算/原AT。",
+  "evidence": {
+    "path": "apps/desktop/test/page-journey-session.test.ts",
+    "baseTopLevelTests": 2,
+    "currentTopLevelTests": 3
+  },
+  "sourceAndTestsMutated": false
+}

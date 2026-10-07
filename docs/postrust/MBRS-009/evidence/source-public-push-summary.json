@@ -1,0 +1,17 @@
+{
+  "schema": "mbrs009.source-public-push-summary.v1",
+  "sourceCommit": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
+  "branch": "codex/mbrs-009-local-library-ui",
+  "repository": "Matt12377/MusicBridge",
+  "pushExitCode": 0,
+  "remoteHeadVerified": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
+  "forcePush": false,
+  "ownerExplicitPublicDisclosureAuthorizationVerified": true,
+  "disclosure": "原99文件及另8文件CI修复、范围和自有合成证据；6工程PNG及本机路径已披露。真实账号/凭据/曲库DB/音频、私有人类授权消息未加入公开提交。",
+  "earlierAutoReviewRejections": 3,
+  "earlierPushProcessCreated": false,
+  "initialPayload": "原99文件",
+  "repairPayload": "另8个验证准备及合成证据文件，Owner另直接授权本次9b。",
+  "authorityEvidence": "原公开授权和本次9b直接授权均在外置私有收据核实；私有人类消息身份与正文不加入报告。",
+  "realAudioInstallReleaseOwnerAcceptance": "NOT_RUN"
+}

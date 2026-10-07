@@ -1,0 +1,90 @@
+{
+  "schema": "mbrs009.actual-ci-job-log-receipt.public-projection.v1",
+  "capturedAt": "2026-10-07T03:19:46.306237+00:00",
+  "phase": "source",
+  "headSha": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
+  "runId": 37564545956,
+  "jobId": 112609171114,
+  "jobName": "verify",
+  "jobConclusion": "success",
+  "exitCode": 0,
+  "log": {
+    "bytes": 4512563,
+    "sha256": "c2c05c112c43236b02d36b8b5748134db3cab4334d0922635610ae82155d008a",
+    "archiveId": "MBRS009_SOURCE_VERIFY_COMPLETE_JOB_LOG",
+    "fileName": "source-repair-verify-complete-job.log",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false,
+    "githubRunUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/37564545956",
+    "githubJobUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/37564545956/job/112609171114"
+  },
+  "ciModeLines": [
+    "verify\t判定精确父源码CI可复用的报告提交\t2026-10-07T02:58:44.3684126Z CI_MODE=full reason=SOURCE_SCOPE_OR_AUTHORITY_CHANGED"
+  ],
+  "actualCounts": {
+    "groups": {
+      "tests": [
+        261,
+        2711,
+        8,
+        1473
+      ],
+      "pass": [
+        261,
+        2709,
+        8,
+        1473
+      ],
+      "fail": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "cancelled": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "skipped": [
+        0,
+        2,
+        0,
+        0
+      ],
+      "todo": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "total": 4453,
+    "passed": 4451,
+    "skipped": 2,
+    "failed": 0,
+    "source": "ACTUAL_COMPLETE_JOB_STEP_TAP_NOT_INFERRED_FROM_LOCAL_TESTS"
+  },
+  "privateLogArchive": true,
+  "githubArtifactContentDownloaded": false,
+  "realRoonAudioOwner": "NOT_RUN",
+  "singleCompletedJobCollectedBeforeAllSourceCiTerminal": true,
+  "sourceAllWorkflowSuccessClaimedByThisReceipt": false,
+  "publicProjection": {
+    "schema": "mbrs009.private-evidence-public-projection.v1",
+    "privateOriginal": {
+      "archiveId": "MBRS009_SOURCE_VERIFY_LOG_RECEIPT",
+      "fileName": "source-ci-verify-log.json",
+      "schema": "mbrs009.actual-ci-job-log-receipt.v1",
+      "bytes": 1572,
+      "sha256": "2c2c75059b79d8e3ba90c5c1ac513dfce4980af23de50a42631f6554105e08fa"
+    },
+    "originalReceiptIdentityMeaning": "bytes和SHA标识私有原始收据；不标识此公开投影的内容。",
+    "replacedFields": [
+      "log.path"
+    ],
+    "sourceEvidenceValuesChanged": false,
+    "privateOriginalPreserved": true
+  }
+}

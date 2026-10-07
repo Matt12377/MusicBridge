@@ -1,0 +1,88 @@
+{
+  "schema": "mbrs009.final-committed-source-local-gate.public-projection.v1",
+  "at": "2026-10-07T01:43:01.887466+00:00",
+  "sourceCommit": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
+  "success": true,
+  "manifest": {
+    "bytes": 257679,
+    "sha256": "950485b905e9cde5bafc8739dce4a3438b1aea37e832df86dcadf42f97c6578b",
+    "archiveId": "MBRS009_GATE04_MANIFEST",
+    "fileName": "manifest.json",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "inputs": 1236,
+  "freshOutputs": 38,
+  "freshSsrHtml": 2,
+  "privateTestBindings": 3,
+  "stages": 11,
+  "tests": 220,
+  "new": 53,
+  "regression": 167,
+  "groups": [
+    {
+      "name": "core-local-library",
+      "counts": {
+        "tests": 87,
+        "pass": 87,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "actualExitCode": 0
+    },
+    {
+      "name": "contracts-local-library",
+      "counts": {
+        "tests": 54,
+        "pass": 54,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "actualExitCode": 0
+    },
+    {
+      "name": "desktop-local-library",
+      "counts": {
+        "tests": 79,
+        "pass": 79,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "actualExitCode": 0
+    }
+  ],
+  "budget": {
+    "totalLimitMs": 360000,
+    "stageLimitMs": 180000,
+    "elapsedMs": 54094.831916,
+    "clock": "MONOTONIC_PERFORMANCE"
+  },
+  "inputOutputBindingCheckedNow": true,
+  "sourceInputsCurrentlyUnchanged": true,
+  "workingTreeClean": true,
+  "fullDependencyClosure": "NOT_CLAIMED",
+  "realRoonAudioOwner": "NOT_RUN",
+  "ordinaryApp": "SEPARATE_ROOT_CUA_NOT_THIS_GATE",
+  "publicProjection": {
+    "schema": "mbrs009.private-evidence-public-projection.v1",
+    "privateOriginal": {
+      "archiveId": "MBRS009_GATE04_CHECK_RECEIPT",
+      "fileName": "final-committed-source-gate.json",
+      "schema": "mbrs009.final-committed-source-local-gate.v1",
+      "bytes": 1671,
+      "sha256": "d4dae03d9bcc12a7c03711bc653d30dbbc18d304c4dec0c852c4c2976cf6a428"
+    },
+    "originalReceiptIdentityMeaning": "bytes和SHA标识私有原始收据；不标识此公开投影的内容。",
+    "replacedFields": [
+      "manifest.path"
+    ],
+    "sourceEvidenceValuesChanged": false,
+    "privateOriginalPreserved": true
+  }
+}

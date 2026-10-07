@@ -32049,7 +32049,7 @@
         "MBRS-003",
         "MBRS-004"
       ],
-      "status": "IN_PROGRESS",
+      "status": "SOFTWARE_COMPLETE_WITH_LIVE_CARRYOVER",
       "implementation_owner": "MBRS-009",
       "goal": "在现有导航和播放器内完成导入、检索、版本选择与明确播放状态。",
       "steps": [
@@ -32079,14 +32079,18 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
       "report_commit": null,
-      "validation_status": "LOCAL_SOFTWARE_AND_BOUNDED_ORDINARY_APP_PASS_SOURCE_CI_REPORT_PENDING",
+      "validation_status": "SOFTWARE_GATE_AND_EXACT_SOURCE_CI_PASS_CONTROLLED_APP_AND_LIVE_CARRYOVER",
       "evidence_refs": [
-        "docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
-        "docs/postrust/MBRS-009/evidence/source-phase-index.json",
+        "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
+        "reports/MBRS-009_EVIDENCE.json",
         "docs/postrust/MBRS-009/STATE_MATRIX.json"
-      ]
+      ],
+      "implementation_commit_resolution": "本独立报告直接父提交",
+      "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-009_LOCAL_LIBRARY_UI.md",
+      "report_path": "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
+      "terminal_ci_receipt": "docs/postrust/MBRS-009/evidence/source-ci-terminal.json"
     },
     {
       "id": "MBRS-010",
@@ -33777,7 +33781,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-009/STATE_MATRIX.json",
         "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
-        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json",
+        "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
+        "reports/MBRS-009_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "PASS_CONTROLLED_NO_ZONE_CLEAR_FAILURE",
@@ -33795,7 +33801,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-009/STATE_MATRIX.json",
         "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
-        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json",
+        "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
+        "reports/MBRS-009_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "PARTIAL_CONTROLLED_SOME_STATES",
@@ -33813,7 +33821,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-009/STATE_MATRIX.json",
         "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
-        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json",
+        "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
+        "reports/MBRS-009_EVIDENCE.json"
       ],
       "software_status": "PARTIAL_BOUNDED_RULES_NOT_ACTUAL_100K",
       "app_status": "PARTIAL_243_NOT_100K",
@@ -33831,7 +33841,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-009/STATE_MATRIX.json",
         "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
-        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json",
+        "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
+        "reports/MBRS-009_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "PASS_CONTROLLED_ONLY_ORIGINAL_ROON_TARGET",
@@ -33849,7 +33861,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-009/STATE_MATRIX.json",
         "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
-        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json",
+        "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
+        "reports/MBRS-009_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "PARTIAL_CONTROLLED_QUEUE_NO_LIVE_TAKEOVER",
@@ -33867,7 +33881,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-009/STATE_MATRIX.json",
         "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
-        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json",
+        "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
+        "reports/MBRS-009_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "PARTIAL_FILE_RELINK_MB_TITLE_NO_REAL_FAV_OR_REROOT",
@@ -33885,7 +33901,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-009/STATE_MATRIX.json",
         "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
-        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json",
+        "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
+        "reports/MBRS-009_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "PASS_CONTROLLED_ORIGINAL_PRODUCTION_CUA",
@@ -34925,7 +34943,9 @@
       "evidence_refs": [
         "docs/postrust/MBRS-009/STATE_MATRIX.json",
         "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
-        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json",
+        "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
+        "reports/MBRS-009_EVIDENCE.json"
       ],
       "software_status": "PASS",
       "app_status": "PASS_CONTROLLED_ORIGINAL_NAV_PLAYER_QUEUE",

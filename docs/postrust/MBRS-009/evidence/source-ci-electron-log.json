@@ -1,0 +1,51 @@
+{
+  "schema": "mbrs009.actual-ci-job-log-receipt.public-projection.v1",
+  "capturedAt": "2026-10-07T03:26:43.706422+00:00",
+  "phase": "source",
+  "headSha": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
+  "runId": 37564545980,
+  "jobId": 112609171169,
+  "jobName": "macos-electron-gate",
+  "jobConclusion": "success",
+  "exitCode": 0,
+  "log": {
+    "bytes": 165725,
+    "sha256": "36c45b0a01e28d23bb21fc5fc354c0edce20958fc0423b592e6cd687158b8132",
+    "archiveId": "MBRS009_SOURCE_ELECTRON_COMPLETE_JOB_LOG",
+    "fileName": "source-repair-electron-complete-job.log",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false,
+    "githubRunUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/37564545980",
+    "githubJobUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/37564545980/job/112609171169"
+  },
+  "ciModeLines": [],
+  "actualCounts": {
+    "passed": 105,
+    "skipped": 4,
+    "failed": 0,
+    "flaky": 0,
+    "source": "ACTUAL_COMPLETE_JOB_PLAYWRIGHT_FOOTER",
+    "new009SpecObservedInJob": true
+  },
+  "privateLogArchive": true,
+  "githubArtifactContentDownloaded": false,
+  "realRoonAudioOwner": "NOT_RUN",
+  "singleCompletedJobCollectedBeforeAllSourceCiTerminal": false,
+  "sourceAllWorkflowSuccessClaimedByThisReceipt": false,
+  "publicProjection": {
+    "schema": "mbrs009.private-evidence-public-projection.v1",
+    "privateOriginal": {
+      "archiveId": "MBRS009_SOURCE_ELECTRON_LOG_RECEIPT",
+      "fileName": "source-ci-electron-log.json",
+      "schema": "mbrs009.actual-ci-job-log-receipt.v1",
+      "bytes": 995,
+      "sha256": "881dd04fda1767decf0a9518de09878fbf11a4c1171e1e84e127604058694609"
+    },
+    "originalReceiptIdentityMeaning": "bytes和SHA标识私有原始收据；不标识此公开投影的内容。",
+    "replacedFields": [
+      "log.path"
+    ],
+    "sourceEvidenceValuesChanged": false,
+    "privateOriginalPreserved": true
+  }
+}

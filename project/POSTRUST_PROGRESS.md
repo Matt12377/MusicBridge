@@ -206,3 +206,9 @@ Owner明确接受既有规模结果作为本阶段放行，取消当前版十万
 当前生产构建、依赖检查及一条独立工程E2E实际退出0；五宽度720/780/800/801/1024核84行高、142动作栏和44按钮。Root另用原生CUA操作实际正式UI/Core/Node扫描自有245文件（243收录、2故障），完成原选择器加入目录、版本搜索、无Zone明确失败、MB_ONLY显示更正、原队列与详情键盘/焦点、文件重新定位及跨100条分页/返回保留滚动。只读SQLite核同asset/track/override与位置修订；244可读文件新鲜SHA保持、1权限故障只核原mode/stat，未称其新鲜Hash。自有fixture一次Root手工改名不属于产品Organizer。正常原UI退出0；未触碰真实曲库、发声、安装或Owner。
 
 普通App暂停/取消未赶上短扫描、根离线/旧收藏/外部接管/不支持格式完整状态未实际验；原009-03仍为kind=load、当前十万首NOT_TESTED。18任务/156验收、其他17任务/148验收定义与原009任务文件保持。源码提交/精确源码自然CI/独立报告/报告自身CI当前尚未执行。
+
+### 2026-10-07 MBRS-009 精确源码自然CI通过，独立报告交付
+
+实现 `9b930bc555b130b739abe9f8ff7bfb13c81b5730` 普通公开push退出0，Owner直接公开披露授权经实际userMessage核验；原两次审批及8文件修复初次审批拒绝未执行的证据保持；本次9b直接授权另核。原bb首轮verify超25分钟cancelled、Electron104通过/4跳过/1旧键盘CSS准备失败全部保留，定向RED1/GREEN0；外层30分钟、内层Gate预算不变。精确源Gate04实际11阶段220项、1236输入逐项Git blob与文件绑定；四workflow六job自然CI全部success、attempt1，未重跑/取消。完整workspace实际4453总/4451通过/2原条件skip/0失败；Electron实际105通过/4原条件skip，新增009spec在真实日志出现。源码artifact仅核producer/digest，不下载宽产物。
+
+53/167是新专项文件和既有路径套件分组；旧page-journey文件另加1导航守卫，因此相对base54新增/166原case。旧“53新增/167原回归”措辞以本节澄清，实际TAP220不变、范围/预算不改。原八AT保持4有限PASS/3PARTIAL/1NOT_TESTED，009-03仍kind=load、十万首未跑；普通CUA受控243、工程E2E、真实Roon/音频/Owner继续分层。源码阶段validation/原AT层级/索引冻结，报告自身CI与最终push/clean/远端及下一010基线按报告后外置收据。
