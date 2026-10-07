@@ -5,6 +5,8 @@ import type { BigIntStats, Dirent } from 'node:fs';
 import type { FileHandle } from 'node:fs/promises';
 import path from 'node:path';
 import { physicalResourceLocks, type PhysicalResourceGuard } from '../stream/physical-resource-locks.js';
+import { acquirePhysicalReadClaims, PhysicalClaimsUnverified, type PhysicalReadClaims } from '../stream/physical-resource-claims.js';
+import { LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import { parseBuffer } from 'music-metadata';
 import { isSourceTechnical, type SourceTechnical, type SourceFailure, type SourceAvailability } from '@music-bridge/contracts';
 
@@ -14,6 +16,87 @@ export interface FileEvidence { sha256: string; size: number; signature: string;
 const fail = (code: SourceFailure): never => { throw new SourceFileError(code); };
 const signature = (s: BigIntStats): string => [s.dev, s.ino, s.size, s.mtimeNs, s.ctimeNs].join(':');
 const directoryIdentity = (s: BigIntStats): string => [s.dev, s.ino].join(':');
+export interface PublicationSource { root: RootCapability; relative: string; expectedSignature?: string }
+interface PublicationFile { source: PublicationSource; handle: FileHandle; info: BigIntStats; directoryIds: string[] }
+/** 持有对象只在作者内流动，不作为公开回执或失败后的自动重放许可。 */
+export class SourcePublicationUnverified extends Error {
+  constructor(readonly reason: 'COMMIT_UNVERIFIED' | 'RELEASE_UNVERIFIED', readonly claims: PhysicalReadClaims | undefined, readonly files: readonly PublicationFile[], cause?: unknown) {
+    super('冻结发布或源保护释放尚未核实，原保护保留。', { cause });
+  }
+}
+
+/** 真 FD/fstat 得到全集合，再分组取原读保护；跨复核与 COMMIT 保留到实际 FD quiet。 */
+export async function withReadonlySourcePublicationClaims<T>(sources: readonly PublicationSource[], signal: AbortSignal, consume: (verify: () => Promise<void>, files: readonly PublicationFile[]) => Promise<T> | T): Promise<T> {
+  if (!Array.isArray(sources) || !sources.length || sources.length > 2048) return fail('LIMIT_EXCEEDED');
+  const files: PublicationFile[] = [];
+  let claims: PhysicalReadClaims | undefined, retained = false;
+  const deadline = Date.now() + 15 * 60_000;
+  const check = (): void => { if (signal.aborted) fail('CANCELLED'); if (Date.now() > deadline) fail('LIMIT_EXCEEDED'); };
+  const verify = async (): Promise<void> => {
+    for (const file of files) {
+      check(); const actual = await file.handle.stat({ bigint: true }); check();
+      const named = await checkedFile(file.source.root, file.source.relative); check();
+      if (signature(actual) !== signature(file.info) || signature(named.info) !== signature(file.info)
+        || actual.birthtimeNs !== file.info.birthtimeNs || named.info.birthtimeNs !== file.info.birthtimeNs
+        || directoryIdentity(actual) !== directoryIdentity(file.info) || JSON.stringify(named.directoryIds) !== JSON.stringify(file.directoryIds)) fail('CONTENT_CHANGED');
+    }
+  };
+  try {
+    for (const source of sources) {
+      check(); const first = await checkedFile(source.root, source.relative); check();
+      const handle = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW);
+      const file: PublicationFile = { source, handle, info: first.info, directoryIds: first.directoryIds }; files.push(file);
+      const actual = await handle.stat({ bigint: true }); check();
+      if (!actual.isFile() || signature(actual) !== signature(first.info) || actual.birthtimeNs !== first.info.birthtimeNs
+        || source.expectedSignature !== undefined && source.expectedSignature !== signature(actual)) fail('CONTENT_CHANGED');
+      file.info = actual;
+    }
+    claims = await acquirePhysicalReadClaims(files.map(file => ({ dev: String(file.info.dev), ino: String(file.info.ino) })));
+    await verify();
+    return await consume(verify, files);
+  } catch (error) {
+    if (error instanceof LocalFactsCommitFatal || error instanceof PhysicalClaimsUnverified) {
+      claims ??= error instanceof PhysicalClaimsUnverified ? error.claims : undefined;
+      claims?.retain(); retained = true;
+      throw new SourcePublicationUnverified(error instanceof LocalFactsCommitFatal ? 'COMMIT_UNVERIFIED' : 'RELEASE_UNVERIFIED', claims, files, error);
+    }
+    throw error;
+  } finally {
+    if (!retained) {
+      const closed = await Promise.allSettled(files.map(file => file.handle.close()));
+      const failure = closed.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+      if (failure) { claims?.retain(); throw new SourcePublicationUnverified('RELEASE_UNVERIFIED', claims, files, failure.reason); }
+      if (claims) {
+        try { await claims.release(); }
+        catch (error) { throw new SourcePublicationUnverified('RELEASE_UNVERIFIED', claims, files, error); }
+      }
+    }
+  }
+}
+export interface ReadonlySourcePhysicalObservation {
+  physical: { dev: string; ino: string }; signature: string; birthtimeNs: string; permissionMode: string;
+  rootPhysical: { dev: string; ino: string }; rootSignature: string; rootPermissionMode: string;
+  directoryIds: readonly string[]; directorySignatures: readonly string[];
+}
+/** 私有保护观察使用真实只读FD；返回之前必须实际close并释放原读claim。 */
+export async function observeReadonlySourceProtection(root: RootCapability, relative: string, signal: AbortSignal): Promise<ReadonlySourcePhysicalObservation> {
+  return withReadonlySourcePublicationClaims([{ root, relative }], signal, async (verify, files) => {
+    const file = files[0]!; if (file.info.size < 1n || file.info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
+    const ancestorPaths=[root.path];let cursor=root.path;
+    for(const part of relative.split('/').slice(0,-1)){cursor=path.join(cursor,part);ancestorPaths.push(cursor);}
+    const ancestors:BigIntStats[]=[];
+    for(const absolute of ancestorPaths)ancestors.push(await lstat(absolute,{bigint:true}));
+    await verify();
+    for(const [index,absolute] of ancestorPaths.entries()){
+      const current=await lstat(absolute,{bigint:true}),before=ancestors[index]!;
+      if(!current.isDirectory()||current.isSymbolicLink()||signature(current)!==signature(before)||current.birthtimeNs!==before.birthtimeNs||current.mode!==before.mode) return fail('CONTENT_CHANGED');
+    }
+    if(signal.aborted)return fail('CANCELLED');
+    return { physical: { dev:String(file.info.dev), ino:String(file.info.ino) }, signature:signature(file.info), birthtimeNs:String(file.info.birthtimeNs),
+      permissionMode:String(file.info.mode & 0o7777n), rootPhysical:{dev:root.dev,ino:root.ino}, rootSignature:signature(ancestors[0]!),rootPermissionMode:String(ancestors[0]!.mode & 0o7777n),
+      directoryIds:[...file.directoryIds],directorySignatures:ancestors.slice(1).map(directory=>`${signature(directory)}:${directory.mode & 0o7777n}`) };
+  });
+}
 /** 只把有界的技术块交给探测器；封面、标签及任意文本块不进入解析器。 */
 function technicalHeader(prefix: Buffer, size: number): { bytes: Buffer; mimeType: string; virtualSize: number; sampleFrames: number; durationMs?: number } {
   const magic = prefix.subarray(0, 4).toString('ascii');

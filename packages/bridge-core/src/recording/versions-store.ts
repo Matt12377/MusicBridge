@@ -1,4 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
+import { commitLocalFacts, rollbackLocalFacts } from '../stream/local-source-fence.js';
 import { isCollectionId } from '@music-bridge/contracts';
 
 export const masterVersionsMigration = `
@@ -33,8 +34,8 @@ export function verifyVersionDistributionDatabase(db: DatabaseSync): void {
     }
   }
 }
-interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; media: MediaPlanningStore; beforeCommit?: (action: string) => void }
-export function createMasterVersionsStore({ read, conflict, media, beforeCommit }: Access) {
+interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; media: MediaPlanningStore; beforeCommit?: (action: string) => void; onCommitFatal?: () => void }
+export function createMasterVersionsStore({ read, conflict, media, beforeCommit, onCommitFatal }: Access) {
   const job = (db: DatabaseSync, id: string): StoredVersionJob | undefined => { const row = db.prepare('SELECT data FROM version_jobs WHERE id=?').get(id); return row ? JSON.parse(String(row.data)) as StoredVersionJob : undefined; };
   const saveJob = (db: DatabaseSync, job: StoredVersionJob): void => { db.prepare('INSERT INTO version_jobs VALUES (?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data').run(job.public.id, job.public.draftId, JSON.stringify(job)); };
   function list(db: DatabaseSync, draftId: string): VersionHistory {
@@ -45,7 +46,7 @@ export function createMasterVersionsStore({ read, conflict, media, beforeCommit 
     return history;
   }
   function transaction<T>(action: string, fn: (db: DatabaseSync) => T): T {
-    return read(db => { db.exec('BEGIN IMMEDIATE'); try { const result = fn(db); beforeCommit?.(action); db.exec('COMMIT'); return result; } catch (error) { db.exec('ROLLBACK'); throw error; } });
+    return read(db => { db.exec('BEGIN IMMEDIATE'); try { const result = fn(db); beforeCommit?.(action); commitLocalFacts(db, onCommitFatal); return result; } catch (error) { rollbackLocalFacts(db, error, onCommitFatal); } });
   }
   function receipt(db: DatabaseSync, commandId: string, fingerprint: string): string | undefined {
     const row = db.prepare('SELECT fingerprint,result FROM version_ledger WHERE command_id=?').get(commandId);

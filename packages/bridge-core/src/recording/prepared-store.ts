@@ -1,4 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
+import { commitLocalFacts, rollbackLocalFacts } from '../stream/local-source-fence.js';
 import { isCollectionId, isFrozenPrepared, type PreparedHistory, type FrozenPrepared, type PreparedImportJob, type PreparedSelection, type SelectPreparedRequest, type StartPreparedImportRequest, type PreparedImportProposal, type MasterVersion, type LayoutVersion, type RawRenderAsset, type FreezePreparedRequest, type PreparedReview } from '@music-bridge/contracts';
 import type { RootCapability, FileEvidence } from './source-files.js';
 import type { OwnedPreparation, PreparationOutput } from './preparation-files.js';
@@ -27,8 +28,8 @@ export function retainedRenderManifest(value: {
 }): Buffer {
   return Buffer.from(JSON.stringify({ schemaVersion: 1, kind: 'retained-original-render', operationId: value.operationId, preparationId: value.preparationId, masterVersionId: value.masterVersionId, layoutVersionId: value.layoutVersionId, contentHash: value.contentHash, plannedTimelineHash: value.plannedTimelineHash, assets: value.assets, files: value.files, executionReady: false }, null, 2) + '\n');
 }
-interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; beforeCommit?: (action: string) => void }
-export function createPreparedStore({ read, conflict, beforeCommit }: Access) {
+interface Access { read<T>(fn: (db: DatabaseSync) => T): T; conflict(message: string): never; beforeCommit?: (action: string) => void; onCommitFatal?: () => void }
+export function createPreparedStore({ read, conflict, beforeCommit, onCommitFatal }: Access) {
   const get = <T>(db: DatabaseSync, table: string, id: string): T | undefined => { const row = db.prepare(`SELECT data FROM ${table} WHERE id=?`).get(id); return row ? JSON.parse(String(row.data)) as T : undefined; };
   const selection = (db: DatabaseSync, id: string): StoredPreparedSelection => get<StoredPreparedSelection>(db, 'prepared_selections', id) ?? conflict('Render 文件选择不存在。');
   const job = (db: DatabaseSync, id: string): StoredPreparedJob => get<StoredPreparedJob>(db, 'prepared_jobs', id) ?? conflict('Render 导入任务不存在。');
@@ -36,7 +37,7 @@ export function createPreparedStore({ read, conflict, beforeCommit }: Access) {
   const destinationAuthorized = (db: DatabaseSync, id: string): boolean => get<RootCapability>(db, 'preparation_destinations', id)?.authorized === true;
   const receipt = (db: DatabaseSync, id: string, fp: string): string | undefined => { const prior = db.prepare('SELECT fingerprint,result FROM prepared_ledger WHERE command_id=?').get(id); if (prior && prior.fingerprint !== fp) return conflict('原操作编号不能用于不同的 PREP 请求。'); return prior ? String(prior.result) : undefined; };
   const record = (db: DatabaseSync, id: string, fp: string, result: string): void => { db.prepare('INSERT INTO prepared_ledger VALUES (?,?,?,?)').run(id, fp, result, new Date().toISOString()); };
-  function transaction<T>(action: string, fn: (db: DatabaseSync) => T): T { return read(db => { db.exec('BEGIN IMMEDIATE'); try { const result = fn(db); beforeCommit?.(action); db.exec('COMMIT'); return result; } catch (error) { db.exec('ROLLBACK'); throw error; } }); }
+  function transaction<T>(action: string, fn: (db: DatabaseSync) => T): T { return read(db => { db.exec('BEGIN IMMEDIATE'); try { const result = fn(db); beforeCommit?.(action); commitLocalFacts(db, onCommitFatal); return result; } catch (error) { rollbackLocalFacts(db, error, onCommitFatal); } }); }
   return {
     list(draftId: string): PreparedHistory {
       return read(db => {

@@ -41,7 +41,7 @@ let recordOrigin: HTMLElement | undefined
 function showRecords(id: string): void { if (!guardLeave()) return; recordOrigin = document.activeElement as HTMLElement; recordPhysicalId.value = id }
 function closeRecords(): void { if (!guardLeave()) return; recordPhysicalId.value = ''; void nextTick(() => recordOrigin?.isConnected && recordOrigin.focus({ preventScroll: true })) }
 const progressOpen = ref(false)
-const progressTrigger = ref<HTMLButtonElement>()
+const progressTrigger = ref<HTMLButtonElement | HTMLButtonElement[]>()
 const progressSection = ref<'progress' | 'wants'>('progress')
 let progressOrigin: HTMLElement | undefined
 function openProgress(section: 'progress' | 'wants' = 'progress'): void {
@@ -49,15 +49,20 @@ function openProgress(section: 'progress' | 'wants' = 'progress'): void {
   progressOrigin = document.activeElement as HTMLElement
   progressSection.value = section; progressOpen.value = true
 }
-function closeProgress(): void { progressOpen.value = false; void nextTick(() => (progressOrigin?.isConnected ? progressOrigin : progressTrigger.value)?.focus({ preventScroll: true })) }
+function closeProgress(): void { progressOpen.value = false; void nextTick(() => focusCollectionTrigger(progressOrigin?.isConnected ? progressOrigin : progressTrigger.value)) }
 
 const spreadsheetOpen = ref(false)
 const spreadsheetTrigger = ref<HTMLButtonElement>()
 function closeSpreadsheet(): void { spreadsheetOpen.value = false; void nextTick(() => spreadsheetTrigger.value?.focus({ preventScroll: true })) }
 
 const referenceOpen = ref(false)
-const referenceTrigger = ref<HTMLButtonElement>()
-function closeReference(): void { referenceOpen.value = false; void loadReferenceImages(); void nextTick(() => referenceTrigger.value?.focus({ preventScroll: true })) }
+const referenceTrigger = ref<HTMLButtonElement | HTMLButtonElement[]>()
+// 循环中的字符串ref可能是数组；关闭后仍回到当前页面内的原入口。
+function focusCollectionTrigger(trigger: HTMLElement | HTMLElement[] | undefined): void {
+  const target = Array.isArray(trigger) ? trigger.find((element: HTMLElement) => element.isConnected) : trigger
+  target?.focus({ preventScroll: true })
+}
+function closeReference(): void { referenceOpen.value = false; void loadReferenceImages(); void nextTick(() => focusCollectionTrigger(referenceTrigger.value)) }
 
 const inventory = useCollection()
 const collectionApi = window.musicBridge

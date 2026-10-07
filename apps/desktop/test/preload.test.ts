@@ -565,6 +565,12 @@ test('Preload exposes only sanitized business methods', async () => {
     'stopRemoteCore',
     'reconnectRemoteCore',
     'onRemoteCoreEvent',
+    'readLocalLegacyLinks',
+    'historyLocalLegacyLinks',
+    'previewLocalLegacyLink',
+    'confirmLocalLegacyLink',
+    'revokeLocalLegacyLink',
+    'undoLocalLegacyLink',
   ])
   assert.deepEqual(Object.keys(api), [...PUBLIC_API_KEYS.slice(0, 14), 'playLocalLibraryTrack', ...PUBLIC_API_KEYS.slice(14)])
   assert.equal(Object.isFrozen(api), true)

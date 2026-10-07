@@ -1,0 +1,73 @@
+{
+  "schema": "mbrs014.compatibility-scope.v1",
+  "baseSha": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+  "implementationComplete": true,
+  "countsConfirmed": true,
+  "sourceFilesWrite": "OFF",
+  "groups": [
+    {
+      "name": "contracts-compatibility",
+      "directory": "packages/contracts",
+      "tests": [
+        "test/mbrs014/local-legacy-links.test.ts",
+        "test/validator.test.ts",
+        "test/mbrs002/local-catalog.test.ts"
+      ],
+      "expectedTests": 56
+    },
+    {
+      "name": "core-compatibility",
+      "directory": "packages/bridge-core",
+      "tests": [
+        "test/mbrs014/claims.test.ts",
+        "test/mbrs014/commit-unverified.test.ts",
+        "test/mbrs014/legacy-links-commit-unverified.test.ts",
+        "test/mbrs014/legacy-links-cursor.test.ts",
+        "test/mbrs014/legacy-links-exact.test.ts",
+        "test/mbrs014/legacy-links-journal.test.ts",
+        "test/mbrs014/legacy-links-owner.test.ts",
+        "test/mbrs014/legacy-links-state.test.ts",
+        "test/mbrs014/legacy-links.test.ts",
+        "test/mbrs014/owned-history.test.ts",
+        "test/mbrs014/physical-evidence.test.ts",
+        "test/mbrs014/prepared-publication.test.ts",
+        "test/mbrs014/protection.test.ts",
+        "test/mbrs014/publication.test.ts",
+        "test/mbrs014/recording-protection.test.ts",
+        "test/mbrs014/versions-input-close.test.ts",
+        "test/mbrs002/local-catalog-store.test.ts",
+        "test/mbrs002/local-catalog-restore.test.ts",
+        "test/mbrs002/local-catalog-nonempty-migration.test.ts",
+        "test/physical-links-coordinator.test.ts",
+        "test/source-evidence.test.ts",
+        "test/master-versions.test.ts",
+        "test/prepared-render.test.ts",
+        "test/execution-assets.test.ts",
+        "test/archive-transactions.test.ts",
+        "test/recording-print-store.test.ts",
+        "test/commercial-provenance.test.ts",
+        "test/reference-catalog-store.test.ts",
+        "test/mbrs005/locks.test.ts"
+      ],
+      "expectedTests": 225
+    },
+    {
+      "name": "desktop-compatibility",
+      "directory": "apps/desktop",
+      "tests": [
+        "test/mbrs014/ipc.test.ts",
+        "test/mbrs014/session.test.ts",
+        "test/mbrs014/ui.test.ts",
+        "test/command-outbox-service.test.ts",
+        "test/command-outbox-executor.test.ts",
+        "test/physical-link-history-fence.test.ts",
+        "test/physical-relation-request-fence.test.ts",
+        "test/mbrs009-local-library-session.test.ts",
+        "test/mbrs009-local-library-ui.test.ts",
+        "test/preload.test.ts"
+      ],
+      "expectedTests": 123
+    }
+  ],
+  "state": "IMPLEMENTATION_AND_ACTUAL_THREE_GROUP_COUNTS_FROZEN_APP_SEPARATELY_RECORDED"
+}

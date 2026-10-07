@@ -17,6 +17,9 @@ const state = shallowRef(controller.state)
 const entries = computed(() => state.value.overview?.entries.filter((item) => !item.acknowledged && item.state !== 'dismissed') ?? [])
 const visibleEntries = computed(() => entries.value.slice(0, visibleCount.value))
 const labels: Record<CommandOutboxTrackedCommand, string> = {
+  'localLegacyLinks.confirm': '确认本地关联',
+  'localLegacyLinks.revoke': '解除本地关联',
+  'localLegacyLinks.undo': '撤销本地关系操作',
   'localOrganizer.confirm': '保存具体 MB 信息更正',
   'localOrganizer.undo': '生成 MB 更正撤销预览',
   'localArtwork.apply': '保存本地独立发行封面选择',

@@ -1,5 +1,6 @@
 import { isApplyLocalArtworkSelection, isLocalArtworkSelection, isCreateLocalArtworkEdition } from './local-artwork.js';
 import { isAlbumEdition } from './local-catalog.js';
+import { isLocalLegacyLinksCommandPayload, isLocalLegacyLinksCommandResult, localLegacyLinksDataSnapshot, localLegacyRecord, type ExecuteLocalLegacyLink, type LocalLegacyLinkReceipt } from './local-legacy-links.js';
 import {isLocalRelocationConfirm,isLocalRootRelink,isLocalRelocationCommandResult} from './local-relocation.js';
 import type {LibraryRoot} from './local-catalog.js';
 import { LOCAL_CATALOG_OUTBOX_COMMANDS, isLocalCatalogCommandPayload, isLocalCatalogCommandResult, type LocalCatalogCommandPayloads, type LocalCatalogCommandResults } from './local-catalog.js';
@@ -30,6 +31,7 @@ import { isActivateRestoredDataset, isRestoreActivationView, type ActivateRestor
 
 /** 只允许原有公开领域写命令，不能从任意 IPC 名称推导重放权限。 */
 export const COMMAND_OUTBOX_COMMANDS = [
+  'localLegacyLinks.confirm', 'localLegacyLinks.revoke', 'localLegacyLinks.undo',
   'localOrganizer.confirm', 'localOrganizer.undo',
   ...LOCAL_CATALOG_OUTBOX_COMMANDS,
   'localArtwork.apply', 'localArtwork.createEdition',
@@ -64,6 +66,9 @@ export type CommandOutboxSpecialCommand = typeof COMMAND_OUTBOX_SPECIAL_COMMANDS
 export type CommandOutboxTrackedCommand = CommandOutboxCommand | CommandOutboxSpecialCommand;
 /** 复用叶级领域验证器；不反向导入总 IPC validator，避免运行时模块循环。 */
 const ordinaryValidators = {
+  'localLegacyLinks.confirm': [(v: unknown): v is ExecuteLocalLegacyLink => isLocalLegacyLinksCommandPayload('localLegacyLinks.confirm',v), (v: unknown): v is LocalLegacyLinkReceipt => isLocalLegacyLinksCommandResult('localLegacyLinks.confirm',v)],
+  'localLegacyLinks.revoke': [(v: unknown): v is ExecuteLocalLegacyLink => isLocalLegacyLinksCommandPayload('localLegacyLinks.revoke',v), (v: unknown): v is LocalLegacyLinkReceipt => isLocalLegacyLinksCommandResult('localLegacyLinks.revoke',v)],
+  'localLegacyLinks.undo': [(v: unknown): v is ExecuteLocalLegacyLink => isLocalLegacyLinksCommandPayload('localLegacyLinks.undo',v), (v: unknown): v is LocalLegacyLinkReceipt => isLocalLegacyLinksCommandResult('localLegacyLinks.undo',v)],
   'localArtwork.apply': [isApplyLocalArtworkSelection,isLocalArtworkSelection],
   'localArtwork.createEdition': [isCreateLocalArtworkEdition,isAlbumEdition],
   'localRelocation.confirm':[isLocalRelocationConfirm,(v:unknown):v is import('./local-catalog.js').AudioAsset=>isLocalRelocationCommandResult('localRelocation.confirm',v)],
@@ -211,10 +216,42 @@ function envelope(v: unknown): v is Record<string, unknown> {
     : v.command === 'referenceCatalog.registerSourceZip' ? MAX_COMMAND_OUTBOX_REFERENCE_ZIP_BYTES : MAX_COMMAND_OUTBOX_PAYLOAD_BYTES;
   try { return new TextEncoder().encode(JSON.stringify(v)).byteLength <= limit; } catch { return false; }
 }
+/** 信封先捕获 own data 字段；旧 payload 保留既有 validator/canonical 语义。 */
+function observedOutboxEnvelope(v: unknown): Record<string, unknown> | null {
+  try {
+    if (v === null || typeof v !== 'object' || Array.isArray(v)) return null;
+    const names = Reflect.ownKeys(v), copy: Record<string, unknown> = {};
+    if (names.length !== 3 || !['datasetId','command','payload'].every(k => names.includes(k))) return null;
+    for (const key of names) {
+      if (typeof key !== 'string' || !['datasetId','command','payload'].includes(key)) return null;
+      const descriptor = Object.getOwnPropertyDescriptor(v,key);
+      if (!descriptor?.enumerable || !Object.hasOwn(descriptor,'value')) return null;
+      copy[key] = descriptor.value;
+    }
+    return copy;
+  } catch { return null; }
+}
 export function isCommandOutboxExecute(v: unknown): v is CommandOutboxExecute {
-  return envelope(v) && isCommandOutboxCommand(v.command) && ordinaryValidators[v.command][0](v.payload);
+  const observed = observedOutboxEnvelope(v); if (!observed) return false;
+  try {
+    const command = observed.command;
+    if (command === 'localLegacyLinks.confirm' || command === 'localLegacyLinks.revoke' || command === 'localLegacyLinks.undo') {
+      const copy = localLegacyLinksDataSnapshot(v, MAX_COMMAND_OUTBOX_PAYLOAD_BYTES, 2048, 100);
+      return localLegacyRecord(copy, ['datasetId','command','payload']) && copy.command === command && isCommandOutboxDatasetId(copy.datasetId) && isLocalLegacyLinksCommandPayload(command, copy.payload);
+    }
+  } catch { return false; }
+  return envelope(observed) && isCommandOutboxCommand(observed.command) && ordinaryValidators[observed.command][0](observed.payload);
 }
 export function isCommandOutboxRequest(v: unknown): v is CommandOutboxRequest {
+  const observed = observedOutboxEnvelope(v); if (!observed) return false;
+  try {
+    const command = observed.command;
+    if (command === 'localLegacyLinks.confirm' || command === 'localLegacyLinks.revoke' || command === 'localLegacyLinks.undo') {
+      const copy = localLegacyLinksDataSnapshot(v, MAX_COMMAND_OUTBOX_PAYLOAD_BYTES, 2048, 100);
+      return localLegacyRecord(copy, ['datasetId','command','payload']) && copy.command === command && isCommandOutboxDatasetId(copy.datasetId) && isLocalLegacyLinksCommandPayload(command, copy.payload);
+    }
+  } catch { return false; }
+  v = observed;
   if (!envelope(v)) return false;
   if (isCommandOutboxCommand(v.command)) return isCommandOutboxExecute(v);
   switch (v.command) {

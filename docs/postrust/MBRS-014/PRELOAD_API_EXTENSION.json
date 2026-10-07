@@ -1,0 +1,28 @@
+{
+  "schema": "mbrs014.preload-expected-api-extension.v1",
+  "status": "ROOT_REVIEWED_EXACT_ADDITIVE_TEST_INPUT_NOT_APPLIED",
+  "path": "apps/desktop/test/preload.test.ts",
+  "original": {
+    "bytes": 36611,
+    "sha256": "e71abb2064cfbb52715da88b494b6b963fe41a3271d9a99a4757563fcc691e32"
+  },
+  "reviewedAddition": {
+    "bytes": 36786,
+    "sha256": "7e217790f0cf811b4629bee7de0749402ee56eebe161a1d15c8a1511a1c00fd3",
+    "appendKeys": [
+      "readLocalLegacyLinks",
+      "historyLocalLegacyLinks",
+      "previewLocalLegacyLink",
+      "confirmLocalLegacyLink",
+      "revokeLocalLegacyLink",
+      "undoLocalLegacyLink"
+    ],
+    "position": "existing PUBLIC_API_KEYS expected list tail, immediately after onRemoteCoreEvent"
+  },
+  "requirements": [
+    "只插入这六行预期方法名，不更改旧测试、原断言、原module map或context计数。",
+    "正式PUBLIC_API_KEYS及createPreloadApi返回对象在尾部追加相同六方法，原playLocalLibraryTrack位置与旧方法顺序保留。",
+    "Preload复用现有共享getDatasetId/Outbox，不新采集一次context。新index不可要求旧VM加载未知模块。",
+    "新增14测试独立核六方法实际范围、guard、outbox、迟到与未知结果。"
+  ]
+}

@@ -1,0 +1,95 @@
+{
+  "schema": "mbrs014.execution-scope.v1",
+  "task": "MBRS-014",
+  "baseSha": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+  "branch": "codex/mbrs-014-legacy-source-compatibility",
+  "g0": "ADMITTED_INHERITED_PHASE_HANDOFF",
+  "g0Ref": "docs/postrust/RUST-016/ADMISSION_DECISION.json",
+  "taskSpec": {
+    "path": "tasks/MBRS-014_LEGACY_SOURCE_COMPATIBILITY.md",
+    "bytes": 3652,
+    "sha256": "b1580020d041ef1bc535bc108f8c97adf8a024181d838ef207f943aeddd5526c"
+  },
+  "predecessorFinalSeal": {
+    "archiveId": "MBRS011_FINAL_DELIVERY_RECEIPT",
+    "fileName": "MBRS011_FINAL_DELIVERY_RECEIPT.json",
+    "bytes": 12931,
+    "sha256": "43782a4de3caf7ff112f6120cf951a6e0c0a210f224cec3c03826521196d9b9d",
+    "completionScope": "FINITE_MB_ONLY_SOFTWARE_DELIVERY_PRODUCT_PARTIAL"
+  },
+  "scheduling": {
+    "hardDependencies": [
+      "MBRS-002",
+      "MBRS-009"
+    ],
+    "ownerContinuousAuthorization": "Owner持续授权MBRS-005至017自主开发及任务普通提交推送；本轮明确不逐步审批",
+    "nextTasks": [
+      "MBRS-012",
+      "MBRS-013",
+      "MBRS-016",
+      "MBRS-017"
+    ],
+    "mobileFormalAdoption": "AFTER_MBRS017",
+    "cancelledTask": "MBRS-015"
+  },
+  "sourceFilesWrite": "OFF",
+  "defaultCore": "Node",
+  "optionalRustReadonly": "OFF",
+  "catalogSchema": 34,
+  "originalTaskCount": 18,
+  "originalAcceptanceCount": 156,
+  "effectiveTaskCount": 17,
+  "effectiveAcceptanceCount": 150,
+  "taskAcceptanceCount": 8,
+  "workOrder": "产品作者已交锁并停写；Root唯一最终整合与执行。两轮有界审查结束，后续只按新鲜实际失败窄修，未第三轮审查。",
+  "writeRoles": {
+    "organizer_core_inventory011": "Backend/contracts静态交锁03完成并停写；Root完成previewClock真实RED/GREEN与最终225项分组",
+    "organizer_contract_inventory011": "两轮有界审查及Root窄收口已结束；私有报告草稿完成，未第三轮复审、未产品写入或执行",
+    "organizer_ui_inventory011": "原10产品交锁保持，另CollectionView窄修manifest05已完成并停写；Root生产build003与AB05真实焦点/零pageerror通过",
+    "root": "唯一最终代码整合、E2E精确派生验证、状态/报告/Gate作者及全部编译/测试/App/提交/推送/CI执行者"
+  },
+  "implementationBoundary": "准确local关联为独立typed事件增量；解除/撤销只改边。沿唯一Node作者及原SAB保护活动和Frozen/Prepared/Archive来源，保持旧200曲与2048slots；历史不明强拒源动作。旧收藏/照片/目录/录音/J-Card/FFmpeg/OutputNative/Execution身份与字节保留。",
+  "realUserDatabaseCopy": "NOT_RUN_SELF_MADE_SYNTHETIC_ONLY",
+  "ownerTrial": "FINAL_PRODUCT_ONLY_NOT_RUN",
+  "realRoonNasAudioDevice": "NOT_RUN",
+  "noNewApproval": true,
+  "productConfirmMeaning": "成品内确认具体关系或源计划是功能交互，不是代理工作的逐步审批",
+  "sourceProtectionOnly": "不提前开放012/013源作者，保护测试使用真实自有文件及受控准入请求",
+  "models": {
+    "root": "gpt-6.1-sol",
+    "rootReasoningEffort": "max",
+    "children": "gpt-6.1-sol/max",
+    "childrenCount": 3,
+    "currentExplicitUserMaxOverridesStoredHistoricalHigh": true,
+    "provenance": "继承已核011当前会话与三个既存子代理，不新增或派生"
+  },
+  "contractUiHandoff": "docs/postrust/MBRS-014/CONTRACT_UI_HANDOFF.json",
+  "compilerOwner": "root final integration build/types/tests/App/Gate",
+  "necessaryNarrowIntegrationExtensions": [
+    {
+      "path": "packages/bridge-core/src/shared/ipc-failure.ts",
+      "writer": "organizer_core_inventory011",
+      "reason": "实际关系领域拒绝通过原线程IPC传递时，须映射现有公开错误码和固定中文说明。",
+      "limits": "仅识别LegacyLinksError及闭集issue；不扩PublicError enum，不传原私有message/栈/路径，保持其他领域映射与旧测试字节。",
+      "verification": "新增mbrs014真实线程响应及私有内容不穿透用例，最终Gate绑定提交。"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue",
+      "writer": "root",
+      "reason": "新鲜Desktop vue-tsc真实错误：原exhaustive命令label表缺三个新执行命令，正常错误处理界面须有中文名称。",
+      "limits": "只追加confirm/revoke/undo三label；旧label、UI动作、controller、旧测试/loader均原字节；不构成额外Owner审批。",
+      "originalBytes": 15358,
+      "originalSha256": "2e4ada0f5da0f8638e6014a8dda3d89b53f3fa4adf18579113fcb4a62fbd1004",
+      "additiveBytes": 15516,
+      "additiveSha256": "863082ff5760f0964cb8491f3c7606e8b99ff13595b67ef5605e4f1c82cab68a",
+      "verification": "新增和旧Outbox行为回归及最终Desktop types/Gate；不把静态追加写成运行通过。"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CollectionView.vue",
+      "writer": "organizer_ui_inventory011",
+      "reason": "实际生产AB04关闭Reference目录后，v-for内字符串ref成为数组，focus调用产生pageerror；相同进度入口根因一致。",
+      "limits": "只识别原循环字符串ref的单值/数组并选择仍连接入口，保持进度原origin优先及preventScroll；模板、样式、旧API和旧测试完整原字节。",
+      "verification": "AB04真实pageerror RED原日志保留；完整桌面/E2E types退出0，build003实际完成，AB05 Reference关闭入口真实聚焦且全部pageerror为空；最终Gate/标准verify另核。"
+    }
+  ]
+}

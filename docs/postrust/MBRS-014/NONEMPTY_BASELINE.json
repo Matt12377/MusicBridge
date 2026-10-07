@@ -1,0 +1,306 @@
+{
+  "schema": "mbrs014.nonempty-baseline.v1",
+  "state": "SYNTHETIC_P0_EXACT_ORIGINAL_PRINT_P1_AND_PRODUCTION_AB05_PASSED",
+  "sourceBase": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+  "generationProductCommit": "e3cbc669434e7627aec23241095de706790de743",
+  "generatedDatabaseSchema": 34,
+  "counts": {
+    "allCurrentTables": 121,
+    "original103Tables": 103,
+    "nonemptyOriginalTables": 75,
+    "nonemptyCurrentTables": 75,
+    "requiredNonemptyTables": 37,
+    "retainedFiles": 35
+  },
+  "requiredNonemptyNames": [
+    "collection_models",
+    "collection_photos",
+    "collection_featured_photos",
+    "inventory_lots",
+    "physical_copies",
+    "legacy_recording_content",
+    "music_releases",
+    "music_photos",
+    "commercial_release_copies",
+    "commercial_copy_photos",
+    "digital_albums",
+    "physical_digital_links",
+    "physical_link_history",
+    "master_drafts",
+    "source_bindings",
+    "draft_source_links",
+    "master_versions",
+    "layout_versions",
+    "preparation_workspaces",
+    "execution_assets",
+    "archive_objects",
+    "archive_operations",
+    "archive_references",
+    "prepared_selections",
+    "prepared_jobs",
+    "prepared_versions",
+    "recording_plan_versions",
+    "recording_attempts",
+    "recording_records",
+    "recording_record_visuals",
+    "recording_print_requests",
+    "recording_print_jobs",
+    "recording_print_events",
+    "reference_sources",
+    "reference_catalog_revisions",
+    "reference_catalog_matches",
+    "reference_catalog_snapshots"
+  ],
+  "normalCloseObserved": true,
+  "sourceAudioBytesUnchanged": true,
+  "sourceAudio": {
+    "bytes": 176448,
+    "sha256": "5fa461b8250ef614f355ffe793ac1199a8614ea04aff9b34dcbf073303d56c6b"
+  },
+  "inputs": {
+    "files": 945,
+    "unchangedBeforeAfter": true,
+    "pinsSha256": "5ab6a3cee043ce2edf6d3f0260ebd5134007590276540ce99b82c4afdca58ac2"
+  },
+  "typedCapture": {
+    "method": "全部实际 SQL、列与逐行 INTEGER/REAL/TEXT/BLOB/NULL 原值",
+    "original103AllRowsSha256": "0b73bff7af4fa66a3ebe52a07cbd4a95987355b06aabe05973eda15e54cf7f62",
+    "current121AllRowsSha256": "93b0f8b0b3e1c870c7420711959d945c49d7d39040752e5092f54b6a6504c816"
+  },
+  "checks": [
+    {
+      "schema": "mbrs014.root-check.v1",
+      "label": "root-nonempty-b-typecheck01",
+      "head": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+      "directory": "PRIVATE_EXTERNAL_CHECK",
+      "argv": [
+        "PRIVATE_CAPTURE_ARGV_NOT_PORTABLE"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 1.9716387909720652,
+      "log": {
+        "file": "root-nonempty-b-typecheck01.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sourceScope": "SEALED_011_PRIVATE_GENERATOR_NOT_MBRS014_PRODUCT_PASS",
+      "realProviderAccountRoonAudioOwner": "NOT_RUN_BY_CAPTURE"
+    },
+    {
+      "schema": "mbrs014.root-check.v1",
+      "label": "root-nonempty-b-generation01",
+      "head": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+      "directory": "PRIVATE_EXTERNAL_CHECK",
+      "argv": [
+        "PRIVATE_CAPTURE_ARGV_NOT_PORTABLE"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 1.570796917018015,
+      "log": {
+        "file": "root-nonempty-b-generation01.log",
+        "bytes": 673,
+        "sha256": "0e491211307331749c39efcbfc782d088d0dd98164dbf20bf1266eb9b6e2cec5"
+      },
+      "sourceScope": "SEALED_011_PRIVATE_GENERATOR_NOT_MBRS014_PRODUCT_PASS",
+      "realProviderAccountRoonAudioOwner": "NOT_RUN_BY_CAPTURE"
+    }
+  ],
+  "printedArtifactsAtP0": 0,
+  "printWorkerP1": "PASS_ORIGINAL_WORKER_ORIGINAL_PENDING_JOB",
+  "productionApp": "PASS_SELF_OWNED_OFFLINE_AB05_TWO_CASES_ZERO_SKIP",
+  "nativeJpegDecode": {
+    "method": "macOS sips 实际解码至全新 PNG",
+    "exitCode": 0,
+    "width": 16,
+    "height": 16,
+    "sourceSha256": "747243dc235a155da61b6c4995ec590cb82b705d0f9bafa6af615a667d95e2b1",
+    "decodedPngSha256": "953d74c72b1fa7d1f2b37d03c9a07387ec2db4da88654242b97ce2a3be16d42f"
+  },
+  "realOwnerDatabaseMigration": "NOT_RUN",
+  "realRoon": "NOT_CONNECTED",
+  "realAudioDevice": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "next": "合成与本地软件证据交付；真实用户库迁移、真实账号/Roon/NAS/音频/设备/纸面和Owner仍待后续成品集中验收。",
+  "rootIndependentTypedRecheck": {
+    "method": "Python SQLite mode=ro 与 immutable=1",
+    "checks": [
+      {
+        "role": "original",
+        "receiptSha256": "c6b07a292a850175700082f6b4d1a6cbbc76c283042aa452b7d5f080f84892ee",
+        "databaseSha256": "797470914c4a7ab359812dd2c58200a7a02e1f62145500493160b3a784595e07",
+        "tables": 121,
+        "rows": 161,
+        "cells": 728,
+        "walAndShmAbsent": true,
+        "allTypedValuesMatchNodeCapture": true,
+        "integrityOk": true,
+        "foreignKeyViolations": 0
+      },
+      {
+        "role": "application-copy",
+        "receiptSha256": "37d0deb12eb765aa06ad9cc0136cc48d5071f2340a769e2cea16526c281f2f21",
+        "databaseSha256": "606b315adc2a8c53abf0b7442a4b970ba7eb5024eca77e82789f92a5a05d089c",
+        "tables": 121,
+        "rows": 161,
+        "cells": 728,
+        "walAndShmAbsent": true,
+        "allTypedValuesMatchNodeCapture": true,
+        "integrityOk": true,
+        "foreignKeyViolations": 0
+      }
+    ]
+  },
+  "p1Actual": {
+    "state": "P1_EXACT_ORIGINAL_PRINT_DELTA_VALIDATED",
+    "productionAppReceipt": {
+      "archiveId": "MBRS014_ORIGINAL_PRINT_P1_APP",
+      "fileName": "P1_APP_RECEIPT.json",
+      "bytes": 4892,
+      "sha256": "ff6d729589d8188f20b88c464c5346bd74190eee77646b306c5b2f2ac0ed8171",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "exactDeltaReceipt": {
+      "archiveId": "MBRS014_ORIGINAL_PRINT_P1_VALIDATED",
+      "fileName": "P1_VALIDATED_RECEIPT.json",
+      "bytes": 2141,
+      "sha256": "f195b97a50e7c42ec5c2020e1ef8a03ce1d2ae7b08bc2a08c5dd4b378956502f",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "p0ToP1ChangedTables": [
+      "preparation_zip_session",
+      "recording_print_artifacts",
+      "recording_print_events",
+      "recording_print_jobs",
+      "recording_print_objects",
+      "recording_print_receipts"
+    ],
+    "originalTables": 103,
+    "all121SchemaColumnsCompared": true,
+    "other115TablesAllTypedCellsUnchanged": true,
+    "jobChanges": {
+      "sameJobId": true,
+      "sameRequestContent": true,
+      "originalRequestTableTypedBytesUnchanged": true,
+      "pendingRevision": 1,
+      "readyRevision": 3,
+      "oldEventRowsUnchanged": 1,
+      "addedEvents": 2,
+      "fullEventHashChainVerified": true
+    },
+    "addedArtifacts": 1,
+    "addedCompletionReceipts": 1,
+    "completionFingerprintReconstructed": true,
+    "exactPdfAndPreviewObjects": 4,
+    "sessionEpochTransition": {
+      "id": "1",
+      "before": "0",
+      "after": "1",
+      "reason": "原有bootSession撤销旧ZIP会话；非录音历史改写"
+    },
+    "normalClose": {
+      "exitCode": 0,
+      "signal": null
+    },
+    "externalAttempts": 0,
+    "pageErrors": [],
+    "retainedFiles": 35,
+    "retainedFilesUnchanged": true,
+    "originalRecordingDetailUnchanged": true,
+    "nativeSaveDialogInteraction": "只替换自制目标的选择回执；实际原J-Card UI导出，不称原生chooser操作证据",
+    "historicalBuild": "生产build001绑定P1；最终AB须使用后续精确build，不重复推广原结果",
+    "businessHistoryRowExceptions": 0
+  },
+  "p1Pdf": {
+    "schema": "mbrs014.readonly-pdf-visual-qa.v1",
+    "pdfSha256": "c564ec453502b5ac1ee1ea94ba8024ce857afe60eb3b48d4345ddbf97f9c95ad",
+    "pageCount": 3,
+    "renderedAndViewedAllPages": true,
+    "renderer": "bundled Poppler pdftoppm 200 dpi",
+    "renderExitCode": 0,
+    "pages": [
+      {
+        "page": 1,
+        "file": "page-1.png",
+        "bytes": 57451,
+        "sha256": "eae563ced48084f485566b496bfd32e45950e8669e6313356ad63ba854213022"
+      },
+      {
+        "page": 2,
+        "file": "page-2.png",
+        "bytes": 44554,
+        "sha256": "f26a37af07cf61aec4f2b834364a06dcff114d37958b2702a79a80b2993486f0"
+      },
+      {
+        "page": 3,
+        "file": "page-3.png",
+        "bytes": 42934,
+        "sha256": "5ee7eaf258454095dfa4329d0c1797ef04a4f48af29623e684f37a6501a25c33"
+      }
+    ],
+    "findings": "三页标题、编号、中文、折线、侧脊及曲目均可读，无主要文本裁切或重叠。Artwork明确未捕获，不用当前封面替代历史。",
+    "paperPrintAndOwnerAcceptance": "NOT_RUN",
+    "sourcePdfEdited": false,
+    "file": {
+      "archiveId": "MBRS014_ORIGINAL_JCARD_PDF",
+      "fileName": "original-jcard.pdf",
+      "bytes": 158036,
+      "sha256": "c564ec453502b5ac1ee1ea94ba8024ce857afe60eb3b48d4345ddbf97f9c95ad",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "visualQaReceipt": {
+      "archiveId": "MBRS014_ORIGINAL_JCARD_VISUAL_QA",
+      "fileName": "P1_PDF_VISUAL_QA01.json",
+      "bytes": 1020,
+      "sha256": "d3b4a25a3576414eff1f455bf008ccf61eaff8975a660a3bce4d392de4c8acb9",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "afterP1ComparisonPolicy": {
+    "allOriginalTables": 103,
+    "session": "唯一id=1的epoch保留INTEGER，按每次成功boot精确+1",
+    "workspace": "原UI打开源、关闭至工作台、冷启动再打开的公共回执依次source/workbench/source、修订1/2/3；仅contexts与ledger按闭集请求指纹、完整回执cells、对应boot窗口ISO时间与原追加行核对",
+    "allOtherTables": 100,
+    "businessHistoryRowExceptions": 0,
+    "p1OriginalAll103TypedBytesUnchangedRequired": true,
+    "newRelationJournalAndOutbox": "另外核完整动作身份、状态和冷启动不自动重放",
+    "attachmentAndPdf": "全部35文件及P1原PDF SHA保持"
+  },
+  "finalApp": {
+    "cases": 2,
+    "pass": 2,
+    "fail": 0,
+    "skip": 0,
+    "boots": 4,
+    "normalCloseExit0Null": 4,
+    "fullOriginalTableComparison": 103,
+    "originalTablesUnchanged": 100,
+    "exactDerivedTables": [
+      "preparation_zip_session",
+      "recording_workspace_contexts",
+      "recording_workspace_ledger"
+    ],
+    "businessHistoryRowExceptions": 0,
+    "oldBusinessFrozenDetailsUnchanged": true,
+    "originalP1All103TypedValuesUnchanged": true,
+    "originalPdfShaUnchanged": true,
+    "retained35FilesShaUnchanged": true,
+    "outboxExecuteCommands": 12,
+    "coldRestartNoAutomaticReplay": true,
+    "pageErrors": 0,
+    "blockedExternalAttempts": 0,
+    "referenceCloseActualEntryFocused": true,
+    "realUserData": "NOT_ACCESSED"
+  }
+}

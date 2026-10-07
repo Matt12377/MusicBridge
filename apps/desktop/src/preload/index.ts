@@ -388,5 +388,6 @@ contextBridge.exposeInMainWorld(
     createMBQueueClient(invokeScoped),
     createLocalArtworkClient(invokeScoped,getDatasetId,{apply:request=>outbox.submit('localArtwork.apply',request),create:request=>outbox.submit('localArtwork.createEdition',request)}),
     createLocalOrganizerClient(invokeScoped,getDatasetId,{confirm:request=>outbox.submit('localOrganizer.confirm',request),undo:request=>outbox.submit('localOrganizer.undo',request)}),
+    { invoke: invokeScoped, scope: getDatasetId, confirm: request => outbox.submit('localLegacyLinks.confirm', request), revoke: request => outbox.submit('localLegacyLinks.revoke', request), undo: request => outbox.submit('localLegacyLinks.undo', request) },
   ),
 )

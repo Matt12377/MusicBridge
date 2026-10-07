@@ -1,6 +1,7 @@
 import { localArtworkMigration, verifyLocalArtworkDatabase, createLocalArtworkStore, type LocalArtworkStore } from './local-artwork-store.js';
 import { mbQueueMigration, verifyMBQueueDatabase, createMBQueueStore, MBQueueStoreError, type MBQueueStore } from './mb-queue-store.js';
 import { LocalFactsFenceBusy, LocalFactsCommitFatal } from '../stream/local-source-fence.js';
+import { LegacyLinksError } from './local-legacy-links-journal.js';
 import { traceDatabase } from '../diagnostics/performance-instrumentation.js';
 import { isDatasetCollectionModels, isDatasetLargeCollectionModels, MAX_DATASET_COLLECTION_MODELS, MAX_DATASET_LARGE_COLLECTION_MODELS } from './dataset-owner-protocol.js';
 import { createRecordingPrintStore, migrateRecordingPrints, migrateRecordingPrintVersions, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
@@ -42,6 +43,7 @@ import { createPreparationZipStore, preparationZipMigration, preparationZipSessi
 import { createHash, randomUUID } from 'node:crypto';
 import { closeSync, constants, fchmodSync, lstatSync, mkdirSync, openSync } from 'node:fs';
 import path from 'node:path';
+import { createSourceProtectionStore, type SourceProtectionStore } from '../recording/source-protection-store.js';
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite';
 import {
   isCollectionId, isCollectionReceiveRequest, isCollectionMaterializeRequest,
@@ -84,6 +86,8 @@ export interface CollectionRepository {
   drafts: MasterDraftsRepository;
   workspace: RecordingWorkspaceStore;
   sources: SourceStore;
+  /** 原作者私有派生保护，不作为公开源写许可。 */
+  sourceProtection: SourceProtectionStore;
   media: MediaPlanningStore;
   versions: MasterVersionsStore;
   preparations: PreparationStore;
@@ -303,7 +307,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   function guarded<T>(operation: (db: DatabaseSync) => T): T {
     try { if(localFactsFatal)throw new LocalFactsCommitFatal();return operation(open()); }
     catch (error) { if (error instanceof MBQueueStoreError) throw error;
-      if (error instanceof LocalFactsCommitFatal || error instanceof LocalFactsFenceBusy || error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
+      if (error instanceof LegacyLinksError || error instanceof LocalFactsCommitFatal || error instanceof LocalFactsFenceBusy || error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
   }
   function exportReadonlyModels(maxModels: number, modelsGuard: typeof isDatasetCollectionModels): readonly CollectionModel[] {
     return guarded(db => {
@@ -577,12 +581,13 @@ export function createCollectionRepository(options: { filePath: string; stagingR
     archive: createArchiveStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     execution: createExecutionStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     recordingProfiles: createRecordingProfilesStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
-    prepared: createPreparedStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
+    prepared: createPreparedStore({ read: guarded, conflict, onCommitFatal: failLocalFacts, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     preparations: createPreparationStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     preparationZips: createPreparationZipStore({ read: guarded, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
-    versions: createMasterVersionsStore({ read: guarded, conflict, media, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
+    versions: createMasterVersionsStore({ read: guarded, conflict, media, onCommitFatal: failLocalFacts, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     media,
     sources,
+    sourceProtection: createSourceProtectionStore({ read: guarded }),
     drafts: createMasterDraftsRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     workspace: createRecordingWorkspaceStore({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     readonlySnapshotStamp() {

@@ -1,0 +1,82 @@
+{
+  "schema": "mbrs014.legacy-links-api-freeze.v1",
+  "task": "MBRS-014",
+  "status": "ROOT_REVIEWED_IMPLEMENTATION_INPUT_NOT_VALIDATED",
+  "baseSha": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+  "draftInput": {
+    "archiveId": "LOCAL_LEGACY_LINKS_API_DRAFT_FROZEN_INPUT",
+    "bytes": 33684,
+    "sha256": "ced2bf8a6f281e0d35c80b06f070cca722eef4466fea7711624abfa9f99ff3e4"
+  },
+  "publicCommands": [
+    "localLegacyLinks.read",
+    "localLegacyLinks.history",
+    "localLegacyLinks.preview",
+    "localLegacyLinks.confirm",
+    "localLegacyLinks.revoke",
+    "localLegacyLinks.undo"
+  ],
+  "edgeKinds": [
+    "legacy-edition",
+    "draft-source-track"
+  ],
+  "manualSubjectKinds": [
+    "physical-release",
+    "digital-album"
+  ],
+  "singleActiveLeftSlot": true,
+  "manualAssociationProvesAudioEquivalence": false,
+  "rootBackendContractsWriter": "organizer_core_inventory011",
+  "candidateReads": "复用现有有界LocalLibrary/LocalCatalog读接口选择明确ID；服务端preview验证身份/完整Hash/范围，不新增自动匹配或额外候选命令。",
+  "ledgerOperation": "LOCAL_LEGACY_LINKS_V1",
+  "ledgerPrimaryCommandId": "ORIGINAL_EXTERNAL_COMMAND_ID",
+  "serverIds": [
+    "previewId",
+    "linkId",
+    "transitionEventId"
+  ],
+  "catalogSchema": 34,
+  "nodeOnlyWriter": true,
+  "sourceFilesWrite": "OFF",
+  "optionalRustReadonly": "OFF",
+  "budgets": {
+    "requestDepth": 12,
+    "requestNodes": 2048,
+    "requestOwnKeys": 32,
+    "requestBytes": 16384,
+    "publicItems": 100,
+    "publicPageBytes": 2097152,
+    "edgeBytes": 8192,
+    "previewBytes": 16384,
+    "privateCaptureBytes": 16384,
+    "ledgerRowAllTextBytes": 65536,
+    "activeCursors": 128,
+    "cursorBytes": 512,
+    "cursorTtlMs": 600000,
+    "previewTtlMs": 600000,
+    "ioDeadlineMs": 120000,
+    "newDomainRows": 50000,
+    "projectionCanonicalBytes": 67108864,
+    "incrementalLedgerRowsPerRead": 512,
+    "cursorRetainedCanonicalBytesTotal": 16777216,
+    "originalLedgerRows": 12000000,
+    "originalCatalogBytes": 17179869184
+  },
+  "budgetRules": [
+    "新域投影由既有完整冷核同轮构建，保留原全局预算；全部已核新域事件计入新域行数/规范字节，不保留旧raw或整个旧ledger。",
+    "新增预算只约束localLegacyLinks，不把关系超限显示为空，不阻断旧库浏览；未认证历史拒绝关系命令。",
+    "后续读使用已认证投影与有界增量；超过512新行返回明确预算/需要刷新状态，不以截断前缀宣称未关联。",
+    "游标固定高水位；不得每个游标复制完整关系或历史，新域游标保留字节总量有界。",
+    "新写入前校验新增事件/投影/字节和原账本预算；读取原回执不追加行。",
+    "u64按BigInt核对，confirmed/revoked须留下一次显式undo的修订空间，undone为不可逆终态，不溢出。"
+  ],
+  "nonemptyEvidence": "原schema30夹具及103表typed cells冻结不改；另做当前软件自建非空历史兼容链，准确标生成base/schema并与真实旧用户迁移分开。",
+  "unknownCommit": "沿原commitLocalFacts/rollbackLocalFacts与repository fatal fence；保留claims和文件，完整冷核后只读对账，零自动重发。",
+  "oldEndpointPolicy": "不删除/重建旧对象；当前对象合法改名或修订不篡改已确认历史快照，恢复active必须重新核其受审身份；历史损坏与当前endpoint合法变化分别处理。",
+  "wholeFileOnly": "旧SourceBinding缺少子片段范围时不猜测；允许LocalTrack.segment=null或有容器帧证据的全文件精确span。",
+  "physicalProtection": "冻结Master/Layout/PREP发布与活动录音共享同一SAB；历史不明保守拒绝对应源操作，SOURCE_FILES OFF不能代替保护实现证据。",
+  "ownerContinuousAuthorization": "已有Owner持续授权自主开发/测试/任务普通提交推送，无新增逐步审批。",
+  "validation": "NOT_RUN",
+  "commandUniquenessDomain": "local_catalog_ledger 内所有operation的永久主键；继承既有outbox保留期身份，不宣称music/physical/source等独立旧账本有统一永久主键。",
+  "legacyVerificationInputPolicy": "49原输入固定；其中preload.test.ts仅允许Root已审阅的末尾六行API方法预期扩展，其余字节不变。"
+}

@@ -1,0 +1,64 @@
+{
+  "schema": "mbrs014.source-protection-review.v1",
+  "round": 2,
+  "phaseSourceManifestSha256": "2ddea4d9ef1dca775015e3baa7c6be66d7289bebc18155819b266105a4f526c3",
+  "phaseSourceIdentitySha256": "ba6bc81f3e839aca19e81c822e11e3da6bcce510e8d8adc2e75456c1dcc47647",
+  "state": "TWO_P2_RESOLVED_PHASE02_FULL014_INTEGRATION_PENDING",
+  "scope": "仅复核关闭时输入join及completed缺失owned/完整files/Manifest两处根因，未作第三轮泛化审查。",
+  "findings": [
+    {
+      "id": "INPUT_CLOSE_JOIN",
+      "priority": "P2",
+      "file": "packages/bridge-core/src/recording/versions-coordinator.ts",
+      "issue": "冻结输入中的异步snapshot未计入close等待；await后的closed与容量未重核。",
+      "required": "实际时序RED；登记已接纳输入并join，await后同步复核关闭及原活动容量。",
+      "status": "RESOLVED_IN_PHASE02_BOUNDED_REVIEW",
+      "finalCommitGate": "NOT_YET_RUN"
+    },
+    {
+      "id": "MISSING_OWNED_HISTORY",
+      "priority": "P2",
+      "file": "packages/bridge-core/src/recording/source-protection-store.ts",
+      "issue": "已完成的Preparation/Prepared缺失owned字段可省略保留原件/Manifest保护引用。",
+      "required": "自建损坏输入实际验证；已完成输出缺少必要历史字段必须UNKNOWN，保护读取零原表写。",
+      "status": "RESOLVED_IN_PHASE02_BOUNDED_REVIEW",
+      "finalCommitGate": "NOT_YET_RUN"
+    }
+  ],
+  "review": {
+    "notesSha256": "cf45ec41215dd711344fe42ea824a17bc481772bcf1b9cafffe28724b212c2c2",
+    "inputManifestSha256": "126121bec8e7c1df5557aa0a0cdb0c2c872c5d5d84981c08f257fd47b9db6f95",
+    "phaseFiles": 20,
+    "allPhaseFilesMatchedCurrentAtRootRead": true,
+    "newP1P2InBoundedScope": []
+  },
+  "phase01LocalEvidence": {
+    "newTests": 23,
+    "legacyTests": 59,
+    "build": 0,
+    "workerBuild": 0,
+    "testTypes": 0,
+    "scope": "当时未提交工作树的局部检查，不覆盖后续补丁。"
+  },
+  "phase02LocalEvidence": {
+    "newTests": 29,
+    "legacyTests": 59,
+    "buildExitCode": 0,
+    "workerBuildExitCode": 0,
+    "testTypesExitCode": 0,
+    "scope": "未提交阶段的局部证据；真实数据/设备/源写/完整014/最终实现提交仍待独立验证。"
+  },
+  "preservedRedClassification": {
+    "inputClose": "实际输入关闭时序失败；后续同草稿冲突不另计产品根因。",
+    "ownedRed01": "损坏样本触发器准备失败，不当作产品缺陷证据。",
+    "ownedRed02": "完成历史缺owned的实际保护遗漏，及files issue分类失败。"
+  },
+  "remainingBoundaries": [
+    "Node是schema34唯一writer，Rust与SOURCE_FILES关闭。",
+    "历史owned缺dev/ino继续UNKNOWN，不以当前stat补历史。",
+    "旧保护事实不由源写OFF代替；真实源写与012/013排他claim适配尚未验证。",
+    "最终关系接线及完整Gate须绑定最终实现提交。"
+  ],
+  "next": "继续关系后端与Main/preload/UI集成，最终新鲜Gate绑定提交；不再开启第三轮来源保护泛化复核。",
+  "ownerApprovalRequired": false
+}

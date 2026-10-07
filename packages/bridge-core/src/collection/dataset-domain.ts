@@ -42,6 +42,7 @@ import { createPhysicalLinksCoordinator, createProjectedPhysicalLinksCoordinator
 
 import path from 'node:path';
 import { createLocalOrganizerService } from './local-organizer-service.js';
+import { createLocalLegacyLinksService } from './local-legacy-links-service.js';
 import type { IpcRequest } from '@music-bridge/contracts';
 import { createCollectionRepository, type CollectionRepository, CollectionError } from './repository.js';
 import { createRoonPublicLibrary, type RoonPublicLibrary } from '../roon/public-library.js';
@@ -122,6 +123,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const localRelocation=createLocalRelocationCoordinator({repository:collection,assertCurrent:assertDataset,assertReady:()=>{if(!scanBootReady)throw new CollectionError('INVENTORY_UNAVAILABLE','owner尚未commitBoot。');},beforeMutation:()=>localScan.yieldForMedia()});
   const localArtwork = createLocalArtworkService({ repository: collection, assertCurrent: assertOpen, ...(options.projection ? { projection: options.projection } : {}) });
   const localOrganizer = createLocalOrganizerService({ repository: collection, datasetId: identity.datasetId, assertCurrent: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '整理owner尚未commitBoot。'); } });
+  const localLegacyLinks = createLocalLegacyLinksService({repository:collection,datasetId:identity.datasetId,assertCurrent:()=>{assertOpen();if(!scanBootReady)throw new CollectionError('INVENTORY_UNAVAILABLE','旧库关联 owner 尚未 commitBoot。');}});
   const backups = createBackupCoordinator({ store: maintenanceForCoordinator, repository: collection, ...(options.backupPrivateRoot ? { privateRoot: options.backupPrivateRoot } : {}), ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) });
   const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts, validateAuthorization: root => assertSourceOutsideArchives(root.path, collection.archive) });
   const sourceCandidates = createSourceCandidateService({ store: collection.sources, drafts: collection.drafts, sources });
@@ -159,7 +161,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const physicalLinks = projection ? createProjectedPhysicalLinksCoordinator({ repository: collection.links, projection, assertCurrent: assertOpen }) : createPhysicalLinksCoordinator({ repository: collection.links, library: library! });
   const masterDrafts = projection ? createProjectedMasterDraftsCoordinator({ repository: collection.drafts, projection, assertCurrent: assertOpen }) : createMasterDraftsCoordinator({ repository: collection.drafts, library: library! });
   const domain: DatasetDomain = {
-    datasetId: identity.datasetId, collection, localScan, localRelocation, localArtwork, localOrganizer, commandOutbox, sources, sourceCandidates, mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, backups, archive,
+    datasetId: identity.datasetId, collection, localScan, localRelocation, localArtwork, localOrganizer, localLegacyLinks, commandOutbox, sources, sourceCandidates, mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, backups, archive,
     ...(recordingDeviceSelection ? { recordingDeviceSelection } : {}), recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingPrints, recordingReplica, physicalLinks, masterDrafts, assertOpen,
     dispatch(request) {
       const pending = dispatchDatasetCommand(domain, request);
@@ -210,6 +212,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
         await stop(() => backups.close()); await stop(() => archive.close()); await stop(() => execution.close()); await stop(() => prepared.close()); await stop(() => preparationZips.close()); await stop(() => preparation.close()); await stop(() => masterVersions.close());
         await stop(() => localArtwork.close());
         await stop(() => localOrganizer.close());
+        await stop(() => localLegacyLinks.close());
         await stop(() => localScan.close());
         await stop(() => localRelocation.close());
         await stop(() => sourceCandidates.close()); await stop(() => sources.close());

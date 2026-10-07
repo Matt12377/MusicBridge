@@ -1,4 +1,5 @@
-import { IPC_VERSION, type IpcFailure, type IpcRequest } from '@music-bridge/contracts';
+import { IPC_VERSION, LOCAL_LEGACY_LINKS_ISSUES, type IpcFailure, type IpcRequest } from '@music-bridge/contracts';
+import { LegacyLinksError } from '../collection/local-legacy-links-journal.js';
 import { asBridgeError } from './errors.js';
 import { RecordingPrintError } from '../recording/print-integrity.js';
 import { RecordingReplicaError } from '../recording/replica-error.js';
@@ -29,6 +30,13 @@ export function responseFailure(
 
 
 export function failureForError(id: string, error: unknown, command: IpcRequest['command']): IpcFailure {
+  if (error instanceof LegacyLinksError) {
+    const observed = Object.getOwnPropertyDescriptor(error, 'code')?.value;
+    const issue = typeof observed === 'string' && (LOCAL_LEGACY_LINKS_ISSUES as readonly string[]).includes(observed) ? observed : 'RECOVERY_REQUIRED';
+    const code = issue === 'INVALID_REQUEST' ? 'INVALID_IPC_REQUEST' : issue === 'DATASET_SCOPE_MISMATCH' ? 'OUTBOX_SCOPE_MISMATCH'
+      : issue === 'RECOVERY_REQUIRED' || issue === 'INVENTORY_UNAVAILABLE' || issue === 'BUDGET_EXCEEDED' ? 'INVENTORY_UNAVAILABLE' : 'INVENTORY_CONFLICT';
+    return responseFailure(id, code, `本地旧库关联未获确认。[${issue}]`);
+  }
   if (command === 'recordingAttempts.begin' && error instanceof AttemptNotAcceptedError) {
     return responseFailure(id, 'ATTEMPT_NOT_ACCEPTED',
       `正式输出开始已证实未受理，请重新预检并确认。[ATTEMPT_NOT_ACCEPTED] 原因：${error.causeCode}`);

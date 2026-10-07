@@ -60,6 +60,20 @@ export class PhysicalResourceCoordinator {
   }
   acquireRead(resources: readonly PhysicalResource[]): PhysicalResourceGuard { return this.acquire(resources, 'read'); }
   acquireWrite(resources: readonly PhysicalResource[]): PhysicalResourceGuard { return this.acquire(resources, 'write'); }
+  /** 同一原子表的指定资源观察；只是事实快照，不签发源写资格。 */
+  inspect(resources: readonly PhysicalResource[]): { readers: number; writers: number; resources: number } {
+    if (!Array.isArray(resources) || resources.length > SLOTS) throw new Error('物理观察集合超过原协调器容量。');
+    const keys = [...new Map(resources.map(resource => { const key = this.key(resource); return [key.join(':'), key] as const; })).values()];
+    return this.transaction(() => {
+      let readers = 0, writers = 0, matched = 0;
+      for (const key of keys) for (let slot = 0; slot < SLOTS; slot++) {
+        const offset = 1 + slot * WORDS_PER_SLOT, count = Atomics.load(this.words, offset + 3);
+        if (count === 0 || !key.every((word, index) => Atomics.load(this.words, offset + index) === word)) continue;
+        matched++; if (count > 0) readers += count; else writers++; break;
+      }
+      return { readers, writers, resources: matched };
+    });
+  }
   snapshot(): { readers: number; writers: number; resources: number } {
     return this.transaction(() => { let readers = 0, writers = 0, resources = 0; for (let slot = 0; slot < SLOTS; slot++) { const count = Atomics.load(this.words, 1 + slot * WORDS_PER_SLOT + 3); if (count !== 0) resources++; if (count > 0) readers += count; if (count < 0) writers++; } return { readers, writers, resources }; });
   }

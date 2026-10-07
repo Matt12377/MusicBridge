@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import type { CollectionMatrixRow, DigitalAlbumDetail, DigitalRuntime, MusicEntry, Page, PhysicalDigitalLink, PhysicalLinkHistoryEvent, PhysicalLinkResult, PhysicalLinksSnapshot, PhysicalRelation, RoonLibraryPage } from '@music-bridge/contracts'
 import { nextRoonPageOffset, readRoonDatasetPage, RoonPageCursorHistory } from '../../composables/roonLibraryPagination.js'
 import RoonAlbumPicker from './RoonAlbumPicker.vue'
@@ -8,6 +8,12 @@ import { createPhysicalRelationRequestFence } from './physical-relation-request-
 const props = defineProps<{ release?: MusicEntry }>()
 const emit = defineEmits<{ physical: [id: string]; changed: []; busy: [busy: boolean] }>()
 const api = window.musicBridge
+const LocalLegacyLinksPanel = defineAsyncComponent(() => import('../legacy/LocalLegacyLinksPanel.vue'))
+const localLinksReady = computed(() => ['readLocalLegacyLinks', 'historyLocalLegacyLinks', 'previewLocalLegacyLink', 'confirmLocalLegacyLink', 'revokeLocalLegacyLink', 'undoLocalLegacyLink'].every(name => typeof (api as unknown as Record<string, unknown>)[name] === 'function'))
+const localContext = computed(() => digital.value
+  ? { key: { kind: 'digital-album' as const, digitalAlbumId: digital.value.album.id }, revision: digital.value.album.revision, title: digital.value.album.metadata.title }
+  : props.release && (props.release.kind === 'cd' || props.release.kind === 'cassette')
+    ? { key: { kind: 'physical-release' as const, physicalReleaseId: props.release.id }, revision: props.release.revision, title: props.release.title } : null)
 const snapshot = shallowRef<PhysicalLinksSnapshot>(), history = shallowRef<Page<PhysicalLinkHistoryEvent>>(), digital = shallowRef<DigitalAlbumDetail>(), runtime = shallowRef<DigitalRuntime>(), matrix = shallowRef<Page<CollectionMatrixRow>>()
 const loading = ref(false), saving = ref(false), error = ref(''), notice = ref(''), query = ref('')
 const picker = ref<'link' | 'register' | 'relocate'>(), removing = shallowRef<PhysicalDigitalLink>(), removalReason = ref(''), absenceConfirm = ref(false)
@@ -199,6 +205,8 @@ onUnmounted(() => { alive = false; viewFence.invalidate(); clearTracks(); histor
       <p>数字对象下的 CD / 磁带数量只统计 Exact 关系；可能同版与相关版本单列。自录作品在实体音乐库查看，不计入原版数量。</p>
       <nav v-if="matrix && matrix.total > matrix.limit" aria-label="收藏矩阵分页"><button :disabled="blocked || loading || !matrix.offset" @click="load(Math.max(0, matrix.offset - 24))">上一页</button><span>{{ matrix.offset + 1 }}–{{ matrix.offset + matrix.items.length }} / {{ matrix.total }}</span><button :disabled="blocked || loading || !matrix.hasMore" @click="load(matrix.offset + 24)">下一页</button></nav>
     </template>
+    <LocalLegacyLinksPanel v-if="localContext && localLinksReady" :context="localContext" />
+    <p v-else-if="localContext" role="status">本地关联服务尚未就绪。原有 Roon 与数字对象入口仍可使用。</p>
     <div v-if="removing" role="group" aria-label="确认解除关联" class="link-card"><p>仅解除双方关系，保留数字对象与实物记录，不自动声明缺少。撤销前的关系和这次理由会保存为不可变事件。</p><label class="reason">解除理由<textarea v-model.trim="removalReason" maxlength="240" rows="2" placeholder="写下核对依据"></textarea></label><button :disabled="blocked || !removalReason.trim()" @click="remove">确认解除关联</button><button :disabled="blocked" @click="removing = undefined; removalReason = ''">取消解除</button></div>
     <RoonAlbumPicker v-if="picker" :mode="picker" :cd="release?.kind === 'cd'" :busy="saving" :pending="!!pending" :error="error" @close="picker = undefined; error = ''" @confirm="confirm" @retry="retry" />
   </section>

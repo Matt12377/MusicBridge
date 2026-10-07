@@ -1,0 +1,252 @@
+{
+  "schema": "mbrs014.frozen-legacy-verification-inputs.v1",
+  "baseSha": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+  "state": "BASE_BYTES_PINNED_NOT_TEST_EXECUTION",
+  "files": [
+    {
+      "path": "apps/desktop/e2e/collection-preview.spec.ts",
+      "bytes": 23963,
+      "sha256": "39f23ce7e245213b0e3ade1ccecfd5570a6fa56f220e277c8218f7d0d7f9b447"
+    },
+    {
+      "path": "apps/desktop/e2e/mbrs009-local-library.spec.ts",
+      "bytes": 10775,
+      "sha256": "4b37706530de793b0dc83d0d4ea51589324fcfac674863aa47914b1d2dc702ab"
+    },
+    {
+      "path": "apps/desktop/e2e/mbrs011-organizer.spec.ts",
+      "bytes": 25227,
+      "sha256": "604462fd00920aafc149726b51387ebb03b5751d9a06e5724017e34c11a43ff1"
+    },
+    {
+      "path": "apps/desktop/e2e/task-068.spec.ts",
+      "bytes": 15655,
+      "sha256": "8b4287086cb7fe5344a8f2a3a8712dd7ea4a69c44067ffc3ca7e2cf6cdea8970"
+    },
+    {
+      "path": "apps/desktop/e2e/task-071-photo-workflow.ts",
+      "bytes": 14415,
+      "sha256": "6371ea9cb040d4c50b6dffe36e05eefa665547fbae9c5ff1c502e826fc9ab47e"
+    },
+    {
+      "path": "apps/desktop/e2e/task-071.spec.ts",
+      "bytes": 39432,
+      "sha256": "2ac2123b325a424b914386afdc3f02044bbd99b2f41b48b21c431c5c9cdc0b68"
+    },
+    {
+      "path": "apps/desktop/e2e/task-075.spec.ts",
+      "bytes": 18535,
+      "sha256": "5cf6cbfb2bc3e0d5498a090e500a42ba3cb178db4c353a66a50ad0c023746355"
+    },
+    {
+      "path": "apps/desktop/e2e/task-077.spec.ts",
+      "bytes": 14942,
+      "sha256": "acf7b6c28a091d680fc3a53f7ed4cd5181c66bc896252992d1875b56bd4225e2"
+    },
+    {
+      "path": "apps/desktop/e2e/task-078.spec.ts",
+      "bytes": 33209,
+      "sha256": "aad34f77715dae3cff60f0d7d43b8e8d883a72f8a8b8211be2aebba2e69e3983"
+    },
+    {
+      "path": "apps/desktop/e2e/temporary-root.ts",
+      "bytes": 1210,
+      "sha256": "c657c7369280497599e84cde5e0eb459ad97eb28f07feaa2ec972a79d503d06d"
+    },
+    {
+      "path": "apps/desktop/e2e/v1-ui.spec.ts",
+      "bytes": 289590,
+      "sha256": "43666556b8c7def39a42560e9d97a41264ea89d7d52d945c700d7f77a72121db"
+    },
+    {
+      "path": "apps/desktop/test/command-outbox-executor.test.ts",
+      "bytes": 13417,
+      "sha256": "bab4d3190587d3f2f4db3dd461c6a3cea08c559246460e30954aa6eb5eb1d3ac"
+    },
+    {
+      "path": "apps/desktop/test/command-outbox-service.test.ts",
+      "bytes": 15590,
+      "sha256": "026ac8acb83ed51905fd37a98f804796cccac7ec1f1a82bdad1a574d3966042d"
+    },
+    {
+      "path": "apps/desktop/test/mbrs009-local-library-session.test.ts",
+      "bytes": 33141,
+      "sha256": "df47d7bcbcb051eff45b294ec8c9357a55a7bbcfe548531c11a26ae39f60055a"
+    },
+    {
+      "path": "apps/desktop/test/mbrs009-local-library-ui.test.ts",
+      "bytes": 26502,
+      "sha256": "c859a09a2bf318a366ad6f007853a3602360cd196c8cda14330b308ab9171894"
+    },
+    {
+      "path": "apps/desktop/test/mbrs011-organizer-session.test.ts",
+      "bytes": 30609,
+      "sha256": "5a6cab81035cc7d5bd56ed2ef60509aa7b1b58d9dad59533a68e4ba6c5c0609b"
+    },
+    {
+      "path": "apps/desktop/test/mbrs011-organizer-ui.test.ts",
+      "bytes": 29296,
+      "sha256": "0b4ed3b0c7169ec7b086f70420bb60eb5ccc3ae1e1efd8642a2a197defb5c770"
+    },
+    {
+      "path": "apps/desktop/test/physical-link-history-fence.test.ts",
+      "bytes": 1601,
+      "sha256": "52255b72417306a9b09d32b9490cbcfbf363606088ef043cbca397ce87513478"
+    },
+    {
+      "path": "apps/desktop/test/physical-relation-request-fence.test.ts",
+      "bytes": 2793,
+      "sha256": "e0098b85f393db433921b3e86b1917967455e5c9a5cfe40935be2d9f9fa6b96e"
+    },
+    {
+      "path": "apps/desktop/test/preload.test.ts",
+      "bytes": 36611,
+      "sha256": "e71abb2064cfbb52715da88b494b6b963fe41a3271d9a99a4757563fcc691e32"
+    },
+    {
+      "path": "apps/desktop/test/recording-source-candidate-ui.test.ts",
+      "bytes": 4929,
+      "sha256": "a674248a0e7b14fe6a507b3e67a0b28f05dd2d2b8ad1032cdaf2f1bfa7e16fd1"
+    },
+    {
+      "path": "apps/desktop/test/source-picker.test.ts",
+      "bytes": 16014,
+      "sha256": "25fbc797d4f49976e41bdb1efb391b3f56301a95a7f3b27f6ede8dc0214f9790"
+    },
+    {
+      "path": "packages/bridge-core/test/archive-transactions.test.ts",
+      "bytes": 16367,
+      "sha256": "a040762d43b8061129fe89a77949067859483765d7e3e30e3b67937dbd43a2fb"
+    },
+    {
+      "path": "packages/bridge-core/test/commercial-provenance.test.ts",
+      "bytes": 15083,
+      "sha256": "94fe8d3042424f10fa41bcf411885ab075f051864059a756ca216e661b504fe5"
+    },
+    {
+      "path": "packages/bridge-core/test/execution-assets.test.ts",
+      "bytes": 21966,
+      "sha256": "751f49d4daa6c62d3c68bc0b7c4276af8473b5dc27d87d56fe683425067d6e40"
+    },
+    {
+      "path": "packages/bridge-core/test/helpers/archive-backup-fixture.ts",
+      "bytes": 2655,
+      "sha256": "6422bb09fcc0d4afbbac6e6a8be15bdd5a4d09345e5218b355adcf8a3bee1c2a"
+    },
+    {
+      "path": "packages/bridge-core/test/helpers/execution-fixture.ts",
+      "bytes": 3003,
+      "sha256": "2a0d469a2c9531b28c171657e86c53510bf9cd1d030322d7375ed7c7e7cac0c7"
+    },
+    {
+      "path": "packages/bridge-core/test/helpers/preparation-fixture.ts",
+      "bytes": 5903,
+      "sha256": "573a05d81535c154db53c8b895b60aa905ea570c01fba2c69b0822f7014516ce"
+    },
+    {
+      "path": "packages/bridge-core/test/helpers/prepared-execution-fixture.ts",
+      "bytes": 4340,
+      "sha256": "b22fecb0292bc4d4d2f9764a08e59057e50f20c50f35abc40ecec520edd2876c"
+    },
+    {
+      "path": "packages/bridge-core/test/helpers/recording-attempt-fixture.ts",
+      "bytes": 1541,
+      "sha256": "6948c617b592d851a29dba29cf665f804ecf1bb027ea8526ee31e916a6aec329"
+    },
+    {
+      "path": "packages/bridge-core/test/helpers/recording-plan-fixture.ts",
+      "bytes": 2081,
+      "sha256": "c9ac5debc51a468e086a6372d525cef53b91cdc233e563881bac3abe8fe6695a"
+    },
+    {
+      "path": "packages/bridge-core/test/helpers/recording-record-fixture.ts",
+      "bytes": 4641,
+      "sha256": "c894a1a646f547eceebd4eaffcc44228ab66a69797a9a71ddc68525dfee2037e"
+    },
+    {
+      "path": "packages/bridge-core/test/master-versions.test.ts",
+      "bytes": 21520,
+      "sha256": "5bf051ab706ff422f2ad51ebf5a2cae78442f87b8c53d5ff081ff3044529879c"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs002/fixtures/schema30-nonempty-cold-api.json",
+      "bytes": 120642,
+      "sha256": "f759add15de51f919dedbe413aded78796e6a743ad3c25e2d02aa73037b8fdaa"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs002/fixtures/schema30-nonempty-full-facts.json",
+      "bytes": 323581,
+      "sha256": "12d87c78f17a2e52251010aaebfe1fbc0ddbe08d3e8fb93d18f4617d18e01154"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs002/fixtures/schema30-nonempty-legacy.provenance.json",
+      "bytes": 1905,
+      "sha256": "5c21e9398f406f758f5669e2c866e26700f89cf5cc071d7fe5e3c2ea638ac48e"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs002/fixtures/schema30-nonempty-legacy.sqlite",
+      "bytes": 1228800,
+      "sha256": "5205a95ec06f1d10b87b31731c6d0295dee156ed06567dc7bc9f912d4117da62"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs002/local-catalog-nonempty-migration.test.ts",
+      "bytes": 16722,
+      "sha256": "1fe2c9342178665f4812ae9b91acade1245d70e339fb253c2c6dd8e12a467f66"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs002/local-catalog-restore.test.ts",
+      "bytes": 12497,
+      "sha256": "e0fa4418db450e67b72bb78cf5289d76b29d5f61653b8bb7f51db4d47d121469"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs002/local-catalog-store.test.ts",
+      "bytes": 20371,
+      "sha256": "4a6666e272770975faf0c2095345dcb2b3c9043a04fa422f8b6edf062b67ca85"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs005/locks.test.ts",
+      "bytes": 10065,
+      "sha256": "5801640f9362fcfbcaf4506bafc327539d37aa55aa0f936af6509dd30221f5d1"
+    },
+    {
+      "path": "packages/bridge-core/test/physical-links-coordinator.test.ts",
+      "bytes": 6392,
+      "sha256": "6a6fafdfe9a499532eadcc4d5e50dacc6f8be7b3866c85d15ed8c57ecce5cd48"
+    },
+    {
+      "path": "packages/bridge-core/test/prepared-render.test.ts",
+      "bytes": 21086,
+      "sha256": "16ed7cf20c571867589fca4db7a541135e15ac4da29e7271527ac09e7dbbb573"
+    },
+    {
+      "path": "packages/bridge-core/test/recording-print-migration.test.ts",
+      "bytes": 6559,
+      "sha256": "1a2a66fe8f917030cf94e5982c68c398a57c5f09458148a94dffac7b26307355"
+    },
+    {
+      "path": "packages/bridge-core/test/recording-print-store.test.ts",
+      "bytes": 43134,
+      "sha256": "25f00700e92523aacb7e831c373087a3d1a37de62a42c8ad0b3244364d567a52"
+    },
+    {
+      "path": "packages/bridge-core/test/reference-catalog-store.test.ts",
+      "bytes": 28044,
+      "sha256": "7391214afc62189b54151fe2c7f83b375218b485bbddcf32abade9f2c61810f6"
+    },
+    {
+      "path": "packages/bridge-core/test/source-evidence.test.ts",
+      "bytes": 21719,
+      "sha256": "2d7c49b3db15b873c4692218ea5e0ed64d50b3c7570af367b7631de1ce38bd27"
+    },
+    {
+      "path": "packages/contracts/test/mbrs002/local-catalog.test.ts",
+      "bytes": 5957,
+      "sha256": "21fa3f63faa1d98c6c54d0761fb71526698a5c7569dcaf63db748af10957058e"
+    },
+    {
+      "path": "packages/contracts/test/validator.test.ts",
+      "bytes": 57020,
+      "sha256": "4d02a09dc9a27cc0d5ca030e3f72c8b1e878e75d50a2ea398099febab878599e"
+    }
+  ]
+}

@@ -1,0 +1,171 @@
+{
+  "schema": "mbrs014.final-production-offline-app.v1",
+  "state": "PASS_TWO_CASES_ZERO_SKIP_SELF_OWNED_ONLY",
+  "tests": 2,
+  "pass": 2,
+  "fail": 0,
+  "skip": 0,
+  "productionBuild": {
+    "archiveId": "MBRS014_ACTUAL_PRODUCTION_BUILD003",
+    "fileName": "PRODUCTION_BUILD_RECEIPT.json",
+    "bytes": 421017,
+    "sha256": "3adf3a2d66d2aa2568af83b1cc88afcf48f2ce9012b6c6bd5b9e5fe16e9702ae",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "sourceInputCount": 656,
+  "outputFileCount": 905,
+  "sourceIdentitySha256": "2e7259aea6f15323fb153241918962e212b0c61bf3e6f256c81ce50b1e1cf571",
+  "outputIdentitySha256": "5db3b54e3c44fc80ea0fddd0487672bdece95564c57536e00a63b8b128cd0702",
+  "beforeAfterBuildAndAppIdentitiesUnchanged": true,
+  "e2eSource": {
+    "path": "apps/desktop/e2e/mbrs014-legacy-links.spec.ts",
+    "bytes": 47365,
+    "sha256": "3e39082c0b997f5ae3901b9754c7dc67ead9b8bf00ee60c68bb690ed00819441"
+  },
+  "actualRunner": {
+    "archiveId": "MBRS014_FINAL_AB05_CAPTURE",
+    "fileName": "root-production-ab05.json",
+    "bytes": 1638,
+    "sha256": "a7c46fb924d8a55f7834fa271c54e24dad7fd982c1211281d7ba7ec2c11fed3c",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "cases": [
+    {
+      "case": "A",
+      "completed": true,
+      "layer": "PRODUCTION_OFFLINE_CONTROLLED_APP_A",
+      "rawEvidence": {
+        "archiveId": "MBRS014_FINAL_AB05_A",
+        "fileName": "014-a-evidence.json",
+        "bytes": 4235,
+        "sha256": "4fde70d2afb16f8ad3d4676bcd0ca34a83ca69453a10e82cf1ff53e8d79c5b6c",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "closes": [
+        {
+          "exitCode": 0,
+          "signal": null
+        },
+        {
+          "exitCode": 0,
+          "signal": null
+        }
+      ],
+      "network": [
+        {
+          "installedBeforeWindow": true,
+          "blockedExternalAttempts": 0,
+          "blockedHosts": []
+        },
+        {
+          "installedBeforeWindow": true,
+          "blockedExternalAttempts": 0,
+          "blockedHosts": []
+        }
+      ],
+      "pageErrors": [],
+      "persistedOutboxExecuteCommands": 3,
+      "allSucceededAcknowledged": true,
+      "coldRestartRequestsExactlyUnchanged": true,
+      "sourceBeforeSha256": "18c6ace918e6cd0bb8f73a2c03218c972c37f6ea5fefbfc589bf3a30fcbbfe09",
+      "sourceAfterSha256": "18c6ace918e6cd0bb8f73a2c03218c972c37f6ea5fefbfc589bf3a30fcbbfe09",
+      "newNonzeroPcm": true,
+      "sourceNativePicker": "只替换自制夹具目录的选择回执；不称原生chooser实际操作"
+    },
+    {
+      "case": "B",
+      "completed": true,
+      "layer": "PRODUCTION_OFFLINE_CONTROLLED_APP_B_SELF_OWNED_NONEMPTY",
+      "rawEvidence": {
+        "archiveId": "MBRS014_FINAL_AB05_B",
+        "fileName": "014-b-evidence.json",
+        "bytes": 132484,
+        "sha256": "0ad914412d213f7e436623996faa5bc21dc6e24c39dee53a0b769dd5c5d1cb25",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "closes": [
+        {
+          "exitCode": 0,
+          "signal": null
+        },
+        {
+          "exitCode": 0,
+          "signal": null
+        }
+      ],
+      "network": [
+        {
+          "installedBeforeWindow": true,
+          "blockedExternalAttempts": 0,
+          "blockedHosts": []
+        },
+        {
+          "installedBeforeWindow": true,
+          "blockedExternalAttempts": 0,
+          "blockedHosts": []
+        }
+      ],
+      "pageErrors": [],
+      "persistedOutboxExecuteCommands": 9,
+      "allSucceededAcknowledged": true,
+      "coldRestartRequestsExactlyUnchanged": true,
+      "fullOldTablesCompared": 103,
+      "originalTablesUnchanged": 100,
+      "allSchemasAndColumnsExact": true,
+      "exactDerivedTables": [
+        "preparation_zip_session",
+        "recording_workspace_contexts",
+        "recording_workspace_ledger"
+      ],
+      "businessHistoryRowExceptions": 0,
+      "oldFrozenRecordingVersionPreparedExact": true,
+      "originalP1All103Exact": true,
+      "sessionEpoch": {
+        "baseline": "1",
+        "firstBoot": "2",
+        "coldBoot": "3",
+        "perSuccessfulBootIncrease": 1
+      },
+      "workspace": {
+        "positions": [
+          "source",
+          "workbench",
+          "source"
+        ],
+        "revisions": [
+          1,
+          2,
+          3
+        ],
+        "selection": {},
+        "requestFingerprintsAndCompleteReceiptCellsVerified": true,
+        "timesAllIsoBytesPreservedWithinActualBootWindows": true,
+        "oldFirstBootLedgerRowsByteExactAfterCold": true
+      },
+      "retainedFiles": 35,
+      "retainedFileShaUnchanged": true,
+      "pdfSha256": "c564ec453502b5ac1ee1ea94ba8024ce857afe60eb3b48d4345ddbf97f9c95ad",
+      "pdfShaUnchanged": true,
+      "nativeAuthorizationPickerCalls": 0,
+      "sourceRootInitialization": "只读复用原公共Main路线命中的旧授权幂等回执；不是新原生chooser或真实目录授权证据",
+      "referenceCloseActualEntryFocused": true
+    }
+  ],
+  "visualInspection": {
+    "viewed": [
+      "014-edition-preview.png",
+      "014-b-cold-current-source-history.png",
+      "014-b-tape-wall-photo.png",
+      "014-b-reference-catalog.png"
+    ],
+    "scope": "核截图中预览/历史、原照片与目录页面显示；未将截图或程序断言提升为Owner视觉验收",
+    "ownerVisualAcceptance": "NOT_RUN"
+  },
+  "hostedB": "私有P1未提供的Hosted CI用例明确NOT_RUN/skip，不计本机兼容通过；本机AB要求2通过0skip",
+  "ordinaryCuaApp": "NOT_RUN",
+  "realProviderAccountRoonNasAudioDeviceOwner": "NOT_RUN"
+}

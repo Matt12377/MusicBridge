@@ -1,0 +1,460 @@
+{
+  "schema": "mbrs014.final-local-validation.v1",
+  "state": "LOCAL_STANDARD_FULL_WORKTREE_GATE_AND_CONTROLLED_APP_PASS_SOURCE_DELIVERY_PENDING",
+  "baseSha": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+  "sourceCommitResolution": "提交此文件的实现提交；工作树base HEAD不冒充实现提交",
+  "declaredScope": "局部软件、完整标准回归、生产build、合成实际App分层；不是传递工具链闭包或真实用户验收",
+  "standardVerify": {
+    "schema": "mbrs014.actual-standard-verify.v1",
+    "command": "corepack pnpm@10.17.1 verify",
+    "tests": 4666,
+    "pass": 4664,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0,
+    "groups": {
+      "tests": [
+        266,
+        2769,
+        8,
+        1623
+      ],
+      "pass": [
+        266,
+        2767,
+        8,
+        1623
+      ],
+      "fail": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "cancelled": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "skipped": [
+        0,
+        2,
+        0,
+        0
+      ],
+      "todo": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "existingSkips": [
+      "ok 1205 - 实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
+      "ok 1211 - Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
+    ],
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "log": {
+      "file": "root-standard-verify01.log",
+      "bytes": 1127169,
+      "sha256": "295f32e2dd66b2d2c340c6e2a450b684bc94ef9ac87b95be12b328dde4c7758f"
+    },
+    "typesAndProductionBuild": "PASSED_BY_ACTUAL_COMPLETE_CHAIN",
+    "nestedMbrs014Tests": "SEPARATE_404_GROUP_GATE_NOT_INCLUDED_NOT_ADDITIVE"
+  },
+  "directedGroups": [
+    {
+      "label": "root-contracts-count01",
+      "counts": {
+        "tests": 56,
+        "pass": 56,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "closeObserved": true,
+      "exitCode": 0,
+      "log": {
+        "file": "root-contracts-count01.log",
+        "bytes": 13084,
+        "sha256": "e708a7c39c55dc6185254eb54fbb1f3603f6bd66008e3e5ae506825c411d6332"
+      }
+    },
+    {
+      "label": "root-core-count02",
+      "counts": {
+        "tests": 225,
+        "pass": 225,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "closeObserved": true,
+      "exitCode": 0,
+      "log": {
+        "file": "root-core-count02.log",
+        "bytes": 60682,
+        "sha256": "db998f91a89570c074ace466b5514fc4249cf5095d09db3e18e1a70de3617054"
+      }
+    },
+    {
+      "label": "root-desktop-count02",
+      "counts": {
+        "tests": 123,
+        "pass": 123,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "closeObserved": true,
+      "exitCode": 0,
+      "log": {
+        "file": "root-desktop-count02.log",
+        "bytes": 28970,
+        "sha256": "6e674e4fe272abf4870df6b7acf3a2e71ea789162c3a5a5913457d92915d946b"
+      }
+    }
+  ],
+  "directedTests": 404,
+  "gateUnit": {
+    "tests": 20,
+    "pass": 20,
+    "label": "root-gate-unit05",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "groupTerminationFailed": false,
+    "durationSeconds": 0.2007200830266811,
+    "log": {
+      "file": "root-gate-unit05.log",
+      "bytes": 3431,
+      "sha256": "fccd2844fbe85d9ed6e6542968124efcf09af23d87dbf571c12e88c082983b48"
+    }
+  },
+  "staticChecks": [
+    {
+      "label": "root-static-control-plane01",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 0.1879848330281675,
+      "log": {
+        "file": "root-static-control-plane01.log",
+        "bytes": 19,
+        "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+      }
+    },
+    {
+      "label": "root-static-boundaries01",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 0.3014555840054527,
+      "log": {
+        "file": "root-static-boundaries01.log",
+        "bytes": 16,
+        "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+      }
+    },
+    {
+      "label": "root-static-cycles01",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 0.24552774999756366,
+      "log": {
+        "file": "root-static-cycles01.log",
+        "bytes": 22,
+        "sha256": "17faf5da3488aa3cedaab0c8b12f5c9ca9e9b282f5f80def5ab7f8861df2a8de"
+      }
+    }
+  ],
+  "actualProductionBuild": {
+    "sourceFiles": 656,
+    "outputFiles": 905,
+    "label": "root-production-build03",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "groupTerminationFailed": false,
+    "durationSeconds": 18.22071866702754,
+    "log": {
+      "file": "root-production-build03.log",
+      "bytes": 4174,
+      "sha256": "611a65ec43a309907758828fdf8a2fd0edcbc6371f3b847f24ae6af0d86875e1"
+    },
+    "receipt": {
+      "archiveId": "MBRS014_FINAL_PRODUCTION_BUILD003",
+      "fileName": "PRODUCTION_BUILD_RECEIPT.json",
+      "bytes": 421017,
+      "sha256": "3adf3a2d66d2aa2568af83b1cc88afcf48f2ce9012b6c6bd5b9e5fe16e9702ae",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "actualProductionApp": {
+    "tests": 2,
+    "pass": 2,
+    "fail": 0,
+    "skip": 0,
+    "label": "root-production-ab05",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "groupTerminationFailed": false,
+    "durationSeconds": 23.2315357089974,
+    "log": {
+      "file": "root-production-ab05.log",
+      "bytes": 873,
+      "sha256": "4f22ff9ebd9f00b267fc6d1ffcd66a3e2969018b84f75a7034ea166f38fced53"
+    },
+    "portableDetails": "docs/postrust/MBRS-014/PRODUCTION_APP.json"
+  },
+  "p1AndPdf": "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
+  "implementationHandoffs": {
+    "backend": {
+      "archiveId": "MBRS014_BACKEND_FINAL03",
+      "fileName": "BACKEND_RELATIONS_FINAL_HANDOFF03.json",
+      "bytes": 48471,
+      "sha256": "696ab5c4c5d2a3abd27243e01d263b68b09de3e0e0c40f8f3d0146f1d9b8a4fd",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "ui": {
+      "archiveId": "MBRS014_UI_FINAL05",
+      "fileName": "ui014-final-handoff05.json",
+      "bytes": 5359,
+      "sha256": "2fb33f334acb09b3e8f0ac061d16dbec073af6d8dc38a5b8e981a148a63f3a61",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "rootE2E": {
+      "path": "apps/desktop/e2e/mbrs014-legacy-links.spec.ts",
+      "bytes": 47365,
+      "sha256": "3e39082c0b997f5ae3901b9754c7dc67ead9b8bf00ee60c68bb690ed00819441"
+    },
+    "allCurrentDeclaredFilesRootHashVerified": true
+  },
+  "previewClockRegression": {
+    "red": {
+      "tests": 1,
+      "pass": 0,
+      "fail": 1,
+      "label": "root-preview-clock-red01",
+      "exitCode": 1,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 0.46742999996058643,
+      "log": {
+        "file": "root-preview-clock-red01.log",
+        "bytes": 2439,
+        "sha256": "7d2d3e177e228bf4642ff416dd3cd30c49a6bb5e34994c78d1f76b1e1468b71e"
+      }
+    },
+    "green": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "label": "root-preview-clock-green01",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 0.48521770897787064,
+      "log": {
+        "file": "root-preview-clock-green01.log",
+        "bytes": 507,
+        "sha256": "c266ae9773325e2e225de3a23e2e6f91c4bfc1b08817a82962d6c07307de4a78"
+      }
+    },
+    "fix": "createdAt与expiresAt使用唯一now基线，TTL固定600000毫秒；合同/预算不变"
+  },
+  "boundedReviews": "两轮有界审查已闭合；Root最后三个P2窄收口，后续只按实测失败修复，未第三轮审查",
+  "fullGate": {
+    "state": "PASS_CURRENT_WORKTREE_BEFORE_SOURCE_COMMIT",
+    "stages": 10,
+    "tests": 404,
+    "pass": 404,
+    "declaredInputs": 1379,
+    "sourceInputsUnchanged": true,
+    "scope": "DECLARED_INPUTS_NOT_TRANSITIVE_TOOLCHAIN_CLOSURE",
+    "rawSummary": {
+      "fileName": "summary.json",
+      "bytes": 273496,
+      "sha256": "ca0417a5d6ce16be5192b3785bab22db28832c7317e83a7595b5ffe6dc5be2c2",
+      "archiveId": "MBRS014_FULL_WORKTREE_GATE001",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "independentRebuildDifference": {
+    "actualOutputsBefore": 905,
+    "actualOutputsAfterStandard": 905,
+    "sameExactOutputs": 904,
+    "changedFile": "packages/bridge-core/dist/library/metadata-reader-worker.bundle.build.json",
+    "causeEvidence": "原生成器每次记录startedAtMs/finishedAtMs；当前构建收据已更新。旧完整收据字节未另留，不宣称两个历史收据逐字段等同。",
+    "productionSourceBytesUnchanged": true,
+    "allDesktopCompiledOutputsExact": true,
+    "originalBuildAppBeforeAfterBindingUnchanged": true,
+    "initialOverstrictAllOutputsEqualCheckFailed": true,
+    "initialToolDiagnosticWasTruncatedNoCompleteRawLogClaimed": true,
+    "differenceReceipt": {
+      "archiveId": "MBRS014_POST_STANDARD_RECEIPT_DIFFERENCE",
+      "fileName": "PRODUCTION_IDENTITY_AFTER_STANDARD_DIFFERENCES01.json",
+      "bytes": 1030,
+      "sha256": "d698be047774fa5c6214b795c9c1e34145a469c72277b074a02d576ef3a0c35b",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "failuresPreserved": [
+    {
+      "run": "root-core-count01",
+      "actual": "224 total / 222 pass / 2 fail",
+      "cause": "exact bytes用例预览前真实INVALID_REQUEST，随后递增时钟测试可确定复现TTL越界",
+      "capture": {
+        "label": "root-core-count01",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "groupTerminationFailed": false,
+        "durationSeconds": 46.40533866698388,
+        "log": {
+          "file": "root-core-count01.log",
+          "bytes": 62703,
+          "sha256": "0768aec3ff05b7b9b802b0ed8364e6837245f8dbc57e4a998aa444a2baa50416"
+        }
+      }
+    },
+    {
+      "run": "root-desktop-count01",
+      "actual": "123 total / 122 pass / 1 fail",
+      "cause": "新增fixture两次时钟生成偶发非法TTL；唯一基线修正后全123通过",
+      "capture": {
+        "label": "root-desktop-count01",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "groupTerminationFailed": false,
+        "durationSeconds": 4.826696374977473,
+        "log": {
+          "file": "root-desktop-count01.log",
+          "bytes": 29668,
+          "sha256": "3085422ba917dfe7a5913d960237e8c30af9a30738bc08af1be06deb19b9628a"
+        }
+      }
+    },
+    {
+      "run": "root-production-ab01",
+      "actual": "0 pass / 2 fail",
+      "cause": "新选择器不符合实际ARIA；新只读消费者创建SQLite sidecar。只修新消费者为immutable和已证实role选择器，旧测试/产品合同不改。",
+      "capture": {
+        "label": "root-production-ab01",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "groupTerminationFailed": false,
+        "durationSeconds": 39.11579920904478,
+        "log": {
+          "file": "root-production-ab01.log",
+          "bytes": 6208,
+          "sha256": "89a709ee6579e80cd2ef34f43c26cd76676292477f4af00f4c3db2c1c0c49959"
+        }
+      }
+    },
+    {
+      "run": "root-production-ab02",
+      "actual": "0 pass / 2 fail",
+      "cause": "旧Outbox inspect只读SHM及旧照片惰性加载被新测试误判；新消费者验证SHM身份/全部字节不变，照片真实scroll可见；不删除sidecar或修改旧照片逻辑。",
+      "capture": {
+        "label": "root-production-ab02",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "groupTerminationFailed": false,
+        "durationSeconds": 21.568198666034732,
+        "log": {
+          "file": "root-production-ab02.log",
+          "bytes": 8474,
+          "sha256": "5ca773f5e52553ef891098620b2e01c764316e0724a9e8e1cdf936e7a50c516d"
+        }
+      }
+    },
+    {
+      "run": "root-production-ab03",
+      "actual": "1 pass / 1 fail",
+      "cause": "新增B漏关闭旧来源步骤，原页面导航保护按合同拒绝；补实际关闭与等待读取完成，未绕守卫。",
+      "capture": {
+        "label": "root-production-ab03",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "groupTerminationFailed": false,
+        "durationSeconds": 48.68765729200095,
+        "log": {
+          "file": "root-production-ab03.log",
+          "bytes": 5927,
+          "sha256": "57bda9243189338753518958f0588afd35aa2fcf90e9073861eff435dbd68c07"
+        }
+      }
+    },
+    {
+      "run": "root-production-ab04",
+      "actual": "1 pass / 1 fail",
+      "cause": "B全部动作后旧工作位置正常保存两表，按既有合同改为完整逐项派生验证；同时真实Reference focus数组错误已窄修，AB05实际聚焦且无pageerror。",
+      "capture": {
+        "label": "root-production-ab04",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "groupTerminationFailed": false,
+        "durationSeconds": 19.97984304104466,
+        "log": {
+          "file": "root-production-ab04.log",
+          "bytes": 8957,
+          "sha256": "c6c902a4ae9007ee15279f19afc2958dedd177daa11e3547263046f831617558"
+        }
+      }
+    }
+  ],
+  "retainedEarlierFailures": "phase保护/关系/页面初始RED、P1 runner准备失败、过早依赖validator及4表delta假设失败原件均私有保留；不提升为产品通过，见Root显式检查索引和交锁清单",
+  "sourceFilesWrite": "OFF",
+  "realProviderAccountRoonNasAudioDeviceOwner": "NOT_RUN",
+  "ownedDocumentCorrection": {
+    "cause": "更新TODO时Root正则转义导致过宽替换，已恢复冻结base记录并只改当前任务段/唯一014行",
+    "allOtherTaskRowsBytePreserved": true,
+    "privateFailureReceipt": {
+      "fileName": "ROOT_TODO_CORRECTION01.json",
+      "bytes": 644,
+      "sha256": "f62720456b6c70b70953363e6fe773fb22b4549c08f016c0d4baa1be54624fa5"
+    },
+    "productOrUserDataImpact": false
+  },
+  "exactSourceGateResolution": "实现提交后独立执行并逐项匹配Git blob，见独立报告证据目录，不预先声明已执行"
+}

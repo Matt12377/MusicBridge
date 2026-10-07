@@ -5856,7 +5856,7 @@
     "overallReleaseApproved": false,
     "securityBaselineBlocker": "INHERITED_PRODUCTION_NODE_FORGE_HIGH_AUDIT_FAILURE_NOT_CLOSED"
   },
-  "currentPostRustTask": "MBRS-011",
+  "currentPostRustTask": "MBRS-014",
   "postRustBaseline20261004": {
     "task": "MBRS-000",
     "state": "baseline-delivered-g0-not-admitted",
@@ -46640,11 +46640,11 @@
   },
   "mbrs011MetadataOrganizer": {
     "task": "MBRS-011",
-    "state": "LIMITED_SOFTWARE_SOURCE_CI_PASSED_REPORT_SEAL_PENDING",
+    "state": "FINITE_SOFTWARE_DELIVERY_SEALED_LIVE_CARRYOVER_OPEN",
     "branch": "codex/mbrs-011-mb-only-organizer",
     "baseCommit": "db4cded876e8eda7755d781ed4827dfc38332a10",
     "implementationCommit": "e3cbc669434e7627aec23241095de706790de743",
-    "reportCommit": null,
+    "reportCommit": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
     "scope": "docs/postrust/MBRS-011/EXECUTION_SCOPE.json",
     "originalAcceptanceCount": 7,
     "productAcceptance": "PARTIAL",
@@ -46663,17 +46663,20 @@
       "ordinaryApp": "docs/postrust/MBRS-011/evidence/ordinary-app.json",
       "deferredMobileLatest": "docs/postrust/MBRS-011/evidence/deferred-mobile-latest-successor.json"
     },
-    "push": "SOURCE_NORMAL_PUSH_VERIFIED_REPORT_PUSH_PENDING",
+    "push": "SOURCE_AND_REPORT_NORMAL_PUSH_VERIFIED",
     "ci": {
       "source": "FOUR_WORKFLOWS_SIX_JOBS_ALL_ATTEMPT_ONE_SUCCESS",
       "sourceReceipt": "docs/postrust/MBRS-011/evidence/source-ci.json",
-      "report": "POST_REPORT_FINAL_SEAL_REQUIRED"
+      "report": "TWO_WORKFLOWS_THREE_JOBS_ATTEMPT_ONE_SUCCESS"
     },
-    "nextBranchBaseline": "RESOLVED_FINAL_REPORT_HEAD_AFTER_PRIVATE_FINAL_SEAL",
+    "nextBranchBaseline": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
     "finalDeliveryReceipt": {
       "archiveId": "MBRS011_FINAL_DELIVERY_RECEIPT",
       "fileName": "MBRS011_FINAL_DELIVERY_RECEIPT.json",
-      "state": "REQUIRES_REPORT_NATURAL_CI_CLEAN_AND_REMOTE_HEAD_PIN",
+      "bytes": 12931,
+      "sha256": "43782a4de3caf7ff112f6120cf951a6e0c0a210f224cec3c03826521196d9b9d",
+      "completionScope": "FINITE_MB_ONLY_SOFTWARE_DELIVERY_PRODUCT_PARTIAL",
+      "state": "SEALED",
       "storage": "PRIVATE_EXTERNAL_ARCHIVE",
       "publiclyDownloadable": false
     }
@@ -46700,5 +46703,70 @@
     "acceptanceCount": 6,
     "reason": "可选 Roon 内部协议增强无核心硬依赖；本期本地库、可靠播放、FLAC 和移动端目标不要求启用它。",
     "ref": "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json"
+  },
+  "mbrs014LegacySourceCompatibility": {
+    "task": "MBRS-014",
+    "state": "LOCAL_SOFTWARE_FULL_GATE_AND_CONTROLLED_APP_PASS_SOURCE_COMMIT_PENDING",
+    "baseSha": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+    "branch": "codex/mbrs-014-legacy-source-compatibility",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "report": "reports/MBRS-014_LEGACY_SOURCE_COMPATIBILITY.md",
+    "productAcceptance": "PARTIAL",
+    "sourceFilesWrite": "OFF",
+    "defaultCore": "Node",
+    "catalogSchema": 34,
+    "optionalRustReadonly": "OFF",
+    "g0": "ADMITTED_INHERITED_PHASE_HANDOFF",
+    "hardDependencies": [
+      "MBRS-002",
+      "MBRS-009"
+    ],
+    "originalAtCount": 8,
+    "realUserDatabaseMigration": "NOT_RUN",
+    "realRoonNasAudioDeviceOwner": "NOT_RUN",
+    "evidence": {
+      "executionScope": "docs/postrust/MBRS-014/EXECUTION_SCOPE.json",
+      "ownership": "docs/postrust/MBRS-014/DATA_OWNERSHIP.json",
+      "stateMatrix": "docs/postrust/MBRS-014/STATE_MATRIX.json",
+      "sourceProtectionReview": "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
+      "contractUiHandoff": "docs/postrust/MBRS-014/CONTRACT_UI_HANDOFF.json",
+      "nonemptyBaseline": "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
+      "localValidation": "docs/postrust/MBRS-014/LOCAL_VALIDATION.json",
+      "productionApp": "docs/postrust/MBRS-014/PRODUCTION_APP.json"
+    },
+    "localValidation": {
+      "standardTests": 4666,
+      "standardPass": 4664,
+      "standardFail": 0,
+      "existingConditionalSkips": 2,
+      "directedTests": 404,
+      "directedPass": 404,
+      "productionBuildExitCode": 0,
+      "productionSourceInputs": 656,
+      "productionOutputFiles": 905,
+      "productionAppTests": 2,
+      "productionAppPass": 2,
+      "productionAppSkips": 0,
+      "normalAppClosesExit0Null": 4,
+      "original103AllComparedWithExactOperationalDerivation": true,
+      "original100TablesTypedValuesUnchanged": true,
+      "businessHistoryRowExceptions": 0,
+      "sourceFilesWrite": "OFF",
+      "realUserMigration": "NOT_RUN",
+      "realRoonNasAudioDeviceOwner": "NOT_RUN",
+      "acceptanceOverallPartial": 8,
+      "fullWorktreeGate": {
+        "tests": 404,
+        "pass": 404,
+        "stages": 10,
+        "declaredInputs": 1379,
+        "exitCode": 0,
+        "inputsUnchanged": true
+      }
+    },
+    "implementationCommitResolution": "SOURCE_COMMIT_CONTAINING_THIS_METADATA_RESOLVE_BY_GIT",
+    "reportCommitResolution": "INDEPENDENT_REPORT_COMMIT_AFTER_SOURCE_NATURAL_CI",
+    "updatedAt": "2026-10-08"
   }
 }

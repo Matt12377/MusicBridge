@@ -4,6 +4,7 @@ import {
   isCommandOutboxExecute,
   isCommandOutboxRequest,
   isCommandOutboxResult,
+  isLocalLegacyLinkReceipt,
   isRestoreActivationView,
   type CommandOutboxRequest,
 } from '@music-bridge/contracts'
@@ -37,8 +38,15 @@ export function createCommandOutboxExecutor(options: {
 
   async function executeRequest(request: CommandOutboxRequest): Promise<unknown> {
     if (isCommandOutboxExecute(request)) {
+      if ((request.command === 'localLegacyLinks.confirm' || request.command === 'localLegacyLinks.revoke' || request.command === 'localLegacyLinks.undo')
+        && request.payload.datasetId !== request.datasetId) return fail('OUTBOX_SCOPE_MISMATCH')
       const response = await supervisor.request('commandOutbox.execute', request)
       if (!isCommandOutboxResult(response) || response.command !== request.command) return fail('INVALID_IPC_RESPONSE')
+      if (request.command === 'localLegacyLinks.confirm' || request.command === 'localLegacyLinks.revoke' || request.command === 'localLegacyLinks.undo') {
+        if (!isLocalLegacyLinkReceipt(response.result)
+          || response.result.datasetId !== request.datasetId || response.result.commandId !== request.payload.commandId
+          || response.result.previewId !== request.payload.previewId) return fail('INVALID_IPC_RESPONSE')
+      }
       return response.result
     }
     const { datasetId } = await supervisor.request('commandOutbox.context', {})

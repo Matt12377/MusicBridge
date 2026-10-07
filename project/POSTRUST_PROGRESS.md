@@ -246,3 +246,15 @@ iOS 展示层后继只读登记：源码 a11d1b2、报告/当次远端 843e6e5�
 #### MBRS-011 独立报告与下一基线
 
 源码 `e3cbc669434e7627aec23241095de706790de743` 普通push后，4条workflow/6个job全部首次自然success；没有重跑或取消。提交后精确Gate226/226、1338声明输入匹配Git字节且前后不变。独立报告 `reports/MBRS-011_METADATA_ORGANIZER.md` 与便携源码/CI/App身份发布，只更新已冻结层级的报告引用与交付元数据，7条AT仍PARTIAL，015取消状态和Node/schema34/SOURCE_FILES OFF保持。报告自身普通push、2条workflow/3个job及clean/远端HEAD必须由提交后私有最终收据核验；此前不宣称封存完成。封存后014从本报告最终HEAD接续，当前只读预盘点不计实现。
+
+#### MBRS-011封存及014正式接续
+
+011源 e3cbc669434e7627aec23241095de706790de743 与报告/远端 b33357c09e6bded2b4c6c5acfcf7330e68366a5f 的4工作流6job、2工作流3job均首次自然success，clean/diff检查和逐Git身份封存；私有最终收据12931字节 SHA256 43782a4de3caf7ff112f6120cf951a6e0c0a210f224cec3c03826521196d9b9d。有限MB_ONLY软件封存，原7AT仍PARTIAL，真实Owner/音频未跑。014从该最终报告开 codex/mbrs-014-legacy-source-compatibility，保留原8AT与002/009硬依赖；Node唯一作者/schema34/Rust OFF/源写OFF。准确关联只增量边，统一旧来源保护先于012/013；旧200曲容量、Frozen/Prepared/Archive/J-Card、库存/照片/目录和录音链不重建。固定schema30迁移原件和补充当前schema34非空合成A/B副本分层验证，实际用户副本仍未验。当前实施与RED阶段，不预先登记PASS；无需逐项代理审批。
+
+#### MBRS-014 来源保护phase02与关联合同交锁
+
+来源保护阶段20文件SHA绑定，新29/29与旧59/59、Core/worker build和tests types退出0。关闭时接纳输入promise遗漏join，以及completed缺owned/完整files/Manifest两P2经行为证据和两轮有界复核收敛；原RED日志及触发器准备失败分类保留。六公共合同的6/6局部检查与稳定输入交锁后，Backend与Main/preload/两旧UI按文件范围并行；当前编译仍独占调度。非空自建B schema34共121表/103原表、75非空、35源与输出文件，P0复制和两份独立typed读取无变化；P1生产原打印worker、旧103全量后验及App尚未运行，私有脚本仅语法通过。仅AT014-04登记阶段PARTIAL，不代表完整任务、真实数据/设备/Owner接受或最终实现提交；常规后续验证/提交/推送持续授权。
+
+#### MBRS-014 本地软件与实际合成App结果
+
+新六方法与三个Outbox执行命令接入完成，独立增量边与Source保护不重建旧对象。定向56/56、225/225、123/123=404/404，标准4666总/4664通过/0失败/2既有条件skip、三包/E2E类型与生产build退出0，三个静态门禁通过。生产build003观察656源码/905产物；实际离线A/B 2/2、4次自然退出0/null、12条持久成功ACK与冷启动无重放。103表全部结构和值比较，100表原值保持，ZIP epoch和两工作位置表按旧UI动作精确核对；冻结录音/版本/Prepared与既有业务历史0例外，原P1基线103表不改，35附件及原PDF保持。原worker/P1精确6表、4打印对象，PDF3页只读渲染查看。真实Reference焦点错误修复及previewClock递增时钟RED/GREEN保留原失败。源码提交后精确Gate、普通push自然CI和独立报告仍待；当前base不冒充实现提交。原8AT总体PARTIAL、SOURCE_FILES OFF、Node/schema34/Rust OFF、真实数据/设备/Owner及Gate B/P4/P5仍未验；常规后续已持续授权。

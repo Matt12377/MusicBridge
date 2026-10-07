@@ -8,22 +8,25 @@ import type { PreparationCoordinator } from './preparation-coordinator.js';
 import type { SourceStore } from './source-store.js';
 import { BridgeError } from '../shared/errors.js';
 import { mediaFingerprint } from './media-store.js';
-import { authorizeSourceDirectory, probeReadonlySource, sourceFileAvailability, sourceRelativePath, SourceFileError } from './source-files.js';
+import { authorizeSourceDirectory, probeReadonlySource, sourceFileAvailability, sourceRelativePath, SourceFileError, SourcePublicationUnverified, withReadonlySourcePublicationClaims } from './source-files.js';
+import { LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import { authorizePreparationDestination, assertPreparationOutsideSources, createPreparationDirectory, copyPreparationFile, publishPreparation, verifyPublishedPreparation, PreparationFileError, type PreparationOutput } from './preparation-files.js';
 import { assessRender } from './render-conformance.js';
 const invalid = (message = 'Render 输入已改变或未确认，请重新检查。'): never => { throw new BridgeError('BAD_REQUEST', message, { httpStatus: 400 }); };
-export function createPreparedCoordinator({ store, preparationStore, preparation, sourceStore, copy = copyPreparationFile, afterPublish }: { store: PreparedStore; preparationStore: PreparationStore; preparation: PreparationCoordinator; sourceStore: SourceStore; copy?: typeof copyPreparationFile; afterPublish?: () => Promise<void> }) {
-  let closed = false, recoveryError: unknown;
+export function createPreparedCoordinator({ store, preparationStore, preparation, sourceStore, copy = copyPreparationFile, afterPublish, afterFreezeReview }: { store: PreparedStore; preparationStore: PreparationStore; preparation: PreparationCoordinator; sourceStore: SourceStore; copy?: typeof copyPreparationFile; afterPublish?: () => Promise<void>; /** 私有故障端口，生产组合不提供。 */ afterFreezeReview?: () => Promise<void> }) {
+  let closed = false, recoveryError: unknown, fatal: unknown;
   const active = new Map<string, { destinationId: string; selectionIds: readonly string[]; controller: AbortController; promise: Promise<void> }>();
   const reads = new Map<AbortController, { destinationId: string; selectionIds: readonly string[]; promise: Promise<PreparedInput> }>();
   const recoveries = new Map<string, { destinationId: string; controller: AbortController }>();
   const reviews = new Map<AbortController, { destinationId: string; promise: Promise<boolean> }>();
+  const freezes = new Map<string, { destinationId: string; controller: AbortController; promise: Promise<FrozenPrepared> }>();
   const pendingFailures = new Map<string, PreparedImportJob['failure']>();
   function flushFailures(): void { for (const [id, failure] of pendingFailures) { store.fail(id, failure); pendingFailures.delete(id); } }
   const unsubscribe = preparation.onDestinationRevoked(id => {
     for (const operation of [...active.values(), ...recoveries.values()]) if (operation.destinationId === id) operation.controller.abort('DESTINATION_REVOKED');
     for (const [controller, operation] of reads) if (operation.destinationId === id) controller.abort('DESTINATION_REVOKED');
     for (const [controller, operation] of reviews) if (operation.destinationId === id) controller.abort('DESTINATION_REVOKED');
+    for (const operation of freezes.values()) if (operation.destinationId === id) operation.controller.abort('DESTINATION_REVOKED');
   });
   const recovered = (async () => {
     for (const pending of store.pending()) {
@@ -156,13 +159,32 @@ export function createPreparedCoordinator({ store, preparationStore, preparation
     cancel(request: { commandId: string; id: string }) { if (!isSourceAction(request)) return invalid(); flushFailures(); const result = store.cancel(request); active.get(request.id)?.controller.abort(); recoveries.get(request.id)?.controller.abort(); return result; },
     review: (request: ReviewPreparedRequest) => review(structuredClone(request)),
     async freeze(request: FreezePreparedRequest): Promise<FrozenPrepared> {
-      await ready(); if (!isFreezePreparedRequest(request)) return invalid(); const captured = structuredClone(request), prior = store.cachedFreeze(captured); if (prior) return prior;
-      const result = await review({ importJobId: captured.importJobId, assessment: captured.assessment, daw: captured.daw, processingLineage: captured.processingLineage });
-      if (result.proposalFingerprint !== captured.proposalFingerprint || !['MATCHED','ACCEPTED_VARIANCE'].includes(result.conformance.status)) return invalid('必须先确认符合要求的实际 Render 时间线。');
-      return store.freeze(captured, result);
+      await ready(); if (!isFreezePreparedRequest(request) || closed || fatal) return invalid(); const captured = structuredClone(request), prior = store.cachedFreeze(captured); if (prior) return prior;
+      if (freezes.size >= 2 || freezes.has(captured.commandId)) return invalid('已有 Render 冻结正在发布，请等待该请求收口。');
+      const job = store.job(captured.importJobId);
+      if (!job?.owned || !job.manifestHash || job.public.state !== 'completed') return invalid('原始 Render 尚未完整保存。');
+      const controller = new AbortController();
+      // review结束到发布/关闭之间仍有自己的promise，不能提前从reviews退出后失去join对象。
+      const promise = Promise.resolve().then(() => withReadonlySourcePublicationClaims([
+        ...job.files.map(file => ({ root: job.owned!.root, relative: file.relative })),
+        { root: job.owned!.root, relative: 'Manifest.json' },
+      ], controller.signal, async verify => {
+        if (closed || controller.signal.aborted) return invalid();
+        const result = await review({ importJobId: captured.importJobId, assessment: captured.assessment, daw: captured.daw, processingLineage: captured.processingLineage });
+        if (result.proposalFingerprint !== captured.proposalFingerprint || !['MATCHED','ACCEPTED_VARIANCE'].includes(result.conformance.status)) return invalid('必须先确认符合要求的实际 Render 时间线。');
+        await afterFreezeReview?.();
+        await verify();
+        if (closed || controller.signal.aborted || !preparationStore.destination(job.public.destinationId).authorized) return invalid();
+        return store.freeze(captured, result);
+      })).catch(error => {
+        if (error instanceof SourcePublicationUnverified || error instanceof LocalFactsCommitFatal) { fatal = error; closed = true; }
+        throw error;
+      }).finally(() => { freezes.delete(captured.commandId); });
+      freezes.set(captured.commandId, { destinationId: job.public.destinationId, controller, promise });
+      return promise;
     },
-    async idle() { await ready(); await Promise.all([...active.values()].map(j => j.promise)); flushFailures(); },
-    async close() { closed = true; unsubscribe(); for (const controller of [...reads.keys(), ...reviews.keys()]) controller.abort(); for (const operation of [...active.values(), ...recoveries.values()]) operation.controller.abort(); await recovered; await Promise.allSettled([...active.values()].map(j => j.promise).concat([...reads.values(), ...reviews.values()].map(r => r.promise.then(() => {})))); },
+    async idle() { await ready(); await Promise.all([...active.values()].map(j => j.promise).concat([...freezes.values()].map(j => j.promise.then(() => {})))); if (fatal) throw fatal; flushFailures(); },
+    async close() { closed = true; unsubscribe(); for (const controller of [...reads.keys(), ...reviews.keys()]) controller.abort(); for (const operation of [...active.values(), ...recoveries.values(), ...freezes.values()]) operation.controller.abort(); await recovered; await Promise.allSettled([...active.values()].map(j => j.promise).concat([...reads.values(), ...reviews.values(), ...freezes.values()].map(r => r.promise.then(() => {})))); if (fatal) throw fatal; },
   };
 }
 export type PreparedCoordinator = ReturnType<typeof createPreparedCoordinator>;

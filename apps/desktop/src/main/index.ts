@@ -4,6 +4,7 @@ import { createMusicCoverArtProvider } from './music-cover-art-provider.js'
 import {isMBQueueEditRequest,isMBQueuePlayEntryRequest,isMBEditionQueueRequest} from '@music-bridge/contracts'
 import {installLocalLibraryHandlers} from './local-library-ipc.js'
 import { installLocalOrganizerHandlers } from './local-organizer-ipc.js'
+import { installLocalLegacyLinksHandlers } from './local-legacy-links-ipc.js'
 import type {CommandOutboxPickOptions} from './command-outbox-executor.js'
 import { createLibraryReadBroker } from './library-read-ipc.js'
 import { createPerformanceIpcBridge } from "./performance-ipc.js"
@@ -1087,6 +1088,7 @@ function registerIpcHandlers(
   const executor = createCommandOutboxExecutor({supervisor,pick:pickLocalLibrary})
   installLocalLibraryHandlers({handle:(channel,handler)=>registerPerformanceHandler(channel,handler),requireTrusted:requireTrustedRenderer,supervisor,pick:pickLocalLibrary})
   installLocalOrganizerHandlers({handle:(channel,handler)=>registerPerformanceHandler(channel,handler),requireTrusted:requireTrustedRenderer,supervisor})
+  installLocalLegacyLinksHandlers({handle:(channel,handler)=>registerPerformanceHandler(channel,handler),requireTrusted:requireTrustedRenderer,supervisor})
   closeLocalArtwork=installLocalArtworkHandlers<Electron.IpcMainInvokeEvent>({ handle:(channel,handler)=>registerPerformanceHandler(channel,handler), requireTrusted:requireTrustedRenderer, eventKey:event=>String(event.sender.id), supervisor, ...(!isStartupTest&&!isUiE2e?{providers:{'cover-art-archive-v1':createMusicCoverArtProvider(),'commons-cc0-v1':createCommonsArtworkProvider()}}:{}), decode:bytes=>nativeImage.createFromBuffer(bytes), pick:()=>pickLocalLibrary({title:'选择封面图片',message:'只保存到 MusicBridge；不会修改原图、cover.jpg 或音乐标签。',properties:['openFile'],filters:[{name:'PNG / JPEG',extensions:['png','jpg','jpeg']}]}) }).close
   commandOutbox = createCommandOutboxService({ store, currentDataset: async () => (await supervisor.request('commandOutbox.context', {})).datasetId, ...executor })
   installCommandOutboxIpc<Electron.IpcMainInvokeEvent>({

@@ -7,6 +7,7 @@ import type { SourceStore } from '../recording/source-store.js';
 import type { RootCapability } from '../recording/source-files.js';
 import { extractVersionTokens } from '../library/local-name-rules.js';
 import { ORGANIZER_JOURNAL, isOrganizerEvent, organizerHash, organizerCanonical, readOrganizerEvent, verifyOrganizerJournalRow, type OrganizerEvent } from './local-organizer-journal.js';
+import { LOCAL_LEGACY_LINKS_OPERATION, LegacyLinksError, legacyLinksFail, emptyLegacyLinksProjection, copyLegacyLinksProjection, readLegacyLinksEvent, projectLegacyLinksEvent, verifyLegacyLinksLocalSnapshot, legacyLinksSlot, type LegacyLinksProjection, type LegacyLinksView, type LegacyLinksWriteView, type LegacyLinksEvent, isLegacyLinksEvent } from './local-legacy-links-journal.js';
 
 const tables = {
   local_catalog_roots: 'CREATE TABLE local_catalog_roots(id TEXT PRIMARY KEY,source_root_id TEXT NOT NULL REFERENCES source_roots(id),data TEXT NOT NULL) STRICT',
@@ -42,6 +43,7 @@ export class LocalCatalogBudgetError extends Error {
 interface AuditCertificate { rows: ReadonlyMap<Table, number>; bytes: number; dataVersion: number }
 // 仅缓存同连接完整核验产生的资源计数；实体、定位、权限和回执始终读取SQLite原事实。
 const audits = new WeakMap<DatabaseSync, AuditCertificate>();
+const legacyAudits = new WeakMap<DatabaseSync, LegacyLinksProjection | 'BUDGET_EXCEEDED'>();
 const dataVersion = (db: DatabaseSync): number => Number(db.prepare('PRAGMA data_version').get()?.data_version);
 const checkBudget = (domain: string, actual: number, limit: number): void => { if (actual > limit) throw new LocalCatalogBudgetError(domain, actual, limit); };
 const indexes = [
@@ -244,6 +246,7 @@ function verifyHistoryStep(db: DatabaseSync, operation: dto.LocalCatalogOperatio
 /** 同连接/只读备份均核真实DDL、关系、私有位置和全部回执；不打开第二写连接。 */
 export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   audits.delete(db);
+  legacyAudits.delete(db);
   const initialDataVersion = dataVersion(db);
   for (const [name, sql] of Object.entries(tables)) if (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name)?.sql !== sql) return corrupt();
   for (const [type, statements] of [['index', indexes], ['trigger', triggers]] as const) for (const sql of statements) {
@@ -265,8 +268,18 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   const observations = new Map<string, string>();
   const relations: HistoryRelations = { tracks: new Map(), editionSequences: new Map() };
   let immutableObservations = 0;
-  for (const row of db.prepare('SELECT * FROM local_catalog_ledger ORDER BY rowid').iterate()) {
+  let legacy: LegacyLinksProjection | 'BUDGET_EXCEEDED' = emptyLegacyLinksProjection();
+  for (const row of db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger ORDER BY rowid').iterate()) {
     boundedRow(row);
+    const ledgerRowId=Number(row._ledger_rowid);if(!Number.isSafeInteger(ledgerRowId)||ledgerRowId<1)return corrupt();
+    if(typeof legacy!=='string')legacy.highWater=ledgerRowId;
+    if(row.operation===LOCAL_LEGACY_LINKS_OPERATION){
+      if(typeof legacy!=='string'){
+        try{const event=readLegacyLinksEvent(row);verifyLegacyLinksLocalSnapshot(event,latest,privateAssets);projectLegacyLinksEvent(legacy,event);}
+        catch(error){if(error instanceof LegacyLinksError&&error.code==='BUDGET_EXCEEDED')legacy='BUDGET_EXCEEDED';else throw error;}
+      }
+      continue;
+    }
     if (row.operation === ORGANIZER_JOURNAL) { verifyOrganizerJournalRow(db, row, latest); continue; }
     const operation = row.operation as dto.LocalCatalogOperation;
     if (!(dto.LOCAL_CATALOG_OPERATIONS as readonly unknown[]).includes(operation) || !dto.isCollectionId(row.command_id)
@@ -330,6 +343,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
     || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok') return corrupt();
   if (dataVersion(db) !== initialDataVersion) return corrupt();
   audits.set(db, { rows: counts, bytes, dataVersion: initialDataVersion });
+  legacyAudits.set(db,legacy);
 }
 
 export function createLocalCatalogStore(access: Access) {
@@ -449,6 +463,20 @@ export function createLocalCatalogStore(access: Access) {
     }
     return certificate;
   }
+  function legacyProjectionFor(db:DatabaseSync):LegacyLinksProjection {
+    certificateFor(db);const audited=legacyAudits.get(db);if(!audited)return legacyLinksFail('RECOVERY_REQUIRED');if(typeof audited==='string')return legacyLinksFail(audited);
+    const rows=db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE rowid>? ORDER BY rowid LIMIT 513').all(audited.highWater);
+    if(rows.length>512)return legacyLinksFail('BUDGET_EXCEEDED');if(!rows.length)return audited;
+    const next=copyLegacyLinksProjection(audited);
+    for(const row of rows){boundedRow(row);const n=Number(row._ledger_rowid);if(!Number.isSafeInteger(n)||n<=next.highWater)return corrupt();if(row.operation===LOCAL_LEGACY_LINKS_OPERATION)projectLegacyLinksEvent(next,readLegacyLinksEvent(row));next.highWater=n;}
+    legacyAudits.set(db,next);return next;
+  }
+  function legacyView(db:DatabaseSync,p:LegacyLinksProjection):LegacyLinksView {
+    return {events:p.events,links:p.links,previews:p.previews,history:p.history,consumed:p.consumed,snapshotFingerprint:p.snapshotFingerprint,slot:(datasetId,key)=>structuredClone(legacyLinksSlot(p,datasetId,key)),receipt:(commandId,fp)=>{
+      const row=db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(commandId);if(!row)return null;boundedRow(row);
+      if(row.operation!==LOCAL_LEGACY_LINKS_OPERATION||row.fingerprint!==fp)return legacyLinksFail('COMMAND_ID_REUSED');return readLegacyLinksEvent(row);
+    }};
+  }
   function transaction<T extends dto.LocalCatalogResult>(operation: dto.LocalCatalogOperation, request: Command, apply: (db: DatabaseSync) => T): T {
     if (!validRequest(operation, request)) return access.conflict('本地目录请求无效。');
     return access.read(db => {
@@ -535,6 +563,39 @@ export function createLocalCatalogStore(access: Access) {
         db.prepare('INSERT INTO local_catalog_overrides VALUES(?,?) ON CONFLICT(track_id) DO UPDATE SET data=excluded.data').run(result.trackId, JSON.stringify(result)); return result;
   }
   return {
+    /** 新域只能读取已认证投影；不向关系服务提供 raw db 或原 mutate。 */
+    privateLegacyLinksRead<T>(operation:(view:LegacyLinksView)=>T):T {return access.read(db=>operation(legacyView(db,legacyProjectionFor(db))));},
+    privateLegacyLinksTransaction<T>(operation:(view:LegacyLinksWriteView)=>T):T {
+      return access.read(db=>{
+        db.exec('BEGIN IMMEDIATE');
+        try{
+          const projection=copyLegacyLinksProjection(legacyProjectionFor(db));let certificate=certificateFor(db),added=0;
+          const before=Number(db.prepare('SELECT total_changes() n').get()!.n);
+          const view:LegacyLinksWriteView={...legacyView(db,projection),append:(event:LegacyLinksEvent)=>{
+            if(!isLegacyLinksEvent(event)||added>=1)return legacyLinksFail('INVALID_REQUEST');
+            if(db.prepare('SELECT command_id FROM local_catalog_ledger WHERE command_id=?').get(event.request.commandId))return legacyLinksFail('COMMAND_ID_REUSED');
+            const result=event.kind==='preview'?event.preview:event.receipt;
+            const row={command_id:event.request.commandId,fingerprint:event.requestFingerprint,operation:LOCAL_LEGACY_LINKS_OPERATION,request:dto.localLegacyLinksCanonical(event),result:dto.localLegacyLinksCanonical(result),created_at:event.occurredAt};
+            boundedRow(row);const rows=new Map(certificate.rows),count=rows.get('local_catalog_ledger')!+1,bytes=certificate.bytes+rowBytes(row);
+            checkBudget('local_catalog_ledger行数',count,rowBudgets.local_catalog_ledger);checkBudget('目录总文本字节',bytes,maxCatalogTextBytes);
+            projectLegacyLinksEvent(projection,event);
+            const inserted=db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(row.command_id,row.fingerprint,row.operation,row.request,row.result,row.created_at);
+            const n=Number(inserted.lastInsertRowid);if(!Number.isSafeInteger(n)||n<=projection.highWater)return corrupt();projection.highWater=n;
+            const stored=db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(row.command_id)!;boundedRow(stored);readLegacyLinksEvent(stored);
+            rows.set('local_catalog_ledger',count);certificate={rows,bytes,dataVersion:certificate.dataVersion};added++;
+          }};
+          const result=operation(view);if(result instanceof Promise)return corrupt();
+          if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+added)return corrupt();
+          access.beforeCommit?.('local-legacy-links:append');
+          if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+added)return corrupt();
+          access.beforeLocalFactsCommit?.();commitLocalFacts(db,access.onLocalFactsFatal);
+          audits.set(db,certificate);legacyAudits.set(db,projection);return result;
+        }catch(error){rollbackLocalFacts(db,error,access.onLocalFactsFatal);}
+      });
+    },
+    privateLegacyLinksAssetSnapshot(assetId:string,trackId:string):import('./local-legacy-links-journal.js').LegacyLinksAssetSnapshot {
+      id(assetId);id(trackId);return access.read(db=>{certificateFor(db);const row=one(db,'local_catalog_assets',assetId),a=readAsset(row);boundedRow(row);if(!relativePath(row.relative)||!sha(row.sha256))return corrupt();return {asset:a,track:track(db,trackId),libraryRoot:root(db,a.libraryRootId),relative:row.relative,catalogSha256:row.sha256 as string|null};});
+    },
     /** Node owner唯一连接的私有批提交接点；callback必须同步，不读取文件、不返回Promise。 */
     privateRead<T>(operation: (db: DatabaseSync) => T): T { return access.read(db => { certificateFor(db); return operation(db); }); },
     privateBatch<T>(operation: (db: DatabaseSync, mutate: (name: dto.LocalCatalogOperation, request: Command & Row) => dto.LocalCatalogResult, appendJournal: (event: OrganizerEvent) => void) => T, action = 'local-scan:commit-batch'): T {

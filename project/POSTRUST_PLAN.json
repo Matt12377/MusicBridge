@@ -32161,7 +32161,7 @@
       "depends_on": [
         "MBRS-009"
       ],
-      "status": "LIMITED_SOFTWARE_SOURCE_CI_PASSED_REPORT_SEAL_PENDING",
+      "status": "FINITE_SOFTWARE_DELIVERY_SEALED_LIVE_CARRYOVER_OPEN",
       "implementation_owner": "MBRS-011",
       "goal": "默认只改MB，任何源文件操作都形成可审查、可恢复的具体计划。",
       "steps": [
@@ -32192,7 +32192,7 @@
       "g0_product_integration_required": true,
       "optional_inputs": [],
       "implementation_commit": "e3cbc669434e7627aec23241095de706790de743",
-      "report_commit": null,
+      "report_commit": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
       "validation_status": "SOFTWARE_AND_CONTROLLED_APP_PASS_PRODUCT_PARTIAL_LIVE_OWNER_NOT_RUN",
       "evidence_refs": [
         "docs/postrust/MBRS-011/EXECUTION_SCOPE.json",
@@ -32207,7 +32207,16 @@
       "branch": "codex/mbrs-011-mb-only-organizer",
       "report_path": "reports/MBRS-011_METADATA_ORGANIZER.md",
       "report_commit_resolution": "commit-containing-reports/MBRS-011_METADATA_ORGANIZER.md",
-      "terminal_ci_receipt": "docs/postrust/MBRS-011/evidence/source-ci.json"
+      "terminal_ci_receipt": "docs/postrust/MBRS-011/evidence/source-ci.json",
+      "report_ci_status": "TWO_WORKFLOWS_THREE_JOBS_ATTEMPT_ONE_SUCCESS",
+      "delivery_status": "FINITE_SOFTWARE_DELIVERY_SEALED_LIVE_CARRYOVER_OPEN",
+      "final_delivery_receipt": {
+        "archiveId": "MBRS011_FINAL_DELIVERY_RECEIPT",
+        "fileName": "MBRS011_FINAL_DELIVERY_RECEIPT.json",
+        "bytes": 12931,
+        "sha256": "43782a4de3caf7ff112f6120cf951a6e0c0a210f224cec3c03826521196d9b9d",
+        "completionScope": "FINITE_MB_ONLY_SOFTWARE_DELIVERY_PRODUCT_PARTIAL"
+      }
     },
     {
       "id": "MBRS-012",
@@ -32308,7 +32317,7 @@
         "MBRS-002",
         "MBRS-009"
       ],
-      "status": "NOT_STARTED",
+      "status": "SOFTWARE_COMPLETE_PRODUCT_PARTIAL",
       "implementation_owner": "MBRS-014",
       "goal": "新本地身份是关联增量，不重建磁带库或改写录音历史。",
       "steps": [
@@ -32342,8 +32351,15 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "NOT_RUN",
-      "evidence_refs": []
+      "validation_status": "LOCAL_STANDARD_FULL404_GATE_CONTROLLED_APP_PASS_EXACT_SOURCE_DELIVERY_PENDING",
+      "evidence_refs": [
+        "docs/postrust/MBRS-014/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-014/PRODUCTION_APP.json",
+        "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
+        "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
+        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+      ],
+      "implementation_commit_resolution": "SOURCE_COMMIT_CONTAINING_THIS_METADATA_RESOLVE_BY_GIT"
     },
     {
       "id": "MBRS-015",
@@ -34390,12 +34406,19 @@
       "requirement": "旧数据副本迁移后数量/ID/双向关系与历史来源保留，无孤儿或猜测迁移。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-014/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-014/PRODUCTION_APP.json",
+        "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
+        "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
+        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+      ],
+      "software_status": "PASS_SYNTHETIC_IDENTITY_AND_MIGRATION_GUARDS",
+      "app_status": "PASS_SELF_OWNED_SCHEMA34_ONLY",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "原103逐值结构全核：100原值不变，ZIP及两工作位置表按实际动作/回执/指纹精确派生；真实用户与schema30 App迁移未跑。"
     },
     {
       "id": "MBRS-AT-014-02",
@@ -34404,12 +34427,19 @@
       "requirement": "实体发行与数字记录独立，解除/撤销只改关系。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-014/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-014/PRODUCTION_APP.json",
+        "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
+        "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
+        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+      ],
+      "software_status": "PASS_RELATIONS_ONLY",
+      "app_status": "PASS_CONTROLLED_PHYSICAL_DIGITAL_CURRENT_SOURCE",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "实体/数字独立关系、解除/CAS撤销只改边，实际9动作加A3动作和冷启动无重放；不是Owner接受。"
     },
     {
       "id": "MBRS-AT-014-03",
@@ -34418,12 +34448,19 @@
       "requirement": "Frozen/Prepared/Archive在标签/路径/封面变动时无静默改史。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-014/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-014/PRODUCTION_APP.json",
+        "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
+        "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
+        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+      ],
+      "software_status": "PARTIAL_SOURCE_WRITER_OFF",
+      "app_status": "PASS_MB_DISPLAY_ARTWORK_FROZEN_FACTS_PRESERVED",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "当前MB显示与选图后Frozen/Prepared/版本/录音、附件与原PDF不变；标签/路径源动作留012/013。"
     },
     {
       "id": "MBRS-AT-014-04",
@@ -34432,12 +34469,19 @@
       "requirement": "活动录音/冻结来源能阻止或版本化源操作，12/13未放行前有保护测试。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-014/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-014/PRODUCTION_APP.json",
+        "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
+        "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
+        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+      ],
+      "software_status": "PASS_SOURCE_PROTECTION_ONLY",
+      "app_status": "NOT_RUN_ACTIVE_RECORDING_DEVICE",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "真实自有FD/SAB/Owner RPC/claim与COMMIT未知保护测试通过；源写OFF，不冒充真实录音或012/013实际writer。"
     },
     {
       "id": "MBRS-AT-014-05",
@@ -34446,12 +34490,19 @@
       "requirement": "旧未绑定native引用仍可使用既有入口，标明未建立本地关联而不阻断整个本地库。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-014/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-014/PRODUCTION_APP.json",
+        "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
+        "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
+        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+      ],
+      "software_status": "PASS_OLD_ENTRIES_AND_SAFE_API",
+      "app_status": "PASS_CONTROLLED_OLD_UNBOUND_ENTRY",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "保留Roon/native入口并明确未建立本地关联，公共旧目录回执与源身份保持；真实Roon行为未跑。"
     },
     {
       "id": "MBRS-AT-014-06",
@@ -34460,12 +34511,19 @@
       "requirement": "J-Card、磁带墙、库存和图片回归，未因新增来源清空数据。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-014/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-014/PRODUCTION_APP.json",
+        "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
+        "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
+        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+      ],
+      "software_status": "PASS_ORIGINAL_PRINT_AND_IMAGE_REGRESSIONS",
+      "app_status": "PASS_SELF_OWNED_P1_PDF_TAPE_PHOTOS",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "原worker完成旧pending打印；P1精确6表/4对象；PDF3页渲染查看；照片/磁带墙/库存真实UI及35文件SHA保持；纸面/Owner未验。"
     },
     {
       "id": "MBRS-AT-015-01",
@@ -35161,12 +35219,19 @@
       "requirement": "既有参考目录/库存/实物照片不重导、不重编号；尚未导入的新磁带资料包另立内容导入任务，不能默认已完成。",
       "release_scope": "CORE",
       "introduced_in": "1.2",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-014/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-014/PRODUCTION_APP.json",
+        "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
+        "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
+        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+      ],
+      "software_status": "PASS_REFERENCE_IDS_AND_COUNTS_GUARDS",
+      "app_status": "PASS_CONTROLLED_REFERENCE_ENTRY_AND_PHOTOS",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "原目录/库存/照片不重导不重编号，实际目录关闭焦点正确；新资料包导入是独立内容事项，未声称已导入。"
     },
     {
       "id": "MBRS-AT-014-08",
@@ -35175,12 +35240,19 @@
       "requirement": "普通Roon-only/不转码不删除既有录音FFmpeg、OutputNative或执行资产；MBRS音频验收不抵扣Gate B/P4/P5。",
       "release_scope": "CORE",
       "introduced_in": "1.2",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-014/LOCAL_VALIDATION.json",
+        "docs/postrust/MBRS-014/PRODUCTION_APP.json",
+        "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
+        "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
+        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+      ],
+      "software_status": "PARTIAL_PIPELINE_PRESERVED_DEVICE_NOT_RUN",
+      "app_status": "PARTIAL_PRINT_AND_RETAINED_EXECUTION_ASSETS",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "保留原FFmpeg/Prepared/Execution/OutputNative入口及软件回归，真实输出设备与旧Gate B/P4/P5仍未验，普通播放不抵扣。"
     },
     {
       "id": "MBRS-AT-016-08",

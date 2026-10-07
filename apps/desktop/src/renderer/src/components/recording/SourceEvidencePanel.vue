@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import type { DraftSourceSnapshot, SourceRoot, SourceAcquisition, SourceFailure, SourceCandidateScan, SourceCandidateStopReason } from '@music-bridge/contracts'
 const props = defineProps<{ draftId: string; draftRevision: number; trackId: string; title: string; inline?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 const api = window.musicBridge, dialog = ref<HTMLDialogElement>()
+const LocalLegacyLinksPanel = defineAsyncComponent(() => import('../legacy/LocalLegacyLinksPanel.vue'))
+const localLinksReady = computed(() => ['readLocalLegacyLinks', 'historyLocalLegacyLinks', 'previewLocalLegacyLink', 'confirmLocalLegacyLink', 'revokeLocalLegacyLink', 'undoLocalLegacyLink'].every(name => typeof (api as unknown as Record<string, unknown>)[name] === 'function'))
 const roots = shallowRef<readonly SourceRoot[]>([]), snapshot = shallowRef<DraftSourceSnapshot>()
 const rootId = ref(''), acquisition = ref<SourceAcquisition>('userFileBind'), confirmed = ref(false), busy = ref(false), error = ref(''), revokeId = ref('')
 const scan = shallowRef<SourceCandidateScan>(), selectedCandidateId = ref(''), candidatePage = ref(0)
@@ -132,6 +134,8 @@ onBeforeUnmount(() => { alive = false; if (timer) clearTimeout(timer); if (!prop
       <label v-if="!binding.userConfirmed" class="confirm-check"><input v-model="confirmed" type="checkbox" :disabled="blocked || running || binding.availability !== 'ONLINE'">我已核对这份文件对应「{{ title }}」</label>
       <div class="actions"><button v-if="!binding.userConfirmed" :disabled="blocked || running || !confirmed || binding.availability !== 'ONLINE'" @click="confirm">确认曲目对应</button><button :disabled="blocked || running || !roots.some(r => r.id === binding?.rootId && r.availability === 'ONLINE')" @click="recheck">重新完整校验</button></div>
     </section>
+    <LocalLegacyLinksPanel v-if="binding && localLinksReady" :context="{ key: { kind: 'draft-source', draftId, draftTrackId: trackId, sourceBindingId: binding.id }, revision: draftRevision, title }" />
+    <p v-else-if="binding" role="status">本地关联服务尚未就绪。已存源证据、原源文件入口和冻结历史仍保留。</p>
     <section v-if="track?.jobs.length" aria-labelledby="source-jobs-heading"><h3 id="source-jobs-heading">校验记录</h3><ul class="jobs"><li v-for="job in track.jobs" :key="job.id"><div><strong>{{ states[job.state] }}</strong><small v-if="job.failure">{{ failures[job.failure] }}</small><small>任务 {{ job.id }}</small></div><button v-if="job.state === 'running'" :disabled="blocked" @click="cancel(job.id)">取消校验</button></li></ul></section>
     <p v-if="error" class="error" role="alert">{{ error }} <button v-if="pending" :disabled="busy" @click="retry">重试原操作</button><button v-else :disabled="busy" @click="error = ''; refresh()">刷新源资料</button></p>
     <footer>文件绑定不会占用磁带、操作 Roon 播放或开始正式录音。关闭此面板后，后台校验继续。</footer>

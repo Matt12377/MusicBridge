@@ -1,4 +1,5 @@
-import type {LocalLibraryPublicApi,LocalArtworkPublicApi,LocalOrganizerPublicApi} from '@music-bridge/contracts'
+import type {LocalLibraryPublicApi,LocalArtworkPublicApi,LocalOrganizerPublicApi,LocalLegacyLinksPublicApi} from '@music-bridge/contracts'
+import { createLocalLegacyLinksClient, type LocalLegacyLinksTransport } from './local-legacy-links-client.js'
 import type { LibraryReadPublicApi, CollectionReadonlyPublicApi } from '@music-bridge/contracts'
 import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts'
 import type { RecordingPrintsPublicApi } from '@music-bridge/contracts'
@@ -76,7 +77,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends LocalOrganizerPublicApi, LocalArtworkPublicApi, LocalLibraryPublicApi, Partial<LibraryReadPublicApi>, CollectionReadonlyPublicApi, RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends LocalLegacyLinksPublicApi, LocalOrganizerPublicApi, LocalArtworkPublicApi, LocalLibraryPublicApi, Partial<LibraryReadPublicApi>, CollectionReadonlyPublicApi, RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   performanceDiagnostics?: import('../shared/performance-transport.js').PerformanceInteractionDiagnostics
   getVolume: () => Promise<VolumeSnapshot>
   setVolume: (request: VolumeRequest) => Promise<VolumeSnapshot>
@@ -459,6 +460,12 @@ export const PUBLIC_API_KEYS = [
   'stopRemoteCore',
   'reconnectRemoteCore',
   'onRemoteCoreEvent',
+  'readLocalLegacyLinks',
+  'historyLocalLegacyLinks',
+  'previewLocalLegacyLink',
+  'confirmLocalLegacyLink',
+  'revokeLocalLegacyLink',
+  'undoLocalLegacyLink',
 ] as const
 
 export function createPreloadApi(
@@ -643,8 +650,11 @@ export function createPreloadApi(
   mbQueueApi?:import('@music-bridge/contracts').MBQueuePublicApi,
   localArtworkApi?:LocalArtworkPublicApi,
   localOrganizerApi?:LocalOrganizerPublicApi,
+  localLegacyTransport?: LocalLegacyLinksTransport,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
+  const legacyUnavailable = async (): Promise<never> => { throw new Error('[NOT_READY] 本地关联服务尚未就绪，请重新读取；已有记录保留。') }
+  const localLegacyApi = localLegacyTransport ? createLocalLegacyLinksClient(localLegacyTransport) : { readLocalLegacyLinks: legacyUnavailable, historyLocalLegacyLinks: legacyUnavailable, previewLocalLegacyLink: legacyUnavailable, confirmLocalLegacyLink: legacyUnavailable, revokeLocalLegacyLink: legacyUnavailable, undoLocalLegacyLink: legacyUnavailable }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
   return Object.freeze({
     ...(localOrganizerApi ?? {previewLocalOrganizer:collectionUnavailable,getLocalOrganizerPlan:collectionUnavailable,listLocalOrganizerHistory:collectionUnavailable,confirmLocalOrganizer:collectionUnavailable,undoLocalOrganizer:collectionUnavailable,cancelLocalOrganizer:collectionUnavailable}),
@@ -800,5 +810,6 @@ export function createPreloadApi(
     stopRemoteCore,
     reconnectRemoteCore,
     onRemoteCoreEvent,
+    ...localLegacyApi,
   })
 }

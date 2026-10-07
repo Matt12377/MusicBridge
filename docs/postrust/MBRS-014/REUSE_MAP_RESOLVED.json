@@ -1,0 +1,138 @@
+{
+  "schema": "mbrs014.reuse-map-resolved.v1",
+  "task": "MBRS-014",
+  "baseSha": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+  "sourcePackInputs": [
+    {
+      "fileName": "REUSE_MAP.md",
+      "bytes": 5821,
+      "sha256": "fcd36d3cb3c6ab5cf0cec10e266cb2fbc6930e3d8a1c7db2c1baaf2a39912688"
+    },
+    {
+      "fileName": "RUST_TO_MBRS_MAP.md",
+      "bytes": 4488,
+      "sha256": "6760a6f74115c287b50ff2686755a37247cdf0c33780b3c29246a518d0d38eb4"
+    },
+    {
+      "fileName": "13_MODEL_AND_STATE_MAPPING.md",
+      "bytes": 4914,
+      "sha256": "0a8ccb718473c9dc2e5aecffb37eeb7754fcbc72eaf09f335d308fd270b966b5"
+    }
+  ],
+  "rows": [
+    {
+      "id": "REUSE-05",
+      "policy": "REUSE_AND_SEPARATE_POLICY",
+      "owner": "node-dataset-owner-worker",
+      "language": "TypeScript/Node",
+      "sources": [
+        {
+          "path": "packages/bridge-core/src/recording/source-files.ts",
+          "bytes": 29917,
+          "sha256": "affa63cac2444101495d1b3dd289da2e16cc7969519c257af31efb077ff5ea27",
+          "baseBlob": "f0af841aa6eba697ebf9b404d6741a67b0b7a2f4"
+        },
+        {
+          "path": "packages/contracts/src/source-evidence.ts",
+          "bytes": 8366,
+          "sha256": "2f53a98ede41f8bb7d60b679cffcb74e14bf76de8fc437e6402c208c1563ef08",
+          "baseBlob": "90bdaa961d8ec327a3f9e9a253f3209c5525e8cd"
+        },
+        {
+          "path": "packages/bridge-core/src/stream/physical-resource-locks.ts",
+          "bytes": 5245,
+          "sha256": "256944ef3d9afdd6f49abaf3c00f52df113589da7e7966d0df1d57092c6ee253",
+          "baseBlob": "4dec2a23d0739aaa45fdf05d1b166e9f5b115f1d"
+        }
+      ],
+      "delta": "唯一根/路径/FD安全原语及原SAB；普通库和旧录音严格证据分策略，128单调用/200曲/2048slots保留。",
+      "validation": "BASE_RESOLVED_NOT_IMPLEMENTATION_PROOF"
+    },
+    {
+      "id": "REUSE-07",
+      "policy": "EXTEND",
+      "owner": "node-dataset-owner-worker",
+      "language": "TypeScript/Node",
+      "sources": [
+        {
+          "path": "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+          "bytes": 18583,
+          "sha256": "be5b294ead85bbd53ee61223d66c3278bec1bacd2800f8d44317111a54fbb519",
+          "baseBlob": "77d7cc94ecb70a17d150f96af108b898eff5837e"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-owner-client.ts",
+          "bytes": 18832,
+          "sha256": "c1715b551992d227205ae6ded56ff3fc80a54d43ea23906c34eb8460e3d8de05",
+          "baseBlob": "de88500d37ca8fb3fc6e828772d4f621a4773d76"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+          "bytes": 52455,
+          "sha256": "3e8bf956c49745ae792d42b353c5f3fbbb4ea067bec59dd187300bf46e5dbffb",
+          "baseBlob": "95ee30a5a0470ae2bad706c77b93db1157446cad"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-services.ts",
+          "bytes": 3397,
+          "sha256": "03502a46a9e1caedc0bace43d35eab8535ddeca55fe5f59b6efcae0ff34b6982",
+          "baseBlob": "5e8c2f495352ea108e72ced43e40beea0dd2c722"
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-catalog-store.ts",
+          "bytes": 67841,
+          "sha256": "5cb5c1f2ba1305e225c081c162e57e932b84ef33b3b21c86cc1783a1358f79af",
+          "baseBlob": "c76da4eadce9d082c4652058f0a93ca6dd59308b"
+        }
+      ],
+      "delta": "沿唯一Node作者/schema34/旧本地目录ledger及certificate；新增独立typed关系事件，不迁Rust或第二作者。",
+      "validation": "BASE_RESOLVED_NOT_IMPLEMENTATION_PROOF"
+    },
+    {
+      "id": "REUSE-11",
+      "policy": "PRESERVE_AND_LINK",
+      "owner": "node-dataset-owner-worker",
+      "language": "TypeScript/Node",
+      "sources": [
+        {
+          "path": "packages/bridge-core/src/recording/source-store.ts",
+          "bytes": 13849,
+          "sha256": "1cdd230ed40b5907921a02427e76752b0e4660187cdeac870d3fd568bb5561ca",
+          "baseBlob": "c3ea2fafa28e109a85d6ad9279352388fc991ddf"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/archive-store.ts",
+          "bytes": 14323,
+          "sha256": "378eff11e4a22b88e156232d098b9dd4b42222f523376867c9f1925c849473d4",
+          "baseBlob": "5c89706e77bd14f5ff73edd8126a6596fd354bd8"
+        },
+        {
+          "path": "packages/bridge-core/src/recording/output-run-lease.ts",
+          "bytes": 9264,
+          "sha256": "41e1bcf2e832a0337b71f5e5c53da3adc97cf3b3c5d20967f8aa67f317ce4162",
+          "baseBlob": "86fb055357d7dd8b51f479c238aaf378d7ca6f88"
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/recording/MasterArtworkPanel.vue",
+          "bytes": 6195,
+          "sha256": "3e6ee52f34bc8ed75c386b1bd65d7949ec310e5a43b6793c37928b63108436a1",
+          "baseBlob": "6735d7ddb74e1424bf619a1d76d51901c2eb83c0"
+        }
+      ],
+      "delta": "旧Frozen/PREP/Archive/照片/J-Card业务身份保持；全证据才加关系，历史不明强拒源操作，FFmpeg/OutputNative/Execution原能力保持。",
+      "validation": "BASE_RESOLVED_NOT_IMPLEMENTATION_PROOF"
+    }
+  ],
+  "rustCarryoverRefs": [
+    "RUST-CARRY-05",
+    "RUST-CARRY-06",
+    "RUST-CARRY-08"
+  ],
+  "rustCarryoverMeaning": "旧相邻领域语言迁移、事务/unknown恢复、真实Roon及旧录音Gate沿原主责；014新兼容软件结果不抵扣这些边界。",
+  "modelMapping": "LocalTrack/Asset是可变普通库身份；SourceBinding是旧精确证据，两者只增边，不替换旧SourceBinding或FrozenHash。",
+  "sourceFilesWrite": "OFF",
+  "optionalRustReadonly": "OFF",
+  "catalogSchema": 34,
+  "newImportPacks": "NOT_IMPORTED_SEPARATE_CONTENT_TASK",
+  "ownerNewApproval": false
+}

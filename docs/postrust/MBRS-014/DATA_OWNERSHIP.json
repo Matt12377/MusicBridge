@@ -1,0 +1,19 @@
+{
+  "schema": "mbrs014.data-ownership.v1",
+  "task": "MBRS-014",
+  "baseSha": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+  "catalogSchema": 34,
+  "database": "owned-dataset-sqlite",
+  "writer": "node-dataset-owner-worker",
+  "language": "TypeScript",
+  "transaction": "原同步SQLite事务及commitLocalFacts/rollbackLocalFacts；新增边及回执按typed增量守卫",
+  "commandOutbox": "electron-main-command-outbox-store，独立库、作用域/指纹/未知回执保留",
+  "sourceAuthorization": "原SourceStore与安全RootCapability，客户端不能提供私有路径或可信物理证据",
+  "physicalLocks": "唯一PhysicalResourceCoordinator，Core/Owner同SAB，按实际FD dev/ino；1至128每组/2048slots，分组全取齐后才发布",
+  "durableProtection": "只从旧冻结/活动事实及现时与历史binding快照派生，不改Frozen JSON或旧Hash协议",
+  "relations": "独立准确ID边；旧实体/数字/SourceBinding/LocalTrack/Asset各自身份不合并，不按名称猜测",
+  "sourceFilesWrite": "OFF",
+  "rustWriter": "NONE",
+  "optionalRustReadonly": "OFF",
+  "originalHistory": "ID、序列、数量、typed cells、BLOB、Hash与旧事件逐项保留；新增资料包另立内容任务"
+}

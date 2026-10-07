@@ -1,0 +1,165 @@
+{
+  "schema": "mbrs014.contract-ui-handoff.v3",
+  "base": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+  "state": "THREE_P2_ROOT_FINAL_NARROW_CHECK_CLOSED_FULL014_PENDING",
+  "files": [
+    {
+      "path": "packages/contracts/src/local-legacy-links.ts",
+      "bytes": 33383,
+      "sha256": "7b297151b4ec0ae8e3995c6a12a59db06ec217efb45f2da328e91cd0743228c1"
+    },
+    {
+      "path": "packages/contracts/src/index.ts",
+      "bytes": 2312,
+      "sha256": "09ccc0bd4202cd122bd7265aafa7ce776cdc5bf49c2bfc85d9bdc2a6f191c615"
+    },
+    {
+      "path": "packages/contracts/src/ipc.ts",
+      "bytes": 46158,
+      "sha256": "37a9889158382eab02e82a5dc278d8bee494a61768d890625e6f652d2e009bfe"
+    },
+    {
+      "path": "packages/contracts/src/ipc-names.ts",
+      "bytes": 9210,
+      "sha256": "8cb5fcbac3eea7fa849e7002b9dd7fa3c0ecad253d5eec86f34f2cc16e5f6f31"
+    },
+    {
+      "path": "packages/contracts/src/validator.ts",
+      "bytes": 124146,
+      "sha256": "0379f45c68b46581fa2090d7137e217bb1d1f9b8280f679cdc7f0c065db51813"
+    },
+    {
+      "path": "packages/contracts/src/command-outbox.ts",
+      "bytes": 28324,
+      "sha256": "53aa293519399def55594387d059c2aab70bff5d2d95f59865a16a503f659121"
+    }
+  ],
+  "actualContractTests": 12,
+  "contractBuildExitCode": 0,
+  "compilerOwner": "organizer_core_inventory011 until Root explicitly reallocates",
+  "methods": [
+    "readLocalLegacyLinks",
+    "historyLocalLegacyLinks",
+    "previewLocalLegacyLink",
+    "confirmLocalLegacyLink",
+    "revokeLocalLegacyLink",
+    "undoLocalLegacyLink"
+  ],
+  "mainPreloadUiWriter": "organizer_ui_inventory011",
+  "backendContractsWriter": "organizer_core_inventory011",
+  "rootWrites": "docs/project/Gate/private evidence/E2E tsconfig",
+  "oldUiWriteScope": [
+    "apps/desktop/src/renderer/src/components/collection/PhysicalRelations.vue",
+    "apps/desktop/src/renderer/src/components/recording/SourceEvidencePanel.vue"
+  ],
+  "preloadTestException": "docs/postrust/MBRS-014/PRELOAD_API_EXTENSION.json",
+  "fullTaskPass": false,
+  "pureDataHelper": "localLegacyLinksDataSnapshot",
+  "publicMethodsAndDtos": "UNCHANGED",
+  "phase02ActualChecks": [
+    {
+      "label": "backend-links-contract-raw-green02",
+      "receiptSha256": "23d2d6aede19085503223d0ba395d34b6ff9e6866923f74cbdf9eb903b06b015",
+      "actualTests": 10,
+      "exitCode": 0,
+      "closeObserved": true,
+      "signal": null,
+      "log": {
+        "file": "backend-links-contract-raw-green02.log",
+        "bytes": 2561,
+        "sha256": "3984bbe577ecde9ad13d0cd66e83a6a0a7273e5c3f54db2f126f1dd7d10f0462"
+      }
+    },
+    {
+      "label": "backend-links-contract-build05",
+      "receiptSha256": "6f44eeaf8dfb05413da02c305f669fea08b453a5a694dfd823b3d09f37d31fd1",
+      "actualTests": null,
+      "exitCode": 0,
+      "closeObserved": true,
+      "signal": null,
+      "log": {
+        "file": "backend-links-contract-build05.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "label": "backend-links-repository-issue-green01",
+      "receiptSha256": "9f0f9c18c870212f497183e861d39c951ca7430e30fb470c6ef0cacc90fd5262",
+      "actualTests": 2,
+      "exitCode": 0,
+      "closeObserved": true,
+      "signal": null,
+      "log": {
+        "file": "backend-links-repository-issue-green01.log",
+        "bytes": 814,
+        "sha256": "f770e25a4c0ad1506d2971edcb33229b20a709912b4218ff8682cbd716297dd2"
+      }
+    }
+  ],
+  "relationBackendAndApp": "IN_PROGRESS_NOT_VALIDATED",
+  "phase03ActualChecks": [
+    {
+      "label": "backend-links-contract-command-red02",
+      "receiptSha256": "9ce09c98aa018a98b13017906692deef97992c5c9672f0d737f9783ba053bb0c",
+      "actualTests": 12,
+      "pass": 10,
+      "fail": 2,
+      "exitCode": 1,
+      "closeObserved": true,
+      "signal": null,
+      "log": {
+        "file": "backend-links-contract-command-red02.log",
+        "bytes": 4877,
+        "sha256": "f927f5f79430ad2051ae2bae6acc2494294ca1ae574fe60baaee536d0bbba5b4"
+      }
+    },
+    {
+      "label": "backend-links-contract-command-green01",
+      "receiptSha256": "9c9778989f00d23bf487818ab0a53ad27bfa4f0a28714d115c2faa8d6af68488",
+      "actualTests": 12,
+      "pass": 11,
+      "fail": 1,
+      "exitCode": 1,
+      "closeObserved": true,
+      "signal": null,
+      "log": {
+        "file": "backend-links-contract-command-green01.log",
+        "bytes": 3945,
+        "sha256": "3c9a9d4b3995ec1448f621f19a3357b5737e17594f94999a00626b750b98901d"
+      }
+    },
+    {
+      "label": "backend-links-contract-command-green02",
+      "receiptSha256": "94090c16a860b0df781517a2f0d9328234fa586ec25d0c1a5e2ae0bbd2185474",
+      "actualTests": 12,
+      "pass": 12,
+      "fail": 0,
+      "exitCode": 0,
+      "closeObserved": true,
+      "signal": null,
+      "log": {
+        "file": "backend-links-contract-command-green02.log",
+        "bytes": 3021,
+        "sha256": "ad3e10aeaea39453208d0db0cd29eff2d80cbf78003ead20a9d40d7a779d7824"
+      }
+    },
+    {
+      "label": "backend-links-contract-build06",
+      "receiptSha256": "beb4bc5930a69c461b9e2f938a41bbbbf7271a59f9c909287539b2e0cd41a703",
+      "actualTests": null,
+      "pass": null,
+      "fail": null,
+      "exitCode": 0,
+      "closeObserved": true,
+      "signal": null,
+      "log": {
+        "file": "backend-links-contract-build06.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "boundedReviewRounds": 2,
+  "thirdAgentReview": "NOT_OPENED"
+}

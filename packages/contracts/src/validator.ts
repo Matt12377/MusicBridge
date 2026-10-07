@@ -1,4 +1,5 @@
 import { isLocalArtworkCommand, isLocalArtworkInternalCommand, isLocalArtworkCommandPayload, isLocalArtworkCommandResult } from './local-artwork.js';
+import { isLocalLegacyLinksCommand, isLocalLegacyLinksCommandPayload, isLocalLegacyLinksCommandResult, localLegacyRecord, localLegacyLinksDataSnapshot } from './local-legacy-links.js';
 import {isMBQueueEditRequest,isMBQueuePlayEntryRequest,isMBEditionQueueRequest} from './mb-queue.js';
 import {isAlbumEdition,isLocalExactInteger} from './local-catalog.js';
 import { isLocalPlayAccepted, isLocalQueueIdentity } from './local-play-request.js';
@@ -1043,6 +1044,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (isLocalScanCommand(command)) return isLocalScanCommandPayload(command, payload);
   if (command === 'localCatalog.prepare') return isLocalPlayRequest(payload);
   if (command === 'playback.localTarget') return isRecord(payload) && Reflect.ownKeys(payload).length === 0;
+  if (isLocalLegacyLinksCommand(command)) return isLocalLegacyLinksCommandPayload(command, payload);
   if (isLocalOrganizerCommand(command)) return isLocalOrganizerCommandPayload(command, payload);
   if (isLocalCatalogCommand(command)) return isLocalCatalogCommandPayload(command, payload);
   if (command === 'collectionProgress.wants') return isListWantEntriesRequest(payload);
@@ -1683,6 +1685,7 @@ function isCommandResult(
   if (isLocalScanCommand(command)) return (allowInternalResult || !isLocalScanInternalCommand(command)) && isLocalScanCommandResult(command,value);
   if (command === 'localCatalog.prepare') return isLocalSourceUnsupported(value) || isLocalPlayAccepted(value);
   if (command === 'playback.localTarget') return value === null || isLocalPlayTarget(value);
+  if (isLocalLegacyLinksCommand(command)) return isLocalLegacyLinksCommandResult(command, value);
   if (isLocalOrganizerCommand(command)) return isLocalOrganizerCommandResult(command, value);
   if (isLocalCatalogCommand(command)) return (allowInternalResult || !isLocalCatalogInternalCommand(command)) && isLocalCatalogCommandResult(command, value);
   if (command === 'lyrics.display.update') return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['applied']) && typeof value.applied === 'boolean';
@@ -2060,13 +2063,23 @@ export function validateIpcInternalRequest(input: unknown): ValidationResult<Ipc
 }
 
 function validateRequest(input: unknown, internal: boolean): ValidationResult<IpcRequest<unknown>> {
+  let observedCommand: unknown;
+  try {
+    if (input === null || typeof input !== 'object') return invalidRequest();
+    const descriptor = Object.getOwnPropertyDescriptor(input, 'command');
+    if (!descriptor || !Object.hasOwn(descriptor, 'value')) return invalidRequest();
+    observedCommand = descriptor.value;
+    if (isLocalLegacyLinksCommand(observedCommand)) {
+      input = localLegacyLinksDataSnapshot(input, 16384, 2048, 100);
+      if (!isRecord(input) || input.command !== observedCommand) return invalidRequest();
+    }
+  } catch { return invalidRequest(); }
   if (!isRecord(input)) return invalidRequest();
-  const commandDescriptor = Object.getOwnPropertyDescriptor(input, 'command');
-  if (!commandDescriptor || !Object.hasOwn(commandDescriptor, 'value')) return invalidRequest();
-  if ((isLocalArtworkCommand(input.command) || isLocalScanCommand(input.command) || isLocalRelocationCommand(input.command)) && (![Object.prototype,null].includes(Object.getPrototypeOf(input))
+  if (isLocalLegacyLinksCommand(observedCommand) && (!localLegacyRecord(input, ['version','id','command','payload','expectedDatasetId'], ['performanceTrace']) || !isCommandOutboxDatasetId(input.expectedDatasetId))) return invalidRequest();
+  if ((isLocalArtworkCommand(observedCommand) || isLocalScanCommand(observedCommand) || isLocalRelocationCommand(observedCommand)) && (![Object.prototype,null].includes(Object.getPrototypeOf(input))
     || Reflect.ownKeys(input).some(k=>typeof k !== 'string' || !['version','id','command','payload','expectedDatasetId','performanceTrace'].includes(k)
       || !Object.prototype.propertyIsEnumerable.call(input,k)))) return invalidRequest();
-  if ((isLocalOrganizerCommand(input.command) || isLocalArtworkCommand(input.command) || isLocalCatalogCommand(input.command) || isLocalScanCommand(input.command) || isLocalRelocationCommand(input.command) || input.command === 'localCatalog.prepare') && ((!internal && (isLocalArtworkInternalCommand(input.command) || isLocalCatalogInternalCommand(input.command) || isLocalScanInternalCommand(input.command) || isLocalRelocationInternalCommand(input.command)))
+  if ((isLocalOrganizerCommand(observedCommand) || isLocalArtworkCommand(observedCommand) || isLocalCatalogCommand(observedCommand) || isLocalScanCommand(observedCommand) || isLocalRelocationCommand(observedCommand) || observedCommand === 'localCatalog.prepare') && ((!internal && (isLocalArtworkInternalCommand(observedCommand) || isLocalCatalogInternalCommand(observedCommand) || isLocalScanInternalCommand(observedCommand) || isLocalRelocationInternalCommand(observedCommand)))
     || !isCommandOutboxDatasetId(input.expectedDatasetId)
     || !hasOnlyKeys(input, ['version','id','command','payload','expectedDatasetId','performanceTrace']))) return invalidRequest();
 
@@ -2081,20 +2094,20 @@ function validateRequest(input: unknown, internal: boolean): ValidationResult<Ip
   }
 
   if (
-    (input.readContext !== undefined && (!isLibraryReadCommand(input.command) || !isLibraryReadContext(input.readContext))) ||
+    (input.readContext !== undefined && (!isLibraryReadCommand(observedCommand) || !isLibraryReadContext(input.readContext))) ||
     (input.expectedDatasetId !== undefined && !isCommandOutboxDatasetId(input.expectedDatasetId)) ||
     typeof input.id !== 'string' ||
     input.id.trim().length === 0 ||
     input.id.length > 128 ||
-    typeof input.command !== 'string' ||
-    !IPC_COMMANDS.includes(input.command as (typeof IPC_COMMANDS)[number]) ||
+    typeof observedCommand !== 'string' ||
+    !IPC_COMMANDS.includes(observedCommand as (typeof IPC_COMMANDS)[number]) ||
     !isRecord(input.payload) ||
-    !isValidCommandPayload(input.command as IpcCommand, input.payload)
+    !isValidCommandPayload(observedCommand as IpcCommand, input.payload)
   ) {
     if (
-      typeof input.command === 'string' &&
-      input.command.length > 0 &&
-      !IPC_COMMANDS.includes(input.command as (typeof IPC_COMMANDS)[number])
+      typeof observedCommand === 'string' &&
+      observedCommand.length > 0 &&
+      !IPC_COMMANDS.includes(observedCommand as (typeof IPC_COMMANDS)[number])
     ) {
       return {
         ok: false,
@@ -2112,7 +2125,7 @@ function validateRequest(input: unknown, internal: boolean): ValidationResult<Ip
     value: {
       version: IPC_VERSION,
       id: input.id,
-      command: input.command as (typeof IPC_COMMANDS)[number],
+      command: observedCommand as (typeof IPC_COMMANDS)[number],
       payload: input.payload,
       ...(input.readContext !== undefined ? { readContext: input.readContext as import('./library-read.js').LibraryReadContext } : {}),
       ...(input.expectedDatasetId !== undefined ? { expectedDatasetId: input.expectedDatasetId as string } : {}),
@@ -2165,6 +2178,9 @@ export function validateIpcResponseForCommand<TCommand extends IpcCommand>(
   input: unknown,
   command: TCommand,
 ): ValidationResult<IpcResponse<IpcCommandResults[TCommand]>> {
+  if (isLocalLegacyLinksCommand(command)) {
+    try { input = localLegacyLinksDataSnapshot(input, 2097152, 32768, 100); } catch { return invalidResponse(); }
+  }
   const response = validateIpcResponse(input);
   if (!response.ok) return response;
   if (!response.value.ok || isCommandResult(command, response.value.result)) {

@@ -1,0 +1,145 @@
+{
+  "schema": "mbrs014.root-final-contract-narrow-closure.v1",
+  "state": "THREE_ORIGINAL_CONTRACT_P2_RESOLVED_AT_CURRENT_BYTES",
+  "baseSha": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
+  "handoff": {
+    "bytes": 7946,
+    "sha256": "dadd2a4c2f394cc45a1cce33fa154954d90a6416d4adb4939eb2533d4f44433c"
+  },
+  "files": [
+    {
+      "path": "packages/contracts/src/local-legacy-links.ts",
+      "bytes": 33383,
+      "sha256": "7b297151b4ec0ae8e3995c6a12a59db06ec217efb45f2da328e91cd0743228c1"
+    },
+    {
+      "path": "packages/contracts/src/index.ts",
+      "bytes": 2312,
+      "sha256": "09ccc0bd4202cd122bd7265aafa7ce776cdc5bf49c2bfc85d9bdc2a6f191c615"
+    },
+    {
+      "path": "packages/contracts/src/ipc.ts",
+      "bytes": 46158,
+      "sha256": "37a9889158382eab02e82a5dc278d8bee494a61768d890625e6f652d2e009bfe"
+    },
+    {
+      "path": "packages/contracts/src/ipc-names.ts",
+      "bytes": 9210,
+      "sha256": "8cb5fcbac3eea7fa849e7002b9dd7fa3c0ecad253d5eec86f34f2cc16e5f6f31"
+    },
+    {
+      "path": "packages/contracts/src/validator.ts",
+      "bytes": 124146,
+      "sha256": "0379f45c68b46581fa2090d7137e217bb1d1f9b8280f679cdc7f0c065db51813"
+    },
+    {
+      "path": "packages/contracts/src/command-outbox.ts",
+      "bytes": 28324,
+      "sha256": "53aa293519399def55594387d059c2aab70bff5d2d95f59865a16a503f659121"
+    }
+  ],
+  "checks": [
+    {
+      "label": "backend-links-contract-command-red02",
+      "receiptSha256": "9ce09c98aa018a98b13017906692deef97992c5c9672f0d737f9783ba053bb0c",
+      "actualTests": 12,
+      "pass": 10,
+      "fail": 2,
+      "exitCode": 1,
+      "closeObserved": true,
+      "signal": null,
+      "log": {
+        "file": "backend-links-contract-command-red02.log",
+        "bytes": 4877,
+        "sha256": "f927f5f79430ad2051ae2bae6acc2494294ca1ae574fe60baaee536d0bbba5b4"
+      }
+    },
+    {
+      "label": "backend-links-contract-command-green01",
+      "receiptSha256": "9c9778989f00d23bf487818ab0a53ad27bfa4f0a28714d115c2faa8d6af68488",
+      "actualTests": 12,
+      "pass": 11,
+      "fail": 1,
+      "exitCode": 1,
+      "closeObserved": true,
+      "signal": null,
+      "log": {
+        "file": "backend-links-contract-command-green01.log",
+        "bytes": 3945,
+        "sha256": "3c9a9d4b3995ec1448f621f19a3357b5737e17594f94999a00626b750b98901d"
+      }
+    },
+    {
+      "label": "backend-links-contract-command-green02",
+      "receiptSha256": "94090c16a860b0df781517a2f0d9328234fa586ec25d0c1a5e2ae0bbd2185474",
+      "actualTests": 12,
+      "pass": 12,
+      "fail": 0,
+      "exitCode": 0,
+      "closeObserved": true,
+      "signal": null,
+      "log": {
+        "file": "backend-links-contract-command-green02.log",
+        "bytes": 3021,
+        "sha256": "ad3e10aeaea39453208d0db0cd29eff2d80cbf78003ead20a9d40d7a779d7824"
+      }
+    },
+    {
+      "label": "backend-links-contract-build06",
+      "receiptSha256": "beb4bc5930a69c461b9e2f938a41bbbbf7271a59f9c909287539b2e0cd41a703",
+      "actualTests": null,
+      "pass": null,
+      "fail": null,
+      "exitCode": 0,
+      "closeObserved": true,
+      "signal": null,
+      "log": {
+        "file": "backend-links-contract-build06.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    }
+  ],
+  "independentRounds": [
+    {
+      "file": "READ_ONLY_REVIEW.md",
+      "bytes": 13117,
+      "sha256": "d696a2264438b0a22e0064ca52283c7a61f0057d0d85c1d6cf2c9e6c00606612"
+    },
+    {
+      "file": "INPUT_SHA256.json",
+      "bytes": 9584,
+      "sha256": "8c53b5e64b347629e3a951227d4f51f391546d205b68c902009c8f1632fb1f83"
+    },
+    {
+      "file": "ROUND02_READ_ONLY_REVIEW.md",
+      "bytes": 10835,
+      "sha256": "123c4890cfb183ec6b377c646147aaf12aaeafeeb063d9a32b2341920ad0a009"
+    },
+    {
+      "file": "ROUND02_INPUT_SHA256.json",
+      "bytes": 18296,
+      "sha256": "b34628d6103cc371b53bd1c9b5a15f37a94859e3c2219813e0b683dcdf0bfa03"
+    }
+  ],
+  "rootNotes": {
+    "file": "ROOT_FINAL_NARROW_CLOSURE.md",
+    "bytes": 2109,
+    "sha256": "7f60182ffb0a4702c23c06fbd894f697a4e61b96793a93c58ae56d6383321754"
+  },
+  "thirdAgentReview": false,
+  "fullTaskPass": false,
+  "realMigrationAccountAudioDeviceOwner": "NOT_RUN",
+  "test": {
+    "path": "packages/contracts/test/mbrs014/local-legacy-links.test.ts",
+    "bytes": 16620,
+    "sha256": "602b2ae6ae3dbe7a432338cd637feaffb765c474bd58f3befa4f163da2b826b3",
+    "latestActualTests": 12,
+    "latestPass": 12
+  },
+  "archiveRef": {
+    "fileName": "ROOT_FINAL_NARROW_CLOSURE.json",
+    "bytes": 4528,
+    "sha256": "8670df47c895a51d398057c3c1ed826f3179a1045588a21bf2933743f9b091b0"
+  }
+}
