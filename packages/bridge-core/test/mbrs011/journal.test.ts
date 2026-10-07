@@ -66,13 +66,19 @@ test('011确认后的held观察超时只落失败journal，迟到不执行MB ove
   await service.close(); release(plan.items[0]!.sourceObservation); await new Promise<void>(resolve => setImmediate(resolve)); assert.equal(f.repository.localCatalog.metadata(f.tracks[0]!.id).override, null); assert.equal(calls, 2);
 });
 test('011确认后的取消窗口使用当前revision，提交之前取消不写任何override', async t => {
-  let phase = false; const f = await catalogFixture(t, action => { if (action === 'local-organizer:confirm') phase = true; });
+  let phase = false, notifyConfirmed!: () => void;
+  const confirmed = new Promise<void>(resolve => { notifyConfirmed = resolve; });
+  const f = await catalogFixture(t, action => { if (action === 'local-organizer:confirm') { phase = true; notifyConfirmed(); } });
   const service = createLocalOrganizerService({ repository: f.repository, datasetId: f.datasetId, assertCurrent() {} });
   const plan = await service.preview({ commandId: randomUUID(), scope: 'MB_ONLY', target: { mode: 'single', trackId: f.tracks[0]!.id }, patch: { fields: { title: { action: 'set', value: '取消窗口' } } } });
-  const task = service.confirm(confirmation(plan)); for (let i = 0; !phase && i < 200; i++) await new Promise<void>(resolve => setImmediate(resolve)); assert.equal(phase, true);
-  const current = service.get({ planId: plan.planId }); assert.equal(current.state, 'CONFIRMED'); assert.equal(current.revision, '2');
-  assert.equal(service.cancel({ commandId: randomUUID(), planId: plan.planId, expectedRevision: current.revision }).state, 'CANCELLED');
-  assert.equal((await task).state, 'CANCELLED'); assert.equal(f.repository.localCatalog.metadata(f.tracks[0]!.id).override, null); await service.close();
+  const task = service.confirm(confirmation(plan));
+  try {
+    // 等实际同步确认事件；微任务续行先于下一轮文件观察，不靠轮询次数猜取消窗口。
+    await Promise.race([confirmed, task.then(() => undefined)]); assert.equal(phase, true);
+    const current = service.get({ planId: plan.planId }); assert.equal(current.state, 'CONFIRMED'); assert.equal(current.revision, '2');
+    assert.equal(service.cancel({ commandId: randomUUID(), planId: plan.planId, expectedRevision: current.revision }).state, 'CANCELLED');
+    assert.equal((await task).state, 'CANCELLED'); assert.equal(f.repository.localCatalog.metadata(f.tracks[0]!.id).override, null);
+  } finally { await service.close(); }
 });
 test('011过期计划拒执行且确认失败持久，runtime完整patch不受冻结数值映射影响', async t => {
   const f = await catalogFixture(t), store = createLocalOrganizerStore({ catalog: f.repository.localCatalog, sources: f.repository.sources, datasetId: f.datasetId, assertCurrent() {} });
