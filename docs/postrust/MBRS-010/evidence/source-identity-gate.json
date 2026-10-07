@@ -1,0 +1,64 @@
+{
+  "schema": "mbrs010.committed-source-gate.public.v1",
+  "recordedAt": "2026-10-07T10:31:32.399497+00:00",
+  "sourceSha": "5298f6261aa6ccc0c3fa9b700f5495af69b34449",
+  "baseSha": "0a9c211805cdaecf56c699fe0c264590a0839e0e",
+  "exitCode": 0,
+  "tests": 184,
+  "pass": 184,
+  "fail": 0,
+  "skipped": 0,
+  "sourceInputs": 1173,
+  "toolInputs": 12,
+  "freshOutputs": 846,
+  "receiptInputs": 35,
+  "inputDigest": "e044ebbdb62d420ce33dc4dad557766a86476264d1d15b9042802677c2132801",
+  "allDeclaredSourceBytesMatchGitBlobs": true,
+  "inputsOutputsReceiptsUnchanged": true,
+  "sourceIdentityScope": "DECLARED_PRODUCT_AND_TEST_SOURCES_AND_FRESH_COMPILER_OUTPUTS_NOT_TRANSITIVE_DEPENDENCY_CLOSURE",
+  "manifest": {
+    "archiveId": "MBRS010_COMMITTED_SOURCE_ARTWORK_GATE",
+    "fileName": "manifest.json",
+    "bytes": 625040,
+    "sha256": "26a35242c39df4aac738c275ca48809da2ed1ecdd7d685bcaa06ed763d4b6db5",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "receipt": {
+    "archiveId": "MBRS010_COMMITTED_SOURCE_GATE_RECEIPT",
+    "fileName": "SOURCE_IDENTITY_GATE_FINAL.json",
+    "bytes": 1621,
+    "sha256": "5e092235b6dfe36f16ac2337a02caf85dd9633450467d3b5bffc3a07663e6650",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "gitBinding": {
+    "archiveId": "MBRS010_DECLARED_SOURCE_GIT_BINDING",
+    "fileName": "SOURCE_GIT_BINDING_FINAL.json",
+    "bytes": 298701,
+    "sha256": "08226d26dc25c38e844d0e3c3797d58dec5c4dc5e30d8de57a8149d103a8bf88",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "fullVerificationLog": {
+    "archiveId": "MBRS010_FINAL_FULL_VERIFY_20261007T083729Z_LOG",
+    "fileName": "final-full-verify-20261007t083729z.log",
+    "bytes": 1119536,
+    "sha256": "300fca3f35c017d4316a8e2a1064bd7080f21fe3d3c105134e836896fd369ffb",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "fullVerificationRunId": "20261007t083729z",
+  "fullVerifyAndNewAppSourceBinding": "ALL_PRODUCT_SOURCE_BYTES_UNCHANGED_TEST_AND_SCOPE_CORRECTIONS_SEPARATELY_VALIDATED",
+  "changedSinceFullVerify": [
+    "docs/postrust/MBRS-010/EXECUTION_SCOPE.json",
+    "packages/bridge-core/test/mbrs002/local-catalog-migration.test.ts",
+    "packages/bridge-core/test/mbrs002/local-catalog-store.test.ts",
+    "packages/bridge-core/test/mbrs003/persistent-scan-cue-legacy-prefix.test.ts",
+    "packages/bridge-core/test/mbrs003/persistent-scan-cue-restore.test.ts",
+    "packages/bridge-core/test/mbrs003/persistent-scan-cue.test.ts",
+    "packages/bridge-core/test/mbrs003/persistent-scan-store.test.ts",
+    "packages/bridge-core/test/rust-sidecar-client.test.ts"
+  ],
+  "countMeaning": "184包含在4637总测试中；提交后重验184不增加通过用例总数。"
+}

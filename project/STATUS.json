@@ -46323,10 +46323,10 @@
   },
   "mbrs010ArtworkSelectionCache": {
     "task": "MBRS-010",
-    "state": "IN_PROGRESS_LOCAL_AND_LEGACY_HARNESS_PASS_NEW_SOURCE_CI_PENDING",
+    "state": "IN_PROGRESS_AUDIT_REPORTED_LIVE_CARRYOVER_OPEN",
     "branch": "codex/mbrs-010-artwork-selection-cache",
     "baseCommit": "0a9c211805cdaecf56c699fe0c264590a0839e0e",
-    "implementationCommit": "1a9fe0f06f25c2befa35e0b5cfa07d636f2d6c9c",
+    "implementationCommit": "5298f6261aa6ccc0c3fa9b700f5495af69b34449",
     "reportCommit": null,
     "scope": "docs/postrust/MBRS-010/EXECUTION_SCOPE.json",
     "originalAcceptanceCount": 7,
@@ -46367,52 +46367,23 @@
       "ordinaryApp": "PASS_NEW_PRODUCTION_BUILD_CUA_MISSING_AND_EMBEDDED_REOPEN"
     },
     "ci": {
-      "initialSource": {
+      "source": {
+        "headSha": "5298f6261aa6ccc0c3fa9b700f5495af69b34449",
         "workflows": 4,
         "jobs": 6,
-        "passJobs": 4,
-        "failJobs": 2,
-        "failedSteps": [
-          "MBRS002 本地合同 Gate",
-          "Electron end-to-end flow (Playwright, production build)"
-        ],
-        "snapshot": {
-          "archiveId": "MBRS010_FIRST_SOURCE_CI_FAILURE",
-          "fileName": "source-20261007t092420381385z.json",
-          "bytes": 98113,
-          "sha256": "1125f3e19f09b1bde96868c0370d02c5119fc8f92c51fe5a2bb53ab147b58f22",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
-          "publiclyDownloadable": false
-        }
+        "conclusion": "success",
+        "attempt": 1,
+        "mode": "full",
+        "receipt": "docs/postrust/MBRS-010/evidence/source-ci-terminal.json"
       },
-      "current": "PENDING_NEW_RENDERER_RELOAD_FIX_SOURCE_CI",
-      "previousSourceVerifyFailure": {
-        "headSha": "5d7962ea178bb492f56ba8c444c3f32ae946126d",
-        "runId": 37601904175,
-        "jobId": 112728031595,
-        "coreCounts": {
-          "tests": 2769,
-          "pass": 2766,
-          "fail": 1,
-          "skipped": 2
-        }
+      "committedSourceGate": {
+        "tests": 184,
+        "exitCode": 0,
+        "receipt": "docs/postrust/MBRS-010/evidence/source-identity-gate.json"
       },
-      "previousSourceTerminalFailure": {
-        "workflows": 4,
-        "jobs": 6,
-        "passJobs": 4,
-        "failJobs": 2,
-        "receipt": {
-          "archiveId": "MBRS010_SECOND_SOURCE_CI_FAILURE",
-          "fileName": "source-20261007t100156154298z.json",
-          "bytes": 98033,
-          "sha256": "352aef7ae3e57a66daaafdb08124c550ab85ffc2051202203befaf40c30478cb",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
-          "publiclyDownloadable": false
-        }
-      }
+      "report": "RESOLVE_AFTER_THIS_REPORT_COMMIT_NORMAL_PUSH"
     },
-    "implementationCommitResolution": "当前刷新等待修正提交由git log -1 --format=%H -- apps/desktop/e2e/task-067.spec.ts解析；独立审计报告填确切父提交。",
+    "implementationCommitResolution": "本独立审计报告直接父提交",
     "legacySchemaCompatibility": {
       "firstSourceSha": "1eb7f90902967e0d9fcaf59f88895827dfb74d3f",
       "firstSourceCi": {
@@ -46653,6 +46624,18 @@
       },
       "newSourceCi": "PENDING_NORMAL_PUSH_FOR_NEW_FIX_COMMIT",
       "priorCiRerunOrCancellation": false
-    }
+    },
+    "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-010_ARTWORK_SELECTION_CACHE.md",
+    "report": "reports/MBRS-010_ARTWORK_SELECTION_CACHE.md",
+    "evidence": "reports/MBRS-010_EVIDENCE.json",
+    "push": {
+      "sourceCommit": "5298f6261aa6ccc0c3fa9b700f5495af69b34449",
+      "sourceNormalPushExitCode": 0,
+      "sourceRemoteHead": "5298f6261aa6ccc0c3fa9b700f5495af69b34449",
+      "report": "RESOLVE_AFTER_THIS_REPORT_COMMIT_NORMAL_PUSH"
+    },
+    "updatedAt": "2026-10-07T10:31:32.399497+00:00",
+    "finalDeliveryReceipt": "private-archive:MBRS010_AUDIT_DELIVERY_RECEIPT",
+    "nextBranchBaseline": "PENDING_MBRS010_PRODUCT_COMPLETION_AND_FINAL_ACCEPTED_REPORT_HEAD"
   }
 }

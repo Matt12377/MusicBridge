@@ -1,0 +1,634 @@
+{
+  "schema": "mbrs010.artwork-audit-report.public.v1",
+  "recordedAt": "2026-10-07T10:31:32.399497+00:00",
+  "state": "LIMITED_AUDIT_DELIVERY_PRODUCT_PARTIAL_PROVIDER_FAILED_DRAG_NOT_RUN",
+  "task": "MBRS-010",
+  "baseSha": "0a9c211805cdaecf56c699fe0c264590a0839e0e",
+  "implementationCommit": "5298f6261aa6ccc0c3fa9b700f5495af69b34449",
+  "reportCommit": null,
+  "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-010_ARTWORK_SELECTION_CACHE.md",
+  "branch": "codex/mbrs-010-artwork-selection-cache",
+  "formalTaskDelivery": "NOT_COMPLETE",
+  "initialImplementationCommit": "1eb7f90902967e0d9fcaf59f88895827dfb74d3f",
+  "sourcePayloadFiles": 93,
+  "ciCompatibilityCorrection": {
+    "firstSourceSha": "1eb7f90902967e0d9fcaf59f88895827dfb74d3f",
+    "firstSourceCi": {
+      "workflows": 4,
+      "jobs": 6,
+      "passJobs": 4,
+      "failJobs": 2,
+      "failedSteps": [
+        "MBRS002 本地合同 Gate",
+        "Electron end-to-end flow (Playwright, production build)"
+      ],
+      "snapshot": {
+        "archiveId": "MBRS010_FIRST_SOURCE_CI_FAILURE",
+        "fileName": "source-20261007t092420381385z.json",
+        "bytes": 98113,
+        "sha256": "1125f3e19f09b1bde96868c0370d02c5119fc8f92c51fe5a2bb53ab147b58f22",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "changedScope": "NESTED_AND_E2E_CURRENT_SCHEMA_EXPECTATIONS_ONLY_PRODUCT_SOURCES_UNCHANGED",
+    "legacyFixtureBytesAndOriginalTestListsBudgets": "UNCHANGED",
+    "redWithoutBindings": {
+      "tests": 26,
+      "pass": 16,
+      "fail": 10,
+      "receipt": {
+        "archiveId": "MBRS010_SCHEMA34_PREPARATION_RED",
+        "fileName": "schema34-compat-red.json",
+        "bytes": 843,
+        "sha256": "989e1b403009e790133c4d2d1f02fda5c706868209124e1c450490dee5a3dfe9",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "redWithVerifiedBindings": {
+      "tests": 26,
+      "pass": 18,
+      "fail": 8,
+      "receipt": {
+        "archiveId": "MBRS010_SCHEMA34_PREPARED_RED",
+        "fileName": "schema34-compat-red-prepared.json",
+        "bytes": 860,
+        "sha256": "051284c0cbcbfd424293c4ea30f836bebf80834f3883971d69cb032d2e074c2c",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "greenWithVerifiedBindings": {
+      "tests": 26,
+      "pass": 26,
+      "fail": 0,
+      "receipt": {
+        "archiveId": "MBRS010_SCHEMA34_GREEN",
+        "fileName": "schema34-compat-green.json",
+        "bytes": 845,
+        "sha256": "d0ab4f9df12b50c94da75947e9957e674581861d8db0b63e398a97588d1acc15",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "legacyGates": {
+      "002": {
+        "tests": 67,
+        "pass": 67,
+        "fail": 0,
+        "exitCode": 0,
+        "manifest": {
+          "archiveId": "MBRS010_LEGACY_002_GREEN",
+          "fileName": "manifest.json",
+          "bytes": 313126,
+          "sha256": "1b45c2ef9f5327252241bd023c453471369c355f67f8c7652a82cc1dfcb3e3f7",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      },
+      "003": {
+        "tests": 124,
+        "pass": 124,
+        "fail": 0,
+        "exitCode": 0,
+        "manifest": {
+          "archiveId": "MBRS010_LEGACY_003_GREEN",
+          "fileName": "manifest.json",
+          "bytes": 1530546,
+          "sha256": "04dfd2426a3377e8c43bb51e22e4830b8b1313213b5da29b16f93f8d66d85158",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      }
+    },
+    "electronE2e": {
+      "testFiles": 3,
+      "pass": 10,
+      "fail": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "receipt": {
+        "archiveId": "MBRS010_SCHEMA34_ELECTRON_E2E",
+        "fileName": "schema34-e2e.json",
+        "bytes": 1067,
+        "sha256": "a94313bce19bfd390daface241dc4cac41dddebc089ccd8e75e856542c383175",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "priorFullVerificationBoundary": "083729完整回归与App对应的产品源码保持；本次只同步旧测试及范围登记，当前行为由67/124/10及提交后Gate、新自然CI补证。"
+  },
+  "ciStartupClockCorrection": {
+    "failedSourceSha": "5d7962ea178bb492f56ba8c444c3f32ae946126d",
+    "failedRunId": 37601904175,
+    "failedJobId": 112728031595,
+    "failedStep": "Verify platform-independent workspace (typecheck, unit tests, build; no Electron)",
+    "coreCounts": {
+      "tests": 2769,
+      "pass": 2766,
+      "fail": 1,
+      "skipped": 2
+    },
+    "failure": "EXISTING_TEST_EXPECTED_LATE_BOOT_FUNCTION_BUT_RECEIVED_UNDEFINED_BEFORE_TARGET_STAGE",
+    "failedTestFile": "packages/bridge-core/test/rust-sidecar-client.test.ts",
+    "failedTestOriginalLine": 364,
+    "failedTestDurationMs": 389.4805,
+    "failedLog": {
+      "archiveId": "MBRS010_SECOND_SOURCE_VERIFY_FAILURE",
+      "fileName": "source-5d7962e-verify-failed.log",
+      "bytes": 2949887,
+      "sha256": "6b8e7d61e7911a4b8b2c18ffa209eff9e656035370c62fcda563baec452912c1",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "diagnosis": "旧用例在boot处理器就绪前耗尽200ms墙钟期限；负载及二进制准入耗时为时序原因推断。",
+    "correction": "先观察实际commitBoot，再推进单调时钟和setTimeout至201ms，仍断言TIMEOUT、自有进程清理、Owner不关闭及迟到boot不发布或重放。",
+    "testStartupTimeoutMs": 200,
+    "productionDefaultStartupTimeoutMs": 5000,
+    "productSourceChanged": false,
+    "originalTestCountUnchanged": true,
+    "directedRegression": {
+      "tests": 35,
+      "pass": 35,
+      "fail": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "receipt": {
+        "archiveId": "MBRS010_STARTUP_CLOCK_GREEN",
+        "fileName": "rust-startup-clock-green.json",
+        "bytes": 814,
+        "sha256": "8f48ec82b16b52b0c4dfe52ed666aa2a2d6666b730fb8a4151d63a6c1a43c1af",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "coreTypecheck": {
+      "exitCode": 0,
+      "receipt": {
+        "archiveId": "MBRS010_STARTUP_CLOCK_CORE_TYPECHECK",
+        "fileName": "rust-startup-clock-core-typecheck.json",
+        "bytes": 361,
+        "sha256": "15cdad181da9fc283871d085d6bb0dd4031303e1c0dca022feb853a5fd70af73",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "previousOtherNaturalCi": "独立保留原运行，在私有终态归档中解析，不重跑或取消。",
+    "newSourceCi": "PENDING_NORMAL_PUSH_FOR_NEW_FIX_COMMIT"
+  },
+  "ciRendererReloadCorrection": {
+    "failedSourceSha": "5d7962ea178bb492f56ba8c444c3f32ae946126d",
+    "failedRunId": 37601904173,
+    "failedJobId": 112728032286,
+    "failedStep": "Electron end-to-end flow (Playwright, production build)",
+    "e2eCounts": {
+      "tests": 109,
+      "pass": 104,
+      "fail": 1,
+      "skipped": 4
+    },
+    "failedTestFile": "apps/desktop/e2e/task-067.spec.ts",
+    "failedTestOriginalLine": 53,
+    "failure": "PAGE_RELOAD_NAVIGATED_TO_APP_BUT_LOAD_EVENT_WAIT_EXCEEDED_30000_MS",
+    "failedLog": {
+      "archiveId": "MBRS010_SECOND_SOURCE_E2E_FAILURE",
+      "fileName": "source-5d7962e-e2e-failed.log",
+      "bytes": 51151,
+      "sha256": "885bdf48d4eab8b8bf3889d402809e1018c5e5e7dd33403577af4df083652e61",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "previousSourceTerminal": {
+      "workflows": 4,
+      "jobs": 6,
+      "passJobs": 4,
+      "failJobs": 2,
+      "receipt": {
+        "archiveId": "MBRS010_SECOND_SOURCE_CI_FAILURE",
+        "fileName": "source-20261007t100156154298z.json",
+        "bytes": 98033,
+        "sha256": "352aef7ae3e57a66daaafdb08124c550ab85ffc2051202203befaf40c30478cb",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "diagnosisBoundary": "原失败步骤未继续观察DOM与Core状态，未取得阻塞load事件的资源或产品缺陷证据。",
+    "correction": "刷新与原启动统一为DOMContentLoaded、主页可见和Core ready；保留全部outbox、库存、账本、SIGKILL、无自动投递与原命令恢复断言。",
+    "originalNavigationTimeoutMs": 30000,
+    "originalTestTimeoutMs": 120000,
+    "originalCiJobTimeoutMinutes": 45,
+    "timeoutBudgetsChanged": false,
+    "originalTestCountUnchanged": true,
+    "productSourceChanged": false,
+    "directedProductionElectronE2e": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "exitCode": 0,
+      "forced": false,
+      "receipt": {
+        "archiveId": "MBRS010_RENDERER_RELOAD_E2E_GREEN",
+        "fileName": "renderer-reload-e2e.json",
+        "bytes": 1032,
+        "sha256": "6fac66f42706523d2d9bae4ef45c8e14c6fe389edd3374f010eef14374f7e19f",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "e2eTypecheck": {
+      "exitCode": 0,
+      "receipt": {
+        "archiveId": "MBRS010_RENDERER_RELOAD_E2E_TYPECHECK",
+        "fileName": "renderer-reload-e2e-typecheck.json",
+        "bytes": 357,
+        "sha256": "8e857bbbe912b1b0c153620ae35189865bc2f793461a5cb4a5b5441496f5fb3f",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "newSourceCi": "PENDING_NORMAL_PUSH_FOR_NEW_FIX_COMMIT",
+    "priorCiRerunOrCancellation": false
+  },
+  "correctionSnapshotMeaning": "三个修正对象保存各自提交前事实，其PENDING不代表当前源码CI；当前精确实现SHA的终态见sourceCi。",
+  "intermediateElectronResult": {
+    "sourceSha": "1a9fe0f06f25c2befa35e0b5cfa07d636f2d6c9c",
+    "tests": 109,
+    "pass": 105,
+    "fail": 0,
+    "skipped": 4,
+    "oldTask067LoadWaitBytesUnchanged": true,
+    "previousReloadFailureReproduced": false,
+    "loadStallRootCause": "UNKNOWN",
+    "receipt": {
+      "archiveId": "MBRS010_INTERMEDIATE_E2E_SUCCESS",
+      "fileName": "INTERMEDIATE_1a9fe0f_E2E_SUCCESS.json",
+      "bytes": 802,
+      "sha256": "c89f6c3eafd694ba9ff934b3498d46b5478c6d36691270e1aae7d826e58cef33",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "intermediateSourceCi": {
+    "sourceSha": "1a9fe0f06f25c2befa35e0b5cfa07d636f2d6c9c",
+    "workflows": 4,
+    "jobs": 6,
+    "conclusion": "success",
+    "attempt": 1,
+    "event": "push",
+    "receipt": {
+      "archiveId": "MBRS010_INTERMEDIATE_SOURCE_CI_TERMINAL",
+      "fileName": "source-20261007t102500597515z.json",
+      "bytes": 98052,
+      "sha256": "7bbb5aab913d11060b411df9d32c5ad63a43237007b4622895501d36561233ed",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "sourceCi": {
+    "workflows": 4,
+    "jobs": 6,
+    "conclusion": "success",
+    "event": "push",
+    "attempt": 1,
+    "receipt": "docs/postrust/MBRS-010/evidence/source-ci-terminal.json"
+  },
+  "reportCi": "RESOLVE_AFTER_THIS_REPORT_COMMIT_NORMAL_PUSH",
+  "postCommitFinalReceipt": "PRIVATE_EXTERNAL_ARCHIVE_MBRS010_AUDIT_DELIVERY_RECEIPT",
+  "localValidationSnapshot": "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",
+  "committedSourceGate": "docs/postrust/MBRS-010/evidence/source-identity-gate.json",
+  "fullVerification": {
+    "runId": "20261007t083729z",
+    "counts": {
+      "tests": 4637,
+      "pass": 4635,
+      "fail": 0,
+      "skipped": 2
+    },
+    "productionBuild": "PASS",
+    "packageTypes": "PASS_THREE_PACKAGES_AND_E2E",
+    "skipBoundary": "2项既有条件跳过，未计为通过。"
+  },
+  "ordinaryApp": {
+    "state": "PASS_BOUNDED_LOCAL_WORKFLOWS_EMBEDDED_AND_MISSING_ACTUAL_DRAG_NOT_RUN",
+    "scope": "ORIGINAL_PRODUCTION_BUILD_SELF_OWNED_SYNTHETIC_PROFILES_CUA_ONLY",
+    "independentAndManualWorkflow": {
+      "state": "PASS_BOUNDED_ORIGINAL_APP_LOCAL_AND_COLD_REOPEN",
+      "receipt": {
+        "archiveId": "MBRS010_APP_LOCAL_COLD_REOPEN",
+        "fileName": "controlled-app-persistence.json",
+        "bytes": 4156,
+        "sha256": "5017b6a624b5ef0316da299333fb7a7ca0e7da3e51c3b1175dfe0a2655f82e45",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "uiRuns": 2,
+      "naturalExitCode": 0,
+      "forced": false,
+      "workflow": "本地候选/原生手选/2项比较/保存/坏PNG拒绝/原文件Hash保留/正常退出后冷启动恢复。",
+      "scope": "ORIGINAL_PRODUCTION_BUILD_SELF_OWNED_SYNTHETIC_PROFILE_CUA_ONLY",
+      "observations": [
+        {
+          "run": "controlled-app-02",
+          "archiveId": "MBRS010_CONTROLLED_APP_02_UI",
+          "fileName": "ui-observation.json",
+          "bytes": 1921,
+          "sha256": "56b59fc607b15cef63dfe90c7567a646af7fb74ebef6bc33f8350e7806a8404a",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        },
+        {
+          "run": "controlled-app-03",
+          "archiveId": "MBRS010_CONTROLLED_APP_03_UI",
+          "fileName": "ui-observation.json",
+          "bytes": 1541,
+          "sha256": "bfe7e729896d7f2efc4db9682cb32292eb335ace54fa3f3aebad3a8585725658",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      ],
+      "database": {
+        "schema": 34,
+        "tracks": 1,
+        "editions": 1,
+        "candidates": 2,
+        "selections": 1,
+        "selectionRevision": "2",
+        "commandLedger": 3,
+        "foreignKeyViolations": 0,
+        "displayBytesHashVerified": true
+      },
+      "actualNativeDragDrop": "NOT_RUN",
+      "embeddedAndMissingImageInOrdinaryApp": "NOT_RUN",
+      "realAccountsRoonAudioOwner": "NOT_RUN",
+      "buildBatch": "20261007t075804z",
+      "evidenceBoundary": "本地独立图/手选/比较/坏图拒绝在缺图状态修正前的正式构建中验证；原件保留。"
+    },
+    "embeddedAndMissingScenes": {
+      "state": "PASS_BOUNDED_EMBEDDED_AND_MISSING_SCENES_DRAG_NOT_RUN",
+      "buildBatch": "20261007t083729z",
+      "receipt": {
+        "archiveId": "MBRS010_APP_EMBEDDED_MISSING_PERSISTENCE",
+        "fileName": "controlled-app-scenes-persistence.json",
+        "bytes": 3757,
+        "sha256": "3c448cfd352ae4263626e51c34e9082ba3ad48848f62571b50b937bb94b0d51c",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "uiObservation": {
+        "archiveId": "MBRS010_APP_MISSING_FIX_RECHECK_UI",
+        "fileName": "ui-observation.json",
+        "bytes": 1946,
+        "sha256": "670576bfaadc19ab0f9bec5fbeb2d099b7f691b79c02f4e6c5493b2d8bea3407",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "previousFailure": {
+        "archiveId": "MBRS010_APP_MISSING_STATE_FAILURE_UI",
+        "fileName": "ui-observation.json",
+        "bytes": 1124,
+        "sha256": "66acb5f15e7bc2b14a1322cb73a2bcfaab294f694db7fc80d8efedfda989ffde",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "tracks": 2,
+      "editions": 2,
+      "candidates": 1,
+      "selections": 1,
+      "commandLedger": 3,
+      "databaseSchema": 34,
+      "foreignKeyViolations": 0,
+      "selectionRevision": "1",
+      "selectedOrigin": "embedded",
+      "missingEditionHasNoCandidateOrSelection": true,
+      "displayBytesHashVerified": true,
+      "sourceFixturesUnchanged": true,
+      "normalExitCode": 0,
+      "signal": null,
+      "forced": false,
+      "workflow": "首轮提取MP3内嵌图并保存；新构建冷启动恢复。可读取WAV无图时实际查找仅显示缺图提示。"
+    },
+    "actualNativeDragDrop": "NOT_RUN_FINDER_CUA_ACCESS_REJECTED",
+    "realAccountsRoonAudioOwner": "NOT_RUN",
+    "remoteSearchInApp": "NOT_RUN_UI_ISOLATION_DISABLED_PROVIDERS"
+  },
+  "nativeCodec": {
+    "state": "PASS_SELF_OWNED_SYNTHETIC_ACTUAL_ELECTRON",
+    "receipt": {
+      "archiveId": "MBRS010_NATIVE_CODEC_CURRENT_LOCAL",
+      "fileName": "receipt.json",
+      "bytes": 3039,
+      "sha256": "e81c564b15741cb754a45a0c465f4be9c178a5e022401c0e766275cb1dec49a6",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "liveProvider": {
+    "status": "FAILED_PROVIDER_NOT_ADMITTED",
+    "candidates": 0,
+    "receipt": {
+      "archiveId": "MBRS010_LIVE_PROVIDER_FAILURE",
+      "fileName": "result.json",
+      "bytes": 1221,
+      "sha256": "511bf27542e63b8f2a3157f3e731fb8e31857d5500f12681c35f5508b50e1188",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "facts": "一次公开发行查询：MusicBrainz返回200、CAA返回307；Archive索引在30秒内未返回响应。未获取真实图片。",
+    "connectivityDiagnostic": {
+      "status": "FAILED_FIXED_ARCHIVE_CONNECTIVITY",
+      "requests": 1,
+      "budgetMs": 15000,
+      "headersObserved": false,
+      "physicalRequestCloseObserved": true,
+      "events": [
+        "socket",
+        "request-error",
+        "socket-error",
+        "request-close"
+      ],
+      "receipt": {
+        "archiveId": "MBRS010_FIXED_ARCHIVE_CONNECTIVITY_FAILURE",
+        "fileName": "result.json",
+        "bytes": 917,
+        "sha256": "a79dc51b87a5750f5094bb9ea76c20042d450a373c4fdfdc5159e2e7efb9ebbb",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "providerAdmission": "FAILED_PROVIDER_NOT_ADMITTED",
+    "causeBeyondObservedStage": "UNKNOWN",
+    "realCommonsSearch": "NOT_RUN",
+    "ordinaryAppRemoteSearch": "NOT_RUN_UI_ISOLATION_DISABLED_PROVIDERS",
+    "connectionCodeAnalysis": {
+      "receipt": {
+        "archiveId": "MBRS010_PROVIDER_CONNECTION_CODE_READONLY",
+        "fileName": "provider-connection-readonly-analysis.json",
+        "bytes": 1191,
+        "sha256": "36677f2db594e37ff631ab9260dd965befb95a2c51a1dc50da7b335af204c1d8",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "result": "NO_ATTRIBUTABLE_CODE_DEFECT_FOUND_EXTERNAL_CAUSE_UNKNOWN",
+      "boundary": "只读核查DNS预解析/固定地址/TLS/取消关闭；未新增查询、自动重试或放宽安全策略。"
+    }
+  },
+  "missingImageStatusFix": {
+    "cause": "本地读取成功但无候选被归为source-unavailable；改为ready空候选，真实不可用分支保持。",
+    "red": {
+      "pass": 11,
+      "fail": 1,
+      "exitCode": 1,
+      "receipt": {
+        "archiveId": "MBRS010_MISSING_STATE_RED",
+        "fileName": "final-missing-source-20261007t083615z.json",
+        "bytes": 1043,
+        "sha256": "2331264282cbce30a0fdfe10a449d9abac118f26d6248d7ffc1012726d9c7f91",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "green": {
+      "pass": 12,
+      "fail": 0,
+      "exitCode": 0,
+      "receipt": {
+        "archiveId": "MBRS010_MISSING_STATE_GREEN",
+        "fileName": "final-missing-source-20261007t083653z.json",
+        "bytes": 1043,
+        "sha256": "227818596f1380a651740c026331ae0fab47257db5308346e5714777c8aac734",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "currentFullVerification": "PASS",
+    "currentOrdinaryAppRecheck": "PASS_BOUNDED_SYNTHETIC"
+  },
+  "acceptance": [
+    {
+      "id": "MBRS-AT-010-01",
+      "requirement": "本地独立图/内嵌图/缺封面都可处理，候选优先级和来源可追溯。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "PARTIAL",
+      "liveStatus": "NOT_RUN",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "普通App独立图、MP3内嵌图和可读取WAV缺图均有合成实操；内嵌保存冷启动恢复；真实曲库未跑。"
+    },
+    {
+      "id": "MBRS-AT-010-02",
+      "requirement": "在MB中搜索/拖入/比较/应用真实可用，不需另开CoverDrop。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "PARTIAL",
+      "liveStatus": "FAILED",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "普通App本地查找、原生选图、2/2比较、保存及冷启动通过；真实拖入因CUA拒绝Finder访问未跑，真实音乐检索失败。"
+    },
+    {
+      "id": "MBRS-AT-010-03",
+      "requirement": "伪图片、大图、重定向、恶意URL和取消有界，无任意内网抓取。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "PARTIAL",
+      "liveStatus": "NOT_RUN",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "受控安全用例与原生codec通过，普通App损坏PNG拒绝；真实站点未收到图片，不能宣称全真实安全验收。"
+    },
+    {
+      "id": "MBRS-AT-010-04",
+      "requirement": "仅MB选图不改原文件，写回需独立计划确认。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "PARTIAL",
+      "liveStatus": "NOT_RUN",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "普通App合成原文件Hash不变；Organizer独立写回计划与实际写回未实施。"
+    },
+    {
+      "id": "MBRS-AT-010-05",
+      "requirement": "封面不参与自动版本合并或质量真实性判断。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "PARTIAL",
+      "liveStatus": "NOT_RUN",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "相同图像Hash的两来源候选保留；发行/音质规则有受控软件证据，真实版本与音质未验。"
+    },
+    {
+      "id": "MBRS-AT-010-06",
+      "requirement": "封面服务关闭/失败不阻塞当前和新直送；Roon封面传递实测状态单列。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "NOT_RUN",
+      "liveStatus": "NOT_RUN",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "受控失败/取消及FD收口通过；真实当前/新直送、Roon收图与听感未跑。"
+    },
+    {
+      "id": "MBRS-AT-010-07",
+      "requirement": "数字音乐封面、磁带参考图、个人实物照片和冻结MasterArtwork保持独立身份与用途。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "NOT_RUN",
+      "liveStatus": "NOT_RUN",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "四用途独立身份有规则和SQLite证据；真实旧资料、Frozen成品及Owner未验。"
+    }
+  ],
+  "retainedFailures": [
+    "初轮普通App内部命令闭集缺少封面接点，本地读取被拒绝；真实消息端口/owner线程回归2通过1失败，修复后3通过。",
+    "schema34使旧未来版本夹具34失效；仅改为35，保留原拒绝恢复语义与旧库字节。",
+    "其余初期环境/编译/断言失败原件保留，后验成功不回写旧失败。",
+    "真实Provider查询与固定Archive连接诊断失败保留。",
+    "普通App可读取WAV缺图误报来源不可用，修正前11通过/1失败，修正后12/12及新构建实操复核通过。",
+    "实现1eb7f90首轮自然CI的MBRS002与Electron E2E失败：当前schema33期望遗漏，修正为34并保持未来35拒绝及旧数据守恒；旧运行未重跑或取消。"
+  ],
+  "remainingProductWork": [
+    "真实音乐发行封面检索失败，Provider未准入",
+    "普通App真实文件拖入未验证，CUA拒绝Finder访问",
+    "真实曲库/当前及新直送/Roon收图/听感和Owner未跑",
+    "Organizer独立写回计划与真实旧资料/Frozen成品未验"
+  ],
+  "remainingDesktopOrder": [
+    "MBRS-010",
+    "MBRS-011",
+    "MBRS-014",
+    "MBRS-012",
+    "MBRS-013",
+    "MBRS-016",
+    "MBRS-017"
+  ],
+  "optionalTask": "MBRS-015",
+  "mobileAfterDesktop017": "MBM-000_TO_004_NOT_STARTED",
+  "deferredMobileCandidateSuccessor": {
+    "sourceSha": "04eca33a6f63e14c0339660a43ff03069c476a8e",
+    "reportSha": "7890483bd17f46944bdcc765b549b138a2a3a7d5",
+    "remoteHead": "7890483bd17f46944bdcc765b549b138a2a3a7d5",
+    "branch": "codex/ios-discovery-audit",
+    "candidateVersion": "1.4.0",
+    "candidateOperations": 20,
+    "candidateVerbCounts": {
+      "GET": 16,
+      "POST": 1,
+      "PUT": 3
+    },
+    "candidateSha256": "2d3d5691912bc75d0c49260f07474cc03bde99b060f674706b500b3a2bc6e13a",
+    "readOnly": true,
+    "formallyAdoptedIntoMac": false,
+    "gatingCurrent010": false,
+    "formalMobileStart": "AFTER_DESKTOP017_MBM000"
+  },
+  "nextTask": "MBRS-011",
+  "nextBranchBaseline": "PENDING_MBRS010_PRODUCT_COMPLETION_AND_FINAL_ACCEPTED_REPORT_HEAD",
+  "originalTaskCount": 18,
+  "originalAcceptanceCount": 156,
+  "taskAcceptanceCount": 7,
+  "sourceFileWrites": "OFF",
+  "defaultCore": "Node",
+  "optionalRustReadonly": "OFF",
+  "new100k300kStarted": false,
+  "recovery": "保持原库与源文件；schema34的封面关系保留旧表，代码回退与数据库恢复分开；未做Owner数据恢复、源文件写回或公开发布。"
+}
