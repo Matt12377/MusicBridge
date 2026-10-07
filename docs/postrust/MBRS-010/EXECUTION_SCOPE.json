@@ -90,7 +90,14 @@
       "packages/bridge-core/test/mbrs006/local-session-lifecycle.test.ts",
       "packages/bridge-core/src/utility-main.ts",
       "packages/bridge-core/src/collection/dataset-owner-client.ts",
-      "packages/bridge-core/src/collection/dataset-owner-worker.ts"
+      "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+      "packages/bridge-core/test/mbrs002/local-catalog-migration.test.ts",
+      "packages/bridge-core/test/mbrs002/local-catalog-store.test.ts",
+      "packages/bridge-core/test/mbrs003/persistent-scan-store.test.ts",
+      "packages/bridge-core/test/mbrs003/persistent-scan-cue.test.ts",
+      "apps/desktop/e2e/task-069.spec.ts",
+      "apps/desktop/e2e/task-070.spec.ts",
+      "apps/desktop/e2e/task-078.spec.ts"
     ],
     "pureRulesWriter": [
       "packages/bridge-core/src/library/artwork-selection-rules.ts",
@@ -125,5 +132,5 @@
     "Owner验收"
   ],
   "providerUse": "仅主动查找、比较与MB个人显示；CAA审核状态和图片权利分开，Commons逐文件CC0，源文件写回继续OFF。",
-  "migrationRegressionScope": "仅更新实际 Repository 当前 schema34 的期望；旧数据库字节、103表基线和历史版本夹具保持原身份。"
+  "migrationRegressionScope": "仅更新实际 Repository 当前 schema34 的期望；旧数据库字节、103表基线和历史版本夹具保持原身份。；CI暴露的嵌套与E2E当前版本同步为34、未来版本为35；四张新增空封面表单列验证，旧表/旧夹具/回滚及故障拒绝断言保持。"
 }

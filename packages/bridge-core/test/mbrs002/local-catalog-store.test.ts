@@ -146,7 +146,7 @@ test('MBRS002 migration：真实固定30执行DDL后提交故障回滚，旧全�
   await writeFile(file, bytes, { flag: 'wx', mode: 0o600 });
   const inspect = () => {
     const db = new DatabaseSync(file, { readOnly: true, allowExtension: false });
-    try { return { version: db.prepare('PRAGMA user_version').get()!.user_version, rows: db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'local_catalog_%' AND name NOT IN ('local_scan_jobs','local_scan_batches','local_scan_checkpoints','local_scan_file_state','local_scan_receipts','mb_playback_queue') ORDER BY name").all().map(row => [row.name, db.prepare(`SELECT * FROM "${String(row.name)}" ORDER BY rowid`).all()]), newTables: db.prepare("SELECT name FROM sqlite_master WHERE name LIKE 'local_catalog_%'").all() }; }
+    try { return { version: db.prepare('PRAGMA user_version').get()!.user_version, rows: db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'local_catalog_%' AND name NOT IN ('local_scan_jobs','local_scan_batches','local_scan_checkpoints','local_scan_file_state','local_scan_receipts','mb_playback_queue','local_artwork_candidates','local_artwork_selections','local_artwork_ledger','local_artwork_create_intents') ORDER BY name").all().map(row => [row.name, db.prepare(`SELECT * FROM "${String(row.name)}" ORDER BY rowid`).all()]), newTables: db.prepare("SELECT name FROM sqlite_master WHERE name LIKE 'local_catalog_%'").all(), artworkTables: db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('local_artwork_candidates','local_artwork_selections','local_artwork_ledger','local_artwork_create_intents') ORDER BY name").all().map(row => [row.name, db.prepare(`SELECT * FROM "${String(row.name)}"`).all()]) }; }
     finally { db.close(); }
   };
   const before = inspect(); let reached = false;
@@ -156,7 +156,8 @@ test('MBRS002 migration：真实固定30执行DDL后提交故障回滚，旧全�
   for (let attempt = 0; attempt < 2; attempt++) {
     const upgraded = createCollectionRepository({ filePath: file });
     try { assert.equal(upgraded.list(page).total, 2); assert.equal(upgraded.localCatalog.pageTracks(page).total, 0); } finally { upgraded.close(); }
-    const after = inspect(); assert.equal(after.version, 33); assert.deepEqual(after.rows, before.rows); assert.ok(after.newTables.length > 0);
+    const after = inspect(); assert.equal(after.version, 34); assert.deepEqual(after.rows, before.rows); assert.ok(after.newTables.length > 0);
+    assert.equal(after.artworkTables.length, 4); assert.ok(after.artworkTables.every(([, rows]) => Array.isArray(rows) && rows.length === 0));
   }
 });
 
@@ -166,10 +167,10 @@ test('MBRS002 integrity：schema31缺失不可变trigger与future版本均拒绝
   const damaged = createCollectionRepository({ filePath: f.file });
   try { assert.throws(() => damaged.list(page)); } finally { damaged.close(); }
   const future = path.join(f.parent, 'future.sqlite'); await writeFile(future, await readFile(f.file), { flag: 'wx', mode: 0o600 });
-  const next = new DatabaseSync(future); try { next.exec('PRAGMA user_version=34'); } finally { next.close(); }
+  const next = new DatabaseSync(future); try { next.exec('PRAGMA user_version=35'); } finally { next.close(); }
   const unsupported = createCollectionRepository({ filePath: future });
   try { assert.throws(() => unsupported.list(page)); } finally { unsupported.close(); }
-  const check = new DatabaseSync(future, { readOnly: true }); try { assert.equal(check.prepare('PRAGMA user_version').get()!.user_version, 34); } finally { check.close(); }
+  const check = new DatabaseSync(future, { readOnly: true }); try { assert.equal(check.prepare('PRAGMA user_version').get()!.user_version, 35); } finally { check.close(); }
 });
 
 test('MBRS002 integrity：实体与末条回执一起伪改为合法JSON，仍因创建修订不符而拒绝冷开', async t => {

@@ -29,19 +29,22 @@ function inspect(file: string) {
   } finally { db.close(); }
 }
 
-test('MBRS003 store：固定31迁移beforeCommit故障完整回滚DDL与全部旧行，重开真实升级33', async t => {
+test('MBRS003 store：固定31迁移beforeCommit故障完整回滚DDL与全部旧行，重开真实升级34', async t => {
   const f = await copy31(t), before = inspect(f.file); let faults = 0;
   const failed = createCollectionRepository({ filePath: f.file, beforeCommit(action) { if (action === 'migrate-local-scan') { faults++; throw new Error('合成迁移提交故障'); } } });
   try { assert.throws(() => failed.list({ offset: 0, limit: 1 }), /不可用/u); } finally { failed.close(); }
   assert.equal(faults, 1); assert.deepEqual(inspect(f.file), before);
   const repository = createCollectionRepository({ filePath: f.file });
   try { assert.ok(repository.list({ offset: 0, limit: 1 }).items.length > 0); } finally { repository.close(); }
-  const after = inspect(f.file); assert.equal(after.version, 33);
+  const after = inspect(f.file); assert.equal(after.version, 34);
   assert.equal(after.tables.filter(row => String(row.name).startsWith('local_scan_')).length, 5);
-  assert.deepEqual(after.rows.filter(([name]) => !String(name).startsWith('local_scan_') && name!=='mb_playback_queue'), before.rows);
+  const artworkNames = ['local_artwork_candidates', 'local_artwork_selections', 'local_artwork_ledger', 'local_artwork_create_intents'];
+  assert.deepEqual(after.rows.filter(([name]) => !String(name).startsWith('local_scan_') && name!=='mb_playback_queue' && !artworkNames.includes(String(name))), before.rows);
+  const artworkRows = after.rows.filter(([name]) => artworkNames.includes(String(name)));
+  assert.equal(artworkRows.length, 4); assert.ok(artworkRows.every(([, rows]) => Array.isArray(rows) && rows.length === 0));
 });
 
-test('MBRS003 store：33隔离备份与恢复默认库保留目录旧行和raw人工事实，撤来源许可', async t => {
+test('MBRS003 store：34隔离备份与恢复默认库保留目录旧行和raw人工事实，撤来源许可', async t => {
   const f = await copy31(t), repository = createCollectionRepository({ filePath: f.file });
   try { repository.list({ offset: 0, limit: 1 }); } finally { repository.close(); }
   const before = inspect(f.file); readBackupIndex(f.file);
@@ -49,7 +52,7 @@ test('MBRS003 store：33隔离备份与恢复默认库保留目录旧行和raw�
   const restoreFile = path.join(restoreDirectory, 'collection.v1.sqlite');
   await writeFile(restoreFile, await readFile(f.file), { flag: 'wx', mode: 0o600 });
   isolateRestoredDatabase(restoreFile); verifyRestoredDatabaseIsolation(restoreFile); readBackupIndex(restoreFile);
-  const after = inspect(restoreFile); assert.equal(after.version, 33);
+  const after = inspect(restoreFile); assert.equal(after.version, 34);
   assert.deepEqual(after.rows.filter(([name]) => String(name).startsWith('local_catalog_') || String(name).startsWith('local_scan_')),
     before.rows.filter(([name]) => String(name).startsWith('local_catalog_') || String(name).startsWith('local_scan_')));
   const opened = await openCollectionDataset(restoreDirectory);
@@ -62,12 +65,12 @@ test('MBRS003 store：33隔离备份与恢复默认库保留目录旧行和raw�
   } finally { db.close(); }
 });
 
-test('MBRS003 store：未来34与篡改33扫描DDL均拒冷开备份和隔离恢复，原字节不被恢复改写', async t => {
+test('MBRS003 store：未来35与篡改34扫描DDL均拒冷开备份和隔离恢复，原字节不被恢复改写', async t => {
   for (const kind of ['future', 'ddl'] as const) {
     const f = await copy31(t), repository = createCollectionRepository({ filePath: f.file });
     try { repository.list({ offset: 0, limit: 1 }); } finally { repository.close(); }
     const db = new DatabaseSync(f.file);
-    try { db.exec(kind === 'future' ? 'PRAGMA user_version=34' : 'DROP INDEX local_scan_batches_job'); } finally { db.close(); }
+    try { db.exec(kind === 'future' ? 'PRAGMA user_version=35' : 'DROP INDEX local_scan_batches_job'); } finally { db.close(); }
     const before = await readFile(f.file);
     assert.throws(() => readBackupIndex(f.file)); assert.throws(() => isolateRestoredDatabase(f.file));
     assert.deepEqual(await readFile(f.file), before);

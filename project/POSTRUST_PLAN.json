@@ -32136,9 +32136,9 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "1eb7f90902967e0d9fcaf59f88895827dfb74d3f",
       "report_commit": null,
-      "validation_status": "LOCAL_SOFTWARE_AND_BOUNDED_APP_PASS_PRODUCT_PARTIAL_PROVIDER_FAILED",
+      "validation_status": "LOCAL_PRODUCT_AND_SCHEMA34_COMPATIBILITY_PASS_NEW_SOURCE_CI_PENDING",
       "evidence_refs": [
         "docs/postrust/MBRS-010/EXECUTION_SCOPE.json",
         "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",

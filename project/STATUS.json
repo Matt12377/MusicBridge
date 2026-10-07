@@ -46323,10 +46323,10 @@
   },
   "mbrs010ArtworkSelectionCache": {
     "task": "MBRS-010",
-    "state": "IN_PROGRESS_LOCAL_EVIDENCE_READY_FOR_AUDIT_COMMIT",
+    "state": "IN_PROGRESS_CI_COMPATIBILITY_FIX_LOCAL_GATES_PASS",
     "branch": "codex/mbrs-010-artwork-selection-cache",
     "baseCommit": "0a9c211805cdaecf56c699fe0c264590a0839e0e",
-    "implementationCommit": null,
+    "implementationCommit": "1eb7f90902967e0d9fcaf59f88895827dfb74d3f",
     "reportCommit": null,
     "scope": "docs/postrust/MBRS-010/EXECUTION_SCOPE.json",
     "originalAcceptanceCount": 7,
@@ -46367,7 +46367,134 @@
       "ordinaryApp": "PASS_NEW_PRODUCTION_BUILD_CUA_MISSING_AND_EMBEDDED_REOPEN"
     },
     "ci": {
-      "state": "PENDING_NATURAL_SOURCE_PUSH_CI"
+      "initialSource": {
+        "workflows": 4,
+        "jobs": 6,
+        "passJobs": 4,
+        "failJobs": 2,
+        "failedSteps": [
+          "MBRS002 本地合同 Gate",
+          "Electron end-to-end flow (Playwright, production build)"
+        ],
+        "snapshot": {
+          "archiveId": "MBRS010_FIRST_SOURCE_CI_FAILURE",
+          "fileName": "source-20261007t092420381385z.json",
+          "bytes": 98113,
+          "sha256": "1125f3e19f09b1bde96868c0370d02c5119fc8f92c51fe5a2bb53ab147b58f22",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      },
+      "current": "PENDING_NEW_COMPATIBILITY_FIX_SOURCE_CI"
+    },
+    "implementationCommitResolution": "初实现已push；兼容性修正提交和精确源自然CI待解析",
+    "legacySchemaCompatibility": {
+      "firstSourceSha": "1eb7f90902967e0d9fcaf59f88895827dfb74d3f",
+      "firstSourceCi": {
+        "workflows": 4,
+        "jobs": 6,
+        "passJobs": 4,
+        "failJobs": 2,
+        "failedSteps": [
+          "MBRS002 本地合同 Gate",
+          "Electron end-to-end flow (Playwright, production build)"
+        ],
+        "snapshot": {
+          "archiveId": "MBRS010_FIRST_SOURCE_CI_FAILURE",
+          "fileName": "source-20261007t092420381385z.json",
+          "bytes": 98113,
+          "sha256": "1125f3e19f09b1bde96868c0370d02c5119fc8f92c51fe5a2bb53ab147b58f22",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      },
+      "changedScope": "NESTED_AND_E2E_CURRENT_SCHEMA_EXPECTATIONS_ONLY_PRODUCT_SOURCES_UNCHANGED",
+      "legacyFixtureBytesAndOriginalTestListsBudgets": "UNCHANGED",
+      "redWithoutBindings": {
+        "tests": 26,
+        "pass": 16,
+        "fail": 10,
+        "receipt": {
+          "archiveId": "MBRS010_SCHEMA34_PREPARATION_RED",
+          "fileName": "schema34-compat-red.json",
+          "bytes": 843,
+          "sha256": "989e1b403009e790133c4d2d1f02fda5c706868209124e1c450490dee5a3dfe9",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      },
+      "redWithVerifiedBindings": {
+        "tests": 26,
+        "pass": 18,
+        "fail": 8,
+        "receipt": {
+          "archiveId": "MBRS010_SCHEMA34_PREPARED_RED",
+          "fileName": "schema34-compat-red-prepared.json",
+          "bytes": 860,
+          "sha256": "051284c0cbcbfd424293c4ea30f836bebf80834f3883971d69cb032d2e074c2c",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      },
+      "greenWithVerifiedBindings": {
+        "tests": 26,
+        "pass": 26,
+        "fail": 0,
+        "receipt": {
+          "archiveId": "MBRS010_SCHEMA34_GREEN",
+          "fileName": "schema34-compat-green.json",
+          "bytes": 845,
+          "sha256": "d0ab4f9df12b50c94da75947e9957e674581861d8db0b63e398a97588d1acc15",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      },
+      "legacyGates": {
+        "002": {
+          "tests": 67,
+          "pass": 67,
+          "fail": 0,
+          "exitCode": 0,
+          "manifest": {
+            "archiveId": "MBRS010_LEGACY_002_GREEN",
+            "fileName": "manifest.json",
+            "bytes": 313126,
+            "sha256": "1b45c2ef9f5327252241bd023c453471369c355f67f8c7652a82cc1dfcb3e3f7",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+            "publiclyDownloadable": false
+          }
+        },
+        "003": {
+          "tests": 124,
+          "pass": 124,
+          "fail": 0,
+          "exitCode": 0,
+          "manifest": {
+            "archiveId": "MBRS010_LEGACY_003_GREEN",
+            "fileName": "manifest.json",
+            "bytes": 1530546,
+            "sha256": "04dfd2426a3377e8c43bb51e22e4830b8b1313213b5da29b16f93f8d66d85158",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+            "publiclyDownloadable": false
+          }
+        }
+      },
+      "electronE2e": {
+        "testFiles": 3,
+        "pass": 10,
+        "fail": 0,
+        "skipped": 0,
+        "exitCode": 0,
+        "receipt": {
+          "archiveId": "MBRS010_SCHEMA34_ELECTRON_E2E",
+          "fileName": "schema34-e2e.json",
+          "bytes": 1067,
+          "sha256": "a94313bce19bfd390daface241dc4cac41dddebc089ccd8e75e856542c383175",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      },
+      "priorFullVerificationBoundary": "083729完整回归与App对应的产品源码保持；本次只同步旧测试及范围登记，当前行为由67/124/10及提交后Gate、新自然CI补证。"
     }
   }
 }

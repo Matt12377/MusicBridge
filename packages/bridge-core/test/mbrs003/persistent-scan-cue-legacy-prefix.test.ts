@@ -47,7 +47,7 @@ test('真实旧七字段checkpoint含合法CUE前缀目录且200音频跨批时�
   const prepareCommand=randomUUID(),commitCommand=randomUUID();repo.localScan.privatePrepareBatch({commandId:prepareCommand,jobId:running.jobId,batch:legacy});
   const committed=repo.localScan.privateCommitBatch({commandId:commitCommand,jobId:running.jobId,batchId:legacy.batchId,expectedRevision:running.jobRevision});
   const paused=repo.localScan.pause({commandId:randomUUID(),jobId:running.jobId,expectedRevision:committed.jobRevision});
-  const old=sql(file);assert.equal(old.tables.length,117);assert.deepEqual(repo.localScan.privateCheckpoint(running.jobId)!.frontier,['A','~cue-v1/Z']);assert.equal(repo.localScan.privateCueAwareCheckpoint(running.jobId),false);
+  const old=sql(file);assert.equal(old.tables.length,121);assert.deepEqual(repo.localScan.privateCheckpoint(running.jobId)!.frontier,['A','~cue-v1/Z']);assert.equal(repo.localScan.privateCueAwareCheckpoint(running.jobId),false);
   const legacyRow=old.batches.find(row=>row.id===legacy.batchId)!;assert.deepEqual(JSON.parse(String(legacyRow.request)),legacy);assert.equal(JSON.parse(String(legacyRow.result)).kind,undefined);
   const oldPrepare=old.receipts.find(row=>row.command_id===prepareCommand)!,oldCommit=old.receipts.find(row=>row.command_id===commitCommand)!,oldCheckpoint=old.checkpoints.find(row=>row.batch_id===legacy.batchId)!;
   repo.close();repo=createCollectionRepository({filePath:file});assert.deepEqual(repo.localScan.privateCheckpoint(running.jobId)!.frontier,['A','~cue-v1/Z']);assert.equal(repo.localScan.privateCueAwareCheckpoint(running.jobId),false);
@@ -65,7 +65,7 @@ test('真实旧七字段checkpoint含合法CUE前缀目录且200音频跨批时�
   assert.deepEqual(job.progress,{visited:'201',accepted:'201',rejected:'0'});assert.equal(reads,201);assert.equal(repo.localCatalog.pageTracks({offset:0,limit:200}).total,201);
   const last=repo.localScan.privateFileState(root.id,'~cue-v1/Z/last.wav');assert.ok(last && last.value.assetId && last.value.trackId);assert.equal(last.value.outcome,'accepted');assert.equal(repo.localScan.privateCueAwareCheckpoint(job.jobId),false);
   const all=[...repo.localCatalog.pageTracks({offset:0,limit:200}).items,...repo.localCatalog.pageTracks({offset:200,limit:200}).items];assert.equal(new Set(all.map(v=>v.id)).size,201);assert.equal(new Set(all.map(v=>v.assetId)).size,201);for(const track of all) assert.equal(track.segment,null);
-  const complete=sql(file);assert.equal(complete.tables.length,117);assert.equal(complete.tables.some(row=>String(row.name).startsWith('local_cue_')),false);
+  const complete=sql(file);assert.equal(complete.tables.length,121);assert.equal(complete.tables.some(row=>String(row.name).startsWith('local_cue_')),false);
   for(const row of complete.batches) assert.equal(JSON.parse(String(row.request)).kind,undefined,'无CUE实际发现时原音频批不得升级tag');
   await coordinator.close();assert.equal(p.admission.resourceCounts().permits,0);p.admission.close();repo.close();
   const cold=createCollectionRepository({filePath:file});try {assert.deepEqual(cold.localScan.get(job.jobId),job);assert.deepEqual(cold.localScan.privateFileState(root.id,'~cue-v1/Z/last.wav'),last);assert.equal(cold.localCatalog.pageTracks({offset:0,limit:200}).total,201);assert.equal(cold.localScan.privateCueAwareCheckpoint(job.jobId),false);}finally{cold.close();}

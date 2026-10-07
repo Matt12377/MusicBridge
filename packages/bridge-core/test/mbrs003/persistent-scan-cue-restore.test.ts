@@ -63,8 +63,8 @@ async function seed(t:test.TestContext) {
   t.after(()=>opened.close());
   const source=repo.sources.authorize(randomUUID(),await authorizeSourceDirectory(media));
   const root=repo.localCatalog.registerRoot({commandId:randomUUID(),sourceRootId:source.id,role:'library'});
-  // 无真实CUE发现前，新的33库仍只有原五张扫描表。
-  assert.equal(databaseFacts(opened.databaseFile).tables.length,117);
+  // 无真实CUE发现前，新的34库保留原五张扫描表并增加四张封面表。
+  assert.equal(databaseFacts(opened.databaseFile).tables.length,121);
   const p=projection(opened.datasetId),coordinator=createLocalScanCoordinator({repository:repo,datasetId:opened.datasetId,assertCurrent:()=>opened.assertIdentity(),projection:p.port,
     reader:(await loadFreshMetadataReader()).createMetadataReader(),cueReader:(await freshCueReader()).createCueSidecarReader()});
   try {
@@ -81,7 +81,7 @@ async function seed(t:test.TestContext) {
   const overrideCommand=randomUUID(),override=repo.localCatalog.overrideMetadata({commandId:overrideCommand,trackId:track.id,expectedRevision:null,fields:{title:'备份人工标题'}});
   const metadata=repo.localCatalog.metadata(track.id),observations=repo.localCatalog.observations(track.id),receipt=repo.localCatalog.receipt(overrideCommand);
   assert.equal(metadata.raw.title,raw.fields.title);assert.equal(metadata.effective.title,'备份人工标题');
-  const facts=databaseFacts(opened.databaseFile);assert.equal(facts.version,33);assert.equal(facts.tables.length,119);
+  const facts=databaseFacts(opened.databaseFile);assert.equal(facts.version,34);assert.equal(facts.tables.length,123);
   assert.deepEqual(facts.tables.filter(v=>v.name.startsWith('local_cue_')).map(v=>[v.name,v.rows.length]),[['local_cue_sources',1],['local_cue_tracks',2]]);
   assert.ok(facts.tables.find(v=>v.name==='local_catalog_ledger')!.rows.length>0);
   assert.ok(facts.tables.find(v=>v.name==='local_scan_receipts')!.rows.length>0);
@@ -194,7 +194,7 @@ test('实际CUE备份快照注入partial扩展后索引、隔离恢复与冷开�
   const injected=new DatabaseSync(partialFile,{allowExtension:false});
   // 原Repository在cold-open核验前设置WAL；本故障图先进入其正常日志模式，主字节保护不误测DELETE→WAL策略。
   try {injected.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=OFF; DROP TABLE local_cue_tracks;');} finally {injected.close();}
-  const before=databaseFacts(partialFile),bytes=await readFile(partialFile);assert.equal(before.version,33);assert.equal(before.tables.length,118);
+  const before=databaseFacts(partialFile),bytes=await readFile(partialFile);assert.equal(before.version,34);assert.equal(before.tables.length,122);
   assert.deepEqual(before.tables.filter(v=>v.name.startsWith('local_cue_')).map(v=>v.name),['local_cue_sources']);
   assert.equal(before.tables.find(v=>v.name==='local_cue_sources')!.rows.length,1);
   const unchanged=async()=>{assert.deepEqual(await readFile(partialFile),bytes);assert.deepEqual(databaseFacts(partialFile),before);};

@@ -40,3 +40,5 @@
 009结果见[本地音乐库报告](../reports/MBRS-009_LOCAL_LIBRARY_UI.md)：220项Gate、当前生产E2E、受控243首普通CUA及精确源码四条自然CI分层通过；009-03原十万首NOT_TESTED、真实Roon/音频/旧收藏和根迁移/Owner继续待验。53/167按专项与既有路径套件分组；旧导航文件内另有1新守卫，详见报告计数澄清。原源码及CI修复公开push分别经直接Owner明确授权后成功，三次自动审批未执行记录保留。报告远端 HEAD 0a9c211805cdaecf56c699fe0c264590a0839e0e，报告自然 CI 两条 workflow、三个 job 均 success；最终封存状态 FINITE_SOFTWARE_DELIVERY_SEALED_LIVE_CARRYOVER_OPEN。010 从该最终报告基线正式接入；011/014预检完成待010/011最终报告HEAD及共同合同，不冒充产品完成。
 
 2026-10-07 封面进展见[010本地验证记录](../reports/MBRS-010_WORK_IN_PROGRESS.md)：专项184包含在完整回归内，不重复累加；七项原验收均保留PARTIAL，Provider失败不能标接入完成。主线剩010→011→014→012→013→016→017，015可选；全部由原MusicBridge V3.9会话继续，开发测试由Codex负责。
+
+2026-10-07 010首轮源码CI失败保留：4个job通过、2个job失败；跨阶段schema34期望修正后67项/124项原软件门禁及10项受影响Electron E2E通过，新修复提交自然CI与审计报告待。Provider与真实拖入缺口仍保留。
