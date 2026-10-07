@@ -167,6 +167,10 @@ export const PUBLIC_API_KEYS = [
   'chooseLocalRelocationCandidates',
   'confirmLocalRelocation',
   'relinkLocalLibraryRoot',
+  'queryLocalLibraryTracks',
+  'getLocalLibraryTrackDetail',
+  'getLocalLibraryPlaybackTarget',
+  'overrideLocalLibraryMetadata',
   'localLibraryScan',
   'listLocalLibraryTracks',
   'getLocalLibraryAsset',
@@ -639,7 +643,7 @@ export function createPreloadApi(
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
   return Object.freeze({
-    ...(localLibraryApi ?? { playLocalLibraryTrack:collectionUnavailable,listLocalLibraryRoots:collectionUnavailable, chooseLocalLibraryRoot:collectionUnavailable, chooseLocalRelocationCandidates:collectionUnavailable, confirmLocalRelocation:collectionUnavailable, relinkLocalLibraryRoot:collectionUnavailable, localLibraryScan:collectionUnavailable, listLocalLibraryTracks:collectionUnavailable, getLocalLibraryAsset:collectionUnavailable, getLocalLibraryMetadata:collectionUnavailable}),
+    ...(localLibraryApi ?? { playLocalLibraryTrack:collectionUnavailable,listLocalLibraryRoots:collectionUnavailable, chooseLocalLibraryRoot:collectionUnavailable, chooseLocalRelocationCandidates:collectionUnavailable, confirmLocalRelocation:collectionUnavailable, relinkLocalLibraryRoot:collectionUnavailable,queryLocalLibraryTracks:collectionUnavailable,getLocalLibraryTrackDetail:collectionUnavailable,getLocalLibraryPlaybackTarget:collectionUnavailable,overrideLocalLibraryMetadata:collectionUnavailable,localLibraryScan:collectionUnavailable, listLocalLibraryTracks:collectionUnavailable, getLocalLibraryAsset:collectionUnavailable, getLocalLibraryMetadata:collectionUnavailable}),
     ...(libraryReadApi ? { readLibrary: libraryReadApi.readLibrary, cancelLibraryRead: libraryReadApi.cancelLibraryRead } : {}),
     setAppearanceTheme,
     ...(collectionReadonlyApi ?? { getCollectionReadonlySettings: collectionUnavailable, setCollectionReadonlyEnabled: collectionUnavailable, refreshCollection: collectionUnavailable }),

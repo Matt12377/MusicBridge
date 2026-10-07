@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "kind": "OFFICIAL_ELECTRON_ARCHIVE_AND_CURRENT_DIST",
+  "version": "43.4.0",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "assetName": "electron-v43.4.0-darwin-arm64.zip",
+  "archivePath": "/Volumes/LifeWeave/Developer/CommandLine/Caches/Electron/63857c95525ff62c967a319a9c3921773c3420b77c6ebce7f47c8c76e68d9e11/electron-v43.4.0-darwin-arm64.zip",
+  "archiveSha256": "827f9f182566f46846377575b51c547b9926b111637313a373b6f717462aebac",
+  "packageRoot": "/Volumes/LifeWeave/VSCode/MusicBridge/node_modules/.pnpm/electron@43.4.0/node_modules/electron",
+  "treeSha256": "c5e4bfd4a56e67e4fc0463606654101474ef86e965dc26615f204843f62b1041",
+  "archiveEntries": 585,
+  "fileEntries": 275,
+  "executablePath": "/Volumes/LifeWeave/VSCode/MusicBridge/node_modules/.pnpm/electron@43.4.0/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+  "executableSha256": "1af684f056a8eb13e49fbd677072e437316086b076e3b9b92de3ddb343edc5b1"
+}

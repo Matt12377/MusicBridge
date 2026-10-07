@@ -3,14 +3,15 @@ import { isMBEditionQueueRequest, type MBEditionQueueRequest, type MBEditionQueu
 import { isLocalSourcePrivatePayload, type LocalSourcePrivatePayload, type LocalSourceCaptureResult } from './local-source-ticket-types.js';
 import type { LocalPlayRequest } from '@music-bridge/contracts';
 import {LOCAL_RELOCATION_COMMANDS,isLocalRelocationCommand,isLocalRelocationInternalCommand,isLocalRelocationCommandResult} from '@music-bridge/contracts';
-import { LOCAL_CATALOG_COMMANDS, LOCAL_SCAN_COMMANDS, isLocalScanInternalCommand, isLocalCatalogInternalCommand } from '@music-bridge/contracts';
+import { LOCAL_CATALOG_COMMANDS, LOCAL_LIBRARY_READ_COMMANDS, LOCAL_SCAN_COMMANDS, isLocalScanInternalCommand, isLocalCatalogInternalCommand } from '@music-bridge/contracts';
 import { IPC_VERSION, isCollectionId, isCollectionModel, isCommandOutboxDatasetId, isRoonAlbumReference, isDigitalAlbumMetadata, isDraftTrackMetadata, validateIpcRequest, validateIpcResponse, validateIpcResponseForCommand,
   type CollectionModel, type IpcCommand, type IpcFailure, type IpcRequest, type PageRequest, type RoonLibraryPage, type DigitalAlbumMetadata, type DraftTrackMetadata } from '@music-bridge/contracts';
 
 export const DATASET_OWNER_PROTOCOL_VERSION = 1 as const;
-// 来自当前领域作者COMMAND_MAP的208个明确命令；新命令必须显式加入，不能按前缀自动授权。
+// 原领域作者命令及本地库只读入口组成固定闭集；新命令必须显式加入，不能按前缀自动授权。
 export const DATASET_COMMANDS = [
   ...LOCAL_CATALOG_COMMANDS,
+  ...LOCAL_LIBRARY_READ_COMMANDS,
   ...LOCAL_SCAN_COMMANDS, ...LOCAL_RELOCATION_COMMANDS,
   'localCatalog.prepare',
   'recordingBackups.activationReceipt',

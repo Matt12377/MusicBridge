@@ -18,6 +18,7 @@ const props = withDefaults(defineProps<{
   emptyGlyph?: string
   matchStates?: Readonly<Record<string, MatchState>>
   scrollTop?: number
+  rangeWindow?: { total: number; entries: readonly { index: number; track: TrackSummary }[] }
 }>(), {
   showArtwork: true,
   busy: false,
@@ -39,6 +40,7 @@ const emit = defineEmits<{
   'play-next': [track: TrackSummary]
   'load-more': []
   'update:scrollTop': [scrollTop: number]
+  'visible-range': [start: number, end: number]
 }>()
 
 const contextTrack = ref<TrackSummary | null>(null)
@@ -49,9 +51,10 @@ const virtualScrollTop = ref(0)
 const virtualViewportHeight = ref(620)
 const VIRTUALIZATION_THRESHOLD = 200
 const TRACK_ROW_HEIGHT = 84
-const isVirtualized = computed(() => props.tracks.length > VIRTUALIZATION_THRESHOLD)
+const rowCount = computed(() => props.rangeWindow?.total ?? props.tracks.length)
+const isVirtualized = computed(() => props.rangeWindow !== undefined || props.tracks.length > VIRTUALIZATION_THRESHOLD)
 const virtualWindow = computed(() => calculateVirtualWindow(
-  props.tracks.length,
+  rowCount.value,
   virtualScrollTop.value,
   virtualViewportHeight.value,
   TRACK_ROW_HEIGHT,
@@ -59,6 +62,14 @@ const virtualWindow = computed(() => calculateVirtualWindow(
 const renderedTracks = computed(() => isVirtualized.value
   ? props.tracks.slice(virtualWindow.value.start, virtualWindow.value.end)
   : props.tracks)
+const renderedRows = computed(() => {
+  if (!props.rangeWindow) return renderedTracks.value.map((track, index) => ({ track, index: trackIndex(index) }))
+  const cached = new Map(props.rangeWindow.entries.map(entry => [entry.index, entry.track]))
+  return Array.from({ length: virtualWindow.value.end - virtualWindow.value.start }, (_, offset) => {
+    const index = virtualWindow.value.start + offset
+    return { index, track: cached.get(index) }
+  })
+})
 let observer: IntersectionObserver | undefined
 
 const isInitialLoading = () => (props.initialLoading || props.busy) && props.tracks.length === 0
@@ -150,6 +161,10 @@ watch(() => [props.hasMore, props.loadMoreError, props.tracks.length, props.load
   void nextTick(observeSentinel)
 })
 watch(() => props.scrollTop, () => void nextTick(restoreVirtualScroll))
+watch(() => [rowCount.value, isVirtualized.value], () => void nextTick(restoreVirtualScroll))
+watch(() => [virtualWindow.value.start, virtualWindow.value.end, props.rangeWindow?.total], () => {
+  if (props.rangeWindow) emit('visible-range', virtualWindow.value.start, virtualWindow.value.end)
+}, { immediate: true })
 onUnmounted(() => {
   document.removeEventListener('click', closeContextMenu)
   observer?.disconnect()
@@ -159,37 +174,40 @@ onUnmounted(() => {
 <template>
   <div class="track-table-wrap">
     <div v-if="isInitialLoading()" class="empty-state track-table-state"><span class="loading-line"></span><p>正在读取歌曲…</p></div>
-    <div v-else-if="!props.tracks.length" class="empty-state track-table-state">
+    <div v-else-if="!rowCount" class="empty-state track-table-state">
       <span class="empty-glyph" aria-hidden="true">{{ props.emptyGlyph }}</span>
       <h3>{{ props.emptyTitle }}</h3>
       <p>{{ props.emptyCopy }}</p>
     </div>
-    <div v-else ref="virtualViewport" class="track-table" :class="{ 'is-virtualized': isVirtualized, 'track-table-no-artwork': !props.showArtwork }" role="table" aria-label="歌曲列表" @scroll="onVirtualScroll">
+    <div v-else ref="virtualViewport" class="track-table" :class="{ 'is-virtualized': isVirtualized, 'is-range-window': !!props.rangeWindow, 'track-table-no-artwork': !props.showArtwork }" role="table" aria-label="歌曲列表" :aria-colcount="3" :aria-rowcount="props.rangeWindow ? rowCount + 1 : undefined" @scroll="onVirtualScroll">
       <div class="track-table-header" role="row">
-        <span>#</span><span>歌曲</span><span>专辑</span><span>时长</span><span class="visually-hidden">操作</span>
+        <span role="columnheader">歌曲</span><span role="columnheader">时长</span><span role="columnheader">操作</span>
       </div>
       <div v-if="isVirtualized" aria-hidden="true" :style="{ height: `${virtualWindow.topSpacer}px` }"></div>
-      <div
-        v-for="(track, index) in renderedTracks"
-        :key="track.id"
+      <template v-for="entry in renderedRows" :key="entry.track?.id ?? `loading-${entry.index}`">
+      <div v-if="entry.track" :key="entry.track.id"
         class="track-row"
         role="row"
+        :aria-rowindex="props.rangeWindow ? entry.index + 2 : undefined"
         :tabindex="props.busy ? -1 : 0"
         :aria-disabled="props.busy ? 'true' : undefined"
-        @dblclick="requestPlay(track)"
-        @keydown.enter.self.prevent="requestPlay(track)"
-        @contextmenu="showContextMenu($event, track)"
+        @dblclick="requestPlay(entry.track)"
+        @keydown.enter.self.prevent="requestPlay(entry.track)"
+        @contextmenu="showContextMenu($event, entry.track)"
       >
-        <span class="track-index" aria-hidden="true"><span class="track-number">{{ trackIndex(index) + 1 }}</span><span class="track-play-mark">▶</span></span>
-        <TrackArtwork v-if="props.showArtwork" class="track-art" :track="track" :alt="`${track.title} 封面`" />
-        <span class="track-copy"><strong>{{ track.title }}</strong><small>{{ track.artists.join('、') }}<span v-if="track.album" class="track-inline-album"> · {{ track.album }}</span></small><span v-if="track.version || props.matchStates?.[track.id] === 'CONFIRMED' || props.matchStates?.[track.id] === 'POSSIBLE'" class="track-quality-details"><span v-if="track.version">{{ track.version }}</span><span v-if="props.matchStates?.[track.id] === 'CONFIRMED'" class="track-source-badge">Roon 已匹配</span><span v-else-if="props.matchStates?.[track.id] === 'POSSIBLE'" class="track-source-badge is-muted" title="存在多个候选，保持 Provider 播放">Smart 匹配不唯一</span></span></span>
-        <span class="track-album">{{ track.album }}</span>
-        <span class="track-duration">{{ formatDuration(track.durationMs) }}</span>
-        <span class="row-actions">
-          <button type="button" class="row-action" :disabled="props.busy" :aria-label="`播放 ${track.title}`" @click.stop="requestPlay(track)">▶</button>
-          <button type="button" class="row-action row-action-more" :aria-label="`打开 ${track.title} 的更多操作`" @click.stop="showContextMenu($event, track)">•••</button>
+        <span class="track-index" aria-hidden="true"><span class="track-number">{{ entry.index + 1 }}</span><span class="track-play-mark">▶</span></span>
+        <TrackArtwork v-if="props.showArtwork" class="track-art" :track="entry.track" alt="" aria-hidden="true" />
+        <span class="track-copy" role="cell"><strong>{{ entry.track.title }}</strong><small>{{ entry.track.artists.join('、') }}<span v-if="entry.track.album" class="track-inline-album"> · {{ entry.track.album }}</span></small><span v-if="entry.track.version || props.matchStates?.[entry.track.id] === 'CONFIRMED' || props.matchStates?.[entry.track.id] === 'POSSIBLE'" class="track-quality-details"><span v-if="entry.track.version">{{ entry.track.version }}</span><span v-if="props.matchStates?.[entry.track.id] === 'CONFIRMED'" class="track-source-badge">Roon 已匹配</span><span v-else-if="props.matchStates?.[entry.track.id] === 'POSSIBLE'" class="track-source-badge is-muted" title="存在多个候选，保持 Provider 播放">Smart 匹配不唯一</span></span></span>
+        <span class="track-album" aria-hidden="true">{{ entry.track.album }}</span>
+        <span class="track-duration" role="cell">{{ formatDuration(entry.track.durationMs) }}</span>
+        <span class="row-actions" role="cell">
+          <button type="button" class="row-action" :disabled="props.busy" :aria-label="`播放 ${entry.track.title}`" @click.stop="requestPlay(entry.track)">▶</button>
+          <button type="button" class="row-action row-action-more" :aria-label="`打开 ${entry.track.title} 的更多操作`" @click.stop="showContextMenu($event, entry.track)">•••</button>
+          <slot name="row-detail" :track="entry.track" />
         </span>
       </div>
+      <div v-else class="track-row track-row-placeholder" role="row" :aria-rowindex="entry.index + 2" aria-disabled="true"><span class="track-index" aria-hidden="true">{{ entry.index + 1 }}</span><span class="track-copy" role="cell">正在读取这一页…</span><span class="placeholder-cell" role="cell">时长暂未读取</span><span class="placeholder-cell" role="cell">操作暂不可用</span></div>
+      </template>
       <div v-if="isVirtualized" aria-hidden="true" :style="{ height: `${virtualWindow.bottomSpacer}px` }"></div>
     </div>
 
@@ -218,3 +236,20 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.track-table .track-table-header, .track-table .placeholder-cell { display: flex !important; position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.track-table.is-range-window .track-row { height: 84px; min-height: 84px; grid-template-columns: 24px 64px minmax(0, 1fr) 60px 142px; }
+.track-table.is-range-window.track-table-no-artwork .track-row { grid-template-columns: 24px minmax(0, 1fr) 60px 142px; }
+.track-table.is-range-window .row-actions { width: 142px; opacity: 1; display: flex; gap: 5px; grid-column: auto; }
+.track-table.is-range-window .row-actions button { display: inline-flex; flex: 0 0 44px; width: 44px; min-width: 44px; min-height: 44px; padding-inline: 0; align-items: center; justify-content: center; }
+.track-table.is-range-window .track-row-placeholder .track-copy { grid-column: 3; color: var(--mb-text-secondary); }
+.track-table.is-range-window.track-table-no-artwork .track-row-placeholder .track-copy { grid-column: 2; }
+.track-table.is-range-window button:focus-visible, .track-table.is-range-window .track-row:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: -2px; }
+@media (max-width: 800px) {
+  .track-table.is-range-window .track-row, .track-table.is-range-window.track-table-no-artwork .track-row { grid-template-columns: minmax(0, 1fr) 142px; gap: 8px; }
+  .track-table.is-range-window .track-row .track-index, .track-table.is-range-window .track-row .track-art { display: none; }
+  .track-table.is-range-window .track-row .track-duration { display: block; position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .track-table.is-range-window .track-row-placeholder .track-copy, .track-table.is-range-window.track-table-no-artwork .track-row-placeholder .track-copy { grid-column: 1; }
+}
+</style>

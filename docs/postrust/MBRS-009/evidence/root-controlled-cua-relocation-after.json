@@ -1,0 +1,70 @@
+{
+  "schema": "mbrs009.owned-cua-relocation-proof.v1",
+  "at": "2026-10-07T00:21:23.115378+00:00",
+  "before": {
+    "assetId": "64c8c07f-46e8-46a1-9c55-1e8bba7768cb",
+    "relative": "009-version-b.wav",
+    "asset": {
+      "id": "64c8c07f-46e8-46a1-9c55-1e8bba7768cb",
+      "libraryRootId": "deaab62e-e74c-47f5-aa38-f324828cee17",
+      "sourceRootId": "85457390-4eb0-4114-8167-e6f7da140f3b",
+      "rootRevision": "1",
+      "fileRevision": "1",
+      "locationRevision": "1",
+      "sampleFrames": null,
+      "timebaseHz": null
+    },
+    "trackId": "57f15b5f-57a1-41b2-8685-7c5c42720feb",
+    "track": {
+      "id": "57f15b5f-57a1-41b2-8685-7c5c42720feb",
+      "assetId": "64c8c07f-46e8-46a1-9c55-1e8bba7768cb",
+      "selectionRevision": "1",
+      "segment": null
+    },
+    "override": {
+      "trackId": "57f15b5f-57a1-41b2-8685-7c5c42720feb",
+      "revision": "1",
+      "fields": {
+        "title": "合成主题 (Live) · MB显示更正"
+      }
+    }
+  },
+  "after": {
+    "assetId": "64c8c07f-46e8-46a1-9c55-1e8bba7768cb",
+    "relative": "009-version-b-renamed.wav",
+    "asset": {
+      "id": "64c8c07f-46e8-46a1-9c55-1e8bba7768cb",
+      "libraryRootId": "deaab62e-e74c-47f5-aa38-f324828cee17",
+      "sourceRootId": "85457390-4eb0-4114-8167-e6f7da140f3b",
+      "rootRevision": "1",
+      "fileRevision": "1",
+      "locationRevision": "2",
+      "sampleFrames": null,
+      "timebaseHz": null
+    },
+    "trackId": "57f15b5f-57a1-41b2-8685-7c5c42720feb",
+    "track": {
+      "id": "57f15b5f-57a1-41b2-8685-7c5c42720feb",
+      "assetId": "64c8c07f-46e8-46a1-9c55-1e8bba7768cb",
+      "selectionRevision": "1",
+      "segment": null
+    },
+    "override": {
+      "trackId": "57f15b5f-57a1-41b2-8685-7c5c42720feb",
+      "revision": "1",
+      "fields": {
+        "title": "合成主题 (Live) · MB显示更正"
+      }
+    }
+  },
+  "sameAssetAndTrack": true,
+  "overridePreserved": true,
+  "trackCount": 243,
+  "sourceAudioSha256": "76b98e7d6d55287652681db86aaaa37179bd89f2ce20d9addf5789f88b8aac35",
+  "sourceAudioUnchanged": true,
+  "onlyNativeCuaRelocationConfirmed": true,
+  "noDirectDatabaseMutation": true,
+  "existingFavoritesWithThisTrack": "NOT_PRESENT_IN_OWN_FIXTURE_NOT_A_FAVORITES_ACCEPTANCE",
+  "fileParameterUiAfterRelocation": "UNKNOWN_CURRENT_PARSER_FACT_NOT_CONFIRMED",
+  "realSourceFilesChanged": false
+}

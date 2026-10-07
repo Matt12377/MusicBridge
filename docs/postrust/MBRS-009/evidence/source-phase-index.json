@@ -1,0 +1,509 @@
+{
+  "schema": "mbrs009.source-phase-evidence-index.v1",
+  "createdAt": "2026-10-07T00:32:58.618985+00:00",
+  "baseFinalReportSha": "418389708ca9400dbe347da448a829b9481dbb84",
+  "candidate": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/CANDIDATE_02.json",
+    "bytes": 178564,
+    "sha256": "36e6c34fd80b300e0c8dc952247069bc6aeb278a6fa288d0b612e4c9772c03f2"
+  },
+  "entries": [
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/CANDIDATE_02.json",
+        "bytes": 178564,
+        "sha256": "36e6c34fd80b300e0c8dc952247069bc6aeb278a6fa288d0b612e4c9772c03f2"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/writer-candidate-02.json",
+        "bytes": 178564,
+        "sha256": "36e6c34fd80b300e0c8dc952247069bc6aeb278a6fa288d0b612e4c9772c03f2"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_CANDIDATE_02_CHECK.json",
+        "bytes": 163197,
+        "sha256": "9130bc8262a31737ec7b95bb64aca9e8c117db399713278c6e03d192e91dae0f"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-candidate-02-check.json",
+        "bytes": 163197,
+        "sha256": "9130bc8262a31737ec7b95bb64aca9e8c117db399713278c6e03d192e91dae0f"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/INITIAL_PLAN_INVARIANTS.json",
+        "bytes": 838,
+        "sha256": "32c8093a25ff93bbb0048e61a5b58ee84dd4edf8148dbc7867308456ddf6cb3b"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/initial-plan-invariants.json",
+        "bytes": 838,
+        "sha256": "32c8093a25ff93bbb0048e61a5b58ee84dd4edf8148dbc7867308456ddf6cb3b"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_R1_REPAIR_PLAN.json",
+        "bytes": 3957,
+        "sha256": "474d52f02268fc7ee079c4b316a5d7ddd7f27d34fbe8ddc7f7202dec582f674b"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-r1-repair-plan.json",
+        "bytes": 3957,
+        "sha256": "474d52f02268fc7ee079c4b316a5d7ddd7f27d34fbe8ddc7f7202dec582f674b"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_R1_PLAN_INVARIANTS.json",
+        "bytes": 462,
+        "sha256": "3b9f035435baed54ef69a8cc5967f4ddaee76759c52d1f0d69df251875ce1daa"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-r1-plan-invariants.json",
+        "bytes": 462,
+        "sha256": "3b9f035435baed54ef69a8cc5967f4ddaee76759c52d1f0d69df251875ce1daa"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_FORMAL_R2_CHECK.json",
+        "bytes": 32435,
+        "sha256": "e8b4095eecbe1b8ea1ead967d2797552e2fbc4fb2ed74b7b793aff056bd61daf"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-formal-r2-check.json",
+        "bytes": 32435,
+        "sha256": "e8b4095eecbe1b8ea1ead967d2797552e2fbc4fb2ed74b7b793aff056bd61daf"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/BOUNDARY_R1.json",
+        "bytes": 53923,
+        "sha256": "a1ebe4a39bde33fb5d997a8c5e9aa1916a1b16aaeece7161ed81747ad3149491"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/boundary-r1.json",
+        "bytes": 53923,
+        "sha256": "a1ebe4a39bde33fb5d997a8c5e9aa1916a1b16aaeece7161ed81747ad3149491"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R1.json",
+        "bytes": 40148,
+        "sha256": "ef6ecb3fc23e7f6cca51b1fdd17e9398464ee5857af6376e844e2c077d8fea48"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/ui-r1.json",
+        "bytes": 40148,
+        "sha256": "ef6ecb3fc23e7f6cca51b1fdd17e9398464ee5857af6376e844e2c077d8fea48"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R1.md",
+        "bytes": 8354,
+        "sha256": "26335a5e1468f1096cb65e4759977208faa80ecde886fa61341f1576fc124e4b"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/ui-r1.md",
+        "bytes": 8354,
+        "sha256": "26335a5e1468f1096cb65e4759977208faa80ecde886fa61341f1576fc124e4b"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/BOUNDARY_R2.json",
+        "bytes": 96362,
+        "sha256": "1a70428513efad4130bc259cf2a8c98af028e7a49d27c9749ea8f9857ff5010b"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/boundary-r2.json",
+        "bytes": 96362,
+        "sha256": "1a70428513efad4130bc259cf2a8c98af028e7a49d27c9749ea8f9857ff5010b"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R2.json",
+        "bytes": 61027,
+        "sha256": "64abd39e181a26166f33728cdb9c9b602dc4018eac84cfea15ab8112c99d0d94"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/ui-r2.json",
+        "bytes": 61027,
+        "sha256": "64abd39e181a26166f33728cdb9c9b602dc4018eac84cfea15ab8112c99d0d94"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R2.md",
+        "bytes": 12101,
+        "sha256": "4a6a87494a1156d21c185bf0c8da0d76acce36f08407690c9adadd0a2c0319e8"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/ui-r2.md",
+        "bytes": 12101,
+        "sha256": "4a6a87494a1156d21c185bf0c8da0d76acce36f08407690c9adadd0a2c0319e8"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_FINAL_SCOPE_FREEZE.json",
+        "bytes": 934,
+        "sha256": "04ecde156689f8d4a3e97108b4263125af40616cdaaf687ffab2ea3136a82154"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-final-scope-freeze.json",
+        "bytes": 934,
+        "sha256": "04ecde156689f8d4a3e97108b4263125af40616cdaaf687ffab2ea3136a82154"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_SSR_FIXTURE_REPAIR.json",
+        "bytes": 962,
+        "sha256": "f39a9383a72d3cf4e14fcf2dfabef6a9b642d40dfa9a334bac3e5aabf53bda29"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-ssr-fixture-repair.json",
+        "bytes": 962,
+        "sha256": "f39a9383a72d3cf4e14fcf2dfabef6a9b642d40dfa9a334bac3e5aabf53bda29"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-01/result.json",
+        "bytes": 1564,
+        "sha256": "9827bcdc71cd879c08f86849dd52811761794f9f004046db81b2a131900216e9"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-gate-01-failed-receipt.json",
+        "bytes": 1564,
+        "sha256": "9827bcdc71cd879c08f86849dd52811761794f9f004046db81b2a131900216e9"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-01/gate-output/manifest.json",
+        "bytes": 253770,
+        "sha256": "607e8a3129f55887e15467e03ac8a08884b35cb1935c83ddd32e950d6813c20a"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-gate-01-failed-manifest.json",
+        "bytes": 253770,
+        "sha256": "607e8a3129f55887e15467e03ac8a08884b35cb1935c83ddd32e950d6813c20a"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/result.json",
+        "bytes": 1563,
+        "sha256": "9259b1c73103e21df0c87df00b55e875cbbbf7d87fda9789508886240ccb5eb5"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-gate-02-receipt.json",
+        "bytes": 1563,
+        "sha256": "9259b1c73103e21df0c87df00b55e875cbbbf7d87fda9789508886240ccb5eb5"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/manifest.json",
+        "bytes": 257323,
+        "sha256": "abc7db943b0a327ad38c12448271fc7d4c077b06a617c859a21cc14a75fa3a4d"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-gate-02-manifest.json",
+        "bytes": 257323,
+        "sha256": "abc7db943b0a327ad38c12448271fc7d4c077b06a617c859a21cc14a75fa3a4d"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_GATE_02_CHECK.json",
+        "bytes": 1341,
+        "sha256": "d9f8bc6b4536086e293e94df1296b058aeaa106f5272411ae678182f27522624"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
+        "bytes": 1341,
+        "sha256": "d9f8bc6b4536086e293e94df1296b058aeaa106f5272411ae678182f27522624"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-build-02/result.json",
+        "bytes": 110663,
+        "sha256": "73fd140fd2d2bf8fdcd289925e4ca01575c167156b41a5880226b294b8e236d8"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/production-build-02.json",
+        "bytes": 110663,
+        "sha256": "73fd140fd2d2bf8fdcd289925e4ca01575c167156b41a5880226b294b8e236d8"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/electron-identity-01/receipt.json",
+        "bytes": 966,
+        "sha256": "695ac293be37ca9c9320ed2eaad4d0956ad45cbf76eb37fef9850af89aca0aa8"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/electron-identity.json",
+        "bytes": 966,
+        "sha256": "695ac293be37ca9c9320ed2eaad4d0956ad45cbf76eb37fef9850af89aca0aa8"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/electron-identity-01/result.json",
+        "bytes": 332,
+        "sha256": "bd389c1a35d5e3f0c6b440cdb4314e807d54aada3aac863c33605dc3d9a08013"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/electron-identity-result.json",
+        "bytes": 332,
+        "sha256": "bd389c1a35d5e3f0c6b440cdb4314e807d54aada3aac863c33605dc3d9a08013"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-e2e-01/result.json",
+        "bytes": 1425,
+        "sha256": "5eff8267cbf8eb6279d80009e945703b349e861b4fc6952b5731c07dd6a33371"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/production-e2e-01.json",
+        "bytes": 1425,
+        "sha256": "5eff8267cbf8eb6279d80009e945703b349e861b4fc6952b5731c07dd6a33371"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-e2e-01/tmp/musicbridge-playwright-report.json",
+        "bytes": 3478,
+        "sha256": "de28267f10a1a7b3af7a902c61d4785be3e6762ca0ae9851ced031ae317e5467"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/production-e2e-report.json",
+        "bytes": 3478,
+        "sha256": "de28267f10a1a7b3af7a902c61d4785be3e6762ca0ae9851ced031ae317e5467"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-e2e-01/tmp/mbrs009-ui-DLpMLW/source-byte-preservation.json",
+        "bytes": 6394,
+        "sha256": "8d1cb5ab441ea069150c9b028712d86206c29cf291660ccaeb74bd3967fd79ee"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/production-e2e-source-proof.json",
+        "bytes": 6394,
+        "sha256": "8d1cb5ab441ea069150c9b028712d86206c29cf291660ccaeb74bd3967fd79ee"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_CONTROLLED_APP_02_OBSERVATIONS.json",
+        "bytes": 7378,
+        "sha256": "7185628aeb00bd2348b912b9d6d63dd53addb55cd671fd98d1642b146da8b08d"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-controlled-cua.json",
+        "bytes": 7378,
+        "sha256": "7185628aeb00bd2348b912b9d6d63dd53addb55cd671fd98d1642b146da8b08d"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/controlled-app-02/launch.json",
+        "bytes": 1053,
+        "sha256": "1dcaa7affc4f8c67d3d313ce340120015c9d9c477bee361e2a48650656190395"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-controlled-cua-launch.json",
+        "bytes": 1053,
+        "sha256": "1dcaa7affc4f8c67d3d313ce340120015c9d9c477bee361e2a48650656190395"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/controlled-app-02/close.json",
+        "bytes": 216,
+        "sha256": "caca3f4612c7575edd8cfaae55015bab1fc826d94fcc61b71798523746386f28"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-controlled-cua-close.json",
+        "bytes": 216,
+        "sha256": "caca3f4612c7575edd8cfaae55015bab1fc826d94fcc61b71798523746386f28"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/controlled-app-fixtures/FIXTURE_MANIFEST.json",
+        "bytes": 50732,
+        "sha256": "36e45c7ee4750ad62671a859775d0553cdc7370f101aa7783ce2b9124aa0fee1"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-owned-fixture-creation.json",
+        "bytes": 50732,
+        "sha256": "36e45c7ee4750ad62671a859775d0553cdc7370f101aa7783ce2b9124aa0fee1"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_CUA_SOURCE_BYTE_CHECK.json",
+        "bytes": 63520,
+        "sha256": "8f9127530f2f54346a8798dc632c2e61b47c5db591b846ae5b7c1d01f0708f60"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-controlled-cua-source-bytes.json",
+        "bytes": 63520,
+        "sha256": "8f9127530f2f54346a8798dc632c2e61b47c5db591b846ae5b7c1d01f0708f60"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_OWNED_FIXTURE_RELOCATION_BEFORE.json",
+        "bytes": 1549,
+        "sha256": "38d798f91ae4829f7a43495ec3d31ef1e75dbc655870f2dc124b5f1b555e08ea"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-controlled-cua-relocation-before.json",
+        "bytes": 1549,
+        "sha256": "38d798f91ae4829f7a43495ec3d31ef1e75dbc655870f2dc124b5f1b555e08ea"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_OWNED_FIXTURE_RELOCATION_AFTER.json",
+        "bytes": 2348,
+        "sha256": "b23dd8d9545d95818396e3ad1bb634d65503779661a46b123b4f1b25796be594"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/root-controlled-cua-relocation-after.json",
+        "bytes": 2348,
+        "sha256": "b23dd8d9545d95818396e3ad1bb634d65503779661a46b123b4f1b25796be594"
+      }
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-e2e-01/results/mbrs009-local-library-009正式离线App复用Node扫描、原导航与共享表格；仅显示更正不改源字节/009-controlled-product-ui.png",
+        "bytes": 246288,
+        "sha256": "4b539f898541f17879b0090527ac6939ecfa60cdeac0fc36a457211a687d0ef8"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/009-controlled-product-ui.png",
+        "bytes": 246288,
+        "sha256": "4b539f898541f17879b0090527ac6939ecfa60cdeac0fc36a457211a687d0ef8"
+      },
+      "layer": "ENGINEERING_PRODUCTION_E2E_NOT_CUA_CAPTURE"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-e2e-01/results/mbrs009-local-library-009正式离线App复用Node扫描、原导航与共享表格；仅显示更正不改源字节/009-table-1024px.png",
+        "bytes": 333250,
+        "sha256": "461240286a82cffa84061e330758d1c7ad2bc86336377276682dccd71b340469"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/009-table-1024px.png",
+        "bytes": 333250,
+        "sha256": "461240286a82cffa84061e330758d1c7ad2bc86336377276682dccd71b340469"
+      },
+      "layer": "ENGINEERING_PRODUCTION_E2E_NOT_CUA_CAPTURE"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-e2e-01/results/mbrs009-local-library-009正式离线App复用Node扫描、原导航与共享表格；仅显示更正不改源字节/009-table-720px.png",
+        "bytes": 216628,
+        "sha256": "ee7d364371c2b5f603adb0a0e29b64ee06547a1d45a789223fd58b65d351fd8b"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/009-table-720px.png",
+        "bytes": 216628,
+        "sha256": "ee7d364371c2b5f603adb0a0e29b64ee06547a1d45a789223fd58b65d351fd8b"
+      },
+      "layer": "ENGINEERING_PRODUCTION_E2E_NOT_CUA_CAPTURE"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-e2e-01/results/mbrs009-local-library-009正式离线App复用Node扫描、原导航与共享表格；仅显示更正不改源字节/009-table-780px.png",
+        "bytes": 242297,
+        "sha256": "0dbd0621a34c39aba9a310837cb8c0b34ca21ce40a08bc4219a3fe878bc2f2d9"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/009-table-780px.png",
+        "bytes": 242297,
+        "sha256": "0dbd0621a34c39aba9a310837cb8c0b34ca21ce40a08bc4219a3fe878bc2f2d9"
+      },
+      "layer": "ENGINEERING_PRODUCTION_E2E_NOT_CUA_CAPTURE"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-e2e-01/results/mbrs009-local-library-009正式离线App复用Node扫描、原导航与共享表格；仅显示更正不改源字节/009-table-800px.png",
+        "bytes": 248515,
+        "sha256": "636bbb70996d483758bf5003ed344c465ec944bb8a157cc625003d3bf314856e"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/009-table-800px.png",
+        "bytes": 248515,
+        "sha256": "636bbb70996d483758bf5003ed344c465ec944bb8a157cc625003d3bf314856e"
+      },
+      "layer": "ENGINEERING_PRODUCTION_E2E_NOT_CUA_CAPTURE"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-e2e-01/results/mbrs009-local-library-009正式离线App复用Node扫描、原导航与共享表格；仅显示更正不改源字节/009-table-801px.png",
+        "bytes": 260908,
+        "sha256": "2c618318f10b20e179b57c2c37eacca8de5414ab856e09411dd57640f2eff07d"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/009-table-801px.png",
+        "bytes": 260908,
+        "sha256": "2c618318f10b20e179b57c2c37eacca8de5414ab856e09411dd57640f2eff07d"
+      },
+      "layer": "ENGINEERING_PRODUCTION_E2E_NOT_CUA_CAPTURE"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/STATE_MATRIX.json",
+        "bytes": 6253,
+        "sha256": "fd5b2342d3fcb15afe78194741773fd55b1a50531d2e9a0ae21204836903febb"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/state-matrix-r2-snapshot.json",
+        "bytes": 6253,
+        "sha256": "fd5b2342d3fcb15afe78194741773fd55b1a50531d2e9a0ae21204836903febb"
+      },
+      "layer": "HISTORICAL_FORMAL_REVIEW_INPUT_SNAPSHOT"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/mbrs009-local-library-ui-scope.json",
+        "bytes": 4312,
+        "sha256": "c27af09acea65cdaa52d435f1dc47f8c55d32168128aa725a9ed3dd916d6582d"
+      },
+      "repository": {
+        "path": "docs/postrust/MBRS-009/evidence/scope-count-freeze-snapshot.json",
+        "bytes": 4312,
+        "sha256": "c27af09acea65cdaa52d435f1dc47f8c55d32168128aa725a9ed3dd916d6582d"
+      },
+      "layer": "HISTORICAL_FORMAL_REVIEW_INPUT_SNAPSHOT"
+    }
+  ],
+  "formalReviewRoundsConsumed": 2,
+  "formalReviewRoundsRemaining": 0,
+  "r2CurrentDocumentationChange": "R2原STATE_MATRIX以原字节封存；Root仅更新当前证据层级，不改候选产品38文件、原验收、范围和预算。",
+  "scopePendingFields": "EXECUTION_SCOPE与countEvidence的待验字段均为冻结时点；实际后续RootGate、E2E、CUA、提交/CI按分层收据独立记录。",
+  "sourceCommit": "NOT_CREATED",
+  "githubSourceCi": "NOT_RUN",
+  "githubReportCi": "NOT_RUN",
+  "current100k": "NOT_RUN",
+  "realRoonAudioNasOwner": "NOT_RUN"
+}

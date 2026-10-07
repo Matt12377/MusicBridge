@@ -1,0 +1,1976 @@
+{
+  "schema": "mbrs009.root-cua-source-byte-check.v1",
+  "at": "2026-10-07T00:22:35.638227+00:00",
+  "creationManifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/controlled-app-fixtures/FIXTURE_MANIFEST.json",
+    "bytes": 50732,
+    "sha256": "36e45c7ee4750ad62671a859775d0553cdc7370f101aa7783ce2b9124aa0fee1"
+  },
+  "freshHashVerified": 244,
+  "permissionFaultUntouchedNoFreshHash": 1,
+  "ownedFileManuallyRenamed": 1,
+  "productSourceAudioWrite": false,
+  "realFilesTouched": false,
+  "checks": [
+    {
+      "createdName": "009-synthetic-0001.wav",
+      "currentName": "009-synthetic-0001.wav",
+      "bytes": 16524,
+      "sha256": "69f902a14ae849a59401ec2294efec59435bf580233f5d8b138d48279b941420",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0002.wav",
+      "currentName": "009-synthetic-0002.wav",
+      "bytes": 16524,
+      "sha256": "8a10addc05c9167433c1fc6494b3d6e3f97032cb1fb56e96f17c07e21c5e265f",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0003.wav",
+      "currentName": "009-synthetic-0003.wav",
+      "bytes": 16524,
+      "sha256": "f1658924d2918f66519ad0046f545f5d1de4fac6a16ebc42f8c55c1448405ec6",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0004.wav",
+      "currentName": "009-synthetic-0004.wav",
+      "bytes": 16524,
+      "sha256": "7f89bf092d2ed4456e62c3f85a1cf7e4ca5bb23fcdbdc598234144e5437507f7",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0005.wav",
+      "currentName": "009-synthetic-0005.wav",
+      "bytes": 16524,
+      "sha256": "b7ea740bffaec958cbda3624f071172f6fe512a1356e31924325f0e93d1e6560",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0006.wav",
+      "currentName": "009-synthetic-0006.wav",
+      "bytes": 16524,
+      "sha256": "1d240a060a9916744459f0d7b5c2d94c462dedff1cc01ac3c72fa191fdf06d3b",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0007.wav",
+      "currentName": "009-synthetic-0007.wav",
+      "bytes": 16524,
+      "sha256": "4d55edb3224b4858ae666744808438dcdda4316719b473a942bb13f1cb6870dc",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0008.wav",
+      "currentName": "009-synthetic-0008.wav",
+      "bytes": 16524,
+      "sha256": "4969130d3c9f386a08a83136429628671428434dc56361dfe1ac6afaca79a376",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0009.wav",
+      "currentName": "009-synthetic-0009.wav",
+      "bytes": 16524,
+      "sha256": "b292214f96d9557c1082e631b7cacd79835fb8e63bcd2dee2b770c65a2d957b4",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0010.wav",
+      "currentName": "009-synthetic-0010.wav",
+      "bytes": 16524,
+      "sha256": "d1a90918299fea15cee53edef76733a45825c15a5ad319ca0768325a5b7a053d",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0011.wav",
+      "currentName": "009-synthetic-0011.wav",
+      "bytes": 16524,
+      "sha256": "93c25ae1e80232e852c77a38382b15e1d2db5db60c0d9dc19f46e8d6548e8a13",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0012.wav",
+      "currentName": "009-synthetic-0012.wav",
+      "bytes": 16524,
+      "sha256": "1db46731d62d83d03a466902ea81e20a6bf179d641aca7a4d80cbb17277ad9ac",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0013.wav",
+      "currentName": "009-synthetic-0013.wav",
+      "bytes": 16524,
+      "sha256": "6104d0a8bf80c9a7106bea9f7918f12635aeefad4a61d6d13211f4bfbd4dd13d",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0014.wav",
+      "currentName": "009-synthetic-0014.wav",
+      "bytes": 16524,
+      "sha256": "82f75d8cf687795d1009828cf75ff24e7506efe635180428029761200803be3c",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0015.wav",
+      "currentName": "009-synthetic-0015.wav",
+      "bytes": 16524,
+      "sha256": "42220ec141e40202729bd748374f014d59c82595a9bd7b379853e149c46695a7",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0016.wav",
+      "currentName": "009-synthetic-0016.wav",
+      "bytes": 16524,
+      "sha256": "9643169b0c930dcece8ec903de62f153a3b5ab7084416e5ab732f2dc5d052b20",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0017.wav",
+      "currentName": "009-synthetic-0017.wav",
+      "bytes": 16524,
+      "sha256": "6d339e0fe7c6e66a8e7de17ce08a03b78252d03cac2fa41bfcb4db67c749021f",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0018.wav",
+      "currentName": "009-synthetic-0018.wav",
+      "bytes": 16524,
+      "sha256": "6c9099be8de468bc91cb3dc34cd594d1b55c39d613a6df9d20aa2c30b2d2b575",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0019.wav",
+      "currentName": "009-synthetic-0019.wav",
+      "bytes": 16524,
+      "sha256": "c5f25d3519ace9356f1b375281079a8d610091504f4c128b5e877616d9ad8331",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0020.wav",
+      "currentName": "009-synthetic-0020.wav",
+      "bytes": 16524,
+      "sha256": "e5900eb11a8409345fd61ae30e11c0d5d06a3fd3970106eb5f667dccbbeebc93",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0021.wav",
+      "currentName": "009-synthetic-0021.wav",
+      "bytes": 16524,
+      "sha256": "797a72ddf29ecb88305aea121459b3e82c446ac5a602c85f1fb69026343c1ca7",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0022.wav",
+      "currentName": "009-synthetic-0022.wav",
+      "bytes": 16524,
+      "sha256": "e516bea8cef1b2f6e177f0008e99def8f02ab1cca39ea2d5e0cdd8461e9104d9",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0023.wav",
+      "currentName": "009-synthetic-0023.wav",
+      "bytes": 16524,
+      "sha256": "b725b811e95ef2cc259fb31b981ba86937c0b5f604514b1170b6652b9ff4cc2b",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0024.wav",
+      "currentName": "009-synthetic-0024.wav",
+      "bytes": 16524,
+      "sha256": "e6216ced677f17e603541c20f3b6f560e3304c09cf2dc6601dda2d6b9320f8fc",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0025.wav",
+      "currentName": "009-synthetic-0025.wav",
+      "bytes": 16524,
+      "sha256": "57d2a276eb31ac27c0f7601c148183c4fe85b56193550c5003f26d519dd26098",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0026.wav",
+      "currentName": "009-synthetic-0026.wav",
+      "bytes": 16524,
+      "sha256": "6a360d628cdd9d428a66f22db1525ac1697cc6bb7c0c26abc0cd2d45f51cf1b7",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0027.wav",
+      "currentName": "009-synthetic-0027.wav",
+      "bytes": 16524,
+      "sha256": "68696ad86e844aebaf1628cdfc0063ef891777c3364943b2e3b9b282cc26ee2e",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0028.wav",
+      "currentName": "009-synthetic-0028.wav",
+      "bytes": 16524,
+      "sha256": "6a396f99987d1441dea21c4265f9f7f595dad0c8eb1c2a97c4fd15f31d7e7760",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0029.wav",
+      "currentName": "009-synthetic-0029.wav",
+      "bytes": 16524,
+      "sha256": "7177cd2e23d1db087762ff796281dc4904083691b7837c4b920faa60e165aa91",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0030.wav",
+      "currentName": "009-synthetic-0030.wav",
+      "bytes": 16524,
+      "sha256": "2814b27a1de676facd3a6eac00588d0ff58c0f538ccbeb68d29c29f658763cb5",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0031.wav",
+      "currentName": "009-synthetic-0031.wav",
+      "bytes": 16524,
+      "sha256": "c0d6944edf5f05bf66286f0ed43ebfe078cc7bdaa2793e732d91df3918741ac8",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0032.wav",
+      "currentName": "009-synthetic-0032.wav",
+      "bytes": 16524,
+      "sha256": "6210e6a7c1c930c61612c80da70f870b86c2d97c17c472aaf426966d42fc45db",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0033.wav",
+      "currentName": "009-synthetic-0033.wav",
+      "bytes": 16524,
+      "sha256": "74395beea35e0010975d3b446ef414ddba656dc9c93a69c4bba3bd8da18ff294",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0034.wav",
+      "currentName": "009-synthetic-0034.wav",
+      "bytes": 16524,
+      "sha256": "e80cadddf316fe7004d17cb32bc62b95df0f4a901838b6729500b212cfa8c63f",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0035.wav",
+      "currentName": "009-synthetic-0035.wav",
+      "bytes": 16524,
+      "sha256": "7cd99bcda11d49d7263996782def631cd7c8e9f319331be57af4bb35a150d7d3",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0036.wav",
+      "currentName": "009-synthetic-0036.wav",
+      "bytes": 16524,
+      "sha256": "58b47568e7fda17e49e20510666a050451a13de90db086163bf67b26b9579e80",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0037.wav",
+      "currentName": "009-synthetic-0037.wav",
+      "bytes": 16524,
+      "sha256": "649b7ecacd472582437022cfadab47041d653e858dcb1e50db16c547fe8051c9",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0038.wav",
+      "currentName": "009-synthetic-0038.wav",
+      "bytes": 16524,
+      "sha256": "bd3528ee42cbf1d8f5207971bf067eca3dcf4a62ac64f3cbf3db2d8199b08872",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0039.wav",
+      "currentName": "009-synthetic-0039.wav",
+      "bytes": 16524,
+      "sha256": "b922ae987654bed606d01dbe8c29fdebed8f1ad82ffccb0d96f3c30ed2bc477c",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0040.wav",
+      "currentName": "009-synthetic-0040.wav",
+      "bytes": 16524,
+      "sha256": "7d6c7a1006c89d82bd8bd24b7b8052e7344d13152ee663c5456c8e3973e08494",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0041.wav",
+      "currentName": "009-synthetic-0041.wav",
+      "bytes": 16524,
+      "sha256": "c43ba6607b885ca0a1cc21fe8ab46b88f5f602c54b075483df9e16bf9e2b2de5",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0042.wav",
+      "currentName": "009-synthetic-0042.wav",
+      "bytes": 16524,
+      "sha256": "f610afc01afee2e09099e1bc88c1ff00310f9b5d5a1596069946d8ed040d0ea8",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0043.wav",
+      "currentName": "009-synthetic-0043.wav",
+      "bytes": 16524,
+      "sha256": "7dc6d8031f6f4830bc21a692620f86807b3463adfc342d5ee04bba48f54f14d8",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0044.wav",
+      "currentName": "009-synthetic-0044.wav",
+      "bytes": 16524,
+      "sha256": "8bf29b4e4fc4a88d5907a98c5cbd60e7bd002dfe42892be0cf19651740a867ac",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0045.wav",
+      "currentName": "009-synthetic-0045.wav",
+      "bytes": 16524,
+      "sha256": "79abf12fac0d77c2e644879598fed187cf3bc0927f1383cbb15de50c4a22badc",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0046.wav",
+      "currentName": "009-synthetic-0046.wav",
+      "bytes": 16524,
+      "sha256": "9cd9f860cc136dc130eff104a898adfce6efacf812f8bc24aa56f2c0d6ca18a3",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0047.wav",
+      "currentName": "009-synthetic-0047.wav",
+      "bytes": 16524,
+      "sha256": "0564527cfe2c27423e15b5f12984ae998690aa654fba341a2a1b89d9e5a48023",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0048.wav",
+      "currentName": "009-synthetic-0048.wav",
+      "bytes": 16524,
+      "sha256": "1be7d47c8b49fe76152cd5f043c1ade1e760a15b2829a834b9d93f04d0231d7b",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0049.wav",
+      "currentName": "009-synthetic-0049.wav",
+      "bytes": 16524,
+      "sha256": "c9f324de85c0eb25d6bc063ba997ecbc947a15078bb9e5eed9145be65fd28c06",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0050.wav",
+      "currentName": "009-synthetic-0050.wav",
+      "bytes": 16524,
+      "sha256": "aa7b310455db036c69526d845325db6fc2509fb5ca050b68ba02ad7993b09c6e",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0051.wav",
+      "currentName": "009-synthetic-0051.wav",
+      "bytes": 16524,
+      "sha256": "703b8aee42e929335475c42254e4dc1b534e0b063c35ae516b1538f7ff04f0dd",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0052.wav",
+      "currentName": "009-synthetic-0052.wav",
+      "bytes": 16524,
+      "sha256": "836e4991cf90b78557f85e3a42415c64f3693fff2a43adac3b1b9c8fbcefd645",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0053.wav",
+      "currentName": "009-synthetic-0053.wav",
+      "bytes": 16524,
+      "sha256": "9097087079300298e9d1472470d69a3f6225b377655fbe75f37ddbdeae30340c",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0054.wav",
+      "currentName": "009-synthetic-0054.wav",
+      "bytes": 16524,
+      "sha256": "6c4ca773b32dd9bad81c50c19ae16d64ad9cff5fd01254eae9090229fdbb0950",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0055.wav",
+      "currentName": "009-synthetic-0055.wav",
+      "bytes": 16524,
+      "sha256": "9aa4536776d0db05425f9e97532ab6b918c2a16bcbf172bc11b0d564bfbf7edb",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0056.wav",
+      "currentName": "009-synthetic-0056.wav",
+      "bytes": 16524,
+      "sha256": "1d7681404e5c3d17565127212ecfe749f5ffb41553ffe4e91a03f0a0fc516a75",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0057.wav",
+      "currentName": "009-synthetic-0057.wav",
+      "bytes": 16524,
+      "sha256": "95bab7acfc8032bb378e627dd13724cb0827497a02b9a9c32c3684c9eef418bc",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0058.wav",
+      "currentName": "009-synthetic-0058.wav",
+      "bytes": 16524,
+      "sha256": "c93550a8d6bcda9cefd8917f89eafa9a8298fc5714bf1d723bb3c166ef141cc8",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0059.wav",
+      "currentName": "009-synthetic-0059.wav",
+      "bytes": 16524,
+      "sha256": "e659298861db956a0ed4c56e1132e1f0f0b34c0d25aeb5720b34625b3a843a2a",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0060.wav",
+      "currentName": "009-synthetic-0060.wav",
+      "bytes": 16524,
+      "sha256": "ced0070735a1d63d9703998c5b03ec5a8e44f1e1ffc8e999556b344cee484aaa",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0061.wav",
+      "currentName": "009-synthetic-0061.wav",
+      "bytes": 16524,
+      "sha256": "499c1bbedc6ee2708134b8593fa4670be7f3138295386ecc9d5d89e2271ea8b0",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0062.wav",
+      "currentName": "009-synthetic-0062.wav",
+      "bytes": 16524,
+      "sha256": "61993ffa8676b25805da8016d40b2310b01401a22ddf6b1481aaf239dc7f5c52",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0063.wav",
+      "currentName": "009-synthetic-0063.wav",
+      "bytes": 16524,
+      "sha256": "f69432aba34d81aff4f96ffe1574e5efffc7e667f7ff4095794b515461d3332e",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0064.wav",
+      "currentName": "009-synthetic-0064.wav",
+      "bytes": 16524,
+      "sha256": "b37631c6cf314a17a3100393545e316e84e5e0f67b585d8079567f0f94c32b94",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0065.wav",
+      "currentName": "009-synthetic-0065.wav",
+      "bytes": 16524,
+      "sha256": "205245274271f0ad7c5709760ec207fa18346cc7ec4c9b21c391abc64f44aae3",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0066.wav",
+      "currentName": "009-synthetic-0066.wav",
+      "bytes": 16524,
+      "sha256": "04e2a50dcee22dd4d755e71f11dcbe3cf2b8adcd3742c1cd4ee911be4021e69a",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0067.wav",
+      "currentName": "009-synthetic-0067.wav",
+      "bytes": 16524,
+      "sha256": "9f466fa665b5e7d77a1cb8a8585e707ff9a13ca063d50a6edc80bce25f00e4d3",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0068.wav",
+      "currentName": "009-synthetic-0068.wav",
+      "bytes": 16524,
+      "sha256": "847b103be32f4af145603e861ce73efee08be1ea0f93d9a510a3df95f45c20b9",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0069.wav",
+      "currentName": "009-synthetic-0069.wav",
+      "bytes": 16524,
+      "sha256": "ac9390665d1a1f643a09b7b26e98bc5a5ba07d45079d53f10bf1602fba164cc7",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0070.wav",
+      "currentName": "009-synthetic-0070.wav",
+      "bytes": 16524,
+      "sha256": "b88c3cf31d9ee1e82c0d5a558d9845a4564c1b3e95d8c9e0ced860637145795f",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0071.wav",
+      "currentName": "009-synthetic-0071.wav",
+      "bytes": 16524,
+      "sha256": "d1a5ce1a2e384503cbf3a1655127f18c9f8837b1e4ab6f2b8fc8d47d13a3d3c3",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0072.wav",
+      "currentName": "009-synthetic-0072.wav",
+      "bytes": 16524,
+      "sha256": "943320b08bc0073ebc263d05bfce504bbb081e9f23251f0f79164f92709ca525",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0073.wav",
+      "currentName": "009-synthetic-0073.wav",
+      "bytes": 16524,
+      "sha256": "305280bef55cd4754d45b5de033be5bd18794bc2a1f5bd30b5cdee9f150ac9c5",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0074.wav",
+      "currentName": "009-synthetic-0074.wav",
+      "bytes": 16524,
+      "sha256": "8feedf62e44fc157039d933063c868539aa3fa7abbd0865bf140b1bb98a0e84c",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0075.wav",
+      "currentName": "009-synthetic-0075.wav",
+      "bytes": 16524,
+      "sha256": "9d1241c5d42e7124a36d2ebbaa9af406a75c5271a40848e35df373afa76c82d6",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0076.wav",
+      "currentName": "009-synthetic-0076.wav",
+      "bytes": 16524,
+      "sha256": "dea43ca85d8838e2fbdfff956e5e770933fe9e1837cc3a8eae28221303fd0cdb",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0077.wav",
+      "currentName": "009-synthetic-0077.wav",
+      "bytes": 16524,
+      "sha256": "f305fe3034ecd4896cf9537a2f31517aad5f9719fd1284176ef996fea81caa73",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0078.wav",
+      "currentName": "009-synthetic-0078.wav",
+      "bytes": 16524,
+      "sha256": "7eae24d5c29bbbf9bdb59e045cdb2d26fa063b480b651844eba7d83ea2f83765",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0079.wav",
+      "currentName": "009-synthetic-0079.wav",
+      "bytes": 16524,
+      "sha256": "e6fce2b242e8a324865e28379320f47100cbf53c888ad49b7d8c1750b25a13db",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0080.wav",
+      "currentName": "009-synthetic-0080.wav",
+      "bytes": 16524,
+      "sha256": "41b7188fee0cc139eaaaddbee88eff1224e9bd7ac168aa4f11b5d74e39259b06",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0081.wav",
+      "currentName": "009-synthetic-0081.wav",
+      "bytes": 16524,
+      "sha256": "e75bc26b13cfe43325375ca560a2a29addcf4b01fa10fecdfd7cd0f0f5e43df8",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0082.wav",
+      "currentName": "009-synthetic-0082.wav",
+      "bytes": 16524,
+      "sha256": "7694e87e817689c571ec071bb22cc9f2cede0ff2cf172e7a08cdc5d2f99d45ba",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0083.wav",
+      "currentName": "009-synthetic-0083.wav",
+      "bytes": 16524,
+      "sha256": "f1a2d64d43190310645ec601e43390b0d36d2555b0e41c30056b29898aab7ed1",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0084.wav",
+      "currentName": "009-synthetic-0084.wav",
+      "bytes": 16524,
+      "sha256": "8aa8c37b19e04cf3cfe3e88112baf2dea79f4c1e2043498327d838c2c1e43154",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0085.wav",
+      "currentName": "009-synthetic-0085.wav",
+      "bytes": 16524,
+      "sha256": "5aae5493b81d2a59a043a7a9ba9374ebf66ef4bb24650fce7ac30ca6b8985a2d",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0086.wav",
+      "currentName": "009-synthetic-0086.wav",
+      "bytes": 16524,
+      "sha256": "2671da3c9de1f8db6e918c3d1eacc1d4c43c0d24db5dfdc5cfd128cfb50cd1b4",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0087.wav",
+      "currentName": "009-synthetic-0087.wav",
+      "bytes": 16524,
+      "sha256": "7e1814069836318a344cb3f56fc8246c3b8af5c3bcb8d9c1eed644a879546258",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0088.wav",
+      "currentName": "009-synthetic-0088.wav",
+      "bytes": 16524,
+      "sha256": "a6fc029a8e971494ab5a9e9d7f21f6571faf9ccbdf881c2c7797b8ed0aa01c5a",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0089.wav",
+      "currentName": "009-synthetic-0089.wav",
+      "bytes": 16524,
+      "sha256": "853653e6d2ba4eb7e1658ac3e25299bfcf59333f6504ceb3a0d715be817311f9",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0090.wav",
+      "currentName": "009-synthetic-0090.wav",
+      "bytes": 16524,
+      "sha256": "43e86348487ff48e5814bf0111495889c5385faaa712f4a3cd041455db0b6be6",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0091.wav",
+      "currentName": "009-synthetic-0091.wav",
+      "bytes": 16524,
+      "sha256": "3f7cd7a10117508c7337a9f3d1a541b68ef7fece2bfc31ba7072f4c7c46568da",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0092.wav",
+      "currentName": "009-synthetic-0092.wav",
+      "bytes": 16524,
+      "sha256": "51eb0edc6cc3ab318000d9f1c792227315b9471d7ec37321c407bc2c4e7d2d3d",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0093.wav",
+      "currentName": "009-synthetic-0093.wav",
+      "bytes": 16524,
+      "sha256": "4d2fa36693a34dc336426e0073c84e23edd08a9023944f6129304d7f39e5f937",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0094.wav",
+      "currentName": "009-synthetic-0094.wav",
+      "bytes": 16524,
+      "sha256": "68bc7180b9e8f6587af08f4402f338ce305dd6bfb3d7697884f954632dc03d13",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0095.wav",
+      "currentName": "009-synthetic-0095.wav",
+      "bytes": 16524,
+      "sha256": "d30b1a9461689fe30973b405140a9490d115c3566049b9557e82e0b90e07a937",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0096.wav",
+      "currentName": "009-synthetic-0096.wav",
+      "bytes": 16524,
+      "sha256": "ee5da9d56eb0cb9bed134679bbb51734720d9d59e6c6899ec391595ae7f97ddf",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0097.wav",
+      "currentName": "009-synthetic-0097.wav",
+      "bytes": 16524,
+      "sha256": "91a1f7010943164ae27d53d5798811d5ece54c9f9c59088b6a8f2b5106dbe458",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0098.wav",
+      "currentName": "009-synthetic-0098.wav",
+      "bytes": 16524,
+      "sha256": "52f2cd2cdb19d5bdcecd6a7451464283e0ef22dab8fce39b001fc0a47feca4ed",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0099.wav",
+      "currentName": "009-synthetic-0099.wav",
+      "bytes": 16524,
+      "sha256": "9ca3f54ba4acd8dfb11a2bf36d4e3f7f70b62557548bad8cf5befd58890c78be",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0100.wav",
+      "currentName": "009-synthetic-0100.wav",
+      "bytes": 16524,
+      "sha256": "793ff3e4ae9f5be656ebe3dd54378fced07eff0ade96b7751d96c459ca8ee5ca",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0101.wav",
+      "currentName": "009-synthetic-0101.wav",
+      "bytes": 16524,
+      "sha256": "6bb00d76480cce3ad7624b00ac11965e3ebd71c49c0ec7106afd1dd4543f3724",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0102.wav",
+      "currentName": "009-synthetic-0102.wav",
+      "bytes": 16524,
+      "sha256": "9ec7805770d257d2e70a7edcbec87328be98550698fc450e4351ed96619d20fd",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0103.wav",
+      "currentName": "009-synthetic-0103.wav",
+      "bytes": 16524,
+      "sha256": "628e2908d68d669c9f16f9f1ee5cd672550f984c05bed99309199680025dcba9",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0104.wav",
+      "currentName": "009-synthetic-0104.wav",
+      "bytes": 16524,
+      "sha256": "878f5c79c148ac0df1c120760387860b4e6a8b19728ac1bd64efccd656f92119",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0105.wav",
+      "currentName": "009-synthetic-0105.wav",
+      "bytes": 16524,
+      "sha256": "42e454358fd7823d000ac38b792929b9694c653122bbb122e582a843f332aaa4",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0106.wav",
+      "currentName": "009-synthetic-0106.wav",
+      "bytes": 16524,
+      "sha256": "9fb527396ab3e641ef4a5e90385e4ac2bb3b2e099986f734e05f5439dda690aa",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0107.wav",
+      "currentName": "009-synthetic-0107.wav",
+      "bytes": 16524,
+      "sha256": "557772a1d01642cee8958363f84a5309830e0beb21c9a396f86bf26b006ec341",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0108.wav",
+      "currentName": "009-synthetic-0108.wav",
+      "bytes": 16524,
+      "sha256": "f8e0b829cfc3a13c646575fe428f28b402b5ba3276d0530d39c3d3050762c34e",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0109.wav",
+      "currentName": "009-synthetic-0109.wav",
+      "bytes": 16524,
+      "sha256": "b6ca946d4c15a74d8ce29d8988a57f798d2357d799cee0639c9a89fc7470db7b",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0110.wav",
+      "currentName": "009-synthetic-0110.wav",
+      "bytes": 16524,
+      "sha256": "0c04928ec030f42d2aabe292c98880d42a06ca4d398be6f0fc86a8cf67829739",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0111.wav",
+      "currentName": "009-synthetic-0111.wav",
+      "bytes": 16524,
+      "sha256": "3a684a7599eca4e987c250aa203c4db50541348aa5874f63aae2d9d3b0e49699",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0112.wav",
+      "currentName": "009-synthetic-0112.wav",
+      "bytes": 16524,
+      "sha256": "dfaa0c1c420b1c31abc994b6af6fc7de9f8fe4cf8280bc4b74b8845d6278874a",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0113.wav",
+      "currentName": "009-synthetic-0113.wav",
+      "bytes": 16524,
+      "sha256": "0977649bc551aad5dfba537868ddbfceb690b531a357bd7b934f800f52558714",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0114.wav",
+      "currentName": "009-synthetic-0114.wav",
+      "bytes": 16524,
+      "sha256": "ec3ff6177a1b886f457e8fd105e5216c8d007ab492c7c6251e7c00f850b62384",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0115.wav",
+      "currentName": "009-synthetic-0115.wav",
+      "bytes": 16524,
+      "sha256": "c8fc7ae34fab73bf2a1ab74b40609b2c29c8f6d9bdb22014fd9a5e13c57eb52f",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0116.wav",
+      "currentName": "009-synthetic-0116.wav",
+      "bytes": 16524,
+      "sha256": "e102618f6445405989e676e2c2b417207e15d7b31e2ac7af7a7bfc538d226ac8",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0117.wav",
+      "currentName": "009-synthetic-0117.wav",
+      "bytes": 16524,
+      "sha256": "043143e7417e2ee47a7a44426d86f04e314a242085b7a883087f5e0f56c57f71",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0118.wav",
+      "currentName": "009-synthetic-0118.wav",
+      "bytes": 16524,
+      "sha256": "1f72ebb90c18742c4cb8a2245cb7c7941c656e89036d1a1ecd6431e6d98f613a",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0119.wav",
+      "currentName": "009-synthetic-0119.wav",
+      "bytes": 16524,
+      "sha256": "bc7bae474a98482976e7a637dc13b2209b815f793090226f7c9d2fa3b39d9150",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0120.wav",
+      "currentName": "009-synthetic-0120.wav",
+      "bytes": 16524,
+      "sha256": "33090d1893d37e66e1d86042c2754a58adf3fcce23cca6fde509188d71e62327",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0121.wav",
+      "currentName": "009-synthetic-0121.wav",
+      "bytes": 16524,
+      "sha256": "d2ee80c6ba9b7538ffbb56b551919632c179db5ece2ba653b0bb845857770ebb",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0122.wav",
+      "currentName": "009-synthetic-0122.wav",
+      "bytes": 16524,
+      "sha256": "e3fba24261d51b9a5ec355769b03663e7268ac13aa65ee262a471abb6974048f",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0123.wav",
+      "currentName": "009-synthetic-0123.wav",
+      "bytes": 16524,
+      "sha256": "f46bbbedf84f23044ee78956ef32f61efc238baeabcb7809fdee74547cef6d77",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0124.wav",
+      "currentName": "009-synthetic-0124.wav",
+      "bytes": 16524,
+      "sha256": "6e3be5e64cb1c070da32a8c2aa08597ec622b4d26a4c3904ccddc27a9e1df611",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0125.wav",
+      "currentName": "009-synthetic-0125.wav",
+      "bytes": 16524,
+      "sha256": "952f399bf2849ed4cc541175c149a258d13f01c7019bacd345dfd23ab3196ecb",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0126.wav",
+      "currentName": "009-synthetic-0126.wav",
+      "bytes": 16524,
+      "sha256": "5410c60d66e27b8b2788d0e8c48e3cef7103ae9a55bf9dd6a2088d55f8cfd768",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0127.wav",
+      "currentName": "009-synthetic-0127.wav",
+      "bytes": 16524,
+      "sha256": "0d82deb8150695fb3aed2ef23cf354397eb8f383e52389928039d8509e3d7147",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0128.wav",
+      "currentName": "009-synthetic-0128.wav",
+      "bytes": 16524,
+      "sha256": "0c312632ae02a12c44a8cd4fbc3db7979a04a04d186d37af7bbac9d2732c76c8",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0129.wav",
+      "currentName": "009-synthetic-0129.wav",
+      "bytes": 16524,
+      "sha256": "8b1cf9504af9605253b6a18bc962636b34615b8c7124eda8619e21af3e3d8afa",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0130.wav",
+      "currentName": "009-synthetic-0130.wav",
+      "bytes": 16524,
+      "sha256": "39b3e396b8a4c3846d0402d6b12dee8c3fafda9cb338fe75d1a8161f52bf0900",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0131.wav",
+      "currentName": "009-synthetic-0131.wav",
+      "bytes": 16524,
+      "sha256": "5bc97350ac46adedb7730062ac20bcef8fb4a70ecbffa936d4fcaca638ddedaf",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0132.wav",
+      "currentName": "009-synthetic-0132.wav",
+      "bytes": 16524,
+      "sha256": "516a4e2f861e9896297c11479744d96e5e28f36692a3f7a9d956fa39cd7d2f51",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0133.wav",
+      "currentName": "009-synthetic-0133.wav",
+      "bytes": 16524,
+      "sha256": "beb635755f851b55b421185a06e0273c36cb0a4a80655c375863023e749b0141",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0134.wav",
+      "currentName": "009-synthetic-0134.wav",
+      "bytes": 16524,
+      "sha256": "e16a17792413a17223e03d039d59b503e16636ab40916bff8f41eebdd762acb1",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0135.wav",
+      "currentName": "009-synthetic-0135.wav",
+      "bytes": 16524,
+      "sha256": "197b558c094f70922a6eec7646c103fea3fd65f5f367ba974e311a7f3a6f5e18",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0136.wav",
+      "currentName": "009-synthetic-0136.wav",
+      "bytes": 16524,
+      "sha256": "020abee7cab43cd7fd9100e99d2045ace761d0cd042b906d9819ebbe16799d8e",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0137.wav",
+      "currentName": "009-synthetic-0137.wav",
+      "bytes": 16524,
+      "sha256": "599fd132423a636afbeb56383b0fe97a22c0df2643a8aaea8a23cdd2165ece71",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0138.wav",
+      "currentName": "009-synthetic-0138.wav",
+      "bytes": 16524,
+      "sha256": "0a1941de002b1279ad5d182f1f861e5b076e2b98b61cf8022fef1b81e93e8ac1",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0139.wav",
+      "currentName": "009-synthetic-0139.wav",
+      "bytes": 16524,
+      "sha256": "f6909c9d5c5f720334a4bbc08bd27503cbd38593afc55ce804a6f40bd3e5ac50",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0140.wav",
+      "currentName": "009-synthetic-0140.wav",
+      "bytes": 16524,
+      "sha256": "384c0e1aaf12711931af2fdc0c19faa2ac90b0cd053cbe72ed4612d80eef20b4",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0141.wav",
+      "currentName": "009-synthetic-0141.wav",
+      "bytes": 16524,
+      "sha256": "246d1545bb0608db005e9a160115823906a3b23deaa93315e750bd4be495f774",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0142.wav",
+      "currentName": "009-synthetic-0142.wav",
+      "bytes": 16524,
+      "sha256": "7eba3b580a7f80ea5933c3363abbeec00b3ff69d72b308f41b8200a4b07feeaa",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0143.wav",
+      "currentName": "009-synthetic-0143.wav",
+      "bytes": 16524,
+      "sha256": "ba18beb8a09c4b0e7a240aad3c03dc99efd91ad087a37a26a6b4bd5e3597151a",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0144.wav",
+      "currentName": "009-synthetic-0144.wav",
+      "bytes": 16524,
+      "sha256": "b6d76564473132559699a65072fe7c9ae484e798da17a4b7ff5e6d2b3924e632",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0145.wav",
+      "currentName": "009-synthetic-0145.wav",
+      "bytes": 16524,
+      "sha256": "2fc475c9646785b7eb48bbae1acb4ae2764fb540fee8230b2909c8c41e668000",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0146.wav",
+      "currentName": "009-synthetic-0146.wav",
+      "bytes": 16524,
+      "sha256": "b71d67d4c1eac23f8bcacd89c1cc6cc63f433afefc5da9809615c1d37d0517bb",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0147.wav",
+      "currentName": "009-synthetic-0147.wav",
+      "bytes": 16524,
+      "sha256": "275ae6566e10daddd642ac696c3f1c612449ae8536baff523a657dcad1df801a",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0148.wav",
+      "currentName": "009-synthetic-0148.wav",
+      "bytes": 16524,
+      "sha256": "0c44292d3a11f851de36c92b6c95063fa09cf423111ef0f0cda6803355b0eb89",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0149.wav",
+      "currentName": "009-synthetic-0149.wav",
+      "bytes": 16524,
+      "sha256": "1aa1bcbe79315ec9ea04e2c8ed5388b1a464f258306b4cd7992c28c18b8aa529",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0150.wav",
+      "currentName": "009-synthetic-0150.wav",
+      "bytes": 16524,
+      "sha256": "a54f2a825b892b1c53922bbd0f994fc896dde9faa67f7a1eed6c28f7d1ee0ec1",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0151.wav",
+      "currentName": "009-synthetic-0151.wav",
+      "bytes": 16524,
+      "sha256": "009d59d477df485a60afefa38922c293cbe308acaccd9a6d95443ab87d22899b",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0152.wav",
+      "currentName": "009-synthetic-0152.wav",
+      "bytes": 16524,
+      "sha256": "c9567e5d11bd4cb2e889c97771a2c3fdf98c98f3ba72b7223bdbd89e217cc90a",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0153.wav",
+      "currentName": "009-synthetic-0153.wav",
+      "bytes": 16524,
+      "sha256": "7c917e38509e6d830da6ad77318eadd9efc125fe0d00b79b362e57b6d88f5556",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0154.wav",
+      "currentName": "009-synthetic-0154.wav",
+      "bytes": 16524,
+      "sha256": "3c3e0f99847e8e144c8d86e2d3e2e6777bd7045ae5ce763c89609b6d6a2413fb",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0155.wav",
+      "currentName": "009-synthetic-0155.wav",
+      "bytes": 16524,
+      "sha256": "304ad333fc7e1ae1a2cfee5c57182f0de9920b3c2fb7e60f511eaa9d07f7629f",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0156.wav",
+      "currentName": "009-synthetic-0156.wav",
+      "bytes": 16524,
+      "sha256": "42f19fc98bd9efbd5df74cb0405f98ee5afa0903c9dffc88dc52caace094f425",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0157.wav",
+      "currentName": "009-synthetic-0157.wav",
+      "bytes": 16524,
+      "sha256": "08b51d9ea2d146510137339d4df6075c19a10503f60b2561ca4233cba21d900c",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0158.wav",
+      "currentName": "009-synthetic-0158.wav",
+      "bytes": 16524,
+      "sha256": "442c51862dbf2c02bbc677f3f08430f65e3bd619fac00cc5af282f3a8bc43675",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0159.wav",
+      "currentName": "009-synthetic-0159.wav",
+      "bytes": 16524,
+      "sha256": "de4cd0772398e80eabbebe94cc6a5a0e7a6f7593385ec1f0cdea12fee9d93813",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0160.wav",
+      "currentName": "009-synthetic-0160.wav",
+      "bytes": 16524,
+      "sha256": "8d77f9f048ed8a865eff255f1bbbee17e3bd64f7586bf02a6395b3be0aaf8b29",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0161.wav",
+      "currentName": "009-synthetic-0161.wav",
+      "bytes": 16524,
+      "sha256": "337a4f1fbca76d63ad931c103a29cd4330cfef608e1f156d6511caee45a024b3",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0162.wav",
+      "currentName": "009-synthetic-0162.wav",
+      "bytes": 16524,
+      "sha256": "a13fe142830a517bff35efdf1654791afceb77fefe641d9083d7dd6e9712b2e7",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0163.wav",
+      "currentName": "009-synthetic-0163.wav",
+      "bytes": 16524,
+      "sha256": "e4db89f8ea418676e7f70f1654c106f61ef6fc9bb0638a043bdd18f4e9feb3ee",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0164.wav",
+      "currentName": "009-synthetic-0164.wav",
+      "bytes": 16524,
+      "sha256": "c6f72a97d33fca68a7b360e8c47237f1be787290bc78b76cf9b0a358c28af78f",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0165.wav",
+      "currentName": "009-synthetic-0165.wav",
+      "bytes": 16524,
+      "sha256": "2637e3b296cbc1ba66a4b74e32600a8eb7a0a629d0c128f1083603ad3f7b1944",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0166.wav",
+      "currentName": "009-synthetic-0166.wav",
+      "bytes": 16524,
+      "sha256": "77e04ac8f4fa562bb42eb74be807e2aec72228cb0bb5f6ca0d4738a9db4407cc",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0167.wav",
+      "currentName": "009-synthetic-0167.wav",
+      "bytes": 16524,
+      "sha256": "ee9c1ca78cf7e13d336d90b5ef93d4232cd0aefcb0351b67a7a7822424cdf3fa",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0168.wav",
+      "currentName": "009-synthetic-0168.wav",
+      "bytes": 16524,
+      "sha256": "deb2b61993c30a70798dde9289c32e93d56a604811775d30be71b0d0b855d3f9",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0169.wav",
+      "currentName": "009-synthetic-0169.wav",
+      "bytes": 16524,
+      "sha256": "a1259c68895f52984f3cbb646de11b10a2478ef75c4a0c468e83fcb479db5ef4",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0170.wav",
+      "currentName": "009-synthetic-0170.wav",
+      "bytes": 16524,
+      "sha256": "8db36d49ea218560431d27f65c470b5c9af09c045e4955789c35b602ffb093ad",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0171.wav",
+      "currentName": "009-synthetic-0171.wav",
+      "bytes": 16524,
+      "sha256": "30d5da3ebbcf45fc5e71d668cf4db9baa896c8759d4e9d69fdcef34b78a69edb",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0172.wav",
+      "currentName": "009-synthetic-0172.wav",
+      "bytes": 16524,
+      "sha256": "1e110b36286670e6a963b8b4b6e15ff347115964886213b373b81207446b2055",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0173.wav",
+      "currentName": "009-synthetic-0173.wav",
+      "bytes": 16524,
+      "sha256": "1309535f582e3489512f72d007798c6a7cb3a206698593775402f53db2b8997d",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0174.wav",
+      "currentName": "009-synthetic-0174.wav",
+      "bytes": 16524,
+      "sha256": "36dc171e3ccdb2bfb9efd5d02f495530daf1514c664b4b53df86392d6fe0f8b9",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0175.wav",
+      "currentName": "009-synthetic-0175.wav",
+      "bytes": 16524,
+      "sha256": "5c64ca3da05d8c01e021d6be8453c421f342a117c321e4a3f83f5bbbe9a2c915",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0176.wav",
+      "currentName": "009-synthetic-0176.wav",
+      "bytes": 16524,
+      "sha256": "dd77b70b4ab5ab2c6688649f36a2e1a7965445790686d0aae0215bd686851c6b",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0177.wav",
+      "currentName": "009-synthetic-0177.wav",
+      "bytes": 16524,
+      "sha256": "36816cecfdb1ee69b78da16ce7d204dea7ec2d98a249e5bbda10f35853da357e",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0178.wav",
+      "currentName": "009-synthetic-0178.wav",
+      "bytes": 16524,
+      "sha256": "264ac80725cd75b9dc521e7b1d5a01fec8df94bda7a91cb2154f90edffb00035",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0179.wav",
+      "currentName": "009-synthetic-0179.wav",
+      "bytes": 16524,
+      "sha256": "d7e6ebf3e403b2b2ec653e912d282ad7d8030c1abf7e608fdf0097301dd4ad4f",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0180.wav",
+      "currentName": "009-synthetic-0180.wav",
+      "bytes": 16524,
+      "sha256": "6f50626fbbe3186e8de1c81da90346522e54a62607258e276e7f3645295a3e5b",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0181.wav",
+      "currentName": "009-synthetic-0181.wav",
+      "bytes": 16524,
+      "sha256": "23031105c987c5483b8d1a48d1a108fd6d0d5fb7f0efb5655c754f5a5bf76627",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0182.wav",
+      "currentName": "009-synthetic-0182.wav",
+      "bytes": 16524,
+      "sha256": "54131a1a88ba1875df20992c0467c798567eaedec2fba63296c09be391dfe96b",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0183.wav",
+      "currentName": "009-synthetic-0183.wav",
+      "bytes": 16524,
+      "sha256": "3b334189003c327ef1d0fe2e30bd799b0911be5970be17acf12670101fd9f6fc",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0184.wav",
+      "currentName": "009-synthetic-0184.wav",
+      "bytes": 16524,
+      "sha256": "40efcec336e150e78136de0f3d9ad044aa93836741ccadfaa20da8752a2787f5",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0185.wav",
+      "currentName": "009-synthetic-0185.wav",
+      "bytes": 16524,
+      "sha256": "9ee50cddbd185501441d21fae8a663bf7ad61d083f05dcf84e0d1d2cd705259b",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0186.wav",
+      "currentName": "009-synthetic-0186.wav",
+      "bytes": 16524,
+      "sha256": "5dbee701839bf5d3e2a96669395d7396489dad14b6695e17bacbcd30c66a9999",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0187.wav",
+      "currentName": "009-synthetic-0187.wav",
+      "bytes": 16524,
+      "sha256": "21dea0e361d07e310f06db11114603a05702f0993177712ecc4a4e2e670812b7",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0188.wav",
+      "currentName": "009-synthetic-0188.wav",
+      "bytes": 16524,
+      "sha256": "bec402ad62a0270d74a62404db821775aac4fcf3b93f5270d24f86de25293037",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0189.wav",
+      "currentName": "009-synthetic-0189.wav",
+      "bytes": 16524,
+      "sha256": "fa1dcfadadb20c2d197031a6648ab174fb8c930647de6f7a9702003253ff5905",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0190.wav",
+      "currentName": "009-synthetic-0190.wav",
+      "bytes": 16524,
+      "sha256": "4197d092e75d65be129b93837e6101cca53546db34c95c91c0fbf649ea513a7a",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0191.wav",
+      "currentName": "009-synthetic-0191.wav",
+      "bytes": 16524,
+      "sha256": "f27d015ee40afdccb454cd44f8c390a5b1ba8e55244cc58876ba941752401ae6",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0192.wav",
+      "currentName": "009-synthetic-0192.wav",
+      "bytes": 16524,
+      "sha256": "184e52e6eff2d5541aebd4d53dfa1124785ec9a191cda3cfde9b0b77fc4f530e",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0193.wav",
+      "currentName": "009-synthetic-0193.wav",
+      "bytes": 16524,
+      "sha256": "874708c7eb4622d624fb4f463228d3b8dbb503400da686a82ff094e6b4aead36",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0194.wav",
+      "currentName": "009-synthetic-0194.wav",
+      "bytes": 16524,
+      "sha256": "d41be26e81efd574202adb29ffe483221a74690d922726acf491b9c6c5ffe831",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0195.wav",
+      "currentName": "009-synthetic-0195.wav",
+      "bytes": 16524,
+      "sha256": "71128f584b1a21e66e9168735beb55d468d8faf559148ed650a8aae221f0604e",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0196.wav",
+      "currentName": "009-synthetic-0196.wav",
+      "bytes": 16524,
+      "sha256": "ceaf0aebae438bd0784519bd92247bea02465ca5c4a6fb1065d0021dd56ec344",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0197.wav",
+      "currentName": "009-synthetic-0197.wav",
+      "bytes": 16524,
+      "sha256": "2625c919ee775c06155758f588260fbbbbe5c455b82c98690935dbec53819b47",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0198.wav",
+      "currentName": "009-synthetic-0198.wav",
+      "bytes": 16524,
+      "sha256": "869d569e926dc09bb4cf5261d570df07589c7ff1e019803421a807ea19ff3c44",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0199.wav",
+      "currentName": "009-synthetic-0199.wav",
+      "bytes": 16524,
+      "sha256": "a960d8cabbf49aedf673814e0f6ff6644043175f84399bd5de10445e67af17ba",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0200.wav",
+      "currentName": "009-synthetic-0200.wav",
+      "bytes": 16524,
+      "sha256": "c14bae3ff2e9ebc9462be22bc7f9f70d9e3f249edd453bfba33c46985fd60d63",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0201.wav",
+      "currentName": "009-synthetic-0201.wav",
+      "bytes": 16524,
+      "sha256": "db5a4eb0c7783614c94df4c64a7520ae36d3c16407b697d62af26ad52e04d45d",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0202.wav",
+      "currentName": "009-synthetic-0202.wav",
+      "bytes": 16524,
+      "sha256": "1b211e2bd844f1c9ae43789be53fa900c5a17a1b4efc3d10bb180ee6e485317d",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0203.wav",
+      "currentName": "009-synthetic-0203.wav",
+      "bytes": 16524,
+      "sha256": "e02cf0bf6f3b7d70cb9898d9e1ad19063258acb4191e6d5e71c284c9b02339de",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0204.wav",
+      "currentName": "009-synthetic-0204.wav",
+      "bytes": 16524,
+      "sha256": "55f04a8f95a7dbbb2b4c62e6a176a1ee86e43ef9b1446c789b6bfb012c0e64fa",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0205.wav",
+      "currentName": "009-synthetic-0205.wav",
+      "bytes": 16524,
+      "sha256": "7bd66e63a3f9956bef483a02fd9094b3e9ea55fc027ff6bb508cd0742848649f",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0206.wav",
+      "currentName": "009-synthetic-0206.wav",
+      "bytes": 16524,
+      "sha256": "266201ede4f86328e94e4b90af2f6815f58ae7104c36a8d9aa5cdd460fd825a1",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0207.wav",
+      "currentName": "009-synthetic-0207.wav",
+      "bytes": 16524,
+      "sha256": "720df485f0c1f84df3b97f06a21b03cf03b28c17438c2234e5585022c1136801",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0208.wav",
+      "currentName": "009-synthetic-0208.wav",
+      "bytes": 16524,
+      "sha256": "a6f3f0fc67b268a8f4d9fdb4404276a51532779469921040e6a36e59330c38a4",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0209.wav",
+      "currentName": "009-synthetic-0209.wav",
+      "bytes": 16524,
+      "sha256": "cc06831494208351f008a182e992a837ab4f10c82e6383ff8110f1c73415e993",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0210.wav",
+      "currentName": "009-synthetic-0210.wav",
+      "bytes": 16524,
+      "sha256": "51440993bbde58d2c7da2bc3aa138508c63ee21ad5deb008a648d957edea6048",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0211.wav",
+      "currentName": "009-synthetic-0211.wav",
+      "bytes": 16524,
+      "sha256": "eace358b0be64e294d0c52d6ee6a7e4a57d1502fea058454c68ba897cf4a909a",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0212.wav",
+      "currentName": "009-synthetic-0212.wav",
+      "bytes": 16524,
+      "sha256": "135ee69115497a48b6f1860ea3ffede8f8cbc89a5d89cb2418a0d9ae20b52272",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0213.wav",
+      "currentName": "009-synthetic-0213.wav",
+      "bytes": 16524,
+      "sha256": "e1f417fb8e2bd5337bba0689a2cb57ee0beaa2b4cbe2ec622f87e4d7dd2c9296",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0214.wav",
+      "currentName": "009-synthetic-0214.wav",
+      "bytes": 16524,
+      "sha256": "90c05e6d1ad2a7396c4fdac2dde607fed92b2d7522a6b5e9a1650b60110bd370",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0215.wav",
+      "currentName": "009-synthetic-0215.wav",
+      "bytes": 16524,
+      "sha256": "88b7edda9e68d92f636094abd48221cba1981b7e7161da48bb2254c5c123c65a",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0216.wav",
+      "currentName": "009-synthetic-0216.wav",
+      "bytes": 16524,
+      "sha256": "9746d8dc4f98bc722d777c0106e6372118f37342de66d1fd7401e9350945f631",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0217.wav",
+      "currentName": "009-synthetic-0217.wav",
+      "bytes": 16524,
+      "sha256": "245f113ea76f4d71872776ee0cb9d9c95e3e5196ca315adde7f058399f528e6f",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0218.wav",
+      "currentName": "009-synthetic-0218.wav",
+      "bytes": 16524,
+      "sha256": "83136b0551398becea9bdbd230d0ad10a4e3ecafefdbb0579c35b4345b2d10d5",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0219.wav",
+      "currentName": "009-synthetic-0219.wav",
+      "bytes": 16524,
+      "sha256": "e08e5ed7bd94b1bbff8d7077f1465406eeb495400c7e675197a452feb08c4349",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0220.wav",
+      "currentName": "009-synthetic-0220.wav",
+      "bytes": 16524,
+      "sha256": "4a498c9afef758b29216bec5b468dd56d0c8cda6ee789a177385aa4fc94f0b14",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0221.wav",
+      "currentName": "009-synthetic-0221.wav",
+      "bytes": 16524,
+      "sha256": "c32f0ecb71a24819d633c91ce8c057c9b56c5a2a2968ba8c9de61f7953249b07",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0222.wav",
+      "currentName": "009-synthetic-0222.wav",
+      "bytes": 16524,
+      "sha256": "3d26fe99f170df33d744a50e75d2351e2384d93b35b919b1001026e48fac0e40",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0223.wav",
+      "currentName": "009-synthetic-0223.wav",
+      "bytes": 16524,
+      "sha256": "81982566acc990695bd2919466358502c946d93a9dbf60e42e5a54ea85948885",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0224.wav",
+      "currentName": "009-synthetic-0224.wav",
+      "bytes": 16524,
+      "sha256": "b1ff0f466bf3c0a8a9004c840ba13ee983ba293824975aaf8d634200078e12c5",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0225.wav",
+      "currentName": "009-synthetic-0225.wav",
+      "bytes": 16524,
+      "sha256": "41fd8aca32af5651b378fe0dfd5a792e5da68a2b94dd10d78c29e51f30d9a07c",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0226.wav",
+      "currentName": "009-synthetic-0226.wav",
+      "bytes": 16524,
+      "sha256": "f60a78bd6c55685070ffceee29ba5eec85aafb32e576a19421698443e48407b3",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0227.wav",
+      "currentName": "009-synthetic-0227.wav",
+      "bytes": 16524,
+      "sha256": "3ea46e4ebd300f68799026144a0aa230bbe04f94a856f071612000cefad1238d",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0228.wav",
+      "currentName": "009-synthetic-0228.wav",
+      "bytes": 16524,
+      "sha256": "f88b3869212777614c2303a70095760c7bda3357ae0609308f097f8205c229c8",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0229.wav",
+      "currentName": "009-synthetic-0229.wav",
+      "bytes": 16524,
+      "sha256": "688e03de4b548a49d883abd87b4ed14ca49afad96e8502961dc376f6e7f63a23",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0230.wav",
+      "currentName": "009-synthetic-0230.wav",
+      "bytes": 16524,
+      "sha256": "d4829fc356cb089425079a52d299eb6612b1443655b29a3d7cc46b57037e2d2f",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0231.wav",
+      "currentName": "009-synthetic-0231.wav",
+      "bytes": 16524,
+      "sha256": "bd493288b076910603795a98c739de05aa65b74e8cfa1a83b5c877ab8676afad",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0232.wav",
+      "currentName": "009-synthetic-0232.wav",
+      "bytes": 16524,
+      "sha256": "0839ec91f56a2d32aa565f09e5893fe4a959c4dd7f3bfd2344e8b0c281030134",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0233.wav",
+      "currentName": "009-synthetic-0233.wav",
+      "bytes": 16524,
+      "sha256": "7e9bc1b240e3915eccb92927b0b4f59df8e7212e1d105172c8f5d6aa4ddf18cb",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0234.wav",
+      "currentName": "009-synthetic-0234.wav",
+      "bytes": 16524,
+      "sha256": "a74d11e8afe10fa3dddeed53be2cadb140d45361ee359b80906be7740df287ac",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0235.wav",
+      "currentName": "009-synthetic-0235.wav",
+      "bytes": 16524,
+      "sha256": "89b323de82a33de622f25f3a0c32f41c50771e3b49ff61742e9092bac006ad66",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0236.wav",
+      "currentName": "009-synthetic-0236.wav",
+      "bytes": 16524,
+      "sha256": "3fcee8264817ecb4f94e941d068e09edd0acad35de6ff758d1885e690e61a371",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0237.wav",
+      "currentName": "009-synthetic-0237.wav",
+      "bytes": 16524,
+      "sha256": "5aac395a9949291e404dc70b468286ea19b8635bc8c8210702f160c4630d7099",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0238.wav",
+      "currentName": "009-synthetic-0238.wav",
+      "bytes": 16524,
+      "sha256": "15521dd81cddacacf73b33118ca72aefbee5ccedf8c15bda804bfeec14024196",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0239.wav",
+      "currentName": "009-synthetic-0239.wav",
+      "bytes": 16524,
+      "sha256": "4d60b21afc83d47ea9526a9faf1c71b669a81cf564866d88445fa11b98d5971c",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0240.wav",
+      "currentName": "009-synthetic-0240.wav",
+      "bytes": 16524,
+      "sha256": "cbd8dfd4bb01ba6e5c8151496edd58b830f7b4d0bad0409d237815651eb51b2b",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-synthetic-0241.wav",
+      "currentName": "009-synthetic-0241.wav",
+      "bytes": 16524,
+      "sha256": "6348f3c79802677a29a8943eca9d4925f17f0cb08eca7e69b1bf03f5cece2dba",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-version-a.wav",
+      "currentName": "009-version-a.wav",
+      "bytes": 16536,
+      "sha256": "1d5ed9a624b57c432617af632a6314a2dda08f2d07f3ab14d707451f90916018",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-version-b.wav",
+      "currentName": "009-version-b-renamed.wav",
+      "bytes": 16526,
+      "sha256": "76b98e7d6d55287652681db86aaaa37179bd89f2ce20d9addf5789f88b8aac35",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-bad-file.flac",
+      "currentName": "009-bad-file.flac",
+      "bytes": 49,
+      "sha256": "c2a3b9dbdbb4bf4c280f73d5a9df7ae43338ac01b0ea362a0c90cbf91e1fe2a6",
+      "matches": true,
+      "mode": "0600"
+    },
+    {
+      "createdName": "009-no-read.wav",
+      "currentName": "009-no-read.wav",
+      "bytes": 16520,
+      "mode": "0000",
+      "freshByteCheck": "NOT_READ_TO_PRESERVE_PERMISSION_FAULT",
+      "creationSha256": "5bc327a4a4a9926d6053198ddb92fca47c33393f02806a97e963c2d43d0f9681"
+    }
+  ]
+}

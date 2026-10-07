@@ -1,0 +1,42 @@
+{
+  "schema": "mbrs009.root-production-e2e.v1",
+  "command": [
+    "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+    "node_modules/@playwright/test/cli.js",
+    "test",
+    "e2e/mbrs009-local-library.spec.ts",
+    "--config",
+    "playwright.config.ts",
+    "--workers",
+    "1",
+    "--retries",
+    "0"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "elapsedSeconds": 7.797002166014863,
+  "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-e2e-01/complete-output.log",
+  "logBytes": 205,
+  "logSha256": "2c4ce2bd312cf0207fcb50533c7959fad42dedc1545eecf482db171597326e9b",
+  "stats": {
+    "startTime": "2026-10-07T00:09:52.224Z",
+    "duration": 6346.703,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "report": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-e2e-01/tmp/musicbridge-playwright-report.json",
+    "bytes": 3478,
+    "sha256": "de28267f10a1a7b3af7a902c61d4785be3e6762ca0ae9851ced031ae317e5467"
+  },
+  "success": true,
+  "productionBuild": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-build-02/result.json",
+    "bytes": 110663,
+    "sha256": "73fd140fd2d2bf8fdcd289925e4ca01575c167156b41a5880226b294b8e236d8"
+  },
+  "layer": "ENGINEERING_PRODUCTION_UI_SINGLE_NATIVE_PICKER_RESULT_STUB_NOT_ROOT_CUA_OR_OWNER",
+  "realRoonNasAccountAudio": "NOT_RUN"
+}

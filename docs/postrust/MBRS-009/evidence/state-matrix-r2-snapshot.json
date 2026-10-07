@@ -1,0 +1,180 @@
+{
+  "schema": "mbrs009.ui-state-matrix.v1",
+  "evidence": "CURRENT_CANDIDATE_SOFTWARE_AND_EXISTING_CONTROL_REUSE_FINAL_ROOT_GATE_PENDING",
+  "states": [
+    {
+      "id": "loading",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "useLocalLibrary读取代际及TrackTable initialLoading；新session/ui测试"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "loaded-empty",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "009确认读取成功total为零才显示空库与目录加入引导"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "query-no-results",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "LocalLibraryView按非空query显示无匹配；真实受控App待验"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "query-error-preserve-current",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "009首次读取失败显示错误与重试，不能断言音乐库为空",
+        "009同查询刷新失败保留最近成功行、总数、详情、选择和滚动并显示旧结果错误"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "scan-running-partial",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "复用LocalLibrarySettings与原003扫描状态；本轮桌面原回归"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "scan-paused",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "复用原003扫描暂停合同与既有控件；当前App暂停未操作"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "scan-cancelled",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "复用原003取消终态合同与既有控件；当前App取消未操作"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "scan-partial-failure",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "复用原003部分失败合同与既有控件；当前App故障目录未扫描"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "root-offline",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "原目录availability及重关联控件；新会话离线零派发及原003回归"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "file-unavailable-or-unknown",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "原资产身份可用性及重定位；参数失配降为未知"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "roon-disconnected-or-no-zone",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "009离线与null目标均零派发，三动作只携当前可信core/zone和九字段"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "unsupported-or-segment",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "复用原006公开失败投影，不新增音频后端；真实格式待验"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "accepted-awaiting-observation",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "009受理、字节发送与Roon确认分开，外部接管不冒充下一首或沿用旧参数"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "matching-MB-playing",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "009R1 当前公开Playing不依赖页面回执，追加队列的最近请求不能遮盖它",
+        "009R1 旧请求相同但公开曲目或资产修订失配，最近状态也不生成Playing"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "unknown-or-ownership-lost",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "009R1 UNKNOWN与所有权丢失保留未知事实及MB队列，不断言外部接管"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    {
+      "id": "native-external-retained-MB-queue",
+      "implementation": "PRESENT_CURRENT_CANDIDATE",
+      "support": [
+        "009受理、字节发送与Roon确认分开，外部接管不冒充下一首或沿用旧参数"
+      ],
+      "ordinaryApp": "NOT_RUN_CURRENT_CANDIDATE",
+      "realRoonAudioOwner": "NOT_RUN"
+    }
+  ],
+  "sourceWrites": "OFF",
+  "actual100kLoad": "NOT_RUN",
+  "realRoonAndAudio": "NOT_RUN",
+  "ordinaryApp": "NOT_RUN",
+  "owner": "NOT_RUN",
+  "candidateSha256": "36e6c34fd80b300e0c8dc952247069bc6aeb278a6fa288d0b612e4c9772c03f2",
+  "softwareLayers": {
+    "freshR1Desktop": 79,
+    "unchangedSourcePriorCoreContracts": 141,
+    "rootIndependentGate": "NOT_RUN",
+    "vueSsr": "NOT_RUN",
+    "productionE2e": "NOT_RUN"
+  },
+  "outboxRecovery": {
+    "binding": "ORIGINAL_COMMAND_ID_COMMAND_DATASET_AND_GENERATION",
+    "inactive": "CACHE_MATCHED_TERMINAL_ONLY_NO_DISPATCH",
+    "reactivate": "VERIFY_ORIGINAL_DATASET_THEN_CONSUME_CACHED_TERMINAL",
+    "uncertainDismissedDifferentDataset": "KEEP_LOCK_NO_AUTOMATIC_RETRY"
+  },
+  "tableSemanticContract": {
+    "columnHeaders": 3,
+    "cellsPerLoadedRow": 3,
+    "rowHeightPx": 84,
+    "breakpointPx": 800,
+    "actionsWidthPx": 142,
+    "minimumButtonPx": 44,
+    "pixelVerification": "PENDING_ROOT_PRODUCTION"
+  }
+}

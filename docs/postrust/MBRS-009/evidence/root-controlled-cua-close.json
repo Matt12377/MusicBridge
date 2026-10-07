@@ -1,0 +1,8 @@
+{
+  "closedAt": "2026-10-07T00:22:19.156Z",
+  "pid": 9789,
+  "exitCode": 0,
+  "signalCode": null,
+  "method": "OWN_CHILD_EXIT_OBSERVED",
+  "coreShutdownClaim": "原App退出路径单独按CUA操作与日志核对"
+}

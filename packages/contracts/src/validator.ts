@@ -4,7 +4,7 @@ import { isLocalPlayAccepted, isLocalQueueIdentity } from './local-play-request.
 import { isLocalPlaybackObservationLeaf } from './local-playback-compat.js';
 import {isLocalRelocationCommand,isLocalRelocationInternalCommand,isLocalRelocationCommandPayload,isLocalRelocationCommandResult} from './local-relocation.js';
 import { isLocalScanCommand, isLocalScanInternalCommand, isLocalScanCommandPayload, isLocalScanCommandResult } from './local-scan.js';
-import { isLocalPlayRequest, isLocalSourceUnsupported } from './local-play-request.js';
+import { isLocalPlayRequest, isLocalPlayTarget, isLocalSourceUnsupported } from './local-play-request.js';
 import { isLocalCatalogCommand, isLocalCatalogInternalCommand, isLocalCatalogCommandPayload, isLocalCatalogCommandResult } from './local-catalog.js';
 import { copyPerformanceTraceContext, isPerformanceTraceSnapshot } from './performance.js';
 import { isLibraryReadCommand, isLibraryReadContext } from './library-read.js';
@@ -1040,6 +1040,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (isLocalRelocationCommand(command)) return isLocalRelocationCommandPayload(command,payload);
   if (isLocalScanCommand(command)) return isLocalScanCommandPayload(command, payload);
   if (command === 'localCatalog.prepare') return isLocalPlayRequest(payload);
+  if (command === 'playback.localTarget') return isRecord(payload) && Reflect.ownKeys(payload).length === 0;
   if (isLocalCatalogCommand(command)) return isLocalCatalogCommandPayload(command, payload);
   if (command === 'collectionProgress.wants') return isListWantEntriesRequest(payload);
   if (command === 'collectionProgress.saveWant') return isSaveWantEntryRequest(payload);
@@ -1677,6 +1678,7 @@ function isCommandResult(
   if (isLocalRelocationCommand(command)) return (allowInternalResult || !isLocalRelocationInternalCommand(command)) && isLocalRelocationCommandResult(command,value);
   if (isLocalScanCommand(command)) return (allowInternalResult || !isLocalScanInternalCommand(command)) && isLocalScanCommandResult(command,value);
   if (command === 'localCatalog.prepare') return isLocalSourceUnsupported(value) || isLocalPlayAccepted(value);
+  if (command === 'playback.localTarget') return value === null || isLocalPlayTarget(value);
   if (isLocalCatalogCommand(command)) return (allowInternalResult || !isLocalCatalogInternalCommand(command)) && isLocalCatalogCommandResult(command, value);
   if (command === 'lyrics.display.update') return allowInternalResult && isRecord(value) && hasOnlyKeys(value, ['applied']) && typeof value.applied === 'boolean';
   switch (command) {

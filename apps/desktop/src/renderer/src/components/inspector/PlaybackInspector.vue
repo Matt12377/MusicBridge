@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import type { PlaybackQueueItem, PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
-import { qualityDetails, audioQualityDetails } from '../player/details.js'
+import { qualityDetails, audioQualityDetails, mbQueueOwnershipStatus } from '../player/details.js'
 import TrackArtwork from '../TrackArtwork.vue'
 import { calculateVirtualWindow } from '../../composables/virtualWindow.js'
 import { roonQueueContextStatus } from '../../roon-queue-context-status.js'
@@ -24,19 +24,20 @@ const queueViewportHeight = ref(420)
 const QUEUE_VIRTUALIZATION_THRESHOLD = 200
 const QUEUE_ROW_HEIGHT = 80
 const contextStatus = computed(() => roonQueueContextStatus(props.playbackState?.queue.context))
+const queueOwnership = computed(() => mbQueueOwnershipStatus(props.playbackState))
 
 const evidenceDetails = computed(() => audioQualityDetails(props.playbackState ?? {}))
 
 const currentEntry = computed(() => {
   const state = props.playbackState
-  if (!state || state.queue.index < 0 || (!state.currentTrack && !state.canStop)) return undefined
+  if (!state || queueOwnership.value || state.queue.index < 0 || (!state.currentTrack && !state.canStop)) return undefined
   return state.queue.items[state.queue.index]
 })
 
 const upcomingEntries = computed(() => {
   const state = props.playbackState
   if (!state) return []
-  const startIndex = state.queue.index >= 0 ? state.queue.index + 1 : 0
+  const startIndex = queueOwnership.value ? 0 : state.queue.index >= 0 ? state.queue.index + 1 : 0
   return state.queue.items.slice(startIndex).map((item, offset) => ({
     item,
     index: startIndex + offset,
@@ -79,19 +80,20 @@ function entryAlbum(item: PlaybackQueueItem): string {
       <button type="button" class="inspector-close" aria-label="关闭播放检查器" @click="emit('close')">×</button>
     </div>
     <div class="queue-panel inspector-queue">
-      <div class="panel-heading"><div><p class="section-kicker">接下来</p></div><span>{{ props.playbackState?.queue.context && !props.playbackState.queue.context.afterComplete ? `已加载 ${upcomingEntries.length} 首` : `${upcomingEntries.length} 首` }}</span></div>
+      <div class="panel-heading"><div><p class="section-kicker">{{ queueOwnership ? 'MB 已保存队列' : '接下来' }}</p></div><span>{{ props.playbackState?.queue.context && !props.playbackState.queue.context.afterComplete ? `已加载 ${upcomingEntries.length} 首` : `${upcomingEntries.length} 首` }}</span></div>
+      <p v-if="queueOwnership" class="empty-copy" role="status">{{ queueOwnership }}</p>
       <p v-if="contextStatus" class="empty-copy" role="status">{{ contextStatus }}</p>
       <div v-if="!props.playbackState?.queue.items.length" class="empty-copy">队列为空，去歌曲列表添加内容。</div>
       <template v-else>
         <div v-if="currentEntry || props.currentTrack" class="queue-current">
           <TrackArtwork class="queue-current-art" :track="props.currentTrack ?? currentEntry?.track" :alt="`${props.currentTrack?.title ?? currentEntry?.track?.title ?? '当前歌曲'} 封面`" />
-          <span>正在播放</span>
+          <span>{{ props.playbackState?.state === 'playing' ? '正在播放' : props.playbackState?.state === 'paused' ? '已暂停' : '当前曲目' }}</span>
           <strong>{{ props.currentTrack?.title ?? (currentEntry ? entryTitle(currentEntry) : '当前歌曲') }}</strong>
           <small>{{ props.currentTrack?.artists.join('、') ?? (currentEntry ? entryArtists(currentEntry) : '—') }} · {{ props.currentTrack?.album ?? (currentEntry ? entryAlbum(currentEntry) : '—') }}</small>
           <small v-if="props.playbackState?.requestedQuality && props.playbackState.source !== 'local_file'">本次请求 {{ props.qualityLabel(props.playbackState.requestedQuality) }} · 来源返回 {{ props.qualityLabel(props.playbackState.actualQuality) }}</small>
           <small>{{ evidenceDetails.file }}</small><small>{{ evidenceDetails.output }}</small><small>{{ evidenceDetails.evidence }}</small>
         </div>
-        <div v-if="!upcomingEntries.length && props.playbackState?.queue.context?.afterComplete !== false" class="empty-copy">队列已播放完</div>
+        <div v-if="!queueOwnership && !upcomingEntries.length && props.playbackState?.queue.context?.afterComplete !== false" class="empty-copy">队列已播放完</div>
         <div ref="queueViewport" class="queue-upcoming-viewport" :class="{ 'is-virtualized': isQueueVirtualized }" @scroll="onQueueScroll">
           <div v-if="isQueueVirtualized" aria-hidden="true" :style="{ height: `${queueWindow.topSpacer}px` }"></div>
           <div v-for="entry in visibleUpcomingEntries" :key="entry.item.entryId ?? `${entry.item.trackId}-${entry.index}`" role="button" tabindex="0" class="queue-row" @keydown.enter="emit('play-queue-item', entry.item, entry.index)" @click="emit('play-queue-item', entry.item, entry.index)">

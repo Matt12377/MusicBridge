@@ -52,6 +52,8 @@ import { useRendererLifecycle } from './composables/application/useRendererLifec
 import CollectionView from './components/collection/CollectionView.vue'
 import type { CollectionReservationEntry, CollectionReturnLocation, CollectionStartEntry, RecordingPhysicalSelection, RecordingReservationNavigation } from './components/collection/collection-recording-navigation'
 import RecordingView from './components/recording/RecordingView.vue'
+import LocalLibraryView from './components/library/LocalLibraryView.vue'
+import { useLocalLibrary } from './composables/application/useLocalLibrary.js'
 
 const appInfo = ref<AppInfo | null>(null)
 const recordingReloadRequired = ref(false)
@@ -89,6 +91,7 @@ const {
   invalidateCollectionOperation, playQueueItem, editQueueEntry, togglePlayback, stopPlayback,
   nextTrack, previousTrack, seekPlayback, cancelRoonPlaybackPreparation, retryLastPlaybackAction,
 } = playback
+const localLibrary = useLocalLibrary({ api: window.musicBridge, getSelectedZone: () => selectedZone.value, play: request => playback.playLocalLibrarySelection(request) })
 const zones = ref<readonly PublicRoonZone[]>([])
 const zonesLoading = ref(false)
 const zoneRefreshCoordinator = createZoneRefreshCoordinator({
@@ -112,6 +115,7 @@ const commandOutboxOpen = ref(false)
 const commandOutboxTrigger = ref<HTMLButtonElement>()
 async function closeCommandOutbox(): Promise<void> {
   commandOutboxOpen.value = false
+  if (currentView.value === 'local-library') void localLibrary.refresh()
   await nextTick()
   commandOutboxTrigger.value?.focus({ preventScroll: true })
 }
@@ -356,6 +360,9 @@ const zoneLifecycleStatus = computed(() => resolveZoneLifecycleStatus({
   zoneCount: zones.value.length,
   selected: selectedZone.value !== undefined,
 }))
+watch(() => [selectedZone.value?.zoneId, coreState.value?.roon], () => {
+  if (currentView.value === 'local-library') void localLibrary.refreshContext()
+})
 const hasPlaybackIssue = computed(() => Boolean(playbackState.value?.lastIssue || actionError.value))
 const greeting = computed(() => {
   const hour = new Date().getHours()
@@ -627,7 +634,7 @@ function openInspector(): void {
   rememberInspectorFocus()
   if (isImmersiveNowPlaying.value) exitNowPlaying()
   inspectorOpen.value = true
-  void nextTick(() => document.querySelector<HTMLElement>('.playback-inspector .inspector-close')?.focus())
+  void nextTick(() => document.querySelector<HTMLElement>('.playback-inspector .inspector-close')?.focus({ preventScroll: true }))
 }
 
 function openQueue(): void {
@@ -638,7 +645,7 @@ function closeInspector(): void {
   inspectorOpen.value = false
   const target = inspectorReturnFocus.value
   inspectorReturnFocus.value = null
-  if (target?.isConnected) void nextTick(() => target.focus())
+  if (target?.isConnected) void nextTick(() => target.focus({ preventScroll: true }))
 }
 
 function openNowPlaying(): void {
@@ -860,6 +867,7 @@ onUnmounted(() => {
   search.dispose()
   browse.dispose()
   playback.dispose()
+  localLibrary.dispose()
   roonArtworkCache.clear()
   inspectorReturnFocus.value = null
   if (toastTimer !== undefined) window.clearTimeout(toastTimer)
@@ -917,6 +925,8 @@ onUnmounted(() => {
           @open-settings="navigate('settings')"
           @retry-daily="refreshAccountProfile"
         />
+
+        <LocalLibraryView v-else-if="currentView === 'local-library'" :session="localLibrary" :playback-state="playbackState" @open-queue="openQueue" @open-outbox="commandOutboxOpen = true" />
 
         <CollectionView
           v-else-if="currentView === 'collection'"
@@ -1355,7 +1365,7 @@ onUnmounted(() => {
     />
 
     <div v-if="toastMessage" class="toast" role="status" aria-live="polite">{{ toastMessage }}</div>
-    <CommandOutboxPanel v-if="commandOutboxOpen" @close="closeCommandOutbox" />
+    <CommandOutboxPanel v-if="commandOutboxOpen" @close="closeCommandOutbox" @overview="localLibrary.observeOutbox" />
 
   </main>
 </template>

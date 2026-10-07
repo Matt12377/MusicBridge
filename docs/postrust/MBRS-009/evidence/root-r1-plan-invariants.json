@@ -1,0 +1,13 @@
+{
+  "schema": "mbrs009.root-r1-plan-invariants.v1",
+  "checkedAt": "2026-10-06T23:45:56.868189+00:00",
+  "checks": {
+    "tasks": true,
+    "acceptance": true,
+    "otherTasksUnchanged": true,
+    "other148AcceptanceUnchanged": true,
+    "original8DefinitionsUnchanged": true,
+    "originalTaskBytesUnchanged": true
+  },
+  "sourceTaskDefinition": "原8AT及load kind保留，软件与普通App状态仍待对应实际证据；未修改其它17任务/148AT。"
+}

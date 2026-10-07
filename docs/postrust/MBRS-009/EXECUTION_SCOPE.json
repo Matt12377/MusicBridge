@@ -1,0 +1,272 @@
+{
+  "schema": "mbrs009.execution-scope.v1",
+  "task": "MBRS-009",
+  "frozenAt": "2026-10-06T17:04:12.815341+00:00",
+  "baseFinalReportSha": "418389708ca9400dbe347da448a829b9481dbb84",
+  "branch": "codex/mbrs-009-local-library-ui",
+  "priorDeliveryReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/FINAL_DELIVERY_RECEIPT.json",
+  "authority": "AGENTS.md 原任务推进约定2026-10-06连续005至017；最新任务模型规则按当前session与三个spawn参数核对",
+  "g0": {
+    "decision": "ADMITTED",
+    "mode": "EXPLICIT_PHASE_HANDOFF",
+    "ref": "docs/postrust/RUST-016/ADMISSION_DECISION.json",
+    "realServicesNotIncluded": true
+  },
+  "models": {
+    "root": {
+      "model": "gpt-6.1-sol",
+      "effort": "max",
+      "currentTurnContextVerified": true
+    },
+    "children": {
+      "model": "gpt-6.1-sol",
+      "effort": "max",
+      "count": 3,
+      "explicitAcceptedSpawnParametersVerified": true,
+      "runtimeIntrospectionClaim": false,
+      "noChildren": true
+    }
+  },
+  "roles": {
+    "productWriter": "local_ui_writer009",
+    "readonly": [
+      "local_boundary_audit009",
+      "local_ui_audit009"
+    ],
+    "rootOwned": [
+      "tasks",
+      "docs/postrust/MBRS-009",
+      "project",
+      "scripts/ci",
+      ".github/workflows",
+      "apps/desktop/e2e/mbrs009-local-library.spec.ts",
+      "apps/desktop/tsconfig.e2e.json"
+    ],
+    "rootAppOperatorOnly": true
+  },
+  "originalTask": {
+    "file": "tasks/MBRS-009_LOCAL_LIBRARY_UI.md",
+    "sha256": "b0108dd9544c9794b3d73bc4460431274a37c5db5cf516c8430d8300779bbca1",
+    "acceptanceCount": 8,
+    "taskCount": 18,
+    "allAcceptanceCount": 156,
+    "at03Kind": "load",
+    "at03Original100kStillRequired": true
+  },
+  "productWriterFileAllowlist": [
+    "packages/contracts/src/local-catalog.ts",
+    "packages/contracts/src/local-relocation.ts",
+    "packages/bridge-core/src/collection/local-catalog-store.ts",
+    "packages/bridge-core/src/collection/dataset-dispatch.ts",
+    "packages/bridge-core/src/runtime.ts",
+    "packages/bridge-core/src/utility-main.ts",
+    "packages/contracts/src/ipc.ts",
+    "packages/contracts/src/ipc-names.ts",
+    "packages/contracts/src/validator.ts",
+    "apps/desktop/src/main/local-library-ipc.ts",
+    "apps/desktop/src/preload/local-library-client.ts",
+    "apps/desktop/src/preload/api.ts",
+    "apps/desktop/src/preload/index.ts",
+    "apps/desktop/src/renderer/src/components/navigation.ts",
+    "apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+    "apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+    "apps/desktop/src/renderer/src/App.vue",
+    "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+    "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+    "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+    "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+    "packages/bridge-core/src/collection/local-scan-store.ts",
+    "packages/contracts/src/index.ts",
+    "apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+    "apps/desktop/src/renderer/src/components/player/details.ts",
+    "packages/bridge-core/src/application/bridge-controller.ts",
+    "apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+    "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+    "apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue"
+  ],
+  "productWriterTestAllowlist": [
+    "packages/contracts/test/mbrs009/local-library-query.test.ts",
+    "packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+    "apps/desktop/test/mbrs009-local-library-client.test.ts",
+    "apps/desktop/test/mbrs009-local-library-session.test.ts",
+    "apps/desktop/test/mbrs009-local-library-ui.test.ts",
+    "apps/desktop/test/preload.test.ts",
+    "apps/desktop/test/sidebar-controls.test.ts",
+    "apps/desktop/test/page-journey-session.test.ts",
+    "packages/bridge-core/test/mbrs009/local-target.test.ts",
+    "apps/desktop/test/mbrs009-local-library-ipc.test.ts"
+  ],
+  "regressionTests": [
+    "packages/contracts/test/validator.test.ts",
+    "packages/contracts/test/mbrs002/local-catalog.test.ts",
+    "packages/contracts/test/mbrs003/local-relocation.test.ts",
+    "packages/contracts/test/mbrs006/local-playback-contract.test.ts",
+    "packages/bridge-core/test/mbrs002/local-catalog-store.test.ts",
+    "packages/bridge-core/test/mbrs002/local-catalog-owner.test.ts",
+    "packages/bridge-core/test/mbrs003/local-relocation-owner.test.ts",
+    "packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts",
+    "packages/bridge-core/test/mbrs006/controller-local.test.ts",
+    "packages/bridge-core/test/mbrs006/runtime-local.test.ts",
+    "packages/bridge-core/test/mbrs007/controller-queue.test.ts",
+    "packages/bridge-core/test/mbrs007/edition-queue.test.ts",
+    "packages/bridge-core/test/mbrs008/file-parameters.test.ts",
+    "apps/desktop/test/preload.test.ts",
+    "apps/desktop/test/sidebar-controls.test.ts",
+    "apps/desktop/test/page-journey-session.test.ts",
+    "apps/desktop/test/library-pagination.test.ts",
+    "apps/desktop/test/virtualWindow.test.ts",
+    "apps/desktop/test/mbrs003/local-library-client.test.ts",
+    "apps/desktop/test/mbrs003/local-library-ipc.test.ts",
+    "apps/desktop/test/mbrs003/local-library-conflict-projection.test.ts",
+    "apps/desktop/test/mbrs006-local-consumer.test.ts",
+    "apps/desktop/test/mbrs008-audio-quality.test.ts",
+    "apps/desktop/test/player-details.test.ts",
+    "packages/bridge-core/test/dataset-owner.test.ts"
+  ],
+  "implementation": [
+    "唯一Node Catalog参数化SQL有界查询/单项详情/已有edition发现，无新DB作者和无源扫描重放",
+    "一个local-library导航与正式页面，复用现有SidebarNavRow、TrackTable呈现、virtualWindow、玻璃背景和唯一BottomPlayer",
+    "可信现有Roon captureLocalTarget的仅core_id/zone_id只读投影；原九字段/三action不变，Controller重新核对",
+    "既有目录扫描/暂停/继续/取消/部分失败与根重关联/文件候选控件；加载中和失败不冒充空库",
+    "raw/override/effective、实际edition及版本token证据、FileAudioParameters分层；只按current asset/root/track/location/signature绑定投影",
+    "MB_ONLY展示覆盖仅既有outbox；命令unknown不更换ID变参重试；根重关联只授权源，confirm用candidate.id",
+    "006/007真实leaf/归属和同一队列状态；accepted不表示Playing，不挂旧参数或把保存MB列表称外部下一首",
+    "查询/root/详情/页面/动作代次围栏，有界缓存，页面返回滚动/焦点恢复及原生键盘操作"
+  ],
+  "limits": {
+    "queryLimit": 200,
+    "queryTextMaxCodePoints": 256,
+    "uiPageSize": 100,
+    "uiPageCacheMax": 6,
+    "mainRowHeightPx": 84,
+    "queueRowHeightPx": 80,
+    "detailEditionsMax": 200,
+    "syntheticCatalogRowsMax": 600,
+    "gateTotalMs": 360000,
+    "gateStageMs": 180000,
+    "testsCount": "先依据实际完整TAP确认再冻结，不凭声明计数"
+  },
+  "conditionalFiles": "仅为同一行为所需的read-only target/file params与共享TrackTable展示适配；不顺带改扫描调度、音频后端、source writer",
+  "preflightReceipts": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/PREFLIGHT.json",
+      "bytes": 21458,
+      "sha256": "0be7d890b9f7873ca52ab43006c94037867fc4e7d6db0bb9a582224d5d968519"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/BOUNDARY_PREFLIGHT.json",
+      "bytes": 29813,
+      "sha256": "3829a80246e600c3aeafc430a7d1fec21192b8f45b95c82f0cfc48d6719fba76"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.json",
+      "bytes": 36365,
+      "sha256": "981147de4e4628c97f0ac0c259192b5d60368f8f3655799dd7f8dfb9c1f85bf8"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.md",
+      "bytes": 22346,
+      "sha256": "265a3d1f5307d104d047f89f938305ce03e4a8e05d712db596945c84b4c86d52"
+    }
+  ],
+  "productionDefault": "NODE_DEFAULT_OPTIONAL_RUST_OFF",
+  "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+  "schemaMigration": "NO_NEW_SCHEMA_OR_WRITER",
+  "realAccountsRoonLanNasAudio": "NOT_RUN",
+  "ordinaryApp": "NOT_RUN",
+  "controlledAppScope": "离线受控合成库、实际production UI可操作证据，网络守卫；不冒充真实用户曲库/Roon/Owner",
+  "ownerAcceptance": "NOT_RUN",
+  "new100k300kStarted": false,
+  "at03ActualScale": "NOT_RUN_CARRYOVER_ORIGINAL_KIND_UNCHANGED",
+  "formalReview": {
+    "maximumRounds": 2,
+    "preflight": "NOT_FORMAL_R1"
+  },
+  "mainMergeInstallSignRelease": "NOT_AUTHORIZED_NOT_RUN",
+  "laterOrder": [
+    "MBRS-010",
+    "MBRS-011",
+    "MBRS-014",
+    "MBRS-012",
+    "MBRS-013",
+    "MBRS-015_OPTIONAL",
+    "MBRS-016",
+    "MBRS-017"
+  ],
+  "mobileTasks": "MBM000_004_AFTER017_UNSTARTED",
+  "evidenceScope": "SOFTWARE_ONLY_NOT_CORE_READY",
+  "rootScopeSupplement": {
+    "reason": "Typecheck the frozen Root-owned actual product E2e; no product or original AT expansion",
+    "file": "apps/desktop/tsconfig.e2e.json",
+    "scope": "include existing Root-owned e2e/mbrs009-local-library.spec.ts only"
+  },
+  "ownerReadProtocolSupplement": {
+    "reason": "实际 Dataset dispatch 32项组中1项 BAD_REQUEST，Owner固定信封漏列新queryTracks/trackDetail只读闭集",
+    "file": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+    "allowedChange": "import/spread LOCAL_LIBRARY_READ_COMMANDS 两个固定只读命令及对应注释；保持旧22闭集、协议版本、dataset/epoch/unknown/任意命令拒绝",
+    "regressionAdded": "packages/bridge-core/test/dataset-owner.test.ts",
+    "redEvidence": "writer/green-03: exit1,32 tests,31pass,1fail,0skip",
+    "originalAcceptanceDefinitions": "UNCHANGED",
+    "newWriterOrGenericPermission": "FORBIDDEN"
+  },
+  "historicalPreflightIdentities": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.json",
+      "bytes": 35671,
+      "sha256": "62100ec64435018eaecfd567d331580916163114464c05ab312af563f168e876",
+      "identityScope": "HISTORICAL_IDENTITY_ONLY_ORIGINAL_BYTES_NOT_RETAINED",
+      "supersededBy": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.json",
+        "bytes": 36365,
+        "sha256": "981147de4e4628c97f0ac0c259192b5d60368f8f3655799dd7f8dfb9c1f85bf8"
+      },
+      "reason": "Root授权补充共享TrackTable要求后的预检后继；不是当前文件校验"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.md",
+      "bytes": 22192,
+      "sha256": "278326aae321cbada46145f40fc8250faa98d17f0613fcef5c8a1efa9909b878",
+      "identityScope": "HISTORICAL_IDENTITY_ONLY_ORIGINAL_BYTES_NOT_RETAINED",
+      "supersededBy": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.md",
+        "bytes": 22346,
+        "sha256": "265a3d1f5307d104d047f89f938305ce03e4a8e05d712db596945c84b4c86d52"
+      },
+      "reason": "Root授权补充共享TrackTable要求后的预检后继；不是当前文件校验"
+    }
+  ],
+  "preflightProvenanceSupplement": {
+    "reason": "两份UI预检原文件被授权后继覆盖，历史SHA仅作为历史身份保留；当前准入绑定后继实字节",
+    "currentReceiptsVerifiedAt": "2026-10-06T23:26:52.810645+00:00"
+  },
+  "r1RepairSupplement": {
+    "formalRound": 1,
+    "reports": [
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/BOUNDARY_R1.json",
+        "bytes": 53923,
+        "sha256": "a1ebe4a39bde33fb5d997a8c5e9aa1916a1b16aaeece7161ed81747ad3149491"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R1.json",
+        "bytes": 40148,
+        "sha256": "ef6ecb3fc23e7f6cca51b1fdd17e9398464ee5857af6376e844e2c077d8fea48"
+      }
+    ],
+    "blockingP2": 7,
+    "remainingFormalRounds": 1,
+    "productAllowlistExpanded": true,
+    "originalATDefinitionsChanged": false,
+    "principles": [
+      "原commandId、dataset与代际核对终态，不盲清UNKNOWN或换ID重发",
+      "实际播放叶与最近回执分层，不以受理或发送字节证明Playing",
+      "复用原表格、原队列焦点与84px行高，读故障与动作未知分层"
+    ],
+    "minimalAdditionalProductPath": {
+      "file": "apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue",
+      "reason": "既有Panel controller在原retry/ack返回与下一次过滤刷新之间持有公开终态；只需转发该overview给原本地模型，避免已ack成功项被过滤后永久锁定。",
+      "allowed": "仅typed公开overview事件与现有onChange接线；不改controller、后台、合同、outbox writer或自动重试",
+      "testFiles": "原session/ui测试路径内覆盖原命令/原dataset/原代际的unknown到succeeded/rejected及保守反例"
+    }
+  }
+}

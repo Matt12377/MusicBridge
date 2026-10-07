@@ -170,6 +170,11 @@ async function dispatchDataset(runtime: DatasetDispatchTarget, request: IpcReque
     case 'localCatalog.observeMetadata': return collectionFor(runtime).localCatalog.observeMetadata(request.payload as IpcCommandPayloads['localCatalog.observeMetadata']);
     case 'localCatalog.overrideMetadata': return collectionFor(runtime).localCatalog.overrideMetadata(request.payload as IpcCommandPayloads['localCatalog.overrideMetadata']);
     case 'localCatalog.pageTracks': return collectionFor(runtime).localCatalog.pageTracks(request.payload as IpcCommandPayloads['localCatalog.pageTracks']);
+    case 'localCatalog.queryTracks': return collectionFor(runtime).localCatalog.queryTracks(request.payload as IpcCommandPayloads['localCatalog.queryTracks']);
+    case 'localCatalog.trackDetail': {
+      const repository = collectionFor(runtime), detail = repository.localCatalog.trackDetail((request.payload as IpcCommandPayloads['localCatalog.trackDetail']).trackId);
+      return { ...detail, fileParameters: repository.localScan.privateDisplayFileParameters(detail.track.id, detail.asset) };
+    }
     case 'localCatalog.root': return collectionFor(runtime).localCatalog.root((request.payload as IpcCommandPayloads['localCatalog.root']).rootId);
     case 'localCatalog.asset': return collectionFor(runtime).localCatalog.asset((request.payload as IpcCommandPayloads['localCatalog.asset']).assetId);
     case 'localCatalog.track': return collectionFor(runtime).localCatalog.track((request.payload as IpcCommandPayloads['localCatalog.track']).trackId);

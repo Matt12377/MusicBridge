@@ -1,6 +1,6 @@
 # 任务索引
 
-当前 PostRust 任务：[MBRS-008](MBRS-008_AUDIO_TRANSPARENCY.md)，从007最终报告 `8140124a` 接续；有限软件、源码与报告自然CI分别取证，真实Roon、音频和普通App验收保留。下一项MBRS-009从008最终独立报告HEAD接续。Owner已授权持续到017、每任务更新待办并push；当前状态见[待办清单](../project/POSTRUST_TODO.md)。
+当前 PostRust 任务：[MBRS-009](MBRS-009_LOCAL_LIBRARY_UI.md)，从008最终报告 `418389708ca9400dbe347da448a829b9481dbb84` 接续；本地220项、当前生产E2E和受控243首普通App已验证，独立源码提交/CI/报告待收口；真实Roon、当前十万首负载、旧收藏/根迁移及Owner验收保留。下一项MBRS-010从009最终独立报告HEAD接续。Owner已授权持续到017、每任务更新待办并push；当前状态见[待办清单](../project/POSTRUST_TODO.md)。
 
 [MBRS-003结果](../reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md)与[换届交接](../docs/postrust/MBRS-003/HANDOFF_NEXT_SESSION.md)：Owner阶段接受既有规模结果，当前版十万／三十万首不重测；25条超时保留。004已从003最终报告HEAD完成独立软件交付；完整产品后用真实曲库验收。下方历史过程记录保留原时点。
 
@@ -187,3 +187,5 @@ MBRS-003仍IN_PROGRESS。Snapshot05首100k完整软件闭合和默认4MiB封面�
 ## Docs13：new06自然失败完整安全终态（Root actual request）
 
 MBRS-003仍IN_PROGRESS。本轮new06原授权attempt2自然Node1/FS0已实际安全闭合，native04、builder02、独立FS terminal、Terminal05完整TERMINAL_FAILURE_NOT_LOAD_PASS真实1、selected06三失败closure及第五Root finalizer工具真实1、Root后source1415/runtime1999/Git围栏均精确互指。此为失败留证，不通过scale或whole003；逐项code/identifier及原因UNKNOWN。原e266 T0/66600s、inner64800000ms、0retry保持，无重试、续库或预算重置。旧83k退出未知完整history、初始7000/null、02/03及Docs12的70800/70783/17冻结点和Root04独立103600/103583/17保留；不拿未封实时进度替代原件。100k6/defaultcover2、原13/33叶124、18任务156/other17、原8AT未勾、old04scanLoad/groups保持；57infra及metadata2/excerpt7仅并列辅助控制。INCOMPLETE_DO_NOT_ENABLE/wholeGate disabled、impl/reportNULL，Owner未验收、004未开始。 Root失败链请求：/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-docs13-natural-failure-seven-metadata-request-actual-01/ROOT_DOCS13_SEVEN_METADATA_ACTUAL_FAILURE_INPUTS_01.json；Root后源/Git核验：/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-postrust-v12-j0tjux6s/mbrs003-root-docs13-natural-failure-source-git-actual-01/ROOT_DOCS13_NATURAL_FAILURE_SOURCE_GIT_POSTCHECK_ACTUAL_01.json。
+
+MBRS-009 正式本地库UI见[原任务](MBRS-009_LOCAL_LIBRARY_UI.md)；按PostRust计划从008最终报告4183897接续，原8验收不变，010后继及014先于012/013保持。

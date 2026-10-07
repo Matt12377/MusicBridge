@@ -1,0 +1,3845 @@
+{
+  "schema": "mbrs009.writer.candidate.v2",
+  "task": "MBRS-009",
+  "candidate": "02",
+  "createdAt": "2026-10-06T23:59:17.270228+00:00",
+  "baseFinalReportSha": "418389708ca9400dbe347da448a829b9481dbb84",
+  "branch": "codex/mbrs-009-local-library-ui",
+  "checkout": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+  "gitCommonDirectory": "/Volumes/LifeWeave/VSCode/MusicBridge/.git",
+  "模型证据": {
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "max",
+    "evidence": "本次spawn明确且获接受的参数，按Root冻结登记；不声称运行时内省",
+    "spawnedChildren": 0
+  },
+  "previousCandidate": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/CANDIDATE_01.json",
+    "bytes": 98561,
+    "sha256": "644365ac5ab33c20807159810eab242c0680cef1a75894b041002a7aa5da428c"
+  },
+  "frozenScope": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+    "bytes": 13275,
+    "sha256": "c3b717fb8b0afa298d6557bd7232043a717e67aca7c07052ae5813723098e2ad"
+  },
+  "originalTask": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/tasks/MBRS-009_LOCAL_LIBRARY_UI.md",
+    "bytes": 3293,
+    "sha256": "b0108dd9544c9794b3d73bc4460431274a37c5db5cf516c8430d8300779bbca1"
+  },
+  "r1ReviewInputs": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/BOUNDARY_R1.json",
+      "bytes": 53923,
+      "sha256": "a1ebe4a39bde33fb5d997a8c5e9aa1916a1b16aaeece7161ed81747ad3149491"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R1.json",
+      "bytes": 40148,
+      "sha256": "ef6ecb3fc23e7f6cca51b1fdd17e9398464ee5857af6376e844e2c077d8fea48"
+    }
+  ],
+  "environmentCheck": {
+    "externalVolumeMount": "/dev/disk11s1 on /Volumes/LifeWeave (apfs, local, nodev, nosuid, journaled)",
+    "rootWritable": true,
+    "checkoutWritable": true,
+    "node": "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+    "tmpPolicy": "全部tmp/log/results在LifeWeave外置writer唯一目录，本轮没有落本机tmp",
+    "coreContractRecompiledInR1": false,
+    "compilerWindow": "Root交还后本writer串行Desktop类型与行为验证；现在停止并交还Root"
+  },
+  "productFiles": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/main/local-library-ipc.ts",
+      "bytes": 4086,
+      "sha256": "5bcc5f8095d8945ed4bad0ed191b935d0a19a23978c58e3db34a28bbaaadd575",
+      "file": "apps/desktop/src/main/local-library-ipc.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/main/local-library-ipc.ts",
+        "bytes": 4086,
+        "sha256": "5bcc5f8095d8945ed4bad0ed191b935d0a19a23978c58e3db34a28bbaaadd575"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/api.ts",
+      "bytes": 40256,
+      "sha256": "f67b2216f782149bf7c02125b9323c57bd9a6132d49c288c766e83ef2d65baac",
+      "file": "apps/desktop/src/preload/api.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/api.ts",
+        "bytes": 40256,
+        "sha256": "f67b2216f782149bf7c02125b9323c57bd9a6132d49c288c766e83ef2d65baac"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/index.ts",
+      "bytes": 27029,
+      "sha256": "aa76b7d86e7d6e40e3ac570a065560bfa928e1431d48725f618d8652dd594048",
+      "file": "apps/desktop/src/preload/index.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/index.ts",
+        "bytes": 27029,
+        "sha256": "aa76b7d86e7d6e40e3ac570a065560bfa928e1431d48725f618d8652dd594048"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/local-library-client.ts",
+      "bytes": 3718,
+      "sha256": "592bf097b94069b1ecc5c5bdf64efc3022bad7778c2583172661fcce364b097b",
+      "file": "apps/desktop/src/preload/local-library-client.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/local-library-client.ts",
+        "bytes": 3718,
+        "sha256": "592bf097b94069b1ecc5c5bdf64efc3022bad7778c2583172661fcce364b097b"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/App.vue",
+      "bytes": 72199,
+      "sha256": "0fe0ed2cba280191207e227b34f87608bd143490d375290ceb35c162b2333cfa",
+      "file": "apps/desktop/src/renderer/src/App.vue",
+      "status": "修改",
+      "r1ChangedFromCandidate01": true,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/App.vue",
+        "bytes": 72052,
+        "sha256": "0884f784e9ca4050faee60098939aa334361d88bb08f6807db906bd8d2d2ac3c"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue",
+      "bytes": 15108,
+      "sha256": "b32077a41111975031afe027c7ffd9976e481f618b3384b4443cd0f370d5c15b",
+      "file": "apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue",
+      "status": "修改",
+      "r1ChangedFromCandidate01": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+      "bytes": 7292,
+      "sha256": "3ba08b5185e4c576503433d26db2de90a02ebc6b64d7eebee1bbf62914e290ce",
+      "file": "apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+        "bytes": 7292,
+        "sha256": "3ba08b5185e4c576503433d26db2de90a02ebc6b64d7eebee1bbf62914e290ce"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+      "bytes": 16452,
+      "sha256": "a7b1729bcf7b410a99ab1fe542711e2e6f918d93f9518ee162464574232cc37c",
+      "file": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+      "status": "新增",
+      "r1ChangedFromCandidate01": true,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+        "bytes": 15143,
+        "sha256": "dd4787fb3ae9e0e81117bd5b449cc1b844e90809182f6ceb0d6d4322594e8b5f"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+      "bytes": 12994,
+      "sha256": "09bfe428819be83230d9cc2fce0fd401a50c437c7b95e007f7dca3729096e552",
+      "file": "apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+      "status": "修改",
+      "r1ChangedFromCandidate01": true,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+        "bytes": 11907,
+        "sha256": "262efc5abbbac272a90ff76dcecfbef931fca641a3c6722584d6a38a9e3be644"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/navigation.ts",
+      "bytes": 997,
+      "sha256": "a86db9d86b15c33e9cfe43982f4f14c65fc802ec462572545c340aa8a7fa5a85",
+      "file": "apps/desktop/src/renderer/src/components/navigation.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/navigation.ts",
+        "bytes": 997,
+        "sha256": "a86db9d86b15c33e9cfe43982f4f14c65fc802ec462572545c340aa8a7fa5a85"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/player/details.ts",
+      "bytes": 7638,
+      "sha256": "cf36a3c7737c8047f667763468b4058f475a54a9d9241c0a6601fcd2c053f5f1",
+      "file": "apps/desktop/src/renderer/src/components/player/details.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": true,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/player/details.ts",
+        "bytes": 5803,
+        "sha256": "15d0c7d01525aff8b5857d15f474e37607302aa1541f0570b9b716555a55966e"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+      "bytes": 9258,
+      "sha256": "fd1ed95f86f957578b3179baf68efefacebe9a64cef76989c1a9d651e0e53762",
+      "file": "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+      "status": "修改",
+      "r1ChangedFromCandidate01": true,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+        "bytes": 9131,
+        "sha256": "7532011b01badb77c5e22cc79784754cc70f5b49a315894622b064817ca712e1"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+      "bytes": 7003,
+      "sha256": "374590db1dc8d8b6e7e1fde6e21dcc7999e61b543591187f8f976d9ca4486477",
+      "file": "apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+        "bytes": 7003,
+        "sha256": "374590db1dc8d8b6e7e1fde6e21dcc7999e61b543591187f8f976d9ca4486477"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+      "bytes": 25598,
+      "sha256": "00fa0eec5e70ef376a0ae79cbebedf30cce73a0579fa81989c9cf98e2d6a1a35",
+      "file": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+      "status": "新增",
+      "r1ChangedFromCandidate01": true,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+        "bytes": 16985,
+        "sha256": "77c2b9d81e2be520edaed87ad659f91cf891afefca9ab75b63e05fb37a818d38"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+      "bytes": 22367,
+      "sha256": "49f593d1266d49484b3391372713e301cd550b517d5bef9ef82d391e6df0cb20",
+      "file": "apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+        "bytes": 22367,
+        "sha256": "49f593d1266d49484b3391372713e301cd550b517d5bef9ef82d391e6df0cb20"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "bytes": 50341,
+      "sha256": "6d21b5cafb7cab42b1e2e24415182dc81dee6ab3450665ed4f9143a405f0328b",
+      "file": "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+        "bytes": 50341,
+        "sha256": "6d21b5cafb7cab42b1e2e24415182dc81dee6ab3450665ed4f9143a405f0328b"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/application/bridge-controller.ts",
+      "bytes": 148786,
+      "sha256": "913ca23fa5fdf09c563ff51679f0deb0666d0614b17923e3e627671bb929d907",
+      "file": "packages/bridge-core/src/application/bridge-controller.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/application/bridge-controller.ts",
+        "bytes": 148786,
+        "sha256": "913ca23fa5fdf09c563ff51679f0deb0666d0614b17923e3e627671bb929d907"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "bytes": 49636,
+      "sha256": "bbf65fd8c5ac4fd3f7d17f96e461fca07095c221482c6c1efeaedc6ba35f01b8",
+      "file": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-dispatch.ts",
+        "bytes": 49636,
+        "sha256": "bbf65fd8c5ac4fd3f7d17f96e461fca07095c221482c6c1efeaedc6ba35f01b8"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+      "bytes": 28217,
+      "sha256": "dfb21ea19f90fb14f94dff77f37e8320f2fa44c529c5f7377d5e1c6178a24468",
+      "file": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+        "bytes": 28217,
+        "sha256": "dfb21ea19f90fb14f94dff77f37e8320f2fa44c529c5f7377d5e1c6178a24468"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-catalog-store.ts",
+      "bytes": 64268,
+      "sha256": "d6ac19c93ec94abb6fa9cdd9e08de913631b245c2bf35dba41c03b18cb677287",
+      "file": "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-catalog-store.ts",
+        "bytes": 64268,
+        "sha256": "d6ac19c93ec94abb6fa9cdd9e08de913631b245c2bf35dba41c03b18cb677287"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-scan-store.ts",
+      "bytes": 75191,
+      "sha256": "f0e46defabfeae03064145a433ee417f95404024855635121a67150bdace7b6d",
+      "file": "packages/bridge-core/src/collection/local-scan-store.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-scan-store.ts",
+        "bytes": 75191,
+        "sha256": "f0e46defabfeae03064145a433ee417f95404024855635121a67150bdace7b6d"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/runtime.ts",
+      "bytes": 99677,
+      "sha256": "9c11125386f197a9e50f3c4a37df8765afc0980f5f9cdc87a412d5bf7bc012c0",
+      "file": "packages/bridge-core/src/runtime.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/runtime.ts",
+        "bytes": 99677,
+        "sha256": "9c11125386f197a9e50f3c4a37df8765afc0980f5f9cdc87a412d5bf7bc012c0"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/utility-main.ts",
+      "bytes": 44145,
+      "sha256": "6731406063c9d48e528a8a0295b309b92a472581d5bbd061228283cf39825cdf",
+      "file": "packages/bridge-core/src/utility-main.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/utility-main.ts",
+        "bytes": 44145,
+        "sha256": "6731406063c9d48e528a8a0295b309b92a472581d5bbd061228283cf39825cdf"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/ipc-names.ts",
+      "bytes": 8919,
+      "sha256": "4f1af43737e5b0beb4031808e42f5af88ee4e8199611013ff6fa0cdaeceb2362",
+      "file": "packages/contracts/src/ipc-names.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/ipc-names.ts",
+        "bytes": 8919,
+        "sha256": "4f1af43737e5b0beb4031808e42f5af88ee4e8199611013ff6fa0cdaeceb2362"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/ipc.ts",
+      "bytes": 45537,
+      "sha256": "be75ff8d2e979e1828e08bb64010b1ce7f5cf8432a4bbd9699038c6c1050d47e",
+      "file": "packages/contracts/src/ipc.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/ipc.ts",
+        "bytes": 45537,
+        "sha256": "be75ff8d2e979e1828e08bb64010b1ce7f5cf8432a4bbd9699038c6c1050d47e"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-catalog.ts",
+      "bytes": 28129,
+      "sha256": "9ad03712cf690996ee76e85ad25928d724f244951c8cb53c2fa37308b5ce2915",
+      "file": "packages/contracts/src/local-catalog.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-catalog.ts",
+        "bytes": 28129,
+        "sha256": "9ad03712cf690996ee76e85ad25928d724f244951c8cb53c2fa37308b5ce2915"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-relocation.ts",
+      "bytes": 8458,
+      "sha256": "79e82e14c9f01ef985a356193e67a28210ee0c8353cbaf2f0bf6da60e83a6c3f",
+      "file": "packages/contracts/src/local-relocation.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-relocation.ts",
+        "bytes": 8458,
+        "sha256": "79e82e14c9f01ef985a356193e67a28210ee0c8353cbaf2f0bf6da60e83a6c3f"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/validator.ts",
+      "bytes": 121856,
+      "sha256": "62be08e2ae121a16c33fc040c694025fecec972e7411cfdccc090c05e970a45c",
+      "file": "packages/contracts/src/validator.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/validator.ts",
+        "bytes": 121856,
+        "sha256": "62be08e2ae121a16c33fc040c694025fecec972e7411cfdccc090c05e970a45c"
+      }
+    }
+  ],
+  "testFiles": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-client.test.ts",
+      "bytes": 1990,
+      "sha256": "655f1a72ea3269ac7536d8d4a31228c696bf04745605b5c6062aaa4a9439023c",
+      "file": "apps/desktop/test/mbrs009-local-library-client.test.ts",
+      "status": "新增",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-client.test.ts",
+        "bytes": 1990,
+        "sha256": "655f1a72ea3269ac7536d8d4a31228c696bf04745605b5c6062aaa4a9439023c"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ipc.test.ts",
+      "bytes": 3133,
+      "sha256": "7df7fb2abc14d2e95f2d000ab44fb5fb964f72bd44714c19fa7a8b35e703688f",
+      "file": "apps/desktop/test/mbrs009-local-library-ipc.test.ts",
+      "status": "新增",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ipc.test.ts",
+        "bytes": 3133,
+        "sha256": "7df7fb2abc14d2e95f2d000ab44fb5fb964f72bd44714c19fa7a8b35e703688f"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-session.test.ts",
+      "bytes": 33141,
+      "sha256": "df47d7bcbcb051eff45b294ec8c9357a55a7bbcfe548531c11a26ae39f60055a",
+      "file": "apps/desktop/test/mbrs009-local-library-session.test.ts",
+      "status": "新增",
+      "r1ChangedFromCandidate01": true,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-session.test.ts",
+        "bytes": 14995,
+        "sha256": "863eec7da758756b0faa799a93abeaba692d21ef83228825070fc419bf7af6fd"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ui.test.ts",
+      "bytes": 26302,
+      "sha256": "60105ef456af56c39dbbb054f7bcc6a145e8edb9335f8cbd94dfc7c84446482a",
+      "file": "apps/desktop/test/mbrs009-local-library-ui.test.ts",
+      "status": "新增",
+      "r1ChangedFromCandidate01": true,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ui.test.ts",
+        "bytes": 14600,
+        "sha256": "75dd5ba71cfaf2d17366ebd245bc6c0e7c63231ffedf0766b2626c6a6cca16c1"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/page-journey-session.test.ts",
+      "bytes": 7533,
+      "sha256": "4cd730028f80968913bcbe3d5d8c5d83a3d4d64f40cd24ba74f296fa7973f783",
+      "file": "apps/desktop/test/page-journey-session.test.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/page-journey-session.test.ts",
+        "bytes": 7533,
+        "sha256": "4cd730028f80968913bcbe3d5d8c5d83a3d4d64f40cd24ba74f296fa7973f783"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/preload.test.ts",
+      "bytes": 35836,
+      "sha256": "e934050b53476b69ad31d2832d6367914920ec75bcbcbb30e03df86e4caadc38",
+      "file": "apps/desktop/test/preload.test.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/preload.test.ts",
+        "bytes": 35836,
+        "sha256": "e934050b53476b69ad31d2832d6367914920ec75bcbcbb30e03df86e4caadc38"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/sidebar-controls.test.ts",
+      "bytes": 10949,
+      "sha256": "8c7b37c68ca970595734ce549acd7bbaa481eb038e542efdb15f44e56b5ce8ca",
+      "file": "apps/desktop/test/sidebar-controls.test.ts",
+      "status": "修改",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/sidebar-controls.test.ts",
+        "bytes": 10949,
+        "sha256": "8c7b37c68ca970595734ce549acd7bbaa481eb038e542efdb15f44e56b5ce8ca"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+      "bytes": 10677,
+      "sha256": "69b82ca9ad5ceb94f5d500bae545f353ce82d9e64b7c794ba06a792286cd708e",
+      "file": "packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+      "status": "新增",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+        "bytes": 10677,
+        "sha256": "69b82ca9ad5ceb94f5d500bae545f353ce82d9e64b7c794ba06a792286cd708e"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-target.test.ts",
+      "bytes": 2671,
+      "sha256": "cce1b673a92f6789b85998664ddcc045b693b65f229b9200b4bf0b27643b6cf6",
+      "file": "packages/bridge-core/test/mbrs009/local-target.test.ts",
+      "status": "新增",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-target.test.ts",
+        "bytes": 2671,
+        "sha256": "cce1b673a92f6789b85998664ddcc045b693b65f229b9200b4bf0b27643b6cf6"
+      }
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/test/mbrs009/local-library-query.test.ts",
+      "bytes": 3244,
+      "sha256": "b6f30923ac5c461162844440fa92402400b5a265a7b0c14eb068407790e1df04",
+      "file": "packages/contracts/test/mbrs009/local-library-query.test.ts",
+      "status": "新增",
+      "r1ChangedFromCandidate01": false,
+      "candidate01Identity": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/test/mbrs009/local-library-query.test.ts",
+        "bytes": 3244,
+        "sha256": "b6f30923ac5c461162844440fa92402400b5a265a7b0c14eb068407790e1df04"
+      }
+    }
+  ],
+  "产品数量": 28,
+  "测试文件数量": 10,
+  "未修改的允许产品文件": [
+    "packages/contracts/src/index.ts"
+  ],
+  "r1Delta": {
+    "productFiles": [
+      "apps/desktop/src/renderer/src/App.vue",
+      "apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue",
+      "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+      "apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+      "apps/desktop/src/renderer/src/components/player/details.ts",
+      "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+      "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts"
+    ],
+    "testFiles": [
+      "apps/desktop/test/mbrs009-local-library-session.test.ts",
+      "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+    ],
+    "productCount": 7,
+    "testCount": 2,
+    "ownerReadProtocolCoreAndContracts": "当前字节与Candidate01一致，本R1未新增Core/contracts修改"
+  },
+  "rootOwnedChanges": "checkout内其余任务/文档/project/CI/e2e改动归Root；writer未编辑、未提交或暂存这些文件",
+  "frozenRegressionPaths": [
+    "packages/contracts/test/validator.test.ts",
+    "packages/contracts/test/mbrs002/local-catalog.test.ts",
+    "packages/contracts/test/mbrs003/local-relocation.test.ts",
+    "packages/contracts/test/mbrs006/local-playback-contract.test.ts",
+    "packages/bridge-core/test/mbrs002/local-catalog-store.test.ts",
+    "packages/bridge-core/test/mbrs002/local-catalog-owner.test.ts",
+    "packages/bridge-core/test/mbrs003/local-relocation-owner.test.ts",
+    "packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts",
+    "packages/bridge-core/test/mbrs006/controller-local.test.ts",
+    "packages/bridge-core/test/mbrs006/runtime-local.test.ts",
+    "packages/bridge-core/test/mbrs007/controller-queue.test.ts",
+    "packages/bridge-core/test/mbrs007/edition-queue.test.ts",
+    "packages/bridge-core/test/mbrs008/file-parameters.test.ts",
+    "apps/desktop/test/preload.test.ts",
+    "apps/desktop/test/sidebar-controls.test.ts",
+    "apps/desktop/test/page-journey-session.test.ts",
+    "apps/desktop/test/library-pagination.test.ts",
+    "apps/desktop/test/virtualWindow.test.ts",
+    "apps/desktop/test/mbrs003/local-library-client.test.ts",
+    "apps/desktop/test/mbrs003/local-library-ipc.test.ts",
+    "apps/desktop/test/mbrs003/local-library-conflict-projection.test.ts",
+    "apps/desktop/test/mbrs006-local-consumer.test.ts",
+    "apps/desktop/test/mbrs008-audio-quality.test.ts",
+    "apps/desktop/test/player-details.test.ts",
+    "packages/bridge-core/test/dataset-owner.test.ts"
+  ],
+  "原验收定义": "原任务8AT、原25回归路径和预算保持，R1修复不新增任务/正式轮或真实规模扫描。",
+  "产品行为": [
+    "唯一新本地音乐入口复用原SidebarNavRow、连续玻璃背景、原BottomPlayer、原收藏安全逻辑、原TrackTable行/操作/Enter和virtualWindow；旧默认行为保留",
+    "原Node Catalog连接以参数化SQL搜索原始/覆盖/已有edition，limit<=200、query<=256码点；页100、缓存<=6、行84、队列80；不新增schema、DB作者或源writer",
+    "原22命令与旧类型保留；新增2个只读合同独立，原Dataset Owner v1固定闭集显式纳入；dataset/epoch/unknown与任意命令拒绝保留",
+    "单项详情分开raw/override/effective、已有edition、名称token与文件解析报告；token不产生/合并edition身份",
+    "文件参数只按当前locator、root/source/asset/track修订、signature与真实已提交scan/asset账本证明投影；有界200个origin批找不到证明就未知，不为显示分配FD或票据",
+    "原可信RoonAdapter给出仅core_id+zone_id只读目标，无权威即null；三动作九字段通过原006/007协调器再验证，受理/字节/Roon确认/外部所有权分开",
+    "同查询刷新失败保留成功页/total/selection/detail/scroll并标明旧结果；新query/root清旧数据并阻断迟到；首读失败显示错误，成功total=0才空库，空库刷新也读新第一页",
+    "仅MB_ONLY名称覆盖走既有outbox；未知结果保留原commandId并阻止换ID重发；重新定位确认commandId取candidate.id；目录remount复用chooseRecordingSourceRoot后relink，曲目/收藏保留",
+    "详情焦点、Escape关闭返焦点、44px控件、加载/空态/失败提示、窄窗口与减少动态处理"
+  ],
+  "r1Repairs": [
+    {
+      "id": "MBRS009-R1-B01",
+      "修复": "仅实际EXTERNAL/ROON_NATIVE_EXTERNAL断言外部接管；UNKNOWN/OWNERSHIP_LOST说明未知所有权与自动推进暂停。",
+      "证据": "009R1 UNKNOWN与所有权丢失保留未知事实及MB队列，不断言外部接管"
+    },
+    {
+      "id": "UI-R1-01",
+      "修复": "原pending绑定commandId/command/dataset/代际；Panel以typed公共overview传入真实终态。离页只缓存同身份成功/拒绝，返回确认当前dataset后消费已ACK过滤的原终态；uncertain/dismissed/异dataset/迟到读均不清或重发。",
+      "证据": "session25与原Panel真实controller行为UI测试，包含末次离页补充3项"
+    },
+    {
+      "id": "UI-R1-02",
+      "修复": "当前公开实际播放与最近派发请求分别展示；派发前保存身份，丢ACK仍保持关联，离页晚到保留原请求。旧曲目/asset修订/来源/目标/当前phase围栏阻止旧参数生成Playing。",
+      "证据": "current公开Playing/追加队列/丢ACK/离页丢ACK/旧身份失配与原008参数回归"
+    },
+    {
+      "id": "UI-R1-03",
+      "修复": "range表格断点与原全局样式统一为800px；操作列固定142px、3按钮各44px加5px间距，行高仍84px。",
+      "证据": "源码几何合同与UI行宿主；真实生产CSS几何由Root待验，不以宿主冒充像素"
+    },
+    {
+      "id": "UI-R1-04",
+      "修复": "三列真实columnheader及每行三cell；歌曲包括作者/专辑，时长和操作各独立。序号/封面/独立album装饰aria-hidden，无障碍表头保持实际DOM与可访问树，覆盖全局display:none。",
+      "证据": "实际TrackTable SFC宿主断言3header/3cell，Root SSR待独立运行"
+    },
+    {
+      "id": "UI-R1-05",
+      "修复": "local open-queue接回原App openQueue/openInspector/closeInspector焦点协调；焦点调用preventScroll，关闭返回原入口。",
+      "证据": "真实LocalView事件与原App函数接线宿主行为，Root生产键盘/E2e/CUA待验"
+    },
+    {
+      "id": "UI-R1-06",
+      "修复": "设置的readError/actionError分层；读取成功只清读故障，未知业务请求保持可见，后续成功轮询不盲清。",
+      "证据": "实际LocalLibrarySettings SFC定时轮询/扫描未知宿主测试"
+    }
+  ],
+  "tableSemanticContract": {
+    "logicalColumns": [
+      "歌曲（含作者、专辑和版本说明）",
+      "时长",
+      "操作"
+    ],
+    "columnheaderCount": 3,
+    "cellsPerDataRow": 3,
+    "decorativeAriaHidden": [
+      "序号",
+      "封面",
+      "独立album装饰列"
+    ],
+    "rowHeightPx": 84,
+    "rangeActionColumnPx": 142,
+    "actionButtonMinPx": 44,
+    "actionGapPx": 5,
+    "rangeBreakpointPx": 800,
+    "表头": "真实DOM使用columnheader角色，绝对1px裁切但可访问；display:flex!important覆写全局旧隐藏规则。",
+    "默认模式": "旧默认播放/菜单/加载更多保留；3列表格语义同步修复，range几何仅可选适配启用。"
+  },
+  "finalVerification": {
+    "newBehaviorTests": 53,
+    "frozenRegressionTests": 167,
+    "totalTestsCovered": 220,
+    "说明": "这是当前源覆盖合计；R1实际fresh运行79项，另141项仅在源/测试逐字节未变条件下复用原运行，不称220项本轮复跑。",
+    "freshR1": {
+      "newDesktopTests": 40,
+      "frozenDesktopRegressionTests": 39,
+      "tests": 79,
+      "pass": 79,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "selectedFinalReceipts": [
+        "r1-final-test-02/desktop-new.receipt.json",
+        "r1-final-test-02/desktop-old.receipt.json"
+      ]
+    },
+    "unchangedPrior": {
+      "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+      "newCoreTests": 8,
+      "newContractTests": 5,
+      "frozenCoreRegressionTests": 79,
+      "frozenContractRegressionTests": 49,
+      "tests": 141,
+      "pass": 141,
+      "fail": 0,
+      "skipped": 0,
+      "cancelled": 0,
+      "sourceProof": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-unchanged-core-contracts.json",
+        "bytes": 301329,
+        "sha256": "78ebf855633c41fbacd187df6eb26e7a0b38fefd51b8fcfb8e319401aa3e40ed"
+      },
+      "selectedRuns": [
+        {
+          "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+          "sourceProof": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-unchanged-core-contracts.json",
+            "bytes": 301329,
+            "sha256": "78ebf855633c41fbacd187df6eb26e7a0b38fefd51b8fcfb8e319401aa3e40ed"
+          },
+          "selectedTests": 13,
+          "说明": "新增Core8/contracts5仅从原33项中取此13项；原Desktop20不沿用",
+          "receipt": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-05/receipt.json",
+            "bytes": 959,
+            "sha256": "3d07c556513bd3ce38f64596ffecfc86a04f91519ed0bc4a5a18b924f70e95d5"
+          },
+          "completeOutput": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-05/tap.log",
+            "bytes": 8206,
+            "sha256": "9cb47f9d14421f3cf3589ecca281b9c7078808753675db9f33d7fdbc620872bb"
+          },
+          "priorFullRunTapCounts": {
+            "tests": 33,
+            "suites": 0,
+            "pass": 33,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+          "sourceProof": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-unchanged-core-contracts.json",
+            "bytes": 301329,
+            "sha256": "78ebf855633c41fbacd187df6eb26e7a0b38fefd51b8fcfb8e319401aa3e40ed"
+          },
+          "selectedTests": 49,
+          "说明": "原contracts49",
+          "receipt": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/contracts.receipt.json",
+            "bytes": 750,
+            "sha256": "e4761497fe5029ab34d5f93af9dbacbd885012b0676f30069ad370ceb170202d"
+          },
+          "completeOutput": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/contracts.tap.log",
+            "bytes": 11532,
+            "sha256": "2bb2b8c3266b43543904197831e711cdf4be005b1b5e3666ccac876107c30d0a"
+          },
+          "priorFullRunTapCounts": {
+            "tests": 49,
+            "suites": 0,
+            "pass": 49,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        },
+        {
+          "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+          "sourceProof": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-unchanged-core-contracts.json",
+            "bytes": 301329,
+            "sha256": "78ebf855633c41fbacd187df6eb26e7a0b38fefd51b8fcfb8e319401aa3e40ed"
+          },
+          "selectedTests": 79,
+          "说明": "原Core79",
+          "receipt": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-02/receipt.json",
+            "bytes": 1310,
+            "sha256": "46d7b93e468099d6e69ad588039a8b5b038f2277ce2f491f29827b8ac288d853"
+          },
+          "completeOutput": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-02/tap.log",
+            "bytes": 25409,
+            "sha256": "57ac7e96fa6647c482d9fce714de4b95d6472c802845b94a4b8f32fe74027f95"
+          },
+          "priorFullRunTapCounts": {
+            "tests": 79,
+            "suites": 0,
+            "pass": 79,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          }
+        }
+      ],
+      "源码边界": "671个Core/contracts src/test文件逐字节对照Candidate01已捕获身份或此前未改的Git基线blob，零差异；不声称当前dist或worker/Reader/CUE绑定未变。Root最终Gate仍fresh构建并独立重跑。"
+    },
+    "newTestsByFile": [
+      {
+        "file": "apps/desktop/test/mbrs009-local-library-client.test.ts",
+        "executedTests": 2,
+        "testNames": [
+          "009preload搜索与target复用固定dataset，写不进入普通IPC",
+          "009preload在clone前拒绝隐藏路径和过大搜索"
+        ],
+        "classification": "FRESH_R1_RUN",
+        "finalReceipt": "r1-final-test-02/desktop-new.receipt.json",
+        "verifiedInFinalCompleteTap": true
+      },
+      {
+        "file": "apps/desktop/test/mbrs009-local-library-ipc.test.ts",
+        "executedTests": 2,
+        "testNames": [
+          "009Main/preload有界查询与目标只经固定dataset闭集，写与内部参数零发送",
+          "009Main投影Core失败不泄漏私有路径/SDK细节，失败保留音乐库"
+        ],
+        "classification": "FRESH_R1_RUN",
+        "finalReceipt": "r1-final-test-02/desktop-new.receipt.json",
+        "verifiedInFinalCompleteTap": true
+      },
+      {
+        "file": "apps/desktop/test/mbrs009-local-library-session.test.ts",
+        "executedTests": 25,
+        "testNames": [
+          "009抽象总数窗口只读取100条页，滚动缓存至多6页；此项不执行规模扫描",
+          "009旧查询迟到不能污染新查询，快速输入只串行读取最新目标",
+          "009单项详情有选择代际，迟到A的文件参数不能覆盖B",
+          "009离页返回保留搜索、缓存和滚动，重新读取目标与详情",
+          "009同查询刷新失败保留最近成功行、总数、详情、选择和滚动并显示旧结果错误",
+          "009成功空库刷新重新读取第一页，扫描新增曲目可见",
+          "009离线与null目标均零派发，三动作只携当前可信core/zone和九字段",
+          "009显示更正未知结果保留同一commandId，改标题/离页/重进不造新请求",
+          "009重定位只有人工确认后派发，commandId取候选id并保留asset修订",
+          "009受理、字节发送与Roon确认分开，外部接管不冒充下一首或沿用旧参数",
+          "009正式播放会话沿原协调器，local UUID零云歌词、收藏、数字重播",
+          "009R1 UNKNOWN与所有权丢失保留未知事实及MB队列，不断言外部接管",
+          "009R1 当前公开Playing不依赖页面回执，追加队列的最近请求不能遮盖它",
+          "009R1 点播派发前保留request身份，丢ACK后仍可关联公开确认且不重发",
+          "009R1 新动作准备失败保留最近已派发请求及原参数",
+          "009R1 显示更正仅按原dataset/command/id终态恢复并重新读取当前修订",
+          "009R1 拒绝终态释放原显示更正锁但保留拒绝说明，不重放业务",
+          "009R1 重定位未知保留原候选请求，原终态事件恢复且不自动派发",
+          "009R1 Outbox迟到读取与离页代际不能清原pending，更不能重发",
+          "009R1 离页中的派发丢ACK仍保留原request未知结论，返回不自动重发",
+          "009R1 已加载工作库变化后不以新dataset绑定原页面写意图",
+          "009R1 旧请求相同但公开曲目或资产修订失配，最近状态也不生成Playing",
+          "009R1 显示更正离页收到原Panel成功或拒绝后ACK隐藏，返回同dataset恢复",
+          "009R1 重定位离页收到原Panel成功或拒绝后ACK隐藏，返回同dataset恢复",
+          "009R1 离页原终态缓存不能在返回异dataset时清锁，回原dataset才消费"
+        ],
+        "classification": "FRESH_R1_RUN",
+        "finalReceipt": "r1-final-test-02/desktop-new.receipt.json",
+        "verifiedInFinalCompleteTap": true
+      },
+      {
+        "file": "apps/desktop/test/mbrs009-local-library-ui.test.ts",
+        "executedTests": 11,
+        "testNames": [
+          "009首次读取失败显示错误与重试，不能断言音乐库为空",
+          "009确认读取成功total为零才显示空库与目录加入引导",
+          "009正式页面复用表格与目录控件，详情焦点/关闭返回，显示更正保留原始信息",
+          "009共享TrackTable稀疏窗口与键盘实际派发，抽象total不创建全量节点",
+          "009共享TrackTable旧默认保留普通列表、Enter播放与加载更多",
+          "009R1 共享表格提供实际3列表头及歌曲/时长/操作cell，装饰不增加列",
+          "009R1 目录读失败后成功仅清读故障，未知业务动作在成功轮询后仍可见",
+          "009R1 本地队列入口实际接回App原焦点路径，打开及关闭保持滚动",
+          "009R1 原Outbox面板传出持久成功终态，确认隐藏后不丢失原命令身份",
+          "009R1 详情触发控件虚拟卸载或离页重建后关闭，恢复原曲目按钮及滚动",
+          "009R1 Outbox旧读取错误不掩盖随后收到的真实终态事件"
+        ],
+        "classification": "FRESH_R1_RUN",
+        "finalReceipt": "r1-final-test-02/desktop-new.receipt.json",
+        "verifiedInFinalCompleteTap": true
+      },
+      {
+        "file": "packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+        "executedTests": 6,
+        "testNames": [
+          "009原作者有界分页搜索，保留同名文件身份和字面通配符",
+          "009覆盖与原始名称都可搜索，详情保留原始/覆盖/生效分层且不造版本身份",
+          "009只读发现已有发行关系，不把其他同名发行混入",
+          "009MB_ONLY更名不改原文件bytes、asset或曲目身份",
+          "009详情参数只读当前扫描事实，增量重读仍保留已证实参数，资产修订改变则未知",
+          "009真实Core端口沿唯一Dataset Owner Worker读取有界页与详情并拒旧scope"
+        ],
+        "verifiedInFinalCompleteTap": true,
+        "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+        "finalReceipt": "green-05/receipt.json",
+        "priorRunSubsetOnly": true
+      },
+      {
+        "file": "packages/bridge-core/test/mbrs009/local-target.test.ts",
+        "executedTests": 2,
+        "testNames": [
+          "009只读目标来自原RoonAdapter权威，断连为null，不创建session或播放请求",
+          "009Core目标读取先核当前dataset，旧scope不采样权威目标"
+        ],
+        "verifiedInFinalCompleteTap": true,
+        "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+        "finalReceipt": "green-05/receipt.json",
+        "priorRunSubsetOnly": true
+      },
+      {
+        "file": "packages/contracts/test/mbrs009/local-library-query.test.ts",
+        "executedTests": 5,
+        "testNames": [
+          "009有界搜索接受中文、字面通配符及256码点，分页不改旧合同",
+          "009搜索拒绝越界文本、分页、未知和隐藏私有字段",
+          "009单项详情只接受逻辑曲目身份",
+          "009当前播放目标是nullable闭集，仅core与zone",
+          "009结果投影拒绝稀疏页、隐藏参数路径与不一致生效信息"
+        ],
+        "verifiedInFinalCompleteTap": true,
+        "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+        "finalReceipt": "green-05/receipt.json",
+        "priorRunSubsetOnly": true
+      }
+    ],
+    "latestCompilerExits": {
+      "desktopVueTypes": {
+        "classification": "FRESH_R1_RUN",
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-03/desktop.receipt.json",
+          "bytes": 651,
+          "sha256": "fe3f0181eb94264361f64edfb7228822e457a418f7c49fc8cf7a30176a57e84e"
+        },
+        "exit": 0
+      },
+      "e2eTypes": {
+        "classification": "FRESH_R1_RUN",
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-03/e2e.receipt.json",
+          "bytes": 653,
+          "sha256": "96fc695fee7b2b236ea75218cce316ebd64a411a5e7770cc05bd1ee3165a7412"
+        },
+        "exit": 0
+      },
+      "contractsBuild": {
+        "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/contracts-build.receipt.json",
+          "bytes": 504,
+          "sha256": "087a30f9b784694ed6e0ef3f792602aa91ffa21d73c845dd05146a38f8297103"
+        },
+        "exit": 0
+      },
+      "contractsTests": {
+        "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/contracts-test.receipt.json",
+          "bytes": 524,
+          "sha256": "6af3298f132b7dde0e50ff1978ba807260252b18a490d3210190716da7699cb6"
+        },
+        "exit": 0
+      },
+      "coreBuild": {
+        "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/core-build.receipt.json",
+          "bytes": 526,
+          "sha256": "2e446cba12f820520605674911976aad9b6ebad423e72887092616af3c3693e8"
+        },
+        "exit": 0
+      },
+      "coreTests": {
+        "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/core-test.receipt.json",
+          "bytes": 536,
+          "sha256": "d842dac2f14d756ea6082bf63ff9aaaa4bfaef7a07ac5dab5e764360b58eaeaf"
+        },
+        "exit": 0
+      }
+    },
+    "currentProductAndAllowedTestSnapshot": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json",
+      "bytes": 6436,
+      "sha256": "1d7eaab90b83249032efa782baefa2f3ae02d327af8b5e21787ab49fedd47450"
+    },
+    "diffCheck": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/diff-check.receipt.json",
+      "bytes": 556,
+      "sha256": "bf90d07871cc1bd4a55b46b312166d6ad80ace73468151b113b35b981ad136d2"
+    },
+    "workingTreeStatus": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/candidate-02-working-tree-status.log",
+      "bytes": 2514,
+      "sha256": "05502bc970095de432cf0086d72049ac660cb02c72bf4eebac033c5509b6c2f7"
+    },
+    "workingTreeCleanClaim": false,
+    "rootOwnedTypeInputsCurrentIdentities": [
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/tsconfig.json",
+        "bytes": 538,
+        "sha256": "ff5b244256a2a954cb5a9d35e8feab4133ac2e6c283260bcba18e40a66e9cdba"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/tsconfig.e2e.json",
+        "bytes": 622,
+        "sha256": "3dc38b44d415f9fd75f8e59298d6f8c4296d04d9eb61724ec2be09f66cea72fe"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/e2e/mbrs009-local-library.spec.ts",
+        "bytes": 10775,
+        "sha256": "4b37706530de793b0dc83d0d4ea51589324fcfac674863aa47914b1d2dc702ab"
+      }
+    ],
+    "r1ValidationReceiptCount": 23,
+    "candidate01ArchiveReceiptCount": 48
+  },
+  "allValidationRuns": [
+    {
+      "name": "build-01/contracts.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-01/contracts.receipt.json",
+        "bytes": 351,
+        "sha256": "89f96051098b54ff8a6a7aed37ae078dbadf1a42f6dfae9e686067a6fd6e0d51"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "-p",
+          "packages/contracts/tsconfig.json"
+        ],
+        "exit": 2,
+        "elapsed_seconds": 2.5796216249999997,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-01/contracts.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-01/contracts.log",
+        "bytes": 230,
+        "sha256": "772af997a8825a6930b62a658834604be4b8645d859087b3c50a6650f8ed22d9"
+      },
+      "classification": "新增API返回类型误写UserOverride，实际编译exit2；改为LocalMetadataOverride后通过",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "build-02/contracts.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-02/contracts.receipt.json",
+        "bytes": 344,
+        "sha256": "71168af183c7ec4f883896caac0aafda8c7546c975b2c755116fa8b6e3390dbe"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "-p",
+          "packages/contracts/tsconfig.json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 2.617310667,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-02/contracts.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-02/contracts.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "build-02/core.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-02/core.receipt.json",
+        "bytes": 341,
+        "sha256": "d5bc7ccbdffc76605cdf894d3d65dfe86af82fc26335cf9e8319042c021bbd92"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "-p",
+          "packages/bridge-core/tsconfig.json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 4.055740959,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-02/core.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-02/core.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "build-03/contracts.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/contracts.receipt.json",
+        "bytes": 344,
+        "sha256": "5d9067f9d241dc7edac5029242c1eca41e76bb3ea7b6b7cf2de85bfba87acb87"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "-p",
+          "packages/contracts/tsconfig.json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 2.527899375,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/contracts.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/contracts.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "新页tokenSource遗漏albumArtist，实际desktop编译exit2；补齐闭集后通过",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "build-03/core.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/core.receipt.json",
+        "bytes": 341,
+        "sha256": "5a46a867587dedfe7f17229cc1531df262f286b4c3d2e7a3e82fe552b8ac9ce8"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "-p",
+          "packages/bridge-core/tsconfig.json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 3.933948667,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/core.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/core.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "新页tokenSource遗漏albumArtist，实际desktop编译exit2；补齐闭集后通过",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "build-03/desktop.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/desktop.receipt.json",
+        "bytes": 357,
+        "sha256": "e53df2766a31f36b6dc67c197220a3f2e77a1daeaa42e16863f4a8736a0368b6"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "apps/desktop/node_modules/vue-tsc/bin/vue-tsc.js",
+          "--noEmit",
+          "-p",
+          "apps/desktop/tsconfig.json"
+        ],
+        "exit": 2,
+        "elapsed_seconds": 10.054089249999999,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/desktop.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/desktop.log",
+        "bytes": 398,
+        "sha256": "0913dddaf4c3e212aca51c14bc31f622acc36b12fc3b4ef53215f3c8b17b76f6"
+      },
+      "classification": "新页tokenSource遗漏albumArtist，实际desktop编译exit2；补齐闭集后通过",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "green-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-01/receipt.json",
+        "bytes": 550,
+        "sha256": "a106aa81b9d283439aa179d1761887a251ecd7393ce4a70a92b54ebbef728793"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "packages/contracts/test/mbrs009/local-library-query.test.ts",
+          "packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+          "apps/desktop/test/mbrs009-local-library-client.test.ts"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 0.938618791,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-01/tap.log",
+        "stage": "GREEN_INITIAL_BEHAVIOR"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-01/tap.log",
+        "bytes": 2339,
+        "sha256": "d881c627f6ad53467a365a670877ed2a6e08ffe6be58642f5bf94e326f641022"
+      },
+      "tapCounts": {
+        "tests": 10,
+        "suites": 0,
+        "pass": 10,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "green-02/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-02/receipt.json",
+        "bytes": 794,
+        "sha256": "cd8accf308c0c7af5c192f54e54de3db180a5139ccfa045d839afb06587be1e0"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "packages/contracts/test/mbrs009/local-library-query.test.ts",
+          "packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+          "packages/bridge-core/test/mbrs009/local-target.test.ts",
+          "apps/desktop/test/mbrs009-local-library-client.test.ts",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ipc.test.ts"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 1.103591042,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-02/tap.log",
+        "stage": "GREEN_EXPANDED_BEHAVIORS"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-02/tap.log",
+        "bytes": 6641,
+        "sha256": "07f5f2dd6286832d3d7e7dd6aa1ce5730ed50291aed07cbddd87931450571e56"
+      },
+      "tapCounts": {
+        "tests": 27,
+        "suites": 0,
+        "pass": 27,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "green-03/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-03/receipt.json",
+        "bytes": 893,
+        "sha256": "7efc43e3d3bf86473c1c1b5ea086cd0b395c485b5160b98a847eda12a7e6750c"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "packages/contracts/test/mbrs009/local-library-query.test.ts",
+          "packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+          "packages/bridge-core/test/mbrs009/local-target.test.ts",
+          "apps/desktop/test/mbrs009-local-library-client.test.ts",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ipc.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 1,
+        "elapsed_seconds": 1.1388730420148931,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-03/tap.log",
+        "阶段": "最终新增行为全组GREEN"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-03/tap.log",
+        "bytes": 8856,
+        "sha256": "4f929bb4aa8da4a4ebb16ec74c32578cbb3074cda3717c264438f5e4ea68d81e"
+      },
+      "tapCounts": {
+        "tests": 32,
+        "suites": 0,
+        "pass": 31,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "32项31通过1失败；补冻Owner协议前的实际dispatch固定命令表缺口",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "green-04/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-04/receipt.json",
+        "bytes": 984,
+        "sha256": "f241130fc11479614a4703feb82fd3f94beaa2d0af4d801549d7d219e7b7dc71"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "packages/contracts/test/mbrs009/local-library-query.test.ts",
+          "packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+          "packages/bridge-core/test/mbrs009/local-target.test.ts",
+          "apps/desktop/test/mbrs009-local-library-client.test.ts",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ipc.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 1,
+        "elapsed_seconds": 1.3719516670098528,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-04/tap.log",
+        "阶段": "最终原32组与新增真实Owner组完整GREEN"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-04/tap.log",
+        "bytes": 9103,
+        "sha256": "db8abc50f8dc7491bdc7311b03e34d52890727bb18253f612fef9c62bc9dd15c"
+      },
+      "tapCounts": {
+        "tests": 33,
+        "suites": 0,
+        "pass": 32,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "33项32通过1失败；原32项已通过，新增Worker测试裸tsx loader在checkout根无法准备",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "green-05/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-05/receipt.json",
+        "bytes": 959,
+        "sha256": "3d07c556513bd3ce38f64596ffecfc86a04f91519ed0bc4a5a18b924f70e95d5"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "packages/contracts/test/mbrs009/local-library-query.test.ts",
+          "packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+          "packages/bridge-core/test/mbrs009/local-target.test.ts",
+          "apps/desktop/test/mbrs009-local-library-client.test.ts",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ipc.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 1.5634742500260472,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-05/tap.log",
+        "阶段": "最终新增完整GREEN"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-05/tap.log",
+        "bytes": 8206,
+        "sha256": "9cb47f9d14421f3cf3589ecca281b9c7078808753675db9f33d7fdbc620872bb"
+      },
+      "tapCounts": {
+        "tests": 33,
+        "suites": 0,
+        "pass": 33,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "green-empty-refresh-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-empty-refresh-01/receipt.json",
+        "bytes": 569,
+        "sha256": "8ab477594488c2bc3e2ed09b9c2c474295de69763fab4326a5556916c27a83ff"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=成功空库刷新",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 0.297198667016346,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-empty-refresh-01/tap.log",
+        "阶段": "空库刷新同组GREEN"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-empty-refresh-01/tap.log",
+        "bytes": 328,
+        "sha256": "1c7f24d25915e35ca3441c960bae79973b9f4925390a74ad6c9efb89c80d1210"
+      },
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "green-first-read-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-first-read-01/receipt.json",
+        "bytes": 568,
+        "sha256": "a074bb05ece70eca7f8ee988f135301f6d64722d2030d073dbb1486d9f4ac500"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=首次读取失败",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 0.9689902079990134,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-first-read-01/tap.log",
+        "阶段": "首次读取错误同组GREEN"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-first-read-01/tap.log",
+        "bytes": 334,
+        "sha256": "f6270efcb5a484f882bea782b913e7b072aa5400a162e2294e633270060bbab2"
+      },
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "green-parameters-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-parameters-01/receipt.json",
+        "bytes": 489,
+        "sha256": "abe0c959f35aa6e8116cef57a2133637d3d9e2ed36d0d260134600de705906c5"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=详情参数只读",
+          "packages/bridge-core/test/mbrs009/local-library-query.test.ts"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 0.462950292,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-parameters-01/tap.log",
+        "stage": "GREEN_PARAMETER_REFRESH_SAME_TEST"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-parameters-01/tap.log",
+        "bytes": 580,
+        "sha256": "680aef4cd51f44813f9ca3f9423202bc8ebc491526a49630f9d966fa14cdbd24"
+      },
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "green-refresh-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-refresh-01/receipt.json",
+        "bytes": 470,
+        "sha256": "1f25330cf0c4d0e28edc4d18e0ca8efb0ba0ecdac823c14b4ff5e0b6e63321f6"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=刷新失败保留",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 0.300919084,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-refresh-01/tap.log",
+        "stage": "GREEN_REFRESH_SAME_TEST"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-refresh-01/tap.log",
+        "bytes": 398,
+        "sha256": "421bf9a9a74635cdb0b34b13379c4828144b510d108d6757d0bdb964121f4d6d"
+      },
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 1,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "preparation-04/core-build.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/core-build.receipt.json",
+        "bytes": 526,
+        "sha256": "2e446cba12f820520605674911976aad9b6ebad423e72887092616af3c3693e8"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "-p",
+          "packages/bridge-core/tsconfig.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 3.907504083996173,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/core-build.log",
+        "compilerStartedAtMs": 1791309802837,
+        "compilerFinishedAtMs": 1791309806746
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/core-build.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "Core编译成功；固定bundle只读核验调用的coreRoot尾斜线不符合规范路径，命令准备失败；原产物保留",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "preparation-04/fixed-worker-check.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/fixed-worker-check.receipt.json",
+        "bytes": 860,
+        "sha256": "02599ba171daf742b1bcb5e29abed90ab930848f045beec71784b0081b428894"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--input-type=module",
+          "-e",
+          "import { readFixedMetadataWorkerBundle } from './packages/bridge-core/scripts/metadata-reader-bundle-artifacts.mjs'; import { writeFile } from 'node:fs/promises'; const fixed = await readFixedMetadataWorkerBundle(new URL('./packages/bridge-core/', import.meta.url).pathname); await writeFile(process.argv[1], JSON.stringify(fixed.manifest, null, 2));",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/fixed-worker-manifest.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 1,
+        "elapsed_seconds": 0.0314527089940384,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/fixed-worker-check.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/fixed-worker-check.log",
+        "bytes": 808,
+        "sha256": "3d489c9d69b359dbc20e5d2e3d418a29e5aecc75f5cea117b1bdfc2d344d7840"
+      },
+      "classification": "Core编译成功；固定bundle只读核验调用的coreRoot尾斜线不符合规范路径，命令准备失败；原产物保留",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "preparation-05/core-test.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/core-test.receipt.json",
+        "bytes": 536,
+        "sha256": "d842dac2f14d756ea6082bf63ff9aaaa4bfaef7a07ac5dab5e764360b58eaeaf"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "-p",
+          "packages/bridge-core/tsconfig.test.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 6.905289125017589,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/core-test.log",
+        "阶段": "规范Root参数恢复同一编译产物的只读校验"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/core-test.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "规范coreRoot参数核验原固定bundle通过；独立冻结输入和实际Core编译产物时间/字节核验后生成真实Reader/CUE绑定；Core测试类型检查通过",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "preparation-05/fixed-worker-check.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/fixed-worker-check.receipt.json",
+        "bytes": 988,
+        "sha256": "cd8a78669220df963117e46a68ab4958d1465e9fd0319932541816c50dfbeabd"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--input-type=module",
+          "-e",
+          "import { readFixedMetadataWorkerBundle } from './packages/bridge-core/scripts/metadata-reader-bundle-artifacts.mjs'; import { writeFile } from 'node:fs/promises'; const fixed = await readFixedMetadataWorkerBundle(process.argv[1]); await writeFile(process.argv[2], JSON.stringify(fixed.manifest, null, 2));",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/fixed-worker-manifest.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 0.1034795830200892,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/fixed-worker-check.log",
+        "阶段": "规范Root参数恢复同一编译产物的只读校验"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/fixed-worker-check.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "规范coreRoot参数核验原固定bundle通过；独立冻结输入和实际Core编译产物时间/字节核验后生成真实Reader/CUE绑定；Core测试类型检查通过",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "red-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-01/receipt.json",
+        "bytes": 560,
+        "sha256": "345e678dc136b497157d923ce5a58f9fdb97edde4ecaa27590e7d9aee2c3206b"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "packages/contracts/test/mbrs009/local-library-query.test.ts",
+          "packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+          "apps/desktop/test/mbrs009-local-library-client.test.ts"
+        ],
+        "exit": 1,
+        "elapsed_seconds": 0.5265918750083074,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-01/tap.log",
+        "stage": "RED_BEFORE_PRODUCT_CHANGES"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-01/tap.log",
+        "bytes": 11177,
+        "sha256": "53d114b7dde8c9b8024b349fd5f3deb3180a03e6b953f519f8a281a678249e2f"
+      },
+      "tapCounts": {
+        "tests": 10,
+        "suites": 0,
+        "pass": 1,
+        "fail": 9,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "行为缺口与外置access EPERM准备失败混合；9失败含5行为缺口与4准备失败，不能概括全轮为有效RED",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "red-02/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-02/receipt.json",
+        "bytes": 560,
+        "sha256": "cab39fac3a7c5ceba994e8fba2aecefe57aeba1a50949bc7e54da16c222c2438"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "packages/contracts/test/mbrs009/local-library-query.test.ts",
+          "packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+          "apps/desktop/test/mbrs009-local-library-client.test.ts"
+        ],
+        "exit": 1,
+        "elapsed_seconds": 0.8059433329908643,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-02/tap.log",
+        "stage": "RED_BEFORE_PRODUCT_CHANGES"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-02/tap.log",
+        "bytes": 8555,
+        "sha256": "c3de79872bcd2bfa54df8769263b9053954479f2cba92a581000098adc3b61f6"
+      },
+      "tapCounts": {
+        "tests": 10,
+        "suites": 0,
+        "pass": 2,
+        "fail": 8,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "同原10项，外置权限准备完成后2通过8行为失败；产品实现前的有效RED",
+      "validBehaviorRed": true,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "red-empty-refresh-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-empty-refresh-01/receipt.json",
+        "bytes": 490,
+        "sha256": "88b02a7e89c4ad9d9998a3ddbac5963720d6768a9f81732b8187d1db88344386"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=成功空库刷新",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts"
+        ],
+        "exit": 1,
+        "elapsed_seconds": 0.33775466700899415,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-empty-refresh-01/tap.log",
+        "阶段": "空库刷新修复前行为RED"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-empty-refresh-01/tap.log",
+        "bytes": 1009,
+        "sha256": "1d8571c0a592e1709fdf5451fd679a1a0dd455dcc985086286f5dacd8a22935d"
+      },
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功空库刷新不重读第一页的有效行为RED",
+      "validBehaviorRed": true,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "red-first-read-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-first-read-01/receipt.json",
+        "bytes": 468,
+        "sha256": "c4eb9f88cb0a6c4227293e24de7d7d878569d05d78210d462f81a4db7dc8fa0b"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=首次读取失败",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "exit": 1,
+        "elapsed_seconds": 0.934601708,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-first-read-01/tap.log",
+        "stage": "RED_FIRST_READ_BEFORE_FIX"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-first-read-01/tap.log",
+        "bytes": 2906,
+        "sha256": "1fc32b91c9b47e3b3d2e3f1400ebb3ad127dd88b6041cf9475fe87758154960d"
+      },
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "首次查询失败误报空库的有效行为RED",
+      "validBehaviorRed": true,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "red-owner-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-owner-01/receipt.json",
+        "bytes": 657,
+        "sha256": "0a01b649b333844fff8c66aaad502d8eb271ad1687e41f0967d6c6040fb30b0e"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=真实Core端口",
+          "test/mbrs009/local-library-query.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core",
+        "exit": 1,
+        "elapsed_seconds": 1.0119515830010641,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-owner-01/tap.log",
+        "阶段": "真实唯一Owner读路由修复前行为RED"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-owner-01/tap.log",
+        "bytes": 1418,
+        "sha256": "854b26a827118f7118f43ca12ae74b0d3088911ba4e6b31edf2bcc4db83cf236"
+      },
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "实际Core端口/唯一Owner Worker准备成功，新只读命令不能得到合法投影的有效行为RED",
+      "validBehaviorRed": true,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "red-parameters-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-parameters-01/receipt.json",
+        "bytes": 484,
+        "sha256": "11b3106275a98181b7355f42e3ed90b626710c53f17765574699717f0bdded41"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=详情参数只读",
+          "packages/bridge-core/test/mbrs009/local-library-query.test.ts"
+        ],
+        "exit": 1,
+        "elapsed_seconds": 0.4965465,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-parameters-01/tap.log",
+        "stage": "RED_PARAMETER_REFRESH_BEFORE_FIX"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-parameters-01/tap.log",
+        "bytes": 1656,
+        "sha256": "948457a6710fa2cb186b8d36b56e96219cca4aba6d7f5edf649e8f51f6888400"
+      },
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "新增测试缺少expectedDatasetId/commandOutbox的harness准备失败；不是有效参数行为RED",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "red-parameters-02/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-parameters-02/receipt.json",
+        "bytes": 500,
+        "sha256": "92b3c6c225f1f4b4e4dccb7ce2f20fe36f9d97f44c01dc31edf9eb599c081018"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=详情参数只读",
+          "packages/bridge-core/test/mbrs009/local-library-query.test.ts"
+        ],
+        "exit": 1,
+        "elapsed_seconds": 0.45938333400000003,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-parameters-02/tap.log",
+        "stage": "RED_PARAMETER_REFRESH_VALID_BEFORE_FIX"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-parameters-02/tap.log",
+        "bytes": 1305,
+        "sha256": "1f362097eeecfb9a8ca542446b8ab57a01b2740bce8ba788faed466afda2cb4c"
+      },
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "纠正测试scope后无变化增量扫描丢失已证实文件参数的有效行为RED",
+      "validBehaviorRed": true,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "red-refresh-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-refresh-01/receipt.json",
+        "bytes": 467,
+        "sha256": "9c42939e4d8e124c0454bf5e0dcc0828b3490237abeabfe8562331239581034f"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "./apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=刷新失败保留",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts"
+        ],
+        "exit": 1,
+        "elapsed_seconds": 0.378730083,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-refresh-01/tap.log",
+        "stage": "RED_REFRESH_BEFORE_FIX"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-refresh-01/tap.log",
+        "bytes": 94370,
+        "sha256": "d1e8067de664a2c0c7d88d6626720b503ba4a45711f655f7dffee8e363f08dc0"
+      },
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "同查询刷新失败抹掉最后成功列表/详情的有效行为RED",
+      "validBehaviorRed": true,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "regression-01/contracts.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-01/contracts.receipt.json",
+        "bytes": 714,
+        "sha256": "4e0b7eb05d916582e65c43ac1632c42d2e4a4547ce0f9ad9ef7e3e28fd6fecfe"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "test/validator.test.ts",
+          "test/mbrs002/local-catalog.test.ts",
+          "test/mbrs003/local-relocation.test.ts",
+          "test/mbrs006/local-playback-contract.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts",
+        "exit": 0,
+        "elapsed_seconds": 0.3264107500144746,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-01/contracts.tap.log",
+        "阶段": "冻结旧回归"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-01/contracts.tap.log",
+        "bytes": 11545,
+        "sha256": "7dab83d5e2e0cc03aeda625c5680d8cd1347a84c6a93b37351c501d7cab31e7c"
+      },
+      "tapCounts": {
+        "tests": 49,
+        "suites": 0,
+        "pass": 49,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "regression-01/desktop.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-01/desktop.receipt.json",
+        "bytes": 993,
+        "sha256": "96c2e6807c85ed27807baef6b8dfe125e6caa9083038dc9bca666a4a43b7c0ce"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "test/preload.test.ts",
+          "test/sidebar-controls.test.ts",
+          "test/page-journey-session.test.ts",
+          "test/library-pagination.test.ts",
+          "test/virtualWindow.test.ts",
+          "test/mbrs003/local-library-client.test.ts",
+          "test/mbrs003/local-library-ipc.test.ts",
+          "test/mbrs003/local-library-conflict-projection.test.ts",
+          "test/mbrs006-local-consumer.test.ts",
+          "test/mbrs008-audio-quality.test.ts",
+          "test/player-details.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop",
+        "exit": 0,
+        "elapsed_seconds": 2.3375196249980945,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-01/desktop.tap.log",
+        "阶段": "冻结旧回归"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-01/desktop.tap.log",
+        "bytes": 9683,
+        "sha256": "e04455eadb219436db5120ee61f29440c043cb284348fdfdb3c3a5a401151255"
+      },
+      "tapCounts": {
+        "tests": 39,
+        "suites": 0,
+        "pass": 39,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "regression-02/contracts.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/contracts.receipt.json",
+        "bytes": 750,
+        "sha256": "e4761497fe5029ab34d5f93af9dbacbd885012b0676f30069ad370ceb170202d"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "test/validator.test.ts",
+          "test/mbrs002/local-catalog.test.ts",
+          "test/mbrs003/local-relocation.test.ts",
+          "test/mbrs006/local-playback-contract.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts",
+        "exit": 0,
+        "elapsed_seconds": 0.3526649169798475,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/contracts.tap.log",
+        "阶段": "Owner闭集补齐后最终contracts与desktop回归"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/contracts.tap.log",
+        "bytes": 11532,
+        "sha256": "2bb2b8c3266b43543904197831e711cdf4be005b1b5e3666ccac876107c30d0a"
+      },
+      "tapCounts": {
+        "tests": 49,
+        "suites": 0,
+        "pass": 49,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "regression-02/desktop.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/desktop.receipt.json",
+        "bytes": 1029,
+        "sha256": "cf874c4a580af295ec7f8e424193845e55ea1916d794b967c6b3830b5c3d10db"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "test/preload.test.ts",
+          "test/sidebar-controls.test.ts",
+          "test/page-journey-session.test.ts",
+          "test/library-pagination.test.ts",
+          "test/virtualWindow.test.ts",
+          "test/mbrs003/local-library-client.test.ts",
+          "test/mbrs003/local-library-ipc.test.ts",
+          "test/mbrs003/local-library-conflict-projection.test.ts",
+          "test/mbrs006-local-consumer.test.ts",
+          "test/mbrs008-audio-quality.test.ts",
+          "test/player-details.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop",
+        "exit": 0,
+        "elapsed_seconds": 2.3714855419821106,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/desktop.tap.log",
+        "阶段": "Owner闭集补齐后最终contracts与desktop回归"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/desktop.tap.log",
+        "bytes": 9679,
+        "sha256": "e7b5e54badaf01ab66dd38d1790b3e9e36b881d7952b14691548ebfea12d6991"
+      },
+      "tapCounts": {
+        "tests": 39,
+        "suites": 0,
+        "pass": 39,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "regression-core-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-01/receipt.json",
+        "bytes": 1001,
+        "sha256": "c78e0bffcc974f2a5243230b5a4510404e20543fa716e2195df0df79664aeae1"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "test/mbrs002/local-catalog-store.test.ts",
+          "test/mbrs002/local-catalog-owner.test.ts",
+          "test/mbrs003/local-relocation-owner.test.ts",
+          "test/mbrs004/name-rules-scan-integration.test.ts",
+          "test/mbrs006/controller-local.test.ts",
+          "test/mbrs006/runtime-local.test.ts",
+          "test/mbrs007/controller-queue.test.ts",
+          "test/mbrs007/edition-queue.test.ts",
+          "test/mbrs008/file-parameters.test.ts",
+          "test/dataset-owner.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core",
+        "exit": 1,
+        "elapsed_seconds": 3.3449792499886826,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-01/tap.log",
+        "阶段": "冻结旧Core回归"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-01/tap.log",
+        "bytes": 30342,
+        "sha256": "cdc2c7983c0a884376959e644c3ce74efa6a1a79dccd792c41433e7600eb285d"
+      },
+      "tapCounts": {
+        "tests": 79,
+        "suites": 0,
+        "pass": 74,
+        "fail": 5,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "79项74通过5准备失败；4项TMPDIR权限0755不满足0700、1项未提供fresh Reader绑定，不能判为代码失败",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "regression-core-02/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-02/receipt.json",
+        "bytes": 1310,
+        "sha256": "46d7b93e468099d6e69ad588039a8b5b038f2277ce2f491f29827b8ac288d853"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "test/mbrs002/local-catalog-store.test.ts",
+          "test/mbrs002/local-catalog-owner.test.ts",
+          "test/mbrs003/local-relocation-owner.test.ts",
+          "test/mbrs004/name-rules-scan-integration.test.ts",
+          "test/mbrs006/controller-local.test.ts",
+          "test/mbrs006/runtime-local.test.ts",
+          "test/mbrs007/controller-queue.test.ts",
+          "test/mbrs007/edition-queue.test.ts",
+          "test/mbrs008/file-parameters.test.ts",
+          "test/dataset-owner.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core",
+        "exit": 0,
+        "elapsed_seconds": 4.190747790999012,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-02/tap.log",
+        "privateTmpMode": "0700",
+        "readerBinding": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/reader-build-binding.json",
+        "cueBinding": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/cue-build-binding.json",
+        "阶段": "准备恢复后同组冻结Core回归"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-02/tap.log",
+        "bytes": 25409,
+        "sha256": "57ac7e96fa6647c482d9fce714de4b95d6472c802845b94a4b8f32fe74027f95"
+      },
+      "tapCounts": {
+        "tests": 79,
+        "suites": 0,
+        "pass": 79,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-01/contracts-build.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-01/contracts-build.receipt.json",
+        "bytes": 361,
+        "sha256": "2f30c8b769e493b8a90896c34ae8b8e8520a1a6d58027f1c10fde1a28b3a356e"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "-p",
+          "packages/contracts/tsconfig.json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 2.4507795420000003,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-01/contracts-build.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-01/contracts-build.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "新增命令扩展旧LocalCatalogCommandPayloads导致原002 exhaustive fixture编译失败；保留原22和旧类型，新2只读合同独立后通过，旧测试未改",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-01/contracts-test.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-01/contracts-test.receipt.json",
+        "bytes": 374,
+        "sha256": "ac0e34fe021fe5abb1850b9f7d2c951d69e6a32d6b03104be5466a3763b198ac"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "-p",
+          "packages/contracts/tsconfig.test.json"
+        ],
+        "exit": 2,
+        "elapsed_seconds": 2.439480083,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-01/contracts-test.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-01/contracts-test.log",
+        "bytes": 534,
+        "sha256": "82896d2fd97dd18cbdd89a1667885e456ce528099bbdd799013fd777b19f62a5"
+      },
+      "classification": "新增命令扩展旧LocalCatalogCommandPayloads导致原002 exhaustive fixture编译失败；保留原22和旧类型，新2只读合同独立后通过，旧测试未改",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-02/contracts-build.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/contracts-build.receipt.json",
+        "bytes": 361,
+        "sha256": "f83f08f7b554347e62d6fdad9574c486f61ede53f85452ebbab48a773b89c3c6"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "-p",
+          "packages/contracts/tsconfig.json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 2.4021202080000004,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/contracts-build.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/contracts-build.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "contracts/Core四出口通过；新增IPC测试CoreIpcError构造参数错误导致desktop exit2，改正测试后通过",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-02/contracts-test.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/contracts-test.receipt.json",
+        "bytes": 381,
+        "sha256": "7e1abefb1809a0e79f0e566fda1b341bc872014a28e2a2cd5325c251910bd376"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "-p",
+          "packages/contracts/tsconfig.test.json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 2.5189830419999995,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/contracts-test.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/contracts-test.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "contracts/Core四出口通过；新增IPC测试CoreIpcError构造参数错误导致desktop exit2，改正测试后通过",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-02/core-build.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/core-build.receipt.json",
+        "bytes": 351,
+        "sha256": "a07c14989010c2ee0b6c1452957662712f2b50e3e84ff9e1c516c5e67b66ea5d"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "-p",
+          "packages/bridge-core/tsconfig.json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 3.854771416,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/core-build.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/core-build.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "contracts/Core四出口通过；新增IPC测试CoreIpcError构造参数错误导致desktop exit2，改正测试后通过",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-02/core-test.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/core-test.receipt.json",
+        "bytes": 377,
+        "sha256": "047f9f9af91a0986dd77a19ca0f7be77faf8e0ca99dd9c627c1ca3c3accbe529"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "-p",
+          "packages/bridge-core/tsconfig.test.json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 6.689599249999999,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/core-test.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/core-test.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "contracts/Core四出口通过；新增IPC测试CoreIpcError构造参数错误导致desktop exit2，改正测试后通过",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-02/desktop.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/desktop.receipt.json",
+        "bytes": 360,
+        "sha256": "efee8fd34246731fdee611930723e0ee99ecbf43d44b1524f2daa9804da11d6c"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "apps/desktop/node_modules/vue-tsc/bin/vue-tsc.js",
+          "--noEmit",
+          "-p",
+          "apps/desktop/tsconfig.json"
+        ],
+        "exit": 2,
+        "elapsed_seconds": 9.597979333999998,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/desktop.log"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/desktop.log",
+        "bytes": 108,
+        "sha256": "4140aa431fd6ada47fab45e703c2c188000a2b40239889e57196f1de1a2477d9"
+      },
+      "classification": "contracts/Core四出口通过；新增IPC测试CoreIpcError构造参数错误导致desktop exit2，改正测试后通过",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-03/desktop.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-03/desktop.receipt.json",
+        "bytes": 400,
+        "sha256": "ac0898864361839d4ac2361cfb768061424c0f62c4cd922b61b676d10be676f4"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "apps/desktop/node_modules/vue-tsc/bin/vue-tsc.js",
+          "--noEmit",
+          "-p",
+          "apps/desktop/tsconfig.json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 9.374687208008254,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-03/desktop.log",
+        "阶段": "候选最终类型检查"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-03/desktop.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-03/e2e.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-03/e2e.receipt.json",
+        "bytes": 402,
+        "sha256": "475a6692a164b63ace329b44b96c0beba5627bf79d779417fb7a94ba217ec49e"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "-p",
+          "apps/desktop/tsconfig.e2e.json"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 2.886759124987293,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-03/e2e.log",
+        "阶段": "候选最终类型检查"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-03/e2e.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-04/contracts-build.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/contracts-build.receipt.json",
+        "bytes": 504,
+        "sha256": "087a30f9b784694ed6e0ef3f792602aa91ffa21d73c845dd05146a38f8297103"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "-p",
+          "packages/contracts/tsconfig.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 2.3864957919868175,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/contracts-build.log",
+        "阶段": "Owner闭集补齐后的最终类型编译"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/contracts-build.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-04/contracts-test.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/contracts-test.receipt.json",
+        "bytes": 524,
+        "sha256": "6af3298f132b7dde0e50ff1978ba807260252b18a490d3210190716da7699cb6"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "-p",
+          "packages/contracts/tsconfig.test.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 2.5491828749945853,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/contracts-test.log",
+        "阶段": "Owner闭集补齐后的最终类型编译"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/contracts-test.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-04/core-build.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/core-build.receipt.json",
+        "bytes": 501,
+        "sha256": "71d59b67cf6c666024ab8439e056dc1a386a208b2f3f14a9d431fdcc350c3b6f"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "-p",
+          "packages/bridge-core/tsconfig.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 3.7481425830046646,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/core-build.log",
+        "阶段": "Owner闭集补齐后的最终类型编译"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/core-build.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-04/core-test.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/core-test.receipt.json",
+        "bytes": 520,
+        "sha256": "73aab5273a3b674bf4bfee85ff96ce990b1cdb43ff0b915db5099c10eb2727b0"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "-p",
+          "packages/bridge-core/tsconfig.test.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 6.773701750003966,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/core-test.log",
+        "阶段": "Owner闭集补齐后的最终类型编译"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/core-test.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-04/desktop.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/desktop.receipt.json",
+        "bytes": 503,
+        "sha256": "f1ff02076993a62233488c57fb7318f158d1f9e4180c8c429adbc87776e71490"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "apps/desktop/node_modules/vue-tsc/bin/vue-tsc.js",
+          "--noEmit",
+          "-p",
+          "apps/desktop/tsconfig.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 9.761466790980194,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/desktop.log",
+        "阶段": "Owner闭集补齐后的最终类型编译"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/desktop.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "typecheck-04/e2e.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/e2e.receipt.json",
+        "bytes": 506,
+        "sha256": "79016f9c25781b23c8d077efce91c6adaf3424311ec74227160d2e2fb0c0bc8d"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "-p",
+          "apps/desktop/tsconfig.e2e.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 2.8284127909864765,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/e2e.log",
+        "阶段": "Owner闭集补齐后的最终类型编译"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/e2e.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "成功出口的完整证据；最终计数不累计重复运行",
+      "validBehaviorRed": false,
+      "阶段": "Candidate01原运行档案；不是R1复跑"
+    },
+    {
+      "name": "r1-final-test-01/desktop-new.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/desktop-new.receipt.json",
+        "bytes": 1074,
+        "sha256": "b7a10a02b0750423c61281eacc4fc2747e05acd3f3038ebf28a3e64f6b03d828"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "apps/desktop/test/mbrs009-local-library-client.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ipc.test.ts",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 1.5664546670159325,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/desktop-new.tap.log",
+        "阶段": "R1最终Desktop新增与原回归及diff检查",
+        "counts": {
+          "tests": 37,
+          "suites": 0,
+          "pass": 37,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "source_snapshot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/source-snapshot.json"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/desktop-new.tap.log",
+        "bytes": 8857,
+        "sha256": "348267ece2ed66b771a8561eae9243e9a63d6957e462584bbfa1a7aa227a757d"
+      },
+      "classification": "补充离页Panel ACK修复前的完整37项通过；原结果封存，不升级为当前40项最终验证。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 37,
+        "suites": 0,
+        "pass": 37,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "sourceSnapshot": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/source-snapshot.json",
+        "bytes": 6436,
+        "sha256": "3722c4243c2ca1a6959b19d2f85dd121e9091fdca6d4ab2a2d3756171baab558"
+      }
+    },
+    {
+      "name": "r1-final-test-01/desktop-old.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/desktop-old.receipt.json",
+        "bytes": 1300,
+        "sha256": "2174867f4ad5b7d9b5ef4c67442e3bf59d176294c6572e4a7a89a08c698fef48"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "test/preload.test.ts",
+          "test/sidebar-controls.test.ts",
+          "test/page-journey-session.test.ts",
+          "test/library-pagination.test.ts",
+          "test/virtualWindow.test.ts",
+          "test/mbrs003/local-library-client.test.ts",
+          "test/mbrs003/local-library-ipc.test.ts",
+          "test/mbrs003/local-library-conflict-projection.test.ts",
+          "test/mbrs006-local-consumer.test.ts",
+          "test/mbrs008-audio-quality.test.ts",
+          "test/player-details.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop",
+        "exit": 0,
+        "elapsed_seconds": 2.419015874998877,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/desktop-old.tap.log",
+        "阶段": "R1最终Desktop新增与原回归及diff检查",
+        "counts": {
+          "tests": 39,
+          "suites": 0,
+          "pass": 39,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "source_snapshot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/source-snapshot.json"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/desktop-old.tap.log",
+        "bytes": 9678,
+        "sha256": "6b621184a5bc086ec508ed9f8a694b46e6fc4b796abf7ed1169d5ad61d2a5536"
+      },
+      "classification": "补充离页Panel ACK修复前原Desktop39项通过；当前源另在final-test-02重跑。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 39,
+        "suites": 0,
+        "pass": 39,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "sourceSnapshot": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/source-snapshot.json",
+        "bytes": 6436,
+        "sha256": "3722c4243c2ca1a6959b19d2f85dd121e9091fdca6d4ab2a2d3756171baab558"
+      }
+    },
+    {
+      "name": "r1-final-test-01/diff-check.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/diff-check.receipt.json",
+        "bytes": 532,
+        "sha256": "5f3007a46faf22c88afc87a474b6c4eea44f1db946e17d40c60adfbfcdaca035"
+      },
+      "result": {
+        "command": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 0.0807887090195436,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/diff-check.log",
+        "阶段": "R1最终Desktop新增与原回归及diff检查",
+        "counts": {},
+        "source_snapshot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/source-snapshot.json"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/diff-check.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "当时diff检查exit0；当前源另在final-test-02检查。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "sourceSnapshot": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/source-snapshot.json",
+        "bytes": 6436,
+        "sha256": "3722c4243c2ca1a6959b19d2f85dd121e9091fdca6d4ab2a2d3756171baab558"
+      }
+    },
+    {
+      "name": "r1-final-test-02/desktop-new.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-new.receipt.json",
+        "bytes": 1098,
+        "sha256": "72c1791e17d2771b0f0bc6eacb82e8201a53110a4d01f7af31718a13ef1db9a4"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "apps/desktop/test/mbrs009-local-library-client.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ipc.test.ts",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 1.4719229160109535,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-new.tap.log",
+        "阶段": "R1离页Outbox修复后的最终Desktop新增与原回归及diff检查",
+        "counts": {
+          "tests": 40,
+          "suites": 0,
+          "pass": 40,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "source_snapshot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-new.tap.log",
+        "bytes": 9603,
+        "sha256": "702885ac29f3c8bb94f5572770d1485552c4e91eea53588d7216fe7b6520b785"
+      },
+      "classification": "当前候选最终Desktop新增完整40项：client2/IPC2/session25/UI11，40pass、零fail/skip/cancel。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 40,
+        "suites": 0,
+        "pass": 40,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "sourceSnapshot": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json",
+        "bytes": 6436,
+        "sha256": "1d7eaab90b83249032efa782baefa2f3ae02d327af8b5e21787ab49fedd47450"
+      }
+    },
+    {
+      "name": "r1-final-test-02/desktop-old.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-old.receipt.json",
+        "bytes": 1325,
+        "sha256": "d522a9957bfc4109df61a4c066c9b439d340777396e4ff5926e7ff9280c53cfe"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "test/preload.test.ts",
+          "test/sidebar-controls.test.ts",
+          "test/page-journey-session.test.ts",
+          "test/library-pagination.test.ts",
+          "test/virtualWindow.test.ts",
+          "test/mbrs003/local-library-client.test.ts",
+          "test/mbrs003/local-library-ipc.test.ts",
+          "test/mbrs003/local-library-conflict-projection.test.ts",
+          "test/mbrs006-local-consumer.test.ts",
+          "test/mbrs008-audio-quality.test.ts",
+          "test/player-details.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop",
+        "exit": 0,
+        "elapsed_seconds": 2.3790742919954937,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-old.tap.log",
+        "阶段": "R1离页Outbox修复后的最终Desktop新增与原回归及diff检查",
+        "counts": {
+          "tests": 39,
+          "suites": 0,
+          "pass": 39,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "source_snapshot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-old.tap.log",
+        "bytes": 9682,
+        "sha256": "5bbc2b2ccbb392d502b7adce886025bd85bb47992934ed26ad9c72a2721f1179"
+      },
+      "classification": "当前候选原Desktop39项完整回归：39pass、零fail/skip/cancel。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 39,
+        "suites": 0,
+        "pass": 39,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true,
+      "sourceSnapshot": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json",
+        "bytes": 6436,
+        "sha256": "1d7eaab90b83249032efa782baefa2f3ae02d327af8b5e21787ab49fedd47450"
+      }
+    },
+    {
+      "name": "r1-final-test-02/diff-check.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/diff-check.receipt.json",
+        "bytes": 556,
+        "sha256": "bf90d07871cc1bd4a55b46b312166d6ad80ace73468151b113b35b981ad136d2"
+      },
+      "result": {
+        "command": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 0.0769947919761762,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/diff-check.log",
+        "阶段": "R1离页Outbox修复后的最终Desktop新增与原回归及diff检查",
+        "counts": {},
+        "source_snapshot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/diff-check.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "当前候选git diff --check exit0。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "sourceSnapshot": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json",
+        "bytes": 6436,
+        "sha256": "1d7eaab90b83249032efa782baefa2f3ae02d327af8b5e21787ab49fedd47450"
+      }
+    },
+    {
+      "name": "r1-green-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-01/receipt.json",
+        "bytes": 645,
+        "sha256": "32edae228841ef11e3ef85a9107a8b82bf1d15985a054a21fa0d3ed501fe1f92"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 1,
+        "elapsed_seconds": 1.3602810410084203,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-01/tap.log",
+        "阶段": "R1同组首次GREEN尝试"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-01/tap.log",
+        "bytes": 8171,
+        "sha256": "feaadc3d5b3e4edb6759232c4167b14dbc6b6ba64a68fc5aab739f92ea69133e"
+      },
+      "classification": "失败GREEN保留：28项26pass/2fail。1项实际旧查询启动时序回归；1项合成详情的override/effective不一致触发DTO拒绝，属夹具准备问题。分别修复后同组通过。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 28,
+        "suites": 0,
+        "pass": 26,
+        "fail": 2,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true
+    },
+    {
+      "name": "r1-green-02/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-02/receipt.json",
+        "bytes": 633,
+        "sha256": "080b0792fa908b0c24098077d2fb0b665918d37f289d28b2a170b4ef0e2b528b"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 1.3992325419967528,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-02/tap.log",
+        "阶段": "R1同组GREEN"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-02/tap.log",
+        "bytes": 6801,
+        "sha256": "e05058de3ce837f0df18100903d742617b485b83df5f5f7023aef263d660b26d"
+      },
+      "classification": "匹配GREEN：初始R1会话/UI/Panel共28项通过。后续新增围栏与焦点测试另记，不视作最终完整新组。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 28,
+        "suites": 0,
+        "pass": 28,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true
+    },
+    {
+      "name": "r1-green-03/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-03/receipt.json",
+        "bytes": 771,
+        "sha256": "83253a470caa99eee241790269106c27a3cfebeaca14f366922f7731f0d2b5c7"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "apps/desktop/test/mbrs009-local-library-client.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ipc.test.ts",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 1.4764814589871094,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-03/tap.log",
+        "阶段": "R1当前全部Desktop新增组"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-03/tap.log",
+        "bytes": 8861,
+        "sha256": "7a56a56ce7d8e9dbe570d914f34362e1e7fa87267197af0c1cb84fa531d09c9f"
+      },
+      "classification": "匹配GREEN：当时全部Desktop新增37项通过；之后离页全局Panel ACK过滤补充的3项另保留RED/GREEN。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 37,
+        "suites": 0,
+        "pass": 37,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true
+    },
+    {
+      "name": "r1-green-inactive-outbox-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-inactive-outbox-01/receipt.json",
+        "bytes": 705,
+        "sha256": "0180db8db1dc3bf39500aef195e04f8764f3cd60d25ca7d1c67721cebf7ca60d"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=009R1 (显示更正离页|重定位离页|离页原终态)",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 0.37148324999725446,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-inactive-outbox-01/tap.log",
+        "阶段": "R1离页原Outbox终态缓存同组GREEN"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-inactive-outbox-01/tap.log",
+        "bytes": 858,
+        "sha256": "6e10a059809717cd3bbd7e92173d25bf8af7c0bbe1948dff28cea1a987606513"
+      },
+      "classification": "匹配GREEN：3项全过，显示更正与重定位各自成功/拒绝终态ACK过滤，以及返回异dataset不清锁、回原dataset才消费。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 3,
+        "suites": 0,
+        "pass": 3,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true
+    },
+    {
+      "name": "r1-red-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-01/receipt.json",
+        "bytes": 644,
+        "sha256": "a1d7031e73b76154e56e22616ba63c3f93e4375f963e0490ced31fc4680bd83b"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 1,
+        "elapsed_seconds": 1.2762422079977114,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-01/tap.log",
+        "阶段": "R1产品修改前行为RED"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-01/tap.log",
+        "bytes": 17274,
+        "sha256": "dc1326fb35221cfdbfe152c66844f65cecdab3ca871f5bde6f9775aa68e9469a"
+      },
+      "classification": "有效行为RED：27项17pass/10fail；缺少pendingRelocation导致的TypeError是预期产品能力缺口，其他失败是原R1业务状态/语义/焦点缺陷。非环境准备失败。",
+      "validBehaviorRed": true,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 27,
+        "suites": 0,
+        "pass": 17,
+        "fail": 10,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true
+    },
+    {
+      "name": "r1-red-detail-focus-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-detail-focus-01/receipt.json",
+        "bytes": 646,
+        "sha256": "d186a5fd0ad37624afad0a92de85b05c7af313abd5fc3ff39b7c612ab406362a"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=009R1 详情触发",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 1,
+        "elapsed_seconds": 1.0358481660077814,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-detail-focus-01/tap.log",
+        "阶段": "R1 P3最小详情焦点行为RED"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-detail-focus-01/tap.log",
+        "bytes": 1066,
+        "sha256": "07fc158377fffe446c6480e335335cab454376b803ef7b71fe568f2c50e137e9"
+      },
+      "classification": "准备失败：宿主isConnected仅看直接父节点，误判已从host root脱离的控件；修正宿主后再确认行为RED。本次不计有效RED。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true
+    },
+    {
+      "name": "r1-red-detail-focus-02/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-detail-focus-02/receipt.json",
+        "bytes": 652,
+        "sha256": "5814b9b3d4b5bfee9cad2b35f2f3f3d2dfd1d770c9b8a4372189d2fa7f643a8d"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=009R1 详情触发",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 1,
+        "elapsed_seconds": 0.9988940419862047,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-detail-focus-02/tap.log",
+        "阶段": "R1 P3最小详情焦点有效行为RED"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-detail-focus-02/tap.log",
+        "bytes": 1169,
+        "sha256": "99a84310f6136530bdeea5121ecd0d63292e713a30530d5ce2830d3427b672f7"
+      },
+      "classification": "有效行为RED：实际详情触发控件被虚拟卸载或离页重建后关闭，焦点回搜索而非原曲目控件。",
+      "validBehaviorRed": true,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true
+    },
+    {
+      "name": "r1-red-generation-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-generation-01/receipt.json",
+        "bytes": 692,
+        "sha256": "d24a383457d4f22d9d380c3ed73cf433152fe0fe442ee1c6e3f7a9b60ad64b01"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=009R1 (离页中的|已加载工作库|旧请求)",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 1,
+        "elapsed_seconds": 0.3506702499871608,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-generation-01/tap.log",
+        "阶段": "R1同一请求与代际边界补充行为RED"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-generation-01/tap.log",
+        "bytes": 3333,
+        "sha256": "166e013e44d6a7ce5773e7fbd1ba06aa06715dfa505de8fd2dc3ca7bdc635ce3"
+      },
+      "classification": "有效行为RED：离页丢ACK回执仍pending、异dataset原页面写意图被重绑、旧请求参数与当前曲目失配仍生成Playing，3项均失败。",
+      "validBehaviorRed": true,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 3,
+        "suites": 0,
+        "pass": 0,
+        "fail": 3,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true
+    },
+    {
+      "name": "r1-red-inactive-outbox-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-inactive-outbox-01/receipt.json",
+        "bytes": 707,
+        "sha256": "7a9715c1137a1332898fbf379cb906743f8cbab4466c083dbb540a34677f7f1d"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=009R1 (显示更正离页|重定位离页|离页原终态)",
+          "apps/desktop/test/mbrs009-local-library-session.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 1,
+        "elapsed_seconds": 0.44344841700512916,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-inactive-outbox-01/tap.log",
+        "阶段": "R1离页原Outbox终态缓存有效行为RED"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-inactive-outbox-01/tap.log",
+        "bytes": 3764,
+        "sha256": "5b04dc27a3165f0f276f95af2b4363caf9db2a98801c42cc1f4e5de771d79574"
+      },
+      "classification": "有效行为RED：离页全局Panel真实终态随后ACK过滤，返回同dataset仍永久锁；显示更正、重定位、返回异dataset围栏共3项失败。两个领域测试每项循环成功/拒绝，RED在首个成功分支失败，GREEN执行全部分支。",
+      "validBehaviorRed": true,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 3,
+        "suites": 0,
+        "pass": 0,
+        "fail": 3,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true
+    },
+    {
+      "name": "r1-red-outbox-read-fault-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-outbox-read-fault-01/receipt.json",
+        "bytes": 669,
+        "sha256": "acd6369fb038f53106c3d67d1bace5a2bc3f47bf7cff6f87fa1ebed50e924354"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=009R1 Outbox旧读取",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 1,
+        "elapsed_seconds": 0.9613074170192704,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-outbox-read-fault-01/tap.log",
+        "阶段": "R1读故障与真实Outbox终态分离行为RED"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-outbox-read-fault-01/tap.log",
+        "bytes": 1160,
+        "sha256": "b247a1c992eafdebce6750c0f2bd9240b180262ab6c0dc25160403f027fad625"
+      },
+      "classification": "有效行为RED：旧Outbox读取错误掩盖随后真实业务终态。",
+      "validBehaviorRed": true,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true
+    },
+    {
+      "name": "r1-red-panel-01/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-panel-01/receipt.json",
+        "bytes": 633,
+        "sha256": "714962940953d742c1d47387ba7d4c6488b33ae8fc00807946dac5a26fcb079e"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=009R1 原Outbox",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 1,
+        "elapsed_seconds": 0.8888882499886677,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-panel-01/tap.log",
+        "阶段": "R1面板终态接线行为RED"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-panel-01/tap.log",
+        "bytes": 2288,
+        "sha256": "ac00bcc1d518b059fb7626e5a1f807d540c7c403526012c817e4cb1d2998e485"
+      },
+      "classification": "准备失败：实际SFC测试宿主未映射controller.js，MODULE_NOT_FOUND；不算有效行为RED。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true
+    },
+    {
+      "name": "r1-red-panel-02/receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-panel-02/receipt.json",
+        "bytes": 639,
+        "sha256": "76a9b07beac9b65cb322501a50be4b8b6b8df0c05b2db4eedee723d69feb5af8"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "--import",
+          "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/node_modules/tsx/dist/loader.mjs",
+          "--test",
+          "--test-name-pattern=009R1 原Outbox",
+          "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 1,
+        "elapsed_seconds": 0.9450205409957562,
+        "full_tap": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-panel-02/tap.log",
+        "阶段": "R1面板终态接线有效行为RED"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-panel-02/tap.log",
+        "bytes": 1269,
+        "sha256": "40b9c2a89f5b1eb274fafe3c45e33784c5dd40b8e7507172aaa4ee4450efa053"
+      },
+      "classification": "有效行为RED：修正宿主后原Panel未传出真实终态overview事件。",
+      "validBehaviorRed": true,
+      "阶段": "R1修复实际运行",
+      "tapCounts": {
+        "tests": 1,
+        "suites": 0,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "tapComplete": true
+    },
+    {
+      "name": "r1-types-01/desktop.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-01/desktop.receipt.json",
+        "bytes": 492,
+        "sha256": "eb17c5e93425e69c90ff9772fa8bf60c391ab1f0af9ba84ad9f733a2305cf92b"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "apps/desktop/node_modules/vue-tsc/bin/vue-tsc.js",
+          "--noEmit",
+          "-p",
+          "apps/desktop/tsconfig.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 2,
+        "elapsed_seconds": 10.32255879198783,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-01/desktop.log",
+        "阶段": "R1当前Desktop/E2e类型检查"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-01/desktop.log",
+        "bytes": 133,
+        "sha256": "fd1c51909ab480feb6cedee4197585190fa10e5ca3458dcc4ded60d056b35045"
+      },
+      "classification": "编译失败完整保留：测试中assert.equal造成TypeScript控制流把随后pending ref窄化为never，TS2339 exit2；夹具读取使用明确类型后通过。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行"
+    },
+    {
+      "name": "r1-types-01/e2e.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-01/e2e.receipt.json",
+        "bytes": 494,
+        "sha256": "1bc46047c162c529209fdc4b7927990bdae80ac93342b53d54c66222a1144bb6"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "-p",
+          "apps/desktop/tsconfig.e2e.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 2.973502582986839,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-01/e2e.log",
+        "阶段": "R1当前Desktop/E2e类型检查"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-01/e2e.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "当时E2e类型检查exit0；最终仍以types-03当前源出口为准。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行"
+    },
+    {
+      "name": "r1-types-02/desktop.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-02/desktop.receipt.json",
+        "bytes": 515,
+        "sha256": "e1d3f8c88e2fa3edbb2771d9681f648cbd8379c59e5cd8393f777e40204d5ed2"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "apps/desktop/node_modules/vue-tsc/bin/vue-tsc.js",
+          "--noEmit",
+          "-p",
+          "apps/desktop/tsconfig.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 21.67974266599049,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-02/desktop.log",
+        "阶段": "R1测试控制流类型修正后的Desktop类型检查"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-02/desktop.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "测试类型修复后Desktop类型检查exit0；最终以types-03为准。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行"
+    },
+    {
+      "name": "r1-types-03/desktop.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-03/desktop.receipt.json",
+        "bytes": 651,
+        "sha256": "fe3f0181eb94264361f64edfb7228822e457a418f7c49fc8cf7a30176a57e84e"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "apps/desktop/node_modules/vue-tsc/bin/vue-tsc.js",
+          "--noEmit",
+          "-p",
+          "apps/desktop/tsconfig.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 10.260436416981975,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-03/desktop.log",
+        "阶段": "R1离页Outbox修复后的最终Desktop/E2e类型检查",
+        "source_snapshot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-03/desktop.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "当前候选Desktop/vue-tsc --noEmit exit0。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "sourceSnapshot": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json",
+        "bytes": 6436,
+        "sha256": "1d7eaab90b83249032efa782baefa2f3ae02d327af8b5e21787ab49fedd47450"
+      }
+    },
+    {
+      "name": "r1-types-03/e2e.receipt.json",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-03/e2e.receipt.json",
+        "bytes": 653,
+        "sha256": "96fc695fee7b2b236ea75218cce316ebd64a411a5e7770cc05bd1ee3165a7412"
+      },
+      "result": {
+        "command": [
+          "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+          "packages/contracts/node_modules/typescript/bin/tsc",
+          "--noEmit",
+          "-p",
+          "apps/desktop/tsconfig.e2e.json"
+        ],
+        "cwd": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+        "exit": 0,
+        "elapsed_seconds": 3.0154715000244323,
+        "full_log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-03/e2e.log",
+        "阶段": "R1离页Outbox修复后的最终Desktop/E2e类型检查",
+        "source_snapshot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json"
+      },
+      "completeOutput": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-03/e2e.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "classification": "当前候选E2e/tsc --noEmit exit0；不是E2e执行证据。",
+      "validBehaviorRed": false,
+      "阶段": "R1修复实际运行",
+      "sourceSnapshot": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json",
+        "bytes": 6436,
+        "sha256": "1d7eaab90b83249032efa782baefa2f3ae02d327af8b5e21787ab49fedd47450"
+      }
+    }
+  ],
+  "redGreenPairs": [
+    {
+      "red": "red-02/receipt.json",
+      "green": "green-01/receipt.json",
+      "sameOriginalTests": 10
+    },
+    {
+      "red": "red-refresh-01/receipt.json",
+      "green": "green-refresh-01/receipt.json",
+      "sameFocusedTests": 1
+    },
+    {
+      "red": "red-first-read-01/receipt.json",
+      "green": "green-first-read-01/receipt.json",
+      "sameFocusedTests": 1
+    },
+    {
+      "red": "red-empty-refresh-01/receipt.json",
+      "green": "green-empty-refresh-01/receipt.json",
+      "sameFocusedTests": 1
+    },
+    {
+      "red": "red-parameters-02/receipt.json",
+      "green": "green-parameters-01/receipt.json",
+      "sameFocusedTests": 1
+    },
+    {
+      "red": "red-owner-01/receipt.json",
+      "green": "green-05/receipt.json",
+      "sameBehaviorIncludedInCompleteGroup": true
+    },
+    {
+      "red": "r1-red-01/receipt.json",
+      "green": "r1-green-02/receipt.json",
+      "sameOriginalBehaviorTests": 27,
+      "额外": "后者再包含原Panel事件测试，总28项；最终全部行为仍在final-test-02完整组通过"
+    },
+    {
+      "red": "r1-red-panel-02/receipt.json",
+      "green": "r1-green-02/receipt.json",
+      "sameFocusedTests": 1
+    },
+    {
+      "red": "r1-red-detail-focus-02/receipt.json",
+      "green": "r1-green-03/receipt.json",
+      "sameFocusedTests": 1
+    },
+    {
+      "red": "r1-red-generation-01/receipt.json",
+      "green": "r1-green-03/receipt.json",
+      "sameFocusedTests": 3
+    },
+    {
+      "red": "r1-red-outbox-read-fault-01/receipt.json",
+      "green": "r1-green-03/receipt.json",
+      "sameFocusedTests": 1
+    },
+    {
+      "red": "r1-red-inactive-outbox-01/receipt.json",
+      "green": "r1-green-inactive-outbox-01/receipt.json",
+      "sameFocusedTests": 3,
+      "最终完整组": "r1-final-test-02/desktop-new.receipt.json"
+    }
+  ],
+  "preparationEvidence": {
+    "classification": "CANDIDATE01_ARCHIVE_ONLY",
+    "prior": {
+      "precompile": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/precompile.json",
+        "bytes": 1124,
+        "sha256": "2aacb40cfe5e1194f60a725d628c1faac87a5431668bc4d6e3b1411c208ad622"
+      },
+      "compiler": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/core-build.receipt.json",
+        "bytes": 526,
+        "sha256": "2e446cba12f820520605674911976aad9b6ebad423e72887092616af3c3693e8"
+      },
+      "readerBinding": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/reader-build-binding.json",
+        "bytes": 59561,
+        "sha256": "5a30bc71d7efe198ee829ef03bd19af3122a6d5dcfb0449dd9686ee58af85232"
+      },
+      "cueBinding": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/cue-build-binding.json",
+        "bytes": 1209,
+        "sha256": "7da38b6e878eb2c4c6d277d2f27f317ce1ff0e54e9587cedbb3503e377ec7777"
+      },
+      "fixedBundleCheck": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/fixed-worker-check.receipt.json",
+        "bytes": 988,
+        "sha256": "cd8a78669220df963117e46a68ab4958d1465e9fd0319932541816c50dfbeabd"
+      },
+      "fixedBundleRebuiltByWriter": false,
+      "copiedDist": false,
+      "baselineReference": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/baseline-preparation-01"
+    },
+    "说明": "原编译/Reader/CUE/固定bundlereceipt字节保存；不声称R1重新准备或当前绑定已经过新生产构建。"
+  },
+  "boundedCarryover": [
+    "普通正式App/受控245文件App由Root独立操作，本writer未运行；SFC host行为测试不是浏览器像素/普通App证据",
+    "真实Roon/账号/NAS/音频/Owner未测；受控target仅测试数据，生产没有权威就null",
+    "原AT003真实100k负载仍待验，定义与kind不变；抽象100k total只验证每页100条读取与有界节点/缓存，不算规模验收；本轮无新100k/300k扫描",
+    "原真实Signal Path/数字输出/gapless等轴不提升；当前显示解析参数不代表Roon输出",
+    "tag写回保持另留012；本轮仅显示覆盖",
+    "详情已有edition<=200、原始观察<=200；超预算明确失败；参数来源证明遍历<=200批，无法证明返回未知",
+    "7项P2已按行为修复，仍待唯一正式R2独立判定；不自称审核接受。",
+    "UI-R1-O1（P3）继承原行内更多菜单仍未增加完整键盘菜单模型；本轮保留既有能力，bounded carryover，不引入重构或第三轮。",
+    "UI-R1-O2（P3）最小范围实现稳定track/index/query/root/scroll焦点恢复，实际SFC宿主覆盖虚拟卸载及离页重建；若当前查询已变化或目标不可用则返回搜索。真实生产键盘由Root待验。",
+    "当前40项Desktop新增包含25会话/11 UI/2 client/2 IPC；其中P3详情焦点新增1项。UI宿主不是浏览器几何或普通App/Owner证据。",
+    "721–800px操作宽度与三列表格语义已修复源码及宿主验证；Root准备的生产CSS几何、真实SSR、E2e/CUA尚未由本writer执行。"
+  ],
+  "审核对照": [
+    {
+      "调整前": "未知所有权、当前播放和最近请求混为同一状态",
+      "调整后": "未知事实、当前公开观察、原派发请求分层并绑定身份",
+      "原因": "丢ACK或追加队列不会改写当前实际播放结论"
+    },
+    {
+      "调整前": "Outbox终态确认过滤后本地未知动作可能永久锁定",
+      "调整后": "同身份终态可靠接回，离页缓存并在原dataset返回时消费",
+      "原因": "恢复可继续编辑而不盲清、改绑或重发"
+    },
+    {
+      "调整前": "窄窗操作压缩、表格缺表头和关闭返回路径",
+      "调整后": "3列可访问表格、44px操作、原队列焦点与稳定详情返回",
+      "原因": "保持共享组件与现有键盘入口的一致体验"
+    }
+  ],
+  "handoff": {
+    "readyForFormalR2": true,
+    "formalReviewRoundsConsumed": 1,
+    "formalReviewRoundsRemaining": 1,
+    "productEditingStopped": true,
+    "compilationStopped": true,
+    "rootMayTakeCompilerOutputs": true,
+    "noFurtherMutationsUntilExplicitReviewRepairTask": true,
+    "gitCommitOrStagePerformedByWriter": false,
+    "appOperationPerformedByWriter": false,
+    "finalProductionBuildCiRealRoonAudioOwnerAcceptanceClaim": false
+  },
+  "candidateProofPreparation": {
+    "receipt": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-candidate-proof-preparation-01/receipt.json",
+      "bytes": 957,
+      "sha256": "ec0107575768bf9b6080a158730a04a717771ccbbf7da344edf39444fb8955ad"
+    },
+    "completeOutput": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-candidate-proof-preparation-01/full-output.log",
+      "bytes": 3054,
+      "sha256": "3cdf7238103a964d9150e2e0219ee2bdd14850007917d6b001d66fe1a939388a"
+    },
+    "classification": "准备校验器失败；8项误报均来自有明确candidate01Identity标签的历史源码身份，不是当前产品或测试字节变化。当前源身份与final-test-02快照一致。",
+    "historicalManifest": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/candidate-02-initial-manifest.json",
+      "bytes": 177332,
+      "sha256": "de7f61e232aaf767260e2fd281c38b9dbdf9368e0927af9fc1baf9aff880efd0"
+    },
+    "说明": "保留这次元数据校验准备失败及完整输出；修正校验范围为当前身份后重新验证。未改产品、测试、Root文档或编译结果。"
+  }
+}

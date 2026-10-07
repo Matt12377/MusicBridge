@@ -1,0 +1,54 @@
+{
+  "schema": "mbrs009.root-final-gate-independent-check.v1",
+  "at": "2026-10-07T00:08:58.886463+00:00",
+  "manifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/manifest.json",
+    "bytes": 257323,
+    "sha256": "abc7db943b0a327ad38c12448271fc7d4c077b06a617c859a21cc14a75fa3a4d"
+  },
+  "success": true,
+  "stageCount": 11,
+  "sourceCount": 1234,
+  "freshOutputCount": 38,
+  "ssrHtmlCount": 2,
+  "testBindingCount": 3,
+  "actualFreshTestCount": 220,
+  "groups": [
+    {
+      "name": "core-local-library",
+      "counts": {
+        "tests": 87,
+        "pass": 87,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "contracts-local-library",
+      "counts": {
+        "tests": 54,
+        "pass": 54,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "name": "desktop-local-library",
+      "counts": {
+        "tests": 79,
+        "pass": 79,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ],
+  "originalFailedRootGateRetained": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-01/result.json",
+  "elapsedMs": 54341.968375,
+  "ordinaryAppRealRoonAudioOwner": "NOT_RUN"
+}

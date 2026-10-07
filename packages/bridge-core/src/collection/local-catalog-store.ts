@@ -5,6 +5,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import type { SourceStore } from '../recording/source-store.js';
 import type { RootCapability } from '../recording/source-files.js';
+import { extractVersionTokens } from '../library/local-name-rules.js';
 
 const tables = {
   local_catalog_roots: 'CREATE TABLE local_catalog_roots(id TEXT PRIMARY KEY,source_root_id TEXT NOT NULL REFERENCES source_roots(id),data TEXT NOT NULL) STRICT',
@@ -122,6 +123,26 @@ function parse<T>(value: unknown, guard: (v: unknown) => v is T): T {
 const readRoot = (row: Row): dto.LibraryRoot => { const result = parse(row.data, dto.isLibraryRoot); if (row.id !== result.id || row.source_root_id !== result.sourceRootId) return corrupt(); return result; };
 const readAsset = (row: Row): dto.AudioAsset => { const result = parse(row.data, dto.isAudioAsset); if (row.id !== result.id || row.root_id !== result.libraryRootId || row.source_root_id !== result.sourceRootId || !relativePath(row.relative) || !sha(row.sha256)) return corrupt(); return result; };
 const readTrack = (row: Row): dto.LocalTrack => { const result = parse(row.data, dto.isLocalTrack); if (row.id !== result.id || row.asset_id !== result.assetId) return corrupt(); return result; };
+function libraryMetadata(db: DatabaseSync, trackId: string): dto.LocalMetadataView {
+  const rows = db.prepare('SELECT data FROM local_catalog_observations WHERE track_id=? ORDER BY rowid LIMIT 201').all(trackId);
+  if (rows.length > maxCatalogReadRows) throw new LocalCatalogBudgetError('详情原始标签读取行数', rows.length, maxCatalogReadRows);
+  const raw: dto.LocalMetadata = {};
+  for (const row of rows) Object.assign(raw, parse(row.data, dto.isLocalMetadataObservation).fields);
+  const row = db.prepare('SELECT data FROM local_catalog_overrides WHERE track_id=?').get(trackId);
+  const override = row ? parse(row.data, dto.isLocalMetadataOverride) : null;
+  return { raw, override, effective: { ...raw, ...override?.fields } };
+}
+function libraryVersionTokens(fields: dto.LocalMetadata): dto.VersionNameToken[] {
+  return (['title', 'artist', 'album'] as const).flatMap(source => fields[source] ? extractVersionTokens(fields[source]!, source) : []).slice(0, 64);
+}
+const libraryFields = ['title', 'artist', 'album', 'year', 'disc', 'track'] as const;
+// 每个字段按原观察历史的最后一次存在值读取；部分标签观察不会抹掉未提供字段。
+const libraryRaw = (field: string) => `(SELECT json_extract(o.data,'$.fields.${field}') FROM local_catalog_observations o WHERE o.track_id=t.id AND json_type(o.data,'$.fields.${field}') IS NOT NULL ORDER BY o.rowid DESC LIMIT 1)`;
+const libraryProjection = `WITH candidates AS (SELECT t.rowid ordinal,t.id,t.asset_id,t.data,a.id asset_record_id,a.root_id,a.source_root_id,a.relative,a.sha256,a.data asset_data,
+  ${libraryFields.flatMap(field => [`${libraryRaw(field)} raw_${field}`, `COALESCE(json_extract(v.data,'$.fields.${field}'),${libraryRaw(field)}) effective_${field}`]).join(',')}
+  FROM local_catalog_tracks t JOIN local_catalog_assets a ON a.id=t.asset_id LEFT JOIN local_catalog_overrides v ON v.track_id=t.id WHERE (@root IS NULL OR a.root_id=@root))`;
+const libraryWhere = `(@query='' OR ${['title', 'artist', 'album', 'year'].flatMap(field => [`instr(lower(COALESCE(raw_${field},'')),lower(@query))>0`, `instr(lower(COALESCE(effective_${field},'')),lower(@query))>0`]).join(' OR ')}
+  OR EXISTS(SELECT 1 FROM local_catalog_edition_tracks l JOIN local_catalog_editions e ON e.id=l.edition_id WHERE l.track_id=candidates.id AND json_extract(l.data,'$.active')=1 AND (instr(lower(json_extract(e.data,'$.title')),lower(@query))>0 OR instr(lower(json_extract(e.data,'$.edition')),lower(@query))>0)))`;
 function checkSegment(track: dto.LocalTrack, asset: dto.AudioAsset): void {
   if (track.segment && (asset.sampleFrames === null || track.segment.timebaseHz !== asset.timebaseHz || BigInt(track.segment.endFrameExclusive) > BigInt(asset.sampleFrames))) return corrupt();
 }
@@ -564,6 +585,37 @@ export function createLocalCatalogStore(access: Access) {
     pageTracks(page: dto.PageRequest): dto.Page<dto.LocalTrack> {
       if (!record(page) || !keys(page, ['offset', 'limit']) || !Number.isSafeInteger(page.offset) || page.offset < 0 || !Number.isSafeInteger(page.limit) || page.limit < 1 || page.limit > 200) return access.conflict('本地目录分页无效。');
       return access.read(db => { const total = Number(db.prepare('SELECT count(*) n FROM local_catalog_tracks').get()!.n), items = db.prepare('SELECT * FROM local_catalog_tracks ORDER BY rowid LIMIT ? OFFSET ?').all(page.limit, page.offset).map(readTrack); return { ...page, total, items, hasMore: page.offset + items.length < total }; });
+    },
+    queryTracks(page: dto.LocalLibraryQuery): dto.LocalLibraryQueryPage {
+      if (!dto.isLocalLibraryQuery(page)) return access.conflict('本地搜索或分页范围无效。');
+      return access.read(db => {
+        const filters = { root: page.rootId, query: page.query.trim() };
+        const total = Number(db.prepare(`${libraryProjection} SELECT count(*) n FROM candidates WHERE ${libraryWhere}`).get(filters)!.n);
+        const rows = db.prepare(`${libraryProjection} SELECT * FROM candidates WHERE ${libraryWhere} ORDER BY ordinal LIMIT @limit OFFSET @offset`).all({ ...filters, limit: page.limit, offset: page.offset });
+        const items = rows.map(row => {
+          boundedRow(row);
+          const raw: dto.LocalMetadata = {}, metadata: dto.LocalMetadata = {};
+          for (const field of libraryFields) {
+            if (typeof row[`raw_${field}`] === 'string') raw[field] = row[`raw_${field}`] as string;
+            if (typeof row[`effective_${field}`] === 'string') metadata[field] = row[`effective_${field}`] as string;
+          }
+          return { track: readTrack(row), asset: readAsset({ id: row.asset_record_id, root_id: row.root_id, source_root_id: row.source_root_id, relative: row.relative, sha256: row.sha256, data: row.asset_data }), metadata, versionTokens: libraryVersionTokens(raw) };
+        });
+        const result = { ...page, total, hasMore: page.offset + items.length < total, items };
+        if (!dto.isLocalLibraryQueryPage(result)) return corrupt();
+        return result;
+      });
+    },
+    trackDetail(trackId: string): dto.LocalLibraryTrackDetail {
+      id(trackId); return access.read(db => {
+        const selected = track(db, trackId), asset = readAsset(one(db, 'local_catalog_assets', selected.assetId));
+        const metadata = libraryMetadata(db, trackId);
+        const rows = db.prepare("SELECT DISTINCT e.data FROM local_catalog_edition_tracks l JOIN local_catalog_editions e ON e.id=l.edition_id WHERE l.track_id=? AND json_extract(l.data,'$.active')=1 ORDER BY e.rowid LIMIT 201").all(trackId);
+        if (rows.length > maxCatalogReadRows) throw new LocalCatalogBudgetError('详情发行关系读取行数', rows.length, maxCatalogReadRows);
+        const result = { track: selected, asset, metadata, versionTokens: libraryVersionTokens(metadata.raw), editions: rows.map(row => parse(row.data, dto.isAlbumEdition)), fileParameters: null };
+        if (!dto.isLocalLibraryTrackDetail(result)) return corrupt();
+        return result;
+      });
     },
     createEdition(request: CreateAlbumEdition): dto.AlbumEdition { return transaction('create-edition', request, db => applyCreateEdition(db, request)); },
     edition(editionId: string): dto.AlbumEdition { id(editionId); return access.read(db => parse(one(db, 'local_catalog_editions', editionId).data, dto.isAlbumEdition)); },

@@ -1,0 +1,42 @@
+{
+  "schema": "mbrs009.root-gate-run.v1",
+  "runs": [
+    {
+      "name": "gate-unit",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--test",
+        "--test-reporter=tap",
+        "scripts/ci/test/verify-mbrs009-local-library-ui.test.mjs"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedSeconds": 0.08964091600500979,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-unit.log",
+      "bytes": 1772,
+      "sha256": "050f33002ce5e8e6bb405a5408e50395a635d0a558a42e8610e029e9c604c457"
+    },
+    {
+      "name": "local-library-gate",
+      "command": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "scripts/ci/verify-mbrs009-local-library-ui.mjs",
+        "--output-root=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output"
+      ],
+      "exitCode": 0,
+      "timedOut": false,
+      "elapsedSeconds": 54.38554441698943,
+      "log": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/local-library-gate.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "manifest": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/manifest.json",
+    "bytes": 257323,
+    "sha256": "abc7db943b0a327ad38c12448271fc7d4c077b06a617c859a21cc14a75fa3a4d"
+  },
+  "success": true,
+  "buildRootVerifiedExternalWritable": true,
+  "realRoonAudioOwner": "NOT_RUN"
+}

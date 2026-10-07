@@ -1,0 +1,805 @@
+{
+  "schema": "mbrs009.ui-formal-review.v1",
+  "task": "MBRS-009",
+  "formal_review_round": 1,
+  "maximum_formal_rounds": 2,
+  "preflights_counted_as_formal_review": false,
+  "candidate": "01",
+  "reviewer": {
+    "task": "/root/local_ui_audit009",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "max",
+    "children_spawned": 0,
+    "role": "只读UI/可访问性审查",
+    "skill": "/Users/yihe/.agents/skills/emil-design-eng/SKILL.md",
+    "memory_used_for_current_R1": false
+  },
+  "completed_at_utc": "2026-10-06T18:27:48.292643+00:00",
+  "decision": "CHANGES_REQUESTED",
+  "fatal_security_playback_login_gate": "NO_NEW_FATAL_FINDING_IN_THIS_UI_REVIEW",
+  "finding_counts": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 6,
+    "P3_observations": 2
+  },
+  "root_action": "唯一writer在Root整合两份R1后修复6项P2并重新冻结候选/恰当验证；仅剩一次正式R2。P3可按有界风险处理，不能单独触发第三轮。",
+  "constraints_observed": {
+    "checkout_writes": false,
+    "product_tests_run": false,
+    "compilation_run": false,
+    "app_or_CUA_started": false,
+    "scan_or_real_source_access": false,
+    "network_used": false,
+    "new_scale_or_real_account_audio": false,
+    "only_review_artifacts_written": [
+      "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R1.json",
+      "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R1.md"
+    ]
+  },
+  "input_identity": {
+    "checkout": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+    "branch": "codex/mbrs-009-local-library-ui",
+    "head": "418389708ca9400dbe347da448a829b9481dbb84",
+    "base_sha": "418389708ca9400dbe347da448a829b9481dbb84",
+    "candidate_sha256": "644365ac5ab33c20807159810eab242c0680cef1a75894b041002a7aa5da428c",
+    "inputs": [
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/CANDIDATE_01.json",
+        "bytes": 98561,
+        "sha256": "644365ac5ab33c20807159810eab242c0680cef1a75894b041002a7aa5da428c"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_CANDIDATE_01_CHECK.json",
+        "bytes": 35740,
+        "sha256": "2d04637f4f621af7233de83c99d873e609cc03cc9a3f5d8fdd88597e0f2654b3"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ORIGINAL_009_ACCEPTANCE_SNAPSHOT.json",
+        "bytes": 3823,
+        "sha256": "60a0bae1f24db119fdcb2ac1ac6bce083685b5c08b3cdea7943b5b007bb64781"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/tasks/MBRS-009_LOCAL_LIBRARY_UI.md",
+        "bytes": 3293,
+        "sha256": "b0108dd9544c9794b3d73bc4460431274a37c5db5cf516c8430d8300779bbca1"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+        "bytes": 10033,
+        "sha256": "b8ccd84d53ed75662b6cc3d85b986032c8b491a21626f99a7846cc72305dc111"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/e2e/mbrs009-local-library.spec.ts",
+        "bytes": 7281,
+        "sha256": "15fb2c6158e0301b560516b8cfcdf0370ea83df33d0cc13a55706fea45d0a0e1"
+      },
+      {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-ui-render.mjs",
+        "bytes": 7188,
+        "sha256": "876e0d5407e5b5ec3f72057ec02a9d9fbc08304af8b9e054514e7bb50eb41abf"
+      }
+    ],
+    "writer_product_and_test_files_matched": 37,
+    "writer_product_files": 27,
+    "writer_test_files": 10,
+    "mismatches": [],
+    "candidate_identity_checked_again_at_end": true
+  },
+  "local_software_evidence": {
+    "source": "Root已有独立check+writer候选收据；审查者未重跑",
+    "root_check": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_CANDIDATE_01_CHECK.json",
+      "bytes": 35740,
+      "sha256": "2d04637f4f621af7233de83c99d873e609cc03cc9a3f5d8fdd88597e0f2654b3"
+    },
+    "verified_reference_count_by_root": 142,
+    "all48_results_compared_by_root": true,
+    "selected_complete_TAP_by_root": [
+      {
+        "receipt": "green-05/receipt.json",
+        "exitCode": 0,
+        "counts": {
+          "tests": 33,
+          "pass": 33,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      },
+      {
+        "receipt": "regression-02/contracts.receipt.json",
+        "exitCode": 0,
+        "counts": {
+          "tests": 49,
+          "pass": 49,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      },
+      {
+        "receipt": "regression-02/desktop.receipt.json",
+        "exitCode": 0,
+        "counts": {
+          "tests": 39,
+          "pass": 39,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      },
+      {
+        "receipt": "regression-core-02/receipt.json",
+        "exitCode": 0,
+        "counts": {
+          "tests": 79,
+          "pass": 79,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      }
+    ],
+    "total_tests": 200,
+    "pass": 200,
+    "fail": 0,
+    "skipped": 0,
+    "layer": "CANDIDATE_IDENTITY_AND_SELECTED_LOCAL_SOFTWARE_ONLY",
+    "limits": "200通过不覆盖本报告列举的未测故障恢复、响应CSS与普通App/读屏行为；不等于最终Gate、CI、普通App、100k、真实播放或Owner。"
+  },
+  "confirmed_source_design": [
+    {
+      "area": "导航/播放器/默认路径",
+      "conclusion": "只增一个local-library SidebarNavRow与同一App分支，BottomPlayer/Inspector/原主页、Roon与收藏/网易歌单入口保留；TrackTable用optional rangeWindow和row-detail slot复用，未创建第二表格/侧栏/播放器/队列。",
+      "refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+          "start": 98
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/App.vue",
+          "start": 928
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "start": 21
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "start": 206
+        }
+      ]
+    },
+    {
+      "area": "页与缓存有界",
+      "conclusion": "SQL公开页limit<=200，UI固定100；Map最多6页，当前想要页受保护，Renderer稀疏窗口按逻辑total虚拟化。最多600条缓存不是100k真实负载。",
+      "refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "start": 5,
+          "end": 6
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "start": 45,
+          "end": 78
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-catalog-store.ts",
+          "start": 589,
+          "end": 611
+        }
+      ]
+    },
+    {
+      "area": "初读与刷新",
+      "conclusion": "列表loaded/loading/stale独立，初次失败不假称空库，同查询刷新失败保留最近成功页、总数、详情和scroll；查询/详情代际可拒迟到响应。目录poll告警恢复另列UI-R1-06。",
+      "refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "start": 72,
+          "end": 81
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "start": 92,
+          "end": 123
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+          "start": 41,
+          "end": 59
+        }
+      ]
+    },
+    {
+      "area": "目标与三动作",
+      "conclusion": "Roon目标仅来自当前可信core/zone只读投影；每次动作重读详情/roots/target并重新核对revision/CUE，不能从显示名称构造目标。空目标/根离线零派发；没有新后端。",
+      "refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "start": 142,
+          "end": 151
+        }
+      ]
+    },
+    {
+      "area": "Raw/override/effective与参数",
+      "conclusion": "原始、显示更正和生效信息并列；edition仅已存关系，名称token标明线索；参数按当前scan绑定投影，未知不填假值，Roon实际输入/输出明确未知；显示名称只走MB_ONLY既有Outbox。",
+      "refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+          "start": 63,
+          "end": 68
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-scan-store.ts",
+          "start": 570,
+          "end": 611
+        }
+      ]
+    },
+    {
+      "area": "MB已存队列/外部接管",
+      "conclusion": "Inspector在external/lost时把MB条目标题改为已保存队列、从全部保存条目显示、隐藏MB当前条目和队列已播完断言；不会把列表自动标为外部下一首。现有audioQualityDetails以source/currentTrack/asset匹配保护旧参数。最近请求遮蔽当前phase另列UI-R1-02。",
+      "refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+          "start": 31,
+          "end": 44
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+          "start": 83,
+          "end": 96
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/player/details.ts",
+          "start": 25,
+          "end": 32
+        }
+      ]
+    },
+    {
+      "area": "84px/图片",
+      "conclusion": "TRACK_ROW_HEIGHT与本地range-window CSS均为84px，参数展开放行外；本地TrackSummary不含原图URL/artworkReference，沿原TrackArtwork占位，不等待网络封面。实际DOM几何与两主题视觉尚未执行；窄窗列位另列UI-R1-03。",
+      "refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "start": 53
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "start": 241
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "start": 12,
+          "end": 14
+        }
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "id": "UI-R1-01",
+      "severity": "P2",
+      "priority": 2,
+      "title": "未知更名/重定位结果恢复后，本地页仍永久锁定",
+      "source_refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "start": 160,
+          "end": 173
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "start": 191,
+          "end": 201
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "start": 126,
+          "end": 135
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/App.vue",
+          "start": 116,
+          "end": 120
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/command-outbox.ts",
+          "start": 180,
+          "end": 184
+        }
+      ],
+      "origin": "新增009路径",
+      "evidence_layer": "SOURCE_TRACE_NOT_EXECUTED_APP_REPRO",
+      "before": "pendingOverride只在最初成功返回时清空；relocationUnknown置true后无任何恢复分支。打开Outbox、确认成功、刷新、离页/返回都不接回这些标志。",
+      "after": "保留原commandId与dataset/命令身份；显式读取或从原Outbox关闭/刷新路径接回持久结果，确认原命令已成功或已拒绝后按当前业务修订刷新/解除相应锁。未确认、不同dataset或仅放弃跟踪不能直接清空。重定位也保存可核对的原命令身份。",
+      "why": "一次回执丢失会让本次会话的所有显示更正或所有文件重定位持续禁用，用户完成既有恢复操作也不能继续；这与“核对未确认操作后恢复”提示不一致。",
+      "checkable_example": "更名已在Owner提交但UI Promise拒绝→pendingOverride存在；在原Outbox按原命令恢复并确认succeeded；调用model.refresh或切到主页再返回。现代码的saveTitle仍因pendingOverride直接return。confirmCandidate未知后同理，locateSelected始终因relocationUnknown直接return。此例为源码路径推导，未执行。",
+      "suggested_validation": "增加同一commandId unknown→Outbox succeeded/rejected→本地页解除锁的行为检查；仍断言未知阶段不变参、不生成新ID、不自动重发。不同dataset、仍uncertain、dismissed分别保持保守状态；普通App后续核对可见按钮和提示。",
+      "acceptance_refs": [
+        "MBRS-AT-009-01",
+        "MBRS-AT-009-06"
+      ],
+      "confidence": "HIGH",
+      "remediation_applied_by_reviewer": false
+    },
+    {
+      "id": "UI-R1-02",
+      "severity": "P2",
+      "priority": 2,
+      "title": "实际本地播放状态被最近请求回执遮蔽",
+      "source_refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/player/details.ts",
+          "start": 36,
+          "end": 44
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "start": 137,
+          "end": 157
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+          "start": 14,
+          "end": 15
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+          "start": 34
+        }
+      ],
+      "origin": "新增009路径",
+      "evidence_layer": "SOURCE_TRACE_NOT_EXECUTED_APP_REPRO",
+      "before": "localLibraryPlaybackStatus仅当receipt.request与leaf匹配才读实际phase；receipt=null时无论当前006/007快照是否已确认Playing，都返回“尚未点播/尚无本次观察”。每次动作前会清lastPlay，且回执返回后才写入。",
+      "after": "将当前公开播放事实与最近请求受理/结果未知分层。按当前source/currentTrack/local资产修订、ownership与Roon observation围栏显示真实当前状态；在派发前保留本次原request身份，回执丢失仍允许已确认公开流证明本次实际状态。不能凭accepted/bytes生成Playing或借用旧文件参数。",
+      "why": "初次进入或返回正在播本地曲目的页面、请求处理中、以及回执未知但公开流已确认时，本地页会与原播放器矛盾，甚至把正在播放显示成未点播。",
+      "checkable_example": "使用现有受控有效PlaybackSnapshot：source=local_file、currentTrack.id等于local_track_id、phase=PLAYING、ownership=MB_OWNED且ATTEMPT_CONFIRMED；receipt=null。该函数必走第40行返回“尚未点播”。另令API返回未知，但播放流已给上述同request_id快照，lastPlay仍为空。仅为确定的分支推导，未调用函数/测试。",
+      "suggested_validation": "用有效当前快照补无回执、处理中、回执丢失后已确认、另一曲目/修订、OWNERSHIP_LOST、PAUSED等行为检查；保留现有旧参数与Roon关联防护。普通App不具真实目标时，不晋升真实播放状态验收。",
+      "acceptance_refs": [
+        "MBRS-AT-009-02",
+        "MBRS-AT-009-05"
+      ],
+      "confidence": "HIGH",
+      "remediation_applied_by_reviewer": false
+    },
+    {
+      "id": "UI-R1-03",
+      "severity": "P2",
+      "priority": 2,
+      "title": "721–800px的本地窗口表格列会错位",
+      "source_refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "start": 240,
+          "end": 249
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/open-library.css",
+          "start": 61,
+          "end": 71
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/style.css",
+          "start": 289
+        }
+      ],
+      "origin": "新增009路径",
+      "evidence_layer": "SOURCE_TRACE_NOT_EXECUTED_APP_REPRO",
+      "before": "range-window的scoped五列规则比全局响应规则更具体；它仅在<=720px改为两列。旧全局<=800px却隐藏track-index，721–800px时剩余DOM按五列自动排位，封面落24px列、正文落64px列、132px操作落60px列。操作容器还容不下3×44px按钮加2×5px gap。",
+      "after": "为range-window统一隐藏元素与列模板的断点/显式列位，或在该范围采用既有窄行适配；132px宽度须与最小按钮及gap一致。保留实际84px和原默认表格行为，不引入另一套表格。",
+      "why": "正常支持的780px窗口会挤压标题并使播放/更多/详情操作越出分配列，影响键盘焦点可见性和可点击范围。该结论来自CSS层叠与自动网格排位，尚未做像素实测。",
+      "checkable_example": "Root在正式产物的780px窗口加入tiny目录，观察有封面占位的本地行：index被隐藏但列模板仍24/64/1fr/60/132；同时检查3个最小44px操作按钮在132px容器内的位置。再比较720与801px。未调整或运行窗口。",
+      "suggested_validation": "Root用真实生产UI在720/780/800/801及较宽窗口检查正文与按钮矩形、无重叠/裁切及84px行高；可补正式DOM几何辅助，不能用当前SFC Host的style字典证明CSS实际布局。",
+      "acceptance_refs": [
+        "MBRS-AT-009-03",
+        "MBRS-AT-009-07",
+        "MBRS-AT-009-08"
+      ],
+      "confidence": "HIGH",
+      "remediation_applied_by_reviewer": false
+    },
+    {
+      "id": "UI-R1-04",
+      "severity": "P2",
+      "priority": 2,
+      "title": "共享表格仍缺列标题/单元格可访问性语义",
+      "source_refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "start": 182,
+          "end": 209
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/open-library.css",
+          "start": 13
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ui.test.ts",
+          "start": 91,
+          "end": 96
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-ui-render.mjs",
+          "start": 80,
+          "end": 82
+        }
+      ],
+      "origin": "旧语义缺口被009新range-window复用；本次明确a11y要求仍未补齐",
+      "evidence_layer": "SOURCE_TRACE_NOT_EXECUTED_APP_REPRO",
+      "before": "添加了aria-rowcount/aria-rowindex，但role=row下的header span与数据span仍无columnheader/cell；原header被display:none移出可访问性树。抽象总数测试只数row，SSR也仅断言行号。",
+      "after": "在共享TrackTable中补一致的逻辑列与columnheader/cell角色，或使用符合原布局的原生表格语义；标题可视觉隐藏但须保持读屏可用，spacer/装饰封面正确隐藏，行号计数含真实可访问表头。保持84px及默认路径。",
+      "why": "读屏无法可靠识别曲目、时长和操作所属列；行数宣称含表头但可访问性树并无该表头。只提供row编号不足以达成本次可访问性要求。",
+      "checkable_example": "查看当前模板：第183行role=row的子节点均普通span；第198–207行也是span/Artwork而非cell；第13行全局CSS隐藏整个表头。无需启动即可确认缺失，但读屏/axe实际结果仍待Root执行。",
+      "suggested_validation": "正式组件检查实际columnheader/cell与一致列数，并在Root真实产品窗口执行已有axe/键盘/读屏可访问性检查；断言spacer不计逻辑行、当前稀疏行rowindex正确。",
+      "acceptance_refs": [
+        "MBRS-AT-009-03",
+        "MBRS-AT-009-07",
+        "MBRS-AT-009-08"
+      ],
+      "confidence": "HIGH",
+      "remediation_applied_by_reviewer": false
+    },
+    {
+      "id": "UI-R1-05",
+      "severity": "P2",
+      "priority": 2,
+      "title": "本地队列入口绕过现有焦点协调器",
+      "source_refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/App.vue",
+          "start": 928
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/App.vue",
+          "start": 625,
+          "end": 647
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+          "start": 33
+        }
+      ],
+      "origin": "新增009路径",
+      "evidence_layer": "SOURCE_TRACE_NOT_EXECUTED_APP_REPRO",
+      "before": "LocalLibraryView的open-queue事件直接inspectorOpen=true；没有调用现有openQueue/openInspector，所以未保存触发焦点，也未聚焦检查器关闭按钮。",
+      "after": "将此入口接到既有openQueue；保留同一Inspector与原记忆/返回焦点路径，不再另写一套队列或焦点状态。",
+      "why": "键盘打开本地队列后焦点继续停在被面板遮挡的页面按钮，Tab不能从检查器可操作项开始，关闭时也缺对应返回位置。原播放器入口已有可复用实现。",
+      "checkable_example": "聚焦“打开原播放队列”并Enter；对比原播放栏的队列按钮。前者只置bool，后者第633–636行保存焦点并聚焦.inspector-close；closeInspector只恢复记忆项。源码轨迹，未执行CUA。",
+      "suggested_validation": "同一正式页面验证Enter/Space打开一次，焦点到原检查器关闭按钮，Esc/关闭后回原按钮且不改变列表scrollTop；沿用现有焦点测试/Root实际CUA。",
+      "acceptance_refs": [
+        "MBRS-AT-009-07",
+        "MBRS-AT-009-08"
+      ],
+      "confidence": "HIGH",
+      "remediation_applied_by_reviewer": false
+    },
+    {
+      "id": "UI-R1-06",
+      "severity": "P2",
+      "priority": 2,
+      "title": "目录读取恢复后仍显示过期失败告警",
+      "source_refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+          "start": 13,
+          "end": 27
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+          "start": 42
+        }
+      ],
+      "origin": "旧reload错误状态缺口；009目录管理正式复用后仍影响新流程",
+      "evidence_layer": "SOURCE_TRACE_NOT_EXECUTED_APP_REPRO",
+      "before": "reload失败设置error；之后成功轮询更新roots/jobs与rootsLoaded，但不清除该读取错误。只有用户发起另一业务action才先清error。",
+      "after": "区分读取故障与操作/未知结果提示；成功的当前代次reload仅清读取故障。保留未确认动作的持久提示，不能因为一次成功poll抹掉操作未知。",
+      "why": "Core短暂不可用后扫描/目录已恢复，界面仍持续报告“读取未获确认”，与最新成功数据矛盾，用户也没有纯读取恢复入口解除该告警。",
+      "checkable_example": "让首轮listLocalLibraryRoots或localScan.page拒绝，下一轮成功并给有效roots/jobs；第19行更新成功状态，第23行旧error仍留。展开目录管理可同时见新数据和旧role=alert。未运行此故障。",
+      "suggested_validation": "增加单纯read失败→成功清告警，及action未知→read成功仍保留未知提示的两个行为检查；Root普通App中若未观察故障恢复，不据此填写App PASS。",
+      "acceptance_refs": [
+        "MBRS-AT-009-02"
+      ],
+      "confidence": "HIGH",
+      "remediation_applied_by_reviewer": false
+    }
+  ],
+  "nonblocking_observations": [
+    {
+      "id": "UI-R1-O1",
+      "severity": "P3",
+      "priority": 3,
+      "title": "继承的更多菜单尚无完整键盘开关与返回焦点",
+      "source_refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "start": 83,
+          "end": 94
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "start": 205
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "start": 224,
+          "end": 235
+        }
+      ],
+      "before": "原菜单只设坐标/track，不移焦点、没有Escape/方向键或触发项aria-expanded；键盘click的clientX/Y通常为0。",
+      "after": "可在同一共享菜单内保存触发项、按按钮矩形定位键盘打开、聚焦首可用项、Escape回原触发项，并正确标识菜单展开状态。",
+      "why": "继承问题并非009新回归；本地详情提供可访问替代队列动作，可作为P3观察处理。当前不应声明更多菜单已完成真实键盘验收。",
+      "checkable_example": "从某行更多按钮按Enter/Space，检查焦点是否进入菜单，再Escape与返回；当前源码没有这些路径。",
+      "evidence_layer": "SOURCE_ONLY_INHERITED_NOT_APP_VERIFIED",
+      "blocks_R1_alone": false
+    },
+    {
+      "id": "UI-R1-O2",
+      "severity": "P3",
+      "priority": 3,
+      "title": "详情原触发项卸载后仅回搜索框，稳定曲目焦点恢复未覆盖",
+      "source_refs": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+          "start": 13,
+          "end": 28
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "start": 134
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ui.test.ts",
+          "start": 83,
+          "end": 88
+        }
+      ],
+      "before": "detailTrigger仅是组件内DOM引用。离页后引用消失，或虚拟窗口卸载原行后isConnected=false，closeDetail仅聚焦搜索框且未preventScroll。",
+      "after": "在session保存稳定曲目/触发控件身份和必要返回位置；恢复有界行后nextTick聚焦对应按钮并preventScroll，确实不可用时才用可说明的后备项。",
+      "why": "现有Host测试只覆盖原行仍连接的关闭，不证明离页/缓存窗口卸载后的返回焦点与真实滚动保持。此项需Root有界普通UI核对，不将脚本focusCount当实测。",
+      "checkable_example": "深页打开详情→到主页→返回→关闭；或详情打开时滚动直到原行卸载→关闭。核对焦点和列表/外层scroll。未执行。",
+      "evidence_layer": "SOURCE_ONLY_NEEDS_BOUNDED_REAL_PRODUCT_UI",
+      "blocks_R1_alone": false
+    }
+  ],
+  "root_owned_auxiliary_sources": [
+    {
+      "input": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-ui-render.mjs",
+        "bytes": 7188,
+        "sha256": "876e0d5407e5b5ec3f72057ec02a9d9fbc08304af8b9e054514e7bb50eb41abf"
+      },
+      "reviewed_not_executed_by_this_reviewer": true,
+      "scope": "实际Vue SSR组件，构造api/roots/trackDetail，loaded-detail与初次query失败；无端口/Scanner/Main；Source identity收据辅助。",
+      "does_not_prove": [
+        "CSS像素/84px实际几何",
+        "原生picker或Node Scanner",
+        "普通App/CUA/Owner",
+        "表头/cell完整a11y",
+        "实际负载"
+      ],
+      "existing_assertion_gap": "只断aria-rowcount/rowindex，未覆盖UI-R1-04。"
+    },
+    {
+      "input": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/e2e/mbrs009-local-library.spec.ts",
+        "bytes": 7281,
+        "sha256": "15fb2c6158e0301b560516b8cfcdf0370ea83df33d0cc13a55706fea45d0a0e1"
+      },
+      "reviewed_not_executed_by_this_reviewer": true,
+      "scope": "准备3个非零自建WAV，官方现树核验后launch生产Main；仅原生picker结果窄替换，正式IPC→Node Owner→Scanner真实读取，查询/详情/显示更正/源字节hash。",
+      "layer_if_executed": "AUTOMATED_CONTROLLED_PRODUCT_UI_NOT_ROOT_CUA_OR_OWNER",
+      "does_not_prove": [
+        "Root普通原生picker交互",
+        "245故障/权限样本",
+        "真实Roon/音频",
+        "100k规模",
+        "完整焦点/响应布局/axe"
+      ],
+      "boundary": "未执行不记App成功；该来源不是SSR或截图原型，但也不等于Root普通CUA。"
+    }
+  ],
+  "bounded_controlled_ui_next": {
+    "operator": "Root唯一普通App/CUA操作者",
+    "prerequisites": "修复后冻结候选、生产build、官方Electron现树receipt及显式外置隔离profile；依UI_OPERATOR_PREFLIGHT入口。",
+    "fixture_scope": "Root自建245文件（243合法WAV+坏文件+0000权限文件），本审查未访问/扫描；manifest不能替代实际结果。",
+    "checks": [
+      "单入口与原Player/Inspector/收藏入口",
+      "空/初次失败/刷新保留与恢复",
+      "实际扫描收录/拒绝与可观察暂停取消；快扫未观察就留未观察",
+      "查询/分页/版本/详情Raw/override/effective/参数未知",
+      "720/780/800/801和宽窗84px几何、有限行/无按钮遮挡",
+      "原队列入口焦点、详情离页与虚拟卸载后的返回",
+      "Outbox按原commandId恢复后解锁且不重复写",
+      "浅深主题、键盘菜单、header/cell实际树或axe辅助"
+    ],
+    "unavailable_real_target": "本模式localTarget=null；只可检查准确不支持/未就绪提示，不能造合成Core/Zone资格来宣称真实直送。"
+  },
+  "root_document_provenance_note": {
+    "id": "ROOT-PROVENANCE-01",
+    "type": "ROOT_OWNED_HISTORY_REFERENCE",
+    "mismatches": [
+      {
+        "historical_scope_reference": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.json",
+          "bytes": 35671,
+          "sha256": "62100ec64435018eaecfd567d331580916163114464c05ab312af563f168e876"
+        },
+        "current_followup": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.json",
+          "bytes": 36365,
+          "sha256": "981147de4e4628c97f0ac0c259192b5d60368f8f3655799dd7f8dfb9c1f85bf8"
+        }
+      },
+      {
+        "historical_scope_reference": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.md",
+          "bytes": 22192,
+          "sha256": "278326aae321cbada46145f40fc8250faa98d17f0613fcef5c8a1efa9909b878"
+        },
+        "current_followup": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.md",
+          "bytes": 22346,
+          "sha256": "265a3d1f5307d104d047f89f938305ce03e4a8e05d712db596945c84b4c86d52"
+        }
+      }
+    ],
+    "explanation": "Scope冻结后Root要求增强TrackTable条件，审查者依授权更新了原UI预检报告；Scope两项仍是旧SHA历史引用。此差异不影响当前37个产品/测试文件候选匹配，但最终provenance需保留旧快照或明确绑定后继，不能把旧hash称现文件校验。",
+    "scope_modified_by_reviewer": false,
+    "root_notified": true
+  },
+  "acceptance_preservation": {
+    "original": {
+      "baseSha": "418389708ca9400dbe347da448a829b9481dbb84",
+      "definitions": [
+        {
+          "id": "MBRS-AT-009-01",
+          "task": "MBRS-009",
+          "kind": "ui",
+          "requirement": "单一本地入口完成加入目录→搜索→选版本→直送/明确失败，不被Roon未入库阻断。",
+          "release_scope": "CORE",
+          "introduced_in": "1.1"
+        },
+        {
+          "id": "MBRS-AT-009-02",
+          "task": "MBRS-009",
+          "kind": "ui",
+          "requirement": "首次无库、扫描中/部分失败、文件离线、Roon断开和格式不支持均有准确状态。",
+          "release_scope": "CORE",
+          "introduced_in": "1.1"
+        },
+        {
+          "id": "MBRS-AT-009-03",
+          "task": "MBRS-009",
+          "kind": "load",
+          "requirement": "10万条查询/滚动分页虚拟化，不拉全库/原图到UI。",
+          "release_scope": "CORE",
+          "introduced_in": "1.1"
+        },
+        {
+          "id": "MBRS-AT-009-04",
+          "task": "MBRS-009",
+          "kind": "ui",
+          "requirement": "本地曲目仅显示Roon目标Zone，没有新增非Roon后端切换。",
+          "release_scope": "CORE",
+          "introduced_in": "1.1"
+        },
+        {
+          "id": "MBRS-AT-009-05",
+          "task": "MBRS-009",
+          "kind": "ui",
+          "requirement": "MB队列与原生外部播放状态能区分，不显示错归属的下一首或旧参数。",
+          "release_scope": "CORE",
+          "introduced_in": "1.1"
+        },
+        {
+          "id": "MBRS-AT-009-06",
+          "task": "MBRS-009",
+          "kind": "ui",
+          "requirement": "文件/根重新定位可用且不删除旧收藏，改展示名不改音频。",
+          "release_scope": "CORE",
+          "introduced_in": "1.1"
+        },
+        {
+          "id": "MBRS-AT-009-07",
+          "task": "MBRS-009",
+          "kind": "integration",
+          "requirement": "真实界面可操作证据齐全，不以mock原型当实现。",
+          "release_scope": "CORE",
+          "introduced_in": "1.1"
+        },
+        {
+          "id": "MBRS-AT-009-08",
+          "task": "MBRS-009",
+          "kind": "ui",
+          "requirement": "新本地库沿用既有页面/播放条；保留原生入口和收藏控件，不以新Schema复制第二套UI。",
+          "release_scope": "CORE",
+          "introduced_in": "1.2"
+        }
+      ],
+      "originalStatuses": [
+        {
+          "status": "NOT_TESTED",
+          "evidence_refs": [],
+          "software_status": "NOT_RUN",
+          "app_status": "NOT_RUN",
+          "live_status": "NOT_RUN",
+          "owner_status": "NOT_RUN"
+        },
+        {
+          "status": "NOT_TESTED",
+          "evidence_refs": [],
+          "software_status": "NOT_RUN",
+          "app_status": "NOT_RUN",
+          "live_status": "NOT_RUN",
+          "owner_status": "NOT_RUN"
+        },
+        {
+          "status": "NOT_TESTED",
+          "evidence_refs": [],
+          "software_status": "NOT_RUN",
+          "app_status": "NOT_RUN",
+          "live_status": "NOT_RUN",
+          "owner_status": "NOT_RUN"
+        },
+        {
+          "status": "NOT_TESTED",
+          "evidence_refs": [],
+          "software_status": "NOT_RUN",
+          "app_status": "NOT_RUN",
+          "live_status": "NOT_RUN",
+          "owner_status": "NOT_RUN"
+        },
+        {
+          "status": "NOT_TESTED",
+          "evidence_refs": [],
+          "software_status": "NOT_RUN",
+          "app_status": "NOT_RUN",
+          "live_status": "NOT_RUN",
+          "owner_status": "NOT_RUN"
+        },
+        {
+          "status": "NOT_TESTED",
+          "evidence_refs": [],
+          "software_status": "NOT_RUN",
+          "app_status": "NOT_RUN",
+          "live_status": "NOT_RUN",
+          "owner_status": "NOT_RUN"
+        },
+        {
+          "status": "NOT_TESTED",
+          "evidence_refs": [],
+          "software_status": "NOT_RUN",
+          "app_status": "NOT_RUN",
+          "live_status": "NOT_RUN",
+          "owner_status": "NOT_RUN"
+        },
+        {
+          "status": "NOT_TESTED",
+          "evidence_refs": [],
+          "software_status": "NOT_RUN",
+          "app_status": "NOT_RUN",
+          "live_status": "NOT_RUN",
+          "owner_status": "NOT_RUN"
+        }
+      ]
+    },
+    "current_definitions_and_statuses_identical": true,
+    "AT03": "原kind=load与100k定义保持；实际规模NOT_RUN，不新增100k/300k生成或运行。",
+    "AT07": "实际普通App/CUA尚非本R1证据；SSR/组件Host与尚未执行E2e只作辅助能力说明。",
+    "full_Gate_CI_ordinary_App_at_R1_dispatch": "Root告知尚未执行；本review不查询或更新后续并行运行状态。",
+    "gate_false_false_count_freeze": "Root管理门禁计数冻结，本review未运行Gate或改计数。",
+    "real_services_audio_owner": "NOT_RUN_NOT_PROMOTED",
+    "review_changes_any_status": false
+  },
+  "review_artifact_validation": "仅解析本报告、核对候选37文件字节与原8AT/Task SHA、检查Before/After/Why表；未执行产品代码。"
+}

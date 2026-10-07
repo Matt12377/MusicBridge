@@ -55,6 +55,10 @@ export function isLocalRelocationCommandPayload<C extends LocalRelocationCommand
 export function isLocalRelocationCommandResult<C extends LocalRelocationCommand>(command:C,v:unknown):v is LocalRelocationCommandResults[C]{switch(command){case 'localRelocation.roots':return array(v,100)&&v.every(isLocalRootView);case 'localRelocation.registerRoot':case 'localRelocation.relinkRoot':return resultRoot(v);case 'localRelocation.capture':return isLocalRelocationCandidates(v);case 'localRelocation.confirm':return resultAsset(v);}return false;}
 export type LocalLibraryScanCommand=Exclude<keyof LocalScanCommandPayloads,LocalScanInternalCommand>;
 export interface LocalLibraryPublicApi {
+ queryLocalLibraryTracks(query:import('./local-catalog.js').LocalLibraryQuery):Promise<import('./local-catalog.js').LocalLibraryQueryPage>;
+ getLocalLibraryTrackDetail(trackId:string):Promise<import('./local-catalog.js').LocalLibraryTrackDetail>;
+ getLocalLibraryPlaybackTarget():Promise<import('./local-play-request.js').LocalPlayTarget|null>;
+ overrideLocalLibraryMetadata(request:import('./local-catalog.js').LocalCatalogCommandPayloads['localCatalog.overrideMetadata']):Promise<import('./local-catalog.js').LocalMetadataOverride>;
  playLocalLibraryTrack(request:import('./local-play-request.js').LocalPlayRequest):Promise<import('./local-play-request.js').LocalPlayAccepted|import('./local-play-request.js').LocalSourceUnsupported>;
  listLocalLibraryRoots():Promise<LocalRootView[]>;
  chooseLocalLibraryRoot(commandId:string):Promise<LibraryRoot|null>;

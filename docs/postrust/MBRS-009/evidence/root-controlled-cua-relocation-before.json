@@ -1,0 +1,40 @@
+{
+  "schema": "mbrs009.owned-fixture-relocation-preparation.v1",
+  "at": "2026-10-07T00:20:11.109486+00:00",
+  "scope": "ROOT_OWN_SYNTHETIC_FIXTURE_ONLY_NO_REAL_FILE_CHANGE",
+  "oldFile": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/controlled-app-fixtures/source-library/009-version-b.wav",
+  "newFile": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/controlled-app-fixtures/source-library/009-version-b-renamed.wav",
+  "audioBytes": 16526,
+  "sha256": "76b98e7d6d55287652681db86aaaa37179bd89f2ce20d9addf5789f88b8aac35",
+  "beforeCatalog": {
+    "assetId": "64c8c07f-46e8-46a1-9c55-1e8bba7768cb",
+    "relative": "009-version-b.wav",
+    "asset": {
+      "id": "64c8c07f-46e8-46a1-9c55-1e8bba7768cb",
+      "libraryRootId": "deaab62e-e74c-47f5-aa38-f324828cee17",
+      "sourceRootId": "85457390-4eb0-4114-8167-e6f7da140f3b",
+      "rootRevision": "1",
+      "fileRevision": "1",
+      "locationRevision": "1",
+      "sampleFrames": null,
+      "timebaseHz": null
+    },
+    "trackId": "57f15b5f-57a1-41b2-8685-7c5c42720feb",
+    "track": {
+      "id": "57f15b5f-57a1-41b2-8685-7c5c42720feb",
+      "assetId": "64c8c07f-46e8-46a1-9c55-1e8bba7768cb",
+      "selectionRevision": "1",
+      "segment": null
+    },
+    "override": {
+      "trackId": "57f15b5f-57a1-41b2-8685-7c5c42720feb",
+      "revision": "1",
+      "fields": {
+        "title": "合成主题 (Live) · MB显示更正"
+      }
+    }
+  },
+  "readOnlySqliteUsed": true,
+  "uiRelocation": "NOT_RUN",
+  "manualOwnedFixtureRenameConfirmed": true
+}

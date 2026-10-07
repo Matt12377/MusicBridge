@@ -5856,7 +5856,7 @@
     "overallReleaseApproved": false,
     "securityBaselineBlocker": "INHERITED_PRODUCTION_NODE_FORGE_HIGH_AUDIT_FAILURE_NOT_CLOSED"
   },
-  "currentPostRustTask": "MBRS-008",
+  "currentPostRustTask": "MBRS-009",
   "postRustBaseline20261004": {
     "task": "MBRS-000",
     "state": "baseline-delivered-g0-not-admitted",
@@ -46233,5 +46233,44 @@
     "finalDeliveryReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/FINAL_DELIVERY_RECEIPT.json",
     "nextTask": "MBRS-009",
     "nextBranchBaseline": "最终独立报告HEAD；报告身份按Git历史解析，不从实现提交接续"
+  },
+  "mbrs009LocalLibraryUi": {
+    "task": "MBRS-009",
+    "state": "IN_PROGRESS",
+    "baseSha": "418389708ca9400dbe347da448a829b9481dbb84",
+    "branch": "codex/mbrs-009-local-library-ui",
+    "executionScope": "docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+    "taskSpec": "tasks/MBRS-009_LOCAL_LIBRARY_UI.md",
+    "acceptanceCount": 8,
+    "sourceFilesWrite": "OFF_EXCEPT_OWN_SYNTHETIC_FIXTURES",
+    "realServices": "NOT_RUN",
+    "ordinaryApp": "PARTIAL_CONTROLLED_SYNTHETIC_243_NATIVE_CUA",
+    "ownerAcceptance": "NOT_RUN",
+    "new100k300kStarted": false,
+    "validation": {
+      "status": "LOCAL_SOFTWARE_AND_CONTROLLED_APP_PASS_NOT_FINAL_SOURCE_CI",
+      "freshRootGate": {
+        "tests": 220,
+        "core": 87,
+        "contracts": 54,
+        "desktop": 79,
+        "stages": 11,
+        "manifestSha256": "abc7db943b0a327ad38c12448271fc7d4c077b06a617c859a21cc14a75fa3a4d"
+      },
+      "newTests": 53,
+      "regressionTests": 167,
+      "productionBuild": "PASS_CURRENT_CANDIDATE_02",
+      "productionE2e": "PASS_1_NO_SKIPS",
+      "rootOrdinaryCua": "PARTIAL_CONTROLLED_243",
+      "evidence": "docs/postrust/MBRS-009/evidence/source-phase-index.json",
+      "formalRoundsConsumed": 2,
+      "formalRoundsRemaining": 0,
+      "newP0P1P2": 0,
+      "boundedP3": "原更多菜单完整键盘模型",
+      "original100kLoad": "NOT_RUN",
+      "realRoonAudioOwner": "NOT_RUN"
+    },
+    "nextTask": "MBRS-010",
+    "nextBranchBaseline": "FINAL_009_INDEPENDENT_REPORT_HEAD"
   }
 }

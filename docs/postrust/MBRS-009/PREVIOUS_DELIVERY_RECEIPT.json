@@ -1,0 +1,254 @@
+{
+  "schema": "mbrs008.final-delivery-receipt.v1",
+  "at": "2026-10-06T16:42:06.200478+00:00",
+  "baseFinalReportCommit": "8140124adbf71f09d4cc27dd0a295b42ff3827c8",
+  "implementationCommit": "186694e105f8ace61d33b48cfc25710dff419632",
+  "finalReportCommit": "418389708ca9400dbe347da448a829b9481dbb84",
+  "branch": "codex/mbrs-008-audio-transparency",
+  "reportDirectChildOfFinalSource": true,
+  "sourceCi": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/source-delivery-terminal.json",
+    "bytes": 96993,
+    "sha256": "22cfdded4a20a5b49c566c3fb6c6c83e6da679f5ed1a920e14d28711ea1d0519"
+  },
+  "sourceCiWorkflows": 4,
+  "sourceCiJobs": 6,
+  "sourceActualMode": "full",
+  "reportCi": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/report-terminal.json",
+    "bytes": 47912,
+    "sha256": "c6f38d4396f9a1aef0a85cc311f91f314a448db2dc37f56bc313838a576aec35"
+  },
+  "reportCiWorkflows": 2,
+  "reportCiJobs": 3,
+  "reportActualMode": "report-only",
+  "reportScope": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/REPORT_STAGED_SCOPE_CHECK.json",
+    "bytes": 5642,
+    "sha256": "0599e83fae2b934e25c2ccd645ac6154f27cb0ff0f9886c248239240f558e1a9"
+  },
+  "ciReruns": 0,
+  "ciCancel": 0,
+  "localSoftware": {
+    "schema": "mbrs008.final-committed-source-local-gate-summary.v1",
+    "at": "2026-10-06T16:04:12.179205+00:00",
+    "sourceCommit": "186694e105f8ace61d33b48cfc25710dff419632",
+    "manifest": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/gate-final-05/manifest.json",
+      "bytes": 255821,
+      "sha256": "e55f4b81b7814c7a04a5442945486e8a104d49791e8229d940448a640fc86a09"
+    },
+    "success": true,
+    "inputs": 1226,
+    "freshOutputs": 38,
+    "freshUiOutputs": 2,
+    "privateTestBindings": 3,
+    "stages": 11,
+    "tests": 370,
+    "new": 36,
+    "regression": 334,
+    "counts": [
+      {
+        "tests": 263,
+        "pass": 263,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      {
+        "tests": 58,
+        "pass": 58,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      {
+        "tests": 49,
+        "pass": 49,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    ],
+    "budget": {
+      "totalLimitMs": 360000,
+      "stageLimitMs": 180000,
+      "elapsedMs": 59040.481709,
+      "clock": "MONOTONIC_PERFORMANCE"
+    },
+    "sourceInputsCurrentlyUnchanged": true,
+    "priorGeneratedBuildIdentityDriftRetained": "FINAL_OUTPUT_BINDING_AFTER_PRODUCTION_BUILD_FAILURE.json",
+    "claim": "SOFTWARE_ONLY_NOT_REAL_ROON_OR_ORDINARY_APP"
+  },
+  "remoteFullWorkspace": {
+    "groups": {
+      "tests": [
+        261,
+        2711,
+        8,
+        1432
+      ],
+      "pass": [
+        261,
+        2709,
+        8,
+        1432
+      ],
+      "fail": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "cancelled": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "skipped": [
+        0,
+        2,
+        0,
+        0
+      ],
+      "todo": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "totals": {
+      "tests": 4412,
+      "pass": 4410,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    }
+  },
+  "remoteElectronE2eCounts": {
+    "passed": 104,
+    "originalConditionalSkipped": 4,
+    "failed": 0
+  },
+  "sourceInputs": {
+    "count": 1226,
+    "record": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/DELIVERY_SOURCE_INPUT_BLOB_BINDING.json",
+      "bytes": 434582,
+      "sha256": "4faf15469f7c3aeb3068c2d4010174eb6d915577bbdefd24ea577d6d6e55147e"
+    },
+    "gitBlobAndCurrentDiskBound": true
+  },
+  "selectedFreshOutputsStillMatch": 38,
+  "actualVueSsrOutputsStillMatch": 2,
+  "privateBindingsStillMatch": 3,
+  "sourceIdentityScope": "DECLARED_INPUTS_SELECTED_OUTPUTS_NOT_TRANSITIVE_DEPENDENCY_CLOSURE",
+  "product20UnchangedFromCAND03": true,
+  "onlyFinalProductionChange": "NowPlaying质量详情class/scoped紧凑排布，字段与业务条件不变",
+  "initialSourceCommit": "4796598a9ee19b1aeba1d2f474ef76e3948fa939",
+  "firstRepairSourceCommit": "8d9814311a2c7cae8801847a062dd6a7cfd9388c",
+  "naturalFailuresRetained": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/source-terminal-failed.json",
+      "bytes": 59851,
+      "sha256": "5455b7f6ddb59a70004f8786d2c3df88f34b3c934d737428a462f0b386961276"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/source-repair-terminal-failed.json",
+      "bytes": 58383,
+      "sha256": "f5b23cb805edad1f04b4ee4050a847937db8db763d43c0cc765d79327c7e3eec"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/REPAIR01_RENDERER_GUARD_FAILURE.json",
+      "bytes": 1100,
+      "sha256": "e387e28bc3e69ae2402c37954988e8d54b8c588e7c5156b3b9a3a72599d201a0"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/REPAIR01_ELECTRON_LAYOUT_FAILURE.json",
+      "bytes": 1564,
+      "sha256": "a3de46f426faa617c0420ab395a1e1de444070859ba2d0da4e92f5d0e2db770d"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/source-final-terminal-failed.json",
+      "bytes": 58303,
+      "sha256": "99513b7d60eb8a26ec0a2f382a2ba0a79360069aff6f3a1b22df621b39deb536"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/REPAIR02_007_HOSTED_TIMEOUT_RETAINED.json",
+      "bytes": 4663,
+      "sha256": "febfa31ca99c61ef8a7b8134b8e47a4b75a6dfc1edf55fb15ea3f1e557a8ada1"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/REPAIR02_007_CONTROLLED_RED_AND_PREPARATION_FAILURE.json",
+      "bytes": 2190,
+      "sha256": "f1510deb7ad2004477d92f4f59c207fe8ddc07a990bb7abe4e6eb047a95cd209"
+    }
+  ],
+  "bounded007ExecutionRepair": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/REPAIR02_007_EXECUTION_REPAIR_EVIDENCE.json",
+    "bytes": 6579,
+    "sha256": "565536812ac1e8418fd91d8fecc315403a504150343e357f7b02b3a64a6402e5"
+  },
+  "precommit007SourceBlobBinding": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/QUEUE_PRECOMMIT_FINAL_SOURCE_BLOB_BINDING.json",
+    "bytes": 359076,
+    "sha256": "e45f3656a37150dd5a305f361b34639efe8446db7d100e594a62e3b32650abc8"
+  },
+  "localFreshOutputRebuildIdentityFailureRetained": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/FINAL_OUTPUT_BINDING_AFTER_PRODUCTION_BUILD_FAILURE.json",
+    "bytes": 851,
+    "sha256": "5367f18a9b9c1e8d2594ad2f3d0830e673a270d7a1cfba9ae9b9c56e1ac31d11"
+  },
+  "localHead": "418389708ca9400dbe347da448a829b9481dbb84",
+  "remoteHead": "418389708ca9400dbe347da448a829b9481dbb84",
+  "sourceAndReportNormalNonForcePush": true,
+  "worktreeClean": true,
+  "mainHead": "2392b8f69836f02e39ce58f6e6e6e2563c6cc5d4",
+  "mainUnrelatedWipPreserved": [
+    "?? apps/desktop/test-results/",
+    "?? docs/MusicBridge_PostRust_Execution_Pack_v1.2.zip",
+    "?? worktree/"
+  ],
+  "taskCount": 18,
+  "acceptanceCount": 156,
+  "thisTaskAcceptanceCount": 8,
+  "formalReviewRounds": 2,
+  "openR1R2P1P2": 0,
+  "newFormalR3": false,
+  "finalSourceArtifactsContentDownloaded": false,
+  "failedSource007SelectedTextContentDownloaded": true,
+  "failedArtifactSelectedScope": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/ci/source-final-01-failed-gate-artifact-03/selected-entry-receipt.json",
+    "bytes": 13251,
+    "sha256": "b35bb81e8f000393ee7c50366dc8c67cd30aee7f807177c040b5a3f4f432d529"
+  },
+  "realAccountsRoonAudioLanNasOrdinaryAppOwner": "NOT_RUN",
+  "new100k300kStarted": false,
+  "mainMergeInstallSignRelease": "NOT_AUTHORIZED_NOT_RUN",
+  "nextTask": "MBRS-009",
+  "nextBranchBaseline": "418389708ca9400dbe347da448a829b9481dbb84",
+  "laterOrder": [
+    "MBRS-009",
+    "MBRS-010",
+    "MBRS-011",
+    "MBRS-014",
+    "MBRS-012",
+    "MBRS-013",
+    "MBRS-015_OPTIONAL",
+    "MBRS-016",
+    "MBRS-017"
+  ],
+  "mobileMbm": "AFTER_ORIGINAL017_MAC_ADOPTION_PENDING",
+  "latestMobileSuccessor": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs008-952vpgg9/IOS_SUCCESSOR_LOCAL_GIT_VERIFIED.json",
+    "bytes": 1671,
+    "sha256": "1d71bbc330960c3cf1e5988163d5a58d5690c80cc78874ab4f90bef4ea6af115"
+  },
+  "status": "FINITE_SOFTWARE_DELIVERED_WITH_LIVE_CARRYOVER"
+}

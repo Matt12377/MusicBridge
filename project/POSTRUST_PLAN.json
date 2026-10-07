@@ -32049,7 +32049,7 @@
         "MBRS-003",
         "MBRS-004"
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "implementation_owner": "MBRS-009",
       "goal": "在现有导航和播放器内完成导入、检索、版本选择与明确播放状态。",
       "steps": [
@@ -32081,8 +32081,12 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "NOT_RUN",
-      "evidence_refs": []
+      "validation_status": "LOCAL_SOFTWARE_AND_BOUNDED_ORDINARY_APP_PASS_SOURCE_CI_REPORT_PENDING",
+      "evidence_refs": [
+        "docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+        "docs/postrust/MBRS-009/evidence/source-phase-index.json",
+        "docs/postrust/MBRS-009/STATE_MATRIX.json"
+      ]
     },
     {
       "id": "MBRS-010",
@@ -33769,10 +33773,14 @@
       "requirement": "单一本地入口完成加入目录→搜索→选版本→直送/明确失败，不被Roon未入库阻断。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-009/STATE_MATRIX.json",
+        "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+      ],
+      "software_status": "PASS",
+      "app_status": "PASS_CONTROLLED_NO_ZONE_CLEAR_FAILURE",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
     },
@@ -33783,10 +33791,14 @@
       "requirement": "首次无库、扫描中/部分失败、文件离线、Roon断开和格式不支持均有准确状态。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-009/STATE_MATRIX.json",
+        "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+      ],
+      "software_status": "PASS",
+      "app_status": "PARTIAL_CONTROLLED_SOME_STATES",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
     },
@@ -33798,9 +33810,13 @@
       "release_scope": "CORE",
       "introduced_in": "1.1",
       "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-009/STATE_MATRIX.json",
+        "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+      ],
+      "software_status": "PARTIAL_BOUNDED_RULES_NOT_ACTUAL_100K",
+      "app_status": "PARTIAL_243_NOT_100K",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
     },
@@ -33811,10 +33827,14 @@
       "requirement": "本地曲目仅显示Roon目标Zone，没有新增非Roon后端切换。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-009/STATE_MATRIX.json",
+        "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+      ],
+      "software_status": "PASS",
+      "app_status": "PASS_CONTROLLED_ONLY_ORIGINAL_ROON_TARGET",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
     },
@@ -33825,10 +33845,14 @@
       "requirement": "MB队列与原生外部播放状态能区分，不显示错归属的下一首或旧参数。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-009/STATE_MATRIX.json",
+        "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+      ],
+      "software_status": "PASS",
+      "app_status": "PARTIAL_CONTROLLED_QUEUE_NO_LIVE_TAKEOVER",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
     },
@@ -33839,10 +33863,14 @@
       "requirement": "文件/根重新定位可用且不删除旧收藏，改展示名不改音频。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-009/STATE_MATRIX.json",
+        "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+      ],
+      "software_status": "PASS",
+      "app_status": "PARTIAL_FILE_RELINK_MB_TITLE_NO_REAL_FAV_OR_REROOT",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
     },
@@ -33853,10 +33881,14 @@
       "requirement": "真实界面可操作证据齐全，不以mock原型当实现。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-009/STATE_MATRIX.json",
+        "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+      ],
+      "software_status": "PASS",
+      "app_status": "PASS_CONTROLLED_ORIGINAL_PRODUCTION_CUA",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
     },
@@ -34889,10 +34921,14 @@
       "requirement": "新本地库沿用既有页面/播放条；保留原生入口和收藏控件，不以新Schema复制第二套UI。",
       "release_scope": "CORE",
       "introduced_in": "1.2",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PASS",
+      "evidence_refs": [
+        "docs/postrust/MBRS-009/STATE_MATRIX.json",
+        "docs/postrust/MBRS-009/evidence/root-gate-02-check.json",
+        "docs/postrust/MBRS-009/evidence/root-controlled-cua.json"
+      ],
+      "software_status": "PASS",
+      "app_status": "PASS_CONTROLLED_ORIGINAL_NAV_PLAYER_QUEUE",
       "live_status": "NOT_RUN",
       "owner_status": "NOT_RUN"
     },

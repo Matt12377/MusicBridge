@@ -22,6 +22,18 @@ const albumPage: RoonLibraryPage = { items: [album], offset: 0, limit: 20, total
 const emptyRoonPage: RoonLibraryPage = { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
 const emptyProviderPage = { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
 
+test('009单一本地库入口经原导航往返Now Playing，保留侧栏来源与原Roon入口', t => {
+  const api = {} as MusicBridgePublicApi
+  let journey!: ReturnType<typeof usePageJourney>
+  const browse=useRoonBrowse({api,formatError:()=> '合成读取失败',onError:()=>{},onToast:()=>{},getView:()=>journey.currentView.value,onDetailOpening:view=>journey.setDetailView(view),onDetailReady:(view,source)=>journey.setDetailView(view,source),onNavigateSource:source=>journey.navigateSource(source),onPlayTrack:()=>{}})
+  const search=useAggregatedSearch({api,getZoneId:()=>undefined,getScrollTop:()=>0,scrollTo:()=>{},classifyError:()=> 'generic',onResetSearchOrigin:()=>{},onInvalidateRoonDetails:()=>{}})
+  journey=usePageJourney({browse,search,library:{hasLikedItems:()=>true,isPlaylistReady:()=>true,getPlaylistScrollTop:()=>0,setPlaylistScrollTop:()=>{},loadLiked:async()=>{},loadPlaylists:async()=>{},loadPlaylist:async()=>{}},onPlayRoonTrack:()=>{},onCloseInspector:()=>{},onClearActionError:()=>{}})
+  t.after(()=>{journey.dispose();browse.dispose();search.dispose()})
+  journey.navigateSource({type:'local-library'});assert.equal(journey.currentView.value,'local-library');assert.equal(journey.sidebar.activeSource.value.type,'local-library')
+  journey.enterNowPlaying();assert.equal(journey.currentView.value,'now-playing');journey.exitNowPlaying();assert.equal(journey.currentView.value,'local-library');assert.equal(journey.sidebar.activeSource.value.type,'local-library')
+  journey.navigateSource({type:'home'});assert.equal(journey.currentView.value,'home');journey.navigate('local-library');assert.equal(journey.sidebar.activeSource.value.type,'local-library')
+})
+
 test('本地搜索路径可返回，其他上下文的新搜索清旧路径，迟到详情不劫持当前页', async t => {
   const pendingDetail = deferred<RoonLibraryPage>()
   const api = {

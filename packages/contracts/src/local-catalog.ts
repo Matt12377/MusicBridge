@@ -1,4 +1,6 @@
 import { isCollectionId } from './collection.js';
+import { isFileAudioParameters, type FileAudioParameters } from './audio-quality.js';
+import type { VersionNameToken } from './local-name-rules.js';
 
 /** 本地目录只公开稳定身份及修订；文件位置和读取能力留在原工作库作者内部。 */
 export type LocalCatalogRevision = string;
@@ -118,6 +120,50 @@ export interface RemoveEditionTrackRequest extends CatalogCommand { id: string; 
 export interface ObserveLocalMetadataRequest extends CatalogCommand { trackId: string; source: 'tag' | 'synthetic'; parserVersion: string; fields: LocalMetadata }
 export interface OverrideLocalMetadataRequest extends CatalogCommand { trackId: string; expectedRevision: string | null; fields: LocalMetadata }
 export interface LocalMetadataView { raw: LocalMetadata; override: LocalMetadataOverride | null; effective: LocalMetadata }
+/** 查询只携带本地逻辑对象；名字证据不生成发行身份，详情不携带定位或读票据。 */
+export interface LocalLibraryQuery { query: string; rootId: string | null; offset: number; limit: number }
+export interface LocalLibraryTrackSummary { track: LocalTrack; asset: AudioAsset; metadata: LocalMetadata; versionTokens: VersionNameToken[] }
+export interface LocalLibraryQueryPage extends LocalLibraryQuery { total: number; hasMore: boolean; items: LocalLibraryTrackSummary[] }
+export interface LocalLibraryTrackDetail {
+  track: LocalTrack; asset: AudioAsset; metadata: LocalMetadataView; versionTokens: VersionNameToken[];
+  editions: AlbumEdition[]; fileParameters: FileAudioParameters | null;
+}
+const libraryClosed = (v: Record<string, unknown>, names: readonly string[]): boolean => Reflect.ownKeys(v).length === names.length
+  && names.every(k => Object.prototype.propertyIsEnumerable.call(v, k) && Object.hasOwn(Object.getOwnPropertyDescriptor(v, k)!, 'value'));
+const libraryArray = (v: unknown, max: number): v is unknown[] => Array.isArray(v) && Object.getPrototypeOf(v) === Array.prototype
+  && v.length <= max && Reflect.ownKeys(v).length === v.length + 1 && Reflect.ownKeys(v).every(k => k === 'length'
+    || typeof k === 'string' && /^(0|[1-9][0-9]*)$/u.test(k) && Number(k) < v.length
+      && Object.prototype.propertyIsEnumerable.call(v, k) && Object.hasOwn(Object.getOwnPropertyDescriptor(v, k)!, 'value'));
+const libraryMetadata = (v: unknown): v is LocalMetadata => record(v) && Reflect.ownKeys(v).every(k => typeof k === 'string'
+  && ['title', 'artist', 'album', 'year', 'disc', 'track'].includes(k) && Object.prototype.propertyIsEnumerable.call(v, k) && Object.hasOwn(Object.getOwnPropertyDescriptor(v, k)!, 'value')) && isLocalMetadata(v);
+const libraryIdentity = (v: Record<string, unknown>): boolean => record(v.track) && libraryClosed(v.track, ['id', 'assetId', 'selectionRevision', 'segment'])
+  && (v.track.segment === null || record(v.track.segment) && libraryClosed(v.track.segment, ['id', 'startFrame', 'endFrameExclusive', 'timebaseHz']))
+  && isLocalTrack(v.track) && record(v.asset) && libraryClosed(v.asset, ['id', 'libraryRootId', 'sourceRootId', 'rootRevision', 'fileRevision', 'locationRevision', 'sampleFrames', 'timebaseHz']) && isAudioAsset(v.asset) && v.track.assetId === v.asset.id;
+const libraryTokens = (v: unknown): v is VersionNameToken[] => libraryArray(v, 64) && v.every(token => record(token)
+  && libraryClosed(token, ['raw', 'source', 'kind', 'start', 'end']) && isLocalCatalogText(token.raw)
+  && ['title', 'artist', 'album'].includes(String(token.source)) && ['edition', 'format', 'disc', 'year'].includes(String(token.kind))
+  && Number.isSafeInteger(token.start) && Number.isSafeInteger(token.end) && Number(token.start) >= 0 && Number(token.end) > Number(token.start) && Number(token.end) <= 1024);
+export function isLocalLibraryQuery(v: unknown): v is LocalLibraryQuery {
+  return record(v) && libraryClosed(v, ['query', 'rootId', 'offset', 'limit']) && isLocalCatalogText(v.query, true) && Array.from(v.query).length <= 256
+    && (v.rootId === null || isCollectionId(v.rootId)) && Number.isSafeInteger(v.offset) && Number(v.offset) >= 0 && Number.isSafeInteger(v.limit) && Number(v.limit) >= 1 && Number(v.limit) <= 200;
+}
+export function isLocalLibraryTrackSummary(v: unknown): v is LocalLibraryTrackSummary {
+  return record(v) && libraryClosed(v, ['track', 'asset', 'metadata', 'versionTokens']) && libraryIdentity(v) && libraryMetadata(v.metadata) && libraryTokens(v.versionTokens);
+}
+export function isLocalLibraryQueryPage(v: unknown): v is LocalLibraryQueryPage {
+  return record(v) && libraryClosed(v, ['query', 'rootId', 'offset', 'limit', 'total', 'hasMore', 'items'])
+    && isLocalLibraryQuery({ query: v.query, rootId: v.rootId, offset: v.offset, limit: v.limit }) && Number.isSafeInteger(v.total) && Number(v.total) >= 0
+    && libraryArray(v.items, Number(v.limit)) && v.items.every(isLocalLibraryTrackSummary) && v.items.length === Math.min(Number(v.limit), Math.max(0, Number(v.total) - Number(v.offset)))
+    && v.hasMore === (Number(v.offset) + v.items.length < Number(v.total)) && new TextEncoder().encode(JSON.stringify(v)).byteLength <= 2 * 1024 * 1024;
+}
+export function isLocalLibraryTrackDetail(v: unknown): v is LocalLibraryTrackDetail {
+  return record(v) && libraryClosed(v, ['track', 'asset', 'metadata', 'versionTokens', 'editions', 'fileParameters']) && libraryIdentity(v)
+    && record(v.metadata) && libraryClosed(v.metadata, ['raw', 'override', 'effective']) && libraryMetadata(v.metadata.raw) && libraryMetadata(v.metadata.effective)
+    && (v.metadata.override === null || record(v.metadata.override) && libraryClosed(v.metadata.override, ['trackId', 'revision', 'fields'])
+      && libraryMetadata(v.metadata.override.fields) && isLocalMetadataOverride(v.metadata.override) && v.metadata.override.trackId === (v.track as LocalTrack).id) && isLocalMetadataView(v.metadata)
+    && libraryTokens(v.versionTokens) && libraryArray(v.editions, 200) && v.editions.every(e => record(e) && libraryClosed(e, ['id', 'title', 'edition', 'revision']) && isAlbumEdition(e))
+    && (v.fileParameters === null || record(v.fileParameters) && libraryClosed(v.fileParameters, ['container', 'codec', 'lossless', 'sampleRateHz', 'channels', 'bitsPerSample', 'durationMs', 'evidence']) && isFileAudioParameters(v.fileParameters)) && new TextEncoder().encode(JSON.stringify(v)).byteLength <= 2 * 1024 * 1024;
+}
 export interface LocalCatalogReceiptRequest { commandId: string; operation: LocalCatalogOperation; fingerprint: string }
 export interface LocalCatalogCommandPayloads {
   'localCatalog.registerRoot': RegisterLibraryRootRequest;
@@ -157,6 +203,17 @@ export interface LocalCatalogCommandResults {
   'localCatalog.observations': LocalMetadataObservation[]; 'localCatalog.metadata': LocalMetadataView;
   'localCatalog.receipt': LocalCatalogReceipt | null;
 }
+/** 新增只读投影独立扩展，原22个目录合同及其穷举映射保持可用。 */
+export interface LocalLibraryReadCommandPayloads {
+  'localCatalog.queryTracks': LocalLibraryQuery;
+  'localCatalog.trackDetail': { trackId: string };
+}
+export interface LocalLibraryReadCommandResults {
+  'localCatalog.queryTracks': LocalLibraryQueryPage;
+  'localCatalog.trackDetail': LocalLibraryTrackDetail;
+}
+type CatalogPayloads = LocalCatalogCommandPayloads & LocalLibraryReadCommandPayloads;
+type CatalogResults = LocalCatalogCommandResults & LocalLibraryReadCommandResults;
 export const LOCAL_CATALOG_WRITE_OPERATIONS = {
   'localCatalog.registerRoot': 'register-root', 'localCatalog.relinkRoot': 'relink-root',
   'localCatalog.registerAsset': 'register-asset', 'localCatalog.moveAsset': 'move-asset', 'localCatalog.replaceAsset': 'replace-asset',
@@ -171,16 +228,17 @@ export const LOCAL_CATALOG_COMMANDS = [
   'localCatalog.root', 'localCatalog.roots', 'localCatalog.asset', 'localCatalog.track', 'localCatalog.pageTracks',
   'localCatalog.edition', 'localCatalog.editionTracks', 'localCatalog.observations', 'localCatalog.metadata', 'localCatalog.receipt',
 ] as const;
-export type LocalCatalogCommand = keyof LocalCatalogCommandPayloads;
+export const LOCAL_LIBRARY_READ_COMMANDS = ['localCatalog.queryTracks', 'localCatalog.trackDetail'] as const;
+export type LocalCatalogCommand = keyof CatalogPayloads;
 export const LOCAL_CATALOG_INTERNAL_COMMANDS = ['localCatalog.registerRoot', 'localCatalog.relinkRoot', 'localCatalog.registerAsset', 'localCatalog.moveAsset', 'localCatalog.replaceAsset', 'localCatalog.observeMetadata'] as const;
 export type LocalCatalogInternalCommand = typeof LOCAL_CATALOG_INTERNAL_COMMANDS[number];
 export const LOCAL_CATALOG_OUTBOX_COMMANDS = ['localCatalog.createTrack', 'localCatalog.selectAsset', 'localCatalog.createEdition', 'localCatalog.linkEditionTrack', 'localCatalog.removeEditionTrack', 'localCatalog.overrideMetadata'] as const;
-export function isLocalCatalogCommand(command: unknown): command is LocalCatalogCommand { return typeof command === 'string' && (LOCAL_CATALOG_COMMANDS as readonly string[]).includes(command); }
+export function isLocalCatalogCommand(command: unknown): command is LocalCatalogCommand { return typeof command === 'string' && ((LOCAL_CATALOG_COMMANDS as readonly string[]).includes(command) || (LOCAL_LIBRARY_READ_COMMANDS as readonly string[]).includes(command)); }
 export function isLocalCatalogInternalCommand(command: unknown): command is LocalCatalogInternalCommand { return typeof command === 'string' && (LOCAL_CATALOG_INTERNAL_COMMANDS as readonly string[]).includes(command); }
 const relative = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= 4096
   && !/[\u0000-\u001f\u007f\\:]/u.test(v) && !v.startsWith('/') && v.split('/').every(part => part !== '' && part !== '.' && part !== '..');
 const hash = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{64}$/u.test(v);
-export function isLocalCatalogCommandPayload<C extends LocalCatalogCommand>(command: C, v: unknown): v is LocalCatalogCommandPayloads[C] {
+export function isLocalCatalogCommandPayload<C extends LocalCatalogCommand>(command: C, v: unknown): v is CatalogPayloads[C] {
   if (!record(v)) return false;
   const id = (key: string): boolean => isCollectionId(v[key]), revision = (key: string): boolean => isLocalCatalogRevision(v[key]);
   const assetKeys = ['commandId', 'libraryRootId', 'expectedRootRevision', 'relative', 'sha256', 'sampleFrames', 'timebaseHz'];
@@ -203,6 +261,8 @@ export function isLocalCatalogCommandPayload<C extends LocalCatalogCommand>(comm
     case 'localCatalog.root': return keys(v, ['rootId']) && id('rootId');
     case 'localCatalog.roots': return keys(v, []);
     case 'localCatalog.asset': return keys(v, ['assetId']) && id('assetId');
+    case 'localCatalog.trackDetail': return libraryClosed(v, ['trackId']) && id('trackId');
+    case 'localCatalog.queryTracks': return isLocalLibraryQuery(v);
     case 'localCatalog.track': case 'localCatalog.observations': case 'localCatalog.metadata': return keys(v, ['trackId']) && id('trackId');
     case 'localCatalog.edition': case 'localCatalog.editionTracks': return keys(v, ['editionId']) && id('editionId');
     case 'localCatalog.pageTracks': return keys(v, ['offset','limit']) && typeof v.offset === 'number' && Number.isSafeInteger(v.offset) && v.offset >= 0 && typeof v.limit === 'number' && Number.isSafeInteger(v.limit) && v.limit > 0 && v.limit <= 200;
@@ -210,12 +270,14 @@ export function isLocalCatalogCommandPayload<C extends LocalCatalogCommand>(comm
   }
   return false;
 }
-export function isLocalCatalogCommandResult<C extends LocalCatalogCommand>(command: C, v: unknown): v is LocalCatalogCommandResults[C] {
+export function isLocalCatalogCommandResult<C extends LocalCatalogCommand>(command: C, v: unknown): v is CatalogResults[C] {
   if (Object.hasOwn(LOCAL_CATALOG_WRITE_OPERATIONS, command)) return isLocalCatalogResult(LOCAL_CATALOG_WRITE_OPERATIONS[command as keyof typeof LOCAL_CATALOG_WRITE_OPERATIONS], v);
   switch (command) {
     case 'localCatalog.root': return isLibraryRoot(v);
     case 'localCatalog.roots': return Array.isArray(v) && v.length <= 100 && v.every(isLibraryRoot);
     case 'localCatalog.asset': return isAudioAsset(v);
+    case 'localCatalog.queryTracks': return isLocalLibraryQueryPage(v);
+    case 'localCatalog.trackDetail': return isLocalLibraryTrackDetail(v);
     case 'localCatalog.track': return isLocalTrack(v);
     case 'localCatalog.edition': return isAlbumEdition(v);
     case 'localCatalog.editionTracks': return Array.isArray(v) && v.length <= 200 && v.every(isAlbumEditionTrack);

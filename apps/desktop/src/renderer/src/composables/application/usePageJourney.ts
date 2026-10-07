@@ -129,6 +129,7 @@ export function usePageJourney(options: PageJourneyOptions) {
     if (view === 'home') {
       sidebar.setActiveSource({ type: 'home' })
     }
+    if (view === 'local-library') sidebar.setActiveSource({ type: 'local-library' })
     if (view === 'liked' && !library.hasLikedItems()) {
       void library.loadLiked()
     }
@@ -141,6 +142,8 @@ export function usePageJourney(options: PageJourneyOptions) {
     switch (source.type) {
       case 'home':
         return 'home'
+      case 'local-library':
+        return 'local-library'
       case 'collection':
         return 'collection'
       case 'recording':

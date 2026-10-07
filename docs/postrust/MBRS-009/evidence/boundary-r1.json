@@ -1,0 +1,1098 @@
+{
+  "schema": "mbrs009.boundary-formal-review.v1",
+  "task": "MBRS-009",
+  "review": "BOUNDARY_R1",
+  "formalRound": 1,
+  "preflightCountsAsFormalReview": false,
+  "generatedAt": "2026-10-06T18:23:46.188474+00:00",
+  "role": "只读边界/接线审查者",
+  "reviewResult": "CHANGES_REQUESTED_ONE_LOCAL_P2",
+  "issueCounts": {
+    "P0": 0,
+    "P1": 0,
+    "P2": 1,
+    "P3": 0
+  },
+  "authorization": {
+    "readOnlyCheckout": true,
+    "onlyOutput": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/BOUNDARY_R1.json",
+    "subagentsSpawned": 0,
+    "buildsRun": 0,
+    "testsRun": 0,
+    "appRuns": 0,
+    "networkOrRealSourcesUsed": 0,
+    "new100k300kRuns": 0,
+    "requestedModel": "gpt-6.1-sol",
+    "requestedReasoning": "max",
+    "modelEvidence": "Root 启动参数与正式指派；不从旧 AGENTS high 推断当前档位"
+  },
+  "identity": {
+    "checkout": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout",
+    "branch": "codex/mbrs-009-local-library-ui",
+    "head": "418389708ca9400dbe347da448a829b9481dbb84",
+    "baseFinalReportSha": "418389708ca9400dbe347da448a829b9481dbb84",
+    "gitCommonDirectory": "/Volumes/LifeWeave/VSCode/MusicBridge/.git",
+    "candidate": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/CANDIDATE_01.json",
+    "candidateSha256": "644365ac5ab33c20807159810eab242c0680cef1a75894b041002a7aa5da428c",
+    "candidateBytes": 98561,
+    "all27ProductFilesAnd10TestFilesMatchCandidate": true,
+    "candidateProductFileCount": 27,
+    "candidateTestFileCount": 10,
+    "worktreeCleanClaim": false,
+    "worktreeState": "实现候选及 Root 文件尚未提交；只读审查未修改 checkout"
+  },
+  "findings": [
+    {
+      "id": "MBRS009-R1-B01",
+      "severity": "P2",
+      "title": "未知归属被显示成已确认的 Roon 外部接管",
+      "primaryLocation": {
+        "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/player/details.ts",
+        "startLine": 47,
+        "endLine": 49
+      },
+      "requirements": [
+        "MBRS-AT-009-02",
+        "MBRS-AT-009-05",
+        "tasks/MBRS-009_LOCAL_LIBRARY_UI.md 第25行 unknown不填假值"
+      ],
+      "sourceEvidence": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/application/bridge-controller.ts",
+          "startLine": 511,
+          "endLine": 520
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/application/bridge-controller.ts",
+          "startLine": 849,
+          "endLine": 860
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/application/bridge-controller.ts",
+          "startLine": 980,
+          "endLine": 996
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-playback-compat.ts",
+          "startLine": 16,
+          "endLine": 20
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-playback-compat.ts",
+          "startLine": 49,
+          "endLine": 51
+        }
+      ],
+      "consumers": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+          "startLine": 27,
+          "endLine": 40
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+          "startLine": 83,
+          "endLine": 96
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+          "startLine": 14,
+          "endLine": 15
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+          "startLine": 34,
+          "endLine": 34
+        }
+      ],
+      "failureCase": {
+        "trigger": "当前 MB 本地点播的 Zone 丢失，或源围栏/读取许可失效；没有收到可信的外部接管观察。",
+        "actualCoreLeaf": {
+          "phase": "OWNERSHIP_LOST",
+          "ownership": "UNKNOWN",
+          "queue_owner": "MB",
+          "roon_observation": {
+            "event": "UNKNOWN",
+            "observed": false,
+            "correlation": "UNKNOWN"
+          }
+        },
+        "currentUiProjection": "mbQueueOwnershipStatus 仅凭 phase 命中，返回“当前由 Roon 外部播放控制”；本地页和检查器均显示该确定归属。",
+        "expected": "保持归属未知，保留 MB 已保存队列并说明自动推进暂停；只有 EXTERNAL 或 ROON_NATIVE_EXTERNAL 的确定字段才显示外部归属。",
+        "reproExecuted": false,
+        "proofKind": "源码可确定：zone_lost→localPhase→UNKNOWN；新增显示函数将该 phase 无条件映射为外部控制"
+      },
+      "impact": "不会增加数据库或音频写入，但在断连/许可失效时给用户错误的播放归属，违反准确状态与原生外部区分边界。",
+      "existingTestGap": {
+        "location": {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "startLine": 92,
+          "endLine": 99
+        },
+        "description": "当前测试手动设置 EXTERNAL+ROON_NATIVE_EXTERNAL，只证明确定外部分支，没有覆盖真实 Controller 返回的 UNKNOWN+MB。"
+      },
+      "minimalRepair": {
+        "productFiles": [
+          "apps/desktop/src/renderer/src/components/player/details.ts"
+        ],
+        "testFiles": [
+          "apps/desktop/test/mbrs009-local-library-session.test.ts"
+        ],
+        "optionalConsumerTest": "apps/desktop/test/mbrs009-local-library-ui.test.ts（需要实际组件断言时）",
+        "behavior": "将确定外部归属与 UNKNOWN/OWNERSHIP_LOST 的保留队列提示分开；同时核对 SUBMISSION_UNKNOWN 的提示仍保持未知。保留检查器当前条目抑制和保存队列呈现，不删除未知提示。",
+        "requiresCoreContractOwnerWriterChange": false,
+        "requiresSourceWriteOrRealRoon": false
+      },
+      "requiredVerification": "以现有合法 fixture 覆盖 zone_lost 对应 UNKNOWN+MB、SUBMISSION_UNKNOWN、确定 EXTERNAL、正常 MB_OWNED；未知分支不得出现已确认外部/已确认 Playing，保存队列仍保留。由唯一 writer 或 Root 执行，审查者未跑测试。"
+    }
+  ],
+  "reviewedBoundaries": [
+    {
+      "id": "READ_CHAIN",
+      "result": "源码边界成立，行为执行证据由 Root 单独核验",
+      "locations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/main/local-library-ipc.ts",
+          "startLine": 5,
+          "endLine": 15
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/local-library-client.ts",
+          "startLine": 4,
+          "endLine": 19
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/command-outbox-client.ts",
+          "startLine": 11,
+          "endLine": 18
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/utility-main.ts",
+          "startLine": 114,
+          "endLine": 135
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+          "startLine": 10,
+          "endLine": 16
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-dispatch.ts",
+          "startLine": 123,
+          "endLine": 135
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-dispatch.ts",
+          "startLine": 173,
+          "endLine": 177
+        }
+      ],
+      "conclusion": "两固定只读命令显式进入原 DATASET_COMMANDS；协议版本1、原22目录命令和内部写闭集不变。Main信任校验/DTO验证和固定窗口dataset先于转发；utility沿原 endpoint、详情沿同一 repository；未增加第二 DB writer 或通用前缀转发。",
+      "testLocations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+          "startLine": 64,
+          "endLine": 90
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ipc.test.ts",
+          "startLine": 8,
+          "endLine": 20
+        }
+      ]
+    },
+    {
+      "id": "PUBLIC_BOUNDED_DTO",
+      "result": "源码边界成立",
+      "locations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-catalog.ts",
+          "startLine": 123,
+          "endLine": 165
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-catalog.ts",
+          "startLine": 206,
+          "endLine": 236
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-catalog-store.ts",
+          "startLine": 126,
+          "endLine": 145
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-catalog-store.ts",
+          "startLine": 589,
+          "endLine": 617
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/main/local-library-ipc.ts",
+          "startLine": 15,
+          "endLine": 28
+        }
+      ],
+      "conclusion": "query<=256 codepoints、limit<=200；公开页/详情严格闭集、稠密受限数组、track.assetId匹配asset.id，2MiB封套。内部SQL使用绑定参数；原始与显示名均可查，同名对象不合并。locator.relative/sha/signature/absolutePath/FD/ticket/上游URL不进入新DTO；错误经固定公开文案。发行关系只发现既有身份，名称tokens不生成edition。未让UI读取全库或原图。"
+    },
+    {
+      "id": "AUTHORITY_TARGET_NINE_FIELDS",
+      "result": "源码边界成立；真实点播尚未验收",
+      "locations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/application/bridge-controller.ts",
+          "startLine": 740,
+          "endLine": 745
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/roon/adapter.ts",
+          "startLine": 705,
+          "endLine": 710
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/runtime.ts",
+          "startLine": 1315,
+          "endLine": 1315
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "startLine": 137,
+          "endLine": 158
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/application/bridge-controller.ts",
+          "startLine": 805,
+          "endLine": 841
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+          "startLine": 585,
+          "endLine": 595
+        }
+      ],
+      "conclusion": "target来自原 adapter 已选Core/Zone与连接/分组代际，不分配session；点击前新读详情/目录/目标并核选中Zone和ONLINE/rootrevision/sourceRoot，CUE段落阻断。原九字段/1.2/roon_audio_input/三action保持，Core再做目标与私有源事实围栏；不请求必须先Roon匹配，不增加非Roon后端、第二队列或播放器。",
+      "testLocations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-target.test.ts",
+          "startLine": 10,
+          "endLine": 23
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "startLine": 70,
+          "endLine": 77
+        }
+      ]
+    },
+    {
+      "id": "CURRENT_FILE_FACTS",
+      "result": "源码边界成立；文件解析报告不等同真实Roon输入/输出",
+      "locations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-scan-store.ts",
+          "startLine": 562,
+          "endLine": 607
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-dispatch.ts",
+          "startLine": 174,
+          "endLine": 177
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/player/details.ts",
+          "startLine": 24,
+          "endLine": 32
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+          "startLine": 67,
+          "endLine": 67
+        }
+      ],
+      "conclusion": "参数沿当前locator/asset完整修订、root/source许可、当前已提交scan batch及最初register/replace账本绑定；无法证明返回null。增量reused只复用与原资产绑定的事实，limit200来源；此读入口不分配FD/票据/锁，不修改音频。播放条另需当前local track/asset revision匹配；参数标为扫描解析报告，Roon实际路径/输出仍未知。",
+      "testLocations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+          "startLine": 51,
+          "endLine": 62
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "startLine": 43,
+          "endLine": 47
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "startLine": 92,
+          "endLine": 98
+        }
+      ]
+    },
+    {
+      "id": "OUTBOX_MB_ONLY_UNKNOWN",
+      "result": "源码边界成立",
+      "locations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/index.ts",
+          "startLine": 385,
+          "endLine": 385
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/local-library-client.ts",
+          "startLine": 19,
+          "endLine": 19
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/command-outbox-client.ts",
+          "startLine": 49,
+          "endLine": 65
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/main/command-outbox-executor.ts",
+          "startLine": 20,
+          "endLine": 23
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/main/command-outbox-executor.ts",
+          "startLine": 38,
+          "endLine": 42
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-dispatch.ts",
+          "startLine": 197,
+          "endLine": 202
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "startLine": 160,
+          "endLine": 173
+        }
+      ],
+      "conclusion": "显示更正经既有持久outbox和唯一catalog.overrideMetadata，原trackId/revision/完整body不变。等待前固定请求，unknown保留pendingOverride并禁止新ID/新参重发，导航仍保留；回执不确认时引向原未确认操作。源写默认OFF，未新建Organizer/源写能力或音频排他锁。",
+      "testLocations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "startLine": 79,
+          "endLine": 84
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+          "startLine": 43,
+          "endLine": 49
+        }
+      ]
+    },
+    {
+      "id": "RELOCATION_AND_STRICT_HISTORY",
+      "result": "源码复用边界成立",
+      "locations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "startLine": 175,
+          "endLine": 201
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+          "startLine": 31,
+          "endLine": 33
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-relocation-coordinator.ts",
+          "startLine": 17,
+          "endLine": 31
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-catalog-store.ts",
+          "startLine": 52,
+          "endLine": 52
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-catalog-store.ts",
+          "startLine": 163,
+          "endLine": 201
+        }
+      ],
+      "conclusion": "confirm.commandId取捕获候选id，原asset/三修订受约束并明确勾选；Owner重新核候选signature/许可/quiet。根重链先原source授权再relink既有root，不注册第二catalogroot；精确/strict资产和含精确事实的根拒普通重定位；历史账本/标签/覆盖/同ID/收藏关联保留且无删除操作。未知confirm保留原outbox请求，不更换候选号自动重放。",
+      "testLocations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "startLine": 86,
+          "endLine": 90
+        }
+      ]
+    },
+    {
+      "id": "PAGING_AND_ASYNC_FENCES",
+      "result": "源码有限窗口成立；不是10万load实测",
+      "locations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "startLine": 5,
+          "endLine": 6
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "startLine": 29,
+          "endLine": 101
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "startLine": 103,
+          "endLine": 135
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "startLine": 51,
+          "endLine": 75
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "startLine": 162,
+          "endLine": 214
+        }
+      ],
+      "conclusion": "每页100，至多6页/600公开rows；稀疏全局index仅生成可见window占位，不按total全量数组。query/detail/context/action代际与离页围栏拒晚响应；响应四项query身份精确核对；同query失败保留成功行/total/选择/详情/scroll，首次失败不会冒空库。主行84/队列80合同保留。",
+      "testLocations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "startLine": 30,
+          "endLine": 68
+        }
+      ],
+      "scaleCaveat": "测试的100000仅抽象total，实际只返回当前合成页；不能计为AT00903 load通过。"
+    },
+    {
+      "id": "EXISTING_ENTRIES_AND_QUEUE",
+      "result": "原入口保留；UNKNOWN显示有P2待修",
+      "locations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+          "startLine": 95,
+          "endLine": 113
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+          "startLine": 125,
+          "endLine": 149
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/App.vue",
+          "startLine": 925,
+          "endLine": 942
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+          "startLine": 25,
+          "endLine": 45
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+          "startLine": 83,
+          "endLine": 108
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/player/details.ts",
+          "startLine": 35,
+          "endLine": 49
+        }
+      ],
+      "conclusion": "在原sidebar增一行和原App一个view分支，收藏/实物收藏/录音/native/provider入口及原播放条不替换。新点播沿原usePlaybackSession，local UUID不进入Provider数字重播/云歌词/收藏路径。accepted与BYTES_SENT不生成Playing，只有匹配Roon confirmed观察才能显示播放确认。确定外部队列展示保存MB队列、不标为正在自动推进；UNKNOWN目前误映外部，见B01。"
+    },
+    {
+      "id": "ROOT_GATE_IDENTITY_AND_COUNTS",
+      "result": "脚本静态fail-closed成立；最终Gate尚待Root冻结执行",
+      "locations": [
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-local-library-ui.mjs",
+          "startLine": 21,
+          "endLine": 42
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-local-library-ui.mjs",
+          "startLine": 73,
+          "endLine": 101
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-local-library-ui.mjs",
+          "startLine": 125,
+          "endLine": 148
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-local-library-ui.mjs",
+          "startLine": 184,
+          "endLine": 230
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs001-offline.mjs",
+          "startLine": 17,
+          "endLine": 35
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/mbrs009-local-library-ui-scope.json",
+          "startLine": 3,
+          "endLine": 5
+        },
+        {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-ui-render.mjs",
+          "startLine": 99,
+          "endLine": 106
+        }
+      ],
+      "conclusion": "完整唯一TAP六summary字段、expected tests/pass相等且fail/cancelled/skipped/todo零才成功；scope false/false和expected1占位不能产生Gate通过。列出的新测试和旧回归必须与发现清单匹配；fresh compiler/worker/38选定产物/2SSR产物/3reader-CUE-testbindings及source HEAD/hash前后绑定。明确限定声明源清单、非传递依赖闭包；SSR明示不是普通App/Owner，不把旧报告、模板PASS或数量声明当实际验证。",
+      "rootReportedCandidateCounts": {
+        "tests": 200,
+        "pass": 200,
+        "groups": {
+          "core": 87,
+          "contracts": 54,
+          "desktop": 59
+        },
+        "verificationByThisReviewer": "未重跑；Root已独立核142引用、48result与完整TAP，此为Root消息来源。"
+      },
+      "finalCountsMustFollowRepair": "修复若增测试，由Root从完整新TAP重新冻结数量；本报告不预填201或继续沿用200为修后PASS。"
+    }
+  ],
+  "minimumRepairAllowlist": [
+    "apps/desktop/src/renderer/src/components/player/details.ts",
+    "apps/desktop/test/mbrs009-local-library-session.test.ts"
+  ],
+  "optionalRepairTestAllowlist": [
+    "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+  ],
+  "forbiddenRepairExpansion": [
+    "第二DB writer",
+    "第二MB队列",
+    "新音频/非Roon后端",
+    "协议版本或前缀授权扩大",
+    "真实源写",
+    "账户/凭据",
+    "安装/部署/发布",
+    "新100k/300k或真实源规模"
+  ],
+  "acceptancePreservation": {
+    "originalTaskBytes": 3293,
+    "originalTaskSha256": "b0108dd9544c9794b3d73bc4460431274a37c5db5cf516c8430d8300779bbca1",
+    "originalEightAcceptanceCasesUnchanged": true,
+    "cases": [
+      {
+        "id": "MBRS-AT-009-01",
+        "kind": "ui",
+        "introduced_in": "1.1",
+        "requirement": "单一本地入口完成加入目录→搜索→选版本→直送/明确失败，不被Roon未入库阻断。"
+      },
+      {
+        "id": "MBRS-AT-009-02",
+        "kind": "ui",
+        "introduced_in": "1.1",
+        "requirement": "首次无库、扫描中/部分失败、文件离线、Roon断开和格式不支持均有准确状态。"
+      },
+      {
+        "id": "MBRS-AT-009-03",
+        "kind": "load",
+        "introduced_in": "1.1",
+        "requirement": "10万条查询/滚动分页虚拟化，不拉全库/原图到UI。"
+      },
+      {
+        "id": "MBRS-AT-009-04",
+        "kind": "ui",
+        "introduced_in": "1.1",
+        "requirement": "本地曲目仅显示Roon目标Zone，没有新增非Roon后端切换。"
+      },
+      {
+        "id": "MBRS-AT-009-05",
+        "kind": "ui",
+        "introduced_in": "1.1",
+        "requirement": "MB队列与原生外部播放状态能区分，不显示错归属的下一首或旧参数。"
+      },
+      {
+        "id": "MBRS-AT-009-06",
+        "kind": "ui",
+        "introduced_in": "1.1",
+        "requirement": "文件/根重新定位可用且不删除旧收藏，改展示名不改音频。"
+      },
+      {
+        "id": "MBRS-AT-009-07",
+        "kind": "integration",
+        "introduced_in": "1.1",
+        "requirement": "真实界面可操作证据齐全，不以mock原型当实现。"
+      },
+      {
+        "id": "MBRS-AT-009-08",
+        "kind": "ui",
+        "introduced_in": "1.2",
+        "requirement": "新本地库沿用既有页面/播放条；保留原生入口和收藏控件，不以新Schema复制第二套UI。"
+      }
+    ],
+    "loadAt03KindRemainsLoad": true,
+    "integrationAt07RemainsIntegration": true,
+    "overallLocalPlaybackAcceptance": "仍等待006/007真实条件；没有Roon/音频/设备/App/Owner整体接受声明"
+  },
+  "evidenceLimits": {
+    "reviewLayer": "只读源码、候选manifest与hash；没有执行任何产品测试或构建",
+    "candidateTests": "Root独立核过的候选200/200是修复前来源测试层，不能覆盖随后修复",
+    "gatePlaceholder": "false/false已知待冻结，不列为产品缺陷或提前Gate成功",
+    "ordinaryApp": "NOT_RUN",
+    "ci": "NOT_RUN",
+    "realRoonAudioDeviceNativeTakeover": "NOT_RUN",
+    "owner": "NOT_RUN",
+    "new100k300k": "NOT_RUN",
+    "at00903ActualLoad": "NOT_RUN；已有规模阶段接受另记，不抵本任务实际查询/滚动load",
+    "at00907ActualApp": "NOT_RUN；源码组件/合成SSR不会代替真实App可操作证据",
+    "mainMergeInstallSignRelease": "未授权、未执行",
+    "previous008Ci": "Root移交信息：source186694e实际4CI/6jobs成功，report4183897实际2CI/3jobs成功；本审查未重新查询，不能据此声称009CI已跑"
+  },
+  "reviewClosure": {
+    "candidateProductAndTestBytesUnchangedAtReviewEnd": true,
+    "scopeFrozenBeforeWriter": true,
+    "checkoutWritesByReviewer": 0,
+    "nextStep": "Root整合本R1与另一只读审查，唯一writer局部修复并提交新候选；Root明确触发正式R2后再审。不要把此前预检计为正式轮次。"
+  },
+  "inputSha256CapturedAtReviewEnd": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/main/local-library-ipc.ts",
+      "relativePath": "apps/desktop/src/main/local-library-ipc.ts",
+      "bytes": 4086,
+      "sha256": "5bcc5f8095d8945ed4bad0ed191b935d0a19a23978c58e3db34a28bbaaadd575",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/api.ts",
+      "relativePath": "apps/desktop/src/preload/api.ts",
+      "bytes": 40256,
+      "sha256": "f67b2216f782149bf7c02125b9323c57bd9a6132d49c288c766e83ef2d65baac",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/index.ts",
+      "relativePath": "apps/desktop/src/preload/index.ts",
+      "bytes": 27029,
+      "sha256": "aa76b7d86e7d6e40e3ac570a065560bfa928e1431d48725f618d8652dd594048",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/local-library-client.ts",
+      "relativePath": "apps/desktop/src/preload/local-library-client.ts",
+      "bytes": 3718,
+      "sha256": "592bf097b94069b1ecc5c5bdf64efc3022bad7778c2583172661fcce364b097b",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/App.vue",
+      "relativePath": "apps/desktop/src/renderer/src/App.vue",
+      "bytes": 72052,
+      "sha256": "0884f784e9ca4050faee60098939aa334361d88bb08f6807db906bd8d2d2ac3c",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+      "relativePath": "apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+      "bytes": 7292,
+      "sha256": "3ba08b5185e4c576503433d26db2de90a02ebc6b64d7eebee1bbf62914e290ce",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+      "relativePath": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+      "bytes": 15143,
+      "sha256": "dd4787fb3ae9e0e81117bd5b449cc1b844e90809182f6ceb0d6d4322594e8b5f",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+      "relativePath": "apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+      "bytes": 11907,
+      "sha256": "262efc5abbbac272a90ff76dcecfbef931fca641a3c6722584d6a38a9e3be644",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/navigation.ts",
+      "relativePath": "apps/desktop/src/renderer/src/components/navigation.ts",
+      "bytes": 997,
+      "sha256": "a86db9d86b15c33e9cfe43982f4f14c65fc802ec462572545c340aa8a7fa5a85",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/player/details.ts",
+      "relativePath": "apps/desktop/src/renderer/src/components/player/details.ts",
+      "bytes": 5803,
+      "sha256": "15d0c7d01525aff8b5857d15f474e37607302aa1541f0570b9b716555a55966e",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+      "relativePath": "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+      "bytes": 9131,
+      "sha256": "7532011b01badb77c5e22cc79784754cc70f5b49a315894622b064817ca712e1",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+      "relativePath": "apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+      "bytes": 7003,
+      "sha256": "374590db1dc8d8b6e7e1fde6e21dcc7999e61b543591187f8f976d9ca4486477",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+      "relativePath": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+      "bytes": 16985,
+      "sha256": "77c2b9d81e2be520edaed87ad659f91cf891afefca9ab75b63e05fb37a818d38",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+      "relativePath": "apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+      "bytes": 22367,
+      "sha256": "49f593d1266d49484b3391372713e301cd550b517d5bef9ef82d391e6df0cb20",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "relativePath": "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "bytes": 50341,
+      "sha256": "6d21b5cafb7cab42b1e2e24415182dc81dee6ab3450665ed4f9143a405f0328b",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/application/bridge-controller.ts",
+      "relativePath": "packages/bridge-core/src/application/bridge-controller.ts",
+      "bytes": 148786,
+      "sha256": "913ca23fa5fdf09c563ff51679f0deb0666d0614b17923e3e627671bb929d907",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "relativePath": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "bytes": 49636,
+      "sha256": "bbf65fd8c5ac4fd3f7d17f96e461fca07095c221482c6c1efeaedc6ba35f01b8",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+      "relativePath": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+      "bytes": 28217,
+      "sha256": "dfb21ea19f90fb14f94dff77f37e8320f2fa44c529c5f7377d5e1c6178a24468",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-catalog-store.ts",
+      "relativePath": "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "bytes": 64268,
+      "sha256": "d6ac19c93ec94abb6fa9cdd9e08de913631b245c2bf35dba41c03b18cb677287",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-scan-store.ts",
+      "relativePath": "packages/bridge-core/src/collection/local-scan-store.ts",
+      "bytes": 75191,
+      "sha256": "f0e46defabfeae03064145a433ee417f95404024855635121a67150bdace7b6d",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/runtime.ts",
+      "relativePath": "packages/bridge-core/src/runtime.ts",
+      "bytes": 99677,
+      "sha256": "9c11125386f197a9e50f3c4a37df8765afc0980f5f9cdc87a412d5bf7bc012c0",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/utility-main.ts",
+      "relativePath": "packages/bridge-core/src/utility-main.ts",
+      "bytes": 44145,
+      "sha256": "6731406063c9d48e528a8a0295b309b92a472581d5bbd061228283cf39825cdf",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/ipc-names.ts",
+      "relativePath": "packages/contracts/src/ipc-names.ts",
+      "bytes": 8919,
+      "sha256": "4f1af43737e5b0beb4031808e42f5af88ee4e8199611013ff6fa0cdaeceb2362",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/ipc.ts",
+      "relativePath": "packages/contracts/src/ipc.ts",
+      "bytes": 45537,
+      "sha256": "be75ff8d2e979e1828e08bb64010b1ce7f5cf8432a4bbd9699038c6c1050d47e",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-catalog.ts",
+      "relativePath": "packages/contracts/src/local-catalog.ts",
+      "bytes": 28129,
+      "sha256": "9ad03712cf690996ee76e85ad25928d724f244951c8cb53c2fa37308b5ce2915",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-relocation.ts",
+      "relativePath": "packages/contracts/src/local-relocation.ts",
+      "bytes": 8458,
+      "sha256": "79e82e14c9f01ef985a356193e67a28210ee0c8353cbaf2f0bf6da60e83a6c3f",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/validator.ts",
+      "relativePath": "packages/contracts/src/validator.ts",
+      "bytes": 121856,
+      "sha256": "62be08e2ae121a16c33fc040c694025fecec972e7411cfdccc090c05e970a45c",
+      "candidateFamily": "productFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-client.test.ts",
+      "relativePath": "apps/desktop/test/mbrs009-local-library-client.test.ts",
+      "bytes": 1990,
+      "sha256": "655f1a72ea3269ac7536d8d4a31228c696bf04745605b5c6062aaa4a9439023c",
+      "candidateFamily": "testFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ipc.test.ts",
+      "relativePath": "apps/desktop/test/mbrs009-local-library-ipc.test.ts",
+      "bytes": 3133,
+      "sha256": "7df7fb2abc14d2e95f2d000ab44fb5fb964f72bd44714c19fa7a8b35e703688f",
+      "candidateFamily": "testFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-session.test.ts",
+      "relativePath": "apps/desktop/test/mbrs009-local-library-session.test.ts",
+      "bytes": 14995,
+      "sha256": "863eec7da758756b0faa799a93abeaba692d21ef83228825070fc419bf7af6fd",
+      "candidateFamily": "testFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ui.test.ts",
+      "relativePath": "apps/desktop/test/mbrs009-local-library-ui.test.ts",
+      "bytes": 14600,
+      "sha256": "75dd5ba71cfaf2d17366ebd245bc6c0e7c63231ffedf0766b2626c6a6cca16c1",
+      "candidateFamily": "testFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/page-journey-session.test.ts",
+      "relativePath": "apps/desktop/test/page-journey-session.test.ts",
+      "bytes": 7533,
+      "sha256": "4cd730028f80968913bcbe3d5d8c5d83a3d4d64f40cd24ba74f296fa7973f783",
+      "candidateFamily": "testFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/preload.test.ts",
+      "relativePath": "apps/desktop/test/preload.test.ts",
+      "bytes": 35836,
+      "sha256": "e934050b53476b69ad31d2832d6367914920ec75bcbcbb30e03df86e4caadc38",
+      "candidateFamily": "testFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/sidebar-controls.test.ts",
+      "relativePath": "apps/desktop/test/sidebar-controls.test.ts",
+      "bytes": 10949,
+      "sha256": "8c7b37c68ca970595734ce549acd7bbaa481eb038e542efdb15f44e56b5ce8ca",
+      "candidateFamily": "testFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+      "relativePath": "packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+      "bytes": 10677,
+      "sha256": "69b82ca9ad5ceb94f5d500bae545f353ce82d9e64b7c794ba06a792286cd708e",
+      "candidateFamily": "testFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-target.test.ts",
+      "relativePath": "packages/bridge-core/test/mbrs009/local-target.test.ts",
+      "bytes": 2671,
+      "sha256": "cce1b673a92f6789b85998664ddcc045b693b65f229b9200b4bf0b27643b6cf6",
+      "candidateFamily": "testFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/test/mbrs009/local-library-query.test.ts",
+      "relativePath": "packages/contracts/test/mbrs009/local-library-query.test.ts",
+      "bytes": 3244,
+      "sha256": "b6f30923ac5c461162844440fa92402400b5a265a7b0c14eb068407790e1df04",
+      "candidateFamily": "testFiles",
+      "candidateMatches": true
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/AGENTS.md",
+      "relativePath": "AGENTS.md",
+      "bytes": 13244,
+      "sha256": "7e6d48fb673dd2e0bb782ef94b9d642d1b4bc644e6e92c66f84e44d1a852ec5b",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/tasks/MBRS-009_LOCAL_LIBRARY_UI.md",
+      "relativePath": "tasks/MBRS-009_LOCAL_LIBRARY_UI.md",
+      "bytes": 3293,
+      "sha256": "b0108dd9544c9794b3d73bc4460431274a37c5db5cf516c8430d8300779bbca1",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/project/POSTRUST_PLAN.json",
+      "relativePath": "project/POSTRUST_PLAN.json",
+      "bytes": 2047163,
+      "sha256": "b4de7847d09354f24a4ea46300eb43a50b1c286f26f95df24981aec34abf6a11",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+      "relativePath": "docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+      "bytes": 10033,
+      "sha256": "b8ccd84d53ed75662b6cc3d85b986032c8b491a21626f99a7846cc72305dc111",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/STATE_MATRIX.json",
+      "relativePath": "docs/postrust/MBRS-009/STATE_MATRIX.json",
+      "bytes": 707,
+      "sha256": "2620972afa0cf9c09cf5f25638ce830d1b47cfd1530343b042305883027d3aae",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-local-library-ui.mjs",
+      "relativePath": "scripts/ci/verify-mbrs009-local-library-ui.mjs",
+      "bytes": 21606,
+      "sha256": "a73803d7a9d3d99c27428d8619a2d4d340d7faaa8b812d0c69ce7472f5f0bdff",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-ui-render.mjs",
+      "relativePath": "scripts/ci/verify-mbrs009-ui-render.mjs",
+      "bytes": 7188,
+      "sha256": "876e0d5407e5b5ec3f72057ec02a9d9fbc08304af8b9e054514e7bb50eb41abf",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/mbrs009-local-library-ui-scope.json",
+      "relativePath": "scripts/ci/mbrs009-local-library-ui-scope.json",
+      "bytes": 2353,
+      "sha256": "413f557387c662bf348217131420fbdb90a6dc72881b42bd6f4329d6afa7c47b",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/test/verify-mbrs009-local-library-ui.test.mjs",
+      "relativePath": "scripts/ci/test/verify-mbrs009-local-library-ui.test.mjs",
+      "bytes": 2774,
+      "sha256": "347cee3b33e8ee63c92ac4670609883b069765cbe2cd9888b580236439b7495b",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs001-offline.mjs",
+      "relativePath": "scripts/ci/verify-mbrs001-offline.mjs",
+      "bytes": 14851,
+      "sha256": "35ad160e0f58c0eea0cbb22ae0f4d948955c13c05857eaa3134c18aa9552ab3d",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/command-outbox-client.ts",
+      "relativePath": "apps/desktop/src/preload/command-outbox-client.ts",
+      "bytes": 5033,
+      "sha256": "5215d89fe0e47fbf310a0e442c82cb9632983e852c5f69675e5fb59c73640abc",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/main/command-outbox-executor.ts",
+      "relativePath": "apps/desktop/src/main/command-outbox-executor.ts",
+      "bytes": 9584,
+      "sha256": "415bffb3fba0760e4d66f9631744f95f3e817aa9b514be4231e5e6f3509bd3b0",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/main/command-outbox-store.ts",
+      "relativePath": "apps/desktop/src/main/command-outbox-store.ts",
+      "bytes": 17043,
+      "sha256": "85664655c1e771e19ca821f84eef0c1f92c9de63b589669f076300994785d008",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/roon-queue-context-status.ts",
+      "relativePath": "apps/desktop/src/renderer/src/roon-queue-context-status.ts",
+      "bytes": 857,
+      "sha256": "c96c904ca5c6a216534b1339c3c38b9eea16e83cb65d33a7e68f4b9a88686f72",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-relocation-coordinator.ts",
+      "relativePath": "packages/bridge-core/src/collection/local-relocation-coordinator.ts",
+      "bytes": 9621,
+      "sha256": "d447c4c1ace3c947ebfc5345f9c351f1dc33270dbda31ab58ba82c1e56c62497",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/roon/adapter.ts",
+      "relativePath": "packages/bridge-core/src/roon/adapter.ts",
+      "bytes": 69030,
+      "sha256": "83501413ed5e06cc9653c69c30a90d459f384272ec7c9a2bd100ebba6df3a4d8",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-playback-compat.ts",
+      "relativePath": "packages/contracts/src/local-playback-compat.ts",
+      "bytes": 5655,
+      "sha256": "59a2e0f17d7e2c654ec346334a0509c813e01e0d9a703628545bd7c841b78081",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/command-outbox.ts",
+      "relativePath": "packages/contracts/src/command-outbox.ts",
+      "bytes": 24181,
+      "sha256": "a822c336a9ad77883b8b50beb9e079220f934b0044bb2632bd2b2aca700e541b",
+      "candidateFamily": "root_or_unchanged_boundary_input",
+      "candidateMatches": null
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/CANDIDATE_01.json",
+      "relativePath": "writer/CANDIDATE_01.json",
+      "bytes": 98561,
+      "sha256": "644365ac5ab33c20807159810eab242c0680cef1a75894b041002a7aa5da428c",
+      "candidateFamily": "candidate_manifest",
+      "candidateMatches": true
+    }
+  ]
+}

@@ -1,0 +1,285 @@
+{
+  "synthetic": true,
+  "source": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-e2e-01/tmp/mbrs009-ui-DLpMLW/synthetic-audio",
+  "before": {
+    "009 UI Studio.wav": "55bd7d7e14a3a38806dc0f7959b73c15a22abb327dfea7d91eedeca91979ebd2",
+    "009 UI Live.wav": "0d803cd4a737fe113b3ecfa2d005322eabbaa70d9adc1a6d702fdeaca53ba563",
+    "009 UI Remaster.wav": "26472b48c895e1384ec4862beed8ce74649777fa3a674af93ab2849f30d8335a"
+  },
+  "after": {
+    "009 UI Studio.wav": "55bd7d7e14a3a38806dc0f7959b73c15a22abb327dfea7d91eedeca91979ebd2",
+    "009 UI Live.wav": "0d803cd4a737fe113b3ecfa2d005322eabbaa70d9adc1a6d702fdeaca53ba563",
+    "009 UI Remaster.wav": "26472b48c895e1384ec4862beed8ce74649777fa3a674af93ab2849f30d8335a"
+  },
+  "sourceFilesUnchanged": true,
+  "dimensions": [
+    {
+      "viewportWidth": 720,
+      "row": {
+        "left": 212,
+        "right": 695,
+        "top": 383.953125,
+        "bottom": 467.953125,
+        "width": 483,
+        "height": 84
+      },
+      "copy": {
+        "left": 216,
+        "right": 541,
+        "top": 413.953125,
+        "bottom": 437.953125,
+        "width": 325,
+        "height": 24
+      },
+      "actions": {
+        "left": 549,
+        "right": 691,
+        "top": 403.953125,
+        "bottom": 447.953125,
+        "width": 142,
+        "height": 44
+      },
+      "buttons": [
+        {
+          "left": 549,
+          "right": 593,
+          "top": 403.953125,
+          "bottom": 447.953125,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "left": 598,
+          "right": 642,
+          "top": 403.953125,
+          "bottom": 447.953125,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "left": 647,
+          "right": 691,
+          "top": 403.953125,
+          "bottom": 447.953125,
+          "width": 44,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "viewportWidth": 780,
+      "row": {
+        "left": 85.640625,
+        "right": 755,
+        "top": 305.5625,
+        "bottom": 389.5625,
+        "width": 669.359375,
+        "height": 84
+      },
+      "copy": {
+        "left": 89.640625,
+        "right": 601,
+        "top": 335.5625,
+        "bottom": 359.5625,
+        "width": 511.359375,
+        "height": 24
+      },
+      "actions": {
+        "left": 609,
+        "right": 751,
+        "top": 325.5625,
+        "bottom": 369.5625,
+        "width": 142,
+        "height": 44
+      },
+      "buttons": [
+        {
+          "left": 609,
+          "right": 653,
+          "top": 325.5625,
+          "bottom": 369.5625,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "left": 658,
+          "right": 702,
+          "top": 325.5625,
+          "bottom": 369.5625,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "left": 707,
+          "right": 751,
+          "top": 325.5625,
+          "bottom": 369.5625,
+          "width": 44,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "viewportWidth": 800,
+      "row": {
+        "left": 80,
+        "right": 775,
+        "top": 305.5625,
+        "bottom": 389.5625,
+        "width": 695,
+        "height": 84
+      },
+      "copy": {
+        "left": 84,
+        "right": 621,
+        "top": 335.5625,
+        "bottom": 359.5625,
+        "width": 537,
+        "height": 24
+      },
+      "actions": {
+        "left": 629,
+        "right": 771,
+        "top": 325.5625,
+        "bottom": 369.5625,
+        "width": 142,
+        "height": 44
+      },
+      "buttons": [
+        {
+          "left": 629,
+          "right": 673,
+          "top": 325.5625,
+          "bottom": 369.5625,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "left": 678,
+          "right": 722,
+          "top": 325.5625,
+          "bottom": 369.5625,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "left": 727,
+          "right": 771,
+          "top": 325.5625,
+          "bottom": 369.5625,
+          "width": 44,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "viewportWidth": 801,
+      "row": {
+        "left": 90,
+        "right": 766,
+        "top": 305.5625,
+        "bottom": 389.5625,
+        "width": 676,
+        "height": 84
+      },
+      "copy": {
+        "left": 210,
+        "right": 532,
+        "top": 335.5625,
+        "bottom": 359.5625,
+        "width": 322,
+        "height": 24
+      },
+      "actions": {
+        "left": 620,
+        "right": 762,
+        "top": 325.5625,
+        "bottom": 369.5625,
+        "width": 142,
+        "height": 44
+      },
+      "buttons": [
+        {
+          "left": 620,
+          "right": 664,
+          "top": 325.5625,
+          "bottom": 369.5625,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "left": 669,
+          "right": 713,
+          "top": 325.5625,
+          "bottom": 369.5625,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "left": 718,
+          "right": 762,
+          "top": 325.5625,
+          "bottom": 369.5625,
+          "width": 44,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "viewportWidth": 1024,
+      "row": {
+        "left": 210.328125,
+        "right": 989,
+        "top": 305.5625,
+        "bottom": 389.5625,
+        "width": 778.671875,
+        "height": 84
+      },
+      "copy": {
+        "left": 330.328125,
+        "right": 755,
+        "top": 335.5625,
+        "bottom": 359.5625,
+        "width": 424.671875,
+        "height": 24
+      },
+      "actions": {
+        "left": 843,
+        "right": 985,
+        "top": 325.5625,
+        "bottom": 369.5625,
+        "width": 142,
+        "height": 44
+      },
+      "buttons": [
+        {
+          "left": 843,
+          "right": 887,
+          "top": 325.5625,
+          "bottom": 369.5625,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "left": 892,
+          "right": 936,
+          "top": 325.5625,
+          "bottom": 369.5625,
+          "width": 44,
+          "height": 44
+        },
+        {
+          "left": 941,
+          "right": 985,
+          "top": 325.5625,
+          "bottom": 369.5625,
+          "width": 44,
+          "height": 44
+        }
+      ]
+    }
+  ],
+  "queueKeyboardFocusRestored": true,
+  "realRoonAudioOwner": "NOT_RUN",
+  "layer": "AUTOMATED_CONTROLLED_PRODUCT_UI_NOT_ROOT_CUA_OR_OWNER"
+}

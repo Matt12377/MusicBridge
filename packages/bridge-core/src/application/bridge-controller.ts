@@ -4,7 +4,7 @@ import { logicalQueueEntry, localQueueIdentity } from './mb-queue.js';
 import { isAlbumEdition, isMBQueueEditRequest, type MBQueueRecord, type MBQueueLogicalSource, isMBEditionQueueRequest, type MBEditionQueueRequest, type MBQueueEditRequest } from '@music-bridge/contracts';
 import {LocalSourcePreparationError} from './local-source-resolver.js';
 import {DatasetOwnerDispatchError} from '../collection/dataset-owner-protocol.js';
-import { isLocalPlayRequest, type LocalPlayRequest, type LocalPlayAccepted, type LocalPlaybackObservationLeaf } from '@music-bridge/contracts';
+import { isLocalPlayRequest, isLocalPlayTarget, type LocalPlayTarget, type LocalPlayRequest, type LocalPlayAccepted, type LocalPlaybackObservationLeaf } from '@music-bridge/contracts';
 import type { DatasetOwnerEndpoint } from '../collection/dataset-owner-protocol.js';
 import { LocalSourceFence } from '../stream/local-source-fence.js';
 import type { LocalSourceCaptureResult } from '../collection/local-source-ticket-types.js';
@@ -736,6 +736,12 @@ export class BridgeController {
       this.logicalRevision=result.revision;this.queuePersistence='SAVED';this.queueProjectionDirty=true;
     });
     this.queueSaveTail=work.catch(()=>{this.queuePersistence='UNAVAILABLE';this.queueProjectionDirty=true;});return work;
+  }
+  getLocalPlaybackTarget(): LocalPlayTarget | null {
+    if (this.localClosing) return null;
+    const captured = this.dependencies.roon.captureLocalTarget?.();
+    if (!captured?.isCurrent() || !isLocalPlayTarget(captured.target)) return null;
+    return { core_id: captured.target.core_id, zone_id: captured.target.zone_id };
   }
   queueLocalEdition(request:MBEditionQueueRequest):Promise<BridgeState> {
     if(!isMBEditionQueueRequest(request))return Promise.reject(this.cancelled());

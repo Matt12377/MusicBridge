@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef } from 'vue'
-import type { CommandOutboxState, CommandOutboxTrackedCommand, CommandOutboxView } from '@music-bridge/contracts'
+import type { CommandOutboxOverview, CommandOutboxState, CommandOutboxTrackedCommand, CommandOutboxView } from '@music-bridge/contracts'
 import { canRetryOutboxItem, createCommandOutboxController, outboxErrorMessage } from './command-outbox/controller.js'
 
-const emit = defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: []; overview: [overview: CommandOutboxOverview] }>()
 const dialog = ref<HTMLDialogElement>()
 const retryConfirm = ref<Record<string, boolean>>({})
 const dismissConfirm = ref<Record<string, boolean>>({})
 const visibleCount = ref(20)
-const controller = createCommandOutboxController({ api: window.musicBridge, onChange: (value) => { state.value = value } })
+let publishedOverview: CommandOutboxOverview | null = null
+const controller = createCommandOutboxController({ api: window.musicBridge, onChange: (value) => {
+  state.value = value
+  if (value.overview && !value.loading && value.overview !== publishedOverview) { publishedOverview = value.overview; emit('overview', value.overview) }
+} })
 const state = shallowRef(controller.state)
 const entries = computed(() => state.value.overview?.entries.filter((item) => !item.acknowledged && item.state !== 'dismissed') ?? [])
 const visibleEntries = computed(() => entries.value.slice(0, visibleCount.value))

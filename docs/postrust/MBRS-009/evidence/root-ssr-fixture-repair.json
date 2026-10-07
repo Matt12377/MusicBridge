@@ -1,0 +1,18 @@
+{
+  "schema": "mbrs009.root-ssr-fixture-repair.v1",
+  "at": "2026-10-07T00:07:37.997131+00:00",
+  "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-ui-render.mjs",
+  "before": {
+    "bytes": 7477,
+    "sha256": "d9ae3a998c1977eb366d8a2dee34f3c88b310c62cb20fb87cfaeaa05a246d7ab"
+  },
+  "after": {
+    "bytes": 7479,
+    "sha256": "9d4e2fc018fee8673a721b4667975994f3cc307296627cb675ab95773fe369d3"
+  },
+  "reason": "SSR sample container WAV violates existing closed FileAudioParameters enum; corrected sample and expected visible text to WAVE. No product/API/AT changes.",
+  "originalFailureManifest": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-01/gate-output/manifest.json",
+  "fullDiagnosticReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-ssr-diagnostic-01/receipt.json",
+  "productChanged": false,
+  "gateScopeOrBudgetChanged": false
+}

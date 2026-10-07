@@ -95,6 +95,7 @@ onMounted(restoreSourceScroll)
         <SidebarNavRow source="roon-albums" label="专辑" icon="vinyl" :expanded="expanded" :selected="isSourceSelected('roon-albums')" @select="selectSource({ type: 'roon-albums' })" />
         <SidebarNavRow source="roon-artists" label="艺术家" icon="people" :expanded="expanded" :selected="isSourceSelected('roon-artists')" @select="selectSource({ type: 'roon-artists' })" />
         <SidebarNavRow source="roon-genres" label="流派" icon="collection" :expanded="expanded" :selected="isSourceSelected('roon-genres')" @select="selectSource({ type: 'roon-genres' })" />
+        <SidebarNavRow source="local-library" label="本地音乐" icon="collection" :expanded="expanded" :selected="isSourceSelected('local-library')" @select="selectSource({ type: 'local-library' })" />
         <SidebarNavRow source="roon-favorites" label="收藏" icon="bookmark" :expanded="expanded" :selected="isSourceSelected('roon-favorites')" @select="selectSource({ type: 'roon-favorites' })" />
         <button type="button" class="sidebar-nav-row sidebar-collection-toggle" :class="{ selected: isSourceSelected('collection') }" data-sidebar-source="collection"
           aria-label="实物收藏" :aria-expanded="expanded && collectionExpanded" aria-controls="sidebar-collection-views" :title="expanded ? undefined : '实物收藏'" @click="toggleCollection">

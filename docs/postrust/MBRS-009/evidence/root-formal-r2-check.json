@@ -1,0 +1,677 @@
+{
+  "schema": "mbrs009.root-formal-r2-input-check.v1",
+  "at": "2026-10-07T00:23:25.975097+00:00",
+  "records": [
+    {
+      "report": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/BOUNDARY_R2.json",
+        "bytes": 96362,
+        "sha256": "1a70428513efad4130bc259cf2a8c98af028e7a49d27c9749ea8f9857ff5010b"
+      },
+      "inputCount": 90,
+      "verifiedInputs": [
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_CANDIDATE_02_CHECK.json",
+          "bytes": 163197,
+          "sha256": "9130bc8262a31737ec7b95bb64aca9e8c117db399713278c6e03d192e91dae0f",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_GATE_02_CHECK.json",
+          "bytes": 1341,
+          "sha256": "d9f8bc6b4536086e293e94df1296b058aeaa106f5272411ae678182f27522624",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_R1_PLAN_INVARIANTS.json",
+          "bytes": 462,
+          "sha256": "3b9f035435baed54ef69a8cc5967f4ddaee76759c52d1f0d69df251875ce1daa",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_R1_REPAIR_PLAN.json",
+          "bytes": 3957,
+          "sha256": "474d52f02268fc7ee079c4b316a5d7ddd7f27d34fbe8ddc7f7202dec582f674b",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_SSR_FIXTURE_REPAIR.json",
+          "bytes": 962,
+          "sha256": "f39a9383a72d3cf4e14fcf2dfabef6a9b642d40dfa9a334bac3e5aabf53bda29",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/AGENTS.md",
+          "bytes": 13244,
+          "sha256": "7e6d48fb673dd2e0bb782ef94b9d642d1b4bc644e6e92c66f84e44d1a852ec5b",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/main/command-outbox-executor.ts",
+          "bytes": 9584,
+          "sha256": "415bffb3fba0760e4d66f9631744f95f3e817aa9b514be4231e5e6f3509bd3b0",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/main/local-library-ipc.ts",
+          "bytes": 4086,
+          "sha256": "5bcc5f8095d8945ed4bad0ed191b935d0a19a23978c58e3db34a28bbaaadd575",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/api.ts",
+          "bytes": 40256,
+          "sha256": "f67b2216f782149bf7c02125b9323c57bd9a6132d49c288c766e83ef2d65baac",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/command-outbox-client.ts",
+          "bytes": 5033,
+          "sha256": "5215d89fe0e47fbf310a0e442c82cb9632983e852c5f69675e5fb59c73640abc",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/index.ts",
+          "bytes": 27029,
+          "sha256": "aa76b7d86e7d6e40e3ac570a065560bfa928e1431d48725f618d8652dd594048",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/local-library-client.ts",
+          "bytes": 3718,
+          "sha256": "592bf097b94069b1ecc5c5bdf64efc3022bad7778c2583172661fcce364b097b",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/App.vue",
+          "bytes": 72199,
+          "sha256": "0fe0ed2cba280191207e227b34f87608bd143490d375290ceb35c162b2333cfa",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue",
+          "bytes": 15108,
+          "sha256": "b32077a41111975031afe027c7ffd9976e481f618b3384b4443cd0f370d5c15b",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/command-outbox/controller.ts",
+          "bytes": 7179,
+          "sha256": "a85243fae822dfce8ed0552730faa92023102bc5eff5a53b5ff439fbb2ad2943",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+          "bytes": 7292,
+          "sha256": "3ba08b5185e4c576503433d26db2de90a02ebc6b64d7eebee1bbf62914e290ce",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+          "bytes": 16452,
+          "sha256": "a7b1729bcf7b410a99ab1fe542711e2e6f918d93f9518ee162464574232cc37c",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "bytes": 12994,
+          "sha256": "09bfe428819be83230d9cc2fce0fd401a50c437c7b95e007f7dca3729096e552",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/navigation.ts",
+          "bytes": 997,
+          "sha256": "a86db9d86b15c33e9cfe43982f4f14c65fc802ec462572545c340aa8a7fa5a85",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/player/details.ts",
+          "bytes": 7638,
+          "sha256": "cf36a3c7737c8047f667763468b4058f475a54a9d9241c0a6601fcd2c053f5f1",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+          "bytes": 9258,
+          "sha256": "fd1ed95f86f957578b3179baf68efefacebe9a64cef76989c1a9d651e0e53762",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+          "bytes": 7003,
+          "sha256": "374590db1dc8d8b6e7e1fde6e21dcc7999e61b543591187f8f976d9ca4486477",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+          "bytes": 25598,
+          "sha256": "00fa0eec5e70ef376a0ae79cbebedf30cce73a0579fa81989c9cf98e2d6a1a35",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+          "bytes": 22367,
+          "sha256": "49f593d1266d49484b3391372713e301cd550b517d5bef9ef82d391e6df0cb20",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+          "bytes": 50341,
+          "sha256": "6d21b5cafb7cab42b1e2e24415182dc81dee6ab3450665ed4f9143a405f0328b",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-client.test.ts",
+          "bytes": 1990,
+          "sha256": "655f1a72ea3269ac7536d8d4a31228c696bf04745605b5c6062aaa4a9439023c",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ipc.test.ts",
+          "bytes": 3133,
+          "sha256": "7df7fb2abc14d2e95f2d000ab44fb5fb964f72bd44714c19fa7a8b35e703688f",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-session.test.ts",
+          "bytes": 33141,
+          "sha256": "df47d7bcbcb051eff45b294ec8c9357a55a7bbcfe548531c11a26ae39f60055a",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ui.test.ts",
+          "bytes": 26302,
+          "sha256": "60105ef456af56c39dbbb054f7bcc6a145e8edb9335f8cbd94dfc7c84446482a",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/page-journey-session.test.ts",
+          "bytes": 7533,
+          "sha256": "4cd730028f80968913bcbe3d5d8c5d83a3d4d64f40cd24ba74f296fa7973f783",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/preload.test.ts",
+          "bytes": 35836,
+          "sha256": "e934050b53476b69ad31d2832d6367914920ec75bcbcbb30e03df86e4caadc38",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/sidebar-controls.test.ts",
+          "bytes": 10949,
+          "sha256": "8c7b37c68ca970595734ce549acd7bbaa481eb038e542efdb15f44e56b5ce8ca",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+          "bytes": 13275,
+          "sha256": "c3b717fb8b0afa298d6557bd7232043a717e67aca7c07052ae5813723098e2ad",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/STATE_MATRIX.json",
+          "bytes": 6253,
+          "sha256": "fd5b2342d3fcb15afe78194741773fd55b1a50531d2e9a0ae21204836903febb",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/application/bridge-controller.ts",
+          "bytes": 148786,
+          "sha256": "913ca23fa5fdf09c563ff51679f0deb0666d0614b17923e3e627671bb929d907",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-dispatch.ts",
+          "bytes": 49636,
+          "sha256": "bbf65fd8c5ac4fd3f7d17f96e461fca07095c221482c6c1efeaedc6ba35f01b8",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+          "bytes": 28217,
+          "sha256": "dfb21ea19f90fb14f94dff77f37e8320f2fa44c529c5f7377d5e1c6178a24468",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-catalog-store.ts",
+          "bytes": 64268,
+          "sha256": "d6ac19c93ec94abb6fa9cdd9e08de913631b245c2bf35dba41c03b18cb677287",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-relocation-coordinator.ts",
+          "bytes": 9621,
+          "sha256": "d447c4c1ace3c947ebfc5345f9c351f1dc33270dbda31ab58ba82c1e56c62497",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-scan-store.ts",
+          "bytes": 75191,
+          "sha256": "f0e46defabfeae03064145a433ee417f95404024855635121a67150bdace7b6d",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/roon/adapter.ts",
+          "bytes": 69030,
+          "sha256": "83501413ed5e06cc9653c69c30a90d459f384272ec7c9a2bd100ebba6df3a4d8",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/runtime.ts",
+          "bytes": 99677,
+          "sha256": "9c11125386f197a9e50f3c4a37df8765afc0980f5f9cdc87a412d5bf7bc012c0",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/utility-main.ts",
+          "bytes": 44145,
+          "sha256": "6731406063c9d48e528a8a0295b309b92a472581d5bbd061228283cf39825cdf",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+          "bytes": 10677,
+          "sha256": "69b82ca9ad5ceb94f5d500bae545f353ce82d9e64b7c794ba06a792286cd708e",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-target.test.ts",
+          "bytes": 2671,
+          "sha256": "cce1b673a92f6789b85998664ddcc045b693b65f229b9200b4bf0b27643b6cf6",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/audio-quality.ts",
+          "bytes": 1714,
+          "sha256": "963be7c90f08a1298264e22fd00e89ed2a995bacf54900df8bab2170b4dccd95",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/index.ts",
+          "bytes": 2197,
+          "sha256": "951caba855ce6f10c694e65fe16e157588bf45e0824052c13fb64641df79a31c",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/ipc-names.ts",
+          "bytes": 8919,
+          "sha256": "4f1af43737e5b0beb4031808e42f5af88ee4e8199611013ff6fa0cdaeceb2362",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/ipc.ts",
+          "bytes": 45537,
+          "sha256": "be75ff8d2e979e1828e08bb64010b1ce7f5cf8432a4bbd9699038c6c1050d47e",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-catalog.ts",
+          "bytes": 28129,
+          "sha256": "9ad03712cf690996ee76e85ad25928d724f244951c8cb53c2fa37308b5ce2915",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-playback-compat.ts",
+          "bytes": 5655,
+          "sha256": "59a2e0f17d7e2c654ec346334a0509c813e01e0d9a703628545bd7c841b78081",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-relocation.ts",
+          "bytes": 8458,
+          "sha256": "79e82e14c9f01ef985a356193e67a28210ee0c8353cbaf2f0bf6da60e83a6c3f",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/validator.ts",
+          "bytes": 121856,
+          "sha256": "62be08e2ae121a16c33fc040c694025fecec972e7411cfdccc090c05e970a45c",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/test/mbrs009/local-library-query.test.ts",
+          "bytes": 3244,
+          "sha256": "b6f30923ac5c461162844440fa92402400b5a265a7b0c14eb068407790e1df04",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/project/POSTRUST_PLAN.json",
+          "bytes": 2047163,
+          "sha256": "b4de7847d09354f24a4ea46300eb43a50b1c286f26f95df24981aec34abf6a11",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/mbrs009-local-library-ui-scope.json",
+          "bytes": 4312,
+          "sha256": "c27af09acea65cdaa52d435f1dc47f8c55d32168128aa725a9ed3dd916d6582d",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs001-offline.mjs",
+          "bytes": 14851,
+          "sha256": "35ad160e0f58c0eea0cbb22ae0f4d948955c13c05857eaa3134c18aa9552ab3d",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-local-library-ui.mjs",
+          "bytes": 21606,
+          "sha256": "a73803d7a9d3d99c27428d8619a2d4d340d7faaa8b812d0c69ce7472f5f0bdff",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-ui-render.mjs",
+          "bytes": 7479,
+          "sha256": "9d4e2fc018fee8673a721b4667975994f3cc307296627cb675ab95773fe369d3",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/tasks/MBRS-009_LOCAL_LIBRARY_UI.md",
+          "bytes": 3293,
+          "sha256": "b0108dd9544c9794b3d73bc4460431274a37c5db5cf516c8430d8300779bbca1",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/BOUNDARY_R1.json",
+          "bytes": 53923,
+          "sha256": "a1ebe4a39bde33fb5d997a8c5e9aa1916a1b16aaeece7161ed81747ad3149491",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R1.json",
+          "bytes": 40148,
+          "sha256": "ef6ecb3fc23e7f6cca51b1fdd17e9398464ee5857af6376e844e2c077d8fea48",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-01/gate-output/manifest.json",
+          "bytes": 253770,
+          "sha256": "607e8a3129f55887e15467e03ac8a08884b35cb1935c83ddd32e950d6813c20a",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-01/result.json",
+          "bytes": 1564,
+          "sha256": "9827bcdc71cd879c08f86849dd52811761794f9f004046db81b2a131900216e9",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/contracts-local-library.log",
+          "bytes": 974,
+          "sha256": "a490e0903f5e3db18e5c14ee559ab6761b434b96a34ad7028ea31e20b4e07a66",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/contracts-types.log",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/core-local-library.log",
+          "bytes": 1502,
+          "sha256": "4e5b269e0507cac16a7b933c6ce48e16861b13357ab02059761298b3e175bae8",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/core-types.log",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/cue-build-binding.json",
+          "bytes": 1210,
+          "sha256": "58b92a5ca1a94a4cc67558c959a870228b5a1db750f3597ac864f8a2e81553cf",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/desktop-e2e-types.log",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/desktop-local-library.log",
+          "bytes": 1374,
+          "sha256": "aa60ba3085daf16cb8de03b0ad1dbe6706f405f0427e64fe9abc24e1057d4be3",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/desktop-types.log",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/desktop-ui-render.log",
+          "bytes": 29,
+          "sha256": "6c351e40f23afb71f67482eb553cf4adeca46ade7d2e74ae2d6fc57f8ff4937d",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/fresh-contracts-build.log",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/fresh-core-build.log",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/fresh-core-worker-bundle.log",
+          "bytes": 29,
+          "sha256": "6c351e40f23afb71f67482eb553cf4adeca46ade7d2e74ae2d6fc57f8ff4937d",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/manifest.json",
+          "bytes": 257323,
+          "sha256": "abc7db943b0a327ad38c12448271fc7d4c077b06a617c859a21cc14a75fa3a4d",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/reader-build-binding.json",
+          "bytes": 59562,
+          "sha256": "7ddb9ff06b25e43540b37798dbace4c3953e42355d50d8ccf99556a49f933210",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/tmp/private-evidence/local-library-initial-query-failed.html",
+          "bytes": 3253,
+          "sha256": "b7b71f0f329883867ec5177fcf9902f0310c1610f0cad66e73575cd459a4d135",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/tmp/private-evidence/local-library-loaded-detail.html",
+          "bytes": 9742,
+          "sha256": "49acc9c2ad89ed758e41f6ae4f458b5a42e1d1178b8e69bf75b4b313cbe0b723",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/ui-render-binding.json",
+          "bytes": 42756,
+          "sha256": "dd94cbd1b0c6a87df81cfa0f05969ef1a62cf8356dddface39ec40d2f934c6af",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/result.json",
+          "bytes": 1563,
+          "sha256": "9259b1c73103e21df0c87df00b55e875cbbbf7d87fda9789508886240ccb5eb5",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-ssr-diagnostic-01/receipt.json",
+          "bytes": 499,
+          "sha256": "85ff6889cb2e6cc0f8ee19ec42a41e2da006f0ac6ed1d7d1662e410ab4784cb2",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/CANDIDATE_01.json",
+          "bytes": 98561,
+          "sha256": "644365ac5ab33c20807159810eab242c0680cef1a75894b041002a7aa5da428c",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/CANDIDATE_02.json",
+          "bytes": 178564,
+          "sha256": "36e6c34fd80b300e0c8dc952247069bc6aeb278a6fa288d0b612e4c9772c03f2",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-new.receipt.json",
+          "bytes": 1098,
+          "sha256": "72c1791e17d2771b0f0bc6eacb82e8201a53110a4d01f7af31718a13ef1db9a4",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-new.tap.log",
+          "bytes": 9603,
+          "sha256": "702885ac29f3c8bb94f5572770d1485552c4e91eea53588d7216fe7b6520b785",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-old.receipt.json",
+          "bytes": 1325,
+          "sha256": "d522a9957bfc4109df61a4c066c9b439d340777396e4ff5926e7ff9280c53cfe",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-old.tap.log",
+          "bytes": 9682,
+          "sha256": "5bbc2b2ccbb392d502b7adce886025bd85bb47992934ed26ad9c72a2721f1179",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json",
+          "bytes": 6436,
+          "sha256": "1d7eaab90b83249032efa782baefa2f3ae02d327af8b5e21787ab49fedd47450",
+          "matches": true
+        }
+      ],
+      "decision": "SOURCE_REVIEW_ACCEPTED_WITH_BOUNDED_CARRYOVER",
+      "counts": {
+        "P0": 0,
+        "P1": 0,
+        "P2": 0,
+        "P3": 1
+      }
+    },
+    {
+      "report": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R2.json",
+        "bytes": 61027,
+        "sha256": "64abd39e181a26166f33728cdb9c9b602dc4018eac84cfea15ab8112c99d0d94"
+      },
+      "inputCount": 15,
+      "verifiedInputs": [
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/CANDIDATE_02.json",
+          "bytes": 178564,
+          "sha256": "36e6c34fd80b300e0c8dc952247069bc6aeb278a6fa288d0b612e4c9772c03f2",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_CANDIDATE_02_CHECK.json",
+          "bytes": 163197,
+          "sha256": "9130bc8262a31737ec7b95bb64aca9e8c117db399713278c6e03d192e91dae0f",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+          "bytes": 13275,
+          "sha256": "c3b717fb8b0afa298d6557bd7232043a717e67aca7c07052ae5813723098e2ad",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/mbrs009-local-library-ui-scope.json",
+          "bytes": 4312,
+          "sha256": "c27af09acea65cdaa52d435f1dc47f8c55d32168128aa725a9ed3dd916d6582d",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/STATE_MATRIX.json",
+          "bytes": 6253,
+          "sha256": "fd5b2342d3fcb15afe78194741773fd55b1a50531d2e9a0ae21204836903febb",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/scripts/ci/verify-mbrs009-ui-render.mjs",
+          "bytes": 7479,
+          "sha256": "9d4e2fc018fee8673a721b4667975994f3cc307296627cb675ab95773fe369d3",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-02/gate-output/manifest.json",
+          "bytes": 257323,
+          "sha256": "abc7db943b0a327ad38c12448271fc7d4c077b06a617c859a21cc14a75fa3a4d",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R1.json",
+          "bytes": 40148,
+          "sha256": "ef6ecb3fc23e7f6cca51b1fdd17e9398464ee5857af6376e844e2c077d8fea48",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R1.md",
+          "bytes": 8354,
+          "sha256": "26335a5e1468f1096cb65e4759977208faa80ecde886fa61341f1576fc124e4b",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_GATE_02_CHECK.json",
+          "bytes": 1341,
+          "sha256": "d9f8bc6b4536086e293e94df1296b058aeaa106f5272411ae678182f27522624",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-01/result.json",
+          "bytes": 1564,
+          "sha256": "9827bcdc71cd879c08f86849dd52811761794f9f004046db81b2a131900216e9",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/root-gate-01/gate-output/manifest.json",
+          "bytes": 253770,
+          "sha256": "607e8a3129f55887e15467e03ac8a08884b35cb1935c83ddd32e950d6813c20a",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/tasks/MBRS-009_LOCAL_LIBRARY_UI.md",
+          "bytes": 3293,
+          "sha256": "b0108dd9544c9794b3d73bc4460431274a37c5db5cf516c8430d8300779bbca1",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/project/POSTRUST_PLAN.json",
+          "bytes": 2047163,
+          "sha256": "b4de7847d09354f24a4ea46300eb43a50b1c286f26f95df24981aec34abf6a11",
+          "matches": true
+        },
+        {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-unchanged-core-contracts.json",
+          "bytes": 301329,
+          "sha256": "78ebf855633c41fbacd187df6eb26e7a0b38fefd51b8fcfb8e319401aa3e40ed",
+          "matches": true
+        }
+      ],
+      "decision": "APPROVE_SOURCE_WITH_BOUNDED_CARRYOVER",
+      "counts": {
+        "new_P0": 0,
+        "new_P1": 0,
+        "new_P2": 0,
+        "resolved_R1_P2": 6,
+        "inherited_open_P3": 1,
+        "P3_minimal_source_recovery_done_UI_pending": 1
+      }
+    }
+  ],
+  "productMutationAfterReview": false,
+  "formalRoundsConsumed": 2,
+  "formalRoundsRemaining": 0,
+  "success": true,
+  "ordinaryAppEvidenceSeparate": true
+}

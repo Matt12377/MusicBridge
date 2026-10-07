@@ -58,7 +58,7 @@ test('主导航按指定顺序排列，收藏只指向 Roon，歌单独立折叠
   assert.ok(collection > 0)
   entries.push({ index: collection, source: 'collection', label: '实物收藏' })
   const sources = entries.sort((a, b) => a.index - b.index).map(entry => [entry.source, entry.label])
-  assert.deepEqual(sources, [['home','主页'],['roon-albums','专辑'],['roon-artists','艺术家'],['roon-genres','流派'],['roon-favorites','收藏'],['collection','实物收藏'],['recording','录音']])
+  assert.deepEqual(sources, [['home','主页'],['roon-albums','专辑'],['roon-artists','艺术家'],['roon-genres','流派'],['local-library','本地音乐'],['roon-favorites','收藏'],['collection','实物收藏'],['recording','录音']])
   assert.ok(source.indexOf('<SidebarPlaylistList') > source.indexOf('source="recording"'))
   assert.ok(source.indexOf('<SidebarSettingsFooter') > source.indexOf('</nav>'))
 })

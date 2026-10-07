@@ -2,7 +2,7 @@ import type { LocalPlayAccepted } from './local-play-request.js';
 import type {LocalRelocationCommandPayloads,LocalRelocationCommandResults,LocalRelocationInternalCommand} from './local-relocation.js';
 import type { LocalScanCommandPayloads, LocalScanCommandResults, LocalScanInternalCommand } from './local-scan.js';
 import type { LocalPlayRequest, LocalSourceUnsupported } from './local-play-request.js';
-import type { LocalCatalogCommandPayloads, LocalCatalogCommandResults, LocalCatalogInternalCommand } from './local-catalog.js';
+import type { LocalCatalogCommandPayloads, LocalCatalogCommandResults, LocalLibraryReadCommandPayloads, LocalLibraryReadCommandResults, LocalCatalogInternalCommand } from './local-catalog.js';
 import type { VolumeRequest, VolumeSnapshot } from './volume.js';
 import type { RoonDisplayLyricsEvent } from './roon-display-lyrics.js';
 import type { GetMasterArtworkRequest, SaveMasterArtworkRequest, MasterArtworkResult, MasterArtworkVersion } from './recording-artwork.js';
@@ -116,8 +116,9 @@ export type IpcResponse<TResult = unknown> =
 
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
-export interface IpcCommandPayloads extends LocalCatalogCommandPayloads, LocalScanCommandPayloads, LocalRelocationCommandPayloads {
+export interface IpcCommandPayloads extends LocalCatalogCommandPayloads, LocalLibraryReadCommandPayloads, LocalScanCommandPayloads, LocalRelocationCommandPayloads {
   'localCatalog.prepare': LocalPlayRequest;
+  'playback.localTarget': Record<string, never>;
   'commandOutbox.context': Record<string, never>;
   'commandOutbox.execute': CommandOutboxExecute;
   'spreadsheetImports.sources': SpreadsheetPageRequest;
@@ -407,8 +408,9 @@ export interface IpcCommandPayloads extends LocalCatalogCommandPayloads, LocalSc
   'playback.insertNext': { items: readonly PlaybackQueueRequestItem[] };
 }
 
-export interface IpcCommandResults extends LocalCatalogCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
+export interface IpcCommandResults extends LocalCatalogCommandResults, LocalLibraryReadCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
   'localCatalog.prepare': LocalSourceUnsupported | LocalPlayAccepted;
+  'playback.localTarget': import('./local-play-request.js').LocalPlayTarget | null;
   'commandOutbox.context': CommandOutboxContext;
   'commandOutbox.execute': CommandOutboxResult;
   'spreadsheetImports.sources': SpreadsheetSourcePage;

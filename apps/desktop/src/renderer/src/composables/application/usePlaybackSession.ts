@@ -4,7 +4,7 @@ import type {
   FavoriteEntityDescriptor, LocalLyricsMatchSnapshot, LyricsSnapshot, Page, PageRequest,
   PlaybackQualityPreference, PlaybackQueueItem, PlaybackQueueRequestItem, PlaybackSnapshot,
   PlaybackEventProtocolAck, PlaybackStreamSnapshot, PlaybackStreamState, PlaybackStreamProgress,
-  PublicRoonZone, PublicTrackMatchResult, RoonLibraryItem, RoonLibraryPage, TrackSummary,
+  PublicRoonZone, PublicTrackMatchResult, RoonLibraryItem, RoonLibraryPage, TrackSummary, LocalPlayRequest, LocalPlayAccepted, LocalSourceUnsupported,
 } from '@music-bridge/contracts'
 import type { MusicBridgePublicApi } from '../../../../preload/api.js'
 import type { ZoneLifecycleStatus } from '../../zone-lifecycle.js'
@@ -582,6 +582,18 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     onActionMessage('播放状态正在同步，请稍候或重试读取。'); return false
   }
 
+  async function playLocalLibrarySelection(request: LocalPlayRequest): Promise<LocalPlayAccepted | LocalSourceUnsupported> {
+    if (!playbackCommandsReady() || disposed || playbackStartPending.value) throw new Error('播放状态尚未就绪')
+    if (request.action === 'PLAY_NOW') { invalidateCollectionOperation(); cancelRoonPlaybackPreparation(); retryStopSource = undefined }
+    const operation = collectionOperation
+    playbackStartPending.value = true; clearActionError()
+    try {
+      const result = await api.playLocalLibraryTrack(request)
+      if (!disposed && operation === collectionOperation) await refreshPlaybackWhileCurrent(() => !disposed && operation === collectionOperation)
+      return result
+    } finally { playbackStartPending.value = false }
+  }
+
   function queueItemsForTracks(tracks: readonly TrackSummary[]): PlaybackQueueRequestItem[] {
     return tracks.map((track) => {
       const match = getMatchResult(track.id)
@@ -1107,7 +1119,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     playbackSyncStatus, playbackViewState, playbackClockIdentity, initializePlaybackStream, retryPlaybackSync, acceptPlaybackReady, acceptPlaybackStreamEvent, suspendPlaybackStream,
     onLyricsChanged, onLocalMatchChanged, initializeLocalLyricsMatch,
     selectLocalLyricsMatch, revokeLocalLyricsMatch, toggleTrackLike, refreshPlayback,
-    playTrack, playRoonLibraryTrack, queueRoonLibraryTrack, appendTrack, insertTrackNext,
+    playTrack, playLocalLibrarySelection, playRoonLibraryTrack, queueRoonLibraryTrack, appendTrack, insertTrackNext,
     replaceAndPlayCollection, appendCollection, playTracks, invalidateCollectionOperation,
     playQueueItem, editQueueEntry, togglePlayback, stopPlayback, retryLastPlaybackAction, nextTrack, previousTrack, seekPlayback,
     cancelRoonPlaybackPreparation, resetRoonSession, dispose,

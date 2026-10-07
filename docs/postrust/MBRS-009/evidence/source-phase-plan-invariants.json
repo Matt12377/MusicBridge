@@ -1,0 +1,15 @@
+{
+  "schema": "mbrs009.source-phase-plan-invariants.v1",
+  "at": "2026-10-07T00:32:58.618985+00:00",
+  "checks": {
+    "taskCount": true,
+    "acceptanceCount": true,
+    "otherTasks": true,
+    "otherAcceptance": true,
+    "original009Definition": true,
+    "originalTaskFile": true,
+    "frozenScope": true,
+    "loadAtStillNotTested": true
+  },
+  "success": true
+}

@@ -1,0 +1,26 @@
+{
+  "schema": "mbrs009.initial-plan-invariants.v1",
+  "baseSha": "418389708ca9400dbe347da448a829b9481dbb84",
+  "taskCount": 18,
+  "acceptanceCount": 156,
+  "otherTasksSha256": "130f5086f5f2207b98a2a814c6f3415b310d0912451a65fccaba69e686bfb158",
+  "otherAcceptanceSha256": "51bce228ab4f0b8fa8b41f47076be714b4b03ada227261597174dfc7f21b2c6f",
+  "thisTaskAcceptanceDefinitionSha256": "9dc5ff9ee3891188d5c9f7b94ceef6009d9701d07ecc4f61327ceca5994b9134",
+  "taskFileSha256": "b0108dd9544c9794b3d73bc4460431274a37c5db5cf516c8430d8300779bbca1",
+  "acceptanceDefinitionFields": [
+    "id",
+    "task",
+    "kind",
+    "requirement",
+    "release_scope",
+    "introduced_in"
+  ],
+  "statusLayersMutableOnlyAfterActualEvidence": [
+    "status",
+    "software_status",
+    "app_status",
+    "live_status",
+    "owner_status",
+    "evidence_refs"
+  ]
+}

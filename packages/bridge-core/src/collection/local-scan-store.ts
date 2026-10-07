@@ -567,6 +567,46 @@ export function createLocalScanStore(access: ScanAccess) {
         return row ? { jobId: String(row.job_id), value: parse(row.data, isScanFileState, 65_536) } : null;
       });
     },
+    /** 详情只读当前已证明的解析参数；不分配FD、媒体票据或排他锁。修订无法证明时返回未知。 */
+    privateDisplayFileParameters(trackId: string, asset: dto.AudioAsset): dto.FileAudioParameters | null {
+      if (!dto.isCollectionId(trackId) || !dto.isAudioAsset(asset)) return access.conflict('详情参数逻辑身份无效。');
+      const selected = access.catalog.track(trackId), locator = access.catalog.privateAssetLocator(asset.id), root = access.catalog.root(asset.libraryRootId), source = access.sources.root(root.sourceRootId);
+      if (selected.assetId !== asset.id || !equal(locator.asset, asset) || root.revision !== asset.rootRevision || root.sourceRootId !== asset.sourceRootId || source.authorized !== true) return null;
+      return access.read(db => {
+        const row = currentFileState(db, root.id, locator.relative); if (!row) return null;
+        const state = parse(row.data, isScanFileState), job = get(db, String(row.job_id));
+        if (state.outcome !== 'accepted' || state.assetId !== asset.id || state.trackId !== trackId || state.relative !== locator.relative || state.libraryRootId !== root.id
+          || job.rootRevision !== root.revision || job.sourceRootId !== source.id || !state.readFacts) return null;
+        const batchRow = db.prepare("SELECT request FROM local_scan_batches WHERE id=? AND phase='committed'").get(String(row.batch_id));
+        if (!batchRow) return null;
+        const batch = parse(batchRow.request, isScanPreparedBatch), index = batch.items.findIndex(item => item.relative === locator.relative), item = batch.items[index];
+        if (!item || item.signature !== state.signature || !item.reused && !equal(item.readFacts, state.readFacts)) return null;
+        // 无变化的增量批不会重建资产。沿有界已提交批核对最初绑定的资产修订，不能借用另一个文件的参数。
+        const origins = db.prepare(`SELECT b.request,j.data AS job_data FROM local_scan_batches b
+          JOIN local_scan_jobs j ON j.id=b.job_id JOIN json_each(b.result,'$.files') f
+          WHERE b.phase='committed' AND j.library_root_id=@root
+            AND json_extract(f.value,'$.assetId')=@asset AND json_extract(f.value,'$.trackId')=@track
+            AND json_extract(f.value,'$.relative')=@relative AND json_extract(f.value,'$.signature')=@signature
+            AND json_extract(b.request,'$.items[' || f.key || '].reused')=0
+          ORDER BY b.rowid DESC LIMIT 200`).iterate({root:root.id,asset:asset.id,track:trackId,relative:locator.relative,signature:state.signature});
+        let provenCurrent = false;
+        for (const origin of origins) {
+          const original = parse(origin.request, isScanPreparedBatch), originalJob = parse(origin.job_data, dto.isScanJobRecord);
+          if (originalJob.rootRevision !== root.revision || originalJob.sourceRootId !== source.id) continue;
+          const originalIndex = original.items.findIndex(v => v.relative === locator.relative && v.signature === state.signature);
+          if (originalIndex < 0) continue;
+          const created = db.prepare('SELECT result FROM local_catalog_ledger WHERE command_id IN (?,?)').all(childCommand(original.batchId, originalIndex, 'register-asset'), childCommand(original.batchId, originalIndex, 'replace-asset'));
+          if (created.length !== 1) continue;
+          const proven = parse(created[0]!.result, dto.isAudioAsset);
+          if (equal(proven, asset)) { provenCurrent = true; break; }
+        }
+        if (!provenCurrent) return null;
+        const technical = state.readFacts.technical;
+        const parameters = { container: technical.container, codec: technical.codec, lossless: technical.lossless, sampleRateHz: technical.sampleRateHz, channels: technical.channels,
+          bitsPerSample: technical.bitsPerSample, durationMs: technical.durationSeconds === null ? null : Math.round(technical.durationSeconds * 1000), evidence: technical.evidence };
+        return dto.isFileAudioParameters(parameters) ? parameters : null;
+      });
+    },
     privateCueAwareCheckpoint(jobId:string):boolean {
       return access.read(db=>{const job=get(db,jobId);if(job.checkpointRef === null) return false;
         const row=db.prepare("SELECT b.* FROM local_scan_checkpoints c JOIN local_scan_batches b ON b.id=c.batch_id WHERE c.id=? AND c.job_id=? AND b.job_id=? AND b.phase='committed'").get(job.checkpointRef,jobId,jobId);

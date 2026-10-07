@@ -1,5 +1,6 @@
 export type ViewId =
   | 'home'
+  | 'local-library'
   | 'collection'
   | 'recording'
   | 'search'
@@ -23,6 +24,7 @@ export type ViewId =
 
 export type SidebarSource =
   | { type: 'home' }
+  | { type: 'local-library' }
   | { type: 'collection' }
   | { type: 'recording' }
   | { type: 'liked' }

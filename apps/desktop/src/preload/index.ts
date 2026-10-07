@@ -382,7 +382,7 @@ contextBridge.exposeInMainWorld(
       setCollectionReadonlyEnabled: async enabled => { if (typeof enabled !== 'boolean') throw new Error('收藏查询开关无效。'); const value: unknown = await invokePerformance('collection:set-readonly-enabled', enabled); if (!isCollectionReadonlySettings(value)) throw new Error('收藏查询设置回执无效。'); return value },
       refreshCollection: async () => { const value: unknown = await invokePerformance('collection:refresh'); if (!isCollectionRefreshResult(value)) throw new Error('收藏刷新回执无效。'); return value },
     },
-    createLocalLibraryClient(invokeScoped,getDatasetId,{chooseRoot:commandId=>outbox.submit('localLibrary.chooseRoot',{commandId}),confirm:request=>outbox.submit('localRelocation.confirm',request),relink:request=>outbox.submit('localRelocation.relinkRoot',request)}),
+    createLocalLibraryClient(invokeScoped,getDatasetId,{chooseRoot:commandId=>outbox.submit('localLibrary.chooseRoot',{commandId}),confirm:request=>outbox.submit('localRelocation.confirm',request),relink:request=>outbox.submit('localRelocation.relinkRoot',request),override:request=>outbox.submit('localCatalog.overrideMetadata',request)}),
     createMBQueueClient(invokeScoped),
   ),
 )

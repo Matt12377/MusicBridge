@@ -213,6 +213,7 @@ export interface CoreRuntime {
   playbackPlayQueueEntry?(request:import('@music-bridge/contracts').MBQueuePlayEntryRequest):Promise<PlaybackSnapshot>;
   playbackQueueLocalEdition?(request:import('@music-bridge/contracts').MBEditionQueueRequest):Promise<PlaybackSnapshot>;
   playbackPlayLocal?(request: import('@music-bridge/contracts').LocalPlayRequest): Promise<import('@music-bridge/contracts').LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported>;
+  getLocalLibraryPlaybackTarget?(): import('@music-bridge/contracts').LocalPlayTarget | null;
   playbackPlay(
     trackId: string,
     quality: PlaybackQualityPreference,
@@ -1311,6 +1312,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     playbackPlayQueueEntry: async request => {await controller.playQueueEntry(request);return readPlayback();},
     playbackQueueLocalEdition: async request => {if(publishPlaybackEvents.getProtocol()?.protocol!=='compact-v1')throw new BridgeError('BAD_REQUEST','LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED',{httpStatus:409});await controller.queueLocalEdition(request);return readPlayback();},
     playbackPlayLocal: request => publishPlaybackEvents.getProtocol()?.protocol==='compact-v1' ? controller.playLocal(request) : Promise.resolve({status:'unsupported',reason:'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED'}),
+    getLocalLibraryPlaybackTarget: () => controller.getLocalPlaybackTarget(),
     async playbackPlay(trackId, qualityPreference, rendererClickAtMs) {
       const coreReceivedAtMs = options.now?.() ?? Date.now();
       const startedAt = Math.min(rendererClickAtMs ?? coreReceivedAtMs, coreReceivedAtMs);

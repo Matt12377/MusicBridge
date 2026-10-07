@@ -1,0 +1,65 @@
+{
+  "schema": "mbrs009.failure-ledger.v1",
+  "entries": [
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/BUILD_GUARD_FAILURE_01_RETAINED.json",
+        "bytes": 393,
+        "sha256": "63309ea844b8ac62e51683fc2ba43053b9805f87c0ef8f20608034ebeb43ad4f"
+      },
+      "classification": "RETAINED_PREPARATION_OR_PROOF_FAILURE_NOT_RETRIED_UNTIL_SUCCESS_AS_PRODUCT"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/GATE_PREPARATION_FAILURE_01_RETAINED.json",
+        "bytes": 358,
+        "sha256": "78c95e692303f45c4ea2fb1549ec0d0986c1c7392e9f70f7841db1e3c3cd91f3"
+      },
+      "classification": "RETAINED_PREPARATION_OR_PROOF_FAILURE_NOT_RETRIED_UNTIL_SUCCESS_AS_PRODUCT"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/GATE_UNIT_PREPARATION_FAILURE_01_RETAINED.json",
+        "bytes": 547,
+        "sha256": "38f1e95ca141af95b4332ebaf4e3b13bacbf90cb1bd41ef8409d8d854406681a"
+      },
+      "classification": "RETAINED_PREPARATION_OR_PROOF_FAILURE_NOT_RETRIED_UNTIL_SUCCESS_AS_PRODUCT"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/GATE_UNIT_RECEIPT_SERIALIZATION_FAILURE_RETAINED.json",
+        "bytes": 360,
+        "sha256": "b7450eedfc800633b3ba24037357c45e20c715ecb5d4ee764d1ec7542d5ae824"
+      },
+      "classification": "RETAINED_PREPARATION_OR_PROOF_FAILURE_NOT_RETRIED_UNTIL_SUCCESS_AS_PRODUCT"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_APP01_PID_PROBE_PREPARATION_FAILURE.json",
+        "bytes": 324,
+        "sha256": "0a8b8b61ef02384d114d4ef261428cd280795d24738bd65d085b9894079fb3a9"
+      },
+      "classification": "RETAINED_PREPARATION_OR_PROOF_FAILURE_NOT_RETRIED_UNTIL_SUCCESS_AS_PRODUCT"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_CANDIDATE_02_CHECK_PREPARATION_FAILURE_01.json",
+        "bytes": 359,
+        "sha256": "fba4136268f00fdb245a7cb6737268b712d48226a67993fad49d510cd1a92c2c"
+      },
+      "classification": "RETAINED_PREPARATION_OR_PROOF_FAILURE_NOT_RETRIED_UNTIL_SUCCESS_AS_PRODUCT"
+    },
+    {
+      "original": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/UI_CONTROL_INITIALIZATION_FAILURE_01_RETAINED.json",
+        "bytes": 427,
+        "sha256": "1dc04e9d864e6a944f7145b28d3713f7d863b29cc540518a8bf551afe6f85645"
+      },
+      "classification": "RETAINED_PREPARATION_OR_PROOF_FAILURE_NOT_RETRIED_UNTIL_SUCCESS_AS_PRODUCT"
+    }
+  ],
+  "writerAllValidationRuns": 71,
+  "writerRedAndFailedGreen": "所有原命令、实际退出与完整日志引用见writer-candidate-02，原文件外置保持。",
+  "rootGate01": "WAV不属于已冻结容器枚举；只修Root SSR合成fixture为WAVE；原失败、同SHA诊断重放日志和前后身份外置保留。",
+  "oldApp01": "旧candidate01独立profile只做空库导航并已正常退出0；不归当前candidate02验收。"
+}

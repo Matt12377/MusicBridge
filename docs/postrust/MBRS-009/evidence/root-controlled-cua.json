@@ -1,0 +1,162 @@
+{
+  "schema": "mbrs009.root-controlled-cua-observations.v1",
+  "recordedAt": "2026-10-07T00:32:58.618985+00:00",
+  "operator": "ROOT",
+  "layer": "ORDINARY_NATIVE_CUA_ORIGINAL_PRODUCTION_UI_OWN_SYNTHETIC_LIBRARY",
+  "productionBuild": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-build-02/result.json",
+    "bytes": 110663,
+    "sha256": "73fd140fd2d2bf8fdcd289925e4ca01575c167156b41a5880226b294b8e236d8"
+  },
+  "launch": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/controlled-app-02/launch.json",
+    "bytes": 1053,
+    "sha256": "1dcaa7affc4f8c67d3d313ce340120015c9d9c477bee361e2a48650656190395"
+  },
+  "close": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/controlled-app-02/close.json",
+    "bytes": 216,
+    "sha256": "caca3f4612c7575edd8cfaae55015bab1fc826d94fcc61b71798523746386f28"
+  },
+  "fixtureCreation": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/controlled-app-fixtures/FIXTURE_MANIFEST.json",
+    "bytes": 50732,
+    "sha256": "36e45c7ee4750ad62671a859775d0553cdc7370f101aa7783ce2b9124aa0fee1"
+  },
+  "nativeUiProvider": "mcp__cua_repl 原生App AX树、截图、点击、键盘与滚动",
+  "screenshots": "原生CUA截图已在会话中逐次显示，未导出本地文件；Git中的PNG仅为独立工程E2E截图。",
+  "services": "原Main/preload/Core/唯一Node作者/Scanner；原离线隔离与合成Provider/Roon，可信本地Roon目标null",
+  "overrides": "无业务API替换、无数据库写入替身、无Main窗口show/focus/title修改；原App原生激活路径",
+  "observations": [
+    {
+      "id": "empty",
+      "result": "PASS_CONTROLLED",
+      "observed": "原侧栏本地入口与0首真实空库，单一原播放栏；未显示虚假播放。"
+    },
+    {
+      "id": "native-grant",
+      "result": "PASS_CONTROLLED",
+      "observed": "原生选择器加入精确自有source-library，原目录事务显示可读取。"
+    },
+    {
+      "id": "scan",
+      "result": "PASS_CONTROLLED",
+      "observed": "一次原增量扫描：观察到扫描中0/0/0，终态处理245、收录243、拒绝2。"
+    },
+    {
+      "id": "scan-paused-cancelled",
+      "result": "NOT_VERIFIED",
+      "observed": "扫描很快完成，暂停旧元素点击返回无效元素；未重放扫描，不能证明暂停或取消。"
+    },
+    {
+      "id": "versions",
+      "result": "PASS_CONTROLLED",
+      "observed": "搜索合成主题返回Live与2020 Remaster两个独立条目；没有已保存独立发行关系。"
+    },
+    {
+      "id": "table-semantics",
+      "result": "PASS_CONTROLLED",
+      "observed": "AX树有3个columnheader，每数据行3个cell；像素尺寸另由生产E2E验证。"
+    },
+    {
+      "id": "detail-parameters",
+      "result": "PASS_CONTROLLED",
+      "observed": "详情显示raw/override/effective；扫描报告WAVE/PCM/44.1kHz/16bit/2声道，缺失年/碟/轨号明确未提供；Roon输入/处理/输出未知。"
+    },
+    {
+      "id": "direct-no-zone",
+      "result": "PASS_CONTROLLED_FAILURE",
+      "observed": "点原文件直送提示先在原播放器选择可用Roon Zone；没有假受理或播放。"
+    },
+    {
+      "id": "mb-only-title",
+      "result": "PASS_CONTROLLED",
+      "observed": "通过原UI保存合成主题 (Live) · MB显示更正；原始标题保持，覆盖及实际展示值更新。"
+    },
+    {
+      "id": "detail-keyboard-focus",
+      "result": "PASS_CONTROLLED",
+      "observed": "详情文本框Escape关闭后，焦点回到正确的新标题详情按钮。"
+    },
+    {
+      "id": "original-queue-keyboard",
+      "result": "PASS_CONTROLLED",
+      "observed": "从query键盘ShiftTab到原队列按钮；Enter打开原0项队列并聚焦关闭；Escape返回原打开按钮。"
+    },
+    {
+      "id": "query-return",
+      "result": "PASS_CONTROLLED",
+      "observed": "主页再返回本地库，搜索合成主题及两个版本、MB更正保留。"
+    },
+    {
+      "id": "no-query-results",
+      "result": "PASS_CONTROLLED",
+      "observed": "不存在的009合成曲目显示0结果/没有匹配，不冒充空音乐库；搜索MB显示更正仅Live命中。"
+    },
+    {
+      "id": "owned-fixture-rename",
+      "result": "ROOT_FIXTURE_SETUP_ONLY",
+      "observed": "Root只将自有009-version-b.wav改名为009-version-b-renamed.wav，先核普通非链接单硬链接及完整SHA；此动作不是产品Organizer能力。"
+    },
+    {
+      "id": "file-relocation",
+      "result": "PASS_CONTROLLED",
+      "observed": "原生候选选择器精确选自有新文件，原候选显示相同文件对象16526字节；未勾选时确认禁用，勾选后原事务确认成功。"
+    },
+    {
+      "id": "relocation-identity",
+      "result": "PASS_CONTROLLED_READ_ONLY_SQL",
+      "observed": "仅只读SQLite核同一asset/track及MB覆盖，fileRevision1保持、locationRevision1到2、总243；未制造旧收藏。"
+    },
+    {
+      "id": "relocation-facts",
+      "result": "PASS_CONTROLLED",
+      "observed": "位置修订后文件参数明确未知/解析事实尚未确认，不沿用旧参数。"
+    },
+    {
+      "id": "pagination-and-scroll-return",
+      "result": "PASS_BOUNDED_243",
+      "observed": "清query后243首，原表格滚动看到153/154/156；主页返回仍显示同样153/154曲目和滚动位置。非十万首负载验证。"
+    },
+    {
+      "id": "quit",
+      "result": "PASS_CONTROLLED",
+      "observed": "只对该自有窗口原生super+q，App正常退出，子进程PID9789实际退出0；未关闭其他App。"
+    }
+  ],
+  "preparationCorrections": [
+    "第一次GoTo路径粘贴未替换历史路径；没有在错误目录点击打开。用实际路径框setValue精确自有路径并核显示后才打开。",
+    "暂停点击命中已经消失的扫描中元素；新AX确认扫描完成，暂停/取消保持未验证。"
+  ],
+  "sourceByteEvidence": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_CUA_SOURCE_BYTE_CHECK.json",
+    "bytes": 63520,
+    "sha256": "8f9127530f2f54346a8798dc632c2e61b47c5db591b846ae5b7c1d01f0708f60"
+  },
+  "freshHashVerified": 244,
+  "permissionFaultUntouchedWithoutFreshHash": 1,
+  "rootOwnedManualFileRenames": 1,
+  "productAudioByteWritesObserved": false,
+  "relinkBefore": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_OWNED_FIXTURE_RELOCATION_BEFORE.json",
+    "bytes": 1549,
+    "sha256": "38d798f91ae4829f7a43495ec3d31ef1e75dbc655870f2dc124b5f1b555e08ea"
+  },
+  "relinkAfter": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ROOT_OWNED_FIXTURE_RELOCATION_AFTER.json",
+    "bytes": 2348,
+    "sha256": "b23dd8d9545d95818396e3ad1bb634d65503779661a46b123b4f1b25796be594"
+  },
+  "ordinaryRootOfflineGuardCounter": "NOT_COLLECTED；工程E2E另核blocked0，不能相互替代",
+  "notVerified": [
+    "真实Roon/账号/NAS/LAN/声音",
+    "十万首当前版负载",
+    "普通App暂停/取消/目录离线/不支持格式全状态",
+    "真实外部接管与无缝",
+    "旧收藏与根迁移实际验收",
+    "App重启耐久性",
+    "安装/签名/发布/Owner"
+  ],
+  "ownerAcceptance": "NOT_RUN",
+  "sourceFilesWrite": "OFF_EXCEPT_OWN_FIXTURE_MANUAL_RENAME"
+}

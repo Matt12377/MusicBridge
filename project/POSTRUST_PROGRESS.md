@@ -29,7 +29,7 @@
 - [ ] MBRS-004：CoverDrop纯规则，NOT_STARTED；纯规则可隔离准备。
 - [ ] MBRS-005/006：固定FD lease / Gateway / 统一资源协调与原播放器增量，NOT_STARTED；原SSRF与唯一coordinator保留。
 - [ ] MBRS-007/008：队列控制 / 无缝及音质格式证据，NOT_STARTED；字节Hash、Roon处理、设备数据和边界分别验收。
-- [ ] MBRS-009/010/011：式本地UI / 封面 / 整理计划，NOT_STARTED；保留原布局 / 控件 / 库存 / 照片与数据。正
+- [ ] MBRS-009：正式本地库UI本地软件与受控普通App验证完成，独立提交/CI/报告待；MBRS-010/011仍未开始。
 - [ ] MBRS-014：旧收藏 / 录音 / Frozen来源保护，NOT_STARTED；为012源写硬前置。
 - [ ] MBRS-012/013：受限源写与改名 / 移动 / 恢复，NOT_STARTED；默认OFF、逐计划授权，备份 / journal / 回读 / 锁与恢复缺一不执行。
 - [ ] MBRS-015：可选内部协议只读增强，NOT_STARTED；关闭或故障不阻断新点播，不抵扣RUST-015。
@@ -192,3 +192,17 @@ Owner明确接受既有规模结果作为本阶段放行，取消当前版十万
 
 
 008独立软件结果：最终实现186694e105f8ace61d33b48cfc25710dff419632，370/370（36新+334回归）、11阶段、1226声明输入、38新编译产物、2实际Vue SSR、3私有绑定全部通过。R1四个唯一P2经有效RED/GREEN与R2闭合，无R3。首次源4796598a9ee19b1aeba1d2f474ef76e3948fa939标准Core入口缺fresh Reader声明，补修准备屏障后新精确四条自然CI/六job attempt1全部通过；完整workspace4412总/4410pass/2原skip、Electron104pass/4原skip。真实格式/Signal Path/数字设备/gapless/relock/App/Owner未测，不能CORE_READY。任务索引随必要源补修同步，独立报告与自身CI终态另见外置收据，下一009从报告HEAD接续；iOS11操作后继只读登记，Mac采纳仍017之后MBM。
+
+## 2026-10-07 MBRS-009 起始范围
+
+从008最终独立报告418389708ca9400dbe347da448a829b9481dbb84创建codex/mbrs-009-local-library-ui隔离树；三名gpt-6.1-sol/max子代理，一个产品写作者、两个只读预检，禁止派生。Root当前turn_context为gpt-6.1-sol/max。原8AT/18任务/156验收保持；009-03仍为load/10万未验。
+
+已冻结现有Owner有界搜索、可信Roon目标、同一正式导航/TrackTable/播放器、原扫描/重定位与MB_ONLY outbox覆盖、006/007/008实际归属与参数分层。预检不是R1；依赖仅复用外置安装体，未复制产品dist。具体allowlist和360秒整体/180秒单阶段预算见docs/postrust/MBRS-009/EXECUTION_SCOPE.json。真实账号/Roon/LAN/NAS/音频/普通App/Owner、main合并/安装/签名/发布均未执行；无新100k/300k。
+
+### 2026-10-07 MBRS-009 当前候选本地验证完成，独立交付待收口
+
+唯一写作者候选02含28产品文件与10测试文件；Root核71原运行收据和671未改Core/contracts来源。Writer本轮79项新鲜Desktop，141项仅为未改源码的此前运行；Root随后实际新鲜11阶段Gate通过220项（87Core/54contracts/79Desktop），其中53新增、167原回归。原Root Gate01只因SSR合成容器WAV枚举错误失败，修fixture为WAVE后新Gate通过；原失败保持。两轮正式审查完成，无新P0/P1/P2；原更多菜单完整键盘模型为P3 carryover，不再开第三轮。
+
+当前生产构建、依赖检查及一条独立工程E2E实际退出0；五宽度720/780/800/801/1024核84行高、142动作栏和44按钮。Root另用原生CUA操作实际正式UI/Core/Node扫描自有245文件（243收录、2故障），完成原选择器加入目录、版本搜索、无Zone明确失败、MB_ONLY显示更正、原队列与详情键盘/焦点、文件重新定位及跨100条分页/返回保留滚动。只读SQLite核同asset/track/override与位置修订；244可读文件新鲜SHA保持、1权限故障只核原mode/stat，未称其新鲜Hash。自有fixture一次Root手工改名不属于产品Organizer。正常原UI退出0；未触碰真实曲库、发声、安装或Owner。
+
+普通App暂停/取消未赶上短扫描、根离线/旧收藏/外部接管/不支持格式完整状态未实际验；原009-03仍为kind=load、当前十万首NOT_TESTED。18任务/156验收、其他17任务/148验收定义与原009任务文件保持。源码提交/精确源码自然CI/独立报告/报告自身CI当前尚未执行。

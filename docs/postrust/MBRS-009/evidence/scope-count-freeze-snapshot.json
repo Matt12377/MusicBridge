@@ -1,0 +1,128 @@
+{
+  "schema": "mbrs009.local-library-ui-scope.v1",
+  "baseSha": "418389708ca9400dbe347da448a829b9481dbb84",
+  "implementationComplete": true,
+  "countsConfirmed": true,
+  "groups": [
+    {
+      "name": "core-local-library",
+      "directory": "packages/bridge-core",
+      "expectedTests": 87,
+      "tests": [
+        "test/mbrs002/local-catalog-store.test.ts",
+        "test/mbrs002/local-catalog-owner.test.ts",
+        "test/mbrs003/local-relocation-owner.test.ts",
+        "test/mbrs004/name-rules-scan-integration.test.ts",
+        "test/mbrs006/controller-local.test.ts",
+        "test/mbrs006/runtime-local.test.ts",
+        "test/mbrs007/controller-queue.test.ts",
+        "test/mbrs007/edition-queue.test.ts",
+        "test/mbrs008/file-parameters.test.ts",
+        "test/mbrs009/local-library-query.test.ts",
+        "test/mbrs009/local-target.test.ts",
+        "test/dataset-owner.test.ts"
+      ]
+    },
+    {
+      "name": "contracts-local-library",
+      "directory": "packages/contracts",
+      "expectedTests": 54,
+      "tests": [
+        "test/validator.test.ts",
+        "test/mbrs002/local-catalog.test.ts",
+        "test/mbrs003/local-relocation.test.ts",
+        "test/mbrs006/local-playback-contract.test.ts",
+        "test/mbrs009/local-library-query.test.ts"
+      ]
+    },
+    {
+      "name": "desktop-local-library",
+      "directory": "apps/desktop",
+      "expectedTests": 79,
+      "tests": [
+        "test/preload.test.ts",
+        "test/sidebar-controls.test.ts",
+        "test/page-journey-session.test.ts",
+        "test/library-pagination.test.ts",
+        "test/virtualWindow.test.ts",
+        "test/mbrs003/local-library-client.test.ts",
+        "test/mbrs003/local-library-ipc.test.ts",
+        "test/mbrs003/local-library-conflict-projection.test.ts",
+        "test/mbrs006-local-consumer.test.ts",
+        "test/mbrs008-audio-quality.test.ts",
+        "test/player-details.test.ts",
+        "test/mbrs009-local-library-client.test.ts",
+        "test/mbrs009-local-library-session.test.ts",
+        "test/mbrs009-local-library-ui.test.ts",
+        "test/mbrs009-local-library-ipc.test.ts"
+      ]
+    }
+  ],
+  "gateBudget": {
+    "totalMs": 360000,
+    "stageMs": 180000
+  },
+  "actualRoonLanAudio": "NOT_RUN",
+  "new100k300k": "NOT_RUN",
+  "countEvidence": {
+    "candidateSha256": "36e6c34fd80b300e0c8dc952247069bc6aeb278a6fa288d0b612e4c9772c03f2",
+    "rootVerifiedCurrentCandidateSha256": "9130bc8262a31737ec7b95bb64aca9e8c117db399713278c6e03d192e91dae0f",
+    "coveredTotal": 220,
+    "freshWriterDesktop": 79,
+    "unchangedPriorCoreContracts": 141,
+    "freshRootGate": "PENDING_NOT_CLAIMED",
+    "selectedPriorFullTaps": [
+      {
+        "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+        "subsetTests": 13,
+        "fullRunCounts": {
+          "tests": 33,
+          "pass": 33,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "completeOutput": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-05/tap.log",
+          "bytes": 8206,
+          "sha256": "9cb47f9d14421f3cf3589ecca281b9c7078808753675db9f33d7fdbc620872bb"
+        }
+      },
+      {
+        "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+        "subsetTests": 49,
+        "fullRunCounts": {
+          "tests": 49,
+          "pass": 49,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "completeOutput": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/contracts.tap.log",
+          "bytes": 11532,
+          "sha256": "2bb2b8c3266b43543904197831e711cdf4be005b1b5e3666ccac876107c30d0a"
+        }
+      },
+      {
+        "classification": "UNCHANGED_SOURCE_PRIOR_RUN",
+        "subsetTests": 79,
+        "fullRunCounts": {
+          "tests": 79,
+          "pass": 79,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "completeOutput": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-02/tap.log",
+          "bytes": 25409,
+          "sha256": "57ac7e96fa6647c482d9fce714de4b95d6472c802845b94a4b8f32fe74027f95"
+        }
+      }
+    ]
+  }
+}

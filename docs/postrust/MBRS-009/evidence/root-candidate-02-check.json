@@ -1,0 +1,4413 @@
+{
+  "schema": "mbrs009.root-candidate-02-check.v1",
+  "verifiedAt": "2026-10-07T00:03:51.290473+00:00",
+  "candidate": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/CANDIDATE_02.json",
+    "bytes": 178564,
+    "sha256": "36e6c34fd80b300e0c8dc952247069bc6aeb278a6fa288d0b612e4c9772c03f2"
+  },
+  "scopeAtCandidate": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+    "bytes": 13275,
+    "sha256": "c3b717fb8b0afa298d6557bd7232043a717e67aca7c07052ae5813723098e2ad"
+  },
+  "head": "418389708ca9400dbe347da448a829b9481dbb84",
+  "branch": "codex/mbrs-009-local-library-ui",
+  "productFiles": 28,
+  "testFiles": 10,
+  "allValidationReceiptCount": 71,
+  "currentDescriptorCount": 198,
+  "historicalSourceIdentitiesExcludedFromCurrent": 37,
+  "checks": [
+    {
+      "location": "root.previousCandidate",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/CANDIDATE_01.json",
+      "bytes": 98561,
+      "sha256": "644365ac5ab33c20807159810eab242c0680cef1a75894b041002a7aa5da428c",
+      "matches": true
+    },
+    {
+      "location": "root.frozenScope",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+      "bytes": 13275,
+      "sha256": "c3b717fb8b0afa298d6557bd7232043a717e67aca7c07052ae5813723098e2ad",
+      "matches": true
+    },
+    {
+      "location": "root.originalTask",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/tasks/MBRS-009_LOCAL_LIBRARY_UI.md",
+      "bytes": 3293,
+      "sha256": "b0108dd9544c9794b3d73bc4460431274a37c5db5cf516c8430d8300779bbca1",
+      "matches": true
+    },
+    {
+      "location": "root.r1ReviewInputs.0",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/BOUNDARY_R1.json",
+      "bytes": 53923,
+      "sha256": "a1ebe4a39bde33fb5d997a8c5e9aa1916a1b16aaeece7161ed81747ad3149491",
+      "matches": true
+    },
+    {
+      "location": "root.r1ReviewInputs.1",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R1.json",
+      "bytes": 40148,
+      "sha256": "ef6ecb3fc23e7f6cca51b1fdd17e9398464ee5857af6376e844e2c077d8fea48",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.0",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/main/local-library-ipc.ts",
+      "bytes": 4086,
+      "sha256": "5bcc5f8095d8945ed4bad0ed191b935d0a19a23978c58e3db34a28bbaaadd575",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.1",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/api.ts",
+      "bytes": 40256,
+      "sha256": "f67b2216f782149bf7c02125b9323c57bd9a6132d49c288c766e83ef2d65baac",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.2",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/index.ts",
+      "bytes": 27029,
+      "sha256": "aa76b7d86e7d6e40e3ac570a065560bfa928e1431d48725f618d8652dd594048",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.3",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/preload/local-library-client.ts",
+      "bytes": 3718,
+      "sha256": "592bf097b94069b1ecc5c5bdf64efc3022bad7778c2583172661fcce364b097b",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.4",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/App.vue",
+      "bytes": 72199,
+      "sha256": "0fe0ed2cba280191207e227b34f87608bd143490d375290ceb35c162b2333cfa",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.5",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue",
+      "bytes": 15108,
+      "sha256": "b32077a41111975031afe027c7ffd9976e481f618b3384b4443cd0f370d5c15b",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.6",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+      "bytes": 7292,
+      "sha256": "3ba08b5185e4c576503433d26db2de90a02ebc6b64d7eebee1bbf62914e290ce",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.7",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+      "bytes": 16452,
+      "sha256": "a7b1729bcf7b410a99ab1fe542711e2e6f918d93f9518ee162464574232cc37c",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.8",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+      "bytes": 12994,
+      "sha256": "09bfe428819be83230d9cc2fce0fd401a50c437c7b95e007f7dca3729096e552",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.9",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/navigation.ts",
+      "bytes": 997,
+      "sha256": "a86db9d86b15c33e9cfe43982f4f14c65fc802ec462572545c340aa8a7fa5a85",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.10",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/player/details.ts",
+      "bytes": 7638,
+      "sha256": "cf36a3c7737c8047f667763468b4058f475a54a9d9241c0a6601fcd2c053f5f1",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.11",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+      "bytes": 9258,
+      "sha256": "fd1ed95f86f957578b3179baf68efefacebe9a64cef76989c1a9d651e0e53762",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.12",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+      "bytes": 7003,
+      "sha256": "374590db1dc8d8b6e7e1fde6e21dcc7999e61b543591187f8f976d9ca4486477",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.13",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+      "bytes": 25598,
+      "sha256": "00fa0eec5e70ef376a0ae79cbebedf30cce73a0579fa81989c9cf98e2d6a1a35",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.14",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+      "bytes": 22367,
+      "sha256": "49f593d1266d49484b3391372713e301cd550b517d5bef9ef82d391e6df0cb20",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.15",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "bytes": 50341,
+      "sha256": "6d21b5cafb7cab42b1e2e24415182dc81dee6ab3450665ed4f9143a405f0328b",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.16",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/application/bridge-controller.ts",
+      "bytes": 148786,
+      "sha256": "913ca23fa5fdf09c563ff51679f0deb0666d0614b17923e3e627671bb929d907",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.17",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "bytes": 49636,
+      "sha256": "bbf65fd8c5ac4fd3f7d17f96e461fca07095c221482c6c1efeaedc6ba35f01b8",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.18",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+      "bytes": 28217,
+      "sha256": "dfb21ea19f90fb14f94dff77f37e8320f2fa44c529c5f7377d5e1c6178a24468",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.19",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-catalog-store.ts",
+      "bytes": 64268,
+      "sha256": "d6ac19c93ec94abb6fa9cdd9e08de913631b245c2bf35dba41c03b18cb677287",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.20",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/collection/local-scan-store.ts",
+      "bytes": 75191,
+      "sha256": "f0e46defabfeae03064145a433ee417f95404024855635121a67150bdace7b6d",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.21",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/runtime.ts",
+      "bytes": 99677,
+      "sha256": "9c11125386f197a9e50f3c4a37df8765afc0980f5f9cdc87a412d5bf7bc012c0",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.22",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/src/utility-main.ts",
+      "bytes": 44145,
+      "sha256": "6731406063c9d48e528a8a0295b309b92a472581d5bbd061228283cf39825cdf",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.23",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/ipc-names.ts",
+      "bytes": 8919,
+      "sha256": "4f1af43737e5b0beb4031808e42f5af88ee4e8199611013ff6fa0cdaeceb2362",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.24",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/ipc.ts",
+      "bytes": 45537,
+      "sha256": "be75ff8d2e979e1828e08bb64010b1ce7f5cf8432a4bbd9699038c6c1050d47e",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.25",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-catalog.ts",
+      "bytes": 28129,
+      "sha256": "9ad03712cf690996ee76e85ad25928d724f244951c8cb53c2fa37308b5ce2915",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.26",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/local-relocation.ts",
+      "bytes": 8458,
+      "sha256": "79e82e14c9f01ef985a356193e67a28210ee0c8353cbaf2f0bf6da60e83a6c3f",
+      "matches": true
+    },
+    {
+      "location": "root.productFiles.27",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/src/validator.ts",
+      "bytes": 121856,
+      "sha256": "62be08e2ae121a16c33fc040c694025fecec972e7411cfdccc090c05e970a45c",
+      "matches": true
+    },
+    {
+      "location": "root.testFiles.0",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-client.test.ts",
+      "bytes": 1990,
+      "sha256": "655f1a72ea3269ac7536d8d4a31228c696bf04745605b5c6062aaa4a9439023c",
+      "matches": true
+    },
+    {
+      "location": "root.testFiles.1",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ipc.test.ts",
+      "bytes": 3133,
+      "sha256": "7df7fb2abc14d2e95f2d000ab44fb5fb964f72bd44714c19fa7a8b35e703688f",
+      "matches": true
+    },
+    {
+      "location": "root.testFiles.2",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-session.test.ts",
+      "bytes": 33141,
+      "sha256": "df47d7bcbcb051eff45b294ec8c9357a55a7bbcfe548531c11a26ae39f60055a",
+      "matches": true
+    },
+    {
+      "location": "root.testFiles.3",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/mbrs009-local-library-ui.test.ts",
+      "bytes": 26302,
+      "sha256": "60105ef456af56c39dbbb054f7bcc6a145e8edb9335f8cbd94dfc7c84446482a",
+      "matches": true
+    },
+    {
+      "location": "root.testFiles.4",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/page-journey-session.test.ts",
+      "bytes": 7533,
+      "sha256": "4cd730028f80968913bcbe3d5d8c5d83a3d4d64f40cd24ba74f296fa7973f783",
+      "matches": true
+    },
+    {
+      "location": "root.testFiles.5",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/preload.test.ts",
+      "bytes": 35836,
+      "sha256": "e934050b53476b69ad31d2832d6367914920ec75bcbcbb30e03df86e4caadc38",
+      "matches": true
+    },
+    {
+      "location": "root.testFiles.6",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/test/sidebar-controls.test.ts",
+      "bytes": 10949,
+      "sha256": "8c7b37c68ca970595734ce549acd7bbaa481eb038e542efdb15f44e56b5ce8ca",
+      "matches": true
+    },
+    {
+      "location": "root.testFiles.7",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+      "bytes": 10677,
+      "sha256": "69b82ca9ad5ceb94f5d500bae545f353ce82d9e64b7c794ba06a792286cd708e",
+      "matches": true
+    },
+    {
+      "location": "root.testFiles.8",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/bridge-core/test/mbrs009/local-target.test.ts",
+      "bytes": 2671,
+      "sha256": "cce1b673a92f6789b85998664ddcc045b693b65f229b9200b4bf0b27643b6cf6",
+      "matches": true
+    },
+    {
+      "location": "root.testFiles.9",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/packages/contracts/test/mbrs009/local-library-query.test.ts",
+      "bytes": 3244,
+      "sha256": "b6f30923ac5c461162844440fa92402400b5a265a7b0c14eb068407790e1df04",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.unchangedPrior.sourceProof",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-unchanged-core-contracts.json",
+      "bytes": 301329,
+      "sha256": "78ebf855633c41fbacd187df6eb26e7a0b38fefd51b8fcfb8e319401aa3e40ed",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.unchangedPrior.selectedRuns.0.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-05/receipt.json",
+      "bytes": 959,
+      "sha256": "3d07c556513bd3ce38f64596ffecfc86a04f91519ed0bc4a5a18b924f70e95d5",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.unchangedPrior.selectedRuns.0.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-05/tap.log",
+      "bytes": 8206,
+      "sha256": "9cb47f9d14421f3cf3589ecca281b9c7078808753675db9f33d7fdbc620872bb",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.unchangedPrior.selectedRuns.1.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/contracts.receipt.json",
+      "bytes": 750,
+      "sha256": "e4761497fe5029ab34d5f93af9dbacbd885012b0676f30069ad370ceb170202d",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.unchangedPrior.selectedRuns.1.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/contracts.tap.log",
+      "bytes": 11532,
+      "sha256": "2bb2b8c3266b43543904197831e711cdf4be005b1b5e3666ccac876107c30d0a",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.unchangedPrior.selectedRuns.2.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-02/receipt.json",
+      "bytes": 1310,
+      "sha256": "46d7b93e468099d6e69ad588039a8b5b038f2277ce2f491f29827b8ac288d853",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.unchangedPrior.selectedRuns.2.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-02/tap.log",
+      "bytes": 25409,
+      "sha256": "57ac7e96fa6647c482d9fce714de4b95d6472c802845b94a4b8f32fe74027f95",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.latestCompilerExits.desktopVueTypes.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-03/desktop.receipt.json",
+      "bytes": 651,
+      "sha256": "fe3f0181eb94264361f64edfb7228822e457a418f7c49fc8cf7a30176a57e84e",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.latestCompilerExits.e2eTypes.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-03/e2e.receipt.json",
+      "bytes": 653,
+      "sha256": "96fc695fee7b2b236ea75218cce316ebd64a411a5e7770cc05bd1ee3165a7412",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.latestCompilerExits.contractsBuild.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/contracts-build.receipt.json",
+      "bytes": 504,
+      "sha256": "087a30f9b784694ed6e0ef3f792602aa91ffa21d73c845dd05146a38f8297103",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.latestCompilerExits.contractsTests.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/contracts-test.receipt.json",
+      "bytes": 524,
+      "sha256": "6af3298f132b7dde0e50ff1978ba807260252b18a490d3210190716da7699cb6",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.latestCompilerExits.coreBuild.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/core-build.receipt.json",
+      "bytes": 526,
+      "sha256": "2e446cba12f820520605674911976aad9b6ebad423e72887092616af3c3693e8",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.latestCompilerExits.coreTests.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/core-test.receipt.json",
+      "bytes": 536,
+      "sha256": "d842dac2f14d756ea6082bf63ff9aaaa4bfaef7a07ac5dab5e764360b58eaeaf",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.currentProductAndAllowedTestSnapshot",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/source-snapshot.json",
+      "bytes": 6436,
+      "sha256": "1d7eaab90b83249032efa782baefa2f3ae02d327af8b5e21787ab49fedd47450",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.diffCheck",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/diff-check.receipt.json",
+      "bytes": 556,
+      "sha256": "bf90d07871cc1bd4a55b46b312166d6ad80ace73468151b113b35b981ad136d2",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.workingTreeStatus",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/candidate-02-working-tree-status.log",
+      "bytes": 2514,
+      "sha256": "05502bc970095de432cf0086d72049ac660cb02c72bf4eebac033c5509b6c2f7",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.rootOwnedTypeInputsCurrentIdentities.0",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/tsconfig.json",
+      "bytes": 538,
+      "sha256": "ff5b244256a2a954cb5a9d35e8feab4133ac2e6c283260bcba18e40a66e9cdba",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.rootOwnedTypeInputsCurrentIdentities.1",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/tsconfig.e2e.json",
+      "bytes": 622,
+      "sha256": "3dc38b44d415f9fd75f8e59298d6f8c4296d04d9eb61724ec2be09f66cea72fe",
+      "matches": true
+    },
+    {
+      "location": "root.finalVerification.rootOwnedTypeInputsCurrentIdentities.2",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/apps/desktop/e2e/mbrs009-local-library.spec.ts",
+      "bytes": 10775,
+      "sha256": "4b37706530de793b0dc83d0d4ea51589324fcfac674863aa47914b1d2dc702ab",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.0.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-01/contracts.receipt.json",
+      "bytes": 351,
+      "sha256": "89f96051098b54ff8a6a7aed37ae078dbadf1a42f6dfae9e686067a6fd6e0d51",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.0.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-01/contracts.log",
+      "bytes": 230,
+      "sha256": "772af997a8825a6930b62a658834604be4b8645d859087b3c50a6650f8ed22d9",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.1.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-02/contracts.receipt.json",
+      "bytes": 344,
+      "sha256": "71168af183c7ec4f883896caac0aafda8c7546c975b2c755116fa8b6e3390dbe",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.1.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-02/contracts.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.2.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-02/core.receipt.json",
+      "bytes": 341,
+      "sha256": "d5bc7ccbdffc76605cdf894d3d65dfe86af82fc26335cf9e8319042c021bbd92",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.2.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-02/core.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.3.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/contracts.receipt.json",
+      "bytes": 344,
+      "sha256": "5d9067f9d241dc7edac5029242c1eca41e76bb3ea7b6b7cf2de85bfba87acb87",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.3.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/contracts.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.4.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/core.receipt.json",
+      "bytes": 341,
+      "sha256": "5a46a867587dedfe7f17229cc1531df262f286b4c3d2e7a3e82fe552b8ac9ce8",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.4.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/core.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.5.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/desktop.receipt.json",
+      "bytes": 357,
+      "sha256": "e53df2766a31f36b6dc67c197220a3f2e77a1daeaa42e16863f4a8736a0368b6",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.5.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/build-03/desktop.log",
+      "bytes": 398,
+      "sha256": "0913dddaf4c3e212aca51c14bc31f622acc36b12fc3b4ef53215f3c8b17b76f6",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.6.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-01/receipt.json",
+      "bytes": 550,
+      "sha256": "a106aa81b9d283439aa179d1761887a251ecd7393ce4a70a92b54ebbef728793",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.6.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-01/tap.log",
+      "bytes": 2339,
+      "sha256": "d881c627f6ad53467a365a670877ed2a6e08ffe6be58642f5bf94e326f641022",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.7.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-02/receipt.json",
+      "bytes": 794,
+      "sha256": "cd8accf308c0c7af5c192f54e54de3db180a5139ccfa045d839afb06587be1e0",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.7.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-02/tap.log",
+      "bytes": 6641,
+      "sha256": "07f5f2dd6286832d3d7e7dd6aa1ce5730ed50291aed07cbddd87931450571e56",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.8.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-03/receipt.json",
+      "bytes": 893,
+      "sha256": "7efc43e3d3bf86473c1c1b5ea086cd0b395c485b5160b98a847eda12a7e6750c",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.8.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-03/tap.log",
+      "bytes": 8856,
+      "sha256": "4f929bb4aa8da4a4ebb16ec74c32578cbb3074cda3717c264438f5e4ea68d81e",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.9.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-04/receipt.json",
+      "bytes": 984,
+      "sha256": "f241130fc11479614a4703feb82fd3f94beaa2d0af4d801549d7d219e7b7dc71",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.9.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-04/tap.log",
+      "bytes": 9103,
+      "sha256": "db8abc50f8dc7491bdc7311b03e34d52890727bb18253f612fef9c62bc9dd15c",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.11.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-empty-refresh-01/receipt.json",
+      "bytes": 569,
+      "sha256": "8ab477594488c2bc3e2ed09b9c2c474295de69763fab4326a5556916c27a83ff",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.11.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-empty-refresh-01/tap.log",
+      "bytes": 328,
+      "sha256": "1c7f24d25915e35ca3441c960bae79973b9f4925390a74ad6c9efb89c80d1210",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.12.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-first-read-01/receipt.json",
+      "bytes": 568,
+      "sha256": "a074bb05ece70eca7f8ee988f135301f6d64722d2030d073dbb1486d9f4ac500",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.12.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-first-read-01/tap.log",
+      "bytes": 334,
+      "sha256": "f6270efcb5a484f882bea782b913e7b072aa5400a162e2294e633270060bbab2",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.13.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-parameters-01/receipt.json",
+      "bytes": 489,
+      "sha256": "abe0c959f35aa6e8116cef57a2133637d3d9e2ed36d0d260134600de705906c5",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.13.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-parameters-01/tap.log",
+      "bytes": 580,
+      "sha256": "680aef4cd51f44813f9ca3f9423202bc8ebc491526a49630f9d966fa14cdbd24",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.14.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-refresh-01/receipt.json",
+      "bytes": 470,
+      "sha256": "1f25330cf0c4d0e28edc4d18e0ca8efb0ba0ecdac823c14b4ff5e0b6e63321f6",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.14.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/green-refresh-01/tap.log",
+      "bytes": 398,
+      "sha256": "421bf9a9a74635cdb0b34b13379c4828144b510d108d6757d0bdb964121f4d6d",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.15.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/core-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.16.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/fixed-worker-check.receipt.json",
+      "bytes": 860,
+      "sha256": "02599ba171daf742b1bcb5e29abed90ab930848f045beec71784b0081b428894",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.16.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/fixed-worker-check.log",
+      "bytes": 808,
+      "sha256": "3d489c9d69b359dbc20e5d2e3d418a29e5aecc75f5cea117b1bdfc2d344d7840",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.17.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/core-test.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.18.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/fixed-worker-check.receipt.json",
+      "bytes": 988,
+      "sha256": "cd8a78669220df963117e46a68ab4958d1465e9fd0319932541816c50dfbeabd",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.18.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/fixed-worker-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.19.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-01/receipt.json",
+      "bytes": 560,
+      "sha256": "345e678dc136b497157d923ce5a58f9fdb97edde4ecaa27590e7d9aee2c3206b",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.19.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-01/tap.log",
+      "bytes": 11177,
+      "sha256": "53d114b7dde8c9b8024b349fd5f3deb3180a03e6b953f519f8a281a678249e2f",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.20.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-02/receipt.json",
+      "bytes": 560,
+      "sha256": "cab39fac3a7c5ceba994e8fba2aecefe57aeba1a50949bc7e54da16c222c2438",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.20.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-02/tap.log",
+      "bytes": 8555,
+      "sha256": "c3de79872bcd2bfa54df8769263b9053954479f2cba92a581000098adc3b61f6",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.21.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-empty-refresh-01/receipt.json",
+      "bytes": 490,
+      "sha256": "88b02a7e89c4ad9d9998a3ddbac5963720d6768a9f81732b8187d1db88344386",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.21.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-empty-refresh-01/tap.log",
+      "bytes": 1009,
+      "sha256": "1d8571c0a592e1709fdf5451fd679a1a0dd455dcc985086286f5dacd8a22935d",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.22.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-first-read-01/receipt.json",
+      "bytes": 468,
+      "sha256": "c4eb9f88cb0a6c4227293e24de7d7d878569d05d78210d462f81a4db7dc8fa0b",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.22.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-first-read-01/tap.log",
+      "bytes": 2906,
+      "sha256": "1fc32b91c9b47e3b3d2e3f1400ebb3ad127dd88b6041cf9475fe87758154960d",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.23.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-owner-01/receipt.json",
+      "bytes": 657,
+      "sha256": "0a01b649b333844fff8c66aaad502d8eb271ad1687e41f0967d6c6040fb30b0e",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.23.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-owner-01/tap.log",
+      "bytes": 1418,
+      "sha256": "854b26a827118f7118f43ca12ae74b0d3088911ba4e6b31edf2bcc4db83cf236",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.24.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-parameters-01/receipt.json",
+      "bytes": 484,
+      "sha256": "11b3106275a98181b7355f42e3ed90b626710c53f17765574699717f0bdded41",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.24.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-parameters-01/tap.log",
+      "bytes": 1656,
+      "sha256": "948457a6710fa2cb186b8d36b56e96219cca4aba6d7f5edf649e8f51f6888400",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.25.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-parameters-02/receipt.json",
+      "bytes": 500,
+      "sha256": "92b3c6c225f1f4b4e4dccb7ce2f20fe36f9d97f44c01dc31edf9eb599c081018",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.25.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-parameters-02/tap.log",
+      "bytes": 1305,
+      "sha256": "1f362097eeecfb9a8ca542446b8ab57a01b2740bce8ba788faed466afda2cb4c",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.26.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-refresh-01/receipt.json",
+      "bytes": 467,
+      "sha256": "9c42939e4d8e124c0454bf5e0dcc0828b3490237abeabfe8562331239581034f",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.26.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/red-refresh-01/tap.log",
+      "bytes": 94370,
+      "sha256": "d1e8067de664a2c0c7d88d6626720b503ba4a45711f655f7dffee8e363f08dc0",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.27.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-01/contracts.receipt.json",
+      "bytes": 714,
+      "sha256": "4e0b7eb05d916582e65c43ac1632c42d2e4a4547ce0f9ad9ef7e3e28fd6fecfe",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.27.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-01/contracts.tap.log",
+      "bytes": 11545,
+      "sha256": "7dab83d5e2e0cc03aeda625c5680d8cd1347a84c6a93b37351c501d7cab31e7c",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.28.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-01/desktop.receipt.json",
+      "bytes": 993,
+      "sha256": "96c2e6807c85ed27807baef6b8dfe125e6caa9083038dc9bca666a4a43b7c0ce",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.28.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-01/desktop.tap.log",
+      "bytes": 9683,
+      "sha256": "e04455eadb219436db5120ee61f29440c043cb284348fdfdb3c3a5a401151255",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.30.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/desktop.receipt.json",
+      "bytes": 1029,
+      "sha256": "cf874c4a580af295ec7f8e424193845e55ea1916d794b967c6b3830b5c3d10db",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.30.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-02/desktop.tap.log",
+      "bytes": 9679,
+      "sha256": "e7b5e54badaf01ab66dd38d1790b3e9e36b881d7952b14691548ebfea12d6991",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.31.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-01/receipt.json",
+      "bytes": 1001,
+      "sha256": "c78e0bffcc974f2a5243230b5a4510404e20543fa716e2195df0df79664aeae1",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.31.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/regression-core-01/tap.log",
+      "bytes": 30342,
+      "sha256": "cdc2c7983c0a884376959e644c3ce74efa6a1a79dccd792c41433e7600eb285d",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.33.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-01/contracts-build.receipt.json",
+      "bytes": 361,
+      "sha256": "2f30c8b769e493b8a90896c34ae8b8e8520a1a6d58027f1c10fde1a28b3a356e",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.33.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-01/contracts-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.34.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-01/contracts-test.receipt.json",
+      "bytes": 374,
+      "sha256": "ac0e34fe021fe5abb1850b9f7d2c951d69e6a32d6b03104be5466a3763b198ac",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.34.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-01/contracts-test.log",
+      "bytes": 534,
+      "sha256": "82896d2fd97dd18cbdd89a1667885e456ce528099bbdd799013fd777b19f62a5",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.35.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/contracts-build.receipt.json",
+      "bytes": 361,
+      "sha256": "f83f08f7b554347e62d6fdad9574c486f61ede53f85452ebbab48a773b89c3c6",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.35.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/contracts-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.36.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/contracts-test.receipt.json",
+      "bytes": 381,
+      "sha256": "7e1abefb1809a0e79f0e566fda1b341bc872014a28e2a2cd5325c251910bd376",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.36.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/contracts-test.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.37.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/core-build.receipt.json",
+      "bytes": 351,
+      "sha256": "a07c14989010c2ee0b6c1452957662712f2b50e3e84ff9e1c516c5e67b66ea5d",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.37.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/core-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.38.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/core-test.receipt.json",
+      "bytes": 377,
+      "sha256": "047f9f9af91a0986dd77a19ca0f7be77faf8e0ca99dd9c627c1ca3c3accbe529",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.38.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/core-test.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.39.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/desktop.receipt.json",
+      "bytes": 360,
+      "sha256": "efee8fd34246731fdee611930723e0ee99ecbf43d44b1524f2daa9804da11d6c",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.39.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-02/desktop.log",
+      "bytes": 108,
+      "sha256": "4140aa431fd6ada47fab45e703c2c188000a2b40239889e57196f1de1a2477d9",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.40.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-03/desktop.receipt.json",
+      "bytes": 400,
+      "sha256": "ac0898864361839d4ac2361cfb768061424c0f62c4cd922b61b676d10be676f4",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.40.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-03/desktop.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.41.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-03/e2e.receipt.json",
+      "bytes": 402,
+      "sha256": "475a6692a164b63ace329b44b96c0beba5627bf79d779417fb7a94ba217ec49e",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.41.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-03/e2e.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.42.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/contracts-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.43.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/contracts-test.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.44.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/core-build.receipt.json",
+      "bytes": 501,
+      "sha256": "71d59b67cf6c666024ab8439e056dc1a386a208b2f3f14a9d431fdcc350c3b6f",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.44.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/core-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.45.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/core-test.receipt.json",
+      "bytes": 520,
+      "sha256": "73aab5273a3b674bf4bfee85ff96ce990b1cdb43ff0b915db5099c10eb2727b0",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.45.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/core-test.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.46.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/desktop.receipt.json",
+      "bytes": 503,
+      "sha256": "f1ff02076993a62233488c57fb7318f158d1f9e4180c8c429adbc87776e71490",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.46.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/desktop.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.47.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/e2e.receipt.json",
+      "bytes": 506,
+      "sha256": "79016f9c25781b23c8d077efce91c6adaf3424311ec74227160d2e2fb0c0bc8d",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.47.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/typecheck-04/e2e.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.48.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/desktop-new.receipt.json",
+      "bytes": 1074,
+      "sha256": "b7a10a02b0750423c61281eacc4fc2747e05acd3f3038ebf28a3e64f6b03d828",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.48.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/desktop-new.tap.log",
+      "bytes": 8857,
+      "sha256": "348267ece2ed66b771a8561eae9243e9a63d6957e462584bbfa1a7aa227a757d",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.48.sourceSnapshot",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/source-snapshot.json",
+      "bytes": 6436,
+      "sha256": "3722c4243c2ca1a6959b19d2f85dd121e9091fdca6d4ab2a2d3756171baab558",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.49.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/desktop-old.receipt.json",
+      "bytes": 1300,
+      "sha256": "2174867f4ad5b7d9b5ef4c67442e3bf59d176294c6572e4a7a89a08c698fef48",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.49.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/desktop-old.tap.log",
+      "bytes": 9678,
+      "sha256": "6b621184a5bc086ec508ed9f8a694b46e6fc4b796abf7ed1169d5ad61d2a5536",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.50.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/diff-check.receipt.json",
+      "bytes": 532,
+      "sha256": "5f3007a46faf22c88afc87a474b6c4eea44f1db946e17d40c60adfbfcdaca035",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.50.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-01/diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.51.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-new.receipt.json",
+      "bytes": 1098,
+      "sha256": "72c1791e17d2771b0f0bc6eacb82e8201a53110a4d01f7af31718a13ef1db9a4",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.51.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-new.tap.log",
+      "bytes": 9603,
+      "sha256": "702885ac29f3c8bb94f5572770d1485552c4e91eea53588d7216fe7b6520b785",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.52.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-old.receipt.json",
+      "bytes": 1325,
+      "sha256": "d522a9957bfc4109df61a4c066c9b439d340777396e4ff5926e7ff9280c53cfe",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.52.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/desktop-old.tap.log",
+      "bytes": 9682,
+      "sha256": "5bbc2b2ccbb392d502b7adce886025bd85bb47992934ed26ad9c72a2721f1179",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.53.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-final-test-02/diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.54.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-01/receipt.json",
+      "bytes": 645,
+      "sha256": "32edae228841ef11e3ef85a9107a8b82bf1d15985a054a21fa0d3ed501fe1f92",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.54.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-01/tap.log",
+      "bytes": 8171,
+      "sha256": "feaadc3d5b3e4edb6759232c4167b14dbc6b6ba64a68fc5aab739f92ea69133e",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.55.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-02/receipt.json",
+      "bytes": 633,
+      "sha256": "080b0792fa908b0c24098077d2fb0b665918d37f289d28b2a170b4ef0e2b528b",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.55.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-02/tap.log",
+      "bytes": 6801,
+      "sha256": "e05058de3ce837f0df18100903d742617b485b83df5f5f7023aef263d660b26d",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.56.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-03/receipt.json",
+      "bytes": 771,
+      "sha256": "83253a470caa99eee241790269106c27a3cfebeaca14f366922f7731f0d2b5c7",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.56.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-03/tap.log",
+      "bytes": 8861,
+      "sha256": "7a56a56ce7d8e9dbe570d914f34362e1e7fa87267197af0c1cb84fa531d09c9f",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.57.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-inactive-outbox-01/receipt.json",
+      "bytes": 705,
+      "sha256": "0180db8db1dc3bf39500aef195e04f8764f3cd60d25ca7d1c67721cebf7ca60d",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.57.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-green-inactive-outbox-01/tap.log",
+      "bytes": 858,
+      "sha256": "6e10a059809717cd3bbd7e92173d25bf8af7c0bbe1948dff28cea1a987606513",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.58.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-01/receipt.json",
+      "bytes": 644,
+      "sha256": "a1d7031e73b76154e56e22616ba63c3f93e4375f963e0490ced31fc4680bd83b",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.58.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-01/tap.log",
+      "bytes": 17274,
+      "sha256": "dc1326fb35221cfdbfe152c66844f65cecdab3ca871f5bde6f9775aa68e9469a",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.59.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-detail-focus-01/receipt.json",
+      "bytes": 646,
+      "sha256": "d186a5fd0ad37624afad0a92de85b05c7af313abd5fc3ff39b7c612ab406362a",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.59.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-detail-focus-01/tap.log",
+      "bytes": 1066,
+      "sha256": "07fc158377fffe446c6480e335335cab454376b803ef7b71fe568f2c50e137e9",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.60.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-detail-focus-02/receipt.json",
+      "bytes": 652,
+      "sha256": "5814b9b3d4b5bfee9cad2b35f2f3f3d2dfd1d770c9b8a4372189d2fa7f643a8d",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.60.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-detail-focus-02/tap.log",
+      "bytes": 1169,
+      "sha256": "99a84310f6136530bdeea5121ecd0d63292e713a30530d5ce2830d3427b672f7",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.61.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-generation-01/receipt.json",
+      "bytes": 692,
+      "sha256": "d24a383457d4f22d9d380c3ed73cf433152fe0fe442ee1c6e3f7a9b60ad64b01",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.61.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-generation-01/tap.log",
+      "bytes": 3333,
+      "sha256": "166e013e44d6a7ce5773e7fbd1ba06aa06715dfa505de8fd2dc3ca7bdc635ce3",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.62.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-inactive-outbox-01/receipt.json",
+      "bytes": 707,
+      "sha256": "7a9715c1137a1332898fbf379cb906743f8cbab4466c083dbb540a34677f7f1d",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.62.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-inactive-outbox-01/tap.log",
+      "bytes": 3764,
+      "sha256": "5b04dc27a3165f0f276f95af2b4363caf9db2a98801c42cc1f4e5de771d79574",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.63.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-outbox-read-fault-01/receipt.json",
+      "bytes": 669,
+      "sha256": "acd6369fb038f53106c3d67d1bace5a2bc3f47bf7cff6f87fa1ebed50e924354",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.63.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-outbox-read-fault-01/tap.log",
+      "bytes": 1160,
+      "sha256": "b247a1c992eafdebce6750c0f2bd9240b180262ab6c0dc25160403f027fad625",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.64.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-panel-01/receipt.json",
+      "bytes": 633,
+      "sha256": "714962940953d742c1d47387ba7d4c6488b33ae8fc00807946dac5a26fcb079e",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.64.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-panel-01/tap.log",
+      "bytes": 2288,
+      "sha256": "ac00bcc1d518b059fb7626e5a1f807d540c7c403526012c817e4cb1d2998e485",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.65.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-panel-02/receipt.json",
+      "bytes": 639,
+      "sha256": "76a9b07beac9b65cb322501a50be4b8b6b8df0c05b2db4eedee723d69feb5af8",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.65.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-red-panel-02/tap.log",
+      "bytes": 1269,
+      "sha256": "40b9c2a89f5b1eb274fafe3c45e33784c5dd40b8e7507172aaa4ee4450efa053",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.66.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-01/desktop.receipt.json",
+      "bytes": 492,
+      "sha256": "eb17c5e93425e69c90ff9772fa8bf60c391ab1f0af9ba84ad9f733a2305cf92b",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.66.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-01/desktop.log",
+      "bytes": 133,
+      "sha256": "fd1c51909ab480feb6cedee4197585190fa10e5ca3458dcc4ded60d056b35045",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.67.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-01/e2e.receipt.json",
+      "bytes": 494,
+      "sha256": "1bc46047c162c529209fdc4b7927990bdae80ac93342b53d54c66222a1144bb6",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.67.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-01/e2e.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.68.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-02/desktop.receipt.json",
+      "bytes": 515,
+      "sha256": "e1d3f8c88e2fa3edbb2771d9681f648cbd8379c59e5cd8393f777e40204d5ed2",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.68.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-02/desktop.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.69.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-03/desktop.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.allValidationRuns.70.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-types-03/e2e.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "matches": true
+    },
+    {
+      "location": "root.preparationEvidence.prior.precompile",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-04/precompile.json",
+      "bytes": 1124,
+      "sha256": "2aacb40cfe5e1194f60a725d628c1faac87a5431668bc4d6e3b1411c208ad622",
+      "matches": true
+    },
+    {
+      "location": "root.preparationEvidence.prior.readerBinding",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/reader-build-binding.json",
+      "bytes": 59561,
+      "sha256": "5a30bc71d7efe198ee829ef03bd19af3122a6d5dcfb0449dd9686ee58af85232",
+      "matches": true
+    },
+    {
+      "location": "root.preparationEvidence.prior.cueBinding",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/preparation-05/cue-build-binding.json",
+      "bytes": 1209,
+      "sha256": "7da38b6e878eb2c4c6d277d2f27f317ce1ff0e54e9587cedbb3503e377ec7777",
+      "matches": true
+    },
+    {
+      "location": "root.candidateProofPreparation.receipt",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-candidate-proof-preparation-01/receipt.json",
+      "bytes": 957,
+      "sha256": "ec0107575768bf9b6080a158730a04a717771ccbbf7da344edf39444fb8955ad",
+      "matches": true
+    },
+    {
+      "location": "root.candidateProofPreparation.completeOutput",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/r1-candidate-proof-preparation-01/full-output.log",
+      "bytes": 3054,
+      "sha256": "3cdf7238103a964d9150e2e0219ee2bdd14850007917d6b001d66fe1a939388a",
+      "matches": true
+    },
+    {
+      "location": "root.candidateProofPreparation.historicalManifest",
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/candidate-02-initial-manifest.json",
+      "bytes": 177332,
+      "sha256": "de7f61e232aaf767260e2fd281c38b9dbdf9368e0927af9fc1baf9aff880efd0",
+      "matches": true
+    }
+  ],
+  "runChecks": [
+    {
+      "name": "build-01/contracts.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "build-02/contracts.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "build-02/core.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "build-03/contracts.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "build-03/core.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "build-03/desktop.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "green-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "green-02/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "green-03/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "green-04/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "green-05/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "green-empty-refresh-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "green-first-read-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "green-parameters-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "green-refresh-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "preparation-04/core-build.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "preparation-04/fixed-worker-check.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "preparation-05/core-test.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "preparation-05/fixed-worker-check.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "red-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "red-02/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "red-empty-refresh-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "red-first-read-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "red-owner-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "red-parameters-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "red-parameters-02/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "red-refresh-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "regression-01/contracts.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "regression-01/desktop.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "regression-02/contracts.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "regression-02/desktop.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "regression-core-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "regression-core-02/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-01/contracts-build.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-01/contracts-test.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-02/contracts-build.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-02/contracts-test.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-02/core-build.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-02/core-test.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-02/desktop.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-03/desktop.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-03/e2e.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-04/contracts-build.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-04/contracts-test.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-04/core-build.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-04/core-test.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-04/desktop.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "typecheck-04/e2e.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-final-test-01/desktop-new.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-final-test-01/desktop-old.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-final-test-01/diff-check.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-final-test-02/desktop-new.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-final-test-02/desktop-old.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-final-test-02/diff-check.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-green-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-green-02/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-green-03/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-green-inactive-outbox-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-red-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-red-detail-focus-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-red-detail-focus-02/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-red-generation-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-red-inactive-outbox-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-red-outbox-read-fault-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-red-panel-01/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-red-panel-02/receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-types-01/desktop.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-types-01/e2e.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-types-02/desktop.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-types-03/desktop.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    },
+    {
+      "name": "r1-types-03/e2e.receipt.json",
+      "receiptMatchesEmbeddedResult": true
+    }
+  ],
+  "finalFreshDesktop": [
+    {
+      "receipt": "r1-final-test-02/desktop-new.receipt.json",
+      "exit": 0,
+      "counts": {
+        "tests": 40,
+        "pass": 40,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "receipt": "r1-final-test-02/desktop-old.receipt.json",
+      "exit": 0,
+      "counts": {
+        "tests": 39,
+        "pass": 39,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ],
+  "unchangedCoreContractsProofCount": 671,
+  "unchangedCoreContractsChecks": [
+    {
+      "file": "packages/bridge-core/src/application/audio-quality-evidence.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/application/bridge-controller.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/application/local-source-facts.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/application/local-source-resolver.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/application/mb-queue.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/application/pcm-evidence.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/application/playback-event-publisher.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/collection-progress-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/commercial-provenance.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/dataset-domain.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/dataset-owner-client.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/dataset-roon-projection.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/dataset-services.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/local-relocation-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/local-scan-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/local-scan-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/local-source-ticket-types.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/local-source-tickets.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/mb-queue-materializer.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/mb-queue-owner-types.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/mb-queue-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/physical-links-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/physical-links.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/physical-music.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/reference-catalog-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/reference-source-zip.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/repository.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/spreadsheet-csv.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/spreadsheet-files.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/spreadsheet-import-rows.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/spreadsheet-import-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/spreadsheet-parser.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/spreadsheet-worker.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/collection/spreadsheet-zip.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/config/config.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/control/server.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/diagnostics/performance-instrumentation.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/diagnostics/performance-trace.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/favorites/repository.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/library/cue-sidecar-reader.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/library/cue-sidecar-worker.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/library/cue-text-reader.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/library/local-name-rules.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/library/metadata-reader-runtime.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/library/metadata-reader-types.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/library/metadata-reader-worker.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/library/metadata-reader.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/library/scan-read-admission.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/lyrics-matching/candidate-cluster.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/lyrics-matching/index.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/lyrics-matching/manual-controller.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/lyrics-matching/normalize.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/lyrics-matching/repository.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/lyrics-matching/resolver.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/lyrics-matching/scorer.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/lyrics-matching/signature.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/lyrics-matching/types.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/lyrics-matching/version-profile.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/lyrics/coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/lyrics/roon-display-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/main.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/matching/candidate-resolution.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/matching/index.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/matching/mixed-queue.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/matching/playback-resolver.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/matching/types.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/netease/api-runtime.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/netease/client.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/netease/lyrics.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/netease/parse.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/netease/policy.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/netease/qr-login.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/netease/read-snapshot-cache.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/netease/request-scheduler.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/netease/types.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/archive-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/archive-files.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/archive-input.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/archive-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/archive-transactions.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/archive-workflow-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/attempt-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/attempt-integrity.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/attempt-state.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/attempt-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/audio-converter.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/backup-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/backup-files.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/backup-index.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/backup-package.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/backup-snapshot.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/backup-workflow-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/backup-zip.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/bundled-converter.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/bundled-device-output-helper.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/bundled-output-helper.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/conversion-process.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/converted-compiler.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/dataset-identity.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/device-output-protocol.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/device-output-runner.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/device-selection-broker.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/drafts-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/drafts.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/execution-compiler.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/execution-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/execution-plan.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/execution-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/execution-wave.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/ffmpeg-build-policy.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/formal-device-attempt-provider.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/gate-b-admission.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/media-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/media-planner.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/media-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/native-device-catalog.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/object-audit-certificate.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/object-format-integrity.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/output-check.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/output-device-pump.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/output-error.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/output-helper.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/output-input.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/output-protocol.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/output-run-barrier.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/output-run-lease.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/output-run-recovery.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/output-service.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/plan-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/plan-integrity.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/plan-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/preparation-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/preparation-export-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/preparation-export-files.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/preparation-export-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/preparation-files.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/preparation-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/prepared-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/prepared-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/print-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/print-facts.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/print-integrity.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/print-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/profile-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/readonly-audio-consumer.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/record-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/record-disposition.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/record-integrity.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/record-page-index.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/record-projections.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/record-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/record-visuals.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/render-conformance.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/replica-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/replica-device-output-provider.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/replica-device-session.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/replica-error.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/replica-input.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/restore-activation-files.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/restore-activation-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/restore-content-binding.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/restore-database.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/restore-dataset-runtime.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/restore-index.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/restore-package.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/source-candidates.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/source-evidence.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/source-files.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/source-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/verified-zip.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/version-distribution.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/version-planner.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/versions-coordinator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/versions-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/recording/workspace-context-store.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/action-policy.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/adapter.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/confirmed-track-action.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/image-read-owner.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/library.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/playback-context.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/public-library.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/sdk.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/synthetic-library.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/track-action-confirmation.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/types.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/volume.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/roon/zone-switch.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/runtime.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/rust-core/collection-query.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/rust-core/core-dataset-owner.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/rust-core/host-controller.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/rust-core/optional-readonly-manager.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/rust-core/readonly-router.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/rust-core/readonly-sidecar.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/shared/errors.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/shared/ipc-failure.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/shared/library-read-lifetime.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/shared/library-read-registry.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/shared/library-read-trace.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/shared/logger.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/shared/playback-failure-trace.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/stream/gateway.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/stream/http-byte-evidence.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/stream/local-file-http.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/stream/local-file-source.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/stream/local-source-fence.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/stream/physical-resource-locks.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/stream/registry.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/stream/resolver-types.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/stream/upstream-policy.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/utility-main.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/src/vendor/roon-modules.d.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/archive-backup.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/archive-files.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/archive-restore.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/archive-transactions.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/archive-workflow.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/audio-converter.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/audio-quality.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/backup-index-details.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/backup-workflow-migration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/backup-workflow-store-safety.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/backup-workflow.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/backup-zip-workflow.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/backup-zip.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/benchmarks/recording-capacity-clean-clone.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/benchmarks/recording-capacity-process.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/benchmarks/recording-capacity.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/bundled-output-helper.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/capacity-clean-clone-benchmark.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/collection-filter.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/collection-progress-store.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/collection-repository-batch.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/collection-repository.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/command-outbox-core.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/commercial-provenance.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/config.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/confirmed-track-action.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/control-server.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/controller-context.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/controller.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/dataset-collection-snapshot.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/dataset-domain.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/dataset-identity.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/dataset-large-snapshot.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/dataset-owner-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/dataset-owner-recording.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/dataset-owner.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/dataset-roon-projection.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/dataset-snapshot-version.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/device-output-protocol.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/device-output-runner.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/device-selection-broker.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/execution-assets.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/execution-compiler.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/execution-files.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/execution-plan.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/favorite-repository.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/HISTORICAL_SCHEMA_PROVENANCE.md",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/capacity-process-failure-lineage-v1.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema1-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema10-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema11-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema12-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema13-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema14.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema15.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema16.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema17.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema18.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema19-completed.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema19.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema2-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema20-cassette-completed.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema20-completed.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema21-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema23-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema3-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema4-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema5-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema6-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/collection-schema9-empty.sql",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/ape-assessment/LICENSE-MIT.txt",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/ape-assessment/NOTICE.md",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/ape-assessment/manifest.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/ape-assessment/silence_mono8k.ape",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/audio/fixtures/core-aiff.aiff",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/audio/inputs/cover-limit-65536.png",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/audio/inputs/cover-limit-flac-extracted.png",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/audio/inputs/cover-over-65537.png",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/audio/inputs/cover-over-flac-extracted.png",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/audio/inputs/cover-small.png",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/audio/inputs/extracted-core-flac-cover.png",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/audio/manifest.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/fixtures/mbrs003/dsd/manifest.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/formal-device-attempt-provider.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/gate-b-admission.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/gateway.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/archive-backup-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/archive-crash-child.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/conversion-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/dataset-owner-domain-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/dataset-owner-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/dataset-owner-large-snapshot-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/dataset-owner-recording-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/dataset-owner-version-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/execution-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/fake-plan-device-selection.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/legacy-schema.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/mbrs003-audio-fixtures.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/optional-scale-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/output-attempt-audit-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/output-helper-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/output-run-ready.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/preparation-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/prepared-execution-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/rebuild-legacy-schema.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/recording-attempt-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/recording-capacity-child.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/recording-capacity-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/recording-capacity-phases.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/recording-capacity-process.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/recording-plan-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/recording-profile-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/recording-record-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/recording-replica-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/restore-activation-process-child.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/rust-core-collection-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/helpers/rust-core-utility-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/ipc-playback-failures.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/library-cache-lifetime.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/library-read-lifecycle.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/library-read-trace-safety.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/library-read-tracing.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/library.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/local-file-gateway.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/local-lyrics-acceptance.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/local-lyrics-manual-match.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/local-lyrics-resolver.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/local-name-rules.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/local-playback.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/local-queue.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/local-track-signature.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/lyrics-match-domain.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/lyrics-match-repository.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/lyrics.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/master-drafts-coordinator.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/master-versions.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/match-candidate-resolution.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/matching.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbp-004-incremental-boundaries.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/fixtures/schema30-legacy-facts.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/fixtures/schema30-nonempty-cold-api.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/fixtures/schema30-nonempty-full-facts.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/fixtures/schema30-nonempty-legacy.provenance.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/fixtures/schema30-nonempty-legacy.sqlite",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/fixtures/schema30-synthetic.provenance.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/fixtures/schema30-synthetic.sqlite",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/local-catalog-capacity.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/local-catalog-migration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/local-catalog-nonempty-migration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/local-catalog-owner.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/local-catalog-read-budget.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/local-catalog-restore.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/local-catalog-store.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/local-source-owner.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs002/local-source-resolver.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003-supplemental/current-file-state-zero-locator.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003-supplemental/metadata-reader-deadline.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003-supplemental/metadata-reader-protocol.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/cue-sidecar-reader.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/cue-text-reader.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/fixtures/schema31-cold-api.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/fixtures/schema31-full-facts.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/fixtures/schema31-nonempty-local.sqlite",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/fixtures/schema31-synthetic.provenance.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/local-relocation-owner.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/local-relocation.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/metadata-reader-ape-assessment.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/metadata-reader-dsd-assessment.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/metadata-reader-fault-reproduction.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/metadata-reader-lifetime.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/metadata-reader.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/persistent-scan-control-preflight.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/persistent-scan-cue-legacy-prefix.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/persistent-scan-cue-mp3.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/persistent-scan-cue-restore.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/persistent-scan-cue-tagged-duplicate.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/persistent-scan-cue.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/persistent-scan-faults.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/persistent-scan-migration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/persistent-scan-owner.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/persistent-scan-permission-recovery.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/persistent-scan-store.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/scan-media-priority-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/scan-read-admission.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/scan-utility-routing.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/scanner-core-formats-persistence.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/test-runtime-scan-admission.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs003/utility-internal-startup.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs004/directory-golden.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs004/golden-facts.json",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs004/name-rules.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs004/upstream-golden.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs005/config-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs005/fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs005/http.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs005/lifecycle.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs005/locks.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs005/observation-binding.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs005/physical-worker.mjs",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs006/adapter-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs006/catalog-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs006/claim-worker.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs006/controller-local.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs006/local-facts-fence.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs006/local-session-lifecycle.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs006/owner-facts-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs006/owner-worker-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs006/owner-worker.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs006/runtime-local.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs006/runtime-shutdown.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs007/controller-queue.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs007/edition-queue.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs007/owner-queue.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs007/queue-fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs007/queue-persistence.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs007/queue-worker.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs007/r1-regressions.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs007/runtime-queue-protocol.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs008/file-parameters.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs008/http-byte-evidence.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs008/pcm-evidence.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs008/quality-reduction.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs009/local-library-query.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mbrs009/local-target.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/media-planning.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/mixed-queue.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/multi-disk-downstream.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/native-device-catalog.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/netease-client.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/netease-playback-scheduling.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/netease-playlist-snapshot-cache.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/optional-readonly-manager.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/output-device-pump.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/output-helper.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/output-protocol.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/output-run-lease.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/output-run-recovery.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/parse.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/performance-instrumentation.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/performance-trace.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/physical-links-coordinator.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/playback-event-load.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/playback-event-publisher.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/playback-failure-trace.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/policy.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/preparation-export.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/preparation-files.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/preparation-zip-runtime.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/preparation.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/prepared-files.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/prepared-render.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/provider-wrapper-contract.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/qr-login.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/readonly-audio-consumer.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/record-page-migration-budget.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/record-page-query.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-attempt-backup.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-attempt-migration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-attempt-state.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-attempt.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-capacity-lineage-conformance.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-capacity-print-write.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-capacity-queued-stop.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-capacity.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-output-attempt-audit.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-output-run-barrier.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-output.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-plan.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-preflight-admission.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-print-backup.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-print-facts.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-print-migration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-print-store.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-profile.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-record-backup.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-record-disposition.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-record-migration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-record.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-replica-input.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-replica-session.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-replica-source.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/recording-workspace.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/reference-catalog-activation.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/reference-catalog-store.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/reference-source-zip.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/registry.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/render-conformance.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/replica-device-output-provider.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/restore-activation-files.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/restore-activation-process.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/restore-activation-store.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/restore-content-binding.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/restore-dataset-runtime.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/roon-action-policy.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/roon-adapter.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/roon-display-lyrics.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/roon-image-owner.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/roon-library-registration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/roon-library.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/roon-page-cache.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/roon-playback-context.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/roon-public-library.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/roon-sdk-callback-context.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/roon-volume.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/runtime-compact-events.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/runtime.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-collection-ui-node-purity.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core-host-controls.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core-owner-lifecycle.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core-utility-options.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/atomic-snapshot-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/indexed-query-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/large-snapshot-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/optional-manager-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/optional-scale-bytes.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/optional-scale-capacity.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/optional-scale-native-bytes.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/optional-scale-node-fallback.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/optional-scale-raw-wire.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/optional-scale-transition.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/readonly-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/refresh-routing-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/runtime-host-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/runtime-lifecycle-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-core/sidecar-observation.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-large-sidecar.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-query-index.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-readonly-collection-ui.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-readonly-main-boundary.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-readonly-node-reads.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-readonly-router.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/rust-sidecar-client.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/search.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/source-candidates.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/source-evidence.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/spreadsheet-files.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/spreadsheet-import-store.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/spreadsheet-parser.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/spreadsheet-zip.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/track-action-confirmation.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/utility-ipc.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/utility-playback-stream.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/v3-main-journey.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/verified-zip.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/version-planner.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/bridge-core/test/zone-switch.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/aggregated-search.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/audio-conversion.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/audio-quality.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/collection-progress.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/collection-readonly.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/collection.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/command-outbox.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/converted-execution.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/diagnostics.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/errors.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/execution-assets.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/execution-audio.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/favorites.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/index.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/ipc-names.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/ipc.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/library-read.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/library.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/local-catalog.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/local-domain-references.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/local-name-rules.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/local-play-request.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/local-playback-compat.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/local-relocation.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/local-scan.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/lyrics.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/master-drafts.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/master-versions.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/matching.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/mb-queue.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/media-planning.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/performance.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/physical-links.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/physical-music.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/playback.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/preparation-export.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/preparation.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/prepared-render.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-activation.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-archive.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-artwork.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-attempts.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-backups.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-device-selection.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-output.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-plans.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-prints.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-profile.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-records.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-replica.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/recording-workspace.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/reference-catalog.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/remote-core.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/roon-display-lyrics.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/roon.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/source-candidates.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/source-evidence.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/spreadsheet-import.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/state.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/validator.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/src/volume.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/audio-conversion.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/audio-quality.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/collection-copy.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/collection-filter.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/collection-progress.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/command-outbox.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/diagnostics.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/execution-audio.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/library-cache-contract.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/library-read.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/local-playback.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/mb-queue.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/mbrs002/local-catalog.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/mbrs002/local-domain-references.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/mbrs002/local-play-request.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/mbrs002/local-playback-compat.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/mbrs003/local-relocation.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/mbrs003/local-scan.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/mbrs006/fixture.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/mbrs006/local-playback-contract.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/mbrs007/mb-queue.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/mbrs008/audio-quality.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/mbrs009/local-library-query.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/performance.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/playback-stream.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/preparation-export.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/recording-activation.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/recording-archive.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/recording-attempts.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/recording-backups.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/recording-device-selection.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/recording-execution.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/recording-output.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/recording-plans.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/recording-prints.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/recording-records.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/recording-replica.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/recording-workspace.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/reference-catalog.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/reference-source-zip.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/roon-pagination.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/roon-playback-context.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/source-candidates.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/spreadsheet-import.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/v1-v2-integration.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    },
+    {
+      "file": "packages/contracts/test/validator.test.ts",
+      "verifiedCurrentAndOriginalIdentity": true
+    }
+  ],
+  "coverageTotalOnly": 220,
+  "freshRootGate": "NOT_RUN",
+  "checkerPreparationFailurePreserved": "ROOT_CANDIDATE_02_CHECK_PREPARATION_FAILURE_01.json",
+  "success": true,
+  "failures": []
+}

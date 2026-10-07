@@ -1,0 +1,21 @@
+{
+  "schema": "mbrs009.controlled-app-launch.v2",
+  "startedAt": "2026-10-07T00:10:46.988Z",
+  "pid": 9789,
+  "profile": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/controlled-app-02/tmp/musicbridge-ui-e2e-009",
+  "windowState": {
+    "id": 1,
+    "url": "musicbridge://app/index.html",
+    "title": "Music Bridge for Roon",
+    "visible": false,
+    "focused": false
+  },
+  "electronIdentityReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/electron-identity-01/receipt.json",
+  "buildReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/production-build-02/result.json",
+  "sourceAndOutputsVerifiedBeforeLaunch": true,
+  "interactionsPerformed": 0,
+  "fixturesRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/controlled-app-fixtures/source-library",
+  "realRoonAccountNasAudioOwner": "NOT_RUN",
+  "scope": "ORIGINAL_PRODUCTION_UI_MAIN_CORE_NODE_OWNER_SCANNER_SYNTHETIC_SERVICES",
+  "overrides": "NO_MAIN_WINDOW_OR_UI_MUTATION_NO_DATA_OR_API_REPLACEMENT"
+}

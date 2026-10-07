@@ -1,0 +1,83 @@
+{
+  "schema": "mbrs009.root-r1-repair-plan.v1",
+  "reports": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/BOUNDARY_R1.json",
+      "bytes": 53923,
+      "sha256": "a1ebe4a39bde33fb5d997a8c5e9aa1916a1b16aaeece7161ed81747ad3149491"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_R1.json",
+      "bytes": 40148,
+      "sha256": "ef6ecb3fc23e7f6cca51b1fdd17e9398464ee5857af6376e844e2c077d8fea48"
+    }
+  ],
+  "p2": 7,
+  "p3": 2,
+  "writer": "/root/local_ui_writer009",
+  "productCompilationOwnership": "WRITER_UNTIL_CANDIDATE_02_HANDOFF",
+  "app01": "RETAINED_OLD_CANDIDATE_ONLY_NO_SCAN_OR_BUSINESS_ACTIONS_DURING_REPAIR",
+  "scopeFile": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+  "scopeBytes": 13275,
+  "scopeSha256": "c3b717fb8b0afa298d6557bd7232043a717e67aca7c07052ae5813723098e2ad",
+  "preflightCurrent": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/writer/PREFLIGHT.json",
+      "bytes": 21458,
+      "sha256": "0be7d890b9f7873ca52ab43006c94037867fc4e7d6db0bb9a582224d5d968519"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/BOUNDARY_PREFLIGHT.json",
+      "bytes": 29813,
+      "sha256": "3829a80246e600c3aeafc430a7d1fec21192b8f45b95c82f0cfc48d6719fba76"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.json",
+      "bytes": 36365,
+      "sha256": "981147de4e4628c97f0ac0c259192b5d60368f8f3655799dd7f8dfb9c1f85bf8"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.md",
+      "bytes": 22346,
+      "sha256": "265a3d1f5307d104d047f89f938305ce03e4a8e05d712db596945c84b4c86d52"
+    }
+  ],
+  "historicalPreflightIdentities": [
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.json",
+      "bytes": 35671,
+      "sha256": "62100ec64435018eaecfd567d331580916163114464c05ab312af563f168e876",
+      "identityScope": "HISTORICAL_IDENTITY_ONLY_ORIGINAL_BYTES_NOT_RETAINED",
+      "supersededBy": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.json",
+        "bytes": 36365,
+        "sha256": "981147de4e4628c97f0ac0c259192b5d60368f8f3655799dd7f8dfb9c1f85bf8"
+      },
+      "reason": "Root授权补充共享TrackTable要求后的预检后继；不是当前文件校验"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.md",
+      "bytes": 22192,
+      "sha256": "278326aae321cbada46145f40fc8250faa98d17f0613fcef5c8a1efa9909b878",
+      "identityScope": "HISTORICAL_IDENTITY_ONLY_ORIGINAL_BYTES_NOT_RETAINED",
+      "supersededBy": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/reviews/UI_PREFLIGHT.md",
+        "bytes": 22346,
+        "sha256": "265a3d1f5307d104d047f89f938305ce03e4a8e05d712db596945c84b4c86d52"
+      },
+      "reason": "Root授权补充共享TrackTable要求后的预检后继；不是当前文件校验"
+    }
+  ],
+  "scopeIdentityHistory": [
+    {
+      "scopeFile": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/checkout/docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+      "scopeBytes": 12601,
+      "scopeSha256": "b7a69b872fd907477f945668edcf039e6d8247eedd0e3a1730bbc59f23997189",
+      "identityScope": "HISTORICAL_IDENTITY_ONLY_BEFORE_ADDITIONAL_PANEL_PATH",
+      "originalBytesRetained": false
+    }
+  ],
+  "scopeUpdatedAt": "2026-10-06T23:32:41.365630+00:00",
+  "additionalProductPath": "apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue",
+  "additionalPathScope": "仅既有controller公开overview typed事件转发；不改controller、backend或outbox writer。"
+}

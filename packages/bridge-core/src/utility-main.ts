@@ -131,6 +131,8 @@ async function dispatch(
     }
   }
   switch (request.command as IpcCommand) {
+    case 'playback.localTarget':
+      return runtime.getLocalLibraryPlaybackTarget?.() ?? null;
     case 'core.ping':
       return runtime.ping();
     case 'core.getHealth':
