@@ -14,6 +14,7 @@ on:
       - 'pnpm-workspace.yaml'
       - 'patches/**'
       - '.github/workflows/electron-e2e.yml'
+      - '.github/workflows/verify.yml'
 
 permissions:
   contents: read
