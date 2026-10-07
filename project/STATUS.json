@@ -46640,10 +46640,10 @@
   },
   "mbrs011MetadataOrganizer": {
     "task": "MBRS-011",
-    "state": "SOURCE_READY_LOCAL_SOFTWARE_APP_PASS_CI_PENDING",
+    "state": "LIMITED_SOFTWARE_SOURCE_CI_PASSED_REPORT_SEAL_PENDING",
     "branch": "codex/mbrs-011-mb-only-organizer",
     "baseCommit": "db4cded876e8eda7755d781ed4827dfc38332a10",
-    "implementationCommit": null,
+    "implementationCommit": "e3cbc669434e7627aec23241095de706790de743",
     "reportCommit": null,
     "scope": "docs/postrust/MBRS-011/EXECUTION_SCOPE.json",
     "originalAcceptanceCount": 7,
@@ -46657,11 +46657,26 @@
     "reportCommitResolution": "commit-containing-reports/MBRS-011_METADATA_ORGANIZER.md",
     "evidence": {
       "localValidation": "docs/postrust/MBRS-011/LOCAL_VALIDATION.json",
-      "acceptanceMatrix": "docs/postrust/MBRS-011/STATE_MATRIX.json"
+      "acceptanceMatrix": "docs/postrust/MBRS-011/STATE_MATRIX.json",
+      "sourceGate": "docs/postrust/MBRS-011/evidence/source-gate.json",
+      "sourceIdentity": "docs/postrust/MBRS-011/evidence/source-identity.json",
+      "ordinaryApp": "docs/postrust/MBRS-011/evidence/ordinary-app.json",
+      "deferredMobileLatest": "docs/postrust/MBRS-011/evidence/deferred-mobile-latest-successor.json"
     },
-    "push": "PENDING_NORMAL_SOURCE_PUSH",
-    "ci": "PENDING_EXACT_SOURCE_NATURAL_CI",
-    "nextBranchBaseline": "RESOLVED_FINAL_REPORT_COMMIT_AFTER_NATURAL_CI_AND_CLEAN_SEAL"
+    "push": "SOURCE_NORMAL_PUSH_VERIFIED_REPORT_PUSH_PENDING",
+    "ci": {
+      "source": "FOUR_WORKFLOWS_SIX_JOBS_ALL_ATTEMPT_ONE_SUCCESS",
+      "sourceReceipt": "docs/postrust/MBRS-011/evidence/source-ci.json",
+      "report": "POST_REPORT_FINAL_SEAL_REQUIRED"
+    },
+    "nextBranchBaseline": "RESOLVED_FINAL_REPORT_HEAD_AFTER_PRIVATE_FINAL_SEAL",
+    "finalDeliveryReceipt": {
+      "archiveId": "MBRS011_FINAL_DELIVERY_RECEIPT",
+      "fileName": "MBRS011_FINAL_DELIVERY_RECEIPT.json",
+      "state": "REQUIRES_REPORT_NATURAL_CI_CLEAN_AND_REMOTE_HEAD_PIN",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
   },
   "postRustEffectiveScope": {
     "originalTasks": 18,

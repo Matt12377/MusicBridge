@@ -1,0 +1,129 @@
+{
+  "schema": "mbrs011.deferred-ios-playlist-successor-readonly.v1",
+  "task": "MBRS-011",
+  "scope": "DEFERRED_SUCCESSOR_METADATA_ONLY_NOT_DESKTOP_011_ADMISSION",
+  "sourceSha": "69cc92d93f1b275232e855c5d7cb7ea7ce47c0ae",
+  "reportSha": "a1cde397cf4280de4fc00a30058d8e95f961d4ff",
+  "sourceBaseSha": "eaefe116b204644c680fe2e6e7d447e24aeaedae",
+  "reportParentExactlySource": true,
+  "branch": "codex/ios-discovery-audit",
+  "remoteHead": "a1cde397cf4280de4fc00a30058d8e95f961d4ff",
+  "reportPath": "reports/IOS-013_PLAYLIST_COVER_RESULT.md",
+  "sourceGitBlobsVerified": 677,
+  "buildInputsEachMatched": 203,
+  "portableExportHashesVerified": 13,
+  "portableExports": [
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/contract-validation.json",
+      "bytes": 1521,
+      "sha256": "5f2037cd0f35d84d77a26fb4d0757cd9cf7443bd21a5cdb51494adc760afbd6c"
+    },
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/coordinator-notification.json",
+      "bytes": 598,
+      "sha256": "89910060dc1f4853b78b764fbdf72975d0795ce0e14bccbc4a02e9dc2011c2af"
+    },
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/git-remote-before.json",
+      "bytes": 152,
+      "sha256": "5ca4839ce1252e9f60c7501c27b29ce1d7b2a99930ce269241b9167da3d999bc"
+    },
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/native-mock.json",
+      "bytes": 30335,
+      "sha256": "4a6b4429568bb7111032af2f11d092796739cb6d9363be718f6e490c32ed7a85"
+    },
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/native-production.json",
+      "bytes": 30355,
+      "sha256": "e5ba243df5c52518cb02834ad2722315c61db4e5b2d9660b903ea824b3bcd1d0"
+    },
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/personal-playlist-tests.log",
+      "bytes": 3978,
+      "sha256": "4eda3c2ecfc20bbb53c3bc5b62c70f97c1237189116d7b4a42630331ede0cb7f"
+    },
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/production-isolation.json",
+      "bytes": 557,
+      "sha256": "5c47283b4c516ca2982eb050de16ef4b8cb0b33e01000d9cac36a092a6364df9"
+    },
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/simulator-install.json",
+      "bytes": 2080,
+      "sha256": "616a6f10720cd9d3a3906cc8b8457c63b958336fbf804d946309403ec93f2fdf"
+    },
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/software-validation.json",
+      "bytes": 1674,
+      "sha256": "f210ee0515087a770d539660a26a06839f952ccb1525ed07b457653926803297"
+    },
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/source-binding.json",
+      "bytes": 92524,
+      "sha256": "18ffaf5a85db4532f91fb66e3402ceabdf113288ea1448d62e32b08a0f436990"
+    },
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/ui-validation.json",
+      "bytes": 945,
+      "sha256": "afcaf8a73709adf57ace2fc89154b648e6b775d9ec00ec5914df6c4313532114"
+    },
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/validation-receipt.json",
+      "bytes": 808,
+      "sha256": "e4d87d51d0426cf65dca5839d59dabe9e5ef5f17bf603c3904dcb921e3cc6dd3"
+    },
+    {
+      "path": "reports/evidence/IOS-013_PLAYLIST_COVER/workspace-protection.json",
+      "bytes": 1645,
+      "sha256": "c9bcf3cd4c587756b81521fc90031a14bfb15fe11b604b8d638ef14edb0d7331"
+    }
+  ],
+  "rootReranBuildOrTestsOrNativeApp": false,
+  "iosPrimaryCheckoutHeadBranchAndStatusUnchanged": true,
+  "producerEvidence": {
+    "directedPlaylistTests": 9,
+    "failures": 0,
+    "contractExitCode": 0,
+    "mockBuildExitCode": 0,
+    "productionBuildExitCode": 0,
+    "actualProductionIsolationExitCode": 0,
+    "nativeUi": "PARTIAL_NATIVE_UI_OBSERVATION"
+  },
+  "candidate": {
+    "version": "1.5.0",
+    "path": "Contracts/proposals/UI_V39.openapi.json",
+    "sha256": "0ea921d26dff63b5d3418a1830b58d6de45eaed0b630245d404db00ac5a60746",
+    "paths": 17,
+    "operations": 20,
+    "methods": {
+      "GET": 16,
+      "POST": 1,
+      "PUT": 3
+    },
+    "controls": 102,
+    "intents": 65,
+    "personalPlaylistCover": "OPTIONAL_NULLABLE_COVER_ARTWORK_ID_IN_SAME_PLAYLIST_REVISION_SNAPSHOT_FIRST_TRACK_BY_APPEND_ORDER_EXISTING_GET_ARTWORK",
+    "macAdoption": "PENDING_AFTER_DESKTOP_017_MBM_TASKS",
+    "baseContract": "0.1.0_UNCHANGED",
+    "capabilityWire": "1.0.0_UNCHANGED"
+  },
+  "priorVerifiedSuccessor": {
+    "sourceSha": "0d4899f217384c731a09727839e8810a06b53626",
+    "reportSha": "e304817ebbc46e208df2da78d6cdaa3ae3ca0b9b",
+    "candidateVersion": "1.4.0",
+    "candidateSha256": "2d3d5691912bc75d0c49260f07474cc03bde99b060f674706b500b3a2bc6e13a"
+  },
+  "firstTrackAddedNativeCoverUi": "NOT_VERIFIED_NATIVE_LONG_PRESS_NOT_TRIGGERED",
+  "screenshots": "VIEWED_BY_PRODUCER_NOT_EXPORTED_OR_REVIEWED_HERE",
+  "realBackendPhysicalDeviceFlacAudioOwner": "NOT_RUN",
+  "desktop010SealAnd011SourceUnchanged": true,
+  "readonlyReceipt": {
+    "archiveId": "MBRS011_DEFERRED_IOS_PLAYLIST_COVER_SUCCESSOR",
+    "fileName": "DEFERRED_IOS_PLAYLIST_COVER_SUCCESSOR_READONLY.json",
+    "bytes": 4765,
+    "sha256": "c714f56391ef0b48c3f69e4a9ca87355293c0e17ff91fc8c62ab71a7f5559b29",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  }
+}

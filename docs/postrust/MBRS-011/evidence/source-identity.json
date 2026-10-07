@@ -1,0 +1,296 @@
+{
+  "schema": "mbrs011.source-identity.public.v1",
+  "task": "MBRS-011",
+  "baseSha": "db4cded876e8eda7755d781ed4827dfc38332a10",
+  "sourceSha": "e3cbc669434e7627aec23241095de706790de743",
+  "branch": "codex/mbrs-011-mb-only-organizer",
+  "files": [
+    {
+      "path": ".github/workflows/verify.yml",
+      "bytes": 10867,
+      "sha256": "861e4a63369fce786484b4b294dc8e8f9d3556fc9eb74524c9343541c5f3ce44"
+    },
+    {
+      "path": "apps/desktop/e2e/mbrs011-organizer.spec.ts",
+      "bytes": 25227,
+      "sha256": "604462fd00920aafc149726b51387ebb03b5751d9a06e5724017e34c11a43ff1"
+    },
+    {
+      "path": "apps/desktop/src/main/index.ts",
+      "bytes": 105165,
+      "sha256": "d916ce06f40f068678f6f0eb099504ed88734aab9e5b7a94757551697f92b5e8"
+    },
+    {
+      "path": "apps/desktop/src/main/local-organizer-ipc.ts",
+      "bytes": 2194,
+      "sha256": "bab4efc4137d10e9576b9a2635d1e70f76308d44be0e097a262dd3b93cb8eaa0"
+    },
+    {
+      "path": "apps/desktop/src/preload/api.ts",
+      "bytes": 41528,
+      "sha256": "296256ba3a8dfd1a39bc16de229cc1475f5a248a701fd6e113d7d6cc63f40096"
+    },
+    {
+      "path": "apps/desktop/src/preload/index.ts",
+      "bytes": 27542,
+      "sha256": "01ae10aa69aeae708607cfb7e09811757175a06d0ed6a38ca623014d2ccec2bb"
+    },
+    {
+      "path": "apps/desktop/src/preload/local-organizer-client.ts",
+      "bytes": 2791,
+      "sha256": "478631d2171c702b3b13522f44d93657a0e22472dc85873bb8802aabbe707bf7"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue",
+      "bytes": 15358,
+      "sha256": "2e4ada0f5da0f8638e6014a8dda3d89b53f3fa4adf18579113fcb4a62fbd1004"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+      "bytes": 20713,
+      "sha256": "048d95134c0b9bee2604783f65c72826be4235fcbd5d36405826baa5db17e989"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalOrganizerDialog.vue",
+      "bytes": 20132,
+      "sha256": "32941ac82aa048f87e21a90541ba79d0d25a061259e9acf845deac3e52090ed6"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+      "bytes": 14058,
+      "sha256": "6eaa180c2ca488e2c38135cbb066e95794a0dafd39352a18e90748497828d26c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+      "bytes": 29492,
+      "sha256": "3115431279a865c0f0d1296da8656f5cf507ebe340e5e849c99f5cb2fc6fc13d"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalOrganizer.ts",
+      "bytes": 25955,
+      "sha256": "23a37f6dde7a5c355e289e4d07939bb832b8c31b3850a878119a574580facc12"
+    },
+    {
+      "path": "apps/desktop/test/mbrs011-organizer-ipc.test.ts",
+      "bytes": 8619,
+      "sha256": "b35159660dbca365d6e170c5c276e86c957eff313a0615ff5ebb95ce0b8102d5"
+    },
+    {
+      "path": "apps/desktop/test/mbrs011-organizer-session.test.ts",
+      "bytes": 30609,
+      "sha256": "5a6cab81035cc7d5bd56ed2ef60509aa7b1b58d9dad59533a68e4ba6c5c0609b"
+    },
+    {
+      "path": "apps/desktop/test/mbrs011-organizer-ui.test.ts",
+      "bytes": 29296,
+      "sha256": "0b4ed3b0c7169ec7b086f70420bb60eb5ccc3ae1e1efd8642a2a197defb5c770"
+    },
+    {
+      "path": "apps/desktop/test/preload.test.ts",
+      "bytes": 36611,
+      "sha256": "e71abb2064cfbb52715da88b494b6b963fe41a3271d9a99a4757563fcc691e32"
+    },
+    {
+      "path": "apps/desktop/tsconfig.e2e.json",
+      "bytes": 696,
+      "sha256": "a7a38803a3d460db60e93bc365f743b22d47fb4ba70003da60d8ddcb0994cff7"
+    },
+    {
+      "path": "docs/postrust/MBRS-011/BOUNDARY_AND_LIMITATIONS.md",
+      "bytes": 1898,
+      "sha256": "436b8c69fd0f07ccd64ccc66f3ec81a6e07052142cb0fa60252116e748ceef27"
+    },
+    {
+      "path": "docs/postrust/MBRS-011/DATA_OWNERSHIP.md",
+      "bytes": 1794,
+      "sha256": "d4a3725ea1c9a5d4cb23bbc681afee4f7b8d462e9dad438d5ad04164f0c761e5"
+    },
+    {
+      "path": "docs/postrust/MBRS-011/DEFERRED_MOBILE_SUCCESSOR.json",
+      "bytes": 2177,
+      "sha256": "4f61d85aef497481174e12742dc1d5c5a0ddf5d04133cbf9ed549870b91e937f"
+    },
+    {
+      "path": "docs/postrust/MBRS-011/EXECUTION_SCOPE.json",
+      "bytes": 2946,
+      "sha256": "3e01f86aae97a9b620802f95de5b33047d5edcaaa2260f4730025a71ba425cac"
+    },
+    {
+      "path": "docs/postrust/MBRS-011/LOCAL_VALIDATION.json",
+      "bytes": 6393,
+      "sha256": "0569e4e9dae26887c0b3515b64dbfacb2bf3cd5921b6c120d498a51a3b31adce"
+    },
+    {
+      "path": "docs/postrust/MBRS-011/LOCAL_VALIDATION.md",
+      "bytes": 3476,
+      "sha256": "53fb570003f42c1568c1174a4d57eaa3d70798a90985c93018f40f20a6a2cb53"
+    },
+    {
+      "path": "docs/postrust/MBRS-011/REUSE_MAP_RESOLVED.md",
+      "bytes": 1688,
+      "sha256": "769a65d948e7b2203f37255e09fcdd5b56c8962f23ae585d817ddafab7c00d50"
+    },
+    {
+      "path": "docs/postrust/MBRS-011/SCHEDULING_CORRECTION.md",
+      "bytes": 961,
+      "sha256": "2a833a3855cac521e916703ee57f0f0061b8d0bc42d20268d28f301f82936857"
+    },
+    {
+      "path": "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json",
+      "bytes": 1258,
+      "sha256": "9ea3f437f967ec6fbcf5a896f42e0c8609c573e31dfe37b59be4a9b28b0779c8"
+    },
+    {
+      "path": "docs/postrust/MBRS-011/STATE_MATRIX.json",
+      "bytes": 4785,
+      "sha256": "d6694a351872cf095403543031552a3be104fc9a69db0f7141bd656c220ffed8"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "bytes": 52455,
+      "sha256": "3e8bf956c49745ae792d42b353c5f3fbbb4ea067bec59dd187300bf46e5dbffb"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-domain.ts",
+      "bytes": 24091,
+      "sha256": "da912147dfdf95c335a4f91aa0f7ba8cefa0d841181ac23ef121304a662c864f"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+      "bytes": 28546,
+      "sha256": "fca394f63801fc6b943bb415d3d678f7608e407f675b2a533204dfe955269185"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-services.ts",
+      "bytes": 3397,
+      "sha256": "03502a46a9e1caedc0bace43d35eab8535ddeca55fe5f59b6efcae0ff34b6982"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "bytes": 67841,
+      "sha256": "5cb5c1f2ba1305e225c081c162e57e932b84ef33b3b21c86cc1783a1358f79af"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-organizer-journal.ts",
+      "bytes": 22164,
+      "sha256": "fddb7e42f0d5446b70836b5bf6d1012bdd4ee24974345869d314532fa22c08e4"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-organizer-service.ts",
+      "bytes": 9708,
+      "sha256": "957cb7cfe9a1f33c7cdaf3a3af38a739839a86efd289215f2087d4293c82de8b"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-organizer-store.ts",
+      "bytes": 20130,
+      "sha256": "f20c01e26f64222f1955ec777bf505bfa375373b6517e08d7a001315e746e549"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs011/journal.test.ts",
+      "bytes": 11928,
+      "sha256": "aab75f9b99685617d9c421ae4b22fa39ed4804576138053e3c1b2925961dd06a"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs011/organizer.test.ts",
+      "bytes": 21111,
+      "sha256": "97fd83877806d067d8eb8bd74c91d82c03c2791e6adb3a027f38c7abfec9070d"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs011/python-canonical-golden.json",
+      "bytes": 1809,
+      "sha256": "e836733a6a9ef7a11980d3c6ac652dbe555a808820b06136473e1415b4472853"
+    },
+    {
+      "path": "packages/contracts/src/command-outbox.ts",
+      "bytes": 25262,
+      "sha256": "edb55bb86c6e8b9eba62d658220e340aef9c979fbad84cbb91dfcb46f3941ad9"
+    },
+    {
+      "path": "packages/contracts/src/index.ts",
+      "bytes": 2271,
+      "sha256": "b84a7441851d0b5e735aa0791d20c8c01eb3bdb6399859d1b6b630c46c511b95"
+    },
+    {
+      "path": "packages/contracts/src/ipc-names.ts",
+      "bytes": 9105,
+      "sha256": "7c7d69c5149b0117a1d245d8a62d327942e0bbaf92279e9c763d5252b9896bb8"
+    },
+    {
+      "path": "packages/contracts/src/ipc.ts",
+      "bytes": 45981,
+      "sha256": "24c76c5b689ca390a0c9b3997afaa3d29cefdc39715d079cffdb68268d5c0be2"
+    },
+    {
+      "path": "packages/contracts/src/local-catalog.ts",
+      "bytes": 29951,
+      "sha256": "6f2d86a5f6fc71010ebff569391dfe7184a55caa216e6b4ea8d35f6b10d2a0a3"
+    },
+    {
+      "path": "packages/contracts/src/local-organizer.ts",
+      "bytes": 20412,
+      "sha256": "94a771aac284e2afbc46a19f5ebb2fc1e3dbc29562ac45aeb5bdcb98509f7303"
+    },
+    {
+      "path": "packages/contracts/src/validator.ts",
+      "bytes": 122919,
+      "sha256": "61b5bdc0fbdc70e94cb83ee2f4a859fa7332e4b9657f3b09410721a57fd6b033"
+    },
+    {
+      "path": "packages/contracts/test/mbrs011/contract.test.ts",
+      "bytes": 5262,
+      "sha256": "a549f1d3e3a20fd49b388186edd2976aa0694b5afac5d8acb10854bf8b0bdd2d"
+    },
+    {
+      "path": "packages/contracts/test/mbrs011/fixture.ts",
+      "bytes": 1901,
+      "sha256": "c90bcb0868ea7ff7dc90ef6937b01c43c184292603e9f198c428f1bb26fcd3c9"
+    },
+    {
+      "path": "project/POSTRUST_PLAN.json",
+      "bytes": 2057937,
+      "sha256": "38df34fddccb597449d0daa9d1bddf6b7f7944639228b9898b076155cb260069"
+    },
+    {
+      "path": "project/POSTRUST_PROGRESS.md",
+      "bytes": 61363,
+      "sha256": "2ef1c332a213b7be7b65bd5654ab2a6336f0937ef4a1bb383519520d2712c4c3"
+    },
+    {
+      "path": "project/POSTRUST_TODO.md",
+      "bytes": 10243,
+      "sha256": "d2ee17abd82b35c31af4df61a7b2975a99c9ed26caf0ffe06767c285c14e18d0"
+    },
+    {
+      "path": "project/STATUS.json",
+      "bytes": 2552924,
+      "sha256": "229466c8978e2a8aa1afc9514fd78ec93fb899d2f7a467ead9ca8b0ede8d84db"
+    },
+    {
+      "path": "scripts/ci/mbrs011-organizer-scope.json",
+      "bytes": 1502,
+      "sha256": "77bb7501a3e59b3236f2acd549f365e44e06957ce2ed94216cfabc7876f99ef0"
+    },
+    {
+      "path": "scripts/ci/test/verify-mbrs011-organizer.test.mjs",
+      "bytes": 5279,
+      "sha256": "e241bfa39459cb040e7d380be4afcc03da7318fc4f01852fdc0e02e0d765feab"
+    },
+    {
+      "path": "scripts/ci/verify-mbrs011-organizer.mjs",
+      "bytes": 17055,
+      "sha256": "56988faccb590c14f5241b431ef5d555271bd2e6496aa3a346107fa7cf52b692"
+    },
+    {
+      "path": "tasks/MBRS-011_METADATA_ORGANIZER.md",
+      "bytes": 3163,
+      "sha256": "ad6f239dbdb2fd9e3a2bad861996f87ad638efc72f8a8afb61660fb50b390600"
+    }
+  ],
+  "explicitSourceFiles": 56,
+  "allSourceFilesCommittedAndClean": true,
+  "unrelatedOriginalWip": "PRESERVED",
+  "catalogSchema": 34,
+  "sourceFilesWrite": "OFF",
+  "nodeOnlyWriter": true,
+  "optionalRustReadonly": "OFF"
+}

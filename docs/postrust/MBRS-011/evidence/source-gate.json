@@ -1,0 +1,30 @@
+{
+  "schema": "mbrs011.source-exact-gate.v1",
+  "sourceSha": "e3cbc669434e7627aec23241095de706790de743",
+  "tests": 226,
+  "pass": 226,
+  "fail": 0,
+  "stages": 10,
+  "exitCode": 0,
+  "declaredInputs": 1338,
+  "allDeclaredInputsMatchSourceGitBlobs": true,
+  "beforeAfterInputsUnchanged": true,
+  "sourceGitBindingScope": "DECLARED_INPUTS_NOT_TRANSITIVE_COMPILER_TOOLCHAIN_CLOSURE",
+  "rawSummary": {
+    "archiveId": "MBRS011_EXACT_SOURCE_GATE01",
+    "fileName": "summary.json",
+    "bytes": 264520,
+    "sha256": "3714f87ea8a05fbc18e0881a7b7d384eaf8158808c90135e1a31db6cbe49e6b4",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "realRoonAudioOwner": "NOT_RUN",
+  "precommitBuildAppToSourceBinding": {
+    "archiveId": "MBRS011_SOURCE_GIT_BINDING",
+    "fileName": "SOURCE_GIT_BINDING.json",
+    "bytes": 335461,
+    "sha256": "58b4177526de60e0a48bc9f29b170e8df7d2d46681275fa25a335c67c8552c84",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  }
+}

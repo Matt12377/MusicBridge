@@ -1,0 +1,63 @@
+{
+  "schema": "mbrs011.ordinary-app.public.v1",
+  "sourceSha": "e3cbc669434e7627aec23241095de706790de743",
+  "interaction": "ROOT_CUA_NATIVE_ACTIONS_ONLY_ON_SELF_OWNED_SYNTHETIC_PROFILE",
+  "observed": [
+    "本地音乐四曲与三列原列表",
+    "四条整理历史含原已撤销与逆向已完成记录",
+    "两条同名独立发行仍分别显示",
+    "原始标签与人工更正及生效值并列",
+    "六字段默认保持且无更正时预览按钮禁用",
+    "原生标题编辑后四列具体预览",
+    "预览显示尚未保存",
+    "取消后已取消且保存禁用",
+    "Escape关闭并把焦点返回原整理入口且标题未变"
+  ],
+  "screenshot": "ACTUAL_CUA_PREVIEW_VIEW_OBSERVED_NOT_EXPORTED_AS_OWNER_ACCEPTANCE",
+  "close": {
+    "exitCode": 0,
+    "signal": null,
+    "forced": false,
+    "sourceUnchanged": true,
+    "outputsUnchanged": true,
+    "fixturesUnchanged": true,
+    "interaction": "ROOT_CUA_ONLY",
+    "realProviderAccountRoonAudioOwner": "NOT_RUN"
+  },
+  "collection": {
+    "userVersion": 34,
+    "foreignKeyViolations": 0,
+    "oldFourPlanTerminalStatesUnchanged": true,
+    "newCancelledPreviewPlans": 1,
+    "cancelledPreviewDidNotAppearInMetadataOverride": true,
+    "existingCorrectedTitlePreserved": true,
+    "overrides": 2,
+    "organizerJournalEvents": 37
+  },
+  "outbox": {
+    "existingFivePersistedBindingsUnchanged": true,
+    "noExtraExecuteOrUndoRequest": true,
+    "cancelPath": "DIRECT_CANCEL_IPC_PERSISTED_IN_ORGANIZER_JOURNAL_NOT_OUTBOX_EXECUTE",
+    "totalOrganizerRequests": 5
+  },
+  "collectionIdentity": {
+    "bytes": 1392640,
+    "sha256": "2736334fd121f9f83251a1700543ec60fad330a782ab55c19ea3c9d3683360a0",
+    "mode": "READONLY_IMMUTABLE_AFTER_NATURAL_EXIT_NO_WAL"
+  },
+  "outboxIdentity": {
+    "bytes": 61440,
+    "sha256": "0a8ac8269c6c8235494cb15677f2ebd2651a4e93f4b64ecbe117f457ad2d8bbd",
+    "mode": "READONLY_IMMUTABLE_AFTER_NATURAL_EXIT_NO_WAL"
+  },
+  "nativeSaveAndUndo": "NOT_RUN_IN_THIS_CUA_PHASE_SEPARATE_PRODUCTION_E2E_HAS_SAVE_UNDO_AND_RESTART",
+  "realProviderRoonNasAudioDeviceOwner": "NOT_RUN",
+  "receipt": {
+    "archiveId": "MBRS011_ORDINARY_APP_NATIVE",
+    "fileName": "ROOT_ORDINARY_APP_EVIDENCE.json",
+    "bytes": 2310,
+    "sha256": "e1efac3bcf1709c60a48a6efe4bf3379e7dd0950316bb6a2a9673207332dd1b8",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  }
+}

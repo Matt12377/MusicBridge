@@ -1,0 +1,531 @@
+{
+  "schema": "mbrs011.source-ci.public.v1",
+  "repositoryId": 1340424953,
+  "sourceSha": "e3cbc669434e7627aec23241095de706790de743",
+  "state": "ALL_NATURAL_CI_SUCCESS",
+  "workflowCount": 4,
+  "jobCount": 6,
+  "allAttemptOne": true,
+  "noRerunOrCancellation": true,
+  "artifactContentDownloaded": false,
+  "runs": [
+    {
+      "id": 37622291160,
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37622291160",
+      "path": ".github/workflows/electron-e2e.yml",
+      "headSha": "e3cbc669434e7627aec23241095de706790de743",
+      "branch": "codex/mbrs-011-mb-only-organizer",
+      "attempt": 1,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 112795277136,
+          "name": "macos-electron-gate",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Checkout",
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare hosted runner evidence directories",
+              "conclusion": "success"
+            },
+            {
+              "name": "Node.js 22",
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare source-pinned build workspace mirror",
+              "conclusion": "success"
+            },
+            {
+              "name": "Install frozen workspace",
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare fresh Core fixed Worker before existing Electron gates",
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare Rust toolchain",
+              "conclusion": "success"
+            },
+            {
+              "name": "Build and verify both Rust hosts once in this job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Install Electron binary from locked tree (official installer only)",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify official Electron archive and actual execution tree",
+              "conclusion": "success"
+            },
+            {
+              "name": "Electron startup, crash/restart, safeStorage vault and credential recovery gates",
+              "conclusion": "success"
+            },
+            {
+              "name": "Electron end-to-end flow (Playwright, production build)",
+              "conclusion": "success"
+            },
+            {
+              "name": "Select declared synthetic Rust Host artifacts",
+              "conclusion": "success"
+            },
+            {
+              "name": "Preserve declared synthetic Rust Host compiled artifacts",
+              "conclusion": "success"
+            },
+            {
+              "name": "Preserve Electron logs and synthetic test artifacts",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Node.js 22",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Checkout",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11483861787,
+          "name": "electron-e2e-e3cbc669434e7627aec23241095de706790de743",
+          "digest": "sha256:b58de9e399e8467b5a178976f2324822bd8db7fa6d19a60dd7755afaaca51827",
+          "expired": false,
+          "expiresAt": "2026-10-21T13:01:00Z",
+          "runId": 37622291160,
+          "headSha": "e3cbc669434e7627aec23241095de706790de743"
+        },
+        {
+          "id": 11483174492,
+          "name": "rust-host-compiled-e3cbc669434e7627aec23241095de706790de743",
+          "digest": "sha256:57a72246f1d5dccf22ca02c9fe2f7332147957a49c17261098b9425f2629f52f",
+          "expired": false,
+          "expiresAt": "2026-10-21T13:00:52Z",
+          "runId": 37622291160,
+          "headSha": "e3cbc669434e7627aec23241095de706790de743"
+        }
+      ]
+    },
+    {
+      "id": 37622291103,
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37622291103",
+      "path": ".github/workflows/security.yml",
+      "headSha": "e3cbc669434e7627aec23241095de706790de743",
+      "branch": "codex/mbrs-011-mb-only-organizer",
+      "attempt": 1,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 112795277086,
+          "name": "static-security",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Checkout",
+              "conclusion": "success"
+            },
+            {
+              "name": "Node.js 22",
+              "conclusion": "success"
+            },
+            {
+              "name": "Install frozen workspace",
+              "conclusion": "success"
+            },
+            {
+              "name": "Validate machine control state",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run boundary, loopback, secret and URL/query scans",
+              "conclusion": "success"
+            },
+            {
+              "name": "Scan workspace import cycles",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run directed platform-independent security tests (no Electron)",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Node.js 22",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Checkout",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ],
+      "artifacts": []
+    },
+    {
+      "id": 37622291380,
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37622291380",
+      "path": ".github/workflows/rust-core.yml",
+      "headSha": "e3cbc669434e7627aec23241095de706790de743",
+      "branch": "codex/mbrs-011-mb-only-organizer",
+      "attempt": 1,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 112795278159,
+          "name": "rust-core (macos-latest)",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "准备真实hosted专用构建根",
+              "conclusion": "success"
+            },
+            {
+              "name": "安装固定 Rust 工具链",
+              "conclusion": "success"
+            },
+            {
+              "name": "安装冻结工作区依赖",
+              "conclusion": "success"
+            },
+            {
+              "name": "验证实际 Rust 与 TypeScript 边界",
+              "conclusion": "success"
+            },
+            {
+              "name": "保留编译器、测试及源码与二进制清单",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ]
+        },
+        {
+          "id": 112795278450,
+          "name": "rust-core (ubuntu-latest)",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Run actions/setup-node@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "准备真实hosted专用构建根",
+              "conclusion": "success"
+            },
+            {
+              "name": "安装固定 Rust 工具链",
+              "conclusion": "success"
+            },
+            {
+              "name": "安装冻结工作区依赖",
+              "conclusion": "success"
+            },
+            {
+              "name": "验证实际 Rust 与 TypeScript 边界",
+              "conclusion": "success"
+            },
+            {
+              "name": "保留编译器、测试及源码与二进制清单",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/setup-node@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Run actions/checkout@v4",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11482369051,
+          "name": "rust-core-ubuntu-latest-e3cbc669434e7627aec23241095de706790de743",
+          "digest": "sha256:d06f7f725590184947e09e31e44ea46e54e722a8c8bdf8eed3f544dccfa7604b",
+          "expired": false,
+          "expiresAt": "2026-10-21T12:41:44Z",
+          "runId": 37622291380,
+          "headSha": "e3cbc669434e7627aec23241095de706790de743"
+        },
+        {
+          "id": 11482329475,
+          "name": "rust-core-macos-latest-e3cbc669434e7627aec23241095de706790de743",
+          "digest": "sha256:f2e0d9ce909e53b2489260a5e6eace12e26a4812f26d4069d969d7b307676db6",
+          "expired": false,
+          "expiresAt": "2026-10-21T12:42:23Z",
+          "runId": 37622291380,
+          "headSha": "e3cbc669434e7627aec23241095de706790de743"
+        }
+      ]
+    },
+    {
+      "id": 37622291116,
+      "url": "https://github.com/Matt12377/MusicBridge/actions/runs/37622291116",
+      "path": ".github/workflows/verify.yml",
+      "headSha": "e3cbc669434e7627aec23241095de706790de743",
+      "branch": "codex/mbrs-011-mb-only-organizer",
+      "attempt": 1,
+      "event": "push",
+      "status": "completed",
+      "conclusion": "success",
+      "jobs": [
+        {
+          "id": 112795276870,
+          "name": "dependency-audit",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Checkout",
+              "conclusion": "success"
+            },
+            {
+              "name": "Node.js 22",
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare source-pinned build workspace mirror",
+              "conclusion": "success"
+            },
+            {
+              "name": "Install frozen workspace",
+              "conclusion": "success"
+            },
+            {
+              "name": "Production dependency audit",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Node.js 22",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Checkout",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ]
+        },
+        {
+          "id": 112795276911,
+          "name": "verify",
+          "conclusion": "success",
+          "steps": [
+            {
+              "name": "Set up job",
+              "conclusion": "success"
+            },
+            {
+              "name": "Checkout",
+              "conclusion": "success"
+            },
+            {
+              "name": "Node.js 22",
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare strict hosted verification directories",
+              "conclusion": "success"
+            },
+            {
+              "name": "判定精确父源码CI可复用的报告提交",
+              "conclusion": "success"
+            },
+            {
+              "name": "Prepare source-pinned build workspace mirror",
+              "conclusion": "success"
+            },
+            {
+              "name": "Install frozen workspace",
+              "conclusion": "success"
+            },
+            {
+              "name": "Validate control plane",
+              "conclusion": "success"
+            },
+            {
+              "name": "Validate security and product boundaries",
+              "conclusion": "success"
+            },
+            {
+              "name": "Scan workspace import cycles",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify platform-independent workspace (typecheck, unit tests, build; no Electron)",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify offline preparation boundaries",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify isolated MBRS-001 offline POC",
+              "conclusion": "success"
+            },
+            {
+              "name": "MBRS002 本地合同 Gate",
+              "conclusion": "success"
+            },
+            {
+              "name": "MBRS003 阶段软件 Gate",
+              "conclusion": "success"
+            },
+            {
+              "name": "MBRS004 名称与版本规则 Gate",
+              "conclusion": "success"
+            },
+            {
+              "name": "MBRS005 本地文件网关与资源租约 Gate",
+              "conclusion": "success"
+            },
+            {
+              "name": "MBRS006 本地Audio Input与会话隔离 Gate",
+              "conclusion": "success"
+            },
+            {
+              "name": "MBRS007 队列预取与持久恢复 Gate",
+              "conclusion": "success"
+            },
+            {
+              "name": "MBRS008 原样字节与独立质量证据 Gate",
+              "conclusion": "success"
+            },
+            {
+              "name": "MBRS009 正式本地库有界查询与复用UI Gate",
+              "conclusion": "success"
+            },
+            {
+              "name": "MBRS010 封面选择与来源安全 Gate",
+              "conclusion": "success"
+            },
+            {
+              "name": "MBRS011 MB_ONLY信息整理预览与撤销 Gate",
+              "conclusion": "success"
+            },
+            {
+              "name": "验证报告CI准入正负例",
+              "conclusion": "success"
+            },
+            {
+              "name": "Diff whitespace",
+              "conclusion": "success"
+            },
+            {
+              "name": "Verify pinned historical fragments and current discarded rejection",
+              "conclusion": "success"
+            },
+            {
+              "name": "Preserve full verification log",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Node.js 22",
+              "conclusion": "success"
+            },
+            {
+              "name": "Post Checkout",
+              "conclusion": "success"
+            },
+            {
+              "name": "Complete job",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11483129816,
+          "name": "verify-e3cbc669434e7627aec23241095de706790de743",
+          "digest": "sha256:0106483b2ea88652450da2fa1752a12eacc4a1950e488ae5df00a16fad824163",
+          "expired": false,
+          "expiresAt": "2026-10-21T12:56:10Z",
+          "runId": 37622291116,
+          "headSha": "e3cbc669434e7627aec23241095de706790de743"
+        }
+      ]
+    }
+  ],
+  "rawSnapshot": {
+    "archiveId": "MBRS011_SOURCE_CI_TERMINAL",
+    "fileName": "source-20261007t130212022569z.json",
+    "bytes": 98187,
+    "sha256": "2aba102e2a1a252978a4eb6104b62e055cc6e353e7b4602fea32d1288679c4d3",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  }
+}
