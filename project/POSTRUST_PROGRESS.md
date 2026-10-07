@@ -258,3 +258,7 @@ iOS 展示层后继只读登记：源码 a11d1b2、报告/当次远端 843e6e5�
 #### MBRS-014 本地软件与实际合成App结果
 
 新六方法与三个Outbox执行命令接入完成，独立增量边与Source保护不重建旧对象。定向56/56、225/225、123/123=404/404，标准4666总/4664通过/0失败/2既有条件skip、三包/E2E类型与生产build退出0，三个静态门禁通过。生产build003观察656源码/905产物；实际离线A/B 2/2、4次自然退出0/null、12条持久成功ACK与冷启动无重放。103表全部结构和值比较，100表原值保持，ZIP epoch和两工作位置表按旧UI动作精确核对；冻结录音/版本/Prepared与既有业务历史0例外，原P1基线103表不改，35附件及原PDF保持。原worker/P1精确6表、4打印对象，PDF3页只读渲染查看。真实Reference焦点错误修复及previewClock递增时钟RED/GREEN保留原失败。源码提交后精确Gate、普通push自然CI和独立报告仍待；当前base不冒充实现提交。原8AT总体PARTIAL、SOURCE_FILES OFF、Node/schema34/Rust OFF、真实数据/设备/Owner及Gate B/P4/P5仍未验；常规后续已持续授权。
+
+#### MBRS-014 精确源码与独立报告
+
+实现 5700f7a63ee963b656a6c2b4a795eb8af0b70ca0 普通push且远端一致，源码自然4workflow/6job全部首次success，无重跑或取消；014自身Gate实际成功。提交后精确Gate为10阶段404/404、1379声明输入逐Git核对，和实际生产build003的656输入合并1437不同Git blob，全体与实现字节精确对应。原905当次产物贯穿App05前后不变；独立标准重建仅Core构建收据变化，事实与原过严核对失败另记。报告及便携source-gate/source-identity/source-ci仅更新报告引用和交付元数据；8AT及产品层级不变，Node/schema34/Rust OFF/源写OFF、真实库/音频/设备/Owner与旧Gate B/P4/P5保留。报告提交自身push、2workflow/3job与clean/远端最终HEAD由提交后私有最终收据核验，当前不提前写PASS。最终封存后012从本报告HEAD创建独立分支，三角色只读草案不计012实现；持续授权，无额外代理审批。

@@ -46706,10 +46706,10 @@
   },
   "mbrs014LegacySourceCompatibility": {
     "task": "MBRS-014",
-    "state": "LOCAL_SOFTWARE_FULL_GATE_AND_CONTROLLED_APP_PASS_SOURCE_COMMIT_PENDING",
+    "state": "SOURCE_SOFTWARE_AND_NATURAL_CI_PASS_REPORT_DELIVERY_PENDING",
     "baseSha": "b33357c09e6bded2b4c6c5acfcf7330e68366a5f",
     "branch": "codex/mbrs-014-legacy-source-compatibility",
-    "implementationCommit": null,
+    "implementationCommit": "5700f7a63ee963b656a6c2b4a795eb8af0b70ca0",
     "reportCommit": null,
     "report": "reports/MBRS-014_LEGACY_SOURCE_COMPATIBILITY.md",
     "productAcceptance": "PARTIAL",
@@ -46733,7 +46733,10 @@
       "contractUiHandoff": "docs/postrust/MBRS-014/CONTRACT_UI_HANDOFF.json",
       "nonemptyBaseline": "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
       "localValidation": "docs/postrust/MBRS-014/LOCAL_VALIDATION.json",
-      "productionApp": "docs/postrust/MBRS-014/PRODUCTION_APP.json"
+      "productionApp": "docs/postrust/MBRS-014/PRODUCTION_APP.json",
+      "exactSourceGate": "docs/postrust/MBRS-014/evidence/source-gate.json",
+      "sourceGitBuildAppBinding": "docs/postrust/MBRS-014/evidence/source-identity.json",
+      "sourceNaturalCi": "docs/postrust/MBRS-014/evidence/source-ci.json"
     },
     "localValidation": {
       "standardTests": 4666,
@@ -46765,8 +46768,34 @@
         "inputsUnchanged": true
       }
     },
-    "implementationCommitResolution": "SOURCE_COMMIT_CONTAINING_THIS_METADATA_RESOLVE_BY_GIT",
-    "reportCommitResolution": "INDEPENDENT_REPORT_COMMIT_AFTER_SOURCE_NATURAL_CI",
-    "updatedAt": "2026-10-08"
+    "implementationCommitResolution": "PINNED_EXACT_SOURCE_COMMIT",
+    "reportCommitResolution": "GIT_LOG_LAST_COMMIT_TOUCHING_CANONICAL_REPORT",
+    "updatedAt": "2026-10-07T19:30:31.081019+00:00",
+    "push": {
+      "source": "PASS_EXACT_REMOTE_HEAD",
+      "report": "VERIFY_AFTER_REPORT_COMMIT_NORMAL_PUSH",
+      "branch": "codex/mbrs-014-legacy-source-compatibility"
+    },
+    "ci": {
+      "source": "ALL_NATURAL_CI_SUCCESS",
+      "sourceSha": "5700f7a63ee963b656a6c2b4a795eb8af0b70ca0",
+      "sourceWorkflows": 4,
+      "sourceJobs": 6,
+      "sourceEvidence": "docs/postrust/MBRS-014/evidence/source-ci.json",
+      "noRerunOrCancellation": true,
+      "artifactContentDownloaded": false,
+      "report": "VERIFY_AFTER_REPORT_COMMIT_NORMAL_PUSH",
+      "reportExpectedWorkflows": 2,
+      "reportExpectedJobs": 3
+    },
+    "finalDeliveryReceipt": {
+      "archiveId": "MBRS014_FINAL_DELIVERY_RECEIPT",
+      "fileName": "MBRS014_FINAL_DELIVERY_RECEIPT.json",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "resolution": "CREATE_AFTER_REPORT_HEAD_REMOTE_CLEAN_AND_NATURAL_CI_VERIFIED",
+      "publiclyDownloadable": false
+    },
+    "nextTask": "MBRS-012",
+    "nextBranchBaseline": "FINAL_CLEAN_REMOTE_CONSISTENT_REPORT_HEAD_AFTER_NATURAL_CI"
   }
 }

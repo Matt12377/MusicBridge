@@ -32349,17 +32349,27 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "5700f7a63ee963b656a6c2b4a795eb8af0b70ca0",
       "report_commit": null,
-      "validation_status": "LOCAL_STANDARD_FULL404_GATE_CONTROLLED_APP_PASS_EXACT_SOURCE_DELIVERY_PENDING",
+      "validation_status": "LOCAL_STANDARD_404_GATE_APP_AND_EXACT_SOURCE_CI_PASS_REPORT_SEAL_PENDING_PRODUCT_PARTIAL",
       "evidence_refs": [
         "docs/postrust/MBRS-014/LOCAL_VALIDATION.json",
         "docs/postrust/MBRS-014/PRODUCTION_APP.json",
         "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
         "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
-        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+        "docs/postrust/MBRS-014/STATE_MATRIX.json",
+        "docs/postrust/MBRS-014/evidence/source-gate.json",
+        "docs/postrust/MBRS-014/evidence/source-identity.json",
+        "docs/postrust/MBRS-014/evidence/source-ci.json"
       ],
-      "implementation_commit_resolution": "SOURCE_COMMIT_CONTAINING_THIS_METADATA_RESOLVE_BY_GIT"
+      "implementation_commit_resolution": "PINNED_EXACT_SOURCE_COMMIT",
+      "report_commit_resolution": "GIT_LOG_LAST_COMMIT_TOUCHING_CANONICAL_REPORT",
+      "report_path": "reports/MBRS-014_LEGACY_SOURCE_COMPATIBILITY.md",
+      "terminal_ci_receipt": {
+        "source": "docs/postrust/MBRS-014/evidence/source-ci.json",
+        "sourceSha": "5700f7a63ee963b656a6c2b4a795eb8af0b70ca0",
+        "report": "POST_COMMIT_PRIVATE_FINAL_DELIVERY_RECEIPT_REQUIRED"
+      }
     },
     {
       "id": "MBRS-015",
@@ -34412,7 +34422,10 @@
         "docs/postrust/MBRS-014/PRODUCTION_APP.json",
         "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
         "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
-        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+        "docs/postrust/MBRS-014/STATE_MATRIX.json",
+        "docs/postrust/MBRS-014/evidence/source-gate.json",
+        "docs/postrust/MBRS-014/evidence/source-identity.json",
+        "docs/postrust/MBRS-014/evidence/source-ci.json"
       ],
       "software_status": "PASS_SYNTHETIC_IDENTITY_AND_MIGRATION_GUARDS",
       "app_status": "PASS_SELF_OWNED_SCHEMA34_ONLY",
@@ -34433,7 +34446,10 @@
         "docs/postrust/MBRS-014/PRODUCTION_APP.json",
         "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
         "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
-        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+        "docs/postrust/MBRS-014/STATE_MATRIX.json",
+        "docs/postrust/MBRS-014/evidence/source-gate.json",
+        "docs/postrust/MBRS-014/evidence/source-identity.json",
+        "docs/postrust/MBRS-014/evidence/source-ci.json"
       ],
       "software_status": "PASS_RELATIONS_ONLY",
       "app_status": "PASS_CONTROLLED_PHYSICAL_DIGITAL_CURRENT_SOURCE",
@@ -34454,7 +34470,10 @@
         "docs/postrust/MBRS-014/PRODUCTION_APP.json",
         "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
         "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
-        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+        "docs/postrust/MBRS-014/STATE_MATRIX.json",
+        "docs/postrust/MBRS-014/evidence/source-gate.json",
+        "docs/postrust/MBRS-014/evidence/source-identity.json",
+        "docs/postrust/MBRS-014/evidence/source-ci.json"
       ],
       "software_status": "PARTIAL_SOURCE_WRITER_OFF",
       "app_status": "PASS_MB_DISPLAY_ARTWORK_FROZEN_FACTS_PRESERVED",
@@ -34475,7 +34494,10 @@
         "docs/postrust/MBRS-014/PRODUCTION_APP.json",
         "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
         "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
-        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+        "docs/postrust/MBRS-014/STATE_MATRIX.json",
+        "docs/postrust/MBRS-014/evidence/source-gate.json",
+        "docs/postrust/MBRS-014/evidence/source-identity.json",
+        "docs/postrust/MBRS-014/evidence/source-ci.json"
       ],
       "software_status": "PASS_SOURCE_PROTECTION_ONLY",
       "app_status": "NOT_RUN_ACTIVE_RECORDING_DEVICE",
@@ -34496,7 +34518,10 @@
         "docs/postrust/MBRS-014/PRODUCTION_APP.json",
         "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
         "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
-        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+        "docs/postrust/MBRS-014/STATE_MATRIX.json",
+        "docs/postrust/MBRS-014/evidence/source-gate.json",
+        "docs/postrust/MBRS-014/evidence/source-identity.json",
+        "docs/postrust/MBRS-014/evidence/source-ci.json"
       ],
       "software_status": "PASS_OLD_ENTRIES_AND_SAFE_API",
       "app_status": "PASS_CONTROLLED_OLD_UNBOUND_ENTRY",
@@ -34517,7 +34542,10 @@
         "docs/postrust/MBRS-014/PRODUCTION_APP.json",
         "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
         "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
-        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+        "docs/postrust/MBRS-014/STATE_MATRIX.json",
+        "docs/postrust/MBRS-014/evidence/source-gate.json",
+        "docs/postrust/MBRS-014/evidence/source-identity.json",
+        "docs/postrust/MBRS-014/evidence/source-ci.json"
       ],
       "software_status": "PASS_ORIGINAL_PRINT_AND_IMAGE_REGRESSIONS",
       "app_status": "PASS_SELF_OWNED_P1_PDF_TAPE_PHOTOS",
@@ -35225,7 +35253,10 @@
         "docs/postrust/MBRS-014/PRODUCTION_APP.json",
         "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
         "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
-        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+        "docs/postrust/MBRS-014/STATE_MATRIX.json",
+        "docs/postrust/MBRS-014/evidence/source-gate.json",
+        "docs/postrust/MBRS-014/evidence/source-identity.json",
+        "docs/postrust/MBRS-014/evidence/source-ci.json"
       ],
       "software_status": "PASS_REFERENCE_IDS_AND_COUNTS_GUARDS",
       "app_status": "PASS_CONTROLLED_REFERENCE_ENTRY_AND_PHOTOS",
@@ -35246,7 +35277,10 @@
         "docs/postrust/MBRS-014/PRODUCTION_APP.json",
         "docs/postrust/MBRS-014/NONEMPTY_BASELINE.json",
         "docs/postrust/MBRS-014/SOURCE_PROTECTION_REVIEW.json",
-        "docs/postrust/MBRS-014/STATE_MATRIX.json"
+        "docs/postrust/MBRS-014/STATE_MATRIX.json",
+        "docs/postrust/MBRS-014/evidence/source-gate.json",
+        "docs/postrust/MBRS-014/evidence/source-identity.json",
+        "docs/postrust/MBRS-014/evidence/source-ci.json"
       ],
       "software_status": "PARTIAL_PIPELINE_PRESERVED_DEVICE_NOT_RUN",
       "app_status": "PARTIAL_PRINT_AND_RETAINED_EXECUTION_ASSETS",
