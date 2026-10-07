@@ -46323,10 +46323,10 @@
   },
   "mbrs010ArtworkSelectionCache": {
     "task": "MBRS-010",
-    "state": "IN_PROGRESS_CI_COMPATIBILITY_FIX_LOCAL_GATES_PASS",
+    "state": "IN_PROGRESS_LOCAL_PASS_LEGACY_STARTUP_CLOCK_FIX_CI_PENDING",
     "branch": "codex/mbrs-010-artwork-selection-cache",
     "baseCommit": "0a9c211805cdaecf56c699fe0c264590a0839e0e",
-    "implementationCommit": "1eb7f90902967e0d9fcaf59f88895827dfb74d3f",
+    "implementationCommit": "5d7962ea178bb492f56ba8c444c3f32ae946126d",
     "reportCommit": null,
     "scope": "docs/postrust/MBRS-010/EXECUTION_SCOPE.json",
     "originalAcceptanceCount": 7,
@@ -46385,9 +46385,20 @@
           "publiclyDownloadable": false
         }
       },
-      "current": "PENDING_NEW_COMPATIBILITY_FIX_SOURCE_CI"
+      "current": "PENDING_NEW_STARTUP_CLOCK_FIX_SOURCE_CI",
+      "previousSourceVerifyFailure": {
+        "headSha": "5d7962ea178bb492f56ba8c444c3f32ae946126d",
+        "runId": 37601904175,
+        "jobId": 112728031595,
+        "coreCounts": {
+          "tests": 2769,
+          "pass": 2766,
+          "fail": 1,
+          "skipped": 2
+        }
+      }
     },
-    "implementationCommitResolution": "初实现已push；兼容性修正提交和精确源自然CI待解析",
+    "implementationCommitResolution": "当前时钟修正提交由git log -1 --format=%H -- packages/bridge-core/test/rust-sidecar-client.test.ts解析；正式审计报告填确切父提交。",
     "legacySchemaCompatibility": {
       "firstSourceSha": "1eb7f90902967e0d9fcaf59f88895827dfb74d3f",
       "firstSourceCi": {
@@ -46495,6 +46506,64 @@
         }
       },
       "priorFullVerificationBoundary": "083729完整回归与App对应的产品源码保持；本次只同步旧测试及范围登记，当前行为由67/124/10及提交后Gate、新自然CI补证。"
+    },
+    "legacyStartupClockCorrection": {
+      "failedSourceSha": "5d7962ea178bb492f56ba8c444c3f32ae946126d",
+      "failedRunId": 37601904175,
+      "failedJobId": 112728031595,
+      "failedStep": "Verify platform-independent workspace (typecheck, unit tests, build; no Electron)",
+      "coreCounts": {
+        "tests": 2769,
+        "pass": 2766,
+        "fail": 1,
+        "skipped": 2
+      },
+      "failure": "EXISTING_TEST_EXPECTED_LATE_BOOT_FUNCTION_BUT_RECEIVED_UNDEFINED_BEFORE_TARGET_STAGE",
+      "failedTestFile": "packages/bridge-core/test/rust-sidecar-client.test.ts",
+      "failedTestOriginalLine": 364,
+      "failedTestDurationMs": 389.4805,
+      "failedLog": {
+        "archiveId": "MBRS010_SECOND_SOURCE_VERIFY_FAILURE",
+        "fileName": "source-5d7962e-verify-failed.log",
+        "bytes": 2949887,
+        "sha256": "6b8e7d61e7911a4b8b2c18ffa209eff9e656035370c62fcda563baec452912c1",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "diagnosis": "旧用例在boot处理器就绪前耗尽200ms墙钟期限；负载及二进制准入耗时为时序原因推断。",
+      "correction": "先观察实际commitBoot，再推进单调时钟和setTimeout至201ms，仍断言TIMEOUT、自有进程清理、Owner不关闭及迟到boot不发布或重放。",
+      "testStartupTimeoutMs": 200,
+      "productionDefaultStartupTimeoutMs": 5000,
+      "productSourceChanged": false,
+      "originalTestCountUnchanged": true,
+      "directedRegression": {
+        "tests": 35,
+        "pass": 35,
+        "fail": 0,
+        "skipped": 0,
+        "exitCode": 0,
+        "receipt": {
+          "archiveId": "MBRS010_STARTUP_CLOCK_GREEN",
+          "fileName": "rust-startup-clock-green.json",
+          "bytes": 814,
+          "sha256": "8f48ec82b16b52b0c4dfe52ed666aa2a2d6666b730fb8a4151d63a6c1a43c1af",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      },
+      "coreTypecheck": {
+        "exitCode": 0,
+        "receipt": {
+          "archiveId": "MBRS010_STARTUP_CLOCK_CORE_TYPECHECK",
+          "fileName": "rust-startup-clock-core-typecheck.json",
+          "bytes": 361,
+          "sha256": "15cdad181da9fc283871d085d6bb0dd4031303e1c0dca022feb853a5fd70af73",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      },
+      "previousOtherNaturalCi": "独立保留原运行，在私有终态归档中解析，不重跑或取消。",
+      "newSourceCi": "PENDING_NORMAL_PUSH_FOR_NEW_FIX_COMMIT"
     }
   }
 }

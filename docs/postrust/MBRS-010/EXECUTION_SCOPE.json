@@ -97,7 +97,8 @@
       "packages/bridge-core/test/mbrs003/persistent-scan-cue.test.ts",
       "apps/desktop/e2e/task-069.spec.ts",
       "apps/desktop/e2e/task-070.spec.ts",
-      "apps/desktop/e2e/task-078.spec.ts"
+      "apps/desktop/e2e/task-078.spec.ts",
+      "packages/bridge-core/test/rust-sidecar-client.test.ts"
     ],
     "pureRulesWriter": [
       "packages/bridge-core/src/library/artwork-selection-rules.ts",

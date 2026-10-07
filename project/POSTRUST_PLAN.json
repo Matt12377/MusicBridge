@@ -32136,9 +32136,9 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": "1eb7f90902967e0d9fcaf59f88895827dfb74d3f",
+      "implementation_commit": "5d7962ea178bb492f56ba8c444c3f32ae946126d",
       "report_commit": null,
-      "validation_status": "LOCAL_PRODUCT_AND_SCHEMA34_COMPATIBILITY_PASS_NEW_SOURCE_CI_PENDING",
+      "validation_status": "LOCAL_ARTWORK_SCHEMA34_AND_STARTUP_CLOCK_PASS_NEW_SOURCE_CI_PENDING",
       "evidence_refs": [
         "docs/postrust/MBRS-010/EXECUTION_SCOPE.json",
         "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",
@@ -32147,7 +32147,8 @@
       "base_sha": "0a9c211805cdaecf56c699fe0c264590a0839e0e",
       "branch": "codex/mbrs-010-artwork-selection-cache",
       "source_files_write": "OFF",
-      "provider_admission": "FAILED_PROVIDER_NOT_ADMITTED"
+      "provider_admission": "FAILED_PROVIDER_NOT_ADMITTED",
+      "implementation_commit_resolution": "当前时钟修正提交由git log -1 --format=%H -- packages/bridge-core/test/rust-sidecar-client.test.ts解析；正式审计报告填确切父提交。"
     },
     {
       "id": "MBRS-011",

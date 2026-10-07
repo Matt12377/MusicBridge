@@ -357,14 +357,27 @@ test('整体期限按单调时钟检查同步阻塞，过期后不继续导出',
 });
 
 test('启动阶段整体期限失败清理自己的进程，迟到boot回执不发布成功', async t => {
-  let release!: () => void;
-  const f = fake(t, (frame, respond) => { if (frame.operation === 'commitBoot') release = respond; else respond(); });
+  let now = 0, release!: () => void, observeBoot!: () => void;
+  const bootSeen = new Promise<void>(resolve => { observeBoot = resolve; });
+  t.mock.method(performance, 'now', () => now);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const f = fake(t, (frame, respond) => {
+    if (frame.operation === 'commitBoot') { release = respond; observeBoot(); } else respond();
+  });
   const s = snapshot(), source = sourceOwner(s);
-  await assert.rejects(createRustReadonlyDatasetEndpointFromOwner({ binary, owner: source.owner, startupTimeoutMs: 200 }), code('TIMEOUT'));
+  const startup = createRustReadonlyDatasetEndpointFromOwner({ binary, owner: source.owner, startupTimeoutMs: 200 });
+  const timedOut = assert.rejects(startup, code('TIMEOUT'));
+  // 进入实际boot阶段后推进同一200ms期限，不把CI初始化耗时当作迟到回执场景。
+  await Promise.race([bootSeen, startup.then(() => assert.fail('期限推进前不能发布端点'))]);
+  assert.equal(f.frames.filter(frame => frame.operation === 'commitBoot').length, 1);
+  now = 201; t.mock.timers.tick(201); await timedOut;
   assert.equal(typeof release, 'function'); release();
   await new Promise(resolve => setImmediate(resolve));
+  await assert.rejects(startup, code('TIMEOUT'));
   assert.equal(f.killed, true); assert.equal(source.calls.close, 0);
   assert.equal(f.frames.filter(frame => frame.operation === 'prepare').length, 1);
+  assert.equal(f.frames.filter(frame => frame.operation === 'commitBoot').length, 1);
+  assert.equal(f.spawnMock.mock.callCount(), 1);
 });
 
 test('工厂的二进制准入失败保留源Owner，不改写或重试导出', async t => {
