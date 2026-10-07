@@ -98,7 +98,8 @@
       "apps/desktop/e2e/task-069.spec.ts",
       "apps/desktop/e2e/task-070.spec.ts",
       "apps/desktop/e2e/task-078.spec.ts",
-      "packages/bridge-core/test/rust-sidecar-client.test.ts"
+      "packages/bridge-core/test/rust-sidecar-client.test.ts",
+      "apps/desktop/e2e/task-067.spec.ts"
     ],
     "pureRulesWriter": [
       "packages/bridge-core/src/library/artwork-selection-rules.ts",

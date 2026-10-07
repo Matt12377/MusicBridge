@@ -32136,9 +32136,9 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": "5d7962ea178bb492f56ba8c444c3f32ae946126d",
+      "implementation_commit": "1a9fe0f06f25c2befa35e0b5cfa07d636f2d6c9c",
       "report_commit": null,
-      "validation_status": "LOCAL_ARTWORK_SCHEMA34_AND_STARTUP_CLOCK_PASS_NEW_SOURCE_CI_PENDING",
+      "validation_status": "LOCAL_ARTWORK_SCHEMA34_CLOCK_AND_RENDERER_RELOAD_PASS_NEW_SOURCE_CI_PENDING",
       "evidence_refs": [
         "docs/postrust/MBRS-010/EXECUTION_SCOPE.json",
         "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",
@@ -32148,7 +32148,7 @@
       "branch": "codex/mbrs-010-artwork-selection-cache",
       "source_files_write": "OFF",
       "provider_admission": "FAILED_PROVIDER_NOT_ADMITTED",
-      "implementation_commit_resolution": "当前时钟修正提交由git log -1 --format=%H -- packages/bridge-core/test/rust-sidecar-client.test.ts解析；正式审计报告填确切父提交。"
+      "implementation_commit_resolution": "当前刷新等待修正提交由git log -1 --format=%H -- apps/desktop/e2e/task-067.spec.ts解析；独立审计报告填确切父提交。"
     },
     {
       "id": "MBRS-011",

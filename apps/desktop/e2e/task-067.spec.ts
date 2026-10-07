@@ -19,6 +19,11 @@ async function launch(): Promise<void> {
   await expect(page.locator('#home-heading')).toBeVisible()
   await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime).toBe('ready')
 }
+async function reloadRenderer(): Promise<void> {
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await expect(page.locator('#home-heading')).toBeVisible()
+  await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime).toBe('ready')
+}
 async function close(): Promise<void> { const current = app; app = undefined; await current?.close().catch(() => undefined) }
 test.beforeEach(async () => { test.setTimeout(120_000); directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-ui-e2e-outbox-')); await mkdir(test.info().outputDir, { recursive: true }); await writeFile(test.info().outputPath('synthetic-user-data-path.txt'), directory); await launch() })
 test.afterEach(close)
@@ -50,7 +55,7 @@ for (const mode of ['throw', 'kill'] as const) {
     else {
       expect((await page.evaluate(() => window.musicBridge.listCollection({ offset: 0, limit: 10 }))).total).toBe(1)
       const before = await page.evaluate(() => window.musicBridge.getCommandOutbox()); expect(before.entries).toHaveLength(1); expect(before.entries[0]?.state).toBe('uncertain')
-      await page.reload(); await expect(page.locator('#home-heading')).toBeVisible()
+      await reloadRenderer()
       expect(await page.evaluate(() => window.musicBridge.getCommandOutbox())).toEqual(before)
       await close()
     }
@@ -119,7 +124,7 @@ test('V3 outbox：切库旧命令隔离，激活未知回执只读恢复不再�
   await expect(row.getByText('已成功，待确认', { exact: true })).toBeVisible()
   expect(await processes()).toEqual(before)
   await page.screenshot({ path: test.info().outputPath('outbox-dataset-isolation-720.png') })
-  await page.reload(); await expect(page.locator('#home-heading')).toBeVisible()
+  await reloadRenderer()
   await page.evaluate(request => window.musicBridge.receiveCollectionStock(request), stock('新上下文独立库存'))
   expect((await page.evaluate(() => window.musicBridge.listCollection({ offset: 0, limit: 10 }))).total).toBe(2)
   expect((await page.evaluate(() => window.musicBridge.getPlaybackState())).state).toBe('idle')
@@ -171,7 +176,7 @@ test('V3 outbox：复合撤权首项发送前Main被SIGKILL，整批仍可人工
   expect(overview.entries.map(item => item.commandId).sort()).toEqual(requests.map(item => item.commandId).sort())
   expect(overview.entries.every(item => item.state === 'pending' && item.canRetry)).toBe(true)
   expect(authorizations()).toEqual([true, true])
-  await page.reload(); await expect(page.locator('#home-heading')).toBeVisible()
+  await reloadRenderer()
   expect(authorizations()).toEqual([true, true])
   for (const entry of overview.entries) await page.evaluate(id => window.musicBridge.retryCommandOutbox({ id, userConfirmed: true }), entry.id)
   expect(authorizations()).toEqual([false, false])

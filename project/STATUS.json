@@ -46323,10 +46323,10 @@
   },
   "mbrs010ArtworkSelectionCache": {
     "task": "MBRS-010",
-    "state": "IN_PROGRESS_LOCAL_PASS_LEGACY_STARTUP_CLOCK_FIX_CI_PENDING",
+    "state": "IN_PROGRESS_LOCAL_AND_LEGACY_HARNESS_PASS_NEW_SOURCE_CI_PENDING",
     "branch": "codex/mbrs-010-artwork-selection-cache",
     "baseCommit": "0a9c211805cdaecf56c699fe0c264590a0839e0e",
-    "implementationCommit": "5d7962ea178bb492f56ba8c444c3f32ae946126d",
+    "implementationCommit": "1a9fe0f06f25c2befa35e0b5cfa07d636f2d6c9c",
     "reportCommit": null,
     "scope": "docs/postrust/MBRS-010/EXECUTION_SCOPE.json",
     "originalAcceptanceCount": 7,
@@ -46385,7 +46385,7 @@
           "publiclyDownloadable": false
         }
       },
-      "current": "PENDING_NEW_STARTUP_CLOCK_FIX_SOURCE_CI",
+      "current": "PENDING_NEW_RENDERER_RELOAD_FIX_SOURCE_CI",
       "previousSourceVerifyFailure": {
         "headSha": "5d7962ea178bb492f56ba8c444c3f32ae946126d",
         "runId": 37601904175,
@@ -46396,9 +46396,23 @@
           "fail": 1,
           "skipped": 2
         }
+      },
+      "previousSourceTerminalFailure": {
+        "workflows": 4,
+        "jobs": 6,
+        "passJobs": 4,
+        "failJobs": 2,
+        "receipt": {
+          "archiveId": "MBRS010_SECOND_SOURCE_CI_FAILURE",
+          "fileName": "source-20261007t100156154298z.json",
+          "bytes": 98033,
+          "sha256": "352aef7ae3e57a66daaafdb08124c550ab85ffc2051202203befaf40c30478cb",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
       }
     },
-    "implementationCommitResolution": "当前时钟修正提交由git log -1 --format=%H -- packages/bridge-core/test/rust-sidecar-client.test.ts解析；正式审计报告填确切父提交。",
+    "implementationCommitResolution": "当前刷新等待修正提交由git log -1 --format=%H -- apps/desktop/e2e/task-067.spec.ts解析；独立审计报告填确切父提交。",
     "legacySchemaCompatibility": {
       "firstSourceSha": "1eb7f90902967e0d9fcaf59f88895827dfb74d3f",
       "firstSourceCi": {
@@ -46564,6 +46578,81 @@
       },
       "previousOtherNaturalCi": "独立保留原运行，在私有终态归档中解析，不重跑或取消。",
       "newSourceCi": "PENDING_NORMAL_PUSH_FOR_NEW_FIX_COMMIT"
+    },
+    "legacyRendererReloadCorrection": {
+      "failedSourceSha": "5d7962ea178bb492f56ba8c444c3f32ae946126d",
+      "failedRunId": 37601904173,
+      "failedJobId": 112728032286,
+      "failedStep": "Electron end-to-end flow (Playwright, production build)",
+      "e2eCounts": {
+        "tests": 109,
+        "pass": 104,
+        "fail": 1,
+        "skipped": 4
+      },
+      "failedTestFile": "apps/desktop/e2e/task-067.spec.ts",
+      "failedTestOriginalLine": 53,
+      "failure": "PAGE_RELOAD_NAVIGATED_TO_APP_BUT_LOAD_EVENT_WAIT_EXCEEDED_30000_MS",
+      "failedLog": {
+        "archiveId": "MBRS010_SECOND_SOURCE_E2E_FAILURE",
+        "fileName": "source-5d7962e-e2e-failed.log",
+        "bytes": 51151,
+        "sha256": "885bdf48d4eab8b8bf3889d402809e1018c5e5e7dd33403577af4df083652e61",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "previousSourceTerminal": {
+        "workflows": 4,
+        "jobs": 6,
+        "passJobs": 4,
+        "failJobs": 2,
+        "receipt": {
+          "archiveId": "MBRS010_SECOND_SOURCE_CI_FAILURE",
+          "fileName": "source-20261007t100156154298z.json",
+          "bytes": 98033,
+          "sha256": "352aef7ae3e57a66daaafdb08124c550ab85ffc2051202203befaf40c30478cb",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      },
+      "diagnosisBoundary": "原失败步骤未继续观察DOM与Core状态，未取得阻塞load事件的资源或产品缺陷证据。",
+      "correction": "刷新与原启动统一为DOMContentLoaded、主页可见和Core ready；保留全部outbox、库存、账本、SIGKILL、无自动投递与原命令恢复断言。",
+      "originalNavigationTimeoutMs": 30000,
+      "originalTestTimeoutMs": 120000,
+      "originalCiJobTimeoutMinutes": 45,
+      "timeoutBudgetsChanged": false,
+      "originalTestCountUnchanged": true,
+      "productSourceChanged": false,
+      "directedProductionElectronE2e": {
+        "tests": 4,
+        "pass": 4,
+        "fail": 0,
+        "skipped": 0,
+        "flaky": 0,
+        "exitCode": 0,
+        "forced": false,
+        "receipt": {
+          "archiveId": "MBRS010_RENDERER_RELOAD_E2E_GREEN",
+          "fileName": "renderer-reload-e2e.json",
+          "bytes": 1032,
+          "sha256": "6fac66f42706523d2d9bae4ef45c8e14c6fe389edd3374f010eef14374f7e19f",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      },
+      "e2eTypecheck": {
+        "exitCode": 0,
+        "receipt": {
+          "archiveId": "MBRS010_RENDERER_RELOAD_E2E_TYPECHECK",
+          "fileName": "renderer-reload-e2e-typecheck.json",
+          "bytes": 357,
+          "sha256": "8e857bbbe912b1b0c153620ae35189865bc2f793461a5cb4a5b5441496f5fb3f",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      },
+      "newSourceCi": "PENDING_NORMAL_PUSH_FOR_NEW_FIX_COMMIT",
+      "priorCiRerunOrCancellation": false
     }
   }
 }
