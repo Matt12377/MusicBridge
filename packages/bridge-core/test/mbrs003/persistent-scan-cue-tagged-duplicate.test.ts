@@ -14,7 +14,7 @@ import {isLocalScanPreparedBatch,isLocalScanCommandPayload} from '@music-bridge/
 function rows(file:string) {
   const db=new DatabaseSync(file,{readOnly:true,allowExtension:false});
   try {
-    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version,33);assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check,'ok');assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version,34);assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check,'ok');assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
     const schema=db.prepare('SELECT type,name,tbl_name,sql FROM sqlite_master ORDER BY type,name').all();
     const data=db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(row=>[row.name,db.prepare('SELECT * FROM "'+String(row.name)+'" ORDER BY rowid').all()]);
     return {schema,data};

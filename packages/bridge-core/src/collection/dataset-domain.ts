@@ -1,3 +1,4 @@
+import { createLocalArtworkService } from './local-artwork-service.js';
 import {materializeMBEdition} from './mb-queue-materializer.js';
 import { createLocalSourceTickets } from './local-source-tickets.js';
 import {createLocalRelocationCoordinator} from './local-relocation-coordinator.js';
@@ -118,6 +119,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   // domain必须等录音清理、激活/文件回调及在途dispatch收口后，才真正关闭维护库连接。
   const maintenanceForCoordinator: BackupWorkflowStore = { ...maintenance, close() {} };
   const localRelocation=createLocalRelocationCoordinator({repository:collection,assertCurrent:assertDataset,assertReady:()=>{if(!scanBootReady)throw new CollectionError('INVENTORY_UNAVAILABLE','owner尚未commitBoot。');},beforeMutation:()=>localScan.yieldForMedia()});
+  const localArtwork = createLocalArtworkService({ repository: collection, assertCurrent: assertOpen, ...(options.projection ? { projection: options.projection } : {}) });
   const backups = createBackupCoordinator({ store: maintenanceForCoordinator, repository: collection, ...(options.backupPrivateRoot ? { privateRoot: options.backupPrivateRoot } : {}), ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) });
   const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts, validateAuthorization: root => assertSourceOutsideArchives(root.path, collection.archive) });
   const sourceCandidates = createSourceCandidateService({ store: collection.sources, drafts: collection.drafts, sources });
@@ -155,7 +157,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const physicalLinks = projection ? createProjectedPhysicalLinksCoordinator({ repository: collection.links, projection, assertCurrent: assertOpen }) : createPhysicalLinksCoordinator({ repository: collection.links, library: library! });
   const masterDrafts = projection ? createProjectedMasterDraftsCoordinator({ repository: collection.drafts, projection, assertCurrent: assertOpen }) : createMasterDraftsCoordinator({ repository: collection.drafts, library: library! });
   const domain: DatasetDomain = {
-    datasetId: identity.datasetId, collection, localScan, localRelocation, commandOutbox, sources, sourceCandidates, mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, backups, archive,
+    datasetId: identity.datasetId, collection, localScan, localRelocation, localArtwork, commandOutbox, sources, sourceCandidates, mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, backups, archive,
     ...(recordingDeviceSelection ? { recordingDeviceSelection } : {}), recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingPrints, recordingReplica, physicalLinks, masterDrafts, assertOpen,
     dispatch(request) {
       const pending = dispatchDatasetCommand(domain, request);
@@ -204,6 +206,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
         await stop(() => recordingReplica.close()); await stop(() => recordingPrints.close()); await stop(() => recordingRecords.close()); await stop(() => recordingAttempts.close());
         await stop(() => recordingDeviceSelection?.close()); await stop(() => recordingOutput.close()); await stop(() => recordingPlans.close());
         await stop(() => backups.close()); await stop(() => archive.close()); await stop(() => execution.close()); await stop(() => prepared.close()); await stop(() => preparationZips.close()); await stop(() => preparation.close()); await stop(() => masterVersions.close());
+        await stop(() => localArtwork.close());
         await stop(() => localScan.close());
         await stop(() => localRelocation.close());
         await stop(() => sourceCandidates.close()); await stop(() => sources.close());

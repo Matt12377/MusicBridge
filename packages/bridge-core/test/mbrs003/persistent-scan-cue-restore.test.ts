@@ -185,7 +185,7 @@ test('CUE完整七表32实际备份包核验、隔离恢复与激活冷开保持
 test('实际CUE备份快照注入partial扩展后索引、隔离恢复与冷开全部拒绝且不补DDL或改原字节',async t=>{
   const f=await seed(t),snapshotPath=path.join(f.directory,'cue-partial-owned-snapshot');await mkdir(snapshotPath,{mode:0o700});
   const snapshot=await f.repo.backupSnapshot({...await authorizeSourceDirectory(snapshotPath),id:randomUUID()});
-  assert.equal(snapshot.schemaVersion,33);assert.ok(snapshot.pages>0);assert.equal(snapshot.relative,'collection.sqlite');
+  assert.equal(snapshot.schemaVersion,34);assert.ok(snapshot.pages>0);assert.equal(snapshot.relative,'collection.sqlite');
   const completeFile=path.join(snapshotPath,snapshot.relative),completeBytes=await readFile(completeFile);
   assert.equal(completeBytes.length,snapshot.size);assert.equal(createHash('sha256').update(completeBytes).digest('hex'),snapshot.sha256);
   preservedSql(completeFile,f.facts,false);readBackupIndex(completeFile);

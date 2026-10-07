@@ -5856,7 +5856,7 @@
     "overallReleaseApproved": false,
     "securityBaselineBlocker": "INHERITED_PRODUCTION_NODE_FORGE_HIGH_AUDIT_FAILURE_NOT_CLOSED"
   },
-  "currentPostRustTask": "MBRS-009",
+  "currentPostRustTask": "MBRS-010",
   "postRustBaseline20261004": {
     "task": "MBRS-000",
     "state": "baseline-delivered-g0-not-admitted",
@@ -46274,7 +46274,7 @@
     "nextBranchBaseline": "FINAL009_INDEPENDENT_REPORT_HEAD",
     "implementationCommit": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
     "implementationCommitResolution": "本报告直接父提交",
-    "reportCommit": null,
+    "reportCommit": "0a9c211805cdaecf56c699fe0c264590a0839e0e",
     "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-009_LOCAL_LIBRARY_UI.md",
     "report": "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
     "evidence": "reports/MBRS-009_EVIDENCE.json",
@@ -46282,7 +46282,8 @@
       "sourceCommit": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
       "sourceNormalPushExitCode": 0,
       "sourceRemoteHead": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
-      "report": "PENDING_OWN_COMMIT"
+      "report": "NORMAL_PUSH_EXIT_0_REMOTE_MATCH",
+      "reportRemoteHead": "0a9c211805cdaecf56c699fe0c264590a0839e0e"
     },
     "ci": {
       "source": {
@@ -46301,9 +46302,72 @@
         "receipt": "docs/postrust/MBRS-009/evidence/final-committed-source-gate.json",
         "countInterpretation": "53专项新文件/167既有路径套件；其中旧page-journey文件含1新009守卫。"
       },
-      "report": "PENDING_OWN_NATURAL_CI"
+      "report": {
+        "status": "TWO_WORKFLOWS_THREE_JOBS_SUCCESS",
+        "runs": [
+          37571814300,
+          37571814320
+        ],
+        "verifyMode": "report-only",
+        "reason": "EXACT_PARENT_PRODUCT_CI_SUCCESS"
+      }
     },
     "updatedAt": "2026-10-07T03:27:03.412599+00:00",
-    "finalDeliveryReceipt": "private-archive:MBRS009_FINAL_DELIVERY_RECEIPT"
+    "finalDeliveryReceipt": "private-archive:MBRS009_FINAL_DELIVERY_RECEIPT",
+    "deliveryState": "FINITE_SOFTWARE_DELIVERY_SEALED_LIVE_CARRYOVER_OPEN",
+    "finalDeliveryReceiptBinding": {
+      "archiveId": "MBRS009_FINAL_DELIVERY_RECEIPT",
+      "bytes": 6839,
+      "sha256": "788c337dc8e1265c823eceb08b857d869d03f914ddc87b7c5b091d33f209629b"
+    }
+  },
+  "mbrs010ArtworkSelectionCache": {
+    "task": "MBRS-010",
+    "state": "IN_PROGRESS_LOCAL_EVIDENCE_READY_FOR_AUDIT_COMMIT",
+    "branch": "codex/mbrs-010-artwork-selection-cache",
+    "baseCommit": "0a9c211805cdaecf56c699fe0c264590a0839e0e",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "scope": "docs/postrust/MBRS-010/EXECUTION_SCOPE.json",
+    "originalAcceptanceCount": 7,
+    "isolatedDraftTests": 34,
+    "productAcceptance": "PARTIAL_NOT_TASK_COMPLETE",
+    "sourceFileWrites": "OFF",
+    "remoteProviderAdmission": "FAILED_PROVIDER_NOT_ADMITTED",
+    "realServices": "PUBLIC_MUSICBRAINZ_CAA_QUERY_FAILED_ARCHIVE_NO_HEADERS_ROON_AUDIO_OWNER_NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "nextTask": "MBRS-011",
+    "sourceAndPersistence": "083729最新完整回归4635通过/0失败/2既有skip、正式构建、专项184/184通过；原生产App独立图/手选/比较/保存/坏图拒绝与重启证据保留，新构建内嵌保存恢复及缺图提示复核通过。真实音乐检索失败；实际文件拖入因CUA拒绝Finder访问未跑。",
+    "localValidationEvidence": "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",
+    "progressReport": "reports/MBRS-010_WORK_IN_PROGRESS.md",
+    "fullVerification": {
+      "tests": 4637,
+      "pass": 4635,
+      "fail": 0,
+      "skipped": 2
+    },
+    "artworkGateTests": 184,
+    "ordinaryApp": "PASS_BOUNDED_LOCAL_EMBEDDED_MISSING_CUA_ACTUAL_DRAG_NOT_RUN",
+    "formalDelivery": "NOT_COMPLETE",
+    "missingImageStatusFix": {
+      "cause": "成功读取但无图被误归source-unavailable",
+      "focusedTests": {
+        "red": {
+          "runId": "20261007t083615z",
+          "pass": 11,
+          "fail": 1
+        },
+        "green": {
+          "runId": "20261007t083653z",
+          "pass": 12,
+          "fail": 0
+        }
+      },
+      "fullVerification": "PASS_20261007T083729Z_CURRENT_SOURCE",
+      "ordinaryApp": "PASS_NEW_PRODUCTION_BUILD_CUA_MISSING_AND_EMBEDDED_REOPEN"
+    },
+    "ci": {
+      "state": "PENDING_NATURAL_SOURCE_PUSH_CI"
+    }
   }
 }

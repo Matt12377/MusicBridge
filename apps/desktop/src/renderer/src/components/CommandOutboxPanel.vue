@@ -17,6 +17,8 @@ const state = shallowRef(controller.state)
 const entries = computed(() => state.value.overview?.entries.filter((item) => !item.acknowledged && item.state !== 'dismissed') ?? [])
 const visibleEntries = computed(() => entries.value.slice(0, visibleCount.value))
 const labels: Record<CommandOutboxTrackedCommand, string> = {
+  'localArtwork.apply': '保存本地独立发行封面选择',
+  'localArtwork.createEdition': '为本地曲目建立独立发行',
   'localLibrary.chooseRoot':'加入本地音乐库',
   'localRelocation.confirm':'确认外部改名文件',
   'localRelocation.relinkRoot':'重新关联本地源目录',

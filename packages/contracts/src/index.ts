@@ -1,3 +1,4 @@
+export * from './local-artwork.js';
 export * from './recording-backups.js';
 export * from './errors.js';
 export * from './aggregated-search.js';

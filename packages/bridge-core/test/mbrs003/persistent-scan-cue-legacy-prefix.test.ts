@@ -25,7 +25,7 @@ function projection(datasetId:string) {
 function sql(file:string) {
   const db=new DatabaseSync(file,{readOnly:true,allowExtension:false});
   try {
-    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version,33);assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check,'ok');assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version,34);assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check,'ok');assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
     return {tables:db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all(),batches:db.prepare('SELECT * FROM local_scan_batches ORDER BY rowid').all(),receipts:db.prepare('SELECT * FROM local_scan_receipts ORDER BY rowid').all(),checkpoints:db.prepare('SELECT * FROM local_scan_checkpoints ORDER BY rowid').all(),ledger:db.prepare('SELECT * FROM local_catalog_ledger ORDER BY rowid').all()};
   } finally {db.close();}
 }

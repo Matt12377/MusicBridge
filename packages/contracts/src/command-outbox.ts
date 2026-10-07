@@ -1,3 +1,5 @@
+import { isApplyLocalArtworkSelection, isLocalArtworkSelection, isCreateLocalArtworkEdition } from './local-artwork.js';
+import { isAlbumEdition } from './local-catalog.js';
 import {isLocalRelocationConfirm,isLocalRootRelink,isLocalRelocationCommandResult} from './local-relocation.js';
 import type {LibraryRoot} from './local-catalog.js';
 import { LOCAL_CATALOG_OUTBOX_COMMANDS, isLocalCatalogCommandPayload, isLocalCatalogCommandResult, type LocalCatalogCommandPayloads, type LocalCatalogCommandResults } from './local-catalog.js';
@@ -29,6 +31,7 @@ import { isActivateRestoredDataset, isRestoreActivationView, type ActivateRestor
 /** 只允许原有公开领域写命令，不能从任意 IPC 名称推导重放权限。 */
 export const COMMAND_OUTBOX_COMMANDS = [
   ...LOCAL_CATALOG_OUTBOX_COMMANDS,
+  'localArtwork.apply', 'localArtwork.createEdition',
   'localRelocation.confirm','localRelocation.relinkRoot',
   'collectionProgress.saveWant', 'collectionProgress.cancelWant', 'collectionProgress.capture',
   'spreadsheetImports.apply', 'spreadsheetImports.adjust',
@@ -60,6 +63,8 @@ export type CommandOutboxSpecialCommand = typeof COMMAND_OUTBOX_SPECIAL_COMMANDS
 export type CommandOutboxTrackedCommand = CommandOutboxCommand | CommandOutboxSpecialCommand;
 /** 复用叶级领域验证器；不反向导入总 IPC validator，避免运行时模块循环。 */
 const ordinaryValidators = {
+  'localArtwork.apply': [isApplyLocalArtworkSelection,isLocalArtworkSelection],
+  'localArtwork.createEdition': [isCreateLocalArtworkEdition,isAlbumEdition],
   'localRelocation.confirm':[isLocalRelocationConfirm,(v:unknown):v is import('./local-catalog.js').AudioAsset=>isLocalRelocationCommandResult('localRelocation.confirm',v)],
   'localRelocation.relinkRoot':[isLocalRootRelink,(v:unknown):v is LibraryRoot=>isLocalRelocationCommandResult('localRelocation.relinkRoot',v)],
   'localCatalog.createTrack': [(v: unknown): v is LocalCatalogCommandPayloads['localCatalog.createTrack'] => isLocalCatalogCommandPayload('localCatalog.createTrack', v), (v: unknown): v is LocalCatalogCommandResults['localCatalog.createTrack'] => isLocalCatalogCommandResult('localCatalog.createTrack', v)],

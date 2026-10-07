@@ -1,3 +1,4 @@
+import { isLocalArtworkCommand, isLocalArtworkInternalCommand, isLocalArtworkCommandPayload, isLocalArtworkCommandResult } from './local-artwork.js';
 import {isMBQueueEditRequest,isMBQueuePlayEntryRequest,isMBEditionQueueRequest} from './mb-queue.js';
 import {isAlbumEdition,isLocalExactInteger} from './local-catalog.js';
 import { isLocalPlayAccepted, isLocalQueueIdentity } from './local-play-request.js';
@@ -1037,6 +1038,7 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
+  if (isLocalArtworkCommand(command)) return isLocalArtworkCommandPayload(command,payload);
   if (isLocalRelocationCommand(command)) return isLocalRelocationCommandPayload(command,payload);
   if (isLocalScanCommand(command)) return isLocalScanCommandPayload(command, payload);
   if (command === 'localCatalog.prepare') return isLocalPlayRequest(payload);
@@ -1675,6 +1677,7 @@ function isCommandResult(
   value: unknown,
   allowInternalResult = false,
 ): boolean {
+  if (isLocalArtworkCommand(command)) return (allowInternalResult || !isLocalArtworkInternalCommand(command)) && isLocalArtworkCommandResult(command,value);
   if (isLocalRelocationCommand(command)) return (allowInternalResult || !isLocalRelocationInternalCommand(command)) && isLocalRelocationCommandResult(command,value);
   if (isLocalScanCommand(command)) return (allowInternalResult || !isLocalScanInternalCommand(command)) && isLocalScanCommandResult(command,value);
   if (command === 'localCatalog.prepare') return isLocalSourceUnsupported(value) || isLocalPlayAccepted(value);
@@ -2056,10 +2059,12 @@ export function validateIpcInternalRequest(input: unknown): ValidationResult<Ipc
 
 function validateRequest(input: unknown, internal: boolean): ValidationResult<IpcRequest<unknown>> {
   if (!isRecord(input)) return invalidRequest();
-  if ((isLocalScanCommand(input.command) || isLocalRelocationCommand(input.command)) && (![Object.prototype,null].includes(Object.getPrototypeOf(input))
+  const commandDescriptor = Object.getOwnPropertyDescriptor(input, 'command');
+  if (!commandDescriptor || !Object.hasOwn(commandDescriptor, 'value')) return invalidRequest();
+  if ((isLocalArtworkCommand(input.command) || isLocalScanCommand(input.command) || isLocalRelocationCommand(input.command)) && (![Object.prototype,null].includes(Object.getPrototypeOf(input))
     || Reflect.ownKeys(input).some(k=>typeof k !== 'string' || !['version','id','command','payload','expectedDatasetId','performanceTrace'].includes(k)
       || !Object.prototype.propertyIsEnumerable.call(input,k)))) return invalidRequest();
-  if ((isLocalCatalogCommand(input.command) || isLocalScanCommand(input.command) || isLocalRelocationCommand(input.command) || input.command === 'localCatalog.prepare') && ((!internal && (isLocalCatalogInternalCommand(input.command) || isLocalScanInternalCommand(input.command) || isLocalRelocationInternalCommand(input.command)))
+  if ((isLocalArtworkCommand(input.command) || isLocalCatalogCommand(input.command) || isLocalScanCommand(input.command) || isLocalRelocationCommand(input.command) || input.command === 'localCatalog.prepare') && ((!internal && (isLocalArtworkInternalCommand(input.command) || isLocalCatalogInternalCommand(input.command) || isLocalScanInternalCommand(input.command) || isLocalRelocationInternalCommand(input.command)))
     || !isCommandOutboxDatasetId(input.expectedDatasetId)
     || !hasOnlyKeys(input, ['version','id','command','payload','expectedDatasetId','performanceTrace']))) return invalidRequest();
 

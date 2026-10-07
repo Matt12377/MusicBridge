@@ -1,0 +1,544 @@
+{
+  "schema": "mbrs010.local-validation-progress.public-projection.v1",
+  "recordedAt": "2026-10-07T08:54:42.330597+00:00",
+  "state": "SOURCE_VALIDATION_SNAPSHOT_PARTIAL_PRODUCT",
+  "baseSha": "0a9c211805cdaecf56c699fe0c264590a0839e0e",
+  "branch": "codex/mbrs-010-artwork-selection-cache",
+  "implementationCommit": null,
+  "reportCommit": null,
+  "formalTaskDelivery": "NOT_COMPLETE",
+  "ci": "NOT_RUN_AT_THIS_PRECOMMIT_SNAPSHOT",
+  "originalTaskCount": 18,
+  "originalAcceptanceCount": 156,
+  "taskAcceptanceCount": 7,
+  "fullVerification": {
+    "runId": "20261007t083729z",
+    "counts": {
+      "tests": 4637,
+      "pass": 4635,
+      "fail": 0,
+      "skipped": 2
+    },
+    "productionBuild": "PASS",
+    "packageTypes": "PASS_THREE_PACKAGES_AND_E2E",
+    "skipBoundary": "2项既有条件跳过，未计为通过。"
+  },
+  "phases": [
+    {
+      "name": "official-electron",
+      "exitCode": 0,
+      "startedAt": "2026-10-07T08:37:29.412665+00:00",
+      "finishedAt": "2026-10-07T08:37:30.429402+00:00",
+      "receipt": {
+        "archiveId": "MBRS010_FINAL_OFFICIAL_ELECTRON_20261007T083729Z_RECEIPT",
+        "fileName": "final-official-electron-20261007t083729z.json",
+        "bytes": 1498,
+        "sha256": "69c12ef26d51d9cde9604af26b9406c7da2d50d55890128bf8205e39b2602e10",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "log": {
+        "archiveId": "MBRS010_FINAL_OFFICIAL_ELECTRON_20261007T083729Z_LOG",
+        "fileName": "final-official-electron-20261007t083729z.log",
+        "bytes": 61,
+        "sha256": "1bd1805fee21839412754c1e5fef15151f8c95ef1afbc1ec0ca670206a68a363",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "name": "full-verify",
+      "exitCode": 0,
+      "startedAt": "2026-10-07T08:37:30.470798+00:00",
+      "finishedAt": "2026-10-07T08:43:00.474971+00:00",
+      "receipt": {
+        "archiveId": "MBRS010_FINAL_FULL_VERIFY_20261007T083729Z_RECEIPT",
+        "fileName": "final-full-verify-20261007t083729z.json",
+        "bytes": 900,
+        "sha256": "4827fee166f90373d2a5022b22ef48d2e25ebb1c0972927c8156095f7cc8134c",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "log": {
+        "archiveId": "MBRS010_FINAL_FULL_VERIFY_20261007T083729Z_LOG",
+        "fileName": "final-full-verify-20261007t083729z.log",
+        "bytes": 1119536,
+        "sha256": "300fca3f35c017d4316a8e2a1064bd7080f21fe3d3c105134e836896fd369ffb",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "name": "control-plane",
+      "exitCode": 0,
+      "startedAt": "2026-10-07T08:43:00.527937+00:00",
+      "finishedAt": "2026-10-07T08:43:00.628707+00:00",
+      "receipt": {
+        "archiveId": "MBRS010_FINAL_CONTROL_PLANE_20261007T083729Z_RECEIPT",
+        "fileName": "final-control-plane-20261007t083729z.json",
+        "bytes": 946,
+        "sha256": "8cdaa6d75554d596a6259b818d92fde3c9da9745255c8449b2114fa22ab6156f",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "log": {
+        "archiveId": "MBRS010_FINAL_CONTROL_PLANE_20261007T083729Z_LOG",
+        "fileName": "final-control-plane-20261007t083729z.log",
+        "bytes": 19,
+        "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "name": "boundaries",
+      "exitCode": 0,
+      "startedAt": "2026-10-07T08:43:00.665054+00:00",
+      "finishedAt": "2026-10-07T08:43:00.763976+00:00",
+      "receipt": {
+        "archiveId": "MBRS010_FINAL_BOUNDARIES_20261007T083729Z_RECEIPT",
+        "fileName": "final-boundaries-20261007t083729z.json",
+        "bytes": 937,
+        "sha256": "cdb6cb425f9e9c726a936bac1dcd1617cc668acd2b3e8a4ccdde8f27818bf956",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "log": {
+        "archiveId": "MBRS010_FINAL_BOUNDARIES_20261007T083729Z_LOG",
+        "fileName": "final-boundaries-20261007t083729z.log",
+        "bytes": 16,
+        "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "name": "cycles",
+      "exitCode": 0,
+      "startedAt": "2026-10-07T08:43:00.800627+00:00",
+      "finishedAt": "2026-10-07T08:43:00.863309+00:00",
+      "receipt": {
+        "archiveId": "MBRS010_FINAL_CYCLES_20261007T083729Z_RECEIPT",
+        "fileName": "final-cycles-20261007t083729z.json",
+        "bytes": 925,
+        "sha256": "7801196408866b6a91ce6eb7083fda848023378212d2794b71a6e7d11636220c",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "log": {
+        "archiveId": "MBRS010_FINAL_CYCLES_20261007T083729Z_LOG",
+        "fileName": "final-cycles-20261007t083729z.log",
+        "bytes": 22,
+        "sha256": "04b69eb888e3db2b88afb18fbac9f5a2e0f4dffb1b505b45f4453236ce2e9fca",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "name": "artwork-native",
+      "exitCode": 0,
+      "startedAt": "2026-10-07T08:43:00.901614+00:00",
+      "finishedAt": "2026-10-07T08:43:02.410361+00:00",
+      "receipt": {
+        "archiveId": "MBRS010_FINAL_ARTWORK_NATIVE_20261007T083729Z_RECEIPT",
+        "fileName": "final-artwork-native-20261007t083729z.json",
+        "bytes": 964,
+        "sha256": "4e27a4619d6d6385ec620e494f0646e545c9b6dae7e99855f4048bcc56301bf1",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "log": {
+        "archiveId": "MBRS010_FINAL_ARTWORK_NATIVE_20261007T083729Z_LOG",
+        "fileName": "final-artwork-native-20261007t083729z.log",
+        "bytes": 219,
+        "sha256": "862dcd8b9a2c1c529dd9279702013378635202268d65a16745673e8882745b38",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "name": "migration-nested",
+      "exitCode": 0,
+      "startedAt": "2026-10-07T08:43:02.447985+00:00",
+      "finishedAt": "2026-10-07T08:43:05.964800+00:00",
+      "receipt": {
+        "archiveId": "MBRS010_FINAL_MIGRATION_NESTED_20261007T083729Z_RECEIPT",
+        "fileName": "final-migration-nested-20261007t083729z.json",
+        "bytes": 1327,
+        "sha256": "1e1c51e4bdcb98b8e483ecc0cbfca390df9925137969bbc01dfec63d8781a6bc",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "log": {
+        "archiveId": "MBRS010_FINAL_MIGRATION_NESTED_20261007T083729Z_LOG",
+        "fileName": "final-migration-nested-20261007t083729z.log",
+        "bytes": 4245,
+        "sha256": "66a05073413b1cb7aaf9939732c2bbe6c17f4f1ab222a6b177f2806a98da9247",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "name": "artwork-gate-entry",
+      "exitCode": 0,
+      "startedAt": "2026-10-07T08:43:06.006183+00:00",
+      "finishedAt": "2026-10-07T08:43:06.361058+00:00",
+      "receipt": {
+        "archiveId": "MBRS010_FINAL_ARTWORK_GATE_ENTRY_20261007T083729Z_RECEIPT",
+        "fileName": "final-artwork-gate-entry-20261007t083729z.json",
+        "bytes": 984,
+        "sha256": "6a2b71bad6d7f087504a46cc92e2205a6be4145d3a0ba07f63c50f4b8fffc62e",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "log": {
+        "archiveId": "MBRS010_FINAL_ARTWORK_GATE_ENTRY_20261007T083729Z_LOG",
+        "fileName": "final-artwork-gate-entry-20261007t083729z.log",
+        "bytes": 5496,
+        "sha256": "cef0eb745bb7c2eebcae0ad2d90b19797bb12317d3bcd3af95f3c1202eadcabf",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "name": "artwork-gate",
+      "exitCode": 0,
+      "startedAt": "2026-10-07T08:43:06.399776+00:00",
+      "finishedAt": "2026-10-07T08:43:45.971893+00:00",
+      "receipt": {
+        "archiveId": "MBRS010_FINAL_ARTWORK_GATE_20261007T083729Z_RECEIPT",
+        "fileName": "final-artwork-gate-20261007t083729z.json",
+        "bytes": 1069,
+        "sha256": "04160d88d8b821cb4ea35c041906aaa0e06d494bdbb3cf184d2c6f27e4571ce8",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "log": {
+        "archiveId": "MBRS010_FINAL_ARTWORK_GATE_20261007T083729Z_LOG",
+        "fileName": "final-artwork-gate-20261007t083729z.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    }
+  ],
+  "artworkGate": {
+    "manifest": {
+      "archiveId": "MBRS010_ARTWORK_GATE_CURRENT_LOCAL",
+      "fileName": "manifest.json",
+      "bytes": 625063,
+      "sha256": "8e7b69e7359f0cdefb6ecb2f327200deb21661ca78dd6ca3a772d2b5c84ef3b2",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "tests": 184,
+    "pass": 184,
+    "fail": 0,
+    "skipped": 0,
+    "testFiles": 12,
+    "sourceInputs": 1173,
+    "toolInputs": 12,
+    "freshOutputs": 846,
+    "receiptInputs": 35,
+    "inputsOutputsReceiptsUnchanged": true,
+    "inputDigest": "e8c760fdd34f45e451861762e72425810c2bbf87ab23d4a75e89fedc040be241",
+    "countMeaning": "专项184包含在完整回归内，不重复累加。",
+    "sourceIdentityScope": "DECLARED_PRODUCT_AND_TEST_SOURCES_AND_FRESH_COMPILER_OUTPUTS_NOT_TRANSITIVE_DEPENDENCY_CLOSURE"
+  },
+  "nativeCodec": {
+    "state": "PASS_SELF_OWNED_SYNTHETIC_ACTUAL_ELECTRON",
+    "receipt": {
+      "archiveId": "MBRS010_NATIVE_CODEC_CURRENT_LOCAL",
+      "fileName": "receipt.json",
+      "bytes": 3039,
+      "sha256": "e81c564b15741cb754a45a0c465f4be9c178a5e022401c0e766275cb1dec49a6",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "ordinaryApp": {
+    "state": "PASS_BOUNDED_LOCAL_WORKFLOWS_EMBEDDED_AND_MISSING_ACTUAL_DRAG_NOT_RUN",
+    "scope": "ORIGINAL_PRODUCTION_BUILD_SELF_OWNED_SYNTHETIC_PROFILES_CUA_ONLY",
+    "independentAndManualWorkflow": {
+      "state": "PASS_BOUNDED_ORIGINAL_APP_LOCAL_AND_COLD_REOPEN",
+      "receipt": {
+        "archiveId": "MBRS010_APP_LOCAL_COLD_REOPEN",
+        "fileName": "controlled-app-persistence.json",
+        "bytes": 4156,
+        "sha256": "5017b6a624b5ef0316da299333fb7a7ca0e7da3e51c3b1175dfe0a2655f82e45",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "uiRuns": 2,
+      "naturalExitCode": 0,
+      "forced": false,
+      "workflow": "本地候选/原生手选/2项比较/保存/坏PNG拒绝/原文件Hash保留/正常退出后冷启动恢复。",
+      "scope": "ORIGINAL_PRODUCTION_BUILD_SELF_OWNED_SYNTHETIC_PROFILE_CUA_ONLY",
+      "observations": [
+        {
+          "run": "controlled-app-02",
+          "archiveId": "MBRS010_CONTROLLED_APP_02_UI",
+          "fileName": "ui-observation.json",
+          "bytes": 1921,
+          "sha256": "56b59fc607b15cef63dfe90c7567a646af7fb74ebef6bc33f8350e7806a8404a",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        },
+        {
+          "run": "controlled-app-03",
+          "archiveId": "MBRS010_CONTROLLED_APP_03_UI",
+          "fileName": "ui-observation.json",
+          "bytes": 1541,
+          "sha256": "bfe7e729896d7f2efc4db9682cb32292eb335ace54fa3f3aebad3a8585725658",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        }
+      ],
+      "database": {
+        "schema": 34,
+        "tracks": 1,
+        "editions": 1,
+        "candidates": 2,
+        "selections": 1,
+        "selectionRevision": "2",
+        "commandLedger": 3,
+        "foreignKeyViolations": 0,
+        "displayBytesHashVerified": true
+      },
+      "actualNativeDragDrop": "NOT_RUN",
+      "embeddedAndMissingImageInOrdinaryApp": "NOT_RUN",
+      "realAccountsRoonAudioOwner": "NOT_RUN",
+      "buildBatch": "20261007t075804z",
+      "evidenceBoundary": "本地独立图/手选/比较/坏图拒绝在缺图状态修正前的正式构建中验证；原件保留。"
+    },
+    "embeddedAndMissingScenes": {
+      "state": "PASS_BOUNDED_EMBEDDED_AND_MISSING_SCENES_DRAG_NOT_RUN",
+      "buildBatch": "20261007t083729z",
+      "receipt": {
+        "archiveId": "MBRS010_APP_EMBEDDED_MISSING_PERSISTENCE",
+        "fileName": "controlled-app-scenes-persistence.json",
+        "bytes": 3757,
+        "sha256": "3c448cfd352ae4263626e51c34e9082ba3ad48848f62571b50b937bb94b0d51c",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "uiObservation": {
+        "archiveId": "MBRS010_APP_MISSING_FIX_RECHECK_UI",
+        "fileName": "ui-observation.json",
+        "bytes": 1946,
+        "sha256": "670576bfaadc19ab0f9bec5fbeb2d099b7f691b79c02f4e6c5493b2d8bea3407",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "previousFailure": {
+        "archiveId": "MBRS010_APP_MISSING_STATE_FAILURE_UI",
+        "fileName": "ui-observation.json",
+        "bytes": 1124,
+        "sha256": "66acb5f15e7bc2b14a1322cb73a2bcfaab294f694db7fc80d8efedfda989ffde",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "tracks": 2,
+      "editions": 2,
+      "candidates": 1,
+      "selections": 1,
+      "commandLedger": 3,
+      "databaseSchema": 34,
+      "foreignKeyViolations": 0,
+      "selectionRevision": "1",
+      "selectedOrigin": "embedded",
+      "missingEditionHasNoCandidateOrSelection": true,
+      "displayBytesHashVerified": true,
+      "sourceFixturesUnchanged": true,
+      "normalExitCode": 0,
+      "signal": null,
+      "forced": false,
+      "workflow": "首轮提取MP3内嵌图并保存；新构建冷启动恢复。可读取WAV无图时实际查找仅显示缺图提示。"
+    },
+    "actualNativeDragDrop": "NOT_RUN_FINDER_CUA_ACCESS_REJECTED",
+    "realAccountsRoonAudioOwner": "NOT_RUN",
+    "remoteSearchInApp": "NOT_RUN_UI_ISOLATION_DISABLED_PROVIDERS"
+  },
+  "liveProvider": {
+    "status": "FAILED_PROVIDER_NOT_ADMITTED",
+    "candidates": 0,
+    "receipt": {
+      "archiveId": "MBRS010_LIVE_PROVIDER_FAILURE",
+      "fileName": "result.json",
+      "bytes": 1221,
+      "sha256": "511bf27542e63b8f2a3157f3e731fb8e31857d5500f12681c35f5508b50e1188",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "facts": "一次公开发行查询：MusicBrainz返回200、CAA返回307；Archive索引在30秒内未返回响应。未获取真实图片。",
+    "connectivityDiagnostic": {
+      "status": "FAILED_FIXED_ARCHIVE_CONNECTIVITY",
+      "requests": 1,
+      "budgetMs": 15000,
+      "headersObserved": false,
+      "physicalRequestCloseObserved": true,
+      "events": [
+        "socket",
+        "request-error",
+        "socket-error",
+        "request-close"
+      ],
+      "receipt": {
+        "archiveId": "MBRS010_FIXED_ARCHIVE_CONNECTIVITY_FAILURE",
+        "fileName": "result.json",
+        "bytes": 917,
+        "sha256": "a79dc51b87a5750f5094bb9ea76c20042d450a373c4fdfdc5159e2e7efb9ebbb",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "providerAdmission": "FAILED_PROVIDER_NOT_ADMITTED",
+    "causeBeyondObservedStage": "UNKNOWN",
+    "realCommonsSearch": "NOT_RUN",
+    "ordinaryAppRemoteSearch": "NOT_RUN_UI_ISOLATION_DISABLED_PROVIDERS",
+    "connectionCodeAnalysis": {
+      "receipt": {
+        "archiveId": "MBRS010_PROVIDER_CONNECTION_CODE_READONLY",
+        "fileName": "provider-connection-readonly-analysis.json",
+        "bytes": 1191,
+        "sha256": "36677f2db594e37ff631ab9260dd965befb95a2c51a1dc50da7b335af204c1d8",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "result": "NO_ATTRIBUTABLE_CODE_DEFECT_FOUND_EXTERNAL_CAUSE_UNKNOWN",
+      "boundary": "只读核查DNS预解析/固定地址/TLS/取消关闭；未新增查询、自动重试或放宽安全策略。"
+    }
+  },
+  "acceptance": [
+    {
+      "id": "MBRS-AT-010-01",
+      "requirement": "本地独立图/内嵌图/缺封面都可处理，候选优先级和来源可追溯。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "PARTIAL",
+      "liveStatus": "NOT_RUN",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "普通App独立图、MP3内嵌图和可读取WAV缺图均有合成实操；内嵌保存冷启动恢复；真实曲库未跑。"
+    },
+    {
+      "id": "MBRS-AT-010-02",
+      "requirement": "在MB中搜索/拖入/比较/应用真实可用，不需另开CoverDrop。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "PARTIAL",
+      "liveStatus": "FAILED",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "普通App本地查找、原生选图、2/2比较、保存及冷启动通过；真实拖入因CUA拒绝Finder访问未跑，真实音乐检索失败。"
+    },
+    {
+      "id": "MBRS-AT-010-03",
+      "requirement": "伪图片、大图、重定向、恶意URL和取消有界，无任意内网抓取。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "PARTIAL",
+      "liveStatus": "NOT_RUN",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "受控安全用例与原生codec通过，普通App损坏PNG拒绝；真实站点未收到图片，不能宣称全真实安全验收。"
+    },
+    {
+      "id": "MBRS-AT-010-04",
+      "requirement": "仅MB选图不改原文件，写回需独立计划确认。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "PARTIAL",
+      "liveStatus": "NOT_RUN",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "普通App合成原文件Hash不变；Organizer独立写回计划与实际写回未实施。"
+    },
+    {
+      "id": "MBRS-AT-010-05",
+      "requirement": "封面不参与自动版本合并或质量真实性判断。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "PARTIAL",
+      "liveStatus": "NOT_RUN",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "相同图像Hash的两来源候选保留；发行/音质规则有受控软件证据，真实版本与音质未验。"
+    },
+    {
+      "id": "MBRS-AT-010-06",
+      "requirement": "封面服务关闭/失败不阻塞当前和新直送；Roon封面传递实测状态单列。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "NOT_RUN",
+      "liveStatus": "NOT_RUN",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "受控失败/取消及FD收口通过；真实当前/新直送、Roon收图与听感未跑。"
+    },
+    {
+      "id": "MBRS-AT-010-07",
+      "requirement": "数字音乐封面、磁带参考图、个人实物照片和冻结MasterArtwork保持独立身份与用途。",
+      "status": "PARTIAL",
+      "controlledSoftwareStatus": "PASS",
+      "appStatus": "NOT_RUN",
+      "liveStatus": "NOT_RUN",
+      "ownerStatus": "NOT_RUN",
+      "boundary": "四用途独立身份有规则和SQLite证据；真实旧资料、Frozen成品及Owner未验。"
+    }
+  ],
+  "retainedFailures": [
+    "初轮普通App内部命令闭集缺少封面接点，本地读取被拒绝；真实消息端口/owner线程回归2通过1失败，修复后3通过。",
+    "schema34使旧未来版本夹具34失效；仅改为35，保留原拒绝恢复语义与旧库字节。",
+    "其余初期环境/编译/断言失败原件保留，后验成功不回写旧失败。",
+    "真实Provider查询与固定Archive连接诊断失败保留。",
+    "普通App可读取WAV缺图误报来源不可用，修正前11通过/1失败，修正后12/12及新构建实操复核通过。"
+  ],
+  "remaining": [
+    "真实音乐封面检索未接入完成",
+    "普通App实际文件拖入因CUA拒绝Finder访问未跑",
+    "实现提交、精确源自然CI、独立审计报告与有限交付封存待",
+    "真实曲库、Roon收图/当前及新直送、Organizer写回计划和Owner未验"
+  ],
+  "sourceFileWrites": "OFF",
+  "defaultCore": "Node",
+  "optionalRustReadonly": "OFF",
+  "nextTask": "MBRS-011",
+  "nextBranchBaseline": "PENDING_MBRS010_FINAL_REPORT_HEAD",
+  "new100k300kStarted": false,
+  "recordMeaning": "实现提交前固定的本地验证快照；后续Git/CI及审计交付以独立报告和evidence目录为准。",
+  "priorSnapshot": {
+    "archiveId": "MBRS010_PRE_MISSING_FIX_PUBLIC_SNAPSHOT",
+    "fileName": "LOCAL_VALIDATION_PRE_MISSING_FIX.json",
+    "bytes": 17341,
+    "sha256": "cc05d9c8af9e15e5acc195a58ffb207f9d44b69df379993ab301aeeaadf1e12c",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "missingImageStatusFix": {
+    "cause": "本地读取成功但无候选被归为source-unavailable；改为ready空候选，真实不可用分支保持。",
+    "red": {
+      "pass": 11,
+      "fail": 1,
+      "exitCode": 1,
+      "receipt": {
+        "archiveId": "MBRS010_MISSING_STATE_RED",
+        "fileName": "final-missing-source-20261007t083615z.json",
+        "bytes": 1043,
+        "sha256": "2331264282cbce30a0fdfe10a449d9abac118f26d6248d7ffc1012726d9c7f91",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "green": {
+      "pass": 12,
+      "fail": 0,
+      "exitCode": 0,
+      "receipt": {
+        "archiveId": "MBRS010_MISSING_STATE_GREEN",
+        "fileName": "final-missing-source-20261007t083653z.json",
+        "bytes": 1043,
+        "sha256": "227818596f1380a651740c026331ae0fab47257db5308346e5714777c8aac734",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "currentFullVerification": "PASS",
+    "currentOrdinaryAppRecheck": "PASS_BOUNDED_SYNTHETIC"
+  }
+}

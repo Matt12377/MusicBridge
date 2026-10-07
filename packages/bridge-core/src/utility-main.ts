@@ -1,4 +1,4 @@
-import {isLocalRelocationCommand,isLocalRelocationInternalCommand} from '@music-bridge/contracts';
+import { isLocalArtworkCommand, isLocalArtworkInternalCommand, isLocalRelocationCommand, isLocalRelocationInternalCommand } from '@music-bridge/contracts';
 import { isLocalCatalogCommand, isLocalCatalogInternalCommand, isLocalScanCommand, isLocalScanInternalCommand, validateIpcInternalRequest } from '@music-bridge/contracts';
 import { dispatchDatasetCommand, dispatchInternalDatasetCommand } from './collection/dataset-dispatch.js';
 import { createDatasetRoonProjectionGateway } from './collection/dataset-roon-projection.js';
@@ -104,7 +104,7 @@ async function dispatch(
   runtime: CoreRuntimeForIpc,
   request: IpcRequest,
 ): Promise<unknown> {
-  if (isLocalCatalogInternalCommand(request.command) || isLocalScanInternalCommand(request.command) || isLocalRelocationInternalCommand(request.command)) {
+  if (isLocalArtworkInternalCommand(request.command) || isLocalCatalogInternalCommand(request.command) || isLocalScanInternalCommand(request.command) || isLocalRelocationInternalCommand(request.command)) {
     if (runtime.datasetOwnerEndpoint) {
       if (!runtime.datasetOwnerEndpoint.dispatchInternal) throw new DatasetOwnerDispatchError(responseFailure(request.id, 'NOT_READY', '可信观察入口未就绪。'));
       return runtime.datasetOwnerEndpoint.dispatchInternal(request);
@@ -373,7 +373,7 @@ async function dispatch(
 }
 
 function validateRoutedIpcRequest(runtime: CoreRuntimeForIpc, input: unknown) {
-  if (isRecord(input) && (isLocalCatalogCommand(input.command) || isLocalScanCommand(input.command) || isLocalRelocationCommand(input.command))) return isLocalCatalogInternalCommand(input.command) || isLocalScanInternalCommand(input.command) || isLocalRelocationInternalCommand(input.command) ? validateIpcInternalRequest(input) : validateIpcRequest(input);
+  if (isRecord(input) && (isLocalArtworkCommand(input.command) || isLocalCatalogCommand(input.command) || isLocalScanCommand(input.command) || isLocalRelocationCommand(input.command))) return isLocalArtworkInternalCommand(input.command) || isLocalCatalogInternalCommand(input.command) || isLocalScanInternalCommand(input.command) || isLocalRelocationInternalCommand(input.command) ? validateIpcInternalRequest(input) : validateIpcRequest(input);
   if (runtime.datasetOwnerEndpoint && isRecord(input) && isDatasetCommand(input.command) && isRecord(input.payload)) {
     // 仅用原core.ping合同核小信封；原领域命令和完整payload由owner再执行原完整validator。
     // 数据集命令不在library read白名单，readContext仍由原validator拒绝。

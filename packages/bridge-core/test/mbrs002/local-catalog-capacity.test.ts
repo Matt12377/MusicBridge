@@ -44,7 +44,7 @@ async function syntheticCatalog(t: test.TestContext, trackCount: number) {
   let rows = 0, bytes = 0;
   try {
     db.exec('PRAGMA trusted_schema=OFF;');
-    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 33, '版本必须来自实际Repository的正式迁移');
+    assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 34, '版本必须来自实际Repository的正式迁移');
     const insertTrack = db.prepare('INSERT INTO local_catalog_tracks(id,asset_id,data) VALUES(?,?,?)');
     const insertReceipt = db.prepare('INSERT INTO local_catalog_ledger(command_id,fingerprint,operation,request,result,created_at) VALUES(?,?,?,?,?,?)');
     db.exec('BEGIN IMMEDIATE');

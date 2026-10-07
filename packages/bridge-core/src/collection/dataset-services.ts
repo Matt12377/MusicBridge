@@ -1,3 +1,4 @@
+import type { LocalArtworkService } from './local-artwork-service.js';
 import type {LocalRelocationCoordinator} from './local-relocation-coordinator.js';
 import type { LocalScanCoordinator } from './local-scan-coordinator.js';
 import type { CollectionRepository } from './repository.js';
@@ -27,6 +28,7 @@ export interface DatasetServices {
   collection: CollectionRepository;
   localScan: LocalScanCoordinator;
   localRelocation: LocalRelocationCoordinator;
+  localArtwork: LocalArtworkService;
   commandOutbox: ReturnType<typeof createDatasetCommandBoundary>;
   sources: SourceEvidenceService;
   sourceCandidates: SourceCandidateService;

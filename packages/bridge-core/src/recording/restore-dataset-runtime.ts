@@ -1,3 +1,4 @@
+import { verifyLocalArtworkDatabase } from '../collection/local-artwork-store.js';
 import { verifyMBQueueDatabase } from '../collection/mb-queue-store.js';
 import { randomUUID } from 'node:crypto';
 import { lstatSync, realpathSync } from 'node:fs';
@@ -75,7 +76,7 @@ function openRepository(file: string, required: boolean, check: () => void): Col
     try {
       inspection.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
       const version = Number(inspection.prepare('PRAGMA user_version').get()?.user_version);
-      if (!Number.isInteger(version) || version < 1 || version > 33 || inspection.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || inspection.prepare('PRAGMA foreign_key_check').all().length) unavailable();
+      if (!Number.isInteger(version) || version < 1 || version > 34 || inspection.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok' || inspection.prepare('PRAGMA foreign_key_check').all().length) unavailable();
       if (version >= 8) verifyVersionDistributionDatabase(inspection);
       if (version >= 25) verifyOutputRunBarrierDatabase(inspection);
       if (version >= 26) verifyPreparationZipDatabase(inspection);
@@ -86,6 +87,7 @@ function openRepository(file: string, required: boolean, check: () => void): Col
       if (version >= 31) verifyLocalCatalogDatabase(inspection);
       if (version >= 32) verifyLocalScanDatabase(inspection);
       if (version >= 33) verifyMBQueueDatabase(inspection,false);
+      if (Number(inspection.prepare('PRAGMA user_version').get()?.user_version) >= 34) verifyLocalArtworkDatabase(inspection);
       inspection.prepare('SELECT id FROM collection_models LIMIT 1').all();
     } finally { inspection.close(); }
   }

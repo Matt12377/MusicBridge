@@ -32080,7 +32080,7 @@
       "g0_product_integration_required": true,
       "optional_inputs": [],
       "implementation_commit": "9b930bc555b130b739abe9f8ff7bfb13c81b5730",
-      "report_commit": null,
+      "report_commit": "0a9c211805cdaecf56c699fe0c264590a0839e0e",
       "validation_status": "SOFTWARE_GATE_AND_EXACT_SOURCE_CI_PASS_CONTROLLED_APP_AND_LIVE_CARRYOVER",
       "evidence_refs": [
         "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
@@ -32090,7 +32090,14 @@
       "implementation_commit_resolution": "本独立报告直接父提交",
       "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-009_LOCAL_LIBRARY_UI.md",
       "report_path": "reports/MBRS-009_LOCAL_LIBRARY_UI.md",
-      "terminal_ci_receipt": "docs/postrust/MBRS-009/evidence/source-ci-terminal.json"
+      "terminal_ci_receipt": "docs/postrust/MBRS-009/evidence/source-ci-terminal.json",
+      "delivery_status": "FINITE_SOFTWARE_DELIVERY_SEALED_LIVE_CARRYOVER_OPEN",
+      "report_ci_status": "TWO_WORKFLOWS_THREE_JOBS_SUCCESS",
+      "final_delivery_receipt": {
+        "archiveId": "MBRS009_FINAL_DELIVERY_RECEIPT",
+        "bytes": 6839,
+        "sha256": "788c337dc8e1265c823eceb08b857d869d03f914ddc87b7c5b091d33f209629b"
+      }
     },
     {
       "id": "MBRS-010",
@@ -32100,7 +32107,7 @@
         "MBRS-009",
         "MBRS-004"
       ],
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "implementation_owner": "MBRS-010",
       "goal": "将封面查找、比较和应用放进MB，不要求CoverDrop单独常驻。",
       "steps": [
@@ -32131,8 +32138,16 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "NOT_RUN",
-      "evidence_refs": []
+      "validation_status": "LOCAL_SOFTWARE_AND_BOUNDED_APP_PASS_PRODUCT_PARTIAL_PROVIDER_FAILED",
+      "evidence_refs": [
+        "docs/postrust/MBRS-010/EXECUTION_SCOPE.json",
+        "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",
+        "reports/MBRS-010_WORK_IN_PROGRESS.md"
+      ],
+      "base_sha": "0a9c211805cdaecf56c699fe0c264590a0839e0e",
+      "branch": "codex/mbrs-010-artwork-selection-cache",
+      "source_files_write": "OFF",
+      "provider_admission": "FAILED_PROVIDER_NOT_ADMITTED"
     },
     {
       "id": "MBRS-011",
@@ -33917,12 +33932,17 @@
       "requirement": "本地独立图/内嵌图/缺封面都可处理，候选优先级和来源可追溯。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",
+        "reports/MBRS-010_WORK_IN_PROGRESS.md"
+      ],
+      "software_status": "PASS",
+      "app_status": "PARTIAL",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_boundary": "普通App独立图、MP3内嵌图和可读取WAV缺图均有合成实操；内嵌保存冷启动恢复；真实曲库未跑。",
+      "software_scope": "CONTROLLED_SOFTWARE_NOT_OVERALL_ACCEPTANCE"
     },
     {
       "id": "MBRS-AT-010-02",
@@ -33931,12 +33951,17 @@
       "requirement": "在MB中搜索/拖入/比较/应用真实可用，不需另开CoverDrop。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
-      "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",
+        "reports/MBRS-010_WORK_IN_PROGRESS.md"
+      ],
+      "software_status": "PASS",
+      "app_status": "PARTIAL",
+      "live_status": "FAILED",
+      "owner_status": "NOT_RUN",
+      "evidence_boundary": "普通App本地查找、原生选图、2/2比较、保存及冷启动通过；真实拖入因CUA拒绝Finder访问未跑，真实音乐检索失败。",
+      "software_scope": "CONTROLLED_SOFTWARE_NOT_OVERALL_ACCEPTANCE"
     },
     {
       "id": "MBRS-AT-010-03",
@@ -33945,12 +33970,17 @@
       "requirement": "伪图片、大图、重定向、恶意URL和取消有界，无任意内网抓取。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",
+        "reports/MBRS-010_WORK_IN_PROGRESS.md"
+      ],
+      "software_status": "PASS",
+      "app_status": "PARTIAL",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_boundary": "受控安全用例与原生codec通过，普通App损坏PNG拒绝；真实站点未收到图片，不能宣称全真实安全验收。",
+      "software_scope": "CONTROLLED_SOFTWARE_NOT_OVERALL_ACCEPTANCE"
     },
     {
       "id": "MBRS-AT-010-04",
@@ -33959,12 +33989,17 @@
       "requirement": "仅MB选图不改原文件，写回需独立计划确认。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",
+        "reports/MBRS-010_WORK_IN_PROGRESS.md"
+      ],
+      "software_status": "PASS",
+      "app_status": "PARTIAL",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_boundary": "普通App合成原文件Hash不变；Organizer独立写回计划与实际写回未实施。",
+      "software_scope": "CONTROLLED_SOFTWARE_NOT_OVERALL_ACCEPTANCE"
     },
     {
       "id": "MBRS-AT-010-05",
@@ -33973,12 +34008,17 @@
       "requirement": "封面不参与自动版本合并或质量真实性判断。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",
+        "reports/MBRS-010_WORK_IN_PROGRESS.md"
+      ],
+      "software_status": "PASS",
+      "app_status": "PARTIAL",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_boundary": "相同图像Hash的两来源候选保留；发行/音质规则有受控软件证据，真实版本与音质未验。",
+      "software_scope": "CONTROLLED_SOFTWARE_NOT_OVERALL_ACCEPTANCE"
     },
     {
       "id": "MBRS-AT-010-06",
@@ -33987,12 +34027,17 @@
       "requirement": "封面服务关闭/失败不阻塞当前和新直送；Roon封面传递实测状态单列。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",
+        "reports/MBRS-010_WORK_IN_PROGRESS.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_boundary": "受控失败/取消及FD收口通过；真实当前/新直送、Roon收图与听感未跑。",
+      "software_scope": "CONTROLLED_SOFTWARE_NOT_OVERALL_ACCEPTANCE"
     },
     {
       "id": "MBRS-AT-011-01",
@@ -34959,12 +35004,17 @@
       "requirement": "数字音乐封面、磁带参考图、个人实物照片和冻结MasterArtwork保持独立身份与用途。",
       "release_scope": "CORE",
       "introduced_in": "1.2",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-010/LOCAL_VALIDATION.json",
+        "reports/MBRS-010_WORK_IN_PROGRESS.md"
+      ],
+      "software_status": "PASS",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_boundary": "四用途独立身份有规则和SQLite证据；真实旧资料、Frozen成品及Owner未验。",
+      "software_scope": "CONTROLLED_SOFTWARE_NOT_OVERALL_ACCEPTANCE"
     },
     {
       "id": "MBRS-AT-011-07",

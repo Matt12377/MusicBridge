@@ -20,7 +20,7 @@ test('007 SQLite CAS保存5000独立条目，冷重开仅恢复逻辑记录且�
  assert.throws(()=>repo.mbQueue.save({expectedRevision:'0',queue:q}),error=>error instanceof MBQueueStoreError && error.code==='QUEUE_CONFLICT');
  assert.deepEqual(repo.mbQueue.load(q.datasetId),q);repo.close();repo=createCollectionRepository({filePath});t.after(()=>repo.close());assert.deepEqual(repo.mbQueue.load(q.datasetId),q);
  assert.equal((repo.mbQueue.load(q.datasetId) as MBQueueRecord).restartPolicy.autoplay,false);assert.equal((repo.mbQueue.load(q.datasetId) as MBQueueRecord).restartPolicy.reResolve,true);
- const db=new DatabaseSync(filePath,{readOnly:true});assert.equal(db.prepare('PRAGMA user_version').get()!.user_version,33);db.close();
+ const db=new DatabaseSync(filePath,{readOnly:true});assert.equal(db.prepare('PRAGMA user_version').get()!.user_version,34);db.close();
 });
 test('007最长合法provider ID的5000项保存与原002最大Unicode意图保守上界；闭合来源拒绝URL/path/token和重复entry及容量截断',()=>{
  const repo=createCollectionRepository({filePath:':memory:'});try {
@@ -42,11 +42,11 @@ test('007保存失败ROLLBACK保留原快照和revision；队列失败不发布�
   assert.throws(()=>repo.mbQueue.save({expectedRevision:'1',queue:{...q,revision:'2',entries:[]}}));assert.deepEqual(repo.mbQueue.load(q.datasetId),q);
  } finally {repo.close();}
 });
-test('007 schema32旧数据库迁移到33，已有业务表与数据保持',async t=>{
+test('007 schema32旧数据库迁移到34，已有业务表与数据保持',async t=>{
  const directory=await mkdtemp(path.join(process.env.TMPDIR!,'mbrs007-schema-')),filePath=path.join(directory,'catalog.sqlite');t.after(()=>rm(directory,{recursive:true,force:true}));
- const repo=createCollectionRepository({filePath});repo.mbQueue.load(randomUUID());repo.close();const db=new DatabaseSync(filePath);db.exec('DROP TABLE mb_playback_queue; PRAGMA user_version=32');db.close();
+ const repo=createCollectionRepository({filePath});repo.mbQueue.load(randomUUID());repo.close();const db=new DatabaseSync(filePath);db.exec('DROP TABLE local_artwork_selections; DROP TABLE local_artwork_candidates; DROP TABLE local_artwork_ledger; DROP TABLE local_artwork_create_intents; DROP TABLE mb_playback_queue; PRAGMA user_version=32');db.close();
  const reopened=createCollectionRepository({filePath});t.after(()=>reopened.close());assert.equal(reopened.mbQueue.load(randomUUID()),null);
- const view=new DatabaseSync(filePath,{readOnly:true});assert.equal(view.prepare('PRAGMA user_version').get()!.user_version,33);assert.ok(view.prepare("SELECT name FROM sqlite_master WHERE name='local_scan_file_state'").get());view.close();
+ const view=new DatabaseSync(filePath,{readOnly:true});assert.equal(view.prepare('PRAGMA user_version').get()!.user_version,34);assert.ok(view.prepare("SELECT name FROM sqlite_master WHERE name='local_scan_file_state'").get());view.close();
 });
 
 test('007隔离恢复scope变化只返回需核对摘要、保留原记录；显式新queueId按旧revision CAS覆盖',async t=>{

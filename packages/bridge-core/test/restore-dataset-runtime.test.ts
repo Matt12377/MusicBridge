@@ -70,7 +70,7 @@ test('正式schema30默认工作库关闭后可冷开，核验分页、ZIP栅栏
   addBusinessData(first.repository); first.close();
   const inspection = new DatabaseSync(path.join(directory, 'collection.v1.sqlite'), { readOnly: true, allowExtension: false });
   try {
-    assert.equal(inspection.prepare('PRAGMA user_version').get()?.user_version, 33);
+    assert.equal(inspection.prepare('PRAGMA user_version').get()?.user_version, 34);
     verifyRecordingRecordPageIndex(inspection); verifyReferenceCatalogZipDatabase(inspection); verifyRecordingRecordPageSearch(inspection); verifyPreparationZipSessionDatabase(inspection);
   } finally { inspection.close(); }
   const cold = await openCollectionDataset(directory);
@@ -83,7 +83,7 @@ test('schema30冷开拒绝缺失的分页索引，不把损坏数据库静默迁
   t.after(() => rm(directory, { recursive: true, force: true }));
   const first = await openCollectionDataset(directory); first.close();
   const file = path.join(directory, 'collection.v1.sqlite'), db = new DatabaseSync(file, { allowExtension: false });
-  try { db.exec('DROP INDEX idx_recordpage_completed'); assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 33); }
+  try { db.exec('DROP INDEX idx_recordpage_completed'); assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 34); }
   finally { db.close(); }
   await assert.rejects(openCollectionDataset(directory), /BACKUP_UNAVAILABLE|备份|工作库/u);
 });
@@ -106,7 +106,7 @@ test('真实合成工作簿原字节、类型化源行、修订与更正随Lot�
   const inspectFacts = (filePath: string) => {
     const db = new DatabaseSync(filePath, { readOnly: true });
     try {
-      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 33);
+      assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 34);
       assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok');
       assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
       return db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND (name GLOB 'spreadsheet_*' OR name GLOB 'reference_*' OR name GLOB 'inventory_*' OR name GLOB 'collection_*' OR name='physical_copies') ORDER BY name").all().map(({ name }) => [name, db.prepare(`SELECT * FROM ${name} ORDER BY rowid`).all()]);

@@ -23,6 +23,7 @@ import { createPreloadApi, PUBLIC_API_KEYS } from '../src/preload/api.js'
 import { createLibraryReadTerminalClient } from '../src/preload/library-read-terminal.js'
 import {createMBQueueClient} from '../src/preload/mb-queue-client.js'
 import { createLocalLibraryClient } from '../src/preload/local-library-client.js'
+import { createLocalArtworkClient } from '../src/preload/local-artwork-client.js'
 import { summarizePreloadRoonImage } from '../src/preload/image-diagnostic.js'
 import { createRecordingAttemptClient } from '../src/preload/recording-attempt-client.js'
 import { createRecordingDeviceClient } from '../src/preload/recording-device-client.js'
@@ -45,6 +46,7 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
     '../shared/performance-transport.js': performanceTransport,
     './library-read-terminal.js': { createLibraryReadTerminalClient },
     './local-library-client.js': { createLocalLibraryClient },
+    './local-artwork-client.js': { createLocalArtworkClient },
     './mb-queue-client.js': {createMBQueueClient},
     './recording-print-client.js': printModule,
     './recording-replica-client.js': replicaModule,
@@ -261,6 +263,14 @@ test('Preload exposes only sanitized business methods', async () => {
     assert.equal(typeof (api as unknown as Record<string, unknown>)[name], 'function', `缺少受限业务API ${name}`)
   }
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'getLocalArtworkContext',
+    'findLocalArtworkCandidates',
+    'searchLocalArtworkCandidates',
+    'chooseLocalArtworkFile',
+    'importLocalArtworkBytes',
+    'applyLocalArtworkSelection',
+    'createLocalArtworkEdition',
+    'cancelLocalArtworkLookup',
     'listLocalLibraryRoots',
     'chooseLocalLibraryRoot',
     'chooseLocalRelocationCandidates',
@@ -548,7 +558,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'reconnectRemoteCore',
     'onRemoteCoreEvent',
   ])
-  assert.deepEqual(Object.keys(api), ['playLocalLibraryTrack', ...PUBLIC_API_KEYS])
+  assert.deepEqual(Object.keys(api), [...PUBLIC_API_KEYS.slice(0, 8), 'playLocalLibraryTrack', ...PUBLIC_API_KEYS.slice(8)])
   assert.equal(Object.isFrozen(api), true)
   assert.deepEqual(await api.getAppInfo(), appInfo)
   assert.deepEqual(await api.getCoreHealth(), state)

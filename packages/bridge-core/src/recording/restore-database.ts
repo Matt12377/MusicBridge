@@ -1,3 +1,4 @@
+import { verifyLocalArtworkDatabase } from '../collection/local-artwork-store.js';
 import { verifyMBQueueDatabase } from '../collection/mb-queue-store.js';
 import { recoverRecordingPrints } from './print-store.js';
 import { verifyRecordingRecordDatabase } from './record-integrity.js';
@@ -21,7 +22,7 @@ export function isolateRestoredDatabase(filePath: string): void {
   try {
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA foreign_keys=ON;');
     const initialVersion = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-    if (!Number.isInteger(initialVersion) || initialVersion < 14 || initialVersion > 33) backupFail();
+    if (!Number.isInteger(initialVersion) || initialVersion < 14 || initialVersion > 34) backupFail();
     verifyVersionDistributionDatabase(db);
     // 损坏历史必须在journal模式变更之前拒绝，连数据库文件头也不提前改写。
     if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 19) verifyRecordingAttemptDatabase(db);
@@ -37,10 +38,11 @@ export function isolateRestoredDatabase(filePath: string): void {
     if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 31) verifyLocalCatalogDatabase(db);
     if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 32) verifyLocalScanDatabase(db);
     if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 33) verifyMBQueueDatabase(db);
+    if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 34) verifyLocalArtworkDatabase(db);
     db.exec('PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL; BEGIN IMMEDIATE;');
     try {
       const version = db.prepare('PRAGMA user_version').get()?.user_version;
-      if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18 && version !== 19 && version !== 20 && version !== 21 && version !== 22 && version !== 23 && version !== 24 && version !== 25 && version !== 26 && version !== 27 && version !== 28 && version !== 29 && version !== 30 && version !== 31 && version !== 32 && version !== 33) backupFail();
+      if (version !== 14 && version !== 15 && version !== 16 && version !== 17 && version !== 18 && version !== 19 && version !== 20 && version !== 21 && version !== 22 && version !== 23 && version !== 24 && version !== 25 && version !== 26 && version !== 27 && version !== 28 && version !== 29 && version !== 30 && version !== 31 && version !== 32 && version !== 33 && version !== 34) backupFail();
       if (Number(version) >= 19) { verifyRecordingAttemptDatabase(db); recoverRecordingAttempts(db, new Date().toISOString()); }
       if (Number(version) >= 25) verifyOutputRunBarrierDatabase(db);
       if (Number(version) >= 26) revokePreparationZipForRestore(db);
@@ -60,6 +62,7 @@ export function isolateRestoredDatabase(filePath: string): void {
       if (Number(version) >= 31) verifyLocalCatalogDatabase(db);
       if (Number(version) >= 32) verifyLocalScanDatabase(db);
       if (Number(version) >= 33) verifyMBQueueDatabase(db);
+    if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 34) verifyLocalArtworkDatabase(db);
       db.exec('COMMIT'); publishScanAudit?.();
     } catch (error) { db.exec('ROLLBACK'); throw error; }
   } finally { db.close(); }
@@ -69,7 +72,7 @@ export function verifyRestoredDatabaseIsolation(filePath: string): void {
   try {
     db.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON;');
     const version = Number(db.prepare('PRAGMA user_version').get()?.user_version);
-    if (!Number.isInteger(version) || version < 14 || version > 33) backupFail();
+    if (!Number.isInteger(version) || version < 14 || version > 34) backupFail();
     verifyVersionDistributionDatabase(db);
     if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 19) {
       verifyRecordingAttemptDatabase(db);
@@ -85,6 +88,7 @@ export function verifyRestoredDatabaseIsolation(filePath: string): void {
       if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 31) verifyLocalCatalogDatabase(db);
       if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 32) verifyLocalScanDatabase(db);
       if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 33) verifyMBQueueDatabase(db);
+    if (Number(db.prepare('PRAGMA user_version').get()?.user_version) >= 34) verifyLocalArtworkDatabase(db);
       if (db.prepare("SELECT 1 FROM recording_attempts WHERE status='in-progress' LIMIT 1").get()) backupFail();
     }
     if (version >= 32 && db.prepare("SELECT 1 FROM local_scan_jobs WHERE json_extract(data,'$.phase')='running' LIMIT 1").get()) backupFail();

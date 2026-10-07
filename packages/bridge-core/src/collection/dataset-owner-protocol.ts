@@ -1,3 +1,4 @@
+import { LOCAL_ARTWORK_COMMANDS, isLocalArtworkInternalCommand } from '@music-bridge/contracts';
 import type {MBQueueLoadResult} from './mb-queue-owner-types.js';
 import { isMBEditionQueueRequest, type MBEditionQueueRequest, type MBEditionQueueSnapshot, isMBQueueSaveRequest, type MBQueueRecord, type MBQueueSaveRequest } from '@music-bridge/contracts';
 import { isLocalSourcePrivatePayload, type LocalSourcePrivatePayload, type LocalSourceCaptureResult } from './local-source-ticket-types.js';
@@ -10,6 +11,7 @@ import { IPC_VERSION, isCollectionId, isCollectionModel, isCommandOutboxDatasetI
 export const DATASET_OWNER_PROTOCOL_VERSION = 1 as const;
 // 原领域作者命令及本地库只读入口组成固定闭集；新命令必须显式加入，不能按前缀自动授权。
 export const DATASET_COMMANDS = [
+  ...LOCAL_ARTWORK_COMMANDS,
   ...LOCAL_CATALOG_COMMANDS,
   ...LOCAL_LIBRARY_READ_COMMANDS,
   ...LOCAL_SCAN_COMMANDS, ...LOCAL_RELOCATION_COMMANDS,
@@ -360,7 +362,7 @@ export function isDatasetLargeVersionedCollectionSnapshot(value: unknown): value
 export function isDatasetRequestEnvelope(value: unknown, internal = false): value is IpcRequest {
   // 公开id与原validateIpcRequest保持一致；私有epoch/requestId继续使用UUID校验。
   return ownerRecord(value) && keys(value, ['version','id','command','payload','readContext','performanceTrace','expectedDatasetId']) && value.version === IPC_VERSION && typeof value.id === 'string' && value.id.trim().length > 0 && value.id.length <= 128
-    && isDatasetCommand(value.command) && (internal || !(isLocalCatalogInternalCommand(value.command) || isLocalScanInternalCommand(value.command) || isLocalRelocationInternalCommand(value.command))) && ownerRecord(value.payload) && (value.expectedDatasetId === undefined || isCommandOutboxDatasetId(value.expectedDatasetId));
+    && isDatasetCommand(value.command) && (internal || !(isLocalArtworkInternalCommand(value.command) || isLocalCatalogInternalCommand(value.command) || isLocalScanInternalCommand(value.command) || isLocalRelocationInternalCommand(value.command))) && ownerRecord(value.payload) && (value.expectedDatasetId === undefined || isCommandOutboxDatasetId(value.expectedDatasetId));
 }
 export function isDatasetOwnerRequest(value: unknown): value is DatasetOwnerRequest {
   if (!ownerRecord(value) || !keys(value, ['version','epoch','type','requestId','sequence','operation','request','queue','edition','local','expectedDatasetId']) || value.version !== DATASET_OWNER_PROTOCOL_VERSION || value.type !== 'request' || !isCollectionId(value.epoch) || !isCollectionId(value.requestId)
@@ -375,7 +377,7 @@ export function isDatasetOwnerRequest(value: unknown): value is DatasetOwnerRequ
   if (['exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot'].includes(String(value.operation))) return value.request === undefined && isCommandOutboxDatasetId(value.expectedDatasetId);
   if (Object.hasOwn(value, 'expectedDatasetId')) return false;
   return value.operation === 'dispatch' || value.operation === 'dispatchInternal' ? isDatasetRequestEnvelope(value.request, true)
-    && (value.operation !== 'dispatchInternal' || ownerRecord(value.request) && (isLocalCatalogInternalCommand(value.request.command) || isLocalScanInternalCommand(value.request.command) || isLocalRelocationInternalCommand(value.request.command))) : value.request === undefined;
+    && (value.operation !== 'dispatchInternal' || ownerRecord(value.request) && (isLocalArtworkInternalCommand(value.request.command) || isLocalCatalogInternalCommand(value.request.command) || isLocalScanInternalCommand(value.request.command) || isLocalRelocationInternalCommand(value.request.command))) : value.request === undefined;
 }
 export function isDatasetOwnerFailure(value: unknown): value is IpcFailure {
   if (!ownerRecord(value) || !keys(value, ['version','id','ok','error'])) return false;

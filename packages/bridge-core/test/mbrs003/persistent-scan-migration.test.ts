@@ -135,5 +135,5 @@ test('MBRS003 schema31真实迁移：111旧表全事实和原API稳定对象保�
   const after = inspect(work); preserveOld(after, facts);
   for (let i=0; i<pinned.files.length; i++) assert.equal(hash(await readFile(path.join(fixtureDirectory,pinned.files[i]!.file))), pinned.files[i]!.sha256, '固定原件字节保持');
   // 唯一新目标断言；旧a7b现Repository实际31，未来真实migration32后应32。
-  assert.equal(after.schemaVersion, 33, '原Repository必须自然将固定31副本迁移到33');
+  assert.equal(after.schemaVersion, 34, '原Repository必须自然将固定31副本迁移到34');
 });

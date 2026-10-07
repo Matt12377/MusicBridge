@@ -41,7 +41,7 @@ function retained(repository: CollectionRepository, facts: Awaited<ReturnType<ty
 }
 function schema32(file: string): void {
   const db = new DatabaseSync(file, { readOnly: true, allowExtension: false });
-  try { assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 33); assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok'); assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []); }
+  try { assert.equal(db.prepare('PRAGMA user_version').get()?.user_version, 34); assert.equal(db.prepare('PRAGMA integrity_check').get()?.integrity_check, 'ok'); assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []); }
   finally { db.close(); }
 }
 function localRows(file: string) {
@@ -67,7 +67,7 @@ test('MBRS002 restore：固定30默认collection.v1.sqlite正式迁移、冷启�
   try {
     assert.equal(cold.datasetId, datasetId); retained(cold.repository, facts, false);
     const snapshot = await cold.repository.backupSnapshot({ ...await authorizeSourceDirectory(snapshotPath), id: randomUUID() });
-    assert.equal(snapshot.schemaVersion, 33); assert.equal(snapshot.relative, 'collection.sqlite');
+    assert.equal(snapshot.schemaVersion, 34); assert.equal(snapshot.relative, 'collection.sqlite');
   } finally { cold.close(); }
   const restoredFile = path.join(snapshotPath, 'collection.sqlite');
   schema32(restoredFile); readBackupIndex(restoredFile); isolateRestoredDatabase(restoredFile);
@@ -140,7 +140,7 @@ test('MBRS002 restore：未来schema拒绝备份索引、隔离写入及默认�
   t.after(() => rm(directory, { recursive: true, force: true }));
   const file = path.join(directory, 'collection.v1.sqlite'), repository = createCollectionRepository({ filePath: file });
   repository.list({ offset: 0, limit: 1 }); repository.close();
-  const db = new DatabaseSync(file); try { db.exec('PRAGMA user_version=34'); } finally { db.close(); }
+  const db = new DatabaseSync(file); try { db.exec('PRAGMA user_version=35'); } finally { db.close(); }
   const bytes = await readFile(file);
   assert.throws(() => readBackupIndex(file)); assert.throws(() => isolateRestoredDatabase(file)); assert.throws(() => verifyRestoredDatabaseIsolation(file));
   await assert.rejects(openCollectionDataset(directory)); assert.deepEqual(await readFile(file), bytes);

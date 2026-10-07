@@ -106,7 +106,7 @@ test('归档 schema 迁移可回滚；旧账本与执行资产不改写', async 
   assert.throws(() => failed.archive.operations()); failed.close();
   const check = new DatabaseSync(f.filePath); assert.equal(check.prepare('PRAGMA user_version').get()!.user_version, 12); assert.equal(check.prepare("SELECT count(*) n FROM sqlite_master WHERE name='archive_roots'").get()!.n, 0); check.close();
   const next = createCollectionRepository({ filePath: f.filePath }); try { assert.deepEqual(next.execution.asset(job.id), before); assert.deepEqual(next.archive.operations(), []); } finally { next.close(); }
-  const after = new DatabaseSync(f.filePath); try { assert.equal(after.prepare('PRAGMA user_version').get()!.user_version, 33); assert.deepEqual(after.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); } finally { after.close(); }
+  const after = new DatabaseSync(f.filePath); try { assert.equal(after.prepare('PRAGMA user_version').get()!.user_version, 34); assert.deepEqual(after.prepare('SELECT * FROM inventory_ledger ORDER BY rowid').all(), ledger); } finally { after.close(); }
 });
 
 test('撤销 Root 后恢复仍记录不可用；取消任务不在恢复中自动重放', async t => {

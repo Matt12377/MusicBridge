@@ -108,7 +108,7 @@ test('schema21隔离恢复后正式迁移到30；schema30备份回读上下文�
     assert.equal(context.contextRevision, 1);
     const destination = path.join(directory, 'backup'); await mkdir(destination);
     const snapshot = await migrated.backupSnapshot({ ...await authorizeSourceDirectory(destination), id: randomUUID() });
-    assert.equal(snapshot.schemaVersion, 33);
+    assert.equal(snapshot.schemaVersion, 34);
     const copy = path.join(destination, 'collection.sqlite');
     readBackupIndex(copy); isolateRestoredDatabase(copy); verifyRestoredDatabaseIsolation(copy);
     const restored = createCollectionRepository({ filePath: copy });

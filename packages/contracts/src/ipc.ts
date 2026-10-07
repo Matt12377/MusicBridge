@@ -1,3 +1,4 @@
+import type { LocalArtworkCommandPayloads, LocalArtworkCommandResults, LocalArtworkInternalCommand } from './local-artwork.js';
 import type { LocalPlayAccepted } from './local-play-request.js';
 import type {LocalRelocationCommandPayloads,LocalRelocationCommandResults,LocalRelocationInternalCommand} from './local-relocation.js';
 import type { LocalScanCommandPayloads, LocalScanCommandResults, LocalScanInternalCommand } from './local-scan.js';
@@ -116,7 +117,7 @@ export type IpcResponse<TResult = unknown> =
 
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
-export interface IpcCommandPayloads extends LocalCatalogCommandPayloads, LocalLibraryReadCommandPayloads, LocalScanCommandPayloads, LocalRelocationCommandPayloads {
+export interface IpcCommandPayloads extends LocalArtworkCommandPayloads, LocalCatalogCommandPayloads, LocalLibraryReadCommandPayloads, LocalScanCommandPayloads, LocalRelocationCommandPayloads {
   'localCatalog.prepare': LocalPlayRequest;
   'playback.localTarget': Record<string, never>;
   'commandOutbox.context': Record<string, never>;
@@ -408,7 +409,7 @@ export interface IpcCommandPayloads extends LocalCatalogCommandPayloads, LocalLi
   'playback.insertNext': { items: readonly PlaybackQueueRequestItem[] };
 }
 
-export interface IpcCommandResults extends LocalCatalogCommandResults, LocalLibraryReadCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
+export interface IpcCommandResults extends LocalArtworkCommandResults, LocalCatalogCommandResults, LocalLibraryReadCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
   'localCatalog.prepare': LocalSourceUnsupported | LocalPlayAccepted;
   'playback.localTarget': import('./local-play-request.js').LocalPlayTarget | null;
   'commandOutbox.context': CommandOutboxContext;
@@ -709,9 +710,9 @@ export interface IpcEventPayloads {
   'lyrics.match.changed': { state: LocalLyricsMatchSnapshot };
 }
 
-export type IpcInternalCommand = LocalCatalogInternalCommand | LocalScanInternalCommand | LocalRelocationInternalCommand | 'lyrics.display.update' | 'recordingPrintWorker.claim' | 'recordingPrintWorker.complete' | 'recordingPrintWorker.fail' | 'recordingPrintWorker.pdf' | 'spreadsheetImports.registerWorkbook' | 'spreadsheetImports.workbookReceipt' | 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'recordingPreparationZip.authorizeTarget' | 'recordingPreparationZip.invalidateScope' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
+export type IpcInternalCommand = LocalArtworkInternalCommand | LocalCatalogInternalCommand | LocalScanInternalCommand | LocalRelocationInternalCommand | 'lyrics.display.update' | 'recordingPrintWorker.claim' | 'recordingPrintWorker.complete' | 'recordingPrintWorker.fail' | 'recordingPrintWorker.pdf' | 'spreadsheetImports.registerWorkbook' | 'spreadsheetImports.workbookReceipt' | 'recordingBackups.activationReceipt' | 'recordingBackups.authorize' | 'recordingBackups.authorizationReceipt' | 'recordingArchive.authorize' | 'recordingArchive.authorizationReceipt' | 'recordingPrepared.select' | 'recordingPrepared.selectionReceipt' | 'recordingPreparation.authorizationReceipt' | 'recordingPreparation.authorize' | 'recordingPreparation.context' | 'recordingPreparationZip.authorizeTarget' | 'recordingPreparationZip.invalidateScope' | 'auth.pollQr' | 'auth.verifyCredential' | 'recordingSources.rootReceipt' | 'recordingSources.authorize' | 'recordingSources.context' | 'recordingSources.start';
 
-export interface IpcInternalCommandResults extends Pick<LocalCatalogCommandResults, LocalCatalogInternalCommand>, Pick<LocalScanCommandResults, LocalScanInternalCommand>, Pick<LocalRelocationCommandResults,LocalRelocationInternalCommand> {
+export interface IpcInternalCommandResults extends Pick<LocalArtworkCommandResults, LocalArtworkInternalCommand>, Pick<LocalCatalogCommandResults, LocalCatalogInternalCommand>, Pick<LocalScanCommandResults, LocalScanInternalCommand>, Pick<LocalRelocationCommandResults,LocalRelocationInternalCommand> {
   'lyrics.display.update': { applied: boolean };
   'recordingPrintWorker.claim': { lease: RecordingPrintLease | null };
   'recordingPrintWorker.complete': RecordingPrintJob;

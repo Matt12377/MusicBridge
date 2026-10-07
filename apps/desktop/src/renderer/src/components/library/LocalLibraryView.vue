@@ -3,6 +3,8 @@ import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from
 import type { PlaybackSnapshot, TrackSummary } from '@music-bridge/contracts'
 import type { useLocalLibrary } from '../../composables/application/useLocalLibrary.js'
 import TrackTable from '../media/TrackTable.vue'
+import LocalArtworkDialog from './LocalArtworkDialog.vue'
+import SafeArtwork from '../SafeArtwork.vue'
 import LocalLibrarySettings from '../settings/LocalLibrarySettings.vue'
 import { localLibraryPlaybackStatus, mbQueueOwnershipStatus } from '../player/details.js'
 
@@ -79,6 +81,8 @@ onUnmounted(() => { focusGeneration++; model.suspend() })
           <p class="local-note">{{ model.selectedRoot ? rootAvailability[model.selectedRoot.availability] : '目录状态暂未读取' }} · 本地原文件</p>
           <div class="local-detail-actions"><button type="button" :disabled="model.actionBusy || model.detail.track.segment !== null" @click="model.playTrack(model.detail.track.id)">原文件直送</button><button type="button" :disabled="model.actionBusy || model.detail.track.segment !== null" @click="model.playTrack(model.detail.track.id, 'APPEND_MB_QUEUE')">加入 MB 队列</button><button type="button" :disabled="model.actionBusy || model.detail.track.segment !== null" @click="model.playTrack(model.detail.track.id, 'PLAY_NEXT_MB_QUEUE')">MB 下一首</button></div>
           <p v-if="model.detail.track.segment !== null" class="local-note">这是已保存的 CUE 段落；段落直送尚不支持，曲目身份与信息保留。</p>
+          <div class="local-detail-actions"><button type="button" @click="props.session.artwork.open(model.detail.track.id)">选择封面</button><span class="local-note">只保存到 MB；封面不改变版本与音质信息。</span></div>
+          <div v-if="model.detailArtwork?.selection?.candidate" class="local-detail-artwork"><SafeArtwork :src="model.detailArtwork.selection.candidate.display.dataUrl" alt="MB 已保存的独立发行封面" loading="eager" style="width:100px;height:100px;flex:none" /><p class="local-note">MB 已保存封面 · {{ model.detailArtwork.selection.candidate.sourceLabel }}<br>Roon 封面接收状态另行验证。</p></div>
           <h3>版本</h3><ul v-if="model.detail.editions.length"><li v-for="edition in model.detail.editions" :key="edition.id">{{ edition.title }} · {{ edition.edition || '未注明版本' }}</li></ul><p v-else class="local-note">尚无已保存的独立发行关系。</p>
           <p v-if="model.detail.versionTokens.length" class="local-note">名称线索：<span v-for="(token, index) in model.detail.versionTokens" :key="`${token.source}-${token.start}-${index}`">{{ token.raw }}（{{ tokenSource[token.source] }}）{{ index + 1 < model.detail.versionTokens.length ? ' · ' : '' }}</span>。名称线索用于辨认版本。</p>
           <h3>原始标签与显示信息</h3><div class="local-metadata-wrap"><table class="local-metadata"><caption>已保存的来源、人工更正与生效信息</caption><thead><tr><th scope="col">字段</th><th scope="col">原始标签</th><th scope="col">显示更正</th><th scope="col">生效信息</th></tr></thead><tbody><tr v-for="field in metadataFields" :key="field.key"><th scope="row">{{ field.label }}</th><td>{{ model.detail.metadata.raw[field.key] || '未提供' }}</td><td>{{ model.detail.metadata.override?.fields[field.key] ?? '未更正' }}</td><td>{{ model.detail.metadata.effective[field.key] || '未提供' }}</td></tr></tbody></table></div>
@@ -89,10 +93,12 @@ onUnmounted(() => { focusGeneration++; model.suspend() })
         </template>
       </section>
     </div>
+    <LocalArtworkDialog v-if="props.session.artwork.isOpen.value" :session="props.session.artwork" />
   </section>
 </template>
 
 <style scoped>
+.local-detail-artwork { display:flex; gap:16px; align-items:center; margin:16px 0; }
 .local-library-view { padding-bottom: 170px; }
 .local-library-heading, .local-detail-heading, .local-search-controls, .local-detail-actions, .local-results-summary { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .local-library-heading { justify-content: space-between; margin-bottom: 16px; }
