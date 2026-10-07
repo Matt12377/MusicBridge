@@ -1,0 +1,55 @@
+{
+  "schema": "mbrs009.natural-ci-repair-scope.v1",
+  "task": "MBRS-009",
+  "originalSourceCommit": "bb121676a63c489656c4155b4e81e6615a50c7fe",
+  "authority": "本轮Owner连续开发与普通push授权范围内，修复已完成首轮自然CI明确暴露的验证准备问题；公开提交授权已独立核实。",
+  "historicalExecutionScopePreserved": {
+    "path": "docs/postrust/MBRS-009/EXECUTION_SCOPE.json",
+    "bytes": 13275,
+    "sha256": "c3b717fb8b0afa298d6557bd7232043a717e67aca7c07052ae5813723098e2ad"
+  },
+  "repairs": [
+    {
+      "failure": "旧真实组件键盘E2E在Vite CSS构建阶段失败，尚未进入实际键盘断言。",
+      "runId": 37555239988,
+      "jobId": 112579844177,
+      "runAttempt": 1,
+      "actualResult": "104通过、4个原条件跳过、1失败；失败为缺少build.lib.cssFileName。",
+      "files": ["apps/desktop/e2e/playback-keyboard.spec.ts", "apps/desktop/tsconfig.e2e.json"],
+      "change": "明确CSS文件名，保存并加载正式组件CSS，把该旧E2E纳入类型检查；原键盘断言不变。"
+    },
+    {
+      "failure": "验证job超过原25分钟总时限，009 Gate被外层取消。",
+      "runId": 37555239983,
+      "jobId": 112579844060,
+      "runAttempt": 1,
+      "checkAnnotation": "The job has exceeded the maximum execution time of 25m0s",
+      "jobStartedAt": "2026-10-07T01:04:17Z",
+      "task009StartedAt": "2026-10-07T01:27:27Z",
+      "cancelledAt": "2026-10-07T01:29:22Z",
+      "file": ".github/workflows/verify.yml",
+      "change": "外层verify job从25分钟到30分钟，容纳已测前序23分10秒和009的既有6分钟总预算及收尾；其他job和每个Gate预算不变。"
+    }
+  ],
+  "identityRepair": {
+    "file": "scripts/ci/verify-mbrs009-local-library-ui.mjs",
+    "addedDeclaredInputs": ["apps/desktop/e2e/playback-keyboard.spec.ts", "docs/postrust/MBRS-009/CI_REPAIR_SCOPE.json"],
+    "expectedDeclaredInputs": 1236,
+    "scope": "声明输入身份，不冒充完整传递依赖闭包。"
+  },
+  "unchanged": {
+    "candidate02ProductAndAllowedTestFiles": 38,
+    "productFiles": 28,
+    "allowedTaskTestFiles": 10,
+    "gateTests": 220,
+    "regressionPaths": 25,
+    "gateTotalBudgetMs": 360000,
+    "gateStageBudgetMs": 180000,
+    "gateCaptureLimitBytes": 4194304,
+    "formalReviewRoundsConsumed": 2,
+    "newFormalReviewRound": false,
+    "originalTaskAndAcceptanceDefinitions": true,
+    "realRoonAudioNasLanSourceWriteInstallRelease": "NOT_RUN"
+  },
+  "failurePreservation": "首轮自然CI、完整job日志、检查注释和同源码本地RED记录保留；新修复提交仅触发自己的自然push CI，不重跑或取消原job。"
+}

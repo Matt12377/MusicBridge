@@ -1,0 +1,75 @@
+{
+  "schema": "mbrs009.inherited-keyboard-fixture-repair.v1",
+  "stage": "green-01",
+  "capturedAt": "2026-10-07T01:38:15.764868+00:00",
+  "headSha": "bb121676a63c489656c4155b4e81e6615a50c7fe",
+  "command": [
+    "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+    "node_modules/@playwright/test/cli.js",
+    "test",
+    "e2e/playback-keyboard.spec.ts",
+    "--config",
+    "playwright.config.ts",
+    "--workers",
+    "1",
+    "--retries",
+    "0"
+  ],
+  "exitCode": 0,
+  "timedOut": false,
+  "elapsedSeconds": 4.924514874990564,
+  "sourceInputs": [
+    {
+      "path": "apps/desktop/e2e/playback-keyboard.spec.ts",
+      "bytes": 5674,
+      "sha256": "5a39452cf1dac2e36d35546c859d54b65e6dcf9e4255d4c69467b455bd2c040f"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+      "bytes": 12994,
+      "sha256": "09bfe428819be83230d9cc2fce0fd401a50c437c7b95e007f7dca3729096e552"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/RoonBrowseDetail.vue",
+      "bytes": 5646,
+      "sha256": "8f8d000752100fb66288f9340b6a826848a0628bd6b4c4fe7de52213827ecace"
+    },
+    {
+      "path": "apps/desktop/playwright.config.ts",
+      "bytes": 653,
+      "sha256": "186d7dece1fc3a87e1b0ecddcf066ec946e39d22b9a3b5638d2b41201f190f49"
+    },
+    {
+      "path": "apps/desktop/e2e/temporary-root.ts",
+      "bytes": 1210,
+      "sha256": "c657c7369280497599e84cde5e0eb459ad97eb28f07feaa2ec972a79d503d06d"
+    },
+    {
+      "path": "apps/desktop/scripts/electron-identity.mjs",
+      "bytes": 4869,
+      "sha256": "01f0dd2449a1eeffe8bb7c59577186b79a04109c2eace49f7325732da898fa77"
+    }
+  ],
+  "sourceUnchanged": true,
+  "log": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/keyboard-green-01/complete-output.log",
+    "bytes": 192,
+    "sha256": "720de3925e2cd0e6294d6496621745cc33e362bd01f5eb04b6019ed0411018b4"
+  },
+  "report": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/keyboard-green-01/tmp/musicbridge-playwright-report.json",
+    "bytes": 3452,
+    "sha256": "f50c819466352d5a70011c9404f8aaccf7b0203862832e38f5a66c1648f634a7"
+  },
+  "stats": {
+    "startTime": "2026-10-07T01:38:12.275Z",
+    "duration": 3472.156,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "success": true,
+  "layer": "INHERITED_REAL_COMPONENT_KEYBOARD_E2E_SYNTHETIC_FIXTURE",
+  "realAccountRoonAudio": "NOT_RUN"
+}

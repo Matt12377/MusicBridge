@@ -43,13 +43,17 @@ test('MBR-001 实际键盘：行 Enter 播放，子按钮 Enter/空格只执行�
           return '<template><span aria-hidden="true"></span></template>'
         }
       } }, vue()],
-      build: { write: false, minify: false, lib: { entry, formats: ['iife'], name: 'KeyboardFixture' } },
+      build: { write: false, minify: false, lib: { entry, formats: ['iife'], name: 'KeyboardFixture', cssFileName: 'keyboard-fixture' } },
     })
     const bundles = Array.isArray(output) ? output : [output]
-    const chunk = bundles.flatMap(bundle => 'output' in bundle ? bundle.output : []).find(item => item.type === 'chunk')
+    const assets = bundles.flatMap(bundle => 'output' in bundle ? bundle.output : [])
+    const chunk = assets.find(item => item.type === 'chunk')
     if (!chunk || chunk.type !== 'chunk') throw new Error('键盘夹具未生成')
+    const css = assets.find(item => item.type === 'asset' && item.fileName === 'keyboard-fixture.css')
+    if (!css || css.type !== 'asset') throw new Error('键盘夹具未生成正式组件样式')
     await writeFile(path.join(directory, 'fixture.js'), chunk.code)
-    await writeFile(path.join(directory, 'index.html'), '<!doctype html><meta charset="utf-8"><div id="app"></div><script src="fixture.js"></script>')
+    await writeFile(path.join(directory, 'keyboard-fixture.css'), css.source)
+    await writeFile(path.join(directory, 'index.html'), '<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="keyboard-fixture.css"><div id="app"></div><script src="fixture.js"></script>')
     const main = path.join(directory, 'main.cjs')
     await writeFile(main, `const { app, BrowserWindow } = require('electron');
       app.setPath('userData', ${JSON.stringify(path.join(directory, 'user-data'))});

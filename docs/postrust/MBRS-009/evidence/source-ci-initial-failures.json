@@ -1,0 +1,52 @@
+{
+  "schema": "mbrs009.initial-natural-ci-failures.v1",
+  "capturedAt": "2026-10-07T01:39:10.677832+00:00",
+  "sourceCommit": "bb121676a63c489656c4155b4e81e6615a50c7fe",
+  "allRunsAttempt": 1,
+  "verify": {
+    "runId": 37555239983,
+    "jobId": 112579844060,
+    "conclusion": "cancelled",
+    "cause": "The job has exceeded the maximum execution time of 25m0s",
+    "checkAnnotations": {
+      "bytes": 1599,
+      "sha256": "b8eceeec75bddc1a611cefbf157e32fdd0eae4706da5df2db7156687a1047549"
+    },
+    "completeJobLog": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ci/source-verify-cancelled-01/complete-job.log",
+      "bytes": 4487204,
+      "sha256": "fa38cfb182754ad477fc4c6c9fbefb03213e23e63066197a0cafd137f3df7642"
+    }
+  },
+  "electron": {
+    "runId": 37555239988,
+    "jobId": 112579844177,
+    "conclusion": "failure",
+    "counts": {
+      "passed": 104,
+      "skipped": 4,
+      "failed": 1
+    },
+    "failedSpec": "e2e/playback-keyboard.spec.ts",
+    "failedStage": "VITE_CSS_BUILD_BEFORE_KEYBOARD_ASSERTIONS",
+    "error": "Name in package.json is required if option build.lib.cssFileName is not provided.",
+    "completeJobLog": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs009-mhocj_g8/ci/source-electron-failure-01/complete-job.log",
+      "bytes": 173196,
+      "sha256": "b5032875f733ba2ecd4ac7961ebdf66c1c07e9662309c086fa1841d7bf89abca"
+    },
+    "new009SpecObservedInCompleteLog": true
+  },
+  "otherWorkflows": "security和双平台Rust通过，但不抵扣两条失败/取消结果。",
+  "targetedKeyboardRepair": {
+    "red": "docs/postrust/MBRS-009/evidence/keyboard-fixture-red-01.json",
+    "green": "docs/postrust/MBRS-009/evidence/keyboard-fixture-green-01.json",
+    "sameOriginalAssertions": true,
+    "cssNowActuallyLoaded": true
+  },
+  "artifactsContentDownloaded": false,
+  "oldCiRerun": false,
+  "oldCiCancel": false,
+  "newSourceCommitAndNaturalCi": "PENDING_AT_REPAIR_SOURCE_COMMIT",
+  "realRoonAudioOwner": "NOT_RUN"
+}
