@@ -1,0 +1,97 @@
+{
+  "result": "PASS",
+  "execution": {
+    "label": "root-owned-production-e2e108-codec",
+    "headAtRun": "a30818185b7e30110cb9156110e955a8f191a90e",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 39.2731630000053,
+    "log": {
+      "file": "root-owned-production-e2e108-codec.log",
+      "bytes": 39550,
+      "sha256": "536d685d78cf55a9a576f6404ce7995199c4fb74965385e6cce8c2c1b98fbef4"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "build": "STANDARD_VERIFY107_PRODUCTION_BUILD",
+  "buildExecution": {
+    "label": "root-workspace-verify107-codec",
+    "headAtRun": "a30818185b7e30110cb9156110e955a8f191a90e",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 310.96812858304475,
+    "log": {
+      "file": "root-workspace-verify107-codec.log",
+      "bytes": 1136643,
+      "sha256": "ca59dbc61f26aaee415bce7609d6a72534f13eff27ca1030400cad7323c12e9c"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "artifactFiles": 956,
+  "artifactIdentity": "4bab695330a072365847704b8310641466d54eae380146fee5706e6e0935136f",
+  "artifactsUnchangedDuringRun": true,
+  "plans": 13,
+  "blockedDefaultOff": 1,
+  "forwardCompleted": 6,
+  "inverseCompleted": 6,
+  "naturalCloses": 3,
+  "allPreviewsSourceUnchanged": true,
+  "externalAttempts": 0,
+  "pageErrors": 0,
+  "independentOutputs": {
+    "audioCases": 6,
+    "safetyOperations": 14,
+    "restorationOperations": 7,
+    "fullFdRootWitnesses": 57,
+    "actualToolRuns": 144,
+    "result": "PASS",
+    "archive": {
+      "archiveId": "ROOT012_APP108_INDEPENDENT_OUTPUTS",
+      "fileName": "APP_OUTPUTS108_RESULT.json",
+      "bytes": 151168,
+      "sha256": "43bc3be6a296a13a07ac579be041f325880603fb1090d99bd5e26fd42c60a8ce",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "rootAudit": {
+      "archiveId": "ROOT012_APP108_ROOT_INDEPENDENT_AUDIT110",
+      "fileName": "ROOT_APP108_INDEPENDENT_OUTPUT_AUDIT110.json",
+      "bytes": 16582,
+      "sha256": "335ca09934b230ed7212c9b6b28cbdc8d06de7b2d8144d2e8f2b04d9d9353e2f",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "scope": "SELF_OWNED_NON_SILENT_FLAC_MP3_PNG_TAGS_EMBEDDED_DIRECTORY_BATCH_UNDO_COLD_HISTORY",
+  "appReceipt": {
+    "archiveId": "ROOT012_PRODUCTION_APP108_RECEIPT",
+    "fileName": "receipt.json",
+    "bytes": 113541,
+    "sha256": "607e8b9c83cd40616f5444b923a217fa9c5067b8a6bef17f3d84037ca5d87f32",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "productInputs": 623,
+  "productIdentity": "7d78de3b2922a620bef46168f42195888afac13af1ae60da4ba419ef403a6168",
+  "sourceTestInputs": 1422,
+  "sourceTestIdentity": "a6bedf5cf85c5ea87faba0baf67fed88581f4157cf3a8644f9fefebe3ac97260",
+  "jpegInThisAppRun": "NOT_RUN",
+  "httpLeaseAndPlaybackRecordingFaultsInThisAppRun": "NOT_RUN",
+  "sameArtifactAsHistoricalBuild33": false,
+  "realRoonAudioOwner": "NOT_RUN",
+  "archive": {
+    "archiveId": "ROOT012_APP108_ACTUAL111",
+    "fileName": "ROOT_APP108_ACTUAL111.json",
+    "bytes": 6130,
+    "sha256": "7ddf91fe6fc907617305cf2baf793ca811b091e3cf92730f1fb5e52b9b946943",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "schema": "mbrs012.owned-production-app-evidence.v1",
+  "sourceSha": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
+  "sourceCommitBoundRetrospectivelyBy": "docs/postrust/MBRS-012/evidence/source-identity.json"
+}

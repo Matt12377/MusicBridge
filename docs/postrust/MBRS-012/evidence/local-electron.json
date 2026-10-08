@@ -1,0 +1,95 @@
+{
+  "execution": {
+    "label": "root-electron57-two-routes",
+    "headAtRun": "09370f19d4422be3b387047999a0722961c52e1e",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 112.79945387499174,
+    "log": {
+      "file": "root-electron57-two-routes.log",
+      "bytes": 4449,
+      "sha256": "eec9d32a3683c6985dd7e45783e081a979f6ab7d0bbbe6285a8e74b052ba5105"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "counts": {
+    "tests": 12,
+    "pass": 12,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "keychainMode": "mock",
+  "systemKeychain": "NOT_RUN",
+  "scope": "REAL_ELECTRON_PRODUCTION_MAIN_CORE_UTILITYPROCESS_NODE_RUST_CONTROLLED_COLLECTION_UI_STARTUP_CRASH_RECOVERY",
+  "archive": {
+    "archiveId": "ROOT012_STANDARD_ELECTRON57",
+    "fileName": "ROOT_ELECTRON57_ACTUAL.json",
+    "bytes": 2726,
+    "sha256": "7038b21e2011d8df9905f1ad63d754bf4e47baa5b38602988dc3b1758b7b9b5f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "sourceBindingBoundary": "SEE_SOURCE_IDENTITY_AND_EACH_LOCAL_GRAPH_SCOPE_NOT_ALL_RUNS_EXECUTED_AT_COMMITTED_HEAD",
+  "schema": "mbrs012.local-electron-evidence.v1",
+  "sourceSha": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
+  "rootReceipt": {
+    "archiveId": "ROOT012_STANDARD_ELECTRON57",
+    "fileName": "ROOT_ELECTRON57_ACTUAL.json",
+    "bytes": 2726,
+    "sha256": "7038b21e2011d8df9905f1ad63d754bf4e47baa5b38602988dc3b1758b7b9b5f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "sameRunRustPreparation": {
+    "execution": {
+      "label": "root-rust-hosts-prepare55-two-routes",
+      "headAtRun": "09370f19d4422be3b387047999a0722961c52e1e",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 191.51633233297616,
+      "log": {
+        "file": "root-rust-hosts-prepare55-two-routes.log",
+        "bytes": 1287,
+        "sha256": "4fd0248f5816b8373e5884ef3e9fdd8ef400b9c51f976dadc808c975fc0438d2"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "stages": 30,
+    "scope": "SAME_RUN_RUST_HOSTS_PREPARATION_NOT_ELECTRON_ACCEPTANCE",
+    "sourceBindingBoundary": "HISTORICAL_RUST55_PREPARATION_NOT_CURRENT_APP88_ACCEPTANCE"
+  },
+  "actualTopology": "ACTUAL_REAL_MAIN_TWO_PRODUCTION_PLUS_LAST_OBSERVER_PORTS_IN_PRIVATE_HOST",
+  "mutableHostReportsUsedAsSealed57Evidence": false,
+  "priorFailuresPreserved": [
+    {
+      "archiveId": "ROOT012_ELECTRON46_PRIOR_FAILURE",
+      "fileName": "root-electron46-current.log",
+      "bytes": 11419,
+      "sha256": "2960b8a8cf5abca8035fba60aa7e431beb04f60b0ffef175c68ad4e60456426d",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    {
+      "archiveId": "ROOT012_RUST48_PRIOR_FAILURE",
+      "fileName": "root-rust-hosts-prepare48-bootstrap.log",
+      "bytes": 2479,
+      "sha256": "0a1ff5eb1b8aefcd80ffeaa553c9689bf50adb3ba8ff2460ef2c97de47a0442e",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    {
+      "archiveId": "ROOT012_RUST52_PRIOR_FAILURE",
+      "fileName": "root-rust-hosts-prepare52-types.log",
+      "bytes": 2523,
+      "sha256": "4fcd457c8182b2e761c2966cb6268a917e83fb740710156cef74c5b726ab3a0b",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  ]
+}

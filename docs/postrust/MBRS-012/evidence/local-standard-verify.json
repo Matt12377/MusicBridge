@@ -1,0 +1,50 @@
+{
+  "execution": {
+    "label": "root-workspace-verify107-codec",
+    "headAtRun": "a30818185b7e30110cb9156110e955a8f191a90e",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 310.96812858304475,
+    "log": {
+      "file": "root-workspace-verify107-codec.log",
+      "bytes": 1136643,
+      "sha256": "ca59dbc61f26aaee415bce7609d6a72534f13eff27ca1030400cad7323c12e9c"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "tests": 4701,
+  "pass": 4699,
+  "fail": 0,
+  "skipped": 2,
+  "scope": "CURRENT1422_DATA_CODEC_AND_RELOAD_STANDARD_TYPES_TOP_LEVEL_TESTS_PRODUCTION_BUILD",
+  "sourceInputsIdentity": "a6bedf5cf85c5ea87faba0baf67fed88581f4157cf3a8644f9fefebe3ac97260",
+  "sourceInputsUnchanged": true,
+  "productInputs": 623,
+  "productIdentity": "7d78de3b2922a620bef46168f42195888afac13af1ae60da4ba419ef403a6168",
+  "originalOptionalNativeSkips": [
+    "ok 1205 - 实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
+    "ok 1211 - Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
+  ],
+  "nativeDeviceAudio": "NOT_RUN",
+  "archive": {
+    "archiveId": "ROOT012_STANDARD_VERIFY107",
+    "fileName": "ROOT_STANDARD_VERIFY_ACTUAL107.json",
+    "bytes": 3097,
+    "sha256": "845b76fb947ba7043a2721b9b854fd8c19b3e116f66a0a95ff0987f7ebae2e92",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "schema": "mbrs012.local-standard-verify-evidence.v1",
+  "sourceSha": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
+  "sourceBindingBoundary": "SEE_SOURCE_IDENTITY_AND_EACH_LOCAL_GRAPH_SCOPE_NOT_ALL_RUNS_EXECUTED_AT_COMMITTED_HEAD",
+  "rootReceipt": {
+    "archiveId": "ROOT012_STANDARD_VERIFY107",
+    "fileName": "ROOT_STANDARD_VERIFY_ACTUAL107.json",
+    "bytes": 3097,
+    "sha256": "845b76fb947ba7043a2721b9b854fd8c19b3e116f66a0a95ff0987f7ebae2e92",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  }
+}

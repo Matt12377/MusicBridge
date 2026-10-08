@@ -1,0 +1,429 @@
+{
+  "result": "PASS_ALL_APPLICABLE_CASES_WITH_PREPARATION_CORRECTION",
+  "standardFullRun": {
+    "tests": 113,
+    "pass": 108,
+    "fail": 1,
+    "skipped": 4,
+    "exitCode": 1,
+    "failedCase": "014_B_MISSING_PRIVATE_BASELINE_BEFORE_APP_STARTUP",
+    "log": {
+      "file": "root-full-production-e2e58.log",
+      "bytes": 24316,
+      "sha256": "0f15f8a54286b356c02a1f0c1d3fb8f3ade66031f862ebc18e6a3ee46cb28c86"
+    }
+  },
+  "affectedCaseCorrection": {
+    "test": "UNCHANGED_MBR014_B_WITH_EXISTING_SEALED_PRIVATE_P1",
+    "tests": 1,
+    "pass": 1,
+    "fail": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "log": {
+      "file": "root-private-b59-existing-p1.log",
+      "bytes": 714,
+      "sha256": "728029513a90a86aa8757095813f7df2ef1b966aeb4483ec3a1cddee32f59933"
+    },
+    "original103Exact": true,
+    "businessHistoryExceptions": 0,
+    "originalP1Untouched": true,
+    "retainedFilesExact": 35,
+    "pageErrors": 0
+  },
+  "uniqueApplicableCases": 109,
+  "uniqueApplicablePassed": 109,
+  "originalOptionalNativeSkipped": 4,
+  "fullOriginalCommandExitCodeWasZero": false,
+  "sourceInputsUnchanged": true,
+  "declaredInputs": 1422,
+  "sourceInputsIdentity": "eaafa60f30386d2c841e53b160f6cb94e92e45470dd35f7b2f68c5b9a674e117",
+  "realProviderRoonNasAudioDeviceOwner": "NOT_RUN",
+  "sourceBindingBoundary": "SEE_SOURCE_IDENTITY_AND_EACH_LOCAL_GRAPH_SCOPE_NOT_ALL_RUNS_EXECUTED_AT_COMMITTED_HEAD",
+  "historicalGraphDifferences": [
+    "apps/desktop/test/mbrs012-ui.test.ts",
+    "packages/bridge-core/src/collection/local-catalog-store.ts",
+    "packages/contracts/src/local-catalog.ts",
+    "packages/contracts/test/mbrs012/source-writes-contract.test.ts"
+  ],
+  "schema": "mbrs012.local-e2e-evidence.v1",
+  "sourceSha": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
+  "rootReceipt": {
+    "archiveId": "ROOT012_STANDARD_E2E58_B59",
+    "fileName": "ROOT_FULL_E2E58_WITH_PRIVATE_B59_ACTUAL.json",
+    "bytes": 25763,
+    "sha256": "1f504ccf60ce128e360a74e34bcaf0d49d393779646ab77c832a6517730e0c64",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "privateBaselinePreparation": {
+    "archiveId": "ROOT012_ORIGINAL014_B_P1_PREPARATION59",
+    "fileName": "MBRS014_B_EXISTING_FIXTURE_PREPARATION59.json",
+    "bytes": 240186,
+    "sha256": "25331a1fbfe88900e6d66d4fa26d9d9e7ed4508158792a47045eab3749ab1612",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "historicalStandardProductionE2e58": {
+    "result": "PASS_ALL_APPLICABLE_CASES_WITH_PREPARATION_CORRECTION",
+    "standardFullRun": {
+      "tests": 113,
+      "pass": 108,
+      "fail": 1,
+      "skipped": 4,
+      "exitCode": 1,
+      "failedCase": "014_B_MISSING_PRIVATE_BASELINE_BEFORE_APP_STARTUP",
+      "log": {
+        "file": "root-full-production-e2e58.log",
+        "bytes": 24316,
+        "sha256": "0f15f8a54286b356c02a1f0c1d3fb8f3ade66031f862ebc18e6a3ee46cb28c86"
+      }
+    },
+    "affectedCaseCorrection": {
+      "test": "UNCHANGED_MBR014_B_WITH_EXISTING_SEALED_PRIVATE_P1",
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "exitCode": 0,
+      "log": {
+        "file": "root-private-b59-existing-p1.log",
+        "bytes": 714,
+        "sha256": "728029513a90a86aa8757095813f7df2ef1b966aeb4483ec3a1cddee32f59933"
+      },
+      "original103Exact": true,
+      "businessHistoryExceptions": 0,
+      "originalP1Untouched": true,
+      "retainedFilesExact": 35,
+      "pageErrors": 0
+    },
+    "uniqueApplicableCases": 109,
+    "uniqueApplicablePassed": 109,
+    "originalOptionalNativeSkipped": 4,
+    "fullOriginalCommandExitCodeWasZero": false,
+    "sourceInputsUnchanged": true,
+    "declaredInputs": 1422,
+    "sourceInputsIdentity": "eaafa60f30386d2c841e53b160f6cb94e92e45470dd35f7b2f68c5b9a674e117",
+    "realProviderRoonNasAudioDeviceOwner": "NOT_RUN",
+    "sourceBindingBoundary": "HISTORICAL_E2E58_B59_ACTUAL_GRAPH_DIFFERS_FROM_CURRENT_S4_USE_EXACT_LIST_NOT_CURRENT_FULL_E2E_RUN",
+    "historicalGraphDifferences": [
+      "apps/desktop/test/mbrs012-ui.test.ts",
+      "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "packages/contracts/src/local-catalog.ts",
+      "packages/contracts/test/mbrs012/source-writes-contract.test.ts"
+    ]
+  },
+  "currentStandardProductionE2e112": {
+    "result": "PASS_FULL_ORIGINAL_COMMAND_APPLICABLE_CASES",
+    "execution": {
+      "label": "root-full-production-e2e112c-codec",
+      "headAtRun": "a30818185b7e30110cb9156110e955a8f191a90e",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 422.5758553749765,
+      "log": {
+        "archiveId": "ROOT012_FULL_E2E_RAW_root-full-production-e2e112c-codec",
+        "fileName": "root-full-production-e2e112c-codec.log",
+        "bytes": 20690,
+        "sha256": "64fd985ac2d5c5aa9edac43f284aa4819014757309f929d9a6410a2d74ad6882",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "executionArchives": {
+      "wrapper": {
+        "archiveId": "ROOT012_FULL_E2E_EXECUTION_root-full-production-e2e112c-codec",
+        "fileName": "root-full-production-e2e112c-codec.json",
+        "bytes": 1590,
+        "sha256": "c8ff3b2bc6ae48d764371dcdb9c34282a90b6bc337a37fdb3f4b7699681d29af",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "raw": {
+        "archiveId": "ROOT012_FULL_E2E_RAW_root-full-production-e2e112c-codec",
+        "fileName": "root-full-production-e2e112c-codec.log",
+        "bytes": 20690,
+        "sha256": "64fd985ac2d5c5aa9edac43f284aa4819014757309f929d9a6410a2d74ad6882",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "counts": {
+      "tests": 113,
+      "pass": 109,
+      "fail": 0,
+      "skipped": 4,
+      "flaky": 0
+    },
+    "skipClassification": {
+      "private014B": 0,
+      "native": 4,
+      "total": 4
+    },
+    "actualOriginalCommand": true,
+    "allOriginalCaseNames": true,
+    "retries": 0,
+    "task069": {
+      "cases": 3,
+      "pass": 3,
+      "originalNamesAndAssertionsPreserved": true,
+      "originalRecoveryAssertions": 16,
+      "caseTimeoutMs": 120000,
+      "navigationTimeoutMs": 30000,
+      "expectTimeoutMs": 5000,
+      "retries": 0,
+      "inverseMappingProof": {
+        "archiveId": "ROOT012_TASK069_ORIGINAL_S4_INVERSE_DIFF105",
+        "fileName": "ROOT_CODEC_AND_RELOAD105_ACTUAL_DIFF_AUDIT.json",
+        "bytes": 2993,
+        "sha256": "9ff46eb0c8b9dbe21d8e27d78bc3c432dac619ee4e88f0dd7cdbc14725bb7042",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "private014B": {
+      "baselinePreparation": {
+        "archiveId": "ROOT014_EXISTING_PRIVATE_B_PREPARATION59",
+        "fileName": "MBRS014_B_EXISTING_FIXTURE_PREPARATION59.json",
+        "bytes": 240186,
+        "sha256": "25331a1fbfe88900e6d66d4fa26d9d9e7ed4508158792a47045eab3749ab1612",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "freshCopyProof": {
+        "archiveId": "ROOT014_FULL_E2E_FRESH_PRIVATE_B_COPY",
+        "fileName": "ROOT_E2E112C_PRIVATE_B_COPY_ACTUAL.json",
+        "bytes": 56764,
+        "sha256": "bb57a831e4ecc189d4a4c7f7acc2fcc98296ee5ec26aa2ef32527509f86ed390",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "casePass": true,
+      "original103Retained": true,
+      "original100AndAllOtherCellsExact": true,
+      "businessHistoryRowExceptions": 0,
+      "nativeAuthorizationPickerCalls": 0,
+      "profileFilesCopiedExactly": 44,
+      "retainedFilesExact": 35,
+      "originalProfileAndRetainedUnchanged": true,
+      "naturalAppCloses": 2,
+      "appCloseExitCodes": [
+        0,
+        0
+      ],
+      "pageErrors": 0,
+      "blockedExternalAttempts": 0,
+      "workspacePublicSnapshots": 3,
+      "realUserMigration": "NOT_RUN",
+      "realAccountRoonAudioOwner": "NOT_RUN",
+      "actualEvidence": {
+        "archiveId": "ROOT014_FULL_E2E112_ACTUAL_B_COMPLETE_EVIDENCE",
+        "fileName": "FULL_E2E112_PRIVATE_B_ACTUAL_EVIDENCE.json",
+        "bytes": 132506,
+        "sha256": "210724583e6bbda760b1d797bb5939685f2457da04eb3fd095f968e9ef20b5c0",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "original103Baseline": {
+        "archiveId": "ROOT014_FULL_E2E112_ORIGINAL103_TYPED_BASELINE",
+        "fileName": "FULL_E2E112_PRIVATE_B_ORIGINAL103_BASELINE.json",
+        "bytes": 866208,
+        "sha256": "2ef12cfd21a37bcf9b30b269870b3959ebbf7f907a2b2bb8bf9a78119124e271",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "original103After": {
+        "archiveId": "ROOT014_FULL_E2E112_ACTUAL_ORIGINAL103_AFTER",
+        "fileName": "FULL_E2E112_PRIVATE_B_ORIGINAL103_AFTER.json",
+        "bytes": 851301,
+        "sha256": "95d4dbdf73bb4146f194b75a3267338b438c93cb87c3454ea84b6d546ac378c4",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "sourceInputs": 1422,
+    "sourceInputsIdentity": "a6bedf5cf85c5ea87faba0baf67fed88581f4157cf3a8644f9fefebe3ac97260",
+    "sourceTestIdentity": "a6bedf5cf85c5ea87faba0baf67fed88581f4157cf3a8644f9fefebe3ac97260",
+    "sourceInputsUnchanged": true,
+    "sourceGraphBeforeAfterUnchanged": true,
+    "productInputs": 623,
+    "productIdentity": "7d78de3b2922a620bef46168f42195888afac13af1ae60da4ba419ef403a6168",
+    "artifactFiles": 956,
+    "artifactIdentity": "80bcce57f34be6032bcd20ee85d26e0ff7cc3032bfb4a6d61f97390ccea7f5b1",
+    "playwrightReport": {
+      "archiveId": "ROOT012_FULL_E2E112_COMPLETE_ACTUAL_PLAYWRIGHT_REPORT",
+      "fileName": "PLAYWRIGHT_FULL_E2E112_ACTUAL_REPORT.json",
+      "bytes": 131656,
+      "sha256": "0626cf6a2da7b6f93295652642c141bc507745d8aa2e85369f5c29c52a844809",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "productionArtifacts": [
+      {
+        "archive": {
+          "archiveId": "ROOT012_FULL_E2E112_PRODUCTION_BEFORE",
+          "fileName": "PRODUCTION_E2E112C_ARTIFACTS_BEFORE.json",
+          "bytes": 181665,
+          "sha256": "37b9021ba98a6f2016e0f405ada414d16ae4c2327d1fafaa6dc7ab3b15f40a39",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        },
+        "files": 956,
+        "identity": "2d81c8df2e5783681db25fd423ddeed2df1b24cf5698f2292bed6883c8cbfe50"
+      },
+      {
+        "archive": {
+          "archiveId": "ROOT012_FULL_E2E112_PRODUCTION_AFTER",
+          "fileName": "PRODUCTION_E2E112C_ARTIFACTS_AFTER.json",
+          "bytes": 181664,
+          "sha256": "02f40bbec29aeaefb6b1964de68d75140bad28c38b2532b63b7ef87ba0cf6b03",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        },
+        "files": 956,
+        "identity": "80bcce57f34be6032bcd20ee85d26e0ff7cc3032bfb4a6d61f97390ccea7f5b1"
+      }
+    ],
+    "scope": "CURRENT_WHOLE_ORIGINAL_113_SELF_BUILD_APPLICABLE109_ORIGINAL_NATIVE4_NOT_APP108_ARTIFACT_PROOF",
+    "firstLocal112Failure": {
+      "archive": {
+        "archiveId": "ROOT012_FULL_E2E112_FIRST_LOCAL_NATURAL_FAILURE",
+        "fileName": "ROOT_FULL_E2E112_FIRST_FAILURE_ACTUAL.json",
+        "bytes": 8245,
+        "sha256": "6c3a63feeb9abbb16053bb9a323451067892c9ed984c65b2d62124443f348c51",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "counts": {
+        "tests": 113,
+        "pass": 108,
+        "fail": 1,
+        "skipped": 4,
+        "flaky": 0
+      },
+      "executionLabel": "root-full-production-e2e112-codec",
+      "exitCode": 1,
+      "retries": 0,
+      "fullOriginalCommandPass": false,
+      "privateBOriginal103AndColdBootCompleted": false,
+      "failureClassification": "LOCAL_FULL_E2E_PROTOCOL_GC_OBSERVATION_NOT_SOURCE_CI"
+    },
+    "unchangedOriginalPrivateB112bDiagnostic": {
+      "archive": {
+        "archiveId": "ROOT014_UNCHANGED_ORIGINAL_PRIVATE_B112B_DIAGNOSTIC",
+        "fileName": "ROOT_PRIVATE_B112B_DIAGNOSTIC_ACTUAL.json",
+        "bytes": 3061,
+        "sha256": "c5901099832d7f20b552f989484bfcea331f476f4bf7e19523977ae3b9ecffe2",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "skipped": 0,
+        "retries": 0
+      },
+      "executionLabel": "root-private-b112b-diagnostic",
+      "exitCode": 0,
+      "fullOriginal113CommandPassClaim": false,
+      "specificProtocolGcCauseOrFixClaimed": false,
+      "sourceOrTestFilesChanged": false
+    },
+    "specificProtocolGcCauseOrFixClaimed": false,
+    "unchangedPrivateB112bUsedAsFullCommandPass": false,
+    "protocolGcEvidenceBoundary": "首次112完整原命令自然失败仍保留；112b仅原B独立诊断通过。具体协议GC原因与修复均未证明，112c成功补验也不改变该边界。",
+    "archive": {
+      "archiveId": "ROOT012_FULL_ORIGINAL_E2E112C",
+      "fileName": "ROOT_FULL_E2E112_ACTUAL.json",
+      "bytes": 70592,
+      "sha256": "eb311827892e227c4a5cdaf5506e1dbcafd54462c9b4904bb09de6f6cfab02a6",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+  },
+  "currentWholeOriginalCommandReceipt": {
+    "archiveId": "ROOT012_CURRENT_FULL_E2E112",
+    "fileName": "ROOT_FULL_E2E112_ACTUAL.json",
+    "bytes": 70592,
+    "sha256": "eb311827892e227c4a5cdaf5506e1dbcafd54462c9b4904bb09de6f6cfab02a6",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "firstLocal112Failure": {
+    "archive": {
+      "archiveId": "ROOT012_FULL_E2E112_FIRST_LOCAL_NATURAL_FAILURE",
+      "fileName": "ROOT_FULL_E2E112_FIRST_FAILURE_ACTUAL.json",
+      "bytes": 8245,
+      "sha256": "6c3a63feeb9abbb16053bb9a323451067892c9ed984c65b2d62124443f348c51",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "counts": {
+      "tests": 113,
+      "pass": 108,
+      "fail": 1,
+      "skipped": 4,
+      "flaky": 0
+    },
+    "executionLabel": "root-full-production-e2e112-codec",
+    "exitCode": 1,
+    "retries": 0,
+    "fullOriginalCommandPass": false,
+    "privateBOriginal103AndColdBootCompleted": false,
+    "failureClassification": "LOCAL_FULL_E2E_PROTOCOL_GC_OBSERVATION_NOT_SOURCE_CI"
+  },
+  "unchangedOriginalPrivateB112bDiagnostic": {
+    "archive": {
+      "archiveId": "ROOT014_UNCHANGED_ORIGINAL_PRIVATE_B112B_DIAGNOSTIC",
+      "fileName": "ROOT_PRIVATE_B112B_DIAGNOSTIC_ACTUAL.json",
+      "bytes": 3061,
+      "sha256": "c5901099832d7f20b552f989484bfcea331f476f4bf7e19523977ae3b9ecffe2",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "counts": {
+      "tests": 1,
+      "pass": 1,
+      "fail": 0,
+      "skipped": 0,
+      "retries": 0
+    },
+    "executionLabel": "root-private-b112b-diagnostic",
+    "exitCode": 0,
+    "fullOriginal113CommandPassClaim": false,
+    "specificProtocolGcCauseOrFixClaimed": false,
+    "sourceOrTestFilesChanged": false
+  },
+  "firstLocal112FailureFacts": {
+    "tests": 113,
+    "pass": 108,
+    "fail": 1,
+    "skipped": 4,
+    "flaky": 0,
+    "exitCode": 1,
+    "privateBOriginal103AndColdBootNotCompleted": true,
+    "observedFailureSourceLine": 217,
+    "observedFailure": "MAIN_EVALUATE_CALLBACK_INSTALLATION_PROMISE_GC",
+    "specificCauseOrFix": "NOT_PROVEN"
+  },
+  "unchangedPrivateB112bFacts": {
+    "tests": 1,
+    "pass": 1,
+    "fail": 0,
+    "skipped": 0,
+    "exitCode": 0,
+    "original103Compared": true,
+    "persistedWrites": 9,
+    "naturalCloses": 2,
+    "sourceOrTestFilesChanged": false
+  },
+  "specificProtocolGcCauseOrFixClaimed": false,
+  "unchangedPrivateB112bUsedAsFullCommandPass": false,
+  "localFirstFailureCountedAsFifthSourceNaturalCi": false,
+  "current112ProductionArtifactBoundary": "BEFORE_ORIGINAL_COMMAND_AND_AFTER_ITS_REBUILD_NOT_ASSERTED_EQUAL_OR_SUBSTITUTED_BY_APP108"
+}

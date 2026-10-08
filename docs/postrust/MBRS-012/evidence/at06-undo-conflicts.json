@@ -1,0 +1,73 @@
+{
+  "result": "PASS",
+  "counts": {
+    "tests": 1,
+    "pass": 1,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "windows": [
+    {
+      "window": "ready-before-grant",
+      "receiptOutcome": "accepted",
+      "conflictState": "FAILED",
+      "conflictIssues": [
+        "SOURCE_CHANGED"
+      ],
+      "fileRevision": "2",
+      "sha256": {
+        "before": "70723f8356f9044289838291a36cc0f9f5655f6272f0371ffb0eec3c6ff1c5d9",
+        "published": "b9bd24c09d18890f3f9a4029b11b918db02d893e23eeb14743cf693e5708d678",
+        "external": "17ec9334ff1f19cfc1b17bec003ecebc5ab8ebe5cae162ede6a7847a21b79304",
+        "backup": "70723f8356f9044289838291a36cc0f9f5655f6272f0371ffb0eec3c6ff1c5d9"
+      },
+      "externalFullBytesPreserved": true,
+      "originalBackupPreserved": true,
+      "inversePublicationEvents": 0,
+      "newCatalogFacts": 0,
+      "ownerExitCode": 0
+    },
+    {
+      "window": "grant-before-confirm",
+      "receiptOutcome": "accepted",
+      "conflictState": "FAILED",
+      "conflictIssues": [
+        "SOURCE_CHANGED"
+      ],
+      "fileRevision": "2",
+      "sha256": {
+        "before": "70723f8356f9044289838291a36cc0f9f5655f6272f0371ffb0eec3c6ff1c5d9",
+        "published": "b9bd24c09d18890f3f9a4029b11b918db02d893e23eeb14743cf693e5708d678",
+        "external": "17ec9334ff1f19cfc1b17bec003ecebc5ab8ebe5cae162ede6a7847a21b79304",
+        "backup": "70723f8356f9044289838291a36cc0f9f5655f6272f0371ffb0eec3c6ff1c5d9"
+      },
+      "externalFullBytesPreserved": true,
+      "originalBackupPreserved": true,
+      "inversePublicationEvents": 0,
+      "newCatalogFacts": 0,
+      "ownerExitCode": 0
+    }
+  ],
+  "rootFullFdRechecks": 4,
+  "archive": {
+    "archiveId": "ROOT012_AT06_UNDO_WINDOWS56",
+    "fileName": "ROOT_AT06_ACTUAL56.json",
+    "bytes": 5649,
+    "sha256": "5841065800828965cba042e6abf3f93ee337e1284b6ce04d9207495d89c54010",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "schema": "mbrs012.at06-undo-conflicts-evidence.v1",
+  "sourceSha": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
+  "sourceBindingBoundary": "SEE_SOURCE_IDENTITY_AND_EACH_LOCAL_GRAPH_SCOPE_NOT_ALL_RUNS_EXECUTED_AT_COMMITTED_HEAD",
+  "rootReceipt": {
+    "archiveId": "ROOT012_AT06_UNDO_WINDOWS56",
+    "fileName": "ROOT_AT06_ACTUAL56.json",
+    "bytes": 5649,
+    "sha256": "5841065800828965cba042e6abf3f93ee337e1284b6ce04d9207495d89c54010",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  }
+}

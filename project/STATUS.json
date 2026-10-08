@@ -46808,10 +46808,10 @@
   },
   "mbrs012SafeSourceWrites": {
     "task": "MBRS-012",
-    "state": "FINITE_LOCAL_SOFTWARE_AND_OWNED_APP_PROVEN_DELIVERY_PENDING",
+    "state": "FINITE_SOFTWARE_SOURCE_CI_SEALED_REPORT_DELIVERY_PENDING",
     "baseSha": "09370f19d4422be3b387047999a0722961c52e1e",
     "branch": "codex/mbrs-012-source-writes",
-    "implementationCommit": null,
+    "implementationCommit": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
     "reportCommit": null,
     "scope": "docs/postrust/MBRS-012/EXECUTION_SCOPE.json",
     "handoff": "docs/postrust/MBRS-012/IMPLEMENTATION_HANDOFF.md",
@@ -46962,11 +46962,38 @@
       "publicDtoAndFrozenSixNineKeysAndBudgets": "UNCHANGED",
       "ordinaryReaderFlacAllowlist": "UNCHANGED"
     },
-    "implementationCommitResolution": "SOURCE_COMMIT_CONTAINING_THIS_METADATA_RESOLVE_BY_GIT",
+    "implementationCommitResolution": "PINNED_EXACT_SOURCE_COMMIT",
     "reportCommitResolution": "GIT_LOG_LAST_COMMIT_TOUCHING_CANONICAL_REPORT",
     "localValidation": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
     "qualificationBoundary": "FINITE_LOCAL_ONLY_EXACT_SOURCE_GATE_AND_CI_SEALED_SEPARATELY",
     "report": "reports/MBRS-012_SAFE_SOURCE_WRITES.md",
-    "evidence": "reports/MBRS-012_EVIDENCE.json"
+    "evidence": "reports/MBRS-012_EVIDENCE.json",
+    "push": {
+      "source": "PASS_EXACT_REMOTE_HEAD",
+      "report": "PENDING_AFTER_REPORT_COMMIT",
+      "branch": "codex/mbrs-012-source-writes"
+    },
+    "ci": {
+      "source": "ALL_NATURAL_CI_SUCCESS",
+      "sourceSha": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
+      "sourceWorkflows": 4,
+      "sourceJobs": 6,
+      "sourceEvidence": "docs/postrust/MBRS-012/evidence/source-ci.json",
+      "noRerunOrCancellation": true,
+      "artifactContentDownloaded": false,
+      "artifactContentScope": "ONLY_NEW_S5_SUCCESS_SOURCE_ARTIFACTS",
+      "report": "PENDING_AFTER_REPORT_COMMIT",
+      "reportExpectedWorkflows": 2,
+      "reportExpectedJobs": 3
+    },
+    "updatedAt": "2026-10-08T09:10:23.372945+00:00",
+    "finalDeliveryReceipt": {
+      "archiveId": "MBRS012_FINAL_DELIVERY_RECEIPT",
+      "fileName": "MBRS012_FINAL_DELIVERY_RECEIPT.json",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "resolution": "CREATED_ONLY_AFTER_REPORT_PUSH_NATURAL_CI_REMOTE_HEAD_AND_CLEAN",
+      "publiclyDownloadable": false
+    },
+    "nextBranchBaseline": "ACTUAL_SEALED_REPORT_HEAD_RESOLVED_BY_GIT"
   }
 }

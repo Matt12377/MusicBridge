@@ -1,0 +1,64 @@
+{
+  "schema": "mbrs012.independent-app-outputs-evidence.v1",
+  "result": "PASS",
+  "sourceSha": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
+  "actualBuild": "STANDARD_VERIFY107_PRODUCTION_BUILD_APP108",
+  "writerImplementationImportedOrReused": false,
+  "core202OutputsSubstituted": false,
+  "exitCode": 0,
+  "signal": null,
+  "closeObserved": true,
+  "counts": {
+    "audioCases": 6,
+    "safetyOperations": 14,
+    "actualRestorationOperations": 7,
+    "originalAudioFirstInodesCorroborated": 2,
+    "decodedInputPairs": 6,
+    "finalRestoredDecodedAudioFiles": 2,
+    "appPlans": 13,
+    "appCompletedPlans": 12,
+    "appBlockedPlans": 1,
+    "appNaturalCloses": 3,
+    "appOfflineAudits": 3
+  },
+  "rootFullFdMaterials": 57,
+  "actualToolRuns": 144,
+  "actualMediaToolRuns": 28,
+  "actualAttributeToolRuns": 116,
+  "allToolExitCodes": 0,
+  "allToolStderrBytes": 0,
+  "verification": "ACTUAL_PAYLOAD_NON_TARGET_SPANS_ORDER_FFPROBE_FULL_DECODED_PCM_BACKUP_ATTRIBUTES_INODE_AND_WHOLE_RESTORED_SHA",
+  "privateScript": {
+    "archiveId": "ROOT012_APP108_INDEPENDENT_SCRIPT",
+    "fileName": "APP_OUTPUTS108_independent.py",
+    "bytes": 37214,
+    "sha256": "8e5ef5b97555d0507350debd3558883f42189c2ea6ad66df70da642d3c44186b",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "execution": {
+    "archiveId": "ROOT012_APP108_INDEPENDENT_EXECUTION",
+    "fileName": "APP_OUTPUTS108_EXECUTION.json",
+    "bytes": 1984,
+    "sha256": "7effd046a688a5c12368f207ee9fc8224cb6b8e44facb0c57949caa15c9d9abd",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "resultArchive": {
+    "archiveId": "ROOT012_APP108_INDEPENDENT_RESULT",
+    "fileName": "APP_OUTPUTS108_RESULT.json",
+    "bytes": 151168,
+    "sha256": "43bc3be6a296a13a07ac579be041f325880603fb1090d99bd5e26fd42c60a8ce",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "rootAudit": {
+    "archiveId": "ROOT012_APP108_ROOT_AUDIT110",
+    "fileName": "ROOT_APP108_INDEPENDENT_OUTPUT_AUDIT110.json",
+    "bytes": 16582,
+    "sha256": "335ca09934b230ed7212c9b6b28cbdc8d06de7b2d8144d2e8f2b04d9d9353e2f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+}

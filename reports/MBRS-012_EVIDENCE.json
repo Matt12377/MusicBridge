@@ -1,0 +1,58 @@
+{
+  "schema": "mbrs012.delivery-evidence-index.v1",
+  "task": "MBRS-012",
+  "baseSha": "09370f19d4422be3b387047999a0722961c52e1e",
+  "implementationCommit": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
+  "reportCommit": null,
+  "reportCommitResolution": "GIT_LOG_LAST_COMMIT_TOUCHING_CANONICAL_REPORT",
+  "branch": "codex/mbrs-012-source-writes",
+  "finiteQualification": "FINITE_LOCAL_WRITER_AND_OWNED_APP_PROOF_ONLY",
+  "localValidation": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
+  "evidence": [
+    "docs/postrust/MBRS-012/evidence/source-gate.json",
+    "docs/postrust/MBRS-012/evidence/source-identity.json",
+    "docs/postrust/MBRS-012/evidence/production-app.json",
+    "docs/postrust/MBRS-012/evidence/independent-app-outputs.json",
+    "docs/postrust/MBRS-012/evidence/at05-same-operation.json",
+    "docs/postrust/MBRS-012/evidence/at06-undo-conflicts.json",
+    "docs/postrust/MBRS-012/evidence/local-standard-verify.json",
+    "docs/postrust/MBRS-012/evidence/local-electron.json",
+    "docs/postrust/MBRS-012/evidence/local-e2e.json",
+    "docs/postrust/MBRS-012/evidence/ci-ui-repair.json",
+    "docs/postrust/MBRS-012/evidence/source-ci.json"
+  ],
+  "exactGate": {
+    "stages": 10,
+    "tests": 426,
+    "pass": 426,
+    "skipped": 0,
+    "result": "PASS"
+  },
+  "sourceCi": {
+    "result": "ALL_NATURAL_CI_SUCCESS",
+    "workflows": 4,
+    "jobs": 6,
+    "sourceSha": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
+    "evidence": "docs/postrust/MBRS-012/evidence/source-ci.json"
+  },
+  "reportCi": "PENDING_AFTER_REPORT_COMMIT",
+  "originalTaskAtCount": 9,
+  "allNineAtOverall": "PARTIAL",
+  "realProviderRoonNasAudioDeviceOwner": "NOT_RUN",
+  "historicalTaskCount": 18,
+  "historicalAcceptanceCount": 156,
+  "effectiveTaskCount": 17,
+  "effectiveAcceptanceCount": 150,
+  "cancelled015": "N_A_NOT_PASS_NOT_COMPLETED",
+  "nextTask": "MBRS-013",
+  "nextTaskBaseline": "ACTUAL_SEALED_REPORT_HEAD_RESOLVED_BY_GIT",
+  "finalDeliveryReceipt": {
+    "archiveId": "MBRS012_FINAL_DELIVERY_RECEIPT",
+    "fileName": "MBRS012_FINAL_DELIVERY_RECEIPT.json",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "resolution": "CREATED_ONLY_AFTER_REPORT_PUSH_NATURAL_CI_REMOTE_HEAD_AND_CLEAN",
+    "publiclyDownloadable": false
+  },
+  "noRerunNoCancellationNoForcePush": true,
+  "privacy": "PORTABLE_METADATA_ONLY_RAW_MATERIALS_LOGS_PROFILES_GRANTS_AND_OPAQUE_ATTRIBUTE_VALUES_PRIVATE"
+}

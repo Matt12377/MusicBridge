@@ -1,0 +1,48 @@
+{
+  "result": "PASS",
+  "counts": {
+    "tests": 1,
+    "pass": 1,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "revisions": [
+    "1",
+    "2",
+    "3"
+  ],
+  "sha256": {
+    "before": "70723f8356f9044289838291a36cc0f9f5655f6272f0371ffb0eec3c6ff1c5d9",
+    "after": "c12f62e8451d27b46a2ced7e1ffa1a5a00b5d12fb9a8d1e605c41c788cfbea0e",
+    "restored": "70723f8356f9044289838291a36cc0f9f5655f6272f0371ffb0eec3c6ff1c5d9"
+  },
+  "oldUrlAfterWrite": {
+    "status": 404,
+    "bytes": 0
+  },
+  "staleDescriptorCode": "CONTENT_CHANGED",
+  "newHttpMatchesPublishedFile": true,
+  "restoredHttpMatchesOriginalFile": true,
+  "scope": "ONE_REAL_OWNER_SAME_GATEWAY_PRODUCTION_CATALOG_RESOLVER_LOCAL_FD_FULL_HTTP_BYTES_OWNED_FLAC_TARGET_AUTHORITY_SYNTHETIC_NOT_REAL_ROON",
+  "archive": {
+    "archiveId": "ROOT012_AT05_SAME_OPERATION51",
+    "fileName": "ROOT_AT05_ACTUAL51.json",
+    "bytes": 2636,
+    "sha256": "ae127eef499e1663479aa071f170ef11675527a87ba611cdf73f2ad6b596e122",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "schema": "mbrs012.at05-same-operation-evidence.v1",
+  "sourceSha": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
+  "sourceBindingBoundary": "SEE_SOURCE_IDENTITY_AND_EACH_LOCAL_GRAPH_SCOPE_NOT_ALL_RUNS_EXECUTED_AT_COMMITTED_HEAD",
+  "rootReceipt": {
+    "archiveId": "ROOT012_AT05_SAME_OPERATION51",
+    "fileName": "ROOT_AT05_ACTUAL51.json",
+    "bytes": 2636,
+    "sha256": "ae127eef499e1663479aa071f170ef11675527a87ba611cdf73f2ad6b596e122",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  }
+}
