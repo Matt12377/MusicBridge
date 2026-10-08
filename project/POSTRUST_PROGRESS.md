@@ -304,3 +304,9 @@ namespace首次实际31/32因缺Root Reader声明失败，且共享service-fixtu
 当前426项声明分组88/216/122均真实零skip通过，计数由完整日志确认后冻结；18条旧回归及全部发现的新012测试保留。AT05同次真实Owner/Gateway修订1→2→3、旧URL404且无bytes、新lease读取实际新文件、undo回原件；AT06两份独立FLAC覆盖inverse READY后和Main grant后外部改写，保留外部bytes及原backup、零逆向发布/新facts。App37独立真实6音频输出、14安全项、7恢复项与57全FD材料/144独立工具运行通过，仍绑定build33。
 
 标准verify42为4701总/4699通过/2既有native skip，不冒充后增测试或设备证据。Rust55全部30准备阶段、Electron57实际12/12（钥匙串mock，系统钥匙串未验）及生产E2E分层另记LOCAL_VALIDATION。旧46/48/52宿主准备失败与58缺私有B基线记录保留；只修私有fixture端口拓扑及提供原自有基线，不降低原断言。所有权限/验收层级在source前定稿，sourceFilesWrite原硬准入字面量、默认OFF、旧只读、9产品PARTIAL和真实NOT_RUN保持；精确Gate与正常源码/报告自然CI随后在允许报告字段封存。
+
+#### MBRS-012 首次源码自然CI及UI观察修正
+
+首次源码5a27b640007413c7a94c2bdf04f89b7eeeb25776正常push后的verify自然失败：全桌面1658项中唯一新增逆向封面UI用例在真实异步指纹和计划回读完成前断言；后续012 Gate被跳过，不能记为通过。原CI、完整原始日志、其他自然作业保留，不重跑、不取消。实际CI的WebCrypto耗时未测量；私有诊断仅将真实SHA返回延迟25ms，原用例稳定RED1/0/1。
+
+仅修新增UI测试驱动，从真实SFC按钮取得并等待原onClick Promise，再执行原render settle；原断言、名称、8用例、fixture和时限保留，旧014宿主及生产代码未改。真实延迟诊断GREEN8/8、Vue和E2E完整类型退出0、标准Desktop1658/1658零skip自然退出0，独立只读审查无P1/P2。工作树Gate67十阶段426/426零skip、1460输入与Reader产物独立核对通过；当前1422图b6faba753a8cdbeead1c1f31652f641839a8d486972fa6116c2ebef26384bea9只改变新增UI测试，623产品图与实际build33/App37保持。旧60组和E2E58/B59的原图与退出状态分别保留，不改写成修正后的新运行。新源码提交后的精确Gate与自然CI仍待独立封存；原9产品AT及权限字面量不变。

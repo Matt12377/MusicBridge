@@ -54,14 +54,14 @@
   "todo": 0,
   "groupDeclaredInputs": {
     "files": 1422,
-    "identity": "eaafa60f30386d2c841e53b160f6cb94e92e45470dd35f7b2f68c5b9a674e117",
+    "identity": "b6faba753a8cdbeead1c1f31652f641839a8d486972fa6116c2ebef26384bea9",
     "inputsUnchanged": true
   },
   "groupArchive": {
-    "archiveId": "ROOT012_CURRENT_GROUPS426_ACTUAL60",
-    "fileName": "ROOT_CURRENT_GROUPS426_ACTUAL60.json",
-    "bytes": 56641,
-    "sha256": "9e3de1407a993e259a9057b6b13bad88ecc2da77dd77802033a30fb74973d8df",
+    "archiveId": "ROOT012_GROUPS426_UI_DRIVER67_ACTUAL",
+    "fileName": "ROOT_GROUPS426_UI_DRIVER67_ACTUAL.json",
+    "bytes": 1904,
+    "sha256": "4286341465c7d0d6e2e7a276d5323215367ca82b4bc7c10f4e41dbc1d75e65c3",
     "storage": "PRIVATE_EXTERNAL_ARCHIVE",
     "publiclyDownloadable": false
   },
@@ -87,11 +87,14 @@
     "skipped": 2,
     "scope": "EARLIER_1420_INPUT_GRAPH_STANDARD_TYPES_TOP_LEVEL_TESTS_PRODUCTION_BUILD",
     "newSourceTestsAndPrivateHostGraphCoveredBy": [
-      "CURRENT_GROUPS60",
+      "HISTORICAL_CURRENT_GROUPS60",
+      "CURRENT_GROUPS67_UI_DRIVER",
+      "FULL_DESKTOP66_UI_DRIVER",
       "CORE_TYPES56",
+      "DESKTOP_E2E_TYPES66",
       "FULL_RUST55",
       "ELECTRON57",
-      "FULL_E2E58_AND_B59",
+      "FULL_E2E58_AND_B59_UNCHANGED_PRODUCT_AND_E2E_INPUTS",
       "FINAL_SOURCE_GATE"
     ],
     "nativeDeviceAudio": "NOT_RUN",
@@ -356,7 +359,8 @@
     "sourceInputsUnchanged": true,
     "declaredInputs": 1422,
     "sourceInputsIdentity": "eaafa60f30386d2c841e53b160f6cb94e92e45470dd35f7b2f68c5b9a674e117",
-    "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+    "realProviderRoonNasAudioDeviceOwner": "NOT_RUN",
+    "sourceBindingBoundary": "ACTUAL_E2E58_B59_PRE_REPAIR1422_GRAPH_PRESERVED_ONLY_NEW_UI_UNIT_DRIVER_DIFFERS_623_PRODUCTION_AND_E2E_INPUTS_UNCHANGED_NEW_DRIVER_PROVEN_SEPARATELY"
   },
   "dependencyAudit": {
     "execution": {
@@ -391,5 +395,131 @@
   "legacy010ProviderRetrievalAndRealDragIn": "CARRYOVER",
   "recordingGateBAndP4P5": "CARRYOVER",
   "historicalPhaseEvidence": "PRESERVED_EACH_OLD_SNAPSHOT_NOT_CURRENT_WHOLE_WRITER_PROOF",
-  "privacy": "PUBLIC_METADATA_ONLY_RAW_FILES_PRIVATE_NO_GRANTS_CREDENTIALS_OR_OPAQUE_ATTRIBUTE_VALUES"
+  "privacy": "PUBLIC_METADATA_ONLY_RAW_FILES_PRIVATE_NO_GRANTS_CREDENTIALS_OR_OPAQUE_ATTRIBUTE_VALUES",
+  "historicalDeclaredGroup60": {
+    "groupDeclaredInputs": {
+      "files": 1422,
+      "identity": "eaafa60f30386d2c841e53b160f6cb94e92e45470dd35f7b2f68c5b9a674e117",
+      "inputsUnchanged": true
+    },
+    "groupArchive": {
+      "archiveId": "ROOT012_CURRENT_GROUPS426_ACTUAL60",
+      "fileName": "ROOT_CURRENT_GROUPS426_ACTUAL60.json",
+      "bytes": 56641,
+      "sha256": "9e3de1407a993e259a9057b6b13bad88ecc2da77dd77802033a30fb74973d8df",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "scope": "PRESERVED_BEFORE_UI_TEST_DRIVER_FIX_NOT_CURRENT1422_GRAPH"
+  },
+  "sourceUiObservationRepair": {
+    "result": "PASS_LOCAL_NEW_EXACT_SOURCE_GATE_AND_NATURAL_CI_PENDING",
+    "firstSourceSha": "5a27b640007413c7a94c2bdf04f89b7eeeb25776",
+    "firstSourceVerifyRun": 37722814341,
+    "firstSourceVerifyJob": 113134147703,
+    "firstSourceVerifyResult": "FAILURE_NEW_UI_OBSERVATION_RACE",
+    "firstSourceOwnGate": "SKIPPED_NOT_PASS",
+    "rootCauseProved": "TEST_DRIVER_IGNORED_REAL_ASYNC_EVENT_PROMISE_AND_OBSERVED_BEFORE_FINGERPRINT_AND_PLAN_REREAD_FINISHED",
+    "ciPhysicalWebCryptoDelayMeasured": "NOT_MEASURED",
+    "red": {
+      "exitCode": 1,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "counts": {
+        "tests": 1,
+        "pass": 0,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": {
+        "file": "root-ui66-real-digest-delay-red.log",
+        "bytes": 2016,
+        "sha256": "571524ebc5bb8c6d818162db1cedd01339ab0f854a12542a1972fa5a2ba5b42d"
+      }
+    },
+    "greenFullUi": {
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": {
+        "file": "root-ui66-real-digest-delay-green.log",
+        "bytes": 2210,
+        "sha256": "c9726b3f76d1cf87a07fe7698d8b2beec7c92f4e0da61852340a050a1d0ddcb8"
+      }
+    },
+    "fullDesktop": {
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "counts": {
+        "tests": 1658,
+        "pass": 1658,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "log": {
+        "file": "root-desktop66-complete-unit.log",
+        "bytes": 388288,
+        "sha256": "8d8f2ba790f2f47e4e0e8d5479dca9c6f422e92b195ea73b8acf05e425d32774"
+      }
+    },
+    "vueAndE2eTypes": {
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 17.221516166988295,
+      "log": {
+        "file": "root-desktop66-complete-types.log",
+        "bytes": 578,
+        "sha256": "40c7103e86b8ccbd9614e7ac292da14d29bf02736a9cd2e32eb00508ab0dd25d"
+      }
+    },
+    "changedSourceTestPaths": [
+      "apps/desktop/test/mbrs012-ui.test.ts"
+    ],
+    "originalAllAssertionsNamesAndTimeoutsBytePreserved": true,
+    "old014HostChanged": false,
+    "productionCodeChanged": false,
+    "actual623ProductionInputsStillMatchBuild33": true,
+    "productIdentity": "ca09ae2d753811bf209f4f98cb09739c6624b46ffaa1e870f5a87f70a2128da4",
+    "currentSourceTestFiles": 1422,
+    "currentSourceTestIdentity": "b6faba753a8cdbeead1c1f31652f641839a8d486972fa6116c2ebef26384bea9",
+    "wholeInputGraphUnchangedDuringDesktop66": true,
+    "privateControlledReproduction": "REAL_WEBCRYPTO_SHA_RESULT_DELAYED_25MS_RETURN_NO_STUBBED_SHA",
+    "archive": {
+      "archiveId": "ROOT012_CI_UI_REPAIR66_ACTUAL",
+      "fileName": "ROOT_CI_UI_REPAIR66_ACTUAL.json",
+      "bytes": 4421,
+      "sha256": "1474e0522f11a0e7c6a06785500139e122023ec4150e1eef5a1e645c694c4765",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "independentReview": {
+      "archiveId": "ROOT012_UI_DRIVER66_READONLY_REVIEW",
+      "fileName": "REPORT012_UI_DRIVER66_READONLY_REVIEW.json",
+      "bytes": 19789,
+      "sha256": "be0b68642436ed96cec9050ff3ce7543a35e1c8b21bd26a6bc18f744f9ab8ea5",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "originalCiRerun": false,
+    "originalCiCancelled": false,
+    "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+  }
 }
