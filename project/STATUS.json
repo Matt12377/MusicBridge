@@ -47001,7 +47001,7 @@
   },
   "mbrs013LocalRelocation": {
     "task": "MBRS-013",
-    "state": "LOCAL_UI_FIELD_KEY_REPAIR34_PASS_FINAL_COMMITTED_SOURCE_GATE_CI_REPORT_PENDING",
+    "state": "LOCAL_SCOPE17_CALLBACK12_PASS_NEW_COMMITTED_SOURCE_GATE_RUST_ELECTRON_CI_REPORT_PENDING",
     "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
     "branch": "codex/mbrs-013-relocation",
     "implementationCommit": null,
@@ -47019,7 +47019,7 @@
     "runtimeRelocation": "OFF_UNTIL_FINITE_QUALIFICATION_SPECIFIC_MAIN_PLAN_ONLY",
     "originalAtCount": 8,
     "productAcceptance": "PARTIAL_ALL_EIGHT_LIVE_OWNER_OPEN",
-    "softwareTests": "PASS_CURRENT_STANDARD124_4704_AND_BOOTSTRAP123_STATIC128_EXACT_SOURCE_GATE_SEPARATE",
+    "softwareTests": "PASS_SCOPE17_REAL_CALLBACK12_OLD_STANDARD124_PRODUCT_BYTES_UNCHANGED_NEW_EXACT_GATE_CI_PENDING",
     "productionApp": "PASS_CURRENT_PRODUCTION_APP126_AND_INDEPENDENT_OUTPUTS_NONEMPTY_HISTORY_SEPARATE",
     "realRoonNasAudioDeviceOwner": "NOT_RUN",
     "ownerRepeatedApprovalRequired": false,
@@ -47180,7 +47180,7 @@
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       },
-      "newExactSourceGate": "PENDING_NEXT_COMMITTED_SOURCE",
+      "newExactSourceGate": "PENDING_AFTER_NEW_SCOPE17_SOURCE_COMMIT_NO_PRECLAIM",
       "originalAcceptanceCount": 8,
       "realRoonNasAudioDeviceOwner": "NOT_RUN",
       "appLimits": {
@@ -47364,6 +47364,10 @@
       "currentStandard124DeclaredInputDifferences": [
         ".github/workflows/electron-e2e.yml",
         ".github/workflows/verify.yml",
+        "apps/desktop/e2e/private-rust-collection-host.ts",
+        "apps/desktop/e2e/private-rust-collection-main-host-wrapper.mjs",
+        "apps/desktop/e2e/private-rust-host.ts",
+        "apps/desktop/e2e/private-rust-main-host-wrapper.mjs",
         "apps/desktop/test/mbrs013/ui.test.ts",
         "scripts/ci/test/verify-mbrs012-source-writes.test.mjs",
         "scripts/ci/verify-boundaries.mjs"
@@ -47385,8 +47389,41 @@
         "sha256": "c5c5561522063add78dfd1dd8267d04c0b926afcaab389db6fb6bb42a52d5e5d",
         "storage": "PRIVATE_EXTERNAL_ARCHIVE"
       },
-      "currentStandard124UnchangedDeclaredInputs": 1622,
-      "currentDeclaredInputsIncludingTwoNewCiFiles": 1629
+      "currentStandard124UnchangedDeclaredInputs": 1618,
+      "currentDeclaredInputsIncludingTwoNewCiFiles": 1630,
+      "source13eExactGateHistorical": {
+        "fileName": "ROOT013_EXACT_FINAL_SOURCE_GATE_AUDIT173.json",
+        "bytes": 7950,
+        "sha256": "7cc0b82aeeecf3d1e16f77828f400bf5c3c3c4709a68295012f44b633a6f3d0e",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "source13eFinalNaturalCi": {
+        "fileName": "ROOT013_SOURCE13E_CI_FINAL193.json",
+        "bytes": 99081,
+        "sha256": "c5762d9731e79c2db70a7ea8ea3db52db5e6214b48068467e105b0a4df79e744",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "scope17PrivateBootstrapCallbackRepair": {
+        "fileName": "ROOT013_PRIVATE_BOOTSTRAP_CALLBACK_REPAIR_AUDIT195.json",
+        "bytes": 5773,
+        "sha256": "79fe304eb9dacbed207211b8ea31d462527827cecb8e93cbc83a56aae1d51149",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "scope17CallbackCounts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "originalCompleteRustHostAndElectron12": "PENDING_NEW_EXACT_SOURCE_NOT_PRECLAIMED",
+      "newPrivateBootstrapRegressionFile": {
+        "path": "apps/desktop/test/private-host-bootstrap.test.ts",
+        "bytes": 16247,
+        "sha256": "f4bc467850e6547c81ca41fcc08f124e369ce865cd19c4bbd56aae21eb42d38c",
+        "glob": "ORIGINAL_DESKTOP_TEST_UNIT_ROOT_GLOB_ADDS_TWELVE_ONLY"
+      }
     },
     "implementationCommitResolution": "SOURCE_COMMIT_CONTAINING_CURRENT_013_IMPLEMENTATION",
     "report": "reports/MBRS-013_LOCAL_RELOCATION.md",
@@ -47417,11 +47454,14 @@
       "docs/postrust/MBRS-013/evidence/original012-cli-repair.json",
       "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT15.json",
       "docs/postrust/MBRS-013/evidence/uuid-private-field-repair.json",
-      "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT16.json"
+      "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT16.json",
+      "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT17.json",
+      "docs/postrust/MBRS-013/evidence/source13e-electron-ci-failure.json",
+      "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json"
     ],
-    "push": "SOURCE59_REMOTE_EXACT_THREE_REPAIR_COMMITS_PENDING_PUSH",
-    "ci": "SOURCE59_TERMINAL_FAILURES_AND_SOURCE3FC_GATE159_FALSE_POSITIVE_PRESERVED_NEW_SOURCE_PENDING",
-    "updatedAt": "2026-10-08T17:39:29.631801+00:00"
+    "push": "SOURCE13E_REMOTE_EXACT_NEW_SCOPE17_REPAIR_SOURCE_NOT_PUSHED",
+    "ci": "SOURCE13E_FIRST_NATURAL_FIVE_JOBS_PASS_ELECTRON_ONE_FAIL_PRESERVED_NEW_SOURCE_NOT_STARTED",
+    "updatedAt": "2026-10-08T18:34:01.515146+00:00"
   },
   "mobileFrontloading20261008": {
     "state": "SCHEDULE_ADOPTED_MOBILE_TASKS_NOT_STARTED",

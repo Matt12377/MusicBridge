@@ -1,0 +1,99 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "id": "SCOPE_ADJUSTMENT17",
+  "parentSource": "13e826d4f0790dbb2236f7792dc4414546707a02",
+  "authority": "INHERITED_OWNER_CONTINUOUS_AUTHORIZATION_NO_NEW_APPROVAL",
+  "reason": "source13e首个自然Electron作业已取得Intel Runner，原12验收4PASS/8FAIL：6旧私有Rust/Main场景在firstWindow前启动失败，2报告因场景为空继发失败。源码实际三生产端口与旧wrapper硬性二口、观察宿主二/三总口冲突；原内部throw被catch丢弃，静态归因不得写为远端异常已复现。",
+  "delegatedOwnedFiles": {
+    "delivery012_core": [
+      "apps/desktop/e2e/private-rust-main-host-wrapper.mjs",
+      "apps/desktop/e2e/private-rust-collection-main-host-wrapper.mjs",
+      "apps/desktop/e2e/private-rust-host.ts",
+      "apps/desktop/e2e/private-rust-collection-host.ts"
+    ],
+    "delivery012_contract": [
+      "apps/desktop/test/private-host-bootstrap.test.ts"
+    ]
+  },
+  "rootOwnedFiles": [
+    "docs/postrust/MBRS-013/EXECUTION_SCOPE.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT17.json",
+    "docs/postrust/MBRS-013/evidence/source13e-electron-ci-failure.json",
+    "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
+    "project/STATUS.json",
+    "project/POSTRUST_PLAN.json",
+    "project/POSTRUST_TODO.md",
+    "project/POSTRUST_PROGRESS.md"
+  ],
+  "filesBefore": [
+    {
+      "path": "apps/desktop/e2e/private-rust-main-host-wrapper.mjs",
+      "bytes": 4051,
+      "sha256": "a8867dbb814faff0196b40c4f09dcea10a1183353415f766c2021a6a1c2708b2",
+      "gitBlob": "ec8cdd95469f8d9abf7970b8c7263afe796e76ff"
+    },
+    {
+      "path": "apps/desktop/e2e/private-rust-collection-main-host-wrapper.mjs",
+      "bytes": 4127,
+      "sha256": "c534921c77fda47b6321587072c5788816d36b859851680b5724d2cd1da541f2",
+      "gitBlob": "6ca4192f16efbabaebabd5cf6e029355e0af0da1"
+    },
+    {
+      "path": "apps/desktop/e2e/private-rust-host.ts",
+      "bytes": 11770,
+      "sha256": "2a9c21441ef290ca21595080ac48b6a5fc0a7f23dd01c5f9c9ff9898441d2ed7",
+      "gitBlob": "fe08dbf8cef2e347f27a4ba354d7bdef1c9c19fa"
+    },
+    {
+      "path": "apps/desktop/e2e/private-rust-collection-host.ts",
+      "bytes": 13481,
+      "sha256": "d1051c24803b76c15673e10dd6dfb8cf64bc41c952de7856b574ccd057a73a85",
+      "gitBlob": "e7a94be1074e2690fc920ae2e672f38894b08440"
+    }
+  ],
+  "allowedChange": "ONLY_PRIVATE_ISOLATED_BOOTSTRAP_MARKER_COUNT_DISTINCT_PORTS_OBSERVER_LAST_STRIP_PRESERVE_ALL_PRODUCTION_PORTS_AND_MESSAGE",
+  "productionProtocol": "type=musicbridge.core.port; optional playbackEventProtocol=compact-v1; optional relocationMainPort=local-relocation-main-port-v1; sourceWrites is implicit second physical port, not a message marker",
+  "wrapperLegacy": "two production ports without relocation marker; three production ports only with exact relocation marker",
+  "utilityLegacy": "public(+sourceWrites) + final observer; exact relocation marker admits public(+sourceWrites)+relocation+final observer, no shared ports",
+  "newRegression": "Actual source callback/forwarding behavior, valid current three-production-port bootstrap and legacy Node variants; reject wrong marker, missing or excess ports, duplicate/observer reused ports; no implementation-string-only assertions",
+  "originalElectronCases": 12,
+  "originalLaunchBudgetMs": 60000,
+  "originalMainCaseBudgetMs": 120000,
+  "originalCollectionCaseBudgetMs": 240000,
+  "originalCloseBudgetMs": 30000,
+  "originalCasesAndWorkflowBudgetsUnchanged": true,
+  "compilerAndActualExecutor": "ROOT_ONLY",
+  "productionSource692Unchanged": true,
+  "newGateAndSourceCi": "PENDING_NOT_PRECLAIMED",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN",
+  "recordedAt": "2026-10-08T18:14:52.374650+00:00",
+  "actualCallbackRepair": {
+    "result": "PASS_TWELVE_REAL_PRIVATE_SOURCE_CALLBACK_BEHAVIORS_NOT_REAL_ELECTRON_ACCEPTANCE",
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "redCounts": {
+      "tests": 12,
+      "pass": 2,
+      "fail": 10,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "fourLeafGuardOnlyExactInverses": true,
+    "currentNewSourceOriginalElectron12": "PENDING_NOT_PRECLAIMED",
+    "rootAudit": {
+      "fileName": "ROOT013_PRIVATE_BOOTSTRAP_CALLBACK_REPAIR_AUDIT195.json",
+      "bytes": 5773,
+      "sha256": "79fe304eb9dacbed207211b8ea31d462527827cecb8e93cbc83a56aae1d51149",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+    },
+    "publicEvidence": "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json"
+  }
+}

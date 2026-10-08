@@ -1,0 +1,160 @@
+{
+  "schema": "mbrs013.private-bootstrap-callback-repair.v1",
+  "task": "MBRS-013",
+  "result": "PASS_TWELVE_REAL_PRIVATE_SOURCE_CALLBACK_BEHAVIORS_NOT_REAL_ELECTRON_ACCEPTANCE",
+  "parentSource": "13e826d4f0790dbb2236f7792dc4414546707a02",
+  "scope": "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT17.json",
+  "redCounts": {
+    "tests": 12,
+    "pass": 2,
+    "fail": 10,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "greenCounts": {
+    "tests": 12,
+    "pass": 12,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "redExecution": {
+    "schema": "mbrs013.root-check.v1",
+    "label": "root013-private-bootstrap-red191",
+    "head": "13e826d4f0790dbb2236f7792dc4414546707a02",
+    "directory": "apps/desktop",
+    "argv": [
+      "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+      "--import",
+      "tsx",
+      "--test",
+      "--test-concurrency=1",
+      "test/private-host-bootstrap.test.ts"
+    ],
+    "exitCode": 1,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "groupTerminationFailed": false,
+    "durationSeconds": 0.7366442500497214,
+    "log": {
+      "file": "root013-private-bootstrap-red191.log",
+      "bytes": 13735,
+      "sha256": "d4cd4d7bf20ae97fe7d95fa25aba1838e17532bf6db4b1e9ca44dc659655b338"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING",
+    "realProviderAccountRoonAudioOwner": "NOT_RUN_BY_CAPTURE"
+  },
+  "greenExecution": {
+    "schema": "mbrs013.root-check.v1",
+    "label": "root013-private-bootstrap-green194",
+    "head": "13e826d4f0790dbb2236f7792dc4414546707a02",
+    "directory": "apps/desktop",
+    "argv": [
+      "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+      "--import",
+      "tsx",
+      "--test",
+      "--test-concurrency=1",
+      "test/private-host-bootstrap.test.ts"
+    ],
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "groupTerminationFailed": false,
+    "durationSeconds": 0.8200895840418525,
+    "log": {
+      "file": "root013-private-bootstrap-green194.log",
+      "bytes": 3312,
+      "sha256": "e146c91c85835236984665398d76d70a53b1d9061cee3efa390b3955a1cc1258"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING",
+    "realProviderAccountRoonAudioOwner": "NOT_RUN_BY_CAPTURE"
+  },
+  "fourCurrentThreePortPositiveCasesFailBeforeFix": true,
+  "fullOriginalRawLogsAndTwelveTapCasesReadBack": true,
+  "testFile": {
+    "path": "apps/desktop/test/private-host-bootstrap.test.ts",
+    "bytes": 16247,
+    "sha256": "f4bc467850e6547c81ca41fcc08f124e369ce865cd19c4bbd56aae21eb42d38c",
+    "glob": "ORIGINAL_DESKTOP_TEST_UNIT_ROOT_GLOB_ADDS_TWELVE_ONLY"
+  },
+  "files": [
+    {
+      "path": "apps/desktop/e2e/private-rust-main-host-wrapper.mjs",
+      "before": {
+        "path": "apps/desktop/e2e/private-rust-main-host-wrapper.mjs",
+        "bytes": 4051,
+        "sha256": "a8867dbb814faff0196b40c4f09dcea10a1183353415f766c2021a6a1c2708b2",
+        "gitBlob": "ec8cdd95469f8d9abf7970b8c7263afe796e76ff"
+      },
+      "after": {
+        "bytes": 5011,
+        "sha256": "643515173b79235853a3875dbfd4a20d2b055433122a927ce91b6ed415da9b87"
+      },
+      "exactGuardOnlyInverseRestoresWholeOriginal": true
+    },
+    {
+      "path": "apps/desktop/e2e/private-rust-collection-main-host-wrapper.mjs",
+      "before": {
+        "path": "apps/desktop/e2e/private-rust-collection-main-host-wrapper.mjs",
+        "bytes": 4127,
+        "sha256": "c534921c77fda47b6321587072c5788816d36b859851680b5724d2cd1da541f2",
+        "gitBlob": "6ca4192f16efbabaebabd5cf6e029355e0af0da1"
+      },
+      "after": {
+        "bytes": 5087,
+        "sha256": "3c4aa095209a023350e979b73934a61ad830e9365bdda86be0f65d7ac6da2525"
+      },
+      "exactGuardOnlyInverseRestoresWholeOriginal": true
+    },
+    {
+      "path": "apps/desktop/e2e/private-rust-host.ts",
+      "before": {
+        "path": "apps/desktop/e2e/private-rust-host.ts",
+        "bytes": 11770,
+        "sha256": "2a9c21441ef290ca21595080ac48b6a5fc0a7f23dd01c5f9c9ff9898441d2ed7",
+        "gitBlob": "fe08dbf8cef2e347f27a4ba354d7bdef1c9c19fa"
+      },
+      "after": {
+        "bytes": 12670,
+        "sha256": "985558075211fd112d71a92c9e04c9c5e0780af3fa2ec6658f1e01a26ce8de4a"
+      },
+      "exactGuardOnlyInverseRestoresWholeOriginal": true
+    },
+    {
+      "path": "apps/desktop/e2e/private-rust-collection-host.ts",
+      "before": {
+        "path": "apps/desktop/e2e/private-rust-collection-host.ts",
+        "bytes": 13481,
+        "sha256": "d1051c24803b76c15673e10dd6dfb8cf64bc41c952de7856b574ccd057a73a85",
+        "gitBlob": "e7a94be1074e2690fc920ae2e672f38894b08440"
+      },
+      "after": {
+        "bytes": 14381,
+        "sha256": "85dab93e816b8f4c4bfed025bb8d22dace03285f225ea8ee7e18067cf574a76b"
+      },
+      "exactGuardOnlyInverseRestoresWholeOriginal": true
+    }
+  ],
+  "production692Unchanged": true,
+  "originalElectron12AndAllBudgetsUnchanged": true,
+  "original013FrozenNew103AndOld426CountsUnchanged": true,
+  "original49CompatibilityHashInputsUnchanged": true,
+  "optionalUndefinedFieldsMatchProductionUtility": true,
+  "allApprovedPhysicalPortsAndDataObjectIdentityOrderPreserved": true,
+  "observerOnlyLastPortStripped": true,
+  "malformedMarkersKeysProtocolsPortCountsAliasesAndSparsePrimitiveNullPortsRejectBeforeForwarding": true,
+  "originalFullRustHostRebuildAndOriginalElectron12": "PENDING_CURRENT_NEW_SOURCE_NOT_PRECLAIMED",
+  "source13eOriginalFailurePublic": {
+    "path": "docs/postrust/MBRS-013/evidence/source13e-electron-ci-failure.json",
+    "bytes": 14824,
+    "sha256": "5e26b0e93288cfa50720da4e55bb3b041177fab75bc3dcb761312374ff313379"
+  },
+  "defaultNodeOptionalRustOff": true,
+  "realRoonNasAudioDeviceOwner": "NOT_RUN",
+  "capturedAt": "2026-10-08T18:33:03.037769+00:00"
+}

@@ -18,6 +18,21 @@ export async function startPrivateDesktopHost(rust: boolean, models: number, lar
   if (process.env.MUSIC_BRIDGE_CORE_TEST_MODE !== '1' || process.env.MUSIC_BRIDGE_UI_E2E !== '1') throw new Error('隔离宿主只接受合成环境。')
   const parent = (process as unknown as { parentPort?: Parent }).parentPort
   if (!parent) throw new Error('隔离宿主缺少可信父端口。')
+  function validateBootstrap(event: { data: unknown; ports: PrivatePort[] }): void {
+    const { data, ports } = event
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) throw new Error('隔离宿主启动消息无效。')
+    const message = data as Record<string, unknown>
+    if (message.type !== 'musicbridge.core.port'
+      || Object.keys(message).some(key => !['type', 'playbackEventProtocol', 'relocationMainPort'].includes(key))
+      || (message.playbackEventProtocol !== undefined && message.playbackEventProtocol !== 'compact-v1')
+      || (message.relocationMainPort !== undefined && message.relocationMainPort !== 'local-relocation-main-port-v1')) {
+      throw new Error('隔离宿主启动消息无效。')
+    }
+    const hasRelocationPort = message.relocationMainPort === 'local-relocation-main-port-v1'
+    if (!Array.isArray(ports) || !(hasRelocationPort ? [3, 4] : [2, 3]).includes(ports.length)
+      || Array.from(ports).some(port => typeof port !== 'object' || port === null || Array.isArray(port))
+      || new Set(ports).size !== ports.length) throw new Error('隔离宿主启动端口集合无效。')
+  }
   const observations: Observation[] = [], tick = performance.now()
   let sequence = 0, controlPort: PrivatePort | undefined, controller: RustReadonlyCoreController | undefined
   let shutdownId: string | undefined
@@ -51,7 +66,7 @@ export async function startPrivateDesktopHost(rust: boolean, models: number, lar
     return child
   }) as typeof spawn
   parent.once('message', event => {
-    if (![2, 3].includes(event.ports.length) || new Set(event.ports).size !== event.ports.length) throw new Error('隔离宿主启动端口集合无效。')
+    validateBootstrap(event)
     controlPort = event.ports[event.ports.length - 1]
     if (!controlPort) throw new Error('隔离宿主缺少独立的可信观察端口。')
     controlPort.on('message', event => {
@@ -149,7 +164,7 @@ export async function startPrivateDesktopHost(rust: boolean, models: number, lar
     // 最末端口只供观察；保留原生产端口全集，Node只读驱动没有Main源写端口。
     const once = parent.once
     parent.once = (name, listener) => once.call(parent, name, event => {
-      if (![2, 3].includes(event.ports.length) || new Set(event.ports).size !== event.ports.length) throw new Error('隔离宿主启动端口集合无效。')
+      validateBootstrap(event)
       listener({ data: event.data, ports: event.ports.slice(0, -1) })
     })
     try { return runCoreUtilityProcess(...args) } finally { parent.once = once }

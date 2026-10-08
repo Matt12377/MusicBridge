@@ -1,0 +1,448 @@
+{
+  "schema": "mbrs013.source13e-electron-failure.v1",
+  "task": "MBRS-013",
+  "result": "ORIGINAL_FIRST_NATURAL_ELECTRON_FAILURE_PRESERVED_NO_RERUN",
+  "sourceSha": "13e826d4f0790dbb2236f7792dc4414546707a02",
+  "runId": 37819009955,
+  "runAttempt": 1,
+  "jobId": 113454904072,
+  "runnerId": 1000001857,
+  "runnerLabels": [
+    "macos-15-intel"
+  ],
+  "failedStep": {
+    "name": "Electron startup, crash/restart, safeStorage vault and credential recovery gates",
+    "status": "completed",
+    "conclusion": "failure",
+    "number": 12,
+    "started_at": "2026-10-08T17:58:14Z",
+    "completed_at": "2026-10-08T18:01:37Z"
+  },
+  "subsequentE2e": {
+    "name": "Electron end-to-end flow (Playwright, production build)",
+    "status": "completed",
+    "conclusion": "skipped",
+    "number": 13,
+    "started_at": "2026-10-08T18:01:37Z",
+    "completed_at": "2026-10-08T18:01:37Z"
+  },
+  "originalCounts": {
+    "tests": 12,
+    "pass": 4,
+    "fail": 8,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "originalCases": [
+    {
+      "index": 1,
+      "name": "真实收藏Vue页面 默认Node 100：浏览与辅助链、原表单单写与可信刷新",
+      "result": "FAIL"
+    },
+    {
+      "index": 2,
+      "name": "真实收藏Vue页面 Rust 100：浏览与辅助链、原表单单写与可信刷新",
+      "result": "FAIL"
+    },
+    {
+      "index": 3,
+      "name": "真实收藏Vue页面 Rust 2000：浏览与辅助链、原表单单写与可信刷新",
+      "result": "FAIL"
+    },
+    {
+      "index": 4,
+      "name": "真实收藏Vue页面 Rust 5000：浏览与辅助链、原表单单写与可信刷新",
+      "result": "FAIL"
+    },
+    {
+      "index": 5,
+      "name": "保存真实收藏页面冻结报告",
+      "result": "FAIL"
+    },
+    {
+      "index": 6,
+      "name": "真实 Electron 生产 Main 默认 Node：后台初始化零 Rust/零私有导出",
+      "result": "FAIL"
+    },
+    {
+      "index": 7,
+      "name": "真实 Electron 生产 Main 可选 Rust：初始化保持、原 preload durable outbox 单写、可信刷新后空轮询保持",
+      "result": "FAIL"
+    },
+    {
+      "index": 8,
+      "name": "保存真实 Electron/Main 独立冻结报告",
+      "result": "FAIL"
+    },
+    {
+      "index": 9,
+      "name": "[system] Electron startup and Core crash gates pass serially",
+      "result": "PASS"
+    },
+    {
+      "index": 10,
+      "name": "[system] Electron safeStorage credential vault gate passes with a synthetic value",
+      "result": "PASS"
+    },
+    {
+      "index": 11,
+      "name": "[system] same-process Core restart credential recovery gate passes with a synthetic value",
+      "result": "PASS"
+    },
+    {
+      "index": 12,
+      "name": "[system] two-process Electron cold-start credential recovery gate passes with a synthetic value",
+      "result": "PASS"
+    }
+  ],
+  "originalDurationMs": 191516.369623,
+  "sixStartupFailures": "electronApplication.firstWindow: Target page, context or browser has been closed",
+  "twoDerivedReportFailures": [
+    "0 !== 4",
+    "0 !== 2"
+  ],
+  "observedStartupMarker": "DESKTOP_STARTUP_FAIL",
+  "actualUnderlyingThrow": "NOT_CAPTURED_BY_ORIGINAL_MAIN_AND_SUPERVISOR_CATCH",
+  "staticDiagnosis": "生产Main交付三个物理端口，两个旧Main wrapper只接受二口；两个旧观察宿主只接受含末尾observer的二/三总口，当前需要四口。四叶source13e Git blob已核。",
+  "runtimeRootCauseReproduction": "PENDING_REAL_CALLBACK_AND_ORIGINAL_ELECTRON_REBUILD",
+  "wholeSourceCiAsOfSnapshot189": "VERIFY_STILL_RUNNING_MBRS014_NO_CANCELLATION",
+  "rawOfficialJobLog": {
+    "fileName": "ROOT013_SOURCE13E_ELECTRON_FULL_LOG187.log",
+    "bytes": 144253,
+    "sha256": "6a617e45dc176289c5a5bd51cc573a03fe8c28a5c99c005507983754ced49369",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE_FULL_ORIGINAL_FORMAT_READ_BACK"
+  },
+  "artifactMetadata": [
+    {
+      "id": 11569631348,
+      "node_id": "MDg6QXJ0aWZhY3QxMTU2OTYzMTM0OA==",
+      "name": "electron-e2e-13e826d4f0790dbb2236f7792dc4414546707a02",
+      "size_in_bytes": 431275592,
+      "url": "https://api.github.com/repos/Matt12377/MusicBridge/actions/artifacts/11569631348",
+      "archive_download_url": "https://api.github.com/repos/Matt12377/MusicBridge/actions/artifacts/11569631348/zip",
+      "expired": false,
+      "digest": "sha256:9de325ba75718ef5d882056fd6b3cc50665d5dc58aed4a14c7926186a3e54e9e",
+      "created_at": "2026-10-08T18:03:29Z",
+      "updated_at": "2026-10-08T18:03:29Z",
+      "expires_at": "2026-10-22T18:01:59Z",
+      "workflow_run": {
+        "id": 37819009955,
+        "repository_id": 1340424953,
+        "head_repository_id": 1340424953,
+        "head_branch": "codex/mbrs-013-relocation",
+        "head_sha": "13e826d4f0790dbb2236f7792dc4414546707a02"
+      }
+    },
+    {
+      "id": 11568629067,
+      "node_id": "MDg6QXJ0aWZhY3QxMTU2ODYyOTA2Nw==",
+      "name": "rust-host-compiled-13e826d4f0790dbb2236f7792dc4414546707a02",
+      "size_in_bytes": 7842144,
+      "url": "https://api.github.com/repos/Matt12377/MusicBridge/actions/artifacts/11568629067",
+      "archive_download_url": "https://api.github.com/repos/Matt12377/MusicBridge/actions/artifacts/11568629067/zip",
+      "expired": false,
+      "digest": "sha256:54793af9b9f2b862f6099661184172f80fd8ec0a5ff1ff5f95fe45aec0184c7a",
+      "created_at": "2026-10-08T18:01:45Z",
+      "updated_at": "2026-10-08T18:01:45Z",
+      "expires_at": "2026-10-22T18:01:40Z",
+      "workflow_run": {
+        "id": 37819009955,
+        "repository_id": 1340424953,
+        "head_repository_id": 1340424953,
+        "head_branch": "codex/mbrs-013-relocation",
+        "head_sha": "13e826d4f0790dbb2236f7792dc4414546707a02"
+      }
+    }
+  ],
+  "artifactContentsReadBack": false,
+  "readOnlyBigArtifactDownload188": "TIMED_OUT_PARTIAL_ZIP_NOT_EVIDENCE",
+  "budgetsUnchanged": true,
+  "workflowDispatch": 0,
+  "reruns": 0,
+  "cancellations": 0,
+  "realRoonNasAudioDeviceOwner": "NOT_RUN",
+  "capturedAt": "2026-10-08T18:17:09.440076+00:00",
+  "finalWholeSourceCi": {
+    "allTerminal": true,
+    "allSuccess": false,
+    "successfulWorkflows": 3,
+    "failedWorkflows": 1,
+    "successfulJobs": 5,
+    "failedJobs": 1,
+    "originalVerifyJobSuccess": true,
+    "originalVerifySteps": [
+      {
+        "name": "Set up job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 1,
+        "started_at": "2026-10-08T17:45:25Z",
+        "completed_at": "2026-10-08T17:45:26Z"
+      },
+      {
+        "name": "Checkout",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 2,
+        "started_at": "2026-10-08T17:45:26Z",
+        "completed_at": "2026-10-08T17:45:30Z"
+      },
+      {
+        "name": "Node.js 22",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 3,
+        "started_at": "2026-10-08T17:45:30Z",
+        "completed_at": "2026-10-08T17:45:31Z"
+      },
+      {
+        "name": "Prepare strict hosted verification directories",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 4,
+        "started_at": "2026-10-08T17:45:31Z",
+        "completed_at": "2026-10-08T17:45:31Z"
+      },
+      {
+        "name": "判定精确父源码CI可复用的报告提交",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 5,
+        "started_at": "2026-10-08T17:45:31Z",
+        "completed_at": "2026-10-08T17:45:31Z"
+      },
+      {
+        "name": "Prepare source-pinned build workspace mirror",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 6,
+        "started_at": "2026-10-08T17:45:31Z",
+        "completed_at": "2026-10-08T17:45:32Z"
+      },
+      {
+        "name": "Install frozen workspace",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 7,
+        "started_at": "2026-10-08T17:45:32Z",
+        "completed_at": "2026-10-08T17:45:37Z"
+      },
+      {
+        "name": "Validate control plane",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 8,
+        "started_at": "2026-10-08T17:45:37Z",
+        "completed_at": "2026-10-08T17:45:37Z"
+      },
+      {
+        "name": "Validate security and product boundaries",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 9,
+        "started_at": "2026-10-08T17:45:37Z",
+        "completed_at": "2026-10-08T17:45:37Z"
+      },
+      {
+        "name": "Scan workspace import cycles",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 10,
+        "started_at": "2026-10-08T17:45:37Z",
+        "completed_at": "2026-10-08T17:45:37Z"
+      },
+      {
+        "name": "Verify platform-independent workspace (typecheck, unit tests, build; no Electron)",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 11,
+        "started_at": "2026-10-08T17:45:37Z",
+        "completed_at": "2026-10-08T17:55:41Z"
+      },
+      {
+        "name": "Verify offline preparation boundaries",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 12,
+        "started_at": "2026-10-08T17:55:41Z",
+        "completed_at": "2026-10-08T17:55:43Z"
+      },
+      {
+        "name": "Verify isolated MBRS-001 offline POC",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 13,
+        "started_at": "2026-10-08T17:55:43Z",
+        "completed_at": "2026-10-08T17:55:53Z"
+      },
+      {
+        "name": "MBRS002 本地合同 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 14,
+        "started_at": "2026-10-08T17:55:53Z",
+        "completed_at": "2026-10-08T17:56:54Z"
+      },
+      {
+        "name": "MBRS003 阶段软件 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 15,
+        "started_at": "2026-10-08T17:56:54Z",
+        "completed_at": "2026-10-08T17:58:50Z"
+      },
+      {
+        "name": "MBRS004 名称与版本规则 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 16,
+        "started_at": "2026-10-08T17:58:50Z",
+        "completed_at": "2026-10-08T17:59:24Z"
+      },
+      {
+        "name": "MBRS005 本地文件网关与资源租约 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 17,
+        "started_at": "2026-10-08T17:59:24Z",
+        "completed_at": "2026-10-08T18:00:30Z"
+      },
+      {
+        "name": "MBRS006 本地Audio Input与会话隔离 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 18,
+        "started_at": "2026-10-08T18:00:30Z",
+        "completed_at": "2026-10-08T18:02:24Z"
+      },
+      {
+        "name": "MBRS007 队列预取与持久恢复 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 19,
+        "started_at": "2026-10-08T18:02:24Z",
+        "completed_at": "2026-10-08T18:05:57Z"
+      },
+      {
+        "name": "MBRS008 原样字节与独立质量证据 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 20,
+        "started_at": "2026-10-08T18:05:57Z",
+        "completed_at": "2026-10-08T18:07:40Z"
+      },
+      {
+        "name": "MBRS009 正式本地库有界查询与复用UI Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 21,
+        "started_at": "2026-10-08T18:07:40Z",
+        "completed_at": "2026-10-08T18:09:28Z"
+      },
+      {
+        "name": "MBRS010 封面选择与来源安全 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 22,
+        "started_at": "2026-10-08T18:09:28Z",
+        "completed_at": "2026-10-08T18:10:43Z"
+      },
+      {
+        "name": "MBRS011 MB_ONLY信息整理预览与撤销 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 23,
+        "started_at": "2026-10-08T18:10:43Z",
+        "completed_at": "2026-10-08T18:12:15Z"
+      },
+      {
+        "name": "MBRS014 旧收藏关联与冻结来源保护 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 24,
+        "started_at": "2026-10-08T18:12:15Z",
+        "completed_at": "2026-10-08T18:14:57Z"
+      },
+      {
+        "name": "MBRS012 受控源写与备份恢复 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 25,
+        "started_at": "2026-10-08T18:14:57Z",
+        "completed_at": "2026-10-08T18:18:38Z"
+      },
+      {
+        "name": "MBRS013 同内容位置迁移与具体清理 Gate",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 26,
+        "started_at": "2026-10-08T18:18:38Z",
+        "completed_at": "2026-10-08T18:23:08Z"
+      },
+      {
+        "name": "验证报告CI准入正负例",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 27,
+        "started_at": "2026-10-08T18:23:08Z",
+        "completed_at": "2026-10-08T18:23:08Z"
+      },
+      {
+        "name": "Diff whitespace",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 28,
+        "started_at": "2026-10-08T18:23:08Z",
+        "completed_at": "2026-10-08T18:23:08Z"
+      },
+      {
+        "name": "Verify pinned historical fragments and current discarded rejection",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 29,
+        "started_at": "2026-10-08T18:23:08Z",
+        "completed_at": "2026-10-08T18:23:09Z"
+      },
+      {
+        "name": "Preserve full verification log",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 30,
+        "started_at": "2026-10-08T18:23:09Z",
+        "completed_at": "2026-10-08T18:23:24Z"
+      },
+      {
+        "name": "Post Node.js 22",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 59,
+        "started_at": "2026-10-08T18:23:24Z",
+        "completed_at": "2026-10-08T18:23:24Z"
+      },
+      {
+        "name": "Post Checkout",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 60,
+        "started_at": "2026-10-08T18:23:24Z",
+        "completed_at": "2026-10-08T18:23:24Z"
+      },
+      {
+        "name": "Complete job",
+        "status": "completed",
+        "conclusion": "success",
+        "number": 61,
+        "started_at": "2026-10-08T18:23:24Z",
+        "completed_at": "2026-10-08T18:23:24Z"
+      }
+    ],
+    "originalFinalCiSnapshot": {
+      "fileName": "ROOT013_SOURCE13E_CI_FINAL193.json",
+      "bytes": 99081,
+      "sha256": "c5762d9731e79c2db70a7ea8ea3db52db5e6214b48068467e105b0a4df79e744",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+    },
+    "originalAllRunsUntouched": true
+  }
+}
