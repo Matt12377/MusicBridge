@@ -1,0 +1,46 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "id": "SCOPE_ADJUSTMENT19",
+  "parentSource": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+  "authority": "INHERITED_OWNER_CONTINUOUS_AUTHORIZATION_NO_NEW_APPROVAL",
+  "reason": "原589首次自然源码CI的5job成功，Electron原12通过但原114 E2E仅013初始qualified断言失败；保存完整失败和八项最小归档。本机真实APFS Data目录复现原native ismount误拒绝，单Darwin块改为held mount FD物理及kernel身份复核。",
+  "delegatedOwnedFiles": {
+    "delivery012_core": [
+      "packages/bridge-core/src/collection/source-relocation-root-identity.ts"
+    ],
+    "delivery012_contract": [
+      "packages/bridge-core/test/source-relocation-root-identity.test.ts"
+    ]
+  },
+  "rootOwnedFiles": [
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT19.json",
+    "docs/postrust/MBRS-013/EXECUTION_SCOPE.json",
+    "docs/postrust/MBRS-013/evidence/source589-electron-qualification-failure.json",
+    "docs/postrust/MBRS-013/evidence/native-mount-fd-repair.json",
+    "project/STATUS.json",
+    "project/POSTRUST_PLAN.json",
+    "project/POSTRUST_TODO.md",
+    "project/POSTRUST_PROGRESS.md"
+  ],
+  "beforeProduct": {
+    "fileName": "CORE013_SOURCE589_ROOT_IDENTITY_BEFORE280.ts",
+    "bytes": 9463,
+    "sha256": "1fd5a33256c4db7919c9f092e0139628b7df4ec7482fafd7c64bcb810aee30ff"
+  },
+  "afterProduct": {
+    "fileName": "CORE013_SOURCE589_ROOT_IDENTITY_AFTER280.ts",
+    "bytes": 10697,
+    "sha256": "c6477f40fe61b1b62964bd825c1145ff935d9597b07a5a92f7b4614944119432"
+  },
+  "allowedChange": "ONLY_DARWIN_VOLUME_NATIVE_MOUNTPOINT_FD_IDENTITY_BLOCK_AND_FIVE_MEANINGFUL_FLAT_REGRESSIONS",
+  "product692ChangedExactlyOneLeaf": true,
+  "previousStd124AndApp126HistoricalOnly": true,
+  "originalFrozen426New103Electron12Playwright114AndAllBudgetsUnchanged": true,
+  "compilerAndActualExecutor": "ROOT_ONLY",
+  "actualLocalRepairEvidence": "docs/postrust/MBRS-013/evidence/native-mount-fd-repair.json",
+  "originalFailureEvidence": "docs/postrust/MBRS-013/evidence/source589-electron-qualification-failure.json",
+  "newExactSourceGateAndCi": "PENDING_NOT_PRECLAIMED",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN",
+  "recordedAt": "2026-10-08T20:29:16.610446+00:00"
+}

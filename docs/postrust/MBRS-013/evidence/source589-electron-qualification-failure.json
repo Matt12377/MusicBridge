@@ -1,0 +1,170 @@
+{
+  "schema": "mbrs013.original-native-qualification-ci-failure.v1",
+  "task": "MBRS-013",
+  "sourceSha": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+  "result": "ORIGINAL_SOURCE_ELECTRON_E2E_FAILURE_PRESERVED",
+  "naturalCi": {
+    "workflows": 4,
+    "jobs": 6,
+    "successWorkflows": 3,
+    "failedWorkflows": 1,
+    "successJobs": 5,
+    "failedJobs": 1,
+    "allTerminal": true,
+    "allSuccess": false,
+    "event": "push",
+    "naturalAttempt": 1,
+    "workflowDispatch": 0,
+    "reruns": 0,
+    "agentCancellations": 0,
+    "remoteMatchesCollectedHead": true,
+    "originalValidation": "NATURAL_FAILURE_PRESERVED_NO_RERUN",
+    "runs": [
+      {
+        "id": 37828589069,
+        "name": "Rust Core 只读原型",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 37828589027,
+        "name": "security",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 37828589112,
+        "name": "electron-e2e",
+        "status": "completed",
+        "conclusion": "failure"
+      },
+      {
+        "id": 37828589021,
+        "name": "verify",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "jobConclusions": [
+      {
+        "id": 113487754241,
+        "runId": 37828589069,
+        "name": "rust-core (macos-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 113487754378,
+        "runId": 37828589069,
+        "name": "rust-core (ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 113487755035,
+        "runId": 37828589027,
+        "name": "static-security",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 113487754271,
+        "runId": 37828589112,
+        "name": "macos-electron-gate",
+        "status": "completed",
+        "conclusion": "failure"
+      },
+      {
+        "id": 113487753913,
+        "runId": 37828589021,
+        "name": "dependency-audit",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 113487754324,
+        "runId": 37828589021,
+        "name": "verify",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "standardCountsAtOriginalSource": {
+    "tests": 4716,
+    "pass": 4714,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "originalElectronCounts": {
+    "tests": 12,
+    "pass": 12,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "originalPlaywright": {
+    "total": 114,
+    "passed": 108,
+    "failed": 1,
+    "skipped": 5,
+    "flaky": 0,
+    "interrupted": 0,
+    "did not run": 0,
+    "retryCount": 0
+  },
+  "assertion": {
+    "file": "apps/desktop/e2e/mbrs013-relocation.spec.ts",
+    "line": 246,
+    "actual": "unqualified",
+    "expected": "qualified",
+    "specificNativeReason": "NOT_SAVED_BY_ORIGINAL_SPEC_NOT_PROVEN_BY_LOGS_OR_ARCHIVE",
+    "contextSavedAfterAssertionOnly": true,
+    "actualFactsEmpty": true,
+    "moveReached": false,
+    "cleanupReached": false
+  },
+  "originalArchiveStepsSuccessIsNotE2ePass": true,
+  "actualMinimalArchive": {
+    "archiveId": 11573908758,
+    "archiveBytes": 500526954,
+    "selection": "EIGHT_EXACT_MEMBERS_BOUNDED_206_RANGE_REQUESTS",
+    "wholeZipDigestVerified": false,
+    "completed": false,
+    "plans": 0,
+    "sourceBindings": 0,
+    "relocationLedgerRows": 0,
+    "oneNaturalMainClose": true,
+    "ownedWaveAndLyricBytesEqualPreBaseline": true,
+    "specificNativeReasonPersisted": false
+  },
+  "completeLogAudit": {
+    "fileName": "ROOT013_SOURCE589_COMPLETE_JOB_FAILURE_READBACK275.json",
+    "bytes": 43404,
+    "sha256": "a7b88fe6af6fbade078d4ec5e9e3fe1bc8ef213dd42578b7564cbcb562fbc4e6",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "minimalArchiveReadback": {
+    "fileName": "ACTUAL_READBACK.json",
+    "bytes": 19301,
+    "sha256": "95caaaca3b23532d791cbac96056f4ae5046b48b7f805260c45ab4e38e91c173",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "minimalArchiveFdAudit": {
+    "fileName": "APP_PROOFS_ARTIFACT11573908758_FINAL_FD_AUDIT02.json",
+    "bytes": 6538,
+    "sha256": "68364a251003833f9dd2efe13f12b634054562a263b8ab71f2940b6dd1bcb5e6",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "failureSwallowed": false,
+  "reruns": 0,
+  "workflowDispatch": 0,
+  "agentCancellations": 0,
+  "realRoonNasAudioDeviceOwner": "NOT_RUN"
+}

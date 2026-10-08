@@ -32317,7 +32317,7 @@
       "depends_on": [
         "MBRS-012"
       ],
-      "status": "LOCAL_SCOPE18_CALLBACK12_AND_DESKTOP_TYPES_PASS_NEW_EXACT_SOURCE_GATE_RUST_ELECTRON_CI_REPORT_PENDING",
+      "status": "LOCAL_SCOPE19_NATIVE_FD_STANDARD4721_AND_FRESH_APP_PASS_NEW_EXACT_SOURCE_GATE_RUST_ELECTRON_CI_REPORT_PENDING",
       "implementation_owner": "MBRS-013",
       "goal": "保留逻辑身份与历史引用，让下次点播使用新位置，不等待Roon重扫。",
       "steps": [
@@ -32350,7 +32350,7 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "FINITE_SCOPE18_CALLBACK12_AND_DESKTOP_TYPES_PASS_CURRENT_PRODUCT692_SAME_NEW_EXACT_SOURCE_GATE_REQUIRED",
+      "validation_status": "FINITE_SCOPE19_FRESH_NATIVE5_STANDARD4721_APP289_PASS_NEW_EXACT_SOURCE_GATE_CI_REQUIRED",
       "evidence_refs": [
         "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
         "docs/postrust/MBRS-013/evidence/production-app.json",
@@ -32383,7 +32383,10 @@
         "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
         "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT18.json",
         "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
-        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json"
+        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
+        "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT19.json",
+        "docs/postrust/MBRS-013/evidence/source589-electron-qualification-failure.json",
+        "docs/postrust/MBRS-013/evidence/native-mount-fd-repair.json"
       ],
       "base_sha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
       "branch": "codex/mbrs-013-relocation",

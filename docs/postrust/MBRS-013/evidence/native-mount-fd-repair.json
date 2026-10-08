@@ -1,0 +1,172 @@
+{
+  "schema": "mbrs013.native-mount-fd-repair.v1",
+  "task": "MBRS-013",
+  "sourceBaseline": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+  "result": "PASS_LOCAL_REAL_NATIVE_REGRESSION_STANDARD_AND_CURRENT_PRODUCTION_APP_HOSTED_PENDING",
+  "changedProductPath": "packages/bridge-core/src/collection/source-relocation-root-identity.ts",
+  "before": {
+    "fileName": "CORE013_SOURCE589_ROOT_IDENTITY_BEFORE280.ts",
+    "bytes": 9463,
+    "sha256": "1fd5a33256c4db7919c9f092e0139628b7df4ec7482fafd7c64bcb810aee30ff"
+  },
+  "after": {
+    "fileName": "CORE013_SOURCE589_ROOT_IDENTITY_AFTER280.ts",
+    "bytes": 10697,
+    "sha256": "c6477f40fe61b1b62964bd825c1145ff935d9597b07a5a92f7b4614944119432"
+  },
+  "oneDarwinVolumeBlockOnly": true,
+  "wholeInverseRestoresAllOriginalBytes": true,
+  "nativeReason": "真实本机APFS Data目录的ismount为false而mountpoint设备一致；原cooked探针line23拒绝。改用实际挂载目录FD和kernel fstatfs身份复核，原托管runner具体native原因未保存。",
+  "nativeRoles": [
+    "OWN_EXTERNAL_TEMP",
+    "EXISTING_INTERNAL_USER_DIRECTORY",
+    "EXISTING_SYSTEM_ROOT"
+  ],
+  "beforeNativeExits": [
+    0,
+    1,
+    0
+  ],
+  "afterNativeExits": [
+    0,
+    0,
+    0
+  ],
+  "externalAndSystemProofValuesUnchanged": true,
+  "originalBudgets": {
+    "pythonMs": 5000,
+    "diskutilMs": 3000,
+    "maxBufferBytes": 16384
+  },
+  "unchangedGuards": [
+    "allowlist",
+    "root FD final checks",
+    "UUID DeviceNode MountPoint",
+    "optional Mounted key must be true when present",
+    "Linux actual mount branch",
+    "share identity",
+    "physical revocation defaults"
+  ],
+  "newGuards": [
+    "mountpoint O_DIRECTORY O_NOFOLLOW fd",
+    "named and fd dev ino birthtime match",
+    "four exact root and mount fstatfs axes",
+    "hold mount fd across diskutil and recheck named held kernel identities",
+    "finally close mount fd"
+  ],
+  "nativeFiveFlatTests": {
+    "path": "packages/bridge-core/test/source-relocation-root-identity.test.ts",
+    "bytes": 12867,
+    "sha256": "4d4e34c0049752cce45757c510f729b9818e57befd28928e0fd471f79e82be24"
+  },
+  "nativeFive": {
+    "label": "root013-native-five-behaviors284",
+    "head": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+    "directory": "packages/bridge-core",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 2.9030182500137016,
+    "log": {
+      "file": "root013-native-five-behaviors284.log",
+      "bytes": 1887,
+      "sha256": "bc716e1457f4a8d0b200af578d190431524959ffcc5a6e4c238b191e623dfd07"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "controlledFaultAxes": {
+    "kernelMismatches": 8,
+    "heldNamedIdentityMismatches": 9,
+    "topLevelCaseCount": 5,
+    "controlledAbiIsUnitEvidence": true,
+    "actualHomeReadonlyAndOwnedEmptyRootAreNativeEvidence": true,
+    "noQualificationOverride": true
+  },
+  "nativeRuntimeAudit": {
+    "fileName": "ROOT013_NATIVE_MOUNT_FD_RUNTIME_REPAIR282.json",
+    "bytes": 3049,
+    "sha256": "1bb8dec384e5df0cdae04fa37fd5564cfaf52c84ebd09080bca7c69af52c0eea",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "independentCoreReview": {
+    "fileName": "APP_CORE280_INDEPENDENT_REVIEW01.json",
+    "bytes": 14479,
+    "sha256": "190aecb86db57d467868d2194931c8b2dd8383187a41fd71ad8a2e89087f2894",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "standard": {
+    "label": "root013-standard-verify286",
+    "head": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+    "directory": "",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 316.0781769589521,
+    "log": {
+      "file": "root013-standard-verify286.log",
+      "bytes": 1143904,
+      "sha256": "48a9c15a39c050895a5c9c19e960277d54a62962fd832be39c0aaa06aabb3fdc"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "standardFullAudit": {
+    "fileName": "STANDARD_VERIFY286_FULL_AUDIT287.json",
+    "bytes": 4710,
+    "sha256": "7b2d3b8a06db04f5a3c2a45bf44bc99e6c7459b73c4f70cd302bfb2b9d9448e0",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "standardCounts": {
+    "tests": 4721,
+    "pass": 4719,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "declaredSourceTestInputs": 1631,
+  "declaredSourceTestIdentity": "e13ff1ca4e8f6d4505651a3564c351dea35a7e3e20073076c298335d504c5898",
+  "productInputCount": 692,
+  "productIdentity": "9ea6137cddca961cc505538da10c8e3b5958d7f53bae6dfec173cf08a8bdaeab",
+  "declaredClosureIsNotFullToolchain": true,
+  "productChangedFromOldStandard124AndApp126": true,
+  "oldApp126CurrentProof": false,
+  "productionApp": {
+    "label": "root013-production-app289",
+    "head": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+    "directory": "apps/desktop",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 19.010774916037917,
+    "log": {
+      "file": "root013-production-app289.log",
+      "bytes": 668,
+      "sha256": "5f757555f1d8d14f2285bca58ab77cc405ed29eee3b58a78033a40025da2ffa5"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "independentAppAudit": {
+    "fileName": "PRODUCTION_APP291_INDEPENDENT_OUTPUT_AUDIT.json",
+    "bytes": 5081,
+    "sha256": "392f94cc5ce68105f574efa62fb4371a597604f0ac213b78bec220053ab2829d",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "productionArtifactCount": 997,
+  "productionArtifactIdentity": "9db485ced44535e5543a39f33884ed3bb3632fc09fc53a2cff25d28a5ea9734d",
+  "productionArtifactsBeforeAfterExact": true,
+  "fullWaveAndLyricsBytes": true,
+  "finitePolicyOffMoveRetainSpecificCleanupColdHistory": true,
+  "threeDistinctNaturalMainCloses": true,
+  "sourceBindingsNonemptyHistoryProven": false,
+  "exactNewSourceGateRustElectronAndHostedCi": "PENDING_NOT_PRECLAIMED",
+  "original426New103Electron12Playwright114AndBudgetsUnchanged": true,
+  "originalProductAcceptance": "ALL_EIGHT_PARTIAL_LIVE_OWNER_OPEN",
+  "realRoonNasCrossVolumeAudioDeviceOwner": "NOT_RUN"
+}

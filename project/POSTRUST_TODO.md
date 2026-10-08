@@ -1,6 +1,6 @@
 # MusicBridge 开发待办
 
-当前任务：MBRS-013。Scope18仅改新增回归的两行assert.throws为等价字符串message重载，逆变换恢复整原文件；当前12/12运行及完整desktop-types223自然通过，Scope17四私有叶与692产品字节不变。原source320f Gate203六阶段中5通过，desktop-types因两TS2345失败，冻结529未执行；该源码未push且无远端CI。新提交的精确Gate、完整30阶段Rust及两fresh宿主、原Electron12、首次自然CI/报告/seal待真实执行，不能以旧13e/320f或当前WIP代替。原426/103/Electron12及预算、18任务156AT、有效17/150与移动五项未开始保持；8AT均PARTIAL/live/Owner未跑，之后继续MBM-000～004→016→017。
+当前任务：MBRS-013。Scope19保留原589源码首次自然CI的5job通过/1 Electron失败：原12通过，原114 E2E的013初始qualified断言失败，未到搬迁。真实本机APFS Data目录复现原ismount误拒绝，仅Darwin块改为挂载FD与kernel身份复核，原预算、UUID和Linux边界保持。新增5行为回归自然全通过；fresh标准286为4721总/4719通过/2原native skip，1631声明输入及692新产品身份已核；fresh正式App289与独立291的自有WAVE+歌词默认OFF/完整计划/源保留/具体清理/冷历史、三自然关闭通过，997产物前后一致。旧124/App126是历史，不能覆盖此产品叶变化；新提交精确529 Gate、原30阶段Rust/两fresh宿主、原Electron12、首次自然源码CI、独立报告和最终seal仍待真实执行。原8AT均PARTIAL，真实Roon/NAS/跨卷/设备听感/Owner未跑；013封存后连续MBM-000～004→016→017，不重复审批。
 
 | 任务 | 要做的事 | 进度 |
 | --- | --- | --- |
