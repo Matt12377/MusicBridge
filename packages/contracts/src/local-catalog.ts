@@ -46,7 +46,9 @@ export function isLocalCatalogRevision(v: unknown): v is LocalCatalogRevision { 
 export function isLocalCatalogText(v: unknown, allowEmpty = false): v is string {
   return typeof v === 'string' && v.length <= 512 && (allowEmpty || v.trim().length > 0)
     && !/[\u0000-\u001f\u007f]/u.test(v)
-    && !/[a-z][a-z0-9+.-]*:\/\/|(?:bearer|cookie|token|session[_-]?(?:id|handle))\s*[:=]/iu.test(v);
+    // URI 必含字面分隔符；凭据独立检查，两个分支都保留原 Unicode 忽略大小写规则。
+    && !/(?:bearer|cookie|token|session[_-]?(?:id|handle))\s*[:=]/iu.test(v)
+    && (!v.includes('://') || !/[a-z][a-z0-9+.-]*:\/\//iu.test(v));
 }
 export function isLibraryRootRole(v: unknown): v is LibraryRootRole { return v === 'library' || v === 'recording-reference'; }
 export function isLibraryRoot(v: unknown): v is LibraryRoot {

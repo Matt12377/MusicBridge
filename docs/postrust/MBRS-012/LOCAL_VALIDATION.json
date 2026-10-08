@@ -54,30 +54,30 @@
   "todo": 0,
   "groupDeclaredInputs": {
     "files": 1422,
-    "identity": "489a8b9d9a7d2795623b16335fa23ce0530b3e4c86c2ac8c4a5743a0130062f6",
+    "identity": "5a21cd7a44c8dfd63c79c29ef065526ed00636036d0f688ccea31ec81e2548c1",
     "inputsUnchanged": true
   },
   "groupArchive": {
-    "archiveId": "ROOT012_GROUPS426_METADATA76_ACTUAL",
-    "fileName": "ROOT_GROUPS426_METADATA76_ACTUAL.json",
-    "bytes": 1923,
-    "sha256": "ae706bd805533ddb1fb6fdcbecefe1e24c5ed4e8459435eefce4533626b7c11c",
+    "archiveId": "ROOT012_GROUPS426_TEXT_GUARD86_ACTUAL",
+    "fileName": "ROOT_GROUPS426_TEXT_GUARD86_ACTUAL.json",
+    "bytes": 2045,
+    "sha256": "896bd424143bb863b88f40d776d31cfb7d5fc6f6efeb549a330ebef5b54d4c55",
     "storage": "PRIVATE_EXTERNAL_ARCHIVE",
     "publiclyDownloadable": false
   },
   "standardWorkspaceRegression": {
     "execution": {
-      "label": "root-workspace-verify72-metadata-watermark",
-      "headAtRun": "5d33ebe11ed1faf128e05dcb9fea6271aea3cd47",
+      "label": "root-workspace-verify87-text-guard",
+      "headAtRun": "7aa5985d056fead250bf4413f07e8ff7b661b957",
       "exitCode": 0,
       "signal": null,
       "closeObserved": true,
       "timedOut": false,
-      "durationSeconds": 313.7685164579889,
+      "durationSeconds": 317.8899623749894,
       "log": {
-        "file": "root-workspace-verify72-metadata-watermark.log",
-        "bytes": 1136697,
-        "sha256": "88d407e703e4d03b30a8a1cc2c55fffeb540a4a7edfb04a1017316100dd11386"
+        "file": "root-workspace-verify87-text-guard.log",
+        "bytes": 1136576,
+        "sha256": "6ca853f3e2701c9c787e6d27ec471c2e0f74eb9cc6341d84c2bf407f49d16a31"
       },
       "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
     },
@@ -85,21 +85,21 @@
     "pass": 4699,
     "fail": 0,
     "skipped": 2,
-    "scope": "CURRENT1422_METADATA_QUERY_FIX_STANDARD_TYPES_TOP_LEVEL_TESTS_PRODUCTION_BUILD",
-    "sourceInputsIdentity": "489a8b9d9a7d2795623b16335fa23ce0530b3e4c86c2ac8c4a5743a0130062f6",
+    "scope": "CURRENT1422_CATALOG_TEXT_GUARD_FIX_STANDARD_TYPES_TOP_LEVEL_TESTS_PRODUCTION_BUILD",
+    "sourceInputsIdentity": "5a21cd7a44c8dfd63c79c29ef065526ed00636036d0f688ccea31ec81e2548c1",
     "sourceInputsUnchanged": true,
     "productInputs": 623,
-    "productIdentity": "c910a04a4ce0a0fdcdfa442f1b09d033348ed463634922dccffbe4d5b047c95d",
+    "productIdentity": "9065f9b5aa80242186053b834bcbb2b29154b5fd5bc73c4272195ff2371c400a",
     "originalOptionalNativeSkips": [
       "ok 1205 - 实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
       "ok 1211 - Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
     ],
     "nativeDeviceAudio": "NOT_RUN",
     "archive": {
-      "archiveId": "ROOT012_STANDARD_VERIFY72",
-      "fileName": "ROOT_STANDARD_VERIFY_ACTUAL72.json",
-      "bytes": 2210,
-      "sha256": "2088127231ba96d480ccd1ee86329833fb141f5f7eb23b41a77ee54a075a0842",
+      "archiveId": "ROOT012_STANDARD_VERIFY87",
+      "fileName": "ROOT_STANDARD_VERIFY_ACTUAL87.json",
+      "bytes": 2194,
+      "sha256": "8e87d92d3333231da87608c1f24c3c6d38b467950515d2b645b49e346c668985",
       "storage": "PRIVATE_EXTERNAL_ARCHIVE",
       "publiclyDownloadable": false
     }
@@ -107,38 +107,38 @@
   "ownedProductionApp": {
     "result": "PASS",
     "execution": {
-      "label": "root-owned-production-e2e73-metadata-watermark",
-      "headAtRun": "5d33ebe11ed1faf128e05dcb9fea6271aea3cd47",
+      "label": "root-owned-production-e2e88-text-guard",
+      "headAtRun": "7aa5985d056fead250bf4413f07e8ff7b661b957",
       "exitCode": 0,
       "signal": null,
       "closeObserved": true,
       "timedOut": false,
-      "durationSeconds": 40.43039550003596,
+      "durationSeconds": 39.99054720898857,
       "log": {
-        "file": "root-owned-production-e2e73-metadata-watermark.log",
-        "bytes": 39559,
-        "sha256": "7e8748d0e0291825de962d6fdfabe1ae97a43b55f0ba2d12a44cef754a687c79"
+        "file": "root-owned-production-e2e88-text-guard.log",
+        "bytes": 39254,
+        "sha256": "316c7127b7a2a64bce8001da2f187d7b9b8fa76a31e83036a3bcdd750cb6e6fa"
       },
       "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
     },
-    "build": "STANDARD_VERIFY72_PRODUCTION_BUILD",
+    "build": "STANDARD_VERIFY87_PRODUCTION_BUILD",
     "buildExecution": {
-      "label": "root-workspace-verify72-metadata-watermark",
-      "headAtRun": "5d33ebe11ed1faf128e05dcb9fea6271aea3cd47",
+      "label": "root-workspace-verify87-text-guard",
+      "headAtRun": "7aa5985d056fead250bf4413f07e8ff7b661b957",
       "exitCode": 0,
       "signal": null,
       "closeObserved": true,
       "timedOut": false,
-      "durationSeconds": 313.7685164579889,
+      "durationSeconds": 317.8899623749894,
       "log": {
-        "file": "root-workspace-verify72-metadata-watermark.log",
-        "bytes": 1136697,
-        "sha256": "88d407e703e4d03b30a8a1cc2c55fffeb540a4a7edfb04a1017316100dd11386"
+        "file": "root-workspace-verify87-text-guard.log",
+        "bytes": 1136576,
+        "sha256": "6ca853f3e2701c9c787e6d27ec471c2e0f74eb9cc6341d84c2bf407f49d16a31"
       },
       "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
     },
     "artifactFiles": 956,
-    "artifactIdentity": "b7cabacfb3f279642e84098ec491e78095fb8cb2928a2f5ec6e55135a0112a25",
+    "artifactIdentity": "d3e4ee5d181e1062293b961d30cdb64a9b70f17a4f4b350b802eb8a3eb5aefac",
     "artifactsUnchangedDuringRun": true,
     "plans": 13,
     "blockedDefaultOff": 1,
@@ -156,44 +156,44 @@
       "actualToolRuns": 144,
       "result": "PASS",
       "archive": {
-        "archiveId": "ROOT012_APP73_INDEPENDENT_OUTPUTS",
-        "fileName": "APP_OUTPUTS73_RESULT.json",
+        "archiveId": "ROOT012_APP88_INDEPENDENT_OUTPUTS",
+        "fileName": "APP_OUTPUTS88_RESULT.json",
         "bytes": 150997,
-        "sha256": "c36e2f6c2b315628bd5945f27eee20f8154208d3b26f2136d55ac68b2b3d0c97",
+        "sha256": "e35f4973d64070fc986a38f79b6eefd9f71a3d399b37640046b1a1d23c66d4dc",
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       },
       "rootAudit": {
-        "archiveId": "ROOT012_APP73_ROOT_INDEPENDENT_AUDIT75",
-        "fileName": "ROOT_APP73_INDEPENDENT_OUTPUT_AUDIT75.json",
+        "archiveId": "ROOT012_APP88_ROOT_INDEPENDENT_AUDIT90",
+        "fileName": "ROOT_APP88_INDEPENDENT_OUTPUT_AUDIT90.json",
         "bytes": 16514,
-        "sha256": "9765e52d86bdbe9f8c4d46e69039d4013972f7ffbea618d1602da34242287b17",
+        "sha256": "d306114be3a98b06bab4cfc713ef665f66d936c603b0386698f9d0ac17079726",
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       }
     },
     "scope": "SELF_OWNED_NON_SILENT_FLAC_MP3_PNG_TAGS_EMBEDDED_DIRECTORY_BATCH_UNDO_COLD_HISTORY",
     "appReceipt": {
-      "archiveId": "ROOT012_PRODUCTION_APP73_RECEIPT",
+      "archiveId": "ROOT012_PRODUCTION_APP88_RECEIPT",
       "fileName": "receipt.json",
       "bytes": 113463,
-      "sha256": "33956ecbf193e371923d40a0d943cf421472b8f86429d38842d2d56b376ba365",
+      "sha256": "85864ff0498c34fb7b3af703e475b85ec7e9182408b0646557982e1f4331ad1a",
       "storage": "PRIVATE_EXTERNAL_ARCHIVE",
       "publiclyDownloadable": false
     },
     "productInputs": 623,
-    "productIdentity": "c910a04a4ce0a0fdcdfa442f1b09d033348ed463634922dccffbe4d5b047c95d",
+    "productIdentity": "9065f9b5aa80242186053b834bcbb2b29154b5fd5bc73c4272195ff2371c400a",
     "sourceTestInputs": 1422,
-    "sourceTestIdentity": "489a8b9d9a7d2795623b16335fa23ce0530b3e4c86c2ac8c4a5743a0130062f6",
+    "sourceTestIdentity": "5a21cd7a44c8dfd63c79c29ef065526ed00636036d0f688ccea31ec81e2548c1",
     "jpegInThisAppRun": "NOT_RUN",
     "httpLeaseAndPlaybackRecordingFaultsInThisAppRun": "NOT_RUN",
     "sameArtifactAsHistoricalBuild33": false,
     "realRoonAudioOwner": "NOT_RUN",
     "archive": {
-      "archiveId": "ROOT012_APP73_ACTUAL75",
-      "fileName": "ROOT_APP73_ACTUAL75.json",
-      "bytes": 3955,
-      "sha256": "8ad81a447c56c6033e715cb045a540a397620f075831086fd16192f4ba5b8b4b",
+      "archiveId": "ROOT012_APP88_ACTUAL91",
+      "fileName": "ROOT_APP88_ACTUAL91.json",
+      "bytes": 3935,
+      "sha256": "8e0a03f0d1635bc1bd9cb571326e701adffab012f3fe5a9102040ae0829a39c4",
       "storage": "PRIVATE_EXTERNAL_ARCHIVE",
       "publiclyDownloadable": false
     }
@@ -315,7 +315,7 @@
     },
     "stages": 30,
     "scope": "SAME_RUN_RUST_HOSTS_PREPARATION_NOT_ELECTRON_ACCEPTANCE",
-    "sourceBindingBoundary": "HISTORICAL_RUST55_PREPARATION_NOT_CURRENT_S3_APP_ACCEPTANCE"
+    "sourceBindingBoundary": "HISTORICAL_RUST55_PREPARATION_NOT_CURRENT_APP88_ACCEPTANCE"
   },
   "standardElectron": {
     "execution": {
@@ -352,7 +352,7 @@
       "storage": "PRIVATE_EXTERNAL_ARCHIVE",
       "publiclyDownloadable": false
     },
-    "sourceBindingBoundary": "HISTORICAL_ELECTRON57_BEFORE_ONE_LOCAL_CATALOG_PRODUCT_QUERY_FIX_FRESH_NATURAL_SOURCE_CI_RECORDED_SEPARATELY"
+    "sourceBindingBoundary": "HISTORICAL_ELECTRON57_BEFORE_PRODUCT_FIXES_NOT_CURRENT_S4_PRODUCT_RUNTIME_ACCEPTANCE"
   },
   "standardProductionE2e": {
     "result": "PASS_ALL_APPLICABLE_CASES_WITH_PREPARATION_CORRECTION",
@@ -395,10 +395,12 @@
     "declaredInputs": 1422,
     "sourceInputsIdentity": "eaafa60f30386d2c841e53b160f6cb94e92e45470dd35f7b2f68c5b9a674e117",
     "realProviderRoonNasAudioDeviceOwner": "NOT_RUN",
-    "sourceBindingBoundary": "HISTORICAL1422_E2E58_B59_GRAPH_DIFFERS_FROM_CURRENT_UI_UNIT_DRIVER_AND_LOCAL_CATALOG_PRODUCT_QUERY_DO_NOT_RELABEL_AS_CURRENT_RUN",
+    "sourceBindingBoundary": "HISTORICAL_E2E58_B59_ACTUAL_GRAPH_DIFFERS_FROM_CURRENT_S4_USE_EXACT_LIST_NOT_CURRENT_FULL_E2E_RUN",
     "historicalGraphDifferences": [
       "apps/desktop/test/mbrs012-ui.test.ts",
-      "packages/bridge-core/src/collection/local-catalog-store.ts"
+      "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "packages/contracts/src/local-catalog.ts",
+      "packages/contracts/test/mbrs012/source-writes-contract.test.ts"
     ]
   },
   "dependencyAudit": {
@@ -804,6 +806,1691 @@
     "currentProductIdentity": "c910a04a4ce0a0fdcdfa442f1b09d033348ed463634922dccffbe4d5b047c95d",
     "currentProductionApp": "APP73_ACTUAL_STANDARD_VERIFY72_BUILD_INDEPENDENT_FULL_FILE_PROOF",
     "historicalApp37PromotedToCurrentProductProof": false,
+    "oldProofsRewritten": false,
+    "originalCiRerun": false,
+    "originalCiCancelled": false,
+    "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+  },
+  "historicalDeclaredGroup76": {
+    "groupDeclaredInputs": {
+      "files": 1422,
+      "identity": "489a8b9d9a7d2795623b16335fa23ce0530b3e4c86c2ac8c4a5743a0130062f6",
+      "inputsUnchanged": true
+    },
+    "groupArchive": {
+      "archiveId": "ROOT012_GROUPS426_METADATA76_ACTUAL",
+      "fileName": "ROOT_GROUPS426_METADATA76_ACTUAL.json",
+      "bytes": 1923,
+      "sha256": "ae706bd805533ddb1fb6fdcbecefe1e24c5ed4e8459435eefce4533626b7c11c",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "scope": "HISTORICAL_S3_METADATA_WATERMARK_SOURCE_TEST_GRAPH"
+  },
+  "historicalStandardWorkspace72": {
+    "execution": {
+      "label": "root-workspace-verify72-metadata-watermark",
+      "headAtRun": "5d33ebe11ed1faf128e05dcb9fea6271aea3cd47",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 313.7685164579889,
+      "log": {
+        "file": "root-workspace-verify72-metadata-watermark.log",
+        "bytes": 1136697,
+        "sha256": "88d407e703e4d03b30a8a1cc2c55fffeb540a4a7edfb04a1017316100dd11386"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "tests": 4701,
+    "pass": 4699,
+    "fail": 0,
+    "skipped": 2,
+    "scope": "CURRENT1422_METADATA_QUERY_FIX_STANDARD_TYPES_TOP_LEVEL_TESTS_PRODUCTION_BUILD",
+    "sourceInputsIdentity": "489a8b9d9a7d2795623b16335fa23ce0530b3e4c86c2ac8c4a5743a0130062f6",
+    "sourceInputsUnchanged": true,
+    "productInputs": 623,
+    "productIdentity": "c910a04a4ce0a0fdcdfa442f1b09d033348ed463634922dccffbe4d5b047c95d",
+    "originalOptionalNativeSkips": [
+      "ok 1205 - 实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
+      "ok 1211 - Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
+    ],
+    "nativeDeviceAudio": "NOT_RUN",
+    "archive": {
+      "archiveId": "ROOT012_STANDARD_VERIFY72",
+      "fileName": "ROOT_STANDARD_VERIFY_ACTUAL72.json",
+      "bytes": 2210,
+      "sha256": "2088127231ba96d480ccd1ee86329833fb141f5f7eb23b41a77ee54a075a0842",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "historicalOwnedProductionApp73": {
+    "result": "PASS",
+    "execution": {
+      "label": "root-owned-production-e2e73-metadata-watermark",
+      "headAtRun": "5d33ebe11ed1faf128e05dcb9fea6271aea3cd47",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 40.43039550003596,
+      "log": {
+        "file": "root-owned-production-e2e73-metadata-watermark.log",
+        "bytes": 39559,
+        "sha256": "7e8748d0e0291825de962d6fdfabe1ae97a43b55f0ba2d12a44cef754a687c79"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "build": "STANDARD_VERIFY72_PRODUCTION_BUILD",
+    "buildExecution": {
+      "label": "root-workspace-verify72-metadata-watermark",
+      "headAtRun": "5d33ebe11ed1faf128e05dcb9fea6271aea3cd47",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 313.7685164579889,
+      "log": {
+        "file": "root-workspace-verify72-metadata-watermark.log",
+        "bytes": 1136697,
+        "sha256": "88d407e703e4d03b30a8a1cc2c55fffeb540a4a7edfb04a1017316100dd11386"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "artifactFiles": 956,
+    "artifactIdentity": "b7cabacfb3f279642e84098ec491e78095fb8cb2928a2f5ec6e55135a0112a25",
+    "artifactsUnchangedDuringRun": true,
+    "plans": 13,
+    "blockedDefaultOff": 1,
+    "forwardCompleted": 6,
+    "inverseCompleted": 6,
+    "naturalCloses": 3,
+    "allPreviewsSourceUnchanged": true,
+    "externalAttempts": 0,
+    "pageErrors": 0,
+    "independentOutputs": {
+      "audioCases": 6,
+      "safetyOperations": 14,
+      "restorationOperations": 7,
+      "fullFdRootWitnesses": 57,
+      "actualToolRuns": 144,
+      "result": "PASS",
+      "archive": {
+        "archiveId": "ROOT012_APP73_INDEPENDENT_OUTPUTS",
+        "fileName": "APP_OUTPUTS73_RESULT.json",
+        "bytes": 150997,
+        "sha256": "c36e2f6c2b315628bd5945f27eee20f8154208d3b26f2136d55ac68b2b3d0c97",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "rootAudit": {
+        "archiveId": "ROOT012_APP73_ROOT_INDEPENDENT_AUDIT75",
+        "fileName": "ROOT_APP73_INDEPENDENT_OUTPUT_AUDIT75.json",
+        "bytes": 16514,
+        "sha256": "9765e52d86bdbe9f8c4d46e69039d4013972f7ffbea618d1602da34242287b17",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "scope": "SELF_OWNED_NON_SILENT_FLAC_MP3_PNG_TAGS_EMBEDDED_DIRECTORY_BATCH_UNDO_COLD_HISTORY",
+    "appReceipt": {
+      "archiveId": "ROOT012_PRODUCTION_APP73_RECEIPT",
+      "fileName": "receipt.json",
+      "bytes": 113463,
+      "sha256": "33956ecbf193e371923d40a0d943cf421472b8f86429d38842d2d56b376ba365",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "productInputs": 623,
+    "productIdentity": "c910a04a4ce0a0fdcdfa442f1b09d033348ed463634922dccffbe4d5b047c95d",
+    "sourceTestInputs": 1422,
+    "sourceTestIdentity": "489a8b9d9a7d2795623b16335fa23ce0530b3e4c86c2ac8c4a5743a0130062f6",
+    "jpegInThisAppRun": "NOT_RUN",
+    "httpLeaseAndPlaybackRecordingFaultsInThisAppRun": "NOT_RUN",
+    "sameArtifactAsHistoricalBuild33": false,
+    "realRoonAudioOwner": "NOT_RUN",
+    "archive": {
+      "archiveId": "ROOT012_APP73_ACTUAL75",
+      "fileName": "ROOT_APP73_ACTUAL75.json",
+      "bytes": 3955,
+      "sha256": "8ad81a447c56c6033e715cb045a540a397620f075831086fd16192f4ba5b8b4b",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "historicalExactSourceGate79": {
+    "archiveId": "ROOT012_HISTORICAL_S3_EXACT_GATE79",
+    "fileName": "ROOT_EXACT_SOURCE_GATE79_AUDIT.json",
+    "bytes": 1305,
+    "sha256": "e903b0ddb0607b72b8334a390b27cc45798f12a770759bb711758b97ca9619d5",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "historicalSourceBinding79": {
+    "archiveId": "ROOT012_HISTORICAL_S3_SOURCE_BINDING79",
+    "fileName": "ROOT_DELIVERY_SOURCE_BINDING79.json",
+    "bytes": 1970,
+    "sha256": "555542cae7c2f06a318d7484a2f834dcbf89fcf553859adfd97e930469c09a1b",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "sourceCatalogTextGuardRepair": {
+    "result": "PASS_LOCAL_86_87_88_92_FINAL_SOURCE_EXACT_GATE_AND_NATURAL_CI_PENDING",
+    "priorSourceSha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+    "priorOwn012Gate": "FAILURE_NOT_PASS",
+    "thirdSourceNaturalCi": {
+      "result": "NATURAL_FAILURE_PRESERVED_NO_RERUN",
+      "sourceSha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+      "workflows": 4,
+      "jobs": 6,
+      "successfulJobs": 5,
+      "failedJobs": 1,
+      "allTerminal": true,
+      "own012Gate": "FAILURE_NOT_PASS",
+      "failedStep": "MBRS012 受控源写与备份恢复 Gate",
+      "runs": [
+        {
+          "id": 37730091116,
+          "name": "security",
+          "path": ".github/workflows/security.yml",
+          "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+          "head_branch": "codex/mbrs-012-source-writes",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success",
+          "created_at": "2026-10-08T04:58:57Z",
+          "updated_at": "2026-10-08T04:59:26Z",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37730091116",
+          "repositoryId": 1340424953,
+          "headRepositoryId": 1340424953,
+          "jobs": [
+            {
+              "id": 113157013507,
+              "name": "static-security",
+              "run_id": 37730091116,
+              "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+              "head_branch": "codex/mbrs-012-source-writes",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-08T04:59:02Z",
+              "completed_at": "2026-10-08T04:59:25Z",
+              "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37730091116/job/113157013507",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1,
+                  "started_at": "2026-10-08T04:59:03Z",
+                  "completed_at": "2026-10-08T04:59:04Z"
+                },
+                {
+                  "name": "Checkout",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2,
+                  "started_at": "2026-10-08T04:59:04Z",
+                  "completed_at": "2026-10-08T04:59:07Z"
+                },
+                {
+                  "name": "Node.js 22",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3,
+                  "started_at": "2026-10-08T04:59:07Z",
+                  "completed_at": "2026-10-08T04:59:08Z"
+                },
+                {
+                  "name": "Install frozen workspace",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 4,
+                  "started_at": "2026-10-08T04:59:08Z",
+                  "completed_at": "2026-10-08T04:59:13Z"
+                },
+                {
+                  "name": "Validate machine control state",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 5,
+                  "started_at": "2026-10-08T04:59:13Z",
+                  "completed_at": "2026-10-08T04:59:13Z"
+                },
+                {
+                  "name": "Run boundary, loopback, secret and URL/query scans",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 6,
+                  "started_at": "2026-10-08T04:59:13Z",
+                  "completed_at": "2026-10-08T04:59:13Z"
+                },
+                {
+                  "name": "Scan workspace import cycles",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 7,
+                  "started_at": "2026-10-08T04:59:13Z",
+                  "completed_at": "2026-10-08T04:59:14Z"
+                },
+                {
+                  "name": "Run directed platform-independent security tests (no Electron)",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 8,
+                  "started_at": "2026-10-08T04:59:14Z",
+                  "completed_at": "2026-10-08T04:59:22Z"
+                },
+                {
+                  "name": "Post Node.js 22",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 15,
+                  "started_at": "2026-10-08T04:59:22Z",
+                  "completed_at": "2026-10-08T04:59:22Z"
+                },
+                {
+                  "name": "Post Checkout",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 16,
+                  "started_at": "2026-10-08T04:59:22Z",
+                  "completed_at": "2026-10-08T04:59:23Z"
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 17,
+                  "started_at": "2026-10-08T04:59:23Z",
+                  "completed_at": "2026-10-08T04:59:23Z"
+                }
+              ]
+            }
+          ],
+          "artifacts": []
+        },
+        {
+          "id": 37730091152,
+          "name": "Rust Core 只读原型",
+          "path": ".github/workflows/rust-core.yml",
+          "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+          "head_branch": "codex/mbrs-012-source-writes",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success",
+          "created_at": "2026-10-08T04:58:57Z",
+          "updated_at": "2026-10-08T05:04:55Z",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37730091152",
+          "repositoryId": 1340424953,
+          "headRepositoryId": 1340424953,
+          "jobs": [
+            {
+              "id": 113157013565,
+              "name": "rust-core (macos-latest)",
+              "run_id": 37730091152,
+              "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+              "head_branch": "codex/mbrs-012-source-writes",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-08T04:59:07Z",
+              "completed_at": "2026-10-08T05:04:54Z",
+              "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37730091152/job/113157013565",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1,
+                  "started_at": "2026-10-08T04:59:08Z",
+                  "completed_at": "2026-10-08T04:59:09Z"
+                },
+                {
+                  "name": "Run actions/checkout@v4",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2,
+                  "started_at": "2026-10-08T04:59:09Z",
+                  "completed_at": "2026-10-08T04:59:12Z"
+                },
+                {
+                  "name": "Run actions/setup-node@v4",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3,
+                  "started_at": "2026-10-08T04:59:12Z",
+                  "completed_at": "2026-10-08T04:59:14Z"
+                },
+                {
+                  "name": "准备真实hosted专用构建根",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 4,
+                  "started_at": "2026-10-08T04:59:14Z",
+                  "completed_at": "2026-10-08T04:59:14Z"
+                },
+                {
+                  "name": "安装固定 Rust 工具链",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 5,
+                  "started_at": "2026-10-08T04:59:14Z",
+                  "completed_at": "2026-10-08T04:59:23Z"
+                },
+                {
+                  "name": "安装冻结工作区依赖",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 6,
+                  "started_at": "2026-10-08T04:59:23Z",
+                  "completed_at": "2026-10-08T04:59:34Z"
+                },
+                {
+                  "name": "验证实际 Rust 与 TypeScript 边界",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 7,
+                  "started_at": "2026-10-08T04:59:34Z",
+                  "completed_at": "2026-10-08T05:04:44Z"
+                },
+                {
+                  "name": "保留编译器、测试及源码与二进制清单",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 8,
+                  "started_at": "2026-10-08T05:04:44Z",
+                  "completed_at": "2026-10-08T05:04:48Z"
+                },
+                {
+                  "name": "Post Run actions/setup-node@v4",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 15,
+                  "started_at": "2026-10-08T05:04:48Z",
+                  "completed_at": "2026-10-08T05:04:48Z"
+                },
+                {
+                  "name": "Post Run actions/checkout@v4",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 16,
+                  "started_at": "2026-10-08T05:04:48Z",
+                  "completed_at": "2026-10-08T05:04:49Z"
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 17,
+                  "started_at": "2026-10-08T05:04:49Z",
+                  "completed_at": "2026-10-08T05:04:51Z"
+                }
+              ]
+            },
+            {
+              "id": 113157013811,
+              "name": "rust-core (ubuntu-latest)",
+              "run_id": 37730091152,
+              "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+              "head_branch": "codex/mbrs-012-source-writes",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-08T04:59:02Z",
+              "completed_at": "2026-10-08T05:04:38Z",
+              "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37730091152/job/113157013811",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1,
+                  "started_at": "2026-10-08T04:59:02Z",
+                  "completed_at": "2026-10-08T04:59:03Z"
+                },
+                {
+                  "name": "Run actions/checkout@v4",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2,
+                  "started_at": "2026-10-08T04:59:03Z",
+                  "completed_at": "2026-10-08T04:59:06Z"
+                },
+                {
+                  "name": "Run actions/setup-node@v4",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3,
+                  "started_at": "2026-10-08T04:59:06Z",
+                  "completed_at": "2026-10-08T04:59:06Z"
+                },
+                {
+                  "name": "准备真实hosted专用构建根",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 4,
+                  "started_at": "2026-10-08T04:59:06Z",
+                  "completed_at": "2026-10-08T04:59:06Z"
+                },
+                {
+                  "name": "安装固定 Rust 工具链",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 5,
+                  "started_at": "2026-10-08T04:59:06Z",
+                  "completed_at": "2026-10-08T04:59:16Z"
+                },
+                {
+                  "name": "安装冻结工作区依赖",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 6,
+                  "started_at": "2026-10-08T04:59:16Z",
+                  "completed_at": "2026-10-08T04:59:22Z"
+                },
+                {
+                  "name": "验证实际 Rust 与 TypeScript 边界",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 7,
+                  "started_at": "2026-10-08T04:59:22Z",
+                  "completed_at": "2026-10-08T05:04:32Z"
+                },
+                {
+                  "name": "保留编译器、测试及源码与二进制清单",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 8,
+                  "started_at": "2026-10-08T05:04:32Z",
+                  "completed_at": "2026-10-08T05:04:35Z"
+                },
+                {
+                  "name": "Post Run actions/setup-node@v4",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 15,
+                  "started_at": "2026-10-08T05:04:35Z",
+                  "completed_at": "2026-10-08T05:04:35Z"
+                },
+                {
+                  "name": "Post Run actions/checkout@v4",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 16,
+                  "started_at": "2026-10-08T05:04:35Z",
+                  "completed_at": "2026-10-08T05:04:36Z"
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 17,
+                  "started_at": "2026-10-08T05:04:36Z",
+                  "completed_at": "2026-10-08T05:04:36Z"
+                }
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": 11529840221,
+              "name": "rust-core-ubuntu-latest-7aa5985d056fead250bf4413f07e8ff7b661b957",
+              "size_in_bytes": 5540158,
+              "digest": "sha256:9883ebd92bc6a3b486bd71ff6548b3f5060f9314d529bfa243f81ad583b77e9c",
+              "expired": false,
+              "created_at": "2026-10-08T05:04:35Z",
+              "updated_at": "2026-10-08T05:04:35Z",
+              "expires_at": "2026-10-22T05:04:33Z",
+              "workflow_run": {
+                "id": 37730091152,
+                "repository_id": 1340424953,
+                "head_repository_id": 1340424953,
+                "head_branch": "codex/mbrs-012-source-writes",
+                "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957"
+              }
+            },
+            {
+              "id": 11529284260,
+              "name": "rust-core-macos-latest-7aa5985d056fead250bf4413f07e8ff7b661b957",
+              "size_in_bytes": 5538097,
+              "digest": "sha256:dbbe27efabfcd9e3f02222555fb453457cc9c2d3f052ca540e8b4c8c328a844c",
+              "expired": false,
+              "created_at": "2026-10-08T05:04:48Z",
+              "updated_at": "2026-10-08T05:04:48Z",
+              "expires_at": "2026-10-22T05:04:46Z",
+              "workflow_run": {
+                "id": 37730091152,
+                "repository_id": 1340424953,
+                "head_repository_id": 1340424953,
+                "head_branch": "codex/mbrs-012-source-writes",
+                "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957"
+              }
+            }
+          ]
+        },
+        {
+          "id": 37730091206,
+          "name": "electron-e2e",
+          "path": ".github/workflows/electron-e2e.yml",
+          "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+          "head_branch": "codex/mbrs-012-source-writes",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success",
+          "created_at": "2026-10-08T04:58:57Z",
+          "updated_at": "2026-10-08T05:20:25Z",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37730091206",
+          "repositoryId": 1340424953,
+          "headRepositoryId": 1340424953,
+          "jobs": [
+            {
+              "id": 113157014210,
+              "name": "macos-electron-gate",
+              "run_id": 37730091206,
+              "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+              "head_branch": "codex/mbrs-012-source-writes",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-08T04:59:06Z",
+              "completed_at": "2026-10-08T05:20:25Z",
+              "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37730091206/job/113157014210",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1,
+                  "started_at": "2026-10-08T04:59:07Z",
+                  "completed_at": "2026-10-08T04:59:08Z"
+                },
+                {
+                  "name": "Checkout",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2,
+                  "started_at": "2026-10-08T04:59:08Z",
+                  "completed_at": "2026-10-08T04:59:11Z"
+                },
+                {
+                  "name": "Prepare hosted runner evidence directories",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3,
+                  "started_at": "2026-10-08T04:59:11Z",
+                  "completed_at": "2026-10-08T04:59:11Z"
+                },
+                {
+                  "name": "Node.js 22",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 4,
+                  "started_at": "2026-10-08T04:59:11Z",
+                  "completed_at": "2026-10-08T04:59:12Z"
+                },
+                {
+                  "name": "Prepare source-pinned build workspace mirror",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 5,
+                  "started_at": "2026-10-08T04:59:12Z",
+                  "completed_at": "2026-10-08T04:59:14Z"
+                },
+                {
+                  "name": "Install frozen workspace",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 6,
+                  "started_at": "2026-10-08T04:59:14Z",
+                  "completed_at": "2026-10-08T04:59:23Z"
+                },
+                {
+                  "name": "Prepare fresh Core fixed Worker before existing Electron gates",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 7,
+                  "started_at": "2026-10-08T04:59:23Z",
+                  "completed_at": "2026-10-08T04:59:45Z"
+                },
+                {
+                  "name": "Prepare Rust toolchain",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 8,
+                  "started_at": "2026-10-08T04:59:45Z",
+                  "completed_at": "2026-10-08T04:59:52Z"
+                },
+                {
+                  "name": "Build and verify both Rust hosts once in this job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 9,
+                  "started_at": "2026-10-08T04:59:52Z",
+                  "completed_at": "2026-10-08T05:04:28Z"
+                },
+                {
+                  "name": "Install Electron binary from locked tree (official installer only)",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 10,
+                  "started_at": "2026-10-08T05:04:28Z",
+                  "completed_at": "2026-10-08T05:04:32Z"
+                },
+                {
+                  "name": "Verify official Electron archive and actual execution tree",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 11,
+                  "started_at": "2026-10-08T05:04:32Z",
+                  "completed_at": "2026-10-08T05:04:34Z"
+                },
+                {
+                  "name": "Electron startup, crash/restart, safeStorage vault and credential recovery gates",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 12,
+                  "started_at": "2026-10-08T05:04:34Z",
+                  "completed_at": "2026-10-08T05:07:52Z"
+                },
+                {
+                  "name": "Electron end-to-end flow (Playwright, production build)",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 13,
+                  "started_at": "2026-10-08T05:07:52Z",
+                  "completed_at": "2026-10-08T05:19:31Z"
+                },
+                {
+                  "name": "Select declared synthetic Rust Host artifacts",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 14,
+                  "started_at": "2026-10-08T05:19:31Z",
+                  "completed_at": "2026-10-08T05:19:32Z"
+                },
+                {
+                  "name": "Preserve declared synthetic Rust Host compiled artifacts",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 15,
+                  "started_at": "2026-10-08T05:19:32Z",
+                  "completed_at": "2026-10-08T05:19:34Z"
+                },
+                {
+                  "name": "Preserve Electron logs and synthetic test artifacts",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 16,
+                  "started_at": "2026-10-08T05:19:34Z",
+                  "completed_at": "2026-10-08T05:20:18Z"
+                },
+                {
+                  "name": "Post Node.js 22",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 31,
+                  "started_at": "2026-10-08T05:20:18Z",
+                  "completed_at": "2026-10-08T05:20:18Z"
+                },
+                {
+                  "name": "Post Checkout",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 32,
+                  "started_at": "2026-10-08T05:20:18Z",
+                  "completed_at": "2026-10-08T05:20:19Z"
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 33,
+                  "started_at": "2026-10-08T05:20:19Z",
+                  "completed_at": "2026-10-08T05:20:21Z"
+                }
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": 11530316597,
+              "name": "electron-e2e-7aa5985d056fead250bf4413f07e8ff7b661b957",
+              "size_in_bytes": 479210689,
+              "digest": "sha256:71414cffbcd5d57106c6939f2d41b8aab22d51c3b7bae73488c5e11657390d42",
+              "expired": false,
+              "created_at": "2026-10-08T05:20:18Z",
+              "updated_at": "2026-10-08T05:20:18Z",
+              "expires_at": "2026-10-22T05:19:38Z",
+              "workflow_run": {
+                "id": 37730091206,
+                "repository_id": 1340424953,
+                "head_repository_id": 1340424953,
+                "head_branch": "codex/mbrs-012-source-writes",
+                "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957"
+              }
+            },
+            {
+              "id": 11529778568,
+              "name": "rust-host-compiled-7aa5985d056fead250bf4413f07e8ff7b661b957",
+              "size_in_bytes": 7641109,
+              "digest": "sha256:a3b96c5f5ae2d40a247363c1144747137d63cfb12443780da0cd5659488214f6",
+              "expired": false,
+              "created_at": "2026-10-08T05:19:34Z",
+              "updated_at": "2026-10-08T05:19:34Z",
+              "expires_at": "2026-10-22T05:19:32Z",
+              "workflow_run": {
+                "id": 37730091206,
+                "repository_id": 1340424953,
+                "head_repository_id": 1340424953,
+                "head_branch": "codex/mbrs-012-source-writes",
+                "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957"
+              }
+            }
+          ]
+        },
+        {
+          "id": 37730091186,
+          "name": "verify",
+          "path": ".github/workflows/verify.yml",
+          "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+          "head_branch": "codex/mbrs-012-source-writes",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "failure",
+          "created_at": "2026-10-08T04:58:57Z",
+          "updated_at": "2026-10-08T05:29:07Z",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37730091186",
+          "repositoryId": 1340424953,
+          "headRepositoryId": 1340424953,
+          "jobs": [
+            {
+              "id": 113157013648,
+              "name": "dependency-audit",
+              "run_id": 37730091186,
+              "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+              "head_branch": "codex/mbrs-012-source-writes",
+              "status": "completed",
+              "conclusion": "success",
+              "started_at": "2026-10-08T04:59:01Z",
+              "completed_at": "2026-10-08T04:59:16Z",
+              "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37730091186/job/113157013648",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1,
+                  "started_at": "2026-10-08T04:59:02Z",
+                  "completed_at": "2026-10-08T04:59:02Z"
+                },
+                {
+                  "name": "Checkout",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2,
+                  "started_at": "2026-10-08T04:59:03Z",
+                  "completed_at": "2026-10-08T04:59:05Z"
+                },
+                {
+                  "name": "Node.js 22",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3,
+                  "started_at": "2026-10-08T04:59:05Z",
+                  "completed_at": "2026-10-08T04:59:05Z"
+                },
+                {
+                  "name": "Prepare source-pinned build workspace mirror",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 4,
+                  "started_at": "2026-10-08T04:59:05Z",
+                  "completed_at": "2026-10-08T04:59:06Z"
+                },
+                {
+                  "name": "Install frozen workspace",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 5,
+                  "started_at": "2026-10-08T04:59:06Z",
+                  "completed_at": "2026-10-08T04:59:12Z"
+                },
+                {
+                  "name": "Production dependency audit",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 6,
+                  "started_at": "2026-10-08T04:59:12Z",
+                  "completed_at": "2026-10-08T04:59:13Z"
+                },
+                {
+                  "name": "Post Node.js 22",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 11,
+                  "started_at": "2026-10-08T04:59:13Z",
+                  "completed_at": "2026-10-08T04:59:13Z"
+                },
+                {
+                  "name": "Post Checkout",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 12,
+                  "started_at": "2026-10-08T04:59:13Z",
+                  "completed_at": "2026-10-08T04:59:14Z"
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 13,
+                  "started_at": "2026-10-08T04:59:14Z",
+                  "completed_at": "2026-10-08T04:59:14Z"
+                }
+              ]
+            },
+            {
+              "id": 113157013948,
+              "name": "verify",
+              "run_id": 37730091186,
+              "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+              "head_branch": "codex/mbrs-012-source-writes",
+              "status": "completed",
+              "conclusion": "failure",
+              "started_at": "2026-10-08T04:59:01Z",
+              "completed_at": "2026-10-08T05:29:06Z",
+              "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37730091186/job/113157013948",
+              "steps": [
+                {
+                  "name": "Set up job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 1,
+                  "started_at": "2026-10-08T04:59:02Z",
+                  "completed_at": "2026-10-08T04:59:04Z"
+                },
+                {
+                  "name": "Checkout",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 2,
+                  "started_at": "2026-10-08T04:59:04Z",
+                  "completed_at": "2026-10-08T04:59:07Z"
+                },
+                {
+                  "name": "Node.js 22",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 3,
+                  "started_at": "2026-10-08T04:59:07Z",
+                  "completed_at": "2026-10-08T04:59:12Z"
+                },
+                {
+                  "name": "Prepare strict hosted verification directories",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 4,
+                  "started_at": "2026-10-08T04:59:12Z",
+                  "completed_at": "2026-10-08T04:59:12Z"
+                },
+                {
+                  "name": "判定精确父源码CI可复用的报告提交",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 5,
+                  "started_at": "2026-10-08T04:59:12Z",
+                  "completed_at": "2026-10-08T04:59:12Z"
+                },
+                {
+                  "name": "Prepare source-pinned build workspace mirror",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 6,
+                  "started_at": "2026-10-08T04:59:12Z",
+                  "completed_at": "2026-10-08T04:59:14Z"
+                },
+                {
+                  "name": "Install frozen workspace",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 7,
+                  "started_at": "2026-10-08T04:59:14Z",
+                  "completed_at": "2026-10-08T04:59:19Z"
+                },
+                {
+                  "name": "Validate control plane",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 8,
+                  "started_at": "2026-10-08T04:59:19Z",
+                  "completed_at": "2026-10-08T04:59:19Z"
+                },
+                {
+                  "name": "Validate security and product boundaries",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 9,
+                  "started_at": "2026-10-08T04:59:19Z",
+                  "completed_at": "2026-10-08T04:59:19Z"
+                },
+                {
+                  "name": "Scan workspace import cycles",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 10,
+                  "started_at": "2026-10-08T04:59:19Z",
+                  "completed_at": "2026-10-08T04:59:19Z"
+                },
+                {
+                  "name": "Verify platform-independent workspace (typecheck, unit tests, build; no Electron)",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 11,
+                  "started_at": "2026-10-08T04:59:19Z",
+                  "completed_at": "2026-10-08T05:08:08Z"
+                },
+                {
+                  "name": "Verify offline preparation boundaries",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 12,
+                  "started_at": "2026-10-08T05:08:08Z",
+                  "completed_at": "2026-10-08T05:08:10Z"
+                },
+                {
+                  "name": "Verify isolated MBRS-001 offline POC",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 13,
+                  "started_at": "2026-10-08T05:08:10Z",
+                  "completed_at": "2026-10-08T05:08:20Z"
+                },
+                {
+                  "name": "MBRS002 本地合同 Gate",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 14,
+                  "started_at": "2026-10-08T05:08:20Z",
+                  "completed_at": "2026-10-08T05:09:14Z"
+                },
+                {
+                  "name": "MBRS003 阶段软件 Gate",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 15,
+                  "started_at": "2026-10-08T05:09:14Z",
+                  "completed_at": "2026-10-08T05:11:02Z"
+                },
+                {
+                  "name": "MBRS004 名称与版本规则 Gate",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 16,
+                  "started_at": "2026-10-08T05:11:02Z",
+                  "completed_at": "2026-10-08T05:11:33Z"
+                },
+                {
+                  "name": "MBRS005 本地文件网关与资源租约 Gate",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 17,
+                  "started_at": "2026-10-08T05:11:33Z",
+                  "completed_at": "2026-10-08T05:12:35Z"
+                },
+                {
+                  "name": "MBRS006 本地Audio Input与会话隔离 Gate",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 18,
+                  "started_at": "2026-10-08T05:12:35Z",
+                  "completed_at": "2026-10-08T05:14:19Z"
+                },
+                {
+                  "name": "MBRS007 队列预取与持久恢复 Gate",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 19,
+                  "started_at": "2026-10-08T05:14:19Z",
+                  "completed_at": "2026-10-08T05:17:10Z"
+                },
+                {
+                  "name": "MBRS008 原样字节与独立质量证据 Gate",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 20,
+                  "started_at": "2026-10-08T05:17:10Z",
+                  "completed_at": "2026-10-08T05:18:45Z"
+                },
+                {
+                  "name": "MBRS009 正式本地库有界查询与复用UI Gate",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 21,
+                  "started_at": "2026-10-08T05:18:45Z",
+                  "completed_at": "2026-10-08T05:20:20Z"
+                },
+                {
+                  "name": "MBRS010 封面选择与来源安全 Gate",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 22,
+                  "started_at": "2026-10-08T05:20:20Z",
+                  "completed_at": "2026-10-08T05:21:23Z"
+                },
+                {
+                  "name": "MBRS011 MB_ONLY信息整理预览与撤销 Gate",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 23,
+                  "started_at": "2026-10-08T05:21:23Z",
+                  "completed_at": "2026-10-08T05:22:38Z"
+                },
+                {
+                  "name": "MBRS014 旧收藏关联与冻结来源保护 Gate",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 24,
+                  "started_at": "2026-10-08T05:22:38Z",
+                  "completed_at": "2026-10-08T05:24:48Z"
+                },
+                {
+                  "name": "MBRS012 受控源写与备份恢复 Gate",
+                  "status": "completed",
+                  "conclusion": "failure",
+                  "number": 25,
+                  "started_at": "2026-10-08T05:24:48Z",
+                  "completed_at": "2026-10-08T05:28:47Z"
+                },
+                {
+                  "name": "验证报告CI准入正负例",
+                  "status": "completed",
+                  "conclusion": "skipped",
+                  "number": 26,
+                  "started_at": "2026-10-08T05:28:47Z",
+                  "completed_at": "2026-10-08T05:28:47Z"
+                },
+                {
+                  "name": "Diff whitespace",
+                  "status": "completed",
+                  "conclusion": "skipped",
+                  "number": 27,
+                  "started_at": "2026-10-08T05:28:47Z",
+                  "completed_at": "2026-10-08T05:28:47Z"
+                },
+                {
+                  "name": "Verify pinned historical fragments and current discarded rejection",
+                  "status": "completed",
+                  "conclusion": "skipped",
+                  "number": 28,
+                  "started_at": "2026-10-08T05:28:47Z",
+                  "completed_at": "2026-10-08T05:28:47Z"
+                },
+                {
+                  "name": "Preserve full verification log",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 29,
+                  "started_at": "2026-10-08T05:28:47Z",
+                  "completed_at": "2026-10-08T05:29:02Z"
+                },
+                {
+                  "name": "Post Node.js 22",
+                  "status": "completed",
+                  "conclusion": "skipped",
+                  "number": 57,
+                  "started_at": "2026-10-08T05:29:02Z",
+                  "completed_at": "2026-10-08T05:29:02Z"
+                },
+                {
+                  "name": "Post Checkout",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 58,
+                  "started_at": "2026-10-08T05:29:02Z",
+                  "completed_at": "2026-10-08T05:29:02Z"
+                },
+                {
+                  "name": "Complete job",
+                  "status": "completed",
+                  "conclusion": "success",
+                  "number": 59,
+                  "started_at": "2026-10-08T05:29:02Z",
+                  "completed_at": "2026-10-08T05:29:02Z"
+                }
+              ]
+            }
+          ],
+          "artifacts": [
+            {
+              "id": 11530850951,
+              "name": "verify-7aa5985d056fead250bf4413f07e8ff7b661b957",
+              "size_in_bytes": 91533593,
+              "digest": "sha256:cec1444d6a0a869e55ab204471001408ad5fea9b912957c885d9f5d658651a40",
+              "expired": false,
+              "created_at": "2026-10-08T05:29:02Z",
+              "updated_at": "2026-10-08T05:29:02Z",
+              "expires_at": "2026-10-22T05:28:49Z",
+              "workflow_run": {
+                "id": 37730091186,
+                "repository_id": 1340424953,
+                "head_repository_id": 1340424953,
+                "head_branch": "codex/mbrs-012-source-writes",
+                "head_sha": "7aa5985d056fead250bf4413f07e8ff7b661b957"
+              }
+            }
+          ]
+        }
+      ],
+      "snapshotArchive": {
+        "archiveId": "ROOT012_SOURCE_CI79_FAILURE09",
+        "fileName": "SOURCE_CI79_FAILURE09.json",
+        "bytes": 98854,
+        "sha256": "7cf8112b016b8a3f65374480d0f57a22e1bb0ba0fc20c6e4b12d641fad817f92",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "manualReruns": 0,
+      "manualCancellations": 0
+    },
+    "thirdSourceFailedArtifactInspection": {
+      "sourceSha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+      "state": "PASS_BOUND_S3_SELECTED_ENTRIES_READ_ONLY",
+      "actualReadAudit": {
+        "archiveId": "ROOT012_S3_FAILED_012_ARTIFACT_CONTENT_AUDIT",
+        "fileName": "ROOT_REMOTE012_ARTIFACT84_ACTUAL.json",
+        "bytes": 5761,
+        "sha256": "1784b33f617c7acbb3da725625265bba959a45f2eff47a4d09561a1df3d52ab8",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "artifactContentsDownloaded": true,
+      "artifactContentsRead": true,
+      "actualZip": {
+        "fileName": "COORDINATOR_VERIFY_37730091186_ARTIFACT11530850951.zip",
+        "bytes": 91533593,
+        "sha256": "cec1444d6a0a869e55ab204471001408ad5fea9b912957c885d9f5d658651a40",
+        "fullZipDigestMatchesPlatformDigest": true,
+        "unchangedDuringRead": true,
+        "endOfCentralDirectoryPresent": true
+      },
+      "actualSelectedEntries": [
+        {
+          "zipEntry": "mbrs012-37730091186-1/summary.json",
+          "bytes": 292154,
+          "sha256": "f981906dc8843ac62075d98c7571b1d72f8abe39686b8f8dc4f6dc33d70cd2fa",
+          "crcVerifiedByZipRead": true
+        },
+        {
+          "zipEntry": "mbrs012-37730091186-1/reader-build-binding.json",
+          "bytes": 53684,
+          "sha256": "09af7426e49fa6f4d3aa1b0f1f1c514893705468369c56d31165e2990d12c3bd",
+          "crcVerifiedByZipRead": true
+        },
+        {
+          "zipEntry": "report-only-admission.json",
+          "bytes": 103,
+          "sha256": "7cc12d5628d52907b8cfc3b8385ea29f433030c6ef6571cf582287bff4783853",
+          "crcVerifiedByZipRead": true
+        },
+        {
+          "zipEntry": "mbrs012-37730091186-1/fresh-contracts-build.log",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+          "crcVerifiedByZipRead": true
+        },
+        {
+          "zipEntry": "mbrs012-37730091186-1/contracts-types.log",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+          "crcVerifiedByZipRead": true
+        },
+        {
+          "zipEntry": "mbrs012-37730091186-1/fresh-core-build.log",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+          "crcVerifiedByZipRead": true
+        },
+        {
+          "zipEntry": "mbrs012-37730091186-1/fresh-core-worker-bundle.log",
+          "bytes": 29,
+          "sha256": "6c351e40f23afb71f67482eb553cf4adeca46ade7d2e74ae2d6fc57f8ff4937d",
+          "crcVerifiedByZipRead": true
+        },
+        {
+          "zipEntry": "mbrs012-37730091186-1/core-types.log",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+          "crcVerifiedByZipRead": true
+        },
+        {
+          "zipEntry": "mbrs012-37730091186-1/desktop-types.log",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+          "crcVerifiedByZipRead": true
+        },
+        {
+          "zipEntry": "mbrs012-37730091186-1/desktop-e2e-types.log",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+          "crcVerifiedByZipRead": true
+        },
+        {
+          "zipEntry": "mbrs012-37730091186-1/contracts-source-writes-and-regressions.log",
+          "bytes": 1518,
+          "sha256": "dc861575738174b7f1521314135f5859be01bd14856487271d77133617e0e372",
+          "crcVerifiedByZipRead": true
+        },
+        {
+          "zipEntry": "mbrs012-37730091186-1/core-source-writes-and-regressions.log",
+          "bytes": 3103,
+          "sha256": "80912bd56cd47a2332ae9433b40c3235ce2648d3307dac9db7e677ac17cac0ee",
+          "crcVerifiedByZipRead": true
+        }
+      ],
+      "actualMode": {
+        "mode": "full",
+        "reason": "SOURCE_SCOPE_OR_AUTHORITY_CHANGED",
+        "productResultsReused": false
+      },
+      "gate012": {
+        "success": false,
+        "head": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+        "tests": 88,
+        "pass": 88,
+        "completedStages": 9,
+        "failures": [
+          {
+            "code": "SOURCE_WRITES_STAGE_FAILED_OR_INCOMPLETE"
+          }
+        ],
+        "runs": [
+          {
+            "name": "fresh-contracts-build",
+            "expectedTests": null,
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "timedOut": false,
+            "overflow": false,
+            "captureFailed": false,
+            "preparationFailed": false,
+            "groupTerminationFailed": false,
+            "durationMs": 4025.426682,
+            "rawBytes": 0,
+            "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "testCounts": null,
+            "tapStatusesClean": null,
+            "log": "fresh-contracts-build.log",
+            "logSha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+            "success": true
+          },
+          {
+            "name": "contracts-types",
+            "expectedTests": null,
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "timedOut": false,
+            "overflow": false,
+            "captureFailed": false,
+            "preparationFailed": false,
+            "groupTerminationFailed": false,
+            "durationMs": 4316.037391000001,
+            "rawBytes": 0,
+            "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "testCounts": null,
+            "tapStatusesClean": null,
+            "log": "contracts-types.log",
+            "logSha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+            "success": true
+          },
+          {
+            "name": "fresh-core-build",
+            "expectedTests": null,
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "timedOut": false,
+            "overflow": false,
+            "captureFailed": false,
+            "preparationFailed": false,
+            "groupTerminationFailed": false,
+            "durationMs": 8438.519722,
+            "rawBytes": 0,
+            "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "testCounts": null,
+            "tapStatusesClean": null,
+            "log": "fresh-core-build.log",
+            "logSha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+            "success": true
+          },
+          {
+            "name": "fresh-core-worker-bundle",
+            "expectedTests": null,
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "timedOut": false,
+            "overflow": false,
+            "captureFailed": false,
+            "preparationFailed": false,
+            "groupTerminationFailed": false,
+            "durationMs": 321.6225669999985,
+            "rawBytes": 68,
+            "rawSha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6",
+            "testCounts": null,
+            "tapStatusesClean": null,
+            "log": "fresh-core-worker-bundle.log",
+            "logSha256": "6c351e40f23afb71f67482eb553cf4adeca46ade7d2e74ae2d6fc57f8ff4937d",
+            "success": true
+          },
+          {
+            "name": "core-types",
+            "expectedTests": null,
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "timedOut": false,
+            "overflow": false,
+            "captureFailed": false,
+            "preparationFailed": false,
+            "groupTerminationFailed": false,
+            "durationMs": 13422.72406,
+            "rawBytes": 0,
+            "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "testCounts": null,
+            "tapStatusesClean": null,
+            "log": "core-types.log",
+            "logSha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+            "success": true
+          },
+          {
+            "name": "desktop-types",
+            "expectedTests": null,
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "timedOut": false,
+            "overflow": false,
+            "captureFailed": false,
+            "preparationFailed": false,
+            "groupTerminationFailed": false,
+            "durationMs": 19169.797579000002,
+            "rawBytes": 0,
+            "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "testCounts": null,
+            "tapStatusesClean": null,
+            "log": "desktop-types.log",
+            "logSha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+            "success": true
+          },
+          {
+            "name": "desktop-e2e-types",
+            "expectedTests": null,
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "timedOut": false,
+            "overflow": false,
+            "captureFailed": false,
+            "preparationFailed": false,
+            "groupTerminationFailed": false,
+            "durationMs": 6332.636506000003,
+            "rawBytes": 0,
+            "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "testCounts": null,
+            "tapStatusesClean": null,
+            "log": "desktop-e2e-types.log",
+            "logSha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28",
+            "success": true
+          },
+          {
+            "name": "contracts-source-writes-and-regressions",
+            "expectedTests": 88,
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "timedOut": false,
+            "overflow": false,
+            "captureFailed": false,
+            "preparationFailed": false,
+            "groupTerminationFailed": false,
+            "durationMs": 1843.1125420000026,
+            "rawBytes": 20875,
+            "rawSha256": "c5a46367f723d64e2f05ef74dcf6b0599117b2dcbaead86cb654c573c79fc66d",
+            "testCounts": {
+              "tests": 88,
+              "pass": 88,
+              "fail": 0,
+              "cancelled": 0,
+              "skipped": 0,
+              "todo": 0
+            },
+            "tapStatusesClean": true,
+            "log": "contracts-source-writes-and-regressions.log",
+            "logSha256": "dc861575738174b7f1521314135f5859be01bd14856487271d77133617e0e372",
+            "success": true
+          },
+          {
+            "name": "core-source-writes-and-regressions",
+            "expectedTests": 216,
+            "exitCode": null,
+            "signal": "SIGKILL",
+            "closeObserved": true,
+            "timedOut": true,
+            "overflow": false,
+            "captureFailed": false,
+            "preparationFailed": false,
+            "groupTerminationFailed": false,
+            "durationMs": 180012.168717,
+            "rawBytes": 73299,
+            "rawSha256": "44d937a3892e2ed18fb77b0deb9c3ae078ac4757236bdf804b69248132d97b4e",
+            "testCounts": null,
+            "tapStatusesClean": true,
+            "log": "core-source-writes-and-regressions.log",
+            "logSha256": "80912bd56cd47a2332ae9433b40c3235ce2648d3307dac9db7e677ac17cac0ee",
+            "success": false
+          }
+        ]
+      },
+      "originalDeclaredStages": 10,
+      "remainingDesktop122Stage": "NOT_RUN_NOT_PASS",
+      "remoteCapacityCaseDurationOrRawAssertionProven": false,
+      "remoteCoreFinal216CountsPresent": false,
+      "artifactContentsReadScope": "ONLY_ROOT_SELECTED_012_SUMMARY_LOGS_AND_ADMISSION_NOT_FULL_PRODUCT_CONTENT_VALIDATION",
+      "fullArtifactContentsValidated": false,
+      "localCpuProfileSubstitutedForRemoteStageManifest": false
+    },
+    "localRepair": {
+      "schema": "mbrs012.actual-text-guard-local-repair.v1",
+      "result": "PASS_FINITE_LOCAL_SAME_GUARD_BEHAVIOR_AND_ORIGINAL426_WITHIN_FROZEN_BUDGET",
+      "priorSourceSha": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+      "sourceScope": "WORKTREE_S3_PLUS_TEXT_GUARD_PRODUCT_FIX_AND_TWO_OWNED_VALIDATION_PATHS_NOT_COMMITTED_HEAD_PROOF",
+      "priorSourceNaturalCi": {
+        "archiveId": "ROOT012_THIRD_SOURCE_NATURAL_FAILURE",
+        "fileName": "SOURCE_CI79_FAILURE09.json",
+        "bytes": 98854,
+        "sha256": "7cf8112b016b8a3f65374480d0f57a22e1bb0ba0fc20c6e4b12d641fad817f92",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "priorOwn012Gate": "FAILURE_REMOTE_INTERNAL_STAGE_PENDING_ACTUAL_ARTIFACT_READ",
+      "remoteStageCauseClaimedByLocalProfile": false,
+      "productFilesChanged": [
+        "packages/contracts/src/local-catalog.ts"
+      ],
+      "testFilesChanged": [
+        "packages/contracts/test/mbrs012/source-writes-contract.test.ts"
+      ],
+      "diagnosticFilesChanged": [
+        "scripts/ci/verify-mbrs012-source-writes.mjs"
+      ],
+      "originalCapacityTest": {
+        "path": "packages/bridge-core/test/mbrs012/capacity.test.ts",
+        "archiveFile": "2",
+        "bytes": 8017,
+        "sha256": "d6f672fae9f02eaa51c452e3edc63b245b10432f1959b9ff27e05b7f31cb8d77"
+      },
+      "originalCapacityTestUnchanged": true,
+      "originalAssertionsRemoved": false,
+      "originalTestNamesOrCountsChanged": false,
+      "uriAndCredentialOriginalUnicodeIgnoreCaseFlagsPreserved": true,
+      "mainCredentialRuleNeverNeedleGated": true,
+      "gateBudgets": {
+        "stageMs": 180000,
+        "totalMs": 420000,
+        "outputBytes": 4194304
+      },
+      "gatePassConditionsOrRunnerChanged": false,
+      "failureOnlyDiagnosticFields": [
+        "name",
+        "exitCode",
+        "signal",
+        "closeObserved",
+        "timedOut",
+        "overflow",
+        "captureFailed",
+        "preparationFailed",
+        "groupTerminationFailed",
+        "expectedTests",
+        "testCounts",
+        "durationMs",
+        "rawBytes",
+        "rawSha256"
+      ],
+      "failureDiagnosticsIncludeRawTextPathsArgvOrStack": false,
+      "smallActualChecks": {
+        "archiveId": "ROOT012_TEXT_GUARD85_SMALL_ACTUAL_CHECKS",
+        "fileName": "ROOT_TEXT_GUARD85_SMALL_CHECKS_ACTUAL.json",
+        "bytes": 2245,
+        "sha256": "196cfc204f777948a7582a98c1675b2a1b99d2defcfb9a918bbf9d9ff706f124",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "cpuProfileActual": {
+        "archiveId": "ROOT012_TEXT_GUARD84_PROFILE_ACTUAL",
+        "fileName": "ROOT_CAPACITY_PROFILE84_ACTUAL.json",
+        "bytes": 6986,
+        "sha256": "7425c00f0882ac3c9605bbbca137cd32cbee74eb3e2adbc4574a96719dbf3758",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "cpuProfileAggregate": {
+        "archiveId": "ROOT012_TEXT_GUARD84_PROFILE_AGGREGATE",
+        "fileName": "ROOT_CAPACITY_PROFILE84_AGGREGATE85.json",
+        "bytes": 2447,
+        "sha256": "3b6607df97d888ee9d3622a6ffd747d0d66456020b8986e9e570bce3533ac85a",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "finiteObservedPerformance": {
+        "previousExactGate79CoreMs": 164700.077667,
+        "newWorktreeGate86CoreMs": 109474.560291,
+        "previousExactGate79OriginalCapacityMs": 95673.348958,
+        "newWorktreeGate86OriginalCapacityMs": 36772.552875,
+        "scope": "TWO_ACTUAL_LOCAL_GATE_OBSERVATIONS_NOT_CONTROLLED_BENCHMARK_OR_REMOTE_TIMINGS"
+      },
+      "groupActual": {
+        "archiveId": "ROOT012_GROUPS426_TEXT_GUARD86_ACTUAL",
+        "fileName": "ROOT_GROUPS426_TEXT_GUARD86_ACTUAL.json",
+        "bytes": 2045,
+        "sha256": "896bd424143bb863b88f40d776d31cfb7d5fc6f6efeb549a330ebef5b54d4c55",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "readonlyCoreReview": {
+        "archiveId": "ROOT012_TEXT_GUARD85_CORE_REVIEW",
+        "fileName": "MBRS012_CI79_TEXT_GUARD_FIX85.md",
+        "bytes": 7418,
+        "sha256": "e677d915fd964dbdd533063b644e0301aa1a23518220e4f5e6457cb4afb35889",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "readonlyAppReview": {
+        "archiveId": "ROOT012_TEXT_GUARD85_APP_REVIEW",
+        "fileName": "MBRS012_CI79_GATE_APP_READONLY_DIAG84.md",
+        "bytes": 13169,
+        "sha256": "129261de542057775b708497baec4ace2ba35e9e8ea27e3c6e2e3b795f0dd597",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "newProductionBuildAppAndExactCommittedGateCi": "SEPARATE_REQUIRED_EVIDENCE_NOT_PROVEN_BY_THIS_LOCAL_REPAIR",
+      "oldApp73ProofPromoted": false,
+      "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+    },
+    "localRepairArchive": {
+      "archiveId": "ROOT012_TEXT_GUARD86_LOCAL_REPAIR",
+      "fileName": "ROOT_TEXT_GUARD86_FIX_ACTUAL.json",
+      "bytes": 4474,
+      "sha256": "3a9f7ed545f77dd520dfda7f26ea2526a66e2dbd01f14f80e977fae0f0171f00",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "remoteStageCauseClaimedByLocalProfile": false,
+    "remoteFailedArtifactInspection": {
+      "archiveId": "ROOT012_S3_FAILED_012_ARTIFACT_CONTENT_AUDIT",
+      "fileName": "ROOT_REMOTE012_ARTIFACT84_ACTUAL.json",
+      "bytes": 5761,
+      "sha256": "1784b33f617c7acbb3da725625265bba959a45f2eff47a4d09561a1df3d52ab8",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "worktreeGate": {
+      "archiveId": "ROOT012_WORKTREE_GATE86_TEXT_GUARD",
+      "fileName": "ROOT_WORKTREE_GATE86_TEXT_GUARD_AUDIT.json",
+      "bytes": 1303,
+      "sha256": "3103c953748b6ebb76c3de02bf1e5cc14af66db2d98ceae51a0e25c43775fe53",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "groups": {
+      "archiveId": "ROOT012_GROUPS426_TEXT_GUARD86_ACTUAL",
+      "fileName": "ROOT_GROUPS426_TEXT_GUARD86_ACTUAL.json",
+      "bytes": 2045,
+      "sha256": "896bd424143bb863b88f40d776d31cfb7d5fc6f6efeb549a330ebef5b54d4c55",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "standardVerify": {
+      "archiveId": "ROOT012_STANDARD_VERIFY87",
+      "fileName": "ROOT_STANDARD_VERIFY_ACTUAL87.json",
+      "bytes": 2194,
+      "sha256": "8e87d92d3333231da87608c1f24c3c6d38b467950515d2b645b49e346c668985",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "productionApp": {
+      "archiveId": "ROOT012_APP88_ACTUAL91",
+      "fileName": "ROOT_APP88_ACTUAL91.json",
+      "bytes": 3935,
+      "sha256": "8e0a03f0d1635bc1bd9cb571326e701adffab012f3fe5a9102040ae0829a39c4",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "independentAppOutputs": {
+      "archiveId": "ROOT012_APP88_INDEPENDENT_OUTPUTS90",
+      "fileName": "ROOT_APP88_INDEPENDENT_OUTPUT_AUDIT90.json",
+      "bytes": 16514,
+      "sha256": "d306114be3a98b06bab4cfc713ef665f66d936c603b0386698f9d0ac17079726",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "legacy002Actual": {
+      "archiveId": "ROOT012_LEGACY002_GATE92_ACTUAL",
+      "fileName": "ROOT_LEGACY002_TEXT_GUARD92_ACTUAL.json",
+      "bytes": 3289,
+      "sha256": "d4a34f4f19b90fcb3292c34c3641f93997cd1779cc7c2b95f491d01d21c61a5c",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "currentSourceTestInputs": 1422,
+    "currentSourceTestIdentity": "5a21cd7a44c8dfd63c79c29ef065526ed00636036d0f688ccea31ec81e2548c1",
+    "currentProductInputs": 623,
+    "currentProductIdentity": "9065f9b5aa80242186053b834bcbb2b29154b5fd5bc73c4272195ff2371c400a",
+    "oldApp73PromotedToCurrentProof": false,
     "oldProofsRewritten": false,
     "originalCiRerun": false,
     "originalCiCancelled": false,

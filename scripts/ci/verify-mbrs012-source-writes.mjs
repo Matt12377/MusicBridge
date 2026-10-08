@@ -300,6 +300,19 @@ export async function runSourceWritesGate(argv = process.argv.slice(2), env = pr
   return { run, summary };
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  try { const result = await runSourceWritesGate(); process.stdout.write(JSON.stringify({ success: result.summary.success, tests: result.summary.tests, pass: result.summary.pass, run: result.run }) + '\n'); if (!result.summary.success) process.exitCode = 1; }
+  try {
+    const result = await runSourceWritesGate();
+    // 失败时只公开阶段状态与日志哈希，定位不必先下载完整缓存归档。
+    const failedStages = result.summary.runs.filter(stage => !sourceWritesStageSucceeded(stage)).map(stage => ({
+      name: stage.name, exitCode: stage.exitCode, signal: stage.signal, closeObserved: stage.closeObserved,
+      timedOut: stage.timedOut, overflow: stage.overflow, captureFailed: stage.captureFailed,
+      preparationFailed: stage.preparationFailed, groupTerminationFailed: stage.groupTerminationFailed,
+      expectedTests: stage.expectedTests, testCounts: stage.testCounts, durationMs: stage.durationMs,
+      rawBytes: stage.rawBytes, rawSha256: stage.rawSha256,
+    }));
+    process.stdout.write(JSON.stringify({ success: result.summary.success, tests: result.summary.tests,
+      pass: result.summary.pass, run: result.run, ...(result.summary.success ? {} : { failedStages }) }) + '\n');
+    if (!result.summary.success) process.exitCode = 1;
+  }
   catch (error) { process.stderr.write('012受控源写Gate拒绝：' + (error?.code ?? 'ADMISSION_FAILED') + '\n'); process.exitCode = 1; }
 }

@@ -53,6 +53,44 @@ test('012 六字段显式 set/remove；多值不猜拆，不接受旧 clear 或�
   for (const fields of [{ title: { action: 'remove' } }, { artist: { action: 'set', value: '艺人甲 / 艺人乙' } }, { year: { action: 'set', value: '2026' } }, { disc: { action: 'set', value: '0' }, track: { action: 'set', value: '100000' } }]) assert.equal(c.isLocalSourceWritesCommandPayload('localSourceWrites.preview', { ...preview(), intent: { ...preview().intent, fields } }), true);
   for (const fields of [{}, { title: { action: 'clear' } }, { genres: { action: 'set', value: '摇滚' } }, { year: { action: 'set', value: '2026-10-08' } }, { track: { action: 'set', value: '1/12' } }, { disc: { action: 'set', value: '01' } }, { artist: { action: 'set', value: ['甲', '乙'] } }]) assert.equal(c.isLocalSourceWritesCommandPayload('localSourceWrites.preview', { ...preview(), intent: { ...preview().intent, fields } }), false);
   assert.equal(c.isLocalSourceWritesCommandPayload('localSourceWrites.preview', { ...preview(), intent: { ...preview().intent, artwork: {} } }), false);
+  const titleRequest = (value: string) => ({ ...preview(), intent: { ...preview().intent, fields: { title: { action: 'set', value } } } });
+  // 长合法标签与非 scheme 分隔符仍按原文本守卫接受，长度继续计算 UTF-16 单元。
+  for (const value of ['x'.repeat(512), '曲目'.repeat(256), '🎵'.repeat(256), 'e\u0301'.repeat(256),
+    '://example.invalid', '9://example.invalid', '_://example.invalid', '+://example.invalid', '中文://example.invalid',
+    'ı://example.invalid', 'İ://example.invalid', 'http:/example.invalid', 'http:/ /example.invalid',
+    'http：//example.invalid', 'http:／／example.invalid', 'bearer曲目:章节', 'token_title=章节',
+    'session id=章节', 'session__id=章节', 'token：章节', 'token＝章节']) {
+    assert.equal(c.isLocalCatalogText(value), true, `原合法标签应保持：${JSON.stringify(value)}`);
+    assert.equal(c.isLocalSourceWritesCommandPayload('localSourceWrites.preview', titleRequest(value)), true);
+  }
+  for (const value of ['x'.repeat(513), '🎵'.repeat(257), 'a\u0000b', 'a\tb', 'a\nb', 'a\u001fb', 'a\u007fb']) {
+    assert.equal(c.isLocalCatalogText(value, true), false);
+    assert.equal(c.isLocalSourceWritesCommandPayload('localSourceWrites.preview', titleRequest(value)), false);
+  }
+  for (const value of ['', ' ', '\u00a0', '\u2003']) {
+    assert.equal(c.isLocalCatalogText(value), false);
+    assert.equal(c.isLocalCatalogText(value, true), true);
+    assert.equal(c.isLocalSourceWritesCommandPayload('localSourceWrites.preview', titleRequest(value)), false);
+  }
+  // URI 分支保留未锚定匹配及 /iu 的 K、ſ 折叠，不能换成 ASCII 或普通小写比较。
+  for (const value of ['https://example.invalid', '前缀 hTtP+9.-://example.invalid 后缀', 'K://example.invalid',
+    'ſ://example.invalid', 'hKſ+9.-://example.invalid', 'a://', `${'x'.repeat(500)}://owned`]) {
+    assert.equal(c.isLocalCatalogText(value, true), false);
+    assert.equal(c.isLocalSourceWritesCommandPayload('localSourceWrites.preview', titleRequest(value)), false);
+  }
+  // 没有 :// 也须独立拒绝全部凭据标记、大小写、Unicode 折叠与空白/分隔符变体。
+  for (const marker of ['bearer', 'BEARER', 'BeArEr', 'cookie', 'COOKIE', 'CoOkIe', 'token', 'TOKEN', 'toKen',
+    'sessionid', 'session_id', 'SESSION-ID', 'sessionhandle', 'session_handle', 'SESSION-HANDLE', 'ſeſſion_id', 'SeſſIon-HaNdLe']) {
+    for (const whitespace of ['', ' ', '\u00a0', '\u2003', '\ufeff']) for (const separator of [':', '=']) {
+      const value = `曲目 ${marker}${whitespace}${separator}合成占位`;
+      assert.equal(c.isLocalCatalogText(value, true), false, `凭据标记应拒绝：${JSON.stringify(value)}`);
+      assert.equal(c.isLocalSourceWritesCommandPayload('localSourceWrites.preview', titleRequest(value)), false);
+    }
+  }
+  for (const value of ['前缀bearer:合成占位', '前缀TOKEN=合成占位 ://', '曲目 cookie =合成占位 HTTPS://example.invalid']) {
+    assert.equal(c.isLocalCatalogText(value, true), false);
+    assert.equal(c.isLocalSourceWritesCommandPayload('localSourceWrites.preview', titleRequest(value)), false);
+  }
 });
 
 test('012 policy 正 u64 CAS；开启设置不授予 grant，scope/hash/闭集确认独立', () => {
