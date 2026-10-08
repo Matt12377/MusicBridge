@@ -126,7 +126,8 @@
         "scripts/ci/verify-boundaries.mjs",
         "scripts/ci/mbrs013-legacy-input-normalization.mjs",
         "scripts/ci/test/mbrs013-legacy-input-normalization.test.mjs",
-        "scripts/ci/test/verify-mbrs012-source-writes.test.mjs"
+        "scripts/ci/test/verify-mbrs012-source-writes.test.mjs",
+        "apps/desktop/test/mbrs013/ui.test.ts"
       ],
       "owns": [
         "shared original Scanner/catalog/Owner integration",
@@ -201,7 +202,7 @@
     "reasoningEffort": "max",
     "children": "EXISTING_THREE_gpt-6.1-sol_MAX_NO_NEW_AGENTS"
   },
-  "implementation": "CURRENT_LOCAL_PRODUCT_AND_CI_ADMISSION_REPAIRS_COMPLETE_NEXT_EXACT_SOURCE_DELIVERY_PENDING",
+  "implementation": "CURRENT_PRODUCT_UNCHANGED_ONE_FROZEN_UI_SECURITY_ASSERTION_FALSE_POSITIVE_REPAIR_IN_PROGRESS",
   "softwareTests": "PASS_CURRENT_STANDARD124_4704_AND_BOOTSTRAP123_STATIC128_EXACT_SOURCE_GATE_SEPARATE",
   "productionApp": "PASS_CURRENT_PRODUCTION_APP126_AND_INDEPENDENT_OUTPUTS_NONEMPTY_HISTORY_SEPARATE",
   "realRoonNasAudioDeviceOwner": "NOT_RUN",
@@ -222,7 +223,8 @@
     "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT12.json",
     "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT13.json",
     "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT14.json",
-    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT15.json"
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT15.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT16.json"
   ],
   "schedulingSupplement": "docs/postrust/MBRS-013/SCHEDULING_SUPPLEMENT_MOBILE_FRONTLOADING.json"
 }

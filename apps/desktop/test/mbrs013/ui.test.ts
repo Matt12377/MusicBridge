@@ -84,7 +84,20 @@ test('013目录重关联真实SFC只使用Main不透明choice，旧找回流程�
   const ui = await mounted(t, dialogFile, { session }); await click(ui, '选择重关联目标目录'); await submit(ui, '具体文件搬迁内容')
   const preview = f.calls.find(value => value.command === 'localRelocationPlan.preview')!.payload as dto.LocalRelocationPlanCommandPayloads['localRelocationPlan.preview']
   assert.deepEqual(preview.intent, { kind: 'root-reassociate', libraryRootId: id(800), expectedRootRevision: '1', targetChoiceId: id(500), sourceDisposition: 'RETAIN' })
-  assert.doesNotMatch(JSON.stringify(preview), /absolutePath|fd|grant|actor/u); assert.equal(f.calls.filter(value => value.command === 'localRelocationPlan.confirm').length, 0)
+  const privateFields = new Set(['absolutePath', 'fd', 'grant', 'actor'])
+  function containsPrivateField(value: unknown): boolean {
+    if (Array.isArray(value)) return value.some(containsPrivateField)
+    if (value === null || typeof value !== 'object') return false
+    return Object.entries(value as Record<string, unknown>).some(([key, nested]) => /absolutePath|fd|grant|actor/u.test(key) || containsPrivateField(nested))
+  }
+  assert.equal(containsPrivateField(preview), false); assert.equal(f.calls.filter(value => value.command === 'localRelocationPlan.confirm').length, 0)
+  // UUID中的fd是合法值；私有字段名在任意层级都必须检出。
+  const validCommandId = '9b36dc61-a846-4608-85fd-145285f76eb7'
+  assert.equal(containsPrivateField({ ...preview, commandId: validCommandId }), false)
+  for (const field of privateFields) {
+    assert.equal(containsPrivateField({ [field]: null }), true)
+    assert.equal(containsPrivateField({ plan: { resources: [{ [field]: null }] } }), true)
+  }
 })
 test('013 Esc/关闭与Tab真实焦点边界不产生文件动作', async t => {
   const { f, session, ui } = await prepared(t); await submit(ui, '具体文件搬迁内容')

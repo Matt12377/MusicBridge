@@ -1,0 +1,81 @@
+{
+  "schema": "mbrs013.uuid-field-repair-public.v1",
+  "result": "PASS_ORIGINAL_DESKTOP34_WITH_VALID_FD_UUID_AND_EIGHT_PRIVATE_FIELD_NEGATIVES",
+  "parentSource": "3fc262c0abf614a8d3125dac1f971234b0450c8d",
+  "originalGate159": {
+    "result": "FAILURE_PRESERVED",
+    "stages": 14,
+    "tests": 529,
+    "passed": 528,
+    "failed": 1,
+    "skipped": 0,
+    "cancelled": 0,
+    "failedStage": "desktop-relocation",
+    "stageCounts": {
+      "tests": 34,
+      "passed": 33,
+      "failed": 1
+    },
+    "cause": "LEGAL_UUID_VALUE_CONTAINING_FD_WAS_MISTAKEN_FOR_PRIVATE_FIELD_BY_WHOLE_JSON_REGEX",
+    "productionPrivateFieldLeakObserved": false,
+    "rawLog": {
+      "bytes": 10179,
+      "sha256": "35d3cf4cf637b021860824d8234bcd64da7dd6ae300931be04a213dfda77cdf7"
+    },
+    "rootReadback": {
+      "fileName": "ROOT013_EXACT_GATE159_FAILURE_READBACK165.json",
+      "bytes": 3351,
+      "sha256": "6a2f2924e951f9dbc9d976d2fc3e61ef46661b645503dcc5f29e29950efeb1f4",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+    }
+  },
+  "counts": {
+    "tests": 34,
+    "pass": 34,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "file": "apps/desktop/test/mbrs013/ui.test.ts",
+  "fileBefore": {
+    "bytes": 14305,
+    "sha256": "fe026ee27ae88f54e34bb071f7020641492b3c9286bcc16546a2387489ba81c0"
+  },
+  "fileAfter": {
+    "bytes": 15140,
+    "sha256": "904091d3a3d6e90ffada6e2f1c9b5b4dfa8f96915f30c4f177b3c53da269dea7"
+  },
+  "onlyOneOriginalCaseChanged": true,
+  "exactInverseRestoresWholeOriginalFile": true,
+  "otherEightUiBodiesAndImportsSetupUnchanged": true,
+  "originalIntentAndZeroConfirmAssertionsPreserved": true,
+  "privateFieldNamesMatchOriginalRegex": true,
+  "validUuidStringValuesNotRejected": true,
+  "topLevelNegativeFields": 4,
+  "nestedObjectArrayNegativeFields": 4,
+  "originalUiCaseCount": 9,
+  "originalDesktopCaseCount": 34,
+  "originalNew013Count": 103,
+  "originalOldCount": 426,
+  "productionUuidAndBudgetsUnchanged": true,
+  "actualGreen": {
+    "fileName": "root013-ui-field-key-green166.json",
+    "bytes": 926,
+    "sha256": "402630122360d1281cd10903de37f971150c493541c08e010641110fb2fd4471",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "actualRawGreen": {
+    "file": "root013-ui-field-key-green166.log",
+    "bytes": 8888,
+    "sha256": "0a2a499e5becbfe1049ff0aca29955e675f8bf43291960e8845af42e6c5eea05"
+  },
+  "rootAudit": {
+    "fileName": "ROOT013_UI_FIELD_KEY_REPAIR_AUDIT168.json",
+    "bytes": 5680,
+    "sha256": "c5c5561522063add78dfd1dd8267d04c0b926afcaab389db6fb6bb42a52d5e5d",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "newExactSourceGateAndNaturalCi": "PENDING_NOT_PRECLAIMED",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN"
+}

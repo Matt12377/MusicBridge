@@ -47001,7 +47001,7 @@
   },
   "mbrs013LocalRelocation": {
     "task": "MBRS-013",
-    "state": "CURRENT_PRODUCT_AND_OLD012_CI_ADMISSION_REPAIRS_PASS_NEW_EXACT_SOURCE_DELIVERY_PENDING",
+    "state": "LOCAL_UI_FIELD_KEY_REPAIR34_PASS_FINAL_COMMITTED_SOURCE_GATE_CI_REPORT_PENDING",
     "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
     "branch": "codex/mbrs-013-relocation",
     "implementationCommit": null,
@@ -47364,6 +47364,7 @@
       "currentStandard124DeclaredInputDifferences": [
         ".github/workflows/electron-e2e.yml",
         ".github/workflows/verify.yml",
+        "apps/desktop/test/mbrs013/ui.test.ts",
         "scripts/ci/test/verify-mbrs012-source-writes.test.mjs",
         "scripts/ci/verify-boundaries.mjs"
       ],
@@ -47371,7 +47372,21 @@
       "newCiAdmissionInputs": [
         "scripts/ci/mbrs013-legacy-input-normalization.mjs",
         "scripts/ci/test/mbrs013-legacy-input-normalization.test.mjs"
-      ]
+      ],
+      "source3fcGate159Failure": {
+        "fileName": "ROOT013_EXACT_GATE159_FAILURE_READBACK165.json",
+        "bytes": 3351,
+        "sha256": "6a2f2924e951f9dbc9d976d2fc3e61ef46661b645503dcc5f29e29950efeb1f4",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "scope16UiFieldKeyRepair": {
+        "fileName": "ROOT013_UI_FIELD_KEY_REPAIR_AUDIT168.json",
+        "bytes": 5680,
+        "sha256": "c5c5561522063add78dfd1dd8267d04c0b926afcaab389db6fb6bb42a52d5e5d",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "currentStandard124UnchangedDeclaredInputs": 1622,
+      "currentDeclaredInputsIncludingTwoNewCiFiles": 1629
     },
     "implementationCommitResolution": "SOURCE_COMMIT_CONTAINING_CURRENT_013_IMPLEMENTATION",
     "report": "reports/MBRS-013_LOCAL_RELOCATION.md",
@@ -47400,11 +47415,13 @@
       "docs/postrust/MBRS-013/evidence/source59-ci-final.json",
       "docs/postrust/MBRS-013/evidence/legacy-ci-admission-repair.json",
       "docs/postrust/MBRS-013/evidence/original012-cli-repair.json",
-      "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT15.json"
+      "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT15.json",
+      "docs/postrust/MBRS-013/evidence/uuid-private-field-repair.json",
+      "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT16.json"
     ],
-    "push": "SOURCE59_REMOTE_EXACT_TWO_REPAIR_COMMITS_PENDING_PUSH",
-    "ci": "SOURCE59_TERMINAL_OLD012_ADMISSION_FAILURE_AND_HOSTED_ALLOCATION_CANCELLATION_PRESERVED_NEW_SOURCE_PENDING",
-    "updatedAt": "2026-10-08T17:12:46.908238+00:00"
+    "push": "SOURCE59_REMOTE_EXACT_THREE_REPAIR_COMMITS_PENDING_PUSH",
+    "ci": "SOURCE59_TERMINAL_FAILURES_AND_SOURCE3FC_GATE159_FALSE_POSITIVE_PRESERVED_NEW_SOURCE_PENDING",
+    "updatedAt": "2026-10-08T17:39:29.631801+00:00"
   },
   "mobileFrontloading20261008": {
     "state": "SCHEDULE_ADOPTED_MOBILE_TASKS_NOT_STARTED",
