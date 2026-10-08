@@ -492,8 +492,11 @@ export function createLocalCatalogStore(access: Access) {
   }
   function sourceProjectionFor(db:DatabaseSync):SourceWritesProjection{
     certificateFor(db);const saved=sourceWritesAudits.get(db);if(!saved)return sourceWritesFail('RECOVERY_REQUIRED');
-    const rows=db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE rowid>? ORDER BY rowid LIMIT 513').all(saved.highWater);if(rows.length>512)return sourceWritesFail('BUDGET_EXCEEDED');if(!rows.length)return saved;
-    const next=copySourceWritesProjection(saved);for(const row of rows){boundedRow(row);const ordinal=Number(row._ledger_rowid);if(row.operation===SOURCE_WRITES_OPERATION)projectSourceWritesEvent(next,readSourceWritesEvent(row),ordinal);else next.highWater=ordinal;}sourceWritesAudits.set(db,next);return next;
+    // 同一作者的同步读取固定本次账本水位，只物化本域事件，不额外消费普通元数据的201行预算。
+    const highWater=Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n);
+    if(!Number.isSafeInteger(highWater)||highWater<saved.highWater)return corrupt();if(highWater===saved.highWater)return saved;
+    const rows=db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE rowid>? AND rowid<=? AND operation=? ORDER BY rowid LIMIT 513').all(saved.highWater,highWater,SOURCE_WRITES_OPERATION);if(rows.length>512)return sourceWritesFail('BUDGET_EXCEEDED');
+    const next=copySourceWritesProjection(saved);for(const row of rows){boundedRow(row);const ordinal=Number(row._ledger_rowid);projectSourceWritesEvent(next,readSourceWritesEvent(row),ordinal);}next.highWater=highWater;sourceWritesAudits.set(db,next);return next;
   }
   function sourceView(db:DatabaseSync,projection:SourceWritesProjection):SourceWritesReadView{return {projection,receipt:(commandId,fp)=>{const row=db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(commandId);if(!row)return null;boundedRow(row);if(row.operation!==SOURCE_WRITES_OPERATION||row.fingerprint!==fp)return sourceWritesFail('COMMAND_ID_REUSED');return readSourceWritesEvent(row);}};}
   function legacyView(db:DatabaseSync,p:LegacyLinksProjection):LegacyLinksView {

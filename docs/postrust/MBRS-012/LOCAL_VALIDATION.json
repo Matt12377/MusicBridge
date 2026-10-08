@@ -54,30 +54,30 @@
   "todo": 0,
   "groupDeclaredInputs": {
     "files": 1422,
-    "identity": "b6faba753a8cdbeead1c1f31652f641839a8d486972fa6116c2ebef26384bea9",
+    "identity": "489a8b9d9a7d2795623b16335fa23ce0530b3e4c86c2ac8c4a5743a0130062f6",
     "inputsUnchanged": true
   },
   "groupArchive": {
-    "archiveId": "ROOT012_GROUPS426_UI_DRIVER67_ACTUAL",
-    "fileName": "ROOT_GROUPS426_UI_DRIVER67_ACTUAL.json",
-    "bytes": 1904,
-    "sha256": "4286341465c7d0d6e2e7a276d5323215367ca82b4bc7c10f4e41dbc1d75e65c3",
+    "archiveId": "ROOT012_GROUPS426_METADATA76_ACTUAL",
+    "fileName": "ROOT_GROUPS426_METADATA76_ACTUAL.json",
+    "bytes": 1923,
+    "sha256": "ae706bd805533ddb1fb6fdcbecefe1e24c5ed4e8459435eefce4533626b7c11c",
     "storage": "PRIVATE_EXTERNAL_ARCHIVE",
     "publiclyDownloadable": false
   },
   "standardWorkspaceRegression": {
     "execution": {
-      "label": "root-workspace-verify42-test-id-type",
-      "headAtRun": "09370f19d4422be3b387047999a0722961c52e1e",
+      "label": "root-workspace-verify72-metadata-watermark",
+      "headAtRun": "5d33ebe11ed1faf128e05dcb9fea6271aea3cd47",
       "exitCode": 0,
       "signal": null,
       "closeObserved": true,
       "timedOut": false,
-      "durationSeconds": 306.7345263750176,
+      "durationSeconds": 313.7685164579889,
       "log": {
-        "file": "root-workspace-verify42-test-id-type.log",
-        "bytes": 1136649,
-        "sha256": "a212baf77b04e33f4e824aca91ddb3e173d7950f26f28aecfa61bccb1be368d0"
+        "file": "root-workspace-verify72-metadata-watermark.log",
+        "bytes": 1136697,
+        "sha256": "88d407e703e4d03b30a8a1cc2c55fffeb540a4a7edfb04a1017316100dd11386"
       },
       "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
     },
@@ -85,24 +85,21 @@
     "pass": 4699,
     "fail": 0,
     "skipped": 2,
-    "scope": "EARLIER_1420_INPUT_GRAPH_STANDARD_TYPES_TOP_LEVEL_TESTS_PRODUCTION_BUILD",
-    "newSourceTestsAndPrivateHostGraphCoveredBy": [
-      "HISTORICAL_CURRENT_GROUPS60",
-      "CURRENT_GROUPS67_UI_DRIVER",
-      "FULL_DESKTOP66_UI_DRIVER",
-      "CORE_TYPES56",
-      "DESKTOP_E2E_TYPES66",
-      "FULL_RUST55",
-      "ELECTRON57",
-      "FULL_E2E58_AND_B59_UNCHANGED_PRODUCT_AND_E2E_INPUTS",
-      "FINAL_SOURCE_GATE"
+    "scope": "CURRENT1422_METADATA_QUERY_FIX_STANDARD_TYPES_TOP_LEVEL_TESTS_PRODUCTION_BUILD",
+    "sourceInputsIdentity": "489a8b9d9a7d2795623b16335fa23ce0530b3e4c86c2ac8c4a5743a0130062f6",
+    "sourceInputsUnchanged": true,
+    "productInputs": 623,
+    "productIdentity": "c910a04a4ce0a0fdcdfa442f1b09d033348ed463634922dccffbe4d5b047c95d",
+    "originalOptionalNativeSkips": [
+      "ok 1205 - 实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
+      "ok 1211 - Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
     ],
     "nativeDeviceAudio": "NOT_RUN",
     "archive": {
-      "archiveId": "ROOT012_STANDARD_VERIFY42",
-      "fileName": "ROOT_STANDARD_VERIFY_ACTUAL42.json",
-      "bytes": 2066,
-      "sha256": "4e4941ef139b3879921fc7e9a6f27bf0e5ae211797e2e9f697b1f33ae13d4f9d",
+      "archiveId": "ROOT012_STANDARD_VERIFY72",
+      "fileName": "ROOT_STANDARD_VERIFY_ACTUAL72.json",
+      "bytes": 2210,
+      "sha256": "2088127231ba96d480ccd1ee86329833fb141f5f7eb23b41a77ee54a075a0842",
       "storage": "PRIVATE_EXTERNAL_ARCHIVE",
       "publiclyDownloadable": false
     }
@@ -110,23 +107,38 @@
   "ownedProductionApp": {
     "result": "PASS",
     "execution": {
-      "label": "root-owned-production-e2e37-batch-locator",
-      "headAtRun": "09370f19d4422be3b387047999a0722961c52e1e",
+      "label": "root-owned-production-e2e73-metadata-watermark",
+      "headAtRun": "5d33ebe11ed1faf128e05dcb9fea6271aea3cd47",
       "exitCode": 0,
       "signal": null,
       "closeObserved": true,
       "timedOut": false,
-      "durationSeconds": 39.795870875008404,
+      "durationSeconds": 40.43039550003596,
       "log": {
-        "file": "root-owned-production-e2e37-batch-locator.log",
-        "bytes": 39556,
-        "sha256": "7813b4fc187e239dca0a1e49027010727c238c72cddf38bae331fad35bc5c81f"
+        "file": "root-owned-production-e2e73-metadata-watermark.log",
+        "bytes": 39559,
+        "sha256": "7e8748d0e0291825de962d6fdfabe1ae97a43b55f0ba2d12a44cef754a687c79"
       },
       "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
     },
-    "build": "ACTUAL_PRODUCTION_BUILD33",
+    "build": "STANDARD_VERIFY72_PRODUCTION_BUILD",
+    "buildExecution": {
+      "label": "root-workspace-verify72-metadata-watermark",
+      "headAtRun": "5d33ebe11ed1faf128e05dcb9fea6271aea3cd47",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 313.7685164579889,
+      "log": {
+        "file": "root-workspace-verify72-metadata-watermark.log",
+        "bytes": 1136697,
+        "sha256": "88d407e703e4d03b30a8a1cc2c55fffeb540a4a7edfb04a1017316100dd11386"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
     "artifactFiles": 956,
-    "artifactIdentity": "35a499bc291be4a9354acab561b53c2032174ce25bef88d722ad7f0b294acfb2",
+    "artifactIdentity": "b7cabacfb3f279642e84098ec491e78095fb8cb2928a2f5ec6e55135a0112a25",
     "artifactsUnchangedDuringRun": true,
     "plans": 13,
     "blockedDefaultOff": 1,
@@ -144,26 +156,47 @@
       "actualToolRuns": 144,
       "result": "PASS",
       "archive": {
-        "archiveId": "ROOT012_APP37_INDEPENDENT_OUTPUTS",
-        "fileName": "APP_OUTPUTS37_RESULT.json",
+        "archiveId": "ROOT012_APP73_INDEPENDENT_OUTPUTS",
+        "fileName": "APP_OUTPUTS73_RESULT.json",
         "bytes": 150997,
-        "sha256": "eddbb91116f9bd86cb7e9c0d159585bd0829b444fa2bdf920f48d7e91042f194",
+        "sha256": "c36e2f6c2b315628bd5945f27eee20f8154208d3b26f2136d55ac68b2b3d0c97",
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       },
       "rootAudit": {
-        "archiveId": "ROOT012_APP37_ROOT_INDEPENDENT_AUDIT43",
-        "fileName": "ROOT_APP37_INDEPENDENT_OUTPUT_AUDIT43.json",
-        "bytes": 16389,
-        "sha256": "52e5c515333dade00b17c526d21ba7650f21ade357ef66e782005f7a35ace1f8",
+        "archiveId": "ROOT012_APP73_ROOT_INDEPENDENT_AUDIT75",
+        "fileName": "ROOT_APP73_INDEPENDENT_OUTPUT_AUDIT75.json",
+        "bytes": 16514,
+        "sha256": "9765e52d86bdbe9f8c4d46e69039d4013972f7ffbea618d1602da34242287b17",
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       }
     },
     "scope": "SELF_OWNED_NON_SILENT_FLAC_MP3_PNG_TAGS_EMBEDDED_DIRECTORY_BATCH_UNDO_COLD_HISTORY",
-    "sameArtifactAsLaterStandardBuild": false,
+    "appReceipt": {
+      "archiveId": "ROOT012_PRODUCTION_APP73_RECEIPT",
+      "fileName": "receipt.json",
+      "bytes": 113463,
+      "sha256": "33956ecbf193e371923d40a0d943cf421472b8f86429d38842d2d56b376ba365",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "productInputs": 623,
+    "productIdentity": "c910a04a4ce0a0fdcdfa442f1b09d033348ed463634922dccffbe4d5b047c95d",
+    "sourceTestInputs": 1422,
+    "sourceTestIdentity": "489a8b9d9a7d2795623b16335fa23ce0530b3e4c86c2ac8c4a5743a0130062f6",
     "jpegInThisAppRun": "NOT_RUN",
-    "realRoonAudioOwner": "NOT_RUN"
+    "httpLeaseAndPlaybackRecordingFaultsInThisAppRun": "NOT_RUN",
+    "sameArtifactAsHistoricalBuild33": false,
+    "realRoonAudioOwner": "NOT_RUN",
+    "archive": {
+      "archiveId": "ROOT012_APP73_ACTUAL75",
+      "fileName": "ROOT_APP73_ACTUAL75.json",
+      "bytes": 3955,
+      "sha256": "8ad81a447c56c6033e715cb045a540a397620f075831086fd16192f4ba5b8b4b",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
   },
   "postWriteLeaseSameOperation": {
     "result": "PASS",
@@ -281,7 +314,8 @@
       "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
     },
     "stages": 30,
-    "scope": "SAME_RUN_RUST_HOSTS_PREPARATION_NOT_ELECTRON_ACCEPTANCE"
+    "scope": "SAME_RUN_RUST_HOSTS_PREPARATION_NOT_ELECTRON_ACCEPTANCE",
+    "sourceBindingBoundary": "HISTORICAL_RUST55_PREPARATION_NOT_CURRENT_S3_APP_ACCEPTANCE"
   },
   "standardElectron": {
     "execution": {
@@ -317,7 +351,8 @@
       "sha256": "7038b21e2011d8df9905f1ad63d754bf4e47baa5b38602988dc3b1758b7b9b5f",
       "storage": "PRIVATE_EXTERNAL_ARCHIVE",
       "publiclyDownloadable": false
-    }
+    },
+    "sourceBindingBoundary": "HISTORICAL_ELECTRON57_BEFORE_ONE_LOCAL_CATALOG_PRODUCT_QUERY_FIX_FRESH_NATURAL_SOURCE_CI_RECORDED_SEPARATELY"
   },
   "standardProductionE2e": {
     "result": "PASS_ALL_APPLICABLE_CASES_WITH_PREPARATION_CORRECTION",
@@ -360,7 +395,11 @@
     "declaredInputs": 1422,
     "sourceInputsIdentity": "eaafa60f30386d2c841e53b160f6cb94e92e45470dd35f7b2f68c5b9a674e117",
     "realProviderRoonNasAudioDeviceOwner": "NOT_RUN",
-    "sourceBindingBoundary": "ACTUAL_E2E58_B59_PRE_REPAIR1422_GRAPH_PRESERVED_ONLY_NEW_UI_UNIT_DRIVER_DIFFERS_623_PRODUCTION_AND_E2E_INPUTS_UNCHANGED_NEW_DRIVER_PROVEN_SEPARATELY"
+    "sourceBindingBoundary": "HISTORICAL1422_E2E58_B59_GRAPH_DIFFERS_FROM_CURRENT_UI_UNIT_DRIVER_AND_LOCAL_CATALOG_PRODUCT_QUERY_DO_NOT_RELABEL_AS_CURRENT_RUN",
+    "historicalGraphDifferences": [
+      "apps/desktop/test/mbrs012-ui.test.ts",
+      "packages/bridge-core/src/collection/local-catalog-store.ts"
+    ]
   },
   "dependencyAudit": {
     "execution": {
@@ -518,6 +557,254 @@
       "storage": "PRIVATE_EXTERNAL_ARCHIVE",
       "publiclyDownloadable": false
     },
+    "originalCiRerun": false,
+    "originalCiCancelled": false,
+    "realProviderRoonNasAudioDeviceOwner": "NOT_RUN",
+    "scope": "HISTORICAL_S1_TO_S2_UI_TEST_ONLY_REPAIR_PRODUCT_BUILD33_IDENTITY_AT_THAT_RUN_NOT_CURRENT_S3"
+  },
+  "historicalDeclaredGroup67": {
+    "groupDeclaredInputs": {
+      "files": 1422,
+      "identity": "b6faba753a8cdbeead1c1f31652f641839a8d486972fa6116c2ebef26384bea9",
+      "inputsUnchanged": true
+    },
+    "groupArchive": {
+      "archiveId": "ROOT012_GROUPS426_UI_DRIVER67_ACTUAL",
+      "fileName": "ROOT_GROUPS426_UI_DRIVER67_ACTUAL.json",
+      "bytes": 1904,
+      "sha256": "4286341465c7d0d6e2e7a276d5323215367ca82b4bc7c10f4e41dbc1d75e65c3",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "scope": "S2_UI_DRIVER_REPAIR_GRAPH_BEFORE_METADATA_QUERY_PRODUCT_FIX"
+  },
+  "historicalStandardWorkspace42": {
+    "execution": {
+      "label": "root-workspace-verify42-test-id-type",
+      "headAtRun": "09370f19d4422be3b387047999a0722961c52e1e",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 306.7345263750176,
+      "log": {
+        "file": "root-workspace-verify42-test-id-type.log",
+        "bytes": 1136649,
+        "sha256": "a212baf77b04e33f4e824aca91ddb3e173d7950f26f28aecfa61bccb1be368d0"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "tests": 4701,
+    "pass": 4699,
+    "fail": 0,
+    "skipped": 2,
+    "scope": "EARLIER_1420_INPUT_GRAPH_STANDARD_TYPES_TOP_LEVEL_TESTS_PRODUCTION_BUILD",
+    "newSourceTestsAndPrivateHostGraphCoveredBy": [
+      "HISTORICAL_CURRENT_GROUPS60",
+      "CURRENT_GROUPS67_UI_DRIVER",
+      "FULL_DESKTOP66_UI_DRIVER",
+      "CORE_TYPES56",
+      "DESKTOP_E2E_TYPES66",
+      "FULL_RUST55",
+      "ELECTRON57",
+      "FULL_E2E58_AND_B59_UNCHANGED_PRODUCT_AND_E2E_INPUTS",
+      "FINAL_SOURCE_GATE"
+    ],
+    "nativeDeviceAudio": "NOT_RUN",
+    "archive": {
+      "archiveId": "ROOT012_STANDARD_VERIFY42",
+      "fileName": "ROOT_STANDARD_VERIFY_ACTUAL42.json",
+      "bytes": 2066,
+      "sha256": "4e4941ef139b3879921fc7e9a6f27bf0e5ae211797e2e9f697b1f33ae13d4f9d",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "historicalOwnedProductionApp37": {
+    "result": "PASS",
+    "execution": {
+      "label": "root-owned-production-e2e37-batch-locator",
+      "headAtRun": "09370f19d4422be3b387047999a0722961c52e1e",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 39.795870875008404,
+      "log": {
+        "file": "root-owned-production-e2e37-batch-locator.log",
+        "bytes": 39556,
+        "sha256": "7813b4fc187e239dca0a1e49027010727c238c72cddf38bae331fad35bc5c81f"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "build": "ACTUAL_PRODUCTION_BUILD33",
+    "artifactFiles": 956,
+    "artifactIdentity": "35a499bc291be4a9354acab561b53c2032174ce25bef88d722ad7f0b294acfb2",
+    "artifactsUnchangedDuringRun": true,
+    "plans": 13,
+    "blockedDefaultOff": 1,
+    "forwardCompleted": 6,
+    "inverseCompleted": 6,
+    "naturalCloses": 3,
+    "allPreviewsSourceUnchanged": true,
+    "externalAttempts": 0,
+    "pageErrors": 0,
+    "independentOutputs": {
+      "audioCases": 6,
+      "safetyOperations": 14,
+      "restorationOperations": 7,
+      "fullFdRootWitnesses": 57,
+      "actualToolRuns": 144,
+      "result": "PASS",
+      "archive": {
+        "archiveId": "ROOT012_APP37_INDEPENDENT_OUTPUTS",
+        "fileName": "APP_OUTPUTS37_RESULT.json",
+        "bytes": 150997,
+        "sha256": "eddbb91116f9bd86cb7e9c0d159585bd0829b444fa2bdf920f48d7e91042f194",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "rootAudit": {
+        "archiveId": "ROOT012_APP37_ROOT_INDEPENDENT_AUDIT43",
+        "fileName": "ROOT_APP37_INDEPENDENT_OUTPUT_AUDIT43.json",
+        "bytes": 16389,
+        "sha256": "52e5c515333dade00b17c526d21ba7650f21ade357ef66e782005f7a35ace1f8",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "scope": "SELF_OWNED_NON_SILENT_FLAC_MP3_PNG_TAGS_EMBEDDED_DIRECTORY_BATCH_UNDO_COLD_HISTORY",
+    "sameArtifactAsLaterStandardBuild": false,
+    "jpegInThisAppRun": "NOT_RUN",
+    "realRoonAudioOwner": "NOT_RUN"
+  },
+  "sourceMetadataWatermarkRepair": {
+    "result": "PASS_LOCAL_CURRENT_GROUPS_STANDARD_VERIFY_AND_OWNED_APP_EXACT_COMMITTED_GATE_AND_CI_PENDING",
+    "secondSourceSha": "5d33ebe11ed1faf128e05dcb9fea6271aea3cd47",
+    "secondSourceVerifyRun": 37725796894,
+    "secondSourceVerifyJob": 113143535409,
+    "secondSourceVerifyResult": "FAILURE_OLD_MBRS002_CONTRACT_GATE",
+    "secondSourceOwn012Gate": "SKIPPED_NOT_PASS",
+    "secondSourceNaturalCiTerminal": {
+      "archiveId": "ROOT012_SECOND_SOURCE_NATURAL_CI_TERMINAL",
+      "fileName": "SOURCE_CI68_FINAL06.json",
+      "bytes": 98846,
+      "sha256": "dd05bc31ab8d698ddfc37116c92ff25207fd1285f307dcbd3ecfc86f29c57ab3",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "secondSourceNaturalCiJobs": {
+      "total": 6,
+      "success": 5,
+      "failure": 1
+    },
+    "rootCause": "SOURCE_PROJECTION_MATERIALIZED_ONE_UNRELATED_METADATA_LEDGER_ROW_BEFORE_ORIGINAL201_RAW_SENTINEL",
+    "changedProductPaths": [
+      "packages/bridge-core/src/collection/local-catalog-store.ts"
+    ],
+    "oldTestsChanged": false,
+    "original201SentinelBudgetPreserved": true,
+    "original512SourceEventBudgetPreserved": true,
+    "query": "FIX_SYNCHRONOUS_LEDGER_HIGH_WATER_AND_MATERIALIZE_ONLY_SOURCE_WRITES_OPERATION_BETWEEN_SAVED_AND_FIXED_WATERMARK",
+    "red": {
+      "counts": {
+        "tests": 41,
+        "pass": 40,
+        "fail": 1,
+        "skipped": 0
+      },
+      "log": {
+        "file": "root-gate002-core41-repro70.log",
+        "bytes": 16548,
+        "sha256": "4e0c0d05f113da27d93f21465c58e72d4c2e3039934fcafd6eba378e1a2eba4e"
+      }
+    },
+    "green": {
+      "counts": {
+        "tests": 41,
+        "pass": 41,
+        "fail": 0,
+        "skipped": 0
+      },
+      "log": {
+        "file": "root-gate002-core41-green71.log",
+        "bytes": 15660,
+        "sha256": "1b22be416e5a36c094c15c2468978a37bb17e048d5cf81a41b432ff8559f0152"
+      }
+    },
+    "fullLegacyGate": {
+      "stages": 7,
+      "tests": 67,
+      "pass": 67,
+      "skipped": 0,
+      "manifest": {
+        "file": "manifest.json",
+        "bytes": 342053,
+        "sha256": "7404a92a87a8e54ece4f2e96c543b767600d1b2b11ccbc97e4b04e56398f31c4"
+      },
+      "sanitizedLogs": [
+        {
+          "stage": "fresh-contracts-build",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+        },
+        {
+          "stage": "contracts-noemit",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+        },
+        {
+          "stage": "core-noemit",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+        },
+        {
+          "stage": "desktop-noemit",
+          "bytes": 29,
+          "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+        },
+        {
+          "stage": "contracts-local-behavior",
+          "bytes": 365,
+          "sha256": "6fb1175700399c2d7865749aee1cb53e75377e04459902848898cb1c93c2f1eb"
+        },
+        {
+          "stage": "core-local-behavior",
+          "bytes": 766,
+          "sha256": "011ed41dd2a323472465999ec4df02567879d2c251a100f480dcb48d7d529d5f"
+        },
+        {
+          "stage": "desktop-local-compat",
+          "bytes": 269,
+          "sha256": "32e5814ac1b2ce1e153442e0a90f498280c3f1b4a863938a34713b946aa94480"
+        }
+      ],
+      "rawDiagnosticFilesIndependentlyRead": false
+    },
+    "localReproductionIsRemoteInnerManifestProof": false,
+    "fixArchive": {
+      "archiveId": "ROOT012_METADATA_BUDGET71_FIX_ACTUAL",
+      "fileName": "ROOT_METADATA_BUDGET71_FIX_ACTUAL.json",
+      "bytes": 2476,
+      "sha256": "0a1fe15865dbb484dfedb1c500866c277b5dc45bcfff5d368c36de8779491579",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "independentCoreReview": {
+      "archiveId": "ROOT012_OLD_GATE002_READONLY_DIAG70",
+      "fileName": "MBRS012_OLD_GATE002_READONLY_DIAG70.md",
+      "bytes": 15672,
+      "sha256": "8def2015be88dc7248dedc32f98617656324a118ca214cb6fe864dc9a27380e6",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "currentSourceTestInputs": 1422,
+    "currentSourceTestIdentity": "489a8b9d9a7d2795623b16335fa23ce0530b3e4c86c2ac8c4a5743a0130062f6",
+    "currentProductInputs": 623,
+    "currentProductIdentity": "c910a04a4ce0a0fdcdfa442f1b09d033348ed463634922dccffbe4d5b047c95d",
+    "currentProductionApp": "APP73_ACTUAL_STANDARD_VERIFY72_BUILD_INDEPENDENT_FULL_FILE_PROOF",
+    "historicalApp37PromotedToCurrentProductProof": false,
+    "oldProofsRewritten": false,
     "originalCiRerun": false,
     "originalCiCancelled": false,
     "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
