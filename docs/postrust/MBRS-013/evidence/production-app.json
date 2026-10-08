@@ -1,0 +1,91 @@
+{
+  "schema": "mbrs013.owned-production-app-evidence.v1",
+  "result": "PASS_FINITE_SELF_OWNED_PRODUCTION_APP",
+  "execution": {
+    "label": "root013-production-app104",
+    "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 18.528631749970373,
+    "log": {
+      "file": "root013-production-app104.log",
+      "bytes": 668,
+      "sha256": "75033d71344435f9bbda9fe6447447c9d5416bb6c6c564256806c094b4fdb70e"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "build": "STANDARD_VERIFY100_PRODUCTION_BUILD",
+  "artifactsCount": 997,
+  "artifactsIdentity": "591ad0df8b7193950108b2fa96941b714de1cdd840a78e3aec07dddf1e3d26d1",
+  "artifactsBeforeAfterExact": true,
+  "plans": 1,
+  "resources": 2,
+  "resourceKinds": [
+    "AUDIO",
+    "LYRIC"
+  ],
+  "naturalCloses": [
+    {
+      "pid": 68501,
+      "exitCode": 0,
+      "signal": null
+    },
+    {
+      "pid": 68545,
+      "exitCode": 0,
+      "signal": null
+    },
+    {
+      "pid": 68667,
+      "exitCode": 0,
+      "signal": null
+    }
+  ],
+  "offlineNetworkProofs": [
+    {
+      "installedBeforeWindow": true,
+      "localCoverResponses": 1,
+      "localAvatarResponses": 0,
+      "blockedExternalAttempts": 0,
+      "blockedHosts": []
+    },
+    {
+      "installedBeforeWindow": true,
+      "localCoverResponses": 1,
+      "localAvatarResponses": 1,
+      "blockedExternalAttempts": 0,
+      "blockedHosts": []
+    },
+    {
+      "installedBeforeWindow": true,
+      "localCoverResponses": 1,
+      "localAvatarResponses": 0,
+      "blockedExternalAttempts": 0,
+      "blockedHosts": []
+    }
+  ],
+  "defaultOffOriginalReceiptColdQuery": true,
+  "specificPlanPreviewConfirmSourceRetentionCleanupColdHistory": true,
+  "qualificationOverrideUsed": false,
+  "sourceBindingsNonemptyHistoryProven": false,
+  "appFaultRecovery": "NOT_RUN_BY_THIS_APP",
+  "crossVolumeRealProviderRoonAudioDeviceOwner": "NOT_RUN",
+  "independentRootAudit": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "PRODUCTION_APP104_INDEPENDENT_OUTPUT_AUDIT.json",
+    "bytes": 3298,
+    "sha256": "d9346bd016c36767263cf461375852d26a5f7a058e75a5b5524ab2c5425711f2",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "ownedAppReceipt": {
+    "archiveId": "MBRS013_OWNED_APP104_RECEIPT",
+    "fileName": "receipt.json",
+    "bytes": 22140,
+    "sha256": "2c9a9f47c6101e5abca63d7a54c9027edb9c664f9399cf8a07f338dffcfb9a5e",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  }
+}

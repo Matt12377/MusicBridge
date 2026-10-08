@@ -13,6 +13,7 @@ const props = defineProps<{ session: ReturnType<typeof useLocalLibrary>; playbac
 const emit = defineEmits<{ 'open-queue': []; 'open-outbox': [] }>()
 const model = reactive(props.session), queryDraft = ref(model.query), rootDraft = ref(model.rootId ?? '')
 const SourceWritesDialog = props.session.sourceWrites?.capable ? defineAsyncComponent(() => import('./LocalSourceWritesDialog.vue')) : null
+const RelocationDialog = props.session.relocationPlans?.capable ? defineAsyncComponent(() => import('./LocalRelocationDialog.vue')) : null
 const detailHeading = ref<HTMLElement | null>(null), searchInput = ref<HTMLInputElement | null>(null), trackList = ref<HTMLElement | null>(null)
 let detailTrigger: HTMLElement | null = null
 let focusGeneration = 0
@@ -103,6 +104,7 @@ onUnmounted(() => { focusGeneration++; model.suspend() })
     </form>
     <div class="local-organizer-toolbar" aria-label="本地信息整理"><button type="button" :aria-pressed="model.selectionMode" @click="model.selectionMode = !model.selectionMode">{{ model.selectionMode ? '结束选择' : '选择曲目' }}</button><span aria-live="polite">已选 {{ model.selectedTrackIds.length }} / 100 首</span><button type="button" :disabled="!model.selectedTrackIds.length" @click="openOrganizerBatch">整理已选曲目</button><button type="button" :disabled="!model.selectedTrackIds.length" @click="model.clearTrackSelection()">清空选择</button><button type="button" @click="props.session.organizer.openHistory()">整理历史</button></div>
     <div class="local-detail-actions" aria-label="具体源文件写入入口"><button type="button" :disabled="!model.selectedTrackIds.length || !props.session.sourceWrites?.capable" @click="openSourceBatch">预览已选曲目源写</button><button type="button" :disabled="!props.session.sourceWrites?.capable" @click="props.session.sourceWrites.openHistory()">源写历史与恢复</button><span v-if="!props.session.sourceWrites?.capable" class="local-note">源写服务尚未就绪；原信息整理与选图继续可用。</span></div>
+    <div class="local-detail-actions" aria-label="具体文件搬迁入口"><button type="button" :disabled="model.actionBusy || !model.selectedTrackIds.length || !props.session.relocationPlans?.capable" @click="model.openRelocationBatch()">预览已选曲目文件搬迁</button><button type="button" :disabled="!props.session.relocationPlans?.capable" @click="props.session.relocationPlans.openHistory()">搬迁历史与恢复</button><span v-if="!props.session.relocationPlans?.capable" class="local-note">文件搬迁服务尚未就绪；原播放与外部找回继续可用。</span></div>
     <p v-if="model.selectionMode" class="local-note">按曲目选择，翻页与搜索会保留已选内容；保存前逐项预览。</p><p v-if="model.selectionError" class="local-error" role="alert">{{ model.selectionError }}</p>
     <p v-if="model.error" class="local-error" role="alert">{{ model.error }} <button type="button" @click="model.ensureRange(Math.floor(model.scrollTop / 84), Math.floor(model.scrollTop / 84) + 24)">重试读取</button></p>
     <p v-if="model.actionError" class="local-error" role="alert">{{ model.actionError }}</p>
@@ -129,6 +131,7 @@ onUnmounted(() => { focusGeneration++; model.suspend() })
           <p v-if="model.detail.track.segment !== null" class="local-note">这是已保存的 CUE 段落；段落直送尚不支持，曲目身份与信息保留。</p>
           <div class="local-detail-actions"><button type="button" @click="props.session.artwork.open(model.detail.track.id)">选择封面</button><span class="local-note">只保存到 MB；封面不改变版本与音质信息。</span></div>
           <div class="local-detail-actions"><button type="button" @click="openOrganizerTrack">整理此曲目信息</button><button type="button" :disabled="!props.session.sourceWrites?.capable" @click="openSourceTrack">预览此曲目源写</button></div>
+          <div class="local-detail-actions"><button type="button" :disabled="model.actionBusy || !props.session.relocationPlans?.capable" @click="model.openRelocationTrack('rename')">预览此源文件改名</button><button type="button" :disabled="model.actionBusy || !props.session.relocationPlans?.capable" @click="model.openRelocationTrack('move')">预览此源文件移动</button></div>
           <div v-if="model.detailArtwork?.selection?.candidate" class="local-detail-artwork"><SafeArtwork :src="model.detailArtwork.selection.candidate.display.dataUrl" alt="MB 已保存的独立发行封面" loading="eager" style="width:100px;height:100px;flex:none" /><p class="local-note">MB 已保存封面 · {{ model.detailArtwork.selection.candidate.sourceLabel }}<br>Roon 封面接收状态另行验证。</p></div>
           <h3>版本</h3><ul v-if="model.detail.editions.length"><li v-for="edition in model.detail.editions" :key="edition.id">{{ edition.title }} · {{ edition.edition || '未注明版本' }} · 发行 {{ edition.id.slice(-8) }} <button type="button" :aria-label="`整理具体发行 ${edition.title} ${edition.edition} ${edition.id}`" @click="openOrganizerEdition(edition.id)">整理这个发行</button><button type="button" :disabled="!props.session.sourceWrites?.capable" :aria-label="`预览具体发行 ${edition.title} ${edition.edition} ${edition.id} 的源写`" @click="openSourceEdition(edition.id)">预览这个发行源写</button></li></ul><p v-else class="local-note">尚无已保存的独立发行关系。</p>
           <p v-if="model.detail.versionTokens.length" class="local-note">名称线索：<span v-for="(token, index) in model.detail.versionTokens" :key="`${token.source}-${token.start}-${index}`">{{ token.raw }}（{{ tokenSource[token.source] }}）{{ index + 1 < model.detail.versionTokens.length ? ' · ' : '' }}</span>。名称线索用于辨认版本。</p>
@@ -143,6 +146,7 @@ onUnmounted(() => { focusGeneration++; model.suspend() })
     <LocalArtworkDialog v-if="props.session.artwork.isOpen.value" :session="props.session.artwork" :source-writes-available="props.session.sourceWrites?.capable" @source-writes="sourceFromArtwork" />
     <LocalOrganizerDialog v-if="props.session.organizer.isOpen.value" :session="props.session.organizer" :source-writes-available="props.session.sourceWrites?.capable" @open-outbox="emit('open-outbox')" @return-focus="organizerReturnFocus" @source-writes="sourceFromOrganizer" />
     <SourceWritesDialog v-if="SourceWritesDialog && props.session.sourceWrites.isOpen.value" :session="props.session.sourceWrites" @open-outbox="emit('open-outbox')" @return-focus="organizerReturnFocus" @mb-only="openMBOnly" @reacquire="reacquireSourceArtwork" />
+    <RelocationDialog v-if="RelocationDialog && props.session.relocationPlans.isOpen.value" :session="props.session.relocationPlans" @return-focus="organizerReturnFocus" />
   </section>
 </template>
 

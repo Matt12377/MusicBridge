@@ -1,0 +1,23 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "reason": "独立承载013计划会话与未知命令状态，及由Root验证真实原Reader可信接点，保留旧012与外部候选交互。",
+  "allocationBy": "ROOT_WITHIN_EXISTING_TASK_AUTHORIZATION",
+  "addedDesktopOwnedFile": "apps/desktop/src/renderer/src/composables/application/useLocalRelocationPlans.ts",
+  "addedRootOwnedTest": "packages/bridge-core/test/mbrs013/reader-integration-root.test.ts",
+  "noNewFeaturesOrPublicApiScope": true,
+  "budgetsUnchanged": true,
+  "original8AtUnchanged": true,
+  "initialScope": {
+    "bytes": 6676,
+    "sha256": "0a085fb95a497bb97fe7513c0968e54235db5d99ee7088a504ae8c809a71d283"
+  },
+  "updatedScope": {
+    "bytes": 7045,
+    "sha256": "7d0bb32fbb7a824c037ab5f1d86f26b8697eb27f0552ca0b58cd722700724e65"
+  },
+  "initialG0ReceiptPreserved": true,
+  "testsBuildApp": "NOT_RUN",
+  "recordedAt": "2026-10-08T09:50:29.216078+00:00"
+}

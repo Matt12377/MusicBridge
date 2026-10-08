@@ -1,0 +1,109 @@
+{
+  "schema": "mbrs013.local-standard-verification.v1",
+  "result": "PASS_LOCAL_TYPES_UNIT_TESTS_PRODUCTION_BUILD",
+  "execution": {
+    "label": "root013-standard-verify100",
+    "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 312.4403179590008,
+    "log": {
+      "file": "root013-standard-verify100.log",
+      "bytes": 1136833,
+      "sha256": "61c8a2c8d2194df88dd78deeed7ecd8a320fdf5388d74a8f897443976f1597d5"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "groups": [
+    {
+      "name": "contracts",
+      "tests": 266,
+      "passed": 266,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "core-flat",
+      "tests": 2769,
+      "passed": 2767,
+      "failed": 0,
+      "skipped": 2
+    },
+    {
+      "name": "core-isolated-capacity",
+      "tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "name": "desktop",
+      "tests": 1658,
+      "passed": 1658,
+      "failed": 0,
+      "skipped": 0
+    }
+  ],
+  "totals": {
+    "tests": 4701,
+    "passed": 4699,
+    "failed": 0,
+    "skipped": 2
+  },
+  "existingConditionalNativeSkips": 2,
+  "rawFullyReadHashVerified": true,
+  "sourceTestInputs": 1626,
+  "sourceTestIdentity": "ab677edb487b7131a9a19b862db45ddbc324c81d55e7ebea3fd84d3e645847d7",
+  "productInputs": 692,
+  "productIdentity": "b136f2c992dd019fb99e08768bfcf8e0fe62d0d5907cfb76cfccdbf34e251e55",
+  "staticChecks": [
+    {
+      "label": "root013-final-control-plane100",
+      "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 0.14214870799332857,
+      "log": {
+        "file": "root013-final-control-plane100.log",
+        "bytes": 19,
+        "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    {
+      "label": "root013-final-boundaries100",
+      "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 0.19533695903373882,
+      "log": {
+        "file": "root013-final-boundaries100.log",
+        "bytes": 16,
+        "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    {
+      "label": "root013-final-cycles100",
+      "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 0.19085424998775125,
+      "log": {
+        "file": "root013-final-cycles100.log",
+        "bytes": 22,
+        "sha256": "9bde1aa9752fc69c8c7cd4dc6b5ee24cdc149d24e45715f473f025ba732a4f41"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    }
+  ],
+  "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+}

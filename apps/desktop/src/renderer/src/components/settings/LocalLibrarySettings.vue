@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import {ref,onMounted,onUnmounted} from 'vue'
+import {defineAsyncComponent,markRaw,ref,watch,onMounted,onUnmounted} from 'vue'
 import type {LocalRootView,ScanJobRecord,LocalTrack,LocalRelocationCandidates,LocalRelocationSelection} from '@music-bridge/contracts'
+import {useLocalRelocationPlans} from '../../composables/application/useLocalRelocationPlans.js'
 const props=withDefaults(defineProps<{managementOnly?:boolean}>(),{managementOnly:false})
 const emit=defineEmits<{updated:[]}>()
 const rootsLoaded=ref(false)
 const api=window.musicBridge,roots=ref<LocalRootView[]>([]),jobs=ref<ScanJobRecord[]>([]),tracks=ref<LocalTrack[]>([]),offset=ref(0),hasMore=ref(false),jobOffset=ref(0),jobHasMore=ref(false),readError=ref(''),actionError=ref(''),busy=ref(false),selection=ref<LocalRelocationSelection|null>(null),candidates=ref<LocalRelocationCandidates|null>(null),confirming=ref(false),titles=ref<Record<string,string>>({})
+const relocation=markRaw(useLocalRelocationPlans({api,onApplied:()=>{if(live){void reload();emit('updated')}}}))
+const RelocationDialog=relocation.capable?defineAsyncComponent(()=>import('../library/LocalRelocationDialog.vue')):null
 const phases:Record<ScanJobRecord['phase'],string>={pending:'等待扫描',running:'扫描中',paused:'已暂停',completed:'已完成',failed:'未完成',cancelled:'已取消'}
 const availability={ONLINE:'可读取',SOURCE_ROOT_OFFLINE:'目录离线',REVOKED:'许可已撤销'}
 const scanFailureMessages:Record<NonNullable<ScanJobRecord['failureCode']>,string>={ROOT_UNAVAILABLE:'源目录无法读取，请检查目录是否在线及读取权限；音乐库保留。',ROOT_REVISION_CHANGED:'源目录关联已改变，请核对当前目录后重新开始扫描；音乐库保留。',SCAN_READ_FAILED:'扫描读取未完成，请检查源目录和读取权限；音乐库保留。',CHECKPOINT_INVALID:'无法确认上次扫描的进度，请重新开始扫描；音乐库保留。'}
@@ -29,11 +32,14 @@ async function choose(){await action(()=>api.chooseLocalLibraryRoot(crypto.rando
 async function scan(root:LocalRootView){await action(()=>api.localLibraryScan('localScan.start',{commandId:crypto.randomUUID(),libraryRootId:root.root.id,expectedRootRevision:root.root.revision}))}
 async function control(job:ScanJobRecord,operation:'pause'|'resume'|'cancel'){await action(()=>api.localLibraryScan(`localScan.${operation}`,{commandId:crypto.randomUUID(),jobId:job.jobId,expectedRevision:job.jobRevision}),true)}
 async function remount(root:LocalRootView){await action(async()=>{const target=await api.chooseRecordingSourceRoot(crypto.randomUUID());if(!target)return;if(!window.confirm(`确认将“${root.label}”重新关联到“${target.label}”？旧对象与记录保留；随后需显式增量扫描。`))return;await api.relinkLocalLibraryRoot({commandId:crypto.randomUUID(),rootId:root.root.id,expectedRevision:root.root.revision,targetSourceRootId:target.id,userConfirmed:true})})}
+async function previewRoot(root:LocalRootView){if(busy.value||relocation.busy.value||relocation.unknown.value)return;await relocation.openRoot({libraryRootId:root.root.id,expectedRootRevision:root.root.revision},root.label)}
+async function relocationPolicy(event:Event){const input=event.target as HTMLInputElement;await relocation.setPolicy(input.checked);input.checked=relocation.context.value?.policy.enabled??false}
 async function locate(track:LocalTrack){await action(async()=>{const asset=await api.getLocalLibraryAsset(track.assetId),root=roots.value.find(x=>x.root.id===asset.libraryRootId);if(!root)throw new Error('根未就绪');const body={assetId:asset.id,expectedFileRevision:asset.fileRevision,expectedLocationRevision:asset.locationRevision,expectedRootRevision:root.root.revision};const result=await api.chooseLocalRelocationCandidates(body);if(live){selection.value=body;candidates.value=result;confirming.value=false}})}
 async function confirm(id:string){if(!selection.value||!confirming.value)return;const body={...selection.value,commandId:id,userConfirmed:true as const};await action(async()=>{await api.confirmLocalRelocation(body);if(live){selection.value=null;candidates.value=null;confirming.value=false}})}
 async function jobPage(direction:number){jobOffset.value=Math.max(0,jobOffset.value+direction*200);clearTimeout(timer);await reload()}
 async function page(direction:number){offset.value=Math.max(0,offset.value+direction*50);clearTimeout(timer);await reload()}
-onMounted(()=>{void reload()});onUnmounted(()=>{live=false;generation++;clearTimeout(timer)})
+watch(()=>relocation.isOpen.value,open=>{if(!open&&live&&relocation.capable)void relocation.activateSettings()})
+onMounted(()=>{void reload();if(relocation.capable)void relocation.activateSettings()});onUnmounted(()=>{live=false;generation++;clearTimeout(timer);relocation.dispose()})
 </script>
 <template>
  <article class="settings-card settings-glass-panel" data-testid="local-library-settings">
@@ -41,11 +47,13 @@ onMounted(()=>{void reload()});onUnmounted(()=>{live=false;generation++;clearTim
   <p class="settings-note">扫描只读取音频标签，不改源文件。暂停可继续；取消保留已入库对象。目录离线与权限变化不会删除音乐库。</p>
   <p v-if="readError" role="alert">{{readError}}</p><p v-if="actionError" role="alert">{{actionError}}</p>
   <p v-if="rootsLoaded&&roots.length===0">尚未加入源目录。</p>
-  <ul><li v-for="root in roots" :key="root.root.id"><strong>{{root.label}}</strong> · {{availability[root.availability]}} <button :disabled="busy||root.availability!=='ONLINE'" @click="scan(root)">增量扫描</button><button :disabled="busy" @click="remount(root)">重新关联目录</button></li></ul>
+  <ul><li v-for="root in roots" :key="root.root.id"><strong>{{root.label}}</strong> · {{availability[root.availability]}} <button :disabled="busy||root.availability!=='ONLINE'" @click="scan(root)">增量扫描</button><button :disabled="busy" @click="remount(root)">重新关联目录</button><button v-if="relocation.capable" :disabled="busy||relocation.busy.value||relocation.unknown.value" @click="previewRoot(root)">预览目录重关联</button></li></ul>
+  <section v-if="relocation.capable" aria-label="具体文件搬迁设置"><h4>文件搬迁与重关联</h4><p class="settings-note">默认关闭。开启后仍需完整预览与具体计划确认；目标完整验证并登记后，源材料默认保留，清理另用具体按钮。</p><label><input type="checkbox" aria-label="允许具体文件搬迁" :checked="relocation.context.value?.policy.enabled??false" :disabled="relocation.busy.value||relocation.unknown.value||relocation.datasetChanged.value||!relocation.context.value||relocation.contextFailed.value||!relocation.qualified.value" @change="relocationPolicy">允许具体文件搬迁</label><p v-if="relocation.context.value?.qualification.issue" role="status">{{relocation.issue(relocation.context.value.qualification.issue)}}</p><p v-if="!relocation.qualified.value" class="settings-note">搬迁资格尚未通过，文件动作保持关闭；原扫描、播放与找回继续可用。</p><p v-if="relocation.error.value" role="alert">{{relocation.error.value}}</p><p v-if="relocation.notice.value" role="status">{{relocation.notice.value}}</p><button :disabled="relocation.busy.value" @click="relocation.reconcile()">重新读取搬迁设置与原命令</button><button :disabled="relocation.busy.value" @click="relocation.openHistory()">搬迁历史与恢复</button></section>
   <ul aria-label="扫描任务"><li v-for="job in jobs" :key="job.jobId">{{phases[job.phase]}} · 已处理 {{job.progress.visited}} / 收录 {{job.progress.accepted}} / 拒绝 {{job.progress.rejected}} <span v-if="job.failureCode">{{scanFailureMessage(job.failureCode)}}</span><button v-if="job.phase==='pending'||job.phase==='running'" :disabled="busy" @click="control(job,'pause')">暂停</button><button v-if="job.phase==='paused'" :disabled="busy" @click="control(job,'resume')">继续</button><button v-if="job.phase==='pending'||job.phase==='running'||job.phase==='paused'" :disabled="busy" @click="control(job,'cancel')">取消</button></li></ul>
   <button :disabled="busy||jobOffset===0" @click="jobPage(-1)">上一页任务</button><button :disabled="busy||!jobHasMore" @click="jobPage(1)">下一页任务</button>
   <template v-if="!props.managementOnly"><p>曲目（每页50条）</p><ul><li v-for="track in tracks" :key="track.id">{{titles[track.id]||'标题暂未读取'}} <button :disabled="busy||track.segment!==null" @click="locate(track)">外部改名后重新定位</button></li></ul>
   <button :disabled="busy||offset===0" @click="page(-1)">上一页</button><button :disabled="busy||!hasMore" @click="page(1)">下一页</button></template>
   <section v-if="candidates"><p>多个候选保留独立身份，不按同名文件自动合并。文件大小、修改时间和文件对象的观察不能证明内容相同，也不能确认录音来源。</p><label><input v-model="confirming" type="checkbox">我已核对并明确选择下方文件；保留原曲目、已保存的原始标签和人工更正</label><ul><li v-for="candidate in candidates.candidates" :key="candidate.id">{{candidate.relativeLabel}} · {{candidate.size}} 字节 · {{candidate.evidence==='same-inode-observation'?'观察到相同文件对象':'需要人工核对'}} <button :disabled="busy||!confirming" @click="confirm(candidate.id)">确认这个候选</button></li></ul><button @click="candidates=null;selection=null">关闭候选</button></section>
+  <RelocationDialog v-if="RelocationDialog&&relocation.isOpen.value" :session="relocation" />
  </article>
 </template>

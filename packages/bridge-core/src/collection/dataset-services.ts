@@ -2,6 +2,7 @@ import type { LocalArtworkService } from './local-artwork-service.js';
 import type { LocalOrganizerService } from './local-organizer-service.js';
 import type { LocalLegacyLinksService } from './local-legacy-links-service.js';
 import type { LocalSourceWritesService } from './local-source-writes-service.js';
+import type { LocalRelocationService } from './local-relocation-service.js';
 import type {LocalRelocationCoordinator} from './local-relocation-coordinator.js';
 import type { LocalScanCoordinator } from './local-scan-coordinator.js';
 import type { CollectionRepository } from './repository.js';
@@ -35,6 +36,7 @@ export interface DatasetServices {
   localOrganizer: LocalOrganizerService;
   localLegacyLinks: LocalLegacyLinksService;
   localSourceWrites: LocalSourceWritesService;
+  localRelocationPlans: LocalRelocationService;
   commandOutbox: ReturnType<typeof createDatasetCommandBoundary>;
   sources: SourceEvidenceService;
   sourceCandidates: SourceCandidateService;

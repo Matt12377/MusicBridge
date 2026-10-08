@@ -32262,8 +32262,8 @@
       "g0_product_integration_required": true,
       "optional_inputs": [],
       "implementation_commit": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
-      "report_commit": null,
-      "validation_status": "FINITE_SOFTWARE_SOURCE_CI_SEALED_REPORT_DELIVERY_PENDING_PRODUCT_PARTIAL",
+      "report_commit": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+      "validation_status": "FINITE_SOFTWARE_DELIVERY_SEALED_LIVE_CARRYOVER_OPEN",
       "evidence_refs": [
         "docs/postrust/MBRS-012/EXECUTION_SCOPE.json",
         "docs/postrust/MBRS-012/IMPLEMENTATION_HANDOFF.md",
@@ -32303,8 +32303,9 @@
         "report": {
           "archiveId": "MBRS012_FINAL_DELIVERY_RECEIPT",
           "fileName": "MBRS012_FINAL_DELIVERY_RECEIPT.json",
+          "bytes": 190290,
+          "sha256": "2ff9c74adb34d5be063fee65adb85aad91d1c0156aecc4a7cf16a3c06bd09988",
           "storage": "PRIVATE_EXTERNAL_ARCHIVE",
-          "resolution": "CREATED_ONLY_AFTER_REPORT_PUSH_NATURAL_CI_REMOTE_HEAD_AND_CLEAN",
           "publiclyDownloadable": false
         }
       }
@@ -32316,7 +32317,7 @@
       "depends_on": [
         "MBRS-012"
       ],
-      "status": "NOT_STARTED",
+      "status": "LOCAL_SOFTWARE_COMPLETE_SOURCE_CI_PENDING",
       "implementation_owner": "MBRS-013",
       "goal": "保留逻辑身份与历史引用，让下次点播使用新位置，不等待Roon重扫。",
       "steps": [
@@ -32349,8 +32350,23 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "NOT_RUN",
-      "evidence_refs": []
+      "validation_status": "PASS_FINITE_LOCAL_LIVE_CARRYOVER_OPEN",
+      "evidence_refs": [
+        "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
+        "docs/postrust/MBRS-013/evidence/production-app.json",
+        "docs/postrust/MBRS-013/evidence/independent-app-outputs.json",
+        "docs/postrust/MBRS-013/evidence/local-electron.json",
+        "docs/postrust/MBRS-013/evidence/local-relocation-gate.json",
+        "docs/postrust/MBRS-013/evidence/e2e-cleanup-wait.json",
+        "docs/postrust/MBRS-013/evidence/local-failures-and-narrow-fixes.json",
+        "docs/postrust/MBRS-013/evidence/original-eight-at.json"
+      ],
+      "base_sha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+      "branch": "codex/mbrs-013-relocation",
+      "execution_scope": "docs/postrust/MBRS-013/EXECUTION_SCOPE.json",
+      "implementation_commit_resolution": "SOURCE_COMMIT_CONTAINING_CURRENT_013_IMPLEMENTATION",
+      "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-013_LOCAL_RELOCATION.md",
+      "report_path": "reports/MBRS-013_LOCAL_RELOCATION.md"
     },
     {
       "id": "MBRS-014",
@@ -34499,12 +34515,22 @@
       "requirement": "同卷移动/重命名后ID、收藏歌单和录音引用保持，新URL从新位置送同文件。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-013/evidence/original-eight-at.json",
+        "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
+        "docs/postrust/MBRS-013/evidence/production-app.json",
+        "docs/postrust/MBRS-013/evidence/independent-app-outputs.json",
+        "docs/postrust/MBRS-013/evidence/local-electron.json",
+        "docs/postrust/MBRS-013/evidence/local-relocation-gate.json",
+        "docs/postrust/MBRS-013/evidence/e2e-cleanup-wait.json",
+        "docs/postrust/MBRS-013/evidence/local-failures-and-narrow-fixes.json"
+      ],
+      "software_status": "PASS_FINITE_IDS_REFERENCE_HISTORY_NEW_GATEWAY_BYTES",
+      "app_status": "PASS_SELF_OWNED_WAVE_LYRIC_LOCATION_AND_COLD_TRACK",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "原Owner/Gateway与3条非空SourceBinding、冷重开、增量不双登记；App音频歌词同内容复制/清理。真实Roon与用户收藏歌单未验。"
     },
     {
       "id": "MBRS-AT-013-02",
@@ -34513,12 +34539,22 @@
       "requirement": "未等待Roon重新导入/对照更新，移动后的已确认本地曲目仍能重新直送。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-013/evidence/original-eight-at.json",
+        "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
+        "docs/postrust/MBRS-013/evidence/production-app.json",
+        "docs/postrust/MBRS-013/evidence/independent-app-outputs.json",
+        "docs/postrust/MBRS-013/evidence/local-electron.json",
+        "docs/postrust/MBRS-013/evidence/local-relocation-gate.json",
+        "docs/postrust/MBRS-013/evidence/e2e-cleanup-wait.json",
+        "docs/postrust/MBRS-013/evidence/local-failures-and-narrow-fixes.json"
+      ],
+      "software_status": "PARTIAL_GATEWAY_NEW_LOCATION_PREREQUISITE_ONLY",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "新位置HTTP完整原字节是软件前置；没有实际Roon未重导入再播结果。"
     },
     {
       "id": "MBRS-AT-013-03",
@@ -34527,12 +34563,22 @@
       "requirement": "跨卷断开/磁盘满/校验失败/重名不丢源，journal支持恢复或回退。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-013/evidence/original-eight-at.json",
+        "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
+        "docs/postrust/MBRS-013/evidence/production-app.json",
+        "docs/postrust/MBRS-013/evidence/independent-app-outputs.json",
+        "docs/postrust/MBRS-013/evidence/local-electron.json",
+        "docs/postrust/MBRS-013/evidence/local-relocation-gate.json",
+        "docs/postrust/MBRS-013/evidence/e2e-cleanup-wait.json",
+        "docs/postrust/MBRS-013/evidence/local-failures-and-narrow-fixes.json"
+      ],
+      "software_status": "PASS_FINITE_FAULT_JOURNAL_COLD_SIGKILL_RECOVERY",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "真实自有FD/SQLite与受控磁盘故障、局部发布/登记、冷SIGKILL恢复；真实多卷/NAS/满盘和App故障注入未验。"
     },
     {
       "id": "MBRS-AT-013-04",
@@ -34541,12 +34587,22 @@
       "requirement": "大小写/Unicode/根越界/符号链接/卷替换安全处理。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-013/evidence/original-eight-at.json",
+        "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
+        "docs/postrust/MBRS-013/evidence/production-app.json",
+        "docs/postrust/MBRS-013/evidence/independent-app-outputs.json",
+        "docs/postrust/MBRS-013/evidence/local-electron.json",
+        "docs/postrust/MBRS-013/evidence/local-relocation-gate.json",
+        "docs/postrust/MBRS-013/evidence/e2e-cleanup-wait.json",
+        "docs/postrust/MBRS-013/evidence/local-failures-and-narrow-fixes.json"
+      ],
+      "software_status": "PASS_FINITE_CASE_UNICODE_NAMESPACE_ROOT_IDENTITY_NEGATIVES",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "实际自有路径及受控卷身份负例；真实更换底层卷/共享环境未验。"
     },
     {
       "id": "MBRS-AT-013-05",
@@ -34555,12 +34611,22 @@
       "requirement": "活动读lease时移动被延期，旧lease不会读取同名替代文件。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-013/evidence/original-eight-at.json",
+        "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
+        "docs/postrust/MBRS-013/evidence/production-app.json",
+        "docs/postrust/MBRS-013/evidence/independent-app-outputs.json",
+        "docs/postrust/MBRS-013/evidence/local-electron.json",
+        "docs/postrust/MBRS-013/evidence/local-relocation-gate.json",
+        "docs/postrust/MBRS-013/evidence/e2e-cleanup-wait.json",
+        "docs/postrust/MBRS-013/evidence/local-failures-and-narrow-fixes.json"
+      ],
+      "software_status": "PASS_ACTUAL_GATEWAY_HELD_FD_DEFER_OLD_SECRET_REPLACEMENT_REJECT",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "实际Gateway lease与同名替代拒绝；真实Roon活动播放和听感未验。"
     },
     {
       "id": "MBRS-AT-013-06",
@@ -34569,12 +34635,22 @@
       "requirement": "外部移动/多个相同副本/整库重挂显示准确待定位与确认，不瞎合并。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-013/evidence/original-eight-at.json",
+        "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
+        "docs/postrust/MBRS-013/evidence/production-app.json",
+        "docs/postrust/MBRS-013/evidence/independent-app-outputs.json",
+        "docs/postrust/MBRS-013/evidence/local-electron.json",
+        "docs/postrust/MBRS-013/evidence/local-relocation-gate.json",
+        "docs/postrust/MBRS-013/evidence/e2e-cleanup-wait.json",
+        "docs/postrust/MBRS-013/evidence/local-failures-and-narrow-fixes.json"
+      ],
+      "software_status": "PASS_FINITE_CANDIDATES_DUPLICATES_TWO_MEMBER_WHOLE_ROOT",
       "app_status": "NOT_RUN",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "有限2成员根闭包、旧Hash负例和101成员部分冷态拒绝；普通整库与Owner确认未验。"
     },
     {
       "id": "MBRS-AT-013-07",
@@ -34583,12 +34659,22 @@
       "requirement": "预览和逐项结果展示伴随文件、源保留/清理与不可恢复风险。",
       "release_scope": "CORE",
       "introduced_in": "1.1",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-013/evidence/original-eight-at.json",
+        "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
+        "docs/postrust/MBRS-013/evidence/production-app.json",
+        "docs/postrust/MBRS-013/evidence/independent-app-outputs.json",
+        "docs/postrust/MBRS-013/evidence/local-electron.json",
+        "docs/postrust/MBRS-013/evidence/local-relocation-gate.json",
+        "docs/postrust/MBRS-013/evidence/e2e-cleanup-wait.json",
+        "docs/postrust/MBRS-013/evidence/local-failures-and-narrow-fixes.json"
+      ],
+      "software_status": "PASS_FINITE_MAIN_PLAN_COMPANIONS_RESULT_RECOVERY_UI",
+      "app_status": "PASS_ACTUAL_AUDIO_LYRIC_PREVIEW_RETAIN_CLEANUP_COLD_HISTORY",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "真实生产App两资源预览/逐项源保留/具体清理；恢复UI仅独立桌面测试，App未注入故障。"
     },
     {
       "id": "MBRS-AT-014-01",
@@ -35449,12 +35535,22 @@
       "requirement": "重定位保留逻辑AssetID但更新revision；历史SourceBinding的Hash不被位置变更或标签写回静默更新。",
       "release_scope": "CORE",
       "introduced_in": "1.2",
-      "status": "NOT_TESTED",
-      "evidence_refs": [],
-      "software_status": "NOT_RUN",
-      "app_status": "NOT_RUN",
+      "status": "PARTIAL",
+      "evidence_refs": [
+        "docs/postrust/MBRS-013/evidence/original-eight-at.json",
+        "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
+        "docs/postrust/MBRS-013/evidence/production-app.json",
+        "docs/postrust/MBRS-013/evidence/independent-app-outputs.json",
+        "docs/postrust/MBRS-013/evidence/local-electron.json",
+        "docs/postrust/MBRS-013/evidence/local-relocation-gate.json",
+        "docs/postrust/MBRS-013/evidence/e2e-cleanup-wait.json",
+        "docs/postrust/MBRS-013/evidence/local-failures-and-narrow-fixes.json"
+      ],
+      "software_status": "PASS_THREE_NONEMPTY_SOURCE_BINDINGS_HISTORY_AND_LOCATION_REVISION",
+      "app_status": "PARTIAL_ASSET_TRACK_SHA_REVISION_EMPTY_SOURCE_BINDINGS",
       "live_status": "NOT_RUN",
-      "owner_status": "NOT_RUN"
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "原3条非空绑定及旧ledger字节由Core集成核验；App自有WAVE绑定历史为空，不借空数组证明非空历史。"
     },
     {
       "id": "MBRS-AT-014-07",
@@ -35748,5 +35844,106 @@
     ],
     "ref": "docs/postrust/MBRS-011/SCOPE_AMENDMENT_CANCEL015.json",
     "fullWithEnrichment": "NOT_CLAIMED"
-  }
+  },
+  "execution_schedule": {
+    "schema": "musicbridge.mobile-frontloading-schedule.v1",
+    "effective_on": "2026-10-08",
+    "owner_authorization": "DIRECT_OWNER_VERIFIED_COORDINATION_REQUEST",
+    "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+    "current_task": "MBRS-013",
+    "remaining_sequence": [
+      "MBRS-013",
+      "MBM-000",
+      "MBM-001",
+      "MBM-002",
+      "MBM-003",
+      "MBM-004",
+      "MBRS-016",
+      "MBRS-017"
+    ],
+    "next_after_013": "MBM-000",
+    "mobile_start": "AFTER_013_FINAL_REPORT_SEALED",
+    "ios_models": {
+      "primary": "gpt-6.1-sol/max",
+      "children": "THREE_gpt-6.1-sol/high"
+    },
+    "mac_models": {
+      "primary": "gpt-6.1-sol/max",
+      "children": "EXISTING_THREE_gpt-6.1-sol/max"
+    },
+    "mbm002_physical_device_entry": "FIRST_RUNNABLE_REAL_MAC_TO_IPHONE_FILE_CHAIN",
+    "mbm003_flac": "REAL_LOSSLESS_PLAYABLE_PATH_REQUIRED_PRESERVE_RATE_DEPTH_CHANNELS",
+    "mbm004_validation": "TWO_PHONES_BACKGROUND_HOUSEHOLD_ROON_NONINTERFERENCE",
+    "original_dependencies_and_acceptance_unchanged": true,
+    "current_013_restarted": false,
+    "old_017_then_mobile_records": "HISTORICAL_SUPERSEDED_SCHEDULING_ONLY",
+    "recorded_at": "2026-10-08T10:47:22.773406+00:00"
+  },
+  "mobile_tasks": [
+    {
+      "id": "MBM-000",
+      "title": "合同采纳",
+      "status": "NOT_STARTED",
+      "scheduled_after": "MBRS-013",
+      "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
+      "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+      "software": "NOT_RUN",
+      "production_app": "NOT_RUN",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "owner_repeated_approval_required": false
+    },
+    {
+      "id": "MBM-001",
+      "title": "配对与只读曲库",
+      "status": "NOT_STARTED",
+      "scheduled_after": "MBM-000",
+      "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
+      "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+      "software": "NOT_RUN",
+      "production_app": "NOT_RUN",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "owner_repeated_approval_required": false
+    },
+    {
+      "id": "MBM-002",
+      "title": "手机资源播放",
+      "status": "NOT_STARTED",
+      "scheduled_after": "MBM-001",
+      "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
+      "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+      "software": "NOT_RUN",
+      "production_app": "NOT_RUN",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "owner_repeated_approval_required": false
+    },
+    {
+      "id": "MBM-003",
+      "title": "FLAC无损必做",
+      "status": "NOT_STARTED",
+      "scheduled_after": "MBM-002",
+      "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
+      "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+      "software": "NOT_RUN",
+      "production_app": "NOT_RUN",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "owner_repeated_approval_required": false
+    },
+    {
+      "id": "MBM-004",
+      "title": "内容与多设备",
+      "status": "NOT_STARTED",
+      "scheduled_after": "MBM-003",
+      "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
+      "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+      "software": "NOT_RUN",
+      "production_app": "NOT_RUN",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "owner_repeated_approval_required": false
+    }
+  ]
 }

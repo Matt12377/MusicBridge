@@ -1,6 +1,7 @@
 import { useLocalArtwork } from './useLocalArtwork.js'
 import { useLocalOrganizer } from './useLocalOrganizer.js'
 import { useLocalSourceWrites } from './useLocalSourceWrites.js'
+import { useLocalRelocationPlans } from './useLocalRelocationPlans.js'
 import { computed, markRaw, ref, shallowRef } from 'vue'
 import { LOCAL_ORGANIZER_LIMIT, isCollectionId, isCommandOutboxOverview, isLocalArtworkContext, isLocalCatalogText, isLocalLibraryQueryPage, isLocalLibraryTrackDetail, isLocalPlayTarget, type LocalArtworkContext } from '@music-bridge/contracts'
 import type { CommandOutboxOverview, CommandOutboxPublicApi, LocalLibraryPublicApi, LocalLibraryQueryPage, LocalLibraryTrackSummary, LocalLibraryTrackDetail, LocalMetadata, LocalPlayAccepted, LocalPlayAction, LocalPlayRequest, LocalPlayTarget, LocalSourceUnsupported, LocalRootView, LocalRelocationSelection, LocalRelocationCandidates, LocalRelocationConfirm, LocalCatalogCommandPayloads, PublicRoonZone, TrackSummary } from '@music-bridge/contracts'
@@ -9,7 +10,7 @@ import type { LocalLibraryPlayReceipt } from '../../components/player/details.js
 export const LOCAL_LIBRARY_PAGE_SIZE = 100
 export const LOCAL_LIBRARY_CACHE_PAGES = 6
 export interface LocalLibraryOptions {
-  api: LocalLibraryPublicApi & Partial<import('@music-bridge/contracts').LocalArtworkPublicApi> & Partial<import('@music-bridge/contracts').LocalOrganizerPublicApi> & Partial<import('@music-bridge/contracts').LocalSourceWritesPublicApi> & Partial<Pick<CommandOutboxPublicApi, 'getCommandOutbox'>>
+  api: LocalLibraryPublicApi & Partial<import('@music-bridge/contracts').LocalArtworkPublicApi> & Partial<import('@music-bridge/contracts').LocalOrganizerPublicApi> & Partial<import('@music-bridge/contracts').LocalSourceWritesPublicApi> & Partial<import('@music-bridge/contracts').LocalRelocationPlanPublicApi> & Partial<Pick<CommandOutboxPublicApi, 'getCommandOutbox'>>
   getSelectedZone: () => PublicRoonZone | undefined
   play: (request: LocalPlayRequest) => Promise<LocalPlayAccepted | LocalSourceUnsupported>
 }
@@ -34,6 +35,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
   }, onApplied: () => { if (active && !disposed) void refreshBusiness() } }))
   const selectionMode = ref(false), selectedTrackIds = shallowRef<string[]>([]), selectionError = ref('')
   const sourceWrites = markRaw(useLocalSourceWrites({ api: options.api, onApplied: () => { if (active && !disposed) void refreshBusiness() } }))
+  const relocationPlans = markRaw(useLocalRelocationPlans({ api: options.api, onApplied: () => { if (active && !disposed) void refreshBusiness() } }))
   const query = ref(''), rootId = ref<string | null>(null), total = ref(0), scrollTop = ref(0)
   const loaded = ref(false), loading = ref(false), stale = ref(false), error = ref(''), detailError = ref(''), actionError = ref('')
   const roots = shallowRef<LocalRootView[]>([]), target = shallowRef<LocalPlayTarget | null>(null)
@@ -197,6 +199,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     artwork.observeOutbox(overview);
     organizer.observeOutbox(overview)
     sourceWrites.observeOutbox(overview)
+    relocationPlans.observeOutbox(overview)
     if (disposed || !isCommandOutboxOverview(overview) || overview.datasetId !== sessionDatasetId) return
     const originalOverride = overrideBinding, originalRelocation = pendingRelocation.value
     const confirmed = (binding: Pending<{ commandId: string }> | null, command: 'localCatalog.overrideMetadata' | 'localRelocation.confirm') => {
@@ -227,8 +230,8 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     const [reconciled] = await Promise.all([refreshOutbox(), refreshContext(), pump(), selectedId.value ? selectTrack(selectedId.value, true) : Promise.resolve()])
     if (reconciled && active && !disposed) await refreshBusiness()
   }
-  function suspend(): void { artwork.close(); organizer.close(); sourceWrites.close(); active = false; queryGeneration++; detailGeneration++; contextGeneration++; actionGeneration++; outboxGeneration++; loading.value = false; detailLoading.value = false; target.value = null }
-  function dispose(): void { artwork.dispose(); organizer.dispose(); sourceWrites.dispose(); suspend(); disposed = true; pages.clear(); cacheVersion.value++ }
+  function suspend(): void { artwork.close(); organizer.close(); sourceWrites.close(); relocationPlans.close(); active = false; queryGeneration++; detailGeneration++; contextGeneration++; actionGeneration++; outboxGeneration++; loading.value = false; detailLoading.value = false; target.value = null }
+  function dispose(): void { artwork.dispose(); organizer.dispose(); sourceWrites.dispose(); relocationPlans.dispose(); suspend(); disposed = true; pages.clear(); cacheVersion.value++ }
   function toggleTrackSelection(trackId: string): void {
     if (!isCollectionId(trackId)) return
     selectionError.value = ''
@@ -237,6 +240,33 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     else selectedTrackIds.value = [...selectedTrackIds.value, trackId]
   }
   function clearTrackSelection(): void { selectedTrackIds.value = []; selectionError.value = '' }
+
+  async function openRelocationTracks(trackIds: string[], initialMode: 'rename' | 'move'): Promise<void> {
+    if (actionBusy.value || !active || disposed || !relocationPlans.capable || trackIds.length < 1 || trackIds.length > LOCAL_ORGANIZER_LIMIT || new Set(trackIds).size !== trackIds.length || trackIds.some(id => !isCollectionId(id))) return
+    const ids = [...trackIds], generation = ++actionGeneration
+    actionBusy.value = true; actionError.value = ''; actionErrorCommandId = null
+    try {
+      const currentRoots = await options.api.listLocalLibraryRoots(), selections = new Map<string, import('@music-bridge/contracts').LocalRelocationPlanSelection>()
+      let label = `明确选择的 ${ids.length} 首`
+      for (const trackId of ids) {
+        const current = await options.api.getLocalLibraryTrackDetail(trackId)
+        if (!active || disposed || generation !== actionGeneration) return
+        if (!isLocalLibraryTrackDetail(current) || current.track.id !== trackId) throw new Error('搬迁曲目身份未核实')
+        const root = currentRoots.find(value => value.root.id === current.asset.libraryRootId)
+        if (!root || root.root.revision !== current.asset.rootRevision || root.root.sourceRootId !== current.asset.sourceRootId) throw new Error('搬迁目录关联已变化')
+        const selection = { assetId: current.asset.id, expectedFileRevision: current.asset.fileRevision, expectedLocationRevision: current.asset.locationRevision, expectedRootRevision: root.root.revision }
+        const previous = selections.get(selection.assetId)
+        if (previous && (previous.expectedFileRevision !== selection.expectedFileRevision || previous.expectedLocationRevision !== selection.expectedLocationRevision || previous.expectedRootRevision !== selection.expectedRootRevision)) throw new Error('共享源修订未核实')
+        // 多段曲目指向同一实际源时只选择一次源，全部段落与伴随闭集由Core作者核对。
+        selections.set(selection.assetId, selection)
+        if (ids.length === 1) label = current.metadata.effective.title ?? '当前曲目源文件'
+      }
+      if (active && !disposed && generation === actionGeneration) await relocationPlans.open([...selections.values()], label, initialMode)
+    } catch { if (active && !disposed && generation === actionGeneration) actionError.value = '具体源文件与目录修订尚未核实，请先刷新；尚未派发搬迁计划。' }
+    finally { actionBusy.value = false }
+  }
+  async function openRelocationTrack(initialMode: 'rename' | 'move' = 'move'): Promise<void> { if (detail.value) await openRelocationTracks([detail.value.track.id], initialMode) }
+  async function openRelocationBatch(): Promise<void> { await openRelocationTracks([...selectedTrackIds.value], 'move') }
 
   async function playTrack(trackId: string, action: LocalPlayAction = 'PLAY_NOW'): Promise<void> {
     if (actionBusy.value || !active) return
@@ -335,6 +365,6 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
   return { query, rootId, total, scrollTop, loaded, loading, stale, error, roots, target, targetLabel, rangeWindow, tracks, cachePageCount,
     selectedId, detail, detailLoading, detailStale, detailError, detailReturnTarget, selectedRoot, actionBusy, actionError, titleDraft, pendingOverride, lastPlay,
     candidates, relocationSelection, relocationConfirmed, relocationUnknown, pendingRelocation,
-    artwork, detailArtwork, organizer, sourceWrites, selectionMode, selectedTrackIds, selectionError, toggleTrackSelection, clearTrackSelection,
+    artwork, detailArtwork, organizer, sourceWrites, relocationPlans, selectionMode, selectedTrackIds, selectionError, toggleTrackSelection, clearTrackSelection, openRelocationTrack, openRelocationBatch,
     activate, suspend, dispose, refresh, refreshContext, observeOutbox, search, ensureRange, selectTrack, closeDetail, playTrack, saveTitle, locateSelected, confirmCandidate }
 }

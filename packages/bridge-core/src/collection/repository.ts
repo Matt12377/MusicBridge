@@ -3,6 +3,7 @@ import { mbQueueMigration, verifyMBQueueDatabase, createMBQueueStore, MBQueueSto
 import { LocalFactsFenceBusy, LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import { LegacyLinksError } from './local-legacy-links-journal.js';
 import { SourceWritesError } from './local-source-writes-journal.js';
+import { LocalRelocationError } from './local-relocation-journal.js';
 import { traceDatabase } from '../diagnostics/performance-instrumentation.js';
 import { isDatasetCollectionModels, isDatasetLargeCollectionModels, MAX_DATASET_COLLECTION_MODELS, MAX_DATASET_LARGE_COLLECTION_MODELS } from './dataset-owner-protocol.js';
 import { createRecordingPrintStore, migrateRecordingPrints, migrateRecordingPrintVersions, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
@@ -309,7 +310,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   function guarded<T>(operation: (db: DatabaseSync) => T): T {
     try { if(localFactsFatal)throw new LocalFactsCommitFatal();return operation(open()); }
     catch (error) { if (error instanceof MBQueueStoreError) throw error;
-      if (error instanceof SourceWritesError || error instanceof LegacyLinksError || error instanceof LocalFactsCommitFatal || error instanceof LocalFactsFenceBusy || error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
+      if (error instanceof LocalRelocationError || error instanceof SourceWritesError || error instanceof LegacyLinksError || error instanceof LocalFactsCommitFatal || error instanceof LocalFactsFenceBusy || error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
   }
   function exportReadonlyModels(maxModels: number, modelsGuard: typeof isDatasetCollectionModels): readonly CollectionModel[] {
     return guarded(db => {

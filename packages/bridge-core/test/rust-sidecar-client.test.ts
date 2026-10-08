@@ -62,6 +62,17 @@ async function ready(options: RustReadonlySidecarOptions) {
   await endpoint.prepare(); await endpoint.commitBoot();
   return endpoint;
 }
+function expiryClock(t: test.TestContext) {
+  const realNow = performance.now.bind(performance);
+  let now = realNow();
+  t.mock.method(performance, 'now', () => now);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  // 启动和调度不消耗本用例的期限；仍真实阻塞40ms，再推进单调时钟，timer保持未运行。
+  return { block() {
+    const until = realNow() + 40; while (realNow() < until) { /* 合成同步阻塞。 */ }
+    now += 40;
+  } };
+}
 
 test('私有null回执恢复void，冻结快照不受调用方修改，分页不改变顺序', async t => {
   const f = fake(t), s = snapshot(), expected = structuredClone(s.models);
@@ -218,16 +229,18 @@ test('toJSON、自定义prototype及访问器不能悄悄重写导出事实', ()
   assert.equal(getterCalled, false);
 });
 test('事件循环阻塞后过期读取不写入stdin，不依赖timer抢先运行', async t => {
+  const clock = expiryClock(t);
   const f = fake(t), s = snapshot(), endpoint = await ready({ binary, snapshot: s, requestTimeoutMs: 20 });
   const reading = endpoint.dispatch(request(s));
-  const until = performance.now() + 40; while (performance.now() < until) { /* 合成同步阻塞。 */ }
+  clock.block();
   await assert.rejects(reading, code('TIMEOUT'));
   assert.equal(f.frames.filter(v => v.operation === 'dispatch').length, 0);
   await assert.rejects(endpoint.close(), code('TIMEOUT'));
 });
 test('回执即使在timer之前运行，也不能发布已过期数据', async t => {
+  const clock = expiryClock(t);
   const f = fake(t, (frame, respond) => {
-    if (frame.operation === 'dispatch') { const until = performance.now() + 40; while (performance.now() < until) {} }
+    if (frame.operation === 'dispatch') clock.block();
     respond();
   });
   const s = snapshot(), endpoint = await ready({ binary, snapshot: s, requestTimeoutMs: 20 });

@@ -1,0 +1,24 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "reason": "真实依赖Gate78发现新增scan-port的type-only导入反向指向持久store；将原ScanFileState原样移入既有事实叶，原store重导出，原runtime验证和数据形状不变。",
+  "addedRootOwnedFiles": [
+    "packages/bridge-core/src/collection/local-scan-facts.ts"
+  ],
+  "rootSpecificSerialEdits": [
+    "packages/bridge-core/src/collection/local-scan-store.ts",
+    "packages/bridge-core/src/collection/source-relocation-scan-port.ts"
+  ],
+  "beforeScope": {
+    "bytes": 8606,
+    "sha256": "4ac0cf354050b8acda88e68641a13acafdcec479ab0e014e1436b5e62eb425a1"
+  },
+  "updatedScope": {
+    "bytes": 8727,
+    "sha256": "32d0e3fe545297c38599f9037fdbc7f1712f927a8f2b452c4317775f6a1e07dc"
+  },
+  "allOtherScopeBytesRestoredByExactInverse": true,
+  "original8AtAndBudgetsUnchanged": true,
+  "recordedAt": "2026-10-08T14:28:34.831058+00:00"
+}

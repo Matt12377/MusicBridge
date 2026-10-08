@@ -1,10 +1,20 @@
 import { Worker } from 'node:worker_threads';
 import { SourceFileError, MetadataLeaseReleaseError, withCheckedReadonlyMetadataSource } from '../recording/source-files.js';
+import { withRelocationMetadataRead, type RelocationReadAccess } from '../collection/source-relocation-verify.js';
 import { DEFAULT_METADATA_READ_BUDGET, type MetadataReaderPort, type MetadataReaderOptions, type MetadataReaderLifecycle,
   type MetadataReadInput, type MetadataReadResult, type MetadataReadFailure, type MetadataReadBudget, type MetadataWorkerInput,
   type MetadataWorkerResultMessage, type MetadataWorkerPhase, type MetadataReaderTimeoutLifecycle } from './metadata-reader-types.js';
 
 const failure = (code: MetadataReadFailure): MetadataReadResult => ({ status: 'failure', code, readEvidence: null });
+type RelocationReader = (input: MetadataReadInput, access: RelocationReadAccess, signal?: AbortSignal) => Promise<MetadataReadResult>;
+interface RelocationRead { access: RelocationReadAccess }
+const relocationReaders = new WeakMap<MetadataReaderPort, RelocationReader>();
+/** 本域可信读取只进入真实原Reader；公开read/close与input不增加绕过字段。 */
+export function readRelocationMetadata(reader: MetadataReaderPort, input: MetadataReadInput, access: RelocationReadAccess,
+  signal?: AbortSignal): Promise<MetadataReadResult> {
+  const read = relocationReaders.get(reader);
+  return read ? read(input, access, signal) : Promise.resolve(failure('ADMISSION_FAILED'));
+}
 const sourceCodes = new Set(['REVOKED','SOURCE_ROOT_OFFLINE','OUTSIDE_ROOT','MISSING','CONTENT_CHANGED','IO_ERROR']);
 function classify(error: unknown): MetadataReadFailure {
   if (error instanceof MetadataLeaseReleaseError) return 'LEASE_RELEASE_FAILED';
@@ -122,7 +132,7 @@ export function createMetadataReader(options: MetadataReaderOptions = {}): Metad
     startupTimer();
     emit({ type: 'worker-start', fd, threadId }); if (signal.aborted) abort(); enforceStartupDeadline();
   });
-  const execute = async (input: MetadataReadInput, signal: AbortSignal): Promise<MetadataReadResult> => {
+  const execute = async (input: MetadataReadInput, signal: AbortSignal, relocation?: RelocationRead): Promise<MetadataReadResult> => {
     let release: (() => void | Promise<void>) | undefined;
     try {
       if (signal.aborted) return failure('CANCELLED');
@@ -131,6 +141,8 @@ export function createMetadataReader(options: MetadataReaderOptions = {}): Metad
         catch { return failure(signal.aborted ? 'CANCELLED' : 'ADMISSION_FAILED'); }
       }
       if (signal.aborted) return failure('CANCELLED');
+      if (relocation) return await withRelocationMetadataRead(relocation.access, input, signal,
+        (handle, size) => runWorker({ fd: handle.fd, size, budget }, signal), event => emit(event));
       return await withCheckedReadonlyMetadataSource(input.root, input.relative, input.expectedSignature, signal,
         (handle, size) => runWorker({ fd: handle.fd, size, budget },signal), input.assertCurrent,
         event => emit(event));
@@ -140,8 +152,7 @@ export function createMetadataReader(options: MetadataReaderOptions = {}): Metad
     }
     finally { if (release) await release(); }
   };
-  return {
-    read(input, signal) {
+  const enqueue = (input: MetadataReadInput, signal?: AbortSignal, relocation?: RelocationRead): Promise<MetadataReadResult> => {
       if (fatalLeaseFailure) return Promise.resolve(failure('LEASE_RELEASE_FAILED'));
       if (closed) return Promise.resolve(failure('CLOSED'));
       if (signal?.aborted) return Promise.resolve(failure('CANCELLED'));
@@ -151,11 +162,13 @@ export function createMetadataReader(options: MetadataReaderOptions = {}): Metad
       const complete = (value: MetadataReadResult): void => { signal?.removeEventListener('abort', forward); jobs.delete(job); emit({ type: 'read-complete', status: value.status }); settle(value); };
       const forward = (): void => { controller.abort(); if (!job.started) job.cancelQueued(); };
       const job: PendingRead = { controller, started: false, promise,
-        async run() { let value: MetadataReadResult; try { value = await execute(input,controller.signal); } catch { value = failure(fatalLeaseFailure ? 'LEASE_RELEASE_FAILED' : 'IO_ERROR'); } complete(value); },
+        async run() { let value: MetadataReadResult; try { value = await execute(input,controller.signal,relocation); } catch { value = failure(fatalLeaseFailure ? 'LEASE_RELEASE_FAILED' : 'IO_ERROR'); } complete(value); },
         cancelQueued() { const index = queue.indexOf(job); if (index >= 0) queue.splice(index,1); if (jobs.has(job)) complete(failure(fatalLeaseFailure ? 'LEASE_RELEASE_FAILED' : 'CANCELLED')); },
       };
       signal?.addEventListener('abort',forward,{ once: true }); jobs.add(job); queue.push(job); pump(); return promise;
-    },
+  };
+  const port: MetadataReaderPort = {
+    read(input, signal) { return enqueue(input, signal); },
     close() {
       if (!closePromise) {
         closed = true; const pending = [...jobs];
@@ -167,4 +180,6 @@ export function createMetadataReader(options: MetadataReaderOptions = {}): Metad
       return closePromise;
     },
   };
+  relocationReaders.set(port, (input, access, signal) => enqueue(input, signal, { access }));
+  return port;
 }

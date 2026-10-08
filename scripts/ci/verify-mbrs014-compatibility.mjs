@@ -20,6 +20,12 @@ export const COMPATIBILITY_PRELOAD_EXTENSION = Object.freeze({ path: 'apps/deskt
   sha256: '7e217790f0cf811b4629bee7de0749402ee56eebe161a1d15c8a1511a1c00fd3' });
 export const COMPATIBILITY_SOURCE_WRITES_PRELOAD_EXTENSION = Object.freeze({ path: 'apps/desktop/test/preload.test.ts', bytes: 37008,
   sha256: '8fb8b3daef9c1826e6794b02fbb524fdd08ed40f293e51459e4d11bfa95aa639' });
+export const COMPATIBILITY_RELOCATION_PRELOAD_EXTENSION = Object.freeze({ path: 'apps/desktop/test/preload.test.ts', bytes: 37035,
+  sha256: '596e20ca190f0285d384f9038a80106cefd18761cc79056076692f5130837124' });
+export const COMPATIBILITY_RELOCATION_ORGANIZER_UI_EXTENSION = Object.freeze({ path: 'apps/desktop/test/mbrs011-organizer-ui.test.ts', bytes: 29493,
+  sha256: '6dade2fa5ec73b2667ebd3eb0265296f820b2bc51bf0f4e8e8536a8fb8c2d099' });
+export const COMPATIBILITY_RELOCATION_LIBRARY_UI_EXTENSION = Object.freeze({ path: 'apps/desktop/test/mbrs009-local-library-ui.test.ts', bytes: 26687,
+  sha256: '414928f85d0e2dc4cd6df0b16b311243dc037ffc543acc1bfb404ee29e9d6e41' });
 /** 固定旧断言、夹具和构造器字节，避免以改测试来消除兼容回归。 */
 export function assertCompatibilityLegacyInputs(manifestBytes, readInput) {
   if (manifestBytes.length !== COMPATIBILITY_LEGACY_INPUTS.bytes || sha(manifestBytes) !== COMPATIBILITY_LEGACY_INPUTS.sha256)
@@ -33,12 +39,19 @@ export function assertCompatibilityLegacyInputs(manifestBytes, readInput) {
       || !/^[a-f0-9]{64}$/u.test(input.sha256)) reject('COMPATIBILITY_LEGACY_MANIFEST_INVALID');
     names.add(input.path); const bytes = readInput(input.path);
     const original = bytes.length === input.bytes && sha(bytes) === input.sha256;
-    // 仅准014六名称和012七名称的已核尾部增量；原assertion、loader、context次数逐字节保留。
+    // 仅准014六名称、012七名称和013单方法的已核尾部增量；原assertion、loader、context次数逐字节保留。
     const additive = input.path === COMPATIBILITY_PRELOAD_EXTENSION.path
       && bytes.length === COMPATIBILITY_PRELOAD_EXTENSION.bytes && sha(bytes) === COMPATIBILITY_PRELOAD_EXTENSION.sha256;
     const sourceWritesAdditive = input.path === COMPATIBILITY_SOURCE_WRITES_PRELOAD_EXTENSION.path
       && bytes.length === COMPATIBILITY_SOURCE_WRITES_PRELOAD_EXTENSION.bytes && sha(bytes) === COMPATIBILITY_SOURCE_WRITES_PRELOAD_EXTENSION.sha256;
-    if (!original && !additive && !sourceWritesAdditive) reject('COMPATIBILITY_LEGACY_INPUT_CHANGED');
+    const relocationAdditive = input.path === COMPATIBILITY_RELOCATION_PRELOAD_EXTENSION.path
+      && bytes.length === COMPATIBILITY_RELOCATION_PRELOAD_EXTENSION.bytes && sha(bytes) === COMPATIBILITY_RELOCATION_PRELOAD_EXTENSION.sha256;
+    // 013分别补原009/011装载器的真实ESM namespace两行；原夹具、全部业务断言和case数逐字保留。
+    const relocationUiLoaderAdditive = input.path === COMPATIBILITY_RELOCATION_ORGANIZER_UI_EXTENSION.path
+      && bytes.length === COMPATIBILITY_RELOCATION_ORGANIZER_UI_EXTENSION.bytes && sha(bytes) === COMPATIBILITY_RELOCATION_ORGANIZER_UI_EXTENSION.sha256;
+    const relocationLibraryLoaderAdditive = input.path === COMPATIBILITY_RELOCATION_LIBRARY_UI_EXTENSION.path
+      && bytes.length === COMPATIBILITY_RELOCATION_LIBRARY_UI_EXTENSION.bytes && sha(bytes) === COMPATIBILITY_RELOCATION_LIBRARY_UI_EXTENSION.sha256;
+    if (!original && !additive && !sourceWritesAdditive && !relocationAdditive && !relocationUiLoaderAdditive && !relocationLibraryLoaderAdditive) reject('COMPATIBILITY_LEGACY_INPUT_CHANGED');
   }
   return manifest.files;
 }

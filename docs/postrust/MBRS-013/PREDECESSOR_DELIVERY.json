@@ -1,0 +1,51 @@
+{
+  "schema": "mbrs013.predecessor-delivery.v1",
+  "task": "MBRS-012",
+  "result": "FINITE_SOFTWARE_DELIVERY_SEALED_LIVE_CARRYOVER_OPEN",
+  "sourceSha": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
+  "reportSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "reportDirectChildOfFinalSource": true,
+  "remoteHead": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "clean": true,
+  "finalReceipt": {
+    "archiveId": "MBRS012_FINAL_DELIVERY_RECEIPT",
+    "fileName": "MBRS012_FINAL_DELIVERY_RECEIPT.json",
+    "bytes": 190290,
+    "sha256": "2ff9c74adb34d5be063fee65adb85aad91d1c0156aecc4a7cf16a3c06bd09988",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "sourceNaturalCi": {
+    "workflows": 4,
+    "jobs": 6,
+    "allSuccess": true,
+    "receipt": {
+      "archiveId": "ROOT012_SOURCE_NATURAL_CI_FINAL",
+      "fileName": "SOURCE_CI114_SNAPSHOT09.json",
+      "bytes": 98821,
+      "sha256": "9326529690f7bd92d1e2411f3930b1008918ef7701bd81bc45ff2cd29c65e926",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "reportNaturalCi": {
+    "workflows": 2,
+    "jobs": 3,
+    "allSuccess": true,
+    "actualMode": "report-only",
+    "reason": "EXACT_PARENT_PRODUCT_CI_SUCCESS",
+    "receipt": {
+      "archiveId": "ROOT012_REPORT_NATURAL_CI_FINAL",
+      "fileName": "REPORT_CI115_SNAPSHOT01.json",
+      "bytes": 49754,
+      "sha256": "d15509ed3d2a210c862275a21fac9ff1bb9ae466b3d3be2a890d3e74b805b2ed",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "productAcceptance": "NINE_AT_PARTIAL",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN",
+  "originalFailedExecutionsPreserved": true,
+  "noThirdSelfSealing012Commit": true,
+  "capturedAt": "2026-10-08T09:42:36.487041+00:00"
+}

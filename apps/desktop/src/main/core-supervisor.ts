@@ -1,5 +1,6 @@
 import { isLibraryReadCommand } from '@music-bridge/contracts'
 import { localSourceWritesMainRequestSnapshot, localSourceWritesMainResponseSnapshot, localSourceWritesDataSnapshot, localSourceWritesRecord, type LocalSourceWritesPrivateCommand, type LocalSourceWritesPrivateCommandPayloads, type LocalSourceWritesPrivateCommandResults } from '@music-bridge/contracts'
+import { localRelocationMainRequestSnapshot, localRelocationMainResponseSnapshot, localRelocationDataSnapshot, localRelocationRecord, type LocalRelocationMainCommand, type LocalRelocationMainCommandPayloads, type LocalRelocationMainCommandResults } from '@music-bridge/contracts'
 import { randomUUID } from 'node:crypto'
 import { createLibraryReadTraceStreamReader, emitLibraryReadTrace, libraryReadTraceFailure, type LibraryReadTraceSink } from '../shared/library-read-trace.js'
 import { createPlaybackFailureTraceStreamReader } from '../shared/playback-failure-trace.js'
@@ -35,6 +36,10 @@ export interface CoreMessagePort {
   close(): void
   postMessage(message: unknown): void
 }
+export interface CoreRelocationMessagePort extends CoreMessagePort {
+  on(event: 'message', listener: (event: { data: unknown }) => void): unknown
+  on(event: 'close' | 'messageerror', listener: () => void): unknown
+}
 
 export interface CoreChildProcess {
   postMessage(message: unknown, transfer?: CoreMessagePort[]): void
@@ -48,6 +53,7 @@ export interface CoreSupervisorDependencies {
   createChannel(): { port1: CoreMessagePort; port2: CoreMessagePort }
   /** 单独的可信 Main 能力端口，不装通用 Core 观察器。 */
   createSourceWritesChannel?(): { port1: CoreMessagePort; port2: CoreMessagePort }
+  createRelocationChannel?(): { port1: CoreRelocationMessagePort; port2: CoreRelocationMessagePort }
   fork(
     entryPath: string,
     args: string[],
@@ -126,6 +132,9 @@ export class CoreSupervisor {
   private port: CoreMessagePort | undefined
   private sourceWritesPort: CoreMessagePort | undefined
   private sourceWritesSequence = 0
+  private relocationMainPort: CoreRelocationMessagePort | undefined
+  private relocationSequence = 0
+  private readonly relocationPending = new Map<string, { sequence: number; command: LocalRelocationMainCommand; timer: NodeJS.Timeout; resolve(value: unknown): void; reject(error: CoreIpcError): void }>()
   private readonly sourceWritesPending = new Map<string, { sequence: number; command: LocalSourceWritesPrivateCommand; timer: NodeJS.Timeout; resolve(value: unknown): void; reject(error: CoreIpcError): void }>()
   private startPromise: Promise<void> | undefined
   private restartPromise: Promise<void> | undefined
@@ -145,6 +154,7 @@ export class CoreSupervisor {
       env?: NodeJS.ProcessEnv
       playbackEventProtocol?: PlaybackEventProtocol | null
       sourceWritesPort?: true
+      relocationMainPort?: true
       dependencies: CoreSupervisorDependencies
       requestTimeoutMs?: number
       startupTimeoutMs?: number
@@ -193,6 +203,30 @@ export class CoreSupervisor {
     this.sourceWritesPort = undefined
     for (const pending of this.sourceWritesPending.values()) { clearTimeout(pending.timer); pending.reject(new CoreIpcError('NOT_READY', '源写通道已关闭；原请求只能读取核对。')) }
     this.sourceWritesPending.clear()
+  }
+  /** 013独立物理通道；原012端口、通用internal和Outbox都不能签本域具体能力。 */
+  async requestRelocationMain<C extends LocalRelocationMainCommand>(command: C, payload: LocalRelocationMainCommandPayloads[C]): Promise<LocalRelocationMainCommandResults[C]> {
+    const port = this.relocationMainPort
+    if (!port || this._status !== 'ready' || this.shuttingDown) throw new CoreIpcError('NOT_READY', '搬迁专用通道尚未就绪。')
+    if (this.relocationPending.size >= 4 || this.relocationSequence >= Number.MAX_SAFE_INTEGER) throw new CoreIpcError('NOT_READY', '搬迁专用通道已达到安全预算。')
+    const requestId = randomUUID(), sequence = this.relocationSequence + 1
+    let request
+    try { request = localRelocationMainRequestSnapshot({ version: 1, type: 'relocation-main-request', requestId, sequence, command, payload }) }
+    catch { throw new CoreIpcError('INVALID_IPC_REQUEST', '搬迁私有请求或具体计划无效。') }
+    this.relocationSequence = sequence
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { this.relocationPending.delete(requestId); reject(new CoreIpcError('TIMEOUT', '搬迁结果未知；只能核对原命令。')) }, this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS)
+      this.relocationPending.set(requestId, { sequence, command, timer, resolve: value => resolve(value as LocalRelocationMainCommandResults[C]), reject })
+      try { port.postMessage(request) }
+      catch { this.closeRelocation(port) }
+    })
+  }
+  private closeRelocation(port = this.relocationMainPort): void {
+    if (this.relocationMainPort !== port) { port?.close(); return }
+    this.relocationMainPort = undefined
+    port?.close()
+    for (const pending of this.relocationPending.values()) { clearTimeout(pending.timer); pending.reject(new CoreIpcError('NOT_READY', '搬迁通道已关闭；原命令只能读取核对。')) }
+    this.relocationPending.clear()
   }
 
   async getPlaybackStreamSnapshot(): Promise<PlaybackStreamSnapshot | null> {
@@ -453,6 +487,12 @@ export class CoreSupervisor {
     const channel = this.options.dependencies.createChannel()
     const sourceChannel = this.options.sourceWritesPort ? this.options.dependencies.createSourceWritesChannel?.() : undefined
     if (this.options.sourceWritesPort && !sourceChannel) { channel.port2.close(); channel.port1.close(); throw new CoreIpcError('NOT_READY', '缺少可信 Main 源写专用通道。') }
+    const relocationChannel = this.options.relocationMainPort ? this.options.dependencies.createRelocationChannel?.() : undefined
+    const relocationPortSet = relocationChannel ? [channel.port1, channel.port2, ...(sourceChannel ? [sourceChannel.port1, sourceChannel.port2] : []), relocationChannel.port1, relocationChannel.port2] : []
+    if (this.options.relocationMainPort && (!relocationChannel || new Set(relocationPortSet).size !== relocationPortSet.length)) {
+      channel.port2.close(); channel.port1.close(); sourceChannel?.port1.close(); sourceChannel?.port2.close(); relocationChannel?.port1.close(); relocationChannel?.port2.close()
+      throw new CoreIpcError('NOT_READY', '缺少独立可信Main搬迁专用通道。')
+    }
     let child: CoreChildProcess
     try {
       child = this.options.dependencies.fork(
@@ -466,7 +506,7 @@ export class CoreSupervisor {
         },
       )
     } catch (failure) {
-      channel.port1.close(); channel.port2.close(); sourceChannel?.port1.close(); sourceChannel?.port2.close()
+      channel.port1.close(); channel.port2.close(); sourceChannel?.port1.close(); sourceChannel?.port2.close(); relocationChannel?.port1.close(); relocationChannel?.port2.close()
       throw failure
     }
     if (this.options.libraryReadTrace) {
@@ -479,6 +519,8 @@ export class CoreSupervisor {
     this.port = channel.port2
     this.sourceWritesPort = sourceChannel?.port2
     this.sourceWritesSequence = 0
+    this.relocationMainPort = relocationChannel?.port2
+    this.relocationSequence = 0
     this._status = 'starting'
     this.options.onLifecycle?.({ event: 'spawn' })
     let confirmExit: () => void = () => undefined
@@ -510,6 +552,7 @@ export class CoreSupervisor {
       if (!portsTransferred) { channel.port1.close(); sourceChannel?.port1.close() }
       channel.port2.close()
       this.closeSourceWrites(sourceChannel?.port2)
+      this.closeRelocation(relocationChannel?.port2)
       if (this.child === child) {
         this.port = undefined
         this.rejectPending(error)
@@ -552,6 +595,7 @@ export class CoreSupervisor {
       this.port = undefined
       channel.port2.close()
       this.closeSourceWrites(sourceChannel?.port2)
+      this.closeRelocation(relocationChannel?.port2)
       this.rejectPending(new CoreIpcError('INTERNAL_ERROR', 'Core process exited'))
       if (!settled) {
         settled = true
@@ -664,8 +708,26 @@ export class CoreSupervisor {
       })
       sourceChannel.port2.start()
     }
+    if (relocationChannel) {
+      for (const event of ['close', 'messageerror'] as const) relocationChannel.port2.on(event, () => { if (this.relocationMainPort === relocationChannel.port2) this.closeRelocation(relocationChannel.port2) })
+      relocationChannel.port2.on('message', event => {
+        if (this.child !== child || this.relocationMainPort !== relocationChannel.port2) return
+        try {
+          const captured = localRelocationDataSnapshot(event.data, { maxBytes: 16_384, maxTextBytes: 16_384 })
+          if (!localRelocationRecord(captured, ['version', 'type', 'requestId', 'sequence', 'ok'], ['result', 'failure']) || typeof captured.requestId !== 'string') throw new Error('搬迁私有回执无效。')
+          const pending = this.relocationPending.get(captured.requestId)
+          if (!pending) return
+          const response = localRelocationMainResponseSnapshot(captured, pending.command)
+          if (response.sequence !== pending.sequence) throw new Error('搬迁私有回执序号无效。')
+          clearTimeout(pending.timer); this.relocationPending.delete(response.requestId)
+          if (response.ok) pending.resolve(response.result)
+          else pending.reject(new CoreIpcError(response.failure.error.code, response.failure.error.message))
+        } catch { this.closeRelocation(relocationChannel.port2) }
+      })
+      relocationChannel.port2.start()
+    }
     try {
-      child.postMessage({ type: 'musicbridge.core.port', ...(requestedProtocol ? { playbackEventProtocol: requestedProtocol } : {}) }, sourceChannel ? [channel.port1, sourceChannel.port1] : [channel.port1])
+      child.postMessage({ type: 'musicbridge.core.port', ...(requestedProtocol ? { playbackEventProtocol: requestedProtocol } : {}), ...(relocationChannel ? { relocationMainPort: 'local-relocation-main-port-v1' } : {}) }, [channel.port1, ...(sourceChannel ? [sourceChannel.port1] : []), ...(relocationChannel ? [relocationChannel.port1] : [])])
       portsTransferred = true
     } catch {
       failStart(new CoreIpcError('INTERNAL_ERROR', 'Core process could not be started'))
@@ -715,6 +777,7 @@ export class CoreSupervisor {
       this._status = 'stopped'
       port?.close()
       this.closeSourceWrites()
+      this.closeRelocation()
       this.options.onLifecycle?.({ event: 'stopped' })
       return
     }
@@ -738,6 +801,7 @@ export class CoreSupervisor {
     }
     port?.close()
     this.closeSourceWrites()
+    this.closeRelocation()
     this._status = 'stopped'
     this.options.onLifecycle?.({ event: 'stopped' })
     this.rejectPending(new CoreIpcError('NOT_READY', 'Core supervisor is stopped'))

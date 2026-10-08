@@ -198,6 +198,16 @@ jobs:
           node --test scripts/ci/test/verify-mbrs012-source-writes.test.mjs
           node scripts/ci/verify-mbrs012-source-writes.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs012-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
+      - name: MBRS013 同内容位置迁移与具体清理 Gate
+        if: steps.ci-mode.outputs.mode != 'report-only'
+        timeout-minutes: 8
+        shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: |
+          set -euo pipefail
+          node --test scripts/ci/test/verify-mbrs013-relocation.test.mjs scripts/ci/test/verify-mbrs013-frozen-admission.test.mjs
+          node scripts/ci/verify-mbrs013-relocation.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs013-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
       - name: 验证报告CI准入正负例
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node --test scripts/ci/test/report-only-admission.test.mjs

@@ -1,0 +1,28 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "id": "SCOPE_ADJUSTMENT11",
+  "task": "MBRS-013",
+  "reason": "标准工程回归两个既有读取期限用例在启动准备先耗尽20ms预算；受控40ms启动阻塞已复现相同生产receive TIMEOUT。仅控制测试单调时钟和timer，使原读取断言不受启动/调度延迟影响。",
+  "authority": "INHERITED_OWNER_CONTINUOUS_AUTHORIZATION_NO_NEW_APPROVAL",
+  "rootOwnedPaths": [
+    "packages/bridge-core/test/rust-sidecar-client.test.ts"
+  ],
+  "before": {
+    "bytes": 27053,
+    "sha256": "0b103957ebbc67d44da0472640d46c16bb3dc1d5873aff06f107aba41d69772c"
+  },
+  "after": {
+    "bytes": 27439,
+    "sha256": "c0c46228c1d1311586e4a25a20adca41bb0f79c52fd36f7e55c6482c69f5bbb5"
+  },
+  "preserved": [
+    "生产Rust源码和三个deadline检查",
+    "原20ms请求预算",
+    "真实40ms同步阻塞",
+    "原两项stdin数量和TIMEOUT/close断言",
+    "原测试名称和数量；无skip或timeout增长",
+    "原013门禁529及继承426清单"
+  ],
+  "realProviderRoonAudioDeviceOwner": "NOT_RUN",
+  "at": "2026-10-08T15:01:00.782330+00:00"
+}

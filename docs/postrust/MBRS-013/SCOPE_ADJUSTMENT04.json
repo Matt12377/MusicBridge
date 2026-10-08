@@ -1,0 +1,23 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "reason": "Owner调度改序正式落地；仅文档/元数据并纳入明确报告范围，不扩充或降低013产品Gate。",
+  "addedRootOwnedMetadataFiles": [
+    "reports/MBRS-006_SUCCESSOR_PLAN.md",
+    "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md"
+  ],
+  "beforeScope": {
+    "bytes": 7579,
+    "sha256": "9a6056c3565d5477449f48f31ade4ddb66c11f6b7b716578c4a274c652f1a654"
+  },
+  "updatedScope": {
+    "bytes": 7841,
+    "sha256": "0e9c0a47932e4c9a31df50c732bbda8b1b068aaa6403473c31993ff5c170e528"
+  },
+  "schedulingSupplement": "docs/postrust/MBRS-013/SCHEDULING_SUPPLEMENT_MOBILE_FRONTLOADING.json",
+  "original8AtUnchanged": true,
+  "budgetsUnchanged": true,
+  "initialG0ReceiptPreserved": true,
+  "recordedAt": "2026-10-08T10:47:22.773406+00:00"
+}

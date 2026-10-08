@@ -1,0 +1,87 @@
+{
+  "schema": "mbrs013.rule-matrix.v1",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "rules": [
+    {
+      "id": "R13-01",
+      "requirement": "独立LOCAL_RELOCATION_V1；旧localRelocation五命令、012 schema1/body六键/op九键和旧grants不扩权。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-02",
+      "requirement": "公开请求只收稳定ID、预期revision及不透明目标选择；绝对路径、FD、actor、grant、Reader事实只经本域真实Main私有物理端口。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-03",
+      "requirement": "移动资格格式无关，完整原字节与目标独立FD全流Hash相等；不借012 writer白名单、padding、APPLICATION或256MiB限制。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-04",
+      "requirement": "同内容保留AssetID/TrackID/fileRevision/selectionRevision/片段、收藏歌单录音及全部历史SourceBinding Hash；只推进位置修订，整根重关联另核root头。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-05",
+      "requirement": "原Scanner作者真实Parser/Reader准备新位置job/batch/current facts，持写claims下只用真实Publisher授权读FD；不提前释放排他，不复制旧scan事实。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-06",
+      "requirement": "原Owner同DB短同步事务认证证书/data_version/原command→完整位置CAS→原Scanner新receipt和checkpoint→本域journal→COMMIT→cache发布；无第二writer。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-07",
+      "requirement": "源与目的全部物理/命名资源稳定顺序claims，活动当前/暂停/预取/录音和Frozen/Prepared/Archive保护拒绝或延期，不强停音频。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-08",
+      "requirement": "同卷捕获、无覆盖安装、目录sync及独立回读明确非原子；大小写/Unicode等保留原字节和恢复材料，不能用同名替代旧lease。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-09",
+      "requirement": "跨卷COPY→SYNC→FULL_VERIFY→REGISTER默认SOURCE_RETAINED；cleanup须新鲜具体Main授权和源/目标真实身份Hash/修订/保护复核，目标未验绝不删源。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-10",
+      "requirement": "CUE/歌词/图片/清单资源闭集贯穿plan Hash/grant/claims/I/O/journal；未知或共享未证明引用先提示，保留资源依赖原源时禁止cleanup。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-11",
+      "requirement": "根身份取底层OS卷/共享证明，不能取挂载名或单独dev/inode；符号链接/祖先越界/卷替换/名称冲突/空间不足保守拒绝。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-12",
+      "requirement": "冷重开先catalog再Scanner核本域位置投影；明确SOURCE_RETAINED只按operation/root/relative/真实签名识别，其他同Hash副本保留独立候选。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-13",
+      "requirement": "journal保留每次真实阶段和失败/未知边界，冷恢复只读对账；未知原command不自动重签重放、去重合并或清理原件。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-14",
+      "requirement": "全部有限预算独立于旧012/Reader预算；闭集超额整体拒绝。实际IO/FD quiet和保护闭合前不得终结或释放。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-15",
+      "requirement": "默认Node/optional Rust OFF/library_write_enabled OFF；本域具体最终计划按钮与服务端校验，无额外代理审批弹窗。",
+      "validation": "NOT_RUN"
+    },
+    {
+      "id": "R13-16",
+      "requirement": "原8AT正文不变；软件、原生产App、真实多卷/NAS、Roon直送、设备听感和Owner接受分层。02 live_roon未跑继续NOT_RUN。",
+      "validation": "NOT_RUN"
+    }
+  ]
+}

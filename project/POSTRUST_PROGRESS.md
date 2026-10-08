@@ -332,3 +332,35 @@ S4 a30818185b7e30110cb9156110e955a8f191a90e 首次自然4workflow/6job为4成功
 #### MBRS-012 S5最终源码与独立报告交付
 
 最终源码 7166e12d7474957041f5d747db5dc9300f7e9ee7 单父直接继承S4 a30818185b7e30110cb9156110e955a8f191a90e，base仍为09370f19d4422be3b387047999a0722961c52e1e；精确Gate114十阶段426/426零skip、1460声明输入和2400实际源码blob绑定。verify107实际4701总/4699通过/2原native skip、退出0；新1422图a6bedf5cf85c5ea87faba0baf67fed88581f4157cf3a8644f9fefebe3ac97260、623产品图7d78de3b2922a620bef46168f42195888afac13af1ae60da4ba419ef403a6168；App108使用verify107构建、956产物图4bab695330a072365847704b8310641466d54eae380146fee5706e6e0935136f在App运行前后保持，独立6/14/7/57FD/144tools通过。当前本机完整112c原命令113总/109通过/0失败/4原native条件skip自然退出0，014私有B实际原103断言通过；首本机112原完整命令exit1、108通过/1GC失败/4native、103冷启未完成保留，112b无源码变化单B1/1只作诊断，具体GC原因/修复未证。跨重新build的C产物before/after另列，未假称等App108或跨build不变。旧App37/build33、verify72/App73/Gate79、verify87/App88/Gate94和E2E58/B59保持原执行；旧原全量E2E exit1、109去重适用通过/4原native skip整对象保留。S1/S2的012 skipped和S3/S4自己的012 failure分别保留；前三次首次自然4/6各5job成功/1verify失败，第四次4job成功/verify与Electron两失败，原S4远端014B是第五条件skip，均不重跑不取消。最终S5源码自然4/6首次成功，本轮成功制品仅核metadata内容未下载；四次失败的读取边界分别记录。本机Core84.304s/原capacity22.754s和CPU不代替远程180008.195ms timeout根因；106的TS2352是新增断言表达式的类型失败，未到Core。R仅17白名单，权限/资格/九AT及旧17task/147AT不变；报告普通push、自然2/3、实际模式与远端clean仍由提交后的私有seal兑现，不提前通过。013从实际sealedR创建，不增加第三个自封口提交。
+
+#### MBRS-013 从012实际封存报告正式进场
+
+012独立报告 c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478 单父承最终源码 7166e12d7474957041f5d747db5dc9300f7e9ee7；源码首次自然4workflow/6job、报告首次自然2workflow/3job全部success，报告实际report-only/EXACT_PARENT_PRODUCT_CI_SUCCESS，最终封存收据190290B/SHA256 2ff9c74adb34d5be063fee65adb85aad91d1c0156aecc4a7cf16a3c06bd09988 已实际生成。原012分支/报告保持不变，后继进场台账兑现其提交后事实，不新增第三个自封口提交。012九AT仍PARTIAL及全部失败、真实Roon/NAS/设备/听感/Owner和旧carryover保留。
+
+013从该R建立独立 codex/mbrs-013-relocation，G0与有限范围见 docs/postrust/MBRS-013/G0_HANDOFF.json 和 EXECUTION_SCOPE.json。沿已有授权直接推进；原8AT正文、原18任务/156AT、有效17/150及015取消保持。主代理和既存三作者各占互斥文件，Root独占实际编译/测试/App/Git。此进场没有013测试通过或真实验收结论；首片为保ID位置CAS→真实Scanner新事实→新位置Gateway完整读取→冷重开及增量去自有重复。
+
+#### 2026-10-08 移动前移调度正式生效
+
+已从协调会话读取Owner直接请求并由Mac文档唯一作者采纳[正式计划](../docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md)。新顺序013→MBM-000→001→002→003→004→016→017；013保持当前实现及8AT，不重启或交接。STATUS当前仍013，下一任务为MBM-000；机器计划新增独立execution_schedule/mobile_tasks，五个移动任务均NOT_STARTED。原18任务/156AT、取消后的17/150、016九项与017八项及全部原硬依赖未改。此调度补充不扩充或降低013产品Gate，不构成移动实现或验收PASS。
+
+IOS采用主gpt-6.1-sol/max、三个子gpt-6.1-sol/high；Mac保持原主与三子max。002首条真实文件链路即接iPhone，003验证FLAC保真路径，004验证双机/后台/家庭Roon，之后016综合回归与017最终交付。旧“017后启动”报告及收据保留为历史，由新调度覆盖；源/报告分离、普通push、自然CI、实际设备与Owner分层继续执行。
+
+#### MBRS-013 首片真实文件链路及恢复补齐
+
+Root39三份新套件18/18、零skip，自有六格式真实Reader、Utility端口收尾及正常文件搬迁/伴随文件/新位置Scanner/清理冷重开通过；Root40正式生产构建退出0。Root41首轮生产离线App自然退出1：默认OFF返回拒绝回执且不创建计划，旧新测试错误等待历史新增计划；App自然关闭0、无外部访问或页面异常。原失败日志保留，测试已修正但尚未重跑。Root42准入与产物闭集31/31、零skip；第二轮静态窄复核未发现遗留重要产物身份缺口。
+
+这些均对应未提交工作树首片，后续恢复改动不由此覆盖。journal故障恢复、回退、部分发布/登记及恢复再次中断正在实现；完整013 Gate、最终源码和报告/自然CI/远端clean尚未执行。原8AT仍未封版，真实多卷/Roon/NAS/设备/听感/Owner未跑；012封存、默认Node/Rust OFF及源写回默认OFF保持。后继仍为013→MBM-000～004→016→017，开发与验证沿Owner既有连续授权执行。
+
+默认OFF拒绝与恢复界面新增回归已实际通过34/34，零跳过；修正后的生产App用例类型检查退出0。Core恢复实现尚待冻结，Root新增7项目录/历史回归及共享冷根事实完整性修改仅完成静态窄复核，未编译、未运行。首次App失败材料保留，修正后真实生产App及完整013 Gate仍NOT_RUN，原8AT及真实Roon/NAS/设备/Owner证据不升级。
+
+<!-- MBRS013_CHECKPOINT63 -->
+### MBRS-013 实际失败与局部通过检查点
+
+54/55 编译与 Core 测试类型通过；保留 56 类型失败，经单文件 58 修正，59 Desktop types 自然退出 0。60 Desktop 34/34、61 Contracts 32/32 全通过、零 skip；57 Core 自然退出 1，37 项中 25 通过、12 失败。七个恢复用例首次 unknown 的公共 DTO 因 choiceId 格式被拒绝，尚未证明实际恢复；117 writer/resources 是此前未知计划同进程保留计数，先修共同失败再核独立泄漏。冷进程 seed 失败与协议输出保留，不能宣称冷恢复通过。Root 历史根负例修正首次实际读和直接 verifier，未重跑。所有记录仅绑定当前 WIP，TEST_SCOPE 未冻结、正式 App 未重验、完整 Gate 未运行。
+
+
+### MBRS-013 本轮完整本地软件与生产App检查完成
+
+013有限实现已完成：专项14阶段529/529零skip、标准工程4701总/4699通过/2原native条件skip、生产App音频+歌词完整计划/源保留/具体清理/三次自然关闭及独立输出核验通过；mock生命周期4/4。精确源码提交Gate、普通推送、首次自然源码CI、独立报告和最终远端clean仍待兑现。原8AT均PARTIAL，真实Roon/NAS/多卷/设备听感/Owner未跑。后继仍MBM-000～004→016→017，不重复审批。
+
+原verify89两个启动预算TIMEOUT、verify95六个009 SFC新模块装载失败和受控RED均保留；只修改测试计时边界与009/011真实ESM装载两行/精确准入，生产Rust deadline/原预算/原业务断言未改。所有局部失败与后续修正按原执行身份留档，不从新通过结果推断未测量的系统负载或远端根因。

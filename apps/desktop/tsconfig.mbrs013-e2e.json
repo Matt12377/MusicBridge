@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.e2e.json",
+  "include": [
+    "e2e/mbrs013-relocation.spec.ts",
+    "src/renderer/src/env.d.ts"
+  ]
+}

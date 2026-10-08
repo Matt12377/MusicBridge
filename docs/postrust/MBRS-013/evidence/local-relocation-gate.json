@@ -1,0 +1,30 @@
+{
+  "schema": "mbrs013.local-relocation-gate-evidence.v1",
+  "result": "PASS_GATE87_CURRENT_PRODUCT_GRAPH_SAME",
+  "tests": 529,
+  "passed": 529,
+  "failed": 0,
+  "skipped": 0,
+  "stages": 14,
+  "groups": {
+    "inheritedContracts": 88,
+    "inheritedCore": 216,
+    "inheritedDesktop": 122,
+    "newContracts": 32,
+    "newCore": 37,
+    "newDesktop": 34
+  },
+  "currentProductIdentity": "b136f2c992dd019fb99e08768bfcf8e0fe62d0d5907cfb76cfccdbf34e251e55",
+  "laterChanges": "RUST_TEST_CLOCK_AND_009_LOADER_EXACT_ADMISSION_PLUS_E2E_WAIT_BARRIER; FULL_STANDARD100_ADMISSION99_TYPES104_APP104_PASS_PRODUCT_UNCHANGED",
+  "gateAudit": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "MBRS013_FULL_GATE87_ACTUAL_AUDIT89.json",
+    "bytes": 6012,
+    "sha256": "8c78948249b41408dc88043c88bfda0b29e3bff69d0756d4fe8f5d93c4d85012",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "exactSourceGate": "SEPARATE_AFTER_SOURCE_COMMIT_NOT_PRECLAIMED",
+  "eightOriginalAt": "NOT_DERIVED_FROM_529_COUNTS",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN"
+}

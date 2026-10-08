@@ -1,0 +1,23 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "reason": "原8AT既有目录、历史引用与活动读取集成用例归Root单一作者；不改Core作者fixture、预算、旧回归或AT。",
+  "addedRootOwnedFiles": [
+    "packages/bridge-core/test/mbrs013/catalog-history-root.test.ts"
+  ],
+  "coreTestExclusionsAdded": [
+    "packages/bridge-core/test/mbrs013/catalog-history-root.test.ts"
+  ],
+  "beforeScope": {
+    "bytes": 8404,
+    "sha256": "00fa1078eb2f8b0bce19f20828f5f9860d2f2820998d028f5d34cc84b1413c8a"
+  },
+  "updatedScope": {
+    "bytes": 8606,
+    "sha256": "4ac0cf354050b8acda88e68641a13acafdcec479ab0e014e1436b5e62eb425a1"
+  },
+  "allOtherScopeBytesRestoredByExactInverse": true,
+  "original8AtAndBudgetsUnchanged": true,
+  "recordedAt": "2026-10-08T20:17:51.028817+08:00"
+}

@@ -11,13 +11,14 @@ import { installPhysicalResourceCoordinator } from '../../../../packages/bridge-
 if (!parentPort) {
   throw new Error('数据集所有者启动身份无效。')
 }
-const { dataDirectory, resourcesDirectory, physicalResourceBuffer,sourceWritesPort } = parseDatasetOwnerWorkerData(workerData)
+const { dataDirectory, resourcesDirectory, physicalResourceBuffer,sourceWritesPort, relocationMainPort } = parseDatasetOwnerWorkerData(workerData)
 if (physicalResourceBuffer) installPhysicalResourceCoordinator(physicalResourceBuffer)
 const env = process.env
 const testMode = env.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
 
 attachDatasetOwnerWorkerPort(parentPort, {
   ...(sourceWritesPort?{privateSourceWritesPort:sourceWritesPort}:{}),
+  ...(relocationMainPort ? { privateRelocationMainPort: relocationMainPort } : {}),
   async prepare(epoch, projection) {
     const recordingDependencies = await loadRecordingDependenciesForOwner(env, {
       platform: process.platform,

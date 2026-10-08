@@ -11,6 +11,7 @@ import { calculateVirtualWindow } from '../src/renderer/src/composables/virtualW
 import * as details from '../src/renderer/src/components/player/details.js'
 import * as outboxController from '../src/renderer/src/components/command-outbox/controller.js'
 import * as localArtwork from '../src/renderer/src/composables/application/useLocalArtwork.js'
+import * as localRelocation from '../src/renderer/src/composables/application/useLocalRelocationPlans.js'
 
 const require = createRequire(import.meta.url), vue = require('vue') as typeof import('vue')
 const id = (n: number) => `11111111-1111-4111-8111-${String(n).padStart(12, '0')}`
@@ -45,6 +46,7 @@ async function mounted(t: test.TestContext, file: string, initial: Record<string
       if (name.endsWith('/details.js')) return details
       if (name.endsWith('/command-outbox/controller.js')) return outboxController
       if (name.endsWith('/useLocalArtwork') || name.endsWith('/useLocalArtwork.js')) return localArtwork
+      if (name.endsWith('/useLocalRelocationPlans.js')) return localRelocation
       return localRequire(name)
     }
     const compile = (code: string) => ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText

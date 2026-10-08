@@ -1,0 +1,25 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "reason": "独立登记新13 E2E类型检查、Root端口回归与自动Gate；旧类型配置、旧测试及8AT不改。",
+  "addedRootOwnedFiles": [
+    "apps/desktop/tsconfig.mbrs013-e2e.json",
+    "packages/bridge-core/test/mbrs013/utility-integration-root.test.ts",
+    "scripts/ci/verify-mbrs013-relocation.mjs",
+    "scripts/ci/test/verify-mbrs013-relocation.test.mjs"
+  ],
+  "excludedFromCoreAuthor": "packages/bridge-core/test/mbrs013/utility-integration-root.test.ts",
+  "beforeScope": {
+    "bytes": 7841,
+    "sha256": "0e9c0a47932e4c9a31df50c732bbda8b1b068aaa6403473c31993ff5c170e528"
+  },
+  "updatedScope": {
+    "bytes": 8215,
+    "sha256": "fd37825885291296482376fea04e7d5f8b7ea0aae702b3a40319074adebfe040"
+  },
+  "original8AtUnchanged": true,
+  "budgetsUnchanged": true,
+  "previousG0AndScopeAdjustmentsPreserved": true,
+  "recordedAt": "2026-10-08T11:03:22.455771+00:00"
+}

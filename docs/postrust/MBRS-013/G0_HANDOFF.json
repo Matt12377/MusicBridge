@@ -1,0 +1,14 @@
+{
+  "schema": "mbrs013.g0-handoff.v1",
+  "task": "MBRS-013",
+  "decision": "ADMITTED_INHERITED_OWNER_CONTINUOUS_AUTHORIZATION",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "branch": "codex/mbrs-013-relocation",
+  "authority": "本轮Owner持续授权005至017及其必要开发、验证、普通提交推送，当前再次明确全权授权且不逐步审批。",
+  "predecessorDeliveryRef": "docs/postrust/MBRS-013/PREDECESSOR_DELIVERY.json",
+  "scopeRef": "docs/postrust/MBRS-013/EXECUTION_SCOPE.json",
+  "taskSpecSha256": "10702afad204b607b76d66a85007478f0bd980d3010cb62a0675279df40a98cf",
+  "originalEightAcceptanceRequirementsUnchanged": true,
+  "meaning": "从实际已封存R正式开始013；记录既有授权和有限实施范围，不代表任何产品、真实或Owner验收通过。",
+  "createdAt": "2026-10-08T09:42:36.487041+00:00"
+}

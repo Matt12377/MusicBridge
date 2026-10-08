@@ -1,0 +1,44 @@
+{
+  "schema": "mbrs013.relocation-test-scope.v1",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "implementationComplete": true,
+  "countsConfirmed": true,
+  "inherited426TestsPreserved": true,
+  "groups": [
+    {
+      "name": "contracts-relocation",
+      "directory": "packages/contracts",
+      "tests": [
+        "test/mbrs013/relocation-plan-contract.test.ts",
+        "test/mbrs013/relocation-private-contract.test.ts",
+        "test/mbrs013/relocation-registration-contract.test.ts"
+      ],
+      "expectedTests": 32
+    },
+    {
+      "name": "core-relocation",
+      "directory": "packages/bridge-core",
+      "tests": [
+        "test/mbrs013/catalog-history-root.test.ts",
+        "test/mbrs013/reader-integration-root.test.ts",
+        "test/mbrs013/relocation-behavior.test.ts",
+        "test/mbrs013/relocation-recovery.test.ts",
+        "test/mbrs013/utility-integration-root.test.ts"
+      ],
+      "expectedTests": 37
+    },
+    {
+      "name": "desktop-relocation",
+      "directory": "apps/desktop",
+      "tests": [
+        "test/mbrs013/main-preload.test.ts",
+        "test/mbrs013/recovery-ui.test.ts",
+        "test/mbrs013/supervisor.test.ts",
+        "test/mbrs013/ui.test.ts"
+      ],
+      "expectedTests": 34
+    }
+  ],
+  "state": "FINITE_IMPLEMENTATION_FROZEN_TEST_INVENTORY_103_LOCAL_PRODUCT_GATE87_PASS_EXACT_S_GATE_SEPARATE",
+  "evidenceBoundary": "CASE_COUNTS_ARE_INVENTORY_ONLY_NOT_ORIGINAL_EIGHT_AT_OR_LIVE_OWNER_ACCEPTANCE"
+}

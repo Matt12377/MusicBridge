@@ -2,6 +2,7 @@ import { isLocalArtworkCommand, isLocalArtworkInternalCommand } from '@music-bri
 import { isLocalOrganizerCommand } from '@music-bridge/contracts';
 import { isLocalLegacyLinksCommand } from '@music-bridge/contracts';
 import { isLocalSourceWritesCommand } from '@music-bridge/contracts';
+import { isLocalRelocationPlanCommand } from '@music-bridge/contracts';
 import { withLocalFactsMutation } from '../stream/local-source-fence.js';
 import {isLocalRelocationCommand,isLocalRelocationInternalCommand} from '@music-bridge/contracts';
 import { isScanPreparedBatch } from './local-scan-store.js';
@@ -132,10 +133,10 @@ export async function dispatchInternalDatasetCommand(runtime: DatasetDispatchTar
 async function dispatchDataset(runtime: DatasetDispatchTarget, request: IpcRequest, internal: boolean): Promise<unknown> {
   if (!isDatasetCommand(request.command)) throw new BridgeError('BAD_REQUEST', '工作库命令无效。');
   runtime.assertOpen?.();
-  if (isLocalSourceWritesCommand(request.command) || isLocalLegacyLinksCommand(request.command) || isLocalOrganizerCommand(request.command) || isLocalArtworkCommand(request.command) || isLocalCatalogCommand(request.command) || isLocalScanCommand(request.command) || isLocalRelocationCommand(request.command) || request.command === 'localCatalog.prepare') {
+  if (isLocalRelocationPlanCommand(request.command) || isLocalSourceWritesCommand(request.command) || isLocalLegacyLinksCommand(request.command) || isLocalOrganizerCommand(request.command) || isLocalArtworkCommand(request.command) || isLocalCatalogCommand(request.command) || isLocalScanCommand(request.command) || isLocalRelocationCommand(request.command) || request.command === 'localCatalog.prepare') {
     const checked = internal ? validateIpcInternalRequest(request) : validateIpcRequest(request);
     if (!checked.ok) throw new BridgeError('BAD_REQUEST', '本地目录请求无效。');
-    if (isLocalSourceWritesCommand(request.command) || isLocalLegacyLinksCommand(request.command)) request = checked.value as IpcRequest;
+    if (isLocalRelocationPlanCommand(request.command) || isLocalSourceWritesCommand(request.command) || isLocalLegacyLinksCommand(request.command)) request = checked.value as IpcRequest;
     if (!runtime.commandOutbox) throw new DatasetScopeError();
   }
   if ((request.command.startsWith('recordingAttempts.') || request.command.startsWith('recordingRecords.') || request.command.startsWith('recordingReplica.') || request.command.startsWith('recordingDevice.') || request.command.startsWith('recordingWorkspace.') || request.command.startsWith('recordingCandidates.') || request.command.startsWith('recordingPreparationZip.') || request.command === 'collection.copy' || request.command.startsWith('masterArtwork.') || request.command.startsWith('recordingPrints.') || request.command.startsWith('recordingPrintWorker.')) && (!request.expectedDatasetId || !runtime.commandOutbox)) throw new DatasetScopeError();
@@ -146,6 +147,12 @@ async function dispatchDataset(runtime: DatasetDispatchTarget, request: IpcReque
   // 原录音SourceLock/严格证据不变；读文件/正式输出入口先等待scan实际quiet，再进入原业务门禁。
   if (runtime.localScan && ['recordingSources.start','recordingAttempts.confirm','recordingAttempts.beginSide','recordingReplica.start','recordingExecution.start'].includes(request.command)) await runtime.localScan.yieldForMedia();
   switch (request.command as IpcCommand) {
+    case 'localRelocationPlan.chooseTarget': case 'localRelocationPlan.confirm': case 'localRelocationPlan.cleanup': throw new BridgeError('BAD_REQUEST', '搬迁具体能力仅由当前真实Main专用通道受理。');
+    case 'localRelocationPlan.preview': if (!runtime.localRelocationPlans) throw new CollectionError('INVENTORY_UNAVAILABLE', '搬迁Owner尚未就绪。'); return runtime.localRelocationPlans.preview(request.payload as IpcCommandPayloads['localRelocationPlan.preview']);
+    case 'localRelocationPlan.get': if (!runtime.localRelocationPlans) throw new CollectionError('INVENTORY_UNAVAILABLE', '搬迁Owner尚未就绪。'); return runtime.localRelocationPlans.get(request.payload as IpcCommandPayloads['localRelocationPlan.get']);
+    case 'localRelocationPlan.history': if (!runtime.localRelocationPlans) throw new CollectionError('INVENTORY_UNAVAILABLE', '搬迁Owner尚未就绪。'); return runtime.localRelocationPlans.history(request.payload as IpcCommandPayloads['localRelocationPlan.history']);
+    case 'localRelocationPlan.cancel': if (!runtime.localRelocationPlans) throw new CollectionError('INVENTORY_UNAVAILABLE', '搬迁Owner尚未就绪。'); return runtime.localRelocationPlans.cancel(request.payload as IpcCommandPayloads['localRelocationPlan.cancel']);
+    case 'localRelocationPlan.setPolicy': if (!runtime.localRelocationPlans) throw new CollectionError('INVENTORY_UNAVAILABLE', '搬迁Owner尚未就绪。'); return runtime.localRelocationPlans.setPolicy(request.payload as IpcCommandPayloads['localRelocationPlan.setPolicy']);
     case 'localSourceWrites.preview':if(!runtime.localSourceWrites)throw new CollectionError('INVENTORY_UNAVAILABLE','源写 Owner 尚未就绪。');return runtime.localSourceWrites.preview(request.payload as IpcCommandPayloads['localSourceWrites.preview']);
     case 'localSourceWrites.get':if(!runtime.localSourceWrites)throw new CollectionError('INVENTORY_UNAVAILABLE','源写 Owner 尚未就绪。');return runtime.localSourceWrites.get(request.payload as IpcCommandPayloads['localSourceWrites.get']);
     case 'localSourceWrites.history':if(!runtime.localSourceWrites)throw new CollectionError('INVENTORY_UNAVAILABLE','源写 Owner 尚未就绪。');return runtime.localSourceWrites.history(request.payload as IpcCommandPayloads['localSourceWrites.history']);

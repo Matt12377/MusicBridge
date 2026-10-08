@@ -1,0 +1,27 @@
+{
+  "schema": "mbrs013.local-electron-lifecycle.v1",
+  "result": "PASS_MOCK_SOFTWARE_INTEGRATION",
+  "execution": {
+    "label": "root013-electron-lifecycle101",
+    "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 45.844012832967564,
+    "log": {
+      "file": "root013-electron-lifecycle101.log",
+      "bytes": 1370,
+      "sha256": "57cf3b7824d9051a498feff7715b8d0b425660457da00f3c0613cb79ff7b3dab"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "tests": 4,
+  "passed": 4,
+  "skipped": 0,
+  "startupCrashRestartVaultTwoProcessColdCovered": true,
+  "keychainMode": "mock",
+  "realSystemKeychain": "NOT_RUN",
+  "credentials": "SYNTHETIC_ONLY",
+  "realProviderRoonAudioOwner": "NOT_RUN"
+}

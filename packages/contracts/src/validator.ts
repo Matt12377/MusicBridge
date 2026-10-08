@@ -2,6 +2,7 @@ import { isLocalArtworkCommand, isLocalArtworkInternalCommand, isLocalArtworkCom
 import { isLocalLegacyLinksCommand, isLocalLegacyLinksCommandPayload, isLocalLegacyLinksCommandResult, localLegacyRecord, localLegacyLinksDataSnapshot } from './local-legacy-links.js';
 import { LOCAL_SOURCE_WRITES_BUDGET, isLocalSourceWritesCommand, isLocalSourceWritesCommandPayload, isLocalSourceWritesCommandResult } from './local-source-writes.js';
 import { localSourceWritesDataSnapshot, localSourceWritesRecord } from './local-source-writes-data.js';
+import { isLocalRelocationPlanCommand, isLocalRelocationPlanCommandPayload, isLocalRelocationPlanCommandResult, localRelocationDataSnapshot, localRelocationRecord } from './local-relocation-plan.js';
 import {isMBQueueEditRequest,isMBQueuePlayEntryRequest,isMBEditionQueueRequest} from './mb-queue.js';
 import {isAlbumEdition,isLocalExactInteger} from './local-catalog.js';
 import { isLocalPlayAccepted, isLocalQueueIdentity } from './local-play-request.js';
@@ -1042,6 +1043,7 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (isLocalSourceWritesCommand(command)) return isLocalSourceWritesCommandPayload(command, payload);
+  if (isLocalRelocationPlanCommand(command)) return isLocalRelocationPlanCommandPayload(command, payload);
   if (isLocalArtworkCommand(command)) return isLocalArtworkCommandPayload(command,payload);
   if (isLocalRelocationCommand(command)) return isLocalRelocationCommandPayload(command,payload);
   if (isLocalScanCommand(command)) return isLocalScanCommandPayload(command, payload);
@@ -1684,6 +1686,7 @@ function isCommandResult(
   allowInternalResult = false,
 ): boolean {
   if (isLocalSourceWritesCommand(command)) return isLocalSourceWritesCommandResult(command, value);
+  if (isLocalRelocationPlanCommand(command)) return isLocalRelocationPlanCommandResult(command, value);
   if (isLocalArtworkCommand(command)) return (allowInternalResult || !isLocalArtworkInternalCommand(command)) && isLocalArtworkCommandResult(command,value);
   if (isLocalRelocationCommand(command)) return (allowInternalResult || !isLocalRelocationInternalCommand(command)) && isLocalRelocationCommandResult(command,value);
   if (isLocalScanCommand(command)) return (allowInternalResult || !isLocalScanInternalCommand(command)) && isLocalScanCommandResult(command,value);
@@ -2074,7 +2077,11 @@ function validateRequest(input: unknown, internal: boolean): ValidationResult<Ip
     const descriptor = Object.getOwnPropertyDescriptor(input, 'command');
     if (!descriptor || !Object.hasOwn(descriptor, 'value')) return invalidRequest();
     observedCommand = descriptor.value;
-    if (typeof observedCommand === 'string' && observedCommand.startsWith('localSourceWrites.')) {
+    if (typeof observedCommand === 'string' && observedCommand.startsWith('localRelocationPlan.')) {
+      input = localRelocationDataSnapshot(input);
+      if (!localRelocationRecord(input, ['version', 'id', 'command', 'payload', 'expectedDatasetId'], ['performanceTrace']) || input.command !== observedCommand
+        || !isRecord(input.payload) || input.payload.datasetId !== input.expectedDatasetId) return invalidRequest();
+    } else if (typeof observedCommand === 'string' && observedCommand.startsWith('localSourceWrites.')) {
       input = localSourceWritesDataSnapshot(input, LOCAL_SOURCE_WRITES_BUDGET.requestBytes, LOCAL_SOURCE_WRITES_BUDGET.requestNodes);
       if (!localSourceWritesRecord(input, ['version', 'id', 'command', 'payload', 'expectedDatasetId'], ['performanceTrace']) || input.command !== observedCommand
         || !isRecord(input.payload) || input.payload.datasetId !== input.expectedDatasetId) return invalidRequest();
@@ -2199,6 +2206,14 @@ export function validateIpcResponseForCommand<TCommand extends IpcCommand>(
   input: unknown,
   command: TCommand,
 ): ValidationResult<IpcResponse<IpcCommandResults[TCommand]>> {
+  if (isLocalRelocationPlanCommand(command)) {
+    try {
+      input = localRelocationDataSnapshot(input);
+      if (!localRelocationRecord(input, ['version', 'id', 'ok'], ['result', 'error'])
+        || input.ok === true && !localRelocationRecord(input, ['version', 'id', 'ok', 'result'])
+        || input.ok === false && !localRelocationRecord(input, ['version', 'id', 'ok', 'error'])) return invalidResponse();
+    } catch { return invalidResponse(); }
+  }
   if (isLocalSourceWritesCommand(command)) {
     try {
       input = localSourceWritesDataSnapshot(input, LOCAL_SOURCE_WRITES_BUDGET.planBytes, LOCAL_SOURCE_WRITES_BUDGET.publicNodes);

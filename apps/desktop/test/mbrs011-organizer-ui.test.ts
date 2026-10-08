@@ -9,6 +9,7 @@ import type { LocalLibraryPublicApi, LocalLibraryQuery, LocalLibraryTrackDetail,
 import { organizerPlanFixture } from '../../../packages/contracts/test/mbrs011/fixture.js'
 import { useLocalLibrary } from '../src/renderer/src/composables/application/useLocalLibrary.js'
 import * as organizer from '../src/renderer/src/composables/application/useLocalOrganizer.js'
+import * as relocationComposables from '../src/renderer/src/composables/application/useLocalRelocationPlans.js'
 import * as artwork from '../src/renderer/src/composables/application/useLocalArtwork.js'
 import { calculateVirtualWindow } from '../src/renderer/src/composables/virtualWindow.js'
 import * as details from '../src/renderer/src/components/player/details.js'
@@ -81,6 +82,7 @@ async function mounted(t: test.TestContext, file: string, initial: Record<string
       if (name.endsWith('TrackArtwork.vue')) return { default: { render: () => vue.h('span', { class: 'test-artwork' }) } }
       if (name.endsWith('.vue')) return { default: load(path.resolve(path.dirname(filename), name)) }
       if (name.endsWith('/useLocalOrganizer.js')) return organizer
+      if (name.endsWith('/useLocalRelocationPlans.js')) return relocationComposables
       if (name.endsWith('/useLocalArtwork') || name.endsWith('/useLocalArtwork.js')) return artwork
       if (name.endsWith('/virtualWindow.js')) return { calculateVirtualWindow }
       if (name.endsWith('/details.js')) return details

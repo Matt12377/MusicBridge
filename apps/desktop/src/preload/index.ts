@@ -390,5 +390,6 @@ contextBridge.exposeInMainWorld(
     createLocalOrganizerClient(invokeScoped,getDatasetId,{confirm:request=>outbox.submit('localOrganizer.confirm',request),undo:request=>outbox.submit('localOrganizer.undo',request)}),
     { invoke: invokeScoped, scope: getDatasetId, confirm: request => outbox.submit('localLegacyLinks.confirm', request), revoke: request => outbox.submit('localLegacyLinks.revoke', request), undo: request => outbox.submit('localLegacyLinks.undo', request) },
     { invoke: invokeScoped, scope: getDatasetId },
+    { invoke: invokeScoped, scope: getDatasetId },
   ),
 )

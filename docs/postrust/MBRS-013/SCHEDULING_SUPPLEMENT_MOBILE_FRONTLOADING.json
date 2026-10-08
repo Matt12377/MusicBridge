@@ -1,0 +1,39 @@
+{
+  "schema": "mbrs013.scheduling-supplement.v1",
+  "kind": "POST_013_SCHEDULING_ONLY_NOT_PRODUCT_GATE",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "ownerAuthorization": "DIRECT_OWNER_REQUEST_READ_BACK_IN_COORDINATION_CHAT",
+  "remainingSequence": [
+    "MBRS-013",
+    "MBM-000",
+    "MBM-001",
+    "MBM-002",
+    "MBM-003",
+    "MBM-004",
+    "MBRS-016",
+    "MBRS-017"
+  ],
+  "current013Continues": true,
+  "restartedOrReplaced": false,
+  "originalTasks": 18,
+  "originalAcceptanceCases": 156,
+  "effectiveTasks": 17,
+  "effectiveAcceptanceCases": 150,
+  "acceptanceCountsPreserved": {
+    "MBRS-013": 8,
+    "MBRS-016": 9,
+    "MBRS-017": 8
+  },
+  "allOriginalTaskObjectsAndAcceptanceObjectsUnchanged": true,
+  "originalTaskObjectsSha256": "bcf697cd20cd5f51279b37625dd99fe5d02a0e07a2962d369ba3ea8832e2da32",
+  "originalAcceptanceObjectsSha256": "b813576dc7e253ea1485566ec8f2ff334aa168601f3112f62ba64af741c1216d",
+  "scopeBudgetsAndProductAdmissionUnchanged": true,
+  "plan": {
+    "path": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+    "bytes": 10428,
+    "sha256": "02db8d2bfd3ac105ff85c442078447b36ed0975969af2ec990fed26e2ec0278a"
+  },
+  "implementationAndGateEvidence": "NOT_CLAIMED_BY_SCHEDULING_SUPPLEMENT",
+  "recordedAt": "2026-10-08T10:47:22.773406+00:00"
+}

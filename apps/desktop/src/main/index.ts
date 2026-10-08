@@ -1,5 +1,6 @@
 import { installLocalArtworkHandlers } from './local-artwork-ipc.js'
 import { installLocalSourceWritesHandlers } from './local-source-writes-ipc.js'
+import { installLocalRelocationHandlers } from './local-relocation-ipc.js'
 import { createCommonsArtworkProvider } from './commons-artwork-provider.js'
 import { createMusicCoverArtProvider } from './music-cover-art-provider.js'
 import {isMBQueueEditRequest,isMBQueuePlayEntryRequest,isMBEditionQueueRequest} from '@music-bridge/contracts'
@@ -137,6 +138,7 @@ import {
   type CoreStartupClient,
   type CoreChildProcess,
   type CoreMessagePort,
+  type CoreRelocationMessagePort,
 } from './core-supervisor.js'
 import {
   buildBrowserWindowWebPreferences,
@@ -233,6 +235,7 @@ let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
 let closeLocalArtwork: (()=>void) | undefined
 let closeLocalSourceWrites: (() => void) | undefined
+let closeLocalRelocation: (() => void) | undefined
 let roonDisplayConnection: RoonDisplayConnection | undefined
 let recordingPrintWorker: ReturnType<typeof createRecordingPrintWorker> | undefined
 let recordingPrintEpoch = 0
@@ -1099,6 +1102,18 @@ function registerIpcHandlers(
       requireTrustedRenderer(event)
       if (!mainWindow || event.senderFrame !== mainWindow.webContents.mainFrame) throw new CoreIpcError('INVALID_IPC_REQUEST', '源写确认必须来自当前应用主页面。')
     },
+  }).close
+  closeLocalRelocation = installLocalRelocationHandlers<Electron.IpcMainInvokeEvent>({
+    handle: (channel, handler) => registerPerformanceHandler(channel, handler),
+    requireTrusted: event => {
+      requireTrustedRenderer(event)
+      if (!mainWindow || event.senderFrame !== mainWindow.webContents.mainFrame) throw new CoreIpcError('INVALID_IPC_REQUEST', '搬迁操作必须来自当前应用主页面。')
+    },
+    requestPublic: (command, payload, datasetId) => supervisor.request(command,
+      payload as import('@music-bridge/contracts').IpcCommandPayloads[typeof command], datasetId),
+    requestMain: (command, payload) => supervisor.requestRelocationMain(command, payload),
+    pickTarget: kind => pickLocalLibrary({ title: kind === 'directory' ? '选择搬迁目标目录' : '选择已移动的音乐文件',
+      message: '先生成完整位置计划；不会覆盖已有文件。', properties: kind === 'directory' ? ['openDirectory'] : ['openFile'] }),
   }).close
   installCommandOutboxIpc<Electron.IpcMainInvokeEvent>({
     handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer,
@@ -1974,7 +1989,12 @@ function createCoreSupervisor(
     env: buildCoreEnvironment(),
     playbackEventProtocol: process.env.MUSIC_BRIDGE_COMPACT_PLAYBACK_EVENTS === '0' ? null : 'compact-v1',
     sourceWritesPort: true,
+    relocationMainPort: true,
     dependencies: {
+      createRelocationChannel: () => {
+        const channel = new MessageChannelMain()
+        return { port1: channel.port1 as unknown as CoreRelocationMessagePort, port2: channel.port2 as unknown as CoreRelocationMessagePort }
+      },
       createSourceWritesChannel: () => {
         const channel = new MessageChannelMain()
         return { port1: channel.port1 as unknown as CoreMessagePort, port2: channel.port2 as unknown as CoreMessagePort }
@@ -2287,6 +2307,7 @@ app.on('before-quit', (event) => {
   roonDisplayConnection?.stop()
   closeLocalArtwork?.()
   closeLocalSourceWrites?.()
+  closeLocalRelocation?.()
   lifecycleProbe.mark('before-quit')
   if (quitAfterCoreShutdown) {
     destroyTray()

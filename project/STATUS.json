@@ -5856,7 +5856,7 @@
     "overallReleaseApproved": false,
     "securityBaselineBlocker": "INHERITED_PRODUCTION_NODE_FORGE_HIGH_AUDIT_FAILURE_NOT_CLOSED"
   },
-  "currentPostRustTask": "MBRS-012",
+  "currentPostRustTask": "MBRS-013",
   "postRustBaseline20261004": {
     "task": "MBRS-000",
     "state": "baseline-delivered-g0-not-admitted",
@@ -46808,11 +46808,11 @@
   },
   "mbrs012SafeSourceWrites": {
     "task": "MBRS-012",
-    "state": "FINITE_SOFTWARE_SOURCE_CI_SEALED_REPORT_DELIVERY_PENDING",
+    "state": "FINITE_SOFTWARE_DELIVERY_SEALED_LIVE_CARRYOVER_OPEN",
     "baseSha": "09370f19d4422be3b387047999a0722961c52e1e",
     "branch": "codex/mbrs-012-source-writes",
     "implementationCommit": "7166e12d7474957041f5d747db5dc9300f7e9ee7",
-    "reportCommit": null,
+    "reportCommit": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
     "scope": "docs/postrust/MBRS-012/EXECUTION_SCOPE.json",
     "handoff": "docs/postrust/MBRS-012/IMPLEMENTATION_HANDOFF.md",
     "g0": "ADMITTED_INHERITED_PHASE_HANDOFF",
@@ -46970,7 +46970,7 @@
     "evidence": "reports/MBRS-012_EVIDENCE.json",
     "push": {
       "source": "PASS_EXACT_REMOTE_HEAD",
-      "report": "PENDING_AFTER_REPORT_COMMIT",
+      "report": "PASS_EXACT_REMOTE_HEAD",
       "branch": "codex/mbrs-012-source-writes"
     },
     "ci": {
@@ -46982,18 +46982,228 @@
       "noRerunOrCancellation": true,
       "artifactContentDownloaded": false,
       "artifactContentScope": "ONLY_NEW_S5_SUCCESS_SOURCE_ARTIFACTS",
-      "report": "PENDING_AFTER_REPORT_COMMIT",
+      "report": "ALL_NATURAL_CI_SUCCESS",
       "reportExpectedWorkflows": 2,
-      "reportExpectedJobs": 3
+      "reportExpectedJobs": 3,
+      "reportActualMode": "report-only",
+      "reportActualModeReason": "EXACT_PARENT_PRODUCT_CI_SUCCESS"
     },
-    "updatedAt": "2026-10-08T09:10:23.372945+00:00",
+    "updatedAt": "2026-10-08T09:42:36.487041+00:00",
     "finalDeliveryReceipt": {
       "archiveId": "MBRS012_FINAL_DELIVERY_RECEIPT",
       "fileName": "MBRS012_FINAL_DELIVERY_RECEIPT.json",
+      "bytes": 190290,
+      "sha256": "2ff9c74adb34d5be063fee65adb85aad91d1c0156aecc4a7cf16a3c06bd09988",
       "storage": "PRIVATE_EXTERNAL_ARCHIVE",
-      "resolution": "CREATED_ONLY_AFTER_REPORT_PUSH_NATURAL_CI_REMOTE_HEAD_AND_CLEAN",
       "publiclyDownloadable": false
     },
-    "nextBranchBaseline": "ACTUAL_SEALED_REPORT_HEAD_RESOLVED_BY_GIT"
+    "nextBranchBaseline": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478"
+  },
+  "mbrs013LocalRelocation": {
+    "task": "MBRS-013",
+    "state": "LOCAL_SOFTWARE_COMPLETE_SOURCE_COMMIT_CI_PENDING",
+    "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+    "branch": "codex/mbrs-013-relocation",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "scope": "docs/postrust/MBRS-013/EXECUTION_SCOPE.json",
+    "handoff": "docs/postrust/MBRS-013/IMPLEMENTATION_HANDOFF.md",
+    "g0": "docs/postrust/MBRS-013/G0_HANDOFF.json",
+    "hardDependencies": [
+      "MBRS-012"
+    ],
+    "defaultCore": "Node",
+    "catalogSchemaAtEntry": 34,
+    "optionalRustReadonly": "OFF",
+    "libraryWriteEnabledDefault": false,
+    "runtimeRelocation": "OFF_UNTIL_FINITE_QUALIFICATION_SPECIFIC_MAIN_PLAN_ONLY",
+    "originalAtCount": 8,
+    "productAcceptance": "PARTIAL_ALL_EIGHT_LIVE_OWNER_OPEN",
+    "softwareTests": "PASS_LOCAL_STANDARD100_CURRENT_PRODUCT_529_GATE87_AND_ADMISSION99_EXACT_SOURCE_GATE_SEPARATE",
+    "productionApp": "PASS_SELF_OWNED_PRODUCTION_APP104_AND_INDEPENDENT_OUTPUTS_NONEMPTY_HISTORY_SEPARATE",
+    "realRoonNasAudioDeviceOwner": "NOT_RUN",
+    "ownerRepeatedApprovalRequired": false,
+    "nextTask": "MBM-000",
+    "previousFinalDeliveryReceipt": {
+      "archiveId": "MBRS012_FINAL_DELIVERY_RECEIPT",
+      "fileName": "MBRS012_FINAL_DELIVERY_RECEIPT.json",
+      "bytes": 190290,
+      "sha256": "2ff9c74adb34d5be063fee65adb85aad91d1c0156aecc4a7cf16a3c06bd09988",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "startedAt": "2026-10-08T09:42:36.487041+00:00",
+    "validationCheckpoint": {
+      "standard": {
+        "label": "root013-standard-verify100",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 0,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 312.4403179590008,
+        "log": {
+          "file": "root013-standard-verify100.log",
+          "bytes": 1136833,
+          "sha256": "61c8a2c8d2194df88dd78deeed7ecd8a320fdf5388d74a8f897443976f1597d5"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "standardTotals": {
+        "tests": 4701,
+        "passed": 4699,
+        "failed": 0,
+        "skipped": 2
+      },
+      "localGateAudit": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "MBRS013_FULL_GATE87_ACTUAL_AUDIT89.json",
+        "bytes": 6012,
+        "sha256": "8c78948249b41408dc88043c88bfda0b29e3bff69d0756d4fe8f5d93c4d85012",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "productionAppAudit": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "PRODUCTION_APP104_INDEPENDENT_OUTPUT_AUDIT.json",
+        "bytes": 3298,
+        "sha256": "d9346bd016c36767263cf461375852d26a5f7a058e75a5b5524ab2c5425711f2",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "lifecycle": {
+        "label": "root013-electron-lifecycle101",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 0,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 45.844012832967564,
+        "log": {
+          "file": "root013-electron-lifecycle101.log",
+          "bytes": 1370,
+          "sha256": "57cf3b7824d9051a498feff7715b8d0b425660457da00f3c0613cb79ff7b3dab"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "previousCheckpoint": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "MBRS013_METADATA_BEFORE_SOURCE102.json",
+        "bytes": 17585,
+        "sha256": "13c98fc9cf8f9b16a64480dfa4177c080062119d72e779f15470997163d47090",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "sourceTestIdentity": "ab677edb487b7131a9a19b862db45ddbc324c81d55e7ebea3fd84d3e645847d7",
+      "productIdentity": "b136f2c992dd019fb99e08768bfcf8e0fe62d0d5907cfb76cfccdbf34e251e55",
+      "originalAcceptanceCount": 8,
+      "realRoonNasAudioDeviceOwner": "NOT_RUN"
+    },
+    "implementationCommitResolution": "SOURCE_COMMIT_CONTAINING_CURRENT_013_IMPLEMENTATION",
+    "report": "reports/MBRS-013_LOCAL_RELOCATION.md",
+    "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-013_LOCAL_RELOCATION.md",
+    "evidence": [
+      "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
+      "docs/postrust/MBRS-013/evidence/production-app.json",
+      "docs/postrust/MBRS-013/evidence/independent-app-outputs.json",
+      "docs/postrust/MBRS-013/evidence/local-electron.json",
+      "docs/postrust/MBRS-013/evidence/local-relocation-gate.json",
+      "docs/postrust/MBRS-013/evidence/e2e-cleanup-wait.json",
+      "docs/postrust/MBRS-013/evidence/local-failures-and-narrow-fixes.json",
+      "docs/postrust/MBRS-013/evidence/original-eight-at.json"
+    ],
+    "push": "NOT_YET_PERFORMED",
+    "ci": "NOT_RUN",
+    "updatedAt": "2026-10-08T15:30:19.142192+00:00"
+  },
+  "mobileFrontloading20261008": {
+    "state": "SCHEDULE_ADOPTED_MOBILE_TASKS_NOT_STARTED",
+    "plan": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+    "schedulingSupplement": "docs/postrust/MBRS-013/SCHEDULING_SUPPLEMENT_MOBILE_FRONTLOADING.json",
+    "currentTask": "MBRS-013",
+    "nextTask": "MBM-000",
+    "remainingSequence": [
+      "MBRS-013",
+      "MBM-000",
+      "MBM-001",
+      "MBM-002",
+      "MBM-003",
+      "MBM-004",
+      "MBRS-016",
+      "MBRS-017"
+    ],
+    "ownerRepeatedApprovalRequired": false,
+    "originalTasks": 18,
+    "originalAcceptanceCases": 156,
+    "effectiveTasks": 17,
+    "effectiveAcceptanceCases": 150,
+    "mobileTasks": [
+      {
+        "id": "MBM-000",
+        "title": "合同采纳",
+        "status": "NOT_STARTED",
+        "scheduled_after": "MBRS-013",
+        "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
+        "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+        "software": "NOT_RUN",
+        "production_app": "NOT_RUN",
+        "real_service_device_audio": "NOT_RUN",
+        "owner_acceptance": "NOT_RUN",
+        "owner_repeated_approval_required": false
+      },
+      {
+        "id": "MBM-001",
+        "title": "配对与只读曲库",
+        "status": "NOT_STARTED",
+        "scheduled_after": "MBM-000",
+        "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
+        "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+        "software": "NOT_RUN",
+        "production_app": "NOT_RUN",
+        "real_service_device_audio": "NOT_RUN",
+        "owner_acceptance": "NOT_RUN",
+        "owner_repeated_approval_required": false
+      },
+      {
+        "id": "MBM-002",
+        "title": "手机资源播放",
+        "status": "NOT_STARTED",
+        "scheduled_after": "MBM-001",
+        "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
+        "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+        "software": "NOT_RUN",
+        "production_app": "NOT_RUN",
+        "real_service_device_audio": "NOT_RUN",
+        "owner_acceptance": "NOT_RUN",
+        "owner_repeated_approval_required": false
+      },
+      {
+        "id": "MBM-003",
+        "title": "FLAC无损必做",
+        "status": "NOT_STARTED",
+        "scheduled_after": "MBM-002",
+        "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
+        "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+        "software": "NOT_RUN",
+        "production_app": "NOT_RUN",
+        "real_service_device_audio": "NOT_RUN",
+        "owner_acceptance": "NOT_RUN",
+        "owner_repeated_approval_required": false
+      },
+      {
+        "id": "MBM-004",
+        "title": "内容与多设备",
+        "status": "NOT_STARTED",
+        "scheduled_after": "MBM-003",
+        "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
+        "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+        "software": "NOT_RUN",
+        "production_app": "NOT_RUN",
+        "real_service_device_audio": "NOT_RUN",
+        "owner_acceptance": "NOT_RUN",
+        "owner_repeated_approval_required": false
+      }
+    ],
+    "recordedAt": "2026-10-08T10:47:22.773406+00:00"
   }
 }

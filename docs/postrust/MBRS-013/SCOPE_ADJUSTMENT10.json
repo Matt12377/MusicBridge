@@ -1,0 +1,28 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "reason": "真实Gate74及窄验证83证明原011同步SFC装载器需显式加载新的真实ESM模块；仅增加一行ESM导入与一行原模式路径映射。原夹具、业务assert/case、49清单、426计数/预算及Contracts出口不改；014仅准该精确新字节，正负例拒绝任意其它变动。",
+  "addedRootOwnedFiles": [
+    "apps/desktop/test/mbrs011-organizer-ui.test.ts"
+  ],
+  "beforeScope": {
+    "bytes": 8727,
+    "sha256": "32d0e3fe545297c38599f9037fdbc7f1712f927a8f2b452c4317775f6a1e07dc"
+  },
+  "updatedScope": {
+    "bytes": 8839,
+    "sha256": "df9cbc48db074006ccaad953e5efc6469430c2a50dece6341d561751ab0ab27e"
+  },
+  "original8AtAndBudgetsUnchanged": true,
+  "originalUiLoaderTwoLineExtension": {
+    "path": "apps/desktop/test/mbrs011-organizer-ui.test.ts",
+    "bytes": 29493,
+    "sha256": "6dade2fa5ec73b2667ebd3eb0265296f820b2bc51bf0f4e8e8536a8fb8c2d099"
+  },
+  "originalUiAssertionAndFixtureBytesExactInverse": {
+    "bytes": 29296,
+    "sha256": "0b4ed3b0c7169ec7b086f70420bb60eb5ccc3ae1e1efd8642a2a197defb5c770"
+  },
+  "recordedAt": "2026-10-08T14:35:21.721189+00:00"
+}

@@ -1,0 +1,28 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "reason": "沿原物理Main→Utility→Owner通道与真实Preload API、公共请求验证器登记013独立域，避免叶作者修改共享作者。",
+  "allocationBy": "ROOT_WITHIN_EXISTING_TASK_AUTHORIZATION",
+  "addedRootOwnedSharedRegistrationFiles": [
+    "apps/desktop/src/preload/api.ts",
+    "apps/desktop/src/main/core-supervisor.ts",
+    "apps/desktop/src/main/dataset-owner-bootstrap.ts",
+    "apps/desktop/src/main/dataset-owner-entry.ts",
+    "packages/contracts/src/validator.ts"
+  ],
+  "noNewFeaturesOrPublicApiScope": true,
+  "budgetsUnchanged": true,
+  "original8AtUnchanged": true,
+  "beforeScope": {
+    "bytes": 7045,
+    "sha256": "7d0bb32fbb7a824c037ab5f1d86f26b8697eb27f0552ca0b58cd722700724e65"
+  },
+  "updatedScope": {
+    "bytes": 7357,
+    "sha256": "de084a8de194b3078154172aee14bad331c44ba58a25f5c8572b6826d14890b4"
+  },
+  "initialG0ReceiptPreserved": true,
+  "testsBuildApp": "NOT_RUN",
+  "recordedAt": "2026-10-08T09:52:57.267972+00:00"
+}

@@ -6,6 +6,8 @@ import { randomUUID } from 'node:crypto';
 import type { MessagePort } from 'node:worker_threads';
 import { localSourceWritesMainRequestSnapshot, localSourceWritesMainResponseSnapshot, type SourceWritesMainRequest } from '@music-bridge/contracts';
 import { createSourceWritesMainActor } from './source-writes-authority.js';
+import { localRelocationMainRequestSnapshot, localRelocationMainResponseSnapshot, type LocalRelocationMainRequest } from '@music-bridge/contracts';
+import { createRelocationMainActor } from './source-relocation-authority.js';
 import { validateIpcRequest, validateIpcInternalRequest, isLocalCatalogInternalCommand, isLocalScanInternalCommand, type IpcCommand, type IpcFailure } from '@music-bridge/contracts';
 import { failureForError, responseFailure } from '../shared/ipc-failure.js';
 import {
@@ -19,6 +21,7 @@ import {
 
 export interface DatasetOwnerWorkerOptions {
   privateSourceWritesPort?:MessagePort;
+  privateRelocationMainPort?: MessagePort;
   // factory、converter和helper只在worker本地创建，端口上不接受函数或任意方法名。
   prepare(epoch: string, projection: DatasetProjectionPort): Promise<OwnedDatasetDomain>;
 }
@@ -59,6 +62,32 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     try{sourcePort?.postMessage(localSourceWritesMainResponseSnapshot(response,request.command));}catch{sourcePort?.close();}
   }
   if(sourcePort){sourcePort.on('message',raw=>{void receiveSource(raw).catch(()=>sourcePort.close());});sourcePort.on('messageerror',()=>sourcePort.close());sourcePort.start();}
+  const relocationPort = options.privateRelocationMainPort, relocationActor = relocationPort ? createRelocationMainActor(relocationPort) : undefined;
+  let relocationSequence = 0, relocationRequests = 0;
+  async function receiveRelocation(raw: unknown): Promise<void> {
+    let request: LocalRelocationMainRequest;
+    try { request = localRelocationMainRequestSnapshot(raw); } catch { relocationPort?.close(); return; }
+    if (request.sequence !== relocationSequence + 1) { relocationPort?.close(); return; }
+    relocationSequence = request.sequence;
+    let result: unknown, failure: IpcFailure | undefined;
+    try {
+      if (closing || failed || !bootCommitted || !domain?.dispatchRelocationMain || request.payload.datasetId !== boundDatasetId || !relocationActor || relocationRequests >= 4)
+        throw new DatasetOwnerDispatchError(responseFailure(request.requestId, 'NOT_READY', '搬迁专用Owner入口尚未就绪。'));
+      relocationRequests++;
+      const dispatch = domain.dispatchRelocationMain(request, relocationActor); dispatches.add(dispatch);
+      try { result = await dispatch; } finally { dispatches.delete(dispatch); relocationRequests--; }
+    } catch (error) {
+      if (error instanceof LocalFactsCommitFatal) { domain?.sealLocalSources?.(); protocolFailure(); return; }
+      failure = projectFailure(request.requestId, error, 'localRelocationPlan.confirm');
+    }
+    const response = { version: 1 as const, type: 'relocation-main-response' as const, requestId: request.requestId, sequence: request.sequence,
+      ...(failure ? { ok: false as const, failure } : { ok: true as const, result }) };
+    try { relocationPort?.postMessage(localRelocationMainResponseSnapshot(response, request.command)); } catch { relocationPort?.close(); }
+  }
+  if (relocationPort) {
+    relocationPort.on('message', raw => { void receiveRelocation(raw).catch(() => relocationPort.close()); });
+    relocationPort.on('messageerror', () => relocationPort.close()); relocationPort.start();
+  }
 
   function readSnapshotStamp(): { dataVersion: number; totalChanges: number } {
     if (domain?.readonlySnapshotStamp === undefined) throw new DatasetOwnerDispatchError(responseFailure('snapshot-version', 'NOT_READY', '收藏快照版本尚未就绪。'));
@@ -144,7 +173,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     failed = true;
     rejectProjections();
     // 父端断链仍先停止coordinator并等待已发请求，禁止中断数据库事务。
-    void closeDomain().then(() => { port.off('message', receive); sourcePort?.close();port.close(); }, () => undefined);
+    void closeDomain().then(() => { port.off('message', receive); sourcePort?.close(); relocationPort?.close(); port.close(); }, () => undefined);
   }
   function protocolFailure(): void {
     if (failed) return;
@@ -158,7 +187,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
         await closeDomain();
         reply(request, undefined);
         port.off('message', receive);
-        sourcePort?.close();port.close(); // closed确认后让worker自然退出；不调用process.exit/terminate。
+        sourcePort?.close(); relocationPort?.close(); port.close(); // closed确认后让worker自然退出；不调用process.exit/terminate。
       } catch (error) {
         reject(request, error);
         post({ version: DATASET_OWNER_PROTOCOL_VERSION, type: 'fatal', epoch, reason: 'close-failed' });

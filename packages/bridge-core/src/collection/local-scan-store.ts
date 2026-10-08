@@ -3,10 +3,15 @@ import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import type { MetadataTechnical, MetadataCoverEvidence, MetadataReadEvidence } from '../library/metadata-reader-types.js';
-import { LocalCatalogBudgetError, sourceWritesProjectionForDatabase } from './local-catalog-store.js';
+import { LocalCatalogBudgetError, sourceWritesProjectionForDatabase, relocationProjectionForDatabase } from './local-catalog-store.js';
+import type { RelocationProjection, RelocationLocationFact } from './local-relocation-journal.js';
 import { installSourceWriteScanPort } from './source-write-scan-port.js';
-import type { ScanReadFacts } from './local-scan-facts.js';
-export type { ScanReadFacts } from './local-scan-facts.js';
+import { installRelocationScanPort, type RelocationScanAuthor, type RelocationScanMapping,
+  type RelocationScanReadRequest, type RelocationCatalogCommitContext, type RelocationScanDelta,
+  type RelocationBoundScanFact } from './source-relocation-scan-port.js';
+import type { RelocationReadAccess } from './source-relocation-verify.js';
+import type { ScanReadFacts, ScanFileState } from './local-scan-facts.js';
+export type { ScanReadFacts, ScanFileState } from './local-scan-facts.js';
 
 /** 扫描状态与目录实体在原业务连接中持久化；这些表不赋予文件系统授权。 */
 const tables = {
@@ -89,6 +94,8 @@ export interface ScanPreparedItem {
   relative: string; signature: string; parserVersion: string;
   outcome: 'accepted' | 'rejected'; fields: dto.LocalMetadata | null; failureCode: string | null; reused: boolean; readFacts: ScanReadFacts | null;
 }
+/** 仅原coordinator真实Reader私有准备闭包可产生；不进入公开DTO或Main消息。 */
+export interface RelocationPreparedScanRead { mapping: RelocationScanMapping; item: ScanPreparedItem; primaryTrackId: string }
 export interface ScanPreparedBatch {
   batchId: string; jobId: string; expectedJobRevision: string; checkpointBefore: string | null;
   items: ScanPreparedItem[]; frontier: string[]; completed: boolean;
@@ -97,10 +104,6 @@ export interface ScanPreparedBatch {
 export interface ScanCheckpoint {
   checkpointId: string; jobId: string; batchId: string; sequence: string;
   frontier: string[]; progress: dto.ScanJobProgress;
-}
-export interface ScanFileState {
-  libraryRootId: string; relative: string; signature: string; parserVersion: string;
-  outcome: 'accepted' | 'rejected'; assetId: string | null; trackId: string | null; failureCode: string | null; readFacts: ScanReadFacts | null;
 }
 const corrupt = (): never => { throw new Error('扫描持久结构或历史损坏，保留现有数据。'); };
 const record = (v: unknown): v is Row => {
@@ -245,6 +248,47 @@ function sourceUpdatedScanState(db:DatabaseSync,row:Row,initial:ScanFileState):S
   for(const event of projection.events){if(event.kind!=='facts'||event.fact.scanJobId!==row.job_id||event.fact.scanBatchId!==row.batch_id)continue;const f=event.fact,next=parse(f.scanAfter,isScanFileState,65536),before=parse(f.scanBefore,isScanFileState,65536);if(next.libraryRootId!==row.library_root_id||next.relative!==row.relative)continue;if(!equal(before,previous)||next.assetId!==initial.assetId||next.trackId!==initial.trackId||next.parserVersion!==initial.parserVersion)return corrupt();previous=next;found=true;}
   return found?previous:null;
 }
+const relocationOriginIndexes = new WeakMap<DatabaseSync, { projection: RelocationProjection; origins: ReadonlyMap<string, RelocationLocationFact> }>();
+function relocationOriginFact(db: DatabaseSync, jobId: string, batchId: string, index: number): RelocationLocationFact | null {
+  const projection = relocationProjectionForDatabase(db); if (!projection) return null;
+  let cache = relocationOriginIndexes.get(db);
+  if (!cache || cache.projection !== projection) {
+    const origins = new Map<string, RelocationLocationFact>();
+    for (const event of projection.events) if (event.kind === 'location-facts') {
+      const fact = event.fact, key = `${fact.scan.origin.job.jobId}/${fact.scan.origin.batchId}/${fact.scan.origin.itemIndex}`;
+      if (origins.has(key)) return corrupt(); origins.set(key, fact);
+    }
+    cache = { projection, origins }; relocationOriginIndexes.set(db, cache);
+  }
+  return cache.origins.get(`${jobId}/${batchId}/${index}`) ?? null;
+}
+/** 只接目录已认证013事件，再逐一核原四张receipt、batch和真实Reader事实；不补造register子账本。 */
+function verifyRelocationOrigin(db: DatabaseSync, job: dto.ScanJobRecord, batch: ScanPreparedBatch, index: number, file: ScanFileState): RelocationLocationFact | null {
+  const fact = relocationOriginFact(db, job.jobId, batch.batchId, index); if (!fact) return null;
+  const origin = fact.scan.origin, item = batch.items[index];
+  if (!item || item.reused || item.outcome !== 'accepted' || !equal(item.fields, {}) || !isScanReadFacts(item.readFacts)
+    || !equal(origin.job, job) || !equal(fact.scan.state, file) || file.libraryRootId !== fact.target.libraryRootId
+    || file.relative !== fact.target.relative || file.signature !== fact.targetObservation.signature
+    || file.assetId !== fact.afterAsset.id || !fact.tracks.some(track => track.id === file.trackId)
+    || !equal(file.readFacts, item.readFacts) || batch.expectedJobRevision !== '2' || batch.checkpointBefore !== null
+    || !batch.completed || batch.frontier.length || origin.job.checkpointRef !== origin.checkpointId) return corrupt();
+  const receipts = [
+    ['start', origin.startCommandId, origin.startFingerprint], ['resume', origin.resumeCommandId, origin.resumeFingerprint],
+    ['prepare-batch', origin.prepareCommandId, origin.prepareFingerprint], ['commit-batch', origin.commitCommandId, origin.commitFingerprint],
+  ] as const;
+  for (const [operation, commandId, fingerprint] of receipts) {
+    const row = db.prepare('SELECT * FROM local_scan_receipts WHERE command_id=? AND job_id=? AND operation=?').get(commandId, job.jobId, operation);
+    if (!row || row.fingerprint !== fingerprint) return corrupt();
+    const request = parse(row.request, (value): value is Row & { commandId: string; jobId: string } => isScanReceiptRequest(operation, value));
+    if (request.commandId !== commandId || request.jobId !== job.jobId || scanFingerprint(operation, request) !== fingerprint) return corrupt();
+    const result = parse(row.result, dto.isScanJobRecord, 65_536);
+    if (operation === 'prepare-batch' && (!equal(request.batch, batch) || result.jobRevision !== '2' || result.phase !== 'running')
+      || operation === 'commit-batch' && (request.batchId !== batch.batchId || !equal(result, origin.job))) return corrupt();
+  }
+  const checkpoint = db.prepare('SELECT data FROM local_scan_checkpoints WHERE id=? AND job_id=? AND batch_id=?').get(origin.checkpointId, job.jobId, batch.batchId);
+  if (!checkpoint || !equal(parse(checkpoint.data, isScanCheckpoint).progress, job.progress)) return corrupt();
+  return fact;
+}
 
 /** 冷开、迁移及隔离备份/恢复全量流式核验；热批提交不调用此函数。 */
 export function verifyLocalScanDatabase(db: DatabaseSync): void {
@@ -323,6 +367,8 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
           || !item.reused && !equal(file.readFacts, item.readFacts)) return corrupt();
         const registered = db.prepare('SELECT request,result FROM local_catalog_ledger WHERE command_id=? AND operation=?').get(childCommand(batch.batchId, index, 'register-asset'), 'register-asset');
         const replaced = db.prepare('SELECT request,result FROM local_catalog_ledger WHERE command_id=? AND operation=?').get(childCommand(batch.batchId, index, 'replace-asset'), 'replace-asset');
+        const relocated = verifyRelocationOrigin(db, job, batch, index, file);
+        if (relocated && (registered || replaced || db.prepare('SELECT command_id FROM local_catalog_ledger WHERE command_id IN (?,?)').get(childCommand(batch.batchId, index, 'create-track'), childCommand(batch.batchId, index, 'observe-metadata')))) return corrupt();
         if (registered || replaced) {
           const child = registered ?? replaced!; const childRequest = JSON.parse(String(child.request)) as Row;
           const childAsset = parse(child.result, dto.isAudioAsset);
@@ -402,6 +448,13 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
         || row.asset_id !== tracks[row.ordinal]!.assetReference.assetId || !equal(JSON.parse(String(row.data)),tracks[row.ordinal])) return corrupt();
     }
   }
+  for (const event of relocationProjectionForDatabase(db)?.events ?? []) if (event.kind === 'location-facts') {
+    const fact = event.fact, job = jobs.get(fact.scan.origin.job.jobId);
+    const row = db.prepare("SELECT request,result FROM local_scan_batches WHERE id=? AND job_id=? AND phase='committed'").get(fact.scan.origin.batchId, fact.scan.origin.job.jobId);
+    if (!job || !row) return corrupt();
+    const batch = parse(row.request, isScanPreparedBatch), files = parse(row.result, isScanCommittedBatch).files;
+    const file = files[fact.scan.origin.itemIndex]; if (!file || !verifyRelocationOrigin(db, job, batch, fact.scan.origin.itemIndex, file)) return corrupt();
+  }
   if (scanDataVersion(db) !== initialVersion) return corrupt();
   scanAudits.set(db, { rows: counts, bytes, dataVersion: initialVersion });
 }
@@ -438,6 +491,7 @@ const childCommand = (batchId: string, index: number, operation: string): string
   return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
 };
 export function createLocalScanStore(access: ScanAccess) {
+  let relocationAuthor: RelocationScanAuthor | undefined;
   const get = (db: DatabaseSync, jobId: string): dto.ScanJobRecord => {
     if (!dto.isCollectionId(jobId)) return access.conflict('扫描任务身份无效。');
     const row = db.prepare('SELECT data FROM local_scan_jobs WHERE id=?').get(jobId);
@@ -514,6 +568,106 @@ export function createLocalScanStore(access: ScanAccess) {
     });
   }
   return {
+    /** 同连接安装原Scanner作者；外层catalog短事务才可消费真实Reader准备的私有ticket。 */
+    privateInstallRelocationScanAuthor(
+      prepare: (request: RelocationScanReadRequest, readAccess: RelocationReadAccess, signal: AbortSignal) => Promise<unknown>,
+      consume: (context: RelocationCatalogCommitContext, prepared: unknown) => readonly RelocationPreparedScanRead[],
+    ): void {
+      access.read(db => {
+        if (relocationAuthor) return access.conflict('原移动扫描作者已经安装，不允许替换。');
+        relocationAuthor = {
+          prepare,
+          commit(context, prepared): RelocationScanDelta {
+            const reads = consume(context, prepared);
+            if (!Array.isArray(reads) || reads.length !== context.mappings.length || reads.length === 0 || reads.length > 100
+              || context.afterAssets.length !== reads.length || new Set(reads.map(read => read.mapping.beforeAsset.id)).size !== reads.length) return corrupt();
+            const audit = scanAuditFor(db), beforeChanges = Number(db.prepare('SELECT total_changes() n').get()!.n);
+            const groups = new Map<string, { read: RelocationPreparedScanRead; asset: dto.AudioAsset }[]>();
+            for (const [index, read] of reads.entries()) {
+              const mapping = context.mappings[index]!, afterAsset = context.afterAssets[index]!;
+              if (!equal(read.mapping, mapping) || !isScanPreparedItem(read.item) || read.item.reused || read.item.outcome !== 'accepted'
+                || !read.item.readFacts || read.item.relative !== mapping.destination.relative
+                || !mapping.tracks.some(track => track.id === read.primaryTrackId) || !dto.isAudioAsset(afterAsset)
+                || afterAsset.id !== mapping.beforeAsset.id || afterAsset.libraryRootId !== mapping.destination.libraryRootId
+                || afterAsset.sourceRootId !== mapping.destination.sourceRootId || afterAsset.rootRevision !== mapping.destination.rootRevision
+                || afterAsset.fileRevision !== mapping.beforeAsset.fileRevision || !equal(access.catalog.asset(afterAsset.id), afterAsset)) return corrupt();
+              const locator = access.catalog.privateAssetLocator(afterAsset.id);
+              if (locator.relative !== read.item.relative) return corrupt();
+              for (const track of mapping.tracks) if (!dto.isLocalTrack(track) || track.assetId !== afterAsset.id
+                || !equal(access.catalog.track(track.id), track)) return corrupt();
+              const key = mapping.destination.libraryRootId, group = groups.get(key) ?? [];
+              group.push({ read, asset: afterAsset }); groups.set(key, group);
+            }
+            const factsByResource = new Map<string, RelocationBoundScanFact>();
+            for (const [rootId, group] of groups) {
+              const root = access.catalog.root(rootId), parser = group[0]!.read.item.parserVersion;
+              if (group.some(({ read }) => read.mapping.destination.sourceRootId !== root.sourceRootId
+                || read.mapping.destination.rootRevision !== root.revision || read.item.parserVersion !== parser)) return corrupt();
+              if (!access.sources.root(root.sourceRootId).authorized) return access.conflict('移动目的根许可已撤销。');
+              const jobId = randomUUID(), batchId = randomUUID(), startCommandId = randomUUID(), resumeCommandId = randomUUID(),
+                prepareCommandId = randomUUID(), commitCommandId = randomUUID(), checkpointId = randomUUID();
+              const startRequest = { commandId: startCommandId, jobId, datasetId: context.datasetId,
+                libraryRootId: root.id, expectedRootRevision: root.revision, parserVersion: parser };
+              const pending: dto.ScanJobRecord = { schemaVersion: '1.2', jobId, datasetId: context.datasetId,
+                libraryRootId: root.id, sourceRootId: root.sourceRootId, rootRevision: root.revision, jobRevision: '1',
+                checkpointRef: null, progress: { visited: '0', accepted: '0', rejected: '0' }, phase: 'pending', failureCode: null };
+              db.prepare('INSERT INTO local_scan_jobs VALUES(?,?,?,?,?,?)').run(jobId, pending.datasetId, root.id, root.sourceRootId, parser, JSON.stringify(pending));
+              audit.replace('local_scan_jobs', null, db.prepare('SELECT * FROM local_scan_jobs WHERE id=?').get(jobId)!);
+              putReceipt(db, 'start', startRequest, pending, audit);
+              const resumeRequest = { commandId: resumeCommandId, jobId, expectedRevision: '1' };
+              const running: dto.ScanJobRecord = { ...pending, jobRevision: '2', phase: 'running' };
+              let previousJobRow = db.prepare('SELECT * FROM local_scan_jobs WHERE id=?').get(jobId)!;
+              db.prepare('UPDATE local_scan_jobs SET data=? WHERE id=?').run(JSON.stringify(running), jobId);
+              audit.replace('local_scan_jobs', previousJobRow, db.prepare('SELECT * FROM local_scan_jobs WHERE id=?').get(jobId)!);
+              putReceipt(db, 'resume', resumeRequest, running, audit);
+              const batch: ScanPreparedBatch = { batchId, jobId, expectedJobRevision: '2', checkpointBefore: null,
+                items: group.map(({ read }) => read.item), frontier: [], completed: true };
+              const prepareRequest = { commandId: prepareCommandId, jobId, batch };
+              if (!isScanPreparedBatch(batch)) return corrupt();
+              db.prepare('INSERT INTO local_scan_batches VALUES(?,?,?,?,?,?)').run(batchId, jobId, scanFingerprint('batch', batch), JSON.stringify(batch), 'prepared', null);
+              audit.replace('local_scan_batches', null, db.prepare('SELECT * FROM local_scan_batches WHERE id=?').get(batchId)!);
+              putReceipt(db, 'prepare-batch', prepareRequest, running, audit);
+              const count = String(group.length), completed: dto.ScanJobRecord = { ...running, jobRevision: '3', checkpointRef: checkpointId,
+                progress: { visited: count, accepted: count, rejected: '0' }, phase: 'completed' };
+              const files: ScanFileState[] = group.map(({ read, asset }) => ({ libraryRootId: root.id, relative: read.item.relative,
+                signature: read.item.signature, parserVersion: parser, outcome: 'accepted', assetId: asset.id,
+                trackId: read.primaryTrackId, failureCode: null, readFacts: read.item.readFacts }));
+              const committedBatch: ScanCommittedBatch = { job: completed, files };
+              if (!isScanCommittedBatch(committedBatch)) return corrupt();
+              const beforeBatch = db.prepare('SELECT * FROM local_scan_batches WHERE id=?').get(batchId)!;
+              db.prepare("UPDATE local_scan_batches SET phase='committed',result=? WHERE id=? AND phase='prepared'").run(JSON.stringify(committedBatch), batchId);
+              audit.replace('local_scan_batches', beforeBatch, db.prepare('SELECT * FROM local_scan_batches WHERE id=?').get(batchId)!);
+              const checkpoint: ScanCheckpoint = { checkpointId, jobId, batchId, sequence: '1', frontier: [], progress: completed.progress };
+              db.prepare('INSERT INTO local_scan_checkpoints VALUES(?,?,?,?)').run(checkpointId, jobId, batchId, JSON.stringify(checkpoint));
+              audit.replace('local_scan_checkpoints', null, db.prepare('SELECT * FROM local_scan_checkpoints WHERE id=?').get(checkpointId)!);
+              previousJobRow = db.prepare('SELECT * FROM local_scan_jobs WHERE id=?').get(jobId)!;
+              db.prepare('UPDATE local_scan_jobs SET data=? WHERE id=?').run(JSON.stringify(completed), jobId);
+              audit.replace('local_scan_jobs', previousJobRow, db.prepare('SELECT * FROM local_scan_jobs WHERE id=?').get(jobId)!);
+              const commitRequest = { commandId: commitCommandId, jobId, batchId, expectedRevision: '2' };
+              putReceipt(db, 'commit-batch', commitRequest, completed, audit);
+              for (const [itemIndex, state] of files.entries()) {
+                const before = db.prepare('SELECT * FROM local_scan_file_state WHERE library_root_id=? AND relative=?').get(root.id, state.relative) ?? null;
+                if (before && parse(before.data, isScanFileState, 65536).assetId !== state.assetId) return access.conflict('目的位置已登记另一独立文件，不能覆盖。');
+                db.prepare('INSERT INTO local_scan_file_state VALUES(?,?,?,?,?,?,?) ON CONFLICT(library_root_id,relative) DO UPDATE SET job_id=excluded.job_id,batch_id=excluded.batch_id,asset_id=excluded.asset_id,track_id=excluded.track_id,data=excluded.data')
+                  .run(root.id, state.relative, jobId, batchId, state.assetId, state.trackId, JSON.stringify(state));
+                audit.replace('local_scan_file_state', before, db.prepare('SELECT * FROM local_scan_file_state WHERE library_root_id=? AND relative=?').get(root.id, state.relative)!);
+                const mapping = group[itemIndex]!.read.mapping;
+                factsByResource.set(mapping.resourceId, { operationId: mapping.operationId, resourceId: mapping.resourceId,
+                  origin: { job: completed, batchId, startCommandId, startFingerprint: scanFingerprint('start', startRequest),
+                    resumeCommandId, resumeFingerprint: scanFingerprint('resume', resumeRequest), prepareCommandId,
+                    prepareFingerprint: scanFingerprint('prepare-batch', prepareRequest), commitCommandId,
+                    commitFingerprint: scanFingerprint('commit-batch', commitRequest), checkpointId, itemIndex }, state });
+              }
+            }
+            const facts = context.mappings.map(mapping => factsByResource.get(mapping.resourceId)!);
+            if (facts.some(fact => !fact)) return corrupt();
+            return { facts, changedRows: Number(db.prepare('SELECT total_changes() n').get()!.n) - beforeChanges,
+              publish: () => audit.publish() };
+          },
+        };
+        installRelocationScanPort(db, relocationAuthor);
+      });
+    },
     start(request: StartScan): { job: dto.ScanJobRecord; created: boolean } {
       if (!record(request) || !closed(request, ['commandId', 'datasetId', 'libraryRootId', 'expectedRootRevision', 'parserVersion'])
         || !dto.isCollectionId(request.commandId) || !dto.isCollectionId(request.datasetId) || !dto.isCollectionId(request.libraryRootId)
@@ -578,6 +732,18 @@ export function createLocalScanStore(access: ScanAccess) {
       return access.read(db=>{installSourceWriteScanPort(db,(...args)=>updateSourceWriteScanFacts(db,...args));const row=currentFileState(db,libraryRootId,relative);if(!row)return null;return {jobId:String(row.job_id),batchId:String(row.batch_id),data:String(row.data),value:parse(row.data,isScanFileState)};});
     },
     /** 增量读取资格与原path历史事实查询分开；只此接点受当前locator约束。 */
+    privateRetainedSource(datasetId: string, libraryRootId: string, sourceRootId: string, rootRevision: string, relative: string) {
+      if (!dto.isLocalRelocationPlanDatasetId(datasetId) || !dto.isCollectionId(libraryRootId) || !dto.isCollectionId(sourceRootId)
+        || !dto.isLocalCatalogRevision(rootRevision) || !scanRelativePath(relative)) return access.conflict('保留源位置身份无效。');
+      return access.read(db => {
+        const projection = relocationProjectionForDatabase(db), retained = projection?.retainedSources.get(`${datasetId}/${sourceRootId}/${relative}`);
+        if (!retained || retained.source.libraryRootId !== libraryRootId || retained.source.expectedRootRevision !== rootRevision) return null;
+        const plan = projection!.plans.get(retained.planId), resource = plan?.resources.find(value => value.frozen.resourceId === retained.resourceId);
+        if (!plan?.ready || !resource || plan.plan.planHash !== retained.planHash || !resource.frozen.operationIds.includes(retained.operationId)
+          || !equal(resource.sourceObservation, retained.observation) || resource.frozen.source.relative !== relative || resource.sourceRoot.id !== sourceRootId) return corrupt();
+        return structuredClone(retained);
+      });
+    },
     privateCurrentFileState(libraryRootId: string, relative: string): { jobId: string; value: ScanFileState } | null {
       if (!dto.isCollectionId(libraryRootId) || !scanRelativePath(relative)) return access.conflict('扫描文件状态身份无效。');
       return access.read(db => {
@@ -617,6 +783,11 @@ export function createLocalScanStore(access: ScanAccess) {
           if (originalJob.rootRevision !== root.revision || originalJob.sourceRootId !== source.id) continue;
           const originalIndex = original.items.findIndex(v => v.relative === locator.relative && v.signature === state.signature);
           if (originalIndex < 0) continue;
+          const relocation = relocationOriginFact(db, originalJob.jobId, original.batchId, originalIndex);
+          if (relocation && equal(relocation.afterAsset, asset) && relocation.tracks.some(track => track.id === trackId)
+            && equal(relocation.scan.state.readFacts, state.readFacts)) {
+            verifyRelocationOrigin(db, originalJob, original, originalIndex, relocation.scan.state); provenCurrent = true; break;
+          }
           const created = db.prepare('SELECT result FROM local_catalog_ledger WHERE command_id IN (?,?)').all(childCommand(original.batchId, originalIndex, 'register-asset'), childCommand(original.batchId, originalIndex, 'replace-asset'));
           if (created.length !== 1) continue;
           const proven = parse(created[0]!.result, dto.isAudioAsset);

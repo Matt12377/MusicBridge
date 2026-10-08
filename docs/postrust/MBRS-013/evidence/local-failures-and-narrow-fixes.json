@@ -1,0 +1,343 @@
+{
+  "schema": "mbrs013.prior-natural-failures.v1",
+  "originalFailuresPreserved": [
+    {
+      "execution": {
+        "label": "root013-production-app41",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 26.81404416699661,
+        "log": {
+          "file": "root013-production-app41.log",
+          "bytes": 2576,
+          "sha256": "5b1ed20958c01f82a6afc9e35da16fd7171a402b6d28ff18ac9b2f4eea46c4f5"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "receipt": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "root013-production-app41.json",
+        "bytes": 870,
+        "sha256": "c69b5c34762cd051bb763fafe2a9a662688eb7c25cb5155b8d44e15ccd23f9f2",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "execution": {
+        "label": "root013-production-app90",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 15.047146583965514,
+        "log": {
+          "file": "root013-production-app90.log",
+          "bytes": 3015,
+          "sha256": "ab40330a7f1c9eef788c72af2f0223fcb15abef60bb834c1c8fe81a11adbd251"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "receipt": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "root013-production-app90.json",
+        "bytes": 871,
+        "sha256": "8e61a15b6ec81f74198494473641a0248a6b082714675fca06d8f807b084889f",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "execution": {
+        "label": "root013-core-all-relocation-tests57",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 72.60377591697033,
+        "log": {
+          "file": "root013-core-all-relocation-tests57.log",
+          "bytes": 39755,
+          "sha256": "dbd8d6e6d3d7409b15ac69bf2c3fe376e2ca6b0fe55f088c61d1201c77c27618"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "receipt": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "root013-core-all-relocation-tests57.json",
+        "bytes": 1046,
+        "sha256": "4df82902dd83c59882dc2e881a7383aae3e9e97e59623830fb2b45ea46d4e964",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "execution": {
+        "label": "root013-core-all-after-fixes65",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 112.4362653749995,
+        "log": {
+          "file": "root013-core-all-after-fixes65.log",
+          "bytes": 24621,
+          "sha256": "f10262d99dec7a99caa0e517e03a2df8117328d15e383f6f720d7f44e027dbe0"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "receipt": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "root013-core-all-after-fixes65.json",
+        "bytes": 1036,
+        "sha256": "362dadb6db3e7f9ef4c67334aecea609b1614ef2047c6f8d5fe01ad6a09fc30f",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "execution": {
+        "label": "root013-core-all-after-recovery69",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 121.33677483297652,
+        "log": {
+          "file": "root013-core-all-after-recovery69.log",
+          "bytes": 18859,
+          "sha256": "07c7f06efa7342be2eeaea3544f227445352e6fde725f1dc4afbdd8e2096903c"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "receipt": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "root013-core-all-after-recovery69.json",
+        "bytes": 1043,
+        "sha256": "aa27915d27932e0dbddd41a44003b93b8d18a046ee7b93e81aba09a599c919fb",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "execution": {
+        "label": "root013-full-gate74",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 129.33815550000872,
+        "log": {
+          "file": "root013-full-gate74.log",
+          "bytes": 313,
+          "sha256": "3827ff7d5f15f94261ec93e183a0c1242525e12902897f74242f5208592272ff"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "receipt": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "root013-full-gate74.json",
+        "bytes": 805,
+        "sha256": "7ec03a3d5e24c75c2e7e1b38f330922cd01833e224839d3a91195ddf8d544f9d",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "execution": {
+        "label": "root013-cycles78",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 0.07800670800497755,
+        "log": {
+          "file": "root013-cycles78.log",
+          "bytes": 324,
+          "sha256": "ad2dfe742f1f6d377d2e504a30616d12434b6495df52abfdc1ffb5c853403be3"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "receipt": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "root013-cycles78.json",
+        "bytes": 678,
+        "sha256": "91b417c86811d18721785e1f5cf6fcd31057d998cdcadc62b6023fe4ca82db19",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "execution": {
+        "label": "root013-legacy-ui-after-fix83",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 1.233511540980544,
+        "log": {
+          "file": "root013-legacy-ui-after-fix83.log",
+          "bytes": 3980,
+          "sha256": "f6200875074bd7a41fd6197623ea45d25ee139b97b982026c77b03682d7a291f"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "receipt": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "root013-legacy-ui-after-fix83.json",
+        "bytes": 893,
+        "sha256": "e7a3ea0f7e2e98c1a8b5e227671a8bcde1a6d5723cb98b2cae72caca1e27542f",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "execution": {
+        "label": "root013-standard-verify89",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 298.7792233750224,
+        "log": {
+          "file": "root013-standard-verify89.log",
+          "bytes": 742666,
+          "sha256": "f2789c6a890506bd06471a2f65c0c31976602c333a30add38577fa0fc724ad26"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "receipt": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "root013-standard-verify89.json",
+        "bytes": 655,
+        "sha256": "1efa65fd0f37fbb744900fd48a136cc3be6370cd523384923c36ab07ed0085b2",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "execution": {
+        "label": "root013-standard-verify95",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 287.3795234580175,
+        "log": {
+          "file": "root013-standard-verify95.log",
+          "bytes": 1143032,
+          "sha256": "8c46563a3695df9bb6cedb1f0e48655df5c00115f2a5d7ee68db3b84991c496d"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "receipt": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "root013-standard-verify95.json",
+        "bytes": 656,
+        "sha256": "446f10d8311d260ab1d7b9d598edb23aee3112ddc64040776b7e659315b55cf1",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "execution": {
+        "label": "root013-rust-deadline-red92",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 0.5483155839610845,
+        "log": {
+          "file": "root013-rust-deadline-red92.log",
+          "bytes": 2768,
+          "sha256": "2b6a8e6f3361369d625a5aad68c9294bef18c3d066555f0c5dc2f4f444701834"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "receipt": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "root013-rust-deadline-red92.json",
+        "bytes": 977,
+        "sha256": "23763e2c39c674209f46e0f692c20d48fdf1809e3c943dfdacf18e42b1477540",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    {
+      "execution": {
+        "label": "root013-frozen009-admission-red98",
+        "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+        "exitCode": 1,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 0.1390015420038253,
+        "log": {
+          "file": "root013-frozen009-admission-red98.log",
+          "bytes": 3501,
+          "sha256": "f6978e8c81600c91e12a209c2bdc9ddb40cc9adc515636e72463f01270a099b7"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "receipt": {
+        "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+        "fileName": "root013-frozen009-admission-red98.json",
+        "bytes": 754,
+        "sha256": "c12678718e03ac427348075a0989208a69abefa2c98ee81b77987d80ba30a27a",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    }
+  ],
+  "additionalOriginalFailures": "ALL_PRIVATE_ROOT_WORK_ARCHIVE_RETAINED",
+  "rustClockFix": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "RUST_DEADLINE_ROOT_AUDIT96.json",
+    "bytes": 7589,
+    "sha256": "b65b8e84ac887089679574d3175b8e43bb1468467db45b90d2d82fcb0f4cbb2a",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "standard95SixOriginalUiFailures": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "STANDARD_VERIFY95_FAILURE_AUDIT100.json",
+    "bytes": 13212,
+    "sha256": "fbb12bf5df36da1e5e8c61132fd2ff84131d924cfe2ce625ecfec1105951703d",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "009And011Loader": "ONLY_TWO_REAL_ESM_LINES_EACH_EXACT_INVERSE_ORIGINAL_ASSERTIONS",
+  "guard99": {
+    "label": "root013-frozen-admission-green99",
+    "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 0.14313541701994836,
+    "log": {
+      "file": "root013-frozen-admission-green99.log",
+      "bytes": 4108,
+      "sha256": "b15920a833a14baa0b50e3569a1b695fdddfdbc536d1bf315052d7ca7b200d06"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "productionRustSource": "UNCHANGED",
+  "timeoutsBudgetsSkipsOriginalAssertions": "UNCHANGED",
+  "remoteCiReruns": 0,
+  "remoteCiCancellations": 0,
+  "evidenceScope": "CONTROLLED_LOCAL_CAUSE_PROOF_NOT_UNMEASURED_MACHINE_LOAD_CAUSE"
+}

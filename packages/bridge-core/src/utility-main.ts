@@ -30,6 +30,7 @@ import path from 'node:path';
 import { types } from 'node:util';
 import type { MessagePort } from 'node:worker_threads';
 import { createUtilitySourceWritesBridge, type SourceWritesUtilityPort } from './shared/source-writes-utility-port.js';
+import { createUtilityRelocationBridge, LOCAL_RELOCATION_MAIN_PORT_BOOTSTRAP, type RelocationUtilityPort } from './shared/source-relocation-utility-port.js';
 import { CollectionError, type CollectionRepository } from './collection/repository.js';
 import { openCollectionDataset } from './recording/restore-dataset-runtime.js';
 import {
@@ -496,6 +497,7 @@ function createRoonImageShapeRecorder(
 
 export type DatasetOwnerFactory = (options: {
   privateSourceWritesPort?:MessagePort;
+  privateRelocationMainPort?: MessagePort;
   projection: DatasetOwnerProjectionHandler;
   onFatal: (error: unknown, drainOwner?: () => Promise<void>) => void;
 }) => DatasetOwnerEndpoint;
@@ -583,8 +585,16 @@ export async function runCoreUtilityProcess(
 
   parentPort.once('message', (event) => {
     void (async () => {
+      const closeTransferredPorts = (): void => {
+        // 启动准入失败也关闭尚未建立bridge的真实父端；旧UtilityPort接口不增加能力。
+        for (const transferred of new Set(event.ports ?? [])) {
+          try { (transferred as UtilityPort & { close?: () => void }).close?.(); }
+          catch { /* 继续清理其它父端，启动失败仍保留。 */ }
+        }
+      };
       const port = event.ports?.[0];
       if (!port) {
+        closeTransferredPorts();
         process.exitCode = 1;
         return;
       }
@@ -594,16 +604,21 @@ export async function runCoreUtilityProcess(
       let runtime: CoreRuntime | undefined;
       let runtimeShutdown: Promise<void> | undefined;
       let sourceWritesBridge: ReturnType<typeof createUtilitySourceWritesBridge> | undefined;
+      let relocationBridge: ReturnType<typeof createUtilityRelocationBridge> | undefined;
       let fatalOwnerDrain: Promise<void> | undefined;
       let resolvedRustReadonlyCollection = rustReadonlyCollection;
       let projectionGateway: ReturnType<typeof createDatasetRoonProjectionGateway> | undefined;
       try {
         if (!isRecord(event.data) || event.data.type !== 'musicbridge.core.port' ||
-          Object.keys(event.data).some(key => !['type', 'playbackEventProtocol'].includes(key)) ||
+          Object.keys(event.data).some(key => !['type', 'playbackEventProtocol', 'relocationMainPort'].includes(key)) ||
+          (event.data.relocationMainPort !== undefined && event.data.relocationMainPort !== LOCAL_RELOCATION_MAIN_PORT_BOOTSTRAP) ||
           (event.data.playbackEventProtocol !== undefined && event.data.playbackEventProtocol !== 'compact-v1')) {
           throw new Error('Core启动播放事件协议无效');
         }
         const playbackEventProtocol = event.data.playbackEventProtocol === 'compact-v1' ? 'compact-v1' as const : undefined;
+        const hasRelocationPort = event.data.relocationMainPort === LOCAL_RELOCATION_MAIN_PORT_BOOTSTRAP;
+        if (hasRelocationPort && (!createDatasetOwner || ![2, 3].includes(event.ports?.length ?? 0)
+          || new Set(event.ports).size !== event.ports!.length)) throw new Error('搬迁专用实际物理端口或Owner工厂无效。');
         const playbackOptions = playbackEventProtocol ? { playbackEventProtocol } : {};
         const onEvent = (message: CoreRuntimeEvent) => { if (message.event !== 'core.ready') port.postMessage(message); };
         if (onRustReadonlyCoreController !== undefined
@@ -637,14 +652,20 @@ export async function runCoreUtilityProcess(
             }
             return projectionGateway!.handler(command, payload as DatasetProjectionCommandPayloads[typeof command], context);
           };
-          const privatePort = event.ports?.[1];
+          const privatePort = hasRelocationPort && event.ports?.length === 2 ? undefined : event.ports?.[1];
           if (privatePort !== undefined) {
-            if (event.ports?.length !== 2) throw new Error('源写专用物理端口数量无效。');
+            if (event.ports?.length !== (hasRelocationPort ? 3 : 2)) throw new Error('源写专用物理端口数量无效。');
             // Electron 父端保留在 Utility；只有新建的真实 Node 端口转移给 Owner。
             sourceWritesBridge = createUtilitySourceWritesBridge(privatePort as SourceWritesUtilityPort);
           }
-          const source = createDatasetOwner({ projection: project as DatasetOwnerProjectionHandler,...(sourceWritesBridge ? { privateSourceWritesPort: sourceWritesBridge.port } : {}), onFatal: (_error, drainOwner) => {
+          if (hasRelocationPort) {
+            const relocationPort = event.ports![event.ports!.length - 1]!;
+            if (relocationPort === port || relocationPort === privatePort) throw new Error('搬迁物理端口不能复用其它域。');
+            relocationBridge = createUtilityRelocationBridge(relocationPort as RelocationUtilityPort);
+          }
+          const source = createDatasetOwner({ projection: project as DatasetOwnerProjectionHandler,...(sourceWritesBridge ? { privateSourceWritesPort: sourceWritesBridge.port } : {}), ...(relocationBridge ? { privateRelocationMainPort: relocationBridge.port } : {}), onFatal: (_error, drainOwner) => {
             sourceWritesBridge?.close();
+            relocationBridge?.close();
             if (drainOwner && !fatalOwnerDrain) {
               fatalOwnerDrain = Promise.resolve().then(drainOwner);
               void fatalOwnerDrain.catch(() => undefined);
@@ -683,7 +704,8 @@ export async function runCoreUtilityProcess(
             close: async () => {
               runtime?.getDatasetScanReadAdmission?.().close();
               sourceWritesBridge?.close();
-              try { await client.close(); } finally { sourceWritesBridge?.close(); projectionGateway?.close(); }
+              relocationBridge?.close();
+              try { await client.close(); } finally { sourceWritesBridge?.close(); relocationBridge?.close(); projectionGateway?.close(); }
             },
           };
           if (rustClient && onRustReadonlyCoreController) {
@@ -798,6 +820,8 @@ export async function runCoreUtilityProcess(
         }
       } catch {
         sourceWritesBridge?.close();
+        relocationBridge?.close();
+        closeTransferredPorts();
         let cleanupSucceeded = false;
         try { await datasetOwnerEndpoint?.close(); cleanupSucceeded = true; } catch { /* 保留未确认关闭，不把启动失败冒充静止。 */ }
         if (fatalOwnerDrain) {

@@ -1,0 +1,35 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "reason": "013公开单方法接入原Preload名单，Root按已授权冻结增量逐字节核验并增加精确哈希准入和独立负例。",
+  "allocationBy": "ROOT_WITHIN_EXISTING_TASK_AUTHORIZATION",
+  "addedRootOwnedSharedRegistrationFiles": [
+    "apps/desktop/test/preload.test.ts",
+    "scripts/ci/verify-mbrs014-compatibility.mjs",
+    "scripts/ci/test/verify-mbrs013-frozen-admission.test.mjs"
+  ],
+  "publicApiAdded": [
+    "localRelocationPlan"
+  ],
+  "frozenManifestChanged": false,
+  "other48InputsChanged": false,
+  "beforeScope": {
+    "bytes": 7357,
+    "sha256": "de084a8de194b3078154172aee14bad331c44ba58a25f5c8572b6826d14890b4"
+  },
+  "updatedScope": {
+    "bytes": 7579,
+    "sha256": "9a6056c3565d5477449f48f31ade4ddb66c11f6b7b716578c4a274c652f1a654"
+  },
+  "proof": {
+    "path": "docs/postrust/MBRS-013/PRELOAD_FROZEN_ADMISSION_EXTENSION.json",
+    "bytes": 10384,
+    "sha256": "05cb18f7b3eef19729bf8b9f524308e5a0475c01f89c99c16efb1c94f601937a"
+  },
+  "budgetsUnchanged": true,
+  "original8AtUnchanged": true,
+  "initialG0ReceiptPreserved": true,
+  "testsBuildApp": "NOT_RUN_BY_THIS_BYTE_AUDIT",
+  "recordedAt": "2026-10-08T10:37:28.921213+00:00"
+}

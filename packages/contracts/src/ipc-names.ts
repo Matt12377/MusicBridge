@@ -1,5 +1,6 @@
 import { LOCAL_ARTWORK_COMMANDS } from './local-artwork.js';
 import { LOCAL_SOURCE_WRITES_COMMANDS } from './local-source-writes.js';
+import { LOCAL_RELOCATION_PLAN_COMMANDS } from './local-relocation-plan.js';
 import { LOCAL_LEGACY_LINKS_COMMANDS } from './local-legacy-links.js';
 import {LOCAL_RELOCATION_COMMANDS} from './local-relocation.js';
 import { LOCAL_SCAN_COMMANDS } from './local-scan.js';
@@ -7,6 +8,7 @@ import { LOCAL_CATALOG_COMMANDS, LOCAL_LIBRARY_READ_COMMANDS } from './local-cat
 // IPC 名称白名单独立于业务结果与诊断合同，避免互相依赖。
 export const IPC_COMMANDS = [
   ...LOCAL_SOURCE_WRITES_COMMANDS,
+  ...LOCAL_RELOCATION_PLAN_COMMANDS,
   ...LOCAL_LEGACY_LINKS_COMMANDS,
   ...LOCAL_ORGANIZER_COMMANDS,
   ...LOCAL_ARTWORK_COMMANDS,

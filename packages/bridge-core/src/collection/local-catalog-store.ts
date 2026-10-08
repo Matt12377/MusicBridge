@@ -10,6 +10,9 @@ import { ORGANIZER_JOURNAL, isOrganizerEvent, organizerHash, organizerCanonical,
 import { LOCAL_LEGACY_LINKS_OPERATION, LegacyLinksError, legacyLinksFail, emptyLegacyLinksProjection, copyLegacyLinksProjection, readLegacyLinksEvent, projectLegacyLinksEvent, verifyLegacyLinksLocalSnapshot, legacyLinksSlot, type LegacyLinksProjection, type LegacyLinksView, type LegacyLinksWriteView, type LegacyLinksEvent, isLegacyLinksEvent } from './local-legacy-links-journal.js';
 import { SOURCE_WRITES_OPERATION, sourceWritesFail, emptySourceWritesProjection, copySourceWritesProjection, readSourceWritesEvent, projectSourceWritesEvent, sourceWritesLedgerRow, type SourceWritesProjection, type SourceWritesReadView, type SourceWritesWriteView, type SourceWritesEvent } from './local-source-writes-journal.js';
 import { updateSourceWriteScanFacts } from './source-write-scan-port.js';
+import { LOCAL_RELOCATION_OPERATION, relocationFail, relocationCanonical, relocationEvent, emptyRelocationProjection, copyRelocationProjection, readRelocationEvent, projectRelocationEvent, relocationLedgerRow, relocationRecoveryFamily, type RelocationProjection, type RelocationReadView, type RelocationWriteView, type RelocationEvent, type RelocationLocationFact, type RelocationStoredPlan } from './local-relocation-journal.js';
+import { prepareRelocationScanReads, applyRelocationScanFacts, type RelocationScanReadRequest, type PreparedRelocationReads } from './source-relocation-scan-port.js';
+import { relocationReadAccessTargets, type RelocationReadAccess } from './source-relocation-verify.js';
 
 const tables = {
   local_catalog_roots: 'CREATE TABLE local_catalog_roots(id TEXT PRIMARY KEY,source_root_id TEXT NOT NULL REFERENCES source_roots(id),data TEXT NOT NULL) STRICT',
@@ -47,8 +50,11 @@ interface AuditCertificate { rows: ReadonlyMap<Table, number>; bytes: number; da
 const audits = new WeakMap<DatabaseSync, AuditCertificate>();
 const legacyAudits = new WeakMap<DatabaseSync, LegacyLinksProjection | 'BUDGET_EXCEEDED'>();
 const sourceWritesAudits=new WeakMap<DatabaseSync,SourceWritesProjection>();
+const relocationAudits = new WeakMap<DatabaseSync, RelocationProjection>();
 /** 只供原扫描冷核/参数证据；不签grant、不暴露数据库给服务。 */
 export function sourceWritesProjectionForDatabase(db:DatabaseSync):SourceWritesProjection|undefined{return sourceWritesAudits.get(db);}
+/** 原Scanner只消费已经由目录账本完整冷核的本域事实；此投影不能铸造读取能力。 */
+export function relocationProjectionForDatabase(db: DatabaseSync): RelocationProjection | undefined { return relocationAudits.get(db); }
 const dataVersion = (db: DatabaseSync): number => Number(db.prepare('PRAGMA data_version').get()?.data_version);
 const checkBudget = (domain: string, actual: number, limit: number): void => { if (actual > limit) throw new LocalCatalogBudgetError(domain, actual, limit); };
 const indexes = [
@@ -96,6 +102,36 @@ function canonical(v: unknown): string {
 }
 const fingerprint = (operation: dto.LocalCatalogOperation, request: unknown): string => createHash('sha256').update(canonical([operation, request])).digest('hex');
 const same = (a: unknown, b: unknown): boolean => canonical(a) === canonical(b);
+/** 根恢复只沿原READY整库端点对正向或反向；父链存在不能代替当前完整CAS。 */
+function relocationRootReassociationMatches(projection: RelocationProjection, stored: RelocationStoredPlan, before: dto.LibraryRoot, after: dto.LibraryRoot): boolean {
+  if (!stored.ready || stored.plan.planHash !== stored.ready.planHash) return false;
+  const mappingMatches = (mapping: dto.LocalRelocationRootMapping): boolean => mapping.source.libraryRootId === before.id
+    && mapping.source.sourceRootId === before.sourceRootId && mapping.source.expectedRootRevision === before.revision
+    && mapping.target.libraryRootId === after.id && mapping.target.sourceRootId === after.sourceRootId && mapping.target.expectedRootRevision === after.revision;
+  if (!stored.recoveryOrigin) return stored.plan.intent.kind === 'root-reassociate' && stored.plan.intent.libraryRootId === before.id
+    && stored.plan.intent.expectedRootRevision === before.revision && stored.rootMappings.some(mappingMatches);
+  if (stored.plan.intent.kind !== 'recovery' || stored.recoveryOrigin.action === 'reconcile') return false;
+  const family = relocationRecoveryFamily(projection, stored.plan.planId), original = family[0];
+  if (!original?.ready || original.plan.intent.kind !== 'root-reassociate' || original.plan.intent.libraryRootId !== before.id
+    || stored.recoveryOrigin.familyRootPlanId !== original.plan.planId || original.rootMappings.length < 1 || stored.rootMappings.length < 1) return false;
+  const endpoints = original.rootMappings[0]!;
+  if (original.rootMappings.some(mapping => mapping.source.libraryRootId !== before.id || mapping.target.libraryRootId !== before.id
+    || mapping.source.sourceRootId !== endpoints.source.sourceRootId || mapping.target.sourceRootId !== endpoints.target.sourceRootId)
+    || endpoints.source.sourceRootId === endpoints.target.sourceRootId) return false;
+  const forward = stored.recoveryOrigin.action === 'keep-target';
+  if (before.sourceRootId !== (forward ? endpoints.source.sourceRootId : endpoints.target.sourceRootId)
+    || after.sourceRootId !== (forward ? endpoints.target.sourceRootId : endpoints.source.sourceRootId)
+    || stored.rootMappings.some(mapping => !mappingMatches(mapping))) return false;
+  const audio = stored.resources.filter(resource => resource.frozen.role === 'AUDIO');
+  return audio.length > 0 && audio.length === stored.operations.length && stored.operations.every(operation => operation.source !== null
+    && same(operation.source.libraryRoot, before) && operation.operation.source.libraryRootId === before.id
+    && operation.operation.source.sourceRootId === before.sourceRootId && operation.operation.source.expectedRootRevision === before.revision
+    && operation.operation.target.libraryRootId === after.id && operation.operation.target.sourceRootId === after.sourceRootId
+    && operation.operation.target.expectedRootRevision === after.revision)
+    && audio.every(resource => resource.frozen.source.libraryRootId === before.id && resource.frozen.source.sourceRootId === before.sourceRootId
+      && resource.frozen.source.expectedRootRevision === before.revision && resource.frozen.target.libraryRootId === after.id
+      && resource.frozen.target.sourceRootId === after.sourceRootId && resource.frozen.target.expectedRootRevision === after.revision);
+}
 const next = (revision: string): string => { const value = (BigInt(revision) + 1n).toString(); return dto.isLocalCatalogRevision(value) ? value : corrupt(); };
 function frames(v: Row): boolean {
   return (v.sampleFrames === null && v.timebaseHz === null) || dto.isLocalExactInteger(v.sampleFrames) && v.sampleFrames !== '0'
@@ -254,6 +290,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   audits.delete(db);
   legacyAudits.delete(db);
   sourceWritesAudits.delete(db);
+  relocationAudits.delete(db);
   const initialDataVersion = dataVersion(db);
   for (const [name, sql] of Object.entries(tables)) if (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name)?.sql !== sql) return corrupt();
   for (const [type, statements] of [['index', indexes], ['trigger', triggers]] as const) for (const sql of statements) {
@@ -277,10 +314,67 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   let immutableObservations = 0;
   let legacy: LegacyLinksProjection | 'BUDGET_EXCEEDED' = emptyLegacyLinksProjection();
   const sourceWrites=emptySourceWritesProjection();
+  const relocation = emptyRelocationProjection();
+  const rootFactsObligations = new Map<string, { before: dto.LibraryRoot; after: dto.LibraryRoot;
+    pending: Map<string, { operationId: string; resourceId: string }> }>();
   for (const row of db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger ORDER BY rowid').iterate()) {
     boundedRow(row);
     const ledgerRowId=Number(row._ledger_rowid);if(!Number.isSafeInteger(ledgerRowId)||ledgerRowId<1)return corrupt();
     if(typeof legacy!=='string')legacy.highWater=ledgerRowId;
+    if (row.operation === LOCAL_RELOCATION_OPERATION) {
+      const event = readRelocationEvent(row);
+      if (event.kind === 'root-facts') {
+        const prior = latest.get(`local_catalog_roots:${event.beforeRoot.id}`);
+        if (!same(prior, event.beforeRoot) || !same(event.afterRoot, { ...event.beforeRoot, sourceRootId: event.afterRoot.sourceRootId, revision: next(event.beforeRoot.revision) })) return corrupt();
+        const stored = relocation.plans.get(event.planId!);
+        if (!stored || !relocationRootReassociationMatches(relocation, stored, event.beforeRoot, event.afterRoot)) return corrupt();
+        // 只按此历史点重放出的成员核闭集；最终SQL成员不能代替迁移当时的集合。
+        const members = new Set<string>();
+        for (const value of latest.values()) if (dto.isAudioAsset(value) && value.libraryRootId === event.beforeRoot.id) {
+          members.add(value.id); if (members.size > dto.LOCAL_RELOCATION_PLAN_BUDGET.operations) return corrupt();
+        }
+        const audio = stored.resources.filter(resource => resource.frozen.role === 'AUDIO');
+        const operationAssets = stored.operations.map(operation => operation.source?.asset.id);
+        const audioAssets = audio.map(resource => resource.frozen.operationIds.length === 1
+          ? stored.operations.find(operation => operation.operation.operationId === resource.frozen.operationIds[0])?.source?.asset.id : undefined);
+        if (!members.size || members.size !== operationAssets.length || members.size !== audioAssets.length
+          || new Set(operationAssets).size !== members.size || new Set(audioAssets).size !== members.size
+          || operationAssets.some(id => id === undefined || !members.has(id)) || audioAssets.some(id => id === undefined || !members.has(id))) return corrupt();
+        if (rootFactsObligations.has(event.planId!)) return corrupt();
+        rootFactsObligations.set(event.planId!, { before: event.beforeRoot, after: event.afterRoot,
+          pending: new Map(audio.map(resource => {
+            const operationId = resource.frozen.operationIds[0]!;
+            const assetId = stored.operations.find(operation => operation.operation.operationId === operationId)!.source!.asset.id;
+            return [assetId, { operationId, resourceId: resource.frozen.resourceId }];
+          })) });
+        latest.set(`local_catalog_roots:${event.afterRoot.id}`, event.afterRoot);
+      } else if (event.kind === 'location-facts') {
+        const fact = event.fact, before = latest.get(`local_catalog_assets:${fact.beforeAsset.id}`), beforeLocation = privateAssets.get(fact.beforeAsset.id);
+        const selected = latest.get(`local_catalog_roots:${fact.target.libraryRootId}`), original = latest.get(`local_catalog_roots:${fact.source.libraryRootId}`);
+        const stored = relocation.plans.get(event.planId!), sourceRoot = stored?.operations.find(operation => operation.operation.operationId === fact.operationId)?.source?.libraryRoot;
+        const rootMoved = stored?.events.some(prior => prior.kind === 'root-facts' && same(prior.beforeRoot, sourceRoot) && same(prior.afterRoot, original));
+        if (!same(before, fact.beforeAsset) || !same(beforeLocation, { relative: fact.source.relative, sha256: fact.catalogSha256 })
+          || !dto.isLibraryRoot(selected) || selected.sourceRootId !== fact.target.sourceRootId || selected.revision !== fact.target.rootRevision
+          || !dto.isLibraryRoot(original) || !sourceRoot || !same(original, sourceRoot) && !rootMoved
+          || sourceRoot.id !== fact.source.libraryRootId || sourceRoot.sourceRootId !== fact.source.sourceRootId || sourceRoot.revision !== fact.source.rootRevision) return corrupt();
+        const rootObligation = rootFactsObligations.get(event.planId!);
+        if (rootObligation) {
+          const expected = rootObligation.pending.get(fact.beforeAsset.id), { before: oldRoot, after: newRoot } = rootObligation;
+          if (!expected || expected.operationId !== fact.operationId || expected.resourceId !== fact.resourceId
+            || fact.source.libraryRootId !== oldRoot.id || fact.source.sourceRootId !== oldRoot.sourceRootId || fact.source.rootRevision !== oldRoot.revision
+            || fact.target.libraryRootId !== newRoot.id || fact.target.sourceRootId !== newRoot.sourceRootId || fact.target.rootRevision !== newRoot.revision
+            || fact.beforeAsset.libraryRootId !== oldRoot.id || fact.beforeAsset.sourceRootId !== oldRoot.sourceRootId || fact.beforeAsset.rootRevision !== oldRoot.revision
+            || fact.afterAsset.libraryRootId !== newRoot.id || fact.afterAsset.sourceRootId !== newRoot.sourceRootId || fact.afterAsset.rootRevision !== newRoot.revision) return corrupt();
+        }
+        const members = relations.tracks.get(fact.beforeAsset.id);
+        if (!members || members.size !== fact.tracks.length || fact.tracks.some(track => !same(members.get(track.id), track))) return corrupt();
+        for (const track of fact.tracks) checkSegment(track, fact.afterAsset);
+        latest.set(`local_catalog_assets:${fact.afterAsset.id}`, fact.afterAsset);
+        privateAssets.set(fact.afterAsset.id, { relative: fact.target.relative, sha256: fact.catalogSha256 });
+        rootObligation?.pending.delete(fact.beforeAsset.id);
+      }
+      projectRelocationEvent(relocation, event, ledgerRowId); continue;
+    }
     if(row.operation===SOURCE_WRITES_OPERATION){
       const event=readSourceWritesEvent(row);
       if(event.kind==='facts'){
@@ -333,6 +427,8 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
       boundedRow(stored); immutableObservations++;
     } else latest.set(key, result);
   }
+  // 同一根CAS的全成员位置事实必须齐全；完整READY声明和旧rootRevision不能掩盖部分账本。
+  for (const obligation of rootFactsObligations.values()) if (obligation.pending.size) return corrupt();
   let entities = 0;
   for (const table of Object.keys(tables).filter(name => name !== 'local_catalog_ledger') as Exclude<Table, 'local_catalog_ledger'>[]) {
     for (const row of db.prepare(`SELECT * FROM ${table}`).iterate()) {
@@ -363,6 +459,8 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   audits.set(db, { rows: counts, bytes, dataVersion: initialDataVersion });
   legacyAudits.set(db,legacy);
   sourceWrites.highWater=Math.max(sourceWrites.highWater,Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n));sourceWritesAudits.set(db,sourceWrites);
+  relocation.highWater = Math.max(relocation.highWater, Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n));
+  relocationAudits.set(db, relocation);
 }
 
 export function createLocalCatalogStore(access: Access) {
@@ -499,6 +597,27 @@ export function createLocalCatalogStore(access: Access) {
     const next=copySourceWritesProjection(saved);for(const row of rows){boundedRow(row);const ordinal=Number(row._ledger_rowid);projectSourceWritesEvent(next,readSourceWritesEvent(row),ordinal);}next.highWater=highWater;sourceWritesAudits.set(db,next);return next;
   }
   function sourceView(db:DatabaseSync,projection:SourceWritesProjection):SourceWritesReadView{return {projection,receipt:(commandId,fp)=>{const row=db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(commandId);if(!row)return null;boundedRow(row);if(row.operation!==SOURCE_WRITES_OPERATION||row.fingerprint!==fp)return sourceWritesFail('COMMAND_ID_REUSED');return readSourceWritesEvent(row);}};}
+  function relocationProjectionFor(db: DatabaseSync): RelocationProjection {
+    certificateFor(db);
+    const saved = relocationAudits.get(db); if (!saved) return relocationFail('RECOVERY_REQUIRED');
+    const highWater = Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n);
+    if (!Number.isSafeInteger(highWater) || highWater < saved.highWater) return corrupt();
+    if (highWater === saved.highWater) return saved;
+    const rows = db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE rowid>? AND rowid<=? AND operation=? ORDER BY rowid LIMIT 32769').all(saved.highWater, highWater, LOCAL_RELOCATION_OPERATION);
+    if (rows.length > dto.LOCAL_RELOCATION_PLAN_BUDGET.phaseEventsPerPlan) return relocationFail('OVER_BUDGET');
+    const projection = copyRelocationProjection(saved);
+    for (const row of rows) { boundedRow(row); projectRelocationEvent(projection, readRelocationEvent(row), Number(row._ledger_rowid)); }
+    projection.highWater = highWater; relocationAudits.set(db, projection); return projection;
+  }
+  function relocationView(db: DatabaseSync, projection: RelocationProjection): RelocationReadView {
+    return { projection, receipt: (commandId, digest) => {
+      const row = db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(commandId);
+      if (!row) return null;
+      boundedRow(row);
+      if (row.operation !== LOCAL_RELOCATION_OPERATION || row.fingerprint !== digest) return relocationFail('REVISION_CONFLICT');
+      const event = readRelocationEvent(row); return event.kind === 'receipt' ? event : relocationFail('RECOVERY_REQUIRED');
+    } };
+  }
   function legacyView(db:DatabaseSync,p:LegacyLinksProjection):LegacyLinksView {
     return {events:p.events,links:p.links,previews:p.previews,history:p.history,consumed:p.consumed,snapshotFingerprint:p.snapshotFingerprint,slot:(datasetId,key)=>structuredClone(legacyLinksSlot(p,datasetId,key)),receipt:(commandId,fp)=>{
       const row=db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(commandId);if(!row)return null;boundedRow(row);
@@ -522,6 +641,16 @@ export function createLocalCatalogStore(access: Access) {
   }
   const id = (value: string): void => { if (!dto.isCollectionId(value)) access.conflict('本地对象身份无效。'); };
   const checkTrackSegment = (value: dto.LocalTrack, selected: dto.AudioAsset): void => { try { checkSegment(value, selected); } catch { access.conflict('片段时间基或范围与所选资产不一致。'); } };
+  function relocationMember(db: DatabaseSync, row: Row): { asset: dto.AudioAsset; libraryRoot: dto.LibraryRoot; relative: string; catalogSha256: string | null; tracks: dto.LocalTrack[] } {
+    boundedRow(row); const selected = readAsset(row);
+    if (!relativePath(row.relative) || !sha(row.sha256)) return corrupt();
+    const rows = db.prepare('SELECT * FROM local_catalog_tracks WHERE asset_id=? ORDER BY rowid LIMIT 201').all(selected.id);
+    if (rows.length > maxCatalogReadRows) throw new LocalCatalogBudgetError('移动共享曲目完整集合', rows.length, maxCatalogReadRows);
+    const tracks = rows.map(readTrack);
+    for (const value of tracks) checkTrackSegment(value, selected);
+    return { asset: { ...selected }, libraryRoot: root(db, selected.libraryRootId), relative: row.relative,
+      catalogSha256: row.sha256 as string | null, tracks };
+  }
   function applyRegisterRoot(db: DatabaseSync, request: RegisterLibraryRoot): dto.LibraryRoot {
         const source = authorized(request.sourceRootId); overlap(db, source);
         const result: dto.LibraryRoot = { id: randomUUID(), sourceRootId: source.id, role: request.role, revision: '1' };
@@ -591,6 +720,121 @@ export function createLocalCatalogStore(access: Access) {
         db.prepare('INSERT INTO local_catalog_overrides VALUES(?,?) ON CONFLICT(track_id) DO UPDATE SET data=excluded.data').run(result.trackId, JSON.stringify(result)); return result;
   }
   return {
+    privateRelocationPrepareReads(request: RelocationScanReadRequest, readAccess: RelocationReadAccess, signal: AbortSignal): Promise<PreparedRelocationReads> {
+      return access.read(db => { certificateFor(db); return prepareRelocationScanReads(db, request, readAccess, signal); });
+    },
+    privateRelocationRead<T>(operation: (view: RelocationReadView) => T): T {
+      return access.read(db => operation(relocationView(db, copyRelocationProjection(relocationProjectionFor(db)))));
+    },
+    /** 原目录作者唯一短事务：位置CAS、真实Scanner来源及本域journal一起落地。 */
+    privateRelocationTransaction<T>(operation: (view: RelocationWriteView) => T): T {
+      return access.read(db => {
+        db.exec('BEGIN IMMEDIATE'); let committed = false;
+        try {
+          const projection = copyRelocationProjection(relocationProjectionFor(db));
+          let certificate = certificateFor(db), changed = 0;
+          const publishes: (() => void)[] = [], appended: RelocationEvent[] = [], requiredFacts: RelocationLocationFact[] = [];
+          const requiredRoots: { before: dto.LibraryRoot; after: dto.LibraryRoot }[] = [];
+          const beforeChanges = Number(db.prepare('SELECT total_changes() n').get()!.n);
+          const append = (event: RelocationEvent): void => {
+            if (appended.length >= dto.LOCAL_RELOCATION_PLAN_BUDGET.phaseEventsPerPlan) return relocationFail('OVER_BUDGET');
+            const row = relocationLedgerRow(event); boundedRow(row);
+            if (db.prepare('SELECT 1 FROM local_catalog_ledger WHERE command_id=?').get(row.command_id!)) return relocationFail('REVISION_CONFLICT');
+            const rows = new Map(certificate.rows), count = rows.get('local_catalog_ledger')! + 1, bytes = certificate.bytes + rowBytes(row);
+            checkBudget('local_catalog_ledger行数', count, rowBudgets.local_catalog_ledger); checkBudget('目录总文本字节', bytes, maxCatalogTextBytes);
+            const inserted = db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(row.command_id!, row.fingerprint!, row.operation!, row.request!, row.result!, row.created_at!);
+            projectRelocationEvent(projection, event, Number(inserted.lastInsertRowid));
+            readRelocationEvent(db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(row.command_id!)!);
+            rows.set('local_catalog_ledger', count); certificate = { rows, bytes, dataVersion: certificate.dataVersion }; changed++; appended.push(event);
+          };
+          const view: RelocationWriteView = { ...relocationView(db, projection), append, commitLocations: input => {
+            if (!dto.localRelocationRecord(input, ['commandId', 'requestFingerprint', 'planId', 'planHash', 'resourceClosureHash', 'mappings', 'reads', 'readAccess', 'rootRelink', 'mappingProofs'])
+              || !dto.isCollectionId(input.commandId) || !dto.isLocalRelocationPlanHash(input.requestFingerprint)
+              || input.mappings.length < 1 || input.mappings.length > dto.LOCAL_RELOCATION_PLAN_BUDGET.operations || requiredFacts.length) return relocationFail('INVALID_REQUEST');
+            const stored = projection.plans.get(input.planId), actualTargets = relocationReadAccessTargets(input.readAccess);
+            if (!stored?.ready || stored.plan.planHash !== input.planHash || stored.plan.closure.fingerprint !== input.resourceClosureHash
+              || input.mappingProofs.length !== input.mappings.length || new Set(input.mappingProofs.map(proof => proof.resourceId)).size !== input.mappingProofs.length
+              || new Set(input.mappings.map(mapping => mapping.beforeAsset.id)).size !== input.mappings.length) return relocationFail('REVISION_CONFLICT');
+            const audio = stored.resources.filter(resource => resource.frozen.role === 'AUDIO');
+            if (audio.length !== input.mappings.length || audio.some(resource => !input.mappings.some(mapping => mapping.resourceId === resource.frozen.resourceId))) return relocationFail('CLOSURE_INCOMPLETE');
+            const rootRelink = input.rootRelink;
+            if (rootRelink) {
+              const current = one(db, 'local_catalog_roots', rootRelink.before.id); boundedRow(current);
+              if (!relocationRootReassociationMatches(projection, stored, rootRelink.before, rootRelink.after)
+                || !same(readRoot(current), rootRelink.before) || !same(rootRelink.after, { ...rootRelink.before, sourceRootId: rootRelink.after.sourceRootId, revision: next(rootRelink.before.revision) })
+                || rootRelink.after.sourceRootId === rootRelink.before.sourceRootId) return relocationFail('ROOT_CHANGED');
+              const members = db.prepare('SELECT id FROM local_catalog_assets WHERE root_id=? ORDER BY rowid LIMIT 101').all(rootRelink.before.id);
+              if (members.length > dto.LOCAL_RELOCATION_PLAN_BUDGET.operations) return relocationFail('OVER_BUDGET');
+              if (members.length !== input.mappings.length || members.some(member => !input.mappings.some(mapping => mapping.beforeAsset.id === member.id))) return relocationFail('CLOSURE_INCOMPLETE');
+              overlap(db, authorized(rootRelink.after.sourceRootId), rootRelink.before.id);
+              const afterRow = { ...current, source_root_id: rootRelink.after.sourceRootId, data: JSON.stringify(rootRelink.after) }; boundedRow(afterRow);
+              db.prepare('UPDATE local_catalog_roots SET source_root_id=?,data=? WHERE id=? AND data=?').run(rootRelink.after.sourceRootId, afterRow.data, rootRelink.before.id, current.data as string);
+              if (!same(root(db, rootRelink.after.id), rootRelink.after)) return relocationFail('ROOT_CHANGED');
+              const bytes = certificate.bytes + rowBytes(afterRow) - rowBytes(current); checkBudget('目录总文本字节', bytes, maxCatalogTextBytes);
+              certificate = { ...certificate, bytes }; changed++; requiredRoots.push(rootRelink);
+            } else if (stored.plan.intent.kind === 'root-reassociate') return relocationFail('INVALID_REQUEST');
+            const nextAssets: dto.AudioAsset[] = [];
+            for (const mapping of input.mappings) {
+              const captured = stored.operations.find(value => value.operation.operationId === mapping.operationId)?.source;
+              const resource = audio.find(value => value.frozen.resourceId === mapping.resourceId), proof = input.mappingProofs.find(value => value.resourceId === mapping.resourceId);
+              const current = one(db, 'local_catalog_assets', mapping.beforeAsset.id); boundedRow(current);
+              const old = readAsset(current), source = rootRelink?.before.id === old.libraryRootId ? rootRelink.before : root(db, old.libraryRootId);
+              const target = currentRoot(db, mapping.destination.libraryRootId, mapping.destination.rootRevision);
+              const targetRead = actualTargets.find(value => value.path.root.id === mapping.destination.sourceRootId && value.path.relative === mapping.destination.relative);
+              const tracks = db.prepare('SELECT * FROM local_catalog_tracks WHERE asset_id=? ORDER BY rowid LIMIT 201').all(old.id);
+              if (tracks.length > maxCatalogReadRows) return relocationFail('OVER_BUDGET');
+              if (!captured || !resource || !proof || !targetRead || target.sourceRootId !== mapping.destination.sourceRootId || !relativePath(mapping.destination.relative)
+                || !same(old, mapping.beforeAsset) || !same(old, captured.asset) || !same(source, captured.libraryRoot)
+                || current.relative !== captured.relative || current.sha256 !== captured.catalogSha256
+                || !same(tracks.map(readTrack), mapping.tracks) || !same(mapping.tracks, captured.tracks)
+                || source.sourceRootId !== old.sourceRootId || source.revision !== old.rootRevision
+                || resource.frozen.operationIds.length !== 1 || resource.frozen.operationIds[0] !== mapping.operationId
+                || resource.frozen.source.libraryRootId !== source.id || resource.frozen.source.sourceRootId !== source.sourceRootId
+                || resource.frozen.source.expectedRootRevision !== source.revision || resource.frozen.source.relative !== captured.relative
+                || resource.frozen.target.libraryRootId !== target.id || resource.frozen.target.sourceRootId !== target.sourceRootId
+                || resource.frozen.target.expectedRootRevision !== target.revision || resource.frozen.target.relative !== mapping.destination.relative
+                || !same(proof.sourceObservation, resource.sourceObservation) || !same(proof.targetObservation, targetRead.observation)
+                || proof.sourceObservation.sha256 !== resource.frozen.before.sha256 || proof.targetObservation.sha256 !== resource.frozen.after.sha256
+                || proof.sourceObservation.sha256 !== proof.targetObservation.sha256 || proof.sourceObservation.bytes !== proof.targetObservation.bytes
+                || captured.catalogSha256 !== null && captured.catalogSha256 !== proof.sourceObservation.sha256) return relocationFail('REVISION_CONFLICT');
+              authorized(source.sourceRootId);
+              const collision = db.prepare('SELECT id FROM local_catalog_assets WHERE root_id=? AND relative=? AND id<>? LIMIT 1').get(target.id, mapping.destination.relative, old.id);
+              if (collision) return relocationFail('COLLISION');
+              const updated: dto.AudioAsset = { ...old, libraryRootId: target.id, sourceRootId: target.sourceRootId, rootRevision: target.revision, locationRevision: next(old.locationRevision) };
+              for (const localTrack of mapping.tracks) checkSegment(localTrack, updated);
+              const afterRow = { ...current, root_id: target.id, source_root_id: target.sourceRootId, relative: mapping.destination.relative, data: JSON.stringify(updated) }; boundedRow(afterRow);
+              const result = db.prepare('UPDATE local_catalog_assets SET root_id=?,source_root_id=?,relative=?,data=? WHERE id=? AND data=? AND relative=? AND sha256 IS ?').run(target.id, target.sourceRootId, mapping.destination.relative, afterRow.data, old.id, current.data as string, current.relative as string, current.sha256 as string | null);
+              if (result.changes !== 1 || !same(asset(db, old.id), updated)) return relocationFail('REVISION_CONFLICT');
+              const bytes = certificate.bytes + rowBytes(afterRow) - rowBytes(current); checkBudget('目录总文本字节', bytes, maxCatalogTextBytes);
+              certificate = { ...certificate, bytes }; changed++; nextAssets.push(updated);
+            }
+            const request: RelocationScanReadRequest = { datasetId: stored.plan.datasetId, planId: input.planId, planHash: input.planHash, resourceClosureHash: input.resourceClosureHash, mappings: input.mappings };
+            const scan = applyRelocationScanFacts(db, { ...request, commitCommandId: input.commandId, afterAssets: nextAssets }, input.reads);
+            changed += scan.changedRows; publishes.push(scan.publish);
+            const facts: RelocationLocationFact[] = input.mappings.map((mapping, index) => {
+              const captured = stored.operations.find(value => value.operation.operationId === mapping.operationId)!.source!, proof = input.mappingProofs.find(value => value.resourceId === mapping.resourceId)!;
+              const scanner = scan.facts[index]; if (!scanner || scanner.resourceId !== mapping.resourceId || scanner.operationId !== mapping.operationId) return corrupt();
+              return { operationId: mapping.operationId, resourceId: mapping.resourceId, planHash: input.planHash, resourceClosureHash: input.resourceClosureHash,
+                beforeAsset: captured.asset, afterAsset: nextAssets[index]!, tracks: captured.tracks, catalogSha256: captured.catalogSha256,
+                source: { libraryRootId: captured.libraryRoot.id, sourceRootId: captured.libraryRoot.sourceRootId, rootRevision: captured.libraryRoot.revision, relative: captured.relative },
+                target: mapping.destination, sourceObservation: proof.sourceObservation, targetObservation: proof.targetObservation, scan: scanner };
+            });
+            requiredFacts.push(...facts); return { assets: nextAssets, scan, facts };
+          } };
+          const result = operation(view); if (result instanceof Promise) return corrupt();
+          for (const fact of requiredFacts) if (appended.filter(event => event.kind === 'location-facts' && relocationCanonical(event.fact) === relocationCanonical(fact)).length !== 1) return corrupt();
+          for (const roots of requiredRoots) if (appended.filter(event => event.kind === 'root-facts' && same(event.beforeRoot, roots.before) && same(event.afterRoot, roots.after)).length !== 1) return corrupt();
+          if (Number(db.prepare('SELECT total_changes() n').get()!.n) !== beforeChanges + changed) return corrupt();
+          access.beforeCommit?.('local-relocation:append');
+          if (Number(db.prepare('SELECT total_changes() n').get()!.n) !== beforeChanges + changed) return corrupt();
+          access.beforeLocalFactsCommit?.(); commitLocalFacts(db, access.onLocalFactsFatal); committed = true;
+          audits.set(db, certificate); relocationAudits.set(db, projection); publishes.forEach(publish => publish()); return result;
+        } catch (error) {
+          if (committed) { access.onLocalFactsFatal?.(); throw new LocalFactsCommitFatal(); }
+          rollbackLocalFacts(db, error, access.onLocalFactsFatal);
+        }
+      });
+    },
     privateSourceWritesRead<T>(operation:(view:SourceWritesReadView)=>T):T{return access.read(db=>operation(sourceView(db,copySourceWritesProjection(sourceProjectionFor(db)))));},
     privateSourceWritesTransaction<T>(operation:(view:SourceWritesWriteView)=>T):T{
       return access.read(db=>{db.exec('BEGIN IMMEDIATE');let committed=false;try{
@@ -713,6 +957,34 @@ export function createLocalCatalogStore(access: Access) {
         const row = one(db, 'local_catalog_assets', assetId); boundedRow(row);
         const selected = readAsset(row); if (!relativePath(row.relative)) return corrupt();
         return { asset: { ...selected }, relative: row.relative };
+      });
+    },
+    /** 013同内容移动的完整原事实；不授予文件写权限，也不补造旧整文件Hash。 */
+    privateRelocationSnapshot(assetId: string): { asset: dto.AudioAsset; libraryRoot: dto.LibraryRoot; relative: string; catalogSha256: string | null; tracks: dto.LocalTrack[] } {
+      id(assetId); return access.read(db => {
+        certificateFor(db);
+        return relocationMember(db, one(db, 'local_catalog_assets', assetId));
+      });
+    },
+    /** 整根操作必须看到全部成员；101哨兵只用于整组拒绝，不截成100项计划。 */
+    privateRelocationRootMembers(libraryRootId: string): { asset: dto.AudioAsset; libraryRoot: dto.LibraryRoot; relative: string; catalogSha256: string | null; tracks: dto.LocalTrack[] }[] {
+      id(libraryRootId); return access.read(db => {
+        certificateFor(db); root(db, libraryRootId);
+        const rows = db.prepare('SELECT * FROM local_catalog_assets WHERE root_id=? ORDER BY rowid LIMIT 101').all(libraryRootId);
+        if (rows.length > 100) throw new LocalCatalogBudgetError('移动整根完整资产集合', rows.length, 100);
+        return rows.map(row => relocationMember(db, row));
+      });
+    },
+    /** 同目录共享伴随闭集的独立013上限；原公开分页和012目录读预算保持。 */
+    privateRelocationDirectoryMembers(libraryRootId: string, directory: string): { asset: dto.AudioAsset; libraryRoot: dto.LibraryRoot; relative: string; catalogSha256: string | null; tracks: dto.LocalTrack[] }[] {
+      id(libraryRootId);
+      if (directory !== '.' && !relativePath(directory)) return access.conflict('移动目录范围无效。');
+      return access.read(db => {
+        certificateFor(db); root(db, libraryRootId);
+        const prefix = directory === '.' ? '' : `${directory}/`;
+        const rows = db.prepare("SELECT * FROM local_catalog_assets WHERE root_id=? AND substr(relative,1,length(?))=? AND instr(substr(relative,length(?)+1),'/')=0 ORDER BY rowid LIMIT 257").all(libraryRootId, prefix, prefix, prefix);
+        if (rows.length > 256) throw new LocalCatalogBudgetError('移动目录伴随完整资产集合', rows.length, 256);
+        return rows.map(row => relocationMember(db, row));
       });
     },
     /** 本轮源动作的共享影响闭集；普通200曲读预算不变。 */

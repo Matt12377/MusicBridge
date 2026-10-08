@@ -3,13 +3,17 @@ import { randomUUID } from 'node:crypto';
 import { lstat, opendir, realpath } from 'node:fs/promises';
 import type { Dir } from 'node:fs';
 import path from 'node:path';
-import { isLocalMetadata, isLocalCatalogText, type LocalMetadata, type ScanJobRecord, type LocalScanStartRequest, type LocalScanTransitionRequest } from '@music-bridge/contracts';
+import { isLocalMetadata, isLocalCatalogText, isCollectionId, isAudioAsset, isLocalTrack, isLocalCatalogRevision,
+  type LocalMetadata, type ScanJobRecord, type LocalScanStartRequest, type LocalScanTransitionRequest } from '@music-bridge/contracts';
 import type { CollectionRepository } from './repository.js';
 import type { DatasetProjectionPort } from './dataset-owner-protocol.js';
-import { SourceFileError, sourceRootAvailability, readonlySourceCandidateMetadata, type RootCapability } from '../recording/source-files.js';
-import { createMetadataReader } from '../library/metadata-reader.js';
+import { SourceFileError, MetadataLeaseReleaseError, withCheckedReadonlyMetadataSource, sourceRootAvailability, readonlySourceCandidateMetadata, type RootCapability } from '../recording/source-files.js';
+import { observeRelocationFile } from './source-relocation-verify.js';
+import { createMetadataReader, readRelocationMetadata } from '../library/metadata-reader.js';
 import type { MetadataReaderPort, MetadataRawFields, MetadataReadResult } from '../library/metadata-reader-types.js';
-import { scanRelativePath, type ScanPreparedBatch, type ScanPreparedItem } from './local-scan-store.js';
+import { scanRelativePath, scanCanonical, type ScanPreparedBatch, type ScanPreparedItem, type RelocationPreparedScanRead } from './local-scan-store.js';
+import type { RelocationCatalogCommitContext, RelocationScanReadRequest } from './source-relocation-scan-port.js';
+import type { RelocationReadAccess } from './source-relocation-verify.js';
 import {createCueSidecarReader,type CueSidecarReader,type CueSidecarReadResult} from '../library/cue-sidecar-reader.js';
 import {parseCueText} from '../library/cue-text-reader.js';
 import type {LocalCuePreparedItem,LocalCueAssetReference} from '@music-bridge/contracts';
@@ -93,6 +97,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
   const store=options.repository.localScan,reader=options.reader ?? createMetadataReader({concurrency:1,maxPending:1});
   const cueReader=options.cueReader ?? createCueSidecarReader();
   const runs=new Map<string,Running>();let closing=false,fatal:ScanFatal|undefined,closed:Promise<void>|undefined;
+  const relocationPrepared = new WeakMap<object, { request: RelocationScanReadRequest; reads: readonly RelocationPreparedScanRead[]; consumed: boolean }>();
   function assertCurrent():void {if(fatal) throw fatal;options.assertCurrent();}
   function assertEntry():void {assertCurrent();options.assertReady?.();if(closing) throw new Error('扫描owner已关闭新入口。');}
   function scoped(jobId:string):ScanJobRecord {const job=store.get(jobId);if(job.datasetId !== options.datasetId) throw new Error('扫描任务不属于当前dataset。');return job;}
@@ -141,6 +146,78 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
   function read(job:ScanJobRecord,relative:string,signature:string,signal:AbortSignal):Promise<MetadataReadResult> {
     return admittedRead(job,signal,(root,local)=>reader.read({root,relative,expectedSignature:signature,assertCurrent:()=>{authority(job);}},local));
   }
+  /** 新位置只使用真实原Reader的私有能力；旧raw与普通扫描字段准入不因整文件移动改变。 */
+  async function prepareRelocationReads(request: RelocationScanReadRequest, access: RelocationReadAccess, signal: AbortSignal): Promise<unknown> {
+    assertEntry(); signal.throwIfAborted();
+    const same = (a: unknown, b: unknown): boolean => scanCanonical(a) === scanCanonical(b);
+    const closedKeys = (value: unknown, names: readonly string[]): boolean => value !== null && typeof value === 'object' && !Array.isArray(value)
+      && Reflect.ownKeys(value).length === names.length && Reflect.ownKeys(value).every(key => typeof key === 'string'
+        && names.includes(key) && Object.prototype.propertyIsEnumerable.call(value, key));
+    if (!closedKeys(request, ['datasetId', 'planId', 'planHash', 'resourceClosureHash', 'mappings'])
+      || request.datasetId !== options.datasetId || !isCollectionId(request.planId)
+      || !/^[a-f0-9]{64}$/u.test(request.planHash) || !/^[a-f0-9]{64}$/u.test(request.resourceClosureHash)
+      || !Array.isArray(request.mappings) || request.mappings.length === 0 || request.mappings.length > 100
+      || new Set(request.mappings.map(mapping => mapping.beforeAsset.id)).size !== request.mappings.length) throw new Error('移动扫描完整映射无效。');
+    const reads: RelocationPreparedScanRead[] = [];
+    for (const mapping of request.mappings) {
+      assertEntry(); signal.throwIfAborted();
+      if (!closedKeys(mapping, ['operationId', 'resourceId', 'beforeAsset', 'tracks', 'destination'])
+        || !isCollectionId(mapping.operationId) || !isCollectionId(mapping.resourceId) || !isAudioAsset(mapping.beforeAsset)
+        || !Array.isArray(mapping.tracks) || !mapping.tracks.length || mapping.tracks.length > 200 || !mapping.tracks.every(isLocalTrack)
+        || !closedKeys(mapping.destination, ['libraryRootId', 'sourceRootId', 'rootRevision', 'relative'])
+        || !isCollectionId(mapping.destination.libraryRootId) || !isCollectionId(mapping.destination.sourceRootId)
+        || !isLocalCatalogRevision(mapping.destination.rootRevision) || !scanRelativePath(mapping.destination.relative)) throw new Error('移动扫描资源或目的根无效。');
+      const before = options.repository.localCatalog.privateRelocationSnapshot(mapping.beforeAsset.id);
+      const destinationRoot = options.repository.localCatalog.root(mapping.destination.libraryRootId);
+      const targetRoot = options.repository.sources.root(mapping.destination.sourceRootId);
+      const state = store.privateCurrentFileState(before.libraryRoot.id, before.relative);
+      if (!same(before.asset, mapping.beforeAsset) || !same(before.tracks, mapping.tracks)
+        || before.asset.rootRevision !== before.libraryRoot.revision || before.asset.sourceRootId !== before.libraryRoot.sourceRootId
+        || !state || state.value.outcome !== 'accepted' || state.value.assetId !== before.asset.id || !state.value.trackId
+        || !mapping.tracks.some((track: import('@music-bridge/contracts').LocalTrack) => track.id === state.value.trackId)) throw new Error('移动扫描原身份或真实读取资格已改变。');
+      const directRoot = destinationRoot.sourceRootId === mapping.destination.sourceRootId && destinationRoot.revision === mapping.destination.rootRevision;
+      const futureRelink = destinationRoot.id === before.libraryRoot.id && same(destinationRoot, before.libraryRoot)
+        && mapping.destination.rootRevision === (BigInt(destinationRoot.revision) + 1n).toString()
+        && destinationRoot.sourceRootId !== mapping.destination.sourceRootId;
+      if ((!directRoot && !futureRelink) || !targetRoot.authorized) throw new Error('移动扫描目的根关联或许可已改变。');
+      const assertMapping = (): void => {
+        assertEntry();
+        if (!same(options.repository.localCatalog.privateRelocationSnapshot(before.asset.id), before)
+          || !same(options.repository.localCatalog.root(destinationRoot.id), destinationRoot)
+          || !same(options.repository.sources.root(targetRoot.id), targetRoot)) throw new Error('移动扫描准备期间完整位置事实已改变。');
+      };
+      assertMapping();
+      const stat = await readonlySourceCandidateMetadata(targetRoot, mapping.destination.relative);
+      assertMapping(); signal.throwIfAborted();
+      // 只供原读取准入核currentness；持久job/batch由同库短事务中的原Scanner作者另行生成。
+      const admissionJob: ScanJobRecord = { schemaVersion: '1.2', jobId: randomUUID(), datasetId: options.datasetId,
+        libraryRootId: destinationRoot.id, sourceRootId: destinationRoot.sourceRootId, rootRevision: destinationRoot.revision,
+        jobRevision: '1', checkpointRef: null, progress: { visited: '0', accepted: '0', rejected: '0' }, phase: 'pending', failureCode: null };
+      const result = await admittedRead(admissionJob, signal, (_root, local) => readRelocationMetadata(reader,
+        { root: targetRoot, relative: mapping.destination.relative, expectedSignature: stat.signature, assertCurrent: assertMapping }, access, local));
+      if (result.status !== 'ok') {
+        if (result.code === 'LEASE_RELEASE_FAILED') fatal = new ScanFatal('移动扫描真实FD关闭未核实，禁止继续或自动重试。');
+        throw fatal ?? new Error(`移动扫描原Reader拒绝：${result.code}。`);
+      }
+      assertMapping(); signal.throwIfAborted();
+      const item: ScanPreparedItem = { relative: mapping.destination.relative, signature: stat.signature, parserVersion: result.parserVersion,
+        outcome: 'accepted', fields: {}, failureCode: null, reused: false,
+        readFacts: { technical: result.technical, coverEvidence: result.coverEvidence, readEvidence: result.readEvidence } };
+      reads.push({ mapping, item, primaryTrackId: state.value.trackId });
+    }
+    const prepared = Object.freeze({});
+    relocationPrepared.set(prepared, { request, reads: Object.freeze(reads), consumed: false });
+    return prepared;
+  }
+  function consumeRelocationReads(context: RelocationCatalogCommitContext, prepared: unknown): readonly RelocationPreparedScanRead[] {
+    assertEntry();
+    const stored = prepared && typeof prepared === 'object' ? relocationPrepared.get(prepared) : undefined;
+    const { commitCommandId: _command, afterAssets: _assets, ...request } = context;
+    if (!stored || stored.consumed || scanCanonical(stored.request) !== scanCanonical(request)) throw new Error('移动扫描不是原Reader准备的完整私有证明。');
+    stored.consumed = true; return stored.reads;
+  }
+  // 旧受控mock没有本域端口时维持原扫描行为；真实repository始终安装，缺端口无法取得013 ticket。
+  if (typeof store.privateInstallRelocationScanAuthor === 'function') store.privateInstallRelocationScanAuthor(prepareRelocationReads, consumeRelocationReads);
   async function currentCueReferences(job:ScanJobRecord,result:import('@music-bridge/contracts').LocalCueResult):Promise<boolean> {
     for(const track of result.tracks) {
       const ref=track.assetReference,selected=store.privateCueAssociation(job.libraryRootId,ref.relative);
@@ -180,8 +257,27 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
     return result.status === 'ok' ? {...base,outcome:'accepted',failureCode:null,reused:false,result}
       : {...base,outcome:'rejected',failureCode:ambiguous && result.code === 'UNBOUND_FILE' ? 'AMBIGUOUS_FILE':result.code,reused:false,result:null};
   }
-  async function item(job:ScanJobRecord,relative:string,signal:AbortSignal):Promise<ScanPreparedItem> {
+  async function item(job:ScanJobRecord,relative:string,signal:AbortSignal):Promise<ScanPreparedItem | null> {
     const root=authority(job),stat=await readonlySourceCandidateMetadata(root,relative);
+    const retained = typeof store.privateRetainedSource === 'function' ? store.privateRetainedSource(job.datasetId, job.libraryRootId, job.sourceRootId, job.rootRevision, relative) : null;
+    if (retained && retained.observation.signature === stat.signature && retained.observation.bytes === stat.size) {
+      const observed = await admittedRead(job, signal, async (currentRoot, local) => {
+        try {
+          const skipped = await withCheckedReadonlyMetadataSource(currentRoot, relative, stat.signature, local, async handle => {
+            const actual = await observeRelocationFile(handle, { signal: local, deadlineAt: Date.now() + 1_800_000 });
+            const still = store.privateRetainedSource(job.datasetId, job.libraryRootId, job.sourceRootId, job.rootRevision, relative);
+            return scanCanonical(actual) === scanCanonical(retained.observation) && scanCanonical(still) === scanCanonical(retained);
+          }, () => { authority(job); });
+          return { status: 'ok' as const, skipped };
+        } catch (error) {
+          if (error instanceof MetadataLeaseReleaseError) return { status: 'failure' as const, code: 'LEASE_RELEASE_FAILED', skipped: false };
+          if (local.aborted) return { status: 'failure' as const, code: 'CANCELLED', skipped: false };
+          return { status: 'ok' as const, skipped: false };
+        }
+      });
+      // 只有本计划明确保源且当前完整Hash/物理身份仍一致才跳过；同内容其它拷贝仍是独立候选。
+      if (observed.status === 'ok' && observed.skipped) return null;
+    }
     const previous=store.privateCurrentFileState(job.libraryRootId,relative);
     if(previous?.value.outcome === 'accepted' && previous.value.signature === stat.signature && previous.value.parserVersion === PARSER) {
       const asset=options.repository.localCatalog.asset(previous.value.assetId!);
@@ -235,7 +331,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
         const items:ScanPreparedItem[]=[],cueItems:LocalCuePreparedItem[]=[];
         for(const relative of discovered.relatives) {
           if(signal.aborted) throw new ScanYield('control');
-          try {if(cueMode) cueItems.push(await cueItem(job,relative,signal));else items.push(await item(job,relative,signal));}
+          try {if(cueMode) cueItems.push(await cueItem(job,relative,signal));else { const parsed = await item(job,relative,signal); if (parsed) items.push(parsed); }}
           catch(error) {
             // 单文件在walk后消失时跳过；不伪造签名或拒绝条目，旧实体与历史事实保留。
             if(error instanceof SourceFileError && error.code === 'MISSING') continue;

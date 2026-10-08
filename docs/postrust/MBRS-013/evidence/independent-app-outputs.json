@@ -1,0 +1,75 @@
+{
+  "schema": "mbrs013.independent-owned-app-outputs.v1",
+  "result": "PASS",
+  "fileResults": [
+    {
+      "file": "owned-original.wav",
+      "actual": {
+        "bytes": 17764,
+        "sha256": "deaa3f01bebc5ac2b520d2e169657eaf49e0dd7a2d8da6ee1f8860c37b031fcd",
+        "dev": "16777258",
+        "ino": "58764580",
+        "mode": "384",
+        "uid": "501",
+        "gid": "20"
+      },
+      "originalBytesHashMatched": true,
+      "independentTargetInode": true,
+      "sourceAbsentAfterSpecificCleanup": true,
+      "wave": {
+        "sampleRate": 44100,
+        "sampleWidth": 2,
+        "channels": 1,
+        "sampleFrames": 8820,
+        "nonSilent": true,
+        "pcmSha256": "ce66e76859dd0e9497d849b44d2f12fdbf6f2f5b476aacb773b08f7cb3d21e47",
+        "hearing": "NOT_RUN"
+      }
+    },
+    {
+      "file": "owned-original.lrc",
+      "actual": {
+        "bytes": 33,
+        "sha256": "55b92c6aad0048eaa81eff99b3e2e378b2c91bcea5faab7281e66a7cd0982091",
+        "dev": "16777258",
+        "ino": "58764583",
+        "mode": "384",
+        "uid": "501",
+        "gid": "20"
+      },
+      "originalBytesHashMatched": true,
+      "independentTargetInode": true,
+      "sourceAbsentAfterSpecificCleanup": true
+    }
+  ],
+  "database": {
+    "readonlyImmutable": true,
+    "assetAndTrackExactColdRowsMatched": true,
+    "baselineTrackPreserved": true,
+    "sourceBindingsRows": 0,
+    "nonemptySourceBindingHistory": "NOT_PROVEN_BY_THIS_APP",
+    "offOriginalRowPreserved": true,
+    "independentJournalSha256": "f37d4c55766ce4e0ae74d065cc4e81e64de9ab3f3c2e0dc2161c5ed096b1c639",
+    "independentRequestSha256": "24ef7fdf803f47489780abaf10874d317b4946ec392f921c0bdb8fd2233ee959",
+    "oneFinalPlan": true
+  },
+  "databaseIdentity": {
+    "bytes": 1478656,
+    "sha256": "116a17c19aad42ea44d94a105d3485d41b961835168b1cf8efbbe7233f080944",
+    "dev": "16777258",
+    "ino": "58764516",
+    "mode": "384",
+    "uid": "501",
+    "gid": "20"
+  },
+  "productionWriterDtoImported": false,
+  "rootAudit": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "PRODUCTION_APP104_INDEPENDENT_OUTPUT_AUDIT.json",
+    "bytes": 3298,
+    "sha256": "d9346bd016c36767263cf461375852d26a5f7a058e75a5b5524ab2c5425711f2",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "realAudioDeviceOwner": "NOT_RUN"
+}

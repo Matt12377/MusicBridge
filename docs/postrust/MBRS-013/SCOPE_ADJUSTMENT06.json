@@ -1,0 +1,28 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "reason": "将本域自动Gate接入既有自然push验证；原所有CI步骤逐字保留，报告提交准入规则不改。",
+  "addedRootOwnedFiles": [
+    ".github/workflows/verify.yml"
+  ],
+  "beforeScope": {
+    "bytes": 8215,
+    "sha256": "fd37825885291296482376fea04e7d5f8b7ea0aae702b3a40319074adebfe040"
+  },
+  "updatedScope": {
+    "bytes": 8309,
+    "sha256": "c2fd95b2957e6a05a36be818b52063f830c05e4ddc0bcb605df63914fa2e2fcb"
+  },
+  "workflowBefore": {
+    "bytes": 11874,
+    "sha256": "ebc9eb2b6aa41496a483b677cf57fb1337b66519e80c7093dbd432dfdf120dcb"
+  },
+  "workflowAfter": {
+    "bytes": 12433,
+    "sha256": "fb5d36f895f10ad7cc117104dd8281465bd18ed2ce51875ccd94c92562833414"
+  },
+  "existingWorkflowStepsExactlyPreserved": true,
+  "original8AtAndBudgetsUnchanged": true,
+  "recordedAt": "2026-10-08T11:14:03.976523+00:00"
+}

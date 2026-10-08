@@ -1,0 +1,217 @@
+{
+  "schema": "mbrs013.execution-scope.v1",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "branch": "codex/mbrs-013-relocation",
+  "g0": "ADMITTED_INHERITED_OWNER_CONTINUOUS_AUTHORIZATION",
+  "g0Ref": "docs/postrust/MBRS-013/G0_HANDOFF.json",
+  "hardDependencies": [
+    "MBRS-012"
+  ],
+  "taskSpec": {
+    "path": "tasks/MBRS-013_LOCAL_RELOCATION.md",
+    "bytes": 3402,
+    "sha256": "10702afad204b607b76d66a85007478f0bd980d3010cb62a0675279df40a98cf"
+  },
+  "predecessorDeliveryRef": "docs/postrust/MBRS-013/PREDECESSOR_DELIVERY.json",
+  "domain": "LOCAL_RELOCATION_V1",
+  "publicDomain": "localRelocationPlan",
+  "privateDomain": "localRelocationMain",
+  "defaultCore": "Node",
+  "optionalRustReadonly": "OFF",
+  "catalogSchemaAtEntry": 34,
+  "libraryWriteEnabledDefault": false,
+  "legacyOrganizerSourceFiles": "OFF_UNCHANGED",
+  "runtimeRelocation": "OFF_UNTIL_FINITE_QUALIFICATION_SPECIFIC_MAIN_PLAN_ONLY",
+  "old012SourceFilesWrite": "OFF_UNTIL_EXISTING_FINITE_WRITER_QUALIFICATION_CONCRETE_PLAN_GRANTS_ONLY_UNCHANGED",
+  "formatEligibility": "ORDINARY_READER_ELIGIBLE_WHOLE_BYTE_MOVE_INDEPENDENT_FROM_012_WRITER",
+  "copySourceDisposition": "RETAIN_UNTIL_NEW_SPECIFIC_VERIFIED_CLEANUP_GRANT",
+  "budgets": {
+    "operations": 100,
+    "closedResources": 256,
+    "referenceEdges": 512,
+    "sourceAndTargetRoots": 16,
+    "requestUtf8Bytes": 4194304,
+    "completePlanBodyContextBytes": 4194304,
+    "snapshotDepth": 32,
+    "snapshotNodes": 65536,
+    "allTextBytes": 131072,
+    "singleSourceBytes": 17179869184,
+    "planFullSourceBytes": 68719476736,
+    "hashChunkBytes": 1048576,
+    "concurrentPlans": 1,
+    "concurrentFileIo": 1,
+    "phaseEventsPerResource": 64,
+    "phaseEventsPerPlan": 32768,
+    "terminalReservedEventsPerResource": 8,
+    "terminalReservedEventsPerPlan": 32,
+    "journalProjectionBytes": 67108864,
+    "retainedMaterialsBytes": 137438953472,
+    "runtimeDeadlineMs": 1800000,
+    "overBudget": "REJECT_FULL_PLAN_WITHOUT_TRUNCATION_OR_PARTIAL_AUTHORIZATION",
+    "reservation": "ACTUAL_SOURCE_TARGET_STAGE_RETAINED_MATERIALS_PLUS_TERMINAL_JOURNAL_BEFORE_IO",
+    "existing012AndReaderBudgetsChanged": false
+  },
+  "rulesRef": "docs/postrust/MBRS-013/RULE_MATRIX.json",
+  "implementationHandoff": "docs/postrust/MBRS-013/IMPLEMENTATION_HANDOFF.md",
+  "originalTaskCount": 18,
+  "originalAcceptanceCount": 156,
+  "effectiveTaskCount": 17,
+  "effectiveAcceptanceCount": 150,
+  "taskAcceptanceCount": 8,
+  "acceptanceIds": [
+    "MBRS-AT-013-01",
+    "MBRS-AT-013-02",
+    "MBRS-AT-013-03",
+    "MBRS-AT-013-04",
+    "MBRS-AT-013-05",
+    "MBRS-AT-013-06",
+    "MBRS-AT-013-07",
+    "MBRS-AT-013-08"
+  ],
+  "cancelledTask": "MBRS-015",
+  "noRepeatedAgentApproval": true,
+  "productPlanConfirmation": "FINAL_SPECIFIC_PLAN_BUTTON_NO_EXTRA_APPROVAL_POPUP",
+  "compilerAndActualExecutor": "ROOT_ONLY",
+  "authorPartitions": {
+    "root": {
+      "existingCollectionFiles": [
+        "local-catalog-store.ts",
+        "local-scan-store.ts",
+        "local-scan-coordinator.ts",
+        "repository.ts",
+        "dataset-domain.ts",
+        "dataset-services.ts",
+        "dataset-dispatch.ts",
+        "dataset-owner-protocol.ts",
+        "dataset-owner-worker.ts",
+        "dataset-owner-client.ts"
+      ],
+      "otherFiles": [
+        "packages/bridge-core/src/library/metadata-reader.ts",
+        "packages/bridge-core/src/library/metadata-reader-types.ts",
+        "packages/bridge-core/src/recording/source-files.ts",
+        "packages/bridge-core/src/utility-main.ts",
+        "apps/desktop/src/main/index.ts",
+        "apps/desktop/src/main/core-host.ts",
+        "apps/desktop/src/preload/index.ts",
+        "packages/contracts/src/ipc.ts",
+        "packages/contracts/src/ipc-names.ts",
+        "packages/contracts/src/index.ts",
+        "packages/bridge-core/test/mbrs013/reader-integration-root.test.ts",
+        "apps/desktop/src/preload/api.ts",
+        "apps/desktop/src/main/core-supervisor.ts",
+        "apps/desktop/src/main/dataset-owner-bootstrap.ts",
+        "apps/desktop/src/main/dataset-owner-entry.ts",
+        "packages/contracts/src/validator.ts",
+        "apps/desktop/test/preload.test.ts",
+        "scripts/ci/verify-mbrs014-compatibility.mjs",
+        "scripts/ci/test/verify-mbrs013-frozen-admission.test.mjs",
+        "reports/MBRS-006_SUCCESSOR_PLAN.md",
+        "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
+        "apps/desktop/tsconfig.mbrs013-e2e.json",
+        "packages/bridge-core/test/mbrs013/utility-integration-root.test.ts",
+        "scripts/ci/verify-mbrs013-relocation.mjs",
+        "scripts/ci/test/verify-mbrs013-relocation.test.mjs",
+        ".github/workflows/verify.yml",
+        "packages/bridge-core/test/mbrs013/catalog-history-root.test.ts",
+        "packages/bridge-core/src/collection/local-scan-facts.ts",
+        "apps/desktop/test/mbrs011-organizer-ui.test.ts",
+        "packages/bridge-core/test/rust-sidecar-client.test.ts",
+        "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+      ],
+      "owns": [
+        "shared original Scanner/catalog/Owner integration",
+        "Gate and frozen cross-task admission extensions",
+        "G0 scope rules metadata reports",
+        "all compilation tests production App media Git"
+      ]
+    },
+    "delivery012_contract": {
+      "files": [
+        "packages/contracts/src/local-relocation-plan.ts",
+        "packages/contracts/src/local-relocation-private.ts"
+      ],
+      "newTestDirectory": "packages/contracts/test/mbrs013/",
+      "owns": [
+        "independent closed public/private DTOs",
+        "bounded snapshot canonical Hash validation",
+        "new-domain concrete plan and cleanup capabilities"
+      ]
+    },
+    "delivery012_core": {
+      "newCollectionFiles": [
+        "local-relocation-service.ts",
+        "local-relocation-journal.ts",
+        "local-relocation-store.ts",
+        "source-relocation-verify.ts",
+        "source-relocation-publisher.ts",
+        "source-relocation-companions.ts",
+        "source-relocation-root-identity.ts",
+        "source-relocation-scan-port.ts",
+        "source-relocation-authority.ts",
+        "source-relocation-recovery.ts"
+      ],
+      "otherFiles": [
+        "packages/bridge-core/src/shared/source-relocation-utility-port.ts",
+        "packages/bridge-core/src/collection/local-relocation-coordinator.ts"
+      ],
+      "newTestDirectory": "packages/bridge-core/test/mbrs013/",
+      "owns": [
+        "format-independent whole-byte relocation",
+        "actual physical and namespace claims",
+        "bounded journal persistence through Root same-owner transaction",
+        "companion closure and physical root identity"
+      ],
+      "testDirectoryExcludes": [
+        "packages/bridge-core/test/mbrs013/reader-integration-root.test.ts",
+        "packages/bridge-core/test/mbrs013/utility-integration-root.test.ts",
+        "packages/bridge-core/test/mbrs013/catalog-history-root.test.ts"
+      ]
+    },
+    "delivery012_app_proofs": {
+      "files": [
+        "apps/desktop/src/main/local-relocation-ipc.ts",
+        "apps/desktop/src/preload/local-relocation-client.ts",
+        "apps/desktop/src/renderer/src/components/library/LocalRelocationDialog.vue",
+        "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+        "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+        "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+        "apps/desktop/src/renderer/src/composables/application/useLocalRelocationPlans.ts"
+      ],
+      "newTestDirectory": "apps/desktop/test/mbrs013/",
+      "newE2ePattern": "apps/desktop/e2e/mbrs013-*.spec.ts",
+      "owns": [
+        "actual Main target chooser and specific final plan",
+        "safe previews per-resource results and source-retained cleanup",
+        "old external candidate workflow preservation"
+      ]
+    }
+  },
+  "models": {
+    "root": "gpt-6.1-sol",
+    "reasoningEffort": "max",
+    "children": "EXISTING_THREE_gpt-6.1-sol_MAX_NO_NEW_AGENTS"
+  },
+  "implementation": "FINITE_IMPLEMENTATION_COMPLETE_LOCAL_SOFTWARE_VALIDATED_SOURCE_CI_PENDING",
+  "softwareTests": "PASS_LOCAL_STANDARD100_CURRENT_PRODUCT_529_GATE87_AND_ADMISSION99_EXACT_SOURCE_GATE_SEPARATE",
+  "productionApp": "PASS_SELF_OWNED_PRODUCTION_APP104_AND_INDEPENDENT_OUTPUTS_NONEMPTY_HISTORY_SEPARATE",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN",
+  "startedAt": "2026-10-08T09:42:36.487041+00:00",
+  "nextTask": "MBM-000",
+  "scopeAdjustments": [
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT01.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT02.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT03.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT04.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT05.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT06.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT07.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT08.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT09.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT10.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT11.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT12.json"
+  ],
+  "schedulingSupplement": "docs/postrust/MBRS-013/SCHEDULING_SUPPLEMENT_MOBILE_FRONTLOADING.json"
+}

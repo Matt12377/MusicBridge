@@ -1,5 +1,6 @@
 import type { LocalArtworkCommandPayloads, LocalArtworkCommandResults, LocalArtworkInternalCommand } from './local-artwork.js';
 import type { LocalSourceWritesCommandPayloads, LocalSourceWritesCommandResults } from './local-source-writes.js';
+import type { LocalRelocationPlanCommandPayloads, LocalRelocationPlanCommandResults } from './local-relocation-plan.js';
 import type { LocalLegacyLinksCommandPayloads, LocalLegacyLinksCommandResults } from './local-legacy-links.js';
 import type { LocalPlayAccepted } from './local-play-request.js';
 import type {LocalRelocationCommandPayloads,LocalRelocationCommandResults,LocalRelocationInternalCommand} from './local-relocation.js';
@@ -119,7 +120,7 @@ export type IpcResponse<TResult = unknown> =
 
 export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
-export interface IpcCommandPayloads extends LocalSourceWritesCommandPayloads, LocalLegacyLinksCommandPayloads, LocalOrganizerCommandPayloads, LocalArtworkCommandPayloads, LocalCatalogCommandPayloads, LocalLibraryReadCommandPayloads, LocalScanCommandPayloads, LocalRelocationCommandPayloads {
+export interface IpcCommandPayloads extends LocalRelocationPlanCommandPayloads, LocalSourceWritesCommandPayloads, LocalLegacyLinksCommandPayloads, LocalOrganizerCommandPayloads, LocalArtworkCommandPayloads, LocalCatalogCommandPayloads, LocalLibraryReadCommandPayloads, LocalScanCommandPayloads, LocalRelocationCommandPayloads {
   'localCatalog.prepare': LocalPlayRequest;
   'playback.localTarget': Record<string, never>;
   'commandOutbox.context': Record<string, never>;
@@ -411,7 +412,7 @@ export interface IpcCommandPayloads extends LocalSourceWritesCommandPayloads, Lo
   'playback.insertNext': { items: readonly PlaybackQueueRequestItem[] };
 }
 
-export interface IpcCommandResults extends LocalSourceWritesCommandResults, LocalLegacyLinksCommandResults, LocalOrganizerCommandResults, LocalArtworkCommandResults, LocalCatalogCommandResults, LocalLibraryReadCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
+export interface IpcCommandResults extends LocalRelocationPlanCommandResults, LocalSourceWritesCommandResults, LocalLegacyLinksCommandResults, LocalOrganizerCommandResults, LocalArtworkCommandResults, LocalCatalogCommandResults, LocalLibraryReadCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
   'localCatalog.prepare': LocalSourceUnsupported | LocalPlayAccepted;
   'playback.localTarget': import('./local-play-request.js').LocalPlayTarget | null;
   'commandOutbox.context': CommandOutboxContext;

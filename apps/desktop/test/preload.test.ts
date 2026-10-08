@@ -578,6 +578,7 @@ test('Preload exposes only sanitized business methods', async () => {
     'undoLocalSourceWrites',
     'cancelLocalSourceWrites',
     'setLocalSourceWritesPolicy',
+    'localRelocationPlan',
   ])
   assert.deepEqual(Object.keys(api), [...PUBLIC_API_KEYS.slice(0, 14), 'playLocalLibraryTrack', ...PUBLIC_API_KEYS.slice(14)])
   assert.equal(Object.isFrozen(api), true)

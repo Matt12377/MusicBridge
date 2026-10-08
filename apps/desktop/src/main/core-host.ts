@@ -31,7 +31,7 @@ export function runDesktopCoreHost(options: DesktopCoreHostOptions = {}): Promis
     const parent = (process as unknown as { parentPort?: CollectionReadonlyCoreParent }).parentPort
     if (parent) installCollectionReadonlyCoreBridge(options.optionalReadonlyManager, parent)
   }
-  const createDatasetOwner: DatasetOwnerFactory = ({ projection, onFatal, privateSourceWritesPort }) => {
+  const createDatasetOwner: DatasetOwnerFactory = ({ projection, onFatal, privateSourceWritesPort, privateRelocationMainPort }) => {
     const worker = createWorker(new URL('./dataset-owner.js', import.meta.url), {
       name: 'MusicBridge Dataset Owner',
       env: datasetEnvironment,
@@ -40,8 +40,9 @@ export function runDesktopCoreHost(options: DesktopCoreHostOptions = {}): Promis
         resourcesDirectory: process.resourcesPath,
         physicalResourceBuffer: physicalResourceLocks.buffer,
         ...(privateSourceWritesPort ? { sourceWritesPort: privateSourceWritesPort } : {}),
+        ...(privateRelocationMainPort ? { relocationMainPort: privateRelocationMainPort } : {}),
       },
-      ...(privateSourceWritesPort ? { transferList: [privateSourceWritesPort] } : {}),
+      ...(privateSourceWritesPort || privateRelocationMainPort ? { transferList: [...(privateSourceWritesPort ? [privateSourceWritesPort] : []), ...(privateRelocationMainPort ? [privateRelocationMainPort] : [])] } : {}),
     })
     let owner: ReturnType<typeof createDatasetOwnerClient>
     owner = createDatasetOwnerClient({ worker, projection,

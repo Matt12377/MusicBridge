@@ -1,0 +1,22 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "id": "SCOPE_ADJUSTMENT12",
+  "reason": "标准verify95的六项原009 UI业务测试在新增模块装载前失败；沿原ESM namespace装载模式仅增加真实导入和路径映射两行。原业务assert、case、夹具、预算及冻结49清单字节不改；014仅增加该精确新输入Hash准入，旧输入继续有效，其它变化仍拒绝。",
+  "addedRootOwnedFiles": [
+    "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+  ],
+  "before": {
+    "bytes": 26502,
+    "sha256": "c859a09a2bf318a366ad6f007853a3602360cd196c8cda14330b308ab9171894"
+  },
+  "authority": "INHERITED_OWNER_CONTINUOUS_AUTHORIZATION_NO_NEW_APPROVAL",
+  "firstNaturalFailure": "root013-standard-verify95",
+  "at": "2026-10-08T15:07:01.004687+00:00",
+  "after": {
+    "bytes": 26687,
+    "sha256": "414928f85d0e2dc4cd6df0b16b311243dc037ffc543acc1bfb404ee29e9d6e41"
+  },
+  "exactInverseOriginalFullFile": true,
+  "guardPositiveAndNegativeActual15": "PASS_ROOT99"
+}

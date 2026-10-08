@@ -1,0 +1,50 @@
+{
+  "schema": "mbrs013.original-cleanup-wait-barrier.v1",
+  "result": "PASS_TYPES_AND_ACTUAL_APP104",
+  "types": {
+    "label": "root013-e2e-types104",
+    "head": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 1.0269705000100657,
+    "log": {
+      "file": "root013-e2e-types104.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "appSourceInputs": 1626,
+  "appSourceIdentity": "28d2e2ab8faf6dd9559e741d305a10064095397ff987e02a1198eba288b4079e",
+  "productIdentity": "b136f2c992dd019fb99e08768bfcf8e0fe62d0d5907cfb76cfccdbf34e251e55",
+  "standard100CoversNewE2EBytes": false,
+  "staticInverseReview": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "ROOT013_E2E_BARRIER_REVIEW104.json",
+    "bytes": 1360,
+    "sha256": "48eb88f5ee9d6f707ee7cfd5a020a9792a2d705bfefa765ea95138e8cffa9ad5",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "originalAuthorFreeze": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "MBRS013_APP90_CLEANUP_WAIT_STATIC_PREPARATION91.json",
+    "bytes": 7813,
+    "sha256": "02153579ddf942a5bf827917793ef986bf1ebfee69b5f1e4769427a72b61ee90",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "app90ClosedDatabaseRefusal": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "APP90_CLOSED_DB_DIAGNOSTIC103.json",
+    "bytes": 18140,
+    "sha256": "8735ff8af28407124796e58cd1f12fe9a08e6d40c2f9778e92ab4dabdd1f826d",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "app90ShutdownAbortCause": "PLAUSIBLE_NOT_INDEPENDENTLY_PROVEN",
+  "productionSourceChangedSinceStandard100": false,
+  "originalTerminalIssuesBudgetsAssertionsPreserved": true
+}

@@ -1,0 +1,20 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "reason": "原013恢复／回退交付物的私有实现独立叶；公开八命令、五Main命令、原journal作者、原8AT和全部预算不扩展。",
+  "addedCoreOwnedFiles": [
+    "packages/bridge-core/src/collection/source-relocation-recovery.ts"
+  ],
+  "beforeScope": {
+    "bytes": 8309,
+    "sha256": "c2fd95b2957e6a05a36be818b52063f830c05e4ddc0bcb605df63914fa2e2fcb"
+  },
+  "updatedScope": {
+    "bytes": 8404,
+    "sha256": "00fa1078eb2f8b0bce19f20828f5f9860d2f2820998d028f5d34cc84b1413c8a"
+  },
+  "allOtherScopeBytesRestoredByExactInverse": true,
+  "original8AtAndBudgetsUnchanged": true,
+  "recordedAt": "2026-10-08T20:02:15.531299+08:00"
+}
