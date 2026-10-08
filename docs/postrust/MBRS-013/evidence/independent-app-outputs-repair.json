@@ -75,8 +75,11 @@
   "appLimits": {
     "sourceBindings": 0,
     "catalogAssetSha256": null,
-    "editions": null,
-    "versionTokens": null,
+    "editions": [],
+    "versionTokens": [],
+    "editionTableRows": 0,
+    "editionLinkTableRows": 0,
+    "versionTokensObservation": "REAL_APP_ORIGINAL_MOVED_AFTER_CLEANUP_COLD_DETAILS_NOT_A_SEPARATE_SQL_TABLE",
     "sampleFrames": null,
     "timebaseHz": null,
     "scope": "ACTUAL_WHOLE_FILE_HASH_AND_WAVE_SAMPLES_DO_NOT_ESTABLISH_NONEMPTY_CATALOG_HASH_VERSION_OR_BINDING_HISTORY"
@@ -86,6 +89,14 @@
     "fileName": "PRODUCTION_APP126_HISTORY_BOUNDARY_READBACK132.json",
     "bytes": 830,
     "sha256": "1b2ba5b1a9278980dac6bcab605a4b477acb38df5a73ea52eac8d948eecc2a0f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "appBoundaryLayerCorrection": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "PRODUCTION_APP126_BOUNDARY_LAYER_CORRECTION135.json",
+    "bytes": 1275,
+    "sha256": "43e14c1ed640a92f80b136d89625823195b447d891f678b9c4df7467ac58bbca",
     "storage": "PRIVATE_EXTERNAL_ARCHIVE",
     "publiclyDownloadable": false
   }
