@@ -32317,7 +32317,7 @@
       "depends_on": [
         "MBRS-012"
       ],
-      "status": "LOCAL_SCOPE21_CI_AGGREGATE45_TO60_ONLY_FINITE_REUSE_NEW_EXACT_SOURCE_GATE_CI_REPORT_PENDING",
+      "status": "LATEST_SOURCE_CI_SUCCESS_REPORT_CI_AND_FINAL_SEAL_PENDING",
       "implementation_owner": "MBRS-013",
       "goal": "保留逻辑身份与历史引用，让下次点播使用新位置，不等待Roon重扫。",
       "steps": [
@@ -32348,9 +32348,9 @@
       "reuse_map_required": true,
       "g0_product_integration_required": true,
       "optional_inputs": [],
-      "implementation_commit": null,
+      "implementation_commit": "e755b71320c93a7985a936382f86c08a4ed2eb8a",
       "report_commit": null,
-      "validation_status": "CI_AGGREGATE_ONLY_FINITE_PRIOR_EXECUTION_REUSE_NEW_SOURCE529_GATE_FIRST_NATURAL4_6_REQUIRED",
+      "validation_status": "PASS_FINITE_SOFTWARE_CURRENT_SOURCE_CI_REAL_OWNER_OPEN_REPORT_PENDING",
       "evidence_refs": [
         "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
         "docs/postrust/MBRS-013/evidence/production-app.json",
@@ -32392,14 +32392,19 @@
         "docs/postrust/MBRS-013/evidence/rust-deadline-unit-repair.json",
         "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT21.json",
         "docs/postrust/MBRS-013/evidence/source5b6-ci-aggregate-timeout.json",
-        "docs/postrust/MBRS-013/evidence/verify-job-budget-repair.json"
+        "docs/postrust/MBRS-013/evidence/verify-job-budget-repair.json",
+        "docs/postrust/MBRS-013/evidence/source-gate.json",
+        "docs/postrust/MBRS-013/evidence/source-identity.json",
+        "docs/postrust/MBRS-013/evidence/source-ci.json",
+        "docs/postrust/MBRS-013/evidence/source-s1-ci-final.json"
       ],
       "base_sha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
       "branch": "codex/mbrs-013-relocation",
       "execution_scope": "docs/postrust/MBRS-013/EXECUTION_SCOPE.json",
-      "implementation_commit_resolution": "SOURCE_COMMIT_CONTAINING_CURRENT_013_IMPLEMENTATION",
+      "implementation_commit_resolution": "EXACT_LATEST_SOURCE_S_SHA",
       "report_commit_resolution": "git log -1 --format=%H -- reports/MBRS-013_LOCAL_RELOCATION.md",
-      "report_path": "reports/MBRS-013_LOCAL_RELOCATION.md"
+      "report_path": "reports/MBRS-013_LOCAL_RELOCATION.md",
+      "terminal_ci_receipt": "docs/postrust/MBRS-013/evidence/source-ci.json"
     },
     {
       "id": "MBRS-014",
@@ -34573,7 +34578,11 @@
         "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
         "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT18.json",
         "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
-        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json"
+        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
+        "docs/postrust/MBRS-013/evidence/source-gate.json",
+        "docs/postrust/MBRS-013/evidence/source-identity.json",
+        "docs/postrust/MBRS-013/evidence/source-ci.json",
+        "docs/postrust/MBRS-013/evidence/source-s1-ci-final.json"
       ],
       "software_status": "PASS_FINITE_IDS_REFERENCE_HISTORY_NEW_GATEWAY_BYTES",
       "app_status": "PASS_SELF_OWNED_WAVE_LYRIC_LOCATION_AND_COLD_TRACK",
@@ -34613,7 +34622,11 @@
         "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
         "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT18.json",
         "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
-        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json"
+        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
+        "docs/postrust/MBRS-013/evidence/source-gate.json",
+        "docs/postrust/MBRS-013/evidence/source-identity.json",
+        "docs/postrust/MBRS-013/evidence/source-ci.json",
+        "docs/postrust/MBRS-013/evidence/source-s1-ci-final.json"
       ],
       "software_status": "PARTIAL_GATEWAY_NEW_LOCATION_PREREQUISITE_ONLY",
       "app_status": "NOT_RUN",
@@ -34653,7 +34666,11 @@
         "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
         "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT18.json",
         "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
-        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json"
+        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
+        "docs/postrust/MBRS-013/evidence/source-gate.json",
+        "docs/postrust/MBRS-013/evidence/source-identity.json",
+        "docs/postrust/MBRS-013/evidence/source-ci.json",
+        "docs/postrust/MBRS-013/evidence/source-s1-ci-final.json"
       ],
       "software_status": "PASS_FINITE_FAULT_JOURNAL_COLD_SIGKILL_RECOVERY",
       "app_status": "NOT_RUN",
@@ -34693,7 +34710,11 @@
         "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
         "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT18.json",
         "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
-        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json"
+        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
+        "docs/postrust/MBRS-013/evidence/source-gate.json",
+        "docs/postrust/MBRS-013/evidence/source-identity.json",
+        "docs/postrust/MBRS-013/evidence/source-ci.json",
+        "docs/postrust/MBRS-013/evidence/source-s1-ci-final.json"
       ],
       "software_status": "PASS_FINITE_CASE_UNICODE_NAMESPACE_ROOT_IDENTITY_NEGATIVES",
       "app_status": "NOT_RUN",
@@ -34733,7 +34754,11 @@
         "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
         "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT18.json",
         "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
-        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json"
+        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
+        "docs/postrust/MBRS-013/evidence/source-gate.json",
+        "docs/postrust/MBRS-013/evidence/source-identity.json",
+        "docs/postrust/MBRS-013/evidence/source-ci.json",
+        "docs/postrust/MBRS-013/evidence/source-s1-ci-final.json"
       ],
       "software_status": "PASS_ACTUAL_GATEWAY_HELD_FD_DEFER_OLD_SECRET_REPLACEMENT_REJECT",
       "app_status": "NOT_RUN",
@@ -34773,7 +34798,11 @@
         "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
         "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT18.json",
         "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
-        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json"
+        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
+        "docs/postrust/MBRS-013/evidence/source-gate.json",
+        "docs/postrust/MBRS-013/evidence/source-identity.json",
+        "docs/postrust/MBRS-013/evidence/source-ci.json",
+        "docs/postrust/MBRS-013/evidence/source-s1-ci-final.json"
       ],
       "software_status": "PASS_FINITE_CANDIDATES_DUPLICATES_TWO_MEMBER_WHOLE_ROOT",
       "app_status": "NOT_RUN",
@@ -34813,7 +34842,11 @@
         "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
         "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT18.json",
         "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
-        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json"
+        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
+        "docs/postrust/MBRS-013/evidence/source-gate.json",
+        "docs/postrust/MBRS-013/evidence/source-identity.json",
+        "docs/postrust/MBRS-013/evidence/source-ci.json",
+        "docs/postrust/MBRS-013/evidence/source-s1-ci-final.json"
       ],
       "software_status": "PASS_FINITE_MAIN_PLAN_COMPANIONS_RESULT_RECOVERY_UI",
       "app_status": "PASS_ACTUAL_AUDIO_LYRIC_PREVIEW_RETAIN_CLEANUP_COLD_HISTORY",
@@ -35705,7 +35738,11 @@
         "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
         "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT18.json",
         "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
-        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json"
+        "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
+        "docs/postrust/MBRS-013/evidence/source-gate.json",
+        "docs/postrust/MBRS-013/evidence/source-identity.json",
+        "docs/postrust/MBRS-013/evidence/source-ci.json",
+        "docs/postrust/MBRS-013/evidence/source-s1-ci-final.json"
       ],
       "software_status": "PASS_THREE_NONEMPTY_SOURCE_BINDINGS_HISTORY_AND_LOCATION_REVISION",
       "app_status": "PARTIAL_ASSET_TRACK_SHA_REVISION_EMPTY_SOURCE_BINDINGS",

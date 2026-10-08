@@ -92,3 +92,8 @@ Scope17四个旧私有宿主已按013实际三生产端口窄修；直接执行�
 
 <!-- MBRS013_SCOPE18_ASSERT_TYPES_REPAIR226 -->
 Scope18仅改新增回归的两行assert.throws为等价字符串message重载，逆变换恢复整原文件；当前12/12运行及完整desktop-types223自然通过，Scope17四私有叶与692产品字节不变。原source320f Gate203六阶段中5通过，desktop-types因两TS2345失败，冻结529未执行；该源码未push且无远端CI。新提交的精确Gate、完整30阶段Rust及两fresh宿主、原Electron12、首次自然CI/报告/seal待真实执行，不能以旧13e/320f或当前WIP代替。原426/103/Electron12及预算、18任务156AT、有效17/150与移动五项未开始保持；8AT均PARTIAL/live/Owner未跑，之后继续MBM-000～004→016→017。
+
+
+### MBRS-013 Scope21 精确源码自然CI与有限复用报告登记
+
+013新S e755b71320c93a7985a936382f86c08a4ed2eb8a的原529/14阶段与首次自然4workflow/6job实际成功。Scope21仅verify整job45→60分钟，原step8分钟、013180000/420000ms、全部测试与692产品不改。原325在f328执行4721/4719/2skip，仅1630不变可执行输入有限复用；旧完整1631图不是当前。原5b6 Rust30/Electron12与589自有App289保持原执行/封存身份；新S当前执行由fresh Gate和新自然CI另证。原f328至少两块的前提失败、5b6平台45分钟取消和未完成529均保留。原八AT仍PARTIAL，真实/Owner NOT_RUN；移动五项NOT_STARTED，R仅原十路径，报告CI与最终seal待实际完成。

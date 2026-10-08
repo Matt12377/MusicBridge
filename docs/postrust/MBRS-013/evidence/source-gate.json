@@ -1,0 +1,264 @@
+{
+  "schema": "mbrs013.exact-source-gate-evidence.v3",
+  "task": "MBRS-013",
+  "sourceSha": "e755b71320c93a7985a936382f86c08a4ed2eb8a",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "singleParent": "5b6ed4be0382875ce937bf454adad0db110b4204",
+  "result": "PASS",
+  "stages": 14,
+  "tests": 529,
+  "passed": 529,
+  "failed": 0,
+  "skipped": 0,
+  "cancelled": 0,
+  "todo": 0,
+  "inherited426Groups": [
+    88,
+    216,
+    122
+  ],
+  "new103Groups": [
+    32,
+    37,
+    34
+  ],
+  "declaredInputs": 1609,
+  "declaredIdentity": "5d635cba6d2211b6efc50004932374b6846b9ec418e318bb71809eab829b0343",
+  "durationMs": 265778.138416,
+  "stageBudgetMs": 180000,
+  "totalBudgetMs": 420000,
+  "audit": {
+    "fileName": "ROOT013_EXACT_SCOPE21_SOURCE_GATE_AUDIT362.json",
+    "bytes": 15842,
+    "sha256": "7729c2759bd5b372a287a1a32d8b737ad3494bb03bf6307ce120e877927d7b3b",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "scope": "DECLARED_CLOSURE_NOT_FULL_TRANSITIVE_TOOLCHAIN",
+  "closureCounts": [
+    966,
+    972
+  ],
+  "finiteReuse": {
+    "standard": {
+      "originalRunOnly": true,
+      "executedOnNewSource": false,
+      "currentMutableOutputEqualityClaimed": false,
+      "originalExecutionHead": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+      "archive": {
+        "fileName": "ROOT013_STANDARD325_FULL_AUDIT330.json",
+        "bytes": 6755,
+        "sha256": "5d8741a2ed2c8fb14092f2fe0689dd555c5981abf3538a72184f2db49d785667",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "execution": {
+        "label": "root013-scope20-standard325",
+        "head": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+        "directory": "",
+        "exitCode": 0,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "groupTerminationFailed": false,
+        "durationSeconds": 319.8821505830274,
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "totals": {
+        "tests": 4721,
+        "pass": 4719,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 2,
+        "todo": 0
+      },
+      "groups": [
+        {
+          "name": "contracts",
+          "tests": 266,
+          "pass": 266,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "name": "core-flat",
+          "tests": 2777,
+          "pass": 2775,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 2,
+          "todo": 0
+        },
+        {
+          "name": "core-isolated-capacity",
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "name": "desktop",
+          "tests": 1670,
+          "pass": 1670,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ],
+      "originalDeclaredInputs": 1631,
+      "originalDeclaredIdentity": "68025ee037e46a16a57818db65e53bcac9ab4da3db5b5e4599d5ce9fea40ce56",
+      "currentDeclaredInputs": 1631,
+      "currentDeclaredIdentity": "8ef658955bc4c937a8ff7fa21cc2cf05d12613d71e14e3de021012d51323076c",
+      "unchangedDeclaredInputs": 1630,
+      "onlyChangedDeclaredInput": ".github/workflows/verify.yml",
+      "oldFull1631GraphIsCurrent": false,
+      "productInputs": 692,
+      "productIdentity": "9ea6137cddca961cc505538da10c8e3b5958d7f53bae6dfec173cf08a8bdaeab",
+      "currentSourceBinding": {
+        "fileName": "ROOT013_ACTUAL_SCOPE21_SOURCE_BINDING363.json",
+        "bytes": 5415532,
+        "sha256": "0a54ef8427dec2c7365e503498cc9121923bed130fc8c05618d763d04bff0d3e",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "rust30": {
+      "originalRunOnly": true,
+      "executedOnNewSource": false,
+      "currentMutableOutputEqualityClaimed": false,
+      "originalExecutionSourceSha": "5b6ed4be0382875ce937bf454adad0db110b4204",
+      "archive": {
+        "fileName": "ROOT013_RUST334_ALL_LOGS_READBACK335.json",
+        "bytes": 884572,
+        "sha256": "b63902ed032891e630f608f14f039240aa36f42f6ffd1c2799c4a32f71c0af7e",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "execution": {
+        "label": "root013-original-rust-hosts334",
+        "head": "5b6ed4be0382875ce937bf454adad0db110b4204",
+        "directory": "",
+        "exitCode": 0,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "groupTerminationFailed": false,
+        "durationSeconds": 206.7794627089752,
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "stages": 30,
+      "originalDeclaredInputs": 1298,
+      "unchangedGitMembers": 1090,
+      "originalNonGitMembers": 208,
+      "nonGitWholeFdReadMatchedAtBinding": true,
+      "originalCompiledArtifacts": 64,
+      "compiledArtifactsAreSealedOriginalRunArchives": true,
+      "newGateCompiledOutputsAreTheseArtifacts": false
+    },
+    "electron12": {
+      "originalRunOnly": true,
+      "executedOnNewSource": false,
+      "currentMutableOutputEqualityClaimed": false,
+      "originalExecutionSourceSha": "5b6ed4be0382875ce937bf454adad0db110b4204",
+      "archive": {
+        "fileName": "ROOT013_ORIGINAL_ELECTRON336_READBACK337.json",
+        "bytes": 335112,
+        "sha256": "a278d73c103702a818419aff1d6e4aeb29b3b193c60cc85157b4691901b7a5f6",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "execution": {
+        "label": "root013-original-electron336",
+        "head": "5b6ed4be0382875ce937bf454adad0db110b4204",
+        "directory": "",
+        "exitCode": 0,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "groupTerminationFailed": false,
+        "durationSeconds": 118.54484545800369,
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "counts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "actualMainScenes": 6,
+      "originalDeclaredInputs": 1252,
+      "unchangedGitMembers": 1044,
+      "originalNonGitMembers": 208,
+      "nonGitWholeFdReadMatchedAtBinding": true,
+      "originalCompiledArtifacts": 64,
+      "localFourSystemCases": "EXPLICIT_MOCK_SOFTWARE_ONLY",
+      "remoteFourSystemCases": "CURRENT_SOURCE_CI_SEPARATE"
+    }
+  },
+  "productionApp": {
+    "originalRunOnly": true,
+    "executedOnNewSource": false,
+    "currentMutableOutputEqualityClaimed": false,
+    "kind": "REUSED_ORIGINAL_APP289_RUNTIME_BY_EXACT_692_PRODUCT_BYTES_NOT_NEW_SOURCE_APP_RUN",
+    "originalExecutionHead": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+    "originalLaterCommitBinding": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+    "originalExecution": {
+      "label": "root013-production-app289",
+      "head": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+      "directory": "apps/desktop",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 19.010774916037917,
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "originalAudit": {
+      "fileName": "PRODUCTION_APP291_INDEPENDENT_OUTPUT_AUDIT.json",
+      "bytes": 5081,
+      "sha256": "392f94cc5ce68105f574efa62fb4371a597604f0ac213b78bec220053ab2829d",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "journalAudit": {
+      "fileName": "PRODUCTION_APP289_HISTORY_BOUNDARY_READBACK292.json",
+      "bytes": 64460,
+      "sha256": "511810ac6f635595cb05578911ac9a8fbddf4489bbee6bc9b4fa3ca8494fb88e",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "productCount": 692,
+    "productIdentity": "9ea6137cddca961cc505538da10c8e3b5958d7f53bae6dfec173cf08a8bdaeab",
+    "originalArtifactCount": 997,
+    "originalArtifactIdentity": "9db485ced44535e5543a39f33884ed3bb3632fc09fc53a2cff25d28a5ea9734d",
+    "artifactsBeforeAfterExactOnlyAtOriginalRun": true,
+    "newSourceCommitWasNotUsedAtOriginalApp289Runtime": true,
+    "newGateCompiledOutputsEqualOriginalAppArtifacts": "NOT_CLAIMED_OR_CHECKED",
+    "originalDeclaredGraphIsCurrent": false,
+    "sourceBindingsAndVersionLimits": {
+      "sourceBindings": 0,
+      "catalogAssetSha256": null,
+      "editions": [],
+      "versionTokens": [],
+      "sampleFrames": null,
+      "timebaseHz": null,
+      "scope": "ACTUAL_WHOLE_FILE_HASH_AND_WAVE_SAMPLES_DO_NOT_ESTABLISH_NONEMPTY_CATALOG_HASH_VERSION_OR_BINDING_HISTORY"
+    },
+    "appJournalEvents": 49,
+    "allEventHashesAndSevenRequestsIndependentlyRecomputed": true,
+    "normalColdCloses": 3,
+    "faultRecoveryOrShutdownAbortCauseProven": false,
+    "nonemptySourceBindingHistory": "NOT_PROVEN_BY_THIS_APP",
+    "realProviderRoonNasCrossVolumeAudioDeviceOwner": "NOT_RUN"
+  },
+  "originalEightAt": "PARTIAL",
+  "realOwner": "NOT_RUN"
+}

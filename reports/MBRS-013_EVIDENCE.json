@@ -1,0 +1,604 @@
+{
+  "schema": "mbrs013.delivery-evidence-index.v3",
+  "task": "MBRS-013",
+  "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
+  "implementationCommit": "e755b71320c93a7985a936382f86c08a4ed2eb8a",
+  "sourceSingleParent": "5b6ed4be0382875ce937bf454adad0db110b4204",
+  "branch": "codex/mbrs-013-relocation",
+  "reportCommit": null,
+  "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-013_LOCAL_RELOCATION.md",
+  "reportCi": "NOT_RUN_UNTIL_REPORT_PUSH",
+  "finalSeal": "PENDING",
+  "localFiniteReuse": {
+    "standard": {
+      "originalRunOnly": true,
+      "executedOnNewSource": false,
+      "currentMutableOutputEqualityClaimed": false,
+      "originalExecutionHead": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+      "archive": {
+        "fileName": "ROOT013_STANDARD325_FULL_AUDIT330.json",
+        "bytes": 6755,
+        "sha256": "5d8741a2ed2c8fb14092f2fe0689dd555c5981abf3538a72184f2db49d785667",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "execution": {
+        "label": "root013-scope20-standard325",
+        "head": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+        "directory": "",
+        "exitCode": 0,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "groupTerminationFailed": false,
+        "durationSeconds": 319.8821505830274,
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "totals": {
+        "tests": 4721,
+        "pass": 4719,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 2,
+        "todo": 0
+      },
+      "groups": [
+        {
+          "name": "contracts",
+          "tests": 266,
+          "pass": 266,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "name": "core-flat",
+          "tests": 2777,
+          "pass": 2775,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 2,
+          "todo": 0
+        },
+        {
+          "name": "core-isolated-capacity",
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "name": "desktop",
+          "tests": 1670,
+          "pass": 1670,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ],
+      "originalDeclaredInputs": 1631,
+      "originalDeclaredIdentity": "68025ee037e46a16a57818db65e53bcac9ab4da3db5b5e4599d5ce9fea40ce56",
+      "currentDeclaredInputs": 1631,
+      "currentDeclaredIdentity": "8ef658955bc4c937a8ff7fa21cc2cf05d12613d71e14e3de021012d51323076c",
+      "unchangedDeclaredInputs": 1630,
+      "onlyChangedDeclaredInput": ".github/workflows/verify.yml",
+      "oldFull1631GraphIsCurrent": false,
+      "productInputs": 692,
+      "productIdentity": "9ea6137cddca961cc505538da10c8e3b5958d7f53bae6dfec173cf08a8bdaeab",
+      "currentSourceBinding": {
+        "fileName": "ROOT013_ACTUAL_SCOPE21_SOURCE_BINDING363.json",
+        "bytes": 5415532,
+        "sha256": "0a54ef8427dec2c7365e503498cc9121923bed130fc8c05618d763d04bff0d3e",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "rust30": {
+      "originalRunOnly": true,
+      "executedOnNewSource": false,
+      "currentMutableOutputEqualityClaimed": false,
+      "originalExecutionSourceSha": "5b6ed4be0382875ce937bf454adad0db110b4204",
+      "archive": {
+        "fileName": "ROOT013_RUST334_ALL_LOGS_READBACK335.json",
+        "bytes": 884572,
+        "sha256": "b63902ed032891e630f608f14f039240aa36f42f6ffd1c2799c4a32f71c0af7e",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "execution": {
+        "label": "root013-original-rust-hosts334",
+        "head": "5b6ed4be0382875ce937bf454adad0db110b4204",
+        "directory": "",
+        "exitCode": 0,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "groupTerminationFailed": false,
+        "durationSeconds": 206.7794627089752,
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "stages": 30,
+      "originalDeclaredInputs": 1298,
+      "unchangedGitMembers": 1090,
+      "originalNonGitMembers": 208,
+      "nonGitWholeFdReadMatchedAtBinding": true,
+      "originalCompiledArtifacts": 64,
+      "compiledArtifactsAreSealedOriginalRunArchives": true,
+      "newGateCompiledOutputsAreTheseArtifacts": false
+    },
+    "electron12": {
+      "originalRunOnly": true,
+      "executedOnNewSource": false,
+      "currentMutableOutputEqualityClaimed": false,
+      "originalExecutionSourceSha": "5b6ed4be0382875ce937bf454adad0db110b4204",
+      "archive": {
+        "fileName": "ROOT013_ORIGINAL_ELECTRON336_READBACK337.json",
+        "bytes": 335112,
+        "sha256": "a278d73c103702a818419aff1d6e4aeb29b3b193c60cc85157b4691901b7a5f6",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "execution": {
+        "label": "root013-original-electron336",
+        "head": "5b6ed4be0382875ce937bf454adad0db110b4204",
+        "directory": "",
+        "exitCode": 0,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "groupTerminationFailed": false,
+        "durationSeconds": 118.54484545800369,
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "counts": {
+        "tests": 12,
+        "pass": 12,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "actualMainScenes": 6,
+      "originalDeclaredInputs": 1252,
+      "unchangedGitMembers": 1044,
+      "originalNonGitMembers": 208,
+      "nonGitWholeFdReadMatchedAtBinding": true,
+      "originalCompiledArtifacts": 64,
+      "localFourSystemCases": "EXPLICIT_MOCK_SOFTWARE_ONLY",
+      "remoteFourSystemCases": "CURRENT_SOURCE_CI_SEPARATE"
+    }
+  },
+  "productionApp": {
+    "originalRunOnly": true,
+    "executedOnNewSource": false,
+    "currentMutableOutputEqualityClaimed": false,
+    "kind": "REUSED_ORIGINAL_APP289_RUNTIME_BY_EXACT_692_PRODUCT_BYTES_NOT_NEW_SOURCE_APP_RUN",
+    "originalExecutionHead": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+    "originalLaterCommitBinding": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+    "originalExecution": {
+      "label": "root013-production-app289",
+      "head": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+      "directory": "apps/desktop",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 19.010774916037917,
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "originalAudit": {
+      "fileName": "PRODUCTION_APP291_INDEPENDENT_OUTPUT_AUDIT.json",
+      "bytes": 5081,
+      "sha256": "392f94cc5ce68105f574efa62fb4371a597604f0ac213b78bec220053ab2829d",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "journalAudit": {
+      "fileName": "PRODUCTION_APP289_HISTORY_BOUNDARY_READBACK292.json",
+      "bytes": 64460,
+      "sha256": "511810ac6f635595cb05578911ac9a8fbddf4489bbee6bc9b4fa3ca8494fb88e",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "productCount": 692,
+    "productIdentity": "9ea6137cddca961cc505538da10c8e3b5958d7f53bae6dfec173cf08a8bdaeab",
+    "originalArtifactCount": 997,
+    "originalArtifactIdentity": "9db485ced44535e5543a39f33884ed3bb3632fc09fc53a2cff25d28a5ea9734d",
+    "artifactsBeforeAfterExactOnlyAtOriginalRun": true,
+    "newSourceCommitWasNotUsedAtOriginalApp289Runtime": true,
+    "newGateCompiledOutputsEqualOriginalAppArtifacts": "NOT_CLAIMED_OR_CHECKED",
+    "originalDeclaredGraphIsCurrent": false,
+    "sourceBindingsAndVersionLimits": {
+      "sourceBindings": 0,
+      "catalogAssetSha256": null,
+      "editions": [],
+      "versionTokens": [],
+      "sampleFrames": null,
+      "timebaseHz": null,
+      "scope": "ACTUAL_WHOLE_FILE_HASH_AND_WAVE_SAMPLES_DO_NOT_ESTABLISH_NONEMPTY_CATALOG_HASH_VERSION_OR_BINDING_HISTORY"
+    },
+    "appJournalEvents": 49,
+    "allEventHashesAndSevenRequestsIndependentlyRecomputed": true,
+    "normalColdCloses": 3,
+    "faultRecoveryOrShutdownAbortCauseProven": false,
+    "nonemptySourceBindingHistory": "NOT_PROVEN_BY_THIS_APP",
+    "realProviderRoonNasCrossVolumeAudioDeviceOwner": "NOT_RUN"
+  },
+  "sourceBinding": {
+    "fileName": "ROOT013_ACTUAL_SCOPE21_SOURCE_BINDING363.json",
+    "bytes": 5415532,
+    "sha256": "0a54ef8427dec2c7365e503498cc9121923bed130fc8c05618d763d04bff0d3e",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "sourceGate": {
+    "fileName": "ROOT013_EXACT_SCOPE21_SOURCE_GATE_AUDIT362.json",
+    "bytes": 15842,
+    "sha256": "7729c2759bd5b372a287a1a32d8b737ad3494bb03bf6307ce120e877927d7b3b",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "sourceCi": {
+    "fileName": "ROOT013_SOURCEE755_CI_PROGRESS366_13.json",
+    "bytes": 99184,
+    "sha256": "918e0f513a17d98b271d56a2ff4f0776034ba6a1d4a8cb22b2d8481b42f2f17b",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "sourceCompleteJobAudit": {
+    "fileName": "ROOT013_SOURCEE755_ACTUAL_FULL_JOB_LOG_AUDIT382.json",
+    "bytes": 91903,
+    "sha256": "09f754ae5bb27fa6e3342ecbf4cfce96d64d7f18c40072114adffb9f22d2ced3",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "originalAcceptanceCount": 8,
+  "originalEightAt": [
+    {
+      "id": "MBRS-AT-013-01",
+      "task": "MBRS-013",
+      "kind": "integration",
+      "requirement": "同卷移动/重命名后ID、收藏歌单和录音引用保持，新URL从新位置送同文件。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "PARTIAL",
+      "software_status": "PASS_FINITE_IDS_REFERENCE_HISTORY_NEW_GATEWAY_BYTES",
+      "app_status": "PASS_SELF_OWNED_WAVE_LYRIC_LOCATION_AND_COLD_TRACK",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "原Owner/Gateway与3条非空SourceBinding、冷重开、增量不双登记；App音频歌词同内容复制/清理。真实Roon与用户收藏歌单未验。"
+    },
+    {
+      "id": "MBRS-AT-013-02",
+      "task": "MBRS-013",
+      "kind": "live_roon",
+      "requirement": "未等待Roon重新导入/对照更新，移动后的已确认本地曲目仍能重新直送。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "PARTIAL",
+      "software_status": "PARTIAL_GATEWAY_NEW_LOCATION_PREREQUISITE_ONLY",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "新位置HTTP完整原字节是软件前置；没有实际Roon未重导入再播结果。"
+    },
+    {
+      "id": "MBRS-AT-013-03",
+      "task": "MBRS-013",
+      "kind": "fault",
+      "requirement": "跨卷断开/磁盘满/校验失败/重名不丢源，journal支持恢复或回退。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "PARTIAL",
+      "software_status": "PASS_FINITE_FAULT_JOURNAL_COLD_SIGKILL_RECOVERY",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "真实自有FD/SQLite与受控磁盘故障、局部发布/登记、冷SIGKILL恢复；真实多卷/NAS/满盘和App故障注入未验。"
+    },
+    {
+      "id": "MBRS-AT-013-04",
+      "task": "MBRS-013",
+      "kind": "unit",
+      "requirement": "大小写/Unicode/根越界/符号链接/卷替换安全处理。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "PARTIAL",
+      "software_status": "PASS_FINITE_CASE_UNICODE_NAMESPACE_ROOT_IDENTITY_NEGATIVES",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "实际自有路径及受控卷身份负例；真实更换底层卷/共享环境未验。"
+    },
+    {
+      "id": "MBRS-AT-013-05",
+      "task": "MBRS-013",
+      "kind": "integration",
+      "requirement": "活动读lease时移动被延期，旧lease不会读取同名替代文件。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "PARTIAL",
+      "software_status": "PASS_ACTUAL_GATEWAY_HELD_FD_DEFER_OLD_SECRET_REPLACEMENT_REJECT",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "实际Gateway lease与同名替代拒绝；真实Roon活动播放和听感未验。"
+    },
+    {
+      "id": "MBRS-AT-013-06",
+      "task": "MBRS-013",
+      "kind": "integration",
+      "requirement": "外部移动/多个相同副本/整库重挂显示准确待定位与确认，不瞎合并。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "PARTIAL",
+      "software_status": "PASS_FINITE_CANDIDATES_DUPLICATES_TWO_MEMBER_WHOLE_ROOT",
+      "app_status": "NOT_RUN",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "有限2成员根闭包、旧Hash负例和101成员部分冷态拒绝；普通整库与Owner确认未验。"
+    },
+    {
+      "id": "MBRS-AT-013-07",
+      "task": "MBRS-013",
+      "kind": "ui",
+      "requirement": "预览和逐项结果展示伴随文件、源保留/清理与不可恢复风险。",
+      "release_scope": "CORE",
+      "introduced_in": "1.1",
+      "status": "PARTIAL",
+      "software_status": "PASS_FINITE_MAIN_PLAN_COMPANIONS_RESULT_RECOVERY_UI",
+      "app_status": "PASS_ACTUAL_AUDIO_LYRIC_PREVIEW_RETAIN_CLEANUP_COLD_HISTORY",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "真实生产App两资源预览/逐项源保留/具体清理；恢复UI仅独立桌面测试，App未注入故障。"
+    },
+    {
+      "id": "MBRS-AT-013-08",
+      "task": "MBRS-013",
+      "kind": "integration",
+      "requirement": "重定位保留逻辑AssetID但更新revision；历史SourceBinding的Hash不被位置变更或标签写回静默更新。",
+      "release_scope": "CORE",
+      "introduced_in": "1.2",
+      "status": "PARTIAL",
+      "software_status": "PASS_THREE_NONEMPTY_SOURCE_BINDINGS_HISTORY_AND_LOCATION_REVISION",
+      "app_status": "PARTIAL_ASSET_TRACK_SHA_REVISION_EMPTY_SOURCE_BINDINGS",
+      "live_status": "NOT_RUN",
+      "owner_status": "NOT_RUN",
+      "evidence_scope": "原3条非空绑定及旧ledger字节由Core集成核验；App自有WAVE绑定历史为空，不借空数组证明非空历史。"
+    }
+  ],
+  "originalEightAtOverall": "PARTIAL",
+  "sourceIntrinsicFreeze": {
+    "fileName": "ROOT013_SCOPE21_SOURCE_INTRINSIC_FREEZE364.json",
+    "bytes": 42085,
+    "sha256": "60aeb521c780e8223f1baecca39da40b2b6337eb7aca41390fa409f6b6c51304",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "sourceIntrinsicFieldsPreserved": true,
+  "historicalTaskCount": 18,
+  "historicalAcceptanceCount": 156,
+  "effectiveTaskCount": 17,
+  "effectiveAcceptanceCount": 150,
+  "cancelled015SixAt": "N_A_NOT_PASS",
+  "mobile5NotStarted": true,
+  "nextTask": "MBM-000",
+  "nextBranchBaseline": "ACTUAL_FINAL_SEALED_REPORT_HEAD",
+  "historicalSourceEvidence": [
+    {
+      "path": "docs/postrust/MBRS-013/evidence/source-s1-ci-failure.json",
+      "bytes": 17899,
+      "sha256": "42732620d4785be19e999a96473d6520e080c56763401aa7c22571abe919f993",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    },
+    {
+      "path": "docs/postrust/MBRS-013/evidence/source59-ci-final.json",
+      "bytes": 16547,
+      "sha256": "a182344daafc9faa821a225fe391695697e06ac5f8c73d12220eebfd3856fb54",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    },
+    {
+      "path": "docs/postrust/MBRS-013/evidence/source59-hosted-runner-failure.json",
+      "bytes": 3468,
+      "sha256": "648a09fcccfb3b0b29d34a34503e5826cdf0363ef12b7fef2ace309320af05d9",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    },
+    {
+      "path": "docs/postrust/MBRS-013/evidence/source13e-electron-ci-failure.json",
+      "bytes": 14824,
+      "sha256": "5e26b0e93288cfa50720da4e55bb3b041177fab75bc3dcb761312374ff313379",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    },
+    {
+      "path": "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
+      "bytes": 5773,
+      "sha256": "79fe304eb9dacbed207211b8ea31d462527827cecb8e93cbc83a56aae1d51149",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    },
+    {
+      "path": "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
+      "bytes": 3263,
+      "sha256": "114a536bb6737fcdbbd955d1210d89226fbb4c5c223f4f9864d6ac6ad43502ff",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    },
+    {
+      "path": "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
+      "bytes": 2868,
+      "sha256": "c2322475d503a1d7cb8a10558ec5ab8313d2b067ef3fff1c76e31a7ccb5f5023",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    },
+    {
+      "path": "docs/postrust/MBRS-013/evidence/source589-electron-qualification-failure.json",
+      "bytes": 4568,
+      "sha256": "42117c9d63155c9a1e26a0f4faa8fa87a44a45e99dd0b43e622fe00c94ead15c",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    },
+    {
+      "path": "docs/postrust/MBRS-013/evidence/native-mount-fd-repair.json",
+      "bytes": 6169,
+      "sha256": "8996dc4e618f8d7997c02fe9e6cdc12f4279a8ecd02f80a1269ba5985fec48c6",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    },
+    {
+      "path": "docs/postrust/MBRS-013/evidence/sourcef328-rust-unit-failure.json",
+      "bytes": 3067,
+      "sha256": "93019fe7a11a1acc4e8a340fcf5305502d71ebe83532336f3759e01277dabfbd",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    },
+    {
+      "path": "docs/postrust/MBRS-013/evidence/rust-deadline-unit-repair.json",
+      "bytes": 7432,
+      "sha256": "2ab2f543c0d6f17aa867285881aa0ea2465d60945008876f6f686d652038130f",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    },
+    {
+      "path": "docs/postrust/MBRS-013/evidence/source5b6-ci-aggregate-timeout.json",
+      "bytes": 2928,
+      "sha256": "960b5a372dd190b1206bbda098fb6b1c41dcb6f7241c76bb359feb63222d4da8",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    },
+    {
+      "path": "docs/postrust/MBRS-013/evidence/verify-job-budget-repair.json",
+      "bytes": 6358,
+      "sha256": "ad1276aaa549c387d0b16319dd6a8a9381541319c0d39df5f08c8cde323e429f",
+      "scope": "SOURCE_COMMIT_HISTORY_UNCHANGED_BY_R"
+    }
+  ],
+  "sourceF328FinalHistory": {
+    "sourceSha": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+    "archive": {
+      "fileName": "ROOT013_SOURCEF328_CI_FINAL351.json",
+      "bytes": 98158,
+      "sha256": "a3e1670a23dc6a5e8e8ee4f62627cb5677b2d1c970e9c12fafbfa7359cc49a12",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "workflowCount": 4,
+    "jobCount": 6,
+    "successfulJobs": 5,
+    "failedJobs": 1,
+    "failedStep": "Build and verify both Rust hosts once in this job",
+    "originalElectron12": "SKIPPED",
+    "originalPlaywright114": "SKIPPED",
+    "specificHostedSchedulingCause": "NOT_PROVEN",
+    "currentSourcePass": false,
+    "noEleventhRPath": true
+  },
+  "source5b6PlatformCancellationHistory": {
+    "sourceSha": "5b6ed4be0382875ce937bf454adad0db110b4204",
+    "archive": {
+      "fileName": "ROOT013_SOURCE5B6_NATURAL_CI_CANCELLED_FULL_READBACK357.json",
+      "bytes": 91807,
+      "sha256": "b39a3875b2ad800057a7bc86c4e88be1d35ed857425edbc33ec4e94987605542",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "officialAnnotations": {
+      "fileName": "ROOT013_SOURCE5B6_VERIFY_CHECK_ANNOTATIONS356.json",
+      "bytes": 1601,
+      "sha256": "9234e50664c445490ba015b40a090172ae1e3d09b44774fc0a29a2e9052db505",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "workflows": 4,
+    "jobs": 6,
+    "successfulJobs": 5,
+    "failedJobs": 0,
+    "platformCancelledJobs": 1,
+    "officialJobBudgetMinutes": 45,
+    "officialAnnotation": "The job has exceeded the maximum execution time of 45m0s",
+    "standardTotals": {
+      "tests": 4721,
+      "pass": 4719,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    "originalElectronCounts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "originalPlaywright": {
+      "tests": 114,
+      "pass": 109,
+      "fail": 0,
+      "skipped": 5,
+      "flaky": 0,
+      "retry": 0
+    },
+    "ownGateGuardTests": 15,
+    "ownGateCliSummaryPresent": false,
+    "ownGate529Completed": false,
+    "allCiPass": false,
+    "originalFailureSwallowed": false,
+    "agentCancellation": false,
+    "currentSourcePass": false,
+    "noEleventhRPath": true
+  },
+  "historicalStandard124AndApp126Current": false,
+  "evidence": [
+    "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
+    "docs/postrust/MBRS-013/evidence/production-app.json",
+    "docs/postrust/MBRS-013/evidence/independent-app-outputs.json",
+    "docs/postrust/MBRS-013/evidence/local-electron.json",
+    "docs/postrust/MBRS-013/evidence/local-relocation-gate.json",
+    "docs/postrust/MBRS-013/evidence/e2e-cleanup-wait.json",
+    "docs/postrust/MBRS-013/evidence/local-failures-and-narrow-fixes.json",
+    "docs/postrust/MBRS-013/evidence/original-eight-at.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT13.json",
+    "docs/postrust/MBRS-013/evidence/bootstrap-startup-repair.json",
+    "docs/postrust/MBRS-013/evidence/local-standard-verify-repair.json",
+    "docs/postrust/MBRS-013/evidence/production-app-repair.json",
+    "docs/postrust/MBRS-013/evidence/independent-app-outputs-repair.json",
+    "docs/postrust/MBRS-013/evidence/local-electron-repair.json",
+    "docs/postrust/MBRS-013/evidence/source-s1-ci-failure.json",
+    "docs/postrust/MBRS-013/evidence/core-repair-readonly-review.json",
+    "docs/postrust/MBRS-013/evidence/original-eight-at-repair.json",
+    "docs/postrust/MBRS-013/evidence/source59-hosted-runner-failure.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT14.json",
+    "docs/postrust/MBRS-013/evidence/hosted-runner-admission.json",
+    "docs/postrust/MBRS-013/evidence/source59-ci-final.json",
+    "docs/postrust/MBRS-013/evidence/legacy-ci-admission-repair.json",
+    "docs/postrust/MBRS-013/evidence/original012-cli-repair.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT15.json",
+    "docs/postrust/MBRS-013/evidence/uuid-private-field-repair.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT16.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT17.json",
+    "docs/postrust/MBRS-013/evidence/source13e-electron-ci-failure.json",
+    "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT18.json",
+    "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
+    "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT19.json",
+    "docs/postrust/MBRS-013/evidence/source589-electron-qualification-failure.json",
+    "docs/postrust/MBRS-013/evidence/native-mount-fd-repair.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT20.json",
+    "docs/postrust/MBRS-013/evidence/sourcef328-rust-unit-failure.json",
+    "docs/postrust/MBRS-013/evidence/rust-deadline-unit-repair.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT21.json",
+    "docs/postrust/MBRS-013/evidence/source5b6-ci-aggregate-timeout.json",
+    "docs/postrust/MBRS-013/evidence/verify-job-budget-repair.json",
+    "docs/postrust/MBRS-013/evidence/source-gate.json",
+    "docs/postrust/MBRS-013/evidence/source-identity.json",
+    "docs/postrust/MBRS-013/evidence/source-ci.json",
+    "docs/postrust/MBRS-013/evidence/source-s1-ci-final.json"
+  ],
+  "finalDeliveryReceipt": {
+    "archiveId": "MBRS013_FINAL_DELIVERY_RECEIPT",
+    "fileName": "MBRS013_FINAL_DELIVERY_RECEIPT.json",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "createdOnlyAfterReportCiAndRemoteClean": true
+  },
+  "fullTransitiveToolchainClosure": false,
+  "realProviderRoonNasCrossVolumeAudioDeviceOwner": "NOT_RUN"
+}

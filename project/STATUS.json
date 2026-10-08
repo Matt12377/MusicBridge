@@ -47001,10 +47001,10 @@
   },
   "mbrs013LocalRelocation": {
     "task": "MBRS-013",
-    "state": "LOCAL_SCOPE21_CI_AGGREGATE45_TO60_ONLY_FINITE_REUSE_NEW_EXACT_SOURCE_GATE_CI_REPORT_PENDING",
+    "state": "LATEST_SOURCE_CI_SUCCESS_INDEPENDENT_REPORT_CI_PENDING",
     "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
     "branch": "codex/mbrs-013-relocation",
-    "implementationCommit": null,
+    "implementationCommit": "e755b71320c93a7985a936382f86c08a4ed2eb8a",
     "reportCommit": null,
     "scope": "docs/postrust/MBRS-013/EXECUTION_SCOPE.json",
     "handoff": "docs/postrust/MBRS-013/IMPLEMENTATION_HANDOFF.md",
@@ -47807,7 +47807,7 @@
         "oldStandard286InputGraphNotCurrentOnlyProductSame": true
       }
     },
-    "implementationCommitResolution": "SOURCE_COMMIT_CONTAINING_CURRENT_013_IMPLEMENTATION",
+    "implementationCommitResolution": "EXACT_LATEST_SOURCE_S_SHA",
     "report": "reports/MBRS-013_LOCAL_RELOCATION.md",
     "reportCommitResolution": "git log -1 --format=%H -- reports/MBRS-013_LOCAL_RELOCATION.md",
     "evidence": [
@@ -47851,11 +47851,22 @@
       "docs/postrust/MBRS-013/evidence/rust-deadline-unit-repair.json",
       "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT21.json",
       "docs/postrust/MBRS-013/evidence/source5b6-ci-aggregate-timeout.json",
-      "docs/postrust/MBRS-013/evidence/verify-job-budget-repair.json"
+      "docs/postrust/MBRS-013/evidence/verify-job-budget-repair.json",
+      "docs/postrust/MBRS-013/evidence/source-gate.json",
+      "docs/postrust/MBRS-013/evidence/source-identity.json",
+      "docs/postrust/MBRS-013/evidence/source-ci.json",
+      "docs/postrust/MBRS-013/evidence/source-s1-ci-final.json"
     ],
-    "push": "SOURCE5B6_REMOTE_EXACT_NEW_SCOPE21_SOURCE_NOT_YET_PUSHED",
-    "ci": "SOURCE5B6_FIRST_NATURAL5_SUCCESS1_VERIFY_PLATFORM45M_CANCEL_PRESERVED_NEW_SCOPE21_CI_NOT_STARTED",
-    "updatedAt": "2026-10-08T22:24:33.794544+00:00"
+    "push": "SOURCE_ORDINARY_PUSH_REMOTE_EXACT_REPORT_NOT_YET_PUSHED",
+    "ci": "SOURCE_FIRST_NATURAL_FOUR_WORKFLOW_SIX_JOB_SUCCESS_REPORT_PENDING_HISTORY_PRESERVED",
+    "updatedAt": "2026-10-08T23:21:51.858879+00:00",
+    "finalDeliveryReceipt": {
+      "archiveId": "MBRS013_FINAL_DELIVERY_RECEIPT",
+      "fileName": "MBRS013_FINAL_DELIVERY_RECEIPT.json",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "createdOnlyAfterReportCiAndRemoteClean": true
+    },
+    "nextBranchBaseline": "ACTUAL_FINAL_SEALED_REPORT_HEAD"
   },
   "mobileFrontloading20261008": {
     "state": "SCHEDULE_ADOPTED_MOBILE_TASKS_NOT_STARTED",

@@ -403,3 +403,8 @@ Scope20保留原f328首次自然Electron第9步Rust准备失败：原ts-large-sn
 
 <!-- MBRS013_SCOPE21_VERIFY_AGGREGATE_BUDGET358 -->
 Scope21保留5b6首次自然CI的5成功/1 verify平台取消：官方明确整个作业超45分钟，在最后013步骤取消，529 CLI未完成、后续步骤跳过，不能写全CI通过。原标准4721总/4719通过/2原skip、Electron12/12、Playwright114=109通过/5原skip及013生产App用例已实际通过。仅verify整作业45→60分钟；各专项8分钟、内部180000/420000ms、Electron45分钟、全部原用例与生产期限逐字保持。此前本地标准325只按1630不变可执行输入复用，旧完整1631图因CI YAML变化不是当前；Rust334的1298和Electron336的1252声明输入与64封存产物逐字不变，App289仅按692不变产品有限复用，都不冒充新Source实跑。新提交完整Git/1631身份、精确529 Gate、首次自然4/6完整日志、独立R10与seal仍待兑现。原8AT PARTIAL、18/156历史、有效17/150、mobile5 NOT_STARTED保持；真实Roon/NAS/跨卷/设备/听感/Owner未跑，013封存后连续000～004→016→017，不重复审批。
+
+
+### MBRS-013 Scope21 精确源码自然CI与有限复用报告登记
+
+013新S e755b71320c93a7985a936382f86c08a4ed2eb8a的原529/14阶段与首次自然4workflow/6job实际成功。Scope21仅verify整job45→60分钟，原step8分钟、013180000/420000ms、全部测试与692产品不改。原325在f328执行4721/4719/2skip，仅1630不变可执行输入有限复用；旧完整1631图不是当前。原5b6 Rust30/Electron12与589自有App289保持原执行/封存身份；新S当前执行由fresh Gate和新自然CI另证。原f328至少两块的前提失败、5b6平台45分钟取消和未完成529均保留。原八AT仍PARTIAL，真实/Owner NOT_RUN；移动五项NOT_STARTED，R仅原十路径，报告CI与最终seal待实际完成。
