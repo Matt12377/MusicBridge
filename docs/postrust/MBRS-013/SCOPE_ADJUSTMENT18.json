@@ -1,0 +1,59 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "id": "SCOPE_ADJUSTMENT18",
+  "parentSource": "320f22ee606a67bfe2c683bf0b13f59b74ef790e",
+  "authority": "INHERITED_OWNER_CONTINUOUS_AUTHORIZATION_NO_NEW_APPROVAL",
+  "reason": "新增12回调运行通过，但精确新源码Gate203在desktop-types因两assert.throws(fn,undefined,message) TS2345失败；冻结529测试未执行。只改等价的Node throws(fn,message)重载，保留原失败，不改任何生产叶、fixture、case数或预算。",
+  "delegatedOwnedFiles": {
+    "delivery012_contract": [
+      "apps/desktop/test/private-host-bootstrap.test.ts"
+    ]
+  },
+  "rootOwnedFiles": [
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT18.json",
+    "docs/postrust/MBRS-013/EXECUTION_SCOPE.json",
+    "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
+    "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
+    "project/STATUS.json",
+    "project/POSTRUST_PLAN.json",
+    "project/POSTRUST_TODO.md",
+    "project/POSTRUST_PROGRESS.md"
+  ],
+  "beforeTest": {
+    "path": "apps/desktop/test/private-host-bootstrap.test.ts",
+    "bytes": 16247,
+    "sha256": "f4bc467850e6547c81ca41fcc08f124e369ce865cd19c4bbd56aae21eb42d38c"
+  },
+  "twoErrorLines": [
+    237,
+    277
+  ],
+  "allowedChange": "ONLY_TWO_ASSERT_THROWS_REMOVE_UNDEFINED_ARGUMENT_RETAIN_ORIGINAL_STRING_MESSAGE_EXCEPTION_REQUIREMENT",
+  "private12AndOriginal426New103Electron12CountsAndAllBudgetsUnchanged": true,
+  "production692AndScope17FourGuardFilesUnchanged": true,
+  "compilerAndActualExecutor": "ROOT_ONLY",
+  "newExactSourceGateAndCi": "PENDING_NOT_PRECLAIMED",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN",
+  "recordedAt": "2026-10-08T18:39:05.765205+00:00",
+  "actualRepair": {
+    "result": "PASS_TWO_EQUIVALENT_ASSERT_THROWS_OVERLOAD_LINES_CURRENT_CALLBACK12_AND_FULL_DESKTOP_TYPES",
+    "rootAudit": {
+      "fileName": "ROOT013_ASSERT_TYPES_REPAIR225.json",
+      "bytes": 2868,
+      "sha256": "c2322475d503a1d7cb8a10558ec5ab8313d2b067ef3fff1c76e31a7ccb5f5023",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+    },
+    "counts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "desktopTypesExitCode": 0,
+    "exactWholeFileInverse": true,
+    "publicEvidence": "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json"
+  }
+}

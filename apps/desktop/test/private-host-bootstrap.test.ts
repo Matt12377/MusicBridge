@@ -234,7 +234,7 @@ for (const filename of wrappers) {
     }
     for (const value of cases) {
       const fixture = wrapper(filename, value.observer, value.observerPeer)
-      assert.throws(() => fixture.forward(value.data, value.ports), undefined, value.name)
+      assert.throws(() => fixture.forward(value.data, value.ports), value.name)
       assert.equal(fixture.received.length, 0, `${value.name}不能调用真实post。`)
       assertUnobservedPorts(value.ports)
     }
@@ -274,7 +274,7 @@ for (const filename of hosts) {
     for (const value of cases) {
       for (const entry of ['observer', 'utility'] as const) {
         const fixture = await host(filename)
-        assert.throws(() => fixture[entry]({ data: value.data, ports: value.ports }), undefined, `${entry}：${value.name}`)
+        assert.throws(() => fixture[entry]({ data: value.data, ports: value.ports }), `${entry}：${value.name}`)
         assert.equal(fixture.received.length, 0, `${entry}：${value.name}不能进入实际Utility。`)
         assertUnobservedPorts(value.ports)
       }

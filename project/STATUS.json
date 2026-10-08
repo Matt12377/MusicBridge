@@ -47001,7 +47001,7 @@
   },
   "mbrs013LocalRelocation": {
     "task": "MBRS-013",
-    "state": "LOCAL_SCOPE17_CALLBACK12_PASS_NEW_COMMITTED_SOURCE_GATE_RUST_ELECTRON_CI_REPORT_PENDING",
+    "state": "LOCAL_SCOPE18_CALLBACK12_AND_DESKTOP_TYPES_PASS_NEW_EXACT_SOURCE_GATE_RUST_ELECTRON_CI_REPORT_PENDING",
     "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
     "branch": "codex/mbrs-013-relocation",
     "implementationCommit": null,
@@ -47019,7 +47019,7 @@
     "runtimeRelocation": "OFF_UNTIL_FINITE_QUALIFICATION_SPECIFIC_MAIN_PLAN_ONLY",
     "originalAtCount": 8,
     "productAcceptance": "PARTIAL_ALL_EIGHT_LIVE_OWNER_OPEN",
-    "softwareTests": "PASS_SCOPE17_REAL_CALLBACK12_OLD_STANDARD124_PRODUCT_BYTES_UNCHANGED_NEW_EXACT_GATE_CI_PENDING",
+    "softwareTests": "PASS_SCOPE17_CALLBACK12_AND_DESKTOP_TYPES223_OLD_STANDARD124_PRODUCT_BYTES_UNCHANGED_NEW_EXACT_GATE_CI_PENDING",
     "productionApp": "PASS_CURRENT_PRODUCTION_APP126_AND_INDEPENDENT_OUTPUTS_NONEMPTY_HISTORY_SEPARATE",
     "realRoonNasAudioDeviceOwner": "NOT_RUN",
     "ownerRepeatedApprovalRequired": false,
@@ -47180,7 +47180,7 @@
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       },
-      "newExactSourceGate": "PENDING_AFTER_NEW_SCOPE17_SOURCE_COMMIT_NO_PRECLAIM",
+      "newExactSourceGate": "PENDING_AFTER_SCOPE18_SOURCE_COMMIT_NO_PRECLAIM",
       "originalAcceptanceCount": 8,
       "realRoonNasAudioDeviceOwner": "NOT_RUN",
       "appLimits": {
@@ -47423,6 +47423,23 @@
         "bytes": 16247,
         "sha256": "f4bc467850e6547c81ca41fcc08f124e369ce865cd19c4bbd56aae21eb42d38c",
         "glob": "ORIGINAL_DESKTOP_TEST_UNIT_ROOT_GLOB_ADDS_TWELVE_ONLY"
+      },
+      "source320ExactGate203Failure": {
+        "fileName": "ROOT013_EXACT_SOURCE320_GATE203_FAILURE_AUDIT221.json",
+        "bytes": 3263,
+        "sha256": "114a536bb6737fcdbbd955d1210d89226fbb4c5c223f4f9864d6ac6ad43502ff",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "scope18PrivateAssertTypesRepair": {
+        "fileName": "ROOT013_ASSERT_TYPES_REPAIR225.json",
+        "bytes": 2868,
+        "sha256": "c2322475d503a1d7cb8a10558ec5ab8313d2b067ef3fff1c76e31a7ccb5f5023",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "currentPrivateBootstrapRegressionTestFile": {
+        "path": "apps/desktop/test/private-host-bootstrap.test.ts",
+        "bytes": 16225,
+        "sha256": "2256d23aee5efc4312389f41358eb5aa12363945677776bd1828a574753ad781"
       }
     },
     "implementationCommitResolution": "SOURCE_COMMIT_CONTAINING_CURRENT_013_IMPLEMENTATION",
@@ -47457,11 +47474,14 @@
       "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT16.json",
       "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT17.json",
       "docs/postrust/MBRS-013/evidence/source13e-electron-ci-failure.json",
-      "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json"
+      "docs/postrust/MBRS-013/evidence/private-host-bootstrap-repair.json",
+      "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT18.json",
+      "docs/postrust/MBRS-013/evidence/source320-types-gate-failure.json",
+      "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json"
     ],
-    "push": "SOURCE13E_REMOTE_EXACT_NEW_SCOPE17_REPAIR_SOURCE_NOT_PUSHED",
-    "ci": "SOURCE13E_FIRST_NATURAL_FIVE_JOBS_PASS_ELECTRON_ONE_FAIL_PRESERVED_NEW_SOURCE_NOT_STARTED",
-    "updatedAt": "2026-10-08T18:34:01.515146+00:00"
+    "push": "SOURCE13E_REMOTE_EXACT_SCOPE17_AND18_SOURCE_COMMITS_NOT_PUSHED",
+    "ci": "SOURCE13E_FIVE_JOBS_PASS_ELECTRON_FAIL_AND_SOURCE320_LOCAL_TYPES_FAILURE_PRESERVED_NEW_SOURCE_NOT_STARTED",
+    "updatedAt": "2026-10-08T18:42:43.885288+00:00"
   },
   "mobileFrontloading20261008": {
     "state": "SCHEDULE_ADOPTED_MOBILE_TASKS_NOT_STARTED",

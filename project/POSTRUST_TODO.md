@@ -1,6 +1,6 @@
 # MusicBridge 开发待办
 
-当前任务：MBRS-013。Scope17四个旧私有宿主已按013实际三生产端口窄修；直接执行原回调的12个新增行为用例先2通过/10失败，修复后12/12自然通过，四叶仅guard变化，逆变换恢复全部原字节。此前标准124为历史4704，当前新增12 root单测另记；692产品文件字节未变。source13e首次自然CI最终5job通过，仅Electron原12为4通过/8失败，后续E2E未执行，原记录保留。新源码提交后的精确529 Gate、完整30阶段Rust及两fresh宿主、原Electron12、首次自然CI、独立R和最终seal待实际执行。原426/新103/Electron12和预算不改；8AT均PARTIAL，真实Roon/NAS/跨卷/设备听感/Owner未跑。封存后接MBM-000～004→016→017，不重复审批。
+当前任务：MBRS-013。Scope18仅改新增回归的两行assert.throws为等价字符串message重载，逆变换恢复整原文件；当前12/12运行及完整desktop-types223自然通过，Scope17四私有叶与692产品字节不变。原source320f Gate203六阶段中5通过，desktop-types因两TS2345失败，冻结529未执行；该源码未push且无远端CI。新提交的精确Gate、完整30阶段Rust及两fresh宿主、原Electron12、首次自然CI/报告/seal待真实执行，不能以旧13e/320f或当前WIP代替。原426/103/Electron12及预算、18任务156AT、有效17/150与移动五项未开始保持；8AT均PARTIAL/live/Owner未跑，之后继续MBM-000～004→016→017。
 
 | 任务 | 要做的事 | 进度 |
 | --- | --- | --- |
@@ -88,3 +88,7 @@
 
 <!-- MBRS013_SCOPE17_PRIVATE_BOOTSTRAP_REPAIR200 -->
 Scope17四个旧私有宿主已按013实际三生产端口窄修；直接执行原回调的12个新增行为用例先2通过/10失败，修复后12/12自然通过，四叶仅guard变化，逆变换恢复全部原字节。此前标准124为历史4704，当前新增12 root单测另记；692产品文件字节未变。source13e首次自然CI最终5job通过，仅Electron原12为4通过/8失败，后续E2E未执行，原记录保留。新源码提交后的精确529 Gate、完整30阶段Rust及两fresh宿主、原Electron12、首次自然CI、独立R和最终seal待实际执行。原426/新103/Electron12和预算不改；8AT均PARTIAL，真实Roon/NAS/跨卷/设备听感/Owner未跑。封存后接MBM-000～004→016→017，不重复审批。
+
+
+<!-- MBRS013_SCOPE18_ASSERT_TYPES_REPAIR226 -->
+Scope18仅改新增回归的两行assert.throws为等价字符串message重载，逆变换恢复整原文件；当前12/12运行及完整desktop-types223自然通过，Scope17四私有叶与692产品字节不变。原source320f Gate203六阶段中5通过，desktop-types因两TS2345失败，冻结529未执行；该源码未push且无远端CI。新提交的精确Gate、完整30阶段Rust及两fresh宿主、原Electron12、首次自然CI/报告/seal待真实执行，不能以旧13e/320f或当前WIP代替。原426/103/Electron12及预算、18任务156AT、有效17/150与移动五项未开始保持；8AT均PARTIAL/live/Owner未跑，之后继续MBM-000～004→016→017。

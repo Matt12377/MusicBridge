@@ -1,0 +1,84 @@
+{
+  "schema": "mbrs013.private-bootstrap-test-types-repair.v1",
+  "task": "MBRS-013",
+  "result": "PASS_TWO_EQUIVALENT_ASSERT_THROWS_OVERLOAD_LINES_CURRENT_CALLBACK12_AND_FULL_DESKTOP_TYPES",
+  "parentSource": "320f22ee606a67bfe2c683bf0b13f59b74ef790e",
+  "before": {
+    "bytes": 16247,
+    "sha256": "f4bc467850e6547c81ca41fcc08f124e369ce865cd19c4bbd56aae21eb42d38c"
+  },
+  "after": {
+    "bytes": 16225,
+    "sha256": "2256d23aee5efc4312389f41358eb5aa12363945677776bd1828a574753ad781"
+  },
+  "exactTwoLineInverseRestoresWholeOriginalFile": true,
+  "executions": [
+    {
+      "schema": "mbrs013.root-check.v1",
+      "label": "root013-private-bootstrap-types-fixed222",
+      "head": "320f22ee606a67bfe2c683bf0b13f59b74ef790e",
+      "directory": "apps/desktop",
+      "argv": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "test/private-host-bootstrap.test.ts"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 0.823121249966789,
+      "log": {
+        "file": "root013-private-bootstrap-types-fixed222.log",
+        "bytes": 3310,
+        "sha256": "199d0bfba3100c73fa7db1aa28f47e99c99db4297e51bdd7be0c7311a8cae764"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING",
+      "realProviderAccountRoonAudioOwner": "NOT_RUN_BY_CAPTURE"
+    },
+    {
+      "schema": "mbrs013.root-check.v1",
+      "label": "root013-private-bootstrap-desktop-types223",
+      "head": "320f22ee606a67bfe2c683bf0b13f59b74ef790e",
+      "directory": "apps/desktop",
+      "argv": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "node_modules/vue-tsc/bin/vue-tsc.js",
+        "--noEmit",
+        "-p",
+        "tsconfig.json"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 11.659517958003562,
+      "log": {
+        "file": "root013-private-bootstrap-desktop-types223.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING",
+      "realProviderAccountRoonAudioOwner": "NOT_RUN_BY_CAPTURE"
+    }
+  ],
+  "greenCounts": {
+    "tests": 12,
+    "pass": 12,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "fourPrivateGuardFilesByteUnchanged": true,
+  "production692ByteUnchanged": true,
+  "original426New103Electron12AndBudgetsUnchanged": true,
+  "originalGate203Failure": "ROOT013_EXACT_SOURCE320_GATE203_FAILURE_AUDIT221.json",
+  "latestExactSourceGateAndOriginalRustElectronAndCi": "PENDING_NOT_PRECLAIMED",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN"
+}

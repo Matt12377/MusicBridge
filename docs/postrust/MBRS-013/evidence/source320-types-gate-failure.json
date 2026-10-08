@@ -1,0 +1,85 @@
+{
+  "schema": "mbrs013.source320-types-gate-failure.v1",
+  "task": "MBRS-013",
+  "sourceSha": "320f22ee606a67bfe2c683bf0b13f59b74ef790e",
+  "result": "ORIGINAL_EXACT_SOURCE_GATE203_DESKTOP_TYPES_FAIL_BEFORE_ANY_FROZEN_TEST_STAGE",
+  "execution": {
+    "schema": "mbrs013.root-check.v1",
+    "label": "root013-exact-final-source-gate203",
+    "head": "320f22ee606a67bfe2c683bf0b13f59b74ef790e",
+    "directory": "",
+    "argv": [
+      "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+      "scripts/ci/verify-mbrs013-relocation.mjs",
+      "--output-root=/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs013-m65qznwo/tmp/root013-exact-final-source-gate203"
+    ],
+    "exitCode": 1,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "groupTerminationFailed": false,
+    "durationSeconds": 30.976469749992248,
+    "log": {
+      "file": "root013-exact-final-source-gate203.log",
+      "bytes": 236,
+      "sha256": "8f01d358566c399c173d899a52780af4b671fa4d7d245b2ea7eae62becdf7163"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING",
+    "realProviderAccountRoonAudioOwner": "NOT_RUN_BY_CAPTURE"
+  },
+  "completedStages": 6,
+  "expectedStages": 14,
+  "successfulStages": 5,
+  "failedStage": {
+    "name": "desktop-types",
+    "directory": "apps/desktop",
+    "expectedTests": null,
+    "argv": [
+      "node",
+      "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs013-m65qznwo/checkout/node_modules/.pnpm/vue-tsc@3.0.6_typescript@5.9.3/node_modules/vue-tsc/bin/vue-tsc.js",
+      "-p",
+      "tsconfig.json",
+      "--noEmit"
+    ],
+    "startedMs": 1791484548129,
+    "closedMs": 1791484559401,
+    "exitCode": 2,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "overflow": false,
+    "captureFailed": false,
+    "preparationFailed": false,
+    "groupTerminationFailed": false,
+    "durationMs": 11272.467583000001,
+    "rawBytes": 292,
+    "rawSha256": "1bcad1b9951aa06de1bb442e590fc16bdc0c5c34fb94c5e9dfc44e652609e117",
+    "testCounts": null,
+    "tapStatusesClean": null,
+    "log": "desktop-types.log",
+    "logSha256": "5cfdc333fb65962556e5b9e78265ed897e34de0fbfe9dca022c1a5c1a91d5252",
+    "success": false
+  },
+  "frozen529Tests": "NOT_RUN_THIS_ATTEMPT",
+  "actualTwoErrors": [
+    "test/private-host-bootstrap.test.ts(237,69): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'AssertPredicate'.",
+    "test/private-host-bootstrap.test.ts(277,87): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'AssertPredicate'."
+  ],
+  "raw": {
+    "fileName": "desktop-types.raw.log",
+    "bytes": 292,
+    "sha256": "1bcad1b9951aa06de1bb442e590fc16bdc0c5c34fb94c5e9dfc44e652609e117",
+    "storage": "PRIVATE_EXTERNAL_GATE203_ARCHIVE"
+  },
+  "summary": {
+    "fileName": "summary.json",
+    "bytes": 314003,
+    "sha256": "50414a5bb4fb46ecbc53fb3b8189026fd4bf6fe9291428eec9152d673e23a9e4",
+    "storage": "PRIVATE_EXTERNAL_GATE203_ARCHIVE"
+  },
+  "runtimeRegression194": "TWELVE_CALLBACK_CASES_PASS_SEPARATE_FROM_STATIC_TYPES",
+  "nextRepair": "TWO_ASSERT_THROWS_ARGUMENTS_ONLY_EQUIVALENT_STRING_MESSAGE_OVERLOAD",
+  "source320Pushed": false,
+  "source320RemoteCi": "NOT_STARTED",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN"
+}
