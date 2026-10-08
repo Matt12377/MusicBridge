@@ -32317,7 +32317,7 @@
       "depends_on": [
         "MBRS-012"
       ],
-      "status": "LOCAL_SCOPE20_CONTROLLED_SHARED_DEADLINE_UNIT21_TYPES_STANDARD4721_PASS_EXACT_NEW_SOURCE_GATE_CI_REPORT_PENDING",
+      "status": "LOCAL_SCOPE21_CI_AGGREGATE45_TO60_ONLY_FINITE_REUSE_NEW_EXACT_SOURCE_GATE_CI_REPORT_PENDING",
       "implementation_owner": "MBRS-013",
       "goal": "保留逻辑身份与历史引用，让下次点播使用新位置，不等待Roon重扫。",
       "steps": [
@@ -32350,7 +32350,7 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "FINITE_SCOPE20_RUST21_TYPES_STANDARD4721_PASS_EXACT_NEW_SOURCE_GATE_CI_REQUIRED",
+      "validation_status": "CI_AGGREGATE_ONLY_FINITE_PRIOR_EXECUTION_REUSE_NEW_SOURCE529_GATE_FIRST_NATURAL4_6_REQUIRED",
       "evidence_refs": [
         "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
         "docs/postrust/MBRS-013/evidence/production-app.json",
@@ -32389,7 +32389,10 @@
         "docs/postrust/MBRS-013/evidence/native-mount-fd-repair.json",
         "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT20.json",
         "docs/postrust/MBRS-013/evidence/sourcef328-rust-unit-failure.json",
-        "docs/postrust/MBRS-013/evidence/rust-deadline-unit-repair.json"
+        "docs/postrust/MBRS-013/evidence/rust-deadline-unit-repair.json",
+        "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT21.json",
+        "docs/postrust/MBRS-013/evidence/source5b6-ci-aggregate-timeout.json",
+        "docs/postrust/MBRS-013/evidence/verify-job-budget-repair.json"
       ],
       "base_sha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
       "branch": "codex/mbrs-013-relocation",

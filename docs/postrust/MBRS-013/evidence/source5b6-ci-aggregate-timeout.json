@@ -1,0 +1,92 @@
+{
+  "schema": "mbrs013.original-ci-aggregate-job-timeout.v1",
+  "task": "MBRS-013",
+  "sourceSha": "5b6ed4be0382875ce937bf454adad0db110b4204",
+  "result": "ORIGINAL_FIRST_NATURAL_SOURCE_VERIFY_PLATFORM_45_MINUTE_CANCEL_PRESERVED",
+  "repository": "Matt12377/MusicBridge",
+  "runId": 37846813830,
+  "jobId": 113549619097,
+  "event": "push",
+  "attempt": 1,
+  "conclusion": "cancelled",
+  "runUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/37846813830/attempts/1",
+  "officialAnnotation": "The job has exceeded the maximum execution time of 45m0s",
+  "officialAnnotationsArchive": {
+    "fileName": "ROOT013_SOURCE5B6_VERIFY_CHECK_ANNOTATIONS356.json",
+    "bytes": 1601,
+    "sha256": "9234e50664c445490ba015b40a090172ae1e3d09b44774fc0a29a2e9052db505",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "finalNaturalCiSnapshot": {
+    "fileName": "ROOT013_SOURCE5B6_CI_PROGRESS352_23.json",
+    "bytes": 99111,
+    "sha256": "9e39e105cb9756eb4a61534b0d1ac3c5684addf5311b863ae53c89a4db09a60c",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "actualNaturalCiCounts": {
+    "runs": 4,
+    "jobs": 6,
+    "success": 5,
+    "cancelled": 1,
+    "allCiPass": false
+  },
+  "completeRawVerifyLog": {
+    "fileName": "ROOT013_SOURCE5B6_VERIFY_FULL_LOG354.log",
+    "bytes": 4848123,
+    "sha256": "7e49ef018b38d76ba9bb225a05fbe5df99bbab8e973756583da24783dcf34223",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "completeRawElectronLog": {
+    "fileName": "ROOT013_SOURCE5B6_ELECTRON_FULL_LOG355.log",
+    "bytes": 176123,
+    "sha256": "4c430f24094bac0b165b9e7e52f069fb4a4b8d8d74ac594091976ae6728e49db",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "completeRawReadback": {
+    "fileName": "ROOT013_SOURCE5B6_NATURAL_CI_CANCELLED_FULL_READBACK357.json",
+    "bytes": 91807,
+    "sha256": "b39a3875b2ad800057a7bc86c4e88be1d35ed857425edbc33ec4e94987605542",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "originalStandardTotals": {
+    "tests": 4721,
+    "pass": 4719,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "originalElectronCounts": {
+    "tests": 12,
+    "pass": 12,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "originalPlaywrightCounts": {
+    "tests": 114,
+    "pass": 109,
+    "skipped": 5,
+    "fail": 0,
+    "flaky": 0,
+    "retry": 0
+  },
+  "originalPlaywrightSkipClassification": {
+    "private014B": 1,
+    "native": 4
+  },
+  "actual013Step": "CANCELLED_WITHOUT_529_CLI_SUMMARY_NOT_REMOTE_GATE_PASS",
+  "laterReportAdmissionAndHistoricalChecks": "SKIPPED",
+  "platformCancellationIsAgentCancellation": false,
+  "originalFailureSwallowed": false,
+  "reruns": 0,
+  "workflowDispatch": 0,
+  "agentCancellations": 0,
+  "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+}

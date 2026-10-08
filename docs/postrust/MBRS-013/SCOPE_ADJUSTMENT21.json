@@ -1,0 +1,43 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "id": "SCOPE_ADJUSTMENT21",
+  "parentSource": "5b6ed4be0382875ce937bf454adad0db110b4204",
+  "authority": "INHERITED_OWNER_CONTINUOUS_AUTHORIZATION_NO_NEW_APPROVAL",
+  "reason": "GitHub原首轮verify整作业超过45分钟平台时限，在013专项步骤取消。仅将该整作业时限改为60分钟，使串行的原冻结专项有完成空间；保留原失败、各专项时限与全部原断言。",
+  "allowedChange": "ONLY_VERIFY_JOB_AGGREGATE_TIMEOUT_MINUTES_45_TO60_ALL_OTHER_WORKFLOW_BYTES_INVERSE_EXACT",
+  "rootOwnedFiles": [
+    ".github/workflows/verify.yml",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT21.json",
+    "docs/postrust/MBRS-013/EXECUTION_SCOPE.json",
+    "docs/postrust/MBRS-013/evidence/source5b6-ci-aggregate-timeout.json",
+    "docs/postrust/MBRS-013/evidence/verify-job-budget-repair.json",
+    "project/STATUS.json",
+    "project/POSTRUST_PLAN.json",
+    "project/POSTRUST_TODO.md",
+    "project/POSTRUST_PROGRESS.md"
+  ],
+  "delegatedOwnedFiles": {},
+  "beforeWorkflow": {
+    "path": ".github/workflows/verify.yml",
+    "bytes": 12515,
+    "sha256": "09de861d7284b7f8dbf5344f246036eabe273499f7c4393b795e98f46c1bc011"
+  },
+  "afterWorkflow": {
+    "path": ".github/workflows/verify.yml",
+    "bytes": 12515,
+    "sha256": "cf90915a76a8d300b981445d364f1967e00bab87a7d270a43b453edeb9ecb96a"
+  },
+  "allOtherWorkflowBytesInverseExact": true,
+  "originalStepTimeoutMinutes": 8,
+  "original013StageMs": 180000,
+  "original013TotalMs": 420000,
+  "electronWholeJobMinutes": 45,
+  "original21Cases30Stages529FrozenCasesElectron12Playwright114Unchanged": true,
+  "all692ProductionInputsUnchangedRequired": true,
+  "noProductDeadlineOrUnitTimeoutIncrease": true,
+  "newExactSourceGateAndFirstNaturalCi": "PENDING_NOT_PRECLAIMED",
+  "compilerAndActualExecutor": "ROOT_ONLY",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN",
+  "recordedAt": "2026-10-08T22:24:33.794544+00:00"
+}

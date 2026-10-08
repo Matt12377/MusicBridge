@@ -400,3 +400,6 @@ Scope19保留原589源码首次自然CI的5job通过/1 Electron失败：原12通
 
 <!-- MBRS013_SCOPE20_CONTROLLED_SHARED_DEADLINE344 -->
 Scope20保留原f328首次自然Electron第9步Rust准备失败：原ts-large-snapshot 21项20通过/1失败，第14用例的TIMEOUT断言通过，>=2块前提失败；原Electron12、Playwright114及第二轮native qualification均未执行，具体块数/调度原因未记录。仅原第14受控unit改用Node22共享单调时钟与定时器、240ms顺序ACK，在第四块960ms越过原800ms整体期限；原2000ms请求、513型号、21用例、迟到ACK/noExtra/noBoot/noOwnerClose及原真实2s退出检查保持。原21/21、types、完整标准325的4721总/4719通过/2原skip实际通过；私有negative只把startup800变2000即Missing expected rejection，证明期限区分。1631声明图仅此test变化、692生产逐字同Scope19，因此App289及独立291/292仅按不变产品复用，未伪称新source App执行。新提交精确529 Gate、原30 Rust阶段、原Electron12、首次自然CI、独立报告和seal仍待实跑。原8AT PARTIAL、18/156历史及mobile5 NOT_STARTED保持；真实Roon/NAS/跨卷/设备/听感/Owner未跑，013封存后连续000～004→016→017，不重复审批。
+
+<!-- MBRS013_SCOPE21_VERIFY_AGGREGATE_BUDGET358 -->
+Scope21保留5b6首次自然CI的5成功/1 verify平台取消：官方明确整个作业超45分钟，在最后013步骤取消，529 CLI未完成、后续步骤跳过，不能写全CI通过。原标准4721总/4719通过/2原skip、Electron12/12、Playwright114=109通过/5原skip及013生产App用例已实际通过。仅verify整作业45→60分钟；各专项8分钟、内部180000/420000ms、Electron45分钟、全部原用例与生产期限逐字保持。此前本地标准325只按1630不变可执行输入复用，旧完整1631图因CI YAML变化不是当前；Rust334的1298和Electron336的1252声明输入与64封存产物逐字不变，App289仅按692不变产品有限复用，都不冒充新Source实跑。新提交完整Git/1631身份、精确529 Gate、首次自然4/6完整日志、独立R10与seal仍待兑现。原8AT PARTIAL、18/156历史、有效17/150、mobile5 NOT_STARTED保持；真实Roon/NAS/跨卷/设备/听感/Owner未跑，013封存后连续000～004→016→017，不重复审批。

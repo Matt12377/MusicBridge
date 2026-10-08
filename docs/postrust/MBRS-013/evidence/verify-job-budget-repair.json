@@ -1,0 +1,165 @@
+{
+  "schema": "mbrs013.verify-aggregate-job-budget-repair.v1",
+  "task": "MBRS-013",
+  "sourceBaseline": "5b6ed4be0382875ce937bf454adad0db110b4204",
+  "result": "CI_AGGREGATE45_TO60_ONLY_NEW_SOURCE_GATE_AND_FIRST_NATURAL_CI_PENDING",
+  "workflow": {
+    "before": {
+      "path": ".github/workflows/verify.yml",
+      "bytes": 12515,
+      "sha256": "09de861d7284b7f8dbf5344f246036eabe273499f7c4393b795e98f46c1bc011"
+    },
+    "after": {
+      "path": ".github/workflows/verify.yml",
+      "bytes": 12515,
+      "sha256": "cf90915a76a8d300b981445d364f1967e00bab87a7d270a43b453edeb9ecb96a"
+    },
+    "allOtherBytesInverseExact": true
+  },
+  "originalFailureEvidence": "docs/postrust/MBRS-013/evidence/source5b6-ci-aggregate-timeout.json",
+  "originalFocusedBudgets": {
+    "eachSpecialtyStepMinutes": 8,
+    "mbrs013StageMs": 180000,
+    "mbrs013TotalMs": 420000,
+    "electronWholeJobMinutes": 45,
+    "rustStartupMs": 800,
+    "rustRequestMs": 2000
+  },
+  "originalCounts": {
+    "rustLargeUnit": 21,
+    "rustStages": 30,
+    "ownFrozenGate": 529,
+    "electron": 12,
+    "playwright": 114,
+    "taskAcceptance": 8
+  },
+  "finiteReuseReadonlyAudit": {
+    "fileName": "ROOT013_VERIFY_JOB_TIMEOUT_CANDIDATE_INPUT_REUSE_READONLY01.json",
+    "bytes": 9169,
+    "sha256": "d6f71df2afa68e5a722066a81ab136efd473248b4772d5a9b9372825961eb6ab",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "declaredInputChange": {
+    "previousSnapshot": {
+      "fileName": "ROOT013_CURRENT_INPUTS320_SOURCE.json",
+      "bytes": 447428,
+      "sha256": "657d4df01e7af8b90a54d1a534b1285dfb0c113de758fc46010143e32287df2c",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "declaredCount": 1631,
+    "onlyChangedDeclaredLeaf": ".github/workflows/verify.yml",
+    "oldFull1631IdentityIsCurrent": false,
+    "unchangedExecutableDeclaredInputs": 1630,
+    "productCount": 692,
+    "productIdentity": "9ea6137cddca961cc505538da10c8e3b5958d7f53bae6dfec173cf08a8bdaeab",
+    "all692ProductInputsUnchanged": true,
+    "fullTransitiveToolchainClosure": false
+  },
+  "finiteReuse": {
+    "standard": {
+      "originalExecution": {
+        "fileName": "root013-scope20-standard325.json",
+        "bytes": 660,
+        "sha256": "0b54ab8fe005fabcfbbdb50ad36abdb46ea3e8f18f5d00997787e9f4f4eba494",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "originalFullAudit": {
+        "fileName": "ROOT013_STANDARD325_FULL_AUDIT330.json",
+        "bytes": 6755,
+        "sha256": "5d8741a2ed2c8fb14092f2fe0689dd555c5981abf3538a72184f2db49d785667",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "scope": "OLD_ACTUAL_EXECUTION_ON_1630_UNCHANGED_DECLARED_EXECUTABLE_INPUTS_CI_YAML_CHANGED_NOT_NEW_SOURCE_RUN",
+      "counts": {
+        "tests": 4721,
+        "pass": 4719,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 2,
+        "todo": 0
+      }
+    },
+    "rust": {
+      "originalExecution": {
+        "fileName": "root013-original-rust-hosts334.json",
+        "bytes": 847,
+        "sha256": "99b6e1ff9d28f9b58b2b8c4509e1346f60cb65fcd1c9af306d856ae58367ef84",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "originalFullAudit": {
+        "fileName": "ROOT013_RUST334_ALL_LOGS_READBACK335.json",
+        "bytes": 884572,
+        "sha256": "b63902ed032891e630f608f14f039240aa36f42f6ffd1c2799c4a32f71c0af7e",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "scope": "OLD_5B6_ACTUAL30_STAGES_ON_UNCHANGED1298_DECLARED_INPUTS_TWO_OLD_FRESH_HOSTS_NOT_NEW_SOURCE_RUN",
+      "declaredGitInputs": 1090,
+      "declaredNonGitInputs": 208,
+      "sealedArtifacts": 64
+    },
+    "electron": {
+      "originalExecution": {
+        "fileName": "root013-original-electron336.json",
+        "bytes": 851,
+        "sha256": "4264f6381f95c9ecd5905c75684251ccd9820c293ce7786af69db74fcdfdc751",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "originalFullAudit": {
+        "fileName": "ROOT013_ORIGINAL_ELECTRON336_READBACK337.json",
+        "bytes": 335112,
+        "sha256": "a278d73c103702a818419aff1d6e4aeb29b3b193c60cc85157b4691901b7a5f6",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "scope": "OLD_5B6_ACTUAL12_ON_UNCHANGED1252_DECLARED_INPUTS_AND64_SEALED_ARTIFACTS_NOT_NEW_SOURCE_RUN",
+      "declaredGitInputs": 1044,
+      "declaredNonGitInputs": 208,
+      "localFourSystemCases": "MOCK"
+    },
+    "productionApp": {
+      "originalExecution": {
+        "fileName": "root013-production-app289.json",
+        "bytes": 873,
+        "sha256": "572656786ce3423a518983cb0c36427f1295b742d327a5e7773ab5bc9b610449",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "originalOutputAudit": {
+        "fileName": "PRODUCTION_APP291_INDEPENDENT_OUTPUT_AUDIT.json",
+        "bytes": 5081,
+        "sha256": "392f94cc5ce68105f574efa62fb4371a597604f0ac213b78bec220053ab2829d",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "originalClosedHistoryAudit": {
+        "fileName": "PRODUCTION_APP289_HISTORY_BOUNDARY_READBACK292.json",
+        "bytes": 64460,
+        "sha256": "511810ac6f635595cb05578911ac9a8fbddf4489bbee6bc9b4fa3ca8494fb88e",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "scope": "OLD_ACTUAL_SELF_OWNED_APP_ON_UNCHANGED692_PRODUCT_INPUTS_AND997_ORIGINAL_RUNTIME_ARTIFACTS_NOT_NEW_SOURCE_RUN",
+      "nonemptySourceBindingHistory": "NOT_PROVEN",
+      "realRoonNasCrossVolumeAudioDeviceOwner": "NOT_RUN"
+    }
+  },
+  "freshCurrentBindingsRequired": [
+    "ACTUAL_NEW_SOURCE_GIT_AND1631_DECLARED_INPUTS",
+    "EXACT_NEW_SOURCE529_GATE",
+    "NEW_FIRST_NATURAL4_RUN6_JOB_CI",
+    "COMPLETE_ACTUAL_VERIFY_AND_ELECTRON_JOB_LOGS",
+    "INDEPENDENT_R10_AND_REPORT_ONLY_CI_AND_SEAL"
+  ],
+  "newExactGateCiReportSeal": "PENDING_NOT_PRECLAIMED",
+  "originalEightAt": "ALL_PARTIAL_LIVE_OWNER_OPEN",
+  "mobileFiveTasks": "NOT_STARTED",
+  "noProductDeadlineOrUnitTimeoutIncrease": true,
+  "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+}
