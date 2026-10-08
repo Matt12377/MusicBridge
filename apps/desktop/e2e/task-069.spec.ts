@@ -138,7 +138,9 @@ test('V3 Excel：原生选择登记回执未知后冷启不重选，原文件离
   await close(); await rename(selected.absolutePath, selected.absolutePath + '.offline'); await launch()
   await app!.evaluate(({ dialog }) => { dialog.showOpenDialog = async () => { throw new Error('恢复既有回执不得再次打开文件选择器') } })
   expect(await page.evaluate(() => window.musicBridge.getCommandOutbox())).toEqual(pending)
-  await page.reload(); await expect(page.locator('#home-heading')).toBeVisible()
+  // 回执恢复以 DOM、首页和真实 Core 就绪为屏障。
+  await page.reload({ waitUntil: 'domcontentloaded' }); await expect(page.locator('#home-heading')).toBeVisible()
+  await expect.poll(async () => (await page.evaluate(() => window.musicBridge.getCoreHealth())).runtime).toBe('ready')
   expect(await page.evaluate(() => window.musicBridge.getCommandOutbox())).toEqual(pending)
   const restored = await page.evaluate(id => window.musicBridge.retryCommandOutbox({ id, userConfirmed: true }), pending.entries[0]!.id)
   expect(restored.state).toBe('succeeded')

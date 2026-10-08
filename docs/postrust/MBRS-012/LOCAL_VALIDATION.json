@@ -54,30 +54,30 @@
   "todo": 0,
   "groupDeclaredInputs": {
     "files": 1422,
-    "identity": "5a21cd7a44c8dfd63c79c29ef065526ed00636036d0f688ccea31ec81e2548c1",
+    "identity": "a6bedf5cf85c5ea87faba0baf67fed88581f4157cf3a8644f9fefebe3ac97260",
     "inputsUnchanged": true
   },
   "groupArchive": {
-    "archiveId": "ROOT012_GROUPS426_TEXT_GUARD86_ACTUAL",
-    "fileName": "ROOT_GROUPS426_TEXT_GUARD86_ACTUAL.json",
-    "bytes": 2045,
-    "sha256": "896bd424143bb863b88f40d776d31cfb7d5fc6f6efeb549a330ebef5b54d4c55",
+    "archiveId": "ROOT012_GROUPS426_CODEC106B",
+    "fileName": "ROOT_GROUPS426_CODEC106B_ACTUAL.json",
+    "bytes": 2013,
+    "sha256": "843820e05ce14496a886e94e423948ae6ae2153f3f3d0de2ef751cd235ecbdc3",
     "storage": "PRIVATE_EXTERNAL_ARCHIVE",
     "publiclyDownloadable": false
   },
   "standardWorkspaceRegression": {
     "execution": {
-      "label": "root-workspace-verify87-text-guard",
-      "headAtRun": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+      "label": "root-workspace-verify107-codec",
+      "headAtRun": "a30818185b7e30110cb9156110e955a8f191a90e",
       "exitCode": 0,
       "signal": null,
       "closeObserved": true,
       "timedOut": false,
-      "durationSeconds": 317.8899623749894,
+      "durationSeconds": 310.96812858304475,
       "log": {
-        "file": "root-workspace-verify87-text-guard.log",
-        "bytes": 1136576,
-        "sha256": "6ca853f3e2701c9c787e6d27ec471c2e0f74eb9cc6341d84c2bf407f49d16a31"
+        "file": "root-workspace-verify107-codec.log",
+        "bytes": 1136643,
+        "sha256": "ca59dbc61f26aaee415bce7609d6a72534f13eff27ca1030400cad7323c12e9c"
       },
       "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
     },
@@ -85,21 +85,21 @@
     "pass": 4699,
     "fail": 0,
     "skipped": 2,
-    "scope": "CURRENT1422_CATALOG_TEXT_GUARD_FIX_STANDARD_TYPES_TOP_LEVEL_TESTS_PRODUCTION_BUILD",
-    "sourceInputsIdentity": "5a21cd7a44c8dfd63c79c29ef065526ed00636036d0f688ccea31ec81e2548c1",
+    "scope": "CURRENT1422_DATA_CODEC_AND_RELOAD_STANDARD_TYPES_TOP_LEVEL_TESTS_PRODUCTION_BUILD",
+    "sourceInputsIdentity": "a6bedf5cf85c5ea87faba0baf67fed88581f4157cf3a8644f9fefebe3ac97260",
     "sourceInputsUnchanged": true,
     "productInputs": 623,
-    "productIdentity": "9065f9b5aa80242186053b834bcbb2b29154b5fd5bc73c4272195ff2371c400a",
+    "productIdentity": "7d78de3b2922a620bef46168f42195888afac13af1ae60da4ba419ef403a6168",
     "originalOptionalNativeSkips": [
       "ok 1205 - 实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
       "ok 1211 - Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
     ],
     "nativeDeviceAudio": "NOT_RUN",
     "archive": {
-      "archiveId": "ROOT012_STANDARD_VERIFY87",
-      "fileName": "ROOT_STANDARD_VERIFY_ACTUAL87.json",
-      "bytes": 2194,
-      "sha256": "8e87d92d3333231da87608c1f24c3c6d38b467950515d2b645b49e346c668985",
+      "archiveId": "ROOT012_STANDARD_VERIFY107",
+      "fileName": "ROOT_STANDARD_VERIFY_ACTUAL107.json",
+      "bytes": 3097,
+      "sha256": "845b76fb947ba7043a2721b9b854fd8c19b3e116f66a0a95ff0987f7ebae2e92",
       "storage": "PRIVATE_EXTERNAL_ARCHIVE",
       "publiclyDownloadable": false
     }
@@ -107,38 +107,38 @@
   "ownedProductionApp": {
     "result": "PASS",
     "execution": {
-      "label": "root-owned-production-e2e88-text-guard",
-      "headAtRun": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+      "label": "root-owned-production-e2e108-codec",
+      "headAtRun": "a30818185b7e30110cb9156110e955a8f191a90e",
       "exitCode": 0,
       "signal": null,
       "closeObserved": true,
       "timedOut": false,
-      "durationSeconds": 39.99054720898857,
+      "durationSeconds": 39.2731630000053,
       "log": {
-        "file": "root-owned-production-e2e88-text-guard.log",
-        "bytes": 39254,
-        "sha256": "316c7127b7a2a64bce8001da2f187d7b9b8fa76a31e83036a3bcdd750cb6e6fa"
+        "file": "root-owned-production-e2e108-codec.log",
+        "bytes": 39550,
+        "sha256": "536d685d78cf55a9a576f6404ce7995199c4fb74965385e6cce8c2c1b98fbef4"
       },
       "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
     },
-    "build": "STANDARD_VERIFY87_PRODUCTION_BUILD",
+    "build": "STANDARD_VERIFY107_PRODUCTION_BUILD",
     "buildExecution": {
-      "label": "root-workspace-verify87-text-guard",
-      "headAtRun": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+      "label": "root-workspace-verify107-codec",
+      "headAtRun": "a30818185b7e30110cb9156110e955a8f191a90e",
       "exitCode": 0,
       "signal": null,
       "closeObserved": true,
       "timedOut": false,
-      "durationSeconds": 317.8899623749894,
+      "durationSeconds": 310.96812858304475,
       "log": {
-        "file": "root-workspace-verify87-text-guard.log",
-        "bytes": 1136576,
-        "sha256": "6ca853f3e2701c9c787e6d27ec471c2e0f74eb9cc6341d84c2bf407f49d16a31"
+        "file": "root-workspace-verify107-codec.log",
+        "bytes": 1136643,
+        "sha256": "ca59dbc61f26aaee415bce7609d6a72534f13eff27ca1030400cad7323c12e9c"
       },
       "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
     },
     "artifactFiles": 956,
-    "artifactIdentity": "d3e4ee5d181e1062293b961d30cdb64a9b70f17a4f4b350b802eb8a3eb5aefac",
+    "artifactIdentity": "4bab695330a072365847704b8310641466d54eae380146fee5706e6e0935136f",
     "artifactsUnchangedDuringRun": true,
     "plans": 13,
     "blockedDefaultOff": 1,
@@ -156,44 +156,44 @@
       "actualToolRuns": 144,
       "result": "PASS",
       "archive": {
-        "archiveId": "ROOT012_APP88_INDEPENDENT_OUTPUTS",
-        "fileName": "APP_OUTPUTS88_RESULT.json",
-        "bytes": 150997,
-        "sha256": "e35f4973d64070fc986a38f79b6eefd9f71a3d399b37640046b1a1d23c66d4dc",
+        "archiveId": "ROOT012_APP108_INDEPENDENT_OUTPUTS",
+        "fileName": "APP_OUTPUTS108_RESULT.json",
+        "bytes": 151168,
+        "sha256": "43bc3be6a296a13a07ac579be041f325880603fb1090d99bd5e26fd42c60a8ce",
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       },
       "rootAudit": {
-        "archiveId": "ROOT012_APP88_ROOT_INDEPENDENT_AUDIT90",
-        "fileName": "ROOT_APP88_INDEPENDENT_OUTPUT_AUDIT90.json",
-        "bytes": 16514,
-        "sha256": "d306114be3a98b06bab4cfc713ef665f66d936c603b0386698f9d0ac17079726",
+        "archiveId": "ROOT012_APP108_ROOT_INDEPENDENT_AUDIT110",
+        "fileName": "ROOT_APP108_INDEPENDENT_OUTPUT_AUDIT110.json",
+        "bytes": 16582,
+        "sha256": "335ca09934b230ed7212c9b6b28cbdc8d06de7b2d8144d2e8f2b04d9d9353e2f",
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       }
     },
     "scope": "SELF_OWNED_NON_SILENT_FLAC_MP3_PNG_TAGS_EMBEDDED_DIRECTORY_BATCH_UNDO_COLD_HISTORY",
     "appReceipt": {
-      "archiveId": "ROOT012_PRODUCTION_APP88_RECEIPT",
+      "archiveId": "ROOT012_PRODUCTION_APP108_RECEIPT",
       "fileName": "receipt.json",
-      "bytes": 113463,
-      "sha256": "85864ff0498c34fb7b3af703e475b85ec7e9182408b0646557982e1f4331ad1a",
+      "bytes": 113541,
+      "sha256": "607e8b9c83cd40616f5444b923a217fa9c5067b8a6bef17f3d84037ca5d87f32",
       "storage": "PRIVATE_EXTERNAL_ARCHIVE",
       "publiclyDownloadable": false
     },
     "productInputs": 623,
-    "productIdentity": "9065f9b5aa80242186053b834bcbb2b29154b5fd5bc73c4272195ff2371c400a",
+    "productIdentity": "7d78de3b2922a620bef46168f42195888afac13af1ae60da4ba419ef403a6168",
     "sourceTestInputs": 1422,
-    "sourceTestIdentity": "5a21cd7a44c8dfd63c79c29ef065526ed00636036d0f688ccea31ec81e2548c1",
+    "sourceTestIdentity": "a6bedf5cf85c5ea87faba0baf67fed88581f4157cf3a8644f9fefebe3ac97260",
     "jpegInThisAppRun": "NOT_RUN",
     "httpLeaseAndPlaybackRecordingFaultsInThisAppRun": "NOT_RUN",
     "sameArtifactAsHistoricalBuild33": false,
     "realRoonAudioOwner": "NOT_RUN",
     "archive": {
-      "archiveId": "ROOT012_APP88_ACTUAL91",
-      "fileName": "ROOT_APP88_ACTUAL91.json",
-      "bytes": 3935,
-      "sha256": "8e0a03f0d1635bc1bd9cb571326e701adffab012f3fe5a9102040ae0829a39c4",
+      "archiveId": "ROOT012_APP108_ACTUAL111",
+      "fileName": "ROOT_APP108_ACTUAL111.json",
+      "bytes": 6130,
+      "sha256": "7ddf91fe6fc907617305cf2baf793ca811b091e3cf92730f1fb5e52b9b946943",
       "storage": "PRIVATE_EXTERNAL_ARCHIVE",
       "publiclyDownloadable": false
     }
@@ -2492,6 +2492,649 @@
     "currentProductIdentity": "9065f9b5aa80242186053b834bcbb2b29154b5fd5bc73c4272195ff2371c400a",
     "oldApp73PromotedToCurrentProof": false,
     "oldProofsRewritten": false,
+    "originalCiRerun": false,
+    "originalCiCancelled": false,
+    "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+  },
+  "historicalDeclaredGroup86": {
+    "groupDeclaredInputs": {
+      "files": 1422,
+      "identity": "5a21cd7a44c8dfd63c79c29ef065526ed00636036d0f688ccea31ec81e2548c1",
+      "inputsUnchanged": true
+    },
+    "groupArchive": {
+      "archiveId": "ROOT012_GROUPS426_TEXT_GUARD86_ACTUAL",
+      "fileName": "ROOT_GROUPS426_TEXT_GUARD86_ACTUAL.json",
+      "bytes": 2045,
+      "sha256": "896bd424143bb863b88f40d776d31cfb7d5fc6f6efeb549a330ebef5b54d4c55",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "scope": "HISTORICAL_S4_CATALOG_TEXT_GUARD_SOURCE_TEST_GRAPH"
+  },
+  "historicalStandardWorkspace87": {
+    "execution": {
+      "label": "root-workspace-verify87-text-guard",
+      "headAtRun": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 317.8899623749894,
+      "log": {
+        "file": "root-workspace-verify87-text-guard.log",
+        "bytes": 1136576,
+        "sha256": "6ca853f3e2701c9c787e6d27ec471c2e0f74eb9cc6341d84c2bf407f49d16a31"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "tests": 4701,
+    "pass": 4699,
+    "fail": 0,
+    "skipped": 2,
+    "scope": "CURRENT1422_CATALOG_TEXT_GUARD_FIX_STANDARD_TYPES_TOP_LEVEL_TESTS_PRODUCTION_BUILD",
+    "sourceInputsIdentity": "5a21cd7a44c8dfd63c79c29ef065526ed00636036d0f688ccea31ec81e2548c1",
+    "sourceInputsUnchanged": true,
+    "productInputs": 623,
+    "productIdentity": "9065f9b5aa80242186053b834bcbb2b29154b5fd5bc73c4272195ff2371c400a",
+    "originalOptionalNativeSkips": [
+      "ok 1205 - 实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
+      "ok 1211 - Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
+    ],
+    "nativeDeviceAudio": "NOT_RUN",
+    "archive": {
+      "archiveId": "ROOT012_STANDARD_VERIFY87",
+      "fileName": "ROOT_STANDARD_VERIFY_ACTUAL87.json",
+      "bytes": 2194,
+      "sha256": "8e87d92d3333231da87608c1f24c3c6d38b467950515d2b645b49e346c668985",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "historicalOwnedProductionApp88": {
+    "result": "PASS",
+    "execution": {
+      "label": "root-owned-production-e2e88-text-guard",
+      "headAtRun": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 39.99054720898857,
+      "log": {
+        "file": "root-owned-production-e2e88-text-guard.log",
+        "bytes": 39254,
+        "sha256": "316c7127b7a2a64bce8001da2f187d7b9b8fa76a31e83036a3bcdd750cb6e6fa"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "build": "STANDARD_VERIFY87_PRODUCTION_BUILD",
+    "buildExecution": {
+      "label": "root-workspace-verify87-text-guard",
+      "headAtRun": "7aa5985d056fead250bf4413f07e8ff7b661b957",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 317.8899623749894,
+      "log": {
+        "file": "root-workspace-verify87-text-guard.log",
+        "bytes": 1136576,
+        "sha256": "6ca853f3e2701c9c787e6d27ec471c2e0f74eb9cc6341d84c2bf407f49d16a31"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "artifactFiles": 956,
+    "artifactIdentity": "d3e4ee5d181e1062293b961d30cdb64a9b70f17a4f4b350b802eb8a3eb5aefac",
+    "artifactsUnchangedDuringRun": true,
+    "plans": 13,
+    "blockedDefaultOff": 1,
+    "forwardCompleted": 6,
+    "inverseCompleted": 6,
+    "naturalCloses": 3,
+    "allPreviewsSourceUnchanged": true,
+    "externalAttempts": 0,
+    "pageErrors": 0,
+    "independentOutputs": {
+      "audioCases": 6,
+      "safetyOperations": 14,
+      "restorationOperations": 7,
+      "fullFdRootWitnesses": 57,
+      "actualToolRuns": 144,
+      "result": "PASS",
+      "archive": {
+        "archiveId": "ROOT012_APP88_INDEPENDENT_OUTPUTS",
+        "fileName": "APP_OUTPUTS88_RESULT.json",
+        "bytes": 150997,
+        "sha256": "e35f4973d64070fc986a38f79b6eefd9f71a3d399b37640046b1a1d23c66d4dc",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "rootAudit": {
+        "archiveId": "ROOT012_APP88_ROOT_INDEPENDENT_AUDIT90",
+        "fileName": "ROOT_APP88_INDEPENDENT_OUTPUT_AUDIT90.json",
+        "bytes": 16514,
+        "sha256": "d306114be3a98b06bab4cfc713ef665f66d936c603b0386698f9d0ac17079726",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "scope": "SELF_OWNED_NON_SILENT_FLAC_MP3_PNG_TAGS_EMBEDDED_DIRECTORY_BATCH_UNDO_COLD_HISTORY",
+    "appReceipt": {
+      "archiveId": "ROOT012_PRODUCTION_APP88_RECEIPT",
+      "fileName": "receipt.json",
+      "bytes": 113463,
+      "sha256": "85864ff0498c34fb7b3af703e475b85ec7e9182408b0646557982e1f4331ad1a",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "productInputs": 623,
+    "productIdentity": "9065f9b5aa80242186053b834bcbb2b29154b5fd5bc73c4272195ff2371c400a",
+    "sourceTestInputs": 1422,
+    "sourceTestIdentity": "5a21cd7a44c8dfd63c79c29ef065526ed00636036d0f688ccea31ec81e2548c1",
+    "jpegInThisAppRun": "NOT_RUN",
+    "httpLeaseAndPlaybackRecordingFaultsInThisAppRun": "NOT_RUN",
+    "sameArtifactAsHistoricalBuild33": false,
+    "realRoonAudioOwner": "NOT_RUN",
+    "archive": {
+      "archiveId": "ROOT012_APP88_ACTUAL91",
+      "fileName": "ROOT_APP88_ACTUAL91.json",
+      "bytes": 3935,
+      "sha256": "8e0a03f0d1635bc1bd9cb571326e701adffab012f3fe5a9102040ae0829a39c4",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "historicalExactSourceGate94": {
+    "archiveId": "ROOT012_HISTORICAL_S4_EXACT_GATE94",
+    "fileName": "ROOT_EXACT_SOURCE_GATE94_AUDIT.json",
+    "bytes": 1305,
+    "sha256": "86fda723ec5cbff12351d05812a05ca2379928b73babae8d87e730adc48a81e8",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "historicalSourceBinding94": {
+    "archiveId": "ROOT012_HISTORICAL_S4_SOURCE_BINDING94",
+    "fileName": "ROOT_DELIVERY_SOURCE_BINDING94.json",
+    "bytes": 2305,
+    "sha256": "e911f3fdb12694cbd8fb0eaa74b61e919b79cc3986a65cd87ee0a4194a925a2e",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "currentStandardProductionE2e112": {
+    "result": "PASS_FULL_ORIGINAL_COMMAND_APPLICABLE_CASES",
+    "execution": {
+      "label": "root-full-production-e2e112c-codec",
+      "headAtRun": "a30818185b7e30110cb9156110e955a8f191a90e",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 422.5758553749765,
+      "log": {
+        "archiveId": "ROOT012_FULL_E2E_RAW_root-full-production-e2e112c-codec",
+        "fileName": "root-full-production-e2e112c-codec.log",
+        "bytes": 20690,
+        "sha256": "64fd985ac2d5c5aa9edac43f284aa4819014757309f929d9a6410a2d74ad6882",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "executionArchives": {
+      "wrapper": {
+        "archiveId": "ROOT012_FULL_E2E_EXECUTION_root-full-production-e2e112c-codec",
+        "fileName": "root-full-production-e2e112c-codec.json",
+        "bytes": 1590,
+        "sha256": "c8ff3b2bc6ae48d764371dcdb9c34282a90b6bc337a37fdb3f4b7699681d29af",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "raw": {
+        "archiveId": "ROOT012_FULL_E2E_RAW_root-full-production-e2e112c-codec",
+        "fileName": "root-full-production-e2e112c-codec.log",
+        "bytes": 20690,
+        "sha256": "64fd985ac2d5c5aa9edac43f284aa4819014757309f929d9a6410a2d74ad6882",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "counts": {
+      "tests": 113,
+      "pass": 109,
+      "fail": 0,
+      "skipped": 4,
+      "flaky": 0
+    },
+    "skipClassification": {
+      "private014B": 0,
+      "native": 4,
+      "total": 4
+    },
+    "actualOriginalCommand": true,
+    "allOriginalCaseNames": true,
+    "retries": 0,
+    "task069": {
+      "cases": 3,
+      "pass": 3,
+      "originalNamesAndAssertionsPreserved": true,
+      "originalRecoveryAssertions": 16,
+      "caseTimeoutMs": 120000,
+      "navigationTimeoutMs": 30000,
+      "expectTimeoutMs": 5000,
+      "retries": 0,
+      "inverseMappingProof": {
+        "archiveId": "ROOT012_TASK069_ORIGINAL_S4_INVERSE_DIFF105",
+        "fileName": "ROOT_CODEC_AND_RELOAD105_ACTUAL_DIFF_AUDIT.json",
+        "bytes": 2993,
+        "sha256": "9ff46eb0c8b9dbe21d8e27d78bc3c432dac619ee4e88f0dd7cdbc14725bb7042",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "private014B": {
+      "baselinePreparation": {
+        "archiveId": "ROOT014_EXISTING_PRIVATE_B_PREPARATION59",
+        "fileName": "MBRS014_B_EXISTING_FIXTURE_PREPARATION59.json",
+        "bytes": 240186,
+        "sha256": "25331a1fbfe88900e6d66d4fa26d9d9e7ed4508158792a47045eab3749ab1612",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "freshCopyProof": {
+        "archiveId": "ROOT014_FULL_E2E_FRESH_PRIVATE_B_COPY",
+        "fileName": "ROOT_E2E112C_PRIVATE_B_COPY_ACTUAL.json",
+        "bytes": 56764,
+        "sha256": "bb57a831e4ecc189d4a4c7f7acc2fcc98296ee5ec26aa2ef32527509f86ed390",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "casePass": true,
+      "original103Retained": true,
+      "original100AndAllOtherCellsExact": true,
+      "businessHistoryRowExceptions": 0,
+      "nativeAuthorizationPickerCalls": 0,
+      "profileFilesCopiedExactly": 44,
+      "retainedFilesExact": 35,
+      "originalProfileAndRetainedUnchanged": true,
+      "naturalAppCloses": 2,
+      "appCloseExitCodes": [
+        0,
+        0
+      ],
+      "pageErrors": 0,
+      "blockedExternalAttempts": 0,
+      "workspacePublicSnapshots": 3,
+      "realUserMigration": "NOT_RUN",
+      "realAccountRoonAudioOwner": "NOT_RUN",
+      "actualEvidence": {
+        "archiveId": "ROOT014_FULL_E2E112_ACTUAL_B_COMPLETE_EVIDENCE",
+        "fileName": "FULL_E2E112_PRIVATE_B_ACTUAL_EVIDENCE.json",
+        "bytes": 132506,
+        "sha256": "210724583e6bbda760b1d797bb5939685f2457da04eb3fd095f968e9ef20b5c0",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "original103Baseline": {
+        "archiveId": "ROOT014_FULL_E2E112_ORIGINAL103_TYPED_BASELINE",
+        "fileName": "FULL_E2E112_PRIVATE_B_ORIGINAL103_BASELINE.json",
+        "bytes": 866208,
+        "sha256": "2ef12cfd21a37bcf9b30b269870b3959ebbf7f907a2b2bb8bf9a78119124e271",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "original103After": {
+        "archiveId": "ROOT014_FULL_E2E112_ACTUAL_ORIGINAL103_AFTER",
+        "fileName": "FULL_E2E112_PRIVATE_B_ORIGINAL103_AFTER.json",
+        "bytes": 851301,
+        "sha256": "95d4dbdf73bb4146f194b75a3267338b438c93cb87c3454ea84b6d546ac378c4",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      }
+    },
+    "sourceInputs": 1422,
+    "sourceInputsIdentity": "a6bedf5cf85c5ea87faba0baf67fed88581f4157cf3a8644f9fefebe3ac97260",
+    "sourceTestIdentity": "a6bedf5cf85c5ea87faba0baf67fed88581f4157cf3a8644f9fefebe3ac97260",
+    "sourceInputsUnchanged": true,
+    "sourceGraphBeforeAfterUnchanged": true,
+    "productInputs": 623,
+    "productIdentity": "7d78de3b2922a620bef46168f42195888afac13af1ae60da4ba419ef403a6168",
+    "artifactFiles": 956,
+    "artifactIdentity": "80bcce57f34be6032bcd20ee85d26e0ff7cc3032bfb4a6d61f97390ccea7f5b1",
+    "playwrightReport": {
+      "archiveId": "ROOT012_FULL_E2E112_COMPLETE_ACTUAL_PLAYWRIGHT_REPORT",
+      "fileName": "PLAYWRIGHT_FULL_E2E112_ACTUAL_REPORT.json",
+      "bytes": 131656,
+      "sha256": "0626cf6a2da7b6f93295652642c141bc507745d8aa2e85369f5c29c52a844809",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "productionArtifacts": [
+      {
+        "archive": {
+          "archiveId": "ROOT012_FULL_E2E112_PRODUCTION_BEFORE",
+          "fileName": "PRODUCTION_E2E112C_ARTIFACTS_BEFORE.json",
+          "bytes": 181665,
+          "sha256": "37b9021ba98a6f2016e0f405ada414d16ae4c2327d1fafaa6dc7ab3b15f40a39",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        },
+        "files": 956,
+        "identity": "2d81c8df2e5783681db25fd423ddeed2df1b24cf5698f2292bed6883c8cbfe50"
+      },
+      {
+        "archive": {
+          "archiveId": "ROOT012_FULL_E2E112_PRODUCTION_AFTER",
+          "fileName": "PRODUCTION_E2E112C_ARTIFACTS_AFTER.json",
+          "bytes": 181664,
+          "sha256": "02f40bbec29aeaefb6b1964de68d75140bad28c38b2532b63b7ef87ba0cf6b03",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        },
+        "files": 956,
+        "identity": "80bcce57f34be6032bcd20ee85d26e0ff7cc3032bfb4a6d61f97390ccea7f5b1"
+      }
+    ],
+    "scope": "CURRENT_WHOLE_ORIGINAL_113_SELF_BUILD_APPLICABLE109_ORIGINAL_NATIVE4_NOT_APP108_ARTIFACT_PROOF",
+    "firstLocal112Failure": {
+      "archive": {
+        "archiveId": "ROOT012_FULL_E2E112_FIRST_LOCAL_NATURAL_FAILURE",
+        "fileName": "ROOT_FULL_E2E112_FIRST_FAILURE_ACTUAL.json",
+        "bytes": 8245,
+        "sha256": "6c3a63feeb9abbb16053bb9a323451067892c9ed984c65b2d62124443f348c51",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "counts": {
+        "tests": 113,
+        "pass": 108,
+        "fail": 1,
+        "skipped": 4,
+        "flaky": 0
+      },
+      "executionLabel": "root-full-production-e2e112-codec",
+      "exitCode": 1,
+      "retries": 0,
+      "fullOriginalCommandPass": false,
+      "privateBOriginal103AndColdBootCompleted": false,
+      "failureClassification": "LOCAL_FULL_E2E_PROTOCOL_GC_OBSERVATION_NOT_SOURCE_CI"
+    },
+    "unchangedOriginalPrivateB112bDiagnostic": {
+      "archive": {
+        "archiveId": "ROOT014_UNCHANGED_ORIGINAL_PRIVATE_B112B_DIAGNOSTIC",
+        "fileName": "ROOT_PRIVATE_B112B_DIAGNOSTIC_ACTUAL.json",
+        "bytes": 3061,
+        "sha256": "c5901099832d7f20b552f989484bfcea331f476f4bf7e19523977ae3b9ecffe2",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "skipped": 0,
+        "retries": 0
+      },
+      "executionLabel": "root-private-b112b-diagnostic",
+      "exitCode": 0,
+      "fullOriginal113CommandPassClaim": false,
+      "specificProtocolGcCauseOrFixClaimed": false,
+      "sourceOrTestFilesChanged": false
+    },
+    "specificProtocolGcCauseOrFixClaimed": false,
+    "unchangedPrivateB112bUsedAsFullCommandPass": false,
+    "protocolGcEvidenceBoundary": "首次112完整原命令自然失败仍保留；112b仅原B独立诊断通过。具体协议GC原因与修复均未证明，112c成功补验也不改变该边界。",
+    "archive": {
+      "archiveId": "ROOT012_FULL_ORIGINAL_E2E112C",
+      "fileName": "ROOT_FULL_E2E112_ACTUAL.json",
+      "bytes": 70592,
+      "sha256": "eb311827892e227c4a5cdaf5506e1dbcafd54462c9b4904bb09de6f6cfab02a6",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+  },
+  "sourceDataCodecAndReloadRepair": {
+    "result": "PASS_LOCAL_106B_107_108_112_FINAL_SOURCE_EXACT_GATE_AND_NATURAL_CI_PENDING",
+    "priorSourceSha": "a30818185b7e30110cb9156110e955a8f191a90e",
+    "priorOwn012Gate": "FAILURE_NOT_PASS",
+    "fourthSourceNaturalCi": {
+      "archiveId": "ROOT012_FOURTH_SOURCE_NATURAL_FAILURE",
+      "fileName": "SOURCE_CI94_SNAPSHOT09.json",
+      "bytes": 98870,
+      "sha256": "8545a556637340c7d46e7e92426caa4e36255b6563e01c94a87c7fd3730eae04",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "fourthSourceNaturalCiFacts": {
+      "workflowCount": 4,
+      "jobCount": 6,
+      "successJobs": 4,
+      "failedJobs": 2,
+      "verifyRunId": 37737372808,
+      "verifyJobId": 113179885984,
+      "electronRunId": 37737372881,
+      "electronJobId": 113179885361
+    },
+    "fourthSourceGateFailure": {
+      "archiveRaw101": {
+        "archiveId": "ROOT012_S4_FAILED_VERIFY_RAW101",
+        "fileName": "SOURCE94_VERIFY_JOB113179885984_RAW101.log",
+        "bytes": 2133676,
+        "sha256": "00e1d7f399b99f15bc93b2ea4387c1b44848b675555977f0af7e9e3484251230",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "archiveDownload101": {
+        "archiveId": "ROOT012_S4_VERIFY_RAW_DOWNLOAD101",
+        "fileName": "SOURCE94_VERIFY_JOB113179885984_DOWNLOAD101.json",
+        "bytes": 950,
+        "sha256": "665ebabf984c54fb0b2aff547f57d3384e0bddb5141a183f4957599b4bf865ae",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "contracts": {
+        "tests": 88,
+        "pass": 88,
+        "scope": "ONLY_COMPLETE_GROUP_IN_REMOTE_012"
+      },
+      "core": {
+        "name": "core-source-writes-and-regressions",
+        "exitCode": null,
+        "signal": "SIGKILL",
+        "closeObserved": true,
+        "timedOut": true,
+        "overflow": false,
+        "captureFailed": false,
+        "preparationFailed": false,
+        "groupTerminationFailed": false,
+        "expectedTests": 216,
+        "testCounts": null,
+        "durationMs": 180008.195358,
+        "rawBytes": 77886,
+        "rawSha256": "b50739590eab38b824627064f67c8c3e1f1342b4bb6cef247f7b4056ac28f642"
+      },
+      "desktop": "NOT_RUN",
+      "remoteSingleCapacityDuration": "NOT_PROVEN_BY_AVAILABLE_REMOTE_JOB_LOG"
+    },
+    "localRepairArchive": {
+      "archiveId": "ROOT012_CODEC_AND_RELOAD105",
+      "fileName": "ROOT_CODEC_AND_RELOAD105_ACTUAL_DIFF_AUDIT.json",
+      "bytes": 2993,
+      "sha256": "9ff46eb0c8b9dbe21d8e27d78bc3c432dac619ee4e88f0dd7cdbc14725bb7042",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "controlledReload104": {
+      "red": {
+        "archiveId": "ROOT012_CONTROLLED_RELOAD104_RED",
+        "fileName": "root-task069-control104-red.json",
+        "bytes": 1107,
+        "sha256": "318b519067df00864e4189bccf00ffcb1ad1b5adb72e9a213aebaf3a29c70a9f",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "green": {
+        "archiveId": "ROOT012_CONTROLLED_RELOAD104_GREEN",
+        "fileName": "root-task069-control104-green.json",
+        "bytes": 1115,
+        "sha256": "561d7010f6a47574542f28aa65df474290b21896486d1594bb24bf95b1ce4c6a",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "uncontrolled103Correction": {
+        "archiveId": "ROOT012_UNCONTROLLED103_LABEL_CORRECTION104",
+        "fileName": "ROOT_TASK069_CONTROL103_LABEL_CORRECTION104.json",
+        "bytes": 1452,
+        "sha256": "a49eed8a2b78b2484484b0f498e3aac218896d649da8f3770e32fc73d553fb9c",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "uncontrolled103CountedAsRed": false
+    },
+    "localCpuProfile102": {
+      "archiveId": "ROOT012_LOCAL_CAPACITY_CPU102",
+      "fileName": "ROOT_CAPACITY_PROFILE102_AGGREGATE.json",
+      "bytes": 9785,
+      "sha256": "6181854c21d66add7a8c7fcc04c33d21cd5ace5162f177d18a23f2d4ebc91486",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "localCpuExecution102": {
+      "archiveId": "ROOT012_LOCAL_CAPACITY_EXECUTION102",
+      "fileName": "root-original-capacity-profile102.json",
+      "bytes": 1122,
+      "sha256": "6860b83e3828c7a86f9644c80047982aadf03bbee62c28b126e9b43dfaf96acb",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "coreReadonlyActualDiffReview106": {
+      "archiveId": "ROOT012_CODEC_ACTUAL_DIFF_CORE106",
+      "fileName": "MBRS012_DATA_CODEC_ACTUAL_DIFF_READONLY_REVIEW106.md",
+      "bytes": 6283,
+      "sha256": "0606d82ba783ad9b72f5f59923873b7fe69fae690bc98124becf78fb1ffd7878",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "worktreeGate": {
+      "archiveId": "ROOT012_WORKTREE_GATE106B_CODEC",
+      "fileName": "ROOT_WORKTREE_GATE106B_CODEC_AUDIT.json",
+      "bytes": 1314,
+      "sha256": "d3ab6a39b92fc3b8830381a0261e19ff000116184a4a162fed73c8d19a9c9cb5",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "groups": {
+      "archiveId": "ROOT012_GROUPS426_CODEC106B",
+      "fileName": "ROOT_GROUPS426_CODEC106B_ACTUAL.json",
+      "bytes": 2013,
+      "sha256": "843820e05ce14496a886e94e423948ae6ae2153f3f3d0de2ef751cd235ecbdc3",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "standardVerify": {
+      "archiveId": "ROOT012_STANDARD_VERIFY107",
+      "fileName": "ROOT_STANDARD_VERIFY_ACTUAL107.json",
+      "bytes": 3097,
+      "sha256": "845b76fb947ba7043a2721b9b854fd8c19b3e116f66a0a95ff0987f7ebae2e92",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "productionApp": {
+      "archiveId": "ROOT012_APP108_ACTUAL111",
+      "fileName": "ROOT_APP108_ACTUAL111.json",
+      "bytes": 6130,
+      "sha256": "7ddf91fe6fc907617305cf2baf793ca811b091e3cf92730f1fb5e52b9b946943",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "independentAppOutputs": {
+      "archiveId": "ROOT012_APP108_INDEPENDENT109_RESULT",
+      "fileName": "APP_OUTPUTS108_RESULT.json",
+      "bytes": 151168,
+      "sha256": "43bc3be6a296a13a07ac579be041f325880603fb1090d99bd5e26fd42c60a8ce",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "independentAppOutputAudit": {
+      "archiveId": "ROOT012_APP108_ROOT_AUDIT110",
+      "fileName": "ROOT_APP108_INDEPENDENT_OUTPUT_AUDIT110.json",
+      "bytes": 16582,
+      "sha256": "335ca09934b230ed7212c9b6b28cbdc8d06de7b2d8144d2e8f2b04d9d9353e2f",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "currentStandardProductionE2e112": {
+      "archiveId": "ROOT012_FULL_ORIGINAL_E2E112C",
+      "fileName": "ROOT_FULL_E2E112_ACTUAL.json",
+      "bytes": 70592,
+      "sha256": "eb311827892e227c4a5cdaf5506e1dbcafd54462c9b4904bb09de6f6cfab02a6",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "firstLocal112Failure": {
+      "archive": {
+        "archiveId": "ROOT012_FULL_E2E112_FIRST_LOCAL_NATURAL_FAILURE",
+        "fileName": "ROOT_FULL_E2E112_FIRST_FAILURE_ACTUAL.json",
+        "bytes": 8245,
+        "sha256": "6c3a63feeb9abbb16053bb9a323451067892c9ed984c65b2d62124443f348c51",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "counts": {
+        "tests": 113,
+        "pass": 108,
+        "fail": 1,
+        "skipped": 4,
+        "flaky": 0
+      },
+      "executionLabel": "root-full-production-e2e112-codec",
+      "exitCode": 1,
+      "retries": 0,
+      "fullOriginalCommandPass": false,
+      "privateBOriginal103AndColdBootCompleted": false,
+      "failureClassification": "LOCAL_FULL_E2E_PROTOCOL_GC_OBSERVATION_NOT_SOURCE_CI"
+    },
+    "unchangedOriginalPrivateB112bDiagnostic": {
+      "archive": {
+        "archiveId": "ROOT014_UNCHANGED_ORIGINAL_PRIVATE_B112B_DIAGNOSTIC",
+        "fileName": "ROOT_PRIVATE_B112B_DIAGNOSTIC_ACTUAL.json",
+        "bytes": 3061,
+        "sha256": "c5901099832d7f20b552f989484bfcea331f476f4bf7e19523977ae3b9ecffe2",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "counts": {
+        "tests": 1,
+        "pass": 1,
+        "fail": 0,
+        "skipped": 0,
+        "retries": 0
+      },
+      "executionLabel": "root-private-b112b-diagnostic",
+      "exitCode": 0,
+      "fullOriginal113CommandPassClaim": false,
+      "specificProtocolGcCauseOrFixClaimed": false,
+      "sourceOrTestFilesChanged": false
+    },
+    "specificProtocolGcCauseOrFixClaimed": false,
+    "unchangedPrivateB112bUsedAsFullCommandPass": false,
+    "firstLocal112IsSourceCiRound": false,
+    "protocolGcEvidenceBoundary": "首次112完整原命令自然失败仍保留；112b仅原B独立诊断通过。具体协议GC原因与修复均未证明，112c成功补验也不改变该边界。",
+    "currentSourceTestInputs": 1422,
+    "currentSourceTestIdentity": "a6bedf5cf85c5ea87faba0baf67fed88581f4157cf3a8644f9fefebe3ac97260",
+    "currentProductInputs": 623,
+    "currentProductIdentity": "7d78de3b2922a620bef46168f42195888afac13af1ae60da4ba419ef403a6168",
+    "originalCapacityTestUnchanged": true,
+    "originalCaseNamesCountsAndAssertionsPreserved": true,
+    "gateBudgets": {
+      "stageMs": 180000,
+      "totalMs": 420000,
+      "outputBytes": 4194304
+    },
+    "remoteStageCauseClaimedByLocalProfile": false,
+    "oldProofsRewritten": false,
+    "oldApp88PromotedToCurrentProof": false,
     "originalCiRerun": false,
     "originalCiCancelled": false,
     "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"

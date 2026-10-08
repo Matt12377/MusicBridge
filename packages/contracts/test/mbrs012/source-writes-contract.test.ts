@@ -44,6 +44,35 @@ test('012 canonical 保留文本与码点序；拒浮点/-0/unsafe integer/孤�
   assert.equal(c.localSourceWritesCanonical({ '\u{10000}': 2, '\ue000': 1, n: 'e\u0301' }), '{"n":"é","":1,"𐀀":2}');
   assert.notEqual(c.localSourceWritesCanonical({ n: 'é' }), c.localSourceWritesCanonical({ n: 'e\u0301' }));
   for (const value of [1.5, -0, Number.MAX_SAFE_INTEGER + 1, NaN, Infinity, '\ud800', '\udfff', 1n, undefined]) assert.throws(() => c.localSourceWritesCanonical({ value }));
+  // 对照原 TextEncoder，包括公开计数器对孤立代理的替换编码；捕获仍拒绝孤立代理。
+  const originalEncoder = new TextEncoder();
+  const byteSamples = ['', 'x'.repeat(512), '曲目'.repeat(256), '🎵'.repeat(256), 'e\u0301'.repeat(256), '\u0000\t\n\r"\\\u007f', '👩‍👩‍👧‍👦', '\udfff\ud800', '\ud800\ud800\udfff'];
+  for (let point = 0; point <= 0xffff; point++) byteSamples.push(String.fromCharCode(point));
+  for (let index = 0; index < 2048; index++) byteSamples.push(`x${String.fromCodePoint(0x10000 + index * 509)}\ud800y\udfff`);
+  for (const value of byteSamples) assert.equal(c.localSourceWritesUtf8Bytes(value), originalEncoder.encode(value).byteLength);
+  const originalRuntimeEncode = originalEncoder.encode.bind(originalEncoder) as (value: unknown) => Uint8Array;
+  for (const value of [undefined, null, true, 42]) assert.equal((c.localSourceWritesUtf8Bytes as (value: unknown) => number)(value), originalRuntimeEncode(value).byteLength);
+  // 独立保留原 Array.from 码点序作差分，不用 UTF-16 排序或文本规范化。
+  const originalCompare = (a: string, b: string): number => {
+    const left = Array.from(a, character => character.codePointAt(0)!), right = Array.from(b, character => character.codePointAt(0)!);
+    for (let index = 0; index < Math.min(left.length, right.length); index++) if (left[index] !== right[index]) return left[index]! - right[index]!;
+    return left.length - right.length;
+  };
+  const originalEncode = (value: unknown): string => {
+    if (value === null || typeof value !== 'object') return JSON.stringify(value);
+    if (Array.isArray(value)) return `[${value.map(originalEncode).join(',')}]`;
+    return `{${Object.keys(value).sort(originalCompare).map(key => `${JSON.stringify(key)}:${originalEncode(Object.getOwnPropertyDescriptor(value, key)!.value)}`).join(',')}}`;
+  };
+  const keys = ['', '2', '10', '__proto__', 'a', 'aa', 'ab', 'a\ue000', 'a\u{10000}', 'a\u{10000}a', 'a\u{10000}\ue000', 'a\u{10000}\u{10000}', 'é', 'e\u0301', '\ue000', '\u{10000}', '\u{10000}a', '\u{10ffff}', '\u007f', '\u0080', '中', '中a', '中🎵', '🎵', '🎵a', '🎵🎵', '\\', '"', '\n', '\u0000', 'toJSON', 'constructor'];
+  for (let shift = 0; shift < keys.length; shift++) {
+    const rotated = [...keys.slice(shift), ...keys.slice(0, shift)];
+    const value = Object.fromEntries(rotated.map((key, index) => [key, [index, `${key}\\"\n`, { text: 'e\u0301/🎵/曲目' }]]));
+    const expected = originalEncode(value), actual = c.localSourceWritesCanonical(value), budget = originalEncoder.encode(expected).byteLength;
+    assert.equal(actual, expected); assert.equal(createHash('sha256').update(actual).digest('hex'), createHash('sha256').update(expected).digest('hex'));
+    assert.equal(c.localSourceWritesCanonical(value, budget), expected);
+    assert.equal(c.localSourceWritesCanonical(value, budget + 1), expected);
+    assert.throws(() => c.localSourceWritesCanonical(value, budget - 1));
+  }
   const before = createHash('sha256').update(c.localSourceWritesRequestCanonical('localSourceWrites.preview', preview()), 'utf8').digest('hex');
   const changed = preview(); changed.datasetId = other;
   assert.notEqual(createHash('sha256').update(c.localSourceWritesRequestCanonical('localSourceWrites.preview', changed), 'utf8').digest('hex'), before);

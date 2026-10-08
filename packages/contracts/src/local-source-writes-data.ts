@@ -1,7 +1,9 @@
 /** 新源写域的纯数据捕获；不改变 011/014 的冻结 canonical 或有效输入。 */
 const isolatedSurrogate = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/u;
 const encoder = new TextEncoder();
-export const localSourceWritesUtf8Bytes = (value: string): number => encoder.encode(value).byteLength;
+const nonAscii = /[^\u0000-\u007f]/u;
+/** ASCII 的 UTF-8 字节数等于单元数；其余仍使用原编码器，包括孤立代理的替换编码。 */
+export const localSourceWritesUtf8Bytes = (value: string): number => typeof value === 'string' && !nonAscii.test(value) ? value.length : encoder.encode(value).byteLength;
 const invalid = (): never => { throw new Error('源写请求的数据描述符、字符或预算无效。'); };
 
 export function localSourceWritesRecord(value: unknown, required: readonly string[], optional: readonly string[] = []): value is Record<string, unknown> {
@@ -72,9 +74,13 @@ export function localSourceWritesDataSnapshot(value: unknown, maxBytes = 2 * 102
 }
 
 const codePointCompare = (a: string, b: string): number => {
-  const left = Array.from(a, character => character.codePointAt(0)!), right = Array.from(b, character => character.codePointAt(0)!);
-  for (let index = 0; index < Math.min(left.length, right.length); index++) if (left[index] !== right[index]) return left[index]! - right[index]!;
-  return left.length - right.length;
+  let leftIndex = 0, rightIndex = 0;
+  while (leftIndex < a.length && rightIndex < b.length) {
+    const left = a.codePointAt(leftIndex)!, right = b.codePointAt(rightIndex)!;
+    if (left !== right) return left - right;
+    leftIndex += left > 0xffff ? 2 : 1; rightIndex += right > 0xffff ? 2 : 1;
+  }
+  return leftIndex < a.length ? 1 : rightIndex < b.length ? -1 : 0;
 };
 /** 新域使用相同 UTF-8/码点序规则；不规范化文本，也不把 context 拼进原 planHash。 */
 export function localSourceWritesCanonical(value: unknown, maxBytes = 2 * 1024 * 1024, maxNodes = 50_000, maxArray = 100, maxKeys = 32): string {
