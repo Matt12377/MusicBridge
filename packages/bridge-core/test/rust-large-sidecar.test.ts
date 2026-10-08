@@ -223,15 +223,30 @@ test('v3 FromOwner只调用大版本导出，缺少大API不降级，坏版本�
 });
 
 test('v3全部块共用启动期限，迟到ACK不能恢复发布或触发重发', async t => {
+  let now = 0;
+  const clock = t.mock.method(performance, 'now', () => now);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   const delayed: (() => void)[] = [], f = fake(t, (frame, respond) => {
-    if (frame.operation === 'appendSnapshot') { delayed.push(respond); setTimeout(respond, 240); } else respond();
+    if (frame.operation !== 'appendSnapshot') { respond(); return; }
+    delayed.push(respond);
+    // 只推进受控单调时钟和定时器：前三块在240/480/720ms回执，第四块越过整体800ms期限。
+    now += 240; t.mock.timers.tick(240); respond();
   });
   const s = source(snapshot(513));
-  await assert.rejects(createRustReadonlyDatasetEndpointFromOwner({ binary, owner: s.owner, snapshotProfile: 'v3-5000',
-    requestTimeoutMs: 2_000, startupTimeoutMs: 800 }), code('TIMEOUT'));
-  assert.ok(delayed.length >= 2, '至少两块分别成功或在途，才能证明整体期限而非单块超时。');
-  const count = f.frames.length;
-  delayed.forEach(respond => respond()); await until(() => f.live === 0);
+  let count = 0;
+  try {
+    await assert.rejects(createRustReadonlyDatasetEndpointFromOwner({ binary, owner: s.owner, snapshotProfile: 'v3-5000',
+      requestTimeoutMs: 2_000, startupTimeoutMs: 800 }), code('TIMEOUT'));
+    assert.ok(delayed.length >= 2, '至少两块分别成功或在途，才能证明整体期限而非单块超时。');
+    assert.equal(now, 960);
+    assert.deepEqual(f.frames.filter(frame => frame.operation === 'appendSnapshot').map(frame => frame.payload.chunkIndex), [0, 1, 2, 3]);
+    count = f.frames.length;
+    delayed.forEach(respond => respond());
+  } finally {
+    // 子进程实际事件循环退出仍由原来的两秒until边界检查，先恢复真实时钟和定时器。
+    t.mock.timers.reset(); clock.mock.restore();
+  }
+  await until(() => f.live === 0);
   assert.equal(f.frames.length, count); assert.equal(f.frames.some(frame => frame.operation === 'commitBoot'), false);
   assert.equal(s.counts.exports, 1); assert.equal(s.counts.closes, 0);
 });

@@ -47001,7 +47001,7 @@
   },
   "mbrs013LocalRelocation": {
     "task": "MBRS-013",
-    "state": "LOCAL_SCOPE19_NATIVE_FD_STANDARD4721_AND_FRESH_APP_PASS_NEW_EXACT_SOURCE_GATE_RUST_ELECTRON_CI_REPORT_PENDING",
+    "state": "LOCAL_SCOPE20_CONTROLLED_SHARED_DEADLINE_UNIT21_TYPES_STANDARD4721_PASS_EXACT_NEW_SOURCE_GATE_CI_REPORT_PENDING",
     "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
     "branch": "codex/mbrs-013-relocation",
     "implementationCommit": null,
@@ -47019,8 +47019,8 @@
     "runtimeRelocation": "OFF_UNTIL_FINITE_QUALIFICATION_SPECIFIC_MAIN_PLAN_ONLY",
     "originalAtCount": 8,
     "productAcceptance": "PARTIAL_ALL_EIGHT_LIVE_OWNER_OPEN",
-    "softwareTests": "PASS_CURRENT_STANDARD286_4721_TOTAL_4719_PASS_2_EXISTING_SKIP_AND_NATIVE_FIVE_FRESH_EXACT_GATE_PENDING",
-    "productionApp": "PASS_CURRENT_PRODUCTION_APP289_AND_FRESH_INDEPENDENT_OUTPUT291_NONEMPTY_SOURCE_BINDING_HISTORY_NOT_PROVEN",
+    "softwareTests": "PASS_CURRENT_SCOPE20_STANDARD325_4721_TOTAL_4719_PASS_2_ORIGINAL_SKIP_RUST_LARGE21_TYPES_AND_CONTROLLED_NEGATIVE_NEW_EXACT_GATE_PENDING",
+    "productionApp": "PASS_APP289_REUSED_EXACT_SAME692_PRODUCT_INPUTS_NOT_NEW_SCOPE20_APP_RUN_NONEMPTY_BINDING_HISTORY_NOT_PROVEN",
     "realRoonNasAudioDeviceOwner": "NOT_RUN",
     "ownerRepeatedApprovalRequired": false,
     "nextTask": "MBM-000",
@@ -47035,18 +47035,18 @@
     "startedAt": "2026-10-08T09:42:36.487041+00:00",
     "validationCheckpoint": {
       "standard": {
-        "label": "root013-standard-verify286",
-        "head": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+        "label": "root013-scope20-standard325",
+        "head": "f3287978ac725fa3e452e5b897c75495ebce28c0",
         "directory": "",
         "exitCode": 0,
         "signal": null,
         "closeObserved": true,
         "timedOut": false,
-        "durationSeconds": 316.0781769589521,
+        "durationSeconds": 319.8821505830274,
         "log": {
-          "file": "root013-standard-verify286.log",
-          "bytes": 1143904,
-          "sha256": "48a9c15a39c050895a5c9c19e960277d54a62962fd832be39c0aaa06aabb3fdc"
+          "file": "root013-scope20-standard325.log",
+          "bytes": 1144097,
+          "sha256": "6dfa08437ae897c952040cb4ed37a96a0c4224ef64b6c0b1ac6db779a72de209"
         },
         "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
       },
@@ -47059,35 +47059,94 @@
         "todo": 0
       },
       "standardFullAudit": {
-        "fileName": "STANDARD_VERIFY286_FULL_AUDIT287.json",
-        "bytes": 4710,
-        "sha256": "7b2d3b8a06db04f5a3c2a45bf44bc99e6c7459b73c4f70cd302bfb2b9d9448e0",
+        "fileName": "ROOT013_STANDARD325_FULL_AUDIT330.json",
+        "bytes": 6755,
+        "sha256": "5d8741a2ed2c8fb14092f2fe0689dd555c5981abf3538a72184f2db49d785667",
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       },
-      "nativeFiveRegression": {
-        "label": "root013-native-five-behaviors284",
-        "head": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+      "rustOriginal21": {
+        "label": "root013-scope20-rust-large323",
+        "head": "f3287978ac725fa3e452e5b897c75495ebce28c0",
         "directory": "packages/bridge-core",
         "exitCode": 0,
         "signal": null,
         "closeObserved": true,
         "timedOut": false,
-        "durationSeconds": 2.9030182500137016,
+        "durationSeconds": 3.581147249962669,
         "log": {
-          "file": "root013-native-five-behaviors284.log",
-          "bytes": 1887,
-          "sha256": "bc716e1457f4a8d0b200af578d190431524959ffcc5a6e4c238b191e623dfd07"
+          "file": "root013-scope20-rust-large323.log",
+          "bytes": 4839,
+          "sha256": "45132f34ee30c54b372817bf2d9d0390fa606592b1e79c1da5d1511262430744"
         },
         "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
       },
-      "nativeRuntimeAudit": {
-        "fileName": "ROOT013_NATIVE_MOUNT_FD_RUNTIME_REPAIR282.json",
-        "bytes": 3049,
-        "sha256": "1bb8dec384e5df0cdae04fa37fd5564cfaf52c84ebd09080bca7c69af52c0eea",
+      "coreTypes": {
+        "label": "root013-scope20-core-types324",
+        "head": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+        "directory": "packages/bridge-core",
+        "exitCode": 0,
+        "signal": null,
+        "closeObserved": true,
+        "timedOut": false,
+        "durationSeconds": 8.685941041971091,
+        "log": {
+          "file": "root013-scope20-core-types324.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+      },
+      "controlledDeadlineNegative": {
+        "execution": {
+          "label": "root013-scope20-controlled-negative329",
+          "head": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+          "directory": "packages/bridge-core",
+          "exitCode": 1,
+          "signal": null,
+          "closeObserved": true,
+          "timedOut": false,
+          "durationSeconds": 0.41839770798105747,
+          "log": {
+            "file": "root013-scope20-controlled-negative329.log",
+            "bytes": 1193,
+            "sha256": "eab3b466a1abc41dcf9d846a4b4852a6a95524cbde4838665f528e969ab45b4e"
+          },
+          "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+        },
+        "expectedNaturalExit": 1,
+        "onlyPrivateInputDifference": "STARTUP800_TO2000_WITH_ABSOLUTE_MODULE_ADDRESSES",
+        "actualAssertion": "MISSING_EXPECTED_REJECTION",
+        "notProductDeadlineChangeOrPerformanceEvidence": true,
+        "priorPrivate327ModuleLoadFailureIsBehaviorProof": false
+      },
+      "rustUnitRuntimeAudit": {
+        "fileName": "ROOT013_SCOPE20_UNIT_RUNTIME_AUDIT341.json",
+        "bytes": 6249,
+        "sha256": "d9ca14eb162a80f29abef06e77c9e450025c6f344d8657a063e1edda14084f2f",
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       },
+      "unitIndependentReview": {
+        "fileName": "APP_SCOPE20_UNIT321_INDEPENDENT_REVIEW01.json",
+        "bytes": 8298,
+        "sha256": "04416fd4fb815ef20d87ddd2be9cf51e5bec543cbb8f6661cb361b2406d5dfc4",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "sourceTestIdentity": "68025ee037e46a16a57818db65e53bcac9ab4da3db5b5e4599d5ce9fea40ce56",
+      "productIdentity": "9ea6137cddca961cc505538da10c8e3b5958d7f53bae6dfec173cf08a8bdaeab",
+      "sourceTestInputs": 1631,
+      "productInputs": 692,
+      "all692ProductInputsExactSourceF328And283": true,
+      "sourceTestGraph": {
+        "fileName": "ROOT013_CURRENT_INPUTS320_SOURCE.json",
+        "bytes": 447428,
+        "sha256": "657d4df01e7af8b90a54d1a534b1285dfb0c113de758fc46010143e32287df2c",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
+      },
+      "oneControlledTestChangedFrom283": true,
       "productionApp": {
         "label": "root013-production-app289",
         "head": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
@@ -47111,17 +47170,15 @@
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       },
-      "productionArtifacts": {
-        "count": 997,
-        "identity": "9db485ced44535e5543a39f33884ed3bb3632fc09fc53a2cff25d28a5ea9734d",
-        "beforeAfterExact": true
+      "productionAppClosedHistoryAudit": {
+        "fileName": "PRODUCTION_APP289_HISTORY_BOUNDARY_READBACK292.json",
+        "bytes": 64460,
+        "sha256": "511810ac6f635595cb05578911ac9a8fbddf4489bbee6bc9b4fa3ca8494fb88e",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+        "publiclyDownloadable": false
       },
-      "sourceTestIdentity": "e13ff1ca4e8f6d4505651a3564c351dea35a7e3e20073076c298335d504c5898",
-      "productIdentity": "9ea6137cddca961cc505538da10c8e3b5958d7f53bae6dfec173cf08a8bdaeab",
-      "sourceTestInputs": 1631,
-      "productInputs": 692,
-      "declaredInputsUnchangedAfterApp": true,
-      "newExactSourceGate": "PENDING_AFTER_SCOPE19_SOURCE_COMMIT",
+      "productionAppExecutionReusedSameProductNotNewSourceRun": true,
+      "newExactSourceGate": "PENDING_AFTER_SCOPE20_SOURCE_COMMIT",
       "originalAcceptanceCount": 8,
       "realRoonNasAudioDeviceOwner": "NOT_RUN",
       "appLimits": {
@@ -47129,418 +47186,518 @@
         "sourceBindingsNonemptyHistory": "NOT_PROVEN",
         "realRoonNasCrossVolumeAudioDeviceOwner": "NOT_RUN"
       },
-      "originalSource589Failure": "docs/postrust/MBRS-013/evidence/source589-electron-qualification-failure.json",
-      "nativeScope19Repair": "docs/postrust/MBRS-013/evidence/native-mount-fd-repair.json",
-      "previousScope18ValidationCheckpointHistoricalOnly": {
+      "originalSourceF328Failure": "docs/postrust/MBRS-013/evidence/sourcef328-rust-unit-failure.json",
+      "controlledScope20Repair": "docs/postrust/MBRS-013/evidence/rust-deadline-unit-repair.json",
+      "previousScope19ValidationCheckpointHistoricalOnly": {
         "standard": {
-          "label": "root013-standard-verify124",
-          "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+          "label": "root013-standard-verify286",
+          "head": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+          "directory": "",
           "exitCode": 0,
           "signal": null,
           "closeObserved": true,
           "timedOut": false,
-          "durationSeconds": 314.1700237080222,
+          "durationSeconds": 316.0781769589521,
           "log": {
-            "file": "root013-standard-verify124.log",
-            "bytes": 1138749,
-            "sha256": "e2ce823bd357b9da307ef5c43092d16e63ca1fe10923a083c49c4d10c8f8efbd"
+            "file": "root013-standard-verify286.log",
+            "bytes": 1143904,
+            "sha256": "48a9c15a39c050895a5c9c19e960277d54a62962fd832be39c0aaa06aabb3fdc"
           },
           "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
         },
         "standardTotals": {
-          "tests": 4704,
-          "pass": 4702,
+          "tests": 4721,
+          "pass": 4719,
           "fail": 0,
           "cancelled": 0,
           "skipped": 2,
           "todo": 0
         },
         "standardFullAudit": {
-          "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
-          "fileName": "STANDARD_VERIFY124_FULL_AUDIT.json",
-          "bytes": 2518,
-          "sha256": "a7445088f4e6fa331b3f8de0466acb886a619571c7c5d923910b4e2bae69dd3e",
+          "fileName": "STANDARD_VERIFY286_FULL_AUDIT287.json",
+          "bytes": 4710,
+          "sha256": "7b2d3b8a06db04f5a3c2a45bf44bc99e6c7459b73c4f70cd302bfb2b9d9448e0",
           "storage": "PRIVATE_EXTERNAL_ARCHIVE",
           "publiclyDownloadable": false
         },
-        "bootstrap": {
-          "label": "root013-bootstrap-regression-green123",
-          "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+        "nativeFiveRegression": {
+          "label": "root013-native-five-behaviors284",
+          "head": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+          "directory": "packages/bridge-core",
           "exitCode": 0,
           "signal": null,
           "closeObserved": true,
           "timedOut": false,
-          "durationSeconds": 3.1744755409890786,
+          "durationSeconds": 2.9030182500137016,
           "log": {
-            "file": "root013-bootstrap-regression-green123.log",
-            "bytes": 5270,
-            "sha256": "fc0e7d9dcb2543b10c49404bbb6b039d669bfc0c99927e1657337a8196f41989"
+            "file": "root013-native-five-behaviors284.log",
+            "bytes": 1887,
+            "sha256": "bc716e1457f4a8d0b200af578d190431524959ffcc5a6e4c238b191e623dfd07"
           },
           "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
         },
-        "staticChecks": [
-          {
-            "label": "root013-final-control-plane128",
-            "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
-            "exitCode": 0,
-            "signal": null,
-            "closeObserved": true,
-            "timedOut": false,
-            "durationSeconds": 0.14628658397123218,
-            "log": {
-              "file": "root013-final-control-plane128.log",
-              "bytes": 19,
-              "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
-            },
-            "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+        "nativeRuntimeAudit": {
+          "fileName": "ROOT013_NATIVE_MOUNT_FD_RUNTIME_REPAIR282.json",
+          "bytes": 3049,
+          "sha256": "1bb8dec384e5df0cdae04fa37fd5564cfaf52c84ebd09080bca7c69af52c0eea",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+          "publiclyDownloadable": false
+        },
+        "productionApp": {
+          "label": "root013-production-app289",
+          "head": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+          "directory": "apps/desktop",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "timedOut": false,
+          "durationSeconds": 19.010774916037917,
+          "log": {
+            "file": "root013-production-app289.log",
+            "bytes": 668,
+            "sha256": "5f757555f1d8d14f2285bca58ab77cc405ed29eee3b58a78033a40025da2ffa5"
           },
-          {
-            "label": "root013-final-boundaries128",
-            "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
-            "exitCode": 0,
-            "signal": null,
-            "closeObserved": true,
-            "timedOut": false,
-            "durationSeconds": 0.1417712499969639,
-            "log": {
-              "file": "root013-final-boundaries128.log",
-              "bytes": 16,
-              "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
-            },
-            "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
-          },
-          {
-            "label": "root013-final-cycles128",
-            "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
-            "exitCode": 0,
-            "signal": null,
-            "closeObserved": true,
-            "timedOut": false,
-            "durationSeconds": 0.07823854102753103,
-            "log": {
-              "file": "root013-final-cycles128.log",
-              "bytes": 22,
-              "sha256": "9bde1aa9752fc69c8c7cd4dc6b5ee24cdc149d24e45715f473f025ba732a4f41"
-            },
-            "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
-          }
-        ],
+          "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+        },
         "productionAppAudit": {
-          "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
-          "fileName": "PRODUCTION_APP126_INDEPENDENT_OUTPUT_AUDIT.json",
-          "bytes": 3298,
-          "sha256": "fa4571a9b38f31fa77eaf244ad6df9bb2f76b7a1c862b0ab004f22e15e9bd5f6",
+          "fileName": "PRODUCTION_APP291_INDEPENDENT_OUTPUT_AUDIT.json",
+          "bytes": 5081,
+          "sha256": "392f94cc5ce68105f574efa62fb4371a597604f0ac213b78bec220053ab2829d",
           "storage": "PRIVATE_EXTERNAL_ARCHIVE",
           "publiclyDownloadable": false
         },
-        "lifecycle": {
-          "label": "root013-electron-lifecycle127",
-          "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
-          "exitCode": 0,
-          "signal": null,
-          "closeObserved": true,
-          "timedOut": false,
-          "durationSeconds": 45.170531083014794,
-          "log": {
-            "file": "root013-electron-lifecycle127.log",
-            "bytes": 1372,
-            "sha256": "b6c43c065f1200bb518763043951b85ab7f1915e7b2958d300da23eef1ca04bd"
-          },
-          "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+        "productionArtifacts": {
+          "count": 997,
+          "identity": "9db485ced44535e5543a39f33884ed3bb3632fc09fc53a2cff25d28a5ea9734d",
+          "beforeAfterExact": true
         },
-        "sourceTestIdentity": "1a5a0dfcf65c26961a4e9be8c399641f5908786457f71e3756acd52c4c59d31c",
-        "productIdentity": "8aba75d202898e08501b4fbc6f254bc19072a9caa939753db936ee980b0d40c2",
-        "sourceTestInputs": 1627,
+        "sourceTestIdentity": "e13ff1ca4e8f6d4505651a3564c351dea35a7e3e20073076c298335d504c5898",
+        "productIdentity": "9ea6137cddca961cc505538da10c8e3b5958d7f53bae6dfec173cf08a8bdaeab",
+        "sourceTestInputs": 1631,
         "productInputs": 692,
         "declaredInputsUnchangedAfterApp": true,
-        "previousSourceS1": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
-        "previousCheckpoint": {
-          "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
-          "fileName": "ROOT013_METADATA_BEFORE_S1_REPAIR125.json",
-          "bytes": 17691,
-          "sha256": "8c6f913f8594fe81cdcc0d11e80c4e00d97531e85a37a49407a5cd0e05887ef2",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
-          "publiclyDownloadable": false
-        },
-        "previousExactGateHistorical": {
-          "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
-          "fileName": "ROOT013_EXACT_SOURCE_GATE_AUDIT109.json",
-          "bytes": 7928,
-          "sha256": "f48dd1d12fd3d1c329fa1b950ce376097217bc2a89fbfed758026289bf4a2ec6",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
-          "publiclyDownloadable": false
-        },
-        "previousS1NativeCi": {
-          "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
-          "fileName": "ROOT013_SOURCE_S1_CI_SNAPSHOT125.json",
-          "bytes": 91683,
-          "sha256": "878199a90a9f50916b1c330d3398f6129f664a0d79d1298e689f11166ca3fea2",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
-          "publiclyDownloadable": false
-        },
-        "newExactSourceGate": "PENDING_AFTER_SCOPE18_SOURCE_COMMIT_NO_PRECLAIM",
+        "newExactSourceGate": "PENDING_AFTER_SCOPE19_SOURCE_COMMIT",
         "originalAcceptanceCount": 8,
         "realRoonNasAudioDeviceOwner": "NOT_RUN",
         "appLimits": {
-          "sourceBindings": 0,
-          "catalogAssetSha256": null,
-          "editions": [],
-          "versionTokens": [],
-          "editionTableRows": 0,
-          "editionLinkTableRows": 0,
-          "versionTokensObservation": "REAL_APP_ORIGINAL_MOVED_AFTER_CLEANUP_COLD_DETAILS_NOT_A_SEPARATE_SQL_TABLE",
-          "sampleFrames": null,
-          "timebaseHz": null,
-          "scope": "ACTUAL_WHOLE_FILE_HASH_AND_WAVE_SAMPLES_DO_NOT_ESTABLISH_NONEMPTY_CATALOG_HASH_VERSION_OR_BINDING_HISTORY"
+          "ownedSyntheticOnly": true,
+          "sourceBindingsNonemptyHistory": "NOT_PROVEN",
+          "realRoonNasCrossVolumeAudioDeviceOwner": "NOT_RUN"
         },
-        "all49JournalHashReadback": {
-          "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
-          "fileName": "PRODUCTION_APP126_HISTORY_BOUNDARY_READBACK132.json",
-          "bytes": 830,
-          "sha256": "1b2ba5b1a9278980dac6bcab605a4b477acb38df5a73ea52eac8d948eecc2a0f",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
-          "publiclyDownloadable": false
-        },
-        "appBoundaryLayerCorrection": {
-          "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
-          "fileName": "PRODUCTION_APP126_BOUNDARY_LAYER_CORRECTION135.json",
-          "bytes": 1275,
-          "sha256": "43e14c1ed640a92f80b136d89625823195b447d891f678b9c4df7467ac58bbca",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE",
-          "publiclyDownloadable": false
-        },
-        "source59ExactGateHistorical": {
-          "sourceSha": "59ba9200df381ce870ccd239381bec01777e7bf3",
-          "archive": {
-            "fileName": "ROOT013_EXACT_FINAL_SOURCE_GATE_AUDIT138.json",
-            "bytes": 7957,
-            "sha256": "cda9dade87be66b63306adc2db81d6b1154a527f70cd06d84218bde1fa5fedc8",
-            "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+        "originalSource589Failure": "docs/postrust/MBRS-013/evidence/source589-electron-qualification-failure.json",
+        "nativeScope19Repair": "docs/postrust/MBRS-013/evidence/native-mount-fd-repair.json",
+        "previousScope18ValidationCheckpointHistoricalOnly": {
+          "standard": {
+            "label": "root013-standard-verify124",
+            "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "timedOut": false,
+            "durationSeconds": 314.1700237080222,
+            "log": {
+              "file": "root013-standard-verify124.log",
+              "bytes": 1138749,
+              "sha256": "e2ce823bd357b9da307ef5c43092d16e63ca1fe10923a083c49c4d10c8f8efbd"
+            },
+            "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
           },
-          "passed": 529,
-          "skipped": 0,
-          "result": "PASS_EXACT_SOURCE59_NOT_NEXT_SOURCE"
-        },
-        "currentSourceWorkflowDelta": {
-          "path": ".github/workflows/electron-e2e.yml",
-          "before": {
-            "bytes": 7554,
-            "sha256": "e37bc7a0065157191d9ef059cc4c8e57b88c12d5d61422635de84bddb93d26cb"
+          "standardTotals": {
+            "tests": 4704,
+            "pass": 4702,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 2,
+            "todo": 0
           },
-          "after": {
-            "bytes": 7556,
-            "sha256": "16423e85378d328293df2bb696279120ccfb563028dc841a9be51e3d8ea3b05b"
+          "standardFullAudit": {
+            "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+            "fileName": "STANDARD_VERIFY124_FULL_AUDIT.json",
+            "bytes": 2518,
+            "sha256": "a7445088f4e6fa331b3f8de0466acb886a619571c7c5d923910b4e2bae69dd3e",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+            "publiclyDownloadable": false
           },
-          "change": "ONLY_RUNS_ON_MACOS_LATEST_TO_MACOS_15_INTEL",
-          "priorLabel": "macos-latest",
-          "newLabel": "macos-15-intel"
-        },
-        "currentSourceBoundaryGuardDelta": {
-          "path": "scripts/ci/verify-boundaries.mjs",
-          "before": {
-            "bytes": 5486,
-            "sha256": "20de6a691d0d751babb3b5695060bdd143dfbd7f571f4c752cda731a7c485f02"
+          "bootstrap": {
+            "label": "root013-bootstrap-regression-green123",
+            "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "timedOut": false,
+            "durationSeconds": 3.1744755409890786,
+            "log": {
+              "file": "root013-bootstrap-regression-green123.log",
+              "bytes": 5270,
+              "sha256": "fc0e7d9dcb2543b10c49404bbb6b039d669bfc0c99927e1657337a8196f41989"
+            },
+            "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
           },
-          "after": {
-            "bytes": 5680,
-            "sha256": "bee1e19b745016ca59ee707c01435227e8c412d1d5b96fad82d9ce35a53a80fe"
-          },
-          "change": "EXACT_ANCHORED_OFFICIAL_STANDARD_MACOS_RUNNER_ALLOWLIST_ONLY_ORIGINAL_ELECTRON_COMMAND_GUARDS_UNCHANGED"
-        },
-        "source59HostedCi": {
-          "schema": "mbrs013.hosted-runner-failure.v1",
-          "sourceSha": "59ba9200df381ce870ccd239381bec01777e7bf3",
-          "runId": 37809850373,
-          "jobId": 113423561282,
-          "workflow": ".github/workflows/electron-e2e.yml",
-          "workflowConclusion": "failure",
-          "jobConclusion": "cancelled",
-          "runnerId": 0,
-          "runnerName": "",
-          "steps": [],
-          "artifactCount": 0,
-          "actualAnnotations": [
+          "staticChecks": [
             {
-              "path": ".github",
-              "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
-              "start_line": 1,
-              "start_column": null,
-              "end_line": 1,
-              "end_column": null,
-              "annotation_level": "failure",
-              "title": "",
-              "message": "The job was not acquired by Runner of type hosted even after multiple attempts",
-              "raw_details": ""
+              "label": "root013-final-control-plane128",
+              "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "timedOut": false,
+              "durationSeconds": 0.14628658397123218,
+              "log": {
+                "file": "root013-final-control-plane128.log",
+                "bytes": 19,
+                "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+              },
+              "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
             },
             {
-              "path": ".github",
-              "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
-              "start_line": 1,
-              "start_column": null,
-              "end_line": 1,
-              "end_column": null,
-              "annotation_level": "notice",
-              "title": "",
-              "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
-              "raw_details": ""
+              "label": "root013-final-boundaries128",
+              "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "timedOut": false,
+              "durationSeconds": 0.1417712499969639,
+              "log": {
+                "file": "root013-final-boundaries128.log",
+                "bytes": 16,
+                "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+              },
+              "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
             },
             {
-              "path": ".github",
-              "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
-              "start_line": 1,
-              "start_column": null,
-              "end_line": 1,
-              "end_column": null,
-              "annotation_level": "notice",
-              "title": "",
-              "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
-              "raw_details": ""
-            },
-            {
-              "path": ".github",
-              "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
-              "start_line": 1,
-              "start_column": null,
-              "end_line": 1,
-              "end_column": null,
-              "annotation_level": "notice",
-              "title": "",
-              "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
-              "raw_details": ""
+              "label": "root013-final-cycles128",
+              "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "timedOut": false,
+              "durationSeconds": 0.07823854102753103,
+              "log": {
+                "file": "root013-final-cycles128.log",
+                "bytes": 22,
+                "sha256": "9bde1aa9752fc69c8c7cd4dc6b5ee24cdc149d24e45715f473f025ba732a4f41"
+              },
+              "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
             }
           ],
-          "result": "PLATFORM_HOSTED_ARM64_CAPACITY_FAILURE_BEFORE_ANY_TEST_EXECUTION",
-          "localProductVerification": "CURRENT_STANDARD124_APP126_GATE136_PROVEN_SEPARATELY",
-          "otherCurrentSourceCi": "CONTINUES_NATURALLY_NOT_CANCELLED_NOT_PRECLAIMED",
-          "rawRun": {
-            "fileName": "ROOT013_SOURCE59_ELECTRON146_electron-run.json",
-            "bytes": 12251,
-            "sha256": "dead71b527bdf62732a6aeca9026efe82ea7a7fa2a39bb93f46c283e0596fb7d",
+          "productionAppAudit": {
+            "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+            "fileName": "PRODUCTION_APP126_INDEPENDENT_OUTPUT_AUDIT.json",
+            "bytes": 3298,
+            "sha256": "fa4571a9b38f31fa77eaf244ad6df9bb2f76b7a1c862b0ab004f22e15e9bd5f6",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+            "publiclyDownloadable": false
+          },
+          "lifecycle": {
+            "label": "root013-electron-lifecycle127",
+            "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "timedOut": false,
+            "durationSeconds": 45.170531083014794,
+            "log": {
+              "file": "root013-electron-lifecycle127.log",
+              "bytes": 1372,
+              "sha256": "b6c43c065f1200bb518763043951b85ab7f1915e7b2958d300da23eef1ca04bd"
+            },
+            "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+          },
+          "sourceTestIdentity": "1a5a0dfcf65c26961a4e9be8c399641f5908786457f71e3756acd52c4c59d31c",
+          "productIdentity": "8aba75d202898e08501b4fbc6f254bc19072a9caa939753db936ee980b0d40c2",
+          "sourceTestInputs": 1627,
+          "productInputs": 692,
+          "declaredInputsUnchangedAfterApp": true,
+          "previousSourceS1": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+          "previousCheckpoint": {
+            "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+            "fileName": "ROOT013_METADATA_BEFORE_S1_REPAIR125.json",
+            "bytes": 17691,
+            "sha256": "8c6f913f8594fe81cdcc0d11e80c4e00d97531e85a37a49407a5cd0e05887ef2",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+            "publiclyDownloadable": false
+          },
+          "previousExactGateHistorical": {
+            "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+            "fileName": "ROOT013_EXACT_SOURCE_GATE_AUDIT109.json",
+            "bytes": 7928,
+            "sha256": "f48dd1d12fd3d1c329fa1b950ce376097217bc2a89fbfed758026289bf4a2ec6",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+            "publiclyDownloadable": false
+          },
+          "previousS1NativeCi": {
+            "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+            "fileName": "ROOT013_SOURCE_S1_CI_SNAPSHOT125.json",
+            "bytes": 91683,
+            "sha256": "878199a90a9f50916b1c330d3398f6129f664a0d79d1298e689f11166ca3fea2",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+            "publiclyDownloadable": false
+          },
+          "newExactSourceGate": "PENDING_AFTER_SCOPE18_SOURCE_COMMIT_NO_PRECLAIM",
+          "originalAcceptanceCount": 8,
+          "realRoonNasAudioDeviceOwner": "NOT_RUN",
+          "appLimits": {
+            "sourceBindings": 0,
+            "catalogAssetSha256": null,
+            "editions": [],
+            "versionTokens": [],
+            "editionTableRows": 0,
+            "editionLinkTableRows": 0,
+            "versionTokensObservation": "REAL_APP_ORIGINAL_MOVED_AFTER_CLEANUP_COLD_DETAILS_NOT_A_SEPARATE_SQL_TABLE",
+            "sampleFrames": null,
+            "timebaseHz": null,
+            "scope": "ACTUAL_WHOLE_FILE_HASH_AND_WAVE_SAMPLES_DO_NOT_ESTABLISH_NONEMPTY_CATALOG_HASH_VERSION_OR_BINDING_HISTORY"
+          },
+          "all49JournalHashReadback": {
+            "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+            "fileName": "PRODUCTION_APP126_HISTORY_BOUNDARY_READBACK132.json",
+            "bytes": 830,
+            "sha256": "1b2ba5b1a9278980dac6bcab605a4b477acb38df5a73ea52eac8d948eecc2a0f",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+            "publiclyDownloadable": false
+          },
+          "appBoundaryLayerCorrection": {
+            "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+            "fileName": "PRODUCTION_APP126_BOUNDARY_LAYER_CORRECTION135.json",
+            "bytes": 1275,
+            "sha256": "43e14c1ed640a92f80b136d89625823195b447d891f678b9c4df7467ac58bbca",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+            "publiclyDownloadable": false
+          },
+          "source59ExactGateHistorical": {
+            "sourceSha": "59ba9200df381ce870ccd239381bec01777e7bf3",
+            "archive": {
+              "fileName": "ROOT013_EXACT_FINAL_SOURCE_GATE_AUDIT138.json",
+              "bytes": 7957,
+              "sha256": "cda9dade87be66b63306adc2db81d6b1154a527f70cd06d84218bde1fa5fedc8",
+              "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+            },
+            "passed": 529,
+            "skipped": 0,
+            "result": "PASS_EXACT_SOURCE59_NOT_NEXT_SOURCE"
+          },
+          "currentSourceWorkflowDelta": {
+            "path": ".github/workflows/electron-e2e.yml",
+            "before": {
+              "bytes": 7554,
+              "sha256": "e37bc7a0065157191d9ef059cc4c8e57b88c12d5d61422635de84bddb93d26cb"
+            },
+            "after": {
+              "bytes": 7556,
+              "sha256": "16423e85378d328293df2bb696279120ccfb563028dc841a9be51e3d8ea3b05b"
+            },
+            "change": "ONLY_RUNS_ON_MACOS_LATEST_TO_MACOS_15_INTEL",
+            "priorLabel": "macos-latest",
+            "newLabel": "macos-15-intel"
+          },
+          "currentSourceBoundaryGuardDelta": {
+            "path": "scripts/ci/verify-boundaries.mjs",
+            "before": {
+              "bytes": 5486,
+              "sha256": "20de6a691d0d751babb3b5695060bdd143dfbd7f571f4c752cda731a7c485f02"
+            },
+            "after": {
+              "bytes": 5680,
+              "sha256": "bee1e19b745016ca59ee707c01435227e8c412d1d5b96fad82d9ce35a53a80fe"
+            },
+            "change": "EXACT_ANCHORED_OFFICIAL_STANDARD_MACOS_RUNNER_ALLOWLIST_ONLY_ORIGINAL_ELECTRON_COMMAND_GUARDS_UNCHANGED"
+          },
+          "source59HostedCi": {
+            "schema": "mbrs013.hosted-runner-failure.v1",
+            "sourceSha": "59ba9200df381ce870ccd239381bec01777e7bf3",
+            "runId": 37809850373,
+            "jobId": 113423561282,
+            "workflow": ".github/workflows/electron-e2e.yml",
+            "workflowConclusion": "failure",
+            "jobConclusion": "cancelled",
+            "runnerId": 0,
+            "runnerName": "",
+            "steps": [],
+            "artifactCount": 0,
+            "actualAnnotations": [
+              {
+                "path": ".github",
+                "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
+                "start_line": 1,
+                "start_column": null,
+                "end_line": 1,
+                "end_column": null,
+                "annotation_level": "failure",
+                "title": "",
+                "message": "The job was not acquired by Runner of type hosted even after multiple attempts",
+                "raw_details": ""
+              },
+              {
+                "path": ".github",
+                "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
+                "start_line": 1,
+                "start_column": null,
+                "end_line": 1,
+                "end_column": null,
+                "annotation_level": "notice",
+                "title": "",
+                "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+                "raw_details": ""
+              },
+              {
+                "path": ".github",
+                "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
+                "start_line": 1,
+                "start_column": null,
+                "end_line": 1,
+                "end_column": null,
+                "annotation_level": "notice",
+                "title": "",
+                "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+                "raw_details": ""
+              },
+              {
+                "path": ".github",
+                "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
+                "start_line": 1,
+                "start_column": null,
+                "end_line": 1,
+                "end_column": null,
+                "annotation_level": "notice",
+                "title": "",
+                "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+                "raw_details": ""
+              }
+            ],
+            "result": "PLATFORM_HOSTED_ARM64_CAPACITY_FAILURE_BEFORE_ANY_TEST_EXECUTION",
+            "localProductVerification": "CURRENT_STANDARD124_APP126_GATE136_PROVEN_SEPARATELY",
+            "otherCurrentSourceCi": "CONTINUES_NATURALLY_NOT_CANCELLED_NOT_PRECLAIMED",
+            "rawRun": {
+              "fileName": "ROOT013_SOURCE59_ELECTRON146_electron-run.json",
+              "bytes": 12251,
+              "sha256": "dead71b527bdf62732a6aeca9026efe82ea7a7fa2a39bb93f46c283e0596fb7d",
+              "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+            },
+            "rawCheck": {
+              "fileName": "ROOT013_SOURCE59_ELECTRON146_electron-check.json",
+              "bytes": 3075,
+              "sha256": "04439a85312c8c69a07c13f4c0334128e987526b3810d3fd0f360f6438a6ce6b",
+              "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+            },
+            "rawAnnotations": {
+              "fileName": "ROOT013_SOURCE59_ELECTRON146_electron-annotations.json",
+              "bytes": 1426,
+              "sha256": "8bb74134d1c4bdb352497087ea980f4d345336bb04c9c85413b8c73aaea6ec2f",
+              "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+            },
+            "firstNaturalSnapshot": {
+              "fileName": "ROOT013_FINAL_SOURCE_CI_SNAPSHOT145.json",
+              "bytes": 88029,
+              "sha256": "43040a3ad74141cad83f08bcde6a51e3a6b67d2214011a9f434012148a57a8d7",
+              "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+            },
+            "agentReruns": 0,
+            "workflowDispatch": 0,
+            "agentCancellations": 0,
+            "realRoonNasAudioDeviceOwner": "NOT_RUN"
+          },
+          "source59FinalCi": {
+            "fileName": "ROOT013_SOURCE59_CI_SNAPSHOT150.json",
+            "bytes": 91374,
+            "sha256": "353f4521137fd7e41978bbccdd1bd4d7b8a1c2b8b35ede90a9e27a629abfe79b",
             "storage": "PRIVATE_EXTERNAL_ARCHIVE"
           },
-          "rawCheck": {
-            "fileName": "ROOT013_SOURCE59_ELECTRON146_electron-check.json",
-            "bytes": 3075,
-            "sha256": "04439a85312c8c69a07c13f4c0334128e987526b3810d3fd0f360f6438a6ce6b",
+          "legacyAdmissionRepair": {
+            "fileName": "ROOT013_OLD012_ADMISSION_REPAIR_AUDIT154.json",
+            "bytes": 2506,
+            "sha256": "7b9f9905ebff2c9cc2f8a7a52544727b800808e4d2eb3705f0da94b62439f3a8",
             "storage": "PRIVATE_EXTERNAL_ARCHIVE"
           },
-          "rawAnnotations": {
-            "fileName": "ROOT013_SOURCE59_ELECTRON146_electron-annotations.json",
-            "bytes": 1426,
-            "sha256": "8bb74134d1c4bdb352497087ea980f4d345336bb04c9c85413b8c73aaea6ec2f",
+          "original012FullGate": {
+            "fileName": "ROOT013_ORIGINAL012_CLI_READBACK156.json",
+            "bytes": 6059,
+            "sha256": "70082aa062138f90f5dd7b089916589be35602dbe6633d0f4624cd2e01a5a5fb",
             "storage": "PRIVATE_EXTERNAL_ARCHIVE"
           },
-          "firstNaturalSnapshot": {
-            "fileName": "ROOT013_FINAL_SOURCE_CI_SNAPSHOT145.json",
-            "bytes": 88029,
-            "sha256": "43040a3ad74141cad83f08bcde6a51e3a6b67d2214011a9f434012148a57a8d7",
+          "currentStandard124DeclaredInputDifferences": [
+            ".github/workflows/electron-e2e.yml",
+            ".github/workflows/verify.yml",
+            "apps/desktop/e2e/private-rust-collection-host.ts",
+            "apps/desktop/e2e/private-rust-collection-main-host-wrapper.mjs",
+            "apps/desktop/e2e/private-rust-host.ts",
+            "apps/desktop/e2e/private-rust-main-host-wrapper.mjs",
+            "apps/desktop/test/mbrs013/ui.test.ts",
+            "scripts/ci/test/verify-mbrs012-source-writes.test.mjs",
+            "scripts/ci/verify-boundaries.mjs"
+          ],
+          "currentProduct692GraphStillExact": true,
+          "newCiAdmissionInputs": [
+            "scripts/ci/mbrs013-legacy-input-normalization.mjs",
+            "scripts/ci/test/mbrs013-legacy-input-normalization.test.mjs"
+          ],
+          "source3fcGate159Failure": {
+            "fileName": "ROOT013_EXACT_GATE159_FAILURE_READBACK165.json",
+            "bytes": 3351,
+            "sha256": "6a2f2924e951f9dbc9d976d2fc3e61ef46661b645503dcc5f29e29950efeb1f4",
             "storage": "PRIVATE_EXTERNAL_ARCHIVE"
           },
-          "agentReruns": 0,
-          "workflowDispatch": 0,
-          "agentCancellations": 0,
-          "realRoonNasAudioDeviceOwner": "NOT_RUN"
+          "scope16UiFieldKeyRepair": {
+            "fileName": "ROOT013_UI_FIELD_KEY_REPAIR_AUDIT168.json",
+            "bytes": 5680,
+            "sha256": "c5c5561522063add78dfd1dd8267d04c0b926afcaab389db6fb6bb42a52d5e5d",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+          },
+          "currentStandard124UnchangedDeclaredInputs": 1618,
+          "currentDeclaredInputsIncludingTwoNewCiFiles": 1630,
+          "source13eExactGateHistorical": {
+            "fileName": "ROOT013_EXACT_FINAL_SOURCE_GATE_AUDIT173.json",
+            "bytes": 7950,
+            "sha256": "7cc0b82aeeecf3d1e16f77828f400bf5c3c3c4709a68295012f44b633a6f3d0e",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+          },
+          "source13eFinalNaturalCi": {
+            "fileName": "ROOT013_SOURCE13E_CI_FINAL193.json",
+            "bytes": 99081,
+            "sha256": "c5762d9731e79c2db70a7ea8ea3db52db5e6214b48068467e105b0a4df79e744",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+          },
+          "scope17PrivateBootstrapCallbackRepair": {
+            "fileName": "ROOT013_PRIVATE_BOOTSTRAP_CALLBACK_REPAIR_AUDIT195.json",
+            "bytes": 5773,
+            "sha256": "79fe304eb9dacbed207211b8ea31d462527827cecb8e93cbc83a56aae1d51149",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+          },
+          "scope17CallbackCounts": {
+            "tests": 12,
+            "pass": 12,
+            "fail": 0,
+            "cancelled": 0,
+            "skipped": 0,
+            "todo": 0
+          },
+          "originalCompleteRustHostAndElectron12": "PENDING_NEW_EXACT_SOURCE_NOT_PRECLAIMED",
+          "newPrivateBootstrapRegressionFile": {
+            "path": "apps/desktop/test/private-host-bootstrap.test.ts",
+            "bytes": 16247,
+            "sha256": "f4bc467850e6547c81ca41fcc08f124e369ce865cd19c4bbd56aae21eb42d38c",
+            "glob": "ORIGINAL_DESKTOP_TEST_UNIT_ROOT_GLOB_ADDS_TWELVE_ONLY"
+          },
+          "source320ExactGate203Failure": {
+            "fileName": "ROOT013_EXACT_SOURCE320_GATE203_FAILURE_AUDIT221.json",
+            "bytes": 3263,
+            "sha256": "114a536bb6737fcdbbd955d1210d89226fbb4c5c223f4f9864d6ac6ad43502ff",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+          },
+          "scope18PrivateAssertTypesRepair": {
+            "fileName": "ROOT013_ASSERT_TYPES_REPAIR225.json",
+            "bytes": 2868,
+            "sha256": "c2322475d503a1d7cb8a10558ec5ab8313d2b067ef3fff1c76e31a7ccb5f5023",
+            "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+          },
+          "currentPrivateBootstrapRegressionTestFile": {
+            "path": "apps/desktop/test/private-host-bootstrap.test.ts",
+            "bytes": 16225,
+            "sha256": "2256d23aee5efc4312389f41358eb5aa12363945677776bd1828a574753ad781"
+          }
         },
-        "source59FinalCi": {
-          "fileName": "ROOT013_SOURCE59_CI_SNAPSHOT150.json",
-          "bytes": 91374,
-          "sha256": "353f4521137fd7e41978bbccdd1bd4d7b8a1c2b8b35ede90a9e27a629abfe79b",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
-        },
-        "legacyAdmissionRepair": {
-          "fileName": "ROOT013_OLD012_ADMISSION_REPAIR_AUDIT154.json",
-          "bytes": 2506,
-          "sha256": "7b9f9905ebff2c9cc2f8a7a52544727b800808e4d2eb3705f0da94b62439f3a8",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
-        },
-        "original012FullGate": {
-          "fileName": "ROOT013_ORIGINAL012_CLI_READBACK156.json",
-          "bytes": 6059,
-          "sha256": "70082aa062138f90f5dd7b089916589be35602dbe6633d0f4624cd2e01a5a5fb",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
-        },
-        "currentStandard124DeclaredInputDifferences": [
-          ".github/workflows/electron-e2e.yml",
-          ".github/workflows/verify.yml",
-          "apps/desktop/e2e/private-rust-collection-host.ts",
-          "apps/desktop/e2e/private-rust-collection-main-host-wrapper.mjs",
-          "apps/desktop/e2e/private-rust-host.ts",
-          "apps/desktop/e2e/private-rust-main-host-wrapper.mjs",
-          "apps/desktop/test/mbrs013/ui.test.ts",
-          "scripts/ci/test/verify-mbrs012-source-writes.test.mjs",
-          "scripts/ci/verify-boundaries.mjs"
-        ],
-        "currentProduct692GraphStillExact": true,
-        "newCiAdmissionInputs": [
-          "scripts/ci/mbrs013-legacy-input-normalization.mjs",
-          "scripts/ci/test/mbrs013-legacy-input-normalization.test.mjs"
-        ],
-        "source3fcGate159Failure": {
-          "fileName": "ROOT013_EXACT_GATE159_FAILURE_READBACK165.json",
-          "bytes": 3351,
-          "sha256": "6a2f2924e951f9dbc9d976d2fc3e61ef46661b645503dcc5f29e29950efeb1f4",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
-        },
-        "scope16UiFieldKeyRepair": {
-          "fileName": "ROOT013_UI_FIELD_KEY_REPAIR_AUDIT168.json",
-          "bytes": 5680,
-          "sha256": "c5c5561522063add78dfd1dd8267d04c0b926afcaab389db6fb6bb42a52d5e5d",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
-        },
-        "currentStandard124UnchangedDeclaredInputs": 1618,
-        "currentDeclaredInputsIncludingTwoNewCiFiles": 1630,
-        "source13eExactGateHistorical": {
-          "fileName": "ROOT013_EXACT_FINAL_SOURCE_GATE_AUDIT173.json",
-          "bytes": 7950,
-          "sha256": "7cc0b82aeeecf3d1e16f77828f400bf5c3c3c4709a68295012f44b633a6f3d0e",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
-        },
-        "source13eFinalNaturalCi": {
-          "fileName": "ROOT013_SOURCE13E_CI_FINAL193.json",
-          "bytes": 99081,
-          "sha256": "c5762d9731e79c2db70a7ea8ea3db52db5e6214b48068467e105b0a4df79e744",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
-        },
-        "scope17PrivateBootstrapCallbackRepair": {
-          "fileName": "ROOT013_PRIVATE_BOOTSTRAP_CALLBACK_REPAIR_AUDIT195.json",
-          "bytes": 5773,
-          "sha256": "79fe304eb9dacbed207211b8ea31d462527827cecb8e93cbc83a56aae1d51149",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
-        },
-        "scope17CallbackCounts": {
-          "tests": 12,
-          "pass": 12,
-          "fail": 0,
-          "cancelled": 0,
-          "skipped": 0,
-          "todo": 0
-        },
-        "originalCompleteRustHostAndElectron12": "PENDING_NEW_EXACT_SOURCE_NOT_PRECLAIMED",
-        "newPrivateBootstrapRegressionFile": {
-          "path": "apps/desktop/test/private-host-bootstrap.test.ts",
-          "bytes": 16247,
-          "sha256": "f4bc467850e6547c81ca41fcc08f124e369ce865cd19c4bbd56aae21eb42d38c",
-          "glob": "ORIGINAL_DESKTOP_TEST_UNIT_ROOT_GLOB_ADDS_TWELVE_ONLY"
-        },
-        "source320ExactGate203Failure": {
-          "fileName": "ROOT013_EXACT_SOURCE320_GATE203_FAILURE_AUDIT221.json",
-          "bytes": 3263,
-          "sha256": "114a536bb6737fcdbbd955d1210d89226fbb4c5c223f4f9864d6ac6ad43502ff",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
-        },
-        "scope18PrivateAssertTypesRepair": {
-          "fileName": "ROOT013_ASSERT_TYPES_REPAIR225.json",
-          "bytes": 2868,
-          "sha256": "c2322475d503a1d7cb8a10558ec5ab8313d2b067ef3fff1c76e31a7ccb5f5023",
-          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
-        },
-        "currentPrivateBootstrapRegressionTestFile": {
-          "path": "apps/desktop/test/private-host-bootstrap.test.ts",
-          "bytes": 16225,
-          "sha256": "2256d23aee5efc4312389f41358eb5aa12363945677776bd1828a574753ad781"
-        }
+        "oldStandard124App126DoesNotCoverNativeFdProductChange": true
       },
-      "oldStandard124App126DoesNotCoverNativeFdProductChange": true
+      "oldStandard286InputGraphNotCurrentOnlyProductSame": true
     },
     "implementationCommitResolution": "SOURCE_COMMIT_CONTAINING_CURRENT_013_IMPLEMENTATION",
     "report": "reports/MBRS-013_LOCAL_RELOCATION.md",
@@ -47580,11 +47737,14 @@
       "docs/postrust/MBRS-013/evidence/private-host-assert-types-repair.json",
       "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT19.json",
       "docs/postrust/MBRS-013/evidence/source589-electron-qualification-failure.json",
-      "docs/postrust/MBRS-013/evidence/native-mount-fd-repair.json"
+      "docs/postrust/MBRS-013/evidence/native-mount-fd-repair.json",
+      "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT20.json",
+      "docs/postrust/MBRS-013/evidence/sourcef328-rust-unit-failure.json",
+      "docs/postrust/MBRS-013/evidence/rust-deadline-unit-repair.json"
     ],
-    "push": "SOURCE589_REMOTE_EXACT_NEW_SCOPE19_SOURCE_COMMIT_NOT_PUSHED",
-    "ci": "SOURCE589_FIVE_JOBS_PASS_ELECTRON_E2E_FAIL_PRESERVED_NEW_SCOPE19_SOURCE_CI_NOT_STARTED",
-    "updatedAt": "2026-10-08T20:29:16.610446+00:00"
+    "push": "SOURCEF328_REMOTE_EXACT_NEW_SCOPE20_SOURCE_NOT_YET_PUSHED",
+    "ci": "SOURCEF328_ORIGINAL_RUST_UNIT_FAILURE_PRESERVED_NEW_SCOPE20_SOURCE_CI_NOT_STARTED",
+    "updatedAt": "2026-10-08T21:14:16.707551+00:00"
   },
   "mobileFrontloading20261008": {
     "state": "SCHEDULE_ADOPTED_MOBILE_TASKS_NOT_STARTED",

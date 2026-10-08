@@ -1,0 +1,59 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "id": "SCOPE_ADJUSTMENT20",
+  "parentSource": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+  "authority": "INHERITED_OWNER_CONTINUOUS_AUTHORIZATION_NO_NEW_APPROVAL",
+  "reason": "原f328首轮Electron step9在原Rust第14组的第14用例232行前提失败；TIMEOUT断言已通过，未记录具体块数或调度原因。只将该受控unit的真实延迟改为确定单调时钟与顺序ACK驱动，保持原期限并加强整体超时与迟到ACK无恢复。",
+  "delegatedOwnedFiles": {
+    "delivery012_core": [
+      "packages/bridge-core/test/rust-large-sidecar.test.ts"
+    ]
+  },
+  "allowedChange": "ONLY_EXISTING_14TH_CONTROLLED_UNIT_CASE_CLOCK_ACK_DRIVE_AND_RESTORATION_ALL_OUTSIDE_BYTES_EXACT",
+  "rootOwnedFiles": [
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT20.json",
+    "docs/postrust/MBRS-013/EXECUTION_SCOPE.json",
+    "docs/postrust/MBRS-013/evidence/sourcef328-rust-unit-failure.json",
+    "docs/postrust/MBRS-013/evidence/rust-deadline-unit-repair.json",
+    "project/STATUS.json",
+    "project/POSTRUST_PLAN.json",
+    "project/POSTRUST_TODO.md",
+    "project/POSTRUST_PROGRESS.md"
+  ],
+  "beforeTest": {
+    "path": "packages/bridge-core/test/rust-large-sidecar.test.ts",
+    "bytes": 22033,
+    "sha256": "660b2b9f506a10f5e61efa7329ff76b5aa49a0dd133f77453af9a879227eda44"
+  },
+  "originalBudgets": {
+    "startupMs": 800,
+    "requestMs": 2000,
+    "controlledAckDelayMs": 240,
+    "originalRealUntilMs": 2000
+  },
+  "original21Cases30Stages529FrozenCasesElectron12Playwright114Unchanged": true,
+  "all692ProductionInputsUnchangedRequired": true,
+  "noProductionDeadlineStartMoveOrTimeoutIncrease": true,
+  "deterministicClockAndAcknowledgementsAreControlledUnitOnly": true,
+  "realPerformanceOrHostedSchedulingCause": "NOT_PROVEN",
+  "newExactSourceGateAndCi": "PENDING_NOT_PRECLAIMED",
+  "compilerAndActualExecutor": "ROOT_ONLY",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN",
+  "recordedAt": "2026-10-08T21:00:07.334742+00:00",
+  "afterTest": {
+    "bytes": 22695,
+    "sha256": "9bcc1b26e2acec82785deab4016dabd5a8b3359c757f51a720b9c782cef4e2f1"
+  },
+  "actualUnitEvidence": "docs/postrust/MBRS-013/evidence/rust-deadline-unit-repair.json",
+  "originalFailureEvidence": "docs/postrust/MBRS-013/evidence/sourcef328-rust-unit-failure.json",
+  "actualExecutor": "ROOT_ONLY",
+  "implementationAuthor": "ROOT",
+  "unitOnlyRuntimeAudit": {
+    "fileName": "ROOT013_SCOPE20_UNIT_RUNTIME_AUDIT341.json",
+    "bytes": 6249,
+    "sha256": "d9ca14eb162a80f29abef06e77c9e450025c6f344d8657a063e1edda14084f2f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  }
+}

@@ -1,0 +1,210 @@
+{
+  "schema": "mbrs013.rust-shared-deadline-controlled-unit-repair.v1",
+  "task": "MBRS-013",
+  "sourceBaseline": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+  "result": "PASS_LOCAL_ORIGINAL21_TYPES_FULL_STANDARD4721_CONTROLLED_TEST_ONLY_NEW_SOURCE_CI_PENDING",
+  "changedTestPath": "packages/bridge-core/test/rust-large-sidecar.test.ts",
+  "before": {
+    "bytes": 22033,
+    "sha256": "660b2b9f506a10f5e61efa7329ff76b5aa49a0dd133f77453af9a879227eda44"
+  },
+  "after": {
+    "bytes": 22695,
+    "sha256": "9bcc1b26e2acec82785deab4016dabd5a8b3359c757f51a720b9c782cef4e2f1"
+  },
+  "outsideOriginalCaseBytesInverseExact": true,
+  "original21CaseTitlesAndCountsUnchanged": true,
+  "productionInputs": {
+    "count": 692,
+    "identity": "9ea6137cddca961cc505538da10c8e3b5958d7f53bae6dfec173cf08a8bdaeab",
+    "allExactScope19Inputs283AndSourceF328": true
+  },
+  "declaredSourceTestInputs": {
+    "count": 1631,
+    "identity": "68025ee037e46a16a57818db65e53bcac9ab4da3db5b5e4599d5ce9fea40ce56",
+    "oneChangedTestOnlyFrom283": [
+      {
+        "path": "packages/bridge-core/test/rust-large-sidecar.test.ts",
+        "before": {
+          "bytes": 22033,
+          "sha256": "660b2b9f506a10f5e61efa7329ff76b5aa49a0dd133f77453af9a879227eda44"
+        },
+        "after": {
+          "bytes": 22695,
+          "sha256": "9bcc1b26e2acec82785deab4016dabd5a8b3359c757f51a720b9c782cef4e2f1"
+        }
+      }
+    ],
+    "fullTransitiveToolchainClosure": false
+  },
+  "originalBudgets": {
+    "startupMs": 800,
+    "requestMs": 2000,
+    "controlledAckMs": 240,
+    "models": 513,
+    "finalRealUntilMs": 2000
+  },
+  "clock": "NODE22_CONTROLLED_UNIT_PERFORMANCE_NOW_AND_SET_TIMEOUT_ADVANCE_TOGETHER",
+  "ackTimelineMs": [
+    240,
+    480,
+    720,
+    960
+  ],
+  "checks": [
+    "original TIMEOUT and >=2 premise",
+    "original late ACK no extra frame no commitBoot no Owner close",
+    "exact append indices 0 1 2 3",
+    "restore real clock and timer before original until"
+  ],
+  "focusedOriginal21": {
+    "label": "root013-scope20-rust-large323",
+    "head": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+    "directory": "packages/bridge-core",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 3.581147249962669,
+    "log": {
+      "file": "root013-scope20-rust-large323.log",
+      "bytes": 4839,
+      "sha256": "45132f34ee30c54b372817bf2d9d0390fa606592b1e79c1da5d1511262430744"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "types": {
+    "label": "root013-scope20-core-types324",
+    "head": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+    "directory": "packages/bridge-core",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 8.685941041971091,
+    "log": {
+      "file": "root013-scope20-core-types324.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "controlledNegative": {
+    "execution": {
+      "label": "root013-scope20-controlled-negative329",
+      "head": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+      "directory": "packages/bridge-core",
+      "exitCode": 1,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 0.41839770798105747,
+      "log": {
+        "file": "root013-scope20-controlled-negative329.log",
+        "bytes": 1193,
+        "sha256": "eab3b466a1abc41dcf9d846a4b4852a6a95524cbde4838665f528e969ab45b4e"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "expectedNaturalExit": 1,
+    "onlyPrivateInputDifference": "STARTUP800_TO2000_WITH_ABSOLUTE_MODULE_ADDRESSES",
+    "actualAssertion": "MISSING_EXPECTED_REJECTION",
+    "notProductDeadlineChangeOrPerformanceEvidence": true,
+    "priorPrivate327ModuleLoadFailureIsBehaviorProof": false
+  },
+  "unitRuntimeAudit": {
+    "fileName": "ROOT013_SCOPE20_UNIT_RUNTIME_AUDIT341.json",
+    "bytes": 6249,
+    "sha256": "d9ca14eb162a80f29abef06e77c9e450025c6f344d8657a063e1edda14084f2f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "independentUnitReview": {
+    "fileName": "APP_SCOPE20_UNIT321_INDEPENDENT_REVIEW01.json",
+    "bytes": 8298,
+    "sha256": "04416fd4fb815ef20d87ddd2be9cf51e5bec543cbb8f6661cb361b2406d5dfc4",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "standard": {
+    "label": "root013-scope20-standard325",
+    "head": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+    "directory": "",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 319.8821505830274,
+    "log": {
+      "file": "root013-scope20-standard325.log",
+      "bytes": 1144097,
+      "sha256": "6dfa08437ae897c952040cb4ed37a96a0c4224ef64b6c0b1ac6db779a72de209"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "standardCounts": {
+    "tests": 4721,
+    "pass": 4719,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "standardFullAudit": {
+    "fileName": "ROOT013_STANDARD325_FULL_AUDIT330.json",
+    "bytes": 6755,
+    "sha256": "5d8741a2ed2c8fb14092f2fe0689dd555c5981abf3538a72184f2db49d785667",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "sourceTestGraph": {
+    "fileName": "ROOT013_CURRENT_INPUTS320_SOURCE.json",
+    "bytes": 447428,
+    "sha256": "657d4df01e7af8b90a54d1a534b1285dfb0c113de758fc46010143e32287df2c",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "appReuse": {
+    "execution": {
+      "label": "root013-production-app289",
+      "head": "58974a0da54e70eb8a8437c7a7a6bc8de7b4d7f1",
+      "directory": "apps/desktop",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 19.010774916037917,
+      "log": {
+        "file": "root013-production-app289.log",
+        "bytes": 668,
+        "sha256": "5f757555f1d8d14f2285bca58ab77cc405ed29eee3b58a78033a40025da2ffa5"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "independentOutputAudit": {
+      "fileName": "PRODUCTION_APP291_INDEPENDENT_OUTPUT_AUDIT.json",
+      "bytes": 5081,
+      "sha256": "392f94cc5ce68105f574efa62fb4371a597604f0ac213b78bec220053ab2829d",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "independentClosedHistoryReadback": {
+      "fileName": "PRODUCTION_APP289_HISTORY_BOUNDARY_READBACK292.json",
+      "bytes": 64460,
+      "sha256": "511810ac6f635595cb05578911ac9a8fbddf4489bbee6bc9b4fa3ca8494fb88e",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    },
+    "source": "HISTORICAL_ACTUAL_APP289_EXECUTION_ON_EXACT_SAME692_PRODUCT_INPUTS",
+    "newSourceAppExecution": false,
+    "old1631GraphIsExactCurrentGraph": false,
+    "sourceBindingsNonemptyHistoryProven": false,
+    "realRoonNasCrossVolumeAudioDeviceOwner": "NOT_RUN"
+  },
+  "newExactSourceGateRust30Electron12AndFirstNaturalCi": "PENDING_NOT_PRECLAIMED",
+  "originalFrozen529AndAllGateBudgetsUnchanged": true,
+  "hostedPreciseSchedulingCause": "NOT_PROVEN",
+  "productionDeadlineStartpointOrBudgetChanged": false,
+  "originalEightAt": "ALL_PARTIAL_LIVE_OWNER_OPEN",
+  "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+}

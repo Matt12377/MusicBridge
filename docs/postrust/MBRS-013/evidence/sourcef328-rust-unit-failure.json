@@ -1,0 +1,91 @@
+{
+  "schema": "mbrs013.original-rust-controlled-unit-ci-failure.v1",
+  "task": "MBRS-013",
+  "sourceSha": "f3287978ac725fa3e452e5b897c75495ebce28c0",
+  "result": "ORIGINAL_FIRST_NATURAL_SOURCE_ELECTRON_PREPARE_RUST_UNIT_FAILURE_PRESERVED",
+  "producer": {
+    "repository": "Matt12377/MusicBridge",
+    "runId": 37840699951,
+    "jobId": 113529018596,
+    "event": "push",
+    "attempt": 1,
+    "conclusion": "failure"
+  },
+  "failedStep": {
+    "number": 9,
+    "stage": "Prepare Rust native reader and both Main hosts",
+    "originalRustStage": 14,
+    "originalRustGroup": "ts-large-snapshot"
+  },
+  "unit": {
+    "path": "packages/bridge-core/test/rust-large-sidecar.test.ts",
+    "case": 14,
+    "line": 232,
+    "counts": {
+      "tests": 21,
+      "pass": 20,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "originalTimeoutAssertionPassed": true,
+    "failedPremise": "delayed.length >= 2",
+    "actualDelayedCount": "NOT_LOGGED",
+    "preciseSchedulingCpuOrGcCause": "NOT_PROVEN"
+  },
+  "originalElectron12": "NOT_REACHED_BY_THIS_CI",
+  "originalPlaywright114": "NOT_REACHED_BY_THIS_CI",
+  "secondNativeQualificationFailure": "NOT_PROVEN_NOT_REACHED",
+  "wholeJobLog": {
+    "fileName": "ROOT013_SOURCEF328_ELECTRON_FULL_LOG314.log",
+    "bytes": 65343,
+    "sha256": "054dd3307c8c80bc6ba8de909e5700246bf8dc22f865e9b924b33db658634b20",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "originalUnitWholeLog": {
+    "fileName": "ts-large-snapshot.log",
+    "bytes": 5579,
+    "sha256": "e882beb552f8e35cbfa25ec4b546c1106ec698a906bb12b03122eb40b189a432",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "originalRustFailure": {
+    "fileName": "failure.json",
+    "bytes": 6598,
+    "sha256": "2fd0a26017919c4ca10eef9dfa2c0bf57beebe64d65136b9b988647a943ae9bb",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "actualFailureArchive": {
+    "id": 11577074988,
+    "bytes": 300980685,
+    "selection": "THREE_EXACT_MEMBERS_BOUNDED_206_RANGE_REQUESTS",
+    "zipBytesRead": 3382130,
+    "requests": 11,
+    "wholeZipDigestVerified": false,
+    "independentFdAudit": {
+      "fileName": "APP_PROOFS_ARTIFACT11577074988_FINAL_FD_AUDIT316.json",
+      "bytes": 12703,
+      "sha256": "255cf664d35d8a8e0acba384b854e1f635ffdfbb86dc807791b34c3ecbc75d5f",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+      "publiclyDownloadable": false
+    }
+  },
+  "ciSnapshotAtFailurePreservation": {
+    "fileName": "ROOT013_SOURCEF328_CI_PROGRESS304_05.json",
+    "bytes": 96477,
+    "sha256": "7a77e11e53f1534207e7c1e554ff94fe308ebe68fdc73d95c79188cf5b52bc20",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "ciSnapshotMayContainOtherStillRunningJob": true,
+  "archiveAlwaysStepIsTestPass": false,
+  "originalFailureSwallowed": false,
+  "reruns": 0,
+  "workflowDispatch": 0,
+  "agentCancellations": 0,
+  "productionDeadlineBug": "NOT_ESTABLISHED",
+  "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+}
