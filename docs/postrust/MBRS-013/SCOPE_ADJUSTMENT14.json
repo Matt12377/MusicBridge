@@ -1,0 +1,85 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "id": "SCOPE_ADJUSTMENT14",
+  "source59": "59ba9200df381ce870ccd239381bec01777e7bf3",
+  "authority": "INHERITED_OWNER_CONTINUOUS_AUTHORIZATION_NO_NEW_APPROVAL",
+  "reason": "首次自然Electron作业未获分配runner，平台明确macOS arm64容量不足；改用官方受支持标准macOS15 Intel固定环境，解决执行分配障碍，不放宽或删减测试。",
+  "addedRootOwnedFiles": [
+    ".github/workflows/electron-e2e.yml",
+    "scripts/ci/verify-boundaries.mjs"
+  ],
+  "files": [
+    {
+      "path": ".github/workflows/electron-e2e.yml",
+      "before": {
+        "bytes": 7554,
+        "sha256": "e37bc7a0065157191d9ef059cc4c8e57b88c12d5d61422635de84bddb93d26cb"
+      },
+      "after": {
+        "bytes": 7556,
+        "sha256": "16423e85378d328293df2bb696279120ccfb563028dc841a9be51e3d8ea3b05b"
+      },
+      "change": "ONLY_RUNS_ON_MACOS_LATEST_TO_MACOS_15_INTEL",
+      "priorLabel": "macos-latest",
+      "newLabel": "macos-15-intel"
+    },
+    {
+      "path": "scripts/ci/verify-boundaries.mjs",
+      "before": {
+        "bytes": 5486,
+        "sha256": "20de6a691d0d751babb3b5695060bdd143dfbd7f571f4c752cda731a7c485f02"
+      },
+      "after": {
+        "bytes": 5680,
+        "sha256": "bee1e19b745016ca59ee707c01435227e8c412d1d5b96fad82d9ce35a53a80fe"
+      },
+      "change": "EXACT_ANCHORED_OFFICIAL_STANDARD_MACOS_RUNNER_ALLOWLIST_ONLY_ORIGINAL_ELECTRON_COMMAND_GUARDS_UNCHANGED"
+    }
+  ],
+  "officialReferences": [
+    "https://docs.github.com/en/actions/reference/runners/github-hosted-runners",
+    "https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md"
+  ],
+  "officialLabelVerifiedAt": "2026-10-08T16:57:43.731210+00:00",
+  "officialStandardPublicRepositoryRunner": true,
+  "noPaidLargerRunnerNoSelfHostedRunnerNoNewCredentials": true,
+  "runnerChangeMeaning": "HOSTED_ELECTRON_DARWIN_X64_SOFTWARE_GATE_NOT_ARM64_PRODUCTION_DEVICE_CLAIM",
+  "unchanged": {
+    "electronTimeoutMinutes": 45,
+    "rustTimeoutMinutes": 20,
+    "allElectronStepsCommandsAssertionsTrue": true,
+    "allOriginalBudgets": true,
+    "coreProductAndAllTests": true,
+    "optionalRustDefaultOff": true,
+    "rustMatrixUbuntuAndMacosArm64": true,
+    "existingLocalArm64App126": true,
+    "original426AndNew103Counts": true,
+    "standard124ProductCount": 692,
+    "standard124ProductIdentity": "8aba75d202898e08501b4fbc6f254bc19072a9caa939753db936ee980b0d40c2",
+    "source59ExactGate136": "HISTORICAL_EXACT_SOURCE59_SUCCESS_REQUIRES_NEW_SOURCE_BINDING",
+    "original18Tasks156At": true,
+    "other17Tasks148At": true,
+    "fullStandard124InputsExceptTwoCiAdmissionFiles": true
+  },
+  "failureRef": "docs/postrust/MBRS-013/evidence/source59-hosted-runner-failure.json",
+  "originalRunPreserved": true,
+  "reruns": 0,
+  "agentCancellations": 0,
+  "currentFullCiAndNewExactSourceGate": "NOT_PRECLAIMED",
+  "originalEightAt": "PARTIAL",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN",
+  "boundaryGuard": "EXACT_ANCHORED_MACOS_LATEST_OR_MACOS_15_INTEL_ONLY_NEVER_LINUX_COMMENT_OR_ARBITRARY_LABEL; ORIGINAL_TEST_ELECTRON_AND_TEST_E2E_STILL_REQUIRED",
+  "actualLocalAdmission": {
+    "result": "PASS_EIGHT_ACTUAL_BOUNDARY_SCRIPT_POSITIVE_NEGATIVE_CASES",
+    "cases": 8,
+    "publicEvidence": "docs/postrust/MBRS-013/evidence/hosted-runner-admission.json",
+    "privateAudit": {
+      "fileName": "ROOT013_RUNNER_ADMISSION_BEHAVIOR149.json",
+      "bytes": 5913,
+      "sha256": "22c304a9cda0fcdd3d766893c772da1b350b76b1790759a8e1872e68389d68ad"
+    },
+    "standardBoundaryExitCode": 0,
+    "original426AndNew103Unchanged": true
+  }
+}

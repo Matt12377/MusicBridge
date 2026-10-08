@@ -1,0 +1,94 @@
+{
+  "schema": "mbrs013.hosted-runner-failure.v1",
+  "sourceSha": "59ba9200df381ce870ccd239381bec01777e7bf3",
+  "runId": 37809850373,
+  "jobId": 113423561282,
+  "workflow": ".github/workflows/electron-e2e.yml",
+  "workflowConclusion": "failure",
+  "jobConclusion": "cancelled",
+  "runnerId": 0,
+  "runnerName": "",
+  "steps": [],
+  "artifactCount": 0,
+  "actualAnnotations": [
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
+      "start_line": 1,
+      "start_column": null,
+      "end_line": 1,
+      "end_column": null,
+      "annotation_level": "failure",
+      "title": "",
+      "message": "The job was not acquired by Runner of type hosted even after multiple attempts",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
+      "start_line": 1,
+      "start_column": null,
+      "end_line": 1,
+      "end_column": null,
+      "annotation_level": "notice",
+      "title": "",
+      "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
+      "start_line": 1,
+      "start_column": null,
+      "end_line": 1,
+      "end_column": null,
+      "annotation_level": "notice",
+      "title": "",
+      "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
+      "start_line": 1,
+      "start_column": null,
+      "end_line": 1,
+      "end_column": null,
+      "annotation_level": "notice",
+      "title": "",
+      "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+      "raw_details": ""
+    }
+  ],
+  "result": "PLATFORM_HOSTED_ARM64_CAPACITY_FAILURE_BEFORE_ANY_TEST_EXECUTION",
+  "localProductVerification": "CURRENT_STANDARD124_APP126_GATE136_PROVEN_SEPARATELY",
+  "otherCurrentSourceCi": "CONTINUES_NATURALLY_NOT_CANCELLED_NOT_PRECLAIMED",
+  "rawRun": {
+    "fileName": "ROOT013_SOURCE59_ELECTRON146_electron-run.json",
+    "bytes": 12251,
+    "sha256": "dead71b527bdf62732a6aeca9026efe82ea7a7fa2a39bb93f46c283e0596fb7d",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "rawCheck": {
+    "fileName": "ROOT013_SOURCE59_ELECTRON146_electron-check.json",
+    "bytes": 3075,
+    "sha256": "04439a85312c8c69a07c13f4c0334128e987526b3810d3fd0f360f6438a6ce6b",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "rawAnnotations": {
+    "fileName": "ROOT013_SOURCE59_ELECTRON146_electron-annotations.json",
+    "bytes": 1426,
+    "sha256": "8bb74134d1c4bdb352497087ea980f4d345336bb04c9c85413b8c73aaea6ec2f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "firstNaturalSnapshot": {
+    "fileName": "ROOT013_FINAL_SOURCE_CI_SNAPSHOT145.json",
+    "bytes": 88029,
+    "sha256": "43040a3ad74141cad83f08bcde6a51e3a6b67d2214011a9f434012148a57a8d7",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "agentReruns": 0,
+  "workflowDispatch": 0,
+  "agentCancellations": 0,
+  "realRoonNasAudioDeviceOwner": "NOT_RUN"
+}

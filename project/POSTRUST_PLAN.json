@@ -32317,7 +32317,7 @@
       "depends_on": [
         "MBRS-012"
       ],
-      "status": "CURRENT_REPAIR_LOCAL_SOFTWARE_COMPLETE_NEW_SOURCE_GATE_CI_PENDING",
+      "status": "HOSTED_ELECTRON_RUNNER_CONFIGURATION_REPAIR_DELIVERY_PENDING",
       "implementation_owner": "MBRS-013",
       "goal": "保留逻辑身份与历史引用，让下次点播使用新位置，不等待Roon重扫。",
       "steps": [
@@ -32350,7 +32350,7 @@
       "optional_inputs": [],
       "implementation_commit": null,
       "report_commit": null,
-      "validation_status": "PASS_CURRENT_FINITE_LOCAL_LIVE_CARRYOVER_OPEN_SOURCE_CI_PENDING",
+      "validation_status": "LOCAL_PRODUCT_SOFTWARE_PASS_SOURCE59_PLATFORM_ALLOCATION_FAILURE_NEW_EXACT_SOURCE_CI_PENDING",
       "evidence_refs": [
         "docs/postrust/MBRS-013/evidence/local-standard-verify.json",
         "docs/postrust/MBRS-013/evidence/production-app.json",
@@ -32368,7 +32368,10 @@
         "docs/postrust/MBRS-013/evidence/local-electron-repair.json",
         "docs/postrust/MBRS-013/evidence/source-s1-ci-failure.json",
         "docs/postrust/MBRS-013/evidence/core-repair-readonly-review.json",
-        "docs/postrust/MBRS-013/evidence/original-eight-at-repair.json"
+        "docs/postrust/MBRS-013/evidence/original-eight-at-repair.json",
+        "docs/postrust/MBRS-013/evidence/source59-hosted-runner-failure.json",
+        "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT14.json",
+        "docs/postrust/MBRS-013/evidence/hosted-runner-admission.json"
       ],
       "base_sha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
       "branch": "codex/mbrs-013-relocation",

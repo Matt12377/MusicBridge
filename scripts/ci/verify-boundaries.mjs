@@ -113,7 +113,9 @@ if (/xvfb-run|test:startup|test:electron|test:e2e/.test(platformVerify)) fail('v
 // The macOS Electron gate must run both the Electron unit gate (startup, crash,
 // safeStorage vault, credential recovery) and the Playwright end-to-end flow.
 const electronGate = text('.github/workflows/electron-e2e.yml')
-for (const required of ['runs-on: macos-latest', 'test:electron', 'test:e2e']) {
+// 仅准入官方标准macOS runner，避免固定的Intel环境被旧字面守卫误拒。
+if (!/^    runs-on: macos-(?:latest|15-intel)\r?$/mu.test(electronGate)) fail('electron-gate-missing:supported-macos-runner')
+for (const required of ['test:electron', 'test:e2e']) {
   if (!electronGate.includes(required)) fail(`electron-gate-missing:${required}`)
 }
 

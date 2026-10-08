@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   macos-electron-gate:
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     timeout-minutes: 45
     steps:
       - name: Checkout

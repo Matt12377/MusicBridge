@@ -1,0 +1,168 @@
+{
+  "schema": "mbrs013.runner-admission-behavior.v1",
+  "result": "PASS_EIGHT_ACTUAL_BOUNDARY_SCRIPT_POSITIVE_NEGATIVE_CASES",
+  "cases": [
+    {
+      "case": "actual-intel",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "expected": "BOUNDARIES=PASS",
+      "raw": {
+        "fileName": "ROOT013_RUNNER149_actual-intel.log",
+        "bytes": 16,
+        "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "workflowBytes": 7556,
+      "workflowSha256": "16423e85378d328293df2bb696279120ccfb563028dc841a9be51e3d8ea3b05b"
+    },
+    {
+      "case": "original-macos",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "expected": "BOUNDARIES=PASS",
+      "raw": {
+        "fileName": "ROOT013_RUNNER149_original-macos.log",
+        "bytes": 16,
+        "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "workflowBytes": 7554,
+      "workflowSha256": "e37bc7a0065157191d9ef059cc4c8e57b88c12d5d61422635de84bddb93d26cb"
+    },
+    {
+      "case": "linux-refused",
+      "exitCode": 1,
+      "signal": null,
+      "closeObserved": true,
+      "expected": "electron-gate-missing:supported-macos-runner",
+      "raw": {
+        "fileName": "ROOT013_RUNNER149_linux-refused.log",
+        "bytes": 68,
+        "sha256": "b5ab1fa4054b025c734b91144de1ed7f012ad2021d79a32854176043820c3fcc",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "workflowBytes": 7555,
+      "workflowSha256": "7460671e108fda8be4e6591437064f1fb6c18743b8004ff6a627790bced665c9"
+    },
+    {
+      "case": "arbitrary-macos-refused",
+      "exitCode": 1,
+      "signal": null,
+      "closeObserved": true,
+      "expected": "electron-gate-missing:supported-macos-runner",
+      "raw": {
+        "fileName": "ROOT013_RUNNER149_arbitrary-macos-refused.log",
+        "bytes": 68,
+        "sha256": "b5ab1fa4054b025c734b91144de1ed7f012ad2021d79a32854176043820c3fcc",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "workflowBytes": 7554,
+      "workflowSha256": "24adbcbaf32f0de4e1ad905e43650df96f9a11dd9597edeb575582126aa4e164"
+    },
+    {
+      "case": "comment-spoof-refused",
+      "exitCode": 1,
+      "signal": null,
+      "closeObserved": true,
+      "expected": "electron-gate-missing:supported-macos-runner",
+      "raw": {
+        "fileName": "ROOT013_RUNNER149_comment-spoof-refused.log",
+        "bytes": 68,
+        "sha256": "b5ab1fa4054b025c734b91144de1ed7f012ad2021d79a32854176043820c3fcc",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "workflowBytes": 7583,
+      "workflowSha256": "dc4b5024b4f681f0a2823ca6bab59339757650c936324878db501c5e46b48f52"
+    },
+    {
+      "case": "paid-label-refused",
+      "exitCode": 1,
+      "signal": null,
+      "closeObserved": true,
+      "expected": "electron-gate-missing:supported-macos-runner",
+      "raw": {
+        "fileName": "ROOT013_RUNNER149_paid-label-refused.log",
+        "bytes": 68,
+        "sha256": "b5ab1fa4054b025c734b91144de1ed7f012ad2021d79a32854176043820c3fcc",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "workflowBytes": 7562,
+      "workflowSha256": "ebb68f926efec708f4eb1e83bccbff996d4b5b3e358e900b54125d7d37179bfe"
+    },
+    {
+      "case": "missing-electron-refused",
+      "exitCode": 1,
+      "signal": null,
+      "closeObserved": true,
+      "expected": "electron-gate-missing:test:electron",
+      "raw": {
+        "fileName": "ROOT013_RUNNER149_missing-electron-refused.log",
+        "bytes": 59,
+        "sha256": "1907aa58ab5f2c20ea5708be63f0b14502d10b6a5cc22543024ca1af6ead52a3",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "workflowBytes": 7564,
+      "workflowSha256": "d0cef299a2b2ab616eaa9b72d202156f22460e9413fbc1c51db24b8fb59ce53d"
+    },
+    {
+      "case": "missing-e2e-refused",
+      "exitCode": 1,
+      "signal": null,
+      "closeObserved": true,
+      "expected": "electron-gate-missing:test:e2e",
+      "raw": {
+        "fileName": "ROOT013_RUNNER149_missing-e2e-refused.log",
+        "bytes": 54,
+        "sha256": "98defd0f5c2c9ccf8a3b978a8cc6f3569dfbe98b294826048837ab4e4bd9e91a",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "workflowBytes": 7564,
+      "workflowSha256": "2d73bd2a12064728022d562cbceb841871949b09832740447f87ed00c623e36f"
+    }
+  ],
+  "inputFiles": [
+    {
+      "path": "apps/desktop/src/main/security.ts",
+      "bytes": 1773,
+      "sha256": "dcdc2a8d0dfebe71133bc39e444b9b16c39c7e4a8f120e6718e62009efb95cdf"
+    },
+    {
+      "path": "packages/bridge-core/src/config/config.ts",
+      "bytes": 8715,
+      "sha256": "191f7228e93bfe4b36c53adfaa203c2aab754f89d2297f7373f0ac375773c915"
+    },
+    {
+      "path": ".github/workflows/verify.yml",
+      "bytes": 12433,
+      "sha256": "fb5d36f895f10ad7cc117104dd8281465bd18ed2ce51875ccd94c92562833414"
+    },
+    {
+      "path": ".github/workflows/security.yml",
+      "bytes": 938,
+      "sha256": "be78bcb533920f887e52413c1740a78354f34273f86c076e5629bc6db17715ba"
+    },
+    {
+      "path": ".github/workflows/electron-e2e.yml",
+      "bytes": 7556,
+      "sha256": "16423e85378d328293df2bb696279120ccfb563028dc841a9be51e3d8ea3b05b"
+    },
+    {
+      "path": ".github/workflows/rust-core.yml",
+      "bytes": 2998,
+      "sha256": "2603f491084e2bdc8b294ef7e5949a6513b1e70e7082fbaeca407a239e3aeef5"
+    }
+  ],
+  "script": {
+    "path": "scripts/ci/verify-boundaries.mjs",
+    "bytes": 5680,
+    "sha256": "bee1e19b745016ca59ee707c01435227e8c412d1d5b96fad82d9ce35a53a80fe"
+  },
+  "original45MinuteBudgetAllStepsCommandsPreserved": true,
+  "allProductionTestsUnchanged": true,
+  "original426AndNew103InventoryUnchanged": true,
+  "fixture": "SELF_OWNED_EXTERNAL_SYNTHETIC_FILES_NOT_SOURCE_WORKTREE",
+  "liveProviderRoonAudioDeviceOwner": "NOT_RUN"
+}

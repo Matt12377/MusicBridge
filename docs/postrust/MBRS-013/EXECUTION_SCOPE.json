@@ -121,7 +121,9 @@
         "apps/desktop/test/mbrs009-local-library-ui.test.ts",
         "packages/bridge-core/src/collection/local-relocation-service.ts",
         "packages/bridge-core/src/collection/source-relocation-root-identity.ts",
-        "packages/bridge-core/test/local-relocation-bootstrap.test.ts"
+        "packages/bridge-core/test/local-relocation-bootstrap.test.ts",
+        ".github/workflows/electron-e2e.yml",
+        "scripts/ci/verify-boundaries.mjs"
       ],
       "owns": [
         "shared original Scanner/catalog/Owner integration",
@@ -196,7 +198,7 @@
     "reasoningEffort": "max",
     "children": "EXISTING_THREE_gpt-6.1-sol_MAX_NO_NEW_AGENTS"
   },
-  "implementation": "CURRENT_REPAIR_LOCAL_SOFTWARE_COMPLETE_NEW_SOURCE_GATE_CI_PENDING",
+  "implementation": "HOSTED_ELECTRON_RUNNER_REPAIR_LOCAL_PRODUCT_PROOFS_RETAINED_NEW_EXACT_SOURCE_CI_PENDING",
   "softwareTests": "PASS_CURRENT_STANDARD124_4704_AND_BOOTSTRAP123_STATIC128_EXACT_SOURCE_GATE_SEPARATE",
   "productionApp": "PASS_CURRENT_PRODUCTION_APP126_AND_INDEPENDENT_OUTPUTS_NONEMPTY_HISTORY_SEPARATE",
   "realRoonNasAudioDeviceOwner": "NOT_RUN",
@@ -215,7 +217,8 @@
     "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT10.json",
     "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT11.json",
     "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT12.json",
-    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT13.json"
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT13.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT14.json"
   ],
   "schedulingSupplement": "docs/postrust/MBRS-013/SCHEDULING_SUPPLEMENT_MOBILE_FRONTLOADING.json"
 }

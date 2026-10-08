@@ -47001,7 +47001,7 @@
   },
   "mbrs013LocalRelocation": {
     "task": "MBRS-013",
-    "state": "CURRENT_REPAIR_LOCAL_SOFTWARE_COMPLETE_NEW_SOURCE_COMMIT_GATE_CI_PENDING",
+    "state": "HOSTED_ELECTRON_RUNNER_REPAIR_NEW_SOURCE_DELIVERY_PENDING",
     "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
     "branch": "codex/mbrs-013-relocation",
     "implementationCommit": null,
@@ -47180,7 +47180,7 @@
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       },
-      "newExactSourceGate": "SEPARATE_AFTER_CURRENT_SOURCE_COMMIT_NO_PRECLAIM",
+      "newExactSourceGate": "PENDING_NEW_SOURCE_COMMIT",
       "originalAcceptanceCount": 8,
       "realRoonNasAudioDeviceOwner": "NOT_RUN",
       "appLimits": {
@@ -47210,6 +47210,138 @@
         "sha256": "43e14c1ed640a92f80b136d89625823195b447d891f678b9c4df7467ac58bbca",
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
+      },
+      "source59ExactGateHistorical": {
+        "sourceSha": "59ba9200df381ce870ccd239381bec01777e7bf3",
+        "archive": {
+          "fileName": "ROOT013_EXACT_FINAL_SOURCE_GATE_AUDIT138.json",
+          "bytes": 7957,
+          "sha256": "cda9dade87be66b63306adc2db81d6b1154a527f70cd06d84218bde1fa5fedc8",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+        },
+        "passed": 529,
+        "skipped": 0,
+        "result": "PASS_EXACT_SOURCE59_NOT_NEXT_SOURCE"
+      },
+      "currentSourceWorkflowDelta": {
+        "path": ".github/workflows/electron-e2e.yml",
+        "before": {
+          "bytes": 7554,
+          "sha256": "e37bc7a0065157191d9ef059cc4c8e57b88c12d5d61422635de84bddb93d26cb"
+        },
+        "after": {
+          "bytes": 7556,
+          "sha256": "16423e85378d328293df2bb696279120ccfb563028dc841a9be51e3d8ea3b05b"
+        },
+        "change": "ONLY_RUNS_ON_MACOS_LATEST_TO_MACOS_15_INTEL",
+        "priorLabel": "macos-latest",
+        "newLabel": "macos-15-intel"
+      },
+      "currentSourceBoundaryGuardDelta": {
+        "path": "scripts/ci/verify-boundaries.mjs",
+        "before": {
+          "bytes": 5486,
+          "sha256": "20de6a691d0d751babb3b5695060bdd143dfbd7f571f4c752cda731a7c485f02"
+        },
+        "after": {
+          "bytes": 5680,
+          "sha256": "bee1e19b745016ca59ee707c01435227e8c412d1d5b96fad82d9ce35a53a80fe"
+        },
+        "change": "EXACT_ANCHORED_OFFICIAL_STANDARD_MACOS_RUNNER_ALLOWLIST_ONLY_ORIGINAL_ELECTRON_COMMAND_GUARDS_UNCHANGED"
+      },
+      "source59HostedCi": {
+        "schema": "mbrs013.hosted-runner-failure.v1",
+        "sourceSha": "59ba9200df381ce870ccd239381bec01777e7bf3",
+        "runId": 37809850373,
+        "jobId": 113423561282,
+        "workflow": ".github/workflows/electron-e2e.yml",
+        "workflowConclusion": "failure",
+        "jobConclusion": "cancelled",
+        "runnerId": 0,
+        "runnerName": "",
+        "steps": [],
+        "artifactCount": 0,
+        "actualAnnotations": [
+          {
+            "path": ".github",
+            "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
+            "start_line": 1,
+            "start_column": null,
+            "end_line": 1,
+            "end_column": null,
+            "annotation_level": "failure",
+            "title": "",
+            "message": "The job was not acquired by Runner of type hosted even after multiple attempts",
+            "raw_details": ""
+          },
+          {
+            "path": ".github",
+            "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
+            "start_line": 1,
+            "start_column": null,
+            "end_line": 1,
+            "end_column": null,
+            "annotation_level": "notice",
+            "title": "",
+            "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+            "raw_details": ""
+          },
+          {
+            "path": ".github",
+            "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
+            "start_line": 1,
+            "start_column": null,
+            "end_line": 1,
+            "end_column": null,
+            "annotation_level": "notice",
+            "title": "",
+            "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+            "raw_details": ""
+          },
+          {
+            "path": ".github",
+            "blob_href": "https://github.com/Matt12377/MusicBridge/blob/59ba9200df381ce870ccd239381bec01777e7bf3/.github",
+            "start_line": 1,
+            "start_column": null,
+            "end_line": 1,
+            "end_column": null,
+            "annotation_level": "notice",
+            "title": "",
+            "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+            "raw_details": ""
+          }
+        ],
+        "result": "PLATFORM_HOSTED_ARM64_CAPACITY_FAILURE_BEFORE_ANY_TEST_EXECUTION",
+        "localProductVerification": "CURRENT_STANDARD124_APP126_GATE136_PROVEN_SEPARATELY",
+        "otherCurrentSourceCi": "CONTINUES_NATURALLY_NOT_CANCELLED_NOT_PRECLAIMED",
+        "rawRun": {
+          "fileName": "ROOT013_SOURCE59_ELECTRON146_electron-run.json",
+          "bytes": 12251,
+          "sha256": "dead71b527bdf62732a6aeca9026efe82ea7a7fa2a39bb93f46c283e0596fb7d",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+        },
+        "rawCheck": {
+          "fileName": "ROOT013_SOURCE59_ELECTRON146_electron-check.json",
+          "bytes": 3075,
+          "sha256": "04439a85312c8c69a07c13f4c0334128e987526b3810d3fd0f360f6438a6ce6b",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+        },
+        "rawAnnotations": {
+          "fileName": "ROOT013_SOURCE59_ELECTRON146_electron-annotations.json",
+          "bytes": 1426,
+          "sha256": "8bb74134d1c4bdb352497087ea980f4d345336bb04c9c85413b8c73aaea6ec2f",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+        },
+        "firstNaturalSnapshot": {
+          "fileName": "ROOT013_FINAL_SOURCE_CI_SNAPSHOT145.json",
+          "bytes": 88029,
+          "sha256": "43040a3ad74141cad83f08bcde6a51e3a6b67d2214011a9f434012148a57a8d7",
+          "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+        },
+        "agentReruns": 0,
+        "workflowDispatch": 0,
+        "agentCancellations": 0,
+        "realRoonNasAudioDeviceOwner": "NOT_RUN"
       }
     },
     "implementationCommitResolution": "SOURCE_COMMIT_CONTAINING_CURRENT_013_IMPLEMENTATION",
@@ -47232,11 +47364,14 @@
       "docs/postrust/MBRS-013/evidence/local-electron-repair.json",
       "docs/postrust/MBRS-013/evidence/source-s1-ci-failure.json",
       "docs/postrust/MBRS-013/evidence/core-repair-readonly-review.json",
-      "docs/postrust/MBRS-013/evidence/original-eight-at-repair.json"
+      "docs/postrust/MBRS-013/evidence/original-eight-at-repair.json",
+      "docs/postrust/MBRS-013/evidence/source59-hosted-runner-failure.json",
+      "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT14.json",
+      "docs/postrust/MBRS-013/evidence/hosted-runner-admission.json"
     ],
-    "push": "S1_ORDINARY_PUSH_COMPLETE_NEW_REPAIR_SOURCE_NOT_COMMITTED",
-    "ci": "S1_ORIGINAL_FAILURES_PRESERVED_NEW_REPAIR_SOURCE_FIRST_NATURAL_CI_PENDING",
-    "updatedAt": "2026-10-08T16:18:33.008373+00:00"
+    "push": "SOURCE59_REMOTE_EXACT_NEW_HOSTED_RUNNER_REPAIR_NOT_YET_COMMITTED",
+    "ci": "SOURCE59_ELECTRON_PLATFORM_CAPACITY_CANCELLED_BEFORE_RUNNER_OTHERS_CONTINUE_NATURALLY",
+    "updatedAt": "2026-10-08T16:57:43.732480+00:00"
   },
   "mobileFrontloading20261008": {
     "state": "SCHEDULE_ADOPTED_MOBILE_TASKS_NOT_STARTED",

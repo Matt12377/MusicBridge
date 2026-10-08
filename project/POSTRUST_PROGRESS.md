@@ -371,3 +371,8 @@ Root39三份新套件18/18、零skip，自有六格式真实Reader、Utility端�
 013当前修复已完成完整本地verify124（4704总/4702通过/0失败/2既有native条件skip）、生产App126自有WAVE+歌词完整搬迁/源保留/具体清理/三次自然关闭及独立输出核验、mock生命周期127原4/4、三项静态检查；三个新启动回归与原九项真实Worker合计12/12。S1自然CI失败与平台fail-fast取消保留；当前新源码提交、精确Gate、首次自然源码CI、独立R与最终远端clean待完成。8产品AT均PARTIAL，真实Roon/NAS/跨卷/设备听感/Owner未跑。封存后接MBM-000～004→016→017。
 
 S1源 f84c83dc45fec39da3f1f580ec1a089eb4c872f3 的Rust Ubuntu原node-atomic-snapshot最后真实两库Worker失败；Rust macOS由平台matrix fail-fast自动取消，代理cancel/rerun/force-push为0。Electron外层Rust host准备失败，startup与E2E未运行。Linux实际cooked正则RED已证；macOS具体原环境探针错误未独立归因。新捕获只隔离有限资格，原冷恢复journal/根/FD保护仍fatal；新测试初次SQL破坏被原不可变触发器正确拒绝，改为关闭后的自有DB唯一eventHash字节破坏。未删触发器、未改变原冻结用例/预算、未将本机通过冒充自然CI。
+
+
+### MBRS-013 Hosted Electron执行环境修复
+
+013新源码59ba920精确Gate14阶段529/529通过；首次Electron CI因官方macOS ARM64容量不足、未分配runner而平台取消（零步骤执行），原作业保留。Electron CI固定为官方标准macos-15-intel，旧平台守卫只同步准入两个精确macOS标签；原45分钟、全部步骤/断言/测试及Ubuntu+ARM64 Rust矩阵保持。当前标准verify124、App126及本机ARM64软件证明保持；声明1627输入中两项CI配置/准入脚本变化，692产品输入字节全同。其他原自然CI继续；下一源码精确Gate/首次自然CI、独立报告及最终远端clean待完成，八AT仍PARTIAL。

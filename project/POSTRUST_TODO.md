@@ -1,6 +1,6 @@
 # MusicBridge 开发待办
 
-当前任务：MBRS-013。013当前修复已完成完整本地verify124（4704总/4702通过/0失败/2既有native条件skip）、生产App126自有WAVE+歌词完整搬迁/源保留/具体清理/三次自然关闭及独立输出核验、mock生命周期127原4/4、三项静态检查；三个新启动回归与原九项真实Worker合计12/12。S1自然CI失败与平台fail-fast取消保留；当前新源码提交、精确Gate、首次自然源码CI、独立R与最终远端clean待完成。8产品AT均PARTIAL，真实Roon/NAS/跨卷/设备听感/Owner未跑。封存后接MBM-000～004→016→017。
+当前任务：MBRS-013。013新源码59ba920精确Gate14阶段529/529通过；首次Electron CI因官方macOS ARM64容量不足、未分配runner而平台取消（零步骤执行），原作业保留。Electron CI固定为官方标准macos-15-intel，旧平台守卫只同步准入两个精确macOS标签；原45分钟、全部步骤/断言/测试及Ubuntu+ARM64 Rust矩阵保持。当前标准verify124、App126及本机ARM64软件证明保持；声明1627输入中两项CI配置/准入脚本变化，692产品输入字节全同。其他原自然CI继续；下一源码精确Gate/首次自然CI、独立报告及最终远端clean待完成，八AT仍PARTIAL。
 
 | 任务 | 要做的事 | 进度 |
 | --- | --- | --- |
@@ -72,3 +72,7 @@
 
 <!-- MBRS013_REPAIR_LOCAL_COMPLETE129 -->
 013当前修复已完成完整本地verify124（4704总/4702通过/0失败/2既有native条件skip）、生产App126自有WAVE+歌词完整搬迁/源保留/具体清理/三次自然关闭及独立输出核验、mock生命周期127原4/4、三项静态检查；三个新启动回归与原九项真实Worker合计12/12。S1自然CI失败与平台fail-fast取消保留；当前新源码提交、精确Gate、首次自然源码CI、独立R与最终远端clean待完成。8产品AT均PARTIAL，真实Roon/NAS/跨卷/设备听感/Owner未跑。封存后接MBM-000～004→016→017。
+
+
+<!-- MBRS013_HOSTED_RUNNER_REPAIR148 -->
+013新源码59ba920精确Gate14阶段529/529通过；首次Electron CI因官方macOS ARM64容量不足、未分配runner而平台取消（零步骤执行），原作业保留。Electron CI固定为官方标准macos-15-intel，旧平台守卫只同步准入两个精确macOS标签；原45分钟、全部步骤/断言/测试及Ubuntu+ARM64 Rust矩阵保持。当前标准verify124、App126及本机ARM64软件证明保持；声明1627输入中两项CI配置/准入脚本变化，692产品输入字节全同。其他原自然CI继续；下一源码精确Gate/首次自然CI、独立报告及最终远端clean待完成，八AT仍PARTIAL。
