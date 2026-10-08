@@ -4,8 +4,8 @@ import type { LocalArtworkCandidate, LocalArtworkOrigin, LocalArtworkSearchProvi
 import SafeArtwork from '../SafeArtwork.vue'
 import { localArtworkCandidatePresentation, type useLocalArtwork } from '../../composables/application/useLocalArtwork'
 
-const props = defineProps<{ session: ReturnType<typeof useLocalArtwork> }>()
-const emit = defineEmits<{ close: []; applied: [] }>()
+const props = defineProps<{ session: ReturnType<typeof useLocalArtwork>; sourceWritesAvailable?: boolean }>()
+const emit = defineEmits<{ close: []; applied: []; 'source-writes': [] }>()
 const dialog = ref<HTMLDialogElement>(), dragDepth = ref(0), dropError = ref(''), expandedCreate = ref(false)
 const context = computed(() => props.session.context.value), target = computed(() => props.session.target.value)
 const busy = computed(() => props.session.busy.value), lookupBusy = computed(() => props.session.lookupBusy.value)
@@ -30,6 +30,10 @@ const originLabel = (candidate: LocalArtworkCandidate) => presentation(candidate
 const isExpired = (candidate: LocalArtworkCandidate) => Date.parse(candidate.expiresAt) <= Date.now()
 
 function close(): void { props.session.close(); emit('close') }
+function sourceWrites(): void {
+  if (!props.sourceWritesAvailable || locked.value || !target.value || !context.value?.selection?.candidate) return
+  emit('source-writes'); close()
+}
 async function switchEdition(event: Event): Promise<void> {
   const value = (event.target as HTMLSelectElement).value
   if (!context.value || !value || locked.value) return
@@ -144,7 +148,7 @@ onBeforeUnmount(() => { dialog.value?.close(); if (returnFocus?.isConnected) ret
     <p v-if="notice" class="message" role="status">{{ notice }}</p>
     <p v-if="unknown" class="muted">原操作结果尚未确认。关闭只结束本地等待，已派发的保存或建立发行无法在这里撤销。</p>
     <footer>
-      <div class="footer-actions"><button v-if="unknown" type="button" :disabled="busy" @click="dropError = ''; session.reconcile()">重新读取核对</button><button v-else type="button" :disabled="busy" @click="dropError = ''; session.refresh()">重新读取</button><button v-if="target" type="button" :disabled="!session.canRestoreDefault.value" @click="session.restoreDefault()">恢复本地默认</button></div>
+      <div class="footer-actions"><button v-if="unknown" type="button" :disabled="busy" @click="dropError = ''; session.reconcile()">重新读取核对</button><button v-else type="button" :disabled="busy" @click="dropError = ''; session.refresh()">重新读取</button><button v-if="target" type="button" :disabled="!session.canRestoreDefault.value" @click="session.restoreDefault()">恢复本地默认</button><button v-if="sourceWritesAvailable" type="button" :disabled="locked || !target || !context?.selection?.candidate" @click="sourceWrites">预览封面源写回</button></div>
       <div class="footer-actions"><button type="button" @click="close">{{ unknown || session.applying.value || session.creating.value ? '关闭' : '取消' }}</button><button v-if="target" type="button" class="primary" :disabled="!session.canApply.value" :aria-label="chosen ? `保存选图：${chosen.sourceLabel}` : '保存选图'" @click="session.apply()">{{ session.applying.value ? '正在保存…' : '保存选图' }}</button></div>
     </footer>
   </dialog>

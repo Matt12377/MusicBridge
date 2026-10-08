@@ -1,0 +1,220 @@
+{
+  "schema": "mbrs012.desktop-phase-root-actual.v1",
+  "verifiedAt": "2026-10-07T22:26:54.201890+00:00",
+  "sourceIdentity": "e9504633be60c8f8b70ff2139f987565a5e9bf997f2929cdab63d48a5f7b00df",
+  "files": [
+    {
+      "path": "apps/desktop/e2e/mbrs012-source-writes.spec.ts",
+      "bytes": 32117,
+      "sha256": "f6933863d27cf6579b0b6f6d57ffcefc3b935439c6fecd50487d64772b66eea8"
+    },
+    {
+      "path": "apps/desktop/src/main/command-outbox-executor.ts",
+      "bytes": 10602,
+      "sha256": "da2fa55b0a3ae5e0a934022e7c2e32b3b45a310eee51dbbcfb51c6b1f1aee281"
+    },
+    {
+      "path": "apps/desktop/src/main/command-outbox-service.ts",
+      "bytes": 11827,
+      "sha256": "35be3491945066ffd08fa936cd9aa4661c73c45409ad4a503180a9f1b56a4668"
+    },
+    {
+      "path": "apps/desktop/src/main/command-outbox-store.ts",
+      "bytes": 17643,
+      "sha256": "714c1974bce5cfaf9bc33de07829077dfde628039c585810d1b44b91a43b495e"
+    },
+    {
+      "path": "apps/desktop/src/main/core-host.ts",
+      "bytes": 4658,
+      "sha256": "3a263614e5820f62631aea0327d94be01f77b6d9911acea7437a90133ad0302a"
+    },
+    {
+      "path": "apps/desktop/src/main/core-supervisor.ts",
+      "bytes": 38005,
+      "sha256": "d640c34e66ffaefb7650b807cc00d8d80cc0831d081a0992a0abb0c3ffde1c02"
+    },
+    {
+      "path": "apps/desktop/src/main/index.ts",
+      "bytes": 106384,
+      "sha256": "65a486d7ac01b86ed13feac5c6e5d409072f20a50c5487f5538a67ef57716769"
+    },
+    {
+      "path": "apps/desktop/src/main/local-artwork-ipc.ts",
+      "bytes": 11860,
+      "sha256": "c51568239929682f6e9604dab36b358df40c58baa6b267dfeb9da013fa9cf136"
+    },
+    {
+      "path": "apps/desktop/src/main/local-source-writes-ipc.ts",
+      "bytes": 6402,
+      "sha256": "762193a110fe6ae8101d3230c12ec2d49ee3f15d32ced194d8ed4a28638eec6d"
+    },
+    {
+      "path": "apps/desktop/src/main/source-write-original.ts",
+      "bytes": 1424,
+      "sha256": "e9d2ecd75b6ec3d95a4d2ad39e5932f042af113f606d1181003f9dafc412a62d"
+    },
+    {
+      "path": "apps/desktop/src/preload/api.ts",
+      "bytes": 43508,
+      "sha256": "f0ef313a5a39fd3c6f8557367e7402bca2b1f407074389653134b2b7e5b7566d"
+    },
+    {
+      "path": "apps/desktop/src/preload/index.ts",
+      "bytes": 27852,
+      "sha256": "c24636b744d9ec4282edb64677fb75462aa1fbce72b14a8ae84a98bb662e86df"
+    },
+    {
+      "path": "apps/desktop/src/preload/local-source-writes-client.ts",
+      "bytes": 3668,
+      "sha256": "f505dac17becd0eb6e0bcdb08b4337a1610a760d4d382f245191a64c7e1c54c8"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue",
+      "bytes": 20625,
+      "sha256": "aa8209b3b1a68d74b824ef31278cf6eb9241e058b938332140efd8cd629e70fe"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/command-outbox/controller.ts",
+      "bytes": 7507,
+      "sha256": "8233613c975e85765ef0a45b9da40a31bb937c28f86fa7d483146f10ca02778a"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalArtworkDialog.vue",
+      "bytes": 23694,
+      "sha256": "563c76318dc20c565841c9eb483b7bd55be4bb4d90198dffdb71b99558434e8a"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+      "bytes": 24955,
+      "sha256": "26e0e1dd535317365f93d131b959123831121e7ef85b535701dee95876aade1e"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalOrganizerDialog.vue",
+      "bytes": 20527,
+      "sha256": "423df35ece4df3fd8bf16ecfd5abca8d52c243b70826c9cc78358d4f673ce6f9"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalSourceWritesDialog.vue",
+      "bytes": 15851,
+      "sha256": "2f2f46f204479cdfdf08d17c8ed9a691f0824bf96a9e565ee6c6293d0c854a71"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/LocalSourceWritesSettings.vue",
+      "bytes": 1676,
+      "sha256": "0a312bd0f78849420bf3ce48e3463eadd323d5d8960cdb7ee2fab7b83fe2ad59"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/SettingsView.vue",
+      "bytes": 14287,
+      "sha256": "2bdfff2d893d1210f2e9776389451af1b54ff09112046291b5b20edd45dbad74"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+      "bytes": 29875,
+      "sha256": "8e4153e475d5bc0d3581935f288ae9be9efbe3b832879b7f5d14d74eb70b44c0"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalSourceWrites.ts",
+      "bytes": 25734,
+      "sha256": "c97235268343ebf7956a976509643809fb40aa53513ff967f1563d2c60c54a99"
+    },
+    {
+      "path": "apps/desktop/src/shared/source-write-fingerprint.ts",
+      "bytes": 680,
+      "sha256": "99121271a338bcb9bb1687cd6fac23cb557b3ad6a342481845fcd4ac40496dd6"
+    },
+    {
+      "path": "apps/desktop/test/mbrs012-fixture.ts",
+      "bytes": 9580,
+      "sha256": "2a5c0be117ee1233dc34d5fbda6b2b84ab4295bebc679b6c87f7084ef024f937"
+    },
+    {
+      "path": "apps/desktop/test/mbrs012-ipc.test.ts",
+      "bytes": 11919,
+      "sha256": "1296301c7dd477ef7a8d55acbea37797c2ebaf36878d061c4cac5b41b37cd481"
+    },
+    {
+      "path": "apps/desktop/test/mbrs012-original.test.ts",
+      "bytes": 4713,
+      "sha256": "04a11fb2b212db8b8874d7ff233143e25c4c0258a6284a50d83121ce240105b7"
+    },
+    {
+      "path": "apps/desktop/test/mbrs012-private-port.test.ts",
+      "bytes": 5712,
+      "sha256": "6dfdf50c6bc594d9ccdf29e61f40ffa48cf770218e8633462ee00a0489085c0f"
+    },
+    {
+      "path": "apps/desktop/test/mbrs012-session.test.ts",
+      "bytes": 11166,
+      "sha256": "f6c2ef4b2397873f59c6093cf02ef3f3e48bac73059d787e456beb812eec1cdb"
+    },
+    {
+      "path": "apps/desktop/test/mbrs012-ui-host.ts",
+      "bytes": 9458,
+      "sha256": "1b923a79882c38e75341f84b2141d1943e45fc6bf89a8cccaeaccf7e22db8798"
+    },
+    {
+      "path": "apps/desktop/test/mbrs012-ui.test.ts",
+      "bytes": 9828,
+      "sha256": "5398e91216b8f490eb67fdea96de1d5ace707da69394642caf2a0c0f92a8b489"
+    }
+  ],
+  "newBehavior": {
+    "label": "root-desktop-source-tests03",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 3.9530679999734275,
+    "log": {
+      "file": "root-desktop-source-tests03.log",
+      "bytes": 9387,
+      "sha256": "e1be1429ceeef4771d4e010e03295971587dece46f99c450ff4d7a1c6c6e8744"
+    },
+    "counts": {
+      "tests": 35,
+      "pass": 35,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "legacyBehavior": {
+    "label": "root-desktop-legacy-tests01",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 3.811153792019468,
+    "log": {
+      "file": "root-desktop-legacy-tests01.log",
+      "bytes": 21193,
+      "sha256": "c3b403cb8d49281cfd39396c2fead6411d2e0e3f9a641a85e2e5f3b6d9fd39aa"
+    },
+    "counts": {
+      "tests": 87,
+      "pass": 87,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "author31InputsMatchedBeforeAndAfterExecution": true,
+  "productOrTestDriftSinceExecution": [],
+  "runtimeConsumedInputsStillMatchAuthorStatic03": true,
+  "documentaryDriftSinceAuthorStatic03": [
+    "docs/postrust/MBRS-012/IMPLEMENTATION_HANDOFF.md"
+  ],
+  "documentaryDriftReason": "Root补充OFF与恢复收口、24表保护内容Hash决策；文档不是本轮行为测试运行输入。",
+  "scope": "DESKTOP_BOUNDARIES_AND_REAL_SFC_HOST_BEHAVIOR_AT_LOCK03_NOT_OWNER_PUBLISHER_OR_APP",
+  "priorFailuresPreserved": [
+    "root-desktop-source-tests01.json",
+    "root-desktop-source-tests02.json"
+  ],
+  "followingFreshTypes": "FAILED_NARROW_FIX_IN_PROGRESS_NEW_LOCK_AND_VALIDATION_REQUIRED",
+  "productionApp": "NOT_RUN",
+  "writerQualification": "NOT_YET_PROVEN",
+  "realLibraryRoonAudioDeviceOwner": "NOT_RUN"
+}

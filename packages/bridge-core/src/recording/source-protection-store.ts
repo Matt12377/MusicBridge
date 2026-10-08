@@ -68,7 +68,7 @@ const tables = [
 export function createSourceProtectionStore(access: Access) {
   const budget = { ...SOURCE_PROTECTION_BUDGET, ...access.budget };
   for (const key of Object.keys(SOURCE_PROTECTION_BUDGET) as (keyof typeof budget)[]) if (!Number.isSafeInteger(budget[key]) || budget[key] < 1 || budget[key] > SOURCE_PROTECTION_BUDGET[key]) throw new Error('来源保护审计预算只能收紧。');
-  return { snapshot(): SourceProtectionProjection { return access.read(db => {
+  function snapshot(sourceWrites=false):SourceProtectionProjection { return access.read(db => {
     const issues = new Set<string>(), digest = createHash('sha256'), rowsByTable = new Map<string, Row[]>();
     const references: SourceProtectionReference[] = [];
     let rows = 0, bytes = 0, locations = 0, started = false;
@@ -89,7 +89,8 @@ export function createSourceProtectionStore(access: Access) {
     };
     try {
       if (!db.isTransaction) { db.exec('BEGIN'); started = true; }
-      digest.update(JSON.stringify(['source-protection-v1', db.prepare('PRAGMA user_version').get(), db.prepare('PRAGMA data_version').get(), db.prepare('SELECT total_changes() changes').get()]));
+      if(sourceWrites)digest.update(JSON.stringify(['source-writes-protection-content-v1',db.prepare('PRAGMA user_version').get()]));
+      else digest.update(JSON.stringify(['source-protection-v1', db.prepare('PRAGMA user_version').get(), db.prepare('PRAGMA data_version').get(), db.prepare('SELECT total_changes() changes').get()]));
       for (const table of tables) {
         const found: Row[] = [];
         const columns=db.prepare(`PRAGMA table_info(${table})`).all().map(column=>String(column.name));
@@ -307,6 +308,9 @@ export function createSourceProtectionStore(access: Access) {
     } catch (error) { unknown(error instanceof Error && error.message === 'SOURCE_PROTECTION_BUDGET_EXCEEDED' ? error.message : 'HISTORY_CORRUPT'); }
     finally { if (started) { try { db.exec('COMMIT'); } catch { unknown('PROTECTION_SNAPSHOT_UNVERIFIED'); try { db.exec('ROLLBACK'); } catch { /* 原读事务结果未知，证据明确不完整。 */ } } } }
     return { version:1, storageFingerprint:digest.digest('hex'), complete:issues.size === 0, issues:[...issues].sort(), references, rows, bytes };
-  }); } };
+  }); }
+  return {snapshot():SourceProtectionProjection{return snapshot();},
+    /** 新域只忽略无关连接计数；原24表的字节、历史Hash与未知分类仍由同一冷核证明。 */
+    sourceWritesSnapshot():SourceProtectionProjection{return snapshot(true);}};
 }
 export type SourceProtectionStore = ReturnType<typeof createSourceProtectionStore>;

@@ -1,0 +1,53 @@
+{
+  "schema": "mbrs012.protection-content-phase-root-actual.v1",
+  "verifiedAt": "2026-10-07T22:26:54.201890+00:00",
+  "files": [
+    {
+      "path": "packages/bridge-core/src/recording/source-protection-store.ts",
+      "bytes": 28518,
+      "sha256": "486b7b1b3a92e01c1d3b6b387d4d3c5a5e58573b3767dc13d743b5697b013d94"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-protection.ts",
+      "bytes": 10283,
+      "sha256": "f7727eea8d5edb6743d21be05795b4efce0689db4678d20e6fe0cf77b5050a44"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs012/protection-content.test.ts",
+      "bytes": 19046,
+      "sha256": "5e1dd312bcd04933e25deb8cd7f6551cba18d3a2751d49a4e4d8f1d8091dca69"
+    }
+  ],
+  "run": {
+    "label": "root-core-protection-content-tests02",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 1.2201222919975407,
+    "log": {
+      "file": "root-core-protection-content-tests02.log",
+      "bytes": 2634,
+      "sha256": "feba3b78603ff95b3b87894c0aa84021302ea0ff92b7f4da97929aa3174dcedd"
+    },
+    "counts": {
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "wholeLogsRead": true,
+  "preExecutionLockReferences": [
+    "CORE_PRODUCT_ROOT_LOCK02.json",
+    "CORE_PROTECTION_CONTENT_START01.json"
+  ],
+  "currentDeclaredInputsStillMatchPreExecutionLocks": true,
+  "priorSuccessfulSnapshotRetained": "root-core-protection-content-tests01.json",
+  "scope": "PRIVATE_24_TABLE_CONTENT_SNAPSHOT_BUDGET_AND_COLD_FROZEN_AUDIT_NOT_SOURCE_WRITER_OR_NEW_SAB_READER_BARRIER",
+  "legacySnapshotCounterSemanticsUnchanged": true,
+  "writerQualification": "NOT_YET_PROVEN",
+  "realLibraryRoonAudioDeviceOwner": "NOT_RUN"
+}

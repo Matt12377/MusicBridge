@@ -43,6 +43,7 @@ import { createPhysicalLinksCoordinator, createProjectedPhysicalLinksCoordinator
 import path from 'node:path';
 import { createLocalOrganizerService } from './local-organizer-service.js';
 import { createLocalLegacyLinksService } from './local-legacy-links-service.js';
+import { createLocalSourceWritesService } from './local-source-writes-service.js';
 import type { IpcRequest } from '@music-bridge/contracts';
 import { createCollectionRepository, type CollectionRepository, CollectionError } from './repository.js';
 import { createRoonPublicLibrary, type RoonPublicLibrary } from '../roon/public-library.js';
@@ -124,6 +125,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const localArtwork = createLocalArtworkService({ repository: collection, assertCurrent: assertOpen, ...(options.projection ? { projection: options.projection } : {}) });
   const localOrganizer = createLocalOrganizerService({ repository: collection, datasetId: identity.datasetId, assertCurrent: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '整理owner尚未commitBoot。'); } });
   const localLegacyLinks = createLocalLegacyLinksService({repository:collection,datasetId:identity.datasetId,assertCurrent:()=>{assertOpen();if(!scanBootReady)throw new CollectionError('INVENTORY_UNAVAILABLE','旧库关联 owner 尚未 commitBoot。');}});
+  const localSourceWrites=createLocalSourceWritesService({repository:collection,datasetId:identity.datasetId,...(options.localSourceEpoch?{ownerEpoch:options.localSourceEpoch}:{}),assertCurrent:()=>{assertDataset();if(!scanBootReady)throw new CollectionError('INVENTORY_UNAVAILABLE','源写 Owner 尚未 commitBoot。');},assertRecoveryCurrent:assertDataset,beforeMedia:()=>localScan.yieldForMedia()});
   const backups = createBackupCoordinator({ store: maintenanceForCoordinator, repository: collection, ...(options.backupPrivateRoot ? { privateRoot: options.backupPrivateRoot } : {}), ...(options.backupContentBinding ? { contentBinding: options.backupContentBinding } : {}) });
   const sources = createSourceEvidenceService({ store: collection.sources, drafts: collection.drafts, validateAuthorization: root => assertSourceOutsideArchives(root.path, collection.archive) });
   const sourceCandidates = createSourceCandidateService({ store: collection.sources, drafts: collection.drafts, sources });
@@ -161,7 +163,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const physicalLinks = projection ? createProjectedPhysicalLinksCoordinator({ repository: collection.links, projection, assertCurrent: assertOpen }) : createPhysicalLinksCoordinator({ repository: collection.links, library: library! });
   const masterDrafts = projection ? createProjectedMasterDraftsCoordinator({ repository: collection.drafts, projection, assertCurrent: assertOpen }) : createMasterDraftsCoordinator({ repository: collection.drafts, library: library! });
   const domain: DatasetDomain = {
-    datasetId: identity.datasetId, collection, localScan, localRelocation, localArtwork, localOrganizer, localLegacyLinks, commandOutbox, sources, sourceCandidates, mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, backups, archive,
+    datasetId: identity.datasetId, collection, localScan, localRelocation, localArtwork, localOrganizer, localLegacyLinks, localSourceWrites, commandOutbox, sources, sourceCandidates, mediaPlanning, masterVersions, preparation, preparationZips, prepared, execution, backups, archive,
     ...(recordingDeviceSelection ? { recordingDeviceSelection } : {}), recordingPlans, recordingOutput, recordingAttempts, recordingRecords, recordingPrints, recordingReplica, physicalLinks, masterDrafts, assertOpen,
     dispatch(request) {
       const pending = dispatchDatasetCommand(domain, request);
@@ -172,6 +174,9 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       const pending = dispatchInternalDatasetCommand(domain, request);
       pendingDispatches.add(pending);
       return pending.finally(() => pendingDispatches.delete(pending));
+    },
+    dispatchSourceWritesMain(request,actor) {
+      assertOpen();const pending=Promise.resolve().then<unknown>(()=>{switch(request.command){case 'localSourceWrites.attachOriginal':return localSourceWrites.attachOriginal(request.payload,actor);case 'localSourceWrites.challenge':return localSourceWrites.challenge(request.payload,actor);case 'localSourceWrites.executeGranted':return localSourceWrites.executeGranted(request.payload,actor);}});pendingDispatches.add(pending);return pending.finally(()=>pendingDispatches.delete(pending));
     },
     materializeMBEdition: request => {assertOpen();if(!scanBootReady)throw new CollectionError('INVENTORY_UNAVAILABLE','队列Owner尚未就绪。');return materializeMBEdition(collection,request);},
     loadMBQueue: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE','队列Owner尚未就绪。'); return collection.mbQueue.load(identity.datasetId); },
@@ -210,6 +215,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
         await stop(() => recordingReplica.close()); await stop(() => recordingPrints.close()); await stop(() => recordingRecords.close()); await stop(() => recordingAttempts.close());
         await stop(() => recordingDeviceSelection?.close()); await stop(() => recordingOutput.close()); await stop(() => recordingPlans.close());
         await stop(() => backups.close()); await stop(() => archive.close()); await stop(() => execution.close()); await stop(() => prepared.close()); await stop(() => preparationZips.close()); await stop(() => preparation.close()); await stop(() => masterVersions.close());
+        await stop(() => localSourceWrites.close());
         await stop(() => localArtwork.close());
         await stop(() => localOrganizer.close());
         await stop(() => localLegacyLinks.close());
@@ -252,6 +258,7 @@ export interface OwnedDatasetDomainOptions {
 /** 两个实际数据库、迁移/恢复和全部资源只在调用本工厂的owner线程打开。 */
 export async function prepareOwnedDatasetDomain(options: OwnedDatasetDomainOptions): Promise<DatasetDomain> {
   const dataset = await openCollectionDataset(options.dataDirectory);
+  let domain:DatasetDomain|undefined;
   try {
     const dependencies = options.recordingDependencies ?? {};
     let outputRunRecovery: OutputRunRecoveryState | undefined;
@@ -268,6 +275,11 @@ export async function prepareOwnedDatasetDomain(options: OwnedDatasetDomainOptio
       projection: options.projection, commitBoot: dataset.commit, closeConnections: () => { dataset.fail(); dataset.close(); }, ...(options.failureForError ? { failureForError: options.failureForError } : {}),
     };
     // 测试模式仅禁用设备准入，不从环境或IPC取得合成provider资格。
-    return options.testMode ? composeDatasetDomain(common, { ...(options.scanMetadataReader ? {scanMetadataReader:options.scanMetadataReader}:{}) }) : createDatasetDomain(common);
-  } catch (error) { dataset.fail(); dataset.close(); throw error; }
+    domain=options.testMode ? composeDatasetDomain(common, { ...(options.scanMetadataReader ? {scanMetadataReader:options.scanMetadataReader}:{}) }) : createDatasetDomain(common);
+    // 认证冷投影后、prepare/ACK之前安装真正命名位和FD保护，不让首个新Reader穿过未解目标。
+    await domain.localSourceWrites.prepareRecoveryProtection();return domain;
+  } catch (error) {
+    if(domain){try{await domain.close();}catch(closeError){throw new AggregateError([error,closeError],'冷保护准入/收尾未核实；保留工作库连接及真实保护。');}}
+    else{dataset.fail();dataset.close();}throw error;
+  }
 }

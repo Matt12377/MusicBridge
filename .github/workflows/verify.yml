@@ -188,6 +188,16 @@ jobs:
           node --test scripts/ci/test/verify-mbrs014-compatibility.test.mjs
           node scripts/ci/verify-mbrs014-compatibility.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs014-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
+      - name: MBRS012 受控源写与备份恢复 Gate
+        if: steps.ci-mode.outputs.mode != 'report-only'
+        timeout-minutes: 8
+        shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: |
+          set -euo pipefail
+          node --test scripts/ci/test/verify-mbrs012-source-writes.test.mjs
+          node scripts/ci/verify-mbrs012-source-writes.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs012-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
       - name: 验证报告CI准入正负例
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node --test scripts/ci/test/report-only-admission.test.mjs

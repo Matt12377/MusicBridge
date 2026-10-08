@@ -1,5 +1,7 @@
 import { IPC_VERSION, LOCAL_LEGACY_LINKS_ISSUES, type IpcFailure, type IpcRequest } from '@music-bridge/contracts';
 import { LegacyLinksError } from '../collection/local-legacy-links-journal.js';
+import { SourceWritesError } from '../collection/local-source-writes-journal.js';
+import { LOCAL_SOURCE_WRITES_ISSUES } from '@music-bridge/contracts';
 import { asBridgeError } from './errors.js';
 import { RecordingPrintError } from '../recording/print-integrity.js';
 import { RecordingReplicaError } from '../recording/replica-error.js';
@@ -30,6 +32,7 @@ export function responseFailure(
 
 
 export function failureForError(id: string, error: unknown, command: IpcRequest['command']): IpcFailure {
+  if(error instanceof SourceWritesError){const observed=Object.getOwnPropertyDescriptor(error,'code')?.value,issue=typeof observed==='string'&&(LOCAL_SOURCE_WRITES_ISSUES as readonly string[]).includes(observed)?observed:'RECOVERY_REQUIRED';const code=issue==='INVALID_REQUEST'?'INVALID_IPC_REQUEST':issue==='DATASET_SCOPE_MISMATCH'?'OUTBOX_SCOPE_MISMATCH':['RECOVERY_REQUIRED','COMMIT_UNKNOWN','RELEASE_UNKNOWN','INVENTORY_UNAVAILABLE','BUDGET_EXCEEDED'].includes(issue)?'INVENTORY_UNAVAILABLE':'INVENTORY_CONFLICT';return responseFailure(id,code,`本地源写操作未获确认。[${issue}]`);}
   if (error instanceof LegacyLinksError) {
     const observed = Object.getOwnPropertyDescriptor(error, 'code')?.value;
     const issue = typeof observed === 'string' && (LOCAL_LEGACY_LINKS_ISSUES as readonly string[]).includes(observed) ? observed : 'RECOVERY_REQUIRED';

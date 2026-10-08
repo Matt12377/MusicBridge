@@ -3,9 +3,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { LocalOrganizerItem, LocalOrganizerState } from '@music-bridge/contracts'
 import type { OrganizerDraftAction, useLocalOrganizer } from '../../composables/application/useLocalOrganizer.js'
 
-const props = defineProps<{ session: ReturnType<typeof useLocalOrganizer> }>()
+const props = defineProps<{ session: ReturnType<typeof useLocalOrganizer>; sourceWritesAvailable?: boolean }>()
 const { effectiveValue: organizerEffective, issueMessage: organizerIssueMessage, stateLabels: organizerStateLabels, formatValue: organizerValue } = props.session
-const emit = defineEmits<{ 'open-outbox': []; 'return-focus': [] }>()
+const emit = defineEmits<{ 'open-outbox': []; 'return-focus': []; 'source-writes': [] }>()
 const dialog = ref<HTMLDialogElement>(), heading = ref<HTMLElement>(), groupingEdition = ref(''), groupingReason = ref(''), groupingError = ref('')
 const plan = computed(() => props.session.plan.value), locked = computed(() => props.session.draftLocked.value)
 const fields = [{ key: 'title', label: '标题' }, { key: 'artist', label: '艺术家' }, { key: 'album', label: '专辑' }, { key: 'year', label: '年份' }, { key: 'disc', label: '碟号' }, { key: 'track', label: '曲序' }] as const
@@ -29,6 +29,10 @@ function addGrouping(): void {
   props.session.setGroupingSuggestions([...previous, { editionId: edition.id, expectedRevision: edition.revision, reason }]); groupingReason.value = ''; groupingError.value = ''
 }
 function close(): void { props.session.close() }
+function sourceWrites(): void {
+  if (!props.sourceWritesAvailable || !props.session.target.value || props.session.draftLocked.value) return
+  emit('source-writes'); close()
+}
 function keydown(event: KeyboardEvent): void {
   if (event.key !== 'Tab' || !dialog.value) return
   const items = Array.from(dialog.value.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary, [tabindex="0"]'))
@@ -96,7 +100,7 @@ onBeforeUnmount(() => { dialog.value?.close(); if (returnFocus?.isConnected) ret
 
     <p v-if="session.error.value" class="organizer-error" role="alert">{{ session.error.value }}</p><p v-if="session.notice.value" class="organizer-notice" role="status">{{ session.notice.value }}</p>
     <p v-if="session.pending.value.length" class="organizer-muted">原请求仍保留；关闭只结束此处等待。</p>
-    <footer class="organizer-footer"><div class="organizer-footer-actions"><button type="button" :disabled="session.loading.value || session.cancelling.value" @click="session.view.value === 'history' ? session.loadHistory(session.history.value.offset) : session.reconcile()">重新读取核对</button><button v-if="session.pending.value.length" type="button" @click="emit('open-outbox'); close()">查看未确认操作</button><button v-if="plan && session.canCancel.value" type="button" @click="session.cancelPlan()">取消此计划</button><button v-if="plan && session.canUndo.value" type="button" @click="session.previewUndo()">预览撤销</button></div><div class="organizer-footer-actions"><button v-if="session.view.value === 'preview' && session.target.value && !session.draftLocked.value" type="button" @click="session.edit()">返回编辑</button><button v-if="session.view.value !== 'history'" type="button" :disabled="session.busy.value" @click="session.loadHistory()">整理历史</button><button v-if="session.view.value === 'preview' && plan" type="button" class="organizer-primary" :disabled="!session.canConfirm.value" @click="session.save()">{{ session.confirming.value ? '正在保存…' : '保存这些更正' }}</button></div></footer>
+    <footer class="organizer-footer"><div class="organizer-footer-actions"><button type="button" :disabled="session.loading.value || session.cancelling.value" @click="session.view.value === 'history' ? session.loadHistory(session.history.value.offset) : session.reconcile()">重新读取核对</button><button v-if="session.pending.value.length" type="button" @click="emit('open-outbox'); close()">查看未确认操作</button><button v-if="plan && session.canCancel.value" type="button" @click="session.cancelPlan()">取消此计划</button><button v-if="plan && session.canUndo.value" type="button" @click="session.previewUndo()">预览撤销</button><button v-if="sourceWritesAvailable && session.target.value" type="button" :disabled="session.draftLocked.value" @click="sourceWrites">预览源标签写回</button></div><div class="organizer-footer-actions"><button v-if="session.view.value === 'preview' && session.target.value && !session.draftLocked.value" type="button" @click="session.edit()">返回编辑</button><button v-if="session.view.value !== 'history'" type="button" :disabled="session.busy.value" @click="session.loadHistory()">整理历史</button><button v-if="session.view.value === 'preview' && plan" type="button" class="organizer-primary" :disabled="!session.canConfirm.value" @click="session.save()">{{ session.confirming.value ? '正在保存…' : '保存这些更正' }}</button></div></footer>
   </dialog>
 </template>
 

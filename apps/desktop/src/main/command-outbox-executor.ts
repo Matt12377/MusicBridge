@@ -37,6 +37,8 @@ export function createCommandOutboxExecutor(options: {
   }
 
   async function executeRequest(request: CommandOutboxRequest): Promise<unknown> {
+    // 源写能力仅在 source-specific Main handler；普通恢复不能签发或借用 grant。
+    if (request.command === 'localSourceWrites.confirm' || request.command === 'localSourceWrites.undo' || request.command === 'localSourceWrites.setPolicy') return fail('INVALID_IPC_REQUEST')
     if (isCommandOutboxExecute(request)) {
       if ((request.command === 'localLegacyLinks.confirm' || request.command === 'localLegacyLinks.revoke' || request.command === 'localLegacyLinks.undo')
         && request.payload.datasetId !== request.datasetId) return fail('OUTBOX_SCOPE_MISMATCH')

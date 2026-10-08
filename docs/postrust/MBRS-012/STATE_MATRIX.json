@@ -1,0 +1,344 @@
+{
+  "schema": "mbrs012.state-evidence-matrix.v1",
+  "task": "MBRS-012",
+  "baseSha": "09370f19d4422be3b387047999a0722961c52e1e",
+  "originalTaskBytes": 3788,
+  "originalTaskSha256": "c77b9d1516a85a50e677c20e028f449ab072fc424032d4cb58e804aac2b427b6",
+  "acceptanceOriginalBytesAndFieldsPreserved": true,
+  "qualification": "FINITE_LOCAL_WRITER_AND_OWNED_APP_PROOF_ONLY",
+  "softwareAndProductStatusSeparate": true,
+  "cases": [
+    {
+      "id": "MBRS-AT-012-01",
+      "kind": "integration",
+      "introduced_in": "1.1",
+      "requirement": "每个允许writer/格式目标字段正确，音频与非目标元数据不变，备份可读可验证。",
+      "overall": "PARTIAL",
+      "software": "PASS_FINITE_WRITER_PROFILES_FIELDS_SPANS_BACKUP",
+      "app": "PASS_OWNED_FLAC_MP3_TAGS_PNG_EMBEDDED_DIRECTORY_BATCH",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN",
+      "plannedEvidence": [
+        "双格式六字段显式set/remove与非目标raw spans",
+        "FLAC/MP3写前写后独立ffprobe及解码PCM相等",
+        "原图PNG/JPEG实际内嵌/目录写回",
+        "备份独立inode/可读/完整Hash"
+      ],
+      "evidence": [
+        {
+          "reference": "docs/postrust/MBRS-012/FORMAT_PHASE_VALIDATION.json",
+          "scope": "FORMAT_MODULE_ONLY_NOT_CONTROLLED_SOURCE_WRITER_QUALIFICATION",
+          "result": "PARTIAL",
+          "detail": "仅格式模块自有 FLAC/MP3 副本六字段 set/remove 和 PNG 原件内嵌；独立 ffprobe/解码 PCM/非目标 raw spans 6/6。JPEG、publisher、服务端 grant、备份和撤销尚未验证。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/METADATA_PHASE_VALIDATION.json",
+          "scope": "FORMAT_MODULE_AND_REAL_PREFIX_METADATA_PARSER_ONLY",
+          "result": "PARTIAL",
+          "detail": "前区解析8/8；规范0与四位年份、显式remove和PNG/JPEG实际原图回读通过。新增JPEG真实输出独立raw spans/ffprobe/解码PCM 2/2；完整publisher、服务端grant、备份与撤销未验证。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/METADATA_PHASE_VALIDATION02.json",
+          "scope": "REFRESHED_METADATA_MODULE_ACTUAL_OUTPUTS_ONLY",
+          "result": "PARTIAL",
+          "detail": "类型守卫修正后8/8与新JPEG实际输出独立2/2刷新；音频PCM与未选raw spans一致，publisher和备份尚未验。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/SOURCE_SERVICE_PHASE_VALIDATION.json",
+          "scope": "ACTUAL_BASIC_SERVICE_AND_INDEPENDENT_OUTPUTS_FINITE_NOT_OWNER_APP_ALL_FAULTS",
+          "result": "PARTIAL",
+          "detail": "真实基础服务7/7；两格式写回、独立备份及撤销，音频PCM/未选span独立2/2与真实权限属性/独立inode备份2/2。真实Owner冷保护、多代UNKNOWN、封面恢复及正式App仍待验证。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
+          "scope": "CURRENT_FINITE_LOCAL_SOFTWARE_OWNED_APP_SEPARATE_LAYERS",
+          "result": "PARTIAL",
+          "detail": "双格式真实 Scanner→Service→Publisher→SQLite 目标六字段 set/remove、完整 raw/search、未知与多值非目标 span 保持、真实 backup 与 undo；Core JPEG 内嵌与目录覆盖/absence恢复，严格格式/属性 allowlist。 App37 两格式单标签/PNG内嵌/两曲 batch 与目录 PNG 创建/撤销；独立6输出真实 ffprobe、原音频 payload、非目标 span/order 与解码PCM相等，14安全项及7恢复项。 App37 没有 JPEG 路径、其它用户文件和文件系统；真实用户库/NAS与设备听感未跑。有限 allowlist 外仍拒写。"
+        }
+      ],
+      "evidence_scope": "双格式真实 Scanner→Service→Publisher→SQLite 目标六字段 set/remove、完整 raw/search、未知与多值非目标 span 保持、真实 backup 与 undo；Core JPEG 内嵌与目录覆盖/absence恢复，严格格式/属性 allowlist。 App37 两格式单标签/PNG内嵌/两曲 batch 与目录 PNG 创建/撤销；独立6输出真实 ffprobe、原音频 payload、非目标 span/order 与解码PCM相等，14安全项及7恢复项。 App37 没有 JPEG 路径、其它用户文件和文件系统；真实用户库/NAS与设备听感未跑。有限 allowlist 外仍拒写。"
+    },
+    {
+      "id": "MBRS-AT-012-02",
+      "kind": "fault",
+      "introduced_in": "1.1",
+      "requirement": "替换/DB提交各阶段故障有journal恢复，无隐瞒半写。",
+      "overall": "PARTIAL",
+      "software": "PASS_CONTROLLED_FAULTS_REAL_PUBLISHER_SQLITE_COLD_RECOVERY",
+      "app": "NOT_RUN_APP_PUBLICATION_DB_FAULT_INJECTION",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN",
+      "plannedEvidence": [
+        "backup/quarantine/install/readback/DB rollback或未知commit/claim收口逐阶段故障",
+        "原件与stage不静默丢弃，公开RECOVERY_REQUIRED",
+        "冷启动只读对账/阻止新读新写/不自动重放"
+      ],
+      "evidence": [
+        {
+          "reference": "docs/postrust/MBRS-012/PERSISTENCE_PHASE_VALIDATION.json",
+          "scope": "DURABLE_JOURNAL_MODULE_ONLY_NOT_PUBLICATION_FAILURE_RECOVERY",
+          "result": "PARTIAL",
+          "detail": "真实SQLite日志冷读、完整上下文与Hash/预算拒绝通过；尚不证明发布各阶段故障恢复、新SAB阻读或实际备份复原。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
+          "scope": "CURRENT_FINITE_LOCAL_SOFTWARE_OWNED_APP_SEPARATE_LAYERS",
+          "result": "PARTIAL",
+          "detail": "真实自有 FD、Node Owner、SQLite 与 publisher 的阶段故障注入；发布前不动源 inode/bytes，捕获后保留 backup/quarantine，确定 facts rollback、commit ACK未知、新Owner/SAB、多代family与explicit recovery实际验证；不是实际拔电或NAS故障。 App37 正常重启后持久历史和计划保留，不能抵扣应用发布/DB阶段故障。 生产 App 中故障注入、真实库/NAS崩溃/恢复未跑。"
+        }
+      ],
+      "evidence_scope": "真实自有 FD、Node Owner、SQLite 与 publisher 的阶段故障注入；发布前不动源 inode/bytes，捕获后保留 backup/quarantine，确定 facts rollback、commit ACK未知、新Owner/SAB、多代family与explicit recovery实际验证；不是实际拔电或NAS故障。 App37 正常重启后持久历史和计划保留，不能抵扣应用发布/DB阶段故障。 生产 App 中故障注入、真实库/NAS崩溃/恢复未跑。"
+    },
+    {
+      "id": "MBRS-AT-012-03",
+      "kind": "unit",
+      "introduced_in": "1.1",
+      "requirement": "过期计划/源变/未授权/冻结/不支持格式被拒绝。",
+      "overall": "PARTIAL",
+      "software": "PASS_FINITE_EXPIRY_SOURCE_AUTHORITY_FROZEN_FORMAT_GUARDS",
+      "app": "PARTIAL_APP_DEFAULT_OFF_BLOCKED_ONLY",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN",
+      "plannedEvidence": [
+        "服务器拒绝过期Hash/上下文修订/源变/未授权/不支持格式",
+        "Frozen/Prepared/Archive默认拒绝",
+        "padding不足/多图歧义/未知属性拒写"
+      ],
+      "evidence": [
+        {
+          "reference": "docs/postrust/MBRS-012/FORMAT_PHASE_VALIDATION.json",
+          "scope": "FORMAT_MODULE_ONLY_NOT_CONTROLLED_SOURCE_WRITER_QUALIFICATION",
+          "result": "PARTIAL",
+          "detail": "格式模块行为用例覆盖 ID3v2.3/flags/padding、FLAC Application/n-total 和 MP3 全帧链不支持输入拒绝；过期/授权/Frozen/服务端源变尚未验证。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/SOURCE_SERVICE_PHASE_VALIDATION.json",
+          "scope": "ACTUAL_BASIC_SERVICE_AND_INDEPENDENT_OUTPUTS_FINITE_NOT_OWNER_APP_ALL_FAULTS",
+          "result": "PARTIAL",
+          "detail": "真实基础服务7/7；两格式写回、独立备份及撤销，音频PCM/未选span独立2/2与真实权限属性/独立inode备份2/2。真实Owner冷保护、多代UNKNOWN、封面恢复及正式App仍待验证。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
+          "scope": "CURRENT_FINITE_LOCAL_SOFTWARE_OWNED_APP_SEPARATE_LAYERS",
+          "result": "PARTIAL",
+          "detail": "实际过期READY、旧view/旧policy/grant、撤销source许可、源内容/命名/属性变化、Frozen历史与非allowlist格式拒绝，未产生源副作用。 App37 默认 OFF 真实 preview→BLOCKED，源 SHA 保持；App未逐项执行过期/Frozen/格式/撤权负例。 生产 App 全部拒绝轴与真实Frozen库/账号/NAS未跑。"
+        }
+      ],
+      "evidence_scope": "实际过期READY、旧view/旧policy/grant、撤销source许可、源内容/命名/属性变化、Frozen历史与非allowlist格式拒绝，未产生源副作用。 App37 默认 OFF 真实 preview→BLOCKED，源 SHA 保持；App未逐项执行过期/Frozen/格式/撤权负例。 生产 App 全部拒绝轴与真实Frozen库/账号/NAS未跑。"
+    },
+    {
+      "id": "MBRS-AT-012-04",
+      "kind": "integration",
+      "introduced_in": "1.1",
+      "requirement": "活跃/暂停/预取/录音lease时写入延期或安全阻止，不打断原样读取。",
+      "overall": "PARTIAL",
+      "software": "PASS_REAL_FD_SHARED_SAB_OWNER_READER_FIRST_GUARDS",
+      "app": "NOT_RUN_APP_ACTIVE_PAUSED_PREFETCH_RECORDING_LEASES",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN",
+      "plannedEvidence": [
+        "同SAB活动/暂停/预取/录音和legacy无AssetID保护",
+        "稳定顺序多资源排他claims与busy读闭环",
+        "原读者不中断，MB_ONLY不抢无关源锁"
+      ],
+      "evidence": [
+        {
+          "reference": "docs/postrust/MBRS-012/NAMESPACE_PHASE_VALIDATION.json",
+          "result": "PARTIAL",
+          "scope": "NAMESPACE_TRANSFER_AND_READER_MODULE_ONLY_NOT_REAL_OWNER_FOUR_LEASE_CONTEXTS",
+          "detail": "命名/真实FD与同SAB移交、整组原子释放、真实新Worker/编译Reader32/32；四种真实Owner读者先持lease再确认writer和冷journal全链仍待。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
+          "scope": "CURRENT_FINITE_LOCAL_SOFTWARE_OWNED_APP_SEPARATE_LAYERS",
+          "result": "PARTIAL",
+          "detail": "四类实际本地 lease/FD（active、paused、prefetch、recording）持有时真实 Node Owner/SAB source confirm→ACTIVE_READER，未创建backup/发布，新事实未改，原 lease 完整read bytes保持，清理后资源0。session/target确认由受控callback提供。 App37没有真实活动/暂停/预取/录音lease时源写。 真实 Roon session、播放不中断的设备/听感、真实录音、应用并发源写未跑。"
+        }
+      ],
+      "evidence_scope": "四类实际本地 lease/FD（active、paused、prefetch、recording）持有时真实 Node Owner/SAB source confirm→ACTIVE_READER，未创建backup/发布，新事实未改，原 lease 完整read bytes保持，清理后资源0。session/target确认由受控callback提供。 App37没有真实活动/暂停/预取/录音lease时源写。 真实 Roon session、播放不中断的设备/听感、真实录音、应用并发源写未跑。"
+    },
+    {
+      "id": "MBRS-AT-012-05",
+      "kind": "integration",
+      "introduced_in": "1.1",
+      "requirement": "写后原ID保留，新lease取新revision；旧URL不可返回新内容。",
+      "overall": "PARTIAL",
+      "software": "PASS_ONE_REAL_OWNER_SAME_GATEWAY_REVISION_HTTP_AND_UNDO",
+      "app": "PARTIAL_APP_IDS_REVISION_RESCAN_COLD_NO_HTTP_LEASE",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN",
+      "plannedEvidence": [
+        "同Node事务原AssetID保留、新fileRevision/raw/signature/physical/scanfacts一致",
+        "旧URL不可返回新字节",
+        "后继扫描不重复增加revision"
+      ],
+      "evidence": [
+        {
+          "reference": "docs/postrust/MBRS-012/SOURCE_SERVICE_PHASE_VALIDATION.json",
+          "scope": "ACTUAL_BASIC_SERVICE_AND_INDEPENDENT_OUTPUTS_FINITE_NOT_OWNER_APP_ALL_FAULTS",
+          "result": "PARTIAL",
+          "detail": "真实基础服务7/7；两格式写回、独立备份及撤销，音频PCM/未选span独立2/2与真实权限属性/独立inode备份2/2。真实Owner冷保护、多代UNKNOWN、封面恢复及正式App仍待验证。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
+          "scope": "CURRENT_FINITE_LOCAL_SOFTWARE_OWNED_APP_SEPARATE_LAYERS",
+          "result": "PARTIAL",
+          "detail": "Root51实际1/1：同次真实Node Owner和同一loopback Gateway，原track/asset ID保留，revision1→2→3；旧URL404/空body，原descriptor CONTENT_CHANGED；新lease HTTP完整bytes等实际发布文件，undo与新恢复lease wholeSHA回原件。受控target/session authority，不接Roon。 App37确认原ID、revision增加、真实rescan不重复修订、冷App raw/revision与源SHA保留；App中未执行新旧URL HTTP闭环。 生产 App HTTP lease与真实 Roon/native session尚未跑。"
+        }
+      ],
+      "evidence_scope": "Root51实际1/1：同次真实Node Owner和同一loopback Gateway，原track/asset ID保留，revision1→2→3；旧URL404/空body，原descriptor CONTENT_CHANGED；新lease HTTP完整bytes等实际发布文件，undo与新恢复lease wholeSHA回原件。受控target/session authority，不接Roon。 App37确认原ID、revision增加、真实rescan不重复修订、冷App raw/revision与源SHA保留；App中未执行新旧URL HTTP闭环。 生产 App HTTP lease与真实 Roon/native session尚未跑。"
+    },
+    {
+      "id": "MBRS-AT-012-06",
+      "kind": "integration",
+      "introduced_in": "1.1",
+      "requirement": "撤销前后外部变更产生冲突，不恢复旧备份覆盖新修改。",
+      "overall": "PARTIAL",
+      "software": "PASS_FINITE_UNDO_PREVIEW_READY_AND_POST_GRANT_EXTERNAL_CONFLICT_GUARDS",
+      "app": "PARTIAL_APP_NORMAL_UNDO_NO_EXTERNAL_CONFLICT",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN",
+      "plannedEvidence": [
+        "撤销生成新READY计划，不自动恢复",
+        "外部后续变化发生冲突且目标Hash保持",
+        "真实backup复原与原件PCM一致"
+      ],
+      "evidence": [
+        {
+          "reference": "docs/postrust/MBRS-012/SOURCE_SERVICE_PHASE_VALIDATION.json",
+          "scope": "ACTUAL_BASIC_SERVICE_AND_INDEPENDENT_OUTPUTS_FINITE_NOT_OWNER_APP_ALL_FAULTS",
+          "result": "PARTIAL",
+          "detail": "真实基础服务7/7；两格式写回、独立备份及撤销，音频PCM/未选span独立2/2与真实权限属性/独立inode备份2/2。真实Owner冷保护、多代UNKNOWN、封面恢复及正式App仍待验证。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
+          "scope": "CURRENT_FINITE_LOCAL_SOFTWARE_OWNED_APP_SEPARATE_LAYERS",
+          "result": "PARTIAL",
+          "detail": "真实service已验证undo预览前冲突；Root56真实Owner单例使用两份独立有效FLAC，在inverse READY后、取得新Main grant后分别等长改写TITLE。受理accepted后后台以FAILED/SOURCE_CHANGED拒绝，发生在publisher之前；外部完整bytes和独立原backup保持、逆向发布事件及新catalog facts均为0，SQLite冷重开冲突持久，Owner自然exit0、资源0。Root另全FD重核四实际文件。App37正常7项恢复及独立wholeSHA/PCM通过，未在App注入外部冲突；真实库/NAS和App外部冲突仍未跑。"
+        }
+      ],
+      "evidence_scope": "真实service已验证undo预览前冲突；Root56真实Owner单例使用两份独立有效FLAC，在inverse READY后、取得新Main grant后分别等长改写TITLE。受理accepted后后台以FAILED/SOURCE_CHANGED拒绝，发生在publisher之前；外部完整bytes和独立原backup保持、逆向发布事件及新catalog facts均为0，SQLite冷重开冲突持久，Owner自然exit0、资源0。Root另全FD重核四实际文件。App37正常7项恢复及独立wholeSHA/PCM通过，未在App注入外部冲突；真实库/NAS和App外部冲突仍未跑。"
+    },
+    {
+      "id": "MBRS-AT-012-07",
+      "kind": "ui",
+      "introduced_in": "1.1",
+      "requirement": "MB-only/目录封面/音频内嵌/标签写回范围清楚，原生Roon待刷新不阻断本地直送。",
+      "overall": "PARTIAL",
+      "software": "PASS_FOUR_SCOPE_ROUTING_SOURCE_RESULTS_AND_STALE_ENTRY_GUARDS",
+      "app": "PARTIAL_FOUR_SCOPES_APP_PASS_DIRECT_ENTRY_VISIBLE_ONLY",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN",
+      "plannedEvidence": [
+        "原正式入口MB-only/标签/内嵌/目录封面边界清楚",
+        "READY/get逐项状态与UNKNOWN不可重试",
+        "原件留存失败不破坏MB-only",
+        "实际生产App及重启持久历史"
+      ],
+      "evidence": [
+        {
+          "reference": "docs/postrust/MBRS-012/DESKTOP_PHASE_VALIDATION.json",
+          "scope": "DESKTOP_LOCK03_BOUNDARIES_AND_REAL_SFC_HOST_ONLY",
+          "result": "PARTIAL",
+          "detail": "新桌面35/35及旧桌面87/87通过；真实SFC宿主验证默认OFF、明确范围和UNKNOWN不重试。后续类型修复需新锁验证，正式生产App未跑。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/NAMESPACE_PHASE_VALIDATION.json",
+          "result": "PARTIAL",
+          "scope": "FRESH_DESKTOP_TYPES_AND_E2E_TYPES_ONLY_NOT_PRODUCTION_APP",
+          "detail": "LOCK05 UI不改，新鲜桌面类型及E2E类型实际退出0；正式App仍未跑。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/SOURCE_SERVICE_PHASE_VALIDATION.json",
+          "scope": "ACTUAL_BASIC_SERVICE_AND_INDEPENDENT_OUTPUTS_FINITE_NOT_OWNER_APP_ALL_FAULTS",
+          "result": "PARTIAL",
+          "detail": "真实基础服务7/7；两格式写回、独立备份及撤销，音频PCM/未选span独立2/2与真实权限属性/独立inode备份2/2。真实Owner冷保护、多代UNKNOWN、封面恢复及正式App仍待验证。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
+          "scope": "CURRENT_FINITE_LOCAL_SOFTWARE_OWNED_APP_SEPARATE_LAYERS",
+          "result": "PARTIAL",
+          "detail": "正式SFC和Main/Outbox行为区分 MB-only/TAGS/EMBEDDED/DIRECTORY；结果Roon/native待刷新文本与本地直送入口保留；软件本地Reader正例独立验证。 App37四范围真实操作、预览无写、最终具体计划确认、撤销/重启历史成功，最终直送按钮可见；没有点击直送、没有真实native刷新。 真实Roon/native未刷新状态下新本地直送音频/设备闭环未跑，不能将入口可见写成播放成功。"
+        }
+      ],
+      "evidence_scope": "正式SFC和Main/Outbox行为区分 MB-only/TAGS/EMBEDDED/DIRECTORY；结果Roon/native待刷新文本与本地直送入口保留；软件本地Reader正例独立验证。 App37四范围真实操作、预览无写、最终具体计划确认、撤销/重启历史成功，最终直送按钮可见；没有点击直送、没有真实native刷新。 真实Roon/native未刷新状态下新本地直送音频/设备闭环未跑，不能将入口可见写成播放成功。"
+    },
+    {
+      "id": "MBRS-AT-012-08",
+      "kind": "integration",
+      "introduced_in": "1.2",
+      "requirement": "有效规则仅授予受控Organizer具体计划写权限；原录音读模块仍不可写，Frozen默认拒绝修改。",
+      "overall": "PARTIAL",
+      "software": "PASS_SPECIFIC_MAIN_OWNER_GRANT_LEGACY_READONLY_FROZEN_GUARDS",
+      "app": "PARTIAL_APP_DEFAULT_OFF_SPECIFIC_PLAN_FROZEN_NOT_RUN",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN",
+      "plannedEvidence": [
+        "有限ADR与规则矩阵/默认OFF/具体服务端grant",
+        "旧SourceEvidence录音读模块无源写能力",
+        "Frozen默认拒绝/历史Hash不改"
+      ],
+      "evidence": [
+        {
+          "reference": "docs/postrust/MBRS-012/PROTECTION_CONTENT_PHASE_VALIDATION.json",
+          "scope": "PRIVATE_PROTECTION_CONTENT_SNAPSHOT_ONLY",
+          "result": "PARTIAL",
+          "detail": "24表实际内容、原预算、撤销根与Frozen冷核9/9；旧Hash与旧证据不回写。尚不证明具体Owner grant或完整源写服务拒绝。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
+          "scope": "CURRENT_FINITE_LOCAL_SOFTWARE_OWNED_APP_SEPARATE_LAYERS",
+          "result": "PARTIAL",
+          "detail": "专用真实Main物理端口actor + 服务端逐plan grant正负例；旧SourceEvidence/recording mutation API拒写、默认OFF；真实发布Master后Frozen阻既存READY与新preview，原历史/Hash/bytes/普通读取保留。 App37默认OFF、开启policy、原最终计划按钮、许可范围内写/撤销；未跑实际Frozen/旧录音源产品路径。 生产App Frozen/Prepared/Archive/真实录音历史与真实用户库未跑；不新增版本化Frozen例外。"
+        }
+      ],
+      "evidence_scope": "专用真实Main物理端口actor + 服务端逐plan grant正负例；旧SourceEvidence/recording mutation API拒写、默认OFF；真实发布Master后Frozen阻既存READY与新preview，原历史/Hash/bytes/普通读取保留。 App37默认OFF、开启policy、原最终计划按钮、许可范围内写/撤销；未跑实际Frozen/旧录音源产品路径。 生产App Frozen/Prepared/Archive/真实录音历史与真实用户库未跑；不新增版本化Frozen例外。"
+    },
+    {
+      "id": "MBRS-AT-012-09",
+      "kind": "security",
+      "introduced_in": "1.2",
+      "requirement": "plan_hash、scope、操作集合和授权引用由服务端验证；Schema正确或客户端approval字段不能授权写文件。",
+      "overall": "PARTIAL",
+      "software": "PASS_SERVER_PLAN_HASH_SCOPE_OPERATION_SET_AND_PORT_AUTHORITY_GUARDS",
+      "app": "PARTIAL_APP_POSITIVE_SPECIFIC_FINAL_PLAN_ROUTING",
+      "live": "NOT_RUN",
+      "owner": "NOT_RUN",
+      "plannedEvidence": [
+        "Renderer approval/path/FD/grant无法授权",
+        "可信Main一次捕获最终DTO/专用私有Owner端口",
+        "服务端planHash/scope/opset/权限ref/修订/期限校验",
+        "通用execute和Outbox重试不签grant"
+      ],
+      "evidence": [
+        {
+          "reference": "docs/postrust/MBRS-012/DESKTOP_PHASE_VALIDATION.json",
+          "scope": "DESKTOP_PRIVATE_PORT_CAPTURE_AND_INGRESS_ONLY_NOT_OWNER_WRITER",
+          "result": "PARTIAL",
+          "detail": "桌面可信捕获、一次专用私有发送、入站拒绝伪造字段及UNKNOWN原指纹核对通过；实际Owner授权执行仍待验证。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/SOURCE_SERVICE_PHASE_VALIDATION.json",
+          "scope": "ACTUAL_BASIC_SERVICE_AND_INDEPENDENT_OUTPUTS_FINITE_NOT_OWNER_APP_ALL_FAULTS",
+          "result": "PARTIAL",
+          "detail": "真实基础服务7/7；两格式写回、独立备份及撤销，音频PCM/未选span独立2/2与真实权限属性/独立inode备份2/2。真实Owner冷保护、多代UNKNOWN、封面恢复及正式App仍待验证。"
+        },
+        {
+          "reference": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
+          "scope": "CURRENT_FINITE_LOCAL_SOFTWARE_OWNED_APP_SEPARATE_LAYERS",
+          "result": "PARTIAL",
+          "detail": "闭集捕获拒getter/symbol/额外approval/path/FD/grant；服务端重算 body/context与逐项映射，实际Main actor/owner epoch/nonce/policy/request指纹/HMAC一次性绑定；公开正确schema与policy开启不能授权，旧accepted查询不重放。 App37原Main/Owner正向最终计划授权路由与结果；没有通过生产App注入全部权限绕过负例。 生产App hostile renderer/全部负例未跑；真实账号、Provider凭据和Roon不在本任务合成CI中。"
+        }
+      ],
+      "evidence_scope": "闭集捕获拒getter/symbol/额外approval/path/FD/grant；服务端重算 body/context与逐项映射，实际Main actor/owner epoch/nonce/policy/request指纹/HMAC一次性绑定；公开正确schema与policy开启不能授权，旧accepted查询不重放。 App37原Main/Owner正向最终计划授权路由与结果；没有通过生产App注入全部权限绕过负例。 生产App hostile renderer/全部负例未跑；真实账号、Provider凭据和Roon不在本任务合成CI中。"
+    }
+  ],
+  "realLibrary": "NOT_RUN",
+  "sourceEffect": "FINITE_OWNED_SOURCE_AND_APP37_INDEPENDENT_OUTPUTS_PROVEN",
+  "defaultCore": "Node",
+  "catalogSchema": 34,
+  "optionalRustReadonly": "OFF",
+  "libraryWriteEnabledDefault": false,
+  "legacyOrganizerSourceFiles": "OFF",
+  "currentFiniteValidation": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json"
+}

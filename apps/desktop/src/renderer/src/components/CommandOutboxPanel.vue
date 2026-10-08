@@ -7,6 +7,8 @@ const emit = defineEmits<{ close: []; overview: [overview: CommandOutboxOverview
 const dialog = ref<HTMLDialogElement>()
 const retryConfirm = ref<Record<string, boolean>>({})
 const dismissConfirm = ref<Record<string, boolean>>({})
+const sourceBusy = ref<string[]>([]), sourceErrors = ref<Record<string, string>>({}), sourceResults = ref<Record<string, { label: string; items: { label: string; state: string; issue: string | null }[] }>>({})
+let sourceReadsAlive = true
 const visibleCount = ref(20)
 let publishedOverview: CommandOutboxOverview | null = null
 const controller = createCommandOutboxController({ api: window.musicBridge, onChange: (value) => {
@@ -17,6 +19,9 @@ const state = shallowRef(controller.state)
 const entries = computed(() => state.value.overview?.entries.filter((item) => !item.acknowledged && item.state !== 'dismissed') ?? [])
 const visibleEntries = computed(() => entries.value.slice(0, visibleCount.value))
 const labels: Record<CommandOutboxTrackedCommand, string> = {
+  'localSourceWrites.setPolicy': '保存具体源写开关',
+  'localSourceWrites.confirm': '受理具体源文件写入',
+  'localSourceWrites.undo': '生成源写撤销预览',
   'localLegacyLinks.confirm': '确认本地关联',
   'localLegacyLinks.revoke': '解除本地关联',
   'localLegacyLinks.undo': '撤销本地关系操作',
@@ -69,6 +74,33 @@ const stateLabels: Record<CommandOutboxState, string> = {
   succeeded: '已成功，待确认', rejected: '已拒绝，需核对', dismissed: '已放弃跟踪',
 }
 function nativeChoice(item: CommandOutboxView): boolean { return item.command.includes('.choose') }
+function sourceItem(item: CommandOutboxView): boolean { return ['localSourceWrites.confirm', 'localSourceWrites.undo', 'localSourceWrites.setPolicy'].includes(item.command) }
+function deliveryLabel(item: CommandOutboxView): string { return sourceItem(item) && item.state === 'succeeded' ? item.command === 'localSourceWrites.setPolicy' ? '设置回执已保存' : '已受理，等待核对计划结果' : stateLabels[item.state] }
+async function readSource(item: CommandOutboxView): Promise<void> {
+  if (sourceBusy.value.includes(item.id) || oldDataset(item) || !item.sourceRequestFingerprint || !window.musicBridge.getLocalSourceWrites) return
+  const command = item.command
+  if (command !== 'localSourceWrites.confirm' && command !== 'localSourceWrites.undo' && command !== 'localSourceWrites.setPolicy') return
+  sourceBusy.value = [...sourceBusy.value, item.id]; sourceErrors.value = { ...sourceErrors.value, [item.id]: '' }
+  try {
+    const result = await window.musicBridge.getLocalSourceWrites({ datasetId: item.datasetId, selector: { kind: 'command', commandId: item.commandId, expectedCommand: command, requestFingerprint: item.sourceRequestFingerprint } })
+    if (!sourceReadsAlive) return
+    if (result.kind !== 'command' || result.commandId !== item.commandId || result.requestFingerprint !== item.sourceRequestFingerprint || result.expectedCommand !== command) throw new Error('原回执身份无效。')
+    if (!result.receipt) { sourceResults.value = { ...sourceResults.value, [item.id]: { label: '暂未找到原请求；结果仍未知，不会重发或重新授权。', items: [] } }; return }
+    const receipt = result.receipt
+    let value = { label: receipt.outcome === 'accepted' ? command === 'localSourceWrites.setPolicy' ? `源写开关已保存：${receipt.policy?.enabled ? '开启' : '关闭'}${receipt.policy?.draining ? '，已有任务安全收尾中' : ''}` : '已受理；文件结果仍须核对计划。' : '原请求已拒绝；请在具体计划中核对原因。', items: [] as { label: string; state: string; issue: string | null }[] }
+    if (receipt.planId) {
+      const current = await window.musicBridge.getLocalSourceWrites({ datasetId: item.datasetId, selector: { kind: 'plan', planId: receipt.planId } })
+      if (!sourceReadsAlive) return
+      if (current.kind !== 'plan' || !current.plan || current.plan.planId !== receipt.planId) throw new Error('原计划暂时无法读取；受理不等于写入完成。')
+      const stateNames = { PREVIEWING: '正在核验预览', READY: '撤销或具体计划待确认', BLOCKED: '当前不可写入', QUEUED: '已受理，等待处理', RUNNING: '正在处理文件', COMPLETED: '逐项核验完成', PARTIAL: '部分完成', FAILED: '未完成', CANCEL_REQUESTED: '正在安全收尾', CANCELLED: '已取消', RECOVERY_REQUIRED: '需要核对恢复' }
+      const itemNames = { planned: '尚未写入', applied: '已写入并核对', 'not-written': '未写入', unknown: '结果未知' }
+      value = { label: stateNames[current.plan.state], items: current.plan.items.map(entry => ({ label: entry.label, state: itemNames[entry.state], issue: entry.issue ? '存在待核对问题，请打开源写历史与恢复。' : null })) }
+    }
+    sourceResults.value = { ...sourceResults.value, [item.id]: value }
+    await controller.refresh()
+  } catch { if (sourceReadsAlive) sourceErrors.value = { ...sourceErrors.value, [item.id]: '原源写回执暂时无法核对；不会重发或重新授权。' } }
+  finally { if (sourceReadsAlive) sourceBusy.value = sourceBusy.value.filter(id => id !== item.id) }
+}
 function oldDataset(item: CommandOutboxView): boolean { return item.datasetId !== state.value.overview?.datasetId }
 function busy(item: CommandOutboxView): boolean { return state.value.busyIds.includes(item.id) }
 function retryLabel(item: CommandOutboxView): string {
@@ -81,6 +113,7 @@ function confirmationLabel(item: CommandOutboxView): string {
   return '我已核对该操作及上述影响，确认恢复原操作'
 }
 function recoveryHint(item: CommandOutboxView): string {
+  if (sourceItem(item)) return '只能按原命令读取持久回执与逐项计划结果；未知或未找到都不会重发、重新签发能力或自动写文件。'
   if (item.command === 'recordingBackups.activate' && oldDataset(item)) return '仅查询原切换的持久回执，不停止播放、不重启 Core，也不会重新执行旧工作库中的操作。'
   if (item.command === 'recordingBackups.activate') return '先查询原激活结果；已激活不会再次停止播放或重启 Core。继续未完成的激活可能停止播放、重启 Core，并丢弃未保存的编辑。'
   if (nativeChoice(item)) return '先查询原选择回执；若没有完成回执，本次确认后可重新选择文件或目录。应用重启不会自动打开选择器。'
@@ -100,7 +133,7 @@ onMounted(async () => {
   dialog.value?.querySelector<HTMLElement>('#outbox-title')?.focus({ preventScroll: true })
   void controller.start()
 })
-onUnmounted(() => { controller.dispose(); dialog.value?.close() })
+onUnmounted(() => { sourceReadsAlive = false; controller.dispose(); dialog.value?.close() })
 </script>
 
 <template>
@@ -122,7 +155,7 @@ onUnmounted(() => { controller.dispose(); dialog.value?.close() })
     <p v-else-if="state.overview && entries.length === 0 && !state.error" class="empty">没有待确认操作。</p>
     <ol class="entries">
       <li v-for="item in visibleEntries" :key="item.id" class="entry" :data-outbox-id="item.id" :aria-busy="busy(item)">
-        <div class="entry-heading"><h3>{{ labels[item.command] }}</h3><span class="state">{{ stateLabels[item.state] }}</span></div>
+        <div class="entry-heading"><h3>{{ labels[item.command] }}</h3><span class="state">{{ deliveryLabel(item) }}</span></div>
         <p class="muted">{{ item.command }} · {{ timeLabel(item.updatedAt) }}</p>
         <p class="dataset">来源工作库 <code>{{ item.datasetId }}</code><span>{{ oldDataset(item) ? '其他工作库' : '当前工作库' }}</span></p>
         <p v-if="oldDataset(item) && item.command !== 'recordingBackups.activate'" class="feedback">此操作属于其他工作库，不能在当前工作库重试。请重新加载相关页面，并核对来源工作库的业务记录。</p>
@@ -130,10 +163,11 @@ onUnmounted(() => { controller.dispose(); dialog.value?.close() })
         <p v-if="item.errorCode" class="feedback">{{ outboxErrorMessage(item.errorCode) }}</p>
         <p v-if="state.itemErrors[item.id]" class="feedback" role="alert">{{ state.itemErrors[item.id] }}</p>
         <p class="hint">{{ recoveryHint(item) }}</p>
+        <template v-if="sourceItem(item)"><button type="button" :disabled="sourceBusy.includes(item.id) || oldDataset(item) || !item.sourceRequestFingerprint" @click="readSource(item)">{{ sourceBusy.includes(item.id) ? '正在核对源写回执…' : '核对原源写回执' }}</button><p v-if="sourceErrors[item.id]" role="alert">{{ sourceErrors[item.id] }}</p><section v-if="sourceResults[item.id]" aria-label="源写原回执与逐项结果"><p role="status">{{ sourceResults[item.id]!.label }}</p><ul><li v-for="(result, index) in sourceResults[item.id]!.items" :key="index">{{ result.label }} · {{ result.state }}<span v-if="result.issue"> · {{ result.issue }}</span></li></ul></section></template>
         <p v-if="item.state === 'sending'" role="status">正在等待当前操作回执，不会重复发送。</p>
         <template v-if="item.state === 'succeeded'">
-          <p>操作已成功。请核对相关页面的业务记录后确认；确认仅隐藏此条待处理记录。</p>
-          <button type="button" :disabled="busy(item)" @click="act('ack', item)">{{ busy(item) ? '确认中…' : '成功结果已确认' }}</button>
+          <p v-if="sourceItem(item)">受理回执已保存。确认仅隐藏此条记录；文件结果与恢复材料仍在源写历史中。</p><p v-else>操作已成功。请核对相关页面的业务记录后确认；确认仅隐藏此条待处理记录。</p>
+          <button type="button" :disabled="busy(item)" @click="act('ack', item)">{{ busy(item) ? '确认中…' : sourceItem(item) ? '受理回执已核对' : '成功结果已确认' }}</button>
         </template>
         <template v-else>
           <div v-if="canRetryOutboxItem(item, state.overview?.datasetId)" class="action-group">

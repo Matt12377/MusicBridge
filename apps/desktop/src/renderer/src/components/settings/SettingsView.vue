@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, defineAsyncComponent } from 'vue'
 import AppearanceSettings from './AppearanceSettings.vue'
 import CollectionReadonlySettings from './CollectionReadonlySettings.vue'
 import LocalLibrarySettings from './LocalLibrarySettings.vue'
+const SourceWritesSettings = typeof window.musicBridge?.getLocalSourceWrites === 'function' ? defineAsyncComponent(() => import('./LocalSourceWritesSettings.vue')) : null
 import RoonDisplaySettings from './RoonDisplaySettings.vue'
 import type { AppInfo } from '../../../../preload/api.js'
 import type { PlaybackQualityPreference, PublicAccountState, PublicAuthState, PublicRoonZone, RemoteCoreTunnelState } from '@music-bridge/contracts'
@@ -171,6 +172,8 @@ function paneId(category: SettingsCategory): string {
       <AppearanceSettings />
       <CollectionReadonlySettings />
       <LocalLibrarySettings />
+      <SourceWritesSettings v-if="SourceWritesSettings" />
+      <p v-else class="settings-note">源写服务尚未就绪；原 MB 信息整理与封面选择继续可用。</p>
       <article class="settings-card settings-glass-panel">
         <div class="panel-heading"><div><p class="section-kicker">应用</p><h3>应用信息</h3></div></div>
         <dl class="detail-list"><div><dt>版本</dt><dd>{{ props.appInfo?.version ?? '读取中' }}</dd></div><div><dt>构建模式</dt><dd>{{ props.appInfo?.buildMode === 'development' ? '开发' : '生产' }}</dd></div><div><dt>平台</dt><dd>{{ props.appInfo?.platform ?? '读取中' }}</dd></div></dl>

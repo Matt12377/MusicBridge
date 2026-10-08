@@ -6,7 +6,10 @@ import type { FileHandle } from 'node:fs/promises';
 import path from 'node:path';
 import { physicalResourceLocks, type PhysicalResourceGuard } from '../stream/physical-resource-locks.js';
 import { acquirePhysicalReadClaims, PhysicalClaimsUnverified, type PhysicalReadClaims } from '../stream/physical-resource-claims.js';
+import { assertPhysicalWriteClaims, assertRetainedPhysicalWriteClaims, type PhysicalWriteClaims } from '../stream/physical-resource-claims.js';
 import { LocalFactsCommitFatal } from '../stream/local-source-fence.js';
+import { captureSourceNamespace, acquireSourceNamespaceRead, SourceNamespaceCaptureError, SourceNamespaceUnverified, assertSourceNamespaceHeld,
+  type SourceNamespaceReadClaims, type SourceNamespaceHeldObservation } from '../stream/source-namespace-claims.js';
 import { parseBuffer } from 'music-metadata';
 import { isSourceTechnical, type SourceTechnical, type SourceFailure, type SourceAvailability } from '@music-bridge/contracts';
 
@@ -20,7 +23,7 @@ export interface PublicationSource { root: RootCapability; relative: string; exp
 interface PublicationFile { source: PublicationSource; handle: FileHandle; info: BigIntStats; directoryIds: string[] }
 /** 持有对象只在作者内流动，不作为公开回执或失败后的自动重放许可。 */
 export class SourcePublicationUnverified extends Error {
-  constructor(readonly reason: 'COMMIT_UNVERIFIED' | 'RELEASE_UNVERIFIED', readonly claims: PhysicalReadClaims | undefined, readonly files: readonly PublicationFile[], cause?: unknown) {
+  constructor(readonly reason: 'COMMIT_UNVERIFIED' | 'RELEASE_UNVERIFIED', readonly claims: PhysicalReadClaims | undefined, readonly files: readonly PublicationFile[], cause?: unknown, readonly namespaceClaims?: SourceNamespaceReadClaims) {
     super('冻结发布或源保护释放尚未核实，原保护保留。', { cause });
   }
 }
@@ -29,7 +32,7 @@ export class SourcePublicationUnverified extends Error {
 export async function withReadonlySourcePublicationClaims<T>(sources: readonly PublicationSource[], signal: AbortSignal, consume: (verify: () => Promise<void>, files: readonly PublicationFile[]) => Promise<T> | T): Promise<T> {
   if (!Array.isArray(sources) || !sources.length || sources.length > 2048) return fail('LIMIT_EXCEEDED');
   const files: PublicationFile[] = [];
-  let claims: PhysicalReadClaims | undefined, retained = false;
+  let claims: PhysicalReadClaims | undefined, namespaceClaims: SourceNamespaceReadClaims | undefined, retained = false;
   const deadline = Date.now() + 15 * 60_000;
   const check = (): void => { if (signal.aborted) fail('CANCELLED'); if (Date.now() > deadline) fail('LIMIT_EXCEEDED'); };
   const verify = async (): Promise<void> => {
@@ -42,6 +45,9 @@ export async function withReadonlySourcePublicationClaims<T>(sources: readonly P
     }
   };
   try {
+    const names = [];
+    for (const source of sources) { check(); names.push(await readonlySourceNamespace(source.root, source.relative)); }
+    namespaceClaims = await acquireSourceNamespaceRead(names);
     for (const source of sources) {
       check(); const first = await checkedFile(source.root, source.relative); check();
       const handle = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW);
@@ -55,21 +61,24 @@ export async function withReadonlySourcePublicationClaims<T>(sources: readonly P
     await verify();
     return await consume(verify, files);
   } catch (error) {
-    if (error instanceof LocalFactsCommitFatal || error instanceof PhysicalClaimsUnverified) {
+    if (error instanceof LocalFactsCommitFatal || error instanceof PhysicalClaimsUnverified || error instanceof SourceNamespaceUnverified) {
       claims ??= error instanceof PhysicalClaimsUnverified ? error.claims : undefined;
-      claims?.retain(); retained = true;
-      throw new SourcePublicationUnverified(error instanceof LocalFactsCommitFatal ? 'COMMIT_UNVERIFIED' : 'RELEASE_UNVERIFIED', claims, files, error);
+      if (error instanceof SourceNamespaceUnverified && 'release' in error.claims) namespaceClaims ??= error.claims;
+      claims?.retain(); namespaceClaims?.retain(); retained = true;
+      throw new SourcePublicationUnverified(error instanceof LocalFactsCommitFatal ? 'COMMIT_UNVERIFIED' : 'RELEASE_UNVERIFIED', claims, files, error, namespaceClaims);
     }
     throw error;
   } finally {
     if (!retained) {
       const closed = await Promise.allSettled(files.map(file => file.handle.close()));
       const failure = closed.find((result): result is PromiseRejectedResult => result.status === 'rejected');
-      if (failure) { claims?.retain(); throw new SourcePublicationUnverified('RELEASE_UNVERIFIED', claims, files, failure.reason); }
+      if (failure) { claims?.retain(); namespaceClaims?.retain(); throw new SourcePublicationUnverified('RELEASE_UNVERIFIED', claims, files, failure.reason, namespaceClaims); }
       if (claims) {
         try { await claims.release(); }
-        catch (error) { throw new SourcePublicationUnverified('RELEASE_UNVERIFIED', claims, files, error); }
+        catch (error) { namespaceClaims?.retain(); throw new SourcePublicationUnverified('RELEASE_UNVERIFIED', claims, files, error, namespaceClaims); }
       }
+      try { await namespaceClaims?.release(); }
+      catch (error) { throw new SourcePublicationUnverified('RELEASE_UNVERIFIED', claims, files, error, namespaceClaims); }
     }
   }
 }
@@ -96,6 +105,40 @@ export async function observeReadonlySourceProtection(root: RootCapability, rela
       permissionMode:String(file.info.mode & 0o7777n), rootPhysical:{dev:root.dev,ino:root.ino}, rootSignature:signature(ancestors[0]!),rootPermissionMode:String(ancestors[0]!.mode & 0o7777n),
       directoryIds:[...file.directoryIds],directorySignatures:ancestors.slice(1).map(directory=>`${signature(directory)}:${directory.mode & 0o7777n}`) };
   });
+}
+/** 新作者私有观察：真实FD/fstat与同协调器真实性证明；未持有的旧引用仍走原只读入口。 */
+export async function observeSourceProtectionWithWriteClaims(root:RootCapability,relative:string,signal:AbortSignal,claims:PhysicalWriteClaims,namespace?:SourceNamespaceHeldObservation):Promise<ReadonlySourcePhysicalObservation> {
+  return observeClaimedSourceProtection(root,relative,signal,claims,false,namespace);
+}
+export async function observeSourceProtectionWithRetainedWriteClaims(root:RootCapability,relative:string,signal:AbortSignal,claims:PhysicalWriteClaims,namespace?:SourceNamespaceHeldObservation):Promise<ReadonlySourcePhysicalObservation>{return observeClaimedSourceProtection(root,relative,signal,claims,true,namespace);}
+async function observeClaimedSourceProtection(root:RootCapability,relative:string,signal:AbortSignal,claims:PhysicalWriteClaims,retained:boolean,namespace?:SourceNamespaceHeldObservation):Promise<ReadonlySourcePhysicalObservation> {
+  const assert:typeof assertPhysicalWriteClaims=retained?assertRetainedPhysicalWriteClaims:assertPhysicalWriteClaims;assert(claims,[]);
+  const namedNamespace = await readonlySourceNamespace(root,relative);
+  const assertNamespace = ():void => { if(namespace)assertSourceNamespaceHeld(namespace.token,{datasetId:namespace.datasetId,planId:namespace.planId,originBinding:namespace.originBinding,operations:[{operationId:namespace.operationId,name:namedNamespace}]}); };
+  assertNamespace();
+  const namespaceClaims = namespace ? undefined : await acquireSourceNamespaceRead([namedNamespace]);
+  let handle:FileHandle|undefined, failure:unknown;
+  try {
+    const named=await checkedFile(root,relative),resource={dev:String(named.info.dev),ino:String(named.info.ino)};
+    const held=claims.resources.some(r=>BigInt(r.dev)===named.info.dev&&BigInt(r.ino)===named.info.ino);
+    if(!held)return await observeReadonlySourceProtection(root,relative,signal);
+    assert(claims,[resource]);
+    handle=await open(named.absolute,constants.O_RDONLY|constants.O_NOFOLLOW);
+    const first=await handle.stat({bigint:true});
+    if(!first.isFile()||signature(first)!==signature(named.info)||first.birthtimeNs!==named.info.birthtimeNs||signal.aborted)return fail('CONTENT_CHANGED');
+    const paths=[root.path];let cursor=root.path;
+    for(const part of relative.split('/').slice(0,-1)){cursor=path.join(cursor,part);paths.push(cursor);}
+    const ancestors:BigIntStats[]=[];for(const absolute of paths)ancestors.push(await lstat(absolute,{bigint:true}));
+    const second=await checkedFile(root,relative),actual=await handle.stat({bigint:true});
+    if(signature(actual)!==signature(first)||actual.birthtimeNs!==first.birthtimeNs||actual.mode!==first.mode||signature(second.info)!==signature(first)||JSON.stringify(second.directoryIds)!==JSON.stringify(named.directoryIds))return fail('CONTENT_CHANGED');
+    for(const [i,absolute]of paths.entries()){const current=await lstat(absolute,{bigint:true}),previous=ancestors[i]!;if(!current.isDirectory()||current.isSymbolicLink()||signature(current)!==signature(previous)||current.mode!==previous.mode||current.birthtimeNs!==previous.birthtimeNs)return fail('CONTENT_CHANGED');}
+    assert(claims,[resource]);assertNamespace();if(signal.aborted)return fail('CANCELLED');
+    return {physical:resource,signature:signature(actual),birthtimeNs:String(actual.birthtimeNs),permissionMode:String(actual.mode&0o7777n),rootPhysical:{dev:root.dev,ino:root.ino},rootSignature:signature(ancestors[0]!),rootPermissionMode:String(ancestors[0]!.mode&0o7777n),directoryIds:[...named.directoryIds],directorySignatures:ancestors.slice(1).map(d=>`${signature(d)}:${d.mode&0o7777n}`)};
+  } catch(error) { failure=error;throw error; }
+  finally {
+    try{await handle?.close();}catch(error){claims.retain();namespaceClaims?.retain();throw new SourcePublicationUnverified('RELEASE_UNVERIFIED',claims,[],failure??error,namespaceClaims);}
+    await namespaceClaims?.release();
+  }
 }
 /** 只把有界的技术块交给探测器；封面、标签及任意文本块不进入解析器。 */
 function technicalHeader(prefix: Buffer, size: number): { bytes: Buffer; mimeType: string; virtualSize: number; sampleFrames: number; durationMs?: number } {
@@ -165,7 +208,8 @@ export function sourceRelativePath(root: RootCapability, absolutePath: string): 
   if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) return fail('OUTSIDE_ROOT');
   return relative;
 }
-async function checkedFile(root: RootCapability, relative: string): Promise<{ absolute: string; info: BigIntStats; directoryIds: string[] }> {
+interface CheckedSourceFile { absolute: string; info: BigIntStats; directoryIds: string[] }
+async function checkedFile(root: RootCapability, relative: string): Promise<CheckedSourceFile> {
   const available = await sourceRootAvailability(root); if (available !== 'ONLINE') return fail(available);
   if (path.isAbsolute(relative) || relative.split(path.sep).some(p => p === '..' || p === '.' || !p)) return fail('OUTSIDE_ROOT');
   const parts = relative.split(path.sep); let current = root.path; const directoryIds: string[] = [];
@@ -184,10 +228,29 @@ async function checkedFile(root: RootCapability, relative: string): Promise<{ ab
   return fail('OUTSIDE_ROOT');
 }
 
-async function protectedReadonlyOpen(absolute: string): Promise<{ handle: FileHandle; guard: PhysicalResourceGuard }> {
-  const handle = await open(absolute, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR'));
-  try { const info = await handle.stat({ bigint: true }); return { handle, guard: physicalResourceLocks.acquireRead([{ dev: String(info.dev), ino: String(info.ino) }]) }; }
-  catch (error) { await handle.close(); throw error; }
+async function readonlySourceNamespace(root:RootCapability,relative:string) {
+  try { return await captureSourceNamespace(root,relative); }
+  catch(error) { if(error instanceof SourceNamespaceCaptureError)return fail(error.code);throw error; }
+}
+/** 命名位保护在目标 stat/open 前取得；inode 保护仍来自最终真实 FD。 */
+async function protectedReadonlyOpen(root: RootCapability, relative: string, validate: (first: CheckedSourceFile) => void = () => undefined): Promise<{ first: CheckedSourceFile; handle: FileHandle; guard: PhysicalResourceGuard }> {
+  const namespaceClaims = await acquireSourceNamespaceRead([await readonlySourceNamespace(root,relative)]);
+  let handle: FileHandle | undefined, physical: PhysicalResourceGuard | undefined;
+  try {
+    const first = await checkedFile(root,relative); validate(first);
+    handle = await open(first.absolute, constants.O_RDONLY | constants.O_NOFOLLOW).catch(() => fail('IO_ERROR'));
+    const info = await handle.stat({ bigint: true }); physical = physicalResourceLocks.acquireRead([{ dev: String(info.dev), ino: String(info.ino) }]);
+    let released: Promise<void> | undefined;
+    const guard: PhysicalResourceGuard = { release: () => released ??= (async () => {
+      try { await physical!.release(); } catch(error) { namespaceClaims.retain(); throw error; }
+      await namespaceClaims.release();
+    })() };
+    return {first,handle,guard};
+  } catch(error) {
+    try { await handle?.close(); } catch(closeError) { namespaceClaims.retain(); throw closeError; }
+    try { await physical?.release(); } catch(releaseError) { namespaceClaims.retain(); throw releaseError; }
+    await namespaceClaims.release(); throw error;
+  }
 }
 /** 普通播放专用只读FD；允许已授权根内硬链接，但不放宽Scanner或录音检查。
  * stat/命名身份只能拒绝可观察变化，不能证明NAS缓存或恢复时间戳的隐蔽原地修改不存在。
@@ -195,11 +258,11 @@ async function protectedReadonlyOpen(absolute: string): Promise<{ handle: FileHa
  */
 export async function openLocalPlaybackReadonlySource(root: RootCapability, relative: string, expectedSignature?: string): Promise<{ handle: FileHandle; size: number; signature: string; verify(): Promise<void>; close(): Promise<void> }> {
   if (typeof relative !== 'string' || relative.length > 4096 || relative.includes('\0')) return fail('OUTSIDE_ROOT');
-  const first = await checkedFile(root, relative);
-  // Pool必须传唯一Owner捕获的signature；不能在这里以当前stat替旧catalog修订自证。
-  if (expectedSignature !== undefined && (typeof expectedSignature !== 'string' || expectedSignature.length > 256 || signature(first.info) !== expectedSignature)) return fail('CONTENT_CHANGED');
-  if (first.info.size < 1n || first.info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
-  const { handle, guard } = await protectedReadonlyOpen(first.absolute); let closing: Promise<void> | undefined;
+  const { first, handle, guard } = await protectedReadonlyOpen(root,relative,first=>{
+    // Pool必须传唯一Owner捕获的signature；不能在这里以当前stat替旧catalog修订自证。
+    if (expectedSignature !== undefined && (typeof expectedSignature !== 'string' || expectedSignature.length > 256 || signature(first.info) !== expectedSignature)) return fail('CONTENT_CHANGED');
+    if (first.info.size < 1n || first.info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
+  }); let closing: Promise<void> | undefined;
   const close = (): Promise<void> => closing ??= (async () => { await handle.close(); await guard.release(); })();
   const verify = async (): Promise<void> => {
     const opened = await handle.stat({ bigint: true }), named = await checkedFile(root, relative);
@@ -272,11 +335,11 @@ export async function withCheckedReadonlyMetadataSource<T>(root: RootCapability,
   const check = (): void => { assertCurrent?.(); if (signal.aborted) fail('CANCELLED'); };
   check();
   if (relative.includes('\0') || relative.length > 4096) return fail('OUTSIDE_ROOT');
-  const first = await checkedFile(root,relative); check();
-  if (typeof expectedSignature !== 'string' || expectedSignature.length > 256 || signature(first.info) !== expectedSignature) return fail('CONTENT_CHANGED');
-  if (first.info.nlink !== 1n) return fail('OUTSIDE_ROOT');
-  if (first.info.size < 1n || first.info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
-  const { handle, guard } = await protectedReadonlyOpen(first.absolute);
+  const { first, handle, guard } = await protectedReadonlyOpen(root,relative,first=>{check();
+    if (typeof expectedSignature !== 'string' || expectedSignature.length > 256 || signature(first.info) !== expectedSignature) return fail('CONTENT_CHANGED');
+    if (first.info.nlink !== 1n) return fail('OUTSIDE_ROOT');
+    if (first.info.size < 1n || first.info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
+  });
   const fd = handle.fd;
   const emit = (type: MetadataSourceLeaseEvent['type']): void => { try { onLeaseEvent?.({type,fd}); } catch { /* 观察者不能阻止关闭。 */ } };
   try {
@@ -307,9 +370,9 @@ export async function withCheckedReadonlyMetadataSource<T>(root: RootCapability,
 export async function withVerifiedReadonlySource<T>(root: RootCapability, relative: string, expected: { sha256: string; size: number }, signal: AbortSignal, consume: (handle: FileHandle, check: () => void) => Promise<T>, checkOperation: () => void = () => undefined): Promise<T> {
   const deadline = Date.now() + 15 * 60_000;
   const check = (): void => { checkOperation(); if (signal.aborted) fail('CANCELLED'); if (Date.now() > deadline) fail('LIMIT_EXCEEDED'); };
-  check(); const first = await checkedFile(root, relative);
-  if (!/^[a-f0-9]{64}$/u.test(expected.sha256) || !Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size)) return fail('CONTENT_CHANGED');
-  const { handle, guard } = await protectedReadonlyOpen(first.absolute);
+  check(); const { first, handle, guard } = await protectedReadonlyOpen(root,relative,first=>{
+    if (!/^[a-f0-9]{64}$/u.test(expected.sha256) || !Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size)) return fail('CONTENT_CHANGED');
+  });
   try {
     const before = await handle.stat({ bigint: true });
     if (signature(before) !== signature(first.info) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
@@ -358,9 +421,9 @@ export async function withVerifiedReadonlyReplicaSource<T>(root: RootCapability,
   let guard: PhysicalResourceGuard | undefined;
   let handle: FileHandle | undefined, control: ReturnType<typeof setInterval> | undefined, watcher: ReturnType<typeof setInterval> | undefined, watching: Promise<void> | undefined;
   try {
-    check(); const first = await checkedFile(root, relative);
-    if (!/^[a-f0-9]{64}$/u.test(expected.sha256) || !Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size) || first.info.nlink !== 1n) return fail('CONTENT_CHANGED');
-    const protectedFile = await protectedReadonlyOpen(first.absolute); handle = protectedFile.handle; guard = protectedFile.guard;
+    check(); const protectedFile = await protectedReadonlyOpen(root,relative,first=>{
+      if (!/^[a-f0-9]{64}$/u.test(expected.sha256) || !Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size) || first.info.nlink !== 1n) return fail('CONTENT_CHANGED');
+    }); const first = protectedFile.first; handle = protectedFile.handle; guard = protectedFile.guard;
     options.onLeaseEvent?.('acquired');
     const opened = handle, before = await opened.stat({ bigint: true });
     const verifyIdentity = async () => { check(); const current = await opened.stat({ bigint: true }), named = (await checkedFile(root, relative)).info; check(); if (current.nlink !== 1n || named.nlink !== 1n || signature(current) !== signature(before) || signature(named) !== signature(before)) fail('CONTENT_CHANGED'); };
@@ -391,9 +454,9 @@ export async function withVerifiedReadonlyReplicaSource<T>(root: RootCapability,
 /** 目标句柄由工作区层排他创建；这里不接收目标路径，也不修改原件属性。 */
 export async function copyReadonlySource(root: RootCapability, relative: string, expected: { sha256: string; size: number }, destination: FileHandle, signal: AbortSignal): Promise<{ sha256: string; size: number }> {
   const checkAbort = (): void => { if (signal.aborted) fail('CANCELLED'); };
-  checkAbort(); const first = await checkedFile(root, relative);
-  if (!Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size)) return fail('CONTENT_CHANGED');
-  const protectedFile = await protectedReadonlyOpen(first.absolute), source = protectedFile.handle;
+  checkAbort(); const protectedFile = await protectedReadonlyOpen(root,relative,first=>{
+    if (!Number.isSafeInteger(expected.size) || expected.size < 1 || expected.size > 68_719_476_736 || first.info.size !== BigInt(expected.size)) return fail('CONTENT_CHANGED');
+  }), first = protectedFile.first, source = protectedFile.handle;
   try {
     const before = await source.stat({ bigint: true }), target = await destination.stat({ bigint: true });
     if (signature(before) !== signature(first.info) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
@@ -434,9 +497,9 @@ export async function copyReadonlySource(root: RootCapability, relative: string,
 /** 原件始终只读；完整 Hash 与头部技术探测是独立证据，不宣称音频逐帧解码通过。 */
 export async function probeReadonlySource(root: RootCapability, relative: string, signal: AbortSignal): Promise<FileEvidence> {
   const checkAbort = (): void => { if (signal.aborted) fail('CANCELLED'); };
-  checkAbort(); const first = await checkedFile(root, relative);
-  if (first.info.size <= 0n || first.info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
-  const { handle, guard } = await protectedReadonlyOpen(first.absolute);
+  checkAbort(); const { first, handle, guard } = await protectedReadonlyOpen(root,relative,first=>{
+    if (first.info.size <= 0n || first.info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
+  });
   try {
     const before = await handle.stat({ bigint: true });
     if (signature(before) !== signature(first.info) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');

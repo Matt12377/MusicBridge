@@ -262,3 +262,45 @@ iOS 展示层后继只读登记：源码 a11d1b2、报告/当次远端 843e6e5�
 #### MBRS-014 精确源码与独立报告
 
 实现 5700f7a63ee963b656a6c2b4a795eb8af0b70ca0 普通push且远端一致，源码自然4workflow/6job全部首次success，无重跑或取消；014自身Gate实际成功。提交后精确Gate为10阶段404/404、1379声明输入逐Git核对，和实际生产build003的656输入合并1437不同Git blob，全体与实现字节精确对应。原905当次产物贯穿App05前后不变；独立标准重建仅Core构建收据变化，事实与原过严核对失败另记。报告及便携source-gate/source-identity/source-ci仅更新报告引用和交付元数据；8AT及产品层级不变，Node/schema34/Rust OFF/源写OFF、真实库/音频/设备/Owner与旧Gate B/P4/P5保留。报告提交自身push、2workflow/3job与clean/远端最终HEAD由提交后私有最终收据核验，当前不提前写PASS。最终封存后012从本报告HEAD创建独立分支，三角色只读草案不计012实现；持续授权，无额外代理审批。
+
+#### MBRS-014 最终封存及012正式实施
+
+014最终source5700f7a63ee963b656a6c2b4a795eb8af0b70ca0、report09370f19d4422be3b387047999a0722961c52e1e，源码4workflow/6job与报告2workflow/3job均首次自然success；clean、diff-check、远端、1437源Git blob、656当次生产输入及报告1433未变blob+4元数据已核。最终私有收据8005字节 SHA256 852178579378aa9398dae2edae57bf34f480489bc9e50fa6182b42abf1683940。报告实际hosted模式FULL/UNKNOWN_IDENTITY_OR_API_STATE，完整standard及014Gate通过；本地report admission是独立证据，不冒充Hosted报告复用或具体API故障原因。原8AT仍PARTIAL，真实层未跑。
+
+012由该最终报告创建codex/mbrs-012-source-writes外置独立树，原9AT/18任务156验收与有效17/150保持。三名既存gpt-6.1-sol/max静态作者按Contracts/Core/Desktop分区，Root独占执行、冻结接点和Git；原主工作区WIP保留。锁定依赖安装退出0，尚无writer资格/写回测试/App通过证据。有限格式、服务端逐计划授权、非原子隔离安装、原图二进制、统一claims与恢复预算见新scope/handoff及ADR；开发测试用自有样本，默认Node/schema34/Rust OFF、旧SourceEvidence/录音只读，源写默认OFF。Owner持续授权常规开发验证提交推送，不逐步审批，最终成品试用保持独立。
+
+#### MBRS-012 格式与合同阶段检查
+
+有限格式模块7/7、独立ffprobe/PCM/raw spans输出6/6通过，仅自有FLAC/MP3六字段set/remove及PNG内嵌；不是受控发布器资格。合同当前LOCK04 13输入身份 cdab4bd9ade1bda8d158d83db4350cd5146bbff675f84130ef3959ba8ac4c4ff 字节前后保持；fresh build03/types03均退出0，含restoration原多值、真实backup/原缺失逆向投影的40/40通过，0失败/skip/todo，全文日志已读。之前编译与fixture失败原件保留，旧32项阶段收据不被覆盖。两个合同层检查不证明Owner私有grant、实际publisher、备份/撤销或生产App；9AT目前仅格式相关两项PARTIAL，余项未验。精确证据见 FORMAT_PHASE_VALIDATION.json 与 CONTRACTS_PHASE_VALIDATION.json。正在闭合Core执行和正式Desktop接线，默认Node/schema34/Rust OFF、源写默认OFF及真实层NOT_RUN保持；后续顺序012→013→016→017→移动正式采纳，015取消不计待办。
+
+2026-10-08 MBRS-012 新桌面行为首次实际执行35项：30通过、5失败、0skip/todo/cancel，进程实际close/exit1且无超时。完整原日志和作者30文件锁留存；三项持久回执原型差异、form默认提交与新模块宿主解析的根因已静态定位，后续只修新012测试并重新真实执行。该诊断不是正式App、writer、备份/恢复或产品验收通过；源写默认OFF、旧011只读与真实carryover保留。
+
+#### MBRS-012 桌面与持久模块阶段刷新
+
+桌面首轮35项30通过/5失败与次轮34通过/1失败日志均保留。第三轮真实35/35、旧桌面87/87，绑定31文件LOCK03；修正仅在新012测试/宿主，未改23个产品文件。后续完整types诊断Main/preload与两夹具，需要新的窄修锁和验证，不把旧35通过推广到后改源码。日志/原图/历史实际26/26、0skip绑定六文件LOCK02；store终态预算同期变更与原图夹具修正分别记录。24表保护内容Hash真实9/9、原预算和Frozen冷核保持；类型守卫修改后再次9/9。metadata新8/8与JPEG实际新输出独立2/2刷新，完整Core产品build03及worker bundle退出0。
+
+新Owner/新SAB冷重启后，普通读取仅持最终inode锁、持久UNKNOWN只拦新写的缺口已确认；必须闭合实际播放/扫描/旧录音新读保护，不能用旧URL退役替代。完整Source服务、publisher、Owner专用port、实际备份撤销、容量生命周期、故障恢复、正式App及完整Gate/自然CI未验。证据分别见DESKTOP_PHASE_VALIDATION、PERSISTENCE_PHASE_VALIDATION、PROTECTION_CONTENT_PHASE_VALIDATION和METADATA_PHASE_VALIDATION02，不授予writer资格。原9条AT正文和独立app/live/Owner层保持，Node/schema34/Rust OFF、源写默认OFF、旧011源写OFF。授权持续有效，后续按012→013→016→017→移动正式采纳推进。
+
+Desktop LOCK04 四文件窄类型修复后，完整Desktop/E2E类型实际退出0，35/35重新通过且0skip；新LOCK04证据见DESKTOP_PHASE_VALIDATION02.json。之前types失败与LOCK03行为结果保留，旧87项仍绑定前快照，完整Gate将检查最终输入。正式App新spec已完成只读审查，正在补足失败收口、精确items及实文件前后证据；未运行App、publisher或cold新SAB验证。
+
+#### MBRS-012 新鲜保护模块与实际属性拒绝
+
+Core锁04新鲜编译实际退出2（service冷保护union类型），原cycles实际退出1（source-files与namespace helper的反向类型边），都保留完整日志。窄修后28产品LOCK05及四命名文件重新锁定；622源/配置输入固定并核before=after，新鲜Core产品build05/build06、Worker bundle02/03及原cycles04真实退出0。Root独立冻结Reader四源、八JS/map和真实bundle声明，并另绑定新namespace/物理三源及六fresh产物；不扩大旧四源helper的结论。
+
+namespace首次实际31/32因缺Root Reader声明失败，且共享service-fixture当时未交锁，仅诊断。交回service-fixture/基本service两文件后，953声明输入before=after；第二次真实32/32、0skip，包含移交新增acquire期间sameSAB peer旧inode精确Busy/实际旧release零、129新增末批Busy旧全组保护、129真FD原子整组释放以及未涉有效FLAC/新Worker/真实MetadataReader与resolve后读取。桌面类型03与E2E类型04新鲜退出0。独立history仅把110个未经受理的合成头的页间变化沿原typed journal直接追加，仍保留原状态/revision与全部分页字节/期限断言，新鲜5/5；不能声称110活动计划实际可受理。
+
+基本Source服务实测为7项（早期静态8误计不冻结），全部在READY前FILE_ATTRIBUTES_UNPROVEN，0通过，未到文件发布/backup。Root只读原7份Node源与真实写前copy，确认全字节及原stat未变，唯一com.apple.provenance为实际11字节opaque值；不解释其语义、不清真实产物、不跳属性断言。Root安全独立verifier自检01的Python xattr API缺失已改为固定系统读取，02/03按真实非空属性拒绝，无正向PASS。正在按精确保全的有限系统属性合同解决工程资格，不新增Owner审批。NAMESPACE_PHASE_VALIDATION仅覆盖有限保护/读取模块和类型，真实Owner冷重建、四上下文reader先占再writer、完整publisher/原件/恢复、生产App、完整回归/Gate与自然CI尚未证明，writer默认OFF。
+
+#### MBRS-012 macOS有限属性保全与真实基础Source服务
+
+原7/7在READY前属性拒绝的失败保留。Root属性LOCK07保留旧EMPTY，新增仅真实唯一com.apple.provenance/11 opaque bytes/实际SHA证明，不写清系统属性、不硬编码本机Hash；backup实际0600证明与原件proof分开，BACKUP/facts/inverse全部绑定，已有cover路径gap恢复原R属性，不回落0644，原absence仍是不存在。三产品限定只读审查无新阻断，实际Core build07和cycles05退出0，freshReader08是真实新compiler/worker声明。
+
+基础新测试Source02实际6/7，失败是新增测试把真实revoke(SourceAction)调用为两个参数；只改新测试参数，原SOURCE_REVOKED及零副作用断言保留。Source03实际7/7、0skip，953输入前后完全一致。两格式真实扫描→六字段set→真实publisher→独立backup→整文件undo→remove→冷启动和真实再scan通过。Source02已通过两正例的真实产物另作独立原始span/audioStart/音频payload/ffprobe/PCM2/2，以及实际同卷库外backup600、原写前inode独立性、真实属性和精确before=backup=undo2/2；这两份独立证明绑定Source02旧测试锁，不推广为后续测试全集。源样本原mode600，不能代替原cover非644路径gap场景。LOCK06 E2E仅追加FAILED提前终态，正确启动types06退出0；types05错误tsc路径仅准备失败且原日志保留。
+
+原9条AT及软件/App/live/Owner层保持分开；Source默认OFF、Node/schema34/Rust OFF、旧011 SOURCE OFF均保持。真实Owner冷核新SAB、Reader先持四上下文、多代family/closureACKUNKNOWN、封面及原权限恢复、容量生命周期、完整旧回归/Gate/生产App和自然CI交付仍未完成，不宣布writer资格。授权继续有效，不插入代理审批。
+
+#### MBRS-012 当前有限软件与自有App收口
+
+当前426项声明分组88/216/122均真实零skip通过，计数由完整日志确认后冻结；18条旧回归及全部发现的新012测试保留。AT05同次真实Owner/Gateway修订1→2→3、旧URL404且无bytes、新lease读取实际新文件、undo回原件；AT06两份独立FLAC覆盖inverse READY后和Main grant后外部改写，保留外部bytes及原backup、零逆向发布/新facts。App37独立真实6音频输出、14安全项、7恢复项与57全FD材料/144独立工具运行通过，仍绑定build33。
+
+标准verify42为4701总/4699通过/2既有native skip，不冒充后增测试或设备证据。Rust55全部30准备阶段、Electron57实际12/12（钥匙串mock，系统钥匙串未验）及生产E2E分层另记LOCAL_VALIDATION。旧46/48/52宿主准备失败与58缺私有B基线记录保留；只修私有fixture端口拓扑及提供原自有基线，不降低原断言。所有权限/验收层级在source前定稿，sourceFilesWrite原硬准入字面量、默认OFF、旧只读、9产品PARTIAL和真实NOT_RUN保持；精确Gate与正常源码/报告自然CI随后在允许报告字段封存。

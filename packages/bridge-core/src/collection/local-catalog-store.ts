@@ -1,4 +1,4 @@
-import { commitLocalFacts, rollbackLocalFacts } from '../stream/local-source-fence.js';
+import { commitLocalFacts, rollbackLocalFacts, LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
@@ -8,6 +8,8 @@ import type { RootCapability } from '../recording/source-files.js';
 import { extractVersionTokens } from '../library/local-name-rules.js';
 import { ORGANIZER_JOURNAL, isOrganizerEvent, organizerHash, organizerCanonical, readOrganizerEvent, verifyOrganizerJournalRow, type OrganizerEvent } from './local-organizer-journal.js';
 import { LOCAL_LEGACY_LINKS_OPERATION, LegacyLinksError, legacyLinksFail, emptyLegacyLinksProjection, copyLegacyLinksProjection, readLegacyLinksEvent, projectLegacyLinksEvent, verifyLegacyLinksLocalSnapshot, legacyLinksSlot, type LegacyLinksProjection, type LegacyLinksView, type LegacyLinksWriteView, type LegacyLinksEvent, isLegacyLinksEvent } from './local-legacy-links-journal.js';
+import { SOURCE_WRITES_OPERATION, sourceWritesFail, emptySourceWritesProjection, copySourceWritesProjection, readSourceWritesEvent, projectSourceWritesEvent, sourceWritesLedgerRow, type SourceWritesProjection, type SourceWritesReadView, type SourceWritesWriteView, type SourceWritesEvent } from './local-source-writes-journal.js';
+import { updateSourceWriteScanFacts } from './source-write-scan-port.js';
 
 const tables = {
   local_catalog_roots: 'CREATE TABLE local_catalog_roots(id TEXT PRIMARY KEY,source_root_id TEXT NOT NULL REFERENCES source_roots(id),data TEXT NOT NULL) STRICT',
@@ -44,6 +46,9 @@ interface AuditCertificate { rows: ReadonlyMap<Table, number>; bytes: number; da
 // 仅缓存同连接完整核验产生的资源计数；实体、定位、权限和回执始终读取SQLite原事实。
 const audits = new WeakMap<DatabaseSync, AuditCertificate>();
 const legacyAudits = new WeakMap<DatabaseSync, LegacyLinksProjection | 'BUDGET_EXCEEDED'>();
+const sourceWritesAudits=new WeakMap<DatabaseSync,SourceWritesProjection>();
+/** 只供原扫描冷核/参数证据；不签grant、不暴露数据库给服务。 */
+export function sourceWritesProjectionForDatabase(db:DatabaseSync):SourceWritesProjection|undefined{return sourceWritesAudits.get(db);}
 const dataVersion = (db: DatabaseSync): number => Number(db.prepare('PRAGMA data_version').get()?.data_version);
 const checkBudget = (domain: string, actual: number, limit: number): void => { if (actual > limit) throw new LocalCatalogBudgetError(domain, actual, limit); };
 const indexes = [
@@ -127,9 +132,10 @@ const readRoot = (row: Row): dto.LibraryRoot => { const result = parse(row.data,
 const readAsset = (row: Row): dto.AudioAsset => { const result = parse(row.data, dto.isAudioAsset); if (row.id !== result.id || row.root_id !== result.libraryRootId || row.source_root_id !== result.sourceRootId || !relativePath(row.relative) || !sha(row.sha256)) return corrupt(); return result; };
 const readTrack = (row: Row): dto.LocalTrack => { const result = parse(row.data, dto.isLocalTrack); if (row.id !== result.id || row.asset_id !== result.assetId) return corrupt(); return result; };
 function libraryMetadata(db: DatabaseSync, trackId: string): dto.LocalMetadataView {
-  const rows = db.prepare('SELECT data FROM local_catalog_observations WHERE track_id=? ORDER BY rowid LIMIT 201').all(trackId);
+  const anchor=sourceWritesAudits.get(db)?.fullRaw.get(trackId);
+  const rows = db.prepare(`SELECT o.data FROM local_catalog_observations o WHERE o.track_id=? ${anchor?"AND EXISTS(SELECT 1 FROM local_catalog_ledger l WHERE l.rowid>? AND l.operation='observe-metadata' AND json_extract(l.result,'$.id')=o.id)":''} ORDER BY o.rowid LIMIT 201`).all(...(anchor?[trackId,anchor.ledgerOrdinal]:[trackId]));
   if (rows.length > maxCatalogReadRows) throw new LocalCatalogBudgetError('详情原始标签读取行数', rows.length, maxCatalogReadRows);
-  const raw: dto.LocalMetadata = {};
+  const raw: dto.LocalMetadata = {...anchor?.fields};
   for (const row of rows) Object.assign(raw, parse(row.data, dto.isLocalMetadataObservation).fields);
   const row = db.prepare('SELECT data FROM local_catalog_overrides WHERE track_id=?').get(trackId);
   const override = row ? parse(row.data, dto.isLocalMetadataOverride) : null;
@@ -140,10 +146,10 @@ function libraryVersionTokens(fields: dto.LocalMetadata): dto.VersionNameToken[]
 }
 const libraryFields = ['title', 'artist', 'album', 'year', 'disc', 'track'] as const;
 // 每个字段按原观察历史的最后一次存在值读取；部分标签观察不会抹掉未提供字段。
-const libraryRaw = (field: string) => `(SELECT json_extract(o.data,'$.fields.${field}') FROM local_catalog_observations o WHERE o.track_id=t.id AND json_type(o.data,'$.fields.${field}') IS NOT NULL ORDER BY o.rowid DESC LIMIT 1)`;
-const libraryProjection = `WITH candidates AS (SELECT t.rowid ordinal,t.id,t.asset_id,t.data,a.id asset_record_id,a.root_id,a.source_root_id,a.relative,a.sha256,a.data asset_data,
+const libraryRaw = (field: string) => `COALESCE((SELECT json_extract(o.data,'$.fields.${field}') FROM local_catalog_observations o WHERE o.track_id=t.id AND json_type(o.data,'$.fields.${field}') IS NOT NULL AND (sf.ordinal IS NULL OR EXISTS(SELECT 1 FROM local_catalog_ledger l WHERE l.rowid>sf.ordinal AND l.operation='observe-metadata' AND json_extract(l.result,'$.id')=o.id)) ORDER BY o.rowid DESC LIMIT 1),json_extract(sf.fields,'$.${field}'))`;
+const libraryProjection = `WITH source_full AS (SELECT CAST(json_extract(value,'$.trackId') AS TEXT) track_id,CAST(json_extract(value,'$.ordinal') AS INTEGER) ordinal,json_extract(value,'$.fields') fields FROM json_each(@sourceRaw)),candidates AS (SELECT t.rowid ordinal,t.id,t.asset_id,t.data,a.id asset_record_id,a.root_id,a.source_root_id,a.relative,a.sha256,a.data asset_data,
   ${libraryFields.flatMap(field => [`${libraryRaw(field)} raw_${field}`, `COALESCE(json_extract(v.data,'$.fields.${field}'),${libraryRaw(field)}) effective_${field}`]).join(',')}
-  FROM local_catalog_tracks t JOIN local_catalog_assets a ON a.id=t.asset_id LEFT JOIN local_catalog_overrides v ON v.track_id=t.id WHERE (@root IS NULL OR a.root_id=@root))`;
+  FROM local_catalog_tracks t JOIN local_catalog_assets a ON a.id=t.asset_id LEFT JOIN local_catalog_overrides v ON v.track_id=t.id LEFT JOIN source_full sf ON sf.track_id=t.id WHERE (@root IS NULL OR a.root_id=@root))`;
 const libraryWhere = `(@query='' OR ${['title', 'artist', 'album', 'year'].flatMap(field => [`instr(lower(COALESCE(raw_${field},'')),lower(@query))>0`, `instr(lower(COALESCE(effective_${field},'')),lower(@query))>0`]).join(' OR ')}
   OR EXISTS(SELECT 1 FROM local_catalog_edition_tracks l JOIN local_catalog_editions e ON e.id=l.edition_id WHERE l.track_id=candidates.id AND json_extract(l.data,'$.active')=1 AND (instr(lower(json_extract(e.data,'$.title')),lower(@query))>0 OR instr(lower(json_extract(e.data,'$.edition')),lower(@query))>0)))`;
 function checkSegment(track: dto.LocalTrack, asset: dto.AudioAsset): void {
@@ -247,6 +253,7 @@ function verifyHistoryStep(db: DatabaseSync, operation: dto.LocalCatalogOperatio
 export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   audits.delete(db);
   legacyAudits.delete(db);
+  sourceWritesAudits.delete(db);
   const initialDataVersion = dataVersion(db);
   for (const [name, sql] of Object.entries(tables)) if (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name)?.sql !== sql) return corrupt();
   for (const [type, statements] of [['index', indexes], ['trigger', triggers]] as const) for (const sql of statements) {
@@ -269,10 +276,21 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   const relations: HistoryRelations = { tracks: new Map(), editionSequences: new Map() };
   let immutableObservations = 0;
   let legacy: LegacyLinksProjection | 'BUDGET_EXCEEDED' = emptyLegacyLinksProjection();
+  const sourceWrites=emptySourceWritesProjection();
   for (const row of db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger ORDER BY rowid').iterate()) {
     boundedRow(row);
     const ledgerRowId=Number(row._ledger_rowid);if(!Number.isSafeInteger(ledgerRowId)||ledgerRowId<1)return corrupt();
     if(typeof legacy!=='string')legacy.highWater=ledgerRowId;
+    if(row.operation===SOURCE_WRITES_OPERATION){
+      const event=readSourceWritesEvent(row);
+      if(event.kind==='facts'){
+        const fact=event.fact,child=db.prepare("SELECT result,request FROM local_catalog_ledger WHERE command_id=? AND operation='replace-asset'").get(fact.replaceCommandId);
+        if(!child||!same(JSON.parse(String(child.result)),fact.afterAsset)||!same(latest.get(`local_catalog_assets:${fact.afterAsset.id}`),fact.afterAsset))return corrupt();
+        const request=JSON.parse(String(child.request)) as Row;if(request.sha256!==fact.observation.sha256||request.expectedFileRevision!==fact.beforeAsset.fileRevision)return corrupt();
+        for(const id of fact.affectedTrackIds){const t=latest.get(`local_catalog_tracks:${id}`);if(!dto.isLocalTrack(t)||t.assetId!==fact.afterAsset.id||t.segment!==null)return corrupt();}
+      }
+      projectSourceWritesEvent(sourceWrites,event,ledgerRowId);continue;
+    }
     if(row.operation===LOCAL_LEGACY_LINKS_OPERATION){
       if(typeof legacy!=='string'){
         try{const event=readLegacyLinksEvent(row);verifyLegacyLinksLocalSnapshot(event,latest,privateAssets);projectLegacyLinksEvent(legacy,event);}
@@ -344,6 +362,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   if (dataVersion(db) !== initialDataVersion) return corrupt();
   audits.set(db, { rows: counts, bytes, dataVersion: initialDataVersion });
   legacyAudits.set(db,legacy);
+  sourceWrites.highWater=Math.max(sourceWrites.highWater,Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n));sourceWritesAudits.set(db,sourceWrites);
 }
 
 export function createLocalCatalogStore(access: Access) {
@@ -471,6 +490,12 @@ export function createLocalCatalogStore(access: Access) {
     for(const row of rows){boundedRow(row);const n=Number(row._ledger_rowid);if(!Number.isSafeInteger(n)||n<=next.highWater)return corrupt();if(row.operation===LOCAL_LEGACY_LINKS_OPERATION)projectLegacyLinksEvent(next,readLegacyLinksEvent(row));next.highWater=n;}
     legacyAudits.set(db,next);return next;
   }
+  function sourceProjectionFor(db:DatabaseSync):SourceWritesProjection{
+    certificateFor(db);const saved=sourceWritesAudits.get(db);if(!saved)return sourceWritesFail('RECOVERY_REQUIRED');
+    const rows=db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE rowid>? ORDER BY rowid LIMIT 513').all(saved.highWater);if(rows.length>512)return sourceWritesFail('BUDGET_EXCEEDED');if(!rows.length)return saved;
+    const next=copySourceWritesProjection(saved);for(const row of rows){boundedRow(row);const ordinal=Number(row._ledger_rowid);if(row.operation===SOURCE_WRITES_OPERATION)projectSourceWritesEvent(next,readSourceWritesEvent(row),ordinal);else next.highWater=ordinal;}sourceWritesAudits.set(db,next);return next;
+  }
+  function sourceView(db:DatabaseSync,projection:SourceWritesProjection):SourceWritesReadView{return {projection,receipt:(commandId,fp)=>{const row=db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(commandId);if(!row)return null;boundedRow(row);if(row.operation!==SOURCE_WRITES_OPERATION||row.fingerprint!==fp)return sourceWritesFail('COMMAND_ID_REUSED');return readSourceWritesEvent(row);}};}
   function legacyView(db:DatabaseSync,p:LegacyLinksProjection):LegacyLinksView {
     return {events:p.events,links:p.links,previews:p.previews,history:p.history,consumed:p.consumed,snapshotFingerprint:p.snapshotFingerprint,slot:(datasetId,key)=>structuredClone(legacyLinksSlot(p,datasetId,key)),receipt:(commandId,fp)=>{
       const row=db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(commandId);if(!row)return null;boundedRow(row);
@@ -563,6 +588,26 @@ export function createLocalCatalogStore(access: Access) {
         db.prepare('INSERT INTO local_catalog_overrides VALUES(?,?) ON CONFLICT(track_id) DO UPDATE SET data=excluded.data').run(result.trackId, JSON.stringify(result)); return result;
   }
   return {
+    privateSourceWritesRead<T>(operation:(view:SourceWritesReadView)=>T):T{return access.read(db=>operation(sourceView(db,copySourceWritesProjection(sourceProjectionFor(db)))));},
+    privateSourceWritesTransaction<T>(operation:(view:SourceWritesWriteView)=>T):T{
+      return access.read(db=>{db.exec('BEGIN IMMEDIATE');let committed=false;try{
+        const projection=copySourceWritesProjection(sourceProjectionFor(db));let certificate=certificateFor(db),changed=0,added=0;const publishes:(()=>void)[]=[];
+        const before=Number(db.prepare('SELECT total_changes() n').get()!.n);
+        const append=(event:SourceWritesEvent):void=>{
+          if(added>=512)return sourceWritesFail('BUDGET_EXCEEDED');const row=sourceWritesLedgerRow(event),{command_id,fingerprint,operation,request,result,created_at}=row;if(typeof command_id!=='string'||typeof fingerprint!=='string'||typeof operation!=='string'||typeof request!=='string'||typeof result!=='string'||typeof created_at!=='string')return sourceWritesFail('INVALID_REQUEST');if(db.prepare('SELECT command_id FROM local_catalog_ledger WHERE command_id=?').get(command_id))return sourceWritesFail('COMMAND_ID_REUSED');
+          const rows=new Map(certificate.rows),count=rows.get('local_catalog_ledger')!+1,bytes=certificate.bytes+rowBytes(row);checkBudget('local_catalog_ledger行数',count,rowBudgets.local_catalog_ledger);checkBudget('目录总文本字节',bytes,maxCatalogTextBytes);
+          const inserted=db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(command_id,fingerprint,operation,request,result,created_at),ordinal=Number(inserted.lastInsertRowid);projectSourceWritesEvent(projection,event,ordinal);readSourceWritesEvent(db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(command_id)!);rows.set('local_catalog_ledger',count);certificate={rows,bytes,dataVersion:certificate.dataVersion};changed++;added++;
+        };
+        const view:SourceWritesWriteView={...sourceView(db,projection),append,finalize:event=>{
+          const fact=event.fact,stored=projection.plans.get(event.planId!);if(!stored||stored.plan.range==='DIRECTORY_COVER')return sourceWritesFail('INVALID_REQUEST');const selected=stored.items.find(i=>i.item.operationId===fact.operationId);if(!selected)return sourceWritesFail('INVALID_REQUEST');const c=selected.capture;
+          const current=asset(db,c.asset.id);if(!same(current,c.asset))return sourceWritesFail('REVISION_CHANGED');
+          const request:ReplaceAudioAsset={commandId:fact.replaceCommandId,libraryRootId:c.libraryRoot.id,expectedRootRevision:c.libraryRoot.revision,relative:c.relative,sha256:fact.observation.sha256,sampleFrames:current.sampleFrames,timebaseHz:current.timebaseHz,assetId:current.id,expectedFileRevision:current.fileRevision,expectedLocationRevision:current.locationRevision};
+          const prior=Number(db.prepare('SELECT total_changes() n').get()!.n),candidate=mutate(db,certificate,'replace-asset',request,d=>applyReplaceAsset(d,request));certificate=candidate.certificate;changed+=Number(db.prepare('SELECT total_changes() n').get()!.n)-prior;if(!same(candidate.result,fact.afterAsset))return corrupt();
+          publishes.push(updateSourceWriteScanFacts(db,c.libraryRoot.id,c.relative,c.scan.jobId,c.scan.batchId,fact.scanBefore,fact.scanAfter));changed++;append(event);return candidate.result as dto.AudioAsset;
+        }};
+        const result=operation(view);if(result instanceof Promise)return corrupt();if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+changed)return corrupt();access.beforeCommit?.('local-source-writes:append');if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+changed)return corrupt();access.beforeLocalFactsCommit?.();commitLocalFacts(db,access.onLocalFactsFatal);committed=true;audits.set(db,certificate);sourceWritesAudits.set(db,projection);publishes.forEach(p=>p());return result;
+      }catch(error){if(committed){access.onLocalFactsFatal?.();throw new LocalFactsCommitFatal();}rollbackLocalFacts(db,error,access.onLocalFactsFatal);}});
+    },
     /** 新域只能读取已认证投影；不向关系服务提供 raw db 或原 mutate。 */
     privateLegacyLinksRead<T>(operation:(view:LegacyLinksView)=>T):T {return access.read(db=>operation(legacyView(db,legacyProjectionFor(db))));},
     privateLegacyLinksTransaction<T>(operation:(view:LegacyLinksWriteView)=>T):T {
@@ -667,6 +712,11 @@ export function createLocalCatalogStore(access: Access) {
         return { asset: { ...selected }, relative: row.relative };
       });
     },
+    /** 本轮源动作的共享影响闭集；普通200曲读预算不变。 */
+    privateSourceWriteTracks(assetId:string):dto.LocalTrack[]{id(assetId);return access.read(db=>{const rows=db.prepare('SELECT * FROM local_catalog_tracks WHERE asset_id=? ORDER BY rowid LIMIT 201').all(assetId);if(rows.length>200)return sourceWritesFail('SHARED_RESOURCE_UNKNOWN');return rows.map(readTrack);});},
+    privateSourceWriteDirectory(rootId:string,directory:string):{asset:dto.AudioAsset;relative:string;tracks:dto.LocalTrack[]}[]{
+      id(rootId);return access.read(db=>{const prefix=directory==='.'?'':`${directory}/`,rows=db.prepare('SELECT * FROM local_catalog_assets WHERE root_id=? AND substr(relative,1,length(?))=? AND instr(substr(relative,length(?)+1),\'/\')=0 ORDER BY rowid LIMIT 201').all(rootId,prefix,prefix,prefix);if(rows.length>200)return sourceWritesFail('SHARED_RESOURCE_UNKNOWN');return rows.map(row=>{boundedRow(row);const selected=readAsset(row),tracks=db.prepare('SELECT * FROM local_catalog_tracks WHERE asset_id=? ORDER BY rowid LIMIT 201').all(selected.id);if(tracks.length>200)return sourceWritesFail('SHARED_RESOURCE_UNKNOWN');return {asset:selected,relative:String(row.relative),tracks:tracks.map(readTrack)};});});
+    },
     createTrack(request: CreateLocalTrack): dto.LocalTrack { return transaction('create-track', request, db => applyCreateTrack(db, request)); },
     selectAsset(request: SelectLocalAsset): dto.LocalTrack { return transaction('select-asset', request, db => applySelectAsset(db, request)); },
     track(trackId: string): dto.LocalTrack { id(trackId); return access.read(db => track(db, trackId)); },
@@ -677,7 +727,8 @@ export function createLocalCatalogStore(access: Access) {
     queryTracks(page: dto.LocalLibraryQuery): dto.LocalLibraryQueryPage {
       if (!dto.isLocalLibraryQuery(page)) return access.conflict('本地搜索或分页范围无效。');
       return access.read(db => {
-        const filters = { root: page.rootId, query: page.query.trim() };
+        const projection=sourceProjectionFor(db),sourceRaw=JSON.stringify([...projection.fullRaw].map(([trackId,value])=>({trackId,ordinal:value.ledgerOrdinal,fields:value.fields})));
+        const filters = { root: page.rootId, query: page.query.trim(),sourceRaw };
         const total = Number(db.prepare(`${libraryProjection} SELECT count(*) n FROM candidates WHERE ${libraryWhere}`).get(filters)!.n);
         const rows = db.prepare(`${libraryProjection} SELECT * FROM candidates WHERE ${libraryWhere} ORDER BY ordinal LIMIT @limit OFFSET @offset`).all({ ...filters, limit: page.limit, offset: page.offset });
         const items = rows.map(row => {
@@ -696,6 +747,7 @@ export function createLocalCatalogStore(access: Access) {
     },
     trackDetail(trackId: string): dto.LocalLibraryTrackDetail {
       id(trackId); return access.read(db => {
+        sourceProjectionFor(db);
         const selected = track(db, trackId), asset = readAsset(one(db, 'local_catalog_assets', selected.assetId));
         const metadata = libraryMetadata(db, trackId);
         const rows = db.prepare("SELECT DISTINCT e.data FROM local_catalog_edition_tracks l JOIN local_catalog_editions e ON e.id=l.edition_id WHERE l.track_id=? AND json_extract(l.data,'$.active')=1 ORDER BY e.rowid LIMIT 201").all(trackId);
@@ -737,13 +789,7 @@ export function createLocalCatalogStore(access: Access) {
     },
     metadata(trackId: string): { raw: dto.LocalMetadata; override: dto.LocalMetadataOverride | null; effective: dto.LocalMetadata } {
       id(trackId); return access.read(db => {
-        track(db, trackId);
-        const rows = db.prepare('SELECT data FROM local_catalog_observations WHERE track_id=? ORDER BY rowid LIMIT 201').all(trackId);
-        if (rows.length > maxCatalogReadRows) throw new LocalCatalogBudgetError('有效元数据历史单次读取行数', rows.length, maxCatalogReadRows);
-        const raw: dto.LocalMetadata = {};
-        for (const row of rows) Object.assign(raw, parse(row.data, dto.isLocalMetadataObservation).fields);
-        const row = db.prepare('SELECT data FROM local_catalog_overrides WHERE track_id=?').get(trackId), override = row ? parse(row.data, dto.isLocalMetadataOverride) : null;
-        return { raw, override, effective: { ...raw, ...override?.fields } };
+        track(db, trackId);sourceProjectionFor(db);return libraryMetadata(db,trackId);
       });
     },
     privateReceiptRequest(commandId: string): { operation: dto.LocalCatalogOperation; request: Record<string,unknown>; result: dto.LocalCatalogResult } | null {

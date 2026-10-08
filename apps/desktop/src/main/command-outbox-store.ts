@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite'
 import {
   COMMAND_OUTBOX_ERROR_CODES, MAX_COMMAND_OUTBOX_ENTRIES, MAX_COMMAND_OUTBOX_TOTAL_BYTES,
   isCollectionId, isCommandOutboxRequest, isCommandOutboxDispatchResult,
+  isLocalSourceWritesOutboxCommand, localSourceWritesRequestCanonical, type LocalSourceWritesCommandPayloads,
   type CommandOutboxRequest, type CommandOutboxView, type CommandOutboxState, type CommandOutboxErrorCode,
 } from '@music-bridge/contracts'
 
@@ -32,6 +33,7 @@ const schemaObjects = [...legacySchemaObjects.slice(0, 3),
 const schema = `${schemaObjects.join(';')}; PRAGMA application_id=1296192088; PRAGMA user_version=2;`
 const ownedPaths = new Set<string>()
 const states: CommandOutboxState[] = ['pending', 'sending', 'uncertain', 'succeeded', 'rejected', 'dismissed']
+const sourceWriteCommand = (command: string): boolean => command === 'localSourceWrites.confirm' || command === 'localSourceWrites.undo' || command === 'localSourceWrites.setPolicy'
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
   if (typeof value === 'object' && value !== null) return `{${Object.entries(value).filter(([, item]) => item !== undefined).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(',')}}`
@@ -50,7 +52,8 @@ function verifySchema(db: DatabaseSync): 1 | 2 {
 function publicView(entry: StoredCommandOutboxEntry): CommandOutboxView {
   return { id: entry.id, commandId: entry.commandId, command: entry.command, datasetId: entry.datasetId, state: entry.state,
     createdAt: entry.createdAt, updatedAt: entry.updatedAt, acknowledged: entry.acknowledged,
-    canRetry: entry.state === 'pending' || entry.state === 'uncertain', ...(entry.errorCode ? { errorCode: entry.errorCode } : {}) }
+    canRetry: !sourceWriteCommand(entry.command) && (entry.state === 'pending' || entry.state === 'uncertain'), ...(entry.errorCode ? { errorCode: entry.errorCode } : {}),
+    ...(isLocalSourceWritesOutboxCommand(entry.command) ? { sourceRequestFingerprint: createHash('sha256').update(localSourceWritesRequestCanonical(entry.command, entry.payload as LocalSourceWritesCommandPayloads[typeof entry.command]), 'utf8').digest('hex') } : {}) }
 }
 
 /** Main 私有请求账本；不打开 Core 维护库，也不属于 collection 快照。 */

@@ -6,6 +6,7 @@ import { LOCAL_RELOCATION_COMMANDS, isLocalArtworkCommand, isLocalArtworkInterna
 import { isLocalScanCommand, isLocalScanInternalCommand, isLocalScanCommandResult, isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcRequest, validateIpcInternalRequest, isLocalCatalogCommandResult } from '@music-bridge/contracts';
 import { randomUUID } from 'node:crypto';
 import { isLocalLegacyLinksCommand } from '@music-bridge/contracts';
+import { isLocalSourceWritesCommand, isLocalSourceWritesCommandResult } from '@music-bridge/contracts';
 import type { Worker } from 'node:worker_threads';
 import type { IpcCommand, IpcRequest } from '@music-bridge/contracts';
 import { failureForError, responseFailure } from '../shared/ipc-failure.js';
@@ -34,7 +35,7 @@ export interface DatasetOwnerClientOptions {
 }
 
 // 只持有线程端口与窄投影；连接失败后保留原命令身份，不创建数据库或自动重放。
-export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): DatasetOwnerLargeSnapshotEndpoint {
+export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): DatasetOwnerLargeSnapshotEndpoint & { fatalDrain(): Promise<void> } {
   const { worker } = options;
   const epoch = randomUUID();
   let localAlive = true;
@@ -51,8 +52,13 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
   let closure: Promise<void> | undefined;
   let closing = false;
   let closeAcknowledged = false;
+  let closePostAttempted = false;
   let exited = false;
   let failed = false;
+  let fatalDrainFlight: Promise<void> | undefined;
+  let physicalExitResolve!: (code: number) => void;
+  // 只由真实 exit 事件结算；正常关闭资格仍由原 ACK、pending 与 naturalExit 单独判断。
+  const physicalExit = new Promise<number>(resolve => { physicalExitResolve = resolve; });
   let exitResolve!: () => void;
   let exitReject!: (error: unknown) => void;
   const naturalExit = new Promise<void>((resolve, reject) => { exitResolve = resolve; exitReject = reject; });
@@ -82,7 +88,10 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
       const item: PendingRequest = { operation, sent: false, resolve, reject,
         ...(request === undefined ? {} : { publicId: request.id, command: request.command }) };
       pending.set(requestId, item);
-      try { worker.postMessage(message); item.sent = true; }
+      try {
+        if (operation === 'close') closePostAttempted = true;
+        worker.postMessage(message); item.sent = true;
+      }
       catch {
         pending.delete(requestId);
         reject(new DatasetOwnerTransportError('not-sent', request?.id, request?.command));
@@ -151,6 +160,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
       snapshotIds.add(snapshot.snapshotId);
     }
     if (message.ok && (message.operation === 'close' || message.operation === 'commitBoot') && message.result !== undefined) { fatal('protocol-failure'); return; }
+    if (message.ok && isLocalSourceWritesCommand(item.command) && !isLocalSourceWritesCommandResult(item.command,message.result)) { fatal('protocol-failure');return; }
     if (message.ok && isLocalRelocationCommand(item.command) && !isLocalRelocationCommandResult(item.command,message.result)) { fatal('protocol-failure');return; }
     if (message.ok && isLocalScanCommand(item.command) && !isLocalScanCommandResult(item.command,message.result)) { fatal('protocol-failure'); return; }
     if (message.ok && isLocalCatalogCommand(item.command) && !isLocalCatalogCommandResult(item.command, message.result)) { fatal('protocol-failure'); return; }
@@ -170,12 +180,34 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
   worker.on('messageerror', () => fatal('protocol-failure'));
   worker.once('exit', code => {
     exited = true;
+    physicalExitResolve(code);
     worker.off('message', receive);
     if (code === 0 && closing && closeAcknowledged && !failed && pending.size === 0) exitResolve();
     else fatal('worker-exit');
   });
 
   return {
+    fatalDrain() {
+      if (!failed) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
+      if (fatalDrainFlight !== undefined) return fatalDrainFlight;
+      closing = true; sealLocalSources();
+      fatalDrainFlight = physicalExit.then(code => {
+        if (code !== 0) throw new DatasetOwnerTransportError('unknown');
+      });
+      void fatalDrainFlight.catch(() => undefined);
+      // failed 后的旧 close 可能立即 not-sent；只有实际 post 过的关闭请求才禁止本次关闭派发。
+      // 不重新发送领域命令、不信任故障通道 ACK，也不从线程结束推导原操作成功。
+      if (!exited && !closePostAttempted) {
+        closePostAttempted = true;
+        const message: DatasetOwnerRequest = {
+          version: DATASET_OWNER_PROTOCOL_VERSION, type: 'request', epoch, requestId: randomUUID(),
+          sequence: ++sequence, operation: 'close',
+        };
+        try { worker.postMessage(message); }
+        catch { /* 关闭发送仍未知；继续等待真实退出，不二发、不 terminate。 */ }
+      }
+      return fatalDrainFlight;
+    },
     prepare() {
       if (closing || failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
       preparation ??= rpc('prepare').then(value => {
@@ -215,7 +247,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     },
     dispatch(request) {
       try {
-        if (isLocalLegacyLinksCommand(Object.getOwnPropertyDescriptor(request,'command')?.value)) {
+        if (isLocalSourceWritesCommand(Object.getOwnPropertyDescriptor(request,'command')?.value) || isLocalLegacyLinksCommand(Object.getOwnPropertyDescriptor(request,'command')?.value)) {
           const validated=validateIpcRequest(request);
           if(!validated.ok)return Promise.reject(new DatasetOwnerDispatchError(responseFailure('local-legacy-links','INVALID_IPC_REQUEST','本地旧库关联请求无效。')));
           request=validated.value as IpcRequest;

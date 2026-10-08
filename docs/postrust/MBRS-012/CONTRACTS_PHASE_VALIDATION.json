@@ -1,0 +1,132 @@
+{
+  "schema": "mbrs012.contracts-phase-root-actual.v1",
+  "sourceIdentity": "cdab4bd9ade1bda8d158d83db4350cd5146bbff675f84130ef3959ba8ac4c4ff",
+  "files": [
+    {
+      "path": "packages/contracts/src/local-source-writes-data.ts",
+      "bytes": 5660,
+      "sha256": "9d6ad09641511ca4f25fcfd7b965be7296fb3d787c22556913d60f80cc991dff"
+    },
+    {
+      "path": "packages/contracts/src/local-source-writes.ts",
+      "bytes": 44593,
+      "sha256": "af8497cfe7b79b478325910bbd2b543d9c25a9bf8c5b48988ec79fe874de21c6"
+    },
+    {
+      "path": "packages/contracts/src/local-source-writes-private.ts",
+      "bytes": 13452,
+      "sha256": "4e8f17e37386c9e42ef631b5203edf1adb34db79651c987c0171e84b08182b73"
+    },
+    {
+      "path": "packages/contracts/src/index.ts",
+      "bytes": 2451,
+      "sha256": "c6ad649b5f1b4116fd54ba988f25be76778ebba1881f256f90c7c9851a4a61cb"
+    },
+    {
+      "path": "packages/contracts/src/ipc-names.ts",
+      "bytes": 9318,
+      "sha256": "21d0fe40e2c982a8e24bd9c4ebd018218e154f9ae930d7226ff419c47da60732"
+    },
+    {
+      "path": "packages/contracts/src/ipc.ts",
+      "bytes": 46340,
+      "sha256": "eaca8d654b9d7079a6af222b4e1f8632cd36a3cdf53f1135925a31dbf2f2ce64"
+    },
+    {
+      "path": "packages/contracts/src/validator.ts",
+      "bytes": 126758,
+      "sha256": "128ec56261f6b7188e46fda407b0cf043e08e862b8cd2943ee4d72bef1a45b6e"
+    },
+    {
+      "path": "packages/contracts/src/command-outbox.ts",
+      "bytes": 33382,
+      "sha256": "72a7839c60bdba24945885c20873020059ca42c976eb8411419781d2d0a5596c"
+    },
+    {
+      "path": "packages/contracts/test/mbrs012/fixtures.ts",
+      "bytes": 4473,
+      "sha256": "05650490fc098f3b362d4167cc986e5d4e3311ccab3b58aa84bc40aa5578fd71"
+    },
+    {
+      "path": "packages/contracts/test/mbrs012/source-writes-contract.test.ts",
+      "bytes": 21493,
+      "sha256": "55f8ac575a9900eacfd6c151465c94e0f59d2999431201bd86920030a21b9806"
+    },
+    {
+      "path": "packages/contracts/test/mbrs012/source-writes-private.test.ts",
+      "bytes": 8017,
+      "sha256": "c558d348eba26b971b0007e516bae4121006cbb868bae612b82ab46e76176e7d"
+    },
+    {
+      "path": "packages/contracts/test/mbrs012/source-writes-budgets.test.ts",
+      "bytes": 8718,
+      "sha256": "be8fe1d59508d897d71e8cccc9cbc61aca2bec288eb4d08c624acb1af712a9df"
+    },
+    {
+      "path": "packages/contracts/test/mbrs012/source-writes-restoration.test.ts",
+      "bytes": 9806,
+      "sha256": "5afe480e1c5f5f8abe0dead249d76030e84ef7be253762ce134e150c23d86c20"
+    }
+  ],
+  "allInputsUnchanged": true,
+  "freshProductBuildPassed": true,
+  "buildProductInputsSameAsCurrentLock04": true,
+  "freshCompleteTestTypesPassed": true,
+  "counts": {
+    "tests": 40,
+    "pass": 40,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "wholeLogsRead": true,
+  "runs": [
+    {
+      "label": "root-contracts-build03",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 2.6473234579898417,
+      "log": {
+        "file": "root-contracts-build03.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "label": "root-contracts-types03",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 2.8385710830334574,
+      "log": {
+        "file": "root-contracts-types03.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "label": "root-contracts-new-tests03",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 0.7025788329774514,
+      "log": {
+        "file": "root-contracts-new-tests03.log",
+        "bytes": 9838,
+        "sha256": "0ff41e3c1965476eefd0b058ef633cdae8068806989fbdcfbe3916a21b5c534b"
+      }
+    }
+  ],
+  "scope": "PUBLIC_PRIVATE_CONTRACTS_AND_RESTORATION_BEHAVIOR_NOT_SOURCE_SERVICE_OR_PUBLISHER_WRITER_QUALIFICATION",
+  "priorFailuresPreserved": [
+    "root-contracts-build01.json",
+    "root-contracts-new-tests01.json"
+  ],
+  "priorPhasePreserved": "CONTRACTS_PHASE_ACTUAL01.json",
+  "realLibraryRoonAudioOwner": "NOT_RUN"
+}

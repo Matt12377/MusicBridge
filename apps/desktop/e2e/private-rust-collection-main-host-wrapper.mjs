@@ -36,7 +36,7 @@ export async function startPrivateCollectionMainHost(rust, models) {
     control.start()
     const post = child.postMessage.bind(child)
     child.postMessage = (message, ports) => {
-      if (message?.type !== 'musicbridge.core.port' || !ports || ports.length !== 1) throw new Error('隔离宿主不改变公共启动合同。')
+      if (message?.type !== 'musicbridge.core.port' || !ports || ports.length !== 2 || ports[0] === ports[1]) throw new Error('隔离宿主必须保留公共及源写专用启动端口。')
       post(message, [...ports, channel.port1])
     }
     child.once('exit', code => { coreExit = code; main.push({ sequence: ++sequence, event: 'main.coreExit', pid: child.pid, code }); save() })

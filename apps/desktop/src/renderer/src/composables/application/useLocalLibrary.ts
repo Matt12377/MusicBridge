@@ -1,5 +1,6 @@
 import { useLocalArtwork } from './useLocalArtwork.js'
 import { useLocalOrganizer } from './useLocalOrganizer.js'
+import { useLocalSourceWrites } from './useLocalSourceWrites.js'
 import { computed, markRaw, ref, shallowRef } from 'vue'
 import { LOCAL_ORGANIZER_LIMIT, isCollectionId, isCommandOutboxOverview, isLocalArtworkContext, isLocalCatalogText, isLocalLibraryQueryPage, isLocalLibraryTrackDetail, isLocalPlayTarget, type LocalArtworkContext } from '@music-bridge/contracts'
 import type { CommandOutboxOverview, CommandOutboxPublicApi, LocalLibraryPublicApi, LocalLibraryQueryPage, LocalLibraryTrackSummary, LocalLibraryTrackDetail, LocalMetadata, LocalPlayAccepted, LocalPlayAction, LocalPlayRequest, LocalPlayTarget, LocalSourceUnsupported, LocalRootView, LocalRelocationSelection, LocalRelocationCandidates, LocalRelocationConfirm, LocalCatalogCommandPayloads, PublicRoonZone, TrackSummary } from '@music-bridge/contracts'
@@ -8,7 +9,7 @@ import type { LocalLibraryPlayReceipt } from '../../components/player/details.js
 export const LOCAL_LIBRARY_PAGE_SIZE = 100
 export const LOCAL_LIBRARY_CACHE_PAGES = 6
 export interface LocalLibraryOptions {
-  api: LocalLibraryPublicApi & Partial<import('@music-bridge/contracts').LocalArtworkPublicApi> & Partial<import('@music-bridge/contracts').LocalOrganizerPublicApi> & Partial<Pick<CommandOutboxPublicApi, 'getCommandOutbox'>>
+  api: LocalLibraryPublicApi & Partial<import('@music-bridge/contracts').LocalArtworkPublicApi> & Partial<import('@music-bridge/contracts').LocalOrganizerPublicApi> & Partial<import('@music-bridge/contracts').LocalSourceWritesPublicApi> & Partial<Pick<CommandOutboxPublicApi, 'getCommandOutbox'>>
   getSelectedZone: () => PublicRoonZone | undefined
   play: (request: LocalPlayRequest) => Promise<LocalPlayAccepted | LocalSourceUnsupported>
 }
@@ -32,6 +33,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     ...(options.api.getCommandOutbox ? { getCommandOutbox: options.api.getCommandOutbox } : {}),
   }, onApplied: () => { if (active && !disposed) void refreshBusiness() } }))
   const selectionMode = ref(false), selectedTrackIds = shallowRef<string[]>([]), selectionError = ref('')
+  const sourceWrites = markRaw(useLocalSourceWrites({ api: options.api, onApplied: () => { if (active && !disposed) void refreshBusiness() } }))
   const query = ref(''), rootId = ref<string | null>(null), total = ref(0), scrollTop = ref(0)
   const loaded = ref(false), loading = ref(false), stale = ref(false), error = ref(''), detailError = ref(''), actionError = ref('')
   const roots = shallowRef<LocalRootView[]>([]), target = shallowRef<LocalPlayTarget | null>(null)
@@ -194,6 +196,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
   function observeOutbox(overview: CommandOutboxOverview): void {
     artwork.observeOutbox(overview);
     organizer.observeOutbox(overview)
+    sourceWrites.observeOutbox(overview)
     if (disposed || !isCommandOutboxOverview(overview) || overview.datasetId !== sessionDatasetId) return
     const originalOverride = overrideBinding, originalRelocation = pendingRelocation.value
     const confirmed = (binding: Pending<{ commandId: string }> | null, command: 'localCatalog.overrideMetadata' | 'localRelocation.confirm') => {
@@ -224,8 +227,8 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     const [reconciled] = await Promise.all([refreshOutbox(), refreshContext(), pump(), selectedId.value ? selectTrack(selectedId.value, true) : Promise.resolve()])
     if (reconciled && active && !disposed) await refreshBusiness()
   }
-  function suspend(): void { artwork.close(); organizer.close(); active = false; queryGeneration++; detailGeneration++; contextGeneration++; actionGeneration++; outboxGeneration++; loading.value = false; detailLoading.value = false; target.value = null }
-  function dispose(): void { artwork.dispose(); organizer.dispose(); suspend(); disposed = true; pages.clear(); cacheVersion.value++ }
+  function suspend(): void { artwork.close(); organizer.close(); sourceWrites.close(); active = false; queryGeneration++; detailGeneration++; contextGeneration++; actionGeneration++; outboxGeneration++; loading.value = false; detailLoading.value = false; target.value = null }
+  function dispose(): void { artwork.dispose(); organizer.dispose(); sourceWrites.dispose(); suspend(); disposed = true; pages.clear(); cacheVersion.value++ }
   function toggleTrackSelection(trackId: string): void {
     if (!isCollectionId(trackId)) return
     selectionError.value = ''
@@ -332,6 +335,6 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
   return { query, rootId, total, scrollTop, loaded, loading, stale, error, roots, target, targetLabel, rangeWindow, tracks, cachePageCount,
     selectedId, detail, detailLoading, detailStale, detailError, detailReturnTarget, selectedRoot, actionBusy, actionError, titleDraft, pendingOverride, lastPlay,
     candidates, relocationSelection, relocationConfirmed, relocationUnknown, pendingRelocation,
-    artwork, detailArtwork, organizer, selectionMode, selectedTrackIds, selectionError, toggleTrackSelection, clearTrackSelection,
+    artwork, detailArtwork, organizer, sourceWrites, selectionMode, selectedTrackIds, selectionError, toggleTrackSelection, clearTrackSelection,
     activate, suspend, dispose, refresh, refreshContext, observeOutbox, search, ensureRange, selectTrack, closeDetail, playTrack, saveTitle, locateSelected, confirmCandidate }
 }

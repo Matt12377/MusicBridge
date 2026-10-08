@@ -12,6 +12,7 @@ export interface CommandOutboxPanelState {
 }
 
 export function canRetryOutboxItem(item: CommandOutboxView, currentDatasetId: string | undefined): boolean {
+  if (['localSourceWrites.confirm', 'localSourceWrites.undo', 'localSourceWrites.setPolicy'].includes(item.command)) return false
   return currentDatasetId !== undefined && item.canRetry && !item.acknowledged
     && item.state !== 'sending' && item.state !== 'succeeded' && item.state !== 'dismissed'
     && (item.datasetId === currentDatasetId || item.command === 'recordingBackups.activate')
@@ -136,7 +137,9 @@ export function createCommandOutboxController(options: {
           entries: state.overview.entries.map((candidate) => candidate.id === id ? result : candidate),
         } })
         update({ notice: action === 'dismiss' ? '已放弃跟踪；这不等于撤销业务，已发生的变更仍保留。'
-          : action === 'ack' ? '成功结果已确认，已从待确认列表隐藏。' : '已查询或重试原操作，请核对更新后的状态。' })
+          : action === 'ack' ? (item.command === 'localSourceWrites.confirm' || item.command === 'localSourceWrites.undo'
+            ? '源写回执已确认并隐藏；文件结果请继续核对具体计划。' : '成功结果已确认，已从待确认列表隐藏。')
+            : '已查询或重试原操作，请核对更新后的状态。' })
       } catch (error) {
         itemError(id, outboxErrorMessage(error))
       } finally {

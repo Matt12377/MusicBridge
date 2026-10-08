@@ -3,6 +3,7 @@ import * as dto from '@music-bridge/contracts';
 import type { CoreSupervisor } from './core-supervisor.js';
 import type { PhotoDecoderImage } from './collection-photos.js';
 import { LocalArtworkImageError, normalizeLocalArtwork, readLocalArtworkFile } from './local-artwork-image.js';
+import { captureSourceWriteOriginal } from './source-write-original.js';
 
 type Active = { id: string; cancelled: boolean; abort: AbortController };
 /** 闭集通道只接受逻辑目标或图片bytes；路径由原生picker选择，URL/通用抓取/任意owner命令均不开放。 */
@@ -12,6 +13,7 @@ export function installLocalArtworkHandlers<E>(options: {
   supervisor: Pick<CoreSupervisor, 'request' | 'requestInternal'>;
   pick(): Promise<{ canceled: boolean; filePaths: string[] }>;
   decode(bytes: Buffer): PhotoDecoderImage;
+  attachOriginal?(request: { datasetId: string; commandId: string; target: dto.LocalArtworkTarget; candidateId: string; original: dto.LocalArtworkImageInfo; bytes: Uint8Array }): Promise<unknown>;
   providers?: Partial<Record<dto.LocalArtworkSearchProvider,{ search(query: string, signal: AbortSignal): Promise<Array<{bytes:Uint8Array;source:dto.LocalArtworkRemoteSource}>>; close():void }>>;
 }) {
   const active = new Map<string, Active>();
@@ -38,8 +40,20 @@ export function installLocalArtworkHandlers<E>(options: {
     finally { active.delete(scope); }
   }
   async function stage(datasetId: string, target: dto.LocalArtworkTarget, bytes: Uint8Array, origin: dto.LocalArtworkOrigin, sourceIdentity: string, sourceLabel: string, alive: () => void, remoteSource?:dto.LocalArtworkRemoteSource) {
-    alive(); const image = normalizeLocalArtwork(bytes,options.decode); alive(); await current(datasetId); alive();
-    return publicContext(await options.supervisor.requestInternal('localArtwork.stage', {target,image,origin,sourceIdentity,sourceLabel,...(remoteSource?{remoteSource}:{})},datasetId));
+    let original: Uint8Array | undefined;
+    try { if (options.attachOriginal) original = captureSourceWriteOriginal(bytes); } catch { /* 留存能力不改变原 MB 选图准入。 */ }
+    alive(); const image = normalizeLocalArtwork(original ?? bytes,options.decode); alive(); await current(datasetId); alive();
+    const context = publicContext(await options.supervisor.requestInternal('localArtwork.stage', {target,image,origin,sourceIdentity,sourceLabel,...(remoteSource?{remoteSource}:{})},datasetId));
+    if (original && options.attachOriginal) {
+      const candidates = context.candidates.filter(candidate => candidate.origin === origin && candidate.sourceIdentity === sourceIdentity
+        && candidate.editionId === target.editionId && candidate.original.sha256 === image.original.sha256
+        && candidate.original.bytes === original.byteLength && candidate.original.mime === image.original.mime);
+      if (candidates.length === 1) {
+        try { alive(); await options.attachOriginal({datasetId,commandId:randomUUID(),target,candidateId:candidates[0]!.id,original:image.original,bytes:original}); }
+        catch { /* 已保存的候选保留；新源写预览会明确要求重新取得原图。 */ }
+      }
+    }
+    alive(); return context;
   }
   handle('localArtwork:context', async(event,value) => {
     const v = envelope(event,value,['request']);

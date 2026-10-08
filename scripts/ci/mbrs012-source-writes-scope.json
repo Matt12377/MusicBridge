@@ -1,0 +1,83 @@
+{
+  "schema": "mbrs012.source-writes-scope.v1",
+  "baseSha": "09370f19d4422be3b387047999a0722961c52e1e",
+  "implementationComplete": true,
+  "countsConfirmed": true,
+  "sourceFilesWrite": "DEFAULT_OFF_SPECIFIC_QUALIFIED_PLAN_ONLY",
+  "groups": [
+    {
+      "name": "contracts-source-writes-and-regressions",
+      "directory": "packages/contracts",
+      "tests": [
+        "test/mbrs012/source-writes-budgets.test.ts",
+        "test/mbrs012/source-writes-contract.test.ts",
+        "test/mbrs012/source-writes-private.test.ts",
+        "test/mbrs012/source-writes-restoration.test.ts",
+        "test/validator.test.ts",
+        "test/mbrs002/local-catalog.test.ts",
+        "test/mbrs011/contract.test.ts"
+      ],
+      "expectedTests": 88
+    },
+    {
+      "name": "core-source-writes-and-regressions",
+      "directory": "packages/bridge-core",
+      "tests": [
+        "test/mbrs012/artwork-service.test.ts",
+        "test/mbrs012/attributes.test.ts",
+        "test/mbrs012/capacity.test.ts",
+        "test/mbrs012/cold-unknown.test.ts",
+        "test/mbrs012/family-closure.test.ts",
+        "test/mbrs012/format.test.ts",
+        "test/mbrs012/frozen-source.test.ts",
+        "test/mbrs012/history.test.ts",
+        "test/mbrs012/journal.test.ts",
+        "test/mbrs012/lifecycle.test.ts",
+        "test/mbrs012/metadata.test.ts",
+        "test/mbrs012/multi-artist.test.ts",
+        "test/mbrs012/namespace.test.ts",
+        "test/mbrs012/originals.test.ts",
+        "test/mbrs012/owner.test.ts",
+        "test/mbrs012/protection-content.test.ts",
+        "test/mbrs012/publication-boundaries.test.ts",
+        "test/mbrs012/publication-faults.test.ts",
+        "test/mbrs012/reader-first.test.ts",
+        "test/mbrs012/service.test.ts",
+        "test/mbrs012/publication-stage-recovery.test.ts",
+        "test/mbrs002/local-catalog-store.test.ts",
+        "test/mbrs002/local-catalog-restore.test.ts",
+        "test/mbrs003/persistent-scan-store.test.ts",
+        "test/mbrs005/locks.test.ts",
+        "test/mbrs005/observation-binding.test.ts",
+        "test/mbrs011/organizer.test.ts",
+        "test/mbrs011/journal.test.ts",
+        "test/mbrs014/protection.test.ts",
+        "test/mbrs014/recording-protection.test.ts",
+        "test/mbrs012/fatal-drain.test.ts",
+        "test/mbrs012/utility-port.test.ts",
+        "test/mbrs012/post-write-lease.test.ts",
+        "test/mbrs012/undo-conflict-window.test.ts"
+      ],
+      "expectedTests": 216
+    },
+    {
+      "name": "desktop-source-writes-and-regressions",
+      "directory": "apps/desktop",
+      "tests": [
+        "test/mbrs012-ipc.test.ts",
+        "test/mbrs012-original.test.ts",
+        "test/mbrs012-private-port.test.ts",
+        "test/mbrs012-session.test.ts",
+        "test/mbrs012-ui.test.ts",
+        "test/command-outbox-service.test.ts",
+        "test/command-outbox-executor.test.ts",
+        "test/mbrs011-organizer-ipc.test.ts",
+        "test/mbrs011-organizer-session.test.ts",
+        "test/mbrs011-organizer-ui.test.ts",
+        "test/preload.test.ts"
+      ],
+      "expectedTests": 122
+    }
+  ],
+  "state": "IMPLEMENTATION_COMPLETE_FINITE_TEST_INVENTORY_FROZEN_426"
+}

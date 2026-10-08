@@ -1,4 +1,6 @@
 import { isApplyLocalArtworkSelection, isLocalArtworkSelection, isCreateLocalArtworkEdition } from './local-artwork.js';
+import { isLocalSourceWritesHash, isLocalSourceWritesOutboxCommand, isLocalSourceWritesCommandPayload, isLocalSourceWritesCommandResult, type LocalSourceWritesCommandPayloads, type LocalSourceWritesReceipt } from './local-source-writes.js';
+import { localSourceWritesDataSnapshot, localSourceWritesRecord } from './local-source-writes-data.js';
 import { isAlbumEdition } from './local-catalog.js';
 import { isLocalLegacyLinksCommandPayload, isLocalLegacyLinksCommandResult, localLegacyLinksDataSnapshot, localLegacyRecord, type ExecuteLocalLegacyLink, type LocalLegacyLinkReceipt } from './local-legacy-links.js';
 import {isLocalRelocationConfirm,isLocalRootRelink,isLocalRelocationCommandResult} from './local-relocation.js';
@@ -31,6 +33,7 @@ import { isActivateRestoredDataset, isRestoreActivationView, type ActivateRestor
 
 /** 只允许原有公开领域写命令，不能从任意 IPC 名称推导重放权限。 */
 export const COMMAND_OUTBOX_COMMANDS = [
+  'localSourceWrites.setPolicy', 'localSourceWrites.confirm', 'localSourceWrites.undo',
   'localLegacyLinks.confirm', 'localLegacyLinks.revoke', 'localLegacyLinks.undo',
   'localOrganizer.confirm', 'localOrganizer.undo',
   ...LOCAL_CATALOG_OUTBOX_COMMANDS,
@@ -66,6 +69,9 @@ export type CommandOutboxSpecialCommand = typeof COMMAND_OUTBOX_SPECIAL_COMMANDS
 export type CommandOutboxTrackedCommand = CommandOutboxCommand | CommandOutboxSpecialCommand;
 /** 复用叶级领域验证器；不反向导入总 IPC validator，避免运行时模块循环。 */
 const ordinaryValidators = {
+  'localSourceWrites.setPolicy': [(v: unknown): v is LocalSourceWritesCommandPayloads['localSourceWrites.setPolicy'] => isLocalSourceWritesCommandPayload('localSourceWrites.setPolicy', v), (v: unknown): v is LocalSourceWritesReceipt => isLocalSourceWritesCommandResult('localSourceWrites.setPolicy', v)],
+  'localSourceWrites.confirm': [(v: unknown): v is LocalSourceWritesCommandPayloads['localSourceWrites.confirm'] => isLocalSourceWritesCommandPayload('localSourceWrites.confirm', v), (v: unknown): v is LocalSourceWritesReceipt => isLocalSourceWritesCommandResult('localSourceWrites.confirm', v)],
+  'localSourceWrites.undo': [(v: unknown): v is LocalSourceWritesCommandPayloads['localSourceWrites.undo'] => isLocalSourceWritesCommandPayload('localSourceWrites.undo', v), (v: unknown): v is LocalSourceWritesReceipt => isLocalSourceWritesCommandResult('localSourceWrites.undo', v)],
   'localLegacyLinks.confirm': [(v: unknown): v is ExecuteLocalLegacyLink => isLocalLegacyLinksCommandPayload('localLegacyLinks.confirm',v), (v: unknown): v is LocalLegacyLinkReceipt => isLocalLegacyLinksCommandResult('localLegacyLinks.confirm',v)],
   'localLegacyLinks.revoke': [(v: unknown): v is ExecuteLocalLegacyLink => isLocalLegacyLinksCommandPayload('localLegacyLinks.revoke',v), (v: unknown): v is LocalLegacyLinkReceipt => isLocalLegacyLinksCommandResult('localLegacyLinks.revoke',v)],
   'localLegacyLinks.undo': [(v: unknown): v is ExecuteLocalLegacyLink => isLocalLegacyLinksCommandPayload('localLegacyLinks.undo',v), (v: unknown): v is LocalLegacyLinkReceipt => isLocalLegacyLinksCommandResult('localLegacyLinks.undo',v)],
@@ -193,6 +199,8 @@ export type CommandOutboxErrorCode = typeof COMMAND_OUTBOX_ERROR_CODES[number];
 export interface CommandOutboxView {
   id: string; commandId: string; command: CommandOutboxTrackedCommand; datasetId: string; state: CommandOutboxState;
   createdAt: string; updatedAt: string; errorCode?: CommandOutboxErrorCode; acknowledged: boolean; canRetry: boolean;
+  /** 仅三 Source 动作的原 public 请求指纹；旧域没有此键，不能用它再次授权。 */
+  sourceRequestFingerprint?: string;
 }
 export interface CommandOutboxOverview { datasetId: string; entries: readonly CommandOutboxView[] }
 export interface CommandOutboxAction { id: string; userConfirmed: true }
@@ -235,6 +243,11 @@ export function isCommandOutboxExecute(v: unknown): v is CommandOutboxExecute {
   const observed = observedOutboxEnvelope(v); if (!observed) return false;
   try {
     const command = observed.command;
+    if (typeof command === 'string' && command.startsWith('localSourceWrites.')) {
+      const copy = localSourceWritesDataSnapshot(v, MAX_COMMAND_OUTBOX_PAYLOAD_BYTES, 8192, 100);
+      return localSourceWritesRecord(copy, ['datasetId', 'command', 'payload']) && copy.command === command && isLocalSourceWritesOutboxCommand(command)
+        && isCommandOutboxDatasetId(copy.datasetId) && isLocalSourceWritesCommandPayload(command, copy.payload) && copy.payload.datasetId === copy.datasetId;
+    }
     if (command === 'localLegacyLinks.confirm' || command === 'localLegacyLinks.revoke' || command === 'localLegacyLinks.undo') {
       const copy = localLegacyLinksDataSnapshot(v, MAX_COMMAND_OUTBOX_PAYLOAD_BYTES, 2048, 100);
       return localLegacyRecord(copy, ['datasetId','command','payload']) && copy.command === command && isCommandOutboxDatasetId(copy.datasetId) && isLocalLegacyLinksCommandPayload(command, copy.payload);
@@ -246,6 +259,11 @@ export function isCommandOutboxRequest(v: unknown): v is CommandOutboxRequest {
   const observed = observedOutboxEnvelope(v); if (!observed) return false;
   try {
     const command = observed.command;
+    if (typeof command === 'string' && command.startsWith('localSourceWrites.')) {
+      const copy = localSourceWritesDataSnapshot(v, MAX_COMMAND_OUTBOX_PAYLOAD_BYTES, 8192, 100);
+      return localSourceWritesRecord(copy, ['datasetId', 'command', 'payload']) && copy.command === command && isLocalSourceWritesOutboxCommand(command)
+        && isCommandOutboxDatasetId(copy.datasetId) && isLocalSourceWritesCommandPayload(command, copy.payload) && copy.payload.datasetId === copy.datasetId;
+    }
     if (command === 'localLegacyLinks.confirm' || command === 'localLegacyLinks.revoke' || command === 'localLegacyLinks.undo') {
       const copy = localLegacyLinksDataSnapshot(v, MAX_COMMAND_OUTBOX_PAYLOAD_BYTES, 2048, 100);
       return localLegacyRecord(copy, ['datasetId','command','payload']) && copy.command === command && isCommandOutboxDatasetId(copy.datasetId) && isLocalLegacyLinksCommandPayload(command, copy.payload);
@@ -266,10 +284,28 @@ export function isCommandOutboxRequest(v: unknown): v is CommandOutboxRequest {
   }
 }
 export function isCommandOutboxResult(v: unknown): v is CommandOutboxResult {
+  try {
+    const descriptor = v !== null && typeof v === 'object' ? Object.getOwnPropertyDescriptor(v, 'command') : undefined;
+    if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) return false;
+    const command: unknown = descriptor.value;
+    if (typeof command === 'string' && command.startsWith('localSourceWrites.')) {
+      const copy = localSourceWritesDataSnapshot(v, 16384, 2048, 100);
+      return localSourceWritesRecord(copy, ['command', 'result']) && copy.command === command && isLocalSourceWritesOutboxCommand(command) && isLocalSourceWritesCommandResult(command, copy.result);
+    }
+  } catch { return false; }
   return record(v) && keys(v, ['command', 'result']) && isCommandOutboxCommand(v.command)
     && ordinaryValidators[v.command][1](v.result);
 }
 export function isCommandOutboxDispatchResult(v: unknown): v is CommandOutboxDispatchResult {
+  try {
+    const descriptor = v !== null && typeof v === 'object' ? Object.getOwnPropertyDescriptor(v, 'command') : undefined;
+    if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) return false;
+    const command: unknown = descriptor.value;
+    if (typeof command === 'string' && command.startsWith('localSourceWrites.')) {
+      const copy = localSourceWritesDataSnapshot(v, 16384, 2048, 100);
+      return localSourceWritesRecord(copy, ['command', 'result']) && copy.command === command && isLocalSourceWritesOutboxCommand(command) && isLocalSourceWritesCommandResult(command, copy.result);
+    }
+  } catch { return false; }
   if (!record(v) || !keys(v, ['command', 'result'])) return false;
   if (isCommandOutboxCommand(v.command)) return isCommandOutboxResult(v);
   switch (v.command) {
@@ -287,6 +323,20 @@ export function isCommandOutboxDispatchResult(v: unknown): v is CommandOutboxDis
 }
 const timestamp = (v: unknown): v is string => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u.test(v) && Number.isFinite(Date.parse(v));
 export function isCommandOutboxView(v: unknown): v is CommandOutboxView {
+  try {
+    const descriptor = v !== null && typeof v === 'object' ? Object.getOwnPropertyDescriptor(v, 'command') : undefined;
+    if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) return false;
+    const command: unknown = descriptor.value;
+    if (typeof command === 'string' && command.startsWith('localSourceWrites.')) {
+      const value = localSourceWritesDataSnapshot(v, 16384, 2048, 100);
+      return localSourceWritesRecord(value, ['id', 'commandId', 'command', 'datasetId', 'state', 'createdAt', 'updatedAt', 'acknowledged', 'canRetry'], ['errorCode', 'sourceRequestFingerprint'])
+        && value.command === command && isLocalSourceWritesOutboxCommand(command) && isCollectionId(value.id) && isCollectionId(value.commandId) && isCommandOutboxDatasetId(value.datasetId)
+        && (COMMAND_OUTBOX_STATES as readonly unknown[]).includes(value.state) && timestamp(value.createdAt) && timestamp(value.updatedAt)
+        && (!Object.hasOwn(value, 'errorCode') || (COMMAND_OUTBOX_ERROR_CODES as readonly unknown[]).includes(value.errorCode))
+        && (!Object.hasOwn(value, 'sourceRequestFingerprint') || isLocalSourceWritesHash(value.sourceRequestFingerprint))
+        && typeof value.acknowledged === 'boolean' && value.canRetry === false;
+    }
+  } catch { return false; }
   return record(v) && keys(v, ['id', 'commandId', 'command', 'datasetId', 'state', 'createdAt', 'updatedAt', 'errorCode', 'acknowledged', 'canRetry'])
     && isCollectionId(v.id) && isCollectionId(v.commandId) && isCommandOutboxTrackedCommand(v.command) && isCommandOutboxDatasetId(v.datasetId)
     && (COMMAND_OUTBOX_STATES as readonly unknown[]).includes(v.state) && timestamp(v.createdAt) && timestamp(v.updatedAt)

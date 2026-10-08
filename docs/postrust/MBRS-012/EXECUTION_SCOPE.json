@@ -1,0 +1,200 @@
+{
+  "schema": "mbrs012.execution-scope.v1",
+  "task": "MBRS-012",
+  "baseSha": "09370f19d4422be3b387047999a0722961c52e1e",
+  "branch": "codex/mbrs-012-source-writes",
+  "g0": "ADMITTED_INHERITED_PHASE_HANDOFF",
+  "g0Ref": "docs/postrust/RUST-016/ADMISSION_DECISION.json",
+  "taskSpec": {
+    "path": "tasks/MBRS-012_SAFE_SOURCE_WRITES.md",
+    "bytes": 3788,
+    "sha256": "c77b9d1516a85a50e677c20e028f449ab072fc424032d4cb58e804aac2b427b6"
+  },
+  "predecessorFinalSeal": {
+    "archiveId": "MBRS014_FINAL_DELIVERY_RECEIPT",
+    "fileName": "MBRS014_FINAL_DELIVERY_RECEIPT.json",
+    "bytes": 8005,
+    "sha256": "852178579378aa9398dae2edae57bf34f480489bc9e50fa6182b42abf1683940",
+    "reportSha": "09370f19d4422be3b387047999a0722961c52e1e",
+    "completionScope": "FINITE_SOFTWARE_SEALED_PRODUCT_PARTIAL"
+  },
+  "defaultCore": "Node",
+  "optionalRustReadonly": "OFF",
+  "catalogSchema": 34,
+  "libraryWriteEnabledDefault": false,
+  "sourceFilesWrite": "OFF_UNTIL_FINITE_WRITER_QUALIFICATION_CONCRETE_PLAN_GRANTS_ONLY",
+  "legacyOrganizerSourceFiles": "OFF",
+  "legacySourceEvidenceAndRecordingModules": "READ_ONLY_UNCHANGED",
+  "writerQualification": "FINITE_LOCAL_WRITER_AND_OWNED_APP_PROOF_ONLY",
+  "originalTaskCount": 18,
+  "originalAcceptanceCount": 156,
+  "effectiveTaskCount": 17,
+  "effectiveAcceptanceCount": 150,
+  "taskAcceptanceCount": 9,
+  "scheduling": {
+    "hardDependencies": [
+      "MBRS-010",
+      "MBRS-011",
+      "MBRS-014",
+      "MBRS-005"
+    ],
+    "ownerContinuousAuthorization": "Owner持续授权005至017开发、必要修复验证及普通提交推送；当前再次明确不逐步审批",
+    "later": [
+      "MBRS-013",
+      "MBRS-016",
+      "MBRS-017",
+      "MOBILE_FORMAL_ADOPTION"
+    ],
+    "cancelledTask": "MBRS-015"
+  },
+  "publisherProfile": "NONATOMIC_QUARANTINE_LINK_V1",
+  "writerFormatProfiles": [
+    "NATIVE_FLAC_FIXED_TAG_REGION_V1",
+    "MPEG1_LAYERIII_ID3V240_FIXED_TAG_REGION_V1"
+  ],
+  "binaryOriginalTransport": {
+    "singleBytes": 4194304,
+    "envelopeUtf8Bytes": 16384,
+    "retainedBytes": 67108864,
+    "retainedCount": 128,
+    "oldArtworkJsonGuardUnchanged": true
+  },
+  "planLimits": {
+    "operations": 100,
+    "completeBodyContextProjectionBytes": 2097152,
+    "headerAndItemAllTextBytes": 65536,
+    "phaseAllTextBytes": 16384,
+    "phaseEventsPerOperation": 32,
+    "phaseEventsPerPlan": 4096,
+    "terminalReservedEventsPerOperation": 4,
+    "terminalReservedEventsPerPlan": 16,
+    "journalProjectionBytes": 67108864
+  },
+  "noRepeatedAgentApproval": true,
+  "productPlanConfirmation": "FINAL_SPECIFIC_PLAN_BUTTON_NO_EXTRA_APPROVAL_POPUP",
+  "realUserRoonNasAudioDeviceOwner": "NOT_RUN",
+  "implementationHandoff": "docs/postrust/MBRS-012/IMPLEMENTATION_HANDOFF.md",
+  "compilerOwner": "ROOT_ONLY",
+  "models": {
+    "root": "gpt-6.1-sol",
+    "reasoningEffort": "max",
+    "children": "EXISTING_THREE_gpt-6.1-sol_MAX_NO_NEW_AGENTS"
+  },
+  "currentImplementationState": "FINITE_LOCAL_SOFTWARE_AND_OWNED_APP_PROVEN_DELIVERY_PENDING",
+  "startedAt": "2026-10-07T20:07:30.284463+00:00",
+  "writerIoLimits": {
+    "singleSourceBytes": 268435456,
+    "tagRegionBytes": 8388608,
+    "metadataBlocksOrFrames": 4096,
+    "planOriginalPayloadIoBytes": 2147483648,
+    "safetyStoreRetainedBytes": 2147483648,
+    "safetyStoreCounts": [
+      "BACKUP_INDEPENDENT_COPY",
+      "QUARANTINED_ORIGINAL",
+      "UNCERTAIN_STAGE"
+    ],
+    "prePublicationReservation": "3*SOURCE_BYTES+ORIGINAL_IMAGE_BYTES+METADATA+TERMINAL_JOURNAL",
+    "oldReaderBudgetsUnchanged": true
+  },
+  "publicApiMethods": [
+    "previewLocalSourceWrites",
+    "getLocalSourceWrites",
+    "listLocalSourceWritesHistory",
+    "confirmLocalSourceWrites",
+    "undoLocalSourceWrites",
+    "cancelLocalSourceWrites",
+    "setLocalSourceWritesPolicy"
+  ],
+  "unknownCommandReconciliation": {
+    "sourceOnlyOutboxViewField": "sourceRequestFingerprint",
+    "commands": [
+      "localSourceWrites.setPolicy",
+      "localSourceWrites.confirm",
+      "localSourceWrites.undo"
+    ],
+    "fingerprintScope": [
+      "datasetId",
+      "exactCommand",
+      "capturedOriginalPublicPayload"
+    ],
+    "excludes": [
+      "grant",
+      "challenge",
+      "ownerNonce",
+      "outboxInternalFields"
+    ],
+    "oldDomainViewAddsField": false,
+    "getUsesOriginalCommandIdAndExpectedCommand": true,
+    "notFoundAllowsRetry": false,
+    "acceptedMeansSourceEffect": false
+  },
+  "sourceFactProjection": {
+    "newFullRawOrigin": "SOURCE_WRITES_V1",
+    "fullRawResetsEarlierRawObservation": true,
+    "laterLegacyObservationKeepsPatchSemantics": true,
+    "oldObservationGuardAndHistoryUnchanged": true,
+    "detailAndSqlSearchShareEffectiveRaw": true,
+    "realExistingScanRowRequired": true,
+    "scanJobAndBatchForeignKeysPreserved": true,
+    "syntheticScanJobAllowed": false,
+    "sameOwnerTransactionRequired": true,
+    "followingScanDoubleRevisionAllowed": false
+  },
+  "phaseEvidence": [
+    "docs/postrust/MBRS-012/FORMAT_PHASE_VALIDATION.json",
+    "docs/postrust/MBRS-012/CONTRACTS_PHASE_VALIDATION.json",
+    "docs/postrust/MBRS-012/METADATA_PHASE_VALIDATION.json",
+    "docs/postrust/MBRS-012/DESKTOP_PHASE_VALIDATION.json",
+    "docs/postrust/MBRS-012/PERSISTENCE_PHASE_VALIDATION.json",
+    "docs/postrust/MBRS-012/PROTECTION_CONTENT_PHASE_VALIDATION.json",
+    "docs/postrust/MBRS-012/METADATA_PHASE_VALIDATION02.json",
+    "docs/postrust/MBRS-012/DESKTOP_PHASE_VALIDATION02.json",
+    "docs/postrust/MBRS-012/NAMESPACE_PHASE_VALIDATION.json",
+    "docs/postrust/MBRS-012/SOURCE_SERVICE_PHASE_VALIDATION.json",
+    "docs/postrust/MBRS-012/LOCAL_VALIDATION.json"
+  ],
+  "inverseProjection": {
+    "discriminator": "item.restoration",
+    "directPlansMayUseRestoration": false,
+    "coverCandidateIdentityBorrowAllowed": false,
+    "directoryOriginalAbsenceRemovableByExplicitInversePlan": true,
+    "originalArtistMultiValuesRestored": true,
+    "originalFrozenSixBodyNineOperationKeysPreserved": true
+  },
+  "requiredBeforeWriterQualification": [
+    "COLD_UNKNOWN_NEW_OWNER_NEW_SAB_ACTUAL_READ_BARRIER",
+    "OWNER_PRIVATE_PORT_AND_PUBLISHER_SERVICE_BEHAVIOR",
+    "SAFETY_MATERIAL_AND_JOURNAL_LIFECYCLE_CAPACITY",
+    "FULL_TYPES_AND_DECLARED_REGRESSIONS",
+    "PRODUCTION_APP_AND_INDEPENDENT_ACTUAL_SOURCE_OUTPUTS",
+    "EXACT_GATE_SOURCE_AND_REPORT_NATURAL_CI_SEAL"
+  ],
+  "attributePreservation": {
+    "privateProfiles": [
+      "MACOS_EMPTY_XATTR_ACL_FLAGS_V1",
+      "MACOS_PROVENANCE_ONLY_ACL_FLAGS_V1",
+      "LINUX_EMPTY_XATTR_ACL_FLAGS_V1"
+    ],
+    "macProvenanceOnly": {
+      "exactName": "com.apple.provenance",
+      "actualOpaqueBytes": 11,
+      "bindActualSha256": true,
+      "interpretOpaqueValue": false,
+      "writeOrClearSystemAttribute": false,
+      "hardcodedMachineHash": false
+    },
+    "allOtherXattrAclFlagsOrUnknownTools": "REJECT_WRITE",
+    "backupMode": "0600",
+    "backupActualProof": "MATCH_AUTHENTICATED_BACKUP_AND_ORIGINAL_PROFILE",
+    "newPrivatePhaseField": "BACKUP.backupAttributes",
+    "newPrivateFactField": "backup.attributes",
+    "newPrivateInverseField": "inverse.restoreAttributes",
+    "oldPrivateRecords": "READ_COMPATIBLE_MISSING_PROOF_REJECTS_EXECUTION",
+    "originalDirectoryAbsence": "NULL_IS_ABSENCE_NOT_EMPTY_ATTRIBUTE_PROFILE",
+    "originalPresentPathGap": "RESTORE_UNIQUE_ORIGIN_ATTRIBUTES_NO_DEFAULT_0644",
+    "publicDtoAndFrozenSixNineKeysAndBudgets": "UNCHANGED",
+    "ordinaryReaderFlacAllowlist": "UNCHANGED"
+  },
+  "localValidation": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
+  "qualificationBoundary": "FINITE_LOCAL_ONLY_EXACT_SOURCE_GATE_AND_CI_SEALED_SEPARATELY"
+}

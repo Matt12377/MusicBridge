@@ -228,6 +228,7 @@ export const DATASET_COMMANDS = [
   'collection.materialize',
   'collection.updateCopy',
   'collection.setPolicy',
+  'localSourceWrites.preview','localSourceWrites.get','localSourceWrites.history','localSourceWrites.confirm','localSourceWrites.undo','localSourceWrites.cancel','localSourceWrites.setPolicy',
  ] as const satisfies readonly IpcCommand[];
 export type DatasetCommand = typeof DATASET_COMMANDS[number];
 const commands = new Set<string>(DATASET_COMMANDS);
@@ -294,6 +295,7 @@ export interface DatasetProjectionPort {
 }
 export type DatasetOwnerProjectionHandler = <K extends DatasetProjectionCommand>(command: K, payload: DatasetProjectionCommandPayloads[K], context: { epoch: string; datasetId?: string }) => Promise<DatasetProjectionCommandResults[K]>;
 export interface OwnedDatasetDomain {
+  dispatchSourceWritesMain?(request:SourceWritesMainRequest,actor:SourceWritesMainActor):Promise<unknown>;
   materializeMBEdition?(request:MBEditionQueueRequest):MBEditionQueueSnapshot;
   loadMBQueue?(): MBQueueLoadResult;
   saveMBQueue?(request: MBQueueSaveRequest): MBQueueRecord;
@@ -435,3 +437,5 @@ export class DatasetOwnerTransportError extends Error {
     super(outcome === 'unknown' ? '领域所有者连接中断，已发送操作的结果不明；请查询原命令记录，操作不会自动重放。' : '领域所有者尚未就绪，本次操作未发送。'); this.name = 'DatasetOwnerTransportError';
   }
 }
+import type { SourceWritesMainRequest } from '@music-bridge/contracts';
+import type { SourceWritesMainActor } from './source-writes-authority.js';

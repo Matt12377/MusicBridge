@@ -1,5 +1,6 @@
-import type {LocalLibraryPublicApi,LocalArtworkPublicApi,LocalOrganizerPublicApi,LocalLegacyLinksPublicApi} from '@music-bridge/contracts'
+import type {LocalLibraryPublicApi,LocalArtworkPublicApi,LocalOrganizerPublicApi,LocalLegacyLinksPublicApi,LocalSourceWritesPublicApi} from '@music-bridge/contracts'
 import { createLocalLegacyLinksClient, type LocalLegacyLinksTransport } from './local-legacy-links-client.js'
+import { createLocalSourceWritesClient, type LocalSourceWritesTransport } from './local-source-writes-client.js'
 import type { LibraryReadPublicApi, CollectionReadonlyPublicApi } from '@music-bridge/contracts'
 import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts'
 import type { RecordingPrintsPublicApi } from '@music-bridge/contracts'
@@ -77,7 +78,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends LocalLegacyLinksPublicApi, LocalOrganizerPublicApi, LocalArtworkPublicApi, LocalLibraryPublicApi, Partial<LibraryReadPublicApi>, CollectionReadonlyPublicApi, RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends LocalSourceWritesPublicApi, LocalLegacyLinksPublicApi, LocalOrganizerPublicApi, LocalArtworkPublicApi, LocalLibraryPublicApi, Partial<LibraryReadPublicApi>, CollectionReadonlyPublicApi, RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   performanceDiagnostics?: import('../shared/performance-transport.js').PerformanceInteractionDiagnostics
   getVolume: () => Promise<VolumeSnapshot>
   setVolume: (request: VolumeRequest) => Promise<VolumeSnapshot>
@@ -466,6 +467,13 @@ export const PUBLIC_API_KEYS = [
   'confirmLocalLegacyLink',
   'revokeLocalLegacyLink',
   'undoLocalLegacyLink',
+  'previewLocalSourceWrites',
+  'getLocalSourceWrites',
+  'listLocalSourceWritesHistory',
+  'confirmLocalSourceWrites',
+  'undoLocalSourceWrites',
+  'cancelLocalSourceWrites',
+  'setLocalSourceWritesPolicy',
 ] as const
 
 export function createPreloadApi(
@@ -651,10 +659,13 @@ export function createPreloadApi(
   localArtworkApi?:LocalArtworkPublicApi,
   localOrganizerApi?:LocalOrganizerPublicApi,
   localLegacyTransport?: LocalLegacyLinksTransport,
+  localSourceWritesTransport?: LocalSourceWritesTransport,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const legacyUnavailable = async (): Promise<never> => { throw new Error('[NOT_READY] 本地关联服务尚未就绪，请重新读取；已有记录保留。') }
   const localLegacyApi = localLegacyTransport ? createLocalLegacyLinksClient(localLegacyTransport) : { readLocalLegacyLinks: legacyUnavailable, historyLocalLegacyLinks: legacyUnavailable, previewLocalLegacyLink: legacyUnavailable, confirmLocalLegacyLink: legacyUnavailable, revokeLocalLegacyLink: legacyUnavailable, undoLocalLegacyLink: legacyUnavailable }
+  const sourceUnavailable = async (): Promise<never> => { throw new Error('[NOT_READY] 源写服务尚未就绪；MB 信息与封面仍可保存。') }
+  const sourceApi: LocalSourceWritesPublicApi = localSourceWritesTransport ? createLocalSourceWritesClient(localSourceWritesTransport) : { previewLocalSourceWrites: sourceUnavailable, getLocalSourceWrites: sourceUnavailable, listLocalSourceWritesHistory: sourceUnavailable, confirmLocalSourceWrites: sourceUnavailable, undoLocalSourceWrites: sourceUnavailable, cancelLocalSourceWrites: sourceUnavailable, setLocalSourceWritesPolicy: sourceUnavailable }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
   return Object.freeze({
     ...(localOrganizerApi ?? {previewLocalOrganizer:collectionUnavailable,getLocalOrganizerPlan:collectionUnavailable,listLocalOrganizerHistory:collectionUnavailable,confirmLocalOrganizer:collectionUnavailable,undoLocalOrganizer:collectionUnavailable,cancelLocalOrganizer:collectionUnavailable}),
@@ -811,5 +822,6 @@ export function createPreloadApi(
     reconnectRemoteCore,
     onRemoteCoreEvent,
     ...localLegacyApi,
+    ...sourceApi,
   })
 }

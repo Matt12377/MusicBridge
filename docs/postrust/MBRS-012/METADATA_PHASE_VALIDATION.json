@@ -1,0 +1,161 @@
+{
+  "schema": "mbrs012.full-raw-prefix-phase-root-actual.v1",
+  "scope": "FORMAT_MODULE_AND_REAL_PREFIX_METADATA_PARSER_NOT_SOURCE_PUBLISHER_OR_OWNER_TRANSACTION_QUALIFICATION",
+  "sourceFiles": [
+    {
+      "path": "packages/bridge-core/src/collection/source-write-metadata.ts",
+      "bytes": 4356,
+      "sha256": "4202390835cc9e56aa260b35c06943dea560980b3013ee8ebe83e8c5f027f59c"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-write-format.ts",
+      "bytes": 14079,
+      "sha256": "a72b0e121097538c24411f3c19d398dae0aca33b68432aa823923d9b6e5b7fc5"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-write-verify.ts",
+      "bytes": 8967,
+      "sha256": "7b5a4ca527609219bb2f449c059d41293b1f09bb932309735cc461edbff0ee4f"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-writes-journal.ts",
+      "bytes": 23599,
+      "sha256": "8ba4dde7c00f9b58a2823edae4cd11bb6cc5d3e8af15144f7b1c4c4be5ea1c65"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-facts.ts",
+      "bytes": 349,
+      "sha256": "eb88b7e34b94ed71cf7148d96cec4f068ea1c4911c73e371a0ead53ee77239eb"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs012/metadata.test.ts",
+      "bytes": 7308,
+      "sha256": "0ad1121c167de824e55ba9af9a05230ea480391afda588724ab297ba3b130a83"
+    },
+    {
+      "path": "packages/bridge-core/test/fixtures/mbrs012-source/manifest.json",
+      "bytes": 4427,
+      "sha256": "5a3621481eb22801c020589b393c3a1ffa32e3d132766ea6e8db6e33fa47714b"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "bytes": 192357,
+      "sha256": "5455c17b12d5605eddd13f42021f1c52dae6b805de92531112e22315e40c1896"
+    }
+  ],
+  "allDeclaredInputsUnchanged": true,
+  "behaviorTestUnchangedAcrossApicRedGreen": true,
+  "wholeLogsRead": true,
+  "tests": {
+    "tests": 8,
+    "pass": 8,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "runs": [
+    {
+      "label": "root-core-metadata-tests02",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 0.37888575001852587,
+      "log": {
+        "file": "root-core-metadata-tests02.log",
+        "bytes": 2326,
+        "sha256": "0727f59272d2af1a46bcd4a463beb2a2caff639150e05066cf36f54c119cabab"
+      }
+    },
+    {
+      "label": "root-metadata-jpeg-outputs-independent01",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 0.26267395896138623,
+      "log": {
+        "file": "root-metadata-jpeg-outputs-independent01.log",
+        "bytes": 2179,
+        "sha256": "361f27812f3f383bc54f2d7d78d99cf5fa986ad73409ca9592744c6182080075"
+      }
+    }
+  ],
+  "independentJpegActualOutputs": {
+    "schema": "mbrs012.independent-actual-writer-output-proof.v1",
+    "cases": [
+      {
+        "label": "flac-metadata-phase-embedded-jpeg-original",
+        "kind": "EMBEDDED_COVER",
+        "codec": "flac",
+        "before": {
+          "bytes": 95996,
+          "sha256": "70723f8356f9044289838291a36cc0f9f5655f6272f0371ffb0eec3c6ff1c5d9"
+        },
+        "after": {
+          "bytes": 95996,
+          "sha256": "767499344e096aa07512d7e8b18a0bca55b93c392e7863c7769bdf0a1cdef268"
+        },
+        "audioStart": 65796,
+        "audioPayloadExact": true,
+        "nonTargetRawSpansExact": true,
+        "decodedPcmBytes": 192000,
+        "decodedPcmSha256": "ee7516e6b9822186cc42dc8e5e6a1bdc9e8db0d61e86020b50bc88cdfde2e470",
+        "expectedTagsObserved": true,
+        "writerIdentity": {
+          "scope": "FROZEN_FORMAT_MODULE_WITH_REAL_FULL_RAW_PREFIX_READER_NOT_PUBLISHER_SERVICE",
+          "sourceFormatSha256": "a72b0e121097538c24411f3c19d398dae0aca33b68432aa823923d9b6e5b7fc5",
+          "verifierSha256": "7b5a4ca527609219bb2f449c059d41293b1f09bb932309735cc461edbff0ee4f",
+          "metadataSha256": "4202390835cc9e56aa260b35c06943dea560980b3013ee8ebe83e8c5f027f59c"
+        },
+        "syntheticOnly": true
+      },
+      {
+        "label": "mp3-metadata-phase-embedded-jpeg-original",
+        "kind": "EMBEDDED_COVER",
+        "codec": "mp3",
+        "before": {
+          "bytes": 82601,
+          "sha256": "dae8164571bdaf38db59a7670a7324233809697e3946e868f02c6da9f437916c"
+        },
+        "after": {
+          "bytes": 82601,
+          "sha256": "a3121a1fac2463295632d327aa470d418dc188163807c7afe681cb4cef678b7f"
+        },
+        "audioStart": 65705,
+        "audioPayloadExact": true,
+        "nonTargetRawSpansExact": true,
+        "decodedPcmBytes": 192000,
+        "decodedPcmSha256": "2f46567985c33583749a9ed7534b45035c35c00e9259ceaceb127abed33bbb2d",
+        "expectedTagsObserved": true,
+        "writerIdentity": {
+          "scope": "FROZEN_FORMAT_MODULE_WITH_REAL_FULL_RAW_PREFIX_READER_NOT_PUBLISHER_SERVICE",
+          "sourceFormatSha256": "a72b0e121097538c24411f3c19d398dae0aca33b68432aa823923d9b6e5b7fc5",
+          "verifierSha256": "7b5a4ca527609219bb2f449c059d41293b1f09bb932309735cc461edbff0ee4f",
+          "metadataSha256": "4202390835cc9e56aa260b35c06943dea560980b3013ee8ebe83e8c5f027f59c"
+        },
+        "syntheticOnly": true
+      }
+    ],
+    "tests": 2,
+    "pass": 2,
+    "realLibrary": false,
+    "inputScope": "ROOT_OWNED_ACTUAL_FILES_NOT_WRITER_RETURNED_HASH"
+  },
+  "confirmedBehavior": [
+    "DISC_AND_TRACK_ZERO_PRESERVED",
+    "FOUR_DIGIT_YEAR_LEADING_ZEROS_PRESERVED",
+    "EXPLICIT_REMOVAL_STAYS_ABSENT",
+    "BINARY_APIC_NOT_UTF8_DECODED",
+    "PNG_AND_JPEG_ORIGINAL_HASH_AND_UNSELECTED_TAGS_PRESERVED"
+  ],
+  "sourcePublisherServiceGrantBackupUndo": "NOT_TESTED",
+  "completeCoreTypecheck": "NOT_YET_RUN",
+  "realUserRoonNasAudioDeviceOwner": "NOT_RUN",
+  "priorFailuresPreserved": [
+    "root-full-raw-prefix-wip01.json",
+    "root-core-metadata-tests01.json",
+    "ROOT_FULL_RAW_FAILURES01.json"
+  ]
+}

@@ -1,0 +1,189 @@
+{
+  "schema": "mbrs012.full-raw-prefix-phase-root-actual.v1",
+  "scope": "FORMAT_MODULE_AND_REAL_PREFIX_METADATA_PARSER_NOT_SOURCE_PUBLISHER_OR_OWNER_TRANSACTION_QUALIFICATION",
+  "sourceFiles": [
+    {
+      "path": "packages/bridge-core/src/collection/source-write-metadata.ts",
+      "bytes": 4405,
+      "sha256": "ad20632d907047540f9cb5ce8327665c49ef245403e3eaf5df4db72724747fbe"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-write-format.ts",
+      "bytes": 14079,
+      "sha256": "a72b0e121097538c24411f3c19d398dae0aca33b68432aa823923d9b6e5b7fc5"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-write-verify.ts",
+      "bytes": 8967,
+      "sha256": "7b5a4ca527609219bb2f449c059d41293b1f09bb932309735cc461edbff0ee4f"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-writes-journal.ts",
+      "bytes": 28500,
+      "sha256": "9c5b6314147ee3094de10c1366100a7bef9aaf24aae0d6fd38692b22a7a983c6"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-facts.ts",
+      "bytes": 349,
+      "sha256": "eb88b7e34b94ed71cf7148d96cec4f068ea1c4911c73e371a0ead53ee77239eb"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs012/metadata.test.ts",
+      "bytes": 7308,
+      "sha256": "0ad1121c167de824e55ba9af9a05230ea480391afda588724ab297ba3b130a83"
+    },
+    {
+      "path": "packages/bridge-core/test/fixtures/mbrs012-source/manifest.json",
+      "bytes": 4427,
+      "sha256": "5a3621481eb22801c020589b393c3a1ffa32e3d132766ea6e8db6e33fa47714b"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "bytes": 192357,
+      "sha256": "5455c17b12d5605eddd13f42021f1c52dae6b805de92531112e22315e40c1896"
+    }
+  ],
+  "allDeclaredInputsUnchanged": true,
+  "behaviorTestUnchangedAcrossApicRedGreen": true,
+  "wholeLogsRead": true,
+  "tests": {
+    "tests": 8,
+    "pass": 8,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "runs": [
+    {
+      "label": "root-core-metadata-tests03",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 0.43143487500492483,
+      "log": {
+        "file": "root-core-metadata-tests03.log",
+        "bytes": 2327,
+        "sha256": "74aa6a255e07b1e59eac977a1ebd89399ff7fc19fb05b75e21a99981a406d362"
+      },
+      "counts": {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    {
+      "label": "root-metadata-jpeg-outputs-independent02",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "durationSeconds": 0.2670400830102153,
+      "log": {
+        "file": "root-metadata-jpeg-outputs-independent02.log",
+        "bytes": 2179,
+        "sha256": "397f5b19e17d444b115beb28a06552e9861aa83927c1ad0ce5fa822a8b9136b8"
+      }
+    }
+  ],
+  "independentJpegActualOutputs": {
+    "schema": "mbrs012.independent-actual-writer-output-proof.v1",
+    "cases": [
+      {
+        "label": "flac-metadata-phase-embedded-jpeg-original",
+        "kind": "EMBEDDED_COVER",
+        "codec": "flac",
+        "before": {
+          "bytes": 95996,
+          "sha256": "70723f8356f9044289838291a36cc0f9f5655f6272f0371ffb0eec3c6ff1c5d9"
+        },
+        "after": {
+          "bytes": 95996,
+          "sha256": "767499344e096aa07512d7e8b18a0bca55b93c392e7863c7769bdf0a1cdef268"
+        },
+        "audioStart": 65796,
+        "audioPayloadExact": true,
+        "nonTargetRawSpansExact": true,
+        "decodedPcmBytes": 192000,
+        "decodedPcmSha256": "ee7516e6b9822186cc42dc8e5e6a1bdc9e8db0d61e86020b50bc88cdfde2e470",
+        "expectedTagsObserved": true,
+        "writerIdentity": {
+          "scope": "FROZEN_FORMAT_MODULE_WITH_REAL_FULL_RAW_PREFIX_READER_NOT_PUBLISHER_SERVICE",
+          "sourceFormatSha256": "a72b0e121097538c24411f3c19d398dae0aca33b68432aa823923d9b6e5b7fc5",
+          "verifierSha256": "7b5a4ca527609219bb2f449c059d41293b1f09bb932309735cc461edbff0ee4f",
+          "metadataSha256": "ad20632d907047540f9cb5ce8327665c49ef245403e3eaf5df4db72724747fbe"
+        },
+        "syntheticOnly": true
+      },
+      {
+        "label": "mp3-metadata-phase-embedded-jpeg-original",
+        "kind": "EMBEDDED_COVER",
+        "codec": "mp3",
+        "before": {
+          "bytes": 82601,
+          "sha256": "dae8164571bdaf38db59a7670a7324233809697e3946e868f02c6da9f437916c"
+        },
+        "after": {
+          "bytes": 82601,
+          "sha256": "a3121a1fac2463295632d327aa470d418dc188163807c7afe681cb4cef678b7f"
+        },
+        "audioStart": 65705,
+        "audioPayloadExact": true,
+        "nonTargetRawSpansExact": true,
+        "decodedPcmBytes": 192000,
+        "decodedPcmSha256": "2f46567985c33583749a9ed7534b45035c35c00e9259ceaceb127abed33bbb2d",
+        "expectedTagsObserved": true,
+        "writerIdentity": {
+          "scope": "FROZEN_FORMAT_MODULE_WITH_REAL_FULL_RAW_PREFIX_READER_NOT_PUBLISHER_SERVICE",
+          "sourceFormatSha256": "a72b0e121097538c24411f3c19d398dae0aca33b68432aa823923d9b6e5b7fc5",
+          "verifierSha256": "7b5a4ca527609219bb2f449c059d41293b1f09bb932309735cc461edbff0ee4f",
+          "metadataSha256": "ad20632d907047540f9cb5ce8327665c49ef245403e3eaf5df4db72724747fbe"
+        },
+        "syntheticOnly": true
+      }
+    ],
+    "tests": 2,
+    "pass": 2,
+    "realLibrary": false,
+    "inputScope": "ROOT_OWNED_ACTUAL_FILES_NOT_WRITER_RETURNED_HASH"
+  },
+  "confirmedBehavior": [
+    "DISC_AND_TRACK_ZERO_PRESERVED",
+    "FOUR_DIGIT_YEAR_LEADING_ZEROS_PRESERVED",
+    "EXPLICIT_REMOVAL_STAYS_ABSENT",
+    "BINARY_APIC_NOT_UTF8_DECODED",
+    "PNG_AND_JPEG_ORIGINAL_HASH_AND_UNSELECTED_TAGS_PRESERVED"
+  ],
+  "sourcePublisherServiceGrantBackupUndo": "NOT_TESTED",
+  "completeCoreTypecheck": "NOT_YET_RUN",
+  "realUserRoonNasAudioDeviceOwner": "NOT_RUN",
+  "priorFailuresPreserved": [
+    "root-full-raw-prefix-wip01.json",
+    "root-core-metadata-tests01.json",
+    "ROOT_FULL_RAW_FAILURES01.json"
+  ],
+  "preExecutionInputsReferences": [
+    "CORE_PRODUCT_ROOT_LOCK02.json",
+    "ROOT_METADATA_PHASE_INPUTS02.json"
+  ],
+  "inputBindingDetail": "本轮产品输入绑定实际测试前Root核验的LOCK02；原Root独立测试、样本manifest和lockfile字节不变，8项与JPEG两项实际新输出刷新。",
+  "priorPhasePreserved": "METADATA_PHASE_ACTUAL01.json",
+  "completeCoreProductTypeBuild": {
+    "label": "root-core-product-build03",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 4.843746083963197,
+    "log": {
+      "file": "root-core-product-build03.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "completeCoreTestTypes": "NOT_YET_RUN"
+}

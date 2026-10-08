@@ -1,5 +1,7 @@
 import { isLocalArtworkCommand, isLocalArtworkInternalCommand, isLocalArtworkCommandPayload, isLocalArtworkCommandResult } from './local-artwork.js';
 import { isLocalLegacyLinksCommand, isLocalLegacyLinksCommandPayload, isLocalLegacyLinksCommandResult, localLegacyRecord, localLegacyLinksDataSnapshot } from './local-legacy-links.js';
+import { LOCAL_SOURCE_WRITES_BUDGET, isLocalSourceWritesCommand, isLocalSourceWritesCommandPayload, isLocalSourceWritesCommandResult } from './local-source-writes.js';
+import { localSourceWritesDataSnapshot, localSourceWritesRecord } from './local-source-writes-data.js';
 import {isMBQueueEditRequest,isMBQueuePlayEntryRequest,isMBEditionQueueRequest} from './mb-queue.js';
 import {isAlbumEdition,isLocalExactInteger} from './local-catalog.js';
 import { isLocalPlayAccepted, isLocalQueueIdentity } from './local-play-request.js';
@@ -1039,6 +1041,7 @@ function isPlaylistDetail(value: unknown): value is PlaylistDetail {
 }
 
 function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
+  if (isLocalSourceWritesCommand(command)) return isLocalSourceWritesCommandPayload(command, payload);
   if (isLocalArtworkCommand(command)) return isLocalArtworkCommandPayload(command,payload);
   if (isLocalRelocationCommand(command)) return isLocalRelocationCommandPayload(command,payload);
   if (isLocalScanCommand(command)) return isLocalScanCommandPayload(command, payload);
@@ -1680,6 +1683,7 @@ function isCommandResult(
   value: unknown,
   allowInternalResult = false,
 ): boolean {
+  if (isLocalSourceWritesCommand(command)) return isLocalSourceWritesCommandResult(command, value);
   if (isLocalArtworkCommand(command)) return (allowInternalResult || !isLocalArtworkInternalCommand(command)) && isLocalArtworkCommandResult(command,value);
   if (isLocalRelocationCommand(command)) return (allowInternalResult || !isLocalRelocationInternalCommand(command)) && isLocalRelocationCommandResult(command,value);
   if (isLocalScanCommand(command)) return (allowInternalResult || !isLocalScanInternalCommand(command)) && isLocalScanCommandResult(command,value);
@@ -2064,11 +2068,28 @@ export function validateIpcInternalRequest(input: unknown): ValidationResult<Ipc
 
 function validateRequest(input: unknown, internal: boolean): ValidationResult<IpcRequest<unknown>> {
   let observedCommand: unknown;
+  let sourceOutboxCommand: unknown;
   try {
     if (input === null || typeof input !== 'object') return invalidRequest();
     const descriptor = Object.getOwnPropertyDescriptor(input, 'command');
     if (!descriptor || !Object.hasOwn(descriptor, 'value')) return invalidRequest();
     observedCommand = descriptor.value;
+    if (typeof observedCommand === 'string' && observedCommand.startsWith('localSourceWrites.')) {
+      input = localSourceWritesDataSnapshot(input, LOCAL_SOURCE_WRITES_BUDGET.requestBytes, LOCAL_SOURCE_WRITES_BUDGET.requestNodes);
+      if (!localSourceWritesRecord(input, ['version', 'id', 'command', 'payload', 'expectedDatasetId'], ['performanceTrace']) || input.command !== observedCommand
+        || !isRecord(input.payload) || input.payload.datasetId !== input.expectedDatasetId) return invalidRequest();
+    } else if (observedCommand === 'commandOutbox.execute') {
+      const payloadDescriptor = Object.getOwnPropertyDescriptor(input, 'payload');
+      if (!payloadDescriptor?.enumerable || !Object.hasOwn(payloadDescriptor, 'value')) return invalidRequest();
+      if (payloadDescriptor.value && typeof payloadDescriptor.value === 'object') sourceOutboxCommand = Object.getOwnPropertyDescriptor(payloadDescriptor.value, 'command')?.value;
+      if (typeof sourceOutboxCommand === 'string' && sourceOutboxCommand.startsWith('localSourceWrites.')) {
+        input = localSourceWritesDataSnapshot(input, LOCAL_SOURCE_WRITES_BUDGET.requestBytes, LOCAL_SOURCE_WRITES_BUDGET.requestNodes);
+        if (!localSourceWritesRecord(input, ['version', 'id', 'command', 'payload'], ['expectedDatasetId', 'performanceTrace']) || input.command !== observedCommand
+          || !localSourceWritesRecord(input.payload, ['datasetId', 'command', 'payload']) || input.payload.command !== sourceOutboxCommand
+          || !isRecord(input.payload.payload) || input.payload.datasetId !== input.payload.payload.datasetId
+          || input.expectedDatasetId !== undefined && input.expectedDatasetId !== input.payload.datasetId) return invalidRequest();
+      }
+    }
     if (isLocalLegacyLinksCommand(observedCommand)) {
       input = localLegacyLinksDataSnapshot(input, 16384, 2048, 100);
       if (!isRecord(input) || input.command !== observedCommand) return invalidRequest();
@@ -2178,6 +2199,12 @@ export function validateIpcResponseForCommand<TCommand extends IpcCommand>(
   input: unknown,
   command: TCommand,
 ): ValidationResult<IpcResponse<IpcCommandResults[TCommand]>> {
+  if (isLocalSourceWritesCommand(command)) {
+    try {
+      input = localSourceWritesDataSnapshot(input, LOCAL_SOURCE_WRITES_BUDGET.planBytes, LOCAL_SOURCE_WRITES_BUDGET.publicNodes);
+      if (!localSourceWritesRecord(input, ['version', 'id', 'ok'], ['result', 'error'])) return invalidResponse();
+    } catch { return invalidResponse(); }
+  }
   if (isLocalLegacyLinksCommand(command)) {
     try { input = localLegacyLinksDataSnapshot(input, 2097152, 32768, 100); } catch { return invalidResponse(); }
   }

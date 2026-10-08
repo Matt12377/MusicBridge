@@ -1,0 +1,50 @@
+{
+  "schema": "mbrs012.format-phase-root-actual.v1",
+  "files": [
+    {
+      "path": "packages/bridge-core/src/collection/source-write-format.ts",
+      "bytes": 14079,
+      "sha256": "a72b0e121097538c24411f3c19d398dae0aca33b68432aa823923d9b6e5b7fc5"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-write-verify.ts",
+      "bytes": 8967,
+      "sha256": "7b5a4ca527609219bb2f449c059d41293b1f09bb932309735cc461edbff0ee4f"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs012/format.test.ts",
+      "bytes": 9093,
+      "sha256": "f2aea783eaa513b0e95c2aaaa2a98789ac571b08283d391391ac754ef4e12f45"
+    }
+  ],
+  "counts": {
+    "tests": 7,
+    "pass": 7,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "allInputsUnchanged": true,
+  "wholeLogRead": true,
+  "logBytes": 2118,
+  "logSha256": "665f83b5ed93e993579ba3060cb9f7f575ae0288e31c1be3298b4c0f56931d46",
+  "publisherServiceGrantBackupUndoQualification": "NOT_TESTED",
+  "independentFfprobePcmAndSpans": {
+    "tests": 6,
+    "pass": 6,
+    "fileName": "format-actual-outputs01-independent.json",
+    "bytes": 6106,
+    "sha256": "3c0b880df46d300cfdb4e7ec38f4bce7e59dd0ccdca1715a38c31c469ebf47dc",
+    "wholeResultLogRead": true,
+    "logBytes": 5078,
+    "logSha256": "474ca9bd35510954515eea97131af5bd5cb685e434d7dda89ee51738326d9fcc",
+    "scope": "FORMAT_MODULE_NOT_SOURCE_SERVICE_PUBLISHER_GRANT_BACKUP_OR_UNDO"
+  },
+  "actualOwnedOutputs": {
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false,
+    "archiveId": "MBRS012_FORMAT_PHASE_ACTUAL_OUTPUT_CASES01"
+  },
+  "realLibraryRoonAudioOwner": "NOT_RUN"
+}

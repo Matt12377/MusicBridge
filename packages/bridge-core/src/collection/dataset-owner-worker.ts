@@ -4,6 +4,8 @@ import { LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import { LOCAL_RELOCATION_COMMANDS, isLocalArtworkInternalCommand, isLocalRelocationCommand, isLocalRelocationInternalCommand, isLocalRelocationCommandResult } from '@music-bridge/contracts';
 import { randomUUID } from 'node:crypto';
 import type { MessagePort } from 'node:worker_threads';
+import { localSourceWritesMainRequestSnapshot, localSourceWritesMainResponseSnapshot, type SourceWritesMainRequest } from '@music-bridge/contracts';
+import { createSourceWritesMainActor } from './source-writes-authority.js';
 import { validateIpcRequest, validateIpcInternalRequest, isLocalCatalogInternalCommand, isLocalScanInternalCommand, type IpcCommand, type IpcFailure } from '@music-bridge/contracts';
 import { failureForError, responseFailure } from '../shared/ipc-failure.js';
 import {
@@ -16,6 +18,7 @@ import {
 } from './dataset-owner-protocol.js';
 
 export interface DatasetOwnerWorkerOptions {
+  privateSourceWritesPort?:MessagePort;
   // factory、converter和helper只在worker本地创建，端口上不接受函数或任意方法名。
   prepare(epoch: string, projection: DatasetProjectionPort): Promise<OwnedDatasetDomain>;
 }
@@ -43,6 +46,19 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
   let disconnected = false;
   const dispatches = new Set<Promise<unknown>>();
   const projections = new Map<string, PendingProjection>();
+  const sourcePort=options.privateSourceWritesPort,sourceActor=sourcePort?createSourceWritesMainActor(sourcePort):undefined;
+  let sourceSequence=0,sourceRequests=0;
+  async function receiveSource(raw:unknown):Promise<void>{
+    let request:SourceWritesMainRequest;try{request=localSourceWritesMainRequestSnapshot(raw);}catch{sourcePort?.close();return;}
+    if(request.sequence!==sourceSequence+1){sourcePort?.close();return;}sourceSequence=request.sequence;
+    let result:unknown;let failure:IpcFailure|undefined;
+    try{if(closing||failed||!bootCommitted||!domain?.dispatchSourceWritesMain||request.payload.datasetId!==boundDatasetId||!sourceActor||sourceRequests>=4)throw new DatasetOwnerDispatchError(responseFailure(request.requestId,'NOT_READY','源写专用 Owner 入口尚未就绪。'));sourceRequests++;
+      const dispatch=domain.dispatchSourceWritesMain(request,sourceActor);dispatches.add(dispatch);try{result=await dispatch;}finally{dispatches.delete(dispatch);sourceRequests--;}
+    }catch(error){if(error instanceof LocalFactsCommitFatal){domain?.sealLocalSources?.();protocolFailure();return;}failure=projectFailure(request.requestId,error,'localSourceWrites.confirm');}
+    const response={version:1 as const,type:'source-writes-response' as const,requestId:request.requestId,sequence:request.sequence,...(failure?{ok:false as const,failure}:{ok:true as const,result})};
+    try{sourcePort?.postMessage(localSourceWritesMainResponseSnapshot(response,request.command));}catch{sourcePort?.close();}
+  }
+  if(sourcePort){sourcePort.on('message',raw=>{void receiveSource(raw).catch(()=>sourcePort.close());});sourcePort.on('messageerror',()=>sourcePort.close());sourcePort.start();}
 
   function readSnapshotStamp(): { dataVersion: number; totalChanges: number } {
     if (domain?.readonlySnapshotStamp === undefined) throw new DatasetOwnerDispatchError(responseFailure('snapshot-version', 'NOT_READY', '收藏快照版本尚未就绪。'));
@@ -128,7 +144,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
     failed = true;
     rejectProjections();
     // 父端断链仍先停止coordinator并等待已发请求，禁止中断数据库事务。
-    void closeDomain().then(() => { port.off('message', receive); port.close(); }, () => undefined);
+    void closeDomain().then(() => { port.off('message', receive); sourcePort?.close();port.close(); }, () => undefined);
   }
   function protocolFailure(): void {
     if (failed) return;
@@ -142,7 +158,7 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
         await closeDomain();
         reply(request, undefined);
         port.off('message', receive);
-        port.close(); // closed确认后让worker自然退出；不调用process.exit/terminate。
+        sourcePort?.close();port.close(); // closed确认后让worker自然退出；不调用process.exit/terminate。
       } catch (error) {
         reject(request, error);
         post({ version: DATASET_OWNER_PROTOCOL_VERSION, type: 'fatal', epoch, reason: 'close-failed' });

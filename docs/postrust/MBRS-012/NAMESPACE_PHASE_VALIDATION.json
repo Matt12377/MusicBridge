@@ -1,0 +1,106 @@
+{
+  "schema": "mbrs012.namespace-phase-validation.v1",
+  "task": "MBRS-012",
+  "state": "FINITE_NAMESPACE_READER_PHASE_PASSED_NOT_WRITER_OR_OWNER_QUALIFICATION",
+  "baseSha": "09370f19d4422be3b387047999a0722961c52e1e",
+  "sourceInputsIdentity": "4122446b4ec41a9bfa85bfbc0b31e90922a5233399ff947348c7660f3d5461a0",
+  "sourceInputsCount": 953,
+  "inputBeforeAfterIdentical": true,
+  "namespaceChecks": {
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "groupTerminationFailed": false,
+    "durationSeconds": 2.5546407920191996,
+    "log": {
+      "file": "root-core-namespace-tests02.log",
+      "bytes": 12468,
+      "sha256": "129c5c5f85cecca80aeda77ed982c15486b96994842ba3fad4166272dcfaa7c9"
+    },
+    "counts": {
+      "tests": 32,
+      "pass": 32,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "desktopTypes": {
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "groupTerminationFailed": false,
+    "durationSeconds": 11.368466250016354,
+    "log": {
+      "file": "root-desktop-types03.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "counts": null
+  },
+  "desktopE2eTypes": {
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "groupTerminationFailed": false,
+    "durationSeconds": 3.7837285000132397,
+    "log": {
+      "file": "root-desktop-e2e-types04.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "counts": null
+  },
+  "readerFreshDeclaration": {
+    "bytes": 57159,
+    "sha256": "dffed158b0c0c442e453d2759fa0236bc4d1a586fce224c49504aa43d4abe7f4"
+  },
+  "additionalReaderNamespaceDependencies": {
+    "bytes": 2641,
+    "sha256": "7c39fae1ba89c928193edcb9444fa57b24be5414e6fd5642cc60e29b22e018a8"
+  },
+  "namespaceSourceFiles": [
+    {
+      "path": "packages/bridge-core/src/recording/source-files.ts",
+      "bytes": 42398,
+      "sha256": "1012b602ea9b3641e41da391b3c1d268ec39bf9029bf548441358daa73f06fc9"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/physical-resource-claims.ts",
+      "bytes": 14798,
+      "sha256": "ef92308c9bf0076d2ece5ab59cd62974d407bd81c9e4194b191ababdcff06854"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/physical-resource-locks.ts",
+      "bytes": 12852,
+      "sha256": "b700a4b9c1ab7dad8870f872635fda281df1554a714410b1f211e8004d5e4f0e"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/source-namespace-claims.ts",
+      "bytes": 24726,
+      "sha256": "53d3db53fdb4fbdfede5ffe8e527ed34a464f0e8b130974a638d5e68ea280ed5"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs012/namespace.test.ts",
+      "bytes": 50578,
+      "sha256": "f64ac26729235e87a1e4a6e73bf929228b5b399d19ef502b2959e30cda23bed0"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs012/service-fixture.ts",
+      "bytes": 14116,
+      "sha256": "5303fb2db663311a928172a8bc0aa57f78ec450be80d22534bc32dc23e1a41e2"
+    }
+  ],
+  "continuousTransfer": "ACTUAL_SAME_SAB_PEER_READ_DURING_NEW_ACQUIRE_BUSY_OLD_GUARD_RELEASE_ZERO_AND_LATER_BATCH_BUSY_RETAINS_OLD_GROUP",
+  "reader": "FRESH_NODE22_READER_ACTUAL_AFFECTED_BUSY_NO_LEASE_OR_WORKER_UNRELATED_FLAC_AND_POST_RESOLVE_REAL_PARSE",
+  "capacity": "ACTUAL_NAMESPACE_PLUS_INODE_2048_BATCH128_OLD200_TRACK_PUBLICATION",
+  "scope": "SYNTHETIC_OWNED_MODULE_REAL_FDS_SAB_WORKER_READER_NOT_OWNER_COLD_PUBLISHER_OR_PRODUCTION_APP",
+  "service": "SEPARATE_ACTUAL_ALL7_PRECHECK_ATTRIBUTE_REJECTIONS_NOT_PASSED",
+  "writerQualified": false,
+  "productionApp": "NOT_RUN",
+  "realProviderRoonNasDeviceAudioOwner": "NOT_RUN"
+}

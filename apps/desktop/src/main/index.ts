@@ -1,4 +1,5 @@
 import { installLocalArtworkHandlers } from './local-artwork-ipc.js'
+import { installLocalSourceWritesHandlers } from './local-source-writes-ipc.js'
 import { createCommonsArtworkProvider } from './commons-artwork-provider.js'
 import { createMusicCoverArtProvider } from './music-cover-art-provider.js'
 import {isMBQueueEditRequest,isMBQueuePlayEntryRequest,isMBEditionQueueRequest} from '@music-bridge/contracts'
@@ -231,6 +232,7 @@ const roonImageGatePath = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
 let closeLocalArtwork: (()=>void) | undefined
+let closeLocalSourceWrites: (() => void) | undefined
 let roonDisplayConnection: RoonDisplayConnection | undefined
 let recordingPrintWorker: ReturnType<typeof createRecordingPrintWorker> | undefined
 let recordingPrintEpoch = 0
@@ -1089,8 +1091,15 @@ function registerIpcHandlers(
   installLocalLibraryHandlers({handle:(channel,handler)=>registerPerformanceHandler(channel,handler),requireTrusted:requireTrustedRenderer,supervisor,pick:pickLocalLibrary})
   installLocalOrganizerHandlers({handle:(channel,handler)=>registerPerformanceHandler(channel,handler),requireTrusted:requireTrustedRenderer,supervisor})
   installLocalLegacyLinksHandlers({handle:(channel,handler)=>registerPerformanceHandler(channel,handler),requireTrusted:requireTrustedRenderer,supervisor})
-  closeLocalArtwork=installLocalArtworkHandlers<Electron.IpcMainInvokeEvent>({ handle:(channel,handler)=>registerPerformanceHandler(channel,handler), requireTrusted:requireTrustedRenderer, eventKey:event=>String(event.sender.id), supervisor, ...(!isStartupTest&&!isUiE2e?{providers:{'cover-art-archive-v1':createMusicCoverArtProvider(),'commons-cc0-v1':createCommonsArtworkProvider()}}:{}), decode:bytes=>nativeImage.createFromBuffer(bytes), pick:()=>pickLocalLibrary({title:'选择封面图片',message:'只保存到 MusicBridge；不会修改原图、cover.jpg 或音乐标签。',properties:['openFile'],filters:[{name:'PNG / JPEG',extensions:['png','jpg','jpeg']}]}) }).close
+  closeLocalArtwork=installLocalArtworkHandlers<Electron.IpcMainInvokeEvent>({ handle:(channel,handler)=>registerPerformanceHandler(channel,handler), requireTrusted:requireTrustedRenderer, eventKey:event=>String(event.sender.id), supervisor, attachOriginal: request => supervisor.requestSourceWrites('localSourceWrites.attachOriginal', request), ...(!isStartupTest&&!isUiE2e?{providers:{'cover-art-archive-v1':createMusicCoverArtProvider(),'commons-cc0-v1':createCommonsArtworkProvider()}}:{}), decode:bytes=>nativeImage.createFromBuffer(bytes), pick:()=>pickLocalLibrary({title:'选择封面图片',message:'只保存到 MusicBridge；不会修改原图、cover.jpg 或音乐标签。',properties:['openFile'],filters:[{name:'PNG / JPEG',extensions:['png','jpg','jpeg']}]}) }).close
   commandOutbox = createCommandOutboxService({ store, currentDataset: async () => (await supervisor.request('commandOutbox.context', {})).datasetId, ...executor })
+  closeLocalSourceWrites = installLocalSourceWritesHandlers<Electron.IpcMainInvokeEvent>({
+    handle: (channel, handler) => registerPerformanceHandler(channel, handler), supervisor, outbox: commandOutbox,
+    requireTrusted: event => {
+      requireTrustedRenderer(event)
+      if (!mainWindow || event.senderFrame !== mainWindow.webContents.mainFrame) throw new CoreIpcError('INVALID_IPC_REQUEST', '源写确认必须来自当前应用主页面。')
+    },
+  }).close
   installCommandOutboxIpc<Electron.IpcMainInvokeEvent>({
     handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer,
     context: () => supervisor.request('commandOutbox.context', {}), service: commandOutbox, store,
@@ -1964,7 +1973,12 @@ function createCoreSupervisor(
     cwd: dataDirectory,
     env: buildCoreEnvironment(),
     playbackEventProtocol: process.env.MUSIC_BRIDGE_COMPACT_PLAYBACK_EVENTS === '0' ? null : 'compact-v1',
+    sourceWritesPort: true,
     dependencies: {
+      createSourceWritesChannel: () => {
+        const channel = new MessageChannelMain()
+        return { port1: channel.port1 as unknown as CoreMessagePort, port2: channel.port2 as unknown as CoreMessagePort }
+      },
       createChannel: () => {
         const channel = new MessageChannelMain()
         collectionReadonlyProbe?.observePublicPort(channel.port2 as unknown as CoreMessagePort)
@@ -2272,6 +2286,7 @@ app.on('before-quit', (event) => {
   collectionScaleProbe?.emit('main.beforeQuit')
   roonDisplayConnection?.stop()
   closeLocalArtwork?.()
+  closeLocalSourceWrites?.()
   lifecycleProbe.mark('before-quit')
   if (quitAfterCoreShutdown) {
     destroyTray()

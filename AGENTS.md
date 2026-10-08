@@ -17,6 +17,13 @@
 - Roon-only 仅限制本期新增普通本地点播，唯一新 route 为 `roon_audio_input`，复用 BridgeController 与原 UI；保留旧网易云/native Roon、FFmpeg、OutputNative、冻结执行资产、录音与 J-Card，不新建第二队列或 writer。
 - 有效规则与来源分别见 `docs/adr/ADR-MBRS-001-BASELINE-AND-OWNERSHIP.md`、`ADR-MBRS-002-ORGANIZER-EXCEPTION.md`、`ADR-MBRS-003-PLAYBACK-SCOPE.md`；本段不是具体真实文件、Zone、main 合并、安装或发布许可。
 
+## MBRS-012 当前有效实施规则（2026-10-08）
+
+- 当前Owner持续授权覆盖开发、验证及普通提交推送，不逐步请求代理批准；具体Source写回仍经产品最终计划按钮和服务端校验，见 `docs/adr/ADR-MBRS-012-CONTROLLED-SOURCE-WRITES.md`，不加额外批准弹窗。
+- 本轮主代理与三个既存Contracts/Core/Desktop静态作者沿已核 `gpt-6.1-sol/max`，覆盖旧换届high记录；不得新增派生。Root独占编译、测试、生产App、冻结跨任务测试接点和Git，作者按分配路径写入，跨界先交作者或Root。
+- 012独立 `localSourceWrites` 仅在有限格式资格通过后对具体计划申请一次grant，默认 `library_write_enabled` OFF；旧011 SOURCE_FILES、普通Reader/播放、SourceEvidence和录音读模块保持只读。通用execute/Outbox与Renderer字段不能授权源写，未知结果只查原command，不自动重签重放。
+- 使用明确非原子的同卷隔离捕获与无覆盖link安装，移动目标前完成能力验证、独立backup、统一claims与容量预留；发布后不确定保留全部恢复材料，冷启动只读对账。实际范围和预算见 `docs/postrust/MBRS-012/EXECUTION_SCOPE.json`、`RULE_MATRIX.json`；规则完整不等于writer通过或真实Owner接受。
+
 ## 原任务推进约定
 
 2026-10-06 Owner本轮已授权连续开发MBRS-005～017、每完成独立任务更新待办并普通push GitHub，未完成独立任务不停止在TODO汇报。按任务风险选择测试规模，简单文档和局部低风险改动不机械执行全量；高风险网络、资源互斥、持久化和恢复仍验证相应行为。任务起始授权覆盖旧交接的本轮停止点，真实账号/曲库/源写、LAN部署、安装、main合并和发布仍按原具体边界处理。当前任务见 `project/POSTRUST_TODO.md`，本轮当前记录见 `docs/postrust/MBRS-007/EXECUTION_SCOPE.json`；005起始快照保留。

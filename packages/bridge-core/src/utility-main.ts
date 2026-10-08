@@ -28,6 +28,8 @@ import { createSyntheticRoonLibrary } from './roon/synthetic-library.js';
 import { appendFileSync, chmodSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { types } from 'node:util';
+import type { MessagePort } from 'node:worker_threads';
+import { createUtilitySourceWritesBridge, type SourceWritesUtilityPort } from './shared/source-writes-utility-port.js';
 import { CollectionError, type CollectionRepository } from './collection/repository.js';
 import { openCollectionDataset } from './recording/restore-dataset-runtime.js';
 import {
@@ -493,8 +495,9 @@ function createRoonImageShapeRecorder(
 }
 
 export type DatasetOwnerFactory = (options: {
+  privateSourceWritesPort?:MessagePort;
   projection: DatasetOwnerProjectionHandler;
-  onFatal: (error: unknown) => void;
+  onFatal: (error: unknown, drainOwner?: () => Promise<void>) => void;
 }) => DatasetOwnerEndpoint;
 
 /** 仅同进程可信源码提供；不能由环境或父端口选择。 */
@@ -590,6 +593,8 @@ export async function runCoreUtilityProcess(
       let ownerIdentity: DatasetOwnerIdentity | undefined;
       let runtime: CoreRuntime | undefined;
       let runtimeShutdown: Promise<void> | undefined;
+      let sourceWritesBridge: ReturnType<typeof createUtilitySourceWritesBridge> | undefined;
+      let fatalOwnerDrain: Promise<void> | undefined;
       let resolvedRustReadonlyCollection = rustReadonlyCollection;
       let projectionGateway: ReturnType<typeof createDatasetRoonProjectionGateway> | undefined;
       try {
@@ -632,12 +637,27 @@ export async function runCoreUtilityProcess(
             }
             return projectionGateway!.handler(command, payload as DatasetProjectionCommandPayloads[typeof command], context);
           };
-          const source = createDatasetOwner({ projection: project as DatasetOwnerProjectionHandler, onFatal: () => {
+          const privatePort = event.ports?.[1];
+          if (privatePort !== undefined) {
+            if (event.ports?.length !== 2) throw new Error('源写专用物理端口数量无效。');
+            // Electron 父端保留在 Utility；只有新建的真实 Node 端口转移给 Owner。
+            sourceWritesBridge = createUtilitySourceWritesBridge(privatePort as SourceWritesUtilityPort);
+          }
+          const source = createDatasetOwner({ projection: project as DatasetOwnerProjectionHandler,...(sourceWritesBridge ? { privateSourceWritesPort: sourceWritesBridge.port } : {}), onFatal: (_error, drainOwner) => {
+            sourceWritesBridge?.close();
+            if (drainOwner && !fatalOwnerDrain) {
+              fatalOwnerDrain = Promise.resolve().then(drainOwner);
+              void fatalOwnerDrain.catch(() => undefined);
+            }
             runtime?.getDatasetScanReadAdmission?.().close();
             projectionGateway?.close();
             datasetOwnerEndpoint?.sealLocalSources?.();
             // 先封派发，再join自有FD；退出不能抢在阻塞读取静止之前。
-            if(runtime)void runtime.shutdown().then(()=>process.exit(72),()=>process.exit(72));else process.exit(72);
+            void Promise.resolve().then(async () => {
+              try { if (runtime) await runtime.shutdown(); else await datasetOwnerEndpoint?.close(); }
+              catch { /* 原失败回执仍是失败；它不能替代实际线程退出。 */ }
+              if (fatalOwnerDrain) await fatalOwnerDrain;
+            }).then(() => process.exit(72), () => process.exit(72));
           } });
           // 在能力准入前登记来源；同步拒绝配置时也必须清理已创建的 Node Owner。
           datasetOwnerEndpoint = source;
@@ -662,7 +682,8 @@ export async function runCoreUtilityProcess(
             commitBoot: () => client.commitBoot(),
             close: async () => {
               runtime?.getDatasetScanReadAdmission?.().close();
-              try { await client.close(); } finally { projectionGateway?.close(); }
+              sourceWritesBridge?.close();
+              try { await client.close(); } finally { sourceWritesBridge?.close(); projectionGateway?.close(); }
             },
           };
           if (rustClient && onRustReadonlyCoreController) {
@@ -776,8 +797,12 @@ export async function runCoreUtilityProcess(
           setTimeout(() => process.exit(71), delayMs);
         }
       } catch {
+        sourceWritesBridge?.close();
         let cleanupSucceeded = false;
         try { await datasetOwnerEndpoint?.close(); cleanupSucceeded = true; } catch { /* 保留未确认关闭，不把启动失败冒充静止。 */ }
+        if (fatalOwnerDrain) {
+          try { await fatalOwnerDrain; } catch { /* 保留 fatal 结论，不提升为正常关闭。 */ }
+        }
         projectionGateway?.close();
         dataset?.fail();
         dataset?.close();

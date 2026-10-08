@@ -1,0 +1,81 @@
+{
+  "schema": "mbrs012.persistence-phase-root-actual.v1",
+  "verifiedAt": "2026-10-07T22:26:54.201890+00:00",
+  "sourceIdentity": "cef71b19c8757436fe6ab0fa0538913254baf5699616f0130d368b545fb3549b",
+  "files": [
+    {
+      "path": "packages/bridge-core/src/collection/local-source-writes-journal.ts",
+      "bytes": 28500,
+      "sha256": "9c5b6314147ee3094de10c1366100a7bef9aaf24aae0d6fd38692b22a7a983c6"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-writes-store.ts",
+      "bytes": 8471,
+      "sha256": "48b7298b8af1f737ff23897c27ef13cc5fbef65e374cbb92851833af6943bc41"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-original-store.ts",
+      "bytes": 10690,
+      "sha256": "908bcb5f90de1576708557c6a21c545b2be1daf3da0bdd768639ac57adc81de5"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs012/journal.test.ts",
+      "bytes": 20686,
+      "sha256": "40bb51c42361985d9ad41509aaf494c8382e2f6e6c280005f7003cf95f360ffe"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs012/originals.test.ts",
+      "bytes": 12531,
+      "sha256": "7af967e35e6b3b146bea22a00b87a704e65fb239b6d233a65ad083539d7ef471"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs012/history.test.ts",
+      "bytes": 11918,
+      "sha256": "3b594ded61e7e0f7756e3eb5a867156de37055a08de0346bb64ff6c7ac72831e"
+    }
+  ],
+  "run": {
+    "label": "root-core-persistence-tests02",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 25.77323170902673,
+    "log": {
+      "file": "root-core-persistence-tests02.log",
+      "bytes": 8207,
+      "sha256": "1595126a2e61ee86671fd51151d1cfacdf7e745e9d6f8f56cff7e3e323efa5c9"
+    },
+    "counts": {
+      "tests": 26,
+      "pass": 26,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "wholeLogsRead": true,
+  "sixDeclaredInputsMatchedBeforeAndAfterExecution": true,
+  "conservativeWholeCoreInventoryAtExecution": {
+    "files": 314,
+    "driftDuringExecution": [],
+    "driftSinceExecution": [
+      "packages/bridge-core/src/collection/dataset-domain.ts",
+      "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "packages/bridge-core/src/collection/local-source-writes-service.ts",
+      "packages/bridge-core/src/collection/source-write-metadata.ts",
+      "packages/bridge-core/src/collection/source-writes-publisher.ts",
+      "packages/bridge-core/src/recording/source-protection.ts"
+    ]
+  },
+  "priorFailurePreserved": "CORE_PERSISTENCE_ACTUAL01.json",
+  "changesSinceFailure": [
+    "packages/bridge-core/src/collection/local-source-writes-store.ts",
+    "packages/bridge-core/test/mbrs012/originals.test.ts"
+  ],
+  "changeAttribution": "原图夹具完整字段比较修正与store终态预算同期变化分别留存，不把store变更归因为夹具修复。",
+  "scope": "JOURNAL_ORIGINALS_HISTORY_MODULES_NOT_SOURCE_SERVICE_PUBLISHER_BACKUP_UNDO_OR_COLD_READER_BARRIER",
+  "writerQualification": "NOT_YET_PROVEN",
+  "realLibraryRoonAudioDeviceOwner": "NOT_RUN"
+}

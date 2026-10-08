@@ -1,4 +1,5 @@
 import { isLibraryReadCommand } from '@music-bridge/contracts'
+import { localSourceWritesMainRequestSnapshot, localSourceWritesMainResponseSnapshot, localSourceWritesDataSnapshot, localSourceWritesRecord, type LocalSourceWritesPrivateCommand, type LocalSourceWritesPrivateCommandPayloads, type LocalSourceWritesPrivateCommandResults } from '@music-bridge/contracts'
 import { randomUUID } from 'node:crypto'
 import { createLibraryReadTraceStreamReader, emitLibraryReadTrace, libraryReadTraceFailure, type LibraryReadTraceSink } from '../shared/library-read-trace.js'
 import { createPlaybackFailureTraceStreamReader } from '../shared/playback-failure-trace.js'
@@ -45,6 +46,8 @@ export interface CoreChildProcess {
 
 export interface CoreSupervisorDependencies {
   createChannel(): { port1: CoreMessagePort; port2: CoreMessagePort }
+  /** 单独的可信 Main 能力端口，不装通用 Core 观察器。 */
+  createSourceWritesChannel?(): { port1: CoreMessagePort; port2: CoreMessagePort }
   fork(
     entryPath: string,
     args: string[],
@@ -121,6 +124,9 @@ export class CoreSupervisor {
   private child: CoreChildProcess | undefined
   private childExit: { child: CoreChildProcess; promise: Promise<void> } | undefined
   private port: CoreMessagePort | undefined
+  private sourceWritesPort: CoreMessagePort | undefined
+  private sourceWritesSequence = 0
+  private readonly sourceWritesPending = new Map<string, { sequence: number; command: LocalSourceWritesPrivateCommand; timer: NodeJS.Timeout; resolve(value: unknown): void; reject(error: CoreIpcError): void }>()
   private startPromise: Promise<void> | undefined
   private restartPromise: Promise<void> | undefined
   private manualRestartPromise: Promise<void> | undefined
@@ -138,6 +144,7 @@ export class CoreSupervisor {
       cwd: string
       env?: NodeJS.ProcessEnv
       playbackEventProtocol?: PlaybackEventProtocol | null
+      sourceWritesPort?: true
       dependencies: CoreSupervisorDependencies
       requestTimeoutMs?: number
       startupTimeoutMs?: number
@@ -161,6 +168,31 @@ export class CoreSupervisor {
 
   get restarts(): number {
     return this.restartCount
+  }
+
+  /** 只交付可信 Main 源写路由；通用 requestInternal 不使用此端口。 */
+  async requestSourceWrites<C extends LocalSourceWritesPrivateCommand>(command: C, payload: LocalSourceWritesPrivateCommandPayloads[C]): Promise<LocalSourceWritesPrivateCommandResults[C]> {
+    const port = this.sourceWritesPort
+    if (!port || this._status !== 'ready' || this.shuttingDown) throw new CoreIpcError('NOT_READY', '源写专用通道尚未就绪。')
+    if (this.sourceWritesPending.size >= 128 || this.sourceWritesSequence >= Number.MAX_SAFE_INTEGER) throw new CoreIpcError('NOT_READY', '源写专用通道已达到安全预算。')
+    const requestId = randomUUID(), sequence = ++this.sourceWritesSequence
+    let request
+    try { request = localSourceWritesMainRequestSnapshot({ version: 1, type: 'source-writes-request', requestId, sequence, command, payload }) }
+    catch { throw new CoreIpcError('INVALID_IPC_REQUEST', '源写私有请求或原图材料无效。') }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { this.sourceWritesPending.delete(requestId); reject(new CoreIpcError('TIMEOUT', '源写受理结果未知；只能核对原请求。')) }, this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS)
+      this.sourceWritesPending.set(requestId, { sequence, command, timer, resolve: value => resolve(value as LocalSourceWritesPrivateCommandResults[C]), reject })
+      try { port.postMessage(request) }
+      catch { clearTimeout(timer); this.sourceWritesPending.delete(requestId); reject(new CoreIpcError('INTERNAL_ERROR', '源写受理结果未知；不会重新发送。')) }
+    })
+  }
+
+  private closeSourceWrites(port = this.sourceWritesPort): void {
+    port?.close()
+    if (this.sourceWritesPort !== port) return
+    this.sourceWritesPort = undefined
+    for (const pending of this.sourceWritesPending.values()) { clearTimeout(pending.timer); pending.reject(new CoreIpcError('NOT_READY', '源写通道已关闭；原请求只能读取核对。')) }
+    this.sourceWritesPending.clear()
   }
 
   async getPlaybackStreamSnapshot(): Promise<PlaybackStreamSnapshot | null> {
@@ -419,16 +451,24 @@ export class CoreSupervisor {
 
   private spawnAndAwaitReady(): Promise<void> {
     const channel = this.options.dependencies.createChannel()
-    const child = this.options.dependencies.fork(
-      this.options.entryPath,
-      [],
-      {
-        cwd: this.options.cwd,
-        env: { ...(this.options.env ?? {}) },
-        stdio: this.options.libraryReadTrace ? 'pipe' : 'ignore',
-        serviceName: 'Music Bridge Core',
-      },
-    )
+    const sourceChannel = this.options.sourceWritesPort ? this.options.dependencies.createSourceWritesChannel?.() : undefined
+    if (this.options.sourceWritesPort && !sourceChannel) { channel.port2.close(); channel.port1.close(); throw new CoreIpcError('NOT_READY', '缺少可信 Main 源写专用通道。') }
+    let child: CoreChildProcess
+    try {
+      child = this.options.dependencies.fork(
+        this.options.entryPath,
+        [],
+        {
+          cwd: this.options.cwd,
+          env: { ...(this.options.env ?? {}) },
+          stdio: this.options.libraryReadTrace ? 'pipe' : 'ignore',
+          serviceName: 'Music Bridge Core',
+        },
+      )
+    } catch (failure) {
+      channel.port1.close(); channel.port2.close(); sourceChannel?.port1.close(); sourceChannel?.port2.close()
+      throw failure
+    }
     if (this.options.libraryReadTrace) {
       const consume = createLibraryReadTraceStreamReader(this.options.libraryReadTrace)
       child.stdout?.on('data', chunk => { try { consume(chunk.toString()) } catch { /* 只允许封闭诊断行进入父终端。 */ } })
@@ -437,6 +477,8 @@ export class CoreSupervisor {
     }
     this.child = child
     this.port = channel.port2
+    this.sourceWritesPort = sourceChannel?.port2
+    this.sourceWritesSequence = 0
     this._status = 'starting'
     this.options.onLifecycle?.({ event: 'spawn' })
     let confirmExit: () => void = () => undefined
@@ -461,10 +503,13 @@ export class CoreSupervisor {
     }
     this.startupAttempt = attempt
     let completedReady = false
+    let portsTransferred = false
     const failStart = (error: CoreIpcError): void => {
       if (settled) return
       attempt.cancelStart(error)
+      if (!portsTransferred) { channel.port1.close(); sourceChannel?.port1.close() }
       channel.port2.close()
+      this.closeSourceWrites(sourceChannel?.port2)
       if (this.child === child) {
         this.port = undefined
         this.rejectPending(error)
@@ -506,6 +551,7 @@ export class CoreSupervisor {
       this.child = undefined
       this.port = undefined
       channel.port2.close()
+      this.closeSourceWrites(sourceChannel?.port2)
       this.rejectPending(new CoreIpcError('INTERNAL_ERROR', 'Core process exited'))
       if (!settled) {
         settled = true
@@ -601,8 +647,26 @@ export class CoreSupervisor {
       }
     })
     channel.port2.start()
+    if (sourceChannel) {
+      sourceChannel.port2.on('message', event => {
+        if (this.child !== child || this.sourceWritesPort !== sourceChannel.port2) return
+        try {
+          const captured = localSourceWritesDataSnapshot(event.data, 16384)
+          if (!localSourceWritesRecord(captured, ['version', 'type', 'requestId', 'sequence', 'ok'], ['result', 'failure']) || typeof captured.requestId !== 'string') throw new Error('源写私有回执无效。')
+          const pending = this.sourceWritesPending.get(captured.requestId)
+          if (!pending) return
+          const response = localSourceWritesMainResponseSnapshot(captured, pending.command)
+          if (response.sequence !== pending.sequence) throw new Error('源写私有回执序号无效。')
+          clearTimeout(pending.timer); this.sourceWritesPending.delete(response.requestId)
+          if (response.ok) pending.resolve(response.result)
+          else pending.reject(new CoreIpcError(response.failure.error.code, response.failure.error.message))
+        } catch { this.closeSourceWrites(sourceChannel.port2) }
+      })
+      sourceChannel.port2.start()
+    }
     try {
-      child.postMessage({ type: 'musicbridge.core.port', ...(requestedProtocol ? { playbackEventProtocol: requestedProtocol } : {}) }, [channel.port1])
+      child.postMessage({ type: 'musicbridge.core.port', ...(requestedProtocol ? { playbackEventProtocol: requestedProtocol } : {}) }, sourceChannel ? [channel.port1, sourceChannel.port1] : [channel.port1])
+      portsTransferred = true
     } catch {
       failStart(new CoreIpcError('INTERNAL_ERROR', 'Core process could not be started'))
     }
@@ -650,6 +714,7 @@ export class CoreSupervisor {
     if (!child) {
       this._status = 'stopped'
       port?.close()
+      this.closeSourceWrites()
       this.options.onLifecycle?.({ event: 'stopped' })
       return
     }
@@ -672,6 +737,7 @@ export class CoreSupervisor {
       }
     }
     port?.close()
+    this.closeSourceWrites()
     this._status = 'stopped'
     this.options.onLifecycle?.({ event: 'stopped' })
     this.rejectPending(new CoreIpcError('NOT_READY', 'Core supervisor is stopped'))

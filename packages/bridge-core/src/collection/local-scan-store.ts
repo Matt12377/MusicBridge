@@ -3,7 +3,10 @@ import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import type { MetadataTechnical, MetadataCoverEvidence, MetadataReadEvidence } from '../library/metadata-reader-types.js';
-import { LocalCatalogBudgetError } from './local-catalog-store.js';
+import { LocalCatalogBudgetError, sourceWritesProjectionForDatabase } from './local-catalog-store.js';
+import { installSourceWriteScanPort } from './source-write-scan-port.js';
+import type { ScanReadFacts } from './local-scan-facts.js';
+export type { ScanReadFacts } from './local-scan-facts.js';
 
 /** 扫描状态与目录实体在原业务连接中持久化；这些表不赋予文件系统授权。 */
 const tables = {
@@ -82,7 +85,6 @@ function verifyCueBatch(db:DatabaseSync,batch:ScanPreparedBatch,committed:ScanCo
 type Row = Record<string, unknown>;
 type Table = keyof typeof tables | keyof typeof cueTables;
 export type ScanReceiptOperation = 'start' | 'pause' | 'resume' | 'cancel' | 'prepare-batch' | 'commit-batch' | 'recover' | 'abandon-batch' | 'fail';
-export interface ScanReadFacts { technical: MetadataTechnical; coverEvidence: MetadataCoverEvidence[]; readEvidence: MetadataReadEvidence }
 export interface ScanPreparedItem {
   relative: string; signature: string; parserVersion: string;
   outcome: 'accepted' | 'rejected'; fields: dto.LocalMetadata | null; failureCode: string | null; reused: boolean; readFacts: ScanReadFacts | null;
@@ -232,6 +234,17 @@ function scanAuditFor(db: DatabaseSync) {
   };
 }
 type ScanAudit = ReturnType<typeof scanAuditFor>;
+/** 新源作者只更新真实已存文件行，原job/batch外键和冻结历史保留；外围真实COMMIT后才发布计数证书。 */
+export function updateSourceWriteScanFacts(db:DatabaseSync,rootId:string,relative:string,jobId:string,batchId:string,before:string,after:string):()=>void{
+  const row=db.prepare('SELECT * FROM local_scan_file_state WHERE library_root_id=? AND relative=?').get(rootId,relative);if(!row||row.job_id!==jobId||row.batch_id!==batchId||row.data!==before)return corrupt();
+  const first=parse(before,isScanFileState,65536),next=parse(after,isScanFileState,65536);if(next.libraryRootId!==rootId||next.relative!==relative||next.assetId!==first.assetId||next.trackId!==first.trackId||next.parserVersion!==first.parserVersion||next.outcome!=='accepted'||next.failureCode!==null||!next.readFacts)return corrupt();
+  const audit=scanAuditFor(db);const changed=db.prepare('UPDATE local_scan_file_state SET data=? WHERE library_root_id=? AND relative=? AND job_id=? AND batch_id=? AND data=?').run(after,rootId,relative,jobId,batchId,before);if(changed.changes!==1)return corrupt();audit.replace('local_scan_file_state',row,db.prepare('SELECT * FROM local_scan_file_state WHERE library_root_id=? AND relative=?').get(rootId,relative)!);return ()=>audit.publish();
+}
+function sourceUpdatedScanState(db:DatabaseSync,row:Row,initial:ScanFileState):ScanFileState|null{
+  const projection=sourceWritesProjectionForDatabase(db);if(!projection)return null;let previous=initial,found=false;
+  for(const event of projection.events){if(event.kind!=='facts'||event.fact.scanJobId!==row.job_id||event.fact.scanBatchId!==row.batch_id)continue;const f=event.fact,next=parse(f.scanAfter,isScanFileState,65536),before=parse(f.scanBefore,isScanFileState,65536);if(next.libraryRootId!==row.library_root_id||next.relative!==row.relative)continue;if(!equal(before,previous)||next.assetId!==initial.assetId||next.trackId!==initial.trackId||next.parserVersion!==initial.parserVersion)return corrupt();previous=next;found=true;}
+  return found?previous:null;
+}
 
 /** 冷开、迁移及隔离备份/恢复全量流式核验；热批提交不调用此函数。 */
 export function verifyLocalScanDatabase(db: DatabaseSync): void {
@@ -361,9 +374,9 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
     if (!job || !batchRow || row.library_root_id !== state.libraryRootId || state.libraryRootId !== job.libraryRootId
       || row.relative !== state.relative || row.asset_id !== state.assetId || row.track_id !== state.trackId) return corrupt();
     const committedFile = parse(batchRow.result, isScanCommittedBatch).files.find(file => file.relative === state.relative);
-    if (!committedFile || !equal(committedFile, state)) return corrupt();
+    if (!committedFile || !equal(committedFile, state)&&!equal(sourceUpdatedScanState(db,row,committedFile),state)) return corrupt();
     const item = parse(batchRow.request, isScanPreparedBatch).items.find(item => item.relative === state.relative);
-    if (!item || item.signature !== state.signature || item.parserVersion !== state.parserVersion || item.outcome !== state.outcome || item.failureCode !== state.failureCode) return corrupt();
+    if (!item || item.signature !== committedFile.signature || item.parserVersion !== state.parserVersion || item.outcome !== state.outcome || item.failureCode !== state.failureCode) return corrupt();
     if (state.outcome === 'accepted') {
       const asset = db.prepare('SELECT root_id,relative FROM local_catalog_assets WHERE id=?').get(state.assetId!);
       const track = db.prepare('SELECT asset_id FROM local_catalog_tracks WHERE id=?').get(state.trackId!);
@@ -559,6 +572,11 @@ export function createLocalScanStore(access: ScanAccess) {
         return row ? { jobId: String(row.job_id), value: parse(row.data, isScanFileState, 65_536) } : null;
       });
     },
+    /** 新作者只消费真实原行及原 job/batch 身份，不能伪造扫描任务。 */
+    privateSourceWriteFileState(libraryRootId:string,relative:string):{jobId:string;batchId:string;data:string;value:ScanFileState}|null{
+      if(!dto.isCollectionId(libraryRootId)||!scanRelativePath(relative))return access.conflict('源写扫描身份无效。');
+      return access.read(db=>{installSourceWriteScanPort(db,(...args)=>updateSourceWriteScanFacts(db,...args));const row=currentFileState(db,libraryRootId,relative);if(!row)return null;return {jobId:String(row.job_id),batchId:String(row.batch_id),data:String(row.data),value:parse(row.data,isScanFileState)};});
+    },
     /** 增量读取资格与原path历史事实查询分开；只此接点受当前locator约束。 */
     privateCurrentFileState(libraryRootId: string, relative: string): { jobId: string; value: ScanFileState } | null {
       if (!dto.isCollectionId(libraryRootId) || !scanRelativePath(relative)) return access.conflict('扫描文件状态身份无效。');
@@ -577,6 +595,10 @@ export function createLocalScanStore(access: ScanAccess) {
         const state = parse(row.data, isScanFileState), job = get(db, String(row.job_id));
         if (state.outcome !== 'accepted' || state.assetId !== asset.id || state.trackId !== trackId || state.relative !== locator.relative || state.libraryRootId !== root.id
           || job.rootRevision !== root.revision || job.sourceRootId !== source.id || !state.readFacts) return null;
+        const sourceFact=sourceWritesProjectionForDatabase(db)?.scanFacts.get(`${root.id}/${locator.relative}`)?.fact;
+        if(sourceFact&&sourceFact.scanAfter===row.data&&equal(sourceFact.afterAsset,asset)&&sourceFact.affectedTrackIds.includes(trackId)){
+          const technical=state.readFacts.technical,parameters={container:technical.container,codec:technical.codec,lossless:technical.lossless,sampleRateHz:technical.sampleRateHz,channels:technical.channels,bitsPerSample:technical.bitsPerSample,durationMs:technical.durationSeconds===null?null:Math.round(technical.durationSeconds*1000),evidence:technical.evidence};return dto.isFileAudioParameters(parameters)?parameters:null;
+        }
         const batchRow = db.prepare("SELECT request FROM local_scan_batches WHERE id=? AND phase='committed'").get(String(row.batch_id));
         if (!batchRow) return null;
         const batch = parse(batchRow.request, isScanPreparedBatch), index = batch.items.findIndex(item => item.relative === locator.relative), item = batch.items[index];

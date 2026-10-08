@@ -1,0 +1,158 @@
+{
+  "schema": "mbrs012.effective-rule-matrix.v1",
+  "task": "MBRS-012",
+  "qualification": "FINITE_LOCAL_WRITER_AND_OWNED_APP_PROOF_ONLY",
+  "defaultPolicy": false,
+  "writerDomains": {
+    "legacyOrganizer": "MB_ONLY_SOURCE_FILES_OFF",
+    "ordinaryReaderPlayback": "READ_ONLY_UNCHANGED",
+    "legacySourceEvidenceRecording": "READ_ONLY_UNCHANGED",
+    "newLocalSourceWrites": "SPECIFIC_SERVER_PLAN_GRANT_ONLY"
+  },
+  "publisher": "NONATOMIC_QUARANTINE_LINK_V1",
+  "grantActor": "DEDICATED_TRUSTED_MAIN_TO_OWNER_PORT",
+  "genericExecuteGrants": false,
+  "clientApprovalGrants": false,
+  "unknownRetry": false,
+  "coldReplay": false,
+  "frozenMutation": "REFUSE",
+  "audioTranscode": false,
+  "selectedFieldSemantics": [
+    "SET",
+    "REMOVE",
+    "OMITTED_UNCHANGED"
+  ],
+  "formats": [
+    "NATIVE_FLAC_FIXED_TAG_REGION_V1",
+    "MPEG1_LAYERIII_ID3V240_FIXED_TAG_REGION_V1"
+  ],
+  "planOperationKinds": [
+    "TAGS",
+    "EMBEDDED_COVER",
+    "DIRECTORY_COVER"
+  ],
+  "limitsReference": "docs/postrust/MBRS-012/EXECUTION_SCOPE.json",
+  "scopeReference": "docs/adr/ADR-MBRS-012-CONTROLLED-SOURCE-WRITES.md",
+  "actualWriterTestResult": "PASS_LOCAL_DECLARED_426_ZERO_SKIP",
+  "actualSourceEffect": "OWNED_FLAC_MP3_TAGS_PNG_JPEG_EMBEDDED_DIRECTORY_BATCH_BACKUP_UNDO_COLD_RECOVERY_PROVEN_FINITE",
+  "originalNineAt": "PARTIAL_LAYERED_SOFTWARE_AND_OWNED_APP_PROVEN_LIVE_OWNER_NOT_RUN",
+  "realLibrary": "NOT_RUN",
+  "formatModuleEvidence": {
+    "result": "PARTIAL_FORMAT_MODULE_ONLY",
+    "reference": "docs/postrust/MBRS-012/FORMAT_PHASE_VALIDATION.json",
+    "moduleTests": 7,
+    "independentActualOutputCases": 6,
+    "embeddedImageFormatsObserved": [
+      "PNG",
+      "JPEG"
+    ],
+    "jpegReference": "docs/postrust/MBRS-012/METADATA_PHASE_VALIDATION.json",
+    "publisherServiceGrantBackupUndo": "NOT_TESTED"
+  },
+  "inverseProjection": {
+    "discriminator": "item.restoration",
+    "directPlansMayUseRestoration": false,
+    "coverCandidateIdentityBorrowAllowed": false,
+    "directoryOriginalAbsenceRemovableByExplicitInversePlan": true,
+    "originalArtistMultiValuesRestored": true,
+    "originalFrozenSixBodyNineOperationKeysPreserved": true
+  },
+  "contractsPhaseEvidence": {
+    "reference": "docs/postrust/MBRS-012/CONTRACTS_PHASE_VALIDATION.json",
+    "result": "CURRENT_LOCK04_40_OF_40_PASSED",
+    "tests": 40,
+    "pass": 40,
+    "fail": 0,
+    "skipped": 0,
+    "freshBuildAndCompleteTypes": true,
+    "restorationCases": 8,
+    "qualification": "CONTRACT_BEHAVIOR_ONLY_NOT_SOURCE_WRITER"
+  },
+  "metadataPrefixPhaseEvidence": {
+    "result": "PARTIAL_PREFIX_PARSER_ONLY",
+    "reference": "docs/postrust/MBRS-012/METADATA_PHASE_VALIDATION02.json",
+    "moduleTests": 8,
+    "pass": 8,
+    "independentJpegOutputCases": 2,
+    "publisherServiceGrantBackupUndo": "NOT_TESTED",
+    "previousPhaseReference": "docs/postrust/MBRS-012/METADATA_PHASE_VALIDATION.json"
+  },
+  "desktopPhaseEvidence": {
+    "reference": "docs/postrust/MBRS-012/DESKTOP_PHASE_VALIDATION02.json",
+    "newTests": 35,
+    "newPass": 35,
+    "legacyTests": 87,
+    "legacyPass": 87,
+    "snapshot": "LOCK04",
+    "followingTypes": "DESKTOP_AND_E2E_PASSED_AT_LOCK04",
+    "productionApp": "NOT_RUN",
+    "previousPhaseReference": "docs/postrust/MBRS-012/DESKTOP_PHASE_VALIDATION.json",
+    "legacy87Scope": "PREVIOUS_LOCK03_FULL_GATE_RECHECK_PENDING"
+  },
+  "persistencePhaseEvidence": {
+    "reference": "docs/postrust/MBRS-012/PERSISTENCE_PHASE_VALIDATION.json",
+    "tests": 26,
+    "pass": 26,
+    "scope": "JOURNAL_ORIGINALS_HISTORY_MODULES_ONLY"
+  },
+  "protectionContentPhaseEvidence": {
+    "reference": "docs/postrust/MBRS-012/PROTECTION_CONTENT_PHASE_VALIDATION.json",
+    "tests": 9,
+    "pass": 9,
+    "scope": "24_TABLE_PRIVATE_CONTENT_SNAPSHOT_ONLY",
+    "coldUnknownNewSabReaderBarrier": "NOT_YET_PROVEN"
+  },
+  "namespacePhaseEvidence": {
+    "reference": "docs/postrust/MBRS-012/NAMESPACE_PHASE_VALIDATION.json",
+    "tests": 32,
+    "pass": 32,
+    "skip": 0,
+    "scope": "FD_SAB_NAMES_TRANSFER_ATOMIC_RELEASE_WORKER_READER_MODULE_NOT_OWNER_OR_PUBLISHER"
+  },
+  "actualPublisherServicePhase": {
+    "reference": "docs/postrust/MBRS-012/SOURCE_SERVICE_PHASE_VALIDATION.json",
+    "tests": 7,
+    "pass": 7,
+    "skip": 0,
+    "productLock": "ROOT_MAC_ATTRIBUTES_PRODUCT_LOCK07",
+    "basicTestLock": "CORE_SERVICE_BASIC_TEST_LOCK03",
+    "sourceEffect": "OWNED_FLAC_AND_MP3_ACTUAL_TAG_WRITES_UNDO_AND_REMOVE",
+    "independentAudioPcmAndRawSpans": {
+      "cases": 2,
+      "pass": 2
+    },
+    "independentActualBackupAndAttributes": {
+      "cases": 2,
+      "pass": 2
+    },
+    "ownerPortColdFamilyArtworkApp": "NOT_PROVEN_BY_BASIC_PHASE"
+  },
+  "attributePreservation": {
+    "privateProfiles": [
+      "MACOS_EMPTY_XATTR_ACL_FLAGS_V1",
+      "MACOS_PROVENANCE_ONLY_ACL_FLAGS_V1",
+      "LINUX_EMPTY_XATTR_ACL_FLAGS_V1"
+    ],
+    "macProvenanceOnly": {
+      "exactName": "com.apple.provenance",
+      "actualOpaqueBytes": 11,
+      "bindActualSha256": true,
+      "interpretOpaqueValue": false,
+      "writeOrClearSystemAttribute": false,
+      "hardcodedMachineHash": false
+    },
+    "allOtherXattrAclFlagsOrUnknownTools": "REJECT_WRITE",
+    "backupMode": "0600",
+    "backupActualProof": "MATCH_AUTHENTICATED_BACKUP_AND_ORIGINAL_PROFILE",
+    "newPrivatePhaseField": "BACKUP.backupAttributes",
+    "newPrivateFactField": "backup.attributes",
+    "newPrivateInverseField": "inverse.restoreAttributes",
+    "oldPrivateRecords": "READ_COMPATIBLE_MISSING_PROOF_REJECTS_EXECUTION",
+    "originalDirectoryAbsence": "NULL_IS_ABSENCE_NOT_EMPTY_ATTRIBUTE_PROFILE",
+    "originalPresentPathGap": "RESTORE_UNIQUE_ORIGIN_ATTRIBUTES_NO_DEFAULT_0644",
+    "publicDtoAndFrozenSixNineKeysAndBudgets": "UNCHANGED",
+    "ordinaryReaderFlacAllowlist": "UNCHANGED"
+  },
+  "currentFiniteValidation": "docs/postrust/MBRS-012/LOCAL_VALIDATION.json",
+  "qualificationBoundary": "FINITE_LOCAL_ONLY_EXACT_SOURCE_GATE_AND_CI_SEALED_SEPARATELY"
+}

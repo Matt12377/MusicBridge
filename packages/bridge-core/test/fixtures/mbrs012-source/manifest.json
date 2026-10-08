@@ -1,0 +1,147 @@
+{
+  "schema": "mbrs012.owned-writer-fixtures.v1",
+  "synthetic": true,
+  "allContentOwned": true,
+  "realLibraryUsed": false,
+  "originalPcm": {
+    "sampleFormat": "s16le",
+    "sampleRate": 48000,
+    "channels": 2,
+    "frames": 48000,
+    "bytes": 192000,
+    "sha256": "ee7516e6b9822186cc42dc8e5e6a1bdc9e8db0d61e86020b50bc88cdfde2e470",
+    "description": "Root程序生成双声道1秒非静音正弦波，不来自用户音乐"
+  },
+  "writerProfiles": [
+    "NATIVE_FLAC_FIXED_TAG_REGION_V1",
+    "MPEG1_LAYERIII_ID3V240_FIXED_TAG_REGION_V1"
+  ],
+  "files": [
+    {
+      "file": "owned-stereo-fixed-tags.flac",
+      "bytes": 95996,
+      "sha256": "70723f8356f9044289838291a36cc0f9f5655f6272f0371ffb0eec3c6ff1c5d9",
+      "kind": "audio",
+      "synthetic": true,
+      "codec": "flac",
+      "sampleRate": 48000,
+      "channels": 2,
+      "frames": 48000,
+      "audioStart": 65796,
+      "audioPayloadSha256": "6fb258559bae48de948b8cc17f6614c37ecb477934bb8d1934aff906ddb86a78",
+      "decodedPcmBytes": 192000,
+      "decodedPcmSha256": "ee7516e6b9822186cc42dc8e5e6a1bdc9e8db0d61e86020b50bc88cdfde2e470",
+      "decodedPcmEqualsOriginalLossless": true,
+      "expectedTags": {
+        "title": "合成写回样本",
+        "artist": "测试艺人",
+        "album": "有限写回测试",
+        "date": "2026",
+        "disc": "1",
+        "track": "2"
+      },
+      "paddingBytes": 65536,
+      "ffprobe": {
+        "codec": "flac",
+        "sampleRate": 48000,
+        "channels": 2,
+        "duration": "1.000000",
+        "tags": {
+          "TITLE": "合成写回样本",
+          "ARTIST": "测试艺人",
+          "ALBUM": "有限写回测试",
+          "DATE": "2026",
+          "disc": "1",
+          "track": "2",
+          "MUSICBRIDGE_UNKNOWN": "原始未知标签保持"
+        }
+      }
+    },
+    {
+      "file": "owned-stereo-id3v240.mp3",
+      "bytes": 82601,
+      "sha256": "dae8164571bdaf38db59a7670a7324233809697e3946e868f02c6da9f437916c",
+      "kind": "audio",
+      "synthetic": true,
+      "codec": "mp3",
+      "sampleRate": 48000,
+      "channels": 2,
+      "frames": 48000,
+      "audioStart": 65705,
+      "audioPayloadSha256": "ab6fa5cc07a9b8f7e1bdac2fcd0edb49326fb8538ebd54941181ab6950262672",
+      "decodedPcmBytes": 192000,
+      "decodedPcmSha256": "2f46567985c33583749a9ed7534b45035c35c00e9259ceaceb127abed33bbb2d",
+      "decodedPcmEqualsOriginalLossless": false,
+      "expectedTags": {
+        "title": "合成写回样本",
+        "artist": "测试艺人",
+        "album": "有限写回测试",
+        "date": "2026",
+        "disc": "1",
+        "track": "2"
+      },
+      "paddingBytes": 65536,
+      "ffprobe": {
+        "codec": "mp3",
+        "sampleRate": 48000,
+        "channels": 2,
+        "duration": "1.000000",
+        "tags": {
+          "title": "合成写回样本",
+          "artist": "测试艺人",
+          "album": "有限写回测试",
+          "date": "2026",
+          "disc": "1",
+          "track": "2",
+          "fixture-marker": "unknown-value"
+        }
+      }
+    },
+    {
+      "file": "owned-cover-16.png",
+      "bytes": 130,
+      "sha256": "cbb5f0d4e01cedca1e94c0c6c5bb78c1e716834a0eb45ed2022c505dc500a7c6",
+      "kind": "image",
+      "synthetic": true,
+      "mime": "image/png",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "file": "owned-cover-16.jpg",
+      "bytes": 960,
+      "sha256": "555f7915442690ccb14754bd0da000ceadfbdcfb50b4e3402f55d4806e3e989d",
+      "kind": "image",
+      "synthetic": true,
+      "mime": "image/jpeg",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "file": "owned-cover-32.png",
+      "bytes": 269,
+      "sha256": "78e1ee708b25774f682faafbb335543df52b832ddfbcc16f2afebbcd899e3e4c",
+      "kind": "image",
+      "synthetic": true,
+      "mime": "image/png",
+      "width": 32,
+      "height": 32
+    },
+    {
+      "file": "owned-cover-32.jpg",
+      "bytes": 2056,
+      "sha256": "1ea40372c2f8894b1c4b98caf92004150d45f98e90eec495c9e6de050647e906",
+      "kind": "image",
+      "synthetic": true,
+      "mime": "image/jpeg",
+      "width": 32,
+      "height": 32
+    }
+  ],
+  "independentToolVersions": {
+    "ffmpeg": "ffmpeg version 8.1.2 Copyright (c) 2000-2026 the FFmpeg developers",
+    "ffprobe": "ffprobe version 8.1.2 Copyright (c) 2007-2026 the FFmpeg developers"
+  },
+  "independentDecodedPcmBaselineOnly": true,
+  "postWritePcmNotYetVerified": true
+}

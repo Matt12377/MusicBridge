@@ -1,0 +1,117 @@
+{
+  "schema": "mbrs012.source-service-phase-validation.v1",
+  "task": "MBRS-012",
+  "baseSha": "09370f19d4422be3b387047999a0722961c52e1e",
+  "recordedAt": "2026-10-08T00:24:45.159044+00:00",
+  "phase": "FINITE_ACTUAL_BASIC_TAG_SERVICE_NOT_WHOLE_WRITER_QUALIFICATION",
+  "inputIdentity": "f6c1da31352061d18fe7c8bf280d0f50a4d3d14e249b5c52eb5dc67872f9c732",
+  "declaredInputs": 953,
+  "inputsUnchanged": true,
+  "ongoingOtherCoreTestsExcluded": true,
+  "service": {
+    "archiveLabel": "root-core-service-tests03-lock03",
+    "exitCode": 0,
+    "closeObserved": true,
+    "logBytes": 4401,
+    "logSha256": "71c9335c90491c52b726a55e3a2abf1155262ae222b37e5ccfc83fbe6b703e66",
+    "tests": 7,
+    "pass": 7,
+    "fail": 0,
+    "skip": 0
+  },
+  "realSourceStages": [
+    "REAL_FROZEN_OWNED_AUDIO_SCAN",
+    "PRIVATE_SPECIFIC_GRANT",
+    "ACTUAL_PUBLISHER_WRITE",
+    "REAL_INDEPENDENT_BACKUP",
+    "BYTE_EXACT_UNDO",
+    "SIX_FIELDS_REMOVE",
+    "ACTUAL_RESCAN_NO_DOUBLE_REVISION",
+    "COLD_RAW_AND_SEARCH_READ"
+  ],
+  "independentAudio": {
+    "archiveLabel": "root-actual-service-audio-independent08",
+    "exitCode": 0,
+    "closeObserved": true,
+    "logBytes": 1926,
+    "logSha256": "e2060532f3e3f20de1a5ce1a93b4610ce091318d9e4c739c3a601eca44b6fa9f",
+    "cases": 2,
+    "pass": 2,
+    "audioPayloadExact": true,
+    "nonTargetRawSpansExact": true,
+    "ffprobeAndDecodedPcmAgainstRootOwnedBaseline": true
+  },
+  "independentSafety": {
+    "archiveLabel": "root-actual-service-safety-independent08",
+    "exitCode": 0,
+    "closeObserved": true,
+    "logBytes": 4037,
+    "logSha256": "662390918fabe43c6b01d2028ea60c0ec61d1981cf1531f24cd97ef09918d165",
+    "cases": 2,
+    "pass": 2,
+    "backupInodeComparedToGenuinePrepublicationStat": true,
+    "sameVolumeOutsideLibrary": true,
+    "privateModeAndOwnerVerified": true,
+    "opaqueAttributesReadFromActualFiles": true,
+    "beforeBackupUndoByteExact": true,
+    "originalSourceModeOfThisPhase": "0600_NOT_PROOF_OF_NONDEFAULT_COVER_PATHGAP"
+  },
+  "e2eTypes": {
+    "archiveLabel": "root-desktop-e2e-types06-lock06",
+    "exitCode": 0,
+    "closeObserved": true,
+    "logBytes": 0,
+    "logSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "desktopLock": "LOCK06",
+    "scope": "CURRENT_E2E_TYPECHECK_NOT_APP_EXECUTION"
+  },
+  "attributeDecision": {
+    "privateProfiles": [
+      "MACOS_EMPTY_XATTR_ACL_FLAGS_V1",
+      "MACOS_PROVENANCE_ONLY_ACL_FLAGS_V1",
+      "LINUX_EMPTY_XATTR_ACL_FLAGS_V1"
+    ],
+    "macProvenanceOnly": {
+      "exactName": "com.apple.provenance",
+      "actualOpaqueBytes": 11,
+      "bindActualSha256": true,
+      "interpretOpaqueValue": false,
+      "writeOrClearSystemAttribute": false,
+      "hardcodedMachineHash": false
+    },
+    "allOtherXattrAclFlagsOrUnknownTools": "REJECT_WRITE",
+    "backupMode": "0600",
+    "backupActualProof": "MATCH_AUTHENTICATED_BACKUP_AND_ORIGINAL_PROFILE",
+    "newPrivatePhaseField": "BACKUP.backupAttributes",
+    "newPrivateFactField": "backup.attributes",
+    "newPrivateInverseField": "inverse.restoreAttributes",
+    "oldPrivateRecords": "READ_COMPATIBLE_MISSING_PROOF_REJECTS_EXECUTION",
+    "originalDirectoryAbsence": "NULL_IS_ABSENCE_NOT_EMPTY_ATTRIBUTE_PROFILE",
+    "originalPresentPathGap": "RESTORE_UNIQUE_ORIGIN_ATTRIBUTES_NO_DEFAULT_0644",
+    "publicDtoAndFrozenSixNineKeysAndBudgets": "UNCHANGED",
+    "ordinaryReaderFlacAllowlist": "UNCHANGED"
+  },
+  "earlierFailureReceiptsRetained": [
+    {
+      "archiveLabel": "root-core-service-tests01",
+      "tests": 7,
+      "pass": 0,
+      "failure": "READY_FILE_ATTRIBUTES_UNPROVEN_NO_PUBLICATION"
+    },
+    {
+      "archiveLabel": "root-core-service-tests02-mac-attributes",
+      "tests": 7,
+      "pass": 6,
+      "failure": "NEW_TEST_USED_WRONG_SOURCE_REVOKE_ARGUMENT_SHAPE"
+    },
+    {
+      "archiveLabel": "root-desktop-e2e-types05-lock06",
+      "failure": "WRONG_COMPILER_PATH_PREPARATION_ONLY"
+    }
+  ],
+  "writerQualification": "NOT_YET_PROVEN",
+  "libraryWriteEnabledDefault": false,
+  "original9At": "PARTIAL",
+  "productionApp": "NOT_RUN",
+  "realLibraryRoonAccountNasDeviceAudioOwner": "NOT_RUN"
+}

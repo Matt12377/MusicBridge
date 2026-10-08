@@ -16,7 +16,7 @@ interface Observation { sequence: number; elapsedMs: number; event: string; [key
 /** 配置由各编译入口的静态参数与编译常量固定，父消息/环境不能选择 Rust。 */
 export async function startPrivateDesktopHost(rust: boolean, models: number, large = false): Promise<void> {
   if (process.env.MUSIC_BRIDGE_CORE_TEST_MODE !== '1' || process.env.MUSIC_BRIDGE_UI_E2E !== '1') throw new Error('隔离宿主只接受合成环境。')
-  const parent = (process as typeof process & { parentPort?: Parent }).parentPort
+  const parent = (process as unknown as { parentPort?: Parent }).parentPort
   if (!parent) throw new Error('隔离宿主缺少可信父端口。')
   const observations: Observation[] = [], tick = performance.now()
   let sequence = 0, controlPort: PrivatePort | undefined, controller: RustReadonlyCoreController | undefined
@@ -60,7 +60,8 @@ export async function startPrivateDesktopHost(rust: boolean, models: number, lar
     return child
   }) as typeof spawn
   parent.once('message', event => {
-    controlPort = event.ports[1]
+    if (![2, 3].includes(event.ports.length) || new Set(event.ports).size !== event.ports.length) throw new Error('隔离宿主启动端口集合无效。')
+    controlPort = event.ports[event.ports.length - 1]
     if (!controlPort) throw new Error('隔离宿主缺少独立的可信观察端口。')
     controlPort.on('message', event => {
       const value = event.data as Record<string, unknown>
@@ -156,7 +157,13 @@ export async function startPrivateDesktopHost(rust: boolean, models: number, lar
       if (client.exportLargeVersionedCollectionSnapshot) wrapped.exportLargeVersionedCollectionSnapshot = async () => { observe('node.exportLarge'); const result = await client.exportLargeVersionedCollectionSnapshot!(); await holdExport(); return result }
       return wrapped
     }
-    return runCoreUtilityProcess(...args)
+    // 最末端口只供观察；保留原生产端口全集，Node只读驱动没有Main源写端口。
+    const once = parent.once
+    parent.once = (name, listener) => once.call(parent, name, event => {
+      if (![2, 3].includes(event.ports.length) || new Set(event.ports).size !== event.ports.length) throw new Error('隔离宿主启动端口集合无效。')
+      listener({ data: event.data, ports: event.ports.slice(0, -1) })
+    })
+    try { return runCoreUtilityProcess(...args) } finally { parent.once = once }
   }
   await runDesktopCoreHost({ dependencies: {
     runCoreUtilityProcess: observedUtility,

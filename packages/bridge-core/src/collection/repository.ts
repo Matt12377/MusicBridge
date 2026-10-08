@@ -2,6 +2,7 @@ import { localArtworkMigration, verifyLocalArtworkDatabase, createLocalArtworkSt
 import { mbQueueMigration, verifyMBQueueDatabase, createMBQueueStore, MBQueueStoreError, type MBQueueStore } from './mb-queue-store.js';
 import { LocalFactsFenceBusy, LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import { LegacyLinksError } from './local-legacy-links-journal.js';
+import { SourceWritesError } from './local-source-writes-journal.js';
 import { traceDatabase } from '../diagnostics/performance-instrumentation.js';
 import { isDatasetCollectionModels, isDatasetLargeCollectionModels, MAX_DATASET_COLLECTION_MODELS, MAX_DATASET_LARGE_COLLECTION_MODELS } from './dataset-owner-protocol.js';
 import { createRecordingPrintStore, migrateRecordingPrints, migrateRecordingPrintVersions, recoverRecordingPrints, type RecordingPrintStore } from '../recording/print-store.js';
@@ -88,6 +89,7 @@ export interface CollectionRepository {
   sources: SourceStore;
   /** 原作者私有派生保护，不作为公开源写许可。 */
   sourceProtection: SourceProtectionStore;
+  privateSourceWritesDirectory():string|null;
   media: MediaPlanningStore;
   versions: MasterVersionsStore;
   preparations: PreparationStore;
@@ -307,7 +309,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   function guarded<T>(operation: (db: DatabaseSync) => T): T {
     try { if(localFactsFatal)throw new LocalFactsCommitFatal();return operation(open()); }
     catch (error) { if (error instanceof MBQueueStoreError) throw error;
-      if (error instanceof LegacyLinksError || error instanceof LocalFactsCommitFatal || error instanceof LocalFactsFenceBusy || error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
+      if (error instanceof SourceWritesError || error instanceof LegacyLinksError || error instanceof LocalFactsCommitFatal || error instanceof LocalFactsFenceBusy || error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
   }
   function exportReadonlyModels(maxModels: number, modelsGuard: typeof isDatasetCollectionModels): readonly CollectionModel[] {
     return guarded(db => {
@@ -588,6 +590,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
     media,
     sources,
     sourceProtection: createSourceProtectionStore({ read: guarded }),
+    privateSourceWritesDirectory(){return options.filePath!==':memory:'?path.join(path.dirname(options.filePath),'source-writes'):options.stagingRoot?path.join(options.stagingRoot,'source-writes'):null;},
     drafts: createMasterDraftsRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     workspace: createRecordingWorkspaceStore({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     readonlySnapshotStamp() {

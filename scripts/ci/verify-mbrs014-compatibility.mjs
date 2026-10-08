@@ -18,6 +18,8 @@ export const COMPATIBILITY_LEGACY_INPUTS = Object.freeze({ path: 'docs/postrust/
   sha256: 'bce19486d23367ff8f9404e1a0f3e4e6d0e9f39fb0d8585f04f84877e2118910', files: 49 });
 export const COMPATIBILITY_PRELOAD_EXTENSION = Object.freeze({ path: 'apps/desktop/test/preload.test.ts', bytes: 36786,
   sha256: '7e217790f0cf811b4629bee7de0749402ee56eebe161a1d15c8a1511a1c00fd3' });
+export const COMPATIBILITY_SOURCE_WRITES_PRELOAD_EXTENSION = Object.freeze({ path: 'apps/desktop/test/preload.test.ts', bytes: 37008,
+  sha256: '8fb8b3daef9c1826e6794b02fbb524fdd08ed40f293e51459e4d11bfa95aa639' });
 /** 固定旧断言、夹具和构造器字节，避免以改测试来消除兼容回归。 */
 export function assertCompatibilityLegacyInputs(manifestBytes, readInput) {
   if (manifestBytes.length !== COMPATIBILITY_LEGACY_INPUTS.bytes || sha(manifestBytes) !== COMPATIBILITY_LEGACY_INPUTS.sha256)
@@ -31,10 +33,12 @@ export function assertCompatibilityLegacyInputs(manifestBytes, readInput) {
       || !/^[a-f0-9]{64}$/u.test(input.sha256)) reject('COMPATIBILITY_LEGACY_MANIFEST_INVALID');
     names.add(input.path); const bytes = readInput(input.path);
     const original = bytes.length === input.bytes && sha(bytes) === input.sha256;
-    // 唯一增量为公开方法预期列表末尾六行；原assertion、loader、context次数均逐字节保留。
+    // 仅准014六名称和012七名称的已核尾部增量；原assertion、loader、context次数逐字节保留。
     const additive = input.path === COMPATIBILITY_PRELOAD_EXTENSION.path
       && bytes.length === COMPATIBILITY_PRELOAD_EXTENSION.bytes && sha(bytes) === COMPATIBILITY_PRELOAD_EXTENSION.sha256;
-    if (!original && !additive) reject('COMPATIBILITY_LEGACY_INPUT_CHANGED');
+    const sourceWritesAdditive = input.path === COMPATIBILITY_SOURCE_WRITES_PRELOAD_EXTENSION.path
+      && bytes.length === COMPATIBILITY_SOURCE_WRITES_PRELOAD_EXTENSION.bytes && sha(bytes) === COMPATIBILITY_SOURCE_WRITES_PRELOAD_EXTENSION.sha256;
+    if (!original && !additive && !sourceWritesAdditive) reject('COMPATIBILITY_LEGACY_INPUT_CHANGED');
   }
   return manifest.files;
 }

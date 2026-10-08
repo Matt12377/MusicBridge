@@ -1,4 +1,7 @@
 export * from './local-organizer.js';
+export * from './local-source-writes-data.js';
+export * from './local-source-writes.js';
+export * from './local-source-writes-private.js';
 export * from './local-legacy-links.js';
 export * from './local-artwork.js';
 export * from './recording-backups.js';
