@@ -376,3 +376,8 @@ S1源 f84c83dc45fec39da3f1f580ec1a089eb4c872f3 的Rust Ubuntu原node-atomic-snap
 ### MBRS-013 Hosted Electron执行环境修复
 
 013新源码59ba920精确Gate14阶段529/529通过；首次Electron CI因官方macOS ARM64容量不足、未分配runner而平台取消（零步骤执行），原作业保留。Electron CI固定为官方标准macos-15-intel，旧平台守卫只同步准入两个精确macOS标签；原45分钟、全部步骤/断言/测试及Ubuntu+ARM64 Rust矩阵保持。当前标准verify124、App126及本机ARM64软件证明保持；声明1627输入中两项CI配置/准入脚本变化，692产品输入字节全同。其他原自然CI继续；下一源码精确Gate/首次自然CI、独立报告及最终远端clean待完成，八AT仍PARTIAL。
+
+
+### MBRS-013 旧012 CI准入衔接修复
+
+013源码59首次自然CI终态保留：4job成功、旧012准入1失败、Electron未获runner1平台取消。Intel标准runner/精确macOS准入已修；旧012原31正文逐字保持，三路径闭合Hash逆变换＋新增6正负例＋当前原始字节7守卫实际44/44，原012完整10阶段426/426零skip自然退出0。当前verify124/App126产品692输入字节全同，1627声明图中4项CI配置/准入输入变化，新增两项兼容脚本另登记。下一提交的精确013 Gate/首次自然4/6、独立报告/最终远端clean待完成；八AT仍PARTIAL，真实层未跑，封存后接MBM-000～004→016→017。

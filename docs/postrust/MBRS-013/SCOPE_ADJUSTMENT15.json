@@ -1,0 +1,80 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "id": "SCOPE_ADJUSTMENT15",
+  "parentUnpushedSource": "1100cd3f59c732077167054c7f1cf3319346355d",
+  "priorSource59": "59ba9200df381ce870ccd239381bec01777e7bf3",
+  "authority": "INHERITED_OWNER_CONTINUOUS_AUTHORIZATION_NO_NEW_APPROVAL",
+  "reason": "原源码59首次verify在旧012冻结准入正例30/31失败：读取的是已核准013扩展字节37035，但旧正例要求012的37008；后继013 Gate未执行。用只对精确已核三个输入的逆变换读取适配保留全部原31测试正文/断言，当前013自身原始输入由独立正负例验证。",
+  "rootOwnedFiles": [
+    "scripts/ci/mbrs013-legacy-input-normalization.mjs",
+    "scripts/ci/test/mbrs013-legacy-input-normalization.test.mjs",
+    ".github/workflows/verify.yml"
+  ],
+  "delegatedOwnedFiles": {
+    "delivery012_contract": [
+      "scripts/ci/test/verify-mbrs012-source-writes.test.mjs"
+    ]
+  },
+  "allowedChanges": {
+    "legacyTest": {
+      "path": "scripts/ci/test/verify-mbrs012-source-writes.test.mjs",
+      "before": {
+        "bytes": 9621,
+        "sha256": "713611d763822130da9b6576a49851eab3f426bf71bb56205a7152c4cf5a491d"
+      },
+      "only": "ONE_ADAPTER_IMPORT_AND_READ_FUNCTION_CALL_ALL_ORIGINAL_TEST_BODIES_BYTE_IDENTICAL"
+    },
+    "newAdapter": "EXACT_HASHED_013_PRELOAD_AND_TWO_REAL_LOADER_ADDITIONS_TO_FROZEN_012_BYTES_ONLY_NO_UNKNOWN_INPUT_REWRITE",
+    "newTests": "ACTUAL_CURRENT_RAW_AND_SEALED012_POSITIVE_FULL_BYTE_HASH_ROUNDTRIP_TAMPER_CASES"
+  },
+  "originalRun": {
+    "verifyRun": 37809850387,
+    "verifyJob": 113423561803,
+    "old012AdmissionTests": 31,
+    "passed": 30,
+    "failed": 1,
+    "sourceWritesGate": "NOT_REACHED",
+    "own013Gate": "SKIPPED_AFTER_EARLIER_FAILURE",
+    "rawFullJobLog": {
+      "fileName": "ROOT013_SOURCE59_VERIFY_FULL_LOG152.log",
+      "bytes": 4810894,
+      "sha256": "9d1bea3cfbee8a715c176e8605a54d288d708435ef97a5260a12c0dc992f8b85",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+    }
+  },
+  "unchanged": {
+    "legacy49Manifest": true,
+    "original31CasesAndAssertions": true,
+    "original426AndNew103": true,
+    "production692": true,
+    "allBudgets": true,
+    "defaultPoliciesOff": true,
+    "other17Tasks148At": true
+  },
+  "originalSource59PlatformElectronFailureAlsoPreserved": true,
+  "newSourceCiGate": "PENDING_NOT_PRECLAIMED",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN",
+  "recordedAt": "2026-10-08T17:03:42.259263+00:00",
+  "actualRepair": {
+    "result": "PASS_OLD31_NEW6_EXISTING_RAW7_TOTAL44_AND_ORIGINAL012_TEN_STAGE426",
+    "legacyBodyExactReverse": true,
+    "publicEvidence": [
+      "docs/postrust/MBRS-013/evidence/legacy-ci-admission-repair.json",
+      "docs/postrust/MBRS-013/evidence/original012-cli-repair.json"
+    ],
+    "rootAudit": {
+      "fileName": "ROOT013_OLD012_ADMISSION_REPAIR_AUDIT154.json",
+      "bytes": 2506,
+      "sha256": "7b9f9905ebff2c9cc2f8a7a52544727b800808e4d2eb3705f0da94b62439f3a8",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+    },
+    "original012FullGateAudit": {
+      "fileName": "ROOT013_ORIGINAL012_CLI_READBACK156.json",
+      "bytes": 6059,
+      "sha256": "70082aa062138f90f5dd7b089916589be35602dbe6633d0f4624cd2e01a5a5fb",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+    }
+  },
+  "workflowChange": "ADD_ONLY_SEPARATE_SIX_CASE_ADMISSION_TEST_COMMAND_BEFORE_UNCHANGED_OLD012_COMMAND_AND_GATE_WITHIN_ORIGINAL8_MINUTE_STEP"
+}

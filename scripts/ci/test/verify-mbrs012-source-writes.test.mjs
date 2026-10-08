@@ -9,9 +9,10 @@ import { assertSourceWritesAdmission, assertSourceWritesScope, sourceWritesStage
   SOURCE_WRITES_TASK_SPEC, SOURCE_WRITES_LIMITS, SOURCE_WRITES_REGRESSION_TESTS } from '../verify-mbrs012-source-writes.mjs';
 import { assertCompatibilityLegacyInputs, COMPATIBILITY_LEGACY_INPUTS,
   COMPATIBILITY_PRELOAD_EXTENSION, COMPATIBILITY_SOURCE_WRITES_PRELOAD_EXTENSION } from '../verify-mbrs014-compatibility.mjs';
+import { normalizeSealed012LegacyInput } from '../mbrs013-legacy-input-normalization.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const read = relative => readFileSync(path.join(repository, relative));
+const read = relative => normalizeSealed012LegacyInput(relative, readFileSync(path.join(repository, relative)));
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 function admission() {
   return { scope: JSON.parse(read('docs/postrust/MBRS-012/EXECUTION_SCOPE.json')),

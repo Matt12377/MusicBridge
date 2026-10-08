@@ -1,0 +1,49 @@
+{
+  "schema": "mbrs013.legacy-ci-admission-repair-public.v1",
+  "result": "PASS_ORIGINAL31_NEW6_AND_EXISTING_RAW13_GUARD7_TOTAL44",
+  "counts": {
+    "tests": 44,
+    "pass": 44,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "originalOld012Cases": 31,
+  "newExactInverseCases": 6,
+  "existingRaw013GuardCases": 7,
+  "originalOld012TestBodyAndAssertionsByteIdentical": true,
+  "oldTestBefore": {
+    "bytes": 9621,
+    "sha256": "713611d763822130da9b6576a49851eab3f426bf71bb56205a7152c4cf5a491d"
+  },
+  "oldTestAfter": {
+    "bytes": 9753,
+    "sha256": "a14cd549491e222478a2b5ec65c0fa8c35fc08193823459c24039107c06cf381"
+  },
+  "onlyReadAdapterImportAndWrapperChanged": true,
+  "rawCurrentThreeInputAndExactSealed012GitBytesVerified": true,
+  "closedHashBeforeAndAfterInverseRequired": true,
+  "unknownInputOrAlteredAssertionsOrFakeLoaderRefused": true,
+  "originalLegacy49ManifestAndOld426New103Unchanged": true,
+  "actualRed": {
+    "fileName": "root013-old012-admission-red153.json",
+    "bytes": 748,
+    "sha256": "5c21bebc5b6df74a2c16e883d08ee10d8221ae99bbf5c7b7f9d8fb18e18acf86",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "actualGreen": {
+    "fileName": "root013-old012-admission-green154.json",
+    "bytes": 881,
+    "sha256": "429ea01991307dcc2b2773d904054abdc4a093f5556137655540991555457b5f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "rootReadback": {
+    "fileName": "ROOT013_OLD012_ADMISSION_REPAIR_AUDIT154.json",
+    "bytes": 2506,
+    "sha256": "7b9f9905ebff2c9cc2f8a7a52544727b800808e4d2eb3705f0da94b62439f3a8",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "scope": "FINITE_SOFTWARE_CI_ADMISSION_NOT_PRODUCTION_OR_LIVE_ACCEPTANCE",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN"
+}

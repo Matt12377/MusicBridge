@@ -1,0 +1,38 @@
+{
+  "schema": "mbrs013.original012-cli-repair-public.v1",
+  "result": "PASS_ORIGINAL012_COMPLETE_TEN_STAGE426_ZERO_SKIP",
+  "scope": "CURRENT_WORKTREE_CHECK_NOT_FINAL_COMMIT_BINDING",
+  "stages": 10,
+  "tests": 426,
+  "passed": 426,
+  "skipped": 0,
+  "failed": 0,
+  "durationMs": 126553.819709,
+  "sourceInputs": 1497,
+  "sourceInputIdentity": "8fb42683abb3184c9eede9b25ef39070a650d9bba2299aa78f272609d74861be",
+  "allDeclaredInputsAndAllRawSafeLogsReadBackMatched": true,
+  "originalCodeBudgetsAndFrozenTestsUnchanged": true,
+  "compiledArtifactFullClosureClaimed": false,
+  "actualExecution": {
+    "fileName": "root013-original012-cli155.json",
+    "bytes": 829,
+    "sha256": "15daacd0a9c09faa0b70514dfa0c249c4f61cfa435ff49932916bf1200ad159f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "rootCompleteReadback": {
+    "fileName": "ROOT013_ORIGINAL012_CLI_READBACK156.json",
+    "bytes": 6059,
+    "sha256": "70082aa062138f90f5dd7b089916589be35602dbe6633d0f4624cd2e01a5a5fb",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "summary": {
+    "fileName": "summary.json",
+    "ownedRunName": "root013-original012-cli155",
+    "bytes": 300981,
+    "sha256": "3379904b9c83c09e142eb727933efabaa450a24e1d5fbe7cbc56c53b0107bee0",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "exactFinalSourceGate": "SEPARATE_NEXT_COMMIT_REQUIRED",
+  "productionApp": "SEPARATE_CURRENT_APP126",
+  "realRoonNasAudioDeviceOwner": "NOT_RUN"
+}

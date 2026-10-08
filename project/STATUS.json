@@ -47001,7 +47001,7 @@
   },
   "mbrs013LocalRelocation": {
     "task": "MBRS-013",
-    "state": "HOSTED_ELECTRON_RUNNER_REPAIR_NEW_SOURCE_DELIVERY_PENDING",
+    "state": "CURRENT_PRODUCT_AND_OLD012_CI_ADMISSION_REPAIRS_PASS_NEW_EXACT_SOURCE_DELIVERY_PENDING",
     "baseSha": "c5c36c2c3e327b5068b5ad15ca6c251c5aeb4478",
     "branch": "codex/mbrs-013-relocation",
     "implementationCommit": null,
@@ -47180,7 +47180,7 @@
         "storage": "PRIVATE_EXTERNAL_ARCHIVE",
         "publiclyDownloadable": false
       },
-      "newExactSourceGate": "PENDING_NEW_SOURCE_COMMIT",
+      "newExactSourceGate": "PENDING_NEXT_COMMITTED_SOURCE",
       "originalAcceptanceCount": 8,
       "realRoonNasAudioDeviceOwner": "NOT_RUN",
       "appLimits": {
@@ -47342,7 +47342,36 @@
         "workflowDispatch": 0,
         "agentCancellations": 0,
         "realRoonNasAudioDeviceOwner": "NOT_RUN"
-      }
+      },
+      "source59FinalCi": {
+        "fileName": "ROOT013_SOURCE59_CI_SNAPSHOT150.json",
+        "bytes": 91374,
+        "sha256": "353f4521137fd7e41978bbccdd1bd4d7b8a1c2b8b35ede90a9e27a629abfe79b",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "legacyAdmissionRepair": {
+        "fileName": "ROOT013_OLD012_ADMISSION_REPAIR_AUDIT154.json",
+        "bytes": 2506,
+        "sha256": "7b9f9905ebff2c9cc2f8a7a52544727b800808e4d2eb3705f0da94b62439f3a8",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "original012FullGate": {
+        "fileName": "ROOT013_ORIGINAL012_CLI_READBACK156.json",
+        "bytes": 6059,
+        "sha256": "70082aa062138f90f5dd7b089916589be35602dbe6633d0f4624cd2e01a5a5fb",
+        "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+      },
+      "currentStandard124DeclaredInputDifferences": [
+        ".github/workflows/electron-e2e.yml",
+        ".github/workflows/verify.yml",
+        "scripts/ci/test/verify-mbrs012-source-writes.test.mjs",
+        "scripts/ci/verify-boundaries.mjs"
+      ],
+      "currentProduct692GraphStillExact": true,
+      "newCiAdmissionInputs": [
+        "scripts/ci/mbrs013-legacy-input-normalization.mjs",
+        "scripts/ci/test/mbrs013-legacy-input-normalization.test.mjs"
+      ]
     },
     "implementationCommitResolution": "SOURCE_COMMIT_CONTAINING_CURRENT_013_IMPLEMENTATION",
     "report": "reports/MBRS-013_LOCAL_RELOCATION.md",
@@ -47367,11 +47396,15 @@
       "docs/postrust/MBRS-013/evidence/original-eight-at-repair.json",
       "docs/postrust/MBRS-013/evidence/source59-hosted-runner-failure.json",
       "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT14.json",
-      "docs/postrust/MBRS-013/evidence/hosted-runner-admission.json"
+      "docs/postrust/MBRS-013/evidence/hosted-runner-admission.json",
+      "docs/postrust/MBRS-013/evidence/source59-ci-final.json",
+      "docs/postrust/MBRS-013/evidence/legacy-ci-admission-repair.json",
+      "docs/postrust/MBRS-013/evidence/original012-cli-repair.json",
+      "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT15.json"
     ],
-    "push": "SOURCE59_REMOTE_EXACT_NEW_HOSTED_RUNNER_REPAIR_NOT_YET_COMMITTED",
-    "ci": "SOURCE59_ELECTRON_PLATFORM_CAPACITY_CANCELLED_BEFORE_RUNNER_OTHERS_CONTINUE_NATURALLY",
-    "updatedAt": "2026-10-08T16:57:43.732480+00:00"
+    "push": "SOURCE59_REMOTE_EXACT_TWO_REPAIR_COMMITS_PENDING_PUSH",
+    "ci": "SOURCE59_TERMINAL_OLD012_ADMISSION_FAILURE_AND_HOSTED_ALLOCATION_CANCELLATION_PRESERVED_NEW_SOURCE_PENDING",
+    "updatedAt": "2026-10-08T17:12:46.908238+00:00"
   },
   "mobileFrontloading20261008": {
     "state": "SCHEDULE_ADOPTED_MOBILE_TASKS_NOT_STARTED",
