@@ -1,0 +1,112 @@
+{
+  "schema": "mbrs013.owned-production-app-evidence.v1",
+  "result": "PASS_CURRENT_FINITE_SELF_OWNED_PRODUCTION_APP",
+  "execution": {
+    "label": "root013-production-app126",
+    "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 17.8575328750303,
+    "log": {
+      "file": "root013-production-app126.log",
+      "bytes": 668,
+      "sha256": "c3d567da88b28b2ff383477b81f4f76b0f085bf17c588911039c24eec5ed5233"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "build": "STANDARD_VERIFY124_CURRENT_PRODUCTION_BUILD",
+  "sourceTestIdentity": "1a5a0dfcf65c26961a4e9be8c399641f5908786457f71e3756acd52c4c59d31c",
+  "productIdentity": "8aba75d202898e08501b4fbc6f254bc19072a9caa939753db936ee980b0d40c2",
+  "artifactsCount": 997,
+  "artifactsIdentity": "e14720b4681ccefa4c3551ec2c358931cb73618abfc682b5ab1e16f6804730c6",
+  "artifactsBeforeAfterExact": true,
+  "plans": 1,
+  "resources": 2,
+  "resourceKinds": [
+    "AUDIO",
+    "LYRIC"
+  ],
+  "naturalCloses": [
+    {
+      "pid": 93979,
+      "exitCode": 0,
+      "signal": null
+    },
+    {
+      "pid": 94033,
+      "exitCode": 0,
+      "signal": null
+    },
+    {
+      "pid": 94149,
+      "exitCode": 0,
+      "signal": null
+    }
+  ],
+  "offlineNetworkProofs": [
+    {
+      "installedBeforeWindow": true,
+      "localCoverResponses": 1,
+      "localAvatarResponses": 0,
+      "blockedExternalAttempts": 0,
+      "blockedHosts": []
+    },
+    {
+      "installedBeforeWindow": true,
+      "localCoverResponses": 1,
+      "localAvatarResponses": 1,
+      "blockedExternalAttempts": 0,
+      "blockedHosts": []
+    },
+    {
+      "installedBeforeWindow": true,
+      "localCoverResponses": 1,
+      "localAvatarResponses": 0,
+      "blockedExternalAttempts": 0,
+      "blockedHosts": []
+    }
+  ],
+  "defaultOffOriginalReceiptColdQuery": true,
+  "specificPlanPreviewConfirmSourceRetentionCleanupColdHistory": true,
+  "qualificationOverrideUsed": false,
+  "sourceBindingsNonemptyHistoryProven": false,
+  "actualCleanupUiViewed": true,
+  "appFaultRecovery": "NOT_RUN_BY_THIS_APP",
+  "crossVolumeRealProviderRoonAudioDeviceOwner": "NOT_RUN",
+  "independentRootAudit": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "PRODUCTION_APP126_INDEPENDENT_OUTPUT_AUDIT.json",
+    "bytes": 3298,
+    "sha256": "fa4571a9b38f31fa77eaf244ad6df9bb2f76b7a1c862b0ab004f22e15e9bd5f6",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "ownedAppReceipt": {
+    "archiveId": "MBRS013_OWNED_APP126_RECEIPT",
+    "fileName": "receipt.json",
+    "bytes": 22140,
+    "sha256": "766ceda9ea238a4ffb04392d427297100379f5bd27ae0a51bbc2995a7a50389a",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "priorApp104": "HISTORICAL_S1_PRODUCT_BYTES_ONLY_LATER_BUILD_OUTPUT_IDENTITIES_SEPARATE",
+  "appLimits": {
+    "sourceBindings": 0,
+    "catalogAssetSha256": null,
+    "editions": null,
+    "versionTokens": null,
+    "sampleFrames": null,
+    "timebaseHz": null,
+    "scope": "ACTUAL_WHOLE_FILE_HASH_AND_WAVE_SAMPLES_DO_NOT_ESTABLISH_NONEMPTY_CATALOG_HASH_VERSION_OR_BINDING_HISTORY"
+  },
+  "all49JournalHashIndependentReadback": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "PRODUCTION_APP126_HISTORY_BOUNDARY_READBACK132.json",
+    "bytes": 830,
+    "sha256": "1b2ba5b1a9278980dac6bcab605a4b477acb38df5a73ea52eac8d948eecc2a0f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  }
+}

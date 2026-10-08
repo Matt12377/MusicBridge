@@ -520,13 +520,20 @@ export function createLocalRelocationService(options: Options) {
             uncertain.set(family.at(-1)!.plan.planId, held); recoveryGroups.set(stored.plan.planId, adoptRelocationRecoveryGroup(family, held));
           }
         }
-        if (directory) {
-          await mkdir(directory, { mode: 0o700, recursive: true }); const info = await lstat(directory, { bigint: true });
-          if (!info.isDirectory() || info.isSymbolicLink() || await realpath(directory) !== directory || (info.mode & 0o7777n) !== 0o700n
-            || typeof process.getuid !== 'function' || info.uid !== BigInt(process.getuid())) return relocationFail('UNQUALIFIED');
-          const cap: RootCapability = { id: randomUUID(), path: directory, dev: String(info.dev), ino: String(info.ino), authorized: true, label: '位置域私有材料' };
-          const identity = await observeRelocationRootIdentity(cap); qualified = relocationHash({ publisher: 'NONATOMIC_CAPTURE_NO_OVERWRITE_WHOLE_BYTES_V1', identity });
+        try {
+          if (directory) {
+            await mkdir(directory, { mode: 0o700, recursive: true }); const info = await lstat(directory, { bigint: true });
+            if (!info.isDirectory() || info.isSymbolicLink() || await realpath(directory) !== directory || (info.mode & 0o7777n) !== 0o700n
+              || typeof process.getuid !== 'function' || info.uid !== BigInt(process.getuid())) return relocationFail('UNQUALIFIED');
+            const cap: RootCapability = { id: randomUUID(), path: directory, dev: String(info.dev), ino: String(info.ino), authorized: true, label: '位置域私有材料' };
+            const identity = await observeRelocationRootIdentity(cap); qualified = relocationHash({ publisher: 'NONATOMIC_CAPTURE_NO_OVERWRITE_WHOLE_BYTES_V1', identity });
+          }
+        } catch (error) {
+          // 资格不可证明时本域继续拒写；前面的冷恢复/保护失败仍阻断Owner，不由此处吞掉。
+          if (!(error instanceof LocalRelocationError) || !['UNQUALIFIED', 'ROOT_IDENTITY_UNPROVEN', 'ROOT_CHANGED'].includes(error.code)) throw error;
+          qualified = null;
         }
+        (options.assertRecoveryCurrent ?? options.assertCurrent)();
         prepared = true;
       })(); return preparation;
     },

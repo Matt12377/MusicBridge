@@ -1,0 +1,67 @@
+{
+  "schema": "mbrs013.local-startup-qualification-repair.v1",
+  "result": "PASS_LOCAL_THREE_NEW_AND_NINE_ORIGINAL_CASES",
+  "sourceS1": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+  "scopeAdjustment": "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT13.json",
+  "execution": {
+    "label": "root013-bootstrap-regression-green123",
+    "head": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "durationSeconds": 3.1744755409890786,
+    "log": {
+      "file": "root013-bootstrap-regression-green123.log",
+      "bytes": 5270,
+      "sha256": "fc0e7d9dcb2543b10c49404bbb6b039d669bfc0c99927e1657337a8196f41989"
+    },
+    "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+  },
+  "originalCases": 9,
+  "newCases": 3,
+  "total": 12,
+  "passed": 12,
+  "failed": 0,
+  "skipped": 0,
+  "linux": "ACTUAL_JS_COOKED_PYTHON_REGEX_ONLY_FULL_NATIVE_LINUX_CI_SEPARATE",
+  "unqualifiedOldFunctionsBootAndExport": true,
+  "policyEnableAndPhysicalWritesStillRefuseUnqualified": true,
+  "corruptClosedOwnJournalStillFatal": true,
+  "productionImmutableSqlTriggerPreserved": true,
+  "red120": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "root013-bootstrap-regression-red120.json",
+    "bytes": 843,
+    "sha256": "554cee790686881c34641442b2a4b3a80ab14ca9032e4c628ff7f3a9e4d22aef",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "green121FixtureFailedAsImmutableTriggerRequired": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "root013-bootstrap-regression-green121.json",
+    "bytes": 895,
+    "sha256": "a17fba2e3a002e514aec4b801920ef15db8245f522a3a3ebb141bf98c799001f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "correctedFixtureGreen123": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "root013-bootstrap-regression-green123.json",
+    "bytes": 895,
+    "sha256": "e43f9fcc58570ac8e4e53320ba38242802f4af7136a7dc72d2bfcee949916292",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "linuxOriginalRegexRed": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "ROOT013_LINUX_NATIVE_REGEX_RED119.json",
+    "bytes": 1428,
+    "sha256": "1bb392ad6a8e839a12e6a571645a4bd04f6cd682fd1ba32162bd438c5deaf094",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "frozenOriginal426AndNew103CountsAndBudgetsUnchanged": true,
+  "remoteMacosNativeRootCause": "NOT_INDEPENDENTLY_PROVEN",
+  "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+}

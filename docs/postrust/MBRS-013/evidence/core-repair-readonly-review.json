@@ -1,0 +1,18 @@
+{
+  "schema": "mbrs013.core-repair-readonly-review.v1",
+  "result": "NO_CURRENT_P1_P2_BLOCKERS",
+  "coldRecoveryProtectionOutsideQualificationCatch": true,
+  "typedQualificationOnly": true,
+  "currentnessReasserted": true,
+  "enableAndPhysicalWritesStillQualifiedOnly": true,
+  "frozenTestsAndBudgetsUnchanged": true,
+  "review": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "ROOT013_THREE_PATH_READONLY_REVIEW128.json",
+    "bytes": 1281,
+    "sha256": "9197b3b57e933e9611d32235b588b193632fdd76429365621fb17acde3931c24",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "realProviderRoonNasAudioDeviceOwner": "NOT_RUN"
+}

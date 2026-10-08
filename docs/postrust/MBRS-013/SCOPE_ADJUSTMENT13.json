@@ -1,0 +1,82 @@
+{
+  "schema": "mbrs013.scope-adjustment.v1",
+  "task": "MBRS-013",
+  "id": "SCOPE_ADJUSTMENT13",
+  "sourceS1": "f84c83dc45fec39da3f1f580ec1a089eb4c872f3",
+  "reason": "首次自然源码CI的原两库Worker快照在Owner prepare阶段失败；有限搬迁资格探测不得阻断默认关闭的旧功能启动。冷恢复journal、原根身份与FD保护仍在独立fatal路径。另由实际JS模板生成Python脚本复现Linux正则转义错误并修正。macOS远端原探针失败的具体环境原因未独立证实。",
+  "addedRootOwnedFiles": [
+    "packages/bridge-core/src/collection/local-relocation-service.ts",
+    "packages/bridge-core/src/collection/source-relocation-root-identity.ts",
+    "packages/bridge-core/test/local-relocation-bootstrap.test.ts"
+  ],
+  "files": [
+    {
+      "path": "packages/bridge-core/src/collection/local-relocation-service.ts",
+      "after": {
+        "bytes": 72157,
+        "sha256": "b08ce19fb5ee6f9263145a419b2202d328fb4a2d7983b15ecaf6b508796b40d0"
+      },
+      "before": {
+        "bytes": 71720,
+        "sha256": "5313c6aa28ff142490154c0fd59b37f18cc3e2b516f45c5f02be67f2bb13c6c4"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-relocation-root-identity.ts",
+      "after": {
+        "bytes": 9463,
+        "sha256": "1fd5a33256c4db7919c9f092e0139628b7df4ec7482fafd7c64bcb810aee30ff"
+      },
+      "before": {
+        "bytes": 9461,
+        "sha256": "8fc15b47ad17ab765013217bf4278bcf3217479177206805c69b7842547b211d"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/local-relocation-bootstrap.test.ts",
+      "after": {
+        "bytes": 8057,
+        "sha256": "d3550dbd4576169517554da9347c4452e7b9ab56be345596a64ebffa749d236e"
+      },
+      "before": null
+    }
+  ],
+  "authority": "INHERITED_OWNER_CONTINUOUS_AUTHORIZATION_NO_NEW_APPROVAL",
+  "firstNaturalCI": {
+    "verify": 37802352869,
+    "security": 37802353023,
+    "rust": 37802352855,
+    "electron": 37802352920,
+    "rustUbuntuJob": 113397553479,
+    "electronJob": 113397553809,
+    "macosMatrixCancellation": "ORIGINAL_AUTOMATIC_FAIL_FAST_NOT_AGENT_CANCELLATION",
+    "originalRunsPreserved": true,
+    "reruns": 0,
+    "agentCancellations": 0
+  },
+  "qualificationRule": "ONLY_FINITE_QUALIFIER_UNQUALIFIED_ROOT_IDENTITY_UNPROVEN_ROOT_CHANGED_CAN_LEAVE_UNQUALIFIED; ALL_WRITES_AND_ENABLE_STILL_REFUSE; ORIGINAL_COLD_RECOVERY_PROTECTION_FAILURES_RETHROW",
+  "extraRegression": {
+    "file": "packages/bridge-core/test/local-relocation-bootstrap.test.ts",
+    "cases": 3,
+    "originalDatasetSnapshotCases": 9,
+    "actualTotal": 12,
+    "passed": 12,
+    "exitCode": 0,
+    "signal": null,
+    "receipt": {
+      "fileName": "root013-bootstrap-regression-green123.json",
+      "bytes": 895,
+      "sha256": "e43f9fcc58570ac8e4e53320ba38242802f4af7136a7dc72d2bfcee949916292",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+    },
+    "testScope": "STANDARD_CORE_REGRESSION_OUTSIDE_FROZEN_103_INVENTORY"
+  },
+  "fixtureCorrection": "GREEN121_SQL_UPDATE_WAS_CORRECTLY_REFUSED_BY_IMMUTABLE_TRIGGER; GREEN123_ONLY_FLIPS_ONE_EVENT_HASH_BYTE_IN_CLOSED_SELF_OWNED_DATABASE_WITHOUT_REMOVING_TRIGGER",
+  "frozenOriginal426AndNew103CountsUnchanged": true,
+  "originalStage180SecondsTotal420SecondsBudgetsUnchanged": true,
+  "priorLocalStandard100App104Gate107": "HISTORICAL_S1_PRODUCT_BYTES_NOT_CURRENT_TWO_PATH_REPAIR",
+  "currentFullVerifyAndAppAndExactSourceGate": "NOT_PRECLAIMED_AT_SCOPE_ADJUSTMENT_CREATION_NEW_ACTUAL_EVIDENCE_SEPARATE",
+  "realProviderRoonNasAudioDeviceOwner": "NOT_RUN",
+  "at": "2026-10-08T16:06:17.530117+00:00",
+  "snapshotWrittenBeforeFullVerification": true
+}

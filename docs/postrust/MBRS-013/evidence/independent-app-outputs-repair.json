@@ -1,0 +1,92 @@
+{
+  "schema": "mbrs013.independent-owned-app-outputs.v1",
+  "result": "PASS",
+  "fileResults": [
+    {
+      "file": "owned-original.wav",
+      "actual": {
+        "bytes": 17764,
+        "sha256": "deaa3f01bebc5ac2b520d2e169657eaf49e0dd7a2d8da6ee1f8860c37b031fcd",
+        "dev": "16777258",
+        "ino": "58840679",
+        "mode": "384",
+        "uid": "501",
+        "gid": "20"
+      },
+      "originalBytesHashMatched": true,
+      "independentTargetInode": true,
+      "sourceAbsentAfterSpecificCleanup": true,
+      "wave": {
+        "sampleRate": 44100,
+        "sampleWidth": 2,
+        "channels": 1,
+        "sampleFrames": 8820,
+        "nonSilent": true,
+        "pcmSha256": "ce66e76859dd0e9497d849b44d2f12fdbf6f2f5b476aacb773b08f7cb3d21e47",
+        "hearing": "NOT_RUN"
+      }
+    },
+    {
+      "file": "owned-original.lrc",
+      "actual": {
+        "bytes": 33,
+        "sha256": "55b92c6aad0048eaa81eff99b3e2e378b2c91bcea5faab7281e66a7cd0982091",
+        "dev": "16777258",
+        "ino": "58840682",
+        "mode": "384",
+        "uid": "501",
+        "gid": "20"
+      },
+      "originalBytesHashMatched": true,
+      "independentTargetInode": true,
+      "sourceAbsentAfterSpecificCleanup": true
+    }
+  ],
+  "database": {
+    "readonlyImmutable": true,
+    "assetAndTrackExactColdRowsMatched": true,
+    "baselineTrackPreserved": true,
+    "sourceBindingsRows": 0,
+    "nonemptySourceBindingHistory": "NOT_PROVEN_BY_THIS_APP",
+    "offOriginalRowPreserved": true,
+    "independentJournalSha256": "12999411402513bb563b3845f6c02f5b1aeb974f48c5ce02342866a76df184b6",
+    "independentRequestSha256": "38581c45ab1017416caa432f8df5f0f44b54254d78d1ab5488b88b9a112dc25b",
+    "oneFinalPlan": true
+  },
+  "databaseIdentity": {
+    "bytes": 1478656,
+    "sha256": "3eb73fcec5eec18cdf308eaf95cd17a630654c5b8f6c66dd21bd9cfdefb67c0c",
+    "dev": "16777258",
+    "ino": "58840616",
+    "mode": "384",
+    "uid": "501",
+    "gid": "20"
+  },
+  "productionWriterDtoImported": false,
+  "rootAudit": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "PRODUCTION_APP126_INDEPENDENT_OUTPUT_AUDIT.json",
+    "bytes": 3298,
+    "sha256": "fa4571a9b38f31fa77eaf244ad6df9bb2f76b7a1c862b0ab004f22e15e9bd5f6",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  },
+  "realAudioDeviceOwner": "NOT_RUN",
+  "appLimits": {
+    "sourceBindings": 0,
+    "catalogAssetSha256": null,
+    "editions": null,
+    "versionTokens": null,
+    "sampleFrames": null,
+    "timebaseHz": null,
+    "scope": "ACTUAL_WHOLE_FILE_HASH_AND_WAVE_SAMPLES_DO_NOT_ESTABLISH_NONEMPTY_CATALOG_HASH_VERSION_OR_BINDING_HISTORY"
+  },
+  "all49JournalHashIndependentReadback": {
+    "archiveId": "MBRS013_PRIVATE_WORK_ARCHIVE",
+    "fileName": "PRODUCTION_APP126_HISTORY_BOUNDARY_READBACK132.json",
+    "bytes": 830,
+    "sha256": "1b2ba5b1a9278980dac6bcab605a4b477acb38df5a73ea52eac8d948eecc2a0f",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE",
+    "publiclyDownloadable": false
+  }
+}

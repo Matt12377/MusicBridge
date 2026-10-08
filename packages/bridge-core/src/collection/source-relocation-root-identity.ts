@@ -49,7 +49,7 @@ try:
   if len(raw)>1048576: raise RuntimeError('unproven')
   def unescape(v):
    import re
-   return re.sub(rb'\\([0-7]{3})',lambda m: bytes([int(m.group(1),8)]),v)
+   return re.sub(rb'\\\\([0-7]{3})',lambda m: bytes([int(m.group(1),8)]),v)
   selected=[]; owned=os.fsencode(p)
   for line in raw.splitlines():
    before,after=line.split(b' - ',1); left=before.split(); right=after.split(); mount=unescape(left[4])

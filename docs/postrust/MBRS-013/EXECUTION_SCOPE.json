@@ -118,7 +118,10 @@
         "packages/bridge-core/src/collection/local-scan-facts.ts",
         "apps/desktop/test/mbrs011-organizer-ui.test.ts",
         "packages/bridge-core/test/rust-sidecar-client.test.ts",
-        "apps/desktop/test/mbrs009-local-library-ui.test.ts"
+        "apps/desktop/test/mbrs009-local-library-ui.test.ts",
+        "packages/bridge-core/src/collection/local-relocation-service.ts",
+        "packages/bridge-core/src/collection/source-relocation-root-identity.ts",
+        "packages/bridge-core/test/local-relocation-bootstrap.test.ts"
       ],
       "owns": [
         "shared original Scanner/catalog/Owner integration",
@@ -193,9 +196,9 @@
     "reasoningEffort": "max",
     "children": "EXISTING_THREE_gpt-6.1-sol_MAX_NO_NEW_AGENTS"
   },
-  "implementation": "FINITE_IMPLEMENTATION_COMPLETE_LOCAL_SOFTWARE_VALIDATED_SOURCE_CI_PENDING",
-  "softwareTests": "PASS_LOCAL_STANDARD100_CURRENT_PRODUCT_529_GATE87_AND_ADMISSION99_EXACT_SOURCE_GATE_SEPARATE",
-  "productionApp": "PASS_SELF_OWNED_PRODUCTION_APP104_AND_INDEPENDENT_OUTPUTS_NONEMPTY_HISTORY_SEPARATE",
+  "implementation": "CURRENT_REPAIR_LOCAL_SOFTWARE_COMPLETE_NEW_SOURCE_GATE_CI_PENDING",
+  "softwareTests": "PASS_CURRENT_STANDARD124_4704_AND_BOOTSTRAP123_STATIC128_EXACT_SOURCE_GATE_SEPARATE",
+  "productionApp": "PASS_CURRENT_PRODUCTION_APP126_AND_INDEPENDENT_OUTPUTS_NONEMPTY_HISTORY_SEPARATE",
   "realRoonNasAudioDeviceOwner": "NOT_RUN",
   "startedAt": "2026-10-08T09:42:36.487041+00:00",
   "nextTask": "MBM-000",
@@ -211,7 +214,8 @@
     "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT09.json",
     "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT10.json",
     "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT11.json",
-    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT12.json"
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT12.json",
+    "docs/postrust/MBRS-013/SCOPE_ADJUSTMENT13.json"
   ],
   "schedulingSupplement": "docs/postrust/MBRS-013/SCHEDULING_SUPPLEMENT_MOBILE_FRONTLOADING.json"
 }
