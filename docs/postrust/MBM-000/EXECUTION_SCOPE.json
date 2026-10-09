@@ -56,5 +56,6 @@
   "newIndependentMobileAcceptanceCases": 7,
   "originalTaskAndATLedgerUnchanged": true,
   "localPreparation": "docs/postrust/MBM-000/LOCAL_PREPARATION.json",
-  "peerAdoption": "docs/postrust/MBM-000/PEER_ADOPTION.json"
+  "peerAdoption": "docs/postrust/MBM-000/PEER_ADOPTION.json",
+  "sourceCiRepairScope": "docs/postrust/MBM-000/SCOPE_ADJUSTMENT01.json"
 }

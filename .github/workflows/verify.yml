@@ -216,7 +216,7 @@ jobs:
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: |
           set -euo pipefail
-          node --test scripts/ci/test/verify-mbm000-contract-adoption.test.mjs
+          node --test scripts/ci/test/verify-mbm000-contract-adoption.test.mjs scripts/ci/test/mbm000-legacy-probe-normalization.test.mjs
           node scripts/ci/verify-mbm000-contract-adoption.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbm000-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: 验证报告CI准入正负例

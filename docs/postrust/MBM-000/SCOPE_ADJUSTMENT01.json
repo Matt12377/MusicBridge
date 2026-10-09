@@ -1,0 +1,80 @@
+{
+  "schema": "musicbridge.mbm000.source-ci-repair-scope.v1",
+  "task": "MBM-000",
+  "parentSource": "d980de9037b5d7cc1df402b3638072cd3514a1f0",
+  "authorization": "OWNER_EXISTING_CONTINUOUS_DEVELOPMENT_VERIFY_COMMIT_ORDINARY_PUSH_NO_REPEATED_AGENT_APPROVAL",
+  "reason": "首个Source自然CI两处失败，阻断000封存。只调整同一旧首页case内独立探针的时序，以及013继承Core测试文件的有界调度；不扩大任务到001。远端业务根因未证明，原失败保留。",
+  "allowedExistingFiles": [
+    "apps/desktop/e2e/v1-ui.spec.ts",
+    "scripts/ci/verify-mbrs013-relocation.mjs",
+    "scripts/ci/verify-mbrs014-compatibility.mjs",
+    "scripts/ci/mbrs013-legacy-input-normalization.mjs",
+    ".github/workflows/verify.yml",
+    "scripts/ci/verify-mbrs012-source-writes.mjs"
+  ],
+  "allowedAuthorityAndEvidenceFiles": [
+    "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
+    "docs/postrust/MBM-000/SCOPE_ADJUSTMENT01.json",
+    "docs/postrust/MBM-000/evidence/first-source-ci-failure.json"
+  ],
+  "electron": {
+    "case": "v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation",
+    "change": "相同独立userData探针提前spawn，末尾仍await真实结果并保留原五条件断言；失败时由已有afterEach等待同一自有helper，先保留正文首发错误。",
+    "timeoutMs": 30000,
+    "existing114CasesAndAllAssertionsPreserved": true,
+    "existing5ConditionalSkipsUnchanged": true,
+    "startupHelperDeadlinesUnchanged": true
+  },
+  "relocationGate": {
+    "stage": "core-source-writes-and-regressions",
+    "existing34FilesAnd216CasesPreserved": true,
+    "testFileConcurrencyBefore": 1,
+    "testFileConcurrencyAfter": 2,
+    "otherStagesTestFileConcurrency": 1,
+    "stageTimeoutMs": 180000,
+    "totalTimeoutMs": 420000,
+    "rawOutputBytes": 4194304,
+    "freshCompileReaderBindingAndFinalFdClosurePreserved": true,
+    "isolatedTestFilesSafetyAudit": {
+      "result": "PASS_STATIC_50_FILES_NO_WRITABLE_CONFLICT_NOT_RUNTIME_PASS",
+      "bytes": 37912,
+      "sha256": "9d0f14b2b326ca94de7603e8104bb2ecb9a6f802f2f2645ce5ed9399704accf1",
+      "sourceFileByteCollectionSha256": "fb963baf4b85f56600148df0f0d3ac482f430ee587c4573460c54dd24602a26d"
+    }
+  },
+  "canonicalContractBytesUnchanged": true,
+  "40OperationsAnd33MobileCasesUnchanged": true,
+  "baseWireAndUiCapabilitiesUnchanged": true,
+  "original18_156AndEffective17_150Unchanged": true,
+  "original013EightPartialAndCancelled015SixNaUnchanged": true,
+  "productionNodeSqliteWriterAndOptionalRustOffUnchanged": true,
+  "iosFinalSoftwareEvidenceUnchanged": true,
+  "sourceCiFailureRef": "docs/postrust/MBM-000/evidence/first-source-ci-failure.json",
+  "newActualSourceGateAndNaturalCi": "PENDING_NOT_PRECLAIMED",
+  "nextTask": "MBM-001_AFTER_FINAL_REPORT_SEAL",
+  "createdAt": "2026-10-09T02:15:41.657196+00:00",
+  "allowedNewGateFiles": [
+    "scripts/ci/mbm000-legacy-probe-normalization.mjs"
+  ],
+  "allowedNewGuardFiles": [
+    "scripts/ci/test/mbm000-legacy-probe-normalization.test.mjs"
+  ],
+  "frozen49LegacyInputs": "原清单/hash不变；仅当前首页文件精确已核时序修复允许逆回原完整Git字节，任何额外字节/原断言/名字/预算改动拒绝。",
+  "localFailedGuardRunPreserved": {
+    "tests": 55,
+    "pass": 52,
+    "fail": 3,
+    "rawBytes": 16836,
+    "sha256": "164ad4b69f8a3b17b5f3186f331c140199916eeea6e0ab6f4ff16697f2a939d6",
+    "result": "LEGACY_BYTE_FENCE_CORRECTLY_REJECTED_EARLY_PROBE_PATCH_BEFORE_NARROW_ADAPTER"
+  },
+  "legacyConsumerInputIdentity": {
+    "change": "012及014各自声明源图补入同一新增严格逆变换helper，末尾身份比较实际覆盖已消费的准入代码。",
+    "files": [
+      "scripts/ci/verify-mbrs012-source-writes.mjs",
+      "scripts/ci/verify-mbrs014-compatibility.mjs"
+    ],
+    "frozen49InputManifestAndAllAssertionsBudgetsCommandsUnchanged": true,
+    "reason": "复审发现新helper消费已接入但窄手工输入图漏项；修复同一证据完整性根因。"
+  }
+}

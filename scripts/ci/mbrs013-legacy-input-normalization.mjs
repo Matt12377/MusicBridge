@@ -1,3 +1,4 @@
+import { normalizeMbm000LegacyEarlyProbe } from './mbm000-legacy-probe-normalization.mjs';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import {
@@ -49,6 +50,7 @@ const matches = (bytes, identity) => bytes.length === identity.bytes && sha(byte
 /** 原31个012断言继续消费封存字节；当前013原始字节由独立守卫验证。 */
 export function normalizeSealed012LegacyInput(file, bytes) {
   if (typeof file !== 'string' || !Buffer.isBuffer(bytes)) reject();
+  try { bytes = normalizeMbm000LegacyEarlyProbe(file, bytes); } catch { reject(); }
   const entry = entries.find(value => value.after.path === file);
   if (!entry) return bytes;
   if (matches(bytes, entry.before)) return bytes;

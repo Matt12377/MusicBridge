@@ -170,7 +170,10 @@ export async function runRelocationGate(argv = process.argv.slice(2), env = proc
     { name: 'desktop-types', directory: packageRoots[2], args: [desktopRequire.resolve('vue-tsc/bin/vue-tsc.js'), '-p', 'tsconfig.json', '--noEmit'] },
     { name: 'desktop-original-e2e-types', directory: packageRoots[2], args: [tsc, '-p', 'tsconfig.e2e.json', '--noEmit'] },
     { name: 'desktop-relocation-e2e-types', directory: packageRoots[2], args: [tsc, '-p', 'tsconfig.mbrs013-e2e.json', '--noEmit'] },
-    ...groups.map(group => ({ ...group, args: ['--import', 'tsx', '--test', '--test-concurrency=1', '--test-reporter=tap', ...group.tests] })),
+    // Core文件各自拥有私有库、端口和SAB；有界两文件并行保持原216清单及180秒限时。
+    ...groups.map(group => ({ ...group, args: ['--import', 'tsx', '--test',
+      '--test-concurrency=' + (group.name === 'core-source-writes-and-regressions' ? 2 : 1),
+      '--test-reporter=tap', ...group.tests] })),
   ];
   const run = createPrivateRun(admission), temporary = path.join(run, 'tmp'); mkdirSync(temporary, { mode: 0o700 });
   const childEnv = { ...env, TMPDIR: temporary, MBRS003_READER_BUILD_BINDING: path.join(run, 'reader-build-binding.json') };

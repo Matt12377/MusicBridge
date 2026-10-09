@@ -31,6 +31,7 @@ let electronApp: ElectronApplication
 let page: Page
 let diagnosticDirectory: string
 let diagnosticPath: string
+let crashProbeCleanup: ReturnType<typeof runStartupProcess> | undefined
 const syntheticScreenshotPath = process.env.MUSIC_BRIDGE_SCREENSHOT_PATH ?? path.join(os.tmpdir(), 'musicbridge-task-034-home.png')
 const syntheticSettingsScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-034-settings.png')
 const syntheticDailyScreenshotPath = path.join(os.tmpdir(), 'musicbridge-task-034-daily.png')
@@ -536,7 +537,14 @@ test.beforeEach(async () => {
 
 test.afterEach(async () => {
   if (test.info().status === 'skipped') return
-  if (electronApp) await electronApp.close()
+  const ownedProbe = crashProbeCleanup, ownedApp = electronApp
+  crashProbeCleanup = undefined
+  try {
+    if (ownedProbe) await ownedProbe
+  } finally {
+    // 保留正文的首发UI错误；清理只等待本次自有进程，不把close当验收成功。
+    if (ownedApp) await ownedApp.close()
+  }
   if (test.info().title.includes('固定原生构建')) return // 显式 Gate 的隔离合成目录随测试产物保留，供打包应用核验。
   if (test.info().title.includes('V3 Logic 工作区')) {
     await writeFile(test.info().outputPath('synthetic-user-data-path.txt'), await realpath(diagnosticDirectory))
@@ -754,6 +762,23 @@ test('Settings 可手动刷新已连接 Core 的 Zone 列表', async () => {
 })
 
 test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', async () => {
+  const crashEnvironment: NodeJS.ProcessEnv = {
+    ...process.env,
+    MUSIC_BRIDGE_UI_E2E: '1',
+    MUSIC_BRIDGE_STARTUP_TEST: '1',
+    MUSIC_BRIDGE_CORE_TEST_MODE: '1',
+    MUSIC_BRIDGE_CORE_CRASH_GATE: '1',
+  }
+  const crashUserDataDirectory = await mkdtemp(
+    path.join(os.tmpdir(), 'musicbridge-task036-startup-'),
+  )
+  crashEnvironment.MUSIC_BRIDGE_STARTUP_USER_DATA_DIR = crashUserDataDirectory
+  delete crashEnvironment.NETEASE_COOKIE
+  // 探针仅核Core生命周期；提前spawn并立即捕获输出，末尾仍等真实stdio关闭。
+  const crashFlight = runStartupProcess(require('electron') as string, testElectronArguments([electronEntry]), {
+    cwd: desktopRoot, env: crashEnvironment, expectedMarker: 'CORE_CRASH_GATE_PASS',
+  })
+  crashProbeCleanup = crashFlight
   expect(await electronApp.evaluate(({ app }) => app.getName())).toBe('Music Bridge for Roon')
   await expect(page.getByRole('navigation', { name: '音乐来源' })).toBeVisible()
   await expect(page.getByRole('button', { name: '查看连接状态' })).toHaveCount(0)
@@ -937,22 +962,7 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
   expect(await page.evaluate(() => ({ process: typeof (globalThis as { process?: unknown }).process, require: typeof (globalThis as { require?: unknown }).require }))).toEqual({ process: 'undefined', require: 'undefined' })
   expect(await page.evaluate(() => window.open('https://example.invalid'))).toBeNull()
 
-  const crashEnvironment: NodeJS.ProcessEnv = {
-    ...process.env,
-    MUSIC_BRIDGE_UI_E2E: '1',
-    MUSIC_BRIDGE_STARTUP_TEST: '1',
-    MUSIC_BRIDGE_CORE_TEST_MODE: '1',
-    MUSIC_BRIDGE_CORE_CRASH_GATE: '1',
-  }
-  const crashUserDataDirectory = await mkdtemp(
-    path.join(os.tmpdir(), 'musicbridge-task036-startup-'),
-  )
-  crashEnvironment.MUSIC_BRIDGE_STARTUP_USER_DATA_DIR = crashUserDataDirectory
-  delete crashEnvironment.NETEASE_COOKIE
-  // 此阶段无UI断言；从spawn即收集标记，等待真实stdio关闭，避免Playwright先消费stdout。
-  const crashResult = await runStartupProcess(require('electron') as string, testElectronArguments([electronEntry]), {
-    cwd: desktopRoot, env: crashEnvironment, expectedMarker: 'CORE_CRASH_GATE_PASS',
-  })
+  const crashResult = await crashFlight
   expect(crashResult, '双崩溃只重启一次且须成功关闭；测试目录保留为证据').toMatchObject({
     failure: null, markerSeen: true, closed: true, code: 0, signal: null,
   })
