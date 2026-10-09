@@ -443,6 +443,8 @@ async function catalog(f: Fixture, h: Http, tokens: MobileTokenPair) {
     const track = page.items.find(item => item.id.split(':')[2] === facts.localTrackId); assert.ok(track)
     assert.equal(track.source, 'local'); assert.deepEqual(structuredClone(track.audio), facts.audio)
     assert.equal(track.durationMs, facts.durationMs)
+    // Main已激活且原Owner确认当前自有文件合格，正式目录也必须放行客户端可播放门禁。
+    assert.equal(track.availability, 'available')
     const detail = success(await wire(h, 'getTrack', `/mobile/v1/tracks/${track.id}`, { token: tokens.accessToken })) as MobileTrack
     assert.equal(valueHash(detail) === valueHash(track), true)
     selected.set(format.id, track)

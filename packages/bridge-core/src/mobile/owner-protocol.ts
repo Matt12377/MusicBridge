@@ -34,7 +34,8 @@ function dense(value: unknown, maximum: number): value is unknown[] {
   return true;
 }
 export function isMobileOwnerCatalogRequest(v: unknown): v is MobileOwnerCatalogRequest {
-  return closed(v, ['operation', 'serverId', 'offset', 'limit', 'q', 'albumId', 'itemId', 'expectedRevision'])
+  const keys = ['operation', 'serverId', 'offset', 'limit', 'q', 'albumId', 'itemId', 'expectedRevision'];
+  return (closed(v, keys) || closed(v, [...keys, 'catalogPlaybackEnabled']) && typeof v.catalogPlaybackEnabled === 'boolean')
     && typeof v.operation === 'string' && ['listAlbums', 'getAlbum', 'listTracks', 'getTrack'].includes(v.operation) && isMobileId(v.serverId)
     && integer(v.offset, 0, 300000) && integer(v.limit, 1, 100) && typeof v.q === 'string' && [...v.q].length <= 200
     && (v.albumId === null || isMobileId(v.albumId)) && (v.itemId === null || isMobileId(v.itemId))

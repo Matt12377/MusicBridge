@@ -48196,31 +48196,48 @@
     "scope": "docs/postrust/MBM-002/EXECUTION_SCOPE.json",
     "predecessor": "docs/postrust/MBM-002/PREDECESSOR_DELIVERY.json",
     "baseSha": "8044d935e242d8647adc21445116fb49c9100e4a",
-    "software": "PASS_CURRENT_WORKTREE_FRESH_READER_TYPES_AND_81_BEHAVIORS_SOURCE_GATE_PENDING",
-    "productionApp": "PASS_CURRENT_FIXED_SOURCE_PRODUCTION_LAN_RUNNING_CANDIDATE_NOT_FINAL_CLOSE",
-    "actualSelfOwnedMacMedia": "PASS_CURRENT_FIXED_SOURCE_SELF_OWNED_WAV_SOURCE_AND_DIST_WHOLE_FD",
+    "software": "PASS_REPAIR_WORKTREE_FOCUSED_CATALOG_SOURCE_MAIN_REGRESSIONS_EXACT_SOURCE_GATE_PENDING",
+    "productionApp": "PENDING_REPAIRED_SOURCE_BUILD_AND_SAFE_ORIGINAL_PROFILE_COLD_RESUME",
+    "actualSelfOwnedMacMedia": "PENDING_REPAIRED_SOURCE_AUTHENTICATED_CATALOG_AND_MEDIA",
     "nativeIOSDeviceAudio": "NOT_RUN",
     "ownerAcceptance": "NOT_RUN",
     "branch": "codex/mbm-002-phone-resource-playback",
     "independentAcceptanceCount": 9,
     "acceptance": "docs/postrust/MBM-002/MOBILE_ACCEPTANCE.json",
     "localVerification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json",
-    "implementationCommit": "df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
-    "implementationCommitResolution": "EXACT_SINGLE_PARENT_SOURCE_FRESH_LOCAL_GATE_FIRST_NATURAL_CI_WHOLE_ARTIFACTS",
+    "implementationCommit": null,
+    "implementationCommitResolution": "RESOLVE_CURRENT_IMPLEMENTATION_SOURCE_BY_GIT_AFTER_COMMIT",
     "reportCommit": null,
-    "reportCommitResolution": "GIT_CURRENT_REPORT_HEAD_UNIQUE_PARENT_EXACT_SOURCE_AFTER_COMMIT",
+    "reportCommitResolution": "PENDING_DIRECT_REPORT_SUCCESSOR_OF_REPAIRED_SOURCE",
     "report": "reports/MBM-002_RESULT.md",
     "evidence": "reports/MBM-002_EVIDENCE.json",
     "push": {
-      "source": "PASS_ORDINARY_EXACT_REMOTE",
-      "report": "PENDING_ORDINARY_PUSH"
+      "source": "PENDING_ORDINARY_REPAIRED_SOURCE_PUSH",
+      "report": "PENDING_DIRECT_REPORT_PUSH"
     },
     "ci": {
-      "source": "PASS_FIRST_NATURAL_4_WORKFLOWS_6_JOBS_SIX_FULL_LOGS_FIVE_WHOLE_ZIPS",
-      "report": "PENDING_FIRST_NATURAL_REPORT_CI"
+      "source": "PENDING_FIRST_NATURAL_REPAIRED_SOURCE_CI",
+      "report": "PENDING_FIRST_NATURAL_DIRECT_REPORT_CI"
     },
-    "updatedAt": "2026-10-09T17:16:31.672774+00:00",
+    "updatedAt": "2026-10-09T22:58:51.368480+00:00",
     "finalDeliveryReceipt": "PRIVATE_EXTERNAL_ARCHIVE_AFTER_REPORT_CI_CURRENT_CANDIDATE_CLOSE_AND_PAIRED_FINAL_NO_THIRD_SEAL_COMMIT",
-    "nextBranchBaseline": "RESOLVE_PAIRED_FINAL_REPORT_HEAD_ONLY_AFTER_PRIVATE_SEAL"
+    "nextBranchBaseline": "RESOLVE_PAIRED_FINAL_REPORT_HEAD_ONLY_AFTER_PRIVATE_SEAL",
+    "catalogAvailabilityRepair": {
+      "state": "IMPLEMENTED_FOCUSED_REGRESSION_PASS_EXACT_SOURCE_GATE_PENDING",
+      "historicalSource": "df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+      "historicalEngineeringReport": "f511620532ade8fdf356b8fe6cc4575b7c2c4259",
+      "reason": "001只读目录把当前真实可读WAV固定投影unavailable，物理iPhone播放入口置灰。",
+      "eligibility": "仅Main正式播放激活后申请；Owner每次核当前授权、原Scanner/asset事实、可读文件、完整非segment及现有Direct格式。",
+      "catalogReadSideEffects": "不创建票据、资源、长期FD，不写工作库、Scanner事实或源文件；同步短FD关闭失败给有限BUSY。",
+      "aacVocabulary": "仅完整来源证明后的002私有显示映射MPEG-4/AAC到aac；默认001及Source读取准入保留，AAC仍unavailable。",
+      "physicalChangeFence": "逐请求检查及发送前原页复验；cursor保留数据库与启用边界修订，无新增全局文件变化代次。",
+      "frozenBehaviorCaseCounts": {
+        "mbm001": 87,
+        "mbm002": 81
+      },
+      "nativePlayback": "PENDING_NEW_CANDIDATE",
+      "pairedFinal002": false,
+      "ownerRepeatedRoutineApprovalRequired": false
+    }
   }
 }

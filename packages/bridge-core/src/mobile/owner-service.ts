@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
-import { isLocalArtworkSelection, isMobileId, type LocalArtworkSelection, type MobileAlbum, type MobileTrack } from '@music-bridge/contracts';
+import { isLocalArtworkSelection, isMobileId, type LocalArtworkSelection, type LocalLibraryTrackDetail, type MobileAlbum, type MobileTrack } from '@music-bridge/contracts';
+import { captureLocalFactsByIdentityReadonly } from '../application/local-source-resolver.js';
 import type { CollectionRepository } from '../collection/repository.js';
-import { projectMobileOwnerLocalTrack } from './catalog-service.js';
+import { readonlySourceCatalogFileAvailable, SourceCatalogReleaseError } from '../recording/source-files.js';
+import { mobileOwnerDirectPlaybackKind, projectMobileOwnerLocalTrack } from './catalog-service.js';
 import { isMobileOwnerPrivateRequest, isMobileOwnerPrivateResult } from './owner-protocol.js';
 import { createMobileSealedStateStore } from './sealed-state-store.js';
 import { MobileAuthPersistenceError, MobileServiceError, type MobileOwnerArtworkSnapshot, type MobileOwnerCatalogRequest, type MobileOwnerCatalogSnapshot, type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult } from './types.js';
@@ -19,7 +21,7 @@ export function createMobileOwnerService(options: {
   let state: ReturnType<typeof createMobileSealedStateStore> | undefined;
   let playbackState: ReturnType<typeof createMobileSealedStateStore> | undefined;
   const current = (): void => options.assertCurrent();
-  const revision = (): string => { current(); const stamp = collection.readonlySnapshotStamp(); current(); return 'mr:' + digest([datasetId, ownerEpoch, stamp.dataVersion, stamp.totalChanges]); };
+  const revision = (catalogPlaybackEnabled = false): string => { current(); const stamp = collection.readonlySnapshotStamp(); current(); return 'mr:' + digest([datasetId, ownerEpoch, stamp.dataVersion, stamp.totalChanges, catalogPlaybackEnabled]); };
   function identifiers(id: string, kind: 'la' | 'lt' | 'aw', count: number): string[] {
     const parts = id.split(':');
     if (parts.length !== count + 2 || parts[0] !== kind || parts[1] !== datasetId || parts.slice(2, kind === 'aw' ? -1 : undefined).some(part => !uuid.test(part))) return missing();
@@ -41,13 +43,33 @@ export function createMobileOwnerService(options: {
     const id = `aw:${datasetId}:${value.id}:${value.revision}`;
     if (!isMobileId(id)) return unavailable(); return id;
   };
-  function track(trackId: string, editionId: string): MobileTrack {
+  function playbackAvailable(detail: LocalLibraryTrackDetail): boolean {
+    if (detail.track.segment !== null || !detail.fileParameters) return false;
+    const kind = mobileOwnerDirectPlaybackKind(detail.fileParameters);
+    if (kind === null) return false;
+    try {
+      current();
+      const selected = { local_track_id: detail.track.id, asset_id: detail.asset.id, expected_asset_revision: detail.asset.fileRevision };
+      const before = captureLocalFactsByIdentityReadonly(selected, collection);
+      if (JSON.stringify(before.track) !== JSON.stringify(detail.track) || JSON.stringify(before.asset) !== JSON.stringify(detail.asset)
+        || before.root.role !== 'library' || !before.observation) return false;
+      if (!readonlySourceCatalogFileAvailable(before.sourceRoot, before.relative, before.observation.signature, kind === 'encoded' ? undefined : kind)) return false;
+      const after = captureLocalFactsByIdentityReadonly(selected, collection);
+      current(); return JSON.stringify(before) === JSON.stringify(after);
+    } catch (error) {
+      if (error instanceof SourceCatalogReleaseError) throw new MobileServiceError(503, 'BUSY');
+      return false;
+    }
+  }
+  function track(trackId: string, editionId: string, catalogPlaybackEnabled: boolean): MobileTrack {
     current();
     const original = collection.localCatalog.trackDetail(trackId), edition = original.editions.find(item => item.id === editionId);
     if (!edition) return missing();
     const root = collection.localCatalog.root(original.asset.libraryRootId), source = collection.sources.root(root.sourceRootId);
     if (root.role !== 'library' || !source.authorized || root.revision !== original.asset.rootRevision) return unavailable();
-    const detail = { ...original, fileParameters: collection.localScan.privateDisplayFileParameters(trackId, original.asset) };
+    const detail = { ...original, fileParameters: catalogPlaybackEnabled
+      ? collection.localScan.privateDisplayFileParameters(trackId, original.asset, 'mobile-catalog')
+      : collection.localScan.privateDisplayFileParameters(trackId, original.asset) };
     if (!detail.fileParameters || detail.track.segment === null && detail.fileParameters.durationMs === null || !detail.metadata.effective.title) return unavailable();
     const identity = [datasetId, detail.asset.id, detail.asset.fileRevision, detail.track.selectionRevision, detail.track.segment];
     const cover = artworkId(selection(editionId));
@@ -58,8 +80,8 @@ export function createMobileOwnerService(options: {
       sourceItemId: `ls:${datasetId}:${detail.asset.id}`, albumId: `la:${datasetId}:${editionId}`,
       versionId: 'lv:' + digest(identity), contentRevision: 'lc:' + digest(identity),
     }, projection: { title: detail.metadata.effective.title, artists: detail.metadata.effective.artist ? [detail.metadata.effective.artist] : [],
-      // 001 尚未签发当前媒体读取资格；历史解析参数不等于文件在线或可播放。
-      editionLabel: edition.edition, availability: 'unavailable', ...(cover ? { artworkId: cover } : {}) } });
+      // 001 保持只读；002 开启只允许真实当前资格投影，不提前签发媒体读取资源。
+      editionLabel: edition.edition, availability: catalogPlaybackEnabled && playbackAvailable(detail) ? 'available' : 'unavailable', ...(cover ? { artworkId: cover } : {}) } });
   }
   function album(editionId: string, representativeTrack: string): MobileAlbum {
     const edition = collection.localCatalog.edition(editionId), detail = collection.localCatalog.trackDetail(representativeTrack);
@@ -70,7 +92,8 @@ export function createMobileOwnerService(options: {
       source: 'local', editionLabel: edition.edition, trackCount: tracks.total, ...(cover ? { artworkId: cover } : {}) };
   }
   function read(request: MobileOwnerCatalogRequest): MobileOwnerCatalogSnapshot {
-    current(); const start = revision();
+    const catalogPlaybackEnabled = request.catalogPlaybackEnabled === true;
+    current(); const start = revision(catalogPlaybackEnabled);
     if (request.expectedRevision !== null && request.expectedRevision !== start) throw new MobileServiceError(409, 'SOURCE_CHANGED');
     const albums = request.operation === 'listAlbums' || request.operation === 'getAlbum';
     let editionId = request.albumId === null ? null : identifiers(request.albumId, 'la', 1)[0]!, trackId: string | null = null;
@@ -79,8 +102,8 @@ export function createMobileOwnerService(options: {
     const candidates = collection.localCatalog.privateMobileCandidates({ kind: albums ? 'albums' : 'tracks', offset: request.offset, limit: request.limit, query: request.q, editionId, trackId });
     if (candidates.total > 300000) throw new MobileServiceError(503, 'CONTENT_LIMIT_EXCEEDED');
     if (request.operation.startsWith('get') && candidates.total !== 1) return missing();
-    const items = candidates.items.map(item => albums ? album(item.editionId, item.trackId) : track(item.trackId, item.editionId));
-    current(); if (revision() !== start) throw new MobileServiceError(409, 'SOURCE_CHANGED');
+    const items = candidates.items.map(item => albums ? album(item.editionId, item.trackId) : track(item.trackId, item.editionId, catalogPlaybackEnabled));
+    current(); if (revision(catalogPlaybackEnabled) !== start) throw new MobileServiceError(409, 'SOURCE_CHANGED');
     return { datasetId, ownerEpoch, libraryRevision: start, operation: request.operation, offset: request.offset, limit: request.limit, total: candidates.total, items };
   }
   function artwork(request: { serverId: string; artworkId: string }): MobileOwnerArtworkSnapshot {

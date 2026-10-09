@@ -52,7 +52,9 @@ export function createMobileBackend(options: {
   if (options.enablePlayback) playback = createMobilePlaybackBackend({ serverId: options.serverId, datasetId: options.datasetId,
     authKey: options.authKey, auth: rawAuth, requestOwner: options.requestOwner, assertCurrent: options.assertCurrent });
   const port: MobileCatalogReadPort = {
-    read: async request => await owner({ kind: 'catalog', datasetId: options.datasetId, request }) as MobileOwnerCatalogSnapshot,
+    // 只在正式播放端已激活后申请目录资格；是否可播仍由原 Owner 核当前源事实。
+    read: async request => await owner({ kind: 'catalog', datasetId: options.datasetId,
+      request: { ...request, ...(playback?.enabled === true ? { catalogPlaybackEnabled: true } : {}) } }) as MobileOwnerCatalogSnapshot,
     artwork: async request => await owner({ kind: 'artwork', datasetId: options.datasetId, request }) as MobileOwnerArtworkSnapshot,
   };
   const catalog = createMobileCatalogService({ port, auth, serverId: options.serverId, datasetId: options.datasetId,
@@ -95,9 +97,17 @@ export function createMobileBackend(options: {
       if (!reply.ok) throw new MobileServiceError(503, reply.issue.code === 'LIMIT_EXCEEDED' ? 'CONTENT_LIMIT_EXCEEDED' : 'BUSY');
       return { ...reply.value, headers: [...reply.value.headers, ['Cache-Control', 'private, no-store']], beforeSend: async () => {
         await alive();
-        if ((operation === 'listAlbums' || operation === 'listTracks') && body && typeof body === 'object' && 'libraryRevision' in body) {
+        if (operation === 'listAlbums' && body && typeof body === 'object' && 'libraryRevision' in body) {
           await owner({ kind: 'catalog', datasetId: options.datasetId, request: { operation: 'listAlbums', serverId: options.serverId,
-            offset: 0, limit: 1, q: '', albumId: null, itemId: null, expectedRevision: String(body.libraryRevision) } });
+            offset: 0, limit: 1, q: '', albumId: null, itemId: null, expectedRevision: String(body.libraryRevision),
+            ...(playback?.enabled === true ? { catalogPlaybackEnabled: true } : {}) } });
+        }
+        if (operation === 'listTracks') {
+          // 外部文件变化可能不改数据库修订，重核原查询同一页的实际可用性。
+          const latest = await catalog.listTracks(request.query as MobileSearchQuery, principal!);
+          const previous = body as typeof latest;
+          if (!same({ items: latest.items, libraryRevision: latest.libraryRevision, hasNext: latest.nextCursor !== null },
+            { items: previous.items, libraryRevision: previous.libraryRevision, hasNext: previous.nextCursor !== null })) throw new MobileServiceError(409, 'SOURCE_CHANGED');
         }
         if (operation === 'getAlbum' || operation === 'getTrack') {
           const latest = operation === 'getAlbum' ? await catalog.getAlbum(request.pathParameters.albumId!, principal!) : await catalog.getTrack(request.pathParameters.trackId!, principal!);

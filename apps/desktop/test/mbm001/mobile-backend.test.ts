@@ -76,10 +76,11 @@ function fixture(t: TestContext, count = 3) {
     stored: MobileSealedState; saves: number; selected: boolean; selectionRevision: string; selectedBytes: Uint8Array;
     afterResize: (() => void) | null;
     malformedCatalog: ((value: MobileOwnerCatalogSnapshot) => MobileOwnerPrivateResult) | null;
+    unavailableTracks: Set<string>;
   } = { datasetId: IDS.dataset, ownerEpoch: IDS.owner, revision: 'mr:fixture.1', hostCurrent: true,
     stored: { kind: 'missing', datasetId: IDS.dataset, revision: 0 }, saves: 0, selected: true,
     selectionRevision: 'selection.1', selectedBytes: new Uint8Array([0xff, 0xd8, 17, 0xff, 0xd9]),
-    afterResize: null, malformedCatalog: null };
+    afterResize: null, malformedCatalog: null, unavailableTracks: new Set() };
 
   async function requestOwner(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult> {
     assert.equal(isMobileOwnerPrivateRequest(request), true, '正常端口请求必须属于实际私有闭集。');
@@ -109,13 +110,18 @@ function fixture(t: TestContext, count = 3) {
       const gate = held; held = null;
       if (gate) { gate.entered.resolve(); await gate.released.promise; }
       const q = request.request;
-      if (q.expectedRevision !== null && q.expectedRevision !== state.revision) result = failure(409, 'SOURCE_CHANGED');
+      const playbackEnabled = q.catalogPlaybackEnabled === true;
+      const revision = playbackEnabled ? `${state.revision}.playback` : state.revision;
+      if (q.expectedRevision !== null && q.expectedRevision !== revision) result = failure(409, 'SOURCE_CHANGED');
       else {
-        const rows = (q.operation === 'listAlbums' || q.operation === 'getAlbum' ? albums : tracks)
+        // 受控 Owner 独立裁决每条曲目；Main 不能把整页改成 available。
+        const visibleTracks = tracks.map(item => ({ ...item,
+          availability: playbackEnabled && !state.unavailableTracks.has(item.id) ? 'available' as const : 'unavailable' as const }));
+        const rows = (q.operation === 'listAlbums' || q.operation === 'getAlbum' ? albums : visibleTracks)
           .filter(item => (q.itemId === null || item.id === q.itemId)
             && (q.albumId === null || ('albumId' in item ? item.albumId : item.id) === q.albumId)
             && (!q.q || item.title.includes(q.q)));
-        const snapshot: MobileOwnerCatalogSnapshot = { datasetId: state.datasetId, ownerEpoch: state.ownerEpoch, libraryRevision: state.revision,
+        const snapshot: MobileOwnerCatalogSnapshot = { datasetId: state.datasetId, ownerEpoch: state.ownerEpoch, libraryRevision: revision,
           operation: q.operation, offset: q.offset, limit: q.limit, total: rows.length,
           items: structuredClone(rows.slice(q.offset, q.offset + q.limit)) };
         assert.equal(isMobileOwnerPrivateResult(snapshot, request), true, '注入负向回包前，正常整份快照必须有效。');
@@ -126,9 +132,10 @@ function fixture(t: TestContext, count = 3) {
     assert.equal(isMobileOwnerPrivateResult(result, request), true, '正常端口结果必须属于实际私有闭集。');
     return result;
   }
-  function open(overrides: { authKey?: Uint8Array; serverId?: string } = {}): BackendHandle {
+  function open(overrides: { authKey?: Uint8Array; serverId?: string; enablePlayback?: boolean } = {}): BackendHandle {
     const value = createMobileBackend({ serverId: overrides.serverId ?? IDS.server, datasetId: IDS.dataset,
       authKey: overrides.authKey ?? AUTH_KEY, displayName: '合成 Main 目录', environment: 'development', requestOwner,
+      ...(overrides.enablePlayback === undefined ? {} : { enablePlayback: overrides.enablePlayback }),
       assertCurrent() { if (!state.hostCurrent || state.datasetId !== IDS.dataset) throw new MobileServiceError(503, 'BUSY'); },
       resizeArtwork(bytes, size) {
         // 只验证缩图端口的选择来源、输出复制及围栏；这些标记不冒充真实 JPEG 解码或尺寸。
@@ -198,6 +205,58 @@ async function refreshed(f: Fixture, tokens: MobileTokenPair, key = 'refresh.ori
 const dispatch = (f: Fixture, operation: Mobile001Operation, options: RequestOptions = {}) => f.handle.backend.dispatch(prepare(operation, options));
 const catalogCalls = (f: Fixture) => f.calls.filter(value => value.kind === 'catalog');
 
+/** 延续原001用例覆盖002激活接线，不改变冻结用例清单或把受控端口写成真文件证据。 */
+async function assertPlaybackCatalogGating(f: Fixture, tokens: MobileTokenPair): Promise<void> {
+  const enabled = f.open({ enablePlayback: true }), disabled = f.open({ enablePlayback: false });
+  const run = (handle: BackendHandle, operation: Mobile001Operation, query: MobileHeaderPairs = []) =>
+    handle.backend.dispatch(prepare(operation, { token: tokens.accessToken, query }));
+  assert.ok(enabled.playbackBackend); assert.equal(disabled.playbackBackend, undefined);
+  assert.throws(() => disabled.activatePlayback(ORIGIN), safeError(400, 'INVALID_REQUEST'));
+  assert.throws(() => enabled.activatePlayback('http://127.0.0.1'), safeError(400, 'INVALID_REQUEST'));
+  const callsBeforeActivation = catalogCalls(f).length;
+  for (const handle of [enabled, disabled]) {
+    const capability = await run(handle, 'getCapabilities'); await beforeSend(capability);
+    assert.equal(readBody('getCapabilities', capability).localPlayback, false);
+    const page = await run(handle, 'listTracks'); await beforeSend(page);
+    assert.equal(readBody('listTracks', page).items.every(item => item.availability === 'unavailable'), true);
+    const detail = await run(handle, 'getTrack'); await beforeSend(detail);
+    assert.equal(readBody('getTrack', detail).availability, 'unavailable');
+  }
+  assert.equal(catalogCalls(f).slice(callsBeforeActivation).every(call => call.request.catalogPlaybackEnabled !== true), true);
+  const oldAlbums = await run(enabled, 'listAlbums'), oldPage = await run(enabled, 'listTracks', [['limit', '1']]);
+  const oldDetail = await run(enabled, 'getTrack'); await beforeSend(oldPage);
+  const oldCursor = readBody('listTracks', oldPage).nextCursor; assert.equal(typeof oldCursor, 'string');
+  enabled.activatePlayback(ORIGIN);
+  const activeCalls = catalogCalls(f).length;
+  const capability = await run(enabled, 'getCapabilities'); await beforeSend(capability);
+  assert.equal(readBody('getCapabilities', capability).localPlayback, true);
+  f.state.unavailableTracks.add(f.tracks[2]!.id);
+  const albums = await run(enabled, 'listAlbums'); await beforeSend(albums);
+  const all = await run(enabled, 'listTracks'); await beforeSend(all);
+  assert.deepEqual(readBody('listTracks', all).items.map(item => item.availability), ['available', 'available', 'unavailable']);
+  const freshPage = await run(enabled, 'listTracks', [['limit', '1']]); await beforeSend(freshPage);
+  const fresh = readBody('listTracks', freshPage); assert.equal(fresh.items[0]!.availability, 'available');
+  assert.notEqual(fresh.libraryRevision, readBody('listTracks', oldPage).libraryRevision);
+  const detail = await run(enabled, 'getTrack'); await beforeSend(detail);
+  assert.deepEqual(readBody('getTrack', detail), fresh.items[0]);
+  for (const reply of [oldAlbums, oldPage, oldDetail]) await assert.rejects(beforeSend(reply), safeError(409, 'SOURCE_CHANGED'));
+  await assert.rejects(run(enabled, 'listTracks', [['limit', '1'], ['cursor', oldCursor!]]), safeError(409, 'SOURCE_CHANGED'));
+  assert.equal(typeof fresh.nextCursor, 'string');
+  const next = await run(enabled, 'listTracks', [['limit', '1'], ['cursor', fresh.nextCursor!]]); await beforeSend(next);
+  assert.equal(readBody('listTracks', next).items[0]!.id, f.tracks[1]!.id);
+  // 只改 Owner 当前可用性，不改数据库修订；发送前必须重读原第二页，不能抽查第一张专辑。
+  f.state.unavailableTracks.add(f.tracks[1]!.id);
+  await assert.rejects(beforeSend(next), safeError(409, 'SOURCE_CHANGED'));
+  const changed = await run(enabled, 'listTracks', [['limit', '1'], ['cursor', fresh.nextCursor!]]); await beforeSend(changed);
+  assert.equal(readBody('listTracks', changed).items[0]!.availability, 'unavailable');
+  assert.equal(catalogCalls(f).slice(activeCalls).every(call => call.request.catalogPlaybackEnabled === true), true);
+  // 激活一个002实例不能扩大另一个显式禁用或缺省001实例的目录资格。
+  for (const handle of [disabled, f.handle]) {
+    const page = await run(handle, 'listTracks'); await beforeSend(page);
+    assert.equal(readBody('listTracks', page).items.every(item => item.availability === 'unavailable'), true);
+  }
+}
+
 test('001 Main真配对/AES-GCM后使用原品牌鉴权读目录与能力，不公开未知播放能力', async t => {
   const f = fixture(t), server = await dispatch(f, 'getServer'); await beforeSend(server);
   assert.deepEqual({ ...readBody('getServer', server) }, { serverId: IDS.server, displayName: '合成 Main 目录', contractVersion: '0.1.0', environment: 'development' });
@@ -226,6 +285,7 @@ test('001 Main真配对/AES-GCM后使用原品牌鉴权读目录与能力，不�
   assert.equal(Object.hasOwn(page, 'total'), false); assert.equal(page.items[0]!.availability, 'unavailable');
   const detail = await dispatch(f, 'getTrack', { token: p.tokens.accessToken }); await beforeSend(detail);
   assert.equal(readBody('getTrack', detail).sourceItemId, f.tracks[0]!.sourceItemId);
+  await assertPlaybackCatalogGating(f, p.tokens);
 });
 
 test('001 Main配对只取同key同完整body原201回执，改意图或重用已消费许可拒绝', async t => {

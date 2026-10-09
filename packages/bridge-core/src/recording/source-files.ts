@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { constants } from 'node:fs';
+import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, realpathSync } from 'node:fs';
 import { lstat, open, opendir, realpath } from 'node:fs/promises';
 import type { BigIntStats, Dirent } from 'node:fs';
 import type { FileHandle } from 'node:fs/promises';
@@ -325,6 +325,60 @@ export async function readonlySourceCandidateMetadata(root: RootCapability, rela
 export async function sourceFileAvailability(root: RootCapability, relative: string, expected: string): Promise<SourceAvailability> {
   try { return signature((await checkedFile(root, relative)).info) === expected ? 'ONLINE' : 'CONTENT_CHANGED'; }
   catch (error) { const code = error instanceof SourceFileError ? error.code : 'IO_ERROR'; return code === 'REVOKED' || code === 'SOURCE_ROOT_OFFLINE' || code === 'MISSING' ? code : 'CONTENT_CHANGED'; }
+}
+export class SourceCatalogReleaseError extends Error { constructor() { super('目录资格的只读句柄关闭尚未确认。'); } }
+/** Owner 目录的即时只读资格；最多读 12 字节，不签票据、不保留 FD，也不代替真正 prepare 的保护租约。 */
+export function readonlySourceCatalogFileAvailable(root: RootCapability, relative: string, expectedSignature: string,
+  pcmHeader?: 'WAVE' | 'AIFF'): boolean {
+  let descriptor: number | undefined;
+  try {
+    if (!root.authorized || !path.isAbsolute(root.path) || root.path === path.parse(root.path).root
+      || typeof relative !== 'string' || relative.length > 4096 || relative.includes('\0') || path.isAbsolute(relative)
+      || typeof expectedSignature !== 'string' || expectedSignature.length > 256 || !/^\d+:\d+:\d+:-?\d+:-?\d+$/u.test(expectedSignature)) return false;
+    const parts = relative.split(path.sep);
+    if (parts.length > 256 || parts.some(part => !part || part === '.' || part === '..')) return false;
+    const named = () => {
+      const rootInfo = lstatSync(root.path, { bigint: true });
+      if (!root.authorized || !rootInfo.isDirectory() || rootInfo.isSymbolicLink() || String(rootInfo.dev) !== root.dev
+        || String(rootInfo.ino) !== root.ino || realpathSync(root.path) !== root.path) return fail('SOURCE_ROOT_OFFLINE');
+      const identity = (info: BigIntStats) => `${directoryIdentity(info)}:${info.birthtimeNs}:${info.mode}`;
+      const directoryIds = [identity(rootInfo)];
+      let absolute = root.path;
+      for (const [index, part] of parts.entries()) {
+        absolute = path.join(absolute, part);
+        const info = lstatSync(absolute, { bigint: true });
+        if (info.isSymbolicLink() || (index < parts.length - 1 ? !info.isDirectory() : !info.isFile())) return fail('OUTSIDE_ROOT');
+        if (index < parts.length - 1) directoryIds.push(identity(info));
+        else {
+          if (realpathSync(absolute) !== absolute) return fail('OUTSIDE_ROOT');
+          return { absolute, info, directoryIds };
+        }
+      }
+      return fail('OUTSIDE_ROOT');
+    };
+    const before = named();
+    if (signature(before.info) !== expectedSignature || before.info.size < 1n || before.info.size > 68_719_476_736n) return false;
+    // 非阻塞标志保证命名竞争替换成 FIFO 等特殊文件时，目录请求不会等待另一端。
+    descriptor = openSync(before.absolute, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
+    const opened = fstatSync(descriptor, { bigint: true });
+    if (!opened.isFile() || signature(opened) !== expectedSignature || opened.birthtimeNs !== before.info.birthtimeNs) return false;
+    if (pcmHeader !== undefined) {
+      const head = Buffer.alloc(12);
+      if (readSync(descriptor, head, 0, head.length, 0) !== head.length) return false;
+      const magic = head.subarray(0, 4).toString('ascii'), kind = head.subarray(8, 12).toString('ascii');
+      if (pcmHeader === 'WAVE' ? magic !== 'RIFF' || kind !== 'WAVE' : magic !== 'FORM' || kind !== 'AIFF') return false;
+    }
+    const actual = fstatSync(descriptor, { bigint: true }), after = named();
+    return actual.isFile() && signature(actual) === expectedSignature && signature(after.info) === expectedSignature
+      && actual.birthtimeNs === opened.birthtimeNs && after.info.birthtimeNs === opened.birthtimeNs
+      && JSON.stringify(after.directoryIds) === JSON.stringify(before.directoryIds);
+  } catch { return false; }
+  finally {
+    if (descriptor !== undefined) {
+      try { closeSync(descriptor); }
+      catch { throw new SourceCatalogReleaseError(); }
+    }
+  }
 }
 export class MetadataLeaseReleaseError extends Error { constructor() { super('元数据只读租期的句柄关闭未确认。'); } }
 export interface MetadataSourceLeaseEvent { type: 'lease-acquired' | 'lease-released'; fd: number }

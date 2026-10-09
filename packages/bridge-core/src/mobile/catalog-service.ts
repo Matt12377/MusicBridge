@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import {
   MOBILE_API_RESPONSE_MAX_BYTES, MOBILE_CATALOG_SCHEMAS, MOBILE_CODEC_LIMITS,
-  isLocalLibraryTrackDetail, isMobileId, mapLocalDetailToMobileTrack,
+  isFileAudioParameters, isLocalLibraryTrackDetail, isMobileAudioInfo, isMobileId, mapLocalDetailToMobileTrack,
   mobileCanonicalJson, mobileCatalogRequestSnapshot, mobileCatalogResponseSnapshot,
   mobileDataSnapshot, mobileDateTime, mobileInteger, mobileProjectSchema, mobileRecord,
   mobileUtf8Bytes,
-  type MobileAlbum, type MobileAlbumPage, type MobileSearchQuery, type MobileTrack,
+  type FileAudioParameters, type MobileAlbum, type MobileAlbumPage, type MobileAudioInfo, type MobileSearchQuery, type MobileTrack,
   type MobileTrackPage,
 } from '@music-bridge/contracts';
 import { createMobileCatalogCursorCodec, type MobileCatalogCursorQueryScope } from './cursor.js';
@@ -24,6 +24,29 @@ const closed = (value: Record<string, unknown>, names: readonly string[]): boole
 const snapshotKeys = ['datasetId', 'ownerEpoch', 'libraryRevision', 'operation', 'offset', 'limit', 'total', 'items'] as const;
 const principalKeys = ['serverId', 'deviceId', 'datasetId', 'accountDomain', 'deviceEpoch', 'generation', 'accessTokenHash', 'accessExpiresAt'] as const;
 const limits = { ...MOBILE_CODEC_LIMITS, responseBytes: MOBILE_API_RESPONSE_MAX_BYTES };
+
+/** 与当前 Source direct 白名单一致；可解析不等于已支持传输，PCM 还需核真实标准头。 */
+export function mobileOwnerDirectPlaybackKind(parameters: FileAudioParameters): 'encoded' | 'WAVE' | 'AIFF' | null {
+  if (!isFileAudioParameters(parameters) || parameters.durationMs === null) return null;
+  const codec = parameters.codec.toLowerCase(), bits = parameters.bitsPerSample;
+  let normalized: string, container: string, kind: 'encoded' | 'WAVE' | 'AIFF';
+  if (parameters.container === 'FLAC' && codec === 'flac' && parameters.lossless === true && bits !== null) {
+    normalized = 'flac'; container = 'flac'; kind = 'encoded';
+  } else if (parameters.container === 'MP4' && /^(?:alac|apple lossless)$/u.test(codec) && parameters.lossless === true && bits !== null) {
+    normalized = 'alac'; container = 'm4a'; kind = 'encoded';
+  } else if (parameters.container === 'MPEG' && /^(?:mp3|mpeg (?:1|2|2\.5) layer (?:3|iii))$/u.test(codec) && parameters.lossless !== true) {
+    normalized = 'mp3'; container = 'mp3'; kind = 'encoded';
+  } else if (['WAVE', 'AIFF'].includes(parameters.container) && parameters.lossless === true && bits !== null && [8, 16, 24, 32].includes(bits)) {
+    const expected = bits === 8 ? parameters.container === 'WAVE' ? 'pcm_u8' : 'pcm_s8'
+      : `pcm_s${bits}${parameters.container === 'WAVE' ? 'le' : 'be'}`;
+    if (codec !== 'pcm' && codec !== expected) return null;
+    normalized = expected; container = parameters.container === 'WAVE' ? 'wav' : 'aiff';
+    kind = parameters.container === 'WAVE' ? 'WAVE' : 'AIFF';
+  } else return null;
+  const source: MobileAudioInfo = { codec: normalized, container, sampleRateHz: parameters.sampleRateHz, channels: parameters.channels,
+    ...(bits === null ? {} : { bitsPerSample: bits }) };
+  return isMobileAudioInfo(source) ? kind : null;
+}
 
 /** 原Owner完整事实的纯投影；不能从位置、扩展名或未知发行补造可点播身份。 */
 export function projectMobileOwnerLocalTrack(facts: MobileOwnerLocalTrackFacts): MobileTrack {

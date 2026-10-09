@@ -74,6 +74,8 @@ export interface MobileOwnerCatalogRequest {
   operation: MobileOwnerCatalogOperation; serverId: string;
   offset: number; limit: number; q: string; albumId: string | null; itemId: string | null;
   expectedRevision: string | null;
+  /** 仅可信 Main 在播放后端已激活后设置；缺省仍为 001 只读目录。 */
+  catalogPlaybackEnabled?: boolean;
 }
 export interface MobileOwnerCatalogSnapshot {
   datasetId: string; ownerEpoch: string; libraryRevision: string;

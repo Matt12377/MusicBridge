@@ -115,3 +115,10 @@ Scope18仅改新增回归的两行assert.throws为等价字符串message重载�
 ## MBM-002 独立工程报告记账（2026-10-10）
 
 精确Source `df1533de5ceb7fdf98cf98c86ec03c498891f7a4` 的81项Gate、旧001的87项及首次自然四workflow／六job通过，六份完整日志和五份完整ZIP已逐项消费。当前正式Mac自有文件HTTPS11项与1723输入／664源码绑定，早期正式iOS SDK在macOS的24项另计。iOS工程Source `f823ef5f3c73912e5dd2c29f960e6d3e538f31f5`／R `b2d08cd955d5a68cc9ea20a08fc939f2c8bd2833` 已普通推送，381输入／221播放／35App／32HTTPS分别资格化，明确非最终成对交付。见 `reports/MBM-002_RESULT.md`。本R自然CI、当前候选关闭、真正手机配对／Keychain／音频及成对封存仍待，002保持IN_PROGRESS，003／004未开始；原验收、旧18／156、有效17／150和8项moderate保留。后续003→004→016→017沿用连续授权。
+
+
+## MBM-002 播放目录资格补修（2026-10-10）
+
+物理 iPhone 的两分钟 WAV 播放入口置灰，已追到旧 Source 的 Owner 把目录 availability 固定为 unavailable；旧媒体验证未断言目录资格，原工程绿与 Ready219 不覆盖补修。新实现仅在正式播放激活后，由原 Owner 根据当前授权、完整 Scanner 来源证明、文件身份与支持格式判断资格；目录读取不产生票据、播放资源、长期 FD 或数据写入。AAC 的真实 MPEG-4/AAC 词汇在原来源证明后仅作私有移动显示映射，保留原事实、001默认行为及当前 Source 的 AAC拒绝。
+
+专项 RED 精确复现 unavailable/available 断言，第一次 GREEN 的混合目录失败完整保留；修正后 Core 与 Main 专项自然通过，最后两项 AAC 字段断言等待最终源码冻结 Gate。原001的87项与002的81项名称、数量、命令和预算保持。新的实现 Source、直接报告后继、完整 Gate、构建、首次自然 CI、原物理 profile 安全冷恢复及真机播放均须重新绑定。002保持IN_PROGRESS，003／004未开始，原验收与历史结论保持；沿用已有连续授权。

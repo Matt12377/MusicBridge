@@ -751,11 +751,14 @@ export function createLocalScanStore(access: ScanAccess) {
         return row ? { jobId: String(row.job_id), value: parse(row.data, isScanFileState, 65_536) } : null;
       });
     },
-    /** 详情只读当前已证明的解析参数；不分配FD、媒体票据或排他锁。修订无法证明时返回未知。 */
-    privateDisplayFileParameters(trackId: string, asset: dto.AudioAsset): dto.FileAudioParameters | null {
-      if (!dto.isCollectionId(trackId) || !dto.isAudioAsset(asset)) return access.conflict('详情参数逻辑身份无效。');
+    /** 详情只读当前已证明的解析参数；不分配FD、媒体票据或排他锁。移动词汇投影也不能跳过原修订证明。 */
+    privateDisplayFileParameters(trackId: string, asset: dto.AudioAsset, displayMode?: 'mobile-catalog'): dto.FileAudioParameters | null {
+      if (!dto.isCollectionId(trackId) || !dto.isAudioAsset(asset) || displayMode !== undefined && displayMode !== 'mobile-catalog') return access.conflict('详情参数逻辑身份无效。');
       const selected = access.catalog.track(trackId), locator = access.catalog.privateAssetLocator(asset.id), root = access.catalog.root(asset.libraryRootId), source = access.sources.root(root.sourceRootId);
       if (selected.assetId !== asset.id || !equal(locator.asset, asset) || root.revision !== asset.rootRevision || root.sourceRootId !== asset.sourceRootId || source.authorized !== true) return null;
+      // 只在下方完整来源证明通过后调用；原扫描codec和所有默认调用的返回词汇保持原样。
+      const projectedCodec = (technical: MetadataTechnical): string => displayMode === 'mobile-catalog'
+        && technical.container === 'MP4' && technical.lossless !== true && technical.codec === 'MPEG-4/AAC' ? 'aac' : technical.codec;
       return access.read(db => {
         const row = currentFileState(db, root.id, locator.relative); if (!row) return null;
         const state = parse(row.data, isScanFileState), job = get(db, String(row.job_id));
@@ -763,7 +766,7 @@ export function createLocalScanStore(access: ScanAccess) {
           || job.rootRevision !== root.revision || job.sourceRootId !== source.id || !state.readFacts) return null;
         const sourceFact=sourceWritesProjectionForDatabase(db)?.scanFacts.get(`${root.id}/${locator.relative}`)?.fact;
         if(sourceFact&&sourceFact.scanAfter===row.data&&equal(sourceFact.afterAsset,asset)&&sourceFact.affectedTrackIds.includes(trackId)){
-          const technical=state.readFacts.technical,parameters={container:technical.container,codec:technical.codec,lossless:technical.lossless,sampleRateHz:technical.sampleRateHz,channels:technical.channels,bitsPerSample:technical.bitsPerSample,durationMs:technical.durationSeconds===null?null:Math.round(technical.durationSeconds*1000),evidence:technical.evidence};return dto.isFileAudioParameters(parameters)?parameters:null;
+          const technical=state.readFacts.technical,parameters={container:technical.container,codec:projectedCodec(technical),lossless:technical.lossless,sampleRateHz:technical.sampleRateHz,channels:technical.channels,bitsPerSample:technical.bitsPerSample,durationMs:technical.durationSeconds===null?null:Math.round(technical.durationSeconds*1000),evidence:technical.evidence};return dto.isFileAudioParameters(parameters)?parameters:null;
         }
         const batchRow = db.prepare("SELECT request FROM local_scan_batches WHERE id=? AND phase='committed'").get(String(row.batch_id));
         if (!batchRow) return null;
@@ -795,7 +798,7 @@ export function createLocalScanStore(access: ScanAccess) {
         }
         if (!provenCurrent) return null;
         const technical = state.readFacts.technical;
-        const parameters = { container: technical.container, codec: technical.codec, lossless: technical.lossless, sampleRateHz: technical.sampleRateHz, channels: technical.channels,
+        const parameters = { container: technical.container, codec: projectedCodec(technical), lossless: technical.lossless, sampleRateHz: technical.sampleRateHz, channels: technical.channels,
           bitsPerSample: technical.bitsPerSample, durationMs: technical.durationSeconds === null ? null : Math.round(technical.durationSeconds * 1000), evidence: technical.evidence };
         return dto.isFileAudioParameters(parameters) ? parameters : null;
       });
