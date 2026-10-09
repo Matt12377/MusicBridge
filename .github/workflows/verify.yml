@@ -226,7 +226,7 @@ jobs:
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: |
           set -euo pipefail
-          node --test scripts/ci/test/verify-mbm001-pairing-library.test.mjs
+          node --test scripts/ci/test/verify-mbm001-pairing-library.test.mjs scripts/ci/test/mbm001-legacy-probe-normalization.test.mjs
           node scripts/ci/verify-mbm001-pairing-library.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbm001-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: 验证报告CI准入正负例

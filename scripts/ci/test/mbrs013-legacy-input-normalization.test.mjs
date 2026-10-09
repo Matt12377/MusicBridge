@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { normalizeSealed012LegacyInput } from '../mbrs013-legacy-input-normalization.mjs';
+import { normalizeMbm001LegacyProbe } from '../mbm001-legacy-probe-normalization.mjs';
 import {
   assertCompatibilityLegacyInputs, COMPATIBILITY_LEGACY_INPUTS,
   COMPATIBILITY_SOURCE_WRITES_PRELOAD_EXTENSION, COMPATIBILITY_RELOCATION_PRELOAD_EXTENSION,
@@ -12,7 +13,7 @@ import {
 } from '../verify-mbrs014-compatibility.mjs';
 
 const repository = fileURLToPath(new URL('../../../', import.meta.url));
-const read = file => readFileSync(new URL('../../../' + file, import.meta.url));
+const read = file => normalizeMbm001LegacyProbe(file, readFileSync(new URL('../../../' + file, import.meta.url)));
 const manifest = read(COMPATIBILITY_LEGACY_INPUTS.path);
 const rows = JSON.parse(manifest).files;
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');

@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeMbm001LegacyProbe } from '../mbm001-legacy-probe-normalization.mjs';
 import {
   assertCompatibilityLegacyInputs, COMPATIBILITY_LEGACY_INPUTS,
   COMPATIBILITY_RELOCATION_PRELOAD_EXTENSION, COMPATIBILITY_SOURCE_WRITES_PRELOAD_EXTENSION, COMPATIBILITY_RELOCATION_ORGANIZER_UI_EXTENSION,
@@ -11,7 +12,7 @@ import {
 } from '../verify-mbrs014-compatibility.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const read = file => readFileSync(path.join(root, file));
+const read = file => normalizeMbm001LegacyProbe(file, readFileSync(path.join(root, file)));
 const manifest = read(COMPATIBILITY_LEGACY_INPUTS.path);
 const name = COMPATIBILITY_RELOCATION_PRELOAD_EXTENSION.path;
 const current = read(name);

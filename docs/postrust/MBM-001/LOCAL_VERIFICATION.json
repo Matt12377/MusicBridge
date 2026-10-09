@@ -34,7 +34,7 @@
     "nativeJpegWholeFiles": 6,
     "safeScreenshots": 6,
     "keychain": "CONTROLLED_AES_NOT_REAL_KEYCHAIN",
-    "appPaging": "NOT_RUN_NODE_OWNER_INTEGRATION_SEPARATE",
+    "appPaging": "ORIGINAL_TWO_CONTROLLED_APP_CASES_SINGLE_TRACK_SEPARATE_ACTUAL_PRODUCTION_MAIN_SDK_103_ALBUMS_103_TRACKS_EACH_7_PAGES_PASS",
     "defaultRestore": "NOT_RUN_E2E_EXPLICIT_COLD_ENABLE"
   },
   "owner": {
@@ -59,8 +59,26 @@
     "actualPassedTests": 149,
     "controlledNativeHTTPSCases": 41,
     "unsignedGenericSimulatorBuilds": 2,
-    "realMacConsumption": "PENDING_ACTUAL_IOS_CONSUMPTION_OF_READY_MAC_CANDIDATE",
-    "nativeAppUIPhysicalDeviceAudioOwner": "NOT_RUN"
+    "realMacConsumption": "PASS_SEPARATE_SOURCE_PINNED_OFFICIAL_SHARED_IOS_SDK_ON_MACOS_PRODUCTION_MAC_SERVICE_SELF_OWNED_LIBRARY",
+    "nativeAppUIPhysicalDeviceAudioOwner": "NOT_RUN",
+    "actualMacSdk": {
+      "source": "b82049825e9e9058fe4a70186da70f5a267543ea",
+      "offlineDriverTests": 32,
+      "actualPassedCases": 22,
+      "notRunCases": [
+        "AUTH-ADMIN-REVOKE-NOT-RUN"
+      ],
+      "explicitPermitRequests": 2,
+      "sourceWholeFdAndGitBlobRows": 123,
+      "rootReadback": {
+        "file": "checks/ACTUAL_IOS_SDK_READBACK77.json",
+        "bytes": 7142,
+        "sha256": "5264d516b36d2ea1cd230d23b1fac8c64c414c87162bfb6b36ab0cc75b247e1c"
+      },
+      "sdkNaturalExitCode": 0,
+      "clientTokenPersistence": "RAM_ONLY_NOT_SYSTEM_KEYCHAIN",
+      "peerReportAndRemote": "FINAL_DELIVERY_RECEIPT_RESOLVES_AFTER_PEER_R_PUBLISHED"
+    }
   },
   "checks": {
     "standard-verify56": {
@@ -186,32 +204,76 @@
         "sha256": "37ad26db114309c2043837a5a26b05ecac5ff1f31518460c42ddbcd3dedf71e1"
       },
       "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "mirror-legacy-probe75": {
+      "head": "fc3c52302b53b2adebd3645ecf31024a1525f419",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "log": {
+        "file": "mirror-legacy-probe75.log",
+        "bytes": 14478,
+        "sha256": "998f450b552419e079828ded490d26a8d149fbb6abbbb4b7687730500914f5f5"
+      },
+      "sourceScope": "INDEPENDENT_BUILD_MIRROR_WORKING_CI_PATCH_NOT_EXACT_COMMIT_QUALIFICATION",
+      "actualPassed": 76
+    },
+    "mirror-mbrs013-repaired76": {
+      "head": "fc3c52302b53b2adebd3645ecf31024a1525f419",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "log": {
+        "file": "mirror-mbrs013-repaired76.log",
+        "bytes": 148,
+        "sha256": "6e29a1224bfa91964bfd5d619d1b817cc73c9616e9aadce80949b25b1aaf583c"
+      },
+      "sourceScope": "INDEPENDENT_BUILD_MIRROR_WORKING_CI_PATCH_NOT_EXACT_COMMIT_QUALIFICATION",
+      "actualPassed": 529,
+      "independentReadback": {
+        "file": "checks/LEGACY_REPAIR_GATE_READBACK80.json",
+        "bytes": 6291,
+        "sha256": "ed348987f9367b04360197ed3d230f0c70517ef55a52af9bea0254f004066ed2"
+      }
     }
   },
-  "exactSourceGate": "NOT_RUN_REQUIRES_FINAL_CLEAN_SOURCE",
+  "exactSourceGate": {
+    "source": "fc3c52302b53b2adebd3645ecf31024a1525f419",
+    "actualTests": 87,
+    "stages": 8,
+    "rootReadback": {
+      "file": "checks/SOURCE_GATE_65_READBACK71.json",
+      "bytes": 1473,
+      "sha256": "583185c59c3607c3922aef87218db425d9bef05240c5df76566c89d26b9598e0"
+    },
+    "finalQualificationSourceGate": "PENDING_FRESH_CLEAN_SOURCE_MIRROR_AFTER_FINAL_DOCS_AND_CI_SCRIPT_COMMIT"
+  },
   "naturalCI": "NOT_RUN_SOURCE_NOT_PUSHED",
   "reportAndOrdinaryPush": "NOT_RUN",
   "pairedFinalDelivery": "NOT_YET_PROVEN",
   "realProviderRoonNasDeviceAudioOwner": "NOT_RUN",
   "fullTransitiveToolchainClosure": false,
   "actualPersistentMacCandidate": {
-    "state": "READY_RUNNING_NOT_FINAL",
-    "readyAt": "2026-10-09T06:51:03.788Z",
-    "privateRootReadback": "checks/MBM001_CANDIDATE_READY.json",
+    "state": "CLOSED_ACTUAL_OFFICIAL_SHARED_IOS_SDK_CONSUMED_NOT_DEVICE_OWNER_ACCEPTANCE",
+    "candidate": "run-TNbvog",
     "readyIdentity": {
       "bytes": 3029,
-      "sha256": "cc020bf5ffdde7bd50dfe71ed676f0c3bbcc4980c1de2e21c7f0e499a49cf5cf",
+      "sha256": "5992652db169d76f20f97f12a008e1cc64f7ecbe73a986ec4dffb72c4a80c5df",
       "noFollow": true,
       "stableNamedFd": true
     },
     "publicConnectionIdentity": {
       "bytes": 1535,
-      "sha256": "f366b8cf3a3ada4f382b52e37c9678b727ba04dde1b7d229fa7d97d73bac1bbe",
+      "sha256": "61a547de76feb5f9310ff191c628bdc25f6c375bd96f6409cfec41a4c3dd3af7",
       "noFollow": true,
       "stableNamedFd": true
     },
     "wholeProductSourceAndThreeDistFiles": 1693,
-    "inputIdentity": "223f7aab5db2aa765e72e33fa113682704f9dacbb966a018dd83cf51a869b5a2",
+    "inputIdentity": "2353bbc31f5c71f7c893cb8382a013949c5d7e52ab6e98144f66d28d48c4f20e",
+    "productSourceGitBlobCommit": "fc3c52302b53b2adebd3645ecf31024a1525f419",
+    "productSourceGitBlobRows": 655,
     "actualSystemSafeStorage": true,
     "safeStorageOverridden": false,
     "actualScannerAssets": 103,
@@ -221,16 +283,54 @@
     "rootActualHttps": {
       "status": 200,
       "bytes": 140,
-      "wholeBodySha256": "20b0c8f06c5b8d4a1693f2f049a04f237116788ac26555c93de21015879c4110",
+      "wholeBodySha256": "e9952f51758b6380cef9fcdca87af9097a698c648523650920bf12187d861cb0",
       "actualPythonSslAnchorHostnameAndDerPin": true
     },
+    "privateReadyReadback": {
+      "file": "checks/MBM001_CANDIDATE_READY_REPLACEMENT69.json",
+      "bytes": 3662,
+      "sha256": "a1226b89ceeaa3daaddd99061b15ae07761b7b7690082e26a949fa7b401f8c2b"
+    },
+    "actualSdkReadback": {
+      "file": "checks/ACTUAL_IOS_SDK_READBACK77.json",
+      "bytes": 7142,
+      "sha256": "5264d516b36d2ea1cd230d23b1fac8c64c414c87162bfb6b36ab0cc75b247e1c"
+    },
+    "naturalCloseReadback": {
+      "file": "checks/CANDIDATE_NATURAL_CLOSE79.json",
+      "bytes": 2342,
+      "sha256": "2d43fd0380f39bfa49729ca21670907e20a852ca85b0236ef72006807f99f77a"
+    },
+    "appNaturalExitCode": 0,
+    "parentNaturalExitCode": 0,
+    "wholeBeforeReadyCloseInputsAndCurrentMatch": true,
+    "ownedSourceWholeFdUnchanged": 104,
+    "explicitPermits": 2,
     "permitEntry": "TRUSTED_RENDERER_API_ENTRY",
     "permitButtonClickClaimed": false,
     "directDatabaseInsertion": false,
+    "nonEmptySourceBindingHistoryVerified": false,
     "fullTransitiveToolchainClosure": false,
-    "notFinalSourceCommitBinding": true,
-    "clientConsumption": "PENDING_SEPARATE_ACTUAL_IOS_PROOF",
-    "naturalClose": "PENDING_RUNNING_CANDIDATE",
-    "physicalDeviceAudioRealUserLibraryOwner": "NOT_RUN"
+    "closedOriginalDatabaseReadOnlyImmutable": true,
+    "withdrawnPriorCandidate": {
+      "file": "checks/MBM001_CANDIDATE_WITHDRAWN66.json",
+      "bytes": 861,
+      "sha256": "2725f8dd8c57bedbc876d2455d8ac59427e68198a793117c61154d8a0453a2cd"
+    },
+    "physicalDeviceAudioProviderRoonLanRealUserLibraryOwner": "NOT_RUN"
+  },
+  "qualificationUpdatedAt": "2026-10-09T07:38:39.400652+00:00",
+  "legacyPreloadProbeCompatibility": {
+    "frozenManifestUnchanged": true,
+    "frozenManifestFiles": 49,
+    "actualPreloadBytes": 37168,
+    "actualPreloadSha256": "4a288ee751deebd20f76c420b67bf5d5ede7e86d6800589f4e6ad278318a0166",
+    "old13CaseBodiesWholeByteUnchanged": true,
+    "oldScopeBudgetsAndTestsUnchanged": true,
+    "exactReversalWindows": 2,
+    "newIndependentGuards": 4,
+    "unknownVersionsRejected": true,
+    "initialAdmission73": "FAILED_COMPATIBILITY_LEGACY_INPUT_CHANGED_PRESERVED",
+    "repairedWorkingMirror76": "PASS_529_NOT_FINAL_COMMIT_QUALIFICATION"
   }
 }

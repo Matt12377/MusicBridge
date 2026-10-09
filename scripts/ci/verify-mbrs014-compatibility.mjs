@@ -1,4 +1,5 @@
 import { normalizeMbm000LegacyEarlyProbe } from './mbm000-legacy-probe-normalization.mjs';
+import { normalizeMbm001LegacyProbe } from './mbm001-legacy-probe-normalization.mjs';
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, lstatSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
@@ -39,7 +40,7 @@ export function assertCompatibilityLegacyInputs(manifestBytes, readInput) {
       || input.path.split('/').includes('..') || names.has(input.path) || !Number.isSafeInteger(input.bytes) || input.bytes < 1
       || !/^[a-f0-9]{64}$/u.test(input.sha256)) reject('COMPATIBILITY_LEGACY_MANIFEST_INVALID');
     names.add(input.path); let bytes;
-    try { bytes = normalizeMbm000LegacyEarlyProbe(input.path, readInput(input.path)); }
+    try { bytes = normalizeMbm000LegacyEarlyProbe(input.path, normalizeMbm001LegacyProbe(input.path, readInput(input.path))); }
     catch { reject('COMPATIBILITY_LEGACY_INPUT_CHANGED'); }
     const original = bytes.length === input.bytes && sha(bytes) === input.sha256;
     // 仅准014六名称、012七名称和013单方法的已核尾部增量；原assertion、loader、context次数逐字节保留。
@@ -184,7 +185,7 @@ export async function runCompatibilityGate(argv = process.argv.slice(2), env = p
       'apps/desktop/e2e', 'scripts/ci/verify-mbrs014-compatibility.mjs', 'scripts/ci/test/verify-mbrs014-compatibility.test.mjs', scopeFile,
       '.github/workflows', 'docs/postrust/MBRS-014', COMPATIBILITY_TASK_SPEC.path]).split('\0').filter(Boolean);
     for (const file of ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml',
-      'scripts/ci/verify-mbrs001-offline.mjs', 'scripts/ci/mbm000-legacy-probe-normalization.mjs',
+      'scripts/ci/verify-mbrs001-offline.mjs', 'scripts/ci/mbm000-legacy-probe-normalization.mjs', 'scripts/ci/mbm001-legacy-probe-normalization.mjs',
       'apps/desktop/scripts/build-storage-root.mjs',
       'project/STATUS.json', 'project/POSTRUST_PLAN.json', 'project/POSTRUST_TODO.md', 'project/POSTRUST_PROGRESS.md',
       'docs/postrust/MBRS-000/PACK_TASKBOARD.json', 'docs/postrust/MBRS-000/PACK_ACCEPTANCE.json', 'docs/postrust/RUST-016/ADMISSION_DECISION.json',

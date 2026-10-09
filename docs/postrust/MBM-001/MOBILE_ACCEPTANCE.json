@@ -12,7 +12,8 @@
       "production_app": "PASS_CONTROLLED_TLS_MAIN_HTTP_NOT_LAN_OR_DEVICE",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_ACTUAL_PRODUCTION_MAIN_TLS_ANCHOR_HOST_ID_AND_OFFICIAL_SHARED_IOS_SDK_NOT_LAN_OR_DEVICE"
     },
     {
       "id": "MBMAT-001-02",
@@ -22,7 +23,8 @@
       "production_app": "PASS_ACTUAL_UI_PERMIT_AND_TWO_DEVICE_CLAIMS",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_SEPARATE_ACTUAL_SYSTEM_SAFESTORAGE_TWO_EXPLICIT_PERMITS_AND_TWO_INSTALLATIONS"
     },
     {
       "id": "MBMAT-001-03",
@@ -32,7 +34,8 @@
       "production_app": "PASS_ROTATION_REVOKE_LOGOUT_COLD_ORIGINAL_RECEIPTS_NATURAL_TTL_NOT_RUN",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_ACTUAL_REFRESH_ORIGINAL_BODY_KEY_RECEIPT_LOGOUT_BEARER401_PEER_SURVIVES_NATURAL_TTL_NOT_RUN"
     },
     {
       "id": "MBMAT-001-04",
@@ -42,7 +45,8 @@
       "production_app": "PASS_HONEST_READONLY_CAPABILITIES_PLAYBACK_FALSE",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_ACTUAL_READONLY_CAPABILITIES_EXISTING_SOFTWARE_HONEST_FLAGS"
     },
     {
       "id": "MBMAT-001-05",
@@ -52,7 +56,8 @@
       "production_app": "PARTIAL_SINGLE_TRACK_EMPTY_CATALOG_ONLY_APP_MULTIPAGE_NOT_RUN_OWNER_103_ENTRY_HTTP_SEPARATE",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_ACTUAL_PRODUCTION_MAIN_103_ALBUMS_103_TRACKS_EACH7_PAGES_REPEAT_SEARCH_DETAIL_OWNER_MUTATION_FENCE_SOFTWARE_SEPARATE"
     },
     {
       "id": "MBMAT-001-06",
@@ -62,7 +67,8 @@
       "production_app": "PARTIAL_ACTUAL_ONE_ASSET_EDITION_AND_CONTENT_IDENTITY_MOVE_NOT_RUN_IN_APP",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PARTIAL_ACTUAL_103_INDEPENDENT_EDITION_ASSET_IDENTITIES_AND_DETAIL_LOCATION_MOVE_NOT_RUN_IN_APP"
     },
     {
       "id": "MBMAT-001-07",
@@ -72,7 +78,8 @@
       "production_app": "PASS_ACTUAL_PNG_SELECTION_AND_SIX_NATIVE_JPEG_96_256_512_OLD_SELECTION_409",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_ACTUAL_CURRENT_PNG_THREE_NATIVE_JPEG_SIZES_RECTANGULAR_DECODE_OLD_SELECTION409_SOFTWARE_SEPARATE"
     },
     {
       "id": "MBMAT-001-08",
@@ -82,18 +89,20 @@
       "production_app": "PASS_UI_OFF_ON_CLOSE_EXPLICIT_COLD_ENABLE_AUTO_RESTORE_NOT_RUN",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_ORIGINAL_NATURAL_CLOSE_SYSTEM_SAFESTORAGE_DEFAULT_RESTORE_NOT_RUN"
     },
     {
       "id": "MBMAT-001-09",
       "area": "PAIRED_DELIVERY",
       "requirement": "Mac/iOS实际001合同接线与适用软件Gate、独立Source/R/自然CI/ordinary push；服务设备音频与Owner分层。",
-      "software": "PARTIAL_MAC87_IOS149_HTTPS41_LOCAL_GATES_ACTUAL_MAC_LINK_CI_REPORT_PENDING",
+      "software": "PARTIAL_MAC87_IOS149_CONTROLLED_HTTPS41_ACTUAL_SDK22_DRIVER32_FINAL_SOURCE_CI_REPORT_PENDING",
       "production_app": "PARTIAL_MAC_APP_PASS_PAIRED_FINAL_DELIVERY_PENDING",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PARTIAL_SOFTWARE_RUNTIME_QUALIFIED_FINAL_SOURCE_CI_REPORT_ACCOUNTING_PENDING"
     }
   ],
-  "evidenceScope": "LOCAL_WORKING_SNAPSHOT_QUALIFICATION_EXACT_SOURCE_GATE_CI_REPORT_SEPARATE"
+  "evidenceScope": "SOFTWARE_AND_ACTUAL_SELF_OWNED_MAC_SERVICE_SHARED_IOS_SDK_QUALIFICATION_FINAL_SOURCE_CI_REPORT_ACCOUNTING_SEPARATE"
 }

@@ -208,7 +208,7 @@ export async function runSourceWritesGate(argv = process.argv.slice(2), env = pr
       'scripts/ci/verify-mbrs003-scan.mjs', 'scripts/ci/mbrs003-scale-receipts.mjs', 'scripts/ci/mbrs003-owner-stage-scale.mjs',
       'project/STATUS.json', 'project/POSTRUST_PLAN.json', 'project/POSTRUST_TODO.md', 'project/POSTRUST_PROGRESS.md',
       'docs/postrust/MBRS-000/PACK_TASKBOARD.json', 'docs/postrust/MBRS-000/PACK_ACCEPTANCE.json', 'docs/postrust/RUST-016/ADMISSION_DECISION.json',
-      'scripts/ci/verify-mbrs014-compatibility.mjs', 'scripts/ci/mbm000-legacy-probe-normalization.mjs',
+      'scripts/ci/verify-mbrs014-compatibility.mjs', 'scripts/ci/mbm000-legacy-probe-normalization.mjs', 'scripts/ci/mbm001-legacy-probe-normalization.mjs',
       'docs/postrust/MBRS-014/FROZEN_LEGACY_INPUTS.json',
       'packages/bridge-core/scripts/build-metadata-reader-worker.mjs', 'packages/bridge-core/scripts/metadata-reader-bundle-artifacts.mjs',
       'apps/desktop/electron.vite.config.ts', 'apps/desktop/tsconfig.e2e.json',

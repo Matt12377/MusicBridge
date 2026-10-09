@@ -36121,7 +36121,7 @@
     {
       "id": "MBM-001",
       "title": "配对与只读曲库",
-      "status": "IN_PROGRESS_LOCAL_SOFTWARE_AND_APP_VERIFIED",
+      "status": "SOFTWARE_AND_ACTUAL_SDK_QUALIFIED_FINAL_CI_REPORT_ACCOUNTING_PENDING",
       "scheduled_after": "MBM-000",
       "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
       "scope_ref": "docs/postrust/MBM-001/EXECUTION_SCOPE.json",
@@ -36134,7 +36134,8 @@
       "started_at": "2026-10-09T04:26:03.432089+00:00",
       "acceptance_ref": "docs/postrust/MBM-001/MOBILE_ACCEPTANCE.json",
       "independent_mobile_acceptance_count": 9,
-      "local_verification_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+      "local_verification_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_22_ACTUAL_CASES_32_DRIVER_TESTS_ORIGINAL_APP_CLOSE_ZERO_NOT_DEVICE_OWNER"
     },
     {
       "id": "MBM-002",

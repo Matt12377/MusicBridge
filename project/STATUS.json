@@ -47869,7 +47869,7 @@
     "nextBranchBaseline": "ACTUAL_FINAL_SEALED_REPORT_HEAD"
   },
   "mobileFrontloading20261008": {
-    "state": "MBM001_LOCAL_SOFTWARE_APP_PASS_PAIRED_SERVICE_AND_DELIVERY_PENDING",
+    "state": "MBM001_SOFTWARE_ACTUAL_SDK_QUALIFIED_FINAL_ACCOUNTING_RECEIPT_PENDING",
     "plan": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
     "schedulingSupplement": "docs/postrust/MBRS-013/SCHEDULING_SUPPLEMENT_MOBILE_FRONTLOADING.json",
     "currentTask": "MBM-001",
@@ -47931,7 +47931,7 @@
       {
         "id": "MBM-001",
         "title": "配对与只读曲库",
-        "status": "IN_PROGRESS_LOCAL_SOFTWARE_AND_APP_VERIFIED",
+        "status": "SOFTWARE_AND_ACTUAL_SDK_QUALIFIED_FINAL_CI_REPORT_ACCOUNTING_PENDING",
         "scheduled_after": "MBM-000",
         "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
         "scope_ref": "docs/postrust/MBM-001/EXECUTION_SCOPE.json",
@@ -47944,7 +47944,8 @@
         "started_at": "2026-10-09T04:26:03.432089+00:00",
         "acceptance_ref": "docs/postrust/MBM-001/MOBILE_ACCEPTANCE.json",
         "independent_mobile_acceptance_count": 9,
-        "local_verification_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+        "local_verification_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+        "actual_self_owned_mac_service_shared_ios_sdk": "PASS_22_ACTUAL_CASES_32_DRIVER_TESTS_ORIGINAL_APP_CLOSE_ZERO_NOT_DEVICE_OWNER"
       },
       {
         "id": "MBM-002",
@@ -48039,7 +48040,7 @@
   },
   "mobilePairingReadonlyLibrary": {
     "task": "MBM-001",
-    "state": "LOCAL_SOFTWARE_AND_APP_PASS_ACTUAL_PAIRED_SERVICE_SOURCE_DELIVERY_PENDING",
+    "state": "SOFTWARE_AND_ACTUAL_SHARED_IOS_SDK_QUALIFIED_FINAL_DELIVERY_RECEIPT_REQUIRED",
     "branch": "codex/mbm-001-pairing-readonly-library",
     "baseSha": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
     "implementationCommit": null,
@@ -48079,9 +48080,17 @@
       "tests": 149,
       "controlledNativeHTTPS": 41,
       "unsignedGenericSimulatorBuilds": 2,
-      "actualMacConsumption": "PENDING_ACTUAL_IOS_CONSUMPTION_OF_READY_MAC_CANDIDATE"
+      "actualMacConsumption": "PASS_ACTUAL_PRODUCTION_MAC_WITH_OFFICIAL_SHARED_IOS_SDK_SELF_OWNED_LIBRARY",
+      "actualMacSdk": {
+        "source": "b82049825e9e9058fe4a70186da70f5a267543ea",
+        "actualPassedCases": 22,
+        "offlineDriverTests": 32,
+        "sourceWholeFdAndGitBlobRows": 123,
+        "nativeAppUIClientKeychainPhysicalDeviceAudioOwner": "NOT_RUN",
+        "reportAndRemote": "RESOLVED_FROM_FINAL_DELIVERY_RECEIPT_AFTER_PEER_R_PUBLICATION"
+      }
     },
-    "pairedAdoptionComplete": false,
+    "pairedAdoptionComplete": true,
     "localVerification": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
     "implementationCommitResolution": "PENDING_FINAL_CLEAN_SOURCE_WITH_OWN_GATE",
     "reportCommitResolution": "PENDING_SOURCE_FIRST_NATURAL_CI_AND_INDEPENDENT_REPORT",
@@ -48093,13 +48102,19 @@
       "source": "NOT_RUN",
       "report": "NOT_RUN"
     },
-    "updatedAt": "2026-10-09T06:54:51.040627+00:00",
+    "updatedAt": "2026-10-09T07:38:39.400652+00:00",
     "isolatedMacHttpsCandidate": {
-      "state": "READY_RUNNING_NOT_FINAL",
+      "state": "ACTUALLY_CONSUMED_AND_ORIGINAL_NATURAL_CLOSE_ZERO",
       "evidence": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
       "systemSafeStorage": true,
       "actualOwnedScannerTracks": 103,
-      "actualIosConsumption": "PENDING_SEPARATE_ACTUAL_IOS_PROOF"
+      "actualIosConsumption": "PASS_OFFICIAL_SHARED_IOS_SDK_ON_MACOS_22_CASES",
+      "inputFiles": 1693,
+      "wholeInputsUnchanged": true,
+      "sourceFilesUnchanged": 104,
+      "appNaturalExitCode": 0,
+      "parentNaturalExitCode": 0,
+      "physicalDeviceAudioProviderRoonLanOwner": "NOT_RUN"
     }
   }
 }

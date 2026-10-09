@@ -429,3 +429,6 @@ Mac fresh035完整33/33自然退出0，schema60/128与196整HTTP分开记录，�
 ### 001 本地验证读回（2026-10-09）
 
 全量verify自然exit0：4721声明测试中4719通过、0失败、2原有显式native输出/租约检查未启用跳过；类型检查、生产构建、沙盒Preload仅Electron依赖通过。新专项Core49+Desktop38实际闭集全通过、0skip/0cancel/0todo；真实Node HTTPS→原scan-real Owner用2个自有音频文件登记103个发行条目，100+3完整分页、改库及冷重开cursor有限拒绝，不能写成103首扫描文件。正式生产Main App2用例均通过：4次自然exit0、6个真实JPEG整文件及6张无许可截图；实际系统Keychain、App多页和自动恢复未跑。iOS最终S731daea／R20095已独立核对384源码与37归档Git blob、149实际测试、41受控原生HTTPS及两unsigned generic Simulator构建。Source精确Gate、首次自然CI、独立R及实际iOS→Mac持续服务仍未封；002未开工。证据分层见LOCAL_VERIFICATION.json，旧失败52/42/48保留。
+
+<!-- MBM001_RUNTIME_AND_COMPATIBILITY80 -->
+001实际production Main/CoreSupervisor/原唯一Owner＋系统safeStorage候选run-TNbvog由Source b820498的正式共享iOS SDK在macOS实际消费：22项通过／admin revoke一项NOT_RUN，两个独立RAM安装、各103专辑/曲目七页及重复稳定顺序、搜索/详情、三尺寸真实封面、refresh原body/key回执与logout隔离；驱动32离线项另计，原149软件及41受控原生HTTPS保留。Root全FD核123驱动源码与Git blob、1693候选源码/三个dist树，原App和父进程自然0/null，104自有原件不变，关闭后readonly immutable计数103/103/103。客户端系统Keychain、原生iOS UI、LAN/物理设备/音频/Provider/Roon/Owner仍NOT_RUN。旧run-a3koFn因Root共享checkout构建收据时间戳漂移撤回，自然退出且未发许可，不算通过。014原49输入中Preload两行真实装载增量经精确整字节窄适配，13原守卫正文及预算不变；73原拒绝保留，修复后76守卫和529旧013Gate在独立工作镜像全部通过，最终Source资格与首次自然CI/R仍须新鲜收据。002未开始，连续授权有效。

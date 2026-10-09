@@ -1,6 +1,6 @@
 # MBM-001 私有 HTTPS 接线候选
 
-本文件是双方可直接采用的配置和受控夹具约定。2026-10-09已启动隔离的正式Mac production Main→CoreSupervisor→原唯一Owner→HTTPS候选，使用本次自有103份WAVE与103个独立发行、实际系统safeStorage和原可信Renderer许可入口；没有替换safeStorage、鉴权、Owner或TLS。Root独立回读1693份声明源码及三个生产dist树，启动前与就绪时完整输入一致；独立HTTPS客户端实际验证显式anchor、主机名、DER pin与getServer身份。该收据是运行中工作快照，最终源提交绑定、iOS实际消费及自然关闭另行记录，不计为物理手机、真实用户库、音频或Owner验收。唯一 HTTP 合同仍为 `packages/contracts/mobile/openapi.json`，SHA256 `ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb`，不增加公开字段。
+本文件是双方可直接采用的配置和受控夹具约定。2026-10-09已启动隔离的正式Mac production Main→CoreSupervisor→原唯一Owner→HTTPS候选，使用本次自有103份WAVE与103个独立发行、实际系统safeStorage和原可信Renderer许可入口；没有替换safeStorage、鉴权、Owner或TLS。正式共享iOS SDK的macOS消费驱动已实际完成22项检查及两个独立RAM安装：103专辑和103曲目各七页、重复稳定顺序、搜索、详情、三尺寸真实封面、refresh原body/key回执及logout隔离。32项离线驱动检查另计，桌面admin revoke未在该消费者执行。Root独立回读123份驱动源码及Git blob、对应二进制和1693份声明产品源码及三个生产dist树；候选启动前、就绪、消费后和原自然关闭后输入完整一致，104份自有原件未改。App与父进程自然退出0/null，关闭后原数据库经只读immutable回读计数103/103/103。最终Source/R/CI记账继续单列，客户端系统Keychain、原生iOS页面、LAN、物理手机、真实用户库、音频及Owner验收仍未执行。唯一 HTTP 合同仍为 `packages/contracts/mobile/openapi.json`，SHA256 `ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb`，不增加公开字段。
 
 ## 地址与证书
 
@@ -33,7 +33,9 @@ Root 在外置任务 `checks/`、`tmp/`、`gates/` 内生成隔离 TLS 身份、
 
 候选就绪须同时具备：正式服务可启动、可信桌面入口可用、Owner真实接点已接入、适用软件/HTTPS/App Gate通过、对应客户端精确版本可采用。届时在自然进度中提供候选目录与无凭据收据；真实运行层与物理手机结果继续单列。
 
-本次运行目录由Root私有 `checks/MBM001_CANDIDATE_READY.json` 指向；`connection.json`仍严格只有下述五个公开字段。运行中许可通过同uid的0700请求与响应目录采纳，文件0600、无链接、完整稳定FD校验。客户端以单一UUID完整原子发布闭集请求 `{schemaVersion:1,requestId:UUID,operation:"issuePairingPermit"}`；Root调用同一frame的原 `window.musicBridgeMobile.issueMobilePairing()`，将许可只写入该UUID的私有响应。该入口不声明点击按钮；原两个App用例的按钮证据另列。不重发同requestId，最多八次，无许可、access或refresh进入聊天、日志或Git。停止文件 `{schemaVersion:1,operation:"stop"}` 与一小时上限收口原Main/HTTPS，最终检查自然退出、原材料不变及仅只读immutable回读关闭后的自有数据库。就绪收据与发布许可都不能代替iOS消费收据。
+本次有效运行目录由Root私有 `checks/MBM001_CANDIDATE_READY_REPLACEMENT69.json` 指向，运行绑定655份产品源码Git blob到Source fc3c523及全部1693份声明输入；`connection.json`仍严格只有下述五个公开字段。此前run-a3koFn因Root在同一checkout重跑Gate，导致固定worker构建收据时间戳改变，已明确撤回并经原关闭链自然退出；记录见 `checks/MBM001_CANDIDATE_WITHDRAWN66.json`，该运行不计通过。新候选run-TNbvog启动后所有编译与Gate均在独立Source镜像执行，脚本和交付文档修订不改变其声明产品输入。
+
+运行中许可通过同uid的0700请求与响应目录采纳，文件0600、无链接、完整稳定FD校验。客户端须在requests目录外写完0600暂存文件，再原子移入单一UUID最终名称，发布闭集请求 `{schemaVersion:1,requestId:UUID,operation:"issuePairingPermit"}`；requests内的中间文件会触发安全关闭。Root调用同一frame的原 `window.musicBridgeMobile.issueMobilePairing()`，将许可只写入该UUID的私有响应。该入口不声明点击按钮；原两个App用例的按钮证据另列。不重发同requestId，最多八次，无许可、access或refresh进入聊天、日志或Git。停止文件 `{schemaVersion:1,operation:"stop"}` 同样从目录外完整原子移入；一小时上限收口原Main/HTTPS，最终检查自然退出、原材料不变及仅只读immutable回读关闭后的自有数据库。就绪收据与发布许可都不能代替iOS消费收据。
 
 ## 双端采纳的公开连接资料
 
