@@ -332,5 +332,26 @@
     "unknownVersionsRejected": true,
     "initialAdmission73": "FAILED_COMPATIBILITY_LEGACY_INPUT_CHANGED_PRESERVED",
     "repairedWorkingMirror76": "PASS_529_NOT_FINAL_COMMIT_QUALIFICATION"
+  },
+  "firstSourceNaturalCiFailure": {
+    "source": "a99da1518c05f1833f24d1e4ffc5bdb9d28efafc",
+    "runId": 37901356891,
+    "jobId": 113724425610,
+    "evidence": "docs/postrust/MBM-001/evidence/first-source-ci-failure.json",
+    "failedCase": "末次版本探测迟到越过整体期限时清理已boot候选，不能发布ready",
+    "actualTests": 23,
+    "passed": 22,
+    "failed": 1,
+    "electronAppSteps": "SKIPPED_NOT_EXECUTED",
+    "fixtureRepairPreflight": {
+      "actualTests": 23,
+      "pass": 23,
+      "fail": 0,
+      "skip": 0,
+      "startupTimeoutMs": 500,
+      "originalAssertionsRetained": true
+    },
+    "nextSourceGateAndFirstNaturalCi": "PENDING_NEW_ORDINARY_SOURCE_PUSH",
+    "runtimeProductSources": "UNCHANGED_REUSE_ACTUAL_SHARED_SDK_AND_APP_PROOFS"
   }
 }

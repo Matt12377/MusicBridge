@@ -1,0 +1,351 @@
+{
+  "schema": "musicbridge.mbm001.first-source-natural-ci-failure.v1",
+  "sourceSha": "a99da1518c05f1833f24d1e4ffc5bdb9d28efafc",
+  "branch": "codex/mbm-001-pairing-readonly-library",
+  "repositoryId": 1340424953,
+  "event": "push",
+  "runAttempt": 1,
+  "workflowRunId": 37901356891,
+  "jobId": 113724425610,
+  "failedStep": {
+    "name": "Build and verify both Rust hosts once in this job",
+    "status": "completed",
+    "conclusion": "failure",
+    "number": 9,
+    "started_at": "2026-10-09T07:53:05Z",
+    "completed_at": "2026-10-09T07:57:05Z"
+  },
+  "actualFailedCase": "末次版本探测迟到越过整体期限时清理已boot候选，不能发布ready",
+  "observedAssertion": {
+    "expectedProbeCalls": 3,
+    "actualProbeCalls": 2
+  },
+  "testCounts": {
+    "tests": 23,
+    "pass": 22,
+    "fail": 1,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "originalDeadlineMs": 500,
+  "rootCause": "SYNTHETIC_TEST_REAL_WALL_BINARY_PIN_WORK_PREEMPTED_TARGET_FINAL_PROBE_PHASE",
+  "completeJobLogIdentity": {
+    "fileName": "SOURCE_ELECTRON_FAILURE_JOB102.log",
+    "bytes": 67277,
+    "sha256": "f59f6bba44d2119281f904a4058db1387fa96396df5b5d42dedadeb781840f4b"
+  },
+  "selectedArtifactProof": {
+    "schema": "mbm001.first-natural-electron-selected-failure-content.v1",
+    "sourceSha": "a99da1518c05f1833f24d1e4ffc5bdb9d28efafc",
+    "artifactId": 11602967888,
+    "artifactName": "electron-e2e-a99da1518c05f1833f24d1e4ffc5bdb9d28efafc",
+    "platformProducerDigest": "sha256:7854f2f8314230b5f02bab4f17d244ce3c1e951bf7f6bb6789a307878ea198b6",
+    "independentWholeZipDigestValidated": false,
+    "wholeArchiveRead": false,
+    "centralDirectoryRead": true,
+    "selectedCompleteEntries": [
+      {
+        "entry": "musicbridge-rust-core/run-xkQVXE/failure.json",
+        "bytes": 7605,
+        "sha256": "0451d92ab02f82f063e6bb297914b6e972c5531805abae2ce3429c4ea40f8ca9",
+        "crc32": 1156668153,
+        "wholeSelectedEntryRead": true
+      },
+      {
+        "entry": "musicbridge-rust-core/run-xkQVXE/ts-core-owner-lifecycle.log",
+        "bytes": 6482,
+        "sha256": "a33047865d1c89257fa6fb071bcb609f54a790a2100f0b4819b30d1dfcaed68f",
+        "crc32": 1058897344,
+        "wholeSelectedEntryRead": true
+      }
+    ],
+    "selectedRunReceipt": {
+      "name": "ts-core-owner-lifecycle",
+      "command": "/Users/runner/hostedtoolcache/node/22.23.2/x64/bin/node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "test/rust-core-owner-lifecycle.test.ts"
+      ],
+      "exitCode": 1,
+      "signal": null,
+      "log": "/Users/runner/work/_temp/musicbridge-rust-core/run-xkQVXE/ts-core-owner-lifecycle.log",
+      "sha256": "a33047865d1c89257fa6fb071bcb609f54a790a2100f0b4819b30d1dfcaed68f"
+    },
+    "selectedEntryCrcAndProducerShaMatched": true,
+    "downloadedRanges": [
+      {
+        "start": 300943334,
+        "end": 301008869,
+        "file": "FAILED_ZIP_RANGE106.bin",
+        "bytes": 65536,
+        "sha256": "c4393fcecfac5e0b5df4a4c12a6e2e3b11c0860f8e9582541a55fcafd940c9d7"
+      },
+      {
+        "start": 297955739,
+        "end": 298086810,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_003.bin",
+        "bytes": 131072,
+        "sha256": "1af9b6f56e7516da1b7254084fa2a8871cfae7fcfa4a26b3ca126af58c9a6dd6"
+      },
+      {
+        "start": 298086811,
+        "end": 298217882,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_004.bin",
+        "bytes": 131072,
+        "sha256": "ce3a37b5430046b015dcd24359adbd924a97e1b67cd2baf1528740bef8087319"
+      },
+      {
+        "start": 297693595,
+        "end": 297824666,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_001.bin",
+        "bytes": 131072,
+        "sha256": "ea363ee4dd734c8a06002e5d5e3316b8082089440934100343fcd6d2d77a8cf9"
+      },
+      {
+        "start": 297824667,
+        "end": 297955738,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_002.bin",
+        "bytes": 131072,
+        "sha256": "b8da218a390f7dd246105a94d246ab730206653c6bed4ee8a144b922ac300266"
+      },
+      {
+        "start": 298217883,
+        "end": 298348954,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_005.bin",
+        "bytes": 131072,
+        "sha256": "e36f507cf5446869fe9ec2ddc6a3a60efaa5cfc65d96b0f8b1b3f0bdd41528e9"
+      },
+      {
+        "start": 298348955,
+        "end": 298480026,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_006.bin",
+        "bytes": 131072,
+        "sha256": "319bc9ea1f8837a123edd43bc9d41ab25bb04ec18c7d19ff0ac7b3d18989b9c5"
+      },
+      {
+        "start": 298611099,
+        "end": 298742170,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_008.bin",
+        "bytes": 131072,
+        "sha256": "3bcf641ab2cbcda823dd9b72b8fda223f55d3d43282676cbbc159297f543ac5a"
+      },
+      {
+        "start": 299004315,
+        "end": 299135386,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_011.bin",
+        "bytes": 131072,
+        "sha256": "620c52dcce7844610012bec54118ffaaea2fb22c68ecd0ba2524ff607fa86c6e"
+      },
+      {
+        "start": 298873243,
+        "end": 299004314,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_010.bin",
+        "bytes": 131072,
+        "sha256": "60b52d7501abb5e97307a91d2d2e0da1835a19eea4e65a244af2f7af6b67758a"
+      },
+      {
+        "start": 298742171,
+        "end": 298873242,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_009.bin",
+        "bytes": 131072,
+        "sha256": "4ca043f8b3262d2eb94faefc656eef42b6570ac49a03374e66b9294169ba605e"
+      },
+      {
+        "start": 298480027,
+        "end": 298611098,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_007.bin",
+        "bytes": 131072,
+        "sha256": "1d9858a439a85a4c4177057ac10463aba586919d3363f5e4a294de167afd7cfa"
+      },
+      {
+        "start": 299397531,
+        "end": 299528602,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_014.bin",
+        "bytes": 131072,
+        "sha256": "6d4cfc7e4cb316969b025a2b09bdc167428a8936c6d39f354612ded4ce46d31d"
+      },
+      {
+        "start": 299528603,
+        "end": 299659674,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_015.bin",
+        "bytes": 131072,
+        "sha256": "018310a053516105db33923b49a5108ea2b375852c44c06e48b93f7501ac2c33"
+      },
+      {
+        "start": 299135387,
+        "end": 299266458,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_012.bin",
+        "bytes": 131072,
+        "sha256": "f8673289a3a3577eaa026f68fb0841e749ed84bf9cbf55e93ac8ea16e00f62a6"
+      },
+      {
+        "start": 299266459,
+        "end": 299397530,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_013.bin",
+        "bytes": 131072,
+        "sha256": "e5fa23dd732ba3b2c3bde2f72f92d67525ca31e4e9eccdba1422cbeab9d1c999"
+      },
+      {
+        "start": 299790747,
+        "end": 299921818,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_017.bin",
+        "bytes": 131072,
+        "sha256": "975d2a721bb3602434e8381b8951fb132de7d4020995b90c0510a5ad136c88fe"
+      },
+      {
+        "start": 300052891,
+        "end": 300183962,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_019.bin",
+        "bytes": 131072,
+        "sha256": "7e44071009b1648809cdd564eefb08aa342a5ed1bdd1ae9cea990259ce4dcc2a"
+      },
+      {
+        "start": 299921819,
+        "end": 300052890,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_018.bin",
+        "bytes": 131072,
+        "sha256": "e7be952e1a4babf4f2c5826f95587941fb8987fe94387e1757a3afe11714cf3f"
+      },
+      {
+        "start": 299659675,
+        "end": 299790746,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_016.bin",
+        "bytes": 131072,
+        "sha256": "6cf46cb6597b52941cc8c6d00befe4405b2559f799b016d6af940b0a514f4d48"
+      },
+      {
+        "start": 300183963,
+        "end": 300315034,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_020.bin",
+        "bytes": 131072,
+        "sha256": "62f3fc27db33d53a773dc95e255618154b7ba58d732ba48f8a7275f9b7762692"
+      },
+      {
+        "start": 300315035,
+        "end": 300446106,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_021.bin",
+        "bytes": 131072,
+        "sha256": "7eef3831ab4785bfcf8bd41ef3ec76181b375956fe0f06160b8735b0d28972b7"
+      },
+      {
+        "start": 300446107,
+        "end": 300577178,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_022.bin",
+        "bytes": 131072,
+        "sha256": "2f972f434010d9a1664826993afd55daddde6dad2f765c384a00fd4e3f93a78f"
+      },
+      {
+        "start": 300577179,
+        "end": 300708250,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_023.bin",
+        "bytes": 131072,
+        "sha256": "767ae2fa987c47b320286c5736e6979190504bb08445f2e8d7625965d5356276"
+      },
+      {
+        "start": 300839323,
+        "end": 300970394,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_025.bin",
+        "bytes": 131072,
+        "sha256": "236934cfffd11730895a3bfedb9730d02dde676d4077c35dc33d690758fa3b6d"
+      },
+      {
+        "start": 300708251,
+        "end": 300839322,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_024.bin",
+        "bytes": 131072,
+        "sha256": "d1938c83bf9b1abf6e14452d036ad3bb10ee551107e94b7b8e5964b0dc2b7e54"
+      },
+      {
+        "start": 297669868,
+        "end": 297669897,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_026.bin",
+        "bytes": 30,
+        "sha256": "7642fef6351945de809dcac44fba3c64658d4d7d35092f0b9d7e82ca8052ec89"
+      },
+      {
+        "start": 297669898,
+        "end": 297669942,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_027.bin",
+        "bytes": 45,
+        "sha256": "f9e8edff378dc612d46ab62ef4be2cedf7ef276f752507f8ddc4f4ae1fb536db"
+      },
+      {
+        "start": 297669943,
+        "end": 297671342,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_028.bin",
+        "bytes": 1400,
+        "sha256": "058e241f891dfaa1adc082dea5a13e97fb8e2c958f0e27f2fe7de08cec88a13b"
+      },
+      {
+        "start": 297686298,
+        "end": 297686327,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_029.bin",
+        "bytes": 30,
+        "sha256": "2c4f4574066695259987cd28334a03a2197c6998ebd1e108d789f5ac962d2aa1"
+      },
+      {
+        "start": 297686328,
+        "end": 297686387,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_030.bin",
+        "bytes": 60,
+        "sha256": "790a27099f28ce278603ac005eb07625cdd551bd49efddb32a7478e427d34cc2"
+      },
+      {
+        "start": 297686388,
+        "end": 297688459,
+        "file": "FAILED_ZIP_SELECTED111_RANGE_031.bin",
+        "bytes": 2072,
+        "sha256": "39e089d65380d8f1e40ae7dedced4fb7377eec5f79b728c66f325416a36c4afa"
+      }
+    ],
+    "ciReruns": 0,
+    "realServices": "NOT_RUN"
+  },
+  "completeSelectedStageLog": "{\"command\":\"/Users/runner/hostedtoolcache/node/22.23.2/x64/bin/node\",\"args\":[\"--import\",\"tsx\",\"--test\",\"--test-concurrency=1\",\"test/rust-core-owner-lifecycle.test.ts\"],\"cwd\":\"/Users/runner/work/_temp/musicbridge-electron/workspace/packages/bridge-core\"}\nTAP version 13\n# Subtest: 同步factory零来源RPC/零child，并固定调用方options\nok 1 - 同步factory零来源RPC/零child，并固定调用方options\n  ---\n  duration_ms: 1062.749308\n  type: 'test'\n  ...\n# Subtest: 只有完整私有能力可显式准入；v3需大快照能力且factory不执行能力\nok 2 - 只有完整私有能力可显式准入；v3需大快照能力且factory不执行能力\n  ---\n  duration_ms: 7.546802\n  type: 'test'\n  ...\n# Subtest: prepare/boot合并并发，完整Rust ACK前领域请求与refresh均拒绝\nok 3 - prepare/boot合并并发，完整Rust ACK前领域请求与refresh均拒绝\n  ---\n  duration_ms: 962.697798\n  type: 'test'\n  ...\n# Subtest: Node boot迟到超过整体期限只消费回执，不建立router或child\nok 4 - Node boot迟到超过整体期限只消费回执，不建立router或child\n  ---\n  duration_ms: 41.263199\n  type: 'test'\n  ...\n# Subtest: 单一单调期限包含Node boot、版本探测、导出与child boot，不能逐段重置\nok 5 - 单一单调期限包含Node boot、版本探测、导出与child boot，不能逐段重置\n  ---\n  duration_ms: 1010.198701\n  type: 'test'\n  ...\n# Subtest: 关闭即刻封闭、Node close立即登记一次，无需等在途Node boot结束\nok 6 - 关闭即刻封闭、Node close立即登记一次，无需等在途Node boot结束\n  ---\n  duration_ms: 4.76543\n  type: 'test'\n  ...\n# Subtest: router创建中的版本探测迟到不能启动child，关闭消费创建并清理Node\nok 7 - router创建中的版本探测迟到不能启动child，关闭消费创建并清理Node\n  ---\n  duration_ms: 2.506879\n  type: 'test'\n  ...\n# Subtest: 末次版本探测迟到越过整体期限时清理已boot候选，不能发布ready\nnot ok 8 - 末次版本探测迟到越过整体期限时清理已boot候选，不能发布ready\n  ---\n  duration_ms: 521.530035\n  type: 'test'\n  location: '/Users/runner/work/_temp/musicbridge-electron/workspace/packages/bridge-core/test/rust-core-owner-lifecycle.test.ts:1:10043'\n  failureType: 'testCodeFailure'\n  error: |-\n    Expected values to be strictly equal:\n    \n    2 !== 3\n    \n  code: 'ERR_ASSERTION'\n  name: 'AssertionError'\n  expected: 3\n  actual: 2\n  operator: 'strictEqual'\n  stack: |-\n    TestContext.<anonymous> (/Users/runner/work/_temp/musicbridge-electron/workspace/packages/bridge-core/test/rust-core-owner-lifecycle.test.ts:186:10)\n    async Test.run (node:internal/test_runner/test:1054:7)\n    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)\n  ...\n# Subtest: child启动ACK迟到遇到close只能清理候选，不重新发布ready\nok 9 - child启动ACK迟到遇到close只能清理候选，不重新发布ready\n  ---\n  duration_ms: 998.175673\n  type: 'test'\n  ...\n# Subtest: pin失败清理Node，原失败码安全可见且不再次boot\nok 10 - pin失败清理Node，原失败码安全可见且不再次boot\n  ---\n  duration_ms: 518.224151\n  type: 'test'\n  ...\n# Subtest: 坏child启动回执清理全部候选，关闭仍呈现非自然退出失败\nok 11 - 坏child启动回执清理全部候选，关闭仍呈现非自然退出失败\n  ---\n  duration_ms: 513.444941\n  type: 'test'\n  ...\n# Subtest: ready后collection.list走Rust，其余已有领域只到Node；非领域闭集不会泄漏\nok 12 - ready后collection.list走Rust，其余已有领域只到Node；非领域闭集不会泄漏\n  ---\n  duration_ms: 980.983018\n  type: 'test'\n  ...\n# Subtest: 写入success回执在invalidate/close后保留对象与命令身份，不重放\nok 13 - 写入success回执在invalidate/close后保留对象与命令身份，不重放\n  ---\n  duration_ms: 838.742781\n  type: 'test'\n  ...\n# Subtest: 写入failure回执在invalidate/close后保留对象与命令身份，不重放\nok 14 - 写入failure回执在invalidate/close后保留对象与命令身份，不重放\n  ---\n  duration_ms: 919.68412\n  type: 'test'\n  ...\n# Subtest: 写入unknown回执在invalidate/close后保留对象与命令身份，不重放\nok 15 - 写入unknown回执在invalidate/close后保留对象与命令身份，不重放\n  ---\n  duration_ms: 1038.993512\n  type: 'test'\n  ...\n# Subtest: 并发refresh合并，旧child退出后才创建下一child，关闭Node仍只一次\nok 16 - 并发refresh合并，旧child退出后才创建下一child，关闭Node仍只一次\n  ---\n  duration_ms: 1819.225469\n  type: 'test'\n  ...\n# Subtest: Node关闭失败不能伪称closed，关闭Promise/原异常只返回一次且status不泄漏\nok 17 - Node关闭失败不能伪称closed，关闭Promise/原异常只返回一次且status不泄漏\n  ---\n  duration_ms: 1052.357649\n  type: 'test'\n  ...\n# Subtest: Rust关闭坏回执不能伪称closed，Node仍收口一次\nok 18 - Rust关闭坏回执不能伪称closed，Node仍收口一次\n  ---\n  duration_ms: 564.818027\n  type: 'test'\n  ...\n# Subtest: prepare失败原调用保留异常，同时关闭Node一次且status仅安全错误码\nok 19 - prepare失败原调用保留异常，同时关闭Node一次且status仅安全错误码\n  ---\n  duration_ms: 1.419783\n  type: 'test'\n  ...\n# Subtest: Node prepare与版本探测身份错配在导出/spawn前拒绝，不发布另一来源库\nok 20 - Node prepare与版本探测身份错配在导出/spawn前拒绝，不发布另一来源库\n  ---\n  duration_ms: 1.232087\n  type: 'test'\n  ...\n# Subtest: prepare返回身份冻结，调用者不能修改内部绑定或改变之后的router事实\nok 21 - prepare返回身份冻结，调用者不能修改内部绑定或改变之后的router事实\n  ---\n  duration_ms: 1047.368967\n  type: 'test'\n  ...\n# Subtest: Node close未确认必须在整体关闭期限失败，迟到resolve不重开或冒称自然关闭\nok 22 - Node close未确认必须在整体关闭期限失败，迟到resolve不重开或冒称自然关闭\n  ---\n  duration_ms: 1083.644533\n  type: 'test'\n  ...\n# Subtest: Node close未确认必须在整体关闭期限失败，迟到reject不重开或冒称自然关闭\nok 23 - Node close未确认必须在整体关闭期限失败，迟到reject不重开或冒称自然关闭\n  ---\n  duration_ms: 986.246576\n  type: 'test'\n  ...\n1..23\n# tests 23\n# suites 0\n# pass 22\n# fail 1\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 17378.571205\n",
+  "electronInstallStartupAndE2e": "SKIPPED_NOT_EXECUTED_AFTER_HOST_PREPARATION_FAILURE",
+  "otherFirstSourceWorkflows": {
+    "verify": {
+      "runId": 37901356987,
+      "status": "in_progress",
+      "conclusion": null
+    },
+    "security": {
+      "runId": 37901356911,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "Rust Core 只读原型": {
+      "runId": 37901356913,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "sourceVerifyStillInProgressAtThisSnapshot": true,
+  "repairFixturePreflight": {
+    "schema": "mbm001.owner-controlled-clock-patch-readback.v1",
+    "baseSource": "a99da1518c05f1833f24d1e4ffc5bdb9d28efafc",
+    "scope": "WORKING_TEST_FIXTURE_PREFLIGHT_NOT_FINAL_SOURCE",
+    "actualTests": 23,
+    "allOriginal23NamesPreserved": true,
+    "fail": 0,
+    "skip": 0,
+    "originalStartupTimeoutMs": 500,
+    "newStartupTimeoutMs": 500,
+    "allOriginalLifecycleAssertionsRetained": true,
+    "addedBeforeTimeoutStageAndCleanupChecks": true,
+    "rawLog": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/rust-owner-controlled-clock112.log",
+      "bytes": 5746,
+      "sha256": "7203b22f653059d47e0f84ab460e713b7aa7197823640bfbfd5e755344bd1202"
+    },
+    "productionSourcesChanged": false,
+    "ciFailure": "SOURCE_ELECTRON_FAILURE_SELECTED_READBACK111.json"
+  },
+  "ciReruns": 0,
+  "fullFailureArtifactDownload": "TIMED_OUT_PARTIAL_FILE_PRESERVED_SELECTED_ENTRY_ONLY_NO_WHOLE_ZIP_DIGEST_CLAIM",
+  "realServicesDeviceAudioOwner": "NOT_RUN"
+}

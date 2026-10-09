@@ -432,3 +432,7 @@ Mac fresh035完整33/33自然退出0，schema60/128与196整HTTP分开记录，�
 
 <!-- MBM001_RUNTIME_AND_COMPATIBILITY80 -->
 001实际production Main/CoreSupervisor/原唯一Owner＋系统safeStorage候选run-TNbvog由Source b820498的正式共享iOS SDK在macOS实际消费：22项通过／admin revoke一项NOT_RUN，两个独立RAM安装、各103专辑/曲目七页及重复稳定顺序、搜索/详情、三尺寸真实封面、refresh原body/key回执与logout隔离；驱动32离线项另计，原149软件及41受控原生HTTPS保留。Root全FD核123驱动源码与Git blob、1693候选源码/三个dist树，原App和父进程自然0/null，104自有原件不变，关闭后readonly immutable计数103/103/103。客户端系统Keychain、原生iOS UI、LAN/物理设备/音频/Provider/Roon/Owner仍NOT_RUN。旧run-a3koFn因Root共享checkout构建收据时间戳漂移撤回，自然退出且未发许可，不算通过。014原49输入中Preload两行真实装载增量经精确整字节窄适配，13原守卫正文及预算不变；73原拒绝保留，修复后76守卫和529旧013Gate在独立工作镜像全部通过，最终Source资格与首次自然CI/R仍须新鲜收据。002未开始，连续授权有效。
+
+## MBM001_FIRST_NATURAL_CI_FIXTURE_REPAIR115
+
+Source a99da151 的首次自然Electron CI在原ts-core-owner-lifecycle第8个受控用例失败（23项中22 pass、1 fail、零skip）；其后Electron安装、startup及正式E2E均未执行。实际错误为500ms期限先被完整二进制校验耗尽，未到最后版本探测；修复仅令受控时钟在已boot候选的第三次探测后推进500ms，原全部断言、期限、23个用例名不变。本地镜像23项自然退出0；精确修复Source Gate与首次自然CI待新提交后执行。两平台原Rust workflow已成功，001实际自有Mac服务消费与原App证据按655产品源码相同继续复用；失败及未执行事实单独保留，不重跑同SHA，不推进002。
