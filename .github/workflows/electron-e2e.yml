@@ -67,7 +67,18 @@ jobs:
           RUSTUP_TOOLCHAIN: '1.95.0'
 
       - name: Install Electron binary from locked tree (official installer only)
-        run: node node_modules/electron/install.js
+        run: |
+          for attempt in 1 2 3; do
+            if node node_modules/electron/install.js; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "官方Electron安装器第${attempt}次未完成，15秒后进行下一次有限尝试。"
+              sleep 15
+            fi
+          done
+          echo "官方Electron安装器三次均未完成，停止并保留失败记录。" >&2
+          exit 1
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}/apps/desktop
 
       - name: Verify official Electron archive and actual execution tree

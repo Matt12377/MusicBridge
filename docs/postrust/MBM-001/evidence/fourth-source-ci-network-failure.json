@@ -1,0 +1,226 @@
+{
+  "schema": "mbm001.official-installer-network-failure-qualification.v1",
+  "failedSourceSha": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+  "naturalRunId": 37917516935,
+  "naturalJobId": 113777206180,
+  "naturalAttempt": 1,
+  "wholeFailedJob": {
+    "schema": "mbm001.actual-first-natural-job-complete-log.v1",
+    "capturedAt": "2026-10-09T10:49:26.439725+00:00",
+    "sourceSha": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+    "phase": "source",
+    "runId": 37917516935,
+    "jobId": 113777206180,
+    "jobName": "macos-electron-gate",
+    "jobConclusion": "failure",
+    "naturalAttempt": 1,
+    "actualJobLog": {
+      "fileName": "BUDGET_SOURCE_ELECTRON_FAILURE_JOB291.log",
+      "bytes": 86980,
+      "sha256": "fe58eccb78776a29dc7c967ecba986875ef2bc63dc271ab127a00ebded527cd7"
+    },
+    "method": "GH_RUN_VIEW_EXACT_RUN_AND_JOB_LOG",
+    "stderr": {
+      "fileName": "BUDGET_SOURCE_ELECTRON_FAILURE_JOB291.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "downloadExitCode": 0,
+    "downloadTimedOut": false,
+    "fullBytesReadBack": true,
+    "result": "DOWNLOADED_COMPLETE_JOB_RAW_BYTES"
+  },
+  "wholeFailedJobBytesActuallyRead": true,
+  "originalSteps": [
+    {
+      "name": "Set up job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 1,
+      "started_at": "2026-10-09T10:25:36Z",
+      "completed_at": "2026-10-09T10:25:38Z"
+    },
+    {
+      "name": "Checkout",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 2,
+      "started_at": "2026-10-09T10:25:38Z",
+      "completed_at": "2026-10-09T10:25:46Z"
+    },
+    {
+      "name": "Prepare hosted runner evidence directories",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 3,
+      "started_at": "2026-10-09T10:25:46Z",
+      "completed_at": "2026-10-09T10:25:46Z"
+    },
+    {
+      "name": "Node.js 22",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 4,
+      "started_at": "2026-10-09T10:25:46Z",
+      "completed_at": "2026-10-09T10:25:48Z"
+    },
+    {
+      "name": "Prepare source-pinned build workspace mirror",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 5,
+      "started_at": "2026-10-09T10:25:48Z",
+      "completed_at": "2026-10-09T10:25:52Z"
+    },
+    {
+      "name": "Install frozen workspace",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 6,
+      "started_at": "2026-10-09T10:25:52Z",
+      "completed_at": "2026-10-09T10:26:25Z"
+    },
+    {
+      "name": "Prepare fresh Core fixed Worker before existing Electron gates",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 7,
+      "started_at": "2026-10-09T10:26:25Z",
+      "completed_at": "2026-10-09T10:27:32Z"
+    },
+    {
+      "name": "Prepare Rust toolchain",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 8,
+      "started_at": "2026-10-09T10:27:32Z",
+      "completed_at": "2026-10-09T10:27:55Z"
+    },
+    {
+      "name": "Build and verify both Rust hosts once in this job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 9,
+      "started_at": "2026-10-09T10:27:55Z",
+      "completed_at": "2026-10-09T10:41:16Z"
+    },
+    {
+      "name": "Install Electron binary from locked tree (official installer only)",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 10,
+      "started_at": "2026-10-09T10:41:16Z",
+      "completed_at": "2026-10-09T10:41:47Z"
+    },
+    {
+      "name": "Verify official Electron archive and actual execution tree",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 11,
+      "started_at": "2026-10-09T10:41:47Z",
+      "completed_at": "2026-10-09T10:41:47Z"
+    },
+    {
+      "name": "Electron startup, crash/restart, safeStorage vault and credential recovery gates",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 12,
+      "started_at": "2026-10-09T10:41:47Z",
+      "completed_at": "2026-10-09T10:41:47Z"
+    },
+    {
+      "name": "Electron end-to-end flow (Playwright, production build)",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 13,
+      "started_at": "2026-10-09T10:41:47Z",
+      "completed_at": "2026-10-09T10:41:47Z"
+    },
+    {
+      "name": "Select declared synthetic Rust Host artifacts",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 14,
+      "started_at": "2026-10-09T10:41:47Z",
+      "completed_at": "2026-10-09T10:41:48Z"
+    },
+    {
+      "name": "Preserve declared synthetic Rust Host compiled artifacts",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 15,
+      "started_at": "2026-10-09T10:41:48Z",
+      "completed_at": "2026-10-09T10:43:19Z"
+    },
+    {
+      "name": "Preserve Electron logs and synthetic test artifacts",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 16,
+      "started_at": "2026-10-09T10:43:19Z",
+      "completed_at": "2026-10-09T10:44:51Z"
+    },
+    {
+      "name": "Post Node.js 22",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 31,
+      "started_at": "2026-10-09T10:44:51Z",
+      "completed_at": "2026-10-09T10:44:51Z"
+    },
+    {
+      "name": "Post Checkout",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 32,
+      "started_at": "2026-10-09T10:44:51Z",
+      "completed_at": "2026-10-09T10:44:52Z"
+    },
+    {
+      "name": "Complete job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 33,
+      "started_at": "2026-10-09T10:44:52Z",
+      "completed_at": "2026-10-09T10:44:53Z"
+    }
+  ],
+  "officialInstallerError": "TypeError: fetch failed",
+  "nestedFetchCauseCode": "NOT_LOGGED_NOT_INFERRED",
+  "artifactCreateTimeoutsAfterFiveBuiltInAttempts": 2,
+  "hostPreparation": "PASS",
+  "officialBinaryVerification": "SKIPPED",
+  "startup": "SKIPPED",
+  "e2e": "SKIPPED",
+  "startupAndE2eActualTests": 0,
+  "failedElectronArchives": "NOT_CREATED_NOT_DOWNLOADED_NOT_QUALIFIED",
+  "remainingVerifyJob": "PENDING_HISTORICAL_SOURCE6_RUN",
+  "failureCategory": "OBSERVED_EXTERNAL_TRANSPORT_FAILURE_NOT_PRODUCT_TEST_FAILURE_SPECIFIC_NETWORK_CAUSE_UNCONFIRMED",
+  "githubStatusReadOnly": {
+    "url": "https://www.githubstatus.com/",
+    "observed": "ALL_SYSTEMS_OPERATIONAL_NO_INCIDENTS_REPORTED_2026_10_09",
+    "readAt": "2026-10-09T10:53:57.861516+00:00",
+    "doesNotProveThisRunnerConnectivity": true
+  },
+  "repair": {
+    "officialInstallerArgv": [
+      "node",
+      "node_modules/electron/install.js"
+    ],
+    "maximumAttempts": 3,
+    "backoffSeconds": 15,
+    "successRequiresOriginalInstallerExitZero": true,
+    "allThreeFailuresExitNonZero": true,
+    "officialArchiveAndActualTreeGateUnchanged": true,
+    "onlyTransportInvocationBoundedRetryNotTestOrCiRerun": true,
+    "wholeElectronJob60MinutesUnchanged": true,
+    "productAndTestSourcesUnchanged": true,
+    "allGateScopesAndBudgetsUnchanged": true
+  },
+  "manualCiReruns": 0,
+  "manualCiCancellations": 0,
+  "actualRuntimeReplayed": false,
+  "pairedDeliveryComplete": false,
+  "nextSourceQualification": "PENDING",
+  "realProviderRoonNasPhysicalDeviceAudioOwner": "NOT_RUN"
+}

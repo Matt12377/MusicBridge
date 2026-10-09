@@ -403,5 +403,18 @@
     "testCommandsAndAssertionsUnchanged": true,
     "nextExactSourceGateAndNaturalCi": "PENDING",
     "realDeviceAudioOwner": "NOT_RUN"
+  },
+  "officialInstallerNetworkRepair": {
+    "previousSource": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+    "previousFirstNaturalElectron": "FAIL_OFFICIAL_DOWNLOAD_FETCH_AND_TWO_ARTIFACT_CREATE_TIMEOUTS_AFTER5_ATTEMPTS",
+    "originalHostPreparation": "PASS",
+    "originalStartupAndE2e": "SKIPPED_NOT_PASS",
+    "maximumOfficialInstallerAttempts": 3,
+    "backoffSeconds": 15,
+    "officialChecksumAndIdentityGatesUnchanged": true,
+    "productionSourcesUnchanged": true,
+    "sourceGateAndNaturalCi": "PENDING_FRESH_EXACT_SOURCE",
+    "pairedFinalDelivery": false,
+    "evidence": "docs/postrust/MBM-001/evidence/fourth-source-ci-network-failure.json"
   }
 }
