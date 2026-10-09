@@ -1,0 +1,343 @@
+{
+  "schema": "mbm001.unchanged-ios-software-input-qualification.v1",
+  "baseSource": "731daea2e68560bb689aca09618dd4e607891a93",
+  "baseReport": "20095f21ae6c2021543da73a15cbea0478580937",
+  "actualSource": "b82049825e9e9058fe4a70186da70f5a267543ea",
+  "actualReport": "c53ed3e4850f60b203d4773446db74789e2814d7",
+  "productTreesUnchanged": true,
+  "testsReplayed": false,
+  "wholeSourceGitRows": 384,
+  "wholeArchiveGitRows": 37,
+  "distinctCases": 149,
+  "clientCases": 74,
+  "libraryCases": 47,
+  "appStateCases": 28,
+  "controlledNativeHttpsCases": 41,
+  "controlledNativeHttpsCaseRows": [
+    {
+      "evidenceLayer": "ACTUAL_TLS_NEGATIVE",
+      "id": "tls-unadopted-server",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_NEGATIVE",
+      "id": "tls-unadopted-authenticated-library",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_POSITIVE",
+      "id": "tls-adopted-server",
+      "observed": "validated-response",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_PUBLIC_CONFIGURATION",
+      "id": "tls-public-configuration-serverid-matches",
+      "observed": "validated-response",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_PUBLIC_CONFIGURATION",
+      "id": "tls-public-configuration-serverid-mismatch",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_POSITIVE",
+      "id": "tls-adopted-library",
+      "observed": "validated-response",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_POSITIVE",
+      "id": "tls-adopted-artwork",
+      "observed": "validated-response",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_NEGATIVE",
+      "id": "tls-wrong-pin",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "TRUST_IMPORT_NEGATIVE",
+      "id": "trust-import-rejects-wrong-san",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_NEGATIVE",
+      "id": "tls-served-wrong-san-certificate",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "TRUST_IMPORT_NEGATIVE",
+      "id": "trust-import-rejects-expired",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_NEGATIVE",
+      "id": "tls-served-expired-certificate",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "TRUST_IMPORT_NEGATIVE",
+      "id": "trust-import-rejects-future",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_NEGATIVE",
+      "id": "tls-served-future-certificate",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "TRUST_ORIGIN_BINDING_NEGATIVE",
+      "id": "tls-rejects-trust-host-mismatch",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "TRUST_ORIGIN_BINDING_NEGATIVE",
+      "id": "tls-rejects-trust-port-mismatch",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_REDIRECT",
+      "id": "tls-redirect-301-same",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_REDIRECT",
+      "id": "tls-redirect-301-foreign",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_REDIRECT",
+      "id": "tls-redirect-302-same",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_REDIRECT",
+      "id": "tls-redirect-302-foreign",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_REDIRECT",
+      "id": "tls-redirect-303-same",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_REDIRECT",
+      "id": "tls-redirect-303-foreign",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_REDIRECT",
+      "id": "tls-redirect-307-same",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_REDIRECT",
+      "id": "tls-redirect-307-foreign",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_REDIRECT",
+      "id": "tls-redirect-308-same",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "ACTUAL_TLS_REDIRECT",
+      "id": "tls-redirect-308-foreign",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "PRODUCTION_ENDPOINT_POLICY",
+      "id": "production-rejects-http",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "PRODUCTION_ENDPOINT_POLICY",
+      "id": "production-rejects-public-host",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "PRODUCTION_ENDPOINT_POLICY",
+      "id": "production-rejects-dns-domain-off",
+      "observed": "expected-safe-error",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "PRODUCTION_ENDPOINT_POLICY",
+      "id": "origin-rejects-other-port",
+      "observed": "origin-rejected",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "PRODUCTION_ENDPOINT_POLICY",
+      "id": "origin-rejects-other-host",
+      "observed": "origin-rejected",
+      "passed": true
+    },
+    {
+      "evidenceLayer": "PRODUCTION_ENDPOINT_POLICY",
+      "id": "origin-rejects-downgrade",
+      "observed": "origin-rejected",
+      "passed": true
+    },
+    {
+      "id": "tls-first-requests",
+      "evidenceLayer": "ACTUAL_TLS_SERVER_COUNTERS",
+      "passed": true,
+      "observed": "counter-validated"
+    },
+    {
+      "id": "tls-unadopted-and-wrong-pin-handshake-rejections",
+      "evidenceLayer": "ACTUAL_TLS_SERVER_COUNTERS",
+      "passed": true,
+      "observed": "counter-validated"
+    },
+    {
+      "id": "tls-no-redirect-target-request",
+      "evidenceLayer": "ACTUAL_TLS_SERVER_COUNTERS",
+      "passed": true,
+      "observed": "counter-validated"
+    },
+    {
+      "id": "tls-no-foreign-connection-or-authorization",
+      "evidenceLayer": "ACTUAL_TLS_SERVER_COUNTERS",
+      "passed": true,
+      "observed": "counter-validated"
+    },
+    {
+      "id": "tls-only-expected-synthetic-requests",
+      "evidenceLayer": "ACTUAL_TLS_SERVER_COUNTERS",
+      "passed": true,
+      "observed": "counter-validated"
+    },
+    {
+      "id": "owned-services-closed",
+      "evidenceLayer": "HARNESS_LIFECYCLE",
+      "passed": true,
+      "observed": "counter-validated"
+    },
+    {
+      "id": "tls-served-wrong-san-no-http-or-authorization",
+      "evidenceLayer": "ACTUAL_TLS_SERVER_COUNTERS",
+      "passed": true,
+      "observed": "counter-validated"
+    },
+    {
+      "id": "tls-served-expired-no-http-or-authorization",
+      "evidenceLayer": "ACTUAL_TLS_SERVER_COUNTERS",
+      "passed": true,
+      "observed": "counter-validated"
+    },
+    {
+      "id": "tls-served-future-no-http-or-authorization",
+      "evidenceLayer": "ACTUAL_TLS_SERVER_COUNTERS",
+      "passed": true,
+      "observed": "counter-validated"
+    }
+  ],
+  "unsignedGenericSimulatorBuilds": [
+    {
+      "mode": "Mock",
+      "receipt": {
+        "path": "validation.json",
+        "bytes": 30875,
+        "sha256": "96f0f7ecb4f2ba18241a14e6bc0bd0431742015176565cfbb593517ae09d7dc9",
+        "noFollow": true,
+        "stableNamedFD": true
+      },
+      "wholeBuildLog": {
+        "path": "build.log",
+        "bytes": 742387,
+        "sha256": "430433bf643c759c4c2a6e77375e6b0169fca430af35c50d09547bacd4c95a93",
+        "noFollow": true,
+        "stableNamedFD": true
+      },
+      "bundleBinary": {
+        "path": "MusicBridgeMock",
+        "bytes": 72992,
+        "sha256": "26ff25c6ebb3bfa26b0d153caeaa0d0932a3b958cb12218caf5363e1a0a175a2",
+        "noFollow": true,
+        "stableNamedFD": true
+      },
+      "bundlePlist": {
+        "path": "Info.plist",
+        "bytes": 1518,
+        "sha256": "878914d4093d09dcd9c57a53b287680ea4319c5572db89e9934da30b3bcf5fc3",
+        "noFollow": true,
+        "stableNamedFD": true
+      },
+      "unsignedGenericSimulatorBuildOnly": true
+    },
+    {
+      "mode": "Production",
+      "receipt": {
+        "path": "validation.json",
+        "bytes": 30922,
+        "sha256": "e03bf7d280700eeff8bd5bcbe9416e3293efabb3cf94955054eef01e78bc7c00",
+        "noFollow": true,
+        "stableNamedFD": true
+      },
+      "wholeBuildLog": {
+        "path": "build.log",
+        "bytes": 743347,
+        "sha256": "5d18532bb9e057f274f88dbd383e3b5dc48dc5be396d39014f161391ffe1eed1",
+        "noFollow": true,
+        "stableNamedFD": true
+      },
+      "bundleBinary": {
+        "path": "MusicBridge",
+        "bytes": 20547992,
+        "sha256": "cd06e16c4200250bd108ad79192d0c5b1eff93484dca1be9072948c62d2b7f75",
+        "noFollow": true,
+        "stableNamedFD": true
+      },
+      "bundlePlist": {
+        "path": "Info.plist",
+        "bytes": 1442,
+        "sha256": "2dafe462c130d5fa56065c4dc7c709e48e61a179800000d015f2975cedf80c74",
+        "noFollow": true,
+        "stableNamedFD": true
+      },
+      "unsignedGenericSimulatorBuildOnly": true
+    }
+  ],
+  "originalRootReadbacks": [
+    {
+      "path": "IOS_MBM001_READBACK50.json",
+      "bytes": 167354,
+      "sha256": "41c25cd43ba39232ba2e600c0da36c6659088efea0a1198cd8330f95559c8579"
+    },
+    {
+      "path": "IOS_MBM001_DETAIL_READBACK51.json",
+      "bytes": 10746,
+      "sha256": "f7513c5a5fc5ea4dfa27b54feec388c42f190680062250d9434d5fc63fc566ed"
+    }
+  ],
+  "nativeAppUIClientKeychainPhysicalDeviceAudioOwner": "NOT_RUN"
+}

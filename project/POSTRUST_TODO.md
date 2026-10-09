@@ -105,3 +105,8 @@ Scope18仅改新增回归的两行assert.throws为等价字符串message重载�
 
 <!-- MBM001_START01 -->
 001从000最终R c6c4745接续，独立范围见[001任务](../tasks/MBM-001_PAIRING_READONLY_LIBRARY.md)。三个既存gpt-6.1-sol/max代理集中auth/catalog/HTTPS，同一任务独占文件，Root串行共享作者与验证。原000冻结pending由[实际前驱封存](../docs/postrust/MBM-001/PREDECESSOR_DELIVERY.json)解析；不重跑000或新建第三次000封存提交。
+
+
+## MBM-001 独立结果报告记账（2026-10-09）
+
+精确Source `cef70a57aa1f4b495e6babb4cc7c0b65f7297742` 的87项Gate、156项独立准入检查、原23项同500ms期限生命周期及首次自然四workflow/六job已通过，五份完整制品逐条消费。原App两项/4次自然关闭另计；正式共享iOS SDK实际22项/离线驱动32项与系统safeStorage候选原自然关闭0、103专辑/103曲目各7页通过，655份产品源码与Source整份相同。iOS实际Source `b82049825e9e9058fe4a70186da70f5a267543ea`/R `c53ed3e4850f60b203d4773446db74789e2814d7` 独立报告与普通远端已核。详见 `reports/MBM-001_RESULT.md`；本R自然CI和成对外置最终封存待执行，Source冻结pending快照与旧18/156、有效17/150、013八PARTIAL、015六N_A保持。下一002～004、016、017沿用已有连续授权，从封存R依序推进，设备/音频/真实Roon/NAS/Owner待验；当前高危门槛通过但8项既有中等依赖公告仍需016安全资格化。

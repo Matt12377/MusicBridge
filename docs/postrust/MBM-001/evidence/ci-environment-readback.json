@@ -1,0 +1,177 @@
+{
+  "schema": "mbm001.ci-bytecode-environment-repair.v1",
+  "sourceSha": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+  "reproduction": {
+    "schema": "mbm001.prior-python-import-dirty-workspace-reproduction.v1",
+    "sourceSha": "cb7ef068ceec0b69b54d40f96c342c13ab249da6",
+    "result": "PASS_REPRODUCED_THREE_UNTRACKED_CACHES_EXACT_SOURCE_CLEAN_REJECTION_AND_ENV_PREVENTION",
+    "cases": [
+      {
+        "sourceSha": "cb7ef068ceec0b69b54d40f96c342c13ab249da6",
+        "pythonDontWriteBytecode": false,
+        "sourceFiles": [
+          {
+            "path": "scripts/ci/capacity-phase-supervisor-v2.py",
+            "bytes": 363179,
+            "sha256": "21dcb16442df69df12c0194f59636dc3ff7f83b8caa6e7389371deb0c3f6715a"
+          },
+          {
+            "path": "scripts/ci/capacity_process_failure_lineage.py",
+            "bytes": 17815,
+            "sha256": "7e861abae853f7c36c184dfc93f7a21861659b62729e5f1df17ce51fb331c2a0"
+          },
+          {
+            "path": "scripts/ci/issue-v3-capacity-queued-stop-window.py",
+            "bytes": 153869,
+            "sha256": "dd801acaf0fad9873e001f6248f37c58ef15aa4c6c2bf4183e61b551a009d6bc"
+          }
+        ],
+        "importNaturalExitCode": 0,
+        "gitStatusAfter": "?? scripts/ci/__pycache__/capacity-phase-supervisor-v2.cpython-314.pyc\n?? scripts/ci/__pycache__/capacity_process_failure_lineage.cpython-314.pyc\n?? scripts/ci/__pycache__/issue-v3-capacity-queued-stop-window.cpython-314.pyc\n",
+        "generatedUntrackedFiles": [
+          {
+            "path": "scripts/ci/__pycache__/capacity-phase-supervisor-v2.cpython-314.pyc",
+            "bytes": 466667,
+            "sha256": "5c7a367d2467e2c1025d88cc2f91690c71cc832015430896088a5cc6a1bcac2d"
+          },
+          {
+            "path": "scripts/ci/__pycache__/capacity_process_failure_lineage.cpython-314.pyc",
+            "bytes": 26773,
+            "sha256": "b17579f4effdad3e6bbd9bd5d97129f55968cf5feccc657f1edfda89e42d1169"
+          },
+          {
+            "path": "scripts/ci/__pycache__/issue-v3-capacity-queued-stop-window.cpython-314.pyc",
+            "bytes": 192494,
+            "sha256": "e69a82e29d4c660ce4afa42a1cb348160a9986aa46df9744eb4d53c0264605d0"
+          }
+        ],
+        "gateExitCode": 1,
+        "gateBusinessStagesExecuted": 0,
+        "gateRawUtf8": "MBM001 Gate拒绝：MBM001_SOURCE_NOT_CLEAN\n",
+        "gateRawBytes": 44,
+        "gateRawSha256": "7bd03fece654b2ad8d33d1b6ad6b74aeaa5d456f8d691661c3b395ee8e5e4a3e"
+      },
+      {
+        "sourceSha": "cb7ef068ceec0b69b54d40f96c342c13ab249da6",
+        "pythonDontWriteBytecode": true,
+        "sourceFiles": [
+          {
+            "path": "scripts/ci/capacity-phase-supervisor-v2.py",
+            "bytes": 363179,
+            "sha256": "21dcb16442df69df12c0194f59636dc3ff7f83b8caa6e7389371deb0c3f6715a"
+          },
+          {
+            "path": "scripts/ci/capacity_process_failure_lineage.py",
+            "bytes": 17815,
+            "sha256": "7e861abae853f7c36c184dfc93f7a21861659b62729e5f1df17ce51fb331c2a0"
+          },
+          {
+            "path": "scripts/ci/issue-v3-capacity-queued-stop-window.py",
+            "bytes": 153869,
+            "sha256": "dd801acaf0fad9873e001f6248f37c58ef15aa4c6c2bf4183e61b551a009d6bc"
+          }
+        ],
+        "importNaturalExitCode": 0,
+        "gitStatusAfter": "",
+        "generatedUntrackedFiles": []
+      }
+    ],
+    "remoteFailureWholeLog": "FIRST_SOURCE_VERIFY_FAILURE_JOB144.json",
+    "remoteActualDirtyNames": "NOT_PRINTED_BY_ORIGINAL_GATE_LOCAL_REPRO_AND_PREVIOUS_ARTIFACT_CACHE_ROWS_SEPARATE",
+    "fixtureOnlyEnvironmentChange": true,
+    "originalCleanGateUnchanged": true,
+    "productionSourcesChanged": false
+  },
+  "staging": {
+    "schema": "mbm001.ci-environment-repair-source-staging.v1",
+    "parent": "cb7ef068ceec0b69b54d40f96c342c13ab249da6",
+    "paths": [
+      {
+        "path": ".github/workflows/verify.yml",
+        "bytes": 13838,
+        "sha256": "d2c3ae2e27255a688720dd843e167fe1430bd7e65e562f537f815e3a867d5c71"
+      },
+      {
+        "path": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+        "bytes": 13434,
+        "sha256": "1fe9325feb0f88ee6fad4975eea81c847804e56d216ee3fba986bac1d854796b"
+      },
+      {
+        "path": "docs/postrust/MBM-001/evidence/first-source-verify-failure.json",
+        "bytes": 116265,
+        "sha256": "0478872323e85c262f147b7e3bf737d1bd4da5ffc91430fbb983ac866b29d7ad"
+      },
+      {
+        "path": "project/POSTRUST_PROGRESS.md",
+        "bytes": 104866,
+        "sha256": "691520b2995b7d3aeb389fa7887072ff1ffa301264467f44bec443f23005ea74"
+      },
+      {
+        "path": "project/STATUS.json",
+        "bytes": 2618961,
+        "sha256": "93b149ab6b33f059c556de511c1d815422875299b90a96bb9c7cb943bb611487"
+      }
+    ],
+    "originalLifecycleClockAndCasesUnchanged": true,
+    "originalCleanGateUnchanged": true,
+    "allRuntimeProductSourcesUnchanged": true,
+    "sourceAcceptanceAndAllMachineFrozenFieldsUnchanged": true,
+    "workflowOnlyPythonBytecodeEnvironmentChanged": true,
+    "failureAndReproduction": "CI_BYTECODE_REPRODUCTION146.json"
+  },
+  "commit": {
+    "schema": "mbm001.source-ci-environment-repair-commit.v1",
+    "source": "8cf0c970b0739fbf7712cd504e9a1e70085c867b",
+    "parent": "cb7ef068ceec0b69b54d40f96c342c13ab249da6",
+    "baseReport": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
+    "branch": "codex/mbm-001-pairing-readonly-library",
+    "paths": [
+      ".github/workflows/verify.yml",
+      "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "docs/postrust/MBM-001/evidence/first-source-verify-failure.json",
+      "project/POSTRUST_PROGRESS.md",
+      "project/STATUS.json"
+    ],
+    "clean": true,
+    "productionSourcesChanged": false,
+    "originalGateUnchanged": true,
+    "naturalCi": "PENDING_NEW_ORDINARY_FIRST_PUSH",
+    "capturedAt": "2026-10-09T08:48:52.414803+00:00"
+  },
+  "exactSourceActualImports": {
+    "receipt": {
+      "schema": "mbm001.source-mirror-root-check.v1",
+      "label": "network-source-python-import302",
+      "head": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+      "directory": "",
+      "argv": [
+        "python3",
+        "-c",
+        "import importlib.util,pathlib; names=[\"capacity-phase-supervisor-v2.py\",\"capacity_process_failure_lineage.py\",\"issue-v3-capacity-queued-stop-window.py\"]\nfor i,name in enumerate(names):\n p=pathlib.Path(\"scripts/ci\")/name; spec=importlib.util.spec_from_file_location(\"mbm001_environment_probe_\"+str(i),p); m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)\nprint(\"三个原模块实际导入，字节码写入已按CI环境禁用\")"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 0.13304341601906344,
+      "log": {
+        "file": "network-source-python-import302.log",
+        "bytes": 66,
+        "sha256": "a9e97755454c6c1a8ef1b515d15c8c10f88a224466c9950fcc6ea3eb92197d70"
+      },
+      "sourceStatus": "",
+      "sourceScope": "SOURCE_PINNED_INDEPENDENT_CLEAN_BUILD_MIRROR_NOT_LIVE_CANDIDATE_CHECKOUT",
+      "realProviderAccountRoonAudioOwner": "NOT_RUN_BY_CAPTURE"
+    },
+    "completeOriginalRawUtf8": "三个原模块实际导入，字节码写入已按CI环境禁用\n",
+    "capture": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/network-source-python-import302.json",
+      "bytes": 1180,
+      "sha256": "43350b791f56dcb6f8d999c9ca61b85601a987572057c142199d485cca433f13"
+    }
+  },
+  "originalCleanGateUnchanged": true,
+  "originalScopesAndBudgetsUnchanged": true,
+  "realProviderRoonNasDeviceAudioOwner": "NOT_RUN"
+}

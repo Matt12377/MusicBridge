@@ -1,0 +1,112 @@
+{
+  "receipt": {
+    "schema": "mbm001.source-mirror-root-check.v1",
+    "label": "network-source-rust-owner301",
+    "head": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+    "directory": "packages/bridge-core",
+    "argv": [
+      "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+      "--import",
+      "tsx",
+      "--test",
+      "--test-concurrency=1",
+      "test/rust-core-owner-lifecycle.test.ts"
+    ],
+    "exitCode": 0,
+    "signal": null,
+    "closeObserved": true,
+    "timedOut": false,
+    "groupTerminationFailed": false,
+    "durationSeconds": 3.2494722919655032,
+    "log": {
+      "file": "network-source-rust-owner301.log",
+      "bytes": 5745,
+      "sha256": "4cba37acf2ddb697cdaeb6fa78aa602cf5d39957783cb02301fe5d9f32f3a366"
+    },
+    "sourceStatus": "",
+    "sourceScope": "SOURCE_PINNED_INDEPENDENT_CLEAN_BUILD_MIRROR_NOT_LIVE_CANDIDATE_CHECKOUT",
+    "realProviderAccountRoonAudioOwner": "NOT_RUN_BY_CAPTURE"
+  },
+  "completeOriginalRawUtf8": "TAP version 13\n# Subtest: 同步factory零来源RPC/零child，并固定调用方options\nok 1 - 同步factory零来源RPC/零child，并固定调用方options\n  ---\n  duration_ms: 123.310583\n  type: 'test'\n  ...\n# Subtest: 只有完整私有能力可显式准入；v3需大快照能力且factory不执行能力\nok 2 - 只有完整私有能力可显式准入；v3需大快照能力且factory不执行能力\n  ---\n  duration_ms: 1.427917\n  type: 'test'\n  ...\n# Subtest: prepare/boot合并并发，完整Rust ACK前领域请求与refresh均拒绝\nok 3 - prepare/boot合并并发，完整Rust ACK前领域请求与refresh均拒绝\n  ---\n  duration_ms: 119.5905\n  type: 'test'\n  ...\n# Subtest: Node boot迟到超过整体期限只消费回执，不建立router或child\nok 4 - Node boot迟到超过整体期限只消费回执，不建立router或child\n  ---\n  duration_ms: 40.370334\n  type: 'test'\n  ...\n# Subtest: 单一单调期限包含Node boot、版本探测、导出与child boot，不能逐段重置\nok 5 - 单一单调期限包含Node boot、版本探测、导出与child boot，不能逐段重置\n  ---\n  duration_ms: 999.848375\n  type: 'test'\n  ...\n# Subtest: 关闭即刻封闭、Node close立即登记一次，无需等在途Node boot结束\nok 6 - 关闭即刻封闭、Node close立即登记一次，无需等在途Node boot结束\n  ---\n  duration_ms: 0.721208\n  type: 'test'\n  ...\n# (node:30208) ExperimentalWarning: The MockTimers API is an experimental feature and might change at any time\n# (Use `node --trace-warnings ...` to show where the warning was created)\n# Subtest: router创建中的版本探测迟到不能启动child，关闭消费创建并清理Node\nok 7 - router创建中的版本探测迟到不能启动child，关闭消费创建并清理Node\n  ---\n  duration_ms: 0.458584\n  type: 'test'\n  ...\n# Subtest: 末次版本探测迟到越过整体期限时清理已boot候选，不能发布ready\nok 8 - 末次版本探测迟到越过整体期限时清理已boot候选，不能发布ready\n  ---\n  duration_ms: 119.2855\n  type: 'test'\n  ...\n# Subtest: child启动ACK迟到遇到close只能清理候选，不重新发布ready\nok 9 - child启动ACK迟到遇到close只能清理候选，不重新发布ready\n  ---\n  duration_ms: 117.68475\n  type: 'test'\n  ...\n# Subtest: pin失败清理Node，原失败码安全可见且不再次boot\nok 10 - pin失败清理Node，原失败码安全可见且不再次boot\n  ---\n  duration_ms: 57.560333\n  type: 'test'\n  ...\n# Subtest: 坏child启动回执清理全部候选，关闭仍呈现非自然退出失败\nok 11 - 坏child启动回执清理全部候选，关闭仍呈现非自然退出失败\n  ---\n  duration_ms: 58.692791\n  type: 'test'\n  ...\n# Subtest: ready后collection.list走Rust，其余已有领域只到Node；非领域闭集不会泄漏\nok 12 - ready后collection.list走Rust，其余已有领域只到Node；非领域闭集不会泄漏\n  ---\n  duration_ms: 113.181583\n  type: 'test'\n  ...\n# Subtest: 写入success回执在invalidate/close后保留对象与命令身份，不重放\nok 13 - 写入success回执在invalidate/close后保留对象与命令身份，不重放\n  ---\n  duration_ms: 112.80925\n  type: 'test'\n  ...\n# Subtest: 写入failure回执在invalidate/close后保留对象与命令身份，不重放\nok 14 - 写入failure回执在invalidate/close后保留对象与命令身份，不重放\n  ---\n  duration_ms: 115.020708\n  type: 'test'\n  ...\n# Subtest: 写入unknown回执在invalidate/close后保留对象与命令身份，不重放\nok 15 - 写入unknown回执在invalidate/close后保留对象与命令身份，不重放\n  ---\n  duration_ms: 115.965458\n  type: 'test'\n  ...\n# Subtest: 并发refresh合并，旧child退出后才创建下一child，关闭Node仍只一次\nok 16 - 并发refresh合并，旧child退出后才创建下一child，关闭Node仍只一次\n  ---\n  duration_ms: 235.079875\n  type: 'test'\n  ...\n# Subtest: Node关闭失败不能伪称closed，关闭Promise/原异常只返回一次且status不泄漏\nok 17 - Node关闭失败不能伪称closed，关闭Promise/原异常只返回一次且status不泄漏\n  ---\n  duration_ms: 116.332708\n  type: 'test'\n  ...\n# Subtest: Rust关闭坏回执不能伪称closed，Node仍收口一次\nok 18 - Rust关闭坏回执不能伪称closed，Node仍收口一次\n  ---\n  duration_ms: 61.265042\n  type: 'test'\n  ...\n# Subtest: prepare失败原调用保留异常，同时关闭Node一次且status仅安全错误码\nok 19 - prepare失败原调用保留异常，同时关闭Node一次且status仅安全错误码\n  ---\n  duration_ms: 0.309125\n  type: 'test'\n  ...\n# Subtest: Node prepare与版本探测身份错配在导出/spawn前拒绝，不发布另一来源库\nok 20 - Node prepare与版本探测身份错配在导出/spawn前拒绝，不发布另一来源库\n  ---\n  duration_ms: 0.216125\n  type: 'test'\n  ...\n# Subtest: prepare返回身份冻结，调用者不能修改内部绑定或改变之后的router事实\nok 21 - prepare返回身份冻结，调用者不能修改内部绑定或改变之后的router事实\n  ---\n  duration_ms: 113.986167\n  type: 'test'\n  ...\n# Subtest: Node close未确认必须在整体关闭期限失败，迟到resolve不重开或冒称自然关闭\nok 22 - Node close未确认必须在整体关闭期限失败，迟到resolve不重开或冒称自然关闭\n  ---\n  duration_ms: 121.338375\n  type: 'test'\n  ...\n# Subtest: Node close未确认必须在整体关闭期限失败，迟到reject不重开或冒称自然关闭\nok 23 - Node close未确认必须在整体关闭期限失败，迟到reject不重开或冒称自然关闭\n  ---\n  duration_ms: 119.314917\n  type: 'test'\n  ...\n1..23\n# tests 23\n# suites 0\n# pass 23\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 3181.928459\n",
+  "capture": {
+    "path": "network-source-rust-owner301.json",
+    "bytes": 873,
+    "sha256": "ca6f47d35c7a64a4be87176c68541e9fead92db8230baf264f31f85df58fffca"
+  },
+  "sourceSha": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+  "originalDeadlineMs": 500,
+  "actualTests": 23,
+  "original23CaseNamesRetained": true,
+  "productionSourcesChanged": false,
+  "preflightReadback": {
+    "schema": "mbm001.owner-controlled-clock-patch-readback.v1",
+    "baseSource": "a99da1518c05f1833f24d1e4ffc5bdb9d28efafc",
+    "scope": "WORKING_TEST_FIXTURE_PREFLIGHT_NOT_FINAL_SOURCE",
+    "actualTests": 23,
+    "allOriginal23NamesPreserved": true,
+    "fail": 0,
+    "skip": 0,
+    "originalStartupTimeoutMs": 500,
+    "newStartupTimeoutMs": 500,
+    "allOriginalLifecycleAssertionsRetained": true,
+    "addedBeforeTimeoutStageAndCleanupChecks": true,
+    "rawLog": {
+      "path": "rust-owner-controlled-clock112.log",
+      "bytes": 5746,
+      "sha256": "7203b22f653059d47e0f84ab460e713b7aa7197823640bfbfd5e755344bd1202"
+    },
+    "productionSourcesChanged": false,
+    "ciFailure": "SOURCE_ELECTRON_FAILURE_SELECTED_READBACK111.json"
+  },
+  "integerOrigin": 0,
+  "integerOriginReproduction": {
+    "schema": "mbm001.controlled-clock-fractional-timer-reproduction.v1",
+    "source": "8cf0c970b0739fbf7712cd504e9a1e70085c867b",
+    "result": "PASS_SAME_23_CASES_FRACTIONAL_REPRO_CANCEL16_INTEGER_ORIGIN_PASS23",
+    "fractionalOrigin": 12.020408774898407,
+    "computedTimerDelay": 500.00000000000006,
+    "mockAdvance": 500,
+    "integerOrigin": 0,
+    "integerComputedTimerDelay": 500,
+    "startupTimeoutMsBeforeAndAfter": 500,
+    "onlyFixtureClockOriginChanged": true,
+    "originalAll23NamesAndAssertionsUnchanged": true,
+    "fractionalCounts": {
+      "tests": 23,
+      "pass": 7,
+      "fail": 0,
+      "cancelled": 16,
+      "skipped": 0,
+      "todo": 0
+    },
+    "integerCounts": {
+      "tests": 23,
+      "pass": 23,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "files": [
+      {
+        "file": "clock-fractional-behavior182.log",
+        "bytes": 11704,
+        "sha256": "ad8bae629729d4e47683ebe63f07c004def7075ec6b04fc9e2ce2dc07dafd8a5"
+      },
+      {
+        "file": "clock-integer-behavior183.log",
+        "bytes": 5749,
+        "sha256": "e208e54b0394e1cd1fe1bec60a2362051c0f740d07c9d5fb733aa0665019d44f"
+      },
+      {
+        "file": "FORCED_FRACTIONAL_CLOCK_FIXTURE182.ts",
+        "bytes": 22839,
+        "sha256": "a20fdd64da4933059dfec66bb12ed2e87ca62ebaaed8c4a2caa26cb7d7446b92"
+      }
+    ],
+    "actualCiFloatingOrigin": "NOT_LOGGED_REPRO_IS_SEPARATE_EVIDENCE",
+    "ciWholeFailure": "FINAL_SOURCE_VERIFY_FAILURE_JOB175.json",
+    "initialMissingContractBuild": "clock-fractional-repro180.json",
+    "productionSourcesChanged": false
+  }
+}

@@ -1,0 +1,249 @@
+{
+  "schema": "mbm001.root-app53-whole-evidence-readback.v1",
+  "completedAt": "2026-10-09T06:22:19Z",
+  "capturedProcess": {
+    "path": "mobile-production-app53.json",
+    "bytes": 746,
+    "sha256": "9a3a7926a385c8f10f4d59722f79694e694cd4a031104686622f83a901b6011b",
+    "noFollow": true,
+    "stableNamedFD": true
+  },
+  "completeRawLog": {
+    "path": "mobile-production-app53.log",
+    "bytes": 803,
+    "sha256": "7adf96ca629d1db8f9b3063fcc34526d4e3a132df289d551f67c3121ca15ff4b",
+    "noFollow": true,
+    "stableNamedFD": true
+  },
+  "processReceipt": {
+    "path": "app53-process-receipt.json",
+    "bytes": 131653,
+    "sha256": "16a6ba857520cc95f68b47dbc88688d9aaf1b5285f1b17ac012ce8c98bc9674a",
+    "noFollow": true,
+    "stableNamedFD": true
+  },
+  "beforeReceipt": {
+    "path": "app53-inputs-before.json",
+    "bytes": 131781,
+    "sha256": "b08f0141176691a2b2013a04f7cb7f696705992ad8f3365d1b15f62b8f99fe41",
+    "noFollow": true,
+    "stableNamedFD": true
+  },
+  "tests": 2,
+  "passed": 2,
+  "naturalAppCloses": 4,
+  "sourceScope": "DECLARED_PRODUCT_SOURCE_EXPLICIT_APP_SPEC_CONFIGURATION_CURRENT_PRODUCTION_DIST_NOT_TRANSITIVE_TOOLCHAIN",
+  "actualProductionFiles": 27,
+  "cases": [
+    {
+      "receipt": {
+        "path": "receipt.json",
+        "bytes": 16905,
+        "sha256": "9c04a25466fb0a93b4efa885c0662112393880fedbaf5e35836575d51e56b6e7",
+        "noFollow": true,
+        "stableNamedFD": true
+      },
+      "schema": "mbm001.owned-production-mobile-artwork-app.v1",
+      "completed": true,
+      "stage": "正向原生图像与旧选择全部断言完成",
+      "closes": [
+        {
+          "pid": 67433,
+          "exitCode": 0,
+          "signal": null
+        }
+      ],
+      "offline": [
+        {
+          "installedBeforeWindow": true,
+          "blockedExternalAttempts": 0,
+          "blockedHostCount": 0
+        }
+      ],
+      "responseObservations": 13,
+      "operationNames": [
+        "claimPairing",
+        "getAlbum",
+        "getArtwork",
+        "getTrack",
+        "listAlbums",
+        "listTracks"
+      ],
+      "actualKeychain": "NOT_RUN",
+      "multiPageCatalog": "NOT_RUN"
+    },
+    {
+      "receipt": {
+        "path": "receipt.json",
+        "bytes": 21137,
+        "sha256": "dd4aadba2fb5a53f8563ee64d7ed38fd9f2b02907adeead413598df8f421cca6",
+        "noFollow": true,
+        "stableNamedFD": true
+      },
+      "schema": "mbm001.owned-production-mobile-connection-app.v1",
+      "completed": true,
+      "stage": "全部业务断言完成",
+      "closes": [
+        {
+          "pid": 67320,
+          "exitCode": 0,
+          "signal": null
+        },
+        {
+          "pid": 67367,
+          "exitCode": 0,
+          "signal": null
+        },
+        {
+          "pid": 67417,
+          "exitCode": 0,
+          "signal": null
+        }
+      ],
+      "offline": [
+        {
+          "installedBeforeWindow": true,
+          "blockedExternalAttempts": 0,
+          "blockedHostCount": 0
+        },
+        {
+          "installedBeforeWindow": true,
+          "blockedExternalAttempts": 0,
+          "blockedHostCount": 0
+        },
+        {
+          "installedBeforeWindow": true,
+          "blockedExternalAttempts": 0,
+          "blockedHostCount": 0
+        }
+      ],
+      "responseObservations": 31,
+      "operationNames": [
+        "claimPairing",
+        "getAlbum",
+        "getArtwork",
+        "getCapabilities",
+        "getServer",
+        "getTrack",
+        "listAlbums",
+        "listTracks",
+        "logout",
+        "refreshToken"
+      ],
+      "actualKeychain": "NOT_RUN",
+      "multiPageCatalog": "NOT_RUN"
+    }
+  ],
+  "nativeJpegFiles": [
+    {
+      "path": "first-selection-96.jpeg",
+      "bytes": 1272,
+      "sha256": "1158b4ce37c679bfe32cbcdff889fe22d88d0a185f23e33ed6954bd930e154e6",
+      "noFollow": true,
+      "stableNamedFD": true,
+      "width": 96,
+      "height": 48,
+      "originalActualAppBitmapSHA256": "7ddc76b3cdaafe31cc61ddae36e88d4b9f3e760f0aab30a792ac3eee47541eb0"
+    },
+    {
+      "path": "first-selection-256.jpeg",
+      "bytes": 4114,
+      "sha256": "bae8f494f389224bbf1be77d53d8aab995ba743c8653aa7467c73f7180a95b12",
+      "noFollow": true,
+      "stableNamedFD": true,
+      "width": 256,
+      "height": 128,
+      "originalActualAppBitmapSHA256": "ae0ef7484f0a39c4e28c4d59b84472899e8827b5fbb02609666ea65d788fc49b"
+    },
+    {
+      "path": "first-selection-512.jpeg",
+      "bytes": 10185,
+      "sha256": "1d03ba4b9a825d332a2c381b3f27a12fd1266a3e28a5ea33a8554c54c14a5fad",
+      "noFollow": true,
+      "stableNamedFD": true,
+      "width": 512,
+      "height": 256,
+      "originalActualAppBitmapSHA256": "80590c5fe67aab0a6db621d9ea4ea93e7e8d9425d6e10c05694972ca6c406d65"
+    },
+    {
+      "path": "second-selection-96.jpeg",
+      "bytes": 1297,
+      "sha256": "8a1b1bde89ccd461c1650e6d9bc54481f1adb0c2b3dffd22e2ec0f9c336f72e6",
+      "noFollow": true,
+      "stableNamedFD": true,
+      "width": 96,
+      "height": 48,
+      "originalActualAppBitmapSHA256": "35cad8bc5e86388e4fc6032ddca0f3bed08ef32150c8853bffeadb3968caf7b1"
+    },
+    {
+      "path": "second-selection-256.jpeg",
+      "bytes": 4235,
+      "sha256": "d82bbb63baa96fff4e596db3539cb6022f09abe5c49ce8fa0443b2a1444a491e",
+      "noFollow": true,
+      "stableNamedFD": true,
+      "width": 256,
+      "height": 128,
+      "originalActualAppBitmapSHA256": "70e9e5042d42316172570d76f850227f4ef98348ff6b94db96bd0d17824c0d26"
+    },
+    {
+      "path": "second-selection-512.jpeg",
+      "bytes": 10856,
+      "sha256": "bfb1755ec3409a54feae7cbd52954510eb46afbf884b5e5d0ffeffe7163edd56",
+      "noFollow": true,
+      "stableNamedFD": true,
+      "width": 512,
+      "height": 256,
+      "originalActualAppBitmapSHA256": "d7d36088e3f546bfe9122c3640204c12ba10298d8747308130d5d4729cc4b060"
+    }
+  ],
+  "screenshots": [
+    {
+      "path": "01-selected-artwork-public-connection.png",
+      "bytes": 211891,
+      "sha256": "e2453d4a0643d2143ef2baa06bfdf353739e773cf848d67a3f1735c80e9efd4f",
+      "noFollow": true,
+      "stableNamedFD": true
+    },
+    {
+      "path": "01-default-off.png",
+      "bytes": 201755,
+      "sha256": "943a3825a315b422071d6fc6231876c2335c7be56a6911f86c5697d8e1ffbfdc",
+      "noFollow": true,
+      "stableNamedFD": true
+    },
+    {
+      "path": "02-ready-public-connection.png",
+      "bytes": 191571,
+      "sha256": "3f402fc7a120c3afea9787ee047c8a2a51e58e67be06066617c495e906107247",
+      "noFollow": true,
+      "stableNamedFD": true
+    },
+    {
+      "path": "03-paired-no-permit.png",
+      "bytes": 166741,
+      "sha256": "3f2e6ec7245ecb14ed913aa2f857bcbcd3eb85c858f1b437c01c10e7b982c820",
+      "noFollow": true,
+      "stableNamedFD": true
+    },
+    {
+      "path": "04-revoked-devices-no-permit.png",
+      "bytes": 184992,
+      "sha256": "75d40c5682c3a30403ec26623598fe351ff112d0e1ed6376405820f12f593f28",
+      "noFollow": true,
+      "stableNamedFD": true
+    },
+    {
+      "path": "05-final-off.png",
+      "bytes": 147818,
+      "sha256": "543fdd11ea85d82cbac51536eb36292b72a0cbb6f1b05000497bd7a7b2a19306",
+      "noFollow": true,
+      "stableNamedFD": true
+    }
+  ],
+  "inputsUnchanged": true,
+  "officialElectronIdentityUnchanged": true,
+  "fullTransitiveToolchainClosure": false,
+  "actualKeychain": "CONTROLLED_AES_NOT_REAL_KEYCHAIN",
+  "appPaging": "NOT_RUN_OWNER_NODE_INTEGRATION54_SEPARATE",
+  "realProviderRoonDeviceAudioOwner": "NOT_RUN"
+}

@@ -1,0 +1,1355 @@
+{
+  "schema": "mbm001.overall-ci-budget-result.v1",
+  "sourceSha": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+  "previousSource": "9d95703ffe4192218ceb7ef6fbe94da238de7a5e",
+  "repair": {
+    "schema": "mbm001.overall-ci-budget-current-source-root-readback.v1",
+    "sourceSha": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+    "parent": "9d95703ffe4192218ceb7ef6fbe94da238de7a5e",
+    "changedPaths": [
+      ".github/workflows/electron-e2e.yml",
+      "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "docs/postrust/MBM-001/evidence/third-source-ci-timeout.json",
+      "project/POSTRUST_PROGRESS.md",
+      "project/STATUS.json"
+    ],
+    "wholeSourceStagedRows": [
+      {
+        "path": ".github/workflows/electron-e2e.yml",
+        "bytes": 7556,
+        "sha256": "c549be1087e285a449eb68320d544b0ff950274c47be69e116c80157ba399a94"
+      },
+      {
+        "path": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+        "bytes": 14712,
+        "sha256": "07330119f60597977c67a01f01728ff1ee1fdb4abce76d3fac8ec40ee1c56f6e"
+      },
+      {
+        "path": "docs/postrust/MBM-001/evidence/third-source-ci-timeout.json",
+        "bytes": 19294,
+        "sha256": "9a5ee9c67513ba7f0ec8a9a322167d39be649b212b123142379be81b8b0c63dc"
+      },
+      {
+        "path": "project/POSTRUST_PROGRESS.md",
+        "bytes": 106918,
+        "sha256": "a4c47930838985a9c9ba55b08d1377666e3b46ea63b41cf88e2bb9df1f4ec833"
+      },
+      {
+        "path": "project/STATUS.json",
+        "bytes": 2618958,
+        "sha256": "956a51d765967e55a9338513f33ec62b71df766c673fb382cbc76fbdb9c6d36c"
+      }
+    ],
+    "workflowOld": {
+      "path": ".github/workflows/electron-e2e.yml",
+      "bytes": 7556,
+      "sha256": "16423e85378d328293df2bb696279120ccfb563028dc841a9be51e3d8ea3b05b"
+    },
+    "workflowNew": {
+      "path": ".github/workflows/electron-e2e.yml",
+      "gitBlob": "03b0e83d4869ad8360dc8776ec4890b9d71d4ce7",
+      "bytes": 7556,
+      "sha256": "c549be1087e285a449eb68320d544b0ff950274c47be69e116c80157ba399a94"
+    },
+    "only45To60": true,
+    "frozenScopeWholeRows": [
+      {
+        "path": "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
+        "gitBlob": "e98a305b0571ba5283d4630ea5fd633408536574",
+        "bytes": 2791,
+        "sha256": "bed0961a57bab85daf3d85daf382b487dc7b3f2b58bd02bcf8f807c6c1c0dc4a"
+      },
+      {
+        "path": "docs/postrust/MBM-000/TEST_SCOPE.json",
+        "gitBlob": "8c8e176684e9826ea94ec1ec9c864d796784103e",
+        "bytes": 3731,
+        "sha256": "712adf5fc20b254cd4ede0b487fc078e6a50cbc03e1309e893e338ad50376466"
+      },
+      {
+        "path": "docs/postrust/MBM-001/EXECUTION_SCOPE.json",
+        "gitBlob": "b30a180cf27cdfc081ccc5f4d9583812e47cffff",
+        "bytes": 4846,
+        "sha256": "9d72a7a092f60a6c0c8e50a7f75d66ca40ec12cfe9cd40bbd333ccb02fea6484"
+      },
+      {
+        "path": "docs/postrust/MBM-001/TEST_SCOPE.json",
+        "gitBlob": "abadd9de5914ec71083d0805e5706eaa5fc954fc",
+        "bytes": 10846,
+        "sha256": "3a375b69c8d3788defe06d1253b88b583638da8ed806a52f5416271cb5dec2a6"
+      },
+      {
+        "path": "docs/postrust/MBRS-012/EXECUTION_SCOPE.json",
+        "gitBlob": "c250aa079a53c7635234d2070b40af7f1280df86",
+        "bytes": 7591,
+        "sha256": "f086dc6928e8b37693fd6d3fcbaa6b3b8f25007922cda80670f75de69b93bd2a"
+      },
+      {
+        "path": "docs/postrust/MBRS-013/EXECUTION_SCOPE.json",
+        "gitBlob": "d1b1f347f78cbf43f7f8179cc1ec2ea84168c64f",
+        "bytes": 10760,
+        "sha256": "02efefed5d260658a3399d85fde8d39a2340f64ce09e43f87f37993ee199c53f"
+      },
+      {
+        "path": "docs/postrust/MBRS-013/TEST_SCOPE.json",
+        "gitBlob": "3a4891134061b4c6356eac315d86d3eb8b0e511d",
+        "bytes": 1471,
+        "sha256": "c0f34ebdae38519a9ef1b754382c85218a38292c99af32446e79db88b2a0bc72"
+      }
+    ],
+    "original23CaseFixtureWholeUnchanged": {
+      "path": "packages/bridge-core/test/rust-core-owner-lifecycle.test.ts",
+      "gitBlob": "7b694e483601571e356b3843b2e9409580a39bf5",
+      "bytes": 22933,
+      "sha256": "72302f1bb484a1f6214978b66a7be0af7fe0d701483a3de610817c162991a412"
+    },
+    "productionWholeGitRows655Unchanged": true,
+    "localGateReadback": {
+      "schema": "mbm001.root-final-source-gate-whole-readback.v1",
+      "source": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+      "summary": {
+        "bytes": 1061283,
+        "sha256": "c3c783fa9521e2f978ca45a19e7d0fe0ce6232c6ec5d2cfc10cbc9e958e39289"
+      },
+      "actualTests": 87,
+      "core": 49,
+      "desktop": 38,
+      "caseNamesWholeExact": true,
+      "fail": 0,
+      "skip": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "wholeCurrentAndGitBlobSourceInputs": 1685,
+      "sourceInputIdentity": "6104ca75fda712cbf1d029b910861faf6958fdb64ec0e6c8cc74eab8601b1026",
+      "stages": [
+        {
+          "name": "fresh-contracts-compiler",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/prepare-fresh-contracts-compiler.raw.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "expectedTests": null
+        },
+        {
+          "name": "fresh-core-compiler",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/prepare-fresh-core-compiler.raw.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "expectedTests": null
+        },
+        {
+          "name": "fresh-fixed-metadata-worker",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/prepare-fresh-fixed-metadata-worker.raw.log",
+            "bytes": 68,
+            "sha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6"
+          },
+          "expectedTests": null
+        },
+        {
+          "name": "mobile-test-types",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/mobile-test-types.raw.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "expectedTests": null
+        },
+        {
+          "name": "desktop-types",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/desktop-types.raw.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "expectedTests": null
+        },
+        {
+          "name": "mobile-app-types",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/mobile-app-types.raw.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "expectedTests": null
+        },
+        {
+          "name": "mobile-core-behavior",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/mobile-core-behavior.raw.log",
+            "bytes": 14329,
+            "sha256": "dbf47a730dc1db62448901296a7e6fb52d23f30e3f18f4f5ca9a5156b9fc38da"
+          },
+          "expectedTests": 49
+        },
+        {
+          "name": "mobile-desktop-behavior",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/mobile-desktop-behavior.raw.log",
+            "bytes": 9993,
+            "sha256": "05dd479af58d38a02abfb731d9e1132399247632827067c471563fa4a48f0ed3"
+          },
+          "expectedTests": 38
+        }
+      ],
+      "freshReaderSourceWholeFdAndGitBlobRows": 1502,
+      "freshReaderOutputWholeFdRows": 1009,
+      "directCompilerToolWholeFdRows": 4,
+      "cleanIndependentSourceMirror": true,
+      "liveCandidateSourceAndDistNotRebuilt": true,
+      "wholeCliGuardLog": {
+        "bytes": 33549,
+        "sha256": "eb637bc1ed44a7bedcd304a03019467fb476c4e7e86879d626e206f29670b168"
+      },
+      "actualSeparateCliGuardCases": 156,
+      "actualSdkPeerReport": "c53ed3e4850f60b203d4773446db74789e2814d7",
+      "actualSdkNaturalCloseReceipt": "checks/CANDIDATE_NATURAL_CLOSE79.json",
+      "naturalSourceCi": "PENDING_ORDINARY_FIRST_PUSH",
+      "pairedFinalDelivery": false,
+      "physicalDeviceAudioProviderRoonLanClientKeychainOwner": "NOT_RUN",
+      "fullTransitiveToolchainClosure": false,
+      "readAt": "2026-10-09T10:23:28.591574+00:00"
+    },
+    "failedOriginalWholeJob": {
+      "schema": "mbm001.actual-first-natural-job-complete-log.v1",
+      "capturedAt": "2026-10-09T10:11:55.136590+00:00",
+      "sourceSha": "9d95703ffe4192218ceb7ef6fbe94da238de7a5e",
+      "phase": "source",
+      "runId": 37910562173,
+      "jobId": 113754426051,
+      "jobName": "macos-electron-gate",
+      "jobConclusion": "cancelled",
+      "naturalAttempt": 1,
+      "actualJobLog": {
+        "fileName": "RELEASE_SOURCE_ELECTRON_TIMEOUT_JOB239.log",
+        "bytes": 166909,
+        "sha256": "28186851fd9dd151731843d3240c7866beca551fa4dc3809a04d148698be824d"
+      },
+      "method": "GH_RUN_VIEW_EXACT_RUN_AND_JOB_LOG",
+      "stderr": {
+        "fileName": "RELEASE_SOURCE_ELECTRON_TIMEOUT_JOB239.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "downloadExitCode": 0,
+      "downloadTimedOut": false,
+      "fullBytesReadBack": true,
+      "result": "DOWNLOADED_COMPLETE_JOB_RAW_BYTES"
+    },
+    "githubOriginalAnnotations": [
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/Matt12377/MusicBridge/blob/9d95703ffe4192218ceb7ef6fbe94da238de7a5e/.github",
+        "start_line": 1,
+        "start_column": null,
+        "end_line": 1,
+        "end_column": null,
+        "annotation_level": "failure",
+        "title": "",
+        "message": "The job has exceeded the maximum execution time of 45m0s",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/Matt12377/MusicBridge/blob/9d95703ffe4192218ceb7ef6fbe94da238de7a5e/.github",
+        "start_line": 10,
+        "start_column": null,
+        "end_line": 10,
+        "end_column": null,
+        "annotation_level": "warning",
+        "title": "",
+        "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+        "raw_details": ""
+      },
+      {
+        "path": ".github",
+        "blob_href": "https://github.com/Matt12377/MusicBridge/blob/9d95703ffe4192218ceb7ef6fbe94da238de7a5e/.github",
+        "start_line": 184,
+        "start_column": null,
+        "end_line": 184,
+        "end_column": null,
+        "annotation_level": "failure",
+        "title": "",
+        "message": "The operation was canceled.",
+        "raw_details": ""
+      }
+    ],
+    "originalSource5E2eIncomplete": true,
+    "actualRuntimeReplayed": false,
+    "manualCiReruns": 0,
+    "manualCiCancellations": 0,
+    "pairedFinalDelivery": false
+  },
+  "staging": {
+    "schema": "mbm001.overall-ci-budget-source-staging.v1",
+    "parent": "9d95703ffe4192218ceb7ef6fbe94da238de7a5e",
+    "files": [
+      {
+        "path": ".github/workflows/electron-e2e.yml",
+        "bytes": 7556,
+        "sha256": "c549be1087e285a449eb68320d544b0ff950274c47be69e116c80157ba399a94"
+      },
+      {
+        "path": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+        "bytes": 14712,
+        "sha256": "07330119f60597977c67a01f01728ff1ee1fdb4abce76d3fac8ec40ee1c56f6e"
+      },
+      {
+        "path": "docs/postrust/MBM-001/evidence/third-source-ci-timeout.json",
+        "bytes": 19294,
+        "sha256": "9a5ee9c67513ba7f0ec8a9a322167d39be649b212b123142379be81b8b0c63dc"
+      },
+      {
+        "path": "project/POSTRUST_PROGRESS.md",
+        "bytes": 106918,
+        "sha256": "a4c47930838985a9c9ba55b08d1377666e3b46ea63b41cf88e2bb9df1f4ec833"
+      },
+      {
+        "path": "project/STATUS.json",
+        "bytes": 2618958,
+        "sha256": "956a51d765967e55a9338513f33ec62b71df766c673fb382cbc76fbdb9c6d36c"
+      }
+    ],
+    "workflowChangeOnly45To60": true,
+    "productionAndFixturesUnchanged": true,
+    "frozenGateBudgetsUnchanged": true,
+    "ciRerun": false,
+    "gateScopeChanged": false
+  },
+  "commit": {
+    "schema": "mbm001.overall-ci-budget-source-commit-readback.v1",
+    "sourceSha": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+    "parent": "9d95703ffe4192218ceb7ef6fbe94da238de7a5e",
+    "singleParent": true,
+    "commitCapture": {
+      "schema": "mbm001.source-mirror-root-check.v1",
+      "label": "overall-ci-budget-source-commit255",
+      "head": "9d95703ffe4192218ceb7ef6fbe94da238de7a5e",
+      "directory": "",
+      "argv": [
+        "git",
+        "commit",
+        "-m",
+        "修复 MBM-001 Electron 完整 CI 作业总时限并保留取消证据"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 0.08897479198640212,
+      "log": {
+        "file": "overall-ci-budget-source-commit255.log",
+        "bytes": 252,
+        "sha256": "9b5386fa4007470415a94e1c1266c885b8c3f557c3cbd5e2bf895376a840edc5"
+      },
+      "sourceStatus": "M  .github/workflows/electron-e2e.yml\nM  docs/postrust/MBM-001/LOCAL_VERIFICATION.json\nA  docs/postrust/MBM-001/evidence/third-source-ci-timeout.json\nM  project/POSTRUST_PROGRESS.md\nM  project/STATUS.json\n",
+      "sourceScope": "INDEPENDENT_BUILD_MIRROR_WORKING_CI_PATCH_NOT_EXACT_COMMIT_QUALIFICATION",
+      "realProviderAccountRoonAudioOwner": "NOT_RUN_BY_CAPTURE"
+    },
+    "completeOriginalCommitLog": "[codex/mbm-001-pairing-readonly-library 80ce5aa] 修复 MBM-001 Electron 完整 CI 作业总时限并保留取消证据\n 5 files changed, 510 insertions(+), 3 deletions(-)\n create mode 100644 docs/postrust/MBM-001/evidence/third-source-ci-timeout.json\n",
+    "wholeStagingRows": [
+      {
+        "path": ".github/workflows/electron-e2e.yml",
+        "bytes": 7556,
+        "sha256": "c549be1087e285a449eb68320d544b0ff950274c47be69e116c80157ba399a94"
+      },
+      {
+        "path": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+        "bytes": 14712,
+        "sha256": "07330119f60597977c67a01f01728ff1ee1fdb4abce76d3fac8ec40ee1c56f6e"
+      },
+      {
+        "path": "docs/postrust/MBM-001/evidence/third-source-ci-timeout.json",
+        "bytes": 19294,
+        "sha256": "9a5ee9c67513ba7f0ec8a9a322167d39be649b212b123142379be81b8b0c63dc"
+      },
+      {
+        "path": "project/POSTRUST_PROGRESS.md",
+        "bytes": 106918,
+        "sha256": "a4c47930838985a9c9ba55b08d1377666e3b46ea63b41cf88e2bb9df1f4ec833"
+      },
+      {
+        "path": "project/STATUS.json",
+        "bytes": 2618958,
+        "sha256": "956a51d765967e55a9338513f33ec62b71df766c673fb382cbc76fbdb9c6d36c"
+      }
+    ],
+    "clean": true
+  },
+  "originalFailedWholeJobBytesActuallyRead": true,
+  "previousVerifyWholeArchiveReadback": {
+    "schema": "mbm001.release-source-partial-verify-artifact.v1",
+    "sourceSha": "9d95703ffe4192218ceb7ef6fbe94da238de7a5e",
+    "sourceAllSuccess": false,
+    "verifyWholeArchive": {
+      "artifactId": 11608515783,
+      "artifactName": "verify-9d95703ffe4192218ceb7ef6fbe94da238de7a5e",
+      "runId": 37910562118,
+      "zip": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/RELEASE_SOURCE_VERIFY_ZIP234/artifact.zip",
+        "bytes": 92404741,
+        "sha256": "8d1dd08c963bffa251c95e6683f548af81935529c454ec5e84c20c16b047feb3"
+      },
+      "platformDigest": "sha256:8d1dd08c963bffa251c95e6683f548af81935529c454ec5e84c20c16b047feb3",
+      "wholeZipDigestMatched": true,
+      "wholeEntries": 15337,
+      "uncompressedBytes": 276267937,
+      "wholeDownloadReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/RELEASE_SOURCE_VERIFY_ZIP234/whole-read.json",
+        "bytes": 4836313,
+        "sha256": "8a6a0b3b13477595ee462bc961ddc76e7b31d277ef351f3e75c56e8f7b218e13"
+      }
+    },
+    "verify": {
+      "sourceCiMode": {
+        "entry": "report-only-admission.json",
+        "bytes": 103,
+        "sha256": "7cc12d5628d52907b8cfc3b8385ea29f433030c6ef6571cf582287bff4783853"
+      },
+      "mbm001": {
+        "summary": {
+          "entry": "mbm001-37910562118-1/summary.json",
+          "bytes": 1060729,
+          "sha256": "aa6c2fc06c4912ddaf57d9826e1dc5464ca45b09d893783477fb5a50cea3035f"
+        },
+        "actualTests": 87,
+        "stages": [
+          {
+            "name": "fresh-contracts-compiler",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbm001-37910562118-1/prepare-fresh-contracts-compiler.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": false,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "fresh-core-compiler",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbm001-37910562118-1/prepare-fresh-core-compiler.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": false,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "fresh-fixed-metadata-worker",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbm001-37910562118-1/prepare-fresh-fixed-metadata-worker.log",
+              "bytes": 29,
+              "sha256": "6c351e40f23afb71f67482eb553cf4adeca46ade7d2e74ae2d6fc57f8ff4937d"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": false,
+            "producerRaw": {
+              "bytes": 68,
+              "sha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "mobile-test-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbm001-37910562118-1/mobile-test-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "desktop-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbm001-37910562118-1/desktop-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "mobile-app-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbm001-37910562118-1/mobile-app-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "mobile-core-behavior",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbm001-37910562118-1/mobile-core-behavior.log",
+              "bytes": 894,
+              "sha256": "a9cb576531a95ec234bcb1c2d93be39783dc772a07050f8ebc6d494a8abceced"
+            },
+            "actualTestGroups": [
+              {
+                "tests": 49,
+                "pass": 49,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 14341,
+              "sha256": "ceb7418d1f944f799545a07322d5c7dd306a1d0947d3a153a583adb6235947d1",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "mobile-desktop-behavior",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbm001-37910562118-1/mobile-desktop-behavior.log",
+              "bytes": 718,
+              "sha256": "4730d74457543ece6f56354d8f5d0842af1b4bd675df92fc014b7ea4fe8316f6"
+            },
+            "actualTestGroups": [
+              {
+                "tests": 38,
+                "pass": 38,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 10001,
+              "sha256": "01b640653a9be85987a059773816ae8c3eaaad990d97bd7e789f530c7487d75b",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          }
+        ],
+        "sourceInputs": {
+          "producerDeclaredRows": 1684,
+          "wholeGitRows": 1684,
+          "incidentalGeneratedCacheRows": [],
+          "allDeclaredGitRowsWholeMatchExactSource": true,
+          "cacheBodies": "NOT_UPLOADED_NOT_INDEPENDENTLY_READ_NOT_USED_BY_001_GATE"
+        },
+        "readerPreparation": {
+          "entry": "mbm001-37910562118-1/reader-preparation.json",
+          "bytes": 681966,
+          "sha256": "669e1ae0089f75486a9f9db103f5e0563d5b549c67f432c8e093f5b01ce37b73"
+        },
+        "readerSource": {
+          "producerDeclaredRows": 1502,
+          "wholeGitRows": 1502,
+          "incidentalGeneratedCacheRows": [],
+          "allDeclaredGitRowsWholeMatchExactSource": true,
+          "cacheBodies": "NOT_UPLOADED_NOT_INDEPENDENTLY_READ_NOT_USED_BY_001_GATE"
+        },
+        "readerCompiledOutputsProducerDeclared": 1009,
+        "directCompilerFilesProducerDeclared": 4,
+        "compilerDeclaredHashesMatchLocallyReadExactSourceToolFiles": true,
+        "remoteCompiledOutputWholeBytes": "NOT_UPLOADED_NOT_CLAIMED_LOCAL_EXACT_SOURCE_GATE192_SEPARATE",
+        "remoteOriginalStageRaw": "NOT_UPLOADED_NOT_CLAIMED_LOCAL_EXACT_SOURCE_GATE192_SEPARATE"
+      },
+      "mbm000": {
+        "summary": {
+          "entry": "mbm000-37910562118-1/summary.json",
+          "bytes": 199561,
+          "sha256": "edbb167c8113c218acfb3c4d4f37b23bf9381f2d6d96832edf0b7b760fe0dda4"
+        },
+        "actualTests": 33,
+        "stages": [
+          {
+            "name": "fresh-contracts-build",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbm000-37910562118-1/fresh-contracts-build.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "contracts-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbm000-37910562118-1/contracts-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "mobile-contract-behavior",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbm000-37910562118-1/mobile-contract-behavior.log",
+              "bytes": 638,
+              "sha256": "cb6c8d06f8eabb1571c267e9275277e298847b1de5d48448f6442d5e34fcc64e"
+            },
+            "actualTestGroups": [
+              {
+                "tests": 33,
+                "pass": 33,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 7891,
+              "sha256": "06edddd6912875de2ed790950fc90484dc94d7536c8cbe9d0b11ae1d99329bd0",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          }
+        ],
+        "sourceInputs": {
+          "producerDeclaredRows": 448,
+          "wholeGitRows": 448,
+          "incidentalGeneratedCacheRows": [],
+          "allDeclaredGitRowsWholeMatchExactSource": true,
+          "cacheBodies": "NOT_UPLOADED_NOT_INDEPENDENTLY_READ_NOT_USED_BY_001_GATE"
+        },
+        "binding": {
+          "entry": "mbm000-37910562118-1/fresh-contract-build-binding.json",
+          "bytes": 203262,
+          "sha256": "b548b9daa37dabe2539f524cd533ff41b6075431087adc926e8fa4f2dd55f779"
+        },
+        "actualConsumerReceipts": [
+          {
+            "testFile": "test/mbm000/audio-resource-state.test.ts",
+            "entry": {
+              "entry": "mbm000-37910562118-1/consumed/audio-resource-state.test.ts.json",
+              "bytes": 2942,
+              "sha256": "c8af57a99d296e0a7fc9fd79405b2c59912336daa22d07f72f2ab2eebe1a1f9b"
+            },
+            "mobileArtifacts": 15,
+            "loadedModules": 5
+          },
+          {
+            "testFile": "test/mbm000/content-revision.test.ts",
+            "entry": {
+              "entry": "mbm000-37910562118-1/consumed/content-revision.test.ts.json",
+              "bytes": 2938,
+              "sha256": "095febe42061572973272d82e430b8300cb170547c08d1555f4f5984b575a0c4"
+            },
+            "mobileArtifacts": 15,
+            "loadedModules": 5
+          },
+          {
+            "testFile": "test/mbm000/operation-contract.test.ts",
+            "entry": {
+              "entry": "mbm000-37910562118-1/consumed/operation-contract.test.ts.json",
+              "bytes": 2940,
+              "sha256": "41e51900a9b122125773e49b16c4c4dbab40ed837611fd3c387797312640b802"
+            },
+            "mobileArtifacts": 15,
+            "loadedModules": 5
+          },
+          {
+            "testFile": "test/mbm000/resource-envelope.test.ts",
+            "entry": {
+              "entry": "mbm000-37910562118-1/consumed/resource-envelope.test.ts.json",
+              "bytes": 2939,
+              "sha256": "cb9d53878356dc23ef3d034e859a5534fa3ec0b74ee33ae6cedd3da645a996ba"
+            },
+            "mobileArtifacts": 15,
+            "loadedModules": 5
+          }
+        ],
+        "compiledOutputBytes": "NOT_UPLOADED_BINDING_AND_PRODUCER_READ_ONLY_LOCAL_BYTE_PROOF_SEPARATE"
+      },
+      "prior012": {
+        "task": "MBRS-012",
+        "summary": {
+          "entry": "mbrs012-37910562118-1/summary.json",
+          "bytes": 308774,
+          "sha256": "1a275a36712d20b47f7159731f1dabb82a02afec065f406e606a536fc57c9c7a"
+        },
+        "actualTests": 426,
+        "sourceInputs": {
+          "producerDeclaredRows": 1539,
+          "wholeGitRows": 1539,
+          "incidentalGeneratedCacheRows": [],
+          "allDeclaredGitRowsWholeMatchExactSource": true,
+          "cacheBodies": "NOT_UPLOADED_NOT_INDEPENDENTLY_READ_NOT_USED_BY_001_GATE"
+        },
+        "stages": [
+          {
+            "name": "fresh-contracts-build",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs012-37910562118-1/fresh-contracts-build.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "contracts-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs012-37910562118-1/contracts-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "fresh-core-build",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs012-37910562118-1/fresh-core-build.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "fresh-core-worker-bundle",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs012-37910562118-1/fresh-core-worker-bundle.log",
+              "bytes": 29,
+              "sha256": "6c351e40f23afb71f67482eb553cf4adeca46ade7d2e74ae2d6fc57f8ff4937d"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 68,
+              "sha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "core-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs012-37910562118-1/core-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "desktop-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs012-37910562118-1/desktop-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "desktop-e2e-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs012-37910562118-1/desktop-e2e-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "contracts-source-writes-and-regressions",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs012-37910562118-1/contracts-source-writes-and-regressions.log",
+              "bytes": 1518,
+              "sha256": "dc861575738174b7f1521314135f5859be01bd14856487271d77133617e0e372"
+            },
+            "actualTestGroups": [
+              {
+                "tests": 88,
+                "pass": 88,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 20867,
+              "sha256": "ceac569f3cf10269445b1600b94a39384507406729b9eca1d4d5f96e4452056e",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "core-source-writes-and-regressions",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs012-37910562118-1/core-source-writes-and-regressions.log",
+              "bytes": 3782,
+              "sha256": "102601097a7c41eb60991f9480badb7d7d036a2bfd7e8c8fd5add964d6594e94"
+            },
+            "actualTestGroups": [
+              {
+                "tests": 216,
+                "pass": 216,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 96269,
+              "sha256": "56862ae3abf7371c85ffbbb49c4e2bd30225424507d789766e0286073adf1d6a",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "desktop-source-writes-and-regressions",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs012-37910562118-1/desktop-source-writes-and-regressions.log",
+              "bytes": 2111,
+              "sha256": "01ea8529ad51976def6bfd8a97a086fe6c980f3a9bf2bf9ce05d6157605a15dd"
+            },
+            "actualTestGroups": [
+              {
+                "tests": 122,
+                "pass": 122,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 30513,
+              "sha256": "fa385586b06d57309078e5d5ec22635ba7e4c15c0e97adc9c41e9f8bf96cb353",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          }
+        ],
+        "liveOwnerAcceptance": "NOT_PROVEN_BY_CI"
+      },
+      "prior013": {
+        "task": "MBRS-013",
+        "summary": {
+          "entry": "mbrs013-37910562118-1/summary.json",
+          "bytes": 335663,
+          "sha256": "882dde0f095bd0d7cdd3ba1c1c025f88318e3eb6109b4b8fad8bd9a50f2a8ab9"
+        },
+        "actualTests": 529,
+        "sourceInputs": {
+          "producerDeclaredRows": 1660,
+          "wholeGitRows": 1660,
+          "incidentalGeneratedCacheRows": [],
+          "allDeclaredGitRowsWholeMatchExactSource": true,
+          "cacheBodies": "NOT_UPLOADED_NOT_INDEPENDENTLY_READ_NOT_USED_BY_001_GATE"
+        },
+        "stages": [
+          {
+            "name": "fresh-contracts-build",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/fresh-contracts-build.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "contracts-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/contracts-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "fresh-core-build",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/fresh-core-build.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "fresh-core-worker-bundle",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/fresh-core-worker-bundle.log",
+              "bytes": 29,
+              "sha256": "6c351e40f23afb71f67482eb553cf4adeca46ade7d2e74ae2d6fc57f8ff4937d"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 68,
+              "sha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "core-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/core-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "desktop-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/desktop-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "desktop-original-e2e-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/desktop-original-e2e-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "desktop-relocation-e2e-types",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/desktop-relocation-e2e-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "actualTestGroups": [],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "contracts-source-writes-and-regressions",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/contracts-source-writes-and-regressions.log",
+              "bytes": 1518,
+              "sha256": "dc861575738174b7f1521314135f5859be01bd14856487271d77133617e0e372"
+            },
+            "actualTestGroups": [
+              {
+                "tests": 88,
+                "pass": 88,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 20870,
+              "sha256": "ed51d9879ec694a6df73b3037a5914eadf472659a45be812d212f2bcec964394",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "core-source-writes-and-regressions",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/core-source-writes-and-regressions.log",
+              "bytes": 3782,
+              "sha256": "102601097a7c41eb60991f9480badb7d7d036a2bfd7e8c8fd5add964d6594e94"
+            },
+            "actualTestGroups": [
+              {
+                "tests": 216,
+                "pass": 216,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 96305,
+              "sha256": "6996912e41bc3fcc6755b069656e01c420be3709a06956a4fcd79f761df9c719",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "desktop-source-writes-and-regressions",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/desktop-source-writes-and-regressions.log",
+              "bytes": 2111,
+              "sha256": "01ea8529ad51976def6bfd8a97a086fe6c980f3a9bf2bf9ce05d6157605a15dd"
+            },
+            "actualTestGroups": [
+              {
+                "tests": 122,
+                "pass": 122,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 30507,
+              "sha256": "fb180ce3870e4637796c2f57e76730c0bfa30f857dea76b85d8ca17ce5674f1d",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "contracts-relocation",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/contracts-relocation.log",
+              "bytes": 622,
+              "sha256": "488d71d4b8e372d92d0129127e278ec58e8c263d8aedf6273ea1e1270ea8cad8"
+            },
+            "actualTestGroups": [
+              {
+                "tests": 32,
+                "pass": 32,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 7676,
+              "sha256": "d4bab7051a884d8816e2cdf625c2324668b05cf70689f9ca8c232a919fd290c0",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "core-relocation",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/core-relocation.log",
+              "bytes": 698,
+              "sha256": "c6b64cd41d124d43ce332ebee434e003d841049ed00a77e90b8d497107f75e59"
+            },
+            "actualTestGroups": [
+              {
+                "tests": 37,
+                "pass": 37,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 15898,
+              "sha256": "d001ec02526daaf6fdd03eaba23412bc8548985ee7583e353982112401edf00d",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          },
+          {
+            "name": "desktop-relocation",
+            "exitCode": 0,
+            "signal": null,
+            "closeObserved": true,
+            "actualPackagedLog": {
+              "entry": "mbrs013-37910562118-1/desktop-relocation.log",
+              "bytes": 654,
+              "sha256": "edaaa2cd2aa2811f37f5846db46a01eb7df4aa40adaf30ea1b61d66175abbb6e"
+            },
+            "actualTestGroups": [
+              {
+                "tests": 34,
+                "pass": 34,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "separatePackagedLogHashDeclared": true,
+            "producerRaw": {
+              "bytes": 8891,
+              "sha256": "26fcf1c11242148dadffde0d902405705ecee87211751e0b5854466c8e852f58",
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+            }
+          }
+        ],
+        "liveOwnerAcceptance": "NOT_PROVEN_BY_CI"
+      }
+    },
+    "pairedFinalDelivery": false
+  },
+  "previousSourcePartialCiNotQualifiedAsComplete": true,
+  "onlyGithubWholeElectronJob45To60": true,
+  "originalCommandsCasesAssertionsPerTestTimeoutsAndFrozenGateBudgetsUnchanged": true,
+  "actualRuntimeReplayed": false,
+  "ciReruns": 0,
+  "ciManualCancellations": 0
+}

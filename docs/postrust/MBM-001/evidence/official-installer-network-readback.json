@@ -1,0 +1,669 @@
+{
+  "schema": "mbm001.official-installer-network-result.v1",
+  "sourceSha": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+  "previousSource": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+  "repair": {
+    "schema": "mbm001.bounded-official-installer-exact-source-root-readback.v1",
+    "sourceSha": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+    "parent": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+    "changedPaths": [
+      ".github/workflows/electron-e2e.yml",
+      "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "docs/postrust/MBM-001/evidence/fourth-source-ci-network-failure.json",
+      "project/POSTRUST_PROGRESS.md",
+      "project/STATUS.json"
+    ],
+    "staging": {
+      "schema": "mbm001.official-installer-bounded-network-source-staging.v1",
+      "parent": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+      "files": [
+        {
+          "path": ".github/workflows/electron-e2e.yml",
+          "bytes": 7969,
+          "sha256": "30bbd1a854624e1c84d62804c5b399f62732387e5f84938519eac98b9ce59164"
+        },
+        {
+          "path": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+          "bytes": 15371,
+          "sha256": "2122105e35a0f3f3a6216bcfc1550da89107e510d18f840adbfcae916b07d89b"
+        },
+        {
+          "path": "docs/postrust/MBM-001/evidence/fourth-source-ci-network-failure.json",
+          "bytes": 7318,
+          "sha256": "e7b7d94c85524d6c5107d5a26cfcde59040fda2e8a92efd90e7737ceb493b2aa"
+        },
+        {
+          "path": "project/STATUS.json",
+          "bytes": 2618981,
+          "sha256": "ee9a63938e5311246bf96be08d91edd5b86fcc0c311b78fb0ef099ab5ec41038"
+        },
+        {
+          "path": "project/POSTRUST_PROGRESS.md",
+          "bytes": 107891,
+          "sha256": "a0d9b54df09274a45d6eff2089007503fbb1795a46fabffaf8d9e027947ff45a"
+        }
+      ],
+      "onlyOfficialInstallerRepeatedUpTo3": true,
+      "wholeJob60MinutesAndIdentityGateUnchanged": true,
+      "sourceStatusFrozenFieldsUnchanged": true,
+      "productionAndTestSourcesUnchanged": true
+    },
+    "commit": {
+      "schema": "mbm001.source-mirror-root-check.v1",
+      "label": "official-installer-network-source-commit294",
+      "head": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+      "directory": "",
+      "argv": [
+        "git",
+        "commit",
+        "-m",
+        "为锁定官方 Electron 安装器增加有限网络尝试并保留原失败证据"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "groupTerminationFailed": false,
+      "durationSeconds": 0.07629654201446101,
+      "log": {
+        "file": "official-installer-network-source-commit294.log",
+        "bytes": 273,
+        "sha256": "7e38fc40a28dafa9940da4e14da9e32325d2dabaf941163d13468b7f5d825779"
+      },
+      "sourceStatus": "M  .github/workflows/electron-e2e.yml\nM  docs/postrust/MBM-001/LOCAL_VERIFICATION.json\nA  docs/postrust/MBM-001/evidence/fourth-source-ci-network-failure.json\nM  project/POSTRUST_PROGRESS.md\nM  project/STATUS.json\n",
+      "sourceScope": "INDEPENDENT_BUILD_MIRROR_WORKING_CI_PATCH_NOT_EXACT_COMMIT_QUALIFICATION",
+      "realProviderAccountRoonAudioOwner": "NOT_RUN_BY_CAPTURE"
+    },
+    "wholeFrozenScopeRows": [
+      {
+        "path": "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
+        "gitBlob": "e98a305b0571ba5283d4630ea5fd633408536574",
+        "bytes": 2791,
+        "sha256": "bed0961a57bab85daf3d85daf382b487dc7b3f2b58bd02bcf8f807c6c1c0dc4a"
+      },
+      {
+        "path": "docs/postrust/MBM-000/TEST_SCOPE.json",
+        "gitBlob": "8c8e176684e9826ea94ec1ec9c864d796784103e",
+        "bytes": 3731,
+        "sha256": "712adf5fc20b254cd4ede0b487fc078e6a50cbc03e1309e893e338ad50376466"
+      },
+      {
+        "path": "docs/postrust/MBM-001/EXECUTION_SCOPE.json",
+        "gitBlob": "b30a180cf27cdfc081ccc5f4d9583812e47cffff",
+        "bytes": 4846,
+        "sha256": "9d72a7a092f60a6c0c8e50a7f75d66ca40ec12cfe9cd40bbd333ccb02fea6484"
+      },
+      {
+        "path": "docs/postrust/MBM-001/TEST_SCOPE.json",
+        "gitBlob": "abadd9de5914ec71083d0805e5706eaa5fc954fc",
+        "bytes": 10846,
+        "sha256": "3a375b69c8d3788defe06d1253b88b583638da8ed806a52f5416271cb5dec2a6"
+      },
+      {
+        "path": "docs/postrust/MBRS-012/EXECUTION_SCOPE.json",
+        "gitBlob": "c250aa079a53c7635234d2070b40af7f1280df86",
+        "bytes": 7591,
+        "sha256": "f086dc6928e8b37693fd6d3fcbaa6b3b8f25007922cda80670f75de69b93bd2a"
+      },
+      {
+        "path": "docs/postrust/MBRS-013/EXECUTION_SCOPE.json",
+        "gitBlob": "d1b1f347f78cbf43f7f8179cc1ec2ea84168c64f",
+        "bytes": 10760,
+        "sha256": "02efefed5d260658a3399d85fde8d39a2340f64ce09e43f87f37993ee199c53f"
+      },
+      {
+        "path": "docs/postrust/MBRS-013/TEST_SCOPE.json",
+        "gitBlob": "3a4891134061b4c6356eac315d86d3eb8b0e511d",
+        "bytes": 1471,
+        "sha256": "c0f34ebdae38519a9ef1b754382c85218a38292c99af32446e79db88b2a0bc72"
+      }
+    ],
+    "original23CaseFixtureWholeUnchanged": {
+      "path": "packages/bridge-core/test/rust-core-owner-lifecycle.test.ts",
+      "gitBlob": "7b694e483601571e356b3843b2e9409580a39bf5",
+      "bytes": 22933,
+      "sha256": "72302f1bb484a1f6214978b66a7be0af7fe0d701483a3de610817c162991a412"
+    },
+    "officialInstallerControlledBehavior": {
+      "schema": "mbm001.bounded-original-official-installer-shell-behavior.v1",
+      "parent": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+      "workflowBlockSha256": "7c93b3ea2759136f809576cff8e8b89fde3b45c9499e016af8330a22f341b83f",
+      "bashSyntax": true,
+      "cases": [
+        {
+          "name": "first-success",
+          "officialInstallerCalls": 1,
+          "originalArgvValidated": true,
+          "backoff15SecondCalls": 0,
+          "exitCode": 0,
+          "actualCommandNetworkAndElectron": "NOT_RUN_CONTROLLED_SHELL_PROBE_ONLY",
+          "log": {
+            "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/installer-retry-controlled292/first-success.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "name": "two-failures-then-success",
+          "officialInstallerCalls": 3,
+          "originalArgvValidated": true,
+          "backoff15SecondCalls": 2,
+          "exitCode": 0,
+          "actualCommandNetworkAndElectron": "NOT_RUN_CONTROLLED_SHELL_PROBE_ONLY",
+          "log": {
+            "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/installer-retry-controlled292/two-failures-then-success.log",
+            "bytes": 162,
+            "sha256": "aafb57a671df42d1b71adb22925b2a605177955333faea1dba35fa4ea3a2b567"
+          }
+        },
+        {
+          "name": "all-failures",
+          "officialInstallerCalls": 3,
+          "originalArgvValidated": true,
+          "backoff15SecondCalls": 2,
+          "exitCode": 1,
+          "actualCommandNetworkAndElectron": "NOT_RUN_CONTROLLED_SHELL_PROBE_ONLY",
+          "log": {
+            "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/installer-retry-controlled292/all-failures.log",
+            "bytes": 237,
+            "sha256": "5dd04e2824ee474ca4589433135ce0823e1df7c3a2b18c1edf8e2356e523531c"
+          }
+        }
+      ],
+      "productionSourcesChanged": false,
+      "testAndGateCommandsChanged": false,
+      "ciRerun": false
+    },
+    "originalCompleteFailedJob": {
+      "schema": "mbm001.actual-first-natural-job-complete-log.v1",
+      "capturedAt": "2026-10-09T10:49:26.439725+00:00",
+      "sourceSha": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+      "phase": "source",
+      "runId": 37917516935,
+      "jobId": 113777206180,
+      "jobName": "macos-electron-gate",
+      "jobConclusion": "failure",
+      "naturalAttempt": 1,
+      "actualJobLog": {
+        "fileName": "BUDGET_SOURCE_ELECTRON_FAILURE_JOB291.log",
+        "bytes": 86980,
+        "sha256": "fe58eccb78776a29dc7c967ecba986875ef2bc63dc271ab127a00ebded527cd7"
+      },
+      "method": "GH_RUN_VIEW_EXACT_RUN_AND_JOB_LOG",
+      "stderr": {
+        "fileName": "BUDGET_SOURCE_ELECTRON_FAILURE_JOB291.stderr.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "downloadExitCode": 0,
+      "downloadTimedOut": false,
+      "fullBytesReadBack": true,
+      "result": "DOWNLOADED_COMPLETE_JOB_RAW_BYTES"
+    },
+    "source6OriginalStartupAndE2eSkipped": true,
+    "productWholeGitRows655Unchanged": true,
+    "localSource87Gate": {
+      "schema": "mbm001.root-final-source-gate-whole-readback.v1",
+      "source": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+      "summary": {
+        "bytes": 1061480,
+        "sha256": "fec451a912190112164558e4a651e2c23d1623dcc01b2b1c122ef2bc9c9bb65e"
+      },
+      "actualTests": 87,
+      "core": 49,
+      "desktop": 38,
+      "caseNamesWholeExact": true,
+      "fail": 0,
+      "skip": 0,
+      "cancelled": 0,
+      "todo": 0,
+      "wholeCurrentAndGitBlobSourceInputs": 1686,
+      "sourceInputIdentity": "4eb639825c20296a6fc3e7774c81a62d11b9f5a7f9ce37b1c8294d5d2c1a07a1",
+      "stages": [
+        {
+          "name": "fresh-contracts-compiler",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/prepare-fresh-contracts-compiler.raw.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "expectedTests": null
+        },
+        {
+          "name": "fresh-core-compiler",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/prepare-fresh-core-compiler.raw.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "expectedTests": null
+        },
+        {
+          "name": "fresh-fixed-metadata-worker",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/prepare-fresh-fixed-metadata-worker.raw.log",
+            "bytes": 68,
+            "sha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6"
+          },
+          "expectedTests": null
+        },
+        {
+          "name": "mobile-test-types",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/mobile-test-types.raw.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "expectedTests": null
+        },
+        {
+          "name": "desktop-types",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/desktop-types.raw.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "expectedTests": null
+        },
+        {
+          "name": "mobile-app-types",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/mobile-app-types.raw.log",
+            "bytes": 0,
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          },
+          "expectedTests": null
+        },
+        {
+          "name": "mobile-core-behavior",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/mobile-core-behavior.raw.log",
+            "bytes": 14336,
+            "sha256": "df1daebd65915082424c6502e06b46a092d835e6321fd22105d2407540644460"
+          },
+          "expectedTests": 49
+        },
+        {
+          "name": "mobile-desktop-behavior",
+          "exitCode": 0,
+          "signal": null,
+          "closeObserved": true,
+          "wholeOriginalRawLog": {
+            "file": "tmp/mobile-desktop-behavior.raw.log",
+            "bytes": 9998,
+            "sha256": "77371050e4f5d8b9a2f3db60d71d3bad381d95f7d67cd4a7a918ee8c0629eaf2"
+          },
+          "expectedTests": 38
+        }
+      ],
+      "freshReaderSourceWholeFdAndGitBlobRows": 1502,
+      "freshReaderOutputWholeFdRows": 1009,
+      "directCompilerToolWholeFdRows": 4,
+      "cleanIndependentSourceMirror": true,
+      "liveCandidateSourceAndDistNotRebuilt": true,
+      "wholeCliGuardLog": {
+        "bytes": 33566,
+        "sha256": "a782dc96b9f2cc88c7d4005c93a637aa104a19a799dcc8eab9f2bbca131254a7"
+      },
+      "actualSeparateCliGuardCases": 156,
+      "actualSdkPeerReport": "c53ed3e4850f60b203d4773446db74789e2814d7",
+      "actualSdkNaturalCloseReceipt": "checks/CANDIDATE_NATURAL_CLOSE79.json",
+      "naturalSourceCi": "PENDING_ORDINARY_FIRST_PUSH",
+      "pairedFinalDelivery": false,
+      "physicalDeviceAudioProviderRoonLanClientKeychainOwner": "NOT_RUN",
+      "fullTransitiveToolchainClosure": false,
+      "readAt": "2026-10-09T10:58:00.941862+00:00"
+    },
+    "boundedTransportAttemptsNotTestRetries": true,
+    "maximumOfficialInstallerAttempts": 3,
+    "backoffSeconds": 15,
+    "job60AndOfficialIdentityGateUnchanged": true,
+    "manualCiReruns": 0,
+    "manualCiCancellations": 0,
+    "actualRuntimeReplayed": false,
+    "pairedFinalDelivery": false
+  },
+  "previousWholeFailedJobBytesActuallyRead": true,
+  "previousFailedElectronZipNotCreatedNotClaimed": true,
+  "previousCompleteVerifyJobReadback": {
+    "schema": "mbm001.source6-complete-verify-job-historical-readback.v1",
+    "sourceSha": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+    "job": {
+      "jobId": 113777206490,
+      "runId": 37917516977,
+      "jobName": "verify",
+      "raw": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/BUDGET_SOURCE_VERIFY_JOB321.log",
+        "bytes": 4928368,
+        "sha256": "851997a480861f1c0cd40f9660f7e98aede4580afb34529cf1294d5856c0ee4f"
+      },
+      "actualSteps": [
+        "Set up job",
+        "Checkout",
+        "Node.js 22",
+        "Prepare strict hosted verification directories",
+        "判定精确父源码CI可复用的报告提交",
+        "Prepare source-pinned build workspace mirror",
+        "Install frozen workspace",
+        "Validate control plane",
+        "Validate security and product boundaries",
+        "Scan workspace import cycles",
+        "Verify platform-independent workspace (typecheck, unit tests, build; no Electron)",
+        "Verify offline preparation boundaries",
+        "Verify isolated MBRS-001 offline POC",
+        "MBRS002 本地合同 Gate",
+        "MBRS003 阶段软件 Gate",
+        "MBRS004 名称与版本规则 Gate",
+        "MBRS005 本地文件网关与资源租约 Gate",
+        "MBRS006 本地Audio Input与会话隔离 Gate",
+        "MBRS007 队列预取与持久恢复 Gate",
+        "MBRS008 原样字节与独立质量证据 Gate",
+        "MBRS009 正式本地库有界查询与复用UI Gate",
+        "MBRS010 封面选择与来源安全 Gate",
+        "MBRS011 MB_ONLY信息整理预览与撤销 Gate",
+        "MBRS014 旧收藏关联与冻结来源保护 Gate",
+        "MBRS012 受控源写与备份恢复 Gate",
+        "MBRS013 同内容位置迁移与具体清理 Gate",
+        "MBM000 移动合同双端采纳 Gate",
+        "MBM001 配对与只读曲库 Gate",
+        "验证报告CI准入正负例",
+        "Diff whitespace",
+        "Verify pinned historical fragments and current discarded rejection",
+        "Preserve full verification log",
+        "Post Node.js 22",
+        "Post Checkout",
+        "Complete job"
+      ],
+      "tapGroups": [
+        {
+          "tests": 266,
+          "pass": 266,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 2777,
+          "pass": 2775,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 2,
+          "todo": 0
+        },
+        {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 1670,
+          "pass": 1670,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 48,
+          "pass": 48,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 34,
+          "pass": 34,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 29,
+          "pass": 29,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 20,
+          "pass": 20,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 31,
+          "pass": 31,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 15,
+          "pass": 15,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 27,
+          "pass": 27,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 50,
+          "pass": 50,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ],
+      "evidence": "WHOLE_JOB_RAW_BYTES_AND_API_STEP_IDENTITY"
+    },
+    "standardGroups": [
+      {
+        "tests": 266,
+        "pass": 266,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      {
+        "tests": 2777,
+        "pass": 2775,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 2,
+        "todo": 0
+      },
+      {
+        "tests": 8,
+        "pass": 8,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      {
+        "tests": 1670,
+        "pass": 1670,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    ],
+    "standardTotals": {
+      "tests": 4721,
+      "pass": 4719,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    "gates": [
+      {
+        "step": "MBRS012 受控源写与备份恢复 Gate",
+        "actualTests": 426,
+        "cliGuards": [
+          6,
+          31
+        ]
+      },
+      {
+        "step": "MBRS013 同内容位置迁移与具体清理 Gate",
+        "actualTests": 529,
+        "cliGuards": [
+          15
+        ]
+      },
+      {
+        "step": "MBM000 移动合同双端采纳 Gate",
+        "actualTests": 33,
+        "cliGuards": [
+          27
+        ]
+      },
+      {
+        "step": "MBM001 配对与只读曲库 Gate",
+        "actualTests": 87,
+        "cliGuards": [
+          7
+        ]
+      }
+    ],
+    "source6ElectronNetworkFailed": true,
+    "source6CompleteCiQualified": false,
+    "currentSource7Qualification": false
+  },
+  "currentSourceActualInstallerTransport": {
+    "maximumAttempts": 3,
+    "actualCalls": 1,
+    "observedFailedCalls": 0,
+    "finalOfficialInstallerNaturalExitZero": true,
+    "transportRetriesOnlyNotTestRetries": true,
+    "backoffSeconds": 15,
+    "officialArchiveAndActualExecutionTreeGate": "PASS_SEPARATE_ORIGINAL_MANDATORY_STEP"
+  },
+  "originalMandatoryOfficialArchiveAndActualTreeValidationRetained": true,
+  "testRetries": 0,
+  "ciReruns": 0,
+  "ciManualCancellations": 0,
+  "actualRuntimeReplayed": false
+}

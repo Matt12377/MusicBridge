@@ -1,0 +1,523 @@
+{
+  "schema": "musicbridge.mbm001.result.v1",
+  "task": "MBM-001",
+  "baseSha": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
+  "implementationCommit": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+  "sourceParent": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+  "branch": "codex/mbm-001-pairing-readonly-library",
+  "reportCommit": null,
+  "reportCommitResolution": "RESOLVE_UNIQUE_REPORT_HEAD_SINGLE_PARENT_SOURCE_AFTER_COMMIT",
+  "sourceGate": "PASS_87_EXACT_SOURCE_1686_INPUTS_1502_READER_INPUTS_1009_OUTPUTS",
+  "separateCliGuards": 156,
+  "controlledClockOriginalCases": 23,
+  "controlledClockDeadlineMs": 500,
+  "sourceNaturalCi": "PASS_FIRST_NATURAL_FOUR_WORKFLOWS_SIX_JOBS_FIVE_WHOLE_ARTIFACTS",
+  "firstOrdinarySourceNaturalCiFailure": "S2_ELECTRON_HOST_PREPARATION_AND_VERIFY_DIRTY_FAIL_ORIGINAL_LOGS_PRESERVED_NO_RERUN",
+  "controlledClockRepairSourceCi": "S3_FIRST_NATURAL_VERIFY_DIRTY_FAILURE_PRESERVED_NO_RERUN",
+  "finalCiEnvironmentRepair": "VERIFY_JOB_PYTHONDONTWRITEBYTECODE_1_ORIGINAL_CLEAN_GATE_UNCHANGED",
+  "ciEnvironmentSourceNaturalFailure": "S4_STANDARD_CORE_CANCEL16_FULL_ORIGINAL_JOB_AND_TERMINAL_CI_PRESERVED_NO_RERUN",
+  "finalIntegerClockOriginRepair": "ORIGIN_0_ORIGINAL_500MS_AND_23_ASSERTIONS_PRODUCTION_UNCHANGED",
+  "previousIntegerClockSourceNaturalFailure": "S5_VERIFY_PASS_ELECTRON_JOB45_TIMEOUT_CANCELLED_FULL_JOB_AND_ANNOTATIONS_PRESERVED",
+  "finalOverallElectronCiBudgetRepair": "GITHUB_WHOLE_JOB_45_TO_60_MINUTES_ONLY_ORIGINAL_TEST_SCOPE_AND_PER_TEST_BUDGETS_UNCHANGED",
+  "previousOverallBudgetSourceNaturalFailure": "S6_HOST_PREPARATION_PASS_OFFICIAL_FETCH_FAIL_TWO_ARTIFACT_CREATE_TIMEOUTS_STARTUP_E2E_SKIPPED",
+  "finalOfficialInstallerTransport": {
+    "maximumAttempts": 3,
+    "actualCalls": 1,
+    "observedFailedCalls": 0,
+    "finalOfficialInstallerNaturalExitZero": true,
+    "transportRetriesOnlyNotTestRetries": true,
+    "backoffSeconds": 15,
+    "officialArchiveAndActualExecutionTreeGate": "PASS_SEPARATE_ORIGINAL_MANDATORY_STEP"
+  },
+  "sourceCiCompleteJobLogs": 6,
+  "sourceCiWholeArtifacts": 5,
+  "dependencyAudit": {
+    "result": "PASS_EXISTING_HIGH_THRESHOLD",
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 8,
+      "high": 0,
+      "critical": 0
+    },
+    "zeroKnownVulnerabilities": false,
+    "ciIssueDetails": "NOT_PRINTED_BY_BRIEF_HIGH_THRESHOLD_JOB",
+    "thresholdChanged": false,
+    "dependencyIssuesFixedByThisReadback": false,
+    "separateExactSourceLocalDetail": {
+      "schema": "mbm001.exact-source-existing-production-dependency-audit.v1",
+      "sourceSha": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+      "actualLocalRegistryJson": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/network-source-dependency-detail311.log",
+        "bytes": 57607,
+        "sha256": "3693604276a1911168b8607cac56abeb76f123cda0286b382bd0111dffe4e64d"
+      },
+      "localCapture": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/network-source-dependency-detail311.json",
+        "bytes": 826,
+        "sha256": "e678561d7b25358dbac6e7618ff520a2a49ae13934c7d8301567256137074cb7"
+      },
+      "localAllSeverityAuditExitCode": 1,
+      "localExitOneMeansEightModerateNotAHighThresholdCiFailure": true,
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 0,
+        "critical": 0
+      },
+      "advisories": [
+        {
+          "id": 1158506,
+          "module_name": "qs",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-x5fp-wj9c-mxmx",
+          "cves": [
+            "CVE-2026-82562"
+          ],
+          "vulnerable_versions": ">=6.14.2 <=6.15.3",
+          "patched_versions": ">=6.16.0",
+          "findings": [
+            {
+              "version": "6.15.3",
+              "paths": [
+                "apps__desktop>@neteasecloudmusicapienhanced/api>@neteasecloudmusicapienhanced/unblockmusic-utils>express>qs"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1158507,
+          "module_name": "qs",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-4mjr-xmp4-gh2g",
+          "cves": [
+            "CVE-2026-82417"
+          ],
+          "vulnerable_versions": ">=2.2.5 <6.16.0",
+          "patched_versions": ">=6.16.0",
+          "findings": [
+            {
+              "version": "6.15.3",
+              "paths": [
+                "apps__desktop>@neteasecloudmusicapienhanced/api>@neteasecloudmusicapienhanced/unblockmusic-utils>express>qs"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1239948,
+          "module_name": "ip-address",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-rpw4-54j3-4h4q",
+          "cves": [
+            "CVE-2026-101913"
+          ],
+          "vulnerable_versions": "<=10.5.0",
+          "patched_versions": ">=10.5.1",
+          "findings": [
+            {
+              "version": "10.5.0",
+              "paths": [
+                "apps__desktop>@neteasecloudmusicapienhanced/api>pac-proxy-agent>socks-proxy-agent>socks>ip-address"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1239949,
+          "module_name": "ip-address",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-2vr4-cq9g-pvrc",
+          "cves": [
+            "CVE-2026-101910"
+          ],
+          "vulnerable_versions": ">=10.2.0 <=10.5.0",
+          "patched_versions": ">=10.5.1",
+          "findings": [
+            {
+              "version": "10.5.0",
+              "paths": [
+                "apps__desktop>@neteasecloudmusicapienhanced/api>pac-proxy-agent>socks-proxy-agent>socks>ip-address"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1240097,
+          "module_name": "ip-address",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-j6r3-76f7-8jcv",
+          "cves": [
+            "CVE-2026-101912"
+          ],
+          "vulnerable_versions": "<=10.7.0",
+          "patched_versions": ">=10.7.1",
+          "findings": [
+            {
+              "version": "10.5.0",
+              "paths": [
+                "apps__desktop>@neteasecloudmusicapienhanced/api>pac-proxy-agent>socks-proxy-agent>socks>ip-address"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1240098,
+          "module_name": "ip-address",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-h3mg-xc3c-68pw",
+          "cves": [
+            "CVE-2026-101911"
+          ],
+          "vulnerable_versions": "<=10.7.0",
+          "patched_versions": ">=10.7.1",
+          "findings": [
+            {
+              "version": "10.5.0",
+              "paths": [
+                "apps__desktop>@neteasecloudmusicapienhanced/api>pac-proxy-agent>socks-proxy-agent>socks>ip-address"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1241691,
+          "module_name": "music-metadata",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-f94x-6692-553q",
+          "cves": [
+            "CVE-2026-107391"
+          ],
+          "vulnerable_versions": "<11.16.0",
+          "patched_versions": ">=11.16.0",
+          "findings": [
+            {
+              "version": "11.15.0",
+              "paths": [
+                "apps__desktop>music-metadata"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1241694,
+          "module_name": "music-metadata",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-5gfj-9q3v-qfp3",
+          "cves": [
+            "CVE-2026-107389"
+          ],
+          "vulnerable_versions": "<11.16.0",
+          "patched_versions": ">=11.16.0",
+          "findings": [
+            {
+              "version": "11.15.0",
+              "paths": [
+                "apps__desktop>music-metadata"
+              ]
+            }
+          ]
+        }
+      ],
+      "wholeInstalledPackages": [
+        {
+          "name": "qs",
+          "version": "6.15.3",
+          "wholeInstalledPackageJson": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/source-mirror296/checkout/node_modules/.pnpm/qs@6.15.3/node_modules/qs/package.json",
+            "bytes": 3192,
+            "sha256": "47477ed1243939a78ab502c3d1d10a3d0571c06f9c2dfa128d7c047dbb010bf4"
+          }
+        },
+        {
+          "name": "ip-address",
+          "version": "10.5.0",
+          "wholeInstalledPackageJson": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/source-mirror296/checkout/node_modules/.pnpm/ip-address@10.5.0/node_modules/ip-address/package.json",
+            "bytes": 2304,
+            "sha256": "91166ee6e473fe20ec6029e6cdda2635b1e0c9bd6ec78da40a4671bf0c1eaa58"
+          }
+        },
+        {
+          "name": "music-metadata",
+          "version": "11.15.0",
+          "wholeInstalledPackageJson": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/source-mirror296/checkout/node_modules/.pnpm/music-metadata@11.15.0/node_modules/music-metadata/package.json",
+            "bytes": 4026,
+            "sha256": "73f31fad9aa42cf42a70af438bd10628dc9fea9afdc18f32531f0036ae48fa72"
+          }
+        }
+      ],
+      "lockfile": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checkout/pnpm-lock.yaml",
+        "bytes": 192822,
+        "sha256": "e56d67a0e8441187bf81baa27c1745973a7070e50360ab17032c2084b2e00be9"
+      },
+      "lockfileWholeEqual000BaseReport": true,
+      "observedDependencyPaths": "NETEASE_TRANSITIVE_QS_AND_IPADDRESS_PLUS_EXISTING_DESKTOP_MUSIC_METADATA",
+      "current001DirectSourceInspection": [
+        {
+          "path": "apps/desktop/src/main/mobile-tls-identity.ts",
+          "gitBlob": "5fea13db966dca219283ea94682885b9b6ed2903",
+          "bytes": 15550,
+          "sha256": "aa95b73f7b3e24964c6fce365037fa32214e9994ff88404422727cd22f544f80"
+        },
+        {
+          "path": "apps/desktop/src/main/mobile-https-server.ts",
+          "gitBlob": "2d67bb0bb802fc50407b42a944b4f5998bc9e1ca",
+          "bytes": 17198,
+          "sha256": "729f7b37d0693e8bcf2d450330d613a15bb47f77863ae851ecc92e5b58420675"
+        },
+        {
+          "path": "packages/bridge-core/src/mobile/catalog-service.ts",
+          "gitBlob": "3f4de255bf976f27f011c6837fb29578960795a8",
+          "bytes": 13198,
+          "sha256": "c456b6ab32473249e84cfea638ef5383c23309d669558f1d9aafb17b7bae1fca"
+        },
+        {
+          "path": "packages/bridge-core/src/mobile/owner-service.ts",
+          "gitBlob": "f703302720f34727ccc61c82755d5f3e4dce6c80",
+          "bytes": 9979,
+          "sha256": "997c3d397f9bd7e5092454bbb041223bc914416e41b0cd4a908bd9eb653fbc81"
+        }
+      ],
+      "noDirectImportsOfThreeModulesInInspected001Files": true,
+      "scopeInference": "READ_ONLY_001_IMPORT_INSPECTION_ONLY_NOT_FULL_TRANSITIVE_REACHABILITY_OR_EXPLOIT_SAFETY_PROOF",
+      "vulnerabilityPocExecuted": false,
+      "dependenciesUpdated": false,
+      "ciPolicyModified": false,
+      "patchReleaseAvailability": "NOT_QUALIFIED_BY_AUDIT_RANGE_OR_ADVISORY_HEADER",
+      "carryover": "MBRS016_DEPENDENCY_TRIAGE_AND_PATCH_QUALIFICATION_BEFORE_RELEASE",
+      "realProviderRoonNasDeviceAudioOwner": "NOT_RUN"
+    }
+  },
+  "existingModerateDependencyIssues": "8_MODERATE_QS_IPADDRESS_MUSIC_METADATA_NOT_FIXED_MBRS016",
+  "standardSourceCi": {
+    "tests": 4721,
+    "pass": 4719,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "sourceCiActualLifecycle": 12,
+  "sourceCiE2e": {
+    "total": 116,
+    "passed": 111,
+    "originalSkipped": 5,
+    "failed": 0,
+    "retries": 0,
+    "flaky": 0
+  },
+  "sourceCiSeparateHistoricalGates": {
+    "mbm000": 33,
+    "mbrs012": 426,
+    "mbrs013": 529
+  },
+  "testsOverlapNotSummed": true,
+  "canonical": {
+    "path": "packages/contracts/mobile/openapi.json",
+    "bytes": 145918,
+    "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+  },
+  "reportNaturalCi": "PENDING_FIRST_ORDINARY_REPORT_PUSH_TWO_WORKFLOWS_THREE_JOBS",
+  "reportRemoteAndClean": "PENDING_FINAL_PRIVATE_RECEIPT",
+  "pairedFinalDelivery": false,
+  "pairedFinalDeliveryResolution": "REQUIRES_REPORT_FIRST_NATURAL_CI_AND_BOTH_FINAL_REMOTE_CLEAN_PRIVATE_SEAL",
+  "actualSelfOwnedMacService": {
+    "candidate": "run-TNbvog",
+    "inputRows": 1693,
+    "sourceProductGitRows": 655,
+    "ownedSourceRows": 104,
+    "assets": 103,
+    "tracks": 103,
+    "editions": 103,
+    "sourceBindings": 0,
+    "actualSystemSafeStorage": true,
+    "sdkActualPassedCases": 22,
+    "sdkOfflineDriverTests": 32,
+    "privateExplicitPermits": 2,
+    "automaticReissue": false,
+    "naturalAppExitCode": 0,
+    "naturalParentExitCode": 0,
+    "sourceAndOutputInputsWholeUnchanged": true,
+    "runtimeReplayed": false,
+    "sdkRuntime": "OFFICIAL_SHARED_IOS_SDK_EXECUTABLE_ON_MACOS_NOT_NATIVE_IOS_UI",
+    "clientTokenStore": "RAM_ONLY_NOT_CLIENT_KEYCHAIN",
+    "nativeResponseImageFormat": "NOT_REPORTED_BY_SDK_METRICS",
+    "nonEmptySourceBindingHistoryVerified": false
+  },
+  "originalControlledProductionApp": {
+    "cases": 2,
+    "actualNaturalCloses": 4,
+    "nativeJpegFiles": 6,
+    "safeScreenshots": 6,
+    "keychain": "CONTROLLED_AES_NOT_REAL_KEYCHAIN",
+    "paging": "SINGLE_TRACK_OR_EMPTY_ORIGINAL_APP_CASES"
+  },
+  "ios": {
+    "sourceSha": "b82049825e9e9058fe4a70186da70f5a267543ea",
+    "reportSha": "c53ed3e4850f60b203d4773446db74789e2814d7",
+    "reportUniqueParentSource": true,
+    "remoteExactAtRootReadback": true,
+    "cleanAtRootReadback": true,
+    "wholeDriverSourceGitRows": 123,
+    "distinctSoftwareCases": 149,
+    "controlledNativeHttpsCases": 41,
+    "unsignedGenericSimulatorBuilds": 2,
+    "priorSoftwareInputsUnchangedAndNotReplayed": true,
+    "actualSharedSdkCases": 22,
+    "offlineDriverCases": 32,
+    "acceptanceSoftwarePreserved": 13,
+    "acceptanceActualSdkPass": 2,
+    "acceptanceNativeUiDeviceAudioOwnerNotRun": 4,
+    "githubCI": "NOT_RUN_NO_WORKFLOWS"
+  },
+  "acceptanceSourceFrozenCases": [
+    {
+      "id": "MBMAT-001-01",
+      "area": "HTTPS",
+      "requirement": "私有HTTPS独立listener，真实TLS身份与pin、闭集raw请求/响应、原loopback不变。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PASS_CONTROLLED_TLS_MAIN_HTTP_NOT_LAN_OR_DEVICE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_ACTUAL_PRODUCTION_MAIN_TLS_ANCHOR_HOST_ID_AND_OFFICIAL_SHARED_IOS_SDK_NOT_LAN_OR_DEVICE"
+    },
+    {
+      "id": "MBMAT-001-02",
+      "area": "PAIRING",
+      "requirement": "可信本地许可的TTL/单次使用、稳定server/device与installation绑定，领取201及同key/body原回执。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PASS_ACTUAL_UI_PERMIT_AND_TWO_DEVICE_CLAIMS",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_SEPARATE_ACTUAL_SYSTEM_SAFESTORAGE_TWO_EXPLICIT_PERMITS_AND_TWO_INSTALLATIONS"
+    },
+    {
+      "id": "MBMAT-001-03",
+      "area": "AUTH",
+      "requirement": "access/refresh过期、原子轮换、撤销及冷重开持久回执；跨设备与改body拒绝。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PASS_ROTATION_REVOKE_LOGOUT_COLD_ORIGINAL_RECEIPTS_NATURAL_TTL_NOT_RUN",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_ACTUAL_REFRESH_ORIGINAL_BODY_KEY_RECEIPT_LOGOUT_BEARER401_PEER_SURVIVES_NATURAL_TTL_NOT_RUN"
+    },
+    {
+      "id": "MBMAT-001-04",
+      "area": "CAPABILITIES",
+      "requirement": "实际能力诚实投影，001不提前宣称播放/转码/FLAC支持。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PASS_HONEST_READONLY_CAPABILITIES_PLAYBACK_FALSE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_ACTUAL_READONLY_CAPABILITIES_EXISTING_SOFTWARE_HONEST_FLAGS"
+    },
+    {
+      "id": "MBMAT-001-05",
+      "area": "PAGING",
+      "requirement": "同Owner快照搜索/稳定分页，认证cursor完整scope、改库/换库/撤销有限拒绝，不漏曲或虚假完整页。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PARTIAL_SINGLE_TRACK_EMPTY_CATALOG_ONLY_APP_MULTIPAGE_NOT_RUN_OWNER_103_ENTRY_HTTP_SEPARATE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_ACTUAL_PRODUCTION_MAIN_103_ALBUMS_103_TRACKS_EACH7_PAGES_REPEAT_SEARCH_DETAIL_OWNER_MUTATION_FENCE_SOFTWARE_SEPARATE"
+    },
+    {
+      "id": "MBMAT-001-06",
+      "area": "IDENTITY",
+      "requirement": "独立发行与曲目/version/content身份、位置移动稳定、换源修订、缺事实与segment时长真实。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PARTIAL_ACTUAL_ONE_ASSET_EDITION_AND_CONTENT_IDENTITY_MOVE_NOT_RUN_IN_APP",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PARTIAL_ACTUAL_103_INDEPENDENT_EDITION_ASSET_IDENTITIES_AND_DETAIL_LOCATION_MOVE_NOT_RUN_IN_APP"
+    },
+    {
+      "id": "MBMAT-001-07",
+      "area": "ARTWORK",
+      "requirement": "当前选图只读，96/256/512真实编码bytes和预算，缺图/外库/旧选图拒绝、取消回收。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PASS_ACTUAL_PNG_SELECTION_AND_SIX_NATIVE_JPEG_96_256_512_OLD_SELECTION_409",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_ACTUAL_CURRENT_PNG_THREE_NATIVE_JPEG_SIZES_RECTANGULAR_DECODE_OLD_SELECTION409_SOFTWARE_SEPARATE"
+    },
+    {
+      "id": "MBMAT-001-08",
+      "area": "RUNTIME",
+      "requirement": "默认OFF、可信桌面配置/配对入口、Main→唯一Dataset Owner闭集接点、退出/重启/有限并发与资源释放。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PASS_UI_OFF_ON_CLOSE_EXPLICIT_COLD_ENABLE_AUTO_RESTORE_NOT_RUN",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PASS_ORIGINAL_NATURAL_CLOSE_SYSTEM_SAFESTORAGE_DEFAULT_RESTORE_NOT_RUN"
+    },
+    {
+      "id": "MBMAT-001-09",
+      "area": "PAIRED_DELIVERY",
+      "requirement": "Mac/iOS实际001合同接线与适用软件Gate、独立Source/R/自然CI/ordinary push；服务设备音频与Owner分层。",
+      "software": "PARTIAL_MAC87_IOS149_CONTROLLED_HTTPS41_ACTUAL_SDK22_DRIVER32_FINAL_SOURCE_CI_REPORT_PENDING",
+      "production_app": "PARTIAL_MAC_APP_PASS_PAIRED_FINAL_DELIVERY_PENDING",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "actual_self_owned_mac_service_shared_ios_sdk": "PARTIAL_SOFTWARE_RUNTIME_QUALIFIED_FINAL_SOURCE_CI_REPORT_ACCOUNTING_PENDING"
+    }
+  ],
+  "sourcePreparationPendingFields": "HISTORICAL_SOURCE_SNAPSHOT_PRESERVED_R_ONLY_ACCOUNTING",
+  "nativeAppUIClientKeychainPhysicalDeviceAudioProviderRoonNasLanOwner": "NOT_RUN",
+  "original18TasksAnd156AcceptanceUnchanged": true,
+  "effective17TasksAnd150AcceptanceUnchanged": true,
+  "prior013Eight": "PARTIAL_LIVE_OWNER_OPEN",
+  "cancelled015Six": "NOT_APPLICABLE_OWNER_CANCELLED",
+  "nextTask": "MBM-002",
+  "nextBranchBaseline": "RESOLVE_FINAL_REPORT_HEAD_AFTER_FINAL_SEAL",
+  "remainingSequence": [
+    "MBM-002",
+    "MBM-003",
+    "MBM-004",
+    "MBRS-016",
+    "MBRS-017"
+  ],
+  "ownerRepeatedApprovalRequired": false,
+  "finalDeliveryReceipt": "PRIVATE_EXTERNAL_ARCHIVE_AFTER_REPORT_CI_NO_THIRD_SEAL_COMMIT",
+  "fullTransitiveToolchainClosure": false,
+  "evidenceFiles": [
+    "docs/postrust/MBM-001/evidence/actual-sdk-readback.json",
+    "docs/postrust/MBM-001/evidence/candidate-close-readback.json",
+    "docs/postrust/MBM-001/evidence/ci-environment-readback.json",
+    "docs/postrust/MBM-001/evidence/ci-environment-source-ci-terminal.json",
+    "docs/postrust/MBM-001/evidence/controlled-app-readback.json",
+    "docs/postrust/MBM-001/evidence/evidence-manifest.json",
+    "docs/postrust/MBM-001/evidence/first-source-ci-terminal.json",
+    "docs/postrust/MBM-001/evidence/fixture-clock-readback.json",
+    "docs/postrust/MBM-001/evidence/integer-clock-origin-readback.json",
+    "docs/postrust/MBM-001/evidence/ios-actual-report-readback.json",
+    "docs/postrust/MBM-001/evidence/ios-software-readback.json",
+    "docs/postrust/MBM-001/evidence/official-installer-network-readback.json",
+    "docs/postrust/MBM-001/evidence/official-installer-network-source-ci-terminal.json",
+    "docs/postrust/MBM-001/evidence/overall-ci-budget-readback.json",
+    "docs/postrust/MBM-001/evidence/overall-ci-budget-source-ci-terminal.json",
+    "docs/postrust/MBM-001/evidence/preparation-checks.json",
+    "docs/postrust/MBM-001/evidence/runtime-product-binding.json",
+    "docs/postrust/MBM-001/evidence/second-source-ci-terminal.json",
+    "docs/postrust/MBM-001/evidence/source-artifact-readback.json",
+    "docs/postrust/MBM-001/evidence/source-ci-readback.json",
+    "docs/postrust/MBM-001/evidence/source-ci.json",
+    "docs/postrust/MBM-001/evidence/source-gate-readback.json",
+    "docs/postrust/MBM-001/evidence/source-gate.json",
+    "docs/postrust/MBM-001/evidence/source-identity.json",
+    "docs/postrust/MBM-001/evidence/source-phase-logs.json"
+  ]
+}

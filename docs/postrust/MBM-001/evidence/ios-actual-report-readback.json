@@ -1,0 +1,154 @@
+{
+  "schema": "mbm001.root-ios-actual-sdk-final-report-readback.v1",
+  "source": "b82049825e9e9058fe4a70186da70f5a267543ea",
+  "report": "c53ed3e4850f60b203d4773446db74789e2814d7",
+  "reportUniqueParentSource": true,
+  "remoteExact": true,
+  "clean": true,
+  "sourceSdkProductTreesUnchangedFromSoftwareR20095": true,
+  "baseSoftwareSource": "731daea2e68560bb689aca09618dd4e607891a93",
+  "baseSoftwareReport": "20095f21ae6c2021543da73a15cbea0478580937",
+  "baseSoftwareTests149ControlledHttps41AndTwoBuilds": "UNCHANGED_INPUTS_PRIOR_ROOT_READBACK50_51_NOT_REPLAYED",
+  "archiveManifestWholeFileRows": 19,
+  "archiveAndReportWholeGitBlobRows": 21,
+  "files": [
+    {
+      "path": "reports/IOS-MBM-001_ACTUAL_MAC_CONSUMER_RESULT.md",
+      "bytes": 7559,
+      "sha256": "428ec1077de2282838917494872974a35c48538a75d5e0e193497de72ff2f3be",
+      "gitBlob": "f12b4d70772ceb470c03d972ad26aca3954a2eb5"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/EVIDENCE_MANIFEST.json",
+      "bytes": 3335,
+      "sha256": "61f91799d25bacebd83d570e22be51408144ea392fab1c45aedb41655ad82861",
+      "gitBlob": "dabd862d0c304af1b88f09c5aac46ed63ee19805"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/IOS_ACCEPTANCE_RESULTS.json",
+      "bytes": 5683,
+      "sha256": "5fff40affcf447fa1004bd4d7500442ddb97ece746c43e4cb466d773deeb2162",
+      "gitBlob": "d7c7549ae2a5c5cdbeb55a7d8af99a3503c5748e"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/actual-mac01-failure.json",
+      "bytes": 1361,
+      "sha256": "69adf1c9e8fd2b99d38ce3a9843af3c1d5e4e86232c660685a682a8bc67b58de",
+      "gitBlob": "24f38619c3ae83092c4cdc53998d3df3210763e3"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/actual-mac02.json",
+      "bytes": 5991,
+      "sha256": "8008e606a34810a0ffa13feaa92bd8bdcee716fe29b90ad52563a4c71d64467d",
+      "gitBlob": "9b934c9afef272be3738f4069081f3fe25d71f0f"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/actual-summary.json",
+      "bytes": 516,
+      "sha256": "5272af314d581a73dcb16c676262472896e2f613f1b697e08c8354687e1e4d75",
+      "gitBlob": "7f6d4c57137f5865cedd9283f9bdefd7eaacb6f2"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/auth-initial-build-failure.log",
+      "bytes": 11711,
+      "sha256": "d799fb96c2b78b8060c4c1df428dcfd71b3afb428211295ac0ac2f936ccdbdb5",
+      "gitBlob": "f56d0c5a00e0115c5f5c7b96adfd46107ec19508"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/candidate-input-validation.json",
+      "bytes": 231,
+      "sha256": "722bf0879f548bc5c5bd5c69130440d0a32cdf41d5b2034ec586470cb8e1d20f",
+      "gitBlob": "f01bdfc85071e9242a0c3c738a1131333a4295a6"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/catalog-initial-build-failure.log",
+      "bytes": 11736,
+      "sha256": "1755a84be7df9a7bb21ea36fc08b015517a98cbc0b6885ee38f994dfb22b5310",
+      "gitBlob": "86303a65cb6cc8d5bd18532a831e15da9fd5ed96"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/ipc-blocking-probe.json",
+      "bytes": 207,
+      "sha256": "c28ee38f570f59a8bf02218f94c55a11726ddb69fab83d4436bcfb4e362d27b8",
+      "gitBlob": "dfe9044b7eb4d5d7621230c3fb52ef4ce03f5e39"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/main-pre-sync-preservation.json",
+      "bytes": 498,
+      "sha256": "5a723b89e89bddb72bdb3d2301da98094b984a4a31401167d74f257809dc9364",
+      "gitBlob": "25fc042653db0a7af50fcb389ccc21051fb3cd73"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/offline-gate01.json",
+      "bytes": 33555,
+      "sha256": "7bee87d4328542adf13ac418c2620a876ec0b55e05d0469b525de8c84c882a0b",
+      "gitBlob": "cdd393e21f72b1f27fe17f37e1690310e9b89dc3"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/offline-gate02.json",
+      "bytes": 33555,
+      "sha256": "1a428bd25b11050eeee14e7567379a4e1067eb311a1b485906908052ca6af32a",
+      "gitBlob": "a8566379951ae6498dc003bbd111a5f13ba702ca"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/offline-python01.log",
+      "bytes": 2615,
+      "sha256": "98cdaf5c06316d6b5dc81fc85c1d79943f200af23f8c963f4ed5eb59e3caaf27",
+      "gitBlob": "c61920d08ccaabffecf2d07af10e580c68d0c4a4"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/offline-python02.log",
+      "bytes": 2916,
+      "sha256": "2884e8fcaca1f67c7101671061b63476dd4648fdc6c08bb96c433fda84424237",
+      "gitBlob": "361756a64c2c26102184e5db16e21335275c3ec7"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/offline-swift01.log",
+      "bytes": 5741,
+      "sha256": "e201a146258fbd039d1d3e47817d6a40e8aa2caea66057aa3b0869fc4e1b1be9",
+      "gitBlob": "885a6fc1a27937e9ad5b055a6c209705613c972d"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/offline-swift02.log",
+      "bytes": 5789,
+      "sha256": "e8ad661ead764900a4d17e60b2a39d9bcb39c941f86b831eb65a9fae333d9636",
+      "gitBlob": "5db116ea66702fb6401c7cdbfc834e1caa7e663c"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/replacement-preflight.json",
+      "bytes": 549,
+      "sha256": "b7dbde49ce221da41457e1cb47e57f33ff2b2bc62bde469e9f8468f23ca85aea",
+      "gitBlob": "2f4fedadb25615a084c5c19c579d4977ad901481"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/software-base-input-preservation.json",
+      "bytes": 240,
+      "sha256": "15301c4e39f11e4edd5d46424a7ad98394060590afe2c028b83911faef87cc61",
+      "gitBlob": "715e83316d7350abfd4478c83ce5010390076908"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/source-product-preservation.json",
+      "bytes": 655,
+      "sha256": "78caa65ebd1bf155d7eaa0615f08196b8b249f70941888c4f2c97e4e606835e2",
+      "gitBlob": "93376345f8fa5a495e049b4dcd97d789fabe76d8"
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-001_ACTUAL_MAC_CONSUMER/withdrawn-candidate.json",
+      "bytes": 367,
+      "sha256": "0b1387de41d930daad657e687d7bd109e9fd503ec377586d13501fc10cde3344",
+      "gitBlob": "b8a750e8167c8ff308e511ba8232c706889daef4"
+    }
+  ],
+  "rootActualSdkCases": 22,
+  "driverOfflineTests": 32,
+  "actualMacResultWholeEqualsOriginalAndRootReadback": true,
+  "iOSAcceptanceLayers": {
+    "softwarePreserved": 13,
+    "actualMacSdkPass": 2,
+    "nativeAppPhysicalAudioOwnerNotRun": 4
+  },
+  "responseImageFormat": "RESULT_METRICS_DECODED_THREE_GEOMETRIES_NO_RESPONSE_FORMAT_FIELD_NOT_CLAIMED_PNG",
+  "ci": "NOT_RUN_NO_WORKFLOWS",
+  "physicalDeviceClientKeychainAudioProviderRoonLanOwner": "NOT_RUN",
+  "readAt": "2026-10-09T07:42:48.397917+00:00"
+}

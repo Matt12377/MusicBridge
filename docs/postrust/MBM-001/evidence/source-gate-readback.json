@@ -1,0 +1,133 @@
+{
+  "schema": "mbm001.root-final-source-gate-whole-readback.v1",
+  "source": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+  "summary": {
+    "bytes": 1061480,
+    "sha256": "fec451a912190112164558e4a651e2c23d1623dcc01b2b1c122ef2bc9c9bb65e"
+  },
+  "actualTests": 87,
+  "core": 49,
+  "desktop": 38,
+  "caseNamesWholeExact": true,
+  "fail": 0,
+  "skip": 0,
+  "cancelled": 0,
+  "todo": 0,
+  "wholeCurrentAndGitBlobSourceInputs": 1686,
+  "sourceInputIdentity": "4eb639825c20296a6fc3e7774c81a62d11b9f5a7f9ce37b1c8294d5d2c1a07a1",
+  "stages": [
+    {
+      "name": "fresh-contracts-compiler",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "file": "tmp/prepare-fresh-contracts-compiler.raw.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "expectedTests": null
+    },
+    {
+      "name": "fresh-core-compiler",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "file": "tmp/prepare-fresh-core-compiler.raw.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "expectedTests": null
+    },
+    {
+      "name": "fresh-fixed-metadata-worker",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "file": "tmp/prepare-fresh-fixed-metadata-worker.raw.log",
+        "bytes": 68,
+        "sha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6"
+      },
+      "expectedTests": null
+    },
+    {
+      "name": "mobile-test-types",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "file": "tmp/mobile-test-types.raw.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "expectedTests": null
+    },
+    {
+      "name": "desktop-types",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "file": "tmp/desktop-types.raw.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "expectedTests": null
+    },
+    {
+      "name": "mobile-app-types",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "file": "tmp/mobile-app-types.raw.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "expectedTests": null
+    },
+    {
+      "name": "mobile-core-behavior",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "file": "tmp/mobile-core-behavior.raw.log",
+        "bytes": 14336,
+        "sha256": "df1daebd65915082424c6502e06b46a092d835e6321fd22105d2407540644460"
+      },
+      "expectedTests": 49
+    },
+    {
+      "name": "mobile-desktop-behavior",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "file": "tmp/mobile-desktop-behavior.raw.log",
+        "bytes": 9998,
+        "sha256": "77371050e4f5d8b9a2f3db60d71d3bad381d95f7d67cd4a7a918ee8c0629eaf2"
+      },
+      "expectedTests": 38
+    }
+  ],
+  "freshReaderSourceWholeFdAndGitBlobRows": 1502,
+  "freshReaderOutputWholeFdRows": 1009,
+  "directCompilerToolWholeFdRows": 4,
+  "cleanIndependentSourceMirror": true,
+  "liveCandidateSourceAndDistNotRebuilt": true,
+  "wholeCliGuardLog": {
+    "bytes": 33566,
+    "sha256": "a782dc96b9f2cc88c7d4005c93a637aa104a19a799dcc8eab9f2bbca131254a7"
+  },
+  "actualSeparateCliGuardCases": 156,
+  "actualSdkPeerReport": "c53ed3e4850f60b203d4773446db74789e2814d7",
+  "actualSdkNaturalCloseReceipt": "checks/CANDIDATE_NATURAL_CLOSE79.json",
+  "naturalSourceCi": "PENDING_ORDINARY_FIRST_PUSH",
+  "pairedFinalDelivery": false,
+  "physicalDeviceAudioProviderRoonLanClientKeychainOwner": "NOT_RUN",
+  "fullTransitiveToolchainClosure": false,
+  "readAt": "2026-10-09T10:58:00.941862+00:00"
+}

@@ -1,0 +1,309 @@
+{
+  "schema": "mbm001.root-actual-ios-sdk-readback.v1",
+  "readAt": "2026-10-09T07:31:51.272835+00:00",
+  "evidenceLayer": "MACOS_EXECUTABLE_USING_OFFICIAL_SHARED_IOS_SDK_TO_ACTUAL_PRODUCTION_MAC_SERVICE_SELF_OWNED_LIBRARY",
+  "source": "b82049825e9e9058fe4a70186da70f5a267543ea",
+  "actualResult": {
+    "bytes": 5991,
+    "sha256": "8008e606a34810a0ffa13feaa92bd8bdcee716fe29b90ad52563a4c71d64467d",
+    "noFollow": true,
+    "stableNamedFd": true
+  },
+  "offlineGate": {
+    "bytes": 33555,
+    "sha256": "1a428bd25b11050eeee14e7567379a4e1067eb311a1b485906908052ca6af32a",
+    "noFollow": true,
+    "stableNamedFd": true
+  },
+  "sourceWholeFdAndGitBlobRows": 123,
+  "wholeDeclaredSourceTreeInventoryMatched": true,
+  "compiledSdkBinary": {
+    "bytes": 4904720,
+    "sha256": "a626805bade133ec3ff6bf3ceb7671843fac8ec37abb948acf48050ee96dc37f",
+    "noFollow": true,
+    "stableNamedFd": true
+  },
+  "wholeOfflineLogs": [
+    {
+      "name": "swift-tests",
+      "tests": 14,
+      "exitCode": 0,
+      "completeRawLog": {
+        "bytes": 5789,
+        "sha256": "e8ad661ead764900a4d17e60b2a39d9bcb39c941f86b831eb65a9fae333d9636",
+        "noFollow": true,
+        "stableNamedFd": true
+      }
+    },
+    {
+      "name": "python-tests",
+      "tests": 18,
+      "exitCode": 0,
+      "completeRawLog": {
+        "bytes": 2916,
+        "sha256": "2884e8fcaca1f67c7101671061b63476dd4648fdc6c08bb96c433fda84424237",
+        "noFollow": true,
+        "stableNamedFd": true
+      }
+    }
+  ],
+  "offlineTests": 32,
+  "actualCases": [
+    {
+      "caseID": "CONNECTION-PUBLIC-IMPORT",
+      "metrics": {
+        "fields": 5
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "SERVER-PRODUCTION-READ",
+      "metrics": {},
+      "schemaVersion": 1,
+      "type": "stage"
+    },
+    {
+      "caseID": "SERVER-PRODUCTION-ID",
+      "metrics": {
+        "requests": 1
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "TLS-UNANCHORED-REJECTED",
+      "metrics": {
+        "rejected": 1
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "SERVER-IDENTITY-MISMATCH-REJECTED",
+      "metrics": {
+        "rejected": 1
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "CONNECTION-DER-PIN-MISMATCH-REJECTED",
+      "metrics": {
+        "rejected": 1
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "CAPABILITIES-INVALID-BEARER-401",
+      "metrics": {
+        "status": 401
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "AUTHENTICATION-AND-CATALOG",
+      "metrics": {},
+      "schemaVersion": 1,
+      "type": "stage"
+    },
+    {
+      "caseID": "AUTH-SERVER-ID",
+      "metrics": {
+        "requests": 1
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "AUTH-PAIR-A",
+      "metrics": {
+        "devices": 1
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "AUTH-CAP-A",
+      "metrics": {
+        "requests": 1
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "AUTH-RAM-RESTORE-A",
+      "metrics": {
+        "instances": 2,
+        "persistentStores": 0
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "CAT-LOCAL-COMPLETE",
+      "metrics": {
+        "albumPages": 7,
+        "albums": 103,
+        "trackPages": 7,
+        "tracks": 103
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "CAT-REPEAT-STABLE",
+      "metrics": {
+        "albumPages": 7,
+        "queries": 2,
+        "trackPages": 7
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "CAT-SEARCH-IDENTITY",
+      "metrics": {
+        "albumMatches": 99,
+        "trackMatches": 103
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "CAT-DETAIL-IDENTITY",
+      "metrics": {
+        "albumDetails": 1,
+        "albumTrackPages": 1,
+        "albumTracks": 1,
+        "trackDetails": 1
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "CAT-ARTWORK-96",
+      "metrics": {
+        "bytes": 1272,
+        "decodedHeight": 48,
+        "decodedWidth": 96,
+        "height": 48,
+        "width": 96
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "CAT-ARTWORK-256",
+      "metrics": {
+        "bytes": 4114,
+        "decodedHeight": 128,
+        "decodedWidth": 256,
+        "height": 128,
+        "width": 256
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "CAT-ARTWORK-512",
+      "metrics": {
+        "bytes": 10185,
+        "decodedHeight": 256,
+        "decodedWidth": 512,
+        "height": 256,
+        "width": 512
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "AUTH-PAIR-B-DISTINCT",
+      "metrics": {
+        "devices": 2,
+        "installations": 2
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "AUTH-REFRESH-RECEIPT",
+      "metrics": {
+        "matchingReceipts": 2,
+        "originalIntents": 1,
+        "requests": 2
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "AUTH-ROTATED-RAM-RESTORE",
+      "metrics": {
+        "instances": 1,
+        "persistentStores": 0
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "AUTH-LOGOUT-A-ISOLATION",
+      "metrics": {
+        "ramCleared": 1,
+        "revokedBearer401": 1,
+        "survivingDevices": 1
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "AUTH-LOGOUT-B-RAM-CLEAR",
+      "metrics": {
+        "logoutConfirmed": 2,
+        "persistentStores": 0,
+        "ramCleared": 2
+      },
+      "schemaVersion": 1,
+      "type": "pass"
+    },
+    {
+      "caseID": "AUTH-ADMIN-REVOKE-NOT-RUN",
+      "metrics": {
+        "run": 0
+      },
+      "schemaVersion": 1,
+      "type": "notRun"
+    },
+    {
+      "caseID": "ACTUAL-MAC-SDK-CONSUMPTION-PASS",
+      "metrics": {},
+      "schemaVersion": 1,
+      "type": "complete"
+    }
+  ],
+  "actualPassedCases": 22,
+  "notRunCases": 1,
+  "sdkNaturalExitCode": 0,
+  "stderrBytes": 0,
+  "privateExplicitPermitRequests": 2,
+  "actualReady": {
+    "bytes": 3029,
+    "sha256": "5992652db169d76f20f97f12a008e1cc64f7ecbe73a986ec4dffb72c4a80c5df",
+    "noFollow": true,
+    "stableNamedFd": true
+  },
+  "actualPublicConnection": {
+    "bytes": 1535,
+    "sha256": "61a547de76feb5f9310ff191c628bdc25f6c375bd96f6409cfec41a4c3dd3af7",
+    "noFollow": true,
+    "stableNamedFd": true
+  },
+  "candidateWholeInputs": 1693,
+  "candidateInputIdentity": "2353bbc31f5c71f7c893cb8382a013949c5d7e52ab6e98144f66d28d48c4f20e",
+  "candidateBeforeAfterAndCurrentWholeFdMatch": true,
+  "candidateNaturalClose": "PENDING_ROOT_ORIGINAL_CLOSE",
+  "nativeAppUIClientKeychainPhysicalDeviceAudioProviderRoonLanOwner": "NOT_RUN",
+  "pairedDeliveryReportAndRemote": "PENDING_SEPARATE_FINAL_REPORT_READBACK",
+  "fullTransitiveToolchainClosure": false
+}

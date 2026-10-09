@@ -1,0 +1,1465 @@
+{
+  "schema": "mbm001.source-six-first-natural-job-whole-readback.v1",
+  "sourceSha": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+  "result": "PASS_EXACT_SOURCE_FIRST_NATURAL_SIX_COMPLETE_JOB_LOGS",
+  "ciSnapshot": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/NETWORK_SOURCE_CI_SNAPSHOT341.json",
+    "bytes": 100108,
+    "sha256": "90334415564400d4626de0ed6075fe337261a0397dd4ceab5646fc8aae557327"
+  },
+  "jobs": [
+    {
+      "jobId": 113788717766,
+      "runId": 37921025438,
+      "jobName": "dependency-audit",
+      "raw": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/NETWORK_SOURCE_DEPENDENCY_JOB331.log",
+        "bytes": 25244,
+        "sha256": "ac831b5c5222330ae74d5d373c4b7c5176e7b7e7cb73ffcd376f75143f69e066"
+      },
+      "actualSteps": [
+        "Set up job",
+        "Checkout",
+        "Node.js 22",
+        "Prepare source-pinned build workspace mirror",
+        "Install frozen workspace",
+        "Production dependency audit",
+        "Post Node.js 22",
+        "Post Checkout",
+        "Complete job"
+      ],
+      "tapGroups": [],
+      "evidence": "WHOLE_JOB_RAW_BYTES_AND_API_STEP_IDENTITY"
+    },
+    {
+      "jobId": 113788718090,
+      "runId": 37921025505,
+      "jobName": "macos-electron-gate",
+      "raw": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/NETWORK_SOURCE_ELECTRON_JOB333.log",
+        "bytes": 182813,
+        "sha256": "661c00df41592b3c3edf334099bbe93399be96a5bd504869bcdb826bef11dcc6"
+      },
+      "actualSteps": [
+        "Set up job",
+        "Checkout",
+        "Prepare hosted runner evidence directories",
+        "Node.js 22",
+        "Prepare source-pinned build workspace mirror",
+        "Install frozen workspace",
+        "Prepare fresh Core fixed Worker before existing Electron gates",
+        "Prepare Rust toolchain",
+        "Build and verify both Rust hosts once in this job",
+        "Install Electron binary from locked tree (official installer only)",
+        "Verify official Electron archive and actual execution tree",
+        "Electron startup, crash/restart, safeStorage vault and credential recovery gates",
+        "Electron end-to-end flow (Playwright, production build)",
+        "Select declared synthetic Rust Host artifacts",
+        "Preserve declared synthetic Rust Host compiled artifacts",
+        "Preserve Electron logs and synthetic test artifacts",
+        "Post Node.js 22",
+        "Post Checkout",
+        "Complete job"
+      ],
+      "tapGroups": [
+        {
+          "tests": 12,
+          "pass": 12,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ],
+      "evidence": "WHOLE_JOB_RAW_BYTES_AND_API_STEP_IDENTITY"
+    },
+    {
+      "jobId": 113788718434,
+      "runId": 37921025484,
+      "jobName": "rust-core (macos-latest)",
+      "raw": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/NETWORK_SOURCE_RUST_MACOS_JOB316.log",
+        "bytes": 43082,
+        "sha256": "6e0fa5c566054b248dbb475eaab1f404b25373d60ce388a13cc23ddb01625a03"
+      },
+      "actualSteps": [
+        "Set up job",
+        "Run actions/checkout@v4",
+        "Run actions/setup-node@v4",
+        "准备真实hosted专用构建根",
+        "安装固定 Rust 工具链",
+        "安装冻结工作区依赖",
+        "验证实际 Rust 与 TypeScript 边界",
+        "保留编译器、测试及源码与二进制清单",
+        "Post Run actions/setup-node@v4",
+        "Post Run actions/checkout@v4",
+        "Complete job"
+      ],
+      "tapGroups": [],
+      "evidence": "WHOLE_JOB_RAW_BYTES_AND_API_STEP_IDENTITY"
+    },
+    {
+      "jobId": 113788718079,
+      "runId": 37921025484,
+      "jobName": "rust-core (ubuntu-latest)",
+      "raw": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/NETWORK_SOURCE_RUST_UBUNTU_JOB315.log",
+        "bytes": 42206,
+        "sha256": "cf283716bb9542c29099cefde3557621bb0e07307199fb195750138028912862"
+      },
+      "actualSteps": [
+        "Set up job",
+        "Run actions/checkout@v4",
+        "Run actions/setup-node@v4",
+        "准备真实hosted专用构建根",
+        "安装固定 Rust 工具链",
+        "安装冻结工作区依赖",
+        "验证实际 Rust 与 TypeScript 边界",
+        "保留编译器、测试及源码与二进制清单",
+        "Post Run actions/setup-node@v4",
+        "Post Run actions/checkout@v4",
+        "Complete job"
+      ],
+      "tapGroups": [],
+      "evidence": "WHOLE_JOB_RAW_BYTES_AND_API_STEP_IDENTITY"
+    },
+    {
+      "jobId": 113788722851,
+      "runId": 37921025417,
+      "jobName": "static-security",
+      "raw": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/NETWORK_SOURCE_SECURITY_JOB318.log",
+        "bytes": 65505,
+        "sha256": "de8091d31148ddd815cb49e221c7454b6117390e6a3d0c3d3de258d169f13a5b"
+      },
+      "actualSteps": [
+        "Set up job",
+        "Checkout",
+        "Node.js 22",
+        "Install frozen workspace",
+        "Validate machine control state",
+        "Run boundary, loopback, secret and URL/query scans",
+        "Scan workspace import cycles",
+        "Run directed platform-independent security tests (no Electron)",
+        "Post Node.js 22",
+        "Post Checkout",
+        "Complete job"
+      ],
+      "tapGroups": [
+        {
+          "tests": 29,
+          "pass": 29,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ],
+      "evidence": "WHOLE_JOB_RAW_BYTES_AND_API_STEP_IDENTITY"
+    },
+    {
+      "jobId": 113788718029,
+      "runId": 37921025438,
+      "jobName": "verify",
+      "raw": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/NETWORK_SOURCE_VERIFY_JOB330.log",
+        "bytes": 4927751,
+        "sha256": "1cee31525b1cb3964f822cd08e334bbe73089c1bcefb9cac78d51d467deaca38"
+      },
+      "actualSteps": [
+        "Set up job",
+        "Checkout",
+        "Node.js 22",
+        "Prepare strict hosted verification directories",
+        "判定精确父源码CI可复用的报告提交",
+        "Prepare source-pinned build workspace mirror",
+        "Install frozen workspace",
+        "Validate control plane",
+        "Validate security and product boundaries",
+        "Scan workspace import cycles",
+        "Verify platform-independent workspace (typecheck, unit tests, build; no Electron)",
+        "Verify offline preparation boundaries",
+        "Verify isolated MBRS-001 offline POC",
+        "MBRS002 本地合同 Gate",
+        "MBRS003 阶段软件 Gate",
+        "MBRS004 名称与版本规则 Gate",
+        "MBRS005 本地文件网关与资源租约 Gate",
+        "MBRS006 本地Audio Input与会话隔离 Gate",
+        "MBRS007 队列预取与持久恢复 Gate",
+        "MBRS008 原样字节与独立质量证据 Gate",
+        "MBRS009 正式本地库有界查询与复用UI Gate",
+        "MBRS010 封面选择与来源安全 Gate",
+        "MBRS011 MB_ONLY信息整理预览与撤销 Gate",
+        "MBRS014 旧收藏关联与冻结来源保护 Gate",
+        "MBRS012 受控源写与备份恢复 Gate",
+        "MBRS013 同内容位置迁移与具体清理 Gate",
+        "MBM000 移动合同双端采纳 Gate",
+        "MBM001 配对与只读曲库 Gate",
+        "验证报告CI准入正负例",
+        "Diff whitespace",
+        "Verify pinned historical fragments and current discarded rejection",
+        "Preserve full verification log",
+        "Post Node.js 22",
+        "Post Checkout",
+        "Complete job"
+      ],
+      "tapGroups": [
+        {
+          "tests": 266,
+          "pass": 266,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 2777,
+          "pass": 2775,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 2,
+          "todo": 0
+        },
+        {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 1670,
+          "pass": 1670,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 48,
+          "pass": 48,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 34,
+          "pass": 34,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 10,
+          "pass": 10,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 18,
+          "pass": 18,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 11,
+          "pass": 11,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 29,
+          "pass": 29,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 14,
+          "pass": 14,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 20,
+          "pass": 20,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 6,
+          "pass": 6,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 31,
+          "pass": 31,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 15,
+          "pass": 15,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 27,
+          "pass": 27,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 7,
+          "pass": 7,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 50,
+          "pass": 50,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 4,
+          "pass": 4,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ],
+      "evidence": "WHOLE_JOB_RAW_BYTES_AND_API_STEP_IDENTITY"
+    }
+  ],
+  "standardGroups": [
+    {
+      "tests": 266,
+      "pass": 266,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "tests": 2777,
+      "pass": 2775,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    {
+      "tests": 8,
+      "pass": 8,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    {
+      "tests": 1670,
+      "pass": 1670,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ],
+  "standardTotals": {
+    "tests": 4721,
+    "pass": 4719,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 2,
+    "todo": 0
+  },
+  "originalNativeConditionalSkips": [
+    "ok 1208 - 实际固定native binary读取真实只读WAV，消费hash/2051帧与Core receipt完全一致 # SKIP 需显式MUSIC_BRIDGE_OUTPUT_NATIVE_GATE=1及本地固定native构建；普通unit不冒充原生证据",
+    "ok 1214 - Core→Native租约撤销只接受精确DB/Sidecar身份并留下不可逆墓碑 # SKIP"
+  ],
+  "gates": [
+    {
+      "task": "MBRS-012",
+      "actualCli": {
+        "success": true,
+        "tests": 426,
+        "pass": 426,
+        "run": "/home/runner/work/_temp/musicbridge-verify/mbrs012-37921025438-1"
+      },
+      "guards": [
+        6,
+        31
+      ],
+      "proof": "ACTUAL_SOURCE_FIRST_NATURAL_JOB_CLI_AND_API_STEP"
+    },
+    {
+      "task": "MBRS-013",
+      "actualCli": {
+        "run": "/home/runner/work/_temp/musicbridge-verify/mbrs013-37921025438-1",
+        "success": true,
+        "tests": 529,
+        "pass": 529,
+        "failedStages": []
+      },
+      "guards": [
+        15
+      ],
+      "proof": "ACTUAL_SOURCE_FIRST_NATURAL_JOB_CLI_AND_API_STEP"
+    },
+    {
+      "task": "MBM-000",
+      "actualCli": {
+        "run": "/home/runner/work/_temp/musicbridge-verify/mbm000-37921025438-1",
+        "success": true,
+        "tests": 33,
+        "pass": 33,
+        "failedStages": [],
+        "failures": []
+      },
+      "guards": [
+        27
+      ],
+      "proof": "ACTUAL_SOURCE_FIRST_NATURAL_JOB_CLI_AND_API_STEP"
+    },
+    {
+      "task": "MBM-001",
+      "actualCli": {
+        "run": "/home/runner/work/_temp/musicbridge-verify/mbm001-37921025438-1",
+        "success": true,
+        "tests": 87,
+        "pass": 87,
+        "failures": []
+      },
+      "guards": [
+        7
+      ],
+      "proof": "ACTUAL_SOURCE_FIRST_NATURAL_JOB_CLI_AND_API_STEP"
+    }
+  ],
+  "reportAdmissionGuards": 50,
+  "staticSecurityTests": 29,
+  "dependencyAudit": {
+    "result": "PASS_EXISTING_HIGH_THRESHOLD",
+    "counts": {
+      "info": 0,
+      "low": 0,
+      "moderate": 8,
+      "high": 0,
+      "critical": 0
+    },
+    "zeroKnownVulnerabilities": false,
+    "ciIssueDetails": "NOT_PRINTED_BY_BRIEF_HIGH_THRESHOLD_JOB",
+    "thresholdChanged": false,
+    "dependencyIssuesFixedByThisReadback": false,
+    "separateExactSourceLocalDetail": {
+      "schema": "mbm001.exact-source-existing-production-dependency-audit.v1",
+      "sourceSha": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+      "actualLocalRegistryJson": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/network-source-dependency-detail311.log",
+        "bytes": 57607,
+        "sha256": "3693604276a1911168b8607cac56abeb76f123cda0286b382bd0111dffe4e64d"
+      },
+      "localCapture": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/network-source-dependency-detail311.json",
+        "bytes": 826,
+        "sha256": "e678561d7b25358dbac6e7618ff520a2a49ae13934c7d8301567256137074cb7"
+      },
+      "localAllSeverityAuditExitCode": 1,
+      "localExitOneMeansEightModerateNotAHighThresholdCiFailure": true,
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 0,
+        "critical": 0
+      },
+      "advisories": [
+        {
+          "id": 1158506,
+          "module_name": "qs",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-x5fp-wj9c-mxmx",
+          "cves": [
+            "CVE-2026-82562"
+          ],
+          "vulnerable_versions": ">=6.14.2 <=6.15.3",
+          "patched_versions": ">=6.16.0",
+          "findings": [
+            {
+              "version": "6.15.3",
+              "paths": [
+                "apps__desktop>@neteasecloudmusicapienhanced/api>@neteasecloudmusicapienhanced/unblockmusic-utils>express>qs"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1158507,
+          "module_name": "qs",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-4mjr-xmp4-gh2g",
+          "cves": [
+            "CVE-2026-82417"
+          ],
+          "vulnerable_versions": ">=2.2.5 <6.16.0",
+          "patched_versions": ">=6.16.0",
+          "findings": [
+            {
+              "version": "6.15.3",
+              "paths": [
+                "apps__desktop>@neteasecloudmusicapienhanced/api>@neteasecloudmusicapienhanced/unblockmusic-utils>express>qs"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1239948,
+          "module_name": "ip-address",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-rpw4-54j3-4h4q",
+          "cves": [
+            "CVE-2026-101913"
+          ],
+          "vulnerable_versions": "<=10.5.0",
+          "patched_versions": ">=10.5.1",
+          "findings": [
+            {
+              "version": "10.5.0",
+              "paths": [
+                "apps__desktop>@neteasecloudmusicapienhanced/api>pac-proxy-agent>socks-proxy-agent>socks>ip-address"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1239949,
+          "module_name": "ip-address",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-2vr4-cq9g-pvrc",
+          "cves": [
+            "CVE-2026-101910"
+          ],
+          "vulnerable_versions": ">=10.2.0 <=10.5.0",
+          "patched_versions": ">=10.5.1",
+          "findings": [
+            {
+              "version": "10.5.0",
+              "paths": [
+                "apps__desktop>@neteasecloudmusicapienhanced/api>pac-proxy-agent>socks-proxy-agent>socks>ip-address"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1240097,
+          "module_name": "ip-address",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-j6r3-76f7-8jcv",
+          "cves": [
+            "CVE-2026-101912"
+          ],
+          "vulnerable_versions": "<=10.7.0",
+          "patched_versions": ">=10.7.1",
+          "findings": [
+            {
+              "version": "10.5.0",
+              "paths": [
+                "apps__desktop>@neteasecloudmusicapienhanced/api>pac-proxy-agent>socks-proxy-agent>socks>ip-address"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1240098,
+          "module_name": "ip-address",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-h3mg-xc3c-68pw",
+          "cves": [
+            "CVE-2026-101911"
+          ],
+          "vulnerable_versions": "<=10.7.0",
+          "patched_versions": ">=10.7.1",
+          "findings": [
+            {
+              "version": "10.5.0",
+              "paths": [
+                "apps__desktop>@neteasecloudmusicapienhanced/api>pac-proxy-agent>socks-proxy-agent>socks>ip-address"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1241691,
+          "module_name": "music-metadata",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-f94x-6692-553q",
+          "cves": [
+            "CVE-2026-107391"
+          ],
+          "vulnerable_versions": "<11.16.0",
+          "patched_versions": ">=11.16.0",
+          "findings": [
+            {
+              "version": "11.15.0",
+              "paths": [
+                "apps__desktop>music-metadata"
+              ]
+            }
+          ]
+        },
+        {
+          "id": 1241694,
+          "module_name": "music-metadata",
+          "severity": "moderate",
+          "url": "https://github.com/advisories/GHSA-5gfj-9q3v-qfp3",
+          "cves": [
+            "CVE-2026-107389"
+          ],
+          "vulnerable_versions": "<11.16.0",
+          "patched_versions": ">=11.16.0",
+          "findings": [
+            {
+              "version": "11.15.0",
+              "paths": [
+                "apps__desktop>music-metadata"
+              ]
+            }
+          ]
+        }
+      ],
+      "wholeInstalledPackages": [
+        {
+          "name": "qs",
+          "version": "6.15.3",
+          "wholeInstalledPackageJson": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/source-mirror296/checkout/node_modules/.pnpm/qs@6.15.3/node_modules/qs/package.json",
+            "bytes": 3192,
+            "sha256": "47477ed1243939a78ab502c3d1d10a3d0571c06f9c2dfa128d7c047dbb010bf4"
+          }
+        },
+        {
+          "name": "ip-address",
+          "version": "10.5.0",
+          "wholeInstalledPackageJson": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/source-mirror296/checkout/node_modules/.pnpm/ip-address@10.5.0/node_modules/ip-address/package.json",
+            "bytes": 2304,
+            "sha256": "91166ee6e473fe20ec6029e6cdda2635b1e0c9bd6ec78da40a4671bf0c1eaa58"
+          }
+        },
+        {
+          "name": "music-metadata",
+          "version": "11.15.0",
+          "wholeInstalledPackageJson": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/source-mirror296/checkout/node_modules/.pnpm/music-metadata@11.15.0/node_modules/music-metadata/package.json",
+            "bytes": 4026,
+            "sha256": "73f31fad9aa42cf42a70af438bd10628dc9fea9afdc18f32531f0036ae48fa72"
+          }
+        }
+      ],
+      "lockfile": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checkout/pnpm-lock.yaml",
+        "bytes": 192822,
+        "sha256": "e56d67a0e8441187bf81baa27c1745973a7070e50360ab17032c2084b2e00be9"
+      },
+      "lockfileWholeEqual000BaseReport": true,
+      "observedDependencyPaths": "NETEASE_TRANSITIVE_QS_AND_IPADDRESS_PLUS_EXISTING_DESKTOP_MUSIC_METADATA",
+      "current001DirectSourceInspection": [
+        {
+          "path": "apps/desktop/src/main/mobile-tls-identity.ts",
+          "gitBlob": "5fea13db966dca219283ea94682885b9b6ed2903",
+          "bytes": 15550,
+          "sha256": "aa95b73f7b3e24964c6fce365037fa32214e9994ff88404422727cd22f544f80"
+        },
+        {
+          "path": "apps/desktop/src/main/mobile-https-server.ts",
+          "gitBlob": "2d67bb0bb802fc50407b42a944b4f5998bc9e1ca",
+          "bytes": 17198,
+          "sha256": "729f7b37d0693e8bcf2d450330d613a15bb47f77863ae851ecc92e5b58420675"
+        },
+        {
+          "path": "packages/bridge-core/src/mobile/catalog-service.ts",
+          "gitBlob": "3f4de255bf976f27f011c6837fb29578960795a8",
+          "bytes": 13198,
+          "sha256": "c456b6ab32473249e84cfea638ef5383c23309d669558f1d9aafb17b7bae1fca"
+        },
+        {
+          "path": "packages/bridge-core/src/mobile/owner-service.ts",
+          "gitBlob": "f703302720f34727ccc61c82755d5f3e4dce6c80",
+          "bytes": 9979,
+          "sha256": "997c3d397f9bd7e5092454bbb041223bc914416e41b0cd4a908bd9eb653fbc81"
+        }
+      ],
+      "noDirectImportsOfThreeModulesInInspected001Files": true,
+      "scopeInference": "READ_ONLY_001_IMPORT_INSPECTION_ONLY_NOT_FULL_TRANSITIVE_REACHABILITY_OR_EXPLOIT_SAFETY_PROOF",
+      "vulnerabilityPocExecuted": false,
+      "dependenciesUpdated": false,
+      "ciPolicyModified": false,
+      "patchReleaseAvailability": "NOT_QUALIFIED_BY_AUDIT_RANGE_OR_ADVISORY_HEADER",
+      "carryover": "MBRS016_DEPENDENCY_TRIAGE_AND_PATCH_QUALIFICATION_BEFORE_RELEASE",
+      "realProviderRoonNasDeviceAudioOwner": "NOT_RUN"
+    }
+  },
+  "officialInstallerTransport": {
+    "maximumAttempts": 3,
+    "actualCalls": 1,
+    "observedFailedCalls": 0,
+    "finalOfficialInstallerNaturalExitZero": true,
+    "transportRetriesOnlyNotTestRetries": true,
+    "backoffSeconds": 15,
+    "officialArchiveAndActualExecutionTreeGate": "PASS_SEPARATE_ORIGINAL_MANDATORY_STEP"
+  },
+  "electronLifecycleCounts": {
+    "tests": 12,
+    "pass": 12,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "electronLifecycleCases": [
+    {
+      "number": 1,
+      "name": "真实收藏Vue页面 默认Node 100：浏览与辅助链、原表单单写与可信刷新"
+    },
+    {
+      "number": 2,
+      "name": "真实收藏Vue页面 Rust 100：浏览与辅助链、原表单单写与可信刷新"
+    },
+    {
+      "number": 3,
+      "name": "真实收藏Vue页面 Rust 2000：浏览与辅助链、原表单单写与可信刷新"
+    },
+    {
+      "number": 4,
+      "name": "真实收藏Vue页面 Rust 5000：浏览与辅助链、原表单单写与可信刷新"
+    },
+    {
+      "number": 5,
+      "name": "保存真实收藏页面冻结报告"
+    },
+    {
+      "number": 6,
+      "name": "真实 Electron 生产 Main 默认 Node：后台初始化零 Rust/零私有导出"
+    },
+    {
+      "number": 7,
+      "name": "真实 Electron 生产 Main 可选 Rust：初始化保持、原 preload durable outbox 单写、可信刷新后空轮询保持"
+    },
+    {
+      "number": 8,
+      "name": "保存真实 Electron/Main 独立冻结报告"
+    },
+    {
+      "number": 9,
+      "name": "[system] Electron startup and Core crash gates pass serially"
+    },
+    {
+      "number": 10,
+      "name": "[system] Electron safeStorage credential vault gate passes with a synthetic value"
+    },
+    {
+      "number": 11,
+      "name": "[system] same-process Core restart credential recovery gate passes with a synthetic value"
+    },
+    {
+      "number": 12,
+      "name": "[system] two-process Electron cold-start credential recovery gate passes with a synthetic value"
+    }
+  ],
+  "playwright": {
+    "total": 116,
+    "counts": {
+      "passed": 111,
+      "skipped": 5,
+      "failed": 0,
+      "flaky": 0,
+      "interrupted": 0,
+      "did not run": 0
+    },
+    "actualCases": [
+      {
+        "marker": "✓",
+        "number": 1,
+        "case": "e2e/collection-preview.spec.ts:185:1 › 收藏原型：状态筛选跨分页、墙与库存切换以及详情返回保留真实结果 (6.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 2,
+        "case": "e2e/collection-preview.spec.ts:252:1 › 收藏原型：浅深色全宽响应式墙、720 窄窗长型号、滚动入口与实体音乐仍可使用 (11.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 3,
+        "case": "e2e/mbrs009-local-library.spec.ts:30:1 › 009正式离线App复用Node扫描、原导航与共享表格；仅显示更正不改源字节 (9.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 4,
+        "case": "e2e/mbrs011-organizer.spec.ts:52:1 › 011生产离线App：单曲/具体发行/跨搜索批量/撤销预览，增量扫描与重启保留且源SHA不变 (14.7s)"
+      },
+      {
+        "marker": "✓",
+        "number": 5,
+        "case": "e2e/mbrs012-source-writes.spec.ts:206:1 › 012生产离线自有FLAC/MP3：四范围、具体确认、原图、逐项结果、撤销与冷启动，音频和非目标元数据保留 (58.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 6,
+        "case": "e2e/mbrs013-relocation.spec.ts:220:1 › 013生产离线自有WAVE与歌词：默认OFF、完整具体预览、源保留、独立目标回读、具体清理和冷启动 (32.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 7,
+        "case": "e2e/mbrs014-legacy-links.spec.ts:88:1 › 014 A生产离线空库：自制WAV扫描、明确实体发行关联/解除/CAS撤销、冷启动仅读与源SHA不变 (17.4s)"
+      },
+      {
+        "marker": "-",
+        "number": 8,
+        "case": "e2e/mbrs014-legacy-links.spec.ts:193:1 › 014 B生产离线非空自建库：P1后准确实体/数字/当前源关系全闭环、旧103逐值精确会话与工作位置派生、照片/输出/PDF/冻结历史不变"
+      },
+      {
+        "marker": "✓",
+        "number": 9,
+        "case": "e2e/playback-keyboard.spec.ts:13:1 › MBR-001 实际键盘：行 Enter 播放，子按钮 Enter/空格只执行自身操作 (4.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 10,
+        "case": "e2e/task-067.spec.ts:49:3 › V3 outbox：回执落盘失败与Renderer刷新后无自动投递，人工原命令恢复不重复库存 (7.8s)"
+      },
+      {
+        "marker": "✓",
+        "number": 11,
+        "case": "e2e/task-067.spec.ts:49:3 › V3 outbox：真实Main SIGKILL后无自动投递，人工原命令恢复不重复库存 (6.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 12,
+        "case": "e2e/task-067.spec.ts:89:1 › V3 outbox：切库旧命令隔离，激活未知回执只读恢复不再次重启 (7.4s)"
+      },
+      {
+        "marker": "✓",
+        "number": 13,
+        "case": "e2e/task-067.spec.ts:133:1 › V3 outbox：复合撤权首项发送前Main被SIGKILL，整批仍可人工恢复且不删文件 (8.8s)"
+      },
+      {
+        "marker": "✓",
+        "number": 14,
+        "case": "e2e/task-068.spec.ts:43:1 › V3参考目录：实际九API的合并/拆分与历史快照跨冷启动保留，浏览和发布不增库存 (5.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 15,
+        "case": "e2e/task-068.spec.ts:74:1 › V3参考目录：页面四步明确确认、原JSON文件预览和历史比较，窄窗无障碍可用 (5.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 16,
+        "case": "e2e/task-068.spec.ts:124:1 › V3参考目录：原资料登记回执落盘失败后冷启不重发，人工恢复同命令只保留一份来源 (6.9s)"
+      },
+      {
+        "marker": "✓",
+        "number": 17,
+        "case": "e2e/task-069.spec.ts:60:1 › V3 Excel：真实XLSX/XLS与11API，重导不增量、修订保留旧Lot且独立更正跨冷启动 (6.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 18,
+        "case": "e2e/task-069.spec.ts:119:1 › V3 Excel：原生选择登记回执未知后冷启不重选，原文件离线仍可人工恢复原回执 (6.8s)"
+      },
+      {
+        "marker": "✓",
+        "number": 19,
+        "case": "e2e/task-069.spec.ts:158:1 › V3 Excel：五步界面明确批准，720窄窗原行与独立更正截图及axe (9.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 20,
+        "case": "e2e/task-070.spec.ts:98:1 › V3完成度：真实九API，Owned与Wanted正交、长度守恒及取消后的不可变历史跨冷启 (6.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 21,
+        "case": "e2e/task-070.spec.ts:155:1 › V3完成度：目录修订仅标记旧求购待复核，明确重绑保留版本，旧快照不回填新口径 (2.8s)"
+      },
+      {
+        "marker": "✓",
+        "number": 22,
+        "case": "e2e/task-070.spec.ts:183:1 › V3完成度：真实回执丢失冷启不重放，人工恢复幂等，schema17恢复切库隔离旧求购命令 (12.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 23,
+        "case": "e2e/task-070.spec.ts:234:1 › V3完成度：720窄窗键盘、明确求购与快照确认、旧口径提示及axe截图 (7.1s)"
+      },
+      {
+        "marker": "✓",
+        "number": 24,
+        "case": "e2e/task-070.spec.ts:298:1 › V3完成度：来源与求购独立读取，单侧失败仍显示另一侧真实资料并可明确恢复 (4.4s)"
+      },
+      {
+        "marker": "✓",
+        "number": 25,
+        "case": "e2e/task-070.spec.ts:357:1 › V3完成度：合法大目录历史按响应字节预算分页，完整分组与全部快照均可到达 (29.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 26,
+        "case": "e2e/task-071.spec.ts:60:1 › V3交互：240字符草稿长名在窄窗与宽窗均可读，不撑出主内容 (4.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 27,
+        "case": "e2e/task-071.spec.ts:69:1 › V3交互：唯一下一步跟随草稿修改、源面板关闭与读取失败，不伪装正式预检 (3.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 28,
+        "case": "e2e/task-071.spec.ts:110:1 › V3交互：已登记关系选曲保留Exact与Probable区别，浏览不写入，跨来源明确追加 (3.7s)"
+      },
+      {
+        "marker": "✓",
+        "number": 29,
+        "case": "e2e/task-071.spec.ts:148:1 › V3交互：240字符曲目在Picker跨专辑已选区保持可读和键盘返回 (5.1s)"
+      },
+      {
+        "marker": "✓",
+        "number": 30,
+        "case": "e2e/task-071.spec.ts:171:1 › V3交互：两库照片按需读取、失败单图重试、长名与横竖图保持原始资料 (9.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 31,
+        "case": "e2e/task-071.spec.ts:176:1 › V3交互：关系离线与冷启不丢本地资料，不自动重定位或恢复旧选择 (7.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 32,
+        "case": "e2e/task-071.spec.ts:216:1 › V3交互：真实多规划历史需明确选择，同谱系Direct路径与预留变化不会串线 (10.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 33,
+        "case": "e2e/task-071.spec.ts:332:1 › TASK-085 J05：正式 UI 登记发行与逐件、归属照片、关联更正撤销并冷启保留 (8.9s)"
+      },
+      {
+        "marker": "✓",
+        "number": 34,
+        "case": "e2e/task-072.spec.ts:61:1 › V3正式计划：实际链路冻结当前参数、原命令重试、冷启历史和GateB阻断 (9.4s)"
+      },
+      {
+        "marker": "✓",
+        "number": 35,
+        "case": "e2e/task-072.spec.ts:126:1 › V3计划读取：取消核验丢弃迟到结果，读取失败不装空历史或泄漏内部路径 (5.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 36,
+        "case": "e2e/task-073.spec.ts:56:1 › V3输出检查：未启用固定包时明确禁用，无设备或普通outbox启动 (1.8s)"
+      },
+      {
+        "marker": "-",
+        "number": 37,
+        "case": "e2e/task-073.spec.ts:65:1 › V3固定原生输出检查：真实Plan到只读FD与PCM守恒，取消先到、冷启和变更不产生认证"
+      },
+      {
+        "marker": "✓",
+        "number": 38,
+        "case": "e2e/task-073.spec.ts:105:1 › V3无设备检查面板：未启用包时禁用，状态读取错误不泄漏内部路径 (5.4s)"
+      },
+      {
+        "marker": "-",
+        "number": 39,
+        "case": "e2e/task-073.spec.ts:121:1 › V3无设备检查面板：明确计划与侧面后真实helper通过，键盘与窄窗保留未认证边界"
+      },
+      {
+        "marker": "-",
+        "number": 40,
+        "case": "e2e/task-073.spec.ts:156:1 › V3无设备检查面板：取消失败可重试，迟到真实成功不能改为通过"
+      },
+      {
+        "marker": "✓",
+        "number": 41,
+        "case": "e2e/task-074.spec.ts:34:1 › V3正式Attempt实际全链路默认拒绝，零新增、outbox不变且冷启不续播 (5.3s)"
+      },
+      {
+        "marker": "✓",
+        "number": 42,
+        "case": "e2e/task-074.spec.ts:51:1 › V3正式Attempt面板明确Plan后才读历史，窄窗与错误不伪造空历史或正式准入 (5.3s)"
+      },
+      {
+        "marker": "✓",
+        "number": 43,
+        "case": "e2e/task-074.spec.ts:80:1 › V3受控历史显示保留中断与三层事实，人工实体停止不伪造软件成功 (5.8s)"
+      },
+      {
+        "marker": "✓",
+        "number": 44,
+        "case": "e2e/task-075.spec.ts:35:1 › V3档案实际六API：人工处置幂等且不造Completed，库存守恒、冷启保留历史和未认证状态 (4.8s)"
+      },
+      {
+        "marker": "✓",
+        "number": 45,
+        "case": "e2e/task-075.spec.ts:82:1 › V3档案界面明确选择实体和处置，空态与读取故障分开、键盘确认不自动写入 (5.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 46,
+        "case": "e2e/task-075.spec.ts:140:1 › V3受控完成档案展示冻结事实，照片按需读取与单图重试不启动录音 (6.4s)"
+      },
+      {
+        "marker": "✓",
+        "number": 47,
+        "case": "e2e/task-076.spec.ts:30:1 › Replica实际六API无设备保持blocked，取消先到不伪启动，冷启不恢复会话或改档案 (4.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 48,
+        "case": "e2e/task-076.spec.ts:54:1 › Replica历史详情只读核验与明确选择，后端blocked、取消失败重试和迟到结果收口 (6.9s)"
+      },
+      {
+        "marker": "✓",
+        "number": 49,
+        "case": "e2e/task-077.spec.ts:30:1 › Completed持久任务在真实App冷启自动生成PDF，公开八API保持历史字节、导出取消零写与改图不回填 (15.7s)"
+      },
+      {
+        "marker": "✓",
+        "number": 50,
+        "case": "e2e/task-077.spec.ts:130:1 › 真实schema20旧档案启动不自动补建，用户明确后补由运行中worker生成且旧Record字节不改 (6.3s)"
+      },
+      {
+        "marker": "✓",
+        "number": 51,
+        "case": "e2e/task-078.spec.ts:131:1 › V3同数据集7盘：幂等Completed、Replica历史核验、真实J-Card与完整备份激活冷启守恒 (15.7s)"
+      },
+      {
+        "marker": "✓",
+        "number": 52,
+        "case": "e2e/task-085-collection.spec.ts:201:1 › TASK-085 J03/J04/C11：库存表原行到目录合并拆分、求购快照与同库冷启 (26.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 53,
+        "case": "e2e/task-085-main-journey.spec.ts:34:1 › 外审主流程正式IPC：干净工作库源→草稿→母版/布局→Session→执行/归档/Plan，阻断后冷启不造Attempt (10.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 54,
+        "case": "e2e/task-085-print.spec.ts:74:1 › J13 正式 App 按合成历史档案生成选图、自定义尺寸和逐页预览的独立 PDF (20.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 55,
+        "case": "e2e/task-085.spec.ts:81:1 › 正式 App：指定单盘进入确切制作、明确预留与释放后回到原盘 (11.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 56,
+        "case": "e2e/v1-ui.spec.ts:102:1 › 六项修复：收藏封面与打开播放、专辑播放全部、零专辑过滤和玻璃布局 (10.7s)"
+      },
+      {
+        "marker": "✓",
+        "number": 57,
+        "case": "e2e/v1-ui.spec.ts:227:1 › 读取生命周期：实际页面离开取消原读取，返回使用新身份且拒绝旧结果 (4.3s)"
+      },
+      {
+        "marker": "✓",
+        "number": 58,
+        "case": "e2e/v1-ui.spec.ts:416:1 › Roon Display 歌词设置校验、来源显示与断连清词 (5.9s)"
+      },
+      {
+        "marker": "✓",
+        "number": 59,
+        "case": "e2e/v1-ui.spec.ts:556:1 › Core 后连接时自动刷新 Zone 列表 (4.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 60,
+        "case": "e2e/v1-ui.spec.ts:570:1 › Remote Core ready 时自动刷新 Zone 列表 (4.1s)"
+      },
+      {
+        "marker": "✓",
+        "number": 61,
+        "case": "e2e/v1-ui.spec.ts:582:1 › Remote Core 停止时清空旧 Zone 并显示 Core 已断开 (4.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 62,
+        "case": "e2e/v1-ui.spec.ts:597:1 › 连续 Core 生命周期事件只触发一次 Zone 刷新 (4.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 63,
+        "case": "e2e/v1-ui.spec.ts:635:1 › 较旧的空 Zone 响应不会覆盖较新的设备列表 (4.1s)"
+      },
+      {
+        "marker": "✓",
+        "number": 64,
+        "case": "e2e/v1-ui.spec.ts:682:1 › Roon 断连时立即清空陈旧 Zone 且不再读取设备 (4.4s)"
+      },
+      {
+        "marker": "✓",
+        "number": 65,
+        "case": "e2e/v1-ui.spec.ts:707:1 › Core 已连接但 Zone 尚未返回时显示加载状态 (4.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 66,
+        "case": "e2e/v1-ui.spec.ts:728:1 › Settings 与 Bottom Player 共享 Core 断连的 Zone 状态 (3.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 67,
+        "case": "e2e/v1-ui.spec.ts:747:1 › Settings 可手动刷新已连接 Core 的 Zone 列表 (4.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 68,
+        "case": "e2e/v1-ui.spec.ts:764:1 › v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation (17.4s)"
+      },
+      {
+        "marker": "✓",
+        "number": 69,
+        "case": "e2e/v1-ui.spec.ts:971:1 › 合成 Profile 资料不可用但登录仍有效 (3.7s)"
+      },
+      {
+        "marker": "✓",
+        "number": 70,
+        "case": "e2e/v1-ui.spec.ts:984:1 › 合成登录过期后清空账户与每日推荐 (3.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 71,
+        "case": "e2e/v1-ui.spec.ts:996:1 › search, library pagination, playlist detail, queue controls and lyrics states (10.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 72,
+        "case": "e2e/v1-ui.spec.ts:1118:1 › TASK-037 Now Playing geometry, real queue names and full collection loading (7.7s)"
+      },
+      {
+        "marker": "✓",
+        "number": 73,
+        "case": "e2e/v1-ui.spec.ts:1194:1 › Now Playing 歌词保留多行上下文并标记当前焦点 (4.4s)"
+      },
+      {
+        "marker": "✓",
+        "number": 74,
+        "case": "e2e/v1-ui.spec.ts:1248:1 › 本地歌词候选抽屉支持来源提示、键盘焦点、窄窗口和不重启播放的手动选择 (5.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 75,
+        "case": "e2e/v1-ui.spec.ts:1311:1 › 手动匹配请求的旧响应不覆盖更新的 Core 匹配事件 (3.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 76,
+        "case": "e2e/v1-ui.spec.ts:1333:1 › 初始化匹配查询的延迟失败不清空已推送的新状态 (3.4s)"
+      },
+      {
+        "marker": "✓",
+        "number": 77,
+        "case": "e2e/v1-ui.spec.ts:1353:1 › Music Source Sidebar supports source recovery, Zone Popover and collapsed rail (4.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 78,
+        "case": "e2e/v1-ui.spec.ts:1407:1 › 关闭窗口只隐藏，激活恢复同一窗口并保留播放状态 (3.4s)"
+      },
+      {
+        "marker": "✓",
+        "number": 79,
+        "case": "e2e/v1-ui.spec.ts:1411:1 › 退出命令完成 Core 清理并结束 Electron 进程 (3.1s)"
+      },
+      {
+        "marker": "✓",
+        "number": 80,
+        "case": "e2e/v1-ui.spec.ts:1426:1 › V3 收藏与录音分开，收藏视图支持键盘、搜索返回和收起侧栏 (4.1s)"
+      },
+      {
+        "marker": "✓",
+        "number": 81,
+        "case": "e2e/v1-ui.spec.ts:1482:1 › V3 导航不触发播放变更 IPC，保留正在播放的曲目、队列和 Zone (3.8s)"
+      },
+      {
+        "marker": "✓",
+        "number": 82,
+        "case": "e2e/v1-ui.spec.ts:1521:1 › V3 页面在桌面和最小窗口无横向溢出，未接入状态与无障碍检查清晰 (5.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 83,
+        "case": "e2e/v1-ui.spec.ts:1549:1 › V3 真实库存录入、实例化与刷新后数量保持一致 (10.3s)"
+      },
+      {
+        "marker": "✓",
+        "number": 84,
+        "case": "e2e/v1-ui.spec.ts:1612:1 › V3 未分类不冒充空白，旧录音登记守恒；表单和详情支持最小窗口 (5.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 85,
+        "case": "e2e/v1-ui.spec.ts:1656:1 › V3 库存读取失败不显示空库，重试原命令且提交回执丢失不重复录入 (4.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 86,
+        "case": "e2e/v1-ui.spec.ts:1684:1 › V3 实物照片原生导入、代表图与重启持久化，不预分配单盘编号 (14.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 87,
+        "case": "e2e/v1-ui.spec.ts:1799:1 › V3 单盘照片拒绝非法文件；加载失败可重试且不丢库存 (7.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 88,
+        "case": "e2e/v1-ui.spec.ts:1864:1 › packaged UI has no critical or serious axe findings (5.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 89,
+        "case": "e2e/v1-ui.spec.ts:1877:1 › V3 实体音乐库录入原版 CD，重启后仍在且不改变空白库存 (9.1s)"
+      },
+      {
+        "marker": "✓",
+        "number": 90,
+        "case": "e2e/v1-ui.spec.ts:1937:1 › V3 旧录音补录 A/B 曲目后两库指向同一盘，库存不增加 (5.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 91,
+        "case": "e2e/v1-ui.spec.ts:1974:1 › V3 实体音乐库读取失败不冒充空库，保存回执丢失重试只保留一条 (4.7s)"
+      },
+      {
+        "marker": "✓",
+        "number": 92,
+        "case": "e2e/v1-ui.spec.ts:2001:1 › V3 原版实体详情提供明确的 Roon 关联入口 (4.3s)"
+      },
+      {
+        "marker": "✓",
+        "number": 93,
+        "case": "e2e/v1-ui.spec.ts:2010:1 › V3 Roon 关联闭环：取消、确认、矩阵、双向导航与重启重新定位 (11.7s)"
+      },
+      {
+        "marker": "✓",
+        "number": 94,
+        "case": "e2e/v1-ui.spec.ts:2074:1 › V3 Roon 关联闭环：候选不符后可重新选择，不形成无法退出的重试 (5.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 95,
+        "case": "e2e/v1-ui.spec.ts:2097:1 › V3 录音选曲入口可用，选曲前不要求库存或设备 (3.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 96,
+        "case": "e2e/v1-ui.spec.ts:2103:1 › V3 录音选曲草稿：取消不写入、跨专辑选曲、排序与重启保留未验证来源 (10.8s)"
+      },
+      {
+        "marker": "✓",
+        "number": 97,
+        "case": "e2e/v1-ui.spec.ts:2170:1 › V3 录音选曲回执丢失重试不重复草稿或曲目 (4.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 98,
+        "case": "e2e/v1-ui.spec.ts:2187:1 › V3 录音选曲源绑定入口不要求默认目录授权 (3.8s)"
+      },
+      {
+        "marker": "✓",
+        "number": 99,
+        "case": "e2e/v1-ui.spec.ts:2202:1 › V3 录音选曲源验证：原生选择到 SQLite、人工确认、离线与重启 (9.4s)"
+      },
+      {
+        "marker": "✓",
+        "number": 100,
+        "case": "e2e/v1-ui.spec.ts:2262:1 › V3 分面与库存：浏览不写入，明确预留、取消与冷启动保持实体守恒 (7.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 101,
+        "case": "e2e/v1-ui.spec.ts:2331:1 › V3 分面回执丢失重试不重复预留，规划变化需确认且 DAT 不伪造双面 (4.2s)"
+      },
+      {
+        "marker": "✓",
+        "number": 102,
+        "case": "e2e/v1-ui.spec.ts:2377:1 › V3 母版冻结：正式 IPC 复核源、回执重试、帧级历史与冷启动 (9.3s)"
+      },
+      {
+        "marker": "✓",
+        "number": 103,
+        "case": "e2e/v1-ui.spec.ts:2449:1 › V3 Logic 工作区：原生授权、确认复制、回执重试、Finder 与冷启动历史 (20.0s)"
+      },
+      {
+        "marker": "✓",
+        "number": 104,
+        "case": "e2e/v1-ui.spec.ts:2783:37 › V3 PREP：原始 Render 保存、人工 Marker、差异接受与冷启动历史 · A/B (22.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 105,
+        "case": "e2e/v1-ui.spec.ts:2783:37 › V3 PREP：原始 Render 保存、人工 Marker、差异接受与冷启动历史 · 空 B 面 (24.3s)"
+      },
+      {
+        "marker": "✓",
+        "number": 106,
+        "case": "e2e/v1-ui.spec.ts:2929:1 › V3 执行资产：Profile 与本次参数、明确编译、回执重试和冷启动历史 (16.1s)"
+      },
+      {
+        "marker": "-",
+        "number": 107,
+        "case": "e2e/v1-ui.spec.ts:3147:1 › V3 执行资产固定原生构建：真实转换、文件验证与冷启动"
+      },
+      {
+        "marker": "✓",
+        "number": 108,
+        "case": "e2e/v1-ui.spec.ts:3234:1 › V3 备份恢复工作流保留明确确认、真实文件、回执重试和冷启动历史 (14.9s)"
+      },
+      {
+        "marker": "✓",
+        "number": 109,
+        "case": "e2e/v1-ui.spec.ts:3245:1 › 搜索原生曲目连续点击只派发一次播放，失败后可以重试 (4.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 110,
+        "case": "e2e/v1-ui.spec.ts:3352:1 › Roon 自动续播事件更新底栏及正在播放页，不残留第一首元数据 (4.1s)"
+      },
+      {
+        "marker": "✓",
+        "number": 111,
+        "case": "e2e/v1-ui.spec.ts:3402:1 › 同曲连续进度不重复读取歌词和收藏，先到歌词与导航仍可见 (5.3s)"
+      },
+      {
+        "marker": "✓",
+        "number": 112,
+        "case": "e2e/v1-ui.spec.ts:3502:1 › 仅网易云来源的正在播放按钮连续收藏与取消，只写网易云 API (3.5s)"
+      },
+      {
+        "marker": "✓",
+        "number": 113,
+        "case": "e2e/v1-ui.spec.ts:3533:1 › 仅本地 Roon 来源的正在播放按钮连续收藏与取消，不写网易云 API (4.6s)"
+      },
+      {
+        "marker": "✓",
+        "number": 114,
+        "case": "e2e/v1-ui.spec.ts:3584:1 › 本地搜索范围隔离，切页恢复原页面，新搜索清除旧路径，主页仍聚合 (12.4s)"
+      },
+      {
+        "marker": "✓",
+        "number": 115,
+        "case": "e2e/mbm001-mobile-connection.spec.ts:373:1 › 001生产Main/HTTPS/唯一Owner真实UI启停、配对与原回执、刷新撤销和冷重开 (22.7s)"
+      },
+      {
+        "marker": "✓",
+        "number": 116,
+        "case": "e2e/mbm001-mobile-connection.spec.ts:524:1 › 001生产唯一Owner扫描自有WAVE、真实PNG选图与HTTPS原生JPEG三尺寸及旧选择拒绝 (12.9s)"
+      }
+    ],
+    "originalSkips": [
+      {
+        "marker": "-",
+        "number": 8,
+        "case": "e2e/mbrs014-legacy-links.spec.ts:193:1 › 014 B生产离线非空自建库：P1后准确实体/数字/当前源关系全闭环、旧103逐值精确会话与工作位置派生、照片/输出/PDF/冻结历史不变"
+      },
+      {
+        "marker": "-",
+        "number": 37,
+        "case": "e2e/task-073.spec.ts:65:1 › V3固定原生输出检查：真实Plan到只读FD与PCM守恒，取消先到、冷启和变更不产生认证"
+      },
+      {
+        "marker": "-",
+        "number": 39,
+        "case": "e2e/task-073.spec.ts:121:1 › V3无设备检查面板：明确计划与侧面后真实helper通过，键盘与窄窗保留未认证边界"
+      },
+      {
+        "marker": "-",
+        "number": 40,
+        "case": "e2e/task-073.spec.ts:156:1 › V3无设备检查面板：取消失败可重试，迟到真实成功不能改为通过"
+      },
+      {
+        "marker": "-",
+        "number": 107,
+        "case": "e2e/v1-ui.spec.ts:3147:1 › V3 执行资产固定原生构建：真实转换、文件验证与冷启动"
+      }
+    ],
+    "retries": 0,
+    "currentMbm001Cases": [
+      {
+        "marker": "✓",
+        "number": 115,
+        "case": "e2e/mbm001-mobile-connection.spec.ts:373:1 › 001生产Main/HTTPS/唯一Owner真实UI启停、配对与原回执、刷新撤销和冷重开 (22.7s)"
+      },
+      {
+        "marker": "✓",
+        "number": 116,
+        "case": "e2e/mbm001-mobile-connection.spec.ts:524:1 › 001生产唯一Owner扫描自有WAVE、真实PNG选图与HTTPS原生JPEG三尺寸及旧选择拒绝 (12.9s)"
+      }
+    ],
+    "preservedRelocationCase": [
+      {
+        "marker": "✓",
+        "number": 6,
+        "case": "e2e/mbrs013-relocation.spec.ts:220:1 › 013生产离线自有WAVE与歌词：默认OFF、完整具体预览、源保留、独立目标回读、具体清理和冷启动 (32.0s)"
+      }
+    ]
+  },
+  "artifactContent": "PENDING_SEPARATE_FIVE_ACTUAL_ZIP_CONTENT_READBACK",
+  "actualSelfOwnedSharedSdkService": "SEPARATE_ROOT_READBACK77_79_NOT_CI",
+  "realProviderRoonNasPhysicalDeviceAudioOwner": "NOT_RUN"
+}

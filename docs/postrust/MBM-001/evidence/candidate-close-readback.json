@@ -1,0 +1,71 @@
+{
+  "schema": "mbm001.root-original-candidate-natural-close-readback.v1",
+  "readAt": "2026-10-09T07:34:09.385163+00:00",
+  "candidate": "run-TNbvog",
+  "state": "PASS_ACTUAL_CANDIDATE_ORIGINAL_NATURAL_CLOSE_NOT_OWNER_ACCEPTANCE",
+  "originalRelease": {
+    "bytes": 73761,
+    "sha256": "dcbfcb1772a35c32e85fc90c042c52964d6f96a19432668d97f3dd463d207659",
+    "noFollow": true,
+    "stableNamedFd": true
+  },
+  "parentProcessReceipt": {
+    "bytes": 863,
+    "sha256": "0b0dc86efc05e3bdbc3b6f95bc8e4e0b38e8b6fc5ae00722d7e7adc489f57b71",
+    "noFollow": true,
+    "stableNamedFd": true
+  },
+  "wholeParentLog": {
+    "bytes": 809,
+    "sha256": "a5e1e55b418a43086435aa79485331b8dad85ef322f2bc7a4b729e4ac88456be",
+    "noFollow": true,
+    "stableNamedFd": true
+  },
+  "parentNaturalExitCode": 0,
+  "appNaturalExitCode": 0,
+  "appSignal": null,
+  "originalProcessAbsent": true,
+  "beforeReadyAfterCloseAndCurrentWholeInputRows": 1693,
+  "inputIdentity": "2353bbc31f5c71f7c893cb8382a013949c5d7e52ab6e98144f66d28d48c4f20e",
+  "ownedSourceRows": 104,
+  "ownedSourceWholeFdUnchanged": true,
+  "processedOriginalPermitRequests": 2,
+  "automaticReissue": false,
+  "offlineObservations": 2,
+  "externalRequests": 0,
+  "pageErrors": 0,
+  "closedOriginalDatabaseReadOnlyImmutable": true,
+  "closedDatabaseWholeFdUnchanged": true,
+  "closedOriginalCatalogCounts": {
+    "assets": 103,
+    "tracks": 103,
+    "editions": 103,
+    "sourceBindings": 0
+  },
+  "closedPrivateIdentityAndSealedState": {
+    "closedDatabase": {
+      "bytes": 2342912,
+      "sha256": "a604387ad9b967e32d794d490f09e9ccccb3be20e90057bad68a2cee02ddf5a1",
+      "noFollow": true,
+      "stableNamedFd": true
+    },
+    "identity": {
+      "bytes": 4361,
+      "sha256": "3e1aaae51db2cd0c00ce0b04b5e38ce00cd7a0fd56d38c8037f4d9356cacdbf0",
+      "noFollow": true,
+      "stableNamedFd": true
+    },
+    "sealedState": {
+      "bytes": 5134,
+      "sha256": "432698aa1a6e3595aa1bce8a69eeab67a9e105a0a68c9e4502cbd52201d33099",
+      "noFollow": true,
+      "stableNamedFd": true
+    }
+  },
+  "nonEmptySourceBindingHistoryVerified": false,
+  "actualSdkConsumption": "checks/ACTUAL_IOS_SDK_READBACK77.json",
+  "physicalDeviceAudioProviderRoonLanClientKeychainOwner": "NOT_RUN",
+  "sourceGateContribution": false,
+  "finalDeliverySeal": false,
+  "fullTransitiveToolchainClosure": false
+}

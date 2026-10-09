@@ -1,0 +1,129 @@
+{
+  "schema": "mbm001.independent-report-evidence-manifest.v1",
+  "sourceSha": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+  "entries": [
+    {
+      "path": "docs/postrust/MBM-001/evidence/actual-sdk-readback.json",
+      "bytes": 7142,
+      "sha256": "5264d516b36d2ea1cd230d23b1fac8c64c414c87162bfb6b36ab0cc75b247e1c"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/candidate-close-readback.json",
+      "bytes": 2342,
+      "sha256": "2d43fd0380f39bfa49729ca21670907e20a852ca85b0236ef72006807f99f77a"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/ci-environment-readback.json",
+      "bytes": 7717,
+      "sha256": "8ccc4155ddc5e29debf29cc5fe078196a261641f033d34065be1cf0c907e343d"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/ci-environment-source-ci-terminal.json",
+      "bytes": 99886,
+      "sha256": "39a24b8638fb71b137a0ad725c4757321308a27443bdfaa8c6fab26079e90196"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/controlled-app-readback.json",
+      "bytes": 7416,
+      "sha256": "ebb4dd0d33c695fa25f0e1ea790224efaf00bfcb5eb38d5d0ed84f32e0bb5c2f"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/first-source-ci-terminal.json",
+      "bytes": 98982,
+      "sha256": "27cb7219afaf6c0f8e85c82f2cbfe9b691994068c10a63d0bd533b0438d002d2"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/fixture-clock-readback.json",
+      "bytes": 9679,
+      "sha256": "8fab77fd226b70b041153f0c4dc88c06a7bf9594a1476c6735b31e6863050d5d"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/integer-clock-origin-readback.json",
+      "bytes": 49560,
+      "sha256": "9e5b864bb120a2b4a7ccf9d2a16282eb46c13c9dbbeadee360e56defab474a1b"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/ios-actual-report-readback.json",
+      "bytes": 6805,
+      "sha256": "115b04c38409a37657ff62f0994949117785cd90015190337e06c07d0cdefadf"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/ios-software-readback.json",
+      "bytes": 9967,
+      "sha256": "edaa18c281d264e03d3ebf0dc5a8e781d310567c4c080b17ae20e7d4d8135030"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/official-installer-network-readback.json",
+      "bytes": 21443,
+      "sha256": "c82a94c5175e05513d61c32773d2c411939f2b5bac8f5ddcfb7997bb30f69322"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/official-installer-network-source-ci-terminal.json",
+      "bytes": 97972,
+      "sha256": "ba3d1fc9cebf8129be34a70e06d383c71480e74136243e7371cde8169172e7e4"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/overall-ci-budget-readback.json",
+      "bytes": 51879,
+      "sha256": "bc848fe8c73731e05518f78450c2e602e9ee0400403d9a58ed74d3b258c57d5e"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/overall-ci-budget-source-ci-terminal.json",
+      "bytes": 99883,
+      "sha256": "7be7ee830ac9bab5222b225381defd1b00181bac89d381b499d7a8ec376dd34e"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/preparation-checks.json",
+      "bytes": 6164,
+      "sha256": "3bd344131d235166e1883623497e671d79b353996c51dc22b7facb7609e43807"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/runtime-product-binding.json",
+      "bytes": 166207,
+      "sha256": "0d77f624131e94707c591df1e770c97ac8f4aab664ad9277c6cbd8369c08368b"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/second-source-ci-terminal.json",
+      "bytes": 99950,
+      "sha256": "88112043d71fe3e36a5e7f0f8b3357ad5890a234518015ac55818087e4ed621f"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/source-artifact-readback.json",
+      "bytes": 100739,
+      "sha256": "25c67712f83d83c57eaf517bd42b3dd38c7b065c0c311ddb517541e874554ef1"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/source-ci-readback.json",
+      "bytes": 51819,
+      "sha256": "7e5d6e25e91cef59ad51b87c9aa6eb4453e90a205b7125f6df3fdecf75e468c7"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/source-ci.json",
+      "bytes": 100108,
+      "sha256": "90334415564400d4626de0ed6075fe337261a0397dd4ceab5646fc8aae557327"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/source-gate-readback.json",
+      "bytes": 4125,
+      "sha256": "81a4412d140c609fc1544b2db98dc64ad83ed31d96580cba85f53e99139496ac"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/source-gate.json",
+      "bytes": 1061480,
+      "sha256": "fec451a912190112164558e4a651e2c23d1623dcc01b2b1c122ef2bc9c9bb65e"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/source-identity.json",
+      "bytes": 12106,
+      "sha256": "b2bb27b6137f41489cc215f7bc91b8dfa6cee6aead6d662b8585c0460e904bb9"
+    },
+    {
+      "path": "docs/postrust/MBM-001/evidence/source-phase-logs.json",
+      "bytes": 27199,
+      "sha256": "4f6b67c60375cf09ce269576110c33899c786012556baeb32c7097ab95657f99"
+    }
+  ],
+  "count": 24,
+  "manifestSelfHashExcluded": true,
+  "existingFirstSourceFailure": "UNCHANGED_ALREADY_COMMITTED_IN_SOURCE_NOT_REPLACED"
+}

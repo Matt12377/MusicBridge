@@ -47945,7 +47945,45 @@
         "acceptance_ref": "docs/postrust/MBM-001/MOBILE_ACCEPTANCE.json",
         "independent_mobile_acceptance_count": 9,
         "local_verification_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
-        "actual_self_owned_mac_service_shared_ios_sdk": "PASS_22_ACTUAL_CASES_32_DRIVER_TESTS_ORIGINAL_APP_CLOSE_ZERO_NOT_DEVICE_OWNER"
+        "actual_self_owned_mac_service_shared_ios_sdk": "PASS_22_ACTUAL_CASES_32_DRIVER_TESTS_ORIGINAL_APP_CLOSE_ZERO_NOT_DEVICE_OWNER",
+        "implementation_commit": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+        "implementation_commit_resolution": "EXACT_SINGLE_PARENT_REPAIR_SOURCE_FRESH_GATE_FIRST_NATURAL_CI",
+        "report_commit": null,
+        "report_commit_resolution": "RESOLVE_UNIQUE_REPORT_HEAD_SINGLE_PARENT_SOURCE_AFTER_COMMIT",
+        "report_path": "reports/MBM-001_RESULT.md",
+        "evidence_refs": [
+          "docs/postrust/MBM-001/evidence/actual-sdk-readback.json",
+          "docs/postrust/MBM-001/evidence/candidate-close-readback.json",
+          "docs/postrust/MBM-001/evidence/ci-environment-readback.json",
+          "docs/postrust/MBM-001/evidence/ci-environment-source-ci-terminal.json",
+          "docs/postrust/MBM-001/evidence/controlled-app-readback.json",
+          "docs/postrust/MBM-001/evidence/evidence-manifest.json",
+          "docs/postrust/MBM-001/evidence/first-source-ci-terminal.json",
+          "docs/postrust/MBM-001/evidence/fixture-clock-readback.json",
+          "docs/postrust/MBM-001/evidence/integer-clock-origin-readback.json",
+          "docs/postrust/MBM-001/evidence/ios-actual-report-readback.json",
+          "docs/postrust/MBM-001/evidence/ios-software-readback.json",
+          "docs/postrust/MBM-001/evidence/official-installer-network-readback.json",
+          "docs/postrust/MBM-001/evidence/official-installer-network-source-ci-terminal.json",
+          "docs/postrust/MBM-001/evidence/overall-ci-budget-readback.json",
+          "docs/postrust/MBM-001/evidence/overall-ci-budget-source-ci-terminal.json",
+          "docs/postrust/MBM-001/evidence/preparation-checks.json",
+          "docs/postrust/MBM-001/evidence/runtime-product-binding.json",
+          "docs/postrust/MBM-001/evidence/second-source-ci-terminal.json",
+          "docs/postrust/MBM-001/evidence/source-artifact-readback.json",
+          "docs/postrust/MBM-001/evidence/source-ci-readback.json",
+          "docs/postrust/MBM-001/evidence/source-ci.json",
+          "docs/postrust/MBM-001/evidence/source-gate-readback.json",
+          "docs/postrust/MBM-001/evidence/source-gate.json",
+          "docs/postrust/MBM-001/evidence/source-identity.json",
+          "docs/postrust/MBM-001/evidence/source-phase-logs.json",
+          "reports/MBM-001_EVIDENCE.json",
+          "reports/MBM-001_RESULT.md"
+        ],
+        "terminal_ci_receipt": {
+          "source": "docs/postrust/MBM-001/evidence/source-ci.json",
+          "report": "PENDING_FIRST_NATURAL_REPORT_CI"
+        }
       },
       {
         "id": "MBM-002",
@@ -48043,7 +48081,7 @@
     "state": "SOFTWARE_AND_ACTUAL_SHARED_IOS_SDK_QUALIFIED_FINAL_DELIVERY_RECEIPT_REQUIRED",
     "branch": "codex/mbm-001-pairing-readonly-library",
     "baseSha": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
-    "implementationCommit": null,
+    "implementationCommit": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
     "reportCommit": null,
     "scope": "docs/postrust/MBM-001/EXECUTION_SCOPE.json",
     "predecessorDelivery": "docs/postrust/MBM-001/PREDECESSOR_DELIVERY.json",
@@ -48092,17 +48130,17 @@
     },
     "pairedAdoptionComplete": true,
     "localVerification": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
-    "implementationCommitResolution": "PENDING_FINAL_CLEAN_SOURCE_WITH_OWN_GATE",
-    "reportCommitResolution": "PENDING_SOURCE_FIRST_NATURAL_CI_AND_INDEPENDENT_REPORT",
+    "implementationCommitResolution": "EXACT_SINGLE_PARENT_REPAIR_SOURCE_FRESH_GATE_FIRST_NATURAL_CI",
+    "reportCommitResolution": "RESOLVE_UNIQUE_REPORT_HEAD_SINGLE_PARENT_SOURCE_AFTER_COMMIT",
     "ci": {
-      "source": "S2_S3_S4_FAILURES_S5_JOB45_CANCEL_S6_OFFICIAL_FETCH_AND_ARTIFACT_NETWORK_FAILURES_PRESERVED_BOUNDED_OFFICIAL_INSTALLER_ATTEMPTS_PENDING_FRESH_SOURCE_CI",
-      "report": "NOT_RUN"
+      "source": "PASS_FIRST_NATURAL_4_WORKFLOWS_6_JOBS_WHOLE_LOGS_AND_5_ARTIFACTS",
+      "report": "PENDING_FIRST_NATURAL_REPORT_CI"
     },
     "push": {
-      "source": "PASS_PREVIOUS_SOURCE_S2_ORDINARY_EXACT_REMOTE_REPAIR_SOURCE_PENDING",
-      "report": "NOT_RUN"
+      "source": "PASS_ORDINARY_EXACT_REMOTE",
+      "report": "PENDING_ORDINARY_PUSH"
     },
-    "updatedAt": "2026-10-09T10:53:57.880294+00:00",
+    "updatedAt": "2026-10-09T11:50:17.159231+00:00",
     "isolatedMacHttpsCandidate": {
       "state": "ACTUALLY_CONSUMED_AND_ORIGINAL_NATURAL_CLOSE_ZERO",
       "evidence": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
@@ -48115,6 +48153,10 @@
       "appNaturalExitCode": 0,
       "parentNaturalExitCode": 0,
       "physicalDeviceAudioProviderRoonLanOwner": "NOT_RUN"
-    }
+    },
+    "report": "reports/MBM-001_RESULT.md",
+    "evidence": "reports/MBM-001_EVIDENCE.json",
+    "finalDeliveryReceipt": "PRIVATE_EXTERNAL_ARCHIVE_AFTER_REPORT_CI_NO_THIRD_SEAL_COMMIT",
+    "nextBranchBaseline": "RESOLVE_FINAL_REPORT_HEAD_AFTER_FINAL_SEAL"
   }
 }

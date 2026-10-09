@@ -1,0 +1,3961 @@
+{
+  "schema": "mbm001.bounded-official-installer-source-runtime-binding.v1",
+  "source": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+  "parent": "80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9",
+  "baseReport": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
+  "branch": "codex/mbm-001-pairing-readonly-library",
+  "wholeProductGitBlobRows": 655,
+  "allCandidateRuntimeProductRowsWholeEqualFinalSource": true,
+  "files": [
+    {
+      "path": "apps/desktop/e2e/main-window.ts",
+      "gitBlob": "6207f9102486b1e4d5b90b10216b8f7855aac733",
+      "bytes": 1462,
+      "sha256": "f6ddaea487d1621db892038288841905f84acffb854ac3983b6ea2c3b896bd28"
+    },
+    {
+      "path": "apps/desktop/e2e/mbm001-mobile-connection.spec.ts",
+      "gitBlob": "503e3ff6f78b722201f2be15ba28cd24ebfc83f4",
+      "bytes": 61696,
+      "sha256": "f2ae0971ef004829425d0b955e375d4228cd7eba7047b82e40775bf4937c6c4d"
+    },
+    {
+      "path": "apps/desktop/e2e/temporary-root.ts",
+      "gitBlob": "4a86007c577e92298ef3442ab984aaaea50e84b2",
+      "bytes": 1210,
+      "sha256": "c657c7369280497599e84cde5e0eb459ad97eb28f07feaa2ec972a79d503d06d"
+    },
+    {
+      "path": "apps/desktop/electron.vite.config.ts",
+      "gitBlob": "d0a79a1784d54ae263a2fc2550d1a99164838485",
+      "bytes": 3865,
+      "sha256": "5103d063459dfd961527d70b9c9cefeadd4979ea10bc6320b0fa7b7c18f7ae59"
+    },
+    {
+      "path": "apps/desktop/package.json",
+      "gitBlob": "714b4bbaecd72e1eb2a74082a3ef0eb425c33041",
+      "bytes": 6232,
+      "sha256": "c488279bd6757d03358c22ab473bf37ed0d4e63a9de6b2ce961ba1fff86a0a20"
+    },
+    {
+      "path": "apps/desktop/scripts/electron-identity.mjs",
+      "gitBlob": "63ee9881371ed59453627d6774c19b8225f27c72",
+      "bytes": 4869,
+      "sha256": "01f0dd2449a1eeffe8bb7c59577186b79a04109c2eace49f7325732da898fa77"
+    },
+    {
+      "path": "apps/desktop/scripts/test-keychain.mjs",
+      "gitBlob": "8aa277ed8787cddc744167407854ce12bc7a190d",
+      "bytes": 975,
+      "sha256": "2e947667e76bc312a613a4a36bc0f9afb424faffc9f790bbbaac5c78656df714"
+    },
+    {
+      "path": "apps/desktop/src/assets.d.ts",
+      "gitBlob": "613c0d5ef897d9ec4fc0c87b130c104c32463e4a",
+      "bytes": 78,
+      "sha256": "e7644332b3bcd24303de8654f8ff0286ffb2a86490724c50d604cb6da29f3b0d"
+    },
+    {
+      "path": "apps/desktop/src/main/assets/musicbridge-tray-template.svg",
+      "gitBlob": "062bd1015dc932cd3d25814295d110c95a56cb56",
+      "bytes": 212,
+      "sha256": "ffcc28a87f1b528655ced22cecdfdbcd3e7e414203923bef87bcd111b7fa8da2"
+    },
+    {
+      "path": "apps/desktop/src/main/collection-photos.ts",
+      "gitBlob": "034b0a37bd494926ff99fdf950c418ff9a1a6ff5",
+      "bytes": 5105,
+      "sha256": "66cb10b954df9f32ed4ec17aa758bb2c2883099e337464671b16022d2e30b1bd"
+    },
+    {
+      "path": "apps/desktop/src/main/collection-progress-ipc.ts",
+      "gitBlob": "e332ee5ba170553f6a31bd8b18fb6c45f95df1c9",
+      "bytes": 1411,
+      "sha256": "c012c07ad1658a67d53a4e8dfdca46f0a2a34f41ea70fefb93e1b6d3dede5f2e"
+    },
+    {
+      "path": "apps/desktop/src/main/collection-readonly-control-client.ts",
+      "gitBlob": "859b0c285c30690ea0e4aa8ad058b78258ea5329",
+      "bytes": 4372,
+      "sha256": "fae88ced089f0d9c2fa29739bce82b438a45cececb03b948b876a8752917da1c"
+    },
+    {
+      "path": "apps/desktop/src/main/collection-readonly-control-protocol.ts",
+      "gitBlob": "04b84bf374ea7b1831e426b12f5204de58d4da3d",
+      "bytes": 4860,
+      "sha256": "e61cd743b08eb5cda6032edf873ea0eff684b7c69349abbbafcdd1347b0354bc"
+    },
+    {
+      "path": "apps/desktop/src/main/collection-readonly-core-bridge.ts",
+      "gitBlob": "a6a73ed630da587dc3bce98a095b5e119416e5e2",
+      "bytes": 3679,
+      "sha256": "dd4e6800d9dda3d7b444affc40365dd7df3feb62571f917abdc8b3786261bde7"
+    },
+    {
+      "path": "apps/desktop/src/main/collection-readonly-core-observer.ts",
+      "gitBlob": "276d93d5c2525894c3da1786290a47e28ed5b22f",
+      "bytes": 8993,
+      "sha256": "281a00efe3d9dafd0d7702fc6c08d8d14057f43b31a452aa6e02afbbb0f2e6d9"
+    },
+    {
+      "path": "apps/desktop/src/main/collection-readonly-dom-driver.ts",
+      "gitBlob": "ce09301454382580d3cc71517ca6eb124205a1a2",
+      "bytes": 11356,
+      "sha256": "db7acdc0f7ec94847ac6397fc6b87e921e217d0100d491904e2b63473cb4c42e"
+    },
+    {
+      "path": "apps/desktop/src/main/collection-readonly-main-probe.ts",
+      "gitBlob": "ceb3631b463b2a060849cea5f9f239d3b4b52767",
+      "bytes": 31760,
+      "sha256": "01598ab87734fe06dae449759004aa0026bc6ffe2d2c9ffb8ad92d9c3e9d1a8f"
+    },
+    {
+      "path": "apps/desktop/src/main/collection-readonly-settings.ts",
+      "gitBlob": "ba2298e3b9bcd8548f4b12ff4535cd5ed74528be",
+      "bytes": 8111,
+      "sha256": "4c93fab74c4d561e332a2fb6b0f963428a55917d9153184b270f53d7e4aedae8"
+    },
+    {
+      "path": "apps/desktop/src/main/collection-scale-core-observer.ts",
+      "gitBlob": "cabadfec34d52fba78b13ace0afc6415bebe0232",
+      "bytes": 10491,
+      "sha256": "87c8cb0d0d6827df3e4de144873703dcaf182ca8b3d3f76c48e18f414f9715f2"
+    },
+    {
+      "path": "apps/desktop/src/main/collection-scale-main-probe.ts",
+      "gitBlob": "5d4b9d2caeb8705128d4cf77dc98e8c0cee59557",
+      "bytes": 46436,
+      "sha256": "5b13c8f2da22b10ba838f33c01ec163badbe1753d9a81ca5306f6e228ca4532d"
+    },
+    {
+      "path": "apps/desktop/src/main/command-outbox-executor.ts",
+      "gitBlob": "ff5891311ec2148338530084c5a845d9f4e33c23",
+      "bytes": 10602,
+      "sha256": "da2fa55b0a3ae5e0a934022e7c2e32b3b45a310eee51dbbcfb51c6b1f1aee281"
+    },
+    {
+      "path": "apps/desktop/src/main/command-outbox-ipc.ts",
+      "gitBlob": "eca6142cc1ede084b946fada955a4b5b43f88f4d",
+      "bytes": 3552,
+      "sha256": "90f579884b2b299367a09df656f6ab8bb0f4af8110d9fe4bf68fec27caaabb51"
+    },
+    {
+      "path": "apps/desktop/src/main/command-outbox-service.ts",
+      "gitBlob": "fdfec7ff551eff3fcb06ee0d6cf84ec33dc7b79c",
+      "bytes": 11827,
+      "sha256": "35be3491945066ffd08fa936cd9aa4661c73c45409ad4a503180a9f1b56a4668"
+    },
+    {
+      "path": "apps/desktop/src/main/command-outbox-store.ts",
+      "gitBlob": "e00d58d9670e7fd23206b1792a5715f6ae600232",
+      "bytes": 17643,
+      "sha256": "714c1974bce5cfaf9bc33de07829077dfde628039c585810d1b44b91a43b495e"
+    },
+    {
+      "path": "apps/desktop/src/main/commons-artwork-provider.ts",
+      "gitBlob": "e19c704241c4372c288fdc8882fb2e287f2e64af",
+      "bytes": 27121,
+      "sha256": "e43c4dcb430afcee700ea6710a19793aefcdf0f8281025657e171218bb2710d5"
+    },
+    {
+      "path": "apps/desktop/src/main/config-migration.ts",
+      "gitBlob": "0f13707754ee0285723a0bef9a41e3da1eccfe34",
+      "bytes": 2529,
+      "sha256": "2e1c69063ddf5f83c70a643112bac20efdda84af19f9ebbf1661e27f84d5d3ac"
+    },
+    {
+      "path": "apps/desktop/src/main/converter-bootstrap.ts",
+      "gitBlob": "0220d5eb9271e29bdc532024c6acd06020900328",
+      "bytes": 867,
+      "sha256": "33bd25d6a113ba4bafcb799c6d68b448d2ad4a005d5881b0a6a0fc8fd157bcf3"
+    },
+    {
+      "path": "apps/desktop/src/main/core-crash-gate.ts",
+      "gitBlob": "71e1b586b575884e5acb52dab4683435ea4f782b",
+      "bytes": 1046,
+      "sha256": "07562a6be5421310c2cea408e0e578678fd730284ef73fcb9f9e564a1902df61"
+    },
+    {
+      "path": "apps/desktop/src/main/core-entry.ts",
+      "gitBlob": "36379be883319f0cdc52d9c3da05c2c2fd8e37e3",
+      "bytes": 1716,
+      "sha256": "2f243083feebffd5c17f3ec63422863d86ebb6588b37c234466bbe8e1a150024"
+    },
+    {
+      "path": "apps/desktop/src/main/core-environment.ts",
+      "gitBlob": "568c9fbddfe388a44c346e37b7455dea43f8fed0",
+      "bytes": 5596,
+      "sha256": "2c6657527d11bcb2ab75c6d77d0332414f0fccb37224e364a817ff7fa52bd6bd"
+    },
+    {
+      "path": "apps/desktop/src/main/core-host.ts",
+      "gitBlob": "210b30e9de914239e816ea913937882ac02d421b",
+      "bytes": 5033,
+      "sha256": "67087bd2418d6e2ecec3a4ea8d8bbf275def6c85cd164353d19fb217cdfb781c"
+    },
+    {
+      "path": "apps/desktop/src/main/core-supervisor.ts",
+      "gitBlob": "22ef77c02f250bee6c2225421649d774da413263",
+      "bytes": 46132,
+      "sha256": "fba764a5f20a0afec500bc034055a7e8f0953bef091a703ca1a1b7342dd6ed7d"
+    },
+    {
+      "path": "apps/desktop/src/main/credential-provisioning.ts",
+      "gitBlob": "6105fdd776e8eb3cc993a3e93013d8130ce7f7e1",
+      "bytes": 2795,
+      "sha256": "4a878048b18bf2cc16742c07e5d111dd453bf099f00b5530233953dc95e5cc82"
+    },
+    {
+      "path": "apps/desktop/src/main/credential-vault.ts",
+      "gitBlob": "86e0bc6b26ba4b82ae4761a15aca483a0f328354",
+      "bytes": 6069,
+      "sha256": "9f1e6719b374b4ff261874686744c6138b0cf94e9b817397eed9e20ef55f830e"
+    },
+    {
+      "path": "apps/desktop/src/main/dataset-owner-bootstrap.ts",
+      "gitBlob": "ebd35d3e578d8c5ce1ae79b0b677ed006cbc1f25",
+      "bytes": 2617,
+      "sha256": "647011fea7958d40f302d9b6e8421731c547c48305570f560c6a72af64e3ff76"
+    },
+    {
+      "path": "apps/desktop/src/main/dataset-owner-entry.ts",
+      "gitBlob": "edbc37fd42fd72d36e1ce414031e59ebbf30e804",
+      "bytes": 1738,
+      "sha256": "5464a760ef2b1ebea95217bdd9e1a2eca931e04197330ae4be26bc540c72dca4"
+    },
+    {
+      "path": "apps/desktop/src/main/diagnostics.ts",
+      "gitBlob": "eb603e0ebe472dd33353e6bcdf066be05efc4fed",
+      "bytes": 4992,
+      "sha256": "31d2ffb30dbc56a4ba18d58db455334ab0cc8d95342edf7d3ba29dc40460f61d"
+    },
+    {
+      "path": "apps/desktop/src/main/index.ts",
+      "gitBlob": "6273b519da21104118243187d54fc17074e14ead",
+      "bytes": 110247,
+      "sha256": "8d588194a2abc94066d9a3ec0d3e5f297cd85559bce2fd50dfe9a8c4aa63fdcf"
+    },
+    {
+      "path": "apps/desktop/src/main/library-read-ipc.ts",
+      "gitBlob": "8631eda21bee8111116152f4d9793a5b1eb0e20b",
+      "bytes": 5149,
+      "sha256": "6ed1412539b893e9d3e263b5eef835fefdc56bd11b7d399e749db2f56ce95078"
+    },
+    {
+      "path": "apps/desktop/src/main/lifecycle-probe.ts",
+      "gitBlob": "0b101fc307d63f10266d8f615501ce1c1b3dc30e",
+      "bytes": 2131,
+      "sha256": "b20f7a6baea47fbec49344555143c2216f1d4ecdcc97aaa07bb6022767b53908"
+    },
+    {
+      "path": "apps/desktop/src/main/local-artwork-image.ts",
+      "gitBlob": "09914487c4ea21cf56cdf03de98f277a93f815cc",
+      "bytes": 16413,
+      "sha256": "a9049d5956d75cac4b356fd3c27a740f6dffad191f0751526c2409cf6b3b2b08"
+    },
+    {
+      "path": "apps/desktop/src/main/local-artwork-ipc.ts",
+      "gitBlob": "99f8bf814ac8bceb4297078bdc3003bf6c3ab3a9",
+      "bytes": 11860,
+      "sha256": "c51568239929682f6e9604dab36b358df40c58baa6b267dfeb9da013fa9cf136"
+    },
+    {
+      "path": "apps/desktop/src/main/local-legacy-links-ipc.ts",
+      "gitBlob": "7587e45b785ddbd4b35f7afb713aade6de306258",
+      "bytes": 2556,
+      "sha256": "5ff14e32c63dae902951dd10e2ddff29586621df3ea11584d37364ce5ca9dbcb"
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-ipc.ts",
+      "gitBlob": "a5b41308500e90e8dfba0997edd20715d0b1b161",
+      "bytes": 4086,
+      "sha256": "5bcc5f8095d8945ed4bad0ed191b935d0a19a23978c58e3db34a28bbaaadd575"
+    },
+    {
+      "path": "apps/desktop/src/main/local-organizer-ipc.ts",
+      "gitBlob": "71717b8af48c6c1280968b6bf4f661604b739f2a",
+      "bytes": 2194,
+      "sha256": "bab4efc4137d10e9576b9a2635d1e70f76308d44be0e097a262dd3b93cb8eaa0"
+    },
+    {
+      "path": "apps/desktop/src/main/local-relocation-ipc.ts",
+      "gitBlob": "d6a53b203a6974c4cc6f7530a2d4a6a5c13b7e50",
+      "bytes": 11969,
+      "sha256": "e720d8b80799fecb1f50e555726570a64952f8eaf12110e249e05c997226643c"
+    },
+    {
+      "path": "apps/desktop/src/main/local-source-writes-ipc.ts",
+      "gitBlob": "8d1335fd7fed3a548ebc3c1621805cdcfe11baf1",
+      "bytes": 6500,
+      "sha256": "43f3aa72cce510e441108a8b994061980217b4648b5c0c1f5e27445fab3c960d"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-backend.ts",
+      "gitBlob": "4f4a01499834271da1e140d08b394ff1701f472f",
+      "bytes": 8527,
+      "sha256": "4937fb444b61aa47229521756a7658749bf5d4b3ebe5ce0d6f9cd86ae29547f5"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-https-server.ts",
+      "gitBlob": "2d67bb0bb802fc50407b42a944b4f5998bc9e1ca",
+      "bytes": 17198,
+      "sha256": "729f7b37d0693e8bcf2d450330d613a15bb47f77863ae851ecc92e5b58420675"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-settings.ts",
+      "gitBlob": "e19094647235b95b7e06dd089f0dc96461aca03c",
+      "bytes": 12616,
+      "sha256": "dbd0a483595a7fae55235dfe68af8ff52b17823d726bb3dc6030295964c8df9e"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-tls-identity.ts",
+      "gitBlob": "5fea13db966dca219283ea94682885b9b6ed2903",
+      "bytes": 15550,
+      "sha256": "aa95b73f7b3e24964c6fce365037fa32214e9994ff88404422727cd22f544f80"
+    },
+    {
+      "path": "apps/desktop/src/main/music-cover-art-provider.ts",
+      "gitBlob": "aff52ed0efdf833e39ba9963d2f2bbeab2575723",
+      "bytes": 20024,
+      "sha256": "394e58ce7014af589dd14823a469692168833f5c27894aef1ead42cfa944047d"
+    },
+    {
+      "path": "apps/desktop/src/main/output-bootstrap.ts",
+      "gitBlob": "0685d56e5a5e16da5f8240deb28aca05afaec234",
+      "bytes": 1351,
+      "sha256": "43edfa6857a214e746558fb9e881e2bba3fbac58c6ab60235d10a556ee086ec3"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-node-core-entry.ts",
+      "gitBlob": "f04a98174373f564748ad09e0a9663db3bfe474f",
+      "bytes": 255,
+      "sha256": "c29d464c4ad0e2afd234653067388556fd2cbe92257bd6f602ec6377dfc76c16"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-renderer-core-observer.ts",
+      "gitBlob": "42acc2e3c99ecada6c3c42a6fcc26f27765b6eba",
+      "bytes": 9383,
+      "sha256": "67c53acdc1b386e286e22d340bdf4cd394ee5ca689263084dca2aecf8a2c146f"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-renderer-dom-driver.ts",
+      "gitBlob": "74bd243f9e6be4f1876fb198bd65e32fe8e596fc",
+      "bytes": 9859,
+      "sha256": "d99e1a869ec6df49b6d30dcb43200bdfcd9a88fc0d7c9c06ad0535a0c0a6efb6"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-renderer-ipc-observer.ts",
+      "gitBlob": "f5097bd2b69bd9af927e1616a6cc68e03e059b33",
+      "bytes": 2819,
+      "sha256": "c724c1d06a904ba5d1ee3bf3ad56f290213cda65cc43e17b8214b22c9843d20a"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-renderer-main-probe.ts",
+      "gitBlob": "07de0f654ea6bc62ec43481220969c87d75f9bf0",
+      "bytes": 25831,
+      "sha256": "3e88f85006b910f9a97f294554738dbe3db85a984994e7549fdb38c26916c2cc"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-renderer-node-core-entry.ts",
+      "gitBlob": "e44c5de342c577002cf25acfaf6a740bcb21b247",
+      "bytes": 363,
+      "sha256": "bda892963d631b6d7bb83e62e207282358603e4607924dc501428f8772f21d3d"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-renderer-rust-core-entry.ts",
+      "gitBlob": "aa73cbc8b32f1a8a7678c0c87b769db9d9abb4d0",
+      "bytes": 479,
+      "sha256": "e797d9bda592842ced3146d5f0dd2372935de589b4fa123677d9e24052fd62bd"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-route-core-observer.ts",
+      "gitBlob": "adef7220d5204da7c578bb0987dd9e7ffd95e5a3",
+      "bytes": 8376,
+      "sha256": "08135ebae4737a7b7d2a5ad56b605b8f0836309e30d62f1568256e5e59e3fc5b"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-route-main-probe.ts",
+      "gitBlob": "fc5490278c6185225c7a3cd276d9456c10aa2834",
+      "bytes": 11258,
+      "sha256": "b1e23cf174691a73a896c8278f3762cd5e2a9bcfc89666dd77ea4bbb0bcfa92a"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-rust-core-bootstrap.ts",
+      "gitBlob": "2f2fb26ed8571537eaab51987a44b881002b7eab",
+      "bytes": 2123,
+      "sha256": "b827f09f02a2abb13922d5d340c4d579f6f4e12af66481b0da815970f5568d0a"
+    },
+    {
+      "path": "apps/desktop/src/main/packaged-rust-core-entry.ts",
+      "gitBlob": "fec0c4931095a0b8b474ec598e150df95555ac9d",
+      "bytes": 493,
+      "sha256": "1d2ec9c9dd4b6bca3b7468410c50cc1cba1765a5c6068c606879f94f78ed4d00"
+    },
+    {
+      "path": "apps/desktop/src/main/performance-ipc.ts",
+      "gitBlob": "1a6a669307389ed1c24a3365564132ddaa590ea0",
+      "bytes": 1766,
+      "sha256": "d4bb9c93e56bad2daf155481c67a6e4ee50f73cec85ea4365e2b64f5726a5447"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-attempt-ipc.ts",
+      "gitBlob": "65cfe0733c4d402e6814a5c975f22c931b7945d0",
+      "bytes": 1941,
+      "sha256": "97b590f8c0dc1cb4310775dd8dadb65d6607a74a7a29e177ff79abe07ef48710"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-bootstrap.ts",
+      "gitBlob": "936384487f749c4d29e8f7e2599a45f3f1971cb7",
+      "bytes": 3712,
+      "sha256": "fadc1f9622ba6d54a1ad85989b5f586b859f40e48d9f1652f8d85453b411fa1b"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-candidate-ipc.ts",
+      "gitBlob": "00d860b9bc1e08d72be8a14d68f5bddb40af79b4",
+      "bytes": 2319,
+      "sha256": "3e0936715da696f8d0b83ced37aed97a429ceec27e8c3542e70a9d986dd0e3c2"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-device-ipc.ts",
+      "gitBlob": "4980bcd7dcb4d5dbd0dde35bcd024936d80e5326",
+      "bytes": 1772,
+      "sha256": "ff3e4a8e8caa810c753a30ff95bd0725af08154d705e34f2d8b92d9dc34277a4"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-output-ipc.ts",
+      "gitBlob": "c1bab32294359ce754f9284bd2c6d5cadb159c2b",
+      "bytes": 1293,
+      "sha256": "9560c4741fd25972d7863b71e794ba2a6c3567c863e20f1cc5ed2e701df7fb99"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-plan-ipc.ts",
+      "gitBlob": "71cf95e5a019001949972b5fbeede95e831d4cb2",
+      "bytes": 1334,
+      "sha256": "a702874e4e6d8c213097e3ed5e0e305cbc6d1b0af8d11c286b3723985de1cb77"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-preparation-zip-ipc.ts",
+      "gitBlob": "100e14ff2794082c5173d2cf4be4a2309b5253b8",
+      "bytes": 7772,
+      "sha256": "3b75d5fc71f49346d5cae1b0a62a8704a7d78c0c57d73139154eaa78596dde24"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-print-export.ts",
+      "gitBlob": "c777236fb18f4a7a6a4f1de64188af1be184d536",
+      "bytes": 6670,
+      "sha256": "467aa7dccb8ccd0678b6cb3650cf0c24fecde28fab61976e8af503695fa2893c"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-print-ipc.ts",
+      "gitBlob": "df50297a791dc16ed9bfb3fdd03803a89d1acf9e",
+      "bytes": 6800,
+      "sha256": "08ea0935ce2d402a85357ec64609cb380980cf283032bc79465e456012b2cf9c"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-print-pdf.ts",
+      "gitBlob": "2280136e4d900e076a5e72494f422125c29dabf7",
+      "bytes": 12170,
+      "sha256": "734391565e6a0fb396b52c82421469e5aac3b39904885123dde51b673ea6667d"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-print-renderer.ts",
+      "gitBlob": "41aa6cade9a62f0dd8bb3f96229ff483543894b5",
+      "bytes": 13971,
+      "sha256": "d7dbec6fcea50290a30a324bf1423af9fb84641f6ca8162e92461accfc3cc9e4"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-print-template.ts",
+      "gitBlob": "facb13b64319dafa134ef799e788cd0b1dc8d572",
+      "bytes": 18407,
+      "sha256": "b4a1b950d74b2ce1dd0132f7d8804a418057652a22397313574d8cad6e44a2a9"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-print-worker.ts",
+      "gitBlob": "5b8ef007bb586efcbe230ca9a529af7e45e37490",
+      "bytes": 2914,
+      "sha256": "1dcf37d7d632bfddc9ab98dbead7f5c685b4161ff2b6790d1ec43e6601226435"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-record-ipc.ts",
+      "gitBlob": "faf9acf55a696400cd97e38310199c7cb5e6fb66",
+      "bytes": 1917,
+      "sha256": "41aa57dcc31211ebd7cfca8b3639cd0ef846b7b1885549e6fe23b5b6d089afc3"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-replica-ipc.ts",
+      "gitBlob": "cbecfafd44bb2df5084876095d9149848b7d1735",
+      "bytes": 1935,
+      "sha256": "e9b9a6e67dda02203e628631918be0866a9a903fba47a6e1ce1aa3ec35949e43"
+    },
+    {
+      "path": "apps/desktop/src/main/recording-workspace-ipc.ts",
+      "gitBlob": "070c5d3d76b2fc47296a58fa37a348618d356c1d",
+      "bytes": 2661,
+      "sha256": "ccef7da6146dde870b5f7b1306e4191101930560e68d5f00673d3b74fd7e8724"
+    },
+    {
+      "path": "apps/desktop/src/main/reference-catalog-ipc.ts",
+      "gitBlob": "e87ebd68302b45d6306ebfc178c861318fd23871",
+      "bytes": 1442,
+      "sha256": "80a4a4e2801dcb9955d75a1d689e072906f1cde9d820158ba650135073032fc2"
+    },
+    {
+      "path": "apps/desktop/src/main/remote-core-tunnel.ts",
+      "gitBlob": "5ea9aac673fb09a6c73a521257459aab30e9c9c4",
+      "bytes": 25774,
+      "sha256": "0a0ff43d12fca7019bb9ca700f2c0d2c96d8be8ae8df99603d92adb9b4844a66"
+    },
+    {
+      "path": "apps/desktop/src/main/renderer-protocol.ts",
+      "gitBlob": "dd3157299d3b2ae8ab9eb2bf9e7b9d67e6e38037",
+      "bytes": 2645,
+      "sha256": "77f83ae47246059e46f562ffb43eb65e2837e87fe3d7fa3c91ca91dfca4f9a75"
+    },
+    {
+      "path": "apps/desktop/src/main/roon-display-connection.ts",
+      "gitBlob": "1f4268f2b927080895056a2b3e8001a5e88e7351",
+      "bytes": 8159,
+      "sha256": "ad4fef9fded57115b87b5d817c2f4ed483eca56fa2da9a3ee43e22d462465be2"
+    },
+    {
+      "path": "apps/desktop/src/main/roon-display-protocol.ts",
+      "gitBlob": "3067fe71c52d33006330f5b59956e6b9257e75f6",
+      "bytes": 3597,
+      "sha256": "62302edcefbdf0598cfdeac4fee84b3f27f9fa3ad2ec25ecff588093fe8af0dd"
+    },
+    {
+      "path": "apps/desktop/src/main/rust-core-resource.ts",
+      "gitBlob": "1d031b99340edda39dc4fcbce9aea9e364a047df",
+      "bytes": 3943,
+      "sha256": "85caba25ceb00d3d92d4367f182ed66fdad7a640a4b17014876633460693cf5c"
+    },
+    {
+      "path": "apps/desktop/src/main/security.ts",
+      "gitBlob": "4df99a0cbaa6b08ce84b14a6c327dfecf7c129ce",
+      "bytes": 1773,
+      "sha256": "dcdc2a8d0dfebe71133bc39e444b9b16c39c7e4a8f120e6718e62009efb95cdf"
+    },
+    {
+      "path": "apps/desktop/src/main/source-write-original.ts",
+      "gitBlob": "7ca20e5dfa96ef720f8662cdb07b543a10f51926",
+      "bytes": 1424,
+      "sha256": "e9d2ecd75b6ec3d95a4d2ad39e5932f042af113f606d1181003f9dafc412a62d"
+    },
+    {
+      "path": "apps/desktop/src/main/spreadsheet-import-ipc.ts",
+      "gitBlob": "3fccc4f9c6ab3b099348cfb880cb18481ac455c7",
+      "bytes": 1454,
+      "sha256": "82ada9de32efb783cda7caba13b8b98a38a013590362e1bfb704501a00d90348"
+    },
+    {
+      "path": "apps/desktop/src/main/startup-test-config.ts",
+      "gitBlob": "7d028bcecf4a046cedd48ba612ca910a26ddae9d",
+      "bytes": 6041,
+      "sha256": "69a72e32e4cc3ea688220a7db601f4f5f2e35dc192ebea9b435dddb269071655"
+    },
+    {
+      "path": "apps/desktop/src/main/synthetic-profile-root.ts",
+      "gitBlob": "d6f1bfefa9b8a71c210172ee250a4d0e82eee05b",
+      "bytes": 1955,
+      "sha256": "d6f7382189d371122d7538801c5e56b381524171694fb06072a0fa43212164e2"
+    },
+    {
+      "path": "apps/desktop/src/main/tray.ts",
+      "gitBlob": "fb2e94fe14c1ab973914a230978c6efc3a3d1d61",
+      "bytes": 1783,
+      "sha256": "186f1fcc656e7b2e1a8945da44e34c3cd432302d0d034499ddd3e43cb58d4a47"
+    },
+    {
+      "path": "apps/desktop/src/main/ui-e2e-network-guard.ts",
+      "gitBlob": "a6f7a1a33df92eb5942516cc46ad6ed8d631b685",
+      "bytes": 1940,
+      "sha256": "aa5b21192163b5eb4e50ead288fc5ec138aa9bdc2014ec6f72037fe9801745e5"
+    },
+    {
+      "path": "apps/desktop/src/preload/api.ts",
+      "gitBlob": "d5c29f0408cb108d001a0d07c370eb7e9059c5f1",
+      "bytes": 44045,
+      "sha256": "9c4131f15168d161181e9531f051a222eeacb07abeb4c7955299d7d930928478"
+    },
+    {
+      "path": "apps/desktop/src/preload/command-outbox-client.ts",
+      "gitBlob": "9134a3b4aa0a6e497b16415ab75c5adcf90ee596",
+      "bytes": 5033,
+      "sha256": "5215d89fe0e47fbf310a0e442c82cb9632983e852c5f69675e5fb59c73640abc"
+    },
+    {
+      "path": "apps/desktop/src/preload/image-diagnostic.ts",
+      "gitBlob": "111cad80f56d5c83dd7fc607d9dc76c58f9cfdfd",
+      "bytes": 1177,
+      "sha256": "447ca980e3fe3ee5ac23c5f163755368c3c66561b753ed6f4d7e8de4a7368ef0"
+    },
+    {
+      "path": "apps/desktop/src/preload/index.ts",
+      "gitBlob": "57be53b468796f0127dd41325f38ae138d1000d3",
+      "bytes": 28316,
+      "sha256": "184e0e9627db171ae72db587405c41c8d542a4b3d2e5f820d0fcef88d233cec5"
+    },
+    {
+      "path": "apps/desktop/src/preload/library-read-terminal.ts",
+      "gitBlob": "226da2b2cead8e22d8b674482cf5a991fefd7ef2",
+      "bytes": 2238,
+      "sha256": "b7ed593e747fe2cf1a51140764bf3a2fc3f4e1c5e4559b6660762ad467da435f"
+    },
+    {
+      "path": "apps/desktop/src/preload/local-artwork-client.ts",
+      "gitBlob": "ae70392785415c664f4b3563a8a01c1c22ec5d90",
+      "bytes": 3930,
+      "sha256": "53acfd5f17072a4e2ec7a23c1ef84138fa85c3513f413968dfe8452112e4ff04"
+    },
+    {
+      "path": "apps/desktop/src/preload/local-legacy-links-client.ts",
+      "gitBlob": "1df7125d04ec6939339c7bb6ed02778fa421a802",
+      "bytes": 3767,
+      "sha256": "9383aa07ec7a0b1efaa342ccc429ffa970cd5cd21efb5d5051f77dde2a0f7096"
+    },
+    {
+      "path": "apps/desktop/src/preload/local-library-client.ts",
+      "gitBlob": "ff262deb5bfaefd3a952ddade6b04954cf20b420",
+      "bytes": 3718,
+      "sha256": "592bf097b94069b1ecc5c5bdf64efc3022bad7778c2583172661fcce364b097b"
+    },
+    {
+      "path": "apps/desktop/src/preload/local-organizer-client.ts",
+      "gitBlob": "1154533ad3d5924040b71dffd07ca8c3f6c7531e",
+      "bytes": 2791,
+      "sha256": "478631d2171c702b3b13522f44d93657a0e22472dc85873bb8802aabbe707bf7"
+    },
+    {
+      "path": "apps/desktop/src/preload/local-relocation-client.ts",
+      "gitBlob": "91d800bfefc0731896a421a224dede4984e5b90d",
+      "bytes": 3802,
+      "sha256": "8037972fa9203474f4a3af2570384f4b55da624acb254f9e7190b4c1362375fb"
+    },
+    {
+      "path": "apps/desktop/src/preload/local-source-writes-client.ts",
+      "gitBlob": "92d27ce31ebbf2a07e8a0b86b051e761793a574b",
+      "bytes": 3718,
+      "sha256": "c0925f19a7e9a94e2641188d7f6cea4b3007ef0bfd34927543e28fd55ed6ff45"
+    },
+    {
+      "path": "apps/desktop/src/preload/mb-queue-client.ts",
+      "gitBlob": "07ba36a591e7e48261947c3c30db71a1516073c7",
+      "bytes": 1147,
+      "sha256": "c13452c31671565d9e9d56ffbdb347217547481ca4eb25194cf5eea68e038ac5"
+    },
+    {
+      "path": "apps/desktop/src/preload/mobile-connection-client.ts",
+      "gitBlob": "861aa08729d48759def21e4cbd67b3d8c35c3ad0",
+      "bytes": 2227,
+      "sha256": "678031e2277feff1720534e33e996ae3a286734ff0aed1ab5e5161a1f326d53c"
+    },
+    {
+      "path": "apps/desktop/src/preload/preparation-zip-client.ts",
+      "gitBlob": "8104faeba13c9f4e5fa359bea422a9c8fb3ad187",
+      "bytes": 8448,
+      "sha256": "4c39fb1d54fc3e1c83b8bd1bc8f797dbcbe77c73a22db8cd39d554d53a8ba7da"
+    },
+    {
+      "path": "apps/desktop/src/preload/recording-attempt-client.ts",
+      "gitBlob": "ffa53ce63eb8b35afaa542de1acc1a6e51f85391",
+      "bytes": 1752,
+      "sha256": "400eff2055f2dac2948a55840c0cb378434b1c0494aa5f43bf5b772968447163"
+    },
+    {
+      "path": "apps/desktop/src/preload/recording-candidate-client.ts",
+      "gitBlob": "fc9b124510d3862e65102a8d0759be1a258919cc",
+      "bytes": 6313,
+      "sha256": "955be3259aab9ad4787cd3ae5211441e080513b0c3fb78b84609afd66079f8d0"
+    },
+    {
+      "path": "apps/desktop/src/preload/recording-device-client.ts",
+      "gitBlob": "53e157df2ef6c16963b8c7eac725f64dffd206b3",
+      "bytes": 1389,
+      "sha256": "4ac24ad3a076d0aebf0d5a7bac5ba40ecc2d5061ee84dc420fec82d91e7b93f1"
+    },
+    {
+      "path": "apps/desktop/src/preload/recording-print-client.ts",
+      "gitBlob": "73eb3bca0ab28cbdad69e133fb9f86a59b85fadf",
+      "bytes": 1884,
+      "sha256": "10296bea29c89da7f610024095413933b46cb013d62023c210e76e56427669db"
+    },
+    {
+      "path": "apps/desktop/src/preload/recording-record-client.ts",
+      "gitBlob": "32b5a150fd8abee934b8746358d996619c8268c2",
+      "bytes": 1725,
+      "sha256": "788531572cba602d92ed41fc2a65e7043c318db7babf326661b04eabd31bb4d2"
+    },
+    {
+      "path": "apps/desktop/src/preload/recording-replica-client.ts",
+      "gitBlob": "ea97366406e9c5b34592194b0b9b443bacdb5c3f",
+      "bytes": 1757,
+      "sha256": "26f977b338e96afec45688019aa6d7560625fe0ceca6eb09697697b6de7b87cc"
+    },
+    {
+      "path": "apps/desktop/src/preload/recording-workspace-client.ts",
+      "gitBlob": "aa444c0f1d54ce7d6311bf17bfb7f920f2511d5d",
+      "bytes": 3861,
+      "sha256": "6f7efe28200646fb516186f90f05b49483b3216dd182273bd6e413e601509351"
+    },
+    {
+      "path": "apps/desktop/src/renderer/index.html",
+      "gitBlob": "3fb97f1f0bd4a68141825ab2567ffa9559f13db6",
+      "bytes": 648,
+      "sha256": "3f74842cfa06e025a8cffc1e7886429c7998b4ee327f24eb091288eff80e2b47"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/App.vue",
+      "gitBlob": "d07558f5555353b6f157a74985dd8ba4e44e0e47",
+      "bytes": 72199,
+      "sha256": "0fe0ed2cba280191207e227b34f87608bd143490d375290ceb35c162b2333cfa"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/ambient-assets.d.ts",
+      "gitBlob": "d768fd2b57e4aefa27a8e20e9a0154bf9cbd959b",
+      "bytes": 68,
+      "sha256": "09a38f2b6ad9d7bbdfac11bf5687f099d0f35580806b0a9ad53d21922ae6c98c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/appearance-theme.css",
+      "gitBlob": "d39f1a40764d65c87fbd49030cea2b380c4f4270",
+      "bytes": 7265,
+      "sha256": "e6ba6d13669afa6d07e66a810d1a3ca7b40bf1c10c4807f2004b1bbbd853eaf2"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/appearance.ts",
+      "gitBlob": "c91867cac2f0316db70c793d10993a3bf8f694df",
+      "bytes": 1106,
+      "sha256": "b3ffb791a4329463463f06d58d547fe190320dcc72c6d1d9b2fb638f984a9616"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/artwork-image.ts",
+      "gitBlob": "587f5756ed402e25f7b049640324915f84514d94",
+      "bytes": 3278,
+      "sha256": "67754aaf3fd8c18e4cc7496877921d0584fef7f41c965256fee7abe7734444cc"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/assets/ambient-default-scene.png",
+      "gitBlob": "d219d134a0877b365f438b1e9d178a37333707fb",
+      "bytes": 1772416,
+      "sha256": "c9adf0804bb6b05f6be38b06a84494c113a5b42daaa25a5eceab1d26c1e34c42"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/assets/bootstrap-icons/LICENSE.txt",
+      "gitBlob": "f95243911022df8e34bb8c73c87ef491ee1696cf",
+      "bytes": 1093,
+      "sha256": "0fb3e11bd57e896c5a512afd64864d28a37de45d19835016c87ca1ad19ead969"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/assets/bootstrap-icons/fonts/bootstrap-icons.woff2",
+      "gitBlob": "92c4830216044ba21db9f4294b887312e80da38e",
+      "bytes": 130396,
+      "sha256": "476adf42b40325098fcfa8b36ab3e769186bb4f6ce6a249753e2e1a9c22bf99e"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/assets/bootstrap-icons/icons.css",
+      "gitBlob": "096ff98d0f4e8533a0e6ea473ef785975d2bccb1",
+      "bytes": 85760,
+      "sha256": "ba2781a4db79f93beaf486e95e5ef383fce4ed8e1d0ec6c4c50f7198b84e0f86"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/assets/frosted-grain.svg",
+      "gitBlob": "6a52e1fbff0cc4051ff685243952c48bb36e3358",
+      "bytes": 565,
+      "sha256": "b4ab63620e26404367452257afc8f72edb398ae2a427b4dfd474293a2fa02554"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/collection-scale-observation.ts",
+      "gitBlob": "27fcbbf0a0e1425cc599edfee69684d39ce25141",
+      "bytes": 9085,
+      "sha256": "0f0db62fa3a2484d00b65dc0637b30e8bdfeb9d59c46b3f5ede8cfe68ee6d4a3"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/AlbumAmbientBackground.vue",
+      "gitBlob": "6a79fa7ff3ce4f40462ec5649657d8c54c21b1b3",
+      "bytes": 1722,
+      "sha256": "6a6ec1f381e5487b03a159a1e3c8c16387608b0e2787e3f92b9140df1aae8d66"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/BottomPlayer.vue",
+      "gitBlob": "b6a74f5da7c291a89cd9ec1efaab5c34098553a3",
+      "bytes": 4229,
+      "sha256": "696f93ab27577ca8a618aaf3be01408dd7187ec419378001d0aa229eef3de8d1"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue",
+      "gitBlob": "472964c523cb9556734fb5456d6d3ed7de21d86c",
+      "bytes": 20625,
+      "sha256": "aa8209b3b1a68d74b824ef31278cf6eb9241e058b938332140efd8cd629e70fe"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/FavoriteEntityGrid.vue",
+      "gitBlob": "962507684cd3174cf9b018b4789a964f85446e78",
+      "bytes": 7111,
+      "sha256": "3dafd0e84d2fed6062cae16c683cabb32384011994582fa2120ed6c1de669fc2"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/HomeView.vue",
+      "gitBlob": "8695e49452100990ab565a1a7960b9232daababb",
+      "bytes": 7133,
+      "sha256": "51f115921d7cad51ac1e327db27ff36d9fea2ec26d8c6fdb8753b85b459cafb2"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/LibraryRefreshNotice.vue",
+      "gitBlob": "ba6b0029994413ae6ab73d81f6d5045bf2dd484a",
+      "bytes": 487,
+      "sha256": "7f5e8aacbd72f1ba1f899d6e94b321ef4bf1e109fa9b95031ac13f36ce7ccfe5"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/LocalLyricsMatchDrawer.vue",
+      "gitBlob": "378cd5b8dbbc2a5f92302939c707a22b3cf6f505",
+      "bytes": 7289,
+      "sha256": "216780bfe7f6631bc0f94960cb77fed5ffc12ddfa3ae9d2f6940cb4c1750453b"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/LyricsLines.vue",
+      "gitBlob": "bad990a79b15e48402ccdeecd60dc97b6b98cfea",
+      "bytes": 8461,
+      "sha256": "794feacd9e0fcda62d29c81c194e5367a23ffdf5e29d6a71955ec7e617b3cb44"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/LyricsPanel.vue",
+      "gitBlob": "ddd64d810df42b3a07c6c5a7f6264d5b4bb44027",
+      "bytes": 2563,
+      "sha256": "a88976738a46e8a6ca1c42d5b53efebd147961bee79e937cf4ae70cb318daeaf"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/NeteasePlaylistGrid.vue",
+      "gitBlob": "df06314c4b49fb4c21aaebd95782aca3fc611239",
+      "bytes": 1445,
+      "sha256": "dfcf8b215a637c167c0c47656a18d4c0c200c6f0b7bffaf7642bc4e89964058b"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/NowPlayingView.vue",
+      "gitBlob": "c1cf3f258680e7e77e29ed589aedbb92286b2a68",
+      "bytes": 12800,
+      "sha256": "2dae25dfb4a3c097809bb9cb36826b4f5b0da035faa7bdb637fe1543ceb906a6"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/RoonAlbumDetail.vue",
+      "gitBlob": "75ed3eb823f5b5ce3e10b036c366d78f17896322",
+      "bytes": 5153,
+      "sha256": "4ca13ace88e9493bd5427177898339171a7cd2fcd38f4ae91f46c2d782216cfe"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/RoonAlbumGrid.vue",
+      "gitBlob": "b73671e97b810a698acc4deb54a65d042c05c9f6",
+      "bytes": 5630,
+      "sha256": "e289512120981a8d9234c57d7bafd3d7d26423c565d2bf4bfe9e9ccf0178a588"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/RoonArtwork.vue",
+      "gitBlob": "430155aa6b5c337af3459b2ac1727675522143c7",
+      "bytes": 6600,
+      "sha256": "a766d74b398bf6da26cf89f108c96a327258a399ca1c486e7148013c029ee072"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/RoonBrowseDetail.vue",
+      "gitBlob": "d03e2ce8839d6e6e2a233ab3981c54c7eafa34c5",
+      "bytes": 5646,
+      "sha256": "8f8d000752100fb66288f9340b6a826848a0628bd6b4c4fe7de52213827ecace"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/RoonEntityGrid.vue",
+      "gitBlob": "eb834ece086cab9fb03206f55cb3492ea5ae8f74",
+      "bytes": 4166,
+      "sha256": "d72b6ac7cc1f7a7a3736b90847fc171eb05a5edb620049ab1418d8944e96af0b"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/SafeArtwork.vue",
+      "gitBlob": "034be31337cd5de7da1766a2761409b143960600",
+      "bytes": 928,
+      "sha256": "52cd015d3343886af507fa47b937f293fa0e8cf09d23cf4469d17fa47e6b2779"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/SearchEntities.vue",
+      "gitBlob": "ed1f8fb2b59be176b045dcd5e0830262e206c453",
+      "bytes": 11960,
+      "sha256": "d2498087cb75d9a19d5cee073dc8481404d7f5804a084577d493d5ea7242bce7"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/SearchTrackPreview.vue",
+      "gitBlob": "7db0462e30bb9969bf9a86a15a5d6b3a8c607114",
+      "bytes": 3049,
+      "sha256": "9cdfba04666e109f204120d225cc1a4d0b181e5c93d4a4df7289cd173e1137ad"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/ToolbarStatusPopover.vue",
+      "gitBlob": "cbf894392ead72207bcd250f96cf07392be954f0",
+      "bytes": 3058,
+      "sha256": "4f0ba2f4cf0a867345a6690f933b3357d38ba977aaae315db8045869370c45b8"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/TrackArtwork.vue",
+      "gitBlob": "023808abbccbfc2d2dcc641103489af3b4cffd49",
+      "bytes": 938,
+      "sha256": "62f7ef99b301bb91924701e50e0fb5bb28aa53645466c690e0c1f99e0f299de3"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CollectionModelDetail.vue",
+      "gitBlob": "872051ab6dfdf7fa82f49d33ec151ae35f6e7b52",
+      "bytes": 24737,
+      "sha256": "87128a1350b6cc436deda254d4c7ba5e610e93dd009af34915e85e31e3610323"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CollectionPhoto.vue",
+      "gitBlob": "ef14f008ab8cd297c07e5c7329e0a51452778517",
+      "bytes": 4626,
+      "sha256": "f74dfca3aad36549978fc187628445aba6a75ccef43e016f9298d9247962d024"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CollectionPhotos.vue",
+      "gitBlob": "c5f41094fcdeee0a39b4819b1a4e802bf1895014",
+      "bytes": 5171,
+      "sha256": "ae7a8a0fe3d16ac4fe51ce446c2964e962430988cd4064bb5db6b1ba7f5efafe"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CollectionProgressPanel.vue",
+      "gitBlob": "642d0c507aa4241bdfe68029d77108b391c9164f",
+      "bytes": 27967,
+      "sha256": "f68822923aee4ecfe5de8358467aee60c022ddc0e29289ea9f3a60c5236e32ae"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CollectionReceiveDialog.vue",
+      "gitBlob": "69d50b16d372731117910a20c407f36c0f4936c2",
+      "bytes": 7221,
+      "sha256": "e438de02317ec0f7e57e6cf68503d3020bcfac4b5af281c988217415f00a314f"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CollectionReferenceImage.vue",
+      "gitBlob": "f3ed618c5c74029084b70febc7f964b6869712fa",
+      "bytes": 1063,
+      "sha256": "475632f311198406ee339f4762a93ae8cd71ac2b13b93dad382c43e082082190"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CollectionView.vue",
+      "gitBlob": "21dc85c9c086177586724b3719f7130eefbe950c",
+      "bytes": 35571,
+      "sha256": "dd43537083e98e32d42a23d10c8d15802bb2770f8f05058bf9415cb915a497d3"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CommercialCopiesPanel.vue",
+      "gitBlob": "1cb8f5b035d107bc6bffad20e3cd025f227f83fc",
+      "bytes": 11870,
+      "sha256": "16c49ec534fc86c7ceef23afde9175be25cb0c853400d41f7dda58abb41bf40d"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/PhysicalMusicEditor.vue",
+      "gitBlob": "949c209c5e76cc54c14a1a650f2a58d6c52a15dd",
+      "bytes": 10164,
+      "sha256": "8cef83f61059c23e4ab202a87d3aecf93c150f5ec6f187e7fe465cccf3d5246b"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/PhysicalMusicView.vue",
+      "gitBlob": "38f3a55bf2ad2845a5f6c1ba8b087bf37658ffb0",
+      "bytes": 25883,
+      "sha256": "7851715e6add5a57626ddd91a9a4e15caac1962e6aaabdbe998d7e5e12da969d"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/PhysicalRelations.vue",
+      "gitBlob": "0486f27360bc137f4cc6a3a21ad3aa9ca09a28b5",
+      "bytes": 24132,
+      "sha256": "7e5248396e0a9f79a52d6e2b1f72752bcd8d18b4e7004c6bd43e35ed695dc228"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/ReferenceCatalogPanel.vue",
+      "gitBlob": "122bd384dac1ea4fb9fd6bbe4c575881eb3194e0",
+      "bytes": 36844,
+      "sha256": "b57eeb20b1b50166cdfb2b0129133cd0fb2f264512ed1fdc111e3183031add6e"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/RoonAlbumPicker.vue",
+      "gitBlob": "4150f18240f24a44ca2544cf8cb6e49c78d6e0a7",
+      "bytes": 9401,
+      "sha256": "5a3002499ce84a662967a0e4191833151df413e0539f9bfc795c1c1b988d6e25"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/SpreadsheetImportPanel.vue",
+      "gitBlob": "6f1f281c6afd0cad6bcc5a5a13577a89b97bb0f2",
+      "bytes": 37004,
+      "sha256": "98e5abef93dfa3cdf3068aeb10378e968468cbad02009876906a39f3a453dd74"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/collection-display.ts",
+      "gitBlob": "2b689130f63276315e93cdf4f2e4dfb30b4e391b",
+      "bytes": 718,
+      "sha256": "c4535d243a7cfff3997502edc160b38379c57d4ec59b67b63b713c118e0bee94"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/collection-progress-controller.ts",
+      "gitBlob": "868a42e74f5eaa39a2e70a5ac704e9a4a48a54d2",
+      "bytes": 14558,
+      "sha256": "d90b41ce53f06c6a4db28328e32d3073c6025ef7c1313b56340609cd50e0a445"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/collection-recording-navigation.ts",
+      "gitBlob": "d9fa6d01846f7b5ab1bdc2629f1a2847ac9dbea7",
+      "bytes": 915,
+      "sha256": "6558bd2841c09c1feb694ad21b55ce63dc09d61b9b59c485a51c89f1e4fa6b86"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/physical-link-history-fence.ts",
+      "gitBlob": "fe8786fe4d0772883055082bde87980b276ea9d7",
+      "bytes": 582,
+      "sha256": "89ff6746dd77e0b4e06349b0e7b7770cdb770babe89500b4da2fdd6fc58b4733"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/physical-relation-request-fence.ts",
+      "gitBlob": "bb860d0be3123c66c822efe3f4d214cb2e0fdbe5",
+      "bytes": 1112,
+      "sha256": "e8f45e8cd3dd5e7037011e6d7cbae602ecd8dd3c321214a938077e25b742750c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/reference-catalog-controller.ts",
+      "gitBlob": "fe711aaca4b37cde5ae5ecf71bfc858fc20b8c18",
+      "bytes": 16951,
+      "sha256": "b62a003ad0e1eb7b48a9fdcc71aff36739bd7a78fcff5ba3509f4488b2194049"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/reference-images.ts",
+      "gitBlob": "873e1eeec0a5c3228ff14679543088ba4349459c",
+      "bytes": 2143,
+      "sha256": "d06e436a2c4d0866abf2d72ea51dc53fff8ffe2373b5ce5648ae54bb730fecc8"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/spreadsheet-import-controller.ts",
+      "gitBlob": "6ff245aee8e6ffd1b2118161ba94f9879dcd2f4f",
+      "bytes": 15050,
+      "sha256": "ed2973fedd6325911fb31dd5e596d3a498ddb2cc474ec251c46a91be9be933b3"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/command-outbox/controller.ts",
+      "gitBlob": "3a0693f3252a50db291bd310651f2b0c02b7dc26",
+      "bytes": 7507,
+      "sha256": "8233613c975e85765ef0a45b9da40a31bb937c28f86fa7d483146f10ca02778a"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/home/DailyRecommendationsSection.vue",
+      "gitBlob": "9f1b0db368adb52d22c742a93f4c6413e8f6722a",
+      "bytes": 3973,
+      "sha256": "800b8ccf55c52045c30a736944b059fe96ae98e9e40df1f3bfb5acd475294204"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/inspector/PlaybackInspector.vue",
+      "gitBlob": "7ed4e07da910594d1d935fa7d5a65f6f97de4001",
+      "bytes": 7292,
+      "sha256": "3ba08b5185e4c576503433d26db2de90a02ebc6b64d7eebee1bbf62914e290ce"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/legacy/LocalLegacyLinksPanel.vue",
+      "gitBlob": "8fcfbc1101a297df650000b6c669a95fe59d1e28",
+      "bytes": 13467,
+      "sha256": "b9f33cf505426616166903f7af5c394fb0415b409af1277ae6c570689ba6f77e"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalArtworkDialog.vue",
+      "gitBlob": "a66ec35b0416f20a4751828e15b3e854cfef0070",
+      "bytes": 23694,
+      "sha256": "563c76318dc20c565841c9eb483b7bd55be4bb4d90198dffdb71b99558434e8a"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+      "gitBlob": "cf706c38270bc43b74cdc5c2afe3fa3100983791",
+      "bytes": 26255,
+      "sha256": "141f95025d3d9a9529515ec966260fb7edf2cfa31e9f4b5203714b4aa8d7a21d"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalOrganizerDialog.vue",
+      "gitBlob": "d01aa768f3e3a04415af934a78686061bfc33669",
+      "bytes": 20527,
+      "sha256": "423df35ece4df3fd8bf16ecfd5abca8d52c243b70826c9cc78358d4f673ce6f9"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalRelocationDialog.vue",
+      "gitBlob": "1431dee33e4d8ba97155776f22dbe931103a91a1",
+      "bytes": 17510,
+      "sha256": "c809a7aba3c818b5ea0d0c2cee343dc23d2e76d81fd8f687e2c8c7224a9e6f6c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalSourceWritesDialog.vue",
+      "gitBlob": "491dc9284b10cdb891bbed5afbe9f72afae08534",
+      "bytes": 15851,
+      "sha256": "2f2f46f204479cdfdf08d17c8ed9a691f0824bf96a9e565ee6c6293d0c854a71"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+      "gitBlob": "35646c94d8019339cc2debb7e08f5fbb76263cbd",
+      "bytes": 14058,
+      "sha256": "6eaa180c2ca488e2c38135cbb066e95794a0dafd39352a18e90748497828d26c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/navigation.ts",
+      "gitBlob": "bc1610377e0237701e88e5dad0743e7873e199c0",
+      "bytes": 997,
+      "sha256": "a86db9d86b15c33e9cfe43982f4f14c65fc802ec462572545c340aa8a7fa5a85"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/player/PlayerProgress.vue",
+      "gitBlob": "a84b4f65b0a8ee40f2524bb9591f694104d09679",
+      "bytes": 2534,
+      "sha256": "23cdbe3fa521dbffa11e86f4d8329e71b4d793d4398172c07395341d9691f368"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/player/QualityControl.vue",
+      "gitBlob": "19715ae5c22318c7f487b8870a47cf56d620b223",
+      "bytes": 2089,
+      "sha256": "2d2f699c8fe680bce054a473cff6818490020766fabd1f90c9b0fac50c94e568"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/player/QualityPopover.vue",
+      "gitBlob": "a748f164da6616d82484505b47e8758f5b357dbd",
+      "bytes": 2633,
+      "sha256": "2c5b6babec7b2835ca0fa53d28982467b67389bc2a0b1f8751485d0d3ed62d3f"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/player/VolumeControl.vue",
+      "gitBlob": "ccb58eb1c0de24fb57ea5fb6980bc74048d4d430",
+      "bytes": 5175,
+      "sha256": "3a4ae55f842b0f90383d5e2cab9fc3c5d8e6ae21a6747c2957d806a3ff8caacf"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/player/ZoneControl.vue",
+      "gitBlob": "dde263d3c200728b51393f711655741a178f1044",
+      "bytes": 1430,
+      "sha256": "46b789acb2c735b25d4c901446cf5c2be1af7e11b9bc1a3e110f23d5abbccbbd"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/player/details.ts",
+      "gitBlob": "e70f59f375eb9ff84d92871caeb36a658c00a1ae",
+      "bytes": 7638,
+      "sha256": "cf36a3c7737c8047f667763468b4058f475a54a9d9241c0a6601fcd2c053f5f1"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/player/liveVolume.ts",
+      "gitBlob": "920718715c6430f601abdbfca9affac2af65729a",
+      "bytes": 2205,
+      "sha256": "5d884d4555920779e6743305ed6a97bf2bfa58542dc0f043be5cae3b0a6e1387"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/player/playbackClock.ts",
+      "gitBlob": "273e18904c1cd7cfd0155836d78537edbc152224",
+      "bytes": 1758,
+      "sha256": "382520e199ec9e9187f28512b60bd87f9f975e92b59f358d727b03f5d27b12e8"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/ArchivePanel.vue",
+      "gitBlob": "4d771c4d8548f4b5d5aaf2dcbcf7b4f350bdde0d",
+      "bytes": 16909,
+      "sha256": "bf1d2819fcd20e4f92859ebdd6c235ba0e86806f6a414ff2bdd73afc149ceb48"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/BackupRestorePanel.vue",
+      "gitBlob": "b956afa2b0e7cfecca26a8486be10f3ebbafd0bf",
+      "bytes": 22830,
+      "sha256": "4f6c3cfa2e517941c02c66227523721c7a6cfbbb53465c2322f7cea2484c2328"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/DatCueReminders.vue",
+      "gitBlob": "6ce2f8a874e77ffc4dc93c730225d9cc40c7dd8d",
+      "bytes": 3133,
+      "sha256": "f121a18b9b34415ac59c53d9d5bdf220e7641938143cefc379106a2326ccfda4"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/ExecutionPanel.vue",
+      "gitBlob": "1e1504ac1feac5d29f398080ed62ec4e4cd3242e",
+      "bytes": 30664,
+      "sha256": "a765d6768c360af9f22684b2f2937e251742f5c4062f4f2222ddaac74380011f"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/MasterArtworkPanel.vue",
+      "gitBlob": "6735d7ddb74e1424bf619a1d76d51901c2eb83c0",
+      "bytes": 6195,
+      "sha256": "3e6ee52f34bc8ed75c386b1bd65d7949ec310e5a43b6793c37928b63108436a1"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/MasterSourcePicker.vue",
+      "gitBlob": "9873b87c4bc37f145aa4ad5c3ad085ae4ac2f50f",
+      "bytes": 14306,
+      "sha256": "fc646469748cd7443dfd68b6f3e794132ea22a54328cf2a0d155cd8ddf486d32"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/MasterVersionsPanel.vue",
+      "gitBlob": "30a7908203b66471159cca3a13cf5feedc451d8a",
+      "bytes": 16150,
+      "sha256": "8272c80a221b565f73dbaf96f53a472f2bc169e181b6c2edbfe13f50edefc4e1"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/MediaPlanningPanel.vue",
+      "gitBlob": "4ada213f5fde7cfb9972be82aec024cd2169dbc7",
+      "bytes": 44255,
+      "sha256": "e7fb9b21139968fad1259601417e23798c394870d2881cb883e9edbd8f8fe14a"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/PreparationPanel.vue",
+      "gitBlob": "ee9abff7f7d24a2afc8cdd8bb8d246aa083804ac",
+      "bytes": 17429,
+      "sha256": "3b7d2278158adccb24562a1008559468d3a6e49077f4e16181ecf7e4a044957f"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/PreparationZipPanel.vue",
+      "gitBlob": "616a74e05b81498ccb678ce74e869c28d7245f5d",
+      "bytes": 19988,
+      "sha256": "aefe9537f8492be4f3bf3b48bb24468782f79279fb8dd24ba7ea50b66e84805c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/PreparedPanel.vue",
+      "gitBlob": "0fb364ba841bd234e46dabee4afc15b2eb837c89",
+      "bytes": 31310,
+      "sha256": "dc9ae707eef0f044982ec2e580e096be0b292c9c0d26a5f08abd9c135f833756"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/RecordingAttemptPanel.vue",
+      "gitBlob": "8520e13baa87e48f3342b5e3d1e84189d45b5fa4",
+      "bytes": 17977,
+      "sha256": "2428924a6a120bf765bceb8d61e0c6be1795e58885f36f0d7430a2bf2e7028fd"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/RecordingChainEditor.vue",
+      "gitBlob": "6538479f777192368d7556fd48044de511f50d03",
+      "bytes": 3377,
+      "sha256": "fff4fd223c95abef86ec503a92e5b9ad16cadd9abff97eefc579dceb098a662a"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/RecordingNextStep.vue",
+      "gitBlob": "fa16f5de95f5699e84d0c5964019ef9429ae3466",
+      "bytes": 8059,
+      "sha256": "d3e8324fb955a22743f064739e04c7a167330696f002e34dbb19f0cc4fad1b5d"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/RecordingOutputPanel.vue",
+      "gitBlob": "baa08f0e3d7733dbb2c058c5a838b555598abc6b",
+      "bytes": 7954,
+      "sha256": "4ed08dbea0f6f26831596555e90162d08a4f614325532f6e690eabc5a30d3332"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/RecordingPlanPanel.vue",
+      "gitBlob": "5d91330efc549d817451840f468515af1fab7529",
+      "bytes": 20834,
+      "sha256": "5b74480fdd6bf537c49f47306c6099e1fb4e861943563401e935f0d26760b563"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/RecordingPrintPanel.vue",
+      "gitBlob": "e307663b283a23b36502d816018648eec263c2bc",
+      "bytes": 14862,
+      "sha256": "5232106cf49bea0904fa78d3d519f17cd74f0c54fda26138f9efde2c758405cb"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/RecordingProfileSettings.vue",
+      "gitBlob": "a7f71d770ff5b4bddc4d48d00c03addeb3e05d03",
+      "bytes": 20747,
+      "sha256": "4cfe3c75cad9361bec20197781181c1034c4c4eef4d60a5a2a47eab49b7b3508"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/RecordingRecordDetail.vue",
+      "gitBlob": "b96faa45edda26aa5f53f5b98ba0006fb2e48847",
+      "bytes": 7833,
+      "sha256": "3f40193f9c5355c33f410c5c876fcc413ed27dd446422f147f9620c57c9da1ca"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/RecordingRecordDisposition.vue",
+      "gitBlob": "8bc3b9bfec4bda9fb1cb611df0d4831d97d7730f",
+      "bytes": 7187,
+      "sha256": "090e8aea6295cce291158c1b275fa518cce5ab689741f6e30b036506f3706727"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/RecordingRecordsPanel.vue",
+      "gitBlob": "c1684033eee45d143439f1f0ca512398be65ad4d",
+      "bytes": 17228,
+      "sha256": "bea4b9e7e63552716b86cdc6598f297c2f418a48d6b8b65612c584920af1b01e"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/RecordingReplicaPanel.vue",
+      "gitBlob": "13853691131403906fcf7c9113196fc4017c5055",
+      "bytes": 14411,
+      "sha256": "33fd83c54293b975dbcf7d6f06c1be945cd00f479999ea6b29370b06c5ef62ee"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/RecordingView.vue",
+      "gitBlob": "a6d2a8aa7433e8c2fca0e9c19094caac15a74786",
+      "bytes": 77314,
+      "sha256": "b5b6a9cf0b602fb4469bad5eb165b4f05b07b1d1715e8fed7fd57f6bc4765482"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/SourceEvidencePanel.vue",
+      "gitBlob": "b0b815f18a0b2b11bbe957849de3369f299b18d2",
+      "bytes": 21365,
+      "sha256": "39ad1fc99ae86ce5ac46987c6ccdf7eafaef2595e919145b67416b5793a69ce8"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/SourcePickerRelations.vue",
+      "gitBlob": "b2c5e79bdb623727eebb9c8f4db7f6582906bc69",
+      "bytes": 6279,
+      "sha256": "71ddd7238bce7d7d584a07820d393c59d1bfb8a54fa3e38943490727c978c63e"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/VersionTimeline.vue",
+      "gitBlob": "12de87bf5ab19446eb97f01feebf01c34a5dbd38",
+      "bytes": 2266,
+      "sha256": "2e4a1c25ae127044b99530c0ae8e816f78f73d43c968b45cdc93605c5b8fb075"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/dat-cue-reminders.ts",
+      "gitBlob": "8f3ee557676e4de8816f2573112126c5be1e5d2a",
+      "bytes": 7030,
+      "sha256": "3229b22bba7a66d75fe63acfae6e492c66f39563b30b63d57438eea864b355b9"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/master-artwork-controller.ts",
+      "gitBlob": "19d85767f7ee25624ee76326c9380ff3af482dc0",
+      "bytes": 6120,
+      "sha256": "31c6b36c89e766bf6217d511a715e4dbcf03171ac82466888cc0ba36e96f15ef"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/media-distribution-editor.ts",
+      "gitBlob": "aefc5a15ea332551e3c382b51db0f46d4c41f4ee",
+      "bytes": 1391,
+      "sha256": "4468f3838f4ee217a8982949d6483ec6b9c84433657c5b9966c5fa553b53443c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/preparation-zip-recovery.ts",
+      "gitBlob": "99574a4d117646809e104f7acb648dca20f679b6",
+      "bytes": 3398,
+      "sha256": "47c6f43b7b37978f40d5123157d711b1d599cecefd6b7ea34bb072cf8b26b600"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/recording-attempt-controller.ts",
+      "gitBlob": "5e00f20d2fcafc8501da1096b1a8dd546c8be68a",
+      "bytes": 29485,
+      "sha256": "01f5172d4d0b4457e8014f66c305dd72dfbf54837d40af564ebfe5db327ed7d5"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/recording-next-step.ts",
+      "gitBlob": "9edea177a3ec17c2bd821afdcd09cac60afa73ce",
+      "bytes": 15648,
+      "sha256": "37b71584744df492a3654b3db3cb1e465e896171ab7a04b2a7f9c2aa3ca7a582"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/recording-output-controller.ts",
+      "gitBlob": "e1fe9a8128b067b4f4e19e32ad9edfe6e6621a39",
+      "bytes": 6281,
+      "sha256": "34190eda2f8573038f3f944dd545c8e0de1a5071007170fdc98e5de2fafe8444"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/recording-plan-controller.ts",
+      "gitBlob": "eae0e4c52f1a82d4ba36e6fb7e4c99ef9045837d",
+      "bytes": 13385,
+      "sha256": "45aade07479b608a4d037acebd61fdac00b3ccfc77b88b2c97ab03091648ae92"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/recording-print-controller.ts",
+      "gitBlob": "3c2f919c5d05a99dd4cc6333fbe317ee6fbe425b",
+      "bytes": 13427,
+      "sha256": "dc5651af978a1b622bb0b81ba2e6bc45b910e65fc95ca5fd17b25e458c8aeee0"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/recording-record-controller.ts",
+      "gitBlob": "7dc4db7f60991d2e07ae0a91fe7955658a1c4160",
+      "bytes": 15257,
+      "sha256": "7e5403268cd0f37eb6bdeddcd906c508f82b20ab777fb23f6b76a9149a50ad10"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/recording-replica-controller.ts",
+      "gitBlob": "e207233a221deb11f56eb6f3fb1b617fa4a33531",
+      "bytes": 15915,
+      "sha256": "7ca63d59569197bb641709d2307290d59beb842f24d6c383fe2953fc419cbc82"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/recording-workbench-order.ts",
+      "gitBlob": "82331da3f44b33e7a5ac000e1fd4595bea791eff",
+      "bytes": 4351,
+      "sha256": "459ee12f47e6067ece0f64a3557836999af2a46679fbb9e66e9c9f93d1635e2c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/recording-workbench-projection.ts",
+      "gitBlob": "33e6e8233a71695a0275994ce8b83f94ce1c7b56",
+      "bytes": 1356,
+      "sha256": "35646e71ff9ac2b4e31c2f4dbd07de145ffbf864d3ae0a278de32a5699d0c5c8"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/recording-workflow-controller.ts",
+      "gitBlob": "0ef8eaec0e57843fb63f0be6f01b030212013125",
+      "bytes": 5674,
+      "sha256": "a0a20c166330ee82e5db6dbff25b1c05cfd169e154edee0a8c89ef0219a4eb76"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/recording-workspace-controller.ts",
+      "gitBlob": "32654889eeea49cf41cdb6a2540171ecb0746993",
+      "bytes": 7795,
+      "sha256": "f2e29a4e8b1c551f51fecc0ee77a3c7fb6803d5eac0ee909ed75cbb5d5a0c22f"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/recording/source-picker-controller.ts",
+      "gitBlob": "023a0d2b65051d4cfaaedfd3a7778bce07889678",
+      "bytes": 14712,
+      "sha256": "9acaa0d4c519d0c1823df12db24896817099c47a436dcfdef8cbc552f1a89884"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/AppearanceSettings.vue",
+      "gitBlob": "cdfb7da29d4a991437fd5a958a4eea0f00524d26",
+      "bytes": 1426,
+      "sha256": "d0aca9e4e4051744229c4cde040d1220e3539b4684284ea14ac4eea841515dd1"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/CollectionReadonlySettings.vue",
+      "gitBlob": "e6d4187fb4f3363446645cf428c7b2127ec119ff",
+      "bytes": 1996,
+      "sha256": "0cfebb95d7084dafc37c6c8c895cde98f919143907021c7e5e6567c30c4093e4"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+      "gitBlob": "6cdf602f6778a72abeeaa9107ec11a9d62c4498a",
+      "bytes": 11830,
+      "sha256": "c951cf6de5060ff42ac8b94d1104155cdb7791c137cc68f0cbf9f4c5e0cf9c88"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/LocalSourceWritesSettings.vue",
+      "gitBlob": "b4f863f0d1099b127fdcba68e249c75f514f4857",
+      "bytes": 1676,
+      "sha256": "0a312bd0f78849420bf3ce48e3463eadd323d5d8960cdb7ee2fab7b83fe2ad59"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/MobileConnectionSettings.vue",
+      "gitBlob": "fc9b356d36a81a060ea1250c862625e0261f5d7f",
+      "bytes": 6984,
+      "sha256": "bc54f949e2aac2a3fe2889c79cfe5195db87fbd7b29198f21fbe50aeb1ca9d48"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/RoonDisplaySettings.vue",
+      "gitBlob": "23a8c01d63498c06b790b2ef44d3b8b7d6452635",
+      "bytes": 4193,
+      "sha256": "1fc5b64c4f5e1c85885de54516f14ad7cad0eaf2fb3fbdcf94276f7422e51031"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/SettingsView.vue",
+      "gitBlob": "864353f1544ded6e2fb32d79d6030a10770aad87",
+      "bytes": 14392,
+      "sha256": "d077523d2fa9664514e56811e7892faa6cd3a954d7614aa87fb372a71460573c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/collection-readonly-preference.ts",
+      "gitBlob": "36511b0eb1ce2f8ef83c86d12625727af6e168a6",
+      "bytes": 2817,
+      "sha256": "0a2422728fde80e3d7713b7bf66194e1a0e4c930ae93a6aae8a369515a2cb4f4"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+      "gitBlob": "bfca055b9ce45b8d4d6c49d758f1da392bf94199",
+      "bytes": 7003,
+      "sha256": "374590db1dc8d8b6e7e1fde6e21dcc7999e61b543591187f8f976d9ca4486477"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/sidebar/SidebarHeader.vue",
+      "gitBlob": "e4c8cdeb4d50e09b06c1b2d5a257cad90ae6af23",
+      "bytes": 976,
+      "sha256": "8a38c508d9563130ca8d63f5e3f371ee7b46d3f5c9bebb85f976127115490431"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/sidebar/SidebarIcon.vue",
+      "gitBlob": "9130c337cdc2fc91a51d96959b78f58cf5d43229",
+      "bytes": 1184,
+      "sha256": "225b597dc7665a9f52d2cb55d291d299b8b63632b91bbba8eb878651961d8412"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/sidebar/SidebarNavRow.vue",
+      "gitBlob": "60bff9cd0c2506dc118bc6de0850ae10f39b08a8",
+      "bytes": 814,
+      "sha256": "3174337b9588c61894993023fdf0ff4dab475a74f150f05f2a729a86fde45f21"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/sidebar/SidebarPlaylistList.vue",
+      "gitBlob": "0cacef4b07fa635d98c6d5a9217f2e5e65d3d5de",
+      "bytes": 4639,
+      "sha256": "a7a96bb4df92f22f1e53703c34a47d6529b5805df1db44ad376cc425f9da954b"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/sidebar/SidebarPlaylistRow.vue",
+      "gitBlob": "a5d3e793bcaacc7f142d8f8aef45c94e6994798f",
+      "bytes": 1046,
+      "sha256": "6329abe67d0e342296c404030ba07bd8d65b3a2c966ee2907a6be406ead9391b"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/sidebar/SidebarSearch.vue",
+      "gitBlob": "b7fc179fd98f484b010e07c345117be919353e42",
+      "bytes": 2181,
+      "sha256": "7d4e0d862a3eded514dd8b95f504b3e586c01654079d92697e5e348b4c3f91d3"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/sidebar/SidebarSection.vue",
+      "gitBlob": "92e8aa5a4ad2bc30a6222b1c811f4c147e327d90",
+      "bytes": 294,
+      "sha256": "4e5c50b070c0039b27fac2dbfa946fbfff445ace4821593e40285009fe25f7b5"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/sidebar/SidebarSettingsFooter.vue",
+      "gitBlob": "39a2df2f3aded6798787795b00c9e66640137330",
+      "bytes": 750,
+      "sha256": "212bcfff949d329f8302c34d99940b5465f0ddbc124f9d46ea282b67dc7c9f09"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/sidebar/ZonePopover.vue",
+      "gitBlob": "7b78e871797ef8929bdc3a5728c8539bf45bda88",
+      "bytes": 1805,
+      "sha256": "8c974c53263560c53fab31917d00dae3d3b8fcbe83e6ef0be67f8d1a1b9ec296"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/views/DailyRecommendationsView.vue",
+      "gitBlob": "471023f9b376add3564c74043210185ccc906ffb",
+      "bytes": 1762,
+      "sha256": "2b9bfde7c365cb30e0f97c9c59ce10cc3de22e0e23543f5188be7e52a9f355d6"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/ambientArtwork.ts",
+      "gitBlob": "bbb6001a88c4db3f2696a7a5ce2869312b1a6a13",
+      "bytes": 6151,
+      "sha256": "facf547dee33786c043b13693f3ef12ed740b43be7f70f0ca3f7ec6a29adcd17"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/playbackSnapshot.ts",
+      "gitBlob": "3a7cad0cc88fb6dd6c3068cd91f9c3403c2fb944",
+      "bytes": 5446,
+      "sha256": "adf155d7c91f0d010c09c90c28d6cb9ade13cf71c26d3ae7cbfdbfd0362f3f85"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/playbackStreamReducer.ts",
+      "gitBlob": "51118f645dc1bc71a602040e0917b795e8661e1e",
+      "bytes": 7462,
+      "sha256": "eb47ed9c2725764509a41623285dc594c88b2b75bba5a107e8561cf3b7489984"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useAggregatedSearch.ts",
+      "gitBlob": "94fc96e5893993ee0fcd29d4ef0a78c4e679889e",
+      "bytes": 33169,
+      "sha256": "bcaaf7284f62f8a55a51f0fcbffc29ae12137d3433c96d92ca0bc401f12b4685"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalArtwork.ts",
+      "gitBlob": "2482de122ef4fd5e754249e8ab60de0855e8b676",
+      "bytes": 26044,
+      "sha256": "d2bc4140b51ff71cfa796a83c7ed0973fb4ce8b006c85ac41da4d8e7c16e6b0d"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalLegacyLinks.ts",
+      "gitBlob": "9d199d6e8874580ebd8ec46d09a37f6b44d31e59",
+      "bytes": 22975,
+      "sha256": "38f6f0bbb954c6f57ba1e01d526729e5819920fe121c007f956439bc1ca182da"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+      "gitBlob": "c7461716c60c62abd51caab190a2973005903dcc",
+      "bytes": 33128,
+      "sha256": "c0a2de7552d67f80cae705e905ef30d0a3dda64c7759f249291cd251a108522c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalOrganizer.ts",
+      "gitBlob": "69d11a772a079bf51bc60df67239b54d906850d9",
+      "bytes": 25955,
+      "sha256": "23a37f6dde7a5c355e289e4d07939bb832b8c31b3850a878119a574580facc12"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalRelocationPlans.ts",
+      "gitBlob": "8b5d426da38c6c262b4981fa5b64d0c6bcc1b80f",
+      "bytes": 34473,
+      "sha256": "3f638d3eb9c1a73cb167cce9859798ab21d719110c465cb61ee3f354dff39410"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalSourceWrites.ts",
+      "gitBlob": "7410e7ae75f04e8f08ae968b1c6fdac98806e940",
+      "bytes": 25734,
+      "sha256": "c97235268343ebf7956a976509643809fb40aa53513ff967f1563d2c60c54a99"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useNeteaseLibrary.ts",
+      "gitBlob": "9cffc413f197fc4b06bb9f4f7abbba0e93ba55d4",
+      "bytes": 30745,
+      "sha256": "ae35fe2b6e86a919830c1ccbb08eb97eb50a3834964fd21a6166ee37e8d1b272"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+      "gitBlob": "69456eadc7ca58b6a3a560edf299e28b60c4ce51",
+      "bytes": 22367,
+      "sha256": "49f593d1266d49484b3391372713e301cd550b517d5bef9ef82d391e6df0cb20"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "gitBlob": "cbc68f26082b1f57a290cc1b179931c0d9a9bbc1",
+      "bytes": 50341,
+      "sha256": "6d21b5cafb7cab42b1e2e24415182dc81dee6ab3450665ed4f9143a405f0328b"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useRendererLifecycle.ts",
+      "gitBlob": "c2e48284c33d3fd518fe0338615ec558a6ab8a62",
+      "bytes": 2355,
+      "sha256": "21f2b12f3dfacf9f96913e0fcf7f2632091dbed13196ab7f82b1bcf3e64563b8"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useRoonBrowse.ts",
+      "gitBlob": "a70252ec98a02aa1e6696013f9d9462778c86c91",
+      "bytes": 47159,
+      "sha256": "95a37d4067ee2b843e7baca62ca7d15201cfcb752fc7ddea443a8035aca082d3"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/artistVisibility.ts",
+      "gitBlob": "6cf139361e07a7b42b8dd7c40eb4f52089f6fc62",
+      "bytes": 533,
+      "sha256": "25217600a0800357303d4bc627a80a41b2968e4a36951c9bbc2eb192c0e77115"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/collectionQueue.ts",
+      "gitBlob": "dc8c0b622e3ee18e57b7b18b9bdaf5b753ecb4c9",
+      "bytes": 3509,
+      "sha256": "6ede5424f6edb9356c13a9c452435cc7dca7ecf981480efea73564a9a0ad4086"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/favoriteResolution.ts",
+      "gitBlob": "58105f9c112d66c481280fd850103741a7676707",
+      "bytes": 5856,
+      "sha256": "5d213062e8670a0d0e91522babf045a2e901b41a80290af66453e805ee1c57da"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/gridCardProbe.ts",
+      "gitBlob": "dafb8358e3598a9fbeb2a8ee3ffa2e2d3ad9b634",
+      "bytes": 1409,
+      "sha256": "ab5fa88966027f6f573adc8d7d11ea45e80a84465a2379bf67a24933cc1af467"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/gridWindow.ts",
+      "gitBlob": "5191c6378e359152020e9b4702a78f338975c827",
+      "bytes": 1936,
+      "sha256": "75fbf743f2ad1871ac9837ca45a92955a6b8e2d8bd44df0d938646db982daf8a"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/homeRecommendations.ts",
+      "gitBlob": "8315ffcac2db912df8dcaaee0c5abf7b25a1bddc",
+      "bytes": 2629,
+      "sha256": "f5f4b55baabefaf0c9ab4c3609464692a76feead80591b1884d58908c8d87e65"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/libraryPageCache.ts",
+      "gitBlob": "22c2e5d3a8dd56d285da02233cf00fc456f8ae3e",
+      "bytes": 4162,
+      "sha256": "4cfbdf2970ec2bf5cf92a3d1ab116be0b51b983a1259d2b3cfabb822dada56cd"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/libraryPagination.ts",
+      "gitBlob": "de0e77b9ce18c0cddfff9e2a974475459a63be42",
+      "bytes": 669,
+      "sha256": "0f3b1c6081c2c01959a058be2150de220e18c1289abda18b37c54a9ce7cde102"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/libraryReadScope.ts",
+      "gitBlob": "b9b304435287e62f15b36278ad408642b82904d7",
+      "bytes": 6114,
+      "sha256": "254214eef2950a851b3a1746e35cbc2648b041f906e358db7b9728e2801a6ccf"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/playbackFavorites.ts",
+      "gitBlob": "b431bddcb5e05b6d0cea489609fd4b8c7342808d",
+      "bytes": 2590,
+      "sha256": "1294a5078f111e29a1489ad80021761fa0b2327de81b923d1f919a897cef81dc"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/playbackMatching.ts",
+      "gitBlob": "aa9a25985dbc3b98a48320a39f9d7a3be3fcc437",
+      "bytes": 5685,
+      "sha256": "9383f815842e8e21e74540242e09a364018047be50d58a5b70e1f2d5b340facf"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/playbackStatus.ts",
+      "gitBlob": "beb84c90b43447b5a795216dc2bbc9588b41b5d5",
+      "bytes": 529,
+      "sha256": "f3529f05bf9e582479b63bb27f7dfba8d0daf60018f4b9c95d0e681503b0f636"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/playlistSnapshotPagination.ts",
+      "gitBlob": "f665ca6641be1281e6be03e5cb9990da6b42734c",
+      "bytes": 1129,
+      "sha256": "6b241e3b66f7191cc361b25673949ae5f1ed2a5897bcf2d43ac89590e2332e00"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/roonLibraryPagination.ts",
+      "gitBlob": "94a6ef6b6b4b37a52adc018ce7573368e25e4fe5",
+      "bytes": 4617,
+      "sha256": "d0c12df11b433cd29a97db51d09ee825b8ab5e562c5e4af2de24996e0e7a753b"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/search-entities.ts",
+      "gitBlob": "ed92307b437f3e9ba767e55da534cd5ddf0fde5b",
+      "bytes": 2039,
+      "sha256": "47f0b60217eff260cc7582f145c4f5094ae89ceb4e28d2cb0dbda4e76f153fb4"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/search.ts",
+      "gitBlob": "c4974c1c8a90a57842d4ed8bd8bf8a3372983711",
+      "bytes": 7123,
+      "sha256": "8ea375761a0442fd2a2001578ca86487d9ce0e82a22dd7fc7269dc3b51700e42"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/useCollection.ts",
+      "gitBlob": "fab9835306ddb186bad02eecf4b95211c65ab325",
+      "bytes": 7135,
+      "sha256": "c5e8a41fe5b2f8c91d8eeeee2ca828adf34fd6f9df6e671f148823a4ea2aa9de"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/useFavoriteWindowResolution.ts",
+      "gitBlob": "424020125a3a3baf1c401385ce967911cf2fad21",
+      "bytes": 6035,
+      "sha256": "4c4ad3f8263e40ad8ccbe6fdc9c34bb10671fce27a9862dc3f90cd42a86f0219"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/useGridArtworkRetry.ts",
+      "gitBlob": "e7fa62f266ba5ddab223fd97d5a3569b71b8c0cc",
+      "bytes": 1424,
+      "sha256": "cd583474e6e4a5ccaabe20f4ccf7388d10cc9007ac9ac1d814b3d9d30a40668b"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/useGridWindow.ts",
+      "gitBlob": "720008534d899be1bcfef996dfcaba97903dd423",
+      "bytes": 11243,
+      "sha256": "b2fbc60abe4ae2daf15467aa6699864c8c2dd995b9efab72d2417f1381a9c901"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/useLibrarySources.ts",
+      "gitBlob": "aed9873e59d31496b36e8b6952a23230a49bde90",
+      "bytes": 1216,
+      "sha256": "0556bd5bd412c0df80c336c66e7196a26502ded595f3bc9e9bbd8dcf02e89228"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/useRoonCollection.ts",
+      "gitBlob": "38f1e064573e3546f4b8e2524ae10a095342735f",
+      "bytes": 6830,
+      "sha256": "f3320d219d70150e767bffd0bf9d04ebf115ede96aa141f77e2b21d61c8961f4"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/useRoonSearchCollection.ts",
+      "gitBlob": "4d6702ca26d4d5dffb7365ef38b96e7867af90b9",
+      "bytes": 2315,
+      "sha256": "9b615b7c44dcb9985df5de9901fe283f2de7ac016c2d2e70eeee56978c78be7a"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/useSettingsNavigation.ts",
+      "gitBlob": "7afc90f11d085fd609d633aacefb934546557cad",
+      "bytes": 2860,
+      "sha256": "b070f6a210456d956ab670e4292c780f61d666e3151d6522efa5fdbf2d0208a7"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/useSidebarState.ts",
+      "gitBlob": "d7aa70c51d925f0d4cf4565abcde4e231ab4f517",
+      "bytes": 1220,
+      "sha256": "4b69b3bb2f6960e43fa3138902c91a25b083ce040b168d7d60e5daf3d6dc6fff"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/useZoneSelection.ts",
+      "gitBlob": "c6382b4b21e07f53c6c14266c9b617dd86d62035",
+      "bytes": 845,
+      "sha256": "b3cface40186e8caeb8b976794b79a13d637654c3a3a2a1708a688ab2c5e2d61"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/virtualWindow.ts",
+      "gitBlob": "d83c2b519939f87d846466df6f617613488424f9",
+      "bytes": 989,
+      "sha256": "1deb4f239b8c47bcebce227efad9dbb13999979b9d87e04d14c802bebf30c045"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/core-readiness.ts",
+      "gitBlob": "9b85aee0c3e0b46c04e305be6711449c70ddaa2f",
+      "bytes": 779,
+      "sha256": "7043d56365946955bf91240c375a4d1edb939b62077ea1e4273ab2ab64892ab3"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/env.d.ts",
+      "gitBlob": "41230193eaa23a73315dc93fd1d4d93f95bb6a68",
+      "bytes": 290,
+      "sha256": "2eb24b0c8a600bcfa2616a269ebbf8a8de4484a56119db6701028696a87392ef"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/interaction-motion.css",
+      "gitBlob": "ea6dc7c92ac377ff50c8fbfdac9a5d990504ea97",
+      "bytes": 4229,
+      "sha256": "aa03f426d1cb92d6fa40c0bb8e443df201188275e5b6147bfce95bd5eb379d65"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/main.ts",
+      "gitBlob": "2b0a5cc9f8395b3e724b12e0bd128075efb88b29",
+      "bytes": 1918,
+      "sha256": "1ac52ece4e4ad615cfa1346e764d2da07ce3e1739cd0673d74887c112c3e567a"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/open-library.css",
+      "gitBlob": "6e5cd43a953e34946af50518bd67cfdcda001e10",
+      "bytes": 15423,
+      "sha256": "0fe04dda4024ec3f84f3a1ffec3166cbb3a422feb21d182a678059cbce493ceb"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/remote-core-preferences.ts",
+      "gitBlob": "90baa936dd8ce32900a1e56f5f1ef7b4f637c207",
+      "bytes": 979,
+      "sha256": "f613de851df209a1fa8fe56b621c82c3d90a452c875be734a43a5109124e0e6c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/roon-artwork-cache.ts",
+      "gitBlob": "dd1218bf2c71b6b2d8d036e7f06f1aff86b1c85b",
+      "bytes": 16524,
+      "sha256": "dec4ee23c13c9bd4dd17197eaee0559c3936820919b6cf7bf024486dd6dc5349"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/roon-collection-lifecycle.ts",
+      "gitBlob": "b9eac4a9ce87bcb994c7fb192d742339c8710328",
+      "bytes": 288,
+      "sha256": "052d8792f6d7edc364634ee0e6fb1af6ea3549bb97ec0e6c78d0295c20227ffc"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/roon-context-queue.ts",
+      "gitBlob": "ec657cd1f4bb6d29d3428aee51fba61772e89b96",
+      "bytes": 2504,
+      "sha256": "18e673cd4036e93baf197d835669d8d67ca2c08c11655b293b3ab0a82e981be7"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/roon-playback-optimism.ts",
+      "gitBlob": "3c38458c3722452185b43d70c8aac0dee160fe50",
+      "bytes": 1530,
+      "sha256": "bbc826f15d6e88c22d10a1ddc2039be0d473906eba8dcfaf77f6e1bd14d57d22"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/roon-queue-context-status.ts",
+      "gitBlob": "5284864c3b07d9e7de0e80a727463ed1ba4b8c90",
+      "bytes": 857,
+      "sha256": "c96c904ca5c6a216534b1339c3c38b9eea16e83cb65d33a7e68f4b9a88686f72"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/roonLibraryMessages.ts",
+      "gitBlob": "31c5bf825e38cb5c54a661c0dfd0249bdf19da4c",
+      "bytes": 2552,
+      "sha256": "3b862f02d8b1c13417b57f6646fd0550e7e9ba9741806fa361d39f8caf8b5a67"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/sakura-theme.css",
+      "gitBlob": "13e153642512cd98cf4b6f7222855ae826250a75",
+      "bytes": 17444,
+      "sha256": "35ff3d40a83183732dbe1a41099d430d44bd6ca43190346c4d7c888b53da9b65"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/style.css",
+      "gitBlob": "e3f3a9bf103b4aebbd74de1a4eb4ce1a4ba1cd04",
+      "bytes": 75437,
+      "sha256": "b131aa765cd66242de0b16f5132e75c21c9eca40becb4725f37ea9cb7f1c4fdc"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/zone-lifecycle.ts",
+      "gitBlob": "e3c42f910c3535557ba104b421586865b77971eb",
+      "bytes": 3194,
+      "sha256": "154e9d97cb43fe1d71e67932ef498b5fa20f578bab164ffe94dcfc4bd8231bd9"
+    },
+    {
+      "path": "apps/desktop/src/roon-image-ipc.ts",
+      "gitBlob": "4910df86cf00a9ce7c1c146211d4c9acdcd18508",
+      "bytes": 1025,
+      "sha256": "27d91bdf3f86d853a4e7c211d55ec27a682a03ac9487a12c05d1130d94667d75"
+    },
+    {
+      "path": "apps/desktop/src/shared/library-read-trace.ts",
+      "gitBlob": "bcc569308c25fc6ec8b545e80a2db7499646bdde",
+      "bytes": 179,
+      "sha256": "283d1cbe8a189da065e53a06085d05efe635b2c071c7e2f75266986b88b26b77"
+    },
+    {
+      "path": "apps/desktop/src/shared/mobile-settings.ts",
+      "gitBlob": "9609070ecb83ca5e820d761c15cceab12a89062b",
+      "bytes": 3324,
+      "sha256": "af1edccc8340981d0322b505dd22b62e5fc9b1ef206e5ff430f5bb4ab2a9ad24"
+    },
+    {
+      "path": "apps/desktop/src/shared/performance-transport.ts",
+      "gitBlob": "48401ffe7e128c4d729c0dfaa438236b5d6cbce6",
+      "bytes": 4305,
+      "sha256": "a19ff34f886386fcfb086bf1ca2613624b8129ec3d44f380ad9356d0088de258"
+    },
+    {
+      "path": "apps/desktop/src/shared/playback-failure-trace.ts",
+      "gitBlob": "ba85db1bb4f166b049a166c5e7a0759828b98ae2",
+      "bytes": 87,
+      "sha256": "4c75a76fb263128b241bd80c180c6c2f38ed3169a502fbe47f96cf684a73d26e"
+    },
+    {
+      "path": "apps/desktop/src/shared/source-write-fingerprint.ts",
+      "gitBlob": "2ddce03ccbdf69aaf8750888a14626245b48b3aa",
+      "bytes": 680,
+      "sha256": "99121271a338bcb9bb1687cd6fac23cb557b3ad6a342481845fcd4ac40496dd6"
+    },
+    {
+      "path": "package.json",
+      "gitBlob": "7e9019f578a83c3387b3ffd18fb2e74b48b56450",
+      "bytes": 2030,
+      "sha256": "a8b90f4ba0ab6cfc9ca482c90f0b87057b069d4ad848b10f470075da3a839aad"
+    },
+    {
+      "path": "packages/bridge-core/package.json",
+      "gitBlob": "05c88653396f2e6f4b2c958161963a39718f3336",
+      "bytes": 2300,
+      "sha256": "34b6a49d473ad601ed502b7d2e8d36ccc2978816f0e237052d780fb40feb449c"
+    },
+    {
+      "path": "packages/bridge-core/src/application/audio-quality-evidence.ts",
+      "gitBlob": "6b43102025b197cc6d607438db66619b28daa527",
+      "bytes": 12954,
+      "sha256": "01023ad12708be46073795881c8c2d0b3a88bf1ad8bdd455c0ea8d72d385b3ba"
+    },
+    {
+      "path": "packages/bridge-core/src/application/bridge-controller.ts",
+      "gitBlob": "a4f7140750f654e6bafa8a34caab28a48437a8d1",
+      "bytes": 148786,
+      "sha256": "913ca23fa5fdf09c563ff51679f0deb0666d0614b17923e3e627671bb929d907"
+    },
+    {
+      "path": "packages/bridge-core/src/application/local-source-facts.ts",
+      "gitBlob": "7910dbedb075e942a9bc71f77f72745b221cd5e1",
+      "bytes": 673,
+      "sha256": "c3816761e29913e185d24ff554c51265888cf98af63b42e0026b00a993ce1aff"
+    },
+    {
+      "path": "packages/bridge-core/src/application/local-source-resolver.ts",
+      "gitBlob": "729a5563668d6f56002b359cdc7a2b526bbe29c0",
+      "bytes": 7966,
+      "sha256": "400263aca9f161fba087984c905f45639c82903456dad1f33b77ad5a4a5f7d06"
+    },
+    {
+      "path": "packages/bridge-core/src/application/mb-queue.ts",
+      "gitBlob": "074017fd6629d82eb3ad71f665ec01222122110c",
+      "bytes": 1133,
+      "sha256": "bf9aff5f6db8dc86597a787c652361abde6c85dcc78ce78279cb3730d2a1776d"
+    },
+    {
+      "path": "packages/bridge-core/src/application/pcm-evidence.ts",
+      "gitBlob": "92ff17b3ea169bc777a555f72bcb40e4b6c0f7f1",
+      "bytes": 8342,
+      "sha256": "3d6fdc6c3c4169645b6d153507d2952a8a6d9a74c258bbdeb58c61ff1932fbc1"
+    },
+    {
+      "path": "packages/bridge-core/src/application/playback-event-publisher.ts",
+      "gitBlob": "3faa858446a2802fe56132fee0e6cfe8171ddbc6",
+      "bytes": 6247,
+      "sha256": "bf77c32954493edc7e3fa7f711ac21c65855cc976ee6f326c166b64ef1732d59"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/collection-progress-store.ts",
+      "gitBlob": "4f04780527d6f0d3c08efae9566a2901ea09676b",
+      "bytes": 36696,
+      "sha256": "04fa7b835e01598c40fe170a9265f22465366dd557aa0440066b41ac1deb53bc"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/commercial-provenance.ts",
+      "gitBlob": "a914d34aeeb0ecfc5e5322625d0e562e2b81d608",
+      "bytes": 5123,
+      "sha256": "6a640aef791de86349c25fe403d95e80a202191f72e52e883ebd837788d5cb43"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "gitBlob": "3fcbb89b5353c93630aba2f1703768a0225f0d2b",
+      "bytes": 57912,
+      "sha256": "1ffe34aa2977d75db1619289ef73ee6c2112fe25450e05eedcacc72b24cc7b50"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-domain.ts",
+      "gitBlob": "d7b74a6be763b14e481c6d4a4cdbb7141a9e8e8a",
+      "bytes": 27553,
+      "sha256": "9028c07739174a5600fb3cd72f36dcc527c48e28a794d3aa2b84b88e90df90f9"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-client.ts",
+      "gitBlob": "50df05859a37fcf43e0a842f70768c210220bf1e",
+      "bytes": 22836,
+      "sha256": "cef49cbb448c1283b82e61ed1962dff79106c56d505d372a4f0be726421ec86c"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+      "gitBlob": "7265b1724b47de4746837fffa6fcd7d935717823",
+      "bytes": 30265,
+      "sha256": "54bb6ce195dfabb3edbd1a58724b7a3ca7901a08eb52b2728d29cb499a3e1092"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+      "gitBlob": "c6f2a1702bcf6fb490155dacf4d5736766648681",
+      "bytes": 23431,
+      "sha256": "ed445977acb0b85174c3b1956d1f72c2dfa7be492a5800bc646452f94ad741c0"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-roon-projection.ts",
+      "gitBlob": "a767e337b7a174431551180b7e76c5e2617a8632",
+      "bytes": 5255,
+      "sha256": "88b90e6e71d45c21198b5fcc25a64d5563882cb718cd176de1fc02cde699ecab"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-services.ts",
+      "gitBlob": "7d3113f1ef2efee9a7b231b380f57226a7b20d70",
+      "bytes": 3776,
+      "sha256": "25aa186cc1e73e16447c972bdda28e0b99aa9eb0ec70121c58647ed3f0a6da7e"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-artwork-service.ts",
+      "gitBlob": "04fd099b37a9e5b98f982ed26d2a2052d63500d2",
+      "bytes": 12934,
+      "sha256": "bcbbcdb4c8d534712005e9f182603e9bee5dbcf8200d2c20f9eeed5292889f96"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-artwork-store.ts",
+      "gitBlob": "fe3830c7bbbeb60a230748c8f9217cb42b9f0d8d",
+      "bytes": 20484,
+      "sha256": "b09bf9d744e7f851423a563d9453f83b0096d3354f789730f72cbe0746fb0ba1"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "gitBlob": "5537d6aac291010a4543bc17d975e120de169f1f",
+      "bytes": 115384,
+      "sha256": "4485d96516b807433c0a3e318ebc662738ed9281431840feb29546025e7040ab"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-legacy-links-journal.ts",
+      "gitBlob": "e85f538ba090b127d045e2ce30fdb5ff169ac27a",
+      "bytes": 20563,
+      "sha256": "47f97a668834ecbd48c590272914c9fadc3683d8afe3f1c34d32a4e524914081"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-legacy-links-service.ts",
+      "gitBlob": "f1b2ecdc7a3954f3980d463f3f3702babf614c77",
+      "bytes": 25591,
+      "sha256": "695019e54f32b861f95fc07028107146d4c14648653c45adb32238bf675e1edd"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-legacy-links-store.ts",
+      "gitBlob": "0db8495164e796cf20345d0d22669811c1486f7b",
+      "bytes": 5511,
+      "sha256": "23d45d21c953105a417fe8ed904c4b216f1cf2ea1d1fd4fa6041bf7c7c6bcbff"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-organizer-journal.ts",
+      "gitBlob": "dddb901996bd273a9d590f85f45261f940e11525",
+      "bytes": 22164,
+      "sha256": "fddb7e42f0d5446b70836b5bf6d1012bdd4ee24974345869d314532fa22c08e4"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-organizer-service.ts",
+      "gitBlob": "87ee9b5ca9fbb081c42a13110aa5fac2707c1648",
+      "bytes": 9708,
+      "sha256": "957cb7cfe9a1f33c7cdaf3a3af38a739839a86efd289215f2087d4293c82de8b"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-organizer-store.ts",
+      "gitBlob": "f4f67e2b0ff09f9e11dd45c1a87bd29dd4b88a81",
+      "bytes": 20130,
+      "sha256": "f20c01e26f64222f1955ec777bf505bfa375373b6517e08d7a001315e746e549"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-relocation-coordinator.ts",
+      "gitBlob": "5f321b41c0b294a4db564cb1912e39a5d3993843",
+      "bytes": 9621,
+      "sha256": "d447c4c1ace3c947ebfc5345f9c351f1dc33270dbda31ab58ba82c1e56c62497"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-relocation-journal.ts",
+      "gitBlob": "d1b75fb050cf8f11992451be9d787d01b2e3ca6f",
+      "bytes": 63056,
+      "sha256": "fd45e7cccfad2c273809e4a6a9b7de87f5453d70ff02e6d7bc580260cc5cc4e9"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-relocation-service.ts",
+      "gitBlob": "feaf300bbecc3ac5e9fa30ecc5effce4e6dde695",
+      "bytes": 72157,
+      "sha256": "b08ce19fb5ee6f9263145a419b2202d328fb4a2d7983b15ecaf6b508796b40d0"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-relocation-store.ts",
+      "gitBlob": "afb860c1ee90ab24eda75cfafe21188721762eb0",
+      "bytes": 11284,
+      "sha256": "5a9ea08611b71e554d6d4fc327d051435b05d786b0ac6c49a9171c735e4b186a"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-coordinator.ts",
+      "gitBlob": "bc98c3d82980b6492f1e79410092c488be718101",
+      "bytes": 36318,
+      "sha256": "6228d903ddfdfc373a99409c397721d87ad37f8a4451e390b4f81034da5c23c5"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-facts.ts",
+      "gitBlob": "9bba7ecb2a4930505f9c04129896638bc313b606",
+      "bytes": 724,
+      "sha256": "265b5332f8e0eeded29892410650f61afd7b0f137bcaf67af362c4a876cb2ae9"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-store.ts",
+      "gitBlob": "f73c84642e5e17459f0f09401c38e196e59365e6",
+      "bytes": 95670,
+      "sha256": "50ff659b060a99cc86bc990236d46c4499e832291147324f7d0028ac3abc6b75"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-ticket-types.ts",
+      "gitBlob": "e82f7b9db5eddf40c34cd37bac1d7adb8f9f4988",
+      "bytes": 4363,
+      "sha256": "77952df9b715b38824d64831dea32789dc84ec12eccc2c93c109dbb25e54c3a4"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-tickets.ts",
+      "gitBlob": "2dd4e1db583deb8ce04cf56bf5fd527bfe05b915",
+      "bytes": 4175,
+      "sha256": "7a171a2284cf41b63cd16d52f08286e7fdba97b42b8ceb1dc74619e8ace1b6d2"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-writes-journal.ts",
+      "gitBlob": "4e4505b0725b7a66ebd5fc0a9bce27cb8488ab87",
+      "bytes": 36495,
+      "sha256": "b4b2f6ff102113d2a65c6c13c0e20aa800e393f4d7ff92e84f5d52fb06d222ad"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-writes-service.ts",
+      "gitBlob": "4628d74e2b4991b7c506cfb7ed730f143911d0cb",
+      "bytes": 98065,
+      "sha256": "1fedb95e6a671d900f9613bb01ba9ff7b353ca44fc1f5282a1b0420f45ba8ed8"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-writes-store.ts",
+      "gitBlob": "8cd9382bc911382a55126d21d3c3151b56f536d5",
+      "bytes": 8892,
+      "sha256": "f74590976d0d9e2fd079f87d8efa98e4158d9da5f290df19d15d529ec32dc8b0"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/mb-queue-materializer.ts",
+      "gitBlob": "ddd59c7df1ba09727ed37d8c3cc0c2cb66953ef8",
+      "bytes": 1310,
+      "sha256": "936b9da4c77ba0f76eb6d76a2373681979e4ff5f7c0005cf68e757bbac1a1871"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/mb-queue-owner-types.ts",
+      "gitBlob": "489ee5ba25c20d718d69ee55a59a21867351a5d8",
+      "bytes": 1260,
+      "sha256": "632fd896c5291b9b8763aae69e20402e4a415d92166afd10986c4b26e09a64de"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/mb-queue-store.ts",
+      "gitBlob": "cdf26a5d153af0a8d72f7622e2778e9642d82e12",
+      "bytes": 3646,
+      "sha256": "7c5041cebae4444a8c781e2e2b583992c8e0e45eaa5797ca3e4c75d9ac1b8de6"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/physical-links-coordinator.ts",
+      "gitBlob": "ab09c1804e159c42d6d163edb5d1746c00022431",
+      "bytes": 9871,
+      "sha256": "065f58e0baa3fdf83dab6abdf0338ab706dd8d663bcc4bb896e644065b5dfa5a"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/physical-links.ts",
+      "gitBlob": "02460e7f1afe8bc403c7e190c884e3a76b5ca766",
+      "bytes": 18115,
+      "sha256": "799a72b360db61efd1b2cbd7ebe10dbd1dd79b2d6f1efd4b8c69702e47731f76"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/physical-music.ts",
+      "gitBlob": "158f68a3490922ad6c4278464943c966791c1d6b",
+      "bytes": 20353,
+      "sha256": "589e7d8a7b199d95ac25b704ddabdba3a4d27c54a5dfd6d3fa0928ced55ac73e"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/reference-catalog-store.ts",
+      "gitBlob": "044c4c7b9e4390d3c195a2e6ae9c22623fdbf9fd",
+      "bytes": 40341,
+      "sha256": "854324ee7d6f1f6b042297fac3b2aa7d1ba2b507cabd29ac4d8ede5b903cb308"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/reference-source-zip.ts",
+      "gitBlob": "e8384507c8104575c4d82f1623db2712338a2a48",
+      "bytes": 4940,
+      "sha256": "1ff6a94f910f9c24ab50ffea944bb8c9f2abdc35184b421b325c77fa40b2f569"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/repository.ts",
+      "gitBlob": "e1e7fa14d56b72b5c04620e67bbece4bbac52149",
+      "bytes": 65998,
+      "sha256": "89a07a575e1399aecdf909507405f8b21f5a12cb3afc8f3941b219e8fb07cb82"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-original-store.ts",
+      "gitBlob": "2f0157f55720189085d5068620126b5ca74053e0",
+      "bytes": 10690,
+      "sha256": "908bcb5f90de1576708557c6a21c545b2be1daf3da0bdd768639ac57adc81de5"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-relocation-authority.ts",
+      "gitBlob": "b681417326bbf2165309926df51e522ee1d68d2d",
+      "bytes": 1077,
+      "sha256": "77fc23a7f081cd11c4dffbd19574cfce8678e8a0d97382d697c7644e0aed9f15"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-relocation-companions.ts",
+      "gitBlob": "49b17e8c08a68301e448aec0b0285a87797e2e51",
+      "bytes": 13373,
+      "sha256": "de5cc1eb04652994cf1b7b8c834eed440e02527c1a443ce4ddc86bb83de5674e"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-relocation-publisher.ts",
+      "gitBlob": "8c4bd095427a08dd9b8f96ddf3b66d40aea9b519",
+      "bytes": 49742,
+      "sha256": "2688d63c0da95bcd126a96dd633bad3df7a687efaca934d7bbac7c364a277dd3"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-relocation-recovery.ts",
+      "gitBlob": "5b059dcd80ca05988de471e3af4731727eb5c1fb",
+      "bytes": 51702,
+      "sha256": "6d6a99aac6e9a79d205b4e799e51922607f05e9a3def0e1dccb0f8e374741675"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-relocation-root-identity.ts",
+      "gitBlob": "fe8d11b6cadcbfb7d70672c59c69a90c2ae4a55f",
+      "bytes": 10697,
+      "sha256": "c6477f40fe61b1b62964bd825c1145ff935d9597b07a5a92f7b4614944119432"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-relocation-scan-port.ts",
+      "gitBlob": "c22a7e5ae471f9c450446b0cb85de15dc957017f",
+      "bytes": 8476,
+      "sha256": "cdaa5a4ddec58da18e9fef1dd77bb8227f62b0fdb892752e46a0d2dd3bd46655"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-relocation-verify.ts",
+      "gitBlob": "876e93cf6332b5c9ccfa8641f18fb9e7a0a05848",
+      "bytes": 15172,
+      "sha256": "bb6c13e86a6296df888d5302c0d3018d60fd41dab847e17ad04fcb144ac1b5e4"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-write-format.ts",
+      "gitBlob": "9bb61f0ad6fd1f5fd167437c34a95ce8c459ddd2",
+      "bytes": 14079,
+      "sha256": "a72b0e121097538c24411f3c19d398dae0aca33b68432aa823923d9b6e5b7fc5"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-write-metadata.ts",
+      "gitBlob": "cd66f51048ca79d38d1ddce5e9e1fdc0ea1fd3e0",
+      "bytes": 4405,
+      "sha256": "ad20632d907047540f9cb5ce8327665c49ef245403e3eaf5df4db72724747fbe"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-write-scan-port.ts",
+      "gitBlob": "51c7b1c477ce5f739c043ff6a3273fd6e84d1981",
+      "bytes": 775,
+      "sha256": "61d6b7c0c15f6cd516b7cd7cfdab9982f9de7b6330320cfa063604aa0675af21"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-write-verify.ts",
+      "gitBlob": "54c3013ab1462689cdbfa2e2875337dac76eacf7",
+      "bytes": 8967,
+      "sha256": "7b5a4ca527609219bb2f449c059d41293b1f09bb932309735cc461edbff0ee4f"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-writes-authority.ts",
+      "gitBlob": "d348abf035d44787808cca1a7661e840cc9c685c",
+      "bytes": 1039,
+      "sha256": "90afc5376c43bb5242ae582517708cc569dc942351ede7b91ea202b23ed3be10"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-writes-publisher.ts",
+      "gitBlob": "4d59e460d42cec7591dda477b3732548713cdd99",
+      "bytes": 49191,
+      "sha256": "96121162fb48220cba9a2ab91a7ac3b64fa184675a9fb14f5832228cff9a142a"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/spreadsheet-csv.ts",
+      "gitBlob": "48c27656f85ca2d26456975ab18339dfb7647f39",
+      "bytes": 3082,
+      "sha256": "f9064642b582402d8c6a8d07967eebd25bc6591649d85776b02eb8c1d42687b3"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/spreadsheet-files.ts",
+      "gitBlob": "87bafe2a442c7687744a939c88a03f48ea3fa3e7",
+      "bytes": 2758,
+      "sha256": "2f9fd4d4a44340da3204ef6aea5b48fb274cf27ecbdfd43fc64e60c90e5ed493"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/spreadsheet-import-rows.ts",
+      "gitBlob": "d246f03afa4160facb859575b2e78e7624d804d9",
+      "bytes": 10051,
+      "sha256": "78c5345579c7f2370fcb2d289d2552dd376df9416b47abb8097669ae1f159114"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/spreadsheet-import-store.ts",
+      "gitBlob": "bd0e3ebe58edb34eacc9ddab3cdbb65a7ea2693d",
+      "bytes": 36683,
+      "sha256": "bdd60797f7d205b0a5f9891c174dd15af51a7fd0c1bc9e0049dfc9cefe08126d"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/spreadsheet-parser.ts",
+      "gitBlob": "81cbacb75e37aa806369dcd0d411a4dfbae56efc",
+      "bytes": 2654,
+      "sha256": "ca0fc6026eace1184f221ed100be61558c9f8936b25fbbc649a66fd0469cf0b8"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/spreadsheet-worker.ts",
+      "gitBlob": "428ef0bf6d0c5704df4c8fda77ff5e9925c45d47",
+      "bytes": 4393,
+      "sha256": "b8e42513f3e239c46c07a1d2a3f67ee528ec5c9c4a64e80cc797db9ddff35e6e"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/spreadsheet-zip.ts",
+      "gitBlob": "d906d41795c28690c068c63aca7065204f530ff8",
+      "bytes": 4794,
+      "sha256": "cd8bad658e216461622d4cca9a7a365b3b0f1fff25f27e4f14f85e7cb220e1e1"
+    },
+    {
+      "path": "packages/bridge-core/src/config/config.ts",
+      "gitBlob": "2efccab0118d75c3499d5367892f8b9f5d371f85",
+      "bytes": 8715,
+      "sha256": "191f7228e93bfe4b36c53adfaa203c2aab754f89d2297f7373f0ac375773c915"
+    },
+    {
+      "path": "packages/bridge-core/src/control/server.ts",
+      "gitBlob": "fcab48a32ebaeae2b8d7c8db30aded455785da27",
+      "bytes": 19625,
+      "sha256": "a7bf41239869a3bf134dfcc526d98d0e0ad00e747233a40db7c56dd0e2c2a2e6"
+    },
+    {
+      "path": "packages/bridge-core/src/diagnostics/performance-instrumentation.ts",
+      "gitBlob": "7cae6ba5a136bdd2c4a6222d244336ada33d32dd",
+      "bytes": 3231,
+      "sha256": "18e0be84aafea09f09b36ddba0d4abd783677a13e78640ec0ae428d8257d56af"
+    },
+    {
+      "path": "packages/bridge-core/src/diagnostics/performance-trace.ts",
+      "gitBlob": "7802b6eb7af36e42d34ec10627a5904f0bb6c2df",
+      "bytes": 6222,
+      "sha256": "d5652af50c4005fce1b5425ff972b213f83fdf3e77a4fccc11368d7323f6ac92"
+    },
+    {
+      "path": "packages/bridge-core/src/favorites/repository.ts",
+      "gitBlob": "6e40c873f0728ac20e3f2f070c28be4697aa43c6",
+      "bytes": 8960,
+      "sha256": "e123f8aea0aed9c27ae4d2e85f3f5e8ec36abf8713e1af2efec05314425cfd6f"
+    },
+    {
+      "path": "packages/bridge-core/src/library/artwork-selection-rules.ts",
+      "gitBlob": "1f18c9ac833005582ec3d296ae0e1cebb40cd1d0",
+      "bytes": 8642,
+      "sha256": "77ff2921b5c2fd3c50a5355d891b2b69a6d29c105a4cf1db321dcb47beb50b1b"
+    },
+    {
+      "path": "packages/bridge-core/src/library/cue-sidecar-reader.ts",
+      "gitBlob": "da9f5c94ae3b002fbbf6847a943f35a727318701",
+      "bytes": 4791,
+      "sha256": "fab6086e604856d03dffa1c51df737edc7d63827b3b8210b6066f4d6a19f6302"
+    },
+    {
+      "path": "packages/bridge-core/src/library/cue-sidecar-worker.ts",
+      "gitBlob": "f0ea935b134b37e602bf855c38415dbc4d88e3a8",
+      "bytes": 1105,
+      "sha256": "3d592e5b9d5d6228ac0a78ea24450dbc799dbca6166aa09a7fde1e3c52ebf6b8"
+    },
+    {
+      "path": "packages/bridge-core/src/library/cue-text-reader.ts",
+      "gitBlob": "bbcdc579cca3455d76aa02dbe4f3871a19a61f87",
+      "bytes": 9514,
+      "sha256": "02c63ca529b53a9944e80866f0a95097d9ade3538f3ce9d65daab10145cae3cf"
+    },
+    {
+      "path": "packages/bridge-core/src/library/local-artwork-embedded-reader.ts",
+      "gitBlob": "09f0c1c61b7964aef5d8180f1c707a0de7f3093c",
+      "bytes": 9922,
+      "sha256": "90b24db944acbc1241fb6113e9e3c713190a5fa31d703bb3550c3ad0c516ec32"
+    },
+    {
+      "path": "packages/bridge-core/src/library/local-name-rules.ts",
+      "gitBlob": "77852348e95813fe663aaba044b6d2c007ca0229",
+      "bytes": 27066,
+      "sha256": "f11f0b3e735ce8bf5028d69e994fbbea84a914222388a77f50777b431b9ef225"
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-runtime.ts",
+      "gitBlob": "ef2e1bfef5e9a01809dc796393a07f6012626eb3",
+      "bytes": 503,
+      "sha256": "88cbcaba71e4005d71fd80b05142bbe0b0914b513bb70f67da0f86de8dbcaca4"
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-types.ts",
+      "gitBlob": "3f1412a5a67709b6e4c80db729c83903043824e2",
+      "bytes": 4506,
+      "sha256": "7f53c2e66cd9ceb5165db9af8755488beae7d30512f635b84937553af09dd0ac"
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-worker.ts",
+      "gitBlob": "4eeac2d2c3e6d4a6895a6ad7ffe9ba39309ca4f5",
+      "bytes": 19460,
+      "sha256": "84de878fce13c819174b2ede3dd09c624ee9008750fa199c293987c02308e84b"
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader.ts",
+      "gitBlob": "d1d0ba5b3f2d3fd0f182ab92af2535e0d5b6ad89",
+      "bytes": 13998,
+      "sha256": "021a9e3ef3a84755ba3679f9a498df129f199765a719e19e0a70e7e88676a0c5"
+    },
+    {
+      "path": "packages/bridge-core/src/library/scan-read-admission.ts",
+      "gitBlob": "775ef8a4e210d8d60853364fb1cf3e8ceee2a130",
+      "bytes": 4825,
+      "sha256": "d87f0c541c8eb9978661d15503a0e2f7a5cf2b490bd13d267b98732c017bb3b8"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics-matching/candidate-cluster.ts",
+      "gitBlob": "97c8076f2519bc412dd324a43437b9a52f05050c",
+      "bytes": 716,
+      "sha256": "591ac4115f747a8c802d29ee492b7b6f191d83f32aff0159f2fcb400c8a16fbd"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics-matching/index.ts",
+      "gitBlob": "80f14bc46c80b00c13fd5d920a241b1d9b92413c",
+      "bytes": 653,
+      "sha256": "93fdca32c616e005cad45ccf298522d8ca2673b1b73444357a30c6e1733ed956"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics-matching/manual-controller.ts",
+      "gitBlob": "c09f97d83c723f3cb8d8349dc3b5a16878b45e31",
+      "bytes": 9928,
+      "sha256": "b0d1d6f696d810fbc271ab47f002c487232402e17b9f9007ce40c8e9bb5f014d"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics-matching/normalize.ts",
+      "gitBlob": "25c8474cdb54de6e8e6543cfcd9edfc68458db51",
+      "bytes": 1008,
+      "sha256": "166cb9df24517fd7cb98f94f7d41da9a8e9b9512c03708a5956ee7547bebfb50"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics-matching/repository.ts",
+      "gitBlob": "15870a4816fcf96b7bc256d33be6985a72f92120",
+      "bytes": 11531,
+      "sha256": "ab3b1a2bdcb12b81a62142f2ae6e2ed6277f8a8891028ce6d40ba78be1962941"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics-matching/resolver.ts",
+      "gitBlob": "ef59f1f8ab6d1c3c74dd47979b387d7c817e073d",
+      "bytes": 10137,
+      "sha256": "3355549b448736e63bc46ce22984b00fd401767d46a4b02146ee917f27a63202"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics-matching/scorer.ts",
+      "gitBlob": "c6469919e14e94d086455b2aa4f4c16c2c7a715d",
+      "bytes": 9693,
+      "sha256": "687085c308d008478763b407cf766632ae05534505c9b971a474533503536dc5"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics-matching/signature.ts",
+      "gitBlob": "b7180e6ff0260d673800bdb321e9b067ab13af16",
+      "bytes": 2038,
+      "sha256": "ae97e265dbae9f02e0768f3dfc67ab66442ecdf7bb16f97e725d3b3b590a5a73"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics-matching/types.ts",
+      "gitBlob": "cfcefb592ee1a7aaa7efcb5538a93cb79cb21415",
+      "bytes": 1088,
+      "sha256": "264c57c9e32c3399ba245e76fccb584cfb49688c892a03dee17c2bdc1405f8d1"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics-matching/version-profile.ts",
+      "gitBlob": "89967996dc0039b0e2e50d1395f87896fea583c9",
+      "bytes": 3242,
+      "sha256": "e9b3823f48efdd9def41f50137502414e24920239f82fcff666d6ebdfde566a1"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics/coordinator.ts",
+      "gitBlob": "266958b5c1db9c08c49747a5b2f00b2892e722bb",
+      "bytes": 20612,
+      "sha256": "52985dc89fac5f101e02f73da9d941454087161c9b34964123aa88f44d929f57"
+    },
+    {
+      "path": "packages/bridge-core/src/lyrics/roon-display-store.ts",
+      "gitBlob": "856217bf64c571ad5b0bf1a1db495ae381220c45",
+      "bytes": 3268,
+      "sha256": "8c97bde54422c5cde30a444c490be3bb0fa72fb84805fa92adb9934a9ef25f48"
+    },
+    {
+      "path": "packages/bridge-core/src/main.ts",
+      "gitBlob": "8cfccd641c77f46843c87c0ba7cb8d7d337feab8",
+      "bytes": 1161,
+      "sha256": "b64e4b20ee53276af780a9c257bf2141d487c3e4fc25cafa23413dba08217d21"
+    },
+    {
+      "path": "packages/bridge-core/src/matching/candidate-resolution.ts",
+      "gitBlob": "338617794a89f6517987e1bf953035cd09e6f2f2",
+      "bytes": 3649,
+      "sha256": "caf8aeee9900f728ffbf59f0eabf8803b9b035597b9dd6f6adc01b6cf96874ec"
+    },
+    {
+      "path": "packages/bridge-core/src/matching/index.ts",
+      "gitBlob": "cf1d648977413fefb0c017ce0386cd842580543b",
+      "bytes": 7978,
+      "sha256": "3cc20b6ba584fd9e7825ea9a2a17790079b0b336599c40a0ab59359dd280bcf9"
+    },
+    {
+      "path": "packages/bridge-core/src/matching/mixed-queue.ts",
+      "gitBlob": "d82b6a9c5496a90e170149e1f6cc596fac409a18",
+      "bytes": 1211,
+      "sha256": "d9b7c5921a790e133384f4b1c760bc170d57b987e8f839a81519ad7f9166a1cf"
+    },
+    {
+      "path": "packages/bridge-core/src/matching/playback-resolver.ts",
+      "gitBlob": "f8006a67df437ee77f4f3d1e654379848765b4d5",
+      "bytes": 621,
+      "sha256": "d3351642e94f5b98e3828850d576e3a1b94e7a71de5c255b8bdf1fc973feb0e9"
+    },
+    {
+      "path": "packages/bridge-core/src/matching/types.ts",
+      "gitBlob": "8d5abf9fa00de76d3f318537c8fc02affef74d04",
+      "bytes": 723,
+      "sha256": "23db4083b8f688a55a3a588baf749f0ede25331d1c37ddae1f4123cf49bbf8f9"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/auth-crypto.ts",
+      "gitBlob": "e0a4a891c4bede34d4f9d8ac88027b1913675b1a",
+      "bytes": 1554,
+      "sha256": "0f48b6fade9b13cfe42cb0a9ec040962664ef0c8de93d1940baf9e80765f9abc"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/auth-service.ts",
+      "gitBlob": "4ce6778c6181f26257ac1f0b4bb746eca9b773f2",
+      "bytes": 25504,
+      "sha256": "0c7b52bdd965633a98f0f198baac3e298f5ec160138baa1756886e4690017951"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/catalog-service.ts",
+      "gitBlob": "3f4de255bf976f27f011c6837fb29578960795a8",
+      "bytes": 13198,
+      "sha256": "c456b6ab32473249e84cfea638ef5383c23309d669558f1d9aafb17b7bae1fca"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/cursor.ts",
+      "gitBlob": "1d20c4f4e391d5f96d7b7502050dbf7e75f96741",
+      "bytes": 5793,
+      "sha256": "f5213330bc76e16b925a4154ee496f5b226f1f111ed3800bf3bcdc961b90ec86"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/owner-protocol.ts",
+      "gitBlob": "96eea8f329aaa0bee9b533b840a3a52c748ccfc5",
+      "bytes": 7325,
+      "sha256": "bdc601ea0412fed2a924c77bce77abaab253519015490c17b0ea0512152821a8"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/owner-service.ts",
+      "gitBlob": "f703302720f34727ccc61c82755d5f3e4dce6c80",
+      "bytes": 9979,
+      "sha256": "997c3d397f9bd7e5092454bbb041223bc914416e41b0cd4a908bd9eb653fbc81"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/sealed-state-store.ts",
+      "gitBlob": "a3037324185054f6c6b6db0d0d9c1c2c920445cd",
+      "bytes": 7412,
+      "sha256": "46db9c0345e299ddd8de01db276c2a1eb98cd647049d5db409fa834180281f76"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/types.ts",
+      "gitBlob": "e39c93142d450210e660f19da9e5eddb68e1b6bf",
+      "bytes": 5713,
+      "sha256": "4cd3b2500eb8de4e953650ee33d69ffce06d6e64ec00e4ef4c7489b376316b9a"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/api-runtime.ts",
+      "gitBlob": "9c57f1f76f3c96c94f34ab331be2ed950d2685c4",
+      "bytes": 3857,
+      "sha256": "9f6c4488dd9cbe7d9814af7e9739876ade1fc00577571caff8249a2e12249b0b"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/client.ts",
+      "gitBlob": "7b0af0fedbda4e575ab608c42e65896cff325331",
+      "bytes": 38269,
+      "sha256": "2cff7ab1e211567024c2fb9a1f410d2e365cc8a86197f010e938b03671fb54ec"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/lyrics.ts",
+      "gitBlob": "5fa7962d3a941f08b0f2f25e24e50d05ee6ade29",
+      "bytes": 10416,
+      "sha256": "746d60418399ef7d647837976baec2813d86296b4b65e85cfffe38beb3173847"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/parse.ts",
+      "gitBlob": "69e8bc85d7f22f7edc7920c088766c084fc25243",
+      "bytes": 25425,
+      "sha256": "4f9f8d66894ad9973b54398f8dd01fc6360788c3534335d6cc8bbe582cc94c61"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/policy.ts",
+      "gitBlob": "9969d6c5965ad048dc17c33c73d22c930e728ba7",
+      "bytes": 8210,
+      "sha256": "71bf6698e69a160c132be4f0e3f02d9d39f8c5fbf19461f4435a35f2c973e976"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/qr-login.ts",
+      "gitBlob": "9e5024c181cf6ad8758e67ed3e5babc3460813f2",
+      "bytes": 7258,
+      "sha256": "3ec8bf119d66049e1d1ff26b63630658c4875835f1d3b1d008cc4a7209596e92"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/read-snapshot-cache.ts",
+      "gitBlob": "977845f48d94842004d808159e7ceb60547537e6",
+      "bytes": 4196,
+      "sha256": "a37742bbc5bc85c40e361758edcc2c34047f0a0843460b543f2e66067b0bd37b"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/request-scheduler.ts",
+      "gitBlob": "f324c60e574dbe5cd193409314df20f0f02ba302",
+      "bytes": 8218,
+      "sha256": "082caad20077484064b8b2f8d68c2aee060e9015edea52335d88631c38d0c2d1"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/types.ts",
+      "gitBlob": "ede15807b609295108a37dbe86c1a37b89344efd",
+      "bytes": 2870,
+      "sha256": "fbf5eca264de2f79d7c76a74ca2042b8f061ab7c3bf741dc5bd0c09d956df8fb"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/archive-coordinator.ts",
+      "gitBlob": "57617ea8a42fdeddc9faa3c53343a20c12eabe7e",
+      "bytes": 16695,
+      "sha256": "0f42b17187bb4352fe367d5b9ef153f1beed73341675836cb9ac3af604d5d7d3"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/archive-files.ts",
+      "gitBlob": "a0e74eee4653a4fd2078a30995fa5ca43b2622b6",
+      "bytes": 20731,
+      "sha256": "41e3a2a4f9d2c0ff3d90b128a083bb8dbb314500966aaad04a4a62def1b58bb9"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/archive-input.ts",
+      "gitBlob": "e73fd76c5bbdffe6f4a83d90fb82c34834609ac1",
+      "bytes": 8506,
+      "sha256": "92b494dc3c87cfa8dee6264fa39bddc5e576d8e6f41b5062a34848aa27c13537"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/archive-store.ts",
+      "gitBlob": "5c89706e77bd14f5ff73edd8126a6596fd354bd8",
+      "bytes": 14323,
+      "sha256": "378eff11e4a22b88e156232d098b9dd4b42222f523376867c9f1925c849473d4"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/archive-transactions.ts",
+      "gitBlob": "53c4a635aa6bd42b7ba0ced8fe2fe7b3c49e2f13",
+      "bytes": 4577,
+      "sha256": "fa0d62cd96afe69aa8e498a966695d5ce19aa7f623f2af42f2e2a1d02afb150c"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/archive-workflow-store.ts",
+      "gitBlob": "7d771b3f7c0c9468680e63a50f1bd17a214907ad",
+      "bytes": 7007,
+      "sha256": "59049a0ded2ffb005d57bd92a668abe57981f3bc95bd01c583ea906dee6a45d1"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/attempt-coordinator.ts",
+      "gitBlob": "07f0bac94a2075a34192e0b9919558aa7de28714",
+      "bytes": 25485,
+      "sha256": "08c05c62b344f8e104bcae88b0ba4e25cc2db94de774537800ae828991a63d57"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/attempt-integrity.ts",
+      "gitBlob": "391d0737846d64a71624eb7d474ea5dc145b0f3a",
+      "bytes": 59281,
+      "sha256": "82b53e9d37985e14881d0388d7ad06a9bf78793c3d50037e036a06815a92ccfd"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/attempt-state.ts",
+      "gitBlob": "890770078e4aa52429473195869a393ed33b02b3",
+      "bytes": 13918,
+      "sha256": "3e9151fa03fa61f04839b78f51b5598662a04dd3152001f18172db9d0ec9937b"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/attempt-store.ts",
+      "gitBlob": "8018040d40c8850080c1e8f3a446017e0e2b62f8",
+      "bytes": 27355,
+      "sha256": "577dfd9d3ac861484d436e93e2d24ed6cf47f90d3d85e5fe9bce20bbf4c4cd65"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/audio-converter.ts",
+      "gitBlob": "d5f63382777ac5f2d003531e08012a52fd7435bb",
+      "bytes": 14582,
+      "sha256": "fa8820266a655912be93a5e663c397ff2ff2477f3f4ebea114232f4dd3cd2cbc"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/backup-coordinator.ts",
+      "gitBlob": "a7ef18cc7f714610884dfdf9f89e385b3e47d6f6",
+      "bytes": 17123,
+      "sha256": "7d1bca9c7992d5170a12523120b2235e21a544b6177b136fd54e260b81aa0ef2"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/backup-files.ts",
+      "gitBlob": "7e72bb310a0ac19aefddeced798ac175b53144ba",
+      "bytes": 4624,
+      "sha256": "b1a804dcca7aa983928954f26ace4a99f56caa47a13717ddf00d0a49a5d7d73a"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/backup-index.ts",
+      "gitBlob": "113d9692f96d66f3ea27e5d820f2a46e10b9535f",
+      "bytes": 7861,
+      "sha256": "8ac38bbbc8e5ec9a9e030d51b430c73ce3c4fb86aa56283e84ac1a1208e0e3c2"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/backup-package.ts",
+      "gitBlob": "9a9e7dee7a395e17e888bcf329aa4e9846954a03",
+      "bytes": 10682,
+      "sha256": "7ebeeaf2beb00ad2bfd6358f501fb89b543685ae02b3d4fb66182779311d0cb0"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/backup-snapshot.ts",
+      "gitBlob": "81252e0304d5405b6a27bb0d3a021c756e387d40",
+      "bytes": 2153,
+      "sha256": "efcf2283b67344cb6151f3a7a5b6ec941ea1f3c2096ce520f77c528e8928c32a"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/backup-workflow-store.ts",
+      "gitBlob": "137703aa575111144f6c6454e6b679c9d2d13364",
+      "bytes": 19690,
+      "sha256": "2e8efd2778997553f92ce1fc76bd5fb3680d16d70da8c7ed2ee5a4c240ac6147"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/backup-zip.ts",
+      "gitBlob": "41a90a4499c276782292dbffb42fa6f79917cf2c",
+      "bytes": 31208,
+      "sha256": "c71d063787743605ce7678c4172c6322a46b0d6fcd6b203ec32f6cd5c46ecf37"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/bundled-converter.ts",
+      "gitBlob": "eddec8875ba382709cf230f64cfaf612e44d1f3f",
+      "bytes": 4024,
+      "sha256": "01eb4372aa08e506ef7434438379394a84fe1fa4425746f66375d9e24059fdd2"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/bundled-device-output-helper.ts",
+      "gitBlob": "662e4787bf37bbb44399f7ee2743498d6ee5d7cc",
+      "bytes": 5187,
+      "sha256": "45402b9ad2973fa6d016c1db567f90732d8f105402b530e604bcea93e3190849"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/bundled-output-helper.ts",
+      "gitBlob": "051fc317a726f5b1875edb3888cd09d861016dc9",
+      "bytes": 4899,
+      "sha256": "c836cd1e483dc7cb770a4687d06b198e1750e2ad540d8f56a29f8c4422a4916d"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/conversion-process.ts",
+      "gitBlob": "5f93ccdbc906d727a61f2efc449bdaa5f2e9cd66",
+      "bytes": 4910,
+      "sha256": "7cb08ec73fac9828866793d1dea543ddcb1750331484ec73550a787ae00b2235"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/converted-compiler.ts",
+      "gitBlob": "57bbb3c78bfd07fb9fd9292c506ba66008bd1e92",
+      "bytes": 8943,
+      "sha256": "39f9ce10a5ee728c6cbe4aad1c0c666c775a887e7a39c1c4ce380f7608ad5543"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/dataset-identity.ts",
+      "gitBlob": "58f5e74104fe44f8ed749456f261208300e28091",
+      "bytes": 3768,
+      "sha256": "2c00e20d3b2ae4b1663a939fe5dacd7faed5eea43e79e7d189432e2961a746a4"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/device-output-protocol.ts",
+      "gitBlob": "ad98bc121f50f639bfb027bf0320f70829fa6017",
+      "bytes": 9819,
+      "sha256": "2ebdd048f7d82dd7bb89b9a3a18b2c0b5dd16c70d1bf60cbcfc17700bea05f00"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/device-output-runner.ts",
+      "gitBlob": "cfad1c9043474529be85e83dc329ff177258d137",
+      "bytes": 13849,
+      "sha256": "e235416a82ff1d138cf841326931771af14d4d36a8b8e2698cbe3a10d5662e62"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/device-selection-broker.ts",
+      "gitBlob": "7b76d74a88b90b1801dababf44771426317ffaaf",
+      "bytes": 12017,
+      "sha256": "23cdc1264fbac0924cc8d8e5b015c19ce0e1bcf1fb54f460ad854990bc4ff396"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/drafts-coordinator.ts",
+      "gitBlob": "a53dcd6f44f19b925641061bf23af9684b8e6e67",
+      "bytes": 5897,
+      "sha256": "5e06d382de91985de9b3eb9910a3cd29fc3ec90325d64df405944c725d674421"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/drafts.ts",
+      "gitBlob": "200d128cc7c7f33f91ea47395bb9817c714c485f",
+      "bytes": 7859,
+      "sha256": "9d3a34945c82e099583f357367da104300c64ac500b4cbbf425d0f06c8cd37cb"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/execution-compiler.ts",
+      "gitBlob": "f9b3c169b799646120f4fbfaac3c20fbf95fa29a",
+      "bytes": 9288,
+      "sha256": "8ad392f6d0648ee948a529cfa23ce5dd03ae73cf68bdc8934a2da013cafc9877"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/execution-coordinator.ts",
+      "gitBlob": "2959c463dfadefb0d8612415e9ef33a1f0f4a136",
+      "bytes": 26283,
+      "sha256": "3405b6f99d26f2fbc2ef3a95bdfbab900a1c54a56752677b3b3f10a9e3bb83fc"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/execution-plan.ts",
+      "gitBlob": "03416fba1320df3fd083db81fb7056d0ff4ec567",
+      "bytes": 13326,
+      "sha256": "d572a1271f09ee8b0fbbde7680bb05f00af3ea783d2134454359429b453b1922"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/execution-store.ts",
+      "gitBlob": "9147b873dc8dac380a6eca7e2e9b5eda41bfe4e1",
+      "bytes": 14813,
+      "sha256": "1d53b410f41a788e912ab4da648c3cf863391b8f3de665b697c94bda4fd62b80"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/execution-wave.ts",
+      "gitBlob": "3f2c372f9ff38b472260acf23acb198ad8f3938d",
+      "bytes": 9579,
+      "sha256": "b2f17ab0a93750467916999f27840822cbb991b3e947b8bed312f67d0ac5b6fb"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/ffmpeg-build-policy.ts",
+      "gitBlob": "42bf0e7369e1c6b9f0bba36bfb1a04b0773f11ff",
+      "bytes": 1981,
+      "sha256": "fe7c992340e65371e218bd845138a38af7da6136fce26009d01fcae10c8fae47"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/formal-device-attempt-provider.ts",
+      "gitBlob": "f8f272171eaad8f3537104201fd03c65f76e0397",
+      "bytes": 14624,
+      "sha256": "72e85dcdb3e05d7bbc0a37a440da9e8845d2b5458c9f67ee9d46f7c903e917fa"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/gate-b-admission.ts",
+      "gitBlob": "ed61cb839d244ed88eab8d53e0bd976d3eadcdcb",
+      "bytes": 15209,
+      "sha256": "e69af944f6b2ce38ed343c581c6cf5820def0bf500d6c703f6862366e956c834"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/media-coordinator.ts",
+      "gitBlob": "bb536526f03e448eeb35799009db318e29610386",
+      "bytes": 5180,
+      "sha256": "6971516f56690c078242bb28b9c96ba17e0feec6d1172fc5cbe3dffb73a427bf"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/media-planner.ts",
+      "gitBlob": "b89b9f7959cb92b374e969d895eddc451f794f59",
+      "bytes": 8003,
+      "sha256": "5b83ec1fd09eb2e6555cf8e3821505798f9c558a57a0b2954858575ec1536995"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/media-store.ts",
+      "gitBlob": "1a8caa67d580a52b099304ba13fec98f4d7136dc",
+      "bytes": 12355,
+      "sha256": "c61c673bfb1dc3674845b357bb16d168ab3e364a104dbe16adf4f709e8c9cb38"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/native-device-catalog.ts",
+      "gitBlob": "b3ceca52d9c2a4973258b013c634c2efffd39f0e",
+      "bytes": 8188,
+      "sha256": "8bcae0ddbbc3f08d01f1375ecfca742f56d0b5df48b503ceec0833a2489b8feb"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/object-audit-certificate.ts",
+      "gitBlob": "35f2ddb205fbfd3280e5f7e6b5cf5f628f67775a",
+      "bytes": 17031,
+      "sha256": "52a01e1c67ffcea79e73b98e31671a62d985d4e5adfa4e45f8106f173c1880ec"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/object-format-integrity.ts",
+      "gitBlob": "71ef5a513272a36a78b32125325dfb54c00273ef",
+      "bytes": 1637,
+      "sha256": "6442226e51e9205d924d2a388842d2dcc8289e9ceae236e0c997719d92b70be6"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/output-check.ts",
+      "gitBlob": "b1c3d280994f257cffe523623ccb1f74f409c01f",
+      "bytes": 6241,
+      "sha256": "b3c2cbfd3b68a7c1a8a26891f545d0639194069979f78f603bc6b3d271bbd940"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/output-device-pump.ts",
+      "gitBlob": "afcc324368f12eae9a76b70c5cf45367159a6c1d",
+      "bytes": 2948,
+      "sha256": "1a4928c74df011e7ab9b57479833b71ee02eb13edb3f7ee39da7e8a50e8d97a4"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/output-error.ts",
+      "gitBlob": "4c71f8eec4ab7790ef33ad55582702dacb52db7b",
+      "bytes": 738,
+      "sha256": "473cbef852b22ad49568497ac5ec4771dc3f5f11a41db1c3728b91b95a36e06e"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/output-helper.ts",
+      "gitBlob": "1c7eb8c701690f0bae74aa06c45938718419626c",
+      "bytes": 7653,
+      "sha256": "18c5c0896ab665f0168ed1111f54d876d1b3f11f3aca58218e3ad275df1dba92"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/output-input.ts",
+      "gitBlob": "7de1161ef4b672d4f7ce5554185d43e5fba2e4ee",
+      "bytes": 10479,
+      "sha256": "3286686e81c6dbe49a5160e3f41fd3d4ed383a9aac2581c80c4888b98ce65200"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/output-protocol.ts",
+      "gitBlob": "814ddee82b31d7d9c7dc1ebbb9a97dbeaaa91881",
+      "bytes": 6380,
+      "sha256": "8a6f75ac2759b1cefd641ecb09be62592e699c2553dae1bf96294807109aecf0"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/output-run-barrier.ts",
+      "gitBlob": "ce5508f05f9ce87a6a241e70d4a485bb9fdd64af",
+      "bytes": 14631,
+      "sha256": "bb35bccfcdcac1afed21a00a959692578c46b86412ee8ffeec54015010737713"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/output-run-lease.ts",
+      "gitBlob": "86fb055357d7dd8b51f479c238aaf378d7ca6f88",
+      "bytes": 9264,
+      "sha256": "41e1bcf2e832a0337b71f5e5c53da3adc97cf3b3c5d20967f8aa67f317ce4162"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/output-run-recovery.ts",
+      "gitBlob": "11f8e75bb0330306e54c1e3e6c32cd997d180cbe",
+      "bytes": 3438,
+      "sha256": "c9b70d803ce0c0cc387609fa01361b9d69fe6bba409fc44af1cd4b0ecfb335f3"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/output-service.ts",
+      "gitBlob": "85ce3fc6642efd9f7de8161d098c316aeeb1d9aa",
+      "bytes": 2220,
+      "sha256": "ffd0617df4c957d9e89176481cdf35132e9808ebd2fea8ae6bd6ac8be48ef4d9"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/plan-coordinator.ts",
+      "gitBlob": "43328fe64e9b13219eae52fe526a9d3fb9cf8a7d",
+      "bytes": 13869,
+      "sha256": "fbd97d09d47ce2322e6795c1e74618f004053676bdc4c75f287daa61db70ae8c"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/plan-integrity.ts",
+      "gitBlob": "4f332773f7dbf0fed7b66785c4661fe37e00676c",
+      "bytes": 21878,
+      "sha256": "b7acee2093ab853d175718fbfe62d258ebe140f53226136ac78806f464914759"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/plan-store.ts",
+      "gitBlob": "aa26321d26117d7c5ce1a4958999dc97c912e874",
+      "bytes": 7136,
+      "sha256": "c5a784837ce20e9ee859814b1bacd77e9f705eb08a8bd8a9045ba1ab168ac7cb"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/preparation-coordinator.ts",
+      "gitBlob": "46b36e912a2b7039035c51df77d6f3a281383a47",
+      "bytes": 15687,
+      "sha256": "d5009e90142cf173538d21426504bb4d13ae3b2e10e3db83c529a9e11fe21a27"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/preparation-export-coordinator.ts",
+      "gitBlob": "cd02cb410dedba181e92cea8656346f90285515f",
+      "bytes": 22122,
+      "sha256": "38ca339de3e521dfe997c3f9ebdd76c423734ac1433255c8e96b9dcc247cb068"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/preparation-export-files.ts",
+      "gitBlob": "7e765e3925aaada0f7fa780733ef22ee6cfd636c",
+      "bytes": 16878,
+      "sha256": "207a94ed4d066d98c65982dee665030d27f7a0a0d0c09f828f0d3dbe1a145044"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/preparation-export-store.ts",
+      "gitBlob": "23e4fbe1d6b102ba61c84b2266bc9c5948617a59",
+      "bytes": 35982,
+      "sha256": "f33fd6a5b5ea5090547785e2188633b9165f63f6950d27d1e04202e3a90fc7dd"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/preparation-files.ts",
+      "gitBlob": "575583d7b4a03df1c1820a3f0757b5dfd764cbb5",
+      "bytes": 14437,
+      "sha256": "eb0a98a1fce2f7e3d13d8d0762b834bb131661b64be46e554db9b02084a1a613"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/preparation-store.ts",
+      "gitBlob": "9ab570f229720db545df7ca0770fd6bb234080e8",
+      "bytes": 11450,
+      "sha256": "dc66ce5dbbf1c677394b9217a64e7212d77f1fd715686e44539fc73b817d18b3"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/prepared-coordinator.ts",
+      "gitBlob": "a67aa15f6b6bdefdd5b54a4d64fb34000bbbd319",
+      "bytes": 20422,
+      "sha256": "e621b073604ec4ff76762091530efdf9f13301de0a99946c5f415d9747aba2bd"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/prepared-store.ts",
+      "gitBlob": "662db82a72a8a7f96c874beb11f122073c4a7ed1",
+      "bytes": 14707,
+      "sha256": "06b350f98b6f1974a87475c92ab19c80d64ffef2f1b4b134bfa6faa6b4a13454"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/print-coordinator.ts",
+      "gitBlob": "6093fdcc93ab3a8bf746f6186860e2444f55bc9d",
+      "bytes": 1072,
+      "sha256": "b21d1d5e40b0372132298d87a13af5c11d0dd6ea68e09422ce6622f6977013cf"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/print-facts.ts",
+      "gitBlob": "5b4e8b4ba8d9ca82b5928a88f52c70b76a780414",
+      "bytes": 8282,
+      "sha256": "af0753999d918bbf5eeffaaf20d27fea3bf5c94e838ae8e16c479c39b53a060c"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/print-integrity.ts",
+      "gitBlob": "46ea1b4beb43db0593eb973ad709ee86e79e4b70",
+      "bytes": 27664,
+      "sha256": "a9aff4ddc076677accf393be8c1567729089b81dea5ed1c8b76b4cdcf425645a"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/print-store.ts",
+      "gitBlob": "70c729fa204523e0a69c35c264b4a8753e9a6ef9",
+      "bytes": 22006,
+      "sha256": "dc4cce460ae858466c02de4f3294ef93e9c0286bcab043e88288c68b9a7af202"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/profile-store.ts",
+      "gitBlob": "28f84f7b39ee48165dc18752694d5ee73eccb2a9",
+      "bytes": 8983,
+      "sha256": "a44e84d548239fdadbec225dfd8e3387d585fa5c88f788a5f0ba287cfb0e0cf0"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/readonly-audio-consumer.ts",
+      "gitBlob": "2b8c44fb785b0911ef6b7434db4f0c353d821659",
+      "bytes": 3723,
+      "sha256": "784b3c9fe13a9fe5f4655daefa1a5dec09deeb58b62dc0563d10b5c3643d419b"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/record-coordinator.ts",
+      "gitBlob": "7668afff54ad4fde66ec8011d7429c45fbead34f",
+      "bytes": 7488,
+      "sha256": "152333efd9baa3092159ec5505b7f4be81d3fbf3415b34aca8f0ece43a45d948"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/record-disposition.ts",
+      "gitBlob": "c258cf0531bf9d8bd2f8bc884f098c6855a58bc2",
+      "bytes": 12548,
+      "sha256": "01d0118b0b0046b47f326aad52b4acfd68e6fe069b7a7c9cc78017b4cdb31ba8"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/record-integrity.ts",
+      "gitBlob": "3463dcde31aaf18ec3bf6baaebd0632724d4438d",
+      "bytes": 26828,
+      "sha256": "519dc671e90a7edabba7c48ecd8b28b06c572f0bb014fdbfa00c17bd6946c8a0"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/record-page-index.ts",
+      "gitBlob": "80ce4210eb65ecf3d435804a4633fed7e4eb8687",
+      "bytes": 6357,
+      "sha256": "502b2ed1e92d6af2a0dae5790f51722d81a17c2bd4d8d670d43708cfe888520f"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/record-projections.ts",
+      "gitBlob": "9485563295371cebd45a9a3bf9abf71b03a3abca",
+      "bytes": 5815,
+      "sha256": "5e3c1889e64cbcff292bc3e4d26e71fc3d74bbd7e2e273dab80fd0529e0b4179"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/record-store.ts",
+      "gitBlob": "91019ae665a52a2492ed5e3eb89a5b0d118b614b",
+      "bytes": 13932,
+      "sha256": "87d461a872813294dd1ec0db458bcbb824ffc616e86cb4eb52d223fbbe63ef1b"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/record-visuals.ts",
+      "gitBlob": "b223649cdcee2e881d12545fe7c09d2664d99c20",
+      "bytes": 3053,
+      "sha256": "b1ebe38e9553721b14a233432fc0a832eaf4336e9b39e5b71eb507e6d9c591a9"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/render-conformance.ts",
+      "gitBlob": "1d88906812a2a49cc26c01577daf255003c078a7",
+      "bytes": 4012,
+      "sha256": "8da4d41189e24145652a8873e36a3acb789fd9c6b1bdc5aeb8959a70100d41cb"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/replica-coordinator.ts",
+      "gitBlob": "89cd71363abe7aec300e79dc3724cfda1e0d5893",
+      "bytes": 18244,
+      "sha256": "484f472bf0833856ac117664479f1da5f676ff4b8c37bcbe8206d92fe7d54d12"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/replica-device-output-provider.ts",
+      "gitBlob": "037f02a5a687d52818c8fd97b82008d338e89b06",
+      "bytes": 6976,
+      "sha256": "87c4e56734c661eb0b668be4e8de1cb6aaf7ffcce52dce4de528fa7f0132b848"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/replica-device-session.ts",
+      "gitBlob": "0efe5bcf6f31833405f7fb3c5abe8595e9d8f0f4",
+      "bytes": 22195,
+      "sha256": "bd9a9f71a259a039e30a7d043f094f6b429896f551bf395cbf9a456caaff102e"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/replica-error.ts",
+      "gitBlob": "db75b09aaefa5afef7cc227cb49b633e4659ed0f",
+      "bytes": 672,
+      "sha256": "b067bfcf9a0ec87a562421ce402f7df485e864ac99a11173f76be635e40f1cd2"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/replica-input.ts",
+      "gitBlob": "b2b1156923c2282734d256fc6ca1a8f71de03fc3",
+      "bytes": 21760,
+      "sha256": "65a0dbbfceb4c3455d2d52c26939b7bc16f4bd68ebf69ae8abc3ab3ab24ba858"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/restore-activation-files.ts",
+      "gitBlob": "5af8b5c489b96bbe648adf947f3f9de5350e72dd",
+      "bytes": 6098,
+      "sha256": "afb09b4552895153042363ce4f330f6a491677f8048a854f6bf00418187c5a3c"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/restore-activation-store.ts",
+      "gitBlob": "343b19d73950a54d69ae7c05a62e535cdc6a79ba",
+      "bytes": 7907,
+      "sha256": "594af40c43b43d55b9ffe2e2af3c3e1404353bd40fb41811b984be2605b3bc08"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/restore-content-binding.ts",
+      "gitBlob": "6f20d382c60b76960c4a1acb47d6df26816bf6c6",
+      "bytes": 3299,
+      "sha256": "827e2781dde09ee0646a77ecf4960d3fe6b7352d0adb52afbbdd560f625a7ece"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/restore-database.ts",
+      "gitBlob": "30bd93b9061e5f3f7d15dccce7674f5dcf53668a",
+      "bytes": 9202,
+      "sha256": "c1a4dcbbc5df2f4edbb242533f834998d15ced8e56894ed2c996040424b4d0f7"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/restore-dataset-runtime.ts",
+      "gitBlob": "07801f00f4dfe698bb3d97896f1d174c3b956cad",
+      "bytes": 12572,
+      "sha256": "8e6a94614513a2b4e5b1abbe7c470f40e5669a6a65559d903a2816c72f4186d1"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/restore-index.ts",
+      "gitBlob": "4e0d094e8d828f74bc4ee06e965a2e155382ae39",
+      "bytes": 5286,
+      "sha256": "f93e377f92327c5d95217ea5bf805a8c89961f7fa666fa46c7d32d6c3ceb3643"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/restore-package.ts",
+      "gitBlob": "81bddf3194bd2ad8cefa02db6275e271716d70de",
+      "bytes": 10315,
+      "sha256": "9dbd3cb7cfb5aac8b0c4a8795ff0db7bdd4e5ca54ae13ddc9cafa366b0511b00"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-candidates.ts",
+      "gitBlob": "128e072e90026b63575c68c448a8f328b158f404",
+      "bytes": 17675,
+      "sha256": "2a023629b16c8f49dccb9c4d7dbce34ff1f3d141b4124b0f1bd60358b336d071"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-evidence.ts",
+      "gitBlob": "00aa2e088673adc45f29dc50beed161e0d6229da",
+      "bytes": 9659,
+      "sha256": "2a342296818755c0913c2e87797c564d660bacc9c5c57dedb6edfc3362938ce8"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-files.ts",
+      "gitBlob": "53d31862bc3ca796c4f522bf0998e3380ac560ee",
+      "bytes": 42398,
+      "sha256": "1012b602ea9b3641e41da391b3c1d268ec39bf9029bf548441358daa73f06fc9"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-protection-store.ts",
+      "gitBlob": "853b510d9b06d6d3ae529c662dfb0f9d9bf87e9b",
+      "bytes": 28518,
+      "sha256": "486b7b1b3a92e01c1d3b6b387d4d3c5a5e58573b3767dc13d743b5697b013d94"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-protection.ts",
+      "gitBlob": "972fc9d2a48167f916cf13989fa377d9bce4b701",
+      "bytes": 10752,
+      "sha256": "5057c3e693c99a86fc9969c040751ab3230950469d6d07f081494047043cffbe"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-store.ts",
+      "gitBlob": "c3ea2fafa28e109a85d6ad9279352388fc991ddf",
+      "bytes": 13849,
+      "sha256": "1cdd230ed40b5907921a02427e76752b0e4660187cdeac870d3fd568bb5561ca"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/verified-zip.ts",
+      "gitBlob": "ed0edb6e96ff4651a6b3a686d6f5f2d39e8b85f3",
+      "bytes": 24236,
+      "sha256": "ef7fb03dbda80117f67bc0076fd2a93040001da463b8c155d960d0874276b9bf"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/version-distribution.ts",
+      "gitBlob": "af186b0af35efbf35c8184a3c93dcba6dc0e564b",
+      "bytes": 5771,
+      "sha256": "1331feb01ae01a1b2d93064dc5093587a959b56545de1202709c2e7c27379643"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/version-planner.ts",
+      "gitBlob": "e391fcd306d74794e9b7d1e91a479342622883fd",
+      "bytes": 4130,
+      "sha256": "a1895c74c86b0bede6be9d1c4bb6e31ddd57a317efecf120ca4bf30e277d7d86"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/versions-coordinator.ts",
+      "gitBlob": "69e58eae403571ef89b4a1469a74ec3c9cd271f1",
+      "bytes": 10080,
+      "sha256": "9754ea1c974a3c31212d1304483cb476fb5195524b96a4635b5b1eaee8aa2dbb"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/versions-store.ts",
+      "gitBlob": "2427688f42b5e2191cc70ef7004195382e4188c8",
+      "bytes": 12009,
+      "sha256": "b558d0e414f3635bcb6d324b06e7404db6f829228235ff365b70e9d4792e4219"
+    },
+    {
+      "path": "packages/bridge-core/src/recording/workspace-context-store.ts",
+      "gitBlob": "793ac6e0c05790d1c7d0a324fa71013574bc0928",
+      "bytes": 11558,
+      "sha256": "e71d7360bb6177fa6fead2d562c55fd1c936b26be3ef6f1d05742996a5c29e58"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/action-policy.ts",
+      "gitBlob": "869c35ca1af203b6441aba881abecf59c3610c1c",
+      "bytes": 3426,
+      "sha256": "5443a6c503ab664da3105de1c62e2dfe96c76f52134ebfa7a596c2e590ce1e1c"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/adapter.ts",
+      "gitBlob": "8bbdf898cf8345f9c7c5a9b468e032094edf7ae2",
+      "bytes": 69030,
+      "sha256": "83501413ed5e06cc9653c69c30a90d459f384272ec7c9a2bd100ebba6df3a4d8"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/confirmed-track-action.ts",
+      "gitBlob": "8c0bd51537f1ac48e3ba9b8bb86fa97635fc407d",
+      "bytes": 3546,
+      "sha256": "3b6a5d830b161ab7ca1ecc40871a58c8ba4c78d235e9faab054ea40a86181471"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/image-read-owner.ts",
+      "gitBlob": "91502dcaf7f65c7cefbfddd76505354487a3529a",
+      "bytes": 6147,
+      "sha256": "f420b6f5db6042466976dacc7b0870cc7530d39f6fc578fb43aa323b42f94db2"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/library.ts",
+      "gitBlob": "b10858a76b96593886a3cadd399feda323c1f80f",
+      "bytes": 122364,
+      "sha256": "8fcf6d25c3332c840070ff845decdffe9f0df2f99d53a49c10b457f40b2e9390"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/playback-context.ts",
+      "gitBlob": "da10a26fb1ae2e38048005bc8a0cdb247476df06",
+      "bytes": 934,
+      "sha256": "35fbabe1c40415a1bf670f5b6e735791585a2e04681441345031b4042963be10"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/public-library.ts",
+      "gitBlob": "a5876199ef2a0a025373c96b57fb39ce7cff18d8",
+      "bytes": 45087,
+      "sha256": "fc250767f858bc3b88c838560461bdc6b81793ae6e802406eb31686f472efc98"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/sdk.ts",
+      "gitBlob": "9dd5f397eff620c2fe0249ebbcc50f0e4eda3304",
+      "bytes": 6576,
+      "sha256": "02cccf91814bece1e0663bc066d650fe26fd1056527173f0cf7747798ea16ae5"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/synthetic-library.ts",
+      "gitBlob": "8eddde0aeb636d9cb6f6e582bea0e0aad50cde8a",
+      "bytes": 2090,
+      "sha256": "b39406c3248b21a268deab9c0fe2e457e34612967ae579eae279edf1a5fb4dcd"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/track-action-confirmation.ts",
+      "gitBlob": "80bb7a04ee6a20e183ef986acca0b271b008262b",
+      "bytes": 1355,
+      "sha256": "e58116a6c222fcce188d842ff149141b65da10d08b69506c9663a67dcab413f7"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/types.ts",
+      "gitBlob": "ee990f0e6da8fcb81d01339e6ba5bd185d2bc3e8",
+      "bytes": 4159,
+      "sha256": "c95086643ffdc763c079cc8e204acfca4d486e4357aeb9bde722fa8683dd00ca"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/volume.ts",
+      "gitBlob": "14c24b40a34ae034c47ff71760efcc0ffb5dc344",
+      "bytes": 1959,
+      "sha256": "6a20c3e1f27a506675da63e1b324814165a586527a32e6013fbdfb8b2395a552"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/zone-switch.ts",
+      "gitBlob": "dfc23440a895c41e81a9d203490aed6f2ef64aea",
+      "bytes": 233,
+      "sha256": "c7f2b36ce2bc4aa4d1ccd59b9e2c54265fc2a118e6f6e89efc460f49a6cf0fe1"
+    },
+    {
+      "path": "packages/bridge-core/src/runtime.ts",
+      "gitBlob": "524e75ffbaac2dc1a8f8b84cc46a79537560f668",
+      "bytes": 99677,
+      "sha256": "9c11125386f197a9e50f3c4a37df8765afc0980f5f9cdc87a412d5bf7bc012c0"
+    },
+    {
+      "path": "packages/bridge-core/src/rust-core/collection-query.ts",
+      "gitBlob": "38dcb6a3c1cc3176cd077b0fd9a3f8b63d59bf54",
+      "bytes": 6001,
+      "sha256": "a9bc02bccce474689a24bf8e563164569b50b285ffbdce8f73a776a7c9efa569"
+    },
+    {
+      "path": "packages/bridge-core/src/rust-core/core-dataset-owner.ts",
+      "gitBlob": "a8990b02802f7e9caac90a37cba02a633334b3b5",
+      "bytes": 12626,
+      "sha256": "049d1cfccbd43643e3114234d5fb23b18aebf9bb261eb79062203cd446d37ca7"
+    },
+    {
+      "path": "packages/bridge-core/src/rust-core/host-controller.ts",
+      "gitBlob": "af002e3f6d3aa96e5f6c8760c4a437d94048d3f6",
+      "bytes": 711,
+      "sha256": "6e09544985952180873aed168cecdac24e5a8f862ffb69fe9431b1876689b596"
+    },
+    {
+      "path": "packages/bridge-core/src/rust-core/optional-readonly-manager.ts",
+      "gitBlob": "c2bf955a9c2826617de78e5ca1f1a71dbd6440c7",
+      "bytes": 10334,
+      "sha256": "aa4a8ddab59d26782345d8dfd09ed097b82e77dda04b9dad7824b938e1a22ec9"
+    },
+    {
+      "path": "packages/bridge-core/src/rust-core/readonly-router.ts",
+      "gitBlob": "a99bad1ff6e53db835e0daf27490421318620dc8",
+      "bytes": 24393,
+      "sha256": "ee23da566bdb0ea532abfa7e1fb8a16629f1ac553dae4b5b4a3e050105043f68"
+    },
+    {
+      "path": "packages/bridge-core/src/rust-core/readonly-sidecar.ts",
+      "gitBlob": "2b393f8161eccf19644d9c3c6f13f020f960da6c",
+      "bytes": 35773,
+      "sha256": "dfde3bd764ba54edc0b741a44dae2a93653a441220d554722587295339ae7d99"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/errors.ts",
+      "gitBlob": "fec046c9e629509deced7e623307c6a07404d6e1",
+      "bytes": 1799,
+      "sha256": "7f571ac136a544bbcb3e1fa6ad3d9e29135073b18b55b3f5705ca9c2ddebbab1"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/ipc-failure.ts",
+      "gitBlob": "c102a6e45e58c45e1e2030be9f4a858e40864eed",
+      "bytes": 10506,
+      "sha256": "ca8cd083729e7c0f55131bb523f36dbb113d002afd591b858e5a18f6388bc26e"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/library-read-lifetime.ts",
+      "gitBlob": "d064724f9f74e51e7d8ca3cf8437559b5323f484",
+      "bytes": 3232,
+      "sha256": "91668e22e0263cb59c112527aaf4e1b16e848712d4fd321abac8d26a180c9b50"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/library-read-registry.ts",
+      "gitBlob": "ca8e144d85805fc740b2d794f8e3e6110289b31b",
+      "bytes": 6615,
+      "sha256": "ce40c775d46db9227580cb711e598764cd846397b0f5a56dcb1dbe7f0fa8e135"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/library-read-trace.ts",
+      "gitBlob": "90e508c46a108cdd7b1649e7d9e1671f5ba049cf",
+      "bytes": 10989,
+      "sha256": "6ae6397cade18c5210fa4a61f53e760dfa55cdd74383a615f567ed91388339e9"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/logger.ts",
+      "gitBlob": "20509686481354f621a7e147e86840341f14f2a7",
+      "bytes": 2338,
+      "sha256": "0c434cd744edabe0a72510edd88e1782d9000da41ab23be05d0bc797dd7633f4"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/playback-failure-trace.ts",
+      "gitBlob": "4a661c6f5258dd977fd4260d9e565ca119632e6d",
+      "bytes": 2242,
+      "sha256": "76c2eee5fda80a6f3b8f83f5f8bcb543ffb14586f0a5bb92149febd9417c4cce"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/source-relocation-utility-port.ts",
+      "gitBlob": "d764da8ed327cae6d5c9eb0aeff141c189afaf89",
+      "bytes": 4542,
+      "sha256": "9e1ec43867b3e56a9a117a6b41643915783a065c12c56a66cdfac207286403dd"
+    },
+    {
+      "path": "packages/bridge-core/src/shared/source-writes-utility-port.ts",
+      "gitBlob": "72dcc9584cfd82fdbb1145f254e9cdf10f9f236f",
+      "bytes": 5077,
+      "sha256": "a3a665b3a2ef2b40b93fa7615dbb90551df1fb34eac35d60d1600040772ca720"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/gateway.ts",
+      "gitBlob": "7c9efd11ab21d7d11ca1e7c24b1fa07d742f03d0",
+      "bytes": 25140,
+      "sha256": "e3b7a75a1e62f4448baeca05ef348b2cf2aa227f948d7594e7b0d2822c584bb0"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/http-byte-evidence.ts",
+      "gitBlob": "b685a97fab1a37cf96feaa0fd7945adccc2a098a",
+      "bytes": 4790,
+      "sha256": "a62b48cf2b2d274618390f95ca9844819ff7c33f703e2ef6de7626e3b2365e01"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/local-file-http.ts",
+      "gitBlob": "65efaee068792bbfe34ec0c6debf6c53ed133a1b",
+      "bytes": 3636,
+      "sha256": "ac50d11d1b41d64ebfbeaadcdf95bda2db3b155f69d9243829520502317e2482"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/local-file-source.ts",
+      "gitBlob": "31e6833db7b08657683de014342646104772c14d",
+      "bytes": 10847,
+      "sha256": "eab1749c6d78ee5ebee704520d6d8570291ffdf7a160ce866312f52164d9684c"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/local-source-fence.ts",
+      "gitBlob": "75cef5d92dd12ecb66768ce6c7696432a47d9721",
+      "bytes": 3712,
+      "sha256": "3269660df229efa73eb8ad0d6f8f87b476e066d9fa59b3645f1f891a45e91335"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/physical-resource-claims.ts",
+      "gitBlob": "fce961621e86cdfb344e42f52db64640141f6051",
+      "bytes": 14798,
+      "sha256": "ef92308c9bf0076d2ece5ab59cd62974d407bd81c9e4194b191ababdcff06854"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/physical-resource-locks.ts",
+      "gitBlob": "ddd540dc1b5451c4b0edfdcfd34126f05e9df2d3",
+      "bytes": 15108,
+      "sha256": "3ce61bd5f704df7922a51d8f537afa5f0e9af363e37e64daee488e826ee16160"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/registry.ts",
+      "gitBlob": "c7db0f94bf6c7d6813406852ef99584e51cbc2d9",
+      "bytes": 4471,
+      "sha256": "252dccc13127c99fe2e9f6646edcb48a171bdcc37719e9d5d12664664158ee4b"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/resolver-types.ts",
+      "gitBlob": "b5e263ed715ced10f9b4b3280430841a0e4bfe40",
+      "bytes": 364,
+      "sha256": "0116ca1fc31b4d20083c459da86997e622a92103713c9ff68ffad7ad1748db23"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/source-namespace-claims.ts",
+      "gitBlob": "107afe42e345b5e0c3bda25df78610c14fa2bdce",
+      "bytes": 24726,
+      "sha256": "53d3db53fdb4fbdfede5ffe8e527ed34a464f0e8b130974a638d5e68ea280ed5"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/upstream-policy.ts",
+      "gitBlob": "5766b6163b22e2f8d75c8ef71f8a8cd8f04d235b",
+      "bytes": 3186,
+      "sha256": "b118691f4bd6a5fd7dc87ae62a639e2923809a5275458abca3adbfc5bbf6c1ba"
+    },
+    {
+      "path": "packages/bridge-core/src/utility-main.ts",
+      "gitBlob": "5ee48bc99011010316350153fc1d4a3ebcfee14a",
+      "bytes": 49930,
+      "sha256": "9071f130a2cfeafb16b2082444ec5fa7a529d8a18106b7747edf534681fe0dcd"
+    },
+    {
+      "path": "packages/bridge-core/src/vendor/roon-modules.d.ts",
+      "gitBlob": "05091bd69fd368405ec80a4ca571044385dbeb54",
+      "bytes": 711,
+      "sha256": "1048682fc6d1628893ae961a8355c1ea76f26579c5b25cc193a198d16575ae26"
+    },
+    {
+      "path": "packages/contracts/mobile/openapi.json",
+      "gitBlob": "0634c71a12a3c235083d2a6ecb066497aabc3570",
+      "bytes": 145918,
+      "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+    },
+    {
+      "path": "packages/contracts/package.json",
+      "gitBlob": "da55e2ea0a8cecefa545520322d50c9722156d02",
+      "bytes": 593,
+      "sha256": "070340575abf352997c6d20b9f6fdf15ce49479e8796d00d13595a4c8d2e7325"
+    },
+    {
+      "path": "packages/contracts/src/aggregated-search.ts",
+      "gitBlob": "85c818471518ef3110136983bd6f4f661e8e1b04",
+      "bytes": 382,
+      "sha256": "26786b533d3281a9f3710d3d48ff69d51323df9dbe312dd522d0b1b841bf87a3"
+    },
+    {
+      "path": "packages/contracts/src/audio-conversion.ts",
+      "gitBlob": "b06e21b546d59c35be7f286dee31da15d95c2f50",
+      "bytes": 6836,
+      "sha256": "a46ad66f9a1814a26325a96be2e106370b4974a65f02fd385852329dbe8ee97a"
+    },
+    {
+      "path": "packages/contracts/src/audio-quality.ts",
+      "gitBlob": "3988545f9bfe18205ced737911ab188e20fa94c1",
+      "bytes": 1714,
+      "sha256": "963be7c90f08a1298264e22fd00e89ed2a995bacf54900df8bab2170b4dccd95"
+    },
+    {
+      "path": "packages/contracts/src/collection-progress.ts",
+      "gitBlob": "6ae434826fe3f0e559282a180f53a2dcb907f610",
+      "bytes": 22628,
+      "sha256": "e4eba0d8f1d55cb7344d76c049e24958f6c45d9dccf47e9d05c5fc8dd84fa9c2"
+    },
+    {
+      "path": "packages/contracts/src/collection-readonly.ts",
+      "gitBlob": "9521f79eec13999eb75aa3f52f8148fcbb28b96f",
+      "bytes": 2567,
+      "sha256": "c996175e8a1cfcf31b0487ad55574fecaa76ab54378ec606d88acfe3c25b3218"
+    },
+    {
+      "path": "packages/contracts/src/collection.ts",
+      "gitBlob": "c91f72546382bc8730bcf49cc36701a912ffeccb",
+      "bytes": 17792,
+      "sha256": "b9a22e5fa881bff540c6ee4121e1b5b65c13f0a2380d6186dce5d12f14c2bbad"
+    },
+    {
+      "path": "packages/contracts/src/command-outbox.ts",
+      "gitBlob": "575abfa2e68b630ee4b074d636a4b060416816aa",
+      "bytes": 33382,
+      "sha256": "72a7839c60bdba24945885c20873020059ca42c976eb8411419781d2d0a5596c"
+    },
+    {
+      "path": "packages/contracts/src/converted-execution.ts",
+      "gitBlob": "6ed75300a35ca5088b6ded3c4921f9ac9a7ebf07",
+      "bytes": 7632,
+      "sha256": "7543b4451d98674693042bd5e73ead40b567d261a8b5966d214b3d1c6b9e2e28"
+    },
+    {
+      "path": "packages/contracts/src/diagnostics.ts",
+      "gitBlob": "2ff94258fc4f4e42dc4443ac4a536bf1faef97f5",
+      "bytes": 5399,
+      "sha256": "dee5df9f69a4e991e589c97062a35c2f80d1584c51d055ffe4c5a8b42302622c"
+    },
+    {
+      "path": "packages/contracts/src/errors.ts",
+      "gitBlob": "aa6ef2517fdadef39176bf69b5875130cdb9c31e",
+      "bytes": 928,
+      "sha256": "baea3809a536c8ed7597650d205d60319c5d71d7f1dfd4b109a45d43d9796b3e"
+    },
+    {
+      "path": "packages/contracts/src/execution-assets.ts",
+      "gitBlob": "5c196611350cf8b33d63ee39c361a878e8a6f2b3",
+      "bytes": 12118,
+      "sha256": "b8f0abb52669d09948e909f565550b9ad26a7a0dfd4366a0d109d3d4310ab91d"
+    },
+    {
+      "path": "packages/contracts/src/execution-audio.ts",
+      "gitBlob": "7045e09560f63a53857a6fca372d947e444b1260",
+      "bytes": 8720,
+      "sha256": "23dc8475ee5af5d2f75275a39a1d55a6d971076c2df0953a5df8c8590cadfa46"
+    },
+    {
+      "path": "packages/contracts/src/favorites.ts",
+      "gitBlob": "4c46948fa30e71aafa82b0b53ca6ec3598fbc86a",
+      "bytes": 566,
+      "sha256": "65ff3e2f4b0c7488e5933cfb43ae2c69f5ef35f8bd6d8a985be131ba60a3a386"
+    },
+    {
+      "path": "packages/contracts/src/index.ts",
+      "gitBlob": "d68a3539c525cc1edeeef0d63c041a2105a90214",
+      "bytes": 2725,
+      "sha256": "937c3cd8d477e49265958435178e7c39a0882f9c33b6ea2cd46e498c4d887e69"
+    },
+    {
+      "path": "packages/contracts/src/ipc-names.ts",
+      "gitBlob": "47cbe1b9053b4b29778456ade08e1d9f0fd32552",
+      "bytes": 9432,
+      "sha256": "75ec5bea326d5d1e29ae5b3945ac1cab1186b25e31cb9d43fb68cc5f3e08a5d1"
+    },
+    {
+      "path": "packages/contracts/src/ipc.ts",
+      "gitBlob": "ba31ba63da85b05406d5134eb21a462bd665a337",
+      "bytes": 46532,
+      "sha256": "cebf9616f65cb546eb7c7d3c70c196821c1dd8be09cd231e041a460646be07e5"
+    },
+    {
+      "path": "packages/contracts/src/library-read.ts",
+      "gitBlob": "17c35bbb4c6afd2c75ed3562afef7eb6d19079be",
+      "bytes": 2459,
+      "sha256": "7196304d41499c6faf7aa8b54ba8fe923ec1b8b2edab280771c43736f2ab3ee9"
+    },
+    {
+      "path": "packages/contracts/src/library.ts",
+      "gitBlob": "464ba3a4d23bad039f74a422d131867610b1e8ec",
+      "bytes": 1944,
+      "sha256": "3c1f4ae84f33ae19da5449b6ee6c23d99759d18902e4931441cad8a52a717106"
+    },
+    {
+      "path": "packages/contracts/src/local-artwork.ts",
+      "gitBlob": "a6b3c75f53d0ee8513164f1bad489263562e2142",
+      "bytes": 18065,
+      "sha256": "2149ab50ba40113491cd4149e80caa45287c7fad72021e71dec21c16754848ae"
+    },
+    {
+      "path": "packages/contracts/src/local-catalog.ts",
+      "gitBlob": "facaa9766cbfe0ea225de57b2e932a6020b461dd",
+      "bytes": 30109,
+      "sha256": "8796cce24bec3b10cabdcde05fe24fa536eef23755cc61389977959a0b2e54e6"
+    },
+    {
+      "path": "packages/contracts/src/local-domain-references.ts",
+      "gitBlob": "ca5075b5d38b46bcab5ac8e776180697abd4cad3",
+      "bytes": 7200,
+      "sha256": "c47179d33ec6d4afad7e9937f8be0148ed05b095ac58289a21f93cf95ef19fa5"
+    },
+    {
+      "path": "packages/contracts/src/local-legacy-links.ts",
+      "gitBlob": "45c373fe0f8945614d9b337fd5db93e3aace343f",
+      "bytes": 33383,
+      "sha256": "7b297151b4ec0ae8e3995c6a12a59db06ec217efb45f2da328e91cd0743228c1"
+    },
+    {
+      "path": "packages/contracts/src/local-name-rules.ts",
+      "gitBlob": "1ce12412206bc4ba30f3a5b4f42d968eb85e28c4",
+      "bytes": 2360,
+      "sha256": "4158dc40969f58bc9f1c78e437c3f599a4181da01310c933549ad6d3f5f0cf47"
+    },
+    {
+      "path": "packages/contracts/src/local-organizer.ts",
+      "gitBlob": "7223b082912b09b58828e9485fc4dc2fa7d60a26",
+      "bytes": 20412,
+      "sha256": "94a771aac284e2afbc46a19f5ebb2fc1e3dbc29562ac45aeb5bdcb98509f7303"
+    },
+    {
+      "path": "packages/contracts/src/local-play-request.ts",
+      "gitBlob": "06435b362a64115b9ddd7426ed415304c2c7f8de",
+      "bytes": 4859,
+      "sha256": "e47b46e0681bd9e342f1eb119b181a7d1adac31475cafdf6d07650370cf33530"
+    },
+    {
+      "path": "packages/contracts/src/local-playback-compat.ts",
+      "gitBlob": "39d61ca7d60663a5f89b229ea5f09a59b50229f6",
+      "bytes": 5655,
+      "sha256": "59a2e0f17d7e2c654ec346334a0509c813e01e0d9a703628545bd7c841b78081"
+    },
+    {
+      "path": "packages/contracts/src/local-relocation-plan.ts",
+      "gitBlob": "8df47a520d40311c20129c60e8f4a39b2e0ecb57",
+      "bytes": 47963,
+      "sha256": "70ba45cfcf009f2da21bfc607b157aab2939623036d90957337dd5c8f49b6e08"
+    },
+    {
+      "path": "packages/contracts/src/local-relocation-private.ts",
+      "gitBlob": "1f01600c0e09c4059e43648a838216601cf65ec9",
+      "bytes": 31605,
+      "sha256": "0198738b1c74be414d9becec44f724a57b63de9e6df3b65b0f5e83a0658f0cc2"
+    },
+    {
+      "path": "packages/contracts/src/local-relocation.ts",
+      "gitBlob": "50dc9e98630f28e9a691408ee08b57713d87c9d3",
+      "bytes": 8458,
+      "sha256": "79e82e14c9f01ef985a356193e67a28210ee0c8353cbaf2f0bf6da60e83a6c3f"
+    },
+    {
+      "path": "packages/contracts/src/local-scan.ts",
+      "gitBlob": "5ed7bb3975bc38104530272a36b65537538b8ffa",
+      "bytes": 17948,
+      "sha256": "232cc3c0423f30377b3f04f8ee12a9c96c85192077d618394bd3f7eb273c53ca"
+    },
+    {
+      "path": "packages/contracts/src/local-source-writes-data.ts",
+      "gitBlob": "022405f0a3ce99f9878dc31b8261741beab67d63",
+      "bytes": 5936,
+      "sha256": "4b842fc272d902a2d3bd7aa70f29427ad7595728835a8bdc1ca720346d744af0"
+    },
+    {
+      "path": "packages/contracts/src/local-source-writes-private.ts",
+      "gitBlob": "578532806337c9b24b8416ad1e148c98e2f7f829",
+      "bytes": 13452,
+      "sha256": "4e8f17e37386c9e42ef631b5203edf1adb34db79651c987c0171e84b08182b73"
+    },
+    {
+      "path": "packages/contracts/src/local-source-writes.ts",
+      "gitBlob": "167839eaa10edf727141cd836d849e3333f27790",
+      "bytes": 44593,
+      "sha256": "af8497cfe7b79b478325910bbd2b543d9c25a9bf8c5b48988ec79fe874de21c6"
+    },
+    {
+      "path": "packages/contracts/src/lyrics.ts",
+      "gitBlob": "bd5f9e74b3a0a3d1452b6c2154fcc725b4496cb8",
+      "bytes": 1687,
+      "sha256": "4650c22a2465ae83a7e2cc1813fb5254289550241fccd6f3c6b22af94694e7dc"
+    },
+    {
+      "path": "packages/contracts/src/master-drafts.ts",
+      "gitBlob": "a7f2dbab9a85daf48e22b81ea6802932b7214d0c",
+      "bytes": 5642,
+      "sha256": "87e7d0754226dadff0e44e27d7128dd8570dc421e334358a945fd3cb093db63f"
+    },
+    {
+      "path": "packages/contracts/src/master-versions.ts",
+      "gitBlob": "fc17d6ced57d36f656dea0be891cddfc3e673559",
+      "bytes": 15627,
+      "sha256": "c1d14aa1b392e422d7cb837e0f75e035fa67acc2fdd9df6afaeb1448a22a512b"
+    },
+    {
+      "path": "packages/contracts/src/matching.ts",
+      "gitBlob": "2b5f2db01a0da57049b3c32ad4aa067d3931494c",
+      "bytes": 566,
+      "sha256": "4f70fee5d0605f9a1a74bdebc3e488de1a6b9701df4e6dd30ddcdc4904d05b81"
+    },
+    {
+      "path": "packages/contracts/src/mb-queue.ts",
+      "gitBlob": "a9fcaa239c96a46c3f2e8742c7d9314a051a97bb",
+      "bytes": 6491,
+      "sha256": "45c359d8b0d7b35951a5fe79fd005232dfe4fb99a1c824b76851fb46c7723b68"
+    },
+    {
+      "path": "packages/contracts/src/media-planning.ts",
+      "gitBlob": "e72ba3245508fa475bd80e348ab0c4cfabc07e1b",
+      "bytes": 12581,
+      "sha256": "e70342473dd5a226d7cbde0e6656ae11bc511e161c184a21b426a6e1d86d112a"
+    },
+    {
+      "path": "packages/contracts/src/mobile-catalog.ts",
+      "gitBlob": "165fee3b973829ae2b83a5245cd166e457cbe6d7",
+      "bytes": 10851,
+      "sha256": "cf881261c736f59d82328ff0ba89b97d8234ce543cff589ae5747b85578376ba"
+    },
+    {
+      "path": "packages/contracts/src/mobile-common.ts",
+      "gitBlob": "755d8aea4253f5b3554a3b9f6cf7d122acd12837",
+      "bytes": 25417,
+      "sha256": "bd56678a608b0efb6c37eda27d702d91df26385a3f4b672ca77f0916557e489b"
+    },
+    {
+      "path": "packages/contracts/src/mobile-content.ts",
+      "gitBlob": "c1936c09400e06d19da490ad15fa91348db8ae79",
+      "bytes": 42606,
+      "sha256": "0c80ffa4a922108a62ba65bd59a6498e24a83c672f88f52017c5201a384ab6d0"
+    },
+    {
+      "path": "packages/contracts/src/mobile-resource.ts",
+      "gitBlob": "68e511b78262539168298832e75023c7b4b510d2",
+      "bytes": 15913,
+      "sha256": "19c37cd5d5362da734d8c285dca8134f6e3ba57b1886903fd7f18d2c7f39c76c"
+    },
+    {
+      "path": "packages/contracts/src/mobile-wire.ts",
+      "gitBlob": "61aab0da9c6c4569d21e45d424f02f3ccd0451fe",
+      "bytes": 43241,
+      "sha256": "bca580d0d28e8b0e96c86606cc2e0f4d4939328ad59ecfc4cb72ece739a839e6"
+    },
+    {
+      "path": "packages/contracts/src/performance.ts",
+      "gitBlob": "dde5cb48b6ad7c062586aa49980f6adf6bb88ed5",
+      "bytes": 22976,
+      "sha256": "5435b28ba9b024e99a325119b084e5dd2363161ed614fe7603efdf801b59a040"
+    },
+    {
+      "path": "packages/contracts/src/physical-links.ts",
+      "gitBlob": "fe7eb1e3c2e35191af1ff9826352bfb2b0a6e915",
+      "bytes": 13968,
+      "sha256": "57adc128337ece10967a90dab27a98ac2f9b6a26fd9bcbf0b9b03a67e32ade0f"
+    },
+    {
+      "path": "packages/contracts/src/physical-music.ts",
+      "gitBlob": "c9bf3ce68334a1b4632135c576946d6507b28f25",
+      "bytes": 14713,
+      "sha256": "6e94053c06abd129fa7bd56d31ee1eae9d617e9d0ff3c9176366c77159c227a1"
+    },
+    {
+      "path": "packages/contracts/src/playback.ts",
+      "gitBlob": "b75ade49357c624ea03c6df200d34061ce2708de",
+      "bytes": 5030,
+      "sha256": "3b8778e9060a4ed4a6c3866ef5445a63e1414764aa52a693ade4d267756fd018"
+    },
+    {
+      "path": "packages/contracts/src/preparation-export.ts",
+      "gitBlob": "4b0a8ce703bb196e6301ff3ed3098faa840b35f7",
+      "bytes": 6644,
+      "sha256": "1b1e23683f776bd2cfb048b2eaca82dc143547a765713c00f1ece4a4baadbc30"
+    },
+    {
+      "path": "packages/contracts/src/preparation.ts",
+      "gitBlob": "e52f519c89e44fa56df8f89811a5600300887ca4",
+      "bytes": 6668,
+      "sha256": "f2ca1894caf6ae6b3d6f022e28c7d119537767e8bfc095321e131c15fc164a67"
+    },
+    {
+      "path": "packages/contracts/src/prepared-render.ts",
+      "gitBlob": "f512d566392c73b5d7991d4dcf7c983ec6af0450",
+      "bytes": 17918,
+      "sha256": "e3cb59759519744f09b03f2805700830477b225e328ff1371aff612ab4c34815"
+    },
+    {
+      "path": "packages/contracts/src/recording-activation.ts",
+      "gitBlob": "63bafde55b528d0a04aefa7ffc04ae604dacf46f",
+      "bytes": 2427,
+      "sha256": "64a1501ec81b136299692cf7e0701ffd1919b9a64ce04e3f5d6e2ebd88eaeed9"
+    },
+    {
+      "path": "packages/contracts/src/recording-archive.ts",
+      "gitBlob": "925673c2f3e57a7dacdbed2a409ed6827694d0ec",
+      "bytes": 10474,
+      "sha256": "ed540a199b3bbbae3b4049d9f78d238c3703aa7eb03d768bfbf4b8484b7c4693"
+    },
+    {
+      "path": "packages/contracts/src/recording-artwork.ts",
+      "gitBlob": "ce3d81edd09663d89ef1f76b088a11a2b2e7de0d",
+      "bytes": 5642,
+      "sha256": "604a5200779fea7ce4590381b920f6c4ba4c50b35de5a3e5127c3a74b1dfc161"
+    },
+    {
+      "path": "packages/contracts/src/recording-attempts.ts",
+      "gitBlob": "d398b55e8dada620bfd3023a4fa95b59c72d9a0a",
+      "bytes": 18396,
+      "sha256": "4cced459b9db935f0fca7ae788e592b75e5c31efc720183269614145042f0ef4"
+    },
+    {
+      "path": "packages/contracts/src/recording-backups.ts",
+      "gitBlob": "ee8b65de87af6525fc5fb8500ab83177f3b42438",
+      "bytes": 9580,
+      "sha256": "28a7f9c428eabefe4ac53ec667f91995b4cc47a16fea69821755c46a284a3014"
+    },
+    {
+      "path": "packages/contracts/src/recording-device-selection.ts",
+      "gitBlob": "9228bb8925d02ce38b980ff7d14d4561fa6f9328",
+      "bytes": 3571,
+      "sha256": "7c473f5b70b11f0457694cda36fb36150ec29b2baf29c14dc4ad56c5ae8e9f64"
+    },
+    {
+      "path": "packages/contracts/src/recording-output.ts",
+      "gitBlob": "b29b97639c930092647cbb4250df19f0f60124b5",
+      "bytes": 4221,
+      "sha256": "187a9443bacfdcefc61d7f4904c60337735abd07d4fa6b737bf8e3c8060cb954"
+    },
+    {
+      "path": "packages/contracts/src/recording-plans.ts",
+      "gitBlob": "38525e40423046c075024e26794f6f4607608b89",
+      "bytes": 20255,
+      "sha256": "92341ba0918158942cdd0ddd6e6f72c23aad996579f4f786cb03050ae32f727b"
+    },
+    {
+      "path": "packages/contracts/src/recording-prints.ts",
+      "gitBlob": "b9a0250e7647d5f60edfe1bb9e6eeb475a211fe1",
+      "bytes": 26836,
+      "sha256": "2385c4e3ea7b3164a9bf524ef03862f12f2939da83dcb93ad5f0991774e567f8"
+    },
+    {
+      "path": "packages/contracts/src/recording-profile.ts",
+      "gitBlob": "3fcafcd49b8aabaf59969492d6457f02a838fc2b",
+      "bytes": 9602,
+      "sha256": "eb08c0e146bebd74f04abe86fc99a80dedd5b59102236200b6dca1b61362717f"
+    },
+    {
+      "path": "packages/contracts/src/recording-records.ts",
+      "gitBlob": "6c4278c97cfe077ef4e7d2e7a648b1f4b0404d4b",
+      "bytes": 27423,
+      "sha256": "2f094812599a7b10c48ad5ec37977538334ee021141a696de1672d2d424d0756"
+    },
+    {
+      "path": "packages/contracts/src/recording-replica.ts",
+      "gitBlob": "ded2443ce8fa64050eada681f0ce20341263bd8f",
+      "bytes": 25993,
+      "sha256": "6410babef65b95f5b13e89f3161b36cecd025bf814dfb8b41886122f94fadd36"
+    },
+    {
+      "path": "packages/contracts/src/recording-workspace.ts",
+      "gitBlob": "da262929d3a895d4d9fc669eaa379859314d9305",
+      "bytes": 4181,
+      "sha256": "edafc64e5f768110f4381b98947ecea6beba576716e7fa16be14240f33f2c087"
+    },
+    {
+      "path": "packages/contracts/src/reference-catalog.ts",
+      "gitBlob": "13ac5933f5fb23a79f0bdc0e32091e6295e37b52",
+      "bytes": 28192,
+      "sha256": "da12c1aadb161fcfb9ad564c46f77a9c793dbe6715ad80d2cfce7b2bd7273705"
+    },
+    {
+      "path": "packages/contracts/src/remote-core.ts",
+      "gitBlob": "8901cca7d278334d43470db904e3d27ef7d93995",
+      "bytes": 1678,
+      "sha256": "acbc6ac9037ccacfaa5b51cc8f6f46e8196a53e0c37636f6e343727c5cc1b408"
+    },
+    {
+      "path": "packages/contracts/src/roon-display-lyrics.ts",
+      "gitBlob": "830ae97d694bdd9e9082a7afe9d97fd179418f6d",
+      "bytes": 3102,
+      "sha256": "35de6ba8d186dae375a9942f4697c8c2bac03cc5e54dbf6f05749b71e2d62b45"
+    },
+    {
+      "path": "packages/contracts/src/roon.ts",
+      "gitBlob": "a53ece5a08ce3f4dd2dc292b853a5339e3ded2f5",
+      "bytes": 4711,
+      "sha256": "827583e7092a0db6f76f4407e00a95720b9bc96b1611d06cb65767e557a16da1"
+    },
+    {
+      "path": "packages/contracts/src/source-candidates.ts",
+      "gitBlob": "0cee7a7d3540cf7996b263840d2855ccea2bd55b",
+      "bytes": 4580,
+      "sha256": "e644c42feef9cbf92d4699507bb97159463e2df90ac51323f3184309716edb7f"
+    },
+    {
+      "path": "packages/contracts/src/source-evidence.ts",
+      "gitBlob": "90bdaa961d8ec327a3f9e9a253f3209c5525e8cd",
+      "bytes": 8366,
+      "sha256": "2f53a98ede41f8bb7d60b679cffcb74e14bf76de8fc437e6402c208c1563ef08"
+    },
+    {
+      "path": "packages/contracts/src/spreadsheet-import.ts",
+      "gitBlob": "af25f14a0d85790ee07992bfeefd606a54727d55",
+      "bytes": 26775,
+      "sha256": "fde7a14bda71e4ad7094f7a2e4cf96f20499472b22330b481bee921b81839bed"
+    },
+    {
+      "path": "packages/contracts/src/state.ts",
+      "gitBlob": "3a2cf414c83ef2cfcde1dcf75db0b0f6159a7909",
+      "bytes": 1141,
+      "sha256": "5ae9fd496847404237c88bce95b5a866ef9c6d9a51d6a9f431fdb0933bfbd327"
+    },
+    {
+      "path": "packages/contracts/src/validator.ts",
+      "gitBlob": "2c09f996083eb68ffa337ee29369acf343c0a90c",
+      "bytes": 128065,
+      "sha256": "ab3f61a2255b268d41b1074367c480922d11d8961b30ee87666f7f6946797be0"
+    },
+    {
+      "path": "packages/contracts/src/volume.ts",
+      "gitBlob": "06c6105d720a2f8501149b7cde0eb04511773fa7",
+      "bytes": 1970,
+      "sha256": "ecc343daea2417b80a36aee0093d6ddfdb85434a60099c6c6ac9b4f17eedc92d"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "gitBlob": "90187f794395b1583a22ebea86e9ec2568e830ef",
+      "bytes": 192822,
+      "sha256": "e56d67a0e8441187bf81baa27c1745973a7070e50360ab17032c2084b2e00be9"
+    },
+    {
+      "path": "pnpm-workspace.yaml",
+      "gitBlob": "3c210295a94a64c8fc506b89ea5cb747cbce9053",
+      "bytes": 510,
+      "sha256": "1662dfbf420cf5fd17b49e5e93e290f9179d94d1dfc8162f5e556e473a0ded99"
+    }
+  ],
+  "actualSdkRootReadback": "ACTUAL_IOS_SDK_READBACK77.json",
+  "originalNaturalCloseRootReadback": "CANDIDATE_NATURAL_CLOSE79.json",
+  "candidateInputIdentity": "2353bbc31f5c71f7c893cb8382a013949c5d7e52ab6e98144f66d28d48c4f20e",
+  "actualRuntimeReplayed": false,
+  "reason": "本轮只为同一锁定官方Electron安装器增加最多三次、间隔15秒的传输尝试及本任务证据；655份原候选产品源码与新Source全字节相同，不重放服务。",
+  "freshSourceGateAndNaturalCi": "FRESH_87_GATE_PASS_NATURAL_CI_PENDING",
+  "realDeviceAudioProviderRoonLanClientKeychainOwner": "NOT_RUN",
+  "fullTransitiveToolchainClosure": false,
+  "readAt": "2026-10-09T10:57:52.789419+00:00",
+  "previousBinding": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/RELEASE_SOURCE_RUNTIME_BINDING200.json",
+    "bytes": 165549,
+    "sha256": "7fcd890c3d30c29803c0eb84243b4dc64dfa1174b79c3d3a5d82f9b79354e281"
+  },
+  "previousPrivateDescription": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/BUDGET_SOURCE_RUNTIME_BINDING278.json",
+    "bytes": 166207,
+    "sha256": "d2ed565ee5419f8f9e92646fbeabf63e0d3638e432dd815e2f5b96eef5b5895a"
+  },
+  "descriptionCorrectedWithoutSourceChange": false
+}
