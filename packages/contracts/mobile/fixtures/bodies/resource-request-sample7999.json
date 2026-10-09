@@ -1,0 +1,1 @@
+{"contentRevision":"rev.1","formats":[{"codec":"alac","container":"m4a","maxChannels":2,"maxSampleRateHz":7999}],"quality":{"allowLossyFallback":false,"preferredTransport":"file","profile":"lossless"},"trackId":"local:track.1","versionId":"local:version.1"}

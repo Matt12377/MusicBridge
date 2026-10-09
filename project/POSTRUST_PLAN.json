@@ -36048,9 +36048,8 @@
     "effective_on": "2026-10-08",
     "owner_authorization": "DIRECT_OWNER_VERIFIED_COORDINATION_REQUEST",
     "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
-    "current_task": "MBRS-013",
+    "current_task": "MBM-000",
     "remaining_sequence": [
-      "MBRS-013",
       "MBM-000",
       "MBM-001",
       "MBM-002",
@@ -36075,21 +36074,26 @@
     "original_dependencies_and_acceptance_unchanged": true,
     "current_013_restarted": false,
     "old_017_then_mobile_records": "HISTORICAL_SUPERSEDED_SCHEDULING_ONLY",
-    "recorded_at": "2026-10-08T10:47:22.773406+00:00"
+    "recorded_at": "2026-10-09T00:03:09.149322+00:00",
+    "current_task_scope_ref": "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
+    "predecessor_final_report": "d3174bce575aa817b27ba05d39a40d3050b77be4"
   },
   "mobile_tasks": [
     {
       "id": "MBM-000",
       "title": "合同采纳",
-      "status": "NOT_STARTED",
+      "status": "LOCAL_SOFTWARE_VERIFIED_FINAL_SOURCE_REPORT_CI_PENDING",
       "scheduled_after": "MBRS-013",
-      "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
-      "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
-      "software": "NOT_RUN",
+      "start_condition": "ACTUAL_013_FINAL_REPORT_SEALED_PAIRED_CONTRACT_IS_DELIVERY_CONDITION",
+      "scope_ref": "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
+      "software": "PASS_LOCAL_33_TESTS_FRESH_BUILD",
       "production_app": "NOT_RUN",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "owner_repeated_approval_required": false
+      "owner_repeated_approval_required": false,
+      "started_at": "2026-10-09T00:03:09.149322+00:00",
+      "base_report_sha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+      "paired_contract": "IOS_FINAL_DELIVERY_VERIFIED_MAC_SOURCE_REPORT_SEAL_PENDING"
     },
     {
       "id": "MBM-001",

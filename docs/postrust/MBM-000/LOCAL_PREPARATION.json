@@ -1,0 +1,56 @@
+{
+  "schema": "musicbridge.mbm000.local-preparation.v1",
+  "task": "MBM-000",
+  "result": "PASS_CURRENT_WORKTREE_PREPARATION_NOT_SOURCE_COMMIT_SEAL",
+  "headDuringGate": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+  "gate": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/gates/contract-fresh035/summary.json",
+    "bytes": 197418,
+    "sha256": "c866d6b671ce9057480942f6ac36ba686c525cb9c9e0ffb480cacadbc13111a1"
+  },
+  "wholeRawBehavior": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/gates/contract-fresh035/tmp/mobile-contract-behavior.raw.log",
+    "bytes": 7880,
+    "sha256": "23b2b49c79c8abc689ce838ae1fb45cdd409cb254a2b1b745dc8e65a62af651d"
+  },
+  "tests": 33,
+  "pass": 33,
+  "fail": 0,
+  "skip": 0,
+  "cancelled": 0,
+  "todo": 0,
+  "sourceInputCount": 425,
+  "sourceInputIdentity": "146797d6ce601c613cb432fd7f63ddeeb96592ddb6d65402d70fa0cd7df2a9fb",
+  "compiledOutputCount": 222,
+  "mobileCompiledArtifacts": 15,
+  "actualConsumptionReceipts": 4,
+  "wholeHttpCases": 196,
+  "wholeBodies": 133,
+  "schemaFixtures": 128,
+  "schemaNegatives": 24,
+  "compiledOutputIdentity": "2592881dcd88e18b1537f0ccf48627374808114654adde18f0615af00f4cf53d",
+  "inputsUnchanged": true,
+  "artifactsUnchanged": true,
+  "consumptionComplete": true,
+  "guardTests": {
+    "gate": 20,
+    "reportAdmission": 33,
+    "allPass": true
+  },
+  "workspaceVerification": {
+    "label": "root-mbm000-standard-verify024",
+    "tests": 4721,
+    "pass": 4719,
+    "fail": 0,
+    "originalSkips": 2,
+    "scope": "CANDIDATE_BEFORE_FINAL_NARROW_PATCHES_NOT_FINAL_SOURCE_BINDING"
+  },
+  "historicalFailuresPreserved": [
+    "empty-body-admission021",
+    "floating-mtime029",
+    "safe-clone-prototype033"
+  ],
+  "finalSourceCommitGate": "TO_BE_RUN_AFTER_SOURCE_COMMIT",
+  "finalSourceAndReportNaturalCi": "PENDING",
+  "realServiceDeviceAudioOwner": "NOT_RUN"
+}

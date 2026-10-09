@@ -1,0 +1,32 @@
+{
+  "schema": "musicbridge.mbm000.g0-handoff.v1",
+  "task": "MBM-000",
+  "result": "PASS_ACTUAL_PREDECESSOR_AND_COMMITTED_INPUT_IDENTITY_ONLY",
+  "macBaseReportSha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+  "macPredecessorFinalReceipt": {
+    "fileName": "MBRS013_FINAL_DELIVERY_RECEIPT.json",
+    "bytes": 705617,
+    "sha256": "485c115961f095074e767f46420c77d5ca4d96f2e15cd2660b9ac7f52f43c5bc",
+    "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+  },
+  "iosSourceSha": "fc332b5973d9b9c6d608aa8e683d65cef4d2c0e3",
+  "iosReportSha": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+  "iosRemoteReportSha": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+  "iosReportSingleParent": "fc332b5973d9b9c6d608aa8e683d65cef4d2c0e3",
+  "inputLock": {
+    "path": "docs/postrust/MBM-000/INPUT_LOCK.json",
+    "bytes": 45510,
+    "sha256": "2f190bdd30838991ffa43a9c0acc8d114d7474a591f62b31ba03cfbbbfaae2ac"
+  },
+  "committedIosInputCount": 31,
+  "unchangedMacReusePointCount": 22,
+  "originalOperationCount": 40,
+  "predecessorNaturalSource4Workflows6Jobs": true,
+  "predecessorNaturalReport2Workflows3Jobs": true,
+  "predecessorActualReportOnlyVerified": true,
+  "predecessorSoftwareDeliverySealed": true,
+  "predecessorRealLayerCarryoverPreserved": true,
+  "productCodeTestsBuildAppExecutedByG0": false,
+  "clientAdoption": "PENDING_IOS_AUTHOR",
+  "primaryDirtyWorktreesChanged": false
+}

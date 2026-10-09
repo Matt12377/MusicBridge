@@ -209,9 +209,19 @@ jobs:
           node --test scripts/ci/test/verify-mbrs013-relocation.test.mjs scripts/ci/test/verify-mbrs013-frozen-admission.test.mjs
           node scripts/ci/verify-mbrs013-relocation.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs013-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
+      - name: MBM000 移动合同双端采纳 Gate
+        if: steps.ci-mode.outputs.mode != 'report-only'
+        timeout-minutes: 8
+        shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: |
+          set -euo pipefail
+          node --test scripts/ci/test/verify-mbm000-contract-adoption.test.mjs
+          node scripts/ci/verify-mbm000-contract-adoption.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbm000-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
       - name: 验证报告CI准入正负例
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
-        run: node --test scripts/ci/test/report-only-admission.test.mjs
+        run: node --test scripts/ci/test/report-only-admission.test.mjs scripts/ci/test/mbm000-report-only-admission.test.mjs
 
       - name: Diff whitespace
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}

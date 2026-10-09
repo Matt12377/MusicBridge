@@ -1,0 +1,55 @@
+{
+  "schema": "musicbridge.mbm000.peer-adoption.v1",
+  "task": "MBM-000",
+  "verifiedAtUTC": "2026-10-09T00:53:36.789091+00:00",
+  "result": "IOS_FIXED_SOURCE_GATE_REPORT_REMOTE_VERIFIED_MAC_FINAL_DELIVERY_PENDING",
+  "sourceSha": "bc72069f73e342479190beda7f230b79ea91d9f0",
+  "reportSha": "8ba6b9777b67d23dc89cc1edca7412e128398256",
+  "reportSingleParent": "bc72069f73e342479190beda7f230b79ea91d9f0",
+  "branch": "codex/ios-mbm-000-contract-adoption",
+  "remoteHead": "8ba6b9777b67d23dc89cc1edca7412e128398256",
+  "cleanAtReadback": true,
+  "canonical": {
+    "path": "packages/contracts/mobile/openapi.json",
+    "bytes": 145918,
+    "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+  },
+  "documentVersion": "1.6.0",
+  "baseWireContractVersion": "0.1.0",
+  "uiCapabilitiesVersion": "1.0.0",
+  "wholeContractBytesEqual": true,
+  "sourceAndNativeInputUnion": 347,
+  "allSourceInputsMatchCommittedSource": true,
+  "allTestedInputsUnchangedInReport": true,
+  "wholePublishedEvidenceFiles": 15,
+  "publishedValidationEqualsActualRun": true,
+  "swiftTests": {
+    "unified": 130,
+    "authSupplement": 7,
+    "distinct": 137,
+    "pass": 137,
+    "fail": 0,
+    "skip": 0
+  },
+  "schemaCases": {
+    "positive": 49,
+    "negative": 70,
+    "notSwiftTests": true
+  },
+  "nativeBuilds": [
+    "Mock",
+    "Production"
+  ],
+  "nativeBuildScope": "UNSIGNED_GENERIC_IOS_SIMULATOR_COMPILE_NO_APP_LAUNCH",
+  "productionIsolation": "PASS_ACTUAL_PRODUCTION_BUNDLE",
+  "githubCI": "NOT_RUN_IOS_REPORT_HONEST",
+  "rootWholeReadback": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/IOS_REPORT_REMOTE_READBACK036.json",
+    "bytes": 15450,
+    "sha256": "d5e8e0f40aad8101f4678eb7659376a80320d828a80466d222b8ff251fbf9ea2"
+  },
+  "macFinalSourceReportCi": "PENDING",
+  "pairedFinalDelivery": false,
+  "realServiceDeviceAudioUIOwner": "NOT_RUN",
+  "macWroteIos": false
+}

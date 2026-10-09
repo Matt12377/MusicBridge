@@ -47869,13 +47869,12 @@
     "nextBranchBaseline": "ACTUAL_FINAL_SEALED_REPORT_HEAD"
   },
   "mobileFrontloading20261008": {
-    "state": "SCHEDULE_ADOPTED_MOBILE_TASKS_NOT_STARTED",
+    "state": "MBM000_LOCAL_SOFTWARE_VERIFIED_FINAL_MAC_DELIVERY_PENDING",
     "plan": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
     "schedulingSupplement": "docs/postrust/MBRS-013/SCHEDULING_SUPPLEMENT_MOBILE_FRONTLOADING.json",
-    "currentTask": "MBRS-013",
-    "nextTask": "MBM-000",
+    "currentTask": "MBM-000",
+    "nextTask": "MBM-001",
     "remainingSequence": [
-      "MBRS-013",
       "MBM-000",
       "MBM-001",
       "MBM-002",
@@ -47893,15 +47892,18 @@
       {
         "id": "MBM-000",
         "title": "合同采纳",
-        "status": "NOT_STARTED",
+        "status": "LOCAL_SOFTWARE_VERIFIED_FINAL_SOURCE_REPORT_CI_PENDING",
         "scheduled_after": "MBRS-013",
-        "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
-        "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
-        "software": "NOT_RUN",
+        "start_condition": "ACTUAL_013_FINAL_REPORT_SEALED_PAIRED_CONTRACT_IS_DELIVERY_CONDITION",
+        "scope_ref": "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
+        "software": "PASS_LOCAL_33_TESTS_FRESH_BUILD",
         "production_app": "NOT_RUN",
         "real_service_device_audio": "NOT_RUN",
         "owner_acceptance": "NOT_RUN",
-        "owner_repeated_approval_required": false
+        "owner_repeated_approval_required": false,
+        "started_at": "2026-10-09T00:03:09.149322+00:00",
+        "base_report_sha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+        "paired_contract": "IOS_FINAL_DELIVERY_VERIFIED_MAC_SOURCE_REPORT_SEAL_PENDING"
       },
       {
         "id": "MBM-001",
@@ -47956,6 +47958,40 @@
         "owner_repeated_approval_required": false
       }
     ],
-    "recordedAt": "2026-10-08T10:47:22.773406+00:00"
+    "recordedAt": "2026-10-09T00:03:09.149322+00:00"
+  },
+  "mobileContractAdoption": {
+    "task": "MBM-000",
+    "state": "LOCAL_SOFTWARE_VERIFIED_FINAL_MAC_SOURCE_REPORT_CI_PENDING",
+    "branch": "codex/mbm-000-mobile-contracts",
+    "baseSha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "scope": "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
+    "adoption": "docs/postrust/MBM-000/ADOPTION.json",
+    "canonical": "packages/contracts/mobile/openapi.json",
+    "g0": "docs/postrust/MBM-000/G0_HANDOFF.json",
+    "predecessor": {
+      "task": "MBRS-013",
+      "sourceSha": "e755b71320c93a7985a936382f86c08a4ed2eb8a",
+      "reportSha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+      "software": "SEALED",
+      "sourceNaturalCi": "FOUR_WORKFLOWS_SIX_JOBS_SUCCESS",
+      "reportNaturalCi": "TWO_WORKFLOWS_THREE_JOBS_SUCCESS",
+      "remoteExact": true,
+      "cleanAtSeal": true,
+      "productAcceptance": "ORIGINAL_EIGHT_PARTIAL_LIVE_OWNER_OPEN"
+    },
+    "software": "PASS_CURRENT_WORKTREE_33_TESTS_FRESH_BUILD_NO_FINAL_COMMIT_CLAIM",
+    "productionApp": "NOT_RUN_CONTRACT_ONLY_STAGE",
+    "peerAdoption": "IOS_FIXED_SOURCE_GATE_REPORT_REMOTE_VERIFIED",
+    "pairedAdoptionComplete": false,
+    "realServiceDeviceAudioOwner": "NOT_RUN",
+    "ownerRepeatedApprovalRequired": false,
+    "nextTask": "MBM-001",
+    "startedAt": "2026-10-09T00:03:09.149322+00:00",
+    "localPreparation": "docs/postrust/MBM-000/LOCAL_PREPARATION.json",
+    "peerAdoptionReceipt": "docs/postrust/MBM-000/PEER_ADOPTION.json",
+    "pairedAdoptionResolution": "FINAL_REPORT_EVIDENCE_AND_PRIVATE_FINAL_DELIVERY_RECEIPT_AFTER_BOTH_MAC_CI_PHASES"
   }
 }

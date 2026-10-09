@@ -1,0 +1,95 @@
+{
+  "schema": "musicbridge.mbm000.compatibility-matrix.v1",
+  "task": "MBM-000",
+  "canonical": {
+    "path": "packages/contracts/mobile/openapi.json",
+    "bytes": 145918,
+    "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+  },
+  "cases": [
+    {
+      "id": "WIRE-BASE",
+      "positive": "server/capabilities contractVersion=0.1.0",
+      "negative": "1.0.0或1.6.0握手不兼容"
+    },
+    {
+      "id": "WIRE-UI",
+      "positive": "UIContentCapabilities.version=1.0.0",
+      "negative": "unknown/null能力不得激活位深分支"
+    },
+    {
+      "id": "ENV-BASE",
+      "positive": "闭合基础请求、cap缺省/false/true无bits均合法",
+      "negative": "cap缺省/false而请求带bits；未知出站键"
+    },
+    {
+      "id": "ENV-BITS",
+      "positive": "可信true且bits1..64、完整同一格式组合",
+      "negative": "bits0/65/null；采样率7999/768001；声道0/33；跨组合拼最大值"
+    },
+    {
+      "id": "RESOURCE-STATE",
+      "positive": "POST201ready、POST202preparing、GET200ready/preparing/failed",
+      "negative": "201failed/preparing、202ready、failed无nested error、ready带failure/preparing带media"
+    },
+    {
+      "id": "FLAC",
+      "positive": "已知source/actual采样率、位深、声道相等且无损",
+      "negative": "AAC/MP3降级、任一已知轴改变、未知轴冒充实际值"
+    },
+    {
+      "id": "MEDIA-HEAD",
+      "positive": "200/fullLength/0body忽略Range和If-Range",
+      "negative": "HEAD206/416或有body"
+    },
+    {
+      "id": "MEDIA-GET",
+      "positive": "200/206/416与合法Range语义",
+      "negative": "畸形或多段Range静默200"
+    },
+    {
+      "id": "JSON-BUDGET",
+      "positive": "完整UTF8请求≤256KiB、响应≤2MiB，语义限制同时满足",
+      "negative": "超字节总量、重新序列化消除空白/未知字段后绕过、截断数组"
+    },
+    {
+      "id": "CONTENT-IDENTITY",
+      "positive": "source/account/version/revision与请求一致；分页游标同快照",
+      "negative": "错账户/来源/修订、跨快照cursor、旧CAS版本覆盖"
+    },
+    {
+      "id": "LYRICS",
+      "positive": "稳定唯一行ID、同步时间不降、无歌词真实空、单行UTF8≤4096",
+      "negative": "重复ID、倒序、伪空；单行/2000行/整body超限"
+    },
+    {
+      "id": "PLAYLIST-201",
+      "positive": "实际HTTP201完整receipt被客户端消费",
+      "negative": "仅本地初始化器通过但HTTP拒201"
+    },
+    {
+      "id": "PLAYLIST-COVER",
+      "positive": "空歌单cover省略/null；首曲有图同revision；首曲无图无封面",
+      "negative": "HTTP JSON空歌单非nullcover、按后曲图回填、旧revision首曲事实"
+    },
+    {
+      "id": "UNKNOWN-RECEIPT",
+      "positive": "相同key/body只取得原始201/202回执；GETresource另查当前",
+      "negative": "不确定结果自动重签重放、重写202历史为201、第四十一个query接口"
+    },
+    {
+      "id": "ORIGINAL-INTENT-RECOVERY",
+      "positive": "auth/session/createResource/renew五POST同原path/key/body丢响应恢复一次；两DELETE同原path幂等清理一次；pendingRefreshKey原意图保留",
+      "negative": "新key/body、第二次自动恢复、对HTTP状态或redirect重放、UI业务UNKNOWN自动重放"
+    },
+    {
+      "id": "OPAQUE-ID",
+      "positive": "严格全串ASCII许可字符",
+      "negative": "ID或revision或cover字段末尾LF/CR/NUL/LS；Python和ECMA必须同拒"
+    }
+  ],
+  "countsAreAcceptanceTasks": false,
+  "execution": "PASS_MAC_LOCAL_33_CASES_COMPLETE_RAW",
+  "iosActualCompatibility": "PASS_FIXED_SOURCE_137_TESTS_REPORT_REMOTE_VERIFIED",
+  "finalMacSourceReportDelivery": "PENDING_FRESH_SOURCE_GATE_AND_NATURAL_CI"
+}

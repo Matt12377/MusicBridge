@@ -1,0 +1,5086 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "MusicBridge 移动公共合同",
+    "version": "1.6.0",
+    "description": "MBM-000 双端采纳合同：完整合并基础0.1.0与UI候选1.5.0的40个操作。文档版本独立于服务器握手contractVersion=0.1.0与UIContentCapabilities.version=1.0.0。合同采纳不等于移动服务、设备或真实音频已接入。"
+  },
+  "servers": [
+    {
+      "url": "https://studio.example.ts.net:9443",
+      "description": "离线合成示例；实际服务使用已批准的私有HTTPS源，不放宽既有loopback监听。"
+    }
+  ],
+  "security": [
+    {
+      "DeviceBearer": []
+    }
+  ],
+  "paths": {
+    "/mobile/v1/server": {
+      "get": {
+        "operationId": "getServer",
+        "summary": "Minimal unauthenticated identity",
+        "responses": {
+          "200": {
+            "description": "ServerInfo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServerInfo"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/mobile/v1/pairings/claim": {
+      "post": {
+        "operationId": "claimPairing",
+        "summary": "Claim single-use Mac-issued pairing secret",
+        "responses": {
+          "201": {
+            "description": "TokenPair",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairingClaim"
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "Same scope+key+body replays; changed body conflicts. Generate once per intent and reuse on retry."
+          }
+        ]
+      }
+    },
+    "/mobile/v1/auth/refresh": {
+      "post": {
+        "operationId": "refreshToken",
+        "summary": "Rotate refresh token idempotently",
+        "responses": {
+          "200": {
+            "description": "TokenPair",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenPair"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshRequest"
+              }
+            }
+          }
+        },
+        "security": [],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "Same scope+key+body replays; changed body conflicts. Generate once per intent and reuse on retry."
+          }
+        ]
+      }
+    },
+    "/mobile/v1/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "summary": "Revoke this device only",
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/capabilities": {
+      "get": {
+        "operationId": "getCapabilities",
+        "summary": "Advertise only usable capabilities",
+        "responses": {
+          "200": {
+            "description": "Capabilities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/albums": {
+      "get": {
+        "operationId": "listAlbums",
+        "summary": "Paged albums and album search",
+        "responses": {
+          "200": {
+            "description": "AlbumPage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AlbumPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "local",
+                "netease"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "/mobile/v1/albums/{albumId}": {
+      "get": {
+        "operationId": "getAlbum",
+        "summary": "Get exact album",
+        "responses": {
+          "200": {
+            "description": "Album",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Album"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          }
+        ]
+      }
+    },
+    "/mobile/v1/tracks": {
+      "get": {
+        "operationId": "listTracks",
+        "summary": "Paged tracks/search; explicit source and album",
+        "responses": {
+          "200": {
+            "description": "TrackPage",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrackPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "all",
+                "local",
+                "netease"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "albumId",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          }
+        ]
+      }
+    },
+    "/mobile/v1/tracks/{trackId}": {
+      "get": {
+        "operationId": "getTrack",
+        "summary": "Get exact playable edition",
+        "responses": {
+          "200": {
+            "description": "Track",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Track"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "trackId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          }
+        ]
+      }
+    },
+    "/mobile/v1/artwork/{artworkId}": {
+      "get": {
+        "operationId": "getArtwork",
+        "summary": "Authenticated artwork, never provider credentials",
+        "responses": {
+          "200": {
+            "description": "PNG or JPEG artwork",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "image/jpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "96",
+                "256",
+                "512"
+              ]
+            }
+          },
+          {
+            "name": "artworkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          }
+        ]
+      }
+    },
+    "/mobile/v1/sessions": {
+      "post": {
+        "operationId": "createSession",
+        "summary": "Create independent mobile resource scope",
+        "responses": {
+          "201": {
+            "description": "Session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "Same scope+key+body replays; changed body conflicts. Generate once per intent and reuse on retry."
+          }
+        ]
+      }
+    },
+    "/mobile/v1/sessions/{sessionId}": {
+      "get": {
+        "operationId": "getSession",
+        "summary": "Get owned session",
+        "responses": {
+          "200": {
+            "description": "Session",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "closeSession",
+        "summary": "Close owned session, never global player",
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          }
+        ]
+      }
+    },
+    "/mobile/v1/sessions/{sessionId}/observation": {
+      "put": {
+        "operationId": "reportObservation",
+        "summary": "Best-effort telemetry; not a playback command",
+        "responses": {
+          "200": {
+            "description": "ObservationReceipt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservationReceipt"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Observation"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/sessions/{sessionId}/resources": {
+      "post": {
+        "operationId": "createResource",
+        "summary": "Resolve exact track/revision and quality",
+        "responses": {
+          "201": {
+            "description": "仅ready资源；重试仍按原幂等回执返回原始状态，不以当前查询状态重写原回执。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResource"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "仅preparing资源；通过getResource取得后续ready或failed状态。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreparingResource"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "Same scope+key+body replays; changed body conflicts. Generate once per intent and reuse on retry."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NegotiatedResourceRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/sessions/{sessionId}/resources/{resourceId}": {
+      "get": {
+        "operationId": "getResource",
+        "summary": "Poll resource preparation",
+        "responses": {
+          "200": {
+            "description": "Resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resource"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "releaseResource",
+        "summary": "Release one owned lease",
+        "responses": {
+          "204": {
+            "description": "No content"
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          }
+        ]
+      }
+    },
+    "/mobile/v1/sessions/{sessionId}/resources/{resourceId}/renew": {
+      "post": {
+        "operationId": "renewResource",
+        "summary": "Refresh resource URL without changing timeline",
+        "responses": {
+          "200": {
+            "description": "Resource",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resource"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sessionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            },
+            "description": "Same scope+key+body replays; changed body conflicts. Generate once per intent and reuse on retry."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmptyRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/media/{resourceId}/{asset}": {
+      "get": {
+        "operationId": "getMediaAsset",
+        "summary": "Ticket-scoped file, playlist or HLS segment",
+        "responses": {
+          "200": {
+            "description": "Complete bytes or rewritten HLS playlist",
+            "headers": {
+              "Content-Length": {
+                "description": "响应字节长度；HEAD为完整表示长度且没有响应体。",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string",
+                  "const": "bytes"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "206": {
+            "description": "Partial bytes; Content-Range and Accept-Ranges",
+            "headers": {
+              "Content-Length": {
+                "description": "响应字节长度；HEAD为完整表示长度且没有响应体。",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string",
+                  "const": "bytes"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "Content-Range": {
+                "schema": {
+                  "type": "string",
+                  "pattern": "^bytes [0-9]+-[0-9]+/[0-9]+$"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "畸形或多段Range请求；不静默改为完整200。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "416": {
+            "description": "Unsatisfiable byte range; Content-Range bytes */length",
+            "headers": {
+              "Content-Range": {
+                "schema": {
+                  "type": "string",
+                  "pattern": "^bytes \\*/[0-9]+$"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ticket",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Single byte range only; for file, not playlist."
+          },
+          {
+            "name": "resourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "asset",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          }
+        ],
+        "security": [
+          {
+            "MediaTicket": []
+          }
+        ]
+      },
+      "head": {
+        "operationId": "headMediaAsset",
+        "summary": "Ticket-scoped file, playlist or HLS segment",
+        "responses": {
+          "200": {
+            "description": "完整表示元数据；忽略Range和If-Range，响应体始终为空。",
+            "headers": {
+              "Content-Length": {
+                "description": "响应字节长度；HEAD为完整表示长度且没有响应体。",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "Accept-Ranges": {
+                "schema": {
+                  "type": "string",
+                  "const": "bytes"
+                }
+              },
+              "Content-Type": {
+                "schema": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "in": "query",
+            "name": "ticket",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 16
+            }
+          },
+          {
+            "in": "header",
+            "name": "Range",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Single byte range only; for file, not playlist."
+          },
+          {
+            "name": "resourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "asset",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          }
+        ],
+        "security": [
+          {
+            "MediaTicket": []
+          }
+        ],
+        "x-ignore-request-headers": [
+          "Range",
+          "If-Range"
+        ],
+        "x-response-body-bytes": 0
+      }
+    },
+    "/mobile/v1/ui/capabilities": {
+      "get": {
+        "operationId": "getUIContentCapabilities",
+        "summary": "独立协商新增 UI 内容能力",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "读取成功。真实空内容也必须满足快照身份约束。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UIContentCapabilities"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/home/added-albums": {
+      "get": {
+        "operationId": "listRecentlyAddedAlbums",
+        "summary": "分页读取本地最近添加专辑",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "读取成功。真实空内容也必须满足快照身份约束。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddedAlbumPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/daily-recommendations": {
+      "get": {
+        "operationId": "getNeteaseDailyRecommendations",
+        "summary": "读取网易云账号每日推荐歌曲",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "读取成功。真实空内容也必须满足快照身份约束。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyRecommendationFeed"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/tracks/{trackId}/lyrics": {
+      "get": {
+        "operationId": "getExactTrackLyrics",
+        "summary": "读取精确来源版本和修订的歌词",
+        "parameters": [
+          {
+            "name": "trackId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "local",
+                "netease"
+              ]
+            }
+          },
+          {
+            "name": "versionId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "contentRevision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "读取成功。真实空内容也必须满足快照身份约束。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LyricsContent"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CONTENT_LIMIT_EXCEEDED：完整UTF-8 JSON超过2MiB，返回可识别错误；不截断歌词或冒充部分200。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "x-content-limit-error-code": "CONTENT_LIMIT_EXCEEDED"
+      }
+    },
+    "/mobile/v1/ui/netease/liked-playlist": {
+      "get": {
+        "operationId": "getNeteaseLikedPlaylist",
+        "summary": "读取当前网易云账户的只读红心歌单摘要",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "读取成功。真实空内容也必须满足快照身份约束。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NeteaseLikedPlaylist"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/liked-playlist/tracks": {
+      "get": {
+        "operationId": "listNeteaseLikedPlaylistTracks",
+        "summary": "分页读取精确红心歌单快照的全部曲目",
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "accountDomain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "playlistRevision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "读取成功。真实空内容也必须满足快照身份约束。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NeteaseLikedPlaylistTrackPage"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "账户域／歌单修订已变化或游标已失效，Error.code 为 SOURCE_CHANGED 或 CURSOR_INVALID。客户端清除旧歌单摘要与页，重新读取摘要后从首开始，不拼接旧数据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/favorites/albums": {
+      "get": {
+        "operationId": "listFavoriteAlbums",
+        "summary": "分页读取我的收藏专辑封面归组",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功读取或已确认的权威写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteAlbumPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封，401 认证，404 精确对象不存在，409 SOURCE_CHANGED/CURSOR_INVALID/IDEMPOTENCY_CONFLICT，501 未实现。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/favorites/albums/{albumId}": {
+      "get": {
+        "operationId": "getFavoriteAlbumState",
+        "summary": "读取精确专辑的整专与单曲收藏状态",
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "local",
+                "netease"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功读取或已确认的权威写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteAlbumState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封，401 认证，404 精确对象不存在，409 SOURCE_CHANGED/CURSOR_INVALID/IDEMPOTENCY_CONFLICT，501 未实现。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "setAlbumFavorite",
+        "summary": "收藏或取消整张专辑，不改变单曲收藏",
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功读取或已确认的权威写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteAlbumState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封，401 认证，404 精确对象不存在，409 SOURCE_CHANGED/CURSOR_INVALID/IDEMPOTENCY_CONFLICT，501 未实现。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetAlbumFavoriteRequest"
+              }
+            }
+          }
+        },
+        "description": "设定期望值而非翻转。Idempotency-Key 必填；相同 key+body 重放原回执，不同 body 冲突。expectedRevision 不匹配返回 409 SOURCE_CHANGED，不变更其他收藏。未知结果重试须复用同 key，不先改变 UI 星星。"
+      }
+    },
+    "/mobile/v1/ui/favorites/albums/{albumId}/tracks": {
+      "get": {
+        "operationId": "listFavoriteAlbumTracks",
+        "summary": "分页读取完整专辑曲目并附独立收藏星星状态",
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "local",
+                "netease"
+              ]
+            }
+          },
+          {
+            "name": "accountDomain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "favoritesRevision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功读取或已确认的权威写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteAlbumTrackPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封，401 认证，404 精确对象不存在，409 SOURCE_CHANGED/CURSOR_INVALID/IDEMPOTENCY_CONFLICT，501 未实现。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/favorites/tracks/{trackId}": {
+      "put": {
+        "operationId": "setTrackFavorite",
+        "summary": "收藏或取消精确版本单曲，不改变整专收藏",
+        "parameters": [
+          {
+            "name": "trackId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功读取或已确认的权威写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteAlbumState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封，401 认证，404 精确对象不存在，409 SOURCE_CHANGED/CURSOR_INVALID/IDEMPOTENCY_CONFLICT，501 未实现。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetTrackFavoriteRequest"
+              }
+            }
+          }
+        },
+        "description": "设定期望值而非翻转。Idempotency-Key 必填；相同 key+body 重放原回执，不同 body 冲突。expectedRevision 不匹配返回 409 SOURCE_CHANGED，不变更其他收藏。未知结果重试须复用同 key，不先改变 UI 星星。"
+      }
+    },
+    "/mobile/v1/ui/playlists": {
+      "get": {
+        "operationId": "listPersonalPlaylists",
+        "summary": "读取个人歌单卡片列表",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mac权威快照或幂等回执；成功空内容也有完整身份。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPlaylistPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封：401认证，404精确对象不存在，409 SOURCE_CHANGED／CURSOR_INVALID／IDEMPOTENCY_CONFLICT，501未实现；不输出路径、上游URL、凭据或内部栈。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createPersonalPlaylist",
+        "summary": "新建个人歌单，可原子加入首曲",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Mac权威快照或幂等回执；成功空内容也有完整身份。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPlaylistReceipt"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封：401认证，404精确对象不存在，409 SOURCE_CHANGED／CURSOR_INVALID／IDEMPOTENCY_CONFLICT，501未实现；不输出路径、上游URL、凭据或内部栈。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Mac在独立个人歌单集合持久化，不操作网易云红心或Roon。Idempotency-Key必填，绑定设备／账户域／方法／路径／请求体；同key同body重放原回执，不同body返回409。expected修订不匹配409 SOURCE_CHANGED，不先改本机成功状态。未知结果重试复用同key；切换域后不能重放旧请求。 歌单名、图标、描述先校验；可同名，不按名称作为身份。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePersonalPlaylistRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/playlists/{playlistId}/tracks": {
+      "get": {
+        "operationId": "listPersonalPlaylistTracks",
+        "summary": "分页读取个人歌单曲目",
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "accountDomain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "playlistRevision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mac权威快照或幂等回执；成功空内容也有完整身份。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPlaylistTrackPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封：401认证，404精确对象不存在，409 SOURCE_CHANGED／CURSOR_INVALID／IDEMPOTENCY_CONFLICT，501未实现；不输出路径、上游URL、凭据或内部栈。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "addPersonalPlaylistTrack",
+        "summary": "把精确曲目追加到个人歌单",
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mac权威快照或幂等回执；成功空内容也有完整身份。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPlaylistReceipt"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封：401认证，404精确对象不存在，409 SOURCE_CHANGED／CURSOR_INVALID／IDEMPOTENCY_CONFLICT，501未实现；不输出路径、上游URL、凭据或内部栈。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Mac在独立个人歌单集合持久化，不操作网易云红心或Roon。Idempotency-Key必填，绑定设备／账户域／方法／路径／请求体；同key同body重放原回执，不同body返回409。expected修订不匹配409 SOURCE_CHANGED，不先改本机成功状态。未知结果重试复用同key；切换域后不能重放旧请求。 只改变选定歌单。重复完整身份为幂等无变更，不重复计数；不同来源、版本或修订独立。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddPersonalPlaylistTrackRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/recommended-playlists": {
+      "get": {
+        "operationId": "listNeteaseRecommendedPlaylists",
+        "summary": "分页读取网易云推荐歌单",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "真实内容快照，空内容仍携带账户域和修订；缺能力／未认证不可伪装成功空列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/DiscoveryCollectionPage"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "properties": {
+                              "kind": {
+                                "const": "playlist"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/new-albums": {
+      "get": {
+        "operationId": "listNeteaseNewAlbums",
+        "summary": "分页读取网易云新碟上架",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "真实内容快照，空内容仍携带账户域和修订；缺能力／未认证不可伪装成功空列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryAlbumPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/charts": {
+      "get": {
+        "operationId": "listNeteaseCharts",
+        "summary": "分页读取网易云排行榜",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "真实内容快照，空内容仍携带账户域和修订；缺能力／未认证不可伪装成功空列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/DiscoveryCollectionPage"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "properties": {
+                              "kind": {
+                                "const": "chart"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/discovery-collections/{collectionId}/tracks": {
+      "get": {
+        "operationId": "getNeteaseDiscoveryCollectionTracks",
+        "summary": "读取精确推荐歌单或排行榜快照的分页曲目",
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "playlist",
+                "chart"
+              ]
+            }
+          },
+          {
+            "name": "accountDomain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "collectionRevision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "真实内容快照，空内容仍携带账户域和修订；缺能力／未认证不可伪装成功空列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryCollectionTrackPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/personal-fm": {
+      "get": {
+        "operationId": "getNeteasePersonalFM",
+        "summary": "主动刷新网易云私人FM有界批次",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "真实内容快照，空内容仍携带账户域和修订；缺能力／未认证不可伪装成功空列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryFMFeed"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "DeviceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "MediaTicket": {
+        "type": "apiKey",
+        "in": "query",
+        "name": "ticket"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "requestId": {
+                "type": "string"
+              },
+              "retryable": {
+                "type": "boolean"
+              },
+              "retryAfterMs": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "code",
+              "message",
+              "requestId",
+              "retryable"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "additionalProperties": true
+      },
+      "ServerInfo": {
+        "type": "object",
+        "properties": {
+          "serverId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "contractVersion": {
+            "type": "string",
+            "const": "0.1.0"
+          },
+          "environment": {
+            "type": "string",
+            "enum": [
+              "mock",
+              "development",
+              "production"
+            ]
+          }
+        },
+        "required": [
+          "serverId",
+          "displayName",
+          "contractVersion",
+          "environment"
+        ],
+        "additionalProperties": true
+      },
+      "Capabilities": {
+        "type": "object",
+        "properties": {
+          "contractVersion": {
+            "type": "string",
+            "const": "0.1.0"
+          },
+          "localPlayback": {
+            "type": "boolean"
+          },
+          "neteasePlayback": {
+            "type": "boolean"
+          },
+          "transcoding": {
+            "type": "boolean"
+          },
+          "hls": {
+            "type": "boolean"
+          },
+          "preparedVariants": {
+            "type": "boolean"
+          },
+          "qualityProfiles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "auto",
+                "lossless",
+                "balanced",
+                "data_saver"
+              ]
+            }
+          },
+          "maxConcurrentSessions": {
+            "type": "integer",
+            "minimum": 2
+          }
+        },
+        "required": [
+          "contractVersion",
+          "localPlayback",
+          "neteasePlayback",
+          "transcoding",
+          "hls",
+          "preparedVariants",
+          "qualityProfiles",
+          "maxConcurrentSessions"
+        ],
+        "additionalProperties": true
+      },
+      "PairingClaim": {
+        "type": "object",
+        "properties": {
+          "pairingSecret": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 512
+          },
+          "installationId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "deviceName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "pairingSecret",
+          "installationId",
+          "deviceName"
+        ],
+        "additionalProperties": false
+      },
+      "TokenPair": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "accessToken": {
+            "type": "string"
+          },
+          "accessExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "refreshExpiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "serverId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          }
+        },
+        "required": [
+          "deviceId",
+          "accessToken",
+          "accessExpiresAt",
+          "refreshToken",
+          "refreshExpiresAt",
+          "serverId"
+        ],
+        "additionalProperties": true
+      },
+      "RefreshRequest": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 512
+          }
+        },
+        "required": [
+          "refreshToken"
+        ],
+        "additionalProperties": false
+      },
+      "AudioInfo": {
+        "type": "object",
+        "properties": {
+          "codec": {
+            "type": "string"
+          },
+          "container": {
+            "type": "string"
+          },
+          "sampleRateHz": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "bitsPerSample": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "channels": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "bitrateKbps": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "codec",
+          "container"
+        ],
+        "additionalProperties": true
+      },
+      "Album": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "title": {
+            "type": "string"
+          },
+          "artists": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "netease"
+            ]
+          },
+          "editionLabel": {
+            "type": "string"
+          },
+          "artworkId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "trackCount": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "artists",
+          "source",
+          "editionLabel",
+          "trackCount"
+        ],
+        "additionalProperties": true
+      },
+      "Track": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "title": {
+            "type": "string"
+          },
+          "artists": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "albumId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "netease"
+            ]
+          },
+          "sourceItemId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "contentRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "editionLabel": {
+            "type": "string"
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "artworkId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "audio": {
+            "$ref": "#/components/schemas/AudioInfo"
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "available",
+              "missing",
+              "unavailable"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "artists",
+          "albumId",
+          "source",
+          "sourceItemId",
+          "versionId",
+          "contentRevision",
+          "editionLabel",
+          "durationMs",
+          "audio",
+          "availability"
+        ],
+        "additionalProperties": true
+      },
+      "AlbumPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Album"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "libraryRevision": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "libraryRevision"
+        ],
+        "additionalProperties": true
+      },
+      "TrackPage": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Track"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "libraryRevision": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor",
+          "libraryRevision"
+        ],
+        "additionalProperties": true
+      },
+      "SessionRequest": {
+        "type": "object",
+        "properties": {
+          "clientInstanceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          }
+        },
+        "required": [
+          "clientInstanceId"
+        ],
+        "additionalProperties": false
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "deviceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "deviceId",
+          "createdAt",
+          "expiresAt"
+        ],
+        "additionalProperties": true
+      },
+      "QualityRequest": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "lossless",
+              "balanced",
+              "data_saver"
+            ]
+          },
+          "allowLossyFallback": {
+            "type": "boolean"
+          },
+          "preferredTransport": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "file",
+              "hls"
+            ]
+          }
+        },
+        "required": [
+          "profile",
+          "allowLossyFallback",
+          "preferredTransport"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "profile": {
+                  "const": "lossless"
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "allowLossyFallback": {
+                  "const": false
+                }
+              }
+            }
+          }
+        ]
+      },
+      "FormatCapability": {
+        "type": "object",
+        "properties": {
+          "codec": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "container": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "maxSampleRateHz": {
+            "type": "integer",
+            "minimum": 8000,
+            "maximum": 768000
+          },
+          "maxChannels": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32
+          }
+        },
+        "required": [
+          "codec",
+          "container",
+          "maxSampleRateHz",
+          "maxChannels"
+        ],
+        "additionalProperties": false
+      },
+      "ResourceRequest": {
+        "type": "object",
+        "properties": {
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "contentRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "quality": {
+            "$ref": "#/components/schemas/QualityRequest"
+          },
+          "formats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FormatCapability"
+            },
+            "minItems": 1,
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "trackId",
+          "versionId",
+          "contentRevision",
+          "quality",
+          "formats"
+        ],
+        "additionalProperties": false
+      },
+      "Processing": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "direct",
+              "remux",
+              "lossless_conversion",
+              "lossy_transcode",
+              "resample"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "fromPreparedCache": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "mode",
+          "reason",
+          "fromPreparedCache"
+        ],
+        "additionalProperties": true
+      },
+      "Media": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "transport": {
+            "type": "string",
+            "enum": [
+              "file",
+              "hls"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "seekable": {
+            "type": "boolean"
+          },
+          "actualAudio": {
+            "$ref": "#/components/schemas/AudioInfo"
+          }
+        },
+        "required": [
+          "url",
+          "transport",
+          "expiresAt",
+          "durationMs",
+          "seekable",
+          "actualAudio"
+        ],
+        "additionalProperties": true
+      },
+      "Resource": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "sessionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "contentRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "preparing",
+              "ready",
+              "failed"
+            ]
+          },
+          "sourceAudio": {
+            "$ref": "#/components/schemas/AudioInfo"
+          },
+          "processing": {
+            "$ref": "#/components/schemas/Processing"
+          },
+          "media": {
+            "$ref": "#/components/schemas/Media"
+          },
+          "retryAfterMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "failure": {
+            "$ref": "#/components/schemas/Error"
+          }
+        },
+        "required": [
+          "id",
+          "sessionId",
+          "trackId",
+          "versionId",
+          "contentRevision",
+          "state",
+          "sourceAudio",
+          "processing"
+        ],
+        "additionalProperties": true,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "state": {
+                  "const": "ready"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "media"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "media"
+                ]
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "state": {
+                  "const": "failed"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "failure"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "state": {
+                  "const": "failed"
+                }
+              },
+              "required": [
+                "state"
+              ]
+            },
+            "then": {
+              "required": [
+                "failure"
+              ]
+            },
+            "else": {
+              "not": {
+                "required": [
+                  "failure"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "Observation": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "playerGeneration": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "queueItemId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "resourceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "positionMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "playing",
+              "paused",
+              "buffering",
+              "seeking",
+              "ended",
+              "failed"
+            ]
+          }
+        },
+        "required": [
+          "sequence",
+          "playerGeneration",
+          "queueItemId",
+          "resourceId",
+          "trackId",
+          "positionMs",
+          "state"
+        ],
+        "additionalProperties": false
+      },
+      "ObservationReceipt": {
+        "type": "object",
+        "properties": {
+          "acceptedSequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "accepted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "acceptedSequence",
+          "accepted"
+        ],
+        "additionalProperties": true
+      },
+      "EmptyRequest": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "UIFeatureState": {
+        "type": "string",
+        "enum": [
+          "ready",
+          "unsupported",
+          "loginRequired",
+          "unavailable"
+        ]
+      },
+      "UIContentCapabilities": {
+        "type": "object",
+        "required": [
+          "version",
+          "addedAlbums",
+          "neteaseDailyRecommendations",
+          "lyrics"
+        ],
+        "properties": {
+          "version": {
+            "const": "1.0.0"
+          },
+          "addedAlbums": {
+            "$ref": "#/components/schemas/UIFeatureState"
+          },
+          "neteaseDailyRecommendations": {
+            "$ref": "#/components/schemas/UIFeatureState"
+          },
+          "lyrics": {
+            "$ref": "#/components/schemas/UIFeatureState"
+          },
+          "resourceFormatBitDepth": {
+            "type": "boolean",
+            "default": false,
+            "description": "可选且不可 null。缺省或 false 时 createResource 仅接受冻结 ResourceRequest，iOS 不发送 maxBitsPerSample 并剔除直 FLAC 能力、保留 ALAC/PCM 无损兼容方案；仅 version=1.0.0 且此值 true 时双方采纳 ResourceRequestWithBitDepth 并严格遵守格式项位深上限。"
+          },
+          "neteaseLikedPlaylist": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略且不可 null；缺省 unsupported。只协商读取当前 Mac 网易云账户的真实红心歌单摘要和分页，两者同一能力，不授权点赞写入、收藏管理或普通目录替代。"
+          },
+          "personalFavorites": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略且不可 null，缺省 unsupported。ready 表示下述我的收藏读写均可用；不得根据网易云红心能力推算。当前 iOS 正式读写为空占位，后续采纳时另接认证仓库／状态存储。"
+          },
+          "personalPlaylists": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略且不可null，缺省unsupported。ready表示此处全部个人歌单读取／新建／加歌可用；不依赖或扩大personalFavorites、neteaseLikedPlaylist，不授权网易云写入。"
+          },
+          "neteaseRecommendedPlaylists": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略不可null，缺省unsupported。ready表示推荐歌单与其分页详情可用；不由其他能力推算，不授权上游写入。"
+          },
+          "neteaseNewAlbums": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略不可null，缺省unsupported。ready表示新碟列表与冻结专辑详情路由可用；不由其他能力推算，不授权上游写入。"
+          },
+          "neteaseCharts": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略不可null，缺省unsupported。ready表示排行榜与其分页详情可用；不由其他能力推算，不授权上游写入。"
+          },
+          "neteasePersonalFM": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略不可null，缺省unsupported。ready表示用户主动刷新私人FM有界批次可用；不由其他能力推算，不授权上游写入。"
+          }
+        }
+      },
+      "UIAlbumRecord": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Album"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "year": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "maximum": 9999
+              },
+              "audioFormat": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 24,
+                "x-max-utf8-bytes": 24,
+                "description": "源文件格式。只有整张专辑可确定同一格式时返回，例如 FLAC；未知或混合格式返回 null。"
+              },
+              "addedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "maxLength": 64
+              }
+            }
+          }
+        ]
+      },
+      "AddedAlbumRecord": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/UIAlbumRecord"
+          },
+          {
+            "type": "object",
+            "required": [
+              "addedAt"
+            ],
+            "properties": {
+              "source": {
+                "const": "local"
+              },
+              "addedAt": {
+                "type": "string",
+                "format": "date-time",
+                "maxLength": 64
+              }
+            }
+          }
+        ]
+      },
+      "AddedAlbumPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor",
+          "libraryRevision"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/AddedAlbumRecord"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          },
+          "libraryRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          }
+        },
+        "description": "按 addedAt 倒序，时间相同按专辑 id 稳定排序。游标绑定设备、连接域、库修订与排序；末页 nextCursor 必须为 null。"
+      },
+      "DailyRecommendationFeed": {
+        "type": "object",
+        "required": [
+          "source",
+          "recommendationDate",
+          "timeZone",
+          "feedRevision",
+          "items"
+        ],
+        "properties": {
+          "source": {
+            "const": "netease"
+          },
+          "recommendationDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "IANA 时区，例如 Asia/Shanghai"
+          },
+          "feedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Track"
+                },
+                {
+                  "properties": {
+                    "source": {
+                      "const": "netease"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "只返回真实账号每日推荐；顺序由服务确定，track id 不重复。普通网易云目录不能代替。"
+      },
+      "LyricLine": {
+        "type": "object",
+        "required": [
+          "id",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "x-max-utf8-bytes": 4096
+          },
+          "secondaryText": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4096,
+            "x-max-utf8-bytes": 4096
+          },
+          "startMs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          }
+        },
+        "description": "稳定行 id。secondaryText 为来源给出的拼音或译文，不在 iOS 猜测生成。"
+      },
+      "LyricsContent": {
+        "type": "object",
+        "required": [
+          "trackId",
+          "source",
+          "versionId",
+          "contentRevision",
+          "status",
+          "synchronized",
+          "lines"
+        ],
+        "properties": {
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "netease"
+            ]
+          },
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "contentRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "missing",
+              "instrumental"
+            ]
+          },
+          "lyricRevision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160,
+                "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "synchronized": {
+            "type": "boolean"
+          },
+          "lines": {
+            "type": "array",
+            "maxItems": 2000,
+            "items": {
+              "$ref": "#/components/schemas/LyricLine"
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "ready"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "lyricRevision"
+              ],
+              "properties": {
+                "lyricRevision": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160,
+                  "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+                },
+                "lines": {
+                  "minItems": 1
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "lyricRevision": {
+                  "type": "null"
+                },
+                "synchronized": {
+                  "const": false
+                },
+                "lines": {
+                  "maxItems": 0
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "synchronized": {
+                  "const": true
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "lines": {
+                  "items": {
+                    "required": [
+                      "startMs"
+                    ],
+                    "properties": {
+                      "startMs": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "lines": {
+                  "items": {
+                    "properties": {
+                      "startMs": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "description": "回传身份必须与请求四元组完全相同。同步行时间非递减，行 id 唯一；版本或内容修订不一致返回基础错误 409 SOURCE_CHANGED。"
+      },
+      "FormatCapabilityWithBitDepth": {
+        "type": "object",
+        "properties": {
+          "codec": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "container": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "maxSampleRateHz": {
+            "type": "integer",
+            "minimum": 8000,
+            "maximum": 768000
+          },
+          "maxChannels": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32
+          },
+          "maxBitsPerSample": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64,
+            "description": "此 codec/container 组合允许的最大位深；可省略，不可 null。Mac 必须遵守，不可把高规格 FLAC 静默降采样、降位深或转为有损。"
+          }
+        },
+        "required": [
+          "codec",
+          "container",
+          "maxSampleRateHz",
+          "maxChannels"
+        ],
+        "additionalProperties": false
+      },
+      "ResourceRequestWithBitDepth": {
+        "type": "object",
+        "properties": {
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "contentRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "quality": {
+            "$ref": "#/components/schemas/QualityRequest"
+          },
+          "formats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FormatCapabilityWithBitDepth"
+            },
+            "minItems": 1,
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "trackId",
+          "versionId",
+          "contentRevision",
+          "quality",
+          "formats"
+        ],
+        "additionalProperties": false,
+        "description": "createResource 的待采纳完整请求 schema；相对冻结合同仅格式项增加可选 maxBitsPerSample。FLAC 来源请求强制 quality.profile=lossless 且 allowLossyFallback=false，来源身份仍为精确 track/version/revision。"
+      },
+      "FLACLosslessReadyResource": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Resource"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "state": {
+                "const": "ready"
+              },
+              "sourceAudio": {
+                "required": [
+                  "sampleRateHz",
+                  "bitsPerSample",
+                  "channels"
+                ],
+                "properties": {
+                  "codec": {
+                    "const": "flac"
+                  }
+                }
+              },
+              "processing": {
+                "properties": {
+                  "mode": {
+                    "enum": [
+                      "direct",
+                      "remux",
+                      "lossless_conversion"
+                    ]
+                  }
+                }
+              },
+              "media": {
+                "properties": {
+                  "seekable": {
+                    "const": true
+                  },
+                  "actualAudio": {
+                    "required": [
+                      "sampleRateHz",
+                      "bitsPerSample",
+                      "channels"
+                    ],
+                    "properties": {
+                      "codec": {
+                        "enum": [
+                          "flac",
+                          "alac",
+                          "pcm_s16le",
+                          "pcm_s24le",
+                          "pcm_s32le"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "description": "合成示例校验辅助 schema；不增加响应字段。sourceAudio 与 actualAudio 的 sampleRateHz/bitsPerSample/channels 必须相等，跨字段等值由 validator 语义检查。"
+      },
+      "NeteaseLikedPlaylist": {
+        "type": "object",
+        "required": [
+          "source",
+          "playlistId",
+          "accountDomain",
+          "playlistRevision",
+          "title",
+          "trackCount"
+        ],
+        "properties": {
+          "source": {
+            "const": "netease"
+          },
+          "playlistId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])",
+            "description": "不透明账户域。Mac 来源账户切换时必须更换，不包含上游 userId、昵称或凭据。"
+          },
+          "playlistRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])",
+            "description": "绑定账户域、歌单成员、顺序与总数的快照修订；任何变更必须更换。"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "x-max-utf8-bytes": 1024,
+            "description": "来源真实标题，去空白后非空，UTF-8最多1024字节，不得控制字符。"
+          },
+          "trackCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "artworkId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          }
+        },
+        "description": "当前真实 Mac 网易云账户的只读红心歌单摘要。总歌曲数来自同一快照，封面可省略不可 null；未知封面不得制造占位业务资源。空歌单返回真实 trackCount=0 的摘要。"
+      },
+      "NeteaseLikedPlaylistTrackPage": {
+        "type": "object",
+        "required": [
+          "source",
+          "playlistId",
+          "accountDomain",
+          "playlistRevision",
+          "trackCount",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "source": {
+            "const": "netease"
+          },
+          "playlistId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])",
+            "description": "不透明账户域。Mac 来源账户切换时必须更换，不包含上游 userId、昵称或凭据。"
+          },
+          "playlistRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])",
+            "description": "绑定账户域、歌单成员、顺序与总数的快照修订；任何变更必须更换。"
+          },
+          "trackCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Track"
+                },
+                {
+                  "properties": {
+                    "source": {
+                      "const": "netease"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "description": "按当前账户真实红心歌单服务顺序分页，track id 不重复，Track 完整来源／版本／修订身份精确保留。响应歌单/账户/修订/总数必须匹配请求快照，游标绑定设备、连接域、账户域、歌单、修订和顺序；末页 nextCursor 必须 null，累计 items 必须等于 trackCount，禁止空中间页。快照或账户变化返回 SOURCE_CHANGED/CURSOR_INVALID，不能拼接旧页或截断歌单。"
+      },
+      "FavoriteAlbumIdentity": {
+        "type": "object",
+        "required": [
+          "albumId",
+          "source"
+        ],
+        "properties": {
+          "albumId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "netease"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "FavoriteTrackSelection": {
+        "type": "object",
+        "required": [
+          "trackId",
+          "versionId",
+          "contentRevision",
+          "source"
+        ],
+        "properties": {
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "contentRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "netease"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "FavoriteAlbumRecord": {
+        "type": "object",
+        "required": [
+          "album",
+          "albumFavorite",
+          "favoriteTracks"
+        ],
+        "properties": {
+          "album": {
+            "$ref": "#/components/schemas/UIAlbumRecord"
+          },
+          "albumFavorite": {
+            "type": "boolean"
+          },
+          "favoriteTracks": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/FavoriteTrackSelection"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "anyOf": [
+              {
+                "properties": {
+                  "albumFavorite": {
+                    "const": true
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "favoriteTracks": {
+                    "minItems": 1
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "一个来源内一个精确专辑；整专事实和单曲身份集合独立。至少存在一种收藏。favoriteTracks 每项来源须与 album.source 一致且属于此专辑。整专不推算单曲，全曲收藏也不推算整专。"
+      },
+      "FavoriteAlbumPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "favoritesRevision",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "favoritesRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/FavoriteAlbumRecord"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "additionalProperties": false,
+        "description": "按最近收藏变更时间倒序，同刻按 source+albumId 稳定排序，一专辑一张卡片。cursor 绑定设备／账户域／修订，末页 null，不允许空中间页，不允许跨页混合快照。"
+      },
+      "FavoriteAlbumTrackPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "favoritesRevision",
+          "favorite",
+          "items",
+          "nextCursor",
+          "identity"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "favoritesRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "favorite": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FavoriteAlbumRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/Track"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          },
+          "identity": {
+            "$ref": "#/components/schemas/FavoriteAlbumIdentity"
+          }
+        },
+        "additionalProperties": false,
+        "description": "所有收藏状态均分页返回完整专辑曲目，包括取消全部收藏后的详情。favorite 只用于整专／单曲星星，未收藏时必须显式 null；identity 必须匹配请求。保持专辑曲目次序和完整来源／版本身份；各页与请求账户域／修订一致，末页 nextCursor=null。不得仅返回红星曲目。"
+      },
+      "FavoriteAlbumState": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "favoritesRevision",
+          "identity",
+          "favorite"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "favoritesRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/FavoriteAlbumIdentity"
+          },
+          "favorite": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FavoriteAlbumRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "正常专辑页读取星星或收藏写入回执；没有任何收藏时 favorite 必须显式 null。写入成功必须回传权威新修订和完整归组记录，identity 必须与请求匹配。"
+      },
+      "SetAlbumFavoriteRequest": {
+        "type": "object",
+        "required": [
+          "source",
+          "isFavorite",
+          "accountDomain",
+          "expectedRevision"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "netease"
+            ]
+          },
+          "isFavorite": {
+            "type": "boolean"
+          },
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "expectedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetTrackFavoriteRequest": {
+        "type": "object",
+        "required": [
+          "source",
+          "isFavorite",
+          "accountDomain",
+          "expectedRevision",
+          "albumId",
+          "versionId",
+          "contentRevision"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "netease"
+            ]
+          },
+          "isFavorite": {
+            "type": "boolean"
+          },
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "expectedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "albumId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "contentRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PersonalPlaylistIcon": {
+        "type": "string",
+        "enum": [
+          "music.note",
+          "heart.fill",
+          "star.fill",
+          "headphones",
+          "sparkles",
+          "waveform"
+        ],
+        "description": "固定 SF Symbol 图标；不接受图片上传、URL、文件路径或任意符号。"
+      },
+      "PersonalPlaylistDraft": {
+        "type": "object",
+        "required": [
+          "title",
+          "icon",
+          "description"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "\\S",
+            "description": "先去首尾空白，不能为空；最多100个Unicode标量。允许同名歌单。"
+          },
+          "icon": {
+            "$ref": "#/components/schemas/PersonalPlaylistIcon"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "最多500个Unicode标量，允许空字符串；去首尾空白。"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PersonalPlaylistRecord": {
+        "type": "object",
+        "required": [
+          "playlistId",
+          "title",
+          "icon",
+          "description",
+          "trackCount",
+          "playlistRevision"
+        ],
+        "properties": {
+          "playlistId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "\\S",
+            "description": "先去首尾空白，不能为空；最多100个Unicode标量。允许同名歌单。"
+          },
+          "icon": {
+            "$ref": "#/components/schemas/PersonalPlaylistIcon"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "最多500个Unicode标量，允许空字符串；去首尾空白。"
+          },
+          "trackCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "playlistRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "coverArtworkId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])",
+            "description": "按加入顺序第一首完整Track的artworkId，与playlistRevision同一快照；空歌单或首曲无封面为null，旧服务可省略。仅用冻结getArtwork读取，不携带URL、路径或上传图片；不得改取后续有封面的歌曲。"
+          }
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "trackCount": {
+                  "const": 0
+                }
+              },
+              "required": [
+                "trackCount"
+              ]
+            },
+            "then": {
+              "properties": {
+                "coverArtworkId": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ],
+        "x-first-track-cover": {
+          "emptyPlaylist": "omitted-or-null",
+          "firstTrackWithoutArtwork": "omitted-or-null",
+          "laterTrackFallback": false,
+          "snapshot": "playlistRevision",
+          "trustedContextOptional": true
+        }
+      },
+      "PersonalPlaylistPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "collectionRevision",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "collectionRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/PersonalPlaylistRecord"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "additionalProperties": false,
+        "description": "只返回此认证设备所属的 Mac 个人歌单。按创建时间升序，时间相同按playlistId稳定排序；首页固定收藏后依此顺序追加，自建歌单之后为加号。cursor绑定设备／账户域／集合修订，不混合分页快照；末页显式null。"
+      },
+      "PersonalPlaylistTrackPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "playlist",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "playlist": {
+            "$ref": "#/components/schemas/PersonalPlaylistRecord"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/Track"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "additionalProperties": false,
+        "description": "返回完整 Track 元数据，允许 local／netease 混合，按照加歌顺序稳定分页；以source+trackId+versionId+contentRevision精确去重。无能力或来源失败不能伪空成功。分页完成前不能宣称完整曲数或播放完整歌单。"
+      },
+      "PersonalPlaylistReceipt": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "collectionRevision",
+          "playlist"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "collectionRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "playlist": {
+            "$ref": "#/components/schemas/PersonalPlaylistRecord"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreatePersonalPlaylistRequest": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "expectedCollectionRevision",
+          "draft"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "expectedCollectionRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/PersonalPlaylistDraft"
+          },
+          "initialTrack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FavoriteTrackSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "可省略或null表示空歌单；有值时创建和加入首曲原子执行，失败不留下空歌单。"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AddPersonalPlaylistTrackRequest": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "expectedRevision",
+          "selection"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "expectedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/FavoriteTrackSelection"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DiscoveryCollectionRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "artworkId",
+          "trackCount",
+          "collectionRevision"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "playlist",
+              "chart"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^(?![\\s\\S]*[\\u0000-\\u001F\\u007F-\\u009F])(?=.*\\S)[\\s\\S]+$",
+            "description": "最多200个Unicode标量；非空白且不含控制字符。",
+            "x-max-utf8-bytes": 1024
+          },
+          "artworkId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "trackCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "collectionRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          }
+        },
+        "additionalProperties": false,
+        "description": "推荐歌单／排行榜精确摘要。id与kind共同组成身份，封面为不透明ID；修订绑定成员、顺序与总数。不能携带上游URL、账号标识或凭据。"
+      },
+      "DiscoveryCollectionPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "feedRevision",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "feedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryCollectionRecord"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "additionalProperties": false,
+        "description": "分页只返回网易云集合。同一账户域／feedRevision稳定排序与去重，推荐歌单接口仅playlist，排行榜仅chart。游标绑定认证设备、连接域、账户域、列表类型及修订；重复游标、冲突页、跨账号页与空中间页应拒绝。末页显式null，账户／修订过期409 SOURCE_CHANGED，非法游标409 CURSOR_INVALID。"
+      },
+      "DiscoveryAlbumPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "feedRevision",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "feedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/UIAlbumRecord"
+                },
+                {
+                  "properties": {
+                    "source": {
+                      "const": "netease"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "additionalProperties": false,
+        "description": "新碟上架分页只返回网易云UIAlbumRecord，不推测音频规格。Mac保证albumId可由冻结getAlbum/listTracks解析；同域／同修订分页稳定去重，跨账号、冲突修订、重复游标和空中间页拒绝，末页显式null。"
+      },
+      "DiscoveryCollectionTrackPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "collection",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "collection": {
+            "$ref": "#/components/schemas/DiscoveryCollectionRecord"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Track"
+                },
+                {
+                  "properties": {
+                    "source": {
+                      "const": "netease"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "additionalProperties": false,
+        "description": "详情绑定请求的kind/id/accountDomain/collectionRevision。所有页的摘要（包括title/artworkId/trackCount）必须与首个列表摘要一致，不能悄悄替换header或总数。按真实顺序返回冻结Track，精确source/id/versionId/contentRevision保留；去重后累计数必须等于collection.trackCount、末页显式null。完整快照补齐失败不替换本机队列。"
+      },
+      "DiscoveryFMFeed": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "batchRevision",
+          "items"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "batchRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Track"
+                },
+                {
+                  "properties": {
+                    "source": {
+                      "const": "netease"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "私人FM只读取用户主动刷新取得的有界批次，最多50曲；本批次按完整曲目身份稳定去重，允许不同批次重复。不是持续自动追加电台，不增加FM反馈或上游播放写入，播放仅用本机PlaybackCoordinator和已有资源接口。"
+      },
+      "ReadyResource": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Resource"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "state": {
+                "const": "ready"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          }
+        ]
+      },
+      "PreparingResource": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Resource"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "state": {
+                "const": "preparing"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          }
+        ]
+      },
+      "FailedResource": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Resource"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "state": {
+                "const": "failed"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          }
+        ]
+      },
+      "NegotiatedResourceRequest": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/ResourceRequest"
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ResourceRequestWithBitDepth"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "formats": {
+                    "type": "array",
+                    "contains": {
+                      "type": "object",
+                      "required": [
+                        "maxBitsPerSample"
+                      ]
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "x-trusted-capability": {
+          "operationId": "getUIContentCapabilities",
+          "version": "1.0.0",
+          "resourceFormatBitDepth": true,
+          "appliesOnlyToBitDepthBranch": true
+        },
+        "description": "两个完整闭合分支不重叠：无位深字段使用基础请求，有位深字段仅在受信UI能力明确为true时接受。true但无位深仍是有效基础请求。"
+      }
+    }
+  },
+  "x-musicbridge-adoption": {
+    "task": "MBM-000",
+    "authority": "MAC_CANONICAL_SINGLE_AUTHOR",
+    "documentVersion": "1.6.0",
+    "baseWireContractVersion": "0.1.0",
+    "uiCapabilitiesVersion": "1.0.0",
+    "publicHashFieldsAdded": false,
+    "operations": 40,
+    "baseOperations": 20,
+    "uiOperations": 20,
+    "limits": {
+      "requestBytes": 262144,
+      "responseBytes": 2097152,
+      "retryHintMs": 86400000,
+      "parserDepth": 64,
+      "parserNodes": 2097152,
+      "extensionBytes": 2097152,
+      "lyricLines": 2000,
+      "lyricLineUtf8Bytes": 4096
+    },
+    "unknownCommandOutcome": {
+      "automaticNewIntentReplay": "NONE",
+      "boundedOriginalIntentRecovery": [
+        {
+          "operationId": "claimPairing",
+          "method": "POST",
+          "maximumAdditionalAttemptsPerCall": 1,
+          "trigger": [
+            "timedOut",
+            "interrupted"
+          ],
+          "sameOriginalPath": true,
+          "sameOriginalBody": true,
+          "sameOriginalIdempotencyKey": true,
+          "keyRequired": true,
+          "newKeyAllowed": false,
+          "newBodyAllowed": false,
+          "newIntentAllowed": false,
+          "responseStatusReplay": false,
+          "redirectReplay": false,
+          "reason": "ORIGINAL_INTENT_RECEIPT_RECOVERY"
+        },
+        {
+          "operationId": "refreshToken",
+          "method": "POST",
+          "maximumAdditionalAttemptsPerCall": 1,
+          "trigger": [
+            "timedOut",
+            "interrupted"
+          ],
+          "sameOriginalPath": true,
+          "sameOriginalBody": true,
+          "sameOriginalIdempotencyKey": true,
+          "keyRequired": true,
+          "newKeyAllowed": false,
+          "newBodyAllowed": false,
+          "newIntentAllowed": false,
+          "responseStatusReplay": false,
+          "redirectReplay": false,
+          "reason": "ORIGINAL_INTENT_RECEIPT_RECOVERY"
+        },
+        {
+          "operationId": "createSession",
+          "method": "POST",
+          "maximumAdditionalAttemptsPerCall": 1,
+          "trigger": [
+            "timedOut",
+            "interrupted"
+          ],
+          "sameOriginalPath": true,
+          "sameOriginalBody": true,
+          "sameOriginalIdempotencyKey": true,
+          "keyRequired": true,
+          "newKeyAllowed": false,
+          "newBodyAllowed": false,
+          "newIntentAllowed": false,
+          "responseStatusReplay": false,
+          "redirectReplay": false,
+          "reason": "ORIGINAL_INTENT_RECEIPT_RECOVERY"
+        },
+        {
+          "operationId": "createResource",
+          "method": "POST",
+          "maximumAdditionalAttemptsPerCall": 1,
+          "trigger": [
+            "timedOut",
+            "interrupted"
+          ],
+          "sameOriginalPath": true,
+          "sameOriginalBody": true,
+          "sameOriginalIdempotencyKey": true,
+          "keyRequired": true,
+          "newKeyAllowed": false,
+          "newBodyAllowed": false,
+          "newIntentAllowed": false,
+          "responseStatusReplay": false,
+          "redirectReplay": false,
+          "reason": "ORIGINAL_INTENT_RECEIPT_RECOVERY"
+        },
+        {
+          "operationId": "renewResource",
+          "method": "POST",
+          "maximumAdditionalAttemptsPerCall": 1,
+          "trigger": [
+            "timedOut",
+            "interrupted"
+          ],
+          "sameOriginalPath": true,
+          "sameOriginalBody": true,
+          "sameOriginalIdempotencyKey": true,
+          "keyRequired": true,
+          "newKeyAllowed": false,
+          "newBodyAllowed": false,
+          "newIntentAllowed": false,
+          "responseStatusReplay": false,
+          "redirectReplay": false,
+          "reason": "ORIGINAL_INTENT_RECEIPT_RECOVERY"
+        },
+        {
+          "operationId": "closeSession",
+          "method": "DELETE",
+          "maximumAdditionalAttemptsPerCall": 1,
+          "trigger": [
+            "timedOut",
+            "interrupted"
+          ],
+          "sameOriginalPath": true,
+          "sameOriginalBody": true,
+          "sameOriginalIdempotencyKey": false,
+          "keyRequired": false,
+          "newKeyAllowed": false,
+          "newBodyAllowed": false,
+          "newIntentAllowed": false,
+          "responseStatusReplay": false,
+          "redirectReplay": false,
+          "reason": "IDEMPOTENT_OWNED_RESOURCE_CLEANUP"
+        },
+        {
+          "operationId": "releaseResource",
+          "method": "DELETE",
+          "maximumAdditionalAttemptsPerCall": 1,
+          "trigger": [
+            "timedOut",
+            "interrupted"
+          ],
+          "sameOriginalPath": true,
+          "sameOriginalBody": true,
+          "sameOriginalIdempotencyKey": false,
+          "keyRequired": false,
+          "newKeyAllowed": false,
+          "newBodyAllowed": false,
+          "newIntentAllowed": false,
+          "responseStatusReplay": false,
+          "redirectReplay": false,
+          "reason": "IDEMPOTENT_OWNED_RESOURCE_CLEANUP"
+        }
+      ],
+      "noLostReplyReplayOperationIds": [
+        "logout",
+        "reportObservation",
+        "setAlbumFavorite",
+        "setTrackFavorite",
+        "createPersonalPlaylist",
+        "addPersonalPlaylistTrack"
+      ],
+      "pendingRefreshIntentPreserved": true,
+      "cancelledResourceCreationRecovery": "RECOVER_ORIGINAL_RECEIPT_ONCE_CLEAN_OWN_RESOURCE_NEVER_PUBLISH_SUCCESS",
+      "definitiveUnauthorizedRecovery": {
+        "status": 401,
+        "existingSingleFlightRefreshPreserved": true,
+        "maximumOriginalRequestRetry": 1,
+        "sameBusinessKeyAndBody": true,
+        "notAnUnknownWriteOutcome": true
+      },
+      "readOnlyRetry": "EXISTING_BOUNDED_GET_RECOVERY_PRESERVED",
+      "explicitBusyResponseRetry": "EXISTING_BOUNDED_RESOURCE_BUSY_BACKOFF_AND_PREPARING_DEADLINE_UNCHANGED",
+      "originalReceipt": "LOOKUP_SAME_KEY_AND_BODY_ONLY",
+      "newQueryOperation": false,
+      "serverIdempotency": "LOOKUP_ORIGINAL_RECEIPT_BEFORE_MUTATION_NO_SECOND_EXECUTION",
+      "reSignOrNewKeyOnUnknownOutcome": false,
+      "preparingOriginalReceiptRemains202": true
+    },
+    "implementationStages": {
+      "authenticationAndCatalog": "MBM-001",
+      "sessionResourceMedia": "MBM-002",
+      "flacLossless": "MBM-003",
+      "contentAndMultiDevice": "MBM-004"
+    },
+    "sourceInputs": [
+      {
+        "path": "docs/postrust/MBM-000/inputs/openapi.yaml",
+        "bytes": 27446,
+        "sha256": "03056740fbb8443e2ab862e27d7af7927ab467a3f7cb44babfb6b79ee442480d",
+        "documentVersion": "0.1.0"
+      },
+      {
+        "path": "docs/postrust/MBM-000/inputs/proposals/UI_V39.openapi.json",
+        "bytes": 86670,
+        "sha256": "0ea921d26dff63b5d3418a1830b58d6de45eaed0b630245d404db00ac5a60746",
+        "documentVersion": "1.5.0"
+      }
+    ],
+    "retryHintSemantics": {
+      "safeNormalizerMaximumMs": 86400000,
+      "wireFieldMinimumMs": 0,
+      "wireFieldMaximumAdded": false,
+      "preparingDeadlineChanged": false,
+      "noAutomaticReplay": true
+    },
+    "opaqueIdPattern": {
+      "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])",
+      "wholeString": true,
+      "controlCharactersAllowed": false,
+      "originalInputsUnchanged": true,
+      "reason": "ECMA_AND_PYTHON_JSON_SCHEMA_END_ANCHOR_COMPATIBILITY"
+    }
+  }
+}

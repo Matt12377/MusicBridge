@@ -1,0 +1,59 @@
+{
+  "schema": "musicbridge.mbm000.test-scope.v1",
+  "task": "MBM-000",
+  "baseReportSha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+  "testFiles": [
+    "packages/contracts/test/mbm000/operation-contract.test.ts",
+    "packages/contracts/test/mbm000/resource-envelope.test.ts",
+    "packages/contracts/test/mbm000/audio-resource-state.test.ts",
+    "packages/contracts/test/mbm000/content-revision.test.ts"
+  ],
+  "fixtureFiles": [
+    "packages/contracts/test/mbm000/fixture-helpers.ts"
+  ],
+  "expectedTests": 33,
+  "caseNames": [
+    "移动40操作：原method/path闭集及各成功码完整消费whole body",
+    "移动40操作：每条原default错误保留安全嵌套/HEAD零实体",
+    "移动路由：错误方法、41st命令及Roon控制不能进入本域",
+    "移动公共版本：HTTP真实入口只收base0.1且UI仍1.0",
+    "移动HTTP：204非空、重复关键头、错误来源及非合同2xx拒绝",
+    "移动原始JSON：重复键、尾随值、坏UTF8及孤立代理均拒绝",
+    "移动snapshot：getter不调用、Symbol/洞/循环/undefined拒绝",
+    "移动出站白名单及实际扩展预算：有界入站保留而不反射",
+    "移动opaque身份：真实HTTP正文拒绝LF/CR/NUL/LS及路径编码绕过",
+    "移动D8：既有同意图七项有限取回与UNKNOWN只查原记录明确分开",
+    "移动资源whole envelope：原位深/能力/重试提示各完整HTTP分支",
+    "移动资源闭键：五键正文/quality/format不能携带源路径或私有能力",
+    "移动资源位深：完整base可与captrue兼容，扩展仅可信true且1至64",
+    "移动原请求预算：262144原始UTF8字节B减一/B/B加一不靠重编码缩短",
+    "移动原响应预算：2097152完整raw正文B边界及独立depth/nodes仍拒越界",
+    "移动编码预算：只按实际正文收费而不把私有wrapper计入B",
+    "移动提示上界：大于24h仍可消费，safe normalizer钳制但不重放",
+    "移动UNKNOWN：同key/body只查原receipt，原202不会变201或新意图",
+    "移动资源状态：201仅ready/202仅preparing，GET三状态与nested failure完整消费",
+    "移动FLAC：source/actual三轴独立相等，转换标签与不可seek不能伪装无损",
+    "移动format组合：不能从另一codec行借rate/channel/bitDepth上限",
+    "移动资源身份：来源/版本/会话/URLticket/过期实际事实逐一受限",
+    "移动媒体：HEAD忽略Range仅200全长零体，GET206/400/416真实元数据闭合",
+    "移动源映射：纯位置/根修订保ID，file/selection/edition更改必须重新认证",
+    "移动白名单audio mapper：源参数保持三轴，不输出Provider或Parser私有字段",
+    "移动内容whole body：空/缺失/首曲封面/CAS/201与opaque身份负例完整消费",
+    "移动歌词上限：2000行/每列4096UTF8保留，whole2MiB超限不截断",
+    "移动歌词身份与时间：旧版本/旧revision/不同来源/重复行不能覆盖当前选择",
+    "移动内容CAS：原请求旧rev与新响应rev独立，foreign账户/选择/额外键拒绝",
+    "移动歌单首曲：空集不能封面，未知事实可解码，首曲缺图不能找后曲回填",
+    "移动收藏：album共同身份和完整track归属不能被oneOf/空枝绕过",
+    "移动分页：同账户/来源/修订/过滤游标事实及去重/空尾页必须同时相符",
+    "移动cap可选分支：缺失unsupported，null位深/错误版本/坏时区不能制造能力"
+  ],
+  "gateBudgets": {
+    "stageTimeoutMs": 120000,
+    "totalTimeoutMs": 360000,
+    "killGraceMs": 10000,
+    "rawOutputBytes": 16777216,
+    "sourceFileBytes": 4194304,
+    "maxSourceFiles": 4096,
+    "maxCompiledFiles": 8192
+  }
+}

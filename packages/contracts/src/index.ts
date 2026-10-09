@@ -74,3 +74,9 @@ export * from './local-name-rules.js';
 export * from './mb-queue.js';
 
 export * from './audio-quality.js';
+
+export * from './mobile-common.js';
+export * from './mobile-catalog.js';
+export * from './mobile-resource.js';
+export * from './mobile-content.js';
+export * from './mobile-wire.js';

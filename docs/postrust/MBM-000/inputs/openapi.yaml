@@ -1,0 +1,1130 @@
+openapi: 3.1.1
+info:
+  title: MusicBridge Mobile Music API
+  version: 0.1.0
+  description: Proposed contract for parallel development. Not a declaration of live
+    MB implementation. Music only; no Roon transport control, favorites, photos or
+    CarPlay APIs.
+servers:
+- url: http://127.0.0.1:18743
+  description: Loopback mock only. Production uses approved private HTTPS origin.
+security:
+- DeviceBearer: []
+paths:
+  /mobile/v1/server:
+    get:
+      operationId: getServer
+      summary: Minimal unauthenticated identity
+      responses:
+        '200':
+          description: ServerInfo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerInfo'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security: []
+  /mobile/v1/pairings/claim:
+    post:
+      operationId: claimPairing
+      summary: Claim single-use Mac-issued pairing secret
+      responses:
+        '201':
+          description: TokenPair
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PairingClaim'
+      security: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description: Same scope+key+body replays; changed body conflicts. Generate
+          once per intent and reuse on retry.
+  /mobile/v1/auth/refresh:
+    post:
+      operationId: refreshToken
+      summary: Rotate refresh token idempotently
+      responses:
+        '200':
+          description: TokenPair
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      security: []
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description: Same scope+key+body replays; changed body conflicts. Generate
+          once per intent and reuse on retry.
+  /mobile/v1/auth/logout:
+    post:
+      operationId: logout
+      summary: Revoke this device only
+      responses:
+        '204':
+          description: No content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmptyRequest'
+  /mobile/v1/capabilities:
+    get:
+      operationId: getCapabilities
+      summary: Advertise only usable capabilities
+      responses:
+        '200':
+          description: Capabilities
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Capabilities'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /mobile/v1/albums:
+    get:
+      operationId: listAlbums
+      summary: Paged albums and album search
+      responses:
+        '200':
+          description: AlbumPage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AlbumPage'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - &id001
+        in: query
+        name: limit
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 100
+      - &id002
+        in: query
+        name: cursor
+        required: false
+        schema:
+          type: string
+      - &id003
+        in: query
+        name: q
+        required: false
+        schema:
+          type: string
+          maxLength: 200
+      - &id004
+        in: query
+        name: source
+        required: false
+        schema:
+          type: string
+          enum:
+          - all
+          - local
+          - netease
+  /mobile/v1/albums/{albumId}:
+    get:
+      operationId: getAlbum
+      summary: Get exact album
+      responses:
+        '200':
+          description: Album
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Album'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: albumId
+        in: path
+        required: true
+        schema: &id005
+          type: string
+          minLength: 1
+          maxLength: 160
+          pattern: ^[A-Za-z0-9_.:-]+$
+  /mobile/v1/tracks:
+    get:
+      operationId: listTracks
+      summary: Paged tracks/search; explicit source and album
+      responses:
+        '200':
+          description: TrackPage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackPage'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - *id001
+      - *id002
+      - *id003
+      - *id004
+      - in: query
+        name: albumId
+        required: false
+        schema: *id005
+  /mobile/v1/tracks/{trackId}:
+    get:
+      operationId: getTrack
+      summary: Get exact playable edition
+      responses:
+        '200':
+          description: Track
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Track'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: trackId
+        in: path
+        required: true
+        schema: *id005
+  /mobile/v1/artwork/{artworkId}:
+    get:
+      operationId: getArtwork
+      summary: Authenticated artwork, never provider credentials
+      responses:
+        '200':
+          description: PNG or JPEG artwork
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: query
+        name: size
+        required: false
+        schema:
+          type: string
+          enum:
+          - '96'
+          - '256'
+          - '512'
+      - name: artworkId
+        in: path
+        required: true
+        schema: *id005
+  /mobile/v1/sessions:
+    post:
+      operationId: createSession
+      summary: Create independent mobile resource scope
+      responses:
+        '201':
+          description: Session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionRequest'
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description: Same scope+key+body replays; changed body conflicts. Generate
+          once per intent and reuse on retry.
+  /mobile/v1/sessions/{sessionId}:
+    get:
+      operationId: getSession
+      summary: Get owned session
+      responses:
+        '200':
+          description: Session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema: *id005
+    delete:
+      operationId: closeSession
+      summary: Close owned session, never global player
+      responses:
+        '204':
+          description: No content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema: *id005
+  /mobile/v1/sessions/{sessionId}/observation:
+    put:
+      operationId: reportObservation
+      summary: Best-effort telemetry; not a playback command
+      responses:
+        '200':
+          description: ObservationReceipt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObservationReceipt'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema: *id005
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Observation'
+  /mobile/v1/sessions/{sessionId}/resources:
+    post:
+      operationId: createResource
+      summary: Resolve exact track/revision and quality
+      responses:
+        '201':
+          description: Resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '202':
+          description: Resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema: *id005
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description: Same scope+key+body replays; changed body conflicts. Generate
+          once per intent and reuse on retry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequest'
+  /mobile/v1/sessions/{sessionId}/resources/{resourceId}:
+    get:
+      operationId: getResource
+      summary: Poll resource preparation
+      responses:
+        '200':
+          description: Resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema: *id005
+      - name: resourceId
+        in: path
+        required: true
+        schema: *id005
+    delete:
+      operationId: releaseResource
+      summary: Release one owned lease
+      responses:
+        '204':
+          description: No content
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema: *id005
+      - name: resourceId
+        in: path
+        required: true
+        schema: *id005
+  /mobile/v1/sessions/{sessionId}/resources/{resourceId}/renew:
+    post:
+      operationId: renewResource
+      summary: Refresh resource URL without changing timeline
+      responses:
+        '200':
+          description: Resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema: *id005
+      - name: resourceId
+        in: path
+        required: true
+        schema: *id005
+      - name: Idempotency-Key
+        in: header
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          maxLength: 128
+        description: Same scope+key+body replays; changed body conflicts. Generate
+          once per intent and reuse on retry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmptyRequest'
+  /mobile/v1/media/{resourceId}/{asset}:
+    get:
+      operationId: getMediaAsset
+      summary: Ticket-scoped file, playlist or HLS segment
+      responses:
+        '200':
+          description: Complete bytes or rewritten HLS playlist
+        '206':
+          description: Partial bytes; Content-Range and Accept-Ranges
+        '416':
+          description: Unsatisfiable byte range; Content-Range bytes */length
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: query
+        name: ticket
+        required: true
+        schema:
+          type: string
+          minLength: 16
+      - in: header
+        name: Range
+        required: false
+        schema:
+          type: string
+        description: Single byte range only; for file, not playlist.
+      - name: resourceId
+        in: path
+        required: true
+        schema: *id005
+      - name: asset
+        in: path
+        required: true
+        schema: *id005
+      security:
+      - MediaTicket: []
+    head:
+      operationId: headMediaAsset
+      summary: Ticket-scoped file, playlist or HLS segment
+      responses:
+        '200':
+          description: Complete bytes or rewritten HLS playlist
+        '206':
+          description: Partial bytes; Content-Range and Accept-Ranges
+        '416':
+          description: Unsatisfiable byte range; Content-Range bytes */length
+        default:
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      parameters:
+      - in: query
+        name: ticket
+        required: true
+        schema:
+          type: string
+          minLength: 16
+      - in: header
+        name: Range
+        required: false
+        schema:
+          type: string
+        description: Single byte range only; for file, not playlist.
+      - name: resourceId
+        in: path
+        required: true
+        schema: *id005
+      - name: asset
+        in: path
+        required: true
+        schema: *id005
+      security:
+      - MediaTicket: []
+components:
+  securitySchemes:
+    DeviceBearer:
+      type: http
+      scheme: bearer
+    MediaTicket:
+      type: apiKey
+      in: query
+      name: ticket
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            requestId:
+              type: string
+            retryable:
+              type: boolean
+            retryAfterMs:
+              type: integer
+              minimum: 0
+          required:
+          - code
+          - message
+          - requestId
+          - retryable
+          additionalProperties: true
+      required:
+      - error
+      additionalProperties: true
+    ServerInfo:
+      type: object
+      properties:
+        serverId: *id005
+        displayName:
+          type: string
+        contractVersion:
+          type: string
+        environment:
+          type: string
+          enum:
+          - mock
+          - development
+          - production
+      required:
+      - serverId
+      - displayName
+      - contractVersion
+      - environment
+      additionalProperties: true
+    Capabilities:
+      type: object
+      properties:
+        contractVersion:
+          type: string
+        localPlayback:
+          type: boolean
+        neteasePlayback:
+          type: boolean
+        transcoding:
+          type: boolean
+        hls:
+          type: boolean
+        preparedVariants:
+          type: boolean
+        qualityProfiles:
+          type: array
+          items:
+            type: string
+            enum:
+            - auto
+            - lossless
+            - balanced
+            - data_saver
+        maxConcurrentSessions:
+          type: integer
+          minimum: 2
+      required:
+      - contractVersion
+      - localPlayback
+      - neteasePlayback
+      - transcoding
+      - hls
+      - preparedVariants
+      - qualityProfiles
+      - maxConcurrentSessions
+      additionalProperties: true
+    PairingClaim:
+      type: object
+      properties:
+        pairingSecret:
+          type: string
+          minLength: 16
+          maxLength: 512
+        installationId: *id005
+        deviceName:
+          type: string
+          minLength: 1
+          maxLength: 100
+      required:
+      - pairingSecret
+      - installationId
+      - deviceName
+      additionalProperties: false
+    TokenPair:
+      type: object
+      properties:
+        deviceId: *id005
+        accessToken:
+          type: string
+        accessExpiresAt: &id006
+          type: string
+          format: date-time
+        refreshToken:
+          type: string
+        refreshExpiresAt: *id006
+        serverId: *id005
+      required:
+      - deviceId
+      - accessToken
+      - accessExpiresAt
+      - refreshToken
+      - refreshExpiresAt
+      - serverId
+      additionalProperties: true
+    RefreshRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          minLength: 16
+          maxLength: 512
+      required:
+      - refreshToken
+      additionalProperties: false
+    AudioInfo:
+      type: object
+      properties:
+        codec:
+          type: string
+        container:
+          type: string
+        sampleRateHz:
+          type: integer
+          minimum: 1
+        bitsPerSample:
+          type: integer
+          minimum: 1
+        channels:
+          type: integer
+          minimum: 1
+        bitrateKbps:
+          type: number
+          minimum: 0
+      required:
+      - codec
+      - container
+      additionalProperties: true
+    Album:
+      type: object
+      properties:
+        id: *id005
+        title:
+          type: string
+        artists:
+          type: array
+          items:
+            type: string
+        source:
+          type: string
+          enum:
+          - local
+          - netease
+        editionLabel:
+          type: string
+        artworkId: *id005
+        trackCount:
+          type: integer
+          minimum: 0
+      required:
+      - id
+      - title
+      - artists
+      - source
+      - editionLabel
+      - trackCount
+      additionalProperties: true
+    Track:
+      type: object
+      properties:
+        id: *id005
+        title:
+          type: string
+        artists:
+          type: array
+          items:
+            type: string
+        albumId: *id005
+        source:
+          type: string
+          enum:
+          - local
+          - netease
+        sourceItemId: *id005
+        versionId: *id005
+        contentRevision: *id005
+        editionLabel:
+          type: string
+        durationMs:
+          type: integer
+          minimum: 0
+        artworkId: *id005
+        audio:
+          $ref: '#/components/schemas/AudioInfo'
+        availability:
+          type: string
+          enum:
+          - available
+          - missing
+          - unavailable
+      required:
+      - id
+      - title
+      - artists
+      - albumId
+      - source
+      - sourceItemId
+      - versionId
+      - contentRevision
+      - editionLabel
+      - durationMs
+      - audio
+      - availability
+      additionalProperties: true
+    AlbumPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Album'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        libraryRevision:
+          type: string
+      required:
+      - items
+      - nextCursor
+      - libraryRevision
+      additionalProperties: true
+    TrackPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Track'
+        nextCursor:
+          type:
+          - string
+          - 'null'
+        libraryRevision:
+          type: string
+      required:
+      - items
+      - nextCursor
+      - libraryRevision
+      additionalProperties: true
+    SessionRequest:
+      type: object
+      properties:
+        clientInstanceId: *id005
+      required:
+      - clientInstanceId
+      additionalProperties: false
+    Session:
+      type: object
+      properties:
+        id: *id005
+        deviceId: *id005
+        createdAt: *id006
+        expiresAt: *id006
+      required:
+      - id
+      - deviceId
+      - createdAt
+      - expiresAt
+      additionalProperties: true
+    QualityRequest:
+      type: object
+      properties:
+        profile:
+          type: string
+          enum:
+          - auto
+          - lossless
+          - balanced
+          - data_saver
+        allowLossyFallback:
+          type: boolean
+        preferredTransport:
+          type: string
+          enum:
+          - auto
+          - file
+          - hls
+      required:
+      - profile
+      - allowLossyFallback
+      - preferredTransport
+      additionalProperties: false
+      allOf:
+      - if:
+          properties:
+            profile:
+              const: lossless
+        then:
+          properties:
+            allowLossyFallback:
+              const: false
+    FormatCapability:
+      type: object
+      properties:
+        codec:
+          type: string
+          minLength: 1
+          maxLength: 40
+        container:
+          type: string
+          minLength: 1
+          maxLength: 40
+        maxSampleRateHz:
+          type: integer
+          minimum: 8000
+          maximum: 768000
+        maxChannels:
+          type: integer
+          minimum: 1
+          maximum: 32
+      required:
+      - codec
+      - container
+      - maxSampleRateHz
+      - maxChannels
+      additionalProperties: false
+    ResourceRequest:
+      type: object
+      properties:
+        trackId: *id005
+        versionId: *id005
+        contentRevision: *id005
+        quality:
+          $ref: '#/components/schemas/QualityRequest'
+        formats:
+          type: array
+          items:
+            $ref: '#/components/schemas/FormatCapability'
+          minItems: 1
+          maxItems: 20
+      required:
+      - trackId
+      - versionId
+      - contentRevision
+      - quality
+      - formats
+      additionalProperties: false
+    Processing:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum:
+          - direct
+          - remux
+          - lossless_conversion
+          - lossy_transcode
+          - resample
+        reason:
+          type: string
+        fromPreparedCache:
+          type: boolean
+      required:
+      - mode
+      - reason
+      - fromPreparedCache
+      additionalProperties: true
+    Media:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+        transport:
+          type: string
+          enum:
+          - file
+          - hls
+        expiresAt: *id006
+        durationMs:
+          type: integer
+          minimum: 0
+        seekable:
+          type: boolean
+        actualAudio:
+          $ref: '#/components/schemas/AudioInfo'
+      required:
+      - url
+      - transport
+      - expiresAt
+      - durationMs
+      - seekable
+      - actualAudio
+      additionalProperties: true
+    Resource:
+      type: object
+      properties:
+        id: *id005
+        sessionId: *id005
+        trackId: *id005
+        versionId: *id005
+        contentRevision: *id005
+        state:
+          type: string
+          enum:
+          - preparing
+          - ready
+          - failed
+        sourceAudio:
+          $ref: '#/components/schemas/AudioInfo'
+        processing:
+          $ref: '#/components/schemas/Processing'
+        media:
+          $ref: '#/components/schemas/Media'
+        retryAfterMs:
+          type: integer
+          minimum: 0
+        failure:
+          $ref: '#/components/schemas/Error'
+      required:
+      - id
+      - sessionId
+      - trackId
+      - versionId
+      - contentRevision
+      - state
+      - sourceAudio
+      - processing
+      additionalProperties: true
+      allOf:
+      - if:
+          properties:
+            state:
+              const: ready
+        then:
+          required:
+          - media
+        else:
+          not:
+            required:
+            - media
+      - if:
+          properties:
+            state:
+              const: failed
+        then:
+          required:
+          - failure
+    Observation:
+      type: object
+      properties:
+        sequence:
+          type: integer
+          minimum: 1
+        playerGeneration:
+          type: integer
+          minimum: 0
+        queueItemId: *id005
+        resourceId: *id005
+        trackId: *id005
+        positionMs:
+          type: integer
+          minimum: 0
+        state:
+          type: string
+          enum:
+          - ready
+          - playing
+          - paused
+          - buffering
+          - seeking
+          - ended
+          - failed
+      required:
+      - sequence
+      - playerGeneration
+      - queueItemId
+      - resourceId
+      - trackId
+      - positionMs
+      - state
+      additionalProperties: false
+    ObservationReceipt:
+      type: object
+      properties:
+        acceptedSequence:
+          type: integer
+          minimum: 1
+        accepted:
+          type: boolean
+      required:
+      - acceptedSequence
+      - accepted
+      additionalProperties: true
+    EmptyRequest:
+      type: object
+      properties: {}
+      required: []
+      additionalProperties: false

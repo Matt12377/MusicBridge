@@ -1,0 +1,650 @@
+{
+  "schema": "musicbridge.mbm000.schema-fixture-manifest.v1",
+  "canonical": {
+    "path": "packages/contracts/mobile/openapi.json",
+    "bytes": 145918,
+    "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+  },
+  "fixtures": [
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/add-personal-playlist-track.json",
+      "schemaRef": "#/components/schemas/AddPersonalPlaylistTrackRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/added-album-page-empty.json",
+      "schemaRef": "#/components/schemas/AddedAlbumPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/added-album-page.json",
+      "schemaRef": "#/components/schemas/AddedAlbumPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/album-local.json",
+      "schemaRef": "#/components/schemas/Album",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/album-netease.json",
+      "schemaRef": "#/components/schemas/Album",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/album-page-empty.json",
+      "schemaRef": "#/components/schemas/AlbumPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/album-page.json",
+      "schemaRef": "#/components/schemas/AlbumPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/capabilities.json",
+      "schemaRef": "#/components/schemas/Capabilities",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/chart-page-empty.json",
+      "schemaRef": "#/components/schemas/DiscoveryCollectionPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/chart-page.json",
+      "schemaRef": "#/components/schemas/DiscoveryCollectionPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/create-personal-playlist-null-initial.json",
+      "schemaRef": "#/components/schemas/CreatePersonalPlaylistRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/create-personal-playlist-with-initial.json",
+      "schemaRef": "#/components/schemas/CreatePersonalPlaylistRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/create-personal-playlist.json",
+      "schemaRef": "#/components/schemas/CreatePersonalPlaylistRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/daily-recommendations-empty.json",
+      "schemaRef": "#/components/schemas/DailyRecommendationFeed",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/daily-recommendations.json",
+      "schemaRef": "#/components/schemas/DailyRecommendationFeed",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/discovery-chart-tracks.json",
+      "schemaRef": "#/components/schemas/DiscoveryCollectionTrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/discovery-playlist-tracks.json",
+      "schemaRef": "#/components/schemas/DiscoveryCollectionTrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/empty-request.json",
+      "schemaRef": "#/components/schemas/EmptyRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/error-busy-retry-at-cap.json",
+      "schemaRef": "#/components/schemas/Error",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/error-busy-retry-over-cap.json",
+      "schemaRef": "#/components/schemas/Error",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/error-busy.json",
+      "schemaRef": "#/components/schemas/Error",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/error-content-limit-exceeded.json",
+      "schemaRef": "#/components/schemas/Error",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/error-idempotency-conflict.json",
+      "schemaRef": "#/components/schemas/Error",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/error-invalid-request.json",
+      "schemaRef": "#/components/schemas/Error",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/error-revision-conflict.json",
+      "schemaRef": "#/components/schemas/Error",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/error-unauthorized.json",
+      "schemaRef": "#/components/schemas/Error",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/error-unsupported-format.json",
+      "schemaRef": "#/components/schemas/Error",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/favorite-album-page-empty.json",
+      "schemaRef": "#/components/schemas/FavoriteAlbumPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/favorite-album-page.json",
+      "schemaRef": "#/components/schemas/FavoriteAlbumPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/favorite-album-state-after-write.json",
+      "schemaRef": "#/components/schemas/FavoriteAlbumState",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/favorite-album-state-null.json",
+      "schemaRef": "#/components/schemas/FavoriteAlbumState",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/favorite-album-state.json",
+      "schemaRef": "#/components/schemas/FavoriteAlbumState",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/favorite-album-tracks-empty.json",
+      "schemaRef": "#/components/schemas/FavoriteAlbumTrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/favorite-album-tracks.json",
+      "schemaRef": "#/components/schemas/FavoriteAlbumTrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/fm-feed-empty.json",
+      "schemaRef": "#/components/schemas/DiscoveryFMFeed",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/fm-feed.json",
+      "schemaRef": "#/components/schemas/DiscoveryFMFeed",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/liked-playlist-tracks.json",
+      "schemaRef": "#/components/schemas/NeteaseLikedPlaylistTrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/liked-playlist.json",
+      "schemaRef": "#/components/schemas/NeteaseLikedPlaylist",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/lyrics-instrumental.json",
+      "schemaRef": "#/components/schemas/LyricsContent",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/lyrics-missing.json",
+      "schemaRef": "#/components/schemas/LyricsContent",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/lyrics-ready.json",
+      "schemaRef": "#/components/schemas/LyricsContent",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-added-empty-wrong-revision.json",
+      "schemaRef": "#/components/schemas/AddedAlbumPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-empty-page-next-cursor.json",
+      "schemaRef": "#/components/schemas/TrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-favorite-null-wrong-identity.json",
+      "schemaRef": "#/components/schemas/FavoriteAlbumState",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-favorite-stale-cas.json",
+      "schemaRef": "#/components/schemas/SetAlbumFavoriteRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-lyrics-empty-wrong-revision.json",
+      "schemaRef": "#/components/schemas/LyricsContent",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-personal-playlist-created-empty-cover.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistReceipt",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-personal-playlist-empty-cover.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistTrackPage",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-personal-playlist-later-cover.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistTrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-personal-playlist-wrong-account.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistTrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-personal-playlist-wrong-first-cover.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistTrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-foreign-account.json",
+      "schemaRef": "#/components/schemas/CreatePersonalPlaylistRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-stale-cas.json",
+      "schemaRef": "#/components/schemas/CreatePersonalPlaylistRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-actual-bitdepth16.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-actual-downsample.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-failed-no-failure.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-failed-with-media.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-lossy-processing.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-media-cross-origin.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-media-duplicate-ticket.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-media-expired.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-media-short-ticket.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-preparing-with-failure.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-ready-no-media.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-ready-with-failure.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-request-duplicate-track-id.json",
+      "schemaRef": "#/components/schemas/NegotiatedResourceRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-source-mismatch.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-wrong-resource-id.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-wrong-session-id.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-resource-wrong-version.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-track-page-duplicate.json",
+      "schemaRef": "#/components/schemas/TrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/new-album-page-empty.json",
+      "schemaRef": "#/components/schemas/DiscoveryAlbumPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/new-album-page.json",
+      "schemaRef": "#/components/schemas/DiscoveryAlbumPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/observation-receipt.json",
+      "schemaRef": "#/components/schemas/ObservationReceipt",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/observation-request.json",
+      "schemaRef": "#/components/schemas/Observation",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/pairing-claim.json",
+      "schemaRef": "#/components/schemas/PairingClaim",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/personal-playlist-created-with-initial.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistReceipt",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/personal-playlist-created.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistReceipt",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/personal-playlist-page-empty.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/personal-playlist-page.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/personal-playlist-track-added.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistReceipt",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/personal-playlist-tracks-empty.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistTrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/personal-playlist-tracks-first-no-artwork.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistTrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/personal-playlist-tracks.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistTrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/recommended-playlist-page-empty.json",
+      "schemaRef": "#/components/schemas/DiscoveryCollectionPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/recommended-playlist-page.json",
+      "schemaRef": "#/components/schemas/DiscoveryCollectionPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/refresh-request.json",
+      "schemaRef": "#/components/schemas/RefreshRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-failed.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-preparing.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-ready.json",
+      "schemaRef": "#/components/schemas/Resource",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-request-base.json",
+      "schemaRef": "#/components/schemas/NegotiatedResourceRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-request-bits-null.json",
+      "schemaRef": "#/components/schemas/NegotiatedResourceRequest",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-request-bits0.json",
+      "schemaRef": "#/components/schemas/NegotiatedResourceRequest",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-request-bits1.json",
+      "schemaRef": "#/components/schemas/NegotiatedResourceRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-request-bits24.json",
+      "schemaRef": "#/components/schemas/NegotiatedResourceRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-request-bits64.json",
+      "schemaRef": "#/components/schemas/NegotiatedResourceRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-request-bits65.json",
+      "schemaRef": "#/components/schemas/NegotiatedResourceRequest",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-request-channels32.json",
+      "schemaRef": "#/components/schemas/NegotiatedResourceRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-request-channels33.json",
+      "schemaRef": "#/components/schemas/NegotiatedResourceRequest",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-request-sample7999.json",
+      "schemaRef": "#/components/schemas/NegotiatedResourceRequest",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/resource-request-sample8000.json",
+      "schemaRef": "#/components/schemas/NegotiatedResourceRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/server-info.json",
+      "schemaRef": "#/components/schemas/ServerInfo",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/session-request.json",
+      "schemaRef": "#/components/schemas/SessionRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/session.json",
+      "schemaRef": "#/components/schemas/Session",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/set-album-favorite.json",
+      "schemaRef": "#/components/schemas/SetAlbumFavoriteRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/set-track-favorite.json",
+      "schemaRef": "#/components/schemas/SetTrackFavoriteRequest",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/token-pair.json",
+      "schemaRef": "#/components/schemas/TokenPair",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/track-local-no-artwork.json",
+      "schemaRef": "#/components/schemas/Track",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/track-local-second.json",
+      "schemaRef": "#/components/schemas/Track",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/track-local.json",
+      "schemaRef": "#/components/schemas/Track",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/track-netease.json",
+      "schemaRef": "#/components/schemas/Track",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/track-page-empty.json",
+      "schemaRef": "#/components/schemas/TrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/track-page.json",
+      "schemaRef": "#/components/schemas/TrackPage",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/ui-capabilities-base.json",
+      "schemaRef": "#/components/schemas/UIContentCapabilities",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/ui-capabilities-bitdepth-false.json",
+      "schemaRef": "#/components/schemas/UIContentCapabilities",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/ui-capabilities-ready.json",
+      "schemaRef": "#/components/schemas/UIContentCapabilities",
+      "valid": true
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-page-collectionRevision-cr.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistPage",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-page-collectionRevision-lf.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistPage",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-page-collectionRevision-line-separator.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistPage",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-page-collectionRevision-nul.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistPage",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-receipt-accountDomain-cr.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistReceipt",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-receipt-accountDomain-lf.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistReceipt",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-receipt-accountDomain-line-separator.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistReceipt",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-receipt-accountDomain-nul.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistReceipt",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-receipt-playlistId-cr.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistReceipt",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-receipt-playlistId-lf.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistReceipt",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-receipt-playlistId-line-separator.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistReceipt",
+      "valid": false
+    },
+    {
+      "path": "packages/contracts/mobile/fixtures/bodies/negative-playlist-receipt-playlistId-nul.json",
+      "schemaRef": "#/components/schemas/PersonalPlaylistReceipt",
+      "valid": false
+    }
+  ]
+}

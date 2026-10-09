@@ -1,0 +1,80 @@
+{
+  "schema": "musicbridge.mbm000.contract-adoption-scope.v1",
+  "task": "MBM-000",
+  "baseReportSha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+  "branch": "codex/mbm-000-mobile-contracts",
+  "inputLock": {
+    "path": "docs/postrust/MBM-000/INPUT_LOCK.json",
+    "bytes": 45510,
+    "sha256": "2f190bdd30838991ffa43a9c0acc8d114d7474a591f62b31ba03cfbbbfaae2ac"
+  },
+  "canonicalContract": "packages/contracts/mobile/openapi.json",
+  "canonicalDocumentVersion": "1.6.0",
+  "baseWireContractVersion": "0.1.0",
+  "uiCapabilitiesVersion": "1.0.0",
+  "originalOperationCount": 40,
+  "productionFiles": [
+    "packages/contracts/src/mobile-common.ts",
+    "packages/contracts/src/mobile-catalog.ts",
+    "packages/contracts/src/mobile-resource.ts",
+    "packages/contracts/src/mobile-content.ts",
+    "packages/contracts/src/mobile-wire.ts"
+  ],
+  "testFiles": [
+    "packages/contracts/test/mbm000/operation-contract.test.ts",
+    "packages/contracts/test/mbm000/resource-envelope.test.ts",
+    "packages/contracts/test/mbm000/audio-resource-state.test.ts",
+    "packages/contracts/test/mbm000/content-revision.test.ts"
+  ],
+  "fixtureFiles": [
+    "packages/contracts/test/mbm000/fixture-helpers.ts"
+  ],
+  "testScope": "docs/postrust/MBM-000/TEST_SCOPE.json",
+  "budgetAuthority": "docs/postrust/MBM-000/EXECUTION_SCOPE.json#/gateBudgets",
+  "gateBudgets": {
+    "stageTimeoutMs": 120000,
+    "totalTimeoutMs": 360000,
+    "killGraceMs": 10000,
+    "rawOutputBytes": 16777216,
+    "sourceFileBytes": 4194304,
+    "maxSourceFiles": 4096,
+    "maxCompiledFiles": 8192
+  },
+  "stageNames": ["fresh-contracts-build", "contracts-types", "mobile-contract-behavior"],
+  "declaredDirectories": [
+    "packages/contracts/src",
+    "packages/contracts/test",
+    "packages/contracts/mobile",
+    "docs/postrust/MBM-000",
+    "scripts/ci",
+    ".github/workflows"
+  ],
+  "requiredFiles": [
+    "AGENTS.md",
+    "package.json",
+    "pnpm-workspace.yaml",
+    "pnpm-lock.yaml",
+    "packages/contracts/package.json",
+    "packages/contracts/tsconfig.json",
+    "packages/contracts/tsconfig.test.json",
+    "apps/desktop/scripts/build-storage-root.mjs",
+    "apps/desktop/scripts/build-storage-root.d.mts",
+    "project/STATUS.json",
+    "project/POSTRUST_PLAN.json",
+    "project/POSTRUST_TODO.md",
+    "project/POSTRUST_PROGRESS.md",
+    "docs/postrust/MBM-000/G0_HANDOFF.json",
+    "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
+    "docs/postrust/MBM-000/INPUT_LOCK.json",
+    "docs/postrust/MBM-000/TEST_SCOPE.json",
+    "docs/postrust/MBM-000/ADOPTION.json",
+    "packages/contracts/mobile/openapi.json",
+    "packages/contracts/mobile/schema-fixture-manifest.json",
+    "scripts/ci/verify-mbm000-contract-adoption.mjs",
+    "scripts/ci/mbm000-contract-adoption-scope.json",
+    "scripts/ci/test/verify-mbm000-contract-adoption.test.mjs"
+  ],
+  "fullTransitiveToolchainClosure": false,
+  "softwareGateIsPairedClientAdoption": false,
+  "runtimeServiceDeviceAudioOwner": "NOT_RUN"
+}

@@ -1,0 +1,60 @@
+{
+  "schema": "musicbridge.mbm000.execution-scope.v1",
+  "task": "MBM-000",
+  "baseReportSha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+  "authorization": "OWNER_CONTINUOUS_DEVELOPMENT_VERIFY_COMMIT_ORDINARY_PUSH",
+  "purpose": "采纳移动独立wire合同、纯DTO/codec和实际兼容Gate；复用已交付客户端与界面。",
+  "inputLock": {
+    "path": "docs/postrust/MBM-000/INPUT_LOCK.json",
+    "bytes": 45510,
+    "sha256": "2f190bdd30838991ffa43a9c0acc8d114d7474a591f62b31ba03cfbbbfaae2ac"
+  },
+  "canonicalContract": "packages/contracts/mobile/openapi.json",
+  "canonicalAuthor": "MUSICBRIDGE_MAC_MAIN_AGENT",
+  "operationCount": 40,
+  "allowedProductionFiles": [
+    "packages/contracts/src/mobile-common.ts",
+    "packages/contracts/src/mobile-catalog.ts",
+    "packages/contracts/src/mobile-resource.ts",
+    "packages/contracts/src/mobile-content.ts",
+    "packages/contracts/src/mobile-wire.ts"
+  ],
+  "testFiles": [
+    "packages/contracts/test/mbm000/operation-contract.test.ts",
+    "packages/contracts/test/mbm000/resource-envelope.test.ts",
+    "packages/contracts/test/mbm000/audio-resource-state.test.ts",
+    "packages/contracts/test/mbm000/content-revision.test.ts"
+  ],
+  "gateEntry": "scripts/ci/verify-mbm000-contract-adoption.mjs",
+  "implementationStages": {
+    "HTTPS_PAIRING_CATALOG": "MBM-001",
+    "SESSION_RESOURCE_MEDIA": "MBM-002",
+    "LOSSLESS_FLAC": "MBM-003",
+    "CONTENT_MULTI_DEVICE": "MBM-004"
+  },
+  "constraints": [
+    "既有loopback Control API/Stream Gateway及默认Node单SQLite writer保持。",
+    "Rust只读与源写默认OFF，既有Roon/Provider/录音合同保持。",
+    "原18/156和有效17/150账本不变；移动域独立建账。",
+    "000不连接真实账号/服务/音频/设备，也不以合同或Mock冒充实际后端采用。",
+    "最终双方version/hash采纳是000交付条件，不能用未来采纳收据阻断开工。",
+    "Mac只写自身公共合同；iOS源码/报告由原iOS主代理管理。"
+  ],
+  "sourceGate": "LOCAL_PREPARATION_PASSED_EXACT_SOURCE_COMMIT_GATE_AND_CI_PENDING",
+  "pairedClientAdoption": "IOS_FINAL_SOFTWARE_DELIVERY_VERIFIED_MAC_SOURCE_REPORT_SEAL_PENDING",
+  "nextTask": "MBM-001",
+  "gateBudgets": {
+    "stageTimeoutMs": 120000,
+    "totalTimeoutMs": 360000,
+    "killGraceMs": 10000,
+    "rawOutputBytes": 16777216,
+    "sourceFileBytes": 4194304,
+    "maxSourceFiles": 4096,
+    "maxCompiledFiles": 8192
+  },
+  "taskSpec": "tasks/MBM-000_MOBILE_CONTRACT_ADOPTION.md",
+  "newIndependentMobileAcceptanceCases": 7,
+  "originalTaskAndATLedgerUnchanged": true,
+  "localPreparation": "docs/postrust/MBM-000/LOCAL_PREPARATION.json",
+  "peerAdoption": "docs/postrust/MBM-000/PEER_ADOPTION.json"
+}

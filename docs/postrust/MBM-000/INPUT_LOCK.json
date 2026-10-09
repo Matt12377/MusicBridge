@@ -1,0 +1,1442 @@
+{
+  "schema": "musicbridge.mbm000.input-lock.v1",
+  "task": "MBM-000",
+  "mac": {
+    "baseReportSha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+    "predecessorSourceSha": "e755b71320c93a7985a936382f86c08a4ed2eb8a",
+    "predecessorReportSingleParent": "e755b71320c93a7985a936382f86c08a4ed2eb8a",
+    "sourceWorkflows": 4,
+    "sourceJobs": 6,
+    "reportWorkflows": 2,
+    "reportJobs": 3,
+    "sourceFirstNaturalCi": "SUCCESS",
+    "reportFirstNaturalCi": "SUCCESS",
+    "reportMode": "report-only",
+    "predecessorSoftwareDelivery": "FINITE_SOFTWARE_DELIVERY_SEALED_LIVE_CARRYOVER_OPEN",
+    "privateFinalReceipt": {
+      "fileName": "MBRS013_FINAL_DELIVERY_RECEIPT.json",
+      "bytes": 705617,
+      "sha256": "485c115961f095074e767f46420c77d5ca4d96f2e15cd2660b9ac7f52f43c5bc",
+      "storage": "PRIVATE_EXTERNAL_ARCHIVE"
+    },
+    "baseAllGitBlobCount": 2527,
+    "baseAllGitBlobIdentity": "172a2562d840d01327b03dbdbdd2e6f9a881a279ad6dc9aec679379bf7cf4b2b"
+  },
+  "ios": {
+    "repository": "Matt12377/MusicBridge-ios",
+    "sourceSha": "fc332b5973d9b9c6d608aa8e683d65cef4d2c0e3",
+    "reportSha": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+    "branch": "codex/ios-discovery-audit",
+    "remoteReportSha": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+    "reportSingleParent": "fc332b5973d9b9c6d608aa8e683d65cef4d2c0e3",
+    "inputs": [
+      {
+        "path": "AGENTS.md",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "1502a9fc175a0c0e01e640ccfdd06d196cab8258",
+        "bytes": 17450,
+        "sha256": "69704f225068e37574b8f20c2c2c9df0f8267b6590e40f35eb7cf36000b19c8e",
+        "privateArchiveFile": "AGENTS.md"
+      },
+      {
+        "path": "Contracts/openapi.yaml",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "1f4af2fd8dd4a532aae9e1b0c204e0624503aac6",
+        "bytes": 27446,
+        "sha256": "03056740fbb8443e2ab862e27d7af7927ab467a3f7cb44babfb6b79ee442480d",
+        "privateArchiveFile": "Contracts__openapi.yaml"
+      },
+      {
+        "path": "Contracts/proposals/UI_V39.openapi.json",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "c9df511e01757c1092cba0b81ec124597fe91e5a",
+        "bytes": 86670,
+        "sha256": "0ea921d26dff63b5d3418a1830b58d6de45eaed0b630245d404db00ac5a60746",
+        "privateArchiveFile": "Contracts__proposals__UI_V39.openapi.json"
+      },
+      {
+        "path": "DevelopmentSupport/ClientTests/isolated_mock.py",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "e27c79d123278aaae56bfaa0ff3c26f62e46efa1",
+        "bytes": 4034,
+        "sha256": "2e83f157e0237e46d288b4ac278b404edd224e02c013a748a992565973eb87b3",
+        "privateArchiveFile": "DevelopmentSupport__ClientTests__isolated_mock.py"
+      },
+      {
+        "path": "DevelopmentSupport/ExecutionPack/AGENTS.md",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "fcc41bf5321374f091bc72ffe0686c09a8a43d0a",
+        "bytes": 3359,
+        "sha256": "7683811979fd74141ab3d27614834345130238ec899fa131aa206527c1fa204f",
+        "privateArchiveFile": "DevelopmentSupport__ExecutionPack__AGENTS.md"
+      },
+      {
+        "path": "DevelopmentSupport/PlaybackTests/isolated_resource_mock.py",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "959ba6fce72845ad7f65e8fb09a79508a438c8cc",
+        "bytes": 9889,
+        "sha256": "f3a7242368388d4ee901f4be594c8d16aa43d1878c83dacd763754c4f148b062",
+        "privateArchiveFile": "DevelopmentSupport__PlaybackTests__isolated_resource_mock.py"
+      },
+      {
+        "path": "Packages/MBClient/Package.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "d75ccf4b1a3aa082efe538f7c805ecb02a37879f",
+        "bytes": 563,
+        "sha256": "7754233b377328f04153192adfc4589c488d6c183a4defec80d47c177f51318d",
+        "privateArchiveFile": "Packages__MBClient__Package.swift"
+      },
+      {
+        "path": "Packages/MBClient/Sources/MBClient/Authentication/MBAuthenticatedClient.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "3a3b92500f4bd142cb190a3359d0c93086a4711b",
+        "bytes": 21019,
+        "sha256": "b6b3edf93d10adb0038b34712b5104f29a5e35c464284eb8322e0390880b7bb6",
+        "privateArchiveFile": "Packages__MBClient__Sources__MBClient__Authentication__MBAuthenticatedClient.swift"
+      },
+      {
+        "path": "Packages/MBClient/Sources/MBClient/Shared/MBClientPrimitives.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "4b83b565d1e8dcf84d5eabb6529c81a1da4395a2",
+        "bytes": 6059,
+        "sha256": "ef3828ddb91a0c948aae8cf3c32b87f5ad84fc1565fe4b134b1c7afb848d6612",
+        "privateArchiveFile": "Packages__MBClient__Sources__MBClient__Shared__MBClientPrimitives.swift"
+      },
+      {
+        "path": "Packages/MBClient/Sources/MBClient/Shared/MBServerEndpoint.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "b208ff80ed7ab4d97d1afbc55b2545d07b801f11",
+        "bytes": 4625,
+        "sha256": "11a251ed47a2a57f3ef7ca83ce03fabe023e60ea9cb8db1c57e02351b720f1fe",
+        "privateArchiveFile": "Packages__MBClient__Sources__MBClient__Shared__MBServerEndpoint.swift"
+      },
+      {
+        "path": "Packages/MBClient/Sources/MBClient/Transport/MBAPIClient.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "806518d6f738f2d64800a9e0b31ffd8d14c427ff",
+        "bytes": 11608,
+        "sha256": "d1db5e7ae3a363c18374d713397777937ea2938de69573844bccda8c17f85f00",
+        "privateArchiveFile": "Packages__MBClient__Sources__MBClient__Transport__MBAPIClient.swift"
+      },
+      {
+        "path": "Packages/MBClient/Sources/MBClient/Transport/MBTransportSafety.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "31125cd0c524bed5ef5a87ddcfdc24f739fd8769",
+        "bytes": 3955,
+        "sha256": "8002a0d309f4623838a478f0202cbce1cb94c8e21e761faa3f61ae27b034f04b",
+        "privateArchiveFile": "Packages__MBClient__Sources__MBClient__Transport__MBTransportSafety.swift"
+      },
+      {
+        "path": "Packages/MBClient/Tests/MBClientTests/ClientTestSupport.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "8fe2692fd7db9415f99d6ad57f3021ffcc0013fa",
+        "bytes": 7905,
+        "sha256": "4cb0dc45e4d228a642ea933eba01613a420ec28c0d3f5633f50ac3a5cc4caf7f",
+        "privateArchiveFile": "Packages__MBClient__Tests__MBClientTests__ClientTestSupport.swift"
+      },
+      {
+        "path": "Packages/MBClient/Tests/MBClientTests/EndpointAndAPITests.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "28ee5a09f28e5776dedce5ff295ebabaa4deef23",
+        "bytes": 7432,
+        "sha256": "25de95239a4a7e53c05363caafe424d2abe2256b8c79a6a914d941dc9ad2650b",
+        "privateArchiveFile": "Packages__MBClient__Tests__MBClientTests__EndpointAndAPITests.swift"
+      },
+      {
+        "path": "Packages/MBMobileContract/Package.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "160162d4d4a13cb25fbed9c26c99380f45c87f54",
+        "bytes": 452,
+        "sha256": "25f947bc56359505408a4f0856259d842fd170925a1e191aab5927210a81d6eb",
+        "privateArchiveFile": "Packages__MBMobileContract__Package.swift"
+      },
+      {
+        "path": "Packages/MBMobileContract/Sources/MBMobileContract/Contracts.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "2c7d864b30208b8faf6ceea42e6d1dbafb7f722d",
+        "bytes": 11740,
+        "sha256": "05258b736f98b629eb450cdca3a7b65c99db1f3cf2cb4a1026e968455174565a",
+        "privateArchiveFile": "Packages__MBMobileContract__Sources__MBMobileContract__Contracts.swift"
+      },
+      {
+        "path": "Packages/MBMobileContract/Sources/MBMobileContract/PresentationBoundary.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "27008f92637820c6976a13c595c4860bc6b523f3",
+        "bytes": 3476,
+        "sha256": "109e90211aeda74cbdd97bf1ecbeb2673ebd71864333accb0a8135150cebc44f",
+        "privateArchiveFile": "Packages__MBMobileContract__Sources__MBMobileContract__PresentationBoundary.swift"
+      },
+      {
+        "path": "Packages/MBPlayback/Package.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "f9c1b16271bb0dc61cb779cdec3dd3142265fbfc",
+        "bytes": 782,
+        "sha256": "a2ed8e35f505f09f109c7ae586f9957c0b9f005785796136eec8ef5497b1cb33",
+        "privateArchiveFile": "Packages__MBPlayback__Package.swift"
+      },
+      {
+        "path": "Packages/MBPlayback/Sources/MBPlayback/Resources/MBRemotePlayableSource.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "956579a34a66d1a79271fe3d2d7268c428309865",
+        "bytes": 28657,
+        "sha256": "4ba01471dd0b8d843b0e5a472bfc1a7ee6b0704330b4e45c06d95e4a8baeb507",
+        "privateArchiveFile": "Packages__MBPlayback__Sources__MBPlayback__Resources__MBRemotePlayableSource.swift"
+      },
+      {
+        "path": "Packages/MBPlayback/Sources/MBPlayback/Shared/MBResourcePolicy.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "8ca7614344d5a6513e1c2f90c5e751bfa15f5bff",
+        "bytes": 11104,
+        "sha256": "012cdfb341f4a546c225b7306bbd95368da28f189444091a111f8271d20d5c7c",
+        "privateArchiveFile": "Packages__MBPlayback__Sources__MBPlayback__Shared__MBResourcePolicy.swift"
+      },
+      {
+        "path": "Packages/MBPlayback/Sources/MBPlayback/Shared/MBResourceRequestPayload.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "bdcea0cc45d226d2a57e6dde55b70e806fd14f6f",
+        "bytes": 969,
+        "sha256": "9d921ce23b4d825d0bc6971d95b4587fa4175f0ca7484f956920a6bfc08670ff",
+        "privateArchiveFile": "Packages__MBPlayback__Sources__MBPlayback__Shared__MBResourceRequestPayload.swift"
+      },
+      {
+        "path": "Packages/MBPlayback/Tests/MBPlaybackTests/RemotePlayableSourceTests.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "0bed2c189134d68eff6beb169e2297a61ae9d204",
+        "bytes": 16501,
+        "sha256": "01c7773dad09e443222a99a3441a6f925eb6b0fb6889f21cc1b40f6078f27b1e",
+        "privateArchiveFile": "Packages__MBPlayback__Tests__MBPlaybackTests__RemotePlayableSourceTests.swift"
+      },
+      {
+        "path": "Packages/MBPlayback/Tests/MBPlaybackTests/ResourceAPIReplyTests.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "c645d552e751aed142ca4ffef5aaf237cc4e5222",
+        "bytes": 8378,
+        "sha256": "e9440c99831a3b93e1c7bfaf1e0f583a21ff93c1dbe47bffd81980b68a079ee6",
+        "privateArchiveFile": "Packages__MBPlayback__Tests__MBPlaybackTests__ResourceAPIReplyTests.swift"
+      },
+      {
+        "path": "Packages/MBPlayback/Tests/MBPlaybackTests/ResourceHTTPTestSupport.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "bd3e514345fbd6be7f4859991bdb9aaed304c33c",
+        "bytes": 7724,
+        "sha256": "a7f56a0ee4dbbe2d37df0de802345aef2224639dae303d49d4c5f5cadd2732ed",
+        "privateArchiveFile": "Packages__MBPlayback__Tests__MBPlaybackTests__ResourceHTTPTestSupport.swift"
+      },
+      {
+        "path": "Packages/MBPresentationTypes/Package.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "253e995ccc466c636a533a5c8d20bc76c42ee2ea",
+        "bytes": 328,
+        "sha256": "12970296d6928b17005483e024f034362598b728d9d0b00543d73cbcb2518322",
+        "privateArchiveFile": "Packages__MBPresentationTypes__Package.swift"
+      },
+      {
+        "path": "Packages/MBPresentationTypes/Sources/MBPresentationTypes/MBPlaybackIntent.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "8bfad708dc3d5383987d43d43b46924299034111",
+        "bytes": 510,
+        "sha256": "dcc40d855031fff39a5c0ce2ead5348e482ea0cb32c18f28e3083972316bc240",
+        "privateArchiveFile": "Packages__MBPresentationTypes__Sources__MBPresentationTypes__MBPlaybackIntent.swift"
+      },
+      {
+        "path": "Packages/MBPresentationTypes/Sources/MBPresentationTypes/MBQualityProfile.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "9c0e08c72c223d843cf30a231f12b264e79572cb",
+        "bytes": 155,
+        "sha256": "a29424f5383dff7bb75181c566f3543d6b98a3d5695273371224fd9d2f414699",
+        "privateArchiveFile": "Packages__MBPresentationTypes__Sources__MBPresentationTypes__MBQualityProfile.swift"
+      },
+      {
+        "path": "Packages/MBPresentationTypes/Sources/MBPresentationTypes/MBTrackSelection.swift",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "8cb927aff899b9fe36474a908999cdbd982f7e19",
+        "bytes": 538,
+        "sha256": "2ac2244f9644b24ff2d22f522c35cda0a229d420cf2bd5c3089c141dc434e94d",
+        "privateArchiveFile": "Packages__MBPresentationTypes__Sources__MBPresentationTypes__MBTrackSelection.swift"
+      },
+      {
+        "path": "docs/integration/MBM000_READINESS_2026-10-08.md",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "b5d58574457d5d8f871efd2c07ee1c2c4c423a93",
+        "bytes": 11984,
+        "sha256": "d27bb46eaf7b26ee2fde485e445a1b1e6da23a670c7a387857a754a6c4b4e3cc",
+        "privateArchiveFile": "docs__integration__MBM000_READINESS_2026-10-08.md"
+      },
+      {
+        "path": "docs/integration/UI_V39_CONTROL_COVERAGE.json",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "140f8ea79906d3a00f38c112a911efa8a819b9b9",
+        "bytes": 45959,
+        "sha256": "bd2e35bc7fea9de58bba536be6b131f34eea0ca19f556e8ba161a5049361c725",
+        "privateArchiveFile": "docs__integration__UI_V39_CONTROL_COVERAGE.json"
+      },
+      {
+        "path": "docs/integration/V3_9_IOS_INTERFACE_HANDOFF.md",
+        "commit": "26ef98f11dd1db187c496020b9564c226c50bd1e",
+        "mode": "100644",
+        "gitBlobSha1": "559730186c63840aa4313db603d20b16f3244b19",
+        "bytes": 112283,
+        "sha256": "592def9616093c0d216ebb3f54dc4767c2dc017334fe310291df8db407a62cf4",
+        "privateArchiveFile": "docs__integration__V3_9_IOS_INTERFACE_HANDOFF.md"
+      }
+    ],
+    "inputCount": 31,
+    "clientAdoption": "PENDING_IOS_AUTHOR_ACTUAL_SOURCE_REPORT_AND_COMPATIBILITY_GATE"
+  },
+  "baseInput": {
+    "path": "docs/postrust/MBM-000/inputs/openapi.yaml",
+    "bytes": 27446,
+    "sha256": "03056740fbb8443e2ab862e27d7af7927ab467a3f7cb44babfb6b79ee442480d",
+    "documentVersion": "0.1.0"
+  },
+  "uiInput": {
+    "path": "docs/postrust/MBM-000/inputs/proposals/UI_V39.openapi.json",
+    "bytes": 86670,
+    "sha256": "0ea921d26dff63b5d3418a1830b58d6de45eaed0b630245d404db00ac5a60746",
+    "documentVersion": "1.5.0"
+  },
+  "mobileWireApiVersion": "1.0.0",
+  "distinctOperations": 40,
+  "operations": [
+    {
+      "input": "base-0.1.0",
+      "operationId": "getServer",
+      "method": "GET",
+      "path": "/mobile/v1/server",
+      "schemaReferences": [
+        "ServerInfo",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-001"
+      ],
+      "productionFileRefs": [
+        "control",
+        "config",
+        "ownerHost"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "claimPairing",
+      "method": "POST",
+      "path": "/mobile/v1/pairings/claim",
+      "schemaReferences": [
+        "TokenPair",
+        "Error",
+        "PairingClaim"
+      ],
+      "successStatusCodes": [
+        "201"
+      ],
+      "productionStages": [
+        "MBM-001"
+      ],
+      "productionFileRefs": [
+        "ownerHost",
+        "ownerClient",
+        "ownerDomain",
+        "control"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "refreshToken",
+      "method": "POST",
+      "path": "/mobile/v1/auth/refresh",
+      "schemaReferences": [
+        "TokenPair",
+        "Error",
+        "RefreshRequest"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-001"
+      ],
+      "productionFileRefs": [
+        "ownerHost",
+        "ownerDomain",
+        "control"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "logout",
+      "method": "POST",
+      "path": "/mobile/v1/auth/logout",
+      "schemaReferences": [
+        "Error",
+        "EmptyRequest"
+      ],
+      "successStatusCodes": [
+        "204"
+      ],
+      "productionStages": [
+        "MBM-001",
+        "MBM-002"
+      ],
+      "productionFileRefs": [
+        "ownerDomain",
+        "lease",
+        "registry"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "getCapabilities",
+      "method": "GET",
+      "path": "/mobile/v1/capabilities",
+      "schemaReferences": [
+        "Capabilities",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-001",
+        "MBM-002",
+        "MBM-003"
+      ],
+      "productionFileRefs": [
+        "audioDTO",
+        "lease",
+        "playbackDTO",
+        "config"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "listAlbums",
+      "method": "GET",
+      "path": "/mobile/v1/albums",
+      "schemaReferences": [
+        "AlbumPage",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-001"
+      ],
+      "productionFileRefs": [
+        "catalog",
+        "catalogDTO",
+        "catalogDispatch",
+        "catalogIPC"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "getAlbum",
+      "method": "GET",
+      "path": "/mobile/v1/albums/{albumId}",
+      "schemaReferences": [
+        "Album",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-001"
+      ],
+      "productionFileRefs": [
+        "catalog",
+        "catalogDTO",
+        "catalogDispatch"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "listTracks",
+      "method": "GET",
+      "path": "/mobile/v1/tracks",
+      "schemaReferences": [
+        "TrackPage",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-001"
+      ],
+      "productionFileRefs": [
+        "catalog",
+        "catalogDTO",
+        "catalogDispatch",
+        "audioDTO",
+        "netease"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "getTrack",
+      "method": "GET",
+      "path": "/mobile/v1/tracks/{trackId}",
+      "schemaReferences": [
+        "Track",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-001"
+      ],
+      "productionFileRefs": [
+        "catalog",
+        "catalogDispatch",
+        "catalogDTO",
+        "audioDTO",
+        "netease"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "getArtwork",
+      "method": "GET",
+      "path": "/mobile/v1/artwork/{artworkId}",
+      "schemaReferences": [
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-001"
+      ],
+      "productionFileRefs": [
+        "artworkService",
+        "artworkStore",
+        "artworkDTO",
+        "artworkImage"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "createSession",
+      "method": "POST",
+      "path": "/mobile/v1/sessions",
+      "schemaReferences": [
+        "Session",
+        "Error",
+        "SessionRequest"
+      ],
+      "successStatusCodes": [
+        "201"
+      ],
+      "productionStages": [
+        "MBM-002"
+      ],
+      "productionFileRefs": [
+        "ownerDomain",
+        "lease",
+        "playbackDTO"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "getSession",
+      "method": "GET",
+      "path": "/mobile/v1/sessions/{sessionId}",
+      "schemaReferences": [
+        "Session",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-002"
+      ],
+      "productionFileRefs": [
+        "ownerDomain",
+        "lease"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "closeSession",
+      "method": "DELETE",
+      "path": "/mobile/v1/sessions/{sessionId}",
+      "schemaReferences": [
+        "Error"
+      ],
+      "successStatusCodes": [
+        "204"
+      ],
+      "productionStages": [
+        "MBM-002"
+      ],
+      "productionFileRefs": [
+        "lease",
+        "registry",
+        "sourceFiles"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "reportObservation",
+      "method": "PUT",
+      "path": "/mobile/v1/sessions/{sessionId}/observation",
+      "schemaReferences": [
+        "ObservationReceipt",
+        "Error",
+        "Observation"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-002"
+      ],
+      "productionFileRefs": [
+        "playbackDTO",
+        "ownerDomain"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "createResource",
+      "method": "POST",
+      "path": "/mobile/v1/sessions/{sessionId}/resources",
+      "schemaReferences": [
+        "Resource",
+        "Error",
+        "ResourceRequest"
+      ],
+      "successStatusCodes": [
+        "201",
+        "202"
+      ],
+      "productionStages": [
+        "MBM-002",
+        "MBM-003"
+      ],
+      "productionFileRefs": [
+        "resolver",
+        "sourceFiles",
+        "lease",
+        "registry",
+        "gateway",
+        "audioDTO",
+        "netease"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "getResource",
+      "method": "GET",
+      "path": "/mobile/v1/sessions/{sessionId}/resources/{resourceId}",
+      "schemaReferences": [
+        "Resource",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-002",
+        "MBM-003"
+      ],
+      "productionFileRefs": [
+        "lease",
+        "registry",
+        "audioDTO"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "releaseResource",
+      "method": "DELETE",
+      "path": "/mobile/v1/sessions/{sessionId}/resources/{resourceId}",
+      "schemaReferences": [
+        "Error"
+      ],
+      "successStatusCodes": [
+        "204"
+      ],
+      "productionStages": [
+        "MBM-002"
+      ],
+      "productionFileRefs": [
+        "lease",
+        "registry",
+        "fileHttp",
+        "sourceFiles"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "renewResource",
+      "method": "POST",
+      "path": "/mobile/v1/sessions/{sessionId}/resources/{resourceId}/renew",
+      "schemaReferences": [
+        "Resource",
+        "Error",
+        "EmptyRequest"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-002"
+      ],
+      "productionFileRefs": [
+        "lease",
+        "registry",
+        "resolver"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "getMediaAsset",
+      "method": "GET",
+      "path": "/mobile/v1/media/{resourceId}/{asset}",
+      "schemaReferences": [
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200",
+        "206"
+      ],
+      "productionStages": [
+        "MBM-002",
+        "MBM-003"
+      ],
+      "productionFileRefs": [
+        "gateway",
+        "registry",
+        "fileHttp",
+        "lease",
+        "sourceFiles"
+      ]
+    },
+    {
+      "input": "base-0.1.0",
+      "operationId": "headMediaAsset",
+      "method": "HEAD",
+      "path": "/mobile/v1/media/{resourceId}/{asset}",
+      "schemaReferences": [
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200",
+        "206"
+      ],
+      "productionStages": [
+        "MBM-002",
+        "MBM-003"
+      ],
+      "productionFileRefs": [
+        "gateway",
+        "fileHttp",
+        "lease",
+        "registry"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "getUIContentCapabilities",
+      "method": "GET",
+      "path": "/mobile/v1/ui/capabilities",
+      "schemaReferences": [
+        "UIContentCapabilities",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-001",
+        "MBM-003",
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "control",
+        "runtime",
+        "audioDTO"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "listRecentlyAddedAlbums",
+      "method": "GET",
+      "path": "/mobile/v1/ui/home/added-albums",
+      "schemaReferences": [
+        "AddedAlbumPage",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "catalog",
+        "catalogDTO",
+        "catalogDispatch"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "getNeteaseDailyRecommendations",
+      "method": "GET",
+      "path": "/mobile/v1/ui/netease/daily-recommendations",
+      "schemaReferences": [
+        "DailyRecommendationFeed",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "runtime",
+        "netease",
+        "libraryDTO"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "getExactTrackLyrics",
+      "method": "GET",
+      "path": "/mobile/v1/ui/tracks/{trackId}/lyrics",
+      "schemaReferences": [
+        "LyricsContent",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "lyrics",
+        "lyricsDTO",
+        "netease",
+        "catalog"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "getNeteaseLikedPlaylist",
+      "method": "GET",
+      "path": "/mobile/v1/ui/netease/liked-playlist",
+      "schemaReferences": [
+        "NeteaseLikedPlaylist",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "runtime",
+        "netease",
+        "libraryDTO"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "listNeteaseLikedPlaylistTracks",
+      "method": "GET",
+      "path": "/mobile/v1/ui/netease/liked-playlist/tracks",
+      "schemaReferences": [
+        "NeteaseLikedPlaylistTrackPage",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "runtime",
+        "netease",
+        "libraryDTO"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "listFavoriteAlbums",
+      "method": "GET",
+      "path": "/mobile/v1/ui/favorites/albums",
+      "schemaReferences": [
+        "FavoriteAlbumPage",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "ownerDomain",
+        "ownerClient",
+        "catalog",
+        "legacyFavorites",
+        "favoritesDTO"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "getFavoriteAlbumState",
+      "method": "GET",
+      "path": "/mobile/v1/ui/favorites/albums/{albumId}",
+      "schemaReferences": [
+        "FavoriteAlbumState",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "ownerDomain",
+        "catalog",
+        "favoritesDTO"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "setAlbumFavorite",
+      "method": "PUT",
+      "path": "/mobile/v1/ui/favorites/albums/{albumId}",
+      "schemaReferences": [
+        "FavoriteAlbumState",
+        "Error",
+        "SetAlbumFavoriteRequest"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "ownerDomain",
+        "ownerClient",
+        "catalog"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "listFavoriteAlbumTracks",
+      "method": "GET",
+      "path": "/mobile/v1/ui/favorites/albums/{albumId}/tracks",
+      "schemaReferences": [
+        "FavoriteAlbumTrackPage",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "ownerDomain",
+        "catalog",
+        "catalogDispatch"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "setTrackFavorite",
+      "method": "PUT",
+      "path": "/mobile/v1/ui/favorites/tracks/{trackId}",
+      "schemaReferences": [
+        "FavoriteAlbumState",
+        "Error",
+        "SetTrackFavoriteRequest"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "ownerDomain",
+        "ownerClient",
+        "catalog"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "listPersonalPlaylists",
+      "method": "GET",
+      "path": "/mobile/v1/ui/playlists",
+      "schemaReferences": [
+        "PersonalPlaylistPage",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "ownerDomain",
+        "ownerClient",
+        "catalog",
+        "netease"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "createPersonalPlaylist",
+      "method": "POST",
+      "path": "/mobile/v1/ui/playlists",
+      "schemaReferences": [
+        "PersonalPlaylistReceipt",
+        "Error",
+        "CreatePersonalPlaylistRequest"
+      ],
+      "successStatusCodes": [
+        "201"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "ownerDomain",
+        "ownerClient",
+        "catalog",
+        "artworkStore"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "listPersonalPlaylistTracks",
+      "method": "GET",
+      "path": "/mobile/v1/ui/playlists/{playlistId}/tracks",
+      "schemaReferences": [
+        "PersonalPlaylistTrackPage",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "ownerDomain",
+        "catalog",
+        "netease"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "addPersonalPlaylistTrack",
+      "method": "PUT",
+      "path": "/mobile/v1/ui/playlists/{playlistId}/tracks",
+      "schemaReferences": [
+        "PersonalPlaylistReceipt",
+        "Error",
+        "AddPersonalPlaylistTrackRequest"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "ownerDomain",
+        "ownerClient",
+        "catalog",
+        "artworkStore"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "listNeteaseRecommendedPlaylists",
+      "method": "GET",
+      "path": "/mobile/v1/ui/netease/recommended-playlists",
+      "schemaReferences": [
+        "DiscoveryCollectionPage",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "runtime",
+        "netease",
+        "neteaseTypes"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "listNeteaseNewAlbums",
+      "method": "GET",
+      "path": "/mobile/v1/ui/netease/new-albums",
+      "schemaReferences": [
+        "DiscoveryAlbumPage",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "runtime",
+        "netease",
+        "neteaseTypes",
+        "libraryDTO"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "listNeteaseCharts",
+      "method": "GET",
+      "path": "/mobile/v1/ui/netease/charts",
+      "schemaReferences": [
+        "DiscoveryCollectionPage",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "runtime",
+        "netease",
+        "neteaseTypes"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "getNeteaseDiscoveryCollectionTracks",
+      "method": "GET",
+      "path": "/mobile/v1/ui/netease/discovery-collections/{collectionId}/tracks",
+      "schemaReferences": [
+        "DiscoveryCollectionTrackPage",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "runtime",
+        "netease",
+        "libraryDTO"
+      ]
+    },
+    {
+      "input": "ui-candidate-1.5.0",
+      "operationId": "getNeteasePersonalFM",
+      "method": "GET",
+      "path": "/mobile/v1/ui/netease/personal-fm",
+      "schemaReferences": [
+        "DiscoveryFMFeed",
+        "Error"
+      ],
+      "successStatusCodes": [
+        "200"
+      ],
+      "productionStages": [
+        "MBM-004"
+      ],
+      "productionFileRefs": [
+        "runtime",
+        "netease",
+        "neteaseTypes"
+      ]
+    }
+  ],
+  "macReusePoints": [
+    {
+      "key": "control",
+      "path": "packages/bridge-core/src/control/server.ts",
+      "mode": "100644",
+      "gitBlobSha1": "fcab48a32ebaeae2b8d7c8db30aded455785da27",
+      "bytes": 19625,
+      "sha256": "a7bf41239869a3bf134dfcc526d98d0e0ad00e747233a40db7c56dd0e2c2a2e6",
+      "entry": "ControlServer/handle",
+      "existingBoundary": "旧/v1仅loopback控制与Roon播放；没有/mobile/v1、私有HTTPS、设备配对或设备Bearer"
+    },
+    {
+      "key": "config",
+      "path": "packages/bridge-core/src/config/config.ts",
+      "mode": "100644",
+      "gitBlobSha1": "2efccab0118d75c3499d5367892f8b9f5d371f85",
+      "bytes": 8715,
+      "sha256": "191f7228e93bfe4b36c53adfaa203c2aab754f89d2297f7373f0ac375773c915",
+      "entry": "controlHost/streamHost/TrustedLocalMediaNetwork",
+      "existingBoundary": "旧loopback和独立受信媒体接口不授予移动LAN控制权限"
+    },
+    {
+      "key": "ownerHost",
+      "path": "apps/desktop/src/main/core-host.ts",
+      "mode": "100644",
+      "gitBlobSha1": "210b30e9de914239e816ea913937882ac02d421b",
+      "bytes": 5033,
+      "sha256": "67087bd2418d6e2ecec3a4ea8d8bbf275def6c85cd164353d19fb217cdfb781c",
+      "entry": "runDesktopCoreHost/createDatasetOwner",
+      "existingBoundary": "实际Worker/私有端口；凭据不进入Renderer或公开DTO"
+    },
+    {
+      "key": "ownerClient",
+      "path": "packages/bridge-core/src/collection/dataset-owner-client.ts",
+      "mode": "100644",
+      "gitBlobSha1": "c6a344cee53276d9ed06d4953af3479f711b2922",
+      "bytes": 21890,
+      "sha256": "a14c8140aa4712782760d9565a240d5bfbf6855834f4edcf63addfe76a50fac3",
+      "entry": "dispatch/dispatchInternal",
+      "existingBoundary": "复用统一Owner；不能新增第二SQLite writer"
+    },
+    {
+      "key": "ownerDomain",
+      "path": "packages/bridge-core/src/collection/dataset-domain.ts",
+      "mode": "100644",
+      "gitBlobSha1": "fa06e5cd59c3caa7c63a6f51e7df735684ca39cd",
+      "bytes": 26961,
+      "sha256": "bd839ee6f8d279d3171e48b7d0036ecc30714186dfa70d2194ceb07fe1445bcf",
+      "entry": "prepareOwnedDatasetDomain/dispatch",
+      "existingBoundary": "统一DB域、入场、恢复保护和退出"
+    },
+    {
+      "key": "catalogDTO",
+      "path": "packages/contracts/src/local-catalog.ts",
+      "mode": "100644",
+      "gitBlobSha1": "facaa9766cbfe0ea225de57b2e932a6020b461dd",
+      "bytes": 30109,
+      "sha256": "8796cce24bec3b10cabdcde05fe24fa536eef23755cc61389977959a0b2e54e6",
+      "entry": "AudioAsset/LocalTrack/AlbumEdition/LocalLibraryQueryPage",
+      "existingBoundary": "稳定ID；现有offset/limit不是移动cursor；移动file/location/root修订分别保持"
+    },
+    {
+      "key": "catalog",
+      "path": "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "mode": "100644",
+      "gitBlobSha1": "2c6f8c4c1e6e6d094ee3765b1b741fafc620941b",
+      "bytes": 111852,
+      "sha256": "33f711a804800e3fd49d1bd052c1a68f33d46dcad34f9586c7133051267248f9",
+      "entry": "queryTracks/trackDetail/edition/editionTracks",
+      "existingBoundary": "有界原SQL读；没有移动libraryRevision/cursor编码或授权"
+    },
+    {
+      "key": "catalogDispatch",
+      "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "mode": "100644",
+      "gitBlobSha1": "3fcbb89b5353c93630aba2f1703768a0225f0d2b",
+      "bytes": 57912,
+      "sha256": "1ffe34aa2977d75db1619289ef73ee6c2112fe25450e05eedcacc72b24cc7b50",
+      "entry": "localCatalog.queryTracks/trackDetail/editionTracks",
+      "existingBoundary": "详情补实际Scanner技术事实；保持唯一Owner"
+    },
+    {
+      "key": "audioDTO",
+      "path": "packages/contracts/src/audio-quality.ts",
+      "mode": "100644",
+      "gitBlobSha1": "3988545f9bfe18205ced737911ab188e20fa94c1",
+      "bytes": 1714,
+      "sha256": "963be7c90f08a1298264e22fd00e89ed2a995bacf54900df8bab2170b4dccd95",
+      "entry": "FileAudioParameters",
+      "existingBoundary": "Parser报告的源规格，未知值可null；不是设备输出或移动actualAudio事实"
+    },
+    {
+      "key": "runtime",
+      "path": "packages/bridge-core/src/runtime.ts",
+      "mode": "100644",
+      "gitBlobSha1": "524e75ffbaac2dc1a8f8b84cc46a79537560f668",
+      "bytes": 99677,
+      "sha256": "9c11125386f197a9e50f3c4a37df8765afc0980f5f9cdc87a412d5bf7bc012c0",
+      "entry": "createBridgeRuntime/getLibraryReadScope/getDailyRecommendationSnapshot",
+      "existingBoundary": "真实Provider代次和读scope；无移动accountDomain及完整版本cursor合同"
+    },
+    {
+      "key": "netease",
+      "path": "packages/bridge-core/src/netease/client.ts",
+      "mode": "100644",
+      "gitBlobSha1": "7b0af0fedbda4e575ab608c42e65896cff325331",
+      "bytes": 38269,
+      "sha256": "2cff7ab1e211567024c2fb9a1f410d2e365cc8a86197f010e938b03671fb54ec",
+      "entry": "getUserPlaylists/getLikedTracks/getPlaylist/getTrack/getLyrics/getDailyRecommendations/resolveStream",
+      "existingBoundary": "现有真实只读与受控上游；没有五模块完整移动服务或个人歌单创建/加歌author"
+    },
+    {
+      "key": "libraryDTO",
+      "path": "packages/contracts/src/library.ts",
+      "mode": "100644",
+      "gitBlobSha1": "464ba3a4d23bad039f74a422d131867610b1e8ec",
+      "bytes": 1944,
+      "sha256": "3c1f4ae84f33ae19da5449b6ee6c23d99759d18902e4931441cad8a52a717106",
+      "entry": "DailyRecommendationsSnapshot/PlaylistDetail/Page",
+      "existingBoundary": "现有dayKey/tracks、可选snapshotVersion和offset分页；不是移动稳定快照保证"
+    },
+    {
+      "key": "lyricsDTO",
+      "path": "packages/contracts/src/lyrics.ts",
+      "mode": "100644",
+      "gitBlobSha1": "bd5f9e74b3a0a3d1452b6c2154fcc725b4496cb8",
+      "bytes": 1687,
+      "sha256": "4650c22a2465ae83a7e2cc1813fb5254289550241fccd6f3c6b22af94694e7dc",
+      "entry": "LyricsSnapshot",
+      "existingBoundary": "没有候选lyricRevision/稳定lineId/精确版本归属"
+    },
+    {
+      "key": "legacyFavorites",
+      "path": "packages/bridge-core/src/favorites/repository.ts",
+      "mode": "100644",
+      "gitBlobSha1": "6e40c873f0728ac20e3f2f070c28be4697aa43c6",
+      "bytes": 8960,
+      "sha256": "e123f8aea0aed9c27ae4d2e85f3f5e8ec36abf8713e1af2efec05314425cfd6f",
+      "entry": "descriptorCanonical/descriptorHash",
+      "existingBoundary": "旧title/meta派生JSON收藏身份不能冒充精确源/账户域/CAS收藏权威"
+    },
+    {
+      "key": "favoritesDTO",
+      "path": "packages/contracts/src/favorites.ts",
+      "mode": "100644",
+      "gitBlobSha1": "4c46948fa30e71aafa82b0b53ca6ec3598fbc86a",
+      "bytes": 566,
+      "sha256": "65ff3e2f4b0c7488e5933cfb43ae2c69f5ef35f8bd6d8a985be131ba60a3a386",
+      "entry": "FavoriteDescriptor",
+      "existingBoundary": "旧kind/title/meta形状，不是候选整专/单曲收藏实体"
+    },
+    {
+      "key": "resolver",
+      "path": "packages/bridge-core/src/application/local-source-resolver.ts",
+      "mode": "100644",
+      "gitBlobSha1": "729a5563668d6f56002b359cdc7a2b526bbe29c0",
+      "bytes": 7966,
+      "sha256": "400263aca9f161fba087984c905f45639c82903456dad1f33b77ad5a4a5f7d06",
+      "entry": "captureLocalFactsReadonly/prepareLocalSourceReadonly",
+      "existingBoundary": "真实catalog/Scanner核验可复用；现有RoonCore/Zone授权不能伪造为手机session"
+    },
+    {
+      "key": "sourceFiles",
+      "path": "packages/bridge-core/src/recording/source-files.ts",
+      "mode": "100644",
+      "gitBlobSha1": "53d31862bc3ca796c4f522bf0998e3380ac560ee",
+      "bytes": 42398,
+      "sha256": "1012b602ea9b3641e41da391b3c1d268ec39bf9029bf548441358daa73f06fc9",
+      "entry": "protectedReadonlyOpen/openLocalPlaybackReadonlySource",
+      "existingBoundary": "原真实FD、根/祖先、namespace/physical读保护与quiet-close；012/013保护不放宽"
+    },
+    {
+      "key": "lease",
+      "path": "packages/bridge-core/src/stream/local-file-source.ts",
+      "mode": "100644",
+      "gitBlobSha1": "31e6833db7b08657683de014342646104772c14d",
+      "bytes": 10847,
+      "sha256": "eab1749c6d78ee5ebee704520d6d8570291ffdf7a160ce866312f52164d9684c",
+      "entry": "LocalFileSourcePool/AssetLease",
+      "existingBoundary": "真实读FD、修订、attempt、续期/关闭；原Roon confirmed session与旧资源预算不能自动移作移动授权"
+    },
+    {
+      "key": "registry",
+      "path": "packages/bridge-core/src/stream/registry.ts",
+      "mode": "100644",
+      "gitBlobSha1": "c7db0f94bf6c7d6813406852ef99584e51cbc2d9",
+      "bytes": 4471,
+      "sha256": "252dccc13127c99fe2e9f6646edcb48a171bdcc37719e9d5d12664664158ee4b",
+      "entry": "registerLocalSource/revokeLocalSource",
+      "existingBoundary": "旧私有secret注册；不是设备Bearer或跨设备移动ticket"
+    },
+    {
+      "key": "fileHttp",
+      "path": "packages/bridge-core/src/stream/local-file-http.ts",
+      "mode": "100644",
+      "gitBlobSha1": "65efaee068792bbfe34ec0c6debf6c53ed133a1b",
+      "bytes": 3636,
+      "sha256": "ac50d11d1b41d64ebfbeaadcdf95bda2db3b155f69d9243829520502317e2482",
+      "entry": "selectLocalBytes/serveLocalFile",
+      "existingBoundary": "真实GET/HEAD/单Range/If-Range/FD验证和释放；仍需要新设备resource授权"
+    },
+    {
+      "key": "gateway",
+      "path": "packages/bridge-core/src/stream/gateway.ts",
+      "mode": "100644",
+      "gitBlobSha1": "7c9efd11ab21d7d11ca1e7c24b1fa07d742f03d0",
+      "bytes": 25140,
+      "sha256": "e3b7a75a1e62f4448baeca05ef348b2cf2aa227f948d7594e7b0d2822c584bb0",
+      "entry": "GatewayServer/local-stream",
+      "existingBoundary": "旧loopback/受信媒体入口不扩大为移动私有HTTPS；无mobile ticket路由"
+    },
+    {
+      "key": "playbackDTO",
+      "path": "packages/contracts/src/playback.ts",
+      "mode": "100644",
+      "gitBlobSha1": "b75ade49357c624ea03c6df200d34061ce2708de",
+      "bytes": 5030,
+      "sha256": "3b8778e9060a4ed4a6c3866ef5445a63e1414764aa52a693ade4d267756fd018",
+      "entry": "PlaybackSnapshot/requestedQuality/actualQuality",
+      "existingBoundary": "旧家庭Roon唯一队列；不代替手机独立队列/引擎或sourceAudio/actualAudio"
+    }
+  ],
+  "macReusePointCount": 22,
+  "originalTaskLedger": {
+    "tasks": 18,
+    "acceptanceCases": 156,
+    "effectiveTasks": 17,
+    "effectiveAcceptanceCases": 150,
+    "cancelled015SixCases": "N_A"
+  },
+  "runtimeServiceDeviceAudioOwner": "NOT_RUN",
+  "g0Scope": "ACTUAL_PREDECESSOR_AND_COMMITTED_INPUT_IDENTITY_ONLY_NOT_CODEC_TEST_OR_FINAL_PAIRED_ADOPTION"
+}

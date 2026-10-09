@@ -1,0 +1,375 @@
+{
+  "schema": "musicbridge.mbm000.adoption.v1",
+  "task": "MBM-000",
+  "state": "LOCAL_SOFTWARE_AND_IOS_FINAL_DELIVERY_VERIFIED_MAC_SOURCE_REPORT_CI_PENDING",
+  "baseReportSha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+  "canonical": {
+    "path": "packages/contracts/mobile/openapi.json",
+    "bytes": 145918,
+    "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+  },
+  "documentVersion": "1.6.0",
+  "baseWireContractVersion": "0.1.0",
+  "uiCapabilitiesVersion": "1.0.0",
+  "versionSemantics": {
+    "openapi.info.version": "DOCUMENT_REVISION_ONLY",
+    "ServerInfo.contractVersion": "0.1.0",
+    "Capabilities.contractVersion": "0.1.0",
+    "UIContentCapabilities.version": "1.0.0",
+    "INPUT_LOCK.mobileWireApiVersion": "UIContentCapabilities.version_ONLY_NOT_SERVER_HANDSHAKE",
+    "mobilePathPrefix": "/mobile/v1",
+    "publicHashFieldsAdded": false
+  },
+  "inputLock": {
+    "path": "docs/postrust/MBM-000/INPUT_LOCK.json",
+    "bytes": 45510,
+    "sha256": "2f190bdd30838991ffa43a9c0acc8d114d7474a591f62b31ba03cfbbbfaae2ac"
+  },
+  "originalInputs": [
+    {
+      "path": "docs/postrust/MBM-000/inputs/openapi.yaml",
+      "bytes": 27446,
+      "sha256": "03056740fbb8443e2ab862e27d7af7927ab467a3f7cb44babfb6b79ee442480d",
+      "documentVersion": "0.1.0"
+    },
+    {
+      "path": "docs/postrust/MBM-000/inputs/proposals/UI_V39.openapi.json",
+      "bytes": 86670,
+      "sha256": "0ea921d26dff63b5d3418a1830b58d6de45eaed0b630245d404db00ac5a60746",
+      "documentVersion": "1.5.0"
+    }
+  ],
+  "predecessor": {
+    "task": "MBRS-013",
+    "sourceSha": "e755b71320c93a7985a936382f86c08a4ed2eb8a",
+    "reportSha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+    "softwareSeal": "FINITE_SOFTWARE_DELIVERY_SEALED_LIVE_CARRYOVER_OPEN"
+  },
+  "operations": {
+    "distinct": 40,
+    "base": 20,
+    "ui": 20,
+    "newOperations": 0,
+    "originalInventory": "docs/postrust/MBM-000/INPUT_LOCK.json",
+    "adoptedAuthority": "packages/contracts/mobile/openapi.json"
+  },
+  "limits": {
+    "requestBytes": 262144,
+    "responseBytes": 2097152,
+    "retryHintMs": 86400000,
+    "parserDepth": 64,
+    "parserNodes": 2097152,
+    "extensionBytes": 2097152,
+    "lyricLines": 2000,
+    "lyricLineUtf8Bytes": 4096,
+    "truncate": false,
+    "retryHintIsExecutionDeadline": false
+  },
+  "gateBudgets": {
+    "stageTimeoutMs": 120000,
+    "totalTimeoutMs": 360000,
+    "killGraceMs": 10000,
+    "rawOutputBytes": 16777216,
+    "sourceFileBytes": 4194304,
+    "maxSourceFiles": 4096,
+    "maxCompiledFiles": 8192
+  },
+  "decisions": [
+    {
+      "id": "D1",
+      "rule": "POST_RESOURCE_201_READY_202_PREPARING_GET_200_THREE_STATES_FAILED_NESTED_ERROR_MEDIA_FAILURE_EXCLUSIVE",
+      "realServiceStage": "MBM-002"
+    },
+    {
+      "id": "D2",
+      "rule": "HEAD_200_FULL_CONTENT_LENGTH_ZERO_BODY_IGNORE_RANGE_IF_RANGE_GET_VALID_206_UNSAT_416_MALFORMED_MULTIPART_400",
+      "originalDesktop005Unchanged": true,
+      "realServiceStage": "MBM-002"
+    },
+    {
+      "id": "D3",
+      "rule": "COMPLETE_CLOSED_BASE_OR_EXTENDED_REQUEST_TRUSTED_UI_TRUE_ONLY_FOR_PRESENT_BITS_TRUE_WITHOUT_BITS_BASE_VALID",
+      "formatRateHz": [
+        8000,
+        768000
+      ],
+      "formatChannels": [
+        1,
+        32
+      ],
+      "formatBits": [
+        1,
+        64
+      ],
+      "nullBitDepth": false,
+      "sameFormatRowRequired": true
+    },
+    {
+      "id": "D4",
+      "rule": "CREATE_PERSONAL_PLAYLIST_201_400_409_HTTP_STATUS_MUST_BE_CONSUMED",
+      "iosPreparedClient201AdoptedBeforeThisTask": false,
+      "realServiceStage": "MBM-004"
+    },
+    {
+      "id": "D5",
+      "rule": "DOCUMENT_1_6_0_BASE_WIRE_0_1_0_UI_CAPABILITIES_1_0_0_NO_NEW_PUBLIC_HASH"
+    },
+    {
+      "id": "D6",
+      "rule": "WHOLE_UTF8_BYTES_CAP_NO_ARRAY_TRUNCATION_LYRICS_503_CONTENT_LIMIT_EXCEEDED"
+    },
+    {
+      "id": "D7",
+      "rule": "PERSONAL_PLAYLIST_ZERO_TRACKS_NO_NONNULL_COVER_FIRST_TRACK_SAME_REVISION_NO_LATER_TRACK_FALLBACK",
+      "trustedFirstTrackContext": "OPTIONAL_CALLER_FACT_NOT_NEW_WIRE_FIELD",
+      "unknownFirstTrack": "NO_GUESSED_COMPARISON"
+    },
+    {
+      "id": "D8",
+      "rule": "PRESERVE_EXISTING_FIVE_POST_TWO_DELETE_BOUNDED_ORIGINAL_INTENT_RECOVERY_NO_NEW_KEY_BODY_INTENT_OR_REPEAT_EXECUTION"
+    },
+    {
+      "id": "D9",
+      "rule": "PORTABLE_OPAQUE_ID_WHOLE_STRING_NO_TRAILING_CONTROL_CHAR",
+      "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])",
+      "originalInputPatternsChanged": false
+    }
+  ],
+  "ownership": {
+    "canonicalContract": "MAC_MAIN_AGENT",
+    "macProductAndGit": "MAC_MAIN_AGENT",
+    "iosProductTestsAndGit": "ORIGINAL_IOS_MAIN_AGENT",
+    "pairedFinalEvidence": "COORDINATOR_READBACK_NOT_SUBSTITUTED_BY_NOTICE"
+  },
+  "macSoftware": "PASS_LOCAL_33_TESTS_FRESH_BUILD_NOT_FINAL_COMMIT_SEAL",
+  "iosCompatibility": "PASS_FIXED_SOURCE_137_TESTS_TWO_BUILDS_REPORT_REMOTE_VERIFIED",
+  "pairedAdoptionComplete": false,
+  "realService": "NOT_RUN",
+  "physicalDevice": "NOT_RUN",
+  "audio": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "originalLedger": {
+    "historicalTasks": 18,
+    "historicalAcceptanceCases": 156,
+    "effectiveTasks": 17,
+    "effectiveAcceptanceCases": 150,
+    "mbrs015Cases": 6,
+    "mbrs015Status": "N_A_OWNER_CANCELLED",
+    "unchanged": true
+  },
+  "nextTask": "MBM-001",
+  "retryHintSemantics": {
+    "safeNormalizerMaximumMs": 86400000,
+    "wireFieldMinimumMs": 0,
+    "wireFieldMaximumAdded": false,
+    "preparingDeadlineChanged": false,
+    "noAutomaticReplay": true
+  },
+  "successStatusDifferences": [
+    {
+      "operationId": "headMediaAsset",
+      "inputSuccessStatusCodes": [
+        200,
+        206
+      ],
+      "adoptedSuccessStatusCodes": [
+        200
+      ],
+      "decision": "D2",
+      "reason": "HEAD_FULL_REPRESENTATION_METADATA_200_ZERO_BODY_IGNORE_RANGE_IF_RANGE",
+      "originalLoopbackGatewayChanged": false,
+      "standardBasis": "https://www.rfc-editor.org/rfc/rfc9110.html#section-14.2"
+    }
+  ],
+  "unknownCommandOutcome": {
+    "automaticNewIntentReplay": "NONE",
+    "boundedOriginalIntentRecovery": [
+      {
+        "operationId": "claimPairing",
+        "method": "POST",
+        "maximumAdditionalAttemptsPerCall": 1,
+        "trigger": [
+          "timedOut",
+          "interrupted"
+        ],
+        "sameOriginalPath": true,
+        "sameOriginalBody": true,
+        "sameOriginalIdempotencyKey": true,
+        "keyRequired": true,
+        "newKeyAllowed": false,
+        "newBodyAllowed": false,
+        "newIntentAllowed": false,
+        "responseStatusReplay": false,
+        "redirectReplay": false,
+        "reason": "ORIGINAL_INTENT_RECEIPT_RECOVERY"
+      },
+      {
+        "operationId": "refreshToken",
+        "method": "POST",
+        "maximumAdditionalAttemptsPerCall": 1,
+        "trigger": [
+          "timedOut",
+          "interrupted"
+        ],
+        "sameOriginalPath": true,
+        "sameOriginalBody": true,
+        "sameOriginalIdempotencyKey": true,
+        "keyRequired": true,
+        "newKeyAllowed": false,
+        "newBodyAllowed": false,
+        "newIntentAllowed": false,
+        "responseStatusReplay": false,
+        "redirectReplay": false,
+        "reason": "ORIGINAL_INTENT_RECEIPT_RECOVERY"
+      },
+      {
+        "operationId": "createSession",
+        "method": "POST",
+        "maximumAdditionalAttemptsPerCall": 1,
+        "trigger": [
+          "timedOut",
+          "interrupted"
+        ],
+        "sameOriginalPath": true,
+        "sameOriginalBody": true,
+        "sameOriginalIdempotencyKey": true,
+        "keyRequired": true,
+        "newKeyAllowed": false,
+        "newBodyAllowed": false,
+        "newIntentAllowed": false,
+        "responseStatusReplay": false,
+        "redirectReplay": false,
+        "reason": "ORIGINAL_INTENT_RECEIPT_RECOVERY"
+      },
+      {
+        "operationId": "createResource",
+        "method": "POST",
+        "maximumAdditionalAttemptsPerCall": 1,
+        "trigger": [
+          "timedOut",
+          "interrupted"
+        ],
+        "sameOriginalPath": true,
+        "sameOriginalBody": true,
+        "sameOriginalIdempotencyKey": true,
+        "keyRequired": true,
+        "newKeyAllowed": false,
+        "newBodyAllowed": false,
+        "newIntentAllowed": false,
+        "responseStatusReplay": false,
+        "redirectReplay": false,
+        "reason": "ORIGINAL_INTENT_RECEIPT_RECOVERY"
+      },
+      {
+        "operationId": "renewResource",
+        "method": "POST",
+        "maximumAdditionalAttemptsPerCall": 1,
+        "trigger": [
+          "timedOut",
+          "interrupted"
+        ],
+        "sameOriginalPath": true,
+        "sameOriginalBody": true,
+        "sameOriginalIdempotencyKey": true,
+        "keyRequired": true,
+        "newKeyAllowed": false,
+        "newBodyAllowed": false,
+        "newIntentAllowed": false,
+        "responseStatusReplay": false,
+        "redirectReplay": false,
+        "reason": "ORIGINAL_INTENT_RECEIPT_RECOVERY"
+      },
+      {
+        "operationId": "closeSession",
+        "method": "DELETE",
+        "maximumAdditionalAttemptsPerCall": 1,
+        "trigger": [
+          "timedOut",
+          "interrupted"
+        ],
+        "sameOriginalPath": true,
+        "sameOriginalBody": true,
+        "sameOriginalIdempotencyKey": false,
+        "keyRequired": false,
+        "newKeyAllowed": false,
+        "newBodyAllowed": false,
+        "newIntentAllowed": false,
+        "responseStatusReplay": false,
+        "redirectReplay": false,
+        "reason": "IDEMPOTENT_OWNED_RESOURCE_CLEANUP"
+      },
+      {
+        "operationId": "releaseResource",
+        "method": "DELETE",
+        "maximumAdditionalAttemptsPerCall": 1,
+        "trigger": [
+          "timedOut",
+          "interrupted"
+        ],
+        "sameOriginalPath": true,
+        "sameOriginalBody": true,
+        "sameOriginalIdempotencyKey": false,
+        "keyRequired": false,
+        "newKeyAllowed": false,
+        "newBodyAllowed": false,
+        "newIntentAllowed": false,
+        "responseStatusReplay": false,
+        "redirectReplay": false,
+        "reason": "IDEMPOTENT_OWNED_RESOURCE_CLEANUP"
+      }
+    ],
+    "noLostReplyReplayOperationIds": [
+      "logout",
+      "reportObservation",
+      "setAlbumFavorite",
+      "setTrackFavorite",
+      "createPersonalPlaylist",
+      "addPersonalPlaylistTrack"
+    ],
+    "pendingRefreshIntentPreserved": true,
+    "cancelledResourceCreationRecovery": "RECOVER_ORIGINAL_RECEIPT_ONCE_CLEAN_OWN_RESOURCE_NEVER_PUBLISH_SUCCESS",
+    "definitiveUnauthorizedRecovery": {
+      "status": 401,
+      "existingSingleFlightRefreshPreserved": true,
+      "maximumOriginalRequestRetry": 1,
+      "sameBusinessKeyAndBody": true,
+      "notAnUnknownWriteOutcome": true
+    },
+    "readOnlyRetry": "EXISTING_BOUNDED_GET_RECOVERY_PRESERVED",
+    "explicitBusyResponseRetry": "EXISTING_BOUNDED_RESOURCE_BUSY_BACKOFF_AND_PREPARING_DEADLINE_UNCHANGED",
+    "originalReceipt": "LOOKUP_SAME_KEY_AND_BODY_ONLY",
+    "newQueryOperation": false,
+    "serverIdempotency": "LOOKUP_ORIGINAL_RECEIPT_BEFORE_MUTATION_NO_SECOND_EXECUTION",
+    "reSignOrNewKeyOnUnknownOutcome": false,
+    "preparingOriginalReceiptRemains202": true
+  },
+  "schemaFixtureManifest": {
+    "path": "packages/contracts/mobile/schema-fixture-manifest.json",
+    "bytes": 23970,
+    "sha256": "d305c08c67801693f474b1754c9515bfcf824477c32473e1f0994c762d01901c"
+  },
+  "transportFixtureManifest": {
+    "path": "packages/contracts/mobile/fixtures/manifest.json",
+    "bytes": 613377,
+    "sha256": "d321ce7d71a22b45bd4bb3f1afad7eb5f3d505b793d980a17758b28bc4846ac2"
+  },
+  "fixtureLayers": {
+    "wholeBodies": 133,
+    "wholeHttpCases": 196,
+    "operationCoverage": 40,
+    "schemaFixtures": 128,
+    "schemaNegativeFixtures": 24,
+    "schemaCompilationDoesNotProveCodecOrSwift": true,
+    "duplicateJsonKeysAndTrustedContextAreSeparateCodecCases": true
+  },
+  "opaqueIdPattern": {
+    "pattern": "^[A-Za-z0-9_.:-]+(?![\\s\\S])",
+    "wholeString": true,
+    "controlCharactersAllowed": false,
+    "originalInputsUnchanged": true,
+    "reason": "ECMA_AND_PYTHON_JSON_SCHEMA_END_ANCHOR_COMPATIBILITY"
+  },
+  "pairedFinalDeliveryCondition": "EXACT_MAC_SOURCE_GATE_SOURCE_CI_REPORT_CI_REMOTE_CLEAN_SEAL_REQUIRED",
+  "localPreparation": "docs/postrust/MBM-000/LOCAL_PREPARATION.json",
+  "peerAdoption": "docs/postrust/MBM-000/PEER_ADOPTION.json"
+}

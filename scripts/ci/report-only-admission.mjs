@@ -52,6 +52,71 @@ export function classifyReportChanges({ task, parent, beforeStatus, afterStatus,
   return reportPresent && code !== '';
 }
 
+const mobileStatusFields = ['implementationCommit', 'implementationCommitResolution', 'reportCommit',
+  'reportCommitResolution', 'report', 'evidence', 'push', 'ci', 'updatedAt', 'finalDeliveryReceipt',
+  'nextBranchBaseline'];
+const mobileTaskFields = ['implementation_commit', 'implementation_commit_resolution', 'report_commit',
+  'report_commit_resolution', 'report_path', 'evidence_refs', 'terminal_ci_receipt'];
+const mobileScope = 'docs/postrust/MBM-000/EXECUTION_SCOPE.json';
+
+/** 移动000使用独立定位器；旧MBRS定位及验收账本保持原合同。 */
+export function locateMobileReportTask(status, plan) {
+  const lane = status?.mobileFrontloading20261008, adoption = status?.mobileContractAdoption;
+  if (lane?.currentTask !== 'MBM-000' || plan?.execution_schedule?.current_task !== 'MBM-000'
+    || adoption?.task !== 'MBM-000' || adoption.scope !== mobileScope
+    || !/^[a-f0-9]{40}$/u.test(adoption.baseSha ?? '')
+    || adoption.branch !== 'codex/mbm-000-mobile-contracts'
+    || plan.execution_schedule.current_task_scope_ref !== mobileScope
+    || plan.execution_schedule.predecessor_final_report !== adoption.baseSha
+    || !Array.isArray(lane.mobileTasks) || !Array.isArray(plan.mobile_tasks)) return null;
+  const keys = Object.keys(status).filter(key => status[key]?.task === 'MBM-000');
+  const statusRows = lane.mobileTasks.filter(row => row?.id === 'MBM-000');
+  const planRows = plan.mobile_tasks.filter(row => row?.id === 'MBM-000');
+  if (keys.length !== 1 || keys[0] !== 'mobileContractAdoption'
+    || statusRows.length !== 1 || planRows.length !== 1) return null;
+  for (const row of [statusRows[0], planRows[0]]) {
+    if (row.scope_ref !== mobileScope || row.base_report_sha !== adoption.baseSha) return null;
+  }
+  if (!equal(without(statusRows[0], mobileTaskFields), without(planRows[0], mobileTaskFields))) return null;
+  return 'MBM-000';
+}
+
+/** 仅报告记账可变化；已测范围、对端采纳、权限、预算和真实验收不能在报告提交升层。 */
+export function classifyMobileReportChanges({ task, parent, beforeStatus, afterStatus, beforePlan, afterPlan, changes }) {
+  if (task !== 'MBM-000' || !/^[a-f0-9]{40}$/u.test(parent ?? '')
+    || locateMobileReportTask(beforeStatus, beforePlan) !== task
+    || locateMobileReportTask(afterStatus, afterPlan) !== task
+    || !Array.isArray(changes) || !changes.length) return false;
+  const before = beforeStatus.mobileContractAdoption, after = afterStatus.mobileContractAdoption;
+  if (after.implementationCommit !== parent
+    || !equal(without(before, mobileStatusFields), without(after, mobileStatusFields))) return false;
+  const normalizeRows = rows => rows.map(row => row.id === task ? without(row, mobileTaskFields) : row);
+  const normalizeStatus = status => ({ ...status,
+    mobileContractAdoption: without(status.mobileContractAdoption, mobileStatusFields),
+    mobileFrontloading20261008: { ...status.mobileFrontloading20261008,
+      mobileTasks: normalizeRows(status.mobileFrontloading20261008.mobileTasks) } });
+  const normalizePlan = plan => ({ ...plan, mobile_tasks: normalizeRows(plan.mobile_tasks) });
+  if (!equal(normalizeStatus(beforeStatus), normalizeStatus(afterStatus))
+    || !equal(normalizePlan(beforePlan), normalizePlan(afterPlan))) return false;
+  const statusRow = afterStatus.mobileFrontloading20261008.mobileTasks.find(row => row.id === task);
+  const planRow = afterPlan.mobile_tasks.find(row => row.id === task);
+  if (statusRow.implementation_commit !== parent || planRow.implementation_commit !== parent
+    || !equal(statusRow, planRow)) return false;
+  let reportPresent = false;
+  for (const entry of changes) {
+    if (!entry || !['A', 'M'].includes(entry.status) || entry.newMode !== '100644'
+      || entry.status === 'M' && entry.oldMode !== '100644'
+      || entry.status === 'A' && entry.oldMode !== '000000') return false;
+    const report = /^reports\/MBM-000_[A-Z0-9_]+\.(?:md|json)$/u.test(entry.path ?? '');
+    const evidence = /^docs\/postrust\/MBM-000\/evidence\/[A-Za-z0-9_-]+\.(?:json|md)$/u.test(entry.path ?? '');
+    const metadata = ['project/STATUS.json', 'project/POSTRUST_PLAN.json',
+      'project/POSTRUST_TODO.md', 'project/POSTRUST_PROGRESS.md'].includes(entry.path);
+    if (!report && !evidence && !metadata) return false;
+    if (report) reportPresent = true;
+  }
+  return reportPresent;
+}
+
 /** 使用原始模式，拒绝删改类型、链接、可执行“文档”和重命名。 */
 export function parseRawDiff(raw) {
   const fields = raw.split('\0'), entries = [];
@@ -110,6 +175,17 @@ export function validateParentCi({ task, repositoryId, parent, branch, runs, pro
   return true;
 }
 
+/** 复用当前Source的原完整producer验证，并要求同一Source自己的移动000 Gate成功。 */
+export function validateMobileParentCi(input) {
+  if (input?.task !== 'MBM-000' || !validateParentCi({ ...input, task: 'MBRS-013' })) return false;
+  const verify = input.runs.filter(run => run.path === '.github/workflows/verify.yml');
+  if (verify.length !== 1 || input.proofs.filter(proof => proof.runId === verify[0].id).length !== 1) return false;
+  const proof = input.proofs.find(value => value.runId === verify[0].id);
+  const own = proof.jobs.flatMap(job => job.steps ?? []).filter(step =>
+    step.name === 'MBM000 移动合同双端采纳 Gate');
+  return own.length === 1 && own[0].status === 'completed' && own[0].conclusion === 'success';
+}
+
 export async function inspectReportOnly(env = process.env, directory = root, getJson) {
   const full = reason => ({ mode: 'full', reason, productResultsReused: false });
   if (env.GITHUB_ACTIONS !== 'true' || env.RUNNER_ENVIRONMENT !== 'github-hosted'
@@ -123,9 +199,14 @@ export async function inspectReportOnly(env = process.env, directory = root, get
     if (parents.length !== 2) return full('NOT_SINGLE_PARENT');
     const parent = parents[1], branch = git(['branch', '--show-current']).trim() || env.GITHUB_REF_NAME;
     const json = (revision, name) => JSON.parse(git(['show', revision + ':' + name]));
-    const afterStatus = json('HEAD', 'project/STATUS.json'), task = afterStatus.currentPostRustTask;
-    if (!classifyReportChanges({ task, parent, afterStatus, beforeStatus: json(parent, 'project/STATUS.json'),
-      afterPlan: json('HEAD', 'project/POSTRUST_PLAN.json'), beforePlan: json(parent, 'project/POSTRUST_PLAN.json'),
+    const afterStatus = json('HEAD', 'project/STATUS.json'), beforeStatus = json(parent, 'project/STATUS.json');
+    const afterPlan = json('HEAD', 'project/POSTRUST_PLAN.json'), beforePlan = json(parent, 'project/POSTRUST_PLAN.json');
+    const mobile = [beforeStatus.mobileFrontloading20261008?.currentTask,
+      afterStatus.mobileFrontloading20261008?.currentTask, beforePlan.execution_schedule?.current_task,
+      afterPlan.execution_schedule?.current_task].some(value => typeof value === 'string' && value.startsWith('MBM-'));
+    const task = mobile ? locateMobileReportTask(afterStatus, afterPlan) : afterStatus.currentPostRustTask;
+    const classify = mobile ? classifyMobileReportChanges : classifyReportChanges;
+    if (!classify({ task, parent, afterStatus, beforeStatus, afterPlan, beforePlan,
       changes: parseRawDiff(git(['diff', '--raw', '-z', '--no-renames', parent, 'HEAD'])) })) return full('SOURCE_SCOPE_OR_AUTHORITY_CHANGED');
     const started = performance.now();
     const api = getJson ?? (async route => {
@@ -156,7 +237,8 @@ export async function inspectReportOnly(env = process.env, directory = root, get
       }
       proofs.push({ runId: run.id, jobs: jobs.jobs, artifacts });
     }
-    if (!validateParentCi({ task, repositoryId: repo.id, parent, branch, runs, proofs })) return full('PARENT_PRODUCT_GATE_NOT_PROVEN');
+    const validate = mobile ? validateMobileParentCi : validateParentCi;
+    if (!validate({ task, repositoryId: repo.id, parent, branch, runs, proofs })) return full('PARENT_PRODUCT_GATE_NOT_PROVEN');
     return { schema: 'musicbridge.report-only-ci.v1', mode: 'report-only', reason: 'EXACT_PARENT_PRODUCT_CI_SUCCESS',
       task, reportSha: env.GITHUB_SHA, parentSourceSha: parent, repositoryId: repo.id,
       productResultsReused: true, artifactContentDownloaded: false,

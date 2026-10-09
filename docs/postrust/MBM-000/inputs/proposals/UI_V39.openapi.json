@@ -1,0 +1,2786 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Mousa iOS UI 内容接口提案",
+    "version": "1.5.0",
+    "description": "待 MusicBridge V3.9 采纳的候选。1.5.0 为个人歌单摘要增加可省略、可为null的首曲封面 coverArtworkId；复用 getArtwork，无新增端点，仍为20候选操作（16 GET／1 POST／3 PUT）、17路径。能力 wire 仍为1.0.0，基础v0.1.0不变。正式内容仍为协议／DTO／空提供者，未接真实服务。"
+  },
+  "x-status": "PROPOSED_MB_V39_ADOPTION_PENDING",
+  "x-base-contract-version": "0.1.0",
+  "x-base-contract-sha256": "03056740fbb8443e2ab862e27d7af7927ab467a3f7cb44babfb6b79ee442480d",
+  "security": [
+    {
+      "DeviceBearer": []
+    }
+  ],
+  "paths": {
+    "/mobile/v1/ui/capabilities": {
+      "get": {
+        "operationId": "getUIContentCapabilities",
+        "summary": "独立协商新增 UI 内容能力",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "读取成功。真实空内容也必须满足快照身份约束。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UIContentCapabilities"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/home/added-albums": {
+      "get": {
+        "operationId": "listRecentlyAddedAlbums",
+        "summary": "分页读取本地最近添加专辑",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "读取成功。真实空内容也必须满足快照身份约束。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddedAlbumPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/daily-recommendations": {
+      "get": {
+        "operationId": "getNeteaseDailyRecommendations",
+        "summary": "读取网易云账号每日推荐歌曲",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "读取成功。真实空内容也必须满足快照身份约束。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DailyRecommendationFeed"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/tracks/{trackId}/lyrics": {
+      "get": {
+        "operationId": "getExactTrackLyrics",
+        "summary": "读取精确来源版本和修订的歌词",
+        "parameters": [
+          {
+            "name": "trackId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "local",
+                "netease"
+              ]
+            }
+          },
+          {
+            "name": "versionId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "contentRevision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "读取成功。真实空内容也必须满足快照身份约束。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LyricsContent"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/liked-playlist": {
+      "get": {
+        "operationId": "getNeteaseLikedPlaylist",
+        "summary": "读取当前网易云账户的只读红心歌单摘要",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "读取成功。真实空内容也必须满足快照身份约束。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NeteaseLikedPlaylist"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/liked-playlist/tracks": {
+      "get": {
+        "operationId": "listNeteaseLikedPlaylistTracks",
+        "summary": "分页读取精确红心歌单快照的全部曲目",
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "accountDomain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "playlistRevision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "读取成功。真实空内容也必须满足快照身份约束。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NeteaseLikedPlaylistTrackPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "账户域／歌单修订已变化或游标已失效，Error.code 为 SOURCE_CHANGED 或 CURSOR_INVALID。客户端清除旧歌单摘要与页，重新读取摘要后从首开始，不拼接旧数据。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/favorites/albums": {
+      "get": {
+        "operationId": "listFavoriteAlbums",
+        "summary": "分页读取我的收藏专辑封面归组",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功读取或已确认的权威写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteAlbumPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封，401 认证，404 精确对象不存在，409 SOURCE_CHANGED/CURSOR_INVALID/IDEMPOTENCY_CONFLICT，501 未实现。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/favorites/albums/{albumId}": {
+      "get": {
+        "operationId": "getFavoriteAlbumState",
+        "summary": "读取精确专辑的整专与单曲收藏状态",
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "local",
+                "netease"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功读取或已确认的权威写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteAlbumState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封，401 认证，404 精确对象不存在，409 SOURCE_CHANGED/CURSOR_INVALID/IDEMPOTENCY_CONFLICT，501 未实现。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "setAlbumFavorite",
+        "summary": "收藏或取消整张专辑，不改变单曲收藏",
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功读取或已确认的权威写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteAlbumState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封，401 认证，404 精确对象不存在，409 SOURCE_CHANGED/CURSOR_INVALID/IDEMPOTENCY_CONFLICT，501 未实现。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetAlbumFavoriteRequest"
+              }
+            }
+          }
+        },
+        "description": "设定期望值而非翻转。Idempotency-Key 必填；相同 key+body 重放原回执，不同 body 冲突。expectedRevision 不匹配返回 409 SOURCE_CHANGED，不变更其他收藏。未知结果重试须复用同 key，不先改变 UI 星星。"
+      }
+    },
+    "/mobile/v1/ui/favorites/albums/{albumId}/tracks": {
+      "get": {
+        "operationId": "listFavoriteAlbumTracks",
+        "summary": "分页读取完整专辑曲目并附独立收藏星星状态",
+        "parameters": [
+          {
+            "name": "albumId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "local",
+                "netease"
+              ]
+            }
+          },
+          {
+            "name": "accountDomain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "favoritesRevision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功读取或已确认的权威写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteAlbumTrackPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封，401 认证，404 精确对象不存在，409 SOURCE_CHANGED/CURSOR_INVALID/IDEMPOTENCY_CONFLICT，501 未实现。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/favorites/tracks/{trackId}": {
+      "put": {
+        "operationId": "setTrackFavorite",
+        "summary": "收藏或取消精确版本单曲，不改变整专收藏",
+        "parameters": [
+          {
+            "name": "trackId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功读取或已确认的权威写入。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteAlbumState"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封，401 认证，404 精确对象不存在，409 SOURCE_CHANGED/CURSOR_INVALID/IDEMPOTENCY_CONFLICT，501 未实现。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetTrackFavoriteRequest"
+              }
+            }
+          }
+        },
+        "description": "设定期望值而非翻转。Idempotency-Key 必填；相同 key+body 重放原回执，不同 body 冲突。expectedRevision 不匹配返回 409 SOURCE_CHANGED，不变更其他收藏。未知结果重试须复用同 key，不先改变 UI 星星。"
+      }
+    },
+    "/mobile/v1/ui/playlists": {
+      "get": {
+        "operationId": "listPersonalPlaylists",
+        "summary": "读取个人歌单卡片列表",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mac权威快照或幂等回执；成功空内容也有完整身份。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPlaylistPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封：401认证，404精确对象不存在，409 SOURCE_CHANGED／CURSOR_INVALID／IDEMPOTENCY_CONFLICT，501未实现；不输出路径、上游URL、凭据或内部栈。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createPersonalPlaylist",
+        "summary": "新建个人歌单，可原子加入首曲",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Mac权威快照或幂等回执；成功空内容也有完整身份。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPlaylistReceipt"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封：401认证，404精确对象不存在，409 SOURCE_CHANGED／CURSOR_INVALID／IDEMPOTENCY_CONFLICT，501未实现；不输出路径、上游URL、凭据或内部栈。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Mac在独立个人歌单集合持久化，不操作网易云红心或Roon。Idempotency-Key必填，绑定设备／账户域／方法／路径／请求体；同key同body重放原回执，不同body返回409。expected修订不匹配409 SOURCE_CHANGED，不先改本机成功状态。未知结果重试复用同key；切换域后不能重放旧请求。 歌单名、图标、描述先校验；可同名，不按名称作为身份。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePersonalPlaylistRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/playlists/{playlistId}/tracks": {
+      "get": {
+        "operationId": "listPersonalPlaylistTracks",
+        "summary": "分页读取个人歌单曲目",
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "accountDomain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "playlistRevision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mac权威快照或幂等回执；成功空内容也有完整身份。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPlaylistTrackPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封：401认证，404精确对象不存在，409 SOURCE_CHANGED／CURSOR_INVALID／IDEMPOTENCY_CONFLICT，501未实现；不输出路径、上游URL、凭据或内部栈。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "addPersonalPlaylistTrack",
+        "summary": "把精确曲目追加到个人歌单",
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mac权威快照或幂等回执；成功空内容也有完整身份。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalPlaylistReceipt"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础安全错误信封：401认证，404精确对象不存在，409 SOURCE_CHANGED／CURSOR_INVALID／IDEMPOTENCY_CONFLICT，501未实现；不输出路径、上游URL、凭据或内部栈。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Mac在独立个人歌单集合持久化，不操作网易云红心或Roon。Idempotency-Key必填，绑定设备／账户域／方法／路径／请求体；同key同body重放原回执，不同body返回409。expected修订不匹配409 SOURCE_CHANGED，不先改本机成功状态。未知结果重试复用同key；切换域后不能重放旧请求。 只改变选定歌单。重复完整身份为幂等无变更，不重复计数；不同来源、版本或修订独立。",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddPersonalPlaylistTrackRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/recommended-playlists": {
+      "get": {
+        "operationId": "listNeteaseRecommendedPlaylists",
+        "summary": "分页读取网易云推荐歌单",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "真实内容快照，空内容仍携带账户域和修订；缺能力／未认证不可伪装成功空列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/DiscoveryCollectionPage"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "properties": {
+                              "kind": {
+                                "const": "playlist"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/new-albums": {
+      "get": {
+        "operationId": "listNeteaseNewAlbums",
+        "summary": "分页读取网易云新碟上架",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "真实内容快照，空内容仍携带账户域和修订；缺能力／未认证不可伪装成功空列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryAlbumPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/charts": {
+      "get": {
+        "operationId": "listNeteaseCharts",
+        "summary": "分页读取网易云排行榜",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "真实内容快照，空内容仍携带账户域和修订；缺能力／未认证不可伪装成功空列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/DiscoveryCollectionPage"
+                    },
+                    {
+                      "properties": {
+                        "items": {
+                          "items": {
+                            "properties": {
+                              "kind": {
+                                "const": "chart"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/discovery-collections/{collectionId}/tracks": {
+      "get": {
+        "operationId": "getNeteaseDiscoveryCollectionTracks",
+        "summary": "读取精确推荐歌单或排行榜快照的分页曲目",
+        "parameters": [
+          {
+            "name": "collectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "playlist",
+                "chart"
+              ]
+            }
+          },
+          {
+            "name": "accountDomain",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "collectionRevision",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "pattern": "^[A-Za-z0-9_.:-]+$"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "真实内容快照，空内容仍携带账户域和修订；缺能力／未认证不可伪装成功空列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryCollectionTrackPage"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mobile/v1/ui/netease/personal-fm": {
+      "get": {
+        "operationId": "getNeteasePersonalFM",
+        "summary": "主动刷新网易云私人FM有界批次",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "真实内容快照，空内容仍携带账户域和修订；缺能力／未认证不可伪装成功空列表。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryFMFeed"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "沿用基础合同安全错误信封。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../openapi.yaml#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "DeviceBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "UIFeatureState": {
+        "type": "string",
+        "enum": [
+          "ready",
+          "unsupported",
+          "loginRequired",
+          "unavailable"
+        ]
+      },
+      "UIContentCapabilities": {
+        "type": "object",
+        "required": [
+          "version",
+          "addedAlbums",
+          "neteaseDailyRecommendations",
+          "lyrics"
+        ],
+        "properties": {
+          "version": {
+            "const": "1.0.0"
+          },
+          "addedAlbums": {
+            "$ref": "#/components/schemas/UIFeatureState"
+          },
+          "neteaseDailyRecommendations": {
+            "$ref": "#/components/schemas/UIFeatureState"
+          },
+          "lyrics": {
+            "$ref": "#/components/schemas/UIFeatureState"
+          },
+          "resourceFormatBitDepth": {
+            "type": "boolean",
+            "default": false,
+            "description": "可选且不可 null。缺省或 false 时 createResource 仅接受冻结 ResourceRequest，iOS 不发送 maxBitsPerSample 并剔除直 FLAC 能力、保留 ALAC/PCM 无损兼容方案；仅 version=1.0.0 且此值 true 时双方采纳 ResourceRequestWithBitDepth 并严格遵守格式项位深上限。"
+          },
+          "neteaseLikedPlaylist": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略且不可 null；缺省 unsupported。只协商读取当前 Mac 网易云账户的真实红心歌单摘要和分页，两者同一能力，不授权点赞写入、收藏管理或普通目录替代。"
+          },
+          "personalFavorites": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略且不可 null，缺省 unsupported。ready 表示下述我的收藏读写均可用；不得根据网易云红心能力推算。当前 iOS 正式读写为空占位，后续采纳时另接认证仓库／状态存储。"
+          },
+          "personalPlaylists": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略且不可null，缺省unsupported。ready表示此处全部个人歌单读取／新建／加歌可用；不依赖或扩大personalFavorites、neteaseLikedPlaylist，不授权网易云写入。"
+          },
+          "neteaseRecommendedPlaylists": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略不可null，缺省unsupported。ready表示推荐歌单与其分页详情可用；不由其他能力推算，不授权上游写入。"
+          },
+          "neteaseNewAlbums": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略不可null，缺省unsupported。ready表示新碟列表与冻结专辑详情路由可用；不由其他能力推算，不授权上游写入。"
+          },
+          "neteaseCharts": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略不可null，缺省unsupported。ready表示排行榜与其分页详情可用；不由其他能力推算，不授权上游写入。"
+          },
+          "neteasePersonalFM": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UIFeatureState"
+              }
+            ],
+            "default": "unsupported",
+            "description": "可省略不可null，缺省unsupported。ready表示用户主动刷新私人FM有界批次可用；不由其他能力推算，不授权上游写入。"
+          }
+        }
+      },
+      "UIAlbumRecord": {
+        "allOf": [
+          {
+            "$ref": "../openapi.yaml#/components/schemas/Album"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "year": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "maximum": 9999
+              },
+              "audioFormat": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "minLength": 1,
+                "maxLength": 24,
+                "x-max-utf8-bytes": 24,
+                "description": "源文件格式。只有整张专辑可确定同一格式时返回，例如 FLAC；未知或混合格式返回 null。"
+              },
+              "addedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "maxLength": 64
+              }
+            }
+          }
+        ]
+      },
+      "AddedAlbumRecord": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/UIAlbumRecord"
+          },
+          {
+            "type": "object",
+            "required": [
+              "addedAt"
+            ],
+            "properties": {
+              "source": {
+                "const": "local"
+              },
+              "addedAt": {
+                "type": "string",
+                "format": "date-time",
+                "maxLength": 64
+              }
+            }
+          }
+        ]
+      },
+      "AddedAlbumPage": {
+        "type": "object",
+        "required": [
+          "items",
+          "nextCursor",
+          "libraryRevision"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/AddedAlbumRecord"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          },
+          "libraryRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          }
+        },
+        "description": "按 addedAt 倒序，时间相同按专辑 id 稳定排序。游标绑定设备、连接域、库修订与排序；末页 nextCursor 必须为 null。"
+      },
+      "DailyRecommendationFeed": {
+        "type": "object",
+        "required": [
+          "source",
+          "recommendationDate",
+          "timeZone",
+          "feedRevision",
+          "items"
+        ],
+        "properties": {
+          "source": {
+            "const": "netease"
+          },
+          "recommendationDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "IANA 时区，例如 Asia/Shanghai"
+          },
+          "feedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "../openapi.yaml#/components/schemas/Track"
+                },
+                {
+                  "properties": {
+                    "source": {
+                      "const": "netease"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "description": "只返回真实账号每日推荐；顺序由服务确定，track id 不重复。普通网易云目录不能代替。"
+      },
+      "LyricLine": {
+        "type": "object",
+        "required": [
+          "id",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "x-max-utf8-bytes": 4096
+          },
+          "secondaryText": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 4096,
+            "x-max-utf8-bytes": 4096
+          },
+          "startMs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          }
+        },
+        "description": "稳定行 id。secondaryText 为来源给出的拼音或译文，不在 iOS 猜测生成。"
+      },
+      "LyricsContent": {
+        "type": "object",
+        "required": [
+          "trackId",
+          "source",
+          "versionId",
+          "contentRevision",
+          "status",
+          "synchronized",
+          "lines"
+        ],
+        "properties": {
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "netease"
+            ]
+          },
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "contentRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ready",
+              "missing",
+              "instrumental"
+            ]
+          },
+          "lyricRevision": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 160,
+                "pattern": "^[A-Za-z0-9_.:-]+$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "synchronized": {
+            "type": "boolean"
+          },
+          "lines": {
+            "type": "array",
+            "maxItems": 2000,
+            "items": {
+              "$ref": "#/components/schemas/LyricLine"
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "ready"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "lyricRevision"
+              ],
+              "properties": {
+                "lyricRevision": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160,
+                  "pattern": "^[A-Za-z0-9_.:-]+$"
+                },
+                "lines": {
+                  "minItems": 1
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "lyricRevision": {
+                  "type": "null"
+                },
+                "synchronized": {
+                  "const": false
+                },
+                "lines": {
+                  "maxItems": 0
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "synchronized": {
+                  "const": true
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "lines": {
+                  "items": {
+                    "required": [
+                      "startMs"
+                    ],
+                    "properties": {
+                      "startMs": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "lines": {
+                  "items": {
+                    "properties": {
+                      "startMs": {
+                        "type": "null"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "description": "回传身份必须与请求四元组完全相同。同步行时间非递减，行 id 唯一；版本或内容修订不一致返回基础错误 409 SOURCE_CHANGED。"
+      },
+      "FormatCapabilityWithBitDepth": {
+        "type": "object",
+        "properties": {
+          "codec": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "container": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "maxSampleRateHz": {
+            "type": "integer",
+            "minimum": 8000,
+            "maximum": 768000
+          },
+          "maxChannels": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 32
+          },
+          "maxBitsPerSample": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64,
+            "description": "此 codec/container 组合允许的最大位深；可省略，不可 null。Mac 必须遵守，不可把高规格 FLAC 静默降采样、降位深或转为有损。"
+          }
+        },
+        "required": [
+          "codec",
+          "container",
+          "maxSampleRateHz",
+          "maxChannels"
+        ],
+        "additionalProperties": false
+      },
+      "ResourceRequestWithBitDepth": {
+        "type": "object",
+        "properties": {
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "contentRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "quality": {
+            "$ref": "../openapi.yaml#/components/schemas/QualityRequest"
+          },
+          "formats": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FormatCapabilityWithBitDepth"
+            },
+            "minItems": 1,
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "trackId",
+          "versionId",
+          "contentRevision",
+          "quality",
+          "formats"
+        ],
+        "additionalProperties": false,
+        "description": "createResource 的待采纳完整请求 schema；相对冻结合同仅格式项增加可选 maxBitsPerSample。FLAC 来源请求强制 quality.profile=lossless 且 allowLossyFallback=false，来源身份仍为精确 track/version/revision。"
+      },
+      "FLACLosslessReadyResource": {
+        "allOf": [
+          {
+            "$ref": "../openapi.yaml#/components/schemas/Resource"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "state": {
+                "const": "ready"
+              },
+              "sourceAudio": {
+                "required": [
+                  "sampleRateHz",
+                  "bitsPerSample",
+                  "channels"
+                ],
+                "properties": {
+                  "codec": {
+                    "const": "flac"
+                  }
+                }
+              },
+              "processing": {
+                "properties": {
+                  "mode": {
+                    "enum": [
+                      "direct",
+                      "remux",
+                      "lossless_conversion"
+                    ]
+                  }
+                }
+              },
+              "media": {
+                "properties": {
+                  "seekable": {
+                    "const": true
+                  },
+                  "actualAudio": {
+                    "required": [
+                      "sampleRateHz",
+                      "bitsPerSample",
+                      "channels"
+                    ],
+                    "properties": {
+                      "codec": {
+                        "enum": [
+                          "flac",
+                          "alac",
+                          "pcm_s16le",
+                          "pcm_s24le",
+                          "pcm_s32le"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "description": "合成示例校验辅助 schema；不增加响应字段。sourceAudio 与 actualAudio 的 sampleRateHz/bitsPerSample/channels 必须相等，跨字段等值由 validator 语义检查。"
+      },
+      "NeteaseLikedPlaylist": {
+        "type": "object",
+        "required": [
+          "source",
+          "playlistId",
+          "accountDomain",
+          "playlistRevision",
+          "title",
+          "trackCount"
+        ],
+        "properties": {
+          "source": {
+            "const": "netease"
+          },
+          "playlistId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$",
+            "description": "不透明账户域。Mac 来源账户切换时必须更换，不包含上游 userId、昵称或凭据。"
+          },
+          "playlistRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$",
+            "description": "绑定账户域、歌单成员、顺序与总数的快照修订；任何变更必须更换。"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "x-max-utf8-bytes": 1024,
+            "description": "来源真实标题，去空白后非空，UTF-8最多1024字节，不得控制字符。"
+          },
+          "trackCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "artworkId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          }
+        },
+        "description": "当前真实 Mac 网易云账户的只读红心歌单摘要。总歌曲数来自同一快照，封面可省略不可 null；未知封面不得制造占位业务资源。空歌单返回真实 trackCount=0 的摘要。"
+      },
+      "NeteaseLikedPlaylistTrackPage": {
+        "type": "object",
+        "required": [
+          "source",
+          "playlistId",
+          "accountDomain",
+          "playlistRevision",
+          "trackCount",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "source": {
+            "const": "netease"
+          },
+          "playlistId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$",
+            "description": "不透明账户域。Mac 来源账户切换时必须更换，不包含上游 userId、昵称或凭据。"
+          },
+          "playlistRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$",
+            "description": "绑定账户域、歌单成员、顺序与总数的快照修订；任何变更必须更换。"
+          },
+          "trackCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "../openapi.yaml#/components/schemas/Track"
+                },
+                {
+                  "properties": {
+                    "source": {
+                      "const": "netease"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "description": "按当前账户真实红心歌单服务顺序分页，track id 不重复，Track 完整来源／版本／修订身份精确保留。响应歌单/账户/修订/总数必须匹配请求快照，游标绑定设备、连接域、账户域、歌单、修订和顺序；末页 nextCursor 必须 null，累计 items 必须等于 trackCount，禁止空中间页。快照或账户变化返回 SOURCE_CHANGED/CURSOR_INVALID，不能拼接旧页或截断歌单。"
+      },
+      "FavoriteAlbumIdentity": {
+        "type": "object",
+        "required": [
+          "albumId",
+          "source"
+        ],
+        "properties": {
+          "albumId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "netease"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "FavoriteTrackSelection": {
+        "type": "object",
+        "required": [
+          "trackId",
+          "versionId",
+          "contentRevision",
+          "source"
+        ],
+        "properties": {
+          "trackId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "contentRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "netease"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "FavoriteAlbumRecord": {
+        "type": "object",
+        "required": [
+          "album",
+          "albumFavorite",
+          "favoriteTracks"
+        ],
+        "properties": {
+          "album": {
+            "$ref": "#/components/schemas/UIAlbumRecord"
+          },
+          "albumFavorite": {
+            "type": "boolean"
+          },
+          "favoriteTracks": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/FavoriteTrackSelection"
+            }
+          }
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "anyOf": [
+              {
+                "properties": {
+                  "albumFavorite": {
+                    "const": true
+                  }
+                }
+              },
+              {
+                "properties": {
+                  "favoriteTracks": {
+                    "minItems": 1
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "description": "一个来源内一个精确专辑；整专事实和单曲身份集合独立。至少存在一种收藏。favoriteTracks 每项来源须与 album.source 一致且属于此专辑。整专不推算单曲，全曲收藏也不推算整专。"
+      },
+      "FavoriteAlbumPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "favoritesRevision",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "favoritesRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/FavoriteAlbumRecord"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "additionalProperties": false,
+        "description": "按最近收藏变更时间倒序，同刻按 source+albumId 稳定排序，一专辑一张卡片。cursor 绑定设备／账户域／修订，末页 null，不允许空中间页，不允许跨页混合快照。"
+      },
+      "FavoriteAlbumTrackPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "favoritesRevision",
+          "favorite",
+          "items",
+          "nextCursor",
+          "identity"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "favoritesRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "favorite": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FavoriteAlbumRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "../openapi.yaml#/components/schemas/Track"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          },
+          "identity": {
+            "$ref": "#/components/schemas/FavoriteAlbumIdentity"
+          }
+        },
+        "additionalProperties": false,
+        "description": "所有收藏状态均分页返回完整专辑曲目，包括取消全部收藏后的详情。favorite 只用于整专／单曲星星，未收藏时必须显式 null；identity 必须匹配请求。保持专辑曲目次序和完整来源／版本身份；各页与请求账户域／修订一致，末页 nextCursor=null。不得仅返回红星曲目。"
+      },
+      "FavoriteAlbumState": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "favoritesRevision",
+          "identity",
+          "favorite"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "favoritesRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "identity": {
+            "$ref": "#/components/schemas/FavoriteAlbumIdentity"
+          },
+          "favorite": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/FavoriteAlbumRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "description": "正常专辑页读取星星或收藏写入回执；没有任何收藏时 favorite 必须显式 null。写入成功必须回传权威新修订和完整归组记录，identity 必须与请求匹配。"
+      },
+      "SetAlbumFavoriteRequest": {
+        "type": "object",
+        "required": [
+          "source",
+          "isFavorite",
+          "accountDomain",
+          "expectedRevision"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "netease"
+            ]
+          },
+          "isFavorite": {
+            "type": "boolean"
+          },
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "expectedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "SetTrackFavoriteRequest": {
+        "type": "object",
+        "required": [
+          "source",
+          "isFavorite",
+          "accountDomain",
+          "expectedRevision",
+          "albumId",
+          "versionId",
+          "contentRevision"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "enum": [
+              "local",
+              "netease"
+            ]
+          },
+          "isFavorite": {
+            "type": "boolean"
+          },
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "expectedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "albumId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "versionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "contentRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PersonalPlaylistIcon": {
+        "type": "string",
+        "enum": [
+          "music.note",
+          "heart.fill",
+          "star.fill",
+          "headphones",
+          "sparkles",
+          "waveform"
+        ],
+        "description": "固定 SF Symbol 图标；不接受图片上传、URL、文件路径或任意符号。"
+      },
+      "PersonalPlaylistDraft": {
+        "type": "object",
+        "required": [
+          "title",
+          "icon",
+          "description"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "\\S",
+            "description": "先去首尾空白，不能为空；最多100个Unicode标量。允许同名歌单。"
+          },
+          "icon": {
+            "$ref": "#/components/schemas/PersonalPlaylistIcon"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "最多500个Unicode标量，允许空字符串；去首尾空白。"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PersonalPlaylistRecord": {
+        "type": "object",
+        "required": [
+          "playlistId",
+          "title",
+          "icon",
+          "description",
+          "trackCount",
+          "playlistRevision"
+        ],
+        "properties": {
+          "playlistId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "pattern": "\\S",
+            "description": "先去首尾空白，不能为空；最多100个Unicode标量。允许同名歌单。"
+          },
+          "icon": {
+            "$ref": "#/components/schemas/PersonalPlaylistIcon"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "最多500个Unicode标量，允许空字符串；去首尾空白。"
+          },
+          "trackCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "playlistRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "coverArtworkId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$",
+            "description": "按加入顺序第一首完整Track的artworkId，与playlistRevision同一快照；空歌单或首曲无封面为null，旧服务可省略。仅用冻结getArtwork读取，不携带URL、路径或上传图片；不得改取后续有封面的歌曲。"
+          }
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "trackCount": {
+                  "const": 0
+                }
+              },
+              "required": [
+                "trackCount"
+              ]
+            },
+            "then": {
+              "properties": {
+                "coverArtworkId": {
+                  "type": "null"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "PersonalPlaylistPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "collectionRevision",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "collectionRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/PersonalPlaylistRecord"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "additionalProperties": false,
+        "description": "只返回此认证设备所属的 Mac 个人歌单。按创建时间升序，时间相同按playlistId稳定排序；首页固定收藏后依此顺序追加，自建歌单之后为加号。cursor绑定设备／账户域／集合修订，不混合分页快照；末页显式null。"
+      },
+      "PersonalPlaylistTrackPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "playlist",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "playlist": {
+            "$ref": "#/components/schemas/PersonalPlaylistRecord"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "../openapi.yaml#/components/schemas/Track"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "additionalProperties": false,
+        "description": "返回完整 Track 元数据，允许 local／netease 混合，按照加歌顺序稳定分页；以source+trackId+versionId+contentRevision精确去重。无能力或来源失败不能伪空成功。分页完成前不能宣称完整曲数或播放完整歌单。"
+      },
+      "PersonalPlaylistReceipt": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "collectionRevision",
+          "playlist"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "collectionRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "playlist": {
+            "$ref": "#/components/schemas/PersonalPlaylistRecord"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CreatePersonalPlaylistRequest": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "expectedCollectionRevision",
+          "draft"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "expectedCollectionRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/PersonalPlaylistDraft"
+          },
+          "initialTrack": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FavoriteTrackSelection"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "可省略或null表示空歌单；有值时创建和加入首曲原子执行，失败不留下空歌单。"
+          }
+        },
+        "additionalProperties": false
+      },
+      "AddPersonalPlaylistTrackRequest": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "expectedRevision",
+          "selection"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "expectedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "selection": {
+            "$ref": "#/components/schemas/FavoriteTrackSelection"
+          }
+        },
+        "additionalProperties": false
+      },
+      "DiscoveryCollectionRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "artworkId",
+          "trackCount",
+          "collectionRevision"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "playlist",
+              "chart"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^(?![\\s\\S]*[\\u0000-\\u001F\\u007F-\\u009F])(?=.*\\S)[\\s\\S]+$",
+            "description": "最多200个Unicode标量；非空白且不含控制字符。",
+            "x-max-utf8-bytes": 1024
+          },
+          "artworkId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "trackCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "collectionRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          }
+        },
+        "additionalProperties": false,
+        "description": "推荐歌单／排行榜精确摘要。id与kind共同组成身份，封面为不透明ID；修订绑定成员、顺序与总数。不能携带上游URL、账号标识或凭据。"
+      },
+      "DiscoveryCollectionPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "feedRevision",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "feedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryCollectionRecord"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "additionalProperties": false,
+        "description": "分页只返回网易云集合。同一账户域／feedRevision稳定排序与去重，推荐歌单接口仅playlist，排行榜仅chart。游标绑定认证设备、连接域、账户域、列表类型及修订；重复游标、冲突页、跨账号页与空中间页应拒绝。末页显式null，账户／修订过期409 SOURCE_CHANGED，非法游标409 CURSOR_INVALID。"
+      },
+      "DiscoveryAlbumPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "feedRevision",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "feedRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/UIAlbumRecord"
+                },
+                {
+                  "properties": {
+                    "source": {
+                      "const": "netease"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "additionalProperties": false,
+        "description": "新碟上架分页只返回网易云UIAlbumRecord，不推测音频规格。Mac保证albumId可由冻结getAlbum/listTracks解析；同域／同修订分页稳定去重，跨账号、冲突修订、重复游标和空中间页拒绝，末页显式null。"
+      },
+      "DiscoveryCollectionTrackPage": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "collection",
+          "items",
+          "nextCursor"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "collection": {
+            "$ref": "#/components/schemas/DiscoveryCollectionRecord"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "../openapi.yaml#/components/schemas/Track"
+                },
+                {
+                  "properties": {
+                    "source": {
+                      "const": "netease"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 2048,
+            "x-max-utf8-bytes": 2048
+          }
+        },
+        "additionalProperties": false,
+        "description": "详情绑定请求的kind/id/accountDomain/collectionRevision。所有页的摘要（包括title/artworkId/trackCount）必须与首个列表摘要一致，不能悄悄替换header或总数。按真实顺序返回冻结Track，精确source/id/versionId/contentRevision保留；去重后累计数必须等于collection.trackCount、末页显式null。完整快照补齐失败不替换本机队列。"
+      },
+      "DiscoveryFMFeed": {
+        "type": "object",
+        "required": [
+          "accountDomain",
+          "batchRevision",
+          "items"
+        ],
+        "properties": {
+          "accountDomain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "batchRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "pattern": "^[A-Za-z0-9_.:-]+$"
+          },
+          "items": {
+            "type": "array",
+            "maxItems": 50,
+            "items": {
+              "allOf": [
+                {
+                  "$ref": "../openapi.yaml#/components/schemas/Track"
+                },
+                {
+                  "properties": {
+                    "source": {
+                      "const": "netease"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "additionalProperties": false,
+        "description": "私人FM只读取用户主动刷新取得的有界批次，最多50曲；本批次按完整曲目身份稳定去重，允许不同批次重复。不是持续自动追加电台，不增加FM反馈或上游播放写入，播放仅用本机PlaybackCoordinator和已有资源接口。"
+      }
+    }
+  },
+  "x-existing-response-additions": {
+    "/mobile/v1/albums": "items 使用 UIAlbumRecord，补 year/audioFormat 可选字段。",
+    "/mobile/v1/albums/{albumId}": "响应使用 UIAlbumRecord；基础 Album 允许扩展属性。"
+  },
+  "x-wire-contract-overrides": [
+    {
+      "id": "UI-V39-FORMAT-BITDEPTH",
+      "status": "PROPOSED_MB_V39_ADOPTION_PENDING",
+      "operationId": "createResource",
+      "method": "POST",
+      "path": "/mobile/v1/sessions/{sessionId}/resources",
+      "requestSchema": "#/components/schemas/ResourceRequestWithBitDepth",
+      "baseRequestSchema": "../openapi.yaml#/components/schemas/ResourceRequest",
+      "breakingAgainstFrozenSchema": true,
+      "description": "冻结 FormatCapability additionalProperties=false，不允许 maxBitsPerSample；Mac 与 iOS 须明确采纳此扩展后联调，不能声称完整请求仍通过原 0.1.0 schema。基础 DTO/字节保持不变，发送边界使用独立 payload。maxBitsPerSample 若出现即为必须遵守的位深上限；省略表示未提供上限，禁止用省略推断任意格式已通过真机验证。",
+      "activation": "仅 getUIContentCapabilities 返回 version=1.0.0 且 resourceFormatBitDepth=true 时启用；旧服务404/501、字段缺省或false保持严格冻结请求。"
+    }
+  ],
+  "x-home-content-change": {
+    "date": "2026-10-06",
+    "scope": "此段记录此前网易云红心歌单阶段：首页每日推荐替换为一张红心歌单卡片，进入完整只读歌单，不做网易云点赞写入或歌单编辑。当前 1.2.0 另有独立“我的收藏”的整专／精确单曲读取与设定，不自动写入网易云红心或 Roon 原生收藏。",
+    "legacyDailyRecommendations": "保留旧路径、能力字段、schema 和示例供旧客户端兼容；当前首页不再请求。",
+    "authority": "Mac 权威采纳待定；原 V3.9/PostRust 主线继续至 MBRS-017，再由独立 MBM 移动任务线实施。"
+  },
+  "x-discovery-content-change": {
+    "date": "2026-10-07",
+    "modules": [
+      "dailyRecommendations",
+      "recommendedPlaylists",
+      "newAlbums",
+      "charts",
+      "personalFM"
+    ],
+    "dailyRecommendations": "复用getNeteaseDailyRecommendations与既有能力，仅发现请求；首页不请求。",
+    "playback": "收满精确详情快照后才替换本机队列；分页失败、缺能力、身份冲突或空内容不清空旧队列。FM批次只本机播放，不进行上游反馈写入。",
+    "authority": "iOS协议／DTO／空提供者候选，Mac权威待采纳；本轮完成后主代理统一通知发现五GET与前轮尚未通知的个人歌单四操作，当前未发送。"
+  }
+}
