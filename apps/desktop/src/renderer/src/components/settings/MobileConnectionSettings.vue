@@ -52,7 +52,7 @@ onUnmounted(() => { active = false; generation++; clearPermit() })
 <template>
   <article class="settings-card settings-glass-panel" data-mobile-connection-settings>
     <div class="panel-heading"><div><p class="section-kicker">移动连接</p><h3>手机配对与只读音乐库</h3></div><span class="settings-status-pill">{{ settings ? labels[settings.state] : '尚未读取' }}</span></div>
-    <p class="muted-copy">手机可浏览已有的独立发行、曲目和封面。此阶段尚未开放手机播放。</p>
+    <p class="muted-copy">手机可浏览已有的独立发行、曲目和封面，并播放受支持的本地音频。</p>
     <p v-if="!capable" class="settings-note">移动连接服务尚未就绪。</p>
     <template v-else>
       <div class="mobile-connection-fields">
