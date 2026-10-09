@@ -489,3 +489,5 @@ Source `80ce5aa3717785ad796cfbd29b1ba0e4d2165ac9` 的首次自然Electron作业�
 物理 iPhone 的两分钟 WAV 播放入口置灰，已追到旧 Source 的 Owner 把目录 availability 固定为 unavailable；旧媒体验证未断言目录资格，原工程绿与 Ready219 不覆盖补修。新实现仅在正式播放激活后，由原 Owner 根据当前授权、完整 Scanner 来源证明、文件身份与支持格式判断资格；目录读取不产生票据、播放资源、长期 FD 或数据写入。AAC 的真实 MPEG-4/AAC 词汇在原来源证明后仅作私有移动显示映射，保留原事实、001默认行为及当前 Source 的 AAC拒绝。
 
 专项 RED 精确复现 unavailable/available 断言，第一次 GREEN 的混合目录失败完整保留；修正后 Core 与 Main 专项自然通过，最后两项 AAC 字段断言等待最终源码冻结 Gate。原001的87项与002的81项名称、数量、命令和预算保持。新的实现 Source、直接报告后继、完整 Gate、构建、首次自然 CI、原物理 profile 安全冷恢复及真机播放均须重新绑定。002保持IN_PROGRESS，003／004未开始，原验收与历史结论保持；沿用已有连续授权。
+
+002 正式 App 断言同步：独立 Source 从 c3103 修复继续，仅将原两项生产 E2E 中一个 WAV 的 availability 旧预期改为 available；原用例名、数量、其他断言、期限、001 历史记录及 canonical 均保持。新 Source 的 Gate／首次自然 CI／直接 R 待验证；c3103 运行候选已真实验证两首两分钟 WAV 的目录和资源链路，属于独立运行证据，不能直接改标为新 Source。003／004 仍未开始。

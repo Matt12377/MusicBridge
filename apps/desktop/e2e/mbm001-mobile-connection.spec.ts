@@ -580,7 +580,7 @@ test('001生产唯一Owner扫描自有WAVE、真实PNG选图与HTTPS原生JPEG�
     const track = tracks.body.items[0]!, album = albums.body.items[0]!
     const datasetId = await page.evaluate(async () => (await window.musicBridge.getCommandOutbox()).datasetId)
     expect(track.id).toBe(`lt:${datasetId}:${trackId}:${edition.id}`); expect(album.id).toBe(`la:${datasetId}:${edition.id}`); expect(track.albumId).toBe(album.id)
-    expect(track.source).toBe('local'); expect(track.availability).toBe('unavailable'); expect(track.durationMs).toBe(200)
+    expect(track.source).toBe('local'); expect(track.availability).toBe('available'); expect(track.durationMs).toBe(200)
     expect(track.audio.sampleRateHz).toBe(44100); expect(track.audio.channels).toBe(1); expect(track.audio.bitsPerSample).toBe(16)
     const artworkId = track.artworkId
     if (!artworkId) throw new Error('001实际已选择封面未产生公开artworkId。')
