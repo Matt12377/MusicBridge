@@ -54,6 +54,7 @@ function fixture(count = 213) {
   const unused = async (): Promise<never> => { throw new Error('本项受控unit禁止调用认证写入口。'); };
   const auth: MobileAuthService = { serverInfo: unused, issuePairing: unused, devices: unused, revokeDevice: unused,
     claim: unused, refresh: unused, authenticate: unused, logout: unused, close: unused,
+    async assertDeviceCurrent() { throw new Error('目录读取必须使用原访问代际授权围栏。'); },
     async assertCurrent(value) {
       state.authChecks++; state.authPrincipals.push(value);
       if (state.requireBrand && !brands.has(value) || state.revoked || value.generation !== state.generation || value.deviceEpoch !== state.deviceEpoch) throw new MobileServiceError(401, 'UNAUTHORIZED');
