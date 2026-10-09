@@ -36048,9 +36048,8 @@
     "effective_on": "2026-10-08",
     "owner_authorization": "DIRECT_OWNER_VERIFIED_COORDINATION_REQUEST",
     "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
-    "current_task": "MBM-000",
+    "current_task": "MBM-001",
     "remaining_sequence": [
-      "MBM-000",
       "MBM-001",
       "MBM-002",
       "MBM-003",
@@ -36074,30 +36073,30 @@
     "original_dependencies_and_acceptance_unchanged": true,
     "current_013_restarted": false,
     "old_017_then_mobile_records": "HISTORICAL_SUPERSEDED_SCHEDULING_ONLY",
-    "recorded_at": "2026-10-09T00:03:09.149322+00:00",
-    "current_task_scope_ref": "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
-    "predecessor_final_report": "d3174bce575aa817b27ba05d39a40d3050b77be4"
+    "recorded_at": "2026-10-09T04:26:03.432089+00:00",
+    "current_task_scope_ref": "docs/postrust/MBM-001/EXECUTION_SCOPE.json",
+    "predecessor_final_report": "c6c4745dfc7fe4242b8a2682798e00605649b12e"
   },
   "mobile_tasks": [
     {
       "id": "MBM-000",
       "title": "合同采纳",
-      "status": "LOCAL_SOFTWARE_VERIFIED_FINAL_SOURCE_REPORT_CI_PENDING",
+      "status": "SOFTWARE_DELIVERY_COMPLETE_LIVE_OWNER_OPEN",
       "scheduled_after": "MBRS-013",
       "start_condition": "ACTUAL_013_FINAL_REPORT_SEALED_PAIRED_CONTRACT_IS_DELIVERY_CONDITION",
       "scope_ref": "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
-      "software": "PASS_LOCAL_33_TESTS_FRESH_BUILD",
+      "software": "PASS_PAIRED_SOFTWARE_DELIVERY_SEALED",
       "production_app": "NOT_RUN",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
       "owner_repeated_approval_required": false,
       "started_at": "2026-10-09T00:03:09.149322+00:00",
       "base_report_sha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
-      "paired_contract": "IOS_FINAL_DELIVERY_VERIFIED_MAC_SOURCE_REPORT_SEAL_PENDING",
+      "paired_contract": "PASS_WHOLE_CANONICAL_EQUAL_BOTH_FINAL_REPORTS_SEALED",
       "implementation_commit": "579d0c3097a0cd78290467cf9b073819989826fd",
       "implementation_commit_resolution": "EXACT_SINGLE_PARENT_SOURCE_WITH_FRESH_GATE_AND_FIRST_NATURAL_CI",
-      "report_commit": null,
-      "report_commit_resolution": "RESOLVE_UNIQUE_REPORT_HEAD_SINGLE_PARENT_SOURCE_AFTER_COMMIT",
+      "report_commit": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
+      "report_commit_resolution": "EXACT_REPORT_UNIQUE_PARENT_SOURCE_FINAL_RECEIPTS_READ",
       "report_path": "reports/MBM-000_RESULT.md",
       "evidence_refs": [
         "docs/postrust/MBM-000/evidence/fresh-contract-binding.json",
@@ -36115,21 +36114,27 @@
       ],
       "terminal_ci_receipt": {
         "source": "docs/postrust/MBM-000/evidence/source-ci.json",
-        "report": "PENDING_FIRST_NATURAL_REPORT_CI"
-      }
+        "report": "PASS_FIRST_NATURAL_TWO_WORKFLOWS_THREE_JOBS_ACTUAL_REPORT_ONLY_CONSUMED"
+      },
+      "final_delivery_ref": "docs/postrust/MBM-001/PREDECESSOR_DELIVERY.json"
     },
     {
       "id": "MBM-001",
       "title": "配对与只读曲库",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS_LOCAL_SOFTWARE_AND_APP_VERIFIED",
       "scheduled_after": "MBM-000",
       "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
-      "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
-      "software": "NOT_RUN",
-      "production_app": "NOT_RUN",
+      "scope_ref": "docs/postrust/MBM-001/EXECUTION_SCOPE.json",
+      "software": "PASS_MAC_LOCAL_87_IOS_149_CONTROLLED_HTTPS41",
+      "production_app": "PASS_TWO_CONTROLLED_PRODUCTION_APP_CASES",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "owner_repeated_approval_required": false
+      "owner_repeated_approval_required": false,
+      "base_report_sha": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
+      "started_at": "2026-10-09T04:26:03.432089+00:00",
+      "acceptance_ref": "docs/postrust/MBM-001/MOBILE_ACCEPTANCE.json",
+      "independent_mobile_acceptance_count": 9,
+      "local_verification_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
     },
     {
       "id": "MBM-002",

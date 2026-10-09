@@ -1,4 +1,5 @@
 import { createLocalArtworkService } from './local-artwork-service.js';
+import { createMobileOwnerService } from '../mobile/owner-service.js';
 import {materializeMBEdition} from './mb-queue-materializer.js';
 import { createLocalSourceTickets } from './local-source-tickets.js';
 import {createLocalRelocationCoordinator} from './local-relocation-coordinator.js';
@@ -116,6 +117,8 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const assertOpen = () => { if (closing) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库正在关闭，请重新读取当前状态。'); assertDataset(); };
   const pendingDispatches = new Set<Promise<unknown>>();
   let scanBootReady=!options.commitBoot;
+  const mobileOwner = createMobileOwnerService({ collection, datasetId: identity.datasetId, ownerEpoch: options.localSourceEpoch ?? randomUUID(),
+    assertCurrent: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '移动 Owner 尚未 commitBoot。'); } });
   const localTickets = createLocalSourceTickets(collection, options.localSourceEpoch ?? randomUUID(), identity.datasetId, () => { assertOpen(); if (!scanBootReady) throw new Error('本地事实Owner尚未boot。'); });
   const localScan=createLocalScanCoordinator({repository:collection,datasetId:identity.datasetId,assertCurrent:assertDataset,assertReady:()=>{if(!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE','扫描owner尚未commitBoot。');},
     ...(options.projection ? {projection:options.projection}:{}),...(test?.scanMetadataReader ? {reader:test.scanMetadataReader}:{})});
@@ -177,6 +180,10 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       const pending = dispatchInternalDatasetCommand(domain, request);
       pendingDispatches.add(pending);
       return pending.finally(() => pendingDispatches.delete(pending));
+    },
+    mobileMain(request) {
+      const pending = Promise.resolve().then(() => mobileOwner.dispatch(request));
+      pendingDispatches.add(pending); return pending.finally(() => pendingDispatches.delete(pending));
     },
     dispatchSourceWritesMain(request,actor) {
       assertOpen();const pending=Promise.resolve().then<unknown>(()=>{switch(request.command){case 'localSourceWrites.attachOriginal':return localSourceWrites.attachOriginal(request.payload,actor);case 'localSourceWrites.challenge':return localSourceWrites.challenge(request.payload,actor);case 'localSourceWrites.executeGranted':return localSourceWrites.executeGranted(request.payload,actor);}});pendingDispatches.add(pending);return pending.finally(()=>pendingDispatches.delete(pending));

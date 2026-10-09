@@ -2,8 +2,10 @@ import { isLocalArtworkCommand, isLocalArtworkInternalCommand, isLocalRelocation
 import { isLocalCatalogCommand, isLocalCatalogInternalCommand, isLocalScanCommand, isLocalScanInternalCommand, validateIpcInternalRequest } from '@music-bridge/contracts';
 import { dispatchDatasetCommand, dispatchInternalDatasetCommand } from './collection/dataset-dispatch.js';
 import { createDatasetRoonProjectionGateway } from './collection/dataset-roon-projection.js';
-import { isDatasetProjectionPayload, type DatasetProjectionCommand, type DatasetProjectionCommandPayloads, isDatasetCommand, DatasetOwnerDispatchError, type DatasetOwnerEndpoint, type DatasetOwnerIdentity, type DatasetOwnerProjectionHandler } from './collection/dataset-owner-protocol.js';
+import { isDatasetProjectionPayload, type DatasetProjectionCommand, type DatasetProjectionCommandPayloads, isDatasetCommand, DatasetOwnerDispatchError, DatasetOwnerTransportError, type DatasetOwnerEndpoint, type DatasetOwnerIdentity, type DatasetOwnerProjectionHandler } from './collection/dataset-owner-protocol.js';
 import { failureForError, responseFailure } from './shared/ipc-failure.js';
+import { isMobileCorePrivateCall, isMobileOwnerPrivateResult } from './mobile/owner-protocol.js';
+import { MobileAuthPersistenceError, MobileServiceError, type MobileOwnerPrivateFailure, type MobileOwnerPrivateResult } from './mobile/types.js';
 import { LibraryReadRegistry } from './shared/library-read-registry.js';
 import { createLibraryReadTraceWriter, emitLibraryReadTrace, isLibraryReadTraceEnabled, libraryReadTraceFailure, type LibraryReadTraceSink } from './shared/library-read-trace.js';
 import { isLibraryReadCommand, isLibraryReadCancel } from '@music-bridge/contracts';
@@ -392,7 +394,29 @@ export async function attachCoreRuntimePort(
   options: { exitAfterShutdown?: boolean; beforeReady?: () => void | Promise<void>; libraryReadTrace?: LibraryReadTraceSink } = {},
 ): Promise<void> {
   const reads = new LibraryReadRegistry(command => runtime.getLibraryReadScope?.(command) ?? 'runtime', Date.now, 64, 256, options.libraryReadTrace);
+  let mobileReady = false, mobileClosing = false;
+  const mobileFlights = new Set<Promise<void>>();
   port.on('message', (event) => {
+    if (isRecord(event.data) && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-main-request') {
+      if (!isMobileCorePrivateCall(event.data)) return;
+      const call = event.data;
+      const operation = async () => {
+        let result: MobileOwnerPrivateResult;
+        try {
+          const endpoint = runtime.datasetOwnerEndpoint;
+          if (!mobileReady || mobileClosing || mobileFlights.size >= 32 || !endpoint?.mobileMain) throw new MobileAuthPersistenceError('not-sent');
+          result = await endpoint.mobileMain(call.request);
+          if (mobileClosing || !isMobileOwnerPrivateResult(result, call.request)) throw new MobileAuthPersistenceError('unknown');
+        } catch (error) {
+          result = { kind: 'mobile-error', status: error instanceof MobileServiceError ? error.status : 503,
+            code: error instanceof MobileServiceError ? error.code : 'BUSY', retryable: false,
+            outcome: error instanceof MobileAuthPersistenceError || error instanceof DatasetOwnerTransportError ? error.outcome : null } satisfies MobileOwnerPrivateFailure;
+        }
+        port.postMessage({ type: 'mobile-main-response', id: call.id, result });
+      };
+      const pending = operation(); mobileFlights.add(pending);
+      void pending.finally(() => mobileFlights.delete(pending)).catch(() => {}); return;
+    }
     if (isLibraryReadCancel(event.data)) { reads.cancel(event.data.id); return; }
     void (async () => {
       const parsed = validateRoutedIpcRequest(runtime, event.data);
@@ -409,7 +433,7 @@ export async function attachCoreRuntimePort(
         let result: unknown;
         try {
           const operation = () => recorder ? withPerformanceContext(recorder, span?.context, () => dispatch(runtime, parsed.value)) : dispatch(runtime, parsed.value);
-          if (parsed.value.command === 'core.shutdown') reads.cancelAll('shutdown');
+          if (parsed.value.command === 'core.shutdown') { mobileClosing = true; reads.cancelAll('shutdown'); await Promise.allSettled([...mobileFlights]); }
           if (['auth.setCredential', 'auth.clearCredential', 'auth.logout'].includes(parsed.value.command)) reads.cancelWhere(command => command.startsWith('library.'), 'credential-changed');
           if (parsed.value.command === 'roon.selectZone') reads.cancelWhere(command => !command.startsWith('library.') || command === 'library.match' || command === 'library.aggregateSearch', 'zone-changed');
           result = await (isLibraryReadCommand(parsed.value.command) ? reads.read(parsed.value, operation) : operation());
@@ -443,6 +467,7 @@ export async function attachCoreRuntimePort(
   port.start();
   await runtime.start();
   await options.beforeReady?.();
+  mobileReady = true;
   postReady(port, runtime);
 }
 
@@ -692,6 +717,7 @@ export async function runCoreUtilityProcess(
             ...(client.dispatchInternal === undefined ? {} : {
               dispatchInternal: (request: IpcRequest) => client.dispatchInternal!(request),
             }),
+            ...(source.mobileMain ? { mobileMain: (request: import('./mobile/types.js').MobileOwnerPrivateRequest) => source.mobileMain!(request) } : {}),
             ...(client.materializeMBEdition?{materializeMBEdition:(request:import('@music-bridge/contracts').MBEditionQueueRequest)=>client.materializeMBEdition!(request)}:{}),
             ...(client.loadMBQueue ? { loadMBQueue: () => client.loadMBQueue!() } : {}),
             ...(client.saveMBQueue ? { saveMBQueue: (request: import('@music-bridge/contracts').MBQueueSaveRequest) => client.saveMBQueue!(request) } : {}),

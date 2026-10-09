@@ -1,0 +1,42 @@
+{
+  "schema": "musicbridge.mbm001.predecessor-delivery.v1",
+  "task": "MBM-000",
+  "software": "SEALED_PAIRED_CONTRACT_SOFTWARE_DELIVERY",
+  "sourceSha": "579d0c3097a0cd78290467cf9b073819989826fd",
+  "reportSha": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
+  "reportUniqueParent": "579d0c3097a0cd78290467cf9b073819989826fd",
+  "iosReportSha": "8ba6b9777b67d23dc89cc1edca7412e128398256",
+  "sourceNaturalCi": {
+    "workflows": 4,
+    "jobs": 6,
+    "allSuccess": true
+  },
+  "reportNaturalCi": {
+    "workflows": 2,
+    "jobs": 3,
+    "allSuccess": true,
+    "actualReportOnlyModeRead": true
+  },
+  "wholeSourceArtifacts": 5,
+  "canonical": {
+    "path": "packages/contracts/mobile/openapi.json",
+    "bytes": 145918,
+    "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+  },
+  "originalFinalSeal": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/PAIRED_MOBILE_FINAL_SEAL174.json",
+    "bytes": 11539,
+    "sha256": "c93b190cfc361911e3bbae205fbc46b863a07ba7e443558bc1945b870a866c8b"
+  },
+  "independentCoordinatorFinalReadback": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs013-m65qznwo/checks/COORDINATOR_MBM000_PAIRED_FINAL_DELIVERY_READBACK01.json",
+    "bytes": 30390,
+    "sha256": "3cf41dc562e4d2cc084234b0823cb383daaec106d25be6e3659ac715719e40ae"
+  },
+  "freshlyReadWholeReceipts": true,
+  "liveOwnerCarryover": "NOT_RUN",
+  "nextTask": "MBM-001",
+  "nextMacBaseline": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
+  "nextIOSBaseline": "8ba6b9777b67d23dc89cc1edca7412e128398256",
+  "third000SealCommit": false
+}

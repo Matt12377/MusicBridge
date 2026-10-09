@@ -42,6 +42,7 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
   const recordModule = await import('../src/preload/recording-record-client.js').catch(() => ({}))
   const replicaModule = await import('../src/preload/recording-replica-client.js').catch(() => ({}))
   const printModule = await import('../src/preload/recording-print-client.js')
+  const mobileModule = await import('../src/preload/mobile-connection-client.js')
   const modules: Record<string, unknown> = {
     '@music-bridge/contracts': performanceContracts,
     '../shared/performance-transport.js': performanceTransport,
@@ -51,6 +52,7 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
     './local-organizer-client.js': { createLocalOrganizerClient },
     './mb-queue-client.js': {createMBQueueClient},
     './recording-print-client.js': printModule,
+    './mobile-connection-client.js': mobileModule,
     './recording-replica-client.js': replicaModule,
     './recording-record-client.js': recordModule,
     electron: { contextBridge: { exposeInMainWorld: (name: string, api: ReturnType<typeof createPreloadApi>) => { assert.equal(name, 'musicBridge'); exposed = api } }, ipcRenderer: { invoke: async (channel: string, payload: unknown, ...args: unknown[]) => { calls.push([channel, structuredClone(payload)]); if (channel === 'roon:library:play') contextPlayCalls.push([payload, ...args]); return channel === 'collection:readonly-settings' || channel === 'collection:set-readonly-enabled' ? { schemaVersion: 1, enabled: payload === true, mode: 'node', state: 'off' } : channel === 'collection:refresh' ? { schemaVersion: 1, refreshed: false, settings: { schemaVersion: 1, enabled: false, mode: 'node', state: 'off' } } : channel === 'commandOutbox:context' ? { datasetId: runId } : { reply: channel } } } },

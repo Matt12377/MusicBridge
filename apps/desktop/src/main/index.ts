@@ -1,4 +1,5 @@
 import { installLocalArtworkHandlers } from './local-artwork-ipc.js'
+import { createMobileConnectionSettings, installMobileConnectionHandlers } from './mobile-settings.js'
 import { installLocalSourceWritesHandlers } from './local-source-writes-ipc.js'
 import { installLocalRelocationHandlers } from './local-relocation-ipc.js'
 import { createCommonsArtworkProvider } from './commons-artwork-provider.js'
@@ -233,6 +234,7 @@ const roonImageGatePath = process.env.MUSIC_BRIDGE_ROON_IMAGE_GATE_PATH
 
 let mainWindow: BrowserWindow | undefined
 let coreSupervisor: CoreSupervisor | undefined
+let mobileConnectionSettings: ReturnType<typeof createMobileConnectionSettings> | undefined
 let closeLocalArtwork: (()=>void) | undefined
 let closeLocalSourceWrites: (() => void) | undefined
 let closeLocalRelocation: (() => void) | undefined
@@ -1082,6 +1084,10 @@ function registerIpcHandlers(
   credentialVault: CredentialVault,
 ): void {
   if (!coreDataDirectory) throw new Error('命令outbox缺少私有数据目录')
+  if (!mobileConnectionSettings) throw new Error('移动连接设置尚未初始化。')
+  installMobileConnectionHandlers<Electron.IpcMainInvokeEvent>({ handle: (channel, handler) => ipcMain.handle(channel, handler),
+    requireTrusted: event => { requireTrustedRenderer(event); if (!mainWindow || event.senderFrame !== mainWindow.webContents.mainFrame) throw new Error('移动连接只允许当前应用主页面。'); },
+    settings: mobileConnectionSettings })
   const store = createCommandOutboxStore({ filePath: path.join(coreDataDirectory, 'command-outbox.v1.sqlite') })
   let sourcePickerBusy = false
   const pickLocalLibrary = async (options:CommandOutboxPickOptions) => {
@@ -1837,7 +1843,7 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
       ...buildBrowserWindowWebPreferences(),
       ...(isUiE2e ? { backgroundThrottling: false } : {}),
       preload: path.join(currentDirectory, '../preload/index.cjs'),
-      additionalArguments: [...(process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? ['--music-bridge-performance-trace=1'] : []), ...(isLibraryReadTrace ? ['--music-bridge-library-read-trace=1'] : [])],
+      additionalArguments: ['--music-bridge-mobile-settings=v1', ...(process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? ['--music-bridge-performance-trace=1'] : []), ...(isLibraryReadTrace ? ['--music-bridge-library-read-trace=1'] : [])],
     },
   })
   mainWindow = window
@@ -2191,6 +2197,8 @@ async function bootstrap(): Promise<void> {
       else if (event.event === 'ready') lifecycleProbe.mark('supervisor-ready')
       else if (event.event === 'exit') lifecycleProbe.mark('core-exit', event.code)
       if (event.event !== 'ready') stopRecordingPrintWorker()
+      if (event.event === 'ready') mobileConnectionSettings?.resume()
+      else mobileConnectionSettings?.suspend()
       if (event.event === 'ready') roonDisplayConnection?.restart()
       else if (event.event === 'exit' || event.event === 'failed') roonDisplayConnection?.stop()
       const level = event.event === 'exit' || event.event === 'failed' ? 'warn' : 'info'
@@ -2259,6 +2267,19 @@ async function bootstrap(): Promise<void> {
     else app.exit(1)
     return
   }
+  mobileConnectionSettings = createMobileConnectionSettings({ directory: path.join(syntheticUserDataDirectory ?? app.getPath('userData'), 'mobile-connection'),
+    protector: { encryptString: value => { if (!safeStorage.isEncryptionAvailable()) throw new Error('移动连接安全存储不可用。'); return safeStorage.encryptString(value) },
+      decryptString: value => { if (!safeStorage.isEncryptionAvailable()) throw new Error('移动连接安全存储不可用。'); return safeStorage.decryptString(value) } },
+    currentDataset: async () => (await supervisor.request('commandOutbox.context', {})).datasetId,
+    requestOwner: request => supervisor.requestMobileMain(request), isCoreReady: () => supervisor.status === 'ready' && !quitAfterCoreShutdown,
+    environment: __MUSIC_BRIDGE_DEVELOPMENT_BUILD__ ? 'development' : 'production',
+    resizeArtwork: (bytes, size) => {
+      const image = nativeImage.createFromBuffer(Buffer.from(bytes)); if (image.isEmpty()) throw new Error('当前封面无法解码。');
+      const original = image.getSize(); if (original.width < 1 || original.height < 1 || original.width > 1200 || original.height > 1200) throw new Error('当前封面尺寸无效。');
+      const scale = size / Math.max(original.width, original.height), resized = image.resize({ width: Math.max(1, Math.round(original.width * scale)), height: Math.max(1, Math.round(original.height * scale)), quality: 'best' });
+      return new Uint8Array(resized.toJPEG(90));
+    } })
+  if (!isStartupTest && !isUiE2e) await mobileConnectionSettings.restore()
   registerIpcHandlers(supervisor, prepared.credentialVault)
   const window = createWindow(supervisor)
   createTray(supervisor)
@@ -2321,7 +2342,7 @@ app.on('before-quit', (event) => {
   quitAfterCoreShutdown = true
   stopRecordingPrintWorker()
   lifecycleProbe.mark('remote-stop-start')
-  void remoteCoreTunnelManager.stop().catch(() => undefined).finally(() => {
+  void Promise.allSettled([remoteCoreTunnelManager.stop(), mobileConnectionSettings?.close()]).finally(() => {
     lifecycleProbe.mark('remote-stop-end')
     lifecycleProbe.mark('core-shutdown-start')
     void coreSupervisor?.shutdown().finally(async () => {

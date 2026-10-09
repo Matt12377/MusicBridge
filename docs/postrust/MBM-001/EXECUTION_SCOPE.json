@@ -1,0 +1,102 @@
+{
+  "schema": "musicbridge.mbm001.execution-scope.v1",
+  "task": "MBM-001",
+  "title": "配对与只读曲库",
+  "baseReportSha": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
+  "iosBaseReportSha": "8ba6b9777b67d23dc89cc1edca7412e128398256",
+  "branch": "codex/mbm-001-pairing-readonly-library",
+  "authorization": "OWNER_CONTINUOUS_DEVELOPMENT_VERIFY_COMMIT_ORDINARY_PUSH",
+  "predecessorDelivery": "docs/postrust/MBM-001/PREDECESSOR_DELIVERY.json",
+  "canonicalContract": "packages/contracts/mobile/openapi.json",
+  "canonicalBytes": 145918,
+  "canonicalSha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb",
+  "canonicalWholeBytesPreserved": true,
+  "operationCount": 40,
+  "thisStageOperations": [
+    "getServer",
+    "claimPairing",
+    "refreshToken",
+    "logout",
+    "getCapabilities",
+    "listAlbums",
+    "getAlbum",
+    "listTracks",
+    "getTrack",
+    "getArtwork"
+  ],
+  "purpose": "独立受控私有HTTPS、真实设备配对/鉴权/刷新/撤销与现有Owner只读目录/搜索/稳定分页/选图。",
+  "allowedProductionScopes": [
+    "packages/bridge-core/src/mobile/",
+    "apps/desktop/src/main/mobile-*.ts",
+    "必要且闭集的Dataset Owner/Main/preload/设置接入由Root串行修改；不公开任意IPC命令"
+  ],
+  "testScopes": [
+    "packages/bridge-core/test/mbm001/",
+    "apps/desktop/test/mbm001/",
+    "新001专项软件/实际HTTPS及受控App验证入口"
+  ],
+  "integrationWriter": "ROOT_ONLY_CONTRACT_SHARED_DB_MAIN_PRELOAD_CONFIG_GIT",
+  "sourceFilesWrite": false,
+  "defaultCore": "NODE",
+  "sqliteWriter": "EXISTING_DATASET_OWNER_ONLY",
+  "optionalRustReadonly": "OFF",
+  "existingControlApiAndStreamGateway": "LOOPBACK_UNCHANGED",
+  "newMobileListener": "SEPARATE_PRIVATE_HTTPS_DEFAULT_OFF",
+  "liveLANDeviceEntry": "NO_REAL_LAN_OR_DEVICE_TEST_THIS_STAGE_FIRST_DEVICE_CHAIN_AT_002",
+  "authPolicy": {
+    "pairingSecret": "CRYPTO_RANDOM_LOCAL_TRUSTED_UI_ONLY_HASH_OR_ENCRYPTED_PERSISTENCE",
+    "permitTtlSeconds": 300,
+    "permitUses": 1,
+    "accessTtlSeconds": 900,
+    "refreshTtlSeconds": 2592000,
+    "refreshRotation": "ATOMIC_SAME_KEY_BODY_ORIGINAL_RECEIPT_DEVICE_EPOCH_BOUND",
+    "deviceLogout": "CURRENT_DEVICE_ONLY_INVALIDATES_ACCESS_REFRESH_INFLIGHT_AND_CURSOR",
+    "durableState": "PRIVATE_AES_256_GCM_STATE_VIA_EXISTING_OWNER_SINGLE_WRITER_NO_SECOND_SQLITE_CONNECTION_NO_DDL_SCHEMA34",
+    "providerCredentials": "NO_PROVIDER_QR_COOKIE_TOKEN_VAULT_ALIAS"
+  },
+  "catalogPolicy": {
+    "pageLimit": 100,
+    "queryCharacters": 200,
+    "cursor": "AUTHENTICATED_OPAQUE_SERVER_DEVICE_DATASET_ACCOUNT_SOURCE_REVISION_SORT_FILTER_ALBUM_SCOPE",
+    "identity": "OWNER_REGISTERED_EXACT_EDITION_ASSET_SELECTION_FILE_SEGMENT_NOT_PATH_OR_TITLE",
+    "unknownFacts": "EXPLICIT_SAFE_ERROR_OR_TRUE_MISSING_STATE_NO_FAKE_AUDIO_ALBUM_DURATION",
+    "sourcePolicy": "OMITTED_SOURCE_LOCAL_EXPLICIT_ALL_OR_NETEASE_503_BUSY_RETRYABLE_FALSE_NO_SILENT_PARTIAL",
+    "snapshot": "SAME_OWNER_REVISION_AND_PERMISSION_FENCE",
+    "artworkSizes": [
+      96,
+      256,
+      512
+    ],
+    "artworkRead": "CURRENT_SAVED_SELECTION_REAL_PNG_JPEG_BYTES_NO_STAGE_APPLY_OR_ARBITRARY_URL",
+    "availability": "CONSERVATIVE_UNAVAILABLE_CACHED_TECHNICAL_FACTS_ARE_NOT_CURRENT_MEDIA_PERMISSION_OR_002_PLAYBACK"
+  },
+  "excluded": [
+    "002 session/resource/media/ticket/Range与播放",
+    "003 FLAC转换/解码",
+    "004 内容写入/多设备后台音频",
+    "Provider凭据或真实账号CI",
+    "源文件写入、真实库迁移、安装应用替换、main合并或公开发布"
+  ],
+  "independentMobileAcceptanceCount": 9,
+  "acceptanceRef": "docs/postrust/MBM-001/MOBILE_ACCEPTANCE.json",
+  "taskSpec": "tasks/MBM-001_PAIRING_READONLY_LIBRARY.md",
+  "software": "PASS_LOCAL_49_CORE_38_DESKTOP_EXACT_COMMIT_GATE_PENDING",
+  "productionApp": "PASS_CONTROLLED_PRODUCTION_APP_TWO_CASES_FOUR_NATURAL_CLOSES",
+  "realServiceDeviceAudioOwner": "NOT_RUN",
+  "startedAt": "2026-10-09T04:26:03.432089+00:00",
+  "nextTask": "MBM-002",
+  "original18Tasks156AcceptanceAndEffective17Tasks150Unchanged": true,
+  "ownerRepeatedApprovalRequired": false,
+  "publicConnectionConfig": "apps/desktop/src/shared/mobile-settings.ts#MobilePublicConnection",
+  "gateBudgets": {
+    "stageTimeoutMs": 180000,
+    "totalTimeoutMs": 480000,
+    "killGraceMs": 10000,
+    "rawOutputBytes": 16777216,
+    "sourceFileBytes": 16777216,
+    "maxSourceFiles": 8192
+  },
+  "testScope": "docs/postrust/MBM-001/TEST_SCOPE.json",
+  "localVerification": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+  "isolatedActualMacHttps": "READY_WORKING_PRODUCTION_MAIN_ORIGINAL_OWNER_SYSTEM_SAFESTORAGE_SELF_OWNED_103_TRACKS_NOT_FINAL_CLIENT_CONSUMPTION"
+}

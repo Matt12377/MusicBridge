@@ -420,3 +420,12 @@ Mac fresh035完整33/33自然退出0，schema60/128与196整HTTP分开记录，�
 ## MBM-000 独立结果报告记账（2026-10-09）
 
 精确Source `579d0c3097a0cd78290467cf9b073819989826fd` 的33项移动行为Gate、首次自然四workflow/六job及完整实际日志/制品已通过核对。iOS Source `bc72069f73e342479190beda7f230b79ea91d9f0`/R `8ba6b9777b67d23dc89cc1edca7412e128398256` 的137项不同Swift用例和整份相同合同已验证。独立R与最终远端clean封存待执行，详见 `reports/MBM-000_RESULT.md`。冻结Source状态与原18/156、有效17/150、013八PARTIAL和015六N_A保留；下一001只从最终封存R开始，已有连续授权有效。
+
+
+## 2026-10-09 MBM-001 实际接续
+
+000成对最终软件seal与独立调度receipt整份已读。Mac独立分支codex/mbm-001-pairing-readonly-library从R c6c4745dfc7fe4242b8a2682798e00605649b12e起始，iOS基线8ba6b9777b67d23dc89cc1edca7412e128398256；主工作区78项既有未跟踪WIP保持。外置LifeWeave挂载/可写已核，所有新构建/cache/tmp/log仅在外置任务根。001已更新当前TODO/计划/STATUS、范围、复用清单、双端接线与9项独立移动验收；当前仅接点调查，未执行001测试或宣称产品通过。Root实际model=gpt-6.1-sol/effort=max，三个既存代理继续同任务且无新派生。开发、必要验证、提交与普通推送授权持续，不重复审批。
+
+### 001 本地验证读回（2026-10-09）
+
+全量verify自然exit0：4721声明测试中4719通过、0失败、2原有显式native输出/租约检查未启用跳过；类型检查、生产构建、沙盒Preload仅Electron依赖通过。新专项Core49+Desktop38实际闭集全通过、0skip/0cancel/0todo；真实Node HTTPS→原scan-real Owner用2个自有音频文件登记103个发行条目，100+3完整分页、改库及冷重开cursor有限拒绝，不能写成103首扫描文件。正式生产Main App2用例均通过：4次自然exit0、6个真实JPEG整文件及6张无许可截图；实际系统Keychain、App多页和自动恢复未跑。iOS最终S731daea／R20095已独立核对384源码与37归档Git blob、149实际测试、41受控原生HTTPS及两unsigned generic Simulator构建。Source精确Gate、首次自然CI、独立R及实际iOS→Mac持续服务仍未封；002未开工。证据分层见LOCAL_VERIFICATION.json，旧失败52/42/48保留。

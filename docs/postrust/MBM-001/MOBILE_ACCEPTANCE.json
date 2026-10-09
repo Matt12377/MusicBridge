@@ -1,0 +1,99 @@
+{
+  "schema": "musicbridge.mobile-independent-acceptance.v1",
+  "task": "MBM-001",
+  "count": 9,
+  "originalTaskAndAcceptanceLedgerUnchanged": true,
+  "cases": [
+    {
+      "id": "MBMAT-001-01",
+      "area": "HTTPS",
+      "requirement": "私有HTTPS独立listener，真实TLS身份与pin、闭集raw请求/响应、原loopback不变。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PASS_CONTROLLED_TLS_MAIN_HTTP_NOT_LAN_OR_DEVICE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-001-02",
+      "area": "PAIRING",
+      "requirement": "可信本地许可的TTL/单次使用、稳定server/device与installation绑定，领取201及同key/body原回执。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PASS_ACTUAL_UI_PERMIT_AND_TWO_DEVICE_CLAIMS",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-001-03",
+      "area": "AUTH",
+      "requirement": "access/refresh过期、原子轮换、撤销及冷重开持久回执；跨设备与改body拒绝。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PASS_ROTATION_REVOKE_LOGOUT_COLD_ORIGINAL_RECEIPTS_NATURAL_TTL_NOT_RUN",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-001-04",
+      "area": "CAPABILITIES",
+      "requirement": "实际能力诚实投影，001不提前宣称播放/转码/FLAC支持。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PASS_HONEST_READONLY_CAPABILITIES_PLAYBACK_FALSE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-001-05",
+      "area": "PAGING",
+      "requirement": "同Owner快照搜索/稳定分页，认证cursor完整scope、改库/换库/撤销有限拒绝，不漏曲或虚假完整页。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PARTIAL_SINGLE_TRACK_EMPTY_CATALOG_ONLY_APP_MULTIPAGE_NOT_RUN_OWNER_103_ENTRY_HTTP_SEPARATE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-001-06",
+      "area": "IDENTITY",
+      "requirement": "独立发行与曲目/version/content身份、位置移动稳定、换源修订、缺事实与segment时长真实。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PARTIAL_ACTUAL_ONE_ASSET_EDITION_AND_CONTENT_IDENTITY_MOVE_NOT_RUN_IN_APP",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-001-07",
+      "area": "ARTWORK",
+      "requirement": "当前选图只读，96/256/512真实编码bytes和预算，缺图/外库/旧选图拒绝、取消回收。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PASS_ACTUAL_PNG_SELECTION_AND_SIX_NATIVE_JPEG_96_256_512_OLD_SELECTION_409",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-001-08",
+      "area": "RUNTIME",
+      "requirement": "默认OFF、可信桌面配置/配对入口、Main→唯一Dataset Owner闭集接点、退出/重启/有限并发与资源释放。",
+      "software": "PASS_LOCAL_FRESH_READER_CORE_AND_MAIN_TESTS",
+      "production_app": "PASS_UI_OFF_ON_CLOSE_EXPLICIT_COLD_ENABLE_AUTO_RESTORE_NOT_RUN",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-001-09",
+      "area": "PAIRED_DELIVERY",
+      "requirement": "Mac/iOS实际001合同接线与适用软件Gate、独立Source/R/自然CI/ordinary push；服务设备音频与Owner分层。",
+      "software": "PARTIAL_MAC87_IOS149_HTTPS41_LOCAL_GATES_ACTUAL_MAC_LINK_CI_REPORT_PENDING",
+      "production_app": "PARTIAL_MAC_APP_PASS_PAIRED_FINAL_DELIVERY_PENDING",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
+    }
+  ],
+  "evidenceScope": "LOCAL_WORKING_SNAPSHOT_QUALIFICATION_EXACT_SOURCE_GATE_CI_REPORT_SEPARATE"
+}

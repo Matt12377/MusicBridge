@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent } from 'vue'
 import AppearanceSettings from './AppearanceSettings.vue'
 import CollectionReadonlySettings from './CollectionReadonlySettings.vue'
 import LocalLibrarySettings from './LocalLibrarySettings.vue'
+import MobileConnectionSettings from './MobileConnectionSettings.vue'
 const SourceWritesSettings = typeof window.musicBridge?.getLocalSourceWrites === 'function' ? defineAsyncComponent(() => import('./LocalSourceWritesSettings.vue')) : null
 import RoonDisplaySettings from './RoonDisplaySettings.vue'
 import type { AppInfo } from '../../../../preload/api.js'
@@ -172,6 +173,7 @@ function paneId(category: SettingsCategory): string {
       <AppearanceSettings />
       <CollectionReadonlySettings />
       <LocalLibrarySettings />
+      <MobileConnectionSettings />
       <SourceWritesSettings v-if="SourceWritesSettings" />
       <p v-else class="settings-note">源写服务尚未就绪；原 MB 信息整理与封面选择继续可用。</p>
       <article class="settings-card settings-glass-panel">

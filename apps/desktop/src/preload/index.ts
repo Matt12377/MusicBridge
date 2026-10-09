@@ -13,6 +13,7 @@ import { createRecordingWorkspaceClient } from './recording-workspace-client.js'
 import { createRecordingCandidateClient } from './recording-candidate-client.js'
 import { createPreparationZipClient } from './preparation-zip-client.js'
 import { contextBridge, ipcRenderer } from 'electron'
+import { createMobileConnectionClient } from './mobile-connection-client.js'
 import type {
   RemoteCoreTunnelState,
   RoonImageResult,
@@ -393,3 +394,8 @@ contextBridge.exposeInMainWorld(
     { invoke: invokeScoped, scope: getDatasetId },
   ),
 )
+
+// 可信 Main 明确交付版本化的移动设置能力，旧 musicBridge 公共 API 保持原闭集。
+if (process.argv?.includes('--music-bridge-mobile-settings=v1')) {
+  contextBridge.exposeInMainWorld('musicBridgeMobile', Object.freeze(createMobileConnectionClient((channel, ...args) => ipcRenderer.invoke(channel, ...args))))
+}

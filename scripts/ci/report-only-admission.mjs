@@ -117,6 +117,73 @@ export function classifyMobileReportChanges({ task, parent, beforeStatus, afterS
   return reportPresent;
 }
 
+const mobilePairingTask = 'MBM-001';
+const mobilePairingAuthority = 'mobilePairingReadonlyLibrary';
+const mobilePairingScope = 'docs/postrust/MBM-001/EXECUTION_SCOPE.json';
+const mobilePairingBranch = 'codex/mbm-001-pairing-readonly-library';
+const mobilePairingBase = 'c6c4745dfc7fe4242b8a2682798e00605649b12e';
+
+/** 001独立定位；不能以旧013/000定位器或协调者消息替代本域来源。 */
+export function locateMobilePairingReportTask(status, plan) {
+  const lane = status?.mobileFrontloading20261008, authority = status?.[mobilePairingAuthority];
+  if (lane?.currentTask !== mobilePairingTask || plan?.execution_schedule?.current_task !== mobilePairingTask
+    || authority?.task !== mobilePairingTask || authority.scope !== mobilePairingScope
+    || authority.baseSha !== mobilePairingBase || authority.branch !== mobilePairingBranch
+    || plan.execution_schedule.current_task_scope_ref !== mobilePairingScope
+    || plan.execution_schedule.predecessor_final_report !== mobilePairingBase
+    || !Array.isArray(lane.mobileTasks) || !Array.isArray(plan.mobile_tasks)) return null;
+  const keys = Object.keys(status).filter(key => status[key]?.task === mobilePairingTask);
+  const statusRows = lane.mobileTasks.filter(row => row?.id === mobilePairingTask);
+  const planRows = plan.mobile_tasks.filter(row => row?.id === mobilePairingTask);
+  if (keys.length !== 1 || keys[0] !== mobilePairingAuthority || statusRows.length !== 1 || planRows.length !== 1) return null;
+  for (const row of [statusRows[0], planRows[0]]) {
+    if (row.scope_ref !== mobilePairingScope || row.base_report_sha !== mobilePairingBase) return null;
+  }
+  if (!equal(without(statusRows[0], mobileTaskFields), without(planRows[0], mobileTaskFields))) return null;
+  return mobilePairingTask;
+}
+
+/** R只改001的报告记账；软件/App/对端/真实层、范围、旧18/156和后继任务逐值冻结。 */
+export function classifyMobilePairingReportChanges({ task, parent, beforeStatus, afterStatus, beforePlan, afterPlan, changes }) {
+  if (task !== mobilePairingTask || !/^[a-f0-9]{40}$/u.test(parent ?? '')
+    || locateMobilePairingReportTask(beforeStatus, beforePlan) !== task
+    || locateMobilePairingReportTask(afterStatus, afterPlan) !== task
+    || !Array.isArray(beforePlan.tasks) || !Array.isArray(afterPlan.tasks)
+    || !Array.isArray(beforePlan.acceptance_cases) || !Array.isArray(afterPlan.acceptance_cases)
+    || !Array.isArray(changes) || !changes.length) return false;
+  const before = beforeStatus[mobilePairingAuthority], after = afterStatus[mobilePairingAuthority];
+  if (after.implementationCommit !== parent
+    || !equal(without(before, mobileStatusFields), without(after, mobileStatusFields))) return false;
+  const normalizeRows = rows => rows.map(row => row?.id === task ? without(row, mobileTaskFields) : row);
+  const normalizeStatus = status => ({ ...status,
+    [mobilePairingAuthority]: without(status[mobilePairingAuthority], mobileStatusFields),
+    mobileFrontloading20261008: { ...status.mobileFrontloading20261008,
+      mobileTasks: normalizeRows(status.mobileFrontloading20261008.mobileTasks) } });
+  const normalizePlan = plan => ({ ...plan, mobile_tasks: normalizeRows(plan.mobile_tasks) });
+  if (!equal(normalizeStatus(beforeStatus), normalizeStatus(afterStatus))
+    || !equal(normalizePlan(beforePlan), normalizePlan(afterPlan))) return false;
+  const statusRow = afterStatus.mobileFrontloading20261008.mobileTasks.find(row => row?.id === task);
+  const planRow = afterPlan.mobile_tasks.find(row => row?.id === task);
+  if (statusRow.implementation_commit !== parent || planRow.implementation_commit !== parent
+    || !equal(statusRow, planRow)) return false;
+  let reportPresent = false;
+  const paths = new Set();
+  for (const entry of changes) {
+    if (!entry || !['A', 'M'].includes(entry.status) || entry.newMode !== '100644'
+      || entry.status === 'M' && entry.oldMode !== '100644'
+      || entry.status === 'A' && entry.oldMode !== '000000'
+      || typeof entry.path !== 'string' || paths.has(entry.path)) return false;
+    paths.add(entry.path);
+    const report = /^reports\/MBM-001_[A-Z0-9_]+\.(?:md|json)(?![\s\S])/u.test(entry.path);
+    const evidence = /^docs\/postrust\/MBM-001\/evidence\/[A-Za-z0-9_-]+\.(?:json|md)(?![\s\S])/u.test(entry.path);
+    const metadata = ['project/STATUS.json', 'project/POSTRUST_PLAN.json',
+      'project/POSTRUST_TODO.md', 'project/POSTRUST_PROGRESS.md'].includes(entry.path);
+    if (!report && !evidence && !metadata) return false;
+    if (report) reportPresent = true;
+  }
+  return reportPresent;
+}
+
 /** 使用原始模式，拒绝删改类型、链接、可执行“文档”和重命名。 */
 export function parseRawDiff(raw) {
   const fields = raw.split('\0'), entries = [];
@@ -186,6 +253,61 @@ export function validateMobileParentCi(input) {
   return own.length === 1 && own[0].status === 'completed' && own[0].conclusion === 'success';
 }
 
+/** 001须继承同一push的原producer及013/000 Gate，再证明自己的Gate；只读制品平台元数据。 */
+export function validateMobilePairingParentCi(input) {
+  try { return validateMobilePairingProducerMetadata(input); }
+  catch { return false; }
+}
+function validateMobilePairingProducerMetadata(input) {
+  if (input?.task !== mobilePairingTask || input.branch !== mobilePairingBranch
+    || !Array.isArray(input.runs) || input.runs.length !== 4
+    || !Array.isArray(input.proofs) || input.proofs.length !== 4
+    || !Number.isFinite(input.now ?? Date.now())
+    || !validateMobileParentCi({ ...input, task: 'MBM-000' })) return false;
+  const positiveId = value => Number.isSafeInteger(value) && value > 0;
+  const runIds = new Set(), jobIds = new Set(), artifactIds = new Set();
+  const jobCounts = { '.github/workflows/verify.yml': 2, '.github/workflows/security.yml': 1,
+    '.github/workflows/rust-core.yml': 2, '.github/workflows/electron-e2e.yml': 1 };
+  const artifactCounts = { '.github/workflows/verify.yml': 1, '.github/workflows/security.yml': 0,
+    '.github/workflows/rust-core.yml': 2, '.github/workflows/electron-e2e.yml': 2 };
+  const successStep = (job, name) => {
+    if (!Array.isArray(job.steps)) return false;
+    const steps = job.steps.filter(step => step?.name === name);
+    return steps.length === 1 && steps[0].status === 'completed' && steps[0].conclusion === 'success';
+  };
+  for (const file of workflowPaths) {
+    const runs = input.runs.filter(run => run?.path === file);
+    if (runs.length !== 1 || !positiveId(runs[0].id) || runIds.has(runs[0].id)) return false;
+    const run = runs[0]; runIds.add(run.id);
+    const proofs = input.proofs.filter(proof => proof?.runId === run.id);
+    if (proofs.length !== 1) return false;
+    const proof = proofs[0];
+    if (!Array.isArray(proof.jobs) || proof.jobs.length !== jobCounts[file]
+      || !Array.isArray(proof.artifacts) || proof.artifacts.length !== artifactCounts[file]) return false;
+    for (const job of proof.jobs) {
+      if (!positiveId(job?.id) || jobIds.has(job.id) || !Array.isArray(job.steps)) return false;
+      jobIds.add(job.id);
+    }
+    for (const artifact of proof.artifacts) {
+      if (!positiveId(artifact?.id) || artifactIds.has(artifact.id)) return false;
+      artifactIds.add(artifact.id);
+    }
+    for (const name of requiredSteps[file]) {
+      const producers = proof.jobs.filter(job => successStep(job, name));
+      if (producers.length !== (file === '.github/workflows/rust-core.yml' ? 2 : 1)) return false;
+    }
+    if (file === '.github/workflows/verify.yml') {
+      const gates = ['MBRS013 同内容位置迁移与具体清理 Gate', 'MBM000 移动合同双端采纳 Gate',
+        'MBM001 配对与只读曲库 Gate'];
+      const product = proof.jobs.find(job => successStep(job, requiredSteps[file][0]));
+      const audit = proof.jobs.find(job => successStep(job, requiredSteps[file][1]));
+      if (!product || !audit || product === audit || gates.some(name => !successStep(product, name)
+        || proof.jobs.flatMap(job => job.steps).filter(step => step?.name === name).length !== 1)) return false;
+    }
+  }
+  return runIds.size === 4 && jobIds.size === 6 && artifactIds.size === 5;
+}
+
 export async function inspectReportOnly(env = process.env, directory = root, getJson) {
   const full = reason => ({ mode: 'full', reason, productResultsReused: false });
   if (env.GITHUB_ACTIONS !== 'true' || env.RUNNER_ENVIRONMENT !== 'github-hosted'
@@ -201,11 +323,14 @@ export async function inspectReportOnly(env = process.env, directory = root, get
     const json = (revision, name) => JSON.parse(git(['show', revision + ':' + name]));
     const afterStatus = json('HEAD', 'project/STATUS.json'), beforeStatus = json(parent, 'project/STATUS.json');
     const afterPlan = json('HEAD', 'project/POSTRUST_PLAN.json'), beforePlan = json(parent, 'project/POSTRUST_PLAN.json');
-    const mobile = [beforeStatus.mobileFrontloading20261008?.currentTask,
+    const mobileTasks = [beforeStatus.mobileFrontloading20261008?.currentTask,
       afterStatus.mobileFrontloading20261008?.currentTask, beforePlan.execution_schedule?.current_task,
-      afterPlan.execution_schedule?.current_task].some(value => typeof value === 'string' && value.startsWith('MBM-'));
-    const task = mobile ? locateMobileReportTask(afterStatus, afterPlan) : afterStatus.currentPostRustTask;
-    const classify = mobile ? classifyMobileReportChanges : classifyReportChanges;
+      afterPlan.execution_schedule?.current_task];
+    const mobile = mobileTasks.some(value => typeof value === 'string' && value.startsWith('MBM-'));
+    const pairing = mobileTasks.includes(mobilePairingTask);
+    const task = pairing ? locateMobilePairingReportTask(afterStatus, afterPlan)
+      : mobile ? locateMobileReportTask(afterStatus, afterPlan) : afterStatus.currentPostRustTask;
+    const classify = pairing ? classifyMobilePairingReportChanges : mobile ? classifyMobileReportChanges : classifyReportChanges;
     if (!classify({ task, parent, afterStatus, beforeStatus, afterPlan, beforePlan,
       changes: parseRawDiff(git(['diff', '--raw', '-z', '--no-renames', parent, 'HEAD'])) })) return full('SOURCE_SCOPE_OR_AUTHORITY_CHANGED');
     const started = performance.now();
@@ -237,7 +362,7 @@ export async function inspectReportOnly(env = process.env, directory = root, get
       }
       proofs.push({ runId: run.id, jobs: jobs.jobs, artifacts });
     }
-    const validate = mobile ? validateMobileParentCi : validateParentCi;
+    const validate = pairing ? validateMobilePairingParentCi : mobile ? validateMobileParentCi : validateParentCi;
     if (!validate({ task, repositoryId: repo.id, parent, branch, runs, proofs })) return full('PARENT_PRODUCT_GATE_NOT_PROVEN');
     return { schema: 'musicbridge.report-only-ci.v1', mode: 'report-only', reason: 'EXACT_PARENT_PRODUCT_CI_SUCCESS',
       task, reportSha: env.GITHUB_SHA, parentSourceSha: parent, repositoryId: repo.id,

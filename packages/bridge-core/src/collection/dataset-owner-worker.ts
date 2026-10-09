@@ -220,6 +220,14 @@ export function attachDatasetOwnerWorkerPort(port: MessagePort, options: Dataset
       catch (error) { reject(request, error); }
       return;
     }
+    if (request.operation === 'mobileMain') {
+      try {
+        if (!bootCommitted || request.expectedDatasetId !== boundDatasetId || domain.datasetId !== boundDatasetId || !domain.mobileMain || !request.mobile) throw new DatasetOwnerTransportError('not-sent');
+        const operation = domain.mobileMain(request.mobile); dispatches.add(operation);
+        try { reply(request, await operation); } finally { dispatches.delete(operation); }
+      } catch (error) { reject(request, error); }
+      return;
+    }
     if(request.operation==='materializeMBEdition'){
       try{if(!bootCommitted||request.expectedDatasetId!==boundDatasetId||domain.datasetId!==boundDatasetId||!domain.materializeMBEdition||!request.edition)throw new DatasetOwnerTransportError('not-sent');reply(request,domain.materializeMBEdition(request.edition));}catch(error){reject(request,error);}return;
     }

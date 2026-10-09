@@ -1,3 +1,5 @@
+import { isMobileOwnerPrivateRequest } from '../mobile/owner-protocol.js';
+import type { MobileOwnerPrivateRequest, MobileOwnerPrivateResult } from '../mobile/types.js';
 import { LOCAL_ARTWORK_COMMANDS, isLocalArtworkInternalCommand } from '@music-bridge/contracts';
 import { LOCAL_ORGANIZER_COMMANDS } from '@music-bridge/contracts';
 import { LOCAL_LEGACY_LINKS_COMMANDS } from '@music-bridge/contracts';
@@ -238,6 +240,8 @@ export const isDatasetCommand = (value: unknown): value is DatasetCommand => typ
 
 export interface DatasetOwnerIdentity { epoch: string; datasetId: string }
 export interface DatasetOwnerEndpoint {
+  /** 可信 Main 设备域闭集，不进入普通公开 IPC。 */
+  mobileMain?(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult>;
   materializeMBEdition?(request:MBEditionQueueRequest):Promise<MBEditionQueueSnapshot>;
   loadMBQueue?(): Promise<MBQueueLoadResult>;
   saveMBQueue?(request: MBQueueSaveRequest): Promise<MBQueueRecord>;
@@ -297,6 +301,7 @@ export interface DatasetProjectionPort {
 }
 export type DatasetOwnerProjectionHandler = <K extends DatasetProjectionCommand>(command: K, payload: DatasetProjectionCommandPayloads[K], context: { epoch: string; datasetId?: string }) => Promise<DatasetProjectionCommandResults[K]>;
 export interface OwnedDatasetDomain {
+  mobileMain?(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult>;
   dispatchSourceWritesMain?(request:SourceWritesMainRequest,actor:SourceWritesMainActor):Promise<unknown>;
   dispatchRelocationMain?(request: import('@music-bridge/contracts').LocalRelocationMainRequest, actor: import('./source-relocation-authority.js').RelocationMainActor): Promise<unknown>;
   materializeMBEdition?(request:MBEditionQueueRequest):MBEditionQueueSnapshot;
@@ -318,10 +323,10 @@ export interface OwnedDatasetDomain {
   failureForError(id: string, error: unknown, command?: IpcCommand): IpcFailure;
 }
 
-export type DatasetOwnerOperation = 'materializeMBEdition' | 'loadMBQueue' | 'saveMBQueue' | 'captureLocalSource' | 'revalidateLocalSource' | 'releaseLocalSource' | 'prepare' | 'dispatch' | 'dispatchInternal' | 'commitBoot' | 'exportCollectionSnapshot' | 'getCollectionSnapshotVersion' | 'exportVersionedCollectionSnapshot' | 'exportLargeVersionedCollectionSnapshot' | 'close';
+export type DatasetOwnerOperation = 'mobileMain' | 'materializeMBEdition' | 'loadMBQueue' | 'saveMBQueue' | 'captureLocalSource' | 'revalidateLocalSource' | 'releaseLocalSource' | 'prepare' | 'dispatch' | 'dispatchInternal' | 'commitBoot' | 'exportCollectionSnapshot' | 'getCollectionSnapshotVersion' | 'exportVersionedCollectionSnapshot' | 'exportLargeVersionedCollectionSnapshot' | 'close';
 export type DatasetOwnerFatalReason = 'worker-error' | 'worker-exit' | 'protocol-failure' | 'close-failed' | 'post-failed';
 interface OwnerEnvelope { version: typeof DATASET_OWNER_PROTOCOL_VERSION; epoch: string }
-export interface DatasetOwnerRequest extends OwnerEnvelope { type: 'request'; requestId: string; sequence: number; operation: DatasetOwnerOperation; request?: IpcRequest; queue?: MBQueueSaveRequest; edition?: MBEditionQueueRequest; local?: LocalSourcePrivatePayload; expectedDatasetId?: string }
+export interface DatasetOwnerRequest extends OwnerEnvelope { type: 'request'; requestId: string; sequence: number; operation: DatasetOwnerOperation; mobile?: MobileOwnerPrivateRequest; request?: IpcRequest; queue?: MBQueueSaveRequest; edition?: MBEditionQueueRequest; local?: LocalSourcePrivatePayload; expectedDatasetId?: string }
 export type DatasetOwnerResponse = OwnerEnvelope & { type: 'response'; requestId: string; operation: DatasetOwnerOperation } & ({ ok: true; result: unknown } | { ok: false; failure: IpcFailure });
 export type DatasetOwnerProjectionRequest = OwnerEnvelope & { type: 'projection'; projectionRequestId: string; command: DatasetProjectionCommand; payload: DatasetProjectionCommandPayloads[DatasetProjectionCommand] };
 export type DatasetOwnerProjectionResponse = OwnerEnvelope & { type: 'projection-response'; projectionRequestId: string } & ({ ok: true; result: unknown } | { ok: false; failure: IpcFailure });
@@ -374,8 +379,11 @@ export function isDatasetRequestEnvelope(value: unknown, internal = false): valu
     && isDatasetCommand(value.command) && (internal || !(isLocalArtworkInternalCommand(value.command) || isLocalCatalogInternalCommand(value.command) || isLocalScanInternalCommand(value.command) || isLocalRelocationInternalCommand(value.command))) && ownerRecord(value.payload) && (value.expectedDatasetId === undefined || isCommandOutboxDatasetId(value.expectedDatasetId));
 }
 export function isDatasetOwnerRequest(value: unknown): value is DatasetOwnerRequest {
-  if (!ownerRecord(value) || !keys(value, ['version','epoch','type','requestId','sequence','operation','request','queue','edition','local','expectedDatasetId']) || value.version !== DATASET_OWNER_PROTOCOL_VERSION || value.type !== 'request' || !isCollectionId(value.epoch) || !isCollectionId(value.requestId)
-    || !Number.isSafeInteger(value.sequence) || Number(value.sequence) < 1 || !['materializeMBEdition','loadMBQueue','saveMBQueue','captureLocalSource','revalidateLocalSource','releaseLocalSource','prepare','dispatch','dispatchInternal','commitBoot','exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot','close'].includes(String(value.operation))) return false;
+  if (!ownerRecord(value) || !keys(value, ['version','epoch','type','requestId','sequence','operation','mobile','request','queue','edition','local','expectedDatasetId']) || value.version !== DATASET_OWNER_PROTOCOL_VERSION || value.type !== 'request' || !isCollectionId(value.epoch) || !isCollectionId(value.requestId)
+    || !Number.isSafeInteger(value.sequence) || Number(value.sequence) < 1 || !['mobileMain','materializeMBEdition','loadMBQueue','saveMBQueue','captureLocalSource','revalidateLocalSource','releaseLocalSource','prepare','dispatch','dispatchInternal','commitBoot','exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot','close'].includes(String(value.operation))) return false;
+  if (value.operation === 'mobileMain') return value.request === undefined && value.local === undefined && value.queue === undefined && value.edition === undefined
+    && isCommandOutboxDatasetId(value.expectedDatasetId) && isMobileOwnerPrivateRequest(value.mobile) && value.mobile.datasetId === value.expectedDatasetId;
+  if (Object.hasOwn(value, 'mobile')) return false;
   if(value.operation==='materializeMBEdition')return value.request===undefined&&value.local===undefined&&value.queue===undefined&&isCommandOutboxDatasetId(value.expectedDatasetId)&&isMBEditionQueueRequest(value.edition);
   if(Object.hasOwn(value,'edition'))return false;
   if (value.operation === 'loadMBQueue' || value.operation === 'saveMBQueue') return value.request === undefined && value.local === undefined && isCommandOutboxDatasetId(value.expectedDatasetId)
@@ -394,7 +402,7 @@ export function isDatasetOwnerFailure(value: unknown): value is IpcFailure {
 }
 export function isDatasetOwnerResponse(value: unknown): value is DatasetOwnerResponse {
   if (!ownerRecord(value) || !keys(value,['version','epoch','type','requestId','operation','ok','result','failure']) || value.version !== DATASET_OWNER_PROTOCOL_VERSION || value.type !== 'response' || !isCollectionId(value.epoch) || !isCollectionId(value.requestId)
-    || !['materializeMBEdition','loadMBQueue','saveMBQueue','captureLocalSource','revalidateLocalSource','releaseLocalSource','prepare','dispatch','dispatchInternal','commitBoot','exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot','close'].includes(String(value.operation))) return false;
+    || !['mobileMain','materializeMBEdition','loadMBQueue','saveMBQueue','captureLocalSource','revalidateLocalSource','releaseLocalSource','prepare','dispatch','dispatchInternal','commitBoot','exportCollectionSnapshot','getCollectionSnapshotVersion','exportVersionedCollectionSnapshot','exportLargeVersionedCollectionSnapshot','close'].includes(String(value.operation))) return false;
   return value.ok === true ? value.failure === undefined && Object.hasOwn(value,'result') : value.ok === false && value.result === undefined && isDatasetOwnerFailure(value.failure);
 }
 export const DATASET_PROJECTION_COMMANDS = ['browseAlbumCandidates','captureAlbumMetadata','captureTrackMetadataBatch','acquirePermit','releasePermit','scanReadAcquire','scanReadWatchRevocation','scanReadRelease'] as const;

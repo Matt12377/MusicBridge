@@ -1,0 +1,236 @@
+{
+  "schema": "musicbridge.mbm001.local-verification.v1",
+  "task": "MBM-001",
+  "capturedAt": "2026-10-09T06:31:05.742686+00:00",
+  "headAtChecks": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
+  "scope": "CURRENT_WORKING_SNAPSHOT_NOT_SOURCE_COMMIT_GATE",
+  "standard": {
+    "declaredTests": 4721,
+    "passed": 4719,
+    "failed": 0,
+    "skipped": 2,
+    "skippedScope": "ORIGINAL_EXPLICIT_NATIVE_OUTPUT_AND_NATIVE_LEASE_TOMBSTONE_CASES_NOT_ENABLED_NOT_PROMOTED",
+    "typecheck": "PASS",
+    "productionBuild": "PASS",
+    "sandboxPreload": "PASS_ONLY_ELECTRON_RUNTIME_REQUIRE"
+  },
+  "mobile": {
+    "core": 49,
+    "desktop": 38,
+    "caseNamesExact": true,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0,
+    "freshReaderCompilers": 3
+  },
+  "app": {
+    "tests": 2,
+    "passed": 2,
+    "retries": 0,
+    "naturalAppCloses": 4,
+    "actualProductionDistFiles": 27,
+    "latestProductionBuildByteEqualsAppInputs": true,
+    "nativeJpegWholeFiles": 6,
+    "safeScreenshots": 6,
+    "keychain": "CONTROLLED_AES_NOT_REAL_KEYCHAIN",
+    "appPaging": "NOT_RUN_NODE_OWNER_INTEGRATION_SEPARATE",
+    "defaultRestore": "NOT_RUN_E2E_EXPLICIT_COLD_ENABLE"
+  },
+  "owner": {
+    "actualNodeHTTPS": true,
+    "originalScanRealOwner": true,
+    "actualOwnedAudioFiles": 2,
+    "independentlyRegisteredEditionEntries": 103,
+    "pageSizes": [
+      100,
+      3
+    ],
+    "sourceFilesWrite": false,
+    "schema34DDL": "UNCHANGED",
+    "connections": "ORIGINAL_OWNER_COLLECTION_AND_MAINTENANCE_NO_ADDITIONAL"
+  },
+  "peer": {
+    "source": "731daea2e68560bb689aca09618dd4e607891a93",
+    "report": "20095f21ae6c2021543da73a15cbea0478580937",
+    "remoteExact": true,
+    "sourceAndReportWholeGitInputs": 384,
+    "reportWholeGitArchiveEvidenceFiles": 37,
+    "actualPassedTests": 149,
+    "controlledNativeHTTPSCases": 41,
+    "unsignedGenericSimulatorBuilds": 2,
+    "realMacConsumption": "PENDING_ACTUAL_IOS_CONSUMPTION_OF_READY_MAC_CANDIDATE",
+    "nativeAppUIPhysicalDeviceAudioOwner": "NOT_RUN"
+  },
+  "checks": {
+    "standard-verify56": {
+      "argv": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/corepack",
+        "pnpm@10.17.1",
+        "verify"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "log": {
+        "file": "standard-verify56.log",
+        "bytes": 1144061,
+        "sha256": "7af6c9a2888eb5f2a4a36b17b0a55fd0ab57d48a28e0dfc8a694cc50548b39aa"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "new87-preflight54": {
+      "argv": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/run_new87_preflight54.mjs"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "log": {
+        "file": "new87-preflight54.log",
+        "bytes": 24550,
+        "sha256": "91d1c04e73014eeeb323baeb4dd4f7676bbe96896e297359ff746868cba96517"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "mobile-production-app53": {
+      "argv": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/run_app53.mjs"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "log": {
+        "file": "mobile-production-app53.log",
+        "bytes": 803,
+        "sha256": "7adf96ca629d1db8f9b3063fcc34526d4e3a132df289d551f67c3121ca15ff4b"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "preload-fixture55": {
+      "argv": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-reporter=tap",
+        "test/preload.test.ts"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "log": {
+        "file": "preload-fixture55.log",
+        "bytes": 2366,
+        "sha256": "7c7bcba16a986b4e0943c922027c40b76d4b2bce1fbf0917d710efa9e9700c65"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "report-only-admission45": {
+      "argv": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--test",
+        "scripts/ci/test/report-only-admission.test.mjs",
+        "scripts/ci/test/mbm000-report-only-admission.test.mjs",
+        "scripts/ci/test/mbm001-report-only-admission.test.mjs"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "log": {
+        "file": "report-only-admission45.log",
+        "bytes": 11624,
+        "sha256": "69144e78e26fa23d2753ae7f1defc95941000107946e08bef95c97f56e6ac9f9"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "mbm001-admission41": {
+      "argv": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--test",
+        "scripts/ci/test/verify-mbm001-pairing-library.test.mjs"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "log": {
+        "file": "mbm001-admission41.log",
+        "bytes": 948,
+        "sha256": "e990549c76c288fa01bbb9825e1389df7ecdc736c3a8d1c6e8edeb97298ddce4"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    },
+    "legacy-admission35": {
+      "argv": [
+        "/Users/yihe/.nvm/versions/node/v22.23.2/bin/node",
+        "--test",
+        "scripts/ci/test/verify-mbm000-contract-adoption.test.mjs",
+        "scripts/ci/test/mbm000-legacy-probe-normalization.test.mjs",
+        "scripts/ci/test/mbm001-legacy-reuse-normalization.test.mjs"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "timedOut": false,
+      "log": {
+        "file": "legacy-admission35.log",
+        "bytes": 6796,
+        "sha256": "37ad26db114309c2043837a5a26b05ecac5ff1f31518460c42ddbcd3dedf71e1"
+      },
+      "sourceScope": "CURRENT_WORKTREE_NOT_COMMIT_BINDING"
+    }
+  },
+  "exactSourceGate": "NOT_RUN_REQUIRES_FINAL_CLEAN_SOURCE",
+  "naturalCI": "NOT_RUN_SOURCE_NOT_PUSHED",
+  "reportAndOrdinaryPush": "NOT_RUN",
+  "pairedFinalDelivery": "NOT_YET_PROVEN",
+  "realProviderRoonNasDeviceAudioOwner": "NOT_RUN",
+  "fullTransitiveToolchainClosure": false,
+  "actualPersistentMacCandidate": {
+    "state": "READY_RUNNING_NOT_FINAL",
+    "readyAt": "2026-10-09T06:51:03.788Z",
+    "privateRootReadback": "checks/MBM001_CANDIDATE_READY.json",
+    "readyIdentity": {
+      "bytes": 3029,
+      "sha256": "cc020bf5ffdde7bd50dfe71ed676f0c3bbcc4980c1de2e21c7f0e499a49cf5cf",
+      "noFollow": true,
+      "stableNamedFd": true
+    },
+    "publicConnectionIdentity": {
+      "bytes": 1535,
+      "sha256": "f366b8cf3a3ada4f382b52e37c9678b727ba04dde1b7d229fa7d97d73bac1bbe",
+      "noFollow": true,
+      "stableNamedFd": true
+    },
+    "wholeProductSourceAndThreeDistFiles": 1693,
+    "inputIdentity": "223f7aab5db2aa765e72e33fa113682704f9dacbb966a018dd83cf51a869b5a2",
+    "actualSystemSafeStorage": true,
+    "safeStorageOverridden": false,
+    "actualScannerAssets": 103,
+    "actualScannerTracks": 103,
+    "actualEditionCount": 103,
+    "selectedOwnedPng": 1,
+    "rootActualHttps": {
+      "status": 200,
+      "bytes": 140,
+      "wholeBodySha256": "20b0c8f06c5b8d4a1693f2f049a04f237116788ac26555c93de21015879c4110",
+      "actualPythonSslAnchorHostnameAndDerPin": true
+    },
+    "permitEntry": "TRUSTED_RENDERER_API_ENTRY",
+    "permitButtonClickClaimed": false,
+    "directDatabaseInsertion": false,
+    "fullTransitiveToolchainClosure": false,
+    "notFinalSourceCommitBinding": true,
+    "clientConsumption": "PENDING_SEPARATE_ACTUAL_IOS_PROOF",
+    "naturalClose": "PENDING_RUNNING_CANDIDATE",
+    "physicalDeviceAudioRealUserLibraryOwner": "NOT_RUN"
+  }
+}

@@ -1,5 +1,6 @@
 import { commitLocalFacts, rollbackLocalFacts, LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import { createHash, randomUUID } from 'node:crypto';
+import { MobileServiceError } from '../mobile/types.js';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
@@ -1018,6 +1019,38 @@ export function createLocalCatalogStore(access: Access) {
         const result = { ...page, total, hasMore: page.offset + items.length < total, items };
         if (!dto.isLocalLibraryQueryPage(result)) return corrupt();
         return result;
+      });
+    },
+    /** 移动只读候选复用原 effective/raw 投影；不增公开命令，不新开连接。 */
+    privateMobileCandidates(page: { kind: 'albums' | 'tracks'; offset: number; limit: number; query: string; editionId: string | null; trackId: string | null }): { total: number; items: { editionId: string; trackId: string }[] } {
+      if (!Number.isSafeInteger(page.offset) || page.offset < 0 || !Number.isSafeInteger(page.limit) || page.limit < 1 || page.limit > 100
+        || typeof page.query !== 'string' || [...page.query].length > 200 || page.editionId !== null && !dto.isCollectionId(page.editionId)
+        || page.trackId !== null && !dto.isCollectionId(page.trackId)) return access.conflict('移动目录分页范围无效。');
+      return access.read(db => {
+        const projection = sourceProjectionFor(db), sourceRaw = JSON.stringify([...projection.fullRaw].map(([trackId, value]) => ({ trackId, ordinal: value.ledgerOrdinal, fields: value.fields })));
+        const filters = { root: null, query: page.query.trim(), sourceRaw, edition: page.editionId, track: page.trackId };
+        if (page.kind === 'tracks' && page.editionId === null) {
+          const orphan = db.prepare(`${libraryProjection} SELECT 1 missing FROM candidates
+            JOIN local_catalog_roots r ON r.id=candidates.root_id JOIN source_roots s ON s.id=r.source_root_id
+            WHERE json_extract(r.data,'$.role')='library' AND json_extract(s.data,'$.authorized')=1 AND ${libraryWhere}
+            AND NOT EXISTS(SELECT 1 FROM local_catalog_edition_tracks l WHERE l.track_id=candidates.id AND json_extract(l.data,'$.active')=1) LIMIT 1`).get({ root: null, query: filters.query, sourceRaw });
+          if (orphan) throw new MobileServiceError(503, 'BUSY');
+        }
+        const relations = `${libraryProjection}, mobile AS (SELECT candidates.ordinal,candidates.id track_id,e.id edition_id,e.rowid edition_ordinal,
+          json_extract(l.data,'$.sequence') sequence FROM candidates
+          JOIN local_catalog_edition_tracks l ON l.track_id=candidates.id AND json_extract(l.data,'$.active')=1
+          JOIN local_catalog_editions e ON e.id=l.edition_id JOIN local_catalog_roots r ON r.id=candidates.root_id
+          JOIN source_roots s ON s.id=r.source_root_id
+          WHERE json_extract(r.data,'$.role')='library' AND json_extract(s.data,'$.authorized')=1
+          AND (@edition IS NULL OR e.id=@edition) AND (@track IS NULL OR candidates.id=@track) AND ${libraryWhere})`;
+        const candidates = page.kind === 'albums'
+          ? `${relations}, selected AS (SELECT edition_id,min(track_id) track_id,min(edition_ordinal) ordinal FROM mobile GROUP BY edition_id)`
+          : `${relations}, selected AS (SELECT edition_id,track_id,min(ordinal) ordinal,min(sequence) sequence FROM mobile GROUP BY edition_id,track_id)`;
+        const total = Number(db.prepare(`${candidates} SELECT count(*) n FROM selected`).get(filters)!.n);
+        if (total > 300_000) throw new MobileServiceError(503, 'CONTENT_LIMIT_EXCEEDED');
+        const order = page.kind === 'albums' ? 'ordinal,edition_id' : 'ordinal,edition_id,sequence,track_id';
+        const rows = db.prepare(`${candidates} SELECT edition_id,track_id FROM selected ORDER BY ${order} LIMIT @limit OFFSET @offset`).all({ ...filters, limit: page.limit, offset: page.offset });
+        return { total, items: rows.map(row => ({ editionId: String(row.edition_id), trackId: String(row.track_id) })) };
       });
     },
     trackDetail(trackId: string): dto.LocalLibraryTrackDetail {

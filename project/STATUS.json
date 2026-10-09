@@ -47869,13 +47869,12 @@
     "nextBranchBaseline": "ACTUAL_FINAL_SEALED_REPORT_HEAD"
   },
   "mobileFrontloading20261008": {
-    "state": "MBM000_LOCAL_SOFTWARE_VERIFIED_FINAL_MAC_DELIVERY_PENDING",
+    "state": "MBM001_LOCAL_SOFTWARE_APP_PASS_PAIRED_SERVICE_AND_DELIVERY_PENDING",
     "plan": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
     "schedulingSupplement": "docs/postrust/MBRS-013/SCHEDULING_SUPPLEMENT_MOBILE_FRONTLOADING.json",
-    "currentTask": "MBM-000",
-    "nextTask": "MBM-001",
+    "currentTask": "MBM-001",
+    "nextTask": "MBM-002",
     "remainingSequence": [
-      "MBM-000",
       "MBM-001",
       "MBM-002",
       "MBM-003",
@@ -47892,22 +47891,22 @@
       {
         "id": "MBM-000",
         "title": "合同采纳",
-        "status": "LOCAL_SOFTWARE_VERIFIED_FINAL_SOURCE_REPORT_CI_PENDING",
+        "status": "SOFTWARE_DELIVERY_COMPLETE_LIVE_OWNER_OPEN",
         "scheduled_after": "MBRS-013",
         "start_condition": "ACTUAL_013_FINAL_REPORT_SEALED_PAIRED_CONTRACT_IS_DELIVERY_CONDITION",
         "scope_ref": "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
-        "software": "PASS_LOCAL_33_TESTS_FRESH_BUILD",
+        "software": "PASS_PAIRED_SOFTWARE_DELIVERY_SEALED",
         "production_app": "NOT_RUN",
         "real_service_device_audio": "NOT_RUN",
         "owner_acceptance": "NOT_RUN",
         "owner_repeated_approval_required": false,
         "started_at": "2026-10-09T00:03:09.149322+00:00",
         "base_report_sha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
-        "paired_contract": "IOS_FINAL_DELIVERY_VERIFIED_MAC_SOURCE_REPORT_SEAL_PENDING",
+        "paired_contract": "PASS_WHOLE_CANONICAL_EQUAL_BOTH_FINAL_REPORTS_SEALED",
         "implementation_commit": "579d0c3097a0cd78290467cf9b073819989826fd",
         "implementation_commit_resolution": "EXACT_SINGLE_PARENT_SOURCE_WITH_FRESH_GATE_AND_FIRST_NATURAL_CI",
-        "report_commit": null,
-        "report_commit_resolution": "RESOLVE_UNIQUE_REPORT_HEAD_SINGLE_PARENT_SOURCE_AFTER_COMMIT",
+        "report_commit": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
+        "report_commit_resolution": "EXACT_REPORT_UNIQUE_PARENT_SOURCE_FINAL_RECEIPTS_READ",
         "report_path": "reports/MBM-000_RESULT.md",
         "evidence_refs": [
           "docs/postrust/MBM-000/evidence/fresh-contract-binding.json",
@@ -47925,21 +47924,27 @@
         ],
         "terminal_ci_receipt": {
           "source": "docs/postrust/MBM-000/evidence/source-ci.json",
-          "report": "PENDING_FIRST_NATURAL_REPORT_CI"
-        }
+          "report": "PASS_FIRST_NATURAL_TWO_WORKFLOWS_THREE_JOBS_ACTUAL_REPORT_ONLY_CONSUMED"
+        },
+        "final_delivery_ref": "docs/postrust/MBM-001/PREDECESSOR_DELIVERY.json"
       },
       {
         "id": "MBM-001",
         "title": "配对与只读曲库",
-        "status": "NOT_STARTED",
+        "status": "IN_PROGRESS_LOCAL_SOFTWARE_AND_APP_VERIFIED",
         "scheduled_after": "MBM-000",
         "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
-        "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
-        "software": "NOT_RUN",
-        "production_app": "NOT_RUN",
+        "scope_ref": "docs/postrust/MBM-001/EXECUTION_SCOPE.json",
+        "software": "PASS_MAC_LOCAL_87_IOS_149_CONTROLLED_HTTPS41",
+        "production_app": "PASS_TWO_CONTROLLED_PRODUCTION_APP_CASES",
         "real_service_device_audio": "NOT_RUN",
         "owner_acceptance": "NOT_RUN",
-        "owner_repeated_approval_required": false
+        "owner_repeated_approval_required": false,
+        "base_report_sha": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
+        "started_at": "2026-10-09T04:26:03.432089+00:00",
+        "acceptance_ref": "docs/postrust/MBM-001/MOBILE_ACCEPTANCE.json",
+        "independent_mobile_acceptance_count": 9,
+        "local_verification_ref": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json"
       },
       {
         "id": "MBM-002",
@@ -47981,15 +47986,15 @@
         "owner_repeated_approval_required": false
       }
     ],
-    "recordedAt": "2026-10-09T00:03:09.149322+00:00"
+    "recordedAt": "2026-10-09T04:26:03.432089+00:00"
   },
   "mobileContractAdoption": {
     "task": "MBM-000",
-    "state": "LOCAL_SOFTWARE_VERIFIED_FINAL_MAC_SOURCE_REPORT_CI_PENDING",
+    "state": "PAIRED_CONTRACT_SOFTWARE_DELIVERY_COMPLETE_LIVE_OWNER_OPEN",
     "branch": "codex/mbm-000-mobile-contracts",
     "baseSha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
     "implementationCommit": "579d0c3097a0cd78290467cf9b073819989826fd",
-    "reportCommit": null,
+    "reportCommit": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
     "scope": "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
     "adoption": "docs/postrust/MBM-000/ADOPTION.json",
     "canonical": "packages/contracts/mobile/openapi.json",
@@ -48005,31 +48010,96 @@
       "cleanAtSeal": true,
       "productAcceptance": "ORIGINAL_EIGHT_PARTIAL_LIVE_OWNER_OPEN"
     },
-    "software": "PASS_CURRENT_WORKTREE_33_TESTS_FRESH_BUILD_NO_FINAL_COMMIT_CLAIM",
+    "software": "PASS_MAC_33_IOS_137_AND_PAIRED_FINAL_DELIVERY",
     "productionApp": "NOT_RUN_CONTRACT_ONLY_STAGE",
     "peerAdoption": "IOS_FIXED_SOURCE_GATE_REPORT_REMOTE_VERIFIED",
-    "pairedAdoptionComplete": false,
+    "pairedAdoptionComplete": true,
     "realServiceDeviceAudioOwner": "NOT_RUN",
     "ownerRepeatedApprovalRequired": false,
     "nextTask": "MBM-001",
     "startedAt": "2026-10-09T00:03:09.149322+00:00",
     "localPreparation": "docs/postrust/MBM-000/LOCAL_PREPARATION.json",
     "peerAdoptionReceipt": "docs/postrust/MBM-000/PEER_ADOPTION.json",
-    "pairedAdoptionResolution": "FINAL_REPORT_EVIDENCE_AND_PRIVATE_FINAL_DELIVERY_RECEIPT_AFTER_BOTH_MAC_CI_PHASES",
+    "pairedAdoptionResolution": "ACTUAL_FINAL_SOFTWARE_AND_INDEPENDENT_COORDINATOR_SEALS_READ",
     "implementationCommitResolution": "EXACT_SINGLE_PARENT_SOURCE_WITH_FRESH_GATE_AND_FIRST_NATURAL_CI",
     "reportCommitResolution": "RESOLVE_UNIQUE_REPORT_HEAD_SINGLE_PARENT_SOURCE_AFTER_COMMIT",
     "report": "reports/MBM-000_RESULT.md",
     "evidence": "reports/MBM-000_EVIDENCE.json",
     "push": {
       "source": "PASS_ORDINARY_EXACT_REMOTE",
-      "report": "PENDING_ORDINARY_PUSH"
+      "report": "PASS_ORDINARY_EXACT_REMOTE"
     },
     "ci": {
       "source": "PASS_FIRST_NATURAL_4_WORKFLOWS_6_JOBS_COMPLETE_LOG_AND_ARTIFACT_CONSUMPTION",
-      "report": "PENDING_FIRST_NATURAL_REPORT_CI"
+      "report": "PASS_FIRST_NATURAL_TWO_WORKFLOWS_THREE_JOBS_ACTUAL_REPORT_ONLY_CONSUMED"
     },
-    "updatedAt": "2026-10-09T03:54:40.938778+00:00",
-    "finalDeliveryReceipt": "PRIVATE_EXTERNAL_ARCHIVE_AFTER_REPORT_CI_NO_THIRD_SEAL_COMMIT",
-    "nextBranchBaseline": "RESOLVE_FINAL_REPORT_HEAD_AFTER_FINAL_SEAL"
+    "updatedAt": "2026-10-09T04:26:03.432089+00:00",
+    "finalDeliveryReceipt": "docs/postrust/MBM-001/PREDECESSOR_DELIVERY.json",
+    "nextBranchBaseline": "c6c4745dfc7fe4242b8a2682798e00605649b12e"
+  },
+  "mobilePairingReadonlyLibrary": {
+    "task": "MBM-001",
+    "state": "LOCAL_SOFTWARE_AND_APP_PASS_ACTUAL_PAIRED_SERVICE_SOURCE_DELIVERY_PENDING",
+    "branch": "codex/mbm-001-pairing-readonly-library",
+    "baseSha": "c6c4745dfc7fe4242b8a2682798e00605649b12e",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "scope": "docs/postrust/MBM-001/EXECUTION_SCOPE.json",
+    "predecessorDelivery": "docs/postrust/MBM-001/PREDECESSOR_DELIVERY.json",
+    "canonical": "packages/contracts/mobile/openapi.json",
+    "independentAcceptance": "docs/postrust/MBM-001/MOBILE_ACCEPTANCE.json",
+    "independentAcceptanceCount": 9,
+    "software": "PASS_LOCAL_49_CORE_38_DESKTOP",
+    "productionApp": "PASS_CONTROLLED_PRODUCTION_MAIN_TLS_OWNER_UI_AND_NATIVE_ARTWORK",
+    "realServiceDeviceAudioOwner": "NOT_RUN",
+    "ownerRepeatedApprovalRequired": false,
+    "sourceFilesWrite": false,
+    "defaultCore": "NODE",
+    "sqliteWriter": "EXISTING_DATASET_OWNER_ONLY",
+    "optionalRustReadonly": "OFF",
+    "newMobileHttpsDefault": "OFF",
+    "rootModelActual": {
+      "model": "gpt-6.1-sol",
+      "effort": "max"
+    },
+    "existingChildActors": [
+      "delivery012_core",
+      "delivery012_contract",
+      "delivery012_app_proofs"
+    ],
+    "newDescendants": 0,
+    "nextTask": "MBM-002",
+    "startedAt": "2026-10-09T04:26:03.432089+00:00",
+    "peerAdoption": {
+      "source": "731daea2e68560bb689aca09618dd4e607891a93",
+      "report": "20095f21ae6c2021543da73a15cbea0478580937",
+      "remoteExact": true,
+      "sourceInputs": 384,
+      "evidenceFiles": 37,
+      "tests": 149,
+      "controlledNativeHTTPS": 41,
+      "unsignedGenericSimulatorBuilds": 2,
+      "actualMacConsumption": "PENDING_ACTUAL_IOS_CONSUMPTION_OF_READY_MAC_CANDIDATE"
+    },
+    "pairedAdoptionComplete": false,
+    "localVerification": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+    "implementationCommitResolution": "PENDING_FINAL_CLEAN_SOURCE_WITH_OWN_GATE",
+    "reportCommitResolution": "PENDING_SOURCE_FIRST_NATURAL_CI_AND_INDEPENDENT_REPORT",
+    "ci": {
+      "source": "NOT_RUN_SOURCE_NOT_PUSHED",
+      "report": "NOT_RUN"
+    },
+    "push": {
+      "source": "NOT_RUN",
+      "report": "NOT_RUN"
+    },
+    "updatedAt": "2026-10-09T06:54:51.040627+00:00",
+    "isolatedMacHttpsCandidate": {
+      "state": "READY_RUNNING_NOT_FINAL",
+      "evidence": "docs/postrust/MBM-001/LOCAL_VERIFICATION.json",
+      "systemSafeStorage": true,
+      "actualOwnedScannerTracks": 103,
+      "actualIosConsumption": "PENDING_SEPARATE_ACTUAL_IOS_PROOF"
+    }
   }
 }

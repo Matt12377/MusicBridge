@@ -7,6 +7,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { validateOfflineArguments, createPrivateRun, writePrivateJson, sanitizeOutput,
   parseTestCounts, isCompleteTestRun } from './verify-mbrs001-offline.mjs';
+import { normalizeMbm001LegacyReuse } from './mbm001-legacy-reuse-normalization.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const contracts = 'packages/contracts';
@@ -455,8 +456,16 @@ export async function runMobileContractGate(argv = process.argv.slice(2), env = 
   };
   const inputs = await readInputs();
   for (const row of admissionRows.values()) if (!same(inputs.find(input => input.path === row.path), row)) fail('MBM000_ADMISSION_INPUT_DRIFT');
+  const acceptedLegacyReuseFragments = [];
   for (const pinned of lock.macReusePoints) {
-    const actual = inputs.find(row => row.path === pinned.path); if (actual?.bytes !== pinned.bytes || actual?.sha256 !== pinned.sha256) fail('MBM000_EXISTING_MAC_BOUNDARY_CHANGED');
+    const actual = inputs.find(row => row.path === pinned.path);
+    if (actual?.bytes === pinned.bytes && actual?.sha256 === pinned.sha256) continue;
+    const current = await readMobileFile(path.join(repository, pinned.path), { maxBytes: budgets.sourceFileBytes, check });
+    if (current.identity.bytes !== actual?.bytes || current.identity.sha256 !== actual?.sha256) fail('MBM000_ADMISSION_INPUT_DRIFT');
+    assertPin(normalizeMbm001LegacyReuse(pinned.path, current.bytes), pinned, 'MBM000_EXISTING_MAC_BOUNDARY_CHANGED');
+    acceptedLegacyReuseFragments.push({ path: pinned.path, task: 'MBM-001', current: actual,
+      original: { bytes: pinned.bytes, sha256: pinned.sha256 },
+      proof: 'EXACT_ORIGINAL_BYTES_RESTORED_IN_MEMORY_CURRENT_OWNER_BEHAVIOR_REQUIRES_MBM001_GATE' });
   }
   const require = createRequire(path.join(repository, contracts, 'package.json'));
   const toolNames = [require.resolve('typescript/bin/tsc'), require.resolve('typescript/package.json'), require.resolve('tsx'), require.resolve('tsx/package.json')];
@@ -526,7 +535,10 @@ export async function runMobileContractGate(argv = process.argv.slice(2), env = 
     expectedTests: tests.expectedTests, tests: behavior?.testCounts?.tests ?? 0, pass: behavior?.testCounts?.pass ?? 0,
     fullTransitiveToolchainClosure: false, pairedClientFinalAdoption: 'NOT_PROVEN_BY_THIS_SOFTWARE_GATE',
     productionApp: 'NOT_RUN_BY_THIS_GATE', runtimeServiceDeviceAudioOwner: 'NOT_RUN',
-    existingLoopbackNodeWriterRustDefaultBoundary: 'UNCHANGED_MAC_REUSE_POINTS_PINNED' };
+    acceptedLegacyReuseFragments,
+    existingLoopbackNodeWriterRustDefaultBoundary: acceptedLegacyReuseFragments.length
+      ? 'ORIGINAL_MAC_FRAGMENTS_PRESERVED_EXACT_001_ADAPTER_CURRENT_OWNER_REQUIRES_001_GATE'
+      : 'UNCHANGED_MAC_REUSE_POINTS_PINNED' };
   writePrivateJson(run, 'summary.json', summary); return { run, summary };
 }
 

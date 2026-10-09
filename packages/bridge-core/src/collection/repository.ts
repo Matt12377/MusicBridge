@@ -1,3 +1,4 @@
+import { MobileServiceError } from '../mobile/types.js';
 import { localArtworkMigration, verifyLocalArtworkDatabase, createLocalArtworkStore, type LocalArtworkStore } from './local-artwork-store.js';
 import { mbQueueMigration, verifyMBQueueDatabase, createMBQueueStore, MBQueueStoreError, type MBQueueStore } from './mb-queue-store.js';
 import { LocalFactsFenceBusy, LocalFactsCommitFatal } from '../stream/local-source-fence.js';
@@ -91,6 +92,9 @@ export interface CollectionRepository {
   /** 原作者私有派生保护，不作为公开源写许可。 */
   sourceProtection: SourceProtectionStore;
   privateSourceWritesDirectory():string|null;
+  /** 仅同Owner本地构造移动只读适配；不接受跨端口回调。 */
+  privateMobileCatalogAccess?<T>(read: (db: DatabaseSync) => T): T;
+  privateMobileDataDirectory?(): string | null;
   media: MediaPlanningStore;
   versions: MasterVersionsStore;
   preparations: PreparationStore;
@@ -309,7 +313,7 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   }
   function guarded<T>(operation: (db: DatabaseSync) => T): T {
     try { if(localFactsFatal)throw new LocalFactsCommitFatal();return operation(open()); }
-    catch (error) { if (error instanceof MBQueueStoreError) throw error;
+    catch (error) { if (error instanceof MobileServiceError) throw error; if (error instanceof MBQueueStoreError) throw error;
       if (error instanceof LocalRelocationError || error instanceof SourceWritesError || error instanceof LegacyLinksError || error instanceof LocalFactsCommitFatal || error instanceof LocalFactsFenceBusy || error instanceof CollectionError || error instanceof RecordingPlanError || error instanceof AttemptError || error instanceof RecordingRecordError || error instanceof RecordingPrintError) throw error; return unavailable(); }
   }
   function exportReadonlyModels(maxModels: number, modelsGuard: typeof isDatasetCollectionModels): readonly CollectionModel[] {
@@ -591,6 +595,8 @@ export function createCollectionRepository(options: { filePath: string; stagingR
     media,
     sources,
     sourceProtection: createSourceProtectionStore({ read: guarded }),
+    privateMobileCatalogAccess: read => guarded(read),
+    privateMobileDataDirectory: () => options.filePath !== ':memory:' ? path.dirname(options.filePath) : options.stagingRoot ?? null,
     privateSourceWritesDirectory(){return options.filePath!==':memory:'?path.join(path.dirname(options.filePath),'source-writes'):options.stagingRoot?path.join(options.stagingRoot,'source-writes'):null;},
     drafts: createMasterDraftsRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     workspace: createRecordingWorkspaceStore({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),

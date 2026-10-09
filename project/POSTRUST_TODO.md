@@ -1,6 +1,6 @@
 # MusicBridge 开发待办
 
-当前任务：MBM-000。013有限软件交付已封存：Source e755b71320c93a7985a936382f86c08a4ed2eb8a、最终报告 d3174bce575aa817b27ba05d39a40d3050b77be4，首次自然源码4条workflow/6job及报告2条workflow/3job成功，最终远端一致且工作区干净。000从该报告建立独立分支，开始40操作合同、独立wire DTO/codec、完整兼容样例与双端实际采纳；当前本地fresh Gate33/33、零skip，iOS最终137项软件验证/独立报告/远端已核；Mac精确Source Gate、源码与报告首次自然CI及最终seal待执行。接续001→002→003→004→016→017，不重复索取常规授权。原18/156、有效17/150、013八AT PARTIAL、真实Roon/NAS/跨卷/音频/设备/Owner缺口保留。
+当前任务：MBM-001（进行中）。MBM-000双端合同软件交付已实际封存：Mac Source 579d0c3097a0cd78290467cf9b073819989826fd、最终R c6c4745dfc7fe4242b8a2682798e00605649b12e；iOS最终R 8ba6b9777b67d23dc89cc1edca7412e128398256。Source自然4workflow/6job与R自然2workflow/3job成功，五份Source整包、R整日志及真实report-only制品已消费，双方remote exact/clean/canonical一致。000打勾仅指软件交付，真实层缺口保留。接续001→002→003→004→016→017，不重复索取常规授权。
 
 | 任务 | 要做的事 | 进度 |
 | --- | --- | --- |
@@ -20,8 +20,8 @@
 | MBRS-013 | 支持音乐文件改名、移动和找回。 | 有限软件/源码与报告自然CI及最终远端clean已封存；8产品AT均PARTIAL、真实层待验 |
 | MBRS-014 | 保留现有收藏、录音记录和音乐来源。 | 有限软件、精确404/404、合成生产App2/2、源码与独立报告自然CI及最终远端/clean已封存；8产品AT仍PARTIAL |
 | MBRS-015 | 可选 Roon 内部协议信息增强。 | Owner 取消；6条验收因取消不适用，不计PASS或完成 |
-| MBM-000 | 合同采纳。 | 本地33项合同Gate及iOS137项/报告远端已核；等待Mac精确Source与源码/报告自然CI封存 |
-| MBM-001 | 配对与只读曲库。 | 未开始；等待MBM-000 |
+| MBM-000 | 合同采纳。 | [x] 双端软件交付已封存；Source/R自然CI及实际制品、远端clean通过；真实服务/设备/音频/Owner未跑 |
+| MBM-001 | 配对与只读曲库。 | [ ] 进行中；独立分支从000最终R接续，001范围与9项独立验收已落地；Mac49+38／正式App2用例、iOS149+受控HTTPS41及全量回归构建通过，实际Mac双端消费、Source/R/自然CI封存尚待完成 |
 | MBM-002 | 手机资源播放。 | 未开始；等待MBM-001 |
 | MBM-003 | FLAC无损必做。 | 未开始；等待MBM-002 |
 | MBM-004 | 内容与多设备。 | 未开始；等待MBM-003 |
@@ -34,7 +34,7 @@
 
 执行依赖仍按计划：014旧收藏/录音/frozen来源保护必须先于012写回；015已取消，核心任务仍无此硬依赖。006回执容量256、HTTP观测UNKNOWN与四轴未测继续明确记录，007再评估队列恢复/长期回执策略。
 
-后续移动MBM-000～004按[生效计划](../docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md)在013封版后连续启动，再做016和017；000已启动，其余四项尚未开始。原任务正文、硬依赖、156AT与取消后的17/150账本保持，原报告及下方“017后启动”候选登记仅作历史。MBM-002首条可运行真实文件链路接iPhone，003验证FLAC，004验证双机、后台与家庭Roon。
+后续移动MBM-000～004按[生效计划](../docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md)在013封版后连续启动，再做016和017；000已交付，001正在接线与交付收口，002～004尚未开始。原任务正文、硬依赖、156AT与取消后的17/150账本保持，原报告及下方“017后启动”候选登记仅作历史。MBM-002首条可运行真实文件链路接iPhone，003验证FLAC，004验证双机、后台与家庭Roon。
 
 007结果见[队列报告](../reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md)：963项本地Gate与精确源四条CI通过，gapless/重锁/真实Roon/Owner未跑；008有限软件结果见[音质证据报告](../reports/MBRS-008_AUDIO_TRANSPARENCY.md)；真实格式/Roon路径/数字设备/gapless/普通App/Owner仍待；后续顺序与移动采纳均保持。
 
@@ -102,3 +102,6 @@ Scope18仅改新增回归的两行assert.throws为等价字符串message重载�
 ## MBM-000 独立结果报告记账（2026-10-09）
 
 精确Source `579d0c3097a0cd78290467cf9b073819989826fd` 的33项移动行为Gate、首次自然四workflow/六job及完整实际日志/制品已通过核对。iOS Source `bc72069f73e342479190beda7f230b79ea91d9f0`/R `8ba6b9777b67d23dc89cc1edca7412e128398256` 的137项不同Swift用例和整份相同合同已验证。独立R与最终远端clean封存待执行，详见 `reports/MBM-000_RESULT.md`。冻结Source状态与原18/156、有效17/150、013八PARTIAL和015六N_A保留；下一001只从最终封存R开始，已有连续授权有效。
+
+<!-- MBM001_START01 -->
+001从000最终R c6c4745接续，独立范围见[001任务](../tasks/MBM-001_PAIRING_READONLY_LIBRARY.md)。三个既存gpt-6.1-sol/max代理集中auth/catalog/HTTPS，同一任务独占文件，Root串行共享作者与验证。原000冻结pending由[实际前驱封存](../docs/postrust/MBM-001/PREDECESSOR_DELIVERY.json)解析；不重跑000或新建第三次000封存提交。

@@ -2,6 +2,8 @@ import { isLibraryReadCommand } from '@music-bridge/contracts'
 import { localSourceWritesMainRequestSnapshot, localSourceWritesMainResponseSnapshot, localSourceWritesDataSnapshot, localSourceWritesRecord, type LocalSourceWritesPrivateCommand, type LocalSourceWritesPrivateCommandPayloads, type LocalSourceWritesPrivateCommandResults } from '@music-bridge/contracts'
 import { localRelocationMainRequestSnapshot, localRelocationMainResponseSnapshot, localRelocationDataSnapshot, localRelocationRecord, type LocalRelocationMainCommand, type LocalRelocationMainCommandPayloads, type LocalRelocationMainCommandResults } from '@music-bridge/contracts'
 import { randomUUID } from 'node:crypto'
+import { isMobileCorePrivateReply, isMobileOwnerPrivateRequest, type MobileCorePrivateCall } from '../../../../packages/bridge-core/src/mobile/owner-protocol.js'
+import { MobileAuthPersistenceError, type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult } from '../../../../packages/bridge-core/src/mobile/types.js'
 import { createLibraryReadTraceStreamReader, emitLibraryReadTrace, libraryReadTraceFailure, type LibraryReadTraceSink } from '../shared/library-read-trace.js'
 import { createPlaybackFailureTraceStreamReader } from '../shared/playback-failure-trace.js'
 
@@ -145,6 +147,7 @@ export class CoreSupervisor {
   private shuttingDown = false
   private restartCount = 0
   private readonly pending = new Map<string, PendingRequest>()
+  private readonly mobilePending = new Map<string, { call: MobileCorePrivateCall; timer: NodeJS.Timeout; reject(error: MobileAuthPersistenceError): void; resolve(result: MobileOwnerPrivateResult): void }>()
   private _status: CoreSupervisorStatus = 'stopped'
 
   constructor(
@@ -178,6 +181,27 @@ export class CoreSupervisor {
 
   get restarts(): number {
     return this.restartCount
+  }
+
+  /** 可信 Main 的闭集移动能力；不在 Renderer 的通用 command 列表内。 */
+  async requestMobileMain(input: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult> {
+    const port = this.port, generation = this.startupGeneration
+    if (!port || this._status !== 'ready' || this.shuttingDown || !isMobileOwnerPrivateRequest(input) || this.mobilePending.size >= 32) {
+      throw new MobileAuthPersistenceError('not-sent')
+    }
+    const call: MobileCorePrivateCall = { type: 'mobile-main-request', id: randomUUID(), request: structuredClone(input) }
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { this.mobilePending.delete(call.id); reject(new MobileAuthPersistenceError('unknown')) }, LIBRARY_REQUEST_TIMEOUT_MS)
+      this.mobilePending.set(call.id, { call, timer, reject, resolve })
+      try {
+        if (this.port !== port || this.startupGeneration !== generation || this.shuttingDown) throw new Error('移动路由已撤销。')
+        port.postMessage(call)
+      } catch { clearTimeout(timer); this.mobilePending.delete(call.id); reject(new MobileAuthPersistenceError('unknown')) }
+    })
+  }
+  private closeMobilePending(): void {
+    for (const pending of this.mobilePending.values()) { clearTimeout(pending.timer); pending.reject(new MobileAuthPersistenceError('unknown')) }
+    this.mobilePending.clear()
   }
 
   /** 只交付可信 Main 源写路由；通用 requestInternal 不使用此端口。 */
@@ -614,6 +638,15 @@ export class CoreSupervisor {
     child.once('exit', handleExit)
     channel.port2.on('message', (event) => {
       if (this.child !== child || this.port !== channel.port2) return
+      if (event.data && typeof event.data === 'object' && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-main-response') {
+        const id = Object.getOwnPropertyDescriptor(event.data, 'id')?.value
+        const pending = typeof id === 'string' ? this.mobilePending.get(id) : undefined
+        if (!pending) return
+        clearTimeout(pending.timer); this.mobilePending.delete(id)
+        if (!attempt.valid || this.shuttingDown || !isMobileCorePrivateReply(event.data, pending.call)) pending.reject(new MobileAuthPersistenceError('unknown'))
+        else pending.resolve(event.data.result)
+        return
+      }
       const parsed = parseIpcRuntimeMessage(event.data)
       if (!parsed.ok) return
       const message = parsed.value
@@ -760,6 +793,7 @@ export class CoreSupervisor {
   }
 
   private rejectPending(error: CoreIpcError): void {
+    this.closeMobilePending()
     for (const [id, pending] of this.pending) {
       clearTimeout(pending.timer)
       pending.performanceSpan?.end('error')
@@ -770,6 +804,7 @@ export class CoreSupervisor {
 
   private async shutdownInternal(): Promise<void> {
     this.shuttingDown = true
+    this.closeMobilePending()
     this.startupAttempt?.cancelStart(new CoreIpcError('NOT_READY', 'Core supervisor is shutting down'))
     const child = this.child
     const port = this.port

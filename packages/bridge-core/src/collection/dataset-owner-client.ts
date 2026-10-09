@@ -2,6 +2,8 @@ import {isMBQueueLoadResult,isMBQueueNeedsReview,isMBQueueUnavailable,type MBQue
 import { isMBEditionQueueRequest, isMBEditionQueueSnapshot, type MBEditionQueueRequest, type MBEditionQueueSnapshot, isMBQueueRecord, isMBQueueSaveRequest, type MBQueueRecord, type MBQueueSaveRequest } from '@music-bridge/contracts';
 import { LocalSourceFence } from '../stream/local-source-fence.js';
 import { isLocalSourceCaptureResult, type LocalSourceCaptureResult, type LocalSourcePrivatePayload } from './local-source-ticket-types.js';
+import { isMobileOwnerPrivateRequest, isMobileOwnerPrivateResult } from '../mobile/owner-protocol.js';
+import type { MobileOwnerPrivateRequest, MobileOwnerPrivateResult } from '../mobile/types.js';
 import { LOCAL_RELOCATION_COMMANDS, isLocalArtworkCommand, isLocalArtworkInternalCommand, isLocalRelocationCommand, isLocalRelocationInternalCommand, isLocalRelocationCommandResult } from '@music-bridge/contracts';
 import { isLocalScanCommand, isLocalScanInternalCommand, isLocalScanCommandResult, isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcRequest, validateIpcInternalRequest, isLocalCatalogCommandResult } from '@music-bridge/contracts';
 import { randomUUID } from 'node:crypto';
@@ -21,6 +23,7 @@ import {
 } from './dataset-owner-protocol.js';
 
 interface PendingRequest {
+  mobile?: MobileOwnerPrivateRequest;
   operation: DatasetOwnerOperation;
   publicId?: string;
   command?: IpcCommand;
@@ -77,16 +80,16 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
   }
 
   let queueLoading = false, queueSaving = false;
-  function rpc(operation: DatasetOwnerOperation, request?: IpcRequest, expectedDatasetId?: string, local?: LocalSourcePrivatePayload, queue?: MBQueueSaveRequest, edition?:MBEditionQueueRequest): Promise<unknown> {
+  function rpc(operation: DatasetOwnerOperation, request?: IpcRequest, expectedDatasetId?: string, local?: LocalSourcePrivatePayload, queue?: MBQueueSaveRequest, edition?:MBEditionQueueRequest, mobile?: MobileOwnerPrivateRequest): Promise<unknown> {
     if (failed || exited) return Promise.reject(new DatasetOwnerTransportError('not-sent', request?.id, request?.command));
     const requestId = randomUUID();
     const message: DatasetOwnerRequest = {
       version: DATASET_OWNER_PROTOCOL_VERSION, type: 'request', epoch, requestId,
-      sequence: ++sequence, operation, ...(local === undefined ? {} : { local }), ...(queue === undefined ? {} : { queue }), ...(edition === undefined ? {} : { edition }), ...(request === undefined ? {} : { request }),
+      sequence: ++sequence, operation, ...(mobile === undefined ? {} : { mobile }), ...(local === undefined ? {} : { local }), ...(queue === undefined ? {} : { queue }), ...(edition === undefined ? {} : { edition }), ...(request === undefined ? {} : { request }),
       ...(expectedDatasetId === undefined ? {} : { expectedDatasetId }),
     };
     return new Promise((resolve, reject) => {
-      const item: PendingRequest = { operation, sent: false, resolve, reject,
+      const item: PendingRequest = { operation, sent: false, resolve, reject, ...(mobile === undefined ? {} : { mobile }),
         ...(request === undefined ? {} : { publicId: request.id, command: request.command }) };
       pending.set(requestId, item);
       try {
@@ -133,6 +136,7 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
     const publicId = item.publicId ?? message.requestId;
     if (!message.ok && message.failure.id !== publicId) { fatal('protocol-failure'); return; }
     if (message.ok && message.operation === 'prepare' && (!isDatasetOwnerIdentity(message.result) || message.result.epoch !== epoch)) { fatal('protocol-failure'); return; }
+    if (message.ok && message.operation === 'mobileMain' && (!item.mobile || !isMobileOwnerPrivateResult(message.result, item.mobile))) { fatal('protocol-failure'); return; }
     if(message.ok&&message.operation==='materializeMBEdition'&&!isMBEditionQueueSnapshot(message.result)){fatal('protocol-failure');return;}
     if(message.ok&&message.operation==='loadMBQueue'){
       if(!isMBQueueLoadResult(message.result)||message.result!==null&&!isMBQueueNeedsReview(message.result)&&!isMBQueueUnavailable(message.result)&&message.result.datasetId!==identity?.datasetId){fatal('protocol-failure');return;}
@@ -231,6 +235,10 @@ export function createDatasetOwnerClient(options: DatasetOwnerClientOptions): Da
       if (!identity || !bootCommitted || queueSaving || closing || failed || exited || !isMBQueueSaveRequest(request) || request.queue.datasetId !== identity.datasetId) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
       queueSaving = true;
       return rpc('saveMBQueue', undefined, identity.datasetId, undefined, structuredClone(request)).then(value => value as MBQueueRecord).finally(() => { queueSaving = false; });
+    },
+    mobileMain(request) {
+      if (!identity || !bootCommitted || closing || failed || exited || !isMobileOwnerPrivateRequest(request) || request.datasetId !== identity.datasetId) return Promise.reject(new DatasetOwnerTransportError('not-sent'));
+      return rpc('mobileMain', undefined, identity.datasetId, undefined, undefined, undefined, request).then(value => value as MobileOwnerPrivateResult);
     },
     sealLocalSources,
     isLocalSourceCurrent: () => localAlive && !closing && !failed && !exited && identity !== undefined && bootCommitted,
