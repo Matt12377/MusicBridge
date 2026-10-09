@@ -6,12 +6,15 @@ import {
   decodeMobileRequest, decodeMobileResponse, mapMobileSafeError,
   MOBILE_JSON_REQUEST_MAX_BYTES, MOBILE_API_RESPONSE_MAX_BYTES, resolveMobileOperation,
   type MobileHeaderPairs,
+  type MobileResourceSemanticContext,
 } from '@music-bridge/contracts'
 import {
   MOBILE001_OPERATIONS, MobileServiceError,
   type Mobile001Backend, type Mobile001BackendReply, type Mobile001Operation,
 } from '../../../../packages/bridge-core/src/mobile/types.js'
 import { isMobilePrivateIPv4 } from './mobile-tls-identity.js'
+import { MOBILE002_OPERATIONS, safeMobilePlaybackFailure, type Mobile002Backend, type Mobile002Operation, type Mobile002BackendReply } from './mobile-playback-backend.js'
+import { sendMobileMediaResponse, getMobileMediaReleaseCompletion, type MobileMediaReply } from './mobile-media-response.js'
 
 /** 新门面自己的有限预算，不改变旧 Control API、Stream Gateway 或任务 Gate。 */
 export const MOBILE_HTTPS_LIMITS = Object.freeze({
@@ -27,6 +30,8 @@ export interface MobileHttpsServerOptions {
   /** 0 只由可信合成开发配置采用；生产配置由 Main 拒绝 0。 */
   port: number
   backend: Mobile001Backend
+  /** 只有可信 Main 显式安装002；旧001组合继续拒绝全部播放操作。 */
+  playback?: Mobile002Backend
   allowedHosts?: readonly string[]
 }
 export interface MobileHttpsListening { baseUrl: string; certificateSha256: string }
@@ -38,7 +43,6 @@ export class MobileHttpsServerError extends Error {
   }
 }
 
-const operationSet = new Set<string>(MOBILE001_OPERATIONS)
 const replyHeaderNames = new Set(['content-type', 'content-length', 'cache-control', 'retry-after'])
 function serviceFailure(status: 400 | 401 | 404 | 413 | 429 | 503, code: ConstructorParameters<typeof MobileServiceError>[1]) {
   return new MobileServiceError(status, code, status === 429 || status === 503)
@@ -125,7 +129,7 @@ function readBody(request: IncomingMessage, headers: MobileHeaderPairs, signal: 
     if (signal.aborted) failed()
   })
 }
-function captureReply(operation: Mobile001Operation, reply: Mobile001BackendReply, origin: string, path: string): Mobile001BackendReply {
+function captureReply(operation: Mobile001Operation | Mobile002Operation, reply: Mobile001BackendReply & { resourceContext?: MobileResourceSemanticContext }, origin: string, path: string): Mobile001BackendReply {
   if (!(reply.body instanceof Uint8Array) || reply.body.buffer instanceof SharedArrayBuffer
     || reply.body.byteLength > MOBILE_API_RESPONSE_MAX_BYTES || !Array.isArray(reply.headers)
     || reply.headers.length > MOBILE_HTTPS_LIMITS.headers || reply.beforeSend !== undefined && typeof reply.beforeSend !== 'function') {
@@ -138,7 +142,7 @@ function captureReply(operation: Mobile001Operation, reply: Mobile001BackendRepl
   })
   const body = new Uint8Array(reply.body)
   const checked = decodeMobileResponse(operation, { status: reply.status, headers, body, finalUrl: `${origin}${path}` }, {
-    responseOrigin: origin, requestPath: path,
+    responseOrigin: origin, requestPath: path, ...(reply.resourceContext ? { resource: reply.resourceContext } : {}),
   })
   if (!checked.ok) throw serviceFailure(503, 'BUSY')
   const length = headers.find(([name]) => name.toLowerCase() === 'content-length')
@@ -152,11 +156,13 @@ function captureReply(operation: Mobile001Operation, reply: Mobile001BackendRepl
   return { status: reply.status, headers, body, ...(reply.beforeSend ? { beforeSend: reply.beforeSend } : {}) }
 }
 function safeReply(error: unknown, requestId: string): Mobile001BackendReply {
-  const safe = error instanceof MobileServiceError ? error : serviceFailure(503, 'BUSY')
-  const mapped = mapMobileSafeError({ code: safe.code, requestId, retryable: safe.retryable })
+  const safe = safeMobilePlaybackFailure(error)
+  const mapped = mapMobileSafeError({ code: safe.code, requestId, retryable: safe.retryable,
+    ...(safe.retryAfterMs === undefined ? {} : { retryAfterMs: safe.retryAfterMs }) })
   if (!mapped.ok) throw new MobileHttpsServerError('INVALID_CONFIGURATION')
   const body = new TextEncoder().encode(JSON.stringify(mapped.value))
-  return { status: safe.status, headers: [['Content-Type', 'application/json'], ['Content-Length', String(body.byteLength)]], body }
+  return { status: safe.status, headers: [['Content-Type', 'application/json'], ['Content-Length', String(body.byteLength)],
+    ...(safe.retryAfterMs === undefined ? [] : [['Retry-After', String(Math.ceil(safe.retryAfterMs / 1000))] as [string, string]])], body }
 }
 function output(response: ServerResponse, reply: Mobile001BackendReply): Promise<void> {
   return new Promise(resolve => {
@@ -176,6 +182,11 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
     || Array.from(requestedHosts).some(value => !isMobilePrivateIPv4(value)) || !requestedHosts.includes(host)
     || typeof options.backend?.dispatch !== 'function') throw new MobileHttpsServerError('INVALID_CONFIGURATION')
   const dispatch = options.backend.dispatch.bind(options.backend)
+  const operationSet = new Set<string>(MOBILE001_OPERATIONS)
+  if (options.playback) {
+    if (typeof options.playback.dispatch !== 'function' || typeof options.playback.resourceCapabilities !== 'function') throw new MobileHttpsServerError('INVALID_CONFIGURATION')
+    for (const operation of MOBILE002_OPERATIONS) operationSet.add(operation)
+  }
   let certificateSha256: string, server: Server
   try {
     const certificate = new X509Certificate(options.tls.cert)
@@ -191,6 +202,8 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
     })
   } catch { throw new MobileHttpsServerError('INVALID_TLS_IDENTITY') }
   const hosts = new Set(requestedHosts), sockets = new Set<Duplex>(), active = new Set<AbortController>()
+  const controls = new Set<AbortController>(), media = new Set<AbortController>()
+  const handlers = new Set<Promise<void>>(), mediaCleanup = new Set<Promise<void>>()
   let closed = false, listeningPort = 0, startFlight: Promise<MobileHttpsListening> | undefined, closeFlight: Promise<void> | undefined
   server.maxConnections = MOBILE_HTTPS_LIMITS.connections
   // 不让 Node 先截断重复头；总字节先限，随后完整 rawHeaders 闭集核最多64项。
@@ -208,11 +221,11 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
     for (const socket of sockets) socket.destroy()
   })
   server.on('request', (request, response) => {
-    void (async () => {
+    const handler = (async () => {
       const requestId = randomUUID()
       if (closed) { response.destroy(); return }
-      if (active.size >= MOBILE_HTTPS_LIMITS.concurrentRequests) { await output(response, safeReply(serviceFailure(429, 'BUSY'), requestId)); return }
       const controller = new AbortController(); active.add(controller)
+      let ownMediaReply: MobileMediaReply | undefined
       const cancel = () => controller.abort()
       const peerClose = () => { if (!response.writableFinished) cancel() }
       request.once('aborted', cancel); response.once('close', peerClose)
@@ -223,28 +236,63 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
         const headers = headerPairs(request), origin = authority(headers, hosts, listeningPort), target = requestTarget(request.url)
         const resolved = resolveMobileOperation(request.method ?? '', target.path.slice(1).split('/'))
         if (!resolved.ok || !operationSet.has(resolved.value)) throw serviceFailure(404, 'INVALID_REQUEST')
-        const operation = resolved.value as Mobile001Operation
+        const operation = resolved.value as Mobile001Operation | Mobile002Operation
+        const isMedia = operation === 'getMediaAsset' || operation === 'headMediaAsset'
+        const lane = isMedia ? media : controls
+        if (lane.size >= MOBILE_HTTPS_LIMITS.concurrentRequests) throw serviceFailure(429, isMedia ? 'RESOURCE_BUSY' : 'BUSY')
+        lane.add(controller)
         const body = await readBody(request, headers, controller.signal)
+        const bearer = accessToken(headers)
+        const resourceCapabilities = operation === 'createResource'
+          ? await withAbort(options.playback!.resourceCapabilities(bearer, target.path.split('/')[4]!, origin, controller.signal), controller.signal)
+          : undefined
         const decoded = decodeMobileRequest(operation, { method: request.method!, path: target.path, headers, query: target.query, body }, {
-          responseOrigin: origin, requestPath: target.path,
+          responseOrigin: origin, requestPath: target.path, ...(resourceCapabilities ? { resourceCapabilities } : {}),
         })
+        if (!decoded.ok && operation === 'getMediaAsset' && decoded.issue.field === 'range') {
+          await output(response, { status: 400, headers: [['Content-Length', '0']], body: new Uint8Array() }); return
+        }
         if (!decoded.ok) throw serviceFailure(decoded.issue.code === 'LIMIT_EXCEEDED' ? 413 : 400,
           decoded.issue.code === 'LIMIT_EXCEEDED' ? 'CONTENT_LIMIT_EXCEEDED' : 'INVALID_REQUEST')
-        const raw = await withAbort(dispatch({ operation, request: decoded.value,
-          accessToken: accessToken(headers), signal: controller.signal }), controller.signal)
+        let raw: Mobile001BackendReply | Mobile002BackendReply
+        if ((MOBILE001_OPERATIONS as readonly string[]).includes(operation)) raw = await withAbort(dispatch({ operation: operation as Mobile001Operation,
+          request: decoded.value, accessToken: bearer, signal: controller.signal }), controller.signal)
+        else {
+          const pending = options.playback!.dispatch({ operation: operation as Mobile002Operation, request: decoded.value,
+            accessToken: bearer, signal: controller.signal, origin, headers })
+          // HTTP已经退场后的迟到媒体reply仍必须关闭原读句柄。
+          const late = pending.then(async value => { if (controller.signal.aborted && value.kind === 'media') await value.reader.close() }, () => undefined)
+          mediaCleanup.add(late); void late.then(() => mediaCleanup.delete(late), () => {})
+          raw = await withAbort(pending, controller.signal)
+        }
+        if ('kind' in raw && raw.kind === 'media') {
+          clearTimeout(deadline); response.setTimeout(0); ownMediaReply = raw
+          await sendMobileMediaResponse(request, response, raw, controller.signal); return
+        }
         const reply = captureReply(operation, raw, origin, target.path)
         if (reply.beforeSend) await withAbort(reply.beforeSend(), controller.signal)
         if (closed || controller.signal.aborted || response.destroyed) throw serviceFailure(503, 'BUSY')
         await output(response, reply)
       } catch (error) {
-        if (!closed && !controller.signal.aborted && !response.destroyed && !response.headersSent) await output(response, safeReply(error, requestId))
+        if (!closed && !controller.signal.aborted && !response.destroyed && !response.headersSent) {
+          const reply = safeReply(error, requestId)
+          if (request.method === 'HEAD') { reply.body = new Uint8Array(); reply.headers = [...reply.headers.filter(([name]) => name.toLowerCase() !== 'content-length'), ['Content-Length', '0']] }
+          await output(response, reply)
+        }
         else if (!response.writableFinished) response.destroy()
       } finally {
         clearTimeout(deadline); active.delete(controller)
+        controls.delete(controller); media.delete(controller)
         request.removeListener('aborted', cancel); response.removeListener('close', peerClose)
         controller.abort()
+        if (ownMediaReply) {
+          const cleanup = getMobileMediaReleaseCompletion(ownMediaReply)
+          if (cleanup) { mediaCleanup.add(cleanup); void cleanup.then(() => mediaCleanup.delete(cleanup), () => {}) }
+        }
       }
-    })().catch(() => response.destroy())
+    })()
+    handlers.add(handler)
+    void handler.catch(() => response.destroy()).finally(() => handlers.delete(handler))
   })
   return {
     start() {
@@ -277,6 +325,9 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
           server.close(() => { clearTimeout(timer); resolve() })
           server.closeIdleConnections()
         })
+        const results = await Promise.allSettled([...handlers])
+        results.push(...await Promise.allSettled([...mediaCleanup]))
+        if (results.some(result => result.status === 'rejected')) throw new MobileHttpsServerError('CLOSED')
       })()
       return closeFlight
     },

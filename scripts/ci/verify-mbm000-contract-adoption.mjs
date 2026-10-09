@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { validateOfflineArguments, createPrivateRun, writePrivateJson, sanitizeOutput,
   parseTestCounts, isCompleteTestRun } from './verify-mbrs001-offline.mjs';
 import { normalizeMbm001LegacyReuse } from './mbm001-legacy-reuse-normalization.mjs';
+import { normalizeMbm002LegacyInputs } from './mbm002-legacy-input-normalization.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const contracts = 'packages/contracts';
@@ -462,10 +463,11 @@ export async function runMobileContractGate(argv = process.argv.slice(2), env = 
     if (actual?.bytes === pinned.bytes && actual?.sha256 === pinned.sha256) continue;
     const current = await readMobileFile(path.join(repository, pinned.path), { maxBytes: budgets.sourceFileBytes, check });
     if (current.identity.bytes !== actual?.bytes || current.identity.sha256 !== actual?.sha256) fail('MBM000_ADMISSION_INPUT_DRIFT');
-    assertPin(normalizeMbm001LegacyReuse(pinned.path, current.bytes), pinned, 'MBM000_EXISTING_MAC_BOUNDARY_CHANGED');
-    acceptedLegacyReuseFragments.push({ path: pinned.path, task: 'MBM-001', current: actual,
+    const original001 = normalizeMbm002LegacyInputs(pinned.path, current.bytes);
+    assertPin(normalizeMbm001LegacyReuse(pinned.path, original001), pinned, 'MBM000_EXISTING_MAC_BOUNDARY_CHANGED');
+    acceptedLegacyReuseFragments.push({ path: pinned.path, task: original001.equals(current.bytes) ? 'MBM-001' : 'MBM-002', current: actual,
       original: { bytes: pinned.bytes, sha256: pinned.sha256 },
-      proof: 'EXACT_ORIGINAL_BYTES_RESTORED_IN_MEMORY_CURRENT_OWNER_BEHAVIOR_REQUIRES_MBM001_GATE' });
+      proof: 'EXACT_ORIGINAL_BYTES_RESTORED_IN_MEMORY_CURRENT_OWNER_BEHAVIOR_REQUIRES_OWN_SOURCE_GATE' });
   }
   const require = createRequire(path.join(repository, contracts, 'package.json'));
   const toolNames = [require.resolve('typescript/bin/tsc'), require.resolve('typescript/package.json'), require.resolve('tsx'), require.resolve('tsx/package.json')];

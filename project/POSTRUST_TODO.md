@@ -1,6 +1,6 @@
 # MusicBridge 开发待办
 
-当前任务：MBM-001（进行中）。MBM-000双端合同软件交付已实际封存：Mac Source 579d0c3097a0cd78290467cf9b073819989826fd、最终R c6c4745dfc7fe4242b8a2682798e00605649b12e；iOS最终R 8ba6b9777b67d23dc89cc1edca7412e128398256。Source自然4workflow/6job与R自然2workflow/3job成功，五份Source整包、R整日志及真实report-only制品已消费，双方remote exact/clean/canonical一致。000打勾仅指软件交付，真实层缺口保留。接续001→002→003→004→016→017，不重复索取常规授权。
+当前任务：MBM-002（进行中）。MBM-001双端工程交付已封存：Mac Source cef70a57aa1f4b495e6babb4cc7c0b65f7297742、R 8044d935e242d8647adc21445116fb49c9100e4a；iOS Source b82049825e9e9058fe4a70186da70f5a267543ea、R c53ed3e4850f60b203d4773446db74789e2814d7。双方远端clean/canonical一致，Mac Source自然4workflow/6job、R自然2workflow/3job及实际制品通过；001真实iOS、设备音频与Owner仍未跑。接续002→003→004→016→017，沿用已有授权。
 
 | 任务 | 要做的事 | 进度 |
 | --- | --- | --- |
@@ -21,9 +21,9 @@
 | MBRS-014 | 保留现有收藏、录音记录和音乐来源。 | 有限软件、精确404/404、合成生产App2/2、源码与独立报告自然CI及最终远端/clean已封存；8产品AT仍PARTIAL |
 | MBRS-015 | 可选 Roon 内部协议信息增强。 | Owner 取消；6条验收因取消不适用，不计PASS或完成 |
 | MBM-000 | 合同采纳。 | [x] 双端软件交付已封存；Source/R自然CI及实际制品、远端clean通过；真实服务/设备/音频/Owner未跑 |
-| MBM-001 | 配对与只读曲库。 | [ ] 软件与实际自有Mac服务消费已验证：Mac87、原App2、iOS149/受控HTTPS41，正式共享SDK实际22项及驱动32项；103专辑/103曲目分页和自然关闭通过，最终Source/R/自然CI记账仍待收口 |
-| MBM-002 | 手机资源播放。 | 未开始；等待MBM-001 |
-| MBM-003 | FLAC无损必做。 | 未开始；等待MBM-002 |
+| MBM-001 | 配对与只读曲库。 | [x] 双端工程交付封存；自然Source/R CI、整制品及远端clean通过；实际自有Mac共享SDK22/驱动32通过，原9AT与真实设备/音频/Owner缺口保留 |
+| MBM-002 | 手机资源播放。 | 进行中；从001最终R独立分支实施session/resource、ticket、Range/HEAD、流式背压、FD/lease及恢复 |
+| MBM-003 | FLAC无损及DSD→PCM兼容播放。 | 未开始；等待002；必须物理iPhone实播至少24-bit/192kHz FLAC及有效DSD→独立PCM，源只读；详见003 Owner增补 |
 | MBM-004 | 内容与多设备。 | 未开始；等待MBM-003 |
 | MBRS-016 | 检查性能、安全和已有功能。 | 未开始；调度等待MBM-004，原硬依赖保持 |
 | MBRS-017 | 打包应用，提供使用说明和恢复办法。 | 未开始；依赖016 |
@@ -34,7 +34,7 @@
 
 执行依赖仍按计划：014旧收藏/录音/frozen来源保护必须先于012写回；015已取消，核心任务仍无此硬依赖。006回执容量256、HTTP观测UNKNOWN与四轴未测继续明确记录，007再评估队列恢复/长期回执策略。
 
-后续移动MBM-000～004按[生效计划](../docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md)在013封版后连续启动，再做016和017；000已交付，001正在接线与交付收口，002～004尚未开始。原任务正文、硬依赖、156AT与取消后的17/150账本保持，原报告及下方“017后启动”候选登记仅作历史。MBM-002首条可运行真实文件链路接iPhone，003验证FLAC，004验证双机、后台与家庭Roon。
+移动线按[生效计划](../docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md)连续推进；000和001工程交付已封存，002实施中，003/004/016/017尚未开始。原18任务/156AT与取消后的17/150账本及冻结历史保留。002首条可运行真实文件链路及时交iOS，003做FLAC无损，004做双机、后台与家庭Roon。
 
 007结果见[队列报告](../reports/MBRS-007_QUEUE_PREFETCH_CONTROL.md)：963项本地Gate与精确源四条CI通过，gapless/重锁/真实Roon/Owner未跑；008有限软件结果见[音质证据报告](../reports/MBRS-008_AUDIO_TRANSPARENCY.md)；真实格式/Roon路径/数字设备/gapless/普通App/Owner仍待；后续顺序与移动采纳均保持。
 

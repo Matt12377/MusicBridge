@@ -26,6 +26,7 @@ function same(a: ReturnType<typeof fstatSync>, b: NonNullable<ReturnType<typeof 
 /** 只在原 Dataset Owner 内构造；不打开 SQLite，也不接收公开路径。 */
 export function createMobileSealedStateStore(options: {
   directory: string; datasetId: string; assertCurrent(): void;
+  namespace?: 'auth' | 'playback';
   /** 仅本地故障测试使用；IPC/配置/环境都不能提供回调。 */
   afterPublish?: () => void;
 }) {
@@ -33,7 +34,8 @@ export function createMobileSealedStateStore(options: {
     throw new MobileAuthPersistenceError('not-sent');
   }
   const directory = path.join(options.directory, 'mobile-devices');
-  const file = path.join(directory, fileName);
+  if (options.namespace !== undefined && !['auth', 'playback'].includes(options.namespace)) throw new MobileAuthPersistenceError('not-sent');
+  const file = path.join(directory, options.namespace === 'playback' ? 'playback-state.v1.sealed.json' : fileName);
   function assertDirectory(): void {
     options.assertCurrent();
     const parent = lstatSync(options.directory);

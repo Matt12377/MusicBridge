@@ -104,6 +104,7 @@ function fixture(t: TestContext, count = 3) {
           artworkId: ARTWORK, selectionRevision: state.selectionRevision, contentType: 'image/jpeg',
           bytes: new Uint8Array(state.selectedBytes) };
     } else {
+      assert.ok(request.kind === 'catalog', '原001测试组合只接收认证、目录和选图操作。');
       assert.equal(request.request.serverId, IDS.server);
       const gate = held; held = null;
       if (gate) { gate.entered.resolve(); await gate.released.promise; }

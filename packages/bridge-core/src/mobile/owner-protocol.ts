@@ -1,11 +1,11 @@
-import { isMobileId, isMobileAlbum, isMobileTrack, MOBILE_API_RESPONSE_MAX_BYTES } from '@music-bridge/contracts';
+import { isMobileId, isMobileAlbum, isMobileTrack, MOBILE_API_RESPONSE_MAX_BYTES, MOBILE_SAFE_ERROR_CODES } from '@music-bridge/contracts';
+import { isMobileOwnerSourceRequest, isMobileOwnerSourceResult } from './source-protocol.js';
 import {
   MOBILE_AUTH_SEALED_MAX_BYTES, type MobileOwnerCatalogRequest,
   type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult,
 } from './types.js';
 
-const safeCodes = ['INVALID_REQUEST', 'UNAUTHORIZED', 'SOURCE_CHANGED', 'CURSOR_INVALID', 'REVISION_CONFLICT',
-  'IDEMPOTENCY_CONFLICT', 'UNSUPPORTED_FORMAT', 'BUSY', 'CONTENT_LIMIT_EXCEEDED'];
+const safeCodes: readonly string[] = MOBILE_SAFE_ERROR_CODES;
 const integer = (v: unknown, min: number, max = Number.MAX_SAFE_INTEGER): v is number => Number.isSafeInteger(v) && Number(v) >= min && Number(v) <= max;
 const uuid = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u.test(v);
 function closed(value: unknown, names: readonly string[]): value is Record<string, unknown> {
@@ -42,29 +42,32 @@ export function isMobileOwnerCatalogRequest(v: unknown): v is MobileOwnerCatalog
     && (v.operation.startsWith('get') ? v.itemId !== null && v.offset === 0 && v.limit === 1 : v.itemId === null);
 }
 export function isMobileOwnerPrivateRequest(v: unknown): v is MobileOwnerPrivateRequest {
-  if (closed(v, ['kind', 'datasetId']) && v.kind === 'load') return isMobileId(v.datasetId);
+  if (closed(v, ['kind', 'datasetId']) && (v.kind === 'load' || v.kind === 'playback-load')) return isMobileId(v.datasetId);
   if (!closed(v, ['kind', 'datasetId', 'request']) || !isMobileId(v.datasetId)) return false;
   if (v.kind === 'catalog') return isMobileOwnerCatalogRequest(v.request);
+  if (v.kind === 'media-source') return isMobileOwnerSourceRequest(v.request);
   if (v.kind === 'artwork') return closed(v.request, ['serverId', 'artworkId']) && isMobileId(v.request.serverId) && isMobileId(v.request.artworkId);
-  if (v.kind === 'save') return closed(v.request, ['datasetId', 'expectedRevision', 'commitId', 'sealed'])
+  if (v.kind === 'save' || v.kind === 'playback-save') return closed(v.request, ['datasetId', 'expectedRevision', 'commitId', 'sealed'])
     && v.request.datasetId === v.datasetId && integer(v.request.expectedRevision, 0, Number.MAX_SAFE_INTEGER - 1)
     && uuid(v.request.commitId) && bytes(v.request.sealed, MOBILE_AUTH_SEALED_MAX_BYTES);
   return false;
 }
 export function isMobileOwnerPrivateResult(v: unknown, request: MobileOwnerPrivateRequest): v is MobileOwnerPrivateResult {
   if (closed(v, ['kind', 'status', 'code', 'retryable', 'outcome']) && v.kind === 'mobile-error') {
-    return typeof v.status === 'number' && [400, 401, 404, 409, 413, 429, 503].includes(v.status) && typeof v.code === 'string' && safeCodes.includes(v.code)
+    return typeof v.status === 'number' && [400, 401, 403, 404, 409, 410, 413, 429, 503].includes(v.status) && typeof v.code === 'string' && safeCodes.includes(v.code)
       && typeof v.retryable === 'boolean' && [null, 'not-sent', 'unknown'].includes(v.outcome as null | string);
   }
-  if (request.kind === 'load') return closed(v, ['kind', 'datasetId', 'revision']) && v.kind === 'missing' && v.datasetId === request.datasetId && v.revision === 0
+  if (request.kind === 'media-source') return isMobileOwnerSourceResult(v, request.request);
+  if (request.kind === 'load' || request.kind === 'playback-load') return closed(v, ['kind', 'datasetId', 'revision']) && v.kind === 'missing' && v.datasetId === request.datasetId && v.revision === 0
     || closed(v, ['kind', 'datasetId', 'revision', 'commitId', 'sealed']) && v.kind === 'sealed' && v.datasetId === request.datasetId
       && integer(v.revision, 1) && uuid(v.commitId) && bytes(v.sealed, MOBILE_AUTH_SEALED_MAX_BYTES);
-  if (request.kind === 'save') return closed(v, ['kind', 'datasetId', 'revision', 'commitId']) && v.kind === 'saved'
+  if (request.kind === 'save' || request.kind === 'playback-save') return closed(v, ['kind', 'datasetId', 'revision', 'commitId']) && v.kind === 'saved'
       && v.datasetId === request.datasetId && v.revision === request.request.expectedRevision + 1 && v.commitId === request.request.commitId
     || closed(v, ['kind', 'datasetId', 'currentRevision']) && v.kind === 'conflict' && v.datasetId === request.datasetId && integer(v.currentRevision, 0);
   if (request.kind === 'artwork') return closed(v, ['datasetId', 'ownerEpoch', 'libraryRevision', 'artworkId', 'selectionRevision', 'contentType', 'bytes'])
     && v.datasetId === request.datasetId && uuid(v.ownerEpoch) && isMobileId(v.libraryRevision) && v.artworkId === request.request.artworkId
     && isMobileId(v.selectionRevision) && v.contentType === 'image/jpeg' && bytes(v.bytes, 1024 * 1024);
+  if (request.kind !== 'catalog') return false;
   if (!closed(v, ['datasetId', 'ownerEpoch', 'libraryRevision', 'operation', 'offset', 'limit', 'total', 'items'])
     || v.datasetId !== request.datasetId || !uuid(v.ownerEpoch) || !isMobileId(v.libraryRevision)
     || v.operation !== request.request.operation || v.offset !== request.request.offset || v.limit !== request.request.limit

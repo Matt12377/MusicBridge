@@ -1,5 +1,7 @@
 import { createLocalArtworkService } from './local-artwork-service.js';
 import { createMobileOwnerService } from '../mobile/owner-service.js';
+import { createMobileOwnerSourceService } from '../mobile/source-service.js';
+import { isMobileOwnerPrivateRequest } from '../mobile/owner-protocol.js';
 import {materializeMBEdition} from './mb-queue-materializer.js';
 import { createLocalSourceTickets } from './local-source-tickets.js';
 import {createLocalRelocationCoordinator} from './local-relocation-coordinator.js';
@@ -120,6 +122,10 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const mobileOwner = createMobileOwnerService({ collection, datasetId: identity.datasetId, ownerEpoch: options.localSourceEpoch ?? randomUUID(),
     assertCurrent: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '移动 Owner 尚未 commitBoot。'); } });
   const localTickets = createLocalSourceTickets(collection, options.localSourceEpoch ?? randomUUID(), identity.datasetId, () => { assertOpen(); if (!scanBootReady) throw new Error('本地事实Owner尚未boot。'); });
+  const mobileSources = createMobileOwnerSourceService({ collection, tickets: localTickets, datasetId: identity.datasetId,
+    ownerEpoch: options.localSourceEpoch ?? randomUUID(), assertCurrent: () => {
+      assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '移动源 Owner 尚未 commitBoot。');
+    } });
   const localScan=createLocalScanCoordinator({repository:collection,datasetId:identity.datasetId,assertCurrent:assertDataset,assertReady:()=>{if(!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE','扫描owner尚未commitBoot。');},
     ...(options.projection ? {projection:options.projection}:{}),...(test?.scanMetadataReader ? {reader:test.scanMetadataReader}:{})});
   // BackupCoordinator仍使用唯一原store的方法与事务；其close只提出关闭请求。
@@ -182,7 +188,13 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       return pending.finally(() => pendingDispatches.delete(pending));
     },
     mobileMain(request) {
-      const pending = Promise.resolve().then(() => mobileOwner.dispatch(request));
+      const pending = Promise.resolve().then(() => {
+        if (request.kind !== 'media-source') return mobileOwner.dispatch(request);
+        if (!isMobileOwnerPrivateRequest(request) || request.datasetId !== identity.datasetId) return {
+          kind: 'mobile-error' as const, status: 400 as const, code: 'INVALID_REQUEST' as const, retryable: false, outcome: null,
+        };
+        return mobileSources.dispatch(request.request);
+      });
       pendingDispatches.add(pending); return pending.finally(() => pendingDispatches.delete(pending));
     },
     dispatchSourceWritesMain(request,actor) {
@@ -225,6 +237,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       closed = (async () => {
         const failures: unknown[] = [];
         const stop = async (operation: () => unknown) => { try { await operation(); } catch (error) { failures.push(error); } };
+        await stop(() => mobileSources.close());
         // 前序失败仍尽力停止后续原资源；任何收尾失败都保留两库，不发送静止成功回执，也不自动重试。
         await stop(() => recordingReplica.close()); await stop(() => recordingPrints.close()); await stop(() => recordingRecords.close()); await stop(() => recordingAttempts.close());
         await stop(() => recordingDeviceSelection?.close()); await stop(() => recordingOutput.close()); await stop(() => recordingPlans.close());

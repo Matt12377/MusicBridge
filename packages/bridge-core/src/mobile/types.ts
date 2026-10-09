@@ -3,6 +3,7 @@ import type {
   MobileDecodedRequest, MobileHeaderPairs, MobileOperationId, MobilePairingClaim,
   MobileRefreshRequest, MobileSafeErrorFacts, MobileServerInfo, MobileTokenPair, MobileTrack,
 } from '@music-bridge/contracts';
+import type { MobileOwnerSourceRequest, MobileOwnerSourceResult } from './source-protocol.js';
 
 /** 本域私有端口；不是新增公开 HTTP 或普通 Renderer IPC。 */
 export const MOBILE001_OPERATIONS = [
@@ -17,8 +18,8 @@ export const MOBILE_AUTH_MAX_PAIRINGS = 32;
 export const MOBILE_AUTH_MAX_RECEIPTS = 4096;
 
 export class MobileServiceError extends Error {
-  constructor(readonly status: 400 | 401 | 404 | 409 | 413 | 429 | 503,
-    readonly code: MobileSafeErrorFacts['code'], readonly retryable = false) {
+  constructor(readonly status: 400 | 401 | 403 | 404 | 409 | 410 | 413 | 429 | 503,
+    readonly code: MobileSafeErrorFacts['code'], readonly retryable = false, readonly retryAfterMs?: number) {
     super('移动服务当前无法完成请求。');
   }
 }
@@ -62,6 +63,8 @@ export interface MobileAuthService {
   refresh(body: MobileRefreshRequest, idempotencyKey: string): Promise<MobileTokenPair>;
   authenticate(accessToken: string): Promise<MobilePrincipal>;
   assertCurrent(principal: MobilePrincipal): Promise<void>;
+  /** 仅可信媒体票据端口；正常access轮换不撤销设备epoch。 */
+  assertDeviceCurrent(deviceId: string, deviceEpoch: number): Promise<void>;
   logout(principal: MobilePrincipal): Promise<void>;
   close(): Promise<void>;
 }
@@ -92,11 +95,14 @@ export interface MobileCatalogReadPort {
 }
 export type MobileOwnerPrivateRequest =
   | { kind: 'load'; datasetId: string }
+  | { kind: 'playback-load'; datasetId: string }
   | { kind: 'save'; datasetId: string; request: MobileSealedSave }
+  | { kind: 'playback-save'; datasetId: string; request: MobileSealedSave }
+  | { kind: 'media-source'; datasetId: string; request: MobileOwnerSourceRequest }
   | { kind: 'catalog'; datasetId: string; request: MobileOwnerCatalogRequest }
   | { kind: 'artwork'; datasetId: string; request: { serverId: string; artworkId: string } };
 export type MobileOwnerPrivateResult = MobileSealedState | MobileSealedSaveResult
-  | MobileOwnerCatalogSnapshot | MobileOwnerArtworkSnapshot | MobileOwnerPrivateFailure;
+  | MobileOwnerCatalogSnapshot | MobileOwnerArtworkSnapshot | MobileOwnerSourceResult | MobileOwnerPrivateFailure;
 export interface MobileOwnerPrivateFailure {
   kind: 'mobile-error'; status: MobileServiceError['status']; code: MobileSafeErrorFacts['code'];
   retryable: boolean; outcome: 'not-sent' | 'unknown' | null;

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readMobileFile } from '../verify-mbm000-contract-adoption.mjs';
 import { MBM001_LEGACY_REUSE, normalizeMbm001LegacyReuse } from '../mbm001-legacy-reuse-normalization.mjs';
+import { normalizeMbm002LegacyInputs } from '../mbm002-legacy-input-normalization.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const base = 'c6c4745dfc7fe4242b8a2682798e00605649b12e';
@@ -20,13 +21,15 @@ test('001旧Owner守卫：三个完整当前文件只读逆回原锁字节，旧
   const lock = JSON.parse(lockBytes);
   assert.equal(MBM001_LEGACY_REUSE.length, 3);
   for (const row of MBM001_LEGACY_REUSE) {
-    const before = original(row.path), actual = (await readMobileFile(path.join(repository, row.path), { maxBytes: 4 * 1024 * 1024 })).bytes;
+    const before = original(row.path), current = (await readMobileFile(path.join(repository, row.path), { maxBytes: 4 * 1024 * 1024 })).bytes;
+    // 后继仅在精确整文件资格通过后，内存恢复001字节；旧before/after和旧锁断言不变。
+    const actual = normalizeMbm002LegacyInputs(row.path, current);
     assert.deepEqual(identity(before), row.before); assert.deepEqual(identity(actual), row.after);
     const pinned = lock.macReusePoints.find(value => value.path === row.path); assert.ok(pinned);
     assert.deepEqual(row.before, { bytes: pinned.bytes, sha256: pinned.sha256 });
     assert.equal(normalizeMbm001LegacyReuse(row.path, before), before);
     assert.deepEqual(normalizeMbm001LegacyReuse(row.path, actual), before);
-    assert.deepEqual((await readMobileFile(path.join(repository, row.path), { maxBytes: 4 * 1024 * 1024 })).bytes, actual);
+    assert.deepEqual((await readMobileFile(path.join(repository, row.path), { maxBytes: 4 * 1024 * 1024 })).bytes, current);
   }
 });
 test('001旧Owner守卫：任意额外字节、截断和替换均拒绝，不能扩大到未知改动', async () => {

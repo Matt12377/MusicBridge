@@ -33,7 +33,8 @@ function rootShape(v: unknown, expectedId: string): v is RootCapability {
     && typeof r.ino === 'string' && /^(0|[1-9][0-9]*)$/u.test(r.ino) && r.ino.length <= 32
     && typeof r.authorized === 'boolean' && typeof r.label === 'string' && r.label.length <= 256;
 }
-function facts(repository: CollectionRepository, request: LocalPlayRequest): LocalSourceFacts {
+export type LocalFactSelection = Pick<LocalPlayRequest, 'local_track_id' | 'asset_id' | 'expected_asset_revision'>;
+function facts(repository: CollectionRepository, request: LocalFactSelection): LocalSourceFacts {
   const track = repository.localCatalog.track(request.local_track_id);
   const locator = repository.localCatalog.privateAssetLocator(request.asset_id), asset = locator.asset;
   const root = repository.localCatalog.root(asset.libraryRootId), sourceRoot = repository.sources.root(root.sourceRootId);
@@ -60,6 +61,10 @@ function facts(repository: CollectionRepository, request: LocalPlayRequest): Loc
 /** Owner只证明目录/观察事实，Core目标权威另由原Adapter与Controller绑定。 */
 export function captureLocalFactsReadonly(request: LocalPlayRequest, repository: CollectionRepository): LocalSourceFacts {
   if (!isLocalPlayRequest(request)) return fail('INVALID_REQUEST');
+  return captureLocalFactsByIdentityReadonly(request, repository);
+}
+/** 手机读取由真实目录身份授权，不构造家庭 Roon target 或动作。 */
+export function captureLocalFactsByIdentityReadonly(request: LocalFactSelection, repository: CollectionRepository): LocalSourceFacts {
   const before = facts(repository, request), after = facts(repository, request);
   if(after.track.segment!==null)return fail('SEGMENT_UNSUPPORTED');
   if (!same(before, after) || !after.observation) return fail('FACTS_CHANGED');

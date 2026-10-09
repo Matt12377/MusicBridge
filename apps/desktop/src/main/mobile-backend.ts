@@ -5,15 +5,21 @@ import { createMobileAuthService } from '../../../../packages/bridge-core/src/mo
 import { createMobileCatalogService } from '../../../../packages/bridge-core/src/mobile/catalog-service.js';
 import { isMobileOwnerPrivateResult } from '../../../../packages/bridge-core/src/mobile/owner-protocol.js';
 import { MobileAuthPersistenceError, MobileServiceError, type Mobile001Backend, type Mobile001BackendReply, type MobileAuthPersistence, type MobileCatalogReadPort, type MobileOwnerArtworkSnapshot, type MobileOwnerCatalogSnapshot, type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult, type MobilePrincipal } from '../../../../packages/bridge-core/src/mobile/types.js';
+import { createMobilePlaybackBackend } from './mobile-playback-backend.js';
+import type { MobileAuthService } from '../../../../packages/bridge-core/src/mobile/types.js';
 
 export function createMobileBackend(options: {
   serverId: string; datasetId: string; authKey: Uint8Array; displayName: string; environment: 'development' | 'production';
   requestOwner(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult>;
   assertCurrent(): void;
   resizeArtwork(bytes: Uint8Array, size: 96 | 256 | 512): Uint8Array;
+  enablePlayback?: boolean;
 }) {
   let closed = false;
   let closeFlight: Promise<void> | undefined;
+  let responseOrigin = 'https://127.0.0.1';
+  let playback: ReturnType<typeof createMobilePlaybackBackend> | undefined;
+  const revocations = new Map<string, Set<Promise<void>>>();
   const same = (a: unknown, b: unknown): boolean => mobileCanonicalJson(a as MobileJsonValue) === mobileCanonicalJson(b as MobileJsonValue);
   const current = (): void => { if (closed) throw new MobileServiceError(503, 'BUSY'); options.assertCurrent(); };
   async function owner(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult> {
@@ -29,8 +35,22 @@ export function createMobileBackend(options: {
     load: async datasetId => { const request = { kind: 'load' as const, datasetId }; return await owner(request) as Awaited<ReturnType<MobileAuthPersistence['load']>>; },
     save: async request => await owner({ kind: 'save', datasetId: options.datasetId, request }) as Awaited<ReturnType<MobileAuthPersistence['save']>>,
   };
-  const auth = createMobileAuthService({ persistence, crypto: createMobileAuthCrypto(options.authKey), serverId: options.serverId,
-    datasetId: options.datasetId, displayName: options.displayName, environment: options.environment });
+  const rawAuth = createMobileAuthService({ persistence, crypto: createMobileAuthCrypto(options.authKey), serverId: options.serverId,
+    datasetId: options.datasetId, displayName: options.displayName, environment: options.environment,
+    onDeviceEpochRevoked: deviceId => {
+      if (!playback) return;
+      const task = playback.revokeDevice(deviceId), pending = revocations.get(deviceId) ?? new Set<Promise<void>>();
+      pending.add(task); revocations.set(deviceId, pending);
+      void task.then(() => { pending.delete(task); if (!pending.size) revocations.delete(deviceId); }, () => {});
+    } });
+  const awaitRevocation = async (deviceId: string): Promise<void> => { await Promise.all([...(revocations.get(deviceId) ?? [])]); };
+  const auth: MobileAuthService = { ...rawAuth,
+    claim: async (body, key) => { const result = await rawAuth.claim(body, key); await awaitRevocation(result.deviceId); return result; },
+    revokeDevice: async deviceId => { try { await rawAuth.revokeDevice(deviceId); } finally { await awaitRevocation(deviceId); } },
+    logout: async principal => { try { await rawAuth.logout(principal); } finally { await awaitRevocation(principal.deviceId); } },
+  };
+  if (options.enablePlayback) playback = createMobilePlaybackBackend({ serverId: options.serverId, datasetId: options.datasetId,
+    authKey: options.authKey, auth: rawAuth, requestOwner: options.requestOwner, assertCurrent: options.assertCurrent });
   const port: MobileCatalogReadPort = {
     read: async request => await owner({ kind: 'catalog', datasetId: options.datasetId, request }) as MobileOwnerCatalogSnapshot,
     artwork: async request => await owner({ kind: 'artwork', datasetId: options.datasetId, request }) as MobileOwnerArtworkSnapshot,
@@ -54,7 +74,7 @@ export function createMobileBackend(options: {
         case 'claimPairing': body = await auth.claim(request.body as MobilePairingClaim, request.idempotencyKey!); status = 201; break;
         case 'refreshToken': body = await auth.refresh(request.body as MobileRefreshRequest, request.idempotencyKey!); break;
         case 'logout': await auth.logout(principal!); status = 204; break;
-        case 'getCapabilities': body = capabilities; break;
+        case 'getCapabilities': body = playback?.enabled ? { ...capabilities, localPlayback: true, qualityProfiles: ['auto', 'lossless'] } : capabilities; break;
         case 'listAlbums': body = await catalog.listAlbums(request.query as MobileSearchQuery, principal!); break;
         case 'getAlbum': body = await catalog.getAlbum(request.pathParameters.albumId!, principal!); break;
         case 'listTracks': body = await catalog.listTracks(request.query as MobileSearchQuery, principal!); break;
@@ -71,7 +91,7 @@ export function createMobileBackend(options: {
       }
       current(); if (input.signal.aborted) throw new MobileServiceError(503, 'BUSY');
       const reply = encodeMobileJsonReply(operation, { status, category: status === 204 ? 'empty' : 'success', body } as MobileReplyMap[typeof operation],
-        { responseOrigin: 'https://127.0.0.1', requestPath: request.path });
+        { responseOrigin, requestPath: request.path });
       if (!reply.ok) throw new MobileServiceError(503, reply.issue.code === 'LIMIT_EXCEEDED' ? 'CONTENT_LIMIT_EXCEEDED' : 'BUSY');
       return { ...reply.value, headers: [...reply.value.headers, ['Cache-Control', 'private, no-store']], beforeSend: async () => {
         await alive();
@@ -93,5 +113,15 @@ export function createMobileBackend(options: {
       } };
     },
   };
-  return { backend, auth, close(): Promise<void> { if (!closeFlight) { closed = true; closeFlight = auth.close(); } return closeFlight; } };
+  return { backend, auth, playbackBackend: playback?.backend,
+    activatePlayback(origin: string): void { if (!playback) throw new MobileServiceError(400, 'INVALID_REQUEST'); playback.activate(origin); responseOrigin = origin; },
+    playbackSnapshot: () => playback?.snapshot(),
+    close(): Promise<void> {
+      if (!closeFlight) {
+        closed = true;
+        closeFlight = (async () => { try { await playback?.close(); await Promise.all([...revocations.values()].flatMap(set => [...set])); } finally { await rawAuth.close(); } })();
+      }
+      return closeFlight;
+    },
+  };
 }

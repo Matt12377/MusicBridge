@@ -80,3 +80,4 @@ export * from './mobile-catalog.js';
 export * from './mobile-resource.js';
 export * from './mobile-content.js';
 export * from './mobile-wire.js';
+export * from './mobile-media-stream.js';

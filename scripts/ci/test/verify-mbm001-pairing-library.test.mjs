@@ -5,13 +5,15 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertMbm001Admission, MBM001_BASE } from '../verify-mbm001-pairing-library.mjs';
+import { MBM002_BASE } from '../mbm002-admission.mjs';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const json = file => JSON.parse(readFileSync(path.join(root,file),'utf8'));
 function fixture() {
-  const gitJson = file => JSON.parse(execFileSync('git',['show',MBM001_BASE + ':' + file],{cwd:root,encoding:'utf8',maxBuffer:16777216}));
+  const gitJson = (file, revision = MBM001_BASE) => JSON.parse(execFileSync('git',['show',revision + ':' + file],{cwd:root,encoding:'utf8',maxBuffer:16777216}));
   const canonicalBytes = readFileSync(path.join(root,'packages/contracts/mobile/openapi.json'));
   return { execution: json('docs/postrust/MBM-001/EXECUTION_SCOPE.json'), tests: json('docs/postrust/MBM-001/TEST_SCOPE.json'), canonical: JSON.parse(canonicalBytes.toString('utf8')), canonicalBytes,
-    status: json('project/STATUS.json'), plan: json('project/POSTRUST_PLAN.json'), originalPlan: gitJson('project/POSTRUST_PLAN.json'), originalStatus: gitJson('project/STATUS.json'),
+    // 001定位已完成交付，采用其精确最终R；当前002准入由独立002 guard验证。
+    status: gitJson('project/STATUS.json', MBM002_BASE), plan: gitJson('project/POSTRUST_PLAN.json', MBM002_BASE), originalPlan: gitJson('project/POSTRUST_PLAN.json'), originalStatus: gitJson('project/STATUS.json'),
     discovered: Object.fromEntries([['core','packages/bridge-core/test/mbm001'],['desktop','apps/desktop/test/mbm001']].map(([area,directory]) => [area,readdirSync(path.join(root,directory)).map(file => directory + '/' + file)])) };
 }
 const rejects = (value, code) => assert.throws(() => assertMbm001Admission(value), error => error.code === code);

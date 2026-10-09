@@ -1,0 +1,27 @@
+{
+  "schema": "musicbridge.mbm003.dsd-processing-contract-proposal.v1",
+  "state": "PROPOSED_NOT_IMPLEMENTED",
+  "stage": "MBM-003_ONLY",
+  "sourceCanonicalSha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb",
+  "minimumSchemaDifference": {
+    "jsonPointer": "/components/schemas/Processing/properties/mode/enum",
+    "operation": "append_enum_value",
+    "value": "dsd_to_pcm"
+  },
+  "semanticGuard": "真实DSD源→独立PCM资源；非PCM无损转换；三轴取真实PCM输出",
+  "dualConsumerMigration": {
+    "mac": "更新schema、codec、真实处理映射和精确canonicalHash",
+    "ios": "先采纳同一Hash并扩closedmode/UI事实映射，再允许正式资源",
+    "legacy": "未知mode仍拒，不强制旧客户端将DSD当lossless；003先冻结具体capability准入"
+  },
+  "tests": [
+    "新mode只在真实DSD→PCM资源使用，三轴取实际输出",
+    "双端新合同与真实转换/真机播放事实一致",
+    "已有direct/remux/lossless_conversion路径保持",
+    "DSD不得伪装lossless_conversion/remux/direct或原生DSD",
+    "禁止使用源DSD频率/位深冒充PCM输出",
+    "旧未采纳consumer不得接新enum资源",
+    "FLAC仍强制原lossless三轴相等及禁止有损fallback"
+  ],
+  "evidence": "NOT_RUN"
+}

@@ -1,0 +1,721 @@
+{
+  "schema": "musicbridge.mbm002.operation-lifecycle-matrix.v1",
+  "task": "MBM-002",
+  "state": "IMPLEMENTED_CURRENT_WORKTREE_81_PASS_EXACT_SOURCE_GATE_PENDING",
+  "baseSha": "8044d935e242d8647adc21445116fb49c9100e4a",
+  "updatedAt": "2026-10-09T14:36:26.443757+00:00",
+  "canonicalUnchanged": true,
+  "errorSchemaCode": "string",
+  "rows": [
+    {
+      "case": "媒体ticket无效或资源/asset不匹配",
+      "operations": [
+        "getMediaAsset"
+      ],
+      "state": "IMPLEMENTED_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 401,
+      "publicErrorCode": "TICKET_INVALID",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "停止本票请求；查询原resource，不换key重建",
+      "verifiedEvidence": [],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "媒体ticket自然到期",
+      "operations": [
+        "getMediaAsset"
+      ],
+      "state": "IMPLEMENTED_CODE_STATUS_LOCAL_VERIFIED_FULL_RETRY_TUPLE_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 401,
+      "publicErrorCode": "TICKET_EXPIRED",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "GET原resource确认；同一renew意图只使用原key及完整{}",
+      "verifiedEvidence": [
+        {
+          "file": "packages/bridge-core/test/mbm002/playback-service.test.ts",
+          "assertion": "217",
+          "scope": "ACTOR_CONTROLLED_CLOCK",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        },
+        {
+          "file": "apps/desktop/test/mbm002/mobile-playback-real-owner.test.ts",
+          "assertion": "664",
+          "scope": "REAL_OWNER_MAIN_HTTPS_NATURAL_60S",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        }
+      ],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "媒体ticket主动撤销",
+      "operations": [
+        "getMediaAsset"
+      ],
+      "state": "IMPLEMENTED_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 401,
+      "publicErrorCode": "TICKET_REVOKED",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "停止播放并查询原session/resource，不续回已撤销资源",
+      "verifiedEvidence": [],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "session自然到期",
+      "operations": [
+        "getSession",
+        "reportObservation",
+        "createResource",
+        "getResource",
+        "renewResource"
+      ],
+      "state": "IMPLEMENTED_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 410,
+      "publicErrorCode": "SESSION_EXPIRED",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "停止原session；先收口原资源，再使用新意图创建新session",
+      "verifiedEvidence": [],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "session已关闭",
+      "operations": [
+        "getSession",
+        "reportObservation",
+        "createResource",
+        "getResource",
+        "renewResource"
+      ],
+      "state": "IMPLEMENTED_CODE_STATUS_LOCAL_VERIFIED_FULL_RETRY_TUPLE_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 410,
+      "publicErrorCode": "SESSION_CLOSED",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "接受terminal状态；不复活原session",
+      "verifiedEvidence": [
+        {
+          "file": "packages/bridge-core/test/mbm002/playback-service.test.ts",
+          "assertion": "172",
+          "scope": "ACTOR",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        },
+        {
+          "file": "apps/desktop/test/mbm002/mobile-playback-real-owner.test.ts",
+          "assertion": "698",
+          "scope": "REAL_OWNER_MAIN_HTTPS",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        }
+      ],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "resource自然到期",
+      "operations": [
+        "getResource",
+        "renewResource",
+        "getMediaAsset"
+      ],
+      "state": "IMPLEMENTED_CODE_STATUS_LOCAL_VERIFIED_FULL_RETRY_TUPLE_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 410,
+      "publicErrorCode": "RESOURCE_EXPIRED",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "读取原记录确认终态；新意图重建，过期renew不复活",
+      "verifiedEvidence": [
+        {
+          "file": "packages/bridge-core/test/mbm002/playback-service.test.ts",
+          "assertion": "220",
+          "scope": "ACTOR_CONTROLLED_CLOCK",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        }
+      ],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "resource已release",
+      "operations": [
+        "getResource",
+        "renewResource",
+        "getMediaAsset"
+      ],
+      "state": "IMPLEMENTED_CODE_STATUS_LOCAL_VERIFIED_FULL_RETRY_TUPLE_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 410,
+      "publicErrorCode": "RESOURCE_RELEASED",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "接受tombstone；不自动重新签票",
+      "verifiedEvidence": [
+        {
+          "file": "packages/bridge-core/test/mbm002/playback-service.test.ts",
+          "assertion": "233",
+          "scope": "ACTOR",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        },
+        {
+          "file": "apps/desktop/test/mbm002/mobile-playback-real-owner.test.ts",
+          "assertion": "613,614,668",
+          "scope": "REAL_OWNER_MAIN_HTTPS",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        }
+      ],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "resource主动撤销",
+      "operations": [
+        "getResource",
+        "renewResource",
+        "getMediaAsset"
+      ],
+      "state": "IMPLEMENTED_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 410,
+      "publicErrorCode": "RESOURCE_REVOKED",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "停止此资源；查询源/权限，禁止自动复活",
+      "verifiedEvidence": [],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "设备epoch撤销",
+      "operations": [
+        "createSession",
+        "getSession",
+        "closeSession",
+        "reportObservation",
+        "createResource",
+        "getResource",
+        "releaseResource",
+        "renewResource",
+        "getMediaAsset"
+      ],
+      "state": "IMPLEMENTED_CODE_STATUS_LOCAL_VERIFIED_FULL_RETRY_TUPLE_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 403,
+      "publicErrorCode": "DEVICE_REVOKED",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "停止本设备所有资源；经正式配对恢复，不用refresh复活",
+      "verifiedEvidence": [
+        {
+          "file": "packages/bridge-core/test/mbm002/playback-service.test.ts",
+          "assertion": "277,280",
+          "scope": "ACTOR",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        },
+        {
+          "file": "apps/desktop/test/mbm002/mobile-playback-real-owner.test.ts",
+          "assertion": "682,687,692,693",
+          "scope": "REAL_OWNER_MAIN_HTTPS",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        }
+      ],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "跨设备session/resource",
+      "operations": [
+        "getSession",
+        "closeSession",
+        "reportObservation",
+        "createResource",
+        "getResource",
+        "releaseResource",
+        "renewResource"
+      ],
+      "state": "IMPLEMENTED_CODE_STATUS_LOCAL_VERIFIED_FULL_RETRY_TUPLE_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 404,
+      "publicErrorCode": "INVALID_REQUEST",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "终止本意图；不泄露其他设备身份",
+      "verifiedEvidence": [
+        {
+          "file": "packages/bridge-core/test/mbm002/playback-service.test.ts",
+          "assertion": "168",
+          "scope": "ACTOR_FOREIGN_DEVICE",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        },
+        {
+          "file": "apps/desktop/test/mbm002/mobile-playback-real-owner.test.ts",
+          "assertion": "676,679",
+          "scope": "REAL_OWNER_MAIN_HTTPS_FOREIGN_DEVICE",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        }
+      ],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "当前source版本或位置选择失效",
+      "operations": [
+        "createResource",
+        "getResource",
+        "renewResource",
+        "getMediaAsset"
+      ],
+      "state": "IMPLEMENTED_CODE_STATUS_LOCAL_VERIFIED_FULL_RETRY_TUPLE_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 409,
+      "publicErrorCode": "SOURCE_CHANGED",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "重新读取曲库真版本；新resource意图，不重签原回执",
+      "verifiedEvidence": [
+        {
+          "file": "packages/bridge-core/test/mbm002/source-service.integration.test.ts",
+          "assertion": "源码变化立即查询与后台先退休两个窗口",
+          "scope": "REAL_SCANNER_FD_PRIVATE_SOURCE_GREEN48",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        }
+      ],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "服务重启使旧runtime资源失效",
+      "operations": [
+        "getResource",
+        "renewResource",
+        "getMediaAsset"
+      ],
+      "state": "IMPLEMENTED_CODE_STATUS_LOCAL_VERIFIED_FULL_RETRY_TUPLE_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 503,
+      "publicErrorCode": "SERVICE_RESTARTED",
+      "retryable": true,
+      "retryAfterMs": 1000,
+      "clientAction": "先读原session/resource和tombstone；只按明确新意图重建",
+      "verifiedEvidence": [
+        {
+          "file": "packages/bridge-core/test/mbm002/playback-service.test.ts",
+          "assertion": "302,303",
+          "scope": "ACTOR",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        },
+        {
+          "file": "apps/desktop/test/mbm002/mobile-playback-real-owner.test.ts",
+          "assertion": "722,723",
+          "scope": "REAL_OWNER_MAIN_HTTPS_COLD_RESTART",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        }
+      ],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "资源容量/释放期限与尚未可对账的原意图",
+      "operations": [
+        "createResource",
+        "renewResource"
+      ],
+      "state": "IMPLEMENTED_CODE_STATUS_LOCAL_VERIFIED_FULL_RETRY_TUPLE_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": null,
+      "publicErrorCode": "RESOURCE_BUSY",
+      "retryable": null,
+      "retryAfterMs": null,
+      "clientAction": "根据实际status/retryable/可选提示保持有界恢复；原key/body只读对账，不追加资源。",
+      "verifiedEvidence": [
+        {
+          "file": "packages/bridge-core/test/mbm002/playback-service.test.ts",
+          "assertion": "167,257,334,335",
+          "scope": "ACTOR",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        },
+        {
+          "file": "packages/bridge-core/test/mbm002/source-service.integration.test.ts",
+          "assertion": "容量拒绝",
+          "scope": "REAL_SCANNER_FD_PRIVATE",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        }
+      ],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR",
+      "responseVariants": [
+        {
+          "trigger": "Actor容量/记录/预算满、尚非ready、prepare/read/release quiet期限",
+          "httpStatus": 429,
+          "retryable": true,
+          "retryAfterMs": 1000
+        },
+        {
+          "trigger": "UNKNOWN原回执无在途task、原回执或source缺失",
+          "httpStatus": 503,
+          "retryable": true,
+          "retryAfterMs": 1000
+        },
+        {
+          "trigger": "HTTPS第17媒体请求槽",
+          "httpStatus": 429,
+          "retryable": true,
+          "retryAfterMs": null
+        }
+      ]
+    },
+    {
+      "case": "短控制服务不可用",
+      "operations": [
+        "createSession",
+        "getSession",
+        "closeSession",
+        "reportObservation",
+        "createResource",
+        "getResource",
+        "releaseResource",
+        "renewResource"
+      ],
+      "state": "IMPLEMENTED_CODE_STATUS_LOCAL_VERIFIED_FULL_RETRY_TUPLE_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": null,
+      "publicErrorCode": "BUSY",
+      "retryable": null,
+      "retryAfterMs": null,
+      "clientAction": "只对实际retryable=true使用有界策略；缺提示不虚构服务器建议。UNKNOWN保原key/body只读查询；已发头或取消时接受断流，不读取追加JSON。",
+      "verifiedEvidence": [
+        {
+          "file": "packages/bridge-core/test/mbm002/playback-service.test.ts",
+          "assertion": "289,291,292,293",
+          "scope": "ACTOR_CONTROLLED_PERSISTENCE_UNKNOWN",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        }
+      ],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR",
+      "responseVariants": [
+        {
+          "trigger": "Actor持久化/UNKNOWN/not-sent或Owner不可用，Main转发Owner",
+          "httpStatus": 503,
+          "retryable": true,
+          "retryAfterMs": 1000
+        },
+        {
+          "trigger": "Main未知异常或HTTPS读取/捕获/输出围栏失败，尚能发安全JSON",
+          "httpStatus": 503,
+          "retryable": true,
+          "retryAfterMs": null
+        },
+        {
+          "trigger": "Main关闭/服务未初始化/异origin/结果kind或编码不符",
+          "httpStatus": 503,
+          "retryable": false,
+          "retryAfterMs": null
+        },
+        {
+          "trigger": "HTTPS第17控制/metadata请求槽",
+          "httpStatus": 429,
+          "retryable": true,
+          "retryAfterMs": null
+        }
+      ]
+    },
+    {
+      "case": "同key改body/scope",
+      "operations": [
+        "createSession",
+        "createResource",
+        "renewResource"
+      ],
+      "state": "IMPLEMENTED_CODE_STATUS_LOCAL_VERIFIED_FULL_RETRY_TUPLE_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 409,
+      "publicErrorCode": "IDEMPOTENCY_CONFLICT",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "停止冲突；原意图回执保持不变",
+      "verifiedEvidence": [
+        {
+          "file": "packages/bridge-core/test/mbm002/playback-service.test.ts",
+          "assertion": "165",
+          "scope": "ACTOR",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        },
+        {
+          "file": "packages/bridge-core/test/mbm002/source-service.integration.test.ts",
+          "assertion": "同原身份改变正文",
+          "scope": "REAL_SCANNER_FD_PRIVATE",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        }
+      ],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    },
+    {
+      "case": "格式不受实际文件链支持",
+      "operations": [
+        "createResource"
+      ],
+      "state": "IMPLEMENTED_CODE_STATUS_LOCAL_VERIFIED_FULL_RETRY_TUPLE_NOT_INDIVIDUALLY_VERIFIED",
+      "httpStatus": 409,
+      "publicErrorCode": "UNSUPPORTED_FORMAT",
+      "retryable": false,
+      "retryAfterMs": null,
+      "clientAction": "向用户说明真实能力；FLAC不得以此作003完成",
+      "verifiedEvidence": [
+        {
+          "file": "packages/bridge-core/test/mbm002/source-service.integration.test.ts",
+          "assertion": "Scanner报告AAC不能直接交付",
+          "scope": "REAL_SCANNER_FD_PRIVATE",
+          "fields": [
+            "status",
+            "code"
+          ],
+          "qualification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+        }
+      ],
+      "implementationEvidence": [
+        "packages/bridge-core/src/mobile/playback-service.ts",
+        "apps/desktop/src/main/mobile-playback-backend.ts",
+        "apps/desktop/src/main/mobile-https-server.ts"
+      ],
+      "fullStatusCodeRetryabilityHintTupleIndividuallyVerified": false,
+      "requestHeadCodePolicy": "HEAD_HAS_ZERO_BODY_NO_CODE_HEADER_USE_CONTROL_GET_TO_DECODE_ERROR"
+    }
+  ],
+  "headErrorPolicy": {
+    "state": "IMPLEMENTED_CURRENT_WORKTREE_SOFTWARE_QUALIFIED_REAL_LAYERS_SEPARATE",
+    "bodyBytes": 0,
+    "statusMatchesGetError": true,
+    "publicErrorCodeInBody": false,
+    "clientAction": "HEAD错误不得读取JSON正文；通过原resource/session控制GET确认，不增设私有公开header"
+  },
+  "plannedLifetimesMs": {
+    "ticket": 60000,
+    "resource": 300000,
+    "session": 1800000,
+    "maximumResourceLifetime": 43200000,
+    "orphanResource": 300000,
+    "mediaIdle": 5000,
+    "mediaEstablishment": 10000,
+    "releaseConfirmation": 10000
+  },
+  "renew": {
+    "state": "IMPLEMENTED_CURRENT_WORKTREE_SOFTWARE_QUALIFIED_REAL_LAYERS_SEPARATE",
+    "newTicketIssuedOnlyAfterPersistedRenew": true,
+    "previousTicketRemainsValidUntilItsOriginalExpiry": true,
+    "expiredResourceCannotRenew": true,
+    "activeRevokeInvalidatesAllTickets": true
+  },
+  "idempotency": {
+    "state": "IMPLEMENTED_CURRENT_WORKTREE_SOFTWARE_QUALIFIED_REAL_LAYERS_SEPARATE",
+    "sameTrustedScopeKeyBody": "IMMUTABLE_ORIGINAL_HTTP_STATUS_AND_BODY",
+    "initial202LaterReady": "REPLAY_ORIGINAL_202_USE_GET_FOR_CURRENT_STATE",
+    "unknown": "READ_ORIGINAL_RECORD_ONLY_NO_REEXECUTE_NO_REISSUE"
+  },
+  "delete": {
+    "state": "IMPLEMENTED_CURRENT_WORKTREE_SOFTWARE_QUALIFIED_REAL_LAYERS_SEPARATE",
+    "ownedRepeatTerminalDelete": "204_ZERO_BODY_AFTER_QUIET_RELEASE",
+    "lostReply": "READ_SAME_ID_TOMBSTONE_OR_WAIT_ORPHAN_TTL",
+    "noRecreateOnUnknown": true
+  },
+  "cleanup": {
+    "state": "IMPLEMENTED_CURRENT_WORKTREE_SOFTWARE_QUALIFIED_REAL_LAYERS_SEPARATE",
+    "observedFdReleaseCount": null,
+    "observedLeaseReleaseCount": null,
+    "confirmationDeadlineMs": 10000,
+    "seek": "HTTP read lease isolation; cancellation does not DELETE resource",
+    "switch": "explicit oldresource release/expiry; quiet FD close before bounded lane reuse"
+  },
+  "evidenceBoundaries": {
+    "software": "PASS_CURRENT_WORKTREE_FRESH_READER_TYPES_AND_81_BEHAVIORS_SOURCE_GATE_PENDING",
+    "actualSelfOwnedMacHTTPSFD": "PASS_CURRENT_FIXED_SOURCE_SELF_OWNED_WAV_SOURCE_AND_DIST_WHOLE_FD",
+    "nativeIOSDeviceAudio": "NOT_RUN",
+    "realProviderRoonNAS": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN"
+  },
+  "actualMacReceipt": {
+    "evidenceScope": "CURRENT_FIXED_SELF_OWNED_WAV_PRODUCTION_LAN_NOT_PHYSICAL_DEVICE",
+    "name": "ACTUAL_LAN_MEDIA54",
+    "bytes": 4260,
+    "sha256": "4a53b64a2058c7e44d436113d8d68acc52d5922fcc8e8b9de1eb158b3b085baf"
+  },
+  "countsAreErrorRowsNotAcceptanceCases": true,
+  "errorRowsCount": 16,
+  "codeStatusDirectAssertionRows": 12,
+  "fullRetryTupleDirectAssertionRows": 0,
+  "retryHintPolicy": "OPTIONAL_PUBLIC_FIELD_VARIANTS_ARE_ACTUAL_IMPLEMENTATION_NOT_UNIVERSAL_1000MS",
+  "implementationBindings": [
+    {
+      "path": "packages/bridge-core/src/mobile/playback-service.ts",
+      "bytes": 52641,
+      "sha256": "89eb9d6a164358c1b48484140b7a0d6cbaa7f3a3f75aa657e04b8203cc4343c4"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/source-service.ts",
+      "bytes": 24468,
+      "sha256": "86f12cbb5d2795a9f42ce5022bcb5a8f85e07fd2e4f0814b25bae7d68ed6d2eb"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/local-file-source.ts",
+      "bytes": 11419,
+      "sha256": "9a02dd349d7ca0952ac57920f26b57f607b556b08c554e4614f82be2683cfd82"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-playback-backend.ts",
+      "bytes": 12497,
+      "sha256": "c79f4dd14fc03857cdabb56089c550e8213310018faf4fedf2683a43d2382214"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-https-server.ts",
+      "bytes": 21084,
+      "sha256": "a9d12fbe2a3849b833ddd94f788ccb44889a5006eb5942734b25c5f4a0c206db"
+    }
+  ]
+}

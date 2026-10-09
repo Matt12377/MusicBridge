@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { prepareCoreTestEnvironment, coreTestSourceInputs } from './run-core-tests.mjs';
 import { validateOfflineArguments, createPrivateRun, writePrivateJson, sanitizeOutput } from './verify-mbrs001-offline.mjs';
 import { captureMobileStage, mobileStageSucceeded, readMobileFile, mobileInputIdentity } from './verify-mbm000-contract-adoption.mjs';
+import { MBM002_BASE, assertMbm002Admission } from './mbm002-admission.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 export const MBM001_BASE = 'c6c4745dfc7fe4242b8a2682798e00605649b12e';
@@ -76,13 +77,30 @@ export async function runMbm001Gate(argv = process.argv.slice(2), env = process.
   const execution = await json(scopePath), tests = await json(testPath), status = await json('project/STATUS.json'), plan = await json('project/POSTRUST_PLAN.json');
   const canonicalBytes = await read(canonicalPath), canonical = JSON.parse(canonicalBytes.toString('utf8'));
   const discovered = { core: files('packages/bridge-core/test/mbm001'), desktop: files('apps/desktop/test/mbm001') };
-  assertMbm001Admission({ execution, tests, status, plan, canonical, canonicalBytes, discovered,
+  const successor = status?.mobileFrontloading20261008?.currentTask === 'MBM-002' || plan?.execution_schedule?.current_task === 'MBM-002';
+  let admissionStatus = status, admissionPlan = plan;
+  if (successor) {
+    // 精确后继准入以后，仅在内存还原001调度定位；实际测试仍消费当前Source产品代码。
+    assertMbm002Admission({ execution: await json('docs/postrust/MBM-002/EXECUTION_SCOPE.json'), tests: await json('docs/postrust/MBM-002/TEST_SCOPE.json'),
+      status, plan, canonical, canonicalBytes, discovered: {
+        contracts: files('packages/contracts/test').filter(name => name.startsWith('packages/contracts/test/mbm002-')),
+        core: files('packages/bridge-core/test/mbm002'), desktop: files('apps/desktop/test/mbm002') },
+      originalPlan: JSON.parse(git(['show', MBM002_BASE + ':project/POSTRUST_PLAN.json'])), originalStatus: JSON.parse(git(['show', MBM002_BASE + ':project/STATUS.json'])) });
+    git(['merge-base', '--is-ancestor', MBM002_BASE, 'HEAD']);
+    admissionStatus = structuredClone(status); admissionPlan = structuredClone(plan);
+    admissionStatus.mobileFrontloading20261008.currentTask = 'MBM-001';
+    admissionPlan.execution_schedule.current_task = 'MBM-001'; admissionPlan.execution_schedule.current_task_scope_ref = scopePath;
+    admissionPlan.execution_schedule.predecessor_final_report = MBM001_BASE;
+  }
+  assertMbm001Admission({ execution, tests, status: admissionStatus, plan: admissionPlan, canonical, canonicalBytes, discovered,
     originalPlan: JSON.parse(git(['show', MBM001_BASE + ':project/POSTRUST_PLAN.json'])), originalStatus: JSON.parse(git(['show', MBM001_BASE + ':project/STATUS.json'])) });
   git(['merge-base', '--is-ancestor', MBM001_BASE, 'HEAD']);
   const head = git(['rev-parse', 'HEAD']);
   if (!/^[a-f0-9]{40}$/u.test(head) || git(['status','--porcelain','--untracked-files=all'])) reject('MBM001_SOURCE_NOT_CLEAN');
-  if ((git(['branch','--show-current']) || env.GITHUB_REF_NAME) !== execution.branch) reject('MBM001_BRANCH_CHANGED');
+  const actualBranch = git(['branch','--show-current']) || env.GITHUB_REF_NAME;
+  if (actualBranch !== (successor ? 'codex/mbm-002-phone-resource-playback' : execution.branch)) reject('MBM001_BRANCH_CHANGED');
   const names = () => [...new Set([...coreTestSourceInputs(check).map(row => row.path), ...files('scripts/ci'), ...files('.github/workflows'), ...files('docs/postrust/MBM-001'),
+    ...(successor ? files('docs/postrust/MBM-002') : []),
     'AGENTS.md','pnpm-lock.yaml','apps/desktop/tsconfig.e2e.json','apps/desktop/electron.vite.config.ts',
     ...files('apps/desktop/scripts'),execution.canonicalContract,'tasks/MBM-001_PAIRING_READONLY_LIBRARY.md',
     ...['STATUS.json','POSTRUST_PLAN.json','POSTRUST_TODO.md','POSTRUST_PROGRESS.md'].map(name => 'project/' + name)])].sort();
@@ -140,6 +158,7 @@ export async function runMbm001Gate(argv = process.argv.slice(2), env = process.
   const behavior = runs.filter(row => row.expectedTests != null);
   const summary = { schema: 'musicbridge.mbm001.pairing-library-gate.v1', task: 'MBM-001', baseReportSha: MBM001_BASE, head,
     startedAt: new Date(Date.now() - (performance.now() - began)).toISOString(), completedAt: new Date().toISOString(), success, failures, gateBudgets: MBM001_BUDGETS,
+    exactSuccessorScope: successor ? 'MBM-002' : null, schedulingReadOnlyNormalization: successor, actualBranch,
     operationCount: 40, stageOperationCount: 10, operationCountIsTestCount: false, sourceInputs: inputs, sourceInputIdentity: mobileInputIdentity(inputs), inputsUnchanged,
     freshReaderPreparation: prepared?.receipt ?? null, artifactsUnchanged, runs, expectedStages: 8, completedStages: runs.length,
     expectedTests: tests.core.expectedTests + tests.desktop.expectedTests, tests: behavior.reduce((n,row) => n + (row.testCounts?.tests ?? 0),0), pass: behavior.reduce((n,row) => n + (row.testCounts?.pass ?? 0),0),

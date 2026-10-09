@@ -57,12 +57,14 @@ export function createMobileConnectionSettings(options: {
     if (generation !== epoch || closing || !options.isCoreReady()) return busy();
     let starting = true;
     const service = createMobileBackend({ serverId: identity.serverId, datasetId, authKey: identity.authKey, displayName: 'Music Bridge', environment: options.environment,
-      requestOwner: options.requestOwner, resizeArtwork: options.resizeArtwork,
+      requestOwner: options.requestOwner, resizeArtwork: options.resizeArtwork, enablePlayback: true,
       assertCurrent: () => { if (closing || epoch !== generation || !options.isCoreReady() || !starting && active?.epoch !== generation) throw new MobileServiceError(503, 'BUSY'); } });
-    const server = createMobileHttpsServer({ tls: { key: identity.privateKeyPEM, cert: identity.certificatePEM }, host: pref.host, port: pref.port, backend: service.backend });
+    const server = createMobileHttpsServer({ tls: { key: identity.privateKeyPEM, cert: identity.certificatePEM }, host: pref.host, port: pref.port,
+      backend: service.backend, ...(service.playbackBackend ? { playback: service.playbackBackend } : {}) });
     try {
       const listening = await server.start();
       if (generation !== epoch || closing || !options.isCoreReady()) return busy();
+      service.activatePlayback(listening.baseUrl);
       active = { epoch: generation, server, service, connection: { schemaVersion: 1, serverId: identity.serverId, baseURL: listening.baseUrl,
         certificatePEM: identity.certificatePEM, certificateSha256: identity.certificateSha256 } };
       starting = false; state = 'ready';

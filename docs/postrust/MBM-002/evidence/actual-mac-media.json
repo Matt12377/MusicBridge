@@ -1,0 +1,60 @@
+{
+  "schema": "musicbridge.mbm002.public-self-owned-mac-media-summary.v1",
+  "task": "MBM-002",
+  "status": "PASS_RUNNING_CANDIDATE_NOT_FINAL_CLOSE",
+  "completedAt": "2026-10-09T14:38:25.383Z",
+  "productionInputFiles": 1723,
+  "productionInputIdentity": "c8a3e85f469410154709c19b688b7379210698ad05b9b84eee38c34974687e2c",
+  "sourceBinding": "CURRENT_FIXED_WORKING_TREE_PRODUCT_SOURCE_PLUS_CURRENT_DIST_WHOLE_FD_NOT_SOURCE_COMMIT",
+  "track": {
+    "initialHttpStatus": 202,
+    "trackId": "lt:116bdfaf-0375-4a79-b92b-83b684534160:cefdbcad-a520-4454-9510-a8b3aa826c60:822ee3e5-d521-4de1-8208-3dd82d64823a",
+    "versionId": "lv:90aa5a725954d4490ace46a9a50b873cc90411370accb1008e6d975b7ddd72ee",
+    "contentRevision": "lc:90aa5a725954d4490ace46a9a50b873cc90411370accb1008e6d975b7ddd72ee",
+    "source": "local",
+    "sourceAudio": {
+      "bitsPerSample": 16,
+      "channels": 1,
+      "codec": "pcm_s16le",
+      "container": "wav",
+      "sampleRateHz": 44100
+    },
+    "actualAudio": {
+      "bitsPerSample": 16,
+      "channels": 1,
+      "codec": "pcm_s16le",
+      "container": "wav",
+      "sampleRateHz": 44100
+    },
+    "processing": {
+      "fromPreparedCache": false,
+      "mode": "direct",
+      "reason": "原工作库当前扫描文件的直接只读传输。"
+    },
+    "bytes": 10584132,
+    "sha256": "9850d9fabf1f0fef89571f30f51d708523de94565afc4d07aeb1a8cfcba30520",
+    "durationMs": 120000
+  },
+  "checks": [
+    "production-source-and-dist-whole-fd",
+    "original-owned-two-minute-wav-whole-fd",
+    "trusted-renderer-permit-and-native-tls-claim",
+    "actual-scanner-owner-file-ready",
+    "full-media-200-over-original-json-cap",
+    "single-closed-open-suffix-range-206",
+    "d2-head-and-zero-body-range-errors",
+    "original-create-http-receipt-whole-unchanged",
+    "renew-original-receipt-and-both-original-ttl-tickets",
+    "actual-release-session-close-logout-204",
+    "original-source-and-production-inputs-still-whole-unchanged"
+  ],
+  "actualOwner204Acknowledgment": "NOT_INDEPENDENT_EXTERNAL_FD_INSPECTION",
+  "systemSafeStorage": true,
+  "privatePairingPermitEntry": "TRUSTED_RENDERER_LOCAL_PRIVATE_CHANNEL_NOT_ACTUAL_BUTTON_CLICK",
+  "canonicalChanged": false,
+  "nativeIOSDeviceAudio": "NOT_RUN",
+  "realProviderRoonNAS": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "connectionPermitTokensMediaUrlsAndPrivateHostArchived": false,
+  "priorCapture41PreservedExternally": true
+}

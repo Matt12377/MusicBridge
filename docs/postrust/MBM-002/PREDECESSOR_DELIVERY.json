@@ -1,0 +1,50 @@
+{
+  "schema": "musicbridge.mbm002.predecessor-delivery.v1",
+  "task": "MBM-001",
+  "software": "SEALED_PAIRED_SOFTWARE_ACTUAL_SELF_OWNED_MAC_SHARED_IOS_SDK_DEVICE_OWNER_OPEN",
+  "sourceSha": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+  "reportSha": "8044d935e242d8647adc21445116fb49c9100e4a",
+  "reportUniqueParent": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
+  "iosSourceSha": "b82049825e9e9058fe4a70186da70f5a267543ea",
+  "iosReportSha": "c53ed3e4850f60b203d4773446db74789e2814d7",
+  "sourceNaturalCi": {
+    "workflows": 4,
+    "jobs": 6,
+    "allSuccess": true
+  },
+  "reportNaturalCi": {
+    "workflows": 2,
+    "jobs": 3,
+    "allSuccess": true,
+    "actualReportOnlyModeRead": true
+  },
+  "wholeSourceArtifacts": 5,
+  "sourceArtifactEntries": 37378,
+  "canonical": {
+    "path": "packages/contracts/mobile/openapi.json",
+    "bytes": 145918,
+    "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+  },
+  "originalFinalSeal": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm001-e835btwf/checks/NETWORK_PAIRED_FINAL_DELIVERY359.json",
+    "bytes": 23592,
+    "sha256": "3022c8af9da74410da4cce1e3b45f9308e00d97e43c0d432179b4efea731359b"
+  },
+  "independentCoordinatorReadback": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs013-m65qznwo/checks/COORDINATOR_MBM001_PAIRED_FINAL_REPORT_AND_002_RELEASE_READBACK01.json",
+    "bytes": 20843,
+    "sha256": "398008f986bf13ae0b14599727c2d032223f09452324ebddd3d7dd975df754f3"
+  },
+  "freshlyReadWholeReceipts": true,
+  "actualSelfOwnedMacSharedSDK": {
+    "cases": 22,
+    "offlineDriverCases": 32,
+    "nativeIOSDevice": false
+  },
+  "realServiceDeviceAudio": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "nextTask": "MBM-002",
+  "nextMacBaseline": "8044d935e242d8647adc21445116fb49c9100e4a",
+  "nextIOSBaseline": "c53ed3e4850f60b203d4773446db74789e2814d7",
+  "third001SealCommit": false
+}

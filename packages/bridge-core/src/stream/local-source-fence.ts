@@ -24,6 +24,16 @@ export class LocalSourceFence {
   get current(): boolean { const state = this.state(); return state >= VALID && state <= VALID + MAX_REFS; }
   revoke(): void { Atomics.and(this.words, 1, ~VALID); }
   assertQuiet(): void { if (this.references !== 0) throw new LocalFactsFenceBusy([this]); }
+  /** 持有读取资格直到真实 FD 静止；相关目录提交仍经过原唯一事实作者。 */
+  retain(): () => void {
+    for (;;) {
+      const state = this.state();
+      if (state < VALID || state >= VALID + MAX_REFS) throw new Error('本地来源读取资格已失效。');
+      if (Atomics.compareExchange(this.words, 1, state, state + 1) !== state) continue;
+      let released = false;
+      return () => { if (released) return; released = true; Atomics.sub(this.words, 1, 1); Atomics.notify(this.words, 1); };
+    }
+  }
   dispatch<T>(send: () => T, assertCurrent: () => void = () => undefined): T {
     assertCurrent();
     for (;;) {

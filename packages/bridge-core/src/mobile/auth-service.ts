@@ -39,6 +39,8 @@ export interface MobileAuthServiceOptions {
   persistence: MobileAuthPersistence; crypto: MobileAuthCrypto;
   serverId: string; datasetId: string; displayName: string;
   environment: 'development' | 'production'; now?: () => number; randomToken?: () => string;
+  /** 可信 Main 的撤销围栏；普通请求、配置和 Renderer 不可注入。 */
+  onDeviceEpochRevoked?: (deviceId: string) => void;
 }
 
 const invalid = (): never => { throw new MobileServiceError(400, 'INVALID_REQUEST'); };
@@ -320,6 +322,7 @@ export function createMobileAuthService(options: MobileAuthServiceOptions): Mobi
       if (d.revoked) return;
       const at = now(state); prune(state, at); bump(d.deviceId);
       d.deviceEpoch = advance(d.deviceEpoch); d.revoked = true; state.clockFloor = at;
+      options.onDeviceEpochRevoked?.(d.deviceId);
       await save(state);
     }),
     claim: (body, idempotencyKey) => run(async state => {
@@ -339,6 +342,7 @@ export function createMobileAuthService(options: MobileAuthServiceOptions): Mobi
       const deviceId = d?.deviceId ?? randomUUID(), pair = tokens(state, deviceId, at);
       if (d) {
         bump(d.deviceId); d.deviceEpoch = advance(d.deviceEpoch); d.generation = advance(d.generation);
+        options.onDeviceEpochRevoked?.(d.deviceId);
         d.deviceName = incoming.deviceName;
       } else {
         d = { deviceId, installationId: incoming.installationId, deviceName: incoming.deviceName,
@@ -387,10 +391,17 @@ export function createMobileAuthService(options: MobileAuthServiceOptions): Mobi
       return principal;
     }),
     assertCurrent: principal => run(state => { current(state, principal, now(state)); }),
+    assertDeviceCurrent: (deviceId, deviceEpoch) => run(state => {
+      if (!id(deviceId) || !integer(deviceEpoch, 1)) return denied();
+      const d = state.devices.find(device => device.deviceId === deviceId);
+      if (!d || d.revoked || d.deviceEpoch !== deviceEpoch) throw new MobileServiceError(403, 'DEVICE_REVOKED');
+      now(state);
+    }),
     logout: principal => run(async state => {
       const at = now(state), d = current(state, principal, at);
       prune(state, at); bump(d.deviceId);
       d.deviceEpoch = advance(d.deviceEpoch); d.revoked = true; state.clockFloor = at;
+      options.onDeviceEpochRevoked?.(d.deviceId);
       await save(state);
     }),
     close() {

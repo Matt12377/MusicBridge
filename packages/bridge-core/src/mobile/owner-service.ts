@@ -17,6 +17,7 @@ export function createMobileOwnerService(options: {
 }) {
   const { collection, datasetId, ownerEpoch } = options;
   let state: ReturnType<typeof createMobileSealedStateStore> | undefined;
+  let playbackState: ReturnType<typeof createMobileSealedStateStore> | undefined;
   const current = (): void => options.assertCurrent();
   const revision = (): string => { current(); const stamp = collection.readonlySnapshotStamp(); current(); return 'mr:' + digest([datasetId, ownerEpoch, stamp.dataVersion, stamp.totalChanges]); };
   function identifiers(id: string, kind: 'la' | 'lt' | 'aw', count: number): string[] {
@@ -105,11 +106,13 @@ export function createMobileOwnerService(options: {
         let result: MobileOwnerPrivateResult;
         if (input.kind === 'catalog') result = read(input.request);
         else if (input.kind === 'artwork') result = artwork(input.request);
-        else {
+        else if (input.kind === 'load' || input.kind === 'save' || input.kind === 'playback-load' || input.kind === 'playback-save') {
           const directory = collection.privateMobileDataDirectory?.(); if (!directory) throw new MobileAuthPersistenceError('not-sent');
-          state ??= createMobileSealedStateStore({ directory, datasetId, assertCurrent: current });
-          result = input.kind === 'load' ? state.load(datasetId) : state.save(input.request);
-        }
+          const isPlayback = input.kind.startsWith('playback-');
+          const store = isPlayback ? (playbackState ??= createMobileSealedStateStore({ directory, datasetId, assertCurrent: current, namespace: 'playback' }))
+            : (state ??= createMobileSealedStateStore({ directory, datasetId, assertCurrent: current }));
+          result = input.kind === 'load' || input.kind === 'playback-load' ? store.load(datasetId) : store.save(input.request);
+        } else throw new MobileServiceError(400, 'INVALID_REQUEST');
         current(); if (!isMobileOwnerPrivateResult(result, input)) throw new MobileAuthPersistenceError('unknown'); return result;
       } catch (error) {
         return { kind: 'mobile-error', status: error instanceof MobileServiceError ? error.status : 503,

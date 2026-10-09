@@ -1,0 +1,61 @@
+{
+  "schema": "musicbridge.mbm002.execution-scope.v1",
+  "task": "MBM-002",
+  "status": "IN_PROGRESS",
+  "startedAt": "2026-10-09T12:25:30.473008+00:00",
+  "baseSha": "8044d935e242d8647adc21445116fb49c9100e4a",
+  "branch": "codex/mbm-002-phone-resource-playback",
+  "authority": "OWNER_CONTINUOUS_AUTHORIZATION_COORDINATOR_FORMAL_002_RELEASE",
+  "repeatedOwnerApprovalRequired": false,
+  "predecessor": "docs/postrust/MBM-002/PREDECESSOR_DELIVERY.json",
+  "operations": [
+    "createSession",
+    "getSession",
+    "closeSession",
+    "reportObservation",
+    "createResource",
+    "getResource",
+    "releaseResource",
+    "renewResource",
+    "getMediaAsset",
+    "headMediaAsset"
+  ],
+  "required": [
+    "设备和session隔离；仅关闭所属资源",
+    "原幂等收据及UNKNOWN只读对账",
+    "session/resource持久化、ticket刷新撤销、tombstone及orphan TTL",
+    "单Range与D2 HEAD、真实有界背压和取消",
+    "真实源资格、统一锁及FD/lease回收",
+    "首条自有WAV/ALAC文件链路及时交iOS接物理设备"
+  ],
+  "frozenCanonicalSha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb",
+  "preserve": {
+    "legacyTasks": 18,
+    "legacyAcceptanceCases": 156,
+    "effectiveTasks": 17,
+    "effectiveAcceptanceCases": 150,
+    "mbm001AcceptanceCases": 9,
+    "mbm001FrozenEvidence": true,
+    "mbm003And004NotStarted": true,
+    "optionalRust": "OFF",
+    "controlAndOriginalStream": "LOOPBACK",
+    "nodeDatasetWriter": "UNIQUE"
+  },
+  "software": "PASS_CURRENT_WORKTREE_FRESH_READER_TYPES_AND_81_BEHAVIORS_SOURCE_GATE_PENDING",
+  "productionApp": "PASS_CURRENT_FIXED_SOURCE_PRODUCTION_LAN_RUNNING_CANDIDATE_NOT_FINAL_CLOSE",
+  "actualSelfOwnedMacMedia": "PASS_CURRENT_FIXED_SOURCE_SELF_OWNED_WAV_SOURCE_AND_DIST_WHOLE_FD",
+  "nativeIOSDeviceAudio": "NOT_RUN",
+  "realProviderRoonNAS": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "auditCarryover": "8_MODERATE_LOCKFILE_FINDINGS_FOR_MBRS016_NOT_ZERO",
+  "canonicalBytes": 145918,
+  "sourceFilesWrite": false,
+  "gateBudgets": {
+    "stageTimeoutMs": 180000,
+    "totalTimeoutMs": 480000,
+    "killGraceMs": 10000,
+    "rawOutputBytes": 16777216,
+    "sourceFileBytes": 16777216,
+    "maxSourceFiles": 8192
+  }
+}

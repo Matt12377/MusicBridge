@@ -1,0 +1,110 @@
+{
+  "schema": "musicbridge.mobile-independent-acceptance.v1",
+  "task": "MBM-002",
+  "count": 9,
+  "countBasis": "INDEPENDENT_REQUIREMENT_BEHAVIORS_NOT_10_OPERATIONS_81_TESTS_OR_16_ERROR_ROWS",
+  "originalTaskAndAcceptanceLedgerUnchanged": true,
+  "mbm001NineCasesUnchanged": true,
+  "cases": [
+    {
+      "id": "MBMAT-002-01",
+      "area": "SESSION_OBSERVATION",
+      "requirement": "设备独立session与完整资源归属、观察序号/代际围栏；迟到旧歌回报不操作新歌，不发家庭Roon队列控制。",
+      "requirement_ref": "tasks/MBM-002_PHONE_RESOURCE_PLAYBACK.md",
+      "software": "PASS_CURRENT_WORKTREE_FRESH_READER_TYPES_AND_81_BEHAVIORS_SOURCE_GATE_PENDING",
+      "production_app": "PARTIAL_ACTUAL_LAN_SESSION_CREATE_CLOSE_OBSERVATION_ISOLATION_SOFTWARE_SEPARATE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-002-02",
+      "area": "ORIGINAL_RECEIPTS",
+      "requirement": "相同scope/key/body保原201/202及renew完整回执；冲突拒绝；UNKNOWN只读取原提交结果而不prepare或重签。",
+      "requirement_ref": "tasks/MBM-002_PHONE_RESOURCE_PLAYBACK.md",
+      "software": "PASS_CURRENT_WORKTREE_FRESH_READER_TYPES_AND_81_BEHAVIORS_SOURCE_GATE_PENDING",
+      "production_app": "PARTIAL_ACTUAL_CREATE202_AND_RENEW_ORIGINAL_RECEIPTS_UNKNOWN_SOFTWARE_SEPARATE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-002-03",
+      "area": "SOURCE_FACTS",
+      "requirement": "按当前Scanner/发行/曲目/version/content身份取得真实只读源；sourceAudio与actualAudio如实分开；统一读锁挡写者，源变更不得开旧FD。",
+      "requirement_ref": "tasks/MBM-002_PHONE_RESOURCE_PLAYBACK.md",
+      "software": "PASS_CURRENT_WORKTREE_FRESH_READER_TYPES_AND_81_BEHAVIORS_SOURCE_GATE_PENDING",
+      "production_app": "PARTIAL_ACTUAL_SELF_OWNED_WAV_FULL_IDENTITY_AND_AUDIO_ALAC_SOURCE_FENCE_SOFTWARE_SEPARATE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-002-04",
+      "area": "MEDIA_HTTP_BYTES",
+      "requirement": "完整GET200与单Range206逐字节核对，400/416零正文；D2 HEAD忽略Range、200完整长度且零pull，HEAD错误零正文。",
+      "requirement_ref": "tasks/MBM-002_PHONE_RESOURCE_PLAYBACK.md",
+      "software": "PASS_CURRENT_WORKTREE_FRESH_READER_TYPES_AND_81_BEHAVIORS_SOURCE_GATE_PENDING",
+      "production_app": "PASS_ACTUAL_LAN_WHOLE_200_CLOSED_OPEN_SUFFIX_206_HEAD200_GET400_416_HEAD_ERRORS_SOFTWARE_SEPARATE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-002-05",
+      "area": "TICKET_LIFETIME",
+      "requirement": "persist完成后续新票，旧票只到原60秒绝对期限；refresh不改变媒体epoch，退出/撤销/重配立即封旧资源；过期资源不复活。",
+      "requirement_ref": "tasks/MBM-002_PHONE_RESOURCE_PLAYBACK.md",
+      "software": "PASS_CURRENT_WORKTREE_FRESH_READER_TYPES_AND_81_BEHAVIORS_SOURCE_GATE_PENDING",
+      "production_app": "PARTIAL_ACTUAL_RENEW_AND_BOTH_TICKETS_SHORT_TERM_VALID_NATURAL_60S_EXPIRY_SOFTWARE_SEPARATE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-002-06",
+      "area": "STREAM_BOUNDS",
+      "requirement": "64KiB块、实际写回调/drain背压、取消独立HTTP读；媒体/控制独立16槽，期限有界而原JSON预算不放宽。",
+      "requirement_ref": "tasks/MBM-002_PHONE_RESOURCE_PLAYBACK.md",
+      "software": "PASS_CURRENT_WORKTREE_FRESH_READER_TYPES_AND_81_BEHAVIORS_SOURCE_GATE_PENDING",
+      "production_app": "PARTIAL_ACTUAL_FULL_STREAM_BYTES_BACKPRESSURE_SLOTS_CANCEL_CONTROLLED_TLS_SOFTWARE_SEPARATE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-002-07",
+      "area": "QUIET_RESTART",
+      "requirement": "release/close等待迟到真实读及FD/lease静止；tombstone/orphan有界；同库冷重开保原逻辑/回执且不重开旧runtime资源。",
+      "requirement_ref": "tasks/MBM-002_PHONE_RESOURCE_PLAYBACK.md",
+      "software": "PASS_CURRENT_WORKTREE_FRESH_READER_TYPES_AND_81_BEHAVIORS_SOURCE_GATE_PENDING",
+      "production_app": "PARTIAL_ACTUAL_RELEASE_SESSION_CLOSE_LOGOUT_204_NATURAL_CANDIDATE_CLOSE_PENDING_COLD_RESTART_SOFTWARE_SEPARATE",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-002-08",
+      "area": "MAC_IPHONE_ENGINE",
+      "requirement": "首条自有原件从正式Mac HTTPS交正式iPhone客户端；真实本机引擎、seek/续期/切歌/换质、断连恢复与迟到回报分别实测。",
+      "requirement_ref": "tasks/MBM-002_PHONE_RESOURCE_PLAYBACK.md",
+      "software": "PASS_CURRENT_WORKTREE_FRESH_READER_TYPES_AND_81_BEHAVIORS_SOURCE_GATE_PENDING",
+      "production_app": "PARTIAL_ACTUAL_MAC_LAN_READY_PHYSICAL_IOS_ENGINE_AUDIO_NOT_RUN",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+    },
+    {
+      "id": "MBMAT-002-09",
+      "area": "PAIRED_DELIVERY",
+      "requirement": "精确双端002 Source/R、固定canonical、适用新鲜Gate和首次自然CI、普通push、远端与工作区身份；旧账和003/004状态不被改写。",
+      "requirement_ref": "tasks/MBM-002_PHONE_RESOURCE_PLAYBACK.md",
+      "software": "PENDING_EXACT_SOURCE_GATE_AND_PAIRED_DELIVERY",
+      "production_app": "PENDING_EXACT_SOURCE_GATE_NATURAL_CI_REPORT_AND_PAIRED_FINAL_SEAL",
+      "real_service_device_audio": "NOT_RUN",
+      "owner_acceptance": "NOT_RUN",
+      "evidence_ref": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json"
+    }
+  ],
+  "evidenceScope": "CURRENT_WORKTREE_SOFTWARE_81_AND_CURRENT_SELF_OWNED_PRODUCTION_LAN_EXACT_SOURCE_CI_NATIVE_DEVICE_OWNER_SEPARATE"
+}

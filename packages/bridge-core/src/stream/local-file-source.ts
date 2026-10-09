@@ -9,6 +9,8 @@ export class LocalFileLeaseError extends Error {
 export type LocalLeaseState = 'PREPARED' | 'ACTIVE' | 'PAUSED' | 'CLOSING' | 'CLOSED';
 export interface LocalLeaseAuthority { ownerId: string; attempt: number; isCurrent(): boolean }
 export interface ConfirmedLocalSession { attempt: number; sessionId: string; isConfirmed(): boolean }
+/** 固定事实的最小只读描述符；原 Roon 描述符仍满足此合同。 */
+export type ReadonlyLocalFileDescriptor = Pick<PreparedLocalSource, 'source_kind' | 'status' | 'facts'>;
 type OpenedSource = Awaited<ReturnType<typeof openLocalPlaybackReadonlySource>>;
 export class AssetLease {
   private stateValue: LocalLeaseState = 'PREPARED';
@@ -19,13 +21,14 @@ export class AssetLease {
   private timer: ReturnType<typeof setInterval>;
   private watching: Promise<void> | undefined;
   private closing: Promise<void> | undefined;
+  private failureCodeValue: LocalFileLeaseError['code'] | null = null;
   private readonly operations = new Set<Promise<unknown>>();
   private readonly responses = new Set<ServerResponse>();
   private readonly drained: (() => void)[] = [];
   readonly size: number;
   readonly weakEtag: string;
   readonly revisions: Readonly<{ assetId: string; assetRevision: string; rootRevision: string; locationRevision: string; selectionRevision: string }>;
-  constructor(private readonly file: OpenedSource, descriptor: PreparedLocalSource, private readonly authority: LocalLeaseAuthority,
+  constructor(private readonly file: OpenedSource, descriptor: ReadonlyLocalFileDescriptor, private readonly authority: LocalLeaseAuthority,
     private readonly currentAttempt: () => boolean, private readonly releaseSlot: () => void, private readonly now: () => number = () => performance.now()) {
     this.size = file.size; this.started = now(); this.expires = this.started + 30_000;
     this.weakEtag = `W/"${createHash('sha256').update(file.signature).digest('hex')}"`;
@@ -38,6 +41,7 @@ export class AssetLease {
   }
   get state(): LocalLeaseState { return this.stateValue; }
   get signal(): AbortSignal { return this.controller.signal; }
+  get failureCode(): LocalFileLeaseError['code'] | null { return this.failureCodeValue; }
   private assertCurrent(): void {
     if (this.controller.signal.aborted || this.stateValue === 'CLOSING' || this.stateValue === 'CLOSED') throw new LocalFileLeaseError('CLOSED');
     if (!this.currentAttempt() || this.authority.isCurrent() !== true) throw new LocalFileLeaseError('STALE_ATTEMPT');
@@ -61,7 +65,12 @@ export class AssetLease {
   }
   async verify(): Promise<void> {
     try { await this.operation(async () => { await this.file.verify(); this.assertCurrent(); }); }
-    catch (error) { void this.close().catch(() => undefined); if (error instanceof LocalFileLeaseError) throw error; throw new LocalFileLeaseError('SOURCE_CHANGED'); }
+    catch (error) {
+      const failure = error instanceof LocalFileLeaseError ? error : new LocalFileLeaseError('SOURCE_CHANGED');
+      // 先封存原失败码，再触发abort；后台退休的监听方不得把源变化误记为显式释放。
+      this.failureCodeValue ??= failure.code;
+      void this.close().catch(() => undefined); throw failure;
+    }
   }
   attachResponse(response: ServerResponse): () => void {
     this.assertCurrent(); if (this.responses.size >= 4) throw new LocalFileLeaseError('CAPACITY');
@@ -109,11 +118,11 @@ export class LocalFileSourcePool {
   constructor(private readonly options: { maxLeases?: number; now?: () => number } = {}) {
     if (options.maxLeases !== undefined && (!Number.isSafeInteger(options.maxLeases) || options.maxLeases < 1 || options.maxLeases > 16)) throw new LocalFileLeaseError('CAPACITY');
   }
-  async prepare(descriptor: PreparedLocalSource, authority: LocalLeaseAuthority): Promise<AssetLease> {
+  async prepare(descriptor: ReadonlyLocalFileDescriptor, authority: LocalLeaseAuthority): Promise<AssetLease> {
     const pending = this.prepareInternal(structuredClone(descriptor), { ...authority }); this.preparations.add(pending);
     try { return await pending; } finally { this.preparations.delete(pending); }
   }
-  private async prepareInternal(descriptor: PreparedLocalSource, authority: LocalLeaseAuthority): Promise<AssetLease> {
+  private async prepareInternal(descriptor: ReadonlyLocalFileDescriptor, authority: LocalLeaseAuthority): Promise<AssetLease> {
     if (this.closing) throw new LocalFileLeaseError('CLOSED');
     if (!descriptor || descriptor.source_kind !== 'local_file' || descriptor.status !== 'prepared_descriptor' || !descriptor.facts
       || descriptor.facts.track.assetId !== descriptor.facts.asset.id || descriptor.facts.asset.rootRevision !== descriptor.facts.root.revision

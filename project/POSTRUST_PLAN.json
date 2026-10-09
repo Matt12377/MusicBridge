@@ -36048,9 +36048,8 @@
     "effective_on": "2026-10-08",
     "owner_authorization": "DIRECT_OWNER_VERIFIED_COORDINATION_REQUEST",
     "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
-    "current_task": "MBM-001",
+    "current_task": "MBM-002",
     "remaining_sequence": [
-      "MBM-001",
       "MBM-002",
       "MBM-003",
       "MBM-004",
@@ -36068,14 +36067,16 @@
       "children": "EXISTING_THREE_gpt-6.1-sol/max"
     },
     "mbm002_physical_device_entry": "FIRST_RUNNABLE_REAL_MAC_TO_IPHONE_FILE_CHAIN",
-    "mbm003_flac": "REAL_LOSSLESS_PLAYABLE_PATH_REQUIRED_PRESERVE_RATE_DEPTH_CHANNELS",
+    "mbm003_flac": "ACTUAL_IPHONE_AT_LEAST_24BIT_192KHZ_LOSSLESS_PRESERVE_THREE_AXES",
     "mbm004_validation": "TWO_PHONES_BACKGROUND_HOUSEHOLD_ROON_NONINTERFERENCE",
     "original_dependencies_and_acceptance_unchanged": true,
     "current_013_restarted": false,
     "old_017_then_mobile_records": "HISTORICAL_SUPERSEDED_SCHEDULING_ONLY",
-    "recorded_at": "2026-10-09T04:26:03.432089+00:00",
-    "current_task_scope_ref": "docs/postrust/MBM-001/EXECUTION_SCOPE.json",
-    "predecessor_final_report": "c6c4745dfc7fe4242b8a2682798e00605649b12e"
+    "recorded_at": "2026-10-09T12:25:30.473008+00:00",
+    "current_task_scope_ref": "docs/postrust/MBM-002/EXECUTION_SCOPE.json",
+    "predecessor_final_report": "8044d935e242d8647adc21445116fb49c9100e4a",
+    "mbm003_dsd": "ACTUAL_IPHONE_DSD_TO_PCM_EXPLICIT_CONVERSION_SOURCE_READONLY",
+    "mbm003_owner_amendment": "docs/postrust/MBM-003/OWNER_SCOPE_AMENDMENT_2026-10-09.json"
   },
   "mobile_tasks": [
     {
@@ -36121,7 +36122,7 @@
     {
       "id": "MBM-001",
       "title": "配对与只读曲库",
-      "status": "SOFTWARE_AND_ACTUAL_SDK_QUALIFIED_FINAL_CI_REPORT_ACCOUNTING_PENDING",
+      "status": "SOFTWARE_DELIVERY_COMPLETE_LIVE_OWNER_OPEN",
       "scheduled_after": "MBM-000",
       "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
       "scope_ref": "docs/postrust/MBM-001/EXECUTION_SCOPE.json",
@@ -36138,8 +36139,8 @@
       "actual_self_owned_mac_service_shared_ios_sdk": "PASS_22_ACTUAL_CASES_32_DRIVER_TESTS_ORIGINAL_APP_CLOSE_ZERO_NOT_DEVICE_OWNER",
       "implementation_commit": "cef70a57aa1f4b495e6babb4cc7c0b65f7297742",
       "implementation_commit_resolution": "EXACT_SINGLE_PARENT_REPAIR_SOURCE_FRESH_GATE_FIRST_NATURAL_CI",
-      "report_commit": null,
-      "report_commit_resolution": "RESOLVE_UNIQUE_REPORT_HEAD_SINGLE_PARENT_SOURCE_AFTER_COMMIT",
+      "report_commit": "8044d935e242d8647adc21445116fb49c9100e4a",
+      "report_commit_resolution": "EXACT_REPORT_UNIQUE_PARENT_SOURCE_FINAL_REMOTE_CLEAN_FIRST_NATURAL_CI_READ",
       "report_path": "reports/MBM-001_RESULT.md",
       "evidence_refs": [
         "docs/postrust/MBM-001/evidence/actual-sdk-readback.json",
@@ -36172,21 +36173,26 @@
       ],
       "terminal_ci_receipt": {
         "source": "docs/postrust/MBM-001/evidence/source-ci.json",
-        "report": "PENDING_FIRST_NATURAL_REPORT_CI"
-      }
+        "report": "PASS_FIRST_NATURAL_TWO_WORKFLOWS_THREE_JOBS_ACTUAL_REPORT_ONLY_CONSUMED"
+      },
+      "final_delivery_ref": "docs/postrust/MBM-002/PREDECESSOR_DELIVERY.json"
     },
     {
       "id": "MBM-002",
       "title": "手机资源播放",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "scheduled_after": "MBM-001",
       "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
-      "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
-      "software": "NOT_RUN",
-      "production_app": "NOT_RUN",
+      "scope_ref": "docs/postrust/MBM-002/EXECUTION_SCOPE.json",
+      "software": "PASS_CURRENT_WORKTREE_FRESH_READER_TYPES_AND_81_BEHAVIORS_SOURCE_GATE_PENDING",
+      "production_app": "PASS_CURRENT_FIXED_SOURCE_PRODUCTION_LAN_RUNNING_CANDIDATE_NOT_FINAL_CLOSE",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "owner_repeated_approval_required": false
+      "owner_repeated_approval_required": false,
+      "started_at": "2026-10-09T12:25:30.473008+00:00",
+      "base_report_sha": "8044d935e242d8647adc21445116fb49c9100e4a",
+      "independent_acceptance_count": 9,
+      "acceptance_ref": "docs/postrust/MBM-002/MOBILE_ACCEPTANCE.json"
     },
     {
       "id": "MBM-003",
@@ -36199,7 +36205,11 @@
       "production_app": "NOT_RUN",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "owner_repeated_approval_required": false
+      "owner_repeated_approval_required": false,
+      "scope_amendment_ref": "docs/postrust/MBM-003/OWNER_SCOPE_AMENDMENT_2026-10-09.json",
+      "minimum_flac": "24_BIT_192000_HZ_ACTUAL_IPHONE_LOSSLESS",
+      "dsd": "ACTUAL_IPHONE_DSD_TO_INDEPENDENT_PCM_NOT_NATIVE_DSD",
+      "contract_semantic_proposal_ref": "docs/postrust/MBM-003/DSD_PROCESSING_CONTRACT_PROPOSAL.json"
     },
     {
       "id": "MBM-004",
