@@ -353,5 +353,21 @@
     },
     "nextSourceGateAndFirstNaturalCi": "PENDING_NEW_ORDINARY_SOURCE_PUSH",
     "runtimeProductSources": "UNCHANGED_REUSE_ACTUAL_SHARED_SDK_AND_APP_PROOFS"
+  },
+  "sourceCleanCiEnvironmentRepair": {
+    "firstSource": "a99da1518c05f1833f24d1e4ffc5bdb9d28efafc",
+    "runId": 37901356987,
+    "failure": "MBM001_SOURCE_NOT_CLEAN",
+    "guardTestsPassed": 7,
+    "businessStagesExecuted": 0,
+    "failureEvidence": "docs/postrust/MBM-001/evidence/first-source-verify-failure.json",
+    "localReproduction": {
+      "withDefaultUntrackedCacheFiles": 3,
+      "withDontWriteBytecodeUntrackedCacheFiles": 0,
+      "originalCleanGateUnchanged": true
+    },
+    "repair": "VERIFY_JOB_ONLY_PYTHONDONTWRITEBYTECODE_1",
+    "productionSourceAndRuntimeEvidence": "655_PRODUCT_ROWS_UNCHANGED_NO_ACTUAL_RUNTIME_REPLAY",
+    "nextSourceGateAndFirstNaturalCi": "PENDING_NEW_ORDINARY_SOURCE_PUSH"
   }
 }

@@ -436,3 +436,8 @@ Mac fresh035完整33/33自然退出0，schema60/128与196整HTTP分开记录，�
 ## MBM001_FIRST_NATURAL_CI_FIXTURE_REPAIR115
 
 Source a99da151 的首次自然Electron CI在原ts-core-owner-lifecycle第8个受控用例失败（23项中22 pass、1 fail、零skip）；其后Electron安装、startup及正式E2E均未执行。实际错误为500ms期限先被完整二进制校验耗尽，未到最后版本探测；修复仅令受控时钟在已boot候选的第三次探测后推进500ms，原全部断言、期限、23个用例名不变。本地镜像23项自然退出0；精确修复Source Gate与首次自然CI待新提交后执行。两平台原Rust workflow已成功，001实际自有Mac服务消费与原App证据按655产品源码相同继续复用；失败及未执行事实单独保留，不重跑同SHA，不推进002。
+
+
+## MBM-001 综合CI干净工作区环境修复（2026-10-09）
+
+首次Source a99 的 verify 37901356987 在001准入七项通过后，因 MBM001_SOURCE_NOT_CLEAN 在业务阶段前拒绝，完整作业和原Gate步骤已保留。两个独立 cb7 镜像复现旧Python导入生成三份未跟踪cache，设置 PYTHONDONTWRITEBYTECODE=1 后生成数为0。修复只在verify作业设置环境变量，不忽略dirty、不清理既有文件、不改旧范围/预算/断言、生产产品或真实SDK证据。最终Source Gate、首次自然CI、独立报告和远端最终封存仍待；002尚未启动。
