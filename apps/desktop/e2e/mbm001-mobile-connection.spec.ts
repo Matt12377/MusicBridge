@@ -418,7 +418,7 @@ test('001生产Main/HTTPS/唯一Owner真实UI启停、配对与原回执、刷�
 
     stage = '有鉴权空目录与闭集能力'
     const capability = await jsonSuccess(connection, 'getCapabilities', '/mobile/v1/capabilities', 'capabilities-A', http, 200, { accessToken: tokensA.accessToken })
-    expect(capability.body).toEqual({ contractVersion: '0.1.0', localPlayback: false, neteasePlayback: false, transcoding: false, hls: false, preparedVariants: false, qualityProfiles: [], maxConcurrentSessions: 2 })
+    expect(capability.body).toEqual({ contractVersion: '0.1.0', localPlayback: true, neteasePlayback: false, transcoding: false, hls: false, preparedVariants: false, qualityProfiles: ['auto', 'lossless'], maxConcurrentSessions: 2 })
     const albums = await jsonSuccess(connection, 'listAlbums', '/mobile/v1/albums?limit=100', 'empty-albums-source-omitted-is-local', http, 200, { accessToken: tokensA.accessToken })
     const tracks = await jsonSuccess(connection, 'listTracks', '/mobile/v1/tracks?source=local&limit=100', 'empty-tracks-explicit-local', http, 200, { accessToken: tokensA.accessToken })
     expect(albums.body.items).toEqual([]); expect(albums.body.nextCursor).toBeNull(); expect(tracks.body.items).toEqual([]); expect(tracks.body.nextCursor).toBeNull()
