@@ -6,6 +6,7 @@ import {mkdtemp,mkdir,writeFile,rm} from 'node:fs/promises';
 import path from 'node:path';
 import type {IpcCommand,IpcRequest,SourceRoot,LibraryRoot,ScanJobRecord,LocalTrack,LocalPlayRequest} from '@music-bridge/contracts';
 import type {DatasetProjectionCommandResults} from '../../src/collection/dataset-owner-protocol.js';
+import type {PreparedLocalSource} from '../../src/application/local-source-resolver.js';
 import {createDatasetOwnerClient} from '../../src/collection/dataset-owner-client.js';
 import {createScanReadAdmission} from '../../src/library/scan-read-admission.js';
 import {LocalSourceFence} from '../../src/stream/local-source-fence.js';
@@ -28,7 +29,8 @@ test('006真实Owner Worker/SQLite/扫描→私有票据→固定FD链：同步s
  const tracks=await endpoint.dispatch(request('localCatalog.pageTracks',{offset:0,limit:1})) as {items:LocalTrack[]},track=tracks.items[0]!;
  const selection:LocalPlayRequest={schema_version:'1.2',request_id:randomUUID(),route:'roon_audio_input',source_kind:'local_file',local_track_id:track.id,asset_id:track.assetId,expected_asset_revision:'1',target:{core_id:'synthetic-core',zone_id:'synthetic-zone'},action:'PLAY_NOW'};
  const captured=await endpoint.captureLocalSource!(selection),fence=new LocalSourceFence(captured.buffer);assert.equal(fence.current,true);
- const lease=await pool.prepare({source_kind:'local_file',status:'prepared_descriptor',request_id:selection.request_id,action:selection.action,target:selection.target,facts:captured.facts},{ownerId:'controlled-core',attempt:1,isCurrent:()=>fence.current&&endpoint.isLocalSourceCurrent!()});const chunks:Buffer[]=[];for await(const chunk of lease.readSlice(0,bytes.length-1,new AbortController().signal))chunks.push(chunk);assert.deepEqual(Buffer.concat(chunks),bytes);
+ const descriptor:PreparedLocalSource={source_kind:'local_file',status:'prepared_descriptor',request_id:selection.request_id,action:selection.action,target:selection.target,facts:captured.facts};
+ const lease=await pool.prepare(descriptor,{ownerId:'controlled-core',attempt:1,isCurrent:()=>fence.current&&endpoint.isLocalSourceCurrent!()});const chunks:Buffer[]=[];for await(const chunk of lease.readSlice(0,bytes.length-1,new AbortController().signal))chunks.push(chunk);assert.deepEqual(Buffer.concat(chunks),bytes);
  await endpoint.dispatch(request('localCatalog.selectAsset',{commandId:randomUUID(),trackId:track.id,expectedSelectionRevision:'1',assetId:track.assetId}));assert.equal(fence.current,false);await assert.rejects(async()=>{for await(const chunk of lease.readSlice(0,2,new AbortController().signal))assert.fail('撤销不读');});await lease.close();await endpoint.releaseLocalSource!(captured.ticketId);
  const fresh=await endpoint.captureLocalSource!({...selection,request_id:randomUUID()}),next=new LocalSourceFence(fresh.buffer);assert.equal(next.current,true);assert.equal(fresh.facts.track.selectionRevision,'2');await worker.terminate();await eventually(()=>fatals.length===1,'Worker退出已封口');assert.equal(next.current,false);assert.equal(endpoint.isLocalSourceCurrent!(),false);await assert.rejects(endpoint.captureLocalSource!(selection));assert.deepEqual(pool.resourceSnapshot(),{openLeases:0,reservations:0});
 });
