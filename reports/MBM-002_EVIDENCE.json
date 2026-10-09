@@ -1,0 +1,296 @@
+{
+  "schema": "mbm002.independent-result-report.v1",
+  "task": "MBM-002",
+  "baseSha": "8044d935e242d8647adc21445116fb49c9100e4a",
+  "implementationCommit": "df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+  "sourceCommitChain": [
+    "1686c105d991e518eb9f7a7659430eef627e22fd",
+    "bf0f0261d07cd00a70411edd640789b07d172fa2",
+    "d698ff7bad90c3c9c99d872c9a2d2a9bdf7efd57",
+    "76ad006c97e9a552e93e569364d063860ad7e37b",
+    "df1533de5ceb7fdf98cf98c86ec03c498891f7a4"
+  ],
+  "reportCommit": null,
+  "reportCommitResolution": "GIT_CURRENT_REPORT_HEAD_UNIQUE_PARENT_EXACT_SOURCE_AFTER_COMMIT",
+  "software": {
+    "localGateTests": 81,
+    "contractCases": 15,
+    "coreCases": 30,
+    "desktopCases": 36,
+    "naturalSourceExitCode": 0,
+    "sourceWholeInputs": 1746,
+    "readerSourceRows": 1519,
+    "readerOutputs": 1030,
+    "directCompilerTools": 4,
+    "preserved001Tests": 87,
+    "preserved001WholeInputs": 1742
+  },
+  "sourceCi": {
+    "workflows": 4,
+    "jobs": 6,
+    "completeRawJobLogs": 6,
+    "wholeActualZips": 5,
+    "standard": {
+      "tests": 4736,
+      "pass": 4734,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    "e2e": {
+      "total": 116,
+      "passed": 111,
+      "originalSkipped": 5,
+      "failed": 0,
+      "retries": 0,
+      "flaky": 0
+    },
+    "startupTests": 12,
+    "reportAdmissionGuards": 67,
+    "staticSecurityTests": 29,
+    "historicalGates": [
+      {
+        "task": "MBRS-012",
+        "tests": 426
+      },
+      {
+        "task": "MBRS-013",
+        "tests": 529
+      },
+      {
+        "task": "MBM-000",
+        "tests": 33
+      },
+      {
+        "task": "MBM-001",
+        "tests": 87
+      },
+      {
+        "task": "MBM-002",
+        "tests": 81
+      }
+    ],
+    "dependencyAudit": {
+      "result": "PASS_EXISTING_HIGH_THRESHOLD",
+      "counts": {
+        "info": 0,
+        "low": 0,
+        "moderate": 8,
+        "high": 0,
+        "critical": 0
+      },
+      "zeroKnownVulnerabilities": false,
+      "ciIssueDetails": "NOT_PRINTED_BY_BRIEF_HIGH_THRESHOLD_JOB",
+      "thresholdChanged": false,
+      "dependencyIssuesFixedByThisReadback": false,
+      "carryover": "MBRS016_EXISTING_DEPENDENCY_TRIAGE_BEFORE_RELEASE"
+    },
+    "officialInstallerTransport": {
+      "maximumAttempts": 3,
+      "actualCalls": 1,
+      "observedFailedCalls": 0,
+      "finalOfficialInstallerNaturalExitZero": true,
+      "transportRetriesOnlyNotTestRetries": true,
+      "backoffSeconds": 15,
+      "officialArchiveAndActualExecutionTreeGate": "PASS_SEPARATE_ORIGINAL_MANDATORY_STEP"
+    }
+  },
+  "actualMacRuntime": {
+    "schema": "mbm002.production-mac-runtime-evidence.v1",
+    "source": "df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+    "candidate": "READY165",
+    "statusAtOriginalRead": "PASS_RUNNING_CANDIDATE_NOT_FINAL_CLOSE",
+    "inputRows": 1723,
+    "sourceGitBlobRows": 664,
+    "inputIdentity": "e2868ec08ea2d93c8be360ffe1c8573b258b93ce08471fb1b4678034d0268560",
+    "systemSafeStorage": true,
+    "realProductionMainCoreSupervisorUniqueOwnerRenderer": true,
+    "checks": [
+      {
+        "name": "production-source-and-dist-whole-fd",
+        "status": "PASS",
+        "files": 1723,
+        "identity": "e2868ec08ea2d93c8be360ffe1c8573b258b93ce08471fb1b4678034d0268560"
+      },
+      {
+        "name": "original-owned-two-minute-wav-whole-fd",
+        "status": "PASS",
+        "bytes": 10584132,
+        "sha256": "9850d9fabf1f0fef89571f30f51d708523de94565afc4d07aeb1a8cfcba30520"
+      },
+      {
+        "name": "trusted-renderer-permit-and-native-tls-claim",
+        "status": "PASS"
+      },
+      {
+        "name": "actual-scanner-owner-file-ready",
+        "status": "PASS",
+        "initialHttpStatus": 202,
+        "source": "local",
+        "sourceAudio": {
+          "bitsPerSample": 16,
+          "channels": 1,
+          "codec": "pcm_s16le",
+          "container": "wav",
+          "sampleRateHz": 44100
+        },
+        "actualAudio": {
+          "bitsPerSample": 16,
+          "channels": 1,
+          "codec": "pcm_s16le",
+          "container": "wav",
+          "sampleRateHz": 44100
+        },
+        "processing": {
+          "fromPreparedCache": false,
+          "mode": "direct",
+          "reason": "原工作库当前扫描文件的直接只读传输。"
+        },
+        "bytes": 10584132,
+        "sha256": "9850d9fabf1f0fef89571f30f51d708523de94565afc4d07aeb1a8cfcba30520",
+        "durationMs": 120000
+      },
+      {
+        "name": "full-media-200-over-original-json-cap",
+        "status": "PASS",
+        "bytes": 10584132,
+        "sha256": "9850d9fabf1f0fef89571f30f51d708523de94565afc4d07aeb1a8cfcba30520"
+      },
+      {
+        "name": "single-closed-open-suffix-range-206",
+        "status": "PASS"
+      },
+      {
+        "name": "d2-head-and-zero-body-range-errors",
+        "status": "PASS"
+      },
+      {
+        "name": "original-create-http-receipt-whole-unchanged",
+        "status": "PASS"
+      },
+      {
+        "name": "renew-original-receipt-and-both-original-ttl-tickets",
+        "status": "PASS"
+      },
+      {
+        "name": "actual-release-session-close-logout-204",
+        "status": "PASS",
+        "fdQuiet": "ACTUAL_204_OWNER_ACK_NOT_INDEPENDENT_EXTERNAL_FD_INSPECTION"
+      },
+      {
+        "name": "original-source-and-production-inputs-still-whole-unchanged",
+        "status": "PASS"
+      }
+    ],
+    "checksCount": 11,
+    "actualMacProof": {
+      "file": "ACTUAL_LAN_MEDIA163.json",
+      "bytes": 4260,
+      "sha256": "b5dc2edf8205a23b9d0570fd0d76c05c00dc0c02df7ae57adf196c1b99cec3ff"
+    },
+    "wholeExactSourceBinding": {
+      "file": "ROOT_MBM002_CANDIDATE_FINAL_SOURCE164.json",
+      "bytes": 127360,
+      "sha256": "09a3fd2d7f2490cd459727abbb66006d8ed1396a700c698dbb0c5b58e987f1a7"
+    },
+    "publicReady": {
+      "file": "ROOT_MBM002_VERIFIED_LAN_READY165.json",
+      "bytes": 7981,
+      "sha256": "982c1995e6040fa4ec7686acc17aadfb8c9d4453bf9837b13589889288e02445"
+    },
+    "currentNativePanel": {
+      "file": "ROOT_MBM002_CURRENT_PANEL_UI_READY166.json",
+      "bytes": 929,
+      "sha256": "8f41316bf8690d13b5075fbd998767e1ebd25177635117cd1746b33b63488ef7"
+    },
+    "actual204": "OWNER_ACK_NOT_INDEPENDENT_EXTERNAL_FD_COUNT",
+    "sameRunActualIosSdk": "NOT_RUN",
+    "nativeIOSDeviceAudioOwner": "NOT_RUN",
+    "physicalPhonePermitCount": 0,
+    "tokensOrMediaUrlsPublished": false,
+    "earlierReady55Sdk": {
+      "actualCases": 24,
+      "naturalExitCode": 0,
+      "readback": {
+        "file": "ROOT_MBM002_ACTUAL_IOS_SDK97.json",
+        "bytes": 7770,
+        "sha256": "dee0c1c93516e50759c294bac59285b124c66d4cffa1118fccfeca9cbe017360"
+      },
+      "engine": "OFFICIAL_SHARED_IOS_SDK_ON_MACOS_NATIVE_MUTED_AVPLAYER_NOT_PHYSICAL_IPHONE",
+      "tokenStore": "RAM_NOT_ACCOUNT_KEYCHAIN",
+      "sameFinalCandidateReplayed": false
+    },
+    "priorCandidatesNaturallyClosed": [
+      {
+        "readback": {
+          "file": "ROOT_MBM002_CANDIDATE_NATURAL_CLOSE103.json",
+          "bytes": 2814,
+          "sha256": "6c3b53f1c3ac5b752a3b327d1a0e29ea9ea54c0dcb7edf9eda736fe2b08676e1"
+        },
+        "inputRows": 1723,
+        "parentExitCode": 0,
+        "appExitCode": 0,
+        "signal": null,
+        "originalProcessAbsent": true,
+        "processedOriginalPermitRequests": 3
+      },
+      {
+        "readback": {
+          "file": "ROOT_MBM002_CANDIDATE_NATURAL_CLOSE158.json",
+          "bytes": 2847,
+          "sha256": "b31984e53ace967f34542fc0a0ea8a2322be4ef361abffee2027851cbf52873f"
+        },
+        "inputRows": 1723,
+        "parentExitCode": 0,
+        "appExitCode": 0,
+        "signal": null,
+        "originalProcessAbsent": true,
+        "processedOriginalPermitRequests": 1
+      }
+    ]
+  },
+  "iosEngineeringCheckpoint": {
+    "source": "f823ef5f3c73912e5dd2c29f960e6d3e538f31f5",
+    "report": "b2d08cd955d5a68cc9ea20a08fc939f2c8bd2833",
+    "wholeInputs": 381,
+    "final": false
+  },
+  "testsAcrossOverlappingSuitesAdded": false,
+  "canonical": {
+    "path": "packages/contracts/mobile/openapi.json",
+    "bytes": 145918,
+    "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+  },
+  "independentAcceptanceCount": 9,
+  "sourceFrozenAcceptance": "docs/postrust/MBM-002/MOBILE_ACCEPTANCE.json",
+  "stateRemains": "IN_PROGRESS",
+  "reportNaturalCi": "PENDING_FIRST_ORDINARY_REPORT_PUSH_TWO_WORKFLOWS_THREE_JOBS",
+  "pairedFinalDelivery": false,
+  "pairedFinalDeliveryResolution": "WAIT_CURRENT_MAC_CANDIDATE_CLOSE_REPORT_CI_AND_IOS_FINAL_DELIVERY",
+  "realProviderRoonNasDeviceAudioOwner": "NOT_RUN",
+  "original18Tasks156AcceptanceAndEffective17Tasks150AcceptancePreserved": true,
+  "nextTasks": [
+    "MBM-003",
+    "MBM-004",
+    "MBRS-016",
+    "MBRS-017"
+  ],
+  "mbm003And004": "NOT_STARTED",
+  "nextBranchBaseline": "RESOLVE_PAIRED_FINAL_REPORT_HEAD_ONLY_AFTER_PRIVATE_SEAL",
+  "ownerRepeatedApprovalRequired": false,
+  "fullTransitiveToolchainClosure": false,
+  "sourcePendingFields": "HISTORICAL_FROZEN_SOURCE_SNAPSHOT_R_UPDATES_ACCOUNTING_ONLY",
+  "evidenceFiles": [
+    "docs/postrust/MBM-002/evidence/frozen-reader-identities.json",
+    "docs/postrust/MBM-002/evidence/ios-engineering-checkpoint.json",
+    "docs/postrust/MBM-002/evidence/natural-ci-history.json",
+    "docs/postrust/MBM-002/evidence/preserved001-source-gate.json",
+    "docs/postrust/MBM-002/evidence/source-artifact-readback.json",
+    "docs/postrust/MBM-002/evidence/source-ci-readback.json",
+    "docs/postrust/MBM-002/evidence/source-ci.json",
+    "docs/postrust/MBM-002/evidence/source-gate-readback.json",
+    "docs/postrust/MBM-002/evidence/source-repair-readback.json",
+    "docs/postrust/MBM-002/evidence/source-runtime-readback.json"
+  ]
+}

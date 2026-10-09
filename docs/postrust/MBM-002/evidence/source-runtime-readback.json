@@ -1,0 +1,154 @@
+{
+  "schema": "mbm002.production-mac-runtime-evidence.v1",
+  "source": "df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+  "candidate": "READY165",
+  "statusAtOriginalRead": "PASS_RUNNING_CANDIDATE_NOT_FINAL_CLOSE",
+  "inputRows": 1723,
+  "sourceGitBlobRows": 664,
+  "inputIdentity": "e2868ec08ea2d93c8be360ffe1c8573b258b93ce08471fb1b4678034d0268560",
+  "systemSafeStorage": true,
+  "realProductionMainCoreSupervisorUniqueOwnerRenderer": true,
+  "checks": [
+    {
+      "name": "production-source-and-dist-whole-fd",
+      "status": "PASS",
+      "files": 1723,
+      "identity": "e2868ec08ea2d93c8be360ffe1c8573b258b93ce08471fb1b4678034d0268560"
+    },
+    {
+      "name": "original-owned-two-minute-wav-whole-fd",
+      "status": "PASS",
+      "bytes": 10584132,
+      "sha256": "9850d9fabf1f0fef89571f30f51d708523de94565afc4d07aeb1a8cfcba30520"
+    },
+    {
+      "name": "trusted-renderer-permit-and-native-tls-claim",
+      "status": "PASS"
+    },
+    {
+      "name": "actual-scanner-owner-file-ready",
+      "status": "PASS",
+      "initialHttpStatus": 202,
+      "source": "local",
+      "sourceAudio": {
+        "bitsPerSample": 16,
+        "channels": 1,
+        "codec": "pcm_s16le",
+        "container": "wav",
+        "sampleRateHz": 44100
+      },
+      "actualAudio": {
+        "bitsPerSample": 16,
+        "channels": 1,
+        "codec": "pcm_s16le",
+        "container": "wav",
+        "sampleRateHz": 44100
+      },
+      "processing": {
+        "fromPreparedCache": false,
+        "mode": "direct",
+        "reason": "原工作库当前扫描文件的直接只读传输。"
+      },
+      "bytes": 10584132,
+      "sha256": "9850d9fabf1f0fef89571f30f51d708523de94565afc4d07aeb1a8cfcba30520",
+      "durationMs": 120000
+    },
+    {
+      "name": "full-media-200-over-original-json-cap",
+      "status": "PASS",
+      "bytes": 10584132,
+      "sha256": "9850d9fabf1f0fef89571f30f51d708523de94565afc4d07aeb1a8cfcba30520"
+    },
+    {
+      "name": "single-closed-open-suffix-range-206",
+      "status": "PASS"
+    },
+    {
+      "name": "d2-head-and-zero-body-range-errors",
+      "status": "PASS"
+    },
+    {
+      "name": "original-create-http-receipt-whole-unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "renew-original-receipt-and-both-original-ttl-tickets",
+      "status": "PASS"
+    },
+    {
+      "name": "actual-release-session-close-logout-204",
+      "status": "PASS",
+      "fdQuiet": "ACTUAL_204_OWNER_ACK_NOT_INDEPENDENT_EXTERNAL_FD_INSPECTION"
+    },
+    {
+      "name": "original-source-and-production-inputs-still-whole-unchanged",
+      "status": "PASS"
+    }
+  ],
+  "checksCount": 11,
+  "actualMacProof": {
+    "file": "ACTUAL_LAN_MEDIA163.json",
+    "bytes": 4260,
+    "sha256": "b5dc2edf8205a23b9d0570fd0d76c05c00dc0c02df7ae57adf196c1b99cec3ff"
+  },
+  "wholeExactSourceBinding": {
+    "file": "ROOT_MBM002_CANDIDATE_FINAL_SOURCE164.json",
+    "bytes": 127360,
+    "sha256": "09a3fd2d7f2490cd459727abbb66006d8ed1396a700c698dbb0c5b58e987f1a7"
+  },
+  "publicReady": {
+    "file": "ROOT_MBM002_VERIFIED_LAN_READY165.json",
+    "bytes": 7981,
+    "sha256": "982c1995e6040fa4ec7686acc17aadfb8c9d4453bf9837b13589889288e02445"
+  },
+  "currentNativePanel": {
+    "file": "ROOT_MBM002_CURRENT_PANEL_UI_READY166.json",
+    "bytes": 929,
+    "sha256": "8f41316bf8690d13b5075fbd998767e1ebd25177635117cd1746b33b63488ef7"
+  },
+  "actual204": "OWNER_ACK_NOT_INDEPENDENT_EXTERNAL_FD_COUNT",
+  "sameRunActualIosSdk": "NOT_RUN",
+  "nativeIOSDeviceAudioOwner": "NOT_RUN",
+  "physicalPhonePermitCount": 0,
+  "tokensOrMediaUrlsPublished": false,
+  "earlierReady55Sdk": {
+    "actualCases": 24,
+    "naturalExitCode": 0,
+    "readback": {
+      "file": "ROOT_MBM002_ACTUAL_IOS_SDK97.json",
+      "bytes": 7770,
+      "sha256": "dee0c1c93516e50759c294bac59285b124c66d4cffa1118fccfeca9cbe017360"
+    },
+    "engine": "OFFICIAL_SHARED_IOS_SDK_ON_MACOS_NATIVE_MUTED_AVPLAYER_NOT_PHYSICAL_IPHONE",
+    "tokenStore": "RAM_NOT_ACCOUNT_KEYCHAIN",
+    "sameFinalCandidateReplayed": false
+  },
+  "priorCandidatesNaturallyClosed": [
+    {
+      "readback": {
+        "file": "ROOT_MBM002_CANDIDATE_NATURAL_CLOSE103.json",
+        "bytes": 2814,
+        "sha256": "6c3b53f1c3ac5b752a3b327d1a0e29ea9ea54c0dcb7edf9eda736fe2b08676e1"
+      },
+      "inputRows": 1723,
+      "parentExitCode": 0,
+      "appExitCode": 0,
+      "signal": null,
+      "originalProcessAbsent": true,
+      "processedOriginalPermitRequests": 3
+    },
+    {
+      "readback": {
+        "file": "ROOT_MBM002_CANDIDATE_NATURAL_CLOSE158.json",
+        "bytes": 2847,
+        "sha256": "b31984e53ace967f34542fc0a0ea8a2322be4ef361abffee2027851cbf52873f"
+      },
+      "inputRows": 1723,
+      "parentExitCode": 0,
+      "appExitCode": 0,
+      "signal": null,
+      "originalProcessAbsent": true,
+      "processedOriginalPermitRequests": 1
+    }
+  ]
+}

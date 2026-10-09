@@ -1,0 +1,157 @@
+{
+  "schema": "musicbridge.mbm002.exact-source-gate-whole-readback.v1",
+  "source": "df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+  "base": "8044d935e242d8647adc21445116fb49c9100e4a",
+  "summary": {
+    "path": "private-external:checks/source-gate146/summary.json",
+    "bytes": 1084664,
+    "sha256": "76ce92629268ca9257272127c31985abad0b64e5af8c51c437478b85a737bff1"
+  },
+  "result": "PASS_EXACT_SOURCE_FRESH_READER_TYPES_AND_81_COMPLETE_BEHAVIORS",
+  "caseCounts": {
+    "contracts": 15,
+    "core": 30,
+    "desktop": 36,
+    "all": 81
+  },
+  "stageCount": 9,
+  "stages": [
+    {
+      "name": "fresh-contracts-compiler",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "path": "private-external:checks/source-gate146/tmp/prepare-fresh-contracts-compiler.raw.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "expectedTests": null
+    },
+    {
+      "name": "fresh-core-compiler",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "path": "private-external:checks/source-gate146/tmp/prepare-fresh-core-compiler.raw.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "expectedTests": null
+    },
+    {
+      "name": "fresh-fixed-metadata-worker",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "path": "private-external:checks/source-gate146/tmp/prepare-fresh-fixed-metadata-worker.raw.log",
+        "bytes": 68,
+        "sha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6"
+      },
+      "expectedTests": null
+    },
+    {
+      "name": "mobile-test-types",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "path": "private-external:checks/source-gate146/tmp/mobile-test-types.raw.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "expectedTests": null
+    },
+    {
+      "name": "desktop-types",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "path": "private-external:checks/source-gate146/tmp/desktop-types.raw.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "expectedTests": null
+    },
+    {
+      "name": "mobile-app-types",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "path": "private-external:checks/source-gate146/tmp/mobile-app-types.raw.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "expectedTests": null
+    },
+    {
+      "name": "mobile-contracts-behavior",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "path": "private-external:checks/source-gate146/tmp/mobile-contracts-behavior.raw.log",
+        "bytes": 3626,
+        "sha256": "c241105c1bcea0172ade32e155769ce874d8d0cfe5c185de06c7d7ad6182ea87"
+      },
+      "expectedTests": 15
+    },
+    {
+      "name": "mobile-core-behavior",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "path": "private-external:checks/source-gate146/tmp/mobile-core-behavior.raw.log",
+        "bytes": 8300,
+        "sha256": "2d62a741802b3c91b38ca94602e2064d0197f94abfcd139c2e9aaaefec2ac8b1"
+      },
+      "expectedTests": 30
+    },
+    {
+      "name": "mobile-desktop-behavior",
+      "exitCode": 0,
+      "signal": null,
+      "closeObserved": true,
+      "wholeOriginalRawLog": {
+        "path": "private-external:checks/source-gate146/tmp/mobile-desktop-behavior.raw.log",
+        "bytes": 9714,
+        "sha256": "bed2ea906acd9334406721ae167652540e15236a5b243fdb18b24377577391a5"
+      },
+      "expectedTests": 36
+    }
+  ],
+  "wholeSourceInputs": 1746,
+  "sourceInputIdentity": "ae5bbae2903f5eed2fcb7b725c2618b8042b52a33200b1e9e66a559f1c031490",
+  "wholeFreshReaderSourceRows": 1519,
+  "wholeFreshReaderOutputRows": 1030,
+  "wholeDirectCompilerToolRows": 4,
+  "uniqueWholeGitBlobBoundInputs": 1746,
+  "naturalCli": {
+    "path": "private-external:checks/SOURCE_GATE146.json",
+    "bytes": 824,
+    "sha256": "2dbd2e8de44966683efd00b7ab977e8e3ae182c5bffdb933ac9a0d98c8ae9893"
+  },
+  "cleanIsolatedMirror": true,
+  "liveCandidateNotRebuilt": true,
+  "frozenBudgetUnchanged": {
+    "stageTimeoutMs": 180000,
+    "totalTimeoutMs": 480000,
+    "killGraceMs": 10000,
+    "rawOutputBytes": 16777216,
+    "sourceFileBytes": 16777216,
+    "maxSourceFiles": 8192
+  },
+  "wholeCanonical": {
+    "bytes": 145918,
+    "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+  },
+  "fullTransitiveToolchainClosure": false,
+  "realProviderRoonNasNativeDeviceAudioOwner": "NOT_RUN",
+  "naturalSourceCI": "PENDING_ORDINARY_FIRST_PUSH",
+  "readAt": "2026-10-09T16:36:01.527143+00:00"
+}

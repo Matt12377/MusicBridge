@@ -1,0 +1,82 @@
+{
+  "schema": "mbm002.source-repairs.v1",
+  "chain": [
+    "1686c105d991e518eb9f7a7659430eef627e22fd",
+    "bf0f0261d07cd00a70411edd640789b07d172fa2",
+    "d698ff7bad90c3c9c99d872c9a2d2a9bdf7efd57",
+    "76ad006c97e9a552e93e569364d063860ad7e37b",
+    "df1533de5ceb7fdf98cf98c86ec03c498891f7a4"
+  ],
+  "testTypeRepairs": "MANDATORY_AUTH_ASSERTION_FAKE_AND_TYPED_PREPARED_LOCAL_SOURCE_NO_ASSERTION_REMOVAL",
+  "capabilityExpectation": {
+    "schema": "musicbridge.mbm002.closed-capabilities-fixture-source-repair.v1",
+    "result": "PASS_ONLY_ONE_EXACT_EXPECTATION_LINE_SOURCE_COMMITTED_IN_ISOLATED_MIRROR",
+    "source": "76ad006c97e9a552e93e569364d063860ad7e37b",
+    "uniqueParent": "d698ff7bad90c3c9c99d872c9a2d2a9bdf7efd57",
+    "sourceCheckout": "private-external:checks/source-mirror58/workspace",
+    "originalCandidateCheckout": "private-external:checkout",
+    "originalCandidateSource": "d698ff7bad90c3c9c99d872c9a2d2a9bdf7efd57",
+    "runtimeCandidateStillRunningAndWhole1723InputsUnchanged": true,
+    "candidateInputIdentity": "978f45b6dad728231c52feba2465b6211374aa57ee5af45b73db15b5fba5e14f",
+    "candidateDeclaredE2eInputIsHistoricalD698NotNewSource": true,
+    "productionRuntimeFilesChanged": 0,
+    "changedPaths": [
+      "apps/desktop/e2e/mbm001-mobile-connection.spec.ts"
+    ],
+    "oldFile": {
+      "bytes": 61696,
+      "sha256": "f2ae0971ef004829425d0b955e375d4228cd7eba7047b82e40775bf4937c6c4d"
+    },
+    "newFile": {
+      "path": "private-external:checks/source-mirror58/workspace/apps/desktop/e2e/mbm001-mobile-connection.spec.ts",
+      "bytes": 61713,
+      "sha256": "f364f50cba5faea1331b51a741e8bf5a93457f9dbf0fcb279ae0a62eed023c2a"
+    },
+    "changedExpectations": [
+      "localPlayback=false→true",
+      "qualityProfiles=[]→[auto,lossless]"
+    ],
+    "remainingSixCapabilityAxesOriginalExact": true,
+    "canonicalUnchanged": true,
+    "originalTwoCasesNamesAssertionsTimeoutsRetriesPreservedExceptCapabilitiesPrecondition": true,
+    "red": {
+      "path": "private-external:checks/SOURCE_MBM001_APP_RED118.json",
+      "bytes": 789,
+      "sha256": "ce9ee555db9da48d173ea601f084c1abd32d7af923f248381b0165670dbba2bd"
+    },
+    "green": {
+      "path": "private-external:checks/SOURCE_MBM001_APP_GREEN119.json",
+      "bytes": 795,
+      "sha256": "8d6673194b7bf71e69a1327bec66abe598ab2141c55a380f06f10476c3114788"
+    },
+    "firstSourceElectronFailure": {
+      "path": "private-external:checks/FIRST_SOURCE_FAILED_ELECTRON_JOB117.json",
+      "bytes": 885,
+      "sha256": "d41e65bf2476a28c0749ab3d7a2b0aef1f42c037968fd8dca3e9762418807b01"
+    },
+    "sourceGateCiReportSeal": "PENDING_FRESH_NEW_SOURCE",
+    "at": "2026-10-09T15:58:31.931712+00:00"
+  },
+  "settingsCopy": {
+    "schema": "musicbridge.mbm002.mobile-settings-copy-source.v1",
+    "result": "PASS_ONLY_SINGLE_SETTINGS_DESCRIPTION_LINE_CHANGED",
+    "source": "df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+    "uniqueParent": "76ad006c97e9a552e93e569364d063860ad7e37b",
+    "changedPaths": [
+      "apps/desktop/src/renderer/src/components/settings/MobileConnectionSettings.vue"
+    ],
+    "oldFile": {
+      "bytes": 6984,
+      "sha256": "bc54f949e2aac2a3fe2889c79cfe5195db87fbd7b29198f21fbe50aeb1ca9d48"
+    },
+    "newFile": {
+      "bytes": 6984,
+      "sha256": "1f8a9db4bafe56200bb42a4dff7283e1c4a17181fb4ce8c6eae36946642ca365"
+    },
+    "businessControlAuthMediaTicketOrCanonicalChanges": 0,
+    "originalD698CandidateNotMutatedOrRestarted": true,
+    "sourceGateCiReportSeal": "PENDING_FRESH_SOURCE",
+    "at": "2026-10-09T16:09:22.047954+00:00"
+  },
+  "sourceRepairDidNotChangeCanonicalOrFrozenGateBudgets": true
+}

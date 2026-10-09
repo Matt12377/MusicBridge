@@ -36192,7 +36192,30 @@
       "started_at": "2026-10-09T12:25:30.473008+00:00",
       "base_report_sha": "8044d935e242d8647adc21445116fb49c9100e4a",
       "independent_acceptance_count": 9,
-      "acceptance_ref": "docs/postrust/MBM-002/MOBILE_ACCEPTANCE.json"
+      "acceptance_ref": "docs/postrust/MBM-002/MOBILE_ACCEPTANCE.json",
+      "implementation_commit": "df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+      "implementation_commit_resolution": "EXACT_SINGLE_PARENT_SOURCE_FRESH_LOCAL_GATE_FIRST_NATURAL_CI_WHOLE_ARTIFACTS",
+      "report_commit": null,
+      "report_commit_resolution": "GIT_CURRENT_REPORT_HEAD_UNIQUE_PARENT_EXACT_SOURCE_AFTER_COMMIT",
+      "report_path": "reports/MBM-002_RESULT.md",
+      "evidence_refs": [
+        "docs/postrust/MBM-002/evidence/frozen-reader-identities.json",
+        "docs/postrust/MBM-002/evidence/ios-engineering-checkpoint.json",
+        "docs/postrust/MBM-002/evidence/natural-ci-history.json",
+        "docs/postrust/MBM-002/evidence/preserved001-source-gate.json",
+        "docs/postrust/MBM-002/evidence/source-artifact-readback.json",
+        "docs/postrust/MBM-002/evidence/source-ci-readback.json",
+        "docs/postrust/MBM-002/evidence/source-ci.json",
+        "docs/postrust/MBM-002/evidence/source-gate-readback.json",
+        "docs/postrust/MBM-002/evidence/source-repair-readback.json",
+        "docs/postrust/MBM-002/evidence/source-runtime-readback.json",
+        "reports/MBM-002_EVIDENCE.json",
+        "reports/MBM-002_RESULT.md"
+      ],
+      "terminal_ci_receipt": {
+        "source": "docs/postrust/MBM-002/evidence/source-ci.json",
+        "report": "PENDING_FIRST_NATURAL_REPORT_CI"
+      }
     },
     {
       "id": "MBM-003",

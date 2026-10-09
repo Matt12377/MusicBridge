@@ -1,0 +1,24 @@
+{
+  "schema": "mbm002.reader-frozen-delivery-identities.v1",
+  "source": "df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+  "result": "PASS_2064_COMPLETE_FROZEN_OUTPUT_AND_DIRECT_TOOL_FILES_RE_READ",
+  "source146": {
+    "file": "ROOT_MBM002_FINAL_SOURCE_READER_FROZEN148.json",
+    "bytes": 418526,
+    "sha256": "d593e6fdb5a3b3ccc5d85e893c06c64c31e3883681def98b230defb0c59e899d"
+  },
+  "preserved001135": {
+    "file": "ROOT_MBM002_PRESERVED001_READER_FROZEN145.json",
+    "bytes": 382842,
+    "sha256": "949b43087498a4e4b0e3e609052680322b0d96bbac27cd55894de8b646ef723c"
+  },
+  "currentSourceOutputRows": 1030,
+  "preserved001OutputRows": 1030,
+  "directToolRows": 4,
+  "source132HistoricalBuildRecordDrift": "ONE_BUILD_RECORD_TIMESTAMPS_REWRITTEN_BY135_CURRENT_CLOSURE_SUPERSEDED_BY146_148",
+  "metadata135To146OnlyActualChangedFields": [
+    "/finishedAtMs",
+    "/startedAtMs"
+  ],
+  "fullTransitiveToolchainClosure": false
+}

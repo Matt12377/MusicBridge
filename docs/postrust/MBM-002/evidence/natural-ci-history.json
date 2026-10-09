@@ -1,0 +1,159 @@
+{
+  "schema": "mbm002.natural-ci-history.v1",
+  "history": [
+    {
+      "source": "1686c105d991e518eb9f7a7659430eef627e22fd",
+      "completeNaturalWorkflowMetadata": true,
+      "runs": [
+        {
+          "id": 37948437187,
+          "path": ".github/workflows/security.yml",
+          "head_sha": "1686c105d991e518eb9f7a7659430eef627e22fd",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37948437187"
+        },
+        {
+          "id": 37948437156,
+          "path": ".github/workflows/verify.yml",
+          "head_sha": "1686c105d991e518eb9f7a7659430eef627e22fd",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "failure",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37948437156"
+        },
+        {
+          "id": 37948437385,
+          "path": ".github/workflows/rust-core.yml",
+          "head_sha": "1686c105d991e518eb9f7a7659430eef627e22fd",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37948437385"
+        },
+        {
+          "id": 37948437427,
+          "path": ".github/workflows/electron-e2e.yml",
+          "head_sha": "1686c105d991e518eb9f7a7659430eef627e22fd",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "failure",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37948437427"
+        }
+      ],
+      "completeZipQualification": false,
+      "finalSourceQualification": false
+    },
+    {
+      "source": "d698ff7bad90c3c9c99d872c9a2d2a9bdf7efd57",
+      "completeNaturalWorkflowMetadata": true,
+      "runs": [
+        {
+          "id": 37951111281,
+          "path": ".github/workflows/security.yml",
+          "head_sha": "d698ff7bad90c3c9c99d872c9a2d2a9bdf7efd57",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37951111281"
+        },
+        {
+          "id": 37951111422,
+          "path": ".github/workflows/rust-core.yml",
+          "head_sha": "d698ff7bad90c3c9c99d872c9a2d2a9bdf7efd57",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37951111422"
+        },
+        {
+          "id": 37951111549,
+          "path": ".github/workflows/electron-e2e.yml",
+          "head_sha": "d698ff7bad90c3c9c99d872c9a2d2a9bdf7efd57",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "failure",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37951111549"
+        },
+        {
+          "id": 37951111507,
+          "path": ".github/workflows/verify.yml",
+          "head_sha": "d698ff7bad90c3c9c99d872c9a2d2a9bdf7efd57",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37951111507"
+        }
+      ],
+      "completeZipQualification": false,
+      "finalSourceQualification": false
+    },
+    {
+      "source": "76ad006c97e9a552e93e569364d063860ad7e37b",
+      "completeNaturalWorkflowMetadata": true,
+      "runs": [
+        {
+          "id": 37956462589,
+          "path": ".github/workflows/security.yml",
+          "head_sha": "76ad006c97e9a552e93e569364d063860ad7e37b",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37956462589"
+        },
+        {
+          "id": 37956462697,
+          "path": ".github/workflows/verify.yml",
+          "head_sha": "76ad006c97e9a552e93e569364d063860ad7e37b",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37956462697"
+        },
+        {
+          "id": 37956462639,
+          "path": ".github/workflows/rust-core.yml",
+          "head_sha": "76ad006c97e9a552e93e569364d063860ad7e37b",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37956462639"
+        },
+        {
+          "id": 37956462660,
+          "path": ".github/workflows/electron-e2e.yml",
+          "head_sha": "76ad006c97e9a552e93e569364d063860ad7e37b",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success",
+          "html_url": "https://github.com/Matt12377/MusicBridge/actions/runs/37956462660"
+        }
+      ],
+      "completeZipQualification": false,
+      "finalSourceQualification": false
+    }
+  ],
+  "originalFailuresPreserved": true,
+  "noRerunsNoCancellations": true,
+  "oldDownloadedZeroByteDependencyLog": "SOURCE_DEPENDENCY_JOB_DOWNLOAD114_FAILED_NOT_COMPLETE_AUDIT_LOG",
+  "privateReaderCountCorrection": {
+    "file": "ROOT_MBM002_READER_COUNT_CORRECTION185.json",
+    "bytes": 1523,
+    "sha256": "8f46f6d30c6ad5fc5a031c8df5662dccd695693b80795790a36c0bd1dcae859f"
+  },
+  "privateReader183Failure": "EXPECTED_STANDARD_COUNTS_INCORRECT_NO_PRODUCT_SOURCE_OR_CI_CHANGED",
+  "finalSourceSixFullActualJobLogsQualified": true
+}

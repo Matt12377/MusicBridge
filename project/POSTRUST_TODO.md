@@ -110,3 +110,8 @@ Scope18仅改新增回归的两行assert.throws为等价字符串message重载�
 ## MBM-001 独立结果报告记账（2026-10-09）
 
 精确Source `cef70a57aa1f4b495e6babb4cc7c0b65f7297742` 的87项Gate、156项独立准入检查、原23项同500ms期限生命周期及首次自然四workflow/六job已通过，五份完整制品逐条消费。原App两项/4次自然关闭另计；正式共享iOS SDK实际22项/离线驱动32项与系统safeStorage候选原自然关闭0、103专辑/103曲目各7页通过，655份产品源码与Source整份相同。iOS实际Source `b82049825e9e9058fe4a70186da70f5a267543ea`/R `c53ed3e4850f60b203d4773446db74789e2814d7` 独立报告与普通远端已核。详见 `reports/MBM-001_RESULT.md`；本R自然CI和成对外置最终封存待执行，Source冻结pending快照与旧18/156、有效17/150、013八PARTIAL、015六N_A保持。下一002～004、016、017沿用已有连续授权，从封存R依序推进，设备/音频/真实Roon/NAS/Owner待验；当前高危门槛通过但8项既有中等依赖公告仍需016安全资格化。
+
+
+## MBM-002 独立工程报告记账（2026-10-10）
+
+精确Source `df1533de5ceb7fdf98cf98c86ec03c498891f7a4` 的81项Gate、旧001的87项及首次自然四workflow／六job通过，六份完整日志和五份完整ZIP已逐项消费。当前正式Mac自有文件HTTPS11项与1723输入／664源码绑定，早期正式iOS SDK在macOS的24项另计。iOS工程Source `f823ef5f3c73912e5dd2c29f960e6d3e538f31f5`／R `b2d08cd955d5a68cc9ea20a08fc939f2c8bd2833` 已普通推送，381输入／221播放／35App／32HTTPS分别资格化，明确非最终成对交付。见 `reports/MBM-002_RESULT.md`。本R自然CI、当前候选关闭、真正手机配对／Keychain／音频及成对封存仍待，002保持IN_PROGRESS，003／004未开始；原验收、旧18／156、有效17／150和8项moderate保留。后续003→004→016→017沿用连续授权。

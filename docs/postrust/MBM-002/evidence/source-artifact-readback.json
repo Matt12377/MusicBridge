@@ -1,0 +1,2921 @@
+{
+  "schema": "mbm002.source-five-first-natural-artifact-whole-content-readback.v1",
+  "sourceSha": "df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+  "result": "PASS_EXACT_SOURCE_FIVE_ACTUAL_ZIPS_WHOLE_DIGEST_AND_DECLARED_CONTENT",
+  "artifacts": [
+    {
+      "artifactId": 11630651608,
+      "artifactName": "rust-core-ubuntu-latest-df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+      "runId": 37958462006,
+      "zip": {
+        "path": "private-external:checks/FINAL_SOURCE_RUST_UBUNTU_ZIP152/artifact.zip",
+        "bytes": 5873168,
+        "sha256": "603f1f1404029e6e0976b6d59198f5be17da010287a2b92d49c47cf29ec64f24"
+      },
+      "platformDigest": "sha256:603f1f1404029e6e0976b6d59198f5be17da010287a2b92d49c47cf29ec64f24",
+      "wholeZipDigestMatched": true,
+      "wholeEntries": 701,
+      "uncompressedBytes": 24210687,
+      "wholeDownloadReceipt": {
+        "path": "private-external:checks/FINAL_SOURCE_RUST_UBUNTU_ZIP152/whole-read.json",
+        "bytes": 190903,
+        "sha256": "00c5995e930f28c6fefdd772da688e73134e05db3a47d3736aeb78db3e589940"
+      },
+      "declaredContent": {
+        "manifest": {
+          "entry": "run-6TCDZA/manifest.json",
+          "bytes": 158673,
+          "sha256": "3c0eeda3beb33e8417095b099b7b4292721c31a3aa2dedd5165d4abb349b1913"
+        },
+        "wholeGitSourceRows": 819,
+        "installedDependencyRows": [
+          {
+            "path": "node_modules/.pnpm/@neteasecloudmusicapienhanced+api@4.40.1_patch_hash=5794b1e31014590ccbef952492ca10fa683478c369ca62b0841c06c39ff62f0e/node_modules/@neteasecloudmusicapienhanced/api/util/crypto.js",
+            "bytes": 10097,
+            "sha256": "2fb5a857004faf85f669f0c5bf2755d53859bf27011dfe0410969f62bc8570a6",
+            "evidence": "FROZEN_INSTALLED_DEPENDENCY_WHOLE_LOCAL_BYTES_NOT_GIT_SOURCE"
+          }
+        ],
+        "declaredCommandCount": 30,
+        "actualCommands": [
+          {
+            "name": "rustc-version",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/rustc-version.log",
+              "bytes": 128,
+              "sha256": "c4a8e822383512a9b5259f591d8ab4b9b1f598b4d35a9d0077f5582be097e902"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "cargo-version",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/cargo-version.log",
+              "bytes": 128,
+              "sha256": "31326f7c537abb90c2efe0146e1d7e7962c5d202d008a80602bc43c190eb8712"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "fmt",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/fmt.log",
+              "bytes": 199,
+              "sha256": "9e2b6825180611c3d9ad03330971c12fb46d5f66b7299cef032662a964740763"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "clippy",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/clippy.log",
+              "bytes": 801,
+              "sha256": "57402634730aa35315804755797d2b75c57f26ee41e37d2b4a0b778cbfa4bcfc"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "rust-test",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/rust-test.log",
+              "bytes": 5293,
+              "sha256": "bf2c9aace8b8e8016806a4f77899559f2ac84f3c3c744b5c2ea866a795e4ed69"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": [
+              0,
+              0,
+              16,
+              3,
+              10,
+              14,
+              0
+            ]
+          },
+          {
+            "name": "metadata",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/metadata.log",
+              "bytes": 57995,
+              "sha256": "a7cc2cc0e2a12aaadc189ba1a94c671d2c555450de37f22d6374c01564f6f7d4"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "rust-build",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/rust-build.log",
+              "bytes": 539,
+              "sha256": "2a2bebf609af301caf3993fe032e829076cc97e647bf6964bb32cc44008594ba"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "contracts-build",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/contracts-build.log",
+              "bytes": 280,
+              "sha256": "5ce851c168bbfea443927654f0919861f1380e99ac2a4a51f1ee23ce99373996"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-client",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/ts-client.log",
+              "bytes": 7306,
+              "sha256": "43395b79f202c64109f17467de50cac830dead8bc63571dfb6c10740b59fc873"
+            },
+            "tapGroups": [
+              {
+                "tests": 35,
+                "pass": 35,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "node-atomic-snapshot",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/node-atomic-snapshot.log",
+              "bytes": 3673,
+              "sha256": "5199b514df7c58411d393af77f8dabc1a243cfdc72d233d4cc21580432c6b592"
+            },
+            "tapGroups": [
+              {
+                "tests": 9,
+                "pass": 9,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "node-snapshot-version",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/node-snapshot-version.log",
+              "bytes": 3808,
+              "sha256": "1b5752c48103347699dbdd965a0b25f86d78040b8430943f05ff29132d07032d"
+            },
+            "tapGroups": [
+              {
+                "tests": 11,
+                "pass": 11,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-refresh-router",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/ts-refresh-router.log",
+              "bytes": 7908,
+              "sha256": "d82aaf162654d993593360d7cb85b33d6229ada5f54519eaa486ceb77cebcd82"
+            },
+            "tapGroups": [
+              {
+                "tests": 36,
+                "pass": 36,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "node-large-snapshot",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/node-large-snapshot.log",
+              "bytes": 4580,
+              "sha256": "7fae098ccffcc845f5e5669916e28fbd560b9374f861e88ba3a36a84eeb5b091"
+            },
+            "tapGroups": [
+              {
+                "tests": 13,
+                "pass": 13,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-large-snapshot",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/ts-large-snapshot.log",
+              "bytes": 5075,
+              "sha256": "49dd1ded25458a0a1429baee482c323556f00d2955d7ee50f7569cbd5047a478"
+            },
+            "tapGroups": [
+              {
+                "tests": 21,
+                "pass": 21,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-query-index",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/ts-query-index.log",
+              "bytes": 1706,
+              "sha256": "c224692a6ebd416fa9a359ca139647fd08d27121b58ba18c526b20e89d1252da"
+            },
+            "tapGroups": [
+              {
+                "tests": 6,
+                "pass": 6,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-core-owner-lifecycle",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/ts-core-owner-lifecycle.log",
+              "bytes": 5983,
+              "sha256": "a3e610ad910672b2b6e4c46d330237cf813fbc6f9d9d9cd25f8fc871360c2c38"
+            },
+            "tapGroups": [
+              {
+                "tests": 23,
+                "pass": 23,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-core-utility-options",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/ts-core-utility-options.log",
+              "bytes": 12028,
+              "sha256": "54ce0524a0ab030aa3501988e0c9611c43dd25295ddc838f5d917b2d6cd6b797"
+            },
+            "tapGroups": [
+              {
+                "tests": 50,
+                "pass": 50,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-rust-integration",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/ts-rust-integration.log",
+              "bytes": 23071,
+              "sha256": "039287967ae597e43f069a813ab0d65ee5708128151554d245e54e3a0e2496eb"
+            },
+            "tapGroups": [
+              {
+                "tests": 24,
+                "pass": 24,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "core-runtime-integration",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/core-runtime-integration.log",
+              "bytes": 7830,
+              "sha256": "0d26c0e990d93d432dd42b7c42a99a81a85f0d3f20e10e19e8f262d02e4583b3"
+            },
+            "tapGroups": [
+              {
+                "tests": 11,
+                "pass": 11,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-node-mixed-reads",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/ts-node-mixed-reads.log",
+              "bytes": 19074,
+              "sha256": "1666772e8e98371d6bbc5a9d5637582805b4f3edd1b966981b0d336fa6130f0e"
+            },
+            "tapGroups": [
+              {
+                "tests": 83,
+                "pass": 83,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-core-host-controls",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/ts-core-host-controls.log",
+              "bytes": 4780,
+              "sha256": "a8e98cd1a72a0f994a324f6a3319997d7c6c4fcc60cf6253658cc75a8cb0a2d2"
+            },
+            "tapGroups": [
+              {
+                "tests": 20,
+                "pass": 20,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "core-host-integration",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/core-host-integration.log",
+              "bytes": 5378,
+              "sha256": "8408f2cc65c301574fa4943bf41efc453ff14a5e4729026d637df70ac00b6ef0"
+            },
+            "tapGroups": [
+              {
+                "tests": 8,
+                "pass": 8,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-main-read-boundary",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/ts-main-read-boundary.log",
+              "bytes": 15825,
+              "sha256": "45aba204f9bdc439ca885b462b56a2693b9e404858021d12a73311fe7665b851"
+            },
+            "tapGroups": [
+              {
+                "tests": 67,
+                "pass": 67,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "desktop-core-host-adapter",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/desktop-core-host-adapter.log",
+              "bytes": 4280,
+              "sha256": "75f518cbbfcc695b005f08b798adffb432066c2e0728c07ebc4ba9f6ad727eb6"
+            },
+            "tapGroups": [
+              {
+                "tests": 16,
+                "pass": 16,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "main-host-isolated-build",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/main-host-isolated-build.log",
+              "bytes": 5895,
+              "sha256": "28537612607efc23a382b7718fb171adfe989df4d53c763807485e326cc02800"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "main-background-components",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/main-background-components.log",
+              "bytes": 3109,
+              "sha256": "0135e088f6a2b4ae7edf5eec90f1a66df5346430ca9f44d668e5fd55bcc42f3c"
+            },
+            "tapGroups": [
+              {
+                "tests": 5,
+                "pass": 5,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "main-evidence-acceptance",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/main-evidence-acceptance.log",
+              "bytes": 1479,
+              "sha256": "da704acc15c263171e6825c02a54521d86db58c629d54462910386a2160cdd81"
+            },
+            "tapGroups": [
+              {
+                "tests": 5,
+                "pass": 5,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-collection-ui-read-boundary",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/ts-collection-ui-read-boundary.log",
+              "bytes": 12220,
+              "sha256": "6349fff2b7cbbecde7bb4249150997e857a70597a64741428563e5ca33a5c1bf"
+            },
+            "tapGroups": [
+              {
+                "tests": 55,
+                "pass": 55,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "node-collection-ui-purity",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/node-collection-ui-purity.log",
+              "bytes": 8357,
+              "sha256": "4e10750d1479d798a8b87bba32f4e26db736cb3f18fe22690f0130412707aea7"
+            },
+            "tapGroups": [
+              {
+                "tests": 18,
+                "pass": 18,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "collection-host-isolated-build",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-6TCDZA/collection-host-isolated-build.log",
+              "bytes": 6237,
+              "sha256": "a4b30bf21b344363a454760ba75c6d2b2d57f36e778108d055a8a9dcfe978c4a"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          }
+        ],
+        "referencedWholeJson": {
+          "mainUiHostBuild": {
+            "entry": "run-6TCDZA/isolated-host/artifact-manifest.json",
+            "bytes": 222115,
+            "sha256": "000f80909e8583e1c09b377931528b4bc34352da059ed93d2f1aec363e7b1fa6"
+          },
+          "collectionUiHostBuild": {
+            "entry": "run-6TCDZA/isolated-collection-host/artifact-manifest.json",
+            "bytes": 223304,
+            "sha256": "aa24d3cc925f215259c9112842938298a95b7b06d4b0c0a021a34089730251bf"
+          },
+          "costReport": {
+            "entry": "run-6TCDZA/atomic-snapshot-cost.json",
+            "bytes": 1173,
+            "sha256": "b092c0ccb672ad8eb5077bf7f19ee28aed60ae18629902e87c3484990bddb39b"
+          },
+          "refreshCostReport": {
+            "entry": "run-6TCDZA/refresh-routing-cost.json",
+            "bytes": 1733,
+            "sha256": "d676aa01f0c0697eabb3f15b1092c3954fcce155af3af8b20db47d05f7d89e98"
+          },
+          "largeCostReport": {
+            "entry": "run-6TCDZA/large-snapshot-cost.json",
+            "bytes": 5897,
+            "sha256": "d4d8c8551a74da8948b1e17d8fb9578d519a66de66ee70ebdc276011f7927d5a"
+          },
+          "indexCostReport": {
+            "entry": "run-6TCDZA/indexed-query-cost.json",
+            "bytes": 48136,
+            "sha256": "f0e9b100d1e94c9d3620742fe139e91292fc8f4af77260822c81aef886a2fb76"
+          },
+          "runtimeReport": {
+            "entry": "run-6TCDZA/runtime-lifecycle-report.json",
+            "bytes": 115311,
+            "sha256": "f30d8822592e8f02f0a29f95dddbd530d1fa15b4effee2e0d22d689294ba70ea"
+          },
+          "hostReport": {
+            "entry": "run-6TCDZA/runtime-host-report.json",
+            "bytes": 196191,
+            "sha256": "f5198622084bbabb55fa7ea3cc2aaa082258376587b7a996e815e0bdcff4968c"
+          },
+          "mainComponentReport": {
+            "entry": "run-6TCDZA/main-component-report.json",
+            "bytes": 402582,
+            "sha256": "e7a222327a2fe239fd90968c4e4d46ba0f81d97e8d96b7cd76c5adeafcfb7469"
+          }
+        },
+        "actualJob": {
+          "jobId": 113914900249,
+          "runId": 37958462006,
+          "jobName": "rust-core (ubuntu-latest)",
+          "raw": {
+            "path": "private-external:checks/FINAL_SOURCE_RUST_UBUNTU_JOB.log",
+            "bytes": 42199,
+            "sha256": "015ad3cc0807acc8fbd13b6147fab3b784bfae91dbc0a9b033b2a567a2c594ff"
+          },
+          "actualSteps": [
+            "Set up job",
+            "Run actions/checkout@v4",
+            "Run actions/setup-node@v4",
+            "准备真实hosted专用构建根",
+            "安装固定 Rust 工具链",
+            "安装冻结工作区依赖",
+            "验证实际 Rust 与 TypeScript 边界",
+            "保留编译器、测试及源码与二进制清单",
+            "Post Run actions/setup-node@v4",
+            "Post Run actions/checkout@v4",
+            "Complete job"
+          ],
+          "tapGroups": [],
+          "evidence": "WHOLE_JOB_RAW_BYTES_AND_API_STEP_IDENTITY"
+        },
+        "standaloneRustBinaryWholeBytes": "NOT_UPLOADED_NOT_CLAIMED",
+        "realServices": "NOT_RUN",
+        "productionDefault": "Node"
+      }
+    },
+    {
+      "artifactId": 11631351282,
+      "artifactName": "rust-core-macos-latest-df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+      "runId": 37958462006,
+      "zip": {
+        "path": "private-external:checks/FINAL_SOURCE_RUST_MACOS_ZIP153/artifact.zip",
+        "bytes": 5871148,
+        "sha256": "ebfd7a330db0a18bea34e05c412a5397d4010bcead5d0818630a936ae0e0c791"
+      },
+      "platformDigest": "sha256:ebfd7a330db0a18bea34e05c412a5397d4010bcead5d0818630a936ae0e0c791",
+      "wholeZipDigestMatched": true,
+      "wholeEntries": 701,
+      "uncompressedBytes": 24210782,
+      "wholeDownloadReceipt": {
+        "path": "private-external:checks/FINAL_SOURCE_RUST_MACOS_ZIP153/whole-read.json",
+        "bytes": 190899,
+        "sha256": "87076ed75ddffdbd633499081d160e464f23099a8d74fa6bc9a399563c95a968"
+      },
+      "declaredContent": {
+        "manifest": {
+          "entry": "run-SCw9e9/manifest.json",
+          "bytes": 158965,
+          "sha256": "7a89b83d7479cc4c3ff81a53edd26e504e6ac8709d96d1599448ab4991a62d01"
+        },
+        "wholeGitSourceRows": 819,
+        "installedDependencyRows": [
+          {
+            "path": "node_modules/.pnpm/@neteasecloudmusicapienhanced+api@4.40.1_patch_hash=5794b1e31014590ccbef952492ca10fa683478c369ca62b0841c06c39ff62f0e/node_modules/@neteasecloudmusicapienhanced/api/util/crypto.js",
+            "bytes": 10097,
+            "sha256": "2fb5a857004faf85f669f0c5bf2755d53859bf27011dfe0410969f62bc8570a6",
+            "evidence": "FROZEN_INSTALLED_DEPENDENCY_WHOLE_LOCAL_BYTES_NOT_GIT_SOURCE"
+          }
+        ],
+        "declaredCommandCount": 30,
+        "actualCommands": [
+          {
+            "name": "rustc-version",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/rustc-version.log",
+              "bytes": 129,
+              "sha256": "5db8db6696e6b50e298669238bee1806af80c563f9757a0071bf8d7d6796a6a8"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "cargo-version",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/cargo-version.log",
+              "bytes": 129,
+              "sha256": "238e970939d171d09f4202c413ddb7cfd4ca8140e501137896a296fc5cc78af2"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "fmt",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/fmt.log",
+              "bytes": 201,
+              "sha256": "6bbd3cbc71e768dc8cf6e443f25e2ab46162a3330c62e3131fb4f39b334653b3"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "clippy",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/clippy.log",
+              "bytes": 804,
+              "sha256": "d74739e1bbaeb19f73b8b456fbffd86d5d213e4e65390de6b22a19fd251889e8"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "rust-test",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/rust-test.log",
+              "bytes": 5303,
+              "sha256": "4e3ca5bce3cc8a20eee9f4b7e6ded6b43062c0bde41f50a239f3a51b3cc4159f"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": [
+              0,
+              0,
+              16,
+              3,
+              10,
+              14,
+              0
+            ]
+          },
+          {
+            "name": "metadata",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/metadata.log",
+              "bytes": 58094,
+              "sha256": "63f06ada9d32daf531b2ea5eb02baaa572bf91f883de4338fe89e6f94d6357c4"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "rust-build",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/rust-build.log",
+              "bytes": 542,
+              "sha256": "86a98e6f19e05debdc6ec7d75787501ac9c7335e4db09aba7c77e07dfa17bf1c"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "contracts-build",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/contracts-build.log",
+              "bytes": 282,
+              "sha256": "1db3d91662ce247c68eeef4761395bb5bec5bfa2500334f8a4649920bb5bd0e5"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-client",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/ts-client.log",
+              "bytes": 7292,
+              "sha256": "9e99283d860acc2e89e0a03f73b347e638af2b8ead56039bc5fdbabc2b609008"
+            },
+            "tapGroups": [
+              {
+                "tests": 35,
+                "pass": 35,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "node-atomic-snapshot",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/node-atomic-snapshot.log",
+              "bytes": 3690,
+              "sha256": "bfa5ac1b09390489c5657a23c3d5c8462f1d64c2ae6dedb0ef422456c37b5588"
+            },
+            "tapGroups": [
+              {
+                "tests": 9,
+                "pass": 9,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "node-snapshot-version",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/node-snapshot-version.log",
+              "bytes": 3825,
+              "sha256": "e45db0bec26e3e0907c52eba41c967693db234890eea3c1b5dec73b68bad14f0"
+            },
+            "tapGroups": [
+              {
+                "tests": 11,
+                "pass": 11,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-refresh-router",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/ts-refresh-router.log",
+              "bytes": 7911,
+              "sha256": "b6d9a2708695ab96e412304984b79a7a17138667231e0b4ad99ce6bc72663b5d"
+            },
+            "tapGroups": [
+              {
+                "tests": 36,
+                "pass": 36,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "node-large-snapshot",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/node-large-snapshot.log",
+              "bytes": 4590,
+              "sha256": "6c9e6abacd73b17fea2fc5d1839b0e9e1a7d98045de2bf26760ae4ae83bab151"
+            },
+            "tapGroups": [
+              {
+                "tests": 13,
+                "pass": 13,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-large-snapshot",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/ts-large-snapshot.log",
+              "bytes": 5072,
+              "sha256": "1a051cf64dac191b91dbbfd79fcd73888160487fc996047fe707b2dc78558367"
+            },
+            "tapGroups": [
+              {
+                "tests": 21,
+                "pass": 21,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-query-index",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/ts-query-index.log",
+              "bytes": 1716,
+              "sha256": "90d82657a1bf1ff148a136c6bba554028dc700a695711dd14607073376b4373f"
+            },
+            "tapGroups": [
+              {
+                "tests": 6,
+                "pass": 6,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-core-owner-lifecycle",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/ts-core-owner-lifecycle.log",
+              "bytes": 5993,
+              "sha256": "7892c871202579dfaf4320682f0233a885d6dc91c69145e9a8e838d48221ad6f"
+            },
+            "tapGroups": [
+              {
+                "tests": 23,
+                "pass": 23,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-core-utility-options",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/ts-core-utility-options.log",
+              "bytes": 12035,
+              "sha256": "028dbc890cf5f3630a62873b029d7f6313bcc639f757249c4a1bc44ae6b6aa31"
+            },
+            "tapGroups": [
+              {
+                "tests": 50,
+                "pass": 50,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-rust-integration",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/ts-rust-integration.log",
+              "bytes": 23112,
+              "sha256": "ff2b5c04ff4ad5d05e823827edf10a85090ab4f020cba5a2e678c24f12427b1f"
+            },
+            "tapGroups": [
+              {
+                "tests": 24,
+                "pass": 24,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "core-runtime-integration",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/core-runtime-integration.log",
+              "bytes": 7846,
+              "sha256": "2c600e6a3342fa6d4854de442b81cea3786edb248a631b889546a5376d5bcb6f"
+            },
+            "tapGroups": [
+              {
+                "tests": 11,
+                "pass": 11,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-node-mixed-reads",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/ts-node-mixed-reads.log",
+              "bytes": 19088,
+              "sha256": "29d8c51c220f8907a4928342cc9ecc03ea510539ce90ff9771fbae8facfef489"
+            },
+            "tapGroups": [
+              {
+                "tests": 83,
+                "pass": 83,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-core-host-controls",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/ts-core-host-controls.log",
+              "bytes": 4787,
+              "sha256": "99d15c1111b6daba212085719c851328ce9730eda94931c7082eac057ab27866"
+            },
+            "tapGroups": [
+              {
+                "tests": 20,
+                "pass": 20,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "core-host-integration",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/core-host-integration.log",
+              "bytes": 5394,
+              "sha256": "81e7316978009396e884d5f70543cefd0364bc509f5574f2dd717d89f04b44a4"
+            },
+            "tapGroups": [
+              {
+                "tests": 8,
+                "pass": 8,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-main-read-boundary",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/ts-main-read-boundary.log",
+              "bytes": 15819,
+              "sha256": "2938b5077ded69a541eee6def456ca8e7f3044f94a4f6918d75b671ac386aa05"
+            },
+            "tapGroups": [
+              {
+                "tests": 67,
+                "pass": 67,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "desktop-core-host-adapter",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/desktop-core-host-adapter.log",
+              "bytes": 4292,
+              "sha256": "b16c09450fd23960114f18074ec6f739436e8af744318761f1f981d265e9acfb"
+            },
+            "tapGroups": [
+              {
+                "tests": 16,
+                "pass": 16,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "main-host-isolated-build",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/main-host-isolated-build.log",
+              "bytes": 5910,
+              "sha256": "79f71b659d9d4ca8c59653ff886c11a2309f602d5239c823ec450721711066cd"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "main-background-components",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/main-background-components.log",
+              "bytes": 3121,
+              "sha256": "296b34c57da02085a16a09f2faa0d7669a2616ff53eeca95e9088601b6430312"
+            },
+            "tapGroups": [
+              {
+                "tests": 5,
+                "pass": 5,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "main-evidence-acceptance",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/main-evidence-acceptance.log",
+              "bytes": 1493,
+              "sha256": "8321ab44387c2f33bfca5f829f2261cea28a0cfa80693fe10b209bdec7cbdf76"
+            },
+            "tapGroups": [
+              {
+                "tests": 5,
+                "pass": 5,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "ts-collection-ui-read-boundary",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/ts-collection-ui-read-boundary.log",
+              "bytes": 12214,
+              "sha256": "ba84b666470b9f18e84271f5ac222b08083b2a451bf7701e75ef0cf6785e613b"
+            },
+            "tapGroups": [
+              {
+                "tests": 55,
+                "pass": 55,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "node-collection-ui-purity",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/node-collection-ui-purity.log",
+              "bytes": 8378,
+              "sha256": "28df54631241d7b2408e2cc1a173819f76ca61cdf8ecd256264f866af2e88865"
+            },
+            "tapGroups": [
+              {
+                "tests": 18,
+                "pass": 18,
+                "fail": 0,
+                "cancelled": 0,
+                "skipped": 0,
+                "todo": 0
+              }
+            ],
+            "rustPassedGroups": []
+          },
+          {
+            "name": "collection-host-isolated-build",
+            "exitCode": 0,
+            "signal": null,
+            "log": {
+              "entry": "run-SCw9e9/collection-host-isolated-build.log",
+              "bytes": 6252,
+              "sha256": "1dd9273eea9d778029a75ed3624f4b473b958d0769cfcb9d1a99a263ac7ad179"
+            },
+            "tapGroups": [],
+            "rustPassedGroups": []
+          }
+        ],
+        "referencedWholeJson": {
+          "mainUiHostBuild": {
+            "entry": "run-SCw9e9/isolated-host/artifact-manifest.json",
+            "bytes": 222117,
+            "sha256": "8d4cbeb0c85708284ce6507e102ad6135e3b9c8ee300d19ad45a0a94a5d07e5c"
+          },
+          "collectionUiHostBuild": {
+            "entry": "run-SCw9e9/isolated-collection-host/artifact-manifest.json",
+            "bytes": 223306,
+            "sha256": "2a78cee5a1188d7000452599417a7a7c4bc47b67099bab3ebcd10d1faf7b5144"
+          },
+          "costReport": {
+            "entry": "run-SCw9e9/atomic-snapshot-cost.json",
+            "bytes": 1187,
+            "sha256": "0813f601ed862c33dc1c50f66dd6904d80d53b1963c9bfd26a3dda236349ed04"
+          },
+          "refreshCostReport": {
+            "entry": "run-SCw9e9/refresh-routing-cost.json",
+            "bytes": 1738,
+            "sha256": "42e9630ae1380ccab7c42746a047f263e722010f84e9e9cdda62e3a194d43bde"
+          },
+          "largeCostReport": {
+            "entry": "run-SCw9e9/large-snapshot-cost.json",
+            "bytes": 5887,
+            "sha256": "e9fe2727801cde6369d8361820c9e7ee10e790b95538bff64cc819fe8b1c800f"
+          },
+          "indexCostReport": {
+            "entry": "run-SCw9e9/indexed-query-cost.json",
+            "bytes": 48219,
+            "sha256": "a9ca50cc5a56c4e5f5ccbb0c724e9906269f8af1b007654020deac5684ded74c"
+          },
+          "runtimeReport": {
+            "entry": "run-SCw9e9/runtime-lifecycle-report.json",
+            "bytes": 115096,
+            "sha256": "f396472ade245c1106689d38052b7a7b3b88a0de3a781871576d24f7d3166e18"
+          },
+          "hostReport": {
+            "entry": "run-SCw9e9/runtime-host-report.json",
+            "bytes": 195876,
+            "sha256": "7fe863a6b91a94e411854ba2d667735f436cfb7362852d343cc7c4a90c359bfc"
+          },
+          "mainComponentReport": {
+            "entry": "run-SCw9e9/main-component-report.json",
+            "bytes": 402470,
+            "sha256": "b418a0d9f707d90f967be29fcaed6f8560e4de92fed71a785d279c007ecfc43f"
+          }
+        },
+        "actualJob": {
+          "jobId": 113914900621,
+          "runId": 37958462006,
+          "jobName": "rust-core (macos-latest)",
+          "raw": {
+            "path": "private-external:checks/FINAL_SOURCE_RUST_MACOS_JOB.log",
+            "bytes": 43362,
+            "sha256": "e8c4807d0c746193a886681eda69a7b809f2d0fb6a336042767dbb4b09317c92"
+          },
+          "actualSteps": [
+            "Set up job",
+            "Run actions/checkout@v4",
+            "Run actions/setup-node@v4",
+            "准备真实hosted专用构建根",
+            "安装固定 Rust 工具链",
+            "安装冻结工作区依赖",
+            "验证实际 Rust 与 TypeScript 边界",
+            "保留编译器、测试及源码与二进制清单",
+            "Post Run actions/setup-node@v4",
+            "Post Run actions/checkout@v4",
+            "Complete job"
+          ],
+          "tapGroups": [],
+          "evidence": "WHOLE_JOB_RAW_BYTES_AND_API_STEP_IDENTITY"
+        },
+        "standaloneRustBinaryWholeBytes": "NOT_UPLOADED_NOT_CLAIMED",
+        "realServices": "NOT_RUN",
+        "productionDefault": "Node"
+      }
+    },
+    {
+      "artifactId": 11632443326,
+      "artifactName": "verify-df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+      "runId": 37958462077,
+      "zip": {
+        "path": "private-external:checks/FINAL_SOURCE_VERIFY_ZIP181/artifact.zip",
+        "bytes": 92840582,
+        "sha256": "8b68bc73b830656552415c92f20c9e85e96e34ac491ae7c75737f842d1934a35"
+      },
+      "platformDigest": "sha256:8b68bc73b830656552415c92f20c9e85e96e34ac491ae7c75737f842d1934a35",
+      "wholeZipDigestMatched": true,
+      "wholeEntries": 15349,
+      "uncompressedBytes": 278179333,
+      "wholeDownloadReceipt": {
+        "path": "private-external:checks/FINAL_SOURCE_VERIFY_ZIP181/whole-read.json",
+        "bytes": 4798798,
+        "sha256": "1e1ac328c39f11950bc27919be21b33d4d39dab634fcba0305f47560227e37ad"
+      },
+      "declaredContent": {
+        "sourceCiMode": {
+          "entry": "report-only-admission.json",
+          "bytes": 103,
+          "sha256": "7cc12d5628d52907b8cfc3b8385ea29f433030c6ef6571cf582287bff4783853"
+        },
+        "mbm002": {
+          "summary": {
+            "entry": "mbm002-37958462077-1/summary.json",
+            "bytes": 1084252,
+            "sha256": "44e41306e6ae2e3c5f84fb4d41a3ee276e23086616e889859a733a02723508f4"
+          },
+          "actualTests": 81,
+          "contracts": 15,
+          "core": 30,
+          "desktop": 36,
+          "stages": [
+            {
+              "name": "fresh-contracts-compiler",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm002-37958462077-1/prepare-fresh-contracts-compiler.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": false,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "fresh-core-compiler",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm002-37958462077-1/prepare-fresh-core-compiler.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": false,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "fresh-fixed-metadata-worker",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm002-37958462077-1/prepare-fresh-fixed-metadata-worker.log",
+                "bytes": 29,
+                "sha256": "6c351e40f23afb71f67482eb553cf4adeca46ade7d2e74ae2d6fc57f8ff4937d"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": false,
+              "producerRaw": {
+                "bytes": 68,
+                "sha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "mobile-test-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm002-37958462077-1/mobile-test-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "desktop-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm002-37958462077-1/desktop-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "mobile-app-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm002-37958462077-1/mobile-app-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "mobile-contracts-behavior",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm002-37958462077-1/mobile-contracts-behavior.log",
+                "bytes": 349,
+                "sha256": "e0c65b3ee585c84f040d97593520eb8b20a7a9b3777097dce40d2cc9988ba8c3"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 15,
+                  "pass": 15,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 3630,
+                "sha256": "1dee20606b4b66a05330098bb27bdd93e6ff0840e7df288cd9d033a1427eadac",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "mobile-core-behavior",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm002-37958462077-1/mobile-core-behavior.log",
+                "bytes": 590,
+                "sha256": "0323c87c6f5bfa4506f50beb262f55f82e762c2f0e76633db9397d1af459b385"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 30,
+                  "pass": 30,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 8307,
+                "sha256": "c028f4e4744c6ca7e909934e958fad695cd4a2f33f2def9507a8465a6e3ebb45",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "mobile-desktop-behavior",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm002-37958462077-1/mobile-desktop-behavior.log",
+                "bytes": 686,
+                "sha256": "70c0b662812380908d163b268b017dfa1b9e43c47b61496e3de550499bdd40d9"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 36,
+                  "pass": 36,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 9718,
+                "sha256": "0529b27d28fff0944638459c339e2bc75d40800000f9d759e0d7016aa2acff04",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            }
+          ],
+          "sourceInputs": {
+            "producerDeclaredRows": 1746,
+            "wholeGitRows": 1746,
+            "incidentalGeneratedCacheRows": [],
+            "allDeclaredGitRowsWholeMatchExactSource": true,
+            "cacheBodies": "NOT_UPLOADED_NOT_INDEPENDENTLY_READ_NOT_USED_BY_001_GATE"
+          },
+          "readerPreparation": {
+            "entry": "mbm002-37958462077-1/reader-preparation.json",
+            "bytes": 693244,
+            "sha256": "00f6128e78d2bff0e7b7b07d7ebe6ecb2caffc76cce85f1891fb57fc3048cb3b"
+          },
+          "readerSource": {
+            "producerDeclaredRows": 1519,
+            "wholeGitRows": 1519,
+            "incidentalGeneratedCacheRows": [],
+            "allDeclaredGitRowsWholeMatchExactSource": true,
+            "cacheBodies": "NOT_UPLOADED_NOT_INDEPENDENTLY_READ_NOT_USED_BY_001_GATE"
+          },
+          "readerCompiledOutputsProducerDeclared": 1030,
+          "directCompilerFilesProducerDeclared": 4,
+          "remoteCompiledOutputWholeBytes": "NOT_UPLOADED_LOCAL_EXACT_SOURCE_GATE146_SEPARATE",
+          "remoteOriginalStageRaw": "NOT_UPLOADED_LOCAL_EXACT_SOURCE_GATE146_SEPARATE",
+          "actualMobileDeviceAudioOwner": "NOT_PROVEN_BY_SOFTWARE_CI"
+        },
+        "mbm001": {
+          "summary": {
+            "entry": "mbm001-37958462077-1/summary.json",
+            "bytes": 1083614,
+            "sha256": "d57c4b967283b6ce709b62696c45f8b057ab3f7fcc89f2619fc84586d63a7902"
+          },
+          "actualTests": 87,
+          "stages": [
+            {
+              "name": "fresh-contracts-compiler",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm001-37958462077-1/prepare-fresh-contracts-compiler.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": false,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "fresh-core-compiler",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm001-37958462077-1/prepare-fresh-core-compiler.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": false,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "fresh-fixed-metadata-worker",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm001-37958462077-1/prepare-fresh-fixed-metadata-worker.log",
+                "bytes": 29,
+                "sha256": "6c351e40f23afb71f67482eb553cf4adeca46ade7d2e74ae2d6fc57f8ff4937d"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": false,
+              "producerRaw": {
+                "bytes": 68,
+                "sha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "mobile-test-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm001-37958462077-1/mobile-test-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "desktop-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm001-37958462077-1/desktop-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "mobile-app-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm001-37958462077-1/mobile-app-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "mobile-core-behavior",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm001-37958462077-1/mobile-core-behavior.log",
+                "bytes": 894,
+                "sha256": "a9cb576531a95ec234bcb1c2d93be39783dc772a07050f8ebc6d494a8abceced"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 49,
+                  "pass": 49,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 14340,
+                "sha256": "0bb06162113aaed27baf19a4fd775c0497af7cd88670a5ab9735cadec6a669b5",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "mobile-desktop-behavior",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm001-37958462077-1/mobile-desktop-behavior.log",
+                "bytes": 718,
+                "sha256": "4730d74457543ece6f56354d8f5d0842af1b4bd675df92fc014b7ea4fe8316f6"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 38,
+                  "pass": 38,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 10006,
+                "sha256": "a8a9337a4bc34d4b2a3bbb698a886e856a6aeff36ff9f60626e5bb9deaab13d7",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            }
+          ],
+          "sourceInputs": {
+            "producerDeclaredRows": 1742,
+            "wholeGitRows": 1742,
+            "incidentalGeneratedCacheRows": [],
+            "allDeclaredGitRowsWholeMatchExactSource": true,
+            "cacheBodies": "NOT_UPLOADED_NOT_INDEPENDENTLY_READ_NOT_USED_BY_001_GATE"
+          },
+          "readerPreparation": {
+            "entry": "mbm001-37958462077-1/reader-preparation.json",
+            "bytes": 693225,
+            "sha256": "28738283163eedb5a5859573fd94cccbeb7271a8702fc30765542670587fc999"
+          },
+          "readerSource": {
+            "producerDeclaredRows": 1519,
+            "wholeGitRows": 1519,
+            "incidentalGeneratedCacheRows": [],
+            "allDeclaredGitRowsWholeMatchExactSource": true,
+            "cacheBodies": "NOT_UPLOADED_NOT_INDEPENDENTLY_READ_NOT_USED_BY_001_GATE"
+          },
+          "readerCompiledOutputsProducerDeclared": 1030,
+          "directCompilerFilesProducerDeclared": 4,
+          "compilerDeclaredHashesMatchLocallyReadExactSourceToolFiles": true,
+          "remoteCompiledOutputWholeBytes": "NOT_UPLOADED_NOT_CLAIMED_LOCAL_EXACT_SOURCE_GATE84_SEPARATE",
+          "remoteOriginalStageRaw": "NOT_UPLOADED_NOT_CLAIMED_LOCAL_EXACT_SOURCE_GATE84_SEPARATE"
+        },
+        "mbm000": {
+          "summary": {
+            "entry": "mbm000-37958462077-1/summary.json",
+            "bytes": 202520,
+            "sha256": "8b66115ae4aef765fb453d40e14db8d4c3675d6c8cb775a6d265014d626d5e43"
+          },
+          "actualTests": 33,
+          "stages": [
+            {
+              "name": "fresh-contracts-build",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm000-37958462077-1/fresh-contracts-build.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "contracts-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm000-37958462077-1/contracts-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "mobile-contract-behavior",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbm000-37958462077-1/mobile-contract-behavior.log",
+                "bytes": 638,
+                "sha256": "cb6c8d06f8eabb1571c267e9275277e298847b1de5d48448f6442d5e34fcc64e"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 33,
+                  "pass": 33,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 7893,
+                "sha256": "76987c5560bf30cebd538f9da842989fa03d075dd1a4bb53a783275f0fd832a8",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            }
+          ],
+          "sourceInputs": {
+            "producerDeclaredRows": 458,
+            "wholeGitRows": 458,
+            "incidentalGeneratedCacheRows": [],
+            "allDeclaredGitRowsWholeMatchExactSource": true,
+            "cacheBodies": "NOT_UPLOADED_NOT_INDEPENDENTLY_READ_NOT_USED_BY_001_GATE"
+          },
+          "binding": {
+            "entry": "mbm000-37958462077-1/fresh-contract-build-binding.json",
+            "bytes": 206721,
+            "sha256": "9fba8e4dc4ea4630800d009d582d0e1a6bd58a34a3aca21c49afacbc0b18185e"
+          },
+          "actualConsumerReceipts": [
+            {
+              "testFile": "test/mbm000/audio-resource-state.test.ts",
+              "entry": {
+                "entry": "mbm000-37958462077-1/consumed/audio-resource-state.test.ts.json",
+                "bytes": 2942,
+                "sha256": "5bdd2f187ef04a4e0c77f103d497584d253fc4f3a720eb6ac67ce903ae5f2926"
+              },
+              "mobileArtifacts": 15,
+              "loadedModules": 5
+            },
+            {
+              "testFile": "test/mbm000/content-revision.test.ts",
+              "entry": {
+                "entry": "mbm000-37958462077-1/consumed/content-revision.test.ts.json",
+                "bytes": 2938,
+                "sha256": "382a9b4c2b73f493bbb7319733b7c3f7edafd6986540089bdbc54a2eff85ccc3"
+              },
+              "mobileArtifacts": 15,
+              "loadedModules": 5
+            },
+            {
+              "testFile": "test/mbm000/operation-contract.test.ts",
+              "entry": {
+                "entry": "mbm000-37958462077-1/consumed/operation-contract.test.ts.json",
+                "bytes": 2940,
+                "sha256": "6a4427f1514feb68b783154d1502f810c74600ef804f14cd615cec3e5512ab77"
+              },
+              "mobileArtifacts": 15,
+              "loadedModules": 5
+            },
+            {
+              "testFile": "test/mbm000/resource-envelope.test.ts",
+              "entry": {
+                "entry": "mbm000-37958462077-1/consumed/resource-envelope.test.ts.json",
+                "bytes": 2939,
+                "sha256": "20ba7258dbeabe4aba247d8255774d6f967afaabf5883f9252fae24c99441847"
+              },
+              "mobileArtifacts": 15,
+              "loadedModules": 5
+            }
+          ],
+          "compiledOutputBytes": "NOT_UPLOADED_BINDING_AND_PRODUCER_READ_ONLY_LOCAL_BYTE_PROOF_SEPARATE"
+        },
+        "prior012": {
+          "task": "MBRS-012",
+          "summary": {
+            "entry": "mbrs012-37958462077-1/summary.json",
+            "bytes": 311959,
+            "sha256": "e8538d2e13006e40d4495ca68bbfad1085732a2b0469f3051df9fbee8e428a8d"
+          },
+          "actualTests": 426,
+          "sourceInputs": {
+            "producerDeclaredRows": 1556,
+            "wholeGitRows": 1556,
+            "incidentalGeneratedCacheRows": [],
+            "allDeclaredGitRowsWholeMatchExactSource": true,
+            "cacheBodies": "NOT_UPLOADED_NOT_INDEPENDENTLY_READ_NOT_USED_BY_001_GATE"
+          },
+          "stages": [
+            {
+              "name": "fresh-contracts-build",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs012-37958462077-1/fresh-contracts-build.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "contracts-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs012-37958462077-1/contracts-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "fresh-core-build",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs012-37958462077-1/fresh-core-build.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "fresh-core-worker-bundle",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs012-37958462077-1/fresh-core-worker-bundle.log",
+                "bytes": 29,
+                "sha256": "6c351e40f23afb71f67482eb553cf4adeca46ade7d2e74ae2d6fc57f8ff4937d"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 68,
+                "sha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "core-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs012-37958462077-1/core-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "desktop-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs012-37958462077-1/desktop-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "desktop-e2e-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs012-37958462077-1/desktop-e2e-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "contracts-source-writes-and-regressions",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs012-37958462077-1/contracts-source-writes-and-regressions.log",
+                "bytes": 1518,
+                "sha256": "dc861575738174b7f1521314135f5859be01bd14856487271d77133617e0e372"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 88,
+                  "pass": 88,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 20872,
+                "sha256": "19736a150e969e4fb6d9c3139538a3d45389455cbbda1e5e9a735de930bf3309",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "core-source-writes-and-regressions",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs012-37958462077-1/core-source-writes-and-regressions.log",
+                "bytes": 3782,
+                "sha256": "102601097a7c41eb60991f9480badb7d7d036a2bfd7e8c8fd5add964d6594e94"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 216,
+                  "pass": 216,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 96331,
+                "sha256": "ad3692c8dfaec56c24643f8f42a75459b9483da5d4f5e549c26cc79c362319b7",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "desktop-source-writes-and-regressions",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs012-37958462077-1/desktop-source-writes-and-regressions.log",
+                "bytes": 2111,
+                "sha256": "01ea8529ad51976def6bfd8a97a086fe6c980f3a9bf2bf9ce05d6157605a15dd"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 122,
+                  "pass": 122,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 30516,
+                "sha256": "ec4d036e5d9dccc07f4d983bcd4499273530f8bd8a8f54ffe5257d7370fa7993",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            }
+          ],
+          "liveOwnerAcceptance": "NOT_PROVEN_BY_CI"
+        },
+        "prior013": {
+          "task": "MBRS-013",
+          "summary": {
+            "entry": "mbrs013-37958462077-1/summary.json",
+            "bytes": 340108,
+            "sha256": "c373f59c876a10b36f4e80f8561f889294e42fba63c6d27bbaea2079c1a73fb0"
+          },
+          "actualTests": 529,
+          "sourceInputs": {
+            "producerDeclaredRows": 1684,
+            "wholeGitRows": 1684,
+            "incidentalGeneratedCacheRows": [],
+            "allDeclaredGitRowsWholeMatchExactSource": true,
+            "cacheBodies": "NOT_UPLOADED_NOT_INDEPENDENTLY_READ_NOT_USED_BY_001_GATE"
+          },
+          "stages": [
+            {
+              "name": "fresh-contracts-build",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/fresh-contracts-build.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "contracts-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/contracts-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "fresh-core-build",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/fresh-core-build.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "fresh-core-worker-bundle",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/fresh-core-worker-bundle.log",
+                "bytes": 29,
+                "sha256": "6c351e40f23afb71f67482eb553cf4adeca46ade7d2e74ae2d6fc57f8ff4937d"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 68,
+                "sha256": "d468471e89363158779ddecc116acde79a9c32d7a15ee097c0753f7a3cb9e4b6",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "core-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/core-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "desktop-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/desktop-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "desktop-original-e2e-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/desktop-original-e2e-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "desktop-relocation-e2e-types",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/desktop-relocation-e2e-types.log",
+                "bytes": 29,
+                "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+              },
+              "actualTestGroups": [],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 0,
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "contracts-source-writes-and-regressions",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/contracts-source-writes-and-regressions.log",
+                "bytes": 1518,
+                "sha256": "dc861575738174b7f1521314135f5859be01bd14856487271d77133617e0e372"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 88,
+                  "pass": 88,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 20870,
+                "sha256": "c25d5520115f9a77953822ffadc988bece2a17add444717b02b91e08fbf3e6fe",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "core-source-writes-and-regressions",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/core-source-writes-and-regressions.log",
+                "bytes": 3782,
+                "sha256": "102601097a7c41eb60991f9480badb7d7d036a2bfd7e8c8fd5add964d6594e94"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 216,
+                  "pass": 216,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 96341,
+                "sha256": "04af6d9d021969ff422acb642b5cb4459745fcae72981f57fa35d0936b2edaea",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "desktop-source-writes-and-regressions",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/desktop-source-writes-and-regressions.log",
+                "bytes": 2111,
+                "sha256": "01ea8529ad51976def6bfd8a97a086fe6c980f3a9bf2bf9ce05d6157605a15dd"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 122,
+                  "pass": 122,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 30511,
+                "sha256": "ef55929bcfbf1a9d83a7826427d4c89b16d5797aa68335b4ca0febdaff944f60",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "contracts-relocation",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/contracts-relocation.log",
+                "bytes": 622,
+                "sha256": "488d71d4b8e372d92d0129127e278ec58e8c263d8aedf6273ea1e1270ea8cad8"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 32,
+                  "pass": 32,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 7677,
+                "sha256": "5d163afa44f075d5b8553d2c2c9c243f2ce8953c12c6718a48f7e0a8cd428574",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "core-relocation",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/core-relocation.log",
+                "bytes": 698,
+                "sha256": "c6b64cd41d124d43ce332ebee434e003d841049ed00a77e90b8d497107f75e59"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 37,
+                  "pass": 37,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 15905,
+                "sha256": "29cfddc9b3a01bc61b982a743d69858f16185e10d0e36f895a0a644831968afa",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            },
+            {
+              "name": "desktop-relocation",
+              "exitCode": 0,
+              "signal": null,
+              "closeObserved": true,
+              "actualPackagedLog": {
+                "entry": "mbrs013-37958462077-1/desktop-relocation.log",
+                "bytes": 654,
+                "sha256": "edaaa2cd2aa2811f37f5846db46a01eb7df4aa40adaf30ea1b61d66175abbb6e"
+              },
+              "actualTestGroups": [
+                {
+                  "tests": 34,
+                  "pass": 34,
+                  "fail": 0,
+                  "cancelled": 0,
+                  "skipped": 0,
+                  "todo": 0
+                }
+              ],
+              "separatePackagedLogHashDeclared": true,
+              "producerRaw": {
+                "bytes": 8888,
+                "sha256": "d03ccf490d2afa777e357eefc0e96debdfedc69700bfc31ff74c6e4014c2a3d6",
+                "independentZipRawRead": false,
+                "reason": "EXCLUDED_BY_FROZEN_TMP_UPLOAD_RULE"
+              }
+            }
+          ],
+          "liveOwnerAcceptance": "NOT_PROVEN_BY_CI"
+        }
+      }
+    },
+    {
+      "artifactId": 11632087153,
+      "artifactName": "electron-e2e-df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+      "runId": 37958461981,
+      "zip": {
+        "path": "private-external:checks/FINAL_SOURCE_ELECTRON_ZIP173/artifact.zip",
+        "bytes": 502593626,
+        "sha256": "fa2ddb0538ed2ac82489138366cc88cf1125b7780d594c6c392362213630cb42"
+      },
+      "platformDigest": "sha256:fa2ddb0538ed2ac82489138366cc88cf1125b7780d594c6c392362213630cb42",
+      "wholeZipDigestMatched": true,
+      "wholeEntries": 20575,
+      "uncompressedBytes": 1483802248,
+      "wholeDownloadReceipt": {
+        "path": "private-external:checks/FINAL_SOURCE_ELECTRON_ZIP173/whole-read.json",
+        "bytes": 6715410,
+        "sha256": "6fb636fd8250667f084d4fe525c2ae329e2a0321d6f4285c79fe6cb0d349da7c"
+      },
+      "declaredContent": {
+        "playwrightReport": {
+          "entry": "musicbridge-electron/tmp/musicbridge-playwright-report.json",
+          "bytes": 137911,
+          "sha256": "ceab2fcd8a66115e7e84ebbf1f75b23d4c89f0e4035e2465dac5fd1bdd2617f2"
+        },
+        "actualSpecs": 116,
+        "stats": {
+          "expected": 111,
+          "unexpected": 0,
+          "skipped": 5,
+          "flaky": 0
+        },
+        "retries": 0,
+        "currentMbm001TwoCasesActualPass": true,
+        "preserved013RelocationActualPass": true,
+        "electronStartupRaw": {
+          "entry": "musicbridge-electron/electron-gates.log",
+          "bytes": 4045,
+          "sha256": "898aeb7c4de8db4f11a5189be61d6b9eea98f5e39d68443d74da0348169a54d3"
+        },
+        "actualStartupTests": 12,
+        "evidenceLayer": "CONTROLLED_REAL_ELECTRON_SYNTHETIC_PIPELINE_NOT_USER_LIBRARY_OWNER"
+      }
+    },
+    {
+      "artifactId": 11631632312,
+      "artifactName": "rust-host-compiled-df1533de5ceb7fdf98cf98c86ec03c498891f7a4",
+      "runId": 37958461981,
+      "zip": {
+        "path": "private-external:checks/FINAL_SOURCE_HOSTS_ZIP174/artifact.zip",
+        "bytes": 7969435,
+        "sha256": "61ad6937f36750ffab167a989b90da9286bf38944252860ada9966b534378c18"
+      },
+      "platformDigest": "sha256:61ad6937f36750ffab167a989b90da9286bf38944252860ada9966b534378c18",
+      "wholeZipDigestMatched": true,
+      "wholeEntries": 68,
+      "uncompressedBytes": 22915931,
+      "wholeDownloadReceipt": {
+        "path": "private-external:checks/FINAL_SOURCE_HOSTS_ZIP174/whole-read.json",
+        "bytes": 19921,
+        "sha256": "d97fd929b646d196a945048737487bce0a9ef0c28b2c8e0d9c7d565c8506aee1"
+      },
+      "declaredContent": {
+        "receipt": {
+          "entry": "electron-hosts-receipt.json",
+          "bytes": 725,
+          "sha256": "0528ebce53dd16eda6de5a4f16963cfd3dde74f545af3d7119473ead6f8c19c3"
+        },
+        "manifest": {
+          "entry": "manifest.json",
+          "bytes": 158984,
+          "sha256": "8de2d013a40c0ce2fe116953d2b62c86b7dfccf6876488e5715ac44c842762c3"
+        },
+        "hosts": [
+          {
+            "manifest": {
+              "entry": "isolated-host/artifact-manifest.json",
+              "bytes": 222117,
+              "sha256": "e3eb7c9318521dc4f05c06989caaa4088325a20208b4cd93bd8ec26d479e1c3a"
+            },
+            "task": "RUST-008",
+            "actualWholeCompiledFiles": [
+              {
+                "entry": "isolated-host/main/collection-readonly-control-protocol-BKJoO_kQ.js",
+                "bytes": 6922,
+                "sha256": "42b2252be985b406d8508a05f6f10b53f9e134842ea2bb46e62d83f1b13060b6"
+              },
+              {
+                "entry": "isolated-host/main/collection-scale-main-probe-Ds8CZcDo.js",
+                "bytes": 61397,
+                "sha256": "ee27ea50d78336ef43875a570b7baf4ae97d1e418c1c7fd06695dedd125df3f7"
+              },
+              {
+                "entry": "isolated-host/main/core-host-Btay6pAX.js",
+                "bytes": 644508,
+                "sha256": "b8af92cfc5b049b8f5c6df6a41ceb04749e62a1c54b0a14943e85c28d0994e6a"
+              },
+              {
+                "entry": "isolated-host/main/core.js",
+                "bytes": 18304,
+                "sha256": "232187b7df45248da4cf0dbeac4ee11eed1bdaf0aefbc1231bf6c662539615d3"
+              },
+              {
+                "entry": "isolated-host/main/dataset-owner-bootstrap-C76bgTf_.js",
+                "bytes": 2519157,
+                "sha256": "b473407618c696d68b4843503fea0feae18e595904cbb7c4f4213e6cb17bae89"
+              },
+              {
+                "entry": "isolated-host/main/dataset-owner.js",
+                "bytes": 25294,
+                "sha256": "57241d6ff00eb140cf9a20a2f2cbee8679fe387df327d8374a83714e5159ebf3"
+              },
+              {
+                "entry": "isolated-host/main/index.js",
+                "bytes": 578990,
+                "sha256": "daab05fde5f363381c65061652ac6a2886feb2832558e108b337e78cf67c2618"
+              },
+              {
+                "entry": "isolated-host/main/local-file-source-BlVYAdqS.js",
+                "bytes": 129093,
+                "sha256": "0bfa33846f0dff3731ac1a80d6c19b586725696b686ffe14fdcae55944de89f4"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-core-2000.js",
+                "bytes": 894,
+                "sha256": "0e7c295c143881216bdfbe2039d7b03b092759f1d79ac14c202b0e0e538664c6"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-core-5000.js",
+                "bytes": 900,
+                "sha256": "2b655dbcb024350e1d9c2c438a7ef198829f8490af890038d1092952a0dd02de"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-core.js",
+                "bytes": 894,
+                "sha256": "2fae20673cce8d7c5308e9a0f8ae65dfaa81d279c8123e686e5d6435c2a243a6"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-host-DrNvOYut.js",
+                "bytes": 11746,
+                "sha256": "6e4ba060aed2b7ebb4afe85eb0907d33df77e7457bbd1d0b77212632dc56a050"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-main-host-wrapper.mjs",
+                "bytes": 5011,
+                "sha256": "643515173b79235853a3875dbfd4a20d2b055433122a927ce91b6ed415da9b87"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-main-wrapper.mjs",
+                "bytes": 109,
+                "sha256": "5c7676751b447337e0dfdc874d7b25d0aae0bc4c7ab2db6e1dc6d0157aa7a5c4"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-node-main-wrapper.mjs",
+                "bytes": 110,
+                "sha256": "e414d8e4121bb9549aa4b1f2b2464324f8dab40bda98299f913173e1b157176f"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-node.js",
+                "bytes": 895,
+                "sha256": "ebda43beba2b63efa8ac7c538248f9396d59d5e8b7e26ec5e7e283115cf802ba"
+              },
+              {
+                "entry": "isolated-host/main/spreadsheet-worker.js",
+                "bytes": 1237814,
+                "sha256": "8d465a983b27a8f46d8429731e0bd01549fad4253bcd39a0db5e732f3b45da9d"
+              },
+              {
+                "entry": "isolated-host/preload/index.cjs",
+                "bytes": 676939,
+                "sha256": "33da4506613cc8b16b8a64505c713ad5802e8d981c1b14f241bbb93c88cd5dad"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalLegacyLinksPanel-BLW7AtKm.css",
+                "bytes": 2290,
+                "sha256": "d01f4d97413d7a12867923c620b5966047d836f140aa1c10f62573f5925be75e"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalLegacyLinksPanel-DqwsrPAD.js",
+                "bytes": 46220,
+                "sha256": "abfae58838770fe1a2dace50bd9ba9201f263a50e6c225dffaf4e3dc1ff0148e"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalRelocationDialog--mk66Qoq.js",
+                "bytes": 29948,
+                "sha256": "d17c582880400a4a9f6ab7ec08596b804a62e056b2427fedf4913630bb1e6886"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalRelocationDialog-Dyps9yb-.css",
+                "bytes": 2257,
+                "sha256": "8ce99e838293964fd5915cb10fee68f31dbb2bc5ef0162a6aedf034e976c18d3"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalSourceWritesDialog-DGAP_eCT.css",
+                "bytes": 2276,
+                "sha256": "85b421cb3ab2b7acdf6a940fccafc758f31ac4f7ea63e3f4a83b9dbd500ebc3d"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalSourceWritesDialog-rnUMI97B.js",
+                "bytes": 27794,
+                "sha256": "bc499d2c2fb1a73a11fb00c2d26fc573f4c7657b14b9245134ca099b145b6962"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalSourceWritesSettings-CzkeYMST.js",
+                "bytes": 3406,
+                "sha256": "89e601296eb5032c155e940ee127711db28d03ef72c651cba863890531121022"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/ambient-default-scene-CLpvRl66.png",
+                "bytes": 1772416,
+                "sha256": "c9adf0804bb6b05f6be38b06a84494c113a5b42daaa25a5eceab1d26c1e34c42"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/bootstrap-icons-BtvjY1KL.woff2",
+                "bytes": 130396,
+                "sha256": "476adf42b40325098fcfa8b36ab3e769186bb4f6ce6a249753e2e1a9c22bf99e"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/index-DB-Eu_rL.js",
+                "bytes": 2833231,
+                "sha256": "c6f5297cee869f0dc10777056788eb05f804dcbd36c7dc0786850a0001d51cb6"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/index-DDmYflAD.css",
+                "bytes": 384499,
+                "sha256": "4345de7e609945727d5ee9490de087d072dcad3e0496c1f2edaf673b2fdc09a9"
+              },
+              {
+                "entry": "isolated-host/renderer/index.html",
+                "bytes": 748,
+                "sha256": "9f0d37c12b6f844083fd147e6df0115cf3880ac6e17e5d9373e90e17b35541ce"
+              },
+              {
+                "entry": "isolated-host/package.json",
+                "bytes": 33,
+                "sha256": "89c47db7851f89caec72da4f215ebc21cf1e294aeef3b45d2583562d846ab035"
+              }
+            ]
+          },
+          {
+            "manifest": {
+              "entry": "isolated-collection-host/artifact-manifest.json",
+              "bytes": 223306,
+              "sha256": "f4063caabe619bfe9cba4fd5cd08d6813e2228a9050505353bcf8ad74daf2466"
+            },
+            "task": "RUST-009",
+            "actualWholeCompiledFiles": [
+              {
+                "entry": "isolated-collection-host/main/collection-readonly-control-protocol-BKJoO_kQ.js",
+                "bytes": 6922,
+                "sha256": "42b2252be985b406d8508a05f6f10b53f9e134842ea2bb46e62d83f1b13060b6"
+              },
+              {
+                "entry": "isolated-collection-host/main/collection-scale-main-probe-Ds8CZcDo.js",
+                "bytes": 61397,
+                "sha256": "ee27ea50d78336ef43875a570b7baf4ae97d1e418c1c7fd06695dedd125df3f7"
+              },
+              {
+                "entry": "isolated-collection-host/main/core-host-Btay6pAX.js",
+                "bytes": 644508,
+                "sha256": "b8af92cfc5b049b8f5c6df6a41ceb04749e62a1c54b0a14943e85c28d0994e6a"
+              },
+              {
+                "entry": "isolated-collection-host/main/core.js",
+                "bytes": 18304,
+                "sha256": "232187b7df45248da4cf0dbeac4ee11eed1bdaf0aefbc1231bf6c662539615d3"
+              },
+              {
+                "entry": "isolated-collection-host/main/dataset-owner-bootstrap-C76bgTf_.js",
+                "bytes": 2519157,
+                "sha256": "b473407618c696d68b4843503fea0feae18e595904cbb7c4f4213e6cb17bae89"
+              },
+              {
+                "entry": "isolated-collection-host/main/dataset-owner.js",
+                "bytes": 25294,
+                "sha256": "57241d6ff00eb140cf9a20a2f2cbee8679fe387df327d8374a83714e5159ebf3"
+              },
+              {
+                "entry": "isolated-collection-host/main/index.js",
+                "bytes": 578990,
+                "sha256": "daab05fde5f363381c65061652ac6a2886feb2832558e108b337e78cf67c2618"
+              },
+              {
+                "entry": "isolated-collection-host/main/local-file-source-BlVYAdqS.js",
+                "bytes": 129093,
+                "sha256": "0bfa33846f0dff3731ac1a80d6c19b586725696b686ffe14fdcae55944de89f4"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-core-100.js",
+                "bytes": 912,
+                "sha256": "54eb98e6843dba783484dce38453f1e6e7a96c98314e832671d88ad275dff2e5"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-core-2000.js",
+                "bytes": 912,
+                "sha256": "30982afa2c79edd6b62c7ea68c2fec4e3e67e212185b6a19e4ebca6a16e1617b"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-core-5000.js",
+                "bytes": 911,
+                "sha256": "2c343e8455d7147ed07042936dec226012a3a36c4997a18cacdaf7467170d2fb"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-host-M5zX9NfW.js",
+                "bytes": 13065,
+                "sha256": "fc7774a3ac19e55eab53e531d627e497c61602a7207404fd4b9d00bb409556c3"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-main-100-wrapper.mjs",
+                "bytes": 145,
+                "sha256": "61cb6b9f756b437e5149f1194a9f8aad3dc8c5215920ff84e34f2f55477d462f"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-main-2000-wrapper.mjs",
+                "bytes": 146,
+                "sha256": "0261b9f4296debdab8f0001e8cc7f7dfbf7574c27b32efb37c7bc5d57d45e9da"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-main-5000-wrapper.mjs",
+                "bytes": 146,
+                "sha256": "46bdf0a631b898aa8bd0dffd15a36bbd04b150bceb989a14911d21b47bd1a61c"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-main-host-wrapper.mjs",
+                "bytes": 5087,
+                "sha256": "3c4aa095209a023350e979b73934a61ad830e9365bdda86be0f65d7ac6da2525"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-node-main-wrapper.mjs",
+                "bytes": 146,
+                "sha256": "8df146dd169e7151c3d17f809cf8ddff1172d939b64d11eeb9aa4358270265b1"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-node.js",
+                "bytes": 906,
+                "sha256": "b85277130231c47383fec5996b4c10143c75b53825e1048da7360c6db0189c30"
+              },
+              {
+                "entry": "isolated-collection-host/main/spreadsheet-worker.js",
+                "bytes": 1237814,
+                "sha256": "8d465a983b27a8f46d8429731e0bd01549fad4253bcd39a0db5e732f3b45da9d"
+              },
+              {
+                "entry": "isolated-collection-host/preload/index.cjs",
+                "bytes": 676939,
+                "sha256": "33da4506613cc8b16b8a64505c713ad5802e8d981c1b14f241bbb93c88cd5dad"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalLegacyLinksPanel-BLW7AtKm.css",
+                "bytes": 2290,
+                "sha256": "d01f4d97413d7a12867923c620b5966047d836f140aa1c10f62573f5925be75e"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalLegacyLinksPanel-DqwsrPAD.js",
+                "bytes": 46220,
+                "sha256": "abfae58838770fe1a2dace50bd9ba9201f263a50e6c225dffaf4e3dc1ff0148e"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalRelocationDialog--mk66Qoq.js",
+                "bytes": 29948,
+                "sha256": "d17c582880400a4a9f6ab7ec08596b804a62e056b2427fedf4913630bb1e6886"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalRelocationDialog-Dyps9yb-.css",
+                "bytes": 2257,
+                "sha256": "8ce99e838293964fd5915cb10fee68f31dbb2bc5ef0162a6aedf034e976c18d3"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalSourceWritesDialog-DGAP_eCT.css",
+                "bytes": 2276,
+                "sha256": "85b421cb3ab2b7acdf6a940fccafc758f31ac4f7ea63e3f4a83b9dbd500ebc3d"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalSourceWritesDialog-rnUMI97B.js",
+                "bytes": 27794,
+                "sha256": "bc499d2c2fb1a73a11fb00c2d26fc573f4c7657b14b9245134ca099b145b6962"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalSourceWritesSettings-CzkeYMST.js",
+                "bytes": 3406,
+                "sha256": "89e601296eb5032c155e940ee127711db28d03ef72c651cba863890531121022"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/ambient-default-scene-CLpvRl66.png",
+                "bytes": 1772416,
+                "sha256": "c9adf0804bb6b05f6be38b06a84494c113a5b42daaa25a5eceab1d26c1e34c42"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/bootstrap-icons-BtvjY1KL.woff2",
+                "bytes": 130396,
+                "sha256": "476adf42b40325098fcfa8b36ab3e769186bb4f6ce6a249753e2e1a9c22bf99e"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/index-DB-Eu_rL.js",
+                "bytes": 2833231,
+                "sha256": "c6f5297cee869f0dc10777056788eb05f804dcbd36c7dc0786850a0001d51cb6"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/index-DDmYflAD.css",
+                "bytes": 384499,
+                "sha256": "4345de7e609945727d5ee9490de087d072dcad3e0496c1f2edaf673b2fdc09a9"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/index.html",
+                "bytes": 748,
+                "sha256": "9f0d37c12b6f844083fd147e6df0115cf3880ac6e17e5d9373e90e17b35541ce"
+              },
+              {
+                "entry": "isolated-collection-host/package.json",
+                "bytes": 33,
+                "sha256": "89c47db7851f89caec72da4f215ebc21cf1e294aeef3b45d2583562d846ab035"
+              }
+            ]
+          }
+        ],
+        "actualClosedSetFileCount": 68,
+        "standaloneRustBinaryWholeBytes": "NOT_SELECTED_BY_WORKFLOW_NOT_CLAIMED"
+      }
+    }
+  ],
+  "gitSourceWholeRowsRead": 1970,
+  "realProviderRoonNasPhysicalDeviceAudioOwner": "NOT_RUN",
+  "actualSelfOwnedSdkMacService": "SEPARATE_D698_ACTUAL_MEDIA105_CANDIDATE108_BOUNDED_SCOPE_NOT_CI"
+}
