@@ -393,5 +393,15 @@
     "preciseCiFloatingOrigin": "NOT_LOGGED",
     "productionSourcesAndActualSdkRuntimeUnchanged": true,
     "newSourceGateAndFirstNaturalCi": "PENDING_NEW_ORDINARY_SOURCE_PUSH"
+  },
+  "overallElectronCiBudgetRepair": {
+    "failedSourceSha": "9d95703ffe4192218ceb7ef6fbe94da238de7a5e",
+    "evidence": "docs/postrust/MBM-001/evidence/third-source-ci-timeout.json",
+    "oldOverallJobMinutes": 45,
+    "newOverallJobMinutes": 60,
+    "frozenGateBudgetsUnchanged": true,
+    "testCommandsAndAssertionsUnchanged": true,
+    "nextExactSourceGateAndNaturalCi": "PENDING",
+    "realDeviceAudioOwner": "NOT_RUN"
   }
 }

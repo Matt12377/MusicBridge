@@ -1,0 +1,490 @@
+{
+  "schema": "mbm001.electron-overall-ci-timeout-repair.v1",
+  "failedSourceSha": "9d95703ffe4192218ceb7ef6fbe94da238de7a5e",
+  "naturalRunId": 37910562173,
+  "naturalJobId": 113754426051,
+  "naturalAttempt": 1,
+  "conclusion": "cancelled",
+  "wholeFailedJob": {
+    "schema": "mbm001.actual-first-natural-job-complete-log.v1",
+    "capturedAt": "2026-10-09T10:11:55.136590+00:00",
+    "sourceSha": "9d95703ffe4192218ceb7ef6fbe94da238de7a5e",
+    "phase": "source",
+    "runId": 37910562173,
+    "jobId": 113754426051,
+    "jobName": "macos-electron-gate",
+    "jobConclusion": "cancelled",
+    "naturalAttempt": 1,
+    "actualJobLog": {
+      "fileName": "RELEASE_SOURCE_ELECTRON_TIMEOUT_JOB239.log",
+      "bytes": 166909,
+      "sha256": "28186851fd9dd151731843d3240c7866beca551fa4dc3809a04d148698be824d"
+    },
+    "method": "GH_RUN_VIEW_EXACT_RUN_AND_JOB_LOG",
+    "stderr": {
+      "fileName": "RELEASE_SOURCE_ELECTRON_TIMEOUT_JOB239.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "downloadExitCode": 0,
+    "downloadTimedOut": false,
+    "fullBytesReadBack": true,
+    "result": "DOWNLOADED_COMPLETE_JOB_RAW_BYTES"
+  },
+  "wholeFailedJobBytesActuallyRead": true,
+  "originalGitHubAnnotations": [
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Matt12377/MusicBridge/blob/9d95703ffe4192218ceb7ef6fbe94da238de7a5e/.github",
+      "start_line": 1,
+      "start_column": null,
+      "end_line": 1,
+      "end_column": null,
+      "annotation_level": "failure",
+      "title": "",
+      "message": "The job has exceeded the maximum execution time of 45m0s",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Matt12377/MusicBridge/blob/9d95703ffe4192218ceb7ef6fbe94da238de7a5e/.github",
+      "start_line": 10,
+      "start_column": null,
+      "end_line": 10,
+      "end_column": null,
+      "annotation_level": "warning",
+      "title": "",
+      "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Matt12377/MusicBridge/blob/9d95703ffe4192218ceb7ef6fbe94da238de7a5e/.github",
+      "start_line": 184,
+      "start_column": null,
+      "end_line": 184,
+      "end_column": null,
+      "annotation_level": "failure",
+      "title": "",
+      "message": "The operation was canceled.",
+      "raw_details": ""
+    }
+  ],
+  "elapsedStageFacts": [
+    {
+      "name": "Build and verify both Rust hosts once in this job",
+      "conclusion": "success",
+      "started_at": "2026-10-09T09:21:55Z",
+      "completed_at": "2026-10-09T09:37:00Z"
+    },
+    {
+      "name": "Electron startup, crash/restart, safeStorage vault and credential recovery gates",
+      "conclusion": "success",
+      "started_at": "2026-10-09T09:37:17Z",
+      "completed_at": "2026-10-09T09:46:39Z"
+    },
+    {
+      "name": "Electron end-to-end flow (Playwright, production build)",
+      "conclusion": "cancelled",
+      "started_at": "2026-10-09T09:46:39Z",
+      "completed_at": "2026-10-09T10:05:10Z"
+    }
+  ],
+  "startupActualTests": 12,
+  "startupActualAllPass": true,
+  "plannedE2eTests": 116,
+  "partialCaseRows": [
+    {
+      "marker": "✓",
+      "number": 1,
+      "case": "e2e/collection-preview.spec.ts:185:1 › 收藏原型：状态筛选跨分页、墙与库存切换以及详情返回保留真实结果 (11.8s)"
+    },
+    {
+      "marker": "✓",
+      "number": 2,
+      "case": "e2e/collection-preview.spec.ts:252:1 › 收藏原型：浅深色全宽响应式墙、720 窄窗长型号、滚动入口与实体音乐仍可使用 (18.9s)"
+    },
+    {
+      "marker": "✓",
+      "number": 3,
+      "case": "e2e/mbrs009-local-library.spec.ts:30:1 › 009正式离线App复用Node扫描、原导航与共享表格；仅显示更正不改源字节 (13.3s)"
+    },
+    {
+      "marker": "✓",
+      "number": 4,
+      "case": "e2e/mbrs011-organizer.spec.ts:52:1 › 011生产离线App：单曲/具体发行/跨搜索批量/撤销预览，增量扫描与重启保留且源SHA不变 (24.2s)"
+    },
+    {
+      "marker": "✓",
+      "number": 5,
+      "case": "e2e/mbrs012-source-writes.spec.ts:206:1 › 012生产离线自有FLAC/MP3：四范围、具体确认、原图、逐项结果、撤销与冷启动，音频和非目标元数据保留 (1.1m)"
+    },
+    {
+      "marker": "✓",
+      "number": 6,
+      "case": "e2e/mbrs013-relocation.spec.ts:220:1 › 013生产离线自有WAVE与歌词：默认OFF、完整具体预览、源保留、独立目标回读、具体清理和冷启动 (45.0s)"
+    },
+    {
+      "marker": "✓",
+      "number": 7,
+      "case": "e2e/mbrs014-legacy-links.spec.ts:88:1 › 014 A生产离线空库：自制WAV扫描、明确实体发行关联/解除/CAS撤销、冷启动仅读与源SHA不变 (25.9s)"
+    },
+    {
+      "marker": "-",
+      "number": 8,
+      "case": "e2e/mbrs014-legacy-links.spec.ts:193:1 › 014 B生产离线非空自建库：P1后准确实体/数字/当前源关系全闭环、旧103逐值精确会话与工作位置派生、照片/输出/PDF/冻结历史不变"
+    },
+    {
+      "marker": "✓",
+      "number": 9,
+      "case": "e2e/playback-keyboard.spec.ts:13:1 › MBR-001 实际键盘：行 Enter 播放，子按钮 Enter/空格只执行自身操作 (7.3s)"
+    },
+    {
+      "marker": "✓",
+      "number": 10,
+      "case": "e2e/task-067.spec.ts:49:3 › V3 outbox：回执落盘失败与Renderer刷新后无自动投递，人工原命令恢复不重复库存 (12.2s)"
+    },
+    {
+      "marker": "✓",
+      "number": 11,
+      "case": "e2e/task-067.spec.ts:49:3 › V3 outbox：真实Main SIGKILL后无自动投递，人工原命令恢复不重复库存 (14.6s)"
+    },
+    {
+      "marker": "✓",
+      "number": 12,
+      "case": "e2e/task-067.spec.ts:89:1 › V3 outbox：切库旧命令隔离，激活未知回执只读恢复不再次重启 (14.2s)"
+    },
+    {
+      "marker": "✓",
+      "number": 13,
+      "case": "e2e/task-067.spec.ts:133:1 › V3 outbox：复合撤权首项发送前Main被SIGKILL，整批仍可人工恢复且不删文件 (17.4s)"
+    },
+    {
+      "marker": "✓",
+      "number": 14,
+      "case": "e2e/task-068.spec.ts:43:1 › V3参考目录：实际九API的合并/拆分与历史快照跨冷启动保留，浏览和发布不增库存 (9.1s)"
+    },
+    {
+      "marker": "✓",
+      "number": 15,
+      "case": "e2e/task-068.spec.ts:74:1 › V3参考目录：页面四步明确确认、原JSON文件预览和历史比较，窄窗无障碍可用 (10.4s)"
+    },
+    {
+      "marker": "✓",
+      "number": 16,
+      "case": "e2e/task-068.spec.ts:124:1 › V3参考目录：原资料登记回执落盘失败后冷启不重发，人工恢复同命令只保留一份来源 (10.5s)"
+    },
+    {
+      "marker": "✓",
+      "number": 17,
+      "case": "e2e/task-069.spec.ts:60:1 › V3 Excel：真实XLSX/XLS与11API，重导不增量、修订保留旧Lot且独立更正跨冷启动 (11.1s)"
+    },
+    {
+      "marker": "✓",
+      "number": 18,
+      "case": "e2e/task-069.spec.ts:119:1 › V3 Excel：原生选择登记回执未知后冷启不重选，原文件离线仍可人工恢复原回执 (9.8s)"
+    },
+    {
+      "marker": "✓",
+      "number": 19,
+      "case": "e2e/task-069.spec.ts:158:1 › V3 Excel：五步界面明确批准，720窄窗原行与独立更正截图及axe (15.3s)"
+    },
+    {
+      "marker": "✓",
+      "number": 20,
+      "case": "e2e/task-070.spec.ts:98:1 › V3完成度：真实九API，Owned与Wanted正交、长度守恒及取消后的不可变历史跨冷启 (8.6s)"
+    },
+    {
+      "marker": "✓",
+      "number": 21,
+      "case": "e2e/task-070.spec.ts:155:1 › V3完成度：目录修订仅标记旧求购待复核，明确重绑保留版本，旧快照不回填新口径 (4.9s)"
+    },
+    {
+      "marker": "✓",
+      "number": 22,
+      "case": "e2e/task-070.spec.ts:183:1 › V3完成度：真实回执丢失冷启不重放，人工恢复幂等，schema17恢复切库隔离旧求购命令 (18.5s)"
+    },
+    {
+      "marker": "✓",
+      "number": 23,
+      "case": "e2e/task-070.spec.ts:234:1 › V3完成度：720窄窗键盘、明确求购与快照确认、旧口径提示及axe截图 (9.9s)"
+    },
+    {
+      "marker": "✓",
+      "number": 24,
+      "case": "e2e/task-070.spec.ts:298:1 › V3完成度：来源与求购独立读取，单侧失败仍显示另一侧真实资料并可明确恢复 (5.2s)"
+    },
+    {
+      "marker": "✓",
+      "number": 25,
+      "case": "e2e/task-070.spec.ts:357:1 › V3完成度：合法大目录历史按响应字节预算分页，完整分组与全部快照均可到达 (46.5s)"
+    },
+    {
+      "marker": "✓",
+      "number": 26,
+      "case": "e2e/task-071.spec.ts:60:1 › V3交互：240字符草稿长名在窄窗与宽窗均可读，不撑出主内容 (6.9s)"
+    },
+    {
+      "marker": "✓",
+      "number": 27,
+      "case": "e2e/task-071.spec.ts:69:1 › V3交互：唯一下一步跟随草稿修改、源面板关闭与读取失败，不伪装正式预检 (6.6s)"
+    },
+    {
+      "marker": "✓",
+      "number": 28,
+      "case": "e2e/task-071.spec.ts:110:1 › V3交互：已登记关系选曲保留Exact与Probable区别，浏览不写入，跨来源明确追加 (7.1s)"
+    },
+    {
+      "marker": "✓",
+      "number": 29,
+      "case": "e2e/task-071.spec.ts:148:1 › V3交互：240字符曲目在Picker跨专辑已选区保持可读和键盘返回 (6.9s)"
+    },
+    {
+      "marker": "✓",
+      "number": 30,
+      "case": "e2e/task-071.spec.ts:171:1 › V3交互：两库照片按需读取、失败单图重试、长名与横竖图保持原始资料 (14.6s)"
+    },
+    {
+      "marker": "✓",
+      "number": 31,
+      "case": "e2e/task-071.spec.ts:176:1 › V3交互：关系离线与冷启不丢本地资料，不自动重定位或恢复旧选择 (10.9s)"
+    },
+    {
+      "marker": "✓",
+      "number": 32,
+      "case": "e2e/task-071.spec.ts:216:1 › V3交互：真实多规划历史需明确选择，同谱系Direct路径与预留变化不会串线 (14.0s)"
+    },
+    {
+      "marker": "✓",
+      "number": 33,
+      "case": "e2e/task-071.spec.ts:332:1 › TASK-085 J05：正式 UI 登记发行与逐件、归属照片、关联更正撤销并冷启保留 (12.0s)"
+    },
+    {
+      "marker": "✓",
+      "number": 34,
+      "case": "e2e/task-072.spec.ts:61:1 › V3正式计划：实际链路冻结当前参数、原命令重试、冷启历史和GateB阻断 (15.3s)"
+    },
+    {
+      "marker": "✓",
+      "number": 35,
+      "case": "e2e/task-072.spec.ts:126:1 › V3计划读取：取消核验丢弃迟到结果，读取失败不装空历史或泄漏内部路径 (7.8s)"
+    },
+    {
+      "marker": "✓",
+      "number": 36,
+      "case": "e2e/task-073.spec.ts:56:1 › V3输出检查：未启用固定包时明确禁用，无设备或普通outbox启动 (3.4s)"
+    },
+    {
+      "marker": "-",
+      "number": 37,
+      "case": "e2e/task-073.spec.ts:65:1 › V3固定原生输出检查：真实Plan到只读FD与PCM守恒，取消先到、冷启和变更不产生认证"
+    },
+    {
+      "marker": "✓",
+      "number": 38,
+      "case": "e2e/task-073.spec.ts:105:1 › V3无设备检查面板：未启用包时禁用，状态读取错误不泄漏内部路径 (9.9s)"
+    },
+    {
+      "marker": "-",
+      "number": 39,
+      "case": "e2e/task-073.spec.ts:121:1 › V3无设备检查面板：明确计划与侧面后真实helper通过，键盘与窄窗保留未认证边界"
+    },
+    {
+      "marker": "-",
+      "number": 40,
+      "case": "e2e/task-073.spec.ts:156:1 › V3无设备检查面板：取消失败可重试，迟到真实成功不能改为通过"
+    },
+    {
+      "marker": "✓",
+      "number": 41,
+      "case": "e2e/task-074.spec.ts:34:1 › V3正式Attempt实际全链路默认拒绝，零新增、outbox不变且冷启不续播 (9.1s)"
+    },
+    {
+      "marker": "✓",
+      "number": 42,
+      "case": "e2e/task-074.spec.ts:51:1 › V3正式Attempt面板明确Plan后才读历史，窄窗与错误不伪造空历史或正式准入 (8.5s)"
+    },
+    {
+      "marker": "✓",
+      "number": 43,
+      "case": "e2e/task-074.spec.ts:80:1 › V3受控历史显示保留中断与三层事实，人工实体停止不伪造软件成功 (10.6s)"
+    },
+    {
+      "marker": "✓",
+      "number": 44,
+      "case": "e2e/task-075.spec.ts:35:1 › V3档案实际六API：人工处置幂等且不造Completed，库存守恒、冷启保留历史和未认证状态 (9.5s)"
+    },
+    {
+      "marker": "✓",
+      "number": 45,
+      "case": "e2e/task-075.spec.ts:82:1 › V3档案界面明确选择实体和处置，空态与读取故障分开、键盘确认不自动写入 (8.4s)"
+    },
+    {
+      "marker": "✓",
+      "number": 46,
+      "case": "e2e/task-075.spec.ts:140:1 › V3受控完成档案展示冻结事实，照片按需读取与单图重试不启动录音 (11.1s)"
+    },
+    {
+      "marker": "✓",
+      "number": 47,
+      "case": "e2e/task-076.spec.ts:30:1 › Replica实际六API无设备保持blocked，取消先到不伪启动，冷启不恢复会话或改档案 (8.7s)"
+    },
+    {
+      "marker": "✓",
+      "number": 48,
+      "case": "e2e/task-076.spec.ts:54:1 › Replica历史详情只读核验与明确选择，后端blocked、取消失败重试和迟到结果收口 (11.3s)"
+    },
+    {
+      "marker": "✓",
+      "number": 49,
+      "case": "e2e/task-077.spec.ts:30:1 › Completed持久任务在真实App冷启自动生成PDF，公开八API保持历史字节、导出取消零写与改图不回填 (39.1s)"
+    },
+    {
+      "marker": "✓",
+      "number": 50,
+      "case": "e2e/task-077.spec.ts:130:1 › 真实schema20旧档案启动不自动补建，用户明确后补由运行中worker生成且旧Record字节不改 (15.5s)"
+    },
+    {
+      "marker": "✓",
+      "number": 51,
+      "case": "e2e/task-078.spec.ts:131:1 › V3同数据集7盘：幂等Completed、Replica历史核验、真实J-Card与完整备份激活冷启守恒 (33.7s)"
+    },
+    {
+      "marker": "✓",
+      "number": 52,
+      "case": "e2e/task-085-collection.spec.ts:201:1 › TASK-085 J03/J04/C11：库存表原行到目录合并拆分、求购快照与同库冷启 (35.7s)"
+    },
+    {
+      "marker": "✓",
+      "number": 53,
+      "case": "e2e/task-085-main-journey.spec.ts:34:1 › 外审主流程正式IPC：干净工作库源→草稿→母版/布局→Session→执行/归档/Plan，阻断后冷启不造Attempt (12.1s)"
+    },
+    {
+      "marker": "✓",
+      "number": 54,
+      "case": "e2e/task-085-print.spec.ts:74:1 › J13 正式 App 按合成历史档案生成选图、自定义尺寸和逐页预览的独立 PDF (44.2s)"
+    },
+    {
+      "marker": "✓",
+      "number": 55,
+      "case": "e2e/task-085.spec.ts:81:1 › 正式 App：指定单盘进入确切制作、明确预留与释放后回到原盘 (16.6s)"
+    },
+    {
+      "marker": "✓",
+      "number": 56,
+      "case": "e2e/v1-ui.spec.ts:102:1 › 六项修复：收藏封面与打开播放、专辑播放全部、零专辑过滤和玻璃布局 (14.0s)"
+    },
+    {
+      "marker": "✓",
+      "number": 57,
+      "case": "e2e/v1-ui.spec.ts:227:1 › 读取生命周期：实际页面离开取消原读取，返回使用新身份且拒绝旧结果 (5.9s)"
+    },
+    {
+      "marker": "✓",
+      "number": 58,
+      "case": "e2e/v1-ui.spec.ts:416:1 › Roon Display 歌词设置校验、来源显示与断连清词 (7.5s)"
+    },
+    {
+      "marker": "✓",
+      "number": 59,
+      "case": "e2e/v1-ui.spec.ts:556:1 › Core 后连接时自动刷新 Zone 列表 (6.2s)"
+    },
+    {
+      "marker": "✓",
+      "number": 60,
+      "case": "e2e/v1-ui.spec.ts:570:1 › Remote Core ready 时自动刷新 Zone 列表 (5.5s)"
+    },
+    {
+      "marker": "✓",
+      "number": 61,
+      "case": "e2e/v1-ui.spec.ts:582:1 › Remote Core 停止时清空旧 Zone 并显示 Core 已断开 (6.0s)"
+    },
+    {
+      "marker": "✓",
+      "number": 62,
+      "case": "e2e/v1-ui.spec.ts:597:1 › 连续 Core 生命周期事件只触发一次 Zone 刷新 (6.6s)"
+    },
+    {
+      "marker": "✓",
+      "number": 63,
+      "case": "e2e/v1-ui.spec.ts:635:1 › 较旧的空 Zone 响应不会覆盖较新的设备列表 (6.1s)"
+    },
+    {
+      "marker": "✓",
+      "number": 64,
+      "case": "e2e/v1-ui.spec.ts:682:1 › Roon 断连时立即清空陈旧 Zone 且不再读取设备 (5.7s)"
+    },
+    {
+      "marker": "✓",
+      "number": 65,
+      "case": "e2e/v1-ui.spec.ts:707:1 › Core 已连接但 Zone 尚未返回时显示加载状态 (5.9s)"
+    },
+    {
+      "marker": "✓",
+      "number": 66,
+      "case": "e2e/v1-ui.spec.ts:728:1 › Settings 与 Bottom Player 共享 Core 断连的 Zone 状态 (5.7s)"
+    },
+    {
+      "marker": "✓",
+      "number": 67,
+      "case": "e2e/v1-ui.spec.ts:747:1 › Settings 可手动刷新已连接 Core 的 Zone 列表 (6.0s)"
+    },
+    {
+      "marker": "✓",
+      "number": 68,
+      "case": "e2e/v1-ui.spec.ts:764:1 › v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation (27.4s)"
+    },
+    {
+      "marker": "✓",
+      "number": 69,
+      "case": "e2e/v1-ui.spec.ts:971:1 › 合成 Profile 资料不可用但登录仍有效 (5.6s)"
+    },
+    {
+      "marker": "✓",
+      "number": 70,
+      "case": "e2e/v1-ui.spec.ts:984:1 › 合成登录过期后清空账户与每日推荐 (6.0s)"
+    },
+    {
+      "marker": "✓",
+      "number": 71,
+      "case": "e2e/v1-ui.spec.ts:996:1 › search, library pagination, playlist detail, queue controls and lyrics states (21.1s)"
+    }
+  ],
+  "partialPassed": 67,
+  "partialOriginalSkipped": 4,
+  "partialCasesDeclaredByLog": 71,
+  "e2eSuiteComplete": false,
+  "localSource87And156And23": "PREVIOUS_SOURCE_CURRENT_GIT_PINNED_PROOFS_NOT_NEXT_SOURCE_QUALIFICATION",
+  "ciSourceVerify87": "PASS_SOURCE5_FIRST_NATURAL_COMPLETE_VERIFY_JOB_AND_ZIP",
+  "repair": {
+    "scope": "GITHUB_HOSTED_WHOLE_ELECTRON_JOB_CEILING_ONLY",
+    "oldMinutes": 45,
+    "newMinutes": 60,
+    "onlyOneWorkflowLineChanged": true,
+    "commandsAssertionsCaseNamesPerTestTimeoutsUnchanged": true,
+    "frozenGateBudgets": {
+      "stageTimeoutMs": 180000,
+      "totalTimeoutMs": 480000,
+      "killGraceMs": 10000,
+      "rawOutputBytes": 16777216,
+      "sourceFileBytes": 16777216,
+      "maxSourceFiles": 8192
+    },
+    "beforeWorkflow": {
+      "bytes": 7556,
+      "sha256": "16423e85378d328293df2bb696279120ccfb563028dc841a9be51e3d8ea3b05b"
+    },
+    "afterWorkflow": {
+      "bytes": 7556,
+      "sha256": "c549be1087e285a449eb68320d544b0ff950274c47be69e116c80157ba399a94"
+    }
+  },
+  "manualReruns": 0,
+  "manualCancellations": 0,
+  "sourceCodeChanged": false,
+  "gateScopeChanged": false,
+  "actualRuntimeReplayed": false,
+  "pairedDeliveryComplete": false,
+  "nextSourceQualification": "PENDING",
+  "realProviderRoonNasDeviceAudioOwner": "NOT_RUN"
+}
