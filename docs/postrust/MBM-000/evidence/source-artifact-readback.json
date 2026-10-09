@@ -1,0 +1,652 @@
+{
+  "schema": "mbm000.current-source-five-artifact-content.v1",
+  "sourceSha": "579d0c3097a0cd78290467cf9b073819989826fd",
+  "result": "PASS_CURRENT_SOURCE_FIVE_ARTIFACT_WHOLE_BYTES_AND_DECLARED_CONTENT",
+  "capturedAt": "2026-10-09T03:52:38.874207+00:00",
+  "artifacts": [
+    {
+      "artifactId": 11593205627,
+      "artifactName": "rust-core-ubuntu-latest-579d0c3097a0cd78290467cf9b073819989826fd",
+      "zip": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/SOURCE_REPAIR_RUST_UBUNTU_ARTIFACT113/artifact.zip",
+        "bytes": 5866034,
+        "sha256": "45259f9eacf3a06df4087f98e20294c38eb9be71b426032d8c18e05663d353e3"
+      },
+      "wholeEntries": 701,
+      "platformDigestMatched": true,
+      "contentEvidence": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/SOURCE_REPAIR_PARTIAL_CI_CONTENT_READBACK115.json",
+        "bytes": 239430,
+        "sha256": "225296451dcea972197d2de1ea2f3f1a0d2f89340bd0a969f2b65df965b7b44e"
+      },
+      "actualCommands": 30,
+      "sourceWholeGitRows": 795,
+      "installedDependencyWholeFiles": 1,
+      "proof": "ALREADY_ACTUALLY_READ_CURRENT_SOURCE_SAME_DIGEST"
+    },
+    {
+      "artifactId": 11592658727,
+      "artifactName": "rust-core-macos-latest-579d0c3097a0cd78290467cf9b073819989826fd",
+      "zip": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/SOURCE_REPAIR_RUST_MACOS_ARTIFACT114/artifact.zip",
+        "bytes": 5865021,
+        "sha256": "bdbbdc602219095e215fb09ffc28e3339fb07054e0898a1ace804b0aad16d9a4"
+      },
+      "wholeEntries": 701,
+      "platformDigestMatched": true,
+      "contentEvidence": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/SOURCE_REPAIR_PARTIAL_CI_CONTENT_READBACK115.json",
+        "bytes": 239430,
+        "sha256": "225296451dcea972197d2de1ea2f3f1a0d2f89340bd0a969f2b65df965b7b44e"
+      },
+      "actualCommands": 30,
+      "sourceWholeGitRows": 795,
+      "installedDependencyWholeFiles": 1,
+      "proof": "ALREADY_ACTUALLY_READ_CURRENT_SOURCE_SAME_DIGEST"
+    },
+    {
+      "artifactId": 11593659848,
+      "artifactName": "verify-579d0c3097a0cd78290467cf9b073819989826fd",
+      "runId": 37877030467,
+      "zip": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/SOURCE_REPAIR_VERIFY_ARTIFACT155/artifact.zip",
+        "bytes": 91989097,
+        "sha256": "034cdd7a41f35860397717f36d727005cc6de68c9b607ffd0cf34ba7cf04951e"
+      },
+      "platformDigest": "sha256:034cdd7a41f35860397717f36d727005cc6de68c9b607ffd0cf34ba7cf04951e",
+      "wholeZipDigestMatched": true,
+      "wholeEntries": 15326,
+      "uncompressedBytes": 274403710,
+      "wholeDownloadReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/SOURCE_REPAIR_VERIFY_ARTIFACT155/whole-read.json",
+        "bytes": 5183090,
+        "sha256": "c978500b71fb58e8aa8131efe635c1d48dfbb60891b22d1a28b3e2c796c42ad9"
+      },
+      "declaredContent": {
+        "summary": {
+          "entry": "mbm000-37877030467-1/summary.json",
+          "bytes": 195196,
+          "sha256": "6e90268cf30e58da40df7b53d15c7f882640e2b25f64e664487afe7ee0813a4a"
+        },
+        "head": "579d0c3097a0cd78290467cf9b073819989826fd",
+        "sourceWholeGitRows": 431,
+        "sourceInputIdentity": "54b113e0a717409568a01f5c05ec4b91ac3c67adb4ffbdd5439f464782012f34",
+        "producerDeclaredInputRows": 434,
+        "incidentalGeneratedPythonCacheRows": [
+          {
+            "path": "scripts/ci/__pycache__/capacity-phase-supervisor-v2.cpython-312.pyc",
+            "bytes": 416257,
+            "sha256": "09e9370a9686d73f7aa9cefd66068d6a36c41908a96a2024f444f60e5d94957a",
+            "sourcePythonFile": "scripts/ci/capacity-phase-supervisor-v2.py",
+            "gitSource": false,
+            "independentCacheBodyRead": false,
+            "uploaded": false,
+            "proof": "PRODUCER_STABLE_FD_CAPTURE_ONLY_INCIDENTAL_PRIOR_PYTHON_CACHE",
+            "usedByMobileThreeStageCommands": false
+          },
+          {
+            "path": "scripts/ci/__pycache__/capacity_process_failure_lineage.cpython-312.pyc",
+            "bytes": 24201,
+            "sha256": "ebba9ed8f42ac55677b983978c916734e24fee84559ca6121b45ff02bd73d0ca",
+            "sourcePythonFile": "scripts/ci/capacity_process_failure_lineage.py",
+            "gitSource": false,
+            "independentCacheBodyRead": false,
+            "uploaded": false,
+            "proof": "PRODUCER_STABLE_FD_CAPTURE_ONLY_INCIDENTAL_PRIOR_PYTHON_CACHE",
+            "usedByMobileThreeStageCommands": false
+          },
+          {
+            "path": "scripts/ci/__pycache__/issue-v3-capacity-queued-stop-window.cpython-312.pyc",
+            "bytes": 174381,
+            "sha256": "1d4ae4e962825b813d33cea833fb97dd79b3e7cfe1f3dfde769619d9b43bb441",
+            "sourcePythonFile": "scripts/ci/issue-v3-capacity-queued-stop-window.py",
+            "gitSource": false,
+            "independentCacheBodyRead": false,
+            "uploaded": false,
+            "proof": "PRODUCER_STABLE_FD_CAPTURE_ONLY_INCIDENTAL_PRIOR_PYTHON_CACHE",
+            "usedByMobileThreeStageCommands": false
+          }
+        ],
+        "localAndRemote431GitSourceRowsWholeEqual": true,
+        "cacheBodiesIndependentByteProof": "NOT_UPLOADED_NOT_CLAIMED",
+        "actualTests": 33,
+        "fail": 0,
+        "skip": 0,
+        "phases": [
+          {
+            "name": "fresh-contracts-build",
+            "exitCode": 0,
+            "closeObserved": true,
+            "actualPackagedSanitizedLog": {
+              "entry": "mbm000-37877030467-1/fresh-contracts-build.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "captureComplete": true,
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_WORKFLOW_TMP_RULE"
+            },
+            "actualCaseNamesSource": "PRODUCER_RAW_DERIVED_GATE_SUMMARY_AND_PACKAGED_SANITIZED_TAP_NOT_INDEPENDENT_RAW_READ"
+          },
+          {
+            "name": "contracts-types",
+            "exitCode": 0,
+            "closeObserved": true,
+            "actualPackagedSanitizedLog": {
+              "entry": "mbm000-37877030467-1/contracts-types.log",
+              "bytes": 29,
+              "sha256": "e6efc691ea6d2e0b2ea410c3f473e88d35072c31607a0e17de56e9b8b3fe1f28"
+            },
+            "producerRaw": {
+              "bytes": 0,
+              "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "captureComplete": true,
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_WORKFLOW_TMP_RULE"
+            },
+            "actualCaseNamesSource": "PRODUCER_RAW_DERIVED_GATE_SUMMARY_AND_PACKAGED_SANITIZED_TAP_NOT_INDEPENDENT_RAW_READ"
+          },
+          {
+            "name": "mobile-contract-behavior",
+            "exitCode": 0,
+            "closeObserved": true,
+            "actualPackagedSanitizedLog": {
+              "entry": "mbm000-37877030467-1/mobile-contract-behavior.log",
+              "bytes": 638,
+              "sha256": "cb6c8d06f8eabb1571c267e9275277e298847b1de5d48448f6442d5e34fcc64e"
+            },
+            "producerRaw": {
+              "bytes": 7891,
+              "sha256": "aa43fb6c47ed50ce40649fe31e731775f521d88ffa4130e72f42a2a1639b2bc4",
+              "captureComplete": true,
+              "independentZipRawRead": false,
+              "reason": "EXCLUDED_BY_FROZEN_WORKFLOW_TMP_RULE"
+            },
+            "actualCaseNamesSource": "PRODUCER_RAW_DERIVED_GATE_SUMMARY_AND_PACKAGED_SANITIZED_TAP_NOT_INDEPENDENT_RAW_READ"
+          }
+        ],
+        "binding": {
+          "entry": "mbm000-37877030467-1/fresh-contract-build-binding.json",
+          "bytes": 200687,
+          "sha256": "405810dac87ce54f2f88a151bca4c718a2bf06f120b0b6a78002e95e2b21125c"
+        },
+        "compiledOutputsDeclared": 222,
+        "mobileCompiledOutputsDeclared": 15,
+        "actualConsumers": [
+          {
+            "testFile": "test/mbm000/audio-resource-state.test.ts",
+            "entry": {
+              "entry": "mbm000-37877030467-1/consumed/audio-resource-state.test.ts.json",
+              "bytes": 2942,
+              "sha256": "9cb40b5185dd448d094e94e3920cb4d681cb5404af09c11ee262d015a6014122"
+            },
+            "mobileArtifacts": 15,
+            "loadedModules": 5
+          },
+          {
+            "testFile": "test/mbm000/content-revision.test.ts",
+            "entry": {
+              "entry": "mbm000-37877030467-1/consumed/content-revision.test.ts.json",
+              "bytes": 2938,
+              "sha256": "37c754ec5c38aa8b67feddd28ebf055c3209ec0170e1b76ab227356d98e7cf73"
+            },
+            "mobileArtifacts": 15,
+            "loadedModules": 5
+          },
+          {
+            "testFile": "test/mbm000/operation-contract.test.ts",
+            "entry": {
+              "entry": "mbm000-37877030467-1/consumed/operation-contract.test.ts.json",
+              "bytes": 2940,
+              "sha256": "2ce951ca64ad685056cddf3c3ee5252bbe96113cd246d3efbe0b9451420b4fc7"
+            },
+            "mobileArtifacts": 15,
+            "loadedModules": 5
+          },
+          {
+            "testFile": "test/mbm000/resource-envelope.test.ts",
+            "entry": {
+              "entry": "mbm000-37877030467-1/consumed/resource-envelope.test.ts.json",
+              "bytes": 2939,
+              "sha256": "d40f45715c3563e91a1a84105d831583f0f0b91818eb3ed99c067edd30625421"
+            },
+            "mobileArtifacts": 15,
+            "loadedModules": 5
+          }
+        ],
+        "sourceCiMode": {
+          "entry": "report-only-admission.json",
+          "bytes": 103,
+          "sha256": "7cc12d5628d52907b8cfc3b8385ea29f433030c6ef6571cf582287bff4783853"
+        },
+        "remoteCompiledFileBytes": "NOT_INCLUDED_IN_VERIFY_ZIP_GATE_SELF_READ_AND_BINDING_NOT_INDEPENDENT_ZIP_BINARY_READ",
+        "remoteStageRawBytes": "NOT_UPLOADED_BY_TMP_RULE_LOCAL_EXACT_SOURCE_RAW_IS_SEPARATE_EVIDENCE"
+      }
+    },
+    {
+      "artifactId": 11593958093,
+      "artifactName": "electron-e2e-579d0c3097a0cd78290467cf9b073819989826fd",
+      "runId": 37877030511,
+      "zip": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/SOURCE_REPAIR_ELECTRON_ARTIFACT149/artifact.zip",
+        "bytes": 502108228,
+        "sha256": "851b08a0fe9b0ba1721820ae51b9983ecea1d46c7900261098301362ea44def2"
+      },
+      "platformDigest": "sha256:851b08a0fe9b0ba1721820ae51b9983ecea1d46c7900261098301362ea44def2",
+      "wholeZipDigestMatched": true,
+      "wholeEntries": 20446,
+      "uncompressedBytes": 1475975518,
+      "wholeDownloadReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/SOURCE_REPAIR_ELECTRON_ARTIFACT149/whole-read.json",
+        "bytes": 7031932,
+        "sha256": "ec03097884184162657a8b64eae6e549728ec75139a87330b53a843a2ec4a673"
+      },
+      "declaredContent": {
+        "playwrightReport": {
+          "entry": "musicbridge-electron/tmp/musicbridge-playwright-report.json",
+          "bytes": 135545,
+          "sha256": "6de627d065451582e3bc75b43cf46d6baef958105acfb5144b7296fbd82f2b4e"
+        },
+        "actualSpecs": 114,
+        "stats": {
+          "expected": 109,
+          "unexpected": 0,
+          "skipped": 5,
+          "flaky": 0
+        },
+        "relocationActualPassNoRetry": true,
+        "electronGateRaw": {
+          "entry": "musicbridge-electron/electron-gates.log",
+          "bytes": 4044,
+          "sha256": "5d031d9e61fb5f2bcb742508a15a50e37b0e326f0897ac123529b9593d87d35b"
+        },
+        "electronActualCases": 12,
+        "evidence": "SYNTHETIC_REAL_ELECTRON_NOT_NORMAL_APP_LIVE_OWNER"
+      }
+    },
+    {
+      "artifactId": 11593094606,
+      "artifactName": "rust-host-compiled-579d0c3097a0cd78290467cf9b073819989826fd",
+      "runId": 37877030511,
+      "zip": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/SOURCE_REPAIR_HOSTS_ARTIFACT150/artifact.zip",
+        "bytes": 7846230,
+        "sha256": "f22d65b12970d96b07db12d9066e752be77b5561881ddf4a25d7aa1afcb0cf89"
+      },
+      "platformDigest": "sha256:f22d65b12970d96b07db12d9066e752be77b5561881ddf4a25d7aa1afcb0cf89",
+      "wholeZipDigestMatched": true,
+      "wholeEntries": 68,
+      "uncompressedBytes": 22365292,
+      "wholeDownloadReceipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/SOURCE_REPAIR_HOSTS_ARTIFACT150/whole-read.json",
+        "bytes": 18700,
+        "sha256": "505c91938b603eacd576fd0749919e3b53b8efd51b6592ddd27ce4e6afbe70bb"
+      },
+      "declaredContent": {
+        "receipt": {
+          "entry": "electron-hosts-receipt.json",
+          "bytes": 725,
+          "sha256": "31f712a8fa290b137a15b57489e7d52cffae847bfc59448fb17e43dd3cae2749"
+        },
+        "manifest": {
+          "entry": "manifest.json",
+          "bytes": 155101,
+          "sha256": "45bd6f1597043f2289dc353a7b359267571f72def8031f9cc89d44cd4d6a3739"
+        },
+        "hosts": [
+          {
+            "manifest": {
+              "entry": "isolated-host/artifact-manifest.json",
+              "bytes": 216249,
+              "sha256": "a10bfd0e2a12a597e185312f8fa2e8ef7cb010396c375dc85c08402bb04e812e"
+            },
+            "task": "RUST-008",
+            "declaredCompiledFiles": 31,
+            "actualWholeCompiledFiles": [
+              {
+                "entry": "isolated-host/main/collection-readonly-control-protocol-BXwHkHxq.js",
+                "bytes": 3726,
+                "sha256": "ff1fc385d2bcf37adcaafff20119a465e475f795c7cdd944ce00f0fc2569d427"
+              },
+              {
+                "entry": "isolated-host/main/collection-scale-main-probe-DlATPe4L.js",
+                "bytes": 61397,
+                "sha256": "1e70c67aada5f04b72f98ad48abaa27180234aaf023ecef45f6750a8162f1db1"
+              },
+              {
+                "entry": "isolated-host/main/core-host-D3tzBuuU.js",
+                "bytes": 653758,
+                "sha256": "f90fb564e8a4f9d247bb4c7494916a28f395596685314b54655a7d7f49c2ff9a"
+              },
+              {
+                "entry": "isolated-host/main/core.js",
+                "bytes": 18305,
+                "sha256": "d3bde08499fc8b3c7405905df8d96a6c244ba0748bfd3b1e9f93f128d5381278"
+              },
+              {
+                "entry": "isolated-host/main/dataset-owner-bootstrap-CjRiOrgz.js",
+                "bytes": 2558602,
+                "sha256": "e73c0996c2bfbcca2f4e626ad7c447c9a04538b7f84fb4a559c1faa5ff3b7662"
+              },
+              {
+                "entry": "isolated-host/main/dataset-owner.js",
+                "bytes": 24720,
+                "sha256": "e0529d603f1113ada59f21250a65b545d63d8ffbba7fde8fd7cc6e8075b636a9"
+              },
+              {
+                "entry": "isolated-host/main/index.js",
+                "bytes": 404389,
+                "sha256": "ef3641494a8311baac4eb675a1d7102025a9a20b3939bd3d36f5b323fd65706e"
+              },
+              {
+                "entry": "isolated-host/main/library-read-trace-BED5NEnO.js",
+                "bytes": 8352,
+                "sha256": "7d514993781ab15e9adadd4e109163f2dd043feacc75141ae49da31a902245ab"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-core-2000.js",
+                "bytes": 895,
+                "sha256": "dcbfe3a47d3d37c6e79d446ea1b4034fa1db3ac04a25120416aac3c2b198f663"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-core-5000.js",
+                "bytes": 901,
+                "sha256": "89349d065dbcb95ec791d18f477beaae6f512f34b0758232987905ce26c77f5a"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-core.js",
+                "bytes": 895,
+                "sha256": "9a7a1faf028ca4567a0ef179e885d25b4ee890d71e466ac9bed55ee06ee6cbec"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-host-BMqUf5yW.js",
+                "bytes": 11746,
+                "sha256": "cc647f7f95c28d2f570b11961695279f2c2c266a62f4e393a45c8531993824cc"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-main-host-wrapper.mjs",
+                "bytes": 5011,
+                "sha256": "643515173b79235853a3875dbfd4a20d2b055433122a927ce91b6ed415da9b87"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-main-wrapper.mjs",
+                "bytes": 109,
+                "sha256": "5c7676751b447337e0dfdc874d7b25d0aae0bc4c7ab2db6e1dc6d0157aa7a5c4"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-node-main-wrapper.mjs",
+                "bytes": 110,
+                "sha256": "e414d8e4121bb9549aa4b1f2b2464324f8dab40bda98299f913173e1b157176f"
+              },
+              {
+                "entry": "isolated-host/main/private-rust-node.js",
+                "bytes": 896,
+                "sha256": "cab2aae792fa5dcbeac19cffbab5eae836b2e2c6ab1a03075083478cbe1766e8"
+              },
+              {
+                "entry": "isolated-host/main/spreadsheet-worker.js",
+                "bytes": 1237814,
+                "sha256": "8d465a983b27a8f46d8429731e0bd01549fad4253bcd39a0db5e732f3b45da9d"
+              },
+              {
+                "entry": "isolated-host/preload/index.cjs",
+                "bytes": 672444,
+                "sha256": "486a35c13bdad3f1f645e378853968805f83ff2bfdfa48123f9b47881abfa0c8"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalLegacyLinksPanel-BLW7AtKm.css",
+                "bytes": 2290,
+                "sha256": "d01f4d97413d7a12867923c620b5966047d836f140aa1c10f62573f5925be75e"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalLegacyLinksPanel-DM1WYOvd.js",
+                "bytes": 46220,
+                "sha256": "0e75f454e908db2411c7b3e1a72441ed9164c1e8093f1562a1248882fa0abed2"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalRelocationDialog-ByS7qo0B.js",
+                "bytes": 29948,
+                "sha256": "45976107e20c0357c5166394da5573537f414fb835be7721cd8890a2a6405f37"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalRelocationDialog-Dyps9yb-.css",
+                "bytes": 2257,
+                "sha256": "8ce99e838293964fd5915cb10fee68f31dbb2bc5ef0162a6aedf034e976c18d3"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalSourceWritesDialog-BQkRJlJ1.js",
+                "bytes": 27794,
+                "sha256": "8e3b20750caa261114f8b0e215e814acd44cb590809c3a4e6570642e302949f4"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalSourceWritesDialog-DGAP_eCT.css",
+                "bytes": 2276,
+                "sha256": "85b421cb3ab2b7acdf6a940fccafc758f31ac4f7ea63e3f4a83b9dbd500ebc3d"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/LocalSourceWritesSettings-C9y_BTnd.js",
+                "bytes": 3406,
+                "sha256": "fe5d377aa6f8ea7bbf3639b6f0f7c287258441658089acdf5348a27add2af3a3"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/ambient-default-scene-CLpvRl66.png",
+                "bytes": 1772416,
+                "sha256": "c9adf0804bb6b05f6be38b06a84494c113a5b42daaa25a5eceab1d26c1e34c42"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/bootstrap-icons-BtvjY1KL.woff2",
+                "bytes": 130396,
+                "sha256": "476adf42b40325098fcfa8b36ab3e769186bb4f6ce6a249753e2e1a9c22bf99e"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/index-1Jvn2lX7.css",
+                "bytes": 383588,
+                "sha256": "1e93316acb1a10d24450ceaddd6b66939c7303aa93f6391870f75369f1dbf324"
+              },
+              {
+                "entry": "isolated-host/renderer/assets/index-CbMCxf73.js",
+                "bytes": 2821539,
+                "sha256": "2e994a3a9182380de659265df41be036fc8a5e0246b627d2fa68ac1a2bd3379c"
+              },
+              {
+                "entry": "isolated-host/renderer/index.html",
+                "bytes": 748,
+                "sha256": "2f09b358c517e29c7a25253714269d0db6805c8327bf3629f31527e22e934bab"
+              },
+              {
+                "entry": "isolated-host/package.json",
+                "bytes": 33,
+                "sha256": "89c47db7851f89caec72da4f215ebc21cf1e294aeef3b45d2583562d846ab035"
+              }
+            ]
+          },
+          {
+            "manifest": {
+              "entry": "isolated-collection-host/artifact-manifest.json",
+              "bytes": 217438,
+              "sha256": "7035c108ba9975ca3e46421a3847da32f829c1fee48bd35333b0ec58c6fbc214"
+            },
+            "task": "RUST-009",
+            "declaredCompiledFiles": 33,
+            "actualWholeCompiledFiles": [
+              {
+                "entry": "isolated-collection-host/main/collection-readonly-control-protocol-BXwHkHxq.js",
+                "bytes": 3726,
+                "sha256": "ff1fc385d2bcf37adcaafff20119a465e475f795c7cdd944ce00f0fc2569d427"
+              },
+              {
+                "entry": "isolated-collection-host/main/collection-scale-main-probe-DlATPe4L.js",
+                "bytes": 61397,
+                "sha256": "1e70c67aada5f04b72f98ad48abaa27180234aaf023ecef45f6750a8162f1db1"
+              },
+              {
+                "entry": "isolated-collection-host/main/core-host-D3tzBuuU.js",
+                "bytes": 653758,
+                "sha256": "f90fb564e8a4f9d247bb4c7494916a28f395596685314b54655a7d7f49c2ff9a"
+              },
+              {
+                "entry": "isolated-collection-host/main/core.js",
+                "bytes": 18305,
+                "sha256": "d3bde08499fc8b3c7405905df8d96a6c244ba0748bfd3b1e9f93f128d5381278"
+              },
+              {
+                "entry": "isolated-collection-host/main/dataset-owner-bootstrap-CjRiOrgz.js",
+                "bytes": 2558602,
+                "sha256": "e73c0996c2bfbcca2f4e626ad7c447c9a04538b7f84fb4a559c1faa5ff3b7662"
+              },
+              {
+                "entry": "isolated-collection-host/main/dataset-owner.js",
+                "bytes": 24720,
+                "sha256": "e0529d603f1113ada59f21250a65b545d63d8ffbba7fde8fd7cc6e8075b636a9"
+              },
+              {
+                "entry": "isolated-collection-host/main/index.js",
+                "bytes": 404389,
+                "sha256": "ef3641494a8311baac4eb675a1d7102025a9a20b3939bd3d36f5b323fd65706e"
+              },
+              {
+                "entry": "isolated-collection-host/main/library-read-trace-BED5NEnO.js",
+                "bytes": 8352,
+                "sha256": "7d514993781ab15e9adadd4e109163f2dd043feacc75141ae49da31a902245ab"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-core-100.js",
+                "bytes": 913,
+                "sha256": "fa98373f4c059731747c88136e99fc86908bff665a65b612abfb294f81d126e9"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-core-2000.js",
+                "bytes": 913,
+                "sha256": "25285572a613c7ef824d11bd898394b402e291d3c9213d26f68e902c6b076e61"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-core-5000.js",
+                "bytes": 912,
+                "sha256": "54f922f13e8a8f1916b159e5b2be4b2321c1e24eb3833ecc65aa4ba3091229c4"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-host-Dri5mfk0.js",
+                "bytes": 13065,
+                "sha256": "9971d531e9e7b02fc6230ea36a33dd849d1389ca424c4835e75dc83f24cc88e0"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-main-100-wrapper.mjs",
+                "bytes": 145,
+                "sha256": "61cb6b9f756b437e5149f1194a9f8aad3dc8c5215920ff84e34f2f55477d462f"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-main-2000-wrapper.mjs",
+                "bytes": 146,
+                "sha256": "0261b9f4296debdab8f0001e8cc7f7dfbf7574c27b32efb37c7bc5d57d45e9da"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-main-5000-wrapper.mjs",
+                "bytes": 146,
+                "sha256": "46bdf0a631b898aa8bd0dffd15a36bbd04b150bceb989a14911d21b47bd1a61c"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-main-host-wrapper.mjs",
+                "bytes": 5087,
+                "sha256": "3c4aa095209a023350e979b73934a61ad830e9365bdda86be0f65d7ac6da2525"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-node-main-wrapper.mjs",
+                "bytes": 146,
+                "sha256": "8df146dd169e7151c3d17f809cf8ddff1172d939b64d11eeb9aa4358270265b1"
+              },
+              {
+                "entry": "isolated-collection-host/main/private-rust-collection-node.js",
+                "bytes": 907,
+                "sha256": "db6a34ad9e6b866a346f9c5b5835c113b8410e064c59e105ea10d0f84e2ebd71"
+              },
+              {
+                "entry": "isolated-collection-host/main/spreadsheet-worker.js",
+                "bytes": 1237814,
+                "sha256": "8d465a983b27a8f46d8429731e0bd01549fad4253bcd39a0db5e732f3b45da9d"
+              },
+              {
+                "entry": "isolated-collection-host/preload/index.cjs",
+                "bytes": 672444,
+                "sha256": "486a35c13bdad3f1f645e378853968805f83ff2bfdfa48123f9b47881abfa0c8"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalLegacyLinksPanel-BLW7AtKm.css",
+                "bytes": 2290,
+                "sha256": "d01f4d97413d7a12867923c620b5966047d836f140aa1c10f62573f5925be75e"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalLegacyLinksPanel-DM1WYOvd.js",
+                "bytes": 46220,
+                "sha256": "0e75f454e908db2411c7b3e1a72441ed9164c1e8093f1562a1248882fa0abed2"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalRelocationDialog-ByS7qo0B.js",
+                "bytes": 29948,
+                "sha256": "45976107e20c0357c5166394da5573537f414fb835be7721cd8890a2a6405f37"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalRelocationDialog-Dyps9yb-.css",
+                "bytes": 2257,
+                "sha256": "8ce99e838293964fd5915cb10fee68f31dbb2bc5ef0162a6aedf034e976c18d3"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalSourceWritesDialog-BQkRJlJ1.js",
+                "bytes": 27794,
+                "sha256": "8e3b20750caa261114f8b0e215e814acd44cb590809c3a4e6570642e302949f4"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalSourceWritesDialog-DGAP_eCT.css",
+                "bytes": 2276,
+                "sha256": "85b421cb3ab2b7acdf6a940fccafc758f31ac4f7ea63e3f4a83b9dbd500ebc3d"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/LocalSourceWritesSettings-C9y_BTnd.js",
+                "bytes": 3406,
+                "sha256": "fe5d377aa6f8ea7bbf3639b6f0f7c287258441658089acdf5348a27add2af3a3"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/ambient-default-scene-CLpvRl66.png",
+                "bytes": 1772416,
+                "sha256": "c9adf0804bb6b05f6be38b06a84494c113a5b42daaa25a5eceab1d26c1e34c42"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/bootstrap-icons-BtvjY1KL.woff2",
+                "bytes": 130396,
+                "sha256": "476adf42b40325098fcfa8b36ab3e769186bb4f6ce6a249753e2e1a9c22bf99e"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/index-1Jvn2lX7.css",
+                "bytes": 383588,
+                "sha256": "1e93316acb1a10d24450ceaddd6b66939c7303aa93f6391870f75369f1dbf324"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/assets/index-CbMCxf73.js",
+                "bytes": 2821539,
+                "sha256": "2e994a3a9182380de659265df41be036fc8a5e0246b627d2fa68ac1a2bd3379c"
+              },
+              {
+                "entry": "isolated-collection-host/renderer/index.html",
+                "bytes": 748,
+                "sha256": "2f09b358c517e29c7a25253714269d0db6805c8327bf3629f31527e22e934bab"
+              },
+              {
+                "entry": "isolated-collection-host/package.json",
+                "bytes": 33,
+                "sha256": "89c47db7851f89caec72da4f215ebc21cf1e294aeef3b45d2583562d846ab035"
+              }
+            ]
+          }
+        ],
+        "actualSelectedFileClosedSet": 68,
+        "sourceRunRoot": "/Users/runner/work/_temp/musicbridge-rust-core/run-01MnFd",
+        "zipRunPrefix": "",
+        "standaloneRustBinaryWholeBytes": "NOT_SELECTED_BY_WORKFLOW_NOT_CLAIMED_READ"
+      }
+    }
+  ],
+  "realServiceDeviceAudioOwner": "NOT_RUN",
+  "binaryReadClaim": "ONLY_ACTUAL_PACKAGED_COMPILED_ENTRIES_READ_NOT_ABSENT_STANDALONE_BINARY"
+}

@@ -1,0 +1,30 @@
+{
+  "schema": "mbm000.complete-source-phase-raw.v1",
+  "sourceSha": "579d0c3097a0cd78290467cf9b073819989826fd",
+  "phases": [
+    {
+      "name": "fresh-contracts-build",
+      "exitCode": 0,
+      "closeObserved": true,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rawUtf8": ""
+    },
+    {
+      "name": "contracts-types",
+      "exitCode": 0,
+      "closeObserved": true,
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "rawUtf8": ""
+    },
+    {
+      "name": "mobile-contract-behavior",
+      "exitCode": 0,
+      "closeObserved": true,
+      "bytes": 7885,
+      "sha256": "d9d5eef9706a5243614f47fbb6be9ac9a53971d229081264920b57e3d1a0df8f",
+      "rawUtf8": "TAP version 13\n# Subtest: 移动资源状态：201仅ready/202仅preparing，GET三状态与nested failure完整消费\nok 1 - 移动资源状态：201仅ready/202仅preparing，GET三状态与nested failure完整消费\n  ---\n  duration_ms: 8.692208\n  type: 'test'\n  ...\n# Subtest: 移动FLAC：source/actual三轴独立相等，转换标签与不可seek不能伪装无损\nok 2 - 移动FLAC：source/actual三轴独立相等，转换标签与不可seek不能伪装无损\n  ---\n  duration_ms: 2.28125\n  type: 'test'\n  ...\n# Subtest: 移动format组合：不能从另一codec行借rate/channel/bitDepth上限\nok 3 - 移动format组合：不能从另一codec行借rate/channel/bitDepth上限\n  ---\n  duration_ms: 1.347917\n  type: 'test'\n  ...\n# Subtest: 移动资源身份：来源/版本/会话/URLticket/过期实际事实逐一受限\nok 4 - 移动资源身份：来源/版本/会话/URLticket/过期实际事实逐一受限\n  ---\n  duration_ms: 5.76475\n  type: 'test'\n  ...\n# Subtest: 移动媒体：HEAD忽略Range仅200全长零体，GET206/400/416真实元数据闭合\nok 5 - 移动媒体：HEAD忽略Range仅200全长零体，GET206/400/416真实元数据闭合\n  ---\n  duration_ms: 1.501291\n  type: 'test'\n  ...\n# Subtest: 移动源映射：纯位置/根修订保ID，file/selection/edition更改必须重新认证\nok 6 - 移动源映射：纯位置/根修订保ID，file/selection/edition更改必须重新认证\n  ---\n  duration_ms: 1.006125\n  type: 'test'\n  ...\n# Subtest: 移动白名单audio mapper：源参数保持三轴，不输出Provider或Parser私有字段\nok 7 - 移动白名单audio mapper：源参数保持三轴，不输出Provider或Parser私有字段\n  ---\n  duration_ms: 0.208084\n  type: 'test'\n  ...\n# Subtest: 移动内容whole body：空/缺失/首曲封面/CAS/201与opaque身份负例完整消费\nok 8 - 移动内容whole body：空/缺失/首曲封面/CAS/201与opaque身份负例完整消费\n  ---\n  duration_ms: 34.990875\n  type: 'test'\n  ...\n# Subtest: 移动歌词上限：2000行/每列4096UTF8保留，whole2MiB超限不截断\nok 9 - 移动歌词上限：2000行/每列4096UTF8保留，whole2MiB超限不截断\n  ---\n  duration_ms: 510.391625\n  type: 'test'\n  ...\n# Subtest: 移动歌词身份与时间：旧版本/旧revision/不同来源/重复行不能覆盖当前选择\nok 10 - 移动歌词身份与时间：旧版本/旧revision/不同来源/重复行不能覆盖当前选择\n  ---\n  duration_ms: 1.236792\n  type: 'test'\n  ...\n# Subtest: 移动内容CAS：原请求旧rev与新响应rev独立，foreign账户/选择/额外键拒绝\nok 11 - 移动内容CAS：原请求旧rev与新响应rev独立，foreign账户/选择/额外键拒绝\n  ---\n  duration_ms: 1.940042\n  type: 'test'\n  ...\n# Subtest: 移动歌单首曲：空集不能封面，未知事实可解码，首曲缺图不能找后曲回填\nok 12 - 移动歌单首曲：空集不能封面，未知事实可解码，首曲缺图不能找后曲回填\n  ---\n  duration_ms: 0.906209\n  type: 'test'\n  ...\n# Subtest: 移动收藏：album共同身份和完整track归属不能被oneOf/空枝绕过\nok 13 - 移动收藏：album共同身份和完整track归属不能被oneOf/空枝绕过\n  ---\n  duration_ms: 0.733125\n  type: 'test'\n  ...\n# Subtest: 移动分页：同账户/来源/修订/过滤游标事实及去重/空尾页必须同时相符\nok 14 - 移动分页：同账户/来源/修订/过滤游标事实及去重/空尾页必须同时相符\n  ---\n  duration_ms: 1.607084\n  type: 'test'\n  ...\n# Subtest: 移动cap可选分支：缺失unsupported，null位深/错误版本/坏时区不能制造能力\nok 15 - 移动cap可选分支：缺失unsupported，null位深/错误版本/坏时区不能制造能力\n  ---\n  duration_ms: 0.383917\n  type: 'test'\n  ...\n# Subtest: 移动40操作：原method/path闭集及各成功码完整消费whole body\nok 16 - 移动40操作：原method/path闭集及各成功码完整消费whole body\n  ---\n  duration_ms: 67.028833\n  type: 'test'\n  ...\n# Subtest: 移动40操作：每条原default错误保留安全嵌套/HEAD零实体\nok 17 - 移动40操作：每条原default错误保留安全嵌套/HEAD零实体\n  ---\n  duration_ms: 6.607083\n  type: 'test'\n  ...\n# Subtest: 移动路由：错误方法、41st命令及Roon控制不能进入本域\nok 18 - 移动路由：错误方法、41st命令及Roon控制不能进入本域\n  ---\n  duration_ms: 0.351125\n  type: 'test'\n  ...\n# Subtest: 移动公共版本：HTTP真实入口只收base0.1且UI仍1.0\nok 19 - 移动公共版本：HTTP真实入口只收base0.1且UI仍1.0\n  ---\n  duration_ms: 0.580833\n  type: 'test'\n  ...\n# Subtest: 移动HTTP：204非空、重复关键头、错误来源及非合同2xx拒绝\nok 20 - 移动HTTP：204非空、重复关键头、错误来源及非合同2xx拒绝\n  ---\n  duration_ms: 0.309875\n  type: 'test'\n  ...\n# Subtest: 移动原始JSON：重复键、尾随值、坏UTF8及孤立代理均拒绝\nok 21 - 移动原始JSON：重复键、尾随值、坏UTF8及孤立代理均拒绝\n  ---\n  duration_ms: 0.132042\n  type: 'test'\n  ...\n# Subtest: 移动snapshot：getter不调用、Symbol/洞/循环/undefined拒绝\nok 22 - 移动snapshot：getter不调用、Symbol/洞/循环/undefined拒绝\n  ---\n  duration_ms: 0.199209\n  type: 'test'\n  ...\n# Subtest: 移动出站白名单及实际扩展预算：有界入站保留而不反射\nok 23 - 移动出站白名单及实际扩展预算：有界入站保留而不反射\n  ---\n  duration_ms: 0.46825\n  type: 'test'\n  ...\n# Subtest: 移动opaque身份：真实HTTP正文拒绝LF/CR/NUL/LS及路径编码绕过\nok 24 - 移动opaque身份：真实HTTP正文拒绝LF/CR/NUL/LS及路径编码绕过\n  ---\n  duration_ms: 0.649\n  type: 'test'\n  ...\n# Subtest: 移动D8：既有同意图七项有限取回与UNKNOWN只查原记录明确分开\nok 25 - 移动D8：既有同意图七项有限取回与UNKNOWN只查原记录明确分开\n  ---\n  duration_ms: 1.249292\n  type: 'test'\n  ...\n# Subtest: 移动资源whole envelope：原位深/能力/重试提示各完整HTTP分支\nok 26 - 移动资源whole envelope：原位深/能力/重试提示各完整HTTP分支\n  ---\n  duration_ms: 19.396125\n  type: 'test'\n  ...\n# Subtest: 移动资源闭键：五键正文/quality/format不能携带源路径或私有能力\nok 27 - 移动资源闭键：五键正文/quality/format不能携带源路径或私有能力\n  ---\n  duration_ms: 0.767791\n  type: 'test'\n  ...\n# Subtest: 移动资源位深：完整base可与captrue兼容，扩展仅可信true且1至64\nok 28 - 移动资源位深：完整base可与captrue兼容，扩展仅可信true且1至64\n  ---\n  duration_ms: 0.885375\n  type: 'test'\n  ...\n# Subtest: 移动原请求预算：262144原始UTF8字节B减一/B/B加一不靠重编码缩短\nok 29 - 移动原请求预算：262144原始UTF8字节B减一/B/B加一不靠重编码缩短\n  ---\n  duration_ms: 94.978209\n  type: 'test'\n  ...\n# Subtest: 移动原响应预算：2097152完整raw正文B边界及独立depth/nodes仍拒越界\nok 30 - 移动原响应预算：2097152完整raw正文B边界及独立depth/nodes仍拒越界\n  ---\n  duration_ms: 1097.365417\n  type: 'test'\n  ...\n# Subtest: 移动编码预算：只按实际正文收费而不把私有wrapper计入B\nok 31 - 移动编码预算：只按实际正文收费而不把私有wrapper计入B\n  ---\n  duration_ms: 0.974875\n  type: 'test'\n  ...\n# Subtest: 移动提示上界：大于24h仍可消费，safe normalizer钳制但不重放\nok 32 - 移动提示上界：大于24h仍可消费，safe normalizer钳制但不重放\n  ---\n  duration_ms: 0.588333\n  type: 'test'\n  ...\n# Subtest: 移动UNKNOWN：同key/body只查原receipt，原202不会变201或新意图\nok 33 - 移动UNKNOWN：同key/body只查原receipt，原202不会变201或新意图\n  ---\n  duration_ms: 0.776792\n  type: 'test'\n  ...\n1..33\n# tests 33\n# suites 0\n# pass 33\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 2621.609167\n"
+    }
+  ]
+}

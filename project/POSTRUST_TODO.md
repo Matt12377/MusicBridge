@@ -97,3 +97,8 @@ Scope18仅改新增回归的两行assert.throws为等价字符串message重载�
 ### MBRS-013 Scope21 精确源码自然CI与有限复用报告登记
 
 013新S e755b71320c93a7985a936382f86c08a4ed2eb8a的原529/14阶段与首次自然4workflow/6job实际成功。Scope21仅verify整job45→60分钟，原step8分钟、013180000/420000ms、全部测试与692产品不改。原325在f328执行4721/4719/2skip，仅1630不变可执行输入有限复用；旧完整1631图不是当前。原5b6 Rust30/Electron12与589自有App289保持原执行/封存身份；新S当前执行由fresh Gate和新自然CI另证。原f328至少两块的前提失败、5b6平台45分钟取消和未完成529均保留。原八AT仍PARTIAL，真实/Owner NOT_RUN；移动五项NOT_STARTED，R仅原十路径，报告CI与最终seal待实际完成。
+
+
+## MBM-000 独立结果报告记账（2026-10-09）
+
+精确Source `579d0c3097a0cd78290467cf9b073819989826fd` 的33项移动行为Gate、首次自然四workflow/六job及完整实际日志/制品已通过核对。iOS Source `bc72069f73e342479190beda7f230b79ea91d9f0`/R `8ba6b9777b67d23dc89cc1edca7412e128398256` 的137项不同Swift用例和整份相同合同已验证。独立R与最终远端clean封存待执行，详见 `reports/MBM-000_RESULT.md`。冻结Source状态与原18/156、有效17/150、013八PARTIAL和015六N_A保留；下一001只从最终封存R开始，已有连续授权有效。

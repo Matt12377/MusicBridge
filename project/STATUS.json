@@ -47903,7 +47903,30 @@
         "owner_repeated_approval_required": false,
         "started_at": "2026-10-09T00:03:09.149322+00:00",
         "base_report_sha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
-        "paired_contract": "IOS_FINAL_DELIVERY_VERIFIED_MAC_SOURCE_REPORT_SEAL_PENDING"
+        "paired_contract": "IOS_FINAL_DELIVERY_VERIFIED_MAC_SOURCE_REPORT_SEAL_PENDING",
+        "implementation_commit": "579d0c3097a0cd78290467cf9b073819989826fd",
+        "implementation_commit_resolution": "EXACT_SINGLE_PARENT_SOURCE_WITH_FRESH_GATE_AND_FIRST_NATURAL_CI",
+        "report_commit": null,
+        "report_commit_resolution": "RESOLVE_UNIQUE_REPORT_HEAD_SINGLE_PARENT_SOURCE_AFTER_COMMIT",
+        "report_path": "reports/MBM-000_RESULT.md",
+        "evidence_refs": [
+          "docs/postrust/MBM-000/evidence/fresh-contract-binding.json",
+          "docs/postrust/MBM-000/evidence/peer-adoption-readback.json",
+          "docs/postrust/MBM-000/evidence/source-artifact-readback.json",
+          "docs/postrust/MBM-000/evidence/source-ci-readback.json",
+          "docs/postrust/MBM-000/evidence/source-ci.json",
+          "docs/postrust/MBM-000/evidence/source-consumers.json",
+          "docs/postrust/MBM-000/evidence/source-gate-readback.json",
+          "docs/postrust/MBM-000/evidence/source-gate.json",
+          "docs/postrust/MBM-000/evidence/source-identity.json",
+          "docs/postrust/MBM-000/evidence/source-phase-logs.json",
+          "reports/MBM-000_EVIDENCE.json",
+          "reports/MBM-000_RESULT.md"
+        ],
+        "terminal_ci_receipt": {
+          "source": "docs/postrust/MBM-000/evidence/source-ci.json",
+          "report": "PENDING_FIRST_NATURAL_REPORT_CI"
+        }
       },
       {
         "id": "MBM-001",
@@ -47965,7 +47988,7 @@
     "state": "LOCAL_SOFTWARE_VERIFIED_FINAL_MAC_SOURCE_REPORT_CI_PENDING",
     "branch": "codex/mbm-000-mobile-contracts",
     "baseSha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
-    "implementationCommit": null,
+    "implementationCommit": "579d0c3097a0cd78290467cf9b073819989826fd",
     "reportCommit": null,
     "scope": "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
     "adoption": "docs/postrust/MBM-000/ADOPTION.json",
@@ -47992,6 +48015,21 @@
     "startedAt": "2026-10-09T00:03:09.149322+00:00",
     "localPreparation": "docs/postrust/MBM-000/LOCAL_PREPARATION.json",
     "peerAdoptionReceipt": "docs/postrust/MBM-000/PEER_ADOPTION.json",
-    "pairedAdoptionResolution": "FINAL_REPORT_EVIDENCE_AND_PRIVATE_FINAL_DELIVERY_RECEIPT_AFTER_BOTH_MAC_CI_PHASES"
+    "pairedAdoptionResolution": "FINAL_REPORT_EVIDENCE_AND_PRIVATE_FINAL_DELIVERY_RECEIPT_AFTER_BOTH_MAC_CI_PHASES",
+    "implementationCommitResolution": "EXACT_SINGLE_PARENT_SOURCE_WITH_FRESH_GATE_AND_FIRST_NATURAL_CI",
+    "reportCommitResolution": "RESOLVE_UNIQUE_REPORT_HEAD_SINGLE_PARENT_SOURCE_AFTER_COMMIT",
+    "report": "reports/MBM-000_RESULT.md",
+    "evidence": "reports/MBM-000_EVIDENCE.json",
+    "push": {
+      "source": "PASS_ORDINARY_EXACT_REMOTE",
+      "report": "PENDING_ORDINARY_PUSH"
+    },
+    "ci": {
+      "source": "PASS_FIRST_NATURAL_4_WORKFLOWS_6_JOBS_COMPLETE_LOG_AND_ARTIFACT_CONSUMPTION",
+      "report": "PENDING_FIRST_NATURAL_REPORT_CI"
+    },
+    "updatedAt": "2026-10-09T03:54:40.938778+00:00",
+    "finalDeliveryReceipt": "PRIVATE_EXTERNAL_ARCHIVE_AFTER_REPORT_CI_NO_THIRD_SEAL_COMMIT",
+    "nextBranchBaseline": "RESOLVE_FINAL_REPORT_HEAD_AFTER_FINAL_SEAL"
   }
 }

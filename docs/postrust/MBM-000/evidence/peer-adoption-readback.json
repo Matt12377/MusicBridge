@@ -1,0 +1,391 @@
+{
+  "schema": "mbm000.mac-actual-peer-report-remote-readback.v1",
+  "task": "MBM-000",
+  "verifiedAtUTC": "2026-10-09T00:53:36.789091+00:00",
+  "result": "IOS_SOURCE_GATE_REPORT_GIT_REMOTE_WHOLE_BYTES_VERIFIED_MAC_FINAL_PENDING",
+  "sourceSha": "bc72069f73e342479190beda7f230b79ea91d9f0",
+  "reportSha": "8ba6b9777b67d23dc89cc1edca7412e128398256",
+  "reportSingleParent": "bc72069f73e342479190beda7f230b79ea91d9f0",
+  "branch": "codex/ios-mbm-000-contract-adoption",
+  "remoteHead": "8ba6b9777b67d23dc89cc1edca7412e128398256",
+  "localHead": "8ba6b9777b67d23dc89cc1edca7412e128398256",
+  "clean": true,
+  "coordinatorWholeFd": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs013-m65qznwo/checks/COORDINATOR_MBM000_IOS_REPORT_REMOTE_READBACK01.json",
+    "bytes": 9855,
+    "sha256": "1731c1f99231db1f5460e4bae6770b607ff5083944e21083c5f4e0e77bba7feb"
+  },
+  "rootSourceGateReceipt": {
+    "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm000-il3pdyob/checks/IOS_SOURCE_GATE_READBACK032.json",
+    "bytes": 127490,
+    "sha256": "480bfc069e09b2c3eb76afb4d0fc84fb16707d86050c675d4a3105ab0cb8a93d"
+  },
+  "reportOnlyChangedPaths": [
+    "AGENTS.md",
+    "docs/integration/MBM-000/README.md",
+    "docs/integration/V3_9_IOS_INTERFACE_HANDOFF.md",
+    "project/CURRENT_TASK.md",
+    "project/STATUS.json",
+    "project/TASK_INDEX.md",
+    "reports/IOS-MBM-000_CONTRACT_ADOPTION_RESULT.md",
+    "reports/evidence/IOS-MBM-000/MBClient.log",
+    "reports/evidence/IOS-MBM-000/MBLibrary.log",
+    "reports/evidence/IOS-MBM-000/MBMobileContract.log",
+    "reports/evidence/IOS-MBM-000/MBPlayback.log",
+    "reports/evidence/IOS-MBM-000/auth-boundary.json",
+    "reports/evidence/IOS-MBM-000/auth-boundary.log",
+    "reports/evidence/IOS-MBM-000/boundaries.json",
+    "reports/evidence/IOS-MBM-000/contract-adoption.json",
+    "reports/evidence/IOS-MBM-000/gate-inputs.json",
+    "reports/evidence/IOS-MBM-000/gate-validation.json",
+    "reports/evidence/IOS-MBM-000/manifest.json",
+    "reports/evidence/IOS-MBM-000/native-Mock.json",
+    "reports/evidence/IOS-MBM-000/native-Production.json",
+    "reports/evidence/IOS-MBM-000/protected-main.json",
+    "reports/evidence/IOS-MBM-000/software-summary.json",
+    "reports/evidence/IOS-MBM-000/source-binding.json"
+  ],
+  "wholeChangedGitBlobs": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 19237,
+      "sha256": "6a6cf4d44f0ace7092ea08ed0aa1e2588c8e187dc6bf6a9549345118cc1502a2",
+      "oid": "b4c8349644b0cfec1581742e3576460b8415af17",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "docs/integration/MBM-000/README.md",
+      "bytes": 3996,
+      "sha256": "17b0e845ac28a826a9b613362ae5a55009cf80d5825b56d8c21713914a32d4ae",
+      "oid": "7cf98c85e6f0ccc942993d4d1f45eceba3e3d01a",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "docs/integration/V3_9_IOS_INTERFACE_HANDOFF.md",
+      "bytes": 114070,
+      "sha256": "2449970c014a514f8932ccb14a3e81e056112f06d04eaf8a67b48f61c731c555",
+      "oid": "683ed9a0f8bbfa2d1c112f4320d5efe145e3de57",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "project/CURRENT_TASK.md",
+      "bytes": 20118,
+      "sha256": "b9a66278bed80e41358df56e7b4a05dc02f9c0c129b01652536c29b2a4df7177",
+      "oid": "ade06ba5ed42f02c2c8a6474bb6809124a3eb687",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "project/STATUS.json",
+      "bytes": 55891,
+      "sha256": "e4b9d253278a456c1bc75e474fb0063283f65ed1b11ba468e1fbc317023e8c21",
+      "oid": "8e4968ea0a17b54384b202102b026bf9849824c9",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "project/TASK_INDEX.md",
+      "bytes": 7123,
+      "sha256": "140b8c3edaa34f6f98e363a9e89790143fef0bda971314db8b7d0e387438d309",
+      "oid": "8e5411dee83d1a1a4bc39f29a499e6716532cbcb",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/IOS-MBM-000_CONTRACT_ADOPTION_RESULT.md",
+      "bytes": 6594,
+      "sha256": "20da84afb7f5aaaeb9d944880890c6b23309a280f475be976b00d541214da3ca",
+      "oid": "9f343c9831c9fc491582dc68ea7969d86672003c",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/MBClient.log",
+      "bytes": 11152,
+      "sha256": "94c1010c3b1fb35a5be6306edc6ef8931dd75dd7ac0c0512a32fc2101c45dd8d",
+      "oid": "3c1c63dfb7e80ddd1cf4bb5fe7fe224d3f1bfb5e",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/MBLibrary.log",
+      "bytes": 8164,
+      "sha256": "a2ff7b4ac25cf3ecd1f7dec6dac0c74796c1daa8ea70b74e685f32a41731d69b",
+      "oid": "6b7f5cc95e8d4d9389832d8d5c04d81f3e4668b5",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/MBMobileContract.log",
+      "bytes": 3332,
+      "sha256": "3a03321b95ceb977eb26e9ab6097321a1a0130f09720c7cd56e1e28c36dade77",
+      "oid": "91a4964433e1c516fe7ad576ebed495e80b7024e",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/MBPlayback.log",
+      "bytes": 18094,
+      "sha256": "82c0c6939aa5013a304e610dec083a16cf4fbe04b791a69edd0ca07fc1a5e3ed",
+      "oid": "4dba1a925f18126e49eeb05498261ad0d5724a84",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/auth-boundary.json",
+      "bytes": 1017,
+      "sha256": "8432368877f419dd9297b2630613aee9c4d43e599fcdb9b7ffc2eeb5715b882c",
+      "oid": "d689c108cf6724134658586f277576e9c83a628b",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/auth-boundary.log",
+      "bytes": 3233,
+      "sha256": "3714dc8d14f7df2fcad174374be0b28bf76e59e569d8e6ddbc3c18999d22eae8",
+      "oid": "2d4e16b3e5ed47584cbcc6fe90523747622a7f33",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/boundaries.json",
+      "bytes": 425,
+      "sha256": "666693a51007ed31e5d6aa22f6cf6e956143af580d7e85c5400ec16754df5565",
+      "oid": "c4ff6c92e07c8e1fd265e6f23954e61e47796a40",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/contract-adoption.json",
+      "bytes": 554,
+      "sha256": "d7319c95c897ad15e299613c596e46ea3acbf64eaf5e74284053c62e72ecb086",
+      "oid": "b9869f2590291fd9f4b12e2268b3e52abf7036ce",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/gate-inputs.json",
+      "bytes": 38628,
+      "sha256": "c3517bcabda71a346c92c50b59c7c6114d7724620dbf7bb82d5964715fa9764d",
+      "oid": "5ac2d1fc57d3e0dbd222e387ade37bd76105a243",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/gate-validation.json",
+      "bytes": 7258,
+      "sha256": "bc336f1726ad1bdc13f6ede24143d171583838c96859616e03089490be572566",
+      "oid": "67f44d4baeb6d22ce59b946eb4c9f08aae51e3f8",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/manifest.json",
+      "bytes": 4072,
+      "sha256": "47054b735d6e7307a593afafabdc5f11b5353aa72da8ca6e61d5661776d010bf",
+      "oid": "22680d43d4349d1bf73639e620c9c2ff2b486245",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/native-Mock.json",
+      "bytes": 30294,
+      "sha256": "7f04ea560d35373716f6a5d6654581ebb5285eeb801bf214673b41382588fa8b",
+      "oid": "ad600dae9355eb8939eab76adb473e077fa125ac",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/native-Production.json",
+      "bytes": 30341,
+      "sha256": "062d4d821e5597cc1cd2738364e1a69d1daf802f971b7e90c27c7cbdeb6cc93a",
+      "oid": "2651450245ed0759a23a35c4b63b7a0da05bb811",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/protected-main.json",
+      "bytes": 429,
+      "sha256": "6836eab08b03738391f7cdeba45f04c2c6636c9096329d3a6462df8ad5fdf9a9",
+      "oid": "8ecfcc3e7d3ac1c81a1da4d0f4c371f2498cb2e1",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/software-summary.json",
+      "bytes": 2301,
+      "sha256": "68ba85e93e6f668d6b7937c3638419c5196f76f7a0f5591b54e937e5f5c21e4d",
+      "oid": "081076281f213a612123994a45c46f676f49893f",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/source-binding.json",
+      "bytes": 827,
+      "sha256": "162aeea12e7d18bd88c869906a31015212ec7e5807218ddf0548d1993620d71c",
+      "oid": "f1b8e7c8fd85962332e2593dd8b306fe9c9160b7",
+      "mode": "100644",
+      "wholeCommittedBlobRead": true
+    }
+  ],
+  "allOtherSourceTreeEntriesUnchanged": true,
+  "all347TestedInputsUnchanged": true,
+  "wholePublishedEvidence": [
+    {
+      "path": "reports/evidence/IOS-MBM-000/MBClient.log",
+      "bytes": 11152,
+      "sha256": "94c1010c3b1fb35a5be6306edc6ef8931dd75dd7ac0c0512a32fc2101c45dd8d",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/MBLibrary.log",
+      "bytes": 8164,
+      "sha256": "a2ff7b4ac25cf3ecd1f7dec6dac0c74796c1daa8ea70b74e685f32a41731d69b",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/MBMobileContract.log",
+      "bytes": 3332,
+      "sha256": "3a03321b95ceb977eb26e9ab6097321a1a0130f09720c7cd56e1e28c36dade77",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/MBPlayback.log",
+      "bytes": 18094,
+      "sha256": "82c0c6939aa5013a304e610dec083a16cf4fbe04b791a69edd0ca07fc1a5e3ed",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/auth-boundary.json",
+      "bytes": 1017,
+      "sha256": "8432368877f419dd9297b2630613aee9c4d43e599fcdb9b7ffc2eeb5715b882c",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/auth-boundary.log",
+      "bytes": 3233,
+      "sha256": "3714dc8d14f7df2fcad174374be0b28bf76e59e569d8e6ddbc3c18999d22eae8",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/boundaries.json",
+      "bytes": 425,
+      "sha256": "666693a51007ed31e5d6aa22f6cf6e956143af580d7e85c5400ec16754df5565",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/contract-adoption.json",
+      "bytes": 554,
+      "sha256": "d7319c95c897ad15e299613c596e46ea3acbf64eaf5e74284053c62e72ecb086",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/gate-inputs.json",
+      "bytes": 38628,
+      "sha256": "c3517bcabda71a346c92c50b59c7c6114d7724620dbf7bb82d5964715fa9764d",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/gate-validation.json",
+      "bytes": 7258,
+      "sha256": "bc336f1726ad1bdc13f6ede24143d171583838c96859616e03089490be572566",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/native-Mock.json",
+      "bytes": 30294,
+      "sha256": "7f04ea560d35373716f6a5d6654581ebb5285eeb801bf214673b41382588fa8b",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/native-Production.json",
+      "bytes": 30341,
+      "sha256": "062d4d821e5597cc1cd2738364e1a69d1daf802f971b7e90c27c7cbdeb6cc93a",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/protected-main.json",
+      "bytes": 429,
+      "sha256": "6836eab08b03738391f7cdeba45f04c2c6636c9096329d3a6462df8ad5fdf9a9",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/software-summary.json",
+      "bytes": 2301,
+      "sha256": "68ba85e93e6f668d6b7937c3638419c5196f76f7a0f5591b54e937e5f5c21e4d",
+      "wholeCommittedBytesHashMatched": true
+    },
+    {
+      "path": "reports/evidence/IOS-MBM-000/source-binding.json",
+      "bytes": 827,
+      "sha256": "162aeea12e7d18bd88c869906a31015212ec7e5807218ddf0548d1993620d71c",
+      "wholeCommittedBytesHashMatched": true
+    }
+  ],
+  "publishedValidationEqualsActualRun": true,
+  "canonical": {
+    "author": "MUSICBRIDGE_MAC_MAIN_AGENT",
+    "canonicalPath": "packages/contracts/mobile/openapi.json",
+    "documentVersion": "1.6.0",
+    "bytes": 145918,
+    "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+  },
+  "canonicalWholeBytesEqualMac": true,
+  "swiftTestExecutions": 137,
+  "unifiedTestExecutions": 130,
+  "authTestExecutions": 7,
+  "authActualPassedCaseNames": [
+    "-[MBClientTests.AuthenticationBoundaryTests testColdRestoreRejectsChangedServerWithoutSendingAuthorization]",
+    "-[MBClientTests.AuthenticationBoundaryTests testConfirmedIdentityMustMatchBeforePairRequest]",
+    "-[MBClientTests.AuthenticationBoundaryTests testOfflineLogoutDistinguishesLocalClearAndRemoteUnknown]",
+    "-[MBClientTests.AuthenticationBoundaryTests testRefreshCannotChangeDeviceIdentity]",
+    "-[MBClientTests.AuthenticationBoundaryTests testServerDeviceIDIsPreservedEvenWhenTextEqualsInstallationID]",
+    "-[MBClientTests.AuthenticationBoundaryTests testServerEnvironmentAndContractMismatchFailClosed]",
+    "-[MBClientTests.AuthenticationBoundaryTests testStoredCredentialDescriptionNeverIncludesTokens]"
+  ],
+  "distinctPassedCaseNames": 137,
+  "authOverlapUnifiedCaseNames": [],
+  "fail": 0,
+  "skip": 0,
+  "schemaPositiveCases": 49,
+  "schemaNegativeCases": 70,
+  "schemaCasesAreNotXCTestCount": true,
+  "nativeBuilds": [
+    {
+      "mode": "Mock",
+      "exitCode": 0,
+      "sourceCount": 203,
+      "sourceBeforeAfterEqual": true,
+      "afterEvidence": "validation.sourceSHA256",
+      "buildRaw": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/ios-mbm000-57aiisd8/gate-source-bc72069/native-Mock/build.log",
+        "bytes": 753432,
+        "sha256": "d4269b12ec4ef589cc9c85da12b303a255631b977a3e32507af4f9b636a28c55"
+      },
+      "evidenceScope": "未签名的 generic iOS Simulator 编译；未启动 App、未验证 UI/音频/设备。"
+    },
+    {
+      "mode": "Production",
+      "exitCode": 0,
+      "sourceCount": 203,
+      "sourceBeforeAfterEqual": true,
+      "afterEvidence": "validation.sourceSHA256",
+      "buildRaw": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/ios-mbm000-57aiisd8/gate-source-bc72069/native-Production/build.log",
+        "bytes": 755041,
+        "sha256": "310c2c318c8e2713725fe8257a94bdb7aa45d99b8d64844187ba4e9e97229392"
+      },
+      "evidenceScope": "未签名的 generic iOS Simulator 编译；未启动 App、未验证 UI/音频/设备。"
+    }
+  ],
+  "githubCI": "NOT_RUN_IOS_REPORT_HONEST",
+  "peerSoftwareDeliveryComplete": true,
+  "pairedAdoptionComplete": false,
+  "macSourceReportGate": "PENDING",
+  "actualPeerTestsExecutedByMac": false,
+  "iosWrittenByMac": false,
+  "realServiceDeviceAudioUIOwner": "NOT_RUN"
+}

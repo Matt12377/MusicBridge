@@ -1,0 +1,108 @@
+{
+  "schema": "musicbridge.mbm000.result.v1",
+  "task": "MBM-000",
+  "baseSha": "d3174bce575aa817b27ba05d39a40d3050b77be4",
+  "implementationCommit": "579d0c3097a0cd78290467cf9b073819989826fd",
+  "reportCommit": null,
+  "reportCommitResolution": "RESOLVE_UNIQUE_REPORT_HEAD_SINGLE_PARENT_SOURCE_AFTER_COMMIT",
+  "branch": "codex/mbm-000-mobile-contracts",
+  "sourceParent": "d980de9037b5d7cc1df402b3638072cd3514a1f0",
+  "originalSourceFirstNaturalCi": "FAILURE_PRESERVED_IN_SOURCE_EVIDENCE_NO_RERUN",
+  "sourceGate": "PASS_EXACT_SOURCE_33_TESTS_431_INPUTS_222_OUTPUTS",
+  "sourceNaturalCi": "PASS_FIRST_NATURAL_FOUR_WORKFLOWS_SIX_JOBS",
+  "sourceCiDeclaredInputRows": 434,
+  "sourceCiWholeGitInputRows": 431,
+  "sourceCiIncidentalPythonCacheRows": 3,
+  "sourceCiIndependentPythonCacheBodyRead": false,
+  "sourceCiCacheBodies": "NOT_UPLOADED_NOT_CLAIMED",
+  "reportNaturalCi": "NOT_YET_RUN_PENDING_ORDINARY_REPORT_PUSH",
+  "reportRemoteAndClean": "PENDING_FINAL_PRIVATE_RECEIPT",
+  "canonical": {
+    "path": "packages/contracts/mobile/openapi.json",
+    "bytes": 145918,
+    "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+  },
+  "tests": {
+    "macActualBehavior": 33,
+    "macFail": 0,
+    "macSkip": 0,
+    "wholeHttpFixtures": 196,
+    "schemaFixtures": 128,
+    "schemaNegativeFixtures": 24,
+    "schemas": 60,
+    "iosDistinctSwiftCases": 137,
+    "iosFail": 0,
+    "iosSkip": 0,
+    "iosSchemaPositiveCases": 49,
+    "iosSchemaNegativeCases": 70,
+    "schemaCountsAreNotBehaviorTestCounts": true
+  },
+  "pairedSourceCompatibility": "PASS_WHOLE_CANONICAL_AND_ACTUAL_CLIENT_SOFTWARE",
+  "pairedFinalDelivery": false,
+  "pairedFinalDeliveryResolution": "REQUIRES_REPORT_FIRST_NATURAL_TWO_WORKFLOWS_THREE_JOBS_AND_FRESH_REMOTE_CLEAN_PRIVATE_SEAL",
+  "peer": {
+    "sourceSha": "bc72069f73e342479190beda7f230b79ea91d9f0",
+    "reportSha": "8ba6b9777b67d23dc89cc1edca7412e128398256",
+    "branch": "codex/ios-mbm-000-contract-adoption",
+    "remoteExact": true,
+    "cleanAtVerifiedPeerSeal": true,
+    "testedInputs": 347,
+    "unsignedGenericSimulatorBuilds": 2,
+    "githubCI": "NOT_RUN"
+  },
+  "evidenceLayer": "CONTRACT_SOFTWARE_DELIVERY_ONLY",
+  "productionMacApp": "NOT_RUN_CONTRACT_ONLY_STAGE",
+  "actualIOSAppUI": "NOT_RUN",
+  "realProviderRoonNASAudioPhysicalDeviceOwner": "NOT_RUN",
+  "original18TasksAnd156AcceptanceUnchanged": true,
+  "effective17TasksAnd150AcceptanceUnchanged": true,
+  "original013Eight": "PARTIAL_LIVE_OWNER_OPEN",
+  "cancelled015Six": "NOT_APPLICABLE_OWNER_CANCELLED",
+  "independentMobileAcceptance": [
+    {
+      "id": "MBMAT-000-01",
+      "software": "PASS"
+    },
+    {
+      "id": "MBMAT-000-02",
+      "software": "PASS"
+    },
+    {
+      "id": "MBMAT-000-03",
+      "software": "PASS"
+    },
+    {
+      "id": "MBMAT-000-04",
+      "software": "PASS"
+    },
+    {
+      "id": "MBMAT-000-05",
+      "software": "PASS"
+    },
+    {
+      "id": "MBMAT-000-06",
+      "software": "PASS"
+    },
+    {
+      "id": "MBMAT-000-07",
+      "software": "AWAITING_REPORT_CI_AND_FINAL_PRIVATE_SEAL"
+    }
+  ],
+  "nextTask": "MBM-001",
+  "nextBranchBaseline": "RESOLVE_FINAL_REPORT_HEAD_AFTER_FINAL_SEAL",
+  "ownerRepeatedApprovalRequired": false,
+  "evidenceFiles": [
+    "docs/postrust/MBM-000/evidence/fresh-contract-binding.json",
+    "docs/postrust/MBM-000/evidence/peer-adoption-readback.json",
+    "docs/postrust/MBM-000/evidence/source-artifact-readback.json",
+    "docs/postrust/MBM-000/evidence/source-ci-readback.json",
+    "docs/postrust/MBM-000/evidence/source-ci.json",
+    "docs/postrust/MBM-000/evidence/source-consumers.json",
+    "docs/postrust/MBM-000/evidence/source-gate-readback.json",
+    "docs/postrust/MBM-000/evidence/source-gate.json",
+    "docs/postrust/MBM-000/evidence/source-identity.json",
+    "docs/postrust/MBM-000/evidence/source-phase-logs.json"
+  ],
+  "sourcePreparationSnapshot": "SOURCE_NORMATIVE_STATE_IS_HISTORICAL_CANDIDATE_PENDING_SNAPSHOT_PRESERVED_IN_R",
+  "finalDeliveryReceipt": "PRIVATE_EXTERNAL_ARCHIVE_AFTER_REPORT_CI_NO_THIRD_SEAL_COMMIT"
+}
