@@ -369,5 +369,29 @@
     "repair": "VERIFY_JOB_ONLY_PYTHONDONTWRITEBYTECODE_1",
     "productionSourceAndRuntimeEvidence": "655_PRODUCT_ROWS_UNCHANGED_NO_ACTUAL_RUNTIME_REPLAY",
     "nextSourceGateAndFirstNaturalCi": "PENDING_NEW_ORDINARY_SOURCE_PUSH"
+  },
+  "controlledClockIntegerOriginRepair": {
+    "source": "8cf0c970b0739fbf7712cd504e9a1e70085c867b",
+    "failureEvidence": "docs/postrust/MBM-001/evidence/second-source-clock-failure.json",
+    "actualStandardCancelled": 16,
+    "actualStandardFailed": 0,
+    "localForcedFractionalOrigin": 12.020408774898407,
+    "computedRemainingMs": 500.00000000000006,
+    "fixedIntegerOrigin": 0,
+    "originalDeadlineBeforeAndAfterMs": 500,
+    "forcedFractionalLifecycle": {
+      "pass": 7,
+      "cancelled": 16
+    },
+    "fixedLifecycle": {
+      "pass": 23,
+      "fail": 0,
+      "skip": 0,
+      "cancelled": 0
+    },
+    "original23NamesAndAssertionsUnchanged": true,
+    "preciseCiFloatingOrigin": "NOT_LOGGED",
+    "productionSourcesAndActualSdkRuntimeUnchanged": true,
+    "newSourceGateAndFirstNaturalCi": "PENDING_NEW_ORDINARY_SOURCE_PUSH"
   }
 }

@@ -176,7 +176,8 @@ test('router创建中的版本探测迟到不能启动child，关闭消费创建
 
 test('末次版本探测迟到越过整体期限时清理已boot候选，不能发布ready', async t => {
   const realNow = performance.now.bind(performance);
-  let now = realNow();
+  // 整数零点使原500ms期限与模拟tick精确一致，避免浮点剩余时间停在到期点之后。
+  let now = 0;
   // 二进制完整校验的机器耗时不决定受控探测阶段；期限仍固定500ms。
   t.mock.method(performance, 'now', () => now);
   t.mock.timers.enable({ apis: ['setTimeout'] });
