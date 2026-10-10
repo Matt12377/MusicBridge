@@ -47992,7 +47992,7 @@
         "scheduled_after": "MBM-001",
         "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
         "scope_ref": "docs/postrust/MBM-002/EXECUTION_SCOPE.json",
-        "software": "PENDING_FRESH_SOURCE_GATES_AND_FIRST_NATURAL_CI_AFTER_FROZEN_AUTHORITY_FIELD_CORRECTION",
+        "software": "PENDING_FRESH_SOURCE_GATES_AND_FIRST_NATURAL_FOUR_WORKFLOW_CI_AFTER_PARTIAL_NATIVE_GUARD_REGRESSION",
         "production_app": "C310_RUNNING_CANDIDATE_RUNTIME_PROVEN_SEPARATE_FROM_NEW_SOURCE",
         "real_service_device_audio": "NOT_RUN",
         "owner_acceptance": "NOT_RUN",
@@ -48002,7 +48002,7 @@
         "independent_acceptance_count": 9,
         "acceptance_ref": "docs/postrust/MBM-002/MOBILE_ACCEPTANCE.json",
         "implementation_commit": null,
-        "implementation_commit_resolution": "CURRENT_SOURCE_RESOLVED_FROM_GIT_HEAD_AFTER_EXACT_ADAPTER_AND_FROZEN_AUTHORITY_FIELD_CORRECTION",
+        "implementation_commit_resolution": "CURRENT_SOURCE_RESOLVED_FROM_GIT_HEAD_AFTER_PARTIAL_NATIVE_GUARD_REGRESSION",
         "report_commit": null,
         "report_commit_resolution": "GIT_CURRENT_REPORT_HEAD_UNIQUE_PARENT_EXACT_SOURCE_AFTER_COMMIT",
         "report_path": "reports/MBM-002_RESULT.md",
@@ -48206,7 +48206,7 @@
     "acceptance": "docs/postrust/MBM-002/MOBILE_ACCEPTANCE.json",
     "localVerification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json",
     "implementationCommit": null,
-    "implementationCommitResolution": "SOURCE_HEAD_AFTER_EXACT_LEGACY_ADAPTER_AND_FROZEN_AUTHORITY_FIELD_CORRECTION",
+    "implementationCommitResolution": "SOURCE_HEAD_AFTER_FROZEN_AUTHORITY_PARTIAL_NATIVE_REGRESSION",
     "reportCommit": null,
     "reportCommitResolution": "PENDING_DIRECT_REPORT_SUCCESSOR_OF_REPAIRED_SOURCE",
     "report": "reports/MBM-002_RESULT.md",
@@ -48216,10 +48216,10 @@
       "report": "PENDING_DIRECT_REPORT_PUSH"
     },
     "ci": {
-      "source": "PENDING_FIRST_NATURAL_CI_AFTER_FROZEN_AUTHORITY_FIELD_CORRECTION",
+      "source": "PENDING_FIRST_NATURAL_FOUR_WORKFLOW_SOURCE_CI_AFTER_PARTIAL_NATIVE_GUARD_REGRESSION",
       "report": "PENDING_FIRST_NATURAL_DIRECT_REPORT_CI"
     },
-    "updatedAt": "2026-10-10T00:10:33.016907+00:00",
+    "updatedAt": "2026-10-10T00:18:35.939060+00:00",
     "finalDeliveryReceipt": "PRIVATE_EXTERNAL_ARCHIVE_AFTER_REPORT_CI_CURRENT_CANDIDATE_CLOSE_AND_PAIRED_FINAL_NO_THIRD_SEAL_COMMIT",
     "nextBranchBaseline": "RESOLVE_PAIRED_FINAL_REPORT_HEAD_ONLY_AFTER_PRIVATE_SEAL",
     "catalogAvailabilityRepair": {

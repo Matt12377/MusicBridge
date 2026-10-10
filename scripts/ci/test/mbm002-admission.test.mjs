@@ -86,6 +86,18 @@ test('002源写第二作者Rust和旧loopback权限不扩张；未有手机账�
   for (const key of ['nativeIOSDeviceAudio', 'ownerAcceptance', 'realProviderRoonNAS']) {
     const f = fixture(); f.status.mobilePlaybackResources[key] = 'PASS'; rejects(f, 'MBM002_AUTHORITY_CHANGED');
   }
+  // 已发生的旧候选部分首声记录也不能改写冻结工程准入字段。
+  const nativePartial = fixture();
+  nativePartial.status.mobilePlaybackResources.nativeIOSDeviceAudio =
+    'C310_CANDIDATE_FIRST_SOUND_OWNER_REPORTED_NATIVE_CHECKS_IN_PROGRESS_NOT_NEW_SOURCE_ACCEPTANCE';
+  rejects(nativePartial, 'MBM002_AUTHORITY_CHANGED');
+  for (const owner of ['status', 'plan']) {
+    const partial = fixture();
+    const rows = owner === 'status' ? partial.status.mobileFrontloading20261008.mobileTasks : partial.plan.mobile_tasks;
+    rows.find(row => row.id === 'MBM-002').real_service_device_audio =
+      'C310_CANDIDATE_FIRST_SOUND_OWNER_REPORTED_PARTIAL_NOT_NEW_SOURCE_ACCEPTANCE';
+    rejects(partial, 'MBM002_AUTHORITY_CHANGED');
+  }
 });
 
 test('002原18任务156验收及有效17/150和001九验收完整保留，不能借准入升级旧任务', () => {
