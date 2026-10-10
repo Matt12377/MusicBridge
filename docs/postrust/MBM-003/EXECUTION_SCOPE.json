@@ -1,0 +1,143 @@
+{
+  "schema": "musicbridge.mbm003.execution-scope.v1",
+  "task": "MBM-003",
+  "status": "IN_PROGRESS_CONTRACT_FREEZE_FIRST",
+  "startedAtUTC": "2026-10-10T08:20:38.094662+00:00",
+  "baseSha": "b1a8de728086e7994bb69d7dee10782f646886dd",
+  "branch": "codex/mbm-003-lossless-dsd-transport",
+  "authority": "DIRECT_OWNER_APPROVED_SCOPE_AFTER_ACTUAL_COORDINATOR_PAIRED002_SEAL",
+  "repeatedOwnerApprovalRequired": false,
+  "predecessor": "docs/postrust/MBM-003/PREDECESSOR_DELIVERY.json",
+  "ownerDecision": {
+    "path": "docs/postrust/MBM-003/OWNER_DSD_TRANSPORT_DECISION_2026-10-10.json",
+    "bytes": 4578,
+    "sha256": "a36b722255201e98167b4a616fa8228cf2109b8204613d0cb3a85aab7f2bc256"
+  },
+  "contract": {
+    "state": "ACTUAL_REVIEWABLE_PREVIEW_PENDING_PAIRED_FREEZE",
+    "publicAuthor": "ROOT_MAC_ONLY",
+    "authoritativeCanonicalStill002": true,
+    "preview": {
+      "path": "docs/postrust/MBM-003/contract-preview/openapi.json",
+      "bytes": 147487,
+      "sha256": "9dcde7b24150e9b21dc9366bd913e3ca216a34584b6f85942fee17e8bd7a06a8",
+      "version": "1.7.0",
+      "operations": 40,
+      "staticVerification": {
+        "file": "ROOT_MBM003_PREVIEW_SCHEMA_STATIC_CHECK464.json",
+        "bytes": 2319,
+        "sha256": "98fcb2e49a13e45e9cddf309faeedc22c87b4182918bfce183eda56efcb962a5",
+        "checks": 12,
+        "scope": "JSON_SCHEMA_ONLY_NOT_RUNTIME_PROCESSING_OR_PAIRED_FREEZE"
+      }
+    },
+    "semantics": "docs/postrust/MBM-003/CONTRACT_SEMANTICS_DRAFT.md"
+  },
+  "required": [
+    "FLAC至少24-bit/192kHz且保持源到传输三轴，保留16/24-bit和24/44.1矩阵",
+    "仅DSD整曲PCM24-bit/48kHz再FLAC独立限额缓存，完成及核验后首播并复用",
+    "来源DSD规格与实际PCM传输分开，物理audio route另取证",
+    "源和标签只读，前后实际身份/长度/整份SHA核验",
+    "显式mode采纳和服务端能力同时成立，旧请求不得触发转换或收到新mode",
+    "Range/seek/renew/release/quiet及原期限继续，真实iPhone播放/seek/断连恢复分别取证"
+  ],
+  "excluded": [
+    "新增多档音质",
+    "动态切换",
+    "原生DSD或无损DSD声明",
+    "原文件/标签写入",
+    "新Roon播放后端",
+    "004内容及多设备开发"
+  ],
+  "longPreparation": {
+    "publicReply": "FAST_DURABLE_ORIGINAL_202_AFTER_TRUE_SOURCE_FACTS",
+    "privateOwnerInterface": "SHORT_BEGIN_AND_STATUS_PLUS_INDEPENDENT_BOUNDED_JOB",
+    "ready": "WHOLE_CONVERSION_AND_OUTPUT_VALIDATION_COMPLETE_ONLY",
+    "originalReceiptNeverUpgraded": true,
+    "getDoesNotExtendTtl": true,
+    "jobDeadline": "WITHIN_ORIGINAL_REMAINING_RESOURCE_AND_SESSION_TTL",
+    "mediaTicket": "ONLY_READY_ORIGINAL_60S_ABSOLUTE_LIFETIME",
+    "directPreparationBudgetMs": 10000,
+    "metadataRequestBudgetMs": 15000
+  },
+  "reuse": {
+    "002SourceAndDirectReport": "EXACT_IMMUTABLE_QUALIFIED_SOFTWARE_EVIDENCE",
+    "002NativeAndFailures": "PRESERVE_ORIGINAL_BOUNDARIES",
+    "repeatSameSourceBuildInstallOrOwnerHearing": false,
+    "new003ProductSourceGateAndFirstNaturalCi": "REQUIRED"
+  },
+  "actors": {
+    "root": {
+      "model": "gpt-6.1-sol",
+      "effort": "max",
+      "exclusive": [
+        "publicCanonicalContract",
+        "Git",
+        "build",
+        "test",
+        "productionApp",
+        "frozenCrossTaskContacts"
+      ]
+    },
+    "existingChildren": [
+      {
+        "name": "delivery012_contract",
+        "model": "gpt-6.1-sol",
+        "effort": "max",
+        "scope": "READONLY_CONTRACT_REVIEW_THEN_EXCLUSIVE_NEW_CONTRACT_TESTS"
+      },
+      {
+        "name": "delivery012_core",
+        "model": "gpt-6.1-sol",
+        "effort": "max",
+        "scope": "CORE_MOBILE_SOURCE_AND_PREPARED_CACHE_AFTER_FREEZE"
+      },
+      {
+        "name": "delivery012_app_proofs",
+        "model": "gpt-6.1-sol",
+        "effort": "max",
+        "scope": "DESKTOP_MAIN_CONNECTION_AND_NEW_TESTS_AFTER_FREEZE"
+      }
+    ],
+    "actualSessionAndSpawnParametersRead": true,
+    "newDescendants": 0
+  },
+  "software": "NOT_RUN_NEW003",
+  "productionApp": "NOT_RUN_NEW003",
+  "physicalDeviceAudio": "NOT_RUN_NEW003",
+  "ownerAcceptance": "NOT_RUN_NEW003",
+  "preserve": {
+    "originalTasks": 18,
+    "originalCases": 156,
+    "effectiveTasks": 17,
+    "effectiveCases": 150,
+    "mbm002Cases": 9,
+    "mbm002FrozenScopesUnchanged": true,
+    "optionalRust": "OFF",
+    "defaultNode": true,
+    "uniqueDatasetOwner": true,
+    "mbm004NotStarted": true,
+    "auditModerateCarryover": 8
+  },
+  "cacheBudgets": {
+    "maxConcurrentConversionJobs": 1,
+    "maxWaitingResources": 4,
+    "maxCacheEntries": 32,
+    "maxEntryBytes": 2147483648,
+    "maxCacheBytes": 4294967296,
+    "maxPreparationMs": 240000,
+    "deadline": "MIN_JOB_BUDGET_OR_ORIGINAL_RESOURCE_SESSION_REMAINING_DEADLINE_WITH_QUIET_RESERVE",
+    "activeEntriesEvictable": false,
+    "oldGlobalLimitsChanged": false
+  },
+  "converterBackend": {
+    "state": "DEDICATED_MOBILE_CONVERTER_QUALIFICATION_PENDING",
+    "existingRecordingPolicy": "UNCHANGED_NOT_CAPABLE_OF_DSD_FLAC_BY_CURRENT_WHITELIST",
+    "sourceFormats": [
+      "DSF",
+      "DFF"
+    ],
+    "requiredOutput": "FLAC_PCM_24BIT_48000HZ",
+    "buildRoot": "EXTERNAL_LIFEWEAVE_ONLY"
+  }
+}

@@ -1,6 +1,6 @@
 # MusicBridge 开发待办
 
-当前任务：MBM-002（进行中）。MBM-001双端工程交付已封存：Mac Source cef70a57aa1f4b495e6babb4cc7c0b65f7297742、R 8044d935e242d8647adc21445116fb49c9100e4a；iOS Source b82049825e9e9058fe4a70186da70f5a267543ea、R c53ed3e4850f60b203d4773446db74789e2814d7。双方远端clean/canonical一致，Mac Source自然4workflow/6job、R自然2workflow/3job及实际制品通过；001真实iOS、设备音频与Owner仍未跑。接续002→003→004→016→017，沿用已有授权。
+当前任务：MBM-003（合同冻结与实现准备）。002已成对软件封存，当前播放/seek已观察；原真实carryover保留。003从Mac最终审计b1a8de7独立接续，沿用已批准DSD24/48→FLAC缓存与至少FLAC24/192范围；004尚未开始。
 
 | 任务 | 要做的事 | 进度 |
 | --- | --- | --- |
@@ -22,8 +22,8 @@
 | MBRS-015 | 可选 Roon 内部协议信息增强。 | Owner 取消；6条验收因取消不适用，不计PASS或完成 |
 | MBM-000 | 合同采纳。 | [x] 双端软件交付已封存；Source/R自然CI及实际制品、远端clean通过；真实服务/设备/音频/Owner未跑 |
 | MBM-001 | 配对与只读曲库。 | [x] 双端工程交付封存；自然Source/R CI、整制品及远端clean通过；实际自有Mac共享SDK22/驱动32通过，原9AT与真实设备/音频/Owner缺口保留 |
-| MBM-002 | 手机资源播放。 | 进行中；从001最终R独立分支实施session/resource、ticket、Range/HEAD、流式背压、FD/lease及恢复 |
-| MBM-003 | FLAC无损及DSD→PCM兼容播放。 | 未开始；等待002；必须物理iPhone实播至少24-bit/192kHz FLAC及有效DSD→独立PCM，源只读；详见003 Owner增补 |
+| MBM-002 | 手机资源播放。 | 软件交付完成；精确Source/R首次自然CI及双端seal已核，当前真机可听/seek与正常关闭已观察；原真实carryover保留 |
+| MBM-003 | FLAC无损及DSD→PCM兼容传输。 | 进行中：合同冻结优先；FLAC至少24/192，DSD整曲24/48 PCM→FLAC独立限额缓存，原件只读、首版单档 |
 | MBM-004 | 内容与多设备。 | 未开始；等待MBM-003 |
 | MBRS-016 | 检查性能、安全和已有功能。 | 未开始；调度等待MBM-004，原硬依赖保持 |
 | MBRS-017 | 打包应用，提供使用说明和恢复办法。 | 未开始；依赖016 |
@@ -164,3 +164,9 @@ c3103 原物理 profile 候选的23项 Mac 自有媒体检查及原 iOS 上 Owne
 - N通过原STOP_REQUEST正常关闭，App/包装器exit0；1725输入无漂移，原105材料/profile保留，无新permit。未重做EOS、OffOn、听感、构建或安装。
 - 526f35f纯报告自动full verify按Owner取消无用重复测试要求实际CANCELLED；security和dependency-audit成功。原7ec/d518 Source/R Gate与首次自然CI不受影响，后续纯报告使用skip-ci，不宣称新CI通过。
 - 002剩余必需收尾：精确双端软件最终交付封存与本次审计push身份读回。未单独证明的实际续期/迟到路径、缺少可选传输档的换质、第二首完整EOS及逐请求/释放终态作为明确边界保留；003在正式封存后直接沿已授权范围接续。
+
+### MBM-002成对软件封存与003正式启动（2026-10-10）
+
+002外置共同seal已整份核验：9754字节/SHA256 `0335d8baa443e4210306e12f58de8c6f5aace49c4e1342320c43a7d24b925654`。Mac固定Source7ec8/直接软件Rd518、最终审计b1a8；iOS固定Sourceec452/直接软件Rce719、最终1ed6767。原9AT/81Gate、旧18/156、有效17/150与8 moderate不改。已观察M/N可听、一次seek及正常关闭；原生实际续期/迟到、手机逐请求、第二首完整EOS、真实环境及最终成品验收保留边界，非全AT PASS。
+
+003已从b1a8独立分支启动，见 `tasks/MBM-003_LOSSLESS_DSD_TRANSPORT.md` 和 `docs/postrust/MBM-003/EXECUTION_SCOPE.json`。实际可审阅1.7.0合同草案是 `contract-preview/openapi.json`；生产canonical仍是原1.6.0。三个既存sol6.1/max作者调查后等待双方固定语义，Root独占公开合同及Git/测试/App。没有新增003产品测试、构建、装机或验收通过；004未启动。

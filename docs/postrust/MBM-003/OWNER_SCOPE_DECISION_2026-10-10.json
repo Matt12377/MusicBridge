@@ -1,0 +1,136 @@
+{
+  "schema": "musicbridge.mbm003.owner-scope-decision.v2",
+  "task": "MBM-003",
+  "status": "NOT_STARTED",
+  "effectiveAt": "2026-10-10",
+  "authority": "DIRECT_OWNER_MESSAGE_01A12415_6082_7D01_B6E8_16AAD0F6527E_AND_COORDINATOR_RELAY",
+  "ownerRequirement": "仅DSD在Mac端整曲转换为24-bit/48kHz PCM，再编码为FLAC独立缓存供手机播放；原DSD及标签不改，其他格式保持既定策略，FLAC至少24-bit/192kHz。首次整曲转换完成并核定产物有效后播放，后续复用缓存；保留拖动、Range、续租、释放和缓存限额。首版无多档音质或动态切换。明确显示原始格式与传输格式，不宣称原生DSD或无损DSD。以真实iPhone播放、拖动和断线恢复验收。",
+  "sequence": [
+    "MBM-002",
+    "MBM-003",
+    "MBM-004",
+    "MBRS-016",
+    "MBRS-017"
+  ],
+  "acceptance": [
+    {
+      "id": "MBM003-HIRES-FLAC",
+      "requirement": "实际有效24-bit/192,000-Hz FLAC在物理iPhone正式生产客户端解码、播放、seek、必要续期与恢复；保持源→资源采样率、位深、声道，禁止高规格白名单拒绝或静默降规格",
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "MBM003-FLAC-MATRIX",
+      "requirement": "原16/24-bit及24-bit/44.1kHz矩阵继续；192kHz为最低高规格覆盖",
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "MBM003-SOURCE-IMMUTABLE",
+      "requirement": "源与派生文件分离；转换前后精确文件身份、整份长度及SHA相同，不覆写源音频、metadata或旁车",
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "MBM003-DSD-PCM",
+      "requirement": "有效DSD由Mac整曲转为独立24-bit/48kHz PCM，再编码FLAC缓存；完成且产物有效后由物理iPhone正式客户端实际播放与拖动，记录源DSD规格、转换实现/参数、传输FLAC和实际PCM规格。",
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "MBM003-DSD-SEMANTICS",
+      "requirement": "UI/合同/日志/报告分别显示原始DSD与传输FLAC（24-bit/48kHz PCM转换产物）；不得称原生DSD、无损DSD、直通、重封装或lossless_conversion；其他格式不得统一降至24/48。",
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "MBM003-AUDIO-ROUTE",
+      "requirement": "实际设备audio route输出规格另取证，不以sourceAudio或Media.actualAudio代替",
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "MBM003-DSD-CACHE",
+      "requirement": "首次整曲转换完成且产物有效后才可播放；后续复用独立缓存，缓存限额有效，原DSD及标签保持精确身份/长度/hash。",
+      "state": "NOT_RUN"
+    },
+    {
+      "id": "MBM003-DSD-LIFECYCLE",
+      "requirement": "派生FLAC缓存保留既定Range、拖动、续租、释放与限额行为；实际iPhone播放、拖动和断线恢复逐项有真实证据。",
+      "state": "NOT_RUN"
+    }
+  ],
+  "contractSemanticDecision": {
+    "state": "REVIEWABLE_MINIMUM_PROPOSAL_NOT_IMPLEMENTED",
+    "sourceCanonical": {
+      "bytes": 145918,
+      "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb"
+    },
+    "preferredNewProcessingMode": "dsd_to_pcm",
+    "meaning": "DSD经明确转换实现生成24-bit/48kHz PCM并编码为FLAC独立缓存；不能宣称原生或无损DSD。",
+    "sourceAudio": "原DSD codec/container及已证明源参数，不填成PCM源",
+    "mediaActualAudio": "实际传输FLAC容器/codec及PCM sampleRateHz=48000、bitsPerSample=24、实际channels；实际设备audio route另取证。",
+    "processingReason": "真实转换实现与参数概要，不含路径凭据",
+    "canonicalNowChanged": false,
+    "proposedDiffRef": "docs/postrust/MBM-003/DSD_PROCESSING_CONTRACT_PROPOSAL.json",
+    "adoption": "在003阶段由Mac唯一合同作者实施最小增补、固定新canonical身份并由iOS同阶段采纳；未采纳客户端不得收到新mode，具体能力门控须在003契约Gate冻结",
+    "positiveTests": [
+      "新mode只在真实DSD→PCM资源使用，三轴取实际输出",
+      "双端新合同与真实转换/真机播放事实一致",
+      "已有direct/remux/lossless_conversion路径保持"
+    ],
+    "negativeTests": [
+      "DSD不得伪装lossless_conversion/remux/direct或原生DSD",
+      "禁止使用源DSD频率/位深冒充PCM输出",
+      "旧未采纳consumer不得接新enum资源",
+      "FLAC仍强制原lossless三轴相等及禁止有损fallback"
+    ]
+  },
+  "codexResponsibilities": [
+    "构建、签名、安装、脚本、日志及故障排查"
+  ],
+  "ownerOnlyNeededActions": [
+    "无法代劳的设备连接/解锁/系统许可",
+    "实际听感反馈"
+  ],
+  "preserve": {
+    "originalTasks": 18,
+    "originalAcceptanceCases": 156,
+    "effectiveTasks": 17,
+    "effectiveAcceptanceCases": 150,
+    "mbm001SealedSourceReportUnchanged": true,
+    "mbRS013Eight": "PARTIAL",
+    "mbRS015Six": "N_A_OWNER_CANCELLED"
+  },
+  "software": "NOT_RUN",
+  "physicalDeviceAudio": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "supersedes": "docs/postrust/MBM-003/OWNER_SCOPE_AMENDMENT_2026-10-09.json",
+  "supersedesScope": "DSD首次转换参数、传输编码、整曲准入和缓存复用要求以本决定为准；其余FLAC及源只读要求继续。",
+  "ownerMessageReadbackRef": "ROOT_MBM003_DSD_SCOPE_READBACK423.json",
+  "ownerMessageIdentity": {
+    "threadId": "01a11009-6c6c-7a12-adf5-7e9374e24fc4",
+    "turnId": "01a12415-602c-7872-9a9d-672cb5bcf0b2",
+    "messageId": "01a12415-6082-7d01-b6e8-16aad0f6527e"
+  },
+  "implementationDecision": {
+    "conversionInput": "DSD_ONLY",
+    "conversionHost": "MAC",
+    "pcmBitsPerSample": 24,
+    "pcmSampleRateHz": 48000,
+    "transportCodec": "FLAC",
+    "cache": "INDEPENDENT_BOUNDED_CACHE",
+    "firstPlay": "WHOLE_TRACK_CONVERSION_AND_VALIDATION_BEFORE_READY",
+    "laterPlay": "REUSE_VALID_CACHE",
+    "otherFormats": "KEEP_EXISTING_POLICY",
+    "minimumOriginalFLAC": {
+      "bitsPerSample": 24,
+      "sampleRateHz": 192000
+    },
+    "preserve": [
+      "originalDSDFiles",
+      "originalTags",
+      "seek",
+      "Range",
+      "renew",
+      "release",
+      "cacheLimit"
+    ],
+    "multiQualityOrDynamicSwitchInFirstVersion": false,
+    "nativeDsdOrLosslessDsdClaimed": false
+  }
+}

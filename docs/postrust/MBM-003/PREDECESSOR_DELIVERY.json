@@ -1,0 +1,41 @@
+{
+  "schema": "musicbridge.mbm003.predecessor-delivery.v1",
+  "task": "MBM-002",
+  "state": "PAIRED_SOFTWARE_DELIVERY_SEALED_NATIVE_MINIMUM_OBSERVED_EXPLICIT_CARRYOVER",
+  "macSource": "7ec898d9f26cbafb5e01f5483bfaccf14ca61d27",
+  "macDirectSoftwareReport": "d5189ecba0aaf266e7fa375613a7a99beffabc2e",
+  "macFinalMetadataHead": "b1a8de728086e7994bb69d7dee10782f646886dd",
+  "iosSource": "ec4529272933e55a511a1c578b65d7b385fa1262",
+  "iosDirectSoftwareReport": "ce7195aa4ff252685de919cf4a721ac060dbee87",
+  "iosFinalMetadataHead": "1ed6767cf2df0c29ba69b5aea7520c529d59235b",
+  "canonical": {
+    "bytes": 145918,
+    "sha256": "ee79461bf672e78c4ac29945d794e46286c92b0f909ced85bc4534a8a6de57bb",
+    "version": "1.6.0",
+    "operations": 40
+  },
+  "sourceAndDirectReportCi": "PASS_EXACT_FIRST_NATURAL_REUSED_UNCHANGED",
+  "iosGithubCi": "NOT_RUN_NO_APPLICABLE_WORKFLOW",
+  "audit526FullVerify": "CANCELLED_OWNER_REPEAT_TEST_INSTRUCTION_NOT_PASS",
+  "laterMetadataCi": "NOT_RUN_SKIP_CI_NO_PRODUCT_CHANGE",
+  "seal": {
+    "file": "COORDINATOR_MBM002_PAIRED_SOFTWARE_DELIVERY_SEAL_WITH_NATIVE_CARRYOVER01.json",
+    "bytes": 9754,
+    "sha256": "0335d8baa443e4210306e12f58de8c6f5aace49c4e1342320c43a7d24b925654"
+  },
+  "wholeSealReadback": true,
+  "currentNativePlaybackAndSeek": "OBSERVED",
+  "ownerCurrentPlaybackExperience": "CONFIRMED",
+  "allRealAcceptancePassed": false,
+  "CORE_READY": false,
+  "carryover": [
+    "原生实际续期及迟到回报独立路径未分别证明",
+    "原002无独立真实换质档，003首版仍为单档",
+    "第二首完整EOS及手机逐请求Range/renew/release终态未观察",
+    "真实Provider/Roon/NAS、跨卷迁移后再播、完整大曲库、录音硬件及最终成品验收仍开放"
+  ],
+  "nextTask": "MBM-003",
+  "nextMacBase": "b1a8de728086e7994bb69d7dee10782f646886dd",
+  "nextIosBase": "1ed6767cf2df0c29ba69b5aea7520c529d59235b",
+  "new002TestsBuildsInstallsPairing": 0
+}

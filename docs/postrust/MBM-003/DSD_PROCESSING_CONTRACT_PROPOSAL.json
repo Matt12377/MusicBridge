@@ -8,7 +8,7 @@
     "operation": "append_enum_value",
     "value": "dsd_to_pcm"
   },
-  "semanticGuard": "真实DSD源→独立PCM资源；非PCM无损转换；三轴取真实PCM输出",
+  "semanticGuard": "仅DSD在Mac整曲转24-bit/48kHz PCM，再编码为独立FLAC缓存；原始DSD与传输格式分别呈现，不宣称原生/无损DSD；其他格式保留既定策略及至少24-bit/192kHz FLAC。",
   "dualConsumerMigration": {
     "mac": "更新schema、codec、真实处理映射和精确canonicalHash",
     "ios": "先采纳同一Hash并扩closedmode/UI事实映射，再允许正式资源",
@@ -21,7 +21,74 @@
     "DSD不得伪装lossless_conversion/remux/direct或原生DSD",
     "禁止使用源DSD频率/位深冒充PCM输出",
     "旧未采纳consumer不得接新enum资源",
-    "FLAC仍强制原lossless三轴相等及禁止有损fallback"
+    "FLAC仍强制原lossless三轴相等及禁止有损fallback",
+    "整曲转换并验证产物后才允许首次播放，后续有效缓存复用，缓存限额有效",
+    "物理iPhone的实际DSD派生FLAC播放、拖动与断线恢复分别取证",
+    "原DSD文件及标签前后精确身份/整份长度/hash一致；Range/续租/释放保持",
+    "首版不增加多档音质或动态切换；原始格式与传输格式独立显示"
   ],
-  "evidence": "NOT_RUN"
+  "evidence": "NOT_RUN",
+  "ownerDecisionRef": "docs/postrust/MBM-003/OWNER_SCOPE_DECISION_2026-10-10.json",
+  "approvedFirstVersion": {
+    "conversionInput": "DSD_ONLY",
+    "conversionHost": "MAC",
+    "pcmBitsPerSample": 24,
+    "pcmSampleRateHz": 48000,
+    "transportCodec": "FLAC",
+    "cache": "INDEPENDENT_BOUNDED_CACHE",
+    "firstPlay": "WHOLE_TRACK_CONVERSION_AND_VALIDATION_BEFORE_READY",
+    "laterPlay": "REUSE_VALID_CACHE",
+    "otherFormats": "KEEP_EXISTING_POLICY",
+    "minimumOriginalFLAC": {
+      "bitsPerSample": 24,
+      "sampleRateHz": 192000
+    },
+    "preserve": [
+      "originalDSDFiles",
+      "originalTags",
+      "seek",
+      "Range",
+      "renew",
+      "release",
+      "cacheLimit"
+    ],
+    "multiQualityOrDynamicSwitchInFirstVersion": false,
+    "nativeDsdOrLosslessDsdClaimed": false
+  },
+  "concreteContractPreview": {
+    "path": "docs/postrust/MBM-003/contract-preview/openapi.json",
+    "bytes": 147487,
+    "sha256": "9dcde7b24150e9b21dc9366bd913e3ca216a34584b6f85942fee17e8bd7a06a8",
+    "version": "1.7.0",
+    "operations": 40,
+    "staticVerification": {
+      "file": "ROOT_MBM003_PREVIEW_SCHEMA_STATIC_CHECK464.json",
+      "bytes": 2319,
+      "sha256": "98fcb2e49a13e45e9cddf309faeedc22c87b4182918bfce183eda56efcb962a5",
+      "checks": 12,
+      "scope": "JSON_SCHEMA_ONLY_NOT_RUNTIME_PROCESSING_OR_PAIRED_FREEZE"
+    }
+  },
+  "additionalMinimumDifferences": [
+    {
+      "jsonPointer": "/components/schemas/ResourceRequest/properties/acceptedProcessingModes",
+      "operation": "add_optional_property",
+      "value": [
+        "dsd_to_pcm"
+      ]
+    },
+    {
+      "jsonPointer": "/components/schemas/ResourceRequestWithBitDepth/properties/acceptedProcessingModes",
+      "operation": "add_optional_property",
+      "value": [
+        "dsd_to_pcm"
+      ]
+    },
+    {
+      "jsonPointer": "/components/schemas/UIContentCapabilities/properties/resourceDsdToPcm",
+      "operation": "add_optional_boolean",
+      "default": false
+    }
+  ],
+  "adoptionState": "ACTUAL_PREVIEW_PUBLISHED_FOR_PEER_FREEZE_NOT_PRODUCTION_CANONICAL"
 }

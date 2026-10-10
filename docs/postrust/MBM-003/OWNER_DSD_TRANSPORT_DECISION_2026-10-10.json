@@ -1,0 +1,110 @@
+{
+  "schema": "musicbridge.mbm003.owner-dsd-transport-decision.v1",
+  "task": "MBM-003",
+  "decisionDate": "2026-10-10",
+  "authority": "Owner在协调会话直接批准的执行方案；作为003范围和验收要求，不是当前实现或验证结论。",
+  "status": "OWNER_APPROVED_PENDING_MBM002",
+  "implementationState": "NOT_STARTED",
+  "ownerInstruction": "MBM-003 按此方案执行：仅 DSD 在 Mac 端转为 24bit/48kHz PCM，再编码为 FLAC，作为独立缓存供手机播放，原文件不动。其他格式保持既定策略，保留 FLAC 至少 24bit/192kHz 支持。首次 DSD 整曲转换完成后播放，后续复用缓存；保留拖动、Range、续租、释放和缓存限额。首版不增加多档音质或动态切换。明确显示原始格式与传输格式，DSD 转 PCM 不标为原生 DSD 或无损 DSD。以真实 iPhone 播放、拖动和断线恢复验收。继续按 002→003→004→016→017 推进，不跳过 002。请确认收到并纳入任务记录。",
+  "scope": {
+    "conversionEligibleSourceFormats": [
+      "DSD"
+    ],
+    "conversionHost": "Mac",
+    "intermediatePCM": {
+      "bitDepth": 24,
+      "sampleRateHz": 48000
+    },
+    "transportEncoding": "FLAC",
+    "outputStorage": "独立且受限额管理的Mac缓存，供手机播放；不覆盖或修改原文件。",
+    "firstPlayback": "首次整曲转换完成且产物有效后播放。",
+    "laterPlayback": "复用合格缓存。",
+    "otherFormats": "保持既定策略；不统一降为24-bit/48kHz。",
+    "flacMinimumRequiredSourceSupport": {
+      "bitDepth": 24,
+      "sampleRateHz": 192000
+    },
+    "preservedPlaybackAndLifecycle": [
+      "拖动",
+      "既定Range行为",
+      "续租",
+      "释放",
+      "缓存限额"
+    ],
+    "firstVersionExcludes": [
+      "新增多档音质",
+      "动态切换音质"
+    ]
+  },
+  "sourceProtection": {
+    "originalFileUnmodified": true,
+    "originalTagsUnmodified": true,
+    "separateCacheProduct": true,
+    "beforeAfterIdentityLengthAndSHA256VerificationRequired": true
+  },
+  "presentation": {
+    "originalFormat": "展示来源文件的实际格式和规格。",
+    "transmissionFormat": "展示实际传输FLAC与24-bit/48kHz PCM规格，并标明DSD→PCM。",
+    "forbiddenClaims": [
+      "原生DSD播放",
+      "无损DSD",
+      "DSD→PCM无损转换"
+    ],
+    "physicalOutput": "来源/传输规格与物理输出分别记录，未测量的硬件输出不冒称源文件或传输规格。"
+  },
+  "acceptance": [
+    {
+      "id": "MBM003-DSD-COMPLETE-CONVERT",
+      "requirement": "首次DSD整曲完成24-bit/48kHz PCM→FLAC转换后才播放，后续实际复用独立缓存。",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "MBM003-FLAC-HIRES",
+      "requirement": "保留至少24-bit/192kHz FLAC的既定支持，并完成真实iPhone播放。",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "MBM003-DSD-IPHONEREAL",
+      "requirement": "真实iPhone播放DSD转换产物、拖动及断线恢复。",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "MBM003-RESOURCE-LIFECYCLE",
+      "requirement": "拖动、Range、续租和释放按既定协议及围栏正确运行，保留缓存限额。",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "MBM003-ORIGINAL-IMMUTABLE",
+      "requirement": "原文件/标签不变，核对原文件前后身份、长度及SHA256；独立缓存不覆盖原文件。",
+      "status": "NOT_RUN"
+    },
+    {
+      "id": "MBM003-FORMAT-TRUTH",
+      "requirement": "分别显示原始与传输格式，DSD→PCM不标原生DSD或无损DSD；不新增多档音质或动态切换。",
+      "status": "NOT_RUN"
+    }
+  ],
+  "execution": {
+    "requiredOrder": [
+      "MBM-002",
+      "MBM-003",
+      "MBM-004",
+      "MBRS-016",
+      "MBRS-017"
+    ],
+    "mbm002MustCompleteBeforeStarting003": true,
+    "currentMBM002Continues": true,
+    "existingTasksCancelled": false,
+    "handoffRequired": false,
+    "recordOnlyUntil003Admission": true,
+    "current002CanonicalAndFrozenGatesUnchanged": true,
+    "currentFrozenSourceReportAndNativeEvidencePreserved": true,
+    "owners": {
+      "mac": "MusicBridge V3.9",
+      "ios": "MusicBridge IOS",
+      "coordinator": "MusicBridge iOS与Mac调度会话"
+    }
+  },
+  "supersession": "对2026-10-09范围补充中未定案DSD转换参数作明确裁定；保留原FLAC、其他格式、源文件保护和证据边界。",
+  "evidenceBoundary": "本决定是Owner授权与任务计划。没有声称003实现、缓存可用、真机播放或验收通过。"
+}

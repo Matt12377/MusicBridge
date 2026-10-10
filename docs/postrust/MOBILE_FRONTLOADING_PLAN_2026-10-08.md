@@ -73,3 +73,7 @@ IOS 主代理负责同步本仓库 AGENTS.md 的当前授权/衔接顺序、proj
 ## 2026-10-09 Owner增补：高规格FLAC与DSD→PCM
 
 003仍NOT_STARTED，002继续按既定顺序。最低新增验收和职责见 `MBM-003/OWNER_SCOPE_AMENDMENT_2026-10-09.json`。192kHz是明确最低高规格要求；DSD→PCM采用独立转换事实，当前封存canonical尚无对应mode。最小可审阅合同提议为新增 `dsd_to_pcm`，在003阶段双端固定新合同身份/能力门控及正负例后实施，不改001已封存合同和报告。Mock、模拟器、生成PCM文件或macOS SDK不能替代上述物理iPhone证据。
+
+## 2026-10-10：002软件封存后003已启动
+
+002固定Source/R与成对软件seal已经核验，当前M/N播放及seek可听证据单列，原真实carryover保留。003依Owner最新4578字节决定从最终Mac审计b1a8和iOS最终1ed6767独立接续：仅DSD整曲PCM24/48→FLAC独立限额缓存、合格后首播和后续复用，原源/标签不改；其它格式原策略和至少FLAC24/192保持，首版无多档/动态切换。实际合同草案和processing语义见 `MBM-003/EXECUTION_SCOPE.json` 及 `CONTRACT_SEMANTICS_DRAFT.md`，生产canonical尚未替换。旧段落是当时状态，原冻结Scope/验收和001/002Source/R不重写。
