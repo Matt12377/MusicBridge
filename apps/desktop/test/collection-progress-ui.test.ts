@@ -233,8 +233,9 @@ async function mounted(t: test.TestContext, name: string, api: unknown, props: R
   const { descriptor, errors } = parse(await readFile(new URL(`../src/renderer/src/components/collection/${name}.vue`, import.meta.url), 'utf8')); assert.deepEqual(errors, [])
   const script = compileScript(descriptor, { id: 'progress-ui-test' }), template = compileTemplate({ id: 'progress-ui-test', filename: name + '.vue', source: descriptor.template!.content, compilerOptions: { bindingMetadata: script.bindings } }); assert.deepEqual(template.errors, [])
   const controller = await import('../src/renderer/src/components/collection/collection-progress-controller.js'), display = await import('../src/renderer/src/components/collection/collection-display.js')
+  const referenceImages = await import('../src/renderer/src/components/collection/reference-images.js')
   const module = { exports: {} as { default: import('vue').Component } }, rendered = { exports: {} as { render: (...args: unknown[]) => unknown } }
-  const load = (name: string) => name === 'vue' ? vue : name.includes('collection-progress-controller') ? controller : name.includes('collection-display') ? display : name.endsWith('.vue') ? { default: { render: () => null } } : require(name)
+  const load = (name: string) => name === 'vue' ? vue : name.includes('collection-progress-controller') ? controller : name.includes('collection-display') ? display : name === './reference-images' ? referenceImages : name.endsWith('.vue') ? { default: { render: () => null } } : require(name)
   const compile = (code: string) => ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
   new Function('require', 'module', 'exports', 'window', compile(script.content))(load, module, module.exports, { musicBridge: api })
   new Function('require', 'module', 'exports', compile(template.code))(load, rendered, rendered.exports)

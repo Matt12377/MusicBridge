@@ -68,7 +68,7 @@ function checkDatabaseFiles(file: string, required: boolean): boolean {
   if (!exists && (required || sidecar)) unavailable();
   return exists;
 }
-function openRepository(file: string, required: boolean, check: () => void): CollectionRepository {
+function openRepository(file: string, required: boolean, check: () => void, referenceArchiveRoot: string): CollectionRepository {
   check();
   const exists = checkDatabaseFiles(file, required), identity = exists ? lstatSync(file, { bigint: true }) : undefined;
   if (exists) {
@@ -92,7 +92,7 @@ function openRepository(file: string, required: boolean, check: () => void): Col
     } finally { inspection.close(); }
   }
   check(); checkDatabaseFiles(file, required);
-  const repository = createCollectionRepository({ filePath: file });
+  const repository = createCollectionRepository({ filePath: file, referenceArchiveRoot });
   try {
     // 工厂是惰性的；最小真实读取才能证明本次启动实际打开了选定数据库。
     repository.list({ offset: 0, limit: 1 }); check(); checkDatabaseFiles(file, true);
@@ -129,7 +129,7 @@ export async function openCollectionDataset(dataDirectory: string): Promise<Open
         const dataset = boot.pending.dataset!;
         await verifyPreparedDataset(dataset, new AbortController().signal);
         authorizePending(boot.pending);
-        repository = openRepository(checkDatasetTree(privateRoot, dataset), true, () => { authorizePending(boot.pending!); });
+        repository = openRepository(checkDatasetTree(privateRoot, dataset), true, () => { authorizePending(boot.pending!); }, path.join(dataDirectory, 'reference-archives'));
         selectedDataset = dataset; selectedActivation = boot.pending; pendingActivationId = boot.pending.view.id;
       } catch {
         repository?.close(); repository = undefined;
@@ -142,8 +142,8 @@ export async function openCollectionDataset(dataDirectory: string): Promise<Open
         const dataset = boot.active.dataset; if (!dataset) return unavailable();
         const file = checkDatasetTree(privateRoot, dataset); await checkActiveMarker(dataset);
         store.datasetIdentities.assertKnown(`activation:${dataset.id}`, file);
-        repository = openRepository(file, true, () => { checkDatasetTree(privateRoot, dataset); }); selectedDataset = dataset; selectedActivation = boot.active;
-      } else repository = openRepository(path.join(privateRoot.path, 'collection.v1.sqlite'), false, () => { checkRoot(privateRoot); });
+        repository = openRepository(file, true, () => { checkDatasetTree(privateRoot, dataset); }, path.join(dataDirectory, 'reference-archives')); selectedDataset = dataset; selectedActivation = boot.active;
+      } else repository = openRepository(path.join(privateRoot.path, 'collection.v1.sqlite'), false, () => { checkRoot(privateRoot); }, path.join(dataDirectory, 'reference-archives'));
     }
     let settled = false, closed = false;
     const selected = repository;

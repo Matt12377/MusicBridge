@@ -40,6 +40,8 @@ export const IPC_COMMANDS = [
   'collectionProgress.snapshot',
   'collectionProgress.modelLengths',
   'referenceCatalog.registerSource',
+  'referenceCatalog.previewArchive',
+  'referenceCatalog.importArchive',
   'referenceCatalog.previewSourceZip',
   'referenceCatalog.registerSourceZip',
   'referenceCatalog.sourceZipReceipts',

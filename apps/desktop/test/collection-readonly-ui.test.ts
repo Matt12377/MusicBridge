@@ -88,8 +88,8 @@ test('真实收藏模板的列表与详情都有普通刷新入口，未知保�
     error: '', notice: '', pending: undefined, receiving: false, returnLocationStale: false, returnLocation: null,
     detail, blocked, loading, refreshing, saving: false, referenceCandidates: () => [], musicNavigation: 0,
     filterDraft: { query: '', brand: '', decade: '', stockState: '' }, brandSuggestions: [], hasFilter: false,
-    catalog: undefined, inventoryView: 'wall', reviewTotal: 0, referenceLoading: false, referenceError: '',
-    spreadsheetOpen: false, referenceOpen: false, progressOpen: false, receiveModel: undefined,
+    catalog: undefined, tapeView: 'inventory', inventoryView: 'wall', reviewTotal: 0, referenceLoading: false, referenceError: '',
+    spreadsheetOpen: false, referenceOpen: false, archiveImportOpen: false, progressOpen: false, receiveModel: undefined,
     inventory: { refresh: () => { refreshCalls++ } },
   }
   const root = node('root')
@@ -98,7 +98,7 @@ test('真实收藏模板的列表与详情都有普通刷新入口，未知保�
   assert.deepEqual(compiled.errors, [])
   const render = new Function('Vue', transpileModule(compiled.code, { compilerOptions: { target: ScriptTarget.ES2022 } }).outputText)(Vue)
   const app = renderer.createApp({ setup: () => context, render })
-  for (const name of ['RecordingRecordsPanel', 'CollectionModelDetail', 'PhysicalMusicView', 'SpreadsheetImportPanel', 'ReferenceCatalogPanel', 'CollectionProgressPanel', 'CollectionReceiveDialog', 'CollectionPhoto', 'CollectionReferenceImage']) app.component(name, { render: () => null })
+  for (const name of ['RecordingRecordsPanel', 'CollectionModelDetail', 'PhysicalMusicView', 'SpreadsheetImportPanel', 'ReferenceCatalogPanel', 'CassetteCatalogView', 'CassetteArchiveImportPanel', 'CollectionProgressPanel', 'CollectionReceiveDialog', 'CollectionPhoto', 'CollectionReferenceImage']) app.component(name, { render: () => null })
   app.config.warnHandler = () => undefined
   app.mount(root); t.after(() => app.unmount())
   const text = (item: ViewNode): string => item.text + item.children.map(text).join('')

@@ -1,3 +1,4 @@
+import { isPreviewReferenceArchiveCatalogRequest, isImportReferenceArchiveCatalogRequest } from './reference-catalog.js';
 import { isLocalArtworkCommand, isLocalArtworkInternalCommand, isLocalArtworkCommandPayload, isLocalArtworkCommandResult } from './local-artwork.js';
 import { isLocalLegacyLinksCommand, isLocalLegacyLinksCommandPayload, isLocalLegacyLinksCommandResult, localLegacyRecord, localLegacyLinksDataSnapshot } from './local-legacy-links.js';
 import { LOCAL_SOURCE_WRITES_BUDGET, isLocalSourceWritesCommand, isLocalSourceWritesCommandPayload, isLocalSourceWritesCommandResult } from './local-source-writes.js';
@@ -1076,6 +1077,8 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (command === 'recordingBackups.activationReceipt') return isActivateRestoredDataset(payload);
   if (command === 'commandOutbox.context') return isEmptyPayload(payload);
   if (command === 'commandOutbox.execute') return isCommandOutboxExecute(payload);
+  if (command === 'referenceCatalog.previewArchive') return isPreviewReferenceArchiveCatalogRequest(payload);
+  if (command === 'referenceCatalog.importArchive') return isImportReferenceArchiveCatalogRequest(payload);
   if (command === 'referenceCatalog.registerSource') return isRegisterReferenceSourceRequest(payload);
   if (command === 'referenceCatalog.previewSourceZip') return isPreviewReferenceSourceZipRequest(payload);
   if (command === 'referenceCatalog.registerSourceZip') return isRegisterReferenceSourceZipRequest(payload);
@@ -1722,6 +1725,8 @@ function isCommandResult(
     case 'commandOutbox.context': return isCommandOutboxContext(value);
     case 'commandOutbox.execute': return isCommandOutboxResult(value);
     case 'referenceCatalog.registerSource': return isReferenceSourceVersion(value);
+    case 'referenceCatalog.previewArchive': return isCatalogRevisionPreview(value);
+    case 'referenceCatalog.importArchive': return isCatalogRevisionDetail(value);
     case 'referenceCatalog.previewSourceZip': return isReferenceSourceZipPreview(value);
     case 'referenceCatalog.registerSourceZip': return isRegisterReferenceSourceZipResult(value);
     case 'referenceCatalog.sourceZipReceipts': return isReferenceSourceZipReceiptPage(value);

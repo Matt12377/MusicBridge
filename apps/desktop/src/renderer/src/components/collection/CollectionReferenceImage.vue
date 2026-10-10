@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import type { IllustratedReference } from './reference-images'
-const props = defineProps<{ reference: IllustratedReference }>()
+import { computed, ref, watch } from 'vue'
+import type { CanonicalReference } from '@music-bridge/contracts'
+import { referenceImageUrl } from './reference-images'
+const props = defineProps<{ reference: CanonicalReference }>()
 const failed = ref(false)
+const url = computed(() => referenceImageUrl(props.reference))
 watch(() => props.reference, () => { failed.value = false })
 </script>
 <template>
   <span class="reference-image">
-    <img v-if="!failed" :src="reference.image.image.dataUrl" :width="reference.image.image.width" :height="reference.image.image.height" :alt="`${reference.brand} ${reference.model} ${reference.edition} 书籍参考图，非实物照片`" loading="lazy" @error="failed = true">
-    <span v-else>参考图读取失败，请重新读取目录</span>
+    <img v-if="url && !failed" :src="url" :alt="`${reference.brand} ${reference.model} ${reference.edition} 原书资料参考图，非我的实物照片`" loading="lazy" @error="failed = true">
+    <span v-else>{{ failed ? '参考图读取失败，请重新读取目录' : '主图尚缺 · 资料条目保留' }}</span>
   </span>
 </template>
 <style scoped>

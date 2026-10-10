@@ -1,0 +1,127 @@
+{
+  "taskId": "TAPE-CATALOG-R3",
+  "state": "ISOLATED_VERIFIED_AWAITING_COORDINATOR",
+  "baseSha": "c0b945a2b8d0f6f3ee2d9ea9d2cb50a787dc7f95",
+  "branch": "codex/tape-catalog-r3-import",
+  "implementationSha": "ff02c6b2fd248748fe7d461259f5749dda86fa0c",
+  "finalIdentityEvidence": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-r3-Tjy8hr/evidence/closing-identity.json",
+  "nextTaskBaseline": "本分支独立报告提交，精确SHA见finalIdentityEvidence",
+  "nodeBaseline": "22",
+  "nodeVerified": "22.23.2",
+  "referenceCount": 634,
+  "productionImported": false,
+  "ownerAccepted": false,
+  "sharedStatusModified": false,
+  "branchPushed": false,
+  "remoteCIExecuted": false,
+  "isolation": "独立common-dir，外置隔离profile",
+  "localEvidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-r3-Tjy8hr",
+  "localEvidence": {
+    "actualArchiveImport": {
+      "exitCode": 0,
+      "report": "evidence/actual-import-final2/actual-import.json",
+      "referenceItems": 634,
+      "primaryImages": 618,
+      "missingPrimaryImages": 16,
+      "preservedNonReferenceTables": 114
+    },
+    "sameProfileRestore": {
+      "exitCode": 0,
+      "report": "evidence/same-profile-restore/same-profile-restore.json",
+      "archiveIncludedInBackup": false
+    },
+    "textCoverage": {
+      "report": "evidence/text-coverage.json",
+      "summary": {
+        "referenceItems": 634,
+        "associationCounts": {
+          "all": 986,
+          "nonNullText": 766,
+          "nullText": 220
+        },
+        "uniquePanels": 619,
+        "uniquePanelsWithText": 473,
+        "uniquePanelsWithoutText": 146,
+        "referenceItemsWithAnyText": 489,
+        "referenceItemsWithOnlyNullText": 145,
+        "referenceItemsWithMixedTextAndNull": 75,
+        "referenceItemsWithNoAssociations": 0,
+        "referenceItemsWithSummary": 509,
+        "sourceBodyCoverageCategories": {
+          "product_or_combined_product_body": 422,
+          "source_has_no_product_body": 145,
+          "shared_context_only": 67
+        },
+        "sourcePanelManifestTotal": 787,
+        "unassociatedSourcePanels": 168,
+        "brandCount": 34,
+        "uiModelGroupCount": 329,
+        "associatedScopeCounts": {
+          "product_panel": 660,
+          "shared_context": 309,
+          "history_context": 17
+        }
+      }
+    },
+    "allReferenceTextProjection": {
+      "exitCode": 0,
+      "report": "evidence/text-projection-final.json"
+    },
+    "electronObservation": {
+      "exitCode": 0,
+      "report": "evidence/electron-app-sealed/electron-observation.json",
+      "originalImageRendered": true,
+      "oldDatasetPreviewRejected": true,
+      "restartPersisted": true
+    },
+    "postAppHeadAndInventory": {
+      "exitCode": 0,
+      "report": "evidence/after-app-head-and-inventory.json"
+    },
+    "completeVerify": {
+      "exitCode": 0,
+      "log": "logs/verify-sealed.log",
+      "passed": 4779,
+      "skipped": 2,
+      "typecheck": true,
+      "build": true
+    },
+    "startup": {
+      "exitCode": 0,
+      "log": "logs/startup-production.log",
+      "mode": "production",
+      "keychain": "mock",
+      "systemKeychain": false
+    },
+    "controlPlane": {
+      "exitCode": 0,
+      "log": "logs/control-plane-sealed.log"
+    },
+    "boundaries": {
+      "exitCode": 0,
+      "log": "logs/boundaries-sealed.log"
+    },
+    "sourceBinding": {
+      "report": "evidence/source-commit-binding.json",
+      "changedSourceFiles": 42,
+      "coreFrozenInputs": 1777,
+      "matchedCommit": true
+    },
+    "remoteReadBack": {
+      "report": "evidence/remote-head.json",
+      "exitCode": 0,
+      "taskBranchRemoteHead": null
+    }
+  },
+  "remaining": [
+    "协调线安排与已封存MBM-003基线合流及远端发布",
+    "生产profile身份、备份与导入时点确认",
+    "远端CI",
+    "Owner成品试用"
+  ],
+  "carryover": [
+    "现有备份包不包含独立磁带档案字节；跨机器需另保留原ZIP并在新profile重新准备档案",
+    "同profile恢复证明仅适用于档案仍保留且校验有效的范围",
+    "真实账号、设备、音频及既有发布carryover沿用各自任务证据"
+  ]
+}

@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { locateMobileDsdReportTask } from './report-only-mbm003.mjs';
+import { TAPE_CATALOG_R3_CI_SCOPE, inspectTapeCatalogCiAdmission } from './tape-catalog-r3-ci-applicability.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const receiptPath = 'docs/postrust/MBM-003/PREDECESSOR_SOFTWARE_REUSE.json';
@@ -26,36 +27,69 @@ function whole(filename) {
   } finally { closeSync(fd); }
 }
 /** 只复用原 Source/R 软件证明；新任务仍必须运行自己的 Gate 和标准验证。 */
-export function inspectMbm003PredecessorReuse(directory = root, env = process.env) {
-  const json = name => JSON.parse(whole(path.join(directory, name)));
+export function inspectMbm003PredecessorReuse(directory = root, env = process.env, io = {}) {
+  const read = io.read ?? whole;
+  // 固定本目录真实Git对象；不继承外部GIT目录、替换对象或配置命令注入。
+  const gitEnv = Object.fromEntries(Object.entries(env).filter(([key]) => !key.startsWith('GIT_')));
+  Object.assign(gitEnv,{GIT_TERMINAL_PROMPT:'0',GIT_CONFIG_NOSYSTEM:'1',GIT_CONFIG_GLOBAL:'/dev/null',GIT_OPTIONAL_LOCKS:'0'});
+  const git = io.git ?? (args => execFileSync('git',['--no-replace-objects','-c','core.fsmonitor=false',...args],
+    {cwd:directory,env:gitEnv,encoding:'utf8',timeout:10000,maxBuffer:1024*1024,stdio:['ignore','pipe','pipe']}));
+  const branch = git(['branch','--show-current']).trim() || env.GITHUB_REF_NAME;
+  // Tape先准入精确CI范围；清掉继承003双表不能逃入legacy路径。
+  const tape = branch === TAPE_CATALOG_R3_CI_SCOPE.branch
+    ? inspectTapeCatalogCiAdmission(directory, branch, { read, git, env }) : null;
+  const json = name => JSON.parse(read(path.join(directory, name)));
   const status = json('project/STATUS.json'), plan = json('project/POSTRUST_PLAN.json');
   const tasks = [status.currentMobileTask, status.mobileFrontloading20261008?.currentTask, plan.execution_schedule?.current_task];
-  if (!tasks.includes('MBM-003')) return { task: 'legacy', oldGateEvidenceReused: false };
+  if (!tasks.includes('MBM-003')) {
+    if (tape) throw new Error('磁带CI仍须绑定当前003软件Gate。');
+    return { task: 'legacy', oldGateEvidenceReused: false };
+  }
+  if (tape && tasks.some(task => task !== 'MBM-003')) throw new Error('磁带CI继承的003任务选择器不一致。');
   if (locateMobileDsdReportTask(status, plan) !== 'MBM-003') throw new Error('003 authority、lane、schedule 或双表不一致。');
-  const bytes = whole(path.join(directory, receiptPath));
+  const bytes = read(path.join(directory, receiptPath));
   if (bytes.length !== 3058 || sha(bytes) !== receiptSha) throw new Error('003 前序复用收据身份不符。');
   const receipt = JSON.parse(bytes);
   if (receipt.source !== source || receipt.directReport !== report || receipt.base !== base || receipt.directReportSingleParent !== source
     || receipt.oldGatesRerun !== false || receipt.new003SourceGateRequired !== true || receipt.new003DeviceAudioOwnerProven !== false) throw new Error('003 前序复用边界错误。');
   for (const pin of receipt.frozenFiles) {
-    const current = whole(path.join(directory,pin.path));
+    const current = read(path.join(directory,pin.path));
     if (current.length !== pin.bytes || sha(current) !== pin.sha256) throw new Error('原冻结 Gate 或报告已变，不能复用：'+pin.path);
   }
   const predecessor = json('docs/postrust/MBM-003/PREDECESSOR_DELIVERY.json');
   if (predecessor.macSource !== source || predecessor.macDirectSoftwareReport !== report || predecessor.macFinalMetadataHead !== base
     || predecessor.sourceAndDirectReportCi !== 'PASS_EXACT_FIRST_NATURAL_REUSED_UNCHANGED') throw new Error('003 前序绑定错误。');
-  const git = args => execFileSync('git',args,{cwd:directory,encoding:'utf8',timeout:10000,maxBuffer:1024*1024}).trim();
-  if (git(['rev-list','--parents','-n','1',report]) !== report+' '+source) throw new Error('原 R 不是精确 Source 的唯一直接子提交。');
+  if (git(['rev-list','--parents','-n','1',report]).trim() !== report+' '+source) throw new Error('原 R 不是精确 Source 的唯一直接子提交。');
   git(['merge-base','--is-ancestor',base,'HEAD']);
-  const branch = git(['branch','--show-current']) || env.GITHUB_REF_NAME;
-  if (branch !== 'codex/mbm-003-lossless-dsd-transport') throw new Error('003 分支不符。');
-  return { schema:'musicbridge.mbm003.predecessor-reuse-check.v1',task:'MBM-003',state:'EXACT_PREDECESSOR_SOFTWARE_REUSED',
+  if (branch !== 'codex/mbm-003-lossless-dsd-transport' && !tape) throw new Error('003 分支不符。');
+  // 003完整校验之后再回读，避免外层读取期间换HEAD或分支仍输出早期Tape身份。
+  if (tape && (git(['rev-parse','HEAD']).trim() !== tape.head
+    || (git(['branch','--show-current']).trim() || env.GITHUB_REF_NAME) !== tape.branch
+    || git(['status','--porcelain=v1','--untracked-files=all']) !== ''))
+    throw new Error('磁带CI源码在完整前序检查期间漂移。');
+  return { schema:'musicbridge.mbm003.predecessor-reuse-check.v1',task:tape?.task ?? 'MBM-003',state:'EXACT_PREDECESSOR_SOFTWARE_REUSED',
     predecessorSource:source,predecessorDirectReport:report,predecessorFinalMetadata:base,receiptSha256:receiptSha,
     frozenFilesRead:receipt.frozenFiles.length,oldGateEvidenceReused:true,oldExecutionSha:source,
-    current003SoftwareGateRequired:true,current003AppDeviceOwnerProven:false };
+    current003SoftwareGateRequired:true,current003AppDeviceOwnerProven:false,
+    ...(tape ? { currentMobileTask:'MBM-003', parallelBranchAdmission:tape } : {}) };
+}
+
+/** 执行任务与移动回归任务分别路由；缺少实际准入结果时不生成跳过历史Gate的输出。 */
+export function predecessorReuseWorkflowOutputs(result) {
+  if (result?.task === 'legacy' && result.oldGateEvidenceReused === false)
+    return { task:'legacy', mobileTask:'legacy', legacyGateMode:'run' };
+  if (!['MBM-003', 'TAPE-CATALOG-R3'].includes(result?.task)
+    || result.oldGateEvidenceReused !== true || result.current003SoftwareGateRequired !== true
+    || result.task === 'TAPE-CATALOG-R3' && (result.currentMobileTask !== 'MBM-003'
+      || result.parallelBranchAdmission?.task !== 'TAPE-CATALOG-R3'
+      || result.parallelBranchAdmission.current003SoftwareGateRequired !== true))
+    throw new Error('CI适用性结果不完整，禁止生成跳过输出。');
+  return { task:result.task, mobileTask:'MBM-003', legacyGateMode:'reuse-frozen' };
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const result = inspectMbm003PredecessorReuse();
-  if (process.env.GITHUB_OUTPUT) writeFileSync(process.env.GITHUB_OUTPUT,'task='+result.task+'\n',{flag:'a'});
+  const outputs = predecessorReuseWorkflowOutputs(result);
+  if (process.env.GITHUB_OUTPUT) writeFileSync(process.env.GITHUB_OUTPUT,
+    Object.entries(outputs).map(([key,value])=>key+'='+value+'\n').join(''),{flag:'a'});
   console.log(JSON.stringify(result));
 }

@@ -15,6 +15,8 @@ export interface CanonicalReference {
   pages: readonly string[]; notes: string; confidence: 'high' | 'medium' | 'low' | 'unknown';
   /** 仅供参考图候选匹配；必须有核对说明，不确认库存身份或实物版次。 */
   imageAliases?: readonly { brand: string; model: string; reason: string }[];
+  /** 完整原 ZIP 的身份与逻辑主图编号；原文和资产由应用自有档案保存，不携带本地路径。 */
+  archive?: { sha256: string; primaryAssetId: string | null };
 }
 export interface SourcePack { schemaVersion: 1; bookId: string; title: string; sourceVersion: string; items: readonly CanonicalReference[] }
 export interface ReferenceSourceVersion { id: string; bookId: string; title: string; sourceVersion: string; packHash: string; itemCount: number; createdAt: string }
@@ -43,6 +45,9 @@ export interface CatalogIdRequest { id: string }
 export interface CatalogMapping { fromReferenceIds: readonly string[]; toReferenceIds: readonly string[] }
 export interface PreviewCatalogRevisionRequest { sourceId: string; expectedCurrentRevisionId: string | null; items: readonly CanonicalReference[]; mappings: readonly CatalogMapping[] }
 export interface PublishCatalogRevisionRequest extends PreviewCatalogRevisionRequest { commandId: string; baselineFingerprint: string; userConfirmed: true }
+/** 只引用已经校验并稳定保存的应用档案；原文和图片字节不进入此请求。 */
+export interface PreviewReferenceArchiveCatalogRequest { archiveSha256: string; expectedDatasetId: string; expectedCurrentRevisionId: string | null }
+export interface ImportReferenceArchiveCatalogRequest extends PreviewReferenceArchiveCatalogRequest { commandId: string; baselineFingerprint: string; userConfirmed: true }
 export interface CatalogRevision {
   id: string; bookId: string; sourceId: string; packHash: string; sequence: number; previousRevisionId: string | null;
   items: readonly CanonicalReference[]; mappings: readonly CatalogMapping[]; createdAt: string;
@@ -64,6 +69,8 @@ export interface CatalogRevisionDetail {
 }
 export interface CatalogRevisionDelta {
   addedReferenceIds: readonly string[]; removedReferenceIds: readonly string[]; retainedReferenceIds: readonly string[];
+  /** 保留身份但说明、图片、时长等资料改变的项目；旧修订预览可以省略。 */
+  updatedReferenceIds?: readonly string[];
   merged: number; split: number; before: CatalogCompletion | null; after: CatalogCompletion;
 }
 export interface CatalogRevisionPreview { baselineFingerprint: string; expectedCurrentRevisionId: string | null; counts: CatalogCompletion; entries: readonly CatalogSnapshotEntry[]; delta: CatalogRevisionDelta }
@@ -103,7 +110,11 @@ const referenceKeys = (v: unknown): v is string[] => array(v, isReferenceCatalog
 function boundedJson(v: unknown, limit = MAX_REFERENCE_SOURCE_PACK_BYTES): boolean {
   try { return new TextEncoder().encode(JSON.stringify(v)).byteLength <= limit; } catch { return false; }
 }
-const itemKeys = ['referenceId', 'bookId', 'brand', 'series', 'edition', 'model', 'lengths', 'iec', 'era', 'image', 'pages', 'notes', 'confidence', 'imageAliases'];
+const itemKeys = ['referenceId', 'bookId', 'brand', 'series', 'edition', 'model', 'lengths', 'iec', 'era', 'image', 'pages', 'notes', 'confidence', 'imageAliases', 'archive'];
+function referenceArchive(v: unknown): boolean {
+  return v === undefined || record(v) && keys(v, ['sha256', 'primaryAssetId']) && hash(v.sha256)
+    && (v.primaryAssetId === null || isReferenceCatalogKey(v.primaryAssetId));
+}
 function imageAliases(v: unknown): boolean {
   return v === undefined || array(v, (a): a is { brand: string; model: string; reason: string } => record(a)
     && keys(a, ['brand', 'model', 'reason']) && text(a.brand) && text(a.model) && text(a.reason, 240), 16)
@@ -111,7 +122,7 @@ function imageAliases(v: unknown): boolean {
 }
 export function isCanonicalReference(v: unknown): v is CanonicalReference {
   if (!record(v) || !keys(v, itemKeys) || !isReferenceCatalogKey(v.referenceId) || !isReferenceCatalogKey(v.bookId)
-    || !text(v.brand) || !text(v.series, 120, true) || !text(v.edition, 120, true) || !text(v.model) || !imageAliases(v.imageAliases)
+    || !text(v.brand) || !text(v.series, 120, true) || !text(v.edition, 120, true) || !text(v.model) || !imageAliases(v.imageAliases) || !referenceArchive(v.archive)
     || !array(v.lengths, (n): n is number => integer(n, 1, 360), 32)
     || typeof v.iec !== 'string' || !['I', 'II', 'III', 'IV', 'dat', 'unknown'].includes(v.iec) || !(v.era === null || text(v.era))
     || !array(v.pages, (p): p is string => text(p, 40), 100) || !text(v.notes, 2_000, true)
@@ -126,7 +137,7 @@ function identity(item: CanonicalReference): string {
 }
 function metadata(item: CanonicalReference): string {
   const image = item.image.kind === 'none' ? ['none'] : ['reference', item.image.image.dataUrl, item.image.image.width, item.image.image.height, item.image.caption];
-  return JSON.stringify([identity(item), image, item.notes, item.confidence, item.imageAliases ?? []]);
+  return JSON.stringify([identity(item), image, item.notes, item.confidence, item.imageAliases ?? [], item.archive?.sha256 ?? null, item.archive?.primaryAssetId ?? null]);
 }
 /** 只归并同身份重复页；冲突不得通过挑选第一条悄悄丢失事实。 */
 export function normalizeReferenceItems(value: unknown): CanonicalReference[] | null {
@@ -231,6 +242,17 @@ export function isPreviewCatalogRevisionRequest(v: unknown): v is PreviewCatalog
 export function isPublishCatalogRevisionRequest(v: unknown): v is PublishCatalogRevisionRequest {
   return record(v) && keys(v, [...previewKeys, 'commandId', 'baselineFingerprint', 'userConfirmed']) && previewFields(v) && isCollectionId(v.commandId) && hash(v.baselineFingerprint) && v.userConfirmed === true;
 }
+const archivePreviewKeys = ['archiveSha256', 'expectedDatasetId', 'expectedCurrentRevisionId'];
+// 与 outbox 的工作库 UUID 规则一致；避免反向导入 command-outbox 造成合同循环依赖。
+const archiveDatasetId = (v: unknown): boolean => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(v);
+function archivePreviewFields(v: Record<string, unknown>): boolean { return hash(v.archiveSha256) && archiveDatasetId(v.expectedDatasetId) && nullableId(v.expectedCurrentRevisionId); }
+export function isPreviewReferenceArchiveCatalogRequest(v: unknown): v is PreviewReferenceArchiveCatalogRequest {
+  return record(v) && keys(v, archivePreviewKeys) && archivePreviewFields(v);
+}
+export function isImportReferenceArchiveCatalogRequest(v: unknown): v is ImportReferenceArchiveCatalogRequest {
+  return record(v) && keys(v, [...archivePreviewKeys, 'commandId', 'baselineFingerprint', 'userConfirmed']) && archivePreviewFields(v)
+    && isCollectionId(v.commandId) && hash(v.baselineFingerprint) && v.userConfirmed === true;
+}
 const revisionKeys = ['id', 'bookId', 'sourceId', 'packHash', 'sequence', 'previousRevisionId', 'createdAt'];
 function revisionFields(v: Record<string, unknown>): boolean {
   return isCollectionId(v.id) && isReferenceCatalogKey(v.bookId) && isCollectionId(v.sourceId) && hash(v.packHash) && integer(v.sequence, 1) && nullableId(v.previousRevisionId) && timestamp(v.createdAt);
@@ -290,8 +312,9 @@ export function isCatalogRevisionDetail(v: unknown): v is CatalogRevisionDetail 
     && matchFacts(v.matches) === matchFacts(v.currentEntries.flatMap(e => e.matches));
 }
 export function isCatalogRevisionDelta(v: unknown): v is CatalogRevisionDelta {
-  return record(v) && keys(v, ['addedReferenceIds', 'removedReferenceIds', 'retainedReferenceIds', 'merged', 'split', 'before', 'after'])
+  return record(v) && keys(v, ['addedReferenceIds', 'removedReferenceIds', 'retainedReferenceIds', 'updatedReferenceIds', 'merged', 'split', 'before', 'after'])
     && referenceKeys(v.addedReferenceIds) && referenceKeys(v.removedReferenceIds) && referenceKeys(v.retainedReferenceIds)
+    && (v.updatedReferenceIds === undefined || referenceKeys(v.updatedReferenceIds) && v.updatedReferenceIds.every(id => (v.retainedReferenceIds as string[]).includes(id)))
     && unique([...v.addedReferenceIds, ...v.removedReferenceIds, ...v.retainedReferenceIds]) && integer(v.merged, 0, MAX_CATALOG_REFERENCES) && integer(v.split, 0, MAX_CATALOG_REFERENCES)
     && (v.before === null || isCatalogCompletion(v.before)) && isCatalogCompletion(v.after);
 }

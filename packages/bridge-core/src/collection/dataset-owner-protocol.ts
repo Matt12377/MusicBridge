@@ -141,6 +141,8 @@ export const DATASET_COMMANDS = [
   'spreadsheetImports.adjust',
   'spreadsheetImports.adjustments',
   'referenceCatalog.registerSource',
+  'referenceCatalog.previewArchive',
+  'referenceCatalog.importArchive',
   'referenceCatalog.previewSourceZip',
   'referenceCatalog.registerSourceZip',
   'referenceCatalog.sourceZipReceipts',

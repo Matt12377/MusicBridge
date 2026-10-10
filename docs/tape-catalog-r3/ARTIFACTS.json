@@ -1,0 +1,194 @@
+{
+  "schemaVersion": 1,
+  "taskId": "TAPE-CATALOG-R3",
+  "implementationSha": "ff02c6b2fd248748fe7d461259f5749dda86fa0c",
+  "localEvidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-r3-Tjy8hr",
+  "portableAssetBundle": false,
+  "artifacts": [
+    {
+      "path": "evidence/cassette-archive/AUDIT.md",
+      "bytes": 3485,
+      "sha256": "4d32bbe4a8f0a9acfedc2dc4e5e6264a7b7fdc144a1544d913133c135342af4d"
+    },
+    {
+      "path": "evidence/cassette-archive/audit.json",
+      "bytes": 12199,
+      "sha256": "fb2ce76a578018159f539aee1fd6fc290811697f9a76a19538bc908ce44cb46f"
+    },
+    {
+      "path": "evidence/cassette-archive/entry-sha256.jsonl",
+      "bytes": 5898676,
+      "sha256": "7956ecc6f219e01dcb54fc9f3a1f631a8f138d140499787622dd59765ca52fbf"
+    },
+    {
+      "path": "evidence/actual-import-final2/actual-import.json",
+      "bytes": 1763,
+      "sha256": "cf76987a5a939d5771dfb309ef69a6e6d266df079faba8a38c1fc90e5a10c041"
+    },
+    {
+      "path": "evidence/actual-import-final2/isolated-before-import.sqlite",
+      "bytes": 1314816,
+      "sha256": "e5ace2c1e27bdbfb6adddd7599aa7732017bec3bdbee3e2e0603e12ca213ca25"
+    },
+    {
+      "path": "evidence/actual-import-final2/inventory-before.json",
+      "bytes": 10696,
+      "sha256": "82a68a7d315ed64bb515eb42fedb3898565692295cae87c669dfd4961a1cdcf1"
+    },
+    {
+      "path": "evidence/actual-import-final2/inventory-after.json",
+      "bytes": 10696,
+      "sha256": "82a68a7d315ed64bb515eb42fedb3898565692295cae87c669dfd4961a1cdcf1"
+    },
+    {
+      "path": "evidence/same-profile-restore/same-profile-restore.json",
+      "bytes": 1040,
+      "sha256": "fd099d8b7d29982ed288d6d0fd9ea58af942af748d5d9bfbff7d9e5dd7d15b8f"
+    },
+    {
+      "path": "evidence/same-profile-restore/original-default-preview.json",
+      "bytes": 317,
+      "sha256": "7cbabc6cad1f4580df9710fbdf1ddc0758d577760fddcce9a3ff9b25efb37253"
+    },
+    {
+      "path": "evidence/text-coverage.json",
+      "bytes": 256775,
+      "sha256": "f287f31ee2ac9ba7fc15d07e0b2045c15181c9d6f0a39a08d5d9f102f98d9f97"
+    },
+    {
+      "path": "evidence/text-projection-final.json",
+      "bytes": 281,
+      "sha256": "701aecf754aeffe2d1846d0857117486139bf75020a4b268f596addc7484281a"
+    },
+    {
+      "path": "evidence/electron-app-sealed/electron-observation.json",
+      "bytes": 2747,
+      "sha256": "9cc011eefcbdee7aad5f3adfa1ea73dac4dd558a7d8fcd955bda4bc58a521821"
+    },
+    {
+      "path": "evidence/after-app-head-and-inventory.json",
+      "bytes": 465,
+      "sha256": "fc80b4bdd305eaf9da6b64ab5de9d24ec8431c68910186850afb1f985d47f2c4"
+    },
+    {
+      "path": "evidence/implementation-source-snapshot.json",
+      "bytes": 10918,
+      "sha256": "8eb77f2c72d6daa5d96dfcf47ed415f5e6a60c652e43dda76e78745446682848"
+    },
+    {
+      "path": "evidence/source-commit-binding.json",
+      "bytes": 1277,
+      "sha256": "c9a89184f239ec803e93608cd1cd87a618368ef43f0c973728cb9b2c28e38a76"
+    },
+    {
+      "path": "evidence/remote-head.json",
+      "bytes": 485,
+      "sha256": "0e2afc3274a8de565430609730bc43cdd0b02c83024247b3a52408fa8b8fcddc"
+    },
+    {
+      "path": "logs/actual-import-final2.log",
+      "bytes": 2049,
+      "sha256": "47ae2048ae87b88324ac850913889679de03c1e681e1acaa674eae327a24b0f1"
+    },
+    {
+      "path": "logs/same-profile-restore.log",
+      "bytes": 1209,
+      "sha256": "c2c41a7256490d28399a4ebcdb37ac6739bb5bdb73c7b49a67ecd209b5907d1d"
+    },
+    {
+      "path": "logs/text-projection-final.log",
+      "bytes": 244,
+      "sha256": "55a9f37b0d85d63933364b00453198dda4f6cabd1f78118d9f41be6de0746910"
+    },
+    {
+      "path": "logs/electron-app-sealed.log",
+      "bytes": 2747,
+      "sha256": "9cc011eefcbdee7aad5f3adfa1ea73dac4dd558a7d8fcd955bda4bc58a521821"
+    },
+    {
+      "path": "logs/startup-production.log",
+      "bytes": 2550,
+      "sha256": "dfe04c168dce33bac5288533cff8300dbb1eb71397713291c469df6c7ff8b7bf"
+    },
+    {
+      "path": "logs/verify-sealed.log",
+      "bytes": 1159896,
+      "sha256": "d3ad0665c51bdf896fc56f836a7ebbc4dc0a6637b29cdeec3c78c774cb16b737"
+    },
+    {
+      "path": "logs/control-plane-sealed.log",
+      "bytes": 19,
+      "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+    },
+    {
+      "path": "logs/boundaries-sealed.log",
+      "bytes": 16,
+      "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+    },
+    {
+      "path": "evidence/electron-app-sealed/01-brands.png",
+      "bytes": 311027,
+      "sha256": "9145fef2cd2b6136af82eaaf24b65c4a3b8d937eed077c996813f772b6316efd"
+    },
+    {
+      "path": "evidence/electron-app-sealed/02-models.png",
+      "bytes": 270068,
+      "sha256": "94b65b8d41343bfcb9e27ff9f329a5e5f9081a03b4115c1bbed810a3d4a92a5a"
+    },
+    {
+      "path": "evidence/electron-app-sealed/03-years-editions.png",
+      "bytes": 297307,
+      "sha256": "74736323b15542db35173b8b10082fc95f6f6500adc42b6a38844fe5f14ff733"
+    },
+    {
+      "path": "evidence/electron-app-sealed/04-add-to-my-collection.png",
+      "bytes": 283948,
+      "sha256": "a1ceaf0f2d9d721c4174c64e9f9d75d0ba7c6d8b66533073dc97e956f5507154"
+    },
+    {
+      "path": "evidence/electron-app-sealed/05-detail.png",
+      "bytes": 607008,
+      "sha256": "10da1005e174f55ed47b43d74d872a44d1dc210259264d5484d6db24eee5de99"
+    },
+    {
+      "path": "evidence/electron-app-sealed/05b-original-text-and-correction.png",
+      "bytes": 323126,
+      "sha256": "9c43e21f36e0d5b0dcec48779a8c3539ce8581939623c718818dd5853013542c"
+    },
+    {
+      "path": "evidence/electron-app-sealed/06-missing-image.png",
+      "bytes": 342389,
+      "sha256": "061984fbcdda4ecf7c0a12057c10718935c843e295586bcdebb6068018a9f852"
+    },
+    {
+      "path": "evidence/electron-app-sealed/07-import-preview.png",
+      "bytes": 254506,
+      "sha256": "0ef609b3b8258b9593434d4189295b8b2649a9c401897eb04bf7c70f9d35d7f3"
+    },
+    {
+      "path": "evidence/electron-app-sealed/08-after-repeat-import.png",
+      "bytes": 319292,
+      "sha256": "078ebd0f0c189de5faf916872fd15515dcfe1a16b9cd68f524f72cf41d87b6b0"
+    },
+    {
+      "path": "evidence/electron-app-sealed/09-cold-restart.png",
+      "bytes": 303347,
+      "sha256": "c6e0f004da41d7e464754137eed2181926006d0f95fd1595f6dda412f4f3309b"
+    },
+    {
+      "path": "musicbridge-core-reader-ace4063a-a5ad-4a98-9f71-8ddffe380494/preparation-receipt.json",
+      "bytes": 755372,
+      "sha256": "6515a587d1524e868252c315b42a7d7a26009f53fb231e0d82fff3f88c9428af"
+    },
+    {
+      "path": "musicbridge-core-reader-ace4063a-a5ad-4a98-9f71-8ddffe380494/reader-build-binding.json",
+      "bytes": 57163,
+      "sha256": "d920efc63268cef115c34158efe048b849787634484a5c0c4b3d310d5faeccdf"
+    },
+    {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/musicbridge-electron-identity-T3xuEH/receipt.json",
+      "bytes": 1036,
+      "sha256": "5fa7cb137af3b602e916a3f3175f328a92301ba666adb5bbf7d79b9bdb787741"
+    }
+  ]
+}

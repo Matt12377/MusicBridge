@@ -2,18 +2,19 @@
 import { canManuallyReceiveModel } from './collection-display'
 import { computed, onMounted, ref } from 'vue'
 import { isCollectionReceiveRequest, type CollectionDescriptor, type CollectionModel, type CollectionReceiveRequest } from '@music-bridge/contracts'
+import type { CollectionReferencePrefill } from './reference-images'
 
-const props = defineProps<{ model?: CollectionModel; busy: boolean; error: string; retryable: boolean }>()
+const props = defineProps<{ model?: CollectionModel; prefill?: CollectionReferencePrefill; busy: boolean; error: string; retryable: boolean }>()
 const emit = defineEmits<{ close: []; save: [request: CollectionReceiveRequest]; retry: [] }>()
 const dialog = ref<HTMLDialogElement>()
-const descriptor = ref<CollectionDescriptor>({ brand: props.model?.brand ?? '', name: props.model?.name ?? '', edition: props.model?.edition ?? '', year: props.model?.year ?? null, format: props.model?.format ?? 'cassette', tapeType: props.model?.tapeType ?? 'unknown', identification: props.model?.identification === 'candidate' ? 'candidate' : props.model?.identification === 'verified' ? 'verified' : 'unidentified' })
+const descriptor = ref<CollectionDescriptor>({ brand: props.model?.brand ?? props.prefill?.brand ?? '', name: props.model?.name ?? props.prefill?.name ?? '', edition: props.model?.edition ?? '', year: props.model?.year ?? null, format: props.model?.format ?? props.prefill?.format ?? 'cassette', tapeType: props.model?.tapeType ?? props.prefill?.tapeType ?? 'unknown', identification: props.model?.identification === 'candidate' ? 'candidate' : props.model?.identification === 'verified' ? 'verified' : 'unidentified' })
 const minutes = ref<number | ''>('')
 const year = ref<number | ''>(descriptor.value.year ?? '')
 const quantities = ref({ sealedBlank: 0, openedBlank: 0, legacyUsed: 0, unclassified: 0 })
 const validation = ref('')
 const locked = computed(() => props.busy || props.retryable)
 const unsupportedImport = computed(() => !!props.model && !canManuallyReceiveModel(props.model))
-const title = computed(() => props.model ? '补充库存' : '添加磁带')
+const title = computed(() => props.model ? '补充库存' : props.prefill ? '添加到我的收藏' : '添加磁带')
 function save(): void {
   if (unsupportedImport.value) { validation.value = '请从 Excel 导入历史核对源行，并使用独立数量更正。'; return }
   const request: CollectionReceiveRequest = { commandId: crypto.randomUUID(), model: { ...descriptor.value, year: year.value === '' ? null : Number(year.value), tapeType: descriptor.value.format === 'dat' ? 'dat' : descriptor.value.tapeType }, lengthMinutes: minutes.value === '' ? null : Number(minutes.value), quantities: { ...quantities.value } }
@@ -29,6 +30,7 @@ onMounted(() => dialog.value?.showModal())
     <form @submit.prevent="save">
       <header><h2>{{ title }}</h2><button type="button" :disabled="locked" aria-label="关闭录入" @click="emit('close')">关闭</button></header>
       <p class="muted">按实际状态录入，不确定的磁带请放入“未分类”。同版次不同时长会归在一个型号下。</p>
+      <p v-if="prefill" class="muted">已带入资料库的品牌、型号与带型，请按手上实物核对。版次、年份、时长与数量由你填写；原书年份未填入实物年份，保存后仍需单独核对资料关联。</p>
       <p v-if="unsupportedImport" class="muted">此导入型号尚有待确认资料。请从 Excel 导入历史核对源行，并使用独立数量更正。</p>
       <fieldset :disabled="locked || unsupportedImport">
         <div class="fields">

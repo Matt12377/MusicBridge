@@ -10,12 +10,16 @@ import { readFixedMetadataWorkerBundle } from '../../packages/bridge-core/script
 import { validateOfflineArguments, createPrivateRun, writePrivateJson, isCompleteTestRun } from './verify-mbrs001-offline.mjs';
 import { captureMobileStage, mobileStageSucceeded, readMobileFile, mobileInputIdentity } from './verify-mbm000-contract-adoption.mjs';
 import { inspectLocalLibrarySignedStatFixAdmission, LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE as scope,
-  LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE_PATH as scopePath } from './local-library-signed-stat-fix-admission.mjs';
+  LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE_PATH as scopePath,
+  readLocalLibraryFixWhole } from './local-library-signed-stat-fix-admission.mjs';
+import { inspectTapeCatalogCommonAdmission, TAPE_CATALOG_COMMON_TASK,
+  TAPE_CATALOG_COMMON_BRANCH, TAPE_CATALOG_COMMON_SCOPE_PATH } from './tape-catalog-common-admission.mjs';
 
 const repository=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../..');
 const entry=fileURLToPath(import.meta.url);
 export const SIGNED_STAT_FIX_BUDGETS=scope.budgets;
 const compilerNames=['fresh-contracts-compiler','fresh-core-compiler','fresh-fixed-metadata-worker'];
+const commonStatusPath='docs/tape-catalog-common/STATUS.json';
 const sha=value=>createHash('sha256').update(value).digest('hex');
 const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
 const positive=value=>Number.isSafeInteger(value)&&value>0;
@@ -26,6 +30,26 @@ function fail(code){const error=new Error('本地库有符号身份独立Gate拒
 function uniqueSet(a,b){return Array.isArray(a)&&Array.isArray(b)&&a.length===b.length
   &&new Set(a).size===a.length&&equal([...a].sort(),[...b].sort());}
 function parsed(bytes){try{return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes));}catch{fail('SIGNED_STAT_JSON_INVALID');}}
+
+/** 组合标记只能触发完整新准入；错分支或缺Scope不得回落旧任务。 */
+export function signedStatGateAdmissionRoute(branch, commonStatus) {
+  return branch === TAPE_CATALOG_COMMON_BRANCH || commonStatus?.task === TAPE_CATALOG_COMMON_TASK
+    ? 'VALIDATE_TAPE_CATALOG_COMMON' : 'ORIGINAL_SIGNED_STAT_INSPECTOR';
+}
+export function inspectSignedStatGateAdmission(directory=repository, env=process.env) {
+  const branch=execFileSync('git',['branch','--show-current'],{cwd:directory,encoding:'utf8',
+    stdio:['ignore','pipe','pipe'],timeout:10000,maxBuffer:4096}).trim();
+  const statusFile=path.join(directory,commonStatusPath);
+  const status=lstatSync(statusFile,{throwIfNoEntry:false}) === undefined
+    ? null : parsed(readLocalLibraryFixWhole(statusFile));
+  if(signedStatGateAdmissionRoute(branch,status)==='VALIDATE_TAPE_CATALOG_COMMON'){
+    const admitted=inspectTapeCatalogCommonAdmission(directory,env);
+    if(admitted.task!==TAPE_CATALOG_COMMON_TASK || admitted.localLibraryFixTask!==scope.task
+      || admitted.signedStatFreshSoftwareGateRequired!==true)fail('SIGNED_STAT_COMMON_WRONG_TASK');
+    return admitted;
+  }
+  return inspectLocalLibrarySignedStatFixAdmission(directory,env);
+}
 function clock(){const startedMs=Date.now(),began=performance.now(),elapsedMs=()=>performance.now()-began;
   const remaining=()=>SIGNED_STAT_FIX_BUDGETS.totalTimeoutMs-elapsedMs();
   return {startedMs,elapsedMs,remaining,check(){if(remaining()<=0)fail('SIGNED_STAT_TOTAL_BUDGET_EXHAUSTED');}};}
@@ -34,11 +58,16 @@ async function descriptor(file,check,allowEmpty=false){return(await whole(file,c
 function readHead(check,remaining){check();const head=execFileSync('git',['rev-parse','HEAD'],{cwd:repository,encoding:'utf8',
   stdio:['ignore','pipe','pipe'],timeout:Math.max(1,Math.floor(Math.min(10000,remaining()))),maxBuffer:4096}).trim();
   check();if(!/^[a-f0-9]{40}$/u.test(head))fail('SIGNED_STAT_HEAD_INVALID');return head;}
-async function sourceRows(check){
+async function sourceRows(check, admitted){
   const names=new Set(coreTestSourceInputs(check).map(row=>row.path));
   for(const row of [...scope.sourceChangedPaths,...scope.protectedFiles])names.add(row.path);
   for(const file of ['pnpm-lock.yaml',scopePath,'apps/desktop/scripts/build-storage-root.mjs',
     'packages/bridge-core/scripts/metadata-reader-bundle-artifacts.mjs','scripts/ci/verify-mbm000-contract-adoption.mjs'])names.add(file);
+  if(admitted.task===TAPE_CATALOG_COMMON_TASK){
+    for(const file of [TAPE_CATALOG_COMMON_SCOPE_PATH,commonStatusPath,'scripts/ci/tape-catalog-common-admission.mjs',
+      'scripts/ci/verify-tape-catalog-common.mjs','scripts/ci/test/tape-catalog-common-gate.test.mjs'])names.add(file);
+    for(const row of [...admitted.sourcePins,...admitted.changedPaths])names.add(row.path);
+  }
   if(names.size>SIGNED_STAT_FIX_BUDGETS.maxSourceFiles)fail('SIGNED_STAT_SOURCE_COUNT_EXCEEDED');
   const rows=[];for(const relative of [...names].sort()){
     check();if(!safeRelative(relative))fail('SIGNED_STAT_SOURCE_PATH');
@@ -66,7 +95,7 @@ async function capture(stage,context,timeout=SIGNED_STAT_FIX_BUDGETS.stageTimeou
   context.check();return result;
 }
 
-async function coreLayer(receiptFile, check, storage, preparationStage) {
+async function coreLayer(receiptFile, check, storage, preparationStage, common) {
   storage.check(receiptFile, { mustExist: true, kind: 'file' });
   const receipt = parsed((await whole(receiptFile, check)).bytes), directory = path.dirname(receiptFile);
   if (path.basename(receiptFile) !== 'preparation-receipt.json' || receipt.schema !== 'core-test.reader-preparation.v1'
@@ -153,6 +182,7 @@ async function coreLayer(receiptFile, check, storage, preparationStage) {
       sourceInputIdentity: mobileInputIdentity(receipt.sourceInputs), stages: receipt.stages,
       toolInputs: tools, currentOutputRows: current, currentOutputCount: current.length,
       currentOutputIdentity: mobileInputIdentity(current.map(({ path, bytes, sha256 }) => ({ path, bytes, sha256 }))),
+      ...(common ? { originalCompilerOutputs: receipt.outputs } : {}),
       originalCompilerExecutionRepeated: true,
       reusedCoreAndWorkerKeepExactOriginalMtime: false, reboundContractOutputs,
       exactSignedStatProductSources:scope.productPins.map(row=>({path:row.path,...row.after})), productionOutputs,
@@ -165,9 +195,10 @@ async function coreLayer(receiptFile, check, storage, preparationStage) {
 export async function runLocalLibrarySignedStatFixGate(argv=process.argv.slice(2),env=process.env){
   const budget=clock(),storageAdmission=validateOfflineArguments(argv,env);
   if(process.versions.node.split('.')[0]!=='22')fail('SIGNED_STAT_NODE22_REQUIRED');
-  const admitted=inspectLocalLibrarySignedStatFixAdmission(repository,env);
-  if(admitted.task!==scope.task)fail('SIGNED_STAT_WRONG_TASK');
-  budget.check();const initialHead=readHead(budget.check,budget.remaining),inputs=await sourceRows(budget.check);
+  const admitted=inspectSignedStatGateAdmission(repository,env);
+  const common=admitted.task===TAPE_CATALOG_COMMON_TASK;
+  if(!common&&admitted.task!==scope.task)fail('SIGNED_STAT_WRONG_TASK');
+  budget.check();const initialHead=readHead(budget.check,budget.remaining),inputs=await sourceRows(budget.check,admitted);
   const leaves=await Promise.all(scope.tests.map(row=>testLeaf(row,budget.check)));
   const expectedTests=leaves.reduce((n,row)=>n+row.expectedTests,0);
   if(expectedTests!==80||new Set(leaves.flatMap(row=>row.caseNames)).size!==80)fail('SIGNED_STAT_CASE_CLOSURE_CHANGED');
@@ -175,7 +206,7 @@ export async function runLocalLibrarySignedStatFixGate(argv=process.argv.slice(2
   const runs=[],failures=[],context={run,temporary,runs,...budget,env:childEnvironment(env,temporary)};
   let core=null,sourceInputsUnchanged=false,compiledOutputsUnchanged=false;
   const unchanged=async()=>{
-    budget.check();if(readHead(budget.check,budget.remaining)!==initialHead||!equal(await sourceRows(budget.check),inputs))fail('SIGNED_STAT_SOURCE_DRIFT');
+    budget.check();if(readHead(budget.check,budget.remaining)!==initialHead||!equal(await sourceRows(budget.check,admitted),inputs))fail('SIGNED_STAT_SOURCE_DRIFT');
     for(const pin of scope.productPins){const row=inputs.find(item=>item.path===pin.path);
       if(row?.bytes!==pin.after.bytes||row?.sha256!==pin.after.sha256)fail('SIGNED_STAT_PRODUCT_DRIFT');}
     for(const pin of scope.compatibilityPins){const row=inputs.find(item=>item.path===pin.path);
@@ -187,7 +218,7 @@ export async function runLocalLibrarySignedStatFixGate(argv=process.argv.slice(2
     const handoff=parsed((await whole(handoffFile,budget.check)).bytes);
     if(handoff.schema!=='musicbridge.local-library-signed-stat-fix.core-handoff.v1'||!within(handoff.receipt,temporary)
       ||!within(handoff.readerBinding,temporary)||!uniqueSet(Object.keys(handoff),['schema','receipt','readerBinding']))fail('SIGNED_STAT_PREPARATION_HANDOFF_INVALID');
-    core=await coreLayer(handoff.receipt,budget.check,storageAdmission.storage,preparationStage);
+    core=await coreLayer(handoff.receipt,budget.check,storageAdmission.storage,preparationStage,common);
     if(core.env.MBRS003_READER_BUILD_BINDING!==handoff.readerBinding)fail('SIGNED_STAT_READER_HANDOFF_MISMATCH');
     Object.assign(context.env,core.env);await unchanged();
     for(const leaf of leaves){
@@ -205,8 +236,10 @@ export async function runLocalLibrarySignedStatFixGate(argv=process.argv.slice(2
   const counts=Object.fromEntries(['tests','pass','fail','cancelled','skipped','todo'].map(key=>[key,behavior.reduce((n,row)=>n+(row.testCounts?.[key]??0),0)]));
   const success=failures.length===0&&core!==null&&sourceInputsUnchanged&&compiledOutputsUnchanged
     &&runs.length===9&&behavior.length===8&&runs.every(mobileStageSucceeded)&&isCompleteTestRun(counts,80)&&budget.remaining()>0;
-  const summary={schema:'musicbridge.local-library-signed-stat-fix.software-gate.v1',task:scope.task,
-    success,state:success?'EXACT_FIX_SOFTWARE_ONLY_PASS':'FAILED',baseSha:scope.baseSha,headAtRun:initialHead,
+  const summary={schema:common?'musicbridge.tape-catalog-common.signed-stat-software-gate.v1':'musicbridge.local-library-signed-stat-fix.software-gate.v1',task:admitted.task,
+    ...(common?{localLibraryFixTask:scope.task,signedStatFreshSoftwareGateRequired:true}:{}),
+    success,state:success?(common?'COMMON_SIGNED_STAT_SOFTWARE_ONLY_PASS':'EXACT_FIX_SOFTWARE_ONLY_PASS'):'FAILED',
+    baseSha:common?admitted.baseSha:scope.baseSha,headAtRun:initialHead,
     startedMs:budget.startedMs,finishedMs:Date.now(),durationMs:budget.elapsedMs(),budgets:SIGNED_STAT_FIX_BUDGETS,
     admission:admitted,sourceInputs:inputs,sourceInputIdentity:mobileInputIdentity(inputs),sourceInputsUnchanged,
     currentCoreAndWorker:core?.proof??null,compiledOutputsUnchanged,runs,failures,selectedTestLeaves:leaves,

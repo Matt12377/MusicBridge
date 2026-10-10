@@ -1,3 +1,4 @@
+import type { PreviewReferenceArchiveCatalogRequest, ImportReferenceArchiveCatalogRequest } from './reference-catalog.js';
 import type { LocalArtworkCommandPayloads, LocalArtworkCommandResults, LocalArtworkInternalCommand } from './local-artwork.js';
 import type { LocalSourceWritesCommandPayloads, LocalSourceWritesCommandResults } from './local-source-writes.js';
 import type { LocalRelocationPlanCommandPayloads, LocalRelocationPlanCommandResults } from './local-relocation-plan.js';
@@ -147,6 +148,8 @@ export interface IpcCommandPayloads extends LocalRelocationPlanCommandPayloads, 
   'collectionProgress.snapshot': GetCollectionProgressSnapshotRequest;
   'collectionProgress.modelLengths': GetCollectionModelLengthsRequest;
   'referenceCatalog.registerSource': RegisterReferenceSourceRequest;
+  'referenceCatalog.previewArchive': PreviewReferenceArchiveCatalogRequest;
+  'referenceCatalog.importArchive': ImportReferenceArchiveCatalogRequest;
   'referenceCatalog.previewSourceZip': PreviewReferenceSourceZipRequest;
   'referenceCatalog.registerSourceZip': RegisterReferenceSourceZipRequest;
   'referenceCatalog.sourceZipReceipts': ReferenceSourceZipReceiptListRequest;
@@ -439,6 +442,8 @@ export interface IpcCommandResults extends LocalRelocationPlanCommandResults, Lo
   'collectionProgress.snapshot': CollectionProgressSnapshotDetail;
   'collectionProgress.modelLengths': CollectionModelLengths;
   'referenceCatalog.registerSource': ReferenceSourceVersion;
+  'referenceCatalog.previewArchive': CatalogRevisionPreview;
+  'referenceCatalog.importArchive': CatalogRevisionDetail;
   'referenceCatalog.previewSourceZip': ReferenceSourceZipPreview;
   'referenceCatalog.registerSourceZip': RegisterReferenceSourceZipResult;
   'referenceCatalog.sourceZipReceipts': ReferenceSourceZipReceiptPage;

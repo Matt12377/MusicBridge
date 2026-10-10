@@ -2,7 +2,7 @@
 import { collectionModelLabel } from './collection-display'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import type { CanonicalReference, CollectionFilter, CollectionModel, CollectionReceiveRequest } from '@music-bridge/contracts'
-import { loadPublishedReferenceImages, referenceImagesForModel } from './reference-images'
+import { collectionPrefillForReference, loadPublishedCassetteCatalog, referenceImagesForModel, type CollectionReferencePrefill, type PublishedCassetteReference, type ReferenceCatalogSelection } from './reference-images'
 import CollectionReferenceImage from './CollectionReferenceImage.vue'
 import { useCollection } from '../../composables/useCollection'
 import CollectionReceiveDialog from './CollectionReceiveDialog.vue'
@@ -11,6 +11,8 @@ import CollectionPhoto from './CollectionPhoto.vue'
 import PhysicalMusicView from './PhysicalMusicView.vue'
 import RecordingRecordsPanel from '../recording/RecordingRecordsPanel.vue'
 import ReferenceCatalogPanel from './ReferenceCatalogPanel.vue'
+import CassetteCatalogView from './CassetteCatalogView.vue'
+import CassetteArchiveImportPanel from './CassetteArchiveImportPanel.vue'
 import SpreadsheetImportPanel from './SpreadsheetImportPanel.vue'
 import CollectionProgressPanel from './CollectionProgressPanel.vue'
 import type { CollectionReservationEntry, CollectionReturnLocation, CollectionStartEntry, RecordingPhysicalSelection, RecordingReservationSelection } from './collection-recording-navigation'
@@ -57,16 +59,31 @@ function closeSpreadsheet(): void { spreadsheetOpen.value = false; void nextTick
 
 const referenceOpen = ref(false)
 const referenceTrigger = ref<HTMLButtonElement | HTMLButtonElement[]>()
+const referenceSelection = shallowRef<ReferenceCatalogSelection>()
+let referenceOrigin: HTMLElement | undefined
+function openReference(selection?: ReferenceCatalogSelection): void {
+  if (!guardLeave()) return
+  referenceOrigin = document.activeElement as HTMLElement
+  referenceSelection.value = selection; referenceOpen.value = true
+}
 // 循环中的字符串ref可能是数组；关闭后仍回到当前页面内的原入口。
 function focusCollectionTrigger(trigger: HTMLElement | HTMLElement[] | undefined): void {
   const target = Array.isArray(trigger) ? trigger.find((element: HTMLElement) => element.isConnected) : trigger
   target?.focus({ preventScroll: true })
 }
-function closeReference(): void { referenceOpen.value = false; void loadReferenceImages(); void nextTick(() => focusCollectionTrigger(referenceTrigger.value)) }
+function closeReference(): void { referenceOpen.value = false; referenceSelection.value = undefined; void loadReferenceImages(); void nextTick(() => focusCollectionTrigger(referenceOrigin?.isConnected ? referenceOrigin : referenceTrigger.value)) }
+
+const archiveImportOpen = ref(false)
+let archiveImportOrigin: HTMLElement | undefined
+function openArchiveImport(): void { if (!guardLeave()) return; archiveImportOrigin = document.activeElement as HTMLElement; archiveImportOpen.value = true }
+function closeArchiveImport(): void { archiveImportOpen.value = false; void nextTick(() => archiveImportOrigin?.isConnected && archiveImportOrigin.focus({ preventScroll: true })) }
+function archiveImported(): void { tapeView.value = 'catalog'; void loadReferenceImages() }
 
 const inventory = useCollection()
 const collectionApi = window.musicBridge
 const { catalog, detail, filter, loading, saving, refreshing, error, notice, pending, blocked } = inventory
+const tapeView = ref<'inventory' | 'catalog'>('inventory')
+function selectTapeView(view: 'inventory' | 'catalog'): void { if (!blocked.value && guardLeave()) tapeView.value = view }
 const inventoryView = ref<'wall' | 'inventory'>('wall')
 const reviewTotal = ref<number>()
 let reviewRead = 0
@@ -89,17 +106,18 @@ function modelStatus(model: CollectionModel): string {
   return model.identification !== 'verified' || model.counts.unknown > 0 ? '尚待核实' : '已收藏'
 }
 let modelOrigin: HTMLElement | undefined
-function openModel(id: string): void { modelOrigin = document.activeElement as HTMLElement; void inventory.openModel(id) }
+function openModel(id: string): void { modelOrigin = document.activeElement as HTMLElement; tapeView.value = 'inventory'; void inventory.openModel(id) }
 function closeModel(): void { inventory.closeModel(); void nextTick(() => modelOrigin?.isConnected && modelOrigin.focus({ preventScroll: true })) }
 const returnLocationStale = ref(false), relocating = ref(false)
 const referenceImages = shallowRef<readonly CanonicalReference[]>([])
+const publishedReferences = shallowRef<readonly PublishedCassetteReference[]>([])
 const referenceLoading = ref(false), referenceError = ref('')
 let referenceRead = 0
 async function loadReferenceImages(): Promise<void> {
   const read = ++referenceRead
-  referenceLoading.value = true; referenceError.value = ''; referenceImages.value = []
-  try { const items = await loadPublishedReferenceImages(collectionApi); if (read === referenceRead) referenceImages.value = items }
-  catch { if (read === referenceRead) referenceError.value = '书籍参考图暂时无法读取，库存和实物照片不受影响。' }
+  referenceLoading.value = true; referenceError.value = ''
+  try { const items = await loadPublishedCassetteCatalog(collectionApi); if (read === referenceRead) { publishedReferences.value = items; referenceImages.value = items.map(item => item.reference) } }
+  catch { if (read === referenceRead) referenceError.value = '磁带参考资料暂时无法读取；已读取的目录、库存和实物照片保留。' }
   finally { if (read === referenceRead) referenceLoading.value = false }
 }
 const candidatesByModel = computed(() => new Map(catalog.value?.items.map(model => [model.id, referenceImagesForModel(model, referenceImages.value)])))
@@ -138,6 +156,7 @@ function openReservation(selection: RecordingReservationSelection): void {
 }
 async function restorePhysicalLocation(location = props.returnLocation): Promise<void> {
   if (!location) return
+  tapeView.value = 'inventory'
   const epoch = ++restoreEpoch, focusEpoch = userFocusEpoch
   const stillCurrent = () => alive && epoch === restoreEpoch && focusEpoch === userFocusEpoch
     && props.returnLocation?.physicalId === location.physicalId && selectedView.value === 'tapes'
@@ -172,14 +191,23 @@ async function relocatePhysical(): Promise<void> {
   finally { relocating.value = false }
 }
 function showRecording(id: string): void { if (!guardLeave()) return; musicId.value = id; musicNavigation.value++; selectedView.value = 'music' }
-function showModel(id: string): void { if (!guardLeave()) return; selectedView.value = 'tapes'; void inventory.openModel(id) }
+function showModel(id: string): void { if (!guardLeave()) return; selectedView.value = 'tapes'; tapeView.value = 'inventory'; void inventory.openModel(id) }
 const receiving = ref(false)
 const receiveModel = ref<CollectionModel>()
-function beginReceive(model?: CollectionModel): void { receiveModel.value = model; receiving.value = true }
-async function receive(request: CollectionReceiveRequest): Promise<void> {
-  if (await inventory.mutate(() => window.musicBridge.receiveCollectionStock(request))) receiving.value = false
+const receivePrefill = shallowRef<CollectionReferencePrefill>()
+let receiveOrigin: HTMLElement | undefined
+function beginReceive(model?: CollectionModel): void { receiveOrigin = document.activeElement as HTMLElement; receivePrefill.value = undefined; receiveModel.value = model; receiving.value = true }
+function beginReceiveFromReference(reference: CanonicalReference): void {
+  if (blocked.value || receiving.value || !guardLeave()) return
+  receiveOrigin = document.activeElement as HTMLElement
+  receiveModel.value = undefined; receivePrefill.value = collectionPrefillForReference(reference); receiving.value = true
 }
-async function retry(): Promise<void> { if (await inventory.retry()) receiving.value = false }
+function closeReceive(): void { receiving.value = false; receivePrefill.value = undefined; void nextTick(() => receiveOrigin?.isConnected && receiveOrigin.focus({ preventScroll: true })) }
+function finishReceive(): void { if (receivePrefill.value) notice.value = '库存已保存；资料库关联仍待单独核对，未自动确认拥有。'; closeReceive() }
+async function receive(request: CollectionReceiveRequest): Promise<void> {
+  if (await inventory.mutate(() => window.musicBridge.receiveCollectionStock(request))) finishReceive()
+}
+async function retry(): Promise<void> { if (await inventory.retry()) finishReceive() }
 
 const selectedView = defineModel<'tapes' | 'music'>({ required: true })
 const views = [
@@ -192,18 +220,24 @@ const views = [
   <RecordingRecordsPanel v-if="recordPhysicalId" ref="recordsPanel" :physical-id="recordPhysicalId" @close="closeRecords" @changed="detail && inventory.openModel(detail.model.id)" />
   <section class="collection-view" data-component="CollectionView" aria-label="实体收藏">
     <p v-if="leaveError" role="alert">{{ leaveError }}</p>
-    <p class="collection-breadcrumb">实物收藏 / {{ selectedView === 'tapes' ? '收藏音乐库' : '实体音乐库' }}</p>
+    <p class="collection-breadcrumb">实物收藏 / {{ selectedView === 'tapes' ? tapeView === 'catalog' ? '全部磁带资料' : '我的磁带' : '实体音乐库' }}</p>
 
     <div v-for="view in views" v-show="selectedView === view.id" :id="`collection-panel-${view.id}`" :key="view.id"
       class="collection-panel" role="region" :aria-label="view.label">
-      <div v-if="view.id === 'tapes'" class="inventory-feedback" aria-live="polite">
+      <nav v-if="view.id === 'tapes'" class="inventory-subviews tape-subviews" aria-label="磁带资料与我的收藏">
+        <button type="button" :aria-pressed="tapeView === 'catalog'" :disabled="blocked" @click="selectTapeView('catalog')">全部磁带资料</button>
+        <button type="button" :aria-pressed="tapeView === 'inventory'" :disabled="blocked" @click="selectTapeView('inventory')">我的磁带</button>
+      </nav>
+      <p v-if="view.id === 'tapes' && tapeView === 'catalog' && notice" class="collection-status" role="status">{{ notice }}</p>
+      <CassetteCatalogView v-if="view.id === 'tapes' && tapeView === 'catalog'" :items="publishedReferences" :loading="referenceLoading" :error="referenceError" @refresh="loadReferenceImages" @manage="openReference" @import-archive="openArchiveImport" @open-model="openModel" @receive="beginReceiveFromReference" />
+      <div v-if="view.id === 'tapes' && tapeView === 'inventory'" class="inventory-feedback" aria-live="polite">
         <p v-if="error" role="alert">{{ error }} <button v-if="pending && !receiving" :disabled="saving" @click="retry">重试原操作</button><button v-else-if="!pending" :disabled="loading || blocked" @click="inventory.refresh()">刷新库存</button></p>
         <p v-else-if="notice" role="status">{{ notice }} <button v-if="returnLocationStale" type="button" :disabled="relocating || blocked" @click="relocatePhysical">重新定位这盘</button></p>
       </div>
-      <div v-if="view.id === 'tapes' && detail" class="collection-actions collection-detail-actions">
+      <div v-if="view.id === 'tapes' && tapeView === 'inventory' && detail" class="collection-actions collection-detail-actions">
         <button class="reference-entry" type="button" :disabled="loading || blocked" @click="inventory.refresh()">{{ refreshing ? '刷新中…' : '刷新库存' }}</button>
       </div>
-      <CollectionModelDetail v-if="view.id === 'tapes' && detail" :detail="detail" :busy="blocked"
+      <CollectionModelDetail v-if="view.id === 'tapes' && tapeView === 'inventory' && detail" :detail="detail" :busy="blocked"
         :focus-physical-id="returnLocation?.physicalId" :reference-candidates="referenceCandidates(detail.model)"
         @show-records="showRecords" @show-recording="showRecording" @start-recording="startRecording" @open-reservation="openReservation" @close="closeModel" @receive="beginReceive(detail.model)" @page="inventory.openModel(detail.model.id, $event)"
         @materialize="request => inventory.mutate(() => collectionApi.materializeCollectionCopy(request))"
@@ -212,7 +246,7 @@ const views = [
         @policy="request => inventory.mutate(() => collectionApi.setCollectionPolicy(request))" />
       <PhysicalMusicView :key="musicNavigation" v-if="view.id === 'music'" :ref="bindMusicView" :requested-id="musicId" :active="selectedView === 'music'" @model="showModel" />
 
-      <template v-if="view.id === 'tapes' && !detail">
+      <template v-if="view.id === 'tapes' && tapeView === 'inventory' && !detail">
         <header class="collection-heading">
           <div><p class="collection-kicker">PHYSICAL COLLECTION / V3</p><h2>每一盘，都有它的位置。</h2><p>按型号和年代看收藏；点开一款，就能看到数量、状态和录过的内容。</p></div>
           <div class="collection-header-tools"><label class="collection-search"><span class="filter-label">关键词</span><input v-model.trim="filterDraft.query" form="collection-filters" maxlength="120" placeholder="搜索品牌、型号、版次…"></label>
@@ -229,7 +263,7 @@ const views = [
           <button type="button" :aria-pressed="inventoryView === 'inventory'" @click="inventoryView = 'inventory'">我的库存</button>
         </nav>
 
-        <div class="collection-list-tools"><span v-if="catalog">{{ hasFilter ? '筛选结果' : '已登记' }} · {{ catalog.total }} 个型号</span><div class="collection-list-actions"><button ref="progressTrigger" class="reference-entry" type="button" aria-label="完成度与求购" aria-haspopup="dialog" @click="openProgress()">收藏进度 / 求购</button><button v-if="reviewTotal" class="collection-review-entry" type="button" :disabled="loading" aria-label="待整理库存" title="未知库存仍计入拥有数量；整理不会自动确认版次或空白状态。" @click="reviewInventory">{{ reviewTotal }} 型号待整理 →</button><button ref="referenceTrigger" class="reference-entry" type="button" @click="referenceOpen = true">参考目录与版次</button></div></div>
+        <div class="collection-list-tools"><span v-if="catalog">{{ hasFilter ? '筛选结果' : '已登记' }} · {{ catalog.total }} 个型号</span><div class="collection-list-actions"><button ref="progressTrigger" class="reference-entry" type="button" aria-label="完成度与求购" aria-haspopup="dialog" @click="openProgress()">收藏进度 / 求购</button><button v-if="reviewTotal" class="collection-review-entry" type="button" :disabled="loading" aria-label="待整理库存" title="未知库存仍计入拥有数量；整理不会自动确认版次或空白状态。" @click="reviewInventory">{{ reviewTotal }} 型号待整理 →</button><button ref="referenceTrigger" class="reference-entry" type="button" @click="openReference()">参考目录与版次</button></div></div>
         <p v-if="loading" role="status" class="collection-status">正在读取库存…</p>
         <p v-if="referenceLoading" role="status" class="collection-status">正在读取书籍参考图…</p>
         <p v-else-if="referenceError" role="alert" class="collection-status">{{ referenceError }} <button type="button" @click="loadReferenceImages">重试参考图</button></p>
@@ -262,9 +296,10 @@ const views = [
       </template>
     </div>
     <SpreadsheetImportPanel v-if="spreadsheetOpen" @close="closeSpreadsheet" @changed="inventory.load(); detail && inventory.openModel(detail.model.id)" />
-    <ReferenceCatalogPanel v-if="referenceOpen" @close="closeReference" />
+    <ReferenceCatalogPanel v-if="referenceOpen" :initial-selection="referenceSelection" @close="closeReference" />
+    <CassetteArchiveImportPanel v-if="archiveImportOpen" @close="closeArchiveImport" @imported="archiveImported" />
     <CollectionProgressPanel v-if="progressOpen" :initial-section="progressSection" @close="closeProgress" />
-    <CollectionReceiveDialog v-if="receiving" :model="receiveModel" :busy="saving" :error="error" :retryable="!!pending" @close="receiving = false" @save="receive" @retry="retry" />
+    <CollectionReceiveDialog v-if="receiving" :model="receiveModel" :prefill="receivePrefill" :busy="saving" :error="error" :retryable="!!pending" @close="closeReceive" @save="receive" @retry="retry" />
   </section>
 </template>
 

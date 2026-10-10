@@ -1,0 +1,43 @@
+{
+  "schema": "musicbridge.tape-catalog-common.status.v1",
+  "task": "TAPE-CATALOG-R3-COMMON",
+  "branch": "codex/tape-catalog-common-baseline",
+  "baseSha": "c647e02b40d55b955faabc9d6a2a6220c9286bac",
+  "executionScope": "docs/tape-catalog-common/EXECUTION_SCOPE.json",
+  "phase": "SOURCE_IMPLEMENTATION",
+  "inherited": {
+    "macProductSource": "fd176fdf1da069dd678b673f697cdbe8831628cc",
+    "macDirectReport": "c647e02b40d55b955faabc9d6a2a6220c9286bac",
+    "tapeFrozenSource": "cfa0456de984c6cf37a1cbb69300ae9a9ee97d7f",
+    "tapeOriginalProductSource": "ff02c6b2fd248748fe7d461259f5749dda86fa0c",
+    "tapeOriginalProductReport": "799fece27f0cfe056a56fd6258f0db380db3461e",
+    "originalMbm003Source": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+    "originalMbm003DirectReport": "99c89519f3357f4018b32930e8179b66719f99e7",
+    "iosSource": "9746e1ab9a68a73edef7be93ef86818d7a6f2217",
+    "iosReport": "bbebb7cc2cb5eaee21a78ecb94ac03b1c9af8595"
+  },
+  "catalogue": {
+    "brands": 34,
+    "modelNames": 329,
+    "referenceEditions": 634,
+    "referenceDoesNotDeclareOwnership": true,
+    "personalInventoryAddedByIntegration": false,
+    "originalAssetsTextUnknownFieldsAndLinksPreserved": true
+  },
+  "evidenceBoundary": {
+    "realCatalogImport": "NOT_RUN",
+    "sourceMediaWrites": false,
+    "ordinary61": "OPEN",
+    "cold61": "OPEN",
+    "realOsInterruption": "OPEN",
+    "ownerAcceptanceProven": false,
+    "oldEvidenceReattributed": false
+  },
+  "validation": {
+    "newStandardVerify": "REQUIRED_FOR_COMBINED_SOURCE",
+    "newFreshReaderWorker80": "REQUIRED_FOR_COMBINED_SOURCE",
+    "firstNaturalCombinedSourceCi": "PENDING",
+    "directReportAndItsNaturalCi": "PENDING",
+    "oldZipMediaPhoneGatesRerun": false
+  }
+}

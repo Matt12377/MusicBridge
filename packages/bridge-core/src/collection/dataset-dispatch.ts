@@ -6,6 +6,7 @@ import { isLocalRelocationPlanCommand } from '@music-bridge/contracts';
 import { withLocalFactsMutation } from '../stream/local-source-fence.js';
 import {isLocalRelocationCommand,isLocalRelocationInternalCommand} from '@music-bridge/contracts';
 import { isScanPreparedBatch } from './local-scan-store.js';
+import { loadCassetteArchive } from './cassette-archive.js';
 import { isLocalScanCommand, isLocalScanInternalCommand, isLocalCatalogCommand, isLocalCatalogInternalCommand, validateIpcRequest, validateIpcInternalRequest } from '@music-bridge/contracts';
 import { IPC_VERSION, isCommandOutboxExecute, type IpcCommand, type IpcCommandPayloads, type IpcRequest } from '@music-bridge/contracts';
 import { CollectionError, type CollectionRepository } from './repository.js';
@@ -367,6 +368,20 @@ async function dispatchDataset(runtime: DatasetDispatchTarget, request: IpcReque
     case 'spreadsheetImports.adjust': return collectionFor(runtime).spreadsheetImports.adjust(request.payload as IpcCommandPayloads['spreadsheetImports.adjust']);
     case 'spreadsheetImports.adjustments': return collectionFor(runtime).spreadsheetImports.adjustments(request.payload as IpcCommandPayloads['spreadsheetImports.adjustments']);
     case 'referenceCatalog.registerSource': return collectionFor(runtime).catalog.registerSource(request.payload as IpcCommandPayloads['referenceCatalog.registerSource']);
+    case 'referenceCatalog.previewArchive':
+    case 'referenceCatalog.importArchive': {
+      const repository = collectionFor(runtime), root = repository.privateReferenceArchiveDirectory?.();
+      if (!root) throw new CollectionError('INVENTORY_UNAVAILABLE', '磁带资料档案目录尚未就绪。');
+      const payload = request.payload as IpcCommandPayloads['referenceCatalog.importArchive'];
+      if (!runtime.commandOutbox || runtime.commandOutbox.context().datasetId !== payload.expectedDatasetId)
+        throw new CollectionError('INVENTORY_CONFLICT', '资料库已切换，原档案预览不能写入当前资料库。');
+      const archive = await loadCassetteArchive(root, payload.archiveSha256);
+      if (runtime.commandOutbox.context().datasetId !== payload.expectedDatasetId || collectionFor(runtime) !== repository)
+        throw new CollectionError('INVENTORY_CONFLICT', '档案校验期间资料库已切换，请重新预览。');
+      return request.command === 'referenceCatalog.previewArchive'
+        ? repository.catalog.previewArchiveCatalog(payload, archive.rawPack)
+        : repository.catalog.importArchiveCatalog(payload, archive.rawPack);
+    }
     case 'referenceCatalog.previewSourceZip': return collectionFor(runtime).catalog.previewSourceZip(request.payload as IpcCommandPayloads['referenceCatalog.previewSourceZip']);
     case 'referenceCatalog.registerSourceZip': return collectionFor(runtime).catalog.registerSourceZip(request.payload as IpcCommandPayloads['referenceCatalog.registerSourceZip']);
     case 'referenceCatalog.sourceZipReceipts': return collectionFor(runtime).catalog.sourceZipReceipts(request.payload as IpcCommandPayloads['referenceCatalog.sourceZipReceipts']);
