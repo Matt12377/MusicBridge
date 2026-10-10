@@ -1,0 +1,21 @@
+MBM-003 FLAC无损与DSD兼容传输结果
+
+任务Base为`b1a8de728086e7994bb69d7dee10782f646886dd`；实现Source为`5e96372f0dd99e08b1e2964d68ce234eb438bbdf`，分支为`codex/mbm-003-lossless-dsd-transport`。本报告的Git HEAD解析为Source的唯一直接子提交R；R自身首次自然CI、远端HEAD和清洁状态在外置最终交付回执中解析，写作时尚未完成。
+
+已实现并在新鲜软件检查中验证：FLAC保持来源到传输的采样率/位深/声道，覆盖16/24-bit、44.1kHz及最低24-bit/192kHz；仅DSF/DFF经明确协商转为PCM24-bit/48kHz，再编码为独立限额FLAC缓存。整曲转换与输出核验成功后才可ready，后续复用；活动缓存与源FD关闭失败不得静默释放。原始DSD规格、实际PCM/FLAC传输和物理audio route分别记录。
+
+固定Source本地003 Gate为80/80退出0，其中53行为例与27合同例；首次自然Source CI为4流程/6任务/5制品元数据准入，hosted00365/65，本地额外15例覆盖native后端。精确Source标准回归4738总、4736通过、2项既有native-only skip；报告准入行为86/86。旧WIP标准508的4736总/4734通过及26例环境修补检查各保留原身份，不能算作当前Source完整回归。Source制品实际完整内容状态见附属EVIDENCE。
+
+运行层使用原生产Main/TLS、supervisor、实际物理SQLite Owner、Scanner/Reader及系统safeStorage；Provider/Roon/桌面状态由CORE_TEST_MODE=1选择合成。五个自有合成文件包括三档FLAC及DSF/DFF；扩展编码到24/192不能声明原始高解析录音品质。通过正常MB_ONLY信息整理和command-outbox保存五个可辨标题，音频与标签原文件完整字节未变，原104曲公开详情不变。旧窗口到期App退出0并确认端口关闭，设置页关闭服务未确认的FAILED原回执保留；新窗口沿用同Source/dist/profile、55932、证书和配对，没有重扫、新Root、新edition或新permit。
+
+普通`/Applications/Music Bridge for Roon.app`已更新为0.1.0-beta.2/build20261010.1并实际启动，既有真实歌单和正常窗口可见；原App完整备份在外置任务目录。该试用包为adhoc arm64，真实用户资料未由安装器修改，Owner当前页面保留。安装/启动不能证明正式003格式播放，也不能抵扣017 Developer ID签名、公证、最终交付或Owner接受。
+
+原12条003验收与8项Owner聚合要求、原18任务156验收及取消后的17/150保持。实际iPhone五格式播放、seek、续租、服务恢复、首次DSD有效转换/缓存复用和物理route仍须当前独立iOS回执；本报告不代签听感或Owner接受。既有8项moderate依赖及旧真实Roon/媒体/录音/发布carryover保留。下一顺序为003→004→016→017，下一分支基线为R自然CI成功后实际远端报告HEAD，后续任务尚未开始。
+
+磁带r3软件检查点Source`ff02c6b2fd248748fe7d461259f5749dda86fa0c`/报告`799fece27f0cfe056a56fd6258f0db380db3461e`由独立会话继续；首次CI继承003分支检查失败已保留，原会话修复适用性。尚未并入本Source、试用App或生产资料导入。
+
+可核对证据为[MBM-003_EVIDENCE.json](MBM-003_EVIDENCE.json)、Source CI、实际受控runtime及普通试用安装overlay。Source账本中软件/App/真实/Owner状态逐值冻结；当前新增事实只写003报告/证据与允许记账字段。
+
+本轮新增实际失败：iPhone24/192 FLAC已可听，Owner明确反馈“能听到声音但是不连续”，故HIRES验收保持失败/未闭合。Root仅对源PCM和同源FLAC完整离线解码，1200个100ms窗及20ms静音检查未发现源信号缺口；网络、Range、缓冲、票据/资源续租仍待真实诊断，不能把进度到120秒或可听提升为连续播放通过。
+
+后继状态：iOS续租产品修复为`cbe61345c622afd5e821bf01ee11a0feeed875d3`；协调器报告固定Source`37e1ddd42c5f7233bb75268d430ff2a95053edfe`，Root随后实际读到测试资格后继`01ecd6e03aeaa4d537f86207bc84f2344986c47a`。相关51/20/6检查为原作者报告，Root未重放；当前真机候选的最终Source、编译和跨续租连续性仍由原iOS操作者继续绑定。旧443的失败不继承为新候选通过。磁带CI修复Source`3f552e1af28869407588ac70d9856819817c057f`已普通推送，Root读回父提交799及六项差异路径；首轮自然CI进行中，不能声明未发布或已进入Owner当前App。

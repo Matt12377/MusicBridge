@@ -36278,7 +36278,22 @@
         "bytes": 1959,
         "sha256": "432629cca2ee43678c6d2153469bc420fa90284f01b2cdc29d8d26049e34d841"
       },
-      "ready_renew_boundary_ref": "docs/postrust/MBM-003/READY_RENEW_BOUNDARY.json"
+      "ready_renew_boundary_ref": "docs/postrust/MBM-003/READY_RENEW_BOUNDARY.json",
+      "implementation_commit": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+      "implementation_commit_resolution": "EXACT_FIXED_SOURCE_5E_FIRST_NATURAL_CI",
+      "report_commit": null,
+      "report_commit_resolution": "UNIQUE_DIRECT_CHILD_OF_SOURCE_RESOLVE_FROM_THIS_REPORT_HEAD",
+      "report_path": "reports/MBM-003_RESULT.md",
+      "evidence_refs": [
+        "reports/MBM-003_EVIDENCE.json",
+        "docs/postrust/MBM-003/evidence/source-ci.json",
+        "docs/postrust/MBM-003/evidence/actual-runtime.json",
+        "docs/postrust/MBM-003/evidence/installed-trial.json"
+      ],
+      "terminal_ci_receipt": {
+        "source": "docs/postrust/MBM-003/evidence/source-ci.json",
+        "report": "PENDING_FIRST_NATURAL_REPORT_CI"
+      }
     },
     {
       "id": "MBM-004",

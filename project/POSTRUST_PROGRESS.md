@@ -514,3 +514,14 @@ c3103 原物理 profile 候选的23项 Mac 自有媒体检查及原 iOS 上 Owne
 5948恢复工程字段后，实际当前准入、50项守卫、fresh000的33项及fresh001的87项通过并整份冻结。但该Source仅改四份project账本，原push路径过滤没有启动Electron／Rust；首次自然只有两workflow，不能作为所需Source四workflow／六job交付，也不改标成结果报告。全部原过滤和未启动事实保留。
 
 现于原八项准入用例中加入已发生的两个C310部分首声标记负例：实际own字段及独立status／plan移动row均须拒绝；用例名／数量、生产代码、原Scope和预算不变。该回归确保旧候选部分音频证据不能改写冻结工程字段，新Source继续原全部门禁、首次自然四workflow和直接R。实际设备进展仍由独立证据记账，002保持IN_PROGRESS，003／004未开始。
+
+
+## 2026-10-10 MBM-003 Source5e结果报告
+
+从Mac002最终审计b1a8独立接续，Source`5e96372f0dd99e08b1e2964d68ce234eb438bbdf`实施正式1.7.0合同、DSD整曲PCM24/48→FLAC独立限额缓存与ready后原TTL续租。固定本地Gate80/80退出0；自然Source四流程/六任务成功，精确Source完整回归4738总/4736通过/2既有native skip、hosted00365/65和报告准入86/86，计数各按自身范围，不抵扣产品AT。详见[结果报告](../reports/MBM-003_RESULT.md)及附属证据。
+
+五首自有合成曲目经现有MB_ONLY Organizer及command-outbox设置可辨标题，未写音频或源标签；原104公有详情和109文件整字节不变。旧窗口正常App退出0、端口关闭，但设置页关闭服务未确认保留原FAILED记录；同Source/dist/profile/证书/原配对/原55932续开新窗口，未改旧ready TTL。真实手机播放、seek、恢复、缓存和物理route由独立iOS回执继续记录，不以Mac就绪、Synthetic Provider/Roon或普通App窗口代替。
+
+普通Mac已实际安装0.1.0-beta.2/build20261010.1，原App完整可恢复备份保留，真实既有歌单窗口已观察，Owner正在试用。试用安装与003真实音频、017最终包/签名/公证、Owner验收分层。004→016→017尚未开始；原18/156及有效17/150、003原12AT/8聚合保持。磁带r3仅独立软件检查点，生产集成待安排，原首次CI分支适用性失败保留由原会话修复。
+
+当前iPhone已实际播放24/192 FLAC并由Owner确认可听，但随即反馈“能听到声音但是不连续”；HIRES不得计PASS。Root对原PCM与同源高规格FLAC完整离线解码及1200个100ms能量窗检查退出0，未测得超过20ms静音或低能量缺口；这仅排查源素材，不证明网络/续租/缓冲或实际连续音频正常。Mac/iOS继续定位当前真实链路根因，Source报告的软件资格与该实际失败分别保留。

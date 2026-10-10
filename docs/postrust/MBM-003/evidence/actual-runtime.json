@@ -1,0 +1,721 @@
+{
+  "schema": "musicbridge.mbm003.actual-runtime-evidence-overlay.v1",
+  "source": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+  "capturedAtUTC": "2026-10-10T13:34:04.295622+00:00",
+  "sourceLedgerFactsFrozen": true,
+  "actualCurrentCandidate": {
+    "schema": "musicbridge.mbm003.root-actual-renewed-format-ready.v1",
+    "capturedAt": "2026-10-10T12:50:04.563657+00:00",
+    "source": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+    "state": "ACTUAL_RENEWED_CONTROLLED_MAC_READY_PHONE_AND_OWNER_OPEN",
+    "ready": {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/mac-candidate003/runs/run-dl6Qfo/ready.json",
+      "bytes": 28458,
+      "sha256": "059d8cad1485b318f690654c5fd0ab31304a7ce0f059fc76cdf729a2c38eade4"
+    },
+    "connection": {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/mac-candidate003/runs/run-dl6Qfo/connection.json",
+      "bytes": 1538,
+      "sha256": "4cbdc695ae886a2685a222ba788574c5ec765534aecf36b573946c27edbf4c3a"
+    },
+    "samePriorProfileCertificatePairingData": true,
+    "sameOrigin": "https://192.168.5.88:55932",
+    "readyExpiresAt": "2026-10-10T13:47:57.530Z",
+    "oldReadyRetained": {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/mac-candidate003/runs/run-6T6xuv/ready.json",
+      "bytes": 28458,
+      "sha256": "3398ab9800a07e7e7c4d5709b46d40c18d200c1fe1f1066b3ea67d81011c4d8a"
+    },
+    "oldReleaseFailureRetained": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/mac-candidate003/runs/run-6T6xuv/candidate-release.json",
+    "oldServiceUiCloseUnconfirmedButAppExit0AndPortClosed": true,
+    "wholeRuntimeSourceDistBundleLauncherInputsFreshlyConsumed": 1757,
+    "freshInputs": {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/mac-candidate003/runs/run-dl6Qfo/inputs-at-ready.json",
+      "bytes": 445461,
+      "sha256": "8b6c810eae8f283334e45ec55680073f2c0717c2dce78ed93b3333ebf80fe513"
+    },
+    "wholeOwnedMediaFreshlyConsumed": 109,
+    "freshSources": {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/mac-candidate003/runs/run-dl6Qfo/source-before.json",
+      "bytes": 51329,
+      "sha256": "e1e28a0d52fb750fc4f8f4aad89ace6a92438512f7f1062a62a78b763f0bd3a6"
+    },
+    "allSourceAndMediaWholeBytesEqualPrior": true,
+    "catalogPreservation": {
+      "originalTracks": 104,
+      "actualTracks": 109,
+      "originalWholePublicDetailsUnchanged": true,
+      "originalWholeRowsUnchanged": true,
+      "originalRootsUnchanged": true
+    },
+    "newScanRootEditionOrPermit": false,
+    "authStateReadOrDecrypted": false,
+    "getServerDiagnostic": {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/mac-candidate003/runs/run-dl6Qfo/get-server-diagnostic.json",
+      "bytes": 809,
+      "sha256": "0b125633f0709bcae51dffc39d6e5afe31b33b8e1056a68ab4687f924cbf0b7e"
+    },
+    "getServerWholeWire": {
+      "status": 200,
+      "bytes": 140,
+      "wholeBodySha256": "5f30d1268682dd66e46baf14df3a5fc4e9efec5cc0b7c82defb56b54f277feeb",
+      "peerDerSha256": "9912c4669d3400d6abe672c473f09914070977681eab1aaf631011a5a4c05167",
+      "ordinaryCaAndHostnameValidation": true,
+      "wholeOriginalWireDecoded": true,
+      "exactUint8ArrayWholeBody": true
+    },
+    "observedMainPid": 58439,
+    "cleanSource": true,
+    "actualFiveCurrentTitles": {
+      "receipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/preparation.json",
+      "publicFreshReadback": "NEXT_EXISTING_OWNER_API_CHECK"
+    },
+    "actualAuthenticatedPhoneCatalog": "PENDING_FRESH_IOS_READBACK",
+    "libraryRevision": "PENDING_FRESH_AUTHENTICATED_RESPONSE",
+    "physicalDeviceAudio": false,
+    "ownerAcceptance": false
+  },
+  "actualCurrentCandidateReceipt": {
+    "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/ROOT_MBM003_RENEWED_FORMAT_READY574.json",
+    "bytes": 3474,
+    "sha256": "c022d0f2b5ed49f3cd4134b2a44198be869ebc0f9d7513d25ed7fa7b93eea5b0"
+  },
+  "actualFivePublicOwnerDetails": {
+    "schema": "musicbridge.mbm003.root-renewed-owner-format-readback.v1",
+    "capturedAt": "2026-10-10T12:50:36.768Z",
+    "source": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+    "run": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/mac-candidate003/runs/run-dl6Qfo",
+    "profile": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm002-cscbjyuj/checks/mac-candidate002f/runs/run-q79bkf/musicbridge-ui-e2e-run-q79bkf",
+    "expiresAt": "2026-10-10T13:47:57.530Z",
+    "normalExistingMainProtectedReadOnlyBusinessApi": true,
+    "domManipulated": false,
+    "sqlWritten": false,
+    "publicFiveCurrentDetails": [
+      {
+        "track": {
+          "id": "4e1221b5-9a6c-4c68-a69c-83aa3a31e2f5",
+          "assetId": "fb0bcc2b-b9c3-4bc6-9278-b54eb6e112be",
+          "selectionRevision": "1",
+          "segment": null
+        },
+        "asset": {
+          "id": "fb0bcc2b-b9c3-4bc6-9278-b54eb6e112be",
+          "libraryRootId": "cc467478-96a9-46ac-81fc-89faab5836c7",
+          "sourceRootId": "f733c14f-8d68-415e-865c-fadc43fb7a7e",
+          "rootRevision": "1",
+          "fileRevision": "1",
+          "locationRevision": "1",
+          "sampleFrames": null,
+          "timebaseHz": null
+        },
+        "metadata": {
+          "raw": {},
+          "override": {
+            "trackId": "4e1221b5-9a6c-4c68-a69c-83aa3a31e2f5",
+            "revision": "1",
+            "fields": {
+              "artist": "MusicBridge 自有合成候选",
+              "title": "003 自有合成 FLAC 24-44100 两分钟.flac"
+            },
+            "annotations": {}
+          },
+          "effective": {
+            "artist": "MusicBridge 自有合成候选",
+            "title": "003 自有合成 FLAC 24-44100 两分钟.flac"
+          }
+        },
+        "versionTokens": [],
+        "editions": [
+          {
+            "id": "09edaa5f-48d0-423d-bbe1-61bebdf87427",
+            "title": "003 自有合成 FLAC 24-44100 两分钟 独立发行",
+            "edition": "",
+            "revision": "1"
+          }
+        ],
+        "fileParameters": {
+          "container": "FLAC",
+          "codec": "FLAC",
+          "lossless": true,
+          "sampleRateHz": 44100,
+          "channels": 2,
+          "bitsPerSample": 24,
+          "durationMs": 120000,
+          "evidence": "bounded-parser-reported"
+        }
+      },
+      {
+        "track": {
+          "id": "d3d138bb-4d73-454d-846e-c46bd120b62a",
+          "assetId": "fad8d6da-29c9-41fe-8ace-b33285b5d833",
+          "selectionRevision": "1",
+          "segment": null
+        },
+        "asset": {
+          "id": "fad8d6da-29c9-41fe-8ace-b33285b5d833",
+          "libraryRootId": "cc467478-96a9-46ac-81fc-89faab5836c7",
+          "sourceRootId": "f733c14f-8d68-415e-865c-fadc43fb7a7e",
+          "rootRevision": "1",
+          "fileRevision": "1",
+          "locationRevision": "1",
+          "sampleFrames": null,
+          "timebaseHz": null
+        },
+        "metadata": {
+          "raw": {},
+          "override": {
+            "trackId": "d3d138bb-4d73-454d-846e-c46bd120b62a",
+            "revision": "1",
+            "fields": {
+              "artist": "MusicBridge 自有合成候选",
+              "title": "003 自有合成 FLAC 16-44100 两分钟.flac"
+            },
+            "annotations": {}
+          },
+          "effective": {
+            "artist": "MusicBridge 自有合成候选",
+            "title": "003 自有合成 FLAC 16-44100 两分钟.flac"
+          }
+        },
+        "versionTokens": [],
+        "editions": [
+          {
+            "id": "1642bc70-10c0-4607-a3ae-ae038046c842",
+            "title": "003 自有合成 FLAC 16-44100 两分钟 独立发行",
+            "edition": "",
+            "revision": "1"
+          }
+        ],
+        "fileParameters": {
+          "container": "FLAC",
+          "codec": "FLAC",
+          "lossless": true,
+          "sampleRateHz": 44100,
+          "channels": 2,
+          "bitsPerSample": 16,
+          "durationMs": 120000,
+          "evidence": "bounded-parser-reported"
+        }
+      },
+      {
+        "track": {
+          "id": "192b5428-1f19-4c9b-986d-6a5a0abfe2cb",
+          "assetId": "775317ee-6e98-4fbf-8c17-e8a417bf89c9",
+          "selectionRevision": "1",
+          "segment": null
+        },
+        "asset": {
+          "id": "775317ee-6e98-4fbf-8c17-e8a417bf89c9",
+          "libraryRootId": "cc467478-96a9-46ac-81fc-89faab5836c7",
+          "sourceRootId": "f733c14f-8d68-415e-865c-fadc43fb7a7e",
+          "rootRevision": "1",
+          "fileRevision": "1",
+          "locationRevision": "1",
+          "sampleFrames": null,
+          "timebaseHz": null
+        },
+        "metadata": {
+          "raw": {},
+          "override": {
+            "trackId": "192b5428-1f19-4c9b-986d-6a5a0abfe2cb",
+            "revision": "1",
+            "fields": {
+              "artist": "MusicBridge 自有合成候选",
+              "title": "003 自有合成 FLAC 24-192000 两分钟.flac"
+            },
+            "annotations": {}
+          },
+          "effective": {
+            "artist": "MusicBridge 自有合成候选",
+            "title": "003 自有合成 FLAC 24-192000 两分钟.flac"
+          }
+        },
+        "versionTokens": [],
+        "editions": [
+          {
+            "id": "d9822d07-209f-44b1-8eb7-6116973587ac",
+            "title": "003 自有合成 FLAC 24-192000 两分钟 独立发行",
+            "edition": "",
+            "revision": "1"
+          }
+        ],
+        "fileParameters": {
+          "container": "FLAC",
+          "codec": "FLAC",
+          "lossless": true,
+          "sampleRateHz": 192000,
+          "channels": 2,
+          "bitsPerSample": 24,
+          "durationMs": 120000,
+          "evidence": "bounded-parser-reported"
+        }
+      },
+      {
+        "track": {
+          "id": "85f5e5b3-54f0-42be-af33-f90da3a04cc2",
+          "assetId": "94ee92f9-3122-4c7b-af98-367654afb23e",
+          "selectionRevision": "1",
+          "segment": null
+        },
+        "asset": {
+          "id": "94ee92f9-3122-4c7b-af98-367654afb23e",
+          "libraryRootId": "cc467478-96a9-46ac-81fc-89faab5836c7",
+          "sourceRootId": "f733c14f-8d68-415e-865c-fadc43fb7a7e",
+          "rootRevision": "1",
+          "fileRevision": "1",
+          "locationRevision": "1",
+          "sampleFrames": null,
+          "timebaseHz": null
+        },
+        "metadata": {
+          "raw": {},
+          "override": {
+            "trackId": "85f5e5b3-54f0-42be-af33-f90da3a04cc2",
+            "revision": "1",
+            "fields": {
+              "artist": "MusicBridge 自有合成候选",
+              "title": "003 自有合成 DSD64 两分钟.dff"
+            },
+            "annotations": {}
+          },
+          "effective": {
+            "artist": "MusicBridge 自有合成候选",
+            "title": "003 自有合成 DSD64 两分钟.dff"
+          }
+        },
+        "versionTokens": [],
+        "editions": [
+          {
+            "id": "271f6f80-ea48-49bb-9398-b58b4e4352b2",
+            "title": "003 自有合成 DSD64 两分钟 独立发行",
+            "edition": "",
+            "revision": "1"
+          }
+        ],
+        "fileParameters": {
+          "container": "DFF",
+          "codec": "DSD",
+          "lossless": true,
+          "sampleRateHz": 2822400,
+          "channels": 2,
+          "bitsPerSample": 1,
+          "durationMs": 120000,
+          "evidence": "bounded-parser-reported"
+        }
+      },
+      {
+        "track": {
+          "id": "03363dbd-79e6-48c4-a340-cd6f00b686b8",
+          "assetId": "2482b02e-dbc6-4741-a840-0f9f62c520e4",
+          "selectionRevision": "1",
+          "segment": null
+        },
+        "asset": {
+          "id": "2482b02e-dbc6-4741-a840-0f9f62c520e4",
+          "libraryRootId": "cc467478-96a9-46ac-81fc-89faab5836c7",
+          "sourceRootId": "f733c14f-8d68-415e-865c-fadc43fb7a7e",
+          "rootRevision": "1",
+          "fileRevision": "1",
+          "locationRevision": "1",
+          "sampleFrames": null,
+          "timebaseHz": null
+        },
+        "metadata": {
+          "raw": {},
+          "override": {
+            "trackId": "03363dbd-79e6-48c4-a340-cd6f00b686b8",
+            "revision": "1",
+            "fields": {
+              "artist": "MusicBridge 自有合成候选",
+              "title": "003 自有合成 DSD64 两分钟.dsf"
+            },
+            "annotations": {}
+          },
+          "effective": {
+            "artist": "MusicBridge 自有合成候选",
+            "title": "003 自有合成 DSD64 两分钟.dsf"
+          }
+        },
+        "versionTokens": [],
+        "editions": [
+          {
+            "id": "e5a129cc-3533-414e-ac42-af916d144d66",
+            "title": "003 自有合成 DSD64 两分钟 独立发行",
+            "edition": "",
+            "revision": "1"
+          }
+        ],
+        "fileParameters": {
+          "container": "DSF",
+          "codec": "DSD",
+          "lossless": true,
+          "sampleRateHz": 2822400,
+          "channels": 2,
+          "bitsPerSample": 1,
+          "durationMs": 120000,
+          "evidence": "bounded-parser-reported"
+        }
+      }
+    ],
+    "query": {
+      "query": "003 自有合成",
+      "rootId": null,
+      "offset": 0,
+      "limit": 200,
+      "total": 5,
+      "hasMore": false,
+      "items": [
+        {
+          "track": {
+            "id": "4e1221b5-9a6c-4c68-a69c-83aa3a31e2f5",
+            "assetId": "fb0bcc2b-b9c3-4bc6-9278-b54eb6e112be",
+            "selectionRevision": "1",
+            "segment": null
+          },
+          "asset": {
+            "id": "fb0bcc2b-b9c3-4bc6-9278-b54eb6e112be",
+            "libraryRootId": "cc467478-96a9-46ac-81fc-89faab5836c7",
+            "sourceRootId": "f733c14f-8d68-415e-865c-fadc43fb7a7e",
+            "rootRevision": "1",
+            "fileRevision": "1",
+            "locationRevision": "1",
+            "sampleFrames": null,
+            "timebaseHz": null
+          },
+          "metadata": {
+            "title": "003 自有合成 FLAC 24-44100 两分钟.flac",
+            "artist": "MusicBridge 自有合成候选"
+          },
+          "versionTokens": []
+        },
+        {
+          "track": {
+            "id": "d3d138bb-4d73-454d-846e-c46bd120b62a",
+            "assetId": "fad8d6da-29c9-41fe-8ace-b33285b5d833",
+            "selectionRevision": "1",
+            "segment": null
+          },
+          "asset": {
+            "id": "fad8d6da-29c9-41fe-8ace-b33285b5d833",
+            "libraryRootId": "cc467478-96a9-46ac-81fc-89faab5836c7",
+            "sourceRootId": "f733c14f-8d68-415e-865c-fadc43fb7a7e",
+            "rootRevision": "1",
+            "fileRevision": "1",
+            "locationRevision": "1",
+            "sampleFrames": null,
+            "timebaseHz": null
+          },
+          "metadata": {
+            "title": "003 自有合成 FLAC 16-44100 两分钟.flac",
+            "artist": "MusicBridge 自有合成候选"
+          },
+          "versionTokens": []
+        },
+        {
+          "track": {
+            "id": "192b5428-1f19-4c9b-986d-6a5a0abfe2cb",
+            "assetId": "775317ee-6e98-4fbf-8c17-e8a417bf89c9",
+            "selectionRevision": "1",
+            "segment": null
+          },
+          "asset": {
+            "id": "775317ee-6e98-4fbf-8c17-e8a417bf89c9",
+            "libraryRootId": "cc467478-96a9-46ac-81fc-89faab5836c7",
+            "sourceRootId": "f733c14f-8d68-415e-865c-fadc43fb7a7e",
+            "rootRevision": "1",
+            "fileRevision": "1",
+            "locationRevision": "1",
+            "sampleFrames": null,
+            "timebaseHz": null
+          },
+          "metadata": {
+            "title": "003 自有合成 FLAC 24-192000 两分钟.flac",
+            "artist": "MusicBridge 自有合成候选"
+          },
+          "versionTokens": []
+        },
+        {
+          "track": {
+            "id": "85f5e5b3-54f0-42be-af33-f90da3a04cc2",
+            "assetId": "94ee92f9-3122-4c7b-af98-367654afb23e",
+            "selectionRevision": "1",
+            "segment": null
+          },
+          "asset": {
+            "id": "94ee92f9-3122-4c7b-af98-367654afb23e",
+            "libraryRootId": "cc467478-96a9-46ac-81fc-89faab5836c7",
+            "sourceRootId": "f733c14f-8d68-415e-865c-fadc43fb7a7e",
+            "rootRevision": "1",
+            "fileRevision": "1",
+            "locationRevision": "1",
+            "sampleFrames": null,
+            "timebaseHz": null
+          },
+          "metadata": {
+            "title": "003 自有合成 DSD64 两分钟.dff",
+            "artist": "MusicBridge 自有合成候选"
+          },
+          "versionTokens": []
+        },
+        {
+          "track": {
+            "id": "03363dbd-79e6-48c4-a340-cd6f00b686b8",
+            "assetId": "2482b02e-dbc6-4741-a840-0f9f62c520e4",
+            "selectionRevision": "1",
+            "segment": null
+          },
+          "asset": {
+            "id": "2482b02e-dbc6-4741-a840-0f9f62c520e4",
+            "libraryRootId": "cc467478-96a9-46ac-81fc-89faab5836c7",
+            "sourceRootId": "f733c14f-8d68-415e-865c-fadc43fb7a7e",
+            "rootRevision": "1",
+            "fileRevision": "1",
+            "locationRevision": "1",
+            "sampleFrames": null,
+            "timebaseHz": null
+          },
+          "metadata": {
+            "title": "003 自有合成 DSD64 两分钟.dsf",
+            "artist": "MusicBridge 自有合成候选"
+          },
+          "versionTokens": []
+        }
+      ]
+    },
+    "original104FullPublicDetailsUnchanged": true,
+    "actualAuthenticatedPhoneCatalog": "PENDING_FRESH_IOS_READBACK",
+    "libraryRevision": "PENDING_FRESH_AUTHENTICATED_RESPONSE",
+    "physicalAudioOrOwnerAcceptance": false
+  },
+  "actualFivePublicOwnerReceipt": {
+    "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/ROOT_MBM003_RENEWED_OWNER_FORMAT_READBACK575.json",
+    "bytes": 12921,
+    "sha256": "57a1b419ab394ef66d540b804b0d04cb80c9c5ffe6b720433be5cba21e3be44d"
+  },
+  "normalMetadataPreparation": {
+    "schema": "musicbridge.mbm003.existing-main-normal-metadata-preparation.v1",
+    "at": "2026-10-10T12:42:13.318Z",
+    "source": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+    "run": "run-6T6xuv",
+    "profile": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm002-cscbjyuj/checks/mac-candidate002f/runs/run-q79bkf/musicbridge-ui-e2e-run-q79bkf",
+    "expiresAt": "2026-10-10T12:46:08.693Z",
+    "state": "FIVE_EXISTING_TITLES_PREPARED_VIA_NORMAL_ORGANIZER_AND_OUTBOX",
+    "firstDraftReusedWithoutReissuingPreview": true,
+    "normalExistingMainBusinessClient": true,
+    "sqlWritesByRoot": false,
+    "domManipulated": false,
+    "newScan": false,
+    "newRoot": false,
+    "newEdition": false,
+    "newPermit": false,
+    "authStateReadOrDecrypted": false,
+    "formatTracks": [
+      {
+        "trackId": "4e1221b5-9a6c-4c68-a69c-83aa3a31e2f5",
+        "editionId": "09edaa5f-48d0-423d-bbe1-61bebdf87427",
+        "mobileTrackId": "lt:7177bb89-173b-4304-a466-0895d1d373b2:4e1221b5-9a6c-4c68-a69c-83aa3a31e2f5:09edaa5f-48d0-423d-bbe1-61bebdf87427",
+        "title": "003 自有合成 FLAC 24-44100 两分钟.flac",
+        "artist": "MusicBridge 自有合成候选",
+        "planId": "094d9e0e-a398-46d8-b3c4-eaa9d0102b96",
+        "confirmCommandId": "a2b08f94-e01d-4020-b061-4efb9a7af1bc",
+        "preview": {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/preview-4e1221b5-9a6c-4c68-a69c-83aa3a31e2f5.json",
+          "bytes": 3835,
+          "sha256": "bd3cb4ce126080ef3808e632f470b8ccba670fc2938112ba8ea3f173e2888813"
+        },
+        "completed": {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/completed-4e1221b5-9a6c-4c68-a69c-83aa3a31e2f5.json",
+          "bytes": 3838,
+          "sha256": "a9f09e1c06d6ff8ba7534064bb9312cada87b07f6123aff71fd712cea6737bc4"
+        }
+      },
+      {
+        "trackId": "d3d138bb-4d73-454d-846e-c46bd120b62a",
+        "editionId": "1642bc70-10c0-4607-a3ae-ae038046c842",
+        "mobileTrackId": "lt:7177bb89-173b-4304-a466-0895d1d373b2:d3d138bb-4d73-454d-846e-c46bd120b62a:1642bc70-10c0-4607-a3ae-ae038046c842",
+        "title": "003 自有合成 FLAC 16-44100 两分钟.flac",
+        "artist": "MusicBridge 自有合成候选",
+        "planId": "3d5f1bcd-7cb4-4e15-b536-55d71b686048",
+        "confirmCommandId": "e924be3d-0331-4d26-b750-0c09cd8da575",
+        "preview": {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/preview-d3d138bb-4d73-454d-846e-c46bd120b62a.json",
+          "bytes": 3834,
+          "sha256": "d98745dceb812fc23ff4073fea403b0493712f267bd5cca9d57a36356f2fee00"
+        },
+        "completed": {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/completed-d3d138bb-4d73-454d-846e-c46bd120b62a.json",
+          "bytes": 3837,
+          "sha256": "fec0cc9c2826e248ba14b2b1828fd6ee4294d72f286dfdfeec504f00eb85a93b"
+        }
+      },
+      {
+        "trackId": "192b5428-1f19-4c9b-986d-6a5a0abfe2cb",
+        "editionId": "d9822d07-209f-44b1-8eb7-6116973587ac",
+        "mobileTrackId": "lt:7177bb89-173b-4304-a466-0895d1d373b2:192b5428-1f19-4c9b-986d-6a5a0abfe2cb:d9822d07-209f-44b1-8eb7-6116973587ac",
+        "title": "003 自有合成 FLAC 24-192000 两分钟.flac",
+        "artist": "MusicBridge 自有合成候选",
+        "planId": "debbe60d-acff-42ba-9832-a21eecec3e83",
+        "confirmCommandId": "162e68f0-67d9-4108-a511-f2ff0712c738",
+        "preview": {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/preview-192b5428-1f19-4c9b-986d-6a5a0abfe2cb.json",
+          "bytes": 3840,
+          "sha256": "8f6138653fbe0154548909c2471324d1bae87d1d48bb7974f5e65783d290fbee"
+        },
+        "completed": {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/completed-192b5428-1f19-4c9b-986d-6a5a0abfe2cb.json",
+          "bytes": 3843,
+          "sha256": "723134bb1771bc7fe585f98bba22a7290169a769df2994916b828c428e842fe8"
+        }
+      },
+      {
+        "trackId": "85f5e5b3-54f0-42be-af33-f90da3a04cc2",
+        "editionId": "271f6f80-ea48-49bb-9398-b58b4e4352b2",
+        "mobileTrackId": "lt:7177bb89-173b-4304-a466-0895d1d373b2:85f5e5b3-54f0-42be-af33-f90da3a04cc2:271f6f80-ea48-49bb-9398-b58b4e4352b2",
+        "title": "003 自有合成 DSD64 两分钟.dff",
+        "artist": "MusicBridge 自有合成候选",
+        "planId": "817be0e3-b198-454d-ab04-49536f148e08",
+        "confirmCommandId": "9382e6f4-8050-45c6-b1e9-60cac6a70fb7",
+        "preview": {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/preview-85f5e5b3-54f0-42be-af33-f90da3a04cc2.json",
+          "bytes": 3790,
+          "sha256": "96761da6cf474eec7fce56348508483312eb28f7d89659af2175195060d51e6c"
+        },
+        "completed": {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/completed-85f5e5b3-54f0-42be-af33-f90da3a04cc2.json",
+          "bytes": 3793,
+          "sha256": "747315c320da55a2659a3993baaf2bcc74c89f29cdf14b7cceac1f2f6b6e031e"
+        }
+      },
+      {
+        "trackId": "03363dbd-79e6-48c4-a340-cd6f00b686b8",
+        "editionId": "e5a129cc-3533-414e-ac42-af916d144d66",
+        "mobileTrackId": "lt:7177bb89-173b-4304-a466-0895d1d373b2:03363dbd-79e6-48c4-a340-cd6f00b686b8:e5a129cc-3533-414e-ac42-af916d144d66",
+        "title": "003 自有合成 DSD64 两分钟.dsf",
+        "artist": "MusicBridge 自有合成候选",
+        "planId": "27c1500f-1ac0-48f2-b3ec-fc42d77e41c8",
+        "confirmCommandId": "50228e5e-b662-4995-a21d-fc5402b14066",
+        "preview": {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/preview-03363dbd-79e6-48c4-a340-cd6f00b686b8.json",
+          "bytes": 3790,
+          "sha256": "536bc2eb6c47514b712cadd617935a5454449ea5f264769208329500ca048b50"
+        },
+        "completed": {
+          "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/completed-03363dbd-79e6-48c4-a340-cd6f00b686b8.json",
+          "bytes": 3793,
+          "sha256": "4c245492b6137f595049325703049fb960b0e3a8953270d9d55f21e4504d9096"
+        }
+      }
+    ],
+    "currentOwnerDetails": {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/after.json",
+      "bytes": 7473,
+      "sha256": "65f82e547a7ef9cd5ecf23ba106226457780ddab976fe4a06c4c4a83e6517da3"
+    },
+    "original104PublicDetailsUnchanged": true,
+    "originalTrackAssetEditionFileParametersAndRawMetadataUnchanged": true,
+    "all109CatalogObjectsStillPresent": true,
+    "oldReadyOriginalKept": true,
+    "sourceCleanUnchanged": true,
+    "actualAuthenticatedPhoneCatalog": "REQUIRES_FRESH_IOS_READBACK",
+    "libraryRevision": "REQUIRES_FRESH_AUTHENTICATED_RESPONSE",
+    "audioAndSourceTagWholeFileReadback": "REQUIRES_SEPARATE_ROOT_FD_CHECK"
+  },
+  "normalMetadataReceipt": {
+    "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/existing-format-metadata571/preparation.json",
+    "bytes": 7015,
+    "sha256": "eb692687c00589d9f265d2c99e29c277a385af2e22bb75065387c2e42a297c58"
+  },
+  "wholeMediaReadbackReceipt": {
+    "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/ROOT_MBM003_EXISTING_METADATA_MATERIAL_CLOSE572.json",
+    "bytes": 53790,
+    "sha256": "af2cb5ebdcdfa809ff339f6387021c67f77bfd9c48f894735c7f4be0689bf4e0"
+  },
+  "original104PublicDetailsAndAll109MediaBytesPreserved": true,
+  "oldWindowServiceUiCloseUnconfirmed": true,
+  "oldWindowAppExit0SignalNullAndTcpPortClosed": true,
+  "oldReleaseRetained": {
+    "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/mac-candidate003/runs/run-6T6xuv/candidate-release.json",
+    "bytes": 29762,
+    "sha256": "7cfd9cb7d325b2dddd0d04011a4c4c821b66e0af9145e76661d016a005673589",
+    "dev": "16777258",
+    "ino": "63474924",
+    "mode": "384",
+    "uid": "501",
+    "gid": "20",
+    "noFollow": true,
+    "stableNamedFd": true,
+    "wholeBytesRead": true
+  },
+  "newWindowSameSourceDistProfilePortCertificateAndPairing": true,
+  "newScanRootEditionPermitOrAuthRecordAccess": false,
+  "providerRoonDesktopState": "SYNTHETIC_CORE_TEST_MODE_1",
+  "mobileTlsMainSupervisorOwnerScannerReader": "ACTUAL_IMPLEMENTATIONS_NOT_SUBSTITUTED",
+  "systemSafeStorage": "REAL_SYSTEM_MODE_NO_PROTECTOR_OVERRIDE",
+  "originalFormats": [
+    "FLAC16/44.1",
+    "FLAC24/44.1",
+    "FLAC24/192",
+    "DSF_DSD64",
+    "DFF_DSD64"
+  ],
+  "dsdActualTransportRequirement": "PCM24/48_ENCODED_AS_FLAC_INDEPENDENT_BOUNDED_CACHE",
+  "actualHiresPhonePlayback": {
+    "state": "AUDIBLE_BUT_CONTINUITY_FAILED",
+    "ownerFeedback": "能听到声音但是不连续",
+    "ownerMessageId": "01a125df-d316-7670-9893-dd5810eb8527",
+    "phoneObservation": "CURRENT_FLAC24_192_PROGRESS_REACHED_120S",
+    "hiresAcceptancePromoted": false,
+    "rootCause": "OPEN"
+  },
+  "sourceSignalContinuity": {
+    "receipt": {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/ROOT_MBM003_HIRES_MATERIAL_CONTINUITY583.json",
+      "bytes": 200746,
+      "sha256": "28836296f272961b2253bd4eeeb5a567a55e575190a57f0769d0491fa7bd0117"
+    },
+    "decodeExitCodes": [
+      0,
+      0
+    ],
+    "sourceAndHiresRmsWindows": [
+      1200,
+      1200
+    ],
+    "windowSeconds": 0.1,
+    "gapsOver20MsAtMinus60DbDetected": false,
+    "actualNetworkRangeOrRenewObservedByThisOfflineCheck": false
+  },
+  "macStaticReadOnlyDiagnostics": {
+    "receipt": {
+      "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm003-yara63p4/checks/MAC_HIRES_CONTINUITY_STATIC582.json",
+      "bytes": 51481,
+      "sha256": "f354d20bc411d9557f58a61c1e9617fce391fd6e9b3018c5e863526f8ddbeabf"
+    },
+    "state": "STATIC_FALSIFIABLE_HYPOTHESES_ONLY_ACTUAL_CAUSE_NOT_PROVEN",
+    "actualCause": "NOT_PROVEN",
+    "confirmedMacDefect": false,
+    "newNetworkRequests": 0
+  },
+  "iosAuthorDiagnosis": {
+    "state": "RENEWAL_REBUILDS_PLAYER_FIX_AND_DEVICE_RETEST_PENDING",
+    "priorFailureSource": "44304efd0528d5f345ed296e498b14d059486f77",
+    "authorMessageId": "msg_0b49d6705b66a283016aca37c79f1887d085cdc06d547876b6",
+    "observedAuthorStatement": "正常续租会暂停旧播放器、重新创建播放器并跳回原位置；正在改为同资源原位更新票据",
+    "productFixCommit": "cbe61345c622afd5e821bf01ee11a0feeed875d3",
+    "coordinatorReportedFixedSource": "37e1ddd42c5f7233bb75268d430ff2a95053edfe",
+    "laterCheckoutHeadActuallyReadByRoot": "01ecd6e03aeaa4d537f86207bc84f2344986c47a",
+    "laterHeadPurpose": "对齐003已采纳的FLAC直传规格测试；当前候选编译与资格由原操作者继续绑定",
+    "authorReportedRelatedTests": {
+      "coordinator": 51,
+      "loader": 20,
+      "actualMacAvPlayer": 6
+    },
+    "relatedTestsReplayedByRoot": false,
+    "freshDeviceRetestPassed": false
+  },
+  "authenticatedPhoneCatalogPlaybackSeekRecoveryCacheAndPhysicalAudioRoute": "FRESH_IOS_REPORT_PENDING",
+  "iosSource": "44304efd0528d5f345ed296e498b14d059486f77",
+  "iosDirectReport": "810f1cfedf9502adaa6ff60bffaa4dcee9107a61",
+  "twelveOriginal003AcceptanceCasesPromotedByThisOverlay": false,
+  "ownerAcceptance": "OPEN"
+}

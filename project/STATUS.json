@@ -48086,7 +48086,22 @@
           "bytes": 1959,
           "sha256": "432629cca2ee43678c6d2153469bc420fa90284f01b2cdc29d8d26049e34d841"
         },
-        "ready_renew_boundary_ref": "docs/postrust/MBM-003/READY_RENEW_BOUNDARY.json"
+        "ready_renew_boundary_ref": "docs/postrust/MBM-003/READY_RENEW_BOUNDARY.json",
+        "implementation_commit": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+        "implementation_commit_resolution": "EXACT_FIXED_SOURCE_5E_FIRST_NATURAL_CI",
+        "report_commit": null,
+        "report_commit_resolution": "UNIQUE_DIRECT_CHILD_OF_SOURCE_RESOLVE_FROM_THIS_REPORT_HEAD",
+        "report_path": "reports/MBM-003_RESULT.md",
+        "evidence_refs": [
+          "reports/MBM-003_EVIDENCE.json",
+          "docs/postrust/MBM-003/evidence/source-ci.json",
+          "docs/postrust/MBM-003/evidence/actual-runtime.json",
+          "docs/postrust/MBM-003/evidence/installed-trial.json"
+        ],
+        "terminal_ci_receipt": {
+          "source": "docs/postrust/MBM-003/evidence/source-ci.json",
+          "report": "PENDING_FIRST_NATURAL_REPORT_CI"
+        }
       },
       {
         "id": "MBM-004",
@@ -48338,7 +48353,7 @@
       "operations": 40
     },
     "pairedContractFrozen": true,
-    "implementationCommit": null,
+    "implementationCommit": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
     "reportCommit": null,
     "software": "PASS_LOCAL_STANDARD_AND_AFFECTED_DSD_CHECKS_SOURCE_GATE_AND_CI_REQUIRED",
     "productionApp": "NOT_RUN_NEW003",
@@ -48401,7 +48416,7 @@
       "sha256": "432629cca2ee43678c6d2153469bc420fa90284f01b2cdc29d8d26049e34d841"
     },
     "readyRenewBoundary": "docs/postrust/MBM-003/READY_RENEW_BOUNDARY.json",
-    "updatedAtUTC": "2026-10-10T10:50:02.156Z",
+    "updatedAtUTC": "2026-10-10T13:34:04.295622+00:00",
     "localValidation": {
       "state": "PASS_WIP_PRODUCT_CHECKS_NOT_FIXED_SOURCE_SEAL",
       "standardExitCode": 0,
@@ -48481,7 +48496,37 @@
         "ownerAcceptance": false
       }
     },
-    "implementationCommitResolution": "OWN_IMPLEMENTATION_SOURCE_RESOLVED_BY_DIRECT_RESULT_REPORT",
-    "reportCommitResolution": "UNIQUE_DIRECT_CHILD_R_AFTER_FIRST_NATURAL_SOURCE_CI"
+    "implementationCommitResolution": "EXACT_FIXED_SOURCE_5E_FIRST_NATURAL_CI",
+    "reportCommitResolution": "UNIQUE_DIRECT_CHILD_OF_SOURCE_RESOLVE_FROM_THIS_REPORT_HEAD",
+    "report": "reports/MBM-003_RESULT.md",
+    "evidence": [
+      "reports/MBM-003_EVIDENCE.json",
+      "docs/postrust/MBM-003/evidence/source-ci.json",
+      "docs/postrust/MBM-003/evidence/actual-runtime.json",
+      "docs/postrust/MBM-003/evidence/installed-trial.json"
+    ],
+    "push": {
+      "source": "REMOTE_EXACT_SOURCE_CONFIRMED",
+      "report": "PENDING_ORDINARY_PUSH"
+    },
+    "ci": {
+      "source": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+      "firstNatural": true,
+      "workflows": 4,
+      "jobs": 6,
+      "artifacts": 5,
+      "producerMetadataAdmitted": true,
+      "wholeSourceContentConsumed": true,
+      "receipt": "docs/postrust/MBM-003/evidence/source-ci.json",
+      "report": "PENDING_FIRST_NATURAL_REPORT_CI"
+    },
+    "finalDeliveryReceipt": {
+      "state": "PENDING_EXTERNAL_EXACT_REPORT_CI_REMOTE_CLEAN_READBACK"
+    },
+    "nextBranchBaseline": {
+      "task": "MBM-004",
+      "resolution": "EXACT_FINAL_REMOTE_REPORT_HEAD_AFTER_REPORT_CI",
+      "started": false
+    }
   }
 }

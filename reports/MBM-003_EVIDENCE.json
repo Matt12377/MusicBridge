@@ -1,0 +1,62 @@
+{
+  "schema": "musicbridge.mbm003.source5e-result-evidence.v1",
+  "task": "MBM-003",
+  "base": "b1a8de728086e7994bb69d7dee10782f646886dd",
+  "source": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+  "branch": "codex/mbm-003-lossless-dsd-transport",
+  "reportCommitResolution": "THIS_UNIQUE_DIRECT_CHILD_OF_SOURCE_AFTER_FIRST_NATURAL_SOURCE_CI",
+  "capturedAtUTC": "2026-10-10T13:34:04.295622+00:00",
+  "reportCi": "PENDING_FIRST_NATURAL_REPORT_CI",
+  "software": "SOURCE_80_LOCAL_AND_65_HOSTED_PASS_STANDARD_4736_PASS_TWO_NATIVE_SKIPS",
+  "sourceWholeArtifactContentComplete": true,
+  "sourceLedgerSoftwareAppLiveOwnerStatePreserved": true,
+  "sourceCi": {
+    "path": "docs/postrust/MBM-003/evidence/source-ci.json",
+    "bytes": 2098500,
+    "sha256": "5b059b8c4ee1fea5e11ff8bd0999eae43e6cc1c894aac0f4abc1e72ea98bf7d2"
+  },
+  "actualControlledRuntime": {
+    "path": "docs/postrust/MBM-003/evidence/actual-runtime.json",
+    "bytes": 29810,
+    "sha256": "05e76d197a000783d8775d3789937a1376c5f40e8b38b24af14d89ca12dab649"
+  },
+  "installedOwnerTrial": {
+    "path": "docs/postrust/MBM-003/evidence/installed-trial.json",
+    "bytes": 1417,
+    "sha256": "97e588829290665fa2d94bfcd5b4ded0bc654339dd1d3c2b0f1326dd5bf908c6"
+  },
+  "frozenCounts": {
+    "originalTasks": 18,
+    "originalCases": 156,
+    "effectiveTasks": 17,
+    "effectiveCases": 150,
+    "original003Cases": 12,
+    "ownerAggregateRequirements": 8
+  },
+  "carryover": [
+    "本轮实际iPhone24/192能听到但不连续，HIRES验收失败；原PCM/FLAC未测得静音缺口，实际链路根因待定位",
+    "真实iPhone五格式播放、seek、缓存复用、续租及服务恢复待独立回执",
+    "实际设备audio route及Owner验收待",
+    "既有8项moderate依赖风险保留",
+    "旧Roon/全真实媒体、录音/收藏与发布历史carryover保留"
+  ],
+  "nextOrder": [
+    "MBM-004",
+    "MBRS-016",
+    "MBRS-017"
+  ],
+  "nextBranchBaselineResolution": "EXACT_FINAL_REMOTE_REPORT_HEAD_AFTER_REPORT_CI",
+  "nextTasksStarted": false,
+  "parallelTape": {
+    "threadId": "01a12580-9ee3-7fa2-a352-d07fc2bcf884",
+    "sourceCheckpoint": "ff02c6b2fd248748fe7d461259f5749dda86fa0c",
+    "checkpointReport": "799fece27f0cfe056a56fd6258f0db380db3461e",
+    "publishedCiRepairSource": "3f552e1af28869407588ac70d9856819817c057f",
+    "ciRepairCommitParentActuallyReadByRoot": "799fece27f0cfe056a56fd6258f0db380db3461e",
+    "ciRepairCommitChangedFilesActuallyReadByRoot": 6,
+    "repairSourceCi": "FIRST_NATURAL_CI_RUNNING_NOT_YET_CONTENT_CONSUMED",
+    "state": "R3_SOFTWARE_CHECKPOINT_SEALED_PRODUCTION_INTEGRATION_PENDING",
+    "firstSourceCi": "ORIGINAL_FF_INHERITED_MBM003_BRANCH_FAILURE_RETAINED",
+    "mergedOrImportedInProduction": false
+  }
+}

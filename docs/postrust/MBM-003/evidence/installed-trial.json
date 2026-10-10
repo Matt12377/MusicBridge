@@ -1,0 +1,28 @@
+{
+  "schema": "musicbridge.mbm003.installed-owner-trial-overlay.v1",
+  "source": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+  "installedApp": "/Applications/Music Bridge for Roon.app",
+  "version": "0.1.0-beta.2",
+  "buildVersion": "20261010.1",
+  "actualInstallReceipt": {
+    "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-owner-trial-per8s9mi/checks/actual-install07.json",
+    "bytes": 250728,
+    "sha256": "4c0274fefc16ca71de39e1cf20c98ca50c51501b5c63cb7c2318b3aef891648a"
+  },
+  "actualLaunchReceipt": {
+    "file": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-owner-trial-per8s9mi/checks/actual-launch08.json",
+    "bytes": 1944,
+    "sha256": "98d3f195f8a4e9445ad87eb04905eb63294ab4103b0264bbeee02a952de250ef"
+  },
+  "oldAppBackup": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-owner-trial-per8s9mi/rollback/Music Bridge for Roon-before-20261010.app",
+  "installedWholeTreeEqualsFreshPackage": true,
+  "oldBackupWholeTreeEqualsOldApp": true,
+  "codesignDeepStrictExitCode": 0,
+  "signing": "ADHOC_ARM64_TRIAL",
+  "ordinaryNativeWindowAndExistingPlaylistsObserved": true,
+  "userBeganTrialAndUserPagePreserved": true,
+  "syntheticProfileCopiedOrRealUserDataModifiedByInstaller": false,
+  "formal017PackagingDeveloperIdNotarizationOrOwnerAcceptance": "NOT_PROVEN",
+  "formal003DsdPlaybackAndPhysicalAudio": "NOT_PROVEN_BY_INSTALL_OR_LAUNCH",
+  "tapeParallelBranchMergedIntoThisApp": false
+}
