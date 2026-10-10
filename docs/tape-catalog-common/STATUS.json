@@ -4,7 +4,7 @@
   "branch": "codex/tape-catalog-common-baseline",
   "baseSha": "c647e02b40d55b955faabc9d6a2a6220c9286bac",
   "executionScope": "docs/tape-catalog-common/EXECUTION_SCOPE.json",
-  "phase": "SOURCE_IMPLEMENTATION",
+  "phase": "SOURCE_VERIFIED_REPORT",
   "inherited": {
     "macProductSource": "fd176fdf1da069dd678b673f697cdbe8831628cc",
     "macDirectReport": "c647e02b40d55b955faabc9d6a2a6220c9286bac",
@@ -34,10 +34,20 @@
     "oldEvidenceReattributed": false
   },
   "validation": {
-    "newStandardVerify": "REQUIRED_FOR_COMBINED_SOURCE",
-    "newFreshReaderWorker80": "REQUIRED_FOR_COMBINED_SOURCE",
-    "firstNaturalCombinedSourceCi": "PENDING",
-    "directReportAndItsNaturalCi": "PENDING",
+    "newStandardVerify": "PASS_SOFTWARE_ONLY",
+    "newStandardVerifyTotals": {
+      "tests": 4795,
+      "pass": 4793,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    "newFreshReaderWorker80": "PASS_80_OF_80",
+    "alwaysApplicableAdmissionTests": "PASS_158_OF_158",
+    "firstNaturalCombinedSourceCi": "PASS_CONSUMED_4_WORKFLOWS_6_JOBS",
+    "directReportAndItsNaturalCi": "PENDING_REPORT_COMMIT_AND_NORMAL_PUSH",
     "oldZipMediaPhoneGatesRerun": false
-  }
+  },
+  "sourceSha": "d6a3fd58a80fd588f7cd86425d870a034548db8b"
 }

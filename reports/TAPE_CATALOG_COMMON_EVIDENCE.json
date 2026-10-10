@@ -1,0 +1,1097 @@
+{
+  "schema": "musicbridge.tape-catalog-common.evidence.v1",
+  "task": "TAPE-CATALOG-R3-COMMON",
+  "branch": "codex/tape-catalog-common-baseline",
+  "baseSha": "c647e02b40d55b955faabc9d6a2a6220c9286bac",
+  "sourceSha": "d6a3fd58a80fd588f7cd86425d870a034548db8b",
+  "sourceUniqueParent": "c647e02b40d55b955faabc9d6a2a6220c9286bac",
+  "macProductSource": "fd176fdf1da069dd678b673f697cdbe8831628cc",
+  "tapeFrozenSource": "cfa0456de984c6cf37a1cbb69300ae9a9ee97d7f",
+  "generatedAt": "2026-10-10T21:27:47.396Z",
+  "sourceImplementationPaths": 63,
+  "reportChanges": {
+    "added": [
+      "reports/TAPE_CATALOG_COMMON_EVIDENCE.json",
+      "reports/TAPE_CATALOG_COMMON_RESULT.md"
+    ],
+    "modified": [
+      "docs/tape-catalog-common/STATUS.json",
+      "docs/tape-catalog-common/INTEGRATION.md"
+    ],
+    "uniqueDirectParentRequired": "d6a3fd58a80fd588f7cd86425d870a034548db8b"
+  },
+  "exactCoexistence": {
+    "tapeCatalogFiles": 52,
+    "signedStatProductFiles": 12,
+    "compatibilityFiles": 6,
+    "protectedFiles": 45,
+    "unchangedProtectedFiles": 44,
+    "protectedRouterException": "EXACT_CFA_FILE_ONLY",
+    "currentFrozenPins": 129,
+    "frozenGitRefs": 134,
+    "workflowPin": {
+      "path": ".github/workflows/verify.yml",
+      "bytes": 18094,
+      "sha256": "373bcd88ef8dc13ae2641611fc2617363621fe72684df02925e223b2aaf247bc",
+      "gitBlob": "f141cf6ffc2148629cdc0a9ed487eb3f79a0a830"
+    },
+    "scopeFile": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-common-avUIZ6/workspace/docs/tape-catalog-common/EXECUTION_SCOPE.json",
+      "bytes": 129711,
+      "sha256": "89a127febc0ece3459e8cfc5cf2a4ef118fd743b43d609468abc30e75370bf15"
+    },
+    "mobileContract": {
+      "path": "packages/contracts/mobile/openapi.json",
+      "bytes": 147445,
+      "sha256": "3deaa9e238f24b7062945efacc775b604a60a5652b837b8c46378f0b89eeec21",
+      "gitBlob": "51d155f0a09a6988676826b6c82d858d84e9c46c",
+      "version": "1.7.0",
+      "operations": 40
+    },
+    "dsdEnvironmentGuard": {
+      "path": "apps/desktop/src/main/core-environment.ts",
+      "bytes": 5714,
+      "sha256": "38ba0e6fa5f845da791720ca8997a5ca331ed8d0f9757c464f20ebbbcbf8f712",
+      "gitBlob": "1c326466207f035359374707dcba9c3b8cd5d3f6"
+    },
+    "projectFilesUnchanged": [
+      {
+        "path": "project/STATUS.json",
+        "bytes": 2642238,
+        "sha256": "11094be82c51f1b18f7adafb4e74ae2231f061cfeb7711826bf5bd8fa58165ae",
+        "gitBlob": "cdb7d8d13fd9b148886e7e48d3400911001e5462"
+      },
+      {
+        "path": "project/POSTRUST_PLAN.json",
+        "bytes": 2119501,
+        "sha256": "5e8896ed995de6093cdd7c59695fc9cef09c83bf6ea725e63b03c208db41fe41",
+        "gitBlob": "b2c374686388bbdbb7884d8f8f44c7d0728839e0"
+      },
+      {
+        "path": "project/POSTRUST_TODO.md",
+        "bytes": 30415,
+        "sha256": "8a654a6ecd2813a7ea3756d21a10ec16e9ba938f666b298d32595e733b25a241",
+        "gitBlob": "26ed698ca6f65d9a1b2e44c601f7b77121a2025e"
+      },
+      {
+        "path": "project/POSTRUST_PROGRESS.md",
+        "bytes": 117849,
+        "sha256": "fe2bca5b8196cbcc203bfce68337c87aa44c7e4cc9a05e42600dd1e1452ae5bd",
+        "gitBlob": "ef1b7496cdeef40015d8aeaa7190c587268cb6fe"
+      }
+    ]
+  },
+  "referenceMetadata": {
+    "brands": 34,
+    "modelNames": 329,
+    "editions": 634,
+    "meaning": "INHERITED_REFERENCE_METADATA_NOT_PERSONAL_OWNERSHIP_OR_A_LIVE_IMPORT_RESULT",
+    "personalInventoryAddedByThisIntegration": false,
+    "originalAssetsUnknownFieldsLinksAndTextPreservedByExactCfaFiles": true
+  },
+  "localSourceValidation": {
+    "receipt": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-common-avUIZ6/checks/source-validation-seal.json",
+      "bytes": 49897,
+      "sha256": "833c58a72d7b30f75cb3f50e2dae5814f6123669fa485d298ce613377fc3c857"
+    },
+    "standardTotals": {
+      "tests": 4795,
+      "pass": 4793,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    "precommitAlwaysApplicableTests": 158,
+    "precommitTreeBytesMatchedCommittedSource": true,
+    "distinctNewBoundaryCases": {
+      "commonAdmission": 42,
+      "taskApplicability": 7,
+      "receiptWorker": 9,
+      "total": 58
+    },
+    "freshReaderWorkerTests": 80,
+    "freshReaderWorkerPassed": 80,
+    "compilerStageNames": [
+      "fresh-contracts-compiler",
+      "fresh-core-compiler",
+      "fresh-fixed-metadata-worker"
+    ],
+    "compiledOutputCount": 1048,
+    "signedProductOutputCount": 36,
+    "combinedSummary": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-common-avUIZ6/gates/common-source/common-summary.json",
+      "bytes": 1386041,
+      "sha256": "a8287c2c6f97ef850136d69e45c49336b1c4ce473104c2d1e46dd53e3e2d357f"
+    },
+    "standardCommand": {
+      "name": "standard-verify-source",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-common-avUIZ6/checks/standard-verify-source.json",
+        "bytes": 1020,
+        "sha256": "010ebe41618ad5e62dfed3e7b0f82fa03acf104f00f0667fdd115c4601014e05"
+      },
+      "log": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-common-avUIZ6/logs/standard-verify-source.log",
+        "bytes": 1164897,
+        "sha256": "3333b55d5b4c37f15bc76b288401b7c0a9cbf3626c32e41084afc82821c349c5"
+      },
+      "exitCode": 0,
+      "counts": {
+        "tests": [
+          286,
+          2809,
+          8,
+          1692
+        ],
+        "pass": [
+          286,
+          2807,
+          8,
+          1692
+        ],
+        "fail": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "cancelled": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "skipped": [
+          0,
+          2,
+          0,
+          0
+        ],
+        "todo": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "startedAt": "2026-10-10T20:38:37.661Z",
+      "finishedAt": "2026-10-10T20:45:19.129Z"
+    },
+    "freshCommand": {
+      "name": "fresh-common-source",
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-common-avUIZ6/checks/fresh-common-source.json",
+        "bytes": 873,
+        "sha256": "6adb57ef7b2b11bf72224caf79c702d903a75ece75c19802bd3a6f888092ac23"
+      },
+      "log": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-common-avUIZ6/logs/fresh-common-source.log",
+        "bytes": 196,
+        "sha256": "7def7aa7b8606e8f038c56b11bd5868f2d38690387dd2eb48fcbea98fbd5bd63"
+      },
+      "exitCode": 0,
+      "counts": {
+        "tests": [],
+        "pass": [],
+        "fail": [],
+        "cancelled": [],
+        "skipped": [],
+        "todo": []
+      },
+      "startedAt": "2026-10-10T20:37:33.447Z",
+      "finishedAt": "2026-10-10T20:38:14.819Z"
+    },
+    "separateCountsWereNotAddedTogetherAsDistinctCoverage": true
+  },
+  "sourceFirstNaturalCi": {
+    "receipt": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-common-avUIZ6/checks/source-natural-ci-seal.json",
+      "bytes": 41222,
+      "sha256": "fe6357ba3caee5fd7fa87d8a8df88f42084ef8a440c3bdf15f6521eeb78c9c19"
+    },
+    "success": true,
+    "workflows": [
+      {
+        "id": 38085057621,
+        "name": "Rust Core 只读原型",
+        "htmlUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/38085057621",
+        "event": "push",
+        "runAttempt": 1,
+        "conclusion": "success",
+        "jobs": [
+          {
+            "id": 114309732293,
+            "name": "rust-core (ubuntu-latest)",
+            "status": "completed",
+            "conclusion": "success",
+            "htmlUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/38085057621/job/114309732293",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "准备真实hosted专用构建根",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "安装固定 Rust 工具链",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "安装冻结工作区依赖",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "验证实际 Rust 与 TypeScript 边界",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7
+              },
+              {
+                "name": "保留编译器、测试及源码与二进制清单",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8
+              },
+              {
+                "name": "Post Run actions/setup-node@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              },
+              {
+                "name": "Post Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 16
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 17
+              }
+            ]
+          },
+          {
+            "id": 114309732397,
+            "name": "rust-core (macos-latest)",
+            "status": "completed",
+            "conclusion": "success",
+            "htmlUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/38085057621/job/114309732397",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Run actions/setup-node@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "准备真实hosted专用构建根",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "安装固定 Rust 工具链",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "安装冻结工作区依赖",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "验证实际 Rust 与 TypeScript 边界",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7
+              },
+              {
+                "name": "保留编译器、测试及源码与二进制清单",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8
+              },
+              {
+                "name": "Post Run actions/setup-node@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              },
+              {
+                "name": "Post Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 16
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 17
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": 38085057663,
+        "name": "security",
+        "htmlUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/38085057663",
+        "event": "push",
+        "runAttempt": 1,
+        "conclusion": "success",
+        "jobs": [
+          {
+            "id": 114309732417,
+            "name": "static-security",
+            "status": "completed",
+            "conclusion": "success",
+            "htmlUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/38085057663/job/114309732417",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Install frozen workspace",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Validate machine control state",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Run boundary, loopback, secret and URL/query scans",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Scan workspace import cycles",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7
+              },
+              {
+                "name": "Run directed platform-independent security tests (no Electron)",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8
+              },
+              {
+                "name": "Post Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              },
+              {
+                "name": "Post Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 16
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 17
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": 38085057664,
+        "name": "verify",
+        "htmlUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/38085057664",
+        "event": "push",
+        "runAttempt": 1,
+        "conclusion": "success",
+        "jobs": [
+          {
+            "id": 114309732360,
+            "name": "dependency-audit",
+            "status": "completed",
+            "conclusion": "success",
+            "htmlUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/38085057664/job/114309732360",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Prepare source-pinned build workspace mirror",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Install frozen workspace",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Production dependency audit",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Post Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 11
+              },
+              {
+                "name": "Post Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 12
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 13
+              }
+            ]
+          },
+          {
+            "id": 114309732489,
+            "name": "verify",
+            "status": "completed",
+            "conclusion": "success",
+            "htmlUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/38085057664/job/114309732489",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Prepare strict hosted verification directories",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "判定精确父源码CI可复用的报告提交",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Prepare source-pinned build workspace mirror",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "组合任务与精确前序证据准入",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7
+              },
+              {
+                "name": "Install frozen workspace",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8
+              },
+              {
+                "name": "Validate control plane",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 9
+              },
+              {
+                "name": "Validate security and product boundaries",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 10
+              },
+              {
+                "name": "Scan workspace import cycles",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 11
+              },
+              {
+                "name": "Verify platform-independent workspace (typecheck, unit tests, build; no Electron)",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 12
+              },
+              {
+                "name": "Verify offline preparation boundaries",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 13
+              },
+              {
+                "name": "Verify isolated MBRS-001 offline POC",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 14
+              },
+              {
+                "name": "MBRS002 本地合同 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 15
+              },
+              {
+                "name": "MBRS003 阶段软件 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 16
+              },
+              {
+                "name": "MBRS004 名称与版本规则 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 17
+              },
+              {
+                "name": "MBRS005 本地文件网关与资源租约 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 18
+              },
+              {
+                "name": "MBRS006 本地Audio Input与会话隔离 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 19
+              },
+              {
+                "name": "MBRS007 队列预取与持久恢复 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 20
+              },
+              {
+                "name": "MBRS008 原样字节与独立质量证据 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 21
+              },
+              {
+                "name": "MBRS009 正式本地库有界查询与复用UI Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 22
+              },
+              {
+                "name": "MBRS010 封面选择与来源安全 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 23
+              },
+              {
+                "name": "MBRS011 MB_ONLY信息整理预览与撤销 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 24
+              },
+              {
+                "name": "MBRS014 旧收藏关联与冻结来源保护 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 25
+              },
+              {
+                "name": "MBRS012 受控源写与备份恢复 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 26
+              },
+              {
+                "name": "MBRS013 同内容位置迁移与具体清理 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 27
+              },
+              {
+                "name": "MBM000 移动合同双端采纳 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 28
+              },
+              {
+                "name": "MBM001 配对与只读曲库 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 29
+              },
+              {
+                "name": "MBM002 手机资源播放 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 30
+              },
+              {
+                "name": "MBM003 无损与DSD传输软件 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 31
+              },
+              {
+                "name": "本地音乐库有符号身份修复 Gate",
+                "status": "completed",
+                "conclusion": "skipped",
+                "number": 32
+              },
+              {
+                "name": "磁带共同基线与fresh读取策略 Gate",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 33
+              },
+              {
+                "name": "验证报告CI准入正负例",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 34
+              },
+              {
+                "name": "Diff whitespace",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 35
+              },
+              {
+                "name": "Verify pinned historical fragments and current discarded rejection",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 36
+              },
+              {
+                "name": "Preserve full verification log",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 37
+              },
+              {
+                "name": "Post Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 73
+              },
+              {
+                "name": "Post Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 74
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 75
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": 38085057646,
+        "name": "electron-e2e",
+        "htmlUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/38085057646",
+        "event": "push",
+        "runAttempt": 1,
+        "conclusion": "success",
+        "jobs": [
+          {
+            "id": 114309732327,
+            "name": "macos-electron-gate",
+            "status": "completed",
+            "conclusion": "success",
+            "htmlUrl": "https://github.com/Matt12377/MusicBridge/actions/runs/38085057646/job/114309732327",
+            "steps": [
+              {
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 1
+              },
+              {
+                "name": "Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 2
+              },
+              {
+                "name": "Prepare hosted runner evidence directories",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 3
+              },
+              {
+                "name": "Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 4
+              },
+              {
+                "name": "Prepare source-pinned build workspace mirror",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 5
+              },
+              {
+                "name": "Install frozen workspace",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 6
+              },
+              {
+                "name": "Prepare fresh Core fixed Worker before existing Electron gates",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 7
+              },
+              {
+                "name": "Prepare Rust toolchain",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 8
+              },
+              {
+                "name": "Build and verify both Rust hosts once in this job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 9
+              },
+              {
+                "name": "Install Electron binary from locked tree (official installer only)",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 10
+              },
+              {
+                "name": "Verify official Electron archive and actual execution tree",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 11
+              },
+              {
+                "name": "Electron startup, crash/restart, safeStorage vault and credential recovery gates",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 12
+              },
+              {
+                "name": "Electron end-to-end flow (Playwright, production build)",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 13
+              },
+              {
+                "name": "Select declared synthetic Rust Host artifacts",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 14
+              },
+              {
+                "name": "Preserve declared synthetic Rust Host compiled artifacts",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 15
+              },
+              {
+                "name": "Preserve Electron logs and synthetic test artifacts",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 16
+              },
+              {
+                "name": "Post Node.js 22",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 31
+              },
+              {
+                "name": "Post Checkout",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 32
+              },
+              {
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success",
+                "number": 33
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "jobCount": 6,
+    "standardTotals": {
+      "tests": 4795,
+      "pass": 4793,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    "admissionCases": 158,
+    "freshReaderWorker": {
+      "tests": 80,
+      "currentHead": "d6a3fd58a80fd588f7cd86425d870a034548db8b",
+      "compilerNames": [
+        "fresh-contracts-compiler",
+        "fresh-core-compiler",
+        "fresh-fixed-metadata-worker"
+      ],
+      "currentOutputCount": 1048,
+      "productOutputCount": 36,
+      "combinedSummary": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-common-avUIZ6/ci/source/consumed/receipts/tape-catalog-common-38085057664-1/common-summary.json",
+        "bytes": 1360702,
+        "sha256": "eed49cc401ed3019224429a45c43d542fb2a743190a800587b489bd222ea5623"
+      },
+      "excludedTemporaryRawFilesWereNotClaimedReconsumed": true
+    },
+    "currentVerifyArtifact": {
+      "id": 11682531675,
+      "name": "verify-d6a3fd58a80fd588f7cd86425d870a034548db8b",
+      "sizeInBytes": 90739432,
+      "selectedReceiptFiles": 14
+    },
+    "firstNaturalPushOnly": true,
+    "reruns": 0,
+    "cancellations": 0,
+    "forcePushes": 0,
+    "electron": {
+      "startup": {
+        "tests": 12,
+        "pass": 12,
+        "skipped": 0
+      },
+      "endToEnd": {
+        "tests": 116,
+        "pass": 111,
+        "skipped": 5
+      },
+      "currentSourceOnly": true,
+      "rawLog": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-common-avUIZ6/ci/source/consumed/job-114309732327.log",
+        "bytes": 107424,
+        "sha256": "79084a7c06d320ba56a1548cfb648e26fd4c479beba84b3922fb364af3e3bfc9"
+      }
+    }
+  },
+  "originalMbm003ReportInheritance": {
+    "originalSource": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+    "originalDirectReport": "99c89519f3357f4018b32930e8179b66719f99e7",
+    "directReportSingleParent": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+    "currentFixSource": "fd176fdf1da069dd678b673f697cdbe8831628cc",
+    "originalReportNotAncestorAndFiveFilesAbsentFromFixTree": true,
+    "immutableOriginalFiles": [
+      {
+        "path": "docs/postrust/MBM-003/evidence/actual-runtime.json",
+        "gitRef": "99c89519f3357f4018b32930e8179b66719f99e7:docs/postrust/MBM-003/evidence/actual-runtime.json",
+        "gitBlob": "f4fb084f9b1121de968f314e84ad8fa59413789f",
+        "bytes": 29810,
+        "sha256": "05e76d197a000783d8775d3789937a1376c5f40e8b38b24af14d89ca12dab649"
+      },
+      {
+        "path": "docs/postrust/MBM-003/evidence/installed-trial.json",
+        "gitRef": "99c89519f3357f4018b32930e8179b66719f99e7:docs/postrust/MBM-003/evidence/installed-trial.json",
+        "gitBlob": "d53dac5d79eea3c148e14fe6b6f082f30ce56018",
+        "bytes": 1417,
+        "sha256": "97e588829290665fa2d94bfcd5b4ded0bc654339dd1d3c2b0f1326dd5bf908c6"
+      },
+      {
+        "path": "docs/postrust/MBM-003/evidence/source-ci.json",
+        "gitRef": "99c89519f3357f4018b32930e8179b66719f99e7:docs/postrust/MBM-003/evidence/source-ci.json",
+        "gitBlob": "c84cb4de04d3ec8b4b3c4c8f040998598087d423",
+        "bytes": 2098500,
+        "sha256": "5b059b8c4ee1fea5e11ff8bd0999eae43e6cc1c894aac0f4abc1e72ea98bf7d2"
+      },
+      {
+        "path": "reports/MBM-003_EVIDENCE.json",
+        "gitRef": "99c89519f3357f4018b32930e8179b66719f99e7:reports/MBM-003_EVIDENCE.json",
+        "gitBlob": "ad1b634706e4596662ddbd1f8765db5d4ceb740c",
+        "bytes": 2733,
+        "sha256": "266117d0180c0fbee373ef8bb4391adf1a282f3ac6821c6082cc20cafa069a4b"
+      },
+      {
+        "path": "reports/MBM-003_RESULT.md",
+        "gitRef": "99c89519f3357f4018b32930e8179b66719f99e7:reports/MBM-003_RESULT.md",
+        "gitBlob": "eca589082fff7860c01bcb11b3cb1b177c035e3f",
+        "bytes": 4427,
+        "sha256": "fd7de646933b74e5a183e254598155e1d0e78090fff1f4cab9f9ec9d315fa6cb"
+      }
+    ],
+    "currentFixFourProjectFilesNotOverwritten": true,
+    "currentFixFrozenScopeNotExpandedToAddTheseFiveFiles": true,
+    "original5eRuntimeAnd99ReportingFactsNotRelabeledAsFixFd": true,
+    "currentFrozenPredecessorDispatcherDoesNotAutomaticallyImportFive99Files": true,
+    "nextCombinedScopeMustConsumeImmutableGitRefsOrExplicitlyInheritOnlyPinnedFiveFiles": true,
+    "newPhoneOrOldSoftwareRevalidationRequiredByReportInheritance": false,
+    "privateReceipt": "checks/original-mbm003-direct-report-inheritance76.json"
+  },
+  "historicalEvidence": {
+    "fdAndCfaSoftwareCiReusedOnlyForExactlyUnchangedScopes": true,
+    "originalFiveR99GitFilesReadInFullWithBlobLengthAndSha": true,
+    "oldProjectAccountingCopied": false,
+    "originalRuntimeReattributedToFdOrCommonSource": false,
+    "oldZipMedia1777AndPhoneGatesReexecuted": false
+  },
+  "diagnosticAttempts": [
+    {
+      "kind": "INITIAL_TEST_FAILURES",
+      "disposition": "OWN_ALTERNATES_REMOVED_BY_SELF_CONTAINED_REPACK_AND_CONTEXT_DEPENDENT_OLD_COMPANIONS_LEFT_FROZEN",
+      "claimsPassed": false
+    },
+    {
+      "kind": "RECEIPT_CASE_LIST_ALIAS",
+      "disposition": "INDEPENDENT_CASE_ARRAYS_AND_BIND_EACH_LEAF_COUNT_NAME_DIRECTORY",
+      "claimsPassed": false
+    },
+    {
+      "kind": "IMPOSSIBLE_SINGLE_SOURCE_DIFF_FIXTURE",
+      "disposition": "REAL_TWO_COMMIT_HIDDEN_CHANGE_REVERT_GRAPH_AND_IDENTICAL_ENDPOINT_FACTS",
+      "claimsPassed": false
+    },
+    {
+      "kind": "CI_MIRROR_HISTORY_ABSENT",
+      "disposition": "FIXED_SHA_LOCAL_FETCH_FROM_FULL_SOURCE_CHECKOUT_IN_WORKFLOW_ONLY",
+      "claimsPassed": false
+    },
+    {
+      "kind": "LOCAL_REVIEW_DEFAULT_GIT_BUFFER",
+      "disposition": "EXTERNAL_REVIEW_16_MIB_FULL_READ_THEN_134_GIT_PINS_CONSUMED",
+      "claimsPassed": false
+    },
+    {
+      "kind": "COMMIT_RUNNER_RECEIPT_NAME_COLLISION",
+      "disposition": "SOURCE_COMMIT_SUCCEEDED_AND_WAS_READ_BACK_WITH_UNIQUE_PARENT_CLEAN_STATUS_AND_STRICT_ACTUAL_ADMISSION",
+      "claimsPassed": false
+    },
+    {
+      "kind": "READ_ONLY_API_TRANSPORT",
+      "disposition": "SIX_INHERITED_PROXY_VARIABLES_REMOVED_ONLY_IN_READ_ONLY_CHILD_PROCESSES_WITH_TLS_AND_GLOBAL_SETTINGS_UNCHANGED",
+      "claimsPassed": false
+    },
+    {
+      "kind": "NEW_VERIFY_ARCHIVE_SLOW_TRANSPORT",
+      "disposition": "PARTIAL_DOWNLOADS_PRESERVED_AND_EXACT_RANGE_RESUMED_TO_FULL_90739432_BYTES_WITH_GITHUB_SHA256_DIGEST_MATCH",
+      "claimsPassed": false
+    }
+  ],
+  "evidenceBoundary": {
+    "realCatalogImport": "NOT_RUN",
+    "sourceMediaWrites": false,
+    "ordinary61": "OPEN",
+    "cold61": "OPEN",
+    "realOsInterruption": "OPEN",
+    "ownerAcceptanceProven": false,
+    "oldEvidenceReattributed": false
+  },
+  "carryover": {
+    "realCatalogImport": "NOT_RUN",
+    "nextWindow": "ROOT_COORDINATES_AFTER_V39_MINIMUM_NORMAL_LOAD_AND_COLD_START_WINDOW",
+    "targetProfile": "NOT_SELECTED_BY_THIS_TASK",
+    "recoverableBackup": "NOT_CREATED_BY_THIS_TASK",
+    "assetCatalogInventoryAndRelationshipConservation": "REQUIRED_IN_LATER_AUTHORIZED_IMPORT_WINDOW",
+    "ordinary61": "OPEN",
+    "cold61": "OPEN",
+    "realOsInterruption": "OPEN",
+    "physicalDeviceAudio": "NOT_PROVEN_BY_THIS_INTEGRATION",
+    "ownerAcceptance": "OPEN",
+    "fullTransitiveToolchainClosure": false,
+    "newOwnerOrOld003GateAdded": false
+  },
+  "directReportNaturalCi": "PENDING_REPORT_COMMIT_AND_NORMAL_PUSH"
+}

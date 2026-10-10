@@ -22,6 +22,10 @@ CI 的隔离镜像使用 `--no-local --no-hardlinks`，普通 clone 不会保留
 
 ## 尚未取得的证据
 
-当前阶段没有新的自然组合 CI、直接报告或普通 App 导入结论。普通库 61 项及冷启动 61 项、真实系统中断和完整 Owner 验收继续开放；这些历史缺口不增加为本次独立软件任务的附加 Gate。
+共同 Source `d6a3fd58a80fd588f7cd86425d870a034548db8b` 已通过本地完整 verify、fresh80、158 项适用准入及首次自然 Source CI。直接 Report 及其 CI 在本报告落盘时待执行；没有普通 App 导入结论。普通库 61 项及冷启动 61 项、真实系统中断和完整 Owner 验收继续开放；这些历史缺口不增加为本次独立软件任务的附加 Gate。
 
 正式资料导入仍为 `NOT_RUN`。执行前另向 Root 提供目标 profile、可恢复备份和资产、目录、库存及关联守恒窗口，由 Root 与正在运行的 App 和 V3.9 操作串行协调。本次源码集成不操作试用 App 或真实资料库，不直接 SQL 写入。
+
+## 共同 Source 软件封口
+
+实现范围 63 路径，唯一直接父 c647；本地完整 verify 4795/4793 pass/2 skip、fresh80/80、158/158，首次自然 Source CI 的 4 workflows/6 jobs 全部 success，均实际读取原日志及本轮 Gate 收据。详见 `reports/TAPE_CATALOG_COMMON_RESULT.md` 和 `reports/TAPE_CATALOG_COMMON_EVIDENCE.json`。Report 本身是 Source 的唯一直接报告，最终 HEAD/远端读回和其自然 CI由外置交付收据绑定。
