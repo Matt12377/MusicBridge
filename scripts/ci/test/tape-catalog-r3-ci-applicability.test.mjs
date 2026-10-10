@@ -25,27 +25,62 @@ const scopePath = 'docs/tape-catalog-r3/EXECUTION_SCOPE.json';
 const ciScopePath = 'docs/tape-catalog-r3/CI_SCOPE.json';
 const workflowPath = '.github/workflows/verify.yml';
 const receiptPath = 'docs/postrust/MBM-003/PREDECESSOR_SOFTWARE_REUSE.json';
+const coreVerificationPath = 'packages/bridge-core/test/reference-archive-catalog-store.test.ts';
+const e2eVerificationPath = 'apps/desktop/e2e/collection-preview.spec.ts';
 const allowedCiFiles = [workflowPath, 'scripts/ci/mbm003-predecessor-reuse.mjs',
   'scripts/ci/tape-catalog-r3-ci-applicability.mjs', 'scripts/ci/test/tape-catalog-r3-ci-applicability.test.mjs',
   ciScopePath, 'docs/tape-catalog-r3/CI_APPLICABILITY.md'];
+const verificationSourceCorrections = [{
+  path: coreVerificationPath,
+  originalSha256: 'ef9fe16ca049cf8f90371ed155a8122c5f7596f4f249325f0e04fc5e0190b5f3',
+  correctedSha256: 'cd29116df00bf415fac5276454472cef8f83a1702ee2baad11c602530f703b60',
+  originalGitBlob: 'cc2a3d48aa885d91d828fc9a48cdd0cab7ee19f5',
+  correctedGitBlob: '0db2e3167c707f023ad8fc2aee396240b3f27c39',
+}, {
+  path: e2eVerificationPath,
+  originalSha256: '39f23ce7e245213b0e3ade1ccecfd5570a6fa56f220e277c8218f7d0d7f9b447',
+  correctedSha256: '9daddcd4e6a8ee2a8486e45ada77015a4acfe664e974cf795c9306b5fd741c35',
+  originalGitBlob: 'c1274330f42fd4848a119aa8798f235379baf775',
+  correctedGitBlob: '545b5269149282ac09b0aa2568367b944d37679d',
+}];
 const sourceHead = 'e'.repeat(40), finalHead = 'f'.repeat(40);
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
+const gitBlob = bytes => createHash('sha1').update(Buffer.from(`blob ${bytes.length}\0`)).update(bytes).digest('hex');
 const originalScope = readFileSync(path.join(repository, scopePath));
 const ciBytes = () => Buffer.from(JSON.stringify(TAPE_CATALOG_R3_CI_SCOPE));
+const originalVerificationSources = verificationSourceCorrections.map(pin => ({
+  path: pin.path,
+  originalBytes: execFileSync('git', ['--no-replace-objects', 'show', `${productSource}:${pin.path}`], {
+    cwd: repository, maxBuffer: 1024 * 1024,
+  }),
+}));
+const correctedVerificationSources = verificationSourceCorrections.map(pin => ({
+  path: pin.path, correctedBytes: readFileSync(path.join(repository, pin.path)),
+}));
+const verificationChanges = () => verificationSourceCorrections.map(pin => ({
+  path: pin.path, status: 'M', oldMode: '100644', newMode: '100644',
+  oldBlob: pin.originalGitBlob, newBlob: pin.correctedGitBlob,
+}));
+const rawRows = rows => rows.map(row => `:${row.oldMode} ${row.newMode} ${row.oldBlob ?? (row.status === 'A' ? '0'.repeat(40) : '1'.repeat(40))} ${row.newBlob ?? '2'.repeat(40)} ${row.status}\0${row.path}\0`).join('');
 
 /** 完整真实Scope字节配合受控Git事实；本测试不执行软件Gate或改写仓库。 */
 function fixture() {
   const changes = [
     { path: 'scripts/ci/tape-catalog-r3-ci-applicability.mjs', status: 'A', oldMode: '000000', newMode: '100644' },
     { path: 'scripts/ci/mbm003-predecessor-reuse.mjs', status: 'M', oldMode: '100644', newMode: '100644' },
+    ...verificationChanges(),
   ];
   return {
     branch: tapeBranch, head: finalHead, stableHead: finalHead, branchAfter: tapeBranch,
     scopeBytes: Buffer.from(originalScope), ciScopeBytes: ciBytes(), workflowBytes: readFileSync(path.join(repository, workflowPath)),
     sourceParents: [productBase], reportParents: [productSource],
-    commits: [{ sha: sourceHead, parents: [productReport], changes: [{ ...changes[0] }] },
+    commits: [{ sha: sourceHead, parents: [productReport], changes: [{ ...changes[0] }, ...verificationChanges()] },
       { sha: finalHead, parents: [sourceHead], changes: [{ ...changes[1] }] }],
     changes,
+    verificationSources: verificationSourceCorrections.map((pin, index) => ({
+      path: pin.path, originalBytes: Buffer.from(originalVerificationSources[index].originalBytes),
+      correctedBytes: Buffer.from(correctedVerificationSources[index].correctedBytes),
+    })),
     clean: true, cleanAfter: true,
   };
 }
@@ -85,15 +120,18 @@ function ioFixture(input = fixture(), { readOverrides = {}, gitOverrides = {}, l
         : (statusReads++ === 0 ? input.clean : input.cleanAfter) ? '' : ' M apps/desktop/src/main/index.ts';
     if (key === JSON.stringify(['rev-list', '--parents', '-n', '1', productSource])) return [productSource, ...input.sourceParents].join(' ');
     if (key === JSON.stringify(['rev-list', '--parents', '-n', '1', productReport])) return [productReport, ...input.reportParents].join(' ');
+    for (const source of input.verificationSources) {
+      if (key === JSON.stringify(['show', `${productSource}:${source.path}`])) return Buffer.from(source.originalBytes);
+    }
     if (key === JSON.stringify(['rev-list', '--parents', '-n', '1', predecessorReport])) return `${predecessorReport} ${predecessorSource}`;
     if (key === JSON.stringify(['merge-base', '--is-ancestor', predecessorBase, 'HEAD'])) { predecessorAncestorRead = true; return ''; }
     if (key === JSON.stringify(['rev-list', '--parents', '--reverse', '--topo-order', `${productReport}..HEAD`]))
       return input.commits.map(row => [row.sha, ...row.parents].join(' ')).join('\n');
     const diffPrefix = ['diff', '--raw', '-z', '--no-renames', '--no-ext-diff', '--no-textconv'];
-    if (JSON.stringify(args.slice(0, 6)) === JSON.stringify(diffPrefix)) {
+    if (JSON.stringify(args.slice(0, 6)) === JSON.stringify(diffPrefix) && args[8] === '--no-abbrev' && args.length === 9) {
       const rows = args[6] === productReport && args[7] === 'HEAD' ? input.changes
         : input.commits.find(row => row.parents[0] === args[6] && row.sha === args[7])?.changes;
-      if (rows) return rows.map(row => `:${row.oldMode} ${row.newMode} ${row.status === 'A' ? '0'.repeat(40) : '1'.repeat(40)} ${'2'.repeat(40)} ${row.status}\0${row.path}\0`).join('');
+      if (rows) return rawRows(rows);
     }
     throw new Error(`测试未声明此Git读取：${key}`);
   };
@@ -112,24 +150,162 @@ test('Tape完整真实Scope与线性CI提交可准入，执行身份和当前003
   assert.equal(result.historicalGateMode, 'EXACT_FROZEN_PREDECESSOR_REUSE');
   assert.equal(result.productSourceSha, productSource);
   assert.equal(result.productReportSha, productReport);
+  assert.equal(result.runtimeProductSourceChanged, false);
+  assert.equal(result.verificationSourcesChanged, true);
+  assert.deepEqual(result.pinnedVerificationSourceChanges, verificationSourceCorrections);
+  assert.equal(Object.hasOwn(result, 'productSourceChanged'), false);
   assert.deepEqual(input, before);
   assert.throws(() => predecessorReuseWorkflowOutputs(result), '单独Tape准入不能代替原前序凭证核验');
 });
 
-test('精确CI声明绑定独立产品基线、原Scope和修复workflow，只有六个明确文件可改', () => {
+test('精确CI声明绑定独立产品基线、原Scope和修复workflow，仅六个CI文件及固定验证字节可改', () => {
   assert.deepEqual(TAPE_CATALOG_R3_CI_SCOPE, {
-    schema: 'musicbridge.tape-catalog-r3.ci-scope.v1', taskId: 'TAPE-CATALOG-R3', branch: tapeBranch,
+    schema: 'musicbridge.tape-catalog-r3.ci-scope.v2', taskId: 'TAPE-CATALOG-R3', branch: tapeBranch,
     baseSha: productBase, productSourceSha: productSource, productReportSha: productReport,
     originalScopeSha256: '7fc8edf02cb64cdb91c286b9180ed13f1ab7878eb5c17c8d35ba37b56da368d4',
     verifyWorkflowSha256: '18c8ad0a6289833a58ccbcd94b04622a6e6d7ff53164015a125079d72236330d',
-    currentMobileTask: 'MBM-003', allowedCiFiles, fullVerifyRequired: true,
+    currentMobileTask: 'MBM-003', allowedCiFiles, verificationSourceCorrections, fullVerifyRequired: true,
     currentMobileSoftwareGateRequired: true, historicalGateMode: 'EXACT_FROZEN_PREDECESSOR_REUSE',
     productSourceChangesAllowed: false, productionImportAuthorized: false, ownerAppModificationAuthorized: false,
   });
   for (const name of allowedCiFiles) {
     const input = fixture();
-    input.changes = [{ path: name, status: 'M', oldMode: '100644', newMode: '100644' }];
+    input.changes = [{ path: name, status: 'M', oldMode: '100644', newMode: '100644' }, ...verificationChanges()];
     assert.equal(validateTapeCatalogCiAdmission(input).task, 'TAPE-CATALOG-R3');
+  }
+});
+
+test('Core验证修正只替换临时根和引入已有存储策略，ff的全部断言与验证正文原样保留', () => {
+  const original = originalVerificationSources[0].originalBytes;
+  const corrected = correctedVerificationSources[0].correctedBytes;
+  const oldImport = "import test from 'node:test';\n";
+  const oldTemporary = "  const directory = await mkdtemp('/Volumes/LifeWeave/Developer/CommandLine/tmp/musicbridge-archive-catalog-');\n";
+  const text = original.toString('utf8');
+  assert.equal(text.split(oldImport).length, 2, '原验证源码必须唯一定位已有import');
+  assert.equal(text.split(oldTemporary).length, 2, '原验证源码必须唯一定位硬编码Mac临时根');
+  const expected = text.replace(oldImport, oldImport
+    + "import { buildStoragePolicy } from '../../../apps/desktop/scripts/build-storage-root.mjs';\n")
+    .replace(oldTemporary, "  const storage = buildStoragePolicy();\n"
+      + "  const temporaryRoot = storage.check(process.env.TMPDIR ?? '', { mustExist: true });\n"
+      + "  const directory = await mkdtemp(path.join(temporaryRoot, 'musicbridge-archive-catalog-'));\n"
+      + "  storage.check(directory, { mustExist: true });\n");
+  assert.deepEqual(corrected, Buffer.from(expected), '允许的完整修正字节只能来自临时目录策略替换');
+});
+
+test('E2E验证修正只更新263和264两处图片名称正则，全部断言与其余源码逐字节保留', () => {
+  const original = originalVerificationSources[1].originalBytes;
+  const corrected = correctedVerificationSources[1].correctedBytes;
+  const oldLocator = '/书籍参考图，非实物照片/u';
+  const newLocator = '/原书资料参考图，非我的实物照片/u';
+  const text = original.toString('utf8'), lines = text.split('\n');
+  assert.equal(text.split(oldLocator).length, 3, '只能命中授权的两处旧图片名称');
+  assert.equal(lines[262], "  await expect(referenceCard.getByRole('img', { name: /书籍参考图，非实物照片/u })).toBeVisible()");
+  assert.equal(lines[263], "  const referenceImage = referenceCard.getByRole('img', { name: /书籍参考图，非实物照片/u })");
+  assert.deepEqual(corrected, Buffer.from(text.replaceAll(oldLocator, newLocator)), '不能顺带删除E2E断言或放宽其他定位器');
+});
+
+test('固定验证源码逐个绑定ff原字节与完整修正字节的SHA256及Git blob，准入只声明验证层改变', () => {
+  const input = fixture();
+  for (const [index, pin] of verificationSourceCorrections.entries()) {
+    const source = input.verificationSources[index];
+    assert.equal(source.path, pin.path);
+    assert.equal(sha(source.originalBytes), pin.originalSha256);
+    assert.equal(sha(source.correctedBytes), pin.correctedSha256);
+    assert.equal(gitBlob(source.originalBytes), pin.originalGitBlob);
+    assert.equal(gitBlob(source.correctedBytes), pin.correctedGitBlob);
+    assert.notEqual(pin.originalGitBlob, pin.correctedGitBlob);
+    assert.equal(allowedCiFiles.includes(pin.path), false, '验证源码不能混入普通CI路径豁免');
+  }
+  const result = validateTapeCatalogCiAdmission(input);
+  assert.equal(result.runtimeProductSourceChanged, false);
+  assert.equal(result.verificationSourcesChanged, true);
+  assert.deepEqual(result.pinnedVerificationSourceChanges, verificationSourceCorrections);
+});
+
+test('两份验证源任意既有断言行删除、同长度字节漂移或追加内容都不能冒充固定修正', () => {
+  for (const [index, source] of correctedVerificationSources.entries()) {
+    const text = source.correctedBytes.toString('utf8');
+    const assertionLines = text.match(/^.*(?:assert\.|\bexpect(?:\(|\.))[^\n]*(?:\n|$)/gmu);
+    assert.ok(assertionLines?.length, `${source.path}必须保留可变异检查的实际断言`);
+    for (const line of assertionLines) {
+      const input = fixture();
+      input.verificationSources[index].correctedBytes = Buffer.from(text.replace(line, ''));
+      rejects(input);
+    }
+    rejectMutations([
+      input => { input.verificationSources[index].originalBytes[0] ^= 1; },
+      input => { input.verificationSources[index].correctedBytes[0] ^= 1; },
+      input => { input.verificationSources[index].correctedBytes = Buffer.concat([input.verificationSources[index].correctedBytes, Buffer.from('\n')]); },
+      input => { input.verificationSources[index].correctedBytes = Buffer.from(input.verificationSources[index].originalBytes); },
+      input => { input.verificationSources[index].originalBytes = Buffer.from(input.verificationSources[index].correctedBytes); },
+      input => { input.verificationSources[index].originalBytes = input.verificationSources[index].originalBytes.subarray(0, 10); },
+    ]);
+  }
+});
+
+test('验证绑定必须完整精确匹配，路径通配、额外源码、缺失字节和伪造CI清单均拒绝', () => {
+  rejectMutations([
+    input => { delete input.verificationSources; },
+    input => { input.verificationSources = []; },
+    input => { input.verificationSources.pop(); },
+    input => { input.verificationSources.reverse(); },
+    input => { input.verificationSources.push({ ...input.verificationSources[0] }); },
+    input => { input.verificationSources[0].path = 'packages/bridge-core/test/*'; },
+    input => { input.verificationSources[0].path += '.extra'; },
+    input => { input.verificationSources[0].path = 'packages/bridge-core/test/command-outbox-core.test.ts'; },
+    input => { delete input.verificationSources[0].originalBytes; },
+    input => { input.verificationSources[0].correctedBytes = input.verificationSources[0].correctedBytes.toString('utf8'); },
+    input => { input.ciScopeBytes = Buffer.from(JSON.stringify({ ...TAPE_CATALOG_R3_CI_SCOPE, verificationSourceCorrections: [] })); },
+    input => { input.ciScopeBytes = Buffer.from(JSON.stringify({ ...TAPE_CATALOG_R3_CI_SCOPE,
+      verificationSourceCorrections: verificationSourceCorrections.map((row, index) => ({ ...row, ...(index === 0 ? { path: 'packages/**/test/*.ts' } : {}) })) })); },
+    input => { input.ciScopeBytes = Buffer.from(JSON.stringify({ ...TAPE_CATALOG_R3_CI_SCOPE,
+      allowedCiFiles: [...allowedCiFiles, coreVerificationPath] })); },
+  ]);
+  for (const path of [
+    'packages/bridge-core/test/command-outbox-core.test.ts', `${coreVerificationPath}.extra`,
+    'packages/bridge-core/test/*', '../packages/bridge-core/test/reference-archive-catalog-store.test.ts',
+    `${e2eVerificationPath}.extra`, 'apps/desktop/e2e/*',
+  ]) {
+    const input = fixture(); input.changes.push({ ...verificationChanges()[0], path }); rejects(input);
+  }
+});
+
+test('验证路径每次只准普通文件原blob到修正blob，完整身份缺失、第三blob和反向变化均拒绝', () => {
+  const operations = [
+    row => { row.oldBlob = '3'.repeat(40); }, row => { row.newBlob = '3'.repeat(40); },
+    row => { row.oldBlob = row.newBlob; }, row => { row.newBlob = row.oldBlob; },
+    row => { [row.oldBlob, row.newBlob] = [row.newBlob, row.oldBlob]; },
+    row => { delete row.oldBlob; }, row => { delete row.newBlob; },
+    row => { row.oldBlob = row.oldBlob.slice(0, 7); }, row => { row.newBlob = row.newBlob.slice(0, 7); },
+    row => { row.status = 'A'; row.oldMode = '000000'; },
+    row => { row.status = 'D'; row.newMode = '000000'; },
+    row => { row.oldMode = '120000'; }, row => { row.newMode = '100755'; },
+  ];
+  for (const pin of verificationSourceCorrections) {
+    for (const operation of operations) {
+      for (const select of [input => input.changes.find(row => row.path === pin.path),
+        input => input.commits[0].changes.find(row => row.path === pin.path)]) {
+        const input = fixture(); operation(select(input)); rejects(input);
+      }
+    }
+  }
+});
+
+test('累计修正和逐提交修正须各出现一次，第三blob隐藏改回及修正后再改均不能复用豁免', () => {
+  for (const [index, pin] of verificationSourceCorrections.entries()) {
+    rejectMutations([
+      input => { input.changes = input.changes.filter(row => row.path !== pin.path); },
+      input => { input.commits[0].changes = input.commits[0].changes.filter(row => row.path !== pin.path); },
+      input => { input.changes.push({ ...verificationChanges()[index] }); },
+      input => { input.commits[1].changes.push({ ...verificationChanges()[index] }); },
+      input => {
+        input.commits[0].changes.find(row => row.path === pin.path).newBlob = '3'.repeat(40);
+        input.commits[1].changes.push({ ...verificationChanges()[index], oldBlob: '3'.repeat(40) });
+      },
+      input => {
+        input.commits[1].changes.push({ ...verificationChanges()[index], oldBlob: pin.correctedGitBlob, newBlob: pin.originalGitBlob });
+      },
+    ]);
   }
 });
 
@@ -221,7 +397,7 @@ test('CI提交链总预算有界，不能以更多准许文件提交绕过读取
   const input = fixture(); let previous = productReport;
   input.commits = Array.from({ length: 33 }, (_, index) => {
     const sha = (index + 1).toString(16).padStart(40, '0');
-    const row = { sha, parents: [previous], changes: [{ ...input.changes[1] }] };
+    const row = { sha, parents: [previous], changes: [{ ...input.changes[1] }, ...(index === 0 ? verificationChanges() : [])] };
     previous = sha; return row;
   });
   input.head = previous; input.stableHead = previous; rejects(input);
@@ -292,9 +468,49 @@ test('真实Tape适配器完整读取Scope与workflow，解析Git父链和raw补
   assert.equal(result.fullVerifyRequired, true);
   assert.equal(result.current003SoftwareGateRequired, true);
   for (const name of [scopePath, ciScopePath, workflowPath]) assert.ok(io.reads.includes(name), `未完整读取${name}`);
+  for (const pin of verificationSourceCorrections) {
+    assert.ok(io.reads.includes(pin.path), '修正验证源码必须通过文件读取器取完整当前字节');
+    assert.ok(io.calls.some(args => JSON.stringify(args) === JSON.stringify(['show', `${productSource}:${pin.path}`])),
+      '原验证源码必须从固定ff产品Source的Git对象读取');
+  }
+  for (const args of io.calls.filter(args => args[0] === 'diff')) assert.equal(args[8], '--no-abbrev', 'raw事实必须携带完整blob身份');
+  assert.deepEqual(result.pinnedVerificationSourceChanges, verificationSourceCorrections);
   assert.equal(io.calls.filter(args => JSON.stringify(args) === JSON.stringify(['rev-parse', 'HEAD'])).length, 2);
   assert.equal(io.calls.filter(args => args[0] === 'status').length, 2);
   assert.throws(() => predecessorReuseWorkflowOutputs(result), '读取Tape范围不能跳过原003冻结检查');
+});
+
+test('真实适配器独立核Git中的ff原源码及FD当前字节，删除实际断言不能借正确raw blob通过', () => {
+  for (const [index, pin] of verificationSourceCorrections.entries()) {
+    const originalDrift = fixture(); originalDrift.verificationSources[index].originalBytes[0] ^= 1;
+    assert.throws(() => inspectTapeCatalogCiAdmission(repository, tapeBranch, ioFixture(originalDrift)));
+    const io = ioFixture(fixture(), { readOverrides: {
+      [pin.path]: bytes => {
+        const text = bytes.toString('utf8'), match = text.match(/^.*(?:assert\.|\bexpect(?:\(|\.))[^\n]*(?:\n|$)/mu);
+        assert.ok(match, `${pin.path}必须删除真实验证源码中的断言`);
+        return Buffer.from(text.replace(match[0], ''));
+      },
+    } });
+    assert.throws(() => inspectTapeCatalogCiAdmission(repository, tapeBranch, io));
+    assert.ok(io.reads.includes(pin.path));
+  }
+});
+
+test('真实raw解析须保留验证文件完整old/new blob，累计正确也不能隐藏逐提交第三blob或缩写身份', () => {
+  const diffPrefix = ['diff', '--raw', '-z', '--no-renames', '--no-ext-diff', '--no-textconv'];
+  for (const pin of verificationSourceCorrections) {
+    for (const select of [input => ({ rows: input.changes, from: productReport, to: 'HEAD' }),
+      input => ({ rows: input.commits[0].changes, from: productReport, to: sourceHead })]) {
+      for (const operation of [row => { row.oldBlob = '3'.repeat(40); }, row => { row.newBlob = '3'.repeat(40); },
+        row => { row.oldBlob = row.oldBlob.slice(0, 7); }, row => { row.newBlob = row.newBlob.slice(0, 7); }]) {
+        const input = fixture(), { rows, from, to } = select(input);
+        operation(rows.find(row => row.path === pin.path));
+        const read = JSON.stringify([...diffPrefix, from, to, '--no-abbrev']);
+        const io = ioFixture(fixture(), { gitOverrides: { [read]: () => rawRows(rows) } });
+        assert.throws(() => inspectTapeCatalogCiAdmission(repository, tapeBranch, io));
+      }
+    }
+  }
 });
 
 test('真实Tape适配器不丢raw删除或危险路径，读取后dirty与head漂移也拒绝', () => {
@@ -313,7 +529,7 @@ test('真实Tape适配器不丢raw删除或危险路径，读取后dirty与head�
 });
 
 test('真实适配器拒绝未闭合或不合法的Git raw记录，不跳过解析失败的变更', () => {
-  const read = JSON.stringify(['diff', '--raw', '-z', '--no-renames', '--no-ext-diff', '--no-textconv', productReport, 'HEAD']);
+  const read = JSON.stringify(['diff', '--raw', '-z', '--no-renames', '--no-ext-diff', '--no-textconv', productReport, 'HEAD', '--no-abbrev']);
   const header = `:000000 100644 ${'0'.repeat(40)} ${'2'.repeat(40)} A`;
   for (const raw of ['unexpected', `${header}\0scripts/ci/tape-catalog-r3-ci-applicability.mjs`,
     `${header}\0`, `:100644 100644 ${'1'.repeat(40)} ${'2'.repeat(40)} R100\0${workflowPath}\0`]) {

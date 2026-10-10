@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
+import { buildStoragePolicy } from '../../../apps/desktop/scripts/build-storage-root.mjs';
 import { createCollectionRepository } from '../src/collection/repository.js';
 import { verifyReferenceCatalogDatabase, verifyReferenceCatalogZipDatabase } from '../src/collection/reference-catalog-store.js';
 import { isCatalogRevisionDetail, isCatalogRevisionPreview, type CanonicalReference, type CatalogMatch, type ImportReferenceArchiveCatalogRequest } from '@music-bridge/contracts';
@@ -37,7 +38,10 @@ function databaseRows(filePath: string, references = true) {
   } finally { db.close(); }
 }
 async function fixture(t: test.TestContext, beforeCommit?: (action: string) => void) {
-  const directory = await mkdtemp('/Volumes/LifeWeave/Developer/CommandLine/tmp/musicbridge-archive-catalog-');
+  const storage = buildStoragePolicy();
+  const temporaryRoot = storage.check(process.env.TMPDIR ?? '', { mustExist: true });
+  const directory = await mkdtemp(path.join(temporaryRoot, 'musicbridge-archive-catalog-'));
+  storage.check(directory, { mustExist: true });
   t.after(() => rm(directory, { recursive: true, force: true }));
   const filePath = path.join(directory, 'collection.sqlite');
   const db = new DatabaseSync(filePath);

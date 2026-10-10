@@ -1,5 +1,5 @@
 {
-  "schema": "musicbridge.tape-catalog-r3.ci-scope.v1",
+  "schema": "musicbridge.tape-catalog-r3.ci-scope.v2",
   "taskId": "TAPE-CATALOG-R3",
   "branch": "codex/tape-catalog-r3-import",
   "baseSha": "c0b945a2b8d0f6f3ee2d9ea9d2cb50a787dc7f95",
@@ -15,6 +15,22 @@
     "scripts/ci/test/tape-catalog-r3-ci-applicability.test.mjs",
     "docs/tape-catalog-r3/CI_SCOPE.json",
     "docs/tape-catalog-r3/CI_APPLICABILITY.md"
+  ],
+  "verificationSourceCorrections": [
+    {
+      "path": "packages/bridge-core/test/reference-archive-catalog-store.test.ts",
+      "originalSha256": "ef9fe16ca049cf8f90371ed155a8122c5f7596f4f249325f0e04fc5e0190b5f3",
+      "correctedSha256": "cd29116df00bf415fac5276454472cef8f83a1702ee2baad11c602530f703b60",
+      "originalGitBlob": "cc2a3d48aa885d91d828fc9a48cdd0cab7ee19f5",
+      "correctedGitBlob": "0db2e3167c707f023ad8fc2aee396240b3f27c39"
+    },
+    {
+      "path": "apps/desktop/e2e/collection-preview.spec.ts",
+      "originalSha256": "39f23ce7e245213b0e3ade1ccecfd5570a6fa56f220e277c8218f7d0d7f9b447",
+      "correctedSha256": "9daddcd4e6a8ee2a8486e45ada77015a4acfe664e974cf795c9306b5fd741c35",
+      "originalGitBlob": "c1274330f42fd4848a119aa8798f235379baf775",
+      "correctedGitBlob": "545b5269149282ac09b0aa2568367b944d37679d"
+    }
   ],
   "fullVerifyRequired": true,
   "currentMobileSoftwareGateRequired": true,
