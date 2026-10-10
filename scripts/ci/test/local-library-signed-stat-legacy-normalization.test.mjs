@@ -107,7 +107,7 @@ const productWholeIdentities = [
     },
     "after": {
       "bytes": 36729,
-      "sha256": "14e0054b011279db0440652e3f5382e3ab3332b19c775fa84578f395d6b7aa2c"
+      "sha256": "bc4dd52c0196bcb3c489ff44d728a09ae974bc5c72157783b1f8fab7c58b56e5"
     }
   },
   {
@@ -185,6 +185,39 @@ const productWholeIdentities = [
     "after": {
       "bytes": 24762,
       "sha256": "c7810434565cdb4b5c8fe394ca70d50442327e158a1439b54dcf3ae15e35d715"
+    }
+  },
+  {
+    "path": "packages/bridge-core/src/library/metadata-reader-worker.ts",
+    "before": {
+      "bytes": 20986,
+      "sha256": "0aeadd7b2bfdad3508f8861ea8975e3bc112dc0535a78a4d40195ddf5d8e4948"
+    },
+    "after": {
+      "bytes": 21663,
+      "sha256": "ae050ec90ec99e52f173d0bf9e6603c902077936f9cc65e5f78c3462d4055165"
+    }
+  },
+  {
+    "path": "packages/bridge-core/src/library/metadata-reader-types.ts",
+    "before": {
+      "bytes": 4680,
+      "sha256": "789284d079636be2468598e4b8f9dc33c12f0a9bdd10645d224bac0a12a3d95e"
+    },
+    "after": {
+      "bytes": 4680,
+      "sha256": "a57cc35fb1958b8a1c3368b67c06e3f45fbd3a1487fe1b514a1356d57369faa5"
+    }
+  },
+  {
+    "path": "packages/bridge-core/src/library/metadata-reader.ts",
+    "before": {
+      "bytes": 14112,
+      "sha256": "5f23c12dacb922832c4261391c0961aab565b77f1c4f79c52ca9882f8fce4bfe"
+    },
+    "after": {
+      "bytes": 14112,
+      "sha256": "34345874986b1d4416ca69c645e9d0dfe9b5bb66ba4b774b5b2f35f89a22b6ed"
     }
   }
 ];
@@ -337,7 +370,7 @@ test('有符号身份旧锁：三路径身份表深冻结且九份当前源保�
       assert.throws(() => { hunk.before = ''; }, TypeError);
     }
   }
-  assert.equal(productWholeIdentities.length, 9);
+  assert.equal(productWholeIdentities.length, 12);
   for (const row of productWholeIdentities) {
     const current = readWhole(row.path); assert.deepEqual(identity(current), row.after);
     assert.notDeepEqual(identity(current), row.before);

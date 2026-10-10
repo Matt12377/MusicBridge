@@ -6,7 +6,8 @@
     "scope_ref": "docs/postrust/LOCAL_LIBRARY_SIGNED_STAT_FIX/EXECUTION_SCOPE.json",
     "kind": "IN_SCOPE_ORDINARY_APP_LOADING_REPAIR",
     "original_mobile_schedule_and_17_150_ledger_unchanged": true,
-    "new_runtime_and_ci_evidence_required": true
+    "new_runtime_and_ci_evidence_required": true,
+    "same_authorized_ordinary_app_read_repair_includes_zero_length_optional_wave_list": true
   },
   "schema_version": "1.2",
   "plan_version": "1.2",

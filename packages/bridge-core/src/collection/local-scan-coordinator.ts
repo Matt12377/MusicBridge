@@ -19,7 +19,7 @@ import {parseCueText} from '../library/cue-text-reader.js';
 import type {LocalCuePreparedItem,LocalCueAssetReference} from '@music-bridge/contracts';
 const CUE_PARSER='cue-text-75fps/mbrs003-v1';
 
-const PARSER = 'music-metadata-11.15.0/mbrs003-v1';
+const PARSER = 'music-metadata-11.15.0/mbrs003-v2';
 const audio = /\.(flac|mp3|m4a|mp4|aac|wav|wave|aif|aiff)$/iu;
 const dsdAudio = /\.(dsf|dff)$/iu;
 class ScanYield extends Error { constructor(readonly reason: 'media-busy'|'admission-closed'|'deferred'|'control') { super(reason); } }

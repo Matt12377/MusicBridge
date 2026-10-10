@@ -5,23 +5,38 @@
     "branch": "codex/fix-local-library-loading",
     "baseSha": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
     "executionScope": "docs/postrust/LOCAL_LIBRARY_SIGNED_STAT_FIX/EXECUTION_SCOPE.json",
-    "state": "SOFTWARE_GATE_75_PASS_STANDARD_4745_GREEN_APP_INSTALLED_REAL_SCAN_PENDING",
+    "state": "WAVE_V2_STANDARD4749_AND_OWN79_GREEN_BUILD_READY_ACTUAL_SCAN_PENDING",
     "sourceCommitResolution": "OWN_SOURCE_COMMIT_RESOLVED_BY_DIRECT_FIX_REPORT",
     "installedBuild": "20261010.2",
     "ordinaryAuthorizedRootReuse": true,
-    "rootCause": "NODE_BIGINT_SIGNED_STAT_IDENTITY_REJECTED_BY_UNSIGNED_GUARDS",
+    "rootCause": "SIGNED_NODE_BIGINT_IDENTITY_AND_ZERO_SIZE_OPTIONAL_WAVE_LIST",
     "sourceFilesWrite": "UNCHANGED_DEFAULT_OFF",
     "originalMobileTaskAndAcceptanceUnchanged": true,
     "ownerRepeatedApprovalRequired": false,
-    "report": "reports/LOCAL_LIBRARY_SIGNED_STAT_FIX_RESULT.md"
+    "report": "reports/LOCAL_LIBRARY_SIGNED_STAT_FIX_RESULT.md",
+    "signedIdentitySource": "c5d9f22a83e6978572747e7826e4228c53a97728",
+    "signedIdentityFirstNaturalCI": "FOUR_WORKFLOWS_SIX_JOBS_SUCCESS_CONTENT_REVIEWED",
+    "ordinaryColdPersistedTracks": 42,
+    "ordinaryScanProcessed": 62,
+    "ordinaryScanAcceptedIncludingCue": 43,
+    "ordinaryScanRejected": 19,
+    "remainingParseCause": "NONCONFORMING_OPTIONAL_WAVE_LIST_SIZE_ZERO",
+    "waveCompatibility": "SELECTIVE_READ_ONLY_PARSER_V2_FULL_STANDARD4749_PASS_4747_TWO_EXISTING_SKIP",
+    "localStandardSnapshot": "BEFORE_SINGLE_CURRENT_SCAN_JOB_FIXTURE_VERSION_SYNC",
+    "currentFixSoftwareGate": "FINAL_33_PATHS_12_PRODUCTS_6_COMPATIBILITY_INPUTS_79_PASS_9_NATURAL_EXIT0_STAGES",
+    "waveCandidateBuild": "20261011.1"
   },
   "currentMobileDeliveryReadback20261010": {
     "task": "MBM-003",
     "source": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
     "directReport": "99c89519f3357f4018b32930e8179b66719f99e7",
     "software": "SOURCE_AND_DIRECT_REPORT_FIRST_NATURAL_CI_CONTENT_SEALED",
-    "deviceAcceptance": "PARTIAL_REPLAY_AND_INTERRUPTION_RECOVERY_OPEN",
-    "nextOrder": ["MBM-004", "MBRS-016", "MBRS-017"],
+    "deviceAcceptance": "PARTIAL_SAME_PAIRING_SERVICE_RECOVERY_OBSERVED_OS_INTERRUPTION_OPEN",
+    "nextOrder": [
+      "MBM-004",
+      "MBRS-016",
+      "MBRS-017"
+    ],
     "newFixIsSeparatelyVerified": true
   },
   "parallelTapeCatalogDelivery20261010": {

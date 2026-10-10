@@ -35,7 +35,7 @@ test('MBRS004 AT005/006：关闭AI，实际扫描入库与重扫保留人工名�
   const reader: MetadataReaderPort = { async read(input) {
     reads++;
     const updated = changed && input.relative === 'CD1/01.wav';
-    return { status: 'ok', parserVersion: 'music-metadata-11.15.0/mbrs003-v1', fields: { title: updated ? '新标签歌曲' : '歌曲 [首版]', artist: '歌手', album: updated ? '专辑 [Remastered]' : '专辑 [首版]' },
+    return { status: 'ok', parserVersion: 'music-metadata-11.15.0/mbrs003-v2', fields: { title: updated ? '新标签歌曲' : '歌曲 [首版]', artist: '歌手', album: updated ? '专辑 [Remastered]' : '专辑 [首版]' },
       technical: { container: 'WAVE', codec: 'PCM', lossless: true, sampleRateHz: 48000, channels: 2, bitsPerSample: 16, durationSeconds: 1, evidence: 'bounded-parser-reported' }, coverEvidence: [],
       readEvidence: { bytesRead: bytes.length, readCalls: 1, maxReadBytes: bytes.length, allocationBytes: bytes.length, elapsedMs: 1, wholeAudioHash: false, wholeAudioDecode: false } };
   }, async close() {} };

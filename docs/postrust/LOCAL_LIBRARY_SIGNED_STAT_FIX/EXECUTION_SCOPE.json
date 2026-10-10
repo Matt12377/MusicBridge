@@ -36,6 +36,21 @@
       "role": "SIGNED_STAT_PRODUCT"
     },
     {
+      "path": "packages/bridge-core/src/library/metadata-reader-types.ts",
+      "status": "M",
+      "role": "WAVE_EMPTY_LIST_PRODUCT"
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-worker.ts",
+      "status": "M",
+      "role": "WAVE_EMPTY_LIST_PRODUCT"
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader.ts",
+      "status": "M",
+      "role": "WAVE_EMPTY_LIST_PRODUCT"
+    },
+    {
       "path": "packages/bridge-core/src/recording/source-files.ts",
       "status": "M",
       "role": "SIGNED_STAT_PRODUCT"
@@ -69,6 +84,36 @@
       "path": "packages/bridge-core/test/local-library-signed-stat-identity.test.ts",
       "status": "A",
       "role": "SIGNED_STAT_BEHAVIOR"
+    },
+    {
+      "path": "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
+      "status": "A",
+      "role": "WAVE_EMPTY_LIST_BEHAVIOR"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs003/persistent-scan-owner.test.ts",
+      "status": "M",
+      "role": "CURRENT_READER_VERSION_FIXTURE"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts",
+      "status": "M",
+      "role": "CURRENT_READER_VERSION_FIXTURE"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs005/config-integration.test.ts",
+      "status": "M",
+      "role": "CURRENT_READER_VERSION_FIXTURE"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/owner-worker.ts",
+      "status": "M",
+      "role": "CURRENT_READER_VERSION_FIXTURE"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs007/queue-worker.ts",
+      "status": "M",
+      "role": "CURRENT_READER_VERSION_FIXTURE"
     },
     {
       "path": "project/POSTRUST_PLAN.json",
@@ -150,7 +195,7 @@
       },
       "after": {
         "bytes": 36729,
-        "sha256": "14e0054b011279db0440652e3f5382e3ab3332b19c775fa84578f395d6b7aa2c"
+        "sha256": "bc4dd52c0196bcb3c489ff44d728a09ae974bc5c72157783b1f8fab7c58b56e5"
       }
     },
     {
@@ -228,6 +273,104 @@
       "after": {
         "bytes": 46157,
         "sha256": "3ccafec70017b883c3709a72b6715b3ca6b367b663a71d858b0279424e7de898"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-worker.ts",
+      "before": {
+        "bytes": 20986,
+        "sha256": "0aeadd7b2bfdad3508f8861ea8975e3bc112dc0535a78a4d40195ddf5d8e4948"
+      },
+      "after": {
+        "bytes": 21663,
+        "sha256": "ae050ec90ec99e52f173d0bf9e6603c902077936f9cc65e5f78c3462d4055165"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-types.ts",
+      "before": {
+        "bytes": 4680,
+        "sha256": "789284d079636be2468598e4b8f9dc33c12f0a9bdd10645d224bac0a12a3d95e"
+      },
+      "after": {
+        "bytes": 4680,
+        "sha256": "a57cc35fb1958b8a1c3368b67c06e3f45fbd3a1487fe1b514a1356d57369faa5"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader.ts",
+      "before": {
+        "bytes": 14112,
+        "sha256": "5f23c12dacb922832c4261391c0961aab565b77f1c4f79c52ca9882f8fce4bfe"
+      },
+      "after": {
+        "bytes": 14112,
+        "sha256": "34345874986b1d4416ca69c645e9d0dfe9b5bb66ba4b774b5b2f35f89a22b6ed"
+      }
+    }
+  ],
+  "compatibilityPins": [
+    {
+      "path": "packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts",
+      "before": {
+        "bytes": 9010,
+        "sha256": "4449ad1cbcc97000423c37273e0221a017f6afdc1a2be69f49ba09d933ace28c"
+      },
+      "after": {
+        "bytes": 9010,
+        "sha256": "df18095e7f1b47dbe44d9a1f7926cd9856a95b7ed2c62f0bbfacdc1f8c5e504c"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs005/config-integration.test.ts",
+      "before": {
+        "bytes": 8337,
+        "sha256": "5946217fc3ef7e38db79518f377843d3f6b731d920ef9e1683f39b60b8567090"
+      },
+      "after": {
+        "bytes": 8337,
+        "sha256": "4c1e6e8bf6e668bccd179a0d7fa78342da69548ecb15516355901daca5d9d7a2"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/owner-worker.ts",
+      "before": {
+        "bytes": 700,
+        "sha256": "04eb0f66241e1da67883d77756c44a31405d59ed2eaa73c3644490ca7133d98d"
+      },
+      "after": {
+        "bytes": 722,
+        "sha256": "63e4e3fc7b9359c6211af1990cd145a1a242cc2ddc0defebb8bd57b02cc04cce"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs007/queue-worker.ts",
+      "before": {
+        "bytes": 709,
+        "sha256": "c0dbb63daf368a69d852a61a2676f4ecfd4c160d3b83f55654dbf88720060520"
+      },
+      "after": {
+        "bytes": 731,
+        "sha256": "2c5bac36147db694d62db8a32aa3fbd49bbfa7e5d1da6b7f1f6112f7eeb9dcbe"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs003/persistent-scan-owner.test.ts",
+      "before": {
+        "bytes": 26566,
+        "sha256": "d69aabea87a5e5a152f35e276cfbfa6b50682406854f3fb26f1d0c9136a4515e"
+      },
+      "after": {
+        "bytes": 26566,
+        "sha256": "2b3b08ce96b6a2ff68ac5bb55e94d6f730ac1e7a31adb63861658a7f1d49e250"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
+      "before": null,
+      "after": {
+        "bytes": 24276,
+        "sha256": "7c9b5e02e201dbe7a6a265f265680216af87b1c4c9a38bfb0bfbc85778878bad"
       }
     }
   ],
@@ -495,6 +638,10 @@
     {
       "file": "apps/desktop/test/command-outbox-service.test.ts",
       "expectedTests": 15
+    },
+    {
+      "file": "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
+      "expectedTests": 4
     }
   ],
   "policy": {

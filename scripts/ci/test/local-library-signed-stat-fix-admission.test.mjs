@@ -18,7 +18,7 @@ function statusAdditions() {
     localLibrarySignedStatFix: { task,branch,baseSha:base,executionScope:scopePath,sourceFilesWrite:'UNCHANGED_DEFAULT_OFF',
       originalMobileTaskAndAcceptanceUnchanged:true,ownerRepeatedApprovalRequired:false },
     currentMobileDeliveryReadback20261010: { task:'MBM-003',source:base,directReport:'99c89519f3357f4018b32930e8179b66719f99e7',
-      software:'SOURCE_AND_DIRECT_REPORT_FIRST_NATURAL_CI_CONTENT_SEALED',deviceAcceptance:'PARTIAL_REPLAY_AND_INTERRUPTION_RECOVERY_OPEN',
+      software:'SOURCE_AND_DIRECT_REPORT_FIRST_NATURAL_CI_CONTENT_SEALED',deviceAcceptance:'PARTIAL_SAME_PAIRING_SERVICE_RECOVERY_OBSERVED_OS_INTERRUPTION_OPEN',
       nextOrder:['MBM-004','MBRS-016','MBRS-017'],newFixIsSeparatelyVerified:true },
     parallelTapeCatalogDelivery20261010: { source:'cfa0456de984c6cf37a1cbb69300ae9a9ee97d7f',
       software:'ISOLATED_SOURCE_FIRST_NATURAL_FOUR_CI_SUCCESS_READ_BACK',ordinaryAppIntegration:'PENDING_FINAL003_BASELINE_INTEGRATION',
@@ -30,15 +30,17 @@ function fixture() {
   return {branch,head:'1'.repeat(40),baseIsAncestor:true,statusBytes:prepend(oldStatus,statusAdditions()),planBytes:prepend(oldPlan,planAdditions()),
     baselineStatusBytes:Buffer.from(oldStatus),baselinePlanBytes:Buffer.from(oldPlan),execution:structuredClone(scope),
     changedPaths:scope.sourceChangedPaths.map(({path,status})=>({path,status})),
-    productFiles:scope.productPins.map(row=>({path:row.path,...row.after})),frozenFiles:structuredClone(scope.protectedFiles)};
+    productFiles:scope.productPins.map(row=>({path:row.path,...row.after})),
+    compatibilityFiles:scope.compatibilityPins.map(row=>({path:row.path,...row.after})),frozenFiles:structuredClone(scope.protectedFiles)};
 }
 const rejected = code => error => error?.code === code;
 function changeStatus(input, work) { const additions=statusAdditions();work(additions);input.statusBytes=prepend(oldStatus,additions); }
 
-test('修复准入：独立task精确24路径与9完整产品件准入，不冒充003或App成功',()=>{
+test('修复准入：独立task精确33路径、12产品及6兼容输入整件准入，不冒充003或App成功',()=>{
   const input=fixture(),result=assertLocalLibrarySignedStatFixAdmission(input);
-  assert.equal(result.task,task);assert.notEqual(result.task,'MBM-003');assert.equal(result.exactProductFiles,9);
-  assert.equal(result.changedPaths.length,24);assert.equal(result.oldGateEvidenceReused,true);
+  assert.equal(result.task,task);assert.notEqual(result.task,'MBM-003');assert.equal(result.exactProductFiles,12);
+  assert.equal(result.exactCompatibilityFiles,6);assert.deepEqual(result.compatibilityFiles,input.compatibilityFiles);
+  assert.equal(result.changedPaths.length,33);assert.equal(result.oldGateEvidenceReused,true);
   assert.equal(result.currentFixSoftwareGateRequired,true);assert.equal(result.currentFixAppDeviceOwnerProven,false);
   assert.deepEqual(stripAddedJsonPrefix(input.statusBytes,scope.projectBinding.statusAddedFields),oldStatus);
   assert.deepEqual(stripAddedJsonPrefix(input.planBytes,scope.projectBinding.planAddedFields),oldPlan);
@@ -77,17 +79,27 @@ test('修复准入：task、authority、scope和plan绑定缺失或相互冲突�
 test('修复准入：scope预算、权限、媒体writer和未知字段不能借修复扩张',()=>{
   const edits=[s=>s.budgets.totalTimeoutMs++,s=>s.policy.sourceMediaWrites=true,s=>s.policy.optionalRust='ON',
     s=>s.policy.oldIdentityMismatchStillRejected=false,s=>s.sourceChangedPaths.push({path:'packages/contracts/src/index.ts',status:'M',role:'extra'}),
+    s=>{s.compatibilityPins[0].after.sha256='0'.repeat(64);},
     s=>{s.ownerAcceptance='PASS';}];
   for(const work of edits){const input=fixture();work(input.execution);
     assert.throws(()=>assertLocalLibrarySignedStatFixAdmission(input),rejected('SIGNED_STAT_SCOPE_CHANGED'));}
 });
 
-test('修复准入：9叶任一整件hash、长度或名字漂移均拒绝，不靠regex片段准入',()=>{
-  for(let i=0;i<9;i++)for(const field of ['bytes','sha256','path']){const input=fixture();
+test('修复准入：12产品及6兼容输入任一整件hash、长度或名字漂移均拒绝，不靠regex片段准入',()=>{
+  for(let i=0;i<12;i++)for(const field of ['bytes','sha256','path']){const input=fixture();
     input.productFiles[i][field]=field==='bytes'?input.productFiles[i].bytes+1:field==='sha256'?'0'.repeat(64):'else/'+input.productFiles[i].path;
     assert.throws(()=>assertLocalLibrarySignedStatFixAdmission(input),rejected('SIGNED_STAT_PRODUCT_DRIFT'));}
   const input=fixture();input.productFiles.pop();
   assert.throws(()=>assertLocalLibrarySignedStatFixAdmission(input),rejected('SIGNED_STAT_PRODUCT_DRIFT'));
+  for(let i=0;i<6;i++)for(const field of ['bytes','sha256','path']){const current=fixture();
+    current.compatibilityFiles[i][field]=field==='bytes'?current.compatibilityFiles[i].bytes+1:field==='sha256'?'0'.repeat(64):'else/'+current.compatibilityFiles[i].path;
+    assert.throws(()=>assertLocalLibrarySignedStatFixAdmission(current),rejected('SIGNED_STAT_COMPATIBILITY_DRIFT'));}
+  for(let i=0;i<5;i++){const previous=fixture();previous.compatibilityFiles[i]={path:scope.compatibilityPins[i].path,...scope.compatibilityPins[i].before};
+    assert.throws(()=>assertLocalLibrarySignedStatFixAdmission(previous),rejected('SIGNED_STAT_COMPATIBILITY_DRIFT'));}
+  const missing=fixture();missing.compatibilityFiles.pop();
+  assert.throws(()=>assertLocalLibrarySignedStatFixAdmission(missing),rejected('SIGNED_STAT_COMPATIBILITY_DRIFT'));
+  const extra=fixture();extra.compatibilityFiles[0].extra=true;
+  assert.throws(()=>assertLocalLibrarySignedStatFixAdmission(extra),rejected('SIGNED_STAT_COMPATIBILITY_DRIFT'));
 });
 
 test('修复准入：越界、伪路径、删除、改名、未知状态或row字段不能绕changed闭集',()=>{
@@ -100,7 +112,7 @@ test('修复准入：越界、伪路径、删除、改名、未知状态或row�
   assert.throws(()=>assertLocalLibrarySignedStatFixAdmission(input),rejected('SIGNED_STAT_CHANGED_PATH_REJECTED'));
 });
 
-test('修复准入：缺必需source变更、重复路径或超过26闭集均拒绝',()=>{
+test('修复准入：缺必需source变更、重复路径或超过35闭集均拒绝',()=>{
   const missing=fixture();missing.changedPaths.pop();
   assert.throws(()=>assertLocalLibrarySignedStatFixAdmission(missing),rejected('SIGNED_STAT_CHANGED_SET_INVALID'));
   const duplicate=fixture();duplicate.changedPaths[1]={...duplicate.changedPaths[0]};
@@ -111,7 +123,7 @@ test('修复准入：缺必需source变更、重复路径或超过26闭集均拒
 
 test('修复准入：后续报告只接受两个精确basename，不扩大目录或前序报告权限',()=>{
   const input=fixture();input.changedPaths.push(...scope.reportOnlyAddedPaths.map(path=>({path,status:'A'})));
-  assert.equal(assertLocalLibrarySignedStatFixAdmission(input).changedPaths.length,26);
+  assert.equal(assertLocalLibrarySignedStatFixAdmission(input).changedPaths.length,35);
   for(const path of ['reports/LOCAL_LIBRARY_SIGNED_STAT_FIX_EXTRA.md','reports/MBM-003_RESULT.md','docs/postrust/LOCAL_LIBRARY_SIGNED_STAT_FIX/evidence/extra.json']){
     const bad=fixture();bad.changedPaths.push({path,status:'A'});
     assert.throws(()=>assertLocalLibrarySignedStatFixAdmission(bad),rejected('SIGNED_STAT_CHANGED_PATH_REJECTED'));}
@@ -154,4 +166,6 @@ test('修复准入：新软件读回也不能升级设备、磁带集成或源�
     assert.throws(()=>assertLocalLibrarySignedStatFixAdmission(input),rejected('SIGNED_STAT_EVIDENCE_BOUNDARY_CHANGED'));}
   assert.equal(Object.isFrozen(scope),true);assert.equal(Object.isFrozen(scope.productPins[0].after),true);
   assert.throws(()=>{scope.productPins[0].after.bytes++;},TypeError);
+  assert.equal(Object.isFrozen(scope.compatibilityPins[0].after),true);
+  assert.throws(()=>{scope.compatibilityPins[0].after.bytes++;},TypeError);
 });

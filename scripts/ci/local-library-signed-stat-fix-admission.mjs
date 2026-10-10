@@ -58,6 +58,21 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
       "role": "SIGNED_STAT_PRODUCT"
     },
     {
+      "path": "packages/bridge-core/src/library/metadata-reader-types.ts",
+      "status": "M",
+      "role": "WAVE_EMPTY_LIST_PRODUCT"
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-worker.ts",
+      "status": "M",
+      "role": "WAVE_EMPTY_LIST_PRODUCT"
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader.ts",
+      "status": "M",
+      "role": "WAVE_EMPTY_LIST_PRODUCT"
+    },
+    {
       "path": "packages/bridge-core/src/recording/source-files.ts",
       "status": "M",
       "role": "SIGNED_STAT_PRODUCT"
@@ -91,6 +106,36 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
       "path": "packages/bridge-core/test/local-library-signed-stat-identity.test.ts",
       "status": "A",
       "role": "SIGNED_STAT_BEHAVIOR"
+    },
+    {
+      "path": "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
+      "status": "A",
+      "role": "WAVE_EMPTY_LIST_BEHAVIOR"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs003/persistent-scan-owner.test.ts",
+      "status": "M",
+      "role": "CURRENT_READER_VERSION_FIXTURE"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts",
+      "status": "M",
+      "role": "CURRENT_READER_VERSION_FIXTURE"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs005/config-integration.test.ts",
+      "status": "M",
+      "role": "CURRENT_READER_VERSION_FIXTURE"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/owner-worker.ts",
+      "status": "M",
+      "role": "CURRENT_READER_VERSION_FIXTURE"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs007/queue-worker.ts",
+      "status": "M",
+      "role": "CURRENT_READER_VERSION_FIXTURE"
     },
     {
       "path": "project/POSTRUST_PLAN.json",
@@ -172,7 +217,7 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
       },
       "after": {
         "bytes": 36729,
-        "sha256": "14e0054b011279db0440652e3f5382e3ab3332b19c775fa84578f395d6b7aa2c"
+        "sha256": "bc4dd52c0196bcb3c489ff44d728a09ae974bc5c72157783b1f8fab7c58b56e5"
       }
     },
     {
@@ -250,6 +295,104 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
       "after": {
         "bytes": 46157,
         "sha256": "3ccafec70017b883c3709a72b6715b3ca6b367b663a71d858b0279424e7de898"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-worker.ts",
+      "before": {
+        "bytes": 20986,
+        "sha256": "0aeadd7b2bfdad3508f8861ea8975e3bc112dc0535a78a4d40195ddf5d8e4948"
+      },
+      "after": {
+        "bytes": 21663,
+        "sha256": "ae050ec90ec99e52f173d0bf9e6603c902077936f9cc65e5f78c3462d4055165"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-types.ts",
+      "before": {
+        "bytes": 4680,
+        "sha256": "789284d079636be2468598e4b8f9dc33c12f0a9bdd10645d224bac0a12a3d95e"
+      },
+      "after": {
+        "bytes": 4680,
+        "sha256": "a57cc35fb1958b8a1c3368b67c06e3f45fbd3a1487fe1b514a1356d57369faa5"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader.ts",
+      "before": {
+        "bytes": 14112,
+        "sha256": "5f23c12dacb922832c4261391c0961aab565b77f1c4f79c52ca9882f8fce4bfe"
+      },
+      "after": {
+        "bytes": 14112,
+        "sha256": "34345874986b1d4416ca69c645e9d0dfe9b5bb66ba4b774b5b2f35f89a22b6ed"
+      }
+    }
+  ],
+  "compatibilityPins": [
+    {
+      "path": "packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts",
+      "before": {
+        "bytes": 9010,
+        "sha256": "4449ad1cbcc97000423c37273e0221a017f6afdc1a2be69f49ba09d933ace28c"
+      },
+      "after": {
+        "bytes": 9010,
+        "sha256": "df18095e7f1b47dbe44d9a1f7926cd9856a95b7ed2c62f0bbfacdc1f8c5e504c"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs005/config-integration.test.ts",
+      "before": {
+        "bytes": 8337,
+        "sha256": "5946217fc3ef7e38db79518f377843d3f6b731d920ef9e1683f39b60b8567090"
+      },
+      "after": {
+        "bytes": 8337,
+        "sha256": "4c1e6e8bf6e668bccd179a0d7fa78342da69548ecb15516355901daca5d9d7a2"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/owner-worker.ts",
+      "before": {
+        "bytes": 700,
+        "sha256": "04eb0f66241e1da67883d77756c44a31405d59ed2eaa73c3644490ca7133d98d"
+      },
+      "after": {
+        "bytes": 722,
+        "sha256": "63e4e3fc7b9359c6211af1990cd145a1a242cc2ddc0defebb8bd57b02cc04cce"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs007/queue-worker.ts",
+      "before": {
+        "bytes": 709,
+        "sha256": "c0dbb63daf368a69d852a61a2676f4ecfd4c160d3b83f55654dbf88720060520"
+      },
+      "after": {
+        "bytes": 731,
+        "sha256": "2c5bac36147db694d62db8a32aa3fbd49bbfa7e5d1da6b7f1f6112f7eeb9dcbe"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs003/persistent-scan-owner.test.ts",
+      "before": {
+        "bytes": 26566,
+        "sha256": "d69aabea87a5e5a152f35e276cfbfa6b50682406854f3fb26f1d0c9136a4515e"
+      },
+      "after": {
+        "bytes": 26566,
+        "sha256": "2b3b08ce96b6a2ff68ac5bb55e94d6f730ac1e7a31adb63861658a7f1d49e250"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
+      "before": null,
+      "after": {
+        "bytes": 24276,
+        "sha256": "7c9b5e02e201dbe7a6a265f265680216af87b1c4c9a38bfb0bfbc85778878bad"
       }
     }
   ],
@@ -517,6 +660,10 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
     {
       "file": "apps/desktop/test/command-outbox-service.test.ts",
       "expectedTests": 15
+    },
+    {
+      "file": "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
+      "expectedTests": 4
     }
   ],
   "policy": {
@@ -595,9 +742,9 @@ export function localLibraryFixRoute(branch, status, plan) {
     ? 'VALIDATE_EXACT_FIX' : 'ORIGINAL_PREDECESSOR_INSPECTOR';
 }
 
-/** 纯准入：不写库、不构建、不修改旧任务，产品9叶只能是冻结的完整新字节。 */
+/** 纯准入：不写库、不构建、不修改旧任务，12个产品及6个兼容测试输入只接受冻结的完整新字节。 */
 export function assertLocalLibrarySignedStatFixAdmission(input) {
-  if (!exactKeys(input, ['branch','head','baseIsAncestor','statusBytes','planBytes','baselineStatusBytes','baselinePlanBytes','execution','changedPaths','productFiles','frozenFiles'])) fail('SIGNED_STAT_UNKNOWN_INPUT');
+  if (!exactKeys(input, ['branch','head','baseIsAncestor','statusBytes','planBytes','baselineStatusBytes','baselinePlanBytes','execution','changedPaths','productFiles','compatibilityFiles','frozenFiles'])) fail('SIGNED_STAT_UNKNOWN_INPUT');
   if (input.branch !== LOCAL_LIBRARY_SIGNED_STAT_FIX_BRANCH) fail('SIGNED_STAT_BRANCH_MISMATCH');
   if (!/^[a-f0-9]{40}$/u.test(input.head ?? '') || input.baseIsAncestor !== true) fail('SIGNED_STAT_BASE_MISMATCH');
   const status = parse(input.statusBytes), projectPlan = parse(input.planBytes);
@@ -612,7 +759,7 @@ export function assertLocalLibrarySignedStatFixAdmission(input) {
     || !stripAddedJsonPrefix(input.planBytes, LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE.projectBinding.planAddedFields).equals(input.baselinePlanBytes)) fail('SIGNED_STAT_PREDECESSOR_PROJECT_CHANGED');
   if (!sameJson(status.currentMobileDeliveryReadback20261010, {
     task:'MBM-003',source:LOCAL_LIBRARY_SIGNED_STAT_FIX_BASE,directReport:'99c89519f3357f4018b32930e8179b66719f99e7',
-    software:'SOURCE_AND_DIRECT_REPORT_FIRST_NATURAL_CI_CONTENT_SEALED',deviceAcceptance:'PARTIAL_REPLAY_AND_INTERRUPTION_RECOVERY_OPEN',
+    software:'SOURCE_AND_DIRECT_REPORT_FIRST_NATURAL_CI_CONTENT_SEALED',deviceAcceptance:'PARTIAL_SAME_PAIRING_SERVICE_RECOVERY_OBSERVED_OS_INTERRUPTION_OPEN',
     nextOrder:['MBM-004','MBRS-016','MBRS-017'],newFixIsSeparatelyVerified:true })
     || !sameJson(status.parallelTapeCatalogDelivery20261010, {
       source:'cfa0456de984c6cf37a1cbb69300ae9a9ee97d7f',software:'ISOLATED_SOURCE_FIRST_NATURAL_FOUR_CI_SUCCESS_READ_BACK',
@@ -622,17 +769,20 @@ export function assertLocalLibrarySignedStatFixAdmission(input) {
   if (!sameJson(input.execution, LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE)) fail('SIGNED_STAT_SCOPE_CHANGED');
   const allowed = new Map(LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE.sourceChangedPaths.map(row => [row.path, row.status]));
   for (const report of LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE.reportOnlyAddedPaths) allowed.set(report, 'A');
-  if (!Array.isArray(input.changedPaths) || input.changedPaths.length < 24 || input.changedPaths.length > allowed.size
+  if (!Array.isArray(input.changedPaths) || input.changedPaths.length < 33 || input.changedPaths.length > allowed.size
     || new Set(input.changedPaths.map(row => row?.path)).size !== input.changedPaths.length) fail('SIGNED_STAT_CHANGED_SET_INVALID');
   for (const row of input.changedPaths) if (!exactKeys(row, ['path','status']) || !relative(row.path)
     || allowed.get(row.path) !== row.status) fail('SIGNED_STAT_CHANGED_PATH_REJECTED');
   if (LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE.sourceChangedPaths.some(row => !input.changedPaths.some(actual => actual.path === row.path && actual.status === row.status))) fail('SIGNED_STAT_REQUIRED_CHANGE_MISSING');
   const expectedProducts = LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE.productPins.map(row => ({ path: row.path, ...row.after }));
   if (!same(input.productFiles, expectedProducts)) fail('SIGNED_STAT_PRODUCT_DRIFT');
+  const expectedCompatibility = LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE.compatibilityPins.map(row => ({ path: row.path, ...row.after }));
+  if (!same(input.compatibilityFiles, expectedCompatibility)) fail('SIGNED_STAT_COMPATIBILITY_DRIFT');
   if (!same(input.frozenFiles, LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE.protectedFiles)) fail('SIGNED_STAT_FROZEN_PREDECESSOR_DRIFT');
   return { schema: 'musicbridge.local-library-signed-stat-fix.admission.v1', task: LOCAL_LIBRARY_SIGNED_STAT_FIX_TASK,
     branch: input.branch, baseSha: LOCAL_LIBRARY_SIGNED_STAT_FIX_BASE, headAtAdmission: input.head,
-    exactProductFiles: 9, changedPaths: input.changedPaths, frozenPredecessorFiles: input.frozenFiles,
+    exactProductFiles: 12, exactCompatibilityFiles: 6, compatibilityFiles: input.compatibilityFiles,
+    changedPaths: input.changedPaths, frozenPredecessorFiles: input.frozenFiles,
     oldGateEvidenceReused: true, currentFixSoftwareGateRequired: true, currentFixAppDeviceOwnerProven: false };
 }
 
@@ -678,14 +828,22 @@ export function inspectLocalLibrarySignedStatFixAdmission(directory = repository
     if (original.length !== row.before.bytes || hash(original) !== row.before.sha256) fail('SIGNED_STAT_BASE_PRODUCT_CHANGED');
     return pin(directory, row);
   });
+  const compatibilityFiles = LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE.compatibilityPins.map(row => {
+    if (row.before !== null) {
+      const original = git(directory, ['show', LOCAL_LIBRARY_SIGNED_STAT_FIX_BASE + ':' + row.path]);
+      if (original.length !== row.before.bytes || hash(original) !== row.before.sha256) fail('SIGNED_STAT_BASE_COMPATIBILITY_CHANGED');
+    }
+    return pin(directory, row);
+  });
   const frozenFiles = LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE.protectedFiles.map(row => pin(directory, row));
   const result = assertLocalLibrarySignedStatFixAdmission({ branch,head,baseIsAncestor,statusBytes,planBytes,
     baselineStatusBytes:git(directory, ['show', LOCAL_LIBRARY_SIGNED_STAT_FIX_BASE + ':project/STATUS.json']),
     baselinePlanBytes:git(directory, ['show', LOCAL_LIBRARY_SIGNED_STAT_FIX_BASE + ':project/POSTRUST_PLAN.json']),
-    execution:json(LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE_PATH),changedPaths,productFiles,frozenFiles });
+    execution:json(LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE_PATH),changedPaths,productFiles,compatibilityFiles,frozenFiles });
   for (const row of changedPaths) readLocalLibraryFixWhole(path.join(directory, row.path));
   if (git(directory, ['rev-parse','HEAD']).toString('utf8').trim() !== head
-    || !same(productFiles, LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE.productPins.map(row => pin(directory,row)))) fail('SIGNED_STAT_ADMISSION_DRIFT');
+    || !same(productFiles, LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE.productPins.map(row => pin(directory,row)))
+    || !same(compatibilityFiles, LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE.compatibilityPins.map(row => pin(directory,row)))) fail('SIGNED_STAT_ADMISSION_DRIFT');
   return result;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

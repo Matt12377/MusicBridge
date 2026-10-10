@@ -70,6 +70,7 @@ async function run(): Promise<MetadataReadResult> {
   const EndOfStreamError = await loadMetadataEndOfStreamError();
   checkTime();
   const dffPaddedHeaders = new Map<number,number>();
+  const waveEmptyListHeaders = new Set<number>();
   class BoundedFdTokenizer implements Tokenizer {
     position = 0;
     readonly fileInfo: Tokenizer['fileInfo'] = { size: input.size }; // 不提供路径；格式仅由真实字节准入后选择。
@@ -98,6 +99,12 @@ async function run(): Promise<MetadataReadResult> {
       // 11.15 DSDIFF Parser 未计pad；只适配已实际验界的12字节头token，原FD与来源事实不变。
       const originalPayload = token.len === 12 ? dffPaddedHeaders.get(at ?? this.position) : undefined;
       if (originalPayload !== undefined && got === 12) new DataView(buffer.buffer,buffer.byteOffset,buffer.byteLength).setBigUint64(4,BigInt(originalPayload+1));
+      // 空 LIST 缺少类型字段；只在解析视图中把已验界的原 8 字节头视作 JUNK，原 FD 字节不变。
+      if (phase === 'parse' && token.len === 8 && waveEmptyListHeaders.has(at ?? this.position)) {
+        if (got !== 8 || buffer[0] !== 0x4c || buffer[1] !== 0x49 || buffer[2] !== 0x53 || buffer[3] !== 0x54
+          || new DataView(buffer.buffer,buffer.byteOffset,buffer.byteLength).getUint32(4,true) !== 0) fail('PARSE_FAILED');
+        buffer[0] = 0x4a; buffer[1] = 0x55; buffer[2] = 0x4e; buffer[3] = 0x4b;
+      }
       if (got < token.len) throw new EndOfStreamError(); return token.get(buffer, 0);
     }
     async readToken<T>(token: Token<T>, at?: number): Promise<T> { const position = at ?? this.position; const v = await this.peekToken(token, position); this.position = position + token.len; return v; }
@@ -203,6 +210,7 @@ async function run(): Promise<MetadataReadResult> {
       if (id === (little ? 'fmt ' : 'COMM')) formatSeen = size >= (little ? 16 : 18);
       if (id === (little ? 'data' : 'SSND')) audioSeen = size > (little ? 0 : 8);
       else if (size > budget.singleAllocationBytes) fail('BUDGET_EXCEEDED');
+      if (little && id === 'LIST' && size === 0) waveEmptyListHeaders.add(at);
       at += 8 + size + size % 2;
     }
     if (!formatSeen || !audioSeen || at > end + 1) fail('PARSE_FAILED');
@@ -279,7 +287,7 @@ async function run(): Promise<MetadataReadResult> {
     if (!png && !jpeg) fail('UNSUPPORTED');
     coverEvidence.push({ mime: png ? 'image/png' : 'image/jpeg', bytes: data.byteLength, sha256: createHash('sha256').update(data).digest('hex'), evidence: 'encoded-bytes-magic-and-digest' });
   }
-  checkTime(); phase = 'complete'; return { status: 'ok', parserVersion: 'music-metadata-11.15.0/mbrs003-v1', fields, technical, coverEvidence, readEvidence: evidence() };
+  checkTime(); phase = 'complete'; return { status: 'ok', parserVersion: 'music-metadata-11.15.0/mbrs003-v2', fields, technical, coverEvidence, readEvidence: evidence() };
 }
 const publish = (result: MetadataReadResult): void => { parentPort!.postMessage({ kind: 'metadata-result', result, phase } satisfies MetadataWorkerResultMessage); };
 try { publish(await run()); }
