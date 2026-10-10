@@ -20,10 +20,11 @@ const current = async file => (await readMobileFile(path.join(repository, file),
 const compose = (file, bytes) => normalizeMbm001LegacyReuse(file, normalizeMbm002LegacyInputs(file, bytes));
 const ledger = { tasks: 18, acceptanceCases: 156, effectiveTasks: 17, effectiveAcceptanceCases: 150, cancelled015SixCases: 'N_A' };
 
+// 保留历史“三份”用例名；当前覆盖三份原适配和一份目录资格补片，共四份。
 test('002旧输入守卫：三份整文件精确逆回BASE002，原字节与工作树均不变', async () => {
   assert.equal(MBM002_LEGACY_INPUT_BASE, '8044d935e242d8647adc21445116fb49c9100e4a');
-  assert.equal(MBM002_LEGACY_INPUTS.length, 3);
-  assert.equal(new Set(MBM002_LEGACY_INPUTS.map(row => row.path)).size, 3);
+  assert.equal(MBM002_LEGACY_INPUTS.length, 4);
+  assert.equal(new Set(MBM002_LEGACY_INPUTS.map(row => row.path)).size, 4);
   for (const row of MBM002_LEGACY_INPUTS) {
     const before = original(row.path), after = await current(row.path), preserved = Buffer.from(after);
     assert.deepEqual(identity(before), row.before); assert.deepEqual(identity(after), row.after);

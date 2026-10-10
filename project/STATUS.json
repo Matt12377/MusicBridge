@@ -47992,9 +47992,9 @@
         "scheduled_after": "MBM-001",
         "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
         "scope_ref": "docs/postrust/MBM-002/EXECUTION_SCOPE.json",
-        "software": "PENDING_FRESH_SOURCE_GATE_AND_FIRST_NATURAL_CI_AFTER_SINGLE_APP_EXPECTATION_SYNC",
+        "software": "PENDING_FRESH_SOURCE_GATES_AND_FIRST_NATURAL_CI_AFTER_EXACT_LEGACY_BOUNDARY_ADAPTER",
         "production_app": "C310_RUNNING_CANDIDATE_RUNTIME_PROVEN_SEPARATE_FROM_NEW_SOURCE",
-        "real_service_device_audio": "NOT_RUN",
+        "real_service_device_audio": "C310_CANDIDATE_FIRST_SOUND_OWNER_REPORTED_PARTIAL_NOT_NEW_SOURCE_ACCEPTANCE",
         "owner_acceptance": "NOT_RUN",
         "owner_repeated_approval_required": false,
         "started_at": "2026-10-09T12:25:30.473008+00:00",
@@ -48002,7 +48002,7 @@
         "independent_acceptance_count": 9,
         "acceptance_ref": "docs/postrust/MBM-002/MOBILE_ACCEPTANCE.json",
         "implementation_commit": null,
-        "implementation_commit_resolution": "CURRENT_SOURCE_RESOLVED_FROM_GIT_HEAD_AFTER_SINGLE_APP_EXPECTATION_SYNC",
+        "implementation_commit_resolution": "CURRENT_SOURCE_RESOLVED_FROM_GIT_HEAD_AFTER_EXACT_LEGACY_SOURCEFILES_ADAPTER",
         "report_commit": null,
         "report_commit_resolution": "GIT_CURRENT_REPORT_HEAD_UNIQUE_PARENT_EXACT_SOURCE_AFTER_COMMIT",
         "report_path": "reports/MBM-002_RESULT.md",
@@ -48196,17 +48196,17 @@
     "scope": "docs/postrust/MBM-002/EXECUTION_SCOPE.json",
     "predecessor": "docs/postrust/MBM-002/PREDECESSOR_DELIVERY.json",
     "baseSha": "8044d935e242d8647adc21445116fb49c9100e4a",
-    "software": "PASS_REPAIR_WORKTREE_FOCUSED_CATALOG_SOURCE_MAIN_REGRESSIONS_EXACT_SOURCE_GATE_PENDING",
-    "productionApp": "PENDING_REPAIRED_SOURCE_BUILD_AND_SAFE_ORIGINAL_PROFILE_COLD_RESUME",
-    "actualSelfOwnedMacMedia": "PENDING_REPAIRED_SOURCE_AUTHENTICATED_CATALOG_AND_MEDIA",
-    "nativeIOSDeviceAudio": "NOT_RUN",
+    "software": "PASS_PRECOMMIT_EXACT_ADAPTER6_GUARDS27_CONTRACT33_FRESH_SOURCE_GATES_AND_CI_PENDING",
+    "productionApp": "C310_RUNNING_PRODUCTION_CANDIDATE_SEPARATE_FROM_NEW_SOURCE",
+    "actualSelfOwnedMacMedia": "C310_ACTUAL_23_MAC_HTTPS_CHECKS_PASS_SEPARATE_FROM_NEW_SOURCE",
+    "nativeIOSDeviceAudio": "C310_CANDIDATE_FIRST_SOUND_OWNER_REPORTED_NATIVE_CHECKS_IN_PROGRESS_NOT_NEW_SOURCE_ACCEPTANCE",
     "ownerAcceptance": "NOT_RUN",
     "branch": "codex/mbm-002-phone-resource-playback",
     "independentAcceptanceCount": 9,
     "acceptance": "docs/postrust/MBM-002/MOBILE_ACCEPTANCE.json",
     "localVerification": "docs/postrust/MBM-002/LOCAL_VERIFICATION.json",
     "implementationCommit": null,
-    "implementationCommitResolution": "SOURCE_HEAD_AFTER_SINGLE_E2E_EXPECTATION_SYNC",
+    "implementationCommitResolution": "SOURCE_HEAD_AFTER_EXACT_LEGACY_SOURCEFILES_BYTE_ADAPTER",
     "reportCommit": null,
     "reportCommitResolution": "PENDING_DIRECT_REPORT_SUCCESSOR_OF_REPAIRED_SOURCE",
     "report": "reports/MBM-002_RESULT.md",
@@ -48216,10 +48216,10 @@
       "report": "PENDING_DIRECT_REPORT_PUSH"
     },
     "ci": {
-      "source": "PENDING_FIRST_NATURAL_CI_AFTER_APP_EXPECTATION_SYNC",
+      "source": "PENDING_FIRST_NATURAL_CI_AFTER_EXACT_LEGACY_BOUNDARY_ADAPTER",
       "report": "PENDING_FIRST_NATURAL_DIRECT_REPORT_CI"
     },
-    "updatedAt": "2026-10-09T23:34:02.795277+00:00",
+    "updatedAt": "2026-10-10T00:05:06.125607+00:00",
     "finalDeliveryReceipt": "PRIVATE_EXTERNAL_ARCHIVE_AFTER_REPORT_CI_CURRENT_CANDIDATE_CLOSE_AND_PAIRED_FINAL_NO_THIRD_SEAL_COMMIT",
     "nextBranchBaseline": "RESOLVE_PAIRED_FINAL_REPORT_HEAD_ONLY_AFTER_PRIVATE_SEAL",
     "catalogAvailabilityRepair": {
@@ -48235,9 +48235,23 @@
         "mbm001": 87,
         "mbm002": 81
       },
-      "nativePlayback": "PENDING_NEW_CANDIDATE",
+      "nativePlayback": "C310_CANDIDATE_FIRST_SOUND_OWNER_REPORTED_PARTIAL_NOT_FINAL_SOURCE_ACCEPTANCE",
       "pairedFinal002": false,
-      "ownerRepeatedRoutineApprovalRequired": false
+      "ownerRepeatedRoutineApprovalRequired": false,
+      "legacyBoundarySeal": {
+        "path": "packages/bridge-core/src/recording/source-files.ts",
+        "beforeBytes": 42398,
+        "beforeSha256": "1012b602ea9b3641e41da391b3c1d268ec39bf9029bf548441358daa73f06fc9",
+        "afterBytes": 46087,
+        "afterSha256": "8316723b6d3a8b90770d4ca2df3ddb4c998e73f89997afe674cc6ac3a1b47be1",
+        "inverseWindows": 2,
+        "currentExactInputs": 4,
+        "originalBehaviorCases": 6,
+        "oldLockChanged": false,
+        "unknownMutationStillRejected": true,
+        "productionChangeFromParent": false,
+        "canonicalChangeFromParent": false
+      }
     }
   }
 }
