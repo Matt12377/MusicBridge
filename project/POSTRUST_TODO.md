@@ -147,3 +147,12 @@ c3103 原物理 profile 候选的23项 Mac 自有媒体检查及原 iOS 上 Owne
 5948恢复工程字段后，实际当前准入、50项守卫、fresh000的33项及fresh001的87项通过并整份冻结。但该Source仅改四份project账本，原push路径过滤没有启动Electron／Rust；首次自然只有两workflow，不能作为所需Source四workflow／六job交付，也不改标成结果报告。全部原过滤和未启动事实保留。
 
 现于原八项准入用例中加入已发生的两个C310部分首声标记负例：实际own字段及独立status／plan移动row均须拒绝；用例名／数量、生产代码、原Scope和预算不变。该回归确保旧候选部分音频证据不能改写冻结工程字段，新Source继续原全部门禁、首次自然四workflow和直接R。实际设备进展仍由独立证据记账，002保持IN_PROGRESS，003／004未开始。
+
+
+### MBM-002 当前真机播放检查点（2026-10-10）
+
+- 当前Source首曲重播、重连后正确第二首均取得Owner可听确认，Owner已确认当前播放体验没有问题；不再重复询问听感。
+- M已有首曲结束、后台剩余段结束、系统暂停恢复、Off后手机查询失败及On后第二首推进。原一小时窗口自然exit0关闭；第二首在窗口到期后停于01:04，完整EOS未观察到。
+- 复用同一Source/R的软件、构建、签名、安装和适用CI；撤销额外“再等30分钟严格重复排列”。Off提前的事实与手机Range/renew/release及独立seek/换质/迟到路径未证明的边界保留。
+- 当前002仍IN_PROGRESS：完成双端最终交付封存与本检查点普通push/适用CI记录；按原验收区分必须项和非fatal carryover，不扩大原case数。003/004仍NOT_STARTED，沿002→003→004→016→017推进。
+- 新增运行证据：`reports/MBM-002_NATIVE_CHECKPOINT.md`、`reports/MBM-002_NATIVE_CHECKPOINT.json`；原工程冻结证据原样保留。

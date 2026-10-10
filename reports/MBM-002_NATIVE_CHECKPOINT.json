@@ -1,0 +1,315 @@
+{
+  "schema": "musicbridge.mbm002.public-native-checkpoint.v1",
+  "kind": "METADATA_ONLY_RUNTIME_CHECKPOINT",
+  "task": "MBM-002",
+  "state": "IN_PROGRESS_PAIRED_CLOSEOUT_PENDING",
+  "recordedAtUTC": "2026-10-10T07:15:58.661295+00:00",
+  "parentReportSha": "d5189ecba0aaf266e7fa375613a7a99beffabc2e",
+  "engineeringSourceSha": "7ec898d9f26cbafb5e01f5483bfaccf14ca61d27",
+  "originalDirectChildReportSha": "d5189ecba0aaf266e7fa375613a7a99beffabc2e",
+  "iosSourceSha": "ec4529272933e55a511a1c578b65d7b385fa1262",
+  "iosReportSha": "ce7195aa4ff252685de919cf4a721ac060dbee87",
+  "checkpointIdentity": "SUCCESSOR_OF_ORIGINAL_REPORT_NOT_SECOND_DIRECT_SOURCE_REPORT",
+  "engineeringEvidence": {
+    "reuseExactExistingInputs": true,
+    "softwareGate": {
+      "contracts": 15,
+      "core": 30,
+      "desktop": 36,
+      "total": 81
+    },
+    "sourceFirstNaturalCi": "PASS_FOUR_WORKFLOWS_SIX_JOBS_FIVE_ARTIFACTS",
+    "originalReportFirstNaturalCi": "PASS_TWO_WORKFLOWS_THREE_JOBS_ACTUAL_REPORT_ONLY",
+    "iosSoftwareSignatureInstalledQualification": "PASS_WITH_NATIVE_AUDIO_SEPARATE",
+    "iosGithubCi": "NOT_RUN_NO_APPLICABLE_WORKFLOW",
+    "newLocalProductTestBuildInstallPairingRuns": 0,
+    "checkpointNaturalCi": "PENDING_ORDINARY_PUSH_NOT_SUBSTITUTED_BY_OLD_CI"
+  },
+  "frozenEngineeringReportsAndScopesChanged": false,
+  "nativeRuntime": {
+    "scope": "CURRENT_M_MAC7EC_REPORTD518_IOS_EC452_REPORTCE719_SAME_PROFILE_SAVED_PAIRING",
+    "providerRoonDesktopState": "SYNTHETIC_CORE_TEST_MODE_1",
+    "mobileHttpsAuthAndOwnerSelfOwnedWave": "PRODUCTION_IMPLEMENTATIONS",
+    "firstTrackForegroundEos": "OBSERVED_02:00_OF_02:00",
+    "firstTrackReplay": "OBSERVED_NORMAL_PLAY_PROGRESS",
+    "background": "REMAINING_SEGMENT_EOS_NOT_WHOLE_SONG_CONTINUOUS_AUDIO_PROOF",
+    "systemPauseResume": "OBSERVED_PAUSE_POSITION_STABLE_RESUME_PROGRESS_AND_EOS",
+    "ordinaryOff": "OBSERVED_2026-10-10T06:35:42.071Z",
+    "phoneNewSearchWhileOff": "OBSERVED_RETRY_NO_RESULTS_HTTP_STATUS_NOT_PROVEN",
+    "ordinaryOn": "OBSERVED_2026-10-10T06:47:13.521Z_SAME_SAVED_IDENTITY_AND_PAIRING",
+    "secondTrackAfterOn": "OBSERVED_CORRECT_TRACK_00:28_OF_02:00_AUDIBLE_OWNER_CONFIRMED",
+    "secondTrackAfterWindowLimit": "OBSERVED_01:04_PLAY_UNABLE_MAC_WINDOW_LIMIT_NOT_NEW_RESOURCE_EXPIRED_FAILURE",
+    "secondFullEos": "NOT_OBSERVED_WINDOW_CLOSED",
+    "perPhoneRangeRenewReleaseTrace": "NOT_PROVEN"
+  },
+  "ownerAcceptance": {
+    "firstReplayAudible": "CONFIRMED_DIRECT_HUMAN",
+    "secondAfterOnAudible": "CONFIRMED_DIRECT_HUMAN",
+    "currentPlaybackExperience": "CONFIRMED_DIRECT_HUMAN",
+    "allTechnicalAcceptanceCases": "NOT_CLAIMED",
+    "repeatHearingQuestionRequired": false
+  },
+  "naturalClose": {
+    "originalDeadlineUTC": "2026-10-10T06:50:45.006Z",
+    "actualEndedAtUTC": "2026-10-10T06:50:47.344Z",
+    "stopReason": "ONE_HOUR_LIMIT",
+    "appExitCode": 0,
+    "originalWrapperExitCode": 0,
+    "deadlineExtended": false,
+    "originalSixProcessesAbsent": true,
+    "originalPortClosed": true,
+    "inputsUnchanged": 1725,
+    "materialsUnchanged": 105,
+    "registrationTablesUnchanged": 19,
+    "metadataWitnessesPreserved": 38,
+    "opaqueCopiesPreserved": 32,
+    "originalShmRetained": true,
+    "newPermitRequests": 0,
+    "proofReuse": "ACTUAL_PASS_ROOT430_V4_NO_REPEAT_AUDIT"
+  },
+  "acceleratedCloseout": {
+    "reusePassedSameSourceEvidence": true,
+    "repeatFullLocalGates": false,
+    "newThirtyMinuteWindowStarted": false,
+    "strictExpiryThenOffRepetitionIsFrozenRequirement": false,
+    "earlyOffBoundaryPreserved": true,
+    "basis": "冻结条款没有新增严格排列；已撤销该额外重测安排，真实过期和恢复条款仍按已有证据及明确缺口处理。"
+  },
+  "acceptanceCases": [
+    {
+      "id": "MBMAT-002-01",
+      "area": "会话与观察隔离",
+      "engineering": "PASS_EXISTING_EXACT_SOURCE_81_BEHAVIORS",
+      "actualBoundary": "既有软件覆盖；M未单独重测设备隔离及迟到回报。"
+    },
+    {
+      "id": "MBMAT-002-02",
+      "area": "原幂等回执",
+      "engineering": "PASS_EXISTING_EXACT_SOURCE_81_BEHAVIORS",
+      "actualBoundary": "既有软件覆盖；本轮原生画面不证明201/202、冲突及UNKNOWN原回执。"
+    },
+    {
+      "id": "MBMAT-002-03",
+      "area": "真实只读源",
+      "engineering": "PASS_EXISTING_EXACT_SOURCE_81_BEHAVIORS",
+      "actualBoundary": "当前自有WAV首曲与第二首片段；不扩展为Provider/Roon/NAS或其它格式实机通过。"
+    },
+    {
+      "id": "MBMAT-002-04",
+      "area": "媒体HTTP字节",
+      "engineering": "PASS_EXISTING_EXACT_SOURCE_81_BEHAVIORS",
+      "actualBoundary": "既有实际HTTPS字节/Range/HEAD软件集成覆盖；手机逐请求字节NOT_PROVEN。"
+    },
+    {
+      "id": "MBMAT-002-05",
+      "area": "票据与到期",
+      "engineering": "PASS_EXISTING_EXACT_SOURCE_81_BEHAVIORS",
+      "actualBoundary": "既有60秒绝对票据与续期软件覆盖；普通Off/On恢复成立，手机票据/epoch终态未单独证明。"
+    },
+    {
+      "id": "MBMAT-002-06",
+      "area": "流式边界",
+      "engineering": "PASS_EXISTING_EXACT_SOURCE_81_BEHAVIORS",
+      "actualBoundary": "既有64KiB、drain、取消与槽位软件覆盖；不由播放画面重复推定。"
+    },
+    {
+      "id": "MBMAT-002-07",
+      "area": "静止与冷重开",
+      "engineering": "PASS_EXISTING_EXACT_SOURCE_81_BEHAVIORS",
+      "actualBoundary": "M按原期限自然关闭且原物理库、材料和历史闭包保留；手机release/close终态另列边界。"
+    },
+    {
+      "id": "MBMAT-002-08",
+      "area": "Mac到iPhone引擎",
+      "engineering": "PASS_EXISTING_EXACT_SOURCE_81_BEHAVIORS",
+      "actualBoundary": "当前Source首曲结束/正常重播、后台剩余段结束、系统暂停恢复、断连查询失败及恢复后的正确第二首均有证据；两次Owner可听和当前播放体验已确认。"
+    },
+    {
+      "id": "MBMAT-002-09",
+      "area": "双端交付",
+      "engineering": "EXACT_SOURCE_REPORT_CI_AVAILABLE_FINAL_PAIR_SEAL_PENDING",
+      "actualBoundary": "精确Source、原直接子报告及适用软件/CI证据已取得；双端最终封存仍待原任务收尾。"
+    }
+  ],
+  "remaining": {
+    "requiredDelivery": [
+      "原双端精确交付及最终封存收尾",
+      "本审计检查点普通push、远端身份与适用首次自然CI结果记录"
+    ],
+    "nativeNotSeparatelyProven": [
+      "seek、实际续期、换质和迟到回报的各自物理引擎路径",
+      "第二首完整EOS及手机逐请求/释放终态"
+    ],
+    "scopeRule": "按原验收区分必须封口项与明确非fatal carryover；缺失证据保持NOT_PROVEN，不追加测试排列。"
+  },
+  "unchangedLedger": {
+    "originalTasks": 18,
+    "originalCases": 156,
+    "effectiveTasks": 17,
+    "effectiveCases": 150,
+    "mbm002AcceptanceCases": 9,
+    "mbm003": "NOT_STARTED",
+    "mbm004": "NOT_STARTED",
+    "nextSequence": [
+      "MBM-002",
+      "MBM-003",
+      "MBM-004",
+      "MBRS-016",
+      "MBRS-017"
+    ]
+  },
+  "pairedFinal002": false,
+  "finalSealCreated": false,
+  "publicEvidencePins": [
+    {
+      "file": "ROOT_M_NATURAL_CLOSE430.json",
+      "bytes": 47823,
+      "sha256": "319e145f7d842e05e007737527279be94398ba1adcc6733527b93e657fa82338"
+    },
+    {
+      "file": "ROOT_M_ACTUAL_READY_FULL_READ442.json",
+      "bytes": 10680,
+      "sha256": "b37fe727dfce6015d9921372f6ceda4459410faf20e62b1a266c1d7f569143aa"
+    },
+    {
+      "file": "ROOT_M_SOURCEEC_EARLY_NATIVE_PIXEL_READ443.json",
+      "bytes": 6453,
+      "sha256": "45feacd0e84807b61c1fbf1ab97b4676eed09f90bd2829c8b8bb3ddfbfb34b39"
+    },
+    {
+      "file": "ROOT_M_SOURCEEC_REPLAY_AUDIO_BACKGROUND_READ444.json",
+      "bytes": 5791,
+      "sha256": "a54fa99d5a6893633cea12827d5ad908ed2bd7ecfd4ace551e732e9bfb2001cc"
+    },
+    {
+      "file": "ROOT_M_SOURCEEC_SYSTEM_PAUSE_RESUME_READ445.json",
+      "bytes": 8681,
+      "sha256": "ea00a1076798874a382d44a7bd455deca246098930b34bf1078d590e3f438be0"
+    },
+    {
+      "file": "ROOT_M_ACTUAL_ORDINARY_OFF446.json",
+      "bytes": 4533,
+      "sha256": "f346009db1bb4c4242c106cc23fe397e08872c00a0fd7cd40a34c28853b0d0ac"
+    },
+    {
+      "file": "ROOT_M_ACTUAL_ORDINARY_ON447.json",
+      "bytes": 5465,
+      "sha256": "8726993549b7da61f9f2bca54fd6c21794469d4f0a6a6f273d59028d2c320c36"
+    },
+    {
+      "file": "ROOT_M_ON_GETSERVER448.json",
+      "bytes": 2066,
+      "sha256": "6eda67e0980bfd105005d3e447f0bc700be840bc5363d5e1ffc3c6dd9bee4854"
+    },
+    {
+      "file": "03-m-cold-restore-home.json",
+      "bytes": 1092,
+      "sha256": "058841ce32e1f7a19a7ddeb0cc61f8fe9e1adac321dc51b1dc1c9ccd5f3adee0"
+    },
+    {
+      "file": "04-m-saved-authorization-restored.json",
+      "bytes": 1260,
+      "sha256": "c16b1b789a34fe8644b942e1725c94634787dcc5404b0dfab939d47c7ae905b9"
+    },
+    {
+      "file": "05-m-first-track-foreground-eos.json",
+      "bytes": 1118,
+      "sha256": "56f27a998f5d4888ac9d1586f338467a74833a90c1260cafb893ae522d8e0936"
+    },
+    {
+      "file": "06-m-replay-before-background.json",
+      "bytes": 1127,
+      "sha256": "c1aad9e6aa8e6c9e0ffe591414915d224646fe6799074604e1a788d7250b6e50"
+    },
+    {
+      "file": "07-m-background-natural-eos.json",
+      "bytes": 1283,
+      "sha256": "8baa766ab014943cf34b45f9db9451d55223fb23a9535be9ba8e259a5854a911"
+    },
+    {
+      "file": "08-m-system-pause-first.json",
+      "bytes": 1150,
+      "sha256": "4e996836ed13cf051323eb221796ef49ddc89c7ce47f856b2cbf1acfbf9a77a5"
+    },
+    {
+      "file": "09-m-system-pause-stable.json",
+      "bytes": 1043,
+      "sha256": "da637828bd64242a98fd48b15d30c6dbd62c08b265e3d334694f152a01fe43a2"
+    },
+    {
+      "file": "10-m-system-resume-progress.json",
+      "bytes": 1039,
+      "sha256": "a1394ca222724506d5662123d388a2283b5cc25ba2d37424e33f246f0d29b242"
+    },
+    {
+      "file": "11-m-system-resume-natural-eos.json",
+      "bytes": 1078,
+      "sha256": "879890bd2690ad268ab61e50d926b878a739da4157723d96d617e28d2b0c8e22"
+    },
+    {
+      "file": "12-m-off-search-unavailable.json",
+      "bytes": 1278,
+      "sha256": "1be6bc7cfff46e1a5258f415728f9029dc85f2189f29c3a561e3965eeb16544d"
+    },
+    {
+      "file": "13-m-on-second-first-progress.json",
+      "bytes": 1291,
+      "sha256": "210401f038a6cd6429273fde8701b8266b431235e79def13e90a64f3a2d6e71c"
+    },
+    {
+      "file": "14-m-on-second-window-limit-stop.json",
+      "bytes": 1315,
+      "sha256": "8fec1f7cf66f19cd3bbcbe64eee4f0a51b38fbb8d07488c48eb65597a500ba6a"
+    },
+    {
+      "file": "ROOT_M_NATURAL_CLOSE_NATIVE_CHECKPOINT449.json",
+      "bytes": 20872,
+      "sha256": "09e26e056847b23bfb197f7413a0648129f27759fb143ba8f92a4ecb25c8e93f"
+    },
+    {
+      "file": "COORDINATOR_MBM002_M_POST_CLOSE_AND_ACCELERATION_DECISION01.json",
+      "bytes": 5222,
+      "sha256": "d45d18571b2d9c7f3c1a605c7f3814eea33ad4c4f78a3e21fbfd4b2a508d6954"
+    },
+    {
+      "file": "ROOT_SOURCE7EC8_REPORTD518_WHOLE_CI403.json",
+      "bytes": 41879,
+      "sha256": "cc9abcf6df266abef79116e9e5ba4501d533efebc235501bf4278e64b12a2fac"
+    },
+    {
+      "file": "ROOT_IOS_SOURCEEC_SOFTWARE_SIGNED_INSTALLED_QUALIFICATION429.json",
+      "bytes": 30968,
+      "sha256": "586a2374818a18782196f3f82cdeada026d45e702a798c6ee9f5adbaf8319a71"
+    }
+  ],
+  "privacy": "BASENAMES_BYTES_SHA_ONLY_NO_CONNECTION_VALUES_PROFILE_IDENTITY_CREDENTIALS_OPAQUE_BODIES_OR_PRIVATE_PATHS",
+  "checkpointStaticValidation": {
+    "checks": [
+      {
+        "check": "verify-control-plane.mjs",
+        "exitCode": 0,
+        "startedAtUTC": "2026-10-10T07:18:22.187034+00:00",
+        "bytes": 19,
+        "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf"
+      },
+      {
+        "check": "verify-boundaries.mjs",
+        "exitCode": 0,
+        "startedAtUTC": "2026-10-10T07:18:22.315093+00:00",
+        "bytes": 16,
+        "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825"
+      },
+      {
+        "check": "verify-cycles.mjs",
+        "exitCode": 0,
+        "startedAtUTC": "2026-10-10T07:18:22.506559+00:00",
+        "bytes": 22,
+        "sha256": "29ef4a9d6ae23e4cf4219dc378ea3ec39e71169c45f741efd757f6b206c47184"
+      }
+    ],
+    "diffCheckExitCode": 0,
+    "frozenScopeCanonicalAndOldEvidenceUnchanged": true,
+    "changedFilesExactlyFiveMetadataPaths": true,
+    "localProductTestBuildInstallPairingRuns": 0
+  }
+}

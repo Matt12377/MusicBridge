@@ -48018,7 +48018,9 @@
           "docs/postrust/MBM-002/evidence/source-repair-readback.json",
           "docs/postrust/MBM-002/evidence/source-runtime-readback.json",
           "reports/MBM-002_EVIDENCE.json",
-          "reports/MBM-002_RESULT.md"
+          "reports/MBM-002_RESULT.md",
+          "reports/MBM-002_NATIVE_CHECKPOINT.json",
+          "reports/MBM-002_NATIVE_CHECKPOINT.md"
         ],
         "terminal_ci_receipt": {
           "source": "reports/MBM-002_EVIDENCE.json",
