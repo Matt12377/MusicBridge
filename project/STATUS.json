@@ -48460,7 +48460,26 @@
       "sourceGateHostedCases": 65,
       "sourceGateNativeCases": 15,
       "physicalDeviceAudio": false,
-      "ownerAcceptance": false
+      "ownerAcceptance": false,
+      "appEnvironmentRepair": {
+        "proof": {
+          "file": "ROOT_MBM003_APP_ENVIRONMENT_REPAIR532.json",
+          "bytes": 6948,
+          "sha256": "08c087b2d75d5ccc808e243f9fda94cbaf1140eea0e3fa1afed7364691791817"
+        },
+        "priorSource": "c0b945a2b8d0f6f3ee2d9ea9d2cb50a787dc7f95",
+        "actualPriorScan": "COMPLETED_3_FLAC_DSD_NOT_DISCOVERED_BECAUSE_CONTROLLED_GATE_WAS_OMITTED",
+        "affectedCases": 26,
+        "affectedExitCode": 0,
+        "freshProductionBuildExitCode": 0,
+        "freshDesktopTypesExitCode": 0,
+        "ordinaryProductionDefaultUnchanged": true,
+        "standard508ExactOriginalCountsPreserved": true,
+        "newSourceGate80AndFirstNaturalCiRequired": true,
+        "actualFiveFormatAppReady": false,
+        "physicalDeviceAudio": false,
+        "ownerAcceptance": false
+      }
     },
     "implementationCommitResolution": "OWN_IMPLEMENTATION_SOURCE_RESOLVED_BY_DIRECT_RESULT_REPORT",
     "reportCommitResolution": "UNIQUE_DIRECT_CHILD_R_AFTER_FIRST_NATURAL_SOURCE_CI"

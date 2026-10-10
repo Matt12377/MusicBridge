@@ -3,6 +3,44 @@ import test from 'node:test'
 
 import { buildCoreEnvironment } from '../src/main/core-environment.js'
 import { bundledConverterRoot } from '../src/main/converter-bootstrap.js'
+import { bundledMobileDsdRoot } from '../src/main/mobile-dsd-bootstrap.js'
+import { datasetOwnerEnvironment } from '../src/main/dataset-owner-bootstrap.js'
+
+test('受控 App 的专用 DSD 开关经过 Main、Core 与唯一 Owner 环境后仍需固定后端准入', () => {
+  const core = buildCoreEnvironment({
+    MUSIC_BRIDGE_MOBILE_DSD_BACKEND_GATE: '1',
+    MUSIC_BRIDGE_MOBILE_DSD_BACKEND_PATH: '/synthetic/untrusted-backend',
+    NETEASE_COOKIE: 'synthetic-credential',
+  }, { startupTest: false, uiE2e: true, coreCrashGate: false })
+  const owner = datasetOwnerEnvironment(core)
+  assert.equal(owner.MUSIC_BRIDGE_CORE_TEST_MODE, '1')
+  assert.equal(owner.MUSIC_BRIDGE_UI_E2E, '1')
+  assert.equal(owner.MUSIC_BRIDGE_MOBILE_DSD_BACKEND_GATE, '1')
+  assert.equal(bundledMobileDsdRoot(owner, {
+    platform: 'darwin', arch: 'arm64', entryDirectory: '/synthetic/desktop/dist/main',
+    resourcesDirectory: '/synthetic/resources',
+  }), '/synthetic/desktop/native/mobile-ffmpeg/darwin-arm64')
+  assert.equal(Object.hasOwn(core, 'MUSIC_BRIDGE_MOBILE_DSD_BACKEND_PATH'), false)
+  assert.equal(Object.hasOwn(owner, 'MUSIC_BRIDGE_MOBILE_DSD_BACKEND_PATH'), false)
+  assert.equal(Object.hasOwn(owner, 'NETEASE_COOKIE'), false)
+})
+
+test('专用 DSD 测试开关只在受控 App 精确显式启用时传递', () => {
+  for (const [startupTest, uiE2e, flag] of [
+    [false, true, undefined], [false, true, 'true'], [false, true, '0'],
+    [true, false, '1'], [false, false, '1'],
+  ] as const) {
+    const core = buildCoreEnvironment({ MUSIC_BRIDGE_MOBILE_DSD_BACKEND_GATE: flag },
+      { startupTest, uiE2e, coreCrashGate: false })
+    const owner = datasetOwnerEnvironment(core)
+    assert.equal(Object.hasOwn(core, 'MUSIC_BRIDGE_MOBILE_DSD_BACKEND_GATE'), false)
+    assert.equal(Object.hasOwn(owner, 'MUSIC_BRIDGE_MOBILE_DSD_BACKEND_GATE'), false)
+    if (startupTest || uiE2e) assert.equal(bundledMobileDsdRoot(owner, {
+      platform: 'darwin', arch: 'arm64', entryDirectory: '/synthetic/desktop/dist/main',
+      resourcesDirectory: '/synthetic/resources',
+    }), undefined)
+  }
+})
 
 test('Core environment keeps only runtime keys and test-only probes', () => {
   const environment: Record<string, string | undefined> = buildCoreEnvironment({
