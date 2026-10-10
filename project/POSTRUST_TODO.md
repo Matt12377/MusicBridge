@@ -156,3 +156,11 @@ c3103 原物理 profile 候选的23项 Mac 自有媒体检查及原 iOS 上 Owne
 - 复用同一Source/R的软件、构建、签名、安装和适用CI；撤销额外“再等30分钟严格重复排列”。Off提前的事实与手机Range/renew/release及独立seek/换质/迟到路径未证明的边界保留。
 - 当前002仍IN_PROGRESS：完成双端最终交付封存与本检查点普通push/适用CI记录；按原验收区分必须项和非fatal carryover，不扩大原case数。003/004仍NOT_STARTED，沿002→003→004→016→017推进。
 - 新增运行证据：`reports/MBM-002_NATIVE_CHECKPOINT.md`、`reports/MBM-002_NATIVE_CHECKPOINT.json`；原工程冻结证据原样保留。
+
+
+### MBM-002 seek与正常关闭补记（2026-10-10）
+
+- 原002/IOS-L03唯一缺少的当前真机seek已补：01:29拖回00:29后原生PNG继续到00:47，无报错。
+- N通过原STOP_REQUEST正常关闭，App/包装器exit0；1725输入无漂移，原105材料/profile保留，无新permit。未重做EOS、OffOn、听感、构建或安装。
+- 526f35f纯报告自动full verify按Owner取消无用重复测试要求实际CANCELLED；security和dependency-audit成功。原7ec/d518 Source/R Gate与首次自然CI不受影响，后续纯报告使用skip-ci，不宣称新CI通过。
+- 002剩余必需收尾：精确双端软件最终交付封存与本次审计push身份读回。未单独证明的实际续期/迟到路径、缺少可选传输档的换质、第二首完整EOS及逐请求/释放终态作为明确边界保留；003在正式封存后直接沿已授权范围接续。

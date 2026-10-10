@@ -3,7 +3,7 @@
   "kind": "METADATA_ONLY_RUNTIME_CHECKPOINT",
   "task": "MBM-002",
   "state": "IN_PROGRESS_PAIRED_CLOSEOUT_PENDING",
-  "recordedAtUTC": "2026-10-10T07:15:58.661295+00:00",
+  "recordedAtUTC": "2026-10-10T07:42:15.274638+00:00",
   "parentReportSha": "d5189ecba0aaf266e7fa375613a7a99beffabc2e",
   "engineeringSourceSha": "7ec898d9f26cbafb5e01f5483bfaccf14ca61d27",
   "originalDirectChildReportSha": "d5189ecba0aaf266e7fa375613a7a99beffabc2e",
@@ -23,7 +23,9 @@
     "iosSoftwareSignatureInstalledQualification": "PASS_WITH_NATIVE_AUDIO_SEPARATE",
     "iosGithubCi": "NOT_RUN_NO_APPLICABLE_WORKFLOW",
     "newLocalProductTestBuildInstallPairingRuns": 0,
-    "checkpointNaturalCi": "PENDING_ORDINARY_PUSH_NOT_SUBSTITUTED_BY_OLD_CI"
+    "checkpointNaturalCi": "PRECEDING_526_FULL_VERIFY_CANCELLED_OWNER_REPEAT_TEST_INSTRUCTION_SECURITY_AND_AUDIT_SUCCESS_NOT_CI_PASS",
+    "followingMetadataOnlyCi": "NOT_RUN_SKIP_CI_OWNER_ACCELERATION_NO_PRODUCT_CHANGE",
+    "sourceAndOriginalReportCiPolicy": "UNCHANGED_REQUIRED_FRESH_GATE_AND_FIRST_NATURAL_CI_FOR_NEW_PRODUCT_SOURCE_REPORT"
   },
   "frozenEngineeringReportsAndScopesChanged": false,
   "nativeRuntime": {
@@ -40,7 +42,10 @@
     "secondTrackAfterOn": "OBSERVED_CORRECT_TRACK_00:28_OF_02:00_AUDIBLE_OWNER_CONFIRMED",
     "secondTrackAfterWindowLimit": "OBSERVED_01:04_PLAY_UNABLE_MAC_WINDOW_LIMIT_NOT_NEW_RESOURCE_EXPIRED_FAILURE",
     "secondFullEos": "NOT_OBSERVED_WINDOW_CLOSED",
-    "perPhoneRangeRenewReleaseTrace": "NOT_PROVEN"
+    "perPhoneRangeRenewReleaseTrace": "NOT_PROVEN",
+    "seek": "OBSERVED_CURRENT_N_01:29_DRAG_TO_00:29_THEN_NATIVE_PNG_00:47_PAUSE_NO_ERROR",
+    "seekEvidenceScope": "AUTHOR_SINGLE_DRAG_AND_ROOT_ORIGINAL_PNG_READBACK_NO_PER_REQUEST_RANGE_CLAIM",
+    "qualityChange": "NOT_RUN_NO_DISTINCT_ACTUAL_TRANSPORT_VARIANT_NO_EXTRA_FORMAT_OR_MULTIPLE_QUALITY_FEATURE"
   },
   "ownerAcceptance": {
     "firstReplayAudible": "CONFIRMED_DIRECT_HUMAN",
@@ -122,7 +127,7 @@
       "id": "MBMAT-002-08",
       "area": "Mac到iPhone引擎",
       "engineering": "PASS_EXISTING_EXACT_SOURCE_81_BEHAVIORS",
-      "actualBoundary": "当前Source首曲结束/正常重播、后台剩余段结束、系统暂停恢复、断连查询失败及恢复后的正确第二首均有证据；两次Owner可听和当前播放体验已确认。"
+      "actualBoundary": "当前Source首曲结束/正常重播、后台剩余段结束、系统暂停恢复、断连查询失败及恢复后的正确第二首均有证据；两次Owner可听和当前播放体验已确认。 独立N短测补齐一次seek并继续推进；换质没有独立真实可选档，未新增功能，实际续期及迟到回报子项仍分别保留边界。"
     },
     {
       "id": "MBMAT-002-09",
@@ -133,12 +138,13 @@
   ],
   "remaining": {
     "requiredDelivery": [
-      "原双端精确交付及最终封存收尾",
-      "本审计检查点普通push、远端身份与适用首次自然CI结果记录"
+      "原双端精确软件交付及最终外置封存收尾",
+      "本次纯报告检查点普通push、远端与clean身份读回；复用原Source/R适用已通过Gate/CI"
     ],
     "nativeNotSeparatelyProven": [
-      "seek、实际续期、换质和迟到回报的各自物理引擎路径",
-      "第二首完整EOS及手机逐请求/释放终态"
+      "实际续期与迟到回报的各自物理引擎路径",
+      "换质未测：原002短候选没有独立真实可选传输档，003首版保持已批准单档范围",
+      "第二首完整EOS及手机逐请求/释放终态未观察，按冻结范围保留非fatal边界"
     ],
     "scopeRule": "按原验收区分必须封口项与明确非fatal carryover；缺失证据保持NOT_PROVEN，不追加测试排列。"
   },
@@ -280,6 +286,21 @@
       "file": "ROOT_IOS_SOURCEEC_SOFTWARE_SIGNED_INSTALLED_QUALIFICATION429.json",
       "bytes": 30968,
       "sha256": "586a2374818a18782196f3f82cdeada026d45e702a798c6ee9f5adbaf8319a71"
+    },
+    {
+      "file": "ROOT_N_SHORT_SEEK_NORMAL_CLOSE456.json",
+      "bytes": 11210,
+      "sha256": "3d879a13ebbfd18e30581c50aa5a79ce0393217318200c69e3ffede3edaf1cae"
+    },
+    {
+      "file": "ROOT_N_NATIVE_SEEK_READ458.json",
+      "bytes": 2405,
+      "sha256": "1b853ae3f91bb2ea94cc42200aec157446fce65b5c91f3004f14357ac5bbb406"
+    },
+    {
+      "file": "ROOT_AUDIT526_ACTUAL_CI_TERMINAL457.json",
+      "bytes": 1498,
+      "sha256": "f3073e3fd530745cbd854acd8b454db509aa17b610c277b9af090a1f0cb6a3c0"
     }
   ],
   "privacy": "BASENAMES_BYTES_SHA_ONLY_NO_CONNECTION_VALUES_PROFILE_IDENTITY_CREDENTIALS_OPAQUE_BODIES_OR_PRIVATE_PATHS",
@@ -310,6 +331,39 @@
     "diffCheckExitCode": 0,
     "frozenScopeCanonicalAndOldEvidenceUnchanged": true,
     "changedFilesExactlyFiveMetadataPaths": true,
-    "localProductTestBuildInstallPairingRuns": 0
+    "localProductTestBuildInstallPairingRuns": 0,
+    "basisCheckpointSha": "526f35fc56ff5d1a0c191fa70df5467d3694a64a"
+  },
+  "checkpointParentSha": "526f35fc56ff5d1a0c191fa70df5467d3694a64a",
+  "shortSeekNormalClose": {
+    "windowId": "MBM002_N_SHORT_SEEK_SOURCE7EC_IOS_EC452_AFTER_M430",
+    "stopReason": "STOP_REQUEST",
+    "appExitCode": 0,
+    "wrapperExitCode": 0,
+    "actualEndedAtUTC": "2026-10-10T07:36:41.349Z",
+    "durationMs": 586333,
+    "maximumDeadlineNotExtended": true,
+    "originalMainAbsent": true,
+    "originalPortClosed": true,
+    "inputsUnchanged": 1725,
+    "sourceMaterialsUnchanged": 105,
+    "registrationTables": 19,
+    "registrationProofBasis": "MAC_AUTHOR_EXIT0_PRODUCER_BEFORE_AFTER_NO_COORDINATOR_OR_READER_SQL_RERUN",
+    "preservedMetadataWitnesses": 51,
+    "preservedPriorOpaqueCopies": 32,
+    "newOpaqueCopies": 8,
+    "totalPreservedOpaqueCopies": 40,
+    "newPhonePermitRequests": 0,
+    "newProductGateBuildInstallPairingRuns": 0
+  },
+  "precedingAuditCiTerminal": {
+    "checkpointSha": "526f35fc56ff5d1a0c191fa70df5467d3694a64a",
+    "verifyRun": 38034100804,
+    "verifyConclusion": "cancelled",
+    "securityRun": 38034100800,
+    "securityConclusion": "success",
+    "dependencyAuditConclusion": "success",
+    "originalSourceOrReportCiTouched": false,
+    "reason": "Owner要求取消同源无用重复测试；526为元数据检查点，原Source7ec/Rd518真实通过证明复用。"
   }
 }
