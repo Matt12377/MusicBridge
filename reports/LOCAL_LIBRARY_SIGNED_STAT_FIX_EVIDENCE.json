@@ -1,0 +1,756 @@
+{
+  "schema": "musicbridge.local-library-signed-stat-fix.result-evidence.v1",
+  "snapshotUtc": "2026-10-10T19:51:28.022502+00:00",
+  "task": "LOCAL_LIBRARY_SIGNED_STAT_FIX",
+  "branch": "codex/fix-local-library-loading",
+  "baseSha": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+  "previousSignedIdentitySource": "c5d9f22a83e6978572747e7826e4228c53a97728",
+  "implementationCommit": "fd176fdf1da069dd678b673f697cdbe8831628cc",
+  "implementationUniqueParent": "f3e5529202d06829c69108c4484faa1e712e9c9e",
+  "implementationRemoteHeadVerifiedAtSourcePush": true,
+  "reportCommit": null,
+  "reportCommitResolution": "git log -1 --format=%H -- reports/LOCAL_LIBRARY_SIGNED_STAT_FIX_RESULT.md",
+  "reportUniqueParentRequired": "fd176fdf1da069dd678b673f697cdbe8831628cc",
+  "nextBranchBaseline": "ACTUAL_REMOTE_REPORT_HEAD_AFTER_FIRST_NATURAL_CI_CONTENT_SEAL",
+  "wholeTaskState": "CURRENT_V3_SOFTWARE_ACTUAL19_INSTALL_AND_SOURCE_CI_SEALED_ORDINARY61_OPEN",
+  "rootCause": [
+    "SIGNED_NODE_BIGINT_IDENTITY_REJECTED",
+    "ZERO_SIZE_OPTIONAL_WAVE_LIST_PARSER_NEGATIVE_IGNORE",
+    "UNSUPPORTED_OPTIONAL_COVER_ABORTED_SONG_METADATA"
+  ],
+  "parserVersion": "music-metadata-11.15.0/mbrs003-v3",
+  "sourceIdentitySignPreserved": true,
+  "selectiveEqualLengthInMemoryWaveHeaderViewOnly": true,
+  "negativeIgnoreAndContainerBoundsRemainStrict": true,
+  "oldUnfinishedV1JobUpgradeOrResumeProven": false,
+  "newScanJobRequiredForOrdinaryCompletedV1Job": true,
+  "scope": {
+    "executionScope": "docs/postrust/LOCAL_LIBRARY_SIGNED_STAT_FIX/EXECUTION_SCOPE.json",
+    "sourceChangedPaths": 33,
+    "finalWithTwoReportsChangedPaths": 35,
+    "productFiles": 12,
+    "compatibilityInputs": 6,
+    "protectedFiles": 45,
+    "expectedBehaviorTests": 80,
+    "oldOriginalBehaviorTestsPreserved": 75,
+    "behaviorStages": 8,
+    "preparePlusBehaviorStages": 9,
+    "originalProtectedGatesRerun": false,
+    "oldSource5eStatusAndPlanRemainderWholeBytesRetained": true,
+    "publicMobileContractVersion": "1.7.0",
+    "publicMobileContractsWholeBytesUnchanged": true,
+    "productWholePins": [
+      {
+        "path": "packages/bridge-core/src/collection/local-relocation-coordinator.ts",
+        "bytes": 9644,
+        "sha256": "05acb43a9486bf3c33ce06fd4e2d13908668b67125ef362c751fd03beaffd98c"
+      },
+      {
+        "path": "packages/bridge-core/src/collection/local-scan-coordinator.ts",
+        "bytes": 36729,
+        "sha256": "c690142cee8bfb3de0762fbe69df6a325b1d44baafe461e8c8afb3dc603ea92d"
+      },
+      {
+        "path": "packages/bridge-core/src/stream/source-namespace-claims.ts",
+        "bytes": 24762,
+        "sha256": "c7810434565cdb4b5c8fe394ca70d50442327e158a1439b54dcf3ae15e35d715"
+      },
+      {
+        "path": "packages/bridge-core/src/stream/physical-resource-locks.ts",
+        "bytes": 15391,
+        "sha256": "79052d83b6c602de784da7002f975aaf71e91c84f11bb9acc7d913fbf2fff2b8"
+      },
+      {
+        "path": "packages/bridge-core/src/stream/physical-resource-claims.ts",
+        "bytes": 14918,
+        "sha256": "8b1f47063435521135b5bfaf61951b6486d355fdcea6bb9bdfe3fdff5cd4cdba"
+      },
+      {
+        "path": "packages/bridge-core/src/application/local-source-resolver.ts",
+        "bytes": 8424,
+        "sha256": "3fc6087d0e4cb14edb2d0eab65917ce479a688cb71a9a88fc07d50ff0f4fb4c5"
+      },
+      {
+        "path": "packages/bridge-core/src/collection/local-source-ticket-types.ts",
+        "bytes": 4423,
+        "sha256": "ac836361c8bcd7d428d73e3ccc570310d54c8337ee007555d23eee5a7b26f67f"
+      },
+      {
+        "path": "packages/bridge-core/src/stream/local-file-source.ts",
+        "bytes": 11489,
+        "sha256": "39c5bfd368273d75fdb81a69566c67180fbd36c383217056720843c8847be7f5"
+      },
+      {
+        "path": "packages/bridge-core/src/recording/source-files.ts",
+        "bytes": 46157,
+        "sha256": "3ccafec70017b883c3709a72b6715b3ca6b367b663a71d858b0279424e7de898"
+      },
+      {
+        "path": "packages/bridge-core/src/library/metadata-reader-worker.ts",
+        "bytes": 21652,
+        "sha256": "259691cb8e8062b3db4d8522da864e6c14c2b0dde7ecaf19950e91add0662577"
+      },
+      {
+        "path": "packages/bridge-core/src/library/metadata-reader-types.ts",
+        "bytes": 4680,
+        "sha256": "53d23129795ddbb0440687a8519636fee23624caef2f4a1a71e17774ccde03ff"
+      },
+      {
+        "path": "packages/bridge-core/src/library/metadata-reader.ts",
+        "bytes": 14112,
+        "sha256": "375f2527dc23c4b2be5431dbc98a95882d3654a77c9d368ecc74eaf11c582097"
+      }
+    ],
+    "compatibilityWholePins": [
+      {
+        "path": "packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts",
+        "bytes": 9010,
+        "sha256": "9aa92bb73fd445ac4e8ec829d1fae2c9eb470811aecd45f3c7513fc48bdb2229"
+      },
+      {
+        "path": "packages/bridge-core/test/mbrs005/config-integration.test.ts",
+        "bytes": 8337,
+        "sha256": "e284cd3cbd7e44ee08b24c5a94c0faf8725113b2e37fcbed755940c8c4eb4510"
+      },
+      {
+        "path": "packages/bridge-core/test/mbrs006/owner-worker.ts",
+        "bytes": 722,
+        "sha256": "6cbc6a24cf1a5e2945972c7993c46314de4860825a8bff7219e096b8b2249e55"
+      },
+      {
+        "path": "packages/bridge-core/test/mbrs007/queue-worker.ts",
+        "bytes": 731,
+        "sha256": "dd626e9703546af316226f66e345d328bb2105b128466103a5739caf87ca0b08"
+      },
+      {
+        "path": "packages/bridge-core/test/mbrs003/persistent-scan-owner.test.ts",
+        "bytes": 26566,
+        "sha256": "571a14e89f3395bfd7e4b66900bba3344bfa8e74640b9aef7b7c25ab8bc84fd4"
+      },
+      {
+        "path": "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
+        "bytes": 31034,
+        "sha256": "1090e2a1547b376cdb7c3d738d5a5e4f3223cf6e6d5d38a13b0810b4009505dd"
+      }
+    ],
+    "sourceChangedPathsFromBase": 33,
+    "sourceChangedPathsFromUniqueParent": 18,
+    "directReportChangedPaths": 6
+  },
+  "localVerification": {
+    "v3RedOnImmutableF3": {
+      "tests": 5,
+      "pass": 4,
+      "fail": 1,
+      "exitCode": 1,
+      "signal": null,
+      "onlyNewFifthBehaviorFailed": true,
+      "artifact": "checks/wave-red57.json"
+    },
+    "v3Green": {
+      "tests": 5,
+      "pass": 5,
+      "fail": 0,
+      "exitCode": 0,
+      "signal": null,
+      "artifact": "checks/wave-green58.json",
+      "testBeforeOnlyFinalEofTrim": true
+    },
+    "finalTest": {
+      "bytes": 31034,
+      "sha256": "1090e2a1547b376cdb7c3d738d5a5e4f3223cf6e6d5d38a13b0810b4009505dd",
+      "coveredByFinalStandardAnd80Gate": true
+    },
+    "actual19Readonly": {
+      "ok": 19,
+      "failure": 0,
+      "allWorkersNaturalExit0AndFdClosedAndClaimsReleased": true,
+      "tenUnknownOptionalCoversHaveNoCoverEvidence": true,
+      "rootAnd19TenStatIdentityFieldsUnchanged": true,
+      "normalAppScan": false,
+      "sameOwnerDatasetEpochOrAppSharedLocksProven": false,
+      "sourceBinding": "SOURCE_F4_PRODUCT4_WHOLE_BYTES_EQUAL_PRECOMMIT_READER_PRODUCT4",
+      "sourceAudioHashDecodeOrNewPlaybackQualification": false,
+      "artifact": "checks/actual19-readonly-reader-result60.json"
+    },
+    "standard": {
+      "exitCode": 0,
+      "signal": null,
+      "tests": 4750,
+      "pass": 4748,
+      "fail": 0,
+      "skipped": 2,
+      "skips": "TWO_ORIGINAL_NATIVE_CONDITIONAL_TESTS",
+      "groups": [
+        {
+          "tests": 281,
+          "pass": 281,
+          "skipped": 0
+        },
+        {
+          "tests": 2789,
+          "pass": 2787,
+          "skipped": 2
+        },
+        {
+          "tests": 8,
+          "pass": 8,
+          "skipped": 0
+        },
+        {
+          "tests": 1672,
+          "pass": 1672,
+          "skipped": 0
+        }
+      ],
+      "typecheckProductionAndStrictPreloadPass": true,
+      "artifact": "checks/cover-standard-verify64.json"
+    },
+    "ownFinalGate": {
+      "tests": 80,
+      "pass": 80,
+      "fail": 0,
+      "skipped": 0,
+      "stages": 9,
+      "allNaturalExitCode0SignalNull": true,
+      "timeout": false,
+      "overflow": false,
+      "sourceInputs": 1822,
+      "compiledOutputs": 1045,
+      "wholeCurrentInputsOutputsAndRawConsumed": true,
+      "headAtRun": "f3e5529202d06829c69108c4484faa1e712e9c9e",
+      "finalProductCompatibilityAndTestBytesExactlyF4": true,
+      "afterGateOnlyFourBookkeepingFilesUpdatedBeforeSourceCommit": true,
+      "artifact": "checks/cover-software-gate67/summary.json",
+      "rootConsumer": "checks/root-v3-final-gate-consumed68.json"
+    },
+    "admissionAndLegacyGuards": {
+      "tests": 18,
+      "pass": 18,
+      "exitCode": 0
+    },
+    "static": {
+      "controlPlane": "PASS",
+      "boundaries": "PASS",
+      "correctCwdCycles": "PASS_FILES551",
+      "cyclesExitCode": 0,
+      "independentReviewP1": 0,
+      "independentReviewP2": 0
+    }
+  },
+  "failuresPreserved": {
+    "newWaveRedOnC5Products": {
+      "exitCode": 1,
+      "tests": 4,
+      "pass": 2,
+      "fail": 2,
+      "artifact": "checks/wave-red34.json"
+    },
+    "firstFullVerifyTypesOnly": {
+      "exitCode": 2,
+      "standardRegressionEntered": false,
+      "artifact": "checks/new-wave-type-first-failure37.json"
+    },
+    "firstOwnGateCurrentV1FixtureConflict": {
+      "exitCode": 1,
+      "testsObserved": 15,
+      "pass": 14,
+      "fail": 1,
+      "cause": "CURRENT_SYNTHETIC_JOB_VERSION_V1_VERSUS_REAL_READER_V2",
+      "repair": "ONE_CURRENT_JOB_VERSION_LITERAL_V2_HISTORICAL_V1_UNCHANGED",
+      "artifact": "checks/wave-software-gate41/summary.json"
+    },
+    "firstPackage": {
+      "exitCode": 1,
+      "cause": "EXISTING_CSC_IDENTITY_AUTO_DISCOVERY_FALSE_NOT_PROVIDED",
+      "repair": "COMMAND_ENVIRONMENT_ONLY_NO_SIGNING_POLICY_OR_PRODUCT_EDIT",
+      "artifact": "checks/wave-package-first-failure42.json"
+    },
+    "f3Actual19ReadonlyRemainingFailure": {
+      "ok": 9,
+      "unsupported": 10,
+      "diagnosticProcessDidNotMeanAppScanPass": true,
+      "artifact": "checks/actual19-readonly-reader-result55.json"
+    },
+    "v3RedOnF3": {
+      "tests": 5,
+      "pass": 4,
+      "fail": 1,
+      "naturalExitCode": 1,
+      "artifact": "checks/wave-red57.json"
+    },
+    "v3StaticWrongScriptAndWrongCwd": {
+      "wrongScript": "MODULE_NOT_FOUND_AFTER_18_GUARDS_AND_TWO_STATIC_CHECKS_PASS",
+      "wrongCwdZeroFileCyclesNotEvidence": true,
+      "correctCycles": "PASS_FILES551",
+      "rawArtifacts": [
+        "logs/cover-pure-static62.log",
+        "logs/cover-cycles62b.log",
+        "logs/cover-cycles62c.log"
+      ]
+    }
+  },
+  "sourceFirstNaturalCI": {
+    "headSha": "fd176fdf1da069dd678b673f697cdbe8831628cc",
+    "event": "push",
+    "attempt": 1,
+    "workflowCount": 4,
+    "jobCount": 6,
+    "state": "EXACT_F4_FIRST_NATURAL_FOUR_WORKFLOWS_SIX_JOBS_SUCCESS_CONTENT_SEALED",
+    "rerun": false,
+    "cancelled": false,
+    "runs": [
+      {
+        "id": 38078473622,
+        "workflow": "verify",
+        "jobs": [
+          114290294696,
+          114290295010
+        ],
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 38078473641,
+        "workflow": "Rust Core 只读原型",
+        "jobs": [
+          114290294553,
+          114290294835
+        ],
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 38078473645,
+        "workflow": "security",
+        "jobs": [
+          114290295375
+        ],
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 38078473637,
+        "workflow": "electron-e2e",
+        "jobs": [
+          114290294809
+        ],
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "allSixOfficialWholeRawLogsConsumed": true,
+    "currentStandardCounts": {
+      "tests": 4750,
+      "pass": 4748,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    "ownBehaviorCounts": {
+      "tests": 80,
+      "pass": 80,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "ownNaturalStages": 9,
+    "ownSourceInputCount": 1822,
+    "ownSourceInputIdentity": "9cbae3e76c5bbed68cb44f5bcc9ba6b5cbd38b5824d42a33ad4ed53b76961626",
+    "startupCounts": {
+      "tests": 12,
+      "pass": 12,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "playwrightCounts": {
+      "tests": 116,
+      "pass": 111,
+      "fail": 0,
+      "skipped": 5,
+      "flaky": 0
+    },
+    "playwrightAll116ResultsRetryZero": true,
+    "moderateVulnerabilitiesReported": 8,
+    "fourWholeSmallZipsPlatformDigestAndAllMemberCrcBytesShaIndependentlyConsumed": true,
+    "originalOwnStageRawNotUploadedSafeTapAndSummaryReadInstead": true,
+    "currentOwnCompiled36OutputsCiSummaryOnlyNotWholeUploadedSet": true,
+    "largeElectronZipOnlyBoundedCentralAndSelectedMembersNotWholeDigest": true,
+    "producerReceipt": "checks/APP_HOTFIX_SOURCE_F4_FIRST_NATURAL_CI_READONLY_REVIEW01.json",
+    "rootConsumer": "checks/root-f4-first-ci-consumed75.json",
+    "ordinary61AndOwnerAcceptanceProven": false
+  },
+  "previousC5FirstNaturalCI": {
+    "headSha": "c5d9f22a83e6978572747e7826e4228c53a97728",
+    "workflows": 4,
+    "jobs": 6,
+    "allSuccessAndContentReadBack": true,
+    "standardTests": 4745,
+    "standardPass": 4743,
+    "standardSkipped": 2,
+    "ownTests": 75,
+    "startupTests": 12,
+    "e2eTests": 116,
+    "e2ePass": 111,
+    "e2eSkipped": 5,
+    "doesNotCoverNewWaveF3": true
+  },
+  "installedBuild": {
+    "build": "20261011.2",
+    "version": "0.1.0-beta.2",
+    "sourceSha": "fd176fdf1da069dd678b673f697cdbe8831628cc",
+    "packagingExitCode": 0,
+    "candidateStagedAndActualCompleteEntries": 641,
+    "codesignDeepStrictExitCode": 0,
+    "signatureScope": "EXISTING_AD_HOC_NO_DEVELOPER_ID_OR_NOTARIZATION",
+    "asarBytes": 61839965,
+    "asarSha256": "92ea46140b7694b02a5958f1ce6355840de0e0fa35e4c70b4c0127423967f189",
+    "actualRuntimeWholeMembersMatched": 15,
+    "finalProductCompiledJsMapAndDeclarationsMatched": 36,
+    "finalSourceBoundToActualInstallation": true,
+    "sourceCandidateBinding": "checks/v3-source-candidate-binding71.json",
+    "actualAtomicInstallReceipt": "checks/actual-v3-install72.json",
+    "nativeQualificationScope": "OPTIONAL_RUST_AND_NATIVE_OUTPUT_NEW_QUALIFICATION_NOT_PROVEN",
+    "ordinarySameProfileNormalMainLaunchObserved": true
+  },
+  "ordinaryApp": {
+    "previousC5ScanProcessed": 62,
+    "previousC5ScanAcceptedIncludingCue": 43,
+    "previousC5RejectedWav": 19,
+    "previousC5PhysicalAssetsAndTracks": 42,
+    "cueSources": 1,
+    "cueDeclaredTracksNotAdditionalPhysicalAssets": 10,
+    "previousC5NormalCold42AutoVisible": true,
+    "newBuildCurrentAssetsAndTracks": 42,
+    "currentNewV3ScanTriggered": false,
+    "new19OrdinaryLoadProven": false,
+    "visible61PhysicalTracksProven": false,
+    "normalQuitCold61AutoVisibleProven": false,
+    "toolObservationState": "EXACT_INSTALLED_FULL_PATH_TIMEOUT_-10005_BEFORE_AND_AFTER_FINDER_NEW_URL_OPEN",
+    "bundleIdObservation": "AMBIGUOUS_HISTORIC_BACKUP_IDENTIFIERS_NO_BACKUP_LAUNCHED",
+    "appHangCause": "NOT_ESTABLISHED",
+    "shortProcessSamplesProveUiResponsive": false,
+    "normalMainNoSpecialFlags": true,
+    "same17CollectionAnd2OutboxWholeSelectedRowsEqualClosedF3": true,
+    "sourceRoots": 4,
+    "sourceLedgerRows": 5,
+    "outboxRequestsAndStates": 71,
+    "businessContinuityReceipt": "checks/v3-normal-launch-readonly-continuity74.json",
+    "readonlySqliteMayHaveOrdinaryWalShmSidecarEffects": true,
+    "wholeMediaAudioHashOrDecodeProven": false,
+    "existingRootChooserReceiptsReused": true,
+    "olderTwoUnknownChooserReceiptsRetainedAndNotReplayed": true,
+    "newOrdinaryAppLeftRunning": true,
+    "ordinary61MissingEvidenceIsSeparateCarryoverNotAnAddedGateForIndependentNextTask": true
+  },
+  "rollback": {
+    "previousInstalledBuild": "20261011.1",
+    "previousInstalledSource": "f3e5529202d06829c69108c4484faa1e712e9c9e",
+    "fullCandidateStageInstalledAndBackupEntries": 641,
+    "previousF3AppAndClosed42And71CopiesVerified": true,
+    "databaseHandlesClosedBeforeF3ClosedCopy": true,
+    "maintenanceOldF3Exit": "NORMAL_SYSTEM_QUIT_REQUEST_THEN_FORCE_ONLY_EXACT_REMAINING_MAIN",
+    "normalAppQuitAcceptanceFromMaintenance": false,
+    "zeroWalAndExistingShmPreservedNoDeletionCheckpointOrSqlDml": true,
+    "neverRestoreOlderEmptyCatalogOverUserNewData": true,
+    "knownPriorC5NormalCold42Source": "c5d9f22a83e6978572747e7826e4228c53a97728",
+    "externalRestoreAliases": [
+      "rollback/SourceF3-build20261011.1",
+      "rollback/SourceC5-build20261010.2"
+    ],
+    "closedF3BackupReceipt": "checks/closed-f3-app-data-backup66.json"
+  },
+  "authorizationAndBoundary": {
+    "ownerAuthorizationPersistsNoRepeatedApprovalRequired": true,
+    "sourceFilesWrite": "UNCHANGED_DEFAULT_OFF",
+    "existingUnavailableOptionalRustReadPreferenceNotChanged": true,
+    "mediaTagsAndAudioUnmodifiedByFixOrInstaller": true,
+    "credentialsPairingAndPrivateProfileNotChangedByFixOrInstaller": true,
+    "systemOrCuaPermissionsNotChanged": true,
+    "privateIpcCdpSqlWriterUiBypass": false,
+    "dirtyPrimaryWorktreePreserved": true,
+    "oldMobile17Task150AcceptanceLedgerUnchanged": true,
+    "ownerFinalAcceptance": "NOT_ESTABLISHED"
+  },
+  "remaining": {
+    "currentFix": [
+      "ORDINARY_NEW_INCREMENTAL_SCAN_FROM_EXISTING_ROOT",
+      "VISIBLE61",
+      "NORMAL_QUIT_AND_COLD61_AUTOVISIBLE"
+    ],
+    "mainOrder": [
+      "MBM-004",
+      "MBRS-016",
+      "MBRS-017"
+    ],
+    "mainNextTasksImplementation": "NOT_STARTED",
+    "mbm003": {
+      "softwareSource": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+      "directReport": "99c89519f3357f4018b32930e8179b66719f99e7",
+      "iosSource": "9746e1ab9a68a73edef7be93ef86818d7a6f2217",
+      "iosFinalReport": "bbebb7cc2cb5eaee21a78ecb94ac03b1c9af8595",
+      "samePairingGDisconnectToHServiceRecoveryAndSeekPausePlay": "OBSERVED_PREVIOUSLY_SEALED",
+      "hFinalServiceAppClose": "NORMAL_SOURCE_UNCHANGED_EXIT0_NULL_SIGNAL_NO_RESIDUAL_PORTS_CACHE_BYTES_UNCHANGED",
+      "realOsInterruption": "NOT_NATURALLY_TRIGGERED",
+      "phoneHearingAndOwnerAcceptance": "ORIGINAL_PARTIAL_LEDGER_UNCHANGED",
+      "newPhoneReopenOrOldFiveFormatReplay": false
+    },
+    "tape": {
+      "source": "cfa0456de984c6cf37a1cbb69300ae9a9ee97d7f",
+      "isolatedFirstNaturalFourCiSoftwareContentSealed": true,
+      "finalCommonBaselineIntegration": "PENDING",
+      "ordinaryRealCatalogImport": "NOT_RUN"
+    },
+    "originalLiveAndOwnerCarryoversRetained": true
+  },
+  "privateArtifactReferences": [
+    {
+      "path": "checks/wave-red57.json",
+      "bytes": 789362,
+      "sha256": "e8ac83799ec521293f5baf74341a2c51718324c9ab2fae433b5bec4381635c8a"
+    },
+    {
+      "path": "checks/wave-green58.json",
+      "bytes": 789410,
+      "sha256": "f5c3f40cb59a5a4c359472851b1e46487c03804cd7cc35c0a211a638dcfcf433"
+    },
+    {
+      "path": "checks/wave-red57.stdout",
+      "bytes": 2460,
+      "sha256": "508c7017d6e4f6878b3c33d141bc25b8a38e2305c43a107ab706b892ed8e3225"
+    },
+    {
+      "path": "checks/wave-green58.stdout",
+      "bytes": 1541,
+      "sha256": "f8dca6b918b0955ac4778603a5cd4e9abdcd17d74731dea22f3b042d24123e2c"
+    },
+    {
+      "path": "checks/actual19-readonly-reader-result55.json",
+      "bytes": 30729,
+      "sha256": "d749db8063b647263f2df6c86383249ce1ec4b211c7aab5343baac1fc17ab3b0"
+    },
+    {
+      "path": "checks/actual10-optional-cover-diagnosis56.json",
+      "bytes": 4761,
+      "sha256": "f29cc531d30125b8799fff3d6dadbe9867869eda4debaf2a8c7dd5232967637b"
+    },
+    {
+      "path": "checks/actual19-readonly-reader-result60.json",
+      "bytes": 35993,
+      "sha256": "dc62bebc94dfd119bd4aa64b18edf98f0754eb4c27cb4f5b6999fe176455ff80"
+    },
+    {
+      "path": "checks/actual19-readonly-reader-input60.json",
+      "bytes": 16023,
+      "sha256": "ea42455d1dcb8b6d3937474b0bdb16943963d02351eec59478b4895dd7666d38"
+    },
+    {
+      "path": "logs/cover-pure-static62.log",
+      "bytes": 5362,
+      "sha256": "cb701d2d25a1c8d83e10b1cc4460f76326905f71033ce765f9ddcb16c8e368fc"
+    },
+    {
+      "path": "logs/cover-cycles62b.log",
+      "bytes": 20,
+      "sha256": "4a465fb16585fdc739e478e6b813e893eabe5cbee669ebeadfa6b1e3228b8d23"
+    },
+    {
+      "path": "logs/cover-cycles62c.log",
+      "bytes": 22,
+      "sha256": "435079f983e8c378e2ed0034d86035dcce96065974fdfd2efd0928fd00a0f914"
+    },
+    {
+      "path": "checks/cover-standard-verify64.json",
+      "bytes": 1384,
+      "sha256": "3674768e18bb3db39f5116eca7612cf2d0ce07eb61b8bfb3c9e27923b152e717"
+    },
+    {
+      "path": "logs/cover-standard-verify64.log",
+      "bytes": 1153065,
+      "sha256": "9b7f96b9ca0056cfde4928dd1776cb8979c1a13df96ec13292bdb99303f5f47e"
+    },
+    {
+      "path": "checks/cover-software-gate67/summary.json",
+      "bytes": 847943,
+      "sha256": "2ed34fa01dd02e1c52bf75f50ad25ac580e7e5856d15f356cd9d311dc5ea4290"
+    },
+    {
+      "path": "checks/root-v3-final-gate-consumed68.json",
+      "bytes": 7457,
+      "sha256": "08acba79bcd7a37f3f0ffc207ffa77e2edeab3010b8806d910ff8b66fcf6d30d"
+    },
+    {
+      "path": "logs/cover-package69.log",
+      "bytes": 3407,
+      "sha256": "b5a98a64857e0619e0081f78cd9dc63a5ef86d6993c45a1589374cc1f83985dc"
+    },
+    {
+      "path": "checks/source-v3-commit70.json",
+      "bytes": 5275,
+      "sha256": "ac511f222418948f226536629304be626b2ac94e3443031fae524fdbe1229bdc"
+    },
+    {
+      "path": "checks/v3-source-candidate-binding71.json",
+      "bytes": 21241,
+      "sha256": "e3021a18b31abd800c790a8d913825e9a1dfb76d634e3e3df0951b872c1b36da"
+    },
+    {
+      "path": "checks/actual-v3-install72.json",
+      "bytes": 131809,
+      "sha256": "49f8e0ad45eb15194e078e6c82bdd5d134e528f033a078e9f9aa1416f7d767a6"
+    },
+    {
+      "path": "checks/v3-normal-launch-window-observation73.json",
+      "bytes": 5406,
+      "sha256": "ff6946aa5b188007bfd2dc1e3a4c7619d117c31cbffb9bb66ee6618839c86209"
+    },
+    {
+      "path": "checks/v3-normal-launch-readonly-continuity74.json",
+      "bytes": 4644,
+      "sha256": "aa759a28d960ae56f4400c9e35595b8051ba736c0693a2d5013dbc1cb6f38784"
+    },
+    {
+      "path": "checks/pre-v3-normal-app-maintenance-continuity63.json",
+      "bytes": 4116,
+      "sha256": "2f91bdbdf2eaa0fa595c232e788bdc637479338b140c2c86ebf2ad9bacadeef4"
+    },
+    {
+      "path": "checks/pre-v3-maintenance-readonly-db-snapshots65.json",
+      "bytes": 1146,
+      "sha256": "79c3c2349a88666ba45f083777e4c971ea68479114bdb4d96b1188049ecc6750"
+    },
+    {
+      "path": "checks/closed-f3-app-data-backup66.json",
+      "bytes": 130826,
+      "sha256": "510c6a381ee2186f5a09a3487203f9b041d53220d7548a0509431d4e4996b91f"
+    },
+    {
+      "path": "checks/root-f3-first-ci-consumed59.json",
+      "bytes": 14030,
+      "sha256": "abba5e177db347d92190724778870a2a33b6fe7377d98243918d72acde0c800e"
+    },
+    {
+      "path": "checks/APP_WAVE_SOURCE_F3_FIRST_NATURAL_CI_READONLY_REVIEW48.json",
+      "bytes": 337757,
+      "sha256": "111cf681349d4660d5276d639e445cafe6d5edd834abf7c748851d74057e29b8"
+    },
+    {
+      "path": "checks/wave-red34.json",
+      "bytes": 789375,
+      "sha256": "87d9addccf24bc1b2bdd5ef460fbf4206e469a4e639cf99c1d759b0053977ec2"
+    },
+    {
+      "path": "checks/new-wave-type-first-failure37.json",
+      "bytes": 1505,
+      "sha256": "5d890be3409db9440803f82af41a5c4ec52ed65ba4dfa40c12343c69d09c630a"
+    },
+    {
+      "path": "checks/wave-software-gate41/summary.json",
+      "bytes": 826083,
+      "sha256": "d4202e59fba4405295d3ad534d16f5557d092a25da2f987cd8eb7ac5356cec18"
+    },
+    {
+      "path": "checks/wave-package-first-failure42.json",
+      "bytes": 421,
+      "sha256": "86405ca7babdcab738eebdfad400e5d431288a1d3bbc3daec14d79092773c9f3"
+    },
+    {
+      "path": "checks/original-mbm003-direct-report-inheritance76.json",
+      "bytes": 7230,
+      "sha256": "6a5e3df3f2c75feef0c0dc55dd78d0ab87d8f5448799c3db6f40453119d9ca15"
+    },
+    {
+      "path": "checks/APP_HOTFIX_SOURCE_F4_FIRST_NATURAL_CI_READONLY_REVIEW01.json",
+      "bytes": 366765,
+      "sha256": "70d4366a0f2ef39ce7400acc6deb55cd4ca9fae03be3a1c316822a55cb447198"
+    },
+    {
+      "path": "checks/root-f4-first-ci-consumed75.json",
+      "bytes": 30088,
+      "sha256": "34943ced05c8c7a15f51e769440ad94984f248888433234674ea034d1c6fad9f"
+    }
+  ],
+  "reportFirstNaturalCI": "RESOLVE_AFTER_DIRECT_REPORT_PUSH_PRIVATE_CONTENT_SEAL_DO_NOT_SELF_DECLARE",
+  "previousEmptyWaveListSource": "f3e5529202d06829c69108c4484faa1e712e9c9e",
+  "implementationTrackedTreeCleanAtSourcePush": true,
+  "onlyTwoOwnUntrackedReportDraftsAtSourcePush": true,
+  "reportCommitIsResolvedExternallyNoThirdSelfSealCommit": true,
+  "cueParserVersionUnchanged": true,
+  "unsupportedOptionalCoverSkippedOnlyAfterOriginalBudgets": true,
+  "supportedPngJpegMagicAndWholeEncodedHashesUnchanged": true,
+  "webpDecoderOutputTranscodingOrPublicApiAdded": false,
+  "previousF3FirstNaturalCI": {
+    "headSha": "f3e5529202d06829c69108c4484faa1e712e9c9e",
+    "workflowCount": 4,
+    "jobCount": 6,
+    "allNaturalSuccessAndContentReadBack": true,
+    "standardTests": 4749,
+    "standardPass": 4747,
+    "standardSkipped": 2,
+    "ownTests": 79,
+    "startupTests": 12,
+    "e2eTests": 116,
+    "e2ePass": 111,
+    "e2eSkipped": 5,
+    "retry": 0,
+    "largeElectronArtifactOnlySelectedRangesAndCentralDirectoryConsumed": true,
+    "wholeLargeElectronZipShaVerified": false,
+    "rootConsumer": "checks/root-f3-first-ci-consumed59.json",
+    "doesNotCoverNewF4": true
+  },
+  "originalMbm003ReportInheritance": {
+    "originalSource": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+    "originalDirectReport": "99c89519f3357f4018b32930e8179b66719f99e7",
+    "directReportSingleParent": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+    "currentFixSource": "fd176fdf1da069dd678b673f697cdbe8831628cc",
+    "originalReportNotAncestorAndFiveFilesAbsentFromFixTree": true,
+    "immutableOriginalFiles": [
+      {
+        "path": "docs/postrust/MBM-003/evidence/actual-runtime.json",
+        "gitRef": "99c89519f3357f4018b32930e8179b66719f99e7:docs/postrust/MBM-003/evidence/actual-runtime.json",
+        "gitBlob": "f4fb084f9b1121de968f314e84ad8fa59413789f",
+        "bytes": 29810,
+        "sha256": "05e76d197a000783d8775d3789937a1376c5f40e8b38b24af14d89ca12dab649"
+      },
+      {
+        "path": "docs/postrust/MBM-003/evidence/installed-trial.json",
+        "gitRef": "99c89519f3357f4018b32930e8179b66719f99e7:docs/postrust/MBM-003/evidence/installed-trial.json",
+        "gitBlob": "d53dac5d79eea3c148e14fe6b6f082f30ce56018",
+        "bytes": 1417,
+        "sha256": "97e588829290665fa2d94bfcd5b4ded0bc654339dd1d3c2b0f1326dd5bf908c6"
+      },
+      {
+        "path": "docs/postrust/MBM-003/evidence/source-ci.json",
+        "gitRef": "99c89519f3357f4018b32930e8179b66719f99e7:docs/postrust/MBM-003/evidence/source-ci.json",
+        "gitBlob": "c84cb4de04d3ec8b4b3c4c8f040998598087d423",
+        "bytes": 2098500,
+        "sha256": "5b059b8c4ee1fea5e11ff8bd0999eae43e6cc1c894aac0f4abc1e72ea98bf7d2"
+      },
+      {
+        "path": "reports/MBM-003_EVIDENCE.json",
+        "gitRef": "99c89519f3357f4018b32930e8179b66719f99e7:reports/MBM-003_EVIDENCE.json",
+        "gitBlob": "ad1b634706e4596662ddbd1f8765db5d4ceb740c",
+        "bytes": 2733,
+        "sha256": "266117d0180c0fbee373ef8bb4391adf1a282f3ac6821c6082cc20cafa069a4b"
+      },
+      {
+        "path": "reports/MBM-003_RESULT.md",
+        "gitRef": "99c89519f3357f4018b32930e8179b66719f99e7:reports/MBM-003_RESULT.md",
+        "gitBlob": "eca589082fff7860c01bcb11b3cb1b177c035e3f",
+        "bytes": 4427,
+        "sha256": "fd7de646933b74e5a183e254598155e1d0e78090fff1f4cab9f9ec9d315fa6cb"
+      }
+    ],
+    "currentFixFourProjectFilesNotOverwritten": true,
+    "currentFixFrozenScopeNotExpandedToAddTheseFiveFiles": true,
+    "original5eRuntimeAnd99ReportingFactsNotRelabeledAsFixFd": true,
+    "currentFrozenPredecessorDispatcherDoesNotAutomaticallyImportFive99Files": true,
+    "nextCombinedScopeMustConsumeImmutableGitRefsOrExplicitlyInheritOnlyPinnedFiveFiles": true,
+    "newPhoneOrOldSoftwareRevalidationRequiredByReportInheritance": false,
+    "privateReceipt": "checks/original-mbm003-direct-report-inheritance76.json"
+  }
+}
