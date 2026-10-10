@@ -86,12 +86,12 @@ jobs:
         run: node --test scripts/ci/test/build-storage-root.test.mjs scripts/ci/test/rust016-workflow-context.test.mjs scripts/ci/test/rust-electron-host-receipt.test.mjs scripts/ci/test/electron-archive-tree.test.mjs scripts/ci/test/electron-preparation-order.test.mjs scripts/ci/test/rust-host-gate-cli.test.mjs scripts/ci/test/rust-private-host-environment.test.mjs
 
       - name: Verify isolated MBRS-001 offline POC
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node scripts/ci/verify-mbrs001-offline.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs001-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS002 本地合同 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -100,7 +100,7 @@ jobs:
           node scripts/ci/verify-mbrs002-contracts.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs002-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS003 阶段软件 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -110,7 +110,7 @@ jobs:
           node scripts/ci/verify-mbrs003-scan.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs003-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS004 名称与版本规则 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -120,7 +120,7 @@ jobs:
           node scripts/ci/verify-mbrs004-rules.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs004-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS005 本地文件网关与资源租约 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -130,7 +130,7 @@ jobs:
           node scripts/ci/verify-mbrs005-gateway.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs005-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS006 本地Audio Input与会话隔离 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -140,7 +140,7 @@ jobs:
           node scripts/ci/verify-mbrs006-local-playback.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs006-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS007 队列预取与持久恢复 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -150,7 +150,7 @@ jobs:
           node scripts/ci/verify-mbrs007-queue.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs007-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS008 原样字节与独立质量证据 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -160,7 +160,7 @@ jobs:
           node scripts/ci/verify-mbrs008-audio.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs008-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS009 正式本地库有界查询与复用UI Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -170,7 +170,7 @@ jobs:
           node scripts/ci/verify-mbrs009-local-library-ui.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs009-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS010 封面选择与来源安全 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -180,7 +180,7 @@ jobs:
           node scripts/ci/verify-mbrs010-artwork.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs010-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS011 MB_ONLY信息整理预览与撤销 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -190,7 +190,7 @@ jobs:
           node scripts/ci/verify-mbrs011-organizer.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs011-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS014 旧收藏关联与冻结来源保护 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -200,7 +200,7 @@ jobs:
           node scripts/ci/verify-mbrs014-compatibility.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs014-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS012 受控源写与备份恢复 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -211,7 +211,7 @@ jobs:
           node scripts/ci/verify-mbrs012-source-writes.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs012-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBRS013 同内容位置迁移与具体清理 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -221,7 +221,7 @@ jobs:
           node scripts/ci/verify-mbrs013-relocation.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbrs013-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBM000 移动合同双端采纳 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -231,7 +231,7 @@ jobs:
           node scripts/ci/verify-mbm000-contract-adoption.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbm000-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBM001 配对与只读曲库 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 10
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -241,7 +241,7 @@ jobs:
           node scripts/ci/verify-mbm001-pairing-library.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbm001-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBM002 手机资源播放 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task != 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.legacyGateMode == 'run'
         timeout-minutes: 10
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -251,7 +251,7 @@ jobs:
           node scripts/ci/verify-mbm002-resource-playback.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/mbm002-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: MBM003 无损与DSD传输软件 Gate
-        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.task == 'MBM-003'
+        if: steps.ci-mode.outputs.mode != 'report-only' && steps.task-applicability.outputs.mobileTask == 'MBM-003'
         timeout-minutes: 8
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -261,7 +261,7 @@ jobs:
 
       - name: 验证报告CI准入正负例
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
-        run: node --test scripts/ci/test/report-only-admission.test.mjs scripts/ci/test/mbm000-report-only-admission.test.mjs scripts/ci/test/mbm001-report-only-admission.test.mjs scripts/ci/test/report-only-mbm002.test.mjs scripts/ci/test/report-only-mbm003.test.mjs
+        run: node --test scripts/ci/test/report-only-admission.test.mjs scripts/ci/test/mbm000-report-only-admission.test.mjs scripts/ci/test/mbm001-report-only-admission.test.mjs scripts/ci/test/report-only-mbm002.test.mjs scripts/ci/test/report-only-mbm003.test.mjs scripts/ci/test/tape-catalog-r3-ci-applicability.test.mjs
 
       - name: Diff whitespace
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}

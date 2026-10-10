@@ -1,0 +1,25 @@
+{
+  "schema": "musicbridge.tape-catalog-r3.ci-scope.v1",
+  "taskId": "TAPE-CATALOG-R3",
+  "branch": "codex/tape-catalog-r3-import",
+  "baseSha": "c0b945a2b8d0f6f3ee2d9ea9d2cb50a787dc7f95",
+  "productSourceSha": "ff02c6b2fd248748fe7d461259f5749dda86fa0c",
+  "productReportSha": "799fece27f0cfe056a56fd6258f0db380db3461e",
+  "originalScopeSha256": "7fc8edf02cb64cdb91c286b9180ed13f1ab7878eb5c17c8d35ba37b56da368d4",
+  "verifyWorkflowSha256": "18c8ad0a6289833a58ccbcd94b04622a6e6d7ff53164015a125079d72236330d",
+  "currentMobileTask": "MBM-003",
+  "allowedCiFiles": [
+    ".github/workflows/verify.yml",
+    "scripts/ci/mbm003-predecessor-reuse.mjs",
+    "scripts/ci/tape-catalog-r3-ci-applicability.mjs",
+    "scripts/ci/test/tape-catalog-r3-ci-applicability.test.mjs",
+    "docs/tape-catalog-r3/CI_SCOPE.json",
+    "docs/tape-catalog-r3/CI_APPLICABILITY.md"
+  ],
+  "fullVerifyRequired": true,
+  "currentMobileSoftwareGateRequired": true,
+  "historicalGateMode": "EXACT_FROZEN_PREDECESSOR_REUSE",
+  "productSourceChangesAllowed": false,
+  "productionImportAuthorized": false,
+  "ownerAppModificationAuthorized": false
+}
