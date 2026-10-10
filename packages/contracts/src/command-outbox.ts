@@ -1,3 +1,4 @@
+import { isImportReferenceArchiveCatalogRequest } from './reference-catalog.js';
 import { isApplyLocalArtworkSelection, isLocalArtworkSelection, isCreateLocalArtworkEdition } from './local-artwork.js';
 import { isLocalSourceWritesHash, isLocalSourceWritesOutboxCommand, isLocalSourceWritesCommandPayload, isLocalSourceWritesCommandResult, type LocalSourceWritesCommandPayloads, type LocalSourceWritesReceipt } from './local-source-writes.js';
 import { localSourceWritesDataSnapshot, localSourceWritesRecord } from './local-source-writes-data.js';
@@ -41,7 +42,7 @@ export const COMMAND_OUTBOX_COMMANDS = [
   'localRelocation.confirm','localRelocation.relinkRoot',
   'collectionProgress.saveWant', 'collectionProgress.cancelWant', 'collectionProgress.capture',
   'spreadsheetImports.apply', 'spreadsheetImports.adjust',
-  'referenceCatalog.registerSource', 'referenceCatalog.registerSourceZip', 'referenceCatalog.publishRevision', 'referenceCatalog.setMatch',
+  'referenceCatalog.importArchive', 'referenceCatalog.registerSource', 'referenceCatalog.registerSourceZip', 'referenceCatalog.publishRevision', 'referenceCatalog.setMatch',
   'collection.receive', 'collection.materialize', 'collection.updateCopy', 'collection.setPolicy', 'collection.addPhoto', 'collection.changePhoto',
   'physicalMusic.saveRelease', 'physicalMusic.materializeCopy', 'physicalMusic.saveCopyDetails', 'physicalMusic.assignCopyPhoto', 'physicalMusic.saveLegacy', 'physicalMusic.addPhoto', 'physicalMusic.removePhoto',
   'physicalLinks.confirm', 'physicalLinks.confirmWithEvidence', 'physicalLinks.relocate', 'physicalLinks.register', 'physicalLinks.remove', 'physicalLinks.removeWithEvidence', 'physicalLinks.absence',
@@ -94,6 +95,7 @@ const ordinaryValidators = {
   'spreadsheetImports.apply': [isApplySpreadsheetImportRequest, isSpreadsheetImportResult],
   'spreadsheetImports.adjust': [isAdjustSpreadsheetInventoryRequest, isSpreadsheetInventoryAdjustment],
   'referenceCatalog.registerSource': [isRegisterReferenceSourceRequest, isReferenceSourceVersion],
+  'referenceCatalog.importArchive': [isImportReferenceArchiveCatalogRequest, isCatalogRevisionDetail],
   'referenceCatalog.registerSourceZip': [isRegisterReferenceSourceZipRequest, isRegisterReferenceSourceZipResult],
   'referenceCatalog.publishRevision': [isPublishCatalogRevisionRequest, isCatalogRevisionDetail],
   'referenceCatalog.setMatch': [isSetCatalogMatchRequest, isCatalogRevisionDetail],

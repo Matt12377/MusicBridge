@@ -15,6 +15,7 @@ import type { RecordingOutputPublicApi } from '@music-bridge/contracts'
 import type { CollectionProgressPublicApi } from '@music-bridge/contracts'
 import type { SpreadsheetImportPublicApi } from '@music-bridge/contracts'
 import type { ReferenceCatalogPublicApi } from '@music-bridge/contracts'
+import type { CassetteCatalogApi } from '../shared/cassette-catalog.js'
 import type { CommandOutboxPublicApi } from '@music-bridge/contracts'
 import type { RecordingProfilesPublicApi, RecordingExecutionPublicApi, RecordingArchivePublicApi, RecordingBackupsPublicApi } from '@music-bridge/contracts'
 import type { PreparedPublicApi } from '@music-bridge/contracts'
@@ -81,6 +82,9 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
 
 export interface MusicBridgePublicApi extends LocalRelocationPlanPublicApi, LocalSourceWritesPublicApi, LocalLegacyLinksPublicApi, LocalOrganizerPublicApi, LocalArtworkPublicApi, LocalLibraryPublicApi, Partial<LibraryReadPublicApi>, CollectionReadonlyPublicApi, RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   performanceDiagnostics?: import('../shared/performance-transport.js').PerformanceInteractionDiagnostics
+  pickCassetteArchive: CassetteCatalogApi['pickCassetteArchive']
+  importCassetteArchive: CassetteCatalogApi['importCassetteArchive']
+  getCassetteReferenceDetail: CassetteCatalogApi['getCassetteReferenceDetail']
   getVolume: () => Promise<VolumeSnapshot>
   setVolume: (request: VolumeRequest) => Promise<VolumeSnapshot>
   setAppearanceTheme: (theme: 'light' | 'dark') => Promise<void>
@@ -277,6 +281,9 @@ export const PUBLIC_API_KEYS = [
   'previewSpreadsheetAdjustment',
   'adjustSpreadsheetInventory',
   'listSpreadsheetAdjustments',
+  'pickCassetteArchive',
+  'importCassetteArchive',
+  'getCassetteReferenceDetail',
   'registerReferenceSource',
   'previewReferenceSourceZip',
   'registerReferenceSourceZip',
@@ -636,7 +643,7 @@ export function createPreloadApi(
   recordingArchiveApi?: RecordingArchivePublicApi,
   recordingBackupsApi?: RecordingBackupsPublicApi,
   commandOutboxApi?: CommandOutboxPublicApi,
-  referenceCatalogApi?: ReferenceCatalogPublicApi,
+  referenceCatalogApi?: ReferenceCatalogPublicApi & Partial<CassetteCatalogApi>,
   spreadsheetImportApi?: SpreadsheetImportPublicApi,
   collectionProgressApi?: CollectionProgressPublicApi,
   recordingPlansApi?: RecordingPlansPublicApi,
@@ -694,6 +701,9 @@ export function createPreloadApi(
     ...(recordingProfilesApi ?? { listRecordingProfiles: collectionUnavailable, getRecordingProfileHistory: collectionUnavailable, getRecordingProfileVersion: collectionUnavailable, saveRecordingProfile: collectionUnavailable, getRecordingSession: collectionUnavailable, saveRecordingSession: collectionUnavailable }),
     ...(recordingExecutionApi ?? { listExecutionAssets: collectionUnavailable, previewExecutionAsset: collectionUnavailable, startExecutionAsset: collectionUnavailable, getExecutionJob: collectionUnavailable, cancelExecutionJob: collectionUnavailable, cancelExecutionRead: collectionUnavailable, verifyExecutionAsset: collectionUnavailable }),
     ...(spreadsheetImportApi ?? { chooseSpreadsheetWorkbook: collectionUnavailable, listSpreadsheetSources: collectionUnavailable, getSpreadsheetSource: collectionUnavailable, getSpreadsheetSourceRows: collectionUnavailable, previewSpreadsheetImport: collectionUnavailable, applySpreadsheetImport: collectionUnavailable, getSpreadsheetImportRevision: collectionUnavailable, listSpreadsheetImportHistory: collectionUnavailable, previewSpreadsheetAdjustment: collectionUnavailable, adjustSpreadsheetInventory: collectionUnavailable, listSpreadsheetAdjustments: collectionUnavailable }),
+    pickCassetteArchive: referenceCatalogApi?.pickCassetteArchive ?? collectionUnavailable,
+    importCassetteArchive: referenceCatalogApi?.importCassetteArchive ?? collectionUnavailable,
+    getCassetteReferenceDetail: referenceCatalogApi?.getCassetteReferenceDetail ?? collectionUnavailable,
     ...(referenceCatalogApi ?? { registerReferenceSource: collectionUnavailable, previewReferenceSourceZip: collectionUnavailable, registerReferenceSourceZip: collectionUnavailable, listReferenceSourceZipReceipts: collectionUnavailable, listReferenceSources: collectionUnavailable, getReferenceSource: collectionUnavailable, previewCatalogRevision: collectionUnavailable, publishCatalogRevision: collectionUnavailable, getCatalogRevision: collectionUnavailable, setCatalogMatch: collectionUnavailable, getCatalogSnapshot: collectionUnavailable, getCatalogHistory: collectionUnavailable }),
     ...(collectionProgressApi ?? { listWantEntries: collectionUnavailable, saveWantEntry: collectionUnavailable, cancelWantEntry: collectionUnavailable, getWantEntryHistory: collectionUnavailable, getCollectionProgress: collectionUnavailable, captureCollectionProgress: collectionUnavailable, listCollectionProgressSnapshots: collectionUnavailable, getCollectionProgressSnapshot: collectionUnavailable, getCollectionModelLengths: collectionUnavailable }),
     ...(preparedApi ?? { listPrepared: collectionUnavailable, listPreparedSelections: collectionUnavailable, choosePreparedRender: collectionUnavailable, revokePreparedSelection: collectionUnavailable, revokePreparedSelections: collectionUnavailable, previewPreparedImport: collectionUnavailable, startPreparedImport: collectionUnavailable, getPreparedImportJob: collectionUnavailable, cancelPreparedImport: collectionUnavailable, reviewPrepared: collectionUnavailable, freezePrepared: collectionUnavailable }),

@@ -5,7 +5,7 @@ import type { CollectionChangePhotoRequest, CollectionCopy, CollectionDetail, Co
 import CollectionPhotos from './CollectionPhotos.vue'
 import CollectionPhotoView from './CollectionPhoto.vue'
 import CollectionReferenceImage from './CollectionReferenceImage.vue'
-import type { IllustratedReference } from './reference-images'
+import { referenceImageCaption, type IllustratedReference } from './reference-images'
 import type { RecordingPhysicalSelection, RecordingReservationSelection } from './collection-recording-navigation'
 
 const props = withDefaults(defineProps<{ detail: CollectionDetail; busy: boolean; referenceCandidates?: readonly IllustratedReference[]; focusPhysicalId?: string }>(), { referenceCandidates: () => [], focusPhysicalId: '' })
@@ -139,7 +139,7 @@ function state(copy: CollectionCopy): string {
     <CollectionPhotos :detail="detail" :busy="busy" @add="emit('addPhoto', $event)" @change="emit('changePhoto', $event)" />
     <section v-if="referenceCandidates.length" aria-label="书籍参考图">
       <h3>书籍参考图</h3><p class="muted">以下是同型号的书籍参考候选，不是实物照片，不代表实物版次已确认；库存数量与关联审核不会因此改变。</p>
-      <div class="reference-gallery"><figure v-for="reference in referenceCandidates" :key="reference.referenceId"><CollectionReferenceImage :reference="reference" /><figcaption>{{ reference.image.caption }} · {{ reference.edition || '书中版次未知' }} · {{ reference.pages.join('、') }}</figcaption></figure></div>
+      <div class="reference-gallery"><figure v-for="reference in referenceCandidates" :key="reference.referenceId"><CollectionReferenceImage :reference="reference" /><figcaption>{{ referenceImageCaption(reference) }} · {{ reference.edition || '书中版次未知' }} · {{ reference.pages.join('、') }}</figcaption></figure></div>
     </section>
     </section>
     <nav v-if="(activePage === 'inventory' || activePage === 'copies') && visiblePage.total > 20" class="detail-toolbar" aria-label="库存详情分页"><button :disabled="busy || visiblePage.offset === 0" @click="emit('page', Math.max(0, visiblePage.offset - 20))">上一页</button><span>{{ Math.floor(visiblePage.offset / 20) + 1 }} / {{ Math.ceil(visiblePage.total / 20) }}</span><button :disabled="busy || visiblePage.offset + 20 >= visiblePage.total" @click="emit('page', visiblePage.offset + 20)">下一页</button></nav>

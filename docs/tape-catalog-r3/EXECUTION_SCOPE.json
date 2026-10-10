@@ -1,0 +1,80 @@
+{
+  "taskId": "TAPE-CATALOG-R3",
+  "title": "空白磁带资料完整档案导入",
+  "baseSha": "c0b945a2b8d0f6f3ee2d9ea9d2cb50a787dc7f95",
+  "branch": "codex/tape-catalog-r3-import",
+  "source": "Owner 提供的 r3 真实照片增强版 ZIP，仅作资料来源",
+  "isolation": "独立 Git common-dir 和外置任务目录，不共享 MBM-003 的 profile、数据库或构建产物",
+  "expectedReferenceCount": 634,
+  "preserve": [
+    "参考目录修订",
+    "旧型号匹配",
+    "个人库存",
+    "用户照片",
+    "录音",
+    "原书文字与原图",
+    "照片来源角色",
+    "未知字段和缺图原因"
+  ],
+  "forbidden": [
+    "自动创建个人库存或购买记录",
+    "猜测年份版次时长",
+    "静默合并拆分旧ID",
+    "执行包内脚本",
+    "将全量资料资产提交Git",
+    "修改mobile合同或播放转换",
+    "占用003设备联测",
+    "直接修改生产SQLite"
+  ],
+  "privateFiles": [
+    "packages/bridge-core/src/collection/cassette-archive.ts",
+    "apps/desktop/src/main/cassette-catalog-service.ts",
+    "apps/desktop/src/shared/cassette-catalog.ts",
+    "apps/desktop/src/renderer/src/components/collection/CassetteCatalogView.vue",
+    "apps/desktop/src/renderer/src/components/collection/CassetteCatalogDetail.vue",
+    "apps/desktop/src/renderer/src/components/collection/CassetteArchiveImportPanel.vue",
+    "apps/desktop/src/renderer/src/components/collection/cassette-catalog-controller.ts",
+    "docs/tape-catalog-r3/",
+    "相关新测试与隔离验证入口"
+  ],
+  "integrationFilesForCoordinatorReview": {
+    "packages/contracts/src/reference-catalog.ts": "增加受限档案身份绑定与导入请求，保留旧 SourcePack 限额和旧接口",
+    "packages/bridge-core/src/collection/reference-catalog-store.ts": "原子登记来源与发布目录，生成完整保留映射，保证失败回滚和幂等",
+    "packages/contracts/src/ipc.ts": "复用 Core/outbox 的受限档案预览与持久导入命令",
+    "packages/bridge-core/src/collection/dataset-dispatch.ts": "由既有唯一资料库作者执行导入",
+    "apps/desktop/src/main/index.ts": "本地文件选择器、资料目录读接口与受限图片协议接线",
+    "apps/desktop/src/preload/index.ts": "桌面只读预览与既有outbox导入接线",
+    "apps/desktop/src/renderer/src/components/collection/CollectionView.vue": "增加独立全部资料视图，保留库存和原按钮",
+    "packages/contracts/src/ipc-names.ts": "同一档案预览和导入命令的现有名称白名单",
+    "packages/contracts/src/validator.ts": "同一命令请求与回执校验；仍拒绝路径与正文大载荷",
+    "packages/contracts/src/command-outbox.ts": "同一导入命令的既有持久写入与重试白名单",
+    "packages/bridge-core/src/collection/dataset-owner-protocol.ts": "唯一数据库作者的同一命令白名单",
+    "apps/desktop/src/preload/api.ts": "上述桌面资料API类型和未接入时的受控不可用默认",
+    "packages/bridge-core/src/collection/repository.ts": "增加私有资料档案读取根，不产生库存写入或迁移",
+    "packages/bridge-core/src/recording/restore-dataset-runtime.ts": "恢复后资料库复用同一应用档案根，防止正文和图片读取偏离",
+    "apps/desktop/src/renderer/src/components/collection/CollectionReferenceImage.vue": "兼容档案主图与旧内嵌图",
+    "apps/desktop/src/renderer/src/components/collection/CollectionModelDetail.vue": "沿用参考图说明，兼容无内嵌图的档案引用",
+    "apps/desktop/src/renderer/src/components/collection/ReferenceCatalogPanel.vue": "资料详情直达既有型号匹配入口",
+    "apps/desktop/src/renderer/src/components/collection/reference-images.ts": "加载所有已发布资料并保留缺图条目，库存图候选继续独立",
+    "apps/desktop/src/renderer/src/components/collection/CollectionReceiveDialog.vue": "从资料详情进入原库存录入，只预填已知品牌、型号、介质和带型；数量仍为0、年份与版次未确认",
+    "apps/desktop/src/renderer/src/components/CommandOutboxPanel.vue": "为同一档案导入命令补齐已有全局未确认操作的中文标签"
+  },
+  "existingTestAdaptations": {
+    "apps/desktop/test/collection-display.test.ts": "VM夹具加载既有型号显示函数；原有断言保留",
+    "apps/desktop/test/collection-progress-ui.test.ts": "VM夹具加载既有型号显示函数；原有断言保留",
+    "apps/desktop/test/collection-readonly-ui.test.ts": "完整资料读取及收藏详情组件夹具接线",
+    "apps/desktop/test/collection-return-navigation.test.ts": "收藏组件新增读取API夹具接线",
+    "apps/desktop/test/preload.test.ts": "新桌面API白名单",
+    "packages/contracts/test/reference-catalog.test.ts": "受限档案身份与新导入请求合同"
+  },
+  "productionImport": "由协调器确认profile身份、可恢复备份、前后守恒与不冲突时点后执行；本任务先完成隔离导入和应用观察",
+  "sharedStatusOwner": "V3.9；此任务不修改 project/STATUS.json、POSTRUST TODO/PLAN 或 MBM-003 文档",
+  "remotePush": "待协调器安排，不上传附件全量资产",
+  "isolatedVerificationEntrypoints": [
+    "scripts/tape-catalog-r3-gate.ts",
+    "scripts/tape-catalog-r3-restore-gate.ts",
+    "apps/desktop/scripts/tape-catalog-r3-observe.mjs"
+  ],
+  "runtimeBaseline": "Node 22；本轮不变更全局配置、package.json或pnpm-lock.yaml",
+  "originalContentLimit": "保留源为空的正文区域，展示未提供转录的限制；不执行OCR、不补造原文"
+}

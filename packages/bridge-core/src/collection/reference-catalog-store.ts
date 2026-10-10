@@ -4,12 +4,14 @@ import {
   isRegisterReferenceSourceRequest, isSourcePack, isReferenceSourceVersion,
   isCatalogIdRequest, isCatalogHistoryRequest, isReferenceSourceListRequest,
   isPreviewCatalogRevisionRequest, isPublishCatalogRevisionRequest, isSetCatalogMatchRequest,
+  isPreviewReferenceArchiveCatalogRequest, isImportReferenceArchiveCatalogRequest, parseReferenceSourcePack,
   isCatalogRevision, isCatalogMatch, isCatalogSnapshot, isCatalogRevisionDetail,
   isPreviewReferenceSourceZipRequest, isRegisterReferenceSourceZipRequest,
   isReferenceSourceZipReceiptListRequest, isReferenceSourceZipReceipt, isRegisterReferenceSourceZipResult,
   normalizeReferenceItems, MAX_REFERENCE_SOURCE_PACK_BYTES, MAX_CATALOG_MATCHES,
   type CanonicalReference, type ReferenceSourceVersion, type ReferenceSourceDetail,
   type RegisterReferenceSourceRequest, type PreviewCatalogRevisionRequest, type PublishCatalogRevisionRequest,
+  type PreviewReferenceArchiveCatalogRequest, type ImportReferenceArchiveCatalogRequest, type SourcePack, type CatalogMapping,
   type SetCatalogMatchRequest, type CatalogRevision, type CatalogMatch, type CatalogSnapshot,
   type CatalogSnapshotEntry, type CatalogCompletion, type CatalogRevisionDetail,
   type CatalogRevisionPreview, type CatalogHistory, type CollectionModel,
@@ -196,8 +198,14 @@ function verifyDatabase(db: DatabaseSync, context: VerificationContext): void {
       if (!isRegisterReferenceSourceZipResult(result) || !same(result.source, sourceData(db, result.source.id, context).source)
         || !same(result.receipt, sourceZipReceiptData(db, result.receipt.id, context))) return corrupt();
     }
-    else if (row.kind === 'publish' || row.kind === 'match') {
+    else if (row.kind === 'publish' || row.kind === 'match' || row.kind === 'archive-import') {
       if (!isCatalogRevisionDetail(result) || !same(result.revision, revisionData(db, result.revision.id, context)) || !same(result.snapshot, snapshotData(db, result.snapshot.id, context))) return corrupt();
+      if (row.kind === 'archive-import') {
+        const pack = parseReferenceSourcePack(sourceData(db, result.revision.sourceId, context).rawPack);
+        const archiveSha256 = result.revision.items[0]?.archive?.sha256;
+        if (!pack || !archiveSha256 || !same(normalizedItems(pack.items), result.revision.items)
+          || result.revision.items.some(item => item.archive?.sha256 !== archiveSha256)) return corrupt();
+      }
     } else return corrupt();
   }
 }
@@ -295,7 +303,7 @@ export function createReferenceCatalogStore({ read: accessRead, model, conflict,
     if (!isCatalogRevisionDetail(result)) return corrupt(); return result;
   }
   const unmatched = (referenceId: string, availability: 'missing' | 'unknown' = 'unknown'): CatalogMatch => ({ referenceId, modelId: null, status: 'unmatched', availability });
-  function transfer(items: CanonicalReference[], request: PreviewCatalogRevisionRequest, previous: CatalogRevision | null, prior: CatalogMatch[]): CatalogMatch[] {
+  function transfer(items: CanonicalReference[], request: Pick<PreviewCatalogRevisionRequest, 'mappings'>, previous: CatalogRevision | null, prior: CatalogMatch[]): CatalogMatch[] {
     const oldRefs = new Set(previous?.items.map(item => item.referenceId) ?? []), newRefs = new Set(items.map(item => item.referenceId));
     if (!previous && request.mappings.length) return invalid();
     const output = new Map<string, CatalogMatch[]>();
@@ -333,6 +341,69 @@ export function createReferenceCatalogStore({ read: accessRead, model, conflict,
     const result: CatalogRevisionPreview = { baselineFingerprint, expectedCurrentRevisionId: request.expectedCurrentRevisionId, counts: after.counts, entries: after.entries, delta };
     return { result, source, previous, oldState, items, matches };
   }
+  function registerSourceData(db: DatabaseSync, pack: SourcePack, rawPack: string, packHash: string): ReferenceSourceVersion {
+    const existing = db.prepare('SELECT id FROM reference_sources WHERE book_id=? AND pack_hash=?').get(pack.bookId, packHash);
+    const value: ReferenceSourceVersion = existing ? sourceData(db, String(existing.id)).source : {
+      id: randomUUID(), bookId: pack.bookId, title: pack.title, sourceVersion: pack.sourceVersion,
+      packHash, itemCount: normalizedItems(pack.items).length, createdAt: new Date().toISOString(),
+    };
+    if (!isReferenceSourceVersion(value)) return corrupt();
+    if (!existing) db.prepare('INSERT INTO reference_sources VALUES(?,?,?,?,?)').run(value.id, value.bookId, value.packHash, rawPack, JSON.stringify(value));
+    return value;
+  }
+  function publishRevisionData(db: DatabaseSync, source: ReferenceSourceVersion, previous: CatalogRevision | null,
+    items: CanonicalReference[], mappings: readonly CatalogMapping[], matches: CatalogMatch[], oldState: { matches: CatalogMatch[]; version: number }): CatalogRevisionDetail {
+    const revision: CatalogRevision = {
+      id: randomUUID(), bookId: source.bookId, sourceId: source.id, packHash: source.packHash,
+      sequence: (previous?.sequence ?? 0) + 1, previousRevisionId: previous?.id ?? null,
+      items, mappings: structuredClone(mappings), createdAt: new Date().toISOString(),
+    };
+    if (!isCatalogRevision(revision)) return corrupt();
+    if (previous) snapshot(db, previous, oldState.matches, oldState.version);
+    db.prepare('INSERT INTO reference_catalog_revisions VALUES(?,?,?,?,?,?)').run(revision.id, revision.bookId, revision.sourceId, revision.sequence, revision.previousRevisionId, JSON.stringify(revision));
+    db.prepare('INSERT INTO reference_catalog_matches VALUES(?,?,?)').run(revision.id, 0, JSON.stringify(matches));
+    db.prepare('INSERT INTO reference_catalog_heads VALUES(?,?) ON CONFLICT(book_id) DO UPDATE SET current_revision_id=excluded.current_revision_id').run(revision.bookId, revision.id);
+    snapshot(db, revision, matches, 0);
+    return detail(db, revision);
+  }
+  function archiveInput(archiveSha256: string, rawPack: string) {
+    const pack = parseReferenceSourcePack(rawPack);
+    if (!pack || pack.items.some(item => item.archive?.sha256 !== archiveSha256)) return conflict('档案目录与完整 ZIP 身份不一致，原资料和资产未被登记。');
+    return { pack, rawPack, packHash: sha(rawPack), items: normalizedItems(pack.items) };
+  }
+  function archiveIdentity(item: CanonicalReference): string {
+    return canonical([item.bookId, item.brand, item.series, item.edition, item.model, item.iec, item.era]
+      .map(value => typeof value === 'string' ? value.normalize('NFKC').trim().toLowerCase() : value));
+  }
+  function previewArchive(db: DatabaseSync, request: PreviewReferenceArchiveCatalogRequest, input: ReturnType<typeof archiveInput>) {
+    const previous = current(db, input.pack.bookId), items = input.items;
+    if ((previous?.id ?? null) !== request.expectedCurrentRevisionId) return conflict('当前目录版本已改变，请重新预览档案。');
+    const byId = new Map(items.map(item => [item.referenceId, item]));
+    for (const old of previous?.items ?? []) {
+      const next = byId.get(old.referenceId);
+      if (!next) return conflict('档案缺少旧目录编号；导入不能重编号、合并或拆分现有项目。');
+      if (archiveIdentity(old) !== archiveIdentity(next)) return conflict('相同目录编号的型号或版次身份发生改变；导入已停止，旧关联保持原值。');
+    }
+    const published = db.prepare("SELECT id FROM reference_catalog_revisions WHERE book_id=? AND json_extract(data,'$.items[0].archive.sha256')=? LIMIT 1")
+      .get(input.pack.bookId, request.archiveSha256);
+    const reuse = Boolean(published && previous && previous.packHash === input.packHash && same(previous.items, items));
+    if (published && !reuse) return conflict('这份档案已经导入，当前目录随后发生修改；不能用旧档案覆盖现有修订。');
+    const mappings: CatalogMapping[] = (previous?.items ?? []).map(item => ({ fromReferenceIds: [item.referenceId], toReferenceIds: [item.referenceId] }));
+    const oldState = previous ? matchesData(db, previous) : { matches: [], version: 0 };
+    const matches = transfer(items, { mappings }, previous, oldState.matches), after = completion(db, { items }, matches);
+    const before = previous ? completion(db, previous, oldState.matches) : null;
+    const oldRefs = new Set(previous?.items.map(item => item.referenceId) ?? []);
+    // 档案绑定另由完整 SHA 展示；其余资料字段的改变必须在保留项目差异中可见。
+    const updatedReferenceIds = (previous?.items ?? []).filter(old => !same({ ...old, archive: undefined }, { ...byId.get(old.referenceId)!, archive: undefined })).map(item => item.referenceId);
+    const delta = {
+      addedReferenceIds: items.filter(item => !oldRefs.has(item.referenceId)).map(item => item.referenceId),
+      removedReferenceIds: [], retainedReferenceIds: items.filter(item => oldRefs.has(item.referenceId)).map(item => item.referenceId),
+      updatedReferenceIds, merged: 0, split: 0, before: before?.counts ?? null, after: after.counts,
+    };
+    const baselineFingerprint = fingerprint({ archiveSha256: request.archiveSha256, expectedDatasetId: request.expectedDatasetId, packHash: input.packHash, previous, oldState, before, items, mappings, after });
+    const result: CatalogRevisionPreview = { baselineFingerprint, expectedCurrentRevisionId: request.expectedCurrentRevisionId, counts: after.counts, entries: after.entries, delta };
+    return { result, previous, oldState, items, mappings, matches, reuse };
+  }
   return {
     registerSource(request: RegisterReferenceSourceRequest): ReferenceSourceVersion {
       if (!isRegisterReferenceSourceRequest(request) || Buffer.from(request.rawPack).toString('utf8') !== request.rawPack || sha(request.rawPack) !== request.packHash) return invalid();
@@ -340,11 +411,31 @@ export function createReferenceCatalogStore({ read: accessRead, model, conflict,
       if (!isSourcePack(pack) || !normalizeReferenceItems(pack.items)) return invalid();
       return transaction('register-reference-source', db => {
         const fp = fingerprint(['source', request]), prior = receipt<ReferenceSourceVersion>(db, request.commandId, fp, 'source'); if (prior) return prior;
-        const existing = db.prepare('SELECT id FROM reference_sources WHERE book_id=? AND pack_hash=?').get(pack.bookId, request.packHash);
-        const value: ReferenceSourceVersion = existing ? sourceData(db, String(existing.id)).source : { id: randomUUID(), bookId: pack.bookId, title: pack.title, sourceVersion: pack.sourceVersion, packHash: request.packHash, itemCount: normalizeReferenceItems(pack.items)!.length, createdAt: new Date().toISOString() };
-        if (!isReferenceSourceVersion(value)) return corrupt();
-        if (!existing) db.prepare('INSERT INTO reference_sources VALUES(?,?,?,?,?)').run(value.id, value.bookId, value.packHash, request.rawPack, JSON.stringify(value));
+        const value = registerSourceData(db, pack, request.rawPack, request.packHash);
         record(db, request.commandId, fp, 'source', value); return value;
+      });
+    },
+    /** rawPack 只能由 Core 从已校验的自有档案读取，不能来自公开请求或 Renderer 路径。 */
+    previewArchiveCatalog(request: PreviewReferenceArchiveCatalogRequest, rawPack: string): CatalogRevisionPreview {
+      if (!isPreviewReferenceArchiveCatalogRequest(request)) return invalid();
+      const input = archiveInput(request.archiveSha256, rawPack);
+      return read(db => previewArchive(db, request, input).result);
+    },
+    /** 来源、修订、完整自映射、快照和回执使用同一个事务，不创建任何个人库存。 */
+    importArchiveCatalog(request: ImportReferenceArchiveCatalogRequest, rawPack: string): CatalogRevisionDetail {
+      if (!isImportReferenceArchiveCatalogRequest(request)) return invalid();
+      const input = archiveInput(request.archiveSha256, rawPack);
+      return transaction('import-reference-archive-catalog', db => {
+        const fp = fingerprint(['archive-import', request, input.packHash]);
+        const prior = receipt<CatalogRevisionDetail>(db, request.commandId, fp, 'archive-import');
+        if (prior) return prior;
+        const planned = previewArchive(db, request, input);
+        if (planned.result.baselineFingerprint !== request.baselineFingerprint) return conflict('档案预览基线已改变，请重新核对后确认。');
+        const result = planned.reuse && planned.previous ? detail(db, planned.previous) : publishRevisionData(db,
+          registerSourceData(db, input.pack, input.rawPack, input.packHash), planned.previous,
+          planned.items, planned.mappings, planned.matches, planned.oldState);
+        record(db, request.commandId, fp, 'archive-import', result);
+        return result;
       });
     },
     async previewSourceZip(request: PreviewReferenceSourceZipRequest): Promise<ReferenceSourceZipPreview> {
@@ -412,14 +503,8 @@ export function createReferenceCatalogStore({ read: accessRead, model, conflict,
         const fp = fingerprint(['publish', request]), prior = receipt<CatalogRevisionDetail>(db, request.commandId, fp, 'publish'); if (prior) return prior;
         const planned = preview(db, request);
         if (planned.result.baselineFingerprint !== request.baselineFingerprint) return conflict('目录预览基线已改变，请重新核对后确认。');
-        const revision: CatalogRevision = { id: randomUUID(), bookId: planned.source.bookId, sourceId: planned.source.id, packHash: planned.source.packHash, sequence: (planned.previous?.sequence ?? 0) + 1, previousRevisionId: planned.previous?.id ?? null, items: planned.items, mappings: structuredClone(request.mappings), createdAt: new Date().toISOString() };
-        if (!isCatalogRevision(revision)) return corrupt();
-        if (planned.previous) snapshot(db, planned.previous, planned.oldState.matches, planned.oldState.version);
-        db.prepare('INSERT INTO reference_catalog_revisions VALUES(?,?,?,?,?,?)').run(revision.id, revision.bookId, revision.sourceId, revision.sequence, revision.previousRevisionId, JSON.stringify(revision));
-        db.prepare('INSERT INTO reference_catalog_matches VALUES(?,?,?)').run(revision.id, 0, JSON.stringify(planned.matches));
-        db.prepare('INSERT INTO reference_catalog_heads VALUES(?,?) ON CONFLICT(book_id) DO UPDATE SET current_revision_id=excluded.current_revision_id').run(revision.bookId, revision.id);
-        snapshot(db, revision, planned.matches, 0);
-        const result = detail(db, revision); record(db, request.commandId, fp, 'publish', result); return result;
+        const result = publishRevisionData(db, planned.source, planned.previous, planned.items, request.mappings, planned.matches, planned.oldState);
+        record(db, request.commandId, fp, 'publish', result); return result;
       });
     },
     revision(request: { id: string }): CatalogRevisionDetail { if (!isCatalogIdRequest(request)) return invalid(); return read(db => detail(db, revisionData(db, id(request.id)))); },

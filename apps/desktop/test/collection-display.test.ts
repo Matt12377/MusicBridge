@@ -31,8 +31,9 @@ test('实际型号详情渲染Unknown标题，不把空品牌型号呈现为空�
   const compiled = ts.transpileModule(script.content, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
   let display: unknown
   try { display = await import('../src/renderer/src/components/collection/collection-display.js') } catch { display = {} }
+  const referenceImages = await import('../src/renderer/src/components/collection/reference-images.js')
   const module = { exports: {} as { default: import('vue').Component } }
-  new Function('require', 'module', 'exports', compiled)((name: string) => name === 'vue' ? vue : name.includes('collection-display') ? display : name.endsWith('.vue') ? { default: { render: () => null } } : require(name), module, module.exports)
+  new Function('require', 'module', 'exports', compiled)((name: string) => name === 'vue' ? vue : name.includes('collection-display') ? display : name === './reference-images' ? referenceImages : name.endsWith('.vue') ? { default: { render: () => null } } : require(name), module, module.exports)
   const model = { id: '11111111-1111-4111-8111-111111111111', brand: '', name: '', edition: '', format: 'cassette', tapeType: 'unknown', year: null, identification: 'partial', collectorPolicy: 'normal', minimumSealedReserve: 0, revision: 0, lengths: [null], counts: { total: 10, sealedBlank: 0, openedBlank: 0, legacyUsed: 3, recorded: 0, reserved: 0, unknown: 7, unavailable: 0 } }
   const page = { items: [], offset: 0, limit: 20, total: 0, hasMore: false }
   const { renderToString } = require('vue/server-renderer') as typeof import('vue/server-renderer')

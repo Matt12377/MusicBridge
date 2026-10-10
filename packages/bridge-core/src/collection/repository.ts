@@ -95,6 +95,7 @@ export interface CollectionRepository {
   /** 仅同Owner本地构造移动只读适配；不接受跨端口回调。 */
   privateMobileCatalogAccess?<T>(read: (db: DatabaseSync) => T): T;
   privateMobileDataDirectory?(): string | null;
+  privateReferenceArchiveDirectory?(): string | null;
   media: MediaPlanningStore;
   versions: MasterVersionsStore;
   preparations: PreparationStore;
@@ -214,7 +215,7 @@ function paged<T>(items: T[], page: PageRequest, total: number): Page<T> {
   return { items, ...page, total, hasMore: page.offset + items.length < total };
 }
 
-export function createCollectionRepository(options: { filePath: string; stagingRoot?: string; beforeCommit?: (action: string) => void }): CollectionRepository {
+export function createCollectionRepository(options: { filePath: string; stagingRoot?: string; referenceArchiveRoot?: string; beforeCommit?: (action: string) => void }): CollectionRepository {
   let privateFactsFence: (() => void) | undefined;
   let privateSealLocalFacts:(() => void)|undefined, localFactsFatal=false;
   const checkLocalFacts = () => privateFactsFence?.();
@@ -597,6 +598,8 @@ export function createCollectionRepository(options: { filePath: string; stagingR
     sourceProtection: createSourceProtectionStore({ read: guarded }),
     privateMobileCatalogAccess: read => guarded(read),
     privateMobileDataDirectory: () => options.filePath !== ':memory:' ? path.dirname(options.filePath) : options.stagingRoot ?? null,
+    /** 档案属于应用管理资料目录，恢复库切换不能改变图片和原文的受限读取根。 */
+    privateReferenceArchiveDirectory: () => options.referenceArchiveRoot ?? (options.filePath !== ':memory:' ? path.join(path.dirname(options.filePath), 'reference-archives') : options.stagingRoot ? path.join(options.stagingRoot, 'reference-archives') : null),
     privateSourceWritesDirectory(){return options.filePath!==':memory:'?path.join(path.dirname(options.filePath),'source-writes'):options.stagingRoot?path.join(options.stagingRoot,'source-writes'):null;},
     drafts: createMasterDraftsRepository({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
     workspace: createRecordingWorkspaceStore({ read: guarded, conflict, unavailable, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),

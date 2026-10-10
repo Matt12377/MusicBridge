@@ -39,7 +39,7 @@ async function mounted(t: test.TestContext) {
   const window = { musicBridge: { getCollectionCopy: () => new Promise(resolve => { finishCopy = resolve }) } }
   const stubs: Record<string, unknown> = {
     './collection-display': { collectionModelLabel: () => '' },
-    './reference-images': { loadPublishedReferenceImages: async () => [], referenceImagesForModel: () => [] },
+    './reference-images': { loadPublishedCassetteCatalog: async () => [], referenceImagesForModel: () => [] },
     '../../composables/useCollection': { useCollection: () => inventory },
   }
   const load = (name: string) => name === 'vue' ? vue : stubs[name] ?? (name.endsWith('.vue') ? { default: { render: () => null } } : require(name))

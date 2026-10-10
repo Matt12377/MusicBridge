@@ -220,3 +220,66 @@ test('目录修订映射的成员校验保持完整，访问量随条目与映�
   assert.equal(c.isCatalogRevision({ ...revision, mappings: [...mappings.slice(0, -1), { fromReferenceIds: ['old-last'], toReferenceIds: ['foreign'] }] }), false);
   assert.equal(c.isCatalogRevision({ ...revision, mappings: [...mappings, mappings[0]] }), false);
 });
+
+test('档案绑定只携带完整ZIP哈希和安全逻辑主图编号，旧图片合同继续可用', () => {
+  const archive = { sha256: packHash, primaryAssetId: 'image_00001.jpg' };
+  assert.equal(c.isCanonicalReference({ ...item, archive }), true);
+  assert.equal(c.isCanonicalReference({ ...item, archive: { ...archive, primaryAssetId: null } }), true);
+  assert.equal(c.isCanonicalReference(item), true);
+  const image = { kind: 'reference', image: { dataUrl: 'data:image/jpeg;base64,/9j/2Q==', width: 1, height: 1 }, caption: '合成旧参考图' };
+  assert.equal(c.isCanonicalReference({ ...item, image, archive }), true);
+  for (const invalid of [null, [], {}, { sha256: packHash }, { primaryAssetId: null },
+    { ...archive, sha256: packHash.toUpperCase() }, { ...archive, sha256: '0'.repeat(63) },
+    { ...archive, primaryAssetId: '/private/图.jpg' }, { ...archive, primaryAssetId: '../image.jpg' },
+    { ...archive, primaryAssetId: 'https://example.com/image.jpg' }, { ...archive, primaryAssetId: 'a'.repeat(97) },
+    { ...archive, primaryAssetId: 1 }, { ...archive, absolutePath: undefined }]) {
+    assert.equal(c.isCanonicalReference({ ...item, archive: invalid }), false);
+  }
+  const archived = { ...item, archive };
+  assert.deepEqual(c.normalizeReferenceItems([archived, { ...archived, pages: ['2'] }])?.[0]?.pages, ['1', '2']);
+  assert.equal(c.normalizeReferenceItems([archived, { ...archived, archive: { ...archive, primaryAssetId: 'other.jpg' } }]), null);
+  assert.equal(c.normalizeReferenceItems([archived, { ...archived, archive: { ...archive, sha256: '0'.repeat(64) } }]), null);
+  assert.equal(c.normalizeReferenceItems([archived, { ...archived, referenceId: 'another-id' }]), null);
+});
+
+test('634项档案目录包含16个明确缺主图项目，仍使用1MiB原文预算且不以图片增加身份', () => {
+  const items = Array.from({ length: 634 }, (_, n) => ({ ...item, referenceId: `ref-${n}`, model: `型号-${n}`,
+    archive: { sha256: packHash, primaryAssetId: n < 16 ? null : `image_${n}.jpg` } }));
+  const original = JSON.stringify({ ...pack, sourceVersion: 'r3', items });
+  assert.ok(Buffer.byteLength(original) < c.MAX_REFERENCE_SOURCE_PACK_BYTES);
+  const parsed = c.parseReferenceSourcePack(original);
+  assert.equal(parsed?.items.length, 634);
+  assert.equal(parsed?.items.filter(i => i.archive?.primaryAssetId === null).length, 16);
+  assert.equal(c.normalizeReferenceItems(items)?.length, 634);
+});
+
+test('档案预览与导入请求绑定工作库和原基线，不接收路径、原文、图片或自定义映射', () => {
+  const preview = { archiveSha256: packHash, expectedDatasetId: datasetId, expectedCurrentRevisionId: null };
+  const request = { ...preview, commandId, baselineFingerprint: packHash, userConfirmed: true };
+  assert.equal(c.isPreviewReferenceArchiveCatalogRequest(preview), true);
+  assert.equal(c.isImportReferenceArchiveCatalogRequest(request), true);
+  assert.equal(c.isPreviewReferenceArchiveCatalogRequest({ ...preview, expectedDatasetId: '11111111-1111-7111-8111-111111111111' }), true);
+  for (const expectedDatasetId of [undefined, '0'.repeat(64), '11111111-1111-0111-8111-111111111111', [datasetId]]) {
+    assert.equal(c.isPreviewReferenceArchiveCatalogRequest({ ...preview, expectedDatasetId }), false);
+    assert.equal(c.isImportReferenceArchiveCatalogRequest({ ...request, expectedDatasetId }), false);
+  }
+  for (const extra of [{ absolutePath: '/private/archive.zip' }, { rawPack }, { zipBase64: 'AAAA' }, { items: [item] }, { mappings: [] }]) {
+    assert.equal(c.isPreviewReferenceArchiveCatalogRequest({ ...preview, ...extra }), false);
+    assert.equal(c.isImportReferenceArchiveCatalogRequest({ ...request, ...extra }), false);
+  }
+  assert.equal(c.isImportReferenceArchiveCatalogRequest({ ...request, userConfirmed: false }), false);
+  assert.equal(c.isImportReferenceArchiveCatalogRequest({ ...request, baselineFingerprint: undefined }), false);
+  assert.equal(c.isImportReferenceArchiveCatalogRequest({ ...request, commandId: datasetId + 'extra' }), false);
+  assert.equal(c.isPreviewReferenceArchiveCatalogRequest({ ...preview, expectedCurrentRevisionId: 'not-an-id' }), false);
+});
+
+test('保留ID的资料变化可在delta明确列出，旧预览兼容且变化只能指向保留成员', () => {
+  const before = { total: 1, owned: 0, missing: 0, unknown: 1, candidate: 0, needsReview: 0 };
+  const delta = { addedReferenceIds: ['new'], removedReferenceIds: [], retainedReferenceIds: ['ref-a'], merged: 0, split: 0,
+    before, after: { ...before, total: 2, unknown: 2 } };
+  assert.equal(c.isCatalogRevisionDelta(delta), true);
+  assert.equal(c.isCatalogRevisionDelta({ ...delta, updatedReferenceIds: ['ref-a'] }), true);
+  for (const updatedReferenceIds of [['new'], ['absent'], ['ref-a', 'ref-a'], ['../ref-a']]) {
+    assert.equal(c.isCatalogRevisionDelta({ ...delta, updatedReferenceIds }), false);
+  }
+});

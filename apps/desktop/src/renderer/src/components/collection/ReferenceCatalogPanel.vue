@@ -3,7 +3,9 @@ import { collectionModelLabel } from './collection-display'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, triggerRef, watch } from 'vue'
 import { MAX_CATALOG_REFERENCES, isCanonicalReference, isCatalogMapping, isCollectionPhotoImage, isPreviewCatalogRevisionRequest, type CanonicalReference, type CatalogMatch } from '@music-bridge/contracts'
 import { createReferenceCatalogController, readReferenceSourceFile, readReferenceSourceZipFile, readReferenceRevisionFile, type CatalogStep } from './reference-catalog-controller'
+import type { ReferenceCatalogSelection } from './reference-images'
 
+const props = defineProps<{ initialSelection?: ReferenceCatalogSelection }>()
 const emit = defineEmits<{ close: [] }>()
 const dialog = ref<HTMLDialogElement>()
 const controller = createReferenceCatalogController({ api: window.musicBridge, onChange: () => triggerRef(state) })
@@ -13,7 +15,18 @@ const steps: { id: CatalogStep; title: string }[] = [{ id: 'source', title: '资
 const sourceConfirmed = ref(false), zipConfirmed = ref(false), publishConfirmed = ref(false), matchConfirmed = ref(false), retryConfirmed = ref(false)
 const fileLoading = ref(false), imagePicking = ref(false), inputError = ref(''), closeRequested = ref(false)
 let alive = true
-onMounted(() => { dialog.value?.showModal(); void controller.start() })
+onMounted(() => {
+  dialog.value?.showModal()
+  void (async () => {
+    await controller.start()
+    const selection = props.initialSelection
+    if (!alive || !selection) return
+    await controller.selectSource(selection.sourceId)
+    if (!alive || state.value.source?.id !== selection.sourceId || !state.value.current) return
+    if (!state.value.current.revision.items.some(item => item.referenceId === selection.referenceId)) { state.value.notice = '资料版次已变化，请从当前目录重新选择条目。'; triggerRef(state); return }
+    referenceId.value = selection.referenceId; controller.setStep(selection.step)
+  })()
+})
 onBeforeUnmount(() => { alive = false; controller.dispose() })
 watch(() => state.value.sourcePreview, () => { sourceConfirmed.value = false })
 watch(() => state.value.zipPreview, () => { zipConfirmed.value = false })

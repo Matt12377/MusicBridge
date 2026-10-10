@@ -47,6 +47,7 @@ import { installPreparationZipHandlers } from './recording-preparation-zip-ipc.j
 import { installRecordingOutputReads } from './recording-output-ipc.js'
 import { installCollectionProgressReads } from './collection-progress-ipc.js'
 import { installReferenceCatalogReads } from './reference-catalog-ipc.js'
+import { createCassetteCatalogService, installCassetteCatalogHandlers } from './cassette-catalog-service.js'
 import { installSpreadsheetImportReads } from './spreadsheet-import-ipc.js'
 import { createCommandOutboxStore } from './command-outbox-store.js'
 import { createCommandOutboxService, type CommandOutboxService } from './command-outbox-service.js'
@@ -265,6 +266,7 @@ async function startRecordingPrintWorker(supervisor: CoreStartupClient): Promise
 let commandOutbox: CommandOutboxService | undefined
 let coreMode: RemoteCoreMode = 'local-core'
 let coreDataDirectory: string | undefined
+let cassetteCatalogService: ReturnType<typeof createCassetteCatalogService> | undefined
 let remoteStreamPort: number | undefined
 let tray: Tray | undefined
 let trayRefreshPromise: Promise<void> | undefined
@@ -601,6 +603,9 @@ async function installRendererProtocol(): Promise<void> {
     try {
       const url = new URL(request.url)
       if (url.hostname !== RENDERER_HOST) return new Response('Not Found', { status: 404 })
+      if (url.pathname.startsWith('/reference-assets/')) {
+        return cassetteCatalogService ? await cassetteCatalogService.image(request.url, request.method) : new Response(null, { status: 404 })
+      }
       const assetPath = await getRendererAssetPath(rendererRoot, url.pathname)
       const body = request.method === 'HEAD' ? null : await readFile(assetPath)
       return new Response(body, {
@@ -1405,6 +1410,18 @@ function registerIpcHandlers(
     return supervisor.request('recordingPrepared.list', { draftId })
   }))
   installReferenceCatalogReads({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
+  cassetteCatalogService = createCassetteCatalogService({
+    dataDirectory: () => coreDataDirectory,
+    request: supervisor.request.bind(supervisor),
+    chooseArchive: async () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return null
+      const selected = await dialog.showOpenDialog(mainWindow, {
+        title: '选择完整磁带资料档案', properties: ['openFile'], filters: [{ name: '磁带资料档案', extensions: ['zip'] }],
+      })
+      return selected.canceled ? null : selected.filePaths[0] ?? null
+    },
+  })
+  installCassetteCatalogHandlers({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, service: cassetteCatalogService })
   installSpreadsheetImportReads({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingPlanReads({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })
   installRecordingWorkspaceRead({ handle: (channel, handler) => registerPerformanceHandler(channel, handler), requireTrusted: requireTrustedRenderer, supervisor })

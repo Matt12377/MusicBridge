@@ -317,6 +317,9 @@ contextBridge.exposeInMainWorld(
     },
     {
       registerReferenceSource: request => outbox.submit('referenceCatalog.registerSource', request),
+      pickCassetteArchive: () => invokePerformance('cassetteCatalog:pick-archive'),
+      importCassetteArchive: request => outbox.submit('referenceCatalog.importArchive', request),
+      getCassetteReferenceDetail: request => invokePerformance('cassetteCatalog:detail', request),
       previewReferenceSourceZip: request => invokePerformance('referenceCatalog:previewSourceZip', request),
       registerReferenceSourceZip: request => outbox.submit('referenceCatalog.registerSourceZip', request),
       listReferenceSourceZipReceipts: request => invokePerformance('referenceCatalog:sourceZipReceipts', request),

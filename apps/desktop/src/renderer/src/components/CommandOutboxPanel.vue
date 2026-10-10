@@ -19,6 +19,7 @@ const state = shallowRef(controller.state)
 const entries = computed(() => state.value.overview?.entries.filter((item) => !item.acknowledged && item.state !== 'dismissed') ?? [])
 const visibleEntries = computed(() => entries.value.slice(0, visibleCount.value))
 const labels: Record<CommandOutboxTrackedCommand, string> = {
+  'referenceCatalog.importArchive': '导入完整磁带资料档案',
   'localSourceWrites.setPolicy': '保存具体源写开关',
   'localSourceWrites.confirm': '受理具体源文件写入',
   'localSourceWrites.undo': '生成源写撤销预览',
