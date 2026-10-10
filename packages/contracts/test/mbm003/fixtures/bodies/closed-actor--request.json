@@ -1,0 +1,1 @@
+{"trackId":"track.synthetic.003","versionId":"version.synthetic.003","contentRevision":"revision.synthetic.003","quality":{"profile":"auto","allowLossyFallback":false,"preferredTransport":"file"},"formats":[{"codec":"flac","container":"flac","maxSampleRateHz":48000,"maxChannels":6}],"acceptedProcessingModes":["dsd_to_pcm"],"actor":"synthetic-private"}

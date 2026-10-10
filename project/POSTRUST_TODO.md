@@ -1,6 +1,6 @@
 # MusicBridge 开发待办
 
-当前任务：MBM-003（合同冻结与实现准备）。002已成对软件封存，当前播放/seek已观察；原真实carryover保留。003从Mac最终审计b1a8de7独立接续，沿用已批准DSD24/48→FLAC缓存与至少FLAC24/192范围；004尚未开始。
+当前任务：MBM-003（实现及本地标准检查完成，固定Source Gate、首次自然CI与实际手机联测待封存）。002已成对软件封存，当前播放/seek已观察；原真实carryover保留。003从Mac最终审计b1a8de7独立接续，沿用已批准DSD24/48→FLAC缓存与至少FLAC24/192范围；004尚未开始。
 
 | 任务 | 要做的事 | 进度 |
 | --- | --- | --- |
@@ -23,7 +23,7 @@
 | MBM-000 | 合同采纳。 | [x] 双端软件交付已封存；Source/R自然CI及实际制品、远端clean通过；真实服务/设备/音频/Owner未跑 |
 | MBM-001 | 配对与只读曲库。 | [x] 双端工程交付封存；自然Source/R CI、整制品及远端clean通过；实际自有Mac共享SDK22/驱动32通过，原9AT与真实设备/音频/Owner缺口保留 |
 | MBM-002 | 手机资源播放。 | 软件交付完成；精确Source/R首次自然CI及双端seal已核，当前真机可听/seek与正常关闭已观察；原真实carryover保留 |
-| MBM-003 | FLAC无损及DSD→PCM兼容传输。 | 进行中：合同冻结优先；FLAC至少24/192，DSD整曲24/48 PCM→FLAC独立限额缓存，原件只读、首版单档 |
+| MBM-003 | FLAC无损及DSD→PCM兼容传输。 | 实现及本地标准检查完成；DSD关闭失败实际RED→相关11例通过，固定Source80例Gate及首次自然CI待封存，Mac/手机新格式、seek、恢复和Owner仍待 |
 | MBM-004 | 内容与多设备。 | 未开始；等待MBM-003 |
 | MBRS-016 | 检查性能、安全和已有功能。 | 未开始；调度等待MBM-004，原硬依赖保持 |
 | MBRS-017 | 打包应用，提供使用说明和恢复办法。 | 未开始；依赖016 |
@@ -170,3 +170,7 @@ c3103 原物理 profile 候选的23项 Mac 自有媒体检查及原 iOS 上 Owne
 002外置共同seal已整份核验：9754字节/SHA256 `0335d8baa443e4210306e12f58de8c6f5aace49c4e1342320c43a7d24b925654`。Mac固定Source7ec8/直接软件Rd518、最终审计b1a8；iOS固定Sourceec452/直接软件Rce719、最终1ed6767。原9AT/81Gate、旧18/156、有效17/150与8 moderate不改。已观察M/N可听、一次seek及正常关闭；原生实际续期/迟到、手机逐请求、第二首完整EOS、真实环境及最终成品验收保留边界，非全AT PASS。
 
 003已从b1a8独立分支启动，见 `tasks/MBM-003_LOSSLESS_DSD_TRANSPORT.md` 和 `docs/postrust/MBM-003/EXECUTION_SCOPE.json`。实际可审阅1.7.0合同草案是 `contract-preview/openapi.json`；生产canonical仍是原1.6.0。三个既存sol6.1/max作者调查后等待双方固定语义，Root独占公开合同及Git/测试/App。没有新增003产品测试、构建、装机或验收通过；004未启动。
+
+## 2026-10-10 003实际共同采纳与实施
+
+上面的启动预览段是当时输入，现生产canonical为1.7.0、147445字节、40操作，iOS实际镜像及采纳manifest已由Root完整FD回读，见 `ROOT_MBM003_ACTUAL_PAIRED_ADOPTION470.json`。当前阶段为两端实际合同共同采纳/实施中；240秒只限首准备，ready后的正常原TTL续租见 `docs/postrust/MBM-003/READY_RENEW_BOUNDARY.json`。三个作者继续独占切片。新Source/R尚未封存，003适用Gate、生产App及真机层仍未验证；仅本状态更新不重复全量产品测试。003复选框保持进行中，004不启动。

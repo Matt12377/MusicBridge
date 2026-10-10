@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { encodeMobileJsonReply, mobileCanonicalJson, type MobileJsonValue, type MobileCapabilities, type MobilePairingClaim, type MobileRefreshRequest, type MobileReplyMap, type MobileSearchQuery } from '@music-bridge/contracts';
+import { encodeMobileJsonReply, mobileCanonicalJson, type MobileJsonValue, type MobileCapabilities, type MobileDecodedRequest, type MobilePairingClaim, type MobileRefreshRequest, type MobileReplyMap, type MobileSearchQuery, type MobileUIContentCapabilities } from '@music-bridge/contracts';
 import { createMobileAuthCrypto } from '../../../../packages/bridge-core/src/mobile/auth-crypto.js';
 import { createMobileAuthService } from '../../../../packages/bridge-core/src/mobile/auth-service.js';
 import { createMobileCatalogService } from '../../../../packages/bridge-core/src/mobile/catalog-service.js';
@@ -8,13 +8,22 @@ import { MobileAuthPersistenceError, MobileServiceError, type Mobile001Backend, 
 import { createMobilePlaybackBackend } from './mobile-playback-backend.js';
 import type { MobileAuthService } from '../../../../packages/bridge-core/src/mobile/types.js';
 
+export type Mobile003Operation = 'getUIContentCapabilities';
+/** 可信Main单独挂载原有能力路由；不扩大旧001/002 dispatch闭集。 */
+export interface Mobile003Backend {
+  dispatch(input: { operation: Mobile003Operation; request: MobileDecodedRequest<unknown>; accessToken: string | null;
+    signal: AbortSignal; origin: string }): Promise<Mobile001BackendReply>;
+}
+
 export function createMobileBackend(options: {
   serverId: string; datasetId: string; authKey: Uint8Array; displayName: string; environment: 'development' | 'production';
   requestOwner(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult>;
   assertCurrent(): void;
   resizeArtwork(bytes: Uint8Array, size: 96 | 256 | 512): Uint8Array;
   enablePlayback?: boolean;
+  enableDsd?: boolean;
 }) {
+  if (options.enableDsd === true && options.enablePlayback !== true) throw new MobileServiceError(400, 'INVALID_REQUEST');
   let closed = false;
   let closeFlight: Promise<void> | undefined;
   let responseOrigin = 'https://127.0.0.1';
@@ -50,7 +59,8 @@ export function createMobileBackend(options: {
     logout: async principal => { try { await rawAuth.logout(principal); } finally { await awaitRevocation(principal.deviceId); } },
   };
   if (options.enablePlayback) playback = createMobilePlaybackBackend({ serverId: options.serverId, datasetId: options.datasetId,
-    authKey: options.authKey, auth: rawAuth, requestOwner: options.requestOwner, assertCurrent: options.assertCurrent });
+    authKey: options.authKey, auth: rawAuth, requestOwner: options.requestOwner, assertCurrent: options.assertCurrent,
+    ...(options.enableDsd === true ? { enableDsd: true } : {}) });
   const port: MobileCatalogReadPort = {
     // 只在正式播放端已激活后申请目录资格；是否可播仍由原 Owner 核当前源事实。
     read: async request => await owner({ kind: 'catalog', datasetId: options.datasetId,
@@ -123,7 +133,30 @@ export function createMobileBackend(options: {
       } };
     },
   };
-  return { backend, auth, playbackBackend: playback?.backend,
+  const dsdBackend: Mobile003Backend | undefined = options.enableDsd === true ? {
+    async dispatch(input) {
+      current(); input.signal.throwIfAborted();
+      if (input.operation !== 'getUIContentCapabilities' || input.request.path !== '/mobile/v1/ui/capabilities') throw new MobileServiceError(400, 'INVALID_REQUEST');
+      if (!input.accessToken) throw new MobileServiceError(401, 'UNAUTHORIZED');
+      const principal = await auth.authenticate(input.accessToken);
+      const activePlayback = playback;
+      if (!activePlayback?.enabled) throw new MobileServiceError(503, 'BUSY');
+      const qualified = await activePlayback.dsdCapabilities(input.origin, input.signal);
+      const body: MobileUIContentCapabilities = { version: '1.0.0', addedAlbums: 'unsupported',
+        neteaseDailyRecommendations: 'unsupported', lyrics: 'unsupported', resourceFormatBitDepth: true,
+        resourceDsdToPcm: qualified.resourceDsdToPcm };
+      const reply = encodeMobileJsonReply('getUIContentCapabilities', { status: 200, category: 'success', body },
+        { responseOrigin: input.origin, requestPath: input.request.path });
+      if (!reply.ok) throw new MobileServiceError(503, 'BUSY');
+      return { ...reply.value, headers: [...reply.value.headers, ['Cache-Control', 'private, no-store']], beforeSend: async () => {
+        current(); input.signal.throwIfAborted(); await auth.assertCurrent(principal);
+        const latest = await activePlayback.dsdCapabilities(input.origin, input.signal);
+        if (latest.resourceDsdToPcm !== qualified.resourceDsdToPcm) throw new MobileServiceError(503, 'BUSY');
+        current(); input.signal.throwIfAborted();
+      } };
+    },
+  } : undefined;
+  return { backend, auth, playbackBackend: playback?.backend, dsdBackend,
     activatePlayback(origin: string): void { if (!playback) throw new MobileServiceError(400, 'INVALID_REQUEST'); playback.activate(origin); responseOrigin = origin; },
     playbackSnapshot: () => playback?.snapshot(),
     close(): Promise<void> {

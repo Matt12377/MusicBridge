@@ -77,8 +77,11 @@ for (const file of productFiles) {
   const relative = path.relative(root, file)
   const content = fs.readFileSync(file, 'utf8')
   for (const match of content.matchAll(/(?:\bfrom\s*|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)['"]([^'"]*(?:ffmpeg|fluent-ffmpeg|unblockmusic|transcod)[^'"]*)['"]/gi)) {
-    // TASK-061 仅允许 Core 加载自己的固定构建策略；外部转换库、Provider 流与 Renderer 边界不放开。
-    if (relative !== 'packages/bridge-core/src/recording/bundled-converter.ts' || match[1] !== './ffmpeg-build-policy.js') {
+    // TASK-061 与 MBM-003 仅允许 Core 转换器及其独立缓存加载私有固定策略；外部库、Provider 与 Renderer 边界不放开。
+    const ownFixedPolicy = relative === 'packages/bridge-core/src/recording/bundled-converter.ts' && match[1] === './ffmpeg-build-policy.js'
+      || (relative === 'packages/bridge-core/src/mobile/dsd-converter.ts' || relative === 'packages/bridge-core/src/mobile/prepared-cache.ts')
+        && match[1] === './mobile-ffmpeg-policy.js'
+    if (!ownFixedPolicy) {
       fail(`audio-boundary:${relative}`)
     }
   }

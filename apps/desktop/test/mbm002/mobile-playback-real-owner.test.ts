@@ -523,7 +523,8 @@ async function readersQuiet(h: Http) {
 }
 function traceCount(f: Fixture, operation: MobileOwnerSourceRequest['operation'], handle?: string): number {
   return f.sourceTrace.filter(row => row.request.operation === operation
-    && (handle === undefined || ('handle' in row.request ? row.request.handle : row.request.selection.resourceId) === handle)).length
+    && (handle === undefined || ('handle' in row.request ? row.request.handle
+      : row.request.operation === 'prepare' ? row.request.selection.resourceId : undefined) === handle)).length
 }
 function releaseQuiet(f: Fixture, handle: string) {
   const acknowledgements = f.sourceTrace.filter(row => row.request.operation === 'release' && row.request.handle === handle)

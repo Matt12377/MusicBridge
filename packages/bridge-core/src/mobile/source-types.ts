@@ -3,6 +3,18 @@ import type { MobileAudioInfo, MobileProcessing } from '@music-bridge/contracts'
 /** Owner 源端口的共用数据类型；不依赖认证、播放 actor 或信封校验器。 */
 export interface MobilePlaybackSourceRequest {
   resourceId: string; trackId: string; versionId: string; contentRevision: string;
+  acceptedProcessingModes?: readonly ['dsd_to_pcm'];
+  preparationWindow?: MobilePlaybackPreparationWindow;
+  /** 由原 quality/formats 算出；Owner 仍须核实际源声道，不能只核一个 bool。 */
+  dsdTarget?: Readonly<{ maxChannels: number; accepts24Bit48KhzFlac: boolean }>;
+}
+/** 从原 resource 创建窗口扣除；短 begin/status 不能重新发放 240 秒。 */
+export interface MobilePlaybackPreparationWindow {
+  resourceCreatedAtMs: number; resourceExpiresAtMs: number; sessionExpiresAtMs: number; remainingPreparationMs: number;
+}
+export interface MobilePlaybackPreparingSource {
+  handle: string; preparing: true; sourceAudio: MobileAudioInfo;
+  processing: MobileProcessing; durationMs: number; seekable: true;
 }
 /** 真实 Owner 的私有捕获结果；不是公开 JSON 能力，不传路径或数值 FD。 */
 export interface MobilePlaybackPreparedSource {
@@ -11,7 +23,10 @@ export interface MobilePlaybackPreparedSource {
   durationMs: number; seekable: boolean;
 }
 export interface MobilePlaybackSourcePort {
-  prepare(request: MobilePlaybackSourceRequest, signal: AbortSignal): Promise<MobilePlaybackPreparedSource>;
+  prepare(request: MobilePlaybackSourceRequest, signal: AbortSignal): Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource>;
+  /** 原 fake/direct port 可省略；真实 Owner 回报资格，Main 不以环境变量授予能力。 */
+  capabilities?(): Promise<Readonly<{ resourceDsdToPcm: boolean }>>;
+  status?(handle: string, signal: AbortSignal): Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource>;
   verify(handle: string): Promise<void>;
   /** 本域真实会话作者确认并续租；不能用手机 observation 冒充 Roon 确认。 */
   renew(handle: string): Promise<void>;

@@ -1,0 +1,29 @@
+{
+  "schema": "musicbridge.mbm003.author-ready-renew-boundary.v1",
+  "task": "MBM-003",
+  "basis": "6076-byte CONTRACT_SEMANTICS.md independent preparation window; public contract unchanged",
+  "canonicalSha256": "3deaa9e238f24b7062945efacc775b604a60a5652b837b8c46378f0b89eeec21",
+  "semanticsSha256": "698ca28f695b950c7409489b67929da523193856461f858df7047c1b48d2fa2a",
+  "author": "ROOT_MAC_UNIQUE_PUBLIC_AUTHOR",
+  "preparationBudgetMs": 240000,
+  "initialPreparationIncludes": [
+    "negotiation",
+    "original-create",
+    "unknown-create-recovery",
+    "original-202",
+    "hash",
+    "whole-conversion",
+    "output-validation",
+    "preparing-polling",
+    "quiet-reserve"
+  ],
+  "readyAfterPreparationDeadline": "已ready的同产物继续原短RPC、resource/session TTL、原创建许可和稳定音频facts续租或刷新票据；首次准备截止不能拒绝它，也不新开准备窗。",
+  "unexpectedPreparingDuringRenew": "只用原entry剩余首次准备预算；预算已过拒绝并回收，不能重新给240000ms。",
+  "expiredOrTerminalResource": "原resource/session过期或terminal仍不得复活或签票。",
+  "requiredBehaviorCases": [
+    "READY_RENEW_AFTER_240000MS_WITHIN_ORIGINAL_TTL",
+    "UNEXPECTED_PREPARING_DOES_NOT_RESET_ORIGINAL_WINDOW"
+  ],
+  "freshBehaviorEvidence": "NOT_RUN_NEW003",
+  "repeatedOwnerApprovalRequired": false
+}

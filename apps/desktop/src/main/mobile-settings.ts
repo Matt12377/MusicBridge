@@ -57,10 +57,11 @@ export function createMobileConnectionSettings(options: {
     if (generation !== epoch || closing || !options.isCoreReady()) return busy();
     let starting = true;
     const service = createMobileBackend({ serverId: identity.serverId, datasetId, authKey: identity.authKey, displayName: 'Music Bridge', environment: options.environment,
-      requestOwner: options.requestOwner, resizeArtwork: options.resizeArtwork, enablePlayback: true,
+      requestOwner: options.requestOwner, resizeArtwork: options.resizeArtwork, enablePlayback: true, enableDsd: true,
       assertCurrent: () => { if (closing || epoch !== generation || !options.isCoreReady() || !starting && active?.epoch !== generation) throw new MobileServiceError(503, 'BUSY'); } });
     const server = createMobileHttpsServer({ tls: { key: identity.privateKeyPEM, cert: identity.certificatePEM }, host: pref.host, port: pref.port,
-      backend: service.backend, ...(service.playbackBackend ? { playback: service.playbackBackend } : {}) });
+      backend: service.backend, ...(service.playbackBackend ? { playback: service.playbackBackend } : {}),
+      ...(service.dsdBackend ? { dsd: service.dsdBackend } : {}) });
     try {
       const listening = await server.start();
       if (generation !== epoch || closing || !options.isCoreReady()) return busy();

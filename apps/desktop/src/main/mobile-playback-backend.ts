@@ -39,6 +39,8 @@ export function createMobilePlaybackBackend(options: {
   serverId: string; datasetId: string; authKey: Uint8Array; auth: MobileAuthService;
   requestOwner(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult>;
   assertCurrent(): void;
+  /** 可信生产组合显式采用003；旧001/002组合不向Owner申请DSD能力。 */
+  enableDsd?: boolean;
 }) {
   const key = new Uint8Array(createHmac('sha256', options.authKey).update('musicbridge-mobile-playback-v1').digest());
   let service: MobilePlaybackService | undefined, origin: string | undefined, closing = false;
@@ -73,18 +75,40 @@ export function createMobilePlaybackBackend(options: {
     load: async datasetId => await owner({ kind: 'playback-load', datasetId }) as Awaited<ReturnType<MobileAuthPersistence['load']>>,
     save: async request => await owner({ kind: 'playback-save', datasetId: options.datasetId, request }) as Awaited<ReturnType<MobileAuthPersistence['save']>>,
   };
+  const sourceCapabilities = async (): Promise<Readonly<{ resourceDsdToPcm: boolean }>> => {
+    current();
+    if (options.enableDsd !== true) return { resourceDsdToPcm: false };
+    const result = await source({ operation: 'capabilities' });
+    if (result.kind !== 'mobile-source-capabilities') throw new MobilePlaybackError(503, 'BUSY');
+    return { resourceDsdToPcm: result.resourceDsdToPcm };
+  };
   const sourcePort: MobilePlaybackSourcePort = {
+    capabilities: sourceCapabilities,
     async prepare(selection, signal) {
       const release = () => { void cleanup({ operation: 'release', handle: selection.resourceId }).catch(() => undefined); };
       signal.addEventListener('abort', release, { once: true });
       try {
         signal.throwIfAborted(); const result = await source({ operation: 'prepare', selection });
-        if (result.kind !== 'mobile-source-prepared') throw new MobilePlaybackError(503, 'BUSY');
+        if (result.kind !== 'mobile-source-prepared' && result.kind !== 'mobile-source-preparing') throw new MobilePlaybackError(503, 'BUSY');
+        if (result.kind === 'mobile-source-preparing' && options.enableDsd !== true) throw new MobilePlaybackError(409, 'UNSUPPORTED_FORMAT');
         if (signal.aborted) { await cleanup({ operation: 'release', handle: selection.resourceId }); signal.throwIfAborted(); }
         return result.source;
       } catch (error) {
         // 原ID的release具有tombstone；即使prepare回包未知也不能迟到重开FD。
         await cleanup({ operation: 'release', handle: selection.resourceId }); throw error;
+      } finally { signal.removeEventListener('abort', release); }
+    },
+    async status(handle, signal) {
+      const release = () => { void cleanup({ operation: 'release', handle }).catch(() => undefined); };
+      signal.addEventListener('abort', release, { once: true });
+      try {
+        signal.throwIfAborted(); const result = await source({ operation: 'status', handle });
+        if (result.kind !== 'mobile-source-prepared' && result.kind !== 'mobile-source-preparing') throw new MobilePlaybackError(503, 'BUSY');
+        if (result.kind === 'mobile-source-preparing' && options.enableDsd !== true) throw new MobilePlaybackError(409, 'UNSUPPORTED_FORMAT');
+        signal.throwIfAborted(); return result.source;
+      } catch (error) {
+        if (signal.aborted) await cleanup({ operation: 'release', handle });
+        throw error;
       } finally { signal.removeEventListener('abort', release); }
     },
     verify: async handle => { await source({ operation: 'verify', handle }); },
@@ -109,8 +133,12 @@ export function createMobilePlaybackBackend(options: {
       requireService(requestOrigin); signal.throwIfAborted();
       if (!accessToken) throw new MobileServiceError(401, 'UNAUTHORIZED');
       const principal = await options.auth.authenticate(accessToken); signal.throwIfAborted();
+      const capabilities = await sourceCapabilities(); signal.throwIfAborted();
       return { scope: { serverId: options.serverId, deviceId: principal.deviceId, sessionId }, responseOrigin: requestOrigin,
-        now: new Date().toISOString(), resourceFormatBitDepth: true, capabilityVersion: '1.0.0', capabilitySnapshotIdentity: `mbm002:${options.serverId}` };
+        now: new Date().toISOString(), resourceFormatBitDepth: true,
+        ...(options.enableDsd === true ? { resourceDsdToPcm: capabilities.resourceDsdToPcm } : {}),
+        capabilityVersion: '1.0.0', capabilitySnapshotIdentity: options.enableDsd === true
+          ? `mbm003:${options.serverId}:dsd:${capabilities.resourceDsdToPcm ? 1 : 0}` : `mbm002:${options.serverId}` };
     },
     async dispatch(input) {
       const playback = requireService(input.origin);
@@ -147,6 +175,10 @@ export function createMobilePlaybackBackend(options: {
   };
   return { backend,
     get enabled(): boolean { return !!service && !closing; },
+    async dsdCapabilities(requestOrigin: string, signal: AbortSignal): Promise<Readonly<{ resourceDsdToPcm: boolean }>> {
+      requireService(requestOrigin); signal.throwIfAborted();
+      const capabilities = await sourceCapabilities(); signal.throwIfAborted(); current(); return capabilities;
+    },
     activate(listeningOrigin: string): void {
       current(); if (service || origin) throw new MobileServiceError(409, 'INVALID_REQUEST');
       const parsed = new URL(listeningOrigin);

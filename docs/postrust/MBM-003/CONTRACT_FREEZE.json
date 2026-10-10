@@ -1,0 +1,79 @@
+{
+  "schema": "musicbridge.mbm003.contract-freeze.v1",
+  "state": "MAC_FINAL_CANONICAL_FIXED_PEER_ACTUAL_ADOPTION_PENDING",
+  "task": "MBM-003",
+  "publicAuthor": "ROOT_MAC_ONLY",
+  "canonical": {
+    "path": "packages/contracts/mobile/openapi.json",
+    "bytes": 147445,
+    "sha256": "3deaa9e238f24b7062945efacc775b604a60a5652b837b8c46378f0b89eeec21",
+    "version": "1.7.0",
+    "operations": 40
+  },
+  "semantics": {
+    "path": "docs/postrust/MBM-003/CONTRACT_SEMANTICS.md",
+    "bytes": 6076,
+    "sha256": "698ca28f695b950c7409489b67929da523193856461f858df7047c1b48d2fa2a"
+  },
+  "peerPreviewReview": {
+    "acceptedStructurally": true,
+    "bytes": 147487,
+    "sha256": "9dcde7b24150e9b21dc9366bd913e3ca216a34584b6f85942fee17e8bd7a06a8",
+    "finalThreeClientDependenciesResolved": true,
+    "finalProductionBytesNotYetPeerAccepted": true
+  },
+  "sourceDsd": {
+    "codec": "dsd",
+    "containers": [
+      "dsf",
+      "dff"
+    ],
+    "sampleRateHz": [
+      2822400,
+      3072000,
+      5644800,
+      6144000,
+      11289600,
+      12288000,
+      22579200,
+      24576000
+    ],
+    "bitsPerSample": 1,
+    "channels": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "axesRequired": true,
+    "dstCompressionSupported": false
+  },
+  "actualDsdOutput": {
+    "codec": "flac",
+    "container": "flac",
+    "sampleRateHz": 48000,
+    "bitsPerSample": 24,
+    "channels": "EXACT_SOURCE_CHANNELS",
+    "reason": "DSD整曲转换为24-bit/48kHz PCM并编码独立FLAC。"
+  },
+  "preparation": {
+    "ordinaryClientWaitMs": 120000,
+    "dsdClientWaitMs": 240000,
+    "serverJobWindowMs": 240000,
+    "quietReserveMs": 10000,
+    "originalResourceSessionTtlChanged": false,
+    "entryClockResetAllowed": false,
+    "sharedTotalBudgetMs": 240000,
+    "windowIncludesShortBeginAndWholeConversion": true,
+    "serverStart": "ORIGINAL_RESOURCE_CREATED_AT",
+    "clientStart": "FIRST_ENTRY_PREPARATION",
+    "newBudgetPerNegotiationOrUnknownOrPoll": false
+  },
+  "bodyKeyAckPermitInheritedByRenew": true,
+  "existingOwnerAuthorizationContinuous": true,
+  "productSoftwareGate": "NOT_RUN_NEW003",
+  "appDeviceOwner": "NOT_RUN_NEW003",
+  "mbm004NotStarted": true
+}

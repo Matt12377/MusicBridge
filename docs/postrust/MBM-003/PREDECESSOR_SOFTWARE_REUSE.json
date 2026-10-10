@@ -1,0 +1,85 @@
+{
+  "schema": "musicbridge.mbm003.predecessor-software-reuse.v1",
+  "task": "MBM-003",
+  "scope": "EXACT_PREDECESSOR_SOFTWARE_ONLY",
+  "base": "b1a8de728086e7994bb69d7dee10782f646886dd",
+  "source": "7ec898d9f26cbafb5e01f5483bfaccf14ca61d27",
+  "directReport": "d5189ecba0aaf266e7fa375613a7a99beffabc2e",
+  "directReportSingleParent": "7ec898d9f26cbafb5e01f5483bfaccf14ca61d27",
+  "state": "ORIGINAL_SOURCE_AND_DIRECT_REPORT_EVIDENCE_REUSED",
+  "oldGatesRerun": false,
+  "new003SourceGateRequired": true,
+  "new003DeviceAudioOwnerProven": false,
+  "wholeOriginalReceiptsRead": [
+    {
+      "file": "SOURCE7EC8_CI_QUALIFICATION369.json",
+      "bytes": 209480,
+      "sha256": "4d568d95654a38fce844a4f949262994e6de6ce22f1045e364f803aff337ee8a"
+    },
+    {
+      "file": "ROOT_SOURCE7EC8_REPORTD518_WHOLE_CI403.json",
+      "bytes": 41879,
+      "sha256": "cc9abcf6df266abef79116e9e5ba4501d533efebc235501bf4278e64b12a2fac"
+    },
+    {
+      "file": "COORDINATOR_MBM002_PAIRED_SOFTWARE_DELIVERY_SEAL_WITH_NATIVE_CARRYOVER01.json",
+      "bytes": 9754,
+      "sha256": "0335d8baa443e4210306e12f58de8c6f5aace49c4e1342320c43a7d24b925654"
+    }
+  ],
+  "originalSourceCi": {
+    "state": "PASS_EXACT_SOURCE_FIRST_NATURAL_METADATA_SIX_WHOLE_JOB_LOGS_FIVE_WHOLE_ZIPS_STRICT_CONTENT_AND_DECLARED_SOURCE_BINDINGS",
+    "workflowDispatch": 0,
+    "reruns": 0,
+    "cancellations": 0
+  },
+  "originalDirectReportCi": {
+    "state": "PASS_EXACT_DIRECT_REPORT_FIRST_NATURAL_TWO_WORKFLOW_THREE_WHOLE_JOBS_ONE_WHOLE_ZIP_EXACT_PARENT_SOURCE_QUALIFIED",
+    "firstPushAttempt": 1,
+    "workflowDispatch": 0,
+    "reruns": 0,
+    "cancellations": 0
+  },
+  "frozenFiles": [
+    {
+      "path": "docs/postrust/MBM-000/EXECUTION_SCOPE.json",
+      "bytes": 2791,
+      "sha256": "bed0961a57bab85daf3d85daf382b487dc7b3f2b58bd02bcf8f807c6c1c0dc4a"
+    },
+    {
+      "path": "docs/postrust/MBM-001/EXECUTION_SCOPE.json",
+      "bytes": 4846,
+      "sha256": "9d72a7a092f60a6c0c8e50a7f75d66ca40ec12cfe9cd40bbd333ccb02fea6484"
+    },
+    {
+      "path": "docs/postrust/MBM-002/EXECUTION_SCOPE.json",
+      "bytes": 2232,
+      "sha256": "45c6665ba2cf1563621ffbd4181aae48abc471204849675d896c77a0fe0dbeef"
+    },
+    {
+      "path": "reports/MBM-002_EVIDENCE.json",
+      "bytes": 4030,
+      "sha256": "6fb3dbcdf7bc2026bae0b30664581c0d3bc476aad132c274354e19eb7d1a5bea"
+    },
+    {
+      "path": "reports/MBM-002_RESULT.md",
+      "bytes": 873,
+      "sha256": "0dda06192257333401b2836281458f8c9479c6d2a03109c2200f636efbca3c3d"
+    },
+    {
+      "path": "scripts/ci/verify-mbm000-contract-adoption.mjs",
+      "bytes": 44759,
+      "sha256": "a3e87936042d8085615b07a6ad2eeec1ada98645cdcbabbf5f0b2c50f23d86b5"
+    },
+    {
+      "path": "scripts/ci/verify-mbm001-pairing-library.mjs",
+      "bytes": 18073,
+      "sha256": "b439348a66c25b1a70493ca75854a9e346737763dbc42f9d3a9c8f84dceeb855"
+    },
+    {
+      "path": "scripts/ci/verify-mbm002-resource-playback.mjs",
+      "bytes": 12321,
+      "sha256": "9e48660e3e074f1172de49740713d9e072f1ba0d8dc3684cedd1e04897d3e28e"
+    }
+  ]
+}

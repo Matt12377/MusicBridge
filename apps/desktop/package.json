@@ -122,17 +122,27 @@
       {
         "from": "native/rust-core/darwin-arm64",
         "to": "rust-core/darwin-arm64",
-        "filter": ["manifest.json", "bin/musicbridge-rust-core"]
+        "filter": [
+          "manifest.json",
+          "bin/musicbridge-rust-core"
+        ]
       },
       {
         "from": "native/output/darwin-arm64",
         "to": "output/darwin-arm64",
-        "filter": ["manifest.json", "bin/output-helper", "build/core-audio-adapter.o"]
+        "filter": [
+          "manifest.json",
+          "bin/output-helper",
+          "build/core-audio-adapter.o"
+        ]
       },
       {
         "from": "native/output-device/darwin-arm64",
         "to": "output-device/darwin-arm64",
-        "filter": ["manifest.json", "bin/output-device-helper"]
+        "filter": [
+          "manifest.json",
+          "bin/output-device-helper"
+        ]
       },
       {
         "from": "native/ffmpeg/darwin-arm64",
@@ -142,6 +152,16 @@
           "bin/*",
           "lib/*",
           "legal/*"
+        ]
+      },
+      {
+        "from": "native/mobile-ffmpeg/darwin-arm64",
+        "to": "mobile-ffmpeg/darwin-arm64",
+        "filter": [
+          "manifest.json",
+          "bin/**",
+          "lib/**",
+          "legal/**"
         ]
       }
     ]

@@ -21,6 +21,7 @@ const CUE_PARSER='cue-text-75fps/mbrs003-v1';
 
 const PARSER = 'music-metadata-11.15.0/mbrs003-v1';
 const audio = /\.(flac|mp3|m4a|mp4|aac|wav|wave|aif|aiff)$/iu;
+const dsdAudio = /\.(dsf|dff)$/iu;
 class ScanYield extends Error { constructor(readonly reason: 'media-busy'|'admission-closed'|'deferred'|'control') { super(reason); } }
 class ScanFatal extends Error { constructor(message: string, cause?: unknown) { super(message,{cause}); } }
 interface Cursor { relative: string; skip: number; signature: string | null }
@@ -51,7 +52,7 @@ async function directory(root:RootCapability,relative:string):Promise<{absolute:
 /** 只读目录流与持久游标分离；暖扫描保留一个Dir句柄，冷恢复最多重放该目录原skip。 */
 class Walk {
   private opened: {dir:Dir;relative:string;skip:number;signature:string}|undefined;
-  constructor(private readonly root:RootCapability,private readonly signal:AbortSignal,private readonly current:()=>void,private readonly cueMode=false,private readonly allowCueTokens=false) {}
+  constructor(private readonly root:RootCapability,private readonly signal:AbortSignal,private readonly current:()=>void,private readonly cueMode=false,private readonly allowCueTokens=false,private readonly dsdEnabled=false) {}
   private check():void { this.current(); if(this.signal.aborted) throw new ScanYield('control'); }
   async close():Promise<void> { const opened=this.opened;this.opened=undefined;if(opened) await opened.dir.close(); }
   async next(frontier:readonly string[],budget=2000):Promise<{relatives:string[];frontier:string[];cueAware:boolean}> {
@@ -71,7 +72,7 @@ class Walk {
       const relative=cursor.relative ? `${cursor.relative}/${entry.name}` : entry.name;
       if(!scanRelativePath(relative) || entry.isSymbolicLink()) continue;
       if(entry.isDirectory()) { if(queue.length>=200) throw new Error('扫描目录frontier超过200项。');queue.push(cursorToken({relative,skip:0,signature:null},this.cueMode ? 'cue':'audio')); }
-      else if(entry.isFile()) {if(/\.cue$/iu.test(entry.name)) {foundCue=true;if(this.cueMode) relatives.push(relative);} else if(!this.cueMode && audio.test(entry.name)) relatives.push(relative);}
+      else if(entry.isFile()) {if(/\.cue$/iu.test(entry.name)) {foundCue=true;if(this.cueMode) relatives.push(relative);} else if(!this.cueMode && (audio.test(entry.name) || this.dsdEnabled && dsdAudio.test(entry.name))) relatives.push(relative);}
     }
     if(!this.cueMode && foundCue) {if(queue.length) queue[0]=cursorToken(cursorFrom(queue[0]!,this.allowCueTokens || this.cueMode), 'pending');else queue.push(cursorToken({relative:'',skip:0,signature:null},'cue'));}
     return {relatives,frontier:queue,cueAware:this.allowCueTokens || this.cueMode || foundCue};
@@ -87,6 +88,8 @@ export function admitScanFields(fields:MetadataRawFields):{status:'accepted';fie
 }
 interface Running { controller:AbortController; done:Promise<void> }
 export interface LocalScanCoordinatorOptions {
+  /** 同Owner资格开启；原扫描范围与旧Reader默认保持。 */
+  dsdMetadataEnabled?: boolean;
   repository:CollectionRepository;datasetId:string;assertCurrent():void;
   projection?:DatasetProjectionPort;assertReady?():void;
   /** 仅可信测试替换读取port；生产组合总是创建真实有限reader。 */
@@ -94,7 +97,7 @@ export interface LocalScanCoordinatorOptions {
   cueReader?:CueSidecarReader;
 }
 export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) {
-  const store=options.repository.localScan,reader=options.reader ?? createMetadataReader({concurrency:1,maxPending:1});
+  const store=options.repository.localScan,reader=options.reader ?? createMetadataReader({concurrency:1,maxPending:1,dsdMetadataEnabled:options.dsdMetadataEnabled === true});
   const cueReader=options.cueReader ?? createCueSidecarReader();
   const runs=new Map<string,Running>();let closing=false,fatal:ScanFatal|undefined,closed:Promise<void>|undefined;
   const relocationPrepared = new WeakMap<object, { request: RelocationScanReadRequest; reads: readonly RelocationPreparedScanRead[]; consumed: boolean }>();
@@ -314,7 +317,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
   async function execute(jobId:string,signal:AbortSignal):Promise<void> {
     let walk:Walk|undefined,walkCue=false,walkTokens=false;
     try {
-      let job=scoped(jobId);walk=new Walk(authority(job),signal,()=>{authority(job);});
+      let job=scoped(jobId);walk=new Walk(authority(job),signal,()=>{authority(job);},false,false,options.dsdMetadataEnabled === true);
       while(!signal.aborted && !closing && job.phase === 'running') {
         authority(job);
         const pending=store.privatePreparedBatches(jobId);
@@ -325,7 +328,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
           job=await commitFenced({commandId:randomUUID(),jobId,batchId:batch.batchId,expectedRevision:job.jobRevision},signal);continue;
         }
         const before=store.privateCheckpoint(jobId),frontier=before?.frontier ?? [''],allowCueTokens=store.privateCueAwareCheckpoint(jobId),cueMode=allowCueTokens && (frontier[0]?.startsWith('~cue-v1/') ?? false);
-        if(cueMode !== walkCue || allowCueTokens !== walkTokens){await walk.close();walk=new Walk(authority(job),signal,()=>{authority(job);},cueMode,allowCueTokens);walkCue=cueMode;walkTokens=allowCueTokens;}
+        if(cueMode !== walkCue || allowCueTokens !== walkTokens){await walk.close();walk=new Walk(authority(job),signal,()=>{authority(job);},cueMode,allowCueTokens,options.dsdMetadataEnabled === true);walkCue=cueMode;walkTokens=allowCueTokens;}
         const discovered=await walk.next(frontier);
         // 一个CUE的最多99条事实为一短批，目录cursor在发现1项后即持久化。
         const items:ScanPreparedItem[]=[],cueItems:LocalCuePreparedItem[]=[];

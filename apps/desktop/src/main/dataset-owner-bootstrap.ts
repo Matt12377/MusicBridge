@@ -6,7 +6,7 @@ export function datasetOwnerEnvironment(env: NodeJS.ProcessEnv): NodeJS.ProcessE
   const result: NodeJS.ProcessEnv = {}
   for (const key of ['NODE_ENV', 'TMPDIR', 'DEV_BUILD_ROOT', 'DEV_CACHE_ROOT', 'NODE_COMPILE_CACHE',
     'LANG', 'LC_ALL', 'TZ', 'MUSIC_BRIDGE_CORE_TEST_MODE', 'MUSIC_BRIDGE_UI_E2E',
-    'MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE', 'MUSIC_BRIDGE_BUNDLED_OUTPUT_GATE']) {
+    'MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE', 'MUSIC_BRIDGE_BUNDLED_OUTPUT_GATE', 'MUSIC_BRIDGE_MOBILE_DSD_BACKEND_GATE']) {
     const value = env[key]
     if (value !== undefined) result[key] = value
   }

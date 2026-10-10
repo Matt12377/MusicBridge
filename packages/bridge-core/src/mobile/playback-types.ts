@@ -4,7 +4,7 @@ import type {
 } from '@music-bridge/contracts';
 import type { MobileAuthCrypto, MobileAuthPersistence, MobilePrincipal } from './types.js';
 import type { MobilePlaybackSourcePort } from './source-types.js';
-export type { MobilePlaybackSourceRequest, MobilePlaybackPreparedSource, MobilePlaybackSourcePort } from './source-types.js';
+export type { MobilePlaybackSourceRequest, MobilePlaybackPreparedSource, MobilePlaybackPreparingSource, MobilePlaybackSourcePort } from './source-types.js';
 
 export const MOBILE002_CONTROL_OPERATIONS = [
   'createSession', 'getSession', 'closeSession', 'reportObservation',

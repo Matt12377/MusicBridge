@@ -142,13 +142,17 @@ const finiteNonnegative = (v: unknown): v is number => typeof v === 'number' && 
 export function isScanReadFacts(v: unknown): v is ScanReadFacts {
   if (!record(v) || !closed(v, ['technical', 'coverEvidence', 'readEvidence']) || !record(v.technical)
     || !closed(v.technical, ['container', 'codec', 'lossless', 'sampleRateHz', 'channels', 'bitsPerSample', 'durationSeconds', 'evidence'])
-    || typeof v.technical.container !== 'string' || !['FLAC', 'MPEG', 'MP4', 'WAVE', 'AIFF'].includes(v.technical.container)
+    || typeof v.technical.container !== 'string' || !['FLAC', 'MPEG', 'MP4', 'WAVE', 'AIFF', 'DSF', 'DFF'].includes(v.technical.container)
     || !text(v.technical.codec) || !(v.technical.lossless === null || typeof v.technical.lossless === 'boolean')
     || !finiteNonnegative(v.technical.sampleRateHz) || v.technical.sampleRateHz === 0 || !finiteNonnegative(v.technical.channels) || v.technical.channels === 0
     || !(v.technical.bitsPerSample === null || finiteNonnegative(v.technical.bitsPerSample))
     || !(v.technical.durationSeconds === null || finiteNonnegative(v.technical.durationSeconds)) || v.technical.evidence !== 'bounded-parser-reported'
     || !array(v.coverEvidence, 8) || !record(v.readEvidence)
     || !closed(v.readEvidence, ['bytesRead', 'readCalls', 'maxReadBytes', 'allocationBytes', 'elapsedMs', 'wholeAudioHash', 'wholeAudioDecode'])) return false;
+  if (['DSF','DFF'].includes(v.technical.container) && (v.technical.codec !== 'DSD' || v.technical.lossless !== true
+    || v.technical.bitsPerSample !== 1 || ![2822400,3072000,5644800,6144000,11289600,12288000,22579200,24576000].includes(v.technical.sampleRateHz as number)
+    || !Number.isSafeInteger(v.technical.channels) || (v.technical.channels as number) > 6
+    || !finiteNonnegative(v.technical.durationSeconds) || v.technical.durationSeconds === 0)) return false;
   for (const cover of v.coverEvidence) if (!record(cover) || !closed(cover, ['mime', 'bytes', 'sha256', 'evidence'])
     || !(cover.mime === 'image/png' || cover.mime === 'image/jpeg') || typeof cover.bytes !== 'number' || !Number.isSafeInteger(cover.bytes)
     || cover.bytes < 1 || cover.bytes > 4 * 1024 * 1024 || !hash(cover.sha256) || cover.evidence !== 'encoded-bytes-magic-and-digest') return false;

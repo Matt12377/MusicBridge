@@ -1,4 +1,4 @@
-import type { FileAudioParameters } from './audio-quality.js';
+import { isFileAudioParameters, type FileAudioParameters } from './audio-quality.js';
 import type { SourceTechnical } from './source-evidence.js';
 
 /** 移动 HTTP 域的独立传输边界，不代表服务、设备或声音验收。 */
@@ -105,6 +105,7 @@ export function mobileCanonicalJson(value: MobileJsonValue): string {
 
 /** 这里只执行冻结 schema 所需规则；不读取外部文档或旧 IPC validator。 */
 export interface MobileSchema {
+  description?: string; default?: MobileJsonValue;
   $ref?: string; type?: string | readonly string[]; const?: MobileJsonValue; enum?: readonly MobileJsonValue[];
   properties?: Readonly<Record<string,MobileSchema>>; required?: readonly string[]; additionalProperties?: boolean | MobileSchema;
   items?: MobileSchema; minItems?: number; maxItems?: number; uniqueItems?: boolean;
@@ -187,10 +188,10 @@ export interface MobileRefreshRequest { refreshToken: string }
 export type MobileEmptyRequest = Record<string,never>;
 export interface MobileErrorEnvelope { error: { code: string; message: string; requestId: string; retryable: boolean; retryAfterMs?: number } }
 export interface MobileAudioInfo { codec: string; container: string; sampleRateHz?: number; bitsPerSample?: number; channels?: number; bitrateKbps?: number }
-export interface MobileProcessing { mode: 'direct' | 'remux' | 'lossless_conversion' | 'lossy_transcode' | 'resample'; reason: string; fromPreparedCache: boolean }
+export interface MobileProcessing { mode: 'direct' | 'remux' | 'lossless_conversion' | 'lossy_transcode' | 'resample' | 'dsd_to_pcm'; reason: string; fromPreparedCache: boolean }
 export interface MobileSessionScope { serverId: MobileId; deviceId: MobileId; sessionId: MobileId }
 export interface MobileResourceContextBasis { capabilitySnapshotIdentity: MobileId; responseOrigin: string; now: string }
-export interface MobileResourceCodecContext extends MobileResourceContextBasis { scope: MobileSessionScope; resourceFormatBitDepth: boolean; capabilityVersion: 'base' | '1.0.0' }
+export interface MobileResourceCodecContext extends MobileResourceContextBasis { scope: MobileSessionScope; resourceFormatBitDepth: boolean; resourceDsdToPcm?: boolean; capabilityVersion: 'base' | '1.0.0' }
 /** 公共 Error.code 是 string；此处只允许服务端明确映射的安全故障。 */
 export const MOBILE_SAFE_ERROR_CODES = ['INVALID_REQUEST','UNAUTHORIZED','SOURCE_CHANGED','CURSOR_INVALID','REVISION_CONFLICT','IDEMPOTENCY_CONFLICT','UNSUPPORTED_FORMAT','BUSY','CONTENT_LIMIT_EXCEEDED','SESSION_EXPIRED','SESSION_CLOSED','RESOURCE_EXPIRED','RESOURCE_RELEASED','RESOURCE_REVOKED','DEVICE_REVOKED','TICKET_EXPIRED','TICKET_INVALID','TICKET_REVOKED','SERVICE_RESTARTED','RESOURCE_BUSY'] as const;
 export interface MobileSafeErrorFacts { code: typeof MOBILE_SAFE_ERROR_CODES[number]; requestId: string; retryable: boolean; retryAfterMs?: number }
@@ -204,7 +205,7 @@ export const MOBILE_COMMON_SCHEMAS: MobileSchemaRegistry = {
   RefreshRequest:{type:'object',required:['refreshToken'],additionalProperties:false,properties:{refreshToken:{type:'string',minLength:16,maxLength:512}}},
   EmptyRequest:{type:'object',required:[],additionalProperties:false,properties:{}},
   AudioInfo:{type:'object',required:['codec','container'],additionalProperties:true,properties:{codec:{type:'string'},container:{type:'string'},sampleRateHz:{type:'integer',minimum:1},bitsPerSample:{type:'integer',minimum:1},channels:{type:'integer',minimum:1},bitrateKbps:{type:'number',minimum:0}}},
-  Processing:{type:'object',required:['mode','reason','fromPreparedCache'],additionalProperties:true,properties:{mode:{enum:['direct','remux','lossless_conversion','lossy_transcode','resample']},reason:{type:'string'},fromPreparedCache:{type:'boolean'}}}
+  Processing:{type:'object',required:['mode','reason','fromPreparedCache'],additionalProperties:true,properties:{mode:{enum:['direct','remux','lossless_conversion','lossy_transcode','resample','dsd_to_pcm'],description:'dsd_to_pcm仅用于真实DSD整曲转24-bit/48kHz PCM并编码独立FLAC；不是原生或无损DSD。'},reason:{type:'string'},fromPreparedCache:{type:'boolean'}}}
 };
 export interface MobileCommonRequestMap { pairingClaim: MobilePairingClaim; refresh: MobileRefreshRequest; empty: MobileEmptyRequest }
 export interface MobileCommonResponseMap { serverInfo: MobileServerInfo; capabilities: MobileCapabilities; tokenPair: MobileTokenPair; error: MobileErrorEnvelope; audioInfo: MobileAudioInfo; processing: MobileProcessing }
@@ -223,7 +224,8 @@ export function mapMobileSafeError(facts: MobileSafeErrorFacts): MobileDecodeRes
 }
 export function mapMobileFileAudioParameters(raw: FileAudioParameters): MobileDecodeResult<MobileAudioInfo> {
   const captured = mobileDataSnapshot(raw); if (!captured.ok || !mobileRecord(captured.value)) return mobileFailure('INVALID_RESPONSE','sourceAudio'); raw = captured.value as unknown as FileAudioParameters;
-  const containers: Record<FileAudioParameters['container'],string> = {FLAC:'flac',MPEG:'mp3',MP4:'m4a',WAVE:'wav',AIFF:'aiff'};
+  if (['DSF','DFF'].includes(raw.container) && !isFileAudioParameters(raw)) return mobileFailure('INVALID_RESPONSE','sourceAudio');
+  const containers: Record<FileAudioParameters['container'],string> = {FLAC:'flac',MPEG:'mp3',MP4:'m4a',WAVE:'wav',AIFF:'aiff',DSF:'dsf',DFF:'dff'};
   if (typeof raw.codec !== 'string') return mobileFailure('INVALID_RESPONSE','sourceAudio');
   let codec = raw.codec.toLowerCase();
   // 解析词汇统一成移动格式标签；未知技术轴保持未知，真实可播放资格仍由Owner核FD。

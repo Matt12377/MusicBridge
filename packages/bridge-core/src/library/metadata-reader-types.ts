@@ -3,7 +3,7 @@ import type { RootCapability } from '../recording/source-files.js';
 /** Node 私有原始标签事实；不是公开 LocalMetadata 的真实性或512字符准入证明。 */
 export interface MetadataRawFields { title?: string; artist?: string; album?: string; year?: string; disc?: string; track?: string }
 export interface MetadataTechnical {
-  container: 'FLAC' | 'MPEG' | 'MP4' | 'WAVE' | 'AIFF'; codec: string;
+  container: 'FLAC' | 'MPEG' | 'MP4' | 'WAVE' | 'AIFF' | 'DSF' | 'DFF'; codec: string;
   lossless: boolean | null; sampleRateHz: number; channels: number;
   bitsPerSample: number | null; durationSeconds: number | null;
   evidence: 'bounded-parser-reported';
@@ -48,6 +48,8 @@ export type MetadataReaderLifecycle = { type: 'lease-acquired' | 'lease-released
   | { type: 'read-complete'; status: MetadataReadResult['status'] }
   | MetadataReaderTimeoutLifecycle;
 export interface MetadataReaderOptions {
+  /** 仅由同Owner的合格DSD后端与缓存开启；原Reader缺省继续不准入DSD。 */
+  dsdMetadataEnabled?: boolean;
   concurrency?: 1 | 2; maxPending?: number;
   /** 只供可信Node测试降低预算，不接受Renderer传入，不允许提高产品上限。 */
   trustedBudget?: Partial<MetadataReadBudget>;
@@ -57,4 +59,4 @@ export interface MetadataReaderOptions {
 }
 export interface MetadataReaderPort { read(input: MetadataReadInput, signal?: AbortSignal): Promise<MetadataReadResult>; close(): Promise<void> }
 /** worker只持有共享FD数值；所有关闭权保留父线程FileHandle。 */
-export interface MetadataWorkerInput { fd: number; size: number; budget: MetadataReadBudget }
+export interface MetadataWorkerInput { fd: number; size: number; budget: MetadataReadBudget; dsdMetadataEnabled?: boolean }

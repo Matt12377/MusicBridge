@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { isLocalArtworkSelection, isMobileId, type LocalArtworkSelection, type LocalLibraryTrackDetail, type MobileAlbum, type MobileTrack } from '@music-bridge/contracts';
+import { isLocalArtworkSelection, isMobileId, isMobileDsdSourceAudio, type LocalArtworkSelection, type LocalLibraryTrackDetail, type MobileAlbum, type MobileTrack } from '@music-bridge/contracts';
 import { captureLocalFactsByIdentityReadonly } from '../application/local-source-resolver.js';
 import type { CollectionRepository } from '../collection/repository.js';
 import { readonlySourceCatalogFileAvailable, SourceCatalogReleaseError } from '../recording/source-files.js';
@@ -16,12 +16,14 @@ const missing = (): never => { throw new MobileServiceError(404, 'INVALID_REQUES
 /** 同一个现有 Owner/连接的只读投影及私有密文作者。没有源文件写入或新增 DDL。 */
 export function createMobileOwnerService(options: {
   collection: CollectionRepository; datasetId: string; ownerEpoch: string; assertCurrent(): void;
+  /** 原 Owner 的同一真实缓存资格；不能由 Renderer 或请求 bool 授予。 */
+  dsdToPcmAvailable?: () => boolean;
 }) {
   const { collection, datasetId, ownerEpoch } = options;
   let state: ReturnType<typeof createMobileSealedStateStore> | undefined;
   let playbackState: ReturnType<typeof createMobileSealedStateStore> | undefined;
   const current = (): void => options.assertCurrent();
-  const revision = (catalogPlaybackEnabled = false): string => { current(); const stamp = collection.readonlySnapshotStamp(); current(); return 'mr:' + digest([datasetId, ownerEpoch, stamp.dataVersion, stamp.totalChanges, catalogPlaybackEnabled]); };
+  const revision = (catalogPlaybackEnabled = false): string => { current(); const stamp = collection.readonlySnapshotStamp(); current(); return 'mr:' + digest([datasetId, ownerEpoch, stamp.dataVersion, stamp.totalChanges, catalogPlaybackEnabled, ...(options.dsdToPcmAvailable?.() === true ? ['MBM003_DSD_AVAILABLE'] : [])]); };
   function identifiers(id: string, kind: 'la' | 'lt' | 'aw', count: number): string[] {
     const parts = id.split(':');
     if (parts.length !== count + 2 || parts[0] !== kind || parts[1] !== datasetId || parts.slice(2, kind === 'aw' ? -1 : undefined).some(part => !uuid.test(part))) return missing();
@@ -45,7 +47,11 @@ export function createMobileOwnerService(options: {
   };
   function playbackAvailable(detail: LocalLibraryTrackDetail): boolean {
     if (detail.track.segment !== null || !detail.fileParameters) return false;
-    const kind = mobileOwnerDirectPlaybackKind(detail.fileParameters);
+    const dsd = options.dsdToPcmAvailable?.() === true && ['DSF', 'DFF'].includes(detail.fileParameters.container)
+      && /^dsd(?:_[a-z_]+)?$/iu.test(detail.fileParameters.codec) && detail.fileParameters.durationMs !== null
+      && isMobileDsdSourceAudio({ codec:'dsd',container:detail.fileParameters.container.toLowerCase(),sampleRateHz:detail.fileParameters.sampleRateHz,
+        bitsPerSample:detail.fileParameters.bitsPerSample,channels:detail.fileParameters.channels });
+    const kind = dsd ? 'encoded' : mobileOwnerDirectPlaybackKind(detail.fileParameters);
     if (kind === null) return false;
     try {
       current();

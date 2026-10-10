@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { attachDatasetOwnerWorkerPort } from '../../../../packages/bridge-core/src/collection/dataset-owner-worker.js'
 import { prepareOwnedDatasetDomain } from '../../../../packages/bridge-core/src/collection/dataset-domain.js'
 import { loadRecordingDependenciesForOwner } from './recording-bootstrap.js'
+import { mobileDsdOptionsForOwner } from './mobile-dsd-bootstrap.js'
 import { parseDatasetOwnerWorkerData } from './dataset-owner-bootstrap.js'
 import { installPhysicalResourceCoordinator } from '../../../../packages/bridge-core/src/stream/physical-resource-locks.js'
 
@@ -26,6 +27,13 @@ attachDatasetOwnerWorkerPort(parentPort, {
       entryDirectory: path.dirname(fileURLToPath(import.meta.url)),
       resourcesDirectory,
     })
-    return prepareOwnedDatasetDomain({ dataDirectory, epoch, testMode, projection, recordingDependencies })
+    const mobileDsd = mobileDsdOptionsForOwner(env, {
+      platform: process.platform,
+      arch: process.arch,
+      entryDirectory: path.dirname(fileURLToPath(import.meta.url)),
+      resourcesDirectory,
+    }, dataDirectory)
+    return prepareOwnedDatasetDomain({ dataDirectory, epoch, testMode, projection, recordingDependencies,
+      ...(mobileDsd ? { mobileDsd } : {}) })
   },
 })

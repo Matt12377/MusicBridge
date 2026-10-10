@@ -1,7 +1,7 @@
 {
   "schema": "musicbridge.mbm003.execution-scope.v1",
   "task": "MBM-003",
-  "status": "IN_PROGRESS_CONTRACT_FREEZE_FIRST",
+  "status": "IMPLEMENTED_LOCAL_CHECKS_PASS_LIVE_ACCEPTANCE_OPEN",
   "startedAtUTC": "2026-10-10T08:20:38.094662+00:00",
   "baseSha": "b1a8de728086e7994bb69d7dee10782f646886dd",
   "branch": "codex/mbm-003-lossless-dsd-transport",
@@ -14,9 +14,9 @@
     "sha256": "a36b722255201e98167b4a616fa8228cf2109b8204613d0cb3a85aab7f2bc256"
   },
   "contract": {
-    "state": "ACTUAL_REVIEWABLE_PREVIEW_PENDING_PAIRED_FREEZE",
+    "state": "PAIRED_ACTUAL_CONTRACT_ADOPTED_IMPLEMENTATION_IN_PROGRESS",
     "publicAuthor": "ROOT_MAC_ONLY",
-    "authoritativeCanonicalStill002": true,
+    "authoritativeCanonicalStill002": false,
     "preview": {
       "path": "docs/postrust/MBM-003/contract-preview/openapi.json",
       "bytes": 147487,
@@ -31,7 +31,21 @@
         "scope": "JSON_SCHEMA_ONLY_NOT_RUNTIME_PROCESSING_OR_PAIRED_FREEZE"
       }
     },
-    "semantics": "docs/postrust/MBM-003/CONTRACT_SEMANTICS_DRAFT.md"
+    "semantics": "docs/postrust/MBM-003/CONTRACT_SEMANTICS.md",
+    "canonical": {
+      "path": "packages/contracts/mobile/openapi.json",
+      "bytes": 147445,
+      "sha256": "3deaa9e238f24b7062945efacc775b604a60a5652b837b8c46378f0b89eeec21",
+      "version": "1.7.0",
+      "operations": 40
+    },
+    "freeze": "docs/postrust/MBM-003/CONTRACT_FREEZE.json",
+    "actualPairedAdoption": {
+      "file": "ROOT_MBM003_ACTUAL_PAIRED_ADOPTION470.json",
+      "bytes": 1959,
+      "sha256": "432629cca2ee43678c6d2153469bc420fa90284f01b2cdc29d8d26049e34d841"
+    },
+    "readyRenewBoundary": "docs/postrust/MBM-003/READY_RENEW_BOUNDARY.json"
   },
   "required": [
     "FLAC至少24-bit/192kHz且保持源到传输三轴，保留16/24-bit和24/44.1矩阵",
@@ -58,7 +72,14 @@
     "jobDeadline": "WITHIN_ORIGINAL_REMAINING_RESOURCE_AND_SESSION_TTL",
     "mediaTicket": "ONLY_READY_ORIGINAL_60S_ABSOLUTE_LIFETIME",
     "directPreparationBudgetMs": 10000,
-    "metadataRequestBudgetMs": 15000
+    "metadataRequestBudgetMs": 15000,
+    "dsdClientWaitMs": 240000,
+    "ordinaryClientWaitMs": 120000,
+    "quietReserveMs": 10000,
+    "sharedTotalPreparationBudgetMs": 240000,
+    "conversionGetsNewWindowAfterBegin": false,
+    "readyRenewUsesPreparationDeadline": false,
+    "unexpectedPreparingDuringRenewGetsNewWindow": false
   },
   "reuse": {
     "002SourceAndDirectReport": "EXACT_IMMUTABLE_QUALIFIED_SOFTWARE_EVIDENCE",
@@ -84,7 +105,7 @@
         "name": "delivery012_contract",
         "model": "gpt-6.1-sol",
         "effort": "max",
-        "scope": "READONLY_CONTRACT_REVIEW_THEN_EXCLUSIVE_NEW_CONTRACT_TESTS"
+        "scope": "NEW_CONTRACT_TESTS_AND_NEW003_REPORT_ONLY_MODULE_STATIC_AUTHOR"
       },
       {
         "name": "delivery012_core",
@@ -96,13 +117,13 @@
         "name": "delivery012_app_proofs",
         "model": "gpt-6.1-sol",
         "effort": "max",
-        "scope": "DESKTOP_MAIN_CONNECTION_AND_NEW_TESTS_AFTER_FREEZE"
+        "scope": "DESKTOP_MAIN_CONNECTION_AND_NEW003_SOFTWARE_GATE_STATIC_AUTHOR"
       }
     ],
     "actualSessionAndSpawnParametersRead": true,
     "newDescendants": 0
   },
-  "software": "NOT_RUN_NEW003",
+  "software": "PASS_LOCAL_STANDARD_AND_AFFECTED_DSD_CHECKS_SOURCE_GATE_AND_CI_REQUIRED",
   "productionApp": "NOT_RUN_NEW003",
   "physicalDeviceAudio": "NOT_RUN_NEW003",
   "ownerAcceptance": "NOT_RUN_NEW003",
@@ -128,16 +149,40 @@
     "maxPreparationMs": 240000,
     "deadline": "MIN_JOB_BUDGET_OR_ORIGINAL_RESOURCE_SESSION_REMAINING_DEADLINE_WITH_QUIET_RESERVE",
     "activeEntriesEvictable": false,
-    "oldGlobalLimitsChanged": false
+    "oldGlobalLimitsChanged": false,
+    "quietReserveMs": 10000
   },
   "converterBackend": {
-    "state": "DEDICATED_MOBILE_CONVERTER_QUALIFICATION_PENDING",
+    "state": "QUALIFIED_FIXED_NATIVE_BUNDLE_AND_SYNTHETIC_FD_BACKEND",
     "existingRecordingPolicy": "UNCHANGED_NOT_CAPABLE_OF_DSD_FLAC_BY_CURRENT_WHITELIST",
     "sourceFormats": [
       "DSF",
       "DFF"
     ],
     "requiredOutput": "FLAC_PCM_24BIT_48000HZ",
-    "buildRoot": "EXTERNAL_LIFEWEAVE_ONLY"
+    "buildRoot": "EXTERNAL_LIFEWEAVE_ONLY",
+    "manifestSha256": "233ff1404886db6183bc159fdc81e2d191cec9ddb6f43788f0a9228a13d1f6c7",
+    "nativeArchiveSha256": "464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c",
+    "productionAppQualification": false
+  },
+  "localValidation": {
+    "proofs": [
+      {
+        "file": "ROOT_MBM003_STANDARD_VERIFY508.json",
+        "bytes": 1275,
+        "sha256": "0e2670ecf14ee05be1bdfa637d88ad4a1acf8b2669664497974dac0183501a0a"
+      },
+      {
+        "file": "ROOT_MBM003_CACHE_CLOSE_AFFECTED_GREEN505.json",
+        "bytes": 2643,
+        "sha256": "c7acc616d3a8e83a95bdab9ade3b644f7b4a1e476b708e31b4eb18a623178a66"
+      }
+    ],
+    "newFixedSourceGateCases": 80,
+    "hostedApplicableCases": 65,
+    "nativeAdditionalCases": 15,
+    "rawWip79BeforeCloseFix": "software-native498/summary.json",
+    "freshCloseFixAffectedCases": 11,
+    "fixedSourceGateAndFirstNaturalCiStillRequired": true
   }
 }

@@ -142,9 +142,9 @@ export function createMetadataReader(options: MetadataReaderOptions = {}): Metad
       }
       if (signal.aborted) return failure('CANCELLED');
       if (relocation) return await withRelocationMetadataRead(relocation.access, input, signal,
-        (handle, size) => runWorker({ fd: handle.fd, size, budget }, signal), event => emit(event));
+        (handle, size) => runWorker({ fd: handle.fd, size, budget, dsdMetadataEnabled: options.dsdMetadataEnabled === true }, signal), event => emit(event));
       return await withCheckedReadonlyMetadataSource(input.root, input.relative, input.expectedSignature, signal,
-        (handle, size) => runWorker({ fd: handle.fd, size, budget },signal), input.assertCurrent,
+        (handle, size) => runWorker({ fd: handle.fd, size, budget, dsdMetadataEnabled: options.dsdMetadataEnabled === true },signal), input.assertCurrent,
         event => emit(event));
     } catch (error) {
       if (error instanceof MetadataLeaseReleaseError) { fatalLeaseFailure = true; return failure('LEASE_RELEASE_FAILED'); }

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
-  isFileAudioParameters, isMobileAudioInfo, type FileAudioParameters, type MobileAudioInfo,
+  isFileAudioParameters, isMobileAudioInfo, isMobileDsdSourceAudio, type FileAudioParameters, type MobileAudioInfo,
 } from '@music-bridge/contracts';
 import type { CollectionRepository } from '../collection/repository.js';
 import type { createLocalSourceTickets } from '../collection/local-source-tickets.js';
@@ -11,7 +11,9 @@ import { LocalSourceFence } from '../stream/local-source-fence.js';
 import { PhysicalResourceBusy } from '../stream/physical-resource-locks.js';
 import { SourceFileError } from '../recording/source-files.js';
 import { isMobileOwnerSourceRequest, isMobileOwnerSourceResult, type MobileOwnerSourceRequest, type MobileOwnerSourceResult } from './source-protocol.js';
-import type { MobilePlaybackPreparedSource, MobilePlaybackSourceRequest } from './playback-types.js';
+import type { MobilePlaybackPreparedSource, MobilePlaybackPreparingSource, MobilePlaybackSourceRequest } from './source-types.js';
+import { openMobileDsdSource, closeMobileDsdSource } from './dsd-converter.js';
+import { MobileDsdError, type MobilePreparedCache, type MobileDsdSourceAccess } from './prepared-cache-types.js';
 import type { MobileOwnerPrivateFailure } from './types.js';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u;
@@ -26,7 +28,7 @@ const fail = (status: SourceFailure['status'], code: SourceFailure['code'], retr
 const released = (): never => fail(410, 'RESOURCE_RELEASED');
 const busy = (): never => fail(429, 'RESOURCE_BUSY', true);
 const fingerprint = (selection: MobilePlaybackSourceRequest): string => JSON.stringify([
-  selection.resourceId, selection.trackId, selection.versionId, selection.contentRevision,
+  selection.resourceId, selection.trackId, selection.versionId, selection.contentRevision, selection.acceptedProcessingModes ?? null, selection.preparationWindow ?? null, selection.dsdTarget ?? null,
 ]);
 const digest = (value: unknown): string => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
@@ -43,8 +45,8 @@ interface SourceRecord {
   controller: AbortController; lane: Lane | null; attempt: number;
   capture: LocalSourceCaptureResult | null; fence: LocalSourceFence | null;
   releaseHold: (() => void) | null; lease: AssetLease | null;
-  prepared: MobilePlaybackPreparedSource | null; failure: SourceFailure | null;
-  preparation: Promise<MobilePlaybackPreparedSource> | null; closing: Promise<void> | null;
+  prepared: MobilePlaybackPreparedSource | MobilePlaybackPreparingSource | null; dsd: MobileDsdSourceAccess | null; cached: boolean; failure: SourceFailure | null;
+  preparation: Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource> | null; closing: Promise<void> | null;
   readers: Set<ReadRecord>;
 }
 
@@ -53,7 +55,9 @@ function audio(parameters: FileAudioParameters | undefined): { source: MobileAud
   if (!parameters || !isFileAudioParameters(parameters) || parameters.durationMs === null) return fail(409, 'UNSUPPORTED_FORMAT');
   const codec = parameters.codec.toLowerCase(), bits = parameters.bitsPerSample;
   let normalized: string, container: string, contentType: string;
-  if (parameters.container === 'FLAC' && codec === 'flac' && parameters.lossless === true && bits !== null) {
+  if (['DSF', 'DFF'].includes(parameters.container) && /^dsd(?:_[a-z_]+)?$/iu.test(codec) && bits === 1) {
+    normalized = 'dsd'; container = parameters.container.toLowerCase(); contentType = 'audio/flac';
+  } else if (parameters.container === 'FLAC' && codec === 'flac' && parameters.lossless === true && bits !== null) {
     normalized = 'flac'; container = 'flac'; contentType = 'audio/flac';
   } else if (parameters.container === 'MP4' && /^(?:alac|apple lossless)$/u.test(codec) && parameters.lossless === true && bits !== null) {
     normalized = 'alac'; container = 'm4a'; contentType = 'audio/mp4';
@@ -75,7 +79,7 @@ function audio(parameters: FileAudioParameters | undefined): { source: MobileAud
 /** 原 Owner/SAB 域内组合；手机确认与家庭 Roon 会话完全独立。 */
 export function createMobileOwnerSourceService(options: {
   collection: CollectionRepository; tickets: ReturnType<typeof createLocalSourceTickets>;
-  datasetId: string; ownerEpoch: string; assertCurrent(): void;
+  datasetId: string; ownerEpoch: string; assertCurrent(): void; preparedCache?: MobilePreparedCache;
 }) {
   const { collection, tickets, datasetId, ownerEpoch } = options;
   if (!UUID.test(datasetId) || !UUID.test(ownerEpoch)) throw new Error('手机源服务需要原 Owner 的完整工作库身份。');
@@ -91,6 +95,8 @@ export function createMobileOwnerSourceService(options: {
   }
   function asFailure(error: unknown): SourceFailure {
     if (error instanceof SourceError) return error.failure;
+    if (error instanceof MobileDsdError) return error.code === 'RESOURCE_BUSY' ? failure(429, 'RESOURCE_BUSY', true)
+      : error.code === 'RESOURCE_RELEASED' ? failure(410, 'RESOURCE_RELEASED') : failure(409, error.code);
     if (error instanceof LocalFileLeaseError) {
       if (error.code === 'CAPACITY') return failure(429, 'RESOURCE_BUSY', true);
       if (error.code === 'CLOSED' || error.code === 'EXPIRED') return failure(410, 'RESOURCE_RELEASED');
@@ -106,7 +112,7 @@ export function createMobileOwnerSourceService(options: {
     if (records.size >= MAX_RECORDS) return busy();
     const record: SourceRecord = { handle, selection: null, fingerprint: null, state: 'released', explicitRelease: true,
       controller: new AbortController(), lane: null, attempt: 0, capture: null, fence: null, releaseHold: null,
-      lease: null, prepared: null, failure: null, preparation: null, closing: null, readers: new Set() };
+      lease: null, prepared: null, dsd: null, cached: false, failure: null, preparation: null, closing: null, readers: new Set() };
     records.set(handle, record); return record;
   }
   function selected(selection: MobilePlaybackSourceRequest) {
@@ -160,6 +166,9 @@ export function createMobileOwnerSourceService(options: {
       if (record.preparation) await Promise.allSettled([record.preparation]);
       await Promise.all([...record.readers].map(read => closeReader(record, read)));
       if (record.lease) await record.lease.close();
+      if (record.cached) await options.preparedCache!.release(record.handle);
+      else if (record.dsd) await closeMobileDsdSource(record.dsd);
+      record.dsd = null; record.cached = false;
       // close 拒绝意味着 FD/claims quiet 未确认，以下保护和 lane 不释放。
       record.releaseHold?.(); record.releaseHold = null;
       if (record.capture) tickets.release(record.capture.ticketId);
@@ -174,7 +183,7 @@ export function createMobileOwnerSourceService(options: {
     if (!record.explicitRelease && record.failure === null && leaseFailure) record.failure = asFailure(new LocalFileLeaseError(leaseFailure));
     void releaseRecord(record).catch(() => { record.failure = failure(503, 'BUSY', true); });
   }
-  async function prepareRecord(record: SourceRecord): Promise<MobilePlaybackPreparedSource> {
+  async function prepareRecord(record: SourceRecord): Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource> {
     try {
       if (record.controller.signal.aborted || record.explicitRelease) return released();
       const detail = selected(record.selection!);
@@ -186,6 +195,21 @@ export function createMobileOwnerSourceService(options: {
       record.fence = new LocalSourceFence(captured.buffer); record.releaseHold = record.fence.retain();
       const technical = audio(captured.fileParameters);
       current(record, true);
+      if (isMobileDsdSourceAudio(technical.source)) {
+        // 旧无采纳请求在任何缓存/converter 调用前明确拒绝，不产生新 mode 的 202。
+        if (record.selection!.acceptedProcessingModes?.[0] !== 'dsd_to_pcm' || !record.selection!.preparationWindow || !record.selection!.dsdTarget?.accepts24Bit48KhzFlac || technical.source.channels! > record.selection!.dsdTarget!.maxChannels || !options.preparedCache?.qualified) return fail(409, 'UNSUPPORTED_FORMAT');
+        const observation = captured.facts.observation;
+        if (!observation) return fail(409, 'SOURCE_CHANGED');
+        const access = await openMobileDsdSource({root:captured.facts.sourceRoot,relative:captured.facts.relative,
+          signature:observation.signature,datasetId,identity:digest([datasetId,captured.facts]),sourceAudio:technical.source,
+          assertCurrent(){ownerCurrent();const latest=selected(record.selection!);if(JSON.stringify(latest.track)!==JSON.stringify(captured.facts.track)
+            || JSON.stringify(latest.asset)!==JSON.stringify(captured.facts.asset))return fail(409,'SOURCE_CHANGED');}},record.controller.signal);
+        record.dsd = access; current(record,true);
+        const source = await options.preparedCache.begin({resourceId:record.handle,source:access,window:record.selection!.preparationWindow},record.controller.signal);
+        record.cached = true; record.prepared = source;
+        if (!('preparing' in source)) record.state='active';
+        current(record,true);return source;
+      }
       const lease = await pool.prepare({ source_kind: 'local_file', status: 'prepared_descriptor', facts: captured.facts }, {
         ownerId: record.lane!.ownerId, attempt: record.attempt, isCurrent() { try { current(record, true); return true; } catch { return false; } },
       });
@@ -234,10 +258,21 @@ export function createMobileOwnerSourceService(options: {
     }
     try {
       const source = await record.preparation;
-      current(record); return { kind: 'mobile-source-prepared', source: structuredClone(source) };
+      current(record, true); return 'preparing' in source ? {kind:'mobile-source-preparing',source:structuredClone(source)} : { kind: 'mobile-source-prepared', source: structuredClone(source) };
     } catch (error) {
       await releaseRecord(record); throw error;
     }
+  }
+  async function status(handle:string):Promise<MobileOwnerSourceResult>{
+    const record=records.get(handle);if(!record)return released();
+    try{current(record,true);if(record.cached){const source=await options.preparedCache!.status(handle);current(record,true);record.prepared=source;
+      if(!('preparing' in source))record.state='active';}
+      const source=record.prepared;if(!source)return busy();
+      return 'preparing' in source?{kind:'mobile-source-preparing',source:structuredClone(source)}:{kind:'mobile-source-prepared',source:structuredClone(source)};
+    }catch(error){record.failure=asFailure(error);await releaseRecord(record);throw error;}
+  }
+  async function verifyRecord(record:SourceRecord):Promise<void>{
+    if(record.cached)await options.preparedCache!.verify(record.handle);else await record.lease!.verify();current(record);
   }
   async function active(handle: string): Promise<SourceRecord> {
     const record = records.get(handle); if (!record) return released();
@@ -260,7 +295,7 @@ export function createMobileOwnerSourceService(options: {
     const record = await active(request.handle);
     // active 的异步 quiet 路径不能给并发 release 留一个晚建 reader 的窗口。
     current(record);
-    if (request.start > record.lease!.size) return fail(400, 'INVALID_REQUEST');
+    if (request.start > (record.prepared as MobilePlaybackPreparedSource).size) return fail(400, 'INVALID_REQUEST');
     const read = readRecord(record, request.readId);
     const same = read.last?.start === request.start && read.last.maxBytes === request.maxBytes;
     if (read.pending && !same) return busy();
@@ -269,13 +304,16 @@ export function createMobileOwnerSourceService(options: {
       let bytes: Uint8Array;
       if (same && read.pending) bytes = await read.pending;
       else if (same && read.last?.bytes) {
-        await record.lease!.verify(); current(record); bytes = read.last.bytes;
+        await verifyRecord(record); bytes = read.last.bytes;
       } else {
         read.last = { start: request.start, maxBytes: request.maxBytes, bytes: null };
         const pending = (async () => {
           current(record); read.controller.signal.throwIfAborted();
+          await verifyRecord(record); read.controller.signal.throwIfAborted();
+          if(record.cached){const result=await options.preparedCache!.read(record.handle,request.start,request.maxBytes,read.controller.signal);
+            current(record);read.controller.signal.throwIfAborted();if(read.closed)return released();
+            read.nextOffset=request.start+result.byteLength;read.last!.bytes=result;return result;}
           const lease = record.lease!;
-          await lease.verify(); current(record); read.controller.signal.throwIfAborted();
           let result = new Uint8Array(0);
           if (request.start < lease.size) {
             const end = Math.min(lease.size - 1, request.start + Math.min(request.maxBytes, lease.size - request.start) - 1);
@@ -322,10 +360,13 @@ export function createMobileOwnerSourceService(options: {
       let result: MobileOwnerSourceResult;
       switch (request.operation) {
         case 'prepare': result = await prepare(request.selection); break;
+        case 'status': result=await status(request.handle);break;
+        case 'capabilities': ownerCurrent();result={kind:'mobile-source-capabilities',resourceDsdToPcm:options.preparedCache?.qualified===true};break;
         case 'read': result = await readSource(request); break;
         case 'verify': case 'renew': {
           const record = await active(request.handle);
-          try { current(record); await record.lease!.verify(); current(record); if (request.operation === 'renew') record.lease!.renew(permission(record)); }
+          try { current(record); await verifyRecord(record); if (request.operation === 'renew') {
+            if(record.cached)await options.preparedCache!.renew(record.handle);else record.lease!.renew(permission(record));current(record); } }
           catch (error) { record.failure = asFailure(error); await releaseRecord(record); throw new SourceError(record.failure); }
           result = { kind: 'mobile-source-ack', operation: request.operation, handle: request.handle, readId: null, quiet: true }; break;
         }
@@ -346,7 +387,7 @@ export function createMobileOwnerSourceService(options: {
     if (closing) return closing; closed = true;
     closing = (async () => {
       await Promise.all([...records.values()].map(record => releaseRecord(record, true)));
-      await pool.close();
+      await pool.close(); await options.preparedCache?.close();
     })(); return closing;
   }
   function resourceSnapshot() {

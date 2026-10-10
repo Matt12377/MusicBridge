@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import {
-  MOBILE_CODEC_LIMITS, MOBILE_OPERATION_TABLE, isMobileId, mobileCanonicalJson, mobileCommonResponseSnapshot,
+  MOBILE_CODEC_LIMITS, MOBILE_OPERATION_TABLE, isMobileDsdSourceAudio, MOBILE_DSD_PCM_PROCESSING_REASON, isMobileId, mobileCanonicalJson, mobileCommonResponseSnapshot,
   mobileDataSnapshot, mobileResourceCommandSnapshot, mobileResourceRequestSnapshot, mobileResourceResponseSnapshot,
   validateMobileCreateResourceReply, validateMobileGetResourceReply,
   parseMobileJson, type MobileAudioInfo, type MobileDecodedRequest, type MobileErrorEnvelope,
@@ -8,12 +8,18 @@ import {
   type MobileResourceRequest, type MobileResourceSemanticContext, type MobileSession,
 } from '@music-bridge/contracts';
 import { MobilePlaybackError, type MobilePlaybackErrorCode, type MobilePlaybackLimits,
-  type MobilePlaybackPreparedSource } from './playback-types.js';
+  type MobilePlaybackPreparedSource, type MobilePlaybackPreparingSource } from './playback-types.js';
 
 export const PLAYBACK_STATE_SCHEMA = 'musicbridge.mobile002.playback-state.v1';
 export interface PlaybackSourceFacts {
   sourceAudio: MobileAudioInfo; actualAudio: MobileAudioInfo; processing: MobileProcessing;
   contentType: string; size: number; durationMs: number; seekable: boolean;
+}
+export interface PlaybackPreparingFacts {
+  sourceAudio: MobileAudioInfo; processing: MobileProcessing; durationMs: number; seekable: boolean;
+}
+export function playbackReadyFacts(source: PlaybackSourceFacts | PlaybackPreparingFacts | null): source is PlaybackSourceFacts {
+  return source !== null && Object.hasOwn(source, 'actualAudio') && Object.hasOwn(source, 'size');
 }
 export interface StoredPlaybackSession {
   id: string; deviceId: string; deviceEpoch: number; clientInstanceId: string;
@@ -25,7 +31,7 @@ export interface StoredPlaybackResource {
   id: string; sessionId: string; deviceId: string; deviceEpoch: number;
   request: MobileResourceRequest; createdAt: number; expiresAt: number; hardExpiresAt: number; lastActivityAt: number;
   state: 'preparing' | 'ready' | 'failed' | 'terminal'; failure: MobilePlaybackErrorCode | null;
-  source: PlaybackSourceFacts | null; media: MobileMedia | null; runtimeEpoch: string;
+  source: PlaybackSourceFacts | PlaybackPreparingFacts | null; resourceDsdToPcm?: boolean; media: MobileMedia | null; runtimeEpoch: string;
   tickets: { hash: string; expiresAt: number; runtimeEpoch: string }[];
 }
 export interface StoredPlaybackReply {
@@ -75,6 +81,18 @@ export function playbackCanonical(value: unknown): string {
   if (!captured.ok) return playbackFailure(503, 'BUSY');
   return mobileCanonicalJson(captured.value);
 }
+export function capturePlaybackPreparingSource(raw: unknown): MobilePlaybackPreparingSource {
+  if(!playbackClosed(raw,['handle','preparing','sourceAudio','processing','durationMs','seekable']) || !isMobileId(raw.handle) || raw.preparing!==true) return playbackFailure(409,'SOURCE_CHANGED');
+  const facts=capturePreparingFacts({sourceAudio:raw.sourceAudio,processing:raw.processing,durationMs:raw.durationMs,seekable:raw.seekable});
+  return {handle:raw.handle,preparing:true,...facts,seekable:true};
+}
+export function capturePreparingFacts(raw:unknown):PlaybackPreparingFacts{
+  if(!playbackClosed(raw,['sourceAudio','processing','durationMs','seekable']) || !isMobileDsdSourceAudio(raw.sourceAudio)
+    || !playbackClosed(raw.processing,['mode','reason','fromPreparedCache']) || raw.processing.mode!=='dsd_to_pcm'
+    || raw.processing.reason!==MOBILE_DSD_PCM_PROCESSING_REASON || raw.processing.fromPreparedCache!==false || !playbackInteger(raw.durationMs)
+    || raw.seekable!==true)return playbackFailure(409,'SOURCE_CHANGED');
+  return {sourceAudio:captureAudio(raw.sourceAudio),processing:{mode:'dsd_to_pcm',reason:MOBILE_DSD_PCM_PROCESSING_REASON,fromPreparedCache:false},durationMs:raw.durationMs,seekable:true};
+}
 export function capturePlaybackSource(raw: unknown): MobilePlaybackPreparedSource {
   if (!playbackClosed(raw, ['handle', 'sourceAudio', 'actualAudio', 'processing', 'contentType', 'size', 'durationMs', 'seekable'])
     || !isMobileId(raw.handle)) return playbackFailure(409, 'SOURCE_CHANGED');
@@ -97,6 +115,10 @@ export function captureSourceFacts(raw: unknown): PlaybackSourceFacts {
   const sourceAudio = captureAudio(raw.sourceAudio), actualAudio = captureAudio(raw.actualAudio);
   const processing = mobileCommonResponseSnapshot('processing', raw.processing);
   if (!processing.ok) return playbackFailure(503, 'BUSY');
+  if (processing.value.mode === 'dsd_to_pcm' && (!isMobileDsdSourceAudio(sourceAudio)
+    || processing.value.reason !== MOBILE_DSD_PCM_PROCESSING_REASON || raw.contentType !== 'audio/flac'
+    || raw.seekable !== true || raw.size > 2 * 1024 ** 3 || actualAudio.codec !== 'flac' || actualAudio.container !== 'flac'
+    || actualAudio.sampleRateHz !== 48_000 || actualAudio.bitsPerSample !== 24 || actualAudio.channels !== sourceAudio.channels)) return playbackFailure(409, 'SOURCE_CHANGED');
   return { sourceAudio, actualAudio, processing: playbackCopy(processing.value), contentType: raw.contentType,
     size: raw.size, durationMs: raw.durationMs, seekable: raw.seekable };
 }
@@ -105,7 +127,7 @@ export function playbackResourceContext(serverId: string, origin: string, sessio
   if (!resource.source) return playbackFailure(503, 'RESOURCE_BUSY');
   return { scope: { serverId, deviceId: session.deviceId, sessionId: session.id },
     capabilitySnapshotIdentity: `mbm002:${serverId}`, responseOrigin: origin, now: stamp(at),
-    resourceFormatBitDepth: true, capabilityVersion: '1.0.0', request: playbackCopy(resource.request),
+    resourceFormatBitDepth: true, resourceDsdToPcm:resource.resourceDsdToPcm===true, capabilityVersion: '1.0.0', request: playbackCopy(resource.request),
     source: 'local', sourceAudio: playbackCopy(resource.source.sourceAudio), expectedResourceId: resource.id, hlsAllowed: false };
 }
 function dense(v: unknown, max: number): v is unknown[] {
@@ -128,30 +150,31 @@ function captureSession(raw: unknown): StoredPlaybackSession {
 }
 function captureResource(raw: unknown, serverId: string, origin: string): StoredPlaybackResource {
   if (!playbackClosed(raw, ['id', 'sessionId', 'deviceId', 'deviceEpoch', 'request', 'createdAt', 'expiresAt', 'hardExpiresAt',
-    'lastActivityAt', 'state', 'failure', 'source', 'media', 'runtimeEpoch', 'tickets'])
+    'lastActivityAt', 'state', 'failure', 'source', 'media', 'runtimeEpoch', 'tickets', ...(playbackRecord(raw)&&Object.hasOwn(raw,'resourceDsdToPcm')?['resourceDsdToPcm']:[])])
     || ![raw.id, raw.sessionId, raw.deviceId, raw.runtimeEpoch].every(isMobileId) || !playbackInteger(raw.deviceEpoch, 1)
     || !ms(raw.createdAt) || !ms(raw.expiresAt) || !ms(raw.hardExpiresAt) || !ms(raw.lastActivityAt)
     || raw.expiresAt < raw.createdAt || raw.hardExpiresAt < raw.expiresAt || raw.lastActivityAt < raw.createdAt
     || !['preparing', 'ready', 'failed', 'terminal'].includes(String(raw.state)) || !maybeCode(raw.failure)
-    || !dense(raw.tickets, 6_144)) return playbackFailure(503, 'BUSY');
+    || raw.resourceDsdToPcm!==undefined && typeof raw.resourceDsdToPcm!=='boolean' || !dense(raw.tickets, 6_144)) return playbackFailure(503, 'BUSY');
   for (const ticket of raw.tickets) if (!playbackClosed(ticket, ['hash', 'expiresAt', 'runtimeEpoch'])
     || !hash(ticket.hash) || !ms(ticket.expiresAt) || !isMobileId(ticket.runtimeEpoch)
     || ticket.expiresAt > raw.hardExpiresAt) return playbackFailure(503, 'BUSY');
   if (new Set(raw.tickets.map(t => (t as { hash: string }).hash)).size !== raw.tickets.length) return playbackFailure(503, 'BUSY');
   const request = mobileResourceRequestSnapshot(raw.request, { scope: { serverId, deviceId: String(raw.deviceId), sessionId: String(raw.sessionId) },
-    capabilitySnapshotIdentity: `mbm002:${serverId}`, responseOrigin: origin, now: stamp(raw.createdAt), resourceFormatBitDepth: true, capabilityVersion: '1.0.0' });
+    capabilitySnapshotIdentity: `mbm002:${serverId}`, responseOrigin: origin, now: stamp(raw.createdAt), resourceFormatBitDepth: true, resourceDsdToPcm:raw.resourceDsdToPcm===true, capabilityVersion: '1.0.0' });
   if (!request.ok) return playbackFailure(503, 'BUSY');
-  const source = raw.source === null ? null : captureSourceFacts(raw.source);
+  const source = raw.source === null ? null : playbackRecord(raw.source)&&!Object.hasOwn(raw.source,'actualAudio') ? capturePreparingFacts(raw.source) : captureSourceFacts(raw.source);
   const value = { ...playbackCopy(raw as unknown as StoredPlaybackResource), request: playbackCopy(request.value), source };
   if ((value.state === 'ready') !== (value.media !== null) || ['failed', 'terminal'].includes(value.state) !== (value.failure !== null)
-    || value.state === 'ready' && !source) return playbackFailure(503, 'BUSY');
+    || value.state === 'ready' && !playbackReadyFacts(source) || source?.processing.mode==='dsd_to_pcm' && (value.resourceDsdToPcm!==true || value.request.acceptedProcessingModes?.[0]!=='dsd_to_pcm')) return playbackFailure(503, 'BUSY');
   if (value.media !== null) {
+    if(!playbackReadyFacts(source))return playbackFailure(503,'BUSY');
     const checked = mobileResourceResponseSnapshot({ id: value.id, sessionId: value.sessionId, trackId: value.request.trackId,
       versionId: value.request.versionId, contentRevision: value.request.contentRevision, state: 'ready',
       sourceAudio: source!.sourceAudio, processing: source!.processing, media: value.media });
     if (!checked.ok || checked.value.state !== 'ready' || !playbackClosed(value.media, ['url', 'transport', 'expiresAt', 'durationMs', 'seekable', 'actualAudio'])
       || value.media.transport !== 'file' || value.media.durationMs !== source!.durationMs || value.media.seekable !== source!.seekable
-      || playbackCanonical(value.media.actualAudio) !== playbackCanonical(source!.actualAudio)) return playbackFailure(503, 'BUSY');
+      || playbackCanonical(value.media.actualAudio) !== playbackCanonical(source.actualAudio)) return playbackFailure(503, 'BUSY');
     const url = new URL(value.media.url);
     if (url.protocol !== 'https:' || url.pathname !== `/mobile/v1/media/${value.id}/source` || url.username || url.password || url.hash
       || [...url.searchParams.keys()].join(',') !== 'ticket' || Date.parse(value.media.expiresAt) > value.expiresAt) return playbackFailure(503, 'BUSY');
@@ -176,11 +199,11 @@ function captureReceipt(raw: unknown, serverId: string, origin: string): StoredP
     || !playbackClosed(raw.request.query, [])) return playbackFailure(503, 'BUSY');
   const body = operation === 'createResource' ? mobileResourceRequestSnapshot(raw.request.body, {
     scope: { serverId, deviceId: String(raw.deviceId), sessionId: String(raw.sessionId) }, responseOrigin: origin,
-    now: stamp(raw.createdAt), capabilitySnapshotIdentity: `mbm002:${serverId}`, resourceFormatBitDepth: true, capabilityVersion: '1.0.0',
+    now: stamp(raw.createdAt), capabilitySnapshotIdentity: `mbm002:${serverId}`, resourceFormatBitDepth: true, resourceDsdToPcm:playbackRecord(raw.resourceContext)?raw.resourceContext.resourceDsdToPcm===true:playbackRecord(raw.request.body)&&Array.isArray(raw.request.body.acceptedProcessingModes), capabilityVersion: '1.0.0',
   }) : mobileResourceCommandSnapshot(operation === 'createSession' ? 'sessionRequest' : 'empty', raw.request.body);
   if (!body.ok) return playbackFailure(503, 'BUSY');
   if (raw.resourceContext !== null && (!playbackClosed(raw.resourceContext, ['scope', 'capabilitySnapshotIdentity', 'responseOrigin', 'now',
-    'resourceFormatBitDepth', 'capabilityVersion', 'request', 'source', 'sourceAudio', 'expectedResourceId', 'hlsAllowed'])
+    'resourceFormatBitDepth', 'capabilityVersion', 'request', 'source', 'sourceAudio', 'expectedResourceId', 'hlsAllowed', ...(playbackRecord(raw.resourceContext)&&Object.hasOwn(raw.resourceContext,'resourceDsdToPcm')?['resourceDsdToPcm']:[])])
     || !playbackClosed(raw.resourceContext.scope, ['serverId', 'deviceId', 'sessionId']))) return playbackFailure(503, 'BUSY');
   if (raw.reply !== null) {
     if (!playbackClosed(raw.reply, ['status', 'body']) || !playbackInteger(raw.reply.status, 200, 599)) return playbackFailure(503, 'BUSY');
@@ -241,11 +264,12 @@ export function capturePlaybackState(raw: unknown, serverId: string, datasetId: 
       if (!resource?.source || replyResource.trackId !== resource.request.trackId || replyResource.versionId !== resource.request.versionId
         || replyResource.contentRevision !== resource.request.contentRevision
         || playbackCanonical(replyResource.sourceAudio) !== playbackCanonical(resource.source.sourceAudio)
-        || playbackCanonical(replyResource.processing) !== playbackCanonical(resource.source.processing)) return playbackFailure(503, 'BUSY');
+        || replyResource.processing.mode !== resource.source.processing.mode || replyResource.processing.reason !== resource.source.processing.reason) return playbackFailure(503, 'BUSY');
       if (!r.resourceContext || r.resourceContext.scope.serverId !== serverId || r.resourceContext.scope.deviceId !== r.deviceId
         || r.resourceContext.scope.sessionId !== r.sessionId || r.resourceContext.expectedResourceId !== r.resourceId
         || playbackCanonical(r.resourceContext.request) !== playbackCanonical(resource.request)
         || playbackCanonical(r.resourceContext.sourceAudio) !== playbackCanonical(resource.source.sourceAudio)
+        || (r.resourceContext.resourceDsdToPcm===true)!==(resource.resourceDsdToPcm===true)
         || !(r.operation === 'createResource' ? validateMobileCreateResourceReply(r.reply.status, r.reply.body, r.resourceContext)
           : validateMobileGetResourceReply(r.reply.status, r.reply.body, r.resourceContext)).ok) return playbackFailure(503, 'BUSY');
     } else if (r.resourceContext !== null) return playbackFailure(503, 'BUSY');

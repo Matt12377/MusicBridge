@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import {
   MOBILE_OPERATION_TABLE, decodeMobileRequest, encodeMobileRequest, mobileDataSnapshot,
-  mobileResourceCommandSnapshot, validateMobileReadyAudio,
+  mobileResourceCommandSnapshot, validateMobileReadyAudio, validateMobileGetResourceReply, isMobileDsdSourceAudio, MOBILE_DSD_PCM_PROCESSING_REASON,
   type MobileDecodedRequest, type MobileErrorEnvelope, type MobileJsonValue, type MobileObservation,
   type MobileProcessing, type MobileRequestMap, type MobileResource, type MobileResourceRequest,
   type MobileResourceSemanticContext, type MobileSession,
@@ -12,10 +12,10 @@ import {
   MOBILE002_CONTROL_OPERATIONS, MOBILE_PLAYBACK_DEFAULT_LIMITS, MobilePlaybackError,
   type MobilePlaybackControlOperation, type MobilePlaybackControlReply, type MobilePlaybackErrorCode,
   type MobilePlaybackLimits, type MobilePlaybackMediaOperation, type MobilePlaybackMediaReply,
-  type MobilePlaybackPreparedSource, type MobilePlaybackReader, type MobilePlaybackService, type MobilePlaybackServiceOptions,
+  type MobilePlaybackPreparedSource, type MobilePlaybackPreparingSource, type MobilePlaybackReader, type MobilePlaybackService, type MobilePlaybackServiceOptions,
 } from './playback-types.js';
 import {
-  PLAYBACK_STATE_SCHEMA, capturePlaybackSource, capturePlaybackState, decodePlaybackState, playbackCanonical,
+  PLAYBACK_STATE_SCHEMA, capturePlaybackSource, capturePlaybackPreparingSource, playbackReadyFacts, capturePlaybackState, decodePlaybackState, playbackCanonical,
   playbackClosed, playbackCopy, playbackFailure, playbackInteger, playbackResourceContext,
   type PlaybackSourceFacts, type PlaybackState, type StoredPlaybackReceipt,
   type StoredPlaybackResource, type StoredPlaybackSession,
@@ -101,8 +101,8 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
   let floor = 0, closing = false, fatal = false, tail: Promise<void> = Promise.resolve(), closeFlight: Promise<void> | undefined;
   let sweepTimer: ReturnType<typeof setInterval> | undefined;
   const runtimes = new Map<string, RuntimeResource>(), preparations = new Map<string, Preparation>();
-  const unresolvedPreparations = new Set<Promise<MobilePlaybackPreparedSource>>();
-  const sourceFlights = new Map<string, { raw: Promise<MobilePlaybackPreparedSource>; lateRelease?: Promise<void> }>();
+  const unresolvedPreparations = new Set<Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource>>();
+  const sourceFlights = new Map<string, { raw: Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource>; lateRelease?: Promise<void> }>();
   const background = new Set<Promise<void>>();
   const aad = (revision: number): Uint8Array => Buffer.from(JSON.stringify(['MBM002_PLAYBACK_STATE_V1', serverId, datasetId, revision]));
   const digest = (domain: string, value: unknown): string => hash(playbackCanonical(['MBM002_PLAYBACK_V1', serverId, datasetId, domain, value]));
@@ -206,7 +206,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     catch { throw new MobilePlaybackError(403, 'DEVICE_REVOKED'); }
   }
   function capturedRequest(operation: MobilePlaybackControlOperation | MobilePlaybackMediaOperation, request: MobileDecodedRequest<unknown>,
-    p?: MobilePrincipal): MobileDecodedRequest<unknown> {
+    p?: MobilePrincipal, dsd=false): MobileDecodedRequest<unknown> {
     const snapshot = mobileDataSnapshot(request);
     if (!snapshot.ok || snapshot.value === null || typeof snapshot.value !== 'object' || !playbackClosed(snapshot.value, ['path', 'pathParameters', 'query', 'body',
       ...(Object.hasOwn(snapshot.value, 'idempotencyKey') ? ['idempotencyKey'] : [])])) return playbackFailure(400, 'INVALID_REQUEST');
@@ -215,7 +215,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     const context = { responseOrigin, requestPath: request?.path,
       resourceCapabilities: { scope: { serverId, deviceId: p?.deviceId ?? 'media-device', sessionId },
         capabilitySnapshotIdentity: `mbm002:${serverId}`, responseOrigin, now: stamp(now()),
-        resourceFormatBitDepth: true, capabilityVersion: '1.0.0' as const } };
+        resourceFormatBitDepth: true, resourceDsdToPcm:dsd, capabilityVersion: '1.0.0' as const } };
     const encoded = encodeMobileRequest(operation, request as MobileRequestMap[typeof operation], context);
     if (!encoded.ok) return playbackFailure(400, 'INVALID_REQUEST');
     const decoded = decodeMobileRequest(operation, encoded.value, context);
@@ -280,7 +280,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     candidate.receipts.push(r); return r;
   }
   function installTicket(r: StoredPlaybackResource): void {
-    if (!r.source) return playbackFailure(503, 'RESOURCE_BUSY');
+    if (!playbackReadyFacts(r.source)) return playbackFailure(503, 'RESOURCE_BUSY');
     const expiresAt = Math.min(now() + limits.ticketTtlMs, r.expiresAt, r.hardExpiresAt);
     if (expiresAt <= now()) throw codeError('RESOURCE_EXPIRED');
     const nonce = randomToken(); if (!/^[A-Za-z0-9_-]{16,128}$/u.test(nonce)) return playbackFailure(503, 'BUSY');
@@ -352,65 +352,105 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
       await save(candidate); if (!task.delivered) { task.delivered = true; task.resolve(original(state!.receipts.find(v => v.id === receipt.id)!, p)); }
     });
   }
+  function capturePrepared(raw:unknown):MobilePlaybackPreparedSource | MobilePlaybackPreparingSource{
+    return raw && typeof raw==='object' && Object.hasOwn(raw,'preparing') ? capturePlaybackPreparingSource(raw) : capturePlaybackSource(raw);
+  }
+  function dsdTarget(request:MobileResourceRequest):Readonly<{maxChannels:number;accepts24Bit48KhzFlac:boolean}>{
+    const formats=request.formats.filter(f=>f.codec==='flac' && f.container==='flac' && f.maxSampleRateHz>=48000
+      && (f.maxBitsPerSample===undefined || f.maxBitsPerSample>=24));
+    const allowed=request.quality.profile==='auto' && !request.quality.allowLossyFallback && request.quality.preferredTransport==='file' && formats.length>0;
+    return {maxChannels:allowed?Math.max(...formats.map(f=>f.maxChannels)):0,accepts24Bit48KhzFlac:allowed};
+  }
+  function preparationDeadline(resource:StoredPlaybackResource,session:StoredPlaybackSession):number{
+    return Math.min(resource.createdAt+240_000,resource.expiresAt,session.expiresAt);
+  }
+  async function publishPreparing(task:Preparation,p:MobilePrincipal):Promise<void>{
+    await enqueue(async()=>{
+      open();await loaded();await deviceCurrent(p.deviceId,p.deviceEpoch);task.controller.signal.throwIfAborted();
+      const candidate=playbackCopy(state!),r=candidate.resources.find(v=>v.id===task.resourceId)!,receipt=candidate.receipts.find(v=>v.id===task.receiptId)!;
+      const s=candidate.sessions.find(v=>v.id===r.sessionId)!;liveSession(s);liveResource(r);
+      const body=resourceBody(r),context=playbackResourceContext(serverId,responseOrigin,s,r,now());
+      if(body.state!=='preparing'||!validateMobileGetResourceReply(200,body,context).ok)throw codeError('UNSUPPORTED_FORMAT');
+      if(receipt.state==='UNKNOWN'){receipt.state='RECORDED';receipt.reply={status:202,body};receipt.resourceContext=context;await save(candidate);}
+      if(!task.delivered){task.delivered=true;task.resolve(original(state!.receipts.find(v=>v.id===receipt.id)!,p));}
+    });
+  }
   async function prepareResource(task: Preparation, p: MobilePrincipal): Promise<void> {
-    let prepared: MobilePlaybackPreparedSource | undefined;
+    let prepared: MobilePlaybackPreparedSource | MobilePlaybackPreparingSource | undefined;
     try {
-      const r = state!.resources.find(v => v.id === task.resourceId)!;
-      const actual = sourcePort.prepare({ resourceId: r.id, trackId: r.request.trackId, versionId: r.request.versionId, contentRevision: r.request.contentRevision }, task.controller.signal);
-      const sourceFlight: { raw: Promise<MobilePlaybackPreparedSource>; lateRelease?: Promise<void> } = { raw: actual };
-      sourceFlights.set(task.resourceId, sourceFlight);
-      unresolvedPreparations.add(actual);
+      const r = state!.resources.find(v => v.id === task.resourceId)!, s=state!.sessions.find(v=>v.id===r.sessionId)!;
+      const accepts=r.resourceDsdToPcm===true && r.request.acceptedProcessingModes?.[0]==='dsd_to_pcm';
+      const at=now(), remaining=Math.max(0,preparationDeadline(r,s)-at);
+      const actual = sourcePort.prepare({resourceId:r.id,trackId:r.request.trackId,versionId:r.request.versionId,contentRevision:r.request.contentRevision,
+        ...(accepts?{acceptedProcessingModes:['dsd_to_pcm'] as const,preparationWindow:{resourceCreatedAtMs:r.createdAt,resourceExpiresAtMs:r.expiresAt,sessionExpiresAtMs:s.expiresAt,remainingPreparationMs:remaining},dsdTarget:dsdTarget(r.request)}:{})},task.controller.signal);
+      const sourceFlight: { raw: Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource>; lateRelease?: Promise<void> } = { raw: actual };
+      sourceFlights.set(task.resourceId, sourceFlight); unresolvedPreparations.add(actual);
       void actual.then(value => {
         if (task.controller.signal.aborted && !runtimes.has(task.resourceId)) {
-          sourceFlight.lateRelease = sourcePort.release(capturePlaybackSource(value).handle); trackBackground(sourceFlight.lateRelease);
+          sourceFlight.lateRelease = sourcePort.release(capturePrepared(value).handle); trackBackground(sourceFlight.lateRelease);
         }
       }, () => undefined).finally(() => {
         unresolvedPreparations.delete(actual);
         if (sourceFlight.lateRelease) void sourceFlight.lateRelease.then(() => sourceFlights.delete(task.resourceId), () => { fatal = true; });
         else sourceFlights.delete(task.resourceId);
       }).catch(() => { fatal = true; });
-      prepared = capturePlaybackSource(await deadline(actual, limits.prepareTimeoutMs, codeError('RESOURCE_BUSY'), () => task.controller.abort()));
-      runtimes.set(task.resourceId, { id: task.resourceId, source: prepared, controller: task.controller, readers: new Map(), lastActivityAt: now(), releasing: false });
+      prepared=capturePrepared(await deadline(actual,limits.prepareTimeoutMs,codeError('RESOURCE_BUSY'),()=>task.controller.abort()));
       task.controller.signal.throwIfAborted();
-      const { handle: _handle, ...facts } = prepared;
-      await enqueue(async () => {
-        open(); await loaded(); await deviceCurrent(p.deviceId, p.deviceEpoch);
-        const candidate = playbackCopy(state!), resourceValue = candidate.resources.find(v => v.id === task.resourceId)!;
-        liveSession(candidate.sessions.find(v => v.id === resourceValue.sessionId)!); liveResource(resourceValue); task.controller.signal.throwIfAborted();
-        resourceValue.source = playbackCopy(facts); await save(candidate);
-      });
-      const verification = deadline((async () => { await sourcePort.verify(prepared!.handle); task.controller.signal.throwIfAborted();
-        await sourcePort.renew(prepared!.handle); task.controller.signal.throwIfAborted(); })(), limits.prepareTimeoutMs, codeError('RESOURCE_BUSY'), () => task.controller.abort());
-      let waitTimer: ReturnType<typeof setTimeout> | undefined;
-      const quick = await Promise.race([verification.then(() => true), new Promise<false>(resolve => { waitTimer = setTimeout(() => resolve(false), limits.readyWaitMs); })])
-        .finally(() => { if (waitTimer) clearTimeout(waitTimer); });
-      if (!quick) await enqueue(async () => {
-        open(); await loaded(); await deviceCurrent(p.deviceId, p.deviceEpoch); task.controller.signal.throwIfAborted();
-        const candidate = playbackCopy(state!), resourceValue = candidate.resources.find(v => v.id === task.resourceId)!, receipt = candidate.receipts.find(v => v.id === task.receiptId)!;
-        liveSession(candidate.sessions.find(v => v.id === resourceValue.sessionId)!); liveResource(resourceValue);
-        receipt.state = 'RECORDED'; receipt.reply = { status: 202, body: resourceBody(resourceValue) };
-        receipt.resourceContext = playbackResourceContext(serverId, responseOrigin, candidate.sessions.find(v => v.id === resourceValue.sessionId)!, resourceValue, now());
-        await save(candidate); task.delivered = true; task.resolve(original(state!.receipts.find(v => v.id === receipt.id)!, p));
-      });
+      if('preparing' in prepared){
+        if(!accepts || !sourcePort.status || prepared.processing.mode!=='dsd_to_pcm' || !isMobileDsdSourceAudio(prepared.sourceAudio))throw codeError('UNSUPPORTED_FORMAT');
+        const captured=prepared;
+        await enqueue(async()=>{open();await loaded();await deviceCurrent(p.deviceId,p.deviceEpoch);task.controller.signal.throwIfAborted();
+          const candidate=playbackCopy(state!),value=candidate.resources.find(v=>v.id===task.resourceId)!;
+          liveSession(candidate.sessions.find(v=>v.id===value.sessionId)!);liveResource(value);
+          value.source={sourceAudio:playbackCopy(captured.sourceAudio),processing:playbackCopy(captured.processing),durationMs:captured.durationMs,seekable:captured.seekable};await save(candidate);});
+        await publishPreparing(task,p);
+        while('preparing' in prepared){
+          const originalDeadline=preparationDeadline(r,s),budget=originalDeadline-now()-10_000;
+          if(budget<=0)throw codeError('RESOURCE_BUSY');
+          // 每次 status 只查原handle，仍独立原10秒RPC，不重发 begin/扩准备窗口。
+          prepared=capturePrepared(await deadline(sourcePort.status(captured.handle,task.controller.signal),Math.min(limits.prepareTimeoutMs,budget),codeError('RESOURCE_BUSY'),()=>task.controller.abort()));
+          task.controller.signal.throwIfAborted();
+          if(prepared.handle!==captured.handle || playbackCanonical(prepared.sourceAudio)!==playbackCanonical(captured.sourceAudio)
+            || prepared.processing.mode!=='dsd_to_pcm' || prepared.processing.reason!==captured.processing.reason
+            || prepared.durationMs!==captured.durationMs || prepared.seekable!==captured.seekable)throw codeError('SOURCE_CHANGED');
+          if('preparing' in prepared)await new Promise<void>((resolve,reject)=>{
+            const aborted=():void=>{clearTimeout(timer);task.controller.signal.removeEventListener('abort',aborted);reject(codeError('RESOURCE_RELEASED'));};
+            const timer=setTimeout(()=>{task.controller.signal.removeEventListener('abort',aborted);resolve();},Math.min(100,budget));
+            task.controller.signal.addEventListener('abort',aborted,{once:true});if(task.controller.signal.aborted)aborted();
+          });
+        }
+      }
+      if ('preparing' in prepared) throw codeError('RESOURCE_BUSY');
+      const readySource=prepared;
+      runtimes.set(task.resourceId,{id:task.resourceId,source:readySource,controller:task.controller,readers:new Map(),lastActivityAt:now(),releasing:false});
+      const {handle:_handle,...facts}=readySource;
+      await enqueue(async()=>{open();await loaded();await deviceCurrent(p.deviceId,p.deviceEpoch);
+        const candidate=playbackCopy(state!),value=candidate.resources.find(v=>v.id===task.resourceId)!;
+        liveSession(candidate.sessions.find(v=>v.id===value.sessionId)!);liveResource(value);task.controller.signal.throwIfAborted();value.source=playbackCopy(facts);await save(candidate);});
+      const verification=deadline((async()=>{await sourcePort.verify(readySource.handle);task.controller.signal.throwIfAborted();
+        await sourcePort.renew(readySource.handle);task.controller.signal.throwIfAborted();})(),limits.prepareTimeoutMs,codeError('RESOURCE_BUSY'),()=>task.controller.abort());
+      let waitTimer:ReturnType<typeof setTimeout>|undefined;
+      const quick=await Promise.race([verification.then(()=>true),new Promise<false>(resolve=>{waitTimer=setTimeout(()=>resolve(false),limits.readyWaitMs);})])
+        .finally(()=>{if(waitTimer)clearTimeout(waitTimer);});
+      if(!quick&&!task.delivered)await publishPreparing(task,p);
       await verification;
-      await enqueue(async () => {
-        open(); await loaded(); await deviceCurrent(p.deviceId, p.deviceEpoch); task.controller.signal.throwIfAborted();
-        const candidate = playbackCopy(state!), resourceValue = candidate.resources.find(v => v.id === task.resourceId)!, receipt = candidate.receipts.find(v => v.id === task.receiptId)!;
-        const s = candidate.sessions.find(v => v.id === resourceValue.sessionId)!; liveSession(s); liveResource(resourceValue);
-        resourceValue.state = 'ready'; resourceValue.failure = null; installTicket(resourceValue);
-        const currentBody = resourceBody(resourceValue), context = playbackResourceContext(serverId, responseOrigin, s, resourceValue, now());
-        if (currentBody.state !== 'ready' || !validateMobileReadyAudio(currentBody, resourceValue.request, context).ok
-          || resourceValue.source!.processing.mode !== 'direct' || resourceValue.source!.processing.fromPreparedCache
-          || playbackCanonical(resourceValue.source!.sourceAudio) !== playbackCanonical(resourceValue.source!.actualAudio)
-          || resourceValue.request.quality.preferredTransport === 'hls') throw codeError('UNSUPPORTED_FORMAT');
-        if (receipt.state === 'UNKNOWN') { receipt.state = 'RECORDED'; receipt.reply = { status: 201, body: currentBody }; receipt.resourceContext = context; }
-        await save(candidate); if (!task.delivered) { task.delivered = true; task.resolve(original(state!.receipts.find(v => v.id === receipt.id)!, p)); }
+      await enqueue(async()=>{open();await loaded();await deviceCurrent(p.deviceId,p.deviceEpoch);task.controller.signal.throwIfAborted();
+        const candidate=playbackCopy(state!),value=candidate.resources.find(v=>v.id===task.resourceId)!,receipt=candidate.receipts.find(v=>v.id===task.receiptId)!;
+        const sessionValue=candidate.sessions.find(v=>v.id===value.sessionId)!;liveSession(sessionValue);liveResource(value);
+        value.state='ready';value.failure=null;installTicket(value);
+        const body=resourceBody(value),context=playbackResourceContext(serverId,responseOrigin,sessionValue,value,now());
+        const direct=readySource.processing.mode==='direct'&&!readySource.processing.fromPreparedCache
+          && playbackCanonical(readySource.sourceAudio)===playbackCanonical(readySource.actualAudio);
+        const dsd=accepts&&readySource.processing.mode==='dsd_to_pcm'&&readySource.processing.reason===MOBILE_DSD_PCM_PROCESSING_REASON;
+        if(body.state!=='ready'||!validateMobileReadyAudio(body,value.request,context).ok||(!direct&&!dsd)||value.request.quality.preferredTransport==='hls')throw codeError('UNSUPPORTED_FORMAT');
+        if(receipt.state==='UNKNOWN'){receipt.state='RECORDED';receipt.reply={status:201,body};receipt.resourceContext=context;}
+        await save(candidate);if(!task.delivered){task.delivered=true;task.resolve(original(state!.receipts.find(v=>v.id===receipt.id)!,p));}
       });
-    } catch (error) {
-      try { await recordPreparationFailure(task, error, p); } catch (failure) { if (!task.delivered) { task.delivered = true; task.reject(safeError(failure)); } }
-      if (runtimes.has(task.resourceId)) { try { await releaseRuntime(task.resourceId, true); } catch { fatal = true; } }
-      else if (prepared) { try { await (sourceFlightFor(task.resourceId)?.lateRelease ?? sourcePort.release(prepared.handle)); } catch { fatal = true; } }
-    } finally { preparations.delete(task.resourceId); }
+    }catch(error){
+      try{await recordPreparationFailure(task,error,p);}catch(failure){if(!task.delivered){task.delivered=true;task.reject(safeError(failure));}}
+      if(runtimes.has(task.resourceId)){try{await releaseRuntime(task.resourceId,true);}catch{fatal=true;}}
+      else if(prepared){try{await(sourceFlightFor(task.resourceId)?.lateRelease??sourcePort.release(prepared.handle));}catch{fatal=true;}}
+    }finally{preparations.delete(task.resourceId);}
   }
   function sourceFlightFor(resourceId: string) { return sourceFlights.get(resourceId); }
   function startPreparation(resourceId: string, receiptId: string, p: MobilePrincipal): Preparation {
@@ -420,7 +460,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     preparations.set(resourceId, task); task.finished = prepareResource(task, p); void task.finished.catch(() => { fatal = true; });
     return task;
   }
-  async function handleControl(operation: MobilePlaybackControlOperation, request: MobileDecodedRequest<unknown>, p: MobilePrincipal): Promise<
+  async function handleControl(operation: MobilePlaybackControlOperation, request: MobileDecodedRequest<unknown>, p: MobilePrincipal, dsd=false): Promise<
     { value: MobilePlaybackControlReply } | { wait: Promise<MobilePlaybackControlReply> }> {
     await loaded(); await deviceCurrent(p.deviceId, p.deviceEpoch); await expire();
     if (['createSession', 'createResource', 'renewResource'].includes(operation)) {
@@ -460,6 +500,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     liveSession(s);
     if (operation === 'getSession') return { value: reply(200, sessionBody(s), p) };
     if (operation === 'createResource') {
+      if((request.body as MobileResourceRequest).acceptedProcessingModes?.length && !dsd)throw codeError('UNSUPPORTED_FORMAT');
       room();
       const live = state!.resources.filter(v => ['preparing', 'ready'].includes(v.state));
       if (state!.resources.length >= limits.maxStoredResources || live.length >= limits.maxLiveResources
@@ -469,7 +510,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
       const r: StoredPlaybackResource = { id: resourceId, sessionId: s.id, deviceId: p.deviceId, deviceEpoch: p.deviceEpoch,
         request: playbackCopy(body), createdAt: at, expiresAt: Math.min(at + limits.resourceTtlMs, s.expiresAt),
         hardExpiresAt: Math.min(at + limits.maximumResourceLifetimeMs, s.expiresAt), lastActivityAt: at,
-        state: 'preparing', failure: null, source: null, media: null, runtimeEpoch, tickets: [] };
+        state: 'preparing', failure: null, source: null, media: null, runtimeEpoch, tickets: [],resourceDsdToPcm:dsd };
       candidate.resources.push(r); const receipt = addReceipt(candidate, operation, request, p, s.id, resourceId); await save(candidate);
       const task = startPreparation(resourceId, receipt.id, p); return { wait: task.reply };
     }
@@ -504,7 +545,21 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     }
     room(); if (r.state !== 'ready') return playbackFailure(429, 'RESOURCE_BUSY');
     const runtime = runtimes.get(r.id); if (!runtime) throw codeError('SERVICE_RESTARTED');
-    await checkRuntime(r, runtime); await sourcePort.verify(runtime.source.handle); await sourcePort.renew(runtime.source.handle); await checkRuntime(r, runtime);
+    await checkRuntime(r, runtime);
+    if(runtime.source.processing.mode==='dsd_to_pcm' && sourcePort.status){
+      const observed=capturePrepared(await deadline(sourcePort.status(runtime.source.handle,runtime.controller.signal),limits.prepareTimeoutMs,codeError('RESOURCE_BUSY')));
+      if('preparing' in observed){
+        // ready-only renew 不受240秒限制；意外 preparing 永远不获第二个窗口。
+        if(now()>=preparationDeadline(r,s)-10_000){const candidate=playbackCopy(state!);markTerminal(candidate,[r.id],'RESOURCE_EXPIRED');await save(candidate);
+          await releaseRuntime(r.id);throw codeError('RESOURCE_EXPIRED');}
+        throw codeError('RESOURCE_BUSY');
+      }
+      if(observed.handle!==runtime.source.handle || playbackCanonical(observed.sourceAudio)!==playbackCanonical(runtime.source.sourceAudio)
+        || playbackCanonical(observed.actualAudio)!==playbackCanonical(runtime.source.actualAudio) || observed.durationMs!==runtime.source.durationMs
+        || observed.seekable!==runtime.source.seekable || observed.size!==runtime.source.size || observed.processing.mode!==runtime.source.processing.mode
+        || observed.processing.reason!==runtime.source.processing.reason)throw codeError('SOURCE_CHANGED');
+    }
+    await sourcePort.verify(runtime.source.handle);await sourcePort.renew(runtime.source.handle);await checkRuntime(r,runtime);
     const candidate = playbackCopy(state!), current = candidate.resources.find(v => v.id === r.id)!;
     current.expiresAt = Math.min(now() + limits.resourceTtlMs, current.hardExpiresAt, s.expiresAt); current.lastActivityAt = now();
     installTicket(current); const receipt = addReceipt(candidate, 'renewResource', request, p, s.id, r.id);
@@ -582,8 +637,14 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
   const service: MobilePlaybackService = {
     async control(operation, raw, rawPrincipal, signal) {
       if (!MOBILE002_CONTROL_OPERATIONS.includes(operation)) return playbackFailure(400, 'INVALID_REQUEST');
-      signal.throwIfAborted(); const p = principal(rawPrincipal), request = capturedRequest(operation, raw, p);
-      const result = await enqueue(() => handleControl(operation, request, p));
+      signal.throwIfAborted(); const p=principal(rawPrincipal);
+      let dsd=false;
+      if(operation==='createResource'&&sourcePort.capabilities){const capabilities=await deadline(sourcePort.capabilities(),limits.prepareTimeoutMs,codeError('RESOURCE_BUSY'));
+        if(!playbackClosed(capabilities,['resourceDsdToPcm'])||typeof capabilities.resourceDsdToPcm!=='boolean')throw codeError('SOURCE_CHANGED');dsd=capabilities.resourceDsdToPcm;}
+      // 仅解析旧原正文以查 immutable 回执；新intent的能力仍在 handleControl 以真实Owner dsd值核验。
+      const declares=raw.body!==null&&typeof raw.body==='object'&&Object.hasOwn(raw.body,'acceptedProcessingModes');
+      const request=capturedRequest(operation,raw,p,dsd||declares);
+      const result=await enqueue(()=>handleControl(operation,request,p,dsd));
       const value = 'wait' in result ? await result.wait : result.value; signal.throwIfAborted(); return value;
     },
     async openMedia(operation, raw, signal, headers = {}) {
@@ -604,6 +665,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
         return { r, runtime, ticket };
       });
       const { r, runtime, ticket } = captured, source = r.source!;
+      if(!playbackReadyFacts(source))throw codeError('RESOURCE_REVOKED');
       const selection = operation === 'headMediaAsset' ? { status: 200, start: 0, end: source.size - 1 } as const
         : selectLocalBytes(headers.range, headers.ifRange, source.size);
       const selected = 'start' in selection;

@@ -5730,7 +5730,7 @@
       },
       "all0And100MainRustSlower": true,
       "renderer2000AllDoubleRafMsNodeRust": [
-        23.0,
+        23,
         29.1
       ],
       "closeIncludesDiagnosticIO": true,
@@ -47869,7 +47869,7 @@
     "nextBranchBaseline": "ACTUAL_FINAL_SEALED_REPORT_HEAD"
   },
   "mobileFrontloading20261008": {
-    "state": "MBM003_IN_PROGRESS_AFTER_PAIRED002_SOFTWARE_SEAL_NATIVE_CARRYOVER_OPEN",
+    "state": "IMPLEMENTED_LOCAL_CHECKS_PASS_LIVE_ACCEPTANCE_OPEN",
     "plan": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
     "schedulingSupplement": "docs/postrust/MBRS-013/SCHEDULING_SUPPLEMENT_MOBILE_FRONTLOADING.json",
     "currentTask": "MBM-003",
@@ -48048,11 +48048,11 @@
       {
         "id": "MBM-003",
         "title": "FLAC无损及DSD兼容传输",
-        "status": "IN_PROGRESS_CONTRACT_FREEZE_FIRST",
+        "status": "IMPLEMENTED_LOCAL_CHECKS_PASS_LIVE_ACCEPTANCE_OPEN",
         "scheduled_after": "MBM-002",
         "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
         "scope_ref": "docs/postrust/MBM-003/EXECUTION_SCOPE.json",
-        "software": "NOT_RUN_NEW003",
+        "software": "PASS_LOCAL_STANDARD_AND_AFFECTED_DSD_CHECKS_SOURCE_GATE_AND_CI_REQUIRED",
         "production_app": "NOT_RUN_NEW003",
         "real_service_device_audio": "NOT_RUN_NEW003",
         "owner_acceptance": "NOT_RUN_NEW003",
@@ -48072,7 +48072,21 @@
           "sha256": "9dcde7b24150e9b21dc9366bd913e3ca216a34584b6f85942fee17e8bd7a06a8",
           "version": "1.7.0",
           "operations": 40
-        }
+        },
+        "paired_contract_frozen": true,
+        "contract_canonical": {
+          "path": "packages/contracts/mobile/openapi.json",
+          "bytes": 147445,
+          "sha256": "3deaa9e238f24b7062945efacc775b604a60a5652b837b8c46378f0b89eeec21",
+          "version": "1.7.0",
+          "operations": 40
+        },
+        "actual_paired_adoption": {
+          "file": "ROOT_MBM003_ACTUAL_PAIRED_ADOPTION470.json",
+          "bytes": 1959,
+          "sha256": "432629cca2ee43678c6d2153469bc420fa90284f01b2cdc29d8d26049e34d841"
+        },
+        "ready_renew_boundary_ref": "docs/postrust/MBM-003/READY_RENEW_BOUNDARY.json"
       },
       {
         "id": "MBM-004",
@@ -48310,7 +48324,7 @@
   "currentMobileTask": "MBM-003",
   "mobileLosslessDsdTransport": {
     "task": "MBM-003",
-    "state": "IN_PROGRESS_CONTRACT_FREEZE_FIRST",
+    "state": "IMPLEMENTED_LOCAL_CHECKS_PASS_LIVE_ACCEPTANCE_OPEN",
     "baseSha": "b1a8de728086e7994bb69d7dee10782f646886dd",
     "branch": "codex/mbm-003-lossless-dsd-transport",
     "scope": "docs/postrust/MBM-003/EXECUTION_SCOPE.json",
@@ -48323,10 +48337,10 @@
       "version": "1.7.0",
       "operations": 40
     },
-    "pairedContractFrozen": false,
+    "pairedContractFrozen": true,
     "implementationCommit": null,
     "reportCommit": null,
-    "software": "NOT_RUN_NEW003",
+    "software": "PASS_LOCAL_STANDARD_AND_AFFECTED_DSD_CHECKS_SOURCE_GATE_AND_CI_REQUIRED",
     "productionApp": "NOT_RUN_NEW003",
     "physicalDeviceAudio": "NOT_RUN_NEW003",
     "ownerAcceptance": "NOT_RUN_NEW003",
@@ -48350,7 +48364,7 @@
           "name": "delivery012_contract",
           "model": "gpt-6.1-sol",
           "effort": "max",
-          "scope": "READONLY_CONTRACT_REVIEW_THEN_EXCLUSIVE_NEW_CONTRACT_TESTS"
+          "scope": "NEW_CONTRACT_TESTS_AND_NEW003_REPORT_ONLY_MODULE_STATIC_AUTHOR"
         },
         {
           "name": "delivery012_core",
@@ -48362,12 +48376,93 @@
           "name": "delivery012_app_proofs",
           "model": "gpt-6.1-sol",
           "effort": "max",
-          "scope": "DESKTOP_MAIN_CONNECTION_AND_NEW_TESTS_AFTER_FREEZE"
+          "scope": "DESKTOP_MAIN_CONNECTION_AND_NEW003_SOFTWARE_GATE_STATIC_AUTHOR"
         }
       ],
       "actualSessionAndSpawnParametersRead": true,
       "newDescendants": 0
     },
-    "nextTask": "MBM-004"
+    "nextTask": "MBM-004",
+    "contractCanonical": {
+      "path": "packages/contracts/mobile/openapi.json",
+      "bytes": 147445,
+      "sha256": "3deaa9e238f24b7062945efacc775b604a60a5652b837b8c46378f0b89eeec21",
+      "version": "1.7.0",
+      "operations": 40
+    },
+    "contractSemantics": {
+      "path": "docs/postrust/MBM-003/CONTRACT_SEMANTICS.md",
+      "bytes": 6076,
+      "sha256": "698ca28f695b950c7409489b67929da523193856461f858df7047c1b48d2fa2a"
+    },
+    "actualPairedAdoption": {
+      "file": "ROOT_MBM003_ACTUAL_PAIRED_ADOPTION470.json",
+      "bytes": 1959,
+      "sha256": "432629cca2ee43678c6d2153469bc420fa90284f01b2cdc29d8d26049e34d841"
+    },
+    "readyRenewBoundary": "docs/postrust/MBM-003/READY_RENEW_BOUNDARY.json",
+    "updatedAtUTC": "2026-10-10T10:50:02.156Z",
+    "localValidation": {
+      "state": "PASS_WIP_PRODUCT_CHECKS_NOT_FIXED_SOURCE_SEAL",
+      "standardExitCode": 0,
+      "standardTestCounts": [
+        {
+          "tests": 281,
+          "pass": 281,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 2777,
+          "pass": 2775,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 2,
+          "todo": 0
+        },
+        {
+          "tests": 8,
+          "pass": 8,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        {
+          "tests": 1670,
+          "pass": 1670,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        }
+      ],
+      "affectedNativeCases": 11,
+      "affectedNativeExitCode": 0,
+      "closedFdNegative": "ACTUAL_RED501_THEN_NATIVE_GREEN505",
+      "proofs": [
+        {
+          "file": "ROOT_MBM003_STANDARD_VERIFY508.json",
+          "bytes": 1275,
+          "sha256": "0e2670ecf14ee05be1bdfa637d88ad4a1acf8b2669664497974dac0183501a0a"
+        },
+        {
+          "file": "ROOT_MBM003_CACHE_CLOSE_AFFECTED_GREEN505.json",
+          "bytes": 2643,
+          "sha256": "c7acc616d3a8e83a95bdab9ade3b644f7b4a1e476b708e31b4eb18a623178a66"
+        }
+      ],
+      "fixedSourceGate": "REQUIRED_AFTER_IMPLEMENTATION_COMMIT",
+      "firstNaturalCi": "REQUIRED",
+      "sourceGateExpectedCases": 80,
+      "sourceGateHostedCases": 65,
+      "sourceGateNativeCases": 15,
+      "physicalDeviceAudio": false,
+      "ownerAcceptance": false
+    },
+    "implementationCommitResolution": "OWN_IMPLEMENTATION_SOURCE_RESOLVED_BY_DIRECT_RESULT_REPORT",
+    "reportCommitResolution": "UNIQUE_DIRECT_CHILD_R_AFTER_FIRST_NATURAL_SOURCE_CI"
   }
 }

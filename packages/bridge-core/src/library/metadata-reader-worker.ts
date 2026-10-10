@@ -1,4 +1,5 @@
 import { readSync } from 'node:fs';
+import { readDsdContainerFacts, DsdContainerError, type DsdContainerFacts } from './dsd-container-facts.js';
 import { createHash } from 'node:crypto';
 import { loadMetadataEndOfStreamError, loadMetadataParser } from './metadata-reader-runtime.js';
 import { parentPort, workerData } from 'node:worker_threads';
@@ -68,9 +69,10 @@ async function run(): Promise<MetadataReadResult> {
   // 构建器强制直接strtok3与music-metadata依赖指向同一canonical EOF入口。
   const EndOfStreamError = await loadMetadataEndOfStreamError();
   checkTime();
+  const dffPaddedHeaders = new Map<number,number>();
   class BoundedFdTokenizer implements Tokenizer {
     position = 0;
-    readonly fileInfo = { size: input.size }; // 刻意不提供path/mime：格式只能由真实字节确认。
+    readonly fileInfo: Tokenizer['fileInfo'] = { size: input.size }; // 不提供路径；格式仅由真实字节准入后选择。
     supportsRandomAccess(): boolean { return true; }
     setPosition(n: number): void { checkTime(); if (!integer(n) || n > input.size) fail('PARSE_FAILED'); this.position = n; }
     async peekBuffer(buffer: Uint8Array, options?: ReadOptions): Promise<number> {
@@ -93,6 +95,9 @@ async function run(): Promise<MetadataReadResult> {
     async peekToken<T>(token: Token<T>, at?: number | null, mayBeLess?: boolean): Promise<T> {
       const buffer = new Uint8Array(token.len); // 私有Uint8Array门禁在分配前检查token.len。
       const got = await this.peekBuffer(buffer, { position: at ?? this.position, mayBeLess: mayBeLess ?? false });
+      // 11.15 DSDIFF Parser 未计pad；只适配已实际验界的12字节头token，原FD与来源事实不变。
+      const originalPayload = token.len === 12 ? dffPaddedHeaders.get(at ?? this.position) : undefined;
+      if (originalPayload !== undefined && got === 12) new DataView(buffer.buffer,buffer.byteOffset,buffer.byteLength).setBigUint64(4,BigInt(originalPayload+1));
       if (got < token.len) throw new EndOfStreamError(); return token.get(buffer, 0);
     }
     async readToken<T>(token: Token<T>, at?: number): Promise<T> { const position = at ?? this.position; const v = await this.peekToken(token, position); this.position = position + token.len; return v; }
@@ -111,6 +116,8 @@ async function run(): Promise<MetadataReadResult> {
   else if (ascii(0,4) === 'RIFF' && ascii(8,4) === 'WAVE') container = 'WAVE';
   else if (ascii(0,4) === 'FORM' && ['AIFF','AIFC'].includes(ascii(8,4))) container = 'AIFF';
   else if (ascii(4,4) === 'ftyp') container = 'MP4';
+  else if (input.dsdMetadataEnabled === true && ascii(0,4) === 'DSD ') container = 'DSF';
+  else if (input.dsdMetadataEnabled === true && ascii(0,4) === 'FRM8' && ascii(12,4) === 'DSD ') container = 'DFF';
   else if (ascii(0,3) === 'ID3' || head[0] === 0xff && (head[1]! & 0xe0) === 0xe0) container = 'MPEG';
   else return fail('UNSUPPORTED');
   const readAt = async (at: number, length: number): Promise<Uint8Array> => {
@@ -119,7 +126,14 @@ async function run(): Promise<MetadataReadResult> {
   const textAt = (b: Uint8Array,at: number,length: number): string => String.fromCharCode(...b.subarray(at,at+length));
   const view = (b: Uint8Array): DataView => new DataView(b.buffer,b.byteOffset,b.byteLength);
   // 先检查容器边界与存在的音频载荷，再进入Parser；magic/扩展名本身不能构成成功。
-  if (container === 'FLAC') {
+  let dsd: DsdContainerFacts | undefined;
+  if (container === 'DSF' || container === 'DFF') {
+    try { dsd = await readDsdContainerFacts(input.size,readAt); }
+    catch (error) { if (error instanceof DsdContainerError) fail(error.code); throw error; }
+    for (const h of dsd.paddedChunkHeaders ?? []) dffPaddedHeaders.set(h.at,h.payloadBytes);
+    // 已完整核验的容器事实选择固定 Parser，避免 4100 字节嗅探音频与 DFF 被 audio/dsf 误选。
+    tokenizer.fileInfo.mimeType = dsd.container === 'DSF' ? 'audio/dsf' : 'audio/dsd';
+  } else if (container === 'FLAC') {
     let at = 4, blocks = 0, last = false;
     while (!last) {
       if (++blocks > 2048) fail('BUDGET_EXCEEDED');
@@ -245,14 +259,16 @@ async function run(): Promise<MetadataReadResult> {
   if (common.disk.no !== null) fields.disc = String(common.disk.no);
   if (common.track.no !== null) fields.track = String(common.track.no);
   for (const value of Object.values(fields)) if (Buffer.byteLength(value, 'utf8') > budget.textFieldBytes) fail('BUDGET_EXCEEDED');
-  const format = metadata.format, codec = format.codec;
+  const format = metadata.format, codec = dsd ? dsd.codec : format.codec;
+  if (dsd && (format.sampleRate !== dsd.sampleRateHz || format.numberOfChannels !== dsd.channels)) fail('PARSE_FAILED');
   if (!Number.isSafeInteger(format.sampleRate) || format.sampleRate! < 1 || format.sampleRate! > 1_000_000_000
     || !Number.isSafeInteger(format.numberOfChannels) || format.numberOfChannels! < 1 || format.numberOfChannels! > 64
     || typeof codec !== 'string' || codec.length === 0 || Buffer.byteLength(codec,'utf8') > 256 || format.hasAudio === false) throw new ReaderFailure('PARSE_FAILED');
   if (container === 'MP4' && !/ALAC|AAC/iu.test(codec)) fail('UNSUPPORTED');
   const finite = (n: number | undefined): number | null => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= Number.MAX_SAFE_INTEGER ? n : null;
   const technical: MetadataTechnical = { container, codec, sampleRateHz: format.sampleRate!, channels: format.numberOfChannels!,
-    lossless: typeof format.lossless === 'boolean' ? format.lossless : null, bitsPerSample: finite(format.bitsPerSample), durationSeconds: finite(format.duration), evidence: 'bounded-parser-reported' };
+    lossless: dsd ? true : typeof format.lossless === 'boolean' ? format.lossless : null,
+    bitsPerSample: dsd ? 1 : finite(format.bitsPerSample), durationSeconds: dsd ? dsd.durationSeconds : finite(format.duration), evidence: 'bounded-parser-reported' };
   const covers = common.picture ?? []; if (covers.length > 8) fail('BUDGET_EXCEEDED');
   const coverEvidence: MetadataCoverEvidence[] = [];
   for (const picture of covers) {

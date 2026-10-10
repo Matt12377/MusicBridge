@@ -3,6 +3,7 @@ import { defineConfig } from 'electron-vite'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { captureNativeConverter } from './scripts/native-converter-package.mjs'
+import { captureNativeMobileConverter } from './scripts/native-mobile-converter-package.mjs'
 import { captureNativeOutput } from './scripts/native-output-package.mjs'
 import { captureNativeOutputDevice } from './scripts/native-output-device-package.mjs'
 import { captureNativeRust } from './scripts/native-rust-package.mjs'
@@ -10,6 +11,7 @@ import { fixedMetadataWorkerBundlePlugin } from './scripts/metadata-worker-bundl
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url))
 const converterBuild = await captureNativeConverter(currentDirectory)
+const mobileConverterBuild = await captureNativeMobileConverter(currentDirectory)
 const outputBuild = await captureNativeOutput(currentDirectory)
 const outputDeviceBuild = await captureNativeOutputDevice(currentDirectory)
 const rustBuild = await captureNativeRust(currentDirectory)
@@ -27,6 +29,7 @@ export default defineConfig(({ mode }) => ({
       __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: 'false',
       __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: JSON.stringify(mode === 'development'),
       __MUSIC_BRIDGE_FFMPEG_MANIFEST_SHA256__: JSON.stringify(converterBuild.manifestSha256),
+      __MUSIC_BRIDGE_MOBILE_FFMPEG_MANIFEST_SHA256__: JSON.stringify(mobileConverterBuild.manifestSha256),
       __MUSIC_BRIDGE_OUTPUT_MANIFEST_SHA256__: JSON.stringify(outputBuild.manifestSha256),
       __MUSIC_BRIDGE_OUTPUT_DEVICE_MANIFEST_SHA256__: JSON.stringify(outputDeviceBuild.manifestSha256),
       __MUSIC_BRIDGE_OUTPUT_DEVICE_CANDIDATE__: JSON.stringify(outputDeviceBuild.candidate),
@@ -35,6 +38,7 @@ export default defineConfig(({ mode }) => ({
       name: 'fixed-converter-build-identity',
       generateBundle() {
         this.emitFile({ type: 'asset', fileName: 'converter-build.json', source: JSON.stringify(converterBuild) + '\n' })
+        this.emitFile({ type: 'asset', fileName: 'mobile-converter-build.json', source: JSON.stringify(mobileConverterBuild) + '\n' })
         this.emitFile({ type: 'asset', fileName: 'output-build.json', source: JSON.stringify(outputBuild) + '\n' })
         this.emitFile({ type: 'asset', fileName: 'output-device-build.json', source: JSON.stringify(outputDeviceBuild) + '\n' })
         this.emitFile({ type: 'asset', fileName: 'rust-core-build.json', source: JSON.stringify(rustBuild) + '\n' })

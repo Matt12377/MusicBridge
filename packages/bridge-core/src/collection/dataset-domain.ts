@@ -1,6 +1,9 @@
 import { createLocalArtworkService } from './local-artwork-service.js';
 import { createMobileOwnerService } from '../mobile/owner-service.js';
 import { createMobileOwnerSourceService } from '../mobile/source-service.js';
+import { loadMobileDsdConverter } from '../mobile/dsd-converter.js';
+import { createMobilePreparedCache } from '../mobile/prepared-cache.js';
+import type { MobileDsdDomainOptions, MobilePreparedCache } from '../mobile/prepared-cache-types.js';
 import { isMobileOwnerPrivateRequest } from '../mobile/owner-protocol.js';
 import {materializeMBEdition} from './mb-queue-materializer.js';
 import { createLocalSourceTickets } from './local-source-tickets.js';
@@ -59,6 +62,7 @@ import type { DatasetServices } from './dataset-services.js';
 import type { DatasetProjectionPort, DatasetProjectionTicket, OwnedDatasetDomain } from './dataset-owner-protocol.js';
 
 export interface DatasetDomainOptions {
+  mobileDsd?: MobileDsdDomainOptions;
   localSourceEpoch?: string;
   collectionRepository: CollectionRepository;
   backupWorkflowStore: BackupWorkflowStore;
@@ -110,7 +114,8 @@ export function createCollectionRoonProjectionPort(port: DatasetProjectionPort, 
   };
 }
 
-function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetDomainOptions): DatasetDomain {
+function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetDomainOptions, mobilePreparedCache?: MobilePreparedCache): DatasetDomain {
+  if (options.mobileDsd && !mobilePreparedCache) throw new Error('DSD 后端必须经唯一 Owner 异步准备工厂取得真实资格。');
   const collection = options.collectionRepository, maintenance = options.backupWorkflowStore;
   const identity = options.collectionDatasetIdentity ?? { datasetId: randomUUID(), assertCurrent: () => { collection.list({ offset: 0, limit: 1 }); } };
   const commandOutbox = createDatasetCommandBoundary(identity);
@@ -120,13 +125,15 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const pendingDispatches = new Set<Promise<unknown>>();
   let scanBootReady=!options.commitBoot;
   const mobileOwner = createMobileOwnerService({ collection, datasetId: identity.datasetId, ownerEpoch: options.localSourceEpoch ?? randomUUID(),
+    dsdToPcmAvailable:()=>mobilePreparedCache?.qualified === true,
     assertCurrent: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '移动 Owner 尚未 commitBoot。'); } });
   const localTickets = createLocalSourceTickets(collection, options.localSourceEpoch ?? randomUUID(), identity.datasetId, () => { assertOpen(); if (!scanBootReady) throw new Error('本地事实Owner尚未boot。'); });
   const mobileSources = createMobileOwnerSourceService({ collection, tickets: localTickets, datasetId: identity.datasetId,
+    ...(mobilePreparedCache ? { preparedCache: mobilePreparedCache } : {}),
     ownerEpoch: options.localSourceEpoch ?? randomUUID(), assertCurrent: () => {
       assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '移动源 Owner 尚未 commitBoot。');
     } });
-  const localScan=createLocalScanCoordinator({repository:collection,datasetId:identity.datasetId,assertCurrent:assertDataset,assertReady:()=>{if(!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE','扫描owner尚未commitBoot。');},
+  const localScan=createLocalScanCoordinator({repository:collection,datasetId:identity.datasetId,assertCurrent:assertDataset,dsdMetadataEnabled:mobilePreparedCache?.qualified === true,assertReady:()=>{if(!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE','扫描owner尚未commitBoot。');},
     ...(options.projection ? {projection:options.projection}:{}),...(test?.scanMetadataReader ? {reader:test.scanMetadataReader}:{})});
   // BackupCoordinator仍使用唯一原store的方法与事务；其close只提出关闭请求。
   // domain必须等录音清理、激活/文件回调及在途dispatch收口后，才真正关闭维护库连接。
@@ -269,6 +276,7 @@ export function createTestDatasetDomain(options: TestDatasetDomainOptions = {}):
 }
 
 export interface OwnedDatasetDomainOptions {
+  mobileDsd?: MobileDsdDomainOptions;
   dataDirectory: string;
   epoch: string;
   testMode?: boolean;
@@ -286,8 +294,13 @@ export interface OwnedDatasetDomainOptions {
 /** 两个实际数据库、迁移/恢复和全部资源只在调用本工厂的owner线程打开。 */
 export async function prepareOwnedDatasetDomain(options: OwnedDatasetDomainOptions): Promise<DatasetDomain> {
   const dataset = await openCollectionDataset(options.dataDirectory);
-  let domain:DatasetDomain|undefined;
+  let domain:DatasetDomain|undefined, mobilePreparedCache:MobilePreparedCache|undefined;
   try {
+    if (options.mobileDsd) {
+      const converter = await loadMobileDsdConverter({directory:options.mobileDsd.converterDirectory,manifestSha256:options.mobileDsd.converterManifestSha256});
+      mobilePreparedCache = await createMobilePreparedCache({directory:options.mobileDsd.cacheDirectory,datasetId:dataset.datasetId,
+        ownerEpoch:options.epoch,converter,assertCurrent:dataset.assertIdentity});
+    }
     const dependencies = options.recordingDependencies ?? {};
     let outputRunRecovery: OutputRunRecoveryState | undefined;
     if (!options.testMode) {
@@ -296,6 +309,7 @@ export async function prepareOwnedDatasetDomain(options: OwnedDatasetDomainOptio
       } catch { outputRunRecovery = { safe: false, pendingRuns: 0, reason: 'OUTPUT_RUN_UNVERIFIED' }; }
     }
     const common: DatasetDomainOptions = {
+      ...(options.mobileDsd ? { mobileDsd: options.mobileDsd } : {}),
       localSourceEpoch: options.epoch, collectionRepository: dataset.repository, backupWorkflowStore: dataset.store,
       collectionDatasetIdentity: { datasetId: dataset.datasetId, assertCurrent: dataset.assertIdentity },
       backupPrivateRoot: dataset.privateRoot, ...(dataset.contentBinding ? { backupContentBinding: dataset.contentBinding } : {}),
@@ -303,11 +317,14 @@ export async function prepareOwnedDatasetDomain(options: OwnedDatasetDomainOptio
       projection: options.projection, commitBoot: dataset.commit, closeConnections: () => { dataset.fail(); dataset.close(); }, ...(options.failureForError ? { failureForError: options.failureForError } : {}),
     };
     // 测试模式仅禁用设备准入，不从环境或IPC取得合成provider资格。
-    domain=options.testMode ? composeDatasetDomain(common, { ...(options.scanMetadataReader ? {scanMetadataReader:options.scanMetadataReader}:{}) }) : createDatasetDomain(common);
+    domain=composeDatasetDomain(common,options.testMode ? { ...(options.scanMetadataReader ? {scanMetadataReader:options.scanMetadataReader}:{}) } : undefined,mobilePreparedCache);
     // 认证冷投影后、prepare/ACK之前安装真正命名位和FD保护，不让首个新Reader穿过未解目标。
     await domain.localSourceWrites.prepareRecoveryProtection(); await domain.localRelocationPlans.prepareRecoveryProtection(); return domain;
   } catch (error) {
     if(domain){try{await domain.close();}catch(closeError){throw new AggregateError([error,closeError],'冷保护准入/收尾未核实；保留工作库连接及真实保护。');}}
-    else{dataset.fail();dataset.close();}throw error;
+    else{
+      if(mobilePreparedCache)try{await mobilePreparedCache.close();}catch(closeError){throw new AggregateError([error,closeError],'DSD 后端静止未核实；保留 Owner 连接及保护。');}
+      dataset.fail();dataset.close();
+    }throw error;
   }
 }

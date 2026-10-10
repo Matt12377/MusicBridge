@@ -2,8 +2,8 @@
   "openapi": "3.1.1",
   "info": {
     "title": "MusicBridge 移动公共合同",
-    "version": "1.6.0",
-    "description": "MBM-000 双端采纳合同：完整合并基础0.1.0与UI候选1.5.0的40个操作。文档版本独立于服务器握手contractVersion=0.1.0与UIContentCapabilities.version=1.0.0。合同采纳不等于移动服务、设备或真实音频已接入。"
+    "version": "1.7.0",
+    "description": "MBM-000 双端采纳合同：完整合并基础0.1.0与UI候选1.5.0的40个操作。文档版本独立于服务器握手contractVersion=0.1.0与UIContentCapabilities.version=1.0.0。合同采纳不等于移动服务、设备或真实音频已接入。 MBM-003：显式协商dsd_to_pcm，源DSD与PCM24/48 FLAC传输事实分离。"
   },
   "servers": [
     {
@@ -2932,6 +2932,19 @@
             },
             "minItems": 1,
             "maxItems": 20
+          },
+          "acceptedProcessingModes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "dsd_to_pcm"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 1,
+            "uniqueItems": true,
+            "description": "可选且不可null。客户端仅在已采纳此mode并观察resourceDsdToPcm=true时发送；缺省不接受DSD转换。绑定原幂等正文。"
           }
         },
         "required": [
@@ -2953,8 +2966,10 @@
               "remux",
               "lossless_conversion",
               "lossy_transcode",
-              "resample"
-            ]
+              "resample",
+              "dsd_to_pcm"
+            ],
+            "description": "dsd_to_pcm仅用于真实DSD整曲转24-bit/48kHz PCM并编码独立FLAC；不是原生或无损DSD。"
           },
           "reason": {
             "type": "string"
@@ -3317,6 +3332,11 @@
             ],
             "default": "unsupported",
             "description": "可省略不可null，缺省unsupported。ready表示用户主动刷新私人FM有界批次可用；不由其他能力推算，不授权上游写入。"
+          },
+          "resourceDsdToPcm": {
+            "type": "boolean",
+            "default": false,
+            "description": "可选且不可null，缺省false。仅真实DSD源读取、转换器和受限缓存全部可用时为true；与resourceFormatBitDepth独立，不授权源写、多档或动态切换。"
           }
         }
       },
@@ -3719,6 +3739,19 @@
             },
             "minItems": 1,
             "maxItems": 20
+          },
+          "acceptedProcessingModes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "dsd_to_pcm"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 1,
+            "uniqueItems": true,
+            "description": "可选且不可null。客户端仅在已采纳此mode并观察resourceDsdToPcm=true时发送；缺省不接受DSD转换。绑定原幂等正文。"
           }
         },
         "required": [
