@@ -29,13 +29,14 @@ export class PhysicalResourceCoordinator {
     try { return run(); } finally { Atomics.store(this.words, 0, 0); }
   }
   private key(resource: PhysicalResource): number[] {
-    if (!/^\d{1,32}$/u.test(resource.dev) || !/^\d{1,32}$/u.test(resource.ino)) throw new Error('物理资源身份无效。');
+    // Node BigInt stat 可返回负值；保留原有符号，拒绝前导零等身份别名。
+    if (typeof resource.dev !== 'string' || typeof resource.ino !== 'string' || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(resource.dev) || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(resource.ino)) throw new Error('物理资源身份无效。');
     const digest = createHash('sha256').update(`${BigInt(resource.dev)}:${BigInt(resource.ino)}`).digest();
     // 摘要碰撞只会保守地协调无关文件，不会绕过实际 dev/ino 的保护。
     return [digest.readInt32LE(0), digest.readInt32LE(4), digest.readInt32LE(8)];
   }
   private namespaceKey(resource: SourceNamespaceResource): number[] {
-    if (!/^(0|[1-9][0-9]{0,31})$/u.test(resource.dev) || typeof resource.absolute !== 'string'
+    if (typeof resource.dev !== 'string' || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(resource.dev) || typeof resource.absolute !== 'string'
       || resource.absolute.length > 8192 || resource.absolute.includes('\0') || !path.isAbsolute(resource.absolute)
       || path.resolve(resource.absolute) !== resource.absolute || resource.absolute === path.parse(resource.absolute).root) throw new Error('源命名位身份无效。');
     const dev = Buffer.from(resource.dev, 'utf8'), named = Buffer.from(resource.absolute, 'utf8');

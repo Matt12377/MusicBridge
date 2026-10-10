@@ -334,7 +334,7 @@ export function readonlySourceCatalogFileAvailable(root: RootCapability, relativ
   try {
     if (!root.authorized || !path.isAbsolute(root.path) || root.path === path.parse(root.path).root
       || typeof relative !== 'string' || relative.length > 4096 || relative.includes('\0') || path.isAbsolute(relative)
-      || typeof expectedSignature !== 'string' || expectedSignature.length > 256 || !/^\d+:\d+:\d+:-?\d+:-?\d+$/u.test(expectedSignature)) return false;
+      || typeof expectedSignature !== 'string' || expectedSignature.length > 256 || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30}):(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30}):\d+:-?\d+:-?\d+$/u.test(expectedSignature)) return false;
     const parts = relative.split(path.sep);
     if (parts.length > 256 || parts.some(part => !part || part === '.' || part === '..')) return false;
     const named = () => {

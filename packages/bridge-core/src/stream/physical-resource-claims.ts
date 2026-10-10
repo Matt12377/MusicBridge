@@ -30,7 +30,7 @@ const key=(r:PhysicalResource):string=>`${BigInt(r.dev)}:${BigInt(r.ino)}`;
 function selectedResources(resources:readonly PhysicalResource[],inputLimit=2048):readonly PhysicalResource[]{
   if(!Array.isArray(resources)||!resources.length||resources.length>inputLimit)throw new Error('源写保护集合超出原容量。');
   const unique=new Map<string,PhysicalResource>();
-  for(const item of resources){if(!item||typeof item.dev!=='string'||typeof item.ino!=='string'||!/^\d{1,32}$/u.test(item.dev)||!/^\d{1,32}$/u.test(item.ino))throw new Error('源写物理身份无效。');const r=Object.freeze({dev:BigInt(item.dev).toString(),ino:BigInt(item.ino).toString()});unique.set(key(r),r);}
+  for(const item of resources){if(!item||typeof item.dev!=='string'||typeof item.ino!=='string'||!/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(item.dev)||!/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(item.ino))throw new Error('源写物理身份无效。');const r=Object.freeze({dev:BigInt(item.dev).toString(),ino:BigInt(item.ino).toString()});unique.set(key(r),r);}
   if(unique.size>2048)throw new Error('源写保护集合超出原容量。');return Object.freeze([...unique.values()].sort((a,b)=>BigInt(a.dev)<BigInt(b.dev)?-1:BigInt(a.dev)>BigInt(b.dev)?1:BigInt(a.ino)<BigInt(b.ino)?-1:BigInt(a.ino)>BigInt(b.ino)?1:0));
 }
 function activeWriteGroup(value:unknown):WriteGroup{
@@ -122,7 +122,7 @@ export async function acquirePhysicalReadClaims(resources: readonly PhysicalReso
   if (!Array.isArray(resources) || !resources.length || resources.length > 2048) throw new Error('物理保护集合无效或超过原容量。');
   const unique = new Map<string, PhysicalResource>();
   for (const resource of resources) {
-    if (!resource || typeof resource.dev !== 'string' || typeof resource.ino !== 'string' || !/^\d{1,32}$/u.test(resource.dev) || !/^\d{1,32}$/u.test(resource.ino)) throw new Error('物理保护身份无效。');
+    if (!resource || typeof resource.dev !== 'string' || typeof resource.ino !== 'string' || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(resource.dev) || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(resource.ino)) throw new Error('物理保护身份无效。');
     const normalized = { dev: BigInt(resource.dev).toString(), ino: BigInt(resource.ino).toString() };
     unique.set(`${normalized.dev}:${normalized.ino}`, normalized);
   }

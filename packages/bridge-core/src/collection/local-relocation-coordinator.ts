@@ -10,7 +10,7 @@ interface Captured {selection:dto.LocalRelocationSelection;relative:string;signa
 export function createLocalRelocationCoordinator(options:{repository:CollectionRepository;assertCurrent():void;assertReady?():void;beforeMutation?():Promise<void>}){
  const catalog=options.repository.localCatalog,candidates=new Map<string,Captured>();let closed=false;
  function check(){options.assertCurrent();options.assertReady?.();if(closed)throw new Error('重定位owner已关闭。');}
- function source(id:string):RootCapability{const s=options.repository.sources.root(id);if(!s||s.id!==id||typeof s.path!=='string'||!path.isAbsolute(s.path)||typeof s.authorized!=='boolean'||typeof s.label!=='string'||!['dev','ino'].every(k=>typeof s[k as 'dev'|'ino']==='string'&&/^(0|[1-9][0-9]*)$/u.test(s[k as 'dev'|'ino'])))throw new Error('SourceStore根结构无效。');return s;}
+ function source(id:string):RootCapability{const s=options.repository.sources.root(id);if(!s||s.id!==id||typeof s.path!=='string'||!path.isAbsolute(s.path)||typeof s.authorized!=='boolean'||typeof s.label!=='string'||!['dev','ino'].every(k=>typeof s[k as 'dev'|'ino']==='string'&&/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(s[k as 'dev'|'ino'])))throw new Error('SourceStore根结构无效。');return s;}
  async function online(id:string){const s=source(id);if(await sourceRootAvailability(s)!=='ONLINE')throw new Error('源目录离线或许可已撤销，现有对象保留。');check();return s;}
  const overlap=(a:string,b:string)=>a===b||a.startsWith(b+path.sep)||b.startsWith(a+path.sep);
  function outsideOtherRoots(cap:RootCapability,except?:string){for(const root of catalog.roots()){if(root.id===except)continue;const existing=source(root.sourceRootId);if(overlap(cap.path,existing.path))throw new Error('库根重叠会产生多个独立候选，不能自动合并。');}}

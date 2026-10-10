@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { normalizeLocalLibrarySignedStatLegacyInput } from './local-library-signed-stat-legacy-normalization.mjs';
 
 // 仅把002已锁的完整复用字节在内存逆回BASE002；不修改文件、旧锁或真实新行为。
 // 后续仍须normalizeMbm001LegacyReuse和原000完整锁校验；本模块不证明002运行成功。
@@ -152,6 +153,8 @@ export function normalizeMbm002LegacyInputs(file, bytes) {
   if (typeof file !== 'string' || !Buffer.isBuffer(bytes)) return reject();
   const row = MBM002_LEGACY_INPUTS.find(value => value.path === file);
   if (!row || matches(bytes, row.before)) return bytes;
+  try { bytes = normalizeLocalLibrarySignedStatLegacyInput(file, bytes); }
+  catch { return reject(); }
   if (!matches(bytes, row.after)) return reject();
   let restored = Buffer.from(bytes);
   for (const hunk of [...row.hunks].reverse()) {

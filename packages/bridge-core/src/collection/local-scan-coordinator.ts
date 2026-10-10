@@ -109,7 +109,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
     if(root.revision !== job.rootRevision || root.sourceRootId !== job.sourceRootId) throw new Error('ROOT_REVISION_CHANGED');
     const source=options.repository.sources.root(root.sourceRootId);
     if(!source || source.id !== job.sourceRootId || typeof source.path !== 'string' || !path.isAbsolute(source.path)
-      || typeof source.dev !== 'string' || !/^(0|[1-9][0-9]*)$/u.test(source.dev) || typeof source.ino !== 'string' || !/^(0|[1-9][0-9]*)$/u.test(source.ino)
+      || typeof source.dev !== 'string' || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(source.dev) || typeof source.ino !== 'string' || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(source.ino)
       || typeof source.authorized !== 'boolean' || typeof source.label !== 'string') throw new Error('扫描SourceStore根结构无效。');
     if(!source.authorized) throw new SourceFileError('REVOKED');return source;
   }

@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { readMobileFile } from '../verify-mbm000-contract-adoption.mjs';
 import { MBM001_LEGACY_REUSE, normalizeMbm001LegacyReuse } from '../mbm001-legacy-reuse-normalization.mjs';
 import { MBM002_LEGACY_INPUT_BASE, MBM002_LEGACY_INPUTS, normalizeMbm002LegacyInputs } from '../mbm002-legacy-input-normalization.mjs';
+import { normalizeLocalLibrarySignedStatLegacyInput } from '../local-library-signed-stat-legacy-normalization.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const maxBytes = 4 * 1024 * 1024;
@@ -16,7 +17,7 @@ const changed = error => error?.code === 'MBM002_LEGACY_INPUT_CHANGED';
 const original = file => execFileSync('git', ['show', MBM002_LEGACY_INPUT_BASE + ':' + file], {
   cwd: repository, timeout: 10_000, maxBuffer: maxBytes,
 });
-const current = async file => (await readMobileFile(path.join(repository, file), { maxBytes })).bytes;
+const current = async file => normalizeLocalLibrarySignedStatLegacyInput(file, (await readMobileFile(path.join(repository, file), { maxBytes })).bytes);
 const compose = (file, bytes) => normalizeMbm001LegacyReuse(file, normalizeMbm002LegacyInputs(file, bytes));
 const ledger = { tasks: 18, acceptanceCases: 156, effectiveTasks: 17, effectiveAcceptanceCases: 150, cancelled015SixCases: 'N_A' };
 

@@ -1,4 +1,13 @@
 {
+  "local_library_signed_stat_fix": {
+    "current_task": "LOCAL_LIBRARY_SIGNED_STAT_FIX",
+    "branch": "codex/fix-local-library-loading",
+    "base_sha": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+    "scope_ref": "docs/postrust/LOCAL_LIBRARY_SIGNED_STAT_FIX/EXECUTION_SCOPE.json",
+    "kind": "IN_SCOPE_ORDINARY_APP_LOADING_REPAIR",
+    "original_mobile_schedule_and_17_150_ledger_unchanged": true,
+    "new_runtime_and_ci_evidence_required": true
+  },
   "schema_version": "1.2",
   "plan_version": "1.2",
   "created_on": "2026-10-03",

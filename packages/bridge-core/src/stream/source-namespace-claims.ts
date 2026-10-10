@@ -116,7 +116,7 @@ export async function captureSourceNamespace(root: SourceNamespaceRootPort, rela
   if (value.authorized !== true) throw new SourceNamespaceCaptureError('REVOKED');
   if (!isId(value.id) || typeof value.label !== 'string' || typeof value.path !== 'string' || value.path.length > 4096 || value.path.includes('\0')
     || !path.isAbsolute(value.path) || path.resolve(value.path) !== value.path || value.path === path.parse(value.path).root
-    || typeof value.dev !== 'string' || typeof value.ino !== 'string' || !/^(0|[1-9][0-9]{0,31})$/u.test(value.dev) || !/^(0|[1-9][0-9]{0,31})$/u.test(value.ino)
+    || typeof value.dev !== 'string' || typeof value.ino !== 'string' || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(value.dev) || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(value.ino)
     || typeof relative !== 'string' || !relative || relative.length > 4096 || relative.includes('\0') || path.isAbsolute(relative)
     || relative.split(path.sep).some(p => !p || p === '.' || p === '..')) throw new SourceNamespaceCaptureError('OUTSIDE_ROOT');
   const rootPath = value.path, absolute = path.join(rootPath, relative), parts = relative.split(path.sep).slice(0, -1);

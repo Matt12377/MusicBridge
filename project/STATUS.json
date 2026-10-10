@@ -1,4 +1,36 @@
 {
+  "currentLocalLibraryFixTask": "LOCAL_LIBRARY_SIGNED_STAT_FIX",
+  "localLibrarySignedStatFix": {
+    "task": "LOCAL_LIBRARY_SIGNED_STAT_FIX",
+    "branch": "codex/fix-local-library-loading",
+    "baseSha": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+    "executionScope": "docs/postrust/LOCAL_LIBRARY_SIGNED_STAT_FIX/EXECUTION_SCOPE.json",
+    "state": "SOFTWARE_GATE_75_PASS_STANDARD_4745_GREEN_APP_INSTALLED_REAL_SCAN_PENDING",
+    "sourceCommitResolution": "OWN_SOURCE_COMMIT_RESOLVED_BY_DIRECT_FIX_REPORT",
+    "installedBuild": "20261010.2",
+    "ordinaryAuthorizedRootReuse": true,
+    "rootCause": "NODE_BIGINT_SIGNED_STAT_IDENTITY_REJECTED_BY_UNSIGNED_GUARDS",
+    "sourceFilesWrite": "UNCHANGED_DEFAULT_OFF",
+    "originalMobileTaskAndAcceptanceUnchanged": true,
+    "ownerRepeatedApprovalRequired": false,
+    "report": "reports/LOCAL_LIBRARY_SIGNED_STAT_FIX_RESULT.md"
+  },
+  "currentMobileDeliveryReadback20261010": {
+    "task": "MBM-003",
+    "source": "5e96372f0dd99e08b1e2964d68ce234eb438bbdf",
+    "directReport": "99c89519f3357f4018b32930e8179b66719f99e7",
+    "software": "SOURCE_AND_DIRECT_REPORT_FIRST_NATURAL_CI_CONTENT_SEALED",
+    "deviceAcceptance": "PARTIAL_REPLAY_AND_INTERRUPTION_RECOVERY_OPEN",
+    "nextOrder": ["MBM-004", "MBRS-016", "MBRS-017"],
+    "newFixIsSeparatelyVerified": true
+  },
+  "parallelTapeCatalogDelivery20261010": {
+    "source": "cfa0456de984c6cf37a1cbb69300ae9a9ee97d7f",
+    "software": "ISOLATED_SOURCE_FIRST_NATURAL_FOUR_CI_SUCCESS_READ_BACK",
+    "ordinaryAppIntegration": "PENDING_FINAL003_BASELINE_INTEGRATION",
+    "realCatalogImport": "NOT_RUN",
+    "effectiveMainTaskAndAcceptanceCountsUnchanged": true
+  },
   "mainBaselineIntegration20260926": {
     "branch": "codex/main-baseline-integration",
     "state": "code-baseline-fast-forwarded-report-sync-pending",

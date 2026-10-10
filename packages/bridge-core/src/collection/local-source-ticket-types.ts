@@ -25,8 +25,8 @@ export function isLocalSourceCaptureResult(v: unknown): v is LocalSourceCaptureR
     || !text(f.relative,4096) || path.isAbsolute(f.relative) || f.relative.split(/[\\/]/u).some(p => !p || p === '.' || p === '..')) return false;
   const s = f.sourceRoot, o = f.observation;
   if (!record(s) || !closed(s,['id','path','dev','ino','authorized','label']) || !text(s.id) || !text(s.path,4096) || !path.isAbsolute(s.path) || s.authorized !== true
-    || typeof s.dev !== 'string' || !/^(0|[1-9]\d{0,31})$/u.test(s.dev) || typeof s.ino !== 'string' || !/^(0|[1-9]\d{0,31})$/u.test(s.ino) || typeof s.label !== 'string' || s.label.length > 256 || !record(o)
-    || !closed(o,['signature','assetId','trackId','libraryRootId','sourceRootId','fileRevision','rootRevision','locationRevision','selectionRevision']) || !text(o.signature,256) || !/^(0|[1-9]\d{0,31}):(0|[1-9]\d{0,31}):(0|[1-9]\d{0,31}):-?\d{1,24}:-?\d{1,24}$/u.test(o.signature)) return false;
+    || typeof s.dev !== 'string' || !/^(0|[1-9]\d{0,31}|-[1-9]\d{0,30})$/u.test(s.dev) || typeof s.ino !== 'string' || !/^(0|[1-9]\d{0,31}|-[1-9]\d{0,30})$/u.test(s.ino) || typeof s.label !== 'string' || s.label.length > 256 || !record(o)
+    || !closed(o,['signature','assetId','trackId','libraryRootId','sourceRootId','fileRevision','rootRevision','locationRevision','selectionRevision']) || !text(o.signature,256) || !/^(0|[1-9]\d{0,31}|-[1-9]\d{0,30}):(0|[1-9]\d{0,31}|-[1-9]\d{0,30}):(0|[1-9]\d{0,31}):-?\d{1,24}:-?\d{1,24}$/u.test(o.signature)) return false;
   if (f.track.assetId !== f.asset.id || f.asset.libraryRootId !== f.root.id || f.root.sourceRootId !== s.id || f.asset.sourceRootId !== s.id || f.asset.rootRevision !== f.root.revision
     || o.assetId !== f.asset.id || o.trackId !== f.track.id || o.libraryRootId !== f.root.id || o.sourceRootId !== s.id || o.fileRevision !== f.asset.fileRevision
     || o.rootRevision !== f.root.revision || o.locationRevision !== f.asset.locationRevision || o.selectionRevision !== f.track.selectionRevision) return false;

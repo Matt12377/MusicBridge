@@ -130,7 +130,7 @@ export class LocalFileSourcePool {
       || descriptor.facts.asset.sourceRootId !== descriptor.facts.sourceRoot.id || descriptor.facts.track.segment !== null) throw new LocalFileLeaseError('INVALID_DESCRIPTOR');
     const { observation, asset, track, root, sourceRoot } = descriptor.facts;
     if (!observation || typeof observation.signature !== 'string' || observation.signature.length > 256
-      || !/^\d+:\d+:\d+:-?\d+:-?\d+$/u.test(observation.signature) || observation.assetId !== asset.id || observation.trackId !== track.id
+      || !/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30}):(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30}):\d+:-?\d+:-?\d+$/u.test(observation.signature) || observation.assetId !== asset.id || observation.trackId !== track.id
       || observation.libraryRootId !== root.id || observation.sourceRootId !== sourceRoot.id || observation.fileRevision !== asset.fileRevision
       || observation.rootRevision !== root.revision || observation.locationRevision !== asset.locationRevision || observation.selectionRevision !== track.selectionRevision) throw new LocalFileLeaseError('INVALID_DESCRIPTOR');
     if (!/^[A-Za-z0-9_-]{1,128}$/u.test(authority.ownerId) || !Number.isSafeInteger(authority.attempt) || authority.attempt < 1 || authority.isCurrent() !== true) throw new LocalFileLeaseError('STALE_ATTEMPT');
