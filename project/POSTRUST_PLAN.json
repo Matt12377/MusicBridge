@@ -7,7 +7,16 @@
     "kind": "IN_SCOPE_ORDINARY_APP_LOADING_REPAIR",
     "original_mobile_schedule_and_17_150_ledger_unchanged": true,
     "new_runtime_and_ci_evidence_required": true,
-    "same_authorized_ordinary_app_read_repair_includes_zero_length_optional_wave_list": true
+    "same_authorized_ordinary_app_read_repair_includes_zero_length_optional_wave_list": true,
+    "same_authorized_loading_repair_includes_optional_unsupported_cover_isolation": true,
+    "current_source_sha": "f3e5529202d06829c69108c4484faa1e712e9c9e",
+    "installed_build": "20261011.1",
+    "ordinary61_goal": "OPEN_NEW_SCAN_AND_NORMAL_COLD_UI_REQUIRED",
+    "current_source_is_parent_of_uncommitted_v3_fix": true,
+    "next_candidate_build": "20261011.2",
+    "v3_actual19_readonly_diagnostic": "ALL19_PASS_NOT_ORDINARY_APP_SCAN",
+    "v3_current_software": "STANDARD4750_PASS4748_SKIP2_OWN80_PASS9_NATURAL_STAGES",
+    "new_source_first_natural_ci": "REQUIRED_NOT_YET_PUSHED"
   },
   "schema_version": "1.2",
   "plan_version": "1.2",

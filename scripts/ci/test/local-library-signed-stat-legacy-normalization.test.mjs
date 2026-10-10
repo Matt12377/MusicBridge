@@ -107,7 +107,7 @@ const productWholeIdentities = [
     },
     "after": {
       "bytes": 36729,
-      "sha256": "bc4dd52c0196bcb3c489ff44d728a09ae974bc5c72157783b1f8fab7c58b56e5"
+      "sha256": "c690142cee8bfb3de0762fbe69df6a325b1d44baafe461e8c8afb3dc603ea92d"
     }
   },
   {
@@ -194,8 +194,8 @@ const productWholeIdentities = [
       "sha256": "0aeadd7b2bfdad3508f8861ea8975e3bc112dc0535a78a4d40195ddf5d8e4948"
     },
     "after": {
-      "bytes": 21663,
-      "sha256": "ae050ec90ec99e52f173d0bf9e6603c902077936f9cc65e5f78c3462d4055165"
+      "bytes": 21652,
+      "sha256": "259691cb8e8062b3db4d8522da864e6c14c2b0dde7ecaf19950e91add0662577"
     }
   },
   {
@@ -206,7 +206,7 @@ const productWholeIdentities = [
     },
     "after": {
       "bytes": 4680,
-      "sha256": "a57cc35fb1958b8a1c3368b67c06e3f45fbd3a1487fe1b514a1356d57369faa5"
+      "sha256": "53d23129795ddbb0440687a8519636fee23624caef2f4a1a71e17774ccde03ff"
     }
   },
   {
@@ -217,7 +217,7 @@ const productWholeIdentities = [
     },
     "after": {
       "bytes": 14112,
-      "sha256": "34345874986b1d4416ca69c645e9d0dfe9b5bb66ba4b774b5b2f35f89a22b6ed"
+      "sha256": "375f2527dc23c4b2be5431dbc98a95882d3654a77c9d368ecc74eaf11c582097"
     }
   }
 ];

@@ -12,7 +12,7 @@ import { loadFreshMetadataReader } from './helpers/mbrs003-audio-fixtures.js';
 
 // 只生成自有合成媒体；不读取普通 App 曲库、不改标签、不把有限兼容证明当作整曲可播放验收。
 const OLD_PARSER = 'music-metadata-11.15.0/mbrs003-v1';
-const NEW_PARSER = 'music-metadata-11.15.0/mbrs003-v2';
+const NEW_PARSER = 'music-metadata-11.15.0/mbrs003-v3';
 const frames = 4800, sampleRate = 48000, channels = 2, bits = 24, blockAlign = channels * bits / 8;
 const expectedTags = Object.freeze({ title: '合成 ID3 标题', artist: '合成 ID3 艺人', album: '合成 INFO 专辑' });
 const ordinaryTags = Object.freeze({ title: '合成普通 INFO 标题', artist: '合成普通 INFO 艺人', album: '合成普通 INFO 专辑' });
@@ -314,5 +314,65 @@ test('本地 WAV 旧 v1 失败记录：新版本真实增量读入标签和技�
   assert.deepEqual(cold.localCatalog.metadata(track.id), metadata); assert.deepEqual(cold.localCatalog.observations(track.id), tags);
   assert.deepEqual(again.admission.resourceCounts(), { permits: 0, revoked: 0, watches: 0, timers: 0, closed: false });
   await again.close(); activeSession = undefined; activeRepo = undefined;
+  await f.unchanged();
+});
+
+test('本地 WAV 可选封面：误标 WebP 不拒整份元数据、PNG/JPEG 证据与原预算保持', { timeout: 30_000 }, async t => {
+  // PNG 是既有自有 16×16 合成样本的原字节；JPEG 是既有自有纯色 8×8 样本的原字节。
+  // 都内嵌在本例，不额外读取图片或借用普通曲库。WebP 只作为未支持的可选编码，不声明解码或显示成功。
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAACcElEQVR42gXBIYu0QBgA4DeYhAuD7UDDBC9sdMMaF2bbsGHBZJgmhkuCDFcFP2xWBf+A2i0DFqvB+QHTJhmsE+d7HgAABF8YviP4IXBP4JnBm0PaQN5DOUEloN1hUDBesFjYALwv5H1j7yfy7sR7Jt4781Lu5Y1X9l41ea3wht0blbdc3ma9AyD8RuEPDu9R+CThOwnTLMx5WDZh1YftFA4iHPdwUeF2hYcNFUD8g+I7jp9R/CZxmsR5Fpc8rpq47eNhikcRL3u8qfi4YmXjE4DeEX1i+o5oSmie0DKjFadtQ4eejhNdBN12eiiqLnpaagDYE7E3ZmnEcsLKhFUZazkbGjb2bJnYJtixM6XYeTFjmQNQvFGR4iKPipIUVVK0WTHwYmyKpS+2qThEofbiVIW5CscWCKBOUZ3juozqitRtUg9ZPfJ6aeqtr4+pVqI+99qo2rlqZOsAoMtRV+KuirqWdEPSjVm38G5ruqPv1NSdojN756gOXV1guxvAXKK5wnMbzQOZx2Resnnj89HMqp/PaTZidvYZqTm45pudHwBrhdYWr0O0jmRdknXL1oOvqlnPfjXT6ogV7Wug1tu1Puz6ApAtkgOWYyQXIrdEHplUXJ6NNL10JomEDHZ5U/JxyZeVHwA9ID1ivUR6I/pItMr0ybVptNNrNOlA6NuuH0q/Lv2xmgGYEZkFmy0yBzEqMWdmDDdOY1BvgsnchHns5qXM5zLMml8Ad0Huht0jchVxz8Q1metwFzVu0Lu3yX0I97W7H+Wyy/217h+AvyH/wL6K/JP4JvGdzEfcDxr/1vuPyX8J/7P7TPm/l/9n/X//ATO1bxCe6acIAAAAAElFTkSuQmCC', 'base64');
+  const jpeg = Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAAIAAgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDo6KKK9g8s/9k=', 'base64');
+  const webp = Buffer.from('UklGRh4AAABXRUJQVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=', 'base64');
+  const unknown = Buffer.from('自有未知图片字节，仅核可选图片证据边界', 'utf8');
+  assert.equal(png.length, 681); assert.equal(hash(png), '243ddd560483dfae4f0ac0cce1e922a7828baab254b6df5d3402d0fec4f06e45');
+  assert.equal(jpeg.subarray(0, 3).toString('hex'), 'ffd8ff');
+  assert.equal(webp.subarray(0, 4).toString('ascii'), 'RIFF'); assert.equal(webp.subarray(8, 12).toString('ascii'), 'WEBP');
+
+  type Picture = Readonly<{ mime: string; data: Buffer; description?: string }>;
+  const wave = (pictures: readonly Picture[]): Buffer => {
+    const apic = pictures.map((picture, index) => {
+      const payload = Buffer.concat([Buffer.from([3]), Buffer.from(picture.mime, 'ascii'), Buffer.from([0, 3]),
+        Buffer.from(picture.description ?? `合成可选封面 ${index}`, 'utf8'), Buffer.from([0]), picture.data]);
+      return Buffer.concat([Buffer.from('APIC', 'ascii'), syncsafe(payload.length), Buffer.alloc(2), payload]);
+    });
+    // 空 LIST 之后的 APIC 不得吞掉后续 ID3 title/artist 或 INFO album；原 PCM 音频块保持不变。
+    const body = Buffer.concat([...apic, id3Frame('TIT2', expectedTags.title), id3Frame('TPE1', expectedTags.artist)]);
+    const tag = Buffer.concat([Buffer.from('ID3', 'ascii'), Buffer.from([4, 0, 0]), syncsafe(body.length), body]);
+    return riff([format(false), chunk('data', pcm), chunk('LIST', Buffer.alloc(0)), chunk('ID3 ', tag), info({ IPRD: expectedTags.album })]);
+  };
+  const coverLimit = 4 * 1024 * 1024;
+  const budgetFailures = {
+    'unknown-cover-size.wav': wave([{ mime: 'image/png', data: Buffer.alloc(coverLimit + 1, 0x41) }]),
+    'unknown-cover-total.wav': wave([0x42, 0x43].map(byte => ({ mime: 'image/png', data: Buffer.alloc(coverLimit / 2 + 1, byte) }))),
+    'unknown-cover-count.wav': wave(Array.from({ length: 9 }, (_, index) => ({ mime: 'image/png', data: Buffer.from(`未知图片 ${index}`, 'utf8') }))),
+    'unknown-cover-text.wav': wave([{ mime: 'image/png', data: unknown, description: 'x'.repeat(4097) }]),
+  };
+  const f = await fixture(t, {
+    'mislabeled-webp.wav': wave([{ mime: 'image/png', data: webp }]),
+    'mixed-cover.wav': wave([{ mime: 'image/jpeg', data: png }, { mime: 'image/png', data: webp },
+      { mime: 'image/png', data: jpeg }, { mime: 'image/jpeg', data: unknown }]),
+    ...budgetFailures, 'valid-after-covers.wav': wave([{ mime: 'image/png', data: png }, { mime: 'image/jpeg', data: jpeg }]),
+  });
+  const actual = openedReader(f), beforeClaims = f.m.locks.physicalResourceLocks.combinedSnapshot();
+  const audio = { container: 'WAVE', codec: 'PCM', lossless: true, sampleRateHz: sampleRate, channels,
+    bitsPerSample: bits, durationSeconds: frames / sampleRate, evidence: 'bounded-parser-reported' };
+  const evidence = [{ mime: 'image/png', bytes: png.length, sha256: hash(png), evidence: 'encoded-bytes-magic-and-digest' },
+    { mime: 'image/jpeg', bytes: jpeg.length, sha256: hash(jpeg), evidence: 'encoded-bytes-magic-and-digest' }];
+  const omitted = success(await actual.read('mislabeled-webp.wav'));
+  assert.deepEqual(omitted.fields, expectedTags); assert.deepEqual(omitted.technical, audio);
+  assert.deepEqual(omitted.coverEvidence, [], '未支持的可选 WebP 不产生 PNG/JPEG 证据，也不拒绝整份元数据');
+  assert.equal(omitted.parserVersion, NEW_PARSER);
+  const mixed = success(await actual.read('mixed-cover.wav'));
+  assert.deepEqual(mixed.fields, expectedTags); assert.deepEqual(mixed.technical, audio);
+  assert.deepEqual(mixed.coverEvidence, evidence, '仅原 PNG/JPEG 字节魔数与整张摘要决定证据，不相信 APIC 的 MIME 声明');
+  assert.equal(mixed.parserVersion, NEW_PARSER);
+  for (const relative of Object.keys(budgetFailures)) {
+    const result = await actual.read(relative); assert.equal(result.status, 'failure');
+    if (result.status === 'failure') assert.equal(result.code, 'BUDGET_EXCEEDED', '省略未支持图片不能省略其原大小、总量、数量或文本预算');
+  }
+  const after = success(await actual.read('valid-after-covers.wav'));
+  assert.deepEqual(after.fields, expectedTags); assert.deepEqual(after.technical, audio); assert.deepEqual(after.coverEvidence, evidence);
+  assert.equal(after.parserVersion, NEW_PARSER);
+  assert.deepEqual(f.m.locks.physicalResourceLocks.combinedSnapshot(), beforeClaims, '全部真实 Worker/FD 完成关闭后，原资源保护必须已释放');
   await f.unchanged();
 });

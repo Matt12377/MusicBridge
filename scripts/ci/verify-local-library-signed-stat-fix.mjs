@@ -170,7 +170,7 @@ export async function runLocalLibrarySignedStatFixGate(argv=process.argv.slice(2
   budget.check();const initialHead=readHead(budget.check,budget.remaining),inputs=await sourceRows(budget.check);
   const leaves=await Promise.all(scope.tests.map(row=>testLeaf(row,budget.check)));
   const expectedTests=leaves.reduce((n,row)=>n+row.expectedTests,0);
-  if(expectedTests!==79||new Set(leaves.flatMap(row=>row.caseNames)).size!==79)fail('SIGNED_STAT_CASE_CLOSURE_CHANGED');
+  if(expectedTests!==80||new Set(leaves.flatMap(row=>row.caseNames)).size!==80)fail('SIGNED_STAT_CASE_CLOSURE_CHANGED');
   const run=createPrivateRun(storageAdmission),temporary=path.join(run,'tmp');mkdirSync(temporary,{mode:0o700});
   const runs=[],failures=[],context={run,temporary,runs,...budget,env:childEnvironment(env,temporary)};
   let core=null,sourceInputsUnchanged=false,compiledOutputsUnchanged=false;
@@ -204,13 +204,13 @@ export async function runLocalLibrarySignedStatFixGate(argv=process.argv.slice(2
   const behavior=runs.filter(row=>row.expectedTests!==null);
   const counts=Object.fromEntries(['tests','pass','fail','cancelled','skipped','todo'].map(key=>[key,behavior.reduce((n,row)=>n+(row.testCounts?.[key]??0),0)]));
   const success=failures.length===0&&core!==null&&sourceInputsUnchanged&&compiledOutputsUnchanged
-    &&runs.length===9&&behavior.length===8&&runs.every(mobileStageSucceeded)&&isCompleteTestRun(counts,79)&&budget.remaining()>0;
+    &&runs.length===9&&behavior.length===8&&runs.every(mobileStageSucceeded)&&isCompleteTestRun(counts,80)&&budget.remaining()>0;
   const summary={schema:'musicbridge.local-library-signed-stat-fix.software-gate.v1',task:scope.task,
     success,state:success?'EXACT_FIX_SOFTWARE_ONLY_PASS':'FAILED',baseSha:scope.baseSha,headAtRun:initialHead,
     startedMs:budget.startedMs,finishedMs:Date.now(),durationMs:budget.elapsedMs(),budgets:SIGNED_STAT_FIX_BUDGETS,
     admission:admitted,sourceInputs:inputs,sourceInputIdentity:mobileInputIdentity(inputs),sourceInputsUnchanged,
     currentCoreAndWorker:core?.proof??null,compiledOutputsUnchanged,runs,failures,selectedTestLeaves:leaves,
-    expectedStages:9,completedStages:runs.length,expectedBehaviorTests:79,behaviorCounts:counts,
+    expectedStages:9,completedStages:runs.length,expectedBehaviorTests:80,behaviorCounts:counts,
     exactCurrentProductSourceFiles:12,exactCurrentCompatibilityFiles:6,oldGatesRerun:false,oldExecutionRelabeledCurrent:false,
     readerBindingInverted:false,sourceIdentitySignPreserved:true,ordinaryProfileRecovery:'NOT_PROVEN_BY_THIS_GATE',
     productionApp:'NOT_PROVEN_BY_THIS_GATE',realProviderRoonNas:'NOT_RUN',physicalDeviceAudio:'NOT_PROVEN',ownerAcceptance:'NOT_PROVEN',

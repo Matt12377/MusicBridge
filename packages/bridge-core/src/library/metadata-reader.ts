@@ -37,7 +37,7 @@ function isWorkerMessage(value: unknown): value is MetadataWorkerResultMessage {
   const result = message.result as Record<string, unknown>;
   if (result.status === 'failure') return typeof result.code === 'string' && workerFailureCodes.has(result.code as MetadataReadFailure)
     && (result.readEvidence === null || typeof result.readEvidence === 'object' && !Array.isArray(result.readEvidence));
-  return result.status === 'ok' && message.phase === 'complete' && result.parserVersion === 'music-metadata-11.15.0/mbrs003-v2'
+  return result.status === 'ok' && message.phase === 'complete' && result.parserVersion === 'music-metadata-11.15.0/mbrs003-v3'
     && typeof result.fields === 'object' && result.fields !== null && typeof result.technical === 'object' && result.technical !== null
     && Array.isArray(result.coverEvidence) && typeof result.readEvidence === 'object' && result.readEvidence !== null;
 }

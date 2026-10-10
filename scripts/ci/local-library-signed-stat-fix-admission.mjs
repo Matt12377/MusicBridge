@@ -217,7 +217,7 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
       },
       "after": {
         "bytes": 36729,
-        "sha256": "bc4dd52c0196bcb3c489ff44d728a09ae974bc5c72157783b1f8fab7c58b56e5"
+        "sha256": "c690142cee8bfb3de0762fbe69df6a325b1d44baafe461e8c8afb3dc603ea92d"
       }
     },
     {
@@ -304,8 +304,8 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
         "sha256": "0aeadd7b2bfdad3508f8861ea8975e3bc112dc0535a78a4d40195ddf5d8e4948"
       },
       "after": {
-        "bytes": 21663,
-        "sha256": "ae050ec90ec99e52f173d0bf9e6603c902077936f9cc65e5f78c3462d4055165"
+        "bytes": 21652,
+        "sha256": "259691cb8e8062b3db4d8522da864e6c14c2b0dde7ecaf19950e91add0662577"
       }
     },
     {
@@ -316,7 +316,7 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
       },
       "after": {
         "bytes": 4680,
-        "sha256": "a57cc35fb1958b8a1c3368b67c06e3f45fbd3a1487fe1b514a1356d57369faa5"
+        "sha256": "53d23129795ddbb0440687a8519636fee23624caef2f4a1a71e17774ccde03ff"
       }
     },
     {
@@ -327,7 +327,7 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
       },
       "after": {
         "bytes": 14112,
-        "sha256": "34345874986b1d4416ca69c645e9d0dfe9b5bb66ba4b774b5b2f35f89a22b6ed"
+        "sha256": "375f2527dc23c4b2be5431dbc98a95882d3654a77c9d368ecc74eaf11c582097"
       }
     }
   ],
@@ -340,7 +340,7 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
       },
       "after": {
         "bytes": 9010,
-        "sha256": "df18095e7f1b47dbe44d9a1f7926cd9856a95b7ed2c62f0bbfacdc1f8c5e504c"
+        "sha256": "9aa92bb73fd445ac4e8ec829d1fae2c9eb470811aecd45f3c7513fc48bdb2229"
       }
     },
     {
@@ -351,7 +351,7 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
       },
       "after": {
         "bytes": 8337,
-        "sha256": "4c1e6e8bf6e668bccd179a0d7fa78342da69548ecb15516355901daca5d9d7a2"
+        "sha256": "e284cd3cbd7e44ee08b24c5a94c0faf8725113b2e37fcbed755940c8c4eb4510"
       }
     },
     {
@@ -362,7 +362,7 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
       },
       "after": {
         "bytes": 722,
-        "sha256": "63e4e3fc7b9359c6211af1990cd145a1a242cc2ddc0defebb8bd57b02cc04cce"
+        "sha256": "6cbc6a24cf1a5e2945972c7993c46314de4860825a8bff7219e096b8b2249e55"
       }
     },
     {
@@ -373,7 +373,7 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
       },
       "after": {
         "bytes": 731,
-        "sha256": "2c5bac36147db694d62db8a32aa3fbd49bbfa7e5d1da6b7f1f6112f7eeb9dcbe"
+        "sha256": "dd626e9703546af316226f66e345d328bb2105b128466103a5739caf87ca0b08"
       }
     },
     {
@@ -384,15 +384,15 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
       },
       "after": {
         "bytes": 26566,
-        "sha256": "2b3b08ce96b6a2ff68ac5bb55e94d6f730ac1e7a31adb63861658a7f1d49e250"
+        "sha256": "571a14e89f3395bfd7e4b66900bba3344bfa8e74640b9aef7b7c25ab8bc84fd4"
       }
     },
     {
       "path": "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
       "before": null,
       "after": {
-        "bytes": 24276,
-        "sha256": "7c9b5e02e201dbe7a6a265f265680216af87b1c4c9a38bfb0bfbc85778878bad"
+        "bytes": 31034,
+        "sha256": "1090e2a1547b376cdb7c3d738d5a5e4f3223cf6e6d5d38a13b0810b4009505dd"
       }
     }
   ],
@@ -663,7 +663,7 @@ export const LOCAL_LIBRARY_SIGNED_STAT_FIX_SCOPE = freeze({
     },
     {
       "file": "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
-      "expectedTests": 4
+      "expectedTests": 5
     }
   ],
   "policy": {

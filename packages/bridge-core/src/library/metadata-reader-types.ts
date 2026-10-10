@@ -14,7 +14,7 @@ export interface MetadataReadEvidence { bytesRead: number; readCalls: number; ma
 export type MetadataReadFailure = 'REVOKED' | 'SOURCE_ROOT_OFFLINE' | 'OUTSIDE_ROOT' | 'MISSING' | 'CONTENT_CHANGED' | 'IO_ERROR'
   | 'BUDGET_EXCEEDED' | 'PARSE_FAILED' | 'UNSUPPORTED' | 'TIMEOUT' | 'WORKER_START_TIMEOUT' | 'CANCELLED'
   | 'CLOSED' | 'QUEUE_FULL' | 'WORKER_FAILED' | 'LEASE_RELEASE_FAILED' | 'ADMISSION_FAILED';
-export type MetadataReadResult = { status: 'ok'; parserVersion: 'music-metadata-11.15.0/mbrs003-v2'; fields: MetadataRawFields; technical: MetadataTechnical; coverEvidence: MetadataCoverEvidence[]; readEvidence: MetadataReadEvidence }
+export type MetadataReadResult = { status: 'ok'; parserVersion: 'music-metadata-11.15.0/mbrs003-v3'; fields: MetadataRawFields; technical: MetadataTechnical; coverEvidence: MetadataCoverEvidence[]; readEvidence: MetadataReadEvidence }
   | { status: 'failure'; code: MetadataReadFailure; readEvidence: MetadataReadEvidence | null };
 export interface MetadataReadInput {
   root: RootCapability; relative: string; expectedSignature: string;

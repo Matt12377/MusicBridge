@@ -180,7 +180,7 @@ test('MBRS003 coordinator：冷prepared真实签名变化显式弃旧原件并�
   const f=await unit(t,['core-wav']),first=f.coordinator.start({commandId:randomUUID(),libraryRootId:f.root.id,expectedRootRevision:f.root.revision});await f.coordinator.privateWait(first.jobId);
   const track=f.repo.localCatalog.pageTracks({offset:0,limit:1}).items[0]!,asset=f.repo.localCatalog.asset(track.assetId);
   f.repo.localCatalog.overrideMetadata({commandId:randomUUID(),trackId:track.id,expectedRevision:null,fields:{title:'人工保留'}});
-  const job=f.repo.localScan.start({commandId:randomUUID(),datasetId:f.datasetId,libraryRootId:f.root.id,expectedRootRevision:f.root.revision,parserVersion:'music-metadata-11.15.0/mbrs003-v2'}).job;
+  const job=f.repo.localScan.start({commandId:randomUUID(),datasetId:f.datasetId,libraryRootId:f.root.id,expectedRootRevision:f.root.revision,parserVersion:'music-metadata-11.15.0/mbrs003-v3'}).job;
   const running=f.repo.localScan.resume({commandId:randomUUID(),jobId:job.jobId,expectedRevision:job.jobRevision});
   const cap=f.repo.sources.root(f.root.sourceRootId),relative=f.relative('core-wav'),stat=await readonlySourceCandidateMetadata(cap,relative);
   const actual=(await loadFreshMetadataReader()).createMetadataReader(),read=await actual.read({root:cap,relative,expectedSignature:stat.signature});await actual.close();assert.equal(read.status,'ok');if(read.status !== 'ok') throw new Error('真实Reader正控制失败');

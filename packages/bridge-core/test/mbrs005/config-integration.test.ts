@@ -46,7 +46,7 @@ test('AT01/12 原SQLite唯一catalog→只读resolver→生产Registry/固定FD�
   } };
   // 元数据结果明确由受控Reader注入；目录stat、扫描Owner、SQLite事实与后续HTTP均为现有实际通路。
   const scanner = createLocalScanCoordinator({ repository, datasetId: context.datasetId, projection, assertCurrent() {}, reader: {
-    async read() { return { status: 'ok' as const, parserVersion: 'music-metadata-11.15.0/mbrs003-v2' as const, fields: { title: '合成原始字节' },
+    async read() { return { status: 'ok' as const, parserVersion: 'music-metadata-11.15.0/mbrs003-v3' as const, fields: { title: '合成原始字节' },
       technical: { container: 'WAVE' as const, codec: 'PCM', lossless: true, sampleRateHz: 48000, channels: 2, bitsPerSample: 16, durationSeconds: 1, evidence: 'bounded-parser-reported' as const }, coverEvidence: [],
       readEvidence: { bytesRead: 4, readCalls: 1, maxReadBytes: 4, allocationBytes: 4, elapsedMs: 1, wholeAudioHash: false as const, wholeAudioDecode: false as const } }; }, async close() {} } });
   t.after(async () => { await scanner.close(); admission.close(); }); const job = scanner.start({ commandId: randomUUID(), libraryRootId: root.id, expectedRootRevision: root.revision }); await scanner.privateWait(job.jobId);

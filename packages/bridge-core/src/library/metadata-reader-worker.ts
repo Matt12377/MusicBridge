@@ -284,10 +284,10 @@ async function run(): Promise<MetadataReadResult> {
     if (data.byteLength > budget.coverBytes || coverTotal > budget.coverBytes) fail('BUDGET_EXCEEDED');
     const png = data.length >= 8 && [137,80,78,71,13,10,26,10].every((n,i) => data[i] === n);
     const jpeg = data.length >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
-    if (!png && !jpeg) fail('UNSUPPORTED');
+    if (!png && !jpeg) continue;
     coverEvidence.push({ mime: png ? 'image/png' : 'image/jpeg', bytes: data.byteLength, sha256: createHash('sha256').update(data).digest('hex'), evidence: 'encoded-bytes-magic-and-digest' });
   }
-  checkTime(); phase = 'complete'; return { status: 'ok', parserVersion: 'music-metadata-11.15.0/mbrs003-v2', fields, technical, coverEvidence, readEvidence: evidence() };
+  checkTime(); phase = 'complete'; return { status: 'ok', parserVersion: 'music-metadata-11.15.0/mbrs003-v3', fields, technical, coverEvidence, readEvidence: evidence() };
 }
 const publish = (result: MetadataReadResult): void => { parentPort!.postMessage({ kind: 'metadata-result', result, phase } satisfies MetadataWorkerResultMessage); };
 try { publish(await run()); }
