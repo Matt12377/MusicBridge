@@ -47,41 +47,46 @@ jobs:
         with:
           node-version: 22.x
 
+      - name: CI报告元数据精确身份与原软件复用准入
+        id: ci-metadata
+        run: node scripts/ci/ci-report-metadata-admission.mjs --workflow-guard
+
       - name: CI修复精确身份与原软件复用准入
         id: ci-repair
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165'
         run: node scripts/ci/ci-report-mirror-admission.mjs --workflow-guard
 
       - name: 复用165已封存产品软件证据
-        if: steps.ci-repair.outputs.repairMode == 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode == 'reuse-s165' || steps.ci-repair.outputs.repairMode == 'reuse-s165'
         run: echo 'REUSED_S165=true；产品与Worker编译、Rust Host、Electron下载/安装、App与原E2E均为SKIPPED_REUSED_S165。'
 
       - name: Prepare source-pinned build workspace mirror
         run: node scripts/ci/prepare-build-workspace-mirror.mjs --source "$GITHUB_WORKSPACE" --destination "$RUNNER_TEMP/musicbridge-electron/workspace" --expected-head "${{ github.sha }}"
 
       - name: Install frozen workspace
-        if: steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: corepack pnpm@10.17.1 install --frozen-lockfile --ignore-scripts
 
       - name: Prepare fresh Core fixed Worker before existing Electron gates
-        if: steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build
 
       - name: Prepare Rust toolchain
-        if: steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
 
       - name: Build and verify both Rust hosts once in this job
-        if: steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node scripts/ci/prepare-rust-electron-hosts.mjs
         env:
           RUSTUP_TOOLCHAIN: '1.95.0'
 
       - name: Install Electron binary from locked tree (official installer only)
-        if: steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         run: |
           for attempt in 1 2 3; do
             if node node_modules/electron/install.js; then
@@ -97,12 +102,12 @@ jobs:
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}/apps/desktop
 
       - name: Verify official Electron archive and actual execution tree
-        if: steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node apps/desktop/scripts/prepare-electron-identity.mjs
 
       - name: Electron startup, crash/restart, safeStorage vault and credential recovery gates
-        if: steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: |
@@ -112,7 +117,7 @@ jobs:
           corepack pnpm@10.17.1 --filter @music-bridge/desktop run test:electron 2>&1 | tee "$RUNNER_TEMP/musicbridge-electron/electron-gates.log"
 
       - name: Electron end-to-end flow (Playwright, production build)
-        if: steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: |
@@ -122,7 +127,7 @@ jobs:
       # 仅从本次成功移交收据选择已声明产物；不扫描宿主根或依赖链接。
       - name: Select declared synthetic Rust Host artifacts
         id: rust-host-artifacts
-        if: ${{ always() && steps.ci-repair.outputs.repairMode != 'reuse-s165' && env.MUSIC_BRIDGE_RUST_HOSTS_RECEIPT != '' }}
+        if: ${{ steps.ci-metadata.outputs.repairMode != 'reuse-s165' && always() && steps.ci-repair.outputs.repairMode != 'reuse-s165' && env.MUSIC_BRIDGE_RUST_HOSTS_RECEIPT != '' }}
         shell: bash
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: |
@@ -156,7 +161,7 @@ jobs:
           NODE
 
       - name: Preserve declared synthetic Rust Host compiled artifacts
-        if: ${{ always() && steps.ci-repair.outputs.repairMode != 'reuse-s165' && steps.rust-host-artifacts.outcome == 'success' }}
+        if: ${{ steps.ci-metadata.outputs.repairMode != 'reuse-s165' && always() && steps.ci-repair.outputs.repairMode != 'reuse-s165' && steps.rust-host-artifacts.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: rust-host-compiled-${{ github.sha }}
@@ -167,7 +172,7 @@ jobs:
           retention-days: 14
 
       - name: Preserve Electron logs and synthetic test artifacts
-        if: always() && steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && always() && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         uses: actions/upload-artifact@v4
         with:
           name: electron-e2e-${{ github.sha }}

@@ -58,11 +58,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22.x
+      - name: CI报告元数据精确身份与原软件复用准入
+        id: ci-metadata
+        run: node scripts/ci/ci-report-metadata-admission.mjs --workflow-guard
       - name: CI修复精确身份与原软件复用准入
         id: ci-repair
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165'
         run: node scripts/ci/ci-report-mirror-admission.mjs --workflow-guard
       - name: 复用165已封存产品软件证据
-        if: steps.ci-repair.outputs.repairMode == 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode == 'reuse-s165' || steps.ci-repair.outputs.repairMode == 'reuse-s165'
         run: echo 'REUSED_S165=true；Rust工具链、依赖安装、编译及TS/Rust产品Gate均为SKIPPED_REUSED_S165。'
       - name: 准备真实hosted专用构建根
         shell: bash
@@ -77,16 +81,16 @@ jobs:
           printf 'TMPDIR=%s\nDEV_CACHE_ROOT=%s\nMUSIC_BRIDGE_RUST_GATE_DIR=%s\n' "$RUNNER_TEMP/musicbridge-rust-core/tmp" "$RUNNER_TEMP/musicbridge-rust-core/cache" "$RUNNER_TEMP/musicbridge-rust-core" >> "$GITHUB_ENV"
           printf 'COREPACK_HOME=%s\nnpm_config_cache=%s\nELECTRON_CACHE=%s\nelectron_config_cache=%s\nXDG_CACHE_HOME=%s\n' "$RUNNER_TEMP/musicbridge-rust-core/cache/corepack" "$RUNNER_TEMP/musicbridge-rust-core/cache/npm" "$RUNNER_TEMP/musicbridge-rust-core/cache/Electron" "$RUNNER_TEMP/musicbridge-rust-core/cache/Electron" "$RUNNER_TEMP/musicbridge-rust-core/cache" >> "$GITHUB_ENV"
       - name: 安装固定 Rust 工具链
-        if: steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         run: rustup toolchain install 1.95.0 --profile minimal --component rustfmt --component clippy
       - name: 安装冻结工作区依赖
-        if: steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         run: corepack pnpm@10.17.1 install --frozen-lockfile --ignore-scripts
       - name: 验证实际 Rust 与 TypeScript 边界
-        if: steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         run: corepack pnpm@10.17.1 run verify:rust
       - name: 保留编译器、测试及源码与二进制清单
-        if: always() && steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && always() && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         uses: actions/upload-artifact@v4
         with:
           name: rust-core-${{ matrix.os }}-${{ github.sha }}

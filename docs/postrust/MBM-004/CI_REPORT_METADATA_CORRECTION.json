@@ -1,0 +1,184 @@
+{
+  "schema": "musicbridge.ci-report-metadata.correction.v1",
+  "task": "CI-REPORT-METADATA-001",
+  "branch": "codex/ci-report-metadata-001",
+  "baseSha": "1b5345d13d9617c1770a361841d805305d06d038",
+  "historicalSource": "d3d86c6db8d27485d2d763b81cd5e8925ee15af6",
+  "historicalBaseReport": "aebf9464dc080d1242c379db183f4424e62f0b40",
+  "productSource": "16507120ab52d4843012e6888ad521138d8336d6",
+  "predecessorSource": "78184e7849cc3b10191ea64af29ba8bc23162b0a",
+  "foundation": "479e746bb7106a4dac158fe616290220de03a53a",
+  "scope": "docs/postrust/MBM-004/CI_REPORT_METADATA_SCOPE.json",
+  "repairKind": "MACHINE_STATUS_PUBLIC_CI_IDENTITY_PROJECTION_ONLY",
+  "failure": {
+    "reportSha": "1b5345d13d9617c1770a361841d805305d06d038",
+    "preserved": true,
+    "reason": "status-secret-or-url",
+    "credentialPatternsMatched": false,
+    "publicAvatarQueryMatches": 16,
+    "publicNotificationsTemplateMatches": 8,
+    "security": {
+      "runId": 38123254259,
+      "jobId": 114422188105,
+      "stepName": "Validate machine control state",
+      "stepNumber": 7
+    },
+    "verify": {
+      "runId": 38123254269,
+      "jobId": 114422188221,
+      "stepName": "Validate control plane",
+      "stepNumber": 12
+    },
+    "audit": {
+      "jobId": 114422188379,
+      "conclusion": "success"
+    },
+    "runAttempt": 1,
+    "event": "push",
+    "toolGateRan": false,
+    "toolArtifacts": 0,
+    "receipt": {
+      "bytes": 59029,
+      "sha256": "0709e8be16c710a34ada34bd58148c7785f46e48336478ee22fc7af3146799ee"
+    },
+    "diagnosis": {
+      "bytes": 7685,
+      "sha256": "933a6a5ec138867f119fa0044f87addb179a63621251b0992d4b6a43bc0abd27"
+    }
+  },
+  "historicalSourceCi": {
+    "path": "docs/postrust/MBM-004/CI_EVIDENCE.json",
+    "jsonPointer": "/ciRepair/sourceCi",
+    "raw": {
+      "bytes": 334184,
+      "sha256": "fde4519142d448881701ea8c16009b2d3498917e4f322c518209bfe236aa786d"
+    },
+    "canonical": {
+      "bytes": 259414,
+      "sha256": "d0c0e67153992239d2b277751c090178db5fbae7780366f4a81e5d767e70f9c4"
+    },
+    "toolTests": 193,
+    "workflows": 4,
+    "jobs": 6,
+    "artifacts": 1,
+    "runIds": [
+      38122949220,
+      38122949289,
+      38122949203,
+      38122949223
+    ],
+    "jobIds": [
+      114421266400,
+      114421266547,
+      114421266621,
+      114421266399,
+      114421266311,
+      114421266343
+    ]
+  },
+  "frozenHistory": [
+    {
+      "path": "docs/postrust/MBM-004/CI_CORRECTION.json",
+      "bytes": 2751,
+      "sha256": "54f433e6a766cd52de98cc3c52780a71e179f669544f16488e31165e6f65d6bf"
+    },
+    {
+      "path": "docs/postrust/MBM-004/CI_CORRECTION_SCOPE.json",
+      "bytes": 4599,
+      "sha256": "fda50be2ca457dd601335bd56553c6a3ac4dadc12a40007154d26d9704074702"
+    },
+    {
+      "path": "scripts/ci/ci-report-mirror-admission.mjs",
+      "bytes": 51638,
+      "sha256": "e668fcfa9211073f7562814c9197399d817fddb7a6cfc2b80e95deff393782bb"
+    },
+    {
+      "path": "scripts/ci/verify-ci-report-mirror.mjs",
+      "bytes": 29505,
+      "sha256": "619d477242dd4b6c13045b91819dbebad151e43b829f6184f74cd98d3d87c070"
+    },
+    {
+      "path": "scripts/ci/test/ci-report-mirror.test.mjs",
+      "bytes": 41456,
+      "sha256": "939b3d01deb39acebb4c6a3d20da927193cdb382548c81949e2c3cbced2da9d7"
+    },
+    {
+      "path": "scripts/ci/verify-control-plane.mjs",
+      "bytes": 7033,
+      "sha256": "c2f4f6c2d3dd077be39fe6157114af7d8957ff271323a7c9d46aecc4092aa784"
+    }
+  ],
+  "historicalObjects": [
+    "cfa0456de984c6cf37a1cbb69300ae9a9ee97d7f",
+    "99c89519f3357f4018b32930e8179b66719f99e7"
+  ],
+  "softwareReuse": {
+    "source": "16507120ab52d4843012e6888ad521138d8336d6",
+    "mode": "EXACT_BYTES_AND_ORIGINAL_PRODUCERS",
+    "productTestsRepeated": false,
+    "compiledAppStatus": "SKIPPED_REUSED_S165"
+  },
+  "oldScope": {
+    "path": "docs/postrust/MBM-004/EXECUTION_SCOPE.json",
+    "bytes": 26899,
+    "sha256": "7158eb8b33ed58de8a7c9f9ad3456fb372c65ebcc0f9fa7e0a491a248cc2a54d"
+  },
+  "oldCorrection": {
+    "path": "docs/postrust/MBM-004/SOURCE_CORRECTION.json",
+    "bytes": 4010,
+    "sha256": "4c7da837a75ded9bcb164ca8c1c33a48bef69577cdae1fe11c5d0512a0521a5c"
+  },
+  "oldLocal": {
+    "path": "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json",
+    "bytes": 1204380,
+    "sha256": "3b0bcfd27f2dff84937f7c776d94c55372eff6faff7c8b191befe7a45fbf6f1c"
+  },
+  "ledger": {
+    "originalTasks": 18,
+    "originalAcceptanceCases": 156,
+    "effectiveTasks": 17,
+    "effectiveAcceptanceCases": 150,
+    "cancelledTask": "MBRS-015",
+    "cancelledCases": 6,
+    "cancellation": "N_A"
+  },
+  "canonicalEncoding": "RECURSIVE_SORTED_KEYS_ARRAY_ORDER_COMPACT_JSON_STRINGIFY_UTF8",
+  "budgets": {
+    "toolStageMs": 90000,
+    "toolWholeMs": 180000,
+    "productStageMs": 180000,
+    "productWholeMs": 480000,
+    "ownerMs": 2000
+  },
+  "sourceCi": {
+    "workflows": 4,
+    "jobs": 6,
+    "artifacts": 1
+  },
+  "reportCi": {
+    "workflows": 2,
+    "jobs": 3,
+    "artifacts": 1
+  },
+  "toolGate": {
+    "stages": [
+      "original-173",
+      "control-plane",
+      "metadata-safety"
+    ],
+    "originalTests": 173,
+    "safetyTests": 16,
+    "totalTapTests": 189
+  },
+  "reportPaths": [
+    "reports/MBM-004_RESULT.md",
+    "reports/MBM-004_RESULT.json",
+    "docs/postrust/MBM-004/CI_EVIDENCE.json",
+    "docs/postrust/MBM-004/STATUS.json",
+    "project/STATUS.json",
+    "project/POSTRUST_PLAN.json",
+    "project/POSTRUST_TODO.md",
+    "project/POSTRUST_PROGRESS.md"
+  ],
+  "realEvidence": "NOT_RUN"
+}

@@ -1,0 +1,151 @@
+{
+  "schema": "musicbridge.ci-report-metadata.execution-scope.v1",
+  "task": "CI-REPORT-METADATA-001",
+  "branch": "codex/ci-report-metadata-001",
+  "baseSha": "1b5345d13d9617c1770a361841d805305d06d038",
+  "productSource": "16507120ab52d4843012e6888ad521138d8336d6",
+  "correction": "docs/postrust/MBM-004/CI_REPORT_METADATA_CORRECTION.json",
+  "frozen": true,
+  "reportPaths": [
+    "reports/MBM-004_RESULT.md",
+    "reports/MBM-004_RESULT.json",
+    "docs/postrust/MBM-004/CI_EVIDENCE.json",
+    "docs/postrust/MBM-004/STATUS.json",
+    "project/STATUS.json",
+    "project/POSTRUST_PLAN.json",
+    "project/POSTRUST_TODO.md",
+    "project/POSTRUST_PROGRESS.md"
+  ],
+  "files": [
+    {
+      "path": "tasks/CI-REPORT-METADATA-001.md",
+      "status": "A",
+      "role": "task",
+      "oldMode": "000000",
+      "newMode": "100644",
+      "oldBlob": "0000000000000000000000000000000000000000",
+      "bytes": 4783,
+      "sha256": "f1566139b1424f8390aa27415af03b1bf622f11677d3cf48cd69b12dc5d36570"
+    },
+    {
+      "path": "docs/postrust/MBM-004/CI_REPORT_METADATA_CORRECTION.json",
+      "status": "A",
+      "role": "authority",
+      "oldMode": "000000",
+      "newMode": "100644",
+      "oldBlob": "0000000000000000000000000000000000000000",
+      "bytes": 5475,
+      "sha256": "d046e9688714ac14bc5b24d1cee776225963c15a0ad2a41084416ac7227f1eb5"
+    },
+    {
+      "path": "docs/postrust/MBM-004/CI_REPORT_METADATA_SCOPE.json",
+      "status": "A",
+      "role": "authority",
+      "oldMode": "000000",
+      "newMode": "100644",
+      "oldBlob": "0000000000000000000000000000000000000000",
+      "bytes": 4986,
+      "sha256": null
+    },
+    {
+      "path": "scripts/ci/ci-report-metadata-admission.mjs",
+      "status": "A",
+      "role": "ci-tool",
+      "oldMode": "000000",
+      "newMode": "100644",
+      "oldBlob": "0000000000000000000000000000000000000000",
+      "bytes": 77093,
+      "sha256": "ac8a251bd1ded6517bca5ff4ca0e92fabf46a71d741967783c7c7964ea9453b3"
+    },
+    {
+      "path": "scripts/ci/verify-ci-report-metadata.mjs",
+      "status": "A",
+      "role": "ci-tool",
+      "oldMode": "000000",
+      "newMode": "100644",
+      "oldBlob": "0000000000000000000000000000000000000000",
+      "bytes": 18870,
+      "sha256": "0475f3fac8c0137e27d5b2d80dc369afa4c77a888401527125c19ec3c13fc459"
+    },
+    {
+      "path": "scripts/ci/test/ci-report-metadata.test.mjs",
+      "status": "A",
+      "role": "tool-test",
+      "oldMode": "000000",
+      "newMode": "100644",
+      "oldBlob": "0000000000000000000000000000000000000000",
+      "bytes": 57841,
+      "sha256": "fd9f81569142df60ad08cda649779da7c81e355e5d12d58fe7ea6efd94383612"
+    },
+    {
+      "path": "scripts/ci/task-applicability.mjs",
+      "status": "M",
+      "role": "ci-routing",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "8e97557b2b5c2eedec4c062b26a8e90e4bafdbbd",
+      "bytes": 7495,
+      "sha256": "d4a0835101911c833bf1b4372292b43f54fca2a68e6a6bf4e90aaa8bce0db28e"
+    },
+    {
+      "path": "scripts/ci/report-only-admission.mjs",
+      "status": "M",
+      "role": "ci-routing",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "9abd252db4560daaca039a9e5f7ab07a0f5f614e",
+      "bytes": 29411,
+      "sha256": "b9b6dc7755caabfa69e11d349be33ec589de9edb93bffac275e661e88c7f4c12"
+    },
+    {
+      "path": ".github/workflows/verify.yml",
+      "status": "M",
+      "role": "workflow",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "56b1c42e1fae7ff5f09edebe1d0a302fdad11f00",
+      "bytes": 24686,
+      "sha256": "b26ccbaac9c6669a7ccf2c742fc1857bbb8d6e88ef8ed23fb86ba2ca46b7de67"
+    },
+    {
+      "path": ".github/workflows/security.yml",
+      "status": "M",
+      "role": "workflow",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "ca19ad58e8285395e19b1f57c5327912e183dfe0",
+      "bytes": 1895,
+      "sha256": "e643e3e7e3af84045e9dbfa9cd0dc364e0f8ce53b0498a7777afc7c1f0aefe41"
+    },
+    {
+      "path": ".github/workflows/rust-core.yml",
+      "status": "M",
+      "role": "workflow",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "9b76f9588e62d169d6468527a06565df52a4863b",
+      "bytes": 4193,
+      "sha256": "c54547680db2db7acf33870ff556ca96754089306dcd25645568eb8259e36c65"
+    },
+    {
+      "path": ".github/workflows/electron-e2e.yml",
+      "status": "M",
+      "role": "workflow",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "666a0664915582bc9492a8af93e9c097a7e89cb4",
+      "bytes": 9997,
+      "sha256": "7a172406b41b6be8b3f564edb9d2b4dfd178304c2db491bb6729e0c7ef6ce69d"
+    },
+    {
+      "path": "project/STATUS.json",
+      "status": "M",
+      "role": "machine-status-projection",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "d43c0eeb212d23baf270a7775bec544a5a7d3fb2",
+      "bytes": 2651788,
+      "sha256": "2d0bea39a008809ec3e92321c139bbaa8d73031daa4de65cd0b7ddb513c1e69c"
+    }
+  ]
+}
