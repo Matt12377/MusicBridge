@@ -54,8 +54,9 @@ interface OperationContext {
   models: Map<string, dto.CollectionModelLengths>;
   historicWants: Map<string, dto.WantEntry>;
   historicMatchFacts: Map<string, string>;
+  snapshotProofs: Set<string>;
 }
-const context = (db: DatabaseSync): OperationContext => ({ db, revisions: new Map(), heads: new Map(), modelRevisions: new Map(), models: new Map(), historicWants: new Map(), historicMatchFacts: new Map() });
+const context = (db: DatabaseSync): OperationContext => ({ db, revisions: new Map(), heads: new Map(), modelRevisions: new Map(), models: new Map(), historicWants: new Map(), historicMatchFacts: new Map(), snapshotProofs: new Set() });
 const BATCH_IDS = 400; // 双参数UNION和(id,version)也保持在800个绑定参数内。
 function chunks<T>(values: readonly T[]): T[][] { const result: T[][] = []; for (let offset = 0; offset < values.length; offset += BATCH_IDS) result.push(values.slice(offset, offset + BATCH_IDS)); return result; }
 const placeholders = (count: number) => Array.from({ length: count }, () => '?').join(',');
@@ -177,8 +178,14 @@ function storedSnapshot(operation: OperationContext, id: string): StoredSnapshot
     const v = value as StoredSnapshot; return Object.keys(v).sort().join(',') === 'entries,snapshot,wantVersions' && dto.isCollectionProgressSnapshot({ ...v.snapshot, entries: v.entries }) && Array.isArray(v.entries) && Array.isArray(v.wantVersions) && v.wantVersions.every(want => want && dto.isCollectionId(want.id) && Number.isSafeInteger(want.version) && want.version > 0);
   });
   const summary = stored.snapshot, catalog = revision(operation, summary.revisionId);
-  if (summary.id !== row.id || summary.revisionId !== row.revision_id || summary.matchVersion !== row.match_version || summary.bookId !== catalog.bookId || summary.catalogSequence !== catalog.sequence || !same(aggregate(stored.entries), { overall: summary.overall, brands: summary.brands, series: summary.series }) || !same(stored.entries.map(entry => entry.referenceId), catalog.items.map(item => item.referenceId))) return corrupt();
+  if (summary.id !== row.id || summary.revisionId !== row.revision_id || summary.matchVersion !== row.match_version || summary.bookId !== catalog.bookId || summary.catalogSequence !== catalog.sequence) return corrupt();
   const wants = historicalWants(operation, stored.wantVersions);
+  const { id: ignoredId, createdAt: ignoredAt, fingerprint: expected, ...body } = summary;
+  const actualFingerprint = fingerprint({ ...body, entries: stored.entries, wants });
+  if (actualFingerprint !== expected) return corrupt();
+  // 只接受本操作已完整证明的实际正文；每个候选仍先校验原DTO、行身份、历史目标与重算指纹。
+  if (operation.snapshotProofs.has(actualFingerprint)) return stored;
+  if (!same(aggregate(stored.entries), { overall: summary.overall, brands: summary.brands, series: summary.series }) || !same(stored.entries.map(entry => entry.referenceId), catalog.items.map(item => item.referenceId))) return corrupt();
   if (new Set(wants.map(want => want.id)).size !== wants.length || wants.some(want => !want.active || want.bookId !== catalog.bookId) || !same(wants.map(want => want.id), wants.map(want => want.id).sort()) || summary.historicalWantedCount !== wants.filter(want => want.revisionId !== catalog.id).length) return corrupt();
   const wanted = wantTargets(wants, catalog.id);
   loadModels(operation, stored.entries.flatMap(entry => entry.matches.flatMap(match => match.modelId ? [match.modelId] : [])));
@@ -194,10 +201,9 @@ function storedSnapshot(operation: OperationContext, id: string): StoredSnapshot
     historicMatches = canonical(parse(historicMatch.data, dto.isCatalogSnapshot).entries.flatMap(entry => entry.matches));
   }
   if (historicMatches !== canonical(stored.entries.flatMap(entry => entry.matches))) return corrupt();
-  const { id: ignoredId, createdAt: ignoredAt, fingerprint: expected, ...body } = summary;
-  if (fingerprint({ ...body, entries: stored.entries, wants }) !== expected) return corrupt();
-  // 首份候选完整核验后仅复用本操作的历史匹配事实；每份候选仍独立核验正文与指纹。
+  // 首份候选完整核验后才记证明；数量受原快照容量约束，下一次读取或另一连接重新证明。
   if (cachedHistoricMatches === undefined) operation.historicMatchFacts.set(historicKey, historicMatches);
+  if (operation.snapshotProofs.size < COLLECTION_PROGRESS_LIMITS.snapshots) operation.snapshotProofs.add(actualFingerprint);
   return stored;
 }
 
@@ -278,8 +284,10 @@ export function createCollectionProgressStore(options: { read<T>(operation: (db:
         if (request.revisionId) { clauses.push('revision_id=?'); params.push(request.revisionId); }
         if (request.bookId) { clauses.push("json_extract(data,'$.snapshot.bookId')=?"); params.push(request.bookId); }
         const where = clauses.length ? ' WHERE ' + clauses.join(' AND ') : '';
-        const total = Number(db.prepare('SELECT count(*) n FROM collection_progress_snapshots' + where).get(...params)?.n);
-        const rows = db.prepare('SELECT id FROM collection_progress_snapshots' + where + ' ORDER BY rowid DESC LIMIT ? OFFSET ?').all(...params, request.page.limit, request.page.offset);
+        // read先检查原5000快照容量；同一WHERE只扫描一次有界ID，完整正文仍仅读取候选及首个溢出项。
+        const allRows = db.prepare('SELECT id FROM collection_progress_snapshots' + where + ' ORDER BY rowid DESC').all(...params);
+        if (allRows.length > COLLECTION_PROGRESS_LIMITS.snapshots) throw new ProgressCapacityError();
+        const total = allRows.length, rows = allRows.slice(request.page.offset, request.page.offset + request.page.limit);
         const items: dto.CollectionProgressSnapshotSummary[] = [];
         let itemBytes = 0;
         // 每个完整摘要只计一次UTF-8字节；空数组信封保留数字、布尔值和标点的真实开销。

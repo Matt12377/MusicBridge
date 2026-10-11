@@ -761,7 +761,7 @@ test('Settings 可手动刷新已连接 Core 的 Zone 列表', async () => {
   await expect(roonPane.getByRole('definition').filter({ hasText: /^尚未选择播放设备$/ })).toBeVisible()
 })
 
-test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', async () => {
+test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', async ({}, testInfo) => {
   const crashEnvironment: NodeJS.ProcessEnv = {
     ...process.env,
     MUSIC_BRIDGE_UI_E2E: '1',
@@ -774,11 +774,19 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
   )
   crashEnvironment.MUSIC_BRIDGE_STARTUP_USER_DATA_DIR = crashUserDataDirectory
   delete crashEnvironment.NETEASE_COOKIE
-  // 探针仅核Core生命周期；提前spawn并立即捕获输出，末尾仍等真实stdio关闭。
+  const crashCaptureDirectory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-task036-crash-capture-'))
+  // 探针仅核Core生命周期；提前spawn并私有捕获完整输出，末尾仍等真实stdio关闭。
   const crashFlight = runStartupProcess(require('electron') as string, testElectronArguments([electronEntry]), {
-    cwd: desktopRoot, env: crashEnvironment, expectedMarker: 'CORE_CRASH_GATE_PASS',
+    cwd: desktopRoot, env: crashEnvironment, expectedMarker: 'CORE_CRASH_GATE_PASS', rawCaptureDirectory: crashCaptureDirectory,
   })
-  crashProbeCleanup = crashFlight
+  // UI主体先失败也要等探针关闭并附上原输出；不把exit代替stdio close。
+  crashProbeCleanup = crashFlight.then(async result => {
+    for (const name of ['stdout.log', 'stderr.log', 'capture.json']) {
+      const file = path.join(crashCaptureDirectory, name)
+      if (await stat(file).then(() => true, () => false)) await testInfo.attach('synthetic-core-crash-' + name, { path: file, contentType: name.endsWith('.json') ? 'application/json' : 'text/plain' })
+    }
+    return result
+  })
   expect(await electronApp.evaluate(({ app }) => app.getName())).toBe('Music Bridge for Roon')
   await expect(page.getByRole('navigation', { name: '音乐来源' })).toBeVisible()
   await expect(page.getByRole('button', { name: '查看连接状态' })).toHaveCount(0)
@@ -962,7 +970,7 @@ test('v5 Home、设置 Footer、Settings、每日推荐和 Renderer isolation', 
   expect(await page.evaluate(() => ({ process: typeof (globalThis as { process?: unknown }).process, require: typeof (globalThis as { require?: unknown }).require }))).toEqual({ process: 'undefined', require: 'undefined' })
   expect(await page.evaluate(() => window.open('https://example.invalid'))).toBeNull()
 
-  const crashResult = await crashFlight
+  const crashResult = await crashProbeCleanup
   expect(crashResult, '双崩溃只重启一次且须成功关闭；测试目录保留为证据').toMatchObject({
     failure: null, markerSeen: true, closed: true, code: 0, signal: null,
   })

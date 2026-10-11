@@ -9,6 +9,8 @@ import { buildStoragePolicy } from '../../../apps/desktop/scripts/build-storage-
 import {
   V39_INTEGRATION_TASK as task, V39_INTEGRATION_BRANCH as branch, V39_INTEGRATION_BASE as base,
   V39_INTEGRATION_SOURCE_PARENT as sourceParent,V39_INTEGRATION_SOURCE_DELTA_FILES as deltaFiles,
+  V39_INTEGRATION_FAILED_SOURCE1 as failedSource1,V39_INTEGRATION_FAILED_SOURCE2 as failedSource2,
+  V39_INTEGRATION_FAILED_SOURCE2_PINS as source2Pins,
   V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY as correction,V39_INTEGRATION_SOURCE_CORRECTION_REF as correctionRef,
   V39_INTEGRATION_SCOPE_PATH as scopePath,V39_INTEGRATION_STATUS_PATH as statusPath,
   V39_INTEGRATION_CI_EVIDENCE_PATH as evidencePath, V39_INTEGRATION_DONOR_PATH as donorPath,
@@ -107,23 +109,19 @@ function fixture(t){
     checkout(sourceParent);
     const current=command(repository,['rev-list','--parents','-n','1','HEAD']).split(' ');
     assert.equal(current.length,2);
-    const immutableSource=current[0]===sourceParent?null:current[1]===sourceParent?current[0]:current[1];
-    if(immutableSource)assert.equal(command(repository,['rev-list','--parents','-n','1',immutableSource]).split(' ')[1],sourceParent);
+    assert.notEqual(current[0],sourceParent,'未提交Source3不能从dirty WIP构造准入正例');
+    assert.equal(command(repository,['status','--porcelain=v1','--untracked-files=all']),'');
+    const immutableSource=current[1]===sourceParent?current[0]:current[1];
+    assert.deepEqual(command(repository,['rev-list','--parents','-n','1',immutableSource]).split(' '),[immutableSource,sourceParent]);
     for(const relative of sourcePaths){
       const filename=path.join(directory,relative);mkdirSync(path.dirname(filename),{recursive:true,mode:0o700});
-      const raw=immutableSource?command(repository,['show',immutableSource+':'+relative],{binary:true}):readFileSync(path.join(repository,relative));
+      const raw=command(repository,['show',immutableSource+':'+relative],{binary:true});
       writeFileSync(filename,raw,{mode:0o644});chmodSync(filename,0o644);
     }
-    // 失败Source的30个非修复叶直接继承；只能在本fixture十条闭集中补齐当前开发态。
+    // 只消费实际已提交Source3；32个历史叶原样继承，不能以fixture空白补造21条修复。
     jsonEdit('docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json',value=>{value.sourceCorrection=copy(correction);});
-    for(const row of deltaFiles){
-      if(row.path===scopePath||row.path==='docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json')continue;
-      const filename=path.join(directory,row.path);
-      if(blob(readFileSync(filename))===row.before.blob){
-        assert.notEqual(row.path,'packages/bridge-core/test/rust-core-owner-lifecycle.test.ts','case5必须已有真实修复，不能用空白伪造');
-        appendFileSync(filename,row.path.endsWith('.mjs')?'\n// 受控fixture直接修复叶；不代表产品Source。\n':'\n受控fixture直接修复叶；不代表产品Source。\n');
-      }
-    }
+    for(const row of deltaFiles)if(row.path!==scopePath)
+      assert.notEqual(blob(readFileSync(path.join(directory,row.path))),row.before.blob,'本轮直接修复叶必须来自实际Source3：'+row.path);
     freezeScope();
     syntheticSource=commitWorking(sourcePaths);sourceTree=command(directory,['rev-parse','HEAD^{tree}']);
     assert.equal(command(directory,['rev-parse','--path-format=absolute','--git-common-dir']),path.join(directory,'.git'));
@@ -150,11 +148,16 @@ function encode(value){return Buffer.from(JSON.stringify(value,null,2)+'\n');}
 
 test(admissionNames[0],t=>{
   const f=fixture(t),result=inspectV39IntegrationAdmission(f.directory,environment);
-  assert.equal(result.sourceSha,f.source);assert.equal(result.sourceParentSha,sourceParent);assert.equal(result.exactSourceFiles,40);assert.equal(result.exactSourceDeltaFiles,10);
-  assert.equal(result.failedSource1Preserved,true);assert.deepEqual(result.sourceCorrection,correction);
+  assert.equal(result.sourceSha,f.source);assert.equal(result.sourceParentSha,sourceParent);assert.equal(result.exactSourceFiles,52);assert.equal(result.exactSourceDeltaFiles,20);
+  assert.equal(result.failedSource1Preserved,true);assert.equal(result.failedSource2Preserved,true);assert.deepEqual(result.sourceCorrection,correction);
   assert.equal(result.sourceCorrectionSha256,correctionRef.canonical.sha256);
   assert.equal(result.exactReportFiles,0);assert.equal(result.sealedBaselinePreserved,true);assert.equal(result.offlineTapeDonorVerified,true);
   assert.equal(result.currentProductSoftwareRequired,true);assert.deepEqual(result.sourcePins,sourcePaths.map(pin));
+  const untouched=source2Pins.filter(row=>!deltaFiles.some(delta=>delta.path===row.path));assert.equal(untouched.length,32);
+  assert.deepEqual(result.sourcePins.filter(row=>untouched.some(old=>old.path===row.path)),untouched);
+  assert.equal(correction.generation,3);assert.equal(correction.failedSource1.sha,failedSource1);assert.equal(correction.failedSource2.sha,failedSource2);
+  assert.equal(correction.failedSource2.parentSha,failedSource1);
+  assert.deepEqual(v39IntegrationCanonicalPin(correction.failedSource2.originalCorrection),correction.failedSource2.originalCorrectionCanonical);
   const output=v39IntegrationWorkflowOutputs(result);assert.equal(output.integrationMode,'qualified');
   assert.equal(output.integrationRole,'source');assert.equal(output.productVerificationMode,'fresh-source');
   assert.equal(command(directory,['rev-list','--parents','-n','1',f.source]),f.source+' '+sourceParent);
@@ -170,7 +173,10 @@ test(admissionNames[2],t=>{
   fixture(t);
   const merged=commitTree(directory,sourceTree,[sourceParent,'0dffccb0b351e994ee19e0840e12f88481956c6f'],'受控Fake多父Source');
   checkout(merged);assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
-  checkout(sourceParent);assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),error=>error.code==='V39_INTEGRATION_FAILED_SOURCE1_CANNOT_QUALIFY');
+  for(const [old,code]of [[failedSource1,'V39_INTEGRATION_FAILED_SOURCE1_CANNOT_QUALIFY'],
+    [failedSource2,'V39_INTEGRATION_FAILED_SOURCE2_CANNOT_QUALIFY']]){
+    checkout(old);assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),error=>error.code===code);
+  }
   checkout(commitTree(directory,sourceTree,[base],'受控Fake错误累计基线直父'));
   assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
   checkout(commitTree(directory,sourceTree,[syntheticSource],'受控Fake任意中间父'));
@@ -180,7 +186,7 @@ test(admissionNames[2],t=>{
   fixture(t);assert.throws(()=>inspectV39IntegrationAdmission(directory,{...hosted(syntheticSource),GITHUB_SHA:base}),rejected);
 });
 test(admissionNames[3],t=>{
-  fixture(t);writeFileSync(path.join(directory,'v39-outside-scope.txt'),'受控Fake第41路径\n');
+  fixture(t);writeFileSync(path.join(directory,'v39-outside-scope.txt'),'受控Fake第54路径\n');
   commitWorking(['v39-outside-scope.txt']);assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
   fixture(t);command(directory,['rm','--','packages/contracts/src/reference-catalog.ts']);commitWorking([]);
   assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
@@ -211,6 +217,12 @@ test(admissionNames[5],t=>{
     value.sourceCorrection.source1FirstNaturalCi.failures[0].conclusion='success';
   });repin('docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json');
   assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
+  for(const mutate of [value=>{value.sourceCorrection.failedSource2.scope.sha256='f'.repeat(64);},
+    value=>{value.sourceCorrection.failedSource2.originalCorrectionCanonical.sha256='f'.repeat(64);}]){
+    fixture(t);jsonEdit('docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json',mutate);
+    repin('docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json');
+    assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
+  }
 });
 test(admissionNames[6],t=>{
   fixture(t);const before=numericTokens(readFileSync(path.join(directory,'project/STATUS.json'),'utf8')).get(protectedMtimePointer);

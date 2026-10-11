@@ -1930,7 +1930,7 @@ function createWindow(supervisor: CoreSupervisor): BrowserWindow {
 }
 
 function buildCoreEnvironment(): NodeJS.ProcessEnv {
-  return buildAllowlistedCoreEnvironment(process.env, {
+  const environment = buildAllowlistedCoreEnvironment(process.env, {
     startupTest: isStartupTest,
     uiE2e: isUiE2e,
     coreCrashGate: isCoreCrashGate || isCoreRestartCredentialRecoveryGate,
@@ -1942,6 +1942,14 @@ function buildCoreEnvironment(): NodeJS.ProcessEnv {
     ...(coreDataDirectory !== undefined ? { dataDirectory: coreDataDirectory } : {}),
     ...(remoteStreamPort !== undefined ? { remoteStreamPort } : {}),
   })
+  // arm 只由 Main 的真实双崩溃分支派生，原 Core allowlist 不继承父环境标志。
+  if (
+    isCoreCrashGate
+    && environment.NODE_ENV === 'test'
+    && environment.MUSIC_BRIDGE_CORE_TEST_MODE === '1'
+    && environment.MUSIC_BRIDGE_CORE_CRASH_PROBE === '1'
+  ) environment.MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED = '1'
+  return environment
 }
 
 function getRemoteCoreState(): RemoteCoreTunnelState {
@@ -2002,10 +2010,30 @@ function createCoreSupervisor(
     onReady?: (client: CoreStartupClient) => Promise<void> | void
     onEvent?: (event: TypedIpcEvent) => void
     onLifecycle?: (event: CoreSupervisorLifecycle) => void
+    onCrashGateArm?: (arm: () => boolean) => void
   } = {},
 ): CoreSupervisor {
   coreDataDirectory = dataDirectory
+  // callback仅由Main实际crash分支提供；普通factory不依赖新增外部标志。
+  const crashGateEnabled = typeof options.onCrashGateArm === 'function'
   let currentCollectionChild: CoreChildProcess | undefined, boundCollectionChild: CoreChildProcess | undefined
+  let readyCrashChild: CoreChildProcess | undefined, crashGateEntered = false
+  const armedCrashChildren = new WeakSet<CoreChildProcess>()
+  const armCurrentCrashChild = (): boolean => {
+    const child = currentCollectionChild
+    if (!crashGateEnabled || !child || readyCrashChild !== child || armedCrashChildren.has(child)) return false
+    try {
+      // 只走本次真实 Utility 的私有父连接；不增加 Renderer 或公共 Core 方法。
+      child.postMessage({ type: 'musicbridge.core.crash-probe-arm', version: 1 }, [])
+      armedCrashChildren.add(child)
+      return true
+    } catch { return false }
+  }
+  if (crashGateEnabled) options.onCrashGateArm?.(() => {
+    const armed = armCurrentCrashChild()
+    if (armed) crashGateEntered = true
+    return armed
+  })
   return new CoreSupervisor({
     entryPath: path.join(currentDirectory, 'core.js'),
     cwd: dataDirectory,
@@ -2068,6 +2096,14 @@ function createCoreSupervisor(
       await options.onReady?.(client)
     },
     onLifecycle: event => {
+      // 该 ready 已经过 Main onReady 和 compact seed；初轮等真正进入 Gate 才 arm。
+      if (event.event === 'ready') {
+        readyCrashChild = currentCollectionChild
+        if (crashGateEntered) armCurrentCrashChild()
+      } else if (event.event === 'exit' || event.event === 'failed' || event.event === 'stopped') {
+        readyCrashChild = undefined
+        currentCollectionChild = undefined
+      }
       collectionReadonlyProbe?.observeLifecycle(event)
       collectionScaleProbe?.observeLifecycle(event)
       if (event.event === 'exit' || event.event === 'failed' || event.event === 'stopped') collectionReadonlySettings?.detach()
@@ -2187,7 +2223,10 @@ async function bootstrap(): Promise<void> {
   await collectionReadonlySettings.restore()
   let initialProvisioningComplete = false
   let supervisor: CoreSupervisor
+  let armInitialCrashGate: (() => boolean) | undefined
+  const crashGateLifecycle: Array<{ event: 'spawn' | 'ready' | 'exit'; code?: number }> = []
   supervisor = createCoreSupervisor(prepared.dataDirectory, {
+    ...(isCoreCrashGate ? { onCrashGateArm: (arm: () => boolean) => { armInitialCrashGate = arm } } : {}),
     onReady: async client => {
       lifecycleProbe.mark('core-ready-received')
       await startRecordingPrintWorker(client)
@@ -2213,6 +2252,9 @@ async function bootstrap(): Promise<void> {
       if (event.event === 'spawn') lifecycleProbe.mark('core-spawn')
       else if (event.event === 'ready') lifecycleProbe.mark('supervisor-ready')
       else if (event.event === 'exit') lifecycleProbe.mark('core-exit', event.code)
+      if (isCoreCrashGate && (event.event === 'spawn' || event.event === 'ready' || event.event === 'exit') && crashGateLifecycle.length < 7) {
+        crashGateLifecycle.push({ event: event.event, ...(event.event === 'exit' ? { code: event.code } : {}) })
+      }
       if (event.event !== 'ready') stopRecordingPrintWorker()
       if (event.event === 'ready') mobileConnectionSettings?.resume()
       else mobileConnectionSettings?.suspend()
@@ -2316,7 +2358,8 @@ async function bootstrap(): Promise<void> {
     return
   }
   if (isCoreCrashGate) {
-    const passed = await waitForCoreCrashFailure(() => ({ status: supervisor.status, restarts: supervisor.restarts }))
+    const armed = armInitialCrashGate?.() === true
+    const passed = armed && await waitForCoreCrashFailure(() => ({ status: supervisor.status, restarts: supervisor.restarts, lifecycle: crashGateLifecycle }))
     process.stdout.write(`${passed ? 'CORE_CRASH_GATE_PASS' : 'CORE_CRASH_GATE_FAIL'}\n`)
     if (passed) app.quit()
     else app.exit(1)

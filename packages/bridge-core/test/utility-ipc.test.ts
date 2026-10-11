@@ -16,6 +16,7 @@ import {
 } from '@music-bridge/contracts';
 import {
   attachCoreRuntimePort,
+  createCoreCrashProbeController,
   type CoreRuntimeForIpc,
   type UtilityPort,
 } from '../src/utility-main.js';
@@ -1700,4 +1701,71 @@ test('003B：Utility完整转发contextHandle，互斥或非法handle零runtime�
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(calls.length, 1);
   for (const id of ['context-mixed', 'context-private']) assert.ok(port.messages.some(value => (value as { id?: string; ok?: boolean }).id === id && (value as { ok?: boolean }).ok === false));
+});
+
+
+const crashArmMessage = { data: { type: 'musicbridge.core.crash-probe-arm', version: 1 }, ports: [] };
+const armedCrashEnvironment = { NODE_ENV: 'test', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_CORE_CRASH_PROBE: '1', MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED: '1' };
+
+test('Source3私有arm早到不触发，真实ready后仅一次25ms且重复不延期', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const exits: number[] = [], probe = createCoreCrashProbeController(armedCrashEnvironment, code => exits.push(code));
+  t.after(() => probe.close());
+  assert.equal(probe.armedMode, true);
+  probe.receive(crashArmMessage); t.mock.timers.tick(100); assert.deepEqual(exits, []);
+  probe.ready(); t.mock.timers.tick(100); assert.deepEqual(exits, []);
+  probe.receive(crashArmMessage); t.mock.timers.tick(10); probe.receive(crashArmMessage);
+  t.mock.timers.tick(14); assert.deepEqual(exits, []);
+  t.mock.timers.tick(1); assert.deepEqual(exits, [71]);
+  probe.receive(crashArmMessage); probe.ready(); t.mock.timers.tick(100); assert.deepEqual(exits, [71]);
+});
+
+test('Source3私有arm拒绝未知字段、访问器、错误版本及任何转移端口', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const exits: number[] = [], probe = createCoreCrashProbeController(armedCrashEnvironment, code => exits.push(code));
+  t.after(() => probe.close()); probe.ready();
+  let getterReads = 0;
+  const accessor = { version: 1, get type() { getterReads++; return 'musicbridge.core.crash-probe-arm'; } };
+  const symbol = { ...crashArmMessage.data, [Symbol('未知')]: true };
+  for (const event of [
+    { data: { ...crashArmMessage.data, extra: true } }, { data: { ...crashArmMessage.data, version: 2 } },
+    { data: { ...crashArmMessage.data, type: 'core.shutdown' } }, { data: accessor }, { data: symbol },
+    { data: crashArmMessage.data, ports: [new FakePort()] }, { data: null },
+  ]) probe.receive(event);
+  t.mock.timers.tick(100); assert.deepEqual(exits, []); assert.equal(getterReads, 0);
+  probe.receive(crashArmMessage); t.mock.timers.tick(25); assert.deepEqual(exits, [71]);
+});
+
+test('Source3非test或缺受控模式不能arm，关闭后旧probe不可再用', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  for (const env of [
+    { ...armedCrashEnvironment, NODE_ENV: 'production' }, { ...armedCrashEnvironment, MUSIC_BRIDGE_CORE_CRASH_PROBE: '0' },
+    { ...armedCrashEnvironment, MUSIC_BRIDGE_CORE_TEST_MODE: '0' }, { ...armedCrashEnvironment, MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED: 'false' },
+  ]) {
+    const exits: number[] = [], probe = createCoreCrashProbeController(env, code => exits.push(code));
+    assert.equal(probe.armedMode, false); probe.ready(); probe.receive(crashArmMessage); t.mock.timers.tick(500); assert.deepEqual(exits, []); probe.close();
+  }
+  const exits: number[] = [], probe = createCoreCrashProbeController(armedCrashEnvironment, code => exits.push(code));
+  probe.ready(); probe.receive(crashArmMessage); t.mock.timers.tick(24); probe.close();
+  probe.receive(crashArmMessage); probe.ready(); t.mock.timers.tick(100); assert.deepEqual(exits, []);
+});
+
+test('Source3旧credentialRecovery仍在ready后自动250ms故障，不需要arm', t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const exits: number[] = [], probe = createCoreCrashProbeController({ NODE_ENV: 'test', MUSIC_BRIDGE_CORE_CRASH_PROBE: '1', MUSIC_BRIDGE_CORE_CRASH_DELAY_MS: '250' }, code => exits.push(code));
+  t.after(() => probe.close()); assert.equal(probe.armedMode, false);
+  t.mock.timers.tick(500); assert.deepEqual(exits, []);
+  probe.ready(); t.mock.timers.tick(249); assert.deepEqual(exits, []);
+  t.mock.timers.tick(1); assert.deepEqual(exits, [71]);
+});
+
+test('Source3公共Runtime端口拒绝arm消息且不派发，独立私有probe不被该端口触发', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const exits: number[] = [], probe = createCoreCrashProbeController(armedCrashEnvironment, code => exits.push(code));
+  t.after(() => probe.close()); const runtime = makeRuntime(), port = new FakePort();
+  await attachCoreRuntimePort(port, runtime); probe.ready();
+  port.send(crashArmMessage.data); await new Promise<void>(resolve => setImmediate(resolve));
+  t.mock.timers.tick(100); assert.deepEqual(exits, []); assert.equal(runtime.shutdownCalls, 0);
+  assert.equal(port.messages.filter(message => (message as { id?: string }).id !== undefined).length, 0);
+  probe.receive(crashArmMessage); t.mock.timers.tick(25); assert.deepEqual(exits, [71]);
 });

@@ -13,6 +13,7 @@ function runStartupGate(
   crashGate = false,
   credentialVaultGate = false,
   coreRestartCredentialRecoveryGate = false,
+  uiE2e = false,
 ) {
   const result = spawnSync(process.execPath, ['scripts/startup-gate.mjs', mode, `--keychain=${keychainMode}`], {
     cwd: desktopRoot,
@@ -22,6 +23,7 @@ function runStartupGate(
     env: {
       ...process.env,
       ...(crashGate ? { MUSIC_BRIDGE_CORE_CRASH_GATE: '1' } : {}),
+      ...(uiE2e ? { MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_UI_E2E_OFFLINE: '1' } : {}),
       ...(credentialVaultGate ? { MUSIC_BRIDGE_CREDENTIAL_VAULT_GATE: '1' } : {}),
       ...(coreRestartCredentialRecoveryGate
         ? { MUSIC_BRIDGE_CORE_RESTART_CREDENTIAL_RECOVERY_GATE: '1' }
@@ -45,6 +47,7 @@ test(`${testLabel} Electron startup and Core crash gates pass serially`, () => {
   runStartupGate('development')
   runStartupGate('production')
   runStartupGate('development', true)
+  runStartupGate('production', true, false, false, true)
 })
 
 test(`${testLabel} Electron safeStorage credential vault gate passes with a synthetic value`, () => {

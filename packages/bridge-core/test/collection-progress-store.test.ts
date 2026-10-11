@@ -19,8 +19,8 @@ async function fixture(t: test.TestContext, beforeCommit?: (action: string) => v
   const repository = createCollectionRepository({ filePath, ...(beforeCommit ? { beforeCommit } : {}) });
   t.after(async () => { repository.close(); await rm(directory, { recursive: true, force: true }); }); return { repository, filePath };
 }
-function publish(repository: ReturnType<typeof createCollectionRepository>, items: CanonicalReference[] = [item()], previous: string | null = null, mappings: { fromReferenceIds: string[]; toReferenceIds: string[] }[] = []) {
-  const rawPack = JSON.stringify({ schemaVersion: 1, bookId: 'progress-book', title: '合成进度目录', sourceVersion: 'v1', items });
+function publish(repository: ReturnType<typeof createCollectionRepository>, items: CanonicalReference[] = [item()], previous: string | null = null, mappings: { fromReferenceIds: string[]; toReferenceIds: string[] }[] = [], bookId = 'progress-book') {
+  const rawPack = JSON.stringify({ schemaVersion: 1, bookId, title: '合成进度目录', sourceVersion: 'v1', items });
   const source = repository.catalog.registerSource({ commandId: randomUUID(), rawPack, packHash: sha(rawPack), userConfirmed: true });
   const request = { sourceId: source.id, expectedCurrentRevisionId: previous, items, mappings }, preview = repository.catalog.previewRevision(request);
   return repository.catalog.publishRevision({ ...request, commandId: randomUUID(), baselineFingerprint: preview.baselineFingerprint, userConfirmed: true });
@@ -60,8 +60,10 @@ function refreshEmptyWantFingerprint(stored: StoredProgressData): void {
 // 只包围同步生产操作，原型在finally恢复；结构计数不作为墙钟性能证据。
 function observeProgress<T>(operation: () => T) {
   const prepare = DatabaseSync.prototype.prepare, parse = JSON.parse, setMap = Map.prototype.set, getMap = Map.prototype.get;
-  const work = { revisionParses: 0, referenceIndexWrites: 0, referenceIndexReads: 0, modelReads: 0, quantityReads: 0, wantReads: 0, eventReads: 0, historicSnapshotReads: 0, historicSnapshotParses: 0, progressSnapshotReads: 0, progressSnapshotParses: 0 };
+  const work = { revisionParses: 0, referenceIndexWrites: 0, referenceIndexReads: 0, modelReads: 0, quantityReads: 0, wantReads: 0, eventReads: 0, historicSnapshotReads: 0, historicSnapshotParses: 0, progressSnapshotReads: 0, progressSnapshotParses: 0, historyIdQueries: 0, historyCountQueries: 0 };
   DatabaseSync.prototype.prepare = function (sql) {
+    if (/SELECT id FROM collection_progress_snapshots\b/u.test(sql)) work.historyIdQueries++;
+    if (/SELECT count\(\*\) n FROM collection_progress_snapshots\b/u.test(sql)) work.historyCountQueries++;
     if (/SELECT.*FROM collection_models\b/isu.test(sql)) work.modelReads++;
     if (/SELECT.*FROM inventory_lots\b/isu.test(sql) && /UNION ALL/u.test(sql)) work.quantityReads++;
     if (/SELECT.*FROM collection_wants\b/isu.test(sql) && !/count\(|sum\(|max\(|GROUP BY/iu.test(sql)) work.wantReads++;
@@ -101,12 +103,83 @@ test('同一历史目录的多份快照仅操作内复用，下一次列表与�
     assert.equal(measured.work.progressSnapshotReads, 3, '每份候选仍读取完整正文');
     assert.equal(measured.work.progressSnapshotParses, 3);
     assert.equal(measured.work.revisionParses, 1, '下一次操作重新读取目录事实');
+    assert.equal(measured.work.referenceIndexReads, 1, '同事实正文逐份重算指纹后，只复用本操作首份完整目录标签证明');
   }
   const detail = observeProgress(() => repository.collectionProgress.snapshot({ id: captured[1]!.id, page }));
   assert.deepEqual(detail.value.snapshot, captured[1]);
   assert.equal(detail.value.entries.items.length, 1);
   assert.equal(detail.work.historicSnapshotReads, 1); assert.equal(detail.work.historicSnapshotParses, 1);
   assert.equal(detail.work.progressSnapshotReads, 1); assert.equal(detail.work.progressSnapshotParses, 1);
+  assert.equal(detail.work.referenceIndexReads, 1, '详情新操作不能继承列表证明');
+});
+
+test('历史列表单次有界ID筛选保留混合书籍修订与空尾页全总数', async t => {
+  const { repository } = await fixture(t), first = publish(repository).revision;
+  const firstCaptured = [capture(repository, first.id), capture(repository, first.id)];
+  const second = publish(repository, [item()], first.id, [{ fromReferenceIds: ['a'], toReferenceIds: ['a'] }]).revision;
+  const secondCaptured = [capture(repository, second.id), capture(repository, second.id)];
+  const other = publish(repository, [item('other', { bookId: 'progress-other-book' })], null, [], 'progress-other-book').revision;
+  const otherCaptured = [capture(repository, other.id), capture(repository, other.id)];
+  const all = [...firstCaptured, ...secondCaptured, ...otherCaptured].toReversed();
+  const checks: { request: ListCollectionProgressSnapshotsRequest; expected: CollectionProgressSnapshotSummary[] }[] = [
+    { request: { page }, expected: all },
+    { request: { bookId: first.bookId, page: { offset: 1, limit: 2 } }, expected: [...firstCaptured, ...secondCaptured].toReversed() },
+    { request: { revisionId: first.id, page }, expected: firstCaptured.toReversed() },
+    { request: { bookId: first.bookId, revisionId: second.id, page: { offset: 1, limit: 25 } }, expected: secondCaptured.toReversed() },
+    { request: { bookId: other.bookId, revisionId: first.id, page }, expected: [] },
+    { request: { bookId: first.bookId, page: { offset: 3, limit: 25 } }, expected: [...firstCaptured, ...secondCaptured].toReversed() },
+    { request: { bookId: first.bookId, page: { offset: 4, limit: 25 } }, expected: [...firstCaptured, ...secondCaptured].toReversed() },
+    { request: { page: { offset: 100, limit: 25 } }, expected: all },
+  ];
+  for (const { request, expected } of checks) {
+    const measured = observeProgress(() => repository.collectionProgress.snapshots(request));
+    assert.deepEqual(measured.value, { ...request.page, items: expected.slice(request.page.offset, request.page.offset + request.page.limit), total: expected.length, hasMore: request.page.offset + Math.min(request.page.limit, Math.max(0, expected.length - request.page.offset)) < expected.length });
+    assert.equal(measured.work.historyIdQueries, 1, '过滤与total使用同一实际ID集合');
+    assert.equal(measured.work.historyCountQueries, 0, '不能再次解析全体历史正文计算total');
+    assert.equal(measured.work.progressSnapshotReads, measured.value.items.length, '有界ID扫描不读取页外完整正文');
+  }
+  const latest = capture(repository, other.id);
+  const next = observeProgress(() => repository.collectionProgress.snapshots({ bookId: other.bookId, page }));
+  assert.deepEqual(next.value.items, [latest, ...otherCaptured.toReversed()]); assert.equal(next.value.total, 3);
+  assert.equal(next.work.historyIdQueries, 1, '下一操作重新筛选ID，不继承旧列表');
+  const empty = await fixture(t);
+  const noHistory = observeProgress(() => empty.repository.collectionProgress.snapshots({ page }));
+  assert.deepEqual(noHistory.value, { ...page, total: 0, items: [], hasMore: false }); assert.equal(noHistory.work.historyIdQueries, 1);
+});
+
+test('历史事实证明不遮蔽同指纹摘要变动与自洽新指纹求购坏事实', async t => {
+  const { repository, filePath } = await fixture(t), revision = publish(repository).revision;
+  const saved = repository.collectionProgress.saveWant(want(revision.id));
+  const older = capture(repository, revision.id), newer = capture(repository, revision.id);
+  assert.equal(older.fingerprint, newer.fingerprint);
+  const baseline = repository.collectionProgress.snapshots({ page });
+  const db = new DatabaseSync(filePath); t.after(() => db.close());
+  const original = snapshotRaw(db, 'collection_progress_snapshots', older.id);
+  const historicWant: unknown = JSON.parse(String(db.prepare('SELECT data FROM collection_want_events WHERE id=? AND version=?').get(saved.id, 1)?.data));
+  const variants: { title: string; mutate(stored: StoredProgressData): unknown[] | null }[] = [
+    { title: '同声明指纹的摘要', mutate(stored) { stored.snapshot.historicalWantedCount = 1; return null; } },
+    { title: '同声明指纹但缺少原目标版本', mutate(stored) { stored.wantVersions = []; return null; } },
+    { title: '不存在的原目标版本', mutate(stored) { stored.wantVersions[0]!.version = 2; return null; } },
+    { title: 'DTO及新指纹自洽但目标版本不等于原历史', mutate(stored) { stored.entries[0]!.wantedTargets[0]!.version = 2; return [historicWant]; } },
+    { title: 'DTO及新指纹自洽但历史目标重复', mutate(stored) { stored.wantVersions.push({ ...stored.wantVersions[0]! }); return [historicWant, historicWant]; } },
+  ];
+  for (const variant of variants) {
+    const stored = JSON.parse(original) as StoredProgressData, fingerprintWants = variant.mutate(stored);
+    assert.ok(isCollectionProgressSnapshot({ ...stored.snapshot, entries: stored.entries }), variant.title);
+    if (fingerprintWants !== null) {
+      const { id: ignoredId, createdAt: ignoredAt, fingerprint: ignoredFingerprint, ...body } = stored.snapshot;
+      stored.snapshot.fingerprint = sha(fixtureCanonical({ ...body, entries: stored.entries, wants: fingerprintWants }));
+      assert.notEqual(stored.snapshot.fingerprint, older.fingerprint, '不同事实必须取得新证明，不能按同revision放行');
+    } else assert.equal(stored.snapshot.fingerprint, older.fingerprint);
+    const modified = JSON.stringify(stored); replaceSnapshotRaw(db, 'collection_progress_snapshots', older.id, modified);
+    try {
+      const measured = observeProgress(() => assert.throws(() => repository.collectionProgress.snapshots({ page }), /库存暂时不可用/u));
+      assert.equal(measured.work.progressSnapshotReads, 2); assert.equal(measured.work.progressSnapshotParses, 2);
+      assert.equal(measured.work.historicSnapshotReads, 1, '首份完整证明后仍拒绝第二份实际坏正文');
+      assert.equal(snapshotRaw(db, 'collection_progress_snapshots', older.id), modified);
+    } finally { replaceSnapshotRaw(db, 'collection_progress_snapshots', older.id, original); }
+    assert.deepEqual(repository.collectionProgress.snapshots({ page }), baseline);
+  }
 });
 
 test('快照列表混合revision与matchVersion逐一读取原证据，不串历史匹配', async t => {
@@ -138,6 +211,9 @@ test('命中历史目录复用后仍逐份拒绝损坏正文、标签、匹配�
   const ledger = db.prepare('SELECT * FROM collection_progress_ledger ORDER BY command_id').all();
   const variants: { title: string; validDto: boolean; mutate(stored: StoredProgressData): void }[] = [
     { title: '正文', validDto: false, mutate(stored) { stored.entries[0]!.stockCount = -1; } },
+    { title: '同声明指纹的目录标签正文', validDto: true, mutate(stored) {
+      stored.entries[0]!.brand = '另一目录标签'; stored.snapshot.brands[0]!.brand = '另一目录标签'; stored.snapshot.series[0]!.brand = '另一目录标签';
+    } },
     { title: '原目录标签', validDto: true, mutate(stored) {
       stored.entries[0]!.brand = '另一目录标签'; stored.snapshot.brands[0]!.brand = '另一目录标签'; stored.snapshot.series[0]!.brand = '另一目录标签';
       refreshEmptyWantFingerprint(stored);
@@ -214,10 +290,11 @@ test('历史快照复用不绕过动态TEXT与行容量预算，拒绝发生在�
     const columns = db.prepare('PRAGMA table_info(' + table + ')').all().filter(column => column.type === 'TEXT').map(column => String(column.name));
     return total + Number(db.prepare('SELECT COALESCE(sum(' + columns.map(column => 'COALESCE(length(CAST("' + column + '" AS BLOB)),0)').join('+') + '),0) bytes FROM ' + table).get()?.bytes);
   }, 0);
-  const mutable = COLLECTION_PROGRESS_LIMITS as { totalBytes: number; jsonBytes: number }, limits = { ...mutable };
+  const mutable = COLLECTION_PROGRESS_LIMITS as { totalBytes: number; jsonBytes: number; snapshots: number }, limits = { ...mutable };
   const rejectedBeforeParse = () => {
     const measured = observeProgress(() => assert.throws(() => repository.collectionProgress.snapshots({ page }), /容量/u));
     assert.equal(measured.work.revisionParses, 0); assert.equal(measured.work.progressSnapshotReads, 0); assert.equal(measured.work.progressSnapshotParses, 0);
+    assert.equal(measured.work.historyIdQueries, 0, '原容量失败发生在有界ID筛选之前');
     assert.equal(measured.work.historicSnapshotReads, 0); assert.equal(measured.work.historicSnapshotParses, 0);
     assert.equal(snapshotRaw(db, 'collection_progress_snapshots', captured.id), original);
   };
@@ -227,6 +304,7 @@ test('历史快照复用不绕过动态TEXT与行容量预算，拒绝发生在�
     editImmutable(db, 'collection_progress_snapshots', 'UPDATE', () => { db.prepare('UPDATE collection_progress_snapshots SET "合成额外TEXT"=? WHERE id=?').run('界'.repeat(64), captured.id); });
     rejectedBeforeParse();
     mutable.totalBytes = limits.totalBytes; mutable.jsonBytes = Buffer.byteLength(original) - 1; rejectedBeforeParse();
+    mutable.jsonBytes = limits.jsonBytes; mutable.snapshots = 0; rejectedBeforeParse();
   } finally { Object.assign(mutable, limits); }
   assert.deepEqual(repository.collectionProgress.snapshots({ page }), baseline);
 });
@@ -486,6 +564,8 @@ test('合法500项长中文目录的25份完整快照按响应字节装页且遍
     assert.equal(measured.work.historicSnapshotParses, candidates ? 1 : 0);
     assert.equal(measured.work.progressSnapshotReads, processed, '入页及首个溢出候选均读取完整正文');
     assert.equal(measured.work.progressSnapshotParses, processed);
+    assert.equal(measured.work.referenceIndexReads, candidates ? 500 : 0, '每页首份500项证明重建，后续同事实候选只省重复标签核验');
+    assert.equal(measured.work.historyIdQueries, 1); assert.equal(measured.work.historyCountQueries, 0);
     return measured.value;
   };
   const first = readPage({ bookId: revision.bookId, page });

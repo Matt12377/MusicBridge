@@ -83,6 +83,7 @@ interface MessageWithPorts {
 
 interface ParentPortLike {
   once(event: 'message', listener: (event: MessageWithPorts) => void): unknown;
+  on?(event: 'message', listener: (event: MessageWithPorts) => void): unknown;
 }
 
 interface ProcessWithParentPort {
@@ -517,6 +518,50 @@ export function isCrashProbeEnabled(env: NodeJS.ProcessEnv): boolean {
   return env.NODE_ENV === 'test' && env.MUSIC_BRIDGE_CORE_CRASH_PROBE === '1';
 }
 
+
+/** 仅 Utility 的私有父连接可 arm；测试回调不进入任何 IPC 合同。 */
+export function createCoreCrashProbeController(
+  env: NodeJS.ProcessEnv,
+  terminate: (code: number) => void = code => process.exit(code),
+): { readonly armedMode: boolean; ready(): void; receive(event: MessageWithPorts): void; close(): void } {
+  const armRequested = env.MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED !== undefined;
+  const armedMode = isCrashProbeEnabled(env) && armRequested
+    && env.MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED === '1' && env.MUSIC_BRIDGE_CORE_TEST_MODE === '1';
+  const automaticMode = isCrashProbeEnabled(env) && !armRequested;
+  let ready = false, started = false, closed = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const configuredDelay = Number(env.MUSIC_BRIDGE_CORE_CRASH_DELAY_MS);
+  const automaticDelay = Number.isSafeInteger(configuredDelay) && configuredDelay >= 25 ? Math.min(configuredDelay, 5_000) : 25;
+  const start = (delayMs: number): void => {
+    if (closed || started) return;
+    started = true;
+    timer = setTimeout(() => { timer = undefined; closed = true; terminate(71); }, delayMs);
+  };
+  return {
+    armedMode,
+    ready() {
+      if (closed || ready) return;
+      ready = true;
+      // credentialRecovery 保留原自动故障和原有 250ms 等有限配置。
+      if (automaticMode) start(automaticDelay);
+    },
+    receive(event) {
+      if (!armedMode || !ready || closed || started) return;
+      try {
+        if (event.ports !== undefined && (!Array.isArray(event.ports) || event.ports.length !== 0)) return;
+        const data = event.data;
+        if (!isRecord(data) || ![Object.prototype, null].includes(Object.getPrototypeOf(data))) return;
+        const keys = Reflect.ownKeys(data), fields = Object.getOwnPropertyDescriptors(data);
+        if (keys.length !== 2 || !keys.includes('type') || !keys.includes('version')
+          || !Object.hasOwn(fields.type ?? {}, 'value') || !Object.hasOwn(fields.version ?? {}, 'value')
+          || fields.type!.value !== 'musicbridge.core.crash-probe-arm' || fields.version!.value !== 1) return;
+        start(25);
+      } catch { /* 私有未知消息与访问器不能触发故障。 */ }
+    },
+    close() { closed = true; if (timer !== undefined) clearTimeout(timer); timer = undefined; },
+  };
+}
+
 function createRoonTimeShapeRecorder(
   env: NodeJS.ProcessEnv,
 ): ((summary: RoonTimeShapeSummary) => void) | undefined {
@@ -675,6 +720,7 @@ export async function runCoreUtilityProcess(
       let fatalOwnerDrain: Promise<void> | undefined;
       let resolvedRustReadonlyCollection = rustReadonlyCollection;
       let projectionGateway: ReturnType<typeof createDatasetRoonProjectionGateway> | undefined;
+      let crashProbe: ReturnType<typeof createCoreCrashProbeController> | undefined;
       try {
         if (!isRecord(event.data) || event.data.type !== 'musicbridge.core.port' ||
           Object.keys(event.data).some(key => !['type', 'playbackEventProtocol', 'relocationMainPort'].includes(key)) ||
@@ -878,15 +924,20 @@ export async function runCoreUtilityProcess(
           // 原 shutdown 的完成包含控制面清理和 stopped 状态；Owner close 完成不能代替它。
           runtime.shutdown = () => runtimeShutdown ??= shutdown();
         }
-        await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true, beforeReady: async () => { if(datasetOwnerEndpoint)await datasetOwnerEndpoint.commitBoot();else await dataset?.commit();await runtime!.restoreLogicalQueue?.(); }, ...(libraryReadTrace ? { libraryReadTrace } : {}) });
-        if (isCrashProbeEnabled(env)) {
-          const configuredDelay = Number(env.MUSIC_BRIDGE_CORE_CRASH_DELAY_MS);
-          const delayMs = Number.isSafeInteger(configuredDelay) && configuredDelay >= 25
-            ? Math.min(configuredDelay, 5_000)
-            : 25;
-          setTimeout(() => process.exit(71), delayMs);
+        crashProbe = createCoreCrashProbeController(env);
+        if (crashProbe.armedMode) {
+          if (typeof parentPort.on !== 'function') throw new Error('缺少可信 Utility 父连接。');
+          // 不监听公共 Runtime 端口；监听器绑定本次实际 parentPort/Utility。
+          parentPort.on('message', message => { crashProbe!.receive(message); });
         }
+        if (isCrashProbeEnabled(env)) {
+          const shutdown = runtime.shutdown.bind(runtime);
+          runtime.shutdown = () => { crashProbe!.close(); return shutdown(); };
+        }
+        await attachCoreRuntimePort(port, runtime, { exitAfterShutdown: true, beforeReady: async () => { if(datasetOwnerEndpoint)await datasetOwnerEndpoint.commitBoot();else await dataset?.commit();await runtime!.restoreLogicalQueue?.(); }, ...(libraryReadTrace ? { libraryReadTrace } : {}) });
+        crashProbe.ready();
       } catch {
+        crashProbe?.close();
         sourceWritesBridge?.close();
         relocationBridge?.close();
         closeTransferredPorts();

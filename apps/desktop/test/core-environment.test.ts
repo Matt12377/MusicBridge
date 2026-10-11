@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { readFileSync } from 'node:fs'
+import { runInNewContext } from 'node:vm'
+import ts from 'typescript'
 
 import { buildCoreEnvironment } from '../src/main/core-environment.js'
 import { bundledConverterRoot } from '../src/main/converter-bootstrap.js'
@@ -264,4 +267,62 @@ test('转换器只从固定开发或 ASAR 资源目录加载，普通合成测�
   assert.equal(bundledConverterRoot(testEnv, host), undefined)
   assert.equal(bundledConverterRoot({ ...testEnv, MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE: '1' }, host), undefined)
   assert.equal(bundledConverterRoot({ ...testEnv, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_BUNDLED_CONVERTER_GATE: '1', MUSIC_BRIDGE_FFMPEG_PATH: '/untrusted' }, host), '/workspace/apps/desktop/native/ffmpeg/darwin-arm64')
+})
+
+
+// 执行 Main 原 wrapper 与真实 pure allowlist 的组合；不导入整个 Main 或启动 App。
+function mainCoreEnvironment(parent: NodeJS.ProcessEnv, options: {
+  startupTest: boolean
+  uiE2e: boolean
+  coreCrashGate: boolean
+  credentialRecoveryGate?: boolean
+}): NodeJS.ProcessEnv {
+  const source = readFileSync(new URL('../src/main/index.ts', import.meta.url), 'utf8')
+  const start = source.indexOf('function buildCoreEnvironment(): NodeJS.ProcessEnv {')
+  const end = source.indexOf('\nfunction getRemoteCoreState()', start)
+  assert.ok(start >= 0 && end > start, 'Main 原环境 wrapper 必须存在且完整')
+  const exports: { build?: () => NodeJS.ProcessEnv } = {}
+  const compiled = ts.transpileModule(source.slice(start, end) + '\nexports.build = buildCoreEnvironment', {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText
+  runInNewContext(compiled, {
+    exports, process: { env: parent }, buildAllowlistedCoreEnvironment: buildCoreEnvironment,
+    isStartupTest: options.startupTest, isUiE2e: options.uiE2e, isCoreCrashGate: options.coreCrashGate,
+    isCoreRestartCredentialRecoveryGate: options.credentialRecoveryGate === true,
+    isRoonTimeGate: false, isRoonBrowseGate: false, isRoonImageGate: false, isLibraryReadTrace: false,
+    coreMode: 'local-core', coreDataDirectory: undefined, remoteStreamPort: undefined,
+  }, { timeout: 1_000 })
+  assert.equal(typeof exports.build, 'function')
+  return exports.build!()
+}
+
+test('Source3 armed标志仅由Main显式受控选项派生，父环境注入不能启用', () => {
+  for (const parentFlag of [undefined, '1', 'false']) {
+    const parent = { MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED: parentFlag };
+    const ordinary = mainCoreEnvironment(parent, { startupTest: false, uiE2e: false, coreCrashGate: true });
+    assert.equal(Object.hasOwn(ordinary, 'MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED'), false);
+    const notSelected = mainCoreEnvironment(parent, { startupTest: true, uiE2e: true, coreCrashGate: false });
+    assert.equal(Object.hasOwn(notSelected, 'MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED'), false);
+    const legacy = mainCoreEnvironment(parent, { startupTest: true, uiE2e: false, coreCrashGate: false, credentialRecoveryGate: true });
+    assert.equal(Object.hasOwn(legacy, 'MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED'), false);
+    assert.equal(legacy.MUSIC_BRIDGE_CORE_CRASH_PROBE, '1');
+  }
+})
+
+test('Source3 development与production UI受控crash均明确要求arm，不转发秘密', () => {
+  for (const mode of ['development', 'production']) {
+    for (const uiE2e of [false, true]) {
+      const env = mainCoreEnvironment({ NODE_ENV: mode, NETEASE_COOKIE: 'synthetic-private-value', MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED: 'false' },
+        { startupTest: true, uiE2e, coreCrashGate: true })
+      assert.equal(env.NODE_ENV, 'test'); assert.equal(env.MUSIC_BRIDGE_CORE_TEST_MODE, '1')
+      assert.equal(env.MUSIC_BRIDGE_CORE_CRASH_PROBE, '1'); assert.equal(env.MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED, '1')
+      assert.equal(Object.hasOwn(env, 'NETEASE_COOKIE'), false)
+    }
+  }
+})
+
+test('Source3旧credentialRecovery的250ms自动probe环境保持原样', () => {
+  assert.deepEqual(mainCoreEnvironment({ MUSIC_BRIDGE_CORE_CRASH_DELAY_MS: '250', MUSIC_BRIDGE_CORE_CRASH_PROBE_ARM_REQUIRED: '1' },
+    { startupTest: true, uiE2e: false, coreCrashGate: false, credentialRecoveryGate: true }),
+  { MUSIC_BRIDGE_LIBRARY_READ_TRACE: '0', NODE_ENV: 'test', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_CORE_CRASH_PROBE: '1', MUSIC_BRIDGE_CORE_CRASH_DELAY_MS: '250' })
 })

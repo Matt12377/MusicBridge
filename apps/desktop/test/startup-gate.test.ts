@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { spawn } from 'node:child_process'
-import { readFile } from 'node:fs/promises'
+import { readFile, mkdtemp, writeFile, stat, symlink } from 'node:fs/promises'
 import { once } from 'node:events'
 import { EventEmitter } from 'node:events'
 import { readFileSync } from 'node:fs'
+import * as captureFs from 'node:fs'
+import { createHash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -22,14 +24,15 @@ test('MBR002：崩溃Gate等真实failed终态，慢重启不被固定墙钟采�
   const module = await import('../src/main/core-crash-gate.js').catch(() => ({}))
   assert.ok('waitForCoreCrashFailure' in module)
   const wait = (module as typeof import('../src/main/core-crash-gate.js')).waitForCoreCrashFailure
-  let observation: { status: 'starting' | 'failed'; restarts: number } = { status: 'starting', restarts: 1 }
+  const lifecycle: import('../src/main/core-crash-gate.js').CoreCrashGateObservation['lifecycle'] = [{ event: 'spawn' }, { event: 'ready' }, { event: 'exit', code: 71 }, { event: 'spawn' }, { event: 'ready' }, { event: 'exit', code: 71 }]
+  let observation: import('../src/main/core-crash-gate.js').CoreCrashGateObservation = { status: 'starting', restarts: 1, lifecycle }
   const pending = wait(() => observation, { timeoutMs: 100, pollMs: 2 })
   await new Promise(resolve => setTimeout(resolve, 20))
-  observation = { status: 'failed', restarts: 1 }
+  observation = { status: 'failed', restarts: 1, lifecycle }
   assert.equal(await pending, true)
-  assert.equal(await wait(() => ({ status: 'failed', restarts: 0 }), { timeoutMs: 20, pollMs: 2 }), false)
-  assert.equal(await wait(() => ({ status: 'failed', restarts: 2 }), { timeoutMs: 20, pollMs: 2 }), false)
-  assert.equal(await wait(() => ({ status: 'ready', restarts: 1 }), { timeoutMs: 10, pollMs: 2 }), false)
+  assert.equal(await wait(() => ({ status: 'failed', restarts: 0, lifecycle }), { timeoutMs: 20, pollMs: 2 }), false)
+  assert.equal(await wait(() => ({ status: 'failed', restarts: 2, lifecycle }), { timeoutMs: 20, pollMs: 2 }), false)
+  assert.equal(await wait(() => ({ status: 'ready', restarts: 1, lifecycle }), { timeoutMs: 10, pollMs: 2 }), false)
 })
 
 test('MBR002：crash标记从spawn即收集，早到标记也需真实close与成功退出码', async () => {
@@ -192,7 +195,7 @@ function gateScript(file: 'startup-gate.mjs' | 'cold-start-credential-gate.mjs',
       if (configuration.identityReject) throw new Error('合成身份拒绝')
       return { kind: 'SYNTHETIC_VM_IDENTITY_NOT_OFFICIAL_ELECTRON', executablePath: '/synthetic/electron' }
     } }
-    const builtins: Record<string, unknown> = { './electron-identity.mjs': identity, 'node:fs/promises': files, 'node:os': os, 'node:path': path, 'node:url': { fileURLToPath }, 'node:child_process': { spawn: spawnControlled }, electron: '/synthetic/electron' }
+    const builtins: Record<string, unknown> = { './electron-identity.mjs': identity, 'node:fs/promises': files, 'node:os': os, 'node:path': path, 'node:url': { fileURLToPath }, 'node:child_process': { spawn: spawnControlled }, 'node:fs': captureFs, 'node:crypto': { createHash }, electron: '/synthetic/electron' }
     if (name in builtins) return builtins[name]
     if (moduleCache.has(name)) return moduleCache.get(name)
     const location = new URL('../scripts/' + name.replace(/^\.\//u, ''), import.meta.url)
@@ -390,7 +393,7 @@ test('Electron Gate wrapper显式传模式、命名分类且外层预算覆盖�
       throw new Error('未声明的测试依赖')
     }
     runInNewContext(compiled, { require: requireControlled, exports: {}, process: { execPath: '/synthetic/node', env: {} } })
-    assert.equal(names.length, 4); assert.equal(calls.length, 6)
+    assert.equal(names.length, 4); assert.equal(calls.length, 7)
     assert.ok(names.every(name => name.includes(selected === 'mock' ? 'mock 软件集成' : '[system]')))
     assert.ok(calls.filter(call => !call.args[0].includes('cold-start')).every(call => call.timeout > 120_000 + 60_000 + 6_000))
     assert.ok(calls.find(call => call.args[0].includes('cold-start'))!.timeout > 120_000 + 2 * 60_000 + 9_000)
@@ -410,4 +413,123 @@ test('startup非法mode在身份调用及创建目录或spawn前退出2', async 
   await gate.finished
   assert.equal(gate.scriptProcess.exitCode, 2); assert.deepEqual(gate.identityCalls, [])
   assert.deepEqual(gate.directories, []); assert.deepEqual(gate.calls, [])
+})
+
+
+test('Source3崩溃Gate拒绝两spawn零ready、错误71与乱序，不把bootstrap失败变PASS', async () => {
+  const { waitForCoreCrashFailure: wait } = await import('../src/main/core-crash-gate.js')
+  type Observation = import('../src/main/core-crash-gate.js').CoreCrashGateObservation
+  const full: Observation['lifecycle'] = [{ event: 'spawn' }, { event: 'ready' }, { event: 'exit', code: 71 }, { event: 'spawn' }, { event: 'ready' }, { event: 'exit', code: 71 }]
+  assert.equal(await wait(() => ({ status: 'failed', restarts: 1, lifecycle: full }), { timeoutMs: 20, pollMs: 2 }), true)
+  const invalid: Observation['lifecycle'][] = [[], [{ event: 'spawn' }, { event: 'exit', code: 71 }, { event: 'spawn' }, { event: 'exit', code: 71 }],
+    full.slice(0, 5), [...full, { event: 'spawn' }],
+    full.map((entry, index) => index === 5 ? { event: 'exit', code: 1 } : entry),
+    [{ event: 'ready' }, { event: 'spawn' }, ...full.slice(2)]]
+  for (const lifecycle of invalid) assert.equal(await wait(() => ({ status: 'failed', restarts: 1, lifecycle }), { timeoutMs: 20, pollMs: 2 }), false)
+})
+
+// 执行 Main 原createCoreSupervisor闭包，替换原生fork依赖；不复制arm实现或启动App。
+function mainCrashArmFixture(enabled: boolean) {
+  const source = readFileSync(new URL('../src/main/index.ts', import.meta.url), 'utf8')
+  const start = source.indexOf('function createCoreSupervisor('), end = source.indexOf('async function prepareCoreDataDirectory(', start)
+  assert.ok(start >= 0 && end > start)
+  const children: Array<{ posts: Array<{ message: unknown; ports: unknown[] }>; postMessage(message: unknown, ports?: unknown[]): void }> = []
+  let configuration: any, arm: (() => boolean) | undefined
+  const exports: { create?: (directory: string, options: unknown) => unknown } = {}
+  const sandbox = { exports, path, process: { env: {} }, coreDataDirectory: undefined, currentDirectory: '/synthetic/dist/main',
+    buildCoreEnvironment: () => ({}), collectionReadonlyProbe: undefined, collectionScaleProbe: undefined,
+    packagedRouteProbe: undefined, packagedRendererProbe: undefined, collectionReadonlySettings: undefined, libraryReadTrace: undefined,
+    mainWindow: undefined, mainDiagnostics: { performance: undefined }, performanceIpc: { context: () => undefined },
+    MessageChannelMain: class { port1 = {}; port2 = {} },
+    utilityProcess: { fork() { const child = { posts: [] as Array<{ message: unknown; ports: unknown[] }>, postMessage(message: unknown, ports: unknown[] = []) { this.posts.push({ message, ports }) } }; children.push(child); return child } },
+    CoreSupervisor: class { constructor(value: unknown) { configuration = value } },
+  }
+  const compiled = ts.transpileModule(source.slice(start, end) + '\nexports.create = createCoreSupervisor', { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
+  runInNewContext(compiled, sandbox)
+  exports.create!('/synthetic/data', enabled ? { onCrashGateArm: (value: () => boolean) => { arm = value } } : {})
+  const fork = () => configuration.dependencies.fork('/synthetic/core.js', [], { cwd: '/synthetic/data', env: {}, stdio: 'ignore', serviceName: '合成Core' })
+  return { children, configuration, fork, arm: () => arm }
+}
+
+test('Source3 Main闭包初轮等真实ready和Gate入口，重启只arm当前child且零ports', () => {
+  const fixture = mainCrashArmFixture(true), initial = fixture.fork(), arm = fixture.arm()!
+  assert.equal(arm(), false); assert.deepEqual(initial.posts, [])
+  fixture.configuration.onLifecycle({ event: 'ready' }); assert.deepEqual(initial.posts, [])
+  assert.equal(arm(), true); assert.equal(arm(), false)
+  assert.equal(initial.posts.length, 1); assert.equal(initial.posts[0].message.type, 'musicbridge.core.crash-probe-arm')
+  assert.deepEqual(Object.keys(initial.posts[0].message).sort(), ['type', 'version']); assert.equal(initial.posts[0].message.version, 1); assert.equal(initial.posts[0].ports.length, 0)
+  fixture.configuration.onLifecycle({ event: 'exit', code: 71 }); assert.equal(arm(), false)
+  const restarted = fixture.fork(); assert.equal(arm(), false); assert.deepEqual(restarted.posts, [])
+  fixture.configuration.onLifecycle({ event: 'ready' }); fixture.configuration.onLifecycle({ event: 'ready' })
+  assert.equal(restarted.posts.length, 1); assert.equal(initial.posts.length, 1); assert.equal(restarted.posts[0].ports.length, 0)
+  fixture.configuration.onLifecycle({ event: 'failed' }); assert.equal(arm(), false)
+})
+
+test('Source3 Main普通和旧credentialRecovery闭包不发布arm或发送私有消息', () => {
+  const fixture = mainCrashArmFixture(false), child = fixture.fork()
+  fixture.configuration.onLifecycle({ event: 'ready' }); assert.equal(fixture.arm(), undefined); assert.deepEqual(child.posts, [])
+})
+
+async function syntheticRawFixture() {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-task036-crash-capture-'))
+  const userData = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-task036-startup-'))
+  const env: NodeJS.ProcessEnv = { ...process.env, MUSIC_BRIDGE_UI_E2E: '1', MUSIC_BRIDGE_STARTUP_TEST: '1', MUSIC_BRIDGE_CORE_TEST_MODE: '1', MUSIC_BRIDGE_CORE_CRASH_GATE: '1', MUSIC_BRIDGE_STARTUP_USER_DATA_DIR: userData }
+  delete env.NETEASE_COOKIE
+  return { directory, env }
+}
+
+function rawPin(bytes: Buffer) { return { bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') } }
+
+test('Source3显式私有raw保存跨chunk的完整stdout stderr至自然close，摘要仍仅六字段', async () => {
+  const capture = await syntheticRawFixture()
+  const result = await runFixture("process.stdout.write('CORE_CRASH_GATE_'); process.stderr.write(Buffer.from([0,255,17])); setTimeout(() => { process.stdout.write('PASS\\n'); process.stderr.write('合成尾部') }, 15)",
+    { env: capture.env, readyMarker: undefined, expectedMarker: 'CORE_CRASH_GATE_PASS', rawCaptureDirectory: capture.directory })
+  assert.deepEqual(result, { code: 0, signal: null, closed: true, ready: true, markerSeen: true, failure: null })
+  const stdout = await readFile(path.join(capture.directory, 'stdout.log')), stderr = await readFile(path.join(capture.directory, 'stderr.log'))
+  assert.deepEqual(stdout, Buffer.from('CORE_CRASH_GATE_PASS\n')); assert.deepEqual(stderr, Buffer.concat([Buffer.from([0, 255, 17]), Buffer.from('合成尾部')]))
+  const record = JSON.parse(await readFile(path.join(capture.directory, 'capture.json'), 'utf8'))
+  assert.equal(record.complete, true); assert.equal(record.truncated, false); assert.deepEqual(record.result, result)
+  assert.deepEqual(rawPin(stdout), { bytes: record.raw.stdout.bytes, sha256: record.raw.stdout.sha256 }); assert.deepEqual(rawPin(stderr), { bytes: record.raw.stderr.bytes, sha256: record.raw.stderr.sha256 })
+  assert.equal((await stat(capture.directory)).mode & 0o777, 0o700)
+  for (const name of ['stdout.log', 'stderr.log', 'capture.json']) assert.equal((await stat(path.join(capture.directory, name))).mode & 0o777, 0o600)
+})
+
+test('Source3正常失败也保留原DESKTOP_STARTUP_FAIL stderr与natural close，不伪PASS', async () => {
+  const capture = await syntheticRawFixture()
+  const result = await runFixture("process.stderr.write('DESKTOP_STARTUP_FAIL\\n'); process.exitCode = 1", { env: capture.env, readyMarker: undefined, expectedMarker: 'CORE_CRASH_GATE_PASS', rawCaptureDirectory: capture.directory })
+  assert.equal(result.code, 1); assert.equal(result.closed, true); assert.equal(result.failure, 'process-exit'); assert.equal(result.markerSeen, false)
+  assert.deepEqual(await readFile(path.join(capture.directory, 'stderr.log')), Buffer.from('DESKTOP_STARTUP_FAIL\n'))
+  const record = JSON.parse(await readFile(path.join(capture.directory, 'capture.json'), 'utf8')); assert.equal(record.complete, true); assert.deepEqual(record.result, result)
+})
+
+test('Source3私有raw拒绝非受控探针、既有文件与符号链接，捕获磁盘失败不能PASS', async () => {
+  for (const variant of ['not-controlled', 'existing-file', 'symlink'] as const) {
+    const capture = await syntheticRawFixture(); let directory = capture.directory
+    if (variant === 'not-controlled') capture.env.MUSIC_BRIDGE_CORE_CRASH_GATE = '0'
+    if (variant === 'existing-file') await writeFile(path.join(directory, 'stdout.log'), '必须保留', { flag: 'wx', mode: 0o600 })
+    if (variant === 'symlink') { directory += '-alias'; await symlink(capture.directory, directory) }
+    const result = await runFixture("process.stdout.write('CORE_CRASH_GATE_PASS')", { env: capture.env, readyMarker: undefined, expectedMarker: 'CORE_CRASH_GATE_PASS', rawCaptureDirectory: directory })
+    assert.equal(result.failure, 'capture-error'); assert.notEqual(result.code, 0); assert.equal(result.markerSeen, false)
+    if (variant === 'existing-file') assert.equal(await readFile(path.join(directory, 'stdout.log'), 'utf8'), '必须保留')
+  }
+})
+
+test('Source3私有raw继续执行原combined输出限额，超限只保有限原件且失败', async () => {
+  const capture = await syntheticRawFixture()
+  const result = await runFixture("process.stdout.write('CORE_CRASH_GATE_PASS' + 'a'.repeat(6000)); process.stderr.write('b'.repeat(6000)); setInterval(() => {}, 1000)",
+    { env: capture.env, readyMarker: undefined, expectedMarker: 'CORE_CRASH_GATE_PASS', rawCaptureDirectory: capture.directory })
+  assert.equal(result.failure, 'output-limit'); assert.equal(result.closed, true)
+  const stdout = await readFile(path.join(capture.directory, 'stdout.log')), stderr = await readFile(path.join(capture.directory, 'stderr.log'))
+  assert.ok(stdout.length + stderr.length <= 8192)
+  const record = JSON.parse(await readFile(path.join(capture.directory, 'capture.json'), 'utf8')); assert.equal(record.complete, false); assert.equal(record.truncated, true); assert.equal(record.combinedLimitBytes, 8192)
+})
+
+test('Source3私有raw未取得stdio close仍明确不完整，不把exit0与marker当成功', async () => {
+  const capture = await syntheticRawFixture()
+  const result = await runFixture("require('node:child_process').spawn(process.execPath, ['-e', 'setTimeout(() => {}, 500)'], { stdio: ['ignore', 1, 2] }); process.stdout.write('CORE_CRASH_GATE_PASS'); process.exit(0)",
+    { env: capture.env, readyMarker: undefined, expectedMarker: 'CORE_CRASH_GATE_PASS', rawCaptureDirectory: capture.directory, closeTimeoutMs: 50 })
+  assert.equal(result.failure, 'close-timeout'); assert.equal(result.closed, false); assert.equal(result.code, 0)
+  const record = JSON.parse(await readFile(path.join(capture.directory, 'capture.json'), 'utf8')); assert.equal(record.complete, false); assert.equal(record.result.closed, false)
+  // helper已按原50ms close期限返回失败；夹具独有的500ms后代仍需自然结束，不能留给外层终止。
+  await new Promise<void>(resolve => setTimeout(resolve, 600))
 })

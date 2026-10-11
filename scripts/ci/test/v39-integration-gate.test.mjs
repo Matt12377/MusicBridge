@@ -12,6 +12,7 @@ import { Worker } from 'node:worker_threads';
 import { buildStoragePolicy } from '../../../apps/desktop/scripts/build-storage-root.mjs';
 import { captureCiReportMirrorStage } from '../verify-ci-report-mirror.mjs';
 import { V39_INTEGRATION_BASE, V39_INTEGRATION_BRANCH, V39_INTEGRATION_SOURCE_PARENT,
+  V39_INTEGRATION_FAILED_SOURCE1, V39_INTEGRATION_FAILED_SOURCE2, V39_INTEGRATION_SOURCE2_SOURCE_FILES,
   V39_INTEGRATION_SOURCE_FILES, V39_INTEGRATION_HISTORICAL_SOURCE_FILES, V39_INTEGRATION_SOURCE_DELTA_FILES,
   V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY, v39IntegrationCanonicalPin, v39IntegrationWorkflowOutputs } from '../v39-integration-admission.mjs';
 import { V39_INTEGRATION_SAFETY_CASE_NAMES as names, V39_INTEGRATION_TAPE_TESTS,
@@ -302,23 +303,37 @@ test(names[5],async()=>{
 });
 test(names[6],async t=>{
   await yieldTurn();assert.throws(()=>v39IntegrationWorkflowOutputs({task:'V39-INTEGRATION-001',currentProductSoftwareRequired:true,
-    exactSourceFiles:40,exactSourceDeltaFiles:10,failedSource1Preserved:true,sourceCorrection:V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY}));
+    exactSourceFiles:52,exactSourceDeltaFiles:20,failedSource1Preserved:true,failedSource2Preserved:true,sourceCorrection:V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY}));
   const deadline=performance.now()+15_000;
   assert.throws(()=>inspectV39IntegrationGateInputs(repository,{...process.env,GITHUB_SHA:'f'.repeat(40)},deadline));
   assert.throws(()=>inspectV39IntegrationGateInputs(repository,process.env,performance.now()-1));
-  assert.equal(V39_INTEGRATION_SOURCE_FILES.length,40);assert.equal(V39_INTEGRATION_HISTORICAL_SOURCE_FILES.length,39);
-  assert.equal(V39_INTEGRATION_SOURCE_DELTA_FILES.length,10);
+  assert.equal(V39_INTEGRATION_SOURCE_FILES.length,52);assert.equal(V39_INTEGRATION_HISTORICAL_SOURCE_FILES.length,39);
+  assert.equal(V39_INTEGRATION_SOURCE2_SOURCE_FILES.length,40);assert.equal(V39_INTEGRATION_SOURCE_DELTA_FILES.length,20);
   assert.equal(V39_INTEGRATION_SOURCE_FILES.filter(row=>row.status==='A').length,17);
-  assert.equal(V39_INTEGRATION_SOURCE_FILES.filter(row=>row.status==='M').length,23);
-  assert.deepEqual(V39_INTEGRATION_SOURCE_FILES.filter(row=>!V39_INTEGRATION_HISTORICAL_SOURCE_FILES.some(old=>old.path===row.path)).map(row=>row.path),
-    ['packages/bridge-core/test/rust-core-owner-lifecycle.test.ts']);
+  assert.equal(V39_INTEGRATION_SOURCE_FILES.filter(row=>row.status==='M').length,35);
+  assert.deepEqual(V39_INTEGRATION_SOURCE_FILES.filter(row=>!V39_INTEGRATION_SOURCE2_SOURCE_FILES.some(old=>old.path===row.path)).map(row=>row.path),
+    [
+  "apps/desktop/e2e/v1-ui.spec.ts",
+  "apps/desktop/electron-gate/startup.test.ts",
+  "apps/desktop/scripts/startup-gate-process.d.mts",
+  "apps/desktop/scripts/startup-gate-process.mjs",
+  "apps/desktop/src/main/core-crash-gate.ts",
+  "apps/desktop/src/main/index.ts",
+  "apps/desktop/test/core-environment.test.ts",
+  "apps/desktop/test/startup-gate.test.ts",
+  "packages/bridge-core/src/collection/collection-progress-store.ts",
+  "packages/bridge-core/src/utility-main.ts",
+  "packages/bridge-core/test/collection-progress-store.test.ts",
+  "packages/bridge-core/test/utility-ipc.test.ts"
+]);
   for(const row of V39_INTEGRATION_SOURCE_DELTA_FILES){assert.equal(row.status,'M');assert.equal(row.oldMode,'100644');
     assert.equal(row.newMode,'100644');assert.equal(row.before.mode,'100644');assert.match(row.before.blob,/^[a-f0-9]{40}$/u);
     assert.ok(Number.isSafeInteger(row.before.bytes)&&row.before.bytes>0);assert.match(row.before.sha256,/^[a-f0-9]{64}$/u);}
-  // 正例来自本次实际冻结Source2或其实际Report；不从dirty WIP制造Source资格。
+  // 正例来自本次实际冻结Source3或其实际Report；不从dirty WIP制造Source资格。
   const current=inspectV39IntegrationGateInputs(repository,process.env,performance.now()+45_000);
-  assert.equal(current.admission.sourceParentSha,V39_INTEGRATION_SOURCE_PARENT);assert.equal(current.admission.exactSourceFiles,40);
-  assert.equal(current.admission.exactSourceDeltaFiles,10);assert.equal(current.admission.failedSource1Preserved,true);
+  assert.equal(current.admission.sourceParentSha,V39_INTEGRATION_SOURCE_PARENT);assert.equal(current.admission.exactSourceFiles,52);
+  assert.equal(current.admission.exactSourceDeltaFiles,20);assert.equal(current.admission.failedSource1Preserved,true);
+  assert.equal(current.admission.failedSource2Preserved,true);
   assert.deepEqual(current.admission.sourceCorrection,V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY);
   assert.equal(current.admission.sourceCorrectionSha256,v39IntegrationCanonicalPin(V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY).sha256);
   if(role==='source')assert.equal(current.identity.parent,V39_INTEGRATION_SOURCE_PARENT);
@@ -333,15 +348,17 @@ test(names[6],async t=>{
   const unknownParent=fixtureCommit(isolated,sourceTree,[V39_INTEGRATION_BASE]);
   checkout(fixtureCommit(isolated,sourceTree,[unknownParent]));
   assert.throws(()=>inspectV39IntegrationGateInputs(isolated,env,performance.now()+15_000),error=>/^V39_/u.test(error.code));
-  checkout(V39_INTEGRATION_SOURCE_PARENT);
-  assert.throws(()=>inspectV39IntegrationGateInputs(isolated,env,performance.now()+15_000),error=>error.code==='V39_INTEGRATION_FAILED_SOURCE1_CANNOT_QUALIFY');
+  for(const [old,code]of [[V39_INTEGRATION_FAILED_SOURCE1,'V39_INTEGRATION_FAILED_SOURCE1_CANNOT_QUALIFY'],
+    [V39_INTEGRATION_FAILED_SOURCE2,'V39_INTEGRATION_FAILED_SOURCE2_CANNOT_QUALIFY']]){
+    checkout(old);assert.throws(()=>inspectV39IntegrationGateInputs(isolated,env,performance.now()+15_000),error=>error.code===code);
+  }
   checkout(current.admission.sourceSha);
-  writeFileSync(path.join(isolated,'v39-unreleased-path-41.txt'),'只有合成fixture的越界第41路径\n',{flag:'wx',mode:0o644});
-  fixtureGit(isolated,['add','--','v39-unreleased-path-41.txt']);
+  writeFileSync(path.join(isolated,'v39-unreleased-path-54.txt'),'只有合成fixture的越界第54路径\n',{flag:'wx',mode:0o644});
+  fixtureGit(isolated,['add','--','v39-unreleased-path-54.txt']);
   checkout(fixtureCommit(isolated,fixtureGit(isolated,['write-tree']),[V39_INTEGRATION_SOURCE_PARENT]));
   assert.throws(()=>inspectV39IntegrationGateInputs(isolated,env,performance.now()+15_000),error=>/^V39_/u.test(error.code));
   assert.equal(fixtureGit(repository,['rev-parse','HEAD']),current.identity.head);
-  t.diagnostic('forward真实Source2='+current.admission.sourceSha+'；unknown parent/失败534/第41路径仅在外置Fake Git变异且均拒绝。');
+  t.diagnostic('forward真实Source3='+current.admission.sourceSha+'；unknown parent/失败534与39c9/第54路径仅在外置Fake Git变异且均拒绝。');
 });
 test(names[7],{timeout:10_000},async()=>{
   await yieldTurn();const root=directory(),stage=await captureCiReportMirrorStage({directory:repository,outputRoot:root,name:'owned-natural',
@@ -372,13 +389,14 @@ test(names[9],async()=>{
   for(const repairRole of ['source','report']){
     const input={identity:{head:'f'.repeat(40)},admission:{repairRole,sourceSha:'e'.repeat(40),
       sourceParentSha:V39_INTEGRATION_SOURCE_PARENT,sourceCorrection:V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY,
-      sourceCorrectionSha256:v39IntegrationCanonicalPin(V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY).sha256,failedSource1Preserved:true}};
+      sourceCorrectionSha256:v39IntegrationCanonicalPin(V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY).sha256,failedSource1Preserved:true,failedSource2Preserved:true}};
     const summary=buildV39IntegrationGateSummary({sourceBefore:input,sourceAfter:input,freshReader:null,standardVerification:null,
       stages:[],temporaryCleanup:null,failureCode:'V39_INTEGRATION_CONTROLLED_SHAPE_NOT_CURRENT_SOFTWARE_PASS',
       startedAtMs:1,finishedAtMs:2,durationMs:1,artifactFiles:['summary.json']});
     assert.equal(summary.baseSha,V39_INTEGRATION_BASE);assert.equal(summary.sourceParentSha,V39_INTEGRATION_SOURCE_PARENT);
     assert.deepEqual(summary.sourceCorrection,input.admission.sourceCorrection);
     assert.equal(summary.sourceCorrectionSha256,input.admission.sourceCorrectionSha256);assert.equal(summary.failedSource1Preserved,true);
+    assert.equal(summary.failedSource2Preserved,true);
     assert.equal(summary.passed,false);assert.equal(summary.currentSoftwareGateExitCode,1);
     assert.equal(summary.expectedRegisteredTests,repairRole==='source'?277:203);
     assert.equal(summary.expectedPassedTests,repairRole==='source'?277:200);assert.equal(summary.expectedSkippedTests,repairRole==='source'?0:3);
