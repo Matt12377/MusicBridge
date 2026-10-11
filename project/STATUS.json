@@ -215,6 +215,184 @@
       "reportCi": null,
       "reportCommitResolution": "EXACT_DIRECT_CHILD_OF_SOURCE",
       "ownerAcceptance": "NOT_RUN"
+    },
+    "ciReportMetadata": {
+      "task": "CI-REPORT-METADATA-001",
+      "branch": "codex/ci-report-metadata-001",
+      "baseReport": "1b5345d13d9617c1770a361841d805305d06d038",
+      "sourceSha": "0dffccb0b351e994ee19e0840e12f88481956c6f",
+      "sourceParentSha": "dfad0c8e0e0f906c3a7456b0151b3aaba7e5547c",
+      "productSource": "16507120ab52d4843012e6888ad521138d8336d6",
+      "scope": "docs/postrust/MBM-004/CI_REPORT_METADATA_SCOPE.json",
+      "failedReportPreserved": true,
+      "softwareReuse": "EXACT_BYTES_AND_ORIGINAL_PRODUCERS",
+      "currentProductTestsRepeated": false,
+      "currentToolGateRequired": true,
+      "realEvidence": "NOT_RUN",
+      "reportSha": null,
+      "reportCi": null,
+      "reportCommitResolution": "EXACT_DIRECT_CHILD_OF_SOURCE",
+      "ownerAcceptance": "NOT_RUN",
+      "schema": "musicbridge.ci-report-metadata.public-report.v1",
+      "sourceCi": {
+        "schema": "musicbridge.ci-report-metadata.public-producer.v1",
+        "status": "SEALED_FIRST_NATURAL_TOOL_CI_WITH_ORIGINAL_S165_SOFTWARE_REUSE",
+        "phase": "source",
+        "task": "CI-REPORT-METADATA-001",
+        "revision": "0dffccb0b351e994ee19e0840e12f88481956c6f",
+        "branch": "codex/ci-report-metadata-001",
+        "repositoryId": 1340424953,
+        "workflows": [
+          {
+            "path": ".github/workflows/verify.yml",
+            "runId": 38130223220,
+            "attempt": 1,
+            "status": "completed",
+            "conclusion": "success",
+            "jobs": [
+              {
+                "jobId": 114442821391,
+                "name": "verify",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "jobId": 114442821552,
+                "name": "dependency-audit",
+                "status": "completed",
+                "conclusion": "success"
+              }
+            ]
+          },
+          {
+            "path": ".github/workflows/security.yml",
+            "runId": 38130223212,
+            "attempt": 1,
+            "status": "completed",
+            "conclusion": "success",
+            "jobs": [
+              {
+                "jobId": 114442821379,
+                "name": "static-security",
+                "status": "completed",
+                "conclusion": "success"
+              }
+            ]
+          },
+          {
+            "path": ".github/workflows/rust-core.yml",
+            "runId": 38130223232,
+            "attempt": 1,
+            "status": "completed",
+            "conclusion": "success",
+            "jobs": [
+              {
+                "jobId": 114442821428,
+                "name": "rust-core (macos-latest)",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "jobId": 114442821656,
+                "name": "rust-core (ubuntu-latest)",
+                "status": "completed",
+                "conclusion": "success"
+              }
+            ]
+          },
+          {
+            "path": ".github/workflows/electron-e2e.yml",
+            "runId": 38130223322,
+            "attempt": 1,
+            "status": "completed",
+            "conclusion": "success",
+            "jobs": [
+              {
+                "jobId": 114442821859,
+                "name": "macos-electron-gate",
+                "status": "completed",
+                "conclusion": "success"
+              }
+            ]
+          }
+        ],
+        "logs": [
+          {
+            "runId": 38130223212,
+            "jobId": 114442821379,
+            "bytes": 27214,
+            "sha256": "44dffd4e962d363f6d0cc5953cfcf9c37b31d8717f9c380ab0fe85dbb9658828"
+          },
+          {
+            "runId": 38130223220,
+            "jobId": 114442821391,
+            "bytes": 51335,
+            "sha256": "d94309a5a5b4f63e7965783d6144ee1e6f399ef86dea148c7354161ad66d39f0"
+          },
+          {
+            "runId": 38130223232,
+            "jobId": 114442821428,
+            "bytes": 28745,
+            "sha256": "215d0e9485c755b7540efb98c6eaed303425d3fabc1c11a115816424f2bc49ff"
+          },
+          {
+            "runId": 38130223220,
+            "jobId": 114442821552,
+            "bytes": 28975,
+            "sha256": "ee0ab5ff629acadbe696282e9fa468b2e7d4a99b32134e913053032c04812ec6"
+          },
+          {
+            "runId": 38130223232,
+            "jobId": 114442821656,
+            "bytes": 28219,
+            "sha256": "76aca05c8eb3c04aa900fc878c628459559d87000de815a19fb91a72f81c1ff9"
+          },
+          {
+            "runId": 38130223322,
+            "jobId": 114442821859,
+            "bytes": 34390,
+            "sha256": "64b76fcffac59d447d36b8f6c265284e0f89779b61e7bf59122cc4dcb0a8153f"
+          }
+        ],
+        "artifacts": [
+          {
+            "artifactId": 11698399085,
+            "name": "verify-0dffccb0b351e994ee19e0840e12f88481956c6f",
+            "bytes": 47707,
+            "sha256": "9cc03d5c784c22e74aab3205705c6104cb4644b803d80865a2f80f69c1868ca4",
+            "allMembersBytesAndCrcRead": true,
+            "memberManifest": {
+              "count": 12,
+              "expandedBytes": 232946,
+              "canonical": {
+                "bytes": 1656,
+                "sha256": "ede7399963e5865039d4ac78edd8c6c8ceeef7e066ce9da2e74cfed5776bf413"
+              }
+            },
+            "summary": {
+              "path": "summary.json",
+              "bytes": 95429,
+              "sha256": "7a52c31cf7955e5ef03cb3f4ff0bfd084b8f45eec6b098354e9733a26912becf",
+              "crc32": 1462951425
+            },
+            "originalTests": 173,
+            "safetyTests": 16,
+            "totalTapTests": 189
+          }
+        ],
+        "softwareReuse": "EXACT_BYTES_AND_ORIGINAL_PRODUCERS",
+        "productSource": "16507120ab52d4843012e6888ad521138d8336d6",
+        "compiledAndApp": "SKIPPED_REUSED_S165",
+        "currentProductTestsRepeated": false,
+        "realApplicationServiceDeviceAudio": "NOT_RUN",
+        "ownerAcceptance": "NOT_RUN"
+      },
+      "fullObject": {
+        "path": "docs/postrust/MBM-004/CI_EVIDENCE.json",
+        "jsonPointer": "/ciReportMetadata",
+        "bytes": 282425,
+        "sha256": "eaf4456652e98b913bb03badd8f3cad1b75fa7d12cd9fbe5e15030926bcb0f30"
+      }
     }
   },
   "mbm004Policy": {

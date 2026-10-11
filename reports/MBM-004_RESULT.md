@@ -45,3 +45,16 @@ Owner最新要求保留CoverDrop原全部功能并在侧边栏提供入口。Roo
 本次报告只新增本域 `ciRepair`，保留原报告和产品证据；实际报告 SHA 由唯一直接子提交解析，本提交的 verify/security 2 个 workflow、3 个 job 必须在普通 push 后独立核验。此处 `reportSha` 与 `reportCi` 保持 null，尚未产生的本报告 CI 不记为通过。
 
 真实应用、服务、设备、音频与 Owner 验收均为 `NOT_RUN`。Tape、Feedback、共享原生接线、CoverDrop、MBRS-016/017 仍待后续整合；仅在本报告自己的 CI 封口后建立实际下一基线。
+
+
+## CI_REPORT_METADATA_001
+
+本次 CI 报告元数据修复 Source `0dffccb0b351e994ee19e0840e12f88481956c6f` 的首次自然四 workflow、六 job 已全部通过；完整新工具 ZIP 的十二成员和全部日志已读取并绑定原字节。本地与远端工具均完成原 173 项、原控制面和新增 16 项，共 189 TAP，零失败、取消、跳过与 todo；自有进程和临时目录均按门禁闭合。
+
+机器状态仅保存固定身份摘要，完整证据保存在 `docs/postrust/MBM-004/CI_EVIDENCE.json#/ciReportMetadata`。Source 与报告均从精确父提交原字节插入授权域，历史大整数和旧证据保持。两个历史报告与dfad首次Source失败保留，累计范围基线1b、当前Source唯一父dfad及必要Linux夹具/十二根上传修正已独立验证；原产品软件继续精确复用 `16507120ab52d4843012e6888ad521138d8336d6`，本任务不重复产品测试或构建。
+
+本报告是 Source 的唯一直接子提交。提交时自身 SHA/CI 留空，须由后续外置收据绑定真实 Report 自身首次自然 verify/security 两 workflow、三 job 和一个当前工具 ZIP；此项当前待验证。原 18 任务/156 项、有效 17/150 和 MBRS-015 六项 N_A 保持。正式 App、服务、设备、音频和 Owner 验收仍为 NOT_RUN。
+
+- [x] CI-REPORT-METADATA-001 Source 实施、本地完整工具 Gate、首次自然 Source CI。
+- [ ] 本唯一直接 Report 自身首次自然 CI 封口。
+- [ ] 封口后从实际 Report 建立独立集成，依次 Tape、完整反馈与 CoverDrop 原功能、016、017。
