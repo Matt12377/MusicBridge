@@ -109,7 +109,7 @@ function fixture(t){
     checkout(sourceParent);
     const current=command(repository,['rev-list','--parents','-n','1','HEAD']).split(' ');
     assert.equal(current.length,2);
-    assert.notEqual(current[0],sourceParent,'未提交Source3不能从dirty WIP构造准入正例');
+    assert.notEqual(current[0],sourceParent,'未提交Source4不能从dirty WIP构造准入正例');
     assert.equal(command(repository,['status','--porcelain=v1','--untracked-files=all']),'');
     const immutableSource=current[1]===sourceParent?current[0]:current[1];
     assert.deepEqual(command(repository,['rev-list','--parents','-n','1',immutableSource]).split(' '),[immutableSource,sourceParent]);
@@ -118,10 +118,10 @@ function fixture(t){
       const raw=command(repository,['show',immutableSource+':'+relative],{binary:true});
       writeFileSync(filename,raw,{mode:0o644});chmodSync(filename,0o644);
     }
-    // 只消费实际已提交Source3；32个历史叶原样继承，不能以fixture空白补造21条修复。
+    // 只消费实际已提交Source4；45个历史叶原样继承，直接7叶必须有真实提交。
     jsonEdit('docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json',value=>{value.sourceCorrection=copy(correction);});
     for(const row of deltaFiles)if(row.path!==scopePath)
-      assert.notEqual(blob(readFileSync(path.join(directory,row.path))),row.before.blob,'本轮直接修复叶必须来自实际Source3：'+row.path);
+      assert.notEqual(blob(readFileSync(path.join(directory,row.path))),row.before.blob,'本轮直接修复叶必须来自实际Source4：'+row.path);
     freezeScope();
     syntheticSource=commitWorking(sourcePaths);sourceTree=command(directory,['rev-parse','HEAD^{tree}']);
     assert.equal(command(directory,['rev-parse','--path-format=absolute','--git-common-dir']),path.join(directory,'.git'));
@@ -148,14 +148,20 @@ function encode(value){return Buffer.from(JSON.stringify(value,null,2)+'\n');}
 
 test(admissionNames[0],t=>{
   const f=fixture(t),result=inspectV39IntegrationAdmission(f.directory,environment);
-  assert.equal(result.sourceSha,f.source);assert.equal(result.sourceParentSha,sourceParent);assert.equal(result.exactSourceFiles,52);assert.equal(result.exactSourceDeltaFiles,20);
+  assert.equal(result.sourceSha,f.source);assert.equal(result.sourceParentSha,sourceParent);assert.equal(result.exactSourceFiles,52);assert.equal(result.exactSourceDeltaFiles,7);
   assert.equal(result.failedSource1Preserved,true);assert.equal(result.failedSource2Preserved,true);assert.deepEqual(result.sourceCorrection,correction);
   assert.equal(result.sourceCorrectionSha256,correctionRef.canonical.sha256);
   assert.equal(result.exactReportFiles,0);assert.equal(result.sealedBaselinePreserved,true);assert.equal(result.offlineTapeDonorVerified,true);
   assert.equal(result.currentProductSoftwareRequired,true);assert.deepEqual(result.sourcePins,sourcePaths.map(pin));
-  const untouched=source2Pins.filter(row=>!deltaFiles.some(delta=>delta.path===row.path));assert.equal(untouched.length,32);
-  assert.deepEqual(result.sourcePins.filter(row=>untouched.some(old=>old.path===row.path)),untouched);
-  assert.equal(correction.generation,3);assert.equal(correction.failedSource1.sha,failedSource1);assert.equal(correction.failedSource2.sha,failedSource2);
+  // Source3的32条旧继承断言保留在其历史层，当前Source4另核45条逐字节继承。
+  const previous=correction.source3Preserved;assert.equal(previous.sha,sourceParent);
+  const untouched=source2Pins.filter(row=>!previous.sourceDeltaFiles.some(delta=>delta.path===row.path));assert.equal(untouched.length,32);
+  assert.deepEqual(previous.sourceFiles.filter(row=>untouched.some(old=>old.path===row.path)),untouched);
+  const currentUntouched=previous.sourceFiles.filter(row=>!deltaFiles.some(delta=>delta.path===row.path));assert.equal(currentUntouched.length,45);
+  assert.deepEqual(result.sourcePins.filter(row=>currentUntouched.some(old=>old.path===row.path)),currentUntouched);
+  const originalCorrection=JSON.parse(command(directory,['show',sourceParent+':'+correctionRef.path])).sourceCorrection;
+  assert.equal(originalCorrection.generation,3);assert.deepEqual(v39IntegrationCanonicalPin(originalCorrection),previous.originalCorrectionCanonical);
+  assert.equal(correction.generation,4);assert.equal(correction.failedSource1.sha,failedSource1);assert.equal(correction.failedSource2.sha,failedSource2);
   assert.equal(correction.failedSource2.parentSha,failedSource1);
   assert.deepEqual(v39IntegrationCanonicalPin(correction.failedSource2.originalCorrection),correction.failedSource2.originalCorrectionCanonical);
   const output=v39IntegrationWorkflowOutputs(result);assert.equal(output.integrationMode,'qualified');

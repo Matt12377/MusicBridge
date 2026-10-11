@@ -798,7 +798,7 @@
       "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
       "mode": "100644",
       "blob": null,
-      "bytes": 41662,
+      "bytes": 36857,
       "sha256": null
     },
     {
@@ -811,9 +811,9 @@
     {
       "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
       "mode": "100644",
-      "blob": "ad557acc50470814b8bd0e4502049be7c0ea9286",
-      "bytes": 218231,
-      "sha256": "49030b2afe3b84f21446dae39e447706a032c42d78a712cfaf10005ec54f12cf"
+      "blob": "6661a6baabaef991d25fb09b17ce13bc0e9c98a3",
+      "bytes": 243165,
+      "sha256": "1db3259ab5c0bc972f419043eb026930b540871cebb2e2fe3a566fec74a2ee3d"
     },
     {
       "path": "docs/integration/V39-INTEGRATION-001/SEALED_BASELINE.json",
@@ -972,30 +972,30 @@
     {
       "path": "scripts/ci/test/v39-integration-admission.test.mjs",
       "mode": "100644",
-      "blob": "ca85dca06eab3025c438632217712d384ffd5ec0",
-      "bytes": 20948,
-      "sha256": "1321be463e415a8fa342d90bf459a4f2acc689b6512a9e30d64fd0d9f97e9cb0"
+      "blob": "b2df72b1bcb024cd5545c6f1fb5e6110d7a68a52",
+      "bytes": 21682,
+      "sha256": "337a95600c86976552b02c476927f795a02bdad24b880cadbc8205b42687435f"
     },
     {
       "path": "scripts/ci/test/v39-integration-gate.test.mjs",
       "mode": "100644",
-      "blob": "8c242c57196558ad82c32f5626178ad2be2fcd11",
-      "bytes": 38122,
-      "sha256": "0086fc0dcf123e4bb4fd7c02e88b193d938d74cf35c59914540d5de4aad84159"
+      "blob": "c5344bc753d85c9aeb1a9061cd5e8a17b4e97cab",
+      "bytes": 38119,
+      "sha256": "8621259d173b309aeba2644c04e03224b9e0b98c11c9cafa50a42d085c840a9f"
     },
     {
       "path": "scripts/ci/test/v39-integration-report-only.test.mjs",
       "mode": "100644",
-      "blob": "0038f87bbf50722af0ad7c552418def37a080a0e",
-      "bytes": 40923,
-      "sha256": "ac6ba1dc2123b5e120cc67d655709860866a604b9e6b8762123f308b439a7f71"
+      "blob": "433614c15cf42a0a990e694808f4bd4ddb0c1957",
+      "bytes": 44433,
+      "sha256": "fd5bd78630cdc69b181aad4faa757451eb6d588c3977cc415861c0f7b40c8999"
     },
     {
       "path": "scripts/ci/v39-integration-admission.mjs",
       "mode": "100644",
-      "blob": "dfaa2edd2f9bd45bc65de45e9e36db9bdfc65b48",
-      "bytes": 379059,
-      "sha256": "21816d243c5951c39242cd495c337fd7e4099d9e93cb4fd6713d52e5bab6fd48"
+      "blob": "e2c0489463c6472532ea34e2bd3725ddff844e55",
+      "bytes": 401605,
+      "sha256": "127fe5909c33bc2cac9db07a29d9857ea44d9ae47560baac01397712e12dc996"
     },
     {
       "path": "scripts/ci/verify-v39-integration.mjs",
@@ -1014,9 +1014,9 @@
     {
       "path": "tasks/V39-INTEGRATION-001.md",
       "mode": "100644",
-      "blob": "12bdf63129714a1b29e2a29a16ea2979e486bc54",
-      "bytes": 8665,
-      "sha256": "aacf5a180dc5aec2da531c60785de2e2f2c13c0974abd037629071686eea92d1"
+      "blob": "433c7acc3b533b18a3abb7c857d8e22b405bd12e",
+      "bytes": 11244,
+      "sha256": "c5653c0e2aa8dcdc41667504ede2481883f052033987db41d706898d20ab1867"
     }
   ],
   "reportPaths": [
@@ -1051,104 +1051,8 @@
   },
   "realApplicationServiceDeviceAudio": "NOT_RUN",
   "ownerAcceptance": "NOT_RUN",
-  "sourceParentSha": "39c9b9471ca04c7c4ae866799ab8b5876c45955f",
+  "sourceParentSha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
   "sourceDeltaFiles": [
-    {
-      "path": "apps/desktop/e2e/v1-ui.spec.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "f8f127a1acd20f909ce07efe8a9c44ff448a350e",
-        "bytes": 289978,
-        "sha256": "ba87fc6d36eaf18f51344d70a64f507fba88ff963ea8ee290cdd0eeeb83cbf3f"
-      }
-    },
-    {
-      "path": "apps/desktop/electron-gate/startup.test.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "63d2c6c2daf06c5ac754361b5bf3159ce4c3f56d",
-        "bytes": 3369,
-        "sha256": "88a442097e6a4620f53ffb07c061f52757e0a567a60b21d4eb9de08bd6fcb42b"
-      }
-    },
-    {
-      "path": "apps/desktop/scripts/startup-gate-process.d.mts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "3ea185dc476c404c9d7ab834b4cc0ffc520c6d57",
-        "bytes": 720,
-        "sha256": "de27a253ae6dc57b1f2ebfaeb7c75592ba5fb8470b77b3c13762f7c77825c4c1"
-      }
-    },
-    {
-      "path": "apps/desktop/scripts/startup-gate-process.mjs",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "e2bd4307be3656ac6bfdfe7f1910ccd6bae8d45e",
-        "bytes": 3931,
-        "sha256": "29e74bc232efa2120ff52ff0c1e105825fbf7146f096e0e8cd70890c46083b36"
-      }
-    },
-    {
-      "path": "apps/desktop/src/main/core-crash-gate.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "71e1b586b575884e5acb52dab4683435ea4f782b",
-        "bytes": 1046,
-        "sha256": "07562a6be5421310c2cea408e0e578678fd730284ef73fcb9f9e564a1902df61"
-      }
-    },
-    {
-      "path": "apps/desktop/src/main/index.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "83ec1c7789fa578992ba1b7cc90015378d434f0a",
-        "bytes": 111480,
-        "sha256": "7cd679be6e3821ae703d049a07be88828a02f6dc9e1bcfe3d777f251a684cb80"
-      }
-    },
-    {
-      "path": "apps/desktop/test/core-environment.test.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "9e94f1418ba05a3d2d1136be57c1ab21e766f984",
-        "bytes": 11108,
-        "sha256": "79f990cf2cb404a382423938c7902efea1c48563049b640072691126d0c292a8"
-      }
-    },
-    {
-      "path": "apps/desktop/test/startup-gate.test.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "78399da4f8cfa73c86d776ec8bb1e0e1df914d02",
-        "bytes": 26566,
-        "sha256": "a7ddc09c92cbced3d9113bd30e297bdb21dd74820454912ff86a71019fe330d6"
-      }
-    },
     {
       "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
       "status": "M",
@@ -1156,9 +1060,9 @@
       "newMode": "100644",
       "before": {
         "mode": "100644",
-        "blob": "9ab0f1d75e507a0651a926d1e5cf313e7432d190",
-        "bytes": 30444,
-        "sha256": "acac38184a7e209fa6d9925e6f309ae61c64cf03eb01a6cba49bc385a4102475"
+        "blob": "fadf2214d46afef3578a777507e434357cfa4efe",
+        "bytes": 41662,
+        "sha256": "19d7ab06470deca517d43322dca3b3871758e764a1126394e799184373a90c73"
       }
     },
     {
@@ -1168,57 +1072,9 @@
       "newMode": "100644",
       "before": {
         "mode": "100644",
-        "blob": "d1078a2ef509c5dbf9dcc5173d92f1e680883e96",
-        "bytes": 66247,
-        "sha256": "721e1e52a5612ab2b2f6d9ac4a003e85a4ab6a004c0d0efaba7df1be764a94d1"
-      }
-    },
-    {
-      "path": "packages/bridge-core/src/collection/collection-progress-store.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "ab5f94dc50300886d65a56c90576cf2dd490f3c3",
-        "bytes": 37310,
-        "sha256": "a293bef1501775af478597770632fa60e1082510cd9a30b0c9896a6808e18b2c"
-      }
-    },
-    {
-      "path": "packages/bridge-core/src/utility-main.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "36ef32ee36a53a67e35565123a9f112c93fe2fe9",
-        "bytes": 53182,
-        "sha256": "5fbed878e812f32f351a561d6c15f4590cd1436f35eb175e23337d52c442c6b2"
-      }
-    },
-    {
-      "path": "packages/bridge-core/test/collection-progress-store.test.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "14f65a5a3f3cd2f05a9beb290aa7594d1e2b9789",
-        "bytes": 57135,
-        "sha256": "24bd1a3f60c6a9e21e8ff9397636930f3de292b756c7c1cff6afadf5c456b42e"
-      }
-    },
-    {
-      "path": "packages/bridge-core/test/utility-ipc.test.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "df7d695f74d0e352240601fa9901b96c6253120e",
-        "bytes": 82655,
-        "sha256": "34868f9b4e30296b2002bbc579520b4f2f369e5b8c1a99331924237bd88d8f46"
+        "blob": "ad557acc50470814b8bd0e4502049be7c0ea9286",
+        "bytes": 218231,
+        "sha256": "49030b2afe3b84f21446dae39e447706a032c42d78a712cfaf10005ec54f12cf"
       }
     },
     {
@@ -1228,9 +1084,9 @@
       "newMode": "100644",
       "before": {
         "mode": "100644",
-        "blob": "f702f26d858aa33f0ef505898a213472a5f98773",
-        "bytes": 19867,
-        "sha256": "1695feb2cfe385e85f0dc4eaded2cbbeb5d0d44ef1d5a972206c2cf2f9fd5c2b"
+        "blob": "ca85dca06eab3025c438632217712d384ffd5ec0",
+        "bytes": 20948,
+        "sha256": "1321be463e415a8fa342d90bf459a4f2acc689b6512a9e30d64fd0d9f97e9cb0"
       }
     },
     {
@@ -1240,9 +1096,9 @@
       "newMode": "100644",
       "before": {
         "mode": "100644",
-        "blob": "410a1c7557386a0c3dc13852d7d7a333bec72c9a",
-        "bytes": 37116,
-        "sha256": "52db45573a7ae8ab336756557ff7f582d910591a0cc9693992b055b6a874debf"
+        "blob": "8c242c57196558ad82c32f5626178ad2be2fcd11",
+        "bytes": 38122,
+        "sha256": "0086fc0dcf123e4bb4fd7c02e88b193d938d74cf35c59914540d5de4aad84159"
       }
     },
     {
@@ -1252,9 +1108,9 @@
       "newMode": "100644",
       "before": {
         "mode": "100644",
-        "blob": "40771cd2780220eb2bcd9443572ff892f731d0ec",
-        "bytes": 40391,
-        "sha256": "7145f13f6601564992d0d8e2af1d3005034ef78521b1606ae61f1c58319154b5"
+        "blob": "0038f87bbf50722af0ad7c552418def37a080a0e",
+        "bytes": 40923,
+        "sha256": "ac6ba1dc2123b5e120cc67d655709860866a604b9e6b8762123f308b439a7f71"
       }
     },
     {
@@ -1264,21 +1120,9 @@
       "newMode": "100644",
       "before": {
         "mode": "100644",
-        "blob": "5150e9c2591483bbd024271dad4ab9b243254188",
-        "bytes": 182912,
-        "sha256": "4f38b82f860505279991d4b5d01bcc040ff769275d7df97dc7c808858da5c833"
-      }
-    },
-    {
-      "path": "scripts/ci/verify-v39-integration.mjs",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "e45929c5a8f4cd7eb3d3e9141fd5f16cea80d848",
-        "bytes": 46506,
-        "sha256": "e43d424986ce9a617926c4df8fa091eb9b69a6b77da2e226381b24de543631b1"
+        "blob": "dfaa2edd2f9bd45bc65de45e9e36db9bdfc65b48",
+        "bytes": 379059,
+        "sha256": "21816d243c5951c39242cd495c337fd7e4099d9e93cb4fd6713d52e5bab6fd48"
       }
     },
     {
@@ -1288,9 +1132,9 @@
       "newMode": "100644",
       "before": {
         "mode": "100644",
-        "blob": "ef26c14a1af93701bcda8e6299d1168816acc9e5",
-        "bytes": 3703,
-        "sha256": "fc00ba6400c31df407e8385eaccefbcb8bbfbcb41f6d20d92479e74b6351605b"
+        "blob": "12bdf63129714a1b29e2a29a16ea2979e486bc54",
+        "bytes": 8665,
+        "sha256": "aacf5a180dc5aec2da531c60785de2e2f2c13c0974abd037629071686eea92d1"
       }
     }
   ],
@@ -1298,8 +1142,8 @@
     "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
     "jsonPointer": "/sourceCorrection",
     "canonical": {
-      "bytes": 121575,
-      "sha256": "d0b777d034dd4f54d05d7f8b6310f642f27f811a0d0f2f4a993638b0085ae935"
+      "bytes": 139101,
+      "sha256": "8e92988a63d9dc056658ee011038b210c5d5b40e6e56e31123c44142c840c0c2"
     }
   }
 }

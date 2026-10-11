@@ -303,12 +303,12 @@ test(names[5],async()=>{
 });
 test(names[6],async t=>{
   await yieldTurn();assert.throws(()=>v39IntegrationWorkflowOutputs({task:'V39-INTEGRATION-001',currentProductSoftwareRequired:true,
-    exactSourceFiles:52,exactSourceDeltaFiles:20,failedSource1Preserved:true,failedSource2Preserved:true,sourceCorrection:V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY}));
+    exactSourceFiles:52,exactSourceDeltaFiles:7,failedSource1Preserved:true,failedSource2Preserved:true,sourceCorrection:V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY}));
   const deadline=performance.now()+15_000;
   assert.throws(()=>inspectV39IntegrationGateInputs(repository,{...process.env,GITHUB_SHA:'f'.repeat(40)},deadline));
   assert.throws(()=>inspectV39IntegrationGateInputs(repository,process.env,performance.now()-1));
   assert.equal(V39_INTEGRATION_SOURCE_FILES.length,52);assert.equal(V39_INTEGRATION_HISTORICAL_SOURCE_FILES.length,39);
-  assert.equal(V39_INTEGRATION_SOURCE2_SOURCE_FILES.length,40);assert.equal(V39_INTEGRATION_SOURCE_DELTA_FILES.length,20);
+  assert.equal(V39_INTEGRATION_SOURCE2_SOURCE_FILES.length,40);assert.equal(V39_INTEGRATION_SOURCE_DELTA_FILES.length,7);
   assert.equal(V39_INTEGRATION_SOURCE_FILES.filter(row=>row.status==='A').length,17);
   assert.equal(V39_INTEGRATION_SOURCE_FILES.filter(row=>row.status==='M').length,35);
   assert.deepEqual(V39_INTEGRATION_SOURCE_FILES.filter(row=>!V39_INTEGRATION_SOURCE2_SOURCE_FILES.some(old=>old.path===row.path)).map(row=>row.path),
@@ -329,10 +329,10 @@ test(names[6],async t=>{
   for(const row of V39_INTEGRATION_SOURCE_DELTA_FILES){assert.equal(row.status,'M');assert.equal(row.oldMode,'100644');
     assert.equal(row.newMode,'100644');assert.equal(row.before.mode,'100644');assert.match(row.before.blob,/^[a-f0-9]{40}$/u);
     assert.ok(Number.isSafeInteger(row.before.bytes)&&row.before.bytes>0);assert.match(row.before.sha256,/^[a-f0-9]{64}$/u);}
-  // 正例来自本次实际冻结Source3或其实际Report；不从dirty WIP制造Source资格。
+  // 正例来自本次实际冻结Source4或其实际Report；不从dirty WIP制造Source资格。
   const current=inspectV39IntegrationGateInputs(repository,process.env,performance.now()+45_000);
   assert.equal(current.admission.sourceParentSha,V39_INTEGRATION_SOURCE_PARENT);assert.equal(current.admission.exactSourceFiles,52);
-  assert.equal(current.admission.exactSourceDeltaFiles,20);assert.equal(current.admission.failedSource1Preserved,true);
+  assert.equal(current.admission.exactSourceDeltaFiles,7);assert.equal(current.admission.failedSource1Preserved,true);
   assert.equal(current.admission.failedSource2Preserved,true);
   assert.deepEqual(current.admission.sourceCorrection,V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY);
   assert.equal(current.admission.sourceCorrectionSha256,v39IntegrationCanonicalPin(V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY).sha256);

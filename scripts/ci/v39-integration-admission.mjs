@@ -70,7 +70,7 @@ function keys(value, expected, code) {
 }
 function base64(value, cap = 16 * 1024 * 1024) {
   if (typeof value !== 'string' || value.length > Math.ceil(cap / 3) * 4
-    || value.length % 4 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(value)) fail('V39_BASE64_NOT_CANONICAL');
+    || value.length % 4 || /[^A-Za-z0-9+/=]/u.test(value)) fail('V39_BASE64_NOT_CANONICAL');
   const bytes = Buffer.from(value, 'base64');
   if (bytes.length > cap || bytes.toString('base64') !== value) fail('V39_BASE64_NOT_CANONICAL'); return bytes;
 }
@@ -566,9 +566,10 @@ export const V39_INTEGRATION_HISTORICAL_SOURCE_FILES = freeze([
 ]);
 export const V39_INTEGRATION_FAILED_SOURCE1 = '534aad4d337c1c8aba6f45db21d91276f6981584';
 const failedSource1Tree = 'f5707728f28fe44e6ea4d25454d587827972de25';
-export const V39_INTEGRATION_SOURCE_PARENT = '39c9b9471ca04c7c4ae866799ab8b5876c45955f';
-export const V39_INTEGRATION_FAILED_SOURCE2 = V39_INTEGRATION_SOURCE_PARENT;
-export const V39_INTEGRATION_SOURCE_PARENT_TREE = 'eb6871688727e3376a57c96574da8233b9a7a664';
+export const V39_INTEGRATION_SOURCE_PARENT = 'd842d4604da64a19d051dd18a5659ec3ad5e5763';
+export const V39_INTEGRATION_FAILED_SOURCE2 = '39c9b9471ca04c7c4ae866799ab8b5876c45955f';
+const failedSource2Tree = 'eb6871688727e3376a57c96574da8233b9a7a664';
+export const V39_INTEGRATION_SOURCE_PARENT_TREE = '4afd35d39818474783689c34698c719f7a0be94f';
 export const V39_INTEGRATION_FAILED_SOURCE_PINS = freeze([
   {
     "path": ".github/workflows/electron-e2e.yml",
@@ -1741,111 +1742,15 @@ export const V39_INTEGRATION_FAILED_SOURCE2_SCOPE_PIN = freeze({
 /** 本轮直接21M逐项before来自实际S2，累计base仍为已封口9bfb。 */
 export const V39_INTEGRATION_SOURCE_DELTA_FILES = freeze([
   {
-    "path": "apps/desktop/e2e/v1-ui.spec.ts",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "f8f127a1acd20f909ce07efe8a9c44ff448a350e",
-      "bytes": 289978,
-      "sha256": "ba87fc6d36eaf18f51344d70a64f507fba88ff963ea8ee290cdd0eeeb83cbf3f"
-    }
-  },
-  {
-    "path": "apps/desktop/electron-gate/startup.test.ts",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "63d2c6c2daf06c5ac754361b5bf3159ce4c3f56d",
-      "bytes": 3369,
-      "sha256": "88a442097e6a4620f53ffb07c061f52757e0a567a60b21d4eb9de08bd6fcb42b"
-    }
-  },
-  {
-    "path": "apps/desktop/scripts/startup-gate-process.d.mts",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "3ea185dc476c404c9d7ab834b4cc0ffc520c6d57",
-      "bytes": 720,
-      "sha256": "de27a253ae6dc57b1f2ebfaeb7c75592ba5fb8470b77b3c13762f7c77825c4c1"
-    }
-  },
-  {
-    "path": "apps/desktop/scripts/startup-gate-process.mjs",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "e2bd4307be3656ac6bfdfe7f1910ccd6bae8d45e",
-      "bytes": 3931,
-      "sha256": "29e74bc232efa2120ff52ff0c1e105825fbf7146f096e0e8cd70890c46083b36"
-    }
-  },
-  {
-    "path": "apps/desktop/src/main/core-crash-gate.ts",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "71e1b586b575884e5acb52dab4683435ea4f782b",
-      "bytes": 1046,
-      "sha256": "07562a6be5421310c2cea408e0e578678fd730284ef73fcb9f9e564a1902df61"
-    }
-  },
-  {
-    "path": "apps/desktop/src/main/index.ts",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "83ec1c7789fa578992ba1b7cc90015378d434f0a",
-      "bytes": 111480,
-      "sha256": "7cd679be6e3821ae703d049a07be88828a02f6dc9e1bcfe3d777f251a684cb80"
-    }
-  },
-  {
-    "path": "apps/desktop/test/core-environment.test.ts",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "9e94f1418ba05a3d2d1136be57c1ab21e766f984",
-      "bytes": 11108,
-      "sha256": "79f990cf2cb404a382423938c7902efea1c48563049b640072691126d0c292a8"
-    }
-  },
-  {
-    "path": "apps/desktop/test/startup-gate.test.ts",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "78399da4f8cfa73c86d776ec8bb1e0e1df914d02",
-      "bytes": 26566,
-      "sha256": "a7ddc09c92cbced3d9113bd30e297bdb21dd74820454912ff86a71019fe330d6"
-    }
-  },
-  {
     "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
     "status": "M",
     "oldMode": "100644",
     "newMode": "100644",
     "before": {
       "mode": "100644",
-      "blob": "9ab0f1d75e507a0651a926d1e5cf313e7432d190",
-      "bytes": 30444,
-      "sha256": "acac38184a7e209fa6d9925e6f309ae61c64cf03eb01a6cba49bc385a4102475"
+      "blob": "fadf2214d46afef3578a777507e434357cfa4efe",
+      "bytes": 41662,
+      "sha256": "19d7ab06470deca517d43322dca3b3871758e764a1126394e799184373a90c73"
     }
   },
   {
@@ -1855,57 +1760,9 @@ export const V39_INTEGRATION_SOURCE_DELTA_FILES = freeze([
     "newMode": "100644",
     "before": {
       "mode": "100644",
-      "blob": "d1078a2ef509c5dbf9dcc5173d92f1e680883e96",
-      "bytes": 66247,
-      "sha256": "721e1e52a5612ab2b2f6d9ac4a003e85a4ab6a004c0d0efaba7df1be764a94d1"
-    }
-  },
-  {
-    "path": "packages/bridge-core/src/collection/collection-progress-store.ts",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "ab5f94dc50300886d65a56c90576cf2dd490f3c3",
-      "bytes": 37310,
-      "sha256": "a293bef1501775af478597770632fa60e1082510cd9a30b0c9896a6808e18b2c"
-    }
-  },
-  {
-    "path": "packages/bridge-core/src/utility-main.ts",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "36ef32ee36a53a67e35565123a9f112c93fe2fe9",
-      "bytes": 53182,
-      "sha256": "5fbed878e812f32f351a561d6c15f4590cd1436f35eb175e23337d52c442c6b2"
-    }
-  },
-  {
-    "path": "packages/bridge-core/test/collection-progress-store.test.ts",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "14f65a5a3f3cd2f05a9beb290aa7594d1e2b9789",
-      "bytes": 57135,
-      "sha256": "24bd1a3f60c6a9e21e8ff9397636930f3de292b756c7c1cff6afadf5c456b42e"
-    }
-  },
-  {
-    "path": "packages/bridge-core/test/utility-ipc.test.ts",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "df7d695f74d0e352240601fa9901b96c6253120e",
-      "bytes": 82655,
-      "sha256": "34868f9b4e30296b2002bbc579520b4f2f369e5b8c1a99331924237bd88d8f46"
+      "blob": "ad557acc50470814b8bd0e4502049be7c0ea9286",
+      "bytes": 218231,
+      "sha256": "49030b2afe3b84f21446dae39e447706a032c42d78a712cfaf10005ec54f12cf"
     }
   },
   {
@@ -1915,9 +1772,9 @@ export const V39_INTEGRATION_SOURCE_DELTA_FILES = freeze([
     "newMode": "100644",
     "before": {
       "mode": "100644",
-      "blob": "f702f26d858aa33f0ef505898a213472a5f98773",
-      "bytes": 19867,
-      "sha256": "1695feb2cfe385e85f0dc4eaded2cbbeb5d0d44ef1d5a972206c2cf2f9fd5c2b"
+      "blob": "ca85dca06eab3025c438632217712d384ffd5ec0",
+      "bytes": 20948,
+      "sha256": "1321be463e415a8fa342d90bf459a4f2acc689b6512a9e30d64fd0d9f97e9cb0"
     }
   },
   {
@@ -1927,9 +1784,9 @@ export const V39_INTEGRATION_SOURCE_DELTA_FILES = freeze([
     "newMode": "100644",
     "before": {
       "mode": "100644",
-      "blob": "410a1c7557386a0c3dc13852d7d7a333bec72c9a",
-      "bytes": 37116,
-      "sha256": "52db45573a7ae8ab336756557ff7f582d910591a0cc9693992b055b6a874debf"
+      "blob": "8c242c57196558ad82c32f5626178ad2be2fcd11",
+      "bytes": 38122,
+      "sha256": "0086fc0dcf123e4bb4fd7c02e88b193d938d74cf35c59914540d5de4aad84159"
     }
   },
   {
@@ -1939,9 +1796,9 @@ export const V39_INTEGRATION_SOURCE_DELTA_FILES = freeze([
     "newMode": "100644",
     "before": {
       "mode": "100644",
-      "blob": "40771cd2780220eb2bcd9443572ff892f731d0ec",
-      "bytes": 40391,
-      "sha256": "7145f13f6601564992d0d8e2af1d3005034ef78521b1606ae61f1c58319154b5"
+      "blob": "0038f87bbf50722af0ad7c552418def37a080a0e",
+      "bytes": 40923,
+      "sha256": "ac6ba1dc2123b5e120cc67d655709860866a604b9e6b8762123f308b439a7f71"
     }
   },
   {
@@ -1951,21 +1808,9 @@ export const V39_INTEGRATION_SOURCE_DELTA_FILES = freeze([
     "newMode": "100644",
     "before": {
       "mode": "100644",
-      "blob": "5150e9c2591483bbd024271dad4ab9b243254188",
-      "bytes": 182912,
-      "sha256": "4f38b82f860505279991d4b5d01bcc040ff769275d7df97dc7c808858da5c833"
-    }
-  },
-  {
-    "path": "scripts/ci/verify-v39-integration.mjs",
-    "status": "M",
-    "oldMode": "100644",
-    "newMode": "100644",
-    "before": {
-      "mode": "100644",
-      "blob": "e45929c5a8f4cd7eb3d3e9141fd5f16cea80d848",
-      "bytes": 46506,
-      "sha256": "e43d424986ce9a617926c4df8fa091eb9b69a6b77da2e226381b24de543631b1"
+      "blob": "dfaa2edd2f9bd45bc65de45e9e36db9bdfc65b48",
+      "bytes": 379059,
+      "sha256": "21816d243c5951c39242cd495c337fd7e4099d9e93cb4fd6713d52e5bab6fd48"
     }
   },
   {
@@ -1975,19 +1820,19 @@ export const V39_INTEGRATION_SOURCE_DELTA_FILES = freeze([
     "newMode": "100644",
     "before": {
       "mode": "100644",
-      "blob": "ef26c14a1af93701bcda8e6299d1168816acc9e5",
-      "bytes": 3703,
-      "sha256": "fc00ba6400c31df407e8385eaccefbcb8bbfbcb41f6d20d92479e74b6351605b"
+      "blob": "12bdf63129714a1b29e2a29a16ea2979e486bc54",
+      "bytes": 8665,
+      "sha256": "aacf5a180dc5aec2da531c60785de2e2f2c13c0974abd037629071686eea92d1"
     }
   }
 ]);
 export const V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY = freeze({
   "schema": "musicbridge.v39.integration.source-correction.v1",
-  "generation": 3,
+  "generation": 4,
   "task": "V39-INTEGRATION-001",
   "branch": "codex/v39-integration-001",
   "cumulativeBaseSha": "9bfb5915c17e8b5770ece7ac9a0efc1998d54e72",
-  "sourceParentSha": "39c9b9471ca04c7c4ae866799ab8b5876c45955f",
+  "sourceParentSha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
   "failedSource1": {
     "sha": "534aad4d337c1c8aba6f45db21d91276f6981584",
     "parentSha": "9bfb5915c17e8b5770ece7ac9a0efc1998d54e72",
@@ -4120,246 +3965,13 @@ export const V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY = freeze({
     }
   },
   "directSourceFiles": [
-    {
-      "path": "apps/desktop/e2e/v1-ui.spec.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "f8f127a1acd20f909ce07efe8a9c44ff448a350e",
-        "bytes": 289978,
-        "sha256": "ba87fc6d36eaf18f51344d70a64f507fba88ff963ea8ee290cdd0eeeb83cbf3f"
-      }
-    },
-    {
-      "path": "apps/desktop/electron-gate/startup.test.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "63d2c6c2daf06c5ac754361b5bf3159ce4c3f56d",
-        "bytes": 3369,
-        "sha256": "88a442097e6a4620f53ffb07c061f52757e0a567a60b21d4eb9de08bd6fcb42b"
-      }
-    },
-    {
-      "path": "apps/desktop/scripts/startup-gate-process.d.mts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "3ea185dc476c404c9d7ab834b4cc0ffc520c6d57",
-        "bytes": 720,
-        "sha256": "de27a253ae6dc57b1f2ebfaeb7c75592ba5fb8470b77b3c13762f7c77825c4c1"
-      }
-    },
-    {
-      "path": "apps/desktop/scripts/startup-gate-process.mjs",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "e2bd4307be3656ac6bfdfe7f1910ccd6bae8d45e",
-        "bytes": 3931,
-        "sha256": "29e74bc232efa2120ff52ff0c1e105825fbf7146f096e0e8cd70890c46083b36"
-      }
-    },
-    {
-      "path": "apps/desktop/src/main/core-crash-gate.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "71e1b586b575884e5acb52dab4683435ea4f782b",
-        "bytes": 1046,
-        "sha256": "07562a6be5421310c2cea408e0e578678fd730284ef73fcb9f9e564a1902df61"
-      }
-    },
-    {
-      "path": "apps/desktop/src/main/index.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "83ec1c7789fa578992ba1b7cc90015378d434f0a",
-        "bytes": 111480,
-        "sha256": "7cd679be6e3821ae703d049a07be88828a02f6dc9e1bcfe3d777f251a684cb80"
-      }
-    },
-    {
-      "path": "apps/desktop/test/core-environment.test.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "9e94f1418ba05a3d2d1136be57c1ab21e766f984",
-        "bytes": 11108,
-        "sha256": "79f990cf2cb404a382423938c7902efea1c48563049b640072691126d0c292a8"
-      }
-    },
-    {
-      "path": "apps/desktop/test/startup-gate.test.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "78399da4f8cfa73c86d776ec8bb1e0e1df914d02",
-        "bytes": 26566,
-        "sha256": "a7ddc09c92cbced3d9113bd30e297bdb21dd74820454912ff86a71019fe330d6"
-      }
-    },
-    {
-      "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "9ab0f1d75e507a0651a926d1e5cf313e7432d190",
-        "bytes": 30444,
-        "sha256": "acac38184a7e209fa6d9925e6f309ae61c64cf03eb01a6cba49bc385a4102475"
-      }
-    },
-    {
-      "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "d1078a2ef509c5dbf9dcc5173d92f1e680883e96",
-        "bytes": 66247,
-        "sha256": "721e1e52a5612ab2b2f6d9ac4a003e85a4ab6a004c0d0efaba7df1be764a94d1"
-      }
-    },
-    {
-      "path": "packages/bridge-core/src/collection/collection-progress-store.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "ab5f94dc50300886d65a56c90576cf2dd490f3c3",
-        "bytes": 37310,
-        "sha256": "a293bef1501775af478597770632fa60e1082510cd9a30b0c9896a6808e18b2c"
-      }
-    },
-    {
-      "path": "packages/bridge-core/src/utility-main.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "36ef32ee36a53a67e35565123a9f112c93fe2fe9",
-        "bytes": 53182,
-        "sha256": "5fbed878e812f32f351a561d6c15f4590cd1436f35eb175e23337d52c442c6b2"
-      }
-    },
-    {
-      "path": "packages/bridge-core/test/collection-progress-store.test.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "14f65a5a3f3cd2f05a9beb290aa7594d1e2b9789",
-        "bytes": 57135,
-        "sha256": "24bd1a3f60c6a9e21e8ff9397636930f3de292b756c7c1cff6afadf5c456b42e"
-      }
-    },
-    {
-      "path": "packages/bridge-core/test/utility-ipc.test.ts",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "df7d695f74d0e352240601fa9901b96c6253120e",
-        "bytes": 82655,
-        "sha256": "34868f9b4e30296b2002bbc579520b4f2f369e5b8c1a99331924237bd88d8f46"
-      }
-    },
-    {
-      "path": "scripts/ci/test/v39-integration-admission.test.mjs",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "f702f26d858aa33f0ef505898a213472a5f98773",
-        "bytes": 19867,
-        "sha256": "1695feb2cfe385e85f0dc4eaded2cbbeb5d0d44ef1d5a972206c2cf2f9fd5c2b"
-      }
-    },
-    {
-      "path": "scripts/ci/test/v39-integration-gate.test.mjs",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "410a1c7557386a0c3dc13852d7d7a333bec72c9a",
-        "bytes": 37116,
-        "sha256": "52db45573a7ae8ab336756557ff7f582d910591a0cc9693992b055b6a874debf"
-      }
-    },
-    {
-      "path": "scripts/ci/test/v39-integration-report-only.test.mjs",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "40771cd2780220eb2bcd9443572ff892f731d0ec",
-        "bytes": 40391,
-        "sha256": "7145f13f6601564992d0d8e2af1d3005034ef78521b1606ae61f1c58319154b5"
-      }
-    },
-    {
-      "path": "scripts/ci/v39-integration-admission.mjs",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "5150e9c2591483bbd024271dad4ab9b243254188",
-        "bytes": 182912,
-        "sha256": "4f38b82f860505279991d4b5d01bcc040ff769275d7df97dc7c808858da5c833"
-      }
-    },
-    {
-      "path": "scripts/ci/verify-v39-integration.mjs",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "e45929c5a8f4cd7eb3d3e9141fd5f16cea80d848",
-        "bytes": 46506,
-        "sha256": "e43d424986ce9a617926c4df8fa091eb9b69a6b77da2e226381b24de543631b1"
-      }
-    },
-    {
-      "path": "tasks/V39-INTEGRATION-001.md",
-      "status": "M",
-      "oldMode": "100644",
-      "newMode": "100644",
-      "before": {
-        "mode": "100644",
-        "blob": "ef26c14a1af93701bcda8e6299d1168816acc9e5",
-        "bytes": 3703,
-        "sha256": "fc00ba6400c31df407e8385eaccefbcb8bbfbcb41f6d20d92479e74b6351605b"
-      }
-    }
+    "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+    "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+    "scripts/ci/test/v39-integration-admission.test.mjs",
+    "scripts/ci/test/v39-integration-gate.test.mjs",
+    "scripts/ci/test/v39-integration-report-only.test.mjs",
+    "scripts/ci/v39-integration-admission.mjs",
+    "tasks/V39-INTEGRATION-001.md"
   ],
   "cumulativeSourceFiles": 52,
   "source1FirstNaturalCi": {
@@ -7057,18 +6669,10 @@ export const V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY = freeze({
   },
   "testBoundary": {
     "repairFiles": [
-      "apps/desktop/e2e/v1-ui.spec.ts",
-      "apps/desktop/electron-gate/startup.test.ts",
-      "apps/desktop/scripts/startup-gate-process.d.mts",
-      "apps/desktop/scripts/startup-gate-process.mjs",
-      "apps/desktop/src/main/core-crash-gate.ts",
-      "apps/desktop/src/main/index.ts",
-      "apps/desktop/test/core-environment.test.ts",
-      "apps/desktop/test/startup-gate.test.ts",
-      "packages/bridge-core/src/collection/collection-progress-store.ts",
-      "packages/bridge-core/src/utility-main.ts",
-      "packages/bridge-core/test/collection-progress-store.test.ts",
-      "packages/bridge-core/test/utility-ipc.test.ts"
+      "scripts/ci/test/v39-integration-admission.test.mjs",
+      "scripts/ci/test/v39-integration-gate.test.mjs",
+      "scripts/ci/test/v39-integration-report-only.test.mjs",
+      "scripts/ci/v39-integration-admission.mjs"
     ],
     "snapshotItems": 500,
     "historySnapshots": 25,
@@ -7091,7 +6695,13 @@ export const V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY = freeze({
     "registeredTapeGate": 277,
     "registeredReportGate": 203,
     "passedReportGate": 200,
-    "explicitInheritedReportSkips": 3
+    "explicitInheritedReportSkips": 3,
+    "base64DecodedBytes": 16777216,
+    "rootArchiveRawBytes": 67108864,
+    "admissionStageMs": 90000,
+    "wholeGateMs": 480000,
+    "originalRegistrationAndCaseTitlesPreserved": true,
+    "defaultNodeRuntimeRequired": true
   },
   "localDiagnosticBoundary": {
     "source2OriginalTargetedE2ePassed": true,
@@ -7110,7 +6720,856 @@ export const V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY = freeze({
   "sameShaCiRerunAllowed": false,
   "currentSourceRequiresFreshStandardAndGate": true,
   "realApplicationServiceDeviceAudio": "NOT_RUN",
-  "ownerAcceptance": "NOT_RUN"
+  "ownerAcceptance": "NOT_RUN",
+  "source3Preserved": {
+    "sha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+    "parentSha": "39c9b9471ca04c7c4ae866799ab8b5876c45955f",
+    "tree": "4afd35d39818474783689c34698c719f7a0be94f",
+    "scope": {
+      "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+      "blob": "fadf2214d46afef3578a777507e434357cfa4efe",
+      "bytes": 41662,
+      "sha256": "19d7ab06470deca517d43322dca3b3871758e764a1126394e799184373a90c73"
+    },
+    "sourceFiles": [
+      {
+        "path": ".github/workflows/electron-e2e.yml",
+        "mode": "100644",
+        "blob": "380eac659d5d177e087933a5d50152c02ce58a15",
+        "bytes": 11536,
+        "sha256": "d378e668aeb6ef5ad1424f3de5db8b447a84d77add8f04a2982db1482b13e6c5"
+      },
+      {
+        "path": ".github/workflows/rust-core.yml",
+        "mode": "100644",
+        "blob": "d5a1fcfd4c795947cf4f99ad1bf1a94794feb014",
+        "bytes": 5403,
+        "sha256": "c145aac8e5724c85a5611f324fbe057be42dfe8f1a34b236f27ab381ee52909a"
+      },
+      {
+        "path": ".github/workflows/security.yml",
+        "mode": "100644",
+        "blob": "468508312cea0db9421cdb7bdd9df84b8549028d",
+        "bytes": 3011,
+        "sha256": "bfd8ad30270b166a7bae2efe1bd286a8312ea77c5da98ecc9f3b2a95e98b58d0"
+      },
+      {
+        "path": ".github/workflows/verify.yml",
+        "mode": "100644",
+        "blob": "fa972737458ee8261ec2796a3778dcde08fcbfe1",
+        "bytes": 33291,
+        "sha256": "ebc47805043511eb0d814780bd0daf2a613a0321f392e2624cf9eaf5d588a13c"
+      },
+      {
+        "path": "apps/desktop/e2e/v1-ui.spec.ts",
+        "mode": "100644",
+        "blob": "0f30d8a7460816bd44c3bb4e846c714261a5df7c",
+        "bytes": 290631,
+        "sha256": "f82ea2f8ca807481f67af97e7096bcc72d4a87a100c5d376774d1f18293f156b"
+      },
+      {
+        "path": "apps/desktop/electron-gate/startup.test.ts",
+        "mode": "100644",
+        "blob": "16d929eac3603747e96ba4770af4030d17f2ffce",
+        "bytes": 3531,
+        "sha256": "81b8abc739f82e2b42c3a33f8ee55480fbff1cb7e5a31f07fbeac4e40c584893"
+      },
+      {
+        "path": "apps/desktop/scripts/startup-gate-process.d.mts",
+        "mode": "100644",
+        "blob": "08939b5041917e4236d306304e187c3da4dab106",
+        "bytes": 866,
+        "sha256": "37f4049b45f73764d7478bade55399ede55d7d148c9a028a85a41137cc5497eb"
+      },
+      {
+        "path": "apps/desktop/scripts/startup-gate-process.mjs",
+        "mode": "100644",
+        "blob": "9d36806052d856832fd1b4830a023d8747edf9bc",
+        "bytes": 9535,
+        "sha256": "24ea78256f1a480dfc075e9502ba8db835774c310e04a942d422d0b869ebf731"
+      },
+      {
+        "path": "apps/desktop/src/main/core-crash-gate.ts",
+        "mode": "100644",
+        "blob": "7a6bfe2292fe8852acf1491b3f395196d31809d5",
+        "bytes": 1794,
+        "sha256": "78ed9c837fc7a02a4d604e31e8d7acb32bb350d22168f10459ff538ae5c1567e"
+      },
+      {
+        "path": "apps/desktop/src/main/index.ts",
+        "mode": "100644",
+        "blob": "40a731861b3ade742869debc079021e4d0451620",
+        "bytes": 113892,
+        "sha256": "455d3721bff96a0d12b70826b180bccbce2e0d1cd9a49d6e039ab3635b682f4d"
+      },
+      {
+        "path": "apps/desktop/src/renderer/src/components/collection/CassetteArchiveImportPanel.vue",
+        "mode": "100644",
+        "blob": "92f9f76125bb447f6c989ef36f6f53755b350800",
+        "bytes": 7724,
+        "sha256": "9b7b9bbcc1859684367df1060d02ebe5ebc423462584ec0eed6cf40b0540dbf2"
+      },
+      {
+        "path": "apps/desktop/src/renderer/src/components/collection/CassetteCatalogDetail.vue",
+        "mode": "100644",
+        "blob": "b2b1fcfffb92e7535d5b1cfb55af9062f189a642",
+        "bytes": 13038,
+        "sha256": "e0b028c535ff41096a51904fd11c602220e03916a9922cc2825bc9d404b44963"
+      },
+      {
+        "path": "apps/desktop/src/renderer/src/components/collection/CassetteCatalogView.vue",
+        "mode": "100644",
+        "blob": "310d8fe7950670d4200f759f6697d891bc8254cc",
+        "bytes": 16917,
+        "sha256": "37a52e4b5868151dfedec97b3271619e0a63ce00e33ba26ad1a1368a32bd2b8e"
+      },
+      {
+        "path": "apps/desktop/src/renderer/src/components/collection/CollectionView.vue",
+        "mode": "100644",
+        "blob": "c192a21b3307ef4e2e8582f3ed160e4515553645",
+        "bytes": 41843,
+        "sha256": "4cd02ecf8dc45dfb34a8389edbd31372d6b8b92d3db1ee1252c8ab70e7a40efb"
+      },
+      {
+        "path": "apps/desktop/src/renderer/src/components/collection/reference-images.ts",
+        "mode": "100644",
+        "blob": "5cf626eada544311c5e1a06c7d6403bde9250ae6",
+        "bytes": 12370,
+        "sha256": "ce000d3713cbf9f16a353a3cc7b68fc20c10560a751d506b7948541c6c05ff34"
+      },
+      {
+        "path": "apps/desktop/test/cassette-catalog-ui.test.ts",
+        "mode": "100644",
+        "blob": "b59b6e28619df48579e3c9c003f5ae5702736bf2",
+        "bytes": 38729,
+        "sha256": "168e475056ca6474c994dea75f0243d2026a644a32d7b0a4bd152c00b888c8fa"
+      },
+      {
+        "path": "apps/desktop/test/collection-reference-images.test.ts",
+        "mode": "100644",
+        "blob": "d31ae046294fbd60a553d6c89c3daa5fe88a1479",
+        "bytes": 8247,
+        "sha256": "edd150b4a6e1ccb295dd4458ae7f81bffb43c5e423f2b346e6e26c77f410a931"
+      },
+      {
+        "path": "apps/desktop/test/core-environment.test.ts",
+        "mode": "100644",
+        "blob": "be04843b7b9b4dfd7e2036a5d4660cc22372d0a4",
+        "bytes": 14859,
+        "sha256": "961c612ca2c9b9a50b3edee8a33e41d890c032f7f9b8b4b25eec75f23fced1ce"
+      },
+      {
+        "path": "apps/desktop/test/startup-gate.test.ts",
+        "mode": "100644",
+        "blob": "84bce543916fc1ea4c196c120015ba5820e93390",
+        "bytes": 37952,
+        "sha256": "45bde52af40e509861a15b181edd94bd035543712cebafdc1c1648cff279f69b"
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/DONOR_READBACK.json",
+        "mode": "100644",
+        "blob": "d6d3731bb83ee492305b99063e8fb76a17704953",
+        "bytes": 311861,
+        "sha256": "381b405a53408a0f5209f4a99115e5fd83073152c31322b62a30a1e7eba5159c"
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+        "mode": "100644",
+        "blob": "fadf2214d46afef3578a777507e434357cfa4efe",
+        "bytes": 41662,
+        "sha256": "19d7ab06470deca517d43322dca3b3871758e764a1126394e799184373a90c73"
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/FEATURE_BEHAVIOR_MATRIX.json",
+        "mode": "100644",
+        "blob": "584df402a118532ab040b9dedec4bb028c0621b6",
+        "bytes": 17837,
+        "sha256": "af9dc57f2dbfe6765bcd906a8d71a6174ad42d55b7a9c383b9c4143d1089309c"
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+        "mode": "100644",
+        "blob": "ad557acc50470814b8bd0e4502049be7c0ea9286",
+        "bytes": 218231,
+        "sha256": "49030b2afe3b84f21446dae39e447706a032c42d78a712cfaf10005ec54f12cf"
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/SEALED_BASELINE.json",
+        "mode": "100644",
+        "blob": "750eb368a707877059dc461f51aec0d9b531e13c",
+        "bytes": 951772,
+        "sha256": "e1505425182e158325d531bc5b158b2690e73591cf251d7ce79f5a3cfc38eaee"
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/STATUS.json",
+        "mode": "100644",
+        "blob": "9530ab8c7b7d1643af49d0a1193da12c293f81cc",
+        "bytes": 499,
+        "sha256": "af5943fa46eb92090a04fdcf85b052ced2d230e76ab4a9539684a4673768b945"
+      },
+      {
+        "path": "packages/bridge-core/src/collection/collection-progress-store.ts",
+        "mode": "100644",
+        "blob": "71178500137ecafbaa84ee5aaed27cf2abadd16d",
+        "bytes": 37951,
+        "sha256": "b7917cc28a840e0e312d17b8ad25b50ee0bc50b9901de3e2b7d688941f7c6b35"
+      },
+      {
+        "path": "packages/bridge-core/src/collection/reference-catalog-retention.ts",
+        "mode": "100644",
+        "blob": "6520598410a88a686280421f7b0c0e9db45ce31a",
+        "bytes": 3354,
+        "sha256": "ee8531e696da2b8b7a6e8479bffeb674e6f10b5db519d367349ec1913f85e514"
+      },
+      {
+        "path": "packages/bridge-core/src/collection/reference-catalog-store.ts",
+        "mode": "100644",
+        "blob": "fac1f8be7d299135e312c9193e0c7c023197a5c6",
+        "bytes": 49492,
+        "sha256": "cb20e8e4de0ae20be7a96944820252393ad95738bde04d8e2505c37bb13f3711"
+      },
+      {
+        "path": "packages/bridge-core/src/utility-main.ts",
+        "mode": "100644",
+        "blob": "0048c8b67ced952ec4cc55474cf6216ef940acea",
+        "bytes": 55979,
+        "sha256": "ad8101eb0600a0c896803100281b3a654b7f589a3982959a0fefa88b35bfaa1d"
+      },
+      {
+        "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+        "mode": "100644",
+        "blob": "a9dbf327b2656f3de67bd98e55a4aa63923f3805",
+        "bytes": 64637,
+        "sha256": "57f37bd7e334452758d0f62b768a8338fc57cfee93097645cf8561eb04886401"
+      },
+      {
+        "path": "packages/bridge-core/test/reference-archive-catalog-store.test.ts",
+        "mode": "100644",
+        "blob": "83c749fcbfe2a4038c8868a687ddb5d7e8672868",
+        "bytes": 20252,
+        "sha256": "6f945ab5a572bc2d21063f269b5c86901c909fa3a3396d3514477f9789b3bab1"
+      },
+      {
+        "path": "packages/bridge-core/test/reference-catalog-retention.test.ts",
+        "mode": "100644",
+        "blob": "671308f343d88a74cb11b29b5782dc762d7a7742",
+        "bytes": 20800,
+        "sha256": "a6df327894831798cf45f522a5e7fc32b770a8961f63317ebdd561ee84d1be03"
+      },
+      {
+        "path": "packages/bridge-core/test/rust-core-owner-lifecycle.test.ts",
+        "mode": "100644",
+        "blob": "8d6d94087615e75cf9ed79063cc8d5efd093482a",
+        "bytes": 26452,
+        "sha256": "22e07be23828860aed50d3048fd558fc820cdb6cd18581f6f90a1e4d219e1c1c"
+      },
+      {
+        "path": "packages/bridge-core/test/utility-ipc.test.ts",
+        "mode": "100644",
+        "blob": "25993b1f62d3560c4ff80567dec5b8250dd4c62f",
+        "bytes": 87245,
+        "sha256": "0aae4c007e9fdef653fdbac47f92b156d9a4702de3caf33cf72dd1ead2205efb"
+      },
+      {
+        "path": "packages/contracts/src/reference-catalog.ts",
+        "mode": "100644",
+        "blob": "fbbb9ccda1e88e492d0ce7a75f9d999b3cb4c827",
+        "bytes": 31851,
+        "sha256": "fe0682001b99dddb345ab785187f441efcb595d5ab7bdb17654f59d376de76e6"
+      },
+      {
+        "path": "packages/contracts/test/reference-catalog.test.ts",
+        "mode": "100644",
+        "blob": "f67aedced04852f6e63324ef4cb12647c94aa858",
+        "bytes": 24452,
+        "sha256": "d2b0127ba7e2b2cff93b53d881af57cacfd3ff5bc422e542816e4a151c3a4f97"
+      },
+      {
+        "path": "project/POSTRUST_PLAN.json",
+        "mode": "100644",
+        "blob": "ad9927877b833cb54dbf1976968c191b2533e8be",
+        "bytes": 2900559,
+        "sha256": "540ec18e78c6ab5f2a62d44ddc0037afb6ec3554179bb5b2989993ef76c6d139"
+      },
+      {
+        "path": "project/POSTRUST_PROGRESS.md",
+        "mode": "100644",
+        "blob": "b319acd06fef1235f0daea1b557f9f9035357052",
+        "bytes": 127743,
+        "sha256": "0dce32fbd56501e819ecee574f8f2adacdabae062d0b4dcaf12d9643904542fe"
+      },
+      {
+        "path": "project/POSTRUST_TODO.md",
+        "mode": "100644",
+        "blob": "a7807e77cf35ce3a0f4362631dbe0b8326709a7c",
+        "bytes": 41448,
+        "sha256": "415a2adaa1d5971965ba75e341570ea87cea9f9c95d5a7519f62170b692cbb5d"
+      },
+      {
+        "path": "project/STATUS.json",
+        "mode": "100644",
+        "blob": "23fe6eac44a88758dcbcb56526e4b510f93cb0cf",
+        "bytes": 2658570,
+        "sha256": "6610994619022c1da18c110a5073809a32a43f85613c18236470950ac60f97fd"
+      },
+      {
+        "path": "reports/TAPE_CATALOG_HISTORY_COMPAT_EVIDENCE.json",
+        "mode": "100644",
+        "blob": "4946e341f0356ed75ceb34cb28572d9935ebe3af",
+        "bytes": 27177,
+        "sha256": "4382f35711c311708e202d4afa73d48a32e2cf2e0ae0150e80b9d12847692f12"
+      },
+      {
+        "path": "reports/TAPE_CATALOG_HISTORY_COMPAT_RESULT.md",
+        "mode": "100644",
+        "blob": "211bd458ef44929af1026689b7df7b6157c13bec",
+        "bytes": 4722,
+        "sha256": "9d24b342cd4db310bbff2a61314db35ef10be83551d720b2c3135c72c4843a7e"
+      },
+      {
+        "path": "scripts/ci/report-only-admission.mjs",
+        "mode": "100644",
+        "blob": "9ad6b253ebbc6551ffdc38d6f4110805eb7601b9",
+        "bytes": 29630,
+        "sha256": "d5b7c2f5ca9d743e77cb83fc7c6cfe25d7bea3b02f1726d02b4e3b1cd36c24c1"
+      },
+      {
+        "path": "scripts/ci/report-only-v39-integration.mjs",
+        "mode": "100644",
+        "blob": "758ed035964e92130323add94ed535fce0e1e74f",
+        "bytes": 6666,
+        "sha256": "1e1f7340817c9dc280c070c37bfd196d0fb382e7fbae891ff977175d150daced"
+      },
+      {
+        "path": "scripts/ci/task-applicability.mjs",
+        "mode": "100644",
+        "blob": "12c1b6fb0b654f20fc9b4d67378a9c6dc3b88370",
+        "bytes": 8575,
+        "sha256": "be86e4cc7dd45e7ac360945083ecd4677fe8aab5536a9e57e56d818c96a0a4de"
+      },
+      {
+        "path": "scripts/ci/test/v39-integration-admission.test.mjs",
+        "mode": "100644",
+        "blob": "ca85dca06eab3025c438632217712d384ffd5ec0",
+        "bytes": 20948,
+        "sha256": "1321be463e415a8fa342d90bf459a4f2acc689b6512a9e30d64fd0d9f97e9cb0"
+      },
+      {
+        "path": "scripts/ci/test/v39-integration-gate.test.mjs",
+        "mode": "100644",
+        "blob": "8c242c57196558ad82c32f5626178ad2be2fcd11",
+        "bytes": 38122,
+        "sha256": "0086fc0dcf123e4bb4fd7c02e88b193d938d74cf35c59914540d5de4aad84159"
+      },
+      {
+        "path": "scripts/ci/test/v39-integration-report-only.test.mjs",
+        "mode": "100644",
+        "blob": "0038f87bbf50722af0ad7c552418def37a080a0e",
+        "bytes": 40923,
+        "sha256": "ac6ba1dc2123b5e120cc67d655709860866a604b9e6b8762123f308b439a7f71"
+      },
+      {
+        "path": "scripts/ci/v39-integration-admission.mjs",
+        "mode": "100644",
+        "blob": "dfaa2edd2f9bd45bc65de45e9e36db9bdfc65b48",
+        "bytes": 379059,
+        "sha256": "21816d243c5951c39242cd495c337fd7e4099d9e93cb4fd6713d52e5bab6fd48"
+      },
+      {
+        "path": "scripts/ci/verify-v39-integration.mjs",
+        "mode": "100644",
+        "blob": "5cce44397160e233cbe0aa27475ccce677c280df",
+        "bytes": 46805,
+        "sha256": "4cad4bafb383c6711978f3189febbe1959fe1493b6c0e1049053c6474f349ee1"
+      },
+      {
+        "path": "tasks/00_TASK_INDEX.md",
+        "mode": "100644",
+        "blob": "d6c7ac5e2192489795527b70bd0f783b67c47108",
+        "bytes": 30187,
+        "sha256": "f87a99b8d2160e6b44d7e54509660f60f4cfa84e7d9012b3bff8748faff2792b"
+      },
+      {
+        "path": "tasks/V39-INTEGRATION-001.md",
+        "mode": "100644",
+        "blob": "12bdf63129714a1b29e2a29a16ea2979e486bc54",
+        "bytes": 8665,
+        "sha256": "aacf5a180dc5aec2da531c60785de2e2f2c13c0974abd037629071686eea92d1"
+      }
+    ],
+    "sourceDeltaFiles": [
+      {
+        "path": "apps/desktop/e2e/v1-ui.spec.ts",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "f8f127a1acd20f909ce07efe8a9c44ff448a350e",
+          "bytes": 289978,
+          "sha256": "ba87fc6d36eaf18f51344d70a64f507fba88ff963ea8ee290cdd0eeeb83cbf3f"
+        }
+      },
+      {
+        "path": "apps/desktop/electron-gate/startup.test.ts",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "63d2c6c2daf06c5ac754361b5bf3159ce4c3f56d",
+          "bytes": 3369,
+          "sha256": "88a442097e6a4620f53ffb07c061f52757e0a567a60b21d4eb9de08bd6fcb42b"
+        }
+      },
+      {
+        "path": "apps/desktop/scripts/startup-gate-process.d.mts",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "3ea185dc476c404c9d7ab834b4cc0ffc520c6d57",
+          "bytes": 720,
+          "sha256": "de27a253ae6dc57b1f2ebfaeb7c75592ba5fb8470b77b3c13762f7c77825c4c1"
+        }
+      },
+      {
+        "path": "apps/desktop/scripts/startup-gate-process.mjs",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "e2bd4307be3656ac6bfdfe7f1910ccd6bae8d45e",
+          "bytes": 3931,
+          "sha256": "29e74bc232efa2120ff52ff0c1e105825fbf7146f096e0e8cd70890c46083b36"
+        }
+      },
+      {
+        "path": "apps/desktop/src/main/core-crash-gate.ts",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "71e1b586b575884e5acb52dab4683435ea4f782b",
+          "bytes": 1046,
+          "sha256": "07562a6be5421310c2cea408e0e578678fd730284ef73fcb9f9e564a1902df61"
+        }
+      },
+      {
+        "path": "apps/desktop/src/main/index.ts",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "83ec1c7789fa578992ba1b7cc90015378d434f0a",
+          "bytes": 111480,
+          "sha256": "7cd679be6e3821ae703d049a07be88828a02f6dc9e1bcfe3d777f251a684cb80"
+        }
+      },
+      {
+        "path": "apps/desktop/test/core-environment.test.ts",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "9e94f1418ba05a3d2d1136be57c1ab21e766f984",
+          "bytes": 11108,
+          "sha256": "79f990cf2cb404a382423938c7902efea1c48563049b640072691126d0c292a8"
+        }
+      },
+      {
+        "path": "apps/desktop/test/startup-gate.test.ts",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "78399da4f8cfa73c86d776ec8bb1e0e1df914d02",
+          "bytes": 26566,
+          "sha256": "a7ddc09c92cbced3d9113bd30e297bdb21dd74820454912ff86a71019fe330d6"
+        }
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "9ab0f1d75e507a0651a926d1e5cf313e7432d190",
+          "bytes": 30444,
+          "sha256": "acac38184a7e209fa6d9925e6f309ae61c64cf03eb01a6cba49bc385a4102475"
+        }
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "d1078a2ef509c5dbf9dcc5173d92f1e680883e96",
+          "bytes": 66247,
+          "sha256": "721e1e52a5612ab2b2f6d9ac4a003e85a4ab6a004c0d0efaba7df1be764a94d1"
+        }
+      },
+      {
+        "path": "packages/bridge-core/src/collection/collection-progress-store.ts",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "ab5f94dc50300886d65a56c90576cf2dd490f3c3",
+          "bytes": 37310,
+          "sha256": "a293bef1501775af478597770632fa60e1082510cd9a30b0c9896a6808e18b2c"
+        }
+      },
+      {
+        "path": "packages/bridge-core/src/utility-main.ts",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "36ef32ee36a53a67e35565123a9f112c93fe2fe9",
+          "bytes": 53182,
+          "sha256": "5fbed878e812f32f351a561d6c15f4590cd1436f35eb175e23337d52c442c6b2"
+        }
+      },
+      {
+        "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "14f65a5a3f3cd2f05a9beb290aa7594d1e2b9789",
+          "bytes": 57135,
+          "sha256": "24bd1a3f60c6a9e21e8ff9397636930f3de292b756c7c1cff6afadf5c456b42e"
+        }
+      },
+      {
+        "path": "packages/bridge-core/test/utility-ipc.test.ts",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "df7d695f74d0e352240601fa9901b96c6253120e",
+          "bytes": 82655,
+          "sha256": "34868f9b4e30296b2002bbc579520b4f2f369e5b8c1a99331924237bd88d8f46"
+        }
+      },
+      {
+        "path": "scripts/ci/test/v39-integration-admission.test.mjs",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "f702f26d858aa33f0ef505898a213472a5f98773",
+          "bytes": 19867,
+          "sha256": "1695feb2cfe385e85f0dc4eaded2cbbeb5d0d44ef1d5a972206c2cf2f9fd5c2b"
+        }
+      },
+      {
+        "path": "scripts/ci/test/v39-integration-gate.test.mjs",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "410a1c7557386a0c3dc13852d7d7a333bec72c9a",
+          "bytes": 37116,
+          "sha256": "52db45573a7ae8ab336756557ff7f582d910591a0cc9693992b055b6a874debf"
+        }
+      },
+      {
+        "path": "scripts/ci/test/v39-integration-report-only.test.mjs",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "40771cd2780220eb2bcd9443572ff892f731d0ec",
+          "bytes": 40391,
+          "sha256": "7145f13f6601564992d0d8e2af1d3005034ef78521b1606ae61f1c58319154b5"
+        }
+      },
+      {
+        "path": "scripts/ci/v39-integration-admission.mjs",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "5150e9c2591483bbd024271dad4ab9b243254188",
+          "bytes": 182912,
+          "sha256": "4f38b82f860505279991d4b5d01bcc040ff769275d7df97dc7c808858da5c833"
+        }
+      },
+      {
+        "path": "scripts/ci/verify-v39-integration.mjs",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "e45929c5a8f4cd7eb3d3e9141fd5f16cea80d848",
+          "bytes": 46506,
+          "sha256": "e43d424986ce9a617926c4df8fa091eb9b69a6b77da2e226381b24de543631b1"
+        }
+      },
+      {
+        "path": "tasks/V39-INTEGRATION-001.md",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "before": {
+          "mode": "100644",
+          "blob": "ef26c14a1af93701bcda8e6299d1168816acc9e5",
+          "bytes": 3703,
+          "sha256": "fc00ba6400c31df407e8385eaccefbcb8bbfbcb41f6d20d92479e74b6351605b"
+        }
+      }
+    ],
+    "originalLocalEvidence": {
+      "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+      "blob": "ad557acc50470814b8bd0e4502049be7c0ea9286",
+      "bytes": 218231,
+      "sha256": "49030b2afe3b84f21446dae39e447706a032c42d78a712cfaf10005ec54f12cf"
+    },
+    "originalCorrectionCanonical": {
+      "bytes": 121575,
+      "sha256": "d0b777d034dd4f54d05d7f8b6310f642f27f811a0d0f2f4a993638b0085ae935"
+    },
+    "firstNaturalCi": {
+      "repository": "Matt12377/MusicBridge",
+      "repositoryId": 1340424953,
+      "event": "push",
+      "attempt": 1,
+      "runs": [
+        {
+          "id": 38161424586,
+          "path": ".github/workflows/security.yml",
+          "head_sha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 38161424594,
+          "path": ".github/workflows/verify.yml",
+          "head_sha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 38161424588,
+          "path": ".github/workflows/rust-core.yml",
+          "head_sha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 38161424606,
+          "path": ".github/workflows/electron-e2e.yml",
+          "head_sha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+          "event": "push",
+          "run_attempt": 1,
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "jobs": [
+        {
+          "id": 114534969367,
+          "name": "static-security",
+          "run_id": 38161424586,
+          "head_sha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 114534969419,
+          "name": "dependency-audit",
+          "run_id": 38161424594,
+          "head_sha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 114534969706,
+          "name": "verify",
+          "run_id": 38161424594,
+          "head_sha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 114534969154,
+          "name": "rust-core (ubuntu-latest)",
+          "run_id": 38161424588,
+          "head_sha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 114534969309,
+          "name": "rust-core (macos-latest)",
+          "run_id": 38161424588,
+          "head_sha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+          "status": "completed",
+          "conclusion": "success"
+        },
+        {
+          "id": 114534969207,
+          "name": "macos-electron-gate",
+          "run_id": 38161424606,
+          "head_sha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ],
+      "workflowCount": 4,
+      "jobCount": 6,
+      "successJobs": 6,
+      "failedJobs": 0,
+      "wholeJobLogsObserved": true
+    },
+    "artifacts": [
+      {
+        "id": 11710563832,
+        "name": "verify-d842d4604da64a19d051dd18a5659ec3ad5e5763",
+        "zip": {
+          "bytes": 4051517,
+          "sha256": "5b65af5b0d21fdeb23c7de16ccb1b7246549a4f55b779030e604f951e7d1119d"
+        },
+        "memberCount": 28,
+        "expandedBytes": 18486137,
+        "memberManifestCanonical": {
+          "bytes": 3852,
+          "sha256": "36103e3a87e983591b3abca7c579e71ad9fbf3dead629d5b0dac8213f3df76d8"
+        },
+        "wholeZipDigestVerified": true,
+        "allMemberBytesAndCrcRead": true
+      },
+      {
+        "id": 11712015426,
+        "name": "electron-e2e-d842d4604da64a19d051dd18a5659ec3ad5e5763",
+        "zip": {
+          "bytes": 504250060,
+          "sha256": "991d12f8d19478fd4653e2a680b8d9d83c8dcc57d43f57bdf449375748b815fc"
+        },
+        "memberCount": 21077,
+        "expandedBytes": 1492059616,
+        "memberManifestCanonical": {
+          "bytes": 5632621,
+          "sha256": "69a84dd55eda1f4d2c7c99d1da9a503e0812a376ed73aa4b16ccf7b2bdb9e063"
+        },
+        "wholeZipDigestVerified": true,
+        "allMemberBytesAndCrcRead": true
+      },
+      {
+        "id": 11710458210,
+        "name": "rust-core-macos-latest-d842d4604da64a19d051dd18a5659ec3ad5e5763",
+        "zip": {
+          "bytes": 6303858,
+          "sha256": "f534eb257b6a908dbf0c9091234ece0d55d518537d2d0a824662a44ec63dcc33"
+        },
+        "memberCount": 1141,
+        "expandedBytes": 27031076,
+        "memberManifestCanonical": {
+          "bytes": 263305,
+          "sha256": "c48d25616c94e72677313a0b6d33e0b4af35b18d95eb2b80f645f77a8a9f0052"
+        },
+        "wholeZipDigestVerified": true,
+        "allMemberBytesAndCrcRead": true
+      },
+      {
+        "id": 11710692523,
+        "name": "rust-core-ubuntu-latest-d842d4604da64a19d051dd18a5659ec3ad5e5763",
+        "zip": {
+          "bytes": 6305088,
+          "sha256": "b3e66d7c4afefe9ddfd93f40b74c93202cbc82b74973832c7e012ce07f8fd135"
+        },
+        "memberCount": 1141,
+        "expandedBytes": 27028848,
+        "memberManifestCanonical": {
+          "bytes": 263306,
+          "sha256": "590592279eee5c3903ece344bf8f215e65ad86f5953802abc67ba276dbe19ef2"
+        },
+        "wholeZipDigestVerified": true,
+        "allMemberBytesAndCrcRead": true
+      },
+      {
+        "id": 11711407499,
+        "name": "rust-host-compiled-d842d4604da64a19d051dd18a5659ec3ad5e5763",
+        "zip": {
+          "bytes": 8221479,
+          "sha256": "414a550f912fcaba862392b87026950a8f0b0790c5394383bb28bc6f7b4ca68c"
+        },
+        "memberCount": 68,
+        "expandedBytes": 24093881,
+        "memberManifestCanonical": {
+          "bytes": 11952,
+          "sha256": "70f018f7dc24eb4434cdb0d7b2ffb4dc3e52b667dca5ed38bdf9082a8db1274c"
+        },
+        "wholeZipDigestVerified": true,
+        "allMemberBytesAndCrcRead": true
+      }
+    ],
+    "totalZipBytes": 529132002,
+    "totalMembers": 23455,
+    "originalCollectorReceipt": {
+      "path": "private-evidence/v39-integration-ci235-source3-source-022/ci-result.json",
+      "bytes": 13154303,
+      "sha256": "0c895b86fc191ccd974824c1a6d1e61274f58c651d8942e287172b0a8a8fa435"
+    },
+    "collectorStatus": "FAILED_COMPLETE_SOURCE_RECEIPT_PURE_VALIDATOR",
+    "collectorCode": "COMPLETE_CURRENT_SOURCE_RECEIPT_REJECTED",
+    "completeSourceReceiptPureValid": false,
+    "consumerFailure": {
+      "function": "base64",
+      "nodeVersion": "22.23.2",
+      "errorName": "RangeError",
+      "errorMessage": "Maximum call stack size exceeded",
+      "actualGzipBase64Characters": 5266028,
+      "defaultAndRegexpInterpretAllFailed": true,
+      "diagnostics": [
+        {
+          "path": "private-evidence/checks/wave-base64-runtime-diagnostic286/diagnostic.json",
+          "bytes": 12731,
+          "sha256": "af2d292c41fea51274b0f819fc74cda11fd9a63dbfa53b0d24edf97a90031baa"
+        },
+        {
+          "path": "private-evidence/checks/renderer-base64-semantics-diagnostic287/handoff.json",
+          "bytes": 10360,
+          "sha256": "205606591728aeca807438ea21a4a15471132ee5711f88f03b4056541fadefcc"
+        },
+        {
+          "path": "private-evidence/checks/core-base64-report-route-diagnostic288/REPORT_ROUTE_DIAGNOSTIC288.json",
+          "bytes": 37651,
+          "sha256": "6cf0e9b9efa75d65b846755cec23de9bd88aeae7955575f76eca74e3930da5a6"
+        }
+      ]
+    },
+    "sameShaCiRerunAllowed": false,
+    "ciJobSuccessIsNotWholeReceiptQualification": true,
+    "reportProduced": false,
+    "next002Started": false
+  }
 });
 export const V39_INTEGRATION_SOURCE_FILES = freeze([
   {
@@ -8198,7 +8657,7 @@ function failedSource1(context) {
 /** 第二代失败的单父链、全40叶、旧Scope及gen2Correction逐项匹配原件。 */
 function failedSource2(context) {
   parents(context,V39_INTEGRATION_FAILED_SOURCE2,V39_INTEGRATION_FAILED_SOURCE1);
-  if(context.text(['rev-parse',V39_INTEGRATION_FAILED_SOURCE2+'^{tree}'])!==V39_INTEGRATION_SOURCE_PARENT_TREE)
+  if(context.text(['rev-parse',V39_INTEGRATION_FAILED_SOURCE2+'^{tree}'])!==failedSource2Tree)
     fail('V39_FAILED_SOURCE2_TREE_CHANGED');
   exactDiff(rawDiff(context,V39_INTEGRATION_BASE,V39_INTEGRATION_FAILED_SOURCE2),
     V39_INTEGRATION_SOURCE2_SOURCE_FILES.map(row=>({path:row.path,status:row.status,
@@ -8225,6 +8684,38 @@ function failedSource2(context) {
   if(!equal(local.sourceCorrection,original.originalCorrection)
     ||!equal(v39IntegrationCanonicalPin(local.sourceCorrection),original.originalCorrectionCanonical))
     fail('V39_FAILED_SOURCE2_ORIGINAL_CORRECTION_CHANGED');
+}
+/** S3的自然CI及消费者失败仍为历史；单父、52叶、旧Scope/LOCAL整件与gen3身份独立固定。 */
+function preservedSource3(context) {
+  const original=V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY.source3Preserved;
+  if(original.sha!==V39_INTEGRATION_SOURCE_PARENT||original.parentSha!==V39_INTEGRATION_FAILED_SOURCE2
+    ||original.tree!==V39_INTEGRATION_SOURCE_PARENT_TREE)fail('V39_SOURCE3_HISTORY_IDENTITY_CHANGED');
+  parents(context,original.sha,original.parentSha);
+  if(context.text(['rev-parse',original.sha+'^{tree}'])!==original.tree)fail('V39_SOURCE3_HISTORY_TREE_CHANGED');
+  exactDiff(rawDiff(context,V39_INTEGRATION_BASE,original.sha),V39_INTEGRATION_SOURCE_FILES.map(row=>({path:row.path,status:row.status,
+    oldMode:row.before.mode,oldBlob:row.before.blob,newMode:row.newMode})));
+  exactDiff(rawDiff(context,original.parentSha,original.sha),original.sourceDeltaFiles.map(row=>({path:row.path,status:row.status,
+    oldMode:row.oldMode,oldBlob:row.before.blob,newMode:row.newMode})));
+  if(!equal(actualPins(context,original.sha,V39_INTEGRATION_SOURCE_FILES.map(row=>row.path)),original.sourceFiles))
+    fail('V39_SOURCE3_HISTORY_PIN_CHANGED');
+  const raw=blob(context,original.sha,V39_INTEGRATION_SCOPE_PATH),scope=parse(raw),
+    oldRef={path:V39_INTEGRATION_LOCAL_EVIDENCE_PATH,jsonPointer:'/sourceCorrection',canonical:original.originalCorrectionCanonical};
+  if(raw.length!==original.scope.bytes||hash(raw)!==original.scope.sha256||oidOf('blob',raw)!==original.scope.blob
+    ||scope.frozen!==true||scope.executionStatus!=='READY_FOR_SOURCE'||scope.baseSha!==V39_INTEGRATION_BASE
+    ||scope.sourceParentSha!==original.parentSha||!equal(scope.allowedSourceFiles,V39_INTEGRATION_SOURCE_FILES)
+    ||!equal(scope.sourceDeltaFiles,original.sourceDeltaFiles)||!equal(scope.sourceCorrection,oldRef)
+    ||!Array.isArray(scope.finalFiles)||scope.finalFiles.length!==original.sourceFiles.length)fail('V39_SOURCE3_HISTORY_SCOPE_CHANGED');
+  for(let i=0;i<scope.finalFiles.length;i++){
+    const pin=original.sourceFiles[i],self=pin.path===V39_INTEGRATION_SCOPE_PATH;
+    if(!equal(scope.finalFiles[i],{...pin,...(self?{blob:null,sha256:null}:{})}))fail('V39_SOURCE3_HISTORY_SCOPE_CHANGED');
+  }
+  const localRaw=blob(context,original.sha,V39_INTEGRATION_LOCAL_EVIDENCE_PATH),localPin=original.originalLocalEvidence;
+  if(localRaw.length!==localPin.bytes||hash(localRaw)!==localPin.sha256||oidOf('blob',localRaw)!==localPin.blob
+    ||!equal(v39IntegrationCanonicalPin(parse(localRaw).sourceCorrection),original.originalCorrectionCanonical))
+    fail('V39_SOURCE3_HISTORY_ORIGINAL_CORRECTION_CHANGED');
+  const oldDirectBefore=actualPins(context,original.parentSha,original.sourceDeltaFiles.map(row=>row.path));
+  if(oldDirectBefore.some((row,i)=>!equal(row,{path:original.sourceDeltaFiles[i].path,
+    ...original.sourceDeltaFiles[i].before})))fail('V39_SOURCE3_HISTORY_BEFORE_PIN_CHANGED');
   const directBefore=actualPins(context,V39_INTEGRATION_SOURCE_PARENT,V39_INTEGRATION_SOURCE_DELTA_FILES.map(row=>row.path));
   if(directBefore.some((row,i)=>!equal(row,{path:V39_INTEGRATION_SOURCE_DELTA_FILES[i].path,
     ...V39_INTEGRATION_SOURCE_DELTA_FILES[i].before})))fail('V39_SOURCE_PARENT_BEFORE_PIN_CHANGED');
@@ -8245,13 +8736,14 @@ function lifecycleRepairBoundary(context) {
 function sourceObject(context, source) {
   if(source===V39_INTEGRATION_FAILED_SOURCE1)fail('V39_INTEGRATION_FAILED_SOURCE1_CANNOT_QUALIFY');
   if(source===V39_INTEGRATION_FAILED_SOURCE2)fail('V39_INTEGRATION_FAILED_SOURCE2_CANNOT_QUALIFY');
+  if(source===V39_INTEGRATION_SOURCE_PARENT)fail('V39_OLD_SOURCE_NOT_CURRENT');
   if(source===V39_INTEGRATION_BASE||history.some(row=>row[0]===source))fail('V39_OLD_SOURCE_NOT_CURRENT');
   parents(context,source,V39_INTEGRATION_SOURCE_PARENT);
   exactDiff(rawDiff(context,V39_INTEGRATION_BASE,source),V39_INTEGRATION_SOURCE_FILES.map(row=>({path:row.path,status:row.status,
     oldMode:row.before.mode,oldBlob:row.before.blob,newMode:row.newMode})));
   exactDiff(rawDiff(context,V39_INTEGRATION_SOURCE_PARENT,source),V39_INTEGRATION_SOURCE_DELTA_FILES.map(row=>({path:row.path,status:row.status,
     oldMode:row.oldMode,oldBlob:row.before.blob,newMode:row.newMode})));
-  failedSource1(context);failedSource2(context);
+  failedSource1(context);failedSource2(context);preservedSource3(context);
   const names=V39_INTEGRATION_SOURCE_FILES.map(row=>row.path),sourcePins=actualPins(context,source,names);
   const scopeRaw=blob(context,source,V39_INTEGRATION_SCOPE_PATH),scope=assertV39IntegrationScope(parse(scopeRaw),scopeRaw);
   batch(context,V39_INTEGRATION_SOURCE_FILES.filter(row=>row.status==='M').map(row=>row.before.blob));
@@ -8274,9 +8766,9 @@ function sourceObject(context, source) {
   protectedJson(localBefore,localAfter,['sourceCorrection'],'V39_SOURCE_LOCAL_SPEC_OUTSIDE_CORRECTION');
   if(!equal(parse(localAfter).sourceCorrection,V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY))fail('V39_SOURCE_CORRECTION_NOT_BOUND');
   const directNames=new Set(V39_INTEGRATION_SOURCE_DELTA_FILES.map(row=>row.path));
-  const unchanged=V39_INTEGRATION_FAILED_SOURCE2_PINS.filter(row=>!directNames.has(row.path));
-  if(unchanged.length!==32||!equal(sourcePins.filter(row=>unchanged.some(old=>old.path===row.path)),unchanged))
-    fail('V39_SOURCE2_UNCHANGED_LEAF_DRIFT');
+  const unchanged=V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY.source3Preserved.sourceFiles.filter(row=>!directNames.has(row.path));
+  if(unchanged.length!==V39_INTEGRATION_SOURCE_FILES.length-V39_INTEGRATION_SOURCE_DELTA_FILES.length
+    ||!equal(sourcePins.filter(row=>unchanged.some(old=>old.path===row.path)),unchanged))fail('V39_SOURCE3_UNCHANGED_LEAF_DRIFT');
   lifecycleRepairBoundary(context);
   sealedBaseline(context,source);offlineTape(context,source);
   return {sourceSha:source,sourceParentSha:V39_INTEGRATION_SOURCE_PARENT,sourceTree:context.text(['rev-parse',source+'^{tree}']),
@@ -8348,7 +8840,7 @@ export function validateV39IntegrationParentCi(input) {
     const {task,repositoryId,parent,branch,runs,proofs,now=Date.now()}=input??{};
     canonical(input);
     if(task!==V39_INTEGRATION_TASK||repositoryId!==V39_INTEGRATION_REPOSITORY_ID||!sha(parent)
-      ||parent===V39_INTEGRATION_FAILED_SOURCE1||parent===V39_INTEGRATION_FAILED_SOURCE2||parent===V39_INTEGRATION_BASE||history.some(row=>row[0]===parent)||branch!==V39_INTEGRATION_BRANCH||!Number.isFinite(now)
+      ||parent===V39_INTEGRATION_FAILED_SOURCE1||parent===V39_INTEGRATION_FAILED_SOURCE2||parent===V39_INTEGRATION_SOURCE_PARENT||parent===V39_INTEGRATION_BASE||history.some(row=>row[0]===parent)||branch!==V39_INTEGRATION_BRANCH||!Number.isFinite(now)
       ||!Array.isArray(runs)||runs.length!==4||!Array.isArray(proofs)||proofs.length!==4)return false;
     const runIds=new Set(),jobIds=new Set(),artifactIds=new Set(),names=artifactNames(parent);
     for(let i=0;i<4;i++){
@@ -8645,7 +9137,7 @@ function sourceCorrectionBound(value) {
 export function validateV39IntegrationSourceReceipt(value, sourceSha) {
   try {
     canonical(value);
-    if(!object(value)||!sha(sourceSha)||sourceSha===V39_INTEGRATION_FAILED_SOURCE1||sourceSha===V39_INTEGRATION_FAILED_SOURCE2||sourceSha===V39_INTEGRATION_BASE||value.schema!=='musicbridge.root.v39-integration.first-natural-ci.v1'
+    if(!object(value)||!sha(sourceSha)||sourceSha===V39_INTEGRATION_FAILED_SOURCE1||sourceSha===V39_INTEGRATION_FAILED_SOURCE2||sourceSha===V39_INTEGRATION_SOURCE_PARENT||sourceSha===V39_INTEGRATION_BASE||value.schema!=='musicbridge.root.v39-integration.first-natural-ci.v1'
       ||value.status!=='SEALED_FIRST_NATURAL_CURRENT_PRODUCT_CI'||value.phase!=='source'||value.task!==V39_INTEGRATION_TASK
       ||value.revision!==sourceSha||value.branch!==V39_INTEGRATION_BRANCH||value.repository!==V39_INTEGRATION_REPOSITORY
       ||value.repositoryId!==V39_INTEGRATION_REPOSITORY_ID||value.code!==null||!equal(value.before,value.after)
@@ -8734,7 +9226,7 @@ export function validateV39IntegrationSourceReceipt(value, sourceSha) {
 export function validateV39IntegrationReportToolContent(artifact,sourceSha,reportSha) {
   try {
     canonical(artifact.toolContent);
-    if(!sha(sourceSha)||sourceSha===V39_INTEGRATION_FAILED_SOURCE1||sourceSha===V39_INTEGRATION_FAILED_SOURCE2||sourceSha===V39_INTEGRATION_BASE||!sha(reportSha)||artifact.name!=='verify-'+reportSha||artifact.toolContent.phase!=='report')return false;
+    if(!sha(sourceSha)||sourceSha===V39_INTEGRATION_FAILED_SOURCE1||sourceSha===V39_INTEGRATION_FAILED_SOURCE2||sourceSha===V39_INTEGRATION_SOURCE_PARENT||sourceSha===V39_INTEGRATION_BASE||!sha(reportSha)||artifact.name!=='verify-'+reportSha||artifact.toolContent.phase!=='report')return false;
     const decoded=decodeV39IntegrationToolContent(artifact.toolContent),summary=decoded.summary;
     if(summary.schema!=='musicbridge.v39.integration.software-gate.v1'||summary.status!=='PASSED_CURRENT_SOFTWARE_GATE'
       ||summary.passed!==true||summary.currentSoftwareGateExitCode!==0||summary.failureCode!==null
@@ -8875,7 +9367,7 @@ export function inspectV39IntegrationAdmission(directory=repository,env=process.
 export function inspectV39IntegrationReportAdmission(directory=repository,env=process.env,options={}) {
   const context=gitContext(directory,env,options),lineage=context.text(['rev-list','--parents','-n','1',context.head]).split(' ');
   if(lineage.length!==2||lineage[1]===V39_INTEGRATION_BASE||lineage[1]===V39_INTEGRATION_FAILED_SOURCE1
-    ||lineage[1]===V39_INTEGRATION_FAILED_SOURCE2)fail('V39_REPORT_NOT_UNIQUE_DIRECT_PARENT');
+    ||lineage[1]===V39_INTEGRATION_FAILED_SOURCE2||lineage[1]===V39_INTEGRATION_SOURCE_PARENT)fail('V39_REPORT_NOT_UNIQUE_DIRECT_PARENT');
   const source=lineage[1];
   const before=snapshot(context,[...new Set([...V39_INTEGRATION_SOURCE_FILES.map(row=>row.path),...V39_INTEGRATION_REPORT_PATHS])].sort());
   const sourceResult=sourceObject(context,source),reportResult=reportObject(context,source);

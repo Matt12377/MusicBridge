@@ -112,7 +112,7 @@ function fixture(t){
     checkout(sourceParent);
     const current=command(repository,['rev-list','--parents','-n','1','HEAD']).split(' ');
     assert.equal(current.length,2);
-    assert.notEqual(current[0],sourceParent,'未提交Source3不能从dirty WIP构造准入正例');
+    assert.notEqual(current[0],sourceParent,'未提交Source4不能从dirty WIP构造准入正例');
     assert.equal(command(repository,['status','--porcelain=v1','--untracked-files=all']),'');
     const immutableSource=current[1]===sourceParent?current[0]:current[1];
     assert.deepEqual(command(repository,['rev-list','--parents','-n','1',immutableSource]).split(' '),[immutableSource,sourceParent]);
@@ -121,10 +121,10 @@ function fixture(t){
       const raw=command(repository,['show',immutableSource+':'+relative],{binary:true});
       writeFileSync(filename,raw,{mode:0o644});chmodSync(filename,0o644);
     }
-    // 只消费实际已提交Source3；32个历史叶原样继承，不能以fixture空白补造21条修复。
+    // 只消费实际已提交Source4；45个历史叶原样继承，7个直接修复叶来自真实Git原件。
     jsonEdit('docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json',value=>{value.sourceCorrection=copy(correction);});
     for(const row of deltaFiles)if(row.path!==scopePath)
-      assert.notEqual(blob(readFileSync(path.join(directory,row.path))),row.before.blob,'本轮直接修复叶必须来自实际Source3：'+row.path);
+      assert.notEqual(blob(readFileSync(path.join(directory,row.path))),row.before.blob,'本轮直接修复叶必须来自实际Source4：'+row.path);
     freezeScope();
     syntheticSource=commitWorking(sourcePaths);sourceTree=command(directory,['rev-parse','HEAD^{tree}']);
     assert.equal(command(directory,['rev-parse','--path-format=absolute','--git-common-dir']),path.join(directory,'.git'));
@@ -361,7 +361,7 @@ test(reportNames[1],t=>{
   const wrong=copy(tool);wrong.toolContent.phase='source';
   assert.equal(validateV39IntegrationReportToolContent(wrong,f.source,f.head),false);
   assert.equal(result.sourceSha,f.source);assert.equal(result.sourceParentSha,sourceParent);assert.equal(result.repairRole,'report');
-  assert.equal(result.exactSourceFiles,52);assert.equal(result.exactSourceDeltaFiles,20);
+  assert.equal(result.exactSourceFiles,52);assert.equal(result.exactSourceDeltaFiles,7);
   assert.equal(result.failedSource1Preserved,true);assert.equal(result.failedSource2Preserved,true);assert.deepEqual(result.sourceCorrection,correction);
   assert.equal(result.sourceCorrectionSha256,correctionRef.canonical.sha256);assert.equal(result.exactReportFiles,8);assert.deepEqual(result.sourcePins,sourcePaths.map(relative=>{
     const raw=command(directory,['show',f.source+':'+relative],{binary:true});return {path:relative,mode:'100644',blob:blob(raw),bytes:raw.length,sha256:sha(raw)};
@@ -456,6 +456,53 @@ test(reportNames[7],t=>{
   assert.equal(decoded.rootRecords.size,28);
   for(const member of full.artifacts[0].members){const bytes=decoded.rootRecords.get(member.path);
     assert.equal(bytes.length,member.bytes);assert.equal(sha(bytes),member.sha256);assert.equal(crc32(bytes),member.crc32);}
+  // 本段只验证28个完整原件的编码；保留summary原字节，改写日志不参与Source资格断言。
+  const largeLog='boundaries.stdout.log',originalLog=decoded.rootRecords.get(largeLog);
+  assert.ok(Buffer.isBuffer(originalLog));
+  // 可打印ASCII有压缩余地，使用4.75MiB固定高熵序列，实际编码仍须跨过5MiB Base64。
+  const highEntropy=Buffer.alloc(4*1024*1024+768*1024);let randomState=0x9e3779b9;
+  for(let i=0;i<highEntropy.length;i++){
+    randomState^=randomState<<13;randomState^=randomState>>>17;randomState^=randomState<<5;
+    highEntropy[i]=33+(randomState>>>0)%94;
+  }
+  assert.ok(Buffer.from(highEntropy.toString('utf8'),'utf8').equals(highEntropy));
+  const largeRoots=new Map(decoded.rootRecords);let largeContent,largeBase64;
+  // 最多追加8个固定字符以取得真实padding，unused bits变异保持gzip解码字节完全不变。
+  for(let suffix=0;suffix<9;suffix++){
+    largeRoots.set(largeLog,Buffer.concat([originalLog,highEntropy,Buffer.from('!'.repeat(suffix))]));
+    largeContent=encodeV39IntegrationToolContent([...largeRoots].map(([path,bytes])=>({path,bytes})),'source');
+    largeBase64=largeContent.rootArchive.gzip.base64;
+    if(largeBase64.endsWith('='))break;
+  }
+  assert.ok(largeBase64.endsWith('='),'大编码向量必须保留真实padding用于unused bits拒绝回归');
+  assert.ok(largeBase64.length>=5*1024*1024,'大编码向量必须达到原重复组正则的实际风险规模');
+  assert.ok(largeContent.rootArchive.rawBytes<=64*1024*1024);
+  assert.ok(largeContent.rootArchive.entries.every(row=>row.bytes<=16*1024*1024));
+  assert.equal(largeContent.rootArchive.entries.length,28);
+  assert.deepEqual(largeContent.rootArchive.entries.filter(row=>row.path!==largeLog),
+    full.artifacts[0].toolContent.rootArchive.entries.filter(row=>row.path!==largeLog));
+  const largeDecoded=decodeV39IntegrationToolContent(largeContent);
+  assert.equal(largeDecoded.rootRecords.size,28);assert.deepEqual(largeDecoded.summary,decoded.summary);
+  assert.ok(largeDecoded.rootRecords.get('summary.json').equals(decoded.rootRecords.get('summary.json')));
+  for(const entry of largeContent.rootArchive.entries){
+    const expected=largeRoots.get(entry.path),actual=largeDecoded.rootRecords.get(entry.path);
+    assert.ok(actual.equals(expected),entry.path+'须保留全部原始字节');
+    assert.equal(actual.length,entry.bytes);assert.equal(sha(actual),entry.sha256);assert.equal(crc32(actual),entry.crc32);
+  }
+  const padding=largeBase64.endsWith('==')?2:1,lastData=largeBase64.length-padding-1;
+  const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const badUnusedBits=largeBase64.slice(0,lastData)+alphabet[alphabet.indexOf(largeBase64[lastData])^1]
+    +largeBase64.slice(lastData+1);
+  assert.ok(Buffer.from(badUnusedBits,'base64').equals(Buffer.from(largeBase64,'base64')),
+    'unused bits变异必须仅破坏canonical编码，不能借gzip字节损坏触发拒绝');
+  for(const [label,value]of [
+    ['多余padding',largeBase64+'===='],['缺失padding',largeBase64.slice(0,-padding)],
+    ['内嵌等号',largeBase64.slice(0,4)+'='+largeBase64.slice(5)],['非零unused bits',badUnusedBits],
+    ['非法字符','\n\n\n\n'+largeBase64],['截断',largeBase64.slice(0,-1)],
+  ]){
+    const malformed=copy(largeContent);malformed.rootArchive.gzip.base64=value;
+    assert.throws(()=>decodeV39IntegrationToolContent(malformed),error=>error?.code==='V39_BASE64_NOT_CANONICAL',label);
+  }
 });
 test(reportNames[8],async t=>{
   const f=report(t);let calls=0;
