@@ -542,3 +542,16 @@ Source 16507120ab52d4843012e6888ad521138d8336d6 的LOCAL132标准4930项（4928�
 Source548本次300k容量仍未通过，Root171实际摘要pin另列；首请求墙钟下界30.080178749980405秒、1 started/0 completed、闭合运行143.66743991698604秒、wrapper124/child-15、1093事件及1564输入稳定，进程组关闭/窗口释放。剩余36请求与301k等NOT_RUN，根因未定；167五窄叶及局部类型通过保留原范围，不替代容量/全回归/正式App。当前004资格独立。
 
 300k V2资格NOT_PASSED_FULL_300K_V2，仅绑定Root153实际摘要pin（2361 bytes/SHA256 2e5359bd433e69755187a7f950604142c4969f2a4b48d2922ab4f0803e89851b），作用域FEEDBACK_E2D_ONLY。queryAlbums#1仅start、成功返回0、metrics及最终runner收据缺失，原进程结束已由Root确认；600样本不替代300k。性能修复与完整复验仍TODO，不复原未持久watchdog变量、不推测确切SQL耗时，004独立软件Gate保持。
+
+
+## CI_REPORT_MIRROR_001：历史对象镜像修复收口
+
+原失败报告 `aebf9464dc080d1242c379db183f4424e62f0b40` 保留；该次 verify 缺少历史对象的失败没有被重写或重跑。独立修复 Source 为 `d3d86c6db8d27485d2d763b81cd5e8925ee15af6`，直接父为原失败报告，范围仅包含冻结的 12 条 CI 工具、工作流和任务记录路径。
+
+修复 Source 的首次自然 push 已完成 4 个 workflow、6 个 job，均成功；当前工具 Gate 的原 173 条与新增 20 条合计 193 条全部通过。实际工具 ZIP 为 `verify-d3d86c6db8d27485d2d763b81cd5e8925ee15af6`，artifact id `11696640286`，整体 SHA256 `d274cecc7344d17080df7f118ec39113a9408d6b9c0efe10989fcf6f59a2e146`；全部 ZIP 成员、CRC、原始 stdout/stderr、提交身份及进程收尾已读取核验。
+
+原产品 Source `16507120ab52d4843012e6888ad521138d8336d6` 的软件证据通过精确字节和原 producer 复用。产品类型检查、构建、Rust、Electron/App 明确为 `SKIPPED_REUSED_S165`；旧五个产品 ZIP 没有重新下载。本次不增加产品验收项，18/156、有效 17/150 与 MBRS-015 六项 N_A 保持。
+
+本次报告只新增本域 `ciRepair`，保留原报告和产品证据；实际报告 SHA 由唯一直接子提交解析，本提交的 verify/security 2 个 workflow、3 个 job 必须在普通 push 后独立核验。此处 `reportSha` 与 `reportCi` 保持 null，尚未产生的本报告 CI 不记为通过。
+
+真实应用、服务、设备、音频与 Owner 验收均为 `NOT_RUN`。Tape、Feedback、共享原生接线、CoverDrop、MBRS-016/017 仍待后续整合；仅在本报告自己的 CI 封口后建立实际下一基线。
