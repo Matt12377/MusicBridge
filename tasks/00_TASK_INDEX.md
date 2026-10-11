@@ -195,3 +195,8 @@ MBRS-003仍IN_PROGRESS。本轮new06原授权attempt2自然Node1/FS0已实际安
 MBRS-009 正式本地库UI见[原任务](MBRS-009_LOCAL_LIBRARY_UI.md)；按PostRust计划从008最终报告4183897接续，原8验收不变，010后继及014先于012/013保持。
 
 - [MBM-003](MBM-003_LOSSLESS_DSD_TRANSPORT.md)：002成对软件seal后从Mac最终审计b1a8独立接续，FLAC至少24/192与仅DSD整曲PCM24/48→FLAC限额缓存；当前合同冻结优先，003软件/真实验收尚未运行，原真实carryover保留。
+
+
+## V39-INTEGRATION-001：已授权连续整合
+
+当前从实际 sealed Report `9bfb5915c17e8b5770ece7ac9a0efc1998d54e72` 接续 Tape13源码+2历史报告及其独立任务准入。当前开发Scope未冻结，不具备完成资格。Tape Source/直接Report自然CI封口后 → V39-INTEGRATION-002 完整Feedback/Async/SQL/shared/native/原35+9 CoverDrop → MBRS-016 → MBRS-017。旧任务与全部真实验收未证层继续保留。

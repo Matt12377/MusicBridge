@@ -568,3 +568,8 @@ Source548本次300k容量仍未通过，Root171实际摘要pin另列；首请求
 - [x] CI-REPORT-METADATA-001 Source 实施、本地完整工具 Gate、首次自然 Source CI。
 - [ ] 本唯一直接 Report 自身首次自然 CI 封口。
 - [ ] 封口后从实际 Report 建立独立集成，依次 Tape、完整反馈与 CoverDrop 原功能、016、017。
+
+
+## V39-INTEGRATION-001：已授权连续整合
+
+当前从实际 sealed Report `9bfb5915c17e8b5770ece7ac9a0efc1998d54e72` 接续 Tape13源码+2历史报告及其独立任务准入。本任务39条Source路径已冻结，当前Source专用Gate、首次自然CI和唯一直接Report自身CI仍待独立验证。Tape Source/直接Report自然CI封口后 → V39-INTEGRATION-002 完整Feedback/Async/SQL/shared/native/原35+9 CoverDrop → MBRS-016 → MBRS-017。旧任务与全部真实验收未证层继续保留。

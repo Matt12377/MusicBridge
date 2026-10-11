@@ -71,7 +71,12 @@ export interface CatalogRevisionDelta {
   addedReferenceIds: readonly string[]; removedReferenceIds: readonly string[]; retainedReferenceIds: readonly string[];
   /** 保留身份但说明、图片、时长等资料改变的项目；旧修订预览可以省略。 */
   updatedReferenceIds?: readonly string[];
+  /** 退出新版分母的编号仍在原修订和快照完整保留；不是旧到新编号的推测映射。 */
+  preservedHistory?: CatalogHistoryRetention;
   merged: number; split: number; before: CatalogCompletion | null; after: CatalogCompletion;
+}
+export interface CatalogHistoryRetention {
+  revisionId: string; snapshotId: string; matchVersion: number; referenceIds: readonly string[]; fingerprint: string;
 }
 export interface CatalogRevisionPreview { baselineFingerprint: string; expectedCurrentRevisionId: string | null; counts: CatalogCompletion; entries: readonly CatalogSnapshotEntry[]; delta: CatalogRevisionDelta }
 export interface CatalogHistoryRequest { bookId: string; offset: number; limit: number }
@@ -312,15 +317,29 @@ export function isCatalogRevisionDetail(v: unknown): v is CatalogRevisionDetail 
     && matchFacts(v.matches) === matchFacts(v.currentEntries.flatMap(e => e.matches));
 }
 export function isCatalogRevisionDelta(v: unknown): v is CatalogRevisionDelta {
-  return record(v) && keys(v, ['addedReferenceIds', 'removedReferenceIds', 'retainedReferenceIds', 'updatedReferenceIds', 'merged', 'split', 'before', 'after'])
+  return record(v) && keys(v, ['addedReferenceIds', 'removedReferenceIds', 'retainedReferenceIds', 'updatedReferenceIds', 'preservedHistory', 'merged', 'split', 'before', 'after'])
     && referenceKeys(v.addedReferenceIds) && referenceKeys(v.removedReferenceIds) && referenceKeys(v.retainedReferenceIds)
     && (v.updatedReferenceIds === undefined || referenceKeys(v.updatedReferenceIds) && v.updatedReferenceIds.every(id => (v.retainedReferenceIds as string[]).includes(id)))
+    && preservedHistoryReferences(v.preservedHistory, v.removedReferenceIds as string[])
     && unique([...v.addedReferenceIds, ...v.removedReferenceIds, ...v.retainedReferenceIds]) && integer(v.merged, 0, MAX_CATALOG_REFERENCES) && integer(v.split, 0, MAX_CATALOG_REFERENCES)
     && (v.before === null || isCatalogCompletion(v.before)) && isCatalogCompletion(v.after);
 }
+function preservedHistoryReferences(value: unknown, removed: readonly string[]): boolean {
+  if (value === undefined) return true;
+  if (!isCatalogHistoryRetention(value) || value.referenceIds.length !== removed.length) return false;
+  const references = new Set(removed);
+  return value.referenceIds.every(id => references.has(id));
+}
+export function isCatalogHistoryRetention(v: unknown): v is CatalogHistoryRetention {
+  return record(v) && keys(v, ['revisionId', 'snapshotId', 'matchVersion', 'referenceIds', 'fingerprint'])
+    && isCollectionId(v.revisionId) && isCollectionId(v.snapshotId) && integer(v.matchVersion)
+    && referenceKeys(v.referenceIds) && v.referenceIds.length > 0 && hash(v.fingerprint);
+}
 export function isCatalogRevisionPreview(v: unknown): v is CatalogRevisionPreview {
   return record(v) && keys(v, ['baselineFingerprint', 'expectedCurrentRevisionId', 'counts', 'entries', 'delta']) && hash(v.baselineFingerprint) && nullableId(v.expectedCurrentRevisionId)
-    && completionEntries(v.counts, v.entries) && isCatalogRevisionDelta(v.delta) && completionKeys.every(k => (v.counts as CatalogCompletion)[k] === (v.delta as CatalogRevisionDelta).after[k]);
+    && completionEntries(v.counts, v.entries) && isCatalogRevisionDelta(v.delta)
+    && (v.delta.preservedHistory === undefined || v.delta.preservedHistory.revisionId === v.expectedCurrentRevisionId)
+    && completionKeys.every(k => (v.counts as CatalogCompletion)[k] === (v.delta as CatalogRevisionDelta).after[k]);
 }
 export function isCatalogHistory(v: unknown): v is CatalogHistory {
   return record(v) && keys(v, ['bookId', 'currentRevisionId', 'revisions', 'snapshots', 'total', 'offset', 'limit']) && isReferenceCatalogKey(v.bookId) && nullableId(v.currentRevisionId) && paging(v) && integer(v.total)

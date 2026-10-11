@@ -1,0 +1,819 @@
+{
+  "schema": "musicbridge.tape-catalog-history-compat.evidence.v1",
+  "recordedAt": "2026-10-11T01:00:55.776Z",
+  "state": "LOCAL_SOFTWARE_VERIFIED_REPORT_PREPARED",
+  "baseSha": "479e746bb7106a4dac158fe616290220de03a53a",
+  "sourceSha": "92956514474dc04c7100e52fe4138212278f1f9b",
+  "reportSha": null,
+  "reportShaBinding": "EXTERNAL_FINAL_DELIVERY_RECEIPT",
+  "branch": "codex/tape-catalog-history-compat",
+  "sourceParent": "479e746bb7106a4dac158fe616290220de03a53a",
+  "expectedReportDirectParent": "92956514474dc04c7100e52fe4138212278f1f9b",
+  "productPaths": [
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CassetteArchiveImportPanel.vue",
+      "kind": "product",
+      "bytes": 7724,
+      "sha256": "9b7b9bbcc1859684367df1060d02ebe5ebc423462584ec0eed6cf40b0540dbf2"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CassetteCatalogDetail.vue",
+      "kind": "product",
+      "bytes": 13038,
+      "sha256": "e0b028c535ff41096a51904fd11c602220e03916a9922cc2825bc9d404b44963"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CassetteCatalogView.vue",
+      "kind": "product",
+      "bytes": 16917,
+      "sha256": "37a52e4b5868151dfedec97b3271619e0a63ce00e33ba26ad1a1368a32bd2b8e"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CollectionView.vue",
+      "kind": "product",
+      "bytes": 41843,
+      "sha256": "4cd02ecf8dc45dfb34a8389edbd31372d6b8b92d3db1ee1252c8ab70e7a40efb"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/reference-images.ts",
+      "kind": "product",
+      "bytes": 12370,
+      "sha256": "ce000d3713cbf9f16a353a3cc7b68fc20c10560a751d506b7948541c6c05ff34"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/reference-catalog-retention.ts",
+      "kind": "product",
+      "bytes": 3354,
+      "sha256": "ee8531e696da2b8b7a6e8479bffeb674e6f10b5db519d367349ec1913f85e514"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/reference-catalog-store.ts",
+      "kind": "product",
+      "bytes": 49492,
+      "sha256": "cb20e8e4de0ae20be7a96944820252393ad95738bde04d8e2505c37bb13f3711"
+    },
+    {
+      "path": "packages/contracts/src/reference-catalog.ts",
+      "kind": "product",
+      "bytes": 31851,
+      "sha256": "fe0682001b99dddb345ab785187f441efcb595d5ab7bdb17654f59d376de76e6"
+    }
+  ],
+  "testPaths": [
+    {
+      "path": "apps/desktop/test/cassette-catalog-ui.test.ts",
+      "kind": "test",
+      "bytes": 38729,
+      "sha256": "168e475056ca6474c994dea75f0243d2026a644a32d7b0a4bd152c00b888c8fa"
+    },
+    {
+      "path": "apps/desktop/test/collection-reference-images.test.ts",
+      "kind": "test",
+      "bytes": 8247,
+      "sha256": "edd150b4a6e1ccb295dd4458ae7f81bffb43c5e423f2b346e6e26c77f410a931"
+    },
+    {
+      "path": "packages/bridge-core/test/reference-archive-catalog-store.test.ts",
+      "kind": "test",
+      "bytes": 20252,
+      "sha256": "6f945ab5a572bc2d21063f269b5c86901c909fa3a3396d3514477f9789b3bab1"
+    },
+    {
+      "path": "packages/bridge-core/test/reference-catalog-retention.test.ts",
+      "kind": "test",
+      "bytes": 20800,
+      "sha256": "a6df327894831798cf45f522a5e7fc32b770a8961f63317ebdd561ee84d1be03"
+    },
+    {
+      "path": "packages/contracts/test/reference-catalog.test.ts",
+      "kind": "test",
+      "bytes": 24452,
+      "sha256": "d2b0127ba7e2b2cff93b53d881af57cacfd3ff5bc422e542816e4a151c3a4f97"
+    }
+  ],
+  "reportPaths": [
+    "reports/TAPE_CATALOG_HISTORY_COMPAT_RESULT.md",
+    "reports/TAPE_CATALOG_HISTORY_COMPAT_EVIDENCE.json"
+  ],
+  "authority": {
+    "coordinatorThread": "01a11009-6c6c-7a12-adf5-7e9374e24fc4",
+    "scopeRelease": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs013-m65qznwo/checks/COORDINATOR_TAPE_CATALOG_RETENTION_SCOPE_RELEASE01.json",
+      "bytes": 4290,
+      "sha256": "ef45e83d41f9669ce6d24d59ca97ce3f7287848898b4038e53db6e4413b99be5"
+    },
+    "additionalArchiveTestAndTwoNewReportPaths": "ROOT_INBOUND_MESSAGES_EXPLICITLY_RELEASED",
+    "heavyGateWindow": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbrs013-m65qznwo/checks/COORDINATOR_CURRENT_HEAVY_GATE_QUEUE02.json",
+      "bytes": 1024,
+      "sha256": "ede979bde75db7ff82192db35c12478f4d0487970bc2ca94b3bc994de1fe1e1e"
+    }
+  },
+  "runtime": {
+    "node": "22.23.2",
+    "pnpm": "10.17.1",
+    "externalBuildAndCacheRoots": true,
+    "localStorageFallback": false
+  },
+  "validation": {
+    "full": {
+      "schema": "musicbridge.tape-history-compat.local-command.v1",
+      "stage": "history-retention-source-verify",
+      "command": "corepack",
+      "args": [
+        "pnpm@10.17.1",
+        "verify"
+      ],
+      "workspace": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/workspace",
+      "startedAt": "2026-10-11T00:50:52.313Z",
+      "finishedAt": "2026-10-11T00:57:12.873Z",
+      "node": "v22.23.2",
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/logs/history-retention-source-verify.log",
+      "bytes": 1170441,
+      "sha256": "1737e8e4b9e14cbee95d1c2f7cfd9380cabe1c9395acee7db947187341df1ee5",
+      "counts": {
+        "tests": [
+          287,
+          2819,
+          8,
+          1700
+        ],
+        "pass": [
+          287,
+          2817,
+          8,
+          1700
+        ],
+        "fail": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "cancelled": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "skipped": [
+          0,
+          2,
+          0,
+          0
+        ],
+        "todo": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-source-verify.json",
+        "bytes": 1052,
+        "sha256": "482972d24d8d80c280563cc70ee57db445b99bbdd00abd4d34cf6aafecffbe60"
+      }
+    },
+    "totals": {
+      "tests": 4814,
+      "pass": 4812,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 2,
+      "todo": 0
+    },
+    "postSourceTypes": {
+      "schema": "musicbridge.tape-history-compat.local-command.v1",
+      "stage": "history-retention-source-typecheck",
+      "command": "corepack",
+      "args": [
+        "pnpm@10.17.1",
+        "typecheck"
+      ],
+      "workspace": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/workspace",
+      "startedAt": "2026-10-11T00:59:25.344Z",
+      "finishedAt": "2026-10-11T01:00:08.941Z",
+      "node": "v22.23.2",
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/logs/history-retention-source-typecheck.log",
+      "bytes": 2188,
+      "sha256": "e342b8e71519393c81fafa7f7e7e1507717928f5a2e2fe2792e669853fd07bcc",
+      "counts": {
+        "tests": [],
+        "pass": [],
+        "fail": [],
+        "cancelled": [],
+        "skipped": [],
+        "todo": []
+      },
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-source-typecheck.json",
+        "bytes": 802,
+        "sha256": "4d73c1ed79aed4a83ff7958ed245044379fc1066d1dee31a709944a2cde6f741"
+      }
+    },
+    "directedCore": {
+      "schema": "musicbridge.tape-history-compat.local-command.v1",
+      "stage": "history-retention-core-final",
+      "command": "corepack",
+      "args": [
+        "pnpm@10.17.1",
+        "--filter",
+        "@music-bridge/bridge-core",
+        "exec",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "test/reference-catalog-retention.test.ts",
+        "test/reference-archive-catalog-store.test.ts",
+        "test/reference-catalog-store.test.ts",
+        "../contracts/test/reference-catalog.test.ts"
+      ],
+      "workspace": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/workspace",
+      "startedAt": "2026-10-11T00:48:42.114Z",
+      "finishedAt": "2026-10-11T00:48:52.935Z",
+      "node": "v22.23.2",
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/logs/history-retention-core-final.log",
+      "bytes": 16083,
+      "sha256": "183f660258dcda66956ca579c543f7a9784a0004cfd03b7d55fb94e58a608140",
+      "counts": {
+        "tests": [
+          60
+        ],
+        "pass": [
+          60
+        ],
+        "fail": [
+          0
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ],
+        "todo": [
+          0
+        ]
+      },
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-core-final.json",
+        "bytes": 1191,
+        "sha256": "422064d5a2c7c993d4ba2b15253ca06ac404f01e3b1727f7cc88a7bc35245c66"
+      }
+    },
+    "directedUi": {
+      "schema": "musicbridge.tape-history-compat.local-command.v1",
+      "stage": "history-retention-ui-final",
+      "command": "corepack",
+      "args": [
+        "pnpm@10.17.1",
+        "--filter",
+        "@music-bridge/desktop",
+        "exec",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "test/collection-reference-images.test.ts",
+        "test/cassette-catalog-ui.test.ts",
+        "test/collection-return-navigation.test.ts",
+        "test/reference-catalog-ui.test.ts",
+        "test/collection-progress-ui.test.ts"
+      ],
+      "workspace": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/workspace",
+      "startedAt": "2026-10-11T00:48:42.114Z",
+      "finishedAt": "2026-10-11T00:48:46.948Z",
+      "node": "v22.23.2",
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/logs/history-retention-ui-final.log",
+      "bytes": 18315,
+      "sha256": "c72722658ebe79a6e2a088a473692e2defb0afd761136631766b89d350daccad",
+      "counts": {
+        "tests": [
+          73
+        ],
+        "pass": [
+          73
+        ],
+        "fail": [
+          0
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ],
+        "todo": [
+          0
+        ]
+      },
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-ui-final.json",
+        "bytes": 1209,
+        "sha256": "bf4dce980e7851295a4496afd693bb11484da6a87219d2e679a91565fd43bc71"
+      }
+    },
+    "controls": [
+      {
+        "schema": "musicbridge.tape-history-compat.local-command.v1",
+        "stage": "history-retention-source-control-plane",
+        "command": "node",
+        "args": [
+          "scripts/ci/verify-control-plane.mjs"
+        ],
+        "workspace": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/workspace",
+        "startedAt": "2026-10-11T00:55:10.393Z",
+        "finishedAt": "2026-10-11T00:55:10.501Z",
+        "node": "v22.23.2",
+        "exitCode": 0,
+        "signal": null,
+        "error": null,
+        "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/logs/history-retention-source-control-plane.log",
+        "bytes": 19,
+        "sha256": "8a65c33beed0d30e8ee6f68aebd92135b8f6b810b89af35a70a2f996600251bf",
+        "counts": {
+          "tests": [],
+          "pass": [],
+          "fail": [],
+          "cancelled": [],
+          "skipped": [],
+          "todo": []
+        },
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-source-control-plane.json",
+          "bytes": 810,
+          "sha256": "b8434c7609891cc77c8eae125d537be98783efb74c568406bef1fe72b29bd21b"
+        }
+      },
+      {
+        "schema": "musicbridge.tape-history-compat.local-command.v1",
+        "stage": "history-retention-source-boundaries",
+        "command": "node",
+        "args": [
+          "scripts/ci/verify-boundaries.mjs"
+        ],
+        "workspace": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/workspace",
+        "startedAt": "2026-10-11T00:55:10.394Z",
+        "finishedAt": "2026-10-11T00:55:10.573Z",
+        "node": "v22.23.2",
+        "exitCode": 0,
+        "signal": null,
+        "error": null,
+        "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/logs/history-retention-source-boundaries.log",
+        "bytes": 16,
+        "sha256": "3f60ad726b18819391a845a338a85a17d90330621035ee7440f59c12ffd50825",
+        "counts": {
+          "tests": [],
+          "pass": [],
+          "fail": [],
+          "cancelled": [],
+          "skipped": [],
+          "todo": []
+        },
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-source-boundaries.json",
+          "bytes": 801,
+          "sha256": "722dd190440de8d1380a332837f843c8d8ff0af5ec5d5ba703d9514079b6fbdd"
+        }
+      }
+    ],
+    "directedCountsNotAddedToFullTotals": true,
+    "originalTwoSkipsRetained": true,
+    "sourceCommitReceipt": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-source-commit.json",
+      "bytes": 3597,
+      "sha256": "b5b976dfcfb6b033b3e84154880548bc89a604b115d2b938bcafdb2c7d2c803c"
+    },
+    "sourceFreshCapture": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/source-fresh-input-binding.json",
+      "bytes": 4261,
+      "sha256": "bea245850eee22362cdfe7f2a0586b25d1ce0bac7ac70f4b959332bbb71a6eaa"
+    },
+    "fullSourceGitBinding": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/source-git-fresh-binding.json",
+      "bytes": 689,
+      "sha256": "595d2046af552c4d4a6846d3a634f9c19d4008eff5217a7fe23bd747ae2b2543"
+    },
+    "fullFreshInputCount": 1782,
+    "fullFreshInputBytes": 29340691
+  },
+  "compatibility": {
+    "syntheticNewCurrentItems": 634,
+    "syntheticPreviousItems": 656,
+    "syntheticIntersection": 0,
+    "referenceCatalogIsNotPersonalOwnership": true,
+    "noInferredOldToNewMapping": true,
+    "oldResolutionKey": [
+      "revisionId",
+      "referenceId"
+    ],
+    "latestHistoricalSameIdIdentityGuard": true,
+    "preservedOldTables": [
+      "reference_sources",
+      "reference_catalog_revisions",
+      "reference_catalog_matches",
+      "reference_catalog_snapshots"
+    ],
+    "syntheticOriginalSnapshots": 5,
+    "syntheticOriginalRowsUnchanged": true,
+    "syntheticAddedSnapshots": {
+      "previousTerminal": 1,
+      "newInitial": 1
+    },
+    "preservedPersonalContent": [
+      "库存",
+      "个人录音",
+      "实物照片",
+      "实体数字关联",
+      "求购",
+      "进度"
+    ],
+    "historicalAssociationWritesRejectedByCore": true,
+    "explicitReceiveActionStillAvailable": true,
+    "oldReferenceCandidatePoolSurvivesScopeAndReadFailures": true,
+    "noLateReadOverwrite": true,
+    "sqliteBackupAndIsolatedColdOpen": "SYNTHETIC_TEST_ONLY"
+  },
+  "unchanged": {
+    "sqlSchema": true,
+    "sqlTableDefinitionSha256": "d503cb637d693cb93c0b42f2f5022768df3940f945185b4e0d997c72880a0f3e",
+    "persistedRevisionFormat": true,
+    "mainIpcDatasetDomain": true,
+    "mobileContract": {
+      "version": "1.7.0",
+      "operations": 40,
+      "bytes": 147445,
+      "sha256": "3deaa9e238f24b7062945efacc775b604a60a5652b837b8c46378f0b89eeec21"
+    },
+    "primaryProjectLedgers": true,
+    "originalCommonSourceAndReports": true
+  },
+  "attempts": {
+    "businessRed": {
+      "schema": "musicbridge.tape-history-compat.local-command.v1",
+      "stage": "history-retention-red-corrected",
+      "command": "corepack",
+      "args": [
+        "pnpm@10.17.1",
+        "--filter",
+        "@music-bridge/bridge-core",
+        "exec",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "--test-name-pattern=656旧编号|历史保留证明",
+        "test/reference-catalog-retention.test.ts",
+        "../contracts/test/reference-catalog.test.ts"
+      ],
+      "workspace": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/workspace",
+      "startedAt": "2026-10-11T00:27:48.826Z",
+      "finishedAt": "2026-10-11T00:27:50.344Z",
+      "node": "v22.23.2",
+      "exitCode": 1,
+      "signal": null,
+      "error": null,
+      "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/logs/history-retention-red-corrected.log",
+      "bytes": 6628,
+      "sha256": "0cd91b1fb68f732b4af105b0868526939b544a54fc457feeabb5b42adbc4c931",
+      "counts": {
+        "tests": [
+          3
+        ],
+        "pass": [
+          0
+        ],
+        "fail": [
+          3
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ],
+        "todo": [
+          0
+        ]
+      },
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-red-corrected.json",
+        "bytes": 1157,
+        "sha256": "32de17511cab625e25079c5be51f4bbca7aadf85aa7b03ec94434a1a271906be"
+      }
+    },
+    "uiHeadAndConcurrentRed": {
+      "schema": "musicbridge.tape-history-compat.local-command.v1",
+      "stage": "history-retention-ui-head-red",
+      "command": "corepack",
+      "args": [
+        "pnpm@10.17.1",
+        "--filter",
+        "@music-bridge/desktop",
+        "exec",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "--test-name-pattern=历史链循环|历史头部缺根|较新当前目录读取失败",
+        "test/collection-reference-images.test.ts",
+        "test/cassette-catalog-ui.test.ts"
+      ],
+      "workspace": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/workspace",
+      "startedAt": "2026-10-11T00:48:08.588Z",
+      "finishedAt": "2026-10-11T00:48:10.025Z",
+      "node": "v22.23.2",
+      "exitCode": 1,
+      "signal": null,
+      "error": null,
+      "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/logs/history-retention-ui-head-red.log",
+      "bytes": 3387,
+      "sha256": "65dc0dcb383ba13e16b27658e07e251bf0c458a296ef7023d4fde84ab8508e0f",
+      "counts": {
+        "tests": [
+          3
+        ],
+        "pass": [
+          0
+        ],
+        "fail": [
+          3
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ],
+        "todo": [
+          0
+        ]
+      },
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-ui-head-red.json",
+        "bytes": 1172,
+        "sha256": "95924eed69ddd9ff5b9ed4144d27d48a058b86e33208db3d069048e1e3c4c304"
+      }
+    },
+    "firstUiHostFailure": {
+      "schema": "musicbridge.tape-history-compat.local-command.v1",
+      "stage": "history-retention-ui",
+      "command": "corepack",
+      "args": [
+        "pnpm@10.17.1",
+        "--filter",
+        "@music-bridge/desktop",
+        "exec",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-concurrency=1",
+        "test/collection-reference-images.test.ts",
+        "test/cassette-catalog-ui.test.ts",
+        "test/collection-return-navigation.test.ts",
+        "test/reference-catalog-ui.test.ts",
+        "test/collection-progress-ui.test.ts"
+      ],
+      "workspace": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/workspace",
+      "startedAt": "2026-10-11T00:36:23.393Z",
+      "finishedAt": "2026-10-11T00:36:28.084Z",
+      "node": "v22.23.2",
+      "exitCode": 1,
+      "signal": null,
+      "error": null,
+      "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/logs/history-retention-ui.log",
+      "bytes": 121586,
+      "sha256": "9f34740818425356eb73fff13295609c99c6010f4c0e5f8d3cc0ad82b0ab642b",
+      "counts": {
+        "tests": [
+          71
+        ],
+        "pass": [
+          70
+        ],
+        "fail": [
+          1
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ],
+        "todo": [
+          0
+        ]
+      },
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-ui.json",
+        "bytes": 1198,
+        "sha256": "1f98af0296a27bf6bd0bf2d2fcfc79cdd07a6b82a30214272be66078c39eb748"
+      }
+    },
+    "firstFullPerformanceFailure": {
+      "schema": "musicbridge.tape-history-compat.local-command.v1",
+      "stage": "history-retention-final-verify",
+      "command": "corepack",
+      "args": [
+        "pnpm@10.17.1",
+        "verify"
+      ],
+      "workspace": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/workspace",
+      "startedAt": "2026-10-11T00:39:38.678Z",
+      "finishedAt": "2026-10-11T00:46:43.361Z",
+      "node": "v22.23.2",
+      "exitCode": 1,
+      "signal": null,
+      "error": null,
+      "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/logs/history-retention-final-verify.log",
+      "bytes": 763556,
+      "sha256": "30cb2b863a0627392f43edcf8cbe37fb239384a2ce9db8e46401e018295bcfcd",
+      "counts": {
+        "tests": [
+          287,
+          2819
+        ],
+        "pass": [
+          287,
+          2816
+        ],
+        "fail": [
+          0,
+          1
+        ],
+        "cancelled": [
+          0,
+          0
+        ],
+        "skipped": [
+          0,
+          2
+        ],
+        "todo": [
+          0,
+          0
+        ]
+      },
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-final-verify.json",
+        "bytes": 935,
+        "sha256": "95093c3cbc67147d9a61b64746aad7428d753115620b543026e9a1b2b8d55633"
+      }
+    },
+    "firstPerformanceProbeWasEntryFailure": {
+      "schema": "musicbridge.tape-history-compat.local-command.v1",
+      "stage": "history-retention-perf-probe",
+      "command": "node",
+      "args": [
+        "--import",
+        "tsx",
+        "--test",
+        "--test-name-pattern=真实 perf_hooks 监测保持原始导出",
+        "packages/bridge-core/test/performance-trace.test.ts"
+      ],
+      "workspace": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/workspace",
+      "startedAt": "2026-10-11T00:45:02.012Z",
+      "finishedAt": "2026-10-11T00:45:02.094Z",
+      "node": "v22.23.2",
+      "exitCode": 1,
+      "signal": null,
+      "error": null,
+      "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/logs/history-retention-perf-probe.log",
+      "bytes": 1643,
+      "sha256": "07a8c503fb9006a7e7cc16b9998f5c24c2df01cf0a2e751e2ed897c87d8e9915",
+      "counts": {
+        "tests": [
+          1
+        ],
+        "pass": [
+          0
+        ],
+        "fail": [
+          1
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ],
+        "todo": [
+          0
+        ]
+      },
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-perf-probe.json",
+        "bytes": 997,
+        "sha256": "f1e8bf988df059ac5d63ece799c8cf0a445e301aa13b9a1ca3f3aa2a7e5bad64"
+      }
+    },
+    "originalPerformanceCaseSingleProbe": {
+      "schema": "musicbridge.tape-history-compat.local-command.v1",
+      "stage": "history-retention-perf-probe-02",
+      "command": "corepack",
+      "args": [
+        "pnpm@10.17.1",
+        "--filter",
+        "@music-bridge/bridge-core",
+        "exec",
+        "node",
+        "--import",
+        "tsx",
+        "--test",
+        "--test-name-pattern=真实 perf_hooks 监测保持原始导出",
+        "test/performance-trace.test.ts"
+      ],
+      "workspace": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/workspace",
+      "startedAt": "2026-10-11T00:45:12.677Z",
+      "finishedAt": "2026-10-11T00:45:13.321Z",
+      "node": "v22.23.2",
+      "exitCode": 0,
+      "signal": null,
+      "error": null,
+      "rawLog": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/logs/history-retention-perf-probe-02.log",
+      "bytes": 339,
+      "sha256": "3c5ebaaa2d8a5f229f4fca5d837eecac9c4d623934c4e34dba21c91a04ac70f8",
+      "counts": {
+        "tests": [
+          1
+        ],
+        "pass": [
+          1
+        ],
+        "fail": [
+          0
+        ],
+        "cancelled": [
+          0
+        ],
+        "skipped": [
+          0
+        ],
+        "todo": [
+          0
+        ]
+      },
+      "receipt": {
+        "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/history-retention-perf-probe-02.json",
+        "bytes": 1078,
+        "sha256": "309a976845ee1c8851eea5d6623d9e9a6bdbdace156199bab6648d338b6b749f"
+      }
+    },
+    "performancePathsUnchanged": {
+      "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-tape-history-e11yzz56/checks/performance-inheritance.json",
+      "bytes": 892,
+      "sha256": "e76530d0bd05bce020ce1f86be7853e37b4fbbc625a8d2bbd7806038584f9281"
+    },
+    "sourceCommitInitiallyBlockedByStagedDiffCheck": "新测试末尾一个空行；未追踪文件未被普通diff-check检查，暂存检查发现后修正",
+    "prematureWrapperStart": {
+      "wrapperStartedAt": "2026-10-11T00:50:52.313Z",
+      "sourceCommittedAt": "2026-10-11T00:51:42.742Z",
+      "freshCapturedAt": "2026-10-11T00:51:53.627Z",
+      "onlyChangeBeforeCapture": "新测试末尾一个空行，产品字节不变",
+      "wholeFreshInputGitObjectsVerified": true,
+      "postCommitTypecheckRepeatedToResolveTiming": true
+    },
+    "originalThresholdsAndTestCommandsKept": true,
+    "originalFailuresNotRelabeledPassed": true
+  },
+  "boundaries": {
+    "push": "NOT_RUN",
+    "hostedCiForThisSource": "NOT_RUN",
+    "trialAppChangesByThisBranch": 0,
+    "realProfileOrLibraryWritesByThisBranch": 0,
+    "realProfileBackup": "NOT_RUN",
+    "appInstallation": "NOT_RUN",
+    "formalArchiveImport": "NOT_RUN",
+    "originalZipAnd1777AssetsReverification": "NOT_RUN",
+    "electronOrdinaryAppOrOwnerAcceptance": "NOT_RUN",
+    "physicalDeviceAndAudio": "NOT_RUN",
+    "sourceSoftwarePassIsNotRealImportProof": true
+  },
+  "carryover": {
+    "integrationOwner": "Root",
+    "deadline": "016 综合回归之前",
+    "mac004DevelopmentBlockedByThisBranch": false,
+    "newTaskCiAdmission": "旧 TAPE_COMMON 准入是冻结闭包；Root 在统一004/016节点安排新Source准入，本分支不改共享CI",
+    "actualAppWindow": "Root 统一安排正常退出、句柄关闭、身份刷新、数据库及档案伴随资产备份后再安装/导入",
+    "overallProductGoalComplete": false
+  }
+}

@@ -20,6 +20,7 @@ import {
   type ReferenceSourceZipReceipt, type ReferenceSourceZipReceiptListRequest, type ReferenceSourceZipReceiptPage,
 } from '@music-bridge/contracts';
 import { parseReferenceSourceZip, ReferenceSourceZipError } from './reference-source-zip.js';
+import { archiveReferenceIdentity, CatalogRetentionError, planCatalogHistoryRetention } from './reference-catalog-retention.js';
 
 const tables = {
   reference_sources: 'CREATE TABLE reference_sources(id TEXT PRIMARY KEY,book_id TEXT NOT NULL,pack_hash TEXT NOT NULL,raw_pack TEXT NOT NULL,data TEXT NOT NULL,UNIQUE(book_id,pack_hash)) STRICT',
@@ -371,36 +372,67 @@ export function createReferenceCatalogStore({ read: accessRead, model, conflict,
     if (!pack || pack.items.some(item => item.archive?.sha256 !== archiveSha256)) return conflict('档案目录与完整 ZIP 身份不一致，原资料和资产未被登记。');
     return { pack, rawPack, packHash: sha(rawPack), items: normalizedItems(pack.items) };
   }
-  function archiveIdentity(item: CanonicalReference): string {
-    return canonical([item.bookId, item.brand, item.series, item.edition, item.model, item.iec, item.era]
-      .map(value => typeof value === 'string' ? value.normalize('NFKC').trim().toLowerCase() : value));
+  function archiveHistory(db: DatabaseSync, previous: CatalogRevision | null, items: readonly CanonicalReference[]) {
+    const context = verificationContext(), incoming = new Set(items.map(item => item.referenceId));
+    const identities = new Map<string, string>(), visited = new Set<string>();
+    let cursor = previous;
+    while (cursor) {
+      if (visited.has(cursor.id) || visited.size >= REFERENCE_CATALOG_LIMITS.rows || cursor.bookId !== previous!.bookId) return conflict('旧目录修订链不完整；资料与关联保持原值。');
+      visited.add(cursor.id); context.revisions.set(cursor.id, cursor);
+      const source = sourceData(db, cursor.sourceId, context).source;
+      if (source.bookId !== cursor.bookId || source.packHash !== cursor.packHash) return corrupt();
+      for (const item of cursor.items) if (incoming.has(item.referenceId) && !identities.has(item.referenceId)) identities.set(item.referenceId, archiveReferenceIdentity(item));
+      if (cursor.previousRevisionId === null) {
+        if (cursor.sequence !== 1) return conflict('旧目录修订链缺少原始版次；导入已停止。');
+        cursor = null;
+      } else {
+        const prior = revisionData(db, cursor.previousRevisionId, context);
+        if (prior.bookId !== cursor.bookId || prior.sequence + 1 !== cursor.sequence) return conflict('旧目录修订链的来源或顺序发生冲突；导入已停止。');
+        cursor = prior;
+      }
+    }
+    for (const item of items) {
+      const identity = identities.get(item.referenceId);
+      if (identity !== undefined && identity !== archiveReferenceIdentity(item)) return conflict('相同目录编号的型号或版次身份发生改变；导入已停止，旧关联保持原值。');
+    }
+    return context;
   }
   function previewArchive(db: DatabaseSync, request: PreviewReferenceArchiveCatalogRequest, input: ReturnType<typeof archiveInput>) {
     const previous = current(db, input.pack.bookId), items = input.items;
     if ((previous?.id ?? null) !== request.expectedCurrentRevisionId) return conflict('当前目录版本已改变，请重新预览档案。');
     const byId = new Map(items.map(item => [item.referenceId, item]));
-    for (const old of previous?.items ?? []) {
-      const next = byId.get(old.referenceId);
-      if (!next) return conflict('档案缺少旧目录编号；导入不能重编号、合并或拆分现有项目。');
-      if (archiveIdentity(old) !== archiveIdentity(next)) return conflict('相同目录编号的型号或版次身份发生改变；导入已停止，旧关联保持原值。');
-    }
+    const historyContext = archiveHistory(db, previous, items);
     const published = db.prepare("SELECT id FROM reference_catalog_revisions WHERE book_id=? AND json_extract(data,'$.items[0].archive.sha256')=? LIMIT 1")
       .get(input.pack.bookId, request.archiveSha256);
     const reuse = Boolean(published && previous && previous.packHash === input.packHash && same(previous.items, items));
     if (published && !reuse) return conflict('这份档案已经导入，当前目录随后发生修改；不能用旧档案覆盖现有修订。');
-    const mappings: CatalogMapping[] = (previous?.items ?? []).map(item => ({ fromReferenceIds: [item.referenceId], toReferenceIds: [item.referenceId] }));
+    const mappings: CatalogMapping[] = (previous?.items ?? []).filter(item => byId.has(item.referenceId))
+      .map(item => ({ fromReferenceIds: [item.referenceId], toReferenceIds: [item.referenceId] }));
     const oldState = previous ? matchesData(db, previous) : { matches: [], version: 0 };
     const matches = transfer(items, { mappings }, previous, oldState.matches), after = completion(db, { items }, matches);
     const before = previous ? completion(db, previous, oldState.matches) : null;
     const oldRefs = new Set(previous?.items.map(item => item.referenceId) ?? []);
+    const removedReferenceIds = (previous?.items ?? []).filter(item => !byId.has(item.referenceId)).map(item => item.referenceId);
+    let historyEvidence: ReturnType<typeof planCatalogHistoryRetention> | undefined;
+    if (previous) {
+      const latest = db.prepare('SELECT id FROM reference_catalog_snapshots WHERE revision_id=? ORDER BY rowid DESC LIMIT 1').get(previous.id);
+      if (!latest) return conflict('旧目录缺少不可变快照，无法证明完整保留；导入已停止。');
+      try {
+        historyEvidence = planCatalogHistoryRetention({ source: sourceData(db, previous.sourceId, historyContext), revision: previous,
+          snapshot: snapshotData(db, String(latest.id), historyContext), matches: oldState.matches, matchVersion: oldState.version,
+          referenceIds: removedReferenceIds.length ? removedReferenceIds : previous.items.map(item => item.referenceId), currentInventoryEvidence: before });
+      } catch (error) { if (error instanceof CatalogRetentionError) return conflict(error.message); throw error; }
+    }
     // 档案绑定另由完整 SHA 展示；其余资料字段的改变必须在保留项目差异中可见。
-    const updatedReferenceIds = (previous?.items ?? []).filter(old => !same({ ...old, archive: undefined }, { ...byId.get(old.referenceId)!, archive: undefined })).map(item => item.referenceId);
+    const updatedReferenceIds = (previous?.items ?? []).filter(old => byId.has(old.referenceId)
+      && !same({ ...old, archive: undefined }, { ...byId.get(old.referenceId)!, archive: undefined })).map(item => item.referenceId);
     const delta = {
       addedReferenceIds: items.filter(item => !oldRefs.has(item.referenceId)).map(item => item.referenceId),
-      removedReferenceIds: [], retainedReferenceIds: items.filter(item => oldRefs.has(item.referenceId)).map(item => item.referenceId),
+      removedReferenceIds, retainedReferenceIds: items.filter(item => oldRefs.has(item.referenceId)).map(item => item.referenceId),
+      ...(removedReferenceIds.length ? { preservedHistory: historyEvidence! } : {}),
       updatedReferenceIds, merged: 0, split: 0, before: before?.counts ?? null, after: after.counts,
     };
-    const baselineFingerprint = fingerprint({ archiveSha256: request.archiveSha256, expectedDatasetId: request.expectedDatasetId, packHash: input.packHash, previous, oldState, before, items, mappings, after });
+    const baselineFingerprint = fingerprint({ archiveSha256: request.archiveSha256, expectedDatasetId: request.expectedDatasetId, packHash: input.packHash, previous, oldState, before, items, mappings, after, historyEvidence });
     const result: CatalogRevisionPreview = { baselineFingerprint, expectedCurrentRevisionId: request.expectedCurrentRevisionId, counts: after.counts, entries: after.entries, delta };
     return { result, previous, oldState, items, mappings, matches, reuse };
   }

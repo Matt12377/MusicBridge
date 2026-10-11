@@ -2,7 +2,7 @@
 import { collectionModelLabel } from './collection-display'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import type { CanonicalReference, CollectionFilter, CollectionModel, CollectionReceiveRequest } from '@music-bridge/contracts'
-import { collectionPrefillForReference, loadPublishedCassetteCatalog, referenceImagesForModel, type CollectionReferencePrefill, type PublishedCassetteReference, type ReferenceCatalogSelection } from './reference-images'
+import { collectionPrefillForReference, loadPublishedCassetteCatalog, loadHistoricalCassetteCatalogs, referenceImagesForModel, type CollectionReferencePrefill, type PublishedCassetteReference, type HistoricalCassetteCatalog, type ReferenceCatalogSelection } from './reference-images'
 import CollectionReferenceImage from './CollectionReferenceImage.vue'
 import { useCollection } from '../../composables/useCollection'
 import CollectionReceiveDialog from './CollectionReceiveDialog.vue'
@@ -77,7 +77,7 @@ const archiveImportOpen = ref(false)
 let archiveImportOrigin: HTMLElement | undefined
 function openArchiveImport(): void { if (!guardLeave()) return; archiveImportOrigin = document.activeElement as HTMLElement; archiveImportOpen.value = true }
 function closeArchiveImport(): void { archiveImportOpen.value = false; void nextTick(() => archiveImportOrigin?.isConnected && archiveImportOrigin.focus({ preventScroll: true })) }
-function archiveImported(): void { tapeView.value = 'catalog'; void loadReferenceImages() }
+function archiveImported(): void { catalogScope.value = 'current'; tapeView.value = 'catalog'; void loadReferenceImages() }
 
 const inventory = useCollection()
 const collectionApi = window.musicBridge
@@ -111,12 +111,45 @@ function closeModel(): void { inventory.closeModel(); void nextTick(() => modelO
 const returnLocationStale = ref(false), relocating = ref(false)
 const referenceImages = shallowRef<readonly CanonicalReference[]>([])
 const publishedReferences = shallowRef<readonly PublishedCassetteReference[]>([])
+const historicalCatalogs = shallowRef<readonly HistoricalCassetteCatalog[]>([])
+const catalogScope = ref('current'), historyLoading = ref(false), historyError = ref('')
+const catalogReferences = computed(() => catalogScope.value === 'current' ? publishedReferences.value
+  : historicalCatalogs.value.find(value => value.revisionId === catalogScope.value)?.items ?? [])
+const catalogScopes = computed(() => [
+  { key: 'current', label: '当前资料', count: publishedReferences.value.length },
+  ...historicalCatalogs.value.map(value => ({ key: value.revisionId,
+    label: `${publishedReferences.value.some(item => item.previousRevisionId === value.revisionId) ? '导入前资料' : '历史资料'} · 版次 ${value.revisionSequence}`,
+    count: value.items.length })),
+])
+function selectCatalogScope(scope: string): void { if (catalogScopes.value.some(item => item.key === scope)) catalogScope.value = scope }
 const referenceLoading = ref(false), referenceError = ref('')
 let referenceRead = 0
+function updateReferenceCandidates(current: readonly PublishedCassetteReference[], history: readonly HistoricalCassetteCatalog[]): void {
+  // 浏览范围不改变库存候选池；同一旧编号优先保留其最近版本，不自动认定实物身份。
+  const references = new Map<string, CanonicalReference>()
+  for (const item of [...current, ...history.flatMap(value => value.items)]) {
+    const key = JSON.stringify([item.reference.bookId, item.reference.referenceId])
+    if (!references.has(key)) references.set(key, item.reference)
+  }
+  referenceImages.value = [...references.values()]
+}
 async function loadReferenceImages(): Promise<void> {
   const read = ++referenceRead
-  referenceLoading.value = true; referenceError.value = ''
-  try { const items = await loadPublishedCassetteCatalog(collectionApi); if (read === referenceRead) { publishedReferences.value = items; referenceImages.value = items.map(item => item.reference) } }
+  referenceLoading.value = true; referenceError.value = ''; historyLoading.value = false; historyError.value = ''
+  try {
+    const items = await loadPublishedCassetteCatalog(collectionApi)
+    if (!alive || read !== referenceRead) return
+    publishedReferences.value = items; updateReferenceCandidates(items, historicalCatalogs.value)
+    referenceLoading.value = false
+    historyLoading.value = items.some(item => !!item.previousRevisionId || item.revisionSequence > 1)
+    try {
+      const history = items.length ? await loadHistoricalCassetteCatalogs(collectionApi, items) : []
+      if (!alive || read !== referenceRead) return
+      historicalCatalogs.value = history; updateReferenceCandidates(items, history)
+      if (!catalogScopes.value.some(item => item.key === catalogScope.value)) catalogScope.value = 'current'
+    } catch { if (alive && read === referenceRead) historyError.value = '旧资料暂时无法完整读取；已读取的资料和库存参考候选保留，请重试。' }
+    finally { if (alive && read === referenceRead) historyLoading.value = false }
+  }
   catch { if (read === referenceRead) referenceError.value = '磁带参考资料暂时无法读取；已读取的目录、库存和实物照片保留。' }
   finally { if (read === referenceRead) referenceLoading.value = false }
 }
@@ -229,7 +262,7 @@ const views = [
         <button type="button" :aria-pressed="tapeView === 'inventory'" :disabled="blocked" @click="selectTapeView('inventory')">我的磁带</button>
       </nav>
       <p v-if="view.id === 'tapes' && tapeView === 'catalog' && notice" class="collection-status" role="status">{{ notice }}</p>
-      <CassetteCatalogView v-if="view.id === 'tapes' && tapeView === 'catalog'" :items="publishedReferences" :loading="referenceLoading" :error="referenceError" @refresh="loadReferenceImages" @manage="openReference" @import-archive="openArchiveImport" @open-model="openModel" @receive="beginReceiveFromReference" />
+      <CassetteCatalogView v-if="view.id === 'tapes' && tapeView === 'catalog'" :items="catalogReferences" :loading="referenceLoading" :error="referenceError" :scope="catalogScope" :scopes="catalogScopes" :history-loading="historyLoading" :history-error="historyError" @select-scope="selectCatalogScope" @refresh="loadReferenceImages" @manage="openReference" @import-archive="openArchiveImport" @open-model="openModel" @receive="beginReceiveFromReference" />
       <div v-if="view.id === 'tapes' && tapeView === 'inventory'" class="inventory-feedback" aria-live="polite">
         <p v-if="error" role="alert">{{ error }} <button v-if="pending && !receiving" :disabled="saving" @click="retry">重试原操作</button><button v-else-if="!pending" :disabled="loading || blocked" @click="inventory.refresh()">刷新库存</button></p>
         <p v-else-if="notice" role="status">{{ notice }} <button v-if="returnLocationStale" type="button" :disabled="relocating || blocked" @click="relocatePhysical">重新定位这盘</button></p>

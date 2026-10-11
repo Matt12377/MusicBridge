@@ -46554,5 +46554,36 @@
         "ownerAcceptance": "NOT_RUN"
       }
     }
-  ]
+  ],
+  "integration_tasks": [
+  {
+    "id": "V39-INTEGRATION-001",
+    "title": "Tape历史兼容正式组合",
+    "branch": "codex/v39-integration-001",
+    "base_report_sha": "9bfb5915c17e8b5770ece7ac9a0efc1998d54e72",
+    "status": "READY_FOR_SOURCE",
+    "scope_ref": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+    "next_task": "V39-INTEGRATION-002"
+  },
+  {
+    "id": "V39-INTEGRATION-002",
+    "title": "完整Feedback与CoverDrop正式组合",
+    "status": "NOT_STARTED",
+    "base_report_sha": null,
+    "scope_ref": null
+  }
+],
+  "integration_execution_schedule": {
+    "schema": "musicbridge.v39.integration.schedule.v1",
+    "current_task": "V39-INTEGRATION-001",
+    "remaining_sequence": [
+      "V39-INTEGRATION-001",
+      "V39-INTEGRATION-002",
+      "MBRS-016",
+      "MBRS-017"
+    ],
+    "predecessor_report_sha": "9bfb5915c17e8b5770ece7ac9a0efc1998d54e72",
+    "original_tasks_and_acceptance_unchanged": true,
+    "owner_repeated_approval_required": false
+  }
 }

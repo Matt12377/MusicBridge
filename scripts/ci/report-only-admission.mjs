@@ -9,6 +9,7 @@ import { locateMobileContentReportTask, classifyMobileContentReportChanges, vali
 import { assertMbm004ReportSource } from './mbm004-admission.mjs';
 import { inspectCiReportMirrorReportOnly } from './ci-report-mirror-admission.mjs';
 import { inspectCiReportMetadataReportOnly } from './ci-report-metadata-admission.mjs';
+import { inspectV39IntegrationReportOnly } from './report-only-v39-integration.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const equal = (a, b) => JSON.stringify(sortObject(a)) === JSON.stringify(sortObject(b));
@@ -321,6 +322,8 @@ export async function inspectReportOnly(env = process.env, directory = root, get
     || env.GITHUB_EVENT_NAME !== 'push' || env.GITHUB_API_URL !== 'https://api.github.com'
     || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(env.GITHUB_REPOSITORY ?? '')
     || !/^[a-f0-9]{40}$/u.test(env.GITHUB_SHA ?? '')) return full('NOT_PUBLIC_HOSTED_PUSH_CONTEXT');
+  const integration = await inspectV39IntegrationReportOnly(env, directory, getJson);
+  if (integration !== null) return integration;
   const metadata = await inspectCiReportMetadataReportOnly(env, directory, getJson);
   if (metadata !== null) return metadata;
   const repair = await inspectCiReportMirrorReportOnly(env, directory, getJson);

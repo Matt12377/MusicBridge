@@ -149,17 +149,24 @@ test('同一来源原子发布失败回滚所有表，既有sources/revisions/li
   assert.equal(repository.catalog.history({ bookId: 'synthetic-book', offset: 0, limit: 25 }).total, 2);
 });
 
-test('旧ID删除、重编号、合并、拆分或同ID身份改变都在写入前阻断', async t => {
+test('相同ID身份改变在写入前阻断；缺席新版的ID须精确保留在原历史而不推测映射', async t => {
   const { repository, filePath } = await fixture(t), first = publish(repository, [item(), item('b')]);
   const before = databaseRows(filePath);
   const rejected = [
-    [item('b')], [item('renamed', { model: 'a' }), item('b')], [item('merged')],
-    [item('a-left'), item('a-right'), item('b')], [item('a', { edition: '另一版次' }), item('b')],
+    [item('a', { edition: '另一版次' }), item('b')],
     [item('a', { model: '另一型号' }), item('b')], [item('a', { iec: 'I' }), item('b')],
   ];
   for (const entries of rejected) {
     const rawPack = pack(archived(entries));
     assert.throws(() => prepare(repository, rawPack, first.revision.id), /编号|身份|目录/u);
+    assert.deepEqual(databaseRows(filePath), before);
+  }
+  for (const entries of [[item('b')], [item('renamed', { model: 'a' }), item('b')], [item('merged')], [item('a-left'), item('a-right'), item('b')]]) {
+    const prepared = prepare(repository, pack(archived(entries)), first.revision.id);
+    const removed = first.revision.items.filter(old => !entries.some(next => next.referenceId === old.referenceId)).map(old => old.referenceId);
+    assert.deepEqual(prepared.preview.delta.preservedHistory?.referenceIds, removed);
+    assert.equal(prepared.preview.delta.preservedHistory?.revisionId, first.revision.id);
+    assert.equal(prepared.preview.delta.merged, 0); assert.equal(prepared.preview.delta.split, 0);
     assert.deepEqual(databaseRows(filePath), before);
   }
 });

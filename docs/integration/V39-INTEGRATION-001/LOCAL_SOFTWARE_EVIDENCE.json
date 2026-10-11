@@ -1,0 +1,158 @@
+{
+  "schema": "musicbridge.v39.integration.local-software-specification.v1",
+  "task": "V39-INTEGRATION-001",
+  "status": "PENDING_GATE",
+  "required": "CURRENT_SOURCE_IDENTITY_GATE_STANDARD_TYPES_BUILDS_TAPE_BEHAVIORS_CONTROLLED_COMPOSITION",
+  "oldEvidenceReuse": "ONLY_UNCHANGED_INPUTS_AND_EXACT_DECLARED_LAYER",
+  "old189Repeated": false,
+  "realApplicationServiceDeviceAudio": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "tapeCaseRegistration": {
+    "files": [
+      {
+        "path": "apps/desktop/test/cassette-catalog-ui.test.ts",
+        "expectedCases": 23,
+        "expectedCaseNames": [
+          "合成634条完整目录包含16条缺主图，同书多来源只读一次当前版次，不创建库存",
+          "品牌→型号→原书年份仅做UI分组，同型号各年份与未知保留，IEC和系列差异可辨",
+          "完整目录搜索型号、原书页与说明，品牌和带型筛选不混入库存事实",
+          "读取身份已变化的目录不返回旧来源，当前发布来源不在首页时精确读取",
+          "26个同书历史来源按25条分页完整收集，同书当前版次只读一次",
+          "第二页的新书也读取当前条目，不把第一页结果静默当完整目录",
+          "来源超过总预算、后页缺条目或总数漂移时明确失败，不返回截断目录",
+          "归档原书图可作为同型号候选，缺主图与非法资产不补位，旧内嵌图继续可用",
+          "完整ZIP选择只预览，确认后绑定原预览和dataset，未知回执仅恢复同一命令",
+          "导入单飞，关闭后迟到回执不更新局部状态或触发目录导航",
+          "取消重新选择保留原预览；选择失败不暴露Main文件路径",
+          "实际关联审核面板接收资料条目后只读定位当前来源与review步骤，不触发库存写入",
+          "实际完整详情组件切换条目时旧全文回执不能覆盖新条目，年份保持原书证据",
+          "实际详情顶部优先原书原图，辅助画廊排除同一主图，兼容旧base资产",
+          "实际资料浏览组件层级可回退，搜索结果直接打开具体reference，无需三次点击",
+          "资料详情添加收藏只预填已知品牌型号和IEC，实物年份、版次、数量必须按原校验保存",
+          "实际完整ZIP预览展示同ID资料字段更新数量和完整ID，兼容旧delta没有更新字段",
+          "实际收藏页默认634新版，旧656可独立浏览且切换不丢库存参考候选",
+          "旧历史读取失败保留当前目录和已读参考，迟到的旧读取不覆盖较新刷新",
+          "历史头部缺根明确提示，已读历史与库存参考候选保留",
+          "较新当前目录读取失败结束历史加载状态，旧异步完成不能覆盖失败提示",
+          "资料范围切换清空旧详情与层级，历史详情阻止编辑关联但保留原库存入口与明确添加操作",
+          "完整ZIP预览准确显示634新版与656旧编号保留，预览阶段不调用导入"
+        ]
+      },
+      {
+        "path": "apps/desktop/test/collection-reference-images.test.ts",
+        "expectedCases": 9,
+        "expectedCaseNames": [
+          "同型号参考候选保留多个版次，不把 SA 当 SA-X，也不改变库存",
+          "明确年份或版次不匹配时不拿相似图片补位",
+          "书中图名允许空格大小写差异，不接受缺品牌的泛匹配",
+          "只使用资料中明确登记的参考图别名，长度和颜色后缀不自动删除",
+          "收藏墙在实物照片缺席时显示带来源的参考候选，详情保留全部版次",
+          "参考图只读取每本书的当前发布版本，同书多个来源不重复读取",
+          "参考来源超出加载预算或读取失败时不伪装为空目录",
+          "历史目录严格按原revision和来源身份读取，旧关联不从当前目录回填",
+          "历史链循环、错序或缺根明确拒绝，合法链按最近版次顺序保留旧编号"
+        ]
+      },
+      {
+        "path": "packages/contracts/test/reference-catalog.test.ts",
+        "expectedCases": 23,
+        "expectedCaseNames": [
+          "参考图别名带核对说明且有界，不改变目录身份或默默吞掉冲突",
+          "带图修订接受有界多图内容，原资料入口仍为1MiB且超大修订拒绝",
+          "参考资料iec只接受字符串枚举，原JSON与IPC/outbox拒绝数组强制转换",
+          "参考资料confidence只接受字符串枚举，原JSON与IPC/outbox拒绝数组强制转换",
+          "目录审核status只接受字符串枚举，setMatch与IPC/outbox拒绝非字符串",
+          "目录审核availability只接受字符串枚举，setMatch与IPC/outbox拒绝非字符串",
+          "资料原文可保留BOM/空白，严格解析且不隐式生成来源",
+          "完整目录支持654至2000条，数量与字节预算仍独立生效",
+          "同参考项重复页及时长归并，冲突版次或重复canonical身份拒绝",
+          "参考图只允许明确参考来源与受限内嵌JPEG，无外网或私有路径",
+          "发布要求原基线指纹与确认；映射仅有限合并或拆分",
+          "未匹配不等于Missing，候选/拆分待审不伪装已确认拥有",
+          "snapshot是有界一致时点事实，不接受额外路径或不守恒counts",
+          "新增写命令均进入有限outbox且响应按命令校验，读命令不能重放",
+          "revision响应按字段事实比较match且历史snapshot不可串接其它canonical",
+          "UTF8按字节限额，未知字段和稀疏数组不能绕过有界输入",
+          "2000项完整目录响应保持关联保护，成员访问量随目录线性增长",
+          "目录修订映射的成员校验保持完整，访问量随条目与映射数量增长",
+          "档案绑定只携带完整ZIP哈希和安全逻辑主图编号，旧图片合同继续可用",
+          "634项档案目录包含16个明确缺主图项目，仍使用1MiB原文预算且不以图片增加身份",
+          "档案预览与导入请求绑定工作库和原基线，不接收路径、原文、图片或自定义映射",
+          "保留ID的资料变化可在delta明确列出，旧预览兼容且变化只能指向保留成员",
+          "历史保留证明只允许精确的退出编号集合和有界修订快照身份，写请求不能携带伪造证明"
+        ]
+      },
+      {
+        "path": "packages/bridge-core/test/reference-archive-catalog-store.test.ts",
+        "expectedCases": 9,
+        "expectedCaseNames": [
+          "634项完整档案一次原子登记发布，16缺主图保持unknown且全部既有个人数据逐行守恒",
+          "完整self mapping保留全部匹配状态和旧修订，资料字段变化明确列入preview delta",
+          "同一来源原子发布失败回滚所有表，既有sources/revisions/links原样保留，原命令可明确重试",
+          "相同ID身份改变在写入前阻断；缺席新版的ID须精确保留在原历史而不推测映射",
+          "NFKC与大小写身份相同仍可自映射，非身份字段变化显式预览而不改旧referenceId",
+          "档案哈希混用、超预算原文和附带未知字段均不能登记来源或写入目录",
+          "预览绑定原文、工作库、匹配和库存事实，任一改变均拒绝旧指纹而不产生半条来源",
+          "同ZIP同命令与新命令均幂等，后续用户改版后旧命令只返原回执且新导入禁止倒退",
+          "archive-import回执和完整绑定通过冷开/只读备份校验，原命令结果与个人资料继续保留"
+        ]
+      },
+      {
+        "path": "packages/bridge-core/test/reference-catalog-retention.test.ts",
+        "expectedCases": 10,
+        "expectedCaseNames": [
+          "656旧编号和634新编号零交集，旧库存关联/愿望/进度与个人数据保留，新资料不推断拥有",
+          "部分交集仅沿用相同编号，退出当前版的关联保留在原修订而不自动迁移",
+          "退出编号再次出现时核对其最近历史身份，不回填更早历史或绕过身份保护",
+          "暖开库在预览后缺失旧快照时拒绝无证明导入，所有表相对故障注入后保持原值",
+          "合法形状但匹配事实错误的旧快照不能作为历史保留证明",
+          "旧库存合法变化允许新预览，预览后的库存变化使历史保留指纹失效",
+          "暖开目录注入循环修订链后停止导入，不能仅凭旧编号存在而放行",
+          "暖开目录注入错误顺序修订链后停止导入，不能仅凭旧编号存在而放行",
+          "暖开目录注入缺根修订链后停止导入，不能仅凭旧编号存在而放行",
+          "暖开目录注入跨书修订链后停止导入，不能仅凭旧编号存在而放行"
+        ]
+      }
+    ],
+    "totalExpectedCases": 74,
+    "actualCases": null,
+    "actualPass": null,
+    "actualFail": null,
+    "actualSkip": null,
+    "caseTitlesMustMatch": true
+  },
+  "controlledCompositionGroups": [
+    "TAPE-01",
+    "TAPE-02",
+    "TAPE-03",
+    "TAPE-04",
+    "TAPE-05",
+    "TAPE-06",
+    "TAPE-07",
+    "TAPE-08",
+    "TAPE-09",
+    "TAPE-10",
+    "TAPE-11",
+    "TAPE-12"
+  ],
+  "budgets": {
+    "stageMs": 180000,
+    "wholeMs": 480000,
+    "rawBytesPerStream": 16777216,
+    "ownerMs": 2000
+  },
+  "requiredPhysicalEvidence": [
+    "NATURAL_EXIT_AND_FULL_RAW",
+    "CURRENT_INPUTS_BEFORE_AFTER_EQUAL",
+    "OWN_PROCESS_GROUP_AND_DESCENDANTS_GONE",
+    "OWN_TMP_CLOSED_AND_REMOVED",
+    "CONTROLLED_DB_HANDLES_CLOSED"
+  ],
+  "donorHistoricalVerify": {
+    "registered": 4814,
+    "passed": 4812,
+    "failed": 0,
+    "skipped": 2,
+    "role": "HISTORICAL_ONLY_NOT_CURRENT_SOURCE_PASS"
+  }
+}

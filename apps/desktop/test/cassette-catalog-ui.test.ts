@@ -202,16 +202,20 @@ async function mountScript(t: test.TestContext, file: string, props: Record<stri
   const template = compileTemplate({ id: 'cassette-ui-behavior', source: descriptor.template!.content, filename: file, compilerOptions: { bindingMetadata: script.bindings, hoistStatic: false } })
   assert.deepEqual(template.errors, [])
   const contracts = await import('@music-bridge/contracts')
+  const inventory = { catalog: vue.shallowRef(), detail: vue.shallowRef(), filter: vue.ref({}), loading: vue.ref(false), saving: vue.ref(false), refreshing: vue.ref(false),
+    error: vue.ref(''), notice: vue.ref(''), pending: vue.shallowRef(), blocked: vue.computed(() => false),
+    load: async () => {}, closeModel: () => {}, openModel: async () => {}, retry: async () => false, mutate: async () => false, addPhoto: async () => {} }
   const modules: Record<string, unknown> = { vue, '@music-bridge/contracts': contracts, './reference-images': referenceImages,
+    '../../composables/useCollection': { useCollection: () => inventory },
     './reference-catalog-controller': referenceController, './collection-display': { collectionModelLabel: () => '' },
     './cassette-catalog-controller': { createCassetteArchiveImportController },
     '../../../../shared/cassette-catalog': cassetteShared }
   const module = { exports: {} as { default: import('vue').Component } }
   const code = ts.transpileModule(script.content, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
-  new Function('require', 'module', 'exports', 'window', 'document', code)((name: string) => modules[name] ?? (name.endsWith('.vue') ? { default: { render: () => null } } : require(name)), module, module.exports, { musicBridge: api }, { activeElement: { isConnected: true, focus() {} } })
-  interface Host { tag: string; text: string; children: Host[]; parent: Host | null; props: Record<string, unknown>; showModal(): void; focus(): void; scrollIntoView(): void }
-  const node = (tag = '', text = ''): Host => ({ tag, text, children: [], parent: null, props: {}, showModal() {}, focus() {}, scrollIntoView() {} })
-  const renderer = vue.createRenderer<Host, Host>({ createElement: tag => node(tag), createText: text => node('', text), createComment: () => node(), setText(item, text) { item.text = text }, setElementText(item, text) { item.text = text; item.children = [] }, patchProp(item, key, _before, value) { item.props[key] = value }, insert(child, parent, anchor) { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = parent; const index = anchor ? parent.children.indexOf(anchor) : -1; if (index < 0) parent.children.push(child); else parent.children.splice(index, 0, child) }, remove(child) { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = null }, parentNode: item => item.parent, nextSibling: item => item.parent?.children[item.parent.children.indexOf(item) + 1] ?? null })
+  new Function('require', 'module', 'exports', 'window', 'document', code)((name: string) => modules[name] ?? (name.endsWith('.vue') ? { default: { render: () => null } } : require(name)), module, module.exports, { musicBridge: api }, { activeElement: { isConnected: true, focus() {} }, addEventListener() {}, removeEventListener() {}, querySelector() { return { focus() {} } } })
+  interface Host { tag: string; text: string; children: Host[]; parent: Host | null; props: Record<string, unknown>; value: unknown; readonly options: Host[]; addEventListener(): void; removeEventListener(): void; showModal(): void; focus(): void; scrollIntoView(): void }
+  const node = (tag = '', text = ''): Host => ({ tag, text, children: [], parent: null, props: {}, value: '', get options() { return this.children.filter(child => child.tag === 'option') }, addEventListener() {}, removeEventListener() {}, showModal() {}, focus() {}, scrollIntoView() {} })
+  const renderer = vue.createRenderer<Host, Host>({ createElement: tag => node(tag), createText: text => node('', text), createComment: () => node(), setText(item, text) { item.text = text }, setElementText(item, text) { item.text = text; item.children = [] }, patchProp(item, key, _before, value) { item.props[key] = value; if (key === 'value') item.value = value }, insert(child, parent, anchor) { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = parent; const index = anchor ? parent.children.indexOf(anchor) : -1; if (index < 0) parent.children.push(child); else parent.children.splice(index, 0, child) }, remove(child) { if (child.parent) child.parent.children.splice(child.parent.children.indexOf(child), 1); child.parent = null }, parentNode: item => item.parent, nextSibling: item => item.parent?.children[item.parent.children.indexOf(item) + 1] ?? null })
   let render: import('vue').RenderFunction = () => null
   if (renderTemplate) {
     const compiledTemplate = ts.transpileModule(template.code, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText
@@ -219,7 +223,7 @@ async function mountScript(t: test.TestContext, file: string, props: Record<stri
     new Function('require', 'module', 'exports', compiledTemplate)((name: string) => modules[name] ?? require(name), templateModule, templateModule.exports)
     render = templateModule.exports.render
   }
-  const app = renderer.createApp({ ...module.exports.default, render }, props)
+  const app = renderer.createApp({ ...module.exports.default, render }, file === 'CollectionView.vue' ? { modelValue: 'tapes', ...props } : props)
   const root = node('root'), instance = app.mount(root); t.after(() => app.unmount())
   const settle = async () => { await new Promise<void>(done => setImmediate(done)); await vue.nextTick() }
   const text = (item: Host): string => item.text + item.children.map(text).join('')
@@ -327,4 +331,127 @@ test('实际完整ZIP预览展示同ID资料字段更新数量和完整ID，兼�
   api.pickCassetteArchive = async () => preview
   await controller.pickArchive(); await mounted.settle()
   assert.match(mounted.text().replace(/\s+/gu, ''), /资料字段更新0项/u)
+})
+
+const oldRevisionIds = ['44444444-4444-4444-8444-444444444441', '44444444-4444-4444-8444-444444444442', '44444444-4444-4444-8444-444444444443']
+function retainedFixture() {
+  const rows = Array.from({ length: 634 }, (_, n) => reference(n)), fixture = catalogFixture(rows)
+  fixture.current.revision.sequence = 4; fixture.current.revision.previousRevisionId = oldRevisionIds[2]!
+  const oldSource = { ...source, id: '55555555-5555-4555-8555-555555555555', sourceVersion: '旧版', packHash: 'd'.repeat(64), itemCount: 656 }
+  const oldRows = Array.from({ length: 656 }, (_, n) => ({ ...reference(n), referenceId: `legacy-${n}`, model: `旧型号-${n}`,
+    ...(n === 0 ? { image: { kind: 'reference' as const, image: { dataUrl: 'data:image/jpeg;base64,/9j/2Q==', width: 1, height: 1 }, caption: '旧资料参考图' } } : {}) }))
+  const revisions = new Map<string, CatalogRevisionDetail>([[revisionId, fixture.current]])
+  oldRevisionIds.forEach((id, index) => {
+    const detail = revision(oldRows.slice(0, index === 2 ? 656 : 654))
+    Object.assign(detail.revision, { id, sourceId: oldSource.id, packHash: oldSource.packHash, sequence: index + 1, previousRevisionId: index ? oldRevisionIds[index - 1] : null })
+    detail.snapshot.revisionId = id; revisions.set(id, detail)
+  })
+  fixture.api.getCatalogRevision = async ({ id }) => { const detail = revisions.get(id); assert.ok(detail); return detail }
+  fixture.api.getReferenceSource = async ({ id }) => { const selected = id === oldSource.id ? oldSource : source; return { source: selected, rawPack: '{}' } }
+  return { ...fixture, revisions, oldSource, oldRows }
+}
+
+test('实际收藏页默认634新版，旧656可独立浏览且切换不丢库存参考候选', async t => {
+  const f = retainedFixture(), mounted = await mountScript(t, 'CollectionView.vue', {}, f.api)
+  await mounted.settle(); const setup = mounted.instance.setupState
+  assert.equal((setup.publishedReferences as PublishedCassetteReference[]).length, 634)
+  assert.equal((setup.catalogReferences as PublishedCassetteReference[]).length, 634)
+  assert.equal((setup.referenceImages as CanonicalReference[]).length, 1290)
+  const before = (setup.referenceImages as CanonicalReference[]).map(item => item.referenceId)
+  ;(setup.selectCatalogScope as (id: string) => void)(oldRevisionIds[2]!); await mounted.settle()
+  assert.equal((setup.catalogReferences as PublishedCassetteReference[]).length, 656)
+  assert.equal((setup.publishedReferences as PublishedCassetteReference[]).length, 634)
+  assert.deepEqual((setup.referenceImages as CanonicalReference[]).map(item => item.referenceId), before)
+  const candidate = referenceImagesForModel({ brand: 'TDK', name: '旧型号-0', format: 'cassette', tapeType: 'II', edition: '', year: null, identification: 'partial' }, setup.referenceImages as CanonicalReference[])
+  assert.equal(candidate[0]?.referenceId, 'legacy-0')
+})
+
+test('旧历史读取失败保留当前目录和已读参考，迟到的旧读取不覆盖较新刷新', async t => {
+  const f = retainedFixture(), mounted = await mountScript(t, 'CollectionView.vue', {}, f.api)
+  await mounted.settle(); const setup = mounted.instance.setupState
+  const before = (setup.referenceImages as CanonicalReference[]).map(item => item.referenceId)
+  const read = f.api.getCatalogRevision
+  f.api.getCatalogRevision = async request => { if (request.id === oldRevisionIds[2]) throw new Error('SYNTHETIC_HISTORY_FAILURE'); return read(request) }
+  await (setup.loadReferenceImages as () => Promise<void>)()
+  assert.equal((setup.publishedReferences as PublishedCassetteReference[]).length, 634)
+  assert.deepEqual((setup.referenceImages as CanonicalReference[]).map(item => item.referenceId), before)
+  assert.match(String(setup.historyError), /旧资料/u)
+  let finish: ((value: CatalogRevisionDetail) => void) | undefined
+  f.api.getCatalogRevision = async request => request.id === oldRevisionIds[2] && !finish
+    ? new Promise(resolve => { finish = resolve }) : read(request)
+  const stale = (setup.loadReferenceImages as () => Promise<void>)(); await mounted.settle()
+  const newerId = '66666666-6666-4666-8666-666666666666', newer = revision([reference(1000)])
+  Object.assign(newer.revision, { id: newerId, sequence: 5, previousRevisionId: revisionId }); f.revisions.set(newerId, newer)
+  f.api.getCatalogHistory = async () => ({ bookId: source.bookId, currentRevisionId: newerId, revisions: [], snapshots: [], total: 5, offset: 0, limit: 1 })
+  await (setup.loadReferenceImages as () => Promise<void>)()
+  assert.equal((setup.publishedReferences as PublishedCassetteReference[]).length, 1)
+  finish!(f.revisions.get(oldRevisionIds[2]!)!); await stale; await mounted.settle()
+  assert.equal((setup.publishedReferences as PublishedCassetteReference[]).length, 1)
+  assert.equal((setup.historicalCatalogs as { revisionId: string }[])[0]?.revisionId, revisionId)
+})
+
+test('历史头部缺根明确提示，已读历史与库存参考候选保留', async t => {
+  const f = retainedFixture(), mounted = await mountScript(t, 'CollectionView.vue', {}, f.api)
+  await mounted.settle(); const setup = mounted.instance.setupState
+  const before = (setup.referenceImages as CanonicalReference[]).map(item => item.referenceId)
+  f.current.revision.previousRevisionId = null
+  await (setup.loadReferenceImages as () => Promise<void>)()
+  assert.match(String(setup.historyError), /旧资料/u)
+  assert.equal((setup.publishedReferences as PublishedCassetteReference[]).length, 634)
+  assert.equal((setup.historicalCatalogs as { revisionId: string }[]).length, 3)
+  assert.deepEqual((setup.referenceImages as CanonicalReference[]).map(item => item.referenceId), before)
+  assert.equal(setup.historyLoading, false)
+})
+
+test('较新当前目录读取失败结束历史加载状态，旧异步完成不能覆盖失败提示', async t => {
+  const f = retainedFixture(), mounted = await mountScript(t, 'CollectionView.vue', {}, f.api)
+  await mounted.settle(); const setup = mounted.instance.setupState, read = f.api.getCatalogRevision
+  let finish: ((value: CatalogRevisionDetail) => void) | undefined
+  f.api.getCatalogRevision = async request => request.id === oldRevisionIds[2] && !finish
+    ? new Promise(resolve => { finish = resolve }) : read(request)
+  const stale = (setup.loadReferenceImages as () => Promise<void>)(); await mounted.settle()
+  assert.equal(setup.historyLoading, true)
+  f.api.getCatalogHistory = async () => { throw new Error('SYNTHETIC_CURRENT_FAILURE') }
+  await (setup.loadReferenceImages as () => Promise<void>)()
+  assert.equal(setup.historyLoading, false)
+  assert.match(String(setup.referenceError), /参考资料/u)
+  finish!(f.revisions.get(oldRevisionIds[2]!)!); await stale; await mounted.settle()
+  assert.equal(setup.historyLoading, false)
+  assert.match(String(setup.referenceError), /参考资料/u)
+})
+
+test('资料范围切换清空旧详情与层级，历史详情阻止编辑关联但保留原库存入口与明确添加操作', async t => {
+  const f = retainedFixture(), current = await loadPublishedCassetteCatalog(f.api)
+  const browser = await mountScript(t, 'CassetteCatalogView.vue', { items: current, scope: 'current', loading: false, error: '',
+    scopes: [{ key: 'current', label: '当前资料', count: 634 }, { key: oldRevisionIds[2], label: '导入前资料', count: 656 }] }, {}, true)
+  const setup = browser.instance.setupState
+  ;(setup.openDetail as (item: PublishedCassetteReference) => void)(current[0]!); setup.offset = 48; setup.query = 'tape'
+  browser.instance.props.scope = oldRevisionIds[2]; await browser.settle()
+  assert.equal(setup.selectedKey, ''); assert.equal(setup.selectedBrand, ''); assert.equal(setup.query, ''); assert.equal(setup.offset, 0)
+  const historic = (await referenceImages.loadHistoricalCassetteCatalog(f.api, { bookId: source.bookId, revisionId: oldRevisionIds[2]! }))[0]!
+  historic.current = { referenceId: historic.reference.referenceId, state: 'owned', stockCount: 3, matches: [{ referenceId: historic.reference.referenceId, modelId: sourceId, status: 'confirmed', availability: 'unknown' }] }
+  let reviews = 0, opened = '', received = 0
+  const detail = await mountScript(t, 'CassetteCatalogDetail.vue', { item: historic, onReview: () => reviews++, onOpenModel: (id: string) => { opened = id }, onReceive: () => received++ }, {}, true)
+  ;(detail.instance.setupState.review as () => void)(); assert.equal(reviews, 0)
+  assert.match(detail.text(), /历史目录关联只读/u); assert.match(detail.text(), /旧版关联/u)
+  assert.ok(!detail.elements('button').some(button => button.text === '关联已有库存'))
+  const modelButton = detail.elements('button').find(button => button.text.includes('查看已有型号'))!
+  ;(modelButton.props.onClick as () => void)(); assert.equal(opened, sourceId)
+  const addButton = detail.elements('button').find(button => button.text === '添加到我的收藏')!
+  ;(addButton.props.onClick as () => void)(); assert.equal(received, 1)
+})
+
+test('完整ZIP预览准确显示634新版与656旧编号保留，预览阶段不调用导入', async t => {
+  const retention = { revisionId: oldRevisionIds[2]!, snapshotId: datasetId, matchVersion: 0,
+    referenceIds: Array.from({ length: 656 }, (_, n) => `old-${n}`), fingerprint: 'e'.repeat(64) }
+  const selected = { ...preview, expectedCurrentRevisionId: retention.revisionId, delta: { ...preview.delta,
+    removedReferenceIds: retention.referenceIds, preservedHistory: retention, after: { ...preview.delta.after, total: 634, unknown: 634 } } }
+  let imports = 0
+  const api = { pickCassetteArchive: async () => selected, importCassetteArchive: async () => { imports++; return revision() } }
+  const mounted = await mountScript(t, 'CassetteArchiveImportPanel.vue', {}, api, true)
+  const controller = mounted.instance.setupState.controller as ReturnType<typeof createCassetteArchiveImportController>
+  await controller.pickArchive(); await mounted.settle()
+  assert.match(mounted.text(), /旧版保留 656/u); assert.match(mounted.text(), /新版资料共 634 条/u)
+  assert.match(mounted.text(), /old-655/u); assert.match(mounted.text(), new RegExp(retention.fingerprint, 'u'))
+  assert.equal(imports, 0)
 })

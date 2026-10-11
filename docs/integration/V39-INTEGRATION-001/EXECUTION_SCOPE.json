@@ -1,0 +1,807 @@
+{
+  "schema": "musicbridge.v39.integration.execution-scope.v1",
+  "task": "V39-INTEGRATION-001",
+  "branch": "codex/v39-integration-001",
+  "baseSha": "9bfb5915c17e8b5770ece7ac9a0efc1998d54e72",
+  "baseTree": "ff19750436197660016a82145d5cb7855b85168a",
+  "sealedBaseline": "docs/integration/V39-INTEGRATION-001/SEALED_BASELINE.json",
+  "frozen": true,
+  "executionStatus": "READY_FOR_SOURCE",
+  "currentPhase": "SOURCE_FREEZE",
+  "scopeBoundary": "TAPE_COMPOSITION_ONLY_FULL_FEEDBACK_COVERDROP_NEXT_INTEGRATION_TASK",
+  "orderedPhases": [
+    {
+      "id": "BASELINE_READBACK",
+      "implementation": "COMPLETE"
+    },
+    {
+      "id": "TAPE_IMPORT",
+      "implementation": "COMPLETE"
+    },
+    {
+      "id": "EXACT_ROUTE_AND_GATE",
+      "implementation": "COMPLETE"
+    },
+    {
+      "id": "SOURCE_FREEZE",
+      "implementation": "COMPLETE"
+    }
+  ],
+  "allowedSourceFiles": [
+    {
+      "path": ".github/workflows/electron-e2e.yml",
+      "status": "M",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "51ba0995f0ae3d71bdc410e70f59b105ce84000d",
+        "bytes": 9997,
+        "sha256": "7a172406b41b6be8b3f564edb9d2b4dfd178304c2db491bb6729e0c7ef6ce69d"
+      }
+    },
+    {
+      "path": ".github/workflows/rust-core.yml",
+      "status": "M",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "2c00e1d1d8bee2731b472027fd4dbb3901f38e6a",
+        "bytes": 4193,
+        "sha256": "c54547680db2db7acf33870ff556ca96754089306dcd25645568eb8259e36c65"
+      }
+    },
+    {
+      "path": ".github/workflows/security.yml",
+      "status": "M",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "16660e2394a8bbaefefc27b8b1c561f6137c910f",
+        "bytes": 1895,
+        "sha256": "e643e3e7e3af84045e9dbfa9cd0dc364e0f8ce53b0498a7777afc7c1f0aefe41"
+      }
+    },
+    {
+      "path": ".github/workflows/verify.yml",
+      "status": "M",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "21423337de4d7ba40d0ade21dd64d5e813c9f931",
+        "bytes": 25696,
+        "sha256": "aad3799618275aff2c45353ad7819b892d8902b5c0426c3b63f557568410d902"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CassetteArchiveImportPanel.vue",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "f58ea07116b5bbfef4f47c042c38256d8cfd0354",
+        "bytes": 6951,
+        "sha256": "6a94a8e7467909160b36f714b1cd3d47bc73cce78444585bdd870223759d0bf0"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CassetteCatalogDetail.vue",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "74680f02751654aad644fab5df54549d8fd9a8ac",
+        "bytes": 12605,
+        "sha256": "0cd22aa8ff76b28aaa85913a748310761057bbfcbee11ed5bb47b1bc21ac5064"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CassetteCatalogView.vue",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "20f905a432db9caa6aa930654b70001600fb1bcc",
+        "bytes": 15887,
+        "sha256": "d410d8a3e236259de4d97d8a6c5b870b7bee48ad986fee3a7543fbe460896e74"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CollectionView.vue",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "e8069457feaead993ff8f3fe40b6ee7bb2e021d0",
+        "bytes": 39258,
+        "sha256": "7045d279a2e3902d02e16f469b8d04af1fe94994e20c1684b631a2f5f7f15252"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/reference-images.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "e0febb7c48468dde6289c069f3a8f38c47df7b78",
+        "bytes": 9377,
+        "sha256": "a1d3579551d2bbd06547f4a5ebf35861a5344a3bbee78b55351a04b9ee9ef14a"
+      }
+    },
+    {
+      "path": "apps/desktop/test/cassette-catalog-ui.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "8f59d911d7543a0aa36ff9bad069e0f7dc34e89e",
+        "bytes": 27565,
+        "sha256": "68022d18fbadae9f92a93accbf04c723609ed5e0cfb3c91405d41679392fc6a7"
+      }
+    },
+    {
+      "path": "apps/desktop/test/collection-reference-images.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "fc02012c8e85be5a1a2909ba0c3353a731c5d7ee",
+        "bytes": 4832,
+        "sha256": "a9932cb10b7fd358745fa1e9b5b365d75c9aa0b703222abe956c42c9acfa1511"
+      }
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/DONOR_READBACK.json",
+      "status": "A",
+      "role": "historical-donor-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+      "status": "A",
+      "role": "authority",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/FEATURE_BEHAVIOR_MATRIX.json",
+      "status": "A",
+      "role": "requirements",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+      "status": "A",
+      "role": "evidence-specification",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/SEALED_BASELINE.json",
+      "status": "A",
+      "role": "immutable-predecessor-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/STATUS.json",
+      "status": "A",
+      "role": "authority",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/reference-catalog-retention.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/reference-catalog-store.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "4fe9e51a6aab6c84427330d7a1c00e3462aa35eb",
+        "bytes": 46960,
+        "sha256": "0d197187345ef39897fb3dbf0be469e737a5de49b1733663b44b778ca8eccda1"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/reference-archive-catalog-store.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "0db2e3167c707f023ad8fc2aee396240b3f27c39",
+        "bytes": 19643,
+        "sha256": "cd29116df00bf415fac5276454472cef8f83a1702ee2baad11c602530f703b60"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/reference-catalog-retention.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "packages/contracts/src/reference-catalog.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "51143d386ae8722850d9f5d3b2859a0b3ab17db6",
+        "bytes": 30579,
+        "sha256": "0d8ea64fe9a3ae5ba234be2c4f7289e232f3dda975ec0cabec6f4d75c9ca61da"
+      }
+    },
+    {
+      "path": "packages/contracts/test/reference-catalog.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "7e8051cb1c6e25be530e9d14750cdd692f87dc3a",
+        "bytes": 22893,
+        "sha256": "0782732451e5e73f040bd2013402db4ce0f194a6dd5c3ad9bb5a783170af8482"
+      }
+    },
+    {
+      "path": "project/POSTRUST_PLAN.json",
+      "status": "M",
+      "role": "authority",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "b9c7bd395b65980741ce50dbde55f7e6325d40fd",
+        "bytes": 2899563,
+        "sha256": "3fbcde859e3b34853a6bce4eda8b5ae247bf78939866cb7fcc8f169b00b98822"
+      }
+    },
+    {
+      "path": "project/POSTRUST_PROGRESS.md",
+      "status": "M",
+      "role": "authority",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "d2124d9a4c0502e4df67aab015bf5d889de7eab7",
+        "bytes": 127227,
+        "sha256": "584bb65b4526ef43176116fba591b9b1100d217e24b055f242033f90eed67ac8"
+      }
+    },
+    {
+      "path": "project/POSTRUST_TODO.md",
+      "status": "M",
+      "role": "authority",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "682da7b0e701ad68b23c7a725d6c5715de695b1b",
+        "bytes": 40932,
+        "sha256": "5b55783788e5fb49bb48b0d60643c9847d2ee14b179afa63370f05d8f4f5839a"
+      }
+    },
+    {
+      "path": "project/STATUS.json",
+      "status": "M",
+      "role": "authority",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "8c6972df1ed5b76b87c467c38c490b3a21ebce00",
+        "bytes": 2658077,
+        "sha256": "b3bb29f9c2ea708f94ee03de986c669af1f59ea947d7028a0e5451c0ae2d09a3"
+      }
+    },
+    {
+      "path": "reports/TAPE_CATALOG_HISTORY_COMPAT_EVIDENCE.json",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "reports/TAPE_CATALOG_HISTORY_COMPAT_RESULT.md",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "scripts/ci/report-only-admission.mjs",
+      "status": "M",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "f7d316b2c0534f19eb868625902140eb26d2c285",
+        "bytes": 29411,
+        "sha256": "b9b6dc7755caabfa69e11d349be33ec589de9edb93bffac275e661e88c7f4c12"
+      }
+    },
+    {
+      "path": "scripts/ci/report-only-v39-integration.mjs",
+      "status": "A",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "scripts/ci/task-applicability.mjs",
+      "status": "M",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "c4fe07c327b66d849f751375a27fd70e7037aa8f",
+        "bytes": 7495,
+        "sha256": "d4a0835101911c833bf1b4372292b43f54fca2a68e6a6bf4e90aaa8bce0db28e"
+      }
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-admission.test.mjs",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-gate.test.mjs",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-report-only.test.mjs",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "scripts/ci/v39-integration-admission.mjs",
+      "status": "A",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "scripts/ci/verify-v39-integration.mjs",
+      "status": "A",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    },
+    {
+      "path": "tasks/00_TASK_INDEX.md",
+      "status": "M",
+      "role": "authority",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "4642f4cec2681ff6aee411179d57bd372c2488e1",
+        "bytes": 29745,
+        "sha256": "62ce5c2e563252986f81c057f534da19c8da644dbcbd3d95d874105f78a2338c"
+      }
+    },
+    {
+      "path": "tasks/V39-INTEGRATION-001.md",
+      "status": "A",
+      "role": "authority",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      }
+    }
+  ],
+  "finalFiles": [
+    {
+      "path": ".github/workflows/electron-e2e.yml",
+      "mode": "100644",
+      "blob": "380eac659d5d177e087933a5d50152c02ce58a15",
+      "bytes": 11536,
+      "sha256": "d378e668aeb6ef5ad1424f3de5db8b447a84d77add8f04a2982db1482b13e6c5"
+    },
+    {
+      "path": ".github/workflows/rust-core.yml",
+      "mode": "100644",
+      "blob": "d5a1fcfd4c795947cf4f99ad1bf1a94794feb014",
+      "bytes": 5403,
+      "sha256": "c145aac8e5724c85a5611f324fbe057be42dfe8f1a34b236f27ab381ee52909a"
+    },
+    {
+      "path": ".github/workflows/security.yml",
+      "mode": "100644",
+      "blob": "468508312cea0db9421cdb7bdd9df84b8549028d",
+      "bytes": 3011,
+      "sha256": "bfd8ad30270b166a7bae2efe1bd286a8312ea77c5da98ecc9f3b2a95e98b58d0"
+    },
+    {
+      "path": ".github/workflows/verify.yml",
+      "mode": "100644",
+      "blob": "fa972737458ee8261ec2796a3778dcde08fcbfe1",
+      "bytes": 33291,
+      "sha256": "ebc47805043511eb0d814780bd0daf2a613a0321f392e2624cf9eaf5d588a13c"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CassetteArchiveImportPanel.vue",
+      "mode": "100644",
+      "blob": "92f9f76125bb447f6c989ef36f6f53755b350800",
+      "bytes": 7724,
+      "sha256": "9b7b9bbcc1859684367df1060d02ebe5ebc423462584ec0eed6cf40b0540dbf2"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CassetteCatalogDetail.vue",
+      "mode": "100644",
+      "blob": "b2b1fcfffb92e7535d5b1cfb55af9062f189a642",
+      "bytes": 13038,
+      "sha256": "e0b028c535ff41096a51904fd11c602220e03916a9922cc2825bc9d404b44963"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CassetteCatalogView.vue",
+      "mode": "100644",
+      "blob": "310d8fe7950670d4200f759f6697d891bc8254cc",
+      "bytes": 16917,
+      "sha256": "37a52e4b5868151dfedec97b3271619e0a63ce00e33ba26ad1a1368a32bd2b8e"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/CollectionView.vue",
+      "mode": "100644",
+      "blob": "c192a21b3307ef4e2e8582f3ed160e4515553645",
+      "bytes": 41843,
+      "sha256": "4cd02ecf8dc45dfb34a8389edbd31372d6b8b92d3db1ee1252c8ab70e7a40efb"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/collection/reference-images.ts",
+      "mode": "100644",
+      "blob": "5cf626eada544311c5e1a06c7d6403bde9250ae6",
+      "bytes": 12370,
+      "sha256": "ce000d3713cbf9f16a353a3cc7b68fc20c10560a751d506b7948541c6c05ff34"
+    },
+    {
+      "path": "apps/desktop/test/cassette-catalog-ui.test.ts",
+      "mode": "100644",
+      "blob": "b59b6e28619df48579e3c9c003f5ae5702736bf2",
+      "bytes": 38729,
+      "sha256": "168e475056ca6474c994dea75f0243d2026a644a32d7b0a4bd152c00b888c8fa"
+    },
+    {
+      "path": "apps/desktop/test/collection-reference-images.test.ts",
+      "mode": "100644",
+      "blob": "d31ae046294fbd60a553d6c89c3daa5fe88a1479",
+      "bytes": 8247,
+      "sha256": "edd150b4a6e1ccb295dd4458ae7f81bffb43c5e423f2b346e6e26c77f410a931"
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/DONOR_READBACK.json",
+      "mode": "100644",
+      "blob": "d6d3731bb83ee492305b99063e8fb76a17704953",
+      "bytes": 311861,
+      "sha256": "381b405a53408a0f5209f4a99115e5fd83073152c31322b62a30a1e7eba5159c"
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+      "mode": "100644",
+      "blob": null,
+      "bytes": 25669,
+      "sha256": null
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/FEATURE_BEHAVIOR_MATRIX.json",
+      "mode": "100644",
+      "blob": "584df402a118532ab040b9dedec4bb028c0621b6",
+      "bytes": 17837,
+      "sha256": "af9dc57f2dbfe6765bcd906a8d71a6174ad42d55b7a9c383b9c4143d1089309c"
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+      "mode": "100644",
+      "blob": "52b9a83df448972c3fefd86f27aa7b1b23781420",
+      "bytes": 9973,
+      "sha256": "6cf3078e287e4bce6972231993b72874a7070f250d7b12ffcf8c35f6fda30a55"
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/SEALED_BASELINE.json",
+      "mode": "100644",
+      "blob": "750eb368a707877059dc461f51aec0d9b531e13c",
+      "bytes": 951772,
+      "sha256": "e1505425182e158325d531bc5b158b2690e73591cf251d7ce79f5a3cfc38eaee"
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/STATUS.json",
+      "mode": "100644",
+      "blob": "9530ab8c7b7d1643af49d0a1193da12c293f81cc",
+      "bytes": 499,
+      "sha256": "af5943fa46eb92090a04fdcf85b052ced2d230e76ab4a9539684a4673768b945"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/reference-catalog-retention.ts",
+      "mode": "100644",
+      "blob": "6520598410a88a686280421f7b0c0e9db45ce31a",
+      "bytes": 3354,
+      "sha256": "ee8531e696da2b8b7a6e8479bffeb674e6f10b5db519d367349ec1913f85e514"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/reference-catalog-store.ts",
+      "mode": "100644",
+      "blob": "fac1f8be7d299135e312c9193e0c7c023197a5c6",
+      "bytes": 49492,
+      "sha256": "cb20e8e4de0ae20be7a96944820252393ad95738bde04d8e2505c37bb13f3711"
+    },
+    {
+      "path": "packages/bridge-core/test/reference-archive-catalog-store.test.ts",
+      "mode": "100644",
+      "blob": "83c749fcbfe2a4038c8868a687ddb5d7e8672868",
+      "bytes": 20252,
+      "sha256": "6f945ab5a572bc2d21063f269b5c86901c909fa3a3396d3514477f9789b3bab1"
+    },
+    {
+      "path": "packages/bridge-core/test/reference-catalog-retention.test.ts",
+      "mode": "100644",
+      "blob": "671308f343d88a74cb11b29b5782dc762d7a7742",
+      "bytes": 20800,
+      "sha256": "a6df327894831798cf45f522a5e7fc32b770a8961f63317ebdd561ee84d1be03"
+    },
+    {
+      "path": "packages/contracts/src/reference-catalog.ts",
+      "mode": "100644",
+      "blob": "fbbb9ccda1e88e492d0ce7a75f9d999b3cb4c827",
+      "bytes": 31851,
+      "sha256": "fe0682001b99dddb345ab785187f441efcb595d5ab7bdb17654f59d376de76e6"
+    },
+    {
+      "path": "packages/contracts/test/reference-catalog.test.ts",
+      "mode": "100644",
+      "blob": "f67aedced04852f6e63324ef4cb12647c94aa858",
+      "bytes": 24452,
+      "sha256": "d2b0127ba7e2b2cff93b53d881af57cacfd3ff5bc422e542816e4a151c3a4f97"
+    },
+    {
+      "path": "project/POSTRUST_PLAN.json",
+      "mode": "100644",
+      "blob": "ad9927877b833cb54dbf1976968c191b2533e8be",
+      "bytes": 2900559,
+      "sha256": "540ec18e78c6ab5f2a62d44ddc0037afb6ec3554179bb5b2989993ef76c6d139"
+    },
+    {
+      "path": "project/POSTRUST_PROGRESS.md",
+      "mode": "100644",
+      "blob": "b319acd06fef1235f0daea1b557f9f9035357052",
+      "bytes": 127743,
+      "sha256": "0dce32fbd56501e819ecee574f8f2adacdabae062d0b4dcaf12d9643904542fe"
+    },
+    {
+      "path": "project/POSTRUST_TODO.md",
+      "mode": "100644",
+      "blob": "a7807e77cf35ce3a0f4362631dbe0b8326709a7c",
+      "bytes": 41448,
+      "sha256": "415a2adaa1d5971965ba75e341570ea87cea9f9c95d5a7519f62170b692cbb5d"
+    },
+    {
+      "path": "project/STATUS.json",
+      "mode": "100644",
+      "blob": "23fe6eac44a88758dcbcb56526e4b510f93cb0cf",
+      "bytes": 2658570,
+      "sha256": "6610994619022c1da18c110a5073809a32a43f85613c18236470950ac60f97fd"
+    },
+    {
+      "path": "reports/TAPE_CATALOG_HISTORY_COMPAT_EVIDENCE.json",
+      "mode": "100644",
+      "blob": "4946e341f0356ed75ceb34cb28572d9935ebe3af",
+      "bytes": 27177,
+      "sha256": "4382f35711c311708e202d4afa73d48a32e2cf2e0ae0150e80b9d12847692f12"
+    },
+    {
+      "path": "reports/TAPE_CATALOG_HISTORY_COMPAT_RESULT.md",
+      "mode": "100644",
+      "blob": "211bd458ef44929af1026689b7df7b6157c13bec",
+      "bytes": 4722,
+      "sha256": "9d24b342cd4db310bbff2a61314db35ef10be83551d720b2c3135c72c4843a7e"
+    },
+    {
+      "path": "scripts/ci/report-only-admission.mjs",
+      "mode": "100644",
+      "blob": "9ad6b253ebbc6551ffdc38d6f4110805eb7601b9",
+      "bytes": 29630,
+      "sha256": "d5b7c2f5ca9d743e77cb83fc7c6cfe25d7bea3b02f1726d02b4e3b1cd36c24c1"
+    },
+    {
+      "path": "scripts/ci/report-only-v39-integration.mjs",
+      "mode": "100644",
+      "blob": "fe34e13f9012863b5cc64f92ba2382ecd90f79f1",
+      "bytes": 6649,
+      "sha256": "f9b8084ea636a99faefb631e496eec4954ba5616e13b576c36c8b16834e5d7c0"
+    },
+    {
+      "path": "scripts/ci/task-applicability.mjs",
+      "mode": "100644",
+      "blob": "12c1b6fb0b654f20fc9b4d67378a9c6dc3b88370",
+      "bytes": 8575,
+      "sha256": "be86e4cc7dd45e7ac360945083ecd4677fe8aab5536a9e57e56d818c96a0a4de"
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-admission.test.mjs",
+      "mode": "100644",
+      "blob": "3fc837b5bdc49283add7a4da8132880b37a5e205",
+      "bytes": 17942,
+      "sha256": "a5e2dc83a0186b098b59e90454f0781b33dad358400dbf154002e9911768ff0a"
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-gate.test.mjs",
+      "mode": "100644",
+      "blob": "c5bbfc2ef30f610b0052e2393554cf49e7832b55",
+      "bytes": 30553,
+      "sha256": "56a52812f5756648eb43b034a2fd28d6be9c27b4dd739e2b11ce9ffb5e0121c1"
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-report-only.test.mjs",
+      "mode": "100644",
+      "blob": "4d3e80f03598a898526d0a2537c301bb86959b21",
+      "bytes": 39154,
+      "sha256": "f3fc4fdb0723b2e852dbd8dc480d36139a2e97f80d46a623e971b49d8dcb302f"
+    },
+    {
+      "path": "scripts/ci/v39-integration-admission.mjs",
+      "mode": "100644",
+      "blob": "08477b2e04e80c300e38ba0e380a313ad526187d",
+      "bytes": 109677,
+      "sha256": "02493cd1962d83d796f0ec3a595a4353a203b65e6fecd086263b207ced829073"
+    },
+    {
+      "path": "scripts/ci/verify-v39-integration.mjs",
+      "mode": "100644",
+      "blob": "5945c2a2bb02b1135973949b95e75a64e87ebd24",
+      "bytes": 45650,
+      "sha256": "982938e12dc7a020828b1901f29122520cb3d8c7a0f0d35e11aa5db6e97a220d"
+    },
+    {
+      "path": "tasks/00_TASK_INDEX.md",
+      "mode": "100644",
+      "blob": "d6c7ac5e2192489795527b70bd0f783b67c47108",
+      "bytes": 30187,
+      "sha256": "f87a99b8d2160e6b44d7e54509660f60f4cfa84e7d9012b3bff8748faff2792b"
+    },
+    {
+      "path": "tasks/V39-INTEGRATION-001.md",
+      "mode": "100644",
+      "blob": "e39c5d158a9a54684e2af0d95c460f9f0f1a9038",
+      "bytes": 2522,
+      "sha256": "28deca0234bdfcedbc1ccd33308f215e963974ca6d7f5b708ebaa0fb8a0b5c81"
+    }
+  ],
+  "reportPaths": [
+    "reports/V39-INTEGRATION-001_RESULT.json",
+    "reports/V39-INTEGRATION-001_RESULT.md",
+    "docs/integration/V39-INTEGRATION-001/CI_EVIDENCE.json",
+    "docs/integration/V39-INTEGRATION-001/STATUS.json",
+    "project/STATUS.json",
+    "project/POSTRUST_PLAN.json",
+    "project/POSTRUST_TODO.md",
+    "project/POSTRUST_PROGRESS.md"
+  ],
+  "nextTask": "V39-INTEGRATION-002",
+  "softwareQualificationFromSelfReport": false,
+  "requiredEvidenceRefs": {
+    "sourceGate": "ACTUAL_CURRENT_SOURCE_GATE_WHOLE_RAW",
+    "sourceCi": "FIRST_NATURAL_CURRENT_SOURCE_PRODUCT_CI",
+    "reportCi": "FIRST_NATURAL_UNIQUE_DIRECT_REPORT_CI"
+  },
+  "budgets": {
+    "oldMbm004StageMs": 180000,
+    "oldMbm004WholeMs": 480000,
+    "ownerMs": 2000,
+    "rawBytesPerStream": 16777216
+  },
+  "preserveOriginalLedger": {
+    "tasks": 18,
+    "acceptanceCases": 156,
+    "effectiveTasks": 17,
+    "effectiveAcceptanceCases": 150,
+    "cancelled015Cases": 6
+  },
+  "realApplicationServiceDeviceAudio": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN"
+}

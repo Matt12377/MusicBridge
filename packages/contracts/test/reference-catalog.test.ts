@@ -283,3 +283,20 @@ test('保留ID的资料变化可在delta明确列出，旧预览兼容且变化�
     assert.equal(c.isCatalogRevisionDelta({ ...delta, updatedReferenceIds }), false);
   }
 });
+
+test('历史保留证明只允许精确的退出编号集合和有界修订快照身份，写请求不能携带伪造证明', () => {
+  const counts = { total: 2, owned: 0, missing: 0, unknown: 2, candidate: 0, needsReview: 0 };
+  const preservedHistory = { revisionId: id, snapshotId: commandId, matchVersion: 0, referenceIds: ['old-a', 'old-b'], fingerprint: packHash };
+  const delta = { addedReferenceIds: ['new-a'], removedReferenceIds: ['old-a', 'old-b'], retainedReferenceIds: [], merged: 0, split: 0,
+    before: counts, after: { ...counts, total: 1, unknown: 1 }, preservedHistory };
+  assert.equal(c.isCatalogRevisionDelta(delta), true);
+  for (const proof of [null, { ...preservedHistory, referenceIds: [] }, { ...preservedHistory, referenceIds: ['old-a'] },
+    { ...preservedHistory, referenceIds: ['old-a', 'old-a'] }, { ...preservedHistory, referenceIds: ['old-a', 'new-a'] },
+    { ...preservedHistory, referenceIds: ['old-a', 'old-b', 'extra'] }, { ...preservedHistory, referenceIds: new Array(2) },
+    { ...preservedHistory, revisionId: 'bad-id' }, { ...preservedHistory, snapshotId: '../private-path' },
+    { ...preservedHistory, matchVersion: -1 }, { ...preservedHistory, fingerprint: 'bad-hash' }, { ...preservedHistory, localPath: '/private/synthetic' }]) {
+    assert.equal(c.isCatalogRevisionDelta({ ...delta, preservedHistory: proof }), false);
+  }
+  assert.equal(c.isPreviewReferenceArchiveCatalogRequest({ archiveSha256: packHash, expectedDatasetId: datasetId,
+    expectedCurrentRevisionId: id, preservedHistory }), false);
+});

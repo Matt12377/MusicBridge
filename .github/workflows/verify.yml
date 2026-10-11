@@ -25,17 +25,22 @@ jobs:
         with:
           node-version: 22.x
 
+      - name: V3.9 Tape组合精确身份准入
+        id: v39-integration
+        run: node scripts/ci/v39-integration-admission.mjs --workflow-guard
+
       - name: CI报告元数据精确身份与原软件复用准入
         id: ci-metadata
+        if: steps.v39-integration.outputs.integrationMode != 'qualified'
         run: node scripts/ci/ci-report-metadata-admission.mjs --workflow-guard
 
       - name: CI修复精确身份与原软件复用准入
         id: ci-repair
-        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165'
+        if: steps.v39-integration.outputs.integrationMode != 'qualified' && steps.ci-metadata.outputs.repairMode != 'reuse-s165'
         run: node scripts/ci/ci-report-mirror-admission.mjs --workflow-guard
 
       - name: 复用165已封存产品软件证据
-        if: steps.ci-metadata.outputs.repairMode == 'reuse-s165' || steps.ci-repair.outputs.repairMode == 'reuse-s165'
+        if: steps.v39-integration.outputs.integrationMode != 'qualified' && (steps.ci-metadata.outputs.repairMode == 'reuse-s165' || steps.ci-repair.outputs.repairMode == 'reuse-s165')
         run: echo 'REUSED_S165=true；本次产品编译、定向测试及原软件Gate均为SKIPPED_REUSED_S165。'
 
       - name: Prepare strict hosted verification directories
@@ -54,6 +59,10 @@ jobs:
       - name: 判定精确父源码CI可复用的报告提交
         id: ci-mode
         run: node scripts/ci/report-only-admission.mjs
+
+      - name: 复用本次精确父Source产品软件证据
+        if: steps.v39-integration.outputs.integrationMode == 'qualified' && steps.v39-integration.outputs.integrationRole == 'report' && steps.ci-mode.outputs.mode == 'report-only'
+        run: echo 'REUSED_EXACT_CURRENT_PARENT_SOURCE=true；本次产品编译与产品Gate未重跑，当前报告组合Gate与安全检查独立执行。'
 
       - name: Prepare source-pinned build workspace mirror
         run: node scripts/ci/prepare-build-workspace-mirror.mjs --source "$GITHUB_WORKSPACE" --destination "$RUNNER_TEMP/musicbridge-verify/workspace" --expected-head "${{ github.sha }}"
@@ -100,7 +109,32 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p "$RUNNER_TEMP/musicbridge-verify"
+          if [[ "${{ steps.v39-integration.outputs.integrationMode }}" == 'qualified' && "${{ steps.v39-integration.outputs.integrationRole }}" == 'source' ]]; then
+            node --input-type=module <<'NODE'
+          import { writeFileSync } from 'node:fs';
+          import path from 'node:path';
+          import { beginV39StandardVerification } from './scripts/ci/verify-v39-integration.mjs';
+          const before = await beginV39StandardVerification(process.cwd(), process.env);
+          writeFileSync(path.join(process.env.RUNNER_TEMP, 'musicbridge-verify', 'standard-before.json'), JSON.stringify(before) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          fi
+          set +e
           corepack pnpm@10.17.1 verify 2>&1 | tee "$RUNNER_TEMP/musicbridge-verify/verify.log"
+          v39_standard_status=("${PIPESTATUS[@]}")
+          set -e
+          if [[ "${{ steps.v39-integration.outputs.integrationMode }}" == 'qualified' && "${{ steps.v39-integration.outputs.integrationRole }}" == 'source' ]]; then
+            MB_V39_VERIFY_EXIT="${v39_standard_status[0]}" MB_V39_TEE_EXIT="${v39_standard_status[1]}" node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import path from 'node:path';
+          import { finishV39StandardVerification } from './scripts/ci/verify-v39-integration.mjs';
+          const directory = path.join(process.env.RUNNER_TEMP, 'musicbridge-verify');
+          const before = JSON.parse(readFileSync(path.join(directory, 'standard-before.json'), 'utf8'));
+          const receipt = await finishV39StandardVerification(before, { logPath: path.join(directory, 'verify.log'), verifyExit: Number(process.env.MB_V39_VERIFY_EXIT), teeExit: Number(process.env.MB_V39_TEE_EXIT) }, process.env);
+          writeFileSync(path.join(directory, 'standard-verification.json'), JSON.stringify(receipt) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          fi
+          if [[ "${v39_standard_status[0]}" -ne 0 ]]; then exit "${v39_standard_status[0]}"; fi
+          if [[ "${v39_standard_status[1]}" -ne 0 ]]; then exit "${v39_standard_status[1]}"; fi
 
       - name: Verify offline preparation boundaries
         if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165' && steps.ci-mode.outputs.mode != 'report-only'
@@ -307,19 +341,31 @@ jobs:
           node scripts/ci/verify-tape-catalog-common.mjs --output-root="$RUNNER_TEMP/musicbridge-verify/tape-catalog-common-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
 
       - name: 验证报告CI准入正负例
-        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.v39-integration.outputs.integrationMode != 'qualified' && steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node --test scripts/ci/test/report-only-admission.test.mjs scripts/ci/test/mbm000-report-only-admission.test.mjs scripts/ci/test/mbm001-report-only-admission.test.mjs scripts/ci/test/report-only-mbm002.test.mjs scripts/ci/test/report-only-mbm003.test.mjs scripts/ci/test/local-library-signed-stat-fix-admission.test.mjs scripts/ci/test/tape-catalog-common-admission.test.mjs scripts/ci/test/tape-catalog-common-gate.test.mjs scripts/ci/test/task-applicability.test.mjs scripts/ci/test/mbm004-admission.test.mjs scripts/ci/test/mbm004-report-only.test.mjs
 
       - name: CI报告镜像历史对象修复工具 Gate
-        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode == 'reuse-s165'
+        if: steps.v39-integration.outputs.integrationMode != 'qualified' && steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode == 'reuse-s165'
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node scripts/ci/verify-ci-report-mirror.mjs --output-root "$RUNNER_TEMP/musicbridge-ci-report-mirror-gate"
 
       - name: CI报告元数据修复工具 Gate
-        if: steps.ci-metadata.outputs.repairMode == 'reuse-s165'
+        if: steps.v39-integration.outputs.integrationMode != 'qualified' && steps.ci-metadata.outputs.repairMode == 'reuse-s165'
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: node scripts/ci/verify-ci-report-metadata.mjs --output-root "$RUNNER_TEMP/musicbridge-ci-report-metadata-gate"
+
+      - name: V3.9 Tape当前组合 Gate
+        if: always() && steps.v39-integration.outputs.integrationMode == 'qualified'
+        shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.v39-integration.outputs.integrationRole }}" == 'source' ]]; then
+            node scripts/ci/verify-v39-integration.mjs --output-root "$RUNNER_TEMP/musicbridge-v39-integration-gate" --standard-verify-log "$RUNNER_TEMP/musicbridge-verify/verify.log" --standard-verify-receipt "$RUNNER_TEMP/musicbridge-verify/standard-verification.json"
+          else
+            node scripts/ci/verify-v39-integration.mjs --output-root "$RUNNER_TEMP/musicbridge-v39-integration-gate"
+          fi
 
       - name: Diff whitespace
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
@@ -331,7 +377,7 @@ jobs:
         run: node --import tsx --test --test-name-pattern='成本05实际|Source08原settings|当前合法settings完整选择' test/rust-core/collection-scale-cost.test.ts test/rust-core/collection-scale-evidence.test.ts
 
       - name: Preserve full verification log
-        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && always() && steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.v39-integration.outputs.integrationMode != 'qualified' && steps.ci-metadata.outputs.repairMode != 'reuse-s165' && always() && steps.ci-repair.outputs.repairMode != 'reuse-s165'
         uses: actions/upload-artifact@v4
         with:
           name: verify-${{ github.sha }}
@@ -372,6 +418,43 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: 保留本次V3.9 Tape组合证据
+        if: always() && steps.v39-integration.outputs.integrationMode == 'qualified'
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/summary.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/source-before.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/source-after.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/fresh-reader.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/verify.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/standard-verification.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/integration-case-proof.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/original-173.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/original-173.stdout.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/original-173.stderr.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/tape-74.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/tape-74.stdout.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/tape-74.stderr.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/integration-safety.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/integration-safety.stdout.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/integration-safety.stderr.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/admission-safety.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/admission-safety.stdout.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/admission-safety.stderr.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/control-plane.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/control-plane.stdout.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/control-plane.stderr.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/boundaries.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/boundaries.stdout.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/boundaries.stderr.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/cycles.json
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/cycles.stdout.log
+            ${{ runner.temp }}/musicbridge-v39-integration-gate/cycles.stderr.log
+          if-no-files-found: error
+          retention-days: 14
+
   dependency-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -386,24 +469,38 @@ jobs:
         with:
           node-version: 22.x
 
+      - name: V3.9 Tape组合精确身份准入
+        id: v39-integration
+        run: node scripts/ci/v39-integration-admission.mjs --workflow-guard
+
       - name: CI报告元数据精确身份与原软件复用准入
         id: ci-metadata
+        if: steps.v39-integration.outputs.integrationMode != 'qualified'
         run: node scripts/ci/ci-report-metadata-admission.mjs --workflow-guard
 
       - name: CI修复精确身份与原软件复用准入
         id: ci-repair
-        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165'
+        if: steps.v39-integration.outputs.integrationMode != 'qualified' && steps.ci-metadata.outputs.repairMode != 'reuse-s165'
         run: node scripts/ci/ci-report-mirror-admission.mjs --workflow-guard
 
       - name: 复用165已封存产品软件证据
-        if: steps.ci-metadata.outputs.repairMode == 'reuse-s165' || steps.ci-repair.outputs.repairMode == 'reuse-s165'
+        if: steps.v39-integration.outputs.integrationMode != 'qualified' && (steps.ci-metadata.outputs.repairMode == 'reuse-s165' || steps.ci-repair.outputs.repairMode == 'reuse-s165')
         run: echo 'REUSED_S165=true；依赖安装为SKIPPED_REUSED_S165，当前锁文件audit独立执行。'
+
+      - name: 判定本次精确父Source产品CI复用
+        id: ci-mode
+        if: steps.v39-integration.outputs.integrationMode == 'qualified' && steps.v39-integration.outputs.integrationRole == 'report'
+        run: node scripts/ci/report-only-admission.mjs
+
+      - name: 复用本次精确父Source产品软件证据
+        if: steps.v39-integration.outputs.integrationMode == 'qualified' && steps.v39-integration.outputs.integrationRole == 'report' && steps.ci-mode.outputs.mode == 'report-only'
+        run: echo 'REUSED_EXACT_CURRENT_PARENT_SOURCE=true；本次产品编译与产品Gate未重跑，当前报告组合Gate与安全检查独立执行。'
 
       - name: Prepare source-pinned build workspace mirror
         run: node scripts/ci/prepare-build-workspace-mirror.mjs --source "$GITHUB_WORKSPACE" --destination "$RUNNER_TEMP/musicbridge-dependency-audit/workspace" --expected-head "${{ github.sha }}"
 
       - name: Install frozen workspace
-        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165'
+        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165' && steps.ci-mode.outputs.mode != 'report-only'
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
         run: corepack pnpm@10.17.1 install --frozen-lockfile --ignore-scripts
 

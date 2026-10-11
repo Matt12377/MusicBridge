@@ -11,7 +11,10 @@ export interface PublishedCassetteReference {
   revisionId: string
   revisionSequence: number
   current?: CatalogSnapshotEntry
+  previousRevisionId?: string | null
+  historical?: boolean
 }
+export interface HistoricalCassetteCatalog { bookId: string; revisionId: string; revisionSequence: number; items: readonly PublishedCassetteReference[] }
 export interface ReferenceCatalogSelection { sourceId: string; referenceId: string; step: 'review' }
 export interface CassetteCatalogModelGroup {
   key: string; brand: string; model: string; series: string; iec: CanonicalReference['iec']; items: PublishedCassetteReference[]
@@ -94,15 +97,48 @@ export async function loadPublishedCassetteCatalog(api: ReferenceCatalogPublicAp
     if (current.revision.id !== history.currentRevisionId || current.revision.bookId !== bookId) throw new Error('参考目录版次身份已变化，请重新读取。')
     const source = sources.find(item => item.id === current.revision.sourceId)
       ?? (await api.getReferenceSource({ id: current.revision.sourceId })).source
-    if (source.id !== current.revision.sourceId || source.bookId !== bookId) throw new Error('参考资料来源身份不一致，请重新读取。')
+    if (source.id !== current.revision.sourceId || source.bookId !== bookId || source.packHash !== current.revision.packHash) throw new Error('参考资料来源身份不一致，请重新读取。')
     const entries = new Map(current.currentEntries.map(entry => [entry.referenceId, entry]))
     result.push(...current.revision.items.map(reference => ({ reference, source, revisionId: current.revision.id,
-      revisionSequence: current.revision.sequence, current: entries.get(reference.referenceId) })))
+      revisionSequence: current.revision.sequence, previousRevisionId: current.revision.previousRevisionId, current: entries.get(reference.referenceId) })))
   }
   return result.sort((a, b) => a.reference.brand.localeCompare(b.reference.brand, 'zh-CN')
     || a.reference.model.localeCompare(b.reference.model, 'zh-CN', { numeric: true })
     || a.reference.edition.localeCompare(b.reference.edition, 'zh-CN', { numeric: true })
     || a.reference.referenceId.localeCompare(b.reference.referenceId))
+}
+
+/** 历史来源不通过 selectSource 定位当前版；始终读取明确的原修订。 */
+export async function loadHistoricalCassetteCatalog(api: ReferenceCatalogPublicApi, request: { bookId: string; revisionId: string }): Promise<readonly PublishedCassetteReference[]> {
+  const detail = await api.getCatalogRevision({ id: request.revisionId })
+  if (detail.revision.id !== request.revisionId || detail.revision.bookId !== request.bookId) throw new Error('历史目录修订身份不一致，请重新读取。')
+  const source = (await api.getReferenceSource({ id: detail.revision.sourceId })).source
+  if (source.id !== detail.revision.sourceId || source.bookId !== request.bookId || source.packHash !== detail.revision.packHash) throw new Error('历史目录来源身份不一致，请重新读取。')
+  const entries = new Map(detail.currentEntries.map(entry => [entry.referenceId, entry]))
+  return detail.revision.items.map(reference => ({ reference, source, revisionId: detail.revision.id, revisionSequence: detail.revision.sequence,
+    previousRevisionId: detail.revision.previousRevisionId, historical: true, current: entries.get(reference.referenceId) }))
+}
+
+/** 完整读取同书修订链；预算不足或断链明确失败，不能把部分历史当全部旧资料。 */
+export async function loadHistoricalCassetteCatalogs(api: ReferenceCatalogPublicApi, current: readonly PublishedCassetteReference[]): Promise<readonly HistoricalCassetteCatalog[]> {
+  const books = new Map<string, PublishedCassetteReference>()
+  for (const item of current) if (!books.has(item.reference.bookId)) books.set(item.reference.bookId, item)
+  const result: HistoricalCassetteCatalog[] = [], visited = new Set<string>()
+  for (const [bookId, item] of books) {
+    visited.add(JSON.stringify([bookId, item.revisionId]))
+    let revisionId = item.previousRevisionId, sequence = item.revisionSequence - 1
+    while (revisionId) {
+      const key = JSON.stringify([bookId, revisionId])
+      if (visited.has(key) || result.length >= MAX_PUBLISHED_CASSETTE_SOURCES) throw new Error('历史目录循环或超过读取总预算，本次未返回部分旧资料。')
+      visited.add(key)
+      const items = await loadHistoricalCassetteCatalog(api, { bookId, revisionId }), first = items[0]
+      if (!first || first.revisionSequence !== sequence) throw new Error('历史目录版次链不完整，请重新读取。')
+      result.push({ bookId, revisionId, revisionSequence: sequence, items })
+      revisionId = first.previousRevisionId; sequence--
+    }
+    if (sequence !== 0) throw new Error('历史目录缺少原始版次，请重新读取。')
+  }
+  return result
 }
 
 export function filterCassetteCatalog(items: readonly PublishedCassetteReference[], filter: { query: string; brand: string; iec: string }): PublishedCassetteReference[] {

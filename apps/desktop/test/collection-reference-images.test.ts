@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import type { CanonicalReference, CollectionDescriptor, ReferenceCatalogPublicApi } from '@music-bridge/contracts'
-import { loadPublishedReferenceImages, referenceImagesForModel } from '../src/renderer/src/components/collection/reference-images.js'
+import { loadPublishedReferenceImages, loadHistoricalCassetteCatalog, loadHistoricalCassetteCatalogs, referenceImagesForModel, type PublishedCassetteReference } from '../src/renderer/src/components/collection/reference-images.js'
 
 const model: CollectionDescriptor = { brand: 'TDK', name: 'SA-X', edition: '', year: null, format: 'cassette', tapeType: 'II', identification: 'partial' }
 const reference = (edition: string, name = 'SA-X'): CanonicalReference => ({
@@ -69,4 +69,41 @@ test('参考来源超出加载预算或读取失败时不伪装为空目录', as
   await assert.rejects(loadPublishedReferenceImages(api), /参考来源较多/)
   api.listReferenceSources = async () => { throw new Error('读取失败') }
   await assert.rejects(loadPublishedReferenceImages(api), /读取失败/)
+})
+
+test('历史目录严格按原revision和来源身份读取，旧关联不从当前目录回填', async () => {
+  const old = reference('1988'), calls: string[] = []
+  const source = { id: 'old-source', bookId: old.bookId, packHash: 'a'.repeat(64) }
+  const detail = { revision: { id: 'old-revision', bookId: old.bookId, sourceId: source.id, packHash: source.packHash,
+    sequence: 1, previousRevisionId: null, items: [old] }, currentEntries: [{ referenceId: old.referenceId, state: 'owned', stockCount: 3, matches: [] }] }
+  const api = { getCatalogRevision: async ({ id }: { id: string }) => { calls.push(id); return detail },
+    getReferenceSource: async ({ id }: { id: string }) => { calls.push(id); return { source } } } as unknown as ReferenceCatalogPublicApi
+  const rows = await loadHistoricalCassetteCatalog(api, { bookId: old.bookId, revisionId: detail.revision.id })
+  assert.deepEqual(calls, ['old-revision', 'old-source']); assert.equal(rows[0]?.historical, true)
+  assert.equal(rows[0]?.current?.stockCount, 3); assert.equal(rows[0]?.reference.referenceId, old.referenceId)
+  for (const wrong of [{ id: 'wrong' }, { bookId: 'wrong' }]) {
+    api.getCatalogRevision = async () => ({ ...detail, revision: { ...detail.revision, ...wrong } }) as never
+    await assert.rejects(loadHistoricalCassetteCatalog(api, { bookId: old.bookId, revisionId: detail.revision.id }), /修订身份/u)
+  }
+  api.getCatalogRevision = async () => detail as never
+  for (const wrong of [{ id: 'wrong' }, { bookId: 'wrong' }, { packHash: 'b'.repeat(64) }]) {
+    api.getReferenceSource = async () => ({ source: { ...source, ...wrong } }) as never
+    await assert.rejects(loadHistoricalCassetteCatalog(api, { bookId: old.bookId, revisionId: detail.revision.id }), /来源身份/u)
+  }
+})
+
+test('历史链循环、错序或缺根明确拒绝，合法链按最近版次顺序保留旧编号', async () => {
+  const old = reference('1988'), current: PublishedCassetteReference[] = [{ reference: reference('1990'), source: {} as never,
+    revisionId: 'current', revisionSequence: 3, previousRevisionId: 'old-2' }]
+  let previous: string | null = 'old-1', sequence = 2
+  const api = { getCatalogRevision: async ({ id }: { id: string }) => ({ revision: { id, bookId: old.bookId,
+    sourceId: 'source', packHash: 'a'.repeat(64), sequence: id === 'old-2' ? sequence : 1,
+    previousRevisionId: id === 'old-2' ? previous : null, items: [old] }, currentEntries: [] }),
+    getReferenceSource: async () => ({ source: { id: 'source', bookId: old.bookId, packHash: 'a'.repeat(64) } }) } as unknown as ReferenceCatalogPublicApi
+  assert.deepEqual((await loadHistoricalCassetteCatalogs(api, current)).map(value => value.revisionId), ['old-2', 'old-1'])
+  previous = 'current'; await assert.rejects(loadHistoricalCassetteCatalogs(api, current), /循环/u)
+  previous = null; await assert.rejects(loadHistoricalCassetteCatalogs(api, current), /原始版次/u)
+  previous = 'old-1'; sequence = 8; await assert.rejects(loadHistoricalCassetteCatalogs(api, current), /版次链/u)
+  await assert.rejects(loadHistoricalCassetteCatalogs(api, [{ ...current[0]!, previousRevisionId: null }]), /原始版次/u)
+  assert.deepEqual(await loadHistoricalCassetteCatalogs(api, [{ ...current[0]!, revisionSequence: 1, previousRevisionId: null }]), [])
 })

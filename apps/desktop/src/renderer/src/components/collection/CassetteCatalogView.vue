@@ -5,8 +5,9 @@ import CollectionReferenceImage from './CollectionReferenceImage.vue'
 import CassetteCatalogDetail from './CassetteCatalogDetail.vue'
 import { cassetteModelGroupKey, filterCassetteCatalog, groupCassetteCatalog, hasReferenceImage, type CassetteCatalogModelGroup, type PublishedCassetteReference, type ReferenceCatalogSelection } from './reference-images'
 
-const props = defineProps<{ items: readonly PublishedCassetteReference[]; loading: boolean; error: string }>()
-const emit = defineEmits<{ refresh: []; importArchive: []; manage: [selection?: ReferenceCatalogSelection]; openModel: [modelId: string]; receive: [reference: CanonicalReference] }>()
+const props = defineProps<{ items: readonly PublishedCassetteReference[]; loading: boolean; error: string; scope?: string;
+  scopes?: readonly { key: string; label: string; count: number }[]; historyLoading?: boolean; historyError?: string }>()
+const emit = defineEmits<{ refresh: []; importArchive: []; selectScope: [scope: string]; manage: [selection?: ReferenceCatalogSelection]; openModel: [modelId: string]; receive: [reference: CanonicalReference] }>()
 const query = ref(''), brand = ref(''), iec = ref(''), offset = ref(0), selectedKey = ref('')
 const selectedBrand = ref(''), selectedModelKey = ref('')
 const heading = ref<HTMLHeadingElement>()
@@ -38,13 +39,19 @@ function showModel(group: CassetteCatalogModelGroup): void { clearFilters(); sel
 const iecLabel = (value: string) => value === 'unknown' ? '带型未知' : value === 'dat' ? 'DAT' : `IEC ${value}`
 const groupPreview = (group: CassetteCatalogModelGroup) => group.items.find(item => hasReferenceImage(item.reference)) ?? group.items[0]!
 function ownershipLabel(item: PublishedCassetteReference): string {
-  return item.current?.state === 'owned' ? '已确认拥有' : item.current?.state === 'missing' ? '已核对缺少' : '拥有情况未知'
+  return item.historical ? item.current?.state === 'owned' ? '旧版关联 · 当前库存' : item.current?.state === 'missing' ? '旧版已核对缺少' : '旧版拥有情况未知'
+    : item.current?.state === 'owned' ? '已确认拥有' : item.current?.state === 'missing' ? '已核对缺少' : '拥有情况未知'
 }
+function selectScope(event: Event): void { emit('selectScope', (event.target as HTMLSelectElement).value) }
+watch(() => props.scope, () => { showBrands() })
 watch([query, brand, iec], () => { offset.value = 0 })
 watch(visibleRows, items => { if (offset.value >= items.length) offset.value = 0 })
 </script>
 
 <template>
+  <div v-if="scopes && scopes.length > 1" class="catalog-scope"><label><span>资料版次</span><select :value="scope || 'current'" :disabled="loading" @change="selectScope"><option v-for="entry in scopes" :key="entry.key" :value="entry.key">{{ entry.label }} · {{ entry.count }} 条</option></select></label></div>
+  <p v-if="historyLoading" role="status">正在读取保留的旧资料…</p>
+  <p v-if="historyError" class="error" role="alert">{{ historyError }}</p>
   <nav class="catalog-breadcrumb" aria-label="磁带资料层级"><button type="button" @click="showBrands">全部品牌</button><template v-if="breadcrumbBrand"><span aria-hidden="true">/</span><button type="button" @click="showBrand(breadcrumbBrand)">{{ breadcrumbBrand }}</button></template><template v-if="breadcrumbModel"><span aria-hidden="true">/</span><button type="button" @click="showModel(breadcrumbModel)">{{ breadcrumbModel.model }} · {{ iecLabel(breadcrumbModel.iec) }}</button></template><template v-if="selected"><span aria-hidden="true">/</span><span>{{ selected.reference.era || '原书年份未知' }} · {{ selected.reference.edition || '版次未知' }}</span></template><template v-else-if="hasFilter"><span aria-hidden="true">/</span><span>搜索结果</span></template></nav>
   <CassetteCatalogDetail v-if="selected" :item="selected" @close="closeDetail" @review="emit('manage', $event)" @open-model="emit('openModel', $event)" @receive="emit('receive', $event)" />
   <section v-else class="cassette-catalog" aria-labelledby="cassette-catalog-title">
@@ -61,6 +68,7 @@ watch(visibleRows, items => { if (offset.value >= items.length) offset.value = 0
 </template>
 
 <style scoped>
+.catalog-scope { max-width: 360px; margin-bottom: 14px; }
 .cassette-catalog { min-width: 0; color: var(--collection-text); font-size: 13px; line-height: 1.7; } .catalog-heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin: 20px 0 24px; } .catalog-kicker { margin: 0 0 6px; color: var(--collection-accent); font-size: 11px; letter-spacing: .1em; } h2 { margin: 0; font-size: 28px; line-height: 1.4; letter-spacing: -.035em; } h3 { margin: 0; font-size: 19px; } p { color: var(--collection-muted); } .catalog-heading p:last-child { margin: 10px 0 0; }
 .catalog-breadcrumb { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin: 0 0 14px; color: var(--collection-muted); font-size: 12px; } .catalog-breadcrumb button { min-height: 32px; padding: 4px 3px; border: 0; background: transparent; color: var(--collection-accent); } .catalog-card.brand-card { gap: 12px; padding: 24px; min-height: 170px; justify-content: center; } .brand-card > strong { font-size: 27px; line-height: 1.3; } .brand-card > span, .brand-card > small { color: var(--collection-muted); font-size: 12px; }
 .catalog-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; } button { min-height: 42px; padding: 9px 13px; border: 1px solid var(--collection-line); border-radius: 8px; background: var(--collection-surface); color: var(--collection-text); font: inherit; cursor: pointer; } button:disabled { opacity: .5; cursor: default; } .primary { border-color: var(--collection-accent); color: var(--collection-accent); font-weight: 650; }

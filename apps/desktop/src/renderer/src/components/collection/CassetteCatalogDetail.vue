@@ -29,8 +29,9 @@ const photoAssets = computed(() => archiveDetail.value?.assets.filter(asset => a
 const displayAssets = computed(() => archiveDetail.value?.assets.filter(asset => asset.origin === 'opaque-display') ?? [])
 const linkedModels = computed(() => props.item.current?.matches.filter(match => match.modelId !== null) ?? [])
 const matchLabel = (status: string) => status === 'confirmed' ? '已确认关联' : status === 'candidate' ? '候选关联' : '待复核关联'
-const ownershipLabel = computed(() => props.item.current?.state === 'owned' ? `已确认拥有 · 库存 ${props.item.current.stockCount}`
-  : props.item.current?.state === 'missing' ? '已核对：明确缺少' : '拥有情况未知')
+const ownershipLabel = computed(() => props.item.historical
+  ? props.item.current?.state === 'owned' ? `旧版关联 · 当前库存 ${props.item.current.stockCount} 盘` : props.item.current?.state === 'missing' ? '旧版已核对：明确缺少' : '旧版拥有情况未知'
+  : props.item.current?.state === 'owned' ? `已确认拥有 · 库存 ${props.item.current.stockCount}` : props.item.current?.state === 'missing' ? '已核对：明确缺少' : '拥有情况未知')
 function assetUrl(asset: CassetteReferenceAsset): string | undefined {
   if (!reference.value.archive) return
   try { return cassetteAssetUrl(reference.value.archive.sha256, asset.id) } catch { return }
@@ -48,7 +49,7 @@ async function loadDetail(): Promise<void> {
   } catch { if (alive && generation === readGeneration) error.value = '完整原书资料暂时无法读取。已发布条目与库存关联保留，请重试。' }
   finally { if (alive && generation === readGeneration) loading.value = false }
 }
-function review(): void { emit('review', { sourceId: props.item.source.id, referenceId: reference.value.referenceId, step: 'review' }) }
+function review(): void { if (!props.item.historical) emit('review', { sourceId: props.item.source.id, referenceId: reference.value.referenceId, step: 'review' }) }
 watch(() => props.item, () => { void loadDetail() }, { immediate: true })
 onMounted(() => { void nextTick(() => { heading.value?.focus({ preventScroll: true }); heading.value?.scrollIntoView({ block: 'start', behavior: 'auto' }) }) })
 onBeforeUnmount(() => { alive = false; readGeneration++ })
@@ -57,7 +58,7 @@ onBeforeUnmount(() => { alive = false; readGeneration++ })
 <template>
   <section class="cassette-detail" aria-labelledby="cassette-detail-title">
     <button class="back" type="button" @click="emit('close')">← 返回资料列表</button>
-    <header><div><p class="eyebrow">{{ item.source.title }} · 版次 {{ item.revisionSequence }}</p><h2 id="cassette-detail-title" ref="heading" tabindex="-1">{{ reference.brand }} {{ reference.model }}</h2><p>{{ ownershipLabel }}</p></div><div class="detail-actions"><button class="primary" type="button" @click="emit('receive', reference)">添加到我的收藏</button><button type="button" @click="review">关联已有库存</button></div></header>
+    <header><div><p class="eyebrow">{{ item.source.title }} · 版次 {{ item.revisionSequence }}<span v-if="item.historical"> · 历史资料</span></p><h2 id="cassette-detail-title" ref="heading" tabindex="-1">{{ reference.brand }} {{ reference.model }}</h2><p>{{ ownershipLabel }}</p><p v-if="item.historical">历史目录关联只读；原关联库存仍可查看。</p></div><div class="detail-actions"><button class="primary" type="button" @click="emit('receive', reference)">添加到我的收藏</button><button v-if="!item.historical" type="button" @click="review">关联已有库存</button></div></header>
     <div class="overview">
       <figure class="primary-image"><img v-if="primaryAssetUrl && !primaryAssetFailed" class="primary-original" :src="primaryAssetUrl" :alt="`${reference.brand} ${reference.model} 原书主图，非我的实物照片`" @error="primaryAssetFailed = true"><CollectionReferenceImage v-else :reference="reference" /><figcaption>{{ hasReferenceImage(reference) ? '原书主图 · 资料参考，非我的实物照片' : archiveDetail?.missingPrimaryReason || '主图尚缺 · 资料条目保留' }}<small v-if="primaryAssetFailed">原书原图暂时无法读取，当前保留资料缩略图。</small></figcaption></figure>
       <dl class="metadata">
