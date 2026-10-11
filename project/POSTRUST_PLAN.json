@@ -36329,9 +36329,15 @@
       "remote_push_policy": "MILESTONE_ONLY",
       "evidence_refs": [
         "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json",
-        "docs/postrust/MBM-004/SOURCE_CORRECTION.json"
+        "docs/postrust/MBM-004/SOURCE_CORRECTION.json",
+        "docs/postrust/MBM-004/CI_EVIDENCE.json"
       ],
-      "source_correction_ref": "docs/postrust/MBM-004/SOURCE_CORRECTION.json"
+      "source_correction_ref": "docs/postrust/MBM-004/SOURCE_CORRECTION.json",
+      "implementation_commit": "16507120ab52d4843012e6888ad521138d8336d6",
+      "report_commit": null,
+      "report_commit_resolution": "DIRECT_CHILD_COMMIT_CONTAINING_reports/MBM-004_RESULT.md",
+      "report_path": "reports/MBM-004_RESULT.md",
+      "terminal_ci_receipt": "SOURCE_FIRST_NATURAL_CONTENT_SEALED_REPORT_PENDING"
     }
   ]
 }

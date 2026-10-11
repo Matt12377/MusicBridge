@@ -1,6 +1,6 @@
 {
   "task": "MBM-004",
-  "state": "CORRECTION_LOCAL_SOFTWARE_VALIDATED_SOURCE_GATE_CI_PENDING",
+  "state": "SOFTWARE_DELIVERY_SOURCE_CI_SEALED_REAL_CARRYOVER_OPEN",
   "branch": "codex/mbm-004-content-multidevice",
   "baseSha": "479e746bb7106a4dac158fe616290220de03a53a",
   "scope": "docs/postrust/MBM-004/EXECUTION_SCOPE.json",
@@ -10,16 +10,19 @@
   "productionApp": "NOT_RUN",
   "realServiceDeviceAudio": "NOT_RUN",
   "ownerAcceptance": "NOT_RUN",
-  "implementationCommit": null,
+  "implementationCommit": "16507120ab52d4843012e6888ad521138d8336d6",
   "reportCommit": null,
-  "report": null,
-  "ci": "SOURCE781_CORE_AND_ELECTRON_FAILED_CORRECTION_SOURCE_FIRST_NATURAL_CI_NOT_RUN",
-  "push": "SOURCE781_REMOTE_PRESERVED_CORRECTION_SOURCE_UNCOMMITTED",
+  "report": "reports/MBM-004_RESULT.md",
+  "ci": "SOURCE_FIRST_NATURAL_CONTENT_SEALED_REPORT_PENDING",
+  "push": "SOURCE_FIRST_NATURAL_PUSH_PROVEN_REPORT_PENDING",
   "nextTask": "MBRS-016",
   "canonicalVersion": "1.7.0",
   "canonicalOperations": 40,
   "contentOperations": 19,
-  "evidence": "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json",
+  "evidence": "docs/postrust/MBM-004/CI_EVIDENCE.json",
   "sourceCorrection": "docs/postrust/MBM-004/SOURCE_CORRECTION.json",
-  "predecessorSource": "78184e7849cc3b10191ea64af29ba8bc23162b0a"
+  "predecessorSource": "78184e7849cc3b10191ea64af29ba8bc23162b0a",
+  "reportCommitResolution": "DIRECT_CHILD_COMMIT_CONTAINING_reports/MBM-004_RESULT.md",
+  "updatedAt": "2026-10-11T06:27:26.236523+00:00",
+  "nextBranchBaseline": "DIRECT_CHILD_COMMIT_CONTAINING_reports/MBM-004_RESULT.md"
 }

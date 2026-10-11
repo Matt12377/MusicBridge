@@ -532,3 +532,13 @@ c3103 原物理 profile 候选的23项 Mac 自有媒体检查及原 iOS 上 Owne
 5948恢复工程字段后，实际当前准入、50项守卫、fresh000的33项及fresh001的87项通过并整份冻结。但该Source仅改四份project账本，原push路径过滤没有启动Electron／Rust；首次自然只有两workflow，不能作为所需Source四workflow／六job交付，也不改标成结果报告。全部原过滤和未启动事实保留。
 
 现于原八项准入用例中加入已发生的两个C310部分首声标记负例：实际own字段及独立status／plan移动row均须拒绝；用例名／数量、生产代码、原Scope和预算不变。该回归确保旧候选部分音频证据不能改写冻结工程字段，新Source继续原全部门禁、首次自然四workflow和直接R。实际设备进展仍由独立证据记账，002保持IN_PROGRESS，003／004未开始。
+
+## MBM-004 当前 Source CI 封存与直接报告待验（2026-10-11T06:27:26.236523+00:00)
+
+Source 16507120ab52d4843012e6888ad521138d8336d6 的LOCAL132标准4930项（4928通过、2条原条件skip）、173条CI negative、Composition137行为333项、原Electron143两条测试及SourceGate147实际八阶段333项已资格化；147fresh绑定1829输入/1114输出/三编译。首次自然四workflow/六job/五完整ZIP消费已封存。当前内容消费首尝试工具超时，仅传输层；SourceCI仍全绿。原149失败/partial和四条完整日志原位保留，partial未资格化；Root165原pin及149b当时六日志全新读取另列。149b随后发生Electron分段传输失败，169/170同Sourcecustody允许留用已核验六完整日志、三完整ZIP及七完整32MiB段，九份失败收据对应八个partial文件和一个排队无文件，均排除；149c仅用4MiB子段补缺并消费另两ZIP，原三ZIP不重下或全CRC重验。两次失败均仅传输层，SourceCI全绿，原预算与证据边界不变。149c最初还有172联网前收据五字段兼容失败，namespace/auth/网络/产品测试均未开始，旧170与原工具wx备份保留；170_REVISION01绑定修正工具和172历史，该失败不属于产品、CI或下载失败。报告自身SHA未知、自然CI仍REQUIRED，详见 reports/MBM-004_RESULT.md；原失败Source、制品保管链及包装器失败范围保留。147封口工具1 MiB ENOBUFS发生在Git add/commit之前，index为空、产品测试及SourceGate未开始，后外置wrapper改16 MiB；原工具失败单独保留，不计为产品或Gate失败。
+
+原18/156、有效17/150及冻结调度字段不变；真实App/Provider/设备/音频/Owner仍NOT_RUN。实际后续顺序为 Tape929+635 → Feedbackc939+e2d → AsyncFence Source3175d272bdb64ff14869581927241032887b32e9 +直Report776924edb128d5fa3b3f86c3265c2ba02760d248 → 完整正式shared/native、本地播放与正式专辑封面墙、与本地音乐正式专辑墙并列的独立CoverDrop侧边栏入口和完整35原功能工作台，专辑详情按真实上下文进入同一数据/Owner工作台 → MBRS-016 → MBRS-017，均尚未集成完成，当前SourceCI不抵扣后续验收。 Owner要求及Root163完整pin另列：独立CoverDrop侧边栏与本地音乐正式专辑墙并列，保留完整35原功能工作台，专辑详情按真实上下文进入同一数据/Owner工作台；当前未实现、未验证，入口存在不等于35功能通过。
+
+Source548本次300k容量仍未通过，Root171实际摘要pin另列；首请求墙钟下界30.080178749980405秒、1 started/0 completed、闭合运行143.66743991698604秒、wrapper124/child-15、1093事件及1564输入稳定，进程组关闭/窗口释放。剩余36请求与301k等NOT_RUN，根因未定；167五窄叶及局部类型通过保留原范围，不替代容量/全回归/正式App。当前004资格独立。
+
+300k V2资格NOT_PASSED_FULL_300K_V2，仅绑定Root153实际摘要pin（2361 bytes/SHA256 2e5359bd433e69755187a7f950604142c4969f2a4b48d2922ab4f0803e89851b），作用域FEEDBACK_E2D_ONLY。queryAlbums#1仅start、成功返回0、metrics及最终runner收据缺失，原进程结束已由Root确认；600样本不替代300k。性能修复与完整复验仍TODO，不复原未持久watchdog变量、不推测确切SQL耗时，004独立软件Gate保持。
