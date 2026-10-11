@@ -21,9 +21,16 @@ export interface MobilePlaybackPreparedSource {
   handle: string; sourceAudio: MobileAudioInfo; actualAudio: MobileAudioInfo;
   processing: MobileProcessing; contentType: string; size: number;
   durationMs: number; seekable: boolean;
+  /** 004可信来源适配器的私有身份；旧存档缺省为local，不进入公开正文。 */
+  catalogSource?: 'local' | 'netease';
+  providerBinding?: Readonly<{ accountDomain: string; providerEpoch: string; ownerEpoch: string }>;
 }
 export interface MobilePlaybackSourcePort {
   prepare(request: MobilePlaybackSourceRequest, signal: AbortSignal): Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource>;
+  /** 原认证principal五轴中的设备身份，由播放actor传给可信组合端口。 */
+  prepareBound?(request: MobilePlaybackSourceRequest,
+    device: Readonly<{ deviceId: string; deviceEpoch: number; accessGeneration: number }>,
+    signal: AbortSignal): Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource>;
   /** 原 fake/direct port 可省略；真实 Owner 回报资格，Main 不以环境变量授予能力。 */
   capabilities?(): Promise<Readonly<{ resourceDsdToPcm: boolean }>>;
   status?(handle: string, signal: AbortSignal): Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource>;

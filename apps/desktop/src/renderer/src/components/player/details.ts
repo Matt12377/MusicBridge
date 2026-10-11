@@ -35,7 +35,33 @@ export function audioQualityDetails(value: Pick<import('@music-bridge/contracts'
 export interface LocalLibraryPlayReceipt {
  request: import('@music-bridge/contracts').LocalPlayRequest
  result: import('@music-bridge/contracts').LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported | null
- outcome?: 'pending' | 'received' | 'unknown'
+ outcome?: 'pending' | 'received' | 'unknown' | 'rejected'
+ failure?: import('@music-bridge/contracts').LocalPlayRejection
+}
+/** 受理回执不证明播放启动；只用原意图的真实观察解除未确认提交。 */
+export function localPlaySubmissionResolved(snapshot: import('@music-bridge/contracts').PlaybackSnapshot | null, request: import('@music-bridge/contracts').LocalPlayRequest): boolean {
+ const local = snapshot?.local
+ if (!snapshot || !local || request.action !== 'PLAY_NOW'
+  || local.request_id !== request.request_id || local.route !== request.route
+  || local.local_track_id !== request.local_track_id || local.asset_id !== request.asset_id || local.asset_revision !== request.expected_asset_revision
+  || local.target.core_id !== request.target.core_id || local.target.zone_id !== request.target.zone_id) return false
+ // 原 attempt 已安全结束后，用户可以选择其他 Zone 或队列；这些新选择不能抹掉其终态。
+ if (['ENDED', 'FAILED', 'CANCELLED'].includes(local.phase)) return local.ownership === 'NONE'
+ if (snapshot.selectedZoneId !== request.target.zone_id) return false
+ const selected = snapshot.queue.items[snapshot.queue.index]
+ if (selected && (selected.resolvedSource !== 'local_file' || selected.trackId !== request.local_track_id
+  || selected.local?.local_track_id !== request.local_track_id || selected.local.asset_id !== request.asset_id
+  || selected.local.asset_revision !== request.expected_asset_revision)) return false
+ if (snapshot.source !== 'local_file' || snapshot.currentTrack?.id !== request.local_track_id
+  || local.ownership !== 'MB_OWNED' || local.queue_owner !== 'MB' || !local.session_epoch
+  || !local.roon_observation.observed || local.roon_observation.correlation !== 'ATTEMPT_CONFIRMED') return false
+ return local.phase === 'PLAYING' && snapshot.state === 'playing' && ['PLAYING', 'TIME'].includes(local.roon_observation.event)
+  || local.phase === 'PAUSED' && snapshot.state === 'paused' && ['PAUSED', 'TIME'].includes(local.roon_observation.event)
+}
+/** 即使页面没有保存旧请求，当前 Core 的未知所有权也不能被新点播覆盖。 */
+export function localPlaybackSubmissionUnconfirmed(snapshot: import('@music-bridge/contracts').PlaybackSnapshot | null): boolean {
+ const local = snapshot?.local
+ return !!local && (local.phase === 'SUBMISSION_UNKNOWN' || local.ownership === 'UNKNOWN' || local.queue_owner === 'UNKNOWN')
 }
 /** 当前公开观察与最近请求分别呈现；受理、队列变更或字节发送不能生成 Playing。 */
 export function localLibraryPlaybackStatus(snapshot: import('@music-bridge/contracts').PlaybackSnapshot | null, receipt: LocalLibraryPlayReceipt | null): {state: string; delivery: string; request: string} {
@@ -43,7 +69,7 @@ export function localLibraryPlaybackStatus(snapshot: import('@music-bridge/contr
  const same = local && request && local.request_id === request.request_id && local.local_track_id === request.local_track_id && local.asset_id === request.asset_id && local.asset_revision === request.expected_asset_revision
   && local.target.core_id === request.target.core_id && local.target.zone_id === request.target.zone_id
  let recent = receipt?.result?.status === 'accepted' ? request?.action === 'PLAY_NOW' ? '最近点播已受理，等待 Roon 观察确认' : '最近 MB 队列操作已受理，播放状态由原播放器确认'
-  : receipt?.result?.status === 'unsupported' ? '最近请求不支持原文件直送' : receipt?.outcome === 'pending' ? '最近请求已派发，等待受理回执' : receipt ? '最近请求结果未知，核对原播放器；暂不重复提交' : '本页尚无最近点播请求'
+  : receipt?.result?.status === 'unsupported' ? '最近请求不支持原文件直送' : receipt?.outcome === 'rejected' ? '原点播请求已失败，请核对本次诊断与失败提示' : receipt?.outcome === 'pending' ? '最近请求已派发，等待受理回执' : receipt ? '最近请求结果未知，核对原播放器；暂不重复提交' : '本页尚无最近点播请求'
  const current = snapshot?.source === 'local_file' && snapshot.currentTrack?.id === local?.local_track_id && (!snapshot.selectedZoneId || snapshot.selectedZoneId === local?.target.zone_id)
  const selected = snapshot?.queue.items[snapshot.queue.index]
  const identity = current && (!selected || selected.resolvedSource === 'local_file' && selected.trackId === local?.local_track_id && selected.local?.local_track_id === local?.local_track_id && selected.local.asset_id === local?.asset_id && selected.local.asset_revision === local?.asset_revision)

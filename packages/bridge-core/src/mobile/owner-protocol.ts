@@ -1,5 +1,6 @@
 import { isMobileId, isMobileAlbum, isMobileTrack, MOBILE_API_RESPONSE_MAX_BYTES, MOBILE_SAFE_ERROR_CODES } from '@music-bridge/contracts';
 import { isMobileOwnerSourceRequest, isMobileOwnerSourceResult } from './source-protocol.js';
+import { isMobileContentOwnerRequest, isMobileContentOwnerResult } from './owner-content-protocol.js';
 import {
   MOBILE_AUTH_SEALED_MAX_BYTES, type MobileOwnerCatalogRequest,
   type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult,
@@ -47,6 +48,7 @@ export function isMobileOwnerPrivateRequest(v: unknown): v is MobileOwnerPrivate
   if (!closed(v, ['kind', 'datasetId', 'request']) || !isMobileId(v.datasetId)) return false;
   if (v.kind === 'catalog') return isMobileOwnerCatalogRequest(v.request);
   if (v.kind === 'media-source') return isMobileOwnerSourceRequest(v.request);
+  if (v.kind === 'content') return isMobileContentOwnerRequest(v.request);
   if (v.kind === 'artwork') return closed(v.request, ['serverId', 'artworkId']) && isMobileId(v.request.serverId) && isMobileId(v.request.artworkId);
   if (v.kind === 'save' || v.kind === 'playback-save') return closed(v.request, ['datasetId', 'expectedRevision', 'commitId', 'sealed'])
     && v.request.datasetId === v.datasetId && integer(v.request.expectedRevision, 0, Number.MAX_SAFE_INTEGER - 1)
@@ -54,6 +56,8 @@ export function isMobileOwnerPrivateRequest(v: unknown): v is MobileOwnerPrivate
   return false;
 }
 export function isMobileOwnerPrivateResult(v: unknown, request: MobileOwnerPrivateRequest): v is MobileOwnerPrivateResult {
+  // 内容 UNKNOWN 必须携原 commit 身份，不能退化成缺失该身份的通用失败。
+  if (request.kind === 'content') return isMobileContentOwnerResult(v, request.request);
   if (closed(v, ['kind', 'status', 'code', 'retryable', 'outcome']) && v.kind === 'mobile-error') {
     return typeof v.status === 'number' && [400, 401, 403, 404, 409, 410, 413, 429, 503].includes(v.status) && typeof v.code === 'string' && safeCodes.includes(v.code)
       && typeof v.retryable === 'boolean' && [null, 'not-sent', 'unknown'].includes(v.outcome as null | string);

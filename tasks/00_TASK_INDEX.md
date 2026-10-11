@@ -1,5 +1,9 @@
 # 任务索引
 
+当前执行：[MBM-004 内容与多设备](MBM-004_CONTENT_MULTIDEVICE.md)，从共同最终报告 479e746bb7106a4dac158fe616290220de03a53a 接续，按已有持续授权自主开发。完成004后为016综合回归、017最终交付；只在关键节点推送，每任务更新本地台账。最新状态见[待办](../project/POSTRUST_TODO.md)。
+
+以下为保留的历史任务索引。
+
 当前 PostRust 任务：[MBRS-009](MBRS-009_LOCAL_LIBRARY_UI.md)，从008最终报告 `418389708ca9400dbe347da448a829b9481dbb84` 接续；本地220项、当前生产E2E和受控243首普通App已验证，独立源码提交/CI/报告待收口；真实Roon、当前十万首负载、旧收藏/根迁移及Owner验收保留。下一项MBRS-010从009最终独立报告HEAD接续。Owner已授权持续到017、每任务更新待办并push；当前状态见[待办清单](../project/POSTRUST_TODO.md)。
 
 [MBRS-003结果](../reports/MBRS-003_PERSISTENT_INCREMENTAL_SCAN.md)与[换届交接](../docs/postrust/MBRS-003/HANDOFF_NEXT_SESSION.md)：Owner阶段接受既有规模结果，当前版十万／三十万首不重测；25条超时保留。004已从003最终报告HEAD完成独立软件交付；完整产品后用真实曲库验收。下方历史过程记录保留原时点。

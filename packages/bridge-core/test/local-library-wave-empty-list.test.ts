@@ -12,7 +12,7 @@ import { loadFreshMetadataReader } from './helpers/mbrs003-audio-fixtures.js';
 
 // 只生成自有合成媒体；不读取普通 App 曲库、不改标签、不把有限兼容证明当作整曲可播放验收。
 const OLD_PARSER = 'music-metadata-11.15.0/mbrs003-v1';
-const NEW_PARSER = 'music-metadata-11.15.0/mbrs003-v3';
+const NEW_PARSER = 'music-metadata-11.15.0/mbrs003-v4';
 const frames = 4800, sampleRate = 48000, channels = 2, bits = 24, blockAlign = channels * bits / 8;
 const expectedTags = Object.freeze({ title: '合成 ID3 标题', artist: '合成 ID3 艺人', album: '合成 INFO 专辑' });
 const ordinaryTags = Object.freeze({ title: '合成普通 INFO 标题', artist: '合成普通 INFO 艺人', album: '合成普通 INFO 专辑' });
@@ -59,7 +59,7 @@ const pcm = Buffer.alloc(frames * blockAlign);
 function taggedWave(emptyLists: number): Buffer {
   const fact = Buffer.alloc(4); fact.writeUInt32LE(frames);
   // 真实拒绝样本的形状：extensible fmt/data/fact/空 LIST/ID3/普通 INFO。
-  // 保留现有 Parser 报告的 codec/lossless，不顺便扩大 PCM 或播放资格。
+  // 完整 PCM GUID 决定编码事实；空 LIST 兼容仍不授予真实播放或源写资格。
   return riff([format(true), chunk('data', pcm), chunk('fact', fact),
     ...(emptyLists > 0 ? [chunk('LIST', Buffer.alloc(0))] : []), id3(),
     ...(emptyLists > 1 ? [chunk('LIST', Buffer.alloc(0))] : []), info({ IPRD: expectedTags.album })]);
@@ -164,19 +164,105 @@ function openedReader(f: Fixture) {
   } };
 }
 
-test('本地 WAV 空 LIST：固定 Worker 保留后续 ID3/INFO 与原报告音频参数、原字节', { timeout: 30_000 }, async t => {
+test('本地 WAV 空 LIST：固定 Worker 保留后续 ID3/INFO 与准确 PCM 参数、原字节', { timeout: 30_000 }, async t => {
   const f = await fixture(t, { 'control.wav': taggedWave(0), 'empty.wav': taggedWave(1), 'two-empty.wav': taggedWave(2) });
   const actual = openedReader(f), control = success(await actual.read('control.wav'));
   assert.deepEqual(control.fields, expectedTags);
-  assert.deepEqual(control.technical, { container: 'WAVE', codec: 'non-PCM (65534)', lossless: false,
+  assert.deepEqual(control.technical, { container: 'WAVE', codec: 'PCM', lossless: true,
     sampleRateHz: sampleRate, channels, bitsPerSample: bits, durationSeconds: frames / sampleRate, evidence: 'bounded-parser-reported' });
   for (const relative of ['empty.wav', 'two-empty.wav']) {
     const value = success(await actual.read(relative));
     assert.deepEqual(value.fields, expectedTags, 'ID3 的 title/artist 和之后 INFO 的 album 必须完整保留');
-    assert.deepEqual(value.technical, control.technical, 'metadata-only 兼容不能顺便重写原 technical 事实');
+    assert.deepEqual(value.technical, control.technical, '空 LIST 不改变完整 fmt/GUID 读到的技术事实');
     assert.deepEqual(value.coverEvidence, control.coverEvidence); assert.deepEqual(value.coverEvidence, []);
     assert.equal(value.parserVersion, NEW_PARSER);
   }
+  await f.unchanged();
+});
+
+test('本地 WAV 旧 v3 已接受错格式：v4 实际重读、身份与人工覆盖保留、历史回执不动且冷开复用', { timeout: 60_000 }, async t => {
+  const relative = 'accepted-v3.wav', historicalParser = 'music-metadata-11.15.0/mbrs003-v3';
+  const f = await fixture(t, { [relative]: taggedWave(1) }), database = path.join(f.directory, 'accepted-v3.sqlite'), datasetId = randomUUID();
+  let activeRepo: ReturnType<Fixture['m']['repository']['createCollectionRepository']> | undefined;
+  let activeSession: ReturnType<typeof scanSession> | undefined;
+  f.addCleanup(async () => {
+    if (activeSession) { const current = activeSession; activeSession = undefined; activeRepo = undefined; await current.close(); }
+    else if (activeRepo) { const current = activeRepo; activeRepo = undefined; current.close(); }
+  });
+  const seed = f.m.repository.createCollectionRepository({ filePath: database }); activeRepo = seed;
+  const source = seed.sources.authorize(randomUUID(), await f.m.files.authorizeSourceDirectory(f.media));
+  const root = seed.localCatalog.registerRoot({ commandId: randomUUID(), sourceRootId: source.id, role: 'library' });
+  const startCommand = randomUUID(), resumeCommand = randomUUID(), prepareCommand = randomUUID(), commitCommand = randomUUID();
+  const started = seed.localScan.start({ commandId: startCommand, datasetId, libraryRootId: root.id,
+    expectedRootRevision: root.revision, parserVersion: historicalParser }).job;
+  const running = seed.localScan.resume({ commandId: resumeCommand, jobId: started.jobId, expectedRevision: started.jobRevision });
+  const signature = f.originals.get(relative)!.signature;
+  // 通过原 store/journal 建立明确的合成历史错事实；不宣称运行过历史 Worker 或读取普通数据库。
+  const historicalBatch: ScanPreparedBatch = { batchId: randomUUID(), jobId: running.jobId, expectedJobRevision: running.jobRevision,
+    checkpointBefore: running.checkpointRef, items: [{ relative, signature, parserVersion: historicalParser, outcome: 'accepted',
+      fields: expectedTags, failureCode: null, reused: false, readFacts: {
+        technical: { container: 'WAVE', codec: 'non-PCM (65534)', lossless: false, sampleRateHz: sampleRate, channels,
+          bitsPerSample: bits, durationSeconds: frames / sampleRate, evidence: 'bounded-parser-reported' }, coverEvidence: [],
+        readEvidence: { bytesRead: 64, readCalls: 1, maxReadBytes: 64, allocationBytes: 128, elapsedMs: 1, wholeAudioHash: false, wholeAudioDecode: false },
+      } }], frontier: [], completed: true };
+  seed.localScan.privatePrepareBatch({ commandId: prepareCommand, jobId: running.jobId, batch: historicalBatch });
+  const historicalJob = seed.localScan.privateCommitBatch({ commandId: commitCommand, jobId: running.jobId,
+    batchId: historicalBatch.batchId, expectedRevision: running.jobRevision });
+  const historicalState = seed.localScan.privateFileState(root.id, relative); assert.ok(historicalState);
+  assert.equal(historicalState.value.outcome, 'accepted'); assert.equal(historicalState.value.parserVersion, historicalParser);
+  assert.equal(historicalState.value.readFacts?.technical.codec, 'non-PCM (65534)');
+  assert.ok(historicalState.value.trackId && historicalState.value.assetId);
+  const oldTrack = seed.localCatalog.track(historicalState.value.trackId), oldAsset = seed.localCatalog.asset(historicalState.value.assetId);
+  const override = seed.localCatalog.overrideMetadata({ commandId: randomUUID(), trackId: oldTrack.id, expectedRevision: null,
+    fields: { title: '人工标题必须保留', album: '人工专辑必须保留' } });
+  const historicalObservations = seed.localCatalog.observations(oldTrack.id);
+  const receiptCommands = [startCommand, resumeCommand, prepareCommand, commitCommand];
+  const oldReceipts = receiptCommands.map(command => seed.localScan.receipt(command)); assert.ok(oldReceipts.every(Boolean));
+  seed.close(); activeRepo = undefined;
+
+  const repo = f.m.repository.createCollectionRepository({ filePath: database }); activeRepo = repo;
+  assert.deepEqual(repo.localScan.privateFileState(root.id, relative), historicalState);
+  assert.deepEqual(repo.localCatalog.metadata(oldTrack.id).override, override);
+  activeSession = scanSession(f, repo, datasetId); const next = activeSession;
+  assert.equal(next.observations.length, 0, '冷打开本身不读取或批改旧事实');
+  const job = next.coordinator.start({ commandId: randomUUID(), libraryRootId: root.id, expectedRootRevision: root.revision });
+  await next.coordinator.privateWait(job.jobId);
+  assert.deepEqual(next.coordinator.get(job.jobId).progress, { visited: '1', accepted: '1', rejected: '0' });
+  assert.equal(next.observations.length, 1, '旧 v3 已 accepted 同签名也必须真正进入新固定 Worker');
+  const parsed = success(next.observations[0]!.result); assert.equal(parsed.parserVersion, NEW_PARSER);
+  assert.equal(parsed.technical.codec, 'PCM'); assert.equal(parsed.technical.lossless, true);
+  const state = repo.localScan.privateFileState(root.id, relative); assert.ok(state);
+  assert.equal(state.value.signature, signature); assert.equal(state.value.parserVersion, NEW_PARSER);
+  assert.equal(state.value.assetId, oldAsset.id); assert.equal(state.value.trackId, oldTrack.id);
+  assert.deepEqual(state.value.readFacts, { technical: parsed.technical, coverEvidence: parsed.coverEvidence, readEvidence: parsed.readEvidence });
+  const asset = repo.localCatalog.asset(oldAsset.id), track = repo.localCatalog.track(oldTrack.id), metadata = repo.localCatalog.metadata(oldTrack.id);
+  assert.deepEqual(track, oldTrack); assert.equal(asset.libraryRootId, oldAsset.libraryRootId); assert.equal(asset.sourceRootId, oldAsset.sourceRootId);
+  assert.equal(repo.localCatalog.privateAssetLocator(asset.id).relative, relative);
+  assert.equal(BigInt(asset.fileRevision) > BigInt(oldAsset.fileRevision), true, '新解析事实推进既有资产修订，不另造实体');
+  assert.deepEqual(metadata.override, override); assert.deepEqual(metadata.raw, expectedTags);
+  assert.deepEqual(metadata.effective, { ...expectedTags, ...override.fields });
+  const observations = repo.localCatalog.observations(oldTrack.id);
+  assert.deepEqual(observations.slice(0, historicalObservations.length), historicalObservations);
+  assert.equal(observations.length, historicalObservations.length + 1); assert.equal(observations.at(-1)!.parserVersion, NEW_PARSER);
+  assert.deepEqual(repo.localScan.get(historicalJob.jobId), historicalJob);
+  assert.deepEqual(receiptCommands.map(command => repo.localScan.receipt(command)), oldReceipts);
+  await next.close(); activeSession = undefined; activeRepo = undefined;
+
+  const cold = f.m.repository.createCollectionRepository({ filePath: database }); activeRepo = cold;
+  assert.deepEqual(cold.localScan.privateFileState(root.id, relative), state);
+  assert.deepEqual(cold.localCatalog.asset(asset.id), asset); assert.deepEqual(cold.localCatalog.track(track.id), track);
+  assert.deepEqual(cold.localCatalog.metadata(track.id), metadata); assert.deepEqual(cold.localCatalog.observations(track.id), observations);
+  activeSession = scanSession(f, cold, datasetId); const again = activeSession;
+  const reused = again.coordinator.start({ commandId: randomUUID(), libraryRootId: root.id, expectedRootRevision: root.revision });
+  await again.coordinator.privateWait(reused.jobId);
+  assert.equal(again.observations.length, 0); assert.equal(again.events.filter(event => event.type === 'worker-start').length, 0);
+  assert.deepEqual(cold.localScan.privateFileState(root.id, relative)!.value, state.value);
+  assert.deepEqual(cold.localCatalog.asset(asset.id), asset); assert.deepEqual(cold.localCatalog.track(track.id), track);
+  assert.deepEqual(cold.localCatalog.metadata(track.id), metadata); assert.deepEqual(cold.localCatalog.observations(track.id), observations);
+  assert.deepEqual(cold.localScan.get(historicalJob.jobId), historicalJob);
+  assert.deepEqual(receiptCommands.map(command => cold.localScan.receipt(command)), oldReceipts);
+  assert.deepEqual(again.admission.resourceCounts(), { permits: 0, revoked: 0, watches: 0, timers: 0, closed: false });
+  await again.close(); activeSession = undefined; activeRepo = undefined;
   await f.unchanged();
 });
 

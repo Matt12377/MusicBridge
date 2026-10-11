@@ -420,7 +420,7 @@ export class BridgeController {
   private localClosing = false;
   private localObservation: LocalPlaybackObservationLeaf | undefined;
   private readonly localTasks = new Set<Promise<unknown>>();
-  private readonly localRequests = new Map<string,{fingerprint:string;work:Promise<LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported>}>();
+  private readonly localRequests = new Map<string,{fingerprint:string;work:Promise<LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported>;receipt:import('@music-bridge/contracts').LocalPlayReceipt}>();
   private queue: QueueItem[] = [];
   private queueIndex = -1;
   private playbackState: PlaybackState = 'idle';
@@ -478,6 +478,7 @@ export class BridgeController {
   constructor(
     private readonly dependencies: {
       localSources?: DatasetOwnerEndpoint;
+      localPlaybackDiagnostics?: () => (event: import('@music-bridge/contracts').LocalRoonStartupDiagnostic) => void;
       isLocalPlaybackAllowed?: () => boolean;
       netease: NeteasePort;
       roon: RoonPort;
@@ -805,6 +806,7 @@ export class BridgeController {
   /** 九字段公开请求进入原队列；重复requestId只回同一受理结果。 */
   playLocal(request: LocalPlayRequest): Promise<LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported> {
     if(!isLocalPlayRequest(request) || this.localClosing) return Promise.reject(this.cancelled());
+    request=structuredClone(request);
     const fingerprint=JSON.stringify(request), prior=this.localRequests.get(request.request_id);
     if(prior) return prior.fingerprint===fingerprint ? prior.work : Promise.reject(this.cancelled());
     if(this.localRequests.size>=256) return Promise.reject(new BridgeError('BAD_REQUEST','本地请求回执达到有限容量。',{httpStatus:429}));
@@ -838,7 +840,27 @@ export class BridgeController {
       return {status:'accepted',request_id:request.request_id,action:request.action} as LocalPlayAccepted;
     };
     const work=request.action==='PLAY_NOW' ? this.enqueuePlayback(run,true) : run();
-    this.localRequests.set(request.request_id,{fingerprint,work});return work;
+    const entry = {fingerprint,work,receipt:{status:'pending',request_id:request.request_id,action:request.action} as import('@music-bridge/contracts').LocalPlayReceipt};
+    this.localRequests.set(request.request_id,entry);
+    void work.then(result => {
+      entry.receipt={status:'received',request_id:request.request_id,action:request.action,result:structuredClone(result)};
+    }, error => {
+      const code=asBridgeError(error).code;
+      const reason:import('@music-bridge/contracts').LocalPlayRejection = code==='ROON_ZONE_NOT_SELECTED' || code==='ROON_NOT_PAIRED' ? 'TARGET_UNAVAILABLE'
+        : code==='ROON_MEDIA_ERROR' ? 'MEDIA_ERROR' : code==='ROON_TIMEOUT' ? 'ROON_TIMEOUT'
+        : error instanceof LocalSourcePreparationError || error instanceof DatasetOwnerDispatchError ? 'SOURCE_UNAVAILABLE'
+        : code==='BAD_REQUEST' ? 'REQUEST_REJECTED' : 'INTERNAL_ERROR';
+      entry.receipt={status:'rejected',request_id:request.request_id,action:request.action,reason};
+    });
+    return work;
+  }
+  /** 不捕获来源、不更改队列、不调用 SDK；Core 重启后的 missing 仍保留未确认。 */
+  getLocalPlayReceipt(request:LocalPlayRequest):import('@music-bridge/contracts').LocalPlayReceipt {
+    if(!isLocalPlayRequest(request))throw this.cancelled();
+    const prior=this.localRequests.get(request.request_id);
+    if(!prior)return {status:'missing',request_id:request.request_id,action:request.action};
+    if(prior.fingerprint!==JSON.stringify(request))throw this.cancelled();
+    return structuredClone(prior.receipt);
   }
   private localCurrent(owner:PlaybackOwner):boolean {
     try{owner.queueAdmission?.();this.assertLocalProtocol();}catch{return false;}
@@ -864,7 +886,7 @@ export class BridgeController {
     const local=owner.local;if(!local) return Promise.resolve();
     if(local.disposing)return local.disposing;
     const quiet=local.disposing = (async()=>{local.fence.revoke();if(local.timer)clearInterval(local.timer);await local.renewing?.catch(()=>undefined);
-      if(owner.token)await this.dependencies.registry.revokeLocal(owner.token);else await local.lease?.close();
+      if(owner.token){this.dependencies.gateway.clearStageObserver(owner.token);await this.dependencies.registry.revokeLocal(owner.token);}else await local.lease?.close();
       await this.dependencies.localSources?.releaseLocalSource?.(local.capture.ticketId);
       if(local.lane!==undefined){this.localLaneBusy[local.lane]=false;queueMicrotask(()=>this.scheduleNextPreparation());}
     })();
@@ -985,7 +1007,10 @@ export class BridgeController {
       },250);local.timer.unref();
       item.preflight={state:'PREPARED',reason:null};this.queueProjectionDirty=true;
       this.localPhase(owner,'SUBMITTING');this.notifyPlaybackChanged();
-      await this.device(()=>{this.assertLocal(owner);return this.dependencies.roon.play({...this.ownerOptions(owner),mediaUrl:this.dependencies.gateway.localStreamUrl(registration!.token),iconUrl:this.dependencies.gateway.iconUrl(),metadata,
+      let gatewayStage:RoonGatewayStage='none';
+      await this.device(()=>{this.assertLocal(owner);return this.dependencies.roon.play({...this.ownerOptions(owner),mediaUrl:this.dependencies.gateway.localStreamUrl(registration!.token,stage=>{gatewayStage=stage;}),iconUrl:this.dependencies.gateway.iconUrl(),metadata,
+        ...(this.dependencies.localPlaybackDiagnostics ? {onLocalDiagnostic:this.dependencies.localPlaybackDiagnostics()} : {}),
+        gatewayStage:()=>gatewayStage,
         onDispatch:()=>{this.assertLocal(owner);owner.dispatched=true;this.localObservation={...this.localObservation!,delivery_state:'UNKNOWN'};this.localPhase(owner,'AWAITING_ROON');},
         onLocalSession:observation=>{
           if(this.owner!==owner || owner.abort.signal.aborted) return;

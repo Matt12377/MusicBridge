@@ -1,5 +1,6 @@
 import { createLocalArtworkService } from './local-artwork-service.js';
 import { createMobileOwnerService } from '../mobile/owner-service.js';
+import { createMobileContentOwnerService } from '../mobile/content-owner-service.js';
 import { createMobileOwnerSourceService } from '../mobile/source-service.js';
 import { loadMobileDsdConverter } from '../mobile/dsd-converter.js';
 import { createMobilePreparedCache } from '../mobile/prepared-cache.js';
@@ -124,9 +125,14 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
   const assertOpen = () => { if (closing) throw new CollectionError('INVENTORY_UNAVAILABLE', '工作库正在关闭，请重新读取当前状态。'); assertDataset(); };
   const pendingDispatches = new Set<Promise<unknown>>();
   let scanBootReady=!options.commitBoot;
-  const mobileOwner = createMobileOwnerService({ collection, datasetId: identity.datasetId, ownerEpoch: options.localSourceEpoch ?? randomUUID(),
+  const mobileOwnerEpoch = options.localSourceEpoch ?? randomUUID();
+  const mobileOwner = createMobileOwnerService({ collection, datasetId: identity.datasetId, ownerEpoch: mobileOwnerEpoch,
     dsdToPcmAvailable:()=>mobilePreparedCache?.qualified === true,
     assertCurrent: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '移动 Owner 尚未 commitBoot。'); } });
+  const mobileContent = createMobileContentOwnerService({ collection, datasetId: identity.datasetId, ownerEpoch: mobileOwnerEpoch,
+    catalog: mobileOwner, limits: { stateBytes: 16 * 1024 * 1024, receipts: 1024, albums: 10000,
+      favoriteTracks: 100000, playlists: 10000, playlistTracks: 100000 },
+    assertCurrent: () => { assertOpen(); if (!scanBootReady) throw new CollectionError('INVENTORY_UNAVAILABLE', '内容 Owner 尚未 commitBoot。'); } });
   const localTickets = createLocalSourceTickets(collection, options.localSourceEpoch ?? randomUUID(), identity.datasetId, () => { assertOpen(); if (!scanBootReady) throw new Error('本地事实Owner尚未boot。'); });
   const mobileSources = createMobileOwnerSourceService({ collection, tickets: localTickets, datasetId: identity.datasetId,
     ...(mobilePreparedCache ? { preparedCache: mobilePreparedCache } : {}),
@@ -196,6 +202,13 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     },
     mobileMain(request) {
       const pending = Promise.resolve().then(() => {
+        if (request.kind === 'content') {
+          if (!isMobileOwnerPrivateRequest(request) || request.datasetId !== identity.datasetId) return {
+            kind: 'content-error' as const, status: 400 as const, code: 'INVALID_REQUEST' as const,
+            retryable: false as const, outcome: null, commitId: null,
+          };
+          return mobileContent.dispatch(request.request);
+        }
         if (request.kind !== 'media-source') return mobileOwner.dispatch(request);
         if (!isMobileOwnerPrivateRequest(request) || request.datasetId !== identity.datasetId) return {
           kind: 'mobile-error' as const, status: 400 as const, code: 'INVALID_REQUEST' as const, retryable: false, outcome: null,
@@ -244,6 +257,7 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
       closed = (async () => {
         const failures: unknown[] = [];
         const stop = async (operation: () => unknown) => { try { await operation(); } catch (error) { failures.push(error); } };
+        await stop(() => mobileContent.close());
         await stop(() => mobileSources.close());
         // 前序失败仍尽力停止后续原资源；任何收尾失败都保留两库，不发送静止成功回执，也不自动重试。
         await stop(() => recordingReplica.close()); await stop(() => recordingPrints.close()); await stop(() => recordingRecords.close()); await stop(() => recordingAttempts.close());

@@ -8,6 +8,7 @@ export function createLocalLibraryClient(invoke:(channel:string,value?:unknown)=
  async function request(command:dto.IpcCommand,payload:unknown):Promise<unknown>{const datasetId=await scope();if(!dto.validateIpcRequest({version:1,id:'00000000-0000-4000-8000-000000000001',command,payload,expectedDatasetId:datasetId}).ok)throw error();const result=await invoke('localLibrary:request',{datasetId,command,payload:structuredClone(payload)});const checked=dto.validateIpcResponseForCommand({version:1,id:'00000000-0000-4000-8000-000000000001',ok:true,result},command);if(!checked.ok)throw error();return result;}
  return {
   playLocalLibraryTrack:selection=>request('localCatalog.prepare',selection),
+  getLocalLibraryPlayReceipt:selection=>request('localCatalog.playReceipt',selection),
   listLocalLibraryRoots:()=>request('localRelocation.roots',{}),
   async chooseLocalLibraryRoot(commandId){if(!dto.isCollectionId(commandId))throw error();const result=await write.chooseRoot(commandId);if(result!==null&&!dto.isLibraryRoot(result))throw error();return result;},
   async chooseLocalRelocationCandidates(selection){if(!dto.isLocalRelocationSelection(selection))throw error();const result=await invoke('localLibrary:chooseCandidates',{datasetId:await scope(),selection:structuredClone(selection)});if(result!==null&&(!dto.isLocalRelocationCandidates(result)||result.assetId!==selection.assetId))throw error();return result;},

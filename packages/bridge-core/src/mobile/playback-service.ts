@@ -253,7 +253,15 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     resourceContext?: MobileResourceSemanticContext): MobilePlaybackControlReply {
     return { status, headers: [['Cache-Control', 'no-store']], body: playbackCopy(body),
       ...(resourceContext ? { resourceContext: playbackCopy(resourceContext) } : {}),
-      async beforeSend() { open(); if (pending) return playbackFailure(503, 'BUSY'); await deviceCurrent(p.deviceId, p.deviceEpoch); open(); } };
+      async beforeSend() {
+        open(); if (pending) return playbackFailure(503, 'BUSY'); await deviceCurrent(p.deviceId, p.deviceEpoch);
+        if (resourceContext?.source === 'netease') {
+          const live = resourceContext.expectedResourceId === null ? undefined : runtimes.get(resourceContext.expectedResourceId);
+          if (!live || live.releasing) return playbackFailure(409, 'SOURCE_CHANGED');
+          await sourcePort.verify(live.source.handle); await deviceCurrent(p.deviceId, p.deviceEpoch);
+        }
+        open();
+      } };
   }
   function original(receipt: StoredPlaybackReceipt, p: MobilePrincipal): MobilePlaybackControlReply {
     if (receipt.state !== 'RECORDED' || !receipt.reply) return playbackFailure(503, 'RESOURCE_BUSY');
@@ -381,8 +389,11 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
       const r = state!.resources.find(v => v.id === task.resourceId)!, s=state!.sessions.find(v=>v.id===r.sessionId)!;
       const accepts=r.resourceDsdToPcm===true && r.request.acceptedProcessingModes?.[0]==='dsd_to_pcm';
       const at=now(), remaining=Math.max(0,preparationDeadline(r,s)-at);
-      const actual = sourcePort.prepare({resourceId:r.id,trackId:r.request.trackId,versionId:r.request.versionId,contentRevision:r.request.contentRevision,
-        ...(accepts?{acceptedProcessingModes:['dsd_to_pcm'] as const,preparationWindow:{resourceCreatedAtMs:r.createdAt,resourceExpiresAtMs:r.expiresAt,sessionExpiresAtMs:s.expiresAt,remainingPreparationMs:remaining},dsdTarget:dsdTarget(r.request)}:{})},task.controller.signal);
+      const sourceRequest = {resourceId:r.id,trackId:r.request.trackId,versionId:r.request.versionId,contentRevision:r.request.contentRevision,
+        ...(accepts?{acceptedProcessingModes:['dsd_to_pcm'] as const,preparationWindow:{resourceCreatedAtMs:r.createdAt,resourceExpiresAtMs:r.expiresAt,sessionExpiresAtMs:s.expiresAt,remainingPreparationMs:remaining},dsdTarget:dsdTarget(r.request)}:{})};
+      const actual = sourcePort.prepareBound
+        ? sourcePort.prepareBound(sourceRequest, Object.freeze({ deviceId: p.deviceId, deviceEpoch: p.deviceEpoch, accessGeneration: p.generation }), task.controller.signal)
+        : sourcePort.prepare(sourceRequest,task.controller.signal);
       const sourceFlight: { raw: Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource>; lateRelease?: Promise<void> } = { raw: actual };
       sourceFlights.set(task.resourceId, sourceFlight); unresolvedPreparations.add(actual);
       void actual.then(value => {

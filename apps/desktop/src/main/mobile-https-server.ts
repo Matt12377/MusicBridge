@@ -7,6 +7,7 @@ import {
   MOBILE_JSON_REQUEST_MAX_BYTES, MOBILE_API_RESPONSE_MAX_BYTES, resolveMobileOperation,
   type MobileHeaderPairs,
   type MobileResourceSemanticContext,
+  type MobileContentReadContext,
 } from '@music-bridge/contracts'
 import {
   MOBILE001_OPERATIONS, MobileServiceError,
@@ -16,6 +17,8 @@ import { isMobilePrivateIPv4 } from './mobile-tls-identity.js'
 import { MOBILE002_OPERATIONS, safeMobilePlaybackFailure, type Mobile002Backend, type Mobile002Operation, type Mobile002BackendReply } from './mobile-playback-backend.js'
 import { sendMobileMediaResponse, getMobileMediaReleaseCompletion, type MobileMediaReply } from './mobile-media-response.js'
 import type { Mobile003Backend, Mobile003Operation } from './mobile-backend.js'
+import type { MobileContentBackend, MobileContentBackendReply } from './mobile-content-backend.js'
+import { MOBILE_CONTENT_OPERATIONS, type MobileContentOperation } from '../../../../packages/bridge-core/src/mobile/content-types.js'
 
 /** 新门面自己的有限预算，不改变旧 Control API、Stream Gateway 或任务 Gate。 */
 export const MOBILE_HTTPS_LIMITS = Object.freeze({
@@ -35,6 +38,8 @@ export interface MobileHttpsServerOptions {
   playback?: Mobile002Backend
   /** 003显式安装既有认证能力路由；不开放其他尚未实现的UI操作。 */
   dsd?: Mobile003Backend
+  /** 004由原Main认证及原Core/Owner组合根显式装载。 */
+  content?: MobileContentBackend
   allowedHosts?: readonly string[]
 }
 export interface MobileHttpsListening { baseUrl: string; certificateSha256: string }
@@ -132,7 +137,7 @@ function readBody(request: IncomingMessage, headers: MobileHeaderPairs, signal: 
     if (signal.aborted) failed()
   })
 }
-function captureReply(operation: Mobile001Operation | Mobile002Operation | Mobile003Operation, reply: Mobile001BackendReply & { resourceContext?: MobileResourceSemanticContext }, origin: string, path: string): Mobile001BackendReply {
+function captureReply(operation: Mobile001Operation | Mobile002Operation | Mobile003Operation | MobileContentOperation, reply: Mobile001BackendReply & { resourceContext?: MobileResourceSemanticContext; contentContext?: MobileContentReadContext }, origin: string, path: string): Mobile001BackendReply {
   if (!(reply.body instanceof Uint8Array) || reply.body.buffer instanceof SharedArrayBuffer
     || reply.body.byteLength > MOBILE_API_RESPONSE_MAX_BYTES || !Array.isArray(reply.headers)
     || reply.headers.length > MOBILE_HTTPS_LIMITS.headers || reply.beforeSend !== undefined && typeof reply.beforeSend !== 'function') {
@@ -146,6 +151,7 @@ function captureReply(operation: Mobile001Operation | Mobile002Operation | Mobil
   const body = new Uint8Array(reply.body)
   const checked = decodeMobileResponse(operation, { status: reply.status, headers, body, finalUrl: `${origin}${path}` }, {
     responseOrigin: origin, requestPath: path, ...(reply.resourceContext ? { resource: reply.resourceContext } : {}),
+    ...(reply.contentContext ? { content: reply.contentContext } : {}),
   })
   if (!checked.ok) throw serviceFailure(503, 'BUSY')
   const length = headers.find(([name]) => name.toLowerCase() === 'content-length')
@@ -193,6 +199,10 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
   if (options.dsd) {
     if (!options.playback || typeof options.dsd.dispatch !== 'function') throw new MobileHttpsServerError('INVALID_CONFIGURATION')
     operationSet.add('getUIContentCapabilities')
+  }
+  if (options.content) {
+    if (!options.playback || !options.dsd || typeof options.content.dispatch !== 'function') throw new MobileHttpsServerError('INVALID_CONFIGURATION')
+    for (const operation of MOBILE_CONTENT_OPERATIONS) operationSet.add(operation)
   }
   let certificateSha256: string, server: Server
   try {
@@ -243,7 +253,7 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
         const headers = headerPairs(request), origin = authority(headers, hosts, listeningPort), target = requestTarget(request.url)
         const resolved = resolveMobileOperation(request.method ?? '', target.path.slice(1).split('/'))
         if (!resolved.ok || !operationSet.has(resolved.value)) throw serviceFailure(404, 'INVALID_REQUEST')
-        const operation = resolved.value as Mobile001Operation | Mobile002Operation | Mobile003Operation
+        const operation = resolved.value as Mobile001Operation | Mobile002Operation | Mobile003Operation | MobileContentOperation
         const isMedia = operation === 'getMediaAsset' || operation === 'headMediaAsset'
         const lane = isMedia ? media : controls
         if (lane.size >= MOBILE_HTTPS_LIMITS.concurrentRequests) throw serviceFailure(429, isMedia ? 'RESOURCE_BUSY' : 'BUSY')
@@ -261,11 +271,14 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
         }
         if (!decoded.ok) throw serviceFailure(decoded.issue.code === 'LIMIT_EXCEEDED' ? 413 : 400,
           decoded.issue.code === 'LIMIT_EXCEEDED' ? 'CONTENT_LIMIT_EXCEEDED' : 'INVALID_REQUEST')
-        let raw: Mobile001BackendReply | Mobile002BackendReply
+        let raw: Mobile001BackendReply | Mobile002BackendReply | MobileContentBackendReply
         if ((MOBILE001_OPERATIONS as readonly string[]).includes(operation)) raw = await withAbort(dispatch({ operation: operation as Mobile001Operation,
           request: decoded.value, accessToken: bearer, signal: controller.signal }), controller.signal)
         else if (operation === 'getUIContentCapabilities') raw = await withAbort(options.dsd!.dispatch({ operation,
           request: decoded.value, accessToken: bearer, signal: controller.signal, origin }), controller.signal)
+        else if ((MOBILE_CONTENT_OPERATIONS as readonly string[]).includes(operation)) raw = await withAbort(options.content!.dispatch({
+          operation: operation as MobileContentOperation, request: decoded.value, accessToken: bearer,
+          signal: controller.signal, origin }), controller.signal)
         else {
           const pending = options.playback!.dispatch({ operation: operation as Mobile002Operation, request: decoded.value,
             accessToken: bearer, signal: controller.signal, origin, headers })

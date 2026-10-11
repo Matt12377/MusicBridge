@@ -1,0 +1,23 @@
+{
+  "task": "MBM-004",
+  "state": "SOURCE_LOCAL_SOFTWARE_VALIDATED_GATE_CI_PENDING",
+  "branch": "codex/mbm-004-content-multidevice",
+  "baseSha": "479e746bb7106a4dac158fe616290220de03a53a",
+  "scope": "docs/postrust/MBM-004/EXECUTION_SCOPE.json",
+  "ownerRepeatedApprovalRequired": false,
+  "remotePushPolicy": "MILESTONE_ONLY",
+  "software": "PASSED",
+  "productionApp": "NOT_RUN",
+  "realServiceDeviceAudio": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "implementationCommit": null,
+  "reportCommit": null,
+  "report": null,
+  "ci": "NOT_RUN",
+  "push": "NOT_RUN",
+  "nextTask": "MBRS-016",
+  "canonicalVersion": "1.7.0",
+  "canonicalOperations": 40,
+  "contentOperations": 19,
+  "evidence": "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json"
+}

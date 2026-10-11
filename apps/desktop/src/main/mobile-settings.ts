@@ -9,6 +9,7 @@ import { createMobileHttpsServer } from './mobile-https-server.js';
 import { isMobilePrivateIPv4, loadOrCreateMobileIdentity, type MobileSecretProtector } from './mobile-tls-identity.js';
 import { MobileServiceError, type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult } from '../../../../packages/bridge-core/src/mobile/types.js';
 import type { MobileConnectionSettings } from '../shared/mobile-settings.js';
+import type { MobileContentCoreRequest, MobileContentCoreResponse } from '../../../../packages/bridge-core/src/mobile/content-rpc.js';
 
 const defaultPort = 45391;
 type Preference = { schemaVersion: 1; enabled: boolean; host: string; port: number };
@@ -31,6 +32,7 @@ export function createMobileConnectionSettings(options: {
   directory: string; protector: MobileSecretProtector;
   currentDataset(): Promise<string>;
   requestOwner(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult>;
+  requestContentRpc?(request: MobileContentCoreRequest, signal: AbortSignal): Promise<MobileContentCoreResponse>;
   isCoreReady(): boolean;
   resizeArtwork(bytes: Uint8Array, size: 96 | 256 | 512): Uint8Array;
   environment: 'development' | 'production';
@@ -58,10 +60,12 @@ export function createMobileConnectionSettings(options: {
     let starting = true;
     const service = createMobileBackend({ serverId: identity.serverId, datasetId, authKey: identity.authKey, displayName: 'Music Bridge', environment: options.environment,
       requestOwner: options.requestOwner, resizeArtwork: options.resizeArtwork, enablePlayback: true, enableDsd: true,
+      ...(options.requestContentRpc ? { enableContent: true, requestContentRpc: options.requestContentRpc } : {}),
       assertCurrent: () => { if (closing || epoch !== generation || !options.isCoreReady() || !starting && active?.epoch !== generation) throw new MobileServiceError(503, 'BUSY'); } });
     const server = createMobileHttpsServer({ tls: { key: identity.privateKeyPEM, cert: identity.certificatePEM }, host: pref.host, port: pref.port,
       backend: service.backend, ...(service.playbackBackend ? { playback: service.playbackBackend } : {}),
-      ...(service.dsdBackend ? { dsd: service.dsdBackend } : {}) });
+      ...(service.dsdBackend ? { dsd: service.dsdBackend } : {}),
+      ...(service.contentBackend ? { content: service.contentBackend } : {}) });
     try {
       const listening = await server.start();
       if (generation !== epoch || closing || !options.isCoreReady()) return busy();

@@ -95,7 +95,7 @@ onUnmounted(() => { focusGeneration++; model.suspend() })
 <template>
   <section class="view local-library-view" aria-labelledby="local-library-heading" data-testid="local-library-view">
     <header class="local-library-heading"><div><p class="section-kicker">本地数字音乐</p><h1 id="local-library-heading">本地音乐</h1><p>浏览已加入的文件与版本，原文件直送所选 Roon 播放目标。</p></div><button type="button" @click="emit('open-queue')">打开原播放队列</button></header>
-    <div class="local-target" aria-live="polite"><strong>播放目标：{{ model.targetLabel }}</strong><span v-if="model.target">Roon Core {{ model.target.core_id }} · Zone {{ model.target.zone_id }}</span><span>当前观察：{{ playbackStatus.state }} · {{ playbackStatus.delivery }}</span><span>{{ playbackStatus.request }}</span><p v-if="queueOwnership">{{ queueOwnership }}</p></div>
+    <div class="local-target" aria-live="polite"><strong>播放目标：{{ model.targetLabel }}</strong><span v-if="model.target">Roon Core {{ model.target.core_id }} · Zone {{ model.target.zone_id }}</span><span>当前观察：{{ playbackStatus.state }} · {{ playbackStatus.delivery }}</span><span>{{ playbackStatus.request }}</span><button v-if="model.canReadOriginalPlay" type="button" :disabled="model.actionBusy" @click="model.readOriginalPlay()">核对原点播</button><p v-if="queueOwnership">{{ queueOwnership }}</p></div>
     <details class="local-library-management"><summary>目录与扫描管理</summary><LocalLibrarySettings :management-only="true" @updated="model.refresh()" /></details>
     <form class="local-library-search" role="search" aria-label="搜索本地音乐" @submit.prevent="search">
       <label for="local-library-query">搜索曲目、艺术家、专辑与已有版本</label>

@@ -13,6 +13,13 @@ export interface LocalPlaybackIntent extends LocalPlayRequest {
 }
 export interface LocalSourceUnsupported { status: 'unsupported'; reason: 'TARGET_AUTHORITY_UNAVAILABLE' | 'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED' | 'LOCAL_SEGMENT_UNSUPPORTED' }
 export interface LocalPlayAccepted { status: 'accepted'; request_id: string; action: LocalPlayAction }
+export const LOCAL_PLAY_REJECTIONS = ['REQUEST_REJECTED','TARGET_UNAVAILABLE','SOURCE_UNAVAILABLE','MEDIA_ERROR','ROON_TIMEOUT','INTERNAL_ERROR'] as const;
+export type LocalPlayRejection = typeof LOCAL_PLAY_REJECTIONS[number];
+/** 只查原提交的已保存回执；missing 不授权再次派发。 */
+export type LocalPlayReceipt =
+  | { status: 'pending' | 'missing'; request_id: string; action: LocalPlayAction }
+  | { status: 'received'; request_id: string; action: LocalPlayAction; result: LocalPlayAccepted | LocalSourceUnsupported }
+  | { status: 'rejected'; request_id: string; action: LocalPlayAction; reason: LocalPlayRejection };
 export interface LocalQueueIdentity { local_track_id: string; asset_id: string; asset_revision: string; selection_revision: string; location_revision: string; root_revision: string }
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v) && [Object.prototype,null].includes(Object.getPrototypeOf(v));
 const keys = (v: Record<string, unknown>, required: readonly string[]): boolean => required.every(k => Object.hasOwn(v, k)) && Reflect.ownKeys(v).length === required.length && Reflect.ownKeys(v).every(k => typeof k === 'string' && required.includes(k) && Object.getOwnPropertyDescriptor(v,k)?.enumerable === true && Object.hasOwn(Object.getOwnPropertyDescriptor(v,k)!, 'value'));
@@ -38,4 +45,11 @@ export function isLocalPlaybackIntent(v: unknown): v is LocalPlaybackIntent {
 export const isLocalSourceUnsupported = (v: unknown): v is LocalSourceUnsupported => record(v) && keys(v, ['status','reason']) && v.status === 'unsupported' && (v.reason === 'TARGET_AUTHORITY_UNAVAILABLE' || v.reason === 'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED' || v.reason === 'LOCAL_SEGMENT_UNSUPPORTED');
 
 export const isLocalPlayAccepted = (v: unknown): v is LocalPlayAccepted => record(v) && keys(v,['status','request_id','action']) && v.status === 'accepted' && text(v.request_id) && (LOCAL_PLAY_ACTIONS as readonly unknown[]).includes(v.action);
+export function isLocalPlayReceipt(v: unknown): v is LocalPlayReceipt {
+  if (!record(v) || !text(v.request_id) || !(LOCAL_PLAY_ACTIONS as readonly unknown[]).includes(v.action)) return false;
+  if (v.status === 'pending' || v.status === 'missing') return keys(v,['status','request_id','action']);
+  if (v.status === 'rejected') return keys(v,['status','request_id','action','reason']) && (LOCAL_PLAY_REJECTIONS as readonly unknown[]).includes(v.reason);
+  return v.status === 'received' && keys(v,['status','request_id','action','result'])
+    && (isLocalSourceUnsupported(v.result) || isLocalPlayAccepted(v.result) && v.result.request_id === v.request_id && v.result.action === v.action);
+}
 export const isLocalQueueIdentity = (v: unknown): v is LocalQueueIdentity => record(v) && keys(v,['local_track_id','asset_id','asset_revision','selection_revision','location_revision','root_revision']) && text(v.local_track_id) && text(v.asset_id) && ['asset_revision','selection_revision','location_revision','root_revision'].every(k=>isLocalPlayDecimal(v[k]));

@@ -185,6 +185,11 @@ export function decodeMobileResponse<O extends MobileOperationId>(operation:O,in
     if (!entry.responseSchema || !schemas[entry.responseSchema]) return mobileFailure('INVALID_RESPONSE','schema');
     const contentKind = (Object.keys(MOBILE_CONTENT_RESPONSE_NAMES) as (keyof Content.MobileContentResponseMap)[]).find(key => MOBILE_CONTENT_RESPONSE_NAMES[key] === entry.responseSchema);
     const result = contentKind ? mobileContentResponseSnapshot(contentKind,parsed.value,limits) : mobileSchemaSnapshot(schemas[entry.responseSchema]!,parsed.value,schemas,limits); if (!result.ok) return result; body = result.value;
+    if (operation === 'listNeteaseRecommendedPlaylists' || operation === 'listNeteaseCharts') {
+      const expectedKind = operation === 'listNeteaseCharts' ? 'chart' : 'playlist';
+      if (!mobileRecord(body) || !Array.isArray(body.items) || body.items.some(item => !mobileRecord(item) || item.kind !== expectedKind))
+        return mobileFailure('CONTEXT_MISMATCH', 'kind');
+    }
     if (contentKind && context.content) { const identity = validateMobileContentIdentity(contentKind,result.value as Content.MobileContentResponseMap[typeof contentKind],context.content); if (!identity.ok) return identity; body = identity.value; }
     if (entry.responseSchema === 'Session' && context.session) { const session = body as MobileSession; if (session.deviceId !== context.session.deviceId || operation === 'getSession' && session.id !== context.session.sessionId) return mobileFailure('CONTEXT_MISMATCH','session'); }
     if ((operation === 'listAlbums' || operation === 'listTracks') && context.catalog) { const page = validateMobileCatalogPage(body as MobileAlbumPage | MobileTrackPage,context.catalog); if (!page.ok) return page; body = page.value; }

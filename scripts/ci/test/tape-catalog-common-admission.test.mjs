@@ -27,7 +27,8 @@ const statusPath = 'docs/tape-catalog-common/STATUS.json';
 const sourceHead = 'a'.repeat(40), reportHead = 'b'.repeat(40);
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const blob = bytes => createHash('sha1').update(Buffer.from(`blob ${bytes.length}\0`)).update(bytes).digest('hex');
-const whole = name => readFileSync(path.join(repository, name));
+// 前序正负例读取封存的真实479 Git全文；本轮004共享接线不替换前序作者的原pins。
+const whole = name => git(['show', `479e746bb7106a4dac158fe616290220de03a53a:${name}`]);
 const git = args => execFileSync('git', ['--no-replace-objects', '-c', 'core.fsmonitor=false', ...args], {
   cwd: repository, maxBuffer: 16 * 1024 * 1024, timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'],
 });

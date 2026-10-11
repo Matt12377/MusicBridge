@@ -14,6 +14,8 @@ export const PLAYBACK_STATE_SCHEMA = 'musicbridge.mobile002.playback-state.v1';
 export interface PlaybackSourceFacts {
   sourceAudio: MobileAudioInfo; actualAudio: MobileAudioInfo; processing: MobileProcessing;
   contentType: string; size: number; durationMs: number; seekable: boolean;
+  catalogSource?: 'local' | 'netease';
+  providerBinding?: Readonly<{ accountDomain: string; providerEpoch: string; ownerEpoch: string }>;
 }
 export interface PlaybackPreparingFacts {
   sourceAudio: MobileAudioInfo; processing: MobileProcessing; durationMs: number; seekable: boolean;
@@ -94,10 +96,14 @@ export function capturePreparingFacts(raw:unknown):PlaybackPreparingFacts{
   return {sourceAudio:captureAudio(raw.sourceAudio),processing:{mode:'dsd_to_pcm',reason:MOBILE_DSD_PCM_PROCESSING_REASON,fromPreparedCache:false},durationMs:raw.durationMs,seekable:true};
 }
 export function capturePlaybackSource(raw: unknown): MobilePlaybackPreparedSource {
-  if (!playbackClosed(raw, ['handle', 'sourceAudio', 'actualAudio', 'processing', 'contentType', 'size', 'durationMs', 'seekable'])
+  if (!playbackClosed(raw, ['handle', 'sourceAudio', 'actualAudio', 'processing', 'contentType', 'size', 'durationMs', 'seekable',
+    ...(playbackRecord(raw) && Object.hasOwn(raw, 'catalogSource') ? ['catalogSource'] : []),
+    ...(playbackRecord(raw) && Object.hasOwn(raw, 'providerBinding') ? ['providerBinding'] : [])])
     || !isMobileId(raw.handle)) return playbackFailure(409, 'SOURCE_CHANGED');
   const source = captureSourceFacts({ sourceAudio: raw.sourceAudio, actualAudio: raw.actualAudio, processing: raw.processing,
-    contentType: raw.contentType, size: raw.size, durationMs: raw.durationMs, seekable: raw.seekable });
+    contentType: raw.contentType, size: raw.size, durationMs: raw.durationMs, seekable: raw.seekable,
+    ...(Object.hasOwn(raw, 'catalogSource') ? { catalogSource: raw.catalogSource } : {}),
+    ...(Object.hasOwn(raw, 'providerBinding') ? { providerBinding: raw.providerBinding } : {}) });
   return { handle: raw.handle, ...source };
 }
 function captureAudio(raw: unknown): MobileAudioInfo {
@@ -107,7 +113,9 @@ function captureAudio(raw: unknown): MobileAudioInfo {
   if (!captured.ok) return playbackFailure(503, 'BUSY'); return playbackCopy(captured.value);
 }
 export function captureSourceFacts(raw: unknown): PlaybackSourceFacts {
-  if (!playbackClosed(raw, ['sourceAudio', 'actualAudio', 'processing', 'contentType', 'size', 'durationMs', 'seekable'])
+  if (!playbackClosed(raw, ['sourceAudio', 'actualAudio', 'processing', 'contentType', 'size', 'durationMs', 'seekable',
+    ...(playbackRecord(raw) && Object.hasOwn(raw, 'catalogSource') ? ['catalogSource'] : []),
+    ...(playbackRecord(raw) && Object.hasOwn(raw, 'providerBinding') ? ['providerBinding'] : [])])
     || !playbackInteger(raw.size, 1, 64 * 1024 * 1024 * 1024) || !playbackInteger(raw.durationMs)
     || typeof raw.seekable !== 'boolean' || typeof raw.contentType !== 'string'
     || !['audio/wav', 'audio/x-wav', 'audio/mpeg', 'audio/mp4', 'audio/x-m4a', 'audio/aiff', 'audio/x-aiff', 'audio/flac', 'audio/x-flac', 'application/octet-stream'].includes(raw.contentType)
@@ -115,12 +123,20 @@ export function captureSourceFacts(raw: unknown): PlaybackSourceFacts {
   const sourceAudio = captureAudio(raw.sourceAudio), actualAudio = captureAudio(raw.actualAudio);
   const processing = mobileCommonResponseSnapshot('processing', raw.processing);
   if (!processing.ok) return playbackFailure(503, 'BUSY');
+  if (raw.catalogSource !== undefined && !['local', 'netease'].includes(String(raw.catalogSource))) return playbackFailure(409, 'SOURCE_CHANGED');
+  if (raw.catalogSource === 'netease') {
+    if (!playbackClosed(raw.providerBinding, ['accountDomain', 'providerEpoch', 'ownerEpoch'])
+      || ![raw.providerBinding.accountDomain, raw.providerBinding.providerEpoch, raw.providerBinding.ownerEpoch].every(isMobileId)
+      || processing.value.mode !== 'direct') return playbackFailure(409, 'SOURCE_CHANGED');
+  } else if (Object.hasOwn(raw, 'providerBinding')) return playbackFailure(409, 'SOURCE_CHANGED');
   if (processing.value.mode === 'dsd_to_pcm' && (!isMobileDsdSourceAudio(sourceAudio)
     || processing.value.reason !== MOBILE_DSD_PCM_PROCESSING_REASON || raw.contentType !== 'audio/flac'
     || raw.seekable !== true || raw.size > 2 * 1024 ** 3 || actualAudio.codec !== 'flac' || actualAudio.container !== 'flac'
     || actualAudio.sampleRateHz !== 48_000 || actualAudio.bitsPerSample !== 24 || actualAudio.channels !== sourceAudio.channels)) return playbackFailure(409, 'SOURCE_CHANGED');
   return { sourceAudio, actualAudio, processing: playbackCopy(processing.value), contentType: raw.contentType,
-    size: raw.size, durationMs: raw.durationMs, seekable: raw.seekable };
+    size: raw.size, durationMs: raw.durationMs, seekable: raw.seekable,
+    ...(raw.catalogSource === undefined ? {} : { catalogSource: raw.catalogSource as 'local' | 'netease' }),
+    ...(raw.catalogSource === 'netease' ? { providerBinding: playbackCopy(raw.providerBinding as { accountDomain: string; providerEpoch: string; ownerEpoch: string }) } : {}) };
 }
 export function playbackResourceContext(serverId: string, origin: string, session: StoredPlaybackSession,
   resource: StoredPlaybackResource, at: number): MobileResourceSemanticContext {
@@ -128,7 +144,8 @@ export function playbackResourceContext(serverId: string, origin: string, sessio
   return { scope: { serverId, deviceId: session.deviceId, sessionId: session.id },
     capabilitySnapshotIdentity: `mbm002:${serverId}`, responseOrigin: origin, now: stamp(at),
     resourceFormatBitDepth: true, resourceDsdToPcm:resource.resourceDsdToPcm===true, capabilityVersion: '1.0.0', request: playbackCopy(resource.request),
-    source: 'local', sourceAudio: playbackCopy(resource.source.sourceAudio), expectedResourceId: resource.id, hlsAllowed: false };
+    source: playbackReadyFacts(resource.source) ? resource.source.catalogSource ?? 'local' : 'local',
+    sourceAudio: playbackCopy(resource.source.sourceAudio), expectedResourceId: resource.id, hlsAllowed: false };
 }
 function dense(v: unknown, max: number): v is unknown[] {
   return Array.isArray(v) && Object.getPrototypeOf(v) === Array.prototype && v.length <= max
@@ -268,6 +285,7 @@ export function capturePlaybackState(raw: unknown, serverId: string, datasetId: 
       if (!r.resourceContext || r.resourceContext.scope.serverId !== serverId || r.resourceContext.scope.deviceId !== r.deviceId
         || r.resourceContext.scope.sessionId !== r.sessionId || r.resourceContext.expectedResourceId !== r.resourceId
         || playbackCanonical(r.resourceContext.request) !== playbackCanonical(resource.request)
+        || r.resourceContext.source !== (playbackReadyFacts(resource.source) ? resource.source.catalogSource ?? 'local' : 'local')
         || playbackCanonical(r.resourceContext.sourceAudio) !== playbackCanonical(resource.source.sourceAudio)
         || (r.resourceContext.resourceDsdToPcm===true)!==(resource.resourceDsdToPcm===true)
         || !(r.operation === 'createResource' ? validateMobileCreateResourceReply(r.reply.status, r.reply.body, r.resourceContext)

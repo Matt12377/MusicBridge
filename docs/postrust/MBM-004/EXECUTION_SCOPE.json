@@ -1,0 +1,798 @@
+{
+  "schema": "musicbridge.mbm004.execution-scope.v1",
+  "task": "MBM-004",
+  "branch": "codex/mbm-004-content-multidevice",
+  "baseSha": "479e746bb7106a4dac158fe616290220de03a53a",
+  "frozen": true,
+  "canonicalVersion": "1.7.0",
+  "canonicalOperations": 40,
+  "canonical": {
+    "path": "packages/contracts/mobile/openapi.json",
+    "bytes": 147445,
+    "sha256": "3deaa9e238f24b7062945efacc775b604a60a5652b837b8c46378f0b89eeec21"
+  },
+  "contentOperations": 19,
+  "remotePushPolicy": "MILESTONE_ONLY",
+  "realEvidence": "NOT_RUN",
+  "oldGateReplayRequired": false,
+  "currentSoftwareGateRequired": true,
+  "files": [
+    {
+      "path": ".github/workflows/verify.yml",
+      "status": "M",
+      "bytes": 18593,
+      "sha256": "4a968a7e465f5ab1729359bc198013ca9bf5a8e2e97b3db728bd3a01c7e31715",
+      "role": "gate"
+    },
+    {
+      "path": "apps/desktop/src/main/core-supervisor.ts",
+      "status": "M",
+      "bytes": 51418,
+      "sha256": "a06f81f147d15ba126a355518a7c6d528009614589e97859507efb1df9efd5ab",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/main/index.ts",
+      "status": "M",
+      "bytes": 111480,
+      "sha256": "7cd679be6e3821ae703d049a07be88828a02f6dc9e1bcfe3d777f251a684cb80",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-ipc.ts",
+      "status": "M",
+      "bytes": 4487,
+      "sha256": "934744445b3b5abde19089a24ad596864290eecdec1ec8a0a349fa3067268343",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-backend.ts",
+      "status": "M",
+      "bytes": 16992,
+      "sha256": "6742e9d07e9f2031f570510f1e476c68c1b98bc228cb79c4678a9242ed623a77",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-content-backend.ts",
+      "status": "A",
+      "bytes": 11120,
+      "sha256": "bc0813d203fee79dc188a7aa8548e069359a1d1d0edb2c42007cc794effe625d",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-content-port.ts",
+      "status": "A",
+      "bytes": 14047,
+      "sha256": "10aee6c0faa3338573e314a1af11eb712dc77dfc9fe749c37539267c67eeb75c",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-https-server.ts",
+      "status": "M",
+      "bytes": 22888,
+      "sha256": "6d3a13219682ef83bb5cda730f51b179f918606da1b0292bfcf2a549e9b462c2",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-playback-backend.ts",
+      "status": "M",
+      "bytes": 21593,
+      "sha256": "21c6285fd6dbe00126abde00bfe5e33fc6d8467998b211b06bed64662e1e7a3b",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/main/mobile-settings.ts",
+      "status": "M",
+      "bytes": 13295,
+      "sha256": "70b5156250f07cb4ccad896254d8e8a8a54c258b1b0beca48f7609d642eee4de",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/preload/local-library-client.ts",
+      "status": "M",
+      "bytes": 3805,
+      "sha256": "f57126d86cfc125ef27aee6799c7c9ab4a8555c4a16d1096b88c566df8954cd9",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/App.vue",
+      "status": "M",
+      "bytes": 72331,
+      "sha256": "689d6eb509736f5dc198435f2f81a5c99223433443955067c6f4b029b69d8339",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+      "status": "M",
+      "bytes": 26397,
+      "sha256": "69f968e4a2b2526d2e34ab1460a67607d6eb6ce788b3c434346b18fd00dfde99",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/player/details.ts",
+      "status": "M",
+      "bytes": 10129,
+      "sha256": "7a7f8b4907356c8785b3e9b01eb2cb0eff929664d7fdd760ca6d21218813e712",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+      "status": "M",
+      "bytes": 38769,
+      "sha256": "db7df12f10c6d2fd6b52a9b4b0e32524fbfe16d36a0b896c6da37653e9109114",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "status": "M",
+      "bytes": 51479,
+      "sha256": "415c3c28d5cedfecd48880d573e75e5f85e8801fe5973c1ed2aac738b556d668",
+      "role": "product"
+    },
+    {
+      "path": "apps/desktop/test/local-playback-main-timeout.test.ts",
+      "status": "A",
+      "bytes": 5068,
+      "sha256": "09117f77732b64f07b5c1ecb8a08997ce62aaafdbeeb349dfb9e21c7bfd20f14",
+      "role": "test"
+    },
+    {
+      "path": "apps/desktop/test/local-playback-recovery.test.ts",
+      "status": "A",
+      "bytes": 59035,
+      "sha256": "a54009bc9a885afba579f97d412b1b9b4593d046f5c22ad148db83f75acf5880",
+      "role": "test"
+    },
+    {
+      "path": "apps/desktop/test/mobile-content-backend.test.ts",
+      "status": "A",
+      "bytes": 21617,
+      "sha256": "0decc13c0a1ceaeadbf5ef82b14420f7553cb3b17c93752b3183626ffd820602",
+      "role": "test"
+    },
+    {
+      "path": "apps/desktop/test/mobile-content-https.test.ts",
+      "status": "A",
+      "bytes": 7509,
+      "sha256": "d3e362f2fb2801ce5bc10f92151859b03a7aae963a1f2af9c29cf7772f9ce2b4",
+      "role": "test"
+    },
+    {
+      "path": "apps/desktop/test/mobile-content-rpc-main.test.ts",
+      "status": "A",
+      "bytes": 29775,
+      "sha256": "c3c2826bc9377d6b35dd7a8e7f5146c262699a83ce93ca1e1599e3d89b819886",
+      "role": "test"
+    },
+    {
+      "path": "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json",
+      "status": "A",
+      "bytes": 368021,
+      "sha256": "abcf6535f8aa17ec4d1a216e41934703e92224a5bb210fc81af83d9eba1a6a50",
+      "role": "authority"
+    },
+    {
+      "path": "docs/postrust/MBM-004/STATUS.json",
+      "status": "A",
+      "bytes": 751,
+      "sha256": "aaf4d63464887ffe6c3fb05a39cee2dda3b6249d5f089e704534ccc394f4a9cf",
+      "role": "authority"
+    },
+    {
+      "path": "packages/bridge-core/src/application/bridge-controller.ts",
+      "status": "M",
+      "bytes": 150785,
+      "sha256": "8e1e3f8cc8f5774ee9c09b08691e794fb86c33a2b0bf44a8539aae85e059b6f8",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-domain.ts",
+      "status": "M",
+      "bytes": 30949,
+      "sha256": "4542f5669f766419e029c3111b2b848ebdf737675cdffb60ffd91fb5b41d969a",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-coordinator.ts",
+      "status": "M",
+      "bytes": 36729,
+      "sha256": "9ec5da721ddd6ad8ff46717dab5046997f8be5ee710aecfcdcbea8c3c936a3d3",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-types.ts",
+      "status": "M",
+      "bytes": 4680,
+      "sha256": "73cba2633c2a0e2279e479cfd9fa55574128858405f71d835cc3c3314f967ae4",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-worker.ts",
+      "status": "M",
+      "bytes": 25164,
+      "sha256": "69dbe124e98d84b6b542d0e43bf459a6d122d4c1e074e2f2b7e8745543fd66e5",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader.ts",
+      "status": "M",
+      "bytes": 14112,
+      "sha256": "9e3588d6dedc2c65a4e81b8eb5967d790be13b26702d4e65ae874f684ae80f0c",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-cursor.ts",
+      "status": "A",
+      "bytes": 6376,
+      "sha256": "06f8d4107c6dfa198c78db6402d6e2043a1ad5cca1968af239bbe0a1717efc27",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-errors.ts",
+      "status": "A",
+      "bytes": 497,
+      "sha256": "ad881bdb066811487e915268fa1f3a546b339fdf86a1296e54943dcbd80ea9ca",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-local-lyrics.ts",
+      "status": "A",
+      "bytes": 12132,
+      "sha256": "be4606760ec44cfe299a941b0b87e0b2ae497c686a56eba5bb0520a72a280c05",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-lyrics.ts",
+      "status": "A",
+      "bytes": 2531,
+      "sha256": "45f1b4b9c2f01b71107533fc14874fa5596c2dd017448a343d1bcb457cafe0fd",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-owner-service.ts",
+      "status": "A",
+      "bytes": 41424,
+      "sha256": "c6ab4eb18f4ff60e49e669b7d4cf896589077722141636d3f9dd87c5e511d745",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-owner-store.ts",
+      "status": "A",
+      "bytes": 18380,
+      "sha256": "b49cb5237258ddeac3cb1e72e5ebf4a51dcaabb062aec911b75db0dbe0fa3299",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-protocol.ts",
+      "status": "A",
+      "bytes": 13484,
+      "sha256": "62ada43394ca3a0f1d668ba6adf0854ef645615055899a9633a5e81f9782b74a",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-provider-service.ts",
+      "status": "A",
+      "bytes": 9862,
+      "sha256": "3790a8c0b4a11a33346b095af3e5cb3a0d95923f6246c2eb9b6d7cb93524507d",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-rpc-port.ts",
+      "status": "A",
+      "bytes": 18096,
+      "sha256": "75b743d3cfb93cba55ae7ac42501212534067fb2b90e3ce08003ba5fcd10b509",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-rpc.ts",
+      "status": "A",
+      "bytes": 15178,
+      "sha256": "5d14eb222a605e014cfe349e31f04ee0e348fb60f50db5614c05efe4895574c8",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-runtime.ts",
+      "status": "A",
+      "bytes": 30984,
+      "sha256": "2f158e656b01c39975ac1ffb28a4eb91c7f36e1cce6a2470d7085c42b7f29eef",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-service.ts",
+      "status": "A",
+      "bytes": 10318,
+      "sha256": "3751a20d6c308040e43ba0dba77f9f0b16d3ee0c168655e28faa044412580e64",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-state.ts",
+      "status": "A",
+      "bytes": 25175,
+      "sha256": "f7ee958a361369ee2fddb0ffd148b974400b674ef020e58872fb3354c1c6ecf2",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/content-types.ts",
+      "status": "A",
+      "bytes": 4936,
+      "sha256": "f194569ca88027c4744f609ee07a457de1d59dfc959139bec0091f6a8d0108c0",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/netease-audio-facts.ts",
+      "status": "A",
+      "bytes": 4930,
+      "sha256": "333c45b33622056e8837a2f69aaf6fa54319c6069ae69f413dcbc44a3d6450a1",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/netease-catalog-service.ts",
+      "status": "A",
+      "bytes": 5561,
+      "sha256": "051cdd153a531bc636be785ea00a437ca377d0e84dbf114b02c611aa445252c1",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/netease-source-service.ts",
+      "status": "A",
+      "bytes": 22027,
+      "sha256": "722b5ac137e8251a24544366b55a577d99068329099d85c34a6cdb7fbd484b46",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/netease-source-types.ts",
+      "status": "A",
+      "bytes": 5261,
+      "sha256": "e850e99776b4d71dcc7e9bfcf78da896748f18df7db78ead1ee7e36023a47bdc",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/owner-content-protocol.ts",
+      "status": "A",
+      "bytes": 19838,
+      "sha256": "79e4a7f476a65a984a4c29039681f19ef21da147eec0bccc93f08d23ed2636e0",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/owner-protocol.ts",
+      "status": "M",
+      "bytes": 8163,
+      "sha256": "11f894b0fcc663ed2013ecb65991bd5c78353cb02f8d8e614f80a1a54703d654",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/playback-service.ts",
+      "status": "M",
+      "bytes": 59518,
+      "sha256": "113baaff6159d694819c58780987f525f3a5ddbdfe98aaa54be2ef880e13fef2",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/playback-state.ts",
+      "status": "M",
+      "bytes": 27928,
+      "sha256": "f6f61c3c590206c3106d7b34fc8f42802c2c2fc8c50a88a074cc19c88be6c115",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/source-types.ts",
+      "status": "M",
+      "bytes": 2997,
+      "sha256": "efa741a104784d1ddde6abd84317a8de222cdeb60fc27446a945ed02d1ab8e1a",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/mobile/types.ts",
+      "status": "M",
+      "bytes": 6400,
+      "sha256": "fd0a40c7500a86be83f55dcaea09d1945fc33c92926328586cb257274ce5034b",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/client.ts",
+      "status": "M",
+      "bytes": 46487,
+      "sha256": "96b23aa548bf7f7b7ba3f0ad7bbd6620f3aeddf9b05769b4072977126b99936b",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/mobile-actual-ports.ts",
+      "status": "A",
+      "bytes": 43102,
+      "sha256": "54dd1d3c94e97ce0d822dd4b35cb337a08105c9faf38ec47f1076eed56b8cc69",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/mobile-http-stream.ts",
+      "status": "A",
+      "bytes": 20590,
+      "sha256": "ab8a8e49cab507f40dbd8d926049acbc4f15e174bcd871aca680689e6736a07a",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/mobile-source-snapshot.ts",
+      "status": "A",
+      "bytes": 5110,
+      "sha256": "84bb81eda3dededd2c075ba5bee13cfc2e2aa47cb5893b623b2708b53d9d2844",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/netease/types.ts",
+      "status": "M",
+      "bytes": 4424,
+      "sha256": "7ca5e1479fd83d13861fcb491ea64dffa3831e355c31d4e1043abffd742be074",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/adapter.ts",
+      "status": "M",
+      "bytes": 71080,
+      "sha256": "788119f7f182a9a0fb9b5299cf146b189638f1569f1c08592fd44dd07ad39965",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/roon/types.ts",
+      "status": "M",
+      "bytes": 4350,
+      "sha256": "063943bd8512d2de1cf8276dc6dbc56f568bdc657ae62ce65ccb1e929d139ee3",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/runtime.ts",
+      "status": "M",
+      "bytes": 102308,
+      "sha256": "9c79a61aed57cc06f9402d318c285f1774118949ddee506318c8d3cbec1b3be8",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/gateway.ts",
+      "status": "M",
+      "bytes": 25286,
+      "sha256": "85c443c0fa015dce41eaf897b403aa96628f0c1460f48854dac365a6ff8fad47",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/stream/local-file-http.ts",
+      "status": "M",
+      "bytes": 4187,
+      "sha256": "b925c0e6d339f33a80ff3d3c406261445860a2f0e3b09fc83f6746c62951bf1d",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/utility-main.ts",
+      "status": "M",
+      "bytes": 53182,
+      "sha256": "5fbed878e812f32f351a561d6c15f4590cd1436f35eb175e23337d52c442c6b2",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
+      "status": "M",
+      "bytes": 39307,
+      "sha256": "f37f380973349221960b03720085771aa82c2f5457e61b9c05cb1be0ced2f0e7",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/local-library-wave-extensible.test.ts",
+      "status": "A",
+      "bytes": 17269,
+      "sha256": "98f8d361cf4efb3f5c18bc8713670d12044453a494db0cfdcfe8368bc6f164e0",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/content-cursor.test.ts",
+      "status": "A",
+      "bytes": 6699,
+      "sha256": "ae7585a76581fad1a71f43951ec8602b76781111790205b0e04b9c02068bd775",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/content-local-lyrics.test.ts",
+      "status": "A",
+      "bytes": 12562,
+      "sha256": "2bc8e726e59be457b815be643ac32e7401cc1fc931d6803da3d177cba1afce26",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/content-lyrics.test.ts",
+      "status": "A",
+      "bytes": 9709,
+      "sha256": "19904a4b81b3cd993629f036ea0973d074d4e3b17be997a44795fc5fdd4e2b94",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/content-owner-fixture.ts",
+      "status": "A",
+      "bytes": 10344,
+      "sha256": "44bb10180b88f5c0504440819fa72aa684938bb955e14f7fe7c02c4ba211f5c0",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/content-owner-service.integration.test.ts",
+      "status": "A",
+      "bytes": 25740,
+      "sha256": "2ff58ee9b019e2ff9b915cd54eb559adced4f6150e55b041da1c3636a579e29d",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/content-owner-store.test.ts",
+      "status": "A",
+      "bytes": 10757,
+      "sha256": "3a8a3212dc464e129c0be3ea5246d42715e84e8c42fc9c29d6fc54f0ed3c96e7",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/content-protocol.test.ts",
+      "status": "A",
+      "bytes": 9097,
+      "sha256": "a62e3c55a9f65b53b645ee263312ad1b940da825a8da32986a8d226daa76c004",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/content-provider-service.test.ts",
+      "status": "A",
+      "bytes": 7057,
+      "sha256": "170cbd9221719135b88ccd2f3225210e8cbb7a00b5944863ece9f6e3dd0208a3",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/content-rpc-port.test.ts",
+      "status": "A",
+      "bytes": 16779,
+      "sha256": "f67496c19a50c02fafe0cd9d995c4a9c9b80bbed3de48aec41cd0f5bc6e2a7ac",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/content-runtime.test.ts",
+      "status": "A",
+      "bytes": 18656,
+      "sha256": "725d181f4a01652ef0ce72fef094c99679d779997395cbe6d829a52ea3571d52",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/content-service.test.ts",
+      "status": "A",
+      "bytes": 18967,
+      "sha256": "2de7a7b465a764dcd78adb2bf29495bbcb14411445b8b208273561b206076a1d",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/content-state.test.ts",
+      "status": "A",
+      "bytes": 14651,
+      "sha256": "6384573e19878056284e567c1385df82453ecddf39d242a961bceb00082bcb24",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/local-submission-recovery.test.ts",
+      "status": "A",
+      "bytes": 29735,
+      "sha256": "bbe2ee8a4c2290ae8306426494e5e5d79e0774fc292fea9d34b1c1a7c1ce0abe",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/netease-actual-ports.test.ts",
+      "status": "A",
+      "bytes": 24609,
+      "sha256": "b1e39d530e8250b9c2aa47d0a42834716d3326ba1ac499e027db51c5c092f0d5",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/netease-audio-facts.test.ts",
+      "status": "A",
+      "bytes": 3304,
+      "sha256": "ea5222e2d6bf8cd7c1ecbd1a283cb5a411f9db3f41ddc43b02c9daa95a6bfbd0",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/netease-catalog-service.test.ts",
+      "status": "A",
+      "bytes": 8813,
+      "sha256": "92bb9c9e964a2e9fd3b17d593e56819a12126cbf95ce839fefd26c8f8d39d330",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/netease-http-stream.test.ts",
+      "status": "A",
+      "bytes": 11090,
+      "sha256": "4c7abbb8c1ebac708ce3c6593768f15c26960ca8db809444a302ba9c72b080b8",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbm004/netease-source-service.test.ts",
+      "status": "A",
+      "bytes": 14559,
+      "sha256": "bd8e09c528f5e32dac4a4b1063fe8e6d102bc585b2dd23ee15c6bed178242f46",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs003/persistent-scan-owner.test.ts",
+      "status": "M",
+      "bytes": 26566,
+      "sha256": "c4d4aba1f47b3d06f2b1fbc1d1d26aa7ba45f234b4da666c792fc78f824c30ca",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts",
+      "status": "M",
+      "bytes": 9010,
+      "sha256": "457292294c2a028315f768cd3aa85103f759632e67e70255fe9888db0b6c3445",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs005/config-integration.test.ts",
+      "status": "M",
+      "bytes": 8337,
+      "sha256": "85862bbe07da5b1ed57eaabd8947bb209e72a32d13782fbec13a097dcbc4f549",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/owner-worker.ts",
+      "status": "M",
+      "bytes": 722,
+      "sha256": "a394b57aae6aa7733bcef308b4fd8849cdb5206789885c462a681def12227c8b",
+      "role": "test"
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs007/queue-worker.ts",
+      "status": "M",
+      "bytes": 731,
+      "sha256": "22dee7e5edcc438c9564e8420dcf954715f2406db9b682a14850bc66723121ea",
+      "role": "test"
+    },
+    {
+      "path": "packages/contracts/src/diagnostics.ts",
+      "status": "M",
+      "bytes": 7763,
+      "sha256": "c2ff1acba29aac9d72588bd4d81cf9f396bc95df44c3d8f060e7e2bd6dda950c",
+      "role": "product"
+    },
+    {
+      "path": "packages/contracts/src/ipc-names.ts",
+      "status": "M",
+      "bytes": 9535,
+      "sha256": "e67f6f36886a5164efb6e9682429b22c8fb9988be126902d500ef7356bca261f",
+      "role": "product"
+    },
+    {
+      "path": "packages/contracts/src/ipc.ts",
+      "status": "M",
+      "bytes": 47055,
+      "sha256": "0b32da0a19968da807a62ba3f49f1f146345eea81a6975a042cae2c883abb911",
+      "role": "product"
+    },
+    {
+      "path": "packages/contracts/src/local-play-request.ts",
+      "status": "M",
+      "bytes": 6194,
+      "sha256": "f1b7c08456ab85cd0a9d09664144b311d0774cff8ebde3efeca1b106bcce86d5",
+      "role": "product"
+    },
+    {
+      "path": "packages/contracts/src/local-relocation.ts",
+      "status": "M",
+      "bytes": 8608,
+      "sha256": "cedbb635fc6f9f7477291f3f545ba2f5c3c74e89475bef8d2dece3109994d316",
+      "role": "product"
+    },
+    {
+      "path": "packages/contracts/src/mobile-wire.ts",
+      "status": "M",
+      "bytes": 43625,
+      "sha256": "2263d51a4b485834ffd7e30847e4768dd32c35ac1a2df4e5ca71ee9a5b15c38e",
+      "role": "product"
+    },
+    {
+      "path": "packages/contracts/src/validator.ts",
+      "status": "M",
+      "bytes": 128955,
+      "sha256": "fb5c40acb7c01ca521659d6cb14b5b4bfdf6f4cd532c8547dd228690bbc197d1",
+      "role": "product"
+    },
+    {
+      "path": "packages/contracts/test/mbf001-recovery-diagnostics.test.ts",
+      "status": "A",
+      "bytes": 12378,
+      "sha256": "bf3f56bcfa56b364c2b05df20846f4e985d9885891264c4c7d70c9cb5f99158d",
+      "role": "test"
+    },
+    {
+      "path": "project/POSTRUST_PLAN.json",
+      "status": "M",
+      "bytes": 2119825,
+      "sha256": "16fb2eb8be772fcd412d03b7f609b652fe24f946147eb1b2ef70095f94c496c8",
+      "role": "metadata"
+    },
+    {
+      "path": "project/POSTRUST_PROGRESS.md",
+      "status": "M",
+      "bytes": 120095,
+      "sha256": "9733fd388a90a93ac3bffcb3b274fa54dd9f525cffbb8e76ca6d5a4c83e13e9c",
+      "role": "metadata"
+    },
+    {
+      "path": "project/POSTRUST_TODO.md",
+      "status": "M",
+      "bytes": 32889,
+      "sha256": "24c45edf72b2892c0568f37846ece2c018da326de03bbd992a6d06ce179bdfc9",
+      "role": "metadata"
+    },
+    {
+      "path": "project/STATUS.json",
+      "status": "M",
+      "bytes": 2644592,
+      "sha256": "77da08f15e1c5e1781bc044931a5cc6c692d61fbc57a08c14c045052a4b17f05",
+      "role": "metadata"
+    },
+    {
+      "path": "scripts/ci/mbm004-admission.mjs",
+      "status": "A",
+      "bytes": 15876,
+      "sha256": "955e26c40edc085e50dea1f90aef3e34b87bfdcd63c1cb30d1526723b1b68a96",
+      "role": "gate"
+    },
+    {
+      "path": "scripts/ci/report-only-admission.mjs",
+      "status": "M",
+      "bytes": 28606,
+      "sha256": "e68432275b85c29ef92bca4cef61104357d9300ec3cc1182971085b338e9889f",
+      "role": "gate"
+    },
+    {
+      "path": "scripts/ci/report-only-mbm004.mjs",
+      "status": "A",
+      "bytes": 7707,
+      "sha256": "cf3499d7aaa6729565257c745085a3d5e40a1d7d8f28397c2c7c96ba7d281e74",
+      "role": "gate"
+    },
+    {
+      "path": "scripts/ci/task-applicability.mjs",
+      "status": "M",
+      "bytes": 5239,
+      "sha256": "7216018a5f310db651d4a3517032f24a8ec3635d02b8aba9627d44f27fcc7929",
+      "role": "gate"
+    },
+    {
+      "path": "scripts/ci/test/mbm004-admission.test.mjs",
+      "status": "A",
+      "bytes": 7773,
+      "sha256": "22513d7e4db8b6da3ca7e5a7cc468cef90a0badaa707d28d6b37762170cd13dd",
+      "role": "test"
+    },
+    {
+      "path": "scripts/ci/test/mbm004-report-only.test.mjs",
+      "status": "A",
+      "bytes": 6241,
+      "sha256": "b2e4fe323013ae38b7459fa5e859e3cc1b0482e01864382d8117f658db746c70",
+      "role": "test"
+    },
+    {
+      "path": "scripts/ci/test/tape-catalog-common-admission.test.mjs",
+      "status": "M",
+      "bytes": 52154,
+      "sha256": "1475184a8cac603ace7da821c7f0076bb3e6a272cbbb16d523ddd095a6fe1afd",
+      "role": "test"
+    },
+    {
+      "path": "scripts/ci/verify-mbm004-content.mjs",
+      "status": "A",
+      "bytes": 7962,
+      "sha256": "b4ab9023b36c80f5eaa2c67c4675ce6955434004570359a651945502db9f1ca6",
+      "role": "gate"
+    },
+    {
+      "path": "tasks/00_TASK_INDEX.md",
+      "status": "M",
+      "bytes": 29745,
+      "sha256": "62ce5c2e563252986f81c057f534da19c8da644dbcbd3d95d874105f78a2338c",
+      "role": "authority"
+    },
+    {
+      "path": "tasks/MBM-004_CONTENT_MULTIDEVICE.md",
+      "status": "A",
+      "bytes": 4756,
+      "sha256": "fee84281258635c568616427cea1875aa72b14b7e8c7d28f6baf34670668e221",
+      "role": "authority"
+    }
+  ]
+}

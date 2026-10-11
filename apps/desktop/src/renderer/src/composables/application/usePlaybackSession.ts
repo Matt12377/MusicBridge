@@ -21,6 +21,7 @@ import { createOptimisticRoonPlayback } from '../../roon-playback-optimism.js'
 import { collectRoonPlaybackContext } from '../../roon-context-queue.js'
 import { projectPlaybackSnapshot } from './playbackSnapshot.js'
 import { createPlaybackStreamReducer, type PlaybackStreamApplication } from './playbackStreamReducer.js'
+import { localPlaybackSubmissionUnconfirmed } from '../../components/player/details.js'
 
 const LIBRARY_PAGE_SIZE = 20
 const MAX_ROON_QUEUE_DESCRIPTORS = 256
@@ -584,6 +585,11 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
 
   async function playLocalLibrarySelection(request: LocalPlayRequest): Promise<LocalPlayAccepted | LocalSourceUnsupported> {
     if (!playbackCommandsReady() || disposed || playbackStartPending.value) throw new Error('播放状态尚未就绪')
+    if (request.action === 'PLAY_NOW' && localPlaybackSubmissionUnconfirmed(playbackState.value)) {
+      const message = '原本地点播的 Roon 结果仍未确认，请先核对原请求与原播放器。'
+      onActionMessage(message)
+      throw new Error(`[LOCAL_PLAY_REJECTED] ${message}`)
+    }
     if (request.action === 'PLAY_NOW') { invalidateCollectionOperation(); cancelRoonPlaybackPreparation(); retryStopSource = undefined }
     const operation = collectionOperation
     playbackStartPending.value = true; clearActionError()
@@ -592,6 +598,16 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       if (!disposed && operation === collectionOperation) await refreshPlaybackWhileCurrent(() => !disposed && operation === collectionOperation)
       return result
     } finally { playbackStartPending.value = false }
+  }
+  async function readLocalLibraryPlayReceipt(request:LocalPlayRequest):Promise<import('@music-bridge/contracts').LocalPlayReceipt> {
+    if(disposed || playbackStartPending.value || !api.getLocalLibraryPlayReceipt)throw new Error('原点播回执读取尚未就绪')
+    const lifecycle=streamLifecycle, operation=collectionOperation
+    playbackStartPending.value=true
+    try{
+      const receipt=await api.getLocalLibraryPlayReceipt(request)
+      if(!disposed && lifecycle===streamLifecycle && operation===collectionOperation)await refreshPlaybackWhileCurrent(()=>!disposed && lifecycle===streamLifecycle && operation===collectionOperation)
+      return receipt
+    }finally{playbackStartPending.value=false}
   }
 
   function queueItemsForTracks(tracks: readonly TrackSummary[]): PlaybackQueueRequestItem[] {
@@ -1119,7 +1135,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     playbackSyncStatus, playbackViewState, playbackClockIdentity, initializePlaybackStream, retryPlaybackSync, acceptPlaybackReady, acceptPlaybackStreamEvent, suspendPlaybackStream,
     onLyricsChanged, onLocalMatchChanged, initializeLocalLyricsMatch,
     selectLocalLyricsMatch, revokeLocalLyricsMatch, toggleTrackLike, refreshPlayback,
-    playTrack, playLocalLibrarySelection, playRoonLibraryTrack, queueRoonLibraryTrack, appendTrack, insertTrackNext,
+    playTrack, playLocalLibrarySelection, readLocalLibraryPlayReceipt, playRoonLibraryTrack, queueRoonLibraryTrack, appendTrack, insertTrackNext,
     replaceAndPlayCollection, appendCollection, playTracks, invalidateCollectionOperation,
     playQueueItem, editQueueEntry, togglePlayback, stopPlayback, retryLastPlaybackAction, nextTrack, previousTrack, seekPlayback,
     cancelRoonPlaybackPreparation, resetRoonSession, dispose,

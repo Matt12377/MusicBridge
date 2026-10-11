@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { AssetLease, LocalFileLeaseError } from './local-file-source.js';
+import type { RoonGatewayStage } from '../roon/types.js';
 export type LocalByteSelection = { status: 200 | 206; start: number; end: number } | { status: 400 | 416 };
 /** 弱stat证据不接受If-Range强校验；多Range固定400，所有整数/文本有界。 */
 export function selectLocalBytes(range: string | undefined, ifRange: string | undefined, size: number): LocalByteSelection {
@@ -17,7 +18,8 @@ export function selectLocalBytes(range: string | undefined, ifRange: string | un
   if (first >= size) return { status: 416 };
   return { status: 206, start: first, end: Math.min(last ?? size - 1, size - 1) };
 }
-export async function serveLocalFile(lease: AssetLease, request: IncomingMessage, response: ServerResponse, contentType = 'application/octet-stream'): Promise<void> {
+export async function serveLocalFile(lease: AssetLease, request: IncomingMessage, response: ServerResponse, contentType = 'application/octet-stream', onStage?:(stage:RoonGatewayStage)=>void): Promise<void> {
+  const stage=(value:RoonGatewayStage):void=>{try{onStage?.(value);}catch{/* 诊断不改变原字节传输。 */}};
   let release: (() => void) | undefined;
   const controller = new AbortController(), abort = (): void => { controller.abort(); };
   const close = (): void => { if (!response.writableFinished) abort(); };
@@ -27,13 +29,23 @@ export async function serveLocalFile(lease: AssetLease, request: IncomingMessage
     await lease.verify(); controller.signal.throwIfAborted(); release = lease.attachResponse(response);
     const selection = request.method === 'HEAD' ? { status: 200, start: 0, end: lease.size - 1 } as const
       : selectLocalBytes(request.headers.range, typeof request.headers['if-range'] === 'string' ? request.headers['if-range'] : undefined, lease.size);
-    if (!('start' in selection)) { response.writeHead(selection.status, { 'Content-Length': 0, ...(selection.status === 416 ? { 'Content-Range': `bytes */${lease.size}` } : {}) }); response.end(); return; }
+    if (!('start' in selection)) { stage('error'); response.writeHead(selection.status, { 'Content-Length': 0, ...(selection.status === 416 ? { 'Content-Range': `bytes */${lease.size}` } : {}) }); response.end(); return; }
     response.writeHead(selection.status, { 'Content-Type': contentType, 'Content-Length': selection.end - selection.start + 1,
       ...(selection.status === 206 ? { 'Content-Range': `bytes ${selection.start}-${selection.end}/${lease.size}` } : {}),
       'Accept-Ranges': 'bytes', ETag: lease.weakEtag, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+    stage('headers');
     if (request.method === 'HEAD') { response.end(); return; }
-    await pipeline(Readable.from(lease.readSlice(selection.start, selection.end, controller.signal), { objectMode: false, highWaterMark: 64 * 1024 }), response, { signal: controller.signal });
+    const start=selection.start,end=selection.end;
+    async function* observedBytes() {
+      let first=true;
+      for await(const chunk of lease.readSlice(start, end, controller.signal)){
+        if(first){first=false;stage('streaming');}yield chunk;
+      }
+    }
+    await pipeline(Readable.from(observedBytes(), { objectMode: false, highWaterMark: 64 * 1024 }), response, { signal: controller.signal });
+    stage('completed');
   } catch (error) {
+    stage(controller.signal.aborted?'aborted':'error');
     if (response.headersSent) response.destroy();
     else { response.writeHead(error instanceof LocalFileLeaseError && error.code === 'CAPACITY' ? 429 : 409, { 'Content-Length': 0, 'Cache-Control': 'no-store' }); response.end(); }
   } finally { request.off('aborted', abort); response.off('close', close); lease.signal.removeEventListener('abort', abort); release?.(); }

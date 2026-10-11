@@ -49,7 +49,9 @@ import type {
   PublicAccountProfile,
   CredentialVerificationStatus,
   NeteaseRequestOptions,
+  NeteaseMobileReadRequest, NeteaseMobileAccountSnapshot, NeteaseMobileRawSnapshot, NeteaseMobileAccountInvalidation,
 } from './types.js';
+import { mobileDataSnapshot } from '@music-bridge/contracts';
 import {
   parseLoginStatusResponse,
   parseQrCheckResponse,
@@ -173,6 +175,10 @@ interface NeteaseApiModule {
   playlist_detail?(params: Record<string, unknown>): ApiResponse;
   playlist_track_all?(params: Record<string, unknown>): ApiResponse;
   lyric_new?(params: Record<string, unknown>, options?: NeteaseRequestOptions): ApiResponse;
+  personalized?(params: Record<string, unknown>, options?: NeteaseRequestOptions): ApiResponse;
+  album_new?(params: Record<string, unknown>, options?: NeteaseRequestOptions): ApiResponse;
+  toplist?(params: Record<string, unknown>, options?: NeteaseRequestOptions): ApiResponse;
+  personal_fm?(params: Record<string, unknown>, options?: NeteaseRequestOptions): ApiResponse;
 }
 
 function loadApi(): NeteaseApiModule {
@@ -190,6 +196,10 @@ function loadApi(): NeteaseApiModule {
 }
 
 export class NeteaseClient implements NeteasePort, QrLoginProvider {
+  private readonly mobileRuntimeEpoch = randomUUID();
+  private readonly mobileInvalidations = new Set<(event: NeteaseMobileAccountInvalidation) => void>();
+  private readonly mobileOptions = new WeakSet<object>();
+  private readonly mobilePending = new Set<Promise<unknown>>();
   private cookie: string | undefined;
   private accountGeneration = 0;
   private outstandingReads = 0;
@@ -229,7 +239,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     });
     const providerApi = api ?? loadApi();
     const traced = process.env.MUSIC_BRIDGE_PERFORMANCE_TRACE === '1' ? traceProviderApi(providerApi) : providerApi;
-    const readMethods = new Set(['search', 'artists', 'artist_detail', 'album', 'likelist', 'song_like_check', 'user_account', 'recommend_songs', 'user_playlist', 'playlist_detail', 'playlist_track_all', 'song_detail', 'lyric_new', 'song_url_v1']);
+    const readMethods = new Set(['search', 'artists', 'artist_detail', 'album', 'likelist', 'song_like_check', 'user_account', 'recommend_songs', 'user_playlist', 'playlist_detail', 'playlist_track_all', 'song_detail', 'lyric_new', 'song_url_v1', 'personalized', 'album_new', 'toplist', 'personal_fm']);
     const playbackMethods = new Set(['song_detail', 'lyric_new', 'song_url_v1']);
     const wrapped = new Map<PropertyKey, unknown>();
     this.api = new Proxy(traced, { get: (target, property, receiver) => {
@@ -241,10 +251,18 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
         if (typeof params.cookie === 'string' && params.cookie !== this.cookie) throw libraryReadCancelled();
         const read = currentLibraryRead();
         const generation = this.accountGeneration;
+        const actual = (query: Record<string, unknown>): Promise<unknown> => {
+          const work = Promise.resolve(original.call(target, query) as unknown);
+          if (requestOptions && this.mobileOptions.has(requestOptions)) {
+            this.mobilePending.add(work);
+            void work.finally(() => this.mobilePending.delete(work)).catch(() => undefined);
+          }
+          return work;
+        };
         if (!read) return this.requestScheduler.run(timeout => {
           assertLibraryReadCurrent();
           if (generation !== this.accountGeneration) throw libraryReadCancelled();
-          return original.call(target, playbackMethods.has(String(property)) || requestOptions !== undefined ? { ...params, timeout } : params);
+          return actual(playbackMethods.has(String(property)) || requestOptions !== undefined ? { ...params, timeout } : params);
         }, requestOptions ?? { priority: property === 'song_url_v1' ? 'playback' : 'background' }, () => generation === this.accountGeneration && (typeof params.cookie !== 'string' || params.cookie === this.cookie));
         // 媒体库读取不能耗尽播放元数据与账户恢复所需的预留调用预算。
         if (this.outstandingReads >= 32) throw new BridgeError('NETEASE_REQUEST_FAILED', '未返回读取预算已满', { details: { reason: 'request-budget' } });
@@ -252,7 +270,7 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
         const work = Promise.resolve().then(() => {
           assertLibraryReadCurrent();
           if (generation !== this.accountGeneration) throw libraryReadCancelled();
-          return original.call(target, read ? { ...params, timeout: remainingLibraryReadMs(10_000) } : params);
+          return actual(read ? { ...params, timeout: remainingLibraryReadMs(10_000) } : params);
         }).then(result => {
           assertLibraryReadCurrent();
           if (generation !== this.accountGeneration) throw libraryReadCancelled();
@@ -282,22 +300,106 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
   setCredential(credential: string): void {
     const nextCredential = credential.trim() || undefined;
     if (nextCredential !== this.cookie) {
+      const previousProviderEpoch = this.mobileProviderEpoch();
       this.accountGeneration++;
       this.requestScheduler.cancelAll();
       this.metadataCache.clear();
       this.likedTrackIdsCache = undefined;
       this.clearSnapshotCaches();
+      this.cookie = nextCredential;
+      this.notifyMobileInvalidation(previousProviderEpoch);
     }
     this.cookie = nextCredential;
   }
 
   clearCredential(): void {
+    const previousProviderEpoch = this.mobileProviderEpoch();
     this.accountGeneration++;
     this.requestScheduler.cancelAll();
     this.cookie = undefined;
     this.metadataCache.clear();
     this.likedTrackIdsCache = undefined;
     this.clearSnapshotCaches();
+    this.notifyMobileInvalidation(previousProviderEpoch);
+  }
+
+  private mobileProviderEpoch(): string { return `ne:${this.mobileRuntimeEpoch}:${this.accountGeneration}`; }
+  private notifyMobileInvalidation(previousProviderEpoch: string): void {
+    const event = Object.freeze({ previousProviderEpoch, nextProviderEpoch: this.mobileProviderEpoch() });
+    for (const listener of this.mobileInvalidations) { try { listener(event); } catch { /* 一个观察者不能阻断原凭据撤换。 */ } }
+  }
+  onMobileAccountInvalidated(listener: (event: NeteaseMobileAccountInvalidation) => void): () => void {
+    if (typeof listener !== 'function' || this.mobileInvalidations.size >= 16) throw this.libraryApiUnavailable();
+    this.mobileInvalidations.add(listener); return () => { this.mobileInvalidations.delete(listener); };
+  }
+  async awaitMobileQuiet(): Promise<void> { while (this.mobilePending.size) await Promise.allSettled([...this.mobilePending]); }
+
+  async mobileAccount(options: NeteaseRequestOptions = {}): Promise<NeteaseMobileAccountSnapshot> {
+    options = { ...options }; this.mobileOptions.add(options);
+    const cookie = this.requireCookie(), generation = this.accountGeneration;
+    const current = () => generation === this.accountGeneration && cookie === this.cookie;
+    assertNeteaseRequestCurrent(options, current);
+    const method = this.api.user_account;
+    if (!method) throw this.libraryApiUnavailable();
+    const response = await (method as (p: Record<string, unknown>, o: NeteaseRequestOptions) => ApiResponse)({ cookie }, options);
+    assertNeteaseRequestCurrent(options, current);
+    // SDK 包装层的 Cookie 不跨出原 client；安全整数校验发生在旧 parser 的 String 转换前。
+    const responseBody = response !== null && typeof response === 'object' && !Array.isArray(response)
+      && Object.hasOwn(response, 'body') ? (response as { body: unknown }).body : response;
+    const captured = mobileDataSnapshot(responseBody);
+    if (!captured.ok) throw this.libraryApiUnavailable();
+    const accountId = parseAccountId(captured.value);
+    if (!/^[1-9][0-9]{0,31}(?![\s\S])/u.test(accountId)) throw this.libraryApiUnavailable();
+    return Object.freeze({ accountId, providerEpoch: this.mobileProviderEpoch() });
+  }
+
+  async mobileRead(raw: NeteaseMobileReadRequest, options: NeteaseRequestOptions = {}): Promise<NeteaseMobileRawSnapshot> {
+    options = { ...options }; this.mobileOptions.add(options);
+    const captured = mobileDataSnapshot(raw, { requestBytes: 16_384, responseBytes: 16_384, depth: 16, nodes: 512, extensionBytes: 16_384 }, 'request');
+    if (!captured.ok || !captured.value || typeof captured.value !== 'object' || Array.isArray(captured.value)) throw this.libraryApiUnavailable();
+    const request = captured.value as unknown as NeteaseMobileReadRequest;
+    const keys = Object.keys(request), exact = (expected: readonly string[]) => keys.length === expected.length && expected.every(k => keys.includes(k));
+    const numericId = (value: unknown): value is string => typeof value === 'string' && /^[1-9][0-9]{0,31}(?![\s\S])/u.test(value);
+    const page = (offset: unknown, limit: unknown) => Number.isSafeInteger(offset) && Number(offset) >= 0 && Number(offset) <= 300_000
+      && Number.isSafeInteger(limit) && Number(limit) >= 1 && Number(limit) <= 100;
+    const cookie = this.requireCookie(), generation = this.accountGeneration;
+    const current = () => generation === this.accountGeneration && cookie === this.cookie;
+    const params: Record<string, unknown> = { cookie }; let name: keyof NeteaseApiModule;
+    switch (request.operation) {
+      case 'song-detail':
+        if (!exact(['operation','ids']) || !Array.isArray(request.ids) || request.ids.length < 1 || request.ids.length > 100 || !request.ids.every(numericId) || new Set(request.ids).size !== request.ids.length) throw this.libraryApiUnavailable();
+        name = 'song_detail'; params.ids = request.ids.join(','); break;
+      case 'album': case 'playlist-detail': case 'lyrics':
+        if (!exact(['operation','id']) || !numericId(request.id)) throw this.libraryApiUnavailable();
+        name = request.operation === 'album' ? 'album' : request.operation === 'lyrics' ? 'lyric_new' : 'playlist_detail'; params.id = request.id; break;
+      case 'user-playlists':
+        if (!exact(['operation','userId','offset','limit']) || !numericId(request.userId) || !page(request.offset,request.limit)) throw this.libraryApiUnavailable();
+        name = 'user_playlist'; Object.assign(params,{ uid:request.userId,offset:request.offset,limit:request.limit }); break;
+      case 'daily': case 'charts': case 'personal-fm':
+        if (!exact(['operation'])) throw this.libraryApiUnavailable();
+        name = request.operation === 'daily' ? 'recommend_songs' : request.operation === 'charts' ? 'toplist' : 'personal_fm';
+        if (request.operation === 'daily') params.afresh = false; break;
+      case 'recommended-playlists':
+        if (!exact(['operation','limit']) || !page(0,request.limit)) throw this.libraryApiUnavailable();
+        name = 'personalized'; params.limit=request.limit; break;
+      case 'new-albums':
+        if (!exact(['operation','offset','limit']) || !page(request.offset,request.limit)) throw this.libraryApiUnavailable();
+        name = 'album_new'; Object.assign(params,{offset:request.offset,limit:request.limit,area:'ALL'}); break;
+      case 'stream':
+        if (!exact(['operation','id','quality']) || !numericId(request.id) || !['standard','exhigh','lossless','hires'].includes(request.quality)) throw this.libraryApiUnavailable();
+        name = 'song_url_v1'; Object.assign(params,{id:request.id,level:request.quality});
+        await waitNeteaseRequest(this.prepareApiRuntime(),options,current,this.requestScheduler.timeoutMs); break;
+      default: throw this.libraryApiUnavailable();
+    }
+    assertNeteaseRequestCurrent(options,current);
+    const method = this.api[name]; if (!method) throw this.libraryApiUnavailable();
+    const response = await (method as (p: Record<string, unknown>, o: NeteaseRequestOptions) => ApiResponse)(params, options);
+    assertNeteaseRequestCurrent(options,current);
+    const responseBody = response !== null && typeof response === 'object' && !Array.isArray(response)
+      && Object.hasOwn(response, 'body') ? (response as { body: unknown }).body : response;
+    const snapshot = mobileDataSnapshot(responseBody, { requestBytes: 16_384, responseBytes: 2 * 1024 * 1024, depth: 32, nodes: 65_536, extensionBytes: 2 * 1024 * 1024 });
+    if (!snapshot.ok) throw this.libraryApiUnavailable();
+    return Object.freeze({ providerEpoch: this.mobileProviderEpoch(), response: snapshot.value });
   }
 
   async createQr(): Promise<{ key: string; qrImage: string }> {

@@ -36080,9 +36080,8 @@
     "effective_on": "2026-10-08",
     "owner_authorization": "DIRECT_OWNER_VERIFIED_COORDINATION_REQUEST",
     "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
-    "current_task": "MBM-003",
+    "current_task": "MBM-004",
     "remaining_sequence": [
-      "MBM-003",
       "MBM-004",
       "MBRS-016",
       "MBRS-017"
@@ -36104,10 +36103,11 @@
     "current_013_restarted": false,
     "old_017_then_mobile_records": "HISTORICAL_SUPERSEDED_SCHEDULING_ONLY",
     "recorded_at": "2026-10-09T12:25:30.473008+00:00",
-    "current_task_scope_ref": "docs/postrust/MBM-003/EXECUTION_SCOPE.json",
-    "predecessor_final_report": "b1a8de728086e7994bb69d7dee10782f646886dd",
+    "current_task_scope_ref": "docs/postrust/MBM-004/EXECUTION_SCOPE.json",
+    "predecessor_final_report": "479e746bb7106a4dac158fe616290220de03a53a",
     "mbm003_dsd": "ACTUAL_IPHONE_DSD_TO_PCM_EXPLICIT_CONVERSION_SOURCE_READONLY",
-    "mbm003_owner_amendment": "docs/postrust/MBM-003/OWNER_SCOPE_AMENDMENT_2026-10-09.json"
+    "mbm003_owner_amendment": "docs/postrust/MBM-003/OWNER_SCOPE_AMENDMENT_2026-10-09.json",
+    "remote_push_policy": "MILESTONE_ONLY"
   },
   "mobile_tasks": [
     {
@@ -36315,15 +36315,21 @@
     {
       "id": "MBM-004",
       "title": "内容与多设备",
-      "status": "NOT_STARTED",
-      "scheduled_after": "MBM-003",
-      "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
-      "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
-      "software": "NOT_RUN",
+      "status": "SOFTWARE_VALIDATED_REAL_CARRYOVER_OPEN",
+      "scheduled_after": "TAPE_CATALOG_COMMON_FINAL_REPORT",
+      "start_condition": "RELEASED_FORMAL_BASELINE_CONTINUING_OWNER_AUTHORIZATION",
+      "scope_ref": "docs/postrust/MBM-004/EXECUTION_SCOPE.json",
+      "software": "PASSED",
       "production_app": "NOT_RUN",
       "real_service_device_audio": "NOT_RUN",
       "owner_acceptance": "NOT_RUN",
-      "owner_repeated_approval_required": false
+      "owner_repeated_approval_required": false,
+      "base_report_sha": "479e746bb7106a4dac158fe616290220de03a53a",
+      "branch": "codex/mbm-004-content-multidevice",
+      "remote_push_policy": "MILESTONE_ONLY",
+      "evidence_refs": [
+        "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json"
+      ]
     }
   ]
 }

@@ -7,6 +7,32 @@ export const DIAGNOSTIC_RING_LIMIT = 200 as const
 export type DiagnosticComponent = 'main' | 'core'
 export type DiagnosticLevel = 'info' | 'warn' | 'error'
 export type DiagnosticGateStatus = 'pass' | 'fail' | 'not-run'
+export const ROON_DIAGNOSTIC_EVENTS = ['SessionBegan','SessionEnded','InvalidRequest','Playing','Paused','EndedNaturally','StoppedUser','MediaError','ZoneNotFound','OutputNotFound','Error','ConnectionError','ConnectionLost','Unknown'] as const
+export const ROON_DIAGNOSTIC_ERROR_CLASSES = ['missing_required_field','invalid_zone','invalid_icon','unknown_service','unsupported','other','none'] as const
+export const ROON_DIAGNOSTIC_GATEWAY_STAGES = ['none','headers','streaming','completed','aborted','error'] as const
+export interface RoonDiagnosticStage {
+  phase: 'awaiting_session' | 'awaiting_playing'
+  eventName?: typeof ROON_DIAGNOSTIC_EVENTS[number]
+  elapsedMs: number
+  gatewayStage: typeof ROON_DIAGNOSTIC_GATEWAY_STAGES[number]
+  errorClass: typeof ROON_DIAGNOSTIC_ERROR_CLASSES[number]
+  staleCallback: boolean
+}
+export interface LocalRoonStartupDiagnostic {
+  event: 'roon_begin_session_requested' | 'roon_session_event' | 'roon_session_began' | 'roon_play_requested' | 'roon_play_event' | 'roon_session_timeout' | 'roon_startup_failed'
+  stage: RoonDiagnosticStage
+}
+export function isRoonDiagnosticStage(value: unknown): value is RoonDiagnosticStage {
+  if(!value || typeof value!=='object' || Array.isArray(value) || ![Object.prototype,null].includes(Object.getPrototypeOf(value)))return false
+  const v=value as Record<string,unknown>
+  const keys=['phase','elapsedMs','gatewayStage','errorClass','staleCallback',...(Object.hasOwn(v,'eventName')?['eventName']:[])]
+  return Reflect.ownKeys(v).length===keys.length && Reflect.ownKeys(v).every(k=>typeof k==='string' && keys.includes(k) && Object.getOwnPropertyDescriptor(v,k)?.enumerable===true && Object.hasOwn(Object.getOwnPropertyDescriptor(v,k)!,'value'))
+    && (v.phase==='awaiting_session' || v.phase==='awaiting_playing')
+    && typeof v.elapsedMs==='number' && Number.isSafeInteger(v.elapsedMs) && v.elapsedMs>=0 && v.elapsedMs<=86400000
+    && (ROON_DIAGNOSTIC_GATEWAY_STAGES as readonly unknown[]).includes(v.gatewayStage)
+    && (ROON_DIAGNOSTIC_ERROR_CLASSES as readonly unknown[]).includes(v.errorClass) && typeof v.staleCallback==='boolean'
+    && (!Object.hasOwn(v,'eventName') || (ROON_DIAGNOSTIC_EVENTS as readonly unknown[]).includes(v.eventName))
+}
 
 export interface DiagnosticTimelineEvent {
   at: string
@@ -17,6 +43,7 @@ export interface DiagnosticTimelineEvent {
   diagnosticId?: string
   state?: string
   durationMs?: number
+  roonStage?: RoonDiagnosticStage
 }
 
 export interface DiagnosticMemorySummary {
@@ -89,6 +116,7 @@ function copyEvent(event: DiagnosticTimelineEvent): DiagnosticTimelineEvent {
     ...(event.diagnosticId ? { diagnosticId: event.diagnosticId } : {}),
     ...(event.state ? { state: event.state } : {}),
     ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}),
+    ...(isRoonDiagnosticStage(event.roonStage) ? { roonStage: { ...event.roonStage } } : {}),
   }
 }
 

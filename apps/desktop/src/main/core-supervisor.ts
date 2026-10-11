@@ -4,6 +4,8 @@ import { localRelocationMainRequestSnapshot, localRelocationMainResponseSnapshot
 import { randomUUID } from 'node:crypto'
 import { isMobileCorePrivateReply, isMobileOwnerPrivateRequest, type MobileCorePrivateCall } from '../../../../packages/bridge-core/src/mobile/owner-protocol.js'
 import { MobileAuthPersistenceError, type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult } from '../../../../packages/bridge-core/src/mobile/types.js'
+import { captureMobileContentCoreRequest, captureMobileContentCoreResponse, MOBILE_CONTENT_RPC_BOUNDS,
+  type MobileContentCoreRequest, type MobileContentCoreResponse } from '../../../../packages/bridge-core/src/mobile/content-rpc.js'
 import { createLibraryReadTraceStreamReader, emitLibraryReadTrace, libraryReadTraceFailure, type LibraryReadTraceSink } from '../shared/library-read-trace.js'
 import { createPlaybackFailureTraceStreamReader } from '../shared/playback-failure-trace.js'
 
@@ -148,6 +150,8 @@ export class CoreSupervisor {
   private restartCount = 0
   private readonly pending = new Map<string, PendingRequest>()
   private readonly mobilePending = new Map<string, { call: MobileCorePrivateCall; timer: NodeJS.Timeout; reject(error: MobileAuthPersistenceError): void; resolve(result: MobileOwnerPrivateResult): void }>()
+  private readonly mobileContentPending = new Map<string, { call: MobileContentCoreRequest; generation: number;
+    timer: NodeJS.Timeout; detachAbort(): void; reject(error: MobileAuthPersistenceError): void; resolve(result: MobileContentCoreResponse): void }>()
   private _status: CoreSupervisorStatus = 'stopped'
 
   constructor(
@@ -202,6 +206,46 @@ export class CoreSupervisor {
   private closeMobilePending(): void {
     for (const pending of this.mobilePending.values()) { clearTimeout(pending.timer); pending.reject(new MobileAuthPersistenceError('unknown')) }
     this.mobilePending.clear()
+  }
+
+  /** 004独立闭集的可信Main请求；不是Renderer/public command。未知工作仍占位至quiet或进程退出。 */
+  async requestMobileContentMain(input: MobileContentCoreRequest, signal: AbortSignal): Promise<MobileContentCoreResponse> {
+    const port = this.port, generation = this.startupGeneration;
+    const call = captureMobileContentCoreRequest(input);
+    const control = call.action === 'cancel' || call.action === 'invalidate-device' || call.action === 'revalidate'
+      || call.action === 'source' && (call.request.operation === 'release' || call.request.operation === 'close-read');
+    const maximum = control ? MOBILE_CONTENT_RPC_BOUNDS.inflight : MOBILE_CONTENT_RPC_BOUNDS.inflight - 1;
+    if (!(signal instanceof AbortSignal) || signal.aborted || !port || this._status !== 'ready' || this.shuttingDown
+      || this.mobileContentPending.has(call.id) || this.mobileContentPending.size >= maximum) {
+      if (call.action === 'initialize') call.key.fill(0);
+      throw new MobileAuthPersistenceError('not-sent');
+    }
+    return new Promise((resolve, reject) => {
+      const cancel = () => reject(new MobileAuthPersistenceError('unknown'));
+      const timer = setTimeout(cancel, MOBILE_CONTENT_RPC_BOUNDS.requestMs);
+      signal.addEventListener('abort', cancel, { once: true });
+      this.mobileContentPending.set(call.id, { call, generation, timer,
+        detachAbort: () => signal.removeEventListener('abort', cancel), reject, resolve });
+      try {
+        if (signal.aborted || this.port !== port || this.startupGeneration !== generation || this.shuttingDown) throw new Error('内容路由已撤销。');
+        port.postMessage(call);
+      } catch {
+        // 同步post失败的受理边界也不猜测；保留原nonce直到该Core确实退出。
+        clearTimeout(timer); cancel();
+      }
+    });
+  }
+  private settleMobileContent(id: string): void {
+    const pending = this.mobileContentPending.get(id); if (!pending) return;
+    clearTimeout(pending.timer); pending.detachAbort();
+    if (pending.call.action === 'initialize') pending.call.key.fill(0);
+    this.mobileContentPending.delete(id);
+  }
+  private closeMobileContentPending(exited = false): void {
+    for (const [id, pending] of this.mobileContentPending) {
+      clearTimeout(pending.timer); pending.detachAbort(); pending.reject(new MobileAuthPersistenceError('unknown'));
+      if (exited) this.settleMobileContent(id);
+    }
   }
 
   /** 只交付可信 Main 源写路由；通用 requestInternal 不使用此端口。 */
@@ -352,7 +396,7 @@ export class CoreSupervisor {
     const timeoutMs =
       ['recordingReplica.inspect', 'recordingOutput.check', 'recordingPlans.preview', 'recordingPlans.freeze', 'recordingPlans.preflight', 'recordingArchive.preview', 'recordingArchive.start', 'recordingArchive.verify', 'recordingArchive.initialize', 'recordingExecution.preview', 'recordingExecution.start', 'recordingExecution.verify', 'recordingPrepared.previewImport', 'recordingPrepared.startImport', 'recordingPrepared.review', 'recordingPrepared.freeze', 'recordingPreparationZip.preview', 'recordingPreparationZip.start'].includes(timedCommand)
       ? PREPARED_FILE_REQUEST_TIMEOUT_MS
-      : command.startsWith('playback.') || command === 'roon.library.play' || command === 'roon.library.queue'
+      : command === 'localCatalog.prepare' || command.startsWith('playback.') || command === 'roon.library.play' || command === 'roon.library.queue'
         ? PLAYBACK_REQUEST_TIMEOUT_MS
       : command.startsWith('library.') ||
       command.startsWith('roon.library.') ||
@@ -620,6 +664,7 @@ export class CoreSupervisor {
       channel.port2.close()
       this.closeSourceWrites(sourceChannel?.port2)
       this.closeRelocation(relocationChannel?.port2)
+      this.closeMobileContentPending(true)
       this.rejectPending(new CoreIpcError('INTERNAL_ERROR', 'Core process exited'))
       if (!settled) {
         settled = true
@@ -638,6 +683,36 @@ export class CoreSupervisor {
     child.once('exit', handleExit)
     channel.port2.on('message', (event) => {
       if (this.child !== child || this.port !== channel.port2) return
+      if (event.data && typeof event.data === 'object' && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-content-core-response') {
+        const id = Object.getOwnPropertyDescriptor(event.data, 'id')?.value;
+        const pending = typeof id === 'string' ? this.mobileContentPending.get(id) : undefined;
+        if (!pending || pending.generation !== attempt.generation) return;
+        try {
+          const response = captureMobileContentCoreResponse(event.data, pending.call);
+          const unknown = 'kind' in response && response.kind === 'error' && response.outcome === 'unknown';
+          if (!unknown) this.settleMobileContent(pending.call.id);
+          if (response.action === 'cancel' && 'kind' in response && response.kind === 'cancelled') {
+            const original = this.mobileContentPending.get(response.requestId);
+            if (original?.generation === attempt.generation) {
+              original.reject(new MobileAuthPersistenceError('unknown')); this.settleMobileContent(response.requestId);
+            }
+          }
+          if (response.action === 'invalidate-device' && 'ok' in response && response.ok === true && pending.call.action === 'invalidate-device') {
+            const revoked = pending.call;
+            for (const [originalId, original] of this.mobileContentPending) {
+              const input = original.call;
+              const principal = input.action === 'scope' ? input.principal : 'scope' in input ? input.scope : null;
+              if (principal && original.generation === attempt.generation && principal.serverId === revoked.serverId
+                && principal.datasetId === revoked.datasetId && principal.deviceId === revoked.deviceId && principal.deviceEpoch === revoked.deviceEpoch) {
+                original.reject(new MobileAuthPersistenceError('unknown')); this.settleMobileContent(originalId);
+              }
+            }
+          }
+          if (!attempt.valid || this.shuttingDown) pending.reject(new MobileAuthPersistenceError('unknown'));
+          else pending.resolve(response);
+        } catch { pending.reject(new MobileAuthPersistenceError('unknown')); }
+        return;
+      }
       if (event.data && typeof event.data === 'object' && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-main-response') {
         const id = Object.getOwnPropertyDescriptor(event.data, 'id')?.value
         const pending = typeof id === 'string' ? this.mobilePending.get(id) : undefined
@@ -794,6 +869,7 @@ export class CoreSupervisor {
 
   private rejectPending(error: CoreIpcError): void {
     this.closeMobilePending()
+    this.closeMobileContentPending()
     for (const [id, pending] of this.pending) {
       clearTimeout(pending.timer)
       pending.performanceSpan?.end('error')
@@ -805,6 +881,7 @@ export class CoreSupervisor {
   private async shutdownInternal(): Promise<void> {
     this.shuttingDown = true
     this.closeMobilePending()
+    this.closeMobileContentPending()
     this.startupAttempt?.cancelStart(new CoreIpcError('NOT_READY', 'Core supervisor is shutting down'))
     const child = this.child
     const port = this.port

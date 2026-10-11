@@ -10,7 +10,7 @@ import { isLocalPlayAccepted, isLocalQueueIdentity } from './local-play-request.
 import { isLocalPlaybackObservationLeaf } from './local-playback-compat.js';
 import {isLocalRelocationCommand,isLocalRelocationInternalCommand,isLocalRelocationCommandPayload,isLocalRelocationCommandResult} from './local-relocation.js';
 import { isLocalScanCommand, isLocalScanInternalCommand, isLocalScanCommandPayload, isLocalScanCommandResult } from './local-scan.js';
-import { isLocalPlayRequest, isLocalPlayTarget, isLocalSourceUnsupported } from './local-play-request.js';
+import { isLocalPlayRequest, isLocalPlayTarget, isLocalSourceUnsupported, isLocalPlayReceipt } from './local-play-request.js';
 import { isLocalCatalogCommand, isLocalCatalogInternalCommand, isLocalCatalogCommandPayload, isLocalCatalogCommandResult } from './local-catalog.js';
 import { copyPerformanceTraceContext, isPerformanceTraceSnapshot } from './performance.js';
 import { isLibraryReadCommand, isLibraryReadContext } from './library-read.js';
@@ -113,6 +113,7 @@ import type {
   DiagnosticGateResult,
   DiagnosticTimelineEvent,
 } from './diagnostics.js';
+import { isRoonDiagnosticStage } from './diagnostics.js';
 import type { FavoriteEntityDescriptor, FavoriteKind, FavoriteRecord } from './favorites.js';
 import { MATCH_STATES, type PublicTrackMatchResult } from './matching.js';
 import type { PublicAggregatedSearchResult } from './aggregated-search.js';
@@ -1049,6 +1050,7 @@ function isValidCommandPayload(command: IpcCommand, payload: unknown): boolean {
   if (isLocalRelocationCommand(command)) return isLocalRelocationCommandPayload(command,payload);
   if (isLocalScanCommand(command)) return isLocalScanCommandPayload(command, payload);
   if (command === 'localCatalog.prepare') return isLocalPlayRequest(payload);
+  if (command === 'localCatalog.playReceipt') return isLocalPlayRequest(payload);
   if (command === 'playback.localTarget') return isRecord(payload) && Reflect.ownKeys(payload).length === 0;
   if (isLocalLegacyLinksCommand(command)) return isLocalLegacyLinksCommandPayload(command, payload);
   if (isLocalOrganizerCommand(command)) return isLocalOrganizerCommandPayload(command, payload);
@@ -1383,7 +1385,7 @@ function isPublicBridgeState(value: unknown): value is PublicBridgeState {
 
 function isDiagnosticTimelineEvent(value: unknown): value is DiagnosticTimelineEvent {
   if (!isRecord(value)) return false;
-  if (!hasOnlyKeys(value, ['at', 'component', 'level', 'event', 'code', 'diagnosticId', 'state', 'durationMs'])) {
+  if (!hasOnlyKeys(value, ['at', 'component', 'level', 'event', 'code', 'diagnosticId', 'state', 'durationMs', 'roonStage'])) {
     return false;
   }
   return (
@@ -1394,6 +1396,7 @@ function isDiagnosticTimelineEvent(value: unknown): value is DiagnosticTimelineE
     (value.code === undefined || safeString(value.code, 128)) &&
     (value.diagnosticId === undefined || safeString(value.diagnosticId, 128)) &&
     (value.state === undefined || safeString(value.state, 64)) &&
+    (value.roonStage === undefined || isRoonDiagnosticStage(value.roonStage)) &&
     (value.durationMs === undefined ||
       (typeof value.durationMs === 'number' &&
         Number.isSafeInteger(value.durationMs) &&
@@ -1694,6 +1697,7 @@ function isCommandResult(
   if (isLocalRelocationCommand(command)) return (allowInternalResult || !isLocalRelocationInternalCommand(command)) && isLocalRelocationCommandResult(command,value);
   if (isLocalScanCommand(command)) return (allowInternalResult || !isLocalScanInternalCommand(command)) && isLocalScanCommandResult(command,value);
   if (command === 'localCatalog.prepare') return isLocalSourceUnsupported(value) || isLocalPlayAccepted(value);
+  if (command === 'localCatalog.playReceipt') return isLocalPlayReceipt(value);
   if (command === 'playback.localTarget') return value === null || isLocalPlayTarget(value);
   if (isLocalLegacyLinksCommand(command)) return isLocalLegacyLinksCommandResult(command, value);
   if (isLocalOrganizerCommand(command)) return isLocalOrganizerCommandResult(command, value);
@@ -2112,7 +2116,7 @@ function validateRequest(input: unknown, internal: boolean): ValidationResult<Ip
   if ((isLocalArtworkCommand(observedCommand) || isLocalScanCommand(observedCommand) || isLocalRelocationCommand(observedCommand)) && (![Object.prototype,null].includes(Object.getPrototypeOf(input))
     || Reflect.ownKeys(input).some(k=>typeof k !== 'string' || !['version','id','command','payload','expectedDatasetId','performanceTrace'].includes(k)
       || !Object.prototype.propertyIsEnumerable.call(input,k)))) return invalidRequest();
-  if ((isLocalOrganizerCommand(observedCommand) || isLocalArtworkCommand(observedCommand) || isLocalCatalogCommand(observedCommand) || isLocalScanCommand(observedCommand) || isLocalRelocationCommand(observedCommand) || observedCommand === 'localCatalog.prepare') && ((!internal && (isLocalArtworkInternalCommand(observedCommand) || isLocalCatalogInternalCommand(observedCommand) || isLocalScanInternalCommand(observedCommand) || isLocalRelocationInternalCommand(observedCommand)))
+  if ((isLocalOrganizerCommand(observedCommand) || isLocalArtworkCommand(observedCommand) || isLocalCatalogCommand(observedCommand) || isLocalScanCommand(observedCommand) || isLocalRelocationCommand(observedCommand) || observedCommand === 'localCatalog.prepare' || observedCommand === 'localCatalog.playReceipt') && ((!internal && (isLocalArtworkInternalCommand(observedCommand) || isLocalCatalogInternalCommand(observedCommand) || isLocalScanInternalCommand(observedCommand) || isLocalRelocationInternalCommand(observedCommand)))
     || !isCommandOutboxDatasetId(input.expectedDatasetId)
     || !hasOnlyKeys(input, ['version','id','command','payload','expectedDatasetId','performanceTrace']))) return invalidRequest();
 

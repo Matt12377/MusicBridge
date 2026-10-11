@@ -4,6 +4,8 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { locateMobilePlaybackReportTask, classifyMobilePlaybackReportChanges, validateMobilePlaybackParentCi } from './report-only-mbm002.mjs';
 import { locateMobileDsdReportTask, classifyMobileDsdReportChanges, validateMobileDsdParentCi } from './report-only-mbm003.mjs';
+import { locateMobileContentReportTask, classifyMobileContentReportChanges, validateMobileContentParentCi,
+  MBM004_REPORT_IDENTITY, MBM004_REPORT_STATUS_FIELDS } from './report-only-mbm004.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const equal = (a, b) => JSON.stringify(sortObject(a)) === JSON.stringify(sortObject(b));
@@ -329,14 +331,23 @@ export async function inspectReportOnly(env = process.env, directory = root, get
       afterStatus.mobileFrontloading20261008?.currentTask, beforePlan.execution_schedule?.current_task,
       afterPlan.execution_schedule?.current_task];
     const mobile = mobileTasks.some(value => typeof value === 'string' && value.startsWith('MBM-'));
+    const content = mobileTasks.includes('MBM-004');
     const dsd = mobileTasks.includes('MBM-003');
     const playback = mobileTasks.includes('MBM-002');
     const pairing = mobileTasks.includes(mobilePairingTask);
-    const task = dsd ? locateMobileDsdReportTask(afterStatus, afterPlan) : playback ? locateMobilePlaybackReportTask(afterStatus, afterPlan) : pairing ? locateMobilePairingReportTask(afterStatus, afterPlan)
+    const task = content ? locateMobileContentReportTask(afterStatus, afterPlan) : dsd ? locateMobileDsdReportTask(afterStatus, afterPlan) : playback ? locateMobilePlaybackReportTask(afterStatus, afterPlan) : pairing ? locateMobilePairingReportTask(afterStatus, afterPlan)
       : mobile ? locateMobileReportTask(afterStatus, afterPlan) : afterStatus.currentPostRustTask;
-    const classify = dsd ? classifyMobileDsdReportChanges : playback ? classifyMobilePlaybackReportChanges : pairing ? classifyMobilePairingReportChanges : mobile ? classifyMobileReportChanges : classifyReportChanges;
+    const classify = content ? classifyMobileContentReportChanges : dsd ? classifyMobileDsdReportChanges : playback ? classifyMobilePlaybackReportChanges : pairing ? classifyMobilePairingReportChanges : mobile ? classifyMobileReportChanges : classifyReportChanges;
     if (!classify({ task, parent, afterStatus, beforeStatus, afterPlan, beforePlan,
       changes: parseRawDiff(git(['diff', '--raw', '-z', '--no-renames', parent, 'HEAD'])) })) return full('SOURCE_SCOPE_OR_AUTHORITY_CHANGED');
+    if (content) {
+      const sourceParents = git(['rev-list', '--parents', '-n', '1', parent]).trim().split(' ');
+      if (sourceParents.length !== 2 || sourceParents[1] !== MBM004_REPORT_IDENTITY.baseSha
+        || git(['show', parent + ':' + MBM004_REPORT_IDENTITY.scope]) !== git(['show', 'HEAD:' + MBM004_REPORT_IDENTITY.scope])) return full('CONTENT_SOURCE_OR_SCOPE_NOT_EXACT');
+      const statusPath = 'docs/postrust/MBM-004/STATUS.json';
+      const before = json(parent, statusPath), after = json('HEAD', statusPath);
+      if (after.implementationCommit !== parent || !equal(without(before, MBM004_REPORT_STATUS_FIELDS), without(after, MBM004_REPORT_STATUS_FIELDS))) return full('CONTENT_REPORT_RECORD_CHANGED_AUTHORITY');
+    }
     const started = performance.now();
     const api = getJson ?? (async route => {
       if (performance.now() - started >= 90000) throw new Error('REPORT_API_BUDGET');
@@ -366,7 +377,7 @@ export async function inspectReportOnly(env = process.env, directory = root, get
       }
       proofs.push({ runId: run.id, jobs: jobs.jobs, artifacts });
     }
-    const validate = dsd ? validateMobileDsdParentCi : playback ? validateMobilePlaybackParentCi : pairing ? validateMobilePairingParentCi : mobile ? validateMobileParentCi : validateParentCi;
+    const validate = content ? validateMobileContentParentCi : dsd ? validateMobileDsdParentCi : playback ? validateMobilePlaybackParentCi : pairing ? validateMobilePairingParentCi : mobile ? validateMobileParentCi : validateParentCi;
     if (!validate({ task, repositoryId: repo.id, parent, branch, runs, proofs })) return full('PARENT_PRODUCT_GATE_NOT_PROVEN');
     return { schema: 'musicbridge.report-only-ci.v1', mode: 'report-only', reason: 'EXACT_PARENT_PRODUCT_CI_SUCCESS',
       task, reportSha: env.GITHUB_SHA, parentSourceSha: parent, repositoryId: repo.id,

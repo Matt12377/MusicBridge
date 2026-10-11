@@ -92,3 +92,25 @@ export interface NeteasePort {
   getDailyRecommendations(): Promise<DailyRecommendationsSnapshot>;
   getLyrics?(trackId: string, options?: NeteaseRequestOptions): Promise<LyricsSnapshot>;
 }
+
+/** 仅可信移动适配器可用；调用者不能传 Cookie、URL、代理或任意 SDK 方法名。 */
+export type NeteaseMobileReadRequest =
+  | { operation: 'song-detail'; ids: readonly string[] }
+  | { operation: 'album' | 'playlist-detail' | 'lyrics'; id: string }
+  | { operation: 'user-playlists'; userId: string; offset: number; limit: number }
+  | { operation: 'daily' | 'charts' | 'personal-fm' }
+  | { operation: 'recommended-playlists'; limit: number }
+  | { operation: 'new-albums'; offset: number; limit: number }
+  | { operation: 'stream'; id: string; quality: QualityLevel };
+export interface NeteaseMobileAccountSnapshot { readonly accountId: string; readonly providerEpoch: string }
+export interface NeteaseMobileRawSnapshot { readonly providerEpoch: string; readonly response: unknown }
+export interface NeteaseMobileAccountInvalidation { readonly previousProviderEpoch: string; readonly nextProviderEpoch: string }
+/** 与原 NeteasePort 分开，旧 Roon/录音的测试端口不被要求制造移动事实。 */
+export interface NeteaseMobileReadPort {
+  readonly configured: boolean;
+  mobileAccount(options?: NeteaseRequestOptions): Promise<NeteaseMobileAccountSnapshot>;
+  mobileRead(request: NeteaseMobileReadRequest, options?: NeteaseRequestOptions): Promise<NeteaseMobileRawSnapshot>;
+  onMobileAccountInvalidated(listener: (event: NeteaseMobileAccountInvalidation) => void): () => void;
+  /** 等待本域原始 SDK Promise 落定；本地 abort/timeout 不代表底层 quiet。 */
+  awaitMobileQuiet(): Promise<void>;
+}

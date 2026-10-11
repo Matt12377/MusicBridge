@@ -8,13 +8,17 @@ import { inspectLocalLibrarySignedStatFixAdmission, readLocalLibraryFixWhole,
 import { predecessorReuseWorkflowOutputs } from './mbm003-predecessor-reuse.mjs';
 import { TAPE_CATALOG_COMMON_TASK, TAPE_CATALOG_COMMON_BRANCH,
   inspectTapeCatalogCommonAdmission, tapeCatalogCommonWorkflowOutputs } from './tape-catalog-common-admission.mjs';
+import { MBM004_TASK, MBM004_BRANCH, MBM004_STATUS_PATH, inspectMbm004Admission, mbm004WorkflowOutputs } from './mbm004-admission.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const recordPath = 'docs/tape-catalog-common/STATUS.json';
 function reject(code) { const error = new Error('任务适用性准入拒绝。'); error.code = code; throw error; }
 
 /** 分支和独立任务记录均可触发严格组合检查，不能删除其中一个标记逃回旧路由。 */
-export function taskApplicabilityRoute(branch, record) {
+export function taskApplicabilityRoute(branch, record, contentRecord = null) {
+  if (branch === MBM004_BRANCH) return 'EXACT_MBM004';
+  if (branch === TAPE_CATALOG_COMMON_BRANCH) return 'EXACT_TAPE_COMMON';
+  if (contentRecord !== null) return 'EXACT_MBM004';
   return branch === TAPE_CATALOG_COMMON_BRANCH || record?.task === TAPE_CATALOG_COMMON_TASK
     ? 'EXACT_TAPE_COMMON' : 'ORIGINAL_LOCAL_FIX_OR_MOBILE';
 }
@@ -35,6 +39,10 @@ export function inspectTaskApplicability(directory = repository, env = process.e
   } catch (error) {
     if (error?.code !== 'ENOENT') reject('TASK_RECORD_INVALID');
   }
+  let contentRecord = null;
+  try { const filename = path.join(directory, MBM004_STATUS_PATH); lstatSync(filename); contentRecord = JSON.parse(read(filename)); }
+  catch (error) { if (error?.code !== 'ENOENT') reject('TASK_CONTENT_RECORD_INVALID'); }
+  if (taskApplicabilityRoute(branch, record, contentRecord) === 'EXACT_MBM004') return inspectMbm004Admission(directory, env);
   return taskApplicabilityRoute(branch, record) === 'EXACT_TAPE_COMMON'
     ? inspectTapeCatalogCommonAdmission(directory, env)
     : inspectLocalLibrarySignedStatFixAdmission(directory, env);
@@ -42,6 +50,7 @@ export function inspectTaskApplicability(directory = repository, env = process.e
 
 /** 五个输出来自同一次完整准入；工作流不能靠未知task默认跳过历史验证。 */
 export function taskApplicabilityWorkflowOutputs(result) {
+  if (result?.task === MBM004_TASK) return mbm004WorkflowOutputs(result);
   if (result?.task === TAPE_CATALOG_COMMON_TASK) return tapeCatalogCommonWorkflowOutputs(result);
   if (result?.task === LOCAL_LIBRARY_SIGNED_STAT_FIX_TASK) {
     if (result.schema !== 'musicbridge.local-library-signed-stat-fix.admission.v1'

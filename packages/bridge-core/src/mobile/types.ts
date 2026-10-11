@@ -4,6 +4,9 @@ import type {
   MobileRefreshRequest, MobileSafeErrorFacts, MobileServerInfo, MobileTokenPair, MobileTrack,
 } from '@music-bridge/contracts';
 import type { MobileOwnerSourceRequest, MobileOwnerSourceResult } from './source-protocol.js';
+import type { MobileContentOwnerRequest, MobileContentOwnerResult } from './owner-content-protocol.js';
+import type { MobileServiceError } from './content-errors.js';
+export { MobileServiceError } from './content-errors.js';
 
 /** 本域私有端口；不是新增公开 HTTP 或普通 Renderer IPC。 */
 export const MOBILE001_OPERATIONS = [
@@ -16,13 +19,6 @@ export const MOBILE_AUTH_SEALED_MAX_BYTES = 4 * 1024 * 1024;
 export const MOBILE_AUTH_MAX_DEVICES = 32;
 export const MOBILE_AUTH_MAX_PAIRINGS = 32;
 export const MOBILE_AUTH_MAX_RECEIPTS = 4096;
-
-export class MobileServiceError extends Error {
-  constructor(readonly status: 400 | 401 | 403 | 404 | 409 | 410 | 413 | 429 | 503,
-    readonly code: MobileSafeErrorFacts['code'], readonly retryable = false, readonly retryAfterMs?: number) {
-    super('移动服务当前无法完成请求。');
-  }
-}
 
 /** 不确定提交只允许读取原记录；此错误不携带路径、正文或底层异常。 */
 export class MobileAuthPersistenceError extends Error {
@@ -101,10 +97,11 @@ export type MobileOwnerPrivateRequest =
   | { kind: 'save'; datasetId: string; request: MobileSealedSave }
   | { kind: 'playback-save'; datasetId: string; request: MobileSealedSave }
   | { kind: 'media-source'; datasetId: string; request: MobileOwnerSourceRequest }
+  | { kind: 'content'; datasetId: string; request: MobileContentOwnerRequest }
   | { kind: 'catalog'; datasetId: string; request: MobileOwnerCatalogRequest }
   | { kind: 'artwork'; datasetId: string; request: { serverId: string; artworkId: string } };
 export type MobileOwnerPrivateResult = MobileSealedState | MobileSealedSaveResult
-  | MobileOwnerCatalogSnapshot | MobileOwnerArtworkSnapshot | MobileOwnerSourceResult | MobileOwnerPrivateFailure;
+  | MobileOwnerCatalogSnapshot | MobileOwnerArtworkSnapshot | MobileOwnerSourceResult | MobileContentOwnerResult | MobileOwnerPrivateFailure;
 export interface MobileOwnerPrivateFailure {
   kind: 'mobile-error'; status: MobileServiceError['status']; code: MobileSafeErrorFacts['code'];
   retryable: boolean; outcome: 'not-sent' | 'unknown' | null;

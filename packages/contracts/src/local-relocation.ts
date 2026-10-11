@@ -60,6 +60,7 @@ export interface LocalLibraryPublicApi {
  getLocalLibraryPlaybackTarget():Promise<import('./local-play-request.js').LocalPlayTarget|null>;
  overrideLocalLibraryMetadata(request:import('./local-catalog.js').LocalCatalogCommandPayloads['localCatalog.overrideMetadata']):Promise<import('./local-catalog.js').LocalMetadataOverride>;
  playLocalLibraryTrack(request:import('./local-play-request.js').LocalPlayRequest):Promise<import('./local-play-request.js').LocalPlayAccepted|import('./local-play-request.js').LocalSourceUnsupported>;
+ getLocalLibraryPlayReceipt?(request:import('./local-play-request.js').LocalPlayRequest):Promise<import('./local-play-request.js').LocalPlayReceipt>;
  listLocalLibraryRoots():Promise<LocalRootView[]>;
  chooseLocalLibraryRoot(commandId:string):Promise<LibraryRoot|null>;
  chooseLocalRelocationCandidates(request:LocalRelocationSelection):Promise<LocalRelocationCandidates|null>;

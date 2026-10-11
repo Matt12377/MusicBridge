@@ -16,6 +16,8 @@ import {
 import { isMobileOwnerPrivateResult } from '../../../../packages/bridge-core/src/mobile/owner-protocol.js';
 import type { MobileOwnerSourceRequest, MobileOwnerSourceResult } from '../../../../packages/bridge-core/src/mobile/source-protocol.js';
 import type { MobileMediaReply } from './mobile-media-response.js';
+import type { createMainMobileContentPort } from './mobile-content-port.js';
+import type { MobileContentScope } from '../../../../packages/bridge-core/src/mobile/content-types.js';
 
 export const MOBILE002_OPERATIONS = [...MOBILE002_CONTROL_OPERATIONS, 'getMediaAsset', 'headMediaAsset'] as const;
 export type Mobile002Operation = MobilePlaybackControlOperation | MobilePlaybackMediaOperation;
@@ -41,6 +43,7 @@ export function createMobilePlaybackBackend(options: {
   assertCurrent(): void;
   /** 可信生产组合显式采用003；旧001/002组合不向Owner申请DSD能力。 */
   enableDsd?: boolean;
+  contentPort?: ReturnType<typeof createMainMobileContentPort>;
 }) {
   const key = new Uint8Array(createHmac('sha256', options.authKey).update('musicbridge-mobile-playback-v1').digest());
   let service: MobilePlaybackService | undefined, origin: string | undefined, closing = false;
@@ -125,6 +128,99 @@ export function createMobilePlaybackBackend(options: {
     closeRead: (handle, readId) => cleanup({ operation: 'close-read', handle, readId }),
     release: handle => cleanup({ operation: 'release', handle }),
   };
+  if (options.contentPort) {
+    const content = options.contentPort;
+    interface Binding { scope: Readonly<MobileContentScope>; source: 'local' | 'netease' | undefined; releaseFlight?: Promise<void> }
+    const bindings = new Map<string, Binding>();
+    const binding = (handle: string): Binding => {
+      const bound = bindings.get(handle); if (!bound) throw new MobilePlaybackError(410, 'RESOURCE_EXPIRED'); return bound;
+    };
+    const actualSource = async (bound: Binding, request: MobileOwnerSourceRequest, signal: AbortSignal, isCleanup = false) => {
+      if (!isCleanup) { current(); signal.throwIfAborted(); await options.auth.assertDeviceCurrent(bound.scope.deviceId, bound.scope.deviceEpoch); }
+      try {
+        const result = await content.source(bound.scope, request, signal);
+        if (bound.source !== undefined && result.source !== bound.source) throw new MobilePlaybackError(409, 'SOURCE_CHANGED');
+        bound.source = result.source;
+        if (!isCleanup) { await options.auth.assertDeviceCurrent(bound.scope.deviceId, bound.scope.deviceEpoch); current(); signal.throwIfAborted(); }
+        return result.result;
+      } catch (error) {
+        if (error instanceof MobileServiceError) throw new MobilePlaybackError(error.status as MobilePlaybackError['status'],
+          error.code as MobilePlaybackError['code'], false);
+        throw error;
+      }
+    };
+    const release = (handle: string): Promise<void> => {
+      const bound = bindings.get(handle); if (!bound) return Promise.resolve();
+      if (!bound.releaseFlight) {
+        const flight = actualSource(bound, { operation: 'release', handle }, new AbortController().signal, true).then(result => {
+          if (result.kind !== 'mobile-source-ack' || result.operation !== 'release' || !result.quiet) throw new MobileAuthPersistenceError('unknown');
+          bindings.delete(handle);
+        });
+        bound.releaseFlight = flight; cleanupFlights.add(flight);
+        void flight.then(() => cleanupFlights.delete(flight), () => {});
+      }
+      return bound.releaseFlight;
+    };
+    const closeRead = (handle: string, readId: string): Promise<void> => {
+      const bound = bindings.get(handle); if (!bound) return Promise.resolve();
+      const task = actualSource(bound, { operation: 'close-read', handle, readId }, new AbortController().signal, true).then(result => {
+        if (result.kind !== 'mobile-source-ack' || result.operation !== 'close-read' || !result.quiet) throw new MobileAuthPersistenceError('unknown');
+      });
+      cleanupFlights.add(task); void task.then(() => cleanupFlights.delete(task), () => {}); return task;
+    };
+    const captureSource = (bound: Binding, result: MobileOwnerSourceResult) => {
+      if (result.kind !== 'mobile-source-prepared' && result.kind !== 'mobile-source-preparing') throw new MobilePlaybackError(503, 'BUSY');
+      if (result.kind === 'mobile-source-preparing') {
+        if (bound.source !== 'local' || options.enableDsd !== true) throw new MobilePlaybackError(409, 'UNSUPPORTED_FORMAT');
+        return result.source;
+      }
+      if (bound.source === 'netease') {
+        if (bound.scope.providerEpoch === null || result.source.processing.mode !== 'direct') throw new MobilePlaybackError(409, 'SOURCE_CHANGED');
+        return { ...result.source, catalogSource: 'netease' as const, providerBinding: Object.freeze({ accountDomain: bound.scope.accountDomain,
+          providerEpoch: bound.scope.providerEpoch, ownerEpoch: bound.scope.ownerEpoch }) };
+      }
+      return result.source;
+    };
+    // 显式004组合只接带真实设备身份的入口；旧组合仍完整保留原 local prepare。
+    sourcePort.prepare = async () => { throw new MobilePlaybackError(409, 'UNSUPPORTED_FORMAT'); };
+    sourcePort.prepareBound = async (selection, device, signal) => {
+      current(); signal.throwIfAborted(); await options.auth.assertDeviceCurrent(device.deviceId, device.deviceEpoch);
+      const actual = await content.scopeForIdentity({ serverId: options.serverId, datasetId: options.datasetId,
+        deviceId: device.deviceId, deviceEpoch: device.deviceEpoch, accessGeneration: device.accessGeneration }, signal);
+      await options.auth.assertDeviceCurrent(device.deviceId, device.deviceEpoch); current(); signal.throwIfAborted();
+      if (bindings.has(selection.resourceId)) throw new MobilePlaybackError(409, 'IDEMPOTENCY_CONFLICT');
+      if (bindings.size >= 8) throw new MobilePlaybackError(429, 'BUSY');
+      const bound: Binding = { scope: actual.scope, source: undefined }; bindings.set(selection.resourceId, bound);
+      const aborted = () => { void release(selection.resourceId).catch(() => {}); };
+      signal.addEventListener('abort', aborted, { once: true }); if (signal.aborted) aborted();
+      try {
+        const result = await actualSource(bound, { operation: 'prepare', selection }, signal);
+        if (signal.aborted) { await release(selection.resourceId); signal.throwIfAborted(); }
+        return captureSource(bound, result);
+      } catch (error) { await release(selection.resourceId); throw error; }
+      finally { signal.removeEventListener('abort', aborted); }
+    };
+    sourcePort.status = async (handle, signal) => {
+      const bound = binding(handle), aborted = () => { void release(handle).catch(() => {}); };
+      signal.addEventListener('abort', aborted, { once: true });
+      try { return captureSource(bound, await actualSource(bound, { operation: 'status', handle }, signal)); }
+      catch (error) { if (signal.aborted) await release(handle); throw error; }
+      finally { signal.removeEventListener('abort', aborted); }
+    };
+    sourcePort.verify = async handle => { await actualSource(binding(handle), { operation: 'verify', handle }, new AbortController().signal); };
+    sourcePort.renew = async handle => { await actualSource(binding(handle), { operation: 'renew', handle }, new AbortController().signal); };
+    sourcePort.read = async (handle, readId, start, maxBytes, signal) => {
+      const bound = binding(handle), aborted = () => { void closeRead(handle, readId).catch(() => {}); };
+      signal.addEventListener('abort', aborted, { once: true }); if (signal.aborted) aborted();
+      try {
+        const result = await actualSource(bound, { operation: 'read', handle, readId, start, maxBytes }, signal);
+        if (result.kind !== 'mobile-source-read') throw new MobilePlaybackError(503, 'BUSY');
+        signal.throwIfAborted(); return new Uint8Array(result.bytes);
+      } finally { signal.removeEventListener('abort', aborted); }
+    };
+    sourcePort.closeRead = closeRead;
+    sourcePort.release = release;
+  }
   const requireService = (requestOrigin: string): MobilePlaybackService => {
     current(); if (!service || requestOrigin !== origin) throw new MobileServiceError(503, 'BUSY'); return service;
   };

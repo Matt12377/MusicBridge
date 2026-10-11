@@ -91,7 +91,7 @@ const {
   invalidateCollectionOperation, playQueueItem, editQueueEntry, togglePlayback, stopPlayback,
   nextTrack, previousTrack, seekPlayback, cancelRoonPlaybackPreparation, retryLastPlaybackAction,
 } = playback
-const localLibrary = useLocalLibrary({ api: window.musicBridge, getSelectedZone: () => selectedZone.value, play: request => playback.playLocalLibrarySelection(request) })
+const localLibrary = useLocalLibrary({ api: window.musicBridge, getSelectedZone: () => selectedZone.value, play: request => playback.playLocalLibrarySelection(request), readPlayReceipt: request => playback.readLocalLibraryPlayReceipt(request), getPlaybackSnapshot: () => playback.playbackState.value })
 const zones = ref<readonly PublicRoonZone[]>([])
 const zonesLoading = ref(false)
 const zoneRefreshCoordinator = createZoneRefreshCoordinator({

@@ -2289,6 +2289,7 @@ async function bootstrap(): Promise<void> {
       decryptString: value => { if (!safeStorage.isEncryptionAvailable()) throw new Error('移动连接安全存储不可用。'); return safeStorage.decryptString(value) } },
     currentDataset: async () => (await supervisor.request('commandOutbox.context', {})).datasetId,
     requestOwner: request => supervisor.requestMobileMain(request), isCoreReady: () => supervisor.status === 'ready' && !quitAfterCoreShutdown,
+    requestContentRpc: (request, signal) => supervisor.requestMobileContentMain(request, signal),
     environment: __MUSIC_BRIDGE_DEVELOPMENT_BUILD__ ? 'development' : 'production',
     resizeArtwork: (bytes, size) => {
       const image = nativeImage.createFromBuffer(Buffer.from(bytes)); if (image.isEmpty()) throw new Error('当前封面无法解码。');

@@ -123,6 +123,7 @@ export type IpcEnvelope<T = unknown> = IpcRequest<T> | IpcResponse<T>;
 
 export interface IpcCommandPayloads extends LocalRelocationPlanCommandPayloads, LocalSourceWritesCommandPayloads, LocalLegacyLinksCommandPayloads, LocalOrganizerCommandPayloads, LocalArtworkCommandPayloads, LocalCatalogCommandPayloads, LocalLibraryReadCommandPayloads, LocalScanCommandPayloads, LocalRelocationCommandPayloads {
   'localCatalog.prepare': LocalPlayRequest;
+  'localCatalog.playReceipt': LocalPlayRequest;
   'playback.localTarget': Record<string, never>;
   'commandOutbox.context': Record<string, never>;
   'commandOutbox.execute': CommandOutboxExecute;
@@ -417,6 +418,7 @@ export interface IpcCommandPayloads extends LocalRelocationPlanCommandPayloads, 
 
 export interface IpcCommandResults extends LocalRelocationPlanCommandResults, LocalSourceWritesCommandResults, LocalLegacyLinksCommandResults, LocalOrganizerCommandResults, LocalArtworkCommandResults, LocalCatalogCommandResults, LocalLibraryReadCommandResults, LocalScanCommandResults, LocalRelocationCommandResults {
   'localCatalog.prepare': LocalSourceUnsupported | LocalPlayAccepted;
+  'localCatalog.playReceipt': import('./local-play-request.js').LocalPlayReceipt;
   'playback.localTarget': import('./local-play-request.js').LocalPlayTarget | null;
   'commandOutbox.context': CommandOutboxContext;
   'commandOutbox.execute': CommandOutboxResult;

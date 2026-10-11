@@ -1,4 +1,5 @@
 import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts';
+import { ROON_DIAGNOSTIC_EVENTS, type LocalRoonStartupDiagnostic } from '@music-bridge/contracts';
 import { readVolume, planVolume } from './volume.js';
 import { randomUUID } from 'node:crypto';
 import type { RemoteCoreMode, RoonImageShapeSummary } from '@music-bridge/contracts';
@@ -780,6 +781,16 @@ export class RoonAudioInputAdapter implements RoonPort {
       let phase: RoonPlaybackPhase = 'awaiting_session';
       let timeout: ReturnType<typeof setTimeout> | undefined;
       const startedAt = Date.now();
+      const localDiagnostic = (event:LocalRoonStartupDiagnostic['event'], stagePhase:RoonPlaybackPhase, eventName?:string, errorClass:SanitizedRoonErrorClass='none', callbackWasStale = !this.isCurrentPlaybackGeneration(generation)):void => {
+        if(!request.onLocalSession || !request.onLocalDiagnostic || eventName==='Time')return;
+        let gatewayStage:RoonGatewayStage='none';
+        try{gatewayStage=readGatewayStage(request.gatewayStage?.());}catch{/* 诊断读取不影响播放。 */}
+        try{
+          request.onLocalDiagnostic({event,stage:{phase:stagePhase,elapsedMs:Math.min(86400000,Math.max(0,Date.now()-startedAt)),gatewayStage,errorClass,
+            staleCallback:callbackWasStale,
+            ...(eventName===undefined?{}:{eventName:(ROON_DIAGNOSTIC_EVENTS as readonly string[]).includes(eventName)?eventName as NonNullable<LocalRoonStartupDiagnostic['stage']['eventName']>:'Unknown'})}});
+        }catch{/* 脱敏诊断绝不能改变原会话或回执。 */}
+      };
 
       const releaseTimeout = (): void => {
         if (!timeout) return;
@@ -788,13 +799,13 @@ export class RoonAudioInputAdapter implements RoonPort {
         this.activeTimerCount = Math.max(0, this.activeTimerCount - 1);
       };
 
-      const finish = (error?: Error): void => {
+      const finish = (error?: Error, callbackWasStale = !this.isCurrentPlaybackGeneration(generation)): void => {
         if (settled) {if(!error)releaseTimeout();return;}
         settled = true;
         request.signal?.removeEventListener('abort', onAbort);
         releaseTimeout();
         if (error && !playbackContext.stopping) { if (request.onLocalSession && playbackContext.dispatched) this.localObservation(playbackContext,'UNKNOWN'); else this.clearPlaybackContext(generation); }
-        if (error) reject(error);
+        if (error) { localDiagnostic('roon_startup_failed',phase,undefined,'other',callbackWasStale); reject(error); }
         else resolve();
       };
 
@@ -816,6 +827,7 @@ export class RoonAudioInputAdapter implements RoonPort {
           timeout = undefined;
           this.activeTimerCount = Math.max(0, this.activeTimerCount - 1);
           const generationCurrent = this.isCurrentPlaybackGeneration(generation);
+          localDiagnostic('roon_session_timeout',nextPhase);
           this.logger.warn('roon_session_timeout', {
             phase: nextPhase,
             elapsedMs: Date.now() - startedAt,
@@ -828,6 +840,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       };
 
       const finishZoneLoss = (): void => {
+        const callbackWasStale = !this.isCurrentPlaybackGeneration(generation);
         this.selectedZone = undefined;
         this.setStatus('paired', 'Please configure Zone', true);
         this.clearPlaybackContext(generation);
@@ -838,6 +851,7 @@ export class RoonAudioInputAdapter implements RoonPort {
             'Selected Roon Zone was lost',
             { httpStatus: 409, details: { phase } },
           ),
+          callbackWasStale,
         );
       };
 
@@ -846,6 +860,7 @@ export class RoonAudioInputAdapter implements RoonPort {
         const generationCurrent = this.isCurrentPlaybackGeneration(generation);
         const staleCallback = !generationCurrent;
         const responseSummary = summarizeRoonResponseBody(playBody);
+        localDiagnostic('roon_play_event','awaiting_playing',event,responseSummary.sanitizedErrorClass,staleCallback);
         const trackIdPresent =
           generationCurrent && this.activePlaybackContext?.trackId === trackId;
         let gatewayStage: RoonGatewayStage = 'none';
@@ -905,14 +920,14 @@ export class RoonAudioInputAdapter implements RoonPort {
             this.setTransportState('stopped');
             this.terminalHandler('ended');
             this.clearPlaybackContext(generation);
-            if (!settled) finish(protocolError('awaiting_playing', 'ended_before_playing', event));
+            if (!settled) finish(protocolError('awaiting_playing', 'ended_before_playing', event),staleCallback);
             break;
           case 'StoppedUser':
             this.setStatus('ready', 'Ready', false);
             this.setTransportState('stopped');
             this.terminalHandler('stopped');
             this.clearPlaybackContext(generation);
-            if (!settled) finish(protocolError('awaiting_playing', 'stopped_before_playing', event));
+            if (!settled) finish(protocolError('awaiting_playing', 'stopped_before_playing', event),staleCallback);
             break;
           case 'Paused':
             try {request.assertCurrent?.();this.localObservation(playbackContext,'PAUSED');} catch {this.localObservation(playbackContext,'OWNERSHIP_LOST');return;}
@@ -931,6 +946,7 @@ export class RoonAudioInputAdapter implements RoonPort {
                 httpStatus: 502,
                 details: { phase: 'awaiting_playing', event },
               }),
+              staleCallback,
             );
             break;
           case 'ZoneNotFound':
@@ -958,6 +974,7 @@ export class RoonAudioInputAdapter implements RoonPort {
           hasSessionId: Boolean(sessionId),
           sanitizedErrorClass: responseSummary.sanitizedErrorClass,
         });
+        localDiagnostic('roon_session_event',phase,sessionEvent,responseSummary.sanitizedErrorClass,staleCallback);
         if (staleCallback) return;
         if (playbackContext.stopping) {
           if (sessionEvent === 'SessionEnded') playbackContext.confirmStop?.();
@@ -969,6 +986,7 @@ export class RoonAudioInputAdapter implements RoonPort {
           if (settled && !request.onLocalSession) return;
           if (playbackContext.sessionId) return;
           if (!sessionId) {
+            localDiagnostic('roon_session_began',phase,'SessionBegan','missing_required_field');
             this.logger.warn('roon_session_began', {
               phase,
               hasSessionId: false,
@@ -982,6 +1000,7 @@ export class RoonAudioInputAdapter implements RoonPort {
             phase: 'awaiting_playing',
             hasSessionId: true,
           });
+          localDiagnostic('roon_session_began','awaiting_playing','SessionBegan');
           try {
             request.onStartupStage?.('roon-session-began');
           } catch {
@@ -1002,6 +1021,7 @@ export class RoonAudioInputAdapter implements RoonPort {
               () => undefined,
             ));
             this.logger.info('roon_play_requested', { phase: 'awaiting_playing' });
+            localDiagnostic('roon_play_requested','awaiting_playing');
             const playOptions: RoonAudioInputPlayOptions = {
               session_id: sessionId,
               track_id: trackId,
@@ -1063,7 +1083,7 @@ export class RoonAudioInputAdapter implements RoonPort {
           this.terminalHandler(request.onLocalSession ? 'stopped' : 'ended');
           this.setStatus('ready', 'Ready', false);
           this.clearPlaybackContext(generation);
-          if (!settled) finish(protocolError(phase, 'session_ended', sessionEvent));
+          if (!settled) finish(protocolError(phase, 'session_ended', sessionEvent),staleCallback);
           return;
         }
 
@@ -1085,6 +1105,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       };
 
       armTimeout('awaiting_session', this.sessionBeginTimeoutMs);
+      localDiagnostic('roon_begin_session_requested','awaiting_session');
       this.logger.info('roon_begin_session_requested', {
         phase: 'awaiting_session',
         zoneIdPresent: true,

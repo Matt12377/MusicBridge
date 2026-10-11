@@ -22,6 +22,50 @@ const reserve = (n: number): void => {
   if (!integer(n) || n > budget.singleAllocationBytes || allocationBytes + n > budget.totalAllocationBytes) fail('BUDGET_EXCEEDED');
   allocationBytes += n;
 };
+interface WaveFormatFacts {
+  codec: 'PCM' | 'IEEE_FLOAT' | 'WAVE_EXTENSIBLE_UNKNOWN' | null;
+  lossless: boolean | null; sampleRateHz: number; channels: number; bitsPerSample: number; blockAlign: number;
+}
+/** 同一有界 FD 读到的完整 fmt 结构；fact 的存在不决定编码是否有损。 */
+function waveFormatFacts(bytes: Uint8Array, chunkBytes: number): WaveFormatFacts {
+  checkTime();
+  if (chunkBytes < 16 || bytes.length < 16) fail('PARSE_FAILED');
+  const v = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const tag = v.getUint16(0, true), channels = v.getUint16(2, true), sampleRateHz = v.getUint32(4, true);
+  const byteRate = v.getUint32(8, true), blockAlign = v.getUint16(12, true), bitsPerSample = v.getUint16(14, true);
+  if (channels < 1 || channels > 64 || sampleRateHz < 1 || sampleRateHz > 1_000_000_000) fail('PARSE_FAILED');
+  let cbSize = 0;
+  if (chunkBytes !== 16) {
+    if (chunkBytes < 18 || bytes.length < 18) fail('PARSE_FAILED');
+    cbSize = v.getUint16(16, true);
+    if (18 + cbSize > chunkBytes) fail('PARSE_FAILED');
+  }
+  let codec: WaveFormatFacts['codec'] = tag === 1 ? 'PCM' : tag === 3 ? 'IEEE_FLOAT' : null;
+  let validBits = bitsPerSample, channelMask = 0;
+  if (tag === 0xfffe) {
+    if (chunkBytes < 40 || bytes.length < 40 || cbSize < 22) fail('PARSE_FAILED');
+    validBits = v.getUint16(18, true); channelMask = v.getUint32(20, true);
+    // 完整比较 GUID；不能凭 Data1 的低字或容器位宽给未知子格式 PCM 资格。
+    const guid = Buffer.from(bytes.subarray(24, 40)).toString('hex');
+    codec = guid === '0100000000001000800000aa00389b71' ? 'PCM'
+      : guid === '0300000000001000800000aa00389b71' ? 'IEEE_FLOAT' : 'WAVE_EXTENSIBLE_UNKNOWN';
+  }
+  let lossless: boolean | null = null;
+  if (codec === 'PCM' || codec === 'IEEE_FLOAT') {
+    if (bitsPerSample < 8 || bitsPerSample > 64 || bitsPerSample % 8 !== 0
+      || validBits < 1 || validBits > bitsPerSample || blockAlign !== channels * bitsPerSample / 8
+      || byteRate !== sampleRateHz * blockAlign
+      || codec === 'IEEE_FLOAT' && (![32, 64].includes(bitsPerSample) || validBits !== bitsPerSample)) fail('PARSE_FAILED');
+    let maskChannels = 0;
+    for (let bit = 0; bit < 32; ++bit) maskChannels += channelMask >>> bit & 1;
+    if (channelMask !== 0 && maskChannels !== channels) fail('PARSE_FAILED');
+    lossless = true;
+  } else if (tag !== 0xfffe && [0x0002, 0x0006, 0x0007, 0x0011, 0x0031, 0x0050, 0x0055, 0x00ff, 0x1600, 0x1602].includes(tag)) {
+    lossless = false; // 已知有损编码；其它编码保持未知，不能从 data/fact 推断。
+  }
+  // 这里的位宽是容器位宽；validBits=24 的 32-bit 容器仍按 32-bit 传输。
+  return { codec, lossless, sampleRateHz, channels, bitsPerSample, blockAlign };
+}
 /** 在第三方模块加载之前，限制这个独占worker里的字节分配；主线程原生对象不变。 */
 function guardAllocations(): void {
   const originalByteLength = Buffer.byteLength;
@@ -133,7 +177,7 @@ async function run(): Promise<MetadataReadResult> {
   const textAt = (b: Uint8Array,at: number,length: number): string => String.fromCharCode(...b.subarray(at,at+length));
   const view = (b: Uint8Array): DataView => new DataView(b.buffer,b.byteOffset,b.byteLength);
   // 先检查容器边界与存在的音频载荷，再进入Parser；magic/扩展名本身不能构成成功。
-  let dsd: DsdContainerFacts | undefined;
+  let dsd: DsdContainerFacts | undefined, wave: WaveFormatFacts | undefined;
   if (container === 'DSF' || container === 'DFF') {
     try { dsd = await readDsdContainerFacts(input.size,readAt); }
     catch (error) { if (error instanceof DsdContainerError) fail(error.code); throw error; }
@@ -203,17 +247,26 @@ async function run(): Promise<MetadataReadResult> {
     const little = container === 'WAVE', end = view(head).getUint32(4,little) + 8;
     if (end > input.size || end < 20) fail('PARSE_FAILED');
     let at = 12, chunks = 0, formatSeen = false, audioSeen = false;
+    const waveDataSizes: number[] = [];
     while (at + 8 <= end) {
       if (++chunks > 4096) fail('BUDGET_EXCEEDED');
       const h = await readAt(at,8), id = textAt(h,0,4), size = view(h).getUint32(4,little);
       if (at + 8 + size > end) fail('PARSE_FAILED');
-      if (id === (little ? 'fmt ' : 'COMM')) formatSeen = size >= (little ? 16 : 18);
+      if (little && id === 'fmt ') {
+        if (wave) fail('PARSE_FAILED');
+        wave = waveFormatFacts(await readAt(at + 8, Math.min(size, 40)), size); formatSeen = true;
+      } else if (!little && id === 'COMM') formatSeen = size >= 18;
       if (id === (little ? 'data' : 'SSND')) audioSeen = size > (little ? 0 : 8);
       else if (size > budget.singleAllocationBytes) fail('BUDGET_EXCEEDED');
+      if (little && id === 'data') waveDataSizes.push(size);
       if (little && id === 'LIST' && size === 0) waveEmptyListHeaders.add(at);
       at += 8 + size + size % 2;
     }
     if (!formatSeen || !audioSeen || at > end + 1) fail('PARSE_FAILED');
+    if (wave && (wave.codec === 'PCM' || wave.codec === 'IEEE_FLOAT')) {
+      const blockAlign = wave.blockAlign;
+      if (waveDataSizes.some(size => size % blockAlign !== 0)) fail('PARSE_FAILED');
+    }
   } else if (container === 'MP4') {
     let at = 0, atoms = 0, moov = false, media = false;
     while (at < input.size) {
@@ -267,15 +320,17 @@ async function run(): Promise<MetadataReadResult> {
   if (common.disk.no !== null) fields.disc = String(common.disk.no);
   if (common.track.no !== null) fields.track = String(common.track.no);
   for (const value of Object.values(fields)) if (Buffer.byteLength(value, 'utf8') > budget.textFieldBytes) fail('BUDGET_EXCEEDED');
-  const format = metadata.format, codec = dsd ? dsd.codec : format.codec;
+  const format = metadata.format, codec = dsd ? dsd.codec : wave?.codec ?? format.codec;
   if (dsd && (format.sampleRate !== dsd.sampleRateHz || format.numberOfChannels !== dsd.channels)) fail('PARSE_FAILED');
+  if (wave && (format.sampleRate !== wave.sampleRateHz || format.numberOfChannels !== wave.channels
+    || format.bitsPerSample !== wave.bitsPerSample)) fail('PARSE_FAILED');
   if (!Number.isSafeInteger(format.sampleRate) || format.sampleRate! < 1 || format.sampleRate! > 1_000_000_000
     || !Number.isSafeInteger(format.numberOfChannels) || format.numberOfChannels! < 1 || format.numberOfChannels! > 64
     || typeof codec !== 'string' || codec.length === 0 || Buffer.byteLength(codec,'utf8') > 256 || format.hasAudio === false) throw new ReaderFailure('PARSE_FAILED');
   if (container === 'MP4' && !/ALAC|AAC/iu.test(codec)) fail('UNSUPPORTED');
   const finite = (n: number | undefined): number | null => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= Number.MAX_SAFE_INTEGER ? n : null;
   const technical: MetadataTechnical = { container, codec, sampleRateHz: format.sampleRate!, channels: format.numberOfChannels!,
-    lossless: dsd ? true : typeof format.lossless === 'boolean' ? format.lossless : null,
+    lossless: dsd ? true : wave ? wave.lossless : typeof format.lossless === 'boolean' ? format.lossless : null,
     bitsPerSample: dsd ? 1 : finite(format.bitsPerSample), durationSeconds: dsd ? dsd.durationSeconds : finite(format.duration), evidence: 'bounded-parser-reported' };
   const covers = common.picture ?? []; if (covers.length > 8) fail('BUDGET_EXCEEDED');
   const coverEvidence: MetadataCoverEvidence[] = [];
@@ -287,7 +342,7 @@ async function run(): Promise<MetadataReadResult> {
     if (!png && !jpeg) continue;
     coverEvidence.push({ mime: png ? 'image/png' : 'image/jpeg', bytes: data.byteLength, sha256: createHash('sha256').update(data).digest('hex'), evidence: 'encoded-bytes-magic-and-digest' });
   }
-  checkTime(); phase = 'complete'; return { status: 'ok', parserVersion: 'music-metadata-11.15.0/mbrs003-v3', fields, technical, coverEvidence, readEvidence: evidence() };
+  checkTime(); phase = 'complete'; return { status: 'ok', parserVersion: 'music-metadata-11.15.0/mbrs003-v4', fields, technical, coverEvidence, readEvidence: evidence() };
 }
 const publish = (result: MetadataReadResult): void => { parentPort!.postMessage({ kind: 'metadata-result', result, phase } satisfies MetadataWorkerResultMessage); };
 try { publish(await run()); }

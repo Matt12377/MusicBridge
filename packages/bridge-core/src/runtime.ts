@@ -1,6 +1,9 @@
 import { createScanReadAdmission, type ScanReadAdmission } from './library/scan-read-admission.js';
 import { createTestDatasetDomain } from './collection/dataset-domain.js';
 import type { DatasetOwnerEndpoint } from './collection/dataset-owner-protocol.js';
+import { createMobileContentRuntime } from './mobile/content-runtime.js';
+import type { MobileContentCoreResponse } from './mobile/content-rpc.js';
+import { MobileServiceError } from './mobile/types.js';
 import { assertLibraryReadCurrent, currentLibraryRead, type LibraryReadLifetime } from './shared/library-read-lifetime.js';
 import { createNodePerformanceTrace, currentPerformanceContext } from './diagnostics/performance-trace.js';
 import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts';
@@ -138,6 +141,8 @@ export type CoreRuntimeEvent = TypedIpcEvent;
 
 export interface CoreRuntime {
   readonly datasetOwnerEndpoint?: DatasetOwnerEndpoint;
+  /** 仅可信Main私有消息；不增加Renderer或公开Control API。 */
+  mobileContentRpc?(request: unknown, signal: AbortSignal): Promise<MobileContentCoreResponse>;
   /** 仅可信所有者元数据桥接使用，不属于公开IPC对象。 */
   getDatasetRoonLibrary?(): RoonPublicLibrary;
   /** 只供唯一DatasetOwner私有投影使用，不进入普通IPC DTO。 */
@@ -213,6 +218,7 @@ export interface CoreRuntime {
   playbackPlayQueueEntry?(request:import('@music-bridge/contracts').MBQueuePlayEntryRequest):Promise<PlaybackSnapshot>;
   playbackQueueLocalEdition?(request:import('@music-bridge/contracts').MBEditionQueueRequest):Promise<PlaybackSnapshot>;
   playbackPlayLocal?(request: import('@music-bridge/contracts').LocalPlayRequest): Promise<import('@music-bridge/contracts').LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported>;
+  getLocalPlayReceipt?(request: import('@music-bridge/contracts').LocalPlayRequest): import('@music-bridge/contracts').LocalPlayReceipt;
   getLocalLibraryPlaybackTarget?(): import('@music-bridge/contracts').LocalPlayTarget | null;
   playbackPlay(
     trackId: string,
@@ -372,6 +378,9 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   }
   const config = loadConfig(options.env);
   const logger = options.logger ?? createLogger(config.logLevel);
+  const diagnostics = new DiagnosticRingBuffer();
+  const localRoonDiagnostics = new DiagnosticRingBuffer(50);
+  let localDiagnosticSequence = 0;
   const registry = new StreamRegistry();
   const netease = new NeteaseClient(config.neteaseCookie);
   const qrLogin = new QrLoginStateMachine(netease);
@@ -442,6 +451,11 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     gateway,
     logger,
     ...(options.datasetOwnerEndpoint?{localSources:options.datasetOwnerEndpoint}:{}),
+    localPlaybackDiagnostics: () => {
+      const diagnosticId='diag-local-'+String(++localDiagnosticSequence);
+      return event => localRoonDiagnostics.record({component:'core',level:event.event==='roon_session_timeout' || event.event==='roon_startup_failed'?'warn':'info',
+        event:event.event,diagnosticId,roonStage:event.stage,...(event.event==='roon_session_timeout'?{code:'ROON_TIMEOUT'}:event.stage.eventName==='MediaError'?{code:'ROON_MEDIA_ERROR'}:{})});
+    },
     roonLibrary: {
       resolveArtwork: imageKey => roonLibrary.registerNowPlayingArtwork(imageKey),
       play: async (reference, zoneId, track, operation: RoonOperationOptions & {
@@ -584,12 +598,15 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 
   let shutdownStarted = false;
   let shutdownFlight: Promise<void> | undefined;
+  const mobileContent = options.datasetOwnerEndpoint ? createMobileContentRuntime({
+    owner: options.datasetOwnerEndpoint, netease,
+    assertCurrent: () => { if (runtime !== 'ready' || shutdownStarted) throw new MobileServiceError(503, 'BUSY'); },
+  }) : undefined;
   scanReadAdmission = createScanReadAdmission({ isBusy: () => {
     sampleRoonReadBusy();
     return runtime !== 'ready' || shutdownStarted || controller.hasPlaybackOwnership()
       || observedRoonReadBusy || gateway.getActiveMediaReadCount() > 0;
   } });
-  const diagnostics = new DiagnosticRingBuffer();
   const performanceMonitor = createNodePerformanceTrace({ component: 'core', enabled: (options.env ?? process.env).MUSIC_BRIDGE_PERFORMANCE_TRACE === '1', monitorEventLoop: true });
   const performanceTrace = performanceMonitor.recorder;
   const runtimeStartedAt = Date.now();
@@ -1029,6 +1046,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     let localCloseError:unknown;
     try{await controller.shutdown();}catch(error){localCloseError=error;}
     await registry.closeLocal();
+    try { await mobileContent?.close(); } catch (error) { localCloseError ??= error; }
     let ownerCloseFailed = false;
     let ownerCloseError: unknown;
     try { await options.datasetOwnerEndpoint?.close(); }
@@ -1099,7 +1117,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       ...(performanceTrace.isEnabled() ? { performance: performanceTrace.snapshot() } : {}),
       component: 'core',
       health: publicState(),
-      timeline: diagnostics.snapshot(),
+      timeline: [...diagnostics.snapshot().slice(-150),...localRoonDiagnostics.snapshot()].sort((a,b)=>a.at.localeCompare(b.at)),
       memory: {
         rssBytes: process.memoryUsage().rss,
         heapUsedBytes: process.memoryUsage().heapUsed,
@@ -1130,6 +1148,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     },
     performance: performanceTrace,
     ...(options.datasetOwnerEndpoint ? { datasetOwnerEndpoint: options.datasetOwnerEndpoint } : {}),
+    ...(mobileContent ? { mobileContentRpc: (request: unknown, signal: AbortSignal) => mobileContent.request(request, signal) } : {}),
     getDatasetRoonLibrary: () => roonLibrary,
     getDatasetScanReadAdmission: () => scanReadAdmission!,
     async start(): Promise<void> {
@@ -1198,12 +1217,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
       if (status === 'expired') {
         netease.clearCredential();
         notifyProviderExpired();
+        await mobileContent?.providerChanged();
       }
       return { status };
     },
 
     async setProviderCredential(credential: string): Promise<PublicBridgeState> {
       netease.setCredential(credential);
+      await mobileContent?.providerChanged();
       credentialGeneration += 1;
       accountRequest = undefined;
       accountRequestGeneration = -1;
@@ -1225,6 +1246,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
 
     async clearProviderCredential(): Promise<PublicBridgeState> {
       netease.clearCredential();
+      await mobileContent?.providerChanged();
       clearAccount('missing');
       emit(eventWithAuthState(qrLogin.markMissing()));
       const state = publicState();
@@ -1255,6 +1277,7 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     async logoutProvider(): Promise<PublicAuthState> {
       const state = await qrLogin.logout();
       netease.clearCredential();
+      await mobileContent?.providerChanged();
       try {
         await controller.clearQueue();
       } finally {
@@ -1311,7 +1334,23 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     playbackEditLogicalQueue: async request => {await controller.editLogicalQueue(request);return readPlayback();},
     playbackPlayQueueEntry: async request => {await controller.playQueueEntry(request);return readPlayback();},
     playbackQueueLocalEdition: async request => {if(publishPlaybackEvents.getProtocol()?.protocol!=='compact-v1')throw new BridgeError('BAD_REQUEST','LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED',{httpStatus:409});await controller.queueLocalEdition(request);return readPlayback();},
-    playbackPlayLocal: request => publishPlaybackEvents.getProtocol()?.protocol==='compact-v1' ? controller.playLocal(request) : Promise.resolve({status:'unsupported',reason:'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED'}),
+    async playbackPlayLocal(request) {
+      if(publishPlaybackEvents.getProtocol()?.protocol!=='compact-v1')return {status:'unsupported',reason:'LOCAL_PLAYBACK_PROTOCOL_UNSUPPORTED'};
+      localRoonDiagnostics.record({component:'core',level:'info',event:'local_play_request_received'});
+      try {
+        const result=await controller.playLocal(request);
+        localRoonDiagnostics.record({component:'core',level:'info',event:'local_play_receipt_returned',state:controller.getPlaybackState().local?.phase ?? result.status});
+        return result;
+      }catch(error){
+        localRoonDiagnostics.record({component:'core',level:'warn',event:'local_play_failed',code:asBridgeError(error).code});
+        throw error;
+      }
+    },
+    getLocalPlayReceipt: request => {
+      const receipt=controller.getLocalPlayReceipt(request);
+      localRoonDiagnostics.record({component:'core',level:'info',event:'local_play_receipt_checked',state:receipt.status});
+      return receipt;
+    },
     getLocalLibraryPlaybackTarget: () => controller.getLocalPlaybackTarget(),
     async playbackPlay(trackId, qualityPreference, rendererClickAtMs) {
       const coreReceivedAtMs = options.now?.() ?? Date.now();

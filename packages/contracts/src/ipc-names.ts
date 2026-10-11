@@ -17,6 +17,7 @@ export const IPC_COMMANDS = [
   ...LOCAL_SCAN_COMMANDS,
   ...LOCAL_RELOCATION_COMMANDS,
   'localCatalog.prepare',
+  'localCatalog.playReceipt',
   'playback.localTarget',
   'spreadsheetImports.sources',
   'spreadsheetImports.source',

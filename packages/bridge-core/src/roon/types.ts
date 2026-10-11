@@ -43,6 +43,8 @@ export interface LocalRoonSessionObservation {
   generation: number; sessionId?: string; isConfirmed(): boolean; isOwned(): boolean;
 }
 export interface RoonPlayRequest extends RoonOperationOptions {
+  /** 原本地启动的有限脱敏阶段，不包含会话身份、URL或响应正文。 */
+  onLocalDiagnostic?(event: import('@music-bridge/contracts').LocalRoonStartupDiagnostic): void;
   /** 私有会话事实，不进入公开IPC。 */
   onLocalSession?(observation: LocalRoonSessionObservation): void;
   mediaUrl: string;

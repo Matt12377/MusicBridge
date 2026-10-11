@@ -2,10 +2,11 @@ import { useLocalArtwork } from './useLocalArtwork.js'
 import { useLocalOrganizer } from './useLocalOrganizer.js'
 import { useLocalSourceWrites } from './useLocalSourceWrites.js'
 import { useLocalRelocationPlans } from './useLocalRelocationPlans.js'
-import { computed, markRaw, ref, shallowRef } from 'vue'
+import { computed, markRaw, ref, shallowRef, watch } from 'vue'
 import { LOCAL_ORGANIZER_LIMIT, isCollectionId, isCommandOutboxOverview, isLocalArtworkContext, isLocalCatalogText, isLocalLibraryQueryPage, isLocalLibraryTrackDetail, isLocalPlayTarget, type LocalArtworkContext } from '@music-bridge/contracts'
 import type { CommandOutboxOverview, CommandOutboxPublicApi, LocalLibraryPublicApi, LocalLibraryQueryPage, LocalLibraryTrackSummary, LocalLibraryTrackDetail, LocalMetadata, LocalPlayAccepted, LocalPlayAction, LocalPlayRequest, LocalPlayTarget, LocalSourceUnsupported, LocalRootView, LocalRelocationSelection, LocalRelocationCandidates, LocalRelocationConfirm, LocalCatalogCommandPayloads, PublicRoonZone, TrackSummary } from '@music-bridge/contracts'
-import type { LocalLibraryPlayReceipt } from '../../components/player/details.js'
+import { localPlaybackSubmissionUnconfirmed, localPlaySubmissionResolved, type LocalLibraryPlayReceipt } from '../../components/player/details.js'
+import { isLocalPlayReceipt, type LocalPlayReceipt, type LocalPlayRejection } from '@music-bridge/contracts'
 
 export const LOCAL_LIBRARY_PAGE_SIZE = 100
 export const LOCAL_LIBRARY_CACHE_PAGES = 6
@@ -13,6 +14,8 @@ export interface LocalLibraryOptions {
   api: LocalLibraryPublicApi & Partial<import('@music-bridge/contracts').LocalArtworkPublicApi> & Partial<import('@music-bridge/contracts').LocalOrganizerPublicApi> & Partial<import('@music-bridge/contracts').LocalSourceWritesPublicApi> & Partial<import('@music-bridge/contracts').LocalRelocationPlanPublicApi> & Partial<Pick<CommandOutboxPublicApi, 'getCommandOutbox'>>
   getSelectedZone: () => PublicRoonZone | undefined
   play: (request: LocalPlayRequest) => Promise<LocalPlayAccepted | LocalSourceUnsupported>
+  readPlayReceipt?: (request:LocalPlayRequest) => Promise<LocalPlayReceipt>
+  getPlaybackSnapshot?: () => import('@music-bridge/contracts').PlaybackSnapshot | null
 }
 export function localLibraryTrackPresentation(item: LocalLibraryTrackSummary): TrackSummary {
   return { id: item.track.id, title: item.metadata.title || '来源未提供标题', artists: item.metadata.artist ? [item.metadata.artist] : [], album: item.metadata.album || '',
@@ -46,6 +49,10 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
   const relocationSelection = shallowRef<LocalRelocationSelection | null>(null), relocationConfirmed = ref(false), relocationUnknown = ref(false)
   const pendingOverride = shallowRef<LocalCatalogCommandPayloads['localCatalog.overrideMetadata'] | null>(null)
   const lastPlay = shallowRef<LocalLibraryPlayReceipt | null>(null)
+  const unconfirmedPlay = shallowRef<LocalPlayRequest | null>(null)
+  let resolvedPlay: LocalPlayRequest | null = null
+  const canReadOriginalPlay=computed(()=>!!lastPlay.value && (typeof options.readPlayReceipt==='function' || typeof options.api.getLocalLibraryPlayReceipt==='function'))
+  const rejectionMessage:Record<LocalPlayRejection,string>={REQUEST_REJECTED:'原点播请求已拒绝，请刷新曲目与播放目标后核对。',TARGET_UNAVAILABLE:'原请求的 Roon 播放目标不可用，请核对连接与设备选择。',SOURCE_UNAVAILABLE:'原请求的来源准备失败，请核对目录与具体曲目。',MEDIA_ERROR:'Roon 已报告原媒体错误，请查看本次诊断。',ROON_TIMEOUT:'原启动请求已超时，请查看本次 Roon 阶段诊断。',INTERNAL_ERROR:'原请求处理失败，请导出本次诊断。'}
   type Pending<R> = { request: R; datasetId: string | null; generation: number; trackId: string | null; confirmed: 'succeeded' | 'rejected' | null }
   let overrideBinding: Pending<LocalCatalogCommandPayloads['localCatalog.overrideMetadata']> | null = null
   const pendingRelocation = shallowRef<Pending<LocalRelocationConfirm> | null>(null)
@@ -56,6 +63,9 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
   const refreshPages = new Set<number>()
   let active = false, disposed = false, queryGeneration = 0, detailGeneration = 0, contextGeneration = 0, actionGeneration = 0
   let pumping: Promise<void> | undefined
+  // 立即消费真实闭合观察；随后切来源不会把已结束的原意图重新变成未知。
+  const stopPlaybackObservation = options.getPlaybackSnapshot
+    ? watch(options.getPlaybackSnapshot, consumePlaybackObservation, { flush: 'sync', immediate: true }) : undefined
   let wantedStart = 0, wantedEnd = 24
   const rangeWindow = computed(() => {
     void cacheVersion.value
@@ -231,7 +241,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     if (reconciled && active && !disposed) await refreshBusiness()
   }
   function suspend(): void { artwork.close(); organizer.close(); sourceWrites.close(); relocationPlans.close(); active = false; queryGeneration++; detailGeneration++; contextGeneration++; actionGeneration++; outboxGeneration++; loading.value = false; detailLoading.value = false; target.value = null }
-  function dispose(): void { artwork.dispose(); organizer.dispose(); sourceWrites.dispose(); relocationPlans.dispose(); suspend(); disposed = true; pages.clear(); cacheVersion.value++ }
+  function dispose(): void { stopPlaybackObservation?.(); artwork.dispose(); organizer.dispose(); sourceWrites.dispose(); relocationPlans.dispose(); suspend(); disposed = true; pages.clear(); cacheVersion.value++ }
   function toggleTrackSelection(trackId: string): void {
     if (!isCollectionId(trackId)) return
     selectionError.value = ''
@@ -270,6 +280,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
 
   async function playTrack(trackId: string, action: LocalPlayAction = 'PLAY_NOW'): Promise<void> {
     if (actionBusy.value || !active) return
+    if (playSubmissionBlocked(action)) return
     actionBusy.value = true; actionError.value = ''; actionErrorCommandId = null
     const generation = ++actionGeneration
     let dispatchedRequest: LocalPlayRequest | null = null
@@ -283,19 +294,71 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
       if (!root || root.availability !== 'ONLINE') { actionError.value = '源目录离线或许可已撤销，请先恢复或重新关联目录；曲目与收藏保留。'; return }
       if (root.root.revision !== current.asset.rootRevision || root.root.sourceRootId !== current.asset.sourceRootId) { actionError.value = '目录关联已改变，请先完成增量扫描再点播。'; return }
       if (current.track.segment !== null) { actionError.value = '当前 CUE 段落尚不支持原文件直送，曲目保留。'; return }
+      if (playSubmissionBlocked(action)) return
       const request: LocalPlayRequest = { schema_version: '1.2', request_id: crypto.randomUUID(), route: 'roon_audio_input', source_kind: 'local_file', local_track_id: current.track.id, asset_id: current.asset.id, expected_asset_revision: current.asset.fileRevision, target: { ...currentTarget }, action }
       dispatchedRequest = request
+      resolvedPlay = null
       lastPlay.value = { request, result: null, outcome: 'pending' }
       const result = await options.play(request)
       if (disposed || lastPlay.value?.request.request_id !== request.request_id) return
       if (result.status === 'accepted' && (result.request_id !== request.request_id || result.action !== request.action)) throw new Error('受理身份不一致')
       lastPlay.value = { request, result, outcome: 'received' }
+      consumePlaybackObservation(options.getPlaybackSnapshot?.() ?? null)
+      if (request.action === 'PLAY_NOW' && result.status === 'accepted' && options.getPlaybackSnapshot
+        && !hasResolvedPlay(request)) unconfirmedPlay.value = request
       if (active && generation === actionGeneration && result.status === 'unsupported') actionError.value = result.reason === 'LOCAL_SEGMENT_UNSUPPORTED' ? '当前段落尚不支持原文件直送。' : '当前连接尚不支持本地原文件直送，请检查 Roon 目标与播放连接。'
-    } catch {
-      if (!disposed && dispatchedRequest && lastPlay.value?.request.request_id === dispatchedRequest.request_id && lastPlay.value.outcome === 'pending') lastPlay.value = { ...lastPlay.value, outcome: 'unknown' }
-      if (!disposed && active && generation === actionGeneration) actionError.value = '点播结果未获确认，请核对原播放器与队列状态；不会自动重发或切换来源。'
+    } catch (error) {
+      const rejected=error instanceof Error && /^\[(?:LOCAL_PLAY_REJECTED|INVENTORY_CONFLICT|INVALID_IPC_REQUEST)\]/u.test(error.message)
+      if (!disposed && dispatchedRequest && lastPlay.value?.request.request_id === dispatchedRequest.request_id && lastPlay.value.outcome === 'pending') lastPlay.value = { ...lastPlay.value, outcome: rejected?'rejected':'unknown',...(rejected?{failure:'REQUEST_REJECTED' as const}:{}) }
+      if (!disposed && dispatchedRequest?.action === 'PLAY_NOW' && !rejected && !hasResolvedPlay(dispatchedRequest)) unconfirmedPlay.value = dispatchedRequest
+      if (!disposed && active && generation === actionGeneration) actionError.value = !dispatchedRequest?'点播尚未派发，曲目或目录信息读取失败，请刷新后核对。':rejected?rejectionMessage.REQUEST_REJECTED:'点播结果未获确认，请使用“核对原点播”读取原回执，并查看原播放器与队列状态。'
     }
     finally { actionBusy.value = false }
+  }
+  function hasResolvedPlay(request: LocalPlayRequest): boolean {
+    return resolvedPlay !== null && JSON.stringify(resolvedPlay) === JSON.stringify(request)
+  }
+  function consumePlaybackObservation(snapshot: import('@music-bridge/contracts').PlaybackSnapshot | null): void {
+    const original = unconfirmedPlay.value ?? lastPlay.value?.request
+    if (disposed || !original || !localPlaySubmissionResolved(snapshot, original)) return
+    resolvedPlay = structuredClone(original)
+    if (unconfirmedPlay.value?.request_id === original.request_id) unconfirmedPlay.value = null
+  }
+  function playSubmissionBlocked(action: LocalPlayAction): boolean {
+    const snapshot = options.getPlaybackSnapshot?.() ?? null
+    consumePlaybackObservation(snapshot)
+    const unresolvedReceipt = lastPlay.value?.outcome === 'unknown'
+      && !hasResolvedPlay(lastPlay.value.request)
+    if (unconfirmedPlay.value || unresolvedReceipt || action === 'PLAY_NOW' && localPlaybackSubmissionUnconfirmed(snapshot)) {
+      actionError.value = '原点播受理与播放确认尚未闭合，请使用“核对原点播”读取原回执并核对 Roon；暂不新增点播。'
+      return true
+    }
+    return false
+  }
+  async function readOriginalPlay():Promise<void>{
+    const binding=lastPlay.value, read=options.readPlayReceipt ?? options.api.getLocalLibraryPlayReceipt
+    if(!binding || !read || actionBusy.value || !active || disposed)return
+    const generation=++actionGeneration
+    actionBusy.value=true;actionError.value=''
+    try{
+      const request=structuredClone(binding.request),receipt=await read(request)
+      if(disposed || lastPlay.value!==binding)return
+      if(!isLocalPlayReceipt(receipt) || receipt.request_id!==request.request_id || receipt.action!==request.action)throw new Error('原回执身份无效')
+      if(receipt.status==='received') {
+        lastPlay.value={request:binding.request,result:receipt.result,outcome:'received'}
+        consumePlaybackObservation(options.getPlaybackSnapshot?.() ?? null)
+        if (binding.request.action === 'PLAY_NOW') {
+          if (receipt.result.status === 'unsupported' || hasResolvedPlay(binding.request)) unconfirmedPlay.value = null
+          else if (unconfirmedPlay.value || options.getPlaybackSnapshot) unconfirmedPlay.value = binding.request
+        }
+      } else if(receipt.status==='rejected') {
+        lastPlay.value={request:binding.request,result:null,outcome:'rejected',failure:receipt.reason}
+        if (unconfirmedPlay.value?.request_id === binding.request.request_id) unconfirmedPlay.value = null
+      }
+      if(active && generation===actionGeneration)actionError.value=receipt.status==='missing'?'当前服务没有原提交的回执，原结果仍未确认；请导出诊断核对，不会重发。':receipt.status==='pending'?'原提交仍在处理，请稍后再次核对；不会新增或重发点播。':receipt.status==='rejected'?rejectionMessage[receipt.reason]:''
+    }catch{
+      if(!disposed && active && generation===actionGeneration && lastPlay.value===binding)actionError.value='原回执暂时无法读取，原请求和未确认状态保留，请查看诊断。'
+    }finally{actionBusy.value=false}
   }
   async function saveTitle(): Promise<void> {
     if (actionBusy.value || pendingOverride.value || !detail.value || !active) return
@@ -363,7 +426,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     finally { actionBusy.value = false }
   }
   return { query, rootId, total, scrollTop, loaded, loading, stale, error, roots, target, targetLabel, rangeWindow, tracks, cachePageCount,
-    selectedId, detail, detailLoading, detailStale, detailError, detailReturnTarget, selectedRoot, actionBusy, actionError, titleDraft, pendingOverride, lastPlay,
+    selectedId, detail, detailLoading, detailStale, detailError, detailReturnTarget, selectedRoot, actionBusy, actionError, titleDraft, pendingOverride, lastPlay,canReadOriginalPlay,readOriginalPlay,
     candidates, relocationSelection, relocationConfirmed, relocationUnknown, pendingRelocation,
     artwork, detailArtwork, organizer, sourceWrites, relocationPlans, selectionMode, selectedTrackIds, selectionError, toggleTrackSelection, clearTrackSelection, openRelocationTrack, openRelocationBatch,
     activate, suspend, dispose, refresh, refreshContext, observeOutbox, search, ensureRange, selectTrack, closeDetail, playTrack, saveTitle, locateSelected, confirmCandidate }

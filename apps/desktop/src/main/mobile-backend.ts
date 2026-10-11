@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, hkdfSync } from 'node:crypto';
 import { encodeMobileJsonReply, mobileCanonicalJson, type MobileJsonValue, type MobileCapabilities, type MobileDecodedRequest, type MobilePairingClaim, type MobileRefreshRequest, type MobileReplyMap, type MobileSearchQuery, type MobileUIContentCapabilities } from '@music-bridge/contracts';
 import { createMobileAuthCrypto } from '../../../../packages/bridge-core/src/mobile/auth-crypto.js';
 import { createMobileAuthService } from '../../../../packages/bridge-core/src/mobile/auth-service.js';
@@ -7,6 +7,9 @@ import { isMobileOwnerPrivateResult } from '../../../../packages/bridge-core/src
 import { MobileAuthPersistenceError, MobileServiceError, type Mobile001Backend, type Mobile001BackendReply, type MobileAuthPersistence, type MobileCatalogReadPort, type MobileOwnerArtworkSnapshot, type MobileOwnerCatalogSnapshot, type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult, type MobilePrincipal } from '../../../../packages/bridge-core/src/mobile/types.js';
 import { createMobilePlaybackBackend } from './mobile-playback-backend.js';
 import type { MobileAuthService } from '../../../../packages/bridge-core/src/mobile/types.js';
+import type { MobileContentCoreRequest, MobileContentCoreResponse } from '../../../../packages/bridge-core/src/mobile/content-rpc.js';
+import { createMainMobileContentPort } from './mobile-content-port.js';
+import { createMobileContentBackend } from './mobile-content-backend.js';
 
 export type Mobile003Operation = 'getUIContentCapabilities';
 /** 可信Main单独挂载原有能力路由；不扩大旧001/002 dispatch闭集。 */
@@ -22,8 +25,11 @@ export function createMobileBackend(options: {
   resizeArtwork(bytes: Uint8Array, size: 96 | 256 | 512): Uint8Array;
   enablePlayback?: boolean;
   enableDsd?: boolean;
+  enableContent?: boolean;
+  requestContentRpc?(request: MobileContentCoreRequest, signal: AbortSignal): Promise<MobileContentCoreResponse>;
 }) {
   if (options.enableDsd === true && options.enablePlayback !== true) throw new MobileServiceError(400, 'INVALID_REQUEST');
+  if (options.enableContent === true && typeof options.requestContentRpc !== 'function') throw new MobileServiceError(400, 'INVALID_REQUEST');
   let closed = false;
   let closeFlight: Promise<void> | undefined;
   let responseOrigin = 'https://127.0.0.1';
@@ -31,6 +37,13 @@ export function createMobileBackend(options: {
   const revocations = new Map<string, Set<Promise<void>>>();
   const same = (a: unknown, b: unknown): boolean => mobileCanonicalJson(a as MobileJsonValue) === mobileCanonicalJson(b as MobileJsonValue);
   const current = (): void => { if (closed) throw new MobileServiceError(503, 'BUSY'); options.assertCurrent(); };
+  const contentPort = (() => {
+    if (options.enableContent !== true || !options.requestContentRpc) return undefined;
+    const derived = new Uint8Array(hkdfSync('sha256', options.authKey, new Uint8Array(), 'MusicBridge:MBM004:CONTENT_ROOT:1', 32));
+    try { return createMainMobileContentPort({ serverId: options.serverId, datasetId: options.datasetId,
+      key: derived, requestRpc: options.requestContentRpc, assertCurrent: current }); }
+    finally { derived.fill(0); }
+  })();
   async function owner(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult> {
     current(); const result = await options.requestOwner(request); current();
     if (!isMobileOwnerPrivateResult(result, request)) throw new MobileAuthPersistenceError('unknown');
@@ -47,8 +60,9 @@ export function createMobileBackend(options: {
   const rawAuth = createMobileAuthService({ persistence, crypto: createMobileAuthCrypto(options.authKey), serverId: options.serverId,
     datasetId: options.datasetId, displayName: options.displayName, environment: options.environment,
     onDeviceEpochRevoked: deviceId => {
-      if (!playback) return;
-      const task = playback.revokeDevice(deviceId), pending = revocations.get(deviceId) ?? new Set<Promise<void>>();
+      if (!playback && !contentPort) return;
+      const task = Promise.all([playback?.revokeDevice(deviceId), contentPort?.invalidateDevice(deviceId)]).then(() => undefined);
+      const pending = revocations.get(deviceId) ?? new Set<Promise<void>>();
       pending.add(task); revocations.set(deviceId, pending);
       void task.then(() => { pending.delete(task); if (!pending.size) revocations.delete(deviceId); }, () => {});
     } });
@@ -60,7 +74,10 @@ export function createMobileBackend(options: {
   };
   if (options.enablePlayback) playback = createMobilePlaybackBackend({ serverId: options.serverId, datasetId: options.datasetId,
     authKey: options.authKey, auth: rawAuth, requestOwner: options.requestOwner, assertCurrent: options.assertCurrent,
+    ...(contentPort ? { contentPort } : {}),
     ...(options.enableDsd === true ? { enableDsd: true } : {}) });
+  const contentBackend = contentPort ? createMobileContentBackend({ auth: rawAuth, content: contentPort.content,
+    resolveScope: contentPort.resolveScope, assertScope: contentPort.assertScope, assertCurrent: current }) : undefined;
   const port: MobileCatalogReadPort = {
     // 只在正式播放端已激活后申请目录资格；是否可播仍由原 Owner 核当前源事实。
     read: async request => await owner({ kind: 'catalog', datasetId: options.datasetId,
@@ -76,7 +93,7 @@ export function createMobileBackend(options: {
     async dispatch(input): Promise<Mobile001BackendReply> {
       current(); if (input.signal.aborted) throw new MobileServiceError(503, 'BUSY');
       const { operation, request } = input;
-      let principal: MobilePrincipal | null = null, body: unknown = null, status = 200;
+      let principal: MobilePrincipal | null = null, body: unknown = null, status = 200, neteasePlayback = false;
       if (!['getServer', 'claimPairing', 'refreshToken'].includes(operation)) {
         if (!input.accessToken) throw new MobileServiceError(401, 'UNAUTHORIZED');
         principal = await auth.authenticate(input.accessToken);
@@ -86,7 +103,9 @@ export function createMobileBackend(options: {
         case 'claimPairing': body = await auth.claim(request.body as MobilePairingClaim, request.idempotencyKey!); status = 201; break;
         case 'refreshToken': body = await auth.refresh(request.body as MobileRefreshRequest, request.idempotencyKey!); break;
         case 'logout': await auth.logout(principal!); status = 204; break;
-        case 'getCapabilities': body = playback?.enabled ? { ...capabilities, localPlayback: true, qualityProfiles: ['auto', 'lossless'] } : capabilities; break;
+        case 'getCapabilities':
+          neteasePlayback = playback?.enabled && contentPort ? await contentPort.neteasePlaybackQualified(principal!, input.signal) : false;
+          body = playback?.enabled ? { ...capabilities, localPlayback: true, neteasePlayback, qualityProfiles: ['auto', 'lossless'] } : capabilities; break;
         case 'listAlbums': body = await catalog.listAlbums(request.query as MobileSearchQuery, principal!); break;
         case 'getAlbum': body = await catalog.getAlbum(request.pathParameters.albumId!, principal!); break;
         case 'listTracks': body = await catalog.listTracks(request.query as MobileSearchQuery, principal!); break;
@@ -107,6 +126,8 @@ export function createMobileBackend(options: {
       if (!reply.ok) throw new MobileServiceError(503, reply.issue.code === 'LIMIT_EXCEEDED' ? 'CONTENT_LIMIT_EXCEEDED' : 'BUSY');
       return { ...reply.value, headers: [...reply.value.headers, ['Cache-Control', 'private, no-store']], beforeSend: async () => {
         await alive();
+        if (operation === 'getCapabilities' && contentPort && playback?.enabled
+          && await contentPort.neteasePlaybackQualified(principal!, input.signal) !== neteasePlayback) throw new MobileServiceError(409, 'SOURCE_CHANGED');
         if (operation === 'listAlbums' && body && typeof body === 'object' && 'libraryRevision' in body) {
           await owner({ kind: 'catalog', datasetId: options.datasetId, request: { operation: 'listAlbums', serverId: options.serverId,
             offset: 0, limit: 1, q: '', albumId: null, itemId: null, expectedRevision: String(body.libraryRevision),
@@ -133,36 +154,48 @@ export function createMobileBackend(options: {
       } };
     },
   };
-  const dsdBackend: Mobile003Backend | undefined = options.enableDsd === true ? {
+  const dsdBackend: Mobile003Backend | undefined = options.enableDsd === true || contentPort ? {
     async dispatch(input) {
       current(); input.signal.throwIfAborted();
       if (input.operation !== 'getUIContentCapabilities' || input.request.path !== '/mobile/v1/ui/capabilities') throw new MobileServiceError(400, 'INVALID_REQUEST');
       if (!input.accessToken) throw new MobileServiceError(401, 'UNAUTHORIZED');
       const principal = await auth.authenticate(input.accessToken);
       const activePlayback = playback;
-      if (!activePlayback?.enabled) throw new MobileServiceError(503, 'BUSY');
-      const qualified = await activePlayback.dsdCapabilities(input.origin, input.signal);
-      const body: MobileUIContentCapabilities = { version: '1.0.0', addedAlbums: 'unsupported',
-        neteaseDailyRecommendations: 'unsupported', lyrics: 'unsupported', resourceFormatBitDepth: true,
-        resourceDsdToPcm: qualified.resourceDsdToPcm };
+      if (options.enableDsd === true && !activePlayback?.enabled) throw new MobileServiceError(503, 'BUSY');
+      const qualified = options.enableDsd === true && activePlayback ? await activePlayback.dsdCapabilities(input.origin, input.signal) : { resourceDsdToPcm: false };
+      const contentScope = contentPort ? await contentPort.resolveScope(principal, input.signal) : undefined;
+      const providerState = contentScope?.providerEpoch === null ? 'loginRequired' as const : 'ready' as const;
+      const body: MobileUIContentCapabilities = { version: '1.0.0', addedAlbums: contentPort ? 'ready' : 'unsupported',
+        neteaseDailyRecommendations: contentPort ? providerState : 'unsupported', lyrics: contentPort ? 'ready' : 'unsupported',
+        resourceFormatBitDepth: activePlayback?.enabled === true, resourceDsdToPcm: qualified.resourceDsdToPcm,
+        ...(contentPort ? { neteaseLikedPlaylist: providerState, personalFavorites: 'ready', personalPlaylists: 'ready',
+          neteaseRecommendedPlaylists: providerState, neteaseNewAlbums: providerState, neteaseCharts: providerState, neteasePersonalFM: providerState } as const : {}) };
       const reply = encodeMobileJsonReply('getUIContentCapabilities', { status: 200, category: 'success', body },
         { responseOrigin: input.origin, requestPath: input.request.path });
       if (!reply.ok) throw new MobileServiceError(503, 'BUSY');
       return { ...reply.value, headers: [...reply.value.headers, ['Cache-Control', 'private, no-store']], beforeSend: async () => {
         current(); input.signal.throwIfAborted(); await auth.assertCurrent(principal);
-        const latest = await activePlayback.dsdCapabilities(input.origin, input.signal);
+        const latest = options.enableDsd === true && activePlayback ? await activePlayback.dsdCapabilities(input.origin, input.signal) : { resourceDsdToPcm: false };
         if (latest.resourceDsdToPcm !== qualified.resourceDsdToPcm) throw new MobileServiceError(503, 'BUSY');
+        if (contentPort && contentScope) await contentPort.assertScope(contentScope);
         current(); input.signal.throwIfAborted();
       } };
     },
   } : undefined;
-  return { backend, auth, playbackBackend: playback?.backend, dsdBackend,
+  return { backend, auth, playbackBackend: playback?.backend, dsdBackend, contentBackend,
     activatePlayback(origin: string): void { if (!playback) throw new MobileServiceError(400, 'INVALID_REQUEST'); playback.activate(origin); responseOrigin = origin; },
     playbackSnapshot: () => playback?.snapshot(),
     close(): Promise<void> {
       if (!closeFlight) {
         closed = true;
-        closeFlight = (async () => { try { await playback?.close(); await Promise.all([...revocations.values()].flatMap(set => [...set])); } finally { await rawAuth.close(); } })();
+        closeFlight = (async () => {
+          const failures: unknown[] = [];
+          for (const close of [() => contentBackend?.close(), () => playback?.close(),
+            () => Promise.all([...revocations.values()].flatMap(set => [...set])), () => contentPort?.close(), () => rawAuth.close()]) {
+            try { await close(); } catch (error) { failures.push(error); }
+          }
+          if (failures.length) throw new AggregateError(failures, '移动服务收尾尚未确认。');
+        })();
       }
       return closeFlight;
     },

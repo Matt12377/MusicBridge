@@ -6,6 +6,8 @@ import { isDatasetProjectionPayload, type DatasetProjectionCommand, type Dataset
 import { failureForError, responseFailure } from './shared/ipc-failure.js';
 import { isMobileCorePrivateCall, isMobileOwnerPrivateResult } from './mobile/owner-protocol.js';
 import { MobileAuthPersistenceError, MobileServiceError, type MobileOwnerPrivateFailure, type MobileOwnerPrivateResult } from './mobile/types.js';
+import { captureMobileContentCoreRequest, captureMobileContentCoreResponse, mobileContentRpcFailure, MOBILE_CONTENT_RPC_BOUNDS,
+  type MobileContentCoreRequest, type MobileContentCoreResponse } from './mobile/content-rpc.js';
 import { LibraryReadRegistry } from './shared/library-read-registry.js';
 import { createLibraryReadTraceWriter, emitLibraryReadTrace, isLibraryReadTraceEnabled, libraryReadTraceFailure, type LibraryReadTraceSink } from './shared/library-read-trace.js';
 import { isLibraryReadCommand, isLibraryReadCancel } from '@music-bridge/contracts';
@@ -69,7 +71,10 @@ export interface UtilityPort {
   postMessage(message: unknown): void;
 }
 
-export type CoreRuntimeForIpc = CoreRuntime;
+export type CoreRuntimeForIpc = CoreRuntime & {
+  /** 只由可信Main独立信封调用；不扩大通用IPC或旧Control API。 */
+  mobileContentRpc?(request: MobileContentCoreRequest, signal: AbortSignal): Promise<MobileContentCoreResponse>;
+};
 
 interface MessageWithPorts {
   data: unknown;
@@ -136,6 +141,9 @@ async function dispatch(
     }
   }
   switch (request.command as IpcCommand) {
+    case 'localCatalog.playReceipt':
+      if(!runtime.getLocalPlayReceipt)throw new BridgeError('BAD_REQUEST','原点播回执读取尚未就绪。',{httpStatus:409});
+      return runtime.getLocalPlayReceipt(request.payload as import('@music-bridge/contracts').LocalPlayRequest);
     case 'playback.localTarget':
       return runtime.getLocalLibraryPlaybackTarget?.() ?? null;
     case 'core.ping':
@@ -396,7 +404,38 @@ export async function attachCoreRuntimePort(
   const reads = new LibraryReadRegistry(command => runtime.getLibraryReadScope?.(command) ?? 'runtime', Date.now, 64, 256, options.libraryReadTrace);
   let mobileReady = false, mobileClosing = false;
   const mobileFlights = new Set<Promise<void>>();
+  const contentFlights = new Map<string, { controller: AbortController; flight: Promise<void> }>();
+  const closeContentFlights = async () => {
+    for (const entry of contentFlights.values()) entry.controller.abort(new MobileAuthPersistenceError('unknown'));
+    const quiet = Promise.allSettled([...contentFlights.values()].map(entry => entry.flight));
+    await new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new MobileAuthPersistenceError('unknown')), MOBILE_CONTENT_RPC_BOUNDS.closeMs);
+      void quiet.then(() => { clearTimeout(timer); resolve(); }, () => { clearTimeout(timer); reject(new MobileAuthPersistenceError('unknown')); });
+    });
+  };
   port.on('message', (event) => {
+    if (isRecord(event.data) && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-content-core-request') {
+      let call: MobileContentCoreRequest;
+      try { call = captureMobileContentCoreRequest(event.data); } catch { return; }
+      const cleanup = call.action === 'source' && (call.request.operation === 'release' || call.request.operation === 'close-read');
+      const control = cleanup || call.action === 'cancel' || call.action === 'invalidate-device' || call.action === 'revalidate';
+      if (!mobileReady || mobileClosing || !runtime.mobileContentRpc || contentFlights.size >= (control ? 16 : 15) || contentFlights.has(call.id)) {
+        port.postMessage(mobileContentRpcFailure(call, new MobileAuthPersistenceError(contentFlights.has(call.id) ? 'unknown' : 'not-sent')));
+        if (call.action === 'initialize') call.key.fill(0); return;
+      }
+      const controller = new AbortController(), timer = setTimeout(() => controller.abort(new MobileAuthPersistenceError('unknown')), MOBILE_CONTENT_RPC_BOUNDS.requestMs);
+      const pending = Promise.resolve().then(async () => {
+        let response: MobileContentCoreResponse;
+        try {
+          response = captureMobileContentCoreResponse(await runtime.mobileContentRpc!(call, controller.signal), call);
+          if (mobileClosing || controller.signal.aborted) throw new MobileAuthPersistenceError('unknown');
+        } catch (error) { response = mobileContentRpcFailure(call, error); }
+        port.postMessage(response);
+      });
+      contentFlights.set(call.id, { controller, flight: pending });
+      const quiet = () => { clearTimeout(timer); contentFlights.delete(call.id); if (call.action === 'initialize') call.key.fill(0); };
+      void pending.then(quiet, quiet); return;
+    }
     if (isRecord(event.data) && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-main-request') {
       if (!isMobileCorePrivateCall(event.data)) return;
       const call = event.data;
@@ -433,7 +472,10 @@ export async function attachCoreRuntimePort(
         let result: unknown;
         try {
           const operation = () => recorder ? withPerformanceContext(recorder, span?.context, () => dispatch(runtime, parsed.value)) : dispatch(runtime, parsed.value);
-          if (parsed.value.command === 'core.shutdown') { mobileClosing = true; reads.cancelAll('shutdown'); await Promise.allSettled([...mobileFlights]); }
+          if (parsed.value.command === 'core.shutdown') {
+            mobileClosing = true; reads.cancelAll('shutdown');
+            await closeContentFlights(); await Promise.allSettled([...mobileFlights]);
+          }
           if (['auth.setCredential', 'auth.clearCredential', 'auth.logout'].includes(parsed.value.command)) reads.cancelWhere(command => command.startsWith('library.'), 'credential-changed');
           if (parsed.value.command === 'roon.selectZone') reads.cancelWhere(command => !command.startsWith('library.') || command === 'library.match' || command === 'library.aggregateSearch', 'zone-changed');
           result = await (isLibraryReadCommand(parsed.value.command) ? reads.read(parsed.value, operation) : operation());

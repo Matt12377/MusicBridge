@@ -1,4 +1,58 @@
 {
+  "currentMobileContentTask": "MBM-004",
+  "mobileContentMultidevice": {
+    "task": "MBM-004",
+    "state": "SOURCE_LOCAL_SOFTWARE_VALIDATED_GATE_CI_PENDING",
+    "branch": "codex/mbm-004-content-multidevice",
+    "baseSha": "479e746bb7106a4dac158fe616290220de03a53a",
+    "scope": "docs/postrust/MBM-004/EXECUTION_SCOPE.json",
+    "ownerRepeatedApprovalRequired": false,
+    "remotePushPolicy": "MILESTONE_ONLY",
+    "software": "PASSED",
+    "productionApp": "NOT_RUN",
+    "realServiceDeviceAudio": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "implementationCommit": null,
+    "reportCommit": null,
+    "report": null,
+    "ci": "NOT_RUN",
+    "push": "NOT_RUN",
+    "nextTask": "MBRS-016",
+    "canonicalVersion": "1.7.0",
+    "canonicalOperations": 40,
+    "contentOperations": 19,
+    "latestOrdinaryLibraryObservation": {
+      "state": "DISPLAY_AND_NORMAL_REOPEN_61_PASSED",
+      "tracksVisible": 61,
+      "recordedAt": "2026-10-10T23:40:55.939732+00:00",
+      "evidence": "COORDINATOR_LOCAL_LIBRARY_NORMAL_REOPEN_UI01.json",
+      "evidenceBytes": 1704,
+      "evidenceSha256": "fdd0b0807c189e88dae40adb662479a4d3b165e716d2ce4f5b8b6e616ec84b7e",
+      "softwareTask": "PREDECESSOR_INSTALLED_APP",
+      "audio": "NOT_RUN",
+      "mbm004RealEvidence": "NOT_RUN",
+      "ownerAcceptance": false,
+      "historicalSignedStatSnapshotPreserved": true
+    },
+    "evidence": "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json"
+  },
+  "mbm004Policy": {
+    "ownerInstruction": "把推送远端仓库改成关键节点推送，不用频繁推送",
+    "milestones": [
+      "MBM-004双端整合",
+      "MBRS-016综合回归",
+      "MBRS-017最终交付"
+    ],
+    "intermediateWork": "LOCAL_ONLY",
+    "sourceReportCiOrder": "ONLY_REQUIRED_MILESTONE_SOURCE_AND_DIRECT_REPORT_PUSHES",
+    "ordinaryLibraryDevelopment": {
+      "ordinary61": "PASS",
+      "normalQuitReopen61": "PASS",
+      "evidenceSha256": "fdd0b0807c189e88dae40adb662479a4d3b165e716d2ce4f5b8b6e616ec84b7e",
+      "ownerAcceptance": false
+    },
+    "ownerRepeatApproval": false
+  },
   "currentLocalLibraryFixTask": "LOCAL_LIBRARY_SIGNED_STAT_FIX",
   "localLibrarySignedStatFix": {
     "task": "LOCAL_LIBRARY_SIGNED_STAT_FIX",
@@ -47962,13 +48016,12 @@
     "nextBranchBaseline": "ACTUAL_FINAL_SEALED_REPORT_HEAD"
   },
   "mobileFrontloading20261008": {
-    "state": "IMPLEMENTED_LOCAL_CHECKS_PASS_LIVE_ACCEPTANCE_OPEN",
+    "state": "MBM004_SOFTWARE_VALIDATED_REAL_CARRYOVER_OPEN",
     "plan": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
     "schedulingSupplement": "docs/postrust/MBRS-013/SCHEDULING_SUPPLEMENT_MOBILE_FRONTLOADING.json",
-    "currentTask": "MBM-003",
-    "nextTask": "MBM-004",
+    "currentTask": "MBM-004",
+    "nextTask": "MBRS-016",
     "remainingSequence": [
-      "MBM-003",
       "MBM-004",
       "MBRS-016",
       "MBRS-017"
@@ -48184,18 +48237,24 @@
       {
         "id": "MBM-004",
         "title": "内容与多设备",
-        "status": "NOT_STARTED",
-        "scheduled_after": "MBM-003",
-        "start_condition": "EXACT_PREDECESSOR_FINAL_REPORT_SEALED_PAIRED_CONTRACT_REQUIRED",
-        "scope_ref": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
-        "software": "NOT_RUN",
+        "status": "SOFTWARE_VALIDATED_REAL_CARRYOVER_OPEN",
+        "scheduled_after": "TAPE_CATALOG_COMMON_FINAL_REPORT",
+        "start_condition": "RELEASED_FORMAL_BASELINE_CONTINUING_OWNER_AUTHORIZATION",
+        "scope_ref": "docs/postrust/MBM-004/EXECUTION_SCOPE.json",
+        "software": "PASSED",
         "production_app": "NOT_RUN",
         "real_service_device_audio": "NOT_RUN",
         "owner_acceptance": "NOT_RUN",
-        "owner_repeated_approval_required": false
+        "owner_repeated_approval_required": false,
+        "base_report_sha": "479e746bb7106a4dac158fe616290220de03a53a",
+        "branch": "codex/mbm-004-content-multidevice",
+        "remote_push_policy": "MILESTONE_ONLY",
+        "evidence_refs": [
+          "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json"
+        ]
       }
     ],
-    "recordedAt": "2026-10-10T08:20:38.094662+00:00"
+    "recordedAt": "2026-10-10T23:53:34.565844+00:00"
   },
   "mobileContractAdoption": {
     "task": "MBM-000",
