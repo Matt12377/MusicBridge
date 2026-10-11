@@ -11,7 +11,8 @@ import { readFixedMetadataWorkerBundle } from '../../packages/bridge-core/script
 import { CI_REPORT_MIRROR_ORIGINAL_TESTS, captureCiReportMirrorStage,
   ciReportMirrorGitEnvironment } from './verify-ci-report-mirror.mjs';
 import { V39_INTEGRATION_TASK, V39_INTEGRATION_BRANCH, V39_INTEGRATION_BASE,
-  V39_INTEGRATION_SOURCE_FILES, V39_INTEGRATION_REPORT_PATHS, V39_INTEGRATION_ADMISSION_CASE_NAMES, V39_INTEGRATION_REPORT_CASE_NAMES,
+  V39_INTEGRATION_SOURCE_PARENT, V39_INTEGRATION_SOURCE_FILES, V39_INTEGRATION_SOURCE_DELTA_FILES,
+  V39_INTEGRATION_REPORT_PATHS, V39_INTEGRATION_ADMISSION_CASE_NAMES, V39_INTEGRATION_REPORT_CASE_NAMES,
   inspectV39IntegrationAdmission, inspectV39IntegrationReportAdmission, v39IntegrationCanonicalPin } from './v39-integration-admission.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -209,13 +210,18 @@ export function inspectV39IntegrationGateInputs(directory, env = process.env, de
   const head = git(directory, ['rev-parse', 'HEAD'], env, deadline).trim();
   const parents = git(directory, ['rev-list', '--parents', '-n', '1', head], env, deadline).trim().split(' ');
   if (parents.length !== 2 || parents[0] !== head) refuse('V39_INTEGRATION_UNIQUE_PARENT_REQUIRED');
-  const admission = parents[1] === V39_INTEGRATION_BASE
+  if (head === V39_INTEGRATION_SOURCE_PARENT) refuse('V39_INTEGRATION_FAILED_SOURCE1_CANNOT_QUALIFY');
+  const admission = parents[1] === V39_INTEGRATION_SOURCE_PARENT
     ? inspectV39IntegrationAdmission(directory, env, { deadline }) : inspectV39IntegrationReportAdmission(directory, env, { deadline });
-  const repairRole = parents[1] === V39_INTEGRATION_BASE ? 'source' : 'report';
+  const repairRole = parents[1] === V39_INTEGRATION_SOURCE_PARENT ? 'source' : 'report';
   if (admission.task !== V39_INTEGRATION_TASK || admission.branch !== V39_INTEGRATION_BRANCH || admission.repairRole !== repairRole
-    || admission.headAtAdmission !== head || admission.exactSourceFiles !== 39 || admission.sourceParentSha !== V39_INTEGRATION_BASE
+    || admission.headAtAdmission !== head || admission.exactSourceFiles !== V39_INTEGRATION_SOURCE_FILES.length
+    || admission.exactSourceDeltaFiles !== V39_INTEGRATION_SOURCE_DELTA_FILES.length || admission.sourceParentSha !== V39_INTEGRATION_SOURCE_PARENT
+    || admission.failedSource1Preserved !== true || !admission.sourceCorrection || typeof admission.sourceCorrection !== 'object'
+    || admission.sourceCorrectionSha256 !== v39IntegrationCanonicalPin(admission.sourceCorrection).sha256
     || admission.sealedBaselinePreserved !== true || admission.offlineTapeDonorVerified !== true || admission.currentProductSoftwareRequired !== true
-    || !Array.isArray(admission.sourcePins) || admission.sourcePins.length !== 39) refuse('V39_INTEGRATION_CURRENT_ADMISSION_REQUIRED');
+    || !Array.isArray(admission.sourcePins) || admission.sourcePins.length !== V39_INTEGRATION_SOURCE_FILES.length)
+    refuse('V39_INTEGRATION_CURRENT_ADMISSION_REQUIRED');
   const identity = { head, parent:parents[1], tree: git(directory, ['rev-parse', 'HEAD^{tree}'], env, deadline).trim(),
     branch: git(directory, ['branch', '--show-current'], env, deadline).trim(),
     status: git(directory, ['status', '--porcelain=v1', '--untracked-files=all'], env, deadline),
@@ -441,7 +447,11 @@ export function buildV39IntegrationGateSummary(input) {
     failure='V39_INTEGRATION_WHOLE_TIMEOUT';
   const role=sourceBefore?.admission?.repairRole??null;
   return {schema:'musicbridge.v39.integration.software-gate.v1',status:failure?'FAILED_CURRENT_SOFTWARE_GATE':'PASSED_CURRENT_SOFTWARE_GATE',
-    task:V39_INTEGRATION_TASK,branch:V39_INTEGRATION_BRANCH,baseSha:V39_INTEGRATION_BASE,sourceParentSha:V39_INTEGRATION_BASE,
+    task:V39_INTEGRATION_TASK,branch:V39_INTEGRATION_BRANCH,baseSha:V39_INTEGRATION_BASE,
+    sourceParentSha:sourceBefore?.admission?.sourceParentSha??null,
+    sourceCorrection:sourceBefore?.admission?.sourceCorrection??null,
+    sourceCorrectionSha256:sourceBefore?.admission?.sourceCorrectionSha256??null,
+    failedSource1Preserved:sourceBefore?.admission?.failedSource1Preserved===true,
     head:sourceBefore?.identity?.head??null,sourceSha:sourceBefore?.admission?.sourceSha??null,repairRole:role,
     startedAtMs,finishedAtMs,durationMs,limits:V39_INTEGRATION_GATE_LIMITS,effectiveCaptureStageMs:V39_INTEGRATION_EFFECTIVE_CAPTURE_MS,
     sourceBefore,sourceAfter,sourceUnchanged:Boolean(sourceBefore&&sourceAfter&&equal(sourceBefore,sourceAfter)),

@@ -94,7 +94,7 @@ function readWhole(filename, cap = 16 * 1024 * 1024) {
     return bytes;
   } finally { closeSync(fd); }
 }
-export const V39_INTEGRATION_SOURCE_FILES = freeze([
+export const V39_INTEGRATION_HISTORICAL_SOURCE_FILES = freeze([
   {
     "path": ".github/workflows/electron-e2e.yml",
     "status": "M",
@@ -564,6 +564,1955 @@ export const V39_INTEGRATION_SOURCE_FILES = freeze([
     }
   }
 ]);
+export const V39_INTEGRATION_SOURCE_PARENT = '534aad4d337c1c8aba6f45db21d91276f6981584';
+export const V39_INTEGRATION_SOURCE_PARENT_TREE = 'f5707728f28fe44e6ea4d25454d587827972de25';
+export const V39_INTEGRATION_FAILED_SOURCE_PINS = freeze([
+  {
+    "path": ".github/workflows/electron-e2e.yml",
+    "mode": "100644",
+    "blob": "380eac659d5d177e087933a5d50152c02ce58a15",
+    "bytes": 11536,
+    "sha256": "d378e668aeb6ef5ad1424f3de5db8b447a84d77add8f04a2982db1482b13e6c5"
+  },
+  {
+    "path": ".github/workflows/rust-core.yml",
+    "mode": "100644",
+    "blob": "d5a1fcfd4c795947cf4f99ad1bf1a94794feb014",
+    "bytes": 5403,
+    "sha256": "c145aac8e5724c85a5611f324fbe057be42dfe8f1a34b236f27ab381ee52909a"
+  },
+  {
+    "path": ".github/workflows/security.yml",
+    "mode": "100644",
+    "blob": "468508312cea0db9421cdb7bdd9df84b8549028d",
+    "bytes": 3011,
+    "sha256": "bfd8ad30270b166a7bae2efe1bd286a8312ea77c5da98ecc9f3b2a95e98b58d0"
+  },
+  {
+    "path": ".github/workflows/verify.yml",
+    "mode": "100644",
+    "blob": "fa972737458ee8261ec2796a3778dcde08fcbfe1",
+    "bytes": 33291,
+    "sha256": "ebc47805043511eb0d814780bd0daf2a613a0321f392e2624cf9eaf5d588a13c"
+  },
+  {
+    "path": "apps/desktop/src/renderer/src/components/collection/CassetteArchiveImportPanel.vue",
+    "mode": "100644",
+    "blob": "92f9f76125bb447f6c989ef36f6f53755b350800",
+    "bytes": 7724,
+    "sha256": "9b7b9bbcc1859684367df1060d02ebe5ebc423462584ec0eed6cf40b0540dbf2"
+  },
+  {
+    "path": "apps/desktop/src/renderer/src/components/collection/CassetteCatalogDetail.vue",
+    "mode": "100644",
+    "blob": "b2b1fcfffb92e7535d5b1cfb55af9062f189a642",
+    "bytes": 13038,
+    "sha256": "e0b028c535ff41096a51904fd11c602220e03916a9922cc2825bc9d404b44963"
+  },
+  {
+    "path": "apps/desktop/src/renderer/src/components/collection/CassetteCatalogView.vue",
+    "mode": "100644",
+    "blob": "310d8fe7950670d4200f759f6697d891bc8254cc",
+    "bytes": 16917,
+    "sha256": "37a52e4b5868151dfedec97b3271619e0a63ce00e33ba26ad1a1368a32bd2b8e"
+  },
+  {
+    "path": "apps/desktop/src/renderer/src/components/collection/CollectionView.vue",
+    "mode": "100644",
+    "blob": "c192a21b3307ef4e2e8582f3ed160e4515553645",
+    "bytes": 41843,
+    "sha256": "4cd02ecf8dc45dfb34a8389edbd31372d6b8b92d3db1ee1252c8ab70e7a40efb"
+  },
+  {
+    "path": "apps/desktop/src/renderer/src/components/collection/reference-images.ts",
+    "mode": "100644",
+    "blob": "5cf626eada544311c5e1a06c7d6403bde9250ae6",
+    "bytes": 12370,
+    "sha256": "ce000d3713cbf9f16a353a3cc7b68fc20c10560a751d506b7948541c6c05ff34"
+  },
+  {
+    "path": "apps/desktop/test/cassette-catalog-ui.test.ts",
+    "mode": "100644",
+    "blob": "b59b6e28619df48579e3c9c003f5ae5702736bf2",
+    "bytes": 38729,
+    "sha256": "168e475056ca6474c994dea75f0243d2026a644a32d7b0a4bd152c00b888c8fa"
+  },
+  {
+    "path": "apps/desktop/test/collection-reference-images.test.ts",
+    "mode": "100644",
+    "blob": "d31ae046294fbd60a553d6c89c3daa5fe88a1479",
+    "bytes": 8247,
+    "sha256": "edd150b4a6e1ccb295dd4458ae7f81bffb43c5e423f2b346e6e26c77f410a931"
+  },
+  {
+    "path": "docs/integration/V39-INTEGRATION-001/DONOR_READBACK.json",
+    "mode": "100644",
+    "blob": "d6d3731bb83ee492305b99063e8fb76a17704953",
+    "bytes": 311861,
+    "sha256": "381b405a53408a0f5209f4a99115e5fd83073152c31322b62a30a1e7eba5159c"
+  },
+  {
+    "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+    "mode": "100644",
+    "blob": "0c4dbb5c1dfac6cc610702f106174124f95edf74",
+    "bytes": 25669,
+    "sha256": "b324327a7d919fbfa5563eed8a8c6016db88384248f2478565b2adc3905a3194"
+  },
+  {
+    "path": "docs/integration/V39-INTEGRATION-001/FEATURE_BEHAVIOR_MATRIX.json",
+    "mode": "100644",
+    "blob": "584df402a118532ab040b9dedec4bb028c0621b6",
+    "bytes": 17837,
+    "sha256": "af9dc57f2dbfe6765bcd906a8d71a6174ad42d55b7a9c383b9c4143d1089309c"
+  },
+  {
+    "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+    "mode": "100644",
+    "blob": "52b9a83df448972c3fefd86f27aa7b1b23781420",
+    "bytes": 9973,
+    "sha256": "6cf3078e287e4bce6972231993b72874a7070f250d7b12ffcf8c35f6fda30a55"
+  },
+  {
+    "path": "docs/integration/V39-INTEGRATION-001/SEALED_BASELINE.json",
+    "mode": "100644",
+    "blob": "750eb368a707877059dc461f51aec0d9b531e13c",
+    "bytes": 951772,
+    "sha256": "e1505425182e158325d531bc5b158b2690e73591cf251d7ce79f5a3cfc38eaee"
+  },
+  {
+    "path": "docs/integration/V39-INTEGRATION-001/STATUS.json",
+    "mode": "100644",
+    "blob": "9530ab8c7b7d1643af49d0a1193da12c293f81cc",
+    "bytes": 499,
+    "sha256": "af5943fa46eb92090a04fdcf85b052ced2d230e76ab4a9539684a4673768b945"
+  },
+  {
+    "path": "packages/bridge-core/src/collection/reference-catalog-retention.ts",
+    "mode": "100644",
+    "blob": "6520598410a88a686280421f7b0c0e9db45ce31a",
+    "bytes": 3354,
+    "sha256": "ee8531e696da2b8b7a6e8479bffeb674e6f10b5db519d367349ec1913f85e514"
+  },
+  {
+    "path": "packages/bridge-core/src/collection/reference-catalog-store.ts",
+    "mode": "100644",
+    "blob": "fac1f8be7d299135e312c9193e0c7c023197a5c6",
+    "bytes": 49492,
+    "sha256": "cb20e8e4de0ae20be7a96944820252393ad95738bde04d8e2505c37bb13f3711"
+  },
+  {
+    "path": "packages/bridge-core/test/reference-archive-catalog-store.test.ts",
+    "mode": "100644",
+    "blob": "83c749fcbfe2a4038c8868a687ddb5d7e8672868",
+    "bytes": 20252,
+    "sha256": "6f945ab5a572bc2d21063f269b5c86901c909fa3a3396d3514477f9789b3bab1"
+  },
+  {
+    "path": "packages/bridge-core/test/reference-catalog-retention.test.ts",
+    "mode": "100644",
+    "blob": "671308f343d88a74cb11b29b5782dc762d7a7742",
+    "bytes": 20800,
+    "sha256": "a6df327894831798cf45f522a5e7fc32b770a8961f63317ebdd561ee84d1be03"
+  },
+  {
+    "path": "packages/contracts/src/reference-catalog.ts",
+    "mode": "100644",
+    "blob": "fbbb9ccda1e88e492d0ce7a75f9d999b3cb4c827",
+    "bytes": 31851,
+    "sha256": "fe0682001b99dddb345ab785187f441efcb595d5ab7bdb17654f59d376de76e6"
+  },
+  {
+    "path": "packages/contracts/test/reference-catalog.test.ts",
+    "mode": "100644",
+    "blob": "f67aedced04852f6e63324ef4cb12647c94aa858",
+    "bytes": 24452,
+    "sha256": "d2b0127ba7e2b2cff93b53d881af57cacfd3ff5bc422e542816e4a151c3a4f97"
+  },
+  {
+    "path": "project/POSTRUST_PLAN.json",
+    "mode": "100644",
+    "blob": "ad9927877b833cb54dbf1976968c191b2533e8be",
+    "bytes": 2900559,
+    "sha256": "540ec18e78c6ab5f2a62d44ddc0037afb6ec3554179bb5b2989993ef76c6d139"
+  },
+  {
+    "path": "project/POSTRUST_PROGRESS.md",
+    "mode": "100644",
+    "blob": "b319acd06fef1235f0daea1b557f9f9035357052",
+    "bytes": 127743,
+    "sha256": "0dce32fbd56501e819ecee574f8f2adacdabae062d0b4dcaf12d9643904542fe"
+  },
+  {
+    "path": "project/POSTRUST_TODO.md",
+    "mode": "100644",
+    "blob": "a7807e77cf35ce3a0f4362631dbe0b8326709a7c",
+    "bytes": 41448,
+    "sha256": "415a2adaa1d5971965ba75e341570ea87cea9f9c95d5a7519f62170b692cbb5d"
+  },
+  {
+    "path": "project/STATUS.json",
+    "mode": "100644",
+    "blob": "23fe6eac44a88758dcbcb56526e4b510f93cb0cf",
+    "bytes": 2658570,
+    "sha256": "6610994619022c1da18c110a5073809a32a43f85613c18236470950ac60f97fd"
+  },
+  {
+    "path": "reports/TAPE_CATALOG_HISTORY_COMPAT_EVIDENCE.json",
+    "mode": "100644",
+    "blob": "4946e341f0356ed75ceb34cb28572d9935ebe3af",
+    "bytes": 27177,
+    "sha256": "4382f35711c311708e202d4afa73d48a32e2cf2e0ae0150e80b9d12847692f12"
+  },
+  {
+    "path": "reports/TAPE_CATALOG_HISTORY_COMPAT_RESULT.md",
+    "mode": "100644",
+    "blob": "211bd458ef44929af1026689b7df7b6157c13bec",
+    "bytes": 4722,
+    "sha256": "9d24b342cd4db310bbff2a61314db35ef10be83551d720b2c3135c72c4843a7e"
+  },
+  {
+    "path": "scripts/ci/report-only-admission.mjs",
+    "mode": "100644",
+    "blob": "9ad6b253ebbc6551ffdc38d6f4110805eb7601b9",
+    "bytes": 29630,
+    "sha256": "d5b7c2f5ca9d743e77cb83fc7c6cfe25d7bea3b02f1726d02b4e3b1cd36c24c1"
+  },
+  {
+    "path": "scripts/ci/report-only-v39-integration.mjs",
+    "mode": "100644",
+    "blob": "fe34e13f9012863b5cc64f92ba2382ecd90f79f1",
+    "bytes": 6649,
+    "sha256": "f9b8084ea636a99faefb631e496eec4954ba5616e13b576c36c8b16834e5d7c0"
+  },
+  {
+    "path": "scripts/ci/task-applicability.mjs",
+    "mode": "100644",
+    "blob": "12c1b6fb0b654f20fc9b4d67378a9c6dc3b88370",
+    "bytes": 8575,
+    "sha256": "be86e4cc7dd45e7ac360945083ecd4677fe8aab5536a9e57e56d818c96a0a4de"
+  },
+  {
+    "path": "scripts/ci/test/v39-integration-admission.test.mjs",
+    "mode": "100644",
+    "blob": "3fc837b5bdc49283add7a4da8132880b37a5e205",
+    "bytes": 17942,
+    "sha256": "a5e2dc83a0186b098b59e90454f0781b33dad358400dbf154002e9911768ff0a"
+  },
+  {
+    "path": "scripts/ci/test/v39-integration-gate.test.mjs",
+    "mode": "100644",
+    "blob": "c5bbfc2ef30f610b0052e2393554cf49e7832b55",
+    "bytes": 30553,
+    "sha256": "56a52812f5756648eb43b034a2fd28d6be9c27b4dd739e2b11ce9ffb5e0121c1"
+  },
+  {
+    "path": "scripts/ci/test/v39-integration-report-only.test.mjs",
+    "mode": "100644",
+    "blob": "4d3e80f03598a898526d0a2537c301bb86959b21",
+    "bytes": 39154,
+    "sha256": "f3fc4fdb0723b2e852dbd8dc480d36139a2e97f80d46a623e971b49d8dcb302f"
+  },
+  {
+    "path": "scripts/ci/v39-integration-admission.mjs",
+    "mode": "100644",
+    "blob": "08477b2e04e80c300e38ba0e380a313ad526187d",
+    "bytes": 109677,
+    "sha256": "02493cd1962d83d796f0ec3a595a4353a203b65e6fecd086263b207ced829073"
+  },
+  {
+    "path": "scripts/ci/verify-v39-integration.mjs",
+    "mode": "100644",
+    "blob": "5945c2a2bb02b1135973949b95e75a64e87ebd24",
+    "bytes": 45650,
+    "sha256": "982938e12dc7a020828b1901f29122520cb3d8c7a0f0d35e11aa5db6e97a220d"
+  },
+  {
+    "path": "tasks/00_TASK_INDEX.md",
+    "mode": "100644",
+    "blob": "d6c7ac5e2192489795527b70bd0f783b67c47108",
+    "bytes": 30187,
+    "sha256": "f87a99b8d2160e6b44d7e54509660f60f4cfa84e7d9012b3bff8748faff2792b"
+  },
+  {
+    "path": "tasks/V39-INTEGRATION-001.md",
+    "mode": "100644",
+    "blob": "e39c5d158a9a54684e2af0d95c460f9f0f1a9038",
+    "bytes": 2522,
+    "sha256": "28deca0234bdfcedbc1ccd33308f215e963974ca6d7f5b708ebaa0fb8a0b5c81"
+  }
+]);
+export const V39_INTEGRATION_SOURCE_DELTA_FILES = freeze([
+  {
+    "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+    "status": "M",
+    "oldMode": "100644",
+    "newMode": "100644",
+    "before": {
+      "mode": "100644",
+      "blob": "0c4dbb5c1dfac6cc610702f106174124f95edf74",
+      "bytes": 25669,
+      "sha256": "b324327a7d919fbfa5563eed8a8c6016db88384248f2478565b2adc3905a3194"
+    }
+  },
+  {
+    "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+    "status": "M",
+    "oldMode": "100644",
+    "newMode": "100644",
+    "before": {
+      "mode": "100644",
+      "blob": "52b9a83df448972c3fefd86f27aa7b1b23781420",
+      "bytes": 9973,
+      "sha256": "6cf3078e287e4bce6972231993b72874a7070f250d7b12ffcf8c35f6fda30a55"
+    }
+  },
+  {
+    "path": "packages/bridge-core/test/rust-core-owner-lifecycle.test.ts",
+    "status": "M",
+    "oldMode": "100644",
+    "newMode": "100644",
+    "before": {
+      "mode": "100644",
+      "blob": "7b694e483601571e356b3843b2e9409580a39bf5",
+      "bytes": 22933,
+      "sha256": "72302f1bb484a1f6214978b66a7be0af7fe0d701483a3de610817c162991a412"
+    }
+  },
+  {
+    "path": "scripts/ci/report-only-v39-integration.mjs",
+    "status": "M",
+    "oldMode": "100644",
+    "newMode": "100644",
+    "before": {
+      "mode": "100644",
+      "blob": "fe34e13f9012863b5cc64f92ba2382ecd90f79f1",
+      "bytes": 6649,
+      "sha256": "f9b8084ea636a99faefb631e496eec4954ba5616e13b576c36c8b16834e5d7c0"
+    }
+  },
+  {
+    "path": "scripts/ci/test/v39-integration-admission.test.mjs",
+    "status": "M",
+    "oldMode": "100644",
+    "newMode": "100644",
+    "before": {
+      "mode": "100644",
+      "blob": "3fc837b5bdc49283add7a4da8132880b37a5e205",
+      "bytes": 17942,
+      "sha256": "a5e2dc83a0186b098b59e90454f0781b33dad358400dbf154002e9911768ff0a"
+    }
+  },
+  {
+    "path": "scripts/ci/test/v39-integration-gate.test.mjs",
+    "status": "M",
+    "oldMode": "100644",
+    "newMode": "100644",
+    "before": {
+      "mode": "100644",
+      "blob": "c5bbfc2ef30f610b0052e2393554cf49e7832b55",
+      "bytes": 30553,
+      "sha256": "56a52812f5756648eb43b034a2fd28d6be9c27b4dd739e2b11ce9ffb5e0121c1"
+    }
+  },
+  {
+    "path": "scripts/ci/test/v39-integration-report-only.test.mjs",
+    "status": "M",
+    "oldMode": "100644",
+    "newMode": "100644",
+    "before": {
+      "mode": "100644",
+      "blob": "4d3e80f03598a898526d0a2537c301bb86959b21",
+      "bytes": 39154,
+      "sha256": "f3fc4fdb0723b2e852dbd8dc480d36139a2e97f80d46a623e971b49d8dcb302f"
+    }
+  },
+  {
+    "path": "scripts/ci/v39-integration-admission.mjs",
+    "status": "M",
+    "oldMode": "100644",
+    "newMode": "100644",
+    "before": {
+      "mode": "100644",
+      "blob": "08477b2e04e80c300e38ba0e380a313ad526187d",
+      "bytes": 109677,
+      "sha256": "02493cd1962d83d796f0ec3a595a4353a203b65e6fecd086263b207ced829073"
+    }
+  },
+  {
+    "path": "scripts/ci/verify-v39-integration.mjs",
+    "status": "M",
+    "oldMode": "100644",
+    "newMode": "100644",
+    "before": {
+      "mode": "100644",
+      "blob": "5945c2a2bb02b1135973949b95e75a64e87ebd24",
+      "bytes": 45650,
+      "sha256": "982938e12dc7a020828b1901f29122520cb3d8c7a0f0d35e11aa5db6e97a220d"
+    }
+  },
+  {
+    "path": "tasks/V39-INTEGRATION-001.md",
+    "status": "M",
+    "oldMode": "100644",
+    "newMode": "100644",
+    "before": {
+      "mode": "100644",
+      "blob": "e39c5d158a9a54684e2af0d95c460f9f0f1a9038",
+      "bytes": 2522,
+      "sha256": "28deca0234bdfcedbc1ccd33308f215e963974ca6d7f5b708ebaa0fb8a0b5c81"
+    }
+  }
+]);
+export const V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY = freeze({
+  "schema": "musicbridge.v39.integration.source-correction.v1",
+  "generation": 2,
+  "task": "V39-INTEGRATION-001",
+  "branch": "codex/v39-integration-001",
+  "cumulativeBaseSha": "9bfb5915c17e8b5770ece7ac9a0efc1998d54e72",
+  "sourceParentSha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+  "failedSource1": {
+    "sha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+    "parentSha": "9bfb5915c17e8b5770ece7ac9a0efc1998d54e72",
+    "tree": "f5707728f28fe44e6ea4d25454d587827972de25",
+    "scope": {
+      "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+      "blob": "0c4dbb5c1dfac6cc610702f106174124f95edf74",
+      "bytes": 25669,
+      "sha256": "b324327a7d919fbfa5563eed8a8c6016db88384248f2478565b2adc3905a3194"
+    },
+    "sourceFiles": [
+      {
+        "path": ".github/workflows/electron-e2e.yml",
+        "mode": "100644",
+        "blob": "380eac659d5d177e087933a5d50152c02ce58a15",
+        "bytes": 11536,
+        "sha256": "d378e668aeb6ef5ad1424f3de5db8b447a84d77add8f04a2982db1482b13e6c5"
+      },
+      {
+        "path": ".github/workflows/rust-core.yml",
+        "mode": "100644",
+        "blob": "d5a1fcfd4c795947cf4f99ad1bf1a94794feb014",
+        "bytes": 5403,
+        "sha256": "c145aac8e5724c85a5611f324fbe057be42dfe8f1a34b236f27ab381ee52909a"
+      },
+      {
+        "path": ".github/workflows/security.yml",
+        "mode": "100644",
+        "blob": "468508312cea0db9421cdb7bdd9df84b8549028d",
+        "bytes": 3011,
+        "sha256": "bfd8ad30270b166a7bae2efe1bd286a8312ea77c5da98ecc9f3b2a95e98b58d0"
+      },
+      {
+        "path": ".github/workflows/verify.yml",
+        "mode": "100644",
+        "blob": "fa972737458ee8261ec2796a3778dcde08fcbfe1",
+        "bytes": 33291,
+        "sha256": "ebc47805043511eb0d814780bd0daf2a613a0321f392e2624cf9eaf5d588a13c"
+      },
+      {
+        "path": "apps/desktop/src/renderer/src/components/collection/CassetteArchiveImportPanel.vue",
+        "mode": "100644",
+        "blob": "92f9f76125bb447f6c989ef36f6f53755b350800",
+        "bytes": 7724,
+        "sha256": "9b7b9bbcc1859684367df1060d02ebe5ebc423462584ec0eed6cf40b0540dbf2"
+      },
+      {
+        "path": "apps/desktop/src/renderer/src/components/collection/CassetteCatalogDetail.vue",
+        "mode": "100644",
+        "blob": "b2b1fcfffb92e7535d5b1cfb55af9062f189a642",
+        "bytes": 13038,
+        "sha256": "e0b028c535ff41096a51904fd11c602220e03916a9922cc2825bc9d404b44963"
+      },
+      {
+        "path": "apps/desktop/src/renderer/src/components/collection/CassetteCatalogView.vue",
+        "mode": "100644",
+        "blob": "310d8fe7950670d4200f759f6697d891bc8254cc",
+        "bytes": 16917,
+        "sha256": "37a52e4b5868151dfedec97b3271619e0a63ce00e33ba26ad1a1368a32bd2b8e"
+      },
+      {
+        "path": "apps/desktop/src/renderer/src/components/collection/CollectionView.vue",
+        "mode": "100644",
+        "blob": "c192a21b3307ef4e2e8582f3ed160e4515553645",
+        "bytes": 41843,
+        "sha256": "4cd02ecf8dc45dfb34a8389edbd31372d6b8b92d3db1ee1252c8ab70e7a40efb"
+      },
+      {
+        "path": "apps/desktop/src/renderer/src/components/collection/reference-images.ts",
+        "mode": "100644",
+        "blob": "5cf626eada544311c5e1a06c7d6403bde9250ae6",
+        "bytes": 12370,
+        "sha256": "ce000d3713cbf9f16a353a3cc7b68fc20c10560a751d506b7948541c6c05ff34"
+      },
+      {
+        "path": "apps/desktop/test/cassette-catalog-ui.test.ts",
+        "mode": "100644",
+        "blob": "b59b6e28619df48579e3c9c003f5ae5702736bf2",
+        "bytes": 38729,
+        "sha256": "168e475056ca6474c994dea75f0243d2026a644a32d7b0a4bd152c00b888c8fa"
+      },
+      {
+        "path": "apps/desktop/test/collection-reference-images.test.ts",
+        "mode": "100644",
+        "blob": "d31ae046294fbd60a553d6c89c3daa5fe88a1479",
+        "bytes": 8247,
+        "sha256": "edd150b4a6e1ccb295dd4458ae7f81bffb43c5e423f2b346e6e26c77f410a931"
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/DONOR_READBACK.json",
+        "mode": "100644",
+        "blob": "d6d3731bb83ee492305b99063e8fb76a17704953",
+        "bytes": 311861,
+        "sha256": "381b405a53408a0f5209f4a99115e5fd83073152c31322b62a30a1e7eba5159c"
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+        "mode": "100644",
+        "blob": "0c4dbb5c1dfac6cc610702f106174124f95edf74",
+        "bytes": 25669,
+        "sha256": "b324327a7d919fbfa5563eed8a8c6016db88384248f2478565b2adc3905a3194"
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/FEATURE_BEHAVIOR_MATRIX.json",
+        "mode": "100644",
+        "blob": "584df402a118532ab040b9dedec4bb028c0621b6",
+        "bytes": 17837,
+        "sha256": "af9dc57f2dbfe6765bcd906a8d71a6174ad42d55b7a9c383b9c4143d1089309c"
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+        "mode": "100644",
+        "blob": "52b9a83df448972c3fefd86f27aa7b1b23781420",
+        "bytes": 9973,
+        "sha256": "6cf3078e287e4bce6972231993b72874a7070f250d7b12ffcf8c35f6fda30a55"
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/SEALED_BASELINE.json",
+        "mode": "100644",
+        "blob": "750eb368a707877059dc461f51aec0d9b531e13c",
+        "bytes": 951772,
+        "sha256": "e1505425182e158325d531bc5b158b2690e73591cf251d7ce79f5a3cfc38eaee"
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/STATUS.json",
+        "mode": "100644",
+        "blob": "9530ab8c7b7d1643af49d0a1193da12c293f81cc",
+        "bytes": 499,
+        "sha256": "af5943fa46eb92090a04fdcf85b052ced2d230e76ab4a9539684a4673768b945"
+      },
+      {
+        "path": "packages/bridge-core/src/collection/reference-catalog-retention.ts",
+        "mode": "100644",
+        "blob": "6520598410a88a686280421f7b0c0e9db45ce31a",
+        "bytes": 3354,
+        "sha256": "ee8531e696da2b8b7a6e8479bffeb674e6f10b5db519d367349ec1913f85e514"
+      },
+      {
+        "path": "packages/bridge-core/src/collection/reference-catalog-store.ts",
+        "mode": "100644",
+        "blob": "fac1f8be7d299135e312c9193e0c7c023197a5c6",
+        "bytes": 49492,
+        "sha256": "cb20e8e4de0ae20be7a96944820252393ad95738bde04d8e2505c37bb13f3711"
+      },
+      {
+        "path": "packages/bridge-core/test/reference-archive-catalog-store.test.ts",
+        "mode": "100644",
+        "blob": "83c749fcbfe2a4038c8868a687ddb5d7e8672868",
+        "bytes": 20252,
+        "sha256": "6f945ab5a572bc2d21063f269b5c86901c909fa3a3396d3514477f9789b3bab1"
+      },
+      {
+        "path": "packages/bridge-core/test/reference-catalog-retention.test.ts",
+        "mode": "100644",
+        "blob": "671308f343d88a74cb11b29b5782dc762d7a7742",
+        "bytes": 20800,
+        "sha256": "a6df327894831798cf45f522a5e7fc32b770a8961f63317ebdd561ee84d1be03"
+      },
+      {
+        "path": "packages/contracts/src/reference-catalog.ts",
+        "mode": "100644",
+        "blob": "fbbb9ccda1e88e492d0ce7a75f9d999b3cb4c827",
+        "bytes": 31851,
+        "sha256": "fe0682001b99dddb345ab785187f441efcb595d5ab7bdb17654f59d376de76e6"
+      },
+      {
+        "path": "packages/contracts/test/reference-catalog.test.ts",
+        "mode": "100644",
+        "blob": "f67aedced04852f6e63324ef4cb12647c94aa858",
+        "bytes": 24452,
+        "sha256": "d2b0127ba7e2b2cff93b53d881af57cacfd3ff5bc422e542816e4a151c3a4f97"
+      },
+      {
+        "path": "project/POSTRUST_PLAN.json",
+        "mode": "100644",
+        "blob": "ad9927877b833cb54dbf1976968c191b2533e8be",
+        "bytes": 2900559,
+        "sha256": "540ec18e78c6ab5f2a62d44ddc0037afb6ec3554179bb5b2989993ef76c6d139"
+      },
+      {
+        "path": "project/POSTRUST_PROGRESS.md",
+        "mode": "100644",
+        "blob": "b319acd06fef1235f0daea1b557f9f9035357052",
+        "bytes": 127743,
+        "sha256": "0dce32fbd56501e819ecee574f8f2adacdabae062d0b4dcaf12d9643904542fe"
+      },
+      {
+        "path": "project/POSTRUST_TODO.md",
+        "mode": "100644",
+        "blob": "a7807e77cf35ce3a0f4362631dbe0b8326709a7c",
+        "bytes": 41448,
+        "sha256": "415a2adaa1d5971965ba75e341570ea87cea9f9c95d5a7519f62170b692cbb5d"
+      },
+      {
+        "path": "project/STATUS.json",
+        "mode": "100644",
+        "blob": "23fe6eac44a88758dcbcb56526e4b510f93cb0cf",
+        "bytes": 2658570,
+        "sha256": "6610994619022c1da18c110a5073809a32a43f85613c18236470950ac60f97fd"
+      },
+      {
+        "path": "reports/TAPE_CATALOG_HISTORY_COMPAT_EVIDENCE.json",
+        "mode": "100644",
+        "blob": "4946e341f0356ed75ceb34cb28572d9935ebe3af",
+        "bytes": 27177,
+        "sha256": "4382f35711c311708e202d4afa73d48a32e2cf2e0ae0150e80b9d12847692f12"
+      },
+      {
+        "path": "reports/TAPE_CATALOG_HISTORY_COMPAT_RESULT.md",
+        "mode": "100644",
+        "blob": "211bd458ef44929af1026689b7df7b6157c13bec",
+        "bytes": 4722,
+        "sha256": "9d24b342cd4db310bbff2a61314db35ef10be83551d720b2c3135c72c4843a7e"
+      },
+      {
+        "path": "scripts/ci/report-only-admission.mjs",
+        "mode": "100644",
+        "blob": "9ad6b253ebbc6551ffdc38d6f4110805eb7601b9",
+        "bytes": 29630,
+        "sha256": "d5b7c2f5ca9d743e77cb83fc7c6cfe25d7bea3b02f1726d02b4e3b1cd36c24c1"
+      },
+      {
+        "path": "scripts/ci/report-only-v39-integration.mjs",
+        "mode": "100644",
+        "blob": "fe34e13f9012863b5cc64f92ba2382ecd90f79f1",
+        "bytes": 6649,
+        "sha256": "f9b8084ea636a99faefb631e496eec4954ba5616e13b576c36c8b16834e5d7c0"
+      },
+      {
+        "path": "scripts/ci/task-applicability.mjs",
+        "mode": "100644",
+        "blob": "12c1b6fb0b654f20fc9b4d67378a9c6dc3b88370",
+        "bytes": 8575,
+        "sha256": "be86e4cc7dd45e7ac360945083ecd4677fe8aab5536a9e57e56d818c96a0a4de"
+      },
+      {
+        "path": "scripts/ci/test/v39-integration-admission.test.mjs",
+        "mode": "100644",
+        "blob": "3fc837b5bdc49283add7a4da8132880b37a5e205",
+        "bytes": 17942,
+        "sha256": "a5e2dc83a0186b098b59e90454f0781b33dad358400dbf154002e9911768ff0a"
+      },
+      {
+        "path": "scripts/ci/test/v39-integration-gate.test.mjs",
+        "mode": "100644",
+        "blob": "c5bbfc2ef30f610b0052e2393554cf49e7832b55",
+        "bytes": 30553,
+        "sha256": "56a52812f5756648eb43b034a2fd28d6be9c27b4dd739e2b11ce9ffb5e0121c1"
+      },
+      {
+        "path": "scripts/ci/test/v39-integration-report-only.test.mjs",
+        "mode": "100644",
+        "blob": "4d3e80f03598a898526d0a2537c301bb86959b21",
+        "bytes": 39154,
+        "sha256": "f3fc4fdb0723b2e852dbd8dc480d36139a2e97f80d46a623e971b49d8dcb302f"
+      },
+      {
+        "path": "scripts/ci/v39-integration-admission.mjs",
+        "mode": "100644",
+        "blob": "08477b2e04e80c300e38ba0e380a313ad526187d",
+        "bytes": 109677,
+        "sha256": "02493cd1962d83d796f0ec3a595a4353a203b65e6fecd086263b207ced829073"
+      },
+      {
+        "path": "scripts/ci/verify-v39-integration.mjs",
+        "mode": "100644",
+        "blob": "5945c2a2bb02b1135973949b95e75a64e87ebd24",
+        "bytes": 45650,
+        "sha256": "982938e12dc7a020828b1901f29122520cb3d8c7a0f0d35e11aa5db6e97a220d"
+      },
+      {
+        "path": "tasks/00_TASK_INDEX.md",
+        "mode": "100644",
+        "blob": "d6c7ac5e2192489795527b70bd0f783b67c47108",
+        "bytes": 30187,
+        "sha256": "f87a99b8d2160e6b44d7e54509660f60f4cfa84e7d9012b3bff8748faff2792b"
+      },
+      {
+        "path": "tasks/V39-INTEGRATION-001.md",
+        "mode": "100644",
+        "blob": "e39c5d158a9a54684e2af0d95c460f9f0f1a9038",
+        "bytes": 2522,
+        "sha256": "28deca0234bdfcedbc1ccd33308f215e963974ca6d7f5b708ebaa0fb8a0b5c81"
+      }
+    ],
+    "originalFailureReceipt": {
+      "schema": "musicbridge.v39.source1-first-natural-failure230.v1",
+      "bytes": 128508,
+      "sha256": "eae7dd9fd7c65e7b6d6cbfb683bf871403c4457b7c28ab770be3316b54e1b303"
+    }
+  },
+  "directSourceFiles": [
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "0c4dbb5c1dfac6cc610702f106174124f95edf74",
+        "bytes": 25669,
+        "sha256": "b324327a7d919fbfa5563eed8a8c6016db88384248f2478565b2adc3905a3194"
+      }
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "52b9a83df448972c3fefd86f27aa7b1b23781420",
+        "bytes": 9973,
+        "sha256": "6cf3078e287e4bce6972231993b72874a7070f250d7b12ffcf8c35f6fda30a55"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/rust-core-owner-lifecycle.test.ts",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "7b694e483601571e356b3843b2e9409580a39bf5",
+        "bytes": 22933,
+        "sha256": "72302f1bb484a1f6214978b66a7be0af7fe0d701483a3de610817c162991a412"
+      }
+    },
+    {
+      "path": "scripts/ci/report-only-v39-integration.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "fe34e13f9012863b5cc64f92ba2382ecd90f79f1",
+        "bytes": 6649,
+        "sha256": "f9b8084ea636a99faefb631e496eec4954ba5616e13b576c36c8b16834e5d7c0"
+      }
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-admission.test.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "3fc837b5bdc49283add7a4da8132880b37a5e205",
+        "bytes": 17942,
+        "sha256": "a5e2dc83a0186b098b59e90454f0781b33dad358400dbf154002e9911768ff0a"
+      }
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-gate.test.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "c5bbfc2ef30f610b0052e2393554cf49e7832b55",
+        "bytes": 30553,
+        "sha256": "56a52812f5756648eb43b034a2fd28d6be9c27b4dd739e2b11ce9ffb5e0121c1"
+      }
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-report-only.test.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "4d3e80f03598a898526d0a2537c301bb86959b21",
+        "bytes": 39154,
+        "sha256": "f3fc4fdb0723b2e852dbd8dc480d36139a2e97f80d46a623e971b49d8dcb302f"
+      }
+    },
+    {
+      "path": "scripts/ci/v39-integration-admission.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "08477b2e04e80c300e38ba0e380a313ad526187d",
+        "bytes": 109677,
+        "sha256": "02493cd1962d83d796f0ec3a595a4353a203b65e6fecd086263b207ced829073"
+      }
+    },
+    {
+      "path": "scripts/ci/verify-v39-integration.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "5945c2a2bb02b1135973949b95e75a64e87ebd24",
+        "bytes": 45650,
+        "sha256": "982938e12dc7a020828b1901f29122520cb3d8c7a0f0d35e11aa5db6e97a220d"
+      }
+    },
+    {
+      "path": "tasks/V39-INTEGRATION-001.md",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "e39c5d158a9a54684e2af0d95c460f9f0f1a9038",
+        "bytes": 2522,
+        "sha256": "28deca0234bdfcedbc1ccd33308f215e963974ca6d7f5b708ebaa0fb8a0b5c81"
+      }
+    }
+  ],
+  "cumulativeSourceFiles": 40,
+  "source1FirstNaturalCi": {
+    "schema": "musicbridge.v39.integration.public-failed-source-ci.v1",
+    "repository": "Matt12377/MusicBridge",
+    "repositoryId": 1340424953,
+    "event": "push",
+    "attempt": 1,
+    "runs": [
+      {
+        "path": ".github/workflows/rust-core.yml",
+        "id": 38138310063,
+        "workflowId": 373843019,
+        "headSha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+        "headTree": "f5707728f28fe44e6ea4d25454d587827972de25",
+        "branch": "codex/v39-integration-001",
+        "repositoryId": 1340424953,
+        "headRepositoryId": 1340424953,
+        "event": "push",
+        "attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "jobs": [
+          {
+            "id": 114466685103,
+            "runId": 38138310063,
+            "name": "rust-core (ubuntu-latest)",
+            "headSha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "number": 1,
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 2,
+                "name": "Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 3,
+                "name": "Run actions/setup-node@v4",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 4,
+                "name": "V3.9 Tape组合精确身份准入",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 5,
+                "name": "CI报告元数据精确身份与原软件复用准入",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 6,
+                "name": "CI修复精确身份与原软件复用准入",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 7,
+                "name": "复用165已封存产品软件证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 8,
+                "name": "判定本次精确父Source产品CI复用",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 9,
+                "name": "复用本次精确父Source产品软件证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 10,
+                "name": "准备真实hosted专用构建根",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 11,
+                "name": "安装固定 Rust 工具链",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 12,
+                "name": "安装冻结工作区依赖",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 13,
+                "name": "验证实际 Rust 与 TypeScript 边界",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 14,
+                "name": "保留编译器、测试及源码与二进制清单",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 27,
+                "name": "Post Run actions/setup-node@v4",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 28,
+                "name": "Post Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 29,
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success"
+              }
+            ]
+          },
+          {
+            "id": 114466685290,
+            "runId": 38138310063,
+            "name": "rust-core (macos-latest)",
+            "headSha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "number": 1,
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 2,
+                "name": "Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 3,
+                "name": "Run actions/setup-node@v4",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 4,
+                "name": "V3.9 Tape组合精确身份准入",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 5,
+                "name": "CI报告元数据精确身份与原软件复用准入",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 6,
+                "name": "CI修复精确身份与原软件复用准入",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 7,
+                "name": "复用165已封存产品软件证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 8,
+                "name": "判定本次精确父Source产品CI复用",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 9,
+                "name": "复用本次精确父Source产品软件证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 10,
+                "name": "准备真实hosted专用构建根",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 11,
+                "name": "安装固定 Rust 工具链",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 12,
+                "name": "安装冻结工作区依赖",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 13,
+                "name": "验证实际 Rust 与 TypeScript 边界",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 14,
+                "name": "保留编译器、测试及源码与二进制清单",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 27,
+                "name": "Post Run actions/setup-node@v4",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 28,
+                "name": "Post Run actions/checkout@v4",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 29,
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "path": ".github/workflows/verify.yml",
+        "id": 38138310031,
+        "workflowId": 339500580,
+        "headSha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+        "headTree": "f5707728f28fe44e6ea4d25454d587827972de25",
+        "branch": "codex/v39-integration-001",
+        "repositoryId": 1340424953,
+        "headRepositoryId": 1340424953,
+        "event": "push",
+        "attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "jobs": [
+          {
+            "id": 114466685011,
+            "runId": 38138310031,
+            "name": "dependency-audit",
+            "headSha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "number": 1,
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 2,
+                "name": "Checkout",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 3,
+                "name": "Node.js 22",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 4,
+                "name": "V3.9 Tape组合精确身份准入",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 5,
+                "name": "CI报告元数据精确身份与原软件复用准入",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 6,
+                "name": "CI修复精确身份与原软件复用准入",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 7,
+                "name": "复用165已封存产品软件证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 8,
+                "name": "判定本次精确父Source产品CI复用",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 9,
+                "name": "复用本次精确父Source产品软件证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 10,
+                "name": "Prepare source-pinned build workspace mirror",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 11,
+                "name": "Install frozen workspace",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 12,
+                "name": "Production dependency audit",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 23,
+                "name": "Post Node.js 22",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 24,
+                "name": "Post Checkout",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 25,
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success"
+              }
+            ]
+          },
+          {
+            "id": 114466685150,
+            "runId": 38138310031,
+            "name": "verify",
+            "headSha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+            "status": "completed",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "number": 1,
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 2,
+                "name": "Checkout",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 3,
+                "name": "Node.js 22",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 4,
+                "name": "V3.9 Tape组合精确身份准入",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 5,
+                "name": "CI报告元数据精确身份与原软件复用准入",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 6,
+                "name": "CI修复精确身份与原软件复用准入",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 7,
+                "name": "复用165已封存产品软件证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 8,
+                "name": "Prepare strict hosted verification directories",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 9,
+                "name": "判定精确父源码CI可复用的报告提交",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 10,
+                "name": "复用本次精确父Source产品软件证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 11,
+                "name": "Prepare source-pinned build workspace mirror",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 12,
+                "name": "准备准入正负例的精确历史Git对象",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 13,
+                "name": "组合任务与精确前序证据准入",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 14,
+                "name": "Install frozen workspace",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 15,
+                "name": "Validate control plane",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 16,
+                "name": "Validate security and product boundaries",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 17,
+                "name": "Scan workspace import cycles",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 18,
+                "name": "Verify platform-independent workspace (typecheck, unit tests, build; no Electron)",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 19,
+                "name": "Verify offline preparation boundaries",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 20,
+                "name": "Verify isolated MBRS-001 offline POC",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 21,
+                "name": "MBRS002 本地合同 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 22,
+                "name": "MBRS003 阶段软件 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 23,
+                "name": "MBRS004 名称与版本规则 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 24,
+                "name": "MBRS005 本地文件网关与资源租约 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 25,
+                "name": "MBRS006 本地Audio Input与会话隔离 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 26,
+                "name": "MBRS007 队列预取与持久恢复 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 27,
+                "name": "MBRS008 原样字节与独立质量证据 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 28,
+                "name": "MBRS009 正式本地库有界查询与复用UI Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 29,
+                "name": "MBRS010 封面选择与来源安全 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 30,
+                "name": "MBRS011 MB_ONLY信息整理预览与撤销 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 31,
+                "name": "MBRS014 旧收藏关联与冻结来源保护 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 32,
+                "name": "MBRS012 受控源写与备份恢复 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 33,
+                "name": "MBRS013 同内容位置迁移与具体清理 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 34,
+                "name": "MBM000 移动合同双端采纳 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 35,
+                "name": "MBM001 配对与只读曲库 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 36,
+                "name": "MBM002 手机资源播放 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 37,
+                "name": "MBM003 无损与DSD传输软件 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 38,
+                "name": "本地音乐库有符号身份修复 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 39,
+                "name": "MBM004 内容与多设备软件 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 40,
+                "name": "磁带共同基线与fresh读取策略 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 41,
+                "name": "验证报告CI准入正负例",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 42,
+                "name": "CI报告镜像历史对象修复工具 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 43,
+                "name": "CI报告元数据修复工具 Gate",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 44,
+                "name": "V3.9 Tape当前组合 Gate",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 45,
+                "name": "Diff whitespace",
+                "status": "completed",
+                "conclusion": "failure"
+              },
+              {
+                "number": 46,
+                "name": "Verify pinned historical fragments and current discarded rejection",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 47,
+                "name": "Preserve full verification log",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 48,
+                "name": "保留本次CI修复工具证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 49,
+                "name": "保留本次CI报告元数据工具证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 50,
+                "name": "保留本次V3.9 Tape组合证据",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 99,
+                "name": "Post Node.js 22",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 100,
+                "name": "Post Checkout",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 101,
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "path": ".github/workflows/security.yml",
+        "id": 38138310025,
+        "workflowId": 339500579,
+        "headSha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+        "headTree": "f5707728f28fe44e6ea4d25454d587827972de25",
+        "branch": "codex/v39-integration-001",
+        "repositoryId": 1340424953,
+        "headRepositoryId": 1340424953,
+        "event": "push",
+        "attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "jobs": [
+          {
+            "id": 114466685142,
+            "runId": 38138310025,
+            "name": "static-security",
+            "headSha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+            "status": "completed",
+            "conclusion": "success",
+            "steps": [
+              {
+                "number": 1,
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 2,
+                "name": "Checkout",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 3,
+                "name": "Node.js 22",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 4,
+                "name": "V3.9 Tape组合精确身份准入",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 5,
+                "name": "CI报告元数据精确身份与原软件复用准入",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 6,
+                "name": "CI修复精确身份与原软件复用准入",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 7,
+                "name": "复用165已封存产品软件证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 8,
+                "name": "判定本次精确父Source产品CI复用",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 9,
+                "name": "复用本次精确父Source产品软件证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 10,
+                "name": "Install frozen workspace",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 11,
+                "name": "Validate machine control state",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 12,
+                "name": "Run boundary, loopback, secret and URL/query scans",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 13,
+                "name": "Scan workspace import cycles",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 14,
+                "name": "Run directed platform-independent security tests (no Electron)",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 27,
+                "name": "Post Node.js 22",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 28,
+                "name": "Post Checkout",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 29,
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "path": ".github/workflows/electron-e2e.yml",
+        "id": 38138310004,
+        "workflowId": 339500575,
+        "headSha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+        "headTree": "f5707728f28fe44e6ea4d25454d587827972de25",
+        "branch": "codex/v39-integration-001",
+        "repositoryId": 1340424953,
+        "headRepositoryId": 1340424953,
+        "event": "push",
+        "attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "jobs": [
+          {
+            "id": 114466684886,
+            "runId": 38138310004,
+            "name": "macos-electron-gate",
+            "headSha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+            "status": "completed",
+            "conclusion": "failure",
+            "steps": [
+              {
+                "number": 1,
+                "name": "Set up job",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 2,
+                "name": "Checkout",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 3,
+                "name": "Prepare hosted runner evidence directories",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 4,
+                "name": "Node.js 22",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 5,
+                "name": "V3.9 Tape组合精确身份准入",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 6,
+                "name": "CI报告元数据精确身份与原软件复用准入",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 7,
+                "name": "CI修复精确身份与原软件复用准入",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 8,
+                "name": "复用165已封存产品软件证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 9,
+                "name": "Prepare source-pinned build workspace mirror",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 10,
+                "name": "判定本次精确父Source产品CI复用",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 11,
+                "name": "复用本次精确父Source产品软件证据",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 12,
+                "name": "Install frozen workspace",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 13,
+                "name": "Prepare fresh Core fixed Worker before existing Electron gates",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 14,
+                "name": "Prepare Rust toolchain",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 15,
+                "name": "Build and verify both Rust hosts once in this job",
+                "status": "completed",
+                "conclusion": "failure"
+              },
+              {
+                "number": 16,
+                "name": "Install Electron binary from locked tree (official installer only)",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 17,
+                "name": "Verify official Electron archive and actual execution tree",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 18,
+                "name": "Electron startup, crash/restart, safeStorage vault and credential recovery gates",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 19,
+                "name": "Electron end-to-end flow (Playwright, production build)",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 20,
+                "name": "Select declared synthetic Rust Host artifacts",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 21,
+                "name": "Preserve declared synthetic Rust Host compiled artifacts",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 22,
+                "name": "Preserve Electron logs and synthetic test artifacts",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 43,
+                "name": "Post Node.js 22",
+                "status": "completed",
+                "conclusion": "skipped"
+              },
+              {
+                "number": 44,
+                "name": "Post Checkout",
+                "status": "completed",
+                "conclusion": "success"
+              },
+              {
+                "number": 45,
+                "name": "Complete job",
+                "status": "completed",
+                "conclusion": "success"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "failures": [
+      {
+        "workflow": ".github/workflows/verify.yml",
+        "runId": 38138310031,
+        "jobId": 114466685150,
+        "stepNumber": 45,
+        "step": "Diff whitespace",
+        "conclusion": "failure",
+        "kind": "THREE_NEW_BLANK_LINES_AT_EOF",
+        "files": [
+          "scripts/ci/report-only-v39-integration.mjs",
+          "scripts/ci/test/v39-integration-admission.test.mjs",
+          "scripts/ci/test/v39-integration-report-only.test.mjs"
+        ],
+        "precedingCurrentGateStep": {
+          "number": 44,
+          "name": "V3.9 Tape当前组合 Gate",
+          "conclusion": "success"
+        },
+        "localDiffExit": 2
+      },
+      {
+        "workflow": ".github/workflows/electron-e2e.yml",
+        "runId": 38138310004,
+        "jobId": 114466684886,
+        "stepNumber": 15,
+        "step": "Build and verify both Rust hosts once in this job",
+        "conclusion": "failure",
+        "kind": "CONTROLLED_LIFECYCLE_EXPECTATION_BEFORE_ELECTRON",
+        "innerStage": "ts-core-owner-lifecycle",
+        "exitCode": 1,
+        "signal": null,
+        "lifecycle": {
+          "tests": 23,
+          "pass": 22,
+          "fail": 1,
+          "skip": 0,
+          "failedName": "单一单调期限包含Node boot、版本探测、导出与child boot，不能逐段重置",
+          "bootTimedOutAsExpected": true,
+          "nodeBoots": 1,
+          "snapshotExports": 1,
+          "childSpawns": 0,
+          "rootCause": "测试使用真实250+250等待及process.execPath完整pin校验，剩余整体1秒期限受机器完整哈希耗时影响；生产期限在spawn前安全拒绝。"
+        },
+        "innerRaw": {
+          "bytes": 6674,
+          "sha256": "763144e52b9e483c82f4be9d95a6a83269e75be74b0a9522bb97404b82c0d07c"
+        },
+        "innerFailure": {
+          "bytes": 7605,
+          "sha256": "bbef55ed8811121cbf677b3a3dede49e4a1dfe73630dd699f280cfdeeb43bb49"
+        },
+        "diagnosticReceipt": {
+          "bytes": 4718,
+          "sha256": "074c80df95a31df7e62f16f056f75af9ed46ee27df318ac3c35a8df91237dbab"
+        }
+      }
+    ],
+    "wholeJobLogsObserved": [
+      {
+        "runId": 38138310063,
+        "jobId": 114466685103,
+        "jobName": "rust-core (ubuntu-latest)",
+        "raw": {
+          "bytes": 39881,
+          "sha256": "12b010aa9197dd98bd3763e0c01812934c70ee20582673b4fd26010c66e3b707"
+        }
+      },
+      {
+        "runId": 38138310063,
+        "jobId": 114466685290,
+        "jobName": "rust-core (macos-latest)",
+        "raw": {
+          "bytes": 41162,
+          "sha256": "81d788bc730dabaf52a0bfe2cc696cda79aff89fa6c06cc1bac8857b99cc4485"
+        }
+      },
+      {
+        "runId": 38138310031,
+        "jobId": 114466685011,
+        "jobName": "dependency-audit",
+        "raw": {
+          "bytes": 32885,
+          "sha256": "4799367e57b8e150cd7214fbebf3696be328c32b235826362c65c79463295167"
+        }
+      }
+    ],
+    "verifyWholeJobLogRead": false,
+    "verifyWholeLogReadFailures": 2,
+    "verifyTailReadFailurePreserved": true,
+    "electronDiagnostic": {
+      "membersWholeRead": 2,
+      "selectedMembersCrcRead": true,
+      "diagnosticNetworkBytes": 3319060,
+      "wholeZipRead": false,
+      "wholeZipSha256Verified": false,
+      "allMembersCrcRead": false
+    },
+    "sourceCiQualified": false,
+    "source1FailureMayBeReusedAsProductPass": false,
+    "reruns": 0,
+    "dispatches": 0
+  },
+  "testBoundary": {
+    "onlyOriginalCase5MayChange": true,
+    "originalTestCount": 23,
+    "originalNamesPreserved": true,
+    "overallStartupMs": 1000,
+    "logicalNodeBootMs": 250,
+    "logicalSnapshotExportMs": 250,
+    "logicalLateChildAckMs": 650,
+    "requestMs": 2000,
+    "productionPinChecksAndDeadlinesUnchanged": true
+  },
+  "historyRewriteAllowed": false,
+  "sameShaCiRerunAllowed": false,
+  "currentSourceRequiresFreshStandardAndGate": true,
+  "realApplicationServiceDeviceAudio": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN"
+});
+export const V39_INTEGRATION_SOURCE_FILES = freeze([...V39_INTEGRATION_HISTORICAL_SOURCE_FILES, {
+  "path": "packages/bridge-core/test/rust-core-owner-lifecycle.test.ts",
+  "status": "M",
+  "role": "test",
+  "newMode": "100644",
+  "before": {
+    "mode": "100644",
+    "blob": "7b694e483601571e356b3843b2e9409580a39bf5",
+    "bytes": 22933,
+    "sha256": "72302f1bb484a1f6214978b66a7be0af7fe0d701483a3de610817c162991a412"
+  }
+}].sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0));
+export const V39_INTEGRATION_SOURCE_CORRECTION_REF = freeze({path:V39_INTEGRATION_LOCAL_EVIDENCE_PATH,jsonPointer:'/sourceCorrection',canonical:v39IntegrationCanonicalPin(V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY)});
 export const V39_INTEGRATION_REPORT_PATHS = freeze([
   'reports/V39-INTEGRATION-001_RESULT.json', 'reports/V39-INTEGRATION-001_RESULT.md',
   V39_INTEGRATION_CI_EVIDENCE_PATH, V39_INTEGRATION_STATUS_PATH,
@@ -745,7 +2694,8 @@ const phases = ['BASELINE_READBACK','TAPE_IMPORT','EXACT_ROUTE_AND_GATE','SOURCE
 export function assertV39IntegrationScope(scope, bytes) {
   keys(scope, ['schema','task','branch','baseSha','baseTree','sealedBaseline','frozen','executionStatus','currentPhase','scopeBoundary',
     'orderedPhases','allowedSourceFiles','finalFiles','reportPaths','nextTask','softwareQualificationFromSelfReport','requiredEvidenceRefs',
-    'budgets','preserveOriginalLedger','realApplicationServiceDeviceAudio','ownerAcceptance'], 'V39_SCOPE_HEADER');
+    'budgets','preserveOriginalLedger','realApplicationServiceDeviceAudio','ownerAcceptance',
+    'sourceParentSha','sourceDeltaFiles','sourceCorrection'], 'V39_SCOPE_HEADER');
   if (scope.schema !== 'musicbridge.v39.integration.execution-scope.v1' || scope.task !== V39_INTEGRATION_TASK
     || scope.branch !== V39_INTEGRATION_BRANCH || scope.baseSha !== V39_INTEGRATION_BASE || scope.baseTree !== V39_INTEGRATION_BASE_TREE
     || scope.sealedBaseline !== V39_INTEGRATION_BASELINE_PATH || scope.frozen !== true || scope.executionStatus !== 'READY_FOR_SOURCE'
@@ -754,11 +2704,14 @@ export function assertV39IntegrationScope(scope, bytes) {
     || scope.realApplicationServiceDeviceAudio !== 'NOT_RUN' || scope.ownerAcceptance !== 'NOT_RUN'
     || !equal(scope.orderedPhases, phases.map(id => ({ id, implementation: 'COMPLETE' })))
     || !equal(scope.allowedSourceFiles, V39_INTEGRATION_SOURCE_FILES) || !equal(scope.reportPaths, V39_INTEGRATION_REPORT_PATHS)
+    || scope.sourceParentSha !== V39_INTEGRATION_SOURCE_PARENT
+    || !equal(scope.sourceDeltaFiles, V39_INTEGRATION_SOURCE_DELTA_FILES)
+    || !equal(scope.sourceCorrection, V39_INTEGRATION_SOURCE_CORRECTION_REF)
     || !equal(scope.preserveOriginalLedger, { tasks:18, acceptanceCases:156, effectiveTasks:17, effectiveAcceptanceCases:150, cancelled015Cases:6 })
     || !equal(scope.budgets, { oldMbm004StageMs:180000, oldMbm004WholeMs:480000, ownerMs:2000, rawBytesPerStream:16777216 })
     || !equal(scope.requiredEvidenceRefs, { sourceGate:'ACTUAL_CURRENT_SOURCE_GATE_WHOLE_RAW',
       sourceCi:'FIRST_NATURAL_CURRENT_SOURCE_PRODUCT_CI', reportCi:'FIRST_NATURAL_UNIQUE_DIRECT_REPORT_CI' })
-    || !Array.isArray(scope.finalFiles) || scope.finalFiles.length !== 39) fail('V39_SCOPE_NOT_FROZEN_COMPLETE');
+    || !Array.isArray(scope.finalFiles) || scope.finalFiles.length !== V39_INTEGRATION_SOURCE_FILES.length) fail('V39_SCOPE_NOT_FROZEN_COMPLETE');
   for (let i = 0; i < scope.finalFiles.length; i++) {
     const row = scope.finalFiles[i]; keys(row, ['path','mode','blob','bytes','sha256'], 'V39_SCOPE_FINAL_PIN');
     const self = row.path === V39_INTEGRATION_SCOPE_PATH;
@@ -992,14 +2945,54 @@ function registry(context, revision, role) {
     ||entry.status!=='READY_FOR_SOURCE'))fail('V39_REGISTRY_SOURCE_SELF_QUALIFICATION');
   if(/https?:\/\/|(?:token|cookie|password|secret)\s*[:=]/iu.test(JSON.stringify(record)))fail('V39_STATUS_PRIVATE_OR_URL_DATA');
 }
+/** 固定失败Source是原历史，不是当前资格；全39叶含Scope原件通过同一context批读。 */
+function failedSource1(context) {
+  parents(context,V39_INTEGRATION_SOURCE_PARENT,V39_INTEGRATION_BASE);
+  if(context.text(['rev-parse',V39_INTEGRATION_SOURCE_PARENT+'^{tree}'])!==V39_INTEGRATION_SOURCE_PARENT_TREE)
+    fail('V39_FAILED_SOURCE1_TREE_CHANGED');
+  exactDiff(rawDiff(context,V39_INTEGRATION_BASE,V39_INTEGRATION_SOURCE_PARENT),
+    V39_INTEGRATION_HISTORICAL_SOURCE_FILES.map(row=>({path:row.path,status:row.status,
+      oldMode:row.before.mode,oldBlob:row.before.blob,newMode:row.newMode})));
+  if(!equal(actualPins(context,V39_INTEGRATION_SOURCE_PARENT,V39_INTEGRATION_HISTORICAL_SOURCE_FILES.map(row=>row.path)),
+    V39_INTEGRATION_FAILED_SOURCE_PINS))fail('V39_FAILED_SOURCE1_PIN_CHANGED');
+  const oldScopeRaw=blob(context,V39_INTEGRATION_SOURCE_PARENT,V39_INTEGRATION_SCOPE_PATH),oldScope=parse(oldScopeRaw);
+  if(oldScope.frozen!==true||oldScope.executionStatus!=='READY_FOR_SOURCE'||oldScope.baseSha!==V39_INTEGRATION_BASE
+    ||!equal(oldScope.allowedSourceFiles,V39_INTEGRATION_HISTORICAL_SOURCE_FILES)
+    ||!Array.isArray(oldScope.finalFiles)||oldScope.finalFiles.length!==V39_INTEGRATION_HISTORICAL_SOURCE_FILES.length)
+    fail('V39_FAILED_SOURCE1_SCOPE_CHANGED');
+  for(let i=0;i<oldScope.finalFiles.length;i++){
+    const pin=V39_INTEGRATION_FAILED_SOURCE_PINS[i],self=pin.path===V39_INTEGRATION_SCOPE_PATH;
+    if(!equal(oldScope.finalFiles[i],{...pin,...(self?{blob:null,sha256:null}:{})}))fail('V39_FAILED_SOURCE1_SCOPE_CHANGED');
+  }
+  const directBefore=actualPins(context,V39_INTEGRATION_SOURCE_PARENT,V39_INTEGRATION_SOURCE_DELTA_FILES.map(row=>row.path));
+  if(directBefore.some((row,i)=>!equal(row,{path:V39_INTEGRATION_SOURCE_DELTA_FILES[i].path,
+    ...V39_INTEGRATION_SOURCE_DELTA_FILES[i].before})))fail('V39_SOURCE_PARENT_BEFORE_PIN_CHANGED');
+  return true;
+}
+function lifecycleRepairBoundary(context,source) {
+  const file='packages/bridge-core/test/rust-core-owner-lifecycle.test.ts',before=blob(context,V39_INTEGRATION_SOURCE_PARENT,file),after=blob(context,source,file);
+  const begin=Buffer.from("test('单一单调期限包含Node boot、版本探测、导出与child boot，不能逐段重置', async t => {"),
+    end=Buffer.from("test('关闭即刻封闭、Node close立即登记一次，无需等在途Node boot结束', async t => {");
+  const start=before.indexOf(begin),oldEnd=before.indexOf(end,start+begin.length),newStart=after.indexOf(begin),newEnd=after.indexOf(end,newStart+begin.length);
+  if(start<0||oldEnd<0||newStart!==start||newEnd<0||!before.subarray(0,start).equals(after.subarray(0,newStart))
+    ||!before.subarray(oldEnd).equals(after.subarray(newEnd)))fail('V39_OWNER_LIFECYCLE_OUTSIDE_CASE5');
+  const part=decode(after.subarray(newStart,newEnd));
+  if(!part.includes('startupTimeoutMs: 1_000')||!part.includes('requestTimeoutMs: 2_000')
+    ||!part.includes("t.mock.method(performance, 'now'")||!part.includes("t.mock.timers.enable({ apis: ['setTimeout'] })"))
+    fail('V39_OWNER_LIFECYCLE_REPAIR_BOUNDARY');
+}
 function sourceObject(context, source) {
+  if(source===V39_INTEGRATION_SOURCE_PARENT)fail('V39_INTEGRATION_FAILED_SOURCE1_CANNOT_QUALIFY');
   if(source===V39_INTEGRATION_BASE||history.some(row=>row[0]===source))fail('V39_OLD_SOURCE_NOT_CURRENT');
-  parents(context,source,V39_INTEGRATION_BASE);
+  parents(context,source,V39_INTEGRATION_SOURCE_PARENT);
   exactDiff(rawDiff(context,V39_INTEGRATION_BASE,source),V39_INTEGRATION_SOURCE_FILES.map(row=>({path:row.path,status:row.status,
     oldMode:row.before.mode,oldBlob:row.before.blob,newMode:row.newMode})));
+  exactDiff(rawDiff(context,V39_INTEGRATION_SOURCE_PARENT,source),V39_INTEGRATION_SOURCE_DELTA_FILES.map(row=>({path:row.path,status:row.status,
+    oldMode:row.oldMode,oldBlob:row.before.blob,newMode:row.newMode})));
+  failedSource1(context);
   const names=V39_INTEGRATION_SOURCE_FILES.map(row=>row.path),sourcePins=actualPins(context,source,names);
   const scopeRaw=blob(context,source,V39_INTEGRATION_SCOPE_PATH),scope=assertV39IntegrationScope(parse(scopeRaw),scopeRaw);
-  for(let i=0;i<39;i++){const row=sourcePins[i],want=scope.finalFiles[i],old=V39_INTEGRATION_SOURCE_FILES[i];
+  for(let i=0;i<V39_INTEGRATION_SOURCE_FILES.length;i++){const row=sourcePins[i],want=scope.finalFiles[i],old=V39_INTEGRATION_SOURCE_FILES[i];
     if(old.status==='M'){const raw=blob(context,V39_INTEGRATION_BASE,row.path);
       if(raw.length!==old.before.bytes||hash(raw)!==old.before.sha256)fail('V39_BASE_PIN_CHANGED');}
     if(row.mode!==want.mode||row.bytes!==want.bytes||row.path!==V39_INTEGRATION_SCOPE_PATH
@@ -1014,9 +3007,16 @@ function sourceObject(context, source) {
   if(!decode(blob(context,source,'tasks/00_TASK_INDEX.md')).includes(V39_INTEGRATION_TASK)
     ||!decode(blob(context,source,'tasks/V39-INTEGRATION-001.md')).includes(V39_INTEGRATION_BASE))fail('V39_SOURCE_TASK_INDEX');
   sourceStatus(context,source);registry(context,source,'source');
+  const localBefore=blob(context,V39_INTEGRATION_SOURCE_PARENT,V39_INTEGRATION_LOCAL_EVIDENCE_PATH),localAfter=blob(context,source,V39_INTEGRATION_LOCAL_EVIDENCE_PATH);
+  protectedJson(localBefore,localAfter,['sourceCorrection'],'V39_SOURCE_LOCAL_SPEC_OUTSIDE_CORRECTION');
+  if(!equal(parse(localAfter).sourceCorrection,V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY))fail('V39_SOURCE_CORRECTION_NOT_BOUND');
+  lifecycleRepairBoundary(context,source);
   sealedBaseline(context,source);offlineTape(context,source);
-  return {sourceSha:source,sourceParentSha:V39_INTEGRATION_BASE,sourceTree:context.text(['rev-parse',source+'^{tree}']),
-    sourcePins,scopeSha256:hash(scopeRaw),sealedBaselinePreserved:true,offlineTapeDonorVerified:true,exactSourceFiles:39};
+  return {sourceSha:source,sourceParentSha:V39_INTEGRATION_SOURCE_PARENT,sourceTree:context.text(['rev-parse',source+'^{tree}']),
+    sourcePins,scopeSha256:hash(scopeRaw),sealedBaselinePreserved:true,offlineTapeDonorVerified:true,
+    exactSourceFiles:V39_INTEGRATION_SOURCE_FILES.length,exactSourceDeltaFiles:V39_INTEGRATION_SOURCE_DELTA_FILES.length,
+    failedSource1Preserved:true,sourceCorrection:V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY,
+    sourceCorrectionSha256:V39_INTEGRATION_SOURCE_CORRECTION_REF.canonical.sha256};
 }
 
 export const V39_INTEGRATION_ADMISSION_CASE_NAMES = freeze([
@@ -1081,7 +3081,7 @@ export function validateV39IntegrationParentCi(input) {
     const {task,repositoryId,parent,branch,runs,proofs,now=Date.now()}=input??{};
     canonical(input);
     if(task!==V39_INTEGRATION_TASK||repositoryId!==V39_INTEGRATION_REPOSITORY_ID||!sha(parent)
-      ||history.some(row=>row[0]===parent)||branch!==V39_INTEGRATION_BRANCH||!Number.isFinite(now)
+      ||parent===V39_INTEGRATION_SOURCE_PARENT||history.some(row=>row[0]===parent)||branch!==V39_INTEGRATION_BRANCH||!Number.isFinite(now)
       ||!Array.isArray(runs)||runs.length!==4||!Array.isArray(proofs)||proofs.length!==4)return false;
     const runIds=new Set(),jobIds=new Set(),artifactIds=new Set(),names=artifactNames(parent);
     for(let i=0;i<4;i++){
@@ -1157,7 +3157,7 @@ function wholeArtifact(artifact, platform) {
     &&row.crc32>=0&&row.crc32<=0xffffffff);
 }
 function fixedSourcePins(pins) {
-  return Array.isArray(pins)&&pins.length===39&&pins.every((pin,i)=>pin.path===V39_INTEGRATION_SOURCE_FILES[i].path
+  return Array.isArray(pins)&&pins.length===V39_INTEGRATION_SOURCE_FILES.length&&pins.every((pin,i)=>pin.path===V39_INTEGRATION_SOURCE_FILES[i].path
     &&pinValid(pin)&&pin.mode==='100644'&&sha(pin.blob));
 }
 const toolStages=freeze(['original-173','tape-74','integration-safety','admission-safety','control-plane','boundaries','cycles']);
@@ -1369,15 +3369,20 @@ function integrationProofValid(summary,root) {
     inheritedSourceProductCases:report?3:0,actualDeviceProviderAudioOwnerAcceptance:'NOT_RUN'};
   return equal(parse(root.get('integration-case-proof.json')),expected);
 }
+function sourceCorrectionBound(value) {
+  return object(value)&&value.failedSource1Preserved===true
+    &&value.sourceCorrectionSha256===V39_INTEGRATION_SOURCE_CORRECTION_REF.canonical.sha256
+    &&equal(value.sourceCorrection,V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY);
+}
 /** 只消费完整本次Source软件/产品producer证据；失败ZIP或range诊断不构成PASS。 */
 export function validateV39IntegrationSourceReceipt(value, sourceSha) {
   try {
     canonical(value);
-    if(!object(value)||!sha(sourceSha)||value.schema!=='musicbridge.root.v39-integration.first-natural-ci.v1'
+    if(!object(value)||!sha(sourceSha)||sourceSha===V39_INTEGRATION_SOURCE_PARENT||value.schema!=='musicbridge.root.v39-integration.first-natural-ci.v1'
       ||value.status!=='SEALED_FIRST_NATURAL_CURRENT_PRODUCT_CI'||value.phase!=='source'||value.task!==V39_INTEGRATION_TASK
       ||value.revision!==sourceSha||value.branch!==V39_INTEGRATION_BRANCH||value.repository!==V39_INTEGRATION_REPOSITORY
       ||value.repositoryId!==V39_INTEGRATION_REPOSITORY_ID||value.code!==null||!equal(value.before,value.after)
-      ||value.before?.head!==sourceSha||value.before.parent!==V39_INTEGRATION_BASE||value.before.branch!==V39_INTEGRATION_BRANCH
+      ||value.before?.head!==sourceSha||value.before.parent!==V39_INTEGRATION_SOURCE_PARENT||value.before.branch!==V39_INTEGRATION_BRANCH
       ||value.before.status!==''||!sha(value.before.tree)||value.compiledAndApp!=='PASSED_CURRENT_SOURCE'
       ||value.reruns!==0||value.dispatches!==0||value.credentialsOrSignedRedirectArchived!==false
       ||value.realApplicationServiceDeviceAudio!=='NOT_RUN'||value.ownerAcceptance!=='NOT_RUN'
@@ -1402,8 +3407,8 @@ export function validateV39IntegrationSourceReceipt(value, sourceSha) {
     if(!object(summary)||artifact.toolContent.phase!=='source'||summary.schema!=='musicbridge.v39.integration.software-gate.v1'
       ||summary.status!=='PASSED_CURRENT_SOFTWARE_GATE'||summary.passed!==true||summary.currentSoftwareGateExitCode!==0
       ||summary.failureCode!==null||summary.task!==V39_INTEGRATION_TASK||summary.head!==sourceSha
-      ||summary.sourceSha!==sourceSha||summary.sourceParentSha!==V39_INTEGRATION_BASE||summary.baseSha!==V39_INTEGRATION_BASE
-      ||summary.repairRole!=='source'||!equal(summary.limits,{stageMs:180000,wholeMs:480000,rawBytesPerStream:16777216,
+      ||summary.sourceSha!==sourceSha||summary.sourceParentSha!==V39_INTEGRATION_SOURCE_PARENT||summary.baseSha!==V39_INTEGRATION_BASE
+      ||summary.repairRole!=='source'||!sourceCorrectionBound(summary)||!equal(summary.limits,{stageMs:180000,wholeMs:480000,rawBytesPerStream:16777216,
         gitBytes:16777216,gitMs:10000,ownerRequestMs:2000})
       ||!Number.isFinite(summary.durationMs)||summary.durationMs<0||summary.durationMs>=480000
       ||summary.temporaryCleanup?.ownedFreshTemporaryRoot!==true||summary.temporaryCleanup.removed!==true
@@ -1413,11 +3418,13 @@ export function validateV39IntegrationSourceReceipt(value, sourceSha) {
       ||summary.expectedSkippedTests!==0||summary.softwareEvidenceLayer!=='SYNTHETIC_CURRENT_SOURCE_ONLY'
       ||summary.realAppDeviceAudioOwner!=='NOT_RUN'||!equal([...summary.artifactFiles].sort(),toolRootNames('source'))
       ||summary.sourceUnchanged!==true||!equal(summary.sourceBefore,summary.sourceAfter)
-      ||summary.sourceBefore?.identity?.head!==sourceSha||summary.sourceBefore.identity.parent!==V39_INTEGRATION_BASE
+      ||summary.sourceBefore?.identity?.head!==sourceSha||summary.sourceBefore.identity.parent!==V39_INTEGRATION_SOURCE_PARENT
       ||summary.sourceBefore.identity.tree!==value.before.tree||summary.sourceBefore.identity.status!==''
       ||summary.sourceBefore.identity.branch!==V39_INTEGRATION_BRANCH||!fixedSourcePins(summary.sourceBefore.currentFiles)
-      ||summary.sourceBefore.admission?.sourceSha!==sourceSha||summary.sourceBefore.admission.sourceParentSha!==V39_INTEGRATION_BASE
-      ||summary.sourceBefore.admission.repairRole!=='source'||summary.sourceBefore.admission.exactSourceFiles!==39
+      ||summary.sourceBefore.admission?.sourceSha!==sourceSha||summary.sourceBefore.admission.sourceParentSha!==V39_INTEGRATION_SOURCE_PARENT
+      ||summary.sourceBefore.admission.repairRole!=='source'||summary.sourceBefore.admission.exactSourceFiles!==V39_INTEGRATION_SOURCE_FILES.length
+      ||summary.sourceBefore.admission.exactSourceDeltaFiles!==V39_INTEGRATION_SOURCE_DELTA_FILES.length
+      ||!sourceCorrectionBound(summary.sourceBefore.admission)
       ||summary.sourceBefore.admission.sealedBaselinePreserved!==true||summary.sourceBefore.admission.offlineTapeDonorVerified!==true
       ||!sha256(summary.sourceBefore.admission.scopeSha256)||!fixedSourcePins(summary.sourceBefore.admission.sourcePins)
       ||!equal(summary.sourceBefore.currentFiles,summary.sourceBefore.admission.sourcePins)
@@ -1460,18 +3467,21 @@ export function validateV39IntegrationSourceReceipt(value, sourceSha) {
 export function validateV39IntegrationReportToolContent(artifact,sourceSha,reportSha) {
   try {
     canonical(artifact.toolContent);
-    if(!sha(sourceSha)||!sha(reportSha)||artifact.name!=='verify-'+reportSha||artifact.toolContent.phase!=='report')return false;
+    if(!sha(sourceSha)||sourceSha===V39_INTEGRATION_SOURCE_PARENT||!sha(reportSha)||artifact.name!=='verify-'+reportSha||artifact.toolContent.phase!=='report')return false;
     const decoded=decodeV39IntegrationToolContent(artifact.toolContent),summary=decoded.summary;
     if(summary.schema!=='musicbridge.v39.integration.software-gate.v1'||summary.status!=='PASSED_CURRENT_SOFTWARE_GATE'
       ||summary.passed!==true||summary.currentSoftwareGateExitCode!==0||summary.failureCode!==null
       ||summary.task!==V39_INTEGRATION_TASK||summary.branch!==V39_INTEGRATION_BRANCH||summary.repairRole!=='report'
+      ||!sourceCorrectionBound(summary)
       ||summary.sourceSha!==sourceSha||summary.head!==reportSha||summary.baseSha!==V39_INTEGRATION_BASE
-      ||summary.sourceParentSha!==V39_INTEGRATION_BASE||summary.sourceUnchanged!==true
+      ||summary.sourceParentSha!==V39_INTEGRATION_SOURCE_PARENT||summary.sourceUnchanged!==true
       ||!equal(summary.sourceBefore,summary.sourceAfter)||summary.sourceBefore?.identity?.head!==reportSha
       ||summary.sourceBefore.identity.parent!==sourceSha||summary.sourceBefore.identity.status!==''
       ||summary.sourceBefore.identity.branch!==V39_INTEGRATION_BRANCH||!sha(summary.sourceBefore.identity.tree)
-      ||summary.sourceBefore.admission?.sourceSha!==sourceSha||summary.sourceBefore.admission.sourceParentSha!==V39_INTEGRATION_BASE
-      ||summary.sourceBefore.admission.repairRole!=='report'||summary.sourceBefore.admission.exactSourceFiles!==39
+      ||summary.sourceBefore.admission?.sourceSha!==sourceSha||summary.sourceBefore.admission.sourceParentSha!==V39_INTEGRATION_SOURCE_PARENT
+      ||summary.sourceBefore.admission.repairRole!=='report'||summary.sourceBefore.admission.exactSourceFiles!==V39_INTEGRATION_SOURCE_FILES.length
+      ||summary.sourceBefore.admission.exactSourceDeltaFiles!==V39_INTEGRATION_SOURCE_DELTA_FILES.length
+      ||!sourceCorrectionBound(summary.sourceBefore.admission)
       ||summary.sourceBefore.admission.exactReportFiles!==8||!fixedSourcePins(summary.sourceBefore.admission.sourcePins)
       ||summary.sourceBefore.admission.sealedBaselinePreserved!==true||summary.sourceBefore.admission.offlineTapeDonorVerified!==true
       ||!sha256(summary.sourceBefore.admission.scopeSha256)||summary.currentProductTestsRepeated!==false
@@ -1512,7 +3522,8 @@ export function v39IntegrationPublicSourceCi(value, sourceSha=value?.revision) {
   const summary=v39IntegrationSourceSummary(value);
   return freeze({
     schema:'musicbridge.v39.integration.public-source-ci.v1',task:V39_INTEGRATION_TASK,sourceSha,
-    sourceParentSha:V39_INTEGRATION_BASE,branch:V39_INTEGRATION_BRANCH,repositoryId:V39_INTEGRATION_REPOSITORY_ID,
+    sourceParentSha:V39_INTEGRATION_SOURCE_PARENT,branch:V39_INTEGRATION_BRANCH,repositoryId:V39_INTEGRATION_REPOSITORY_ID,
+    failedSource1Preserved:true,sourceCorrection:V39_INTEGRATION_SOURCE_CORRECTION_REF,
     firstNaturalPush:true,attempt:1,compiledAndApp:'PASSED_CURRENT_SOURCE',software:'PASSED_CURRENT_SOFTWARE_GATE',
     fullReceipt:{path:V39_INTEGRATION_CI_EVIDENCE_PATH,jsonPointer:'/sourceCi',canonical:v39IntegrationCanonicalPin(value)},
     producerRuns:value.runs.map(run=>({path:run.path,id:run.id,head:run.head_sha,attempt:run.run_attempt,
@@ -1528,7 +3539,7 @@ export function v39IntegrationPublicSourceCi(value, sourceSha=value?.revision) {
 export function v39IntegrationReportIdentity(sourceSha, sourceCi) {
   v39IntegrationPublicSourceCi(sourceCi,sourceSha);
   return freeze({schema:'musicbridge.v39.integration.ci-evidence.v1',task:V39_INTEGRATION_TASK,
-    branch:V39_INTEGRATION_BRANCH,baseSha:V39_INTEGRATION_BASE,sourceParentSha:V39_INTEGRATION_BASE,
+    branch:V39_INTEGRATION_BRANCH,baseSha:V39_INTEGRATION_BASE,sourceParentSha:V39_INTEGRATION_SOURCE_PARENT,
     sourceSha,sourceCi,reportSha:null,reportCi:null,nextTask:'V39-INTEGRATION-002',
     realApplicationServiceDeviceAudio:'NOT_RUN',ownerAcceptance:'NOT_RUN'});
 }
@@ -1596,7 +3607,7 @@ export function inspectV39IntegrationAdmission(directory=repository,env=process.
 }
 export function inspectV39IntegrationReportAdmission(directory=repository,env=process.env,options={}) {
   const context=gitContext(directory,env,options),lineage=context.text(['rev-list','--parents','-n','1',context.head]).split(' ');
-  if(lineage.length!==2||lineage[1]===V39_INTEGRATION_BASE)fail('V39_REPORT_NOT_UNIQUE_DIRECT_PARENT');
+  if(lineage.length!==2||lineage[1]===V39_INTEGRATION_BASE||lineage[1]===V39_INTEGRATION_SOURCE_PARENT)fail('V39_REPORT_NOT_UNIQUE_DIRECT_PARENT');
   const source=lineage[1];
   const before=snapshot(context,[...new Set([...V39_INTEGRATION_SOURCE_FILES.map(row=>row.path),...V39_INTEGRATION_REPORT_PATHS])].sort());
   const sourceResult=sourceObject(context,source),reportResult=reportObject(context,source);
@@ -1638,7 +3649,7 @@ export function inspectV39IntegrationWorkflowGuard(directory=repository,env=proc
   catch{fail('V39_GIT_READ_FAILED');}
   if(!v39IntegrationRouteRequested(branch,v39IntegrationHasAuthority(directory)))return freeze({integrationMode:'not-applicable'});
   const context=gitContext(directory,env,options),lineage=context.text(['rev-list','--parents','-n','1',context.head]).split(' ');
-  const result=lineage[1]===V39_INTEGRATION_BASE?inspectV39IntegrationAdmission(directory,env,{deadline:context.deadline})
+  const result=lineage[1]===V39_INTEGRATION_SOURCE_PARENT?inspectV39IntegrationAdmission(directory,env,{deadline:context.deadline})
     :inspectV39IntegrationReportAdmission(directory,env,{deadline:context.deadline});
   return v39IntegrationWorkflowOutputs(result);
 }

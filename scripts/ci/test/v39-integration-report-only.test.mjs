@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { buildStoragePolicy } from '../../../apps/desktop/scripts/build-storage-root.mjs';
 import {
   V39_INTEGRATION_TASK as task, V39_INTEGRATION_BRANCH as branch, V39_INTEGRATION_BASE as base,
+  V39_INTEGRATION_SOURCE_PARENT as sourceParent,V39_INTEGRATION_SOURCE_DELTA_FILES as deltaFiles,
+  V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY as correction,V39_INTEGRATION_SOURCE_CORRECTION_REF as correctionRef,
   V39_INTEGRATION_SCOPE_PATH as scopePath,V39_INTEGRATION_STATUS_PATH as statusPath,
   V39_INTEGRATION_CI_EVIDENCE_PATH as evidencePath, V39_INTEGRATION_DONOR_PATH as donorPath,
   V39_INTEGRATION_SOURCE_FILES as sourceFiles,V39_INTEGRATION_REPORT_PATHS as reportPaths,
@@ -47,7 +49,7 @@ function commitTree(dir,tree,parents,message){
     'commit-tree',tree,...parents.flatMap(parent=>['-p',parent])],{input:message+'\n'});
 }
 function checkout(head,observedBranch=branch){command(directory,['checkout','-f','-B',observedBranch,head,'--']);}
-function commitWorking(paths,parents=[base]){
+function commitWorking(paths,parents=[sourceParent]){
   command(directory,['add','--',...paths]);const tree=command(directory,['write-tree']);
   const head=commitTree(directory,tree,parents,'受控Fake准入变异；不代表当前产品或真实CI');
   checkout(head);return head;
@@ -88,6 +90,8 @@ function pin(relative){const bytes=readFileSync(path.join(directory,relative));r
 function freezeScope(edit=()=>{}){
   const scope=record(path.join(directory,scopePath));
   scope.frozen=true;scope.executionStatus='READY_FOR_SOURCE';scope.currentPhase='SOURCE_FREEZE';
+  scope.allowedSourceFiles=copy(sourceFiles);scope.sourceParentSha=sourceParent;
+  scope.sourceDeltaFiles=copy(deltaFiles);scope.sourceCorrection=copy(correctionRef);
   scope.orderedPhases=scope.orderedPhases.map(row=>({...row,implementation:'COMPLETE'}));
   scope.finalFiles=sourcePaths.map(relative=>relative===scopePath?{path:relative,mode:'100644',blob:null,bytes:1,sha256:null}:pin(relative));
   edit(scope);const self=scope.finalFiles.find(row=>row.path===scopePath);
@@ -103,20 +107,26 @@ function fixture(t){
     root=mkdtempSync(path.join(temporary,'v39-ci-fixture-'));storage.check(root,{mustExist:true});
     directory=path.join(root,'source');
     command(root,['-c','protocol.file.allow=always','clone','--no-local','--no-hardlinks','--no-checkout','--',repository,directory]);
-    checkout(base);
+    checkout(sourceParent);
     const current=command(repository,['rev-list','--parents','-n','1','HEAD']).split(' ');
     assert.equal(current.length,2);
-    const immutableSource=current[0]===base?null:current[1]===base?current[0]:current[1];
-    if(immutableSource)assert.equal(command(repository,['rev-list','--parents','-n','1',immutableSource]).split(' ')[1],base);
+    const immutableSource=current[0]===sourceParent?null:current[1]===sourceParent?current[0]:current[1];
+    if(immutableSource)assert.equal(command(repository,['rev-list','--parents','-n','1',immutableSource]).split(' ')[1],sourceParent);
     for(const relative of sourcePaths){
       const filename=path.join(directory,relative);mkdirSync(path.dirname(filename),{recursive:true,mode:0o700});
       const raw=immutableSource?command(repository,['show',immutableSource+':'+relative],{binary:true}):readFileSync(path.join(repository,relative));
       writeFileSync(filename,raw,{mode:0o644});chmodSync(filename,0o644);
     }
-    jsonEdit(statusPath,value=>Object.assign(value,{state:'READY_FOR_SOURCE',phase:'SOURCE_FREEZE',software:'PENDING_GATE'}));
-    jsonEdit('docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json',value=>{value.status='PENDING_GATE';});
-    jsonEdit('project/STATUS.json',value=>Object.assign(value.v39Integration,{status:'READY_FOR_SOURCE',phase:'SOURCE_FREEZE',software:'PENDING_GATE'}));
-    jsonEdit('project/POSTRUST_PLAN.json',value=>{value.integration_tasks[0].status='READY_FOR_SOURCE';});
+    // 失败Source的30个非修复叶直接继承；只能在本fixture十条闭集中补齐当前开发态。
+    jsonEdit('docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json',value=>{value.sourceCorrection=copy(correction);});
+    for(const row of deltaFiles){
+      if(row.path===scopePath||row.path==='docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json')continue;
+      const filename=path.join(directory,row.path);
+      if(blob(readFileSync(filename))===row.before.blob){
+        assert.notEqual(row.path,'packages/bridge-core/test/rust-core-owner-lifecycle.test.ts','case5必须已有真实修复，不能用空白伪造');
+        appendFileSync(filename,row.path.endsWith('.mjs')?'\n// 受控fixture直接修复叶；不代表产品Source。\n':'\n受控fixture直接修复叶；不代表产品Source。\n');
+      }
+    }
     freezeScope();
     syntheticSource=commitWorking(sourcePaths);sourceTree=command(directory,['rev-parse','HEAD^{tree}']);
     assert.equal(command(directory,['rev-parse','--path-format=absolute','--git-common-dir']),path.join(directory,'.git'));
@@ -195,7 +205,7 @@ function buildReceipt(){
   if(cachedReceipt)return copy(cachedReceipt);
   const admission=inspectV39IntegrationAdmission(directory,environment),pins=sourcePaths.map(pin);
   const productInputs=pins.filter(row=>row.path.startsWith('packages/')||row.path.startsWith('apps/'));
-  const identity={head:syntheticSource,parent:base,branch,tree:sourceTree,status:'',gitDir:path.join(directory,'.git'),commonDir:path.join(directory,'.git')};
+  const identity={head:syntheticSource,parent:sourceParent,branch,tree:sourceTree,status:'',gitDir:path.join(directory,'.git'),commonDir:path.join(directory,'.git')};
   const bare={identity,admission,currentFiles:pins,productInputs};
   const output=Buffer.from('受控Fake compiler输出，不是当前compiler资格\n');
   const outputs=[{...rawPin('packages/bridge-core/dist/library/metadata-reader-worker.bundle.cjs',output),mode:'100644',blob:blob(output)}];
@@ -255,8 +265,8 @@ function buildReceipt(){
     raw:rawPin(path.join(root,job.id+'.log'),Buffer.from('受控Fake 当前producer日志\n')),
     redirectLocationArchived:false,credentialsArchived:false,authorizationForwardedAcrossHosts:false})));
   cachedReceipt={schema:'musicbridge.root.v39-integration.first-natural-ci.v1',status:'SEALED_FIRST_NATURAL_CURRENT_PRODUCT_CI',phase:'source',
-    task,revision:syntheticSource,branch,repository:'Matt12377/MusicBridge',repositoryId:1340424953,code:null,before:{head:syntheticSource,parent:base,
-      tree:sourceTree,status:'',branch},after:{head:syntheticSource,parent:base,tree:sourceTree,status:'',branch},compiledAndApp:'PASSED_CURRENT_SOURCE',
+    task,revision:syntheticSource,branch,repository:'Matt12377/MusicBridge',repositoryId:1340424953,code:null,before:{head:syntheticSource,parent:sourceParent,
+      tree:sourceTree,status:'',branch},after:{head:syntheticSource,parent:sourceParent,tree:sourceTree,status:'',branch},compiledAndApp:'PASSED_CURRENT_SOURCE',
     runs:proof.runs,proofs:proof.proofs,logs,artifacts,reruns:0,dispatches:0,credentialsOrSignedRedirectArchived:false,
     realApplicationServiceDeviceAudio:'NOT_RUN',ownerAcceptance:'NOT_RUN',recordedAt:'2026-10-11T00:00:00Z'};
   assert.equal(validateV39IntegrationSourceReceipt(cachedReceipt,syntheticSource),true,'受控正例完整Source producer/whole-root收据必须按真实合同通过');
@@ -350,8 +360,10 @@ test(reportNames[1],t=>{
   const tool=controlledReportTool(f.full,f.head);
   const wrong=copy(tool);wrong.toolContent.phase='source';
   assert.equal(validateV39IntegrationReportToolContent(wrong,f.source,f.head),false);
-  assert.equal(result.sourceSha,f.source);assert.equal(result.sourceParentSha,base);assert.equal(result.repairRole,'report');
-  assert.equal(result.exactSourceFiles,39);assert.equal(result.exactReportFiles,8);assert.deepEqual(result.sourcePins,sourcePaths.map(relative=>{
+  assert.equal(result.sourceSha,f.source);assert.equal(result.sourceParentSha,sourceParent);assert.equal(result.repairRole,'report');
+  assert.equal(result.exactSourceFiles,40);assert.equal(result.exactSourceDeltaFiles,10);
+  assert.equal(result.failedSource1Preserved,true);assert.deepEqual(result.sourceCorrection,correction);
+  assert.equal(result.sourceCorrectionSha256,correctionRef.canonical.sha256);assert.equal(result.exactReportFiles,8);assert.deepEqual(result.sourcePins,sourcePaths.map(relative=>{
     const raw=command(directory,['show',f.source+':'+relative],{binary:true});return {path:relative,mode:'100644',blob:blob(raw),bytes:raw.length,sha256:sha(raw)};
   }));
   const output=v39IntegrationWorkflowOutputs(result);assert.equal(output.productVerificationMode,'exact-parent-current-product-reuse');
@@ -379,7 +391,7 @@ test(reportNames[3],t=>{
 });
 test(reportNames[4],t=>{
   fixture(t);const full=buildReceipt();
-  for(const old of [base,'16507120ab52d4843012e6888ad521138d8336d6','d3d86c6db8d27485d2d763b81cd5e8925ee15af6']){
+  for(const old of [sourceParent,base,'16507120ab52d4843012e6888ad521138d8336d6','d3d86c6db8d27485d2d763b81cd5e8925ee15af6']){
     const data=copy(full);data.revision=old;assert.equal(validateV39IntegrationSourceReceipt(data,old),false);
   }
   const wrong=copy(full);wrong.compiledAndApp='SKIPPED_REUSED_S165';
@@ -420,6 +432,8 @@ test(reportNames[7],t=>{
     s=>s.stages[3].rawForcedClosed=true,s=>s.stages[3].descendantScanFailed=true,s=>s.stages[3].unexpectedPipeHolder=true,
     s=>s.stages[3].testCounts.skipped=1,s=>s.temporaryCleanup.removed=false,s=>s.sourceBefore.freshReader.currentWorkerIndependentlyVerified=false,
     s=>s.standardVerification.receipt.tapRuns.pop(),
+    s=>s.failedSource1Preserved=false,s=>s.sourceCorrection.source1FirstNaturalCi.sourceCiQualified=true,
+    s=>s.sourceBefore.admission.exactSourceDeltaFiles=9,s=>s.sourceParentSha=base,
   ])assert.equal(validateV39IntegrationSourceReceipt(rebuildTool(copy(full),mutate),syntheticSource),false);
   const roots=copy(full);roots.artifacts[0].toolContent.rootArchive.entries.pop();
   assert.equal(validateV39IntegrationSourceReceipt(roots,syntheticSource),false);
@@ -456,4 +470,3 @@ test(reportNames[9],async t=>{
   const unknown=await inspectV39IntegrationReportOnly({...hosted(f.head),GITHUB_REF_NAME:'codex/unknown-v39'},f.directory,async()=>{calls++;assert.fail();});
   assert.equal(unknown.mode,'full');assert.equal(calls,0);
 });
-

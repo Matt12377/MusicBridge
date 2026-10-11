@@ -281,6 +281,18 @@
       }
     },
     {
+      "path": "packages/bridge-core/test/rust-core-owner-lifecycle.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "7b694e483601571e356b3843b2e9409580a39bf5",
+        "bytes": 22933,
+        "sha256": "72302f1bb484a1f6214978b66a7be0af7fe0d701483a3de610817c162991a412"
+      }
+    },
+    {
       "path": "packages/contracts/src/reference-catalog.ts",
       "status": "M",
       "role": "product",
@@ -586,7 +598,7 @@
       "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
       "mode": "100644",
       "blob": null,
-      "bytes": 25669,
+      "bytes": 30444,
       "sha256": null
     },
     {
@@ -599,9 +611,9 @@
     {
       "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
       "mode": "100644",
-      "blob": "52b9a83df448972c3fefd86f27aa7b1b23781420",
-      "bytes": 9973,
-      "sha256": "6cf3078e287e4bce6972231993b72874a7070f250d7b12ffcf8c35f6fda30a55"
+      "blob": "d1078a2ef509c5dbf9dcc5173d92f1e680883e96",
+      "bytes": 66247,
+      "sha256": "721e1e52a5612ab2b2f6d9ac4a003e85a4ab6a004c0d0efaba7df1be764a94d1"
     },
     {
       "path": "docs/integration/V39-INTEGRATION-001/SEALED_BASELINE.json",
@@ -644,6 +656,13 @@
       "blob": "671308f343d88a74cb11b29b5782dc762d7a7742",
       "bytes": 20800,
       "sha256": "a6df327894831798cf45f522a5e7fc32b770a8961f63317ebdd561ee84d1be03"
+    },
+    {
+      "path": "packages/bridge-core/test/rust-core-owner-lifecycle.test.ts",
+      "mode": "100644",
+      "blob": "8d6d94087615e75cf9ed79063cc8d5efd093482a",
+      "bytes": 26452,
+      "sha256": "22e07be23828860aed50d3048fd558fc820cdb6cd18581f6f90a1e4d219e1c1c"
     },
     {
       "path": "packages/contracts/src/reference-catalog.ts",
@@ -711,9 +730,9 @@
     {
       "path": "scripts/ci/report-only-v39-integration.mjs",
       "mode": "100644",
-      "blob": "fe34e13f9012863b5cc64f92ba2382ecd90f79f1",
-      "bytes": 6649,
-      "sha256": "f9b8084ea636a99faefb631e496eec4954ba5616e13b576c36c8b16834e5d7c0"
+      "blob": "758ed035964e92130323add94ed535fce0e1e74f",
+      "bytes": 6666,
+      "sha256": "1e1f7340817c9dc280c070c37bfd196d0fb382e7fbae891ff977175d150daced"
     },
     {
       "path": "scripts/ci/task-applicability.mjs",
@@ -725,37 +744,37 @@
     {
       "path": "scripts/ci/test/v39-integration-admission.test.mjs",
       "mode": "100644",
-      "blob": "3fc837b5bdc49283add7a4da8132880b37a5e205",
-      "bytes": 17942,
-      "sha256": "a5e2dc83a0186b098b59e90454f0781b33dad358400dbf154002e9911768ff0a"
+      "blob": "f702f26d858aa33f0ef505898a213472a5f98773",
+      "bytes": 19867,
+      "sha256": "1695feb2cfe385e85f0dc4eaded2cbbeb5d0d44ef1d5a972206c2cf2f9fd5c2b"
     },
     {
       "path": "scripts/ci/test/v39-integration-gate.test.mjs",
       "mode": "100644",
-      "blob": "c5bbfc2ef30f610b0052e2393554cf49e7832b55",
-      "bytes": 30553,
-      "sha256": "56a52812f5756648eb43b034a2fd28d6be9c27b4dd739e2b11ce9ffb5e0121c1"
+      "blob": "410a1c7557386a0c3dc13852d7d7a333bec72c9a",
+      "bytes": 37116,
+      "sha256": "52db45573a7ae8ab336756557ff7f582d910591a0cc9693992b055b6a874debf"
     },
     {
       "path": "scripts/ci/test/v39-integration-report-only.test.mjs",
       "mode": "100644",
-      "blob": "4d3e80f03598a898526d0a2537c301bb86959b21",
-      "bytes": 39154,
-      "sha256": "f3fc4fdb0723b2e852dbd8dc480d36139a2e97f80d46a623e971b49d8dcb302f"
+      "blob": "40771cd2780220eb2bcd9443572ff892f731d0ec",
+      "bytes": 40391,
+      "sha256": "7145f13f6601564992d0d8e2af1d3005034ef78521b1606ae61f1c58319154b5"
     },
     {
       "path": "scripts/ci/v39-integration-admission.mjs",
       "mode": "100644",
-      "blob": "08477b2e04e80c300e38ba0e380a313ad526187d",
-      "bytes": 109677,
-      "sha256": "02493cd1962d83d796f0ec3a595a4353a203b65e6fecd086263b207ced829073"
+      "blob": "5150e9c2591483bbd024271dad4ab9b243254188",
+      "bytes": 182912,
+      "sha256": "4f38b82f860505279991d4b5d01bcc040ff769275d7df97dc7c808858da5c833"
     },
     {
       "path": "scripts/ci/verify-v39-integration.mjs",
       "mode": "100644",
-      "blob": "5945c2a2bb02b1135973949b95e75a64e87ebd24",
-      "bytes": 45650,
-      "sha256": "982938e12dc7a020828b1901f29122520cb3d8c7a0f0d35e11aa5db6e97a220d"
+      "blob": "e45929c5a8f4cd7eb3d3e9141fd5f16cea80d848",
+      "bytes": 46506,
+      "sha256": "e43d424986ce9a617926c4df8fa091eb9b69a6b77da2e226381b24de543631b1"
     },
     {
       "path": "tasks/00_TASK_INDEX.md",
@@ -767,9 +786,9 @@
     {
       "path": "tasks/V39-INTEGRATION-001.md",
       "mode": "100644",
-      "blob": "e39c5d158a9a54684e2af0d95c460f9f0f1a9038",
-      "bytes": 2522,
-      "sha256": "28deca0234bdfcedbc1ccd33308f215e963974ca6d7f5b708ebaa0fb8a0b5c81"
+      "blob": "ef26c14a1af93701bcda8e6299d1168816acc9e5",
+      "bytes": 3703,
+      "sha256": "fc00ba6400c31df407e8385eaccefbcb8bbfbcb41f6d20d92479e74b6351605b"
     }
   ],
   "reportPaths": [
@@ -803,5 +822,136 @@
     "cancelled015Cases": 6
   },
   "realApplicationServiceDeviceAudio": "NOT_RUN",
-  "ownerAcceptance": "NOT_RUN"
+  "ownerAcceptance": "NOT_RUN",
+  "sourceParentSha": "534aad4d337c1c8aba6f45db21d91276f6981584",
+  "sourceDeltaFiles": [
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "0c4dbb5c1dfac6cc610702f106174124f95edf74",
+        "bytes": 25669,
+        "sha256": "b324327a7d919fbfa5563eed8a8c6016db88384248f2478565b2adc3905a3194"
+      }
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "52b9a83df448972c3fefd86f27aa7b1b23781420",
+        "bytes": 9973,
+        "sha256": "6cf3078e287e4bce6972231993b72874a7070f250d7b12ffcf8c35f6fda30a55"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/rust-core-owner-lifecycle.test.ts",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "7b694e483601571e356b3843b2e9409580a39bf5",
+        "bytes": 22933,
+        "sha256": "72302f1bb484a1f6214978b66a7be0af7fe0d701483a3de610817c162991a412"
+      }
+    },
+    {
+      "path": "scripts/ci/report-only-v39-integration.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "fe34e13f9012863b5cc64f92ba2382ecd90f79f1",
+        "bytes": 6649,
+        "sha256": "f9b8084ea636a99faefb631e496eec4954ba5616e13b576c36c8b16834e5d7c0"
+      }
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-admission.test.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "3fc837b5bdc49283add7a4da8132880b37a5e205",
+        "bytes": 17942,
+        "sha256": "a5e2dc83a0186b098b59e90454f0781b33dad358400dbf154002e9911768ff0a"
+      }
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-gate.test.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "c5bbfc2ef30f610b0052e2393554cf49e7832b55",
+        "bytes": 30553,
+        "sha256": "56a52812f5756648eb43b034a2fd28d6be9c27b4dd739e2b11ce9ffb5e0121c1"
+      }
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-report-only.test.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "4d3e80f03598a898526d0a2537c301bb86959b21",
+        "bytes": 39154,
+        "sha256": "f3fc4fdb0723b2e852dbd8dc480d36139a2e97f80d46a623e971b49d8dcb302f"
+      }
+    },
+    {
+      "path": "scripts/ci/v39-integration-admission.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "08477b2e04e80c300e38ba0e380a313ad526187d",
+        "bytes": 109677,
+        "sha256": "02493cd1962d83d796f0ec3a595a4353a203b65e6fecd086263b207ced829073"
+      }
+    },
+    {
+      "path": "scripts/ci/verify-v39-integration.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "5945c2a2bb02b1135973949b95e75a64e87ebd24",
+        "bytes": 45650,
+        "sha256": "982938e12dc7a020828b1901f29122520cb3d8c7a0f0d35e11aa5db6e97a220d"
+      }
+    },
+    {
+      "path": "tasks/V39-INTEGRATION-001.md",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "e39c5d158a9a54684e2af0d95c460f9f0f1a9038",
+        "bytes": 2522,
+        "sha256": "28deca0234bdfcedbc1ccd33308f215e963974ca6d7f5b708ebaa0fb8a0b5c81"
+      }
+    }
+  ],
+  "sourceCorrection": {
+    "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+    "jsonPointer": "/sourceCorrection",
+    "canonical": {
+      "bytes": 32368,
+      "sha256": "4d34402f875ae534d8bacdf7399f89b415b92a08390023e8befd6f3e3af0ed53"
+    }
+  }
 }

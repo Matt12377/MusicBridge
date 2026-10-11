@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { buildStoragePolicy } from '../../../apps/desktop/scripts/build-storage-root.mjs';
 import {
   V39_INTEGRATION_TASK as task, V39_INTEGRATION_BRANCH as branch, V39_INTEGRATION_BASE as base,
+  V39_INTEGRATION_SOURCE_PARENT as sourceParent,V39_INTEGRATION_SOURCE_DELTA_FILES as deltaFiles,
+  V39_INTEGRATION_SOURCE_CORRECTION_IDENTITY as correction,V39_INTEGRATION_SOURCE_CORRECTION_REF as correctionRef,
   V39_INTEGRATION_SCOPE_PATH as scopePath,V39_INTEGRATION_STATUS_PATH as statusPath,
   V39_INTEGRATION_CI_EVIDENCE_PATH as evidencePath, V39_INTEGRATION_DONOR_PATH as donorPath,
   V39_INTEGRATION_SOURCE_FILES as sourceFiles,V39_INTEGRATION_REPORT_PATHS as reportPaths,
@@ -44,7 +46,7 @@ function commitTree(dir,tree,parents,message){
     'commit-tree',tree,...parents.flatMap(parent=>['-p',parent])],{input:message+'\n'});
 }
 function checkout(head,observedBranch=branch){command(directory,['checkout','-f','-B',observedBranch,head,'--']);}
-function commitWorking(paths,parents=[base]){
+function commitWorking(paths,parents=[sourceParent]){
   if(paths.length)command(directory,['add','--',...paths]);const tree=command(directory,['write-tree']);
   const head=commitTree(directory,tree,parents,'受控Fake准入变异；不代表当前产品或真实CI');
   checkout(head);return head;
@@ -85,6 +87,8 @@ function pin(relative){const bytes=readFileSync(path.join(directory,relative));r
 function freezeScope(edit=()=>{}){
   const scope=record(path.join(directory,scopePath));
   scope.frozen=true;scope.executionStatus='READY_FOR_SOURCE';scope.currentPhase='SOURCE_FREEZE';
+  scope.allowedSourceFiles=copy(sourceFiles);scope.sourceParentSha=sourceParent;
+  scope.sourceDeltaFiles=copy(deltaFiles);scope.sourceCorrection=copy(correctionRef);
   scope.orderedPhases=scope.orderedPhases.map(row=>({...row,implementation:'COMPLETE'}));
   scope.finalFiles=sourcePaths.map(relative=>relative===scopePath?{path:relative,mode:'100644',blob:null,bytes:1,sha256:null}:pin(relative));
   edit(scope);const self=scope.finalFiles.find(row=>row.path===scopePath);
@@ -100,20 +104,26 @@ function fixture(t){
     root=mkdtempSync(path.join(temporary,'v39-ci-fixture-'));storage.check(root,{mustExist:true});
     directory=path.join(root,'source');
     command(root,['-c','protocol.file.allow=always','clone','--no-local','--no-hardlinks','--no-checkout','--',repository,directory]);
-    checkout(base);
+    checkout(sourceParent);
     const current=command(repository,['rev-list','--parents','-n','1','HEAD']).split(' ');
     assert.equal(current.length,2);
-    const immutableSource=current[0]===base?null:current[1]===base?current[0]:current[1];
-    if(immutableSource)assert.equal(command(repository,['rev-list','--parents','-n','1',immutableSource]).split(' ')[1],base);
+    const immutableSource=current[0]===sourceParent?null:current[1]===sourceParent?current[0]:current[1];
+    if(immutableSource)assert.equal(command(repository,['rev-list','--parents','-n','1',immutableSource]).split(' ')[1],sourceParent);
     for(const relative of sourcePaths){
       const filename=path.join(directory,relative);mkdirSync(path.dirname(filename),{recursive:true,mode:0o700});
       const raw=immutableSource?command(repository,['show',immutableSource+':'+relative],{binary:true}):readFileSync(path.join(repository,relative));
       writeFileSync(filename,raw,{mode:0o644});chmodSync(filename,0o644);
     }
-    jsonEdit(statusPath,value=>Object.assign(value,{state:'READY_FOR_SOURCE',phase:'SOURCE_FREEZE',software:'PENDING_GATE'}));
-    jsonEdit('docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json',value=>{value.status='PENDING_GATE';});
-    jsonEdit('project/STATUS.json',value=>Object.assign(value.v39Integration,{status:'READY_FOR_SOURCE',phase:'SOURCE_FREEZE',software:'PENDING_GATE'}));
-    jsonEdit('project/POSTRUST_PLAN.json',value=>{value.integration_tasks[0].status='READY_FOR_SOURCE';});
+    // 失败Source的30个非修复叶直接继承；只能在本fixture十条闭集中补齐当前开发态。
+    jsonEdit('docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json',value=>{value.sourceCorrection=copy(correction);});
+    for(const row of deltaFiles){
+      if(row.path===scopePath||row.path==='docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json')continue;
+      const filename=path.join(directory,row.path);
+      if(blob(readFileSync(filename))===row.before.blob){
+        assert.notEqual(row.path,'packages/bridge-core/test/rust-core-owner-lifecycle.test.ts','case5必须已有真实修复，不能用空白伪造');
+        appendFileSync(filename,row.path.endsWith('.mjs')?'\n// 受控fixture直接修复叶；不代表产品Source。\n':'\n受控fixture直接修复叶；不代表产品Source。\n');
+      }
+    }
     freezeScope();
     syntheticSource=commitWorking(sourcePaths);sourceTree=command(directory,['rev-parse','HEAD^{tree}']);
     assert.equal(command(directory,['rev-parse','--path-format=absolute','--git-common-dir']),path.join(directory,'.git'));
@@ -140,30 +150,37 @@ function encode(value){return Buffer.from(JSON.stringify(value,null,2)+'\n');}
 
 test(admissionNames[0],t=>{
   const f=fixture(t),result=inspectV39IntegrationAdmission(f.directory,environment);
-  assert.equal(result.sourceSha,f.source);assert.equal(result.sourceParentSha,base);assert.equal(result.exactSourceFiles,39);
+  assert.equal(result.sourceSha,f.source);assert.equal(result.sourceParentSha,sourceParent);assert.equal(result.exactSourceFiles,40);assert.equal(result.exactSourceDeltaFiles,10);
+  assert.equal(result.failedSource1Preserved,true);assert.deepEqual(result.sourceCorrection,correction);
+  assert.equal(result.sourceCorrectionSha256,correctionRef.canonical.sha256);
   assert.equal(result.exactReportFiles,0);assert.equal(result.sealedBaselinePreserved,true);assert.equal(result.offlineTapeDonorVerified,true);
   assert.equal(result.currentProductSoftwareRequired,true);assert.deepEqual(result.sourcePins,sourcePaths.map(pin));
   const output=v39IntegrationWorkflowOutputs(result);assert.equal(output.integrationMode,'qualified');
   assert.equal(output.integrationRole,'source');assert.equal(output.productVerificationMode,'fresh-source');
-  assert.equal(command(directory,['rev-list','--parents','-n','1',f.source]),f.source+' '+base);
+  assert.equal(command(directory,['rev-list','--parents','-n','1',f.source]),f.source+' '+sourceParent);
 });
 test(admissionNames[1],t=>{
   fixture(t);
   jsonEdit(scopePath,value=>{value.frozen=false;value.executionStatus='DEVELOPMENT_IN_PROGRESS';});
   commitWorking([scopePath]);assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
   fixture(t);jsonEdit(statusPath,value=>{value.software='PASSED';value.sourceCi='PASS';});repin(statusPath);
-  assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),error=>error.code==='V39_SOURCE_STATUS_SELF_QUALIFICATION');
+  assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
 });
 test(admissionNames[2],t=>{
   fixture(t);
-  const merged=commitTree(directory,sourceTree,[base,'0dffccb0b351e994ee19e0840e12f88481956c6f'],'受控Fake多父Source');
+  const merged=commitTree(directory,sourceTree,[sourceParent,'0dffccb0b351e994ee19e0840e12f88481956c6f'],'受控Fake多父Source');
   checkout(merged);assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
+  checkout(sourceParent);assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),error=>error.code==='V39_INTEGRATION_FAILED_SOURCE1_CANNOT_QUALIFY');
+  checkout(commitTree(directory,sourceTree,[base],'受控Fake错误累计基线直父'));
+  assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
+  checkout(commitTree(directory,sourceTree,[syntheticSource],'受控Fake任意中间父'));
+  assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
   checkout(syntheticSource,'codex/v39-integration-002');
   assert.throws(()=>inspectV39IntegrationWorkflowGuard(directory,environment),rejected);
   fixture(t);assert.throws(()=>inspectV39IntegrationAdmission(directory,{...hosted(syntheticSource),GITHUB_SHA:base}),rejected);
 });
 test(admissionNames[3],t=>{
-  fixture(t);writeFileSync(path.join(directory,'v39-outside-scope.txt'),'受控Fake第40路径\n');
+  fixture(t);writeFileSync(path.join(directory,'v39-outside-scope.txt'),'受控Fake第41路径\n');
   commitWorking(['v39-outside-scope.txt']);assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
   fixture(t);command(directory,['rm','--','packages/contracts/src/reference-catalog.ts']);commitWorking([]);
   assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
@@ -188,13 +205,19 @@ test(admissionNames[5],t=>{
   fixture(t);assert.deepEqual(readFileSync(path.join(directory,original)),raw);
   jsonEdit(scopePath,value=>{value.allowedSourceFiles[0].before.sha256='0'.repeat(64);});
   commitWorking([scopePath]);assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
+  fixture(t);jsonEdit(scopePath,value=>{value.sourceDeltaFiles[0].before.blob='0'.repeat(40);});
+  commitWorking([scopePath]);assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
+  fixture(t);jsonEdit('docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json',value=>{
+    value.sourceCorrection.source1FirstNaturalCi.failures[0].conclusion='success';
+  });repin('docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json');
+  assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
 });
 test(admissionNames[6],t=>{
   fixture(t);const before=numericTokens(readFileSync(path.join(directory,'project/STATUS.json'),'utf8')).get(protectedMtimePointer);
   assert.ok(before&&BigInt(before.raw)>2n**53n);mutateMtime();repin('project/STATUS.json');
-  assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),error=>error.code==='V39_SOURCE_STATUS_OUTSIDE_DOMAIN');
+  assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
   fixture(t);jsonEdit('project/POSTRUST_PLAN.json',value=>{value.acceptance_cases[0].title+='非法重写原验收';});repin('project/POSTRUST_PLAN.json');
-  assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),error=>error.code==='V39_SOURCE_PLAN_OUTSIDE_DOMAIN');
+  assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
 });
 test(admissionNames[7],t=>{
   fixture(t);jsonEdit(donorPath,value=>{value.gitObjectEvidence.objects.pop();});repin(donorPath);
@@ -203,7 +226,7 @@ test(admissionNames[7],t=>{
   assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
   fixture(t);appendFileSync(path.join(directory,'packages/contracts/src/reference-catalog.ts'),'\n// 非原donor新增字节\n');
   repin('packages/contracts/src/reference-catalog.ts');
-  assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),error=>error.code==='V39_DONOR_IMPORTED_BYTES');
+  assert.throws(()=>inspectV39IntegrationAdmission(directory,environment),rejected);
 });
 test(admissionNames[8],t=>{
   fixture(t);const dirty=path.join(directory,'v39-owned-dirty.txt');writeFileSync(dirty,'受控Fake dirty\n');
@@ -225,4 +248,3 @@ test(admissionNames[9],t=>{
   assert.throws(()=>v39IntegrationWorkflowOutputs(real),rejected);
   fixture(t);assert.equal(v39IntegrationWorkflowOutputs(inspectV39IntegrationAdmission(directory,environment)).integrationMode,'qualified');
 });
-

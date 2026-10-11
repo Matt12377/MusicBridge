@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  V39_INTEGRATION_TASK, V39_INTEGRATION_BRANCH, V39_INTEGRATION_BASE, V39_INTEGRATION_REPOSITORY,
+  V39_INTEGRATION_TASK, V39_INTEGRATION_BRANCH, V39_INTEGRATION_SOURCE_PARENT, V39_INTEGRATION_REPOSITORY,
   V39_INTEGRATION_REPOSITORY_ID, V39_INTEGRATION_WORKFLOWS, v39IntegrationHasAuthority,
   inspectV39IntegrationWorkflowGuard, inspectV39IntegrationReportAdmission,
   validateV39IntegrationParentCi, v39IntegrationCanonicalPin, v39IntegrationProducerIdentity, v39IntegrationAdmittedSourceCi,
@@ -71,7 +71,7 @@ export async function inspectV39IntegrationReportOnly(env=process.env,directory=
     if(!equal(repeated,report))return full('V39_REPORT_CHANGED_DURING_API');
     return {schema:'musicbridge.report-only-ci.v1',mode:'report-only',reason:'EXACT_PARENT_CURRENT_PRODUCT_CI_SUCCESS',
       task:V39_INTEGRATION_TASK,reportSha:report.headAtAdmission,parentSourceSha:report.sourceSha,
-      sourceParentSha:V39_INTEGRATION_BASE,scopeSha256:report.scopeSha256,repositoryId:V39_INTEGRATION_REPOSITORY_ID,
+      sourceParentSha:V39_INTEGRATION_SOURCE_PARENT,scopeSha256:report.scopeSha256,repositoryId:V39_INTEGRATION_REPOSITORY_ID,
       productResultsReused:true,currentProductTestsRepeated:false,artifactContentDownloaded:false,
       evidenceScope:'PUBLIC_CURRENT_SOURCE_PRODUCT_PRODUCERS_WITH_PREVIOUS_WHOLE_CONTENT_RECEIPT',
       workflows:proofs.map(proof=>({runId:proof.runId,jobIds:proof.jobs.map(job=>job.id),
@@ -88,4 +88,3 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
     if(result.mode!=='report-only')process.exitCode=1;
   }).catch(()=>{process.stderr.write('V3.9 Tape报告CI精确准入失败。\n');process.exitCode=1;});
 }
-

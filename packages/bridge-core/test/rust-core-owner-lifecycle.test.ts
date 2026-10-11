@@ -137,16 +137,65 @@ test('Node boot迟到超过整体期限只消费回执，不建立router或child
 });
 
 test('单一单调期限包含Node boot、版本探测、导出与child boot，不能逐段重置', async t => {
-  const s = source();
-  s.owner.commitBoot = async () => { s.calls.boots++; await new Promise(resolve => setTimeout(resolve, 250)); };
-  s.owner.exportVersionedCollectionSnapshot = async () => { s.calls.exports++; await new Promise(resolve => setTimeout(resolve, 250)); return s.snapshot(); };
-  const f = spawnFake(t, (frame, respond) => { if (frame.operation === 'commitBoot') setTimeout(respond, 650); else respond(); });
+  const realNow = performance.now.bind(performance);
+  // 整数单调时钟只控制阶段耗时；真实二进制完整pin仍执行，机器Hash速度不消耗夹具期限。
+  let now = 0;
+  t.mock.method(performance, 'now', () => now);
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const s = source(), nodeBoot = deferred<void>(), exported = deferred<void>();
+  const bootEntered = deferred<void>(), exportEntered = deferred<void>(), childEntered = deferred<void>();
+  const probes = [deferred<DatasetCollectionSnapshotVersion>(), deferred<DatasetCollectionSnapshotVersion>()];
+  const probeEntered = [deferred<void>(), deferred<void>()];
+  let lateAck: (() => void) | undefined, bootSettled = false;
+  s.owner.commitBoot = () => { s.calls.boots++; bootEntered.resolve(); return nodeBoot.promise; };
+  s.owner.getCollectionSnapshotVersion = () => {
+    const index = s.calls.probes++;
+    if (index < probes.length) { probeEntered[index]!.resolve(); return probes[index]!.promise; }
+    return Promise.resolve({ ...s.version });
+  };
+  s.owner.exportVersionedCollectionSnapshot = async () => { s.calls.exports++; exportEntered.resolve(); await exported.promise; return s.snapshot(); };
+  const f = spawnFake(t, (frame, respond) => {
+    if (frame.operation === 'commitBoot') { lateAck = respond; childEntered.resolve(); } else respond();
+  });
   const core = createRustReadonlyCoreDatasetOwner(s.owner, { binary, startupTimeoutMs: 1_000, requestTimeoutMs: 2_000 });
-  await assert.rejects(core.commitBoot(), code('TIMEOUT'));
+  let boot: Promise<void> | undefined, expired: Promise<void> | undefined;
+  t.after(async () => {
+    // 先封闭，再放行自己持有的迟到资源；即使期限重置变异失败也不能留下等待者或Fake child。
+    const closing = core.close().catch(() => {});
+    nodeBoot.resolve(); probes.forEach(probe => probe.resolve(s.version)); exported.resolve(); lateAck?.();
+    const remaining = Math.max(0, 1_250 - now); now += remaining; t.mock.timers.tick(remaining);
+    await Promise.allSettled([boot, expired, closing]); await tick();
+    assert.equal(f.live, 0); assert.equal(s.calls.closes, 1);
+  });
+  boot = core.commitBoot();
+  void boot.then(() => { bootSettled = true; }, () => { bootSettled = true; });
+  expired = assert.rejects(boot, code('TIMEOUT')); void expired.catch(() => {});
+  const reach = async (entered: Promise<void>) => {
+    let arrived = false; void entered.then(() => { arrived = true; });
+    await until(() => arrived || bootSettled, realNow);
+    return Promise.race([entered, boot!.then(
+      () => { throw new Error('整体启动在受控阶段之前完成。'); }, error => { throw error; })]);
+  };
+  const advance = (target: number) => { assert.ok(target >= now); const elapsed = target - now; now = target; t.mock.timers.tick(elapsed); };
+  await reach(bootEntered.promise);
+  advance(250); nodeBoot.resolve(); await reach(probeEntered[0]!.promise);
+  advance(300); probes[0]!.resolve(s.version); await reach(probeEntered[1]!.promise);
+  advance(350); probes[1]!.resolve(s.version); await reach(exportEntered.promise);
+  advance(600); exported.resolve(); await reach(childEntered.promise);
   assert.equal(s.calls.boots, 1); assert.equal(s.calls.exports, 1); assert.equal(f.spawn.mock.callCount(), 1);
-  assert.equal(core.getStatus().phase, 'failed');
-  await assert.rejects(core.close(), code('TIMEOUT'));
-  await until(() => f.live === 0); assert.equal(s.calls.closes, 1);
+  assert.equal(f.frames.filter(frame => frame.operation === 'commitBoot').length, 1);
+  advance(999); await tick(); assert.equal(bootSettled, false); assert.equal(core.getStatus().phase, 'booting');
+  advance(1_000); await tick();
+  // 先观察原调用已到期，再await断言；逐段重置的实现必须及时RED，不能等到新的期限才发现。
+  assert.equal(bootSettled, true); assert.equal(core.getStatus().phase, 'failed');
+  assert.equal(core.getStatus().errorCode, 'TIMEOUT'); assert.equal(s.calls.closes, 1); await expired;
+  await assert.rejects(core.dispatch(s.request()), code('TIMEOUT')); assert.equal(s.requests.length, 0);
+  const closed = assert.rejects(core.close(), code('TIMEOUT')); void closed.catch(() => {});
+  advance(1_250); lateAck!(); await closed; await tick();
+  assert.equal(core.getStatus().phase, 'failed'); assert.equal(core.getStatus().errorCode, 'TIMEOUT');
+  assert.equal(f.live, 0); assert.equal(s.calls.closes, 1); assert.equal(f.spawn.mock.callCount(), 1);
+  assert.equal(s.calls.boots, 1); assert.equal(s.calls.exports, 1);
+  await assert.rejects(core.dispatch(s.request()), code('CLOSING')); assert.equal(s.requests.length, 0);
 });
 
 test('关闭即刻封闭、Node close立即登记一次，无需等在途Node boot结束', async t => {
