@@ -1,0 +1,93 @@
+{
+  "schema": "musicbridge.ci-report-mirror.correction.v1",
+  "task": "CI-REPORT-MIRROR-001",
+  "branch": "codex/ci-report-mirror-001",
+  "baseSha": "aebf9464dc080d1242c379db183f4424e62f0b40",
+  "productSource": "16507120ab52d4843012e6888ad521138d8336d6",
+  "predecessorSource": "78184e7849cc3b10191ea64af29ba8bc23162b0a",
+  "foundation": "479e746bb7106a4dac158fe616290220de03a53a",
+  "scope": "docs/postrust/MBM-004/CI_CORRECTION_SCOPE.json",
+  "repairKind": "HISTORICAL_GIT_OBJECT_PREPARATION_ONLY",
+  "failure": {
+    "repositoryId": 1340424953,
+    "reportSha": "aebf9464dc080d1242c379db183f4424e62f0b40",
+    "runId": 38118303279,
+    "jobId": 114407604814,
+    "runAttempt": 1,
+    "event": "push",
+    "stepName": "验证报告CI准入正负例",
+    "stepNumber": 35,
+    "counts": {
+      "tests": 132,
+      "pass": 131,
+      "fail": 1,
+      "skip": 0
+    },
+    "log": {
+      "bytes": 98779,
+      "sha256": "00143d192589a6aa2606289ba6ef30c4dcf5940aa713de521853a65dc2d2f87c"
+    },
+    "audit": "success",
+    "security": "success",
+    "preserved": true
+  },
+  "historicalObjects": [
+    "cfa0456de984c6cf37a1cbb69300ae9a9ee97d7f",
+    "99c89519f3357f4018b32930e8179b66719f99e7"
+  ],
+  "softwareReuse": {
+    "source": "16507120ab52d4843012e6888ad521138d8336d6",
+    "mode": "EXACT_BYTES_AND_ORIGINAL_PRODUCERS",
+    "productTestsRepeated": false,
+    "compiledAppStatus": "SKIPPED_REUSED_S165"
+  },
+  "oldScope": {
+    "path": "docs/postrust/MBM-004/EXECUTION_SCOPE.json",
+    "bytes": 26899,
+    "sha256": "7158eb8b33ed58de8a7c9f9ad3456fb372c65ebcc0f9fa7e0a491a248cc2a54d"
+  },
+  "oldCorrection": {
+    "path": "docs/postrust/MBM-004/SOURCE_CORRECTION.json",
+    "bytes": 4010,
+    "sha256": "4c7da837a75ded9bcb164ca8c1c33a48bef69577cdae1fe11c5d0512a0521a5c"
+  },
+  "oldLocal": {
+    "path": "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json",
+    "bytes": 1204380,
+    "sha256": "3b0bcfd27f2dff84937f7c776d94c55372eff6faff7c8b191befe7a45fbf6f1c"
+  },
+  "ledger": {
+    "originalTasks": 18,
+    "originalAcceptanceCases": 156,
+    "effectiveTasks": 17,
+    "effectiveAcceptanceCases": 150,
+    "cancelledTask": "MBRS-015",
+    "cancelledCases": 6,
+    "cancellation": "N_A"
+  },
+  "budgets": {
+    "stageMs": 180000,
+    "wholeMs": 480000,
+    "ownerMs": 2000
+  },
+  "sourceCi": {
+    "workflows": 4,
+    "jobs": 6,
+    "artifacts": 1
+  },
+  "reportCi": {
+    "workflows": 2,
+    "jobs": 3
+  },
+  "reportPaths": [
+    "reports/MBM-004_RESULT.md",
+    "reports/MBM-004_RESULT.json",
+    "docs/postrust/MBM-004/CI_EVIDENCE.json",
+    "docs/postrust/MBM-004/STATUS.json",
+    "project/STATUS.json",
+    "project/POSTRUST_PLAN.json",
+    "project/POSTRUST_TODO.md",
+    "project/POSTRUST_PROGRESS.md"
+  ],
+  "realEvidence": "NOT_RUN"
+}

@@ -9,13 +9,16 @@ import { predecessorReuseWorkflowOutputs } from './mbm003-predecessor-reuse.mjs'
 import { TAPE_CATALOG_COMMON_TASK, TAPE_CATALOG_COMMON_BRANCH,
   inspectTapeCatalogCommonAdmission, tapeCatalogCommonWorkflowOutputs } from './tape-catalog-common-admission.mjs';
 import { MBM004_TASK, MBM004_BRANCH, MBM004_STATUS_PATH, inspectMbm004Admission, mbm004WorkflowOutputs } from './mbm004-admission.mjs';
+import { CI_REPORT_MIRROR_TASK, CI_REPORT_MIRROR_CORRECTION_PATH, CI_REPORT_MIRROR_SCOPE_PATH,
+  ciReportMirrorRouteRequested, inspectCiReportMirrorAdmission, ciReportMirrorWorkflowOutputs } from './ci-report-mirror-admission.mjs';
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const recordPath = 'docs/tape-catalog-common/STATUS.json';
 function reject(code) { const error = new Error('任务适用性准入拒绝。'); error.code = code; throw error; }
 
 /** 分支和独立任务记录均可触发严格组合检查，不能删除其中一个标记逃回旧路由。 */
-export function taskApplicabilityRoute(branch, record, contentRecord = null) {
+export function taskApplicabilityRoute(branch, record, contentRecord = null, ciRepairRecord = null) {
+  if (ciReportMirrorRouteRequested(branch, ciRepairRecord !== null)) return 'EXACT_CI_REPORT_MIRROR';
   if (branch === MBM004_BRANCH) return 'EXACT_MBM004';
   if (branch === TAPE_CATALOG_COMMON_BRANCH) return 'EXACT_TAPE_COMMON';
   if (contentRecord !== null) return 'EXACT_MBM004';
@@ -31,6 +34,13 @@ export function inspectTaskApplicability(directory = repository, env = process.e
   const git = io.git ?? (args => execFileSync('git', ['--no-replace-objects', '-c', 'core.fsmonitor=false', ...args],
     { cwd: directory, env: gitEnvironment, encoding: 'utf8', timeout: 10000, maxBuffer: 1024 * 1024 }));
   const branch = git(['branch', '--show-current']).trim() || env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME;
+  let ciRepairRecord = null;
+  for (const recordName of [CI_REPORT_MIRROR_CORRECTION_PATH, CI_REPORT_MIRROR_SCOPE_PATH]) {
+    try { const filename = path.join(directory, recordName); lstatSync(filename); ciRepairRecord = JSON.parse(read(filename)) ?? {}; }
+    catch (error) { if (error?.code !== 'ENOENT') reject('TASK_CI_REPAIR_RECORD_INVALID'); }
+  }
+  if (taskApplicabilityRoute(branch, null, null, ciRepairRecord) === 'EXACT_CI_REPORT_MIRROR')
+    return inspectCiReportMirrorAdmission(directory, env);
   let record = null;
   try {
     const filename = path.join(directory, recordPath);
@@ -50,6 +60,8 @@ export function inspectTaskApplicability(directory = repository, env = process.e
 
 /** 五个输出来自同一次完整准入；工作流不能靠未知task默认跳过历史验证。 */
 export function taskApplicabilityWorkflowOutputs(result) {
+  if (result?.task === CI_REPORT_MIRROR_TASK) return { ...ciReportMirrorWorkflowOutputs(result), mobileTask: 'reuse-frozen',
+    legacyGateMode: 'reuse-frozen', localLibraryFixTask: 'not-applicable', combinedGateMode: 'not-applicable' };
   if (result?.task === MBM004_TASK) return mbm004WorkflowOutputs(result);
   if (result?.task === TAPE_CATALOG_COMMON_TASK) return tapeCatalogCommonWorkflowOutputs(result);
   if (result?.task === LOCAL_LIBRARY_SIGNED_STAT_FIX_TASK) {

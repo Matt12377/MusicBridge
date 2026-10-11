@@ -1,0 +1,141 @@
+{
+  "schema": "musicbridge.ci-report-mirror.execution-scope.v1",
+  "task": "CI-REPORT-MIRROR-001",
+  "branch": "codex/ci-report-mirror-001",
+  "baseSha": "aebf9464dc080d1242c379db183f4424e62f0b40",
+  "productSource": "16507120ab52d4843012e6888ad521138d8336d6",
+  "correction": "docs/postrust/MBM-004/CI_CORRECTION.json",
+  "frozen": true,
+  "reportPaths": [
+    "reports/MBM-004_RESULT.md",
+    "reports/MBM-004_RESULT.json",
+    "docs/postrust/MBM-004/CI_EVIDENCE.json",
+    "docs/postrust/MBM-004/STATUS.json",
+    "project/STATUS.json",
+    "project/POSTRUST_PLAN.json",
+    "project/POSTRUST_TODO.md",
+    "project/POSTRUST_PROGRESS.md"
+  ],
+  "files": [
+    {
+      "path": "tasks/CI-REPORT-MIRROR-001.md",
+      "status": "A",
+      "role": "task",
+      "oldMode": "000000",
+      "newMode": "100644",
+      "oldBlob": "0000000000000000000000000000000000000000",
+      "bytes": 4137,
+      "sha256": "595652263bbcf1474eee0e98eaedb39827ea109e572134c4736884b0a1cc93df"
+    },
+    {
+      "path": "docs/postrust/MBM-004/CI_CORRECTION.json",
+      "status": "A",
+      "role": "authority",
+      "oldMode": "000000",
+      "newMode": "100644",
+      "oldBlob": "0000000000000000000000000000000000000000",
+      "bytes": 2751,
+      "sha256": "54f433e6a766cd52de98cc3c52780a71e179f669544f16488e31165e6f65d6bf"
+    },
+    {
+      "path": "docs/postrust/MBM-004/CI_CORRECTION_SCOPE.json",
+      "status": "A",
+      "role": "authority",
+      "oldMode": "000000",
+      "newMode": "100644",
+      "oldBlob": "0000000000000000000000000000000000000000",
+      "bytes": 4599,
+      "sha256": null
+    },
+    {
+      "path": "scripts/ci/ci-report-mirror-admission.mjs",
+      "status": "A",
+      "role": "ci-tool",
+      "oldMode": "000000",
+      "newMode": "100644",
+      "oldBlob": "0000000000000000000000000000000000000000",
+      "bytes": 51638,
+      "sha256": "e668fcfa9211073f7562814c9197399d817fddb7a6cfc2b80e95deff393782bb"
+    },
+    {
+      "path": "scripts/ci/verify-ci-report-mirror.mjs",
+      "status": "A",
+      "role": "ci-tool",
+      "oldMode": "000000",
+      "newMode": "100644",
+      "oldBlob": "0000000000000000000000000000000000000000",
+      "bytes": 29505,
+      "sha256": "619d477242dd4b6c13045b91819dbebad151e43b829f6184f74cd98d3d87c070"
+    },
+    {
+      "path": "scripts/ci/test/ci-report-mirror.test.mjs",
+      "status": "A",
+      "role": "tool-test",
+      "oldMode": "000000",
+      "newMode": "100644",
+      "oldBlob": "0000000000000000000000000000000000000000",
+      "bytes": 41456,
+      "sha256": "939b3d01deb39acebb4c6a3d20da927193cdb382548c81949e2c3cbced2da9d7"
+    },
+    {
+      "path": "scripts/ci/task-applicability.mjs",
+      "status": "M",
+      "role": "ci-routing",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "0326b28d050844d1ec4b6b0eb2b09db6d3834c32",
+      "bytes": 6343,
+      "sha256": "231ce14c8e050dcb3381c87e3ebcb58b78b19fc215419dbb928b9f51cf1064a7"
+    },
+    {
+      "path": "scripts/ci/report-only-admission.mjs",
+      "status": "M",
+      "role": "ci-routing",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "14ecf4274ba79e43933dd6b339f14714d86676fd",
+      "bytes": 29196,
+      "sha256": "2b7e41e945c65e0e706a4ec9b6b79a486c7a7b5ecf66d2b0df8051d85e98b570"
+    },
+    {
+      "path": ".github/workflows/verify.yml",
+      "status": "M",
+      "role": "workflow",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "5e0ede3ee1279e1c6c00b03f45b1afb98c9354a9",
+      "bytes": 21748,
+      "sha256": "92f95b69d0b567f54320eb99444fcdce1f654abaf8536b4fc605def44acf85b8"
+    },
+    {
+      "path": ".github/workflows/security.yml",
+      "status": "M",
+      "role": "workflow",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "4b0b52afa913c92e675a54844eb69cdab634432d",
+      "bytes": 1490,
+      "sha256": "cbd7c05526023c97d2c6eab57a62dae23ec86c851f038a04b3713748c468eb20"
+    },
+    {
+      "path": ".github/workflows/rust-core.yml",
+      "status": "M",
+      "role": "workflow",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "49d450b3bf1244141f53d716aec6b19666eca02e",
+      "bytes": 3677,
+      "sha256": "20d2ddaf88a428b65acd4959ea3a427b6d8ac5bf7bd41b2e69cd43ec3e4c4dc5"
+    },
+    {
+      "path": ".github/workflows/electron-e2e.yml",
+      "status": "M",
+      "role": "workflow",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "07e70a3d931922b75e4a60692f310e4a279a9a91",
+      "bytes": 9088,
+      "sha256": "b91d14968d1a661bd304b86c102a20e9acd1f0238152d7a91cb1df08105c5e36"
+    }
+  ]
+}
