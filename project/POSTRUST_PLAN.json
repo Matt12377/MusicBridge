@@ -46561,9 +46561,208 @@
     "title": "Tape历史兼容正式组合",
     "branch": "codex/v39-integration-001",
     "base_report_sha": "9bfb5915c17e8b5770ece7ac9a0efc1998d54e72",
-    "status": "READY_FOR_SOURCE",
+    "status": "SOURCE_SOFTWARE_AND_FIRST_NATURAL_CI_PASSED_REPORT_OWN_CI_PENDING",
     "scope_ref": "docs/integration/V39-INTEGRATION-001/EXECUTION_SCOPE.json",
-    "next_task": "V39-INTEGRATION-002"
+    "next_task": "V39-INTEGRATION-002",
+    "source_commit": "744c29af17e7f587a635810c4f45e327c7132705",
+    "report_commit": null,
+    "validation_status": "PASSED_CURRENT_SOURCE_SOFTWARE",
+    "source_ci": {
+      "schema": "musicbridge.v39.integration.public-source-ci.v1",
+      "task": "V39-INTEGRATION-001",
+      "sourceSha": "744c29af17e7f587a635810c4f45e327c7132705",
+      "sourceParentSha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+      "branch": "codex/v39-integration-001",
+      "repositoryId": 1340424953,
+      "failedSource1Preserved": true,
+      "failedSource2Preserved": true,
+      "sourceCorrection": {
+        "path": "docs/integration/V39-INTEGRATION-001/LOCAL_SOFTWARE_EVIDENCE.json",
+        "jsonPointer": "/sourceCorrection",
+        "canonical": {
+          "bytes": 139101,
+          "sha256": "8e92988a63d9dc056658ee011038b210c5d5b40e6e56e31123c44142c840c0c2"
+        }
+      },
+      "firstNaturalPush": true,
+      "attempt": 1,
+      "compiledAndApp": "PASSED_CURRENT_SOURCE",
+      "software": "PASSED_CURRENT_SOFTWARE_GATE",
+      "fullReceipt": {
+        "path": "docs/integration/V39-INTEGRATION-001/CI_EVIDENCE.json",
+        "jsonPointer": "/sourceCi",
+        "canonical": {
+          "bytes": 11630908,
+          "sha256": "74f1fcd12be779615c61b559e490bf2c3a1038d5e5571bbaa20de03b31c5b8db"
+        }
+      },
+      "producerRuns": [
+        {
+          "path": ".github/workflows/rust-core.yml",
+          "id": 38171183590,
+          "head": "744c29af17e7f587a635810c4f45e327c7132705",
+          "attempt": 1,
+          "jobs": [
+            {
+              "id": 114563950558,
+              "name": "rust-core (ubuntu-latest)",
+              "conclusion": "success"
+            },
+            {
+              "id": 114563950644,
+              "name": "rust-core (macos-latest)",
+              "conclusion": "success"
+            }
+          ]
+        },
+        {
+          "path": ".github/workflows/verify.yml",
+          "id": 38171183588,
+          "head": "744c29af17e7f587a635810c4f45e327c7132705",
+          "attempt": 1,
+          "jobs": [
+            {
+              "id": 114563950544,
+              "name": "dependency-audit",
+              "conclusion": "success"
+            },
+            {
+              "id": 114563950656,
+              "name": "verify",
+              "conclusion": "success"
+            }
+          ]
+        },
+        {
+          "path": ".github/workflows/security.yml",
+          "id": 38171183555,
+          "head": "744c29af17e7f587a635810c4f45e327c7132705",
+          "attempt": 1,
+          "jobs": [
+            {
+              "id": 114563950941,
+              "name": "static-security",
+              "conclusion": "success"
+            }
+          ]
+        },
+        {
+          "path": ".github/workflows/electron-e2e.yml",
+          "id": 38171183575,
+          "head": "744c29af17e7f587a635810c4f45e327c7132705",
+          "attempt": 1,
+          "jobs": [
+            {
+              "id": 114563950362,
+              "name": "macos-electron-gate",
+              "conclusion": "success"
+            }
+          ]
+        }
+      ],
+      "artifacts": [
+        {
+          "id": 11714595457,
+          "name": "verify-744c29af17e7f587a635810c4f45e327c7132705",
+          "zip": {
+            "bytes": 4103143,
+            "sha256": "deeb0378c3ad61c883724e3265ab8eb32f7266662654b436f9c0f0b70ad486c0"
+          },
+          "memberManifest": {
+            "count": 28,
+            "expandedBytes": 18695511,
+            "canonical": {
+              "bytes": 3850,
+              "sha256": "013eaadf90a74e2286a41af65482d4b588900d10c02bb70a706e9478b0c6952d"
+            }
+          },
+          "allMembersBytesAndCrcRead": true
+        },
+        {
+          "id": 11714509109,
+          "name": "electron-e2e-744c29af17e7f587a635810c4f45e327c7132705",
+          "zip": {
+            "bytes": 504628299,
+            "sha256": "84449d7365e37a6a43a2935c506a552937406b9429a180dce77177e06d646175"
+          },
+          "memberManifest": {
+            "count": 21080,
+            "expandedBytes": 1492377571,
+            "canonical": {
+              "bytes": 5633365,
+              "sha256": "33f48493fb76f5e207b5e81df7c967b20377ec5f9a91042aafc087134b071f73"
+            }
+          },
+          "allMembersBytesAndCrcRead": true
+        },
+        {
+          "id": 11713669993,
+          "name": "rust-core-macos-latest-744c29af17e7f587a635810c4f45e327c7132705",
+          "zip": {
+            "bytes": 6303312,
+            "sha256": "a032ec1cb96467843e71f09dc0b07fd440e4d13d83a69574ed99b59cc0865ba4"
+          },
+          "memberManifest": {
+            "count": 1141,
+            "expandedBytes": 27030175,
+            "canonical": {
+              "bytes": 263307,
+              "sha256": "5ed045d4991b59ef9aa65cc1952ceb89e11167c762a3215fff968810ab372e76"
+            }
+          },
+          "allMembersBytesAndCrcRead": true
+        },
+        {
+          "id": 11713638425,
+          "name": "rust-core-ubuntu-latest-744c29af17e7f587a635810c4f45e327c7132705",
+          "zip": {
+            "bytes": 6305459,
+            "sha256": "53b7fe91fc1a86d8bba599a7f250293f44dd1a5c5233ee880d71872f212797c0"
+          },
+          "memberManifest": {
+            "count": 1141,
+            "expandedBytes": 27029202,
+            "canonical": {
+              "bytes": 263304,
+              "sha256": "4f17809b1710a9d7412fd0a6781a30294aebc286dd30c09b46a6e61779578a10"
+            }
+          },
+          "allMembersBytesAndCrcRead": true
+        },
+        {
+          "id": 11714628716,
+          "name": "rust-host-compiled-744c29af17e7f587a635810c4f45e327c7132705",
+          "zip": {
+            "bytes": 8221459,
+            "sha256": "e2bf45645f42fbfd35b975c665e7eaed60572477c9dd53035bc80b01f5d716cb"
+          },
+          "memberManifest": {
+            "count": 68,
+            "expandedBytes": 24093881,
+            "canonical": {
+              "bytes": 11952,
+              "sha256": "6245c13a7b04a09c24a0b1ab1a00f0659caf6ecbc28865b3d24794be16a34436"
+            }
+          },
+          "allMembersBytesAndCrcRead": true
+        }
+      ],
+      "toolGate": {
+        "scopeSha256": "c89f612c34241ec8f8e4992ec96ace7aad56c435225a04c97d96f6aaa59aec85",
+        "tests": 277,
+        "originalTests": 173,
+        "tapeTests": 74,
+        "integrationTests": 10,
+        "admissionTests": 20,
+        "sourceInputsUnchanged": true,
+        "wholeBudgetMs": 480000
+      },
+      "reruns": 0,
+      "dispatches": 0,
+      "realApplicationServiceDeviceAudio": "NOT_RUN",
+      "ownerAcceptance": "NOT_RUN"
+    },
+    "report_ci": "NOT_RUN"
   },
   {
     "id": "V39-INTEGRATION-002",
