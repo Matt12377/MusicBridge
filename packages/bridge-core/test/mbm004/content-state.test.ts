@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { MobileTrack, MobileUIAlbumRecord } from '@music-bridge/contracts';
-import { mobileDataSnapshot } from '@music-bridge/contracts';
+import type { MobileJsonValue, MobileTrack, MobileUIAlbumRecord } from '@music-bridge/contracts';
+import { mobileCanonicalJson, mobileDataSnapshot } from '@music-bridge/contracts';
 import {
-  applyMobileContentMutation, createMobileContentState, decodeMobileContentState,
+  applyMobileContentMutation, captureMobileContentState, createMobileContentState, decodeMobileContentState,
   encodeMobileContentState, lookupMobileContentReceipt, mobileContentDomainSnapshot,
 } from '../../src/mobile/content-state.js';
+import type { MobileContentState } from '../../src/mobile/content-state.js';
 import type { MobileContentMutationInput, MobileContentScope, MobileContentStateLimits } from '../../src/mobile/content-types.js';
 import { MobileServiceError } from '../../src/mobile/types.js';
 
@@ -160,4 +161,121 @@ test('内容状态：有限序列化拒非canonical重复键、未知字段、�
   assert.throws(() => encodeMobileContentState(state, { ...limits, stateBytes: 1 }));
   assert.throws(() => mobileContentDomainSnapshot(state, { ...scope, accountDomain: '\ud800' }, limits));
   assert.deepEqual(decodeMobileContentState(bytes, limits), state);
+});
+
+test('内容状态：外部冻结、clone、Proxy与冷JSON不能继承自产资格，getter和异常树仍拒绝', () => {
+  const empty = initial(), input = albumInput(mobileContentDomainSnapshot(empty, scope, limits).favoritesRevision, true, 'qualification.original');
+  const first = applyMobileContentMutation(empty, input, { album }, { limits });
+  const bytes = encodeMobileContentState(first.state, limits);
+  const external = structuredClone(first.state), captured = captureMobileContentState(external, limits);
+  external.receipts[0]!.reply.status = 201;
+  assert.throws(() => captureMobileContentState(external, limits), errorCode('INVALID_REQUEST'));
+  assert.throws(() => lookupMobileContentReceipt(external, input, limits), errorCode('INVALID_REQUEST'));
+  assert.deepEqual(lookupMobileContentReceipt(captured, input, limits), first.reply);
+
+  // 只冻结外部副本的 data descriptor；测试本身也不能执行伪造 getter。
+  function freezeExternal(value: unknown): void {
+    if (value !== null && typeof value === 'object') {
+      for (const descriptor of Object.values(Object.getOwnPropertyDescriptors(value))) {
+        if (Object.hasOwn(descriptor, 'value')) freezeExternal(descriptor.value);
+      }
+      Object.freeze(value);
+    }
+  }
+  const frozen = structuredClone(first.state);
+  frozen.receipts[0]!.reply.status = 201; freezeExternal(frozen);
+  assert.throws(() => captureMobileContentState(frozen, limits), errorCode('INVALID_REQUEST'));
+
+  const wrapped = Proxy.revocable(first.state, {}), isolated = captureMobileContentState(wrapped.proxy, limits);
+  wrapped.revoke();
+  assert.deepEqual(lookupMobileContentReceipt(isolated, input, limits), first.reply);
+  assert.equal(mobileContentDomainSnapshot(isolated, scope, limits).favorites[0]!.albumFavorite, true);
+
+  let getterCalls = 0, toJsonCalls = 0;
+  const getter = structuredClone(first.state);
+  Object.defineProperty(getter.receipts[0]!.reply, 'body', {
+    enumerable: true, configurable: true, get() { getterCalls++; return first.reply.body; },
+  });
+  freezeExternal(getter);
+  assert.throws(() => captureMobileContentState(getter, limits), errorCode('INVALID_REQUEST'));
+  const guardedLimits = { ...limits };
+  Object.defineProperty(guardedLimits, 'receipts', { enumerable: true, get() { getterCalls++; return limits.receipts; } });
+  assert.throws(() => captureMobileContentState(first.state, guardedLimits), errorCode('INVALID_REQUEST'));
+  assert.equal(getterCalls, 0);
+
+  const cycle = structuredClone(first.state);
+  Object.defineProperty(cycle, 'cycle', { enumerable: true, value: cycle });
+  assert.throws(() => captureMobileContentState(cycle, limits), errorCode('INVALID_REQUEST'));
+  const toJson = structuredClone(first.state);
+  Object.defineProperty(toJson, 'toJSON', { enumerable: true, value() { toJsonCalls++; return first.state; } });
+  assert.throws(() => captureMobileContentState(toJson, limits), errorCode('INVALID_REQUEST'));
+  assert.equal(toJsonCalls, 0);
+
+  const cold = JSON.parse(Buffer.from(bytes).toString('utf8')) as MobileContentState;
+  cold.receipts[0]!.reply.status = 201;
+  const invalidCold = Buffer.from(mobileCanonicalJson(cold as unknown as MobileJsonValue), 'utf8');
+  assert.throws(() => decodeMobileContentState(invalidCold, limits), errorCode('INVALID_REQUEST'));
+  assert.deepEqual(lookupMobileContentReceipt(first.state, input, limits), first.reply);
+  assert.deepEqual(encodeMobileContentState(first.state, limits), bytes);
+});
+
+test('内容状态：已合格模型变更六项预算仍逐项拒绝超限，不损失原回执', () => {
+  const empty = initial(), input = trackInput(mobileContentDomainSnapshot(empty, scope, limits).favoritesRevision, true, 'budget.favorite');
+  const favorite = applyMobileContentMutation(empty, input, { album, track }, { limits });
+  const playlistInput = createInput(mobileContentDomainSnapshot(favorite.state, scope, limits).collectionRevision, 'budget.playlist', track);
+  const playlist = applyMobileContentMutation(favorite.state, playlistInput, { track }, { limits, newPlaylistId: 'playlist.budget' });
+  const mutableLimits = { ...limits }, state = captureMobileContentState(playlist.state, mutableLimits);
+  const bytes = encodeMobileContentState(state, limits);
+  const smaller: readonly (readonly [keyof MobileContentStateLimits, number])[] = [
+    ['stateBytes', bytes.length - 1], ['receipts', 1], ['albums', 0],
+    ['favoriteTracks', 0], ['playlists', 0], ['playlistTracks', 0],
+  ];
+  for (const [field, maximum] of smaller) {
+    mutableLimits[field] = maximum;
+    assert.throws(() => captureMobileContentState(state, mutableLimits), errorCode('CONTENT_LIMIT_EXCEEDED'), field);
+    assert.throws(() => lookupMobileContentReceipt(state, input, mutableLimits), errorCode('CONTENT_LIMIT_EXCEEDED'), field);
+    assert.throws(() => encodeMobileContentState(state, mutableLimits), errorCode('CONTENT_LIMIT_EXCEEDED'), field);
+    assert.throws(() => decodeMobileContentState(bytes, mutableLimits), errorCode('CONTENT_LIMIT_EXCEEDED'), field);
+    mutableLimits[field] = limits[field];
+    assert.deepEqual(lookupMobileContentReceipt(state, input, mutableLimits), favorite.reply);
+    assert.deepEqual(lookupMobileContentReceipt(state, playlistInput, mutableLimits), playlist.reply);
+  }
+  assert.deepEqual(encodeMobileContentState(state, mutableLimits), bytes);
+  assert.equal(mobileContentDomainSnapshot(state, scope, mutableLimits).playlists[0]!.playlist.trackCount, 1);
+});
+
+test('内容状态：每次可变编码独立，损坏导出字节不改变后续编码与历史原回执', () => {
+  const empty = initial(), input = albumInput(mobileContentDomainSnapshot(empty, scope, limits).favoritesRevision, true, 'bytes.original');
+  const first = applyMobileContentMutation(empty, input, { album }, { limits });
+  const exported = encodeMobileContentState(first.state, limits), expectedBytes = Uint8Array.from(exported);
+  const expectedReply = lookupMobileContentReceipt(decodeMobileContentState(expectedBytes, limits), input, limits);
+  // 自产模型的根、数组和回执正文也不能改写，资格复用才有稳定的数据边界。
+  assert.equal(Reflect.set(first.state, 'revision', 999), false);
+  assert.throws(() => first.state.domains.push(first.state.domains[0]!), TypeError);
+  assert.throws(() => first.state.domains[0]!.favorites.push(first.state.domains[0]!.favorites[0]!), TypeError);
+  assert.equal(Reflect.set(first.state.domains[0]!.favorites[0]!.album, 'title', '伪造标题'), false);
+  assert.throws(() => first.state.receipts.push(first.state.receipts[0]!), TypeError);
+  assert.equal(Reflect.set(first.state.receipts[0]!.reply, 'status', 201), false);
+  assert.equal(Reflect.set(first.state.receipts[0]!.reply.body, 'accountDomain', 'content.forged'), false);
+  assert.deepEqual(encodeMobileContentState(first.state, limits), expectedBytes);
+  assert.deepEqual(lookupMobileContentReceipt(first.state, input, limits), expectedReply);
+  const independent = encodeMobileContentState(first.state, limits);
+  exported.fill(0);
+  assert.deepEqual(independent, expectedBytes);
+  independent.fill(255);
+  assert.deepEqual(encodeMobileContentState(first.state, limits), expectedBytes);
+  assert.deepEqual(lookupMobileContentReceipt(first.state, input, limits), expectedReply);
+
+  const cancel = albumInput(mobileContentDomainSnapshot(first.state, scope, limits).favoritesRevision, false, 'bytes.cancel');
+  const later = applyMobileContentMutation(first.state, cancel, { album }, { limits });
+  const laterExport = encodeMobileContentState(later.state, limits), laterBytes = Uint8Array.from(laterExport);
+  laterExport.fill(0);
+  const replay = applyMobileContentMutation(later.state, input, {}, { limits });
+  assert.equal(replay.replayed, true); assert.equal(replay.changed, false);
+  assert.deepEqual(replay.reply, expectedReply);
+  assert.equal(mobileContentDomainSnapshot(replay.state, scope, limits).favorites.length, 0);
+  assert.deepEqual(encodeMobileContentState(replay.state, limits), laterBytes);
+  const cold = decodeMobileContentState(laterBytes, limits);
+  assert.deepEqual(lookupMobileContentReceipt(cold, input, limits), expectedReply);
+  assert.deepEqual(lookupMobileContentReceipt(cold, cancel, limits), later.reply);
 });

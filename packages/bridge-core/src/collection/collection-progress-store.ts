@@ -53,8 +53,9 @@ interface OperationContext {
   modelRevisions: Map<string, number>;
   models: Map<string, dto.CollectionModelLengths>;
   historicWants: Map<string, dto.WantEntry>;
+  historicMatchFacts: Map<string, string>;
 }
-const context = (db: DatabaseSync): OperationContext => ({ db, revisions: new Map(), heads: new Map(), modelRevisions: new Map(), models: new Map(), historicWants: new Map() });
+const context = (db: DatabaseSync): OperationContext => ({ db, revisions: new Map(), heads: new Map(), modelRevisions: new Map(), models: new Map(), historicWants: new Map(), historicMatchFacts: new Map() });
 const BATCH_IDS = 400; // 双参数UNION和(id,version)也保持在800个绑定参数内。
 function chunks<T>(values: readonly T[]): T[][] { const result: T[][] = []; for (let offset = 0; offset < values.length; offset += BATCH_IDS) result.push(values.slice(offset, offset + BATCH_IDS)); return result; }
 const placeholders = (count: number) => Array.from({ length: count }, () => '?').join(',');
@@ -185,10 +186,18 @@ function storedSnapshot(operation: OperationContext, id: string): StoredSnapshot
     const item = reference(operation, catalog.id, entry.referenceId)!;
     if (!same([entry.brand, entry.series, entry.model, entry.edition, entry.knownLengths], [item.brand, item.series, item.model, item.edition, item.lengths]) || !same(entry.wantedTargets, wanted.targets.get(entry.referenceId) ?? [])) return corrupt();
   }
-  const historicMatch = db.prepare('SELECT data FROM reference_catalog_snapshots WHERE revision_id=? AND match_version=?').get(catalog.id, summary.matchVersion);
-  if (!historicMatch || !same(parse(historicMatch.data, dto.isCatalogSnapshot).entries.flatMap(entry => entry.matches), stored.entries.flatMap(entry => entry.matches))) return corrupt();
+  const historicKey = canonical([catalog.id, summary.matchVersion]), cachedHistoricMatches = operation.historicMatchFacts.get(historicKey);
+  let historicMatches = cachedHistoricMatches;
+  if (historicMatches === undefined) {
+    const historicMatch = db.prepare('SELECT data FROM reference_catalog_snapshots WHERE revision_id=? AND match_version=?').get(catalog.id, summary.matchVersion);
+    if (!historicMatch) return corrupt();
+    historicMatches = canonical(parse(historicMatch.data, dto.isCatalogSnapshot).entries.flatMap(entry => entry.matches));
+  }
+  if (historicMatches !== canonical(stored.entries.flatMap(entry => entry.matches))) return corrupt();
   const { id: ignoredId, createdAt: ignoredAt, fingerprint: expected, ...body } = summary;
   if (fingerprint({ ...body, entries: stored.entries, wants }) !== expected) return corrupt();
+  // 首份候选完整核验后仅复用本操作的历史匹配事实；每份候选仍独立核验正文与指纹。
+  if (cachedHistoricMatches === undefined) operation.historicMatchFacts.set(historicKey, historicMatches);
   return stored;
 }
 

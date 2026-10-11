@@ -1,6 +1,9 @@
 # MusicBridge 开发待办
 
-2026-10-11 当前任务：MBM-004 内容与多设备本地软件验证已通过，精确源码 Gate、源码自然 CI 与直接报告待收口。唯一基线 479e746bb7106a4dac158fe616290220de03a53a，正式分支 codex/mbm-004-content-multidevice。十九内容接口沿原 Main 认证、Core、唯一 Owner 接线，保留 1.7.0 / 40 操作和旧资源/DSD边界。软件组合、首次自然CI、真实双端及Owner试用分别登记；004→016→017。MBRS-015已取消，原有效17任务/150验收不变。
+2026-10-11 当前任务：MBM-004 原 Source781 首次自然 CI 的 Core 180016ms 超时及 Electron 两项失败原件、旧本地证据完整保留。当前修复源码已通过 fresh136 三编译、四项类型检查、004组合333项（Core164/Main79/contracts6/Wave62/admission22）、另列收藏21项、完整标准4930项（4928通过、2个原条件skip）及173项CI负测。原001生产Main/HTTPS与070历史分页两项Electron各一次通过、无重试，保留500目录/25快照、8MiB响应和Owner 2s预算。上述均为本地受控软件证据；当前修复Source Gate、首次自然CI与直接报告仍待，真实App、服务/设备/音频及Owner试用未执行。唯一基线 479e746bb7106a4dac158fe616290220de03a53a，正式分支 codex/mbm-004-content-multidevice。十九内容接口沿原 Main 认证、Core、唯一 Owner 接线，保留 1.7.0 / 40 操作和旧资源/DSD边界。004→016→017，原18任务/156验收及取消015后有效17任务/150验收不变。
+
+后续集成顺序与范围（2026-10-11）：004源码/首次自然CI/直接报告封口 → Tape Source929与Report635原作者提交集成 → Feedback实现c9398af851d7b8ddebe83db049e643818eff7659/报告e2d17ad1c4d11756db75b24d91d2422c7e1fecbb完整交付集成（当前214项局部检查及600轨小例通过，35成功+2预期拒绝，300k仍待） → MBRS-016 → MBRS-017。Feedback仍待真实Owner/RPC/Worker、Main监督与私有错误封送、Preload及App/LocalLibraryView接线，完整CoverDrop原生CUE独立输出及编码、标签/命名/移动和同Owner原子Writer/journal、AI配置安全保险库、库管理与扫描设置；其提案/helper测试不等于实际接线或完整成品。相关参考为Feedback隔离工作树中的V39_ROUTE_AND_PAGE_INTEGRATION.md、V39_NATIVE_SETTINGS_INTEGRATION.md及V39_ATOMIC_WRITER_INTEGRATION.md，本次004产品提交不混入这些实现。
+
 
 本地库开发验证已关闭：实际应用显示61首，正常退出重开仍61首；未重扫、未播放，Owner试用保持独立。
 

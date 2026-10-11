@@ -167,15 +167,22 @@
     {
       "path": "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json",
       "status": "A",
-      "bytes": 368021,
-      "sha256": "abcf6535f8aa17ec4d1a216e41934703e92224a5bb210fc81af83d9eba1a6a50",
+      "bytes": 1204380,
+      "sha256": "3b0bcfd27f2dff84937f7c776d94c55372eff6faff7c8b191befe7a45fbf6f1c",
+      "role": "authority"
+    },
+    {
+      "path": "docs/postrust/MBM-004/SOURCE_CORRECTION.json",
+      "status": "A",
+      "bytes": 4010,
+      "sha256": "4c7da837a75ded9bcb164ca8c1c33a48bef69577cdae1fe11c5d0512a0521a5c",
       "role": "authority"
     },
     {
       "path": "docs/postrust/MBM-004/STATUS.json",
       "status": "A",
-      "bytes": 751,
-      "sha256": "aaf4d63464887ffe6c3fb05a39cee2dda3b6249d5f089e704534ccc394f4a9cf",
+      "bytes": 1018,
+      "sha256": "d3e6f87f030cf05d3e743f12866317288b5fc292f5f2f682296ef22eb0e2ba47",
       "role": "authority"
     },
     {
@@ -183,6 +190,13 @@
       "status": "M",
       "bytes": 150785,
       "sha256": "8e1e3f8cc8f5774ee9c09b08691e794fb86c33a2b0bf44a8539aae85e059b6f8",
+      "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/src/collection/collection-progress-store.ts",
+      "status": "M",
+      "bytes": 37310,
+      "sha256": "a293bef1501775af478597770632fa60e1082510cd9a30b0c9896a6808e18b2c",
       "role": "product"
     },
     {
@@ -307,8 +321,8 @@
     {
       "path": "packages/bridge-core/src/mobile/content-state.ts",
       "status": "A",
-      "bytes": 25175,
-      "sha256": "f7ee958a361369ee2fddb0ffd148b974400b674ef020e58872fb3354c1c6ecf2",
+      "bytes": 26158,
+      "sha256": "afbd638a4799ce8f4c4538776bfbec9900d27c00b486fe5250d5fb3e5d94326d",
       "role": "product"
     },
     {
@@ -440,8 +454,8 @@
     {
       "path": "packages/bridge-core/src/runtime.ts",
       "status": "M",
-      "bytes": 102308,
-      "sha256": "9c79a61aed57cc06f9402d318c285f1774118949ddee506318c8d3cbec1b3be8",
+      "bytes": 103348,
+      "sha256": "fa8e446821b69718636ffae019703feeebe879467c39e850684c3f033839158c",
       "role": "product"
     },
     {
@@ -464,6 +478,13 @@
       "bytes": 53182,
       "sha256": "5fbed878e812f32f351a561d6c15f4590cd1436f35eb175e23337d52c442c6b2",
       "role": "product"
+    },
+    {
+      "path": "packages/bridge-core/test/collection-progress-store.test.ts",
+      "status": "M",
+      "bytes": 57135,
+      "sha256": "24bd1a3f60c6a9e21e8ff9397636930f3de292b756c7c1cff6afadf5c456b42e",
+      "role": "test"
     },
     {
       "path": "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
@@ -545,8 +566,8 @@
     {
       "path": "packages/bridge-core/test/mbm004/content-runtime.test.ts",
       "status": "A",
-      "bytes": 18656,
-      "sha256": "725d181f4a01652ef0ce72fef094c99679d779997395cbe6d829a52ea3571d52",
+      "bytes": 27103,
+      "sha256": "e15e704e81f61189e204a119cb7ab40920051fcf8a1b4e3bea60734b5304e8c0",
       "role": "test"
     },
     {
@@ -559,8 +580,8 @@
     {
       "path": "packages/bridge-core/test/mbm004/content-state.test.ts",
       "status": "A",
-      "bytes": 14651,
-      "sha256": "6384573e19878056284e567c1385df82453ecddf39d242a961bceb00082bcb24",
+      "bytes": 23059,
+      "sha256": "b55495c28acf95c6c474e90a5e57f51425e6bc5a8af99c0183fcc8c49bc45481",
       "role": "test"
     },
     {
@@ -699,50 +720,50 @@
     {
       "path": "project/POSTRUST_PLAN.json",
       "status": "M",
-      "bytes": 2119825,
-      "sha256": "16fb2eb8be772fcd412d03b7f609b652fe24f946147eb1b2ef70095f94c496c8",
+      "bytes": 2119960,
+      "sha256": "c3662efbc6320e606269bbc3311df377d8fd045ae98705cacdb77063a9f5997a",
       "role": "metadata"
     },
     {
       "path": "project/POSTRUST_PROGRESS.md",
       "status": "M",
-      "bytes": 120095,
-      "sha256": "9733fd388a90a93ac3bffcb3b274fa54dd9f525cffbb8e76ca6d5a4c83e13e9c",
+      "bytes": 120577,
+      "sha256": "18aa4a3a3ae8f52738195d6f2c8327773793d3c680c7058c9f25d396429556d9",
       "role": "metadata"
     },
     {
       "path": "project/POSTRUST_TODO.md",
       "status": "M",
-      "bytes": 32889,
-      "sha256": "24c45edf72b2892c0568f37846ece2c018da326de03bbd992a6d06ce179bdfc9",
+      "bytes": 34282,
+      "sha256": "0da971ff9721756b1543ae2d2a1737f78cbf091197f36d5207b79968d1026483",
       "role": "metadata"
     },
     {
       "path": "project/STATUS.json",
       "status": "M",
-      "bytes": 2644592,
-      "sha256": "77da08f15e1c5e1781bc044931a5cc6c692d61fbc57a08c14c045052a4b17f05",
+      "bytes": 2645013,
+      "sha256": "44742749114ab9841d76f08d78f809a96840f73e9065ba7f507d5a63dc067e2c",
       "role": "metadata"
     },
     {
       "path": "scripts/ci/mbm004-admission.mjs",
       "status": "A",
-      "bytes": 15876,
-      "sha256": "955e26c40edc085e50dea1f90aef3e34b87bfdcd63c1cb30d1526723b1b68a96",
+      "bytes": 27007,
+      "sha256": "a66bc186425f9dc628267e3700460165bfb103c98317c53bd5ce6f4ef70785ea",
       "role": "gate"
     },
     {
       "path": "scripts/ci/report-only-admission.mjs",
       "status": "M",
-      "bytes": 28606,
-      "sha256": "e68432275b85c29ef92bca4cef61104357d9300ec3cc1182971085b338e9889f",
+      "bytes": 28993,
+      "sha256": "9d60eaae3605005cc577c0d769de91ff232ceafdc46dc6ae239190fbae34def5",
       "role": "gate"
     },
     {
       "path": "scripts/ci/report-only-mbm004.mjs",
       "status": "A",
-      "bytes": 7707,
-      "sha256": "cf3499d7aaa6729565257c745085a3d5e40a1d7d8f28397c2c7c96ba7d281e74",
+      "bytes": 8515,
+      "sha256": "d9fb2cfaef39706114d4331f997a31198cbf15a02ca47680a514b4dfb180ed40",
       "role": "gate"
     },
     {
@@ -755,15 +776,15 @@
     {
       "path": "scripts/ci/test/mbm004-admission.test.mjs",
       "status": "A",
-      "bytes": 7773,
-      "sha256": "22513d7e4db8b6da3ca7e5a7cc468cef90a0badaa707d28d6b37762170cd13dd",
+      "bytes": 12905,
+      "sha256": "7cbbf7dfc903435544b147edc8c06a33cc298ba55e73f2a21199346c741ce8a4",
       "role": "test"
     },
     {
       "path": "scripts/ci/test/mbm004-report-only.test.mjs",
       "status": "A",
-      "bytes": 6241,
-      "sha256": "b2e4fe323013ae38b7459fa5e859e3cc1b0482e01864382d8117f658db746c70",
+      "bytes": 14166,
+      "sha256": "693fae146a93cdeabfe265dcc2b125046d171ae3fb782b72c1f1733c3b04f689",
       "role": "test"
     },
     {
@@ -777,7 +798,7 @@
       "path": "scripts/ci/verify-mbm004-content.mjs",
       "status": "A",
       "bytes": 7962,
-      "sha256": "b4ab9023b36c80f5eaa2c67c4675ce6955434004570359a651945502db9f1ca6",
+      "sha256": "c172592276eb927ba17f38a88ee346d9fbd9526db65741dd416520e77f759c51",
       "role": "gate"
     },
     {
@@ -790,9 +811,10 @@
     {
       "path": "tasks/MBM-004_CONTENT_MULTIDEVICE.md",
       "status": "A",
-      "bytes": 4756,
-      "sha256": "fee84281258635c568616427cea1875aa72b14b7e8c7d28f6baf34670668e221",
+      "bytes": 6463,
+      "sha256": "f3224b87b3e1f20755b8e98c052edd3d390572d6c6df45b110d71dc506f12cdf",
       "role": "authority"
     }
-  ]
+  ],
+  "sourceCorrection": "docs/postrust/MBM-004/SOURCE_CORRECTION.json"
 }

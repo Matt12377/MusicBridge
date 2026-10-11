@@ -2,7 +2,7 @@
   "currentMobileContentTask": "MBM-004",
   "mobileContentMultidevice": {
     "task": "MBM-004",
-    "state": "SOURCE_LOCAL_SOFTWARE_VALIDATED_GATE_CI_PENDING",
+    "state": "CORRECTION_LOCAL_SOFTWARE_VALIDATED_SOURCE_GATE_CI_PENDING",
     "branch": "codex/mbm-004-content-multidevice",
     "baseSha": "479e746bb7106a4dac158fe616290220de03a53a",
     "scope": "docs/postrust/MBM-004/EXECUTION_SCOPE.json",
@@ -15,8 +15,8 @@
     "implementationCommit": null,
     "reportCommit": null,
     "report": null,
-    "ci": "NOT_RUN",
-    "push": "NOT_RUN",
+    "ci": "SOURCE781_CORE_AND_ELECTRON_FAILED_CORRECTION_SOURCE_FIRST_NATURAL_CI_NOT_RUN",
+    "push": "SOURCE781_REMOTE_PRESERVED_CORRECTION_SOURCE_UNCOMMITTED",
     "nextTask": "MBRS-016",
     "canonicalVersion": "1.7.0",
     "canonicalOperations": 40,
@@ -34,7 +34,9 @@
       "ownerAcceptance": false,
       "historicalSignedStatSnapshotPreserved": true
     },
-    "evidence": "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json"
+    "evidence": "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json",
+    "sourceCorrection": "docs/postrust/MBM-004/SOURCE_CORRECTION.json",
+    "predecessorSource": "78184e7849cc3b10191ea64af29ba8bc23162b0a"
   },
   "mbm004Policy": {
     "ownerInstruction": "把推送远端仓库改成关键节点推送，不用频繁推送",
@@ -48016,7 +48018,7 @@
     "nextBranchBaseline": "ACTUAL_FINAL_SEALED_REPORT_HEAD"
   },
   "mobileFrontloading20261008": {
-    "state": "MBM004_SOFTWARE_VALIDATED_REAL_CARRYOVER_OPEN",
+    "state": "MBM004_CORRECTION_SOFTWARE_VALIDATED_REAL_CARRYOVER_OPEN",
     "plan": "docs/postrust/MOBILE_FRONTLOADING_PLAN_2026-10-08.md",
     "schedulingSupplement": "docs/postrust/MBRS-013/SCHEDULING_SUPPLEMENT_MOBILE_FRONTLOADING.json",
     "currentTask": "MBM-004",
@@ -48250,8 +48252,10 @@
         "branch": "codex/mbm-004-content-multidevice",
         "remote_push_policy": "MILESTONE_ONLY",
         "evidence_refs": [
-          "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json"
-        ]
+          "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json",
+          "docs/postrust/MBM-004/SOURCE_CORRECTION.json"
+        ],
+        "source_correction_ref": "docs/postrust/MBM-004/SOURCE_CORRECTION.json"
       }
     ],
     "recordedAt": "2026-10-10T23:53:34.565844+00:00"

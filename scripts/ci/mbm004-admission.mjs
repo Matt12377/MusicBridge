@@ -10,6 +10,52 @@ export const MBM004_BRANCH = 'codex/mbm-004-content-multidevice';
 export const MBM004_BASE = '479e746bb7106a4dac158fe616290220de03a53a';
 export const MBM004_SCOPE_PATH = 'docs/postrust/MBM-004/EXECUTION_SCOPE.json';
 export const MBM004_STATUS_PATH = 'docs/postrust/MBM-004/STATUS.json';
+export const MBM004_CORRECTION_PATH = 'docs/postrust/MBM-004/SOURCE_CORRECTION.json';
+export const MBM004_PREDECESSOR_SOURCE = '78184e7849cc3b10191ea64af29ba8bc23162b0a';
+const correctionPaths = ['packages/bridge-core/src/mobile/content-state.ts',
+  'packages/bridge-core/test/mbm004/content-state.test.ts',
+  'packages/bridge-core/src/runtime.ts', 'packages/bridge-core/test/mbm004/content-runtime.test.ts',
+  'packages/bridge-core/src/collection/collection-progress-store.ts',
+  'packages/bridge-core/test/collection-progress-store.test.ts', 'scripts/ci/mbm004-admission.mjs',
+  'scripts/ci/test/mbm004-admission.test.mjs', 'scripts/ci/verify-mbm004-content.mjs',
+  'scripts/ci/report-only-admission.mjs', 'scripts/ci/report-only-mbm004.mjs',
+  'scripts/ci/test/mbm004-report-only.test.mjs',
+  'tasks/MBM-004_CONTENT_MULTIDEVICE.md', 'docs/postrust/MBM-004/STATUS.json',
+  'docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json', 'project/STATUS.json',
+  'project/POSTRUST_PLAN.json', 'project/POSTRUST_TODO.md', 'project/POSTRUST_PROGRESS.md'];
+export const MBM004_CORRECTION_IDENTITY = Object.freeze({
+  schema: 'musicbridge.mbm004.source-correction.v1', task: 'MBM-004', baseSha: MBM004_BASE,
+  predecessorSource: MBM004_PREDECESSOR_SOURCE,
+  predecessorScope: Object.freeze({ path: MBM004_SCOPE_PATH, bytes: 26114,
+    sha256: 'bbabf58b0c8898cc786eb7f312873e4c66271c5788d6d85b672ed914d5a0f8f5' }),
+  failure: Object.freeze({ repositoryId: 1340424953, runId: 38104035956, runAttempt: 1, event: 'push',
+    jobId: 114365640039, artifactId: 11689635522, artifactBytes: 90379222,
+    artifactSha256: '95e418182aa91e782d1207b5314544ecada00a0f10692c9543ad816ddd0b0a1d',
+    stage: 'core-content-behavior', stageLimitMs: 180000, elapsedMs: 180016, exitCode: null,
+    signal: 'SIGKILL', timeout: true, overflow: false, cleanupFailed: false, passed: false,
+    expectedTests: 159, counts: null, stageJsonBytes: 448,
+    stageJsonSha256: '08f42d9c86bda1cbf4ee1c0137a585b6fe9f89ece1590f05485cade46e7e2108',
+    rawBytes: 20998, rawSha256: 'b650470b1f4673a6c1a8fe3e3db8c570311fa45f744522a12a9b63c660abad52' }),
+  electronFailure: Object.freeze({ repositoryId: 1340424953, runId: 38104035996, runAttempt: 1, event: 'push',
+    jobId: 114365640485, artifactId: 11690078116, artifactBytes: 503958596,
+    artifactSha256: 'df4036d655e31c4d919941447a935331b5e7931bd8f1724b528af76031ba1a88',
+    conclusion: 'failure', startupCrashSafeStorageRecovery: 'success',
+    passedTests: 109, failedTests: 2, skippedTests: 5,
+    wholeJobLogBytes: 191806, wholeJobLogSha256: '709677a8b8c597e832fd7bbbf2c688ea8ffe6eb1ab90bb6623ca0b64214bcd2b',
+    mobileFailure: 'AUTHENTICATED_CAPABILITIES_STAGE_TEST_RUNTIME_CONTENT_PORT_MISSING',
+    collectionFailure: 'SNAPSHOT_HISTORY_PAGE_TIMEOUT',
+    mobileFailureCapture: Object.freeze({ entry: 'musicbridge-electron/tmp/mbm001-mobile-connection-hw934x/failure.json',
+      bytes: 6278, sha256: 'e08459903a3713f661653a9dd109f16b7f012d31e553e86b1af845272704d924',
+      stage: '有鉴权空目录与闭集能力', lastOperation: 'getCapabilities', lastLabel: 'capabilities-A', lastStatus: 503,
+      retries: 0, credentialsArchived: false, wholeResponseBodiesArchived: false }),
+    collectionFailureContext: Object.freeze({ entry: 'musicbridge-electron/results/task-070-V3完成度：合法大目录历史按响应字节预算分页，完整分组与全部快照均可到达/error-context.md',
+      bytes: 29113, sha256: 'c68096b0f50ce78362e043c42242f434afb2a93797635803950614d27b616e56' }),
+    artifactFailureCapture: 'WHOLE_FAILURE_MEMBERS_AND_ZIP_DIGEST_REQUIRED_BEFORE_SOURCE_FREEZE' }),
+  repairKind: 'CONTENT_STATE_QUALIFICATION_OFFLINE_RUNTIME_AND_REQUEST_LOCAL_HISTORY_REUSE',
+  repairPaths: Object.freeze(correctionPaths),
+  budgetPolicy: 'UNCHANGED_180000_STAGE_480000_WHOLE',
+  currentEvidence: 'REQUIRED_FRESH_SOURCE_GATE_AND_FIRST_NATURAL_CI', realEvidence: 'NOT_RUN',
+});
 export const MBM004_CANONICAL = Object.freeze({ path: 'packages/contracts/mobile/openapi.json', bytes: 147445,
   sha256: '3deaa9e238f24b7062945efacc775b604a60a5652b837b8c46378f0b89eeec21' });
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -40,6 +86,11 @@ const localFormatTests = new Set(['packages/bridge-core/test/local-library-wave-
   'packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts',
   'packages/bridge-core/test/mbrs005/config-integration.test.ts', 'packages/bridge-core/test/mbrs006/owner-worker.ts',
   'packages/bridge-core/test/mbrs007/queue-worker.ts', 'packages/bridge-core/test/mbrs003/persistent-scan-owner.test.ts']);
+const collectionCorrectionRows = Object.freeze([
+  Object.freeze({ path: 'packages/bridge-core/src/collection/collection-progress-store.ts', status: 'M', role: 'product' }),
+  Object.freeze({ path: 'packages/bridge-core/test/collection-progress-store.test.ts', status: 'M', role: 'test' }),
+  Object.freeze({ path: MBM004_CORRECTION_PATH, status: 'A', role: 'authority' }),
+]);
 const sharedCi = new Set(['.github/workflows/verify.yml', 'scripts/ci/task-applicability.mjs', 'scripts/ci/report-only-admission.mjs',
   'scripts/ci/test/tape-catalog-common-admission.test.mjs']);
 const sha = value => typeof value === 'string' && /^[a-f0-9]{40}$/u.test(value);
@@ -57,8 +108,25 @@ function parse(bytes) {
   try { return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes)); }
   catch { fail('MBM004_JSON_INVALID'); }
 }
+/** 只接受已实读失败的781这一条修复链，不给任意父提交或重跑签发资格。 */
+export function validateMbm004Correction(value) {
+  if (!equal(value, MBM004_CORRECTION_IDENTITY)) fail('MBM004_SOURCE_CORRECTION_IDENTITY_CHANGED');
+  return value;
+}
+export function assertMbm004SourceLineage({ head, parents, correction = null, predecessorParents = null }) {
+  if (!sha(head) || !Array.isArray(parents) || parents.length !== 2 || parents[0] !== head) fail('MBM004_SOURCE_DIRECT_PARENT_REQUIRED');
+  if (correction === null) {
+    if (head !== MBM004_PREDECESSOR_SOURCE || parents[1] !== MBM004_BASE) fail('MBM004_SOURCE_DIRECT_PARENT_REQUIRED');
+  } else {
+    validateMbm004Correction(correction);
+    if (head === MBM004_PREDECESSOR_SOURCE || parents[1] !== MBM004_PREDECESSOR_SOURCE
+      || !equal(predecessorParents, [MBM004_PREDECESSOR_SOURCE, MBM004_BASE])) fail('MBM004_SOURCE_CORRECTION_PARENT_CHANGED');
+  }
+  return true;
+}
 function allowed(file) {
   return metadata.includes(file) || sharedProducts.has(file) || sharedCi.has(file) || localFormatTests.has(file)
+    || collectionCorrectionRows.some(row => row.path === file)
     || file === 'tasks/MBM-004_CONTENT_MULTIDEVICE.md' || file === 'tasks/00_TASK_INDEX.md'
     || /^docs\/postrust\/MBM-004\/[A-Z0-9_]+\.(?:json|md)$/u.test(file)
     || /^packages\/bridge-core\/src\/mobile\/(?:content-[a-z-]+|owner-content-protocol|netease-[a-z-]+)\.ts$/u.test(file)
@@ -94,7 +162,24 @@ export function validateMbm004Scope(scope) {
     'apps/desktop/src/main/mobile-content-port.ts', 'apps/desktop/src/main/mobile-https-server.ts',
     'scripts/ci/verify-mbm004-content.mjs', MBM004_STATUS_PATH, ...metadata]) if (!paths.has(file)) fail('MBM004_SCOPE_REQUIRED_FILE_MISSING');
   if (paths.has(MBM004_SCOPE_PATH)) fail('MBM004_SCOPE_SELF_PIN_FORBIDDEN');
+  if (Object.hasOwn(scope, 'sourceCorrection')
+    ? scope.sourceCorrection !== MBM004_CORRECTION_PATH || !scope.files.some(row => row.path === MBM004_CORRECTION_PATH && row.role === 'authority')
+    : paths.has(MBM004_CORRECTION_PATH)) fail('MBM004_SOURCE_CORRECTION_SCOPE_CHANGED');
   return scope;
+}
+/** 纯范围比较不签发准入；原111行的身份与角色全部保留，新三行逐项固定。 */
+export function assertMbm004CorrectionScope(predecessorScope, scope) {
+  validateMbm004Scope(predecessorScope); validateMbm004Scope(scope);
+  if (Object.hasOwn(predecessorScope, 'sourceCorrection') || scope.sourceCorrection !== MBM004_CORRECTION_PATH)
+    fail('MBM004_SOURCE_CORRECTION_SCOPE_CHANGED');
+  const expected = predecessorScope.files.map(({ path, status, role }) => ({ path, status, role }));
+  if (collectionCorrectionRows.some(row => expected.some(old => old.path === row.path)))
+    fail('MBM004_SOURCE_CORRECTION_PREDECESSOR_PATHS_CHANGED');
+  expected.push(...collectionCorrectionRows);
+  const actual = scope.files.map(({ path, status, role }) => ({ path, status, role }));
+  if (!equal(expected.sort((a,b) => a.path.localeCompare(b.path)), actual.sort((a,b) => a.path.localeCompare(b.path))))
+    fail('MBM004_SOURCE_CORRECTION_SCOPE_CHANGED');
+  return true;
 }
 export function assertMbm004Metadata(status, plan) {
   const authority = status?.mobileContentMultidevice, lane = status?.mobileFrontloading20261008;
@@ -137,7 +222,7 @@ export function mbm004WorkflowOutputs(result) {
   return { task: MBM004_TASK, mobileTask: MBM004_TASK, legacyGateMode: 'reuse-frozen',
     localLibraryFixTask: 'not-applicable', combinedGateMode: 'not-applicable', contentTask: MBM004_TASK };
 }
-export function inspectMbm004Admission(directory = root, env = process.env) {
+function currentMbm004Git(directory, env) {
   if (!path.isAbsolute(directory) || realpathSync(directory) !== directory) fail('MBM004_ROOT_INVALID');
   const environment = Object.fromEntries(Object.entries(env).filter(([key]) => !key.startsWith('GIT_')));
   Object.assign(environment, { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' });
@@ -151,32 +236,105 @@ export function inspectMbm004Admission(directory = root, env = process.env) {
     || text(['replace', '-l']) || text(['status', '--porcelain=v1', '--untracked-files=all'])) fail('MBM004_GIT_STATE_INVALID');
   const common = text(['rev-parse', '--path-format=absolute', '--git-common-dir']);
   for (const file of ['objects/info/alternates', 'info/grafts', 'shallow']) if (existsSync(path.join(common, file))) fail('MBM004_GIT_OVERLAY_FORBIDDEN');
-  const record = parse(readLocalLibraryFixWhole(path.join(directory, MBM004_STATUS_PATH)));
+  return { git, text, head, branch };
+}
+function nameStatus(git, from, to) {
+  const raw = git(['diff', '--name-status', '-z', '--no-renames', '--no-ext-diff', '--no-textconv', from, to]);
+  const parts = raw.toString('utf8').split('\0');
+  if (parts.pop() !== '' || parts.length % 2 !== 0) fail('MBM004_SOURCE_PATH_SET_CHANGED');
+  const rows = [];
+  for (let index = 0; index < parts.length; index += 2) rows.push([parts[index], parts[index + 1]]);
+  return rows;
+}
+const samePaths = (left, right) => equal(left.sort((a,b) => a[1].localeCompare(b[1])), right.sort((a,b) => a[1].localeCompare(b[1])));
+// 私有对象核验由当前真实 Git 派生 Source；报告不创建临时 checkout 或伪准入输出。
+function sourceGitObject(git, text, head) {
+  const record = parse(git(['show', head + ':' + MBM004_STATUS_PATH]));
   if (record.task !== MBM004_TASK || record.baseSha !== MBM004_BASE || record.branch !== MBM004_BRANCH) fail('MBM004_TASK_RECORD_INVALID');
-  const scopeBytes = readLocalLibraryFixWhole(path.join(directory, MBM004_SCOPE_PATH));
+  const scopeBytes = git(['show', head + ':' + MBM004_SCOPE_PATH]);
   const scope = validateMbm004Scope(parse(scopeBytes));
-  const status = parse(readLocalLibraryFixWhole(path.join(directory, metadata[0]))), plan = parse(readLocalLibraryFixWhole(path.join(directory, metadata[1])));
+  const status = parse(git(['show', head + ':' + metadata[0]])), plan = parse(git(['show', head + ':' + metadata[1]]));
   assertMbm004Metadata(status, plan);
   assertMbm004PredecessorMetadata(parse(git(['show', MBM004_BASE + ':' + metadata[0]])), status,
     parse(git(['show', MBM004_BASE + ':' + metadata[1]])), plan);
   const parents = text(['rev-list', '--parents', '-n', '1', head]).split(' ');
-  if (parents.length !== 2 || parents[1] !== MBM004_BASE) fail('MBM004_SOURCE_DIRECT_PARENT_REQUIRED');
-  const diff = text(['diff', '--name-status', '--no-renames', MBM004_BASE, head]).split('\n').map(line => line.split('\t'));
+  let correction = null;
+  if (scope.sourceCorrection) {
+    correction = validateMbm004Correction(parse(git(['show', head + ':' + MBM004_CORRECTION_PATH])));
+    const predecessorParents = text(['rev-list', '--parents', '-n', '1', MBM004_PREDECESSOR_SOURCE]).split(' ');
+    assertMbm004SourceLineage({ head, parents, correction, predecessorParents });
+    const oldBytes = git(['show', MBM004_PREDECESSOR_SOURCE + ':' + MBM004_SCOPE_PATH]);
+    if (oldBytes.length !== correction.predecessorScope.bytes || digest(oldBytes) !== correction.predecessorScope.sha256)
+      fail('MBM004_SOURCE_CORRECTION_PREDECESSOR_SCOPE_CHANGED');
+    const oldScope = validateMbm004Scope(parse(oldBytes));
+    if (oldScope.sourceCorrection !== undefined || oldScope.files.length !== 111) fail('MBM004_SOURCE_CORRECTION_PREDECESSOR_SCOPE_CHANGED');
+    assertMbm004CorrectionScope(oldScope, scope);
+    const oldDiff = nameStatus(git, MBM004_BASE, MBM004_PREDECESSOR_SOURCE);
+    const oldExpected = oldScope.files.map(row => [row.status, row.path]).concat([['A', MBM004_SCOPE_PATH]]);
+    if (!samePaths(oldDiff, oldExpected))
+      fail('MBM004_SOURCE_CORRECTION_PREDECESSOR_PATHS_CHANGED');
+    for (const row of oldScope.files) {
+      const bytes = git(['show', MBM004_PREDECESSOR_SOURCE + ':' + row.path]);
+      if (bytes.length !== row.bytes || digest(bytes) !== row.sha256
+        || text(['ls-tree', MBM004_PREDECESSOR_SOURCE, '--', row.path]).split(' ')[0] !== '100644')
+        fail('MBM004_SOURCE_CORRECTION_PREDECESSOR_PIN_CHANGED');
+    }
+    const repairDiff = nameStatus(git, MBM004_PREDECESSOR_SOURCE, head);
+    const repairExpected = correction.repairPaths.map(file => ['M', file])
+      .concat([['A', MBM004_CORRECTION_PATH], ['M', MBM004_SCOPE_PATH]]);
+    if (!samePaths(repairDiff, repairExpected))
+      fail('MBM004_SOURCE_CORRECTION_PATH_SET_CHANGED');
+  } else assertMbm004SourceLineage({ head, parents });
+  const diff = nameStatus(git, MBM004_BASE, head);
   const expected = scope.files.map(row => [row.status, row.path]).concat([['A', MBM004_SCOPE_PATH]]);
-  if (!equal(diff.sort((a, b) => a[1].localeCompare(b[1])), expected.sort((a, b) => a[1].localeCompare(b[1])))) fail('MBM004_SOURCE_PATH_SET_CHANGED');
+  if (!samePaths(diff, expected)) fail('MBM004_SOURCE_PATH_SET_CHANGED');
+  for (const row of scope.files) {
+    const bytes = git(['show', head + ':' + row.path]);
+    if (bytes.length !== row.bytes || digest(bytes) !== row.sha256
+      || text(['ls-tree', head, '--', row.path]).split(' ')[0] !== '100644') fail('MBM004_FILE_PIN_CHANGED');
+  }
+  const canonicalBytes = git(['show', head + ':' + MBM004_CANONICAL.path]);
+  if (canonicalBytes.length !== MBM004_CANONICAL.bytes || digest(canonicalBytes) !== MBM004_CANONICAL.sha256
+    || !git(['show', MBM004_BASE + ':' + MBM004_CANONICAL.path]).equals(canonicalBytes)) fail('MBM004_CANONICAL_CHANGED');
+  return { scope, scopeBytes, correction, canonicalBytes };
+}
+function assertGitStillCurrent(text, head) {
+  if (text(['rev-parse', 'HEAD']) !== head || text(['status', '--porcelain=v1', '--untracked-files=all'])) fail('MBM004_ADMISSION_DRIFT');
+}
+/** 报告唯一父由当前真实HEAD派生；完整核其Source对象，不给自由SHA或伪父列表降门禁。 */
+export function assertMbm004ReportSource(directory, env = process.env) {
+  const { git, text, head } = currentMbm004Git(directory, env);
+  const parents = text(['rev-list', '--parents', '-n', '1', head]).split(' ');
+  if (parents.length !== 2 || parents[0] !== head) fail('MBM004_REPORT_DIRECT_PARENT_REQUIRED');
+  const parent = parents[1], source = sourceGitObject(git, text, parent);
+  const scopeBytes = readLocalLibraryFixWhole(path.join(directory, MBM004_SCOPE_PATH));
+  if (!scopeBytes.equals(source.scopeBytes) || !git(['show', head + ':' + MBM004_SCOPE_PATH]).equals(source.scopeBytes))
+    fail('MBM004_REPORT_SOURCE_SCOPE_CHANGED');
+  if (source.correction) {
+    const bytes = git(['show', parent + ':' + MBM004_CORRECTION_PATH]);
+    if (!readLocalLibraryFixWhole(path.join(directory, MBM004_CORRECTION_PATH)).equals(bytes)
+      || !git(['show', head + ':' + MBM004_CORRECTION_PATH]).equals(bytes)
+      || text(['ls-tree', head, '--', MBM004_CORRECTION_PATH]).split(' ')[0] !== '100644')
+      fail('MBM004_REPORT_SOURCE_CORRECTION_CHANGED');
+  }
+  assertGitStillCurrent(text, head);
+  return Object.freeze({ reportSha: head, parentSourceSha: parent, scopeSha256: digest(source.scopeBytes),
+    exactFiles: source.scope.files.length, currentSourceCiRequired: true });
+}
+export function inspectMbm004Admission(directory = root, env = process.env) {
+  const { git, text, head, branch } = currentMbm004Git(directory, env);
+  const { scope, scopeBytes, correction, canonicalBytes } = sourceGitObject(git, text, head);
   for (const row of scope.files) {
     const file = path.join(directory, row.path), bytes = readLocalLibraryFixWhole(file);
     if (lstatSync(file).isSymbolicLink() || bytes.length !== row.bytes || digest(bytes) !== row.sha256
-      || !git(['show', head + ':' + row.path]).equals(bytes)
-      || text(['ls-tree', head, '--', row.path]).split(' ')[0] !== '100644') fail('MBM004_FILE_PIN_CHANGED');
+      || !git(['show', head + ':' + row.path]).equals(bytes)) fail('MBM004_FILE_PIN_CHANGED');
   }
-  const canonicalBytes = readLocalLibraryFixWhole(path.join(directory, MBM004_CANONICAL.path));
-  if (canonicalBytes.length !== MBM004_CANONICAL.bytes || digest(canonicalBytes) !== MBM004_CANONICAL.sha256
-    || !git(['show', MBM004_BASE + ':' + MBM004_CANONICAL.path]).equals(canonicalBytes)) fail('MBM004_CANONICAL_CHANGED');
-  if (!git(['show', head + ':' + MBM004_SCOPE_PATH]).equals(scopeBytes) || text(['rev-parse', 'HEAD']) !== head
-    || text(['status', '--porcelain=v1', '--untracked-files=all'])) fail('MBM004_ADMISSION_DRIFT');
+  if (!readLocalLibraryFixWhole(path.join(directory, MBM004_CANONICAL.path)).equals(canonicalBytes)
+    || !readLocalLibraryFixWhole(path.join(directory, MBM004_SCOPE_PATH)).equals(scopeBytes)) fail('MBM004_ADMISSION_DRIFT');
+  assertGitStillCurrent(text, head);
   const result = Object.freeze({ schema: 'musicbridge.mbm004.admission.v1', task: MBM004_TASK, branch,
     baseSha: MBM004_BASE, headAtAdmission: head, scopeSha256: digest(scopeBytes), exactFiles: scope.files.length,
+    ...(correction ? { predecessorSource: correction.predecessorSource, sourceCorrection: MBM004_CORRECTION_PATH } : {}),
     oldGateEvidenceReused: true, currentSoftwareGateRequired: true, currentAppDeviceOwnerProven: false });
   accepted.add(result); return result;
 }

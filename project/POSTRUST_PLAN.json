@@ -36328,8 +36328,10 @@
       "branch": "codex/mbm-004-content-multidevice",
       "remote_push_policy": "MILESTONE_ONLY",
       "evidence_refs": [
-        "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json"
-      ]
+        "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json",
+        "docs/postrust/MBM-004/SOURCE_CORRECTION.json"
+      ],
+      "source_correction_ref": "docs/postrust/MBM-004/SOURCE_CORRECTION.json"
     }
   ]
 }

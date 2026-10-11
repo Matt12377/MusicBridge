@@ -5,9 +5,12 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { MOBILE_OPERATION_TABLE, type MobileRequestMap, type MobileTrack } from '@music-bridge/contracts';
 import { createMobileContentRuntime } from '../../src/mobile/content-runtime.js';
+import { createTestBridgeRuntime } from '../../src/runtime.js';
+import { attachCoreRuntimePort, type UtilityPort } from '../../src/utility-main.js';
+import type { DatasetOwnerEndpoint } from '../../src/collection/dataset-owner-protocol.js';
 import { captureMobileContentRequest } from '../../src/mobile/content-protocol.js';
 import type { MobileContentScope, MobileContentOperation } from '../../src/mobile/content-types.js';
-import type { MobileContentCoreRequest, MobileContentCoreResponse } from '../../src/mobile/content-rpc.js';
+import { captureMobileContentCoreResponse, type MobileContentCoreRequest, type MobileContentCoreResponse } from '../../src/mobile/content-rpc.js';
 import type { NeteaseMobileReadPort } from '../../src/netease/types.js';
 import type { GatewayFetch } from '../../src/stream/upstream-policy.js';
 import { MobileServiceError } from '../../src/mobile/types.js';
@@ -194,4 +197,122 @@ test('网易云歌单发送前核精确来源，历史可播放结果阻断而�
     assert.equal(stale.status,409);assert.equal(stale.code,'SOURCE_CHANGED');}
   const prior=providerCalls;assert.deepEqual((await f.dispatch('createPersonalPlaylist',scope,input)).reply,committed.reply);
   assert.equal(providerCalls,prior);assert.deepEqual(await readFile(file),persisted);
+});
+
+/** 仅传输受控；实际utility路由、Runtime、Content actor与原Owner均参与。 */
+class ContentUtilityPort implements UtilityPort {
+  private listener?: (event: { data: unknown }) => void;
+  private pending = new Map<string, (message: unknown) => void>();
+  on(_event: 'message', listener: (event: { data: unknown }) => void) { this.listener = listener; }
+  start() {}
+  postMessage(message: unknown) {
+    if (!message || typeof message !== 'object') return;
+    const id = Object.getOwnPropertyDescriptor(message, 'id')?.value;
+    if (typeof id !== 'string') return;
+    this.pending.get(id)?.(message); this.pending.delete(id);
+  }
+  async request(request: MobileContentCoreRequest): Promise<MobileContentCoreResponse> {
+    assert.ok(this.listener, '实际utility路由必须先挂载。');
+    const response = new Promise<unknown>(resolve => this.pending.set(request.id, resolve));
+    this.listener({ data: request });
+    return captureMobileContentCoreResponse(await response, request);
+  }
+}
+
+test('离线Bridge经实际utility路由读取原Owner内容，合成授权不赋予网易云能力', async t => {
+  const owner = await makeContentRuntimeOwnerFixture(t), key = new Uint8Array(randomBytes(32));
+  const runtime = createTestBridgeRuntime({ datasetOwnerEndpoint: owner.ownerEndpoint, authorized: true });
+  t.after(async () => { try { await runtime.shutdown(); } finally { key.fill(0); } });
+  const port = new ContentUtilityPort();
+  const initialize = (): MobileContentCoreRequest => ({ ...base(), action: 'initialize', serverId: owner.serverId,
+    datasetId: owner.datasetId, key: new Uint8Array(key) });
+  const attached = attachCoreRuntimePort(port, runtime, { beforeReady: () => owner.ownerEndpoint.commitBoot() });
+  const premature = await port.request(initialize());
+  assert.ok('kind' in premature && premature.kind === 'error');
+  assert.equal(premature.status, 503); assert.equal(premature.code, 'BUSY'); assert.equal(premature.outcome, 'not-sent');
+  await attached;
+  const initialized = await port.request(initialize()); assert.ok('ok' in initialized && initialized.ok);
+  assert.equal(runtime.getAccountState().status, 'ready', '保留桌面离线流程的合成授权。');
+  const principal = { serverId: owner.serverId, datasetId: owner.datasetId, deviceId: 'utility.content.device',
+    deviceEpoch: 1, accessGeneration: 1 };
+  const scoped = await port.request({ ...base(), action: 'scope', principal });
+  assert.ok('kind' in scoped && scoped.kind === 'scope');
+  const contentScope = scoped.scope;
+  assert.equal(contentScope.ownerEpoch, owner.ownerEpoch);
+  assert.equal(contentScope.accountDomain, `local:${owner.datasetId}`); assert.equal(contentScope.providerEpoch, null);
+  assert.equal(scoped.neteasePlayback, false, '实际未配置客户端不能借合成账号取得Provider资格。');
+  const foreign = await port.request({ ...base(), action: 'scope', principal: { ...principal, datasetId: randomUUID() } });
+  assert.ok('kind' in foreign && foreign.kind === 'error'); assert.equal(foreign.status, 409); assert.equal(foreign.code, 'SOURCE_CHANGED');
+  async function read(operation: 'listRecentlyAddedAlbums' | 'listPersonalPlaylists') {
+    const request = captureMobileContentRequest(operation, { path: MOBILE_OPERATION_TABLE[operation].path,
+      pathParameters: {}, query: { limit: 100 }, body: null });
+    const response = await port.request({ ...base(), action: 'dispatch', operation, scope: contentScope, request });
+    assert.ok('kind' in response && response.kind === 'snapshot');
+    const checked = await port.request({ ...base(), action: 'revalidate', snapshotId: response.snapshotId, scope: contentScope });
+    assert.ok('kind' in checked && checked.kind === 'validated'); return response;
+  }
+  const albums = body<{ items: { id: string }[] }>(await read('listRecentlyAddedAlbums'));
+  assert.deepEqual(albums.items.map(album => album.id), [owner.track.albumId], '必须使用原Scanner投影，不能返回合成120首媒体库。');
+  const playlists = body<{ items: unknown[]; nextCursor: string | null }>(await read('listPersonalPlaylists'));
+  assert.deepEqual(playlists.items, []); assert.equal(playlists.nextCursor, null);
+  assert.deepEqual(await readFile(owner.file), owner.original);
+  await runtime.shutdown();
+});
+
+test('离线Bridge先关闭Content再关闭原Owner，重复关闭与失败不复活旧快照', async t => {
+  for (const failClose of [false, true]) {
+    const owner = await makeContentRuntimeOwnerFixture(t), key = new Uint8Array(randomBytes(32));
+    const closeFailure = new Error('受控原Owner关闭失败。');
+    let ownerCalls = 0, closeCalls = 0, held: MobileContentCoreResponse | undefined;
+    let runtime!: ReturnType<typeof createTestBridgeRuntime>;
+    const initialize = (): MobileContentCoreRequest => ({ ...base(), action: 'initialize', serverId: owner.serverId,
+      datasetId: owner.datasetId, key: new Uint8Array(key) });
+    const closedReply = (response: MobileContentCoreResponse) => {
+      assert.ok('kind' in response && response.kind === 'error'); assert.equal(response.status, 503); assert.equal(response.code, 'BUSY');
+    };
+    const endpoint: DatasetOwnerEndpoint = { ...owner.ownerEndpoint,
+      async mobileMain(request) { ownerCalls++; return owner.ownerEndpoint.mobileMain!(request); },
+      async close() {
+        closeCalls++; owner.assertCurrent();
+        assert.ok(runtime.mobileContentRpc);
+        // 同身份重复initialize原本可直接ACK；此拒绝证明Content已封口，而非只挡住新的Owner工作。
+        closedReply(await runtime.mobileContentRpc(initialize(), signal()));
+        assert.ok(held && 'kind' in held && held.kind === 'snapshot');
+        closedReply(await runtime.mobileContentRpc({ ...base(), action: 'revalidate', snapshotId: held.snapshotId, scope: held.scope }, signal()));
+        if (failClose) throw closeFailure;
+        await owner.ownerEndpoint.close();
+      },
+    };
+    runtime = createTestBridgeRuntime({ datasetOwnerEndpoint: endpoint });
+    t.after(async () => {
+      try {
+        if (failClose) await assert.rejects(runtime.shutdown(), error => error === closeFailure);
+        else await runtime.shutdown();
+      } finally { key.fill(0); }
+    });
+    const port = new ContentUtilityPort();
+    await attachCoreRuntimePort(port, runtime, { beforeReady: () => endpoint.commitBoot() });
+    const initialized = await port.request(initialize()); assert.ok('ok' in initialized && initialized.ok);
+    const scoped = await port.request({ ...base(), action: 'scope', principal: { serverId: owner.serverId, datasetId: owner.datasetId,
+      deviceId: 'utility.closing.device', deviceEpoch: 1, accessGeneration: 1 } });
+    assert.ok('kind' in scoped && scoped.kind === 'scope');
+    held = await port.request({ ...base(), action: 'dispatch', operation: 'listPersonalPlaylists', scope: scoped.scope,
+      request: captureMobileContentRequest('listPersonalPlaylists', { path: MOBILE_OPERATION_TABLE.listPersonalPlaylists.path,
+        pathParameters: {}, query: {}, body: null }) });
+    assert.ok('kind' in held && held.kind === 'snapshot');
+    const shutdown = [runtime.shutdown(), runtime.shutdown()];
+    if (failClose) {
+      await Promise.all(shutdown.map(flight => assert.rejects(flight, error => error === closeFailure)));
+      assert.equal(runtime.getHealth().runtime, 'ready', '关闭失败不得宣称已停止。'); owner.assertCurrent();
+    } else {
+      await Promise.all(shutdown); assert.equal(runtime.getHealth().runtime, 'stopped');
+    }
+    assert.equal(closeCalls, 1, '并发及失败后的重复关闭都只能沿原同一次关闭。');
+    const priorCalls = ownerCalls;
+    closedReply(await port.request(initialize()));
+    closedReply(await port.request({ ...base(), action: 'revalidate', snapshotId: held.snapshotId, scope: held.scope }));
+    await assert.rejects(runtime.start(), error => error instanceof MobileServiceError && error.status === 503 && error.code === 'BUSY');
+    assert.equal(ownerCalls, priorCalls); assert.equal(closeCalls, 1);
+    assert.deepEqual(await readFile(owner.file), owner.original);
+  }
 });

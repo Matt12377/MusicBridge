@@ -1603,6 +1603,13 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     activeStreamCount: 0,
     activePlaybackPresent: false,
   };
+  let shutdownStarted = false;
+  let shutdownFlight: Promise<void> | undefined;
+  // 内容沿原唯一Owner；桌面合成授权不转成Provider账号或播放资格。
+  const mobileContent = options.datasetOwnerEndpoint ? createMobileContentRuntime({
+    owner: options.datasetOwnerEndpoint, netease: new NeteaseClient(undefined),
+    assertCurrent: () => { if (state.runtime !== 'ready' || shutdownStarted) throw new MobileServiceError(503, 'BUSY'); },
+  }) : undefined;
   let authState: PublicAuthState = {
     status: syntheticAuthorized ? 'authorized' : accountMode === 'expired' ? 'expired' : 'idle',
   };
@@ -1734,30 +1741,39 @@ export function createTestBridgeRuntime(options: TestBridgeRuntimeOptions = {}):
     },
     performance: performanceTrace,
     ...(options.datasetOwnerEndpoint ? { datasetOwnerEndpoint: options.datasetOwnerEndpoint } : {}),
+    ...(mobileContent ? { mobileContentRpc: (request: unknown, signal: AbortSignal) => mobileContent.request(request, signal) } : {}),
     getDatasetRoonLibrary: () => datasetRoonLibrary,
     getDatasetScanReadAdmission: () => syntheticScanReadAdmission,
     async start() {
+      if (shutdownStarted) throw new MobileServiceError(503, 'BUSY');
       datasetDomain?.commandOutbox.context();
       state = { ...state, runtime: 'ready', roon: 'ready' };
       syntheticScanReadAdmission.observe();
       diagnostics.record({ component: 'core', level: 'info', event: 'core_ready', state: 'ready' });
     },
-    async shutdown() {
-      // 先解决owner撤销watch再await其关闭；未确认quiet的票据仍由本体保留，不能伪造归零。
+    shutdown(): Promise<void> {
+      if (shutdownFlight) return shutdownFlight;
+      shutdownStarted = true;
+      // 保存共享flight后封Content，再关闭原Owner；失败保持同次拒绝且不宣称已停止。
+      shutdownFlight = Promise.resolve().then(async () => {
+        try {
+          await mobileContent?.close();
+          await options.datasetOwnerEndpoint?.close();
+          await datasetDomain?.close();
+          playbackState = emptyPlaybackState();
+          state = {
+            ...state,
+            runtime: 'stopped',
+            roon: 'disconnected',
+            activeStreamCount: 0,
+            activePlaybackPresent: false,
+          };
+          diagnostics.record({ component: 'core', level: 'info', event: 'core_shutdown', state: 'stopped' });
+        } finally { performanceMonitor.dispose(); }
+      });
+      // 先撤销watch；未确认quiet的票据仍由本体保留，不能伪造归零。
       syntheticScanReadAdmission.close();
-      try {
-      await options.datasetOwnerEndpoint?.close();
-      await datasetDomain?.close();
-      playbackState = emptyPlaybackState();
-      state = {
-        ...state,
-        runtime: 'stopped',
-        roon: 'disconnected',
-        activeStreamCount: 0,
-        activePlaybackPresent: false,
-      };
-      diagnostics.record({ component: 'core', level: 'info', event: 'core_shutdown', state: 'stopped' });
-      } finally { performanceMonitor.dispose(); }
+      return shutdownFlight;
     },
     ping: () => ({ pong: true as const }),
     getHealth: () => state,

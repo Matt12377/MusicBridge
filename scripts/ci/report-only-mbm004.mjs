@@ -58,13 +58,19 @@ export function classifyMobileContentReportChanges({ task, parent, beforeStatus,
 /** 完整4次自然push/6jobs/5artifacts，逐producer核本轮004Gate；不把制品元数据当内容消费。 */
 export function validateMobileContentParentCi({ task, repositoryId, parent, branch, runs, proofs, now = Date.now() }) {
   try {
-    if (task !== MBM004_TASK || !positive(repositoryId) || !sha(parent) || branch !== MBM004_BRANCH
+    if (task !== MBM004_TASK || !positive(repositoryId) || !sha(parent) || branch !== MBM004_BRANCH || !Number.isFinite(now)
       || !Array.isArray(runs) || runs.length !== 4 || !Array.isArray(proofs) || proofs.length !== 4) return false;
     const runIds = new Set(), jobIds = new Set(), artifactIds = new Set();
+    const successStep = (job, name) => {
+      const selected = job.steps.filter(step => step.name === name);
+      return selected.length === 1 && selected[0].status === 'completed' && selected[0].conclusion === 'success';
+    };
     for (let index = 0; index < workflows.length; index++) {
       const file = workflows[index], selected = runs.filter(run => run.path === file);
       if (selected.length !== 1) return false;
-      const run = selected[0], proof = proofs.find(value => value.runId === run.id);
+      const run = selected[0], matchingProofs = proofs.filter(value => value?.runId === run.id);
+      if (matchingProofs.length !== 1) return false;
+      const proof = matchingProofs[0];
       if (!positive(run.id) || runIds.has(run.id) || run.repository?.id !== repositoryId || run.head_repository?.id !== repositoryId
         || run.head_sha !== parent || run.head_branch !== branch || run.event !== 'push'
         || run.run_attempt !== 1 || run.status !== 'completed' || run.conclusion !== 'success'
@@ -80,6 +86,13 @@ export function validateMobileContentParentCi({ task, repositoryId, parent, bran
         const matches = proof.jobs.flatMap(job => job.steps).filter(step => step.name === name);
         // Rust矩阵两平台各有同名一步；其余producer必须唯一。
         if (matches.length !== (index === 2 ? 2 : 1) || matches.some(step => step.status !== 'completed' || step.conclusion !== 'success')) return false;
+      }
+      if (index === 2 && proof.jobs.some(job => !successStep(job, steps[file][0]))) return false;
+      if (index === 0) {
+        const [gateName, standardName, auditName] = steps[file];
+        const product = proof.jobs.find(job => successStep(job, gateName) && successStep(job, standardName));
+        const audit = proof.jobs.find(job => successStep(job, auditName));
+        if (!product || !audit || product === audit) return false;
       }
       const names = index === 0 ? [`verify-${parent}`] : index === 2
         ? [`rust-core-ubuntu-latest-${parent}`, `rust-core-macos-latest-${parent}`] : index === 3

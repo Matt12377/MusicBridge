@@ -58,7 +58,7 @@ export async function verifyMbm004Content(argv = process.argv.slice(2), env = pr
     const coreNames = readdirSync(path.join(core, 'test/mbm004')).filter(name => name.endsWith('.test.ts')).sort();
     if (coreNames.length !== 17) throw new Error('004Core文件集合不完整。');
     prepared.assertCurrent(); stages.push(await capture(run, 'core-content-behavior', ['--import', 'tsx', '--test', '--test-reporter=tap',
-      '--test-concurrency=1', ...coreNames.map(name => `test/mbm004/${name}`), 'test/mbm002/playback-service.test.ts'], core, prepared.env, 159)); prepared.assertCurrent();
+      '--test-concurrency=1', ...coreNames.map(name => `test/mbm004/${name}`), 'test/mbm002/playback-service.test.ts'], core, prepared.env, 164)); prepared.assertCurrent();
     stages.push(await capture(run, 'main-content-https', ['--import', 'tsx', '--test', '--test-reporter=tap', '--test-concurrency=1',
       'test/mobile-content-backend.test.ts', 'test/mobile-content-rpc-main.test.ts', 'test/mobile-content-https.test.ts',
       'test/local-playback-main-timeout.test.ts', 'test/local-playback-recovery.test.ts'], desktop, prepared.env, 79)); prepared.assertCurrent();
@@ -69,7 +69,7 @@ export async function verifyMbm004Content(argv = process.argv.slice(2), env = pr
       'test/mbrs003/persistent-scan-owner.test.ts', 'test/mbrs004/name-rules-scan-integration.test.ts',
       'test/mbrs005/config-integration.test.ts'], core, prepared.env, 62)); prepared.assertCurrent();
     stages.push(await capture(run, 'admission-negative-cases', ['--test', '--test-reporter=tap', 'scripts/ci/test/mbm004-admission.test.mjs',
-      'scripts/ci/test/mbm004-report-only.test.mjs', 'scripts/ci/test/task-applicability.test.mjs'], repository, prepared.env, 17));
+      'scripts/ci/test/mbm004-report-only.test.mjs', 'scripts/ci/test/task-applicability.test.mjs'], repository, prepared.env, 22));
     prepared.assertCurrent(); const final = inspectMbm004Admission(repository, env);
     if (JSON.stringify(source) !== JSON.stringify(final)) throw new Error('004源码准入身份漂移。');
     const receipt = { schema: 'musicbridge.mbm004.software-gate.v1', status: 'PASSED', source, stages,

@@ -54,6 +54,13 @@ const staleRevision = (): never => { throw new MobileServiceError(409, 'REVISION
 const capacity = (): never => { throw new MobileServiceError(503, 'CONTENT_LIMIT_EXCEEDED'); };
 const hash = (value: string): string => createHash('sha256').update(value, 'utf8').digest('hex');
 const json = (value: unknown): string => mobileCanonicalJson(value as MobileJsonValue);
+// 资格只属于本 codec 完成全验后深冻结的 State；外部冻结或 clone 不能继承。
+const qualifiedStateLimits = new WeakMap<MobileContentState, Readonly<MobileContentStateLimits>>();
+function sameStateLimits(left: Readonly<MobileContentStateLimits>, right: Readonly<MobileContentStateLimits>): boolean {
+  return left.stateBytes === right.stateBytes && left.receipts === right.receipts
+    && left.albums === right.albums && left.favoriteTracks === right.favoriteTracks
+    && left.playlists === right.playlists && left.playlistTracks === right.playlistTracks;
+}
 const exact = (value: unknown, keys: readonly string[]): value is Record<string, unknown> =>
   mobileRecord(value) && Reflect.ownKeys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
 function freeze<T>(value: T): T {
@@ -235,8 +242,14 @@ export function createMobileContentState(identity: { serverId: string; datasetId
     serverId: value.value.serverId, datasetId: value.value.datasetId, revision: 0, domains: [], receipts: [] }));
 }
 export function captureMobileContentState(raw: unknown, rawLimits: MobileContentStateLimits): MobileContentState {
+  // 先核全部限额；不同限额、外部对象与冷解码始终走原全验。
   const limits = limitsSnapshot(rawLimits);
-  return freeze(validateState(captureData(raw, limits), limits));
+  const knownLimits = raw !== null && typeof raw === 'object'
+    ? qualifiedStateLimits.get(raw as MobileContentState) : undefined;
+  if (knownLimits && sameStateLimits(knownLimits, limits)) return raw as MobileContentState;
+  const state = freeze(validateState(captureData(raw, limits), limits));
+  qualifiedStateLimits.set(state, Object.freeze({ ...limits }));
+  return state;
 }
 export function encodeMobileContentState(raw: MobileContentState, limits: MobileContentStateLimits): Uint8Array {
   return new Uint8Array(Buffer.from(json(captureMobileContentState(raw, limits)), 'utf8'));

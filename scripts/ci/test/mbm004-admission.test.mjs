@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { MBM004_BRANCH, MBM004_BASE, MBM004_SCOPE_PATH, MBM004_STATUS_PATH, MBM004_CANONICAL,
-  validateMbm004Scope, assertMbm004Metadata, mbm004WorkflowOutputs } from '../mbm004-admission.mjs';
+  MBM004_CORRECTION_PATH, MBM004_PREDECESSOR_SOURCE, MBM004_CORRECTION_IDENTITY,
+  validateMbm004Scope, validateMbm004Correction, assertMbm004SourceLineage, assertMbm004CorrectionScope,
+  assertMbm004Metadata, mbm004WorkflowOutputs } from '../mbm004-admission.mjs';
 import { taskApplicabilityRoute, taskApplicabilityWorkflowOutputs } from '../task-applicability.mjs';
 import { TAPE_CATALOG_COMMON_BRANCH, TAPE_CATALOG_COMMON_TASK } from '../tape-catalog-common-admission.mjs';
 
@@ -96,4 +98,69 @@ test('004手工结果不能取得跳过旧Gate输出，实际Source对象作者�
     oldGateEvidenceReused: true, currentSoftwareGateRequired: true, currentAppDeviceOwnerProven: false }]) {
     assert.throws(() => mbm004WorkflowOutputs(result)); assert.throws(() => taskApplicabilityWorkflowOutputs(result));
   }
+});
+test('004追加修复只钉实际781首次阶段超时，不能伪称断言失败、重跑或放宽预算', () => {
+  assert.equal(validateMbm004Correction(clone(MBM004_CORRECTION_IDENTITY)).predecessorSource, MBM004_PREDECESSOR_SOURCE);
+  for (const edit of [v => { v.predecessorSource = 'b'.repeat(40); }, v => { v.predecessorScope.sha256 = 'c'.repeat(64); },
+    v => { v.failure.runAttempt = 2; }, v => { v.failure.artifactSha256 = 'c'.repeat(64); },
+    v => { v.failure.counts = { tests: 159, fail: 1 }; }, v => { v.failure.exitCode = 1; },
+    v => { v.failure.signal = null; }, v => { v.failure.timeout = false; },
+    v => { v.failure.stageJsonBytes = 0; }, v => { v.failure.stageJsonSha256 = 'c'.repeat(64); },
+    v => { v.failure.cleanupFailed = true; }, v => { v.failure.passed = true; },
+    v => { delete v.electronFailure; }, v => { v.electronFailure = clone(v.failure); },
+    v => { v.electronFailure.runId = v.failure.runId; }, v => { v.electronFailure.jobId--; },
+    v => { v.electronFailure.runAttempt = 2; }, v => { v.electronFailure.event = 'workflow_dispatch'; },
+    v => { v.electronFailure.artifactId--; }, v => { v.electronFailure.artifactBytes--; },
+    v => { v.electronFailure.artifactSha256 = 'c'.repeat(64); },
+    v => { v.electronFailure.wholeJobLogSha256 = 'c'.repeat(64); },
+    v => { v.electronFailure.mobileFailureCapture.sha256 = 'c'.repeat(64); },
+    v => { v.electronFailure.mobileFailureCapture.lastStatus = 200; },
+    v => { v.electronFailure.mobileFailureCapture.retries = 1; },
+    v => { v.electronFailure.collectionFailureContext.bytes--; },
+    v => { v.electronFailure.collectionFailureContext.sha256 = 'c'.repeat(64); },
+    v => { v.electronFailure.failedTests = 0; }, v => { v.electronFailure.conclusion = 'success'; },
+    v => { v.failure.stageLimitMs = 240000; }, v => { v.realEvidence = 'PASSED'; },
+    v => { v.repairPaths.pop(); }, v => { v.repairPaths.push(v.repairPaths[0]); },
+    v => { v.repairPaths.push('packages/bridge-core/src/mobile/content-runtime.ts'); }]) {
+    const correction = clone(MBM004_CORRECTION_IDENTITY); edit(correction);
+    assert.throws(() => validateMbm004Correction(correction));
+  }
+});
+test('004追加Source必须唯一parent781且781唯一parent479，报告、merge和未知父均拒绝', () => {
+  const head = 'e'.repeat(40), predecessorParents = [MBM004_PREDECESSOR_SOURCE, MBM004_BASE];
+  assert.equal(assertMbm004SourceLineage({ head: MBM004_PREDECESSOR_SOURCE, parents: predecessorParents }), true);
+  const valid = { head, parents: [head, MBM004_PREDECESSOR_SOURCE], predecessorParents,
+    correction: clone(MBM004_CORRECTION_IDENTITY) };
+  assert.equal(assertMbm004SourceLineage(valid), true);
+  for (const edit of [v => { v.parents.push(MBM004_BASE); }, v => { v.parents[1] = MBM004_BASE; },
+    v => { v.parents[1] = 'b'.repeat(40); }, v => { v.parents[0] = 'b'.repeat(40); },
+    v => { v.predecessorParents.push('b'.repeat(40)); }, v => { v.predecessorParents[1] = 'b'.repeat(40); },
+    v => { v.predecessorParents = null; }, v => { v.correction = null; }]) {
+    const value = clone(valid); edit(value); assert.throws(() => assertMbm004SourceLineage(value));
+  }
+  assert.throws(() => assertMbm004SourceLineage({ head, parents: [head, MBM004_BASE] }));
+});
+test('004修复身份必须由本Scope authority行完整钉住，不能只有文件或漂移引用', () => {
+  const value = scope(); value.sourceCorrection = MBM004_CORRECTION_PATH;
+  value.files.push({ path: MBM004_CORRECTION_PATH, status: 'A', bytes: 1, sha256: 'a'.repeat(64), role: 'authority' });
+  assert.equal(validateMbm004Scope(value).sourceCorrection, MBM004_CORRECTION_PATH);
+  for (const edit of [v => { delete v.sourceCorrection; }, v => { v.sourceCorrection = 'docs/postrust/MBM-004/OTHER.json'; },
+    v => { v.files.pop(); }, v => { v.files.at(-1).role = 'metadata'; }]) {
+    const invalid = clone(value); edit(invalid); assert.throws(() => validateMbm004Scope(invalid));
+  }
+  const previous = scope(), extended = clone(value);
+  extended.files.push({ path: 'packages/bridge-core/src/collection/collection-progress-store.ts',
+    status: 'M', bytes: 1, sha256: 'a'.repeat(64), role: 'product' },
+  { path: 'packages/bridge-core/test/collection-progress-store.test.ts',
+    status: 'M', bytes: 1, sha256: 'a'.repeat(64), role: 'test' });
+  assert.equal(assertMbm004CorrectionScope(previous, extended), true);
+  for (const edit of [v => { v.files.pop(); }, v => { v.files.shift(); },
+    v => { v.files.at(-1).status = 'A'; }, v => { v.files.at(-1).role = 'product'; },
+    v => { v.files[0].role = 'gate'; },
+    v => { v.files.at(-1).path = 'packages/bridge-core/test/collection-progress-store-extra.test.ts'; },
+    v => { v.files.at(-1).path = 'apps/desktop/e2e/task-070.spec.ts'; }]) {
+    const invalid = clone(extended); edit(invalid);
+    assert.throws(() => assertMbm004CorrectionScope(previous, invalid));
+  }
+  assert.throws(() => mbm004WorkflowOutputs(extended));
 });

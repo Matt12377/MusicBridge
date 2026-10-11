@@ -1,6 +1,6 @@
 {
   "task": "MBM-004",
-  "state": "SOURCE_LOCAL_SOFTWARE_VALIDATED_GATE_CI_PENDING",
+  "state": "CORRECTION_LOCAL_SOFTWARE_VALIDATED_SOURCE_GATE_CI_PENDING",
   "branch": "codex/mbm-004-content-multidevice",
   "baseSha": "479e746bb7106a4dac158fe616290220de03a53a",
   "scope": "docs/postrust/MBM-004/EXECUTION_SCOPE.json",
@@ -13,11 +13,13 @@
   "implementationCommit": null,
   "reportCommit": null,
   "report": null,
-  "ci": "NOT_RUN",
-  "push": "NOT_RUN",
+  "ci": "SOURCE781_CORE_AND_ELECTRON_FAILED_CORRECTION_SOURCE_FIRST_NATURAL_CI_NOT_RUN",
+  "push": "SOURCE781_REMOTE_PRESERVED_CORRECTION_SOURCE_UNCOMMITTED",
   "nextTask": "MBRS-016",
   "canonicalVersion": "1.7.0",
   "canonicalOperations": 40,
   "contentOperations": 19,
-  "evidence": "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json"
+  "evidence": "docs/postrust/MBM-004/LOCAL_SOFTWARE_EVIDENCE.json",
+  "sourceCorrection": "docs/postrust/MBM-004/SOURCE_CORRECTION.json",
+  "predecessorSource": "78184e7849cc3b10191ea64af29ba8bc23162b0a"
 }

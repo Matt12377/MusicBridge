@@ -5,7 +5,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { locateMobilePlaybackReportTask, classifyMobilePlaybackReportChanges, validateMobilePlaybackParentCi } from './report-only-mbm002.mjs';
 import { locateMobileDsdReportTask, classifyMobileDsdReportChanges, validateMobileDsdParentCi } from './report-only-mbm003.mjs';
 import { locateMobileContentReportTask, classifyMobileContentReportChanges, validateMobileContentParentCi,
-  MBM004_REPORT_IDENTITY, MBM004_REPORT_STATUS_FIELDS } from './report-only-mbm004.mjs';
+  MBM004_REPORT_STATUS_FIELDS } from './report-only-mbm004.mjs';
+import { assertMbm004ReportSource } from './mbm004-admission.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const equal = (a, b) => JSON.stringify(sortObject(a)) === JSON.stringify(sortObject(b));
@@ -318,7 +319,11 @@ export async function inspectReportOnly(env = process.env, directory = root, get
     || env.GITHUB_EVENT_NAME !== 'push' || env.GITHUB_API_URL !== 'https://api.github.com'
     || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(env.GITHUB_REPOSITORY ?? '')
     || !/^[a-f0-9]{40}$/u.test(env.GITHUB_SHA ?? '')) return full('NOT_PUBLIC_HOSTED_PUSH_CONTEXT');
-  const git = args => execFileSync('git', args, { cwd: directory, encoding: 'utf8', timeout: 10000, maxBuffer: 4 * 1024 * 1024 });
+  const gitEnvironment = Object.fromEntries(Object.entries(env).filter(([key]) => !key.startsWith('GIT_')));
+  Object.assign(gitEnvironment, { GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1',
+    GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0' });
+  const git = args => execFileSync('git', ['--no-replace-objects', '-c', 'core.fsmonitor=false', ...args],
+    { cwd: directory, env: gitEnvironment, encoding: 'utf8', timeout: 10000, maxBuffer: 16 * 1024 * 1024 });
   try {
     if (git(['rev-parse', 'HEAD']).trim() !== env.GITHUB_SHA || git(['status', '--porcelain']).trim()) return full('CHECKOUT_NOT_PINNED_CLEAN');
     const parents = git(['rev-list', '--parents', '-n', '1', 'HEAD']).trim().split(' ');
@@ -339,11 +344,13 @@ export async function inspectReportOnly(env = process.env, directory = root, get
       : mobile ? locateMobileReportTask(afterStatus, afterPlan) : afterStatus.currentPostRustTask;
     const classify = content ? classifyMobileContentReportChanges : dsd ? classifyMobileDsdReportChanges : playback ? classifyMobilePlaybackReportChanges : pairing ? classifyMobilePairingReportChanges : mobile ? classifyMobileReportChanges : classifyReportChanges;
     if (!classify({ task, parent, afterStatus, beforeStatus, afterPlan, beforePlan,
-      changes: parseRawDiff(git(['diff', '--raw', '-z', '--no-renames', parent, 'HEAD'])) })) return full('SOURCE_SCOPE_OR_AUTHORITY_CHANGED');
+      changes: parseRawDiff(git(['diff', '--raw', '-z', '--no-renames', '--no-ext-diff', '--no-textconv', parent, 'HEAD'])) })) return full('SOURCE_SCOPE_OR_AUTHORITY_CHANGED');
     if (content) {
-      const sourceParents = git(['rev-list', '--parents', '-n', '1', parent]).trim().split(' ');
-      if (sourceParents.length !== 2 || sourceParents[1] !== MBM004_REPORT_IDENTITY.baseSha
-        || git(['show', parent + ':' + MBM004_REPORT_IDENTITY.scope]) !== git(['show', 'HEAD:' + MBM004_REPORT_IDENTITY.scope])) return full('CONTENT_SOURCE_OR_SCOPE_NOT_EXACT');
+      let source;
+      try { source = assertMbm004ReportSource(directory, env); }
+      catch { return full('CONTENT_SOURCE_OR_SCOPE_NOT_EXACT'); }
+      if (source.reportSha !== env.GITHUB_SHA || source.parentSourceSha !== parent || source.currentSourceCiRequired !== true)
+        return full('CONTENT_SOURCE_OR_SCOPE_NOT_EXACT');
       const statusPath = 'docs/postrust/MBM-004/STATUS.json';
       const before = json(parent, statusPath), after = json('HEAD', statusPath);
       if (after.implementationCommit !== parent || !equal(without(before, MBM004_REPORT_STATUS_FIELDS), without(after, MBM004_REPORT_STATUS_FIELDS))) return full('CONTENT_REPORT_RECORD_CHANGED_AUTHORITY');
