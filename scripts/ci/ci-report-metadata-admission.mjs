@@ -16,6 +16,7 @@ import { CI_REPORT_MIRROR_TASK, CI_REPORT_MIRROR_BRANCH, CI_REPORT_MIRROR_BASE, 
 export const CI_REPORT_METADATA_TASK = 'CI-REPORT-METADATA-001';
 export const CI_REPORT_METADATA_BRANCH = 'codex/ci-report-metadata-001';
 export const CI_REPORT_METADATA_BASE = '1b5345d13d9617c1770a361841d805305d06d038';
+export const CI_REPORT_METADATA_SOURCE_PARENT = 'dfad0c8e0e0f906c3a7456b0151b3aaba7e5547c';
 export const CI_REPORT_METADATA_HISTORICAL_SOURCE = 'd3d86c6db8d27485d2d763b81cd5e8925ee15af6';
 export const CI_REPORT_METADATA_PRODUCT_SOURCE = '16507120ab52d4843012e6888ad521138d8336d6';
 export const CI_REPORT_METADATA_SCOPE_PATH = 'docs/postrust/MBM-004/CI_REPORT_METADATA_SCOPE.json';
@@ -74,6 +75,16 @@ export const CI_REPORT_METADATA_SOURCE_FILES = freeze([
   ['.github/workflows/rust-core.yml', 'M', 'workflow'], ['.github/workflows/electron-e2e.yml', 'M', 'workflow'],
   ['project/STATUS.json', 'M', 'machine-status-projection'],
 ].map(([file, status, role]) => ({ path: file, status, role, oldMode: status === 'A' ? '000000' : '100644', newMode: '100644' })));
+export const CI_REPORT_METADATA_SOURCE_DELTA_FILES = freeze([
+  ['tasks/CI-REPORT-METADATA-001.md', 'c88b573c63c7446f2f8caf1343a697380731e695'],
+  [CI_REPORT_METADATA_CORRECTION_PATH, '78a8d0cdea8ae0f1e0f4074d6315bbaff40df107'],
+  [CI_REPORT_METADATA_SCOPE_PATH, '35bc0f6ad0dfdeec7b8b49b94f297d0a73a2c4bd'],
+  ['scripts/ci/ci-report-metadata-admission.mjs', '6e679597ccd5d0cc1d0b526ae78514a6d5efb14f'],
+  ['scripts/ci/verify-ci-report-metadata.mjs', 'e787d4c2b2af30e4921b2db35cd2afc06d8cc891'],
+  ['scripts/ci/test/ci-report-metadata.test.mjs', '9b9e89f2ea92cfa23293f664b72e931b306aa380'],
+  ['.github/workflows/verify.yml', '7ee3a92cc71d817ffbafe4f43d4829ac01a56aac'],
+].map(([file, oldBlob]) => ({ path: file, status: 'M', oldMode: '100644', newMode: '100644', oldBlob })));
+export const CI_REPORT_METADATA_SOURCE_DELTA_PATHS = freeze(CI_REPORT_METADATA_SOURCE_DELTA_FILES.map(row => row.path));
 export const CI_REPORT_METADATA_SAFETY_CASE_NAMES = freeze([
   '元数据修复复现原失败报告24个URL触发控制面拒绝',
   '元数据修复Source状态投影与完整历史CI证据连续绑定',
@@ -108,7 +119,7 @@ export const CI_REPORT_METADATA_FROZEN_HISTORY = freeze([
   { path: 'scripts/ci/test/ci-report-mirror.test.mjs', bytes: 41456, sha256: '939b3d01deb39acebb4c6a3d20da927193cdb382548c81949e2c3cbced2da9d7' },
   { path: 'scripts/ci/verify-control-plane.mjs', bytes: 7033, sha256: 'c2f4f6c2d3dd077be39fe6157114af7d8957ff271323a7c9d46aecc4092aa784' },
 ]);
-export const CI_REPORT_METADATA_CORRECTION_IDENTITY = freeze({
+const originalMetadataCorrectionIdentity = freeze({
   schema: 'musicbridge.ci-report-metadata.correction.v1', task: CI_REPORT_METADATA_TASK, branch: CI_REPORT_METADATA_BRANCH,
   baseSha: CI_REPORT_METADATA_BASE, historicalSource: CI_REPORT_METADATA_HISTORICAL_SOURCE,
   historicalBaseReport: CI_REPORT_MIRROR_BASE, productSource: CI_REPORT_METADATA_PRODUCT_SOURCE,
@@ -139,6 +150,220 @@ export const CI_REPORT_METADATA_CORRECTION_IDENTITY = freeze({
   reportPaths: CI_REPORT_METADATA_REPORT_PATHS, realEvidence: 'NOT_RUN',
 });
 
+export const CI_REPORT_METADATA_CORRECTION_IDENTITY = freeze({
+  ...originalMetadataCorrectionIdentity,
+  "sourceParentSha": CI_REPORT_METADATA_SOURCE_PARENT,
+  "historicalFailedMetadataSource": {
+    "source": "dfad0c8e0e0f906c3a7456b0151b3aaba7e5547c",
+    "parent": "1b5345d13d9617c1770a361841d805305d06d038",
+    "tree": "63afd77199f9655510e2f87c179999018b159dae",
+    "scope": {
+      "path": "docs/postrust/MBM-004/CI_REPORT_METADATA_SCOPE.json",
+      "bytes": 4986,
+      "sha256": "0d94617f5fb4a590849074b2c7a0a77c064bef0d5f2cbadfa7d7898f2a4fc778"
+    },
+    "correction": {
+      "path": "docs/postrust/MBM-004/CI_REPORT_METADATA_CORRECTION.json",
+      "bytes": 5475,
+      "sha256": "d046e9688714ac14bc5b24d1cee776225963c15a0ad2a41084416ac7227f1eb5"
+    },
+    "sourceOwnCi": "FAILED",
+    "report": null,
+    "sourceFiles": [
+      {
+        "path": "tasks/CI-REPORT-METADATA-001.md",
+        "status": "A",
+        "oldMode": "000000",
+        "newMode": "100644",
+        "oldBlob": "0000000000000000000000000000000000000000",
+        "bytes": 4783,
+        "sha256": "f1566139b1424f8390aa27415af03b1bf622f11677d3cf48cd69b12dc5d36570"
+      },
+      {
+        "path": "docs/postrust/MBM-004/CI_REPORT_METADATA_CORRECTION.json",
+        "status": "A",
+        "oldMode": "000000",
+        "newMode": "100644",
+        "oldBlob": "0000000000000000000000000000000000000000",
+        "bytes": 5475,
+        "sha256": "d046e9688714ac14bc5b24d1cee776225963c15a0ad2a41084416ac7227f1eb5"
+      },
+      {
+        "path": "docs/postrust/MBM-004/CI_REPORT_METADATA_SCOPE.json",
+        "status": "A",
+        "oldMode": "000000",
+        "newMode": "100644",
+        "oldBlob": "0000000000000000000000000000000000000000",
+        "bytes": 4986,
+        "sha256": null
+      },
+      {
+        "path": "scripts/ci/ci-report-metadata-admission.mjs",
+        "status": "A",
+        "oldMode": "000000",
+        "newMode": "100644",
+        "oldBlob": "0000000000000000000000000000000000000000",
+        "bytes": 77093,
+        "sha256": "ac8a251bd1ded6517bca5ff4ca0e92fabf46a71d741967783c7c7964ea9453b3"
+      },
+      {
+        "path": "scripts/ci/verify-ci-report-metadata.mjs",
+        "status": "A",
+        "oldMode": "000000",
+        "newMode": "100644",
+        "oldBlob": "0000000000000000000000000000000000000000",
+        "bytes": 18870,
+        "sha256": "0475f3fac8c0137e27d5b2d80dc369afa4c77a888401527125c19ec3c13fc459"
+      },
+      {
+        "path": "scripts/ci/test/ci-report-metadata.test.mjs",
+        "status": "A",
+        "oldMode": "000000",
+        "newMode": "100644",
+        "oldBlob": "0000000000000000000000000000000000000000",
+        "bytes": 57841,
+        "sha256": "fd9f81569142df60ad08cda649779da7c81e355e5d12d58fe7ea6efd94383612"
+      },
+      {
+        "path": "scripts/ci/task-applicability.mjs",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "oldBlob": "8e97557b2b5c2eedec4c062b26a8e90e4bafdbbd",
+        "bytes": 7495,
+        "sha256": "d4a0835101911c833bf1b4372292b43f54fca2a68e6a6bf4e90aaa8bce0db28e"
+      },
+      {
+        "path": "scripts/ci/report-only-admission.mjs",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "oldBlob": "9abd252db4560daaca039a9e5f7ab07a0f5f614e",
+        "bytes": 29411,
+        "sha256": "b9b6dc7755caabfa69e11d349be33ec589de9edb93bffac275e661e88c7f4c12"
+      },
+      {
+        "path": ".github/workflows/verify.yml",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "oldBlob": "56b1c42e1fae7ff5f09edebe1d0a302fdad11f00",
+        "bytes": 24686,
+        "sha256": "b26ccbaac9c6669a7ccf2c742fc1857bbb8d6e88ef8ed23fb86ba2ca46b7de67"
+      },
+      {
+        "path": ".github/workflows/security.yml",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "oldBlob": "ca19ad58e8285395e19b1f57c5327912e183dfe0",
+        "bytes": 1895,
+        "sha256": "e643e3e7e3af84045e9dbfa9cd0dc364e0f8ce53b0498a7777afc7c1f0aefe41"
+      },
+      {
+        "path": ".github/workflows/rust-core.yml",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "oldBlob": "9b76f9588e62d169d6468527a06565df52a4863b",
+        "bytes": 4193,
+        "sha256": "c54547680db2db7acf33870ff556ca96754089306dcd25645568eb8259e36c65"
+      },
+      {
+        "path": ".github/workflows/electron-e2e.yml",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "oldBlob": "666a0664915582bc9492a8af93e9c097a7e89cb4",
+        "bytes": 9997,
+        "sha256": "7a172406b41b6be8b3f564edb9d2b4dfd178304c2db491bb6729e0c7ef6ce69d"
+      },
+      {
+        "path": "project/STATUS.json",
+        "status": "M",
+        "oldMode": "100644",
+        "newMode": "100644",
+        "oldBlob": "d43c0eeb212d23baf270a7775bec544a5a7d3fb2",
+        "bytes": 2651788,
+        "sha256": "2d0bea39a008809ec3e92321c139bbaa8d73031daa4de65cd0b7ddb513c1e69c"
+      }
+    ]
+  },
+  "fixtureFailure": {
+    "sourceSha": "dfad0c8e0e0f906c3a7456b0151b3aaba7e5547c",
+    "preserved": true,
+    "reason": "LINUX_FIXTURE_BUILD_ROOT_EQUALS_CHECKED_MIRROR_PARENT",
+    "actualFailedCase": 11,
+    "actualFailureLocation": "scripts/ci/test/ci-report-metadata.test.mjs:541",
+    "actualCall": "workflowMirror aggregate status",
+    "actualStatus": 1,
+    "expectedStatus": 0,
+    "childStderrPresentInTap": false,
+    "causalEvidence": "STATIC_ORIGINAL_STRICT_STORAGE_RULE_WITH_LINUX_POLICY_RED_GREEN_PROBE",
+    "runAttempt": 1,
+    "event": "push",
+    "verify": {
+      "runId": 38127156630,
+      "jobId": 114433790261,
+      "conclusion": "failure"
+    },
+    "otherJobsPassed": 5,
+    "safetyCounts": {
+      "tests": 16,
+      "pass": 15,
+      "fail": 1,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "safetyDurationMs": 72539.47085700001,
+    "wholeDurationMs": 86220.451768,
+    "timedOut": false,
+    "physicalShutdown": {
+      "pidAbsent": true,
+      "processGroupAbsent": true
+    },
+    "observedDescendantsAbsent": true,
+    "receipt": {
+      "bytes": 112838,
+      "sha256": "f4a8210f29478e3b69c7273c3b1060470a31e6ae86fe9432e848e65d968442ff"
+    },
+    "diagnosis": {
+      "bytes": 109272,
+      "sha256": "50152e054b8403a01aaf3bb2b051155e6122bc86df41edf7bd99d92595f7923f"
+    },
+    "selectedRootRecords": 12,
+    "selectedRangeBytes": 2549577,
+    "wholeZipRead": false,
+    "wholeZipDigestVerified": false,
+    "successQualification": false,
+    "platformArtifact": {
+      "id": 11697892551,
+      "bytes": 75949897,
+      "members": 9645,
+      "platformDeclaredSha256": "8d667d46a55d063f323b5c363e8cff16daf59e4a04d53fb17b3abf5690f5aac4"
+    },
+    "uploadCause": "FAILURE_OWNED_TMP_PRESERVED_AND_DIRECTORY_ALWAYS_UPLOADED"
+  },
+  "sourceDeltaPaths": CI_REPORT_METADATA_SOURCE_DELTA_PATHS,
+  "fixtureRepair": {
+    "approvedRoot": "PARENT_OF_MIRROR_PARENT",
+    "linuxPolicyNegativeAndPositiveRequired": true,
+    "realStages": [
+      "REAL_METADATA_GUARD",
+      "REAL_SOURCE_PINNED_MIRROR",
+      "REAL_HISTORICAL_PREPARATION"
+    ],
+    "stageFailureRawRequired": true,
+    "upload": "EXACT_TWELVE_ROOT_FILES_NO_TMP"
+  },
+  "sourceMachineState": {
+    "path": "project/STATUS.json",
+    "bytes": 2651788,
+    "sha256": "2d0bea39a008809ec3e92321c139bbaa8d73031daa4de65cd0b7ddb513c1e69c"
+  }
+});
+
 /** 摘要与报告共用既有UTF-8编码；digest只保存在摘要，不写回被摘要对象。 */
 export function ciReportMetadataCanonicalPin(value) {
   const bytes = Buffer.from(JSON.stringify(canonical(value)), 'utf8');
@@ -149,11 +374,11 @@ export function assertCiReportMetadataCorrection(value) {
   if (!equal(value, CI_REPORT_METADATA_CORRECTION_IDENTITY)) fail('CI_REPORT_METADATA_CORRECTION_CHANGED');
   return value;
 }
-export function assertCiReportMetadataScope(scope, scopeBytes) {
-  const header = { schema: 'musicbridge.ci-report-metadata.execution-scope.v1', task: CI_REPORT_METADATA_TASK,
-    branch: CI_REPORT_METADATA_BRANCH, baseSha: CI_REPORT_METADATA_BASE, productSource: CI_REPORT_METADATA_PRODUCT_SOURCE,
-    correction: CI_REPORT_METADATA_CORRECTION_PATH, frozen: true, reportPaths: CI_REPORT_METADATA_REPORT_PATHS };
-  if (!object(scope) || !equal(without(scope, ['files']), header) || !Array.isArray(scope.files)
+const metadataScopeHeader = freeze({ schema: 'musicbridge.ci-report-metadata.execution-scope.v1', task: CI_REPORT_METADATA_TASK,
+  branch: CI_REPORT_METADATA_BRANCH, baseSha: CI_REPORT_METADATA_BASE, productSource: CI_REPORT_METADATA_PRODUCT_SOURCE,
+  correction: CI_REPORT_METADATA_CORRECTION_PATH, frozen: true, reportPaths: CI_REPORT_METADATA_REPORT_PATHS });
+function metadataScope(scope, scopeBytes, header, extraKeys = []) {
+  if (!object(scope) || !equal(without(scope, ['files', ...extraKeys]), header) || !Array.isArray(scope.files)
     || scope.files.length !== CI_REPORT_METADATA_SOURCE_FILES.length) fail('CI_REPORT_METADATA_SCOPE_HEADER_OR_COUNT');
   const seen = new Set();
   for (const expected of CI_REPORT_METADATA_SOURCE_FILES) {
@@ -170,6 +395,11 @@ export function assertCiReportMetadataScope(scope, scopeBytes) {
   if (scopeBytes !== undefined && (!Buffer.isBuffer(scopeBytes)
     || scope.files.find(row => row.path === CI_REPORT_METADATA_SCOPE_PATH).bytes !== scopeBytes.length
     || !equal(parse(scopeBytes), scope))) fail('CI_REPORT_METADATA_SCOPE_SELF_LENGTH');
+  return scope;
+}
+export function assertCiReportMetadataScope(scope, scopeBytes) {
+  metadataScope(scope, scopeBytes, { ...metadataScopeHeader, sourceParentSha: CI_REPORT_METADATA_SOURCE_PARENT }, ['sourceDeltaFiles']);
+  if (!equal(scope.sourceDeltaFiles, CI_REPORT_METADATA_SOURCE_DELTA_FILES)) fail('CI_REPORT_METADATA_SCOPE_DELTA_CHANGED');
   return scope;
 }
 
@@ -208,7 +438,8 @@ export function ciReportMetadataHistoricalSourceProjection(sourceCi) {
 }
 export function ciReportMetadataReportIdentity(sourceSha, sourceCi) {
   return { task: CI_REPORT_METADATA_TASK, branch: CI_REPORT_METADATA_BRANCH, baseReport: CI_REPORT_METADATA_BASE,
-    sourceSha, productSource: CI_REPORT_METADATA_PRODUCT_SOURCE, scope: CI_REPORT_METADATA_SCOPE_PATH,
+    sourceSha, sourceParentSha: CI_REPORT_METADATA_SOURCE_PARENT,
+    productSource: CI_REPORT_METADATA_PRODUCT_SOURCE, scope: CI_REPORT_METADATA_SCOPE_PATH,
     failedReportPreserved: true, softwareReuse: 'EXACT_BYTES_AND_ORIGINAL_PRODUCERS', currentProductTestsRepeated: false,
     currentToolGateRequired: true, realEvidence: 'NOT_RUN', sourceCi, reportSha: null, reportCi: null,
     reportCommitResolution: 'EXACT_DIRECT_CHILD_OF_SOURCE', ownerAcceptance: 'NOT_RUN' };
@@ -328,10 +559,11 @@ function blob(context, revision, file) {
   if (!entry) fail('CI_REPORT_METADATA_IMMUTABLE_BLOB_MISSING');
   return context.blobs.get(entry.blob) ?? cacheBlob(context, entry.blob, context.git(['show', revision + ':' + file]));
 }
-/** 精确114+111行的完整blob；OID在本context内去重，逐行原pin校验仍由调用方执行。 */
-function scopeBlobs(context, records) {
+/** 原114+111与冻结失败Source13分别闭集批读；仅在本context按完整OID去重。 */
+function scopeBlobs(context, records, expectedCount = 225) {
   context.check();
-  if (!Array.isArray(records) || records.length !== 225) fail('CI_REPORT_METADATA_SCOPE_BATCH_COUNT');
+  if (![13, 225].includes(expectedCount) || !Array.isArray(records) || records.length !== expectedCount)
+    fail('CI_REPORT_METADATA_SCOPE_BATCH_COUNT');
   const pending = new Map();
   for (const { row, entry } of records) {
     if (!entry || entry.mode !== '100644' || !sha(entry.blob) || !positive(row.bytes)
@@ -343,7 +575,7 @@ function scopeBlobs(context, records) {
   }
   const requests = [...pending];
   const maximum = requests.reduce((total, [, bytes]) => total + bytes + 128, 0);
-  if (maximum > 67108864 || requests.length > 225) fail('CI_REPORT_METADATA_SCOPE_BATCH_BUDGET');
+  if (maximum > 67108864 || requests.length > expectedCount) fail('CI_REPORT_METADATA_SCOPE_BATCH_BUDGET');
   if (requests.length) {
     const input = Buffer.from(requests.map(([oid]) => oid + '\n').join(''), 'ascii');
     const output = context.git(['cat-file', '--batch'], input);
@@ -529,6 +761,31 @@ function historicalIdentity(context) {
     historicalToolTests: 193, historicalSourceCiCanonical: CI_REPORT_METADATA_SOURCE1_CANONICAL,
     historicalFailurePreserved: true, historicalSourceCi: CI_REPORT_METADATA_CORRECTION_IDENTITY.historicalSourceCi };
 }
+/** 原失败Source的tree与十三叶独立冻结，旧Scope自身null摘要由固定原始pin补核。 */
+function failedMetadataIdentity(context) {
+  const failed = CI_REPORT_METADATA_CORRECTION_IDENTITY.historicalFailedMetadataSource;
+  parents(context, CI_REPORT_METADATA_SOURCE_PARENT, CI_REPORT_METADATA_BASE);
+  if (context.text(['rev-parse', CI_REPORT_METADATA_SOURCE_PARENT + '^{tree}']) !== failed.tree)
+    fail('CI_REPORT_METADATA_FAILED_SOURCE_TREE_CHANGED');
+  const failedTree = tree(context, CI_REPORT_METADATA_SOURCE_PARENT), baseTree = tree(context, CI_REPORT_METADATA_BASE);
+  scopeBlobs(context, failed.sourceFiles.map(row => ({ row, entry: failedTree.get(row.path) })), 13);
+  const scopeBytes = pinObject(context, CI_REPORT_METADATA_SOURCE_PARENT, failed.scope);
+  const scope = metadataScope(parse(scopeBytes), scopeBytes, metadataScopeHeader);
+  if (!equal(parse(pinObject(context, CI_REPORT_METADATA_SOURCE_PARENT, failed.correction)), originalMetadataCorrectionIdentity))
+    fail('CI_REPORT_METADATA_FAILED_SOURCE_CORRECTION_CHANGED');
+  const changes = rawDiff(context, CI_REPORT_METADATA_BASE, CI_REPORT_METADATA_SOURCE_PARENT);
+  exactDiff(changes, failed.sourceFiles.map(row => without(row, ['bytes', 'sha256'])), 'CI_REPORT_METADATA_FAILED_SOURCE_PATHS_CHANGED');
+  for (const row of failed.sourceFiles) {
+    const expected = CI_REPORT_METADATA_SOURCE_FILES.find(entry => entry.path === row.path);
+    if (!equal(scope.files.find(entry => entry.path === row.path), { ...row, role: expected.role })
+      || (baseTree.get(row.path)?.blob ?? zero) !== row.oldBlob || failedTree.get(row.path)?.mode !== row.newMode)
+      fail('CI_REPORT_METADATA_FAILED_SOURCE_SCOPE_CHANGED');
+    pinObject(context, CI_REPORT_METADATA_SOURCE_PARENT, row.path === CI_REPORT_METADATA_SCOPE_PATH ? failed.scope : row);
+  }
+  sameOutside(context, CI_REPORT_METADATA_BASE, CI_REPORT_METADATA_SOURCE_PARENT,
+    new Set(CI_REPORT_METADATA_SOURCE_FILES.map(row => row.path)));
+  return { historicalFailedMetadataSourcePreserved: true };
+}
 function encodingProof(context, revision, role) {
   const statusBytes = blob(context, revision, 'project/STATUS.json'), evidenceBytes = blob(context, revision, CI_REPORT_METADATA_EVIDENCE_PATH);
   const status = parse(statusBytes), evidence = parse(evidenceBytes), domain = jsonDomain(status, 'project/STATUS.json');
@@ -548,9 +805,11 @@ function encodingProof(context, revision, role) {
     jsonPointer: pointer, canonical: ciReportMetadataCanonicalPin(full), publicSummaryCanonical: ciReportMetadataCanonicalPin(projection) };
 }
 function sourceObject(context, sourceSha) {
-  parents(context, sourceSha, CI_REPORT_METADATA_BASE);
+  parents(context, sourceSha, CI_REPORT_METADATA_SOURCE_PARENT);
   const scopeBytes = blob(context, sourceSha, CI_REPORT_METADATA_SCOPE_PATH), scope = assertCiReportMetadataScope(parse(scopeBytes), scopeBytes);
   assertCiReportMetadataCorrection(parse(blob(context, sourceSha, CI_REPORT_METADATA_CORRECTION_PATH)));
+  exactDiff(rawDiff(context, CI_REPORT_METADATA_SOURCE_PARENT, sourceSha), CI_REPORT_METADATA_SOURCE_DELTA_FILES,
+    'CI_REPORT_METADATA_SOURCE_DELTA_NOT_EXACT');
   const changes = rawDiff(context, CI_REPORT_METADATA_BASE, sourceSha);
   exactDiff(changes, CI_REPORT_METADATA_SOURCE_FILES.map(row => without(row, ['role'])), 'CI_REPORT_METADATA_SOURCE_PATHS_NOT_EXACT');
   const sourceTree = tree(context, sourceSha), baseTree = tree(context, CI_REPORT_METADATA_BASE);
@@ -574,9 +833,12 @@ function sourceObject(context, sourceSha) {
   delete jsonDomain(oldTokens, 'project/STATUS.json').ciRepair.sourceCi;
   delete jsonDomain(newTokens, 'project/STATUS.json').ciRepair.sourceCi;
   if (!losslessEqual(oldTokens, newTokens)) fail('CI_REPORT_METADATA_SOURCE_STATUS_NUMBER_OR_TYPE_CHANGED');
+  pinObject(context, sourceSha, CI_REPORT_METADATA_CORRECTION_IDENTITY.sourceMachineState);
   sameOutside(context, CI_REPORT_METADATA_BASE, sourceSha, new Set(CI_REPORT_METADATA_SOURCE_FILES.map(row => row.path)));
+  sameOutside(context, CI_REPORT_METADATA_SOURCE_PARENT, sourceSha, new Set(CI_REPORT_METADATA_SOURCE_DELTA_PATHS));
   encodingProof(context, sourceSha, 'source');
-  return { sourceSha, ciScopeSha256: digest(scopeBytes), exactSourceFiles: 13 };
+  return { sourceSha, sourceParentSha: CI_REPORT_METADATA_SOURCE_PARENT,
+    ciScopeSha256: digest(scopeBytes), exactSourceFiles: 13, exactSourceDeltaFiles: 7 };
 }
 function reportObject(context, sourceSha) {
   exactDiff(rawDiff(context, sourceSha, context.head), CI_REPORT_METADATA_REPORT_PATHS.map(file =>
@@ -619,12 +881,13 @@ function inspect(directory, env, role, options) {
   const sourceSha = role === 'source' ? context.head : lineage[1];
   const source = sourceObject(context, sourceSha), report = role === 'report' ? reportObject(context, sourceSha) : {};
   const before = snapshot(context), original = originalProduct(context), historical = historicalIdentity(context);
+  const failedMetadata = failedMetadataIdentity(context);
   const encoding = encodingProof(context, context.head, role), after = snapshot(context);
   if (!equal(before, after)) fail('CI_REPORT_METADATA_ADMISSION_DRIFT');
   context.check();
   const result = freeze({ schema: 'musicbridge.ci-report-metadata.admission.v1', task: CI_REPORT_METADATA_TASK,
     branch: context.branch, baseSha: CI_REPORT_METADATA_BASE, headAtAdmission: context.head,
-    sourceSha, productSource: CI_REPORT_METADATA_PRODUCT_SOURCE, ...source, ...original, ...historical, ...report,
+    sourceSha, productSource: CI_REPORT_METADATA_PRODUCT_SOURCE, ...source, ...original, ...historical, ...failedMetadata, ...report,
     repairRole: role, encodingProof: encoding, productResultsReused: true, currentToolGateRequired: true,
     currentProductTestsRepeated: false, compiledAndApp: 'SKIPPED_REUSED_S165', originalFailurePreserved: true,
     before, after, realApplicationServiceDeviceAudio: 'NOT_RUN', ownerAcceptance: 'NOT_RUN' });
@@ -636,7 +899,7 @@ export const assertCiReportMetadataReportSource = inspectCiReportMetadataReportA
 export function inspectCiReportMetadataEncoding(directory = repository, env = process.env, options = {}) {
   const context = gitContext(directory, env, options), lineage = context.text(['rev-list', '--parents', '-n', '1', context.head]).split(' ');
   if (lineage.length !== 2) fail('CI_REPORT_METADATA_UNIQUE_PARENT_CHANGED');
-  const proof = encodingProof(context, context.head, lineage[1] === CI_REPORT_METADATA_BASE ? 'source' : 'report');
+  const proof = encodingProof(context, context.head, lineage[1] === CI_REPORT_METADATA_SOURCE_PARENT ? 'source' : 'report');
   for (const pin of [proof.status, proof.evidence]) {
     const filename = path.join(directory, pin.path), bytes = readWhole(filename, context.check);
     if (tree(context, context.head).get(pin.path)?.mode !== '100644' || (lstatSync(filename).mode & 0o111)
@@ -655,6 +918,7 @@ export function inspectCiReportMetadataHistoricalObjects(directory = repository,
 export function ciReportMetadataWorkflowOutputs(result) {
   if (!admitted.has(result)) fail('CI_REPORT_METADATA_RESULT_NOT_ACTUALLY_ADMITTED');
   return { repairMode: 'reuse-s165', task: CI_REPORT_METADATA_TASK, sourceSha: result.sourceSha,
+    sourceParentSha: result.sourceParentSha,
     productSource: result.productSource, productFingerprint: result.productFingerprint,
     ciScopeSha256: result.ciScopeSha256, repairRole: result.repairRole };
 }
@@ -694,7 +958,8 @@ export function validateCiReportMetadataParentCi(input) {
   try {
     const { task, repositoryId: id, parent, branch, runs, proofs, now = Date.now() } = input ?? {};
     if (task !== CI_REPORT_METADATA_TASK || id !== repositoryId || !sha(parent)
-      || [CI_REPORT_METADATA_BASE, CI_REPORT_METADATA_HISTORICAL_SOURCE, CI_REPORT_MIRROR_BASE, CI_REPORT_METADATA_PRODUCT_SOURCE].includes(parent)
+      || [CI_REPORT_METADATA_SOURCE_PARENT, CI_REPORT_METADATA_BASE, CI_REPORT_METADATA_HISTORICAL_SOURCE,
+        CI_REPORT_MIRROR_BASE, CI_REPORT_METADATA_PRODUCT_SOURCE].includes(parent)
       || branch !== CI_REPORT_METADATA_BRANCH || !Number.isFinite(now) || !Array.isArray(runs) || runs.length !== 4
       || !Array.isArray(proofs) || proofs.length !== 4) return false;
     const runIds = new Set(), jobIds = new Set(), artifactIds = new Set();
@@ -759,7 +1024,7 @@ export function validateCiReportMetadataSourceReceipt(value, sourceSha) {
       || value.status !== 'SEALED_FIRST_NATURAL_TOOL_CI_WITH_ORIGINAL_S165_SOFTWARE_REUSE' || value.phase !== 'source'
       || value.task !== CI_REPORT_METADATA_TASK || value.revision !== sourceSha || value.branch !== CI_REPORT_METADATA_BRANCH
       || value.repository !== repositoryName || value.repositoryId !== repositoryId || value.code !== null
-      || !equal(value.before, value.after) || value.before?.head !== sourceSha || value.before.parent !== CI_REPORT_METADATA_BASE
+      || !equal(value.before, value.after) || value.before?.head !== sourceSha || value.before.parent !== CI_REPORT_METADATA_SOURCE_PARENT
       || value.before.branch !== CI_REPORT_METADATA_BRANCH || value.before.status !== '' || !sha(value.before.tree)
       || value.oldProductSource !== CI_REPORT_METADATA_PRODUCT_SOURCE || value.oldFailedReport !== CI_REPORT_METADATA_BASE
       || value.oldFailurePreserved !== true || value.oldProductTestsRepeated !== false || value.oldProductZipsDownloadedOrCrcReplayed !== false
@@ -796,6 +1061,7 @@ export function validateCiReportMetadataSourceReceipt(value, sourceSha) {
       || summary.success !== true || summary.currentToolGateExitCode !== 0 || !equal(summary.failures, [])
       || summary.task !== CI_REPORT_METADATA_TASK || summary.headAtRun !== sourceSha || summary.sourceSha !== sourceSha
       || summary.repairRole !== 'source' || summary.baseSha !== CI_REPORT_METADATA_BASE
+      || summary.sourceParentSha !== CI_REPORT_METADATA_SOURCE_PARENT
       || summary.productSoftwareSource !== CI_REPORT_METADATA_PRODUCT_SOURCE || summary.productTestsOrBuildsRepeated !== false
       || summary.softwareEvidenceMode !== 'SKIPPED_REUSED_S165' || summary.productArtifactsCreated !== 0
       || !equal(summary.limits, { stageMs: 90000, wholeMs: 180000, rawBytesPerStream: 16777216,
@@ -833,6 +1099,9 @@ export function validateCiReportMetadataSourceReceipt(value, sourceSha) {
       if (matching.length !== 1 || matching[0].mode !== '100644' || matching[0].bytes !== pin.bytes || matching[0].sha256 !== pin.sha256) return false;
     }
     if (!sha(summary.sourceBefore.admission.sourceSha) || summary.sourceBefore.admission.sourceSha !== sourceSha
+      || summary.sourceBefore.admission.sourceParentSha !== CI_REPORT_METADATA_SOURCE_PARENT
+      || summary.sourceBefore.admission.exactSourceDeltaFiles !== 7
+      || summary.sourceBefore.admission.historicalFailedMetadataSourcePreserved !== true
       || summary.sourceBefore.admission.exactSourceFiles !== 13 || summary.sourceBefore.admission.repairRole !== 'source'
       || !/^[a-f0-9]{64}$/u.test(summary.sourceBefore.admission.ciScopeSha256 ?? '')) return false;
     for (const stage of summary.stages) {
@@ -882,7 +1151,7 @@ export function inspectCiReportMetadataWorkflowGuard(directory = repository, env
   if (!route(directory, env)) return freeze({ repairMode: 'not-applicable' });
   const context = gitContext(directory, env, options), lineage = context.text(['rev-list', '--parents', '-n', '1', context.head]).split(' ');
   const budget = { deadline: context.deadline };
-  const result = lineage[1] === CI_REPORT_METADATA_BASE
+  const result = lineage[1] === CI_REPORT_METADATA_SOURCE_PARENT
     ? inspectCiReportMetadataAdmission(directory, env, budget) : inspectCiReportMetadataReportAdmission(directory, env, budget);
   return ciReportMetadataWorkflowOutputs(result);
 }
@@ -905,7 +1174,7 @@ export async function inspectCiReportMetadataReportOnly(env = process.env, direc
     if (!route(directory, env)) return null;
     candidate = true;
     const context = gitContext(directory, env, budget), lineage = context.text(['rev-list', '--parents', '-n', '1', context.head]).split(' ');
-    if (lineage[1] === CI_REPORT_METADATA_BASE) {
+    if (lineage[1] === CI_REPORT_METADATA_SOURCE_PARENT) {
       inspectCiReportMetadataAdmission(directory, env, budget);
       return full('CI_REPORT_METADATA_SOURCE_REQUIRES_FRESH_TOOL_GATE');
     }
@@ -961,6 +1230,7 @@ export async function inspectCiReportMetadataReportOnly(env = process.env, direc
     if (!equal(repeated, report)) return full('CI_REPORT_METADATA_REPORT_CHANGED_DURING_API');
     return { schema: 'musicbridge.report-only-ci.v1', mode: 'report-only', reason: 'EXACT_PARENT_CI_METADATA_GATE_SUCCESS',
       task: CI_REPORT_METADATA_TASK, reportSha: report.headAtAdmission, parentSourceSha: report.sourceSha,
+      sourceParentSha: report.sourceParentSha,
       productSource: report.productSource, productFingerprint: report.productFingerprint, ciScopeSha256: report.ciScopeSha256,
       repositoryId, productResultsReused: true, currentProductTestsRepeated: false, artifactContentDownloaded: false,
       evidenceScope: 'PUBLIC_PLATFORM_TOOL_PRODUCER_AND_ARTIFACT_DIGEST_METADATA_NOT_CONTENT_VALIDATION',

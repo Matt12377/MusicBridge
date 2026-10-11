@@ -3,6 +3,7 @@
   "task": "CI-REPORT-METADATA-001",
   "branch": "codex/ci-report-metadata-001",
   "baseSha": "1b5345d13d9617c1770a361841d805305d06d038",
+  "sourceParentSha": "dfad0c8e0e0f906c3a7456b0151b3aaba7e5547c",
   "productSource": "16507120ab52d4843012e6888ad521138d8336d6",
   "correction": "docs/postrust/MBM-004/CI_REPORT_METADATA_CORRECTION.json",
   "frozen": true,
@@ -24,8 +25,8 @@
       "oldMode": "000000",
       "newMode": "100644",
       "oldBlob": "0000000000000000000000000000000000000000",
-      "bytes": 4783,
-      "sha256": "f1566139b1424f8390aa27415af03b1bf622f11677d3cf48cd69b12dc5d36570"
+      "bytes": 7207,
+      "sha256": "7f1d90ec100229c3e7aa74cf642d747e6804da6e012d2ec73bbcc9f976f8c401"
     },
     {
       "path": "docs/postrust/MBM-004/CI_REPORT_METADATA_CORRECTION.json",
@@ -34,8 +35,8 @@
       "oldMode": "000000",
       "newMode": "100644",
       "oldBlob": "0000000000000000000000000000000000000000",
-      "bytes": 5475,
-      "sha256": "d046e9688714ac14bc5b24d1cee776225963c15a0ad2a41084416ac7227f1eb5"
+      "bytes": 13076,
+      "sha256": "ef496ec0ed4de160d4d20e32d21ebd3da98d27febbeee4ac332b214a52be33b5"
     },
     {
       "path": "docs/postrust/MBM-004/CI_REPORT_METADATA_SCOPE.json",
@@ -44,7 +45,7 @@
       "oldMode": "000000",
       "newMode": "100644",
       "oldBlob": "0000000000000000000000000000000000000000",
-      "bytes": 4986,
+      "bytes": 6534,
       "sha256": null
     },
     {
@@ -54,8 +55,8 @@
       "oldMode": "000000",
       "newMode": "100644",
       "oldBlob": "0000000000000000000000000000000000000000",
-      "bytes": 77093,
-      "sha256": "ac8a251bd1ded6517bca5ff4ca0e92fabf46a71d741967783c7c7964ea9453b3"
+      "bytes": 89038,
+      "sha256": "2d0cd0a7482d627142de5d05f195b2154b506bdba23cc34e7afbaccf2e05402c"
     },
     {
       "path": "scripts/ci/verify-ci-report-metadata.mjs",
@@ -64,8 +65,8 @@
       "oldMode": "000000",
       "newMode": "100644",
       "oldBlob": "0000000000000000000000000000000000000000",
-      "bytes": 18870,
-      "sha256": "0475f3fac8c0137e27d5b2d80dc369afa4c77a888401527125c19ec3c13fc459"
+      "bytes": 19441,
+      "sha256": "697e6b69bc8a08ebe905b69c4f3ee1cddd055afc86a44839a502cce117e15963"
     },
     {
       "path": "scripts/ci/test/ci-report-metadata.test.mjs",
@@ -74,8 +75,8 @@
       "oldMode": "000000",
       "newMode": "100644",
       "oldBlob": "0000000000000000000000000000000000000000",
-      "bytes": 57841,
-      "sha256": "fd9f81569142df60ad08cda649779da7c81e355e5d12d58fe7ea6efd94383612"
+      "bytes": 65643,
+      "sha256": "dab52373bdb3e78fbe120b35cd0a471331e3a1803676a1cde52baf762ca40e83"
     },
     {
       "path": "scripts/ci/task-applicability.mjs",
@@ -104,8 +105,8 @@
       "oldMode": "100644",
       "newMode": "100644",
       "oldBlob": "56b1c42e1fae7ff5f09edebe1d0a302fdad11f00",
-      "bytes": 24686,
-      "sha256": "b26ccbaac9c6669a7ccf2c742fc1857bbb8d6e88ef8ed23fb86ba2ca46b7de67"
+      "bytes": 25696,
+      "sha256": "aad3799618275aff2c45353ad7819b892d8902b5c0426c3b63f557568410d902"
     },
     {
       "path": ".github/workflows/security.yml",
@@ -146,6 +147,57 @@
       "oldBlob": "d43c0eeb212d23baf270a7775bec544a5a7d3fb2",
       "bytes": 2651788,
       "sha256": "2d0bea39a008809ec3e92321c139bbaa8d73031daa4de65cd0b7ddb513c1e69c"
+    }
+  ],
+  "sourceDeltaFiles": [
+    {
+      "path": "tasks/CI-REPORT-METADATA-001.md",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "c88b573c63c7446f2f8caf1343a697380731e695"
+    },
+    {
+      "path": "docs/postrust/MBM-004/CI_REPORT_METADATA_CORRECTION.json",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "78a8d0cdea8ae0f1e0f4074d6315bbaff40df107"
+    },
+    {
+      "path": "docs/postrust/MBM-004/CI_REPORT_METADATA_SCOPE.json",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "35bc0f6ad0dfdeec7b8b49b94f297d0a73a2c4bd"
+    },
+    {
+      "path": "scripts/ci/ci-report-metadata-admission.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "6e679597ccd5d0cc1d0b526ae78514a6d5efb14f"
+    },
+    {
+      "path": "scripts/ci/verify-ci-report-metadata.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "e787d4c2b2af30e4921b2db35cd2afc06d8cc891"
+    },
+    {
+      "path": "scripts/ci/test/ci-report-metadata.test.mjs",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "9b9e89f2ea92cfa23293f664b72e931b306aa380"
+    },
+    {
+      "path": ".github/workflows/verify.yml",
+      "status": "M",
+      "oldMode": "100644",
+      "newMode": "100644",
+      "oldBlob": "7ee3a92cc71d817ffbafe4f43d4829ac01a56aac"
     }
   ]
 }

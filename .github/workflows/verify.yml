@@ -356,7 +356,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: verify-${{ github.sha }}
-          path: ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/
+          path: |
+            ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/summary.json
+            ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/source-before.json
+            ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/source-after.json
+            ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/original-173.json
+            ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/original-173.stdout.log
+            ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/original-173.stderr.log
+            ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/control-plane.json
+            ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/control-plane.stdout.log
+            ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/control-plane.stderr.log
+            ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/metadata-safety.json
+            ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/metadata-safety.stdout.log
+            ${{ runner.temp }}/musicbridge-ci-report-metadata-gate/metadata-safety.stderr.log
           if-no-files-found: error
           retention-days: 14
 

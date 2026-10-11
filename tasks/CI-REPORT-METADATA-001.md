@@ -25,3 +25,15 @@ CI 新路由优先识别本任务的真实 Source/Report，严格检查十三/�
 Source 首次自然 push 要求四 workflow/六 job，Report 首次自然 push 要求 verify/security 两 workflow/三 job。各自只接纳一个实际新工具 ZIP，核全日志、完整 ZIP 和全部成员；已下载的原五个产品 ZIP 不再下载，原产品类型、测试、编译、Rust、Electron/App 明确复用 165 的证据，不能写成本次执行通过。旧 001 的二十项历史测试不在新 HEAD 机械重跑；新路由与摘要行为取得本次证据。
 
 Source 和其唯一直接 Report 自身 CI 都收口后，才建立后续集成基线，依次推进 Tape、完整 Feedback、016、017。后续集成必须有自己的精确 Scope 和继承历史路由。本任务没有正式 App、真实服务、设备、音频或 Owner 验收证据，这些状态仍为 `NOT_RUN`。
+
+## Source2 必要修正与双基线（2026-10-11）
+
+首次 Source `dfad0c8e0e0f906c3a7456b0151b3aaba7e5547c` 的自然 CI 五个 job 通过，verify 新十六项行为十五项通过、第十一项 workflowMirror 综合 status 为 1；阶段自然退出，无超时，完整 raw 和全部已观察进程关闭。TAP 没有子命令 stderr，实际失败位置与原严格路径规则的根因推导分别记录。Linux 最小策略探针覆盖旧错误批准根拒绝、正确父级批准根允许。
+
+Source2 沿用本任务和原分支，只普通追加提交。累计范围基线仍为失败 Report `1b5345d13d9617c1770a361841d805305d06d038` 的原十三条路径；实际新 Source 的唯一直接父必须是已推送失败 Source `dfad0c8e0e0f906c3a7456b0151b3aaba7e5547c`。两种身份均进入 correction/scope/admission，累计十三条及相对实际父的七条增量分别冻结，不接受任意中间父链。失败 Source 的原十三路径、tree、Scope 和完整证据固定为 Git 历史快照；没有成功自身 CI，也没有 Report，不能被新 Source 的资格覆盖。
+
+七条必要修改为本任务、correction、scope、admission、Gate、test 和 verify workflow。其他六条累计范围叶保持失败 Source 字节，Source2 的五份原报告 JSON 与三份 Markdown 均保持实际父原字节。原 mirror 六条叶、产品 Scope/114路径、原 producer 和证据保留，不变更 storage 或 source-pinned mirror 规则。
+
+第十一项 fixture helper 使用 DEV_BUILD_ROOT=path.dirname(root)，真实新准入 guard、原 mirror、两历史对象 preparation 仍逐项执行，各阶段保留 status/rejectedAt/stdout/stderr 供归因。Linux 策略 RED/GREEN 添加在同一行为内，其他十五项要求保留。verify 上传改为十二条完整显式根层文件，失败 tmp 留在执行端，不进入 artifact，不靠增大预算解决上传膨胀。
+
+失败 ZIP 的平台声明总大小 75,949,897 字节；本次诊断只读三段 2,549,577 字节、十二根成员完整字节及 CRC，未读 whole ZIP 或核 whole SHA256，无成功资格。Source2 和其唯一直接八路径 Report 必须各自 fresh189 Gate 与首次自然自身 CI，预算、全 raw、自然关闭、whole ZIP 十二成员和完整日志要求均保持；不 rerun/dispatch/改写失败历史，也不机械重跑旧 metadata16 或 mirror20，不重复五个产品包、构建或 App。

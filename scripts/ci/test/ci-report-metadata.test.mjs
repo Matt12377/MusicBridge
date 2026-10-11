@@ -8,6 +8,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildStoragePolicy } from '../../../apps/desktop/scripts/build-storage-root.mjs';
 import { CI_REPORT_METADATA_TASK as task, CI_REPORT_METADATA_BRANCH as branch, CI_REPORT_METADATA_BASE as base,
+  CI_REPORT_METADATA_SOURCE_PARENT as sourceParent, CI_REPORT_METADATA_SOURCE_DELTA_PATHS as sourceDeltaPaths,
+  CI_REPORT_METADATA_SOURCE_DELTA_FILES as sourceDeltaFiles,
   CI_REPORT_METADATA_HISTORICAL_SOURCE as historicalSource, CI_REPORT_METADATA_PRODUCT_SOURCE as product,
   CI_REPORT_METADATA_SCOPE_PATH as scopePath, CI_REPORT_METADATA_CORRECTION_PATH as correctionPath,
   CI_REPORT_METADATA_SOURCE_FILES, CI_REPORT_METADATA_REPORT_PATHS, CI_REPORT_METADATA_CORRECTION_IDENTITY,
@@ -69,9 +71,10 @@ function fixture(t) {
     fixtureRoot = mkdtempSync(path.join(temporary, 'ci-report-metadata-test-')); storage.check(fixtureRoot, { mustExist: true });
     const current = command(repository, ['rev-list', '--parents', '-n', '1', 'HEAD']).split(' ');
     assert.equal(current.length, 2, '真实Source/Report必须唯一父链');
-    actualSource = current[1] === base ? current[0] : current[1];
-    assert.equal(command(repository, ['rev-list', '--parents', '-n', '1', actualSource]).split(' ')[1], base);
-    fixtureDirectory = clone(repository, path.join(fixtureRoot, 'source'), base);
+    actualSource = current[1] === sourceParent ? current[0] : current[1];
+    assert.equal(command(repository, ['rev-list', '--parents', '-n', '1', actualSource]).split(' ')[1], sourceParent);
+    assert.deepEqual(command(repository, ['rev-list', '--parents', '-n', '1', sourceParent]).split(' '), [sourceParent, base]);
+    fixtureDirectory = clone(repository, path.join(fixtureRoot, 'source'), sourceParent);
     // Report的STATUS含追加摘要；始终从实际Source的13个Git blob读取，不复制当前FS。
     for (const relative of sourcePaths) {
       const bytes = command(repository, ['show', actualSource + ':' + relative], { binary: true });
@@ -79,7 +82,7 @@ function fixture(t) {
       writeFileSync(filename, bytes, { mode: 0o644 }); chmodSync(filename, 0o644);
     }
     command(fixtureDirectory, ['add', '--', ...sourcePaths]); sourceTree = command(fixtureDirectory, ['write-tree']);
-    fixtureSource = commitTree(fixtureDirectory, sourceTree, [base], '受控Fake Source；仅验证实际Git准入，不是平台CI');
+    fixtureSource = commitTree(fixtureDirectory, sourceTree, [sourceParent], '受控Fake后继Source；仅验证实际Git准入，不是平台CI');
     command(fixtureDirectory, ['update-ref', 'refs/heads/' + branch, fixtureSource]);
   }
   checkout(fixtureDirectory, fixtureSource);
@@ -87,7 +90,7 @@ function fixture(t) {
   t.diagnostic('受控Fake Git fixture=' + fixtureDirectory + ' source=' + fixtureSource + ' actualSourceInput=' + actualSource);
   return { directory: fixtureDirectory, source: fixtureSource, root: fixtureRoot };
 }
-function commitWorking(directory, paths, parents = [base]) {
+function commitWorking(directory, paths, parents = [sourceParent]) {
   command(directory, ['add', '--', ...paths]); const tree = command(directory, ['write-tree']);
   const head = commitTree(directory, tree, parents, '受控Fake闭集行为变异'); checkout(directory, head); return head;
 }
@@ -172,10 +175,11 @@ function repinSource(directory, relative) {
 function hosted(head) { return { ...fixtureEnvironment, GITHUB_ACTIONS: 'true', RUNNER_ENVIRONMENT: 'github-hosted',
   GITHUB_EVENT_NAME: 'push', GITHUB_API_URL: 'https://api.github.com', GITHUB_REPOSITORY: 'Matt12377/MusicBridge',
   GITHUB_REF_NAME: branch, GITHUB_SHA: head }; }
-function node(directory, args, environment = fixtureEnvironment, timeout = 20_000) {
+function node(directory, args, environment = fixtureEnvironment, timeout = 20_000, allowBoundedFailure = false) {
   const result = spawnSync(process.execPath, args, { cwd: directory, env: ciReportMirrorGitEnvironment(environment),
     timeout, killSignal: 'SIGKILL', maxBuffer: 16 * 1024 * 1024, encoding: 'utf8' });
-  assert.equal(result.error, undefined); assert.equal(result.signal, null); return result;
+  if (!allowBoundedFailure) { assert.equal(result.error, undefined); assert.equal(result.signal, null); }
+  return result;
 }
 function control(directory) { return node(directory, ['scripts/ci/verify-control-plane.mjs']); }
 function fullSource1(directory) { return record(path.join(directory, 'docs/postrust/MBM-004/CI_EVIDENCE.json')).ciRepair.sourceCi; }
@@ -246,14 +250,16 @@ function sourceReceipt(value) {
   });
   const sourceBefore = { identity: { head: value.source, status: '', branch, tree: sourceTree,
     commonDir: path.join(value.directory, '.git'), gitDir: path.join(value.directory, '.git') },
-    admission: { sourceSha: value.source, exactSourceFiles: 13, repairRole: 'source', encodingProof,
+    admission: { sourceSha: value.source, sourceParentSha: sourceParent, exactSourceFiles: 13, exactSourceDeltaFiles: 7,
+      historicalFailedMetadataSourcePreserved: true, repairRole: 'source', encodingProof,
       ciScopeSha256: sha(readFileSync(path.join(value.directory, scopePath))) },
     currentFiles: [...new Set([...sourcePaths, 'docs/postrust/MBM-004/CI_EVIDENCE.json'])].sort().map(relative => filePin(value.directory, relative)),
     encodingProof };
   member('source-before.json', Buffer.from(JSON.stringify(sourceBefore, null, 2) + '\n'));
   member('source-after.json', Buffer.from(JSON.stringify(sourceBefore, null, 2) + '\n'));
   const summary = { schema: 'musicbridge.ci-report-metadata.tool-gate.v1', task, status: 'PASSED_CURRENT_TOOL_GATE', success: true,
-    headAtRun: value.source, sourceSha: value.source, repairRole: 'source', baseSha: base, productSoftwareSource: product,
+    headAtRun: value.source, sourceSha: value.source, repairRole: 'source', baseSha: base,
+    sourceParentSha: sourceParent, productSoftwareSource: product,
     sourceInputsUnchanged: true, sourceBefore, sourceAfter: copy(sourceBefore), currentToolGateExitCode: 0, failures: [],
     originalTests: 173, safetyTests: 16, expectedToolTests: 189, limits: CI_REPORT_METADATA_GATE_LIMITS,
     startedAtMs: 1791686400000, finishedAtMs: 1791686400006, durationMs: 6, stages,
@@ -266,8 +272,8 @@ function sourceReceipt(value) {
     status: 'SEALED_FIRST_NATURAL_TOOL_CI_WITH_ORIGINAL_S165_SOFTWARE_REUSE', phase: 'source', task,
     revision: value.source, branch, repository: 'Matt12377/MusicBridge', repositoryId: producers.repositoryId,
     recordedAt: '2026-10-11T00:00:00Z', code: null,
-    before: { head: value.source, parent: base, branch, tree: sourceTree, status: '' },
-    after: { head: value.source, parent: base, branch, tree: sourceTree, status: '' },
+    before: { head: value.source, parent: sourceParent, branch, tree: sourceTree, status: '' },
+    after: { head: value.source, parent: sourceParent, branch, tree: sourceTree, status: '' },
     runs: producers.runs, proofs: producers.proofs, logs: producers.proofs.flatMap(proof => proof.jobs.map(job => ({
       runId: proof.runId, jobId: job.id, jobName: job.name, raw: fakePin('job-' + job.id + '.log'),
       transport: 'DIRECT_GITHUB_API_302_AND_MEMORY_ONLY_SIGNED_URL', redirectLocationArchived: false,
@@ -330,25 +336,39 @@ function preparationCode() {
   return body.slice(run + 1).map(line => { assert.ok(line === '' || line.startsWith('          ')); return line.slice(10); }).join('\n');
 }
 function historyPresent(directory, ref) { return command(directory, ['cat-file', '-e', ref + '^{commit}'], { allowFailure: true }).status === 0; }
-function preparation(mirror, donor, head) {
+function preparation(mirror, donor, head, allowBoundedFailure = false) {
   const result = spawnSync('bash', ['--noprofile', '--norc', '-c', preparationCode()], {
     cwd: mirror, env: { ...fixtureEnvironment, GITHUB_WORKSPACE: donor, GITHUB_SHA: head },
     timeout: 20_000, killSignal: 'SIGKILL', maxBuffer: 16 * 1024 * 1024, encoding: 'utf8',
   });
-  assert.equal(result.error, undefined); assert.equal(result.signal, null); return result;
+  if (!allowBoundedFailure) { assert.equal(result.error, undefined); assert.equal(result.signal, null); }
+  return result;
 }
 /** 真实guard→原source-pinned mirror→共同两历史对象准备，不对裸fetch增加另一套身份规则。 */
-function workflowMirror(donor, destination, expectedHead, root) {
-  const environment = { ...fixtureEnvironment, GITHUB_SHA: expectedHead, GITHUB_REF_NAME: branch, DEV_BUILD_ROOT: root };
+function workflowMirror(donor, destination, expectedHead, root, diagnostic) {
+  const environment = { ...fixtureEnvironment, GITHUB_SHA: expectedHead, GITHUB_REF_NAME: branch, DEV_BUILD_ROOT: path.dirname(root) };
   delete environment.RUNNER_ENVIRONMENT;
   const commandFile = path.join(root, path.basename(destination) + '-github-env'); writeFileSync(commandFile, '', { flag: 'wx', mode: 0o600 });
   environment.GITHUB_ENV = commandFile;
-  const guarded = node(donor, [path.join(donor, 'scripts/ci/ci-report-metadata-admission.mjs'), '--workflow-guard'], environment, 30_000);
-  if (guarded.status !== 0) return { status: guarded.status, rejectedAt: 'REAL_METADATA_GUARD' };
-  const mirrored = node(donor, [path.join(donor, 'scripts/ci/prepare-build-workspace-mirror.mjs'),
-    '--source', donor, '--destination', destination, '--expected-head', expectedHead], environment, 30_000);
-  if (mirrored.status !== 0) return { status: mirrored.status, rejectedAt: 'REAL_SOURCE_PINNED_MIRROR' };
-  const prepared = preparation(destination, donor, expectedHead); return { status: prepared.status, destination };
+  const stages = [], capture = (name, result) => {
+    const stdout = result.stdout ?? '', stderr = result.stderr ?? '';
+    const passed = result.status === 0 && result.signal === null && result.error === undefined;
+    const rawPin = text => { const raw = Buffer.from(text); return { bytes: raw.length, sha256: sha(raw) }; };
+    const stage = { name, status: result.status ?? null, signal: result.signal ?? null,
+      errorCode: result.error?.code ?? null, passed, rejectedAt: passed ? null : name,
+      stdout, stderr, raw: { stdout: rawPin(stdout), stderr: rawPin(stderr) } };
+    stages.push(stage); diagnostic?.(stage); return stage;
+  };
+  const rejectedStage = stage => ({ status: stage.status ?? 1, rejectedAt: stage.rejectedAt, destination, stages });
+  const guarded = capture('REAL_METADATA_GUARD', node(donor,
+    [path.join(donor, 'scripts/ci/ci-report-metadata-admission.mjs'), '--workflow-guard'], environment, 30_000, true));
+  if (!guarded.passed) return rejectedStage(guarded);
+  const mirrored = capture('REAL_SOURCE_PINNED_MIRROR', node(donor,
+    [path.join(donor, 'scripts/ci/prepare-build-workspace-mirror.mjs'),
+      '--source', donor, '--destination', destination, '--expected-head', expectedHead], environment, 30_000, true));
+  if (!mirrored.passed) return rejectedStage(mirrored);
+  const prepared = capture('REAL_HISTORICAL_OBJECT_PREPARATION', preparation(destination, donor, expectedHead, true));
+  return prepared.passed ? { status: 0, rejectedAt: null, destination, stages } : rejectedStage(prepared);
 }
 
 const behaviors = [
@@ -411,9 +431,33 @@ const behaviors = [
     assert.equal(scope.files.length, 13); assert.equal(sourcePaths.length, 13); assert.equal(reportPaths.length, 8);
     assert.equal(scope.files.filter(row => row.status === 'A').length, 6); assert.equal(scope.files.filter(row => row.status === 'M').length, 7);
     assert.equal(scope.files.find(row => row.path === 'project/STATUS.json').role, 'machine-status-projection');
+    assert.equal(scope.sourceParentSha, sourceParent); assert.deepEqual(scope.sourceDeltaFiles, sourceDeltaFiles);
+    assert.equal(sourceDeltaPaths.length, 7); assert.equal(new Set(sourceDeltaPaths).size, 7);
+    const changes = parent => command(value.directory,
+      ['diff', '--name-status', '--no-renames', parent, value.source, '--']).split('\n').map(row => row.split('\t'))
+      .map(([status, relative]) => ({ path: relative, status })).sort((a, b) => a.path.localeCompare(b.path));
+    assert.deepEqual(changes(base), CI_REPORT_METADATA_SOURCE_FILES.map(({ path: relative, status }) => ({ path: relative, status }))
+      .sort((a, b) => a.path.localeCompare(b.path)));
+    assert.deepEqual(changes(sourceParent), sourceDeltaPaths.map(relative => ({ path: relative, status: 'M' }))
+      .sort((a, b) => a.path.localeCompare(b.path)));
+    const deltaTree = command(value.directory, ['ls-tree', '-z', sourceParent, '--', ...sourceDeltaPaths], { binary: true });
+    const deltaRows = deltaTree.toString('utf8').split('\0').filter(Boolean).map(row => {
+      const match = /^(100644) blob ([a-f0-9]{40})\t(.+)$/u.exec(row); assert.ok(match);
+      return { path: match[3], status: 'M', oldMode: match[1], newMode: '100644', oldBlob: match[2] };
+    });
+    assert.deepEqual(deltaRows.sort((a, b) => a.path.localeCompare(b.path)),
+      copy(sourceDeltaFiles).sort((a, b) => a.path.localeCompare(b.path)));
+    const failed = CI_REPORT_METADATA_CORRECTION_IDENTITY.historicalFailedMetadataSource;
+    const oldScopeRaw = command(value.directory, ['show', sourceParent + ':' + scopePath], { binary: true });
+    assert.equal(failed.source, sourceParent); assert.equal(failed.parent, base);
+    assert.equal(failed.sourceOwnCi, 'FAILED'); assert.equal(failed.report, null);
+    assert.equal(oldScopeRaw.length, failed.scope.bytes); assert.equal(sha(oldScopeRaw), failed.scope.sha256);
+    assert.deepEqual(JSON.parse(oldScopeRaw).files.map(({ role, ...row }) => row), failed.sourceFiles);
     assert.equal(assertCiReportMetadataCorrection(copy(CI_REPORT_METADATA_CORRECTION_IDENTITY)).baseSha, base);
     const actual = inspectTaskApplicability(value.directory, fixtureEnvironment);
     assert.equal(actual.task, task); assert.equal(actual.sourceSha, value.source); assert.equal(actual.currentProductTestsRepeated, false);
+    assert.equal(actual.sourceParentSha, sourceParent); assert.equal(actual.exactSourceFiles, 13);
+    assert.equal(actual.exactSourceDeltaFiles, 7); assert.equal(actual.historicalFailedMetadataSourcePreserved, true);
     assert.equal(ciReportMetadataWorkflowOutputs(actual).repairMode, 'reuse-s165');
     for (const forged of [copy(actual), { task }]) { assert.throws(() => ciReportMetadataWorkflowOutputs(forged), rejected); assert.throws(() => taskApplicabilityWorkflowOutputs(forged)); }
     assertProtectedMtime(value.directory);
@@ -424,7 +468,7 @@ const behaviors = [
   },
   async t => {
     const value = fixture(t), decoy = clone(value.directory, path.join(value.root, 'decoy'), value.source);
-    for (const parents of [[historicalSource], [base, product]]) {
+    for (const parents of [[historicalSource], [base], [sourceParent, product]]) {
       const head = commitTree(value.directory, sourceTree, parents, '受控错误父链'); checkout(value.directory, head);
       assert.throws(() => inspectCiReportMetadataAdmission(value.directory, fixtureEnvironment), rejected);
     }
@@ -451,6 +495,14 @@ const behaviors = [
   },
   t => {
     const value = fixture(t), originalScope = record(path.join(value.directory, scopePath));
+    for (const edit of [data => { data.sourceParentSha = base; }, data => { data.sourceDeltaFiles.pop(); },
+      data => { data.sourceDeltaFiles.push(copy(data.sourceDeltaFiles[0])); },
+      data => { data.sourceDeltaFiles[0].oldBlob = 'f'.repeat(40); },
+      data => { data.sourceDeltaFiles[0].oldMode = '120000'; },
+      data => { data.sourceDeltaFiles[0].status = 'A'; },
+      data => { data.sourceDeltaFiles[0].path = 'project/STATUS.json'; }]) {
+      const changed = copy(originalScope); edit(changed); assert.throws(() => assertCiReportMetadataScope(changed), rejected);
+    }
     for (const edit of [data => { data.files.pop(); }, data => { data.files[0].role = 'product'; },
       data => { data.files[0].sha256 = 'f'.repeat(64); }, data => { data.files[0].oldMode = '120000'; },
       data => { data.reportPaths.push('reports/EXTRA.md'); }]) {
@@ -462,6 +514,11 @@ const behaviors = [
       checkout(value.directory, value.source); appendFileSync(path.join(value.directory, relative), '\n'); commitWorking(value.directory, [relative]);
       assert.throws(() => inspectCiReportMetadataAdmission(value.directory, fixtureEnvironment), rejected);
     }
+    // 累计仍在原十三路径内，但相对失败Source多出第八M也必须拒绝。
+    checkout(value.directory, value.source); const eighth = 'scripts/ci/task-applicability.mjs';
+    assert.ok(sourcePaths.includes(eighth)); assert.equal(sourceDeltaPaths.includes(eighth), false);
+    appendFileSync(path.join(value.directory, eighth), '\n'); repinSource(value.directory, eighth);
+    assert.throws(() => inspectCiReportMetadataAdmission(value.directory, fixtureEnvironment), rejected);
     checkout(value.directory, value.source); const extra = 'scripts/ci/ci-metadata-fourteenth.mjs'; writeFileSync(path.join(value.directory, extra), 'export const synthetic = true;\n');
     commitWorking(value.directory, [extra]); assert.throws(() => inspectCiReportMetadataAdmission(value.directory, fixtureEnvironment), rejected);
     checkout(value.directory, value.source); chmodSync(path.join(value.directory, '.github/workflows/security.yml'), 0o755);
@@ -531,18 +588,42 @@ const behaviors = [
   },
   t => {
     const value = fixture(t), head = command(repository, ['rev-parse', 'HEAD']);
+    const linuxEnvironment = { ...fixtureEnvironment, GITHUB_ACTIONS: 'false', RUNNER_ENVIRONMENT: 'local' };
+    const wrongRoot = buildStoragePolicy({ platform: 'linux', env: { ...linuxEnvironment, DEV_BUILD_ROOT: value.root } });
+    assert.throws(() => wrongRoot.check(value.root, { mustExist: true }), /批准根之下/u);
+    const approvedRoot = path.dirname(value.root), linux = buildStoragePolicy({ platform: 'linux',
+      env: { ...linuxEnvironment, DEV_BUILD_ROOT: approvedRoot } });
+    assert.equal(linux.root, approvedRoot); assert.equal(linux.hosted, false);
+    assert.equal(linux.check(value.root, { mustExist: true }), value.root);
+    assert.equal(linux.check(path.join(value.root, 'workflow-mirror')), path.join(value.root, 'workflow-mirror'));
+    assert.throws(() => linux.check(approvedRoot, { mustExist: true }), /批准根之下/u);
+    assert.throws(() => linux.check(path.dirname(approvedRoot), { mustExist: true }), /批准根之下/u);
+    t.diagnostic('同一Linux存储策略：旧自根RED、实际父根GREEN，自根与越界仍RED；未降低生产存储约束。');
     const donor = clone(repository, path.join(value.root, 'workflow-donor'), head);
     for (const ref of originalHistory) {
       assert.equal(historyPresent(donor, ref), false);
       command(donor, ['-c', 'protocol.file.allow=always', 'fetch', '--no-tags', '--force', repository, ref]);
       assert.equal(historyPresent(donor, ref), true);
     }
-    const mirror = path.join(value.root, 'workflow-mirror'); const result = workflowMirror(donor, mirror, head, value.root);
-    assert.equal(result.status, 0); assert.equal(command(mirror, ['rev-parse', 'HEAD']), head);
+    const diagnostic = stage => t.diagnostic('实际fixture子步骤完整结果=' + JSON.stringify(stage));
+    const mirror = path.join(value.root, 'workflow-mirror'); const result = workflowMirror(donor, mirror, head, value.root, diagnostic);
+    assert.equal(result.status, 0, '实际workflow拒绝位置=' + result.rejectedAt); assert.equal(result.rejectedAt, null);
+    assert.deepEqual(result.stages.map(stage => stage.name),
+      ['REAL_METADATA_GUARD', 'REAL_SOURCE_PINNED_MIRROR', 'REAL_HISTORICAL_OBJECT_PREPARATION']);
+    for (const stage of result.stages) {
+      assert.equal(stage.passed, true); assert.equal(stage.status, 0); assert.equal(stage.rejectedAt, null);
+      assert.equal(stage.signal, null); assert.equal(stage.errorCode, null);
+      for (const stream of ['stdout', 'stderr']) {
+        const raw = Buffer.from(stage[stream]); assert.deepEqual(stage.raw[stream], { bytes: raw.length, sha256: sha(raw) });
+      }
+    }
+    assert.equal(command(mirror, ['rev-parse', 'HEAD']), head);
     const history = inspectCiReportMetadataHistoricalObjects(mirror, fixtureEnvironment); assert.ok(history);
     for (const ref of originalHistory) assert.equal(historyPresent(mirror, ref), true);
     command(donor, ['checkout', '-B', branch + '-wrong', base]);
-    const rejectedMirror = workflowMirror(donor, path.join(value.root, 'wrong-head-mirror'), head, value.root);
+    const rejectedMirror = workflowMirror(donor, path.join(value.root, 'wrong-head-mirror'), head, value.root, diagnostic);
+    assert.equal(rejectedMirror.rejectedAt, 'REAL_METADATA_GUARD'); assert.equal(rejectedMirror.stages.length, 1);
+    assert.equal(rejectedMirror.stages[0].passed, false);
     assert.notEqual(rejectedMirror.status, 0); assert.equal(existsSync(path.join(value.root, 'wrong-head-mirror')), false);
     const missing = clone(repository, path.join(value.root, 'missing-history'), head), refsBefore = command(missing, ['show-ref']);
     assert.throws(() => inspectCiReportMetadataHistoricalObjects(missing, fixtureEnvironment), rejected);
@@ -570,6 +651,7 @@ const behaviors = [
   },
   async t => {
     const value = fixture(t), head = report(value);
+    assert.equal(validateCiReportMetadataParentCi(ci(sourceParent)), false, '原失败Source的CI不能替代后继Source资格');
     for (const [index, edit] of [producers => { producers.proofs[0].jobs[0].conclusion = 'failure'; },
       producers => { producers.runs.push(copy(producers.runs[0])); }, producers => { producers.runs[0].run_attempt = 2; },
       producers => { producers.proofs[0].jobs[0].steps.find(row => row.name === toolGate).conclusion = 'skipped'; },
@@ -592,6 +674,7 @@ const behaviors = [
   t => {
     const value = fixture(t), receipt = sourceReceipt(value); assert.equal(validateCiReportMetadataSourceReceipt(receipt, value.source), true);
     const edits = [data => { data.artifacts[0].zip.sha256 = 'e'.repeat(64); }, data => { data.artifacts[0].allMembersBytesAndCrcRead = false; },
+      data => { data.before.parent = base; }, data => { data.after.parent = base; },
       data => { data.artifacts[0].members.find(row => row.path === 'control-plane.stdout.log').sha256 = 'e'.repeat(64); },
       data => { data.artifacts[0].members.pop(); }, data => { data.logs[0].raw.bytes = 0; },
       data => { data.logs[1].jobId = data.logs[0].jobId; }, data => { data.artifacts[0].toolContent.rawBase64 = Buffer.from('{}\n').toString('base64'); },
@@ -609,6 +692,16 @@ const behaviors = [
       data => rewriteSyntheticSummary(data, summary => { summary.stages[1].rawCaptureComplete = false; }),
       data => rewriteSyntheticSummary(data, summary => { summary.stages[2].testCounts.skipped = 1; }),
       data => rewriteSyntheticSummary(data, summary => { summary.controlPlaneEncodingPassed = false; }),
+      data => rewriteSyntheticSummary(data, summary => { summary.sourceParentSha = base; }),
+      data => rewriteSyntheticSummary(data, summary => {
+        summary.sourceBefore.admission.sourceParentSha = base; summary.sourceAfter = copy(summary.sourceBefore);
+      }),
+      data => rewriteSyntheticSummary(data, summary => {
+        summary.sourceBefore.admission.exactSourceDeltaFiles = 8; summary.sourceAfter = copy(summary.sourceBefore);
+      }),
+      data => rewriteSyntheticSummary(data, summary => {
+        summary.sourceBefore.admission.historicalFailedMetadataSourcePreserved = false; summary.sourceAfter = copy(summary.sourceBefore);
+      }),
       data => rewriteSyntheticSummary(data, summary => { summary.controlPlaneEncodingProof.evidence.sha256 = 'e'.repeat(64); }),
       data => rewriteSyntheticSummary(data, summary => { summary.limits.stageMs++; }),
       data => rewriteSyntheticSummary(data, summary => { summary.limits.wholeMs++; }),

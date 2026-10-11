@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { CI_REPORT_MIRROR_GATE_LIMITS, CI_REPORT_MIRROR_ORIGINAL_TESTS,
   captureCiReportMirrorStage, ciReportMirrorGitEnvironment,
   validateCiReportMirrorGateArguments } from './verify-ci-report-mirror.mjs';
-import { CI_REPORT_METADATA_TASK, CI_REPORT_METADATA_BRANCH, CI_REPORT_METADATA_BASE,
+import { CI_REPORT_METADATA_TASK, CI_REPORT_METADATA_BRANCH, CI_REPORT_METADATA_BASE, CI_REPORT_METADATA_SOURCE_PARENT,
+  CI_REPORT_METADATA_SOURCE_DELTA_PATHS,
   CI_REPORT_METADATA_PRODUCT_SOURCE, CI_REPORT_METADATA_SOURCE_FILES, CI_REPORT_METADATA_REPORT_PATHS,
   inspectCiReportMetadataAdmission, inspectCiReportMetadataReportAdmission,
   inspectCiReportMetadataHistoricalObjects, inspectCiReportMetadataEncoding } from './ci-report-metadata-admission.mjs';
@@ -116,11 +117,14 @@ export function inspectCiReportMetadataGateInputs(directory, env = process.env,
   const currentIdentity = identity(directory, env, deadline);
   const parents = git(directory, ['rev-list', '--parents', '-n', '1', currentIdentity.head], env, deadline).trim().split(' ');
   if (parents.length !== 2 || parents[0] !== currentIdentity.head) refuse('CI_REPORT_METADATA_UNIQUE_PARENT_REQUIRED');
-  const repairRole = parents[1] === CI_REPORT_METADATA_BASE ? 'source' : 'report';
+  const repairRole = parents[1] === CI_REPORT_METADATA_SOURCE_PARENT ? 'source' : 'report';
   const admission = repairRole === 'source' ? inspectCiReportMetadataAdmission(directory, env, { deadline })
     : inspectCiReportMetadataReportAdmission(directory, env, { deadline });
   if (admission.task !== CI_REPORT_METADATA_TASK || admission.repairRole !== repairRole
     || admission.headAtAdmission !== currentIdentity.head || admission.productSource !== CI_REPORT_METADATA_PRODUCT_SOURCE
+    || admission.sourceParentSha !== CI_REPORT_METADATA_SOURCE_PARENT
+    || admission.exactSourceFiles !== 13 || admission.exactSourceDeltaFiles !== 7
+    || admission.historicalFailedMetadataSourcePreserved !== true
     || admission.currentToolGateRequired !== true || admission.currentProductTestsRepeated !== false)
     refuse('CI_REPORT_METADATA_CURRENT_ADMISSION_REQUIRED');
   const historicalObjects = inspectCiReportMetadataHistoricalObjects(directory, env, { deadline });
@@ -137,6 +141,8 @@ export function inspectCiReportMetadataGateInputs(directory, env = process.env,
   const sourcePaths = CI_REPORT_METADATA_SOURCE_FILES.map(row => typeof row === 'string' ? row : row.path);
   const reportPaths = CI_REPORT_METADATA_REPORT_PATHS.map(row => typeof row === 'string' ? row : row.path);
   if (sourcePaths.length !== 13 || reportPaths.length !== 8 || new Set(sourcePaths).size !== 13
+    || CI_REPORT_METADATA_SOURCE_DELTA_PATHS.length !== 7 || new Set(CI_REPORT_METADATA_SOURCE_DELTA_PATHS).size !== 7
+    || CI_REPORT_METADATA_SOURCE_DELTA_PATHS.some(relative => !sourcePaths.includes(relative))
     || new Set(reportPaths).size !== 8 || originalTests.reduce((sum, row) => sum + row.expectedTests, 0) !== 173
     || CI_REPORT_METADATA_SAFETY_CASE_NAMES.length !== 16) refuse('CI_REPORT_METADATA_TOOL_INPUT_CLOSED_SET_INVALID');
   const currentFiles = [...new Set([...sourcePaths, 'docs/postrust/MBM-004/CI_EVIDENCE.json',
@@ -220,7 +226,8 @@ export async function runCiReportMetadataGate(argv = process.argv.slice(2), env 
   const summary = { schema: 'musicbridge.ci-report-metadata.tool-gate.v1', task: CI_REPORT_METADATA_TASK,
     status: success ? 'PASSED_CURRENT_TOOL_GATE' : 'FAILED', success,
     headAtRun: before.identity.head, sourceSha: before.admission.sourceSha, repairRole: before.admission.repairRole,
-    baseSha: CI_REPORT_METADATA_BASE, productSoftwareSource: CI_REPORT_METADATA_PRODUCT_SOURCE,
+    baseSha: CI_REPORT_METADATA_BASE, sourceParentSha: before.admission.sourceParentSha,
+    productSoftwareSource: CI_REPORT_METADATA_PRODUCT_SOURCE,
     productFingerprint: before.admission.productFingerprint, ciScopeSha256: before.admission.ciScopeSha256,
     sourceBefore: before, sourceAfter: after, sourceInputsUnchanged: after !== null && same(before, after),
     limits: CI_REPORT_METADATA_GATE_LIMITS, startedAtMs, finishedAtMs: Date.now(), durationMs: performance.now() - began,
