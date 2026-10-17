@@ -1,5 +1,7 @@
 # V4 本机开发基线集成
 
+> 本文保留初次建立时的证据。工作树后来已迁入项目目录，当前入口见 `docs/development/V4_START.md`；迁移验证见 `reports/V4_WORKTREE_RELOCATION_2026-10-17.md`。
+
 工作树：`/Volumes/LifeWeave/Developer/CommandLine/worktrees/v4`；分支：`codex/v4`。
 
 ## 来源与提交

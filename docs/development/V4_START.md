@@ -1,12 +1,12 @@
 # V4 本机桌面开发入口
 
-当前工作树为 `/Volumes/LifeWeave/Developer/CommandLine/worktrees/v4`，分支为 `codex/v4`。
-该位置位于现有批准构建根之下；固定 Worker 的挂载、真实路径及同卷检查保持不变。
+当前工作树为 `/Volumes/LifeWeave/VSCode/MusicBridge/worktree/v4`，分支为 `codex/v4`。
+源码使用项目工作树目录。`dev:desktop` 会把当前已跟踪文件、未提交源码和既有原生资源同步到批准构建根中的专用编译副本，编译产物仍写在 `/Volumes/LifeWeave/Developer/CommandLine`；固定 Worker 的挂载、真实路径及同卷检查保持不变。
 
 ## 启动开发版
 
 ```zsh
-cd "/Volumes/LifeWeave/Developer/CommandLine/worktrees/v4"
+cd "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/v4"
 nvm use
 corepack pnpm@10.17.1 dev:desktop
 ```
@@ -21,7 +21,9 @@ corepack pnpm@10.17.1 dev:desktop
 corepack pnpm@10.17.1 start:desktop
 ```
 
-根目录原有 `dev` 和 `start` 继续作为 Core 命令，桌面入口使用带 `:desktop` 的命令。
+根目录原有 `dev` 和 `start` 继续作为 Core 命令，桌面入口使用带 `:desktop` 的命令。源码改变后，`start:desktop` 会要求先重新构建，防止启动旧产物。直接执行桌面子包的 `dev` 会跳过编译副本准备，请使用这里的根目录入口。
+
+编译副本仅同步发生变化的输入。开发命令会显示实际编译目录；需要只检查构建、暂不打开 App 时，可执行 `corepack pnpm@10.17.1 dev:desktop --build-only`。
 
 ## 本机准备与范围
 
