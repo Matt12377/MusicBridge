@@ -67,7 +67,7 @@ export const mobileNeteaseId = (v: unknown): v is string => typeof v === 'string
 export function captureMobileNeteaseScope(raw: unknown): MobileNeteaseScope {
   const value = captureMobileContentScope(raw);
   if (!['serverId', 'datasetId', 'deviceId', 'ownerEpoch', 'accountDomain'].every(k => mobileNeteaseId(value[k as keyof MobileContentScope]))
-    || !mobileNeteaseId(value.providerEpoch)) throw new MobileServiceError(401, 'UNAUTHORIZED');
+    || !mobileNeteaseId(value.providerEpoch)) throw new MobileServiceError(403, 'RESOURCE_REVOKED');
   return value;
 }
 export function captureMobileNeteaseAccount(raw: unknown): Readonly<MobileNeteaseAccount> {
@@ -79,7 +79,7 @@ export function captureMobileNeteaseAccount(raw: unknown): Readonly<MobileNeteas
   return Object.freeze(captured.value as unknown as MobileNeteaseAccount);
 }
 export function assertMobileNeteaseAccount(scope: MobileNeteaseScope, raw: unknown): void {
-  if (raw === null) throw new MobileServiceError(401, 'UNAUTHORIZED');
+  if (raw === null) throw new MobileServiceError(403, 'RESOURCE_REVOKED');
   const account = captureMobileNeteaseAccount(raw);
   if (scope.accountDomain !== account.accountDomain || scope.providerEpoch !== account.providerEpoch) {
     throw new MobileServiceError(409, 'SOURCE_CHANGED');

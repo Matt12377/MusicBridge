@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { copyLibraryReadTraceEvent, createLibraryReadTraceStreamReader, createLibraryReadTraceWriter, isLibraryReadTraceEnabled, libraryReadTraceFailure, readLibraryReadTerminalMetadata, LIBRARY_READ_TRACE_PREFIX } from '../src/shared/library-read-trace.js';
+import { copyLibraryReadTraceEvent, copyLocalAlbumSafeTrace, createLibraryReadTraceStreamReader, createLibraryReadTraceWriter, emptyLocalAlbumTraceMatches, isLibraryReadTraceEnabled, libraryReadTraceFailure, readLibraryReadTerminalMetadata, readLocalAlbumSafeTraceLine, LIBRARY_READ_TRACE_PREFIX, LOCAL_ALBUM_TRACE_PREFIX } from '../src/shared/library-read-trace.js';
 
 test('逐请求日志：开发默认开启、生产默认关闭、显式开关覆盖且无效值不打开生产', () => {
   assert.equal(isLibraryReadTraceEnabled({}, true), true); assert.equal(isLibraryReadTraceEnabled({}, false), false);
@@ -42,4 +42,21 @@ test('逐请求日志：utility stdout 只转发有界白名单诊断并处理�
 
 test('逐请求日志：写入异常被隔离，不向业务抛出或打印原错误', () => {
   assert.doesNotThrow(() => createLibraryReadTraceWriter({ enabled: true, write: () => { throw new Error('private-write-failure'); } })({ stage: 'core.finish', outcome: 'ok' }));
+});
+
+test('本地专辑安全trace：封面许可三阶段可解析且未知阶段与敏感字段仍拒绝', () => {
+  const stages = ['localAlbum.artwork.permit-granted', 'localAlbum.artwork.permit-deferred', 'localAlbum.artwork.no-permit-unavailable'] as const;
+  for (const stage of stages) {
+    const trace = { version: 1, traceSha256: 'a'.repeat(64), parentSha256: null, stage, firstStage: null,
+      code: 'UNKNOWN', name: 'UNKNOWN', mappedCode: null, elapsedMs: 0, outcome: 'ok', matches: emptyLocalAlbumTraceMatches(), preloadAssociated: false };
+    assert.deepEqual(copyLocalAlbumSafeTrace(trace), trace);
+    assert.deepEqual(readLocalAlbumSafeTraceLine(LOCAL_ALBUM_TRACE_PREFIX + JSON.stringify(trace)), trace);
+    for (const rejected of [
+      { ...trace, stage: 'localAlbum.artwork.permit-unknown' },
+      { ...trace, dataUrl: 'private-data-url' }, { ...trace, path: 'private-path' }, { ...trace, cookie: 'private-cookie' },
+    ]) {
+      assert.equal(copyLocalAlbumSafeTrace(rejected), null);
+      assert.equal(readLocalAlbumSafeTraceLine(LOCAL_ALBUM_TRACE_PREFIX + JSON.stringify(rejected)), null);
+    }
+  }
 });

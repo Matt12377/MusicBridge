@@ -16,12 +16,18 @@ import { CI_REPORT_METADATA_TASK, CI_REPORT_METADATA_CORRECTION_PATH, CI_REPORT_
 import { V39_INTEGRATION_TASK, V39_INTEGRATION_SCOPE_PATH, V39_INTEGRATION_STATUS_PATH,
   v39IntegrationRouteRequested, inspectV39IntegrationAdmission, v39IntegrationWorkflowOutputs } from './v39-integration-admission.mjs';
 
+import { V39_INTEGRATION_TASK as V39_INTEGRATION002_TASK,V39_INTEGRATION_SCOPE_PATH as V39_INTEGRATION002_SCOPE_PATH,
+ V39_INTEGRATION_STATUS_PATH as V39_INTEGRATION002_STATUS_PATH,v39Integration002RouteRequested,
+ inspectV39Integration002Admission,inspectV39Integration002ReportAdmission,inspectV39Integration002WorkflowGuard,
+ v39Integration002WorkflowOutputs } from './v39-integration-002-admission.mjs';
+
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const recordPath = 'docs/tape-catalog-common/STATUS.json';
 function reject(code) { const error = new Error('任务适用性准入拒绝。'); error.code = code; throw error; }
 
 /** 分支和独立任务记录均可触发严格组合检查，不能删除其中一个标记逃回旧路由。 */
-export function taskApplicabilityRoute(branch, record, contentRecord = null, ciRepairRecord = null, ciMetadataRecord = null, v39Record = null) {
+export function taskApplicabilityRoute(branch, record, contentRecord = null, ciRepairRecord = null, ciMetadataRecord = null, v39Record = null, v39FullRecord = null) {
+  if (v39Integration002RouteRequested(branch, v39FullRecord !== null)) return 'EXACT_V39_INTEGRATION002';
   if (v39IntegrationRouteRequested(branch, v39Record !== null)) return 'EXACT_V39_INTEGRATION';
   if (ciReportMetadataRouteRequested(branch, ciMetadataRecord !== null)) return 'EXACT_CI_REPORT_METADATA';
   if (ciReportMirrorRouteRequested(branch, ciRepairRecord !== null)) return 'EXACT_CI_REPORT_MIRROR';
@@ -40,6 +46,15 @@ export function inspectTaskApplicability(directory = repository, env = process.e
   const git = io.git ?? (args => execFileSync('git', ['--no-replace-objects', '-c', 'core.fsmonitor=false', ...args],
     { cwd: directory, env: gitEnvironment, encoding: 'utf8', timeout: 10000, maxBuffer: 1024 * 1024 }));
   const branch = git(['branch', '--show-current']).trim() || env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME;
+  let v39FullRecord = null;
+  for (const recordName of [V39_INTEGRATION002_STATUS_PATH,V39_INTEGRATION002_SCOPE_PATH]) {
+    try { const filename=path.join(directory,recordName);lstatSync(filename);v39FullRecord=JSON.parse(read(filename))??{}; }
+    catch(error){if(error?.code!=='ENOENT')reject('TASK_V39_FULL_RECORD_INVALID');}
+  }
+  if(taskApplicabilityRoute(branch,null,null,null,null,null,v39FullRecord)==='EXACT_V39_INTEGRATION002'){
+    const route=inspectV39Integration002WorkflowGuard(directory,env);
+    return route.integrationRole==='source'?inspectV39Integration002Admission(directory,env):inspectV39Integration002ReportAdmission(directory,env);
+  }
   let v39Record = null;
   for (const recordName of [V39_INTEGRATION_STATUS_PATH, V39_INTEGRATION_SCOPE_PATH]) {
     try { const filename = path.join(directory, recordName); lstatSync(filename); v39Record = JSON.parse(read(filename)) ?? {}; }
@@ -80,6 +95,8 @@ export function inspectTaskApplicability(directory = repository, env = process.e
 
 /** 五个输出来自同一次完整准入；工作流不能靠未知task默认跳过历史验证。 */
 export function taskApplicabilityWorkflowOutputs(result) {
+  if(result?.task===V39_INTEGRATION002_TASK)return {...v39Integration002WorkflowOutputs(result),mobileTask:'reuse-frozen',
+    legacyGateMode:'reuse-frozen',localLibraryFixTask:'not-applicable',combinedGateMode:'not-applicable'};
   if (result?.task === V39_INTEGRATION_TASK) return { ...v39IntegrationWorkflowOutputs(result), mobileTask: 'reuse-frozen',
     legacyGateMode: 'reuse-frozen', localLibraryFixTask: 'not-applicable', combinedGateMode: 'not-applicable' };
   if (result?.task === CI_REPORT_METADATA_TASK) return { ...ciReportMetadataWorkflowOutputs(result), mobileTask: 'reuse-frozen',

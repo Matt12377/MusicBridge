@@ -1,10 +1,16 @@
-/** 原冻结pack的公开九字段；内部意图guard只证明结构，不证明Controller来源。 */
+import { isCollectionId } from './collection.js';
+/** 旧九字段仍合法；可选专辑身份只选择Owner完整组，不携前端成员或路径许可。 */
 export const LOCAL_PLAY_ACTIONS = ['PLAY_NOW', 'APPEND_MB_QUEUE', 'PLAY_NEXT_MB_QUEUE'] as const;
 export type LocalPlayAction = typeof LOCAL_PLAY_ACTIONS[number];
 export interface LocalPlayTarget { core_id: string; zone_id: string }
+export interface LocalPlayAlbum {
+  datasetId: string; albumKey: string; rootId: string; revision: string;
+  kind: 'edition' | 'source-directory'; editionId: string | null; trackCount: number;
+}
 export interface LocalPlayRequest {
   schema_version: '1.2'; request_id: string; route: 'roon_audio_input'; source_kind: 'local_file';
   local_track_id: string; asset_id: string; expected_asset_revision: string; target: LocalPlayTarget; action: LocalPlayAction;
+  album?: LocalPlayAlbum;
 }
 export interface LocalPlaybackIntent extends LocalPlayRequest {
   intent_generation: string; attempt_id: string;
@@ -22,20 +28,28 @@ export type LocalPlayReceipt =
   | { status: 'rejected'; request_id: string; action: LocalPlayAction; reason: LocalPlayRejection };
 export interface LocalQueueIdentity { local_track_id: string; asset_id: string; asset_revision: string; selection_revision: string; location_revision: string; root_revision: string }
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v) && [Object.prototype,null].includes(Object.getPrototypeOf(v));
-const keys = (v: Record<string, unknown>, required: readonly string[]): boolean => required.every(k => Object.hasOwn(v, k)) && Reflect.ownKeys(v).length === required.length && Reflect.ownKeys(v).every(k => typeof k === 'string' && required.includes(k) && Object.getOwnPropertyDescriptor(v,k)?.enumerable === true && Object.hasOwn(Object.getOwnPropertyDescriptor(v,k)!, 'value'));
+const keys = (v: Record<string, unknown>, required: readonly string[], optional: readonly string[] = []): boolean => required.every(k => Object.hasOwn(v, k)) && Reflect.ownKeys(v).every(k => typeof k === 'string' && [...required,...optional].includes(k) && Object.getOwnPropertyDescriptor(v,k)?.enumerable === true && Object.hasOwn(Object.getOwnPropertyDescriptor(v,k)!, 'value'));
 const text = (v: unknown): v is string => typeof v === 'string' && v.length >= 1 && v.length <= 512 && Array.from(v).length <= 256;
 // 保留原pack pattern/maxLength与0/20位范围，不使用目录positive-u64或Number。
 export const isLocalPlayDecimal = (v: unknown): v is string => typeof v === 'string' && v.length <= 20 && /^(0|[1-9][0-9]*)$/u.test(v);
 export const isLocalPlayTarget = (v: unknown): v is LocalPlayTarget => record(v) && keys(v, ['core_id','zone_id']) && text(v.core_id) && text(v.zone_id);
+export function isLocalPlayAlbum(v: unknown): v is LocalPlayAlbum {
+  const opaque = (value: unknown): value is string => typeof value === 'string' && /^[a-zA-Z0-9][a-zA-Z0-9._:@-]{0,255}$/u.test(value);
+  return record(v) && keys(v,['datasetId','albumKey','rootId','revision','kind','editionId','trackCount'])
+    && isCollectionId(v.datasetId) && isCollectionId(v.rootId) && opaque(v.albumKey) && opaque(v.revision)
+    && (v.kind === 'source-directory' && v.editionId === null || v.kind === 'edition' && isCollectionId(v.editionId))
+    && typeof v.trackCount === 'number' && Number.isSafeInteger(v.trackCount) && v.trackCount >= 1 && v.trackCount <= 5000;
+}
 const publicKeys = ['schema_version','request_id','route','source_kind','local_track_id','asset_id','expected_asset_revision','target','action'] as const;
 function publicFields(v: Record<string, unknown>): boolean {
   return v.schema_version === '1.2' && text(v.request_id) && v.route === 'roon_audio_input' && v.source_kind === 'local_file'
     && text(v.local_track_id) && text(v.asset_id) && isLocalPlayDecimal(v.expected_asset_revision) && isLocalPlayTarget(v.target)
-    && (LOCAL_PLAY_ACTIONS as readonly unknown[]).includes(v.action);
+    && (LOCAL_PLAY_ACTIONS as readonly unknown[]).includes(v.action)
+    && (!Object.hasOwn(v,'album') || v.action === 'PLAY_NOW' && isLocalPlayAlbum(v.album));
 }
-export const isLocalPlayRequest = (v: unknown): v is LocalPlayRequest => record(v) && keys(v, publicKeys) && publicFields(v);
+export const isLocalPlayRequest = (v: unknown): v is LocalPlayRequest => record(v) && keys(v, publicKeys, ['album']) && publicFields(v);
 export function isLocalPlaybackIntent(v: unknown): v is LocalPlaybackIntent {
-  if (!record(v) || !keys(v, [...publicKeys,'intent_generation','attempt_id','segment','selection_revision','autoplay_after_restart']) || !publicFields(v)) return false;
+  if (!record(v) || !keys(v, [...publicKeys,'intent_generation','attempt_id','segment','selection_revision','autoplay_after_restart'], ['album']) || !publicFields(v)) return false;
   const segment = v.segment;
   return isLocalPlayDecimal(v.intent_generation) && text(v.attempt_id) && isLocalPlayDecimal(v.selection_revision) && v.autoplay_after_restart === false
     && (segment === null || record(segment) && keys(segment, ['segment_id','start_frame','end_frame_exclusive','timebase_hz'])

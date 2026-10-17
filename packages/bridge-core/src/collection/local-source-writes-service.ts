@@ -11,16 +11,20 @@ import { LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import { assertRetainedPhysicalWriteClaims, physicalWriteClaimDescriptors, releaseRetainedPhysicalWriteClaims, type PhysicalWriteClaims } from '../stream/physical-resource-claims.js';
 import { acquireSourceNamespaceWrite, assertSourceNamespaceHeld, captureSourceNamespace, delegateSourceNamespaceRecovery, retainSourceNamespaceWrite, resolveSourceNamespaceRecovery, resolveSourceNamespaceOrigin, type SourceNamespaceOriginBinding, type SourceNamespaceHeldObservation, type SourceNamespaceRecoveryToken, type SourceNamespaceOperation } from '../stream/source-namespace-claims.js';
 import { createLocalSourceWritesStore } from './local-source-writes-store.js';
+import { localLibraryManagementDigest } from './local-library-workbench/owner-journal.js';
+import type { DatasetIdentity } from '../recording/dataset-identity.js';
 import { createSourceOriginalStore, inspectSourceOriginal } from './source-original-store.js';
 import { createSourceSafetyRepository, publishSourceWrites, sourcePublisherNamespaceOperations, holdSourceRecoveryPhysicalFiles, reconcileSourcePublishedStage, observeSourceFileAttributes, observeSourceBackupAttributes, sameSourceFileAttributes, observeSourcePublishedBlob, SourcePublisherError, SourcePublicationRecoveryRequired, type PublisherTarget, type SourcePublishedBlob, type SourceBackupFact, type SourceFileAttributes, type SourcePublisherNamespaceProtection } from './source-writes-publisher.js';
 import { inspectSourceTagRegion, writeSourceTagRegion, SourceWriteFormatError, type SourceRegionChange } from './source-write-format.js';
 import { observeSourceWriteFile, SourceWriteVerificationError, type SourceWriteFileObservation } from './source-write-verify.js';
 import { sourceWriteFieldValues, readSourceFullRaw, SOURCE_FULL_RAW_PARSER } from './source-write-metadata.js';
 import { assertSourceWritesMainActor, type SourceWritesMainActor } from './source-writes-authority.js';
-import { sourceWritesEvent, sourceWritesLedgerRow, sourceWritesHash, sourceWritesCanonical, sourceWritesPlanContext, sourceWritesUnresolvedOperations, sourceWritesRecoveryRoot, sourceWritesRootOperationId, sourceWritesFail, sourceWritesRequestFingerprint, SourceWritesError, type SourceWritesEvent, type SourceWritePrivateItem, type SourceWriteCapture, type SourceStoredPlan, type SourceStoredObservation, type SourceWriteFileFact, type SourceWritesProjection } from './local-source-writes-journal.js';
+import { sourceWritesEvent, sourceWritesLedgerRow, sourceWritesHash, sourceWritesCanonical, sourceWritesPlanContext, sourceWritesUnresolvedOperations, sourceWritesRecoveryRoot, sourceWritesRootOperationId, sourceWritesAcceptedScope, sourceWritesClosedOriginalRun, sourceWritesFail, sourceWritesRequestFingerprint, SourceWritesError, type SourceWritesEvent, type SourceWritePrivateItem, type SourceWriteCapture, type SourceStoredPlan, type SourceStoredObservation, type SourceWriteFileFact, type SourceWritesProjection } from './local-source-writes-journal.js';
 
-interface Options {repository:CollectionRepository;datasetId:string;ownerEpoch?:string;assertCurrent():void;assertRecoveryCurrent?():void;beforeMedia?():Promise<void>;now?:()=>number}
-interface Running {controller:AbortController;done:Promise<void>}
+interface Options {repository:CollectionRepository;datasetId:string;ownerEpoch?:string;assertCurrent():void;assertRecoveryCurrent?():void;beforeMedia?():Promise<void>;now?:()=>number;readClosingSourceRecovery?:(judge:(projection:SourceWritesProjection)=>boolean)=>boolean}
+type RunProtection=ReturnType<typeof createSourceProtectionService>;
+interface Running {controller:AbortController;done:Promise<void>;libraryIds:ReadonlySet<string>;protection:RunProtection;protectionClosed?:Promise<void>;receiptEventId:string;stage:'preview'|'execute';publisherEntered:boolean;publisherReturned:boolean;settled:boolean;physicalClosed:boolean;physicalFailure:unknown}
+interface OriginalCopy {commandId:string;target:dto.LocalArtworkTarget;libraryIds:ReadonlySet<string>;done:Promise<dto.LocalSourceWritesOriginalReceipt>;physicalClosed:boolean;physicalFailure:unknown}
 const equal=(a:unknown,b:unknown):boolean=>sourceWritesCanonical(a)===sourceWritesCanonical(b);
 const storedObservation=({prefix:_,...observation}:SourceWriteFileObservation):SourceStoredObservation=>observation;
 function issue(error:unknown):dto.LocalSourceWritesIssue {
@@ -40,16 +44,18 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
   const repository=options.repository,now=options.now??Date.now,ownerEpoch=options.ownerEpoch??randomUUID();
   const store=createLocalSourceWritesStore(repository.localCatalog,now),directory=repository.privateSourceWritesDirectory();
   const safety=directory?createSourceSafetyRepository(path.join(directory,'safety')):null;
-  let closing=false,fatal:unknown,closed:Promise<void>|undefined;
+  let closing=false,resourcesClosed=false,fatal:unknown,closed:Promise<void>|undefined;
   const runs=new Map<string,Running>(),pending=new Set<Promise<unknown>>(),uncertain=new Map<string,SourcePublicationRecoveryRequired>();
+  // 只保留本进程原run的关闭证明；冷SQL与空runs都不是实际FD已经静止的证明。
+  const ownedRuns=new Map<string,Running>(),originalCopies=new Set<OriginalCopy>(),retiredLibraries=new Set<string>(),libraryStops=new Map<string,Promise<void>>();
   const namespaces=new Map<string,SourcePublisherNamespaceProtection>();let recoveryPreparation:Promise<void>|undefined,recoveryPrepared=false;
   const key=randomBytes(32),grants=new Map<string,{challenge:dto.LocalSourceWritesChallenge;actor:SourceWritesMainActor;consumed:boolean}>();
-  const check=():void=>{options.assertCurrent();if(closing||fatal||!recoveryPrepared)return sourceWritesFail('INVENTORY_UNAVAILABLE');};
-  const protection=createSourceProtectionService({store:repository.sourceProtection,datasetId:options.datasetId,assertCurrent:options.assertCurrent,sourceWrites:true});
+  const check=():void=>{options.assertCurrent();if(closing||fatal||!recoveryPrepared||unclosedOwnedRun())return sourceWritesFail('INVENTORY_UNAVAILABLE');};
+  const createRunProtection=():RunProtection=>createSourceProtectionService({store:repository.sourceProtection,datasetId:options.datasetId,assertCurrent:options.assertCurrent,sourceWrites:true});
   const originals=createSourceOriginalStore({datasetId:options.datasetId,directory:directory?path.join(directory,'originals'):'',assertCurrent:check,artwork:repository.localArtwork,
     read:()=>store.read(v=>[...v.projection.originals.values()]),cached:(id,fp)=>store.read(v=>{const e=v.receipt(id,fp);if(e&&e.kind!=='original')return sourceWritesFail('COMMAND_ID_REUSED');return e;}),append:e=>store.append(e)});
-  function captureRequest<C extends dto.LocalSourceWritesCommand>(command:C,raw:unknown):dto.LocalSourceWritesCommandPayloads[C]{
-    check();let captured:unknown;try{captured=dto.localSourceWritesDataSnapshot(raw,65536,8192);}catch{return sourceWritesFail('INVALID_REQUEST');}
+  function captureRequest<C extends dto.LocalSourceWritesCommand>(command:C,raw:unknown,originalRead=false):dto.LocalSourceWritesCommandPayloads[C]{
+    if(originalRead)options.assertCurrent();else check();let captured:unknown;try{captured=dto.localSourceWritesDataSnapshot(raw,65536,8192);}catch{return sourceWritesFail('INVALID_REQUEST');}
     if(!dto.isLocalSourceWritesCommandPayload(command,captured))return sourceWritesFail('INVALID_REQUEST');if(captured.datasetId!==options.datasetId)return sourceWritesFail('DATASET_SCOPE_MISMATCH');return captured;
   }
   const policy=():dto.LocalSourceWritesPolicy=>store.policy(options.datasetId);
@@ -57,8 +63,69 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
   function requiresRecovery(stored:SourceStoredPlan,projection?:SourceWritesProjection):boolean{
     return stored.plan.recoveryOf?sourceWritesUnresolvedOperations(stored).length>0:rootUnresolvedOperations(stored,projection).length>0;
   }
-  recoveryPrepared=!store.read(v=>[...v.projection.plans.values()].some(p=>p.plan.datasetId===options.datasetId&&requiresRecovery(p)));
-  function hasPersistedRecovery():boolean{return store.read(v=>[...v.projection.plans.values()].some(p=>p.plan.datasetId===options.datasetId&&requiresRecovery(p)));}
+  recoveryPrepared=!hasPersistedRecovery();
+  function persistedRecoveryRequired(projection:SourceWritesProjection):boolean{return [...projection.plans.values()].some(p=>p.plan.datasetId===options.datasetId&&(requiresRecovery(p,projection)||p.plan.issues.some(code=>code==='RELEASE_UNKNOWN'||code==='COMMIT_UNKNOWN')));}
+  function hasPersistedRecovery():boolean{return store.read(v=>persistedRecoveryRequired(v.projection));}
+  function unclosedOwnedRun():boolean{return [...ownedRuns.values()].some(run=>run.settled&&!run.physicalClosed);}
+  function captureLibraries(c:SourceWriteCapture):string[]{return [c.libraryRoot.id,c.asset.libraryRootId,...c.sharedSources.map(s=>s.asset.libraryRootId)];}
+  function trackLibraries(tracks:readonly dto.LocalTrack[]):Set<string>{return new Set(tracks.map(track=>repository.localCatalog.asset(track.assetId).libraryRootId));}
+  function assertLibrariesAccepting(ids:ReadonlySet<string>):void{for(const id of ids)if(retiredLibraries.has(id)||!repository.localCatalog.privateLibraryManagementRootAvailable(id))return sourceWritesFail('SOURCE_REVOKED');}
+  function planLibraries(stored:SourceStoredPlan):Set<string>|null{
+    const scope=sourceWritesAcceptedScope(stored),owned=ownedRuns.get(stored.plan.planId);if(owned)return new Set([...owned.libraryIds,...(scope?.libraryRoots.map(root=>root.id)??[]),...stored.items.flatMap(item=>captureLibraries(item.capture))]);
+    if(scope)return new Set([...scope.libraryRoots.map(root=>root.id),...stored.items.flatMap(item=>captureLibraries(item.capture))]);
+    if(stored.items.length)return new Set(stored.items.flatMap(item=>captureLibraries(item.capture)));
+    // 冷计划未持久原item时，当前track/edition映射不能证明受理时归属；阻断，不新捕获补它。
+    return null;
+  }
+  /** 仅消费同SQL已校验的原journal闭集；终态字符串、空Map和当前track均不授cold静止。 */
+  function coldTerminalClosed(stored:SourceStoredPlan,projection:SourceWritesProjection,proof:{order:ReadonlyMap<string,number>;confirmed:ReadonlySet<string>},ancestors:ReadonlySet<string>=new Set()):boolean{
+    const p=stored.plan;if(p.datasetId!==options.datasetId||phases.has(p.state)||p.state==='RECOVERY_REQUIRED'
+      ||p.issues.some(code=>code==='RELEASE_UNKNOWN'||code==='COMMIT_UNKNOWN'||code==='RECOVERY_REQUIRED')
+      ||requiresRecovery(stored,projection)||ancestors.has(p.planId))return false;
+    // 新原件须有本run在完整释放后的证书；旧真实闭集仍沿原认证，不给旧缺件补证。
+    if(sourceWritesAcceptedScope(stored)&&!p.recoveryOf&&!stored.events.some(event=>event.kind==='recovery-resolved'))return sourceWritesClosedOriginalRun(stored,projection);
+    if(!stored.ready||!stored.items.length)return false;
+    const next=new Set(ancestors);next.add(p.planId);
+    const readyAt=stored.events.findIndex(event=>event.kind==='ready'),terminal=[...stored.events].reverse().find(event=>event.kind==='state');
+    if(readyAt<0||terminal?.kind!=='state'||terminal.state!==p.state||stored.events.indexOf(terminal)<=readyAt)return false;
+    const confirmed=proof.confirmed.has(p.planId+'/'+stored.ownerEpoch);
+    // READY只在原preview全部媒体/原件/保护/预留探针I/O返回后同事务生成；从未受理执行的终态没有writer义务。
+    if(!confirmed&&['CANCELLED','BLOCKED','FAILED'].includes(p.state)
+      &&!stored.events.some(event=>event.kind==='phase'||event.kind==='facts'||event.kind==='directory-facts'||event.kind==='protection-closed'
+        ||event.kind==='recovery-resolved'||event.kind==='state'&&(event.state==='QUEUED'||event.state==='RUNNING'))
+      &&stored.items.every(value=>value.item.state==='planned'&&value.item.phase==='PLANNED'&&value.item.backup.state==='not-created'))return true;
+    const order=proof.order;
+    const closure=(plan:SourceStoredPlan,operationId:string)=>[...plan.events].reverse().find(event=>event.kind==='protection-closed'&&event.operationIds.includes(operationId));
+    if(confirmed&&p.state==='COMPLETED'&&p.issues.length===0&&stored.items.every(value=>{
+      const id=value.item.operationId,quiet=[...stored.events].reverse().find(event=>event.kind==='phase'&&event.fact.operationId===id),closed=closure(stored,id),facts=[...stored.events].reverse().find(event=>(event.kind==='facts'||event.kind==='directory-facts')&&event.fact.operationId===id);
+      if(value.item.state!=='applied'||value.item.phase!=='TERMINAL'||value.item.issue!==null||quiet?.kind!=='phase'||quiet.fact.phase!=='QUIET'||!closed||!facts)return false;
+      const q=order.get(quiet.eventId),c=order.get(closed.eventId),f=order.get(facts.eventId),t=order.get(terminal.eventId);
+      return q!==undefined&&c!==undefined&&f!==undefined&&t!==undefined&&f<q&&q<c&&(p.recoveryOf?t<c:c<t);
+    }))return true;
+    // 原root/旧恢复计划由后续恢复完成而FAILED：逐原operation追其真实闭口的恢复child，不用resolved字符串代替release。
+    if(p.state!=='FAILED'||p.issues.length)return false;
+    return stored.items.every(value=>{
+      const resolved=[...stored.events].reverse().find(event=>event.kind==='recovery-resolved'&&event.operationIds.includes(value.item.operationId));
+      if(resolved?.kind!=='recovery-resolved')return false;const child=projection.plans.get(resolved.recoveryPlanId);
+      if(!child||child.plan.state!=='COMPLETED'||!coldTerminalClosed(child,projection,proof,next))return false;
+      const root=sourceWritesRecoveryRoot(projection,stored),rootId=sourceWritesRootOperationId(stored,root,value.item.operationId),recovered=child.items.find(item=>sourceWritesRootOperationId(child,root,item.item.operationId)===rootId);
+      const closed=recovered?closure(child,recovered.item.operationId):undefined,c=closed?order.get(closed.eventId):undefined,r=order.get(resolved.eventId);
+      return c!==undefined&&r!==undefined&&r<c;
+    });
+  }
+  function knownClosedFailure(error:unknown):boolean{
+    if(error instanceof SourceWritesError)return !['RELEASE_UNKNOWN','COMMIT_UNKNOWN','RECOVERY_REQUIRED','REPLACEMENT_UNKNOWN'].includes(error.code);
+    if(error instanceof SourcePublisherError)return !['RELEASE_UNKNOWN','COMMIT_UNKNOWN','RECOVERY_REQUIRED','REPLACEMENT_UNKNOWN'].includes(error.issue);
+    return error instanceof SourceFileError||error instanceof SourceWriteVerificationError||error instanceof SourceWriteFormatError||error instanceof PhysicalResourceBusy;
+  }
+  function joinRunProtection(run:Running):Promise<void>{return run.protectionClosed??=run.protection.close();}
+  function keepPhysicalUnknown(planId:string,error:unknown):void{
+    const code=error instanceof LocalFactsCommitFatal?'COMMIT_UNKNOWN':'RELEASE_UNKNOWN';
+    try{const original=store.plan(options.datasetId,planId);
+      // 未形成READY的原预览没有完整capture，不能伪填hash/成员以凑恢复状态。
+      store.state(options.datasetId,planId,original.ready&&original.items.length?'RECOVERY_REQUIRED':'FAILED',[code],true);
+    }catch(persist){fatal??=persist;}
+  }
   function recoveryRoot(stored:SourceStoredPlan):SourceStoredPlan{return store.read(v=>sourceWritesRecoveryRoot(v.projection,stored));}
   function rootUnresolvedOperations(root:SourceStoredPlan,projection?:SourceWritesProjection):string[]{
     const ids=new Set(sourceWritesUnresolvedOperations(root)),collect=(v:SourceWritesProjection):void=>{for(const p of v.plans.values())if(p.plan.datasetId===root.plan.datasetId&&p.plan.recoveryOf===root.plan.planId)for(const id of sourceWritesUnresolvedOperations(p))ids.add(sourceWritesRootOperationId(p,root,id));};
@@ -116,6 +183,7 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
     }if(result.size>2048)return sourceWritesFail('BUDGET_EXCEEDED');return [...result.values()];
   }
   async function installRecoveryProtection():Promise<void>{
+    if(store.read(view=>[...view.projection.plans.values()].some(plan=>plan.plan.datasetId===options.datasetId&&plan.plan.issues.some(issue=>issue==='RELEASE_UNKNOWN'||issue==='COMMIT_UNKNOWN')&&(!plan.ready||!plan.items.length))))return sourceWritesFail('RELEASE_UNKNOWN');
     const assert=():void=>{(options.assertRecoveryCurrent??options.assertCurrent)();if(closing||fatal)return sourceWritesFail('INVENTORY_UNAVAILABLE');};assert();
     const snapshot=store.read(v=>({fingerprint:v.projection.fingerprint,plans:[...v.projection.plans.values()].filter(p=>p.plan.datasetId===options.datasetId)}));
     const groups=new Map<string,{root:SourceStoredPlan;plans:SourceStoredPlan[];rootIds:Set<string>}>();
@@ -136,11 +204,11 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
     }
     assert();if(store.read(v=>v.projection.fingerprint)!==snapshot.fingerprint)return sourceWritesFail('RECOVERY_REQUIRED');recoveryPrepared=true;
   }
-  function admitOrdinary():void {if(uncertain.size||hasPersistedRecovery())return sourceWritesFail('RECOVERY_REQUIRED');}
+  function admitOrdinary():void {if(uncertain.size||unclosedOwnedRun()||hasPersistedRecovery())return sourceWritesFail('RECOVERY_REQUIRED');}
   function selected(target:dto.LocalSourceWritesTarget):dto.LocalTrack[]{
     const ids=target.mode==='single'?[target.trackId]:target.mode==='batch'?target.trackIds:repository.localCatalog.editionTracks(target.editionId).filter(e=>e.active).map(e=>e.trackId);
     if(!ids.length||ids.length>100||new Set(ids).size!==ids.length)return sourceWritesFail('BUDGET_EXCEEDED');const tracks=ids.map(id=>repository.localCatalog.track(id));
-    if(new Set(tracks.map(t=>t.assetId)).size!==tracks.length)return sourceWritesFail('SHARED_RESOURCE_UNKNOWN');if(tracks.some(t=>t.segment!==null))return sourceWritesFail('SEGMENTED_SOURCE');return tracks;
+    if(new Set(tracks.map(t=>t.assetId)).size!==tracks.length)return sourceWritesFail('SHARED_RESOURCE_UNKNOWN');if(tracks.some(t=>t.segment!==null))return sourceWritesFail('SEGMENTED_SOURCE');assertLibrariesAccepting(trackLibraries(tracks));return tracks;
   }
   function scopeFingerprint(intent:dto.LocalSourceWritesIntent):string {if(intent.kind==='recovery')return sourceWritesHash(intent);return sourceWritesHash({target:intent.target,tracks:selected(intent.target),relations:intent.target.mode==='edition'?repository.localCatalog.editionTracks(intent.target.editionId):[]});}
   function material(ref:dto.LocalSourceWritesArtworkRef,trackId:string):void {
@@ -177,7 +245,7 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
     const parent=path.dirname(absolute),stat=await lstat(parent,{bigint:true});if(!stat.isDirectory()||stat.isSymbolicLink()||(stat.mode&0o777n)!==0o700n||typeof process.getuid!=='function'||stat.uid!==BigInt(process.getuid()))return sourceWritesFail('BACKUP_INVALID');
     const root={id:randomUUID(),path:parent,dev:String(stat.dev),ino:String(stat.ino),authorized:true,label:'已核对的私有恢复原件'},relative=path.basename(absolute),named=await readonlySourceCandidateMetadata(root,relative);return {root,relative,expectedSignature:named.signature};
   }
-  async function observeTrack(track:dto.LocalTrack,signal:AbortSignal,privateSource?:{capture:SourceWriteCapture;backup:SourceBackupFact;expectedSha256:string|null}):Promise<{capture:SourceWriteCapture;file:SourceWriteFileObservation}> {
+  async function observeTrack(track:dto.LocalTrack,signal:AbortSignal,protection:RunProtection,privateSource?:{capture:SourceWriteCapture;backup:SourceBackupFact;expectedSha256:string|null}):Promise<{capture:SourceWriteCapture;file:SourceWriteFileObservation}> {
     const asset=repository.localCatalog.asset(track.assetId),libraryRoot=repository.localCatalog.root(asset.libraryRootId),root=repository.sources.root(asset.sourceRootId),relative=repository.localCatalog.privateAssetLocator(asset.id).relative;
     if(!root.authorized)return sourceWritesFail('SOURCE_REVOKED');if(track.segment!==null)return sourceWritesFail('SEGMENTED_SOURCE');if(libraryRoot.role!=='library'||libraryRoot.revision!==asset.rootRevision)return sourceWritesFail('REVISION_CHANGED');
     const scan=repository.localScan.privateSourceWriteFileState(libraryRoot.id,relative);if(!scan||scan.value.outcome!=='accepted'||scan.value.assetId!==asset.id||scan.value.trackId!==track.id||!scan.value.readFacts||scan.value.relative!==relative)return sourceWritesFail('SHARED_RESOURCE_UNKNOWN');
@@ -200,7 +268,7 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
     const c:SourceWriteCapture={root,asset,track,libraryRoot,relative,observation,attributes:value.attributes,fieldsBefore:absent?{}:sourceWriteFieldValues(value.file),scan:{jobId:scan.jobId,batchId:scan.batchId,data:scan.data},protectionFingerprint:guard.fingerprint,storageFingerprint:guard.storageFingerprint,affectedTracks,parentPhysical:rootFact.parent,rootObservationFingerprint:rootFact.fingerprint,directoryTarget:null,directoryBefore:null,directoryAttributes:null,sourceAbsent:absent,recoverySource:recoverySource as SourceWriteCapture['recoverySource'],inverse:privateSource?.capture.inverse??null,sharedSources:[]};
     checkCapture(c);value.file.prefix=Buffer.from(value.file.prefix.subarray(0,value.file.audioStart+4));return {capture:c,file:value.file};
   }
-  async function directoryCapture(c:SourceWriteCapture,fileName:'cover.jpg'|'cover.png',signal:AbortSignal,retained?:PhysicalWriteClaims):Promise<void>{
+  async function directoryCapture(c:SourceWriteCapture,fileName:'cover.jpg'|'cover.png',signal:AbortSignal,protection:RunProtection,retained?:PhysicalWriteClaims):Promise<void>{
     c.directoryTarget=path.posix.join(path.posix.dirname(c.relative),fileName);const absolute=path.join(c.root.path,c.directoryTarget),parent=path.dirname(absolute);
     const all=repository.localCatalog.privateSourceWriteDirectory(c.libraryRoot.id,path.posix.dirname(c.relative));let count=0;const entries=await opendir(parent);
     for await(const entry of entries){if(++count>2048)return sourceWritesFail('BUDGET_EXCEEDED');if(entry.isSymbolicLink())return sourceWritesFail('SHARED_RESOURCE_UNKNOWN');if(entry.isFile()&&/\.(?:flac|mp3|m4a|mp4|wav|aiff|aif|alac|ogg|opus|ape|wv|cue)$/iu.test(entry.name)&&!all.some(a=>path.posix.basename(a.relative)===entry.name))return sourceWritesFail('SHARED_RESOURCE_UNKNOWN');}
@@ -220,21 +288,50 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
   function saveReceipt<C extends dto.LocalSourceWritesReceiptCommand>(command:C,request:dto.LocalSourceWritesCommandPayloads[C],value:dto.LocalSourceWritesReceipt,header:dto.LocalSourceWritesPlan|null=null,intent:dto.LocalSourceWritesIntent|null=null,policyValue:dto.LocalSourceWritesPolicy|null=null):void {
     store.append(sourceWritesEvent({version:1 as const,eventId:randomUUID(),datasetId:options.datasetId,planId:value.planId,occurredAt:new Date(now()).toISOString(),kind:'receipt' as const,command,request,requestFingerprint:value.requestFingerprint,receipt:value,header,intent,ownerEpoch,policy:policyValue}));
   }
-  function launch(planId:string,operation:(controller:AbortController)=>Promise<void>):void {
-    const controller=new AbortController(),timer=setTimeout(()=>{controller.abort();try{const current=store.plan(options.datasetId,planId).plan;if(phases.has(current.state)&&current.state!=='CANCEL_REQUESTED')store.state(options.datasetId,planId,'CANCEL_REQUESTED',['CANCELLED'],true);}catch(error){fatal??=error;}},120000);const done=Promise.resolve().then(()=>operation(controller)).catch(error=>{
+  function launch(planId:string,libraryIds:ReadonlySet<string>,commandId:string,operation:(controller:AbortController,protection:RunProtection,run:Running)=>Promise<void>):void {
+    const original=store.read(view=>view.projection.receipts.get(commandId));if(!original||original.planId!==planId||original.ownerEpoch!==ownerEpoch||original.receipt.outcome!=='accepted')return sourceWritesFail('GRANT_MISMATCH');
+    const stage=original.command==='localSourceWrites.confirm'?'execute':'preview';
+    const controller=new AbortController(),protection=createRunProtection();let run!:Running;
+    const timer=setTimeout(()=>{controller.abort();void joinRunProtection(run).catch(()=>{});try{const current=store.plan(options.datasetId,planId).plan;if(phases.has(current.state)&&current.state!=='CANCEL_REQUESTED')store.state(options.datasetId,planId,'CANCEL_REQUESTED',['CANCELLED'],true);}catch(error){fatal??=error;}},120000);const done=Promise.resolve().then(()=>operation(controller,protection,run)).catch(error=>{
       if(error instanceof SourcePublicationRecoveryRequired){uncertain.set(planId,error);const namespace=error.namespaceProtection??namespaces.get(planId);if(namespace){if(namespace.token.state!=='released')retainSourceNamespaceWrite(namespace.token);namespaces.set(planId,namespace);uncertain.set(namespace.scope.originBinding.originPlanId,error);}try{store.state(options.datasetId,planId,'RECOVERY_REQUIRED',[dto.isLocalSourceWritesIssue(error.outcome.issue)?error.outcome.issue:'RECOVERY_REQUIRED'],true);}catch(persist){fatal=persist;}return;}
-      if(error instanceof LocalFactsCommitFatal||error instanceof MetadataLeaseReleaseError){fatal=error;return;}
+      if(!knownClosedFailure(error)){run.physicalFailure=error;keepPhysicalUnknown(planId,error);if(error instanceof LocalFactsCommitFatal)fatal=error;return;}
       const code=issue(error);try{const current=store.plan(options.datasetId,planId).plan;if(current.state==='PREVIEWING')store.state(options.datasetId,planId,controller.signal.aborted?'CANCELLED':'BLOCKED',[controller.signal.aborted?'CANCELLED':code],true);else if(current.state!=='COMPLETED'&&current.state!=='PARTIAL')store.state(options.datasetId,planId,controller.signal.aborted?'CANCELLED':'FAILED',[controller.signal.aborted?'CANCELLED':code],true);}catch(persist){fatal=persist;}
-    }).finally(()=>{clearTimeout(timer);runs.delete(planId);pending.delete(done);settlePolicy();});runs.set(planId,{controller,done});pending.add(done);
+    }).finally(async()=>{
+      // inspect的超时回应可能早于原观察FD；同run真实close/join之后才授物理关闭。
+      try{await joinRunProtection(run);}catch(error){run.physicalFailure??=error;keepPhysicalUnknown(planId,error);}
+      finally{clearTimeout(timer);run.settled=true;
+        try{
+          let current=store.plan(options.datasetId,planId);const namespace=namespaces.get(planId);
+          run.physicalClosed=!run.physicalFailure&&!uncertain.has(planId)&&!requiresRecovery(current)
+            &&(!namespace||namespace.token.state==='released')&&(!run.publisherEntered||run.publisherReturned);
+          // READY后但finally前到达的原cancel也必须等真实join，随后只终结同原plan。
+          if(run.physicalClosed&&current.plan.state==='CANCEL_REQUESTED'){store.state(options.datasetId,planId,'CANCELLED',['CANCELLED'],true);current=store.plan(options.datasetId,planId);}
+          const scope=sourceWritesAcceptedScope(current);
+          if(run.physicalClosed&&scope&&!current.plan.recoveryOf){
+            options.assertCurrent();
+            // 原publisher返回已越过FD/claims/namespace/Safety预留finally，之后还必须join本run SourceProtection。
+            store.append(sourceWritesEvent({version:1 as const,eventId:randomUUID(),datasetId:options.datasetId,planId,occurredAt:new Date(now()).toISOString(),kind:'run-closed' as const,
+              runReceiptEventId:run.receiptEventId,scopeEventId:scope.eventId,ownerEpoch,stage:run.stage,publisher:run.publisherEntered?'released' as const:'not-started' as const,
+              physicalClosed:true as const,afterEventHash:current.events.at(-1)!.eventHash,closedState:current.plan.state,operationIds:current.items.map(item=>item.item.operationId)}),true);
+          }
+        }catch(error){run.physicalClosed=false;run.physicalFailure??=error;keepPhysicalUnknown(planId,error);fatal??=error;}
+        runs.delete(planId);pending.delete(done);settlePolicy();}
+    });run={controller,done,libraryIds:new Set(libraryIds),protection,receiptEventId:original.eventId,stage,publisherEntered:false,publisherReturned:false,settled:false,physicalClosed:false,physicalFailure:null};runs.set(planId,run);ownedRuns.set(planId,run);pending.add(done);
   }
-  function settlePolicy():void {try{const current=policy();if(!runs.size&&!uncertain.size&&!hasPersistedRecovery()&&current.draining)store.append(sourceWritesEvent({version:1 as const,eventId:randomUUID(),datasetId:options.datasetId,planId:null,occurredAt:new Date(now()).toISOString(),kind:'policy-quiet' as const,policy:{...current,draining:false}}),true);}catch(error){fatal??=error;}}
+  function settlePolicy():void {try{const current=policy();if(!runs.size&&!uncertain.size&&!unclosedOwnedRun()&&!hasPersistedRecovery()&&current.draining)store.append(sourceWritesEvent({version:1 as const,eventId:randomUUID(),datasetId:options.datasetId,planId:null,occurredAt:new Date(now()).toISOString(),kind:'policy-quiet' as const,policy:{...current,draining:false}}),true);}catch(error){fatal??=error;}}
   function header(range:dto.LocalSourceWritesRange,count:number,undoOf:string|null=null,recoveryOf:string|null=null):dto.LocalSourceWritesPlan {
     const planId=randomUUID();return {version:1,datasetId:options.datasetId,planId,jobId:randomUUID(),viewRevision:'1',journalSequence:'1',scope:'SOURCE_FILES',range,state:'PREVIEWING',createdAt:new Date(now()).toISOString(),readyAt:null,expiresAt:null,policyRevision:policy().revision,planHash:null,contextFingerprint:null,journalFingerprint:sourceWritesHash({datasetId:options.datasetId,planId,empty:true}),summary:undoOf?'从验证备份恢复源文件':recoveryOf?'明确核对恢复材料后处理源文件':'预览具体源文件更改',items:[],issues:[],resourceSummary:{resources:0,sharedTargets:count,backupBytes:null,spaceVerified:false,protection:'unknown'},undoOf,recoveryOf,recoveryChoices:[]};
   }
   function accepted<C extends 'localSourceWrites.preview'|'localSourceWrites.undo'>(command:C,request:dto.LocalSourceWritesCommandPayloads[C],intent:dto.LocalSourceWritesIntent,inverses?:SourceWriteCapture['inverse'][],origin?:SourceStoredPlan,recoveryIds?:string[]):dto.LocalSourceWritesReceipt {
     if(intent.kind!=='recovery')admitOrdinary();if(runs.size>=2)return sourceWritesFail('BUDGET_EXCEEDED');if(!directory||!safety)return sourceWritesFail('BACKUP_UNAVAILABLE');const tracks=origin?origin.items.filter(i=>recoveryIds?.includes(i.item.operationId)||inverses?.some(v=>v?.originOperationId===i.item.operationId)).map(i=>repository.localCatalog.track(i.item.trackId)):intent.kind==='recovery'?[]:selected(intent.target);if(!tracks.length)return sourceWritesFail('INVALID_REQUEST');store.capacity(tracks.length);
     const range=origin?.plan.range??(intent.kind==='tags'?'TAGS':intent.kind==='embedded-cover'?'EMBEDDED_COVER':'DIRECTORY_COVER'),p=header(range,tracks.length,command==='localSourceWrites.undo'?origin!.plan.planId:null,intent.kind==='recovery'?origin!.plan.planId:null),value=receipt(command,request,'accepted',p,null);
-    saveReceipt(command,request,value,p,intent);launch(p.planId,controller=>prepare(p.planId,tracks,controller,inverses,origin,recoveryIds));return value;
+    const libraryIds=new Set([...trackLibraries(tracks),...(origin?.items.flatMap(item=>captureLibraries(item.capture))??[])]);assertLibrariesAccepting(libraryIds);
+    const occurredAt=new Date(now()).toISOString(),events:SourceWritesEvent[]=[
+      sourceWritesEvent({version:1 as const,eventId:randomUUID(),datasetId:options.datasetId,planId:p.planId,occurredAt,kind:'receipt' as const,command,request,requestFingerprint:value.requestFingerprint,receipt:value,header:p,intent,ownerEpoch,policy:null}),
+      sourceWritesEvent({version:1 as const,eventId:randomUUID(),datasetId:options.datasetId,planId:p.planId,occurredAt,kind:'accepted-scope' as const,commandId:request.commandId,requestFingerprint:value.requestFingerprint,ownerEpoch,libraryRoots:[...libraryIds].map(id=>repository.localCatalog.root(id))})];
+    store.capacity(tracks.length,events.reduce((bytes,event)=>bytes+Object.values(sourceWritesLedgerRow(event)).reduce((n,text)=>n+Buffer.byteLength(text),0),0));
+    store.transaction(view=>events.forEach(event=>view.append(event)));
+    launch(p.planId,libraryIds,request.commandId,(controller,protection)=>prepare(p.planId,tracks,controller,protection,inverses,origin,recoveryIds));return value;
   }
   function targetsOf(item:SourceWritePrivateItem):PublicationSource[]{const c=item.capture;if(c.directoryTarget){const targets:PublicationSource[]=c.sharedSources.map(s=>({root:c.root,relative:s.relative,expectedSignature:s.signature}));if(c.directoryBefore)targets.push({root:c.root,relative:c.directoryTarget,expectedSignature:c.directoryBefore.signature});if(c.recoverySource)targets.push(c.recoverySource);return targets;}return [c.sourceAbsent?c.recoverySource!:{root:c.root,relative:c.relative,expectedSignature:c.observation.signature}];}
   function originalTargetAttributes(item:SourceWritePrivateItem):SourceFileAttributes|null{return item.capture.directoryTarget?item.capture.directoryAttributes:item.capture.attributes;}
@@ -269,18 +366,18 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
     else patch.artwork_selection_id=item.artwork?.selectionId??null;
     return {operation_id:item.operationId,kind:range==='TAGS'?'WRITE_TAGS':'WRITE_COVER',root_id:c.libraryRoot.id,target_asset_id:c.asset.id,expected_asset_revision:c.asset.fileRevision,source_relative_path:c.directoryTarget??c.relative,target_relative_path:c.directoryTarget??c.relative,field_patch:patch,backup_required:true};
   }
-  async function prepare(planId:string,tracks:dto.LocalTrack[],controller:AbortController,inverses?:SourceWriteCapture['inverse'][],origin?:SourceStoredPlan,recoveryIds?:string[]):Promise<void>{
+  async function prepare(planId:string,tracks:dto.LocalTrack[],controller:AbortController,protection:RunProtection,inverses?:SourceWriteCapture['inverse'][],origin?:SourceStoredPlan,recoveryIds?:string[]):Promise<void>{
     check();await options.beforeMedia?.();check();const stored=store.plan(options.datasetId,planId),intent=origin?.intent??stored.intent,value=writingPolicy(stored.plan.policyRevision),signal=controller.signal,privateItems:SourceWritePrivateItem[]=[],targets:PublisherTarget[]=[];let io=0;
     const selection=intent.kind==='recovery'?sourceWritesHash(intent):scopeFingerprint(intent);
     for(const track of tracks){if(signal.aborted)return sourceWritesFail('CANCELLED');const originItem=origin?.items.find(o=>o.item.trackId===track.id),inverse=recoveryIds&&originItem?await recoveryInverse(origin!,originItem.item.operationId,signal):inverses?.find(i=>i?.originOperationId===originItem?.item.operationId)??null;
       const previous=inverse?origin!.items.find(i=>i.item.operationId===inverse.originOperationId)!:null;
       const retained=inverse?uncertain.get(inverse.originPlanId)?.claims??undefined:undefined;
-      const observed=await observeTrack(track,signal,inverse?{capture:{...previous!.capture,inverse},backup:inverse.backup,expectedSha256:stored.plan.range==='DIRECTORY_COVER'?previous!.capture.observation.sha256:inverse.expectedAfterSha256}:undefined),c=observed.capture;io+=observed.file.bytes;if(io>2147483648)return sourceWritesFail('BUDGET_EXCEEDED');
+      const observed=await observeTrack(track,signal,protection,inverse?{capture:{...previous!.capture,inverse},backup:inverse.backup,expectedSha256:stored.plan.range==='DIRECTORY_COVER'?previous!.capture.observation.sha256:inverse.expectedAfterSha256}:undefined),c=observed.capture;io+=observed.file.bytes;if(io>2147483648)return sourceWritesFail('BUDGET_EXCEEDED');
       if(stored.plan.range!=='DIRECTORY_COVER'&&!dto.isLocalCatalogRevision((BigInt(c.asset.fileRevision)+1n).toString()))return sourceWritesFail('REVISION_EXHAUSTED');
       c.inverse=inverse;
       if(inverse){const restore=restorationAttributes(inverse);if(!c.directoryTarget&&stored.plan.range!=='DIRECTORY_COVER'&&!c.sourceAbsent&&(!restore||!sameSourceFileAttributes(c.attributes,restore)))return sourceWritesFail('UNDO_CONFLICT');}
       if(stored.plan.range==='DIRECTORY_COVER'&&inverse?.expectedAfterSha256===null&&!inverse.removeTarget)c.recoverySource=await privateMaterialSource(path.join(directory!,'safety',inverse.originOperationId,'quarantine')) as SourceWriteCapture['recoverySource'];
-      if(stored.plan.range==='DIRECTORY_COVER')await directoryCapture(c,previous?.capture.directoryTarget?.endsWith('.jpg')?'cover.jpg':intent.kind==='directory-cover'?intent.fileName:'cover.png',signal,retained);
+      if(stored.plan.range==='DIRECTORY_COVER')await directoryCapture(c,previous?.capture.directoryTarget?.endsWith('.jpg')?'cover.jpg':intent.kind==='directory-cover'?intent.fileName:'cover.png',signal,protection,retained);
       const publicItem:dto.LocalSourceWritesItem={operationId:randomUUID(),resourceRef:randomUUID(),trackId:track.id,assetId:c.asset.id,label:`曲目 ${privateItems.length+1}`,profile:stored.plan.range==='DIRECTORY_COVER'?null:observed.file.profile,expectedFileRevision:c.asset.fileRevision,currentFileRevision:c.asset.fileRevision,expectedRootRevision:c.libraryRoot.revision,expectedLocationRevision:c.asset.locationRevision,expectedSelectionRevision:'1',changes:[],artwork:null,state:'planned',phase:'PLANNED',backup:{state:'not-created',bytes:null},verification:{audio:stored.plan.range==='DIRECTORY_COVER'?'not-applicable':'pending',unselectedMetadata:stored.plan.range==='DIRECTORY_COVER'?'not-applicable':'pending',content:'pending',reread:'pending'},issue:null};
       let change:SourceRegionChange|null=null,replacementBytes:Buffer|null=null;
       if(inverse){
@@ -302,7 +399,7 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
     }
     if(new Set(targets.map(t=>`${t.root.id}/${t.relative}`)).size!==targets.length)return sourceWritesFail('SHARED_RESOURCE_UNKNOWN');
     for(const record of privateItems){const owned=path.join(directory!,'safety',record.item.operationId),maximalItem={...record.item,currentFileRevision:'18446744073709551615',phase:'UNKNOWN' as const,state:'unknown' as const,backup:{state:'retained' as const,bytes:'268435456'},verification:{audio:'unknown' as const,unselectedMetadata:'unknown' as const,content:'unknown' as const,reread:'unknown' as const},issue:'RECOVERY_REQUIRED' as const};sourceWritesLedgerRow(sourceWritesEvent({version:1 as const,eventId:randomUUID(),datasetId:options.datasetId,planId,occurredAt:new Date(now()).toISOString(),kind:'phase' as const,fact:{operationId:record.item.operationId,phase:'UNKNOWN' as const,backup:path.join(owned,'backup'),quarantine:path.join(owned,'quarantine'),stage:path.join(owned,'stage'),beforeSha256:record.capture.observation.sha256,afterSha256:record.capture.observation.sha256},item:maximalItem}));}
-    const capacity=await safety!.preflight(targets);check();writingPolicy(value.revision);if(intent.kind!=='recovery'&&scopeFingerprint(intent)!==selection)return sourceWritesFail('REVISION_CHANGED');privateItems.forEach(i=>checkCapture(i.capture));
+    const capacity=await safety!.preflight(targets);check();if(signal.aborted)return sourceWritesFail('CANCELLED');writingPolicy(value.revision);if(intent.kind!=='recovery'&&scopeFingerprint(intent)!==selection)return sourceWritesFail('REVISION_CHANGED');privateItems.forEach(i=>checkCapture(i.capture));
     const readyAt=new Date(now()).toISOString(),expiresAt=new Date(Date.parse(readyAt)+600000).toISOString();
     const mapping:Record<string,string>={};privateItems.forEach(i=>{mapping[i.capture.libraryRoot.id]=i.capture.libraryRoot.revision;});
     const frozenHeader={created_at:readyAt,scope:'SOURCE_FILES' as const,root_mapping_revisions:mapping,conflicts:[],resource_guards:{require_exclusive_asset_lock:true,defer_if_read_lease:true,protect_frozen_sources:true as const,recheck_at_execution:true as const}};
@@ -317,10 +414,12 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
     // 完整捕获通过联合预算后再同事务发布所有 item/READY，不留“部分 READY”承诺。
     const readyEvents:SourceWritesEvent[]=[...privateItems.map((item,index)=>sourceWritesEvent({version:1 as const,eventId:randomUUID(),datasetId:options.datasetId,planId,occurredAt:readyAt,kind:'item' as const,index,value:item})),sourceWritesEvent({version:1 as const,eventId:randomUUID(),datasetId:options.datasetId,planId,occurredAt:readyAt,kind:'ready' as const,ready,planHash:projection.planHash,contextFingerprint:projection.contextFingerprint,readyAt,expiresAt,resources:resourceCount,backupBytes:String(capacity.bytes)})];
     store.capacity(0,readyEvents.reduce((bytes,event)=>bytes+Object.values(sourceWritesLedgerRow(event)).reduce((n,text)=>n+Buffer.byteLength(text),0),0));
-    store.transaction(view=>readyEvents.forEach(event=>view.append(event)));
+    if(signal.aborted)return sourceWritesFail('CANCELLED');store.transaction(view=>readyEvents.forEach(event=>view.append(event)));
   }
   function checkedConfirm(request:dto.ConfirmLocalSourceWrites):SourceStoredPlan {
     const stored=store.plan(options.datasetId,request.planId),p=stored.plan;
+    if(runs.has(p.planId))return sourceWritesFail('POLICY_DRAINING');
+    assertLibrariesAccepting(new Set(stored.items.flatMap(item=>captureLibraries(item.capture))));
     if(p.viewRevision!==request.expectedViewRevision)return sourceWritesFail('REVISION_CHANGED');
     if(p.state!=='READY'||!stored.ready||stored.ownerEpoch!==ownerEpoch||stored.ready.ownerEpoch!==ownerEpoch)return sourceWritesFail('GRANT_MISMATCH');
     if(p.scope!==request.scope||p.range!==request.range||p.planHash!==request.planHash||p.contextFingerprint!==request.contextFingerprint)return sourceWritesFail('PREVIEW_MISMATCH');
@@ -356,7 +455,7 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
       targets.push({operationId:record.item.operationId,root:c.root,libraryRootPath:c.root.path,relative:c.directoryTarget??c.relative,expected,attributes,change,replacementBytes,protectedSources,...(c.inverse?{...(!c.inverse.removeTarget?{restorationFile:c.inverse.backup.path}:{}),restorationSha256:c.inverse.backup.sha256,restorationBytes:c.inverse.backup.bytes,restorationAudio:!c.directoryTarget,removeTarget:c.inverse.removeTarget,restorationAttributes:restorationAttributes(c.inverse),restorationBackupAttributes:c.inverse.backup.attributes!}:{})});
     }return targets;
   }
-  async function execute(planId:string,controller:AbortController,actor:SourceWritesMainActor):Promise<void> {
+  async function execute(planId:string,controller:AbortController,protection:RunProtection,actor:SourceWritesMainActor,run:Running):Promise<void> {
     check();assertSourceWritesMainActor(actor);await options.beforeMedia?.();check();assertSourceWritesMainActor(actor);const stored=store.plan(options.datasetId,planId);writingPolicy(stored.plan.policyRevision);
     if(stored.plan.state!=='QUEUED'||stored.ownerEpoch!==ownerEpoch||!stored.ready)return sourceWritesFail('GRANT_MISMATCH');
     if(now()>=Date.parse(stored.plan.expiresAt!))return sourceWritesFail('PLAN_EXPIRED');
@@ -401,6 +500,7 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
         throw error;
       }
     };
+    run.publisherEntered=true;
     const outcome=await publishSourceWrites({targets,privateDirectory:directory!,signal:controller.signal,planId,namespaceBinding:binding,...(recoveryToken?{namespaceRecovery:recoveryToken}:{}),...(physicalRecovery?{physicalRecovery}:{}),namespaceHeld:value=>namespaces.set(planId,value),phase,verifyProtection,
       prepareCommit:async(target,after,backup)=>{
         // 本项已捕获/发布后，OFF只封后续准入；仍完成独立核验、事实登记与真实quiet。
@@ -421,6 +521,7 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
         else{const fact=prepared.get(target.operationId);if(!fact)return sourceWritesFail('REPLACEMENT_UNKNOWN');item.currentFileRevision=fact.afterAsset.fileRevision;store.transaction(view=>view.finalize(sourceWritesEvent({version:1 as const,eventId:randomUUID(),datasetId:options.datasetId,planId,occurredAt:new Date(now()).toISOString(),kind:'facts' as const,fact,item})));}
         committed.add(target.operationId);
       }},safety!);
+    run.publisherReturned=true;
     const current=store.plan(options.datasetId,planId),reason=outcome.issue&&dto.isLocalSourceWritesIssue(outcome.issue)?outcome.issue:null;
     if(outcome.outcome==='unknown')return sourceWritesFail('RECOVERY_REQUIRED');
     if(current.plan.items.every(i=>i.state==='applied')){
@@ -508,18 +609,23 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
         return accepted('localSourceWrites.preview',request,request.intent,undefined,origin,choice.operationIds);
       }return accepted('localSourceWrites.preview',request,request.intent);}catch(error){return reject('localSourceWrites.preview',request,error);}},
     get(raw:dto.GetLocalSourceWrites):dto.LocalSourceWritesGetResult {
-      const request=captureRequest('localSourceWrites.get',raw),selector=request.selector;
+      const request=captureRequest('localSourceWrites.get',raw,true),selector=request.selector;
       if(selector.kind==='command'){const found=store.commandReceipt(options.datasetId,selector.commandId,selector.expectedCommand,selector.requestFingerprint);return {datasetId:options.datasetId,kind:'command',commandId:selector.commandId,expectedCommand:selector.expectedCommand,requestFingerprint:selector.requestFingerprint,receipt:found,issue:found?null:'NOT_FOUND'};}
       if(selector.kind==='plan'){try{return {datasetId:options.datasetId,kind:'plan',plan:publicPlan(store.plan(options.datasetId,selector.planId)),issue:null};}catch(error){if(error instanceof SourceWritesError&&error.code==='NOT_FOUND')return {datasetId:options.datasetId,kind:'plan',plan:null,issue:'NOT_FOUND'};throw error;}}
       const materials:dto.LocalSourceWritesMaterial[]=[];if(selector.target){for(const track of selected(selector.target)){const context=repository.localArtwork.context({trackId:track.id,editionId:null}),selection=context.selection;if(!selection||materials.some(m=>m.editionId===selection.editionId))continue;const candidate=selection.candidate,ref=candidate?originals.refs().find(e=>e.candidateId===candidate.id&&e.target.editionId===selection.editionId&&e.original.sha256===candidate.original.sha256):null;materials.push({editionId:selection.editionId,selectionId:selection.id,selectionRevision:selection.revision,candidateId:candidate?.id??null,availability:ref?'available':candidate?'reacquire-required':'unavailable',contentRef:ref?.contentRef??null,originalSha256:candidate?.original.sha256??null,issue:ref?null:'ARTWORK_UNAVAILABLE'});}}
-      const supported=!!safety&&['darwin','linux'].includes(process.platform);return {datasetId:options.datasetId,kind:'context',context:{datasetId:options.datasetId,policy:policy(),capabilities:{publisherProfile:'NONATOMIC_QUARANTINE_LINK_V1',formats:dto.LOCAL_SOURCE_WRITES_PROFILES.map(profile=>({profile,qualified:supported,tags:supported,embeddedCover:supported,fields:[...dto.LOCAL_SOURCE_WRITES_FIELDS],issue:supported?null:'FORMAT_NOT_QUALIFIED'})),directoryCover:{qualified:supported,issue:supported?null:'FORMAT_NOT_QUALIFIED'}},materials}};
+      const supported=!closing&&!fatal&&!hasPersistedRecovery()&&!!safety&&['darwin','linux'].includes(process.platform);return {datasetId:options.datasetId,kind:'context',context:{datasetId:options.datasetId,policy:policy(),capabilities:{publisherProfile:'NONATOMIC_QUARANTINE_LINK_V1',formats:dto.LOCAL_SOURCE_WRITES_PROFILES.map(profile=>({profile,qualified:supported,tags:supported,embeddedCover:supported,fields:[...dto.LOCAL_SOURCE_WRITES_FIELDS],issue:supported?null:'FORMAT_NOT_QUALIFIED'})),directoryCover:{qualified:supported,issue:supported?null:'FORMAT_NOT_QUALIFIED'}},materials}};
     },
-    history(raw:dto.HistoryLocalSourceWrites):dto.LocalSourceWritesHistoryPage{return store.history(captureRequest('localSourceWrites.history',raw),visibleState);},
+    history(raw:dto.HistoryLocalSourceWrites):dto.LocalSourceWritesHistoryPage{return store.history(captureRequest('localSourceWrites.history',raw,true),visibleState);},
     confirm(raw:dto.ConfirmLocalSourceWrites):dto.LocalSourceWritesReceipt {const request=captureRequest('localSourceWrites.confirm',raw),cached=store.receipt('localSourceWrites.confirm',request);return cached??reject('localSourceWrites.confirm',request,new SourceWritesError('GRANT_REQUIRED'));},
     undo(raw:dto.UndoLocalSourceWrites):dto.LocalSourceWritesReceipt {const request=captureRequest('localSourceWrites.undo',raw),cached=store.receipt('localSourceWrites.undo',request);if(cached)return cached;try{const origin=store.plan(options.datasetId,request.planId);if(origin.plan.viewRevision!==request.expectedViewRevision||origin.plan.journalFingerprint!==request.journalFingerprint)return sourceWritesFail('REVISION_CHANGED');return accepted('localSourceWrites.undo',request,origin.intent,inverseOf(origin,request.operationIds),origin);}catch(error){return reject('localSourceWrites.undo',request,error);}},
     cancel(raw:dto.CancelLocalSourceWrites):dto.LocalSourceWritesReceipt {const request=captureRequest('localSourceWrites.cancel',raw),cached=store.receipt('localSourceWrites.cancel',request);if(cached)return cached;try{const stored=store.plan(options.datasetId,request.planId);if(stored.plan.viewRevision!==request.expectedViewRevision)return sourceWritesFail('REVISION_CHANGED');if(!phases.has(stored.plan.state))return sourceWritesFail('PREVIEW_MISMATCH');const value=receipt('localSourceWrites.cancel',request,'accepted',stored.plan,null);saveReceipt('localSourceWrites.cancel',request,value);const running=runs.get(request.planId);store.state(options.datasetId,request.planId,running?'CANCEL_REQUESTED':'CANCELLED',running?[]:['CANCELLED'],true);running?.controller.abort();return value;}catch(error){return reject('localSourceWrites.cancel',request,error);}},
     setPolicy(raw:dto.SetLocalSourceWritesPolicy):dto.LocalSourceWritesReceipt {const request=captureRequest('localSourceWrites.setPolicy',raw),cached=store.receipt('localSourceWrites.setPolicy',request);if(cached)return cached;try{const current=policy();if(current.revision!==request.expectedPolicyRevision)return sourceWritesFail('POLICY_CHANGED');if(request.enabled&&(runs.size>0||pending.size>0))return sourceWritesFail('POLICY_DRAINING');const next={enabled:request.enabled,revision:(BigInt(current.revision)+1n).toString(),draining:!request.enabled&&(runs.size>0||pending.size>0||uncertain.size>0||hasPersistedRecovery())};if(!dto.isLocalSourceWritesPolicy(next))return sourceWritesFail('REVISION_EXHAUSTED');const value=receipt('localSourceWrites.setPolicy',request,'accepted',null,null,next);saveReceipt('localSourceWrites.setPolicy',request,value,null,null,next);grants.clear();if(!request.enabled){for(const r of runs.values())r.controller.abort();for(const p of store.read(v=>[...v.projection.plans.values()]))if(p.plan.datasetId===options.datasetId&&p.plan.state==='READY')store.state(options.datasetId,p.plan.planId,'BLOCKED',['POLICY_DISABLED'],true);}return value;}catch(error){return reject('localSourceWrites.setPolicy',request,error);}},
-    async attachOriginal(raw:dto.AttachLocalSourceWritesOriginal,actor:SourceWritesMainActor):Promise<dto.LocalSourceWritesOriginalReceipt>{check();assertSourceWritesMainActor(actor);return originals.attach(raw);},
+    async attachOriginal(raw:dto.AttachLocalSourceWritesOriginal,actor:SourceWritesMainActor):Promise<dto.LocalSourceWritesOriginalReceipt>{
+      check();assertSourceWritesMainActor(actor);if([...originalCopies].some(copy=>copy.physicalFailure))return sourceWritesFail('RELEASE_UNKNOWN');const request=dto.localSourceWritesOriginalSnapshot(raw);
+      const ids=new Set([request.target.trackId,...repository.localCatalog.editionTracks(request.target.editionId).filter(value=>value.active).map(value=>value.trackId)]),libraryIds=trackLibraries([...ids].map(id=>repository.localCatalog.track(id)));assertLibrariesAccepting(libraryIds);
+      let copy!:OriginalCopy;const done=originals.attach(request).then(value=>{copy.physicalClosed=true;return value;},error=>{copy.physicalClosed=knownClosedFailure(error);if(!copy.physicalClosed)copy.physicalFailure=error;throw error;}).finally(()=>{pending.delete(done);if(copy.physicalClosed)originalCopies.delete(copy);});
+      copy={commandId:request.commandId,target:request.target,libraryIds,done,physicalClosed:false,physicalFailure:null};originalCopies.add(copy);pending.add(done);return done;
+    },
     challenge(raw:dto.LocalSourceWritesChallengeRequest,actor:SourceWritesMainActor):dto.LocalSourceWritesChallenge {
       check();assertSourceWritesMainActor(actor);const captured=dto.localSourceWritesMainRequestSnapshot({version:1,type:'source-writes-request',requestId:randomUUID(),sequence:1,command:'localSourceWrites.challenge',payload:raw});if(captured.command!=='localSourceWrites.challenge')return sourceWritesFail('INVALID_REQUEST');raw=captured.payload;const confirm=captureRequest('localSourceWrites.confirm',raw.confirm);if(raw.datasetId!==options.datasetId)return sourceWritesFail('DATASET_SCOPE_MISMATCH');if(store.receipt('localSourceWrites.confirm',confirm))return sourceWritesFail('GRANT_CONSUMED');const stored=checkedConfirm(confirm);
       for(const[id,v]of grants)if(v.consumed||now()>=Date.parse(v.challenge.expiresAt)||!v.actor.active)grants.delete(id);if(grants.size>=128)return sourceWritesFail('BUDGET_EXCEEDED');
@@ -533,9 +639,69 @@ function composeLocalSourceWritesService(options:Options,test?:{phase?(fact:impo
       const stored=checkedConfirm(confirm);if(runs.size>=2)return sourceWritesFail('BUDGET_EXCEEDED');const value=receipt('localSourceWrites.confirm',confirm,'accepted',stored.plan,null),occurredAt=new Date(now()).toISOString();
       const events:SourceWritesEvent[]=[sourceWritesEvent({version:1 as const,eventId:randomUUID(),datasetId:options.datasetId,planId:confirm.planId,occurredAt,kind:'receipt' as const,command:'localSourceWrites.confirm' as const,request:confirm,requestFingerprint:value.requestFingerprint,receipt:value,header:null,intent:null,ownerEpoch,policy:null}),sourceWritesEvent({version:1 as const,eventId:randomUUID(),datasetId:options.datasetId,planId:confirm.planId,occurredAt,kind:'state' as const,state:'QUEUED' as const,issues:[]})];
       store.capacity(0,events.reduce((bytes,event)=>bytes+Object.values(sourceWritesLedgerRow(event)).reduce((n,text)=>n+Buffer.byteLength(text),0),0));registered.consumed=true;
-      store.transaction(view=>events.forEach(event=>view.append(event)));launch(confirm.planId,c=>execute(confirm.planId,c,actor));return value;
+      store.transaction(view=>events.forEach(event=>view.append(event)));launch(confirm.planId,new Set(stored.items.flatMap(item=>captureLibraries(item.capture))),confirm.commandId,(c,protection,run)=>execute(confirm.planId,c,protection,actor,run));return value;
     },
-    close():Promise<void>{if(closed)return closed;closing=true;grants.clear();for(const r of runs.values())r.controller.abort();closed=(async()=>{await Promise.allSettled([...pending]);await originals.close();await protection.close();store.close();if(fatal)throw fatal;if(uncertain.size)return sourceWritesFail('RELEASE_UNKNOWN');})();return closed;},
+    /** 同Owner装配取原共享预留仓库；此私有接点本身不授LYRICS或TAGS许可。 */
+    privateLyricsSafety(){
+      // 冷准备沿原恢复身份核对装配共享仓库，普通写入口继续由check核commitBoot。
+      (options.assertRecoveryCurrent??options.assertCurrent)();
+      if(closing||fatal||!recoveryPrepared||unclosedOwnedRun())return sourceWritesFail('INVENTORY_UNAVAILABLE');
+      if(!safety||!directory)return sourceWritesFail('BACKUP_UNAVAILABLE');
+      return {sourceSafety:safety,temporaryRoot:path.join(directory,'safety','lyrics-native')};
+    },
+    /** Root已持久封本库新CREATE后调用；只停止原run，不生成cancel命令/operation或关别库。 */
+    privateStopLibrary(libraryId:string,original?:Readonly<{identity:DatasetIdentity;commandId:string;originalSha256:string}>):Promise<void>{
+      let stopKey='legacy/'+libraryId;const removing=new Set([libraryId]);
+      // 先核真实同对象身份和同SQL原running组，旧缓存不能替非法引用补签资格。
+      try{
+        options.assertCurrent();repository.localCatalog.root(libraryId);
+        if(original){
+          if(!dto.localSourceWritesRecord(original,['identity','commandId','originalSha256'])||original.identity?.datasetId!==options.datasetId
+            ||!dto.isCollectionId(original.commandId)||!/^[a-f0-9]{64}$/u.test(original.originalSha256))return sourceWritesFail('GRANT_MISMATCH');
+          const operation=repository.localCatalog.privateLibraryManagementRead(original.identity,'operation',original.commandId)?.record;
+          if(!operation||operation.datasetId!==options.datasetId||operation.revision!==1||operation.receipt.state!=='running'
+            ||operation.original.command!=='library.remove'||operation.originalSha256!==original.originalSha256
+            ||localLibraryManagementDigest(operation.original)!==original.originalSha256
+            ||!equal(operation.original.request.libraryIds,operation.receipt.libraryIds)||!operation.receipt.libraryIds.includes(libraryId))return sourceWritesFail('GRANT_MISMATCH');
+          removing.clear();for(const id of operation.receipt.libraryIds)removing.add(id);
+          stopKey='original/'+sourceWritesHash([libraryId,options.datasetId,original.commandId,original.originalSha256,operation.receipt.libraryIds]);
+        }
+      }catch(error){return Promise.reject(error);}
+      const cached=libraryStops.get(stopKey);if(cached)return cached;
+      try{
+        options.assertCurrent();if(closing||fatal)return sourceWritesFail('RELEASE_UNKNOWN');if(libraryStops.size>=10000)return sourceWritesFail('BUDGET_EXCEEDED');
+        const proofFor=(projection:SourceWritesProjection)=>({order:new Map(projection.events.map((event,index)=>[event.eventId,index])),confirmed:new Set([...projection.receipts.values()].filter(event=>event.command==='localSourceWrites.confirm'&&event.receipt.outcome==='accepted').map(event=>event.planId+'/'+event.ownerEpoch))});
+        const certifiedCold=new Set<string>();const touched=store.read(view=>{const proof=proofFor(view.projection);return [...view.projection.plans.values()].filter(stored=>{
+          if(stored.plan.datasetId!==options.datasetId)return false;const ids=planLibraries(stored);
+          if(!ids)return sourceWritesFail('RELEASE_UNKNOWN');if(!ids.has(libraryId))return false;
+          if(!ownedRuns.has(stored.plan.planId)&&coldTerminalClosed(stored,view.projection,proof))certifiedCold.add(stored.plan.planId);return true;
+        });});
+        // 原整组仍有未选择库时拒绝；全部实际根在同SQL原撤销组内才cancel/join，不猜旧membership。
+        for(const stored of touched){const ids=planLibraries(stored)!;
+          if([...ids].some(id=>!removing.has(id))&&(phases.has(stored.plan.state)||runs.has(stored.plan.planId)||requiresRecovery(stored)))return sourceWritesFail('SHARED_RESOURCE_UNKNOWN');
+          if(!ownedRuns.has(stored.plan.planId)&&!certifiedCold.has(stored.plan.planId))return sourceWritesFail('RELEASE_UNKNOWN');
+        }
+        retiredLibraries.add(libraryId);const copies=[...originalCopies].filter(copy=>copy.libraryIds.has(libraryId));
+        const owned=touched.map(stored=>ownedRuns.get(stored.plan.planId)).filter((run):run is Running=>!!run);
+        for(const stored of touched){const run=ownedRuns.get(stored.plan.planId);if(!run)continue;
+          for(const [id,value]of grants)if(value.challenge.planId===stored.plan.planId)grants.delete(id);
+          if(phases.has(stored.plan.state))store.state(options.datasetId,stored.plan.planId,run.settled?'CANCELLED':'CANCEL_REQUESTED',['CANCELLED'],true);
+          if(!run.settled){run.controller.abort();void joinRunProtection(run).catch(()=>{});}
+        }
+        const stopped=(async()=>{
+          await Promise.allSettled([...owned.map(run=>run.done),...copies.map(copy=>copy.done)]);options.assertCurrent();
+          if(fatal||owned.some(run=>!run.settled||!run.physicalClosed)||copies.some(copy=>!copy.physicalClosed))return sourceWritesFail('RELEASE_UNKNOWN');
+          if(!store.read(view=>{const proof=proofFor(view.projection);return [...certifiedCold].every(id=>{const stored=view.projection.plans.get(id);return !!stored&&coldTerminalClosed(stored,view.projection,proof);});}))return sourceWritesFail('RELEASE_UNKNOWN');
+          for(const before of touched){const stored=store.plan(options.datasetId,before.plan.planId);
+            if(phases.has(stored.plan.state)||stored.plan.state==='RECOVERY_REQUIRED'||stored.plan.issues.some(code=>code==='RELEASE_UNKNOWN'||code==='COMMIT_UNKNOWN'||code==='RECOVERY_REQUIRED')||requiresRecovery(stored)||uncertain.has(stored.plan.planId))return sourceWritesFail('RELEASE_UNKNOWN');
+            const namespace=namespaces.get(stored.plan.planId);if(namespace&&namespace.token.state!=='released')return sourceWritesFail('RELEASE_UNKNOWN');
+          }
+        })();libraryStops.set(stopKey,stopped);return stopped;
+      }catch(error){const stopped=Promise.reject<void>(error);libraryStops.set(stopKey,stopped);return stopped;}
+    },
+    close():Promise<void>{if(closed)return closed;closing=true;grants.clear();for(const r of runs.values()){r.controller.abort();void joinRunProtection(r).catch(()=>{});}closed=(async()=>{await Promise.allSettled([...pending]);await originals.close();store.close();if(fatal)throw fatal;const recovery=options.readClosingSourceRecovery?options.readClosingSourceRecovery(persistedRecoveryRequired):hasPersistedRecovery();if(uncertain.size||recovery||unclosedOwnedRun()||[...originalCopies].some(copy=>!copy.physicalClosed))return sourceWritesFail('RELEASE_UNKNOWN');resourcesClosed=true;})();return closed;},
+    /** 共享仓库由Root在其它消费者全静止后最后关闭；源写失败不能授静止回执。 */
+    closeSourceSafety():Promise<void>{if(!resourcesClosed||!closing||fatal||uncertain.size||pending.size)return Promise.reject(new SourcePublisherError('RELEASE_UNKNOWN'));return safety?.close()??Promise.resolve();},
   };
   return api;
 }

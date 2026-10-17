@@ -44,6 +44,8 @@ export interface PageJourneyOptions {
   onClearActionError: () => void
   canLeaveRecording?: () => boolean
   canLeaveCollection?: () => boolean
+  /** 所有侧栏、设置、搜索与播放页出入共用原工作台离开门禁。 */
+  beforeLeave?: (destination: ViewId, resume: () => void) => boolean
 }
 
 export function usePageJourney(options: PageJourneyOptions) {
@@ -54,6 +56,15 @@ export function usePageJourney(options: PageJourneyOptions) {
   const searchReturnSource = ref<SidebarSource>({ type: 'home' })
   const roonSearchOrigin = ref(false)
   const contentScroll = ref<HTMLElement | null>(null)
+  let resumingDeparture = false
+  function guardDeparture(destination: ViewId, resume: () => void): boolean {
+    if (!allowLeaveRecording(destination)) return false
+    if (resumingDeparture || !options.beforeLeave) return true
+    return options.beforeLeave(destination, () => {
+      resumingDeparture = true
+      try { resume() } finally { resumingDeparture = false }
+    })
+  }
   const allowLeaveRecording = (destination: ViewId): boolean => currentView.value === 'recording'
     ? destination === 'recording' || (options.canLeaveRecording?.() ?? true)
     : currentView.value === 'collection' ? destination === 'collection' || (options.canLeaveCollection?.() ?? true) : true
@@ -72,7 +83,7 @@ export function usePageJourney(options: PageJourneyOptions) {
   }
 
   function enterNowPlaying(): void {
-    if (!allowLeaveRecording('now-playing')) return
+    if (!guardDeparture('now-playing', enterNowPlaying)) return
     if (currentView.value !== 'now-playing') {
       nowPlayingReturnView.value = currentView.value
       if (currentView.value === 'playlist-detail') {
@@ -86,6 +97,7 @@ export function usePageJourney(options: PageJourneyOptions) {
 
   function exitNowPlaying(): void {
     const destination = nowPlayingReturnView.value
+    if (!guardDeparture(destination, exitNowPlaying)) return
     currentView.value = destination === 'now-playing' ? 'home' : destination
     resumeOwnedReads(currentView.value)
     browse.resumeDetail?.(currentView.value)
@@ -96,7 +108,7 @@ export function usePageJourney(options: PageJourneyOptions) {
   }
 
   function navigate(view: ViewId, rememberSearch = true, alreadyGuarded = false): void {
-    if (!alreadyGuarded && !allowLeaveRecording(view)) return
+    if (!alreadyGuarded && !guardDeparture(view, () => navigate(view, rememberSearch))) return
     if (view === 'now-playing') {
       enterNowPlaying()
       return
@@ -130,6 +142,7 @@ export function usePageJourney(options: PageJourneyOptions) {
       sidebar.setActiveSource({ type: 'home' })
     }
     if (view === 'local-library') sidebar.setActiveSource({ type: 'local-library' })
+    if (view === 'coverdrop') sidebar.setActiveSource({ type: 'coverdrop' })
     if (view === 'liked' && !library.hasLikedItems()) {
       void library.loadLiked()
     }
@@ -144,6 +157,8 @@ export function usePageJourney(options: PageJourneyOptions) {
         return 'home'
       case 'local-library':
         return 'local-library'
+      case 'coverdrop':
+        return 'coverdrop'
       case 'collection':
         return 'collection'
       case 'recording':
@@ -179,7 +194,7 @@ export function usePageJourney(options: PageJourneyOptions) {
   const collectionView = ref<'tapes' | 'music'>('tapes')
 
   function openTapeCollection(): void {
-    if (!allowLeaveRecording('collection')) return
+    if (!guardDeparture('collection', openTapeCollection)) return
     if (currentView.value === 'collection' && !(options.canLeaveCollection?.() ?? true)) return
     collectionView.value = 'tapes'
     navigateSource({ type: 'collection' })
@@ -187,7 +202,7 @@ export function usePageJourney(options: PageJourneyOptions) {
 
   function navigateSource(source: SidebarSource): void {
     const destination = viewForSource(source)
-    if (!allowLeaveRecording(destination)) return
+    if (!guardDeparture(destination, () => navigateSource(source))) return
     if (source.type === 'roon-album' || source.type === 'roon-artist') rememberRoonDetailParent()
     else {
       rememberSearchPage()
@@ -220,7 +235,7 @@ export function usePageJourney(options: PageJourneyOptions) {
   }
 
   function clearSearch(): void {
-    if (!allowLeaveRecording(viewForSource(searchReturnSource.value))) return
+    if (!guardDeparture(viewForSource(searchReturnSource.value), clearSearch)) return
     rememberedSearchPage = undefined
     if (localSearchScope.value) { updateSearchQuery(''); return }
     if (currentView.value !== 'search' && search.searchQuery.value.length === 0 && search.searchPage.value.items.length === 0) return
@@ -342,7 +357,7 @@ export function usePageJourney(options: PageJourneyOptions) {
   }
 
   function returnFromRoonDetail(fallback: 'album' | 'artist'): void {
-    if (!allowLeaveRecording(fallback === 'album' ? 'roon-albums' : 'roon-artists')) return
+    if (!guardDeparture(fallback === 'album' ? 'roon-albums' : 'roon-artists', () => returnFromRoonDetail(fallback))) return
     const parent = roonDetailParents.value.pop()
     if (!parent) {
       navigateSource({ type: fallback === 'album' ? 'roon-albums' : 'roon-artists' })
@@ -363,7 +378,7 @@ export function usePageJourney(options: PageJourneyOptions) {
   }
 
   function updateSearchQuery(query: string): void {
-    if (!allowLeaveRecording(localSearchScope.value === 'album' ? 'roon-albums' : localSearchScope.value === 'artist' ? 'roon-artists' : 'search')) return
+    if (!guardDeparture(localSearchScope.value === 'album' ? 'roon-albums' : localSearchScope.value === 'artist' ? 'roon-artists' : 'search', () => updateSearchQuery(query))) return
     const scope = localSearchScope.value
     const origin = currentView.value === 'search' || roonSearchOrigin.value
       ? searchReturnSource.value : sidebar.activeSource.value
@@ -394,7 +409,7 @@ export function usePageJourney(options: PageJourneyOptions) {
 
 
   function returnToSearch(): void {
-    if (!allowLeaveRecording('search')) return
+    if (!guardDeparture('search', returnToSearch)) return
     leaveOwnedReads('search')
     if (!roonSearchOrigin.value) search.searchSongsOpen.value = false
     roonSearchOrigin.value = false
@@ -476,7 +491,7 @@ export function usePageJourney(options: PageJourneyOptions) {
   }
 
   function setDetailView(view: ViewId, source?: SidebarSource): void {
-    if (!allowLeaveRecording(view)) return
+    if (!guardDeparture(view, () => setDetailView(view, source))) return
     currentView.value = view
     if (source) sidebar.setActiveSource(source)
   }

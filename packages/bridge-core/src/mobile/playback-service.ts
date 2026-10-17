@@ -1,4 +1,8 @@
 import { createHash, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { mobilePreparationAsync, mobilePreparationSync, withoutMobilePreparationContext } from './capability-trace.js';
+import { mobileRangeWindowObserve, mobileRangeWindowQueued, withoutMobileRangeWindowContext } from './range-window-observer.js';
+import { decodePlaybackStorage, encodePlaybackStorage, type DecodedPlaybackStorage } from './playback-state-codec.js';
+import { allocateOwnedSealedBytes, ownedSealedByteLength } from './owned-sealed-bytes.js';
 import {
   MOBILE_OPERATION_TABLE, decodeMobileRequest, encodeMobileRequest, mobileDataSnapshot,
   mobileResourceCommandSnapshot, validateMobileReadyAudio, validateMobileGetResourceReply, isMobileDsdSourceAudio, MOBILE_DSD_PCM_PROCESSING_REASON,
@@ -15,7 +19,7 @@ import {
   type MobilePlaybackPreparedSource, type MobilePlaybackPreparingSource, type MobilePlaybackReader, type MobilePlaybackService, type MobilePlaybackServiceOptions,
 } from './playback-types.js';
 import {
-  PLAYBACK_STATE_SCHEMA, capturePlaybackSource, capturePlaybackPreparingSource, playbackReadyFacts, capturePlaybackState, decodePlaybackState, playbackCanonical,
+  PLAYBACK_STATE_SCHEMA, capturePlaybackSource, capturePlaybackPreparingSource, playbackReadyFacts, playbackCanonical,
   playbackClosed, playbackCopy, playbackFailure, playbackInteger, playbackResourceContext,
   type PlaybackSourceFacts, type PlaybackState, type StoredPlaybackReceipt,
   type StoredPlaybackResource, type StoredPlaybackSession,
@@ -23,6 +27,14 @@ import {
 
 const CHUNK_BYTES = 64 * 1024, ASSET = 'source';
 const DATE_MAX = 8_640_000_000_000_000;
+export interface MobilePlaybackCloseFailure {
+  stage: 'drain' | 'codec-close'; status: MobilePlaybackError['status']; code: MobilePlaybackErrorCode;
+}
+const closeFailures = new WeakMap<MobilePlaybackService, readonly MobilePlaybackCloseFailure[]>();
+/** 仅可信Main/QA的内存闭集快照；无错误对象、stack、自由文本或公开HTTP出口。 */
+export function readMobilePlaybackCloseFailures(service: MobilePlaybackService): readonly MobilePlaybackCloseFailure[] {
+  return Object.freeze((closeFailures.get(service) ?? []).map(value => Object.freeze({ ...value })));
+}
 interface RuntimeResource {
   id: string; source: MobilePlaybackPreparedSource; controller: AbortController;
   readers: Map<string, MobilePlaybackReader>; lastActivityAt: number;
@@ -98,6 +110,8 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
   const randomToken = options.randomToken ?? (() => randomBytes(32).toString('base64url'));
   const runtimeEpoch = randomUUID(), signingKey = randomBytes(32);
   let state: PlaybackState | undefined, pending: PendingCommit | undefined;
+  let codecFence = 0;
+  const codecInvalidations = new WeakSet<object>();
   let floor = 0, closing = false, fatal = false, tail: Promise<void> = Promise.resolve(), closeFlight: Promise<void> | undefined;
   let sweepTimer: ReturnType<typeof setInterval> | undefined;
   const runtimes = new Map<string, RuntimeResource>(), preparations = new Map<string, Preparation>();
@@ -114,8 +128,18 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     floor = Math.max(floor, state?.clockFloor ?? 0, value); return floor;
   }
   function open(): void { if (closing || fatal) return playbackFailure(503, 'SERVICE_RESTARTED'); }
-  function enqueue<T>(operation: () => Promise<T> | T): Promise<T> {
-    const flight = tail.then(operation); tail = flight.then(() => undefined, () => undefined); return flight;
+  const codecGeneration = (): string => `${runtimeEpoch}:${codecFence}`;
+  function codecCurrent(generation: string): void {
+    open();
+    if (generation !== codecGeneration()) {
+      const error = new MobilePlaybackError(503, 'BUSY', true, 1_000);
+      codecInvalidations.add(error); throw error;
+    }
+  }
+  const codecContext = (revision: number, commitId: string | null, generation: string) =>
+    ({ serverId, datasetId, responseOrigin, generation, revision, commitId, limits });
+  function enqueue<T>(operation: () => Promise<T> | T, kind: string = 'control-other'): Promise<T> {
+    const flight = tail.then(mobileRangeWindowQueued('open', kind, operation)); tail = flight.then(() => undefined, () => undefined); return flight;
   }
   function deadline<T>(operation: Promise<T>, ms: number, error: MobilePlaybackError, onTimeout?: () => void): Promise<T> {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -129,41 +153,67 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
       if (r && ['preparing', 'ready'].includes(r.state) && !runtime.releasing && runtime.controller.signal.aborted) runtime.controller = new AbortController();
     }
   }
-  async function readPersisted(): Promise<PlaybackState> {
-    const value: MobileSealedState = await persistence.load(datasetId);
+  async function readPersisted(): Promise<DecodedPlaybackStorage> {
+    const generation = codecGeneration();
+    const value: MobileSealedState = await mobilePreparationAsync('preparation.playback.owner-load', () => persistence.load(datasetId));
+    codecCurrent(generation);
     if (value.kind === 'missing') {
-      if (!playbackClosed(value, ['kind', 'datasetId', 'revision']) || value.datasetId !== datasetId || value.revision !== 0) return playbackFailure(503, 'BUSY');
-      return { schema: PLAYBACK_STATE_SCHEMA, serverId, datasetId, revision: 0, commitId: null, clockFloor: 0, sessions: [], resources: [], receipts: [] };
+      return mobilePreparationSync<DecodedPlaybackStorage>('preparation.playback.envelope', () => {
+        if (!playbackClosed(value, ['kind', 'datasetId', 'revision']) || value.datasetId !== datasetId || value.revision !== 0) return playbackFailure(503, 'BUSY');
+        const state: PlaybackState = { schema: PLAYBACK_STATE_SCHEMA, serverId, datasetId, revision: 0, commitId: null, clockFloor: 0, sessions: [], resources: [], receipts: [] };
+        return { state, canonical: playbackCanonical(state), format: 'v1' };
+      });
     }
-    if (!playbackClosed(value, ['kind', 'datasetId', 'revision', 'commitId', 'sealed']) || value.kind !== 'sealed'
-      || value.datasetId !== datasetId || !playbackInteger(value.revision, 1) || !id(value.commitId)) return playbackFailure(503, 'BUSY');
-    const sealed = bytes(value.sealed, limits.sealedBytes); let plain: Uint8Array | undefined;
+    const sealed = mobilePreparationSync('preparation.playback.envelope', () => {
+      if (!playbackClosed(value, ['kind', 'datasetId', 'revision', 'commitId', 'sealed']) || value.kind !== 'sealed'
+        || value.datasetId !== datasetId || !playbackInteger(value.revision, 1) || !id(value.commitId)) return playbackFailure(503, 'BUSY');
+      return bytes(value.sealed, limits.sealedBytes);
+    });
+    let plain: Uint8Array | undefined;
     try {
-      plain = bytes(crypto.open(sealed, aad(value.revision)), limits.stateBytes);
-      const captured = decodePlaybackState(plain, serverId, datasetId, responseOrigin, limits);
-      if (captured.revision !== value.revision || captured.commitId !== value.commitId) return playbackFailure(503, 'BUSY');
+      plain = mobilePreparationSync('preparation.playback.decrypt', () => bytes(crypto.open(sealed, aad(value.revision)), limits.stateBytes));
+      const captured = options.stateCodec
+        ? await mobilePreparationAsync('preparation.playback.state', () => options.stateCodec!.decode(plain!, codecContext(value.revision, value.commitId, generation)))
+        : mobilePreparationSync('preparation.playback.state', () => decodePlaybackStorage(plain!, serverId, datasetId, responseOrigin, limits));
+      codecCurrent(generation);
+      if (captured.state.revision !== value.revision || captured.state.commitId !== value.commitId) return playbackFailure(503, 'BUSY');
       return captured;
     } finally { sealed.fill(0); plain?.fill(0); }
   }
   async function save(candidate: PlaybackState): Promise<void> {
-    if (!state || pending || fatal) return playbackFailure(503, 'BUSY');
-    const previousRevision = state.revision;
-    if (previousRevision === Number.MAX_SAFE_INTEGER) return playbackFailure(503, 'BUSY');
+    const previousRevision = mobilePreparationSync('preparation.playback.save-admission', () => {
+      if (!state || pending || fatal) return playbackFailure(503, 'BUSY');
+      const previousRevision = state.revision;
+      if (previousRevision === Number.MAX_SAFE_INTEGER) return playbackFailure(503, 'BUSY');
+      return previousRevision;
+    });
     candidate.revision = previousRevision + 1; candidate.commitId = randomUUID(); candidate.clockFloor = now();
-    candidate = capturePlaybackState(candidate, serverId, datasetId, responseOrigin, limits);
-    const plainText = playbackCanonical(candidate), plain = Buffer.from(plainText);
-    if (plain.byteLength > limits.stateBytes) return playbackFailure(429, 'RESOURCE_BUSY');
+    const generation = codecGeneration();
+    const encoded = options.stateCodec
+      ? await mobilePreparationAsync('preparation.playback.candidate', () => options.stateCodec!.encode(candidate, codecContext(candidate.revision, candidate.commitId, generation)))
+      : mobilePreparationSync('preparation.playback.candidate', () => encodePlaybackStorage(candidate, serverId, datasetId, responseOrigin, limits));
+    const plainText = encoded.canonical, plain = encoded.bytes;
+    // 此前未发Owner写，失效计算不能转成UNKNOWN或新增持久化操作。
+    try { codecCurrent(generation); } catch (error) { plain.fill(0); throw error; }
+    candidate = encoded.state;
     let sealed: Uint8Array | undefined;
     try {
-      sealed = bytes(crypto.seal(plain, aad(candidate.revision)), limits.sealedBytes);
-      const result = await persistence.save({ datasetId, expectedRevision: previousRevision, commitId: candidate.commitId!, sealed });
-      if (result.kind === 'conflict' && playbackClosed(result, ['kind', 'datasetId', 'currentRevision']) && result.datasetId === datasetId
-        && playbackInteger(result.currentRevision)) { fatal = true; pauseReaders(); return playbackFailure(409, 'REVISION_CONFLICT'); }
-      if (!playbackClosed(result, ['kind', 'datasetId', 'revision', 'commitId']) || result.kind !== 'saved' || result.datasetId !== datasetId
-        || result.revision !== candidate.revision || result.commitId !== candidate.commitId) {
-        pending = { candidate, plain: plainText, previousRevision }; pauseReaders(); return playbackFailure(503, 'BUSY');
-      }
-      state = candidate;
+      sealed = mobilePreparationSync('preparation.playback.seal', () => {
+        const raw = crypto.seal(plain, aad(candidate.revision)), length = ownedSealedByteLength(raw, limits.sealedBytes);
+        if (length === null) return bytes(raw, limits.sealedBytes);
+        // 仅复制原seal生产者已具资格的专属输出；未知注入crypto仍走原bytes路径。
+        const copy = allocateOwnedSealedBytes(length); Uint8Array.prototype.set.call(copy, raw); return copy;
+      });
+      const result = await mobilePreparationAsync('preparation.playback.owner-save', () => persistence.save({ datasetId, expectedRevision: previousRevision, commitId: candidate.commitId!, sealed: sealed! }));
+      mobilePreparationSync('preparation.playback.ack', () => {
+        if (result.kind === 'conflict' && playbackClosed(result, ['kind', 'datasetId', 'currentRevision']) && result.datasetId === datasetId
+          && playbackInteger(result.currentRevision)) { fatal = true; pauseReaders(); return playbackFailure(409, 'REVISION_CONFLICT'); }
+        if (!playbackClosed(result, ['kind', 'datasetId', 'revision', 'commitId']) || result.kind !== 'saved' || result.datasetId !== datasetId
+          || result.revision !== candidate.revision || result.commitId !== candidate.commitId) {
+          pending = { candidate, plain: plainText, previousRevision }; pauseReaders(); return playbackFailure(503, 'BUSY');
+        }
+      });
+      mobilePreparationSync('preparation.playback.published', () => { state = candidate; });
     } catch (error) {
       if (error instanceof MobilePlaybackError && error.code === 'REVISION_CONFLICT') throw error;
       if (error instanceof MobileAuthPersistenceError && error.outcome === 'not-sent') throw new MobilePlaybackError(503, 'BUSY', true, 1_000);
@@ -171,24 +221,33 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     } finally { plain.fill(0); sealed?.fill(0); }
   }
   async function loaded(): Promise<PlaybackState> {
-    open();
+    mobilePreparationSync('preparation.playback.open', open);
     if (pending) {
       const observed = await readPersisted();
-      if (observed.revision !== pending.candidate.revision || observed.commitId !== pending.candidate.commitId
-        || playbackCanonical(observed) !== pending.plain) return playbackFailure(503, 'BUSY');
-      state = observed; pending = undefined; restoreRuntimeFences();
+      mobilePreparationSync('preparation.playback.pending', () => {
+        if (observed.state.revision !== pending!.candidate.revision || observed.state.commitId !== pending!.candidate.commitId
+          || observed.canonical !== pending!.plain) return playbackFailure(503, 'BUSY');
+        state = observed.state; pending = undefined; restoreRuntimeFences();
+      });
     }
     if (!state) {
-      state = await readPersisted(); floor = Math.max(floor, state.clockFloor);
+      state = (await readPersisted()).state; floor = Math.max(floor, state.clockFloor);
       const candidate = playbackCopy(state); let changed = false;
       for (const r of candidate.resources) if (['preparing', 'ready'].includes(r.state)) {
         r.state = 'terminal'; r.failure = 'SERVICE_RESTARTED'; r.media = null; changed = true;
       }
-      if (changed) await save(candidate);
-      sweepTimer = setInterval(() => {
+      if (changed) await mobilePreparationAsync('preparation.playback.recovery-save', () => save(candidate));
+      sweepTimer = withoutMobileRangeWindowContext(() => withoutMobilePreparationContext(() => setInterval(() => {
         if (closing || fatal || pending) return;
-        trackBackground(enqueue(async () => { if (state && !closing) await expire(); }));
-      }, 1_000); sweepTimer.unref();
+        trackBackground(enqueue(async () => {
+          try { if (state && !closing) await expire(); }
+          catch (error) {
+            // 只退出本service品牌认证的未写入失效tick；外来BUSY及真正后台失败照常fatal。
+            if (error !== null && typeof error === 'object' && codecInvalidations.has(error)) return;
+            throw error;
+          }
+        }, 'expire'));
+      }, 1_000))); sweepTimer.unref();
     }
     return state;
   }
@@ -202,7 +261,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     return playbackCopy(raw);
   }
   async function deviceCurrent(deviceId: string, deviceEpoch: number): Promise<void> {
-    try { await auth.assertDeviceCurrent(deviceId, deviceEpoch); }
+    try { await mobilePreparationAsync('preparation.playback.device', () => auth.assertDeviceCurrent(deviceId, deviceEpoch)); }
     catch { throw new MobilePlaybackError(403, 'DEVICE_REVOKED'); }
   }
   function capturedRequest(operation: MobilePlaybackControlOperation | MobilePlaybackMediaOperation, request: MobileDecodedRequest<unknown>,
@@ -339,7 +398,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
       && (at >= r.expiresAt || at >= r.hardExpiresAt || at >= (runtimes.get(r.id)?.lastActivityAt ?? r.lastActivityAt) + limits.orphanResourceMs)) {
       markTerminal(candidate, [r.id], 'RESOURCE_EXPIRED'); ids.push(r.id); changed = true;
     }
-    if (changed) { await save(candidate); trackBackground(Promise.all(ids.map(v => releaseRuntime(v))).then(() => undefined)); }
+    if (changed) { await mobilePreparationAsync('preparation.playback.expire-save', () => save(candidate)); trackBackground(Promise.all(ids.map(v => releaseRuntime(v))).then(() => undefined)); }
   }
   async function checkRuntime(r: StoredPlaybackResource, runtime: RuntimeResource): Promise<void> {
     open(); if (pending) return playbackFailure(503, 'BUSY'); liveResource(r);
@@ -358,7 +417,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
       if (r.state !== 'terminal') { r.state = 'failed'; r.failure = failure.code; r.media = null; }
       if (receipt.state === 'UNKNOWN') { receipt.state = 'RECORDED'; receipt.reply = { status: failure.status, body: failureBody(failure) }; receipt.resourceContext = null; }
       await save(candidate); if (!task.delivered) { task.delivered = true; task.resolve(original(state!.receipts.find(v => v.id === receipt.id)!, p)); }
-    });
+    }, 'createResource');
   }
   function capturePrepared(raw:unknown):MobilePlaybackPreparedSource | MobilePlaybackPreparingSource{
     return raw && typeof raw==='object' && Object.hasOwn(raw,'preparing') ? capturePlaybackPreparingSource(raw) : capturePlaybackSource(raw);
@@ -381,7 +440,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
       if(body.state!=='preparing'||!validateMobileGetResourceReply(200,body,context).ok)throw codeError('UNSUPPORTED_FORMAT');
       if(receipt.state==='UNKNOWN'){receipt.state='RECORDED';receipt.reply={status:202,body};receipt.resourceContext=context;await save(candidate);}
       if(!task.delivered){task.delivered=true;task.resolve(original(state!.receipts.find(v=>v.id===receipt.id)!,p));}
-    });
+    }, 'createResource');
   }
   async function prepareResource(task: Preparation, p: MobilePrincipal): Promise<void> {
     let prepared: MobilePlaybackPreparedSource | MobilePlaybackPreparingSource | undefined;
@@ -413,7 +472,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
         await enqueue(async()=>{open();await loaded();await deviceCurrent(p.deviceId,p.deviceEpoch);task.controller.signal.throwIfAborted();
           const candidate=playbackCopy(state!),value=candidate.resources.find(v=>v.id===task.resourceId)!;
           liveSession(candidate.sessions.find(v=>v.id===value.sessionId)!);liveResource(value);
-          value.source={sourceAudio:playbackCopy(captured.sourceAudio),processing:playbackCopy(captured.processing),durationMs:captured.durationMs,seekable:captured.seekable};await save(candidate);});
+          value.source={sourceAudio:playbackCopy(captured.sourceAudio),processing:playbackCopy(captured.processing),durationMs:captured.durationMs,seekable:captured.seekable};await save(candidate);},'createResource');
         await publishPreparing(task,p);
         while('preparing' in prepared){
           const originalDeadline=preparationDeadline(r,s),budget=originalDeadline-now()-10_000;
@@ -437,7 +496,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
       const {handle:_handle,...facts}=readySource;
       await enqueue(async()=>{open();await loaded();await deviceCurrent(p.deviceId,p.deviceEpoch);
         const candidate=playbackCopy(state!),value=candidate.resources.find(v=>v.id===task.resourceId)!;
-        liveSession(candidate.sessions.find(v=>v.id===value.sessionId)!);liveResource(value);task.controller.signal.throwIfAborted();value.source=playbackCopy(facts);await save(candidate);});
+        liveSession(candidate.sessions.find(v=>v.id===value.sessionId)!);liveResource(value);task.controller.signal.throwIfAborted();value.source=playbackCopy(facts);await save(candidate);},'createResource');
       const verification=deadline((async()=>{await sourcePort.verify(readySource.handle);task.controller.signal.throwIfAborted();
         await sourcePort.renew(readySource.handle);task.controller.signal.throwIfAborted();})(),limits.prepareTimeoutMs,codeError('RESOURCE_BUSY'),()=>task.controller.abort());
       let waitTimer:ReturnType<typeof setTimeout>|undefined;
@@ -456,7 +515,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
         if(body.state!=='ready'||!validateMobileReadyAudio(body,value.request,context).ok||(!direct&&!dsd)||value.request.quality.preferredTransport==='hls')throw codeError('UNSUPPORTED_FORMAT');
         if(receipt.state==='UNKNOWN'){receipt.state='RECORDED';receipt.reply={status:201,body};receipt.resourceContext=context;}
         await save(candidate);if(!task.delivered){task.delivered=true;task.resolve(original(state!.receipts.find(v=>v.id===receipt.id)!,p));}
-      });
+      }, 'createResource');
     }catch(error){
       try{await recordPreparationFailure(task,error,p);}catch(failure){if(!task.delivered){task.delivered=true;task.reject(safeError(failure));}}
       if(runtimes.has(task.resourceId)){try{await releaseRuntime(task.resourceId,true);}catch{fatal=true;}}
@@ -493,7 +552,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
         deviceEpoch: p.deviceEpoch, clientInstanceId: body.value.clientInstanceId, createdAt: at, expiresAt: at + limits.sessionTtlMs,
         terminal: null, lastSequence: 0, playerGeneration: null, currentQueueItemId: null, currentResourceId: null, observation: null };
       candidate.sessions.push(s); const receipt = addReceipt(candidate, operation, request, p, s.id, null);
-      receipt.state = 'RECORDED'; receipt.reply = { status: 201, body: sessionBody(s) }; await save(candidate);
+      receipt.state = 'RECORDED'; receipt.reply = { status: 201, body: sessionBody(s) }; await mobilePreparationAsync('preparation.playback.session-save', () => save(candidate));
       return { value: original(state!.receipts.find(v => v.id === receipt.id)!, p) };
     }
     const s = session(request.pathParameters.sessionId, p);
@@ -602,14 +661,14 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     async function closeRead(): Promise<void> {
       controller.abort(); if (idleTimer) clearTimeout(idleTimer); if (ticketTimer) clearTimeout(ticketTimer);
       signal.removeEventListener('abort', abort); resourceSignal.removeEventListener('abort', abort);
-      if (closeReadFlight) return deadline(closeReadFlight, limits.releaseConfirmationMs, codeError('RESOURCE_BUSY'));
-      const actual = (async () => {
+      if (closeReadFlight) return mobileRangeWindowObserve('reader.close.wait', () => deadline(closeReadFlight!, limits.releaseConfirmationMs, codeError('RESOURCE_BUSY')), 'cleanup');
+      const actual = mobileRangeWindowObserve('reader.close', async () => {
         // 先关闭原 readId 的 Owner 能力；超时包装结束并不等于原 I/O 已静止。
         const quiet = sourcePort.closeRead(runtime.source.handle, readId);
         await Promise.all([quiet, sourceReadFlight?.catch(() => undefined), inFlight?.catch(() => undefined)]);
         runtime.readers.delete(readId);
-      })();
-      closeReadFlight = actual; return deadline(actual, limits.releaseConfirmationMs, codeError('RESOURCE_BUSY'));
+      }, 'cleanup');
+      closeReadFlight = actual; return mobileRangeWindowObserve('reader.close.wait', () => deadline(actual, limits.releaseConfirmationMs, codeError('RESOURCE_BUSY')), 'cleanup');
     }
     const reader: MobilePlaybackReader = {
       readId,
@@ -621,14 +680,14 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
         if (offset > end) { await closeRead(); return new Uint8Array(); }
         const count = Math.min(maxBytes, end - offset + 1), currentOffset = offset; armIdle();
         const operation = (async () => {
-          await checkRuntime(r, runtime); controller.signal.throwIfAborted();
-          const sourceRead = sourcePort.read(runtime.source.handle, readId, currentOffset, count, controller.signal);
+          await mobileRangeWindowObserve('read.authority.before', () => checkRuntime(r, runtime)); controller.signal.throwIfAborted();
+          const sourceRead = mobileRangeWindowObserve('source.read.composite', () => sourcePort.read(runtime.source.handle, readId, currentOffset, count, controller.signal));
           sourceReadFlight = sourceRead;
           void sourceRead.then(() => { if (sourceReadFlight === sourceRead) sourceReadFlight = undefined; },
             () => { if (sourceReadFlight === sourceRead) sourceReadFlight = undefined; });
           const raw = await deadline(sourceRead, limits.mediaIdleMs,
             codeError('RESOURCE_BUSY'), () => controller.abort());
-          const chunk = bytes(raw, count); await checkRuntime(r, runtime);
+          const chunk = bytes(raw, count); await mobileRangeWindowObserve('read.authority.after', () => checkRuntime(r, runtime));
           controller.signal.throwIfAborted(); signal.throwIfAborted(); resourceSignal.throwIfAborted();
           if (now() >= expiresAt) throw codeError('TICKET_EXPIRED');
           offset += chunk.byteLength; runtime.lastActivityAt = now(); armIdle(); return chunk;
@@ -655,7 +714,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
       // 仅解析旧原正文以查 immutable 回执；新intent的能力仍在 handleControl 以真实Owner dsd值核验。
       const declares=raw.body!==null&&typeof raw.body==='object'&&Object.hasOwn(raw.body,'acceptedProcessingModes');
       const request=capturedRequest(operation,raw,p,dsd||declares);
-      const result=await enqueue(()=>handleControl(operation,request,p,dsd));
+      const result=await enqueue(()=>handleControl(operation,request,p,dsd),operation);
       const value = 'wait' in result ? await result.wait : result.value; signal.throwIfAborted(); return value;
     },
     async openMedia(operation, raw, signal, headers = {}) {
@@ -663,7 +722,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
         || Object.keys(headers).some(k => !['range', 'ifRange'].includes(k))
         || headers.range !== undefined && typeof headers.range !== 'string' || headers.ifRange !== undefined && typeof headers.ifRange !== 'string') return playbackFailure(400, 'INVALID_REQUEST');
       signal.throwIfAborted(); const request = capturedRequest(operation, raw);
-      const captured = await enqueue(async () => {
+      const captured = await mobileRangeWindowObserve('main.open.task', () => enqueue(async () => {
         await loaded(); await expire(); const r = state!.resources.find(v => v.id === request.pathParameters.resourceId);
         if (!r || request.pathParameters.asset !== ASSET || typeof request.query.ticket !== 'string') return playbackFailure(401, 'TICKET_INVALID');
         const ticket = mediaTicket(r, request.query.ticket); await deviceCurrent(r.deviceId, r.deviceEpoch);
@@ -674,7 +733,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
         await checkRuntime(r, runtime); signal.throwIfAborted();
         if (now() >= ticket.expiresAt) throw codeError('TICKET_EXPIRED');
         return { r, runtime, ticket };
-      });
+      }, operation), 'business', operation);
       const { r, runtime, ticket } = captured, source = r.source!;
       if(!playbackReadyFacts(source))throw codeError('RESOURCE_REVOKED');
       const selection = operation === 'headMediaAsset' ? { status: 200, start: 0, end: source.size - 1 } as const
@@ -695,6 +754,7 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     },
     async revokeDevice(deviceId) {
       if (!id(deviceId)) return playbackFailure(400, 'INVALID_REQUEST');
+      codecFence++;
       for (const r of state?.resources ?? []) if (r.deviceId === deviceId) { preparations.get(r.id)?.controller.abort(); runtimes.get(r.id)?.controller.abort(); }
       const ids = await enqueue(async () => {
         await loaded(); const candidate = playbackCopy(state!);
@@ -706,15 +766,30 @@ export function createMobilePlaybackService(options: MobilePlaybackServiceOption
     },
     close() {
       if (closeFlight) return closeFlight;
-      closing = true; if (sweepTimer) clearInterval(sweepTimer); for (const task of preparations.values()) task.controller.abort(); pauseReaders();
+      closing = true; codecFence++; if (sweepTimer) clearInterval(sweepTimer); for (const task of preparations.values()) task.controller.abort(); pauseReaders();
       closeFlight = (async () => {
-        await deadline(tail, limits.releaseConfirmationMs, codeError('RESOURCE_BUSY'));
-        await deadline(Promise.all([...preparations.values()].map(v => v.finished)), limits.releaseConfirmationMs, codeError('RESOURCE_BUSY'));
-        await Promise.all([...runtimes.keys()].map(v => releaseRuntime(v)));
-        await deadline(Promise.all([...unresolvedPreparations]), limits.releaseConfirmationMs, codeError('RESOURCE_BUSY'));
-        await deadline(Promise.all([...sourceFlights.values()].map(v => v.lateRelease ?? v.raw.then(() => undefined))), limits.releaseConfirmationMs, codeError('RESOURCE_BUSY'));
-        await deadline(Promise.all([...background]), limits.releaseConfirmationMs, codeError('RESOURCE_BUSY'));
-        if (runtimes.size || unresolvedPreparations.size || sourceFlights.size) throw codeError('RESOURCE_BUSY'); signingKey.fill(0);
+        let failed = false, first: unknown = undefined;
+        const failures: MobilePlaybackCloseFailure[] = [];
+        const remember = (stage: MobilePlaybackCloseFailure['stage'], error: unknown): void => {
+          if (!failed) { failed = true; first = error; }
+          let facts: MobilePlaybackCloseFailure = { stage, status: 503, code: 'BUSY' };
+          try {
+            const safe = safeError(error);
+            if (Object.hasOwn(messages, safe.code) && [400, 401, 403, 404, 409, 410, 429, 503].includes(safe.status)) facts = { stage, status: safe.status, code: safe.code };
+          } catch { /* 错误快照自身失败不覆盖实际首因。 */ }
+          failures.push(facts); closeFailures.set(service, failures);
+        };
+        try {
+          await deadline(tail, limits.releaseConfirmationMs, codeError('RESOURCE_BUSY'));
+          await deadline(Promise.all([...preparations.values()].map(v => v.finished)), limits.releaseConfirmationMs, codeError('RESOURCE_BUSY'));
+          await Promise.all([...runtimes.keys()].map(v => releaseRuntime(v)));
+          await deadline(Promise.all([...unresolvedPreparations]), limits.releaseConfirmationMs, codeError('RESOURCE_BUSY'));
+          await deadline(Promise.all([...sourceFlights.values()].map(v => v.lateRelease ?? v.raw.then(() => undefined))), limits.releaseConfirmationMs, codeError('RESOURCE_BUSY'));
+          await deadline(Promise.all([...background]), limits.releaseConfirmationMs, codeError('RESOURCE_BUSY'));
+          if (runtimes.size || unresolvedPreparations.size || sourceFlights.size) throw codeError('RESOURCE_BUSY'); signingKey.fill(0);
+        } catch (error) { remember('drain', error); }
+        try { await options.stateCodec?.close(); } catch (error) { remember('codec-close', error); }
+        if (failed) throw first;
       })(); return closeFlight;
     },
     resourceSnapshot() {

@@ -2,6 +2,7 @@ import { Worker, type WorkerOptions } from 'node:worker_threads'
 import { runCoreUtilityProcess, type DatasetOwnerFactory } from '../../../../packages/bridge-core/src/utility-main.js'
 import { createDatasetOwnerClient } from '../../../../packages/bridge-core/src/collection/dataset-owner-client.js'
 import type { DatasetOwnerEndpoint } from '../../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
+import { captureDatasetWorkbenchNativeConfiguration } from '../../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
 import { datasetOwnerEnvironment } from './dataset-owner-bootstrap.js'
 import type { OptionalRustReadonlyManager } from '../../../../packages/bridge-core/src/rust-core/optional-readonly-manager.js'
 import { installCollectionReadonlyCoreBridge, type CollectionReadonlyCoreParent } from './collection-readonly-core-bridge.js'
@@ -31,7 +32,7 @@ export function runDesktopCoreHost(options: DesktopCoreHostOptions = {}): Promis
     const parent = (process as unknown as { parentPort?: CollectionReadonlyCoreParent }).parentPort
     if (parent) installCollectionReadonlyCoreBridge(options.optionalReadonlyManager, parent)
   }
-  const createDatasetOwner: DatasetOwnerFactory = ({ projection, onFatal, privateSourceWritesPort, privateRelocationMainPort }) => {
+  const createDatasetOwner: DatasetOwnerFactory = ({ projection, onFatal, privateSourceWritesPort, privateRelocationMainPort, localWorkbenchNative }) => {
     const worker = createWorker(new URL('./dataset-owner.js', import.meta.url), {
       name: 'MusicBridge Dataset Owner',
       env: datasetEnvironment,
@@ -39,6 +40,7 @@ export function runDesktopCoreHost(options: DesktopCoreHostOptions = {}): Promis
         dataDirectory: env.MUSIC_BRIDGE_DATA_DIRECTORY,
         resourcesDirectory: process.resourcesPath,
         physicalResourceBuffer: physicalResourceLocks.buffer,
+        ...(localWorkbenchNative ? { localWorkbenchNative: captureDatasetWorkbenchNativeConfiguration(localWorkbenchNative) } : {}),
         ...(privateSourceWritesPort ? { sourceWritesPort: privateSourceWritesPort } : {}),
         ...(privateRelocationMainPort ? { relocationMainPort: privateRelocationMainPort } : {}),
       },

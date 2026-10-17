@@ -1,10 +1,17 @@
+import { captureLocalAlbumContext, withLocalAlbumContext, runLocalAlbumContext, localAlbumPhase, localAlbumMatch, localAlbumReject, localAlbumRejectCode, emitLocalAlbumNodeTrace, type LocalAlbumNodeContext } from './shared/local-album-read-trace-node.js';
+import { isDatasetNameProviderCommand, captureDatasetNameProviderRequest, captureDatasetNameProviderReply, assertDatasetNameProviderReplyForRequest, DatasetNameProviderBridgeError, type DatasetNameProviderCommand, type DatasetNameProviderRequest } from './collection/dataset-owner-protocol.js';
+import { isDatasetWorkbenchNativeConfiguration, captureDatasetWorkbenchNativeConfiguration, type DatasetWorkbenchNativeConfiguration, isDatasetWorkbenchOwnerRequest, isDatasetWorkbenchOwnerResult, isDatasetWorkbenchOwnerScope, type DatasetWorkbenchOwnerRequest, type DatasetWorkbenchOwnerResult, type DatasetWorkbenchOwnerCommand, type DatasetWorkbenchOwnerPayloads, type DatasetWorkbenchOwnerResults, DATASET_WORKBENCH_BOUNDS, isDatasetWorkbenchContext, isDatasetWorkbenchRequest, isDatasetWorkbenchResult, isDatasetWorkbenchFrame, datasetWorkbenchMeta, sameDatasetWorkbenchMeta, datasetWorkbenchJson, datasetWorkbenchSha, datasetWorkbenchFrames, datasetWorkbenchControl, createDatasetWorkbenchAssembler, DatasetWorkbenchWireError, type DatasetWorkbenchMeta, type DatasetWorkbenchRequest } from './collection/dataset-owner-protocol.js';
 import { isLocalArtworkCommand, isLocalArtworkInternalCommand, isLocalRelocationCommand, isLocalRelocationInternalCommand } from '@music-bridge/contracts';
 import { isLocalCatalogCommand, isLocalCatalogInternalCommand, isLocalScanCommand, isLocalScanInternalCommand, validateIpcInternalRequest } from '@music-bridge/contracts';
 import { dispatchDatasetCommand, dispatchInternalDatasetCommand } from './collection/dataset-dispatch.js';
 import { createDatasetRoonProjectionGateway } from './collection/dataset-roon-projection.js';
 import { isDatasetProjectionPayload, type DatasetProjectionCommand, type DatasetProjectionCommandPayloads, isDatasetCommand, DatasetOwnerDispatchError, DatasetOwnerTransportError, type DatasetOwnerEndpoint, type DatasetOwnerIdentity, type DatasetOwnerProjectionHandler } from './collection/dataset-owner-protocol.js';
+import { isDatasetLyricsProviderCommand, captureDatasetLyricsProviderRequest, captureDatasetLyricsProviderReply, assertDatasetLyricsProviderReplyForRequest, DatasetLyricsProviderBridgeError,
+  type DatasetLyricsProviderCommand, type DatasetLyricsProviderRequest, type DatasetProjectionCommandResults } from './collection/dataset-owner-protocol.js';
+import { randomUUID } from 'node:crypto';
 import { failureForError, responseFailure } from './shared/ipc-failure.js';
-import { isMobileCorePrivateCall, isMobileOwnerPrivateResult } from './mobile/owner-protocol.js';
+import { isMobileOwnerPrivateResult } from './mobile/owner-protocol.js';
+import { readMobileCorePrivateCallForCapture } from './mobile/owner-boundary-capture.js';
 import { MobileAuthPersistenceError, MobileServiceError, type MobileOwnerPrivateFailure, type MobileOwnerPrivateResult } from './mobile/types.js';
 import { captureMobileContentCoreRequest, captureMobileContentCoreResponse, mobileContentRpcFailure, MOBILE_CONTENT_RPC_BOUNDS,
   type MobileContentCoreRequest, type MobileContentCoreResponse } from './mobile/content-rpc.js';
@@ -61,6 +68,7 @@ import type { RoonTimeShapeSummary } from './roon/adapter.js';
 import type { RoonBrowseShapeSummary } from './roon/library.js';
 import { createLyricsMatchRepository } from './lyrics-matching/repository.js';
 import type { FfmpegConverter } from './recording/audio-converter.js';
+import { isLocalAlbumArtworkMainRequest, isLocalAlbumArtworkMainReply, localAlbumArtworkMainCancel, localAlbumArtworkMainReference, type LocalAlbumArtworkMainReference, type LocalAlbumArtworkMainRequest, isLocalAlbumMainRequest, isLocalAlbumMainResponse, localAlbumMainFailure, type LocalAlbumMainResponse } from './collection/local-album-browser/main-protocol.js';
 import { createRustReadonlyCoreDatasetOwner, type RustReadonlyCoreOptions } from './rust-core/core-dataset-owner.js';
 import { createRustReadonlyCoreController, type RustReadonlyCoreController } from './rust-core/host-controller.js';
 import { validateRustSnapshotProfile } from './rust-core/readonly-sidecar.js';
@@ -69,6 +77,113 @@ export interface UtilityPort {
   on(event: 'message', listener: (event: { data: unknown }) => void): unknown;
   start(): void;
   postMessage(message: unknown): void;
+}
+
+/** 私有五源反向RPC只经原Main物理port；不是任意HTTP或新的general工厂。 */
+export function createUtilityLyricsProviderBridge(port:UtilityPort,current:()=>DatasetOwnerIdentity|undefined,onFatal:()=>void,sharedPending:()=>number=()=>0){
+  let sequence=0,closed=false;
+  const pending=new Map<string,{request:DatasetLyricsProviderRequest;timer:ReturnType<typeof setTimeout>;resolve:(value:unknown)=>void;reject:(error:unknown)=>void}>(),expired=new Set<string>();
+  const fail=(error:unknown)=>{closed=true;for(const entry of pending.values()){clearTimeout(entry.timer);entry.reject(error);}pending.clear();};
+  port.on('message',event=>{
+    if(!isRecord(event.data)||Object.getOwnPropertyDescriptor(event.data,'type')?.value!=='musicbridge.lyrics.provider-reply'||closed)return;
+    try{const reply=captureDatasetLyricsProviderReply(event.data),entry=pending.get(reply.requestId);
+      if(!entry){if(expired.has(reply.requestId)){expired.delete(reply.requestId);return;}throw new DatasetLyricsProviderBridgeError('INVALID_RESPONSE');}
+      assertDatasetLyricsProviderReplyForRequest(reply,entry.request);const identity=current();if(identity?.epoch!==entry.request.epoch||identity.datasetId!==entry.request.datasetId)throw new DatasetLyricsProviderBridgeError('NOT_READY');
+      clearTimeout(entry.timer);pending.delete(reply.requestId);if(reply.ok)entry.resolve(reply.result);else entry.reject(new DatasetLyricsProviderBridgeError(reply.failure));
+    }catch(error){fail(error);onFatal();}
+  });
+  return {
+    call<K extends DatasetLyricsProviderCommand>(command:K,payload:DatasetProjectionCommandPayloads[DatasetLyricsProviderCommand],scope:{epoch:string;datasetId?:string}):Promise<DatasetProjectionCommandResults[K]>{
+      const identity=current();if(closed||!identity||identity.epoch!==scope.epoch||identity.datasetId!==scope.datasetId)return Promise.reject(new DatasetLyricsProviderBridgeError('NOT_READY'));
+      if(pending.size+sharedPending()>=DATASET_WORKBENCH_BOUNDS.pending)return Promise.reject(new DatasetLyricsProviderBridgeError('BUDGET'));
+      const request=captureDatasetLyricsProviderRequest({version:1,type:'musicbridge.lyrics.provider-request',requestId:randomUUID(),sequence:++sequence,epoch:identity.epoch,datasetId:identity.datasetId,command,payload,expiresAtMs:Date.now()+2000});
+      return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{pending.delete(request.requestId);if(expired.size>=32){fail(new DatasetLyricsProviderBridgeError('TIMEOUT'));onFatal();return;}expired.add(request.requestId);reject(new DatasetLyricsProviderBridgeError('TIMEOUT'));},2000);
+        pending.set(request.requestId,{request,timer,resolve:value=>resolve(value as DatasetProjectionCommandResults[K]),reject});
+        try{port.postMessage(request);}catch(error){clearTimeout(timer);pending.delete(request.requestId);reject(error);fail(error);onFatal();}
+      });
+    },
+    pending(){return pending.size},
+    close(){fail(new DatasetLyricsProviderBridgeError('NOT_READY'));expired.clear();},
+  };
+}
+
+/** 原 Owner 只读图片副本经 Main 实际解码；timeout/close 只取消本次有限请求。 */
+export function createUtilityLocalAlbumArtworkBridge(port:UtilityPort,current:()=>DatasetOwnerIdentity|undefined,onFatal:()=>void) {
+  let sequence=0,closed=false;
+  const pending=new Map<string,{request:LocalAlbumArtworkMainRequest;timer:ReturnType<typeof setTimeout>;resolve:(value:DatasetProjectionCommandResults['normalizeLocalAlbumArtwork'])=>void;reject:(error:unknown)=>void;detach():void}>();
+  const expired=new Map<string,LocalAlbumArtworkMainReference>();
+  const error=(id:string,code:'NOT_READY'|'TIMEOUT'|'CANCELLED'|'INVALID_IPC_REQUEST'|'INVALID_IPC_RESPONSE')=>new DatasetOwnerDispatchError(responseFailure(id,code,'原专辑封面规范化未确认。'));
+  const cancel=(request:LocalAlbumArtworkMainRequest)=>{try{port.postMessage(localAlbumArtworkMainCancel(request));}catch{onFatal();}};
+  const fail=(reason:unknown)=>{closed=true;for(const entry of pending.values()){clearTimeout(entry.timer);entry.detach();cancel(entry.request);entry.reject(reason);}pending.clear();};
+  port.on('message',event=>{
+    if(!isRecord(event.data)||Object.getOwnPropertyDescriptor(event.data,'type')?.value!=='local-album-artwork-main-response'||closed)return;
+    try {
+      const id=Object.getOwnPropertyDescriptor(event.data,'id')?.value,entry=typeof id==='string'?pending.get(id):undefined;
+      const request=entry?.request??(typeof id==='string'?expired.get(id):undefined);
+      if(!request||!isLocalAlbumArtworkMainReply(event.data,request))throw error(typeof id==='string'?id:randomUUID(),'INVALID_IPC_RESPONSE');
+      if(!entry){expired.delete(request.id);return;}
+      const active=entry.request,identity=current();clearTimeout(entry.timer);entry.detach();pending.delete(active.id);
+      if(identity?.epoch!==active.projection.epoch||identity.datasetId!==active.datasetId){entry.reject(error(active.id,'NOT_READY'));return;}
+      if(Date.now()>=active.expiresAtMs){cancel(active);entry.reject(error(active.id,'TIMEOUT'));return;}
+      if(event.data.projection.ok)entry.resolve(event.data.projection.result as DatasetProjectionCommandResults['normalizeLocalAlbumArtwork']);
+      else entry.reject(new DatasetOwnerDispatchError(event.data.projection.failure));
+    } catch(reason){fail(reason);onFatal();}
+  });
+  return {
+    call(payload:DatasetProjectionCommandPayloads['normalizeLocalAlbumArtwork'],scope:{epoch:string;datasetId?:string;signal?:AbortSignal;deadlineAtMs?:number;expiresAtMs?:number}):Promise<DatasetProjectionCommandResults['normalizeLocalAlbumArtwork']> {
+      const identity=current(),id=randomUUID();
+      if(closed||!identity||identity.epoch!==scope.epoch||identity.datasetId!==scope.datasetId)return Promise.reject(error(id,'NOT_READY'));
+      if(pending.size>=4||sequence>=Number.MAX_SAFE_INTEGER)return Promise.reject(error(id,'NOT_READY'));
+      const remaining=Math.min(2000,Math.floor((scope.deadlineAtMs??performance.now()+2000)-performance.now()));
+      if(scope.signal?.aborted||remaining<=0)return Promise.reject(error(id,'TIMEOUT'));
+      const expiresAtMs=Math.min(Date.now()+remaining,scope.expiresAtMs??Number.MAX_SAFE_INTEGER);
+      const raw={version:1,type:'local-album-artwork-main-request',id,sequence:++sequence,datasetId:identity.datasetId,expiresAtMs,
+        projection:{version:1,type:'projection',epoch:identity.epoch,projectionRequestId:id,command:'normalizeLocalAlbumArtwork',payload}};
+      if(!isLocalAlbumArtworkMainRequest(raw))return Promise.reject(error(id,'INVALID_IPC_REQUEST'));
+      const request=structuredClone(raw);
+      return new Promise((resolve,reject)=>{
+        const expire=(code:'TIMEOUT'|'CANCELLED')=>{const entry=pending.get(id);if(!entry)return;clearTimeout(entry.timer);entry.detach();pending.delete(id);cancel(request);if(expired.size>=32){fail(error(id,'TIMEOUT'));onFatal();}else expired.set(id,localAlbumArtworkMainReference(request));reject(error(id,code));};
+        const abort=()=>expire('CANCELLED'),detach=()=>scope.signal?.removeEventListener('abort',abort),timer=setTimeout(()=>expire('TIMEOUT'),Math.max(1,request.expiresAtMs-Date.now()));
+        pending.set(id,{request,timer,resolve,reject,detach});scope.signal?.addEventListener('abort',abort,{once:true});
+        try{port.postMessage(request);if(scope.signal?.aborted)abort();}catch(reason){clearTimeout(timer);detach();pending.delete(id);reject(reason);fail(reason);onFatal();}
+      });
+    },
+    close(){fail(error(randomUUID(),'NOT_READY'));expired.clear();},
+    pending(){return pending.size},
+  };
+}
+
+/** NAME独立有限RPC保持原Owner接收2s；模型运行期限由原Start另行冻结。 */
+export function createUtilityNameProviderBridge(port:UtilityPort,current:()=>DatasetOwnerIdentity|undefined,onFatal:()=>void,sharedPending:()=>number=()=>0){
+  let sequence=0,closed=false,authority:{id:string;generation:number}|undefined;
+  const pending=new Map<string,{request:DatasetNameProviderRequest;timer:ReturnType<typeof setTimeout>;resolve:(value:unknown)=>void;reject:(error:unknown)=>void}>(),expired=new Set<string>(),started=new Set<string>();
+  const fail=(error:unknown)=>{closed=true;for(const entry of pending.values()){clearTimeout(entry.timer);entry.reject(error);}pending.clear();};
+  port.on('message',event=>{
+    if(!isRecord(event.data)||Object.getOwnPropertyDescriptor(event.data,'type')?.value!=='musicbridge.name.provider-reply'||closed)return;
+    try{const reply=captureDatasetNameProviderReply(event.data),entry=pending.get(reply.requestId);
+      if(!entry){if(expired.has(reply.requestId)){expired.delete(reply.requestId);return;}throw new DatasetNameProviderBridgeError('INVALID_RESPONSE');}
+      assertDatasetNameProviderReplyForRequest(reply,entry.request);const identity=current();if(identity?.epoch!==entry.request.epoch||identity.datasetId!==entry.request.datasetId)throw new DatasetNameProviderBridgeError('NOT_READY');
+      if(authority&&(reply.authorityId!==authority.id||reply.childGeneration!==authority.generation))throw new DatasetNameProviderBridgeError('NOT_READY');
+      if(reply.ok){if(!authority){if(reply.authorityId===null||reply.childGeneration===null)throw new DatasetNameProviderBridgeError('INVALID_RESPONSE');authority={id:reply.authorityId,generation:reply.childGeneration};}
+        if(entry.request.command==='nameProviderStart')started.add(entry.request.payload.operationId);
+        if(entry.request.command==='nameProviderJoin')started.delete(entry.request.payload.operationId);
+      }
+      clearTimeout(entry.timer);pending.delete(reply.requestId);if(reply.ok)entry.resolve(reply.result);else entry.reject(new DatasetNameProviderBridgeError(reply.failure));
+    }catch(error){fail(error);onFatal();}
+  });
+  return {
+    call<K extends DatasetNameProviderCommand>(command:K,payload:DatasetProjectionCommandPayloads[K],scope:{epoch:string;datasetId?:string}):Promise<DatasetProjectionCommandResults[K]>{
+      const identity=current();if(closed||!identity||identity.epoch!==scope.epoch||identity.datasetId!==scope.datasetId||command==='nameProviderRead'&&!started.has(payload.operationId))return Promise.reject(new DatasetNameProviderBridgeError('NOT_READY'));
+      if(pending.size+sharedPending()>=DATASET_WORKBENCH_BOUNDS.pending)return Promise.reject(new DatasetNameProviderBridgeError('BUDGET'));
+      const request=captureDatasetNameProviderRequest({version:1,type:'musicbridge.name.provider-request',requestId:randomUUID(),sequence:++sequence,epoch:identity.epoch,datasetId:identity.datasetId,authorityId:authority?.id??null,childGeneration:authority?.generation??null,command,payload,expiresAtMs:Date.now()+DATASET_WORKBENCH_BOUNDS.requestMs});
+      return new Promise((resolve,reject)=>{const timer=setTimeout(()=>{pending.delete(request.requestId);if(expired.size>=32){fail(new DatasetNameProviderBridgeError('TIMEOUT'));onFatal();return;}expired.add(request.requestId);reject(new DatasetNameProviderBridgeError('TIMEOUT'));},DATASET_WORKBENCH_BOUNDS.requestMs);
+        pending.set(request.requestId,{request,timer,resolve:value=>resolve(value as DatasetProjectionCommandResults[K]),reject});
+        try{port.postMessage(request);}catch(error){clearTimeout(timer);pending.delete(request.requestId);reject(error);fail(error);onFatal();}
+      });
+    },
+    pending(){return pending.size},
+    close(){fail(new DatasetNameProviderBridgeError('NOT_READY'));expired.clear();started.clear();},
+  };
 }
 
 export type CoreRuntimeForIpc = CoreRuntime & {
@@ -406,6 +521,99 @@ export async function attachCoreRuntimePort(
   let mobileReady = false, mobileClosing = false;
   const mobileFlights = new Set<Promise<void>>();
   const contentFlights = new Map<string, { controller: AbortController; flight: Promise<void> }>();
+  type WorkbenchFlight={meta:DatasetWorkbenchMeta;assembly:ReturnType<typeof createDatasetWorkbenchAssembler>;controller:AbortController;timer:NodeJS.Timeout;running:boolean;expired:boolean;task?:Promise<void>;trace?:LocalAlbumNodeContext|undefined;settledContextEndpoint:DatasetOwnerEndpoint|undefined}
+  const workbenchFlights=new Map<string,WorkbenchFlight>(),workbenchRetired=new Map<string,DatasetWorkbenchMeta>()
+  let workbenchSequence=0
+  function wbFailure(item:WorkbenchFlight,code:'INVALID_IPC_REQUEST'|'INVALID_IPC_RESPONSE'|'OUTBOX_SCOPE_MISMATCH'|'NOT_READY'|'TIMEOUT',cause?:{error:unknown}):void{
+    if(!item.expired){
+      if(item.meta.kind==='context')try{
+        const record=()=>{if(cause)localAlbumReject(cause.error,code);else localAlbumRejectCode(code,code)};
+        if(item.trace)withLocalAlbumContext(item.trace,record);
+        else runLocalAlbumContext(item.meta.id,null,'context.utility.receive',record,false,false);
+      }catch{ /* 观测故障不改变原失败帧。 */ }
+      item.expired=true;port.postMessage(datasetWorkbenchControl(item.meta,'failure',code))
+    }
+  }
+  function wbSettle(item:WorkbenchFlight):void{
+    clearTimeout(item.timer);workbenchFlights.delete(item.meta.id);workbenchRetired.set(item.meta.id,item.meta)
+    if(workbenchRetired.size>1024)workbenchRetired.delete(workbenchRetired.keys().next().value!)
+    if(item.expired)port.postMessage(datasetWorkbenchControl(item.meta,'settled'))
+  }
+  async function wbOriginalContext(meta:DatasetWorkbenchMeta,signal:AbortSignal){
+    const endpoint=runtime.datasetOwnerEndpoint
+    if(meta.kind==='context')try{localAlbumPhase(!mobileReady||mobileClosing?'context.utility.ready':'context.utility.endpoint')}catch{}
+    if(!mobileReady||mobileClosing||!endpoint?.workbenchContext||!endpoint.dispatchWorkbench||!endpoint.dispatchWorkbenchOwner||!endpoint.closeWorkbench||!endpoint.joinWorkbench)throw new DatasetWorkbenchWireError('NOT_READY')
+    if(meta.kind==='context')try{localAlbumPhase('context.utility.prepare')}catch{}
+    const prepared=await endpoint.prepare()
+    if(runtime.datasetOwnerEndpoint!==endpoint||prepared.datasetId!==meta.datasetId||meta.epoch!==null&&meta.epoch!==prepared.epoch)throw new DatasetWorkbenchWireError('OUTBOX_SCOPE_MISMATCH')
+    if(meta.kind==='context')try{localAlbumPhase('context.utility.owner')}catch{}
+    const identity=await endpoint.workbenchContext({signal,deadlineAtMs:performance.now()+Math.max(0,meta.expiresAtMs-Date.now())})
+    if(meta.kind==='context')try{localAlbumPhase('context.utility.endpoint')}catch{}
+    if(!isDatasetWorkbenchContext(identity)||identity.datasetId!==prepared.datasetId||identity.epoch!==prepared.epoch||runtime.datasetOwnerEndpoint!==endpoint||mobileClosing||signal.aborted)throw new DatasetWorkbenchWireError('OUTBOX_SCOPE_MISMATCH')
+    return {endpoint,identity}
+  }
+  function wbReceive(raw:unknown):void{
+    if(!isDatasetWorkbenchFrame(raw)||raw.lane==='response'||raw.kind==='drain')return
+    const receive=()=>{
+    let item=workbenchFlights.get(raw.id)
+    if(raw.lane==='control'){
+      if(item&&sameDatasetWorkbenchMeta(raw,item.meta)){item.controller.abort();wbFailure(item,'TIMEOUT');if(!item.running)wbSettle(item)}
+      else {const retired=workbenchRetired.get(raw.id);if(retired&&sameDatasetWorkbenchMeta(raw,retired))port.postMessage(datasetWorkbenchControl(retired,'settled'))}
+      return
+    }
+    if(raw.part==='begin'){
+      if(item||workbenchRetired.has(raw.id)||raw.sequence!==workbenchSequence+1)return
+      workbenchSequence=raw.sequence
+      const meta=datasetWorkbenchMeta(raw),controller=new AbortController(),remaining=Math.min(2000,meta.expiresAtMs-Date.now())
+      const flight:WorkbenchFlight={meta,assembly:createDatasetWorkbenchAssembler(meta,'request'),controller,timer:undefined as unknown as NodeJS.Timeout,running:false,expired:false,settledContextEndpoint:undefined}
+      if(meta.kind==='context')try{flight.trace=captureLocalAlbumContext()}catch{ /* 仅旁注。 */ }
+      item=flight;workbenchFlights.set(raw.id,flight)
+      flight.timer=setTimeout(()=>{controller.abort();wbFailure(flight,'TIMEOUT');if(!flight.running)wbSettle(flight)},Math.max(1,remaining))
+      if(remaining<=0||workbenchFlights.size>24){if(meta.kind==='context')try{localAlbumPhase('context.utility.budget')}catch{}wbFailure(flight,remaining<=0?'TIMEOUT':'NOT_READY');wbSettle(flight);return}
+    }
+    if(!item||item.running||!sameDatasetWorkbenchMeta(raw,item.meta))return
+    if(item.meta.kind==='context')try{item.trace=captureLocalAlbumContext()}catch{ /* 仅旁注。 */ }
+    try{
+      const body=item.assembly.accept(raw);if(body===undefined)return
+      if(datasetWorkbenchSha(datasetWorkbenchJson(body))!==item.meta.requestSha256||item.meta.kind==='execute'&&!isDatasetWorkbenchRequest(body)||item.meta.kind==='owner'&&!isDatasetWorkbenchOwnerRequest(body)||item.meta.kind==='context'&&(!isRecord(body)||Reflect.ownKeys(body).length!==0))throw new DatasetWorkbenchWireError('INVALID_IPC_REQUEST')
+      const flight=item;flight.running=true
+      const task:Promise<void>=Promise.resolve().then(async()=>{
+        const bound=await wbOriginalContext(flight.meta,flight.controller.signal)
+        let result:unknown=bound.identity
+        if(flight.meta.kind==='owner'){
+          if(!isDatasetWorkbenchOwnerRequest(body)||!isDatasetWorkbenchOwnerScope(body,bound.identity.datasetId))throw new DatasetWorkbenchWireError('OUTBOX_SCOPE_MISMATCH')
+          result=await bound.endpoint.dispatchWorkbenchOwner!(structuredClone(body),{identity:{epoch:bound.identity.epoch,datasetId:bound.identity.datasetId},signal:flight.controller.signal,deadlineAtMs:performance.now()+Math.max(0,flight.meta.expiresAtMs-Date.now())})
+          const fresh=await wbOriginalContext(flight.meta,flight.controller.signal)
+          if(fresh.endpoint!==bound.endpoint||fresh.identity.epoch!==bound.identity.epoch||!isDatasetWorkbenchOwnerResult(body.command,result,body.payload,bound.identity.datasetId))throw new DatasetWorkbenchWireError('INVALID_IPC_RESPONSE')
+        }else if(flight.meta.kind==='execute'){
+          const request=body as DatasetWorkbenchRequest
+          result=await bound.endpoint.dispatchWorkbench!(structuredClone(request),{identity:{epoch:bound.identity.epoch,datasetId:bound.identity.datasetId},signal:flight.controller.signal,deadlineAtMs:performance.now()+Math.max(0,flight.meta.expiresAtMs-Date.now())})
+          const fresh=await wbOriginalContext(flight.meta,flight.controller.signal)
+          if(fresh.endpoint!==bound.endpoint||fresh.identity.epoch!==bound.identity.epoch||!isDatasetWorkbenchResult(request,result,bound.identity.datasetId))throw new DatasetWorkbenchWireError('INVALID_IPC_RESPONSE')
+        }
+        if(flight.expired||flight.controller.signal.aborted||mobileClosing||Date.now()>=flight.meta.expiresAtMs)throw new DatasetWorkbenchWireError('TIMEOUT')
+        for(const frame of datasetWorkbenchFrames(flight.meta,'response',result))port.postMessage(frame)
+        // context生产Promise已等待本次settled及Client cleanup；全部成功响应帧发完才保存端点。
+        if(flight.meta.kind==='context')flight.settledContextEndpoint=bound.endpoint
+      }).catch(error=>{wbFailure(flight,error instanceof DatasetWorkbenchWireError?error.code:'NOT_READY',{error})}).finally(async()=>{
+        // 原Owner RPC超时只撤回响应；仍等其真实settled帧，不能提前声称底层已join。
+        try{
+          const contextSucceeded=flight.meta.kind==='context'&&flight.settledContextEndpoint!==undefined
+            &&runtime.datasetOwnerEndpoint===flight.settledContextEndpoint&&mobileReady&&!mobileClosing
+            &&!flight.expired&&!flight.controller.signal.aborted&&Date.now()<flight.meta.expiresAtMs;
+          if(!contextSucceeded)await runtime.datasetOwnerEndpoint?.joinWorkbench?.();
+        }finally{wbSettle(flight)}
+      })
+      flight.task=task;void task.catch(()=>{})
+    }catch(error){wbFailure(item,error instanceof DatasetWorkbenchWireError?error.code:'INVALID_IPC_REQUEST',{error});wbSettle(item)}
+    };
+    if(raw.kind==='context')runLocalAlbumContext(raw.id,null,'context.utility.receive',receive,false,false);else receive();
+  }
+  async function closeWorkbenchFlights():Promise<void>{
+    for(const item of workbenchFlights.values()){item.controller.abort();wbFailure(item,'NOT_READY');if(!item.running)wbSettle(item)}
+    await runtime.datasetOwnerEndpoint?.closeWorkbench?.()
+    await Promise.allSettled([...workbenchFlights.values()].flatMap(item=>item.task?[item.task]:[]))
+  }
   const closeContentFlights = async () => {
     for (const entry of contentFlights.values()) entry.controller.abort(new MobileAuthPersistenceError('unknown'));
     const quiet = Promise.allSettled([...contentFlights.values()].map(entry => entry.flight));
@@ -415,6 +623,33 @@ export async function attachCoreRuntimePort(
     });
   };
   port.on('message', (event) => {
+    if(isRecord(event.data)&&(Object.getOwnPropertyDescriptor(event.data,'type')?.value==='musicbridge.lyrics.provider-reply'||Object.getOwnPropertyDescriptor(event.data,'type')?.value==='musicbridge.name.provider-reply'))return;
+    if(isRecord(event.data)&&Object.getOwnPropertyDescriptor(event.data,'type')?.value==='musicbridge.workbench.frame'){wbReceive(event.data);return;}
+    if (isRecord(event.data) && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'local-album-main-request') {
+      if (!isLocalAlbumMainRequest(event.data)) return;
+      const call = structuredClone(event.data);
+      const operation = async () => {
+        let response: LocalAlbumMainResponse;
+        try {
+          const endpoint = runtime.datasetOwnerEndpoint;
+          localAlbumPhase('utility.ready');
+          if (!mobileReady || mobileClosing || mobileFlights.size >= 32 || !endpoint?.readLocalAlbum) throw new Error('本地专辑作者未就绪。');
+          localAlbumPhase('utility.prepare'); const identity = await endpoint.prepare();
+          localAlbumPhase('utility.dataset'); const datasetMatched = identity.datasetId === call.datasetId; localAlbumMatch('dataset', datasetMatched);
+          if (!datasetMatched) throw new Error('原工作库身份已改变。');
+          localAlbumPhase('utility.read'); const result = await endpoint.readLocalAlbum(call.request);
+          const candidate = { version: 1, type: 'local-album-main-response', id: call.id, datasetId: call.datasetId, command: call.request.command, ok: true, result };
+          localAlbumPhase('utility.dto');
+          if (mobileClosing) throw new Error('原本地专辑结果未通过校验。');
+          const responseValid = isLocalAlbumMainResponse(candidate, call); localAlbumMatch('dto', responseValid);
+          if (!responseValid) throw new Error('原本地专辑结果未通过校验。');
+          response = candidate;
+        } catch (error) { const mappedCode = mobileClosing || !mobileReady ? 'NOT_READY' : 'UNAVAILABLE'; localAlbumReject(error, mappedCode); response = localAlbumMainFailure(call, mappedCode); }
+        port.postMessage(response);
+      };
+      const pending = runLocalAlbumContext(call.id, null, 'utility.receive', operation); mobileFlights.add(pending);
+      void pending.finally(() => mobileFlights.delete(pending)).catch(() => {}); return;
+    }
     if (isRecord(event.data) && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-content-core-request') {
       let call: MobileContentCoreRequest;
       try { call = captureMobileContentCoreRequest(event.data); } catch { return; }
@@ -438,14 +673,18 @@ export async function attachCoreRuntimePort(
       void pending.then(quiet, quiet); return;
     }
     if (isRecord(event.data) && Object.getOwnPropertyDescriptor(event.data, 'type')?.value === 'mobile-main-request') {
-      if (!isMobileCorePrivateCall(event.data)) return;
-      const call = event.data;
+      const boundary = readMobileCorePrivateCallForCapture(event.data);
+      if (!boundary) return;
+      const call = boundary.value;
       const operation = async () => {
         let result: MobileOwnerPrivateResult;
         try {
           const endpoint = runtime.datasetOwnerEndpoint;
           if (!mobileReady || mobileClosing || mobileFlights.size >= 32 || !endpoint?.mobileMain) throw new MobileAuthPersistenceError('not-sent');
-          result = await endpoint.mobileMain(call.request);
+          let captured: typeof call;
+          try { captured = boundary.capture(); }
+          catch { throw new MobileAuthPersistenceError('not-sent'); }
+          result = await endpoint.mobileMain(captured.request);
           if (mobileClosing || !isMobileOwnerPrivateResult(result, call.request)) throw new MobileAuthPersistenceError('unknown');
         } catch (error) {
           result = { kind: 'mobile-error', status: error instanceof MobileServiceError ? error.status : 503,
@@ -470,16 +709,19 @@ export async function attachCoreRuntimePort(
         const context = parsed.value.performanceTrace;
         const span = recorder?.start('ipc', context, {}, { command: parsed.value.command });
         recorder?.mark('ipc', 'core-received', span?.context, {}, { command: parsed.value.command });
-        let result: unknown;
+        let result: unknown, workbenchCloseFailure: unknown;
         try {
           const operation = () => recorder ? withPerformanceContext(recorder, span?.context, () => dispatch(runtime, parsed.value)) : dispatch(runtime, parsed.value);
           if (parsed.value.command === 'core.shutdown') {
             mobileClosing = true; reads.cancelAll('shutdown');
-            await closeContentFlights(); await Promise.allSettled([...mobileFlights]);
+            await closeContentFlights();
+            try { await closeWorkbenchFlights(); } catch (error) { workbenchCloseFailure = error; }
+            await Promise.allSettled([...mobileFlights]);
           }
           if (['auth.setCredential', 'auth.clearCredential', 'auth.logout'].includes(parsed.value.command)) reads.cancelWhere(command => command.startsWith('library.'), 'credential-changed');
           if (parsed.value.command === 'roon.selectZone') reads.cancelWhere(command => !command.startsWith('library.') || command === 'library.match' || command === 'library.aggregateSearch', 'zone-changed');
           result = await (isLibraryReadCommand(parsed.value.command) ? reads.read(parsed.value, operation) : operation());
+          if (workbenchCloseFailure !== undefined) throw workbenchCloseFailure;
           span?.end('ok');
         } catch (error) { span?.end('error'); throw error; }
         // 最后同步采样覆盖dispatch的await窗口，此后直到postMessage不再让出执行权。
@@ -608,11 +850,22 @@ function createRoonImageShapeRecorder(
 }
 
 export type DatasetOwnerFactory = (options: {
+  localWorkbenchNative?: Readonly<DatasetWorkbenchNativeConfiguration>;
   privateSourceWritesPort?:MessagePort;
   privateRelocationMainPort?: MessagePort;
   projection: DatasetOwnerProjectionHandler;
   onFatal: (error: unknown, drainOwner?: () => Promise<void>) => void;
 }) => DatasetOwnerEndpoint;
+
+/** 真实私有启动信封；新配置不能从env、公开IPC或访问器取得。 */
+export function captureCoreWorkbenchNativeBootstrap(message: unknown): Readonly<DatasetWorkbenchNativeConfiguration> | undefined {
+  if(!isRecord(message)||types.isProxy(message)||![Object.prototype,null].includes(Object.getPrototypeOf(message)))throw new Error('Core私有启动身份无效。');
+  const fields=Object.getOwnPropertyDescriptors(message),allowed=['type','playbackEventProtocol','relocationMainPort','localWorkbenchNative'];
+  if(!Object.hasOwn(fields,'type')||Reflect.ownKeys(message).some(key=>typeof key!=='string'||!allowed.includes(key)||fields[key]?.enumerable!==true||!Object.hasOwn(fields[key]!, 'value'))
+    ||message.type!=='musicbridge.core.port'||message.playbackEventProtocol!==undefined&&message.playbackEventProtocol!=='compact-v1'
+    ||message.relocationMainPort!==undefined&&message.relocationMainPort!==LOCAL_RELOCATION_MAIN_PORT_BOOTSTRAP)throw new Error('Core私有启动协议无效。');
+  return Object.hasOwn(message,'localWorkbenchNative')?captureDatasetWorkbenchNativeConfiguration(message.localWorkbenchNative):undefined;
+}
 
 /** 仅同进程可信源码提供；不能由环境或父端口选择。 */
 export type RustReadonlyCoreFactory = () => Promise<RustReadonlyCoreOptions>;
@@ -720,16 +973,16 @@ export async function runCoreUtilityProcess(
       let fatalOwnerDrain: Promise<void> | undefined;
       let resolvedRustReadonlyCollection = rustReadonlyCollection;
       let projectionGateway: ReturnType<typeof createDatasetRoonProjectionGateway> | undefined;
+      let lyricsProviderBridge:ReturnType<typeof createUtilityLyricsProviderBridge>|undefined;
+      let nameProviderBridge:ReturnType<typeof createUtilityNameProviderBridge>|undefined;
+      let albumArtworkBridge:ReturnType<typeof createUtilityLocalAlbumArtworkBridge>|undefined;
       let crashProbe: ReturnType<typeof createCoreCrashProbeController> | undefined;
       try {
-        if (!isRecord(event.data) || event.data.type !== 'musicbridge.core.port' ||
-          Object.keys(event.data).some(key => !['type', 'playbackEventProtocol', 'relocationMainPort'].includes(key)) ||
-          (event.data.relocationMainPort !== undefined && event.data.relocationMainPort !== LOCAL_RELOCATION_MAIN_PORT_BOOTSTRAP) ||
-          (event.data.playbackEventProtocol !== undefined && event.data.playbackEventProtocol !== 'compact-v1')) {
-          throw new Error('Core启动播放事件协议无效');
-        }
-        const playbackEventProtocol = event.data.playbackEventProtocol === 'compact-v1' ? 'compact-v1' as const : undefined;
-        const hasRelocationPort = event.data.relocationMainPort === LOCAL_RELOCATION_MAIN_PORT_BOOTSTRAP;
+        const localWorkbenchNative = captureCoreWorkbenchNativeBootstrap(event.data);
+        if(localWorkbenchNative!==undefined&&!createDatasetOwner)throw new Error('原生配置需要真实Dataset Owner工厂。');
+        const bootstrap = event.data as Record<string, unknown>;
+        const playbackEventProtocol = bootstrap.playbackEventProtocol === 'compact-v1' ? 'compact-v1' as const : undefined;
+        const hasRelocationPort = bootstrap.relocationMainPort === LOCAL_RELOCATION_MAIN_PORT_BOOTSTRAP;
         if (hasRelocationPort && (!createDatasetOwner || ![2, 3].includes(event.ports?.length ?? 0)
           || new Set(event.ports).size !== event.ports!.length)) throw new Error('搬迁专用实际物理端口或Owner工厂无效。');
         const playbackOptions = playbackEventProtocol ? { playbackEventProtocol } : {};
@@ -752,14 +1005,29 @@ export async function runCoreUtilityProcess(
           projectionGateway = createDatasetRoonProjectionGateway(() => runtime?.getDatasetRoonLibrary?.(), {
             isCurrentOwner: epoch => ownerIdentity?.epoch === epoch,
           });
-          const project = async (command: DatasetProjectionCommand, payload: DatasetProjectionCommandPayloads[DatasetProjectionCommand], context: { epoch: string; datasetId?: string }): Promise<unknown> => {
+          lyricsProviderBridge=createUtilityLyricsProviderBridge(port,()=>ownerIdentity,()=>{
+            datasetOwnerEndpoint?.sealLocalSources?.();runtime?.getDatasetScanReadAdmission?.().close();
+            void Promise.resolve().then(()=>runtime?runtime.shutdown():datasetOwnerEndpoint?.close()).then(()=>process.exit(72),()=>process.exit(72));
+          },()=>nameProviderBridge?.pending()??0);
+          nameProviderBridge=createUtilityNameProviderBridge(port,()=>ownerIdentity,()=>{
+            datasetOwnerEndpoint?.sealLocalSources?.();runtime?.getDatasetScanReadAdmission?.().close();
+            void Promise.resolve().then(()=>runtime?runtime.shutdown():datasetOwnerEndpoint?.close()).then(()=>process.exit(72),()=>process.exit(72));
+          },()=>lyricsProviderBridge?.pending()??0);
+          albumArtworkBridge=createUtilityLocalAlbumArtworkBridge(port,()=>ownerIdentity,()=>{
+            datasetOwnerEndpoint?.sealLocalSources?.();runtime?.getDatasetScanReadAdmission?.().close();
+            void Promise.resolve().then(()=>runtime?runtime.shutdown():datasetOwnerEndpoint?.close()).then(()=>process.exit(72),()=>process.exit(72));
+          });
+          const project = async (command: DatasetProjectionCommand, payload: DatasetProjectionCommandPayloads[DatasetProjectionCommand], context: { epoch: string; datasetId?: string;signal?:AbortSignal;deadlineAtMs?:number;expiresAtMs?:number }): Promise<unknown> => {
+            if(command==='normalizeLocalAlbumArtwork')return albumArtworkBridge!.call(payload as DatasetProjectionCommandPayloads['normalizeLocalAlbumArtwork'],context);
+            if(isDatasetNameProviderCommand(command))return nameProviderBridge!.call(command,payload as DatasetProjectionCommandPayloads[typeof command],context);
+            if(isDatasetLyricsProviderCommand(command))return lyricsProviderBridge!.call(command,payload as DatasetProjectionCommandPayloads[typeof command],context);
             if (command === 'scanReadAcquire' || command === 'scanReadWatchRevocation' || command === 'scanReadRelease') {
               if (!isDatasetProjectionPayload(command, payload) || !ownerIdentity || context.epoch !== ownerIdentity.epoch
                 || context.datasetId !== ownerIdentity.datasetId) throw new DatasetOwnerDispatchError(responseFailure(context.epoch, 'NOT_READY', '扫描读取私有来源已失效。'));
               const admission = runtime?.getDatasetScanReadAdmission?.();
               if (!admission || context.datasetId === undefined) throw new DatasetOwnerDispatchError(responseFailure(context.epoch, 'NOT_READY', '扫描读取准入尚未就绪。'));
               const scope = { epoch: context.epoch, datasetId: context.datasetId };
-              if (command === 'scanReadAcquire') return admission.acquire(scope);
+              if (command === 'scanReadAcquire') return admission.acquire(scope, Object.getOwnPropertyDescriptor(payload, 'purpose')?.value as 'local-album-display' | undefined);
               const permitId = (payload as { permitId: string }).permitId;
               return command === 'scanReadWatchRevocation' ? admission.watchRevocation(scope, permitId) : admission.release(scope, permitId);
             }
@@ -776,7 +1044,7 @@ export async function runCoreUtilityProcess(
             if (relocationPort === port || relocationPort === privatePort) throw new Error('搬迁物理端口不能复用其它域。');
             relocationBridge = createUtilityRelocationBridge(relocationPort as RelocationUtilityPort);
           }
-          const source = createDatasetOwner({ projection: project as DatasetOwnerProjectionHandler,...(sourceWritesBridge ? { privateSourceWritesPort: sourceWritesBridge.port } : {}), ...(relocationBridge ? { privateRelocationMainPort: relocationBridge.port } : {}), onFatal: (_error, drainOwner) => {
+          const source = createDatasetOwner({ projection: project as DatasetOwnerProjectionHandler,...(localWorkbenchNative ? { localWorkbenchNative } : {}),...(sourceWritesBridge ? { privateSourceWritesPort: sourceWritesBridge.port } : {}), ...(relocationBridge ? { privateRelocationMainPort: relocationBridge.port } : {}), onFatal: (_error, drainOwner) => {
             sourceWritesBridge?.close();
             relocationBridge?.close();
             if (drainOwner && !fatalOwnerDrain) {
@@ -785,6 +1053,7 @@ export async function runCoreUtilityProcess(
             }
             runtime?.getDatasetScanReadAdmission?.().close();
             projectionGateway?.close();
+            lyricsProviderBridge?.close(); nameProviderBridge?.close(); albumArtworkBridge?.close();
             datasetOwnerEndpoint?.sealLocalSources?.();
             // 先封派发，再join自有FD；退出不能抢在阻塞读取静止之前。
             void Promise.resolve().then(async () => {
@@ -806,6 +1075,8 @@ export async function runCoreUtilityProcess(
               dispatchInternal: (request: IpcRequest) => client.dispatchInternal!(request),
             }),
             ...(source.mobileMain ? { mobileMain: (request: import('./mobile/types.js').MobileOwnerPrivateRequest) => source.mobileMain!(request) } : {}),
+            ...(source.workbenchContext && source.dispatchWorkbench && source.dispatchWorkbenchOwner && source.closeWorkbench && source.joinWorkbench ? {workbenchContext: (read?:{signal?:AbortSignal;deadlineAtMs?:number})=>source.workbenchContext!(read),dispatchWorkbench: (request:import('./collection/dataset-owner-protocol.js').DatasetWorkbenchRequest,context:{identity:DatasetOwnerIdentity;signal?:AbortSignal;deadlineAtMs?:number})=>source.dispatchWorkbench!(request,context),dispatchWorkbenchOwner:(request:DatasetWorkbenchOwnerRequest,context:{identity:DatasetOwnerIdentity;signal?:AbortSignal;deadlineAtMs?:number})=>source.dispatchWorkbenchOwner!(request,context),closeWorkbench:()=>source.closeWorkbench!(),joinWorkbench:()=>source.joinWorkbench!()} : {}),
+            ...(source.readLocalAlbum ? { readLocalAlbum: (request: import('./collection/local-album-browser/owner-protocol.js').LocalAlbumOwnerReadRequest) => source.readLocalAlbum!(request) } : {}),
             ...(client.materializeMBEdition?{materializeMBEdition:(request:import('@music-bridge/contracts').MBEditionQueueRequest)=>client.materializeMBEdition!(request)}:{}),
             ...(client.loadMBQueue ? { loadMBQueue: () => client.loadMBQueue!() } : {}),
             ...(client.saveMBQueue ? { saveMBQueue: (request: import('@music-bridge/contracts').MBQueueSaveRequest) => client.saveMBQueue!(request) } : {}),
@@ -817,9 +1088,8 @@ export async function runCoreUtilityProcess(
             commitBoot: () => client.commitBoot(),
             close: async () => {
               runtime?.getDatasetScanReadAdmission?.().close();
-              sourceWritesBridge?.close();
-              relocationBridge?.close();
-              try { await client.close(); } finally { sourceWritesBridge?.close(); relocationBridge?.close(); projectionGateway?.close(); }
+              // 原Owner收尾仍需实际批准、取消和join端口；先等物理静止再撤销端口。
+              try { await client.close(); } finally { sourceWritesBridge?.close(); relocationBridge?.close(); projectionGateway?.close(); lyricsProviderBridge?.close(); nameProviderBridge?.close(); albumArtworkBridge?.close(); }
             },
           };
           if (rustClient && onRustReadonlyCoreController) {
@@ -947,6 +1217,7 @@ export async function runCoreUtilityProcess(
           try { await fatalOwnerDrain; } catch { /* 保留 fatal 结论，不提升为正常关闭。 */ }
         }
         projectionGateway?.close();
+        lyricsProviderBridge?.close(); nameProviderBridge?.close(); albumArtworkBridge?.close();
         dataset?.fail();
         dataset?.close();
         // 显式组合在正常 shutdown 时会封闭尚未完成的 boot；已确认 stopped 由原 attach 正常退出。

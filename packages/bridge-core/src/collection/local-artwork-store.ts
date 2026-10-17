@@ -1,3 +1,6 @@
+import { localWorkbenchJournalCanonical } from './local-library-workbench/owner-journal.js';
+import { isLocalWorkbenchArtworkCapture } from './local-library-workbench/plan-registry.js';
+import type { LocalWorkbenchArtworkCapture } from './local-library-workbench/types.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
@@ -100,6 +103,7 @@ export function createLocalArtworkStore(access: Access) {
   function assertTarget(target: dto.LocalArtworkTarget): void {
     if (!dto.isLocalArtworkTarget(target)) access.conflict('选图逻辑目标无效。');
     const detail = access.catalog.trackDetail(target.trackId);
+    if(!access.catalog.privateLibraryManagementRootAvailable(detail.asset.libraryRootId))access.conflict('原库正在撤销或已撤销，不能新增候选或覆盖选图。');
     if (sourceRevision(detail) !== target.expectedSourceRevision || detail.track.selectionRevision !== target.expectedTrackRevision || !detail.editions.some(e => e.id === target.editionId && e.revision === target.expectedEditionRevision)) access.conflict('曲目或发行已改变，请刷新后重新选择封面。');
     // 稳定关系与请求修订分别处理，不能把图Hash用于发行身份。
     stableArtworkTargetKey({ purpose: 'digital', editionId: target.editionId, editionRevision: target.expectedEditionRevision });
@@ -203,3 +207,48 @@ export function createLocalArtworkStore(access: Access) {
   };
 }
 export type LocalArtworkStore = ReturnType<typeof createLocalArtworkStore>;
+
+
+/** 仅catalog已经验证原计划与整组捕获的同步事务调用；不开始第二个事务，不返回DB。 */
+export function applyLocalWorkbenchArtworkInTransaction(db:DatabaseSync,input:{commandId:string;editionId:string;capture:LocalWorkbenchArtworkCapture;remoteSource?:dto.LocalArtworkRemoteSource}):{selection:dto.LocalArtworkSelection;changes:number}{
+  if(!db.isTransaction||!dto.isCollectionId(input.commandId)||!dto.isCollectionId(input.editionId)||!isLocalWorkbenchArtworkCapture(input.capture))return failure()
+  const before=Number(db.prepare('SELECT total_changes() n').get()!.n),fp=hash(localWorkbenchJournalCanonical(['mb-only-artwork',input.editionId,input.capture,input.remoteSource??null]))
+  const oldReceipt=db.prepare('SELECT fingerprint,result FROM local_artwork_ledger WHERE command_id=?').get(input.commandId)
+  if(oldReceipt){if(oldReceipt.fingerprint!==fp)return failure();return {selection:selection(oldReceipt.result),changes:0}}
+  if(db.prepare('SELECT 1 FROM local_artwork_create_intents WHERE command_id=?').get(input.commandId)||!db.prepare('SELECT 1 FROM local_catalog_editions WHERE id=?').get(input.editionId))return failure()
+  const frozen=input.capture
+  if(frozen.origin==='provider'&&!dto.isLocalArtworkRemoteSource(input.remoteSource)||frozen.origin!=='provider'&&input.remoteSource!==undefined)return failure()
+  const remote=input.remoteSource,sourceIdentity=hash(JSON.stringify([frozen.sourceIdentity??null,frozen.candidateId,frozen.image.original.sha256]))
+  const chosen:dto.LocalArtworkCandidate={id:randomUUID(),editionId:input.editionId,origin:frozen.origin,sourceIdentity,sourceLabel:frozen.sourceLabel,
+    provider:frozen.origin==='provider'?dto.isCommonsArtworkSource(remote)?'commons-cc0-v1':'cover-art-archive-v1':'local-readonly-v1',
+    license:frozen.origin==='provider'?dto.isCommonsArtworkSource(remote)?'CC0-1.0':'rights-unverified':'user-supplied',expiresAt:new Date(Date.now()+10*60_000).toISOString(),...structuredClone(frozen.image),...(remote?{remoteSource:structuredClone(remote)}:{})}
+  candidate(JSON.stringify(chosen));db.prepare('INSERT INTO local_artwork_candidates VALUES(?,?,?,?,?)').run(chosen.id,chosen.editionId,chosen.display.bytes,JSON.stringify(chosen),chosen.expiresAt)
+  const row=db.prepare('SELECT data FROM local_artwork_selections WHERE edition_id=?').get(input.editionId),old=row?selection(row.data):null
+  const result:dto.LocalArtworkSelection={id:old?.id??randomUUID(),editionId:input.editionId,revision:old?(BigInt(old.revision)+1n).toString():'1',mode:'manual',candidate:chosen}
+  if(!dto.isLocalArtworkSelection(result))return failure()
+  db.prepare('INSERT INTO local_artwork_selections VALUES(?,?,?) ON CONFLICT(edition_id) DO UPDATE SET candidate_id=excluded.candidate_id,data=excluded.data').run(result.editionId,chosen.id,JSON.stringify(result))
+  db.prepare('INSERT INTO local_artwork_ledger VALUES(?,?,?)').run(input.commandId,fp,JSON.stringify(result))
+  // 与旧stage一致只淘汰未选临时缓存；历史选择仍完整留在原不可变ledger。
+  for(;;){const cached=db.prepare('SELECT count(*) count,coalesce(sum(bytes),0) bytes FROM local_artwork_candidates WHERE id NOT IN (SELECT candidate_id FROM local_artwork_selections WHERE candidate_id IS NOT NULL)').get()!
+    if(Number(cached.count)<=maxStaged&&Number(cached.bytes)<=stagedBytes)break
+    db.prepare('DELETE FROM local_artwork_candidates WHERE id=(SELECT id FROM local_artwork_candidates WHERE id NOT IN (SELECT candidate_id FROM local_artwork_selections WHERE candidate_id IS NOT NULL) ORDER BY rowid LIMIT 1)').run()
+  }
+  budget(db);const stored=db.prepare('SELECT data FROM local_artwork_selections WHERE edition_id=?').get(result.editionId);if(!stored||JSON.stringify(selection(stored.data))!==JSON.stringify(result))return failure()
+  return {selection:result,changes:Number(db.prepare('SELECT total_changes() n').get()!.n)-before}
+}
+
+/** 仅同Owner的成功remove CAS短事务调用；保存选图、他库关系和旧库关联始终保留。 */
+export function pruneLocalLibraryArtworkCacheInTransaction(db:DatabaseSync,libraryId:string,keep:{candidates:ReadonlySet<string>;editions:ReadonlySet<string>}):number {
+  if(!db.isTransaction||!dto.isCollectionId(libraryId))return failure();
+  const rows=db.prepare(`SELECT c.id,c.edition_id FROM local_artwork_candidates c
+    WHERE c.id NOT IN (SELECT candidate_id FROM local_artwork_selections WHERE candidate_id IS NOT NULL)
+      AND EXISTS (SELECT 1 FROM local_catalog_edition_tracks l JOIN local_catalog_tracks t ON t.id=l.track_id JOIN local_catalog_assets a ON a.id=t.asset_id
+        WHERE l.edition_id=c.edition_id AND json_extract(l.data,'$.active')=1 AND a.root_id=?)
+      AND NOT EXISTS (SELECT 1 FROM local_catalog_edition_tracks l JOIN local_catalog_tracks t ON t.id=l.track_id JOIN local_catalog_assets a ON a.id=t.asset_id
+        WHERE l.edition_id=c.edition_id AND json_extract(l.data,'$.active')=1 AND a.root_id<>?)`).all(libraryId,libraryId);
+  let changes=0;
+  for(const row of rows){if(typeof row.id!=='string'||typeof row.edition_id!=='string')return failure();
+    if(keep.candidates.has(row.id)||keep.editions.has(row.edition_id))continue;
+    changes+=Number(db.prepare('DELETE FROM local_artwork_candidates WHERE id=? AND id NOT IN (SELECT candidate_id FROM local_artwork_selections WHERE candidate_id IS NOT NULL)').run(row.id).changes);}
+  budget(db);return changes;
+}

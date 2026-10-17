@@ -27,6 +27,9 @@ export default defineConfig(({ mode }) => ({
       __MUSIC_BRIDGE_RUST_MANIFEST_SHA256__: JSON.stringify(rustBuild.manifestSha256),
       __MUSIC_BRIDGE_PACKAGED_RENDERER_DIAGNOSTICS__: 'false',
       __MUSIC_BRIDGE_PACKAGED_ROUTE_DIAGNOSTICS__: 'false',
+      // 普通构建默认关闭；只有本轮私有诊断构建显式指定once才领取一条Range。
+      __MUSIC_BRIDGE_PRIVATE_DESKTOP_ARTWORK__: JSON.stringify(process.env.MUSIC_BRIDGE_PRIVATE_DESKTOP_ARTWORK_BUILD === 'once'),
+      __MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING__: JSON.stringify(process.env.MUSIC_BRIDGE_PRIVATE_MOBILE_RANGE_TIMING_BUILD === 'once'),
       __MUSIC_BRIDGE_DEVELOPMENT_BUILD__: JSON.stringify(mode === 'development'),
       __MUSIC_BRIDGE_FFMPEG_MANIFEST_SHA256__: JSON.stringify(converterBuild.manifestSha256),
       __MUSIC_BRIDGE_MOBILE_FFMPEG_MANIFEST_SHA256__: JSON.stringify(mobileConverterBuild.manifestSha256),
@@ -51,6 +54,7 @@ export default defineConfig(({ mode }) => ({
           index: path.join(currentDirectory, 'src/main/index.ts'),
           core: path.join(currentDirectory, 'src/main/core-entry.ts'),
           'dataset-owner': path.join(currentDirectory, 'src/main/dataset-owner-entry.ts'),
+          'mobile-playback-state-worker-entry': path.join(currentDirectory, 'src/main/mobile-playback-state-worker-entry.ts'),
           'chunks/cue-sidecar-worker': path.join(currentDirectory, '../../packages/bridge-core/src/library/cue-sidecar-worker.ts'),
           'spreadsheet-worker': path.join(currentDirectory, '../../packages/bridge-core/src/collection/spreadsheet-worker.ts'),
         },
@@ -74,7 +78,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   renderer: {
-    define: { __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_COLLECTION_SCALE_MODELS__: 'null' },
+    define: { __MUSIC_BRIDGE_PRIVATE_DESKTOP_ARTWORK__: JSON.stringify(process.env.MUSIC_BRIDGE_PRIVATE_DESKTOP_ARTWORK_BUILD === 'once'), __MUSIC_BRIDGE_COLLECTION_SCALE_DIAGNOSTICS__: 'false', __MUSIC_BRIDGE_COLLECTION_SCALE_MODELS__: 'null' },
     build: {
       outDir: 'dist/renderer',
     },

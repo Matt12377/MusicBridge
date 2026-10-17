@@ -1,3 +1,7 @@
+import { withLocalAlbumPreparedTrace } from './local-album-client.js'
+import { isLocalAlbumQuery, isLocalAlbumPage, isLocalAlbumTrackQuery, isLocalAlbumTrackPage, isLocalAlbumArtworkRequest, isLocalAlbumArtworkReply } from '@music-bridge/contracts'
+import type { LocalAlbumLibraryPublicApi, LocalWorkbenchPublicApi } from '@music-bridge/contracts'
+import type { LocalWorkbenchLyricsPublicApi } from './local-workbench-client.js'
 import type {LocalLibraryPublicApi,LocalArtworkPublicApi,LocalOrganizerPublicApi,LocalLegacyLinksPublicApi,LocalSourceWritesPublicApi,LocalRelocationPlanPublicApi} from '@music-bridge/contracts'
 import { createLocalRelocationClient, type LocalRelocationTransport } from './local-relocation-client.js'
 import { createLocalLegacyLinksClient, type LocalLegacyLinksTransport } from './local-legacy-links-client.js'
@@ -80,7 +84,7 @@ export const DEFAULT_REMOTE_CORE_STATE: RemoteCoreTunnelState = {
   autoReconnect: false,
 }
 
-export interface MusicBridgePublicApi extends LocalRelocationPlanPublicApi, LocalSourceWritesPublicApi, LocalLegacyLinksPublicApi, LocalOrganizerPublicApi, LocalArtworkPublicApi, LocalLibraryPublicApi, Partial<LibraryReadPublicApi>, CollectionReadonlyPublicApi, RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
+export interface MusicBridgePublicApi extends LocalAlbumLibraryPublicApi, LocalWorkbenchPublicApi, LocalWorkbenchLyricsPublicApi, LocalRelocationPlanPublicApi, LocalSourceWritesPublicApi, LocalLegacyLinksPublicApi, LocalOrganizerPublicApi, LocalArtworkPublicApi, LocalLibraryPublicApi, Partial<LibraryReadPublicApi>, CollectionReadonlyPublicApi, RecordingWorkspacePublicApi, RecordingPrintsPublicApi, RecordingReplicaPublicApi, RecordingDeviceSelectionPublicApi, RecordingRecordsPublicApi, RecordingAttemptsPublicApi, RecordingOutputPublicApi, RecordingPlansPublicApi, CollectionProgressPublicApi, SpreadsheetImportPublicApi, ReferenceCatalogPublicApi, CommandOutboxPublicApi, RecordingBackupsPublicApi, RecordingArchivePublicApi, RecordingProfilesPublicApi, RecordingExecutionPublicApi, PreparedPublicApi, PreparationPublicApi, PreparationZipPublicApi, MasterVersionsPublicApi, MediaPlanningPublicApi, RecordingSourcesPublicApi, SourceCandidatesPublicApi, CollectionPublicApi, PhysicalMusicPublicApi, PhysicalLinksPublicApi, MasterDraftsPublicApi {
   performanceDiagnostics?: import('../shared/performance-transport.js').PerformanceInteractionDiagnostics
   pickCassetteArchive: CassetteCatalogApi['pickCassetteArchive']
   importCassetteArchive: CassetteCatalogApi['importCassetteArchive']
@@ -169,6 +173,7 @@ export interface MusicBridgePublicApi extends LocalRelocationPlanPublicApi, Loca
 /** 可选的只读能力；旧客户端仍只暴露下面的固定具名入口。 */
 export const PUBLIC_LIBRARY_READ_API_KEYS = ['readLibrary', 'cancelLibraryRead'] as const
 export const PUBLIC_API_KEYS = [
+  'queryLocalAlbums', 'getLocalAlbumTracks', 'getLocalAlbumArtwork', 'requestLocalWorkbenchRead', 'cancelLocalWorkbenchRead', 'localWorkbenchCapabilities', 'readLocalWorkbenchAlbums', 'findLocalWorkbenchArtwork', 'searchLocalWorkbenchArtwork', 'chooseLocalWorkbenchArtwork', 'importLocalWorkbenchArtwork', 'previewLocalWorkbenchArtwork', 'suggestLocalWorkbenchNames', 'previewLocalWorkbenchNames', 'chooseLocalWorkbenchCueTarget', 'previewLocalWorkbenchCue', 'applyLocalWorkbenchPlan', 'readLocalWorkbenchReceipt', 'cancelLocalWorkbenchPlan', 'openLocalWorkbenchExisting', 'localLibraryManagement', 'localNameSettings', 'localLibraryLyrics',
   'previewLocalOrganizer', 'getLocalOrganizerPlan', 'listLocalOrganizerHistory', 'confirmLocalOrganizer', 'undoLocalOrganizer', 'cancelLocalOrganizer',
   'getLocalArtworkContext', 'findLocalArtworkCandidates', 'searchLocalArtworkCandidates', 'chooseLocalArtworkFile', 'importLocalArtworkBytes', 'applyLocalArtworkSelection', 'createLocalArtworkEdition', 'cancelLocalArtworkLookup',
   'listLocalLibraryRoots',
@@ -670,6 +675,9 @@ export function createPreloadApi(
   localLegacyTransport?: LocalLegacyLinksTransport,
   localSourceWritesTransport?: LocalSourceWritesTransport,
   localRelocationTransport?: LocalRelocationTransport,
+  localAlbumApi?: LocalAlbumLibraryPublicApi,
+  localWorkbenchApi?: LocalWorkbenchPublicApi,
+  localLyricsApi?: LocalWorkbenchLyricsPublicApi,
 ): MusicBridgePublicApi {
   const collectionUnavailable = async (): Promise<never> => { throw new Error('库存服务暂时不可用') }
   const legacyUnavailable = async (): Promise<never> => { throw new Error('[NOT_READY] 本地关联服务尚未就绪，请重新读取；已有记录保留。') }
@@ -678,7 +686,39 @@ export function createPreloadApi(
   const sourceApi: LocalSourceWritesPublicApi = localSourceWritesTransport ? createLocalSourceWritesClient(localSourceWritesTransport) : { previewLocalSourceWrites: sourceUnavailable, getLocalSourceWrites: sourceUnavailable, listLocalSourceWritesHistory: sourceUnavailable, confirmLocalSourceWrites: sourceUnavailable, undoLocalSourceWrites: sourceUnavailable, cancelLocalSourceWrites: sourceUnavailable, setLocalSourceWritesPolicy: sourceUnavailable }
   const relocationApi: LocalRelocationPlanPublicApi = localRelocationTransport ? createLocalRelocationClient(localRelocationTransport) : { localRelocationPlan: async () => { throw new Error('[NOT_READY] 搬迁服务尚未就绪；原文件与现有记录保留。') } }
   const outputUnavailable = async (): Promise<never> => { throw new Error('输出核验服务暂时不可用；未访问设备。') }
+  const albumInvalid = (): never => { throw new Error('[INVALID_IPC_REQUEST] 本地专辑原请求或结果身份无效。') }
+  // 原donor client等待固定scope后才复制；正式factory先保存调用时原body，等待不允许表单改写意图。
+  const localAlbumPrepared: LocalAlbumLibraryPublicApi | undefined = localAlbumApi ? {
+    queryLocalAlbums(payload) { return withLocalAlbumPreparedTrace(localAlbumApi, async (reader, trace) => {
+      const inputValid = isLocalAlbumQuery(payload); trace.matches.dto = inputValid
+      if (!inputValid) return albumInvalid()
+      const original = structuredClone(payload), result = await reader.queryLocalAlbums(structuredClone(original))
+      const resultValid = isLocalAlbumPage(result, original); trace.matches.dto = resultValid
+      if (!resultValid) return albumInvalid()
+      return result
+    }) },
+    getLocalAlbumTracks(payload) { return withLocalAlbumPreparedTrace(localAlbumApi, async (reader, trace) => {
+      const inputValid = isLocalAlbumTrackQuery(payload); trace.matches.dto = inputValid
+      if (!inputValid) return albumInvalid()
+      const original = structuredClone(payload), result = await reader.getLocalAlbumTracks(structuredClone(original))
+      const resultValid = isLocalAlbumTrackPage(result, original, result.album); trace.matches.dto = resultValid
+      if (!resultValid) return albumInvalid()
+      return result
+    }) },
+    getLocalAlbumArtwork(payload) { return withLocalAlbumPreparedTrace(localAlbumApi, async (reader, trace) => {
+      const inputValid = isLocalAlbumArtworkRequest(payload); trace.matches.dto = inputValid
+      if (!inputValid) return albumInvalid()
+      const original = structuredClone(payload), result = await reader.getLocalAlbumArtwork(structuredClone(original))
+      const resultValid = isLocalAlbumArtworkReply(result, original); trace.matches.dto = resultValid
+      if (!resultValid) return albumInvalid()
+      return result
+    }) },
+  } : undefined
+  const workbenchUnavailable = async (): Promise<never> => { throw new Error('[NOT_READY] 本地整理服务尚未正式装配，请重新读取；原请求与源文件保留。') }
   return Object.freeze({
+    ...(localAlbumPrepared ?? { queryLocalAlbums: workbenchUnavailable, getLocalAlbumTracks: workbenchUnavailable, getLocalAlbumArtwork: workbenchUnavailable }),
+    ...(localWorkbenchApi ?? { requestLocalWorkbenchRead: workbenchUnavailable, cancelLocalWorkbenchRead: workbenchUnavailable, localWorkbenchCapabilities: workbenchUnavailable, readLocalWorkbenchAlbums: workbenchUnavailable, findLocalWorkbenchArtwork: workbenchUnavailable, searchLocalWorkbenchArtwork: workbenchUnavailable, chooseLocalWorkbenchArtwork: workbenchUnavailable, importLocalWorkbenchArtwork: workbenchUnavailable, previewLocalWorkbenchArtwork: workbenchUnavailable, suggestLocalWorkbenchNames: workbenchUnavailable, previewLocalWorkbenchNames: workbenchUnavailable, chooseLocalWorkbenchCueTarget: workbenchUnavailable, previewLocalWorkbenchCue: workbenchUnavailable, applyLocalWorkbenchPlan: workbenchUnavailable, readLocalWorkbenchReceipt: workbenchUnavailable, cancelLocalWorkbenchPlan: workbenchUnavailable, openLocalWorkbenchExisting: workbenchUnavailable, localLibraryManagement: workbenchUnavailable, localNameSettings: workbenchUnavailable }),
+    ...(localLyricsApi ?? { localLibraryLyrics: workbenchUnavailable }),
     ...(localOrganizerApi ?? {previewLocalOrganizer:collectionUnavailable,getLocalOrganizerPlan:collectionUnavailable,listLocalOrganizerHistory:collectionUnavailable,confirmLocalOrganizer:collectionUnavailable,undoLocalOrganizer:collectionUnavailable,cancelLocalOrganizer:collectionUnavailable}),
     ...(localArtworkApi ?? {getLocalArtworkContext:collectionUnavailable,findLocalArtworkCandidates:collectionUnavailable,searchLocalArtworkCandidates:collectionUnavailable,chooseLocalArtworkFile:collectionUnavailable,importLocalArtworkBytes:collectionUnavailable,applyLocalArtworkSelection:collectionUnavailable,createLocalArtworkEdition:collectionUnavailable,cancelLocalArtworkLookup:collectionUnavailable}),
     ...(localLibraryApi ?? { playLocalLibraryTrack:collectionUnavailable,listLocalLibraryRoots:collectionUnavailable, chooseLocalLibraryRoot:collectionUnavailable, chooseLocalRelocationCandidates:collectionUnavailable, confirmLocalRelocation:collectionUnavailable, relinkLocalLibraryRoot:collectionUnavailable,queryLocalLibraryTracks:collectionUnavailable,getLocalLibraryTrackDetail:collectionUnavailable,getLocalLibraryPlaybackTarget:collectionUnavailable,overrideLocalLibraryMetadata:collectionUnavailable,localLibraryScan:collectionUnavailable, listLocalLibraryTracks:collectionUnavailable, getLocalLibraryAsset:collectionUnavailable, getLocalLibraryMetadata:collectionUnavailable}),

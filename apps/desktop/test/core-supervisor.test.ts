@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { randomUUID } from 'node:crypto'
+import { captureDatasetNameProviderRequest, captureDatasetNameProviderReply, assertDatasetNameProviderReplyForRequest, datasetWorkbenchMeta, datasetWorkbenchFrames, type DatasetWorkbenchFrame } from '../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'
+import { captureSourceWritesLyricsGrantRequest, captureSourceWritesLyricsGrantReply, assertSourceWritesLyricsGrantReplyForRequest, captureSourceWritesLyricsVerifyRequest, captureSourceWritesLyricsVerifyReply, captureSourceWorkbenchDirectoryRequest, captureSourceWorkbenchDirectoryReply, assertSourceWorkbenchDirectoryReplyForRequest, type SourceWritesLyricsGrantRequest, type SourceWritesLyricsGrantReply, type SourceWritesLyricsVerifyRequest } from '../../../packages/bridge-core/src/collection/source-writes-authority.js'
+import { lyricsPhysicalDigest, type LocalLyricsPhysicalBinding } from '../../../packages/bridge-core/src/library/lyrics-source-format.js'
 import { PerformanceTraceRecorder } from '@music-bridge/contracts'
 
 import { IPC_VERSION, type ActivateRestoredDataset, type RestoreActivationView } from '@music-bridge/contracts'
@@ -15,6 +18,7 @@ class FakePort implements CoreMessagePort {
   readonly sent: unknown[] = []
   private listener: ((event: { data: unknown }) => void) | undefined
   closed = false
+  autoShutdownReply = true
 
   on(event: 'message', listener: (event: { data: unknown }) => void): void {
     assert.equal(event, 'message')
@@ -29,6 +33,11 @@ class FakePort implements CoreMessagePort {
 
   postMessage(message: unknown): void {
     this.sent.push(message)
+    const request = message as { version?: unknown; id?: unknown; command?: unknown }
+    // 仅受控Core关闭回执；ACK不代表exit，旧kill无exit屏障仍由Child负例核。
+    if (this.autoShutdownReply && !this.closed && request.version === IPC_VERSION && request.command === 'core.shutdown' && typeof request.id === 'string') {
+      queueMicrotask(() => this.receive({ version: IPC_VERSION, id: request.id, ok: true, result: { stopped: true } }))
+    }
   }
 
   receive(message: unknown): void {
@@ -380,7 +389,8 @@ test('CoreSupervisor runs the readiness recovery hook on initial start and resta
   assert.equal(readyHooks, 2)
 })
 
-test('CoreSupervisor can restart with a new explicitly supplied Core environment', async () => {
+test('CoreSupervisor can restart with a new explicitly supplied Core environment', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
   const harness = makeHarness()
   const starting = harness.supervisor.start()
   await new Promise((resolve) => setImmediate(resolve))
@@ -392,7 +402,10 @@ test('CoreSupervisor can restart with a new explicitly supplied Core environment
     MUSIC_BRIDGE_REMOTE_CORE_MODE: 'remote-core-development',
     MUSIC_BRIDGE_REMOTE_STREAM_PORT: '38512',
   })
-  await new Promise((resolve) => setTimeout(resolve, 50))
+  // 先消费原关闭ACK，再仅推进旧child的20ms退出等待；新child仍须在原启动期限内ready。
+  await new Promise((resolve) => setImmediate(resolve))
+  t.mock.timers.tick(20)
+  await new Promise((resolve) => setImmediate(resolve))
   assert.equal(harness.children[0]?.killed, true)
   assert.equal(harness.children.length, 2)
   assert.deepEqual(harness.forkOptions[1]?.env, {
@@ -404,7 +417,10 @@ test('CoreSupervisor can restart with a new explicitly supplied Core environment
   await restarting
   assert.equal(harness.supervisor.status, 'ready')
 
-  await harness.supervisor.shutdown()
+  const closing = harness.supervisor.shutdown()
+  await new Promise((resolve) => setImmediate(resolve))
+  t.mock.timers.tick(20)
+  await closing
 })
 
 test('CoreSupervisor does not reintroduce parent environment secrets into Core', async () => {
@@ -727,8 +743,14 @@ test('撤销启动client不吞正常shutdown回执，Core自行code0退出不需
   t.mock.timers.enable({ apis: ['setTimeout'] })
   const h = startupHarness(), starting = h.supervisor.start(); ready(h.channels[0]!); await starting
   let acknowledged = false
-  const request = h.supervisor.request.bind(h.supervisor)
-  t.mock.method(h.supervisor, 'request', (async (command, payload, scope) => { const result = await request(command, payload, scope); if (command === 'core.shutdown') acknowledged = true; return result }) as typeof h.supervisor.request)
+  h.channels[0]!.port2.autoShutdownReply = false
+  // Root591由关闭专用上下文进入原sendRequest；只观察原Promise，不改route/参数/ACK。
+  const sender = h.supervisor as unknown as { sendRequest(...args: unknown[]): Promise<unknown> }, send = sender.sendRequest.bind(h.supervisor)
+  t.mock.method(sender, 'sendRequest', (...args: unknown[]) => {
+    const original = send(...args)
+    if (args[0] === 'core.shutdown') void original.then(() => { acknowledged = true }, () => {})
+    return original
+  })
   const shutdown = h.supervisor.shutdown(); await flushStartup()
   const sent = h.channels[0]!.port2.sent.at(-1) as { id: string; command: string }; assert.equal(sent.command, 'core.shutdown')
   h.channels[0]!.port2.receive({ version: 1, id: sent.id, ok: true, result: { stopped: true } })
@@ -847,3 +869,810 @@ test('MBP-002：Main 期限已到即拒绝成功回包，不依赖超时 timer �
   await rejected;
   assert.deepEqual(port.sent.at(-1), { version: 1, kind: 'library.read.cancel', id: sent.id });
 });
+
+// 469 只验证真实 Supervisor 接收链与原 typed 回声；端口/child/producer 为受控组件。
+// 这里没有真实 Native/FD/HTTP/SQL 或全 Electron 退出资格。
+function warm469Deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<T>((done, fail) => { resolve = done; reject = fail })
+  return { promise, resolve, reject }
+}
+function warm469Denied(q: SourceWritesLyricsGrantRequest): SourceWritesLyricsGrantReply {
+  return captureSourceWritesLyricsGrantReply({ version: 1, type: 'lyrics-source-grant-reply', purpose: 'LYRICS', requestId: q.requestId, sequence: q.sequence, revision: q.revision, authorityId: q.authorityId,
+    requestSha256: lyricsPhysicalDigest(q), binding: q.binding, bindingSha256: q.bindingSha256, decision: 'rejected', nonce: null, validUntilMs: null })
+}
+async function warm469Harness(t: import('node:test').TestContext, options: {
+  withoutOwnerPin?: boolean
+  produce?: (q: SourceWritesLyricsGrantRequest, context: { signal: AbortSignal; deadlineAtMs: number }) => Promise<SourceWritesLyricsGrantReply>
+} = {}) {
+  const main = new FakePort(), source = new FakePort(), child = new FakeChild()
+  const datasetId = randomUUID(), epoch = randomUUID(), authorityId = randomUUID(), revokeGate = warm469Deferred<void>()
+  let grantCalls = 0, nameCalls = 0, contextCalls = 0, revokeSignal: AbortSignal | undefined
+  let closing: Promise<{ ok: true } | { ok: false; error: unknown }> | undefined
+  const supervisor = new CoreSupervisor({ entryPath: 'synthetic-warm469-core', cwd: '.', playbackEventProtocol: null, sourceWritesPort: true, requestTimeoutMs: 1000, startupTimeoutMs: 1000,
+    dependencies: { createChannel: () => ({ port1: new FakePort(), port2: main }), createSourceWritesChannel: () => ({ port1: new FakePort(), port2: source }), fork: () => child } })
+  main.postMessage = (message: unknown) => {
+    main.sent.push(message)
+    const raw = message as Record<string, unknown>
+    if (raw.command === 'commandOutbox.context') {
+      contextCalls++
+      queueMicrotask(() => main.receive({ version: 1, id: raw.id, ok: true, result: { datasetId } }))
+    } else if (raw.type === 'musicbridge.workbench.frame' && raw.lane === 'request' && raw.part === 'end') {
+      const meta = datasetWorkbenchMeta(message as DatasetWorkbenchFrame)
+      for (const frame of datasetWorkbenchFrames(meta, 'response', { epoch, datasetId, ready: true })) queueMicrotask(() => main.receive(frame))
+    }
+  }
+  supervisor.configurePrivateLyricsGrantProducer(async (q, context) => { grantCalls++; return q.sequence === 1 || !options.produce ? warm469Denied(q) : options.produce(q, context) })
+  supervisor.configurePrivateNameProviderBridge({ execute: async q => { nameCalls++; return { operationId: q.payload.operationId, state: 'queued' as const } }, revokeOwner: async () => undefined })
+  supervisor.configurePrivateWorkbenchDirectoryProducer(async (q, context) => {
+    if (q.command === 'revoke') { revokeSignal = context.signal; await revokeGate.promise }
+    return captureSourceWorkbenchDirectoryReply({ version: 1, type: 'workbench-directory-reply', purpose: 'WORKBENCH_DIRECTORY', requestId: q.requestId, sequence: q.sequence, authorityId: q.authorityId,
+      command: q.command, binding: q.binding, ui: q.ui, requestSha256: lyricsPhysicalDigest(q), decision: q.command === 'revoke' ? 'revoked' : 'rejected', nonce: null, validUntilMs: null, physical: null })
+  })
+  const starting = supervisor.start(); ready({ port2: main }); await starting
+  const author = options.withoutOwnerPin ? undefined : await supervisor.createWorkbenchRootMainAuthor()
+  const hash = 'a'.repeat(64), originalUi = { family: 'workbench' as const, command: 'localWorkbench.cue.target' as const, commandId: null, requestSha256: hash }
+  const directoryBinding = { datasetId, ownerEpoch: epoch, childGeneration: author?.binding.childGeneration ?? 1, kind: 'cue' as const, choiceId: randomUUID(), revision: hash,
+    issuedAtMs: Date.now(), expiresAtMs: Date.now() + 60000, originalUi }
+  function directory(command: 'approve' | 'revoke', sequence: number) {
+    return captureSourceWorkbenchDirectoryRequest({ version: 1, type: 'workbench-directory-request', purpose: 'WORKBENCH_DIRECTORY', requestId: randomUUID(), sequence, authorityId, command,
+      binding: directoryBinding, ui: originalUi, expiresAtMs: Date.now() + 1800 })
+  }
+  function grant(sequence: number, fields: Partial<SourceWritesLyricsGrantRequest> = {}) {
+    const binding: LocalLyricsPhysicalBinding = { datasetId, ownerEpoch: epoch, commandId: randomUUID(), sessionId: randomUUID(), libraryId: randomUUID(), albumId: randomUUID(), captureId: randomUUID(), trackId: randomUUID(), candidateId: randomUUID(),
+      rootRevision: 'root-469', fileRevision: 'file-469', locationRevision: 'location-469', metadataRevision: hash, intentFingerprint: hash, bodySha256: hash, kind: 'lrc', originalIntentSha256: hash,
+      originalRequestSha256: hash, groupCaptureSha256: hash, protectionSha256: hash, memberCount: 1, resourceCount: 1, targetCount: 1 }
+    binding.originalRequestSha256 = lyricsPhysicalDigest({ sessionId: binding.sessionId, commandId: binding.commandId, embed: false })
+    return captureSourceWritesLyricsGrantRequest({ version: 1, type: 'lyrics-source-grant-request', purpose: 'LYRICS', requestId: randomUUID(), sequence, revision: 1, authorityId,
+      expiresAtMs: Date.now() + 1800, binding, bindingSha256: lyricsPhysicalDigest(binding), ...fields })
+  }
+  function firstName(fields: Record<string, unknown> = {}) {
+    return captureDatasetNameProviderRequest({ version: 1, type: 'musicbridge.name.provider-request', requestId: randomUUID(), sequence: 1, epoch, datasetId, authorityId: null, childGeneration: null,
+      command: 'nameProviderStart', payload: { operationId: randomUUID(), jobId: randomUUID(), captureId: randomUUID(), albumId: randomUUID(), preparationId: randomUUID(), backend: 'ollama', systemPrompt: '合成系统', userPrompt: '合成输入', originalStartSha256: hash, expiresAtMs: Date.now() + 15000 }, expiresAtMs: Date.now() + 1800, ...fields })
+  }
+  async function seedDirectoryActor() {
+    const q = directory('approve', 1); source.receive(q); await flushStartup()
+    const raw = source.sent.find(value => (value as Record<string, unknown>).requestId === q.requestId)
+    assert.ok(raw); assertSourceWorkbenchDirectoryReplyForRequest(captureSourceWorkbenchDirectoryReply(raw), q)
+  }
+  async function seedLyricsActor() {
+    const q = grant(1); source.receive(q); await flushStartup()
+    const raw = source.sent.find(value => (value as Record<string, unknown>).requestId === q.requestId)
+    assert.ok(raw); assertSourceWritesLyricsGrantReplyForRequest(captureSourceWritesLyricsGrantReply(raw), q)
+  }
+  function beginShutdown() {
+    closing ??= supervisor.shutdown().then(() => ({ ok: true as const }), error => ({ ok: false as const, error }))
+    return closing
+  }
+  async function finish() {
+    const pending = beginShutdown(); revokeGate.resolve(); await flushStartup()
+    const request = main.sent.find(value => (value as Record<string, unknown>).command === 'core.shutdown') as { id: string } | undefined
+    if (request) main.receive({ version: 1, id: request.id, ok: true, result: { stopped: true } })
+    child.exit(0)
+    return pending
+  }
+  t.after(async () => { revokeGate.resolve(); await finish() })
+  return { supervisor, main, source, child, author, epoch, datasetId, authorityId, directory, grant, firstName, seedDirectoryActor, seedLyricsActor, beginShutdown, finish, revokeGate,
+    grantCalls: () => grantCalls, nameCalls: () => nameCalls, contextCalls: () => contextCalls, revokeSignal: () => revokeSignal }
+}
+
+test('暖关闭469：原目录actor的晚歌词grant只收原rejected，共享revoke仍待原工作且不关port', async t => {
+  const h = await warm469Harness(t); await h.seedDirectoryActor()
+  const closing = h.beginShutdown(); let stopped = false; void closing.then(() => { stopped = true }); await flushStartup()
+  const revoke = h.directory('revoke', 2); h.source.receive(revoke); await flushStartup()
+  const grant = h.grant(1); h.source.receive(grant); await flushStartup()
+  assert.equal(h.source.closed, false); assert.equal(h.main.closed, false); assert.equal(h.child.killed, false)
+  assert.equal(h.grantCalls(), 0); assert.equal(h.revokeSignal()?.aborted, false); assert.equal(stopped, false)
+  const raw = h.source.sent.find(value => (value as Record<string, unknown>).requestId === grant.requestId); assert.ok(raw)
+  const reply = captureSourceWritesLyricsGrantReply(raw); assertSourceWritesLyricsGrantReplyForRequest(reply, grant)
+  assert.equal(reply.decision, 'rejected'); assert.equal(reply.nonce, null); assert.equal(reply.validUntilMs, null)
+  h.revokeGate.resolve(); await h.supervisor.joinPrivateWorkbenchDirectoryProducer()
+  const echo = h.source.sent.find(value => (value as Record<string, unknown>).requestId === revoke.requestId); assert.ok(echo)
+  assertSourceWorkbenchDirectoryReplyForRequest(captureSourceWorkbenchDirectoryReply(echo), revoke)
+  assert.equal((await h.finish()).ok, true)
+  t.diagnostic('进入当前Supervisor真实监听和匹配链；controlled child/port/directory producer，未授真实FD、Native或完整Main退出资格。')
+})
+
+for (const outcome of ['旧许可', '原作者失权'] as const) test(`暖关闭469：原在途grant跨关闭返回旧许可或作者失权，均回原rejected并等待producer（${outcome}）`, async t => {
+    const produced = warm469Deferred<SourceWritesLyricsGrantReply>()
+    t.after(() => produced.reject(new CoreIpcError('NOT_READY', '合成原producer收口')))
+    const h = await warm469Harness(t, { produce: () => produced.promise }); await h.seedDirectoryActor(); await h.seedLyricsActor()
+    const grant = h.grant(2), acceptedBeforeQuit = { ...warm469Denied(grant), decision: 'granted' as const, nonce: randomUUID(), validUntilMs: Date.now() + 60000 }
+    h.source.receive(grant); await flushStartup(); assert.equal(h.grantCalls(), 2)
+    h.beginShutdown(); await flushStartup(); const revoke = h.directory('revoke', 2); h.source.receive(revoke); await flushStartup()
+    let joined = false; const join = h.supervisor.joinPrivateLyricsGrantProducer().then(() => { joined = true }); await flushStartup(); assert.equal(joined, false)
+    if (outcome === '旧许可') produced.resolve(acceptedBeforeQuit); else produced.reject(new CoreIpcError('OUTBOX_SCOPE_MISMATCH', '合成原作者失权'))
+    await join; assert.equal(joined, true); assert.equal(h.source.closed, false); assert.equal(h.child.killed, false); assert.equal(h.revokeSignal()?.aborted, false)
+    const raw = h.source.sent.find(value => (value as Record<string, unknown>).requestId === grant.requestId); assert.ok(raw)
+    const reply = captureSourceWritesLyricsGrantReply(raw); assertSourceWritesLyricsGrantReplyForRequest(reply, grant)
+    assert.equal(reply.decision, 'rejected'); assert.equal(reply.nonce, null); assert.equal(reply.validUntilMs, null)
+    h.revokeGate.resolve(); await h.supervisor.joinPrivateWorkbenchDirectoryProducer(); assert.equal((await h.finish()).ok, true)
+})
+
+function warm469VerifyEcho(q: SourceWritesLyricsVerifyRequest) {
+  const grant = q.grantRequest, binding = grant.binding
+  return captureSourceWritesLyricsVerifyReply({ version: 1, type: 'lyrics-source-verify-reply', purpose: 'LYRICS', requestId: q.requestId, sequence: q.sequence, epoch: q.epoch, datasetId: q.datasetId,
+    grantRequestId: grant.requestId, authorityId: grant.authorityId, binding, bindingSha256: grant.bindingSha256, revision: grant.revision,
+    result: { originalBinding: binding, request: { sessionId: binding.sessionId, commandId: binding.commandId, embed: false }, phase: 'PREPARED', revision: grant.revision, recordOwnerEpoch: q.epoch, currentOwnerEpoch: q.epoch,
+      physicalClosed: false, protectionReleased: false, unresolved: false, ledgerSequence: 1, originalIntentSha256: binding.originalIntentSha256, originalRequestSha256: binding.originalRequestSha256,
+      groupCaptureSha256: binding.groupCaptureSha256, protectionSha256: binding.protectionSha256, jobOrigin: null } })
+}
+
+test('暖关闭469：已受理原verify回包迟到仍消费原flight，作者末尾拒绝不毒共享revoke', async t => {
+  let h!: Awaited<ReturnType<typeof warm469Harness>>, afterVerify = 0
+  h = await warm469Harness(t, { produce: async (q, context) => {
+    assert.ok(h.author)
+    await h.supervisor.verifyLyricsGrantOriginal(q, h.author.binding, context.signal, context.deadlineAtMs)
+    afterVerify++
+    return warm469Denied(q)
+  } })
+  await h.seedDirectoryActor(); await h.seedLyricsActor(); const grant = h.grant(2); h.source.receive(grant); await flushStartup()
+  const raw = h.source.sent.find(value => (value as Record<string, unknown>).type === 'lyrics-source-verify-request'); assert.ok(raw)
+  const verify = captureSourceWritesLyricsVerifyRequest(raw)
+  assert.equal(verify.grantRequest.requestId, grant.requestId)
+  h.beginShutdown(); await flushStartup(); const revoke = h.directory('revoke', 2); h.source.receive(revoke); await flushStartup()
+  let joined = false; const join = h.supervisor.joinPrivateLyricsGrantProducer().then(() => { joined = true }); await flushStartup(); assert.equal(joined, false)
+  h.source.receive(warm469VerifyEcho(verify)); await join
+  assert.equal(afterVerify, 0, '原verify末尾作者检查准确拒绝；没有走任何新grant续体')
+  assert.equal(h.source.closed, false); assert.equal(h.child.killed, false); assert.equal(h.revokeSignal()?.aborted, false)
+  const echo = h.source.sent.find(value => (value as Record<string, unknown>).requestId === grant.requestId); assert.ok(echo)
+  const reply = captureSourceWritesLyricsGrantReply(echo); assertSourceWritesLyricsGrantReplyForRequest(reply, grant)
+  assert.equal(reply.decision, 'rejected'); assert.equal(reply.nonce, null)
+  h.revokeGate.resolve(); await h.supervisor.joinPrivateWorkbenchDirectoryProducer(); assert.equal((await h.finish()).ok, true)
+})
+
+for (const variant of ['未知pending', '错authority', '错原body', '添nonce'] as const) test(`暖关闭469：迟到verify的未知pending、错authority/原body和添nonce仍fail closed（${variant}）`, async t => {
+    let h!: Awaited<ReturnType<typeof warm469Harness>>, afterVerify = 0
+    h = await warm469Harness(t, { produce: async (q, context) => {
+      assert.ok(h.author)
+      await h.supervisor.verifyLyricsGrantOriginal(q, h.author.binding, context.signal, context.deadlineAtMs)
+      afterVerify++
+      return warm469Denied(q)
+    } })
+    await h.seedDirectoryActor(); await h.seedLyricsActor(); const grant = h.grant(2); h.source.receive(grant); await flushStartup()
+    const raw = h.source.sent.find(value => (value as Record<string, unknown>).type === 'lyrics-source-verify-request'); assert.ok(raw)
+    const verify = captureSourceWritesLyricsVerifyRequest(raw)
+    h.beginShutdown(); await flushStartup(); const valid = warm469VerifyEcho(verify)
+    const bad = { ...valid, ...(variant === '未知pending' ? { requestId: randomUUID() } : variant === '错authority' ? { authorityId: randomUUID() } : variant === '错原body' ? { bindingSha256: 'b'.repeat(64) } : variant === '添nonce' ? { nonce: randomUUID() } : {}) }
+    h.source.receive(bad); await h.supervisor.joinPrivateLyricsGrantProducer()
+    assert.equal(h.source.closed, true, variant); assert.equal(afterVerify, 0)
+    assert.equal(h.source.sent.some(value => (value as Record<string, unknown>).requestId === grant.requestId), false)
+})
+
+for (const outcome of ['迟到旧许可', '迟到失权'] as const) test(`暖关闭479：原grant实际到期只abort本flight并回一次拒绝，producer真结束前join不转绿（${outcome}）`, async t => {
+    const produced = warm469Deferred<SourceWritesLyricsGrantReply>()
+    let producerSignal: AbortSignal | undefined
+    const h = await warm469Harness(t, { produce: async (_q, context) => { producerSignal = context.signal; return produced.promise } })
+    await h.seedDirectoryActor(); await h.seedLyricsActor()
+    const q = h.grant(2, { expiresAtMs: Date.now() + 100 })
+    const granted = captureSourceWritesLyricsGrantReply({ ...warm469Denied(q), decision: 'granted', nonce: randomUUID(), validUntilMs: Date.now() + 1000 })
+    h.source.receive(q); await flushStartup(); h.beginShutdown(); await flushStartup()
+    h.source.receive(h.directory('revoke', 2)); await flushStartup()
+    let joined = false
+    const join = h.supervisor.joinPrivateLyricsGrantProducer().then(() => { joined = true })
+    await new Promise(resolve => setTimeout(resolve, 150))
+    assert.equal(producerSignal?.aborted, true); assert.equal(joined, false)
+    assert.equal(h.source.closed, false); assert.equal(h.child.killed, false); assert.equal(h.revokeSignal()?.aborted, false)
+    const echoes = () => h.source.sent.filter(value => (value as Record<string, unknown>).requestId === q.requestId)
+    assert.equal(echoes().length, 1)
+    const rejected = captureSourceWritesLyricsGrantReply(echoes()[0]); assertSourceWritesLyricsGrantReplyForRequest(rejected, q)
+    assert.equal(rejected.decision, 'rejected'); assert.equal(rejected.nonce, null); assert.equal(rejected.validUntilMs, null)
+    if (outcome === '迟到旧许可') produced.resolve(granted)
+    else produced.reject(new CoreIpcError('OUTBOX_SCOPE_MISMATCH', '合成原producer到期失权'))
+    await join
+    assert.equal(joined, true); assert.equal(echoes().length, 1); assert.equal(h.source.closed, false)
+    h.revokeGate.resolve(); await h.supervisor.joinPrivateWorkbenchDirectoryProducer(); assert.equal((await h.finish()).ok, true)
+})
+
+for (const variant of ['完整原回声', '坏原body'] as const) test(`暖关闭479：实际核验到期后只退休完整原回声，坏原body仍封口且不续授权（${variant}）`, async t => {
+    let h!: Awaited<ReturnType<typeof warm469Harness>>, afterVerify = 0
+    h = await warm469Harness(t, { produce: async (q, context) => {
+      assert.ok(h.author)
+      await h.supervisor.verifyLyricsGrantOriginal(q, h.author.binding, context.signal, context.deadlineAtMs)
+      afterVerify++; return warm469Denied(q)
+    } })
+    await h.seedDirectoryActor(); await h.seedLyricsActor()
+    const grant = h.grant(2, { expiresAtMs: Date.now() + 100 }); h.source.receive(grant); await flushStartup()
+    const raw = h.source.sent.find(value => (value as Record<string, unknown>).type === 'lyrics-source-verify-request'); assert.ok(raw)
+    const verify = captureSourceWritesLyricsVerifyRequest(raw)
+    h.beginShutdown(); await flushStartup(); h.source.receive(h.directory('revoke', 2)); await flushStartup()
+    await new Promise(resolve => setTimeout(resolve, 150)); await h.supervisor.joinPrivateLyricsGrantProducer()
+    assert.equal(afterVerify, 0); assert.equal(h.source.closed, false); assert.equal(h.revokeSignal()?.aborted, false)
+    const before = h.source.sent.filter(value => (value as Record<string, unknown>).requestId === grant.requestId)
+    assert.equal(before.length, 1); assert.equal(captureSourceWritesLyricsGrantReply(before[0]).decision, 'rejected')
+    const echo = warm469VerifyEcho(verify)
+    h.source.receive(variant === '坏原body' ? { ...echo, bindingSha256: 'b'.repeat(64) } : echo); await flushStartup()
+    assert.equal(h.source.closed, variant === '坏原body'); assert.equal(afterVerify, 0)
+    assert.equal(h.source.sent.filter(value => (value as Record<string, unknown>).requestId === grant.requestId).length, 1)
+    if (variant === '完整原回声') {
+      assert.equal(h.child.killed, false); assert.equal(h.revokeSignal()?.aborted, false)
+      h.revokeGate.resolve(); await h.supervisor.joinPrivateWorkbenchDirectoryProducer(); assert.equal((await h.finish()).ok, true)
+    }
+})
+
+test('暖关闭469：无NAME关联的首次Start按原已确认Owner回NOT_READY，不建binding或kill原child', async t => {
+  const h = await warm469Harness(t); await h.seedDirectoryActor(); const contexts = h.contextCalls()
+  h.beginShutdown(); await flushStartup(); const q = h.firstName(); h.main.receive(q); await flushStartup()
+  assert.equal(h.child.killed, false); assert.equal(h.main.closed, false); assert.equal(h.source.closed, false)
+  assert.equal(h.nameCalls(), 0); assert.equal(h.contextCalls(), contexts)
+  const raw = h.main.sent.find(value => (value as Record<string, unknown>).requestId === q.requestId); assert.ok(raw)
+  const reply = captureDatasetNameProviderReply(raw); assertDatasetNameProviderReplyForRequest(reply, q)
+  assert.equal(reply.ok, false); if (!reply.ok) assert.equal(reply.failure, 'NOT_READY')
+  assert.equal(reply.authorityId, null); assert.equal(reply.childGeneration, null)
+  const revoke = h.directory('revoke', 2); h.source.receive(revoke); await flushStartup(); assert.equal(h.revokeSignal()?.aborted, false)
+  h.revokeGate.resolve(); await h.supervisor.joinPrivateWorkbenchDirectoryProducer(); assert.equal((await h.finish()).ok, true)
+})
+
+for (const variant of ['未知actor', '异epoch', '异dataset', '已过期', '超期限', '重复序号', '坏bindingSHA', '无原Ownerpin'] as const) test(`暖关闭469：歌词坏包、未知actor、异epoch/dataset与期限序号仍fail closed（${variant}）`, async t => {
+    const h = await warm469Harness(t, { withoutOwnerPin: variant === '无原Ownerpin' }); await h.seedDirectoryActor(); await h.seedLyricsActor()
+    h.beginShutdown(); await flushStartup(); let q = h.grant(2)
+    if (variant === '未知actor') q = { ...q, authorityId: randomUUID() }
+    if (variant === '异epoch' || variant === '异dataset') {
+      const binding = { ...q.binding, ...(variant === '异epoch' ? { ownerEpoch: randomUUID() } : { datasetId: randomUUID() }) }
+      q = { ...q, binding, bindingSha256: lyricsPhysicalDigest(binding) }
+    }
+    if (variant === '已过期') q = { ...q, expiresAtMs: Date.now() - 1 }
+    if (variant === '超期限') q = { ...q, expiresAtMs: Date.now() + 2500 }
+    if (variant === '重复序号') q = { ...q, sequence: 1 }
+    if (variant === '坏bindingSHA') q = { ...q, bindingSha256: 'b'.repeat(64) }
+    h.source.receive(q); await flushStartup()
+    assert.equal(h.source.closed, true, variant); assert.equal(h.grantCalls(), 1)
+    assert.equal(h.source.sent.some(value => (value as Record<string, unknown>).requestId === q.requestId), false)
+})
+
+for (const variant of ['未知作者', '异代', '异epoch', '异dataset', '已过期', '超期限', '无原Ownerpin'] as const) test(`暖关闭469：NAME首Start的异作者/代/epoch/dataset/期限或缺原pin不会被拒绝口放宽（${variant}）`, async t => {
+    const h = await warm469Harness(t, { withoutOwnerPin: variant === '无原Ownerpin' }); h.beginShutdown(); await flushStartup()
+    const fields: Record<string, unknown> = {}
+    if (variant === '未知作者' || variant === '异代') { fields.authorityId = randomUUID(); fields.childGeneration = variant === '异代' ? 2 : 1 }
+    if (variant === '异epoch') fields.epoch = randomUUID()
+    if (variant === '异dataset') fields.datasetId = randomUUID()
+    if (variant === '已过期') fields.expiresAtMs = Date.now() - 1
+    if (variant === '超期限') fields.expiresAtMs = Date.now() + 2500
+    const q = h.firstName(fields); h.main.receive(q); await flushStartup()
+    assert.equal(h.child.killed, true, variant); assert.equal(h.nameCalls(), 0)
+    assert.equal(h.main.sent.some(value => (value as Record<string, unknown>).requestId === q.requestId), false)
+})
+
+import {MessageChannel as FenceMessageChannel493,type MessagePort as FenceMessagePort493} from 'node:worker_threads'
+import {mkdtemp as fenceMkdtemp493,writeFile as fenceWriteFile493,open as fenceOpen493} from 'node:fs/promises'
+import {constants as fenceFsConstants493} from 'node:fs'
+import path493 from 'node:path'
+import {createSourceWritesMainActor as fenceActor493,requestSourceWorkbenchReadersStop as fenceRequest493,consumeSourceWorkbenchReadersReply as fenceConsume493,
+  captureSourceWorkbenchReadersRequest as fenceCaptureRequest493,captureSourceWorkbenchReadersReply as fenceCaptureReply493,assertSourceWorkbenchReadersReplyForRequest as fenceAssertReply493,
+  type SourceWorkbenchReadersRequest as FenceRequest493,type SourceWorkbenchReadersBinding as FenceBinding493} from '../../../packages/bridge-core/src/collection/source-writes-authority.js'
+
+const fenceClosed493=new WeakSet<FenceMessagePort493>()
+function fencePort493(port:FenceMessagePort493){port.once('close',()=>fenceClosed493.add(port));return port}
+async function fenceClose493(port:FenceMessagePort493,close=false){if(fenceClosed493.has(port))return;await new Promise<void>((resolve,reject)=>{
+  const timer=setTimeout(()=>reject(new Error('原Supervisor Node物理端口未关闭493')),2000);port.once('close',()=>{clearTimeout(timer);resolve()});if(close)port.close()})}
+class FenceCorePort493 implements CoreMessagePort{
+  constructor(readonly port:FenceMessagePort493){}
+  on(event:'message',listener:(event:{data:unknown})=>void){return this.port.on(event,(data:unknown)=>listener({data}))}
+  start(){this.port.start()}
+  postMessage(data:unknown){this.port.postMessage(data)}
+  close(){this.port.close()}
+}
+type FenceProducer493=Parameters<CoreSupervisor['configurePrivateWorkbenchReadersProducer']>[0]
+type FenceContext493=Parameters<FenceProducer493>[1]
+/** Main/Owner启动帧和child为受控组件，源通道与producer持有的FD是真实Node资源；不称实际Electron/Main factory。 */
+async function fenceHarness493(t:import('node:test').TestContext,options:{held?:boolean;failure?:boolean}={}){
+  const temporary=process.env.TMPDIR;assert.ok(temporary);assert.ok(temporary.startsWith('/Volumes/LifeWeave/Developer/CommandLine/'))
+  const directory=await fenceMkdtemp493(path493.join(temporary,'main-readers493-')),file=path493.join(directory,'controlled-reader.txt');await fenceWriteFile493(file,'自有Main读取资源493',{flag:'wx',mode:0o600})
+  const fd=await fenceOpen493(file,fenceFsConstants493.O_RDONLY),channel=new FenceMessageChannel493(),owner=fencePort493(channel.port1),mainSource=fencePort493(channel.port2),actor=fenceActor493(owner)
+  const source=new FenceCorePort493(mainSource),main=new FakePort(),child=new FakeChild(),datasetId=randomUUID(),epoch=randomUUID(),gate=warm469Deferred<void>(),entered=warm469Deferred<{q:FenceRequest493;context:FenceContext493}>()
+  const requests:FenceRequest493[]=[],replies:ReturnType<typeof fenceCaptureReply493>[]=[],consumed:unknown[]=[],errors:unknown[]=[]
+  if(!options.held)gate.resolve()
+  owner.on('message',raw=>{try{const reply=fenceCaptureReply493(raw);replies.push(reply);if(fenceConsume493(actor,raw))consumed.push(raw)}catch(error){errors.push(error);owner.close()}})
+  const supervisor=new CoreSupervisor({entryPath:'controlled-main-reader493',cwd:directory,playbackEventProtocol:null,sourceWritesPort:true,requestTimeoutMs:1000,startupTimeoutMs:1000,
+    dependencies:{createChannel:()=>({port1:new FakePort(),port2:main}),createSourceWritesChannel:()=>({port1:new FenceCorePort493(owner),port2:source}),fork:()=>child}})
+  main.postMessage=(message:unknown)=>{
+    main.sent.push(message);const raw=message as Record<string,unknown>
+    if(raw.command==='commandOutbox.context')queueMicrotask(()=>main.receive({version:1,id:raw.id,ok:true,result:{datasetId}}))
+    else if(raw.type==='musicbridge.workbench.frame'&&raw.lane==='request'&&raw.part==='end'){
+      const meta=datasetWorkbenchMeta(message as DatasetWorkbenchFrame);for(const frame of datasetWorkbenchFrames(meta,'response',{epoch,datasetId,ready:true}))queueMicrotask(()=>main.receive(frame))
+    }else if(raw.command==='core.shutdown')queueMicrotask(()=>{main.receive({version:1,id:raw.id,ok:true,result:{stopped:true}});child.exit(0)})
+  }
+  supervisor.configurePrivateWorkbenchReadersProducer(async(q,context)=>{
+    requests.push(q);entered.resolve({q,context});await gate.promise
+    if(options.failure)throw new Error('受控Main原producer仍未确认关闭493')
+    await fd.close()
+  })
+  const starting=supervisor.start();ready({port2:main});await starting;const author=await supervisor.createWorkbenchRootMainAuthor()
+  const binding:FenceBinding493={datasetId,ownerEpoch:epoch,commandId:randomUUID(),originalSha256:'a'.repeat(64),libraryId:randomUUID()}
+  let cleaning:Promise<void>|undefined
+  const cleanup=()=>cleaning??=(async()=>{gate.resolve();try{await supervisor.shutdown()}catch{/* 原UNKNOWN不签shutdown绿；只收测试自有资源。 */}
+    if(fd.fd>=0)await fd.close();child.exit(0);await Promise.all([fenceClose493(owner,true),fenceClose493(mainSource,true)])})()
+  t.after(cleanup)
+  function request(deadlineMs=2000,scope: FenceBinding493=binding){return fenceRequest493(actor,scope,{signal:new AbortController().signal,deadlineAtMs:performance.now()+deadlineMs})}
+  async function reply(){const deadline=performance.now()+2000;while(!replies.length){assert.ok(performance.now()<deadline,'原读取fence未返回');await flushStartup()}return replies[0]!}
+  return{supervisor,author,actor,source,owner,mainSource,main,child,fd,binding,requests,replies,consumed,errors,entered:entered.promise,gate,request,reply,cleanup}
+}
+
+test('按库Main fence493：原Supervisor当前route与同actor单库producer完成后才回完整closed，真实FD与专用端口最终闭口',async t=>{
+  const h=await fenceHarness493(t,{held:true});let settled=false;const pending=h.request().then(()=>{settled=true}),accepted=await h.entered
+  assert.equal(Object.getPrototypeOf(accepted.q.binding),null);assert.deepEqual({...accepted.q.binding},h.binding);assert.equal(accepted.q.authorityId,h.actor.authorityId);assert.equal(accepted.q.sequence,1);assert.equal(accepted.context.binding,h.author.binding)
+  assert.equal(accepted.context.binding.datasetId,h.binding.datasetId);assert.equal(accepted.context.binding.ownerEpoch,h.binding.ownerEpoch)
+  assert.ok(accepted.context.deadlineAtMs>performance.now());assert.ok(accepted.context.deadlineAtMs-performance.now()<=2000);assert.equal(accepted.context.signal.aborted,false)
+  assert.equal(h.fd.fd>=0,true);assert.equal(settled,false);assert.equal(h.replies.length,0);assert.equal(h.child.killed,false);assert.equal(h.main.closed,false)
+  let joined=false;const joining=h.supervisor.joinPrivateWorkbenchReadersProducer().then(()=>{joined=true});await flushStartup();assert.equal(joined,false)
+  h.gate.resolve();await pending;await joining;assert.equal(h.fd.fd,-1);assert.equal(settled,true);assert.equal(joined,true)
+  const reply=await h.reply();fenceAssertReply493(reply,accepted.q);assert.equal(reply.ok,true);assert.equal(reply.physicalClosed,true);assert.equal(reply.failure,null);assert.equal(h.consumed.length,1);assert.equal(h.errors.length,0)
+  assert.equal(h.requests.length,1);assert.equal(h.actor.active,true);assert.equal(h.child.killed,false);await h.cleanup();assert.equal(fenceClosed493.has(h.owner),true);assert.equal(fenceClosed493.has(h.mainSource),true)
+  t.diagnostic('受控child/启动帧与私有producer，实际MessageChannel/FD；不代表真实Main assembly、独立Owner worker或完整C03。')
+})
+test('按库Main fence493：原剩余deadline只abort本flight，迟到physicalClosed不能放行，UNKNOWN producer实际join仍拒绝',async t=>{
+  const h=await fenceHarness493(t,{held:true});t.mock.timers.enable({apis:['Date','setTimeout'],now:Date.now()})
+  try{
+    const pending=h.request(300),rejected=assert.rejects(pending),accepted=await h.entered;assert.ok(accepted.q.expiresAtMs-Date.now()<=300);assert.equal(h.fd.fd>=0,true)
+    let joined=false;const joining=h.supervisor.joinPrivateWorkbenchReadersProducer().then(()=>{joined=true})
+    t.mock.timers.tick(400);await rejected;await flushStartup();assert.equal(accepted.context.signal.aborted,true);assert.equal(joined,false);assert.equal(h.fd.fd>=0,true);assert.equal(h.replies.length,0)
+    assert.equal(h.child.killed,false);assert.equal(h.main.closed,false);assert.equal(fenceClosed493.has(h.owner),false);assert.equal(fenceClosed493.has(h.mainSource),false)
+    h.gate.resolve();await joining;const reply=await h.reply();fenceAssertReply493(reply,accepted.q);assert.equal(reply.ok,false);assert.equal(reply.physicalClosed,true);assert.equal(reply.failure,'TIMEOUT');assert.equal(h.fd.fd,-1)
+    assert.equal(h.requests.length,1);assert.equal(h.consumed.length,1);assert.equal(h.actor.active,true);assert.equal(h.errors.length,0)
+    // 真实迟到关闭只退休原flight；不会发第二个请求、续期限或改变原已拒绝Promise。
+    await assert.rejects(pending);assert.equal(h.requests[0]!.requestId,accepted.q.requestId);assert.equal(h.requests[0]!.expiresAtMs,accepted.q.expiresAtMs)
+  }finally{t.mock.timers.reset();await h.cleanup()}
+
+  const unknown=await fenceHarness493(t,{held:true,failure:true}),pendingUnknown=unknown.request(),rejectedUnknown=assert.rejects(pendingUnknown),acceptedUnknown=await unknown.entered
+  const joinUnknown=unknown.supervisor.joinPrivateWorkbenchReadersProducer().then(()=>({ok:true as const}),error=>({ok:false as const,error}))
+  await flushStartup();assert.equal(unknown.fd.fd>=0,true);assert.equal(unknown.replies.length,0);unknown.gate.resolve();await rejectedUnknown
+  const unknownReply=await unknown.reply();fenceAssertReply493(unknownReply,acceptedUnknown.q);assert.equal(unknownReply.ok,false);assert.equal(unknownReply.physicalClosed,false);assert.equal(unknownReply.failure,'UNKNOWN')
+  const joined=await joinUnknown;assert.equal(joined.ok,false);assert.ok(!joined.ok&&joined.error instanceof CoreIpcError);assert.equal(!joined.ok&&joined.error.code,'NOT_READY');assert.equal(unknown.fd.fd>=0,true)
+  await assert.rejects(unknown.supervisor.joinPrivateWorkbenchReadersProducer(),error=>error instanceof CoreIpcError&&error.code==='NOT_READY');assert.equal(unknown.requests.length,1);assert.equal(unknown.child.killed,false)
+  t.diagnostic('UNKNOWN cleanup只在测试末尾手动close自有FD，不补physicalClosed回声、重签原操作或记shutdown资格。')
+})
+test('按库Main fence493：foreign dataset或epoch及换actor的原port消息fatal，保原producer至真实FD收口而不mint或kill',async t=>{
+  for(const field of ['datasetId','ownerEpoch','authorityId'] as const){
+    const h=await fenceHarness493(t,{held:true}),pending=h.request(),rejected=assert.rejects(pending),accepted=await h.entered
+    const binding=field==='authorityId'?accepted.q.binding:{...accepted.q.binding,[field]:randomUUID()}
+    const forged=fenceCaptureRequest493({...accepted.q,requestId:randomUUID(),sequence:2,expiresAtMs:Date.now()+1500,binding,...(field==='authorityId'?{authorityId:randomUUID()}:{})})
+    h.owner.postMessage(forged);await rejected;await Promise.all([fenceClose493(h.owner),fenceClose493(h.mainSource)])
+    assert.equal(h.actor.active,false);assert.equal(accepted.context.signal.aborted,true);assert.equal(h.requests.length,1);assert.equal(h.replies.length,0);assert.equal(h.fd.fd>=0,true);assert.equal(h.child.killed,false);assert.equal(h.main.closed,false)
+    let joined=false;const joining=h.supervisor.joinPrivateWorkbenchReadersProducer().then(()=>{joined=true});await flushStartup();assert.equal(joined,false)
+    h.gate.resolve();await joining;assert.equal(h.fd.fd,-1);assert.equal(h.requests.length,1);assert.equal(h.replies.length,0);assert.equal(h.child.killed,false)
+    assert.equal(h.author.binding.datasetId,accepted.q.binding.datasetId);assert.equal(h.author.binding.ownerEpoch,accepted.q.binding.ownerEpoch);await h.cleanup()
+  }
+  t.diagnostic('foreign请求是明确攻击负例，不是伪Main闭口；实际专用port关闭仍不能替代原受控producer/FD join。')
+})
+
+
+// 仅只读图片反向桥组件：实际 Node MessageChannel、生产 Utility/Main 路由与 normalizer；
+// startup/Owner context 与 decoder 为受控组件，真实 Electron nativeImage 由独立窄入口验证。
+import { MessageChannel as ArtworkRouteChannel, type MessagePort as ArtworkRoutePort } from 'node:worker_threads'
+import { readFileSync as artworkRouteReadFile } from 'node:fs'
+import { createHash as artworkRouteHash } from 'node:crypto'
+import * as artworkRouteDto from '@music-bridge/contracts'
+import { createUtilityLocalAlbumArtworkBridge, type UtilityPort as ArtworkUtilityPort } from '../../../packages/bridge-core/src/utility-main.js'
+import { isLocalAlbumArtworkMainRequest, isLocalAlbumArtworkMainReply } from '../../../packages/bridge-core/src/collection/local-album-browser/main-protocol.js'
+import { createLocalAlbumArtworkNormalizer } from '../src/main/local-library-workbench/album-artwork-normalizer.js'
+import type { PhotoDecoderImage as ArtworkRouteDecoder } from '../src/main/collection-photos.js'
+const artworkRouteJpeg = artworkRouteReadFile(new URL('../../../packages/bridge-core/test/fixtures/mbrs012-source/owned-cover-16.jpg', import.meta.url))
+const artworkRouteCopies = (): artworkRouteDto.LocalArtworkSourceCopies => ({status:'ready',items:[{origin:'local-independent',sourceIdentity:artworkRouteHash('sha256').update(artworkRouteJpeg).digest('hex'),sourceLabel:'自有合成封面',base64:artworkRouteJpeg.toString('base64')}]})
+function artworkRoutePort(port:ArtworkRoutePort,receivedNow?:(raw:unknown)=>number|undefined):CoreMessagePort&ArtworkUtilityPort {
+  return {on(_event,listener){port.on('message',data=>{const original=Date.now,now=receivedNow?.(data);try{if(now!==undefined)Date.now=()=>now;listener({data})}finally{Date.now=original}})},start(){port.start()},close(){port.close()},postMessage(message){port.postMessage(message)}}
+}
+async function artworkRouteFixture(t:import('node:test').TestContext,options:{normalize?:(copies:unknown,context:{signal:AbortSignal;deadlineAtMs:number})=>Promise<{image:artworkRouteDto.LocalArtworkImage|null;status:'ready'|'source-unavailable'}>;withoutNormalizer?:boolean;beforeClose?:()=>void;receivedNow?:(raw:unknown)=>number|undefined;failRecoveryFork?:boolean}={}) {
+  const channel=new ArtworkRouteChannel(),main=artworkRoutePort(channel.port1,options.receivedNow),utility=artworkRoutePort(channel.port2),child=new FakeChild()
+  const datasetId=randomUUID(),epoch=randomUUID(),identity={datasetId,epoch},outgoing:unknown[]=[],replies:unknown[]=[],fatals:unknown[]=[]
+  let current=identity,decodeCalls=0,closed=false,shutdownId:unknown,forkCount=0
+  const decoder:ArtworkRouteDecoder={isEmpty:()=>false,getSize:()=>({width:16,height:16}),resize:()=>decoder,toJPEG:()=>Buffer.from(artworkRouteJpeg)}
+  const normalize=createLocalAlbumArtworkNormalizer(bytes=>{decodeCalls++;assert.deepEqual(Buffer.from(bytes),artworkRouteJpeg);return decoder})
+  const supervisor=new CoreSupervisor({entryPath:'synthetic-artwork-utility',cwd:'.',startupTimeoutMs:1000,requestTimeoutMs:1000,dependencies:{createChannel:()=>({port1:utility,port2:main}),fork:()=>{if(++forkCount>1&&options.failRecoveryFork)throw new Error('受控恢复fork失败，旧Core已退出且没有替代child。');return child}}})
+  if(!options.withoutNormalizer)supervisor.configurePrivateLocalAlbumArtworkNormalizer(options.normalize??(async copies=>normalize(copies)))
+  utility.on('message',event=>{
+    const raw=event.data as Record<string,unknown>
+    if(raw.type==='local-album-artwork-main-response'){replies.push(event.data);return}
+    if(raw.command==='commandOutbox.context')utility.postMessage({version:1,id:raw.id,ok:true,result:{datasetId}})
+    else if(raw.type==='musicbridge.workbench.frame'&&raw.lane==='request'&&raw.part==='end')for(const frame of datasetWorkbenchFrames(datasetWorkbenchMeta(event.data as DatasetWorkbenchFrame),'response',{datasetId,epoch,ready:true}))utility.postMessage(frame)
+    else if(raw.command==='core.shutdown'){shutdownId=raw.id;utility.postMessage({version:1,id:raw.id,ok:true,result:{stopped:true}})}
+  })
+  // Node MessagePort异步交付；Fake退出必须发生在Main观察原shutdown回执之后。
+  channel.port1.on('message',(raw:{id?:unknown;ok?:unknown;result?:{stopped?:unknown}})=>{if(raw.id===shutdownId&&raw.ok===true&&raw.result?.stopped===true)setImmediate(()=>child.exit(0))})
+  const observedUtility:ArtworkUtilityPort={on:(event,listener)=>utility.on(event,listener),start:()=>utility.start(),postMessage(message){outgoing.push(message);utility.postMessage(message)}}
+  const bridge=createUtilityLocalAlbumArtworkBridge(observedUtility,()=>current,()=>fatals.push('fatal'))
+  const starting=supervisor.start();utility.start();utility.postMessage({version:1,event:'core.ready',payload:{state:{runtime:'ready',roon:'disconnected',provider:'missing',activeStreamCount:0,activePlaybackPresent:false}}});await starting
+  const author=await supervisor.createWorkbenchRootMainAuthor()
+  async function finish(){if(closed)return;closed=true;options.beforeClose?.();bridge.close();await supervisor.shutdown();await supervisor.joinPrivateLocalAlbumArtworkNormalizer();main.close();utility.close()}
+  t.after(finish)
+  return {supervisor,bridge,author,outgoing,replies,fatals,scope:identity,normalize,finish,child,decodeCalls:()=>decodeCalls,changeIdentity(value:typeof identity){current=value}}
+}
+async function artworkRouteUntil(check:()=>boolean):Promise<void>{const until=performance.now()+2000;while(!check()){assert.ok(performance.now()<until,'原图片组件未在两秒内到达');await new Promise<void>(resolve=>setImmediate(resolve))}}
+
+test('专辑封面Main接线：真实物理往返规范化原副本，缺图与来源不可用分别保留原合同',async t=>{
+  const h=await artworkRouteFixture(t),copies=artworkRouteCopies(),result=await h.bridge.call({copies},h.scope)
+  assert.equal(h.decodeCalls(),1);assert.equal(result.status,'ready');assert.ok(result.image);assert.equal(artworkRouteDto.isLocalArtworkImage(result.image),true)
+  assert.equal(result.image.original.sha256,copies.items[0]!.sourceIdentity);assert.equal(result.image.original.width,16);assert.equal(result.image.display.width,16)
+  assert.deepEqual(await h.bridge.call({copies:{status:'ready',items:[]}},h.scope),{image:null,status:'ready'})
+  assert.deepEqual(await h.bridge.call({copies:{status:'source-unavailable',items:[]}},h.scope),{image:null,status:'source-unavailable'})
+  assert.equal(h.decodeCalls(),1);assert.equal(h.fatals.length,0);assert.equal(h.bridge.pending(),0)
+  const request=h.outgoing.find(isLocalAlbumArtworkMainRequest)!;assert.ok(isLocalAlbumArtworkMainReply(h.replies[0],request));assert.equal(request.projection.command,'normalizeLocalAlbumArtwork');assert.equal(request.projection.epoch,h.author.binding.ownerEpoch)
+})
+
+test('专辑封面Main接线：畸形copies、未知命令/getter零派发；坏图片拒绝而不冒缺图',async t=>{
+  const h=await artworkRouteFixture(t),before=h.outgoing.length
+  const malformed={copies:{...artworkRouteCopies(),file:'/自有不应被读取'}} as unknown as Parameters<typeof h.bridge.call>[0]
+  await assert.rejects(h.bridge.call(malformed,h.scope));assert.equal(h.outgoing.length,before);assert.equal(h.decodeCalls(),0)
+  let getters=0;const getter={};Object.defineProperty(getter,'copies',{enumerable:true,get(){getters++;return artworkRouteCopies()}})
+  await assert.rejects(h.bridge.call(getter as Parameters<typeof h.bridge.call>[0],h.scope));assert.equal(getters,0);assert.equal(h.outgoing.length,before)
+  const bad={...artworkRouteCopies(),items:[{...artworkRouteCopies().items[0]!,base64:'AA=='}]};await assert.rejects(h.bridge.call({copies:bad},h.scope));assert.equal(h.decodeCalls(),0)
+  const q=h.outgoing.find(isLocalAlbumArtworkMainRequest)!;assert.equal(isLocalAlbumArtworkMainRequest({...q,projection:{...q.projection,command:'browseAlbumCandidates'}}),false)
+  assert.equal(isLocalAlbumArtworkMainRequest({...q,epoch:randomUUID()}),false);assert.equal(h.bridge.pending(),0);assert.equal(h.fatals.length,0)
+})
+
+test('专辑封面Main接线：同物理port的异epoch/dataset不调用原Main decoder',async t=>{
+  for(const field of ['epoch','datasetId'] as const){const h=await artworkRouteFixture(t),foreign={...h.scope,[field]:randomUUID()};h.changeIdentity(foreign)
+    await assert.rejects(h.bridge.call({copies:artworkRouteCopies()},foreign));assert.equal(h.decodeCalls(),0);assert.equal(h.bridge.pending(),0);assert.equal(h.fatals.length,0);await h.finish()}
+})
+
+test('专辑封面Main接线：有图片时无效ready/null或未知回复字段均拒绝，不固定image:null',async t=>{
+  const h=await artworkRouteFixture(t,{normalize:async()=>({image:null,status:'ready'})})
+  await assert.rejects(h.bridge.call({copies:artworkRouteCopies()},h.scope),error=>error instanceof Error&&'failure'in error&&(error as {failure:{error:{code:string}}}).failure.error.code==='INVALID_IPC_RESPONSE')
+  const q=h.outgoing.find(isLocalAlbumArtworkMainRequest)!,response=h.replies[0];assert.equal(isLocalAlbumArtworkMainReply({...response as object,sourcePath:'/自有秘密'},q),false);assert.equal(h.decodeCalls(),0)
+})
+
+test('专辑封面Main接线：关闭发送原cancel，迟到图片不成功，实际producer settle前join仍等待',async t=>{
+  const entered=warm469Deferred<{signal:AbortSignal;deadlineAtMs:number}>(),release=warm469Deferred<void>();let actualResult:{image:artworkRouteDto.LocalArtworkImage|null;status:'ready'|'source-unavailable'}|undefined
+  const h=await artworkRouteFixture(t,{beforeClose:()=>release.resolve(),normalize:async(copies,context)=>{actualResult=await h.normalize(copies);entered.resolve(context);await release.promise;return actualResult}})
+  t.after(()=>release.resolve());const work=h.bridge.call({copies:artworkRouteCopies()},h.scope),rejected=assert.rejects(work),context=await entered.promise
+  h.bridge.close();await rejected;await artworkRouteUntil(()=>context.signal.aborted)
+  let joined=false;const join=h.supervisor.joinPrivateLocalAlbumArtworkNormalizer().then(()=>{joined=true});await new Promise<void>(resolve=>setImmediate(resolve));assert.equal(joined,false)
+  const q=h.outgoing.find(isLocalAlbumArtworkMainRequest)!,cancel=h.outgoing.find(row=>(row as {type?:unknown}).type==='local-album-artwork-main-cancel') as {id:string;epoch:string;datasetId:string;expiresAtMs:number}
+  assert.equal(cancel.id,q.id);assert.equal(cancel.epoch,q.projection.epoch);assert.equal(cancel.datasetId,q.datasetId);assert.equal(cancel.expiresAtMs,q.expiresAtMs)
+  release.resolve();await join;assert.equal(joined,true);assert.equal(h.bridge.pending(),0);assert.equal(h.fatals.length,0)
+  assert.ok(h.replies.every(row=>!(row as {projection:{ok:boolean}}).projection.ok))
+})
+
+test('专辑封面退出屏障：旧Core已exit且child为空时shutdown仍等待原flight实际收尾',async t=>{
+  const entered=warm469Deferred<{signal:AbortSignal;deadlineAtMs:number}>(),release=warm469Deferred<void>()
+  let producerSettled=false,shutdownSettled=false,closing:Promise<void>|undefined
+  const h=await artworkRouteFixture(t,{failRecoveryFork:true,beforeClose:()=>release.resolve(),normalize:async(_copies,context)=>{
+    entered.resolve(context)
+    try{await release.promise;throw new Error('原封面producer实际收尾后才拒绝。')}
+    finally{producerSettled=true}
+  }})
+  const work=h.bridge.call({copies:artworkRouteCopies()},h.scope),rejected=assert.rejects(work)
+  try{
+    const context=await entered.promise,q=h.outgoing.find(isLocalAlbumArtworkMainRequest)!
+    assert.equal(q.datasetId,h.author.binding.datasetId);assert.equal(q.projection.epoch,h.author.binding.ownerEpoch)
+    // 只走原exit listener撤销旧child；恢复fork受控失败，不改Supervisor私有状态或原flight。
+    h.child.exit(1);assert.equal(context.signal.aborted,true);h.bridge.close();await rejected;await flushStartup()
+    closing=h.supervisor.shutdown().then(()=>{shutdownSettled=true});await flushStartup()
+    assert.equal(producerSettled,false,'取消与Core exit不能冒充原producer已实际收尾。')
+    assert.equal(shutdownSettled,false,'旧child为空也必须等待原封面flight的实际收尾Promise。')
+    release.resolve();await closing
+    assert.equal(producerSettled,true);assert.equal(h.supervisor.status,'stopped');assert.equal(h.child.killed,false)
+    assert.equal(h.fatals.length,0);assert.equal(h.bridge.pending(),0)
+  }finally{
+    release.resolve();h.bridge.close();await rejected;await closing;await h.finish()
+  }
+})
+
+test('专辑封面恢复屏障：自动恢复不得在旧flight实际收尾前fork第二actor',async()=>{
+  const h=makeHarness(),datasetId=randomUUID(),entered=warm469Deferred<{signal:AbortSignal;deadlineAtMs:number}>(),release=warm469Deferred<void>()
+  type Actor={child:FakeChild;main:FakePort;scope:{datasetId:string;epoch:string}}
+  const actors:Actor[]=[],secondForked=warm469Deferred<Actor>(),outgoing:unknown[]=[],fatals:unknown[]=[]
+  let producerSettled=false,normalizeCalls=0,receiveArtwork:Parameters<ArtworkUtilityPort['on']>[1]|undefined
+  const fork=h.dependencies.fork
+  h.dependencies.fork=(entry,args,options)=>{
+    const child=fork(entry,args,options),channel=h.channels.at(-1)!,main=channel.port2,scope={datasetId,epoch:randomUUID()},actor={child,main,scope}
+    actors.push(actor)
+    main.postMessage=(message:unknown)=>{
+      main.sent.push(message);const raw=message as Record<string,unknown>
+      if(raw.command==='commandOutbox.context')queueMicrotask(()=>main.receive({version:1,id:raw.id,ok:true,result:{datasetId}}))
+      else if(raw.type==='musicbridge.workbench.frame'&&raw.lane==='request'&&raw.part==='end')for(const frame of datasetWorkbenchFrames(datasetWorkbenchMeta(message as DatasetWorkbenchFrame),'response',{...scope,ready:true}))queueMicrotask(()=>main.receive(frame))
+      else if(raw.command==='core.shutdown')queueMicrotask(()=>{main.receive({version:1,id:raw.id,ok:true,result:{stopped:true}});child.exit(0)})
+      else if(raw.type==='local-album-artwork-main-response'&&actors[0]===actor)receiveArtwork?.({data:message})
+    }
+    if(actors.length===2)secondForked.resolve(actor)
+    queueMicrotask(()=>ready(channel));return child
+  }
+  h.supervisor.configurePrivateLocalAlbumArtworkNormalizer(async(_copies,context)=>{
+    normalizeCalls++;entered.resolve(context)
+    try{await release.promise;throw new Error('原actor封面producer实际收尾后才拒绝。')}
+    finally{producerSettled=true}
+  })
+  await h.supervisor.start()
+  const first=actors[0]!,author=await h.supervisor.createWorkbenchRootMainAuthor()
+  const bridge=createUtilityLocalAlbumArtworkBridge({on(_event,listener){receiveArtwork=listener},start(){},postMessage(message){outgoing.push(message);first.main.receive(message)}},()=>first.scope,()=>fatals.push('fatal'))
+  const work=bridge.call({copies:artworkRouteCopies()},first.scope),rejected=assert.rejects(work)
+  try{
+    const context=await entered.promise,q=outgoing.find(isLocalAlbumArtworkMainRequest)!
+    assert.equal(q.datasetId,author.binding.datasetId);assert.equal(q.projection.epoch,author.binding.ownerEpoch)
+    first.child.exit(1);assert.equal(context.signal.aborted,true);bridge.close();await rejected;await flushStartup()
+    assert.equal(producerSettled,false,'旧Core exit与原取消不能冒充原producer实际收尾。')
+    assert.equal(actors.length,1,'自动恢复必须先等待旧flight原Promise，不能提前fork第二actor。')
+    release.resolve();const second=await secondForked.promise;await h.supervisor.start()
+    const nextAuthor=await h.supervisor.createWorkbenchRootMainAuthor()
+    assert.equal(producerSettled,true);assert.equal(actors.length,2);assert.notEqual(second.child,first.child)
+    assert.notEqual(second.main,first.main);assert.notEqual(nextAuthor.binding.ownerEpoch,author.binding.ownerEpoch)
+    assert.equal(nextAuthor.binding.ownerEpoch,second.scope.epoch);assert.ok(nextAuthor.binding.childGeneration>author.binding.childGeneration)
+    await assert.rejects(author.assertCurrent(author.binding));assert.equal(normalizeCalls,1)
+    assert.equal(second.main.sent.some(row=>(row as {type?:unknown}).type==='local-album-artwork-main-response'),false)
+    assert.equal(fatals.length,0);assert.equal(bridge.pending(),0)
+  }finally{
+    release.resolve();bridge.close();await rejected;await h.supervisor.shutdown();await h.supervisor.joinPrivateLocalAlbumArtworkNormalizer()
+  }
+})
+
+test('专辑封面恢复屏障：等待原flight时shutdown后不得复活第二actor',async()=>{
+  const h=makeHarness(),datasetId=randomUUID(),entered=warm469Deferred<{signal:AbortSignal;deadlineAtMs:number}>(),release=warm469Deferred<void>()
+  const scopes:Array<{datasetId:string;epoch:string}>=[],outgoing:unknown[]=[],fatals:unknown[]=[]
+  let producerSettled=false,shutdownSettled=false,closing:Promise<void>|undefined,recovery:Promise<unknown>|undefined,receiveArtwork:Parameters<ArtworkUtilityPort['on']>[1]|undefined
+  const fork=h.dependencies.fork
+  h.dependencies.fork=(entry,args,options)=>{
+    const child=fork(entry,args,options),channel=h.channels.at(-1)!,main=channel.port2,scope={datasetId,epoch:randomUUID()}
+    scopes.push(scope)
+    main.postMessage=(message:unknown)=>{
+      main.sent.push(message);const raw=message as Record<string,unknown>
+      if(raw.command==='commandOutbox.context')queueMicrotask(()=>main.receive({version:1,id:raw.id,ok:true,result:{datasetId}}))
+      else if(raw.type==='musicbridge.workbench.frame'&&raw.lane==='request'&&raw.part==='end')for(const frame of datasetWorkbenchFrames(datasetWorkbenchMeta(message as DatasetWorkbenchFrame),'response',{...scope,ready:true}))queueMicrotask(()=>main.receive(frame))
+      else if(raw.command==='core.shutdown')queueMicrotask(()=>{main.receive({version:1,id:raw.id,ok:true,result:{stopped:true}});child.exit(0)})
+      else if(raw.type==='local-album-artwork-main-response'&&h.channels[0]===channel)receiveArtwork?.({data:message})
+    }
+    queueMicrotask(()=>ready(channel));return child
+  }
+  h.supervisor.configurePrivateLocalAlbumArtworkNormalizer(async(_copies,context)=>{
+    entered.resolve(context)
+    try{await release.promise;throw new Error('停止中的原封面producer实际收尾后才拒绝。')}
+    finally{producerSettled=true}
+  })
+  await h.supervisor.start()
+  const first=h.children[0]!,main=h.channels[0]!.port2,scope=scopes[0]!,author=await h.supervisor.createWorkbenchRootMainAuthor()
+  const bridge=createUtilityLocalAlbumArtworkBridge({on(_event,listener){receiveArtwork=listener},start(){},postMessage(message){outgoing.push(message);main.receive(message)}},()=>scope,()=>fatals.push('fatal'))
+  const work=bridge.call({copies:artworkRouteCopies()},scope),rejected=assert.rejects(work)
+  try{
+    const context=await entered.promise,q=outgoing.find(isLocalAlbumArtworkMainRequest)!
+    assert.equal(q.datasetId,author.binding.datasetId);assert.equal(q.projection.epoch,author.binding.ownerEpoch)
+    first.exit(1);assert.equal(context.signal.aborted,true);bridge.close();await rejected
+    // start只复用已登记的原自动恢复Promise；shutdown在原producer尚未settle时入场。
+    recovery=h.supervisor.start().then(()=>undefined,error=>error)
+    closing=h.supervisor.shutdown().then(()=>{shutdownSettled=true});await flushStartup()
+    assert.equal(producerSettled,false);assert.equal(shutdownSettled,false);assert.equal(h.children.length,1)
+    release.resolve();const [,outcome]=await Promise.all([closing,recovery])
+    assert.equal(producerSettled,true);assert.equal(shutdownSettled,true)
+    assert.equal(h.children.length,1,'原flight收尾后的自动恢复必须重核停止意图，不能复活第二actor。')
+    assert.ok(outcome instanceof CoreIpcError);assert.equal(outcome.code,'INTERNAL_ERROR');assert.equal(h.supervisor.status,'stopped')
+    await assert.rejects(author.assertCurrent(author.binding));assert.equal(first.killed,false)
+    assert.equal(fatals.length,0);assert.equal(bridge.pending(),0)
+  }finally{
+    release.resolve();bridge.close();await rejected;await closing;await recovery;await h.supervisor.shutdown();await h.supervisor.joinPrivateLocalAlbumArtworkNormalizer()
+  }
+})
+
+test('Core退出请求屏障：manual restart内部close期间后续shutdown撤销重启',async()=>{
+  const h=makeHarness(),datasetId=randomUUID(),entered=warm469Deferred<{signal:AbortSignal;deadlineAtMs:number}>(),release=warm469Deferred<void>(),exited=warm469Deferred<void>()
+  const scopes:Array<{datasetId:string;epoch:string}>=[],outgoing:unknown[]=[],fatals:unknown[]=[]
+  let producerSettled=false,restartSettled=false,shutdownSettled=false,shutdownCommands=0,restarting:Promise<unknown>|undefined,closing:Promise<void>|undefined,receiveArtwork:Parameters<ArtworkUtilityPort['on']>[1]|undefined
+  const fork=h.dependencies.fork
+  h.dependencies.fork=(entry,args,options)=>{
+    const child=fork(entry,args,options),channel=h.channels.at(-1)!,main=channel.port2,scope={datasetId,epoch:randomUUID()}
+    scopes.push(scope)
+    main.postMessage=(message:unknown)=>{
+      main.sent.push(message);const raw=message as Record<string,unknown>
+      if(raw.command==='commandOutbox.context')queueMicrotask(()=>main.receive({version:1,id:raw.id,ok:true,result:{datasetId}}))
+      else if(raw.type==='musicbridge.workbench.frame'&&raw.lane==='request'&&raw.part==='end')for(const frame of datasetWorkbenchFrames(datasetWorkbenchMeta(message as DatasetWorkbenchFrame),'response',{...scope,ready:true}))queueMicrotask(()=>main.receive(frame))
+      else if(raw.command==='core.shutdown'){shutdownCommands++;queueMicrotask(()=>{main.receive({version:1,id:raw.id,ok:true,result:{stopped:true}});child.exit(0)})}
+      else if(raw.type==='local-album-artwork-main-response'&&h.channels[0]===channel)receiveArtwork?.({data:message})
+    }
+    queueMicrotask(()=>ready(channel));return child
+  }
+  h.supervisor.configurePrivateLocalAlbumArtworkNormalizer(async(_copies,context)=>{
+    entered.resolve(context)
+    try{await release.promise;throw new Error('重启关闭中的原封面producer实际收尾后才拒绝。')}
+    finally{producerSettled=true}
+  })
+  await h.supervisor.start()
+  const first=h.children[0]!,main=h.channels[0]!.port2,scope=scopes[0]!,author=await h.supervisor.createWorkbenchRootMainAuthor()
+  const bridge=createUtilityLocalAlbumArtworkBridge({on(_event,listener){receiveArtwork=listener},start(){},postMessage(message){outgoing.push(message);main.receive(message)}},()=>scope,()=>fatals.push('fatal'))
+  const work=bridge.call({copies:artworkRouteCopies()},scope),rejected=assert.rejects(work)
+  try{
+    const context=await entered.promise,q=outgoing.find(isLocalAlbumArtworkMainRequest)!
+    assert.equal(q.datasetId,author.binding.datasetId);assert.equal(q.projection.epoch,author.binding.ownerEpoch)
+    first.once('exit',()=>exited.resolve())
+    restarting=h.supervisor.restart().then(()=>{restartSettled=true;return undefined},error=>{restartSettled=true;return error})
+    await exited.promise;bridge.close();await rejected;await flushStartup()
+    assert.equal(context.signal.aborted,true);assert.equal(producerSettled,false);assert.equal(restartSettled,false)
+    closing=h.supervisor.shutdown().then(()=>{shutdownSettled=true});await flushStartup()
+    assert.equal(shutdownSettled,false);assert.equal(shutdownCommands,1,'后续停止复用原close，不重发Owner关闭。')
+    release.resolve();const [outcome]=await Promise.all([restarting,closing])
+    assert.equal(producerSettled,true);assert.equal(restartSettled,true);assert.equal(shutdownSettled,true)
+    assert.ok(outcome instanceof CoreIpcError);assert.equal(outcome.code,'NOT_READY')
+    assert.equal(h.children.length,1,'复用关闭Promise也必须保留后续Quit，旧manual restart不得新建Core。')
+    assert.equal(h.supervisor.status,'stopped');assert.equal(first.killed,false);assert.equal(shutdownCommands,1)
+    await assert.rejects(author.assertCurrent(author.binding));assert.equal(fatals.length,0);assert.equal(bridge.pending(),0)
+  }finally{
+    release.resolve();bridge.close();await rejected;await restarting;await closing;await h.supervisor.shutdown();await h.supervisor.joinPrivateLocalAlbumArtworkNormalizer()
+  }
+})
+
+test('Core退出请求屏障：启动失败等待原exit期间shutdown阻止下一次fork',async()=>{
+  const h=makeHarness(),killed=warm469Deferred<void>()
+  const supervisor=new CoreSupervisor({entryPath:'controlled-quit-during-startup',cwd:'.',dependencies:h.dependencies,requestTimeoutMs:20,startupTimeoutMs:20,onReady:()=>{throw new Error('受控恢复hook失败，旧child尚未退出。')}})
+  let startSettled=false,closing:Promise<unknown>|undefined
+  const starting=supervisor.start().then(()=>{startSettled=true;return undefined},error=>{startSettled=true;return error})
+  const child=h.children[0]!
+  // 仅改变受控Child的kill结果：已发送终止，但实际exit必须由后面的原事件确认。
+  child.kill=()=>{child.killed=true;killed.resolve();return true}
+  ready(h.channels[0]!)
+  try{
+    await killed.promise;await flushStartup()
+    assert.equal(startSettled,false);assert.equal(h.children.length,1);assert.equal(h.channels[0]!.port2.closed,true)
+    closing=supervisor.shutdown().then(()=>undefined,error=>error)
+    child.exit(0)
+    const [failure,closeFailure]=await Promise.all([starting,closing])
+    assert.ok(failure instanceof CoreIpcError);assert.ok(closeFailure instanceof CoreIpcError);assert.equal(closeFailure.code,'NOT_READY')
+    assert.equal(h.children.length,1,'exitWithin实际返回后仍须重核后续Quit，不能进入下一轮fork。')
+    await supervisor.shutdown();assert.equal(supervisor.status,'stopped')
+  }finally{
+    for(const original of h.children)original.exit(0)
+    await starting;await closing;await supervisor.shutdown()
+  }
+})
+
+test('专辑封面Main接线：原两秒到期取消本flight，后续真实settle仅退休原迟到回包',async t=>{
+  const entered=warm469Deferred<AbortSignal>(),release=warm469Deferred<void>()
+  const h=await artworkRouteFixture(t,{beforeClose:()=>release.resolve(),normalize:async(copies,context)=>{const result=await h.normalize(copies);entered.resolve(context.signal);await release.promise;return result}})
+  t.after(()=>release.resolve());const work=h.bridge.call({copies:artworkRouteCopies()},h.scope),rejected=assert.rejects(work,error=>error instanceof Error&&'failure'in error&&(error as {failure:{error:{code:string}}}).failure.error.code==='TIMEOUT'),signal=await entered.promise
+  await rejected;await artworkRouteUntil(()=>signal.aborted);const q=h.outgoing.find(isLocalAlbumArtworkMainRequest)!;assert.ok(Date.now()>=q.expiresAtMs);assert.equal(h.bridge.pending(),0)
+  release.resolve();await h.supervisor.joinPrivateLocalAlbumArtworkNormalizer();await new Promise<void>(resolve=>setImmediate(resolve));assert.equal(h.fatals.length,0)
+  assert.ok(h.replies.every(row=>!(row as {projection:{ok:boolean}}).projection.ok));assert.equal(h.outgoing.filter(row=>isLocalAlbumArtworkMainRequest(row)).length,1)
+})
+
+
+test('专辑封面Main接线：原context剩余期限与signal透传，不重新获得两秒或重发UUID',async t=>{
+  const entered=warm469Deferred<{signal:AbortSignal;deadlineAtMs:number}>(),release=warm469Deferred<void>()
+  const h=await artworkRouteFixture(t,{beforeClose:()=>release.resolve(),normalize:async(copies,context)=>{const result=await h.normalize(copies);entered.resolve(context);await release.promise;return result}})
+  t.after(()=>release.resolve());const controller=new AbortController(),deadlineAtMs=performance.now()+700,expiresAtMs=Date.now()+700
+  const work=h.bridge.call({copies:artworkRouteCopies()},{...h.scope,signal:controller.signal,deadlineAtMs,expiresAtMs}),rejected=assert.rejects(work),context=await entered.promise
+  const q=h.outgoing.find(isLocalAlbumArtworkMainRequest)!;assert.ok(q.expiresAtMs<=expiresAtMs);assert.ok(context.deadlineAtMs<=deadlineAtMs+1)
+  controller.abort();await rejected;await artworkRouteUntil(()=>context.signal.aborted);assert.equal(h.bridge.pending(),0)
+  release.resolve();await h.supervisor.joinPrivateLocalAlbumArtworkNormalizer();await new Promise<void>(resolve=>setImmediate(resolve));assert.equal(h.fatals.length,0)
+  assert.equal(h.outgoing.filter(isLocalAlbumArtworkMainRequest).length,1);assert.ok(h.replies.every(row=>!(row as {projection:{ok:boolean}}).projection.ok))
+})
+
+test('专辑封面Main接线：合法原请求在传输中到期只回TIMEOUT，保Core与下一读取',async t=>{
+  let first=true
+  const h=await artworkRouteFixture(t,{receivedNow:raw=>{if(first&&isLocalAlbumArtworkMainRequest(raw)){first=false;return raw.expiresAtMs+1}return undefined}})
+  await assert.rejects(h.bridge.call({copies:artworkRouteCopies()},h.scope),error=>error instanceof Error&&'failure'in error&&(error as {failure:{error:{code:string}}}).failure.error.code==='TIMEOUT')
+  assert.equal(h.decodeCalls(),0);assert.equal(h.child.killed,false);assert.equal(h.supervisor.status,'ready');assert.equal(h.fatals.length,0)
+  const expired=h.outgoing.find(isLocalAlbumArtworkMainRequest)!,reply=h.replies[0] as {expiresAtMs:number}
+  assert.equal(reply.expiresAtMs,expired.expiresAtMs);assert.ok(isLocalAlbumArtworkMainReply(reply,expired))
+  const next=await h.bridge.call({copies:artworkRouteCopies()},h.scope);assert.ok(next.image);assert.equal(h.decodeCalls(),1)
+  assert.equal(h.outgoing.filter(isLocalAlbumArtworkMainRequest).length,2);assert.equal(h.child.killed,false)
+})
+
+test('专辑封面Main接线：四个取消未settle的producer保持上限，第五回NOT_READY且Core可恢复',async t=>{
+  const release=warm469Deferred<void>(),contexts:Array<{signal:AbortSignal;deadlineAtMs:number}>=[]
+  const h=await artworkRouteFixture(t,{beforeClose:()=>release.resolve(),normalize:async(copies,context)=>{const result=await h.normalize(copies);contexts.push(context);await release.promise;return result}})
+  t.after(()=>release.resolve());const controllers=Array.from({length:4},()=>new AbortController())
+  const works=controllers.map(controller=>h.bridge.call({copies:artworkRouteCopies()},{...h.scope,signal:controller.signal})),rejected=Promise.all(works.map(work=>assert.rejects(work)))
+  await artworkRouteUntil(()=>contexts.length===4);controllers.forEach(controller=>controller.abort());await rejected
+  await artworkRouteUntil(()=>contexts.every(context=>context.signal.aborted));assert.equal(h.decodeCalls(),4);assert.equal(h.bridge.pending(),0)
+  let joined=false;const join=h.supervisor.joinPrivateLocalAlbumArtworkNormalizer().then(()=>{joined=true});await new Promise<void>(resolve=>setImmediate(resolve));assert.equal(joined,false)
+  await assert.rejects(h.bridge.call({copies:artworkRouteCopies()},h.scope),error=>error instanceof Error&&'failure'in error&&(error as {failure:{error:{code:string}}}).failure.error.code==='NOT_READY')
+  assert.equal(h.decodeCalls(),4);assert.equal(h.child.killed,false);assert.equal(h.supervisor.status,'ready');assert.equal(h.fatals.length,0);assert.equal(joined,false)
+  release.resolve();await join;assert.equal(joined,true)
+  const next=await h.bridge.call({copies:artworkRouteCopies()},h.scope);assert.ok(next.image);assert.equal(h.decodeCalls(),5)
+  assert.equal(h.outgoing.filter(isLocalAlbumArtworkMainRequest).length,6);assert.equal(h.fatals.length,0);assert.equal(h.child.killed,false)
+})
+
+
+// 原Supervisor+受控端口组件，非实际Utility/Owner/App；原guard与异常合同必须由调度执行后判定。
+async function contextTraceHarness748() {
+  const { datasetWorkbenchControl } = await import('../../../packages/bridge-core/src/collection/dataset-owner-protocol.js')
+  const trace = await import('../../../packages/bridge-core/src/shared/local-album-read-trace-node.js')
+  const { createHash } = await import('node:crypto')
+  const h = makeHarness(), datasetId = randomUUID(), epoch = randomUUID()
+  const starting = h.supervisor.start(), main = h.channels[0]!.port2, child = h.children[0]!
+  let hold = false
+  const pending: ReturnType<typeof datasetWorkbenchMeta>[] = []
+  const contexts: ReturnType<typeof datasetWorkbenchMeta>[] = []
+  const originalPost = main.postMessage.bind(main)
+  main.postMessage = (message: unknown) => {
+    originalPost(message)
+    const raw = message as { command?: unknown; id?: unknown; type?: unknown; lane?: unknown; part?: unknown; kind?: unknown }
+    if (raw.command === 'commandOutbox.context') queueMicrotask(() => main.receive({ version: IPC_VERSION, id: raw.id, ok: true, result: { datasetId } }))
+    else if (raw.type === 'musicbridge.workbench.frame' && raw.lane === 'request' && raw.part === 'end' && raw.kind === 'context') {
+      const meta = datasetWorkbenchMeta(message as DatasetWorkbenchFrame); contexts.push(meta)
+      if (hold) pending.push(meta)
+      else for (const frame of datasetWorkbenchFrames(meta, 'response', { datasetId, epoch, ready: true })) queueMicrotask(() => main.receive(frame))
+    }
+  }
+  ready(h.channels[0]!); await starting
+  const author = await h.supervisor.createWorkbenchRootMainAuthor()
+  const parent = { sha256: '' }
+  return { h, main, author, contexts, pending, parent, trace,
+    hold(value: boolean) { hold = value },
+    read() { const parentId = randomUUID(); parent.sha256 = createHash('sha256').update(parentId).digest('hex'); return trace.runLocalAlbumContext(parentId, null, 'main.dataset', () => author.assertCurrent(author.binding)) },
+    reply(meta: ReturnType<typeof datasetWorkbenchMeta>, failure?: 'NOT_READY') {
+      if (failure) { main.receive(datasetWorkbenchControl(meta, 'failure', failure)); main.receive(datasetWorkbenchControl(meta, 'settled')) }
+      else for (const frame of datasetWorkbenchFrames(meta, 'response', { datasetId, epoch, ready: true })) main.receive(frame)
+    },
+    async close() {
+      hold = false
+      for (const meta of pending.splice(0)) for (const frame of datasetWorkbenchFrames(meta, 'response', { datasetId, epoch, ready: true })) main.receive(frame)
+      const closing = h.supervisor.shutdown(); await flushStartup(); child.exit(0); await closing
+    },
+  }
+}
+
+test('专辑context Trace：原24预算在发送前拒绝，成功context不加RPC或证据行', async () => {
+  const h = await contextTraceHarness748()
+  try {
+    const before = h.contexts.length
+    await h.read(); assert.equal(h.contexts.length, before + 1)
+    const success = h.trace.snapshotLocalAlbumReadTrace().records.filter(row => row.traceSha256 === h.parent.sha256 || row.parentSha256 === h.parent.sha256)
+    assert.equal(success.length, 1); assert.equal(success[0]!.stage, 'main.dataset'); assert.equal(success[0]!.outcome, 'begin')
+    h.hold(true)
+    const flights = Array.from({ length: 24 }, () => h.author.assertCurrent(h.author.binding))
+    const sent = h.contexts.length
+    await assert.rejects(h.read(), error => error instanceof CoreIpcError && error.code === 'NOT_READY')
+    assert.equal(h.contexts.length, sent)
+    const refusal = h.trace.snapshotLocalAlbumReadTrace().firstRejects.find(row => row.traceSha256 === h.parent.sha256)
+    assert.ok(refusal); assert.equal(refusal.firstStage, 'context.supervisor.budget'); assert.equal(refusal.code, 'NOT_READY'); assert.equal(refusal.matches.route, true)
+    h.hold(false); for (const meta of h.pending.splice(0)) h.reply(meta)
+    await Promise.all(flights)
+  } finally { await h.close() }
+})
+
+test('专辑context Trace：原Pending跨事件关联下游首码，诊断输出异常不改变原拒绝', async () => {
+  const h = await contextTraceHarness748(), originalInfo = console.info
+  try {
+    h.hold(true)
+    const read = h.read(), originalMeta = h.pending.shift(); assert.ok(originalMeta)
+    assert.equal(h.trace.captureLocalAlbumContext(), undefined)
+    console.info = () => { throw new Error('仅受控诊断输出失效') }
+    const rejected = assert.rejects(read, error => error instanceof CoreIpcError && error.code === 'NOT_READY' && error.message === '原整理请求未确认，请核对原command/body回执')
+    h.reply(originalMeta, 'NOT_READY'); await rejected
+    const snapshot = h.trace.snapshotLocalAlbumReadTrace(), refusal = snapshot.firstRejects.find(row => row.traceSha256 === h.parent.sha256)
+    assert.ok(refusal); assert.equal(refusal.firstStage, 'context.supervisor.receive.failure'); assert.equal(refusal.code, 'NOT_READY'); assert.equal(refusal.name, 'CoreIpcError')
+    const childSha256 = h.trace.localAlbumTraceSha(originalMeta.id)
+    assert.ok(snapshot.records.some(row => row.traceSha256 === childSha256 && row.parentSha256 === h.parent.sha256 && row.stage === 'context.supervisor.receive.failure'))
+    assert.equal(h.contexts.length, 2); assert.equal(h.h.children[0]!.killed, false)
+  } finally { console.info = originalInfo; await h.close() }
+})
+
+import { createLocalArtworkImportNormalizer, LocalArtworkNormalizationPhysicalError as AlbumOsPhysicalError } from '../src/main/local-library-workbench/artwork-import-normalizer.js'
+import { mkdtemp as albumOsTemp, mkdir as albumOsMkdir, readdir as albumOsRead, rm as albumOsRm } from 'node:fs/promises'
+import { spawn as albumOsSpawn } from 'node:child_process'
+import albumOsPath from 'node:path'
+
+const albumOsWebp=()=>{const frame=Buffer.alloc(12);frame[0]=0x30;frame.set([0x9d,0x01,0x2a],3);frame.writeUInt16LE(16,6);frame.writeUInt16LE(16,8);frame[10]=1;const chunk=Buffer.alloc(8);chunk.write('VP8 ',0);chunk.writeUInt32LE(frame.length,4);const body=Buffer.concat([Buffer.from('WEBP'),chunk,frame]),header=Buffer.alloc(8);header.write('RIFF',0);header.writeUInt32LE(body.length,4);return Buffer.concat([header,body])}
+
+/** 真实MessageChannel和自有Node转换进程；DefaultOwner/系统sips/nativeImage仍未覆盖。 */
+test('WebP普通专辑入口：实际Utility→Main往返沿同原2s，系统副本闭口后返回JPEG展示并保源身份',async t=>{
+  assert.equal(process.platform,'darwin')
+  const temporary=process.env.TMPDIR;if(!temporary?.startsWith('/Volumes/LifeWeave/Developer/CommandLine/tmp/'))throw Error('原图片组件必须使用外置临时根')
+  const directory=await albumOsTemp(albumOsPath.join(temporary,'album-webp-main-')),privateRoot=albumOsPath.join(directory,'captured');await albumOsMkdir(privateRoot,{mode:0o700})
+  const raw=albumOsWebp(),deadlines:number[]=[],physical:{closed:boolean;stdout:boolean;stderr:boolean}[]=[]
+  const image:ArtworkRouteDecoder={isEmpty:()=>false,getSize:()=>({width:16,height:16}),resize:()=>image,toJPEG:()=>Buffer.from(artworkRouteJpeg)}
+  const adapter=createLocalArtworkImportNormalizer({privateRoot,decode:()=>image,spawnProcess(_input,output,cwd){
+    const child=albumOsSpawn('/Users/yihe/.nvm/versions/node/v22.23.2/bin/node',['-e',"require('node:fs').writeFileSync(process.argv[1],Buffer.from(process.argv[2],'base64'))",output,artworkRouteJpeg.toString('base64')],{cwd,detached:true,stdio:['ignore','pipe','pipe'],env:{LANG:'C',LC_ALL:'C',TMPDIR:cwd}})
+    const state={closed:false,stdout:false,stderr:false};physical.push(state);child.once('close',()=>{state.closed=true});child.stdout.once('close',()=>{state.stdout=true});child.stderr.once('close',()=>{state.stderr=true});return child
+  }})
+  const normalize=createLocalAlbumArtworkNormalizer(()=>image,adapter)
+  const h=await artworkRouteFixture(t,{normalize:async(copies,context)=>{deadlines.push(context.deadlineAtMs);return normalize(copies,context)}})
+  try{
+    const sourceIdentity=artworkRouteHash('sha256').update(raw).digest('hex'),copies:artworkRouteDto.LocalArtworkSourceCopies={status:'ready',items:[{origin:'local-independent',sourceIdentity,sourceLabel:'自有受控WebP',base64:raw.toString('base64')}]}
+    const before=Buffer.from(raw),value=await h.bridge.call({copies},h.scope)
+    assert.ok(value.image);assert.equal(value.status,'ready');assert.equal(value.image.original.mime,'image/jpeg');assert.equal(value.image.original.sha256,artworkRouteHash('sha256').update(artworkRouteJpeg).digest('hex'));assert.notEqual(value.image.original.sha256,sourceIdentity)
+    assert.equal(value.image.display.width,16);assert.equal(value.image.display.height,16);assert.deepEqual(raw,before);assert.equal(deadlines.length,1);assert.ok(deadlines[0]!>performance.now())
+    assert.deepEqual(physical,[{closed:true,stdout:true,stderr:true}]);assert.deepEqual(await albumOsRead(privateRoot),[]);assert.equal(h.bridge.pending(),0);assert.equal(h.fatals.length,0)
+    await h.finish();await adapter.close();assert.deepEqual(adapter.inspect(),{active:0,retained:0,closing:true})
+  }finally{await h.finish();await adapter.close();await albumOsRm(directory,{recursive:true,force:true})}
+})
+
+test('WebP普通专辑入口：所有副本共用原截止，物理失败不借后续JPEG冒无图或ready',async t=>{
+  const signal=new AbortController(),deadlineAtMs=performance.now()+2000,physical=new AlbumOsPhysicalError(new Error('受控实际收尾未确认')),seen:number[]=[]
+  let calls=0,currentChecks=0
+  const assertCurrent=()=>{currentChecks++},original={signal:signal.signal,deadlineAtMs,assertCurrent}
+  const normalize=createLocalAlbumArtworkNormalizer(()=>{assert.fail('本例不能绕过原异步作者')},{async normalize(_bytes,context){
+    calls++;seen.push(context.deadlineAtMs);assert.equal(context.signal,original.signal);assert.equal(context.assertCurrent,assertCurrent);throw physical
+  }})
+  const raw=albumOsWebp(),copies:artworkRouteDto.LocalArtworkSourceCopies={status:'ready',items:[{origin:'embedded',sourceIdentity:artworkRouteHash('sha256').update(raw).digest('hex'),sourceLabel:'自有WebP',base64:raw.toString('base64')},{origin:'local-independent',sourceIdentity:artworkRouteHash('sha256').update(artworkRouteJpeg).digest('hex'),sourceLabel:'自有JPEG',base64:artworkRouteJpeg.toString('base64')}]}
+  assert.ok(artworkRouteDto.isLocalArtworkCommandResult('localArtwork.readCandidates',copies),'受控副本先满足原DTO身份与闭字段，不能以早拒冒物理错误验证')
+  await assert.rejects(normalize(copies,original),error=>error===physical);assert.equal(calls,1);assert.deepEqual(seen,[deadlineAtMs]);assert.ok(currentChecks>=2)
+  await assert.rejects(normalize(copies));assert.equal(calls,1,'缺原context不得新建截止或进入adapter')
+  const cancelled=new AbortController();cancelled.abort();await assert.rejects(normalize(copies,{signal:cancelled.signal,deadlineAtMs}),{name:'AbortError'});assert.equal(calls,1)
+})

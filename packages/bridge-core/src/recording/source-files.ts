@@ -29,7 +29,7 @@ export class SourcePublicationUnverified extends Error {
 }
 
 /** 真 FD/fstat 得到全集合，再分组取原读保护；跨复核与 COMMIT 保留到实际 FD quiet。 */
-export async function withReadonlySourcePublicationClaims<T>(sources: readonly PublicationSource[], signal: AbortSignal, consume: (verify: () => Promise<void>, files: readonly PublicationFile[]) => Promise<T> | T): Promise<T> {
+export async function withReadonlySourcePublicationClaims<T>(sources: readonly PublicationSource[], signal: AbortSignal, consume: (verify: () => Promise<void>, files: readonly PublicationFile[]) => Promise<T> | T, joinConsumer?: () => Promise<void>): Promise<T> {
   if (!Array.isArray(sources) || !sources.length || sources.length > 2048) return fail('LIMIT_EXCEEDED');
   const files: PublicationFile[] = [];
   let claims: PhysicalReadClaims | undefined, namespaceClaims: SourceNamespaceReadClaims | undefined, retained = false;
@@ -70,6 +70,11 @@ export async function withReadonlySourcePublicationClaims<T>(sources: readonly P
     throw error;
   } finally {
     if (!retained) {
+      // 继承FD的Native生产者也必须实际quiet；promise返回不能代替子进程/进程组join。
+      // 未核实则连原Source FD和两组保护一起保留，不发布虚假的release。
+      try { await joinConsumer?.(); }
+      catch (error) { claims?.retain(); namespaceClaims?.retain(); retained=true;
+        throw new SourcePublicationUnverified('RELEASE_UNVERIFIED',claims,files,error,namespaceClaims); }
       const closed = await Promise.allSettled(files.map(file => file.handle.close()));
       const failure = closed.find((result): result is PromiseRejectedResult => result.status === 'rejected');
       if (failure) { claims?.retain(); namespaceClaims?.retain(); throw new SourcePublicationUnverified('RELEASE_UNVERIFIED', claims, files, failure.reason, namespaceClaims); }
@@ -301,7 +306,9 @@ export async function readonlySourceDirectoryEntries(root: RootCapability, relat
         if (!entry) break;
         entries.push(entry);
       }
-    } finally { await handle.close(); }
+    } finally {
+      try { await handle.close(); } catch { throw new MetadataLeaseReleaseError(); }
+    }
     check();
     // 恰好触及限额时保守标记截断，避免为判断“是否还有下一项”突破全局读取预算。
     const truncated = entries.length === remaining;
@@ -310,7 +317,7 @@ export async function readonlySourceDirectoryEntries(root: RootCapability, relat
     if (signature(before) !== signature(after) || !after.isDirectory() || await realpath(current) !== current || await sourceRootAvailability(root) !== 'ONLINE') return fail('CONTENT_CHANGED');
     return { entries, truncated };
   } catch (error) {
-    if (error instanceof SourceFileError) throw error;
+    if (error instanceof SourceFileError || error instanceof MetadataLeaseReleaseError) throw error;
     return fail((error as NodeJS.ErrnoException).code === 'ENOENT' ? 'MISSING' : 'IO_ERROR');
   }
 }
@@ -321,6 +328,35 @@ export async function readonlySourceCandidateMetadata(root: RootCapability, rela
   if (info.nlink !== 1n) return fail('OUTSIDE_ROOT');
   if (info.size < 1n || info.size > 68_719_476_736n) return fail('LIMIT_EXCEEDED');
   return { signature: signature(info), directoryIds, size: Number(info.size), modifiedAt: new Date(Number(info.mtimeNs / 1_000_000n)).toISOString() };
+}
+/** 固定叶名只恢复同一规范父目录中的实际大小写；原Source严格读取合同不变。 */
+export async function readonlySourceCaseMatchedCandidateMetadata(root:RootCapability,relative:string,assertCurrent:()=>void):Promise<{relative:string;signature:string;directoryIds:readonly string[];size:number;modifiedAt:string}>{
+  const check=():void=>assertCurrent();check();
+  if(path.isAbsolute(relative)||relative.split(path.sep).some(part=>!part||part==='.'||part==='..'))return fail('OUTSIDE_ROOT');
+  const available=await sourceRootAvailability(root);check();if(available!=='ONLINE')return fail(available);
+  const parts=relative.split(path.sep),leaf=parts.at(-1)!;
+  // 此发现口仅供固定ASCII文件名；不把任意路径或Unicode归一化变成新许可。
+  if(!/^[A-Za-z0-9._-]{1,240}$/u.test(leaf))return fail('OUTSIDE_ROOT');
+  const ancestors:{absolute:string;info:BigIntStats}[]=[];let parent=root.path;
+  const same=(a:BigIntStats,b:BigIntStats):boolean=>signature(a)===signature(b)&&a.birthtimeNs===b.birthtimeNs&&a.mode===b.mode&&a.uid===b.uid&&a.gid===b.gid&&a.nlink===b.nlink;
+  try{
+    for(const part of ['',...parts.slice(0,-1)]){
+      if(part)parent=path.join(parent,part);check();const info=await lstat(parent,{bigint:true});check();
+      if(!info.isDirectory()||info.isSymbolicLink()||await realpath(parent)!==parent)return fail('OUTSIDE_ROOT');check();ancestors.push({absolute:parent,info});
+    }
+    const requested=path.join(parent,leaf),before=await lstat(requested,{bigint:true});check();
+    if(!before.isFile()||before.isSymbolicLink()||before.nlink!==1n)return fail('OUTSIDE_ROOT');
+    const actual=await realpath(requested);check();
+    if(path.dirname(actual)!==parent||path.basename(actual).toLowerCase()!==leaf.toLowerCase())return fail('OUTSIDE_ROOT');
+    const matched=path.relative(root.path,actual),checked=await checkedFile(root,matched);check();
+    if(!same(before,checked.info))return fail('CONTENT_CHANGED');
+    const metadata=await readonlySourceCandidateMetadata(root,matched);check();
+    const after=await lstat(requested,{bigint:true});check();
+    if(!after.isFile()||after.isSymbolicLink()||!same(before,after)||metadata.signature!==signature(before))return fail('CONTENT_CHANGED');
+    for(const ancestor of ancestors){const current=await lstat(ancestor.absolute,{bigint:true});check();if(!current.isDirectory()||current.isSymbolicLink()||!same(ancestor.info,current)||await realpath(ancestor.absolute)!==ancestor.absolute)return fail('CONTENT_CHANGED');check();}
+    if(await sourceRootAvailability(root)!=='ONLINE')return fail('SOURCE_ROOT_OFFLINE');check();
+    return {relative:matched,...metadata};
+  }catch(error){if(error instanceof SourceFileError)throw error;return fail((error as NodeJS.ErrnoException).code==='ENOENT'?'MISSING':'IO_ERROR');}
 }
 export async function sourceFileAvailability(root: RootCapability, relative: string, expected: string): Promise<SourceAvailability> {
   try { return signature((await checkedFile(root, relative)).info) === expected ? 'ONLINE' : 'CONTENT_CHANGED'; }
@@ -581,4 +617,301 @@ export async function probeReadonlySource(root: RootCapability, relative: string
     if (signature(await handle.stat({ bigint: true })) !== signature(before) || signature((await checkedFile(root, relative)).info) !== signature(before)) return fail('CONTENT_CHANGED');
     return { sha256: hash.digest('hex'), size: Number(before.size), signature: signature(before), modifiedAt: new Date(Number(before.mtimeNs / 1_000_000n)).toISOString(), verifiedAt: new Date().toISOString(), technical };
   } finally { await handle.close(); await guard.release(); }
+}
+
+// 独立LYRICS作者：不把标签/封面旧范围cast成歌词，也不改变旧publisher的4MiB边界。
+import { link as lyricsLink, rename as lyricsRename, unlink as lyricsUnlink } from 'node:fs/promises';
+import { acquirePhysicalWriteClaims, registerPhysicalWriteClaimDescriptors, closePhysicalWriteClaimDescriptors, releaseRetainedPhysicalWriteClaims } from '../stream/physical-resource-claims.js';
+import { acquireSourceNamespaceWrite, releaseSourceNamespaceWrite, retainSourceNamespaceWrite, type SourceNamespaceOperation, type SourceNamespaceHeldScope } from '../stream/source-namespace-claims.js';
+import { sourceWritesPolicy } from '../collection/local-source-writes-journal.js';
+import { assertSourceWritesMainActor, requestSourceWritesLyricsGrant, assertSourceWritesLyricsGrant, SourceWritesLyricsGrantError, type SourceWritesMainActor, type SourceWritesLyricsGrant } from '../collection/source-writes-authority.js';
+import { LocalLyricsError, lyricsCanonical, lyricsDigest, type LocalLyricsSaveIntent, type LocalLyricsSelectedBody, type LocalLyricsSaveRecord, type LocalLyricsProtectedWriteResult } from '../collection/local-library-lyrics/types.js';
+import { assertLocalLyricsSaveRecord } from '../collection/local-library-lyrics/save-coordinator.js';
+import type { LocalCatalogStore } from '../collection/local-catalog-store.js';
+import type { DatasetIdentity } from './dataset-identity.js';
+import type { LocalLyricsWriteBinding, LocalLyricsHeldPublication, LocalLyricsSourceFilesAuthor } from '../collection/local-library-workbench/lyrics-writer.js';
+import type { SourceFileAttributes, PublisherTarget } from '../collection/source-writes-publisher.js';
+import { LOCAL_LYRICS_PHYSICAL_LIMITS, captureLocalLyricsPhysicalBinding, captureLocalLyricsPhysicalGroup, captureLocalLyricsPhysicalRecord,
+  assertLocalLyricsPhysicalTransition, localLyricsPhysicalOperationId, lyricsPhysicalDigest, observeLyricsSourceAttributes,
+  assertLyricsNativeFidelityPort, lyricsNativeTemporaryRoot, observeLyricsSourceFormat, type LyricsNativeFidelityPort, type LyricsNativeBaseline, type LocalLyricsPhysicalStore, type LocalLyricsPhysicalBinding,
+  type LocalLyricsPhysicalRecord, type LocalLyricsPhysicalGroup, type LocalLyricsPhysicalArtifact, type LocalLyricsPhysicalResource } from '../library/lyrics-source-format.js';
+
+export interface LyricsResolvedOriginalGroup {
+  /** 原Owner保存capture的完整摘要；自身提交造成的变化必须由原commit lineage复核，不能刷新水位充授权。 */
+  captureSha256:string;group:LocalLyricsPhysicalGroup;roots:readonly RootCapability[];
+  assertCurrent():void|Promise<void>;
+}
+export interface LyricsSourceSafetyPort {
+  reserveLyrics(targets:readonly PublisherTarget[],extraBytes:number):Promise<{id:string;directory:string;release():void}>;
+}
+export interface LyricsSourceFilesAuthorOptions {
+  identity:DatasetIdentity;ownerEpoch:string;catalog:LocalCatalogStore&LocalLyricsPhysicalStore;
+  mainActor:SourceWritesMainActor;native:LyricsNativeFidelityPort;sourceSafety:LyricsSourceSafetyPort;
+  /** 原writer实际TagLib actor的join；不可用race或声明字段代替子进程关闭。 */
+  joinTaggedWriter(commandId:string):Promise<void>;
+  /** Root唯一原作者从saved intent/readToken解析全组；不能接受UI给出的path或不完整track数组。 */
+  resolveOriginalGroup(binding:Readonly<LocalLyricsWriteBinding>,intent:Readonly<LocalLyricsSaveIntent>,signal:AbortSignal):Promise<LyricsResolvedOriginalGroup>;
+  assertAccepting():void;
+}
+interface LyricsHeldFile {handle:FileHandle;root:RootCapability;relative:string;info:BigIntStats;sha256:string|null;source:boolean}
+interface LyricsPublicationState {
+  publication:LocalLyricsHeldPublication;binding:LocalLyricsPhysicalBinding;intent:LocalLyricsSaveIntent;selected:LocalLyricsSelectedBody;
+  resolved:LyricsResolvedOriginalGroup;record:LocalLyricsPhysicalRecord;grantRevision:number;grant:SourceWritesLyricsGrant;
+  physical:PhysicalWriteClaims;namespace:LocalLyricsHeldPublication['namespace'];files:LyricsHeldFile[];source:LyricsHeldFile;
+  stage:LyricsHeldFile|null;backup:LyricsHeldFile|null;targetRelative:string;stageRelative:string;backupRelative:string;quarantineRelative:string;
+  privateRoot:RootCapability;reservation:{id:string;directory:string;release():void};policyRevision:string;attributes:SourceFileAttributes;baseline:LyricsNativeBaseline|null;signal:AbortSignal;controller:AbortController;
+  task:Promise<LocalLyricsProtectedWriteResult>|null;finished:boolean;unknown:boolean;moved:boolean;
+}
+const lyricsPublications=new WeakMap<object,LyricsPublicationState>();
+const lyricsPhysicalResource=(s:BigIntStats)=>({dev:String(s.dev),ino:String(s.ino)});
+const sameLyricsAttributes=(a:SourceFileAttributes,b:SourceFileAttributes):boolean=>a.mode===b.mode&&a.uid===b.uid&&a.gid===b.gid&&a.proof===b.proof
+  &&(a.proof!=='MACOS_PROVENANCE_ONLY_ACL_FLAGS_V1'||b.proof==='MACOS_PROVENANCE_ONLY_ACL_FLAGS_V1'&&a.provenance.sha256===b.provenance.sha256&&a.provenance.bytes===b.provenance.bytes);
+function lyricsSameBinding(original:LocalLyricsWriteBinding,next:LocalLyricsWriteBinding):boolean {
+  const keys=['datasetId','commandId','sessionId','intentFingerprint','libraryId','albumId','captureId','trackId','candidateId','bodySha256','kind','rootRevision','fileRevision','locationRevision','metadataRevision'] as const;
+  return keys.every(k=>original[k]===next[k]);
+}
+function lyricsRelativeNames(relative:string,operationId:string,kind:'lrc'|'embed') {
+  const directory=path.posix.dirname(relative),base=path.posix.basename(relative),dot=base.lastIndexOf('.');
+  if(dot<1)throw new LocalLyricsError('CONFLICT');const join=(name:string)=>directory==='.'?name:directory+'/'+name;
+  return {target:kind==='embed'?relative:join(base.slice(0,dot)+'.lrc'),stage:join(`.mb-lyrics-${operationId}.stage`),backup:join(`.mb-lyrics-${operationId}.backup`),quarantine:join(`.mb-lyrics-${operationId}.original`)};
+}
+async function lyricsFdHash(handle:FileHandle,maximum:number,signal:AbortSignal):Promise<{sha256:string;bytes:number}> {
+  const before=await handle.stat({bigint:true});if(!before.isFile()||before.size<0n||before.size>BigInt(maximum))throw new LocalLyricsError('BUDGET');
+  const h=createHash('sha256'),chunk=Buffer.allocUnsafe(1024*1024);let at=0;
+  while(at<Number(before.size)){if(signal.aborted)throw new LocalLyricsError('CLOSED');const n=await handle.read(chunk,0,Math.min(chunk.length,Number(before.size)-at),at);if(!n.bytesRead)throw new LocalLyricsError('CONFLICT');h.update(chunk.subarray(0,n.bytesRead));at+=n.bytesRead;}
+  const after=await handle.stat({bigint:true});if(signature(after)!==signature(before)||after.birthtimeNs!==before.birthtimeNs)throw new LocalLyricsError('STALE');return {sha256:h.digest('hex'),bytes:at};
+}
+async function lyricsCopyFd(source:FileHandle,target:FileHandle,expected:LocalLyricsPhysicalResource,signal:AbortSignal):Promise<void> {
+  if((await target.stat()).size!==0)throw new LocalLyricsError('CONFLICT');const chunk=Buffer.allocUnsafe(1024*1024);let at=0;
+  while(at<expected.bytes){if(signal.aborted)throw new LocalLyricsError('CLOSED');const n=await source.read(chunk,0,Math.min(chunk.length,expected.bytes-at),at);if(!n.bytesRead)throw new LocalLyricsError('CONFLICT');let wrote=0;while(wrote<n.bytesRead){const w=await target.write(chunk,wrote,n.bytesRead-wrote,at+wrote);if(!w.bytesWritten)throw new LocalLyricsError('CONFLICT');wrote+=w.bytesWritten;}at+=n.bytesRead;}
+  await target.sync();const actual=await lyricsFdHash(target,LOCAL_LYRICS_PHYSICAL_LIMITS.sourceBytes,signal);if(actual.bytes!==expected.bytes||actual.sha256!==expected.sha256)throw new LocalLyricsError('CONFLICT');
+}
+/** 原同连接ledger+实际Mainport+全group解析+实际EOF作者缺一不可。 */
+export function createLyricsSourceFilesAuthor(options:LyricsSourceFilesAuthorOptions):LocalLyricsSourceFilesAuthor {
+  const {identity,catalog,native}=options;
+  if(!options.ownerEpoch||!['privateLyricsPhysicalRead','privateLyricsPhysicalCompareAndSwap','privateLyricsPhysicalCommitPublication'].every(k=>typeof (catalog as unknown as Record<string,unknown>)?.[k]==='function')
+    ||typeof options.sourceSafety?.reserveLyrics!=='function'||typeof options.joinTaggedWriter!=='function'||typeof options.resolveOriginalGroup!=='function'||typeof options.assertAccepting!=='function')throw new LocalLyricsError('CLOSED');
+  assertSourceWritesMainActor(options.mainActor);assertLyricsNativeFidelityPort(native);
+  let closing=false;const held=new Map<string,Set<LyricsPublicationState>>(),preparing=new Set<string>();
+  function policy(){return catalog.privateSourceWritesRead(v=>sourceWritesPolicy(v.projection,identity.datasetId));}
+  function accepting(signal?:AbortSignal):void{identity.assertCurrent();options.assertAccepting();assertSourceWritesMainActor(options.mainActor);if(closing||signal?.aborted||!policy().enabled||policy().draining)throw new LocalLyricsError('CLOSED');}
+  function saved(binding:LocalLyricsWriteBinding,intent:LocalLyricsSaveIntent,selected:LocalLyricsSelectedBody):void {
+    accepting();const stored=catalog.privateLyricsRecord(identity.datasetId,'save',binding.commandId) as LocalLyricsSaveRecord|null;
+    if(!stored)throw new LocalLyricsError('NOT_FOUND');assertLocalLyricsSaveRecord(stored);
+    if(binding.datasetId!==identity.datasetId||binding.ownerEpoch!==options.ownerEpoch||lyricsCanonical(stored.intent)!==lyricsCanonical(intent)||binding.intentFingerprint!==intent.fingerprint
+      ||!intent.selected.some(v=>lyricsCanonical(v)===lyricsCanonical(selected))||binding.trackId!==selected.track.trackId||binding.candidateId!==selected.candidateId||binding.bodySha256!==selected.sha256
+      ||lyricsDigest(selected.body)!==selected.sha256||selected.track.wholeTrack||binding.kind==='embed'&&(!intent.request.embed||!['wav','flac'].includes(selected.track.format)))throw new LocalLyricsError('STALE');
+  }
+  function read(binding:LocalLyricsWriteBinding){
+    identity.assertCurrent();const original=catalog.privateLyricsPhysicalRead(identity,localLyricsPhysicalOperationId(binding));
+    if(!original)return null;const record=captureLocalLyricsPhysicalRecord(original.record);if(!Number.isSafeInteger(original.ledgerSequence)||original.ledgerSequence<1||!lyricsSameBinding(record.binding,binding))throw new LocalLyricsError('CONFLICT');return {record,ledgerSequence:original.ledgerSequence};
+  }
+  function write(state:LyricsPublicationState|{record:LocalLyricsPhysicalRecord},patch:Partial<LocalLyricsPhysicalRecord>,commit=false):void {
+    identity.assertCurrent();if(commit&&'grant'in state)assertSourceWritesLyricsGrant(state.grant,options.mainActor,state.binding,state.grantRevision);
+    const previous=state.record,next=captureLocalLyricsPhysicalRecord({...previous,...patch,revision:previous.revision+1});
+    assertLocalLyricsPhysicalTransition(previous,next);const seq=commit?catalog.privateLyricsPhysicalCommitPublication(identity,next,previous.revision):catalog.privateLyricsPhysicalCompareAndSwap(identity,next,previous.revision);
+    if(!Number.isSafeInteger(seq)||seq<1)throw new LocalLyricsError('CONFLICT');state.record=next;
+  }
+  async function artifact(file:LyricsHeldFile,signal:AbortSignal):Promise<LocalLyricsPhysicalArtifact>{
+    const actual=await file.handle.stat({bigint:true}),observed=await lyricsFdHash(file.handle,LOCAL_LYRICS_PHYSICAL_LIMITS.sourceBytes,signal);
+    return {rootId:file.root.id,relative:file.relative,sha256:observed.sha256,bytes:observed.bytes,signature:signature(actual),birthtimeNs:String(actual.birthtimeNs),permissionMode:String(actual.mode&0o7777n),uid:String(actual.uid),gid:String(actual.gid),...lyricsPhysicalResource(actual)};
+  }
+  async function verify(state:LyricsPublicationState,intent?:LocalLyricsSaveIntent):Promise<void>{
+    accepting(state.signal);if(policy().revision!==state.policyRevision)throw new LocalLyricsError('STALE');if(state.finished||state.unknown)throw new LocalLyricsError('CLOSED');
+    assertSourceWritesLyricsGrant(state.grant,options.mainActor,state.binding,state.grantRevision);
+    if(intent&&lyricsCanonical(intent)!==lyricsCanonical(state.intent))throw new LocalLyricsError('STALE');
+    await state.resolved.assertCurrent();assertPhysicalWriteClaims(state.physical,[]);assertSourceNamespaceHeld(state.namespace.token,state.namespace.scope);
+    for(const f of state.files.filter(v=>v.source)){
+      const actual=await f.handle.stat({bigint:true});if(signature(actual)!==signature(f.info)||actual.birthtimeNs!==f.info.birthtimeNs||actual.nlink!==1n)throw new LocalLyricsError('STALE');
+      const named=await checkedFile(f.root,f.relative);if(signature(named.info)!==signature(f.info)||named.info.birthtimeNs!==f.info.birthtimeNs)throw new LocalLyricsError('STALE');
+    }
+    for(const f of state.files.filter(v=>!v.source)){
+      const actual=await f.handle.stat({bigint:true}),named=await lstat(path.join(f.root.path,f.relative),{bigint:true});
+      if(actual.dev!==f.info.dev||actual.ino!==f.info.ino||actual.birthtimeNs!==f.info.birthtimeNs||named.dev!==actual.dev||named.ino!==actual.ino||named.birthtimeNs!==actual.birthtimeNs)throw new LocalLyricsError('STALE');
+    }
+    accepting(state.signal);
+  }
+  async function retainUnknown(state:LyricsPublicationState):Promise<void>{
+    state.unknown=true;try{state.physical.retain();}catch{/* 原失权不重新构造。 */}try{retainSourceNamespaceWrite(state.namespace.token);}catch{/* 保留最早事实。 */}
+    if(state.record.phase!=='UNKNOWN')try{write(state,{phase:'UNKNOWN',result:{state:'unknown',bodySha256:null},unresolved:true});}catch{/* 失败原件仍为冷恢复依据，不伪报closed。 */}
+  }
+  async function finish(state:LyricsPublicationState,result:LocalLyricsProtectedWriteResult):Promise<LocalLyricsProtectedWriteResult>{
+    // 实际Nativejoin在FD quiet之前，claims与namespace跨事实COMMIT全程持有。
+    try{
+      await options.joinTaggedWriter(state.binding.commandId);await native.join(state.binding.commandId);
+      if(state.record.phase==='FACTS_COMMITTED'){
+        await closePhysicalWriteClaimDescriptors(state.physical);write(state,{phase:'QUIET',physicalClosed:true});
+        await state.physical.release();await releaseSourceNamespaceWrite(state.namespace.token,[state.record.operationId]);
+        write(state,{phase:'CLOSED',protectionReleased:true,unresolved:false,result});
+      }else{
+        const guard=new AbortController().signal;const artifacts={...state.record.artifacts,stage:state.stage?await artifact(state.stage,guard):null,backup:state.backup?await artifact(state.backup,guard):null};
+        await closePhysicalWriteClaimDescriptors(state.physical);await state.physical.release();await releaseSourceNamespaceWrite(state.namespace.token,[state.record.operationId]);
+        write(state,{artifacts,phase:'FAILED',physicalClosed:true,protectionReleased:true,unresolved:false,result:{state:'failed',bodySha256:result.bodySha256}});
+      }
+      state.reservation.release();state.finished=true;held.get(state.binding.commandId)?.delete(state);return result;
+    }catch{await retainUnknown(state);throw new LocalLyricsError('CLOSED');}
+  }
+  async function prepare(binding:LocalLyricsWriteBinding,intent:LocalLyricsSaveIntent,selected:LocalLyricsSelectedBody,actor:SourceWritesMainActor,signal:AbortSignal,retry:boolean):Promise<LocalLyricsHeldPublication>{
+    accepting(signal);if(actor!==options.mainActor)throw new LocalLyricsError('CLOSED');saved(binding,intent,selected);
+    const policyRevision=policy().revision;const operationId=localLyricsPhysicalOperationId(binding);if(preparing.has(operationId)||[...held.values()].some(set=>[...set].some(s=>s.record.operationId===operationId)))throw new LocalLyricsError('IN_FLIGHT');
+    const old=read(binding);if(old&&(!retry||old.record.phase!=='FAILED'||!old.record.physicalClosed||!old.record.protectionReleased||old.record.unresolved))throw new LocalLyricsError('IN_FLIGHT');
+    if(retry&&!old)throw new LocalLyricsError('NOT_FOUND');preparing.add(operationId);
+    const files:LyricsHeldFile[]=[];let physical:PhysicalWriteClaims|undefined,namespace:LocalLyricsHeldPublication['namespace']|undefined,state:LyricsPublicationState|undefined;
+    let bare:{record:LocalLyricsPhysicalRecord}|undefined,reservation:Awaited<ReturnType<LyricsSourceSafetyPort['reserveLyrics']>>|undefined;
+    try{
+      const resolved=await options.resolveOriginalGroup(binding,intent,signal);await resolved.assertCurrent();const group=captureLocalLyricsPhysicalGroup(resolved.group);
+      if(resolved.captureSha256!==intent.captureFingerprint||new Set(resolved.roots.map(v=>v.id)).size!==resolved.roots.length)throw new LocalLyricsError('STALE');
+      const member=group.members.find(v=>v.trackId===binding.trackId);if(!member||['rootRevision','fileRevision','locationRevision','metadataRevision'].some(k=>member[k as keyof typeof member]!==binding[k as keyof typeof binding]))throw new LocalLyricsError('STALE');
+      const resource=group.resources[member.resourceIndex]!,root=resolved.roots.find(v=>v.id===resource.rootId);if(!root)throw new LocalLyricsError('STALE');
+      const targetCount=intent.selected.length*(intent.request.embed?2:1);if(targetCount>100)throw new LocalLyricsError('BUDGET');
+      const directories=new Map<string,{root:RootCapability;relative:string;absolute:string;info:BigIntStats}>();
+      for(const r of group.resources){accepting(signal);const capability=resolved.roots.find(v=>v.id===r.rootId);if(!capability)throw new LocalLyricsError('STALE');
+        const named=await checkedFile(capability,r.relative);if(signature(named.info)!==r.signature||String(named.info.birthtimeNs)!==r.birthtimeNs||named.info.nlink!==1n||named.info.size!==BigInt(r.bytes))throw new LocalLyricsError('STALE');
+        const handle=await open(named.absolute,constants.O_RDONLY|constants.O_NOFOLLOW),info=await handle.stat({bigint:true});files.push({handle,root:capability,relative:r.relative,info,sha256:r.sha256,source:true});
+        if(signature(info)!==r.signature||info.nlink!==1n||String(info.birthtimeNs)!==r.birthtimeNs||String(info.dev)!==r.dev||String(info.ino)!==r.ino||String(info.uid)!==r.uid||String(info.gid)!==r.gid||String(info.mode&0o7777n)!==r.permissionMode)throw new LocalLyricsError('STALE');
+        let cursor=capability.path;for(const part of ['',...r.relative.split('/').slice(0,-1)]){if(part)cursor=path.join(cursor,part);const info=await lstat(cursor,{bigint:true});if(!info.isDirectory()||info.isSymbolicLink())throw new LocalLyricsError('STALE');directories.set(`${info.dev}:${info.ino}`,{root:capability,relative:path.relative(capability.path,cursor),absolute:cursor,info});}
+      }
+      // 预先按整个业务intent的最大保护副本/备份集合核物理界，不能逐轨split绕过2048。
+      if(group.resources.length+directories.size+targetCount*3>2048)throw new LocalLyricsError('BUDGET');
+      for(const d of directories.values()){const handle=await open(d.absolute,constants.O_RDONLY|constants.O_NOFOLLOW);files.push({handle,root:d.root,relative:d.relative,info:await handle.stat({bigint:true}),sha256:null,source:false});}
+      let extraBytes=0;const safetyTargets:PublisherTarget[]=[];
+      for(const choice of intent.selected){const m=group.members.find(v=>v.trackId===choice.track.trackId);if(!m)throw new LocalLyricsError('STALE');const r=group.resources[m.resourceIndex]!,cap=resolved.roots.find(v=>v.id===r.rootId)!;
+        const names=lyricsRelativeNames(r.relative,localLyricsPhysicalOperationId({...binding,trackId:m.trackId,kind:'lrc'}),'lrc');
+        safetyTargets.push({operationId:localLyricsPhysicalOperationId({...binding,trackId:m.trackId,kind:'lrc'}),root:cap,libraryRootPath:cap.path,relative:names.target,expected:null,attributes:null,change:null,replacementBytes:Buffer.from(choice.body,'utf8')});
+        if(intent.request.embed){const observation=await observeLyricsSourceFormat(files[m.resourceIndex]!.handle,choice.track.format as 'wav'|'flac',signal);extraBytes+=observation.frames*observation.channels*4*2;
+          safetyTargets.push({operationId:localLyricsPhysicalOperationId({...binding,trackId:m.trackId,kind:'embed'}),root:cap,libraryRootPath:cap.path,relative:r.relative,expected:{sha256:r.sha256,bytes:r.bytes,signature:r.signature,physical:{dev:r.dev,ino:r.ino},permissionMode:r.permissionMode,birthtimeNs:r.birthtimeNs},attributes:null,change:null,replacementBytes:null});}
+      }
+      if(!Number.isSafeInteger(extraBytes)||extraBytes>LOCAL_LYRICS_PHYSICAL_LIMITS.sourceGroupBytes)throw new LocalLyricsError('BUDGET');
+      if(new Set(safetyTargets.map(t=>path.join(t.root.path,t.relative))).size!==safetyTargets.length)throw new LocalLyricsError('CONFLICT');
+      reservation=await options.sourceSafety.reserveLyrics(safetyTargets,extraBytes);
+      const privateRoot={...await authorizeSourceDirectory(reservation.directory),id:'lyrics-safety-'+identity.datasetId};
+      const temp=lyricsNativeTemporaryRoot(native);if(temp!==reservation.directory&&!temp.startsWith(reservation.directory+path.sep))throw new LocalLyricsError('CLOSED');
+      const privateHandle=await open(privateRoot.path,constants.O_RDONLY|constants.O_NOFOLLOW);files.push({handle:privateHandle,root:privateRoot,relative:'',info:await privateHandle.stat({bigint:true}),sha256:null,source:false});
+      const allNames:SourceNamespaceOperation[]=[];for(const r of group.resources){const capability=resolved.roots.find(v=>v.id===r.rootId)!;allNames.push({operationId,name:await captureSourceNamespace(capability,r.relative)});}
+      for(const selectedMember of intent.selected){const m=group.members.find(v=>v.trackId===selectedMember.track.trackId);if(!m)throw new LocalLyricsError('STALE');const r=group.resources[m.resourceIndex]!,capability=resolved.roots.find(v=>v.id===r.rootId)!;
+        for(const kind of intent.request.embed?(['lrc','embed'] as const):(['lrc'] as const)){const names=lyricsRelativeNames(r.relative,localLyricsPhysicalOperationId({...binding,trackId:m.trackId,kind}),kind);allNames.push({operationId,name:await captureSourceNamespace(capability,names.target)});const privateOperation=localLyricsPhysicalOperationId({...binding,trackId:m.trackId,kind});for(const suffix of ['stage','backup','original'])allNames.push({operationId,name:await captureSourceNamespace(privateRoot,privateOperation+'.'+suffix)});}}
+      const completeNames=[...new Map(allNames.map(v=>[v.operationId+'\0'+v.name.absolute,v])).values()];if(completeNames.length>2048)throw new LocalLyricsError('BUDGET');
+      const protectionSha256=lyricsPhysicalDigest(group),wire=captureLocalLyricsPhysicalBinding(old?{...old.record.binding,ownerEpoch:binding.ownerEpoch}:{...binding,originalIntentSha256:lyricsPhysicalDigest(intent),originalRequestSha256:lyricsPhysicalDigest(intent.request),groupCaptureSha256:resolved.captureSha256,protectionSha256,memberCount:group.members.length,resourceCount:group.resources.length,targetCount});
+      if(old){
+        if(lyricsPhysicalDigest(old.record.original.members)!==lyricsPhysicalDigest(group.members)||old.record.original.resources.length!==group.resources.length)throw new LocalLyricsError('STALE');
+        for(const [index,current] of group.resources.entries()){const previous=old.record.original.resources[index]!;if(lyricsPhysicalDigest(previous)===lyricsPhysicalDigest(current))continue;
+          if(previous.rootId!==current.rootId||previous.relative!==current.relative)throw new LocalLyricsError('STALE');
+          const proved=intent.selected.some(item=>{const m=group.members.find(v=>v.trackId===item.track.trackId);if(m?.resourceIndex!==index)return false;
+            const candidate=catalog.privateLyricsPhysicalRead(identity,localLyricsPhysicalOperationId({...binding,trackId:item.track.trackId,kind:'embed'}));if(!candidate)return false;const record=captureLocalLyricsPhysicalRecord(candidate.record),after=record.artifacts.target;
+            return record.phase==='CLOSED'&&record.binding.commandId===binding.commandId&&record.binding.originalIntentSha256===wire.originalIntentSha256&&record.binding.groupCaptureSha256===wire.groupCaptureSha256
+              &&record.result?.state==='saved'&&record.fidelity?.sourceSha256===previous.sha256&&!!after&&lyricsPhysicalDigest(after)===lyricsPhysicalDigest(current);});
+          if(!proved)throw new LocalLyricsError('STALE');
+        }
+      }
+      const record=old?.record??captureLocalLyricsPhysicalRecord({schema:1,operationId,binding:wire,original:group,revision:1,currentOwnerEpoch:options.ownerEpoch,phase:'PREPARED',grant:null,artifacts:{stage:null,backup:null,quarantine:null,target:null},fidelity:null,result:null,physicalClosed:false,protectionReleased:false,unresolved:false});
+      bare={record};if(!old){assertLocalLyricsPhysicalTransition(null,record);const seq=catalog.privateLyricsPhysicalCompareAndSwap(identity,record,null);if(!Number.isSafeInteger(seq)||seq<1)throw new LocalLyricsError('CONFLICT');}
+      const grantRevision=record.revision,grant=await requestSourceWritesLyricsGrant(actor,wire,grantRevision,signal),fact=assertSourceWritesLyricsGrant(grant,actor,wire,grantRevision);
+      write(bare,{phase:'GRANTED',currentOwnerEpoch:options.ownerEpoch,grant:fact,physicalClosed:false,protectionReleased:false,unresolved:false,result:null});
+      const derived=lyricsRelativeNames(resource.relative,operationId,binding.kind),names={target:derived.target,stage:operationId+'.stage',backup:operationId+'.backup',quarantine:operationId+'.original'},origin={datasetId:identity.datasetId,originPlanId:binding.commandId,planHash:wire.originalIntentSha256,contextFingerprint:wire.groupCaptureSha256,journalSequence:String(bare.record.revision),projectionFingerprint:wire.protectionSha256};
+      const scope:SourceNamespaceHeldScope={datasetId:identity.datasetId,planId:binding.commandId,originBinding:origin,operations:completeNames};namespace={token:await acquireSourceNamespaceWrite({...origin,operations:completeNames}),scope,recovery:false};
+      const acquireFile=async(relative:string,copy:boolean):Promise<LyricsHeldFile>=>{
+        const absolute=path.join(privateRoot.path,relative);let handle:FileHandle;
+        if(retry){const prior=old!.record.artifacts[relative===names.stage?'stage':'backup'];if(!prior){
+          // 明确拒绝可发生在创建副本之前；真实缺失probe之后仍以EXCL创建，既有文件不被截断。
+          try{await lstat(absolute);throw new LocalLyricsError('CONFLICT');}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}
+          handle=await open(absolute,constants.O_CREAT|constants.O_EXCL|constants.O_NOFOLLOW|constants.O_RDWR,0o600);
+        }else{const named=await checkedFile(privateRoot,relative);if(signature(named.info)!==prior.signature||String(named.info.birthtimeNs)!==prior.birthtimeNs)throw new LocalLyricsError('STALE');handle=await open(absolute,constants.O_RDWR|constants.O_NOFOLLOW);const current=await lyricsFdHash(handle,LOCAL_LYRICS_PHYSICAL_LIMITS.sourceBytes,signal);if(current.sha256!==prior.sha256||current.bytes!==prior.bytes){await handle.close();throw new LocalLyricsError('STALE');}if(copy)await handle.truncate(0);}}
+        else handle=await open(absolute,constants.O_CREAT|constants.O_EXCL|constants.O_NOFOLLOW|constants.O_RDWR,0o600);
+        const file={handle,root:privateRoot,relative,info:await handle.stat({bigint:true}),sha256:null,source:false};files.push(file);return file;
+      };
+      const source=files[member.resourceIndex]!,attributes=await observeLyricsSourceAttributes(path.join(root.path,resource.relative),source.handle);
+      let stage:LyricsHeldFile|null=null,backup:LyricsHeldFile|null=null;
+      if(binding.kind==='embed'){
+        stage=await acquireFile(names.stage,true);backup=await acquireFile(names.backup,false);
+        await stage.handle.chmod(Number(attributes.mode));await stage.handle.chown(Number(attributes.uid),Number(attributes.gid));
+      }else stage=await acquireFile(names.stage,true);
+      // 现存同stem LRC只读入完整claims；绝不O_TRUNC或覆盖。
+      if(binding.kind==='lrc')try{const named=await checkedFile(root,names.target),handle=await open(named.absolute,constants.O_RDONLY|constants.O_NOFOLLOW);files.push({handle,root,relative:names.target,info:await handle.stat({bigint:true}),sha256:null,source:false});}catch(error){if(!(error instanceof SourceFileError&&error.code==='MISSING')&&(error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}
+      physical=await acquirePhysicalWriteClaims(files.map(f=>lyricsPhysicalResource(f.info)));registerPhysicalWriteClaimDescriptors(physical,files.map(f=>f.handle));
+      for(const [index,r] of group.resources.entries()){const actual=await lyricsFdHash(files[index]!.handle,LOCAL_LYRICS_PHYSICAL_LIMITS.sourceBytes,signal);if(actual.sha256!==r.sha256||actual.bytes!==r.bytes)throw new LocalLyricsError('STALE');}
+      const controller=new AbortController(),combined=AbortSignal.any([signal,controller.signal]);
+      const publication=Object.freeze({grant,physical,namespace,copy:binding.kind==='embed'?{fd:stage!.handle.fd,commandId:binding.commandId,claimId:operationId,assertCurrent:async()=>{await verify(state!);const now=await stage!.handle.stat({bigint:true});if(now.dev!==stage!.info.dev||now.ino!==stage!.info.ino||now.nlink!==1n)throw new LocalLyricsError('STALE');}}:null});
+      state={policyRevision,privateRoot,reservation,publication,binding:wire,intent,selected,resolved,record:bare.record,grantRevision,grant,physical,namespace,files,source,stage,backup,targetRelative:names.target,stageRelative:names.stage,backupRelative:names.backup,quarantineRelative:names.quarantine,attributes,baseline:null,signal:combined,controller,task:null,finished:false,unknown:false,moved:false};
+      lyricsPublications.set(publication,state);const set=held.get(binding.commandId)??new Set<LyricsPublicationState>();set.add(state);held.set(binding.commandId,set);
+      await verify(state);
+      if(binding.kind==='embed'){
+        if((await backup!.handle.stat()).size===0)await lyricsCopyFd(source.handle,backup!.handle,resource,combined);
+        else if((await lyricsFdHash(backup!.handle,LOCAL_LYRICS_PHYSICAL_LIMITS.sourceBytes,combined)).sha256!==resource.sha256)throw new LocalLyricsError('STALE');
+        await lyricsCopyFd(source.handle,stage!.handle,resource,combined);
+        if(!sameLyricsAttributes(attributes,await observeLyricsSourceAttributes(path.join(privateRoot.path,names.stage),stage!.handle)))throw new LocalLyricsError('CONFLICT');
+        state.baseline=await native.captureOriginal(source.handle,selected.track.format as 'wav'|'flac',{commandId:binding.commandId,claimId:operationId,assertCurrent:()=>verify(state!)},combined,path.join(root.path,resource.relative));
+      }
+      write(state,{phase:'STAGED',artifacts:{stage:await artifact(stage!,combined),backup:backup?await artifact(backup,combined):null,quarantine:null,target:null}});await verify(state);return publication;
+    }catch(error){
+      if(state){if(state.moved)await retainUnknown(state);else try{await finish(state,{state:'failed',bodySha256:null});}catch{/* 未收口仍unknown。 */}}
+      else {
+        const joined=await native.join(binding.commandId).then(()=>true,()=>false),closed=await Promise.allSettled(files.map(f=>f.handle.close()));
+        if(joined&&closed.every(v=>v.status==='fulfilled')){try{reservation?.release();if(physical)await physical.release();if(namespace)await releaseSourceNamespaceWrite(namespace.token,[operationId]);if(bare&&['PREPARED','GRANTED'].includes(bare.record.phase))write(bare,{phase:error instanceof SourceWritesLyricsGrantError&&error.code==='UNKNOWN'?'UNKNOWN':'FAILED',physicalClosed:true,protectionReleased:true,result:{state:error instanceof SourceWritesLyricsGrantError&&error.code==='UNKNOWN'?'unknown':'failed',bodySha256:null},unresolved:error instanceof SourceWritesLyricsGrantError&&error.code==='UNKNOWN'});}catch{/* 最后原状态保持未知，不能冒closed。 */}}
+        else {physical?.retain();if(namespace)retainSourceNamespaceWrite(namespace.token);if(bare)try{write(bare,{phase:'UNKNOWN',result:{state:'unknown',bodySha256:null},unresolved:true});}catch{/* 原记录保留。 */}}
+      }
+      throw error;
+    }finally{preparing.delete(operationId);}
+  }
+  function own(publication:LocalLyricsHeldPublication):LyricsPublicationState{const state=lyricsPublications.get(publication);if(!state||!held.get(state.binding.commandId)?.has(state))throw new LocalLyricsError('CLOSED');return state;}
+  async function publish(state:LyricsPublicationState,body:Uint8Array|null,bodySha256:string):Promise<LocalLyricsProtectedWriteResult>{
+    try{
+      await verify(state);if(bodySha256!==state.binding.bodySha256||state.record.phase!=='STAGED')throw new LocalLyricsError('STALE');
+      const sourceRoot=state.source.root,rootPath=sourceRoot.path,privatePath=state.privateRoot.path,target=path.join(rootPath,state.targetRelative),stage=state.stage!;
+      if(state.binding.kind==='lrc'){
+        if(!body||body.length<1||body.length>LOCAL_LYRICS_PHYSICAL_LIMITS.bodyBytes||createHash('sha256').update(body).digest('hex')!==bodySha256)throw new LocalLyricsError('CONFLICT');
+        const exists=state.files.find(f=>!f.source&&f.relative===state.targetRelative);
+        if(exists){const actual=await lyricsFdHash(exists.handle,LOCAL_LYRICS_PHYSICAL_LIMITS.bodyBytes,state.signal);
+          if(actual.sha256!==bodySha256)return await finish(state,{state:'failed',bodySha256:actual.sha256});
+          write(state,{phase:'PUBLISH_INTENT'});write(state,{phase:'PUBLISHED',artifacts:{...state.record.artifacts,target:await artifact(exists,state.signal)}});
+          write(state,{phase:'FACTS_COMMITTED',result:{state:'existing',bodySha256}},true);return await finish(state,{state:'existing',bodySha256});
+        }
+        let at=0;while(at<body.length){const n=await stage.handle.write(body,at,body.length-at,at);if(!n.bytesWritten)throw new LocalLyricsError('CONFLICT');at+=n.bytesWritten;}await stage.handle.sync();
+        const proof=await artifact(stage,state.signal);if(proof.sha256!==bodySha256)throw new LocalLyricsError('CONFLICT');
+        write(state,{phase:'PUBLISH_INTENT',artifacts:{...state.record.artifacts,stage:proof}});await verify(state);
+        try{await lyricsLink(path.join(privatePath,state.stageRelative),target);state.moved=true;}catch(error){if((error as NodeJS.ErrnoException).code==='EEXIST')return await finish(state,{state:'failed',bodySha256:null});throw error;}
+      }else{
+        if(!state.baseline)throw new LocalLyricsError('CLOSED');await native.join(state.binding.commandId);
+        const fidelity=await native.verifyCopy(state.baseline,stage.handle,state.selected.track.format as 'wav'|'flac',state.selected.body,{commandId:state.binding.commandId,claimId:state.record.operationId,assertCurrent:()=>verify(state)},state.signal,path.join(privatePath,state.stageRelative));
+        if(!sameLyricsAttributes(state.attributes,await observeLyricsSourceAttributes(path.join(privatePath,state.stageRelative),stage.handle)))throw new LocalLyricsError('CONFLICT');
+        await stage.handle.sync();const proof=await artifact(stage,state.signal);if(fidelity.copySha256!==proof.sha256||fidelity.sourceSha256!==state.source.sha256)throw new LocalLyricsError('CONFLICT');
+        write(state,{phase:'PUBLISH_INTENT',fidelity,artifacts:{...state.record.artifacts,stage:proof}});await verify(state);
+        // 原source只读FD与原inode保留在quarantine；实际保护副本独占发布到空出的原命名位。
+        try{await lstat(path.join(privatePath,state.quarantineRelative));throw new LocalLyricsError('CONFLICT');}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}
+        await lyricsRename(target,path.join(privatePath,state.quarantineRelative));state.moved=true;
+        const moved=await lstat(path.join(privatePath,state.quarantineRelative),{bigint:true});if(moved.dev!==state.source.info.dev||moved.ino!==state.source.info.ino||moved.birthtimeNs!==state.source.info.birthtimeNs)throw new LocalLyricsError('CONFLICT');
+        await lyricsLink(path.join(privatePath,state.stageRelative),target);
+      }
+      const stagedFact=state.record.artifacts.stage!;
+      await lyricsUnlink(path.join(privatePath,state.stageRelative));
+      const parentRelative=path.posix.dirname(state.targetRelative)==='.'?'':path.posix.dirname(state.targetRelative);
+      const parent=state.files.find(f=>f.root.id===sourceRoot.id&&f.relative===parentRelative&&f.info.isDirectory()),privateDirectory=state.files.find(f=>f.root.id===state.privateRoot.id&&f.relative==='');
+      if(!parent||!privateDirectory)throw new LocalLyricsError('CLOSED');await parent.handle.sync();await privateDirectory.handle.sync();
+      // link后stage与target是同一inode；不允许外部writer。先核whole，再commit同Owner事实。
+      const published=await open(target,constants.O_RDONLY|constants.O_NOFOLLOW);try{
+        const proof=await lyricsFdHash(published,LOCAL_LYRICS_PHYSICAL_LIMITS.sourceBytes,state.signal),now=await published.stat({bigint:true}),staged=await stage.handle.stat({bigint:true});
+        if(now.dev!==staged.dev||now.ino!==staged.ino||proof.sha256!==stagedFact.sha256)throw new LocalLyricsError('CONFLICT');
+        const targetFact={...stagedFact,rootId:state.source.root.id,relative:state.targetRelative,signature:signature(now),birthtimeNs:String(now.birthtimeNs)};
+        let quarantine:LocalLyricsPhysicalArtifact|null=null;if(state.binding.kind==='embed'){const h=await open(path.join(privatePath,state.quarantineRelative),constants.O_RDONLY|constants.O_NOFOLLOW);try{quarantine=await artifact({...state.source,root:state.privateRoot,handle:h,relative:state.quarantineRelative},state.signal);}finally{await h.close();}}
+        write(state,{phase:'PUBLISHED',artifacts:{...state.record.artifacts,stage:null,target:targetFact,quarantine}});
+        write(state,{phase:'FACTS_COMMITTED',result:{state:'saved',bodySha256}},true);
+      }finally{await published.close();}
+      return await finish(state,{state:'saved',bodySha256});
+    }catch(error){
+      if(state.moved||['PUBLISHED','FACTS_COMMITTED','QUIET'].includes(state.record.phase)){await retainUnknown(state);return {state:'unknown',bodySha256:null};}
+      await finish(state,{state:'failed',bodySha256:null});throw error;
+    }
+  }
+  function launch(publication:LocalLyricsHeldPublication,body:Uint8Array|null,sha256:string,signal:AbortSignal){const state=own(publication);if(signal.aborted||state.task)throw new LocalLyricsError('IN_FLIGHT');const abort=()=>state.controller.abort();signal.addEventListener('abort',abort,{once:true});state.task=publish(state,body,sha256);void state.task.finally(()=>signal.removeEventListener('abort',abort)).catch(()=>{});return state.task;}
+  return {
+    prepare:(b,i,s,a,signal)=>prepare(b,i,s,a,signal,false),prepareFailedRetry:(b,i,s,a,signal)=>prepare(b,i,s,a,signal,true),
+    async assertGranted(pub,b,i){const state=own(pub);if(!lyricsSameBinding(state.binding,b)||b.ownerEpoch!==options.ownerEpoch)throw new LocalLyricsError('STALE');await verify(state,i);},
+    publishLrcExclusive:(pub,body,signal)=>launch(pub,body,createHash('sha256').update(body).digest('hex'),signal),
+    publishTaggedCopy:(pub,sha256,signal)=>launch(pub,null,sha256,signal),
+    async readOriginal(binding){const original=read(binding);if(!original)return null;return original.record.phase==='CLOSED'||original.record.phase==='FAILED'?original.record.result:{state:'unknown',bodySha256:null};},
+    async join(commandId){const active=[...(held.get(commandId)??[])];await Promise.allSettled(active.flatMap(s=>s.task?[s.task]:[]));await options.joinTaggedWriter(commandId);await native.join(commandId);
+      for(const state of active)if(!state.task&&!state.finished&&!state.unknown&&!state.moved)await finish(state,{state:'failed',bodySha256:null});
+      if(active.some(s=>s.unknown||!s.finished))throw new LocalLyricsError('CLOSED');},
+    async close(){closing=true;for(const set of held.values())for(const s of set)s.controller.abort();await Promise.allSettled([...held.values()].flatMap(set=>[...set].flatMap(s=>s.task?[s.task]:[])));for(const set of held.values())for(const state of [...set])if(!state.task&&!state.finished&&!state.unknown&&!state.moved)await finish(state,{state:'failed',bodySha256:null});
+      await native.close();if([...held.values()].some(set=>set.size>0)||preparing.size)throw new LocalLyricsError('CLOSED');},
+  };
 }

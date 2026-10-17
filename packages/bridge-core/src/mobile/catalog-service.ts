@@ -9,6 +9,7 @@ import {
   type MobileTrackPage,
 } from '@music-bridge/contracts';
 import { createMobileCatalogCursorCodec, type MobileCatalogCursorQueryScope } from './cursor.js';
+import { mobileContentDiagnosticAsync, mobileContentDiagnosticSync } from './capability-trace.js';
 import {
   MobileServiceError, type MobileAuthService, type MobileCatalogReadPort,
   type MobileOwnerArtworkSnapshot,
@@ -76,7 +77,7 @@ export function projectMobileOwnerLocalTrack(facts: MobileOwnerLocalTrackFacts):
 /** 只消费真实Owner的同快照有限回包；签名与设备授权不来自HTTP自报事实。 */
 export function createMobileCatalogService(options: {
   port: MobileCatalogReadPort; auth: MobileAuthService; serverId: string; datasetId: string;
-  cursorKey: Uint8Array; now?: () => number;
+  cursorKey: Uint8Array; now?: () => number; privateDiagnostics?: boolean;
 }) {
   if (!isMobileId(options.serverId) || !isMobileId(options.datasetId)) return fail(400, 'INVALID_REQUEST');
   const now = options.now ?? Date.now;
@@ -135,19 +136,23 @@ export function createMobileCatalogService(options: {
       deviceEpoch: p.deviceEpoch, generation: p.generation, source: 'local', sort: 'OWNER_LOCAL_ORDER_V1', filter, albumId, limit: query.limit ?? 50 };
   }
   async function page(operation: 'listAlbums' | 'listTracks', query: MobileSearchQuery, rawPrincipal: MobilePrincipal): Promise<MobileAlbumPage | MobileTrackPage> {
-    const p = principal(rawPrincipal); await current(rawPrincipal);
+    const privateTracks = options.privateDiagnostics === true && operation === 'listTracks';
+    const assertCurrent = () => privateTracks ? mobileContentDiagnosticAsync('main.catalog.tracks.auth', () => current(rawPrincipal)) : current(rawPrincipal);
+    const p = principal(rawPrincipal); await assertCurrent();
     const selection = search(query, operation), scope = queryScope(selection, operation, p);
     const previous = selection.cursor === undefined ? null : cursor.open(selection.cursor, scope);
     const request: MobileOwnerCatalogRequest = { operation, serverId: options.serverId, offset: previous?.offset ?? 0, limit: scope.limit,
       q: (selection.q ?? '').trim(), albumId: scope.albumId, itemId: null, expectedRevision: previous?.libraryRevision ?? null };
-    const value = snapshot(await options.port.read(request), request); await current(rawPrincipal);
+    const raw = await (privateTracks ? mobileContentDiagnosticAsync('main.catalog.tracks.owner', () => options.port.read(request)) : options.port.read(request));
+    const value = privateTracks ? mobileContentDiagnosticSync('main.catalog.tracks.snapshot', () => snapshot(raw, request)) : snapshot(raw, request);
+    await assertCurrent();
     if (previous !== null && previous.ownerEpoch !== value.ownerEpoch) return fail(409, 'SOURCE_CHANGED');
     const nextOffset = value.offset + value.items.length;
     if (!mobileInteger(nextOffset)) return fail(503, 'CONTENT_LIMIT_EXCEEDED');
     const nextCursor = nextOffset < value.total ? cursor.issue({ ...scope, ownerEpoch: value.ownerEpoch, libraryRevision: value.libraryRevision, offset: nextOffset }) : null;
     const reply = { items: value.items, nextCursor, libraryRevision: value.libraryRevision };
     if (mobileUtf8Bytes(mobileCanonicalJson(reply as unknown as Parameters<typeof mobileCanonicalJson>[0])) > MOBILE_API_RESPONSE_MAX_BYTES) return fail(503, 'CONTENT_LIMIT_EXCEEDED');
-    await current(rawPrincipal);
+    await assertCurrent();
     return reply as MobileAlbumPage | MobileTrackPage;
   }
   async function detail(operation: 'getAlbum' | 'getTrack', id: string, rawPrincipal: MobilePrincipal): Promise<MobileAlbum | MobileTrack> {

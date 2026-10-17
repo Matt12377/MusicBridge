@@ -53,6 +53,7 @@ test('009正式离线App复用Node扫描、原导航与共享表格；仅显示�
     page.on('pageerror', error => pageErrors.push(error.message))
     await page.locator('[data-sidebar-source="local-library"]').click()
     const view = page.getByTestId('local-library-view')
+    await view.getByRole('button', {name: '曲目与原维护入口', exact: true}).click()
     await expect(view.getByText('本地音乐库还没有曲目', {exact: true})).toBeVisible()
     await view.locator('.local-library-management > summary').click()
     await app.evaluate(({dialog}, selected) => {

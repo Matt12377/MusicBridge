@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import test, { type TestContext } from 'node:test'
 import { randomUUID } from 'node:crypto'
+import { closeSync, openSync, writeSync } from 'node:fs'
 import type { PlaybackStreamSnapshot, TypedIpcEvent } from '@music-bridge/contracts'
 import * as main from '../src/main/core-supervisor.js'
+import { writeLocalPlaybackGuardSync } from '../src/main/local-playback-evidence.js'
 
 class Port implements main.CoreMessagePort {
   readonly sent: Array<{ id: string; command: string }> = []
@@ -10,7 +12,12 @@ class Port implements main.CoreMessagePort {
   on(_event: 'message', listener: (event: { data: unknown }) => void) { this.listener = listener }
   start() {}
   close() {}
-  postMessage(value: unknown) { this.sent.push(value as { id: string; command: string }) }
+  postMessage(value: unknown) {
+    const request = value as { version?: unknown; id: string; command: string }
+    this.sent.push(request)
+    // 合成ACK按原id返回；Child仍独立决定是否真实发exit，不给播放/seed自动回包。
+    if (request.version === 1 && request.command === 'core.shutdown') queueMicrotask(() => this.receive({ version: 1, id: request.id, ok: true, result: { stopped: true } }))
+  }
   receive(data: unknown) { this.listener?.({ data }) }
   reply(result: unknown) { this.receive({ version: 1, id: this.sent.at(-1)!.id, ok: true, result }) }
 }
@@ -194,4 +201,65 @@ test('006：实际manual restart重新协商新instance；旧child事件/回执�
   assert.deepEqual(h.events[3]!.payload, seed(second))
   const read = h.supervisor.getPlaybackStreamSnapshot().catch(error => error)
   h.ports[1]!.reply(seed(first)); assert.equal((await read).code, 'INVALID_IPC_RESPONSE')
+})
+
+test('PRIVATE_PLAY_GUARD_CARRIER：实际Supervisor只转已验证owned guard并隔离旧child半行', async t => {
+  const ports:Port[]=[],children:Child[]=[],stdout:Array<(text:string)=>void>=[],written:string[]=[]
+  const readOnlyFd=openSync('/dev/null','r'),writeFd=openSync('/dev/null','w')
+  let failWrite=false,failedWrites=0
+  const supervisor=new main.CoreSupervisor({entryPath:'/synthetic/core.js',cwd:'/synthetic',env:{MUSIC_BRIDGE_COMPACT_PLAYBACK_EVENTS:'0'},requestTimeoutMs:5,startupTimeoutMs:1_000,
+    dependencies:{
+      writeLocalPlaybackGuard:row=>{
+        if(failWrite){
+          failWrite=false;assert.throws(()=>writeSync(readOnlyFd,'合成只读FD探针'),{code:'EBADF'})
+          assert.equal(writeLocalPlaybackGuardSync(row,readOnlyFd),false);failedWrites++;return
+        }
+        assert.equal(writeLocalPlaybackGuardSync(row,writeFd),true);written.push(JSON.stringify(row)+'\n')
+      },
+      createChannel:()=>{const port=new Port();ports.push(port);return{port1:new Port(),port2:port}},
+      fork:()=>{
+        const listeners:Array<(chunk:{toString():string})=>void>=[]
+        const child=Object.assign(new Child(),{stdout:{on(event:'data',listener:(chunk:{toString():string})=>void){assert.equal(event,'data');listeners.push(listener)}}})
+        children.push(child);stdout.push(text=>{for(const listener of listeners)listener({toString:()=>text})});return child
+      },
+    },
+  })
+  t.after(async()=>{
+    const errors:unknown[]=[]
+    try{await supervisor.shutdown()}catch(error){errors.push(error)}
+    for(const fd of [readOnlyFd,writeFd])try{closeSync(fd)}catch(error){errors.push(error)}
+    if(errors.length)throw new AggregateError(errors,'私有guard定向例清理失败')
+  })
+  const guard={timestamp:'2026-10-14T10:00:00.000Z',level:'info',event:'local_play_request_guard_evidence',schemaVersion:1,component:'controller',diagnosticId:'diag-local-'+'a'.repeat(64),requestFingerprintSha256:'b'.repeat(64),stage:'request-guard',operationStage:'SECOND_FACTS',firstStage:'SECOND_FACTS',phase:'failed',elapsedMs:10,code:'FACTS_CHANGED',errorClass:'LocalSourcePreparationError',httpStatus:409,cancelled:'not-observed',intentMatch:'match',targetMatch:'match',sourceMatch:'mismatch',fenceMatch:'match',snapshotMatch:'match',factsMatch:'mismatch',differenceMask:1}
+  const line=JSON.stringify(guard)+'\n',starting=supervisor.start()
+  ports[0]!.receive({version:1,event:'core.ready',payload:{state:health}});await starting;await tick()
+  // attach完成后才模拟异步stdout，不把注册监听期间当成已owned。
+  stdout[0]!(line.slice(0,40));assert.equal(written.length,0);await tick();stdout[0]!(line.slice(40))
+  assert.deepEqual(written.map(row=>JSON.parse(row)),[guard]);assert.deepEqual(supervisor.getLocalPlaybackEvidenceSnapshot(),[guard])
+  const common={timestamp:guard.timestamp,level:'info',schemaVersion:1,diagnosticId:guard.diagnosticId,currentOwned:true,staleCallback:false}
+  const oldRows=[
+    {...common,event:'local_playback_evidence',component:'controller',stage:'roon-phase',sessionConfirmed:true,elapsedMs:1,phase:'PLAYING'},
+    {...common,event:'local_playback_evidence',component:'controller',stage:'position',sessionConfirmed:true,elapsedMs:1,sampleSequence:1,source:'zone',positionMs:0,positionAdvanced:false},
+    {...common,event:'local_playback_media_evidence',component:'gateway',stage:'request',requestSequence:1,method:'GET',routeClass:'local-file',rangeClass:'none'},
+    {...common,event:'local_playback_media_evidence',component:'gateway',stage:'truncated',requestSequence:17,method:'GET',routeClass:'local-file',rangeClass:'none',requestLimit:16},
+    {...common,event:'local_playback_media_evidence',component:'gateway',stage:'transfer-terminal',requestSequence:1,method:'GET',routeClass:'local-file',rangeClass:'none',outcome:'body-completed',statusCode:200,pipelineBodyBytesObserved:100,observedBytesCapped:false,responseFinished:true,elapsedMs:1,completedPipelineBodyBytes:100},
+  ]
+  stdout[0]!('普通stdout\n'+JSON.stringify({...guard,url:'https://example.invalid'})+'\n'+oldRows.map(row=>JSON.stringify(row)+'\n').join(''))
+  assert.equal(written.length,1);assert.deepEqual(supervisor.getLocalPlaybackEvidenceSnapshot().slice(1),oldRows)
+  stdout[0]!(line.slice(0,40))
+  const restarting=supervisor.restart(),deadline=Date.now()+500
+  while(ports.length<2&&Date.now()<deadline)await tick()
+  assert.equal(ports.length,2);ports[1]!.receive({version:1,event:'core.ready',payload:{state:health}});await restarting;await tick()
+  stdout[1]!(line);assert.equal(written.length,2);assert.equal(supervisor.getLocalPlaybackEvidenceSnapshot().length,7)
+  stdout[0]!(line.slice(40))
+  stdout[0]!(line)
+  assert.equal(written.length,2);assert.equal(supervisor.getLocalPlaybackEvidenceSnapshot().length,7)
+  // 旧五形状仍只按原闭集入ring，不借新sink改变其规则或转发它们。
+  stdout[0]!(JSON.stringify(oldRows[0])+'\n');assert.equal(written.length,2);assert.equal(supervisor.getLocalPlaybackEvidenceSnapshot().length,8)
+  failWrite=true;assert.doesNotThrow(()=>stdout[1]!(line));assert.equal(failedWrites,1);assert.equal(written.length,2);assert.equal(supervisor.getLocalPlaybackEvidenceSnapshot().length,9);assert.equal(supervisor.status,'ready')
+  stdout[1]!(line);assert.deepEqual(written.map(row=>JSON.parse(row)),[guard,guard,guard])
+  await supervisor.shutdown();assert.equal(supervisor.status,'stopped');assert.ok(children.every(child=>child.listener===undefined))
+  const count=supervisor.getLocalPlaybackEvidenceSnapshot().length;stdout[1]!(line)
+  assert.equal(written.length,3);assert.equal(supervisor.getLocalPlaybackEvidenceSnapshot().length,count)
+  assert.ok(ports.flatMap(port=>port.sent).every(request=>request.command==='core.shutdown'))
 })

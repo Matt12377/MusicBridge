@@ -10,19 +10,22 @@ import { isMobileOwnerSourceRequest, isMobileOwnerSourceResult,
   type MobileOwnerSourceRequest, type MobileOwnerSourceResult } from './source-protocol.js';
 import { MobileAuthPersistenceError, MobileServiceError, type MobilePrincipal } from './types.js';
 import { MobilePlaybackError } from './playback-types.js';
+import { captureMobileArtworkBytes } from './artwork-bytes.js';
 
 /** 只来自 Main 已认证的原 principal；没有 token、账号显示名或 Provider 凭据。 */
 export type MobileContentMainPrincipal = Pick<MobileContentScope,
   'serverId' | 'datasetId' | 'deviceId' | 'deviceEpoch' | 'accessGeneration'>;
 interface RequestBase { type: 'mobile-content-core-request'; id: string }
 export type MobileContentCoreRequest =
-  | (RequestBase & { action: 'initialize'; serverId: string; datasetId: string; key: Uint8Array })
+  | (RequestBase & { action: 'initialize'; serverId: string; datasetId: string; key: Uint8Array; privateProviderDiagnostics?: true })
   | (RequestBase & { action: 'invalidate-device'; serverId: string; datasetId: string; deviceId: string; deviceEpoch: number })
   | (RequestBase & { action: 'scope'; principal: Readonly<MobileContentMainPrincipal> })
   | (RequestBase & { action: 'dispatch'; operation: MobileContentOperation;
     scope: Readonly<MobileContentScope>; request: import('@music-bridge/contracts').MobileRequestMap[MobileContentOperation] })
   | (RequestBase & { action: 'revalidate'; snapshotId: string; scope: Readonly<MobileContentScope> })
   | (RequestBase & { action: 'source'; scope: Readonly<MobileContentScope>; request: MobileOwnerSourceRequest })
+  | (RequestBase & { action: 'artwork'; operation: 'read' | 'revalidate'; scope: Readonly<MobileContentScope>;
+    artworkId: string; expectedRevision: string | null })
   | (RequestBase & { action: 'cancel'; requestId: string; snapshotId: string | null; scope: Readonly<MobileContentScope> | null });
 interface ResponseBase { type: 'mobile-content-core-response'; id: string; action: MobileContentCoreRequest['action'] }
 export interface MobileContentCoreFailure extends ResponseBase {
@@ -37,6 +40,9 @@ export type MobileContentCoreResponse = MobileContentCoreFailure
     scope: Readonly<MobileContentScope>; reply: MobileContentSuccessReply<MobileContentOperation>; context: MobileContentReadContext })
   | (ResponseBase & { action: 'revalidate'; kind: 'validated'; snapshotId: string; scope: Readonly<MobileContentScope> })
   | (ResponseBase & { action: 'source'; kind: 'source'; scope: Readonly<MobileContentScope>; source: 'local' | 'netease'; result: MobileOwnerSourceResult })
+  | (ResponseBase & { action: 'artwork'; kind: 'artwork'; scope: Readonly<MobileContentScope>;
+    artworkId: string; revision: string; contentType: 'image/png' | 'image/jpeg'; bytes: Uint8Array })
+  | (ResponseBase & { action: 'artwork'; kind: 'artwork-validated'; scope: Readonly<MobileContentScope>; artworkId: string; revision: string })
   | (ResponseBase & { action: 'cancel'; kind: 'cancelled'; requestId: string; snapshotId: string | null; quiet: true });
 
 const principalKeys = ['serverId', 'datasetId', 'deviceId', 'deviceEpoch', 'accessGeneration'] as const;
@@ -82,26 +88,39 @@ function secretKey(raw: unknown): Uint8Array {
 /** 同一个闭集信封可以 clone；原 Source guard 与块上限没有变更。 */
 export function captureMobileContentCoreRequest(raw: unknown): MobileContentCoreRequest {
   if (!raw || typeof raw !== 'object') return invalid();
-  let action: unknown;
-  try { action = Object.getOwnPropertyDescriptor(raw, 'action')?.value; } catch { return invalid(); }
-  const keys = action === 'initialize' ? ['type', 'id', 'action', 'serverId', 'datasetId', 'key']
+  let action: unknown, privateDiagnostics = false;
+  try {
+    action = Object.getOwnPropertyDescriptor(raw, 'action')?.value;
+    privateDiagnostics = Object.getOwnPropertyDescriptor(raw, 'privateProviderDiagnostics')?.value === true;
+  } catch { return invalid(); }
+  const keys = action === 'initialize' ? ['type', 'id', 'action', 'serverId', 'datasetId', 'key', ...(privateDiagnostics ? ['privateProviderDiagnostics'] : [])]
     : action === 'invalidate-device' ? ['type', 'id', 'action', 'serverId', 'datasetId', 'deviceId', 'deviceEpoch']
     : action === 'scope' ? ['type', 'id', 'action', 'principal']
       : action === 'dispatch' ? ['type', 'id', 'action', 'operation', 'scope', 'request']
         : action === 'revalidate' ? ['type', 'id', 'action', 'snapshotId', 'scope']
           : action === 'source' ? ['type', 'id', 'action', 'scope', 'request']
+            : action === 'artwork' ? ['type', 'id', 'action', 'operation', 'scope', 'artworkId', 'expectedRevision']
             : action === 'cancel' ? ['type', 'id', 'action', 'requestId', 'snapshotId', 'scope'] : null;
   if (!keys || !mobileContentRpcClosed(raw, keys) || raw.type !== 'mobile-content-core-request' || !mobileContentRpcUuid(raw.id)) return invalid();
   const base = { type: 'mobile-content-core-request' as const, id: raw.id };
   if (action === 'initialize') {
     if (!isMobileId(raw.serverId) || !isMobileId(raw.datasetId)) return invalid();
-    return { ...base, action, serverId: raw.serverId, datasetId: raw.datasetId, key: secretKey(raw.key) };
+    return { ...base, action, serverId: raw.serverId, datasetId: raw.datasetId, key: secretKey(raw.key),
+      ...(privateDiagnostics ? { privateProviderDiagnostics: true as const } : {}) };
   }
   if (action === 'invalidate-device') {
     if (!isMobileId(raw.serverId) || !isMobileId(raw.datasetId) || !isMobileId(raw.deviceId) || !mobileInteger(raw.deviceEpoch, 1)) return invalid();
     return { ...base, action, serverId: raw.serverId, datasetId: raw.datasetId, deviceId: raw.deviceId, deviceEpoch: raw.deviceEpoch };
   }
   if (action === 'scope') return { ...base, action, principal: captureMobileContentMainPrincipal(raw.principal) };
+  if (action === 'artwork') {
+    if (raw.operation !== 'read' && raw.operation !== 'revalidate' || !isMobileId(raw.artworkId)
+      || !raw.artworkId.startsWith('naw:') || (raw.operation === 'read' ? raw.expectedRevision !== null : !isMobileId(raw.expectedRevision))) return invalid();
+    const scope = captureMobileContentScope(raw.scope);
+    if (scope.providerEpoch === null) return invalid();
+    return { ...base, action, operation: raw.operation as 'read' | 'revalidate', scope,
+      artworkId: raw.artworkId, expectedRevision: raw.expectedRevision as string | null };
+  }
   if (action === 'dispatch') {
     const input = captureMobileContentPrivateRequest({ type: 'mobile-content-main-request', id: raw.id,
       operation: raw.operation, scope: raw.scope, request: raw.request });
@@ -141,6 +160,9 @@ function captureResponse(raw: unknown, expected: MobileContentCoreRequest): Mobi
         : expected.action === 'dispatch' ? ['type', 'id', 'action', 'kind', 'snapshotId', 'operation', 'scope', 'reply', 'context']
           : expected.action === 'revalidate' ? ['type', 'id', 'action', 'kind', 'snapshotId', 'scope']
             : expected.action === 'source' ? ['type', 'id', 'action', 'kind', 'scope', 'source', 'result']
+              : expected.action === 'artwork' ? expected.operation === 'read'
+                ? ['type', 'id', 'action', 'kind', 'scope', 'artworkId', 'revision', 'contentType', 'bytes']
+                : ['type', 'id', 'action', 'kind', 'scope', 'artworkId', 'revision']
               : ['type', 'id', 'action', 'kind', 'requestId', 'snapshotId', 'quiet'];
     if (!mobileContentRpcClosed(raw, keys)) return unavailable();
   }
@@ -150,6 +172,17 @@ function captureResponse(raw: unknown, expected: MobileContentCoreRequest): Mobi
   if (kind === 'error') return { ...base, kind, status: raw.status as MobileServiceError['status'],
     code: raw.code as MobileServiceError['code'], retryable: false, outcome: raw.outcome as MobileContentCoreFailure['outcome'] };
   switch (expected.action) {
+    case 'artwork': {
+      const scope = captureMobileContentScope(raw.scope);
+      if (!sameMobileContentScope(scope, expected.scope) || raw.artworkId !== expected.artworkId || !isMobileId(raw.revision)) return unavailable();
+      if (expected.operation === 'revalidate') {
+        if (kind !== 'artwork-validated' || raw.revision !== expected.expectedRevision) return unavailable();
+        return { ...base, action: 'artwork', kind, scope, artworkId: expected.artworkId, revision: raw.revision };
+      }
+      if (kind !== 'artwork' || raw.contentType !== 'image/png' && raw.contentType !== 'image/jpeg') return unavailable();
+      return { ...base, action: 'artwork', kind, scope, artworkId: expected.artworkId, revision: raw.revision,
+        contentType: raw.contentType as 'image/png' | 'image/jpeg', bytes: captureMobileArtworkBytes(raw.bytes) };
+    }
     case 'initialize':
     case 'invalidate-device':
       if (raw.ok !== true) return unavailable();

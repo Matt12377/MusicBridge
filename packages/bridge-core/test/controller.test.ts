@@ -1,11 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createHash, randomUUID } from 'node:crypto';
 import { PerformanceTraceRecorder, validateIpcEvent } from '@music-bridge/contracts';
 import { performance } from 'node:perf_hooks';
 import { withPerformanceContext } from '../src/diagnostics/performance-trace.js';
 import type { PlaybackSnapshot } from '@music-bridge/contracts';
 import { BridgeController } from '../src/application/bridge-controller.js';
 import { BridgeError } from '../src/shared/errors.js';
+import { LocalSourcePreparationError } from '../src/application/local-source-resolver.js';
+import { LocalSourceFence } from '../src/stream/local-source-fence.js';
+import type { LocalPlayRequest, MBQueueRecord, MBQueueSaveRequest } from '@music-bridge/contracts';
+import type { LocalSourceCaptureResult } from '../src/collection/local-source-ticket-types.js';
+import type { LocalAlbumOwnerReadRequest } from '../src/collection/local-album-browser/owner-protocol.js';
+import { copyLocalPlaybackEvidence, createLocalPlaybackEvidenceCollector, type LocalPlaybackEvidenceRecord } from '../../../apps/desktop/src/main/local-playback-evidence.js';
 import type {
   NeteasePort,
   QualityLevel,
@@ -367,6 +374,8 @@ function makeHarness(
     zoneId: string;
   } | undefined>,
   now: () => number = () => 1_700_000_000_000,
+  onReadPriorityChanged?: () => void,
+  localGuardOptions:Partial<Pick<ConstructorParameters<typeof BridgeController>[0],'logger'|'localSources'|'isLocalPlaybackAllowed'>>={},
 ) {
   const registry = new StreamRegistry();
   const events: string[] = [];
@@ -397,7 +406,9 @@ function makeHarness(
       authExpiredCalls += 1;
     },
     roonLibrary: nativeRoon,
+    ...(onReadPriorityChanged ? { onReadPriorityChanged } : {}),
     ...(resolveSmartSource ? { resolveSmartSource } : {}),
+    ...localGuardOptions,
   });
   return { registry, gateway, netease, roon, nativeRoon, controller, events, get authExpiredCalls() { return authExpiredCalls; } };
 }
@@ -2397,6 +2408,267 @@ function mbpDeferred<T>() {
   return { promise, resolve, reject };
 }
 
+function displayReadTestCleanup(t: test.TestContext, steps: Array<() => unknown>): void {
+  t.after(async () => {
+    const errors: unknown[] = [];
+    for (const step of steps) { try { await step(); } catch (error) { errors.push(error); } }
+    if (errors.length) throw new AggregateError(errors, '封面显示关键期测试清理未全部确认。', { cause: errors[0] });
+  });
+}
+
+function makeLocalGuardHarness(t:test.TestContext,logger=createLogger('info'),onEncodedLine?:(line:string)=>void) {
+  const rows:Record<string,unknown>[]=[],phaseRows:Record<string,unknown>[]=[],fences=new Map<string,LocalSourceFence>();
+  const sink=t.mock.method(console,'log',(line:unknown)=>{if(typeof line!=='string')return;onEncodedLine?.(line+'\n');try{const value=JSON.parse(line) as Record<string,unknown>;if(value.event==='local_play_request_guard_evidence')rows.push(value);else if(value.event==='local_playback_evidence')phaseRows.push(value);}catch{}});
+  const datasetId=randomUUID(),rootId=randomUUID(),sourceId=randomUUID(),trackId=randomUUID(),assetId=randomUUID(),requestId=randomUUID();
+  const facts:LocalSourceCaptureResult['facts']={track:{id:trackId,assetId,selectionRevision:'1',segment:null},
+    asset:{id:assetId,libraryRootId:rootId,sourceRootId:sourceId,rootRevision:'1',fileRevision:'1',locationRevision:'1',sampleFrames:null,timebaseHz:null},
+    root:{id:rootId,sourceRootId:sourceId,role:'library',revision:'1'},sourceRoot:{id:sourceId,path:'/private-guard-secret/source',dev:'1',ino:'2',authorized:true,label:'私有合成目录'},relative:'private-guard-secret.wav',
+    observation:{signature:'1:2:3:4:5',assetId,trackId,libraryRootId:rootId,sourceRootId:sourceId,fileRevision:'1',rootRevision:'1',locationRevision:'1',selectionRevision:'1'}};
+  const state={targetCurrent:true,sourceCurrent:true,targetChecks:0,sourceChecks:0,targetCaptures:0,captures:0,releases:0,materializations:0,saves:0,
+    changeAtCapture:0,captureError:undefined as unknown,releaseError:undefined as unknown,captureGate:undefined as Promise<void>|undefined,
+    captureEntered:undefined as ReturnType<typeof mbpDeferred<void>>|undefined};
+  const request=(album=true,action:LocalPlayRequest['action']='PLAY_NOW'):LocalPlayRequest=>({schema_version:'1.2',request_id:requestId,route:'roon_audio_input',source_kind:'local_file',
+    local_track_id:trackId,asset_id:assetId,expected_asset_revision:'1',target:{core_id:'private-guard-secret-core',zone_id:'zone-1'},action,
+    ...(album?{album:{datasetId,albumKey:'synthetic-guard-album',rootId,revision:'album-1',kind:'source-directory' as const,editionId:null,trackCount:1}}:{})});
+  const port={
+    isLocalSourceCurrent(){++state.sourceChecks;return state.sourceCurrent;},
+    async prepare(){return {datasetId,epoch:randomUUID(),snapshotId:randomUUID()};},
+    async saveMBQueue(value:MBQueueSaveRequest):Promise<MBQueueRecord>{++state.saves;return structuredClone(value.queue);},
+    async readLocalAlbum(value:LocalAlbumOwnerReadRequest){
+      assert.equal(value.command,'localAlbum.materializeQueue');if(value.command!=='localAlbum.materializeQueue')throw new Error('仅允许原专辑物化请求。');
+      ++state.materializations;
+      return {album:structuredClone(value.payload.selection.album!),edition:null,startIndex:0,sources:[{kind:'local_file' as const,edition:null,
+        snapshot:{sourceKind:'local_file' as const,trackId,assetId,libraryRootId:rootId,sourceRootId:sourceId,rootRevision:'1',fileRevision:'1',locationRevision:'1',selectionRevision:'1',segment:null}}]};
+    },
+    async captureLocalSource():Promise<LocalSourceCaptureResult>{
+      const ordinal=++state.captures;state.captureEntered?.resolve();await state.captureGate;if(state.captureError!==undefined)throw state.captureError;
+      const captured=structuredClone(facts);if(state.changeAtCapture===ordinal){captured.root.revision='2';captured.asset.rootRevision='2';captured.observation!.rootRevision='2';}
+      const fence=LocalSourceFence.create(),ticketId='synthetic-guard-ticket-'+ordinal;fences.set(ticketId,fence);
+      return {ticketId,epoch:'synthetic-guard-epoch',datasetId,buffer:fence.buffer,facts:captured,format:'wav',metadata:{id:trackId,title:'合成守卫曲',artists:['合成'],album:'合成专辑'}};
+    },
+    async releaseLocalSource(ticketId:string){++state.releases;if(state.releaseError!==undefined)throw state.releaseError;fences.get(ticketId)?.revoke();fences.delete(ticketId);},
+    sealLocalSources(){for(const fence of fences.values())fence.revoke();},
+  } as unknown as NonNullable<ConstructorParameters<typeof BridgeController>[0]['localSources']>;
+  const f=makeHarness(206,undefined,undefined,undefined,{logger,localSources:port,isLocalPlaybackAllowed:()=>true});
+  Object.assign(f.roon,{captureLocalTarget:()=>{++state.targetCaptures;return {target:{core_id:'private-guard-secret-core',zone_id:'zone-1'},isCurrent:()=>{++state.targetChecks;return state.targetCurrent;}};}});
+  const closeFences=()=>{const errors:unknown[]=[];for(const fence of fences.values()){try{fence.revoke();}catch(error){errors.push(error);}try{fence.assertQuiet();}catch(error){errors.push(error);}}if(errors.length)throw new AggregateError(errors,'守卫旁注合成fence清理未全部确认。',{cause:errors[0]});};
+  return {...f,rows,phaseRows,state,request,sink,facts,fences,closeFences};
+}
+function assertLocalGuardSchema(rows:readonly Record<string,unknown>[]):void {
+  const fields=['timestamp','level','event','schemaVersion','component','diagnosticId','requestFingerprintSha256','stage','operationStage','firstStage','phase','elapsedMs','code','errorClass','httpStatus','cancelled','intentMatch','targetMatch','sourceMatch','fenceMatch','snapshotMatch','factsMatch','differenceMask'].sort();
+  for(const row of rows){assert.deepEqual(Object.keys(row).sort(),fields);assert.equal(row.level,'info');assert.equal(row.event,'local_play_request_guard_evidence');assert.equal(row.schemaVersion,1);assert.equal(row.component,'controller');assert.equal(row.stage,'request-guard');
+    assert.match(String(row.timestamp),/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u);assert.match(String(row.diagnosticId),/^diag-local-[a-f0-9]{64}$/u);assert.match(String(row.requestFingerprintSha256),/^[a-f0-9]{64}$/u);
+    assert.ok(Number.isSafeInteger(row.elapsedMs)&&Number(row.elapsedMs)>=0&&Number(row.elapsedMs)<=86400000);assert.ok(Number.isSafeInteger(row.differenceMask)&&Number(row.differenceMask)>=0&&Number(row.differenceMask)<=16383);
+    for(const key of ['intentMatch','targetMatch','sourceMatch','fenceMatch','snapshotMatch','factsMatch'])assert.ok(['not-checked','match','mismatch'].includes(String(row[key])));
+  }
+}
+
+test('原点播守卫旁注：点击快照首拒与release覆盖分保，60加4上界及安全hash不改原错误',async t=>{
+  const f=makeLocalGuardHarness(t),gate=mbpDeferred<void>(),entered=mbpDeferred<void>();
+  let getterReads=0,codeReads=0;const cleanupError=new BridgeError('INTERNAL_ERROR','private-guard-secret-error',{httpStatus:503});
+  Object.defineProperty(cleanupError,'code',{get(){++codeReads;return 'INTERNAL_ERROR';}});
+  for(const key of ['message','stack','name'])Object.defineProperty(cleanupError,key,{get(){++getterReads;throw new Error('诊断不能读取错误文本或getter。');}});
+  f.state.changeAtCapture=1;f.state.captureGate=gate.promise;f.state.captureEntered=entered;f.state.releaseError=cleanupError;
+  displayReadTestCleanup(t,[()=>gate.resolve(),()=>{f.state.releaseError=undefined;},()=>f.controller.shutdown(),()=>f.closeFences(),()=>f.gateway.stop(),()=>f.sink.mock.restore()]);
+  const request=f.request(),work=f.controller.playLocal(request);void work.catch(()=>{});await entered.promise;
+  const heldRowCount=f.rows.length,conflicts:Promise<void>[]=[];
+  for(let i=0;i<80;i++){
+    assert.equal(f.controller.playLocal(request),work,'原同UUID同正文仍返回原Promise，不再次物化或捕获。');
+    conflicts.push(assert.rejects(f.controller.playLocal({...request,target:{...request.target,core_id:'synthetic-conflict-core'}}),{code:'BAD_REQUEST'}));
+  }
+  await Promise.all(conflicts);assert.equal(f.rows.length,heldRowCount,'重复与冲突不输出新trace，也不占原工作预算。');
+  gate.resolve();await assert.rejects(work,error=>error===cleanupError);
+  assertLocalGuardSchema(f.rows);
+  const first=f.rows.find(row=>row.phase==='failed'&&row.operationStage==='SELECTED_SNAPSHOT')!;
+  assert.equal(first.firstStage,'SELECTED_SNAPSHOT');assert.equal(first.snapshotMatch,'mismatch');assert.equal(first.differenceMask,0);assert.equal(first.code,'BAD_REQUEST');assert.equal(first.cancelled,'yes');
+  const cleanup=f.rows.find(row=>row.phase==='cleanup-failed')!;assert.equal(cleanup.operationStage,'RELEASE_CAPTURE');assert.equal(cleanup.firstStage,'SELECTED_SNAPSHOT');assert.equal(cleanup.code,'UNKNOWN');assert.equal(cleanup.httpStatus,503);
+  const final=f.rows.find(row=>row.operationStage==='RELEASE_CAPTURE'&&row.phase==='failed'&&row.firstStage==='SELECTED_SNAPSHOT')!;assert.ok(final);
+  assert.equal(f.rows.at(-1)?.operationStage,'COMPLETED');assert.equal(f.rows.at(-1)?.phase,'failed');assert.equal(getterReads,0);assert.equal(codeReads,1,'只保留原回执映射自身的code读取。');
+  const reserved=new Set([first,cleanup,final,f.rows.at(-1)!]);assert.equal(reserved.size,4);assert.ok(f.rows.filter(row=>!reserved.has(row)).length<=60);assert.ok(f.rows.length<=64);
+  assert.equal(first.diagnosticId,'diag-local-'+createHash('sha256').update('musicbridge-local-request-guard-v1\0').update(request.request_id).digest('hex'));
+  assert.equal(first.requestFingerprintSha256,createHash('sha256').update('musicbridge-local-request-fingerprint-v1\0').update(JSON.stringify(request)).digest('hex'));
+  const serialized=JSON.stringify(f.rows);for(const value of [request.request_id,request.asset_id,request.local_track_id,request.target.core_id,'private-guard-secret'])assert.ok(!serialized.includes(value));
+  assert.deepEqual([f.state.materializations,f.state.captures,f.state.releases,f.state.saves,f.state.targetCaptures,f.state.targetChecks,f.state.sourceChecks,f.roon.playRequests.length],[1,1,1,0,1,3,3,0]);
+  const settledRowCount=f.rows.length;assert.equal(f.controller.playLocal(request),work);assert.equal(f.rows.length,settledRowCount,'原Promise结算后不再输出该context。');
+});
+
+test('原点播守卫旁注：第二次facts变化在原lease和SDK前拒绝，不重复读取谓词',async t=>{
+  const f=makeLocalGuardHarness(t);f.state.changeAtCapture=2;
+  displayReadTestCleanup(t,[()=>f.controller.shutdown(),()=>f.closeFences(),()=>f.gateway.stop(),()=>f.sink.mock.restore()]);
+  await assert.rejects(f.controller.playLocal(f.request()),{code:'BAD_REQUEST'});assertLocalGuardSchema(f.rows);
+  const first=f.rows.find(row=>row.phase==='failed'&&row.operationStage==='SECOND_FACTS')!;assert.equal(first.firstStage,'SECOND_FACTS');assert.equal(first.factsMatch,'mismatch');assert.equal(first.differenceMask,0);
+  assert.ok(f.rows.some(row=>row.operationStage==='SECOND_FACTS'&&row.phase==='failed'&&row.code==='BAD_REQUEST'));
+  assert.ok(!f.rows.some(row=>row.operationStage==='LEASE_REGISTER'||row.operationStage==='SDK_SUBMIT'));
+  assert.deepEqual([f.state.materializations,f.state.captures,f.state.releases,f.state.saves,f.state.targetCaptures,f.state.targetChecks,f.state.sourceChecks,f.roon.playRequests.length],[1,2,2,1,1,7,6,0]);
+  assert.equal(f.fences.size,0);assert.equal(f.rows.at(-1)?.operationStage,'COMPLETED');
+});
+
+test('原点播守卫旁注：原capture错误被公开stop的intent取消覆盖时仍保首阶段和原来源码',async t=>{
+  const f=makeLocalGuardHarness(t),gate=mbpDeferred<void>(),entered=mbpDeferred<void>(),sourceError=new LocalSourcePreparationError('FACTS_CHANGED');
+  f.state.captureGate=gate.promise;f.state.captureEntered=entered;f.state.captureError=sourceError;
+  displayReadTestCleanup(t,[()=>gate.resolve(),()=>f.controller.shutdown(),()=>f.gateway.stop(),()=>f.sink.mock.restore()]);
+  const work=f.controller.playLocal(f.request());void work.catch(()=>{});await entered.promise;const stopped=f.controller.stop();gate.resolve();
+  await assert.rejects(work,error=>error instanceof BridgeError&&error.code==='BAD_REQUEST'&&error.details?.reason==='operation_cancelled');await stopped;
+  assertLocalGuardSchema(f.rows);const first=f.rows.find(row=>row.phase==='failed'&&row.operationStage==='SOURCE_CAPTURE')!;
+  assert.equal(first.firstStage,'SOURCE_CAPTURE');assert.equal(first.code,'FACTS_CHANGED');assert.equal(first.errorClass,'LocalSourcePreparationError');
+  assert.ok(f.rows.some(row=>row.operationStage==='INTENT'&&row.phase==='failed'&&row.firstStage==='SOURCE_CAPTURE'&&row.code==='BAD_REQUEST'&&row.cancelled==='yes'));
+  assert.deepEqual([f.state.captures,f.state.releases,f.state.saves,f.roon.playRequests.length],[1,0,0,0]);assert.equal(f.rows.at(-1)?.operationStage,'COMPLETED');
+});
+
+test('原点播守卫旁注：logger失败不改原结果，实际Main旁路保原守卫与媒体phase关联',async t=>{
+  const collector=createLocalPlaybackEvidenceCollector(),forwarded:LocalPlaybackEvidenceRecord[]=[],stableSink=(row:LocalPlaybackEvidenceRecord)=>{forwarded.push(row);};
+  const logger=createLogger('info'),f=makeLocalGuardHarness(t,logger,line=>collector.consume(line,stableSink)),fault=t.mock.method(logger,'info',()=>{throw new Error('合成诊断sink失败。');});
+  // 仅隔离原租约与媒体端口；不打开文件、不提供真实FD或媒体字节。
+  let leaseState:'PREPARED'|'CLOSED'='PREPARED',boundDiagnosticId:string|undefined;
+  const lease={size:1,get state(){return leaseState;},async close(){leaseState='CLOSED';}} as unknown as Awaited<ReturnType<StreamRegistry['registerLocalSource']>>['lease'];
+  const register=t.mock.method(f.registry,'registerLocalSource',async()=>({token:'synthetic-guard-owned-token',lease}));
+  const revoke=t.mock.method(f.registry,'revokeLocal',async()=>{await lease.close();});
+  const media=t.mock.method(f.gateway,'localStreamUrl',(...args:Parameters<StreamGateway['localStreamUrl']>)=>{boundDiagnosticId=args[2]?.diagnosticId;return 'http://127.0.0.1:38502/synthetic-local-stream';});
+  displayReadTestCleanup(t,[()=>f.controller.shutdown(),()=>lease.close(),()=>f.closeFences(),()=>f.gateway.stop(),()=>collector.clear(),()=>register.mock.restore(),()=>revoke.mock.restore(),()=>media.mock.restore(),()=>fault.mock.restore(),()=>f.sink.mock.restore()]);
+  f.state.targetCurrent=false;const rejected=f.request();await assert.rejects(f.controller.playLocal(rejected),{code:'BAD_REQUEST'});
+  assert.deepEqual([f.state.targetCaptures,f.state.targetChecks,f.state.sourceChecks,f.state.captures,f.state.saves],[1,1,1,0,0]);
+  f.state.targetCurrent=true;const request={...f.request(false,'APPEND_MB_QUEUE'),request_id:randomUUID()},work=f.controller.playLocal(request);
+  assert.equal(f.controller.playLocal(request),work);assert.deepEqual(await work,{status:'accepted',request_id:request.request_id,action:'APPEND_MB_QUEUE'});
+  assert.equal(f.state.captures,1);assert.equal(f.state.releases,1);assert.equal(f.state.saves,1);assert.equal(f.roon.playRequests.length,0);assert.equal(f.rows.length,0);
+  fault.mock.restore();
+  f.state.targetCurrent=false;const transportedRequest={...f.request(false),request_id:randomUUID()};
+  await assert.rejects(f.controller.playLocal(transportedRequest),{code:'BAD_REQUEST'});assertLocalGuardSchema(forwarded);assert.deepEqual(forwarded,f.rows);
+  const transportedFailure=f.rows.find(row=>row.operationStage==='TARGET_CAPTURE'&&row.phase==='failed')!;
+  assert.ok(transportedFailure);assert.deepEqual(copyLocalPlaybackEvidence(transportedFailure),transportedFailure);assert.ok(forwarded.some(row=>row.phase==='failed'&&row.operationStage==='TARGET_CAPTURE'&&row.code==='BAD_REQUEST'));
+  const admitted=forwarded.length,ringSize=collector.snapshot().length;
+  for(const change of [{url:'private-guard-secret'},{operationStage:'UNKNOWN_STAGE'}]){const poison={...transportedFailure,...change};assert.equal(copyLocalPlaybackEvidence(poison),null);collector.consume(JSON.stringify(poison)+'\n',stableSink);}
+  assert.equal(forwarded.length,admitted);assert.equal(collector.snapshot().length,ringSize);
+  f.state.targetCurrent=true;const rowOffset=f.rows.length,sinkOffset=forwarded.length;
+  const playingRequest={...f.request(false),request_id:randomUUID()},playing=f.controller.playLocal(playingRequest);
+  assert.deepEqual(await playing,{status:'accepted',request_id:playingRequest.request_id,action:'PLAY_NOW'});assert.equal(register.mock.callCount(),1);assert.equal(f.roon.playRequests.length,1);
+  const playingRows=f.rows.slice(rowOffset),playingForwarded=forwarded.slice(sinkOffset);assertLocalGuardSchema(playingRows);assert.deepEqual(playingForwarded,playingRows);
+  const fingerprint=createHash('sha256').update('musicbridge-local-request-fingerprint-v1\0').update(JSON.stringify(playingRequest)).digest('hex');
+  assert.ok(playingRows.length>0);assert.ok(playingForwarded.every(row=>row.requestFingerprintSha256===fingerprint));
+  const phase=f.phaseRows.find(row=>row.stage==='roon-phase'&&row.phase==='SUBMITTING')!;assert.ok(phase);assert.equal(boundDiagnosticId,phase.diagnosticId);
+  assert.equal(playingForwarded.find(row=>row.operationStage==='REQUEST_GATE')?.diagnosticId,'diag-local-'+createHash('sha256').update('musicbridge-local-request-guard-v1\0').update(playingRequest.request_id).digest('hex'));
+  for(const stage of ['LEASE_REGISTER','SDK_SUBMIT','COMPLETED'])assert.equal(playingForwarded.find(row=>row.operationStage===stage&&row.phase==='succeeded')?.diagnosticId,phase.diagnosticId);
+  assert.ok(f.phaseRows.some(row=>row.stage==='roon-phase'&&row.phase==='AWAITING_ROON'&&row.diagnosticId===phase.diagnosticId));
+  assert.ok(collector.snapshot().some(row=>row.stage==='roon-phase'&&row.phase==='AWAITING_ROON'&&row.diagnosticId===phase.diagnosticId));
+});
+
+test('原点播守卫旁注：原SDK等待中重复及冲突不覆盖原阶段或抢占首错保留槽',async t=>{
+  const f=makeLocalGuardHarness(t),gate=mbpDeferred<void>(),entered=mbpDeferred<void>(),sdkError=new BridgeError('ROON_MEDIA_ERROR','合成SDK拒绝',{httpStatus:503});
+  let leaseState:'PREPARED'|'CLOSED'='PREPARED';
+  const lease={size:1,get state(){return leaseState;},async close(){leaseState='CLOSED';}} as unknown as Awaited<ReturnType<StreamRegistry['registerLocalSource']>>['lease'];
+  const register=t.mock.method(f.registry,'registerLocalSource',async()=>({token:'synthetic-guard-held-token',lease}));
+  const revoke=t.mock.method(f.registry,'revokeLocal',async()=>{await lease.close();});
+  const media=t.mock.method(f.gateway,'localStreamUrl',()=> 'http://127.0.0.1:38502/synthetic-held-stream');
+  const originalPlay=f.roon.play.bind(f.roon),play=t.mock.method(f.roon,'play',async(request:RoonPlayRequest)=>{await originalPlay(request);entered.resolve();await gate.promise;throw sdkError;});
+  displayReadTestCleanup(t,[()=>gate.resolve(),()=>f.controller.shutdown(),()=>lease.close(),()=>f.closeFences(),()=>f.gateway.stop(),()=>register.mock.restore(),()=>revoke.mock.restore(),()=>media.mock.restore(),()=>play.mock.restore(),()=>f.sink.mock.restore()]);
+  const request=f.request(),work=f.controller.playLocal(request);void work.catch(()=>{});await Promise.race([entered.promise,work.then(()=>{throw new Error('原SDK尚未进入便提前结算。');})]);
+  const calls=()=>[f.state.materializations,f.state.captures,f.state.releases,f.state.saves,f.state.targetCaptures,f.state.targetChecks,f.state.sourceChecks,f.roon.playRequests.length,register.mock.callCount(),play.mock.callCount()];
+  const heldCalls=calls(),heldRows=f.rows.length,conflicts:Promise<void>[]=[];
+  assert.equal(f.rows.at(-1)?.operationStage,'SDK_SUBMIT');assert.equal(f.rows.at(-1)?.phase,'started');
+  for(let i=0;i<80;i++){
+    assert.equal(f.controller.playLocal(request),work);
+    conflicts.push(assert.rejects(f.controller.playLocal({...request,target:{...request.target,core_id:'synthetic-conflict-core'}}),{code:'BAD_REQUEST'}));
+  }
+  await Promise.all(conflicts);assert.equal(f.rows.length,heldRows);assert.deepEqual(calls(),heldCalls);
+  gate.resolve();await assert.rejects(work,error=>error===sdkError);assertLocalGuardSchema(f.rows);
+  const first=f.rows.find(row=>row.phase==='failed')!;assert.equal(first.operationStage,'SDK_SUBMIT');assert.equal(first.firstStage,'SDK_SUBMIT');assert.equal(first.code,'ROON_MEDIA_ERROR');
+  assert.equal(f.rows.at(-1)?.operationStage,'COMPLETED');assert.equal(f.rows.at(-1)?.firstStage,'SDK_SUBMIT');assert.equal(f.rows.at(-1)?.code,'ROON_MEDIA_ERROR');
+  assert.equal(f.rows.filter(row=>row.operationStage==='SDK_SUBMIT'&&row.phase==='failed').length,2,'原首业务拒绝与实际末拒绝各保留一次。');
+  assert.ok(f.rows.length<=64);assert.deepEqual([f.state.materializations,f.state.captures,f.state.releases,f.state.saves,f.roon.playRequests.length,register.mock.callCount(),revoke.mock.callCount(),play.mock.callCount()],[1,2,2,1,1,1,1,1]);
+  const settledRows=f.rows.length;assert.equal(f.controller.playLocal(request),work);assert.equal(f.rows.length,settledRows);
+});
+
+test('封面显示关键期：冷idle与确认playing暂停可读，控制受理和关闭同步阻断', async t => {
+  let controller: BridgeController | undefined;
+  const notifications: boolean[] = [], f = makeHarness(206, undefined, undefined, () => { notifications.push(controller?.hasDisplayReadPriorityBlocker() ?? true); });
+  controller = f.controller;
+  displayReadTestCleanup(t, [() => { f.roon.shouldFailOnStop = false; }, () => f.controller.shutdown(), () => f.gateway.stop()]);
+  const initial = f.roon.state; f.roon.state = { status: 'discovering' };
+  assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false); assert.equal(f.controller.hasPlaybackOwnership(), false);
+  f.roon.state = initial;
+  const playing = f.controller.play({ trackId: '99401' });
+  assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true); assert.equal(notifications.at(-1), true);
+  await playing;
+  assert.equal(f.controller.hasPlaybackOwnership(), true); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false);
+  const pause = f.controller.pause();
+  assert.equal(f.roon.pauseCalls, 0); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true); assert.equal(notifications.at(-1), true);
+  await pause; assert.equal(f.controller.getPlaybackState().state, 'paused'); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false);
+  const seek = f.controller.seek(500);
+  assert.equal(f.roon.seekCalls.length, 0); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true);
+  await seek; assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false);
+  const externalSeek = f.controller.seekRoonTransport(750);
+  assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true); await externalSeek; assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false);
+  const resume = f.controller.resume();
+  assert.equal(f.roon.resumeCalls, 0); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true);
+  await resume; assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false);
+  f.roon.shouldFailOnStop = true;
+  const failedStop = f.controller.stop();
+  assert.equal(f.roon.stopCalls, 0); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true);
+  await assert.rejects(failedStop, /Roon stop failed/u);
+  f.roon.state = { ...f.roon.state, transportState: 'playing' };
+  assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true); assert.equal(f.controller.hasPlaybackOwnership(), true);
+  f.roon.shouldFailOnStop = false; await f.controller.stop(); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false);
+  for (const operation of [() => f.controller.stop(), () => f.controller.clearQueue(), () => f.controller.stopRoonTransport()]) {
+    const before = notifications.length, work = operation();
+    assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true); assert.ok(notifications.length > before); assert.equal(notifications.at(-1), true);
+    await work; assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false);
+  }
+  const closing = f.controller.shutdown(); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true); assert.equal(notifications.at(-1), true);
+  await closing; assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true);
+});
+
+test('封面显示关键期：原SDK完成前确认不放行，旧完成不能清除新seek标记', async t => {
+  const cleanup: Array<() => unknown> = []; displayReadTestCleanup(t, cleanup);
+  for (const outcome of ['resolve', 'reject'] as const) {
+    const f = makeHarness(), completion = mbpDeferred<void>(), seekEntered = mbpDeferred<void>(), seekRelease = mbpDeferred<void>();
+    cleanup.push(() => completion.resolve(), () => seekRelease.resolve());
+    const originalPlay = f.nativeRoon.play.bind(f.nativeRoon), originalSeek = f.nativeRoon.seek.bind(f.nativeRoon);
+    const play = t.mock.method(f.nativeRoon, 'play', (reference: string, zoneId: string, track?: unknown, options?: {
+      onDispatch?: () => void; onDispatchCompletion?: (completion: Promise<void>) => void;
+    }) => { options?.onDispatchCompletion?.(completion.promise); return originalPlay(reference, zoneId, track, options); });
+    const seek = t.mock.method(f.nativeRoon, 'seek', async (position: number) => { seekEntered.resolve(); await seekRelease.promise; await originalSeek(position); });
+    cleanup.push(() => play.mock.restore(), () => seek.mock.restore(), () => f.controller.shutdown(), () => f.gateway.stop());
+    await f.controller.playRoon(mbrNativeQueue(1)[0]!);
+    assert.equal(f.controller.getPlaybackState().state, 'playing'); assert.equal(f.controller.hasPlaybackOwnership(), true);
+    assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true);
+    const seeking = f.controller.seek(1200); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true);
+    if (outcome === 'resolve') completion.resolve(); else completion.reject(new Error('合成原SDK回执拒绝'));
+    await seekEntered.promise;
+    assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true, '旧写入已结算，新seek实际未退出仍须阻断');
+    seekRelease.resolve(); await seeking;
+    assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false); assert.equal(f.nativeRoon.playCalls.length, 1);
+  }
+});
+
+test('封面显示关键期：未注册SDK完成的原成功和原throw均释放自有标记', async t => {
+  const f = makeHarness(), failure = new BridgeError('ROON_TIMEOUT', '合成未注册回执的原异常');
+  const cleanup: Array<() => unknown> = []; displayReadTestCleanup(t, cleanup);
+  cleanup.push(() => f.controller.shutdown(), () => f.gateway.stop());
+  await f.controller.playRoon(mbrNativeQueue(1)[0]!);
+  assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false);
+  await f.controller.stop();
+  const play = t.mock.method(f.nativeRoon, 'play', () => { throw failure; });
+  cleanup.unshift(() => play.mock.restore());
+  await assert.rejects(f.controller.playRoon(mbrNativeQueue(1)[0]!), error => error === failure);
+  await f.controller.stop();
+  assert.equal(f.controller.hasPlaybackOwnership(), false); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false);
+});
+
+test('封面显示关键期：无ownership停止拒绝保未确认，外部稳态不能放行', async t => {
+  const f = makeHarness(), failure = new BridgeError('ROON_TIMEOUT', '合成外部停止未确认');
+  let fail = true;
+  const stop = t.mock.method(f.nativeRoon, 'stop', async () => { if (fail) throw failure; });
+  displayReadTestCleanup(t, [() => { fail = false; }, () => stop.mock.restore(), () => f.controller.shutdown(), () => f.gateway.stop()]);
+  f.roon.state = { ...f.roon.state, transportState: 'playing' };
+  assert.equal(f.controller.hasPlaybackOwnership(), false); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false);
+  const work = f.controller.stopRoonTransport(); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true);
+  await assert.rejects(work, error => error === failure);
+  assert.equal(f.controller.hasPlaybackOwnership(), false); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true);
+  f.roon.state = { ...f.roon.state, transportState: 'paused' };
+  assert.equal(f.controller.hasDisplayReadPriorityBlocker(), true);
+  fail = false; await f.controller.stopRoonTransport();
+  assert.equal(f.controller.hasPlaybackOwnership(), false); assert.equal(f.controller.hasDisplayReadPriorityBlocker(), false);
+});
+
 type SyntheticPlaybackRequestOptions = {
   signal?: AbortSignal;
   priority?: 'playback' | 'background';
@@ -2615,7 +2887,7 @@ test('快速歌单切换：原生Stop失败仍保留所有权，最后C不得越
   await f.controller.playRoon(mbrNativeQueue(1)[0]!);
   const original = f.nativeRoon.stop.bind(f.nativeRoon);
   let failStop = true;
-  t.mock.method(f.nativeRoon, 'stop', async () => {
+  const stop = t.mock.method(f.nativeRoon, 'stop', async () => {
     entered.resolve(); await gate.promise;
     if (failStop) throw new BridgeError('ROON_TIMEOUT', '合成原生停止未知', { httpStatus: 504 });
     return original();
@@ -2632,7 +2904,16 @@ test('快速歌单切换：原生Stop失败仍保留所有权，最后C不得越
     assert.equal(f.nativeRoon.active, true);
     assert.equal(f.roon.playRequests.length, 0);
     assert.equal(f.registry.size, 0);
+    const blockedStopCalls = stop.mock.calls.length;
+    const blockedNativePlays = f.nativeRoon.playCalls.length;
+    const blockedProviderPlays = f.roon.playRequests.length;
     await assert.rejects(f.controller.replaceQueue([{ trackId: '99234' }]), { code: 'ROON_TRANSPORT_UNAVAILABLE' });
+    await assert.rejects(f.controller.play({ trackId: '99235' }), { code: 'ROON_TRANSPORT_UNAVAILABLE' });
+    await assert.rejects(f.controller.playRoon(mbrNativeQueue(2)[1]!), { code: 'ROON_TRANSPORT_UNAVAILABLE' });
+    assert.equal(stop.mock.calls.length, blockedStopCalls, '停止结果未知时两种来源都不得盲重发Stop');
+    assert.equal(f.nativeRoon.playCalls.length, blockedNativePlays, '原生Roon点播不得越过共享停止保护');
+    assert.equal(f.roon.playRequests.length, blockedProviderPlays, '网易云点播不得越过共享停止保护');
+    assert.equal(f.registry.size, 0, '未知停止期间不得创建新媒体流');
     failStop = false; await f.controller.stop();
     assert.equal(f.nativeRoon.active, false);
     assert.equal(f.controller.hasPlaybackOwnership(), false);

@@ -385,7 +385,38 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   const netease = new NeteaseClient(config.neteaseCookie);
   const qrLogin = new QrLoginStateMachine(netease);
   if (netease.configured) qrLogin.markAuthorized();
-  const roon = new RoonAudioInputAdapter(logger, options.roonSdk, {
+  // 仅原生停止的闭集阶段进入既有导出ring；其余Adapter日志保持原通道。
+  const adapterLogger: Logger = {
+    debug: (event, fields) => logger.debug(event, fields),
+    warn: (event, fields) => logger.warn(event, fields),
+    error: (event, fields) => logger.error(event, fields),
+    info: (event, fields) => {
+      if (event === 'roon_transport_stop_stage') {
+        try {
+          const value = fields ?? {};
+          const { phase, outcome, code, diagnosticId, durationMs } = value;
+          const matchKeys = ['coreMatches', 'connectionMatches', 'targetMatches', 'zoneMatches',
+            'outputsMatch', 'beforeInactive', 'currentInactive', 'revisionAdvanced'] as const;
+          if (['dispatch', 'callback', 'zone-confirm'].includes(phase as string)
+            && ['begin', 'success', 'error', 'timeout', 'rejected', 'idempotent', 'fresh'].includes(outcome as string)
+            && ['NONE', 'UNKNOWN', 'ROON_TIMEOUT', 'ROON_ZONE_NOT_SELECTED', 'ROON_TRANSPORT_UNAVAILABLE', 'BAD_REQUEST', 'INTERNAL_ERROR'].includes(code as string)
+            && (diagnosticId === undefined || (typeof diagnosticId === 'string'
+              && /^roon-stop-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(diagnosticId)))
+            && Number.isSafeInteger(durationMs) && (durationMs as number) >= 0 && (durationMs as number) <= 86_400_000
+            && matchKeys.every(key => value[key] === null || typeof value[key] === 'boolean')) {
+            diagnostics.record({ component: 'core', level: ['error', 'timeout', 'rejected'].includes(outcome as string) ? 'warn' : 'info',
+              event: 'roon_transport_stop_stage', code: code as string,
+              ...(typeof diagnosticId === 'string' ? { diagnosticId } : {}),
+              durationMs: durationMs as number,
+              // 匹配位顺序由上方闭数组固定，?仅表示本次尚未取得，不能当作匹配。
+              state: `${phase}.${outcome}|${matchKeys.map(key => value[key] === null ? '?' : value[key] ? '1' : '0').join('')}` });
+          }
+        } catch { /* 诊断复制失败不改变原Logger或停止结果。 */ }
+      }
+      logger.info(event, fields);
+    },
+  };
+  const roon = new RoonAudioInputAdapter(adapterLogger, options.roonSdk, {
     mode: config.mode,
     iconPort: config.remoteStreamPort ?? config.streamPort,
     ...(config.roonCoreHost ? { coreHost: config.roonCoreHost } : {}),
@@ -411,11 +442,14 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
   let matchLibraryAvailable = roon.getLibraryService() !== undefined;
   let scanReadAdmission: ScanReadAdmission | undefined;
   let observedRoonReadBusy = false;
-  const sampleRoonReadBusy = (): void => {
+  let observedRoonDisplayActivity = false;
+  const sampleRoonReadBusy = () => {
     const state = roon.getSelectedZonePlaybackState();
     if (state === 'playing' || state === 'loading') observedRoonReadBusy = true;
     else if (state === 'stopped') observedRoonReadBusy = false;
     // 暂停或观测丢失不证明已停止；初始从未活跃的离线来源仍可扫描。
+    if (state === 'playing' || state === 'paused' || state === 'loading') observedRoonDisplayActivity = true;
+    return state;
   };
   const gateway = new StreamGateway({
     host: config.streamHost,
@@ -606,6 +640,16 @@ export function createBridgeRuntime(options: BridgeRuntimeOptions = {}): CoreRun
     sampleRoonReadBusy();
     return runtime !== 'ready' || shutdownStarted || controller.hasPlaybackOwnership()
       || observedRoonReadBusy || gateway.getActiveMediaReadCount() > 0;
+  }, isDisplayBusy: () => {
+    const state = sampleRoonReadBusy();
+    if (runtime !== 'ready' || shutdownStarted || controller.hasDisplayReadPriorityBlocker() !== false) return true;
+    if (state === 'playing' || state === 'paused' || state === 'stopped') return false;
+    if (state === undefined && !observedRoonDisplayActivity) {
+      const connection = roon.getState();
+      // 冷启动未连或无Zone不阻本地图；已有活动后失观测不能冒充这个初始状态。
+      return Boolean(connection.selectedZoneId && ['ready', 'playing', 'paused'].includes(connection.status));
+    }
+    return true;
   } });
   const performanceMonitor = createNodePerformanceTrace({ component: 'core', enabled: (options.env ?? process.env).MUSIC_BRIDGE_PERFORMANCE_TRACE === '1', monitorEventLoop: true });
   const performanceTrace = performanceMonitor.recorder;

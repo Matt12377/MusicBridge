@@ -88,3 +88,18 @@ export function mbQueueOwnershipStatus(snapshot: import('@music-bridge/contracts
  if (local && (local.ownership === 'UNKNOWN' || local.queue_owner === 'UNKNOWN' || local.phase === 'OWNERSHIP_LOST' || local.phase === 'SUBMISSION_UNKNOWN')) return '当前 Roon 播放所有权未知；下面是 MB 已保存队列，自动推进已暂停。'
  return null
 }
+
+/** 只有当前本地原attempt的稳定Roon观察可拖动；不由UI补造请求或授播放权。 */
+export function localPlaybackSeekAllowed(snapshot: import('@music-bridge/contracts').PlaybackSnapshot | null, selectedZoneId?: string): boolean {
+ if (snapshot?.source !== 'local_file') return true
+ const local = snapshot.local, selected = snapshot.queue.items[snapshot.queue.index]
+ if (!local || local.route !== 'roon_audio_input' || snapshot.currentTrack?.id !== local.local_track_id
+  || snapshot.selectedZoneId !== local.target.zone_id || selectedZoneId !== local.target.zone_id
+  || !selected || selected.resolvedSource !== 'local_file' || selected.trackId !== local.local_track_id
+  || selected.local?.local_track_id !== local.local_track_id || selected.local.asset_id !== local.asset_id
+  || selected.local.asset_revision !== local.asset_revision
+  || local.ownership !== 'MB_OWNED' || local.queue_owner !== 'MB' || !local.session_epoch
+  || !local.roon_observation.observed || local.roon_observation.correlation !== 'ATTEMPT_CONFIRMED') return false
+ return local.phase === 'PLAYING' && snapshot.state === 'playing' && ['PLAYING', 'TIME'].includes(local.roon_observation.event)
+  || local.phase === 'PAUSED' && snapshot.state === 'paused' && ['PAUSED', 'TIME'].includes(local.roon_observation.event)
+}

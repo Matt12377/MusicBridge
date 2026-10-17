@@ -7,6 +7,7 @@ import {
   type MobileContentServiceInput, type MobileContentSnapshot,
 } from './content-types.js';
 import { MobileServiceError } from './types.js';
+import { mobileContentDiagnosticReject, mobileContentDiagnosticSync } from './capability-trace.js';
 
 export const MOBILE_CONTENT_OWNER_OPERATIONS = [
   'listRecentlyAddedAlbums', 'listFavoriteAlbums', 'getFavoriteAlbumState', 'setAlbumFavorite',
@@ -126,7 +127,7 @@ export function createMobileContentService(options: MobileContentServiceOptions)
     // 超时只终止本次输出；原端口真实收口之前仍占用槽位并供 close 等待。
     void flight.then(() => active.delete(flight), () => active.delete(flight));
     try { return await Promise.race([flight, aborted]); }
-    catch (error) { throw safeMobileContentFailure(error); }
+    catch (error) { mobileContentDiagnosticReject('core.content.failure', error); throw safeMobileContentFailure(error); }
     finally {
       clearTimeout(timer); parentSignal.removeEventListener('abort', cancel);
       controller.signal.removeEventListener('abort', onAbort); controllers.delete(controller);
@@ -147,13 +148,13 @@ export function createMobileContentService(options: MobileContentServiceOptions)
         : providerOperations.has(operation) ? options.provider : options.lyrics;
       return run(scope, parentSignal, async signal => {
         const raw = await port.dispatch({ operation, request, scope, signal });
-        const capture = () => {
+        const capture = () => mobileContentDiagnosticSync('core.content.capture', () => {
           if (!closedData(raw, SNAPSHOT_KEYS) || raw.operation !== operation
             || typeof raw.beforeSend !== 'function' || !sameMobileContentScope(scope, captureMobileContentScope(raw.scope))) throw busy();
           const result = captureMobileContentReply(operation, request, scope, raw.reply, raw.context, codecOptions);
           assertMobileContentOperationKind(operation, result.reply.body);
           return result;
-        };
+        });
         const captured = capture(), original = fingerprint(captured.reply, captured.context, options.limits);
         const beforeSend = raw.beforeSend;
         const verify = () => {

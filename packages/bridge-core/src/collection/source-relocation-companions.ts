@@ -20,7 +20,7 @@ export interface RelocationCompanionClosure {
   complete: true; companions: RelocationCompanionDraft[]; edges: dto.LocalRelocationReferenceEdge[];
   inventories: readonly { sourceRootId: string; directory: string; fingerprint: string }[];
 }
-const audioExtension = /\.(?:flac|mp3|m4a|mp4|wav|wave|aiff|aif|alac|ogg|opus|ape|wv)$/iu;
+const audioExtension = /\.(?:flac|mp3|m4a|mp4|wav|wave|aiff|aif|alac|ogg|oga|opus|ape|wv|tta|mpc|mpp|mp\+|tak)$/iu;
 const lyricExtension = /\.(?:lrc|srt|lyrics|txt)$/iu;
 const imageExtension = /\.(?:jpg|jpeg|png|webp|gif|bmp|tif|tiff)$/iu;
 const manifestExtension = /\.(?:m3u|m3u8)$/iu;

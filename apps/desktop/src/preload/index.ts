@@ -1,3 +1,5 @@
+import { createLocalAlbumClient } from './local-album-client.js'
+import { createLocalWorkbenchClient, installTrustedDirectoryDrop, type TrustedDirectoryDropEvent } from './local-workbench-client.js'
 import { createLocalOrganizerClient } from './local-organizer-client.js'
 import { createLocalArtworkClient } from './local-artwork-client.js'
 import {createMBQueueClient} from './mb-queue-client.js'
@@ -12,7 +14,7 @@ import { createRecordingRecordClient } from './recording-record-client.js'
 import { createRecordingWorkspaceClient } from './recording-workspace-client.js'
 import { createRecordingCandidateClient } from './recording-candidate-client.js'
 import { createPreparationZipClient } from './preparation-zip-client.js'
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { createMobileConnectionClient } from './mobile-connection-client.js'
 import type {
   RemoteCoreTunnelState,
@@ -50,6 +52,8 @@ const outbox = createCommandOutboxClient(invokeScoped, getDatasetId)
 const workspaceClient = createRecordingWorkspaceClient(invokeScoped, request => outbox.submit('recordingWorkspace.put', request), getDatasetId)
 const candidateClient = createRecordingCandidateClient(invokeScoped, request => outbox.submit('recordingCandidates.select', request), getDatasetId)
 const preparationZipClient = createPreparationZipClient(invokeScoped, getDatasetId)
+const localAlbumClient = createLocalAlbumClient(invokeScoped, getDatasetId)
+const localWorkbenchClient = createLocalWorkbenchClient(invokeScoped, getDatasetId)
 
 contextBridge.exposeInMainWorld(
   'musicBridge',
@@ -395,6 +399,9 @@ contextBridge.exposeInMainWorld(
     { invoke: invokeScoped, scope: getDatasetId, confirm: request => outbox.submit('localLegacyLinks.confirm', request), revoke: request => outbox.submit('localLegacyLinks.revoke', request), undo: request => outbox.submit('localLegacyLinks.undo', request) },
     { invoke: invokeScoped, scope: getDatasetId },
     { invoke: invokeScoped, scope: getDatasetId },
+    localAlbumClient,
+    localWorkbenchClient,
+    localWorkbenchClient,
   ),
 )
 
@@ -402,3 +409,31 @@ contextBridge.exposeInMainWorld(
 if (process.argv?.includes('--music-bridge-mobile-settings=v1')) {
   contextBridge.exposeInMainWorld('musicBridgeMobile', Object.freeze(createMobileConnectionClient((channel, ...args) => ipcRenderer.invoke(channel, ...args))))
 }
+
+/** 布局变化只通知Main重新读取真实占位；不向Renderer暴露网页对象或坐标许可。 */
+function observeLocalWorkbenchWebLayout():void {
+  let frame:number|undefined,observed:Element|null=null
+  const schedule=()=>{if(frame===undefined)frame=requestAnimationFrame(()=>{frame=undefined;ipcRenderer.send('localWorkbench:web-layout')})}
+  const resize=new ResizeObserver(schedule)
+  const refresh=()=>{const next=document.querySelector('[data-musicbridge-artwork-web-host]');if(next!==observed){resize.disconnect();observed=next;if(next)resize.observe(next)}schedule()}
+  new MutationObserver(refresh).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style','hidden','open','aria-hidden','aria-modal','data-musicbridge-artwork-web-identity']})
+  document.addEventListener('scroll',schedule,true);document.addEventListener('visibilitychange',schedule);window.addEventListener('resize',schedule)
+  refresh()
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',observeLocalWorkbenchWebLayout,{once:true});else observeLocalWorkbenchWebLayout()
+
+const nativeDirectoryListeners=new Set<(event:TrustedDirectoryDropEvent)=>boolean|void>()
+contextBridge.exposeInMainWorld('musicBridgeNative',Object.freeze({
+  subscribeDirectoryDrop(listener:(event:TrustedDirectoryDropEvent)=>boolean|void):()=>void {
+    if(typeof listener!=='function')throw new Error('原生目录订阅无效。')
+    nativeDirectoryListeners.add(listener)
+    return ()=>{nativeDirectoryListeners.delete(listener)}
+  },
+}))
+const nativeDirectoryDrop=installTrustedDirectoryDrop({document,scope:getDatasetId,getPathForFile:file=>webUtils.getPathForFile(file),invoke:invokeScoped,deliver:event=>{
+  // 同一窗口只交一个当前工作区；start必须同步锁住原界面意图。
+  if(nativeDirectoryListeners.size!==1)return false
+  const listener=[...nativeDirectoryListeners][0]!
+  return listener(event)===true
+}})
+window.addEventListener('unload',()=>{nativeDirectoryDrop.dispose();nativeDirectoryListeners.clear()},{once:true})

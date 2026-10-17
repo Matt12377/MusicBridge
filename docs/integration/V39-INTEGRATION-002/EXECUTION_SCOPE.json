@@ -1,0 +1,5577 @@
+{
+  "schema": "musicbridge.v39.integration002.execution-scope.v1",
+  "task": "V39-INTEGRATION-002",
+  "branch": "codex/v39-integration-002",
+  "baseSha": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+  "baseTree": "3991e44a5d1d01a4132891cf2e2b20926d7c8871",
+  "sourceParentSha": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+  "frozen": false,
+  "completePlannedAuthorization": true,
+  "executionStatus": "IN_PROGRESS",
+  "currentPhase": "FULL_DONOR_ADOPTION_AND_IMPLEMENTATION",
+  "allowedSourceFiles": [
+    {
+      "path": ".github/workflows/electron-e2e.yml",
+      "status": "M",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "380eac659d5d177e087933a5d50152c02ce58a15",
+        "bytes": 11536,
+        "sha256": "d378e668aeb6ef5ad1424f3de5db8b447a84d77add8f04a2982db1482b13e6c5"
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": ".github/workflows/rust-core.yml",
+      "status": "M",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "d5a1fcfd4c795947cf4f99ad1bf1a94794feb014",
+        "bytes": 5403,
+        "sha256": "c145aac8e5724c85a5611f324fbe057be42dfe8f1a34b236f27ab381ee52909a"
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": ".github/workflows/security.yml",
+      "status": "M",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "468508312cea0db9421cdb7bdd9df84b8549028d",
+        "bytes": 3011,
+        "sha256": "bfd8ad30270b166a7bae2efe1bd286a8312ea77c5da98ecc9f3b2a95e98b58d0"
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": ".github/workflows/verify.yml",
+      "status": "M",
+      "role": "ci",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "fa972737458ee8261ec2796a3778dcde08fcbfe1",
+        "bytes": 33291,
+        "sha256": "ebc47805043511eb0d814780bd0daf2a613a0321f392e2624cf9eaf5d588a13c"
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/e2e/mbrs009-local-library.spec.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "feadcd28a3fc9d990c13b9b2447f0d77ee87f036",
+        "bytes": 10775,
+        "sha256": "4b37706530de793b0dc83d0d4ea51589324fcfac674863aa47914b1d2dc702ab"
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/e2e/v39-coverdrop-original-features.spec.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/package.json",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "31f77dbb619eae14ae8784f19abfe868509420d5",
+        "bytes": 6564,
+        "sha256": "6961ac276510c8df5fda8dc2d064828a659672600a0fe998bcffccb547e20add"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/scripts/native-cue-package.mjs",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/scripts/native-local-audio-tags-package.mjs",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/core-host.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "210b30e9de914239e816ea913937882ac02d421b",
+        "bytes": 5033,
+        "sha256": "67087bd2418d6e2ecec3a4ea8d8bbf275def6c85cd164353d19fb217cdfb781c"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/core-supervisor.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "cf2c702cf606f038d3fbea083a08c6035cd92864",
+        "bytes": 51418,
+        "sha256": "a06f81f147d15ba126a355518a7c6d528009614589e97859507efb1df9efd5ab"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/credential-vault.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "86e0bc6b26ba4b82ae4761a15aca483a0f328354",
+        "bytes": 6069,
+        "sha256": "9f1e6719b374b4ff261874686744c6138b0cf94e9b817397eed9e20ef55f830e"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/dataset-owner-bootstrap.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "194335c3921eebac6373a509ca086830a9b54ac6",
+        "bytes": 2657,
+        "sha256": "5554d606531a6e67c81303c0f1af17080f9e6c7bbe67a9501e75d5207c7c78ab"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/dataset-owner-entry.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "ff093376a206ec535a3de4d5dfce801e0d871e05",
+        "bytes": 2080,
+        "sha256": "b46f34900205ee02b846e0b55f5ce65591f864687d67626fe184192e56ec5e3d"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/diagnostics.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "eb603e0ebe472dd33353e6bcdf066be05efc4fed",
+        "bytes": 4992,
+        "sha256": "31d2ffb30dbc56a4ba18d58db455334ab0cc8d95342edf7d3ba29dc40460f61d"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/index.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "40a731861b3ade742869debc079021e4d0451620",
+        "bytes": 113892,
+        "sha256": "455d3721bff96a0d12b70826b180bccbce2e0d1cd9a49d6e039ab3635b682f4d"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/local-artwork-image.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "09914487c4ea21cf56cdf03de98f277a93f815cc",
+        "bytes": 16413,
+        "sha256": "a9049d5956d75cac4b356fd3c27a740f6dffad191f0751526c2409cf6b3b2b08"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/local-artwork-ipc.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "99f8bf814ac8bceb4297078bdc3003bf6c3ab3a9",
+        "bytes": 11860,
+        "sha256": "c51568239929682f6e9604dab36b358df40c58baa6b267dfeb9da013fa9cf136"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-ipc.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "f9d5dfa984be7e1c83929bb784399d3217789fd2",
+        "bytes": 4487,
+        "sha256": "934744445b3b5abde19089a24ad596864290eecdec1ec8a0a349fa3067268343"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/album-artwork-normalizer.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/main/local-library-workbench/album-artwork-normalizer.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "03c6b893b5b7b274514cd47dc0dcda7e3653d298",
+        "bytes": 1948,
+        "sha256": "81701b3db133fa0dbd56290e9a3f82bdc45f5fcd5a2b1bfad92d4939618a5173",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/album-ipc.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/main/local-library-workbench/album-ipc.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "36d5a5c0848f700af0ba00f3ecbf65cc2808d20b",
+        "bytes": 2611,
+        "sha256": "7bb2961df17fe6d1b1f87f8b9e09899a66b6044032fafe8d32c15675d7d7b99e",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/artwork-import-normalizer.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/main/local-library-workbench/artwork-import-normalizer.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "703ac86b5f73dcc892085820f8912b35148f7251",
+        "bytes": 23451,
+        "sha256": "bbbdda704936a2d29fec96aab2a1f0bbce4c61fffee1bd6475e2189adaabe02d",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/lyrics-service.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/name-settings.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/native-chooser.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-providers.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-providers.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "63e528f00d3bc548eec70d2457997ffefef523c0",
+        "bytes": 20903,
+        "sha256": "9a943e3befd3c0a3856875733066251f877ebc5d9e1b7fbcf928d1b51f48d9c5",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-urls.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-urls.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "5c016c1b25ec44447a1037e6ad86fef1137d89a5",
+        "bytes": 4180,
+        "sha256": "f81749696ceeec1ff4fb9e9ff1acb1cf9043a4c1cd7825f81483d064d1adbe88",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-web-navigation.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-web-navigation.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "87e4dca6fe117dd797937c8ba6499e08a34c0f4c",
+        "bytes": 2134,
+        "sha256": "5794f42523c56bff4d897aafba1db54af919d32fc388c414502533534b5485ac",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/providers/boundaries.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/main/local-library-workbench/providers/boundaries.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "3ac344523fdec7911b1aeef59129005148f22c0d",
+        "bytes": 4762,
+        "sha256": "50f15dcadf11e583dbeb00a15a1ef799f84b112b9975f034e5afe53ac90993d4",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/providers/index.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/main/local-library-workbench/providers/index.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "cd5948a7b1b19d7213fa72c40595e9c4da31d868",
+        "bytes": 1019,
+        "sha256": "4b70140ac3ab698639290661008922fa4ca6ebf726c88b439fea49e131c06fa0",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/providers/name-transport.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/main/local-library-workbench/providers/name-transport.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "c2cb5daa90c00e67a2ca7583ccf6f51bcfda2a8b",
+        "bytes": 14744,
+        "sha256": "064bffc24d3b31534ba54b1f662e7ce826c00e3285e40dde0f2f36ab692387bf",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/providers/pinned-transport-review.patch",
+      "status": "A",
+      "role": "historical-proposal-not-active-code",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/main/local-library-workbench/providers/pinned-transport-review.patch",
+        "status": "A",
+        "role": "historical-proposal-not-active-code",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "25ff8e0973ab0d83ea22f04457846242d057b48e",
+        "bytes": 1959,
+        "sha256": "43e3d606569d54494988af7d2c3f4abb1ec94e7dce4ab1039fd76a00ae48c0ad",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/service.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/main/local-library-workbench/service.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "36588c5ff81415e6e73938463b1b218cc036d2bd",
+        "bytes": 45856,
+        "sha256": "ab15051640967b4d67ecafc6a2a67d74345b57c257f58a40730d3c2af5232f48",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/main/local-library-workbench/workbench-ipc.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/main/local-library-workbench/workbench-ipc.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "3175d272bdb64ff14869581927241032887b32e9",
+        "blob": "06b327be003e9964bc2853571a61ce8ee53d7ec7",
+        "bytes": 10834,
+        "sha256": "83ee01e528d64c8a6908450393a37078f163583814b2a38ad2fec2db0636531d",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/main/local-playback-evidence.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/main/local-source-writes-ipc.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "8d1335fd7fed3a548ebc3c1621805cdcfe11baf1",
+        "bytes": 6500,
+        "sha256": "43f3aa72cce510e441108a8b994061980217b4648b5c0c1f5e27445fab3c960d"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/preload/api.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "1ec8541d1e32dc0de473b0b37a3f77f68d81f73e",
+        "bytes": 44738,
+        "sha256": "6748d8a7886abe9adff4ec2ea73d179ef0e874982c4e32c6e2217d38eebdda40"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/preload/index.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "ee21096670d13155ff74f1b977a07cbbf7f7e538",
+        "bytes": 28597,
+        "sha256": "eccce4486969ee84d080d7623b54d28b865c431244ab74bb672894fa5e87dee7"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/preload/local-album-client.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/preload/local-album-client.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "a3f0cd15b703844169a12a4d2b5f53f3bff28492",
+        "bytes": 1878,
+        "sha256": "2736c8416d246314cc22a02bcd4f8b91bf6a5869564e1134c4c6d9f7b1aa81d4",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/preload/local-library-client.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "71267c36d3fd17a934f7e6fc05045a452fdb398a",
+        "bytes": 3805,
+        "sha256": "f57126d86cfc125ef27aee6799c7c9ab4a8555c4a16d1096b88c566df8954cd9"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/preload/local-workbench-client.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/src/preload/local-workbench-client.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "57a586ab75edf0074a39859d5d56b22071e57b50",
+        "bytes": 4696,
+        "sha256": "ecda456e5df9212e6881f2592011fab6ba3cd5c3b9fa7048472e80388ed42bae",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/App.vue",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "5424515f6cf386651f695e97977f9310d7ff12a0",
+        "bytes": 72331,
+        "sha256": "689d6eb509736f5dc198435f2f81a5c99223433443955067c6f4b029b69d8339"
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/CoverDropView.vue",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "42b49d7ca9299d36210e33f5a2e02a3de86ed5b1",
+        "bytes": 26397,
+        "sha256": "69f968e4a2b2526d2e34ab1460a67607d6eb6ce788b3c434346b18fd00dfde99"
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumArtwork.vue",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumArtwork.vue",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "be0f9292dc7dbc17380840f6c3e33ae6ef384c44",
+        "bytes": 2900,
+        "sha256": "09d35df6d6f44062db2a345076ee6a8e456aac932adf5f781f5ac763818069cb",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumBrowser.vue",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumBrowser.vue",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "a73b23c2b60c93ae6de378cb2728910a92155b0f",
+        "bytes": 16881,
+        "sha256": "ac890affce106410b921958ee40ed442727be8c2dca453ac2ed809753d96f67d",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumDetail.vue",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumDetail.vue",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "25c9b3df2ebd64ed09acdd29b0b9f2a3e897efc5",
+        "bytes": 11922,
+        "sha256": "031a388bc919322dc667ed7cb0e86df0960cc4248cc2bc2a5e2187edbaf46fab",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumGrid.vue",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumGrid.vue",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "de25f59f45fcd9f7b4f29a38f844e6f121460224",
+        "bytes": 12434,
+        "sha256": "43e052ac690f73a0a1b595ac0e12648cead20ad78e2bea74345eb0514d92b165",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-browser/presentation.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/components/library/local-browser/presentation.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "470eec8e0bc0e60d45d0241a85601e0a2393c5e2",
+        "bytes": 2705,
+        "sha256": "bfc963bdbf99566c6812ef7056012103840bbf66cc7a375f7028c28adb25fa88",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalAiReview.vue",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalAiReview.vue",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "a0a00f552aa35b42b76d4bb98097c94e20604fbb",
+        "bytes": 5175,
+        "sha256": "42a067a3e6a2a0d69793534d74d7f4bf162900744ce45fb10e15d76c88508c6a",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalCueSplitReview.vue",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalCueSplitReview.vue",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "82131027755aa1b3ff73b7994c29634f6d8fef0a",
+        "bytes": 5778,
+        "sha256": "e1ba2df68d469cc47fe2603c0c5819669f0ea5517675d451063277e13e595b6e",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalLibraryWorkbench.vue",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalLibraryWorkbench.vue",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "be209fbce0f0e52bef5380c0bcfc56d0f3232c7f",
+        "bytes": 20219,
+        "sha256": "b947fe5e5a3206aac6e713df446c34d58810a2460ac94b3f60f592ab2b06f17c",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalLyricsBatchControl.vue",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalLyricsReview.vue",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/library/local-workbench/workbench.css",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/components/library/local-workbench/workbench.css",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "2a6318d566009c6d9a95509b5d16fed4d6ed3a96",
+        "bytes": 7478,
+        "sha256": "030f36d41d9fc30ce2d3fa86a8ce30701bd21baa466146b2c5df5052fb37493d",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "35646c94d8019339cc2debb7e08f5fbb76263cbd",
+        "bytes": 14058,
+        "sha256": "6eaa180c2ca488e2c38135cbb066e95794a0dafd39352a18e90748497828d26c"
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+        "status": "M",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "99c7d6e62731153a061ccf083ada96bc2c798a15",
+        "bytes": 14707,
+        "sha256": "8022bf6a8c2dcd45a465fed793f0c8e310b34a5aae41c67284194b20123a34c9",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/navigation.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "bc1610377e0237701e88e5dad0743e7873e199c0",
+        "bytes": 997,
+        "sha256": "a86db9d86b15c33e9cfe43982f4f14c65fc802ec462572545c340aa8a7fa5a85"
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/LocalAiSettings.vue",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "6cdf602f6778a72abeeaa9107ec11a9d62c4498a",
+        "bytes": 11830,
+        "sha256": "c951cf6de5060ff42ac8b94d1104155cdb7791c137cc68f0cbf9f4c5e0cf9c88"
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/settings/SettingsView.vue",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "864353f1544ded6e2fb32d79d6030a10770aad87",
+        "bytes": 14392,
+        "sha256": "d077523d2fa9664514e56811e7892faa6cd3a954d7614aa87fb372a71460573c"
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "bfca055b9ce45b8d4d6c49d758f1da392bf94199",
+        "bytes": 7003,
+        "sha256": "374590db1dc8d8b6e7e1fde6e21dcc7999e61b543591187f8f976d9ca4486477"
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/model.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/model.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "9f4e7907f75eb6ff03d028091383a6df9908fe65",
+        "bytes": 26141,
+        "sha256": "048dc8a31fb5b48d76657fb8936ba085f6362423e8817727adb52539f9858d28",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/presentation.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/presentation.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "39d7b67a0b66a6659f559113ff8bd9750a9671d4",
+        "bytes": 1032,
+        "sha256": "127a25431e5a8d5baea9dfd4ba212651eff89b313aabdb121bdfe738fec371a9",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/types.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/types.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "9237dbac60b01669e669f14e8326f9f81968d1d5",
+        "bytes": 2280,
+        "sha256": "4e165b77d9588e64d293181692612af00080749ea2f5b3b89bf59de9a0070a2d",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/useLocalAlbumBrowser.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/useLocalAlbumBrowser.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "13d7ca2cbc6da89f28a88b181f6abd734d8aad8d",
+        "bytes": 2430,
+        "sha256": "5f7a63883e1d8598597fd535169da594284acd51778f2abcdcb8e8beaa493c97",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/controller.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/controller.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "fcddcb1683627cae6bb23bd155cc15c60c1c566c",
+        "bytes": 42823,
+        "sha256": "d059001d1e7c215cf7f4e2eed4744f910f89263eef4434b50544278811facd70",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/library.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/lyrics.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/ports.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/ports.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "6b2f66ede10fcfdc0d40322f4cf8559d474b9fcd",
+        "bytes": 3888,
+        "sha256": "4451a3ef9ac4965eee25cacb495a02d279229b9a8e30faa2ef753d0f9fcdaf0e",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/types.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/types.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "c63d49d9b51f20c665d90ef82fbe23a56ce61ccd",
+        "bytes": 4493,
+        "sha256": "00206816111c9c160627d939ffc499eea3d810e38564333e0a3e036bd54e1613",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalArtwork.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "2482de122ef4fd5e754249e8ab60de0855e8b676",
+        "bytes": 26044,
+        "sha256": "d2bc4140b51ff71cfa796a83c7ed0973fb4ce8b006c85ac41da4d8e7c16e6b0d"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "eddfec9b0e9661858bd59d223193114673310c21",
+        "bytes": 38769,
+        "sha256": "db7df12f10c6d2fd6b52a9b4b0e32524fbfe16d36a0b896c6da37653e9109114"
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalOrganizer.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "69d11a772a079bf51bc60df67239b54d906850d9",
+        "bytes": 25955,
+        "sha256": "23a37f6dde7a5c355e289e4d07939bb832b8c31b3850a878119a574580facc12"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalRelocationPlans.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "8b5d426da38c6c262b4981fa5b64d0c6bcc1b80f",
+        "bytes": 34473,
+        "sha256": "3f638d3eb9c1a73cb167cce9859798ab21d719110c465cb61ee3f354dff39410"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/useLocalSourceWrites.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "7410e7ae75f04e8f08ae968b1c6fdac98806e940",
+        "bytes": 25734,
+        "sha256": "c97235268343ebf7956a976509643809fb40aa53513ff967f1563d2c60c54a99"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "69456eadc7ca58b6a3a560edf299e28b60c4ce51",
+        "bytes": 22367,
+        "sha256": "49f593d1266d49484b3391372713e301cd550b517d5bef9ef82d391e6df0cb20"
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "11bab9672fc9817e6efaf703bbf134c44e9da636",
+        "bytes": 51479,
+        "sha256": "415c3c28d5cedfecd48880d573e75e5f85e8801fe5973c1ed2aac738b556d668"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/core-supervisor-compact.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "8ed04ccda4d3292c7c8cb8e1e239d2c0942f6c3a",
+        "bytes": 12327,
+        "sha256": "1cabef4aeb05e85a053602c0bea0024a1e355bab4838f7b5c71bb8f790a611a1"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/core-supervisor.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "6e0902a3508a31c6146478fd20fc72539a64b46a",
+        "bytes": 47301,
+        "sha256": "5ed7883682499ff095409a0b42e23125443e829cfea1dd1cfc94334f1d68e601"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/diagnostics.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "7a493a71a060e8f107ac0cddcf5c79ff64c4596d",
+        "bytes": 4597,
+        "sha256": "238c04e6081febe76a04156e979f173b0ce17e5d230bef0f516473a8bfa5b3cc"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/library-cache-transport.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "ae571f499953ce46ff04be9ce1b4353cbd2e38a0",
+        "bytes": 4664,
+        "sha256": "c8f20e8c140071e521976820c531347076bbb6f61be94e5ee32befb6f3fffef3"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/library-read-terminal.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "61489da5fb9e6c19576947a1e007d0c4123aab13",
+        "bytes": 13174,
+        "sha256": "e9977b6a41e43c408cde8014dbb9b1bb3a58330bd4e9ab594bfe60a4499015f5"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/local-artwork-image.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "9d8d302e3f6a65f0cd0502fb9b383898d89cfa16",
+        "bytes": 19382,
+        "sha256": "d914bb81affd0c07dea676b18b34541848322116a2387e7564ca2703699f5156"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/local-playback-evidence.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/local-playback-main-timeout.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "8f987d0c69b4a48f7c81ce87c57ccd738d0aca7e",
+        "bytes": 5068,
+        "sha256": "09117f77732b64f07b5c1ecb8a08997ce62aaafdbeeb349dfb9e21c7bfd20f14"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/local-playback-recovery.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "1244d96626de455eef502712c1d0add5caecb06e",
+        "bytes": 59035,
+        "sha256": "a54009bc9a885afba579f97d412b1b9b4593d046f5c22ad148db83f75acf5880"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/mbf-coverdrop-library.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/mbf-coverdrop-lyrics.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/mbf-coverdrop-router.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/mbf-coverdrop-save-gate.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/mbf-local-album-browser.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/test/mbf-local-album-browser.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "7427d96eddf4c9e6ff667b272f9797af050da2e1",
+        "bytes": 27990,
+        "sha256": "e4618c4abe96f955e02abd9d58d3da356f82c59785ec3c52c89205ab663a7144",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/test/mbf-local-album-components.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/test/mbf-local-album-components.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "39a3cf484eaed1e2e4578a13f6a6cbce0bfc9baa",
+        "bytes": 28804,
+        "sha256": "f67881b01fc5b8ffdf43d319dc79955c00f6d600c356f9bb84130a34a0e9d434",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/test/mbf-local-album-ipc.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/test/mbf-local-album-ipc.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "28b67363cbfa6869bfacd4886306dfc1a648888d",
+        "bytes": 6141,
+        "sha256": "16f03a3cc986c013190c27328c6daa11670d82e3c61e9d5cc11946a42b6d1367",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/test/mbf-local-artwork-import-normalizer.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/test/mbf-local-artwork-import-normalizer.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "9a2e1c9c57907c2fe33c490dba14a8e56b5175f9",
+        "bytes": 17829,
+        "sha256": "615885ac27b56af9d5a0d3c013414205114826b044753db401ab3f62f731da19",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/test/mbf-local-artwork-providers.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/test/mbf-local-artwork-providers.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "e78c2318829a866233a5f2bb004050dcd76c57e6",
+        "bytes": 22308,
+        "sha256": "54a58cd59555793e999ed0e16b1eb6e897daa5dbcab0e3f9414f0dea51a0b94b",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/test/mbf-local-name-transport.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/test/mbf-local-name-transport.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "97e944a65af6c5a84916e6ffa394fe9278a6a7e4",
+        "bytes": 13700,
+        "sha256": "fc87f8230ebf5a1c596f09794408e17cbc684468d091d4da0fd3c7e5b45c753d",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/test/mbf-local-track-table.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/test/mbf-local-track-table.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "708805415dbdf54bf8af3b84ae311f3cd16e1f65",
+        "bytes": 7260,
+        "sha256": "0bd53c14d7cf8b361ac427d82b0cedafe2f75d7259cdabe154fba7ad64d6efe9",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/test/mbf-local-workbench-ipc.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/test/mbf-local-workbench-ipc.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "3175d272bdb64ff14869581927241032887b32e9",
+        "blob": "5ad556195aa30a84bab74b8b716a89b558b53e5f",
+        "bytes": 20574,
+        "sha256": "6e6d4fa05c60f9cde085d22b75b478bacdbc9ee74a29303fa4ad891389cc16ac",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/test/mbf-local-workbench-service.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "apps/desktop/test/mbf-local-workbench-service.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "e51396f1b3db7957e5bebb424ad8dcd6f212ea2d",
+        "bytes": 46991,
+        "sha256": "05ef0d07fac0bd457978a2c814af8da4479773fcd8c5c5b2e4e726d7a4ffc912",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/test/mbf-local-workbench.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/test/mbf-local-workbench.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "195f87da4a83b29b1ae3779826f1a962e7c31762",
+        "bytes": 30822,
+        "sha256": "04abcaa7a866b91a56e4ed1777bde5bc0d0f76cac57b2a99e6049823eb0bcfcf",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/test/mbrs009-local-library-ui.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "df1d62451f5c8f46f148437b6867b60d107815e9",
+        "bytes": 26687,
+        "sha256": "414928f85d0e2dc4cd6df0b16b311243dc037ffc543acc1bfb404ee29e9d6e41"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/mbrs011-organizer-ui.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "985de5a5ae7a4968749cee8aefc50d75d8e95a80",
+        "bytes": 29493,
+        "sha256": "6dade2fa5ec73b2667ebd3eb0265296f820b2bc51bf0f4e8e8536a8fb8c2d099"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/mobile-content-rpc-main.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "e7bf91b074b3dae02086a33a0d2b8e5f7d0c7df1",
+        "bytes": 29775,
+        "sha256": "c3c2826bc9377d6b35dd7a8e7f5146c262699a83ce93ca1e1599e3d89b819886"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/preload.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "3aa3364c7a1a991d670ed2f9d7a7f9a9718a3990",
+        "bytes": 37258,
+        "sha256": "91ba4beb8478bc651383cddb71ab6cdd84b930c03a1b6ba58db73fc8167391d1"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/recording-print-worker.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "e2bc257dba9e3b4dd88efefa6bcc074e8ee2d649",
+        "bytes": 5551,
+        "sha256": "5523221d163b3eada6d02a2362ec2292bb84a9ba748e9ebe9bd242ec09cd4159"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/sidebar-controls.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "5aa15b80bdffb792ba9d8ea09317b1b40061f49c",
+        "bytes": 10949,
+        "sha256": "8c7b37c68ca970595734ce549acd7bbaa481eb038e542efdb15f44e56b5ce8ca"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/support/mbf-vue-host.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": {
+        "path": "apps/desktop/test/support/mbf-vue-host.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "87caabc07f9b7163dd34b0dfcf4b72306e3c61ca",
+        "bytes": 7838,
+        "sha256": "7fe5ca9d3411fa987a3393a12027e1b74726e173449c26774c7332ef609ccc0d",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "apps/desktop/test/v39/local-workbench-lyrics-ui.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "apps/desktop/test/v39/local-workbench-native-settings.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Renderer",
+      "donor": null
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/ALBUM_SQL_CAPACITY_EVIDENCE.md",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/ALBUM_SQL_CAPACITY_EVIDENCE.md",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "17dccd1c078c38bcb17b3db9b2e8170e2fa7020c",
+        "bytes": 16985,
+        "sha256": "72f41780ea9492d2a5938bfd989c3cccc183cf0f613a83f718efb7d43aea31a6",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/ALBUM_SQL_PERFORMANCE_REVIEW.md",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/ALBUM_SQL_PERFORMANCE_REVIEW.md",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "93b1afb13281bfb8b3d3cb20f67c7efc6915574b",
+        "bytes": 19966,
+        "sha256": "3053066dc68e687839c4104d3f54e02199b52452cf477c3e82e56edef425f187",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/ASYNC_DATASET_FENCE_RESULT.md",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/ASYNC_DATASET_FENCE_RESULT.md",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "776924edb128d5fa3b3f86c3265c2ba02760d248",
+        "blob": "bc036b58b36b12e3424b4528baf77da83688c6d7",
+        "bytes": 4810,
+        "sha256": "36d369f5da5f04ea70b144a04be99aa2b16efee812202e0570ef9c3b4fdad7e1",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/COVERDROP_FEATURE_MAP.json",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/COVERDROP_FEATURE_MAP.json",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "9625d8627c23deac282366ff6b4417a7dca93e09",
+        "bytes": 57669,
+        "sha256": "e6b87068debcd737dc701ee477c4d185be755eda0695085961c37fd3d3ffaa6b",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/COVERDROP_FEATURE_MAP.md",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/COVERDROP_FEATURE_MAP.md",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "cea05e3869f46bf71399e510019c629cd2a47629",
+        "bytes": 34004,
+        "sha256": "2c6fa824b54b1ddf4f5a30d2e20a9a517b83d8bdb5aff190c7a316f0eb49e545",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/RESULT.md",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/RESULT.md",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "454d06e5043e25746621aea145dd7c91e853a53b",
+        "bytes": 10667,
+        "sha256": "b8b6baceae5714d8c3b9b2d5ba0ae9857d2005aeffd9756e763fd95815634a64",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/V39_ATOMIC_WRITER_INTEGRATION.md",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/V39_ATOMIC_WRITER_INTEGRATION.md",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "fc92209148c6abd34cd2d0e15d7f77d1dea3e3a6",
+        "bytes": 30617,
+        "sha256": "2ab780ad336e070dbb7d88aac5e04d60a09ee74dada0f8462677c390129ad3e4",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/V39_NATIVE_SETTINGS_INTEGRATION.md",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/V39_NATIVE_SETTINGS_INTEGRATION.md",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "29a889c520ece47e9251aff8264a7013e2bc0d9a",
+        "bytes": 36692,
+        "sha256": "a888598c3f8be8924a6b1e6046cfb07512f99fccc40c7935ba1f855ee945a19c",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/V39_ROUTE_AND_PAGE_INTEGRATION.md",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/V39_ROUTE_AND_PAGE_INTEGRATION.md",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "865846c1c4572266758f435844f73c7374163a95",
+        "bytes": 17090,
+        "sha256": "8f06b3c395fc3e31c5031d578b37b8f9f574a34ae551f03db1ef5db2d0bdc105",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/VERIFICATION_MANIFEST.json",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/VERIFICATION_MANIFEST.json",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "a2d952018c867ce042c8cf5d9978c3e51d10c7a8",
+        "bytes": 211686,
+        "sha256": "bd3f8001308124119d7faed2a01d60321b10e2703c5962cc597781bfc70c629b",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/WORKBENCH_IMPLEMENTATION.md",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/WORKBENCH_IMPLEMENTATION.md",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "30c17cc6f9c6fdf091febe7e74ad65e5c642c7e1",
+        "bytes": 17599,
+        "sha256": "46f3d79c92627453331d24a9b865203d6e01a0a456f46c035c8f7c93a2ac7b00",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/WORKBENCH_SHARED_PORTS.md",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/WORKBENCH_SHARED_PORTS.md",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "f61a878514de0e88271c0c6c60d2e4068c78a618",
+        "bytes": 17924,
+        "sha256": "1733eb2632fb916b3554e3e82edd96c187c990fcfbbffacd58010fe480cbd247",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/proposals/README.md",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/proposals/README.md",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "23f0543bb355e160192b9d3653841a0fee8e68c1",
+        "bytes": 829,
+        "sha256": "a4eb0f6e83dd9aa205b273a40d1471c7d5bddadde90914302f0cfceff5ef967d",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/proposals/SHARED_WORKBENCH_JOURNAL_PROPOSAL.json",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/proposals/SHARED_WORKBENCH_JOURNAL_PROPOSAL.json",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "03c2a1a666b17812f7398dcdc7283125d6de6a5a",
+        "bytes": 1266,
+        "sha256": "3ceb5b61cf798b1169f4b872cdd2ca88183cf4dd4c95ed20ab3ace8e9a10d0ce",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/proposals/SHARED_WORKBENCH_JOURNAL_PROPOSAL.patch.gz",
+      "status": "A",
+      "role": "historical-proposal-not-active-code",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/proposals/SHARED_WORKBENCH_JOURNAL_PROPOSAL.patch.gz",
+        "status": "A",
+        "role": "historical-proposal-not-active-code",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "ce24f06a75ff44a7d35bcb1c83911877c6844a64",
+        "bytes": 3870,
+        "sha256": "9601be79b90c8059cec99188868c134ffe38ede59ca7fa9b0df977cd0e153178",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/proposals/SHARED_WORKBENCH_JOURNAL_PROPOSAL_V2.json",
+      "status": "A",
+      "role": "historical-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/proposals/SHARED_WORKBENCH_JOURNAL_PROPOSAL_V2.json",
+        "status": "A",
+        "role": "historical-evidence",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "d5255f253e23f182f54b731e58b439c6747873fd",
+        "bytes": 1266,
+        "sha256": "67279769375d21a31325681e409d92f1a7530683d363700d6901711e39f5f572",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/feedback/MBF-002-003/proposals/SHARED_WORKBENCH_JOURNAL_PROPOSAL_V2.patch.gz",
+      "status": "A",
+      "role": "historical-proposal-not-active-code",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "docs/feedback/MBF-002-003/proposals/SHARED_WORKBENCH_JOURNAL_PROPOSAL_V2.patch.gz",
+        "status": "A",
+        "role": "historical-proposal-not-active-code",
+        "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+        "blob": "502459d84d9d4f5e684702c25b8476fd0ffc489d",
+        "bytes": 4075,
+        "sha256": "e9d4aaee0b9799307a2249c265fc3b4be7d57f7598ba0c7a7bad92e9ec3432af",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-002/DONOR_READBACK.json",
+      "status": "A",
+      "role": "authority",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-002/EXECUTION_SCOPE.json",
+      "status": "A",
+      "role": "authority",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-002/FEATURE_BEHAVIOR_MATRIX.json",
+      "status": "A",
+      "role": "state-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-002/LOCAL_SOFTWARE_EVIDENCE.json",
+      "status": "A",
+      "role": "state-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-002/NATIVE_BUILD_INPUTS.json",
+      "status": "A",
+      "role": "authority",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-002/SEALED_BASELINE.json",
+      "status": "A",
+      "role": "authority",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-002/STATUS.json",
+      "status": "A",
+      "role": "state-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "native/library-watch/fsevents-helper.cpp",
+      "status": "A",
+      "role": "native-build",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "native/local-audio-tags/taglib-helper.cpp",
+      "status": "A",
+      "role": "native-build",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/application/bridge-controller.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "cd6fa963cf50c1d712b84deae738d414d8ffbbed",
+        "bytes": 150785,
+        "sha256": "8e1e3f8cc8f5774ee9c09b08691e794fb86c33a2b0bf44a8539aae85e059b6f8"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "31390c6dba3604836bdc2204d5414c9e046ee011",
+        "bytes": 59157,
+        "sha256": "32f43b5dda5766bfa2b50d4c1c1f00e979993b50f2ed494444cd4cdcf81e44b3"
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+        "status": "M",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "13866409e551d41c06ea98fcc2e342acdb7922de",
+        "bytes": 60122,
+        "sha256": "961f386beb9b359f3594913ecdd914d37b371974206088ffada35a9b2f35bae8",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-domain.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "16b5336384121b0d0ebd59bafcba973f64ae1223",
+        "bytes": 30949,
+        "sha256": "4542f5669f766419e029c3111b2b848ebdf737675cdffb60ffd91fb5b41d969a"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-client.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "50df05859a37fcf43e0a842f70768c210220bf1e",
+        "bytes": 22836,
+        "sha256": "cef49cbb448c1283b82e61ed1962dff79106c56d505d372a4f0be726421ec86c"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "3990b5337b5d89b073d97513c09ec2c4cf5b2024",
+        "bytes": 30338,
+        "sha256": "fa070d9383c8913d27e9ff23f59e2417b7402c19f13d7ec57d09b09e64823c5b"
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+        "status": "M",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "de338b307820c0f2842e4eaf9f2fa3df04d67726",
+        "bytes": 32487,
+        "sha256": "1d43c3e4f9277524b51bff59315d74f470ae91f580a55ada1e169b6631c763d8",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "c6f2a1702bcf6fb490155dacf4d5736766648681",
+        "bytes": 23431,
+        "sha256": "ed445977acb0b85174c3b1956d1f72c2dfa7be492a5800bc646452f94ad741c0"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/dataset-services.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "7d3113f1ef2efee9a7b231b380f57226a7b20d70",
+        "bytes": 3776,
+        "sha256": "25aa186cc1e73e16447c972bdda28e0b99aa9eb0ec70121c58647ed3f0a6da7e"
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/dataset-services.ts",
+        "status": "M",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "bfbd1cf8ca6a38dbc10259aac9942adc847b2dba",
+        "bytes": 3899,
+        "sha256": "967267d6d0dff6144bd7e40349ccdfb48b041aa30a41e1fabc9a7a8f3a1c1014",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/artwork-read-port.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-album-browser/artwork-read-port.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "0aaf8d7c24a13e4b5ec92156df69e9d3727ec508",
+        "bytes": 11134,
+        "sha256": "e8d2d01a7ab972b826d43d19474847b51c993d0165d258b49f04d3eda5158bd2",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/grouping.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-album-browser/grouping.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "9b91146090c2b4da1df48ca39d8855c725a71c87",
+        "bytes": 20808,
+        "sha256": "fef0cf19b5fbca7e030813aed34a60bbbab4a0d4d6a52f6141377b5c9185bc31",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/main-protocol.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-album-browser/main-protocol.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "eb4720ba35951deefa7c09a933d1336496244036",
+        "bytes": 3600,
+        "sha256": "0afd5768c52777cc103f6a6794dcbde7b76ead127d4e9886754a3f9937c1bfd7",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/owner-port.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-album-browser/owner-port.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "1351bf7cc3b1f0687adbde6b30f4c363d6583565",
+        "bytes": 13937,
+        "sha256": "85471c6f59882ea12c2f2697066389b95f9dc0c0805635504e8033237f7b2f3e",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/owner-protocol.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-album-browser/owner-protocol.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "0d6024d022186fffb676500ad1223bb6f9cace4d",
+        "bytes": 1772,
+        "sha256": "0cc1abd8f469c0ac009d7eeb751aabe361504b83170613f2a320b450f328b0d7",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/owner-runtime.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-album-browser/owner-runtime.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "bad231f9c7effb53f22fc24cbe34fadf4a76c49c",
+        "bytes": 1747,
+        "sha256": "ea047f7aeb5bf723d7c70519b70a33cb2759906e4df071ca5ca4b334066574ff",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/owner-store.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-album-browser/owner-store.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "b5dee3a90a2537f6a9c832aa955ae98302067198",
+        "bytes": 1664,
+        "sha256": "ed230250a1f43b1a34f3f6c6163e1acef51fa6b0ed5c02c6fb50c5eea4ca3567",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/read-service.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-album-browser/read-service.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "6cd2aadb1c7672b3b00eae109677162e91f92878",
+        "bytes": 10841,
+        "sha256": "3911f59f4a2456126848150516bc0dce36204230cb26098afa580f25f1eb522e",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/sql-read.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-album-browser/sql-read.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "b535ed79ae31abacdf92668d983b8af89a584be1",
+        "blob": "e454597e401d13a6cd3a95e768a420c1e3193e12",
+        "bytes": 38788,
+        "sha256": "cd01f6e7aeeda4d5406b1645847394e2a8873dd51850c8036be25e25cbd6211b",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/sql-types.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-album-browser/sql-types.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "a4b6f34bfcccac8e9abfc6f9ee3a8200d46e7125",
+        "bytes": 2922,
+        "sha256": "b95088c9694d853d3591f07bea4f2890e0f300fb2a1dbfd3333be031185e2c06",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-album-browser/types.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-album-browser/types.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "5e38f92c5438be126a588d28e4ea0e5031f69b7b",
+        "bytes": 3983,
+        "sha256": "17136251989b5dc7fc62858b77d79d5282aa7f71c84b4e6a0a06a0fda0c1b1c2",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-artwork-service.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "04fd099b37a9e5b98f982ed26d2a2052d63500d2",
+        "bytes": 12934,
+        "sha256": "bcbbcdb4c8d534712005e9f182603e9bee5dbcf8200d2c20f9eeed5292889f96"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-artwork-store.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "fe3830c7bbbeb60a230748c8f9217cb42b9f0d8d",
+        "bytes": 20484,
+        "sha256": "b09bf9d744e7f851423a563d9453f83b0096d3354f789730f72cbe0746fb0ba1"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "5537d6aac291010a4543bc17d975e120de169f1f",
+        "bytes": 115384,
+        "sha256": "4485d96516b807433c0a3e318ebc662738ed9281431840feb29546025e7040ab"
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-catalog-store.ts",
+        "status": "M",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "f1b9ff8cd51974174f1a8ffd8682a08f1a319cfa",
+        "bytes": 121945,
+        "sha256": "bc6437c90b3dde653d3eb0c6edc4dcb46cf5c8c13834c8e40b16a039f807d531",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-cue-output-actor.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-cue-output-protocol.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-lyrics/inventory.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-lyrics/job.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-lyrics/providers.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-lyrics/save-coordinator.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-lyrics/service.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-lyrics/types.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-workbench/cue-plan.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-library-workbench/cue-plan.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "cad2f6c7d5d70abfede1333830307001d70d5654",
+        "bytes": 12641,
+        "sha256": "ab257d45fe717c306d8e5221eaa57d306ef05c7c21d3000addf2eb33fba7d41d",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-workbench/lyrics-service.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-workbench/lyrics-writer.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-workbench/name-proposal.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-library-workbench/name-proposal.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "0ca376c911c32ec02dfaacfe2657ce9c27585088",
+        "bytes": 13171,
+        "sha256": "9c840394f15af2b4edb9e137083c3363524fd8c012843dbf980dd35780751140",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-workbench/owner-journal.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-library-workbench/owner-journal.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "7a58c2322fef5b9fc30bc17cd80c3f6406b52ac4",
+        "bytes": 11270,
+        "sha256": "ff28bd500fd8fa5a7f44c4e87782e27aab10d0ec16e032f2d3b6b85ea17b63d5",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-workbench/owner-writer.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-workbench/plan-registry.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-library-workbench/plan-registry.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "0f174e586cd287204e1daced6e55c8027f2e1558",
+        "bytes": 30544,
+        "sha256": "d1c2dfd7311e5f676f0dd24414cac81555448e6f11a033996527e527709840d2",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-workbench/read-service.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-library-workbench/read-service.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "3baf0f520cd3f7d1289aabe391007889f0792735",
+        "bytes": 36128,
+        "sha256": "2ecc8582ea912e5f69fe076fa13db6bbca901610dbe61387ba752d3b059a21d9",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-library-workbench/types.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-library-workbench/types.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "257b67728cdaa5c65b2aa29f9a5e3d4a466fda31",
+        "bytes": 9345,
+        "sha256": "ecaf9f741d28c0d225381e513ae7e5988cb98f6df56989e2a03bb1aa17a76340",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-organizer-service.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "87ee9b5ca9fbb081c42a13110aa5fac2707c1648",
+        "bytes": 9708,
+        "sha256": "957cb7cfe9a1f33c7cdaf3a3af38a739839a86efd289215f2087d4293c82de8b"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-organizer-store.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "f4f67e2b0ff09f9e11dd45c1a87bd29dd4b88a81",
+        "bytes": 20130,
+        "sha256": "f20c01e26f64222f1955ec777bf505bfa375373b6517e08d7a001315e746e549"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-relocation-coordinator.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "6e884b7d4ce58f44a7ccd92305f9b22603b92b95",
+        "bytes": 9644,
+        "sha256": "05acb43a9486bf3c33ce06fd4e2d13908668b67125ef362c751fd03beaffd98c"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-coordinator.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "b3efabd584bf405d98feae0dfb2be9a03c7a7732",
+        "bytes": 36729,
+        "sha256": "9ec5da721ddd6ad8ff46717dab5046997f8be5ee710aecfcdcbea8c3c936a3d3"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-facts.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "9bba7ecb2a4930505f9c04129896638bc313b606",
+        "bytes": 724,
+        "sha256": "265b5332f8e0eeded29892410650f61afd7b0f137bcaf67af362c4a876cb2ae9"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-settings.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-snapshot-view.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-scan-store.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "62e1ba5630eb65e5e42ce8ed4111368534704cde",
+        "bytes": 96652,
+        "sha256": "0d67d169b015ea4af3cb730275126ad899aff3046190c4b17ffb61d96b8cbe7c"
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/src/collection/local-scan-store.ts",
+        "status": "M",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "0ee507bb1040c260488177bb73107266f71e5055",
+        "bytes": 102853,
+        "sha256": "79871706ebb0e1ee2dd5f4bd6221262387f3e364991a2480efe90999b86d6051",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-writes-journal.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "4e4505b0725b7a66ebd5fc0a9bce27cb8488ab87",
+        "bytes": 36495,
+        "sha256": "b4b2f6ff102113d2a65c6c13c0e20aa800e393f4d7ff92e84f5d52fb06d222ad"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-writes-service.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "4628d74e2b4991b7c506cfb7ed730f143911d0cb",
+        "bytes": 98065,
+        "sha256": "1fedb95e6a671d900f9613bb01ba9ff7b353ca44fc1f5282a1b0420f45ba8ed8"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/local-source-writes-store.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "8cd9382bc911382a55126d21d3c3151b56f536d5",
+        "bytes": 8892,
+        "sha256": "f74590976d0d9e2fd079f87d8efa98e4158d9da5f290df19d15d529ec32dc8b0"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-relocation-companions.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "49b17e8c08a68301e448aec0b0285a87797e2e51",
+        "bytes": 13373,
+        "sha256": "de5cc1eb04652994cf1b7b8c834eed440e02527c1a443ce4ddc86bb83de5674e"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-write-format.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "9bb61f0ad6fd1f5fd167437c34a95ce8c459ddd2",
+        "bytes": 14079,
+        "sha256": "a72b0e121097538c24411f3c19d398dae0aca33b68432aa823923d9b6e5b7fc5"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-write-metadata.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "cd66f51048ca79d38d1ddce5e9e1fdc0ea1fd3e0",
+        "bytes": 4405,
+        "sha256": "ad20632d907047540f9cb5ce8327665c49ef245403e3eaf5df4db72724747fbe"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-write-verify.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "54c3013ab1462689cdbfa2e2875337dac76eacf7",
+        "bytes": 8967,
+        "sha256": "7b5a4ca527609219bb2f449c059d41293b1f09bb932309735cc461edbff0ee4f"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-writes-authority.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "d348abf035d44787808cca1a7661e840cc9c685c",
+        "bytes": 1039,
+        "sha256": "90afc5376c43bb5242ae582517708cc569dc942351ede7b91ea202b23ed3be10"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/collection/source-writes-publisher.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "4d59e460d42cec7591dda477b3732548713cdd99",
+        "bytes": 49191,
+        "sha256": "96121162fb48220cba9a2ab91a7ac3b64fa184675a9fb14f5832228cff9a142a"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/library/bundled-cue-converter.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/library/cue-ffmpeg-build-policy.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/library/fsevents-library-monitor.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/library/local-artwork-embedded-reader.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "09f0c1c61b7964aef5d8180f1c707a0de7f3093c",
+        "bytes": 9922,
+        "sha256": "90b24db944acbc1241fb6113e9e3c713190a5fa31d703bb3550c3ad0c516ec32"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/library/local-audio-tags-actor.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/library/local-cue-format-qualification.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/library/lyrics-source-format.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-types.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "51fef658b1921928896123a03304c7dc7c67b1da",
+        "bytes": 4680,
+        "sha256": "73cba2633c2a0e2279e479cfd9fa55574128858405f71d835cc3c3314f967ae4"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader-worker.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "339e351ed84373a41a69cdbb34ae0c97cb7c854b",
+        "bytes": 25164,
+        "sha256": "69dbe124e98d84b6b542d0e43bf459a6d122d4c1e074e2f2b7e8745543fd66e5"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/library/metadata-reader.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "c166a5e6919ff352844b1b32868a3a3254aea68a",
+        "bytes": 14112,
+        "sha256": "9e3588d6dedc2c65a4e81b8eb5967d790be13b26702d4e65ae874f684ae80f0c"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/library/scan-read-admission.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "775ef8a4e210d8d60853364fb1cf3e8ceee2a130",
+        "bytes": 4825,
+        "sha256": "d87f0c541c8eb9978661d15503a0e2f7a5cf2b490bd13d267b98732c017bb3b8"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-files.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "5804e480219c884de4354fe84748a3dbb760faee",
+        "bytes": 46157,
+        "sha256": "3ccafec70017b883c3709a72b6715b3ca6b367b663a71d858b0279424e7de898"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-protection-store.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "853b510d9b06d6d3ae529c662dfb0f9d9bf87e9b",
+        "bytes": 28518,
+        "sha256": "486b7b1b3a92e01c1d3b6b387d4d3c5a5e58573b3767dc13d743b5697b013d94"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-protection.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "972fc9d2a48167f916cf13989fa377d9bce4b701",
+        "bytes": 10752,
+        "sha256": "5057c3e693c99a86fc9969c040751ab3230950469d6d07f081494047043cffbe"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/recording/source-store.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "c3ea2fafa28e109a85d6ad9279352388fc991ddf",
+        "bytes": 13849,
+        "sha256": "1cdd230ed40b5907921a02427e76752b0e4660187cdeac870d3fd568bb5561ca"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/runtime.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "b27c871dfb3124e4c89881d7b40c481aba9fda81",
+        "bytes": 103348,
+        "sha256": "fa8e446821b69718636ffae019703feeebe879467c39e850684c3f033839158c"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/shared/library-read-trace.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "90e508c46a108cdd7b1649e7d9e1671f5ba049cf",
+        "bytes": 10989,
+        "sha256": "6ae6397cade18c5210fa4a61f53e760dfa55cdd74383a615f567ed91388339e9"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/shared/local-album-read-trace-node.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/shared/source-writes-utility-port.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "72dcc9584cfd82fdbb1145f254e9cdf10f9f236f",
+        "bytes": 5077,
+        "sha256": "a3a665b3a2ef2b40b93fa7615dbb90551df1fb34eac35d60d1600040772ca720"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/stream/gateway.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "f779c68fddf5c576b5fc2f168ef0ac182b7a321d",
+        "bytes": 25286,
+        "sha256": "85c443c0fa015dce41eaf897b403aa96628f0c1460f48854dac365a6ff8fad47"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/stream/local-file-http.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "6a17e41d5b1ae7f0f7025820ab2403005d99c1d5",
+        "bytes": 4187,
+        "sha256": "b925c0e6d339f33a80ff3d3c406261445860a2f0e3b09fc83f6746c62951bf1d"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/stream/physical-resource-claims.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "38b3e563995f75af7b334ea1b2000ce745390d0b",
+        "bytes": 14918,
+        "sha256": "8b1f47063435521135b5bfaf61951b6486d355fdcea6bb9bdfe3fdff5cd4cdba"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/stream/physical-resource-locks.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "a7f9fd18088bce4986269072b942ae119b5ca5a6",
+        "bytes": 15391,
+        "sha256": "79052d83b6c602de784da7002f975aaf71e91c84f11bb9acc7d913fbf2fff2b8"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/stream/source-namespace-claims.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "1a4623a32f5f98999cd7233cfc47d9e651e8edeb",
+        "bytes": 24762,
+        "sha256": "c7810434565cdb4b5c8fe394ca70d50442327e158a1439b54dcf3ae15e35d715"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/src/utility-main.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "0048c8b67ced952ec4cc55474cf6216ef940acea",
+        "bytes": 55979,
+        "sha256": "ad8101eb0600a0c896803100281b3a654b7f589a3982959a0fefa88b35bfaa1d"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/command-outbox-core.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "d5eb2c1f5d10de8ec7f1ae2cbf29e31f3c9eb967",
+        "bytes": 11323,
+        "sha256": "59e8850b221d19a57841a2ec4e52c09c0e23c913917cb4aab40dab7e45295575"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/dataset-domain.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "3df550fe4b9874c3a5a6bd467ad8f8512d5575c3",
+        "bytes": 14941,
+        "sha256": "370fa4439aff932b89c147acfc59a7910fb0c101534fefbef7c4bea24f3eb082"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/dataset-owner-integration.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "0ab0615f1a681d10fa8a2920533cf32f6decb429",
+        "bytes": 7292,
+        "sha256": "8c98ada211df8b3ffc00c91efac0e28cb1ef9f57dbe25e1c4e5dfee0b57b2a98"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/dataset-owner.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "b61447e2333a1d0b8347283f44d0793f9fd0330e",
+        "bytes": 10466,
+        "sha256": "57053a6ecfab9c7eabcf09d548fe47644acafef21d7861b6a4c7f63256d57b22"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/local-artwork-embedded-reader.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "247afacaf3b1ae3239bbc0bc64a754c9bdec2b58",
+        "bytes": 17539,
+        "sha256": "f84041155e33f0c873a85409e3a1a9f4278ab67c8b86b6cf6e5ab478efe09fd9"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/local-file-gateway.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "b9286d1abc7eb57477fbf34d4df8e47c0ebe9edb",
+        "bytes": 200,
+        "sha256": "1285e8dcf7d9e74fb5a0ef79428061c69dc43354a3fe1aeb2b6907bfa3ebb550"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "873b53a672c99a1d51f63b78d8d0623c3d486dac",
+        "bytes": 39307,
+        "sha256": "f37f380973349221960b03720085771aa82c2f5457e61b9c05cb1be0ced2f0e7"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/local-library-wave-extensible.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "f0c126d410ff9525abcbd1e107a2d3ec0a410a80",
+        "bytes": 17269,
+        "sha256": "98f8d361cf4efb3f5c18bc8713670d12044453a494db0cfdcfe8368bc6f164e0"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/local-playback.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "b8bc9c603fe8e980c10c012c8e743a01b050fe23",
+        "bytes": 335,
+        "sha256": "9381c2b4600da8efae7c5198803baf4a829a749464c99e5d515cb280bcabf3e8"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-album-group-markers.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-album-group-markers.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "72e5e913e187cb558805c2c5f5faa3d2ce4b2bf3",
+        "blob": "592570a06fc0bedbcad78afef90b65613329e6d1",
+        "bytes": 39326,
+        "sha256": "fbc88aa8e246cce55b83dbf59cc2e69e3c11ee523e8241a834272785e8d48606",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-album-main-protocol.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-album-main-protocol.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "2a901f9980d695c46cf32d4b60acb26b47a7f582",
+        "bytes": 2562,
+        "sha256": "76d61dc4b25000bc58a7cc22064db698678b36e909e1c03b6e9903fc005282dc",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-album-owner-protocol.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-album-owner-protocol.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "d2f276cad6771d49ed14b55eae3f77fd2d30387b",
+        "bytes": 1352,
+        "sha256": "931cc681741a9d78c3e883ec58f14b13b82749ce820e664e77cb4a6d70159428",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-album-owner.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-album-owner.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "6487f29211678188d65b4e37b2cb8884b0a9d298",
+        "bytes": 10847,
+        "sha256": "11ed4fdcf31c70172ef350306e6e84fbfd2eb85b0e023857ac56b0b64c5efe5b",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-album-read-model.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-album-read-model.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "bcd9b649d2edec593fa2af476a7e92ebf3d5f130",
+        "bytes": 29710,
+        "sha256": "f4aa7f7071c8ae0bf4ce13d26b974d49c5f935f895396136b57a3c2a8bcd521f",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-album-scan-evidence.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-album-scan-evidence.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "54887cd5a26156d19903ee4116eca507d247debf",
+        "blob": "048aacb583dcf41e734d625331fcd5744c0c1795",
+        "bytes": 35958,
+        "sha256": "d9ae7f529721ae919c3101bed0c1b752c99a82cf66ea3180ff5504974fee908a",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-album-source-marker.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-album-source-marker.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "43036e7ac9c322098782aaa9ec3d6d2d22002f5b",
+        "blob": "6159068a116620785f198c17f55ec2a81777fe3f",
+        "bytes": 45674,
+        "sha256": "7bc747789c6f5ed0c7e1c9f64710599e0de1fb485b5ff4cf93dea3c6aa4fcab2",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-album-source-revision.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-album-source-revision.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "8c7b6a84f5cf1caa93dff92390099b495d34d2ae",
+        "bytes": 7583,
+        "sha256": "3c2aad87386554517379cc9d7583f9799f6edbc8cbd1f4718aeacb07accf9a2a",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-album-sql-read.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-album-sql-read.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "cad12ba20bea9d0e9a065cfcd585f194312dfd9f",
+        "bytes": 40493,
+        "sha256": "fef5c7223469e571677ccc3e92a47bd78a97a1a201e1fe1b546eb9882f8362ff",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-library-organizations.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": null,
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-lyrics-inventory.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-lyrics-job.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-lyrics-providers.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-lyrics-save-coordinator.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-lyrics-service.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-source-root-null.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": null,
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-workbench-contract.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-workbench-contract.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "b92a1a42aa39292fe0a5a6ac0a1002eb741c4f97",
+        "bytes": 11936,
+        "sha256": "8814f9ad56fd9576e86a9f4f2c2bef4b88a9cc2632cb5527352449415a1aa95a",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-workbench-cue.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-workbench-cue.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "937b6c71c0a12cb8a44cf6d2449756b67a7adf63",
+        "bytes": 7382,
+        "sha256": "330cbaf09f5cad52b9f55a07febe386ed895f443d4e82f93d763859e4f8cefb3",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-workbench-name.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-workbench-name.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "80a57c8e788e46fa7ac06ebcec9e0210919ac7fe",
+        "bytes": 9016,
+        "sha256": "d646c710559d9f548de2b648a505777737fdbb2f68f205a3e2bc2a987670b6db",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-workbench-owner-journal.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-workbench-owner-journal.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "911bf382b540956ebe8f8e60ef408505b9e34721",
+        "bytes": 10321,
+        "sha256": "7a5d63df92fc54a2979e6e1fd8c6629306f0d534c1edb9d9e80f910720b8c0cc",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-workbench-read.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-workbench-read.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "28f39f376ce911168bc94f6eebf00e94326d7bd5",
+        "bytes": 21368,
+        "sha256": "bec484dc923a19f948d338d29abc885b04aacf2c0254b83c5e2db096d9698618",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbf-local-workbench-registry.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/bridge-core/test/mbf-local-workbench-registry.test.ts",
+        "status": "A",
+        "role": "test",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "67300a055a477550133665546eb3fde0ee6866a4",
+        "bytes": 23017,
+        "sha256": "fec67871f836284663e586570ad37e9d990288a53bf3b6fd1e2698663b0432fc",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs003/persistent-scan-owner.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "816967b85e19d5ba19d2996f1adf9869e60b6c13",
+        "bytes": 26566,
+        "sha256": "c4d4aba1f47b3d06f2b1fbc1d1d26aa7ba45f234b4da666c792fc78f824c30ca"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "7e8a67f364291ec2c8d4241cceb62061ece46a16",
+        "bytes": 9010,
+        "sha256": "457292294c2a028315f768cd3aa85103f759632e67e70255fe9888db0b6c3445"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs005/config-integration.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "fa8a90784419484b884cdc72f63343f5cbcb8861",
+        "bytes": 8337,
+        "sha256": "85862bbe07da5b1ed57eaabd8947bb209e72a32d13782fbec13a097dcbc4f549"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs005/http.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "4b98c5b7979040f260324e80b91297690f68348d",
+        "bytes": 12173,
+        "sha256": "dd5c0f99003ac6848719850c0166814f969c630f12622e39c9c40bd6cfac7137"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/mbrs006/controller-local.test.ts",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "fad363c24034836fbaa6508a5780ba75d5fcfe89",
+        "bytes": 18103,
+        "sha256": "452d35c0d5b2717ad902cc098ecd0c5b789608ee0e058d065b56415bd12e5364"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/fsevents-library-monitor.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/local-album-capacity.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/local-audio-tags-native.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/local-cue-bundle.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/local-cue-input-formats.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/local-cue-native.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/local-cue-output-recovery.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/local-scan-album-scheduler.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/local-scan-completed-snapshot.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/local-workbench-capacity.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/local-workbench-lyrics-write-recovery.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/local-workbench-lyrics.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/test/v39/local-workbench-shared-owner.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/bridge-core/tsconfig.test.json",
+      "status": "M",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "4bceb0b5e8bf1b57c2c216a253d9c0ef8471925b",
+        "bytes": 231,
+        "sha256": "95cdbf6bc8ef63d2a5823f512752d109aa9afd5de08454c20f449e2160164c69"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/contracts/src/command-outbox.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "45feab54cd57aeec5d1f4b7e372323365fd34ab8",
+        "bytes": 33600,
+        "sha256": "276f6f1eef08931a1051c172217f663c47402ea4c5f15177214a705de680f892"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/contracts/src/index.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "b78f996e3df99ec414087c36871ebac172bad0b7",
+        "bytes": 2767,
+        "sha256": "334a85a4b8304102635c128a3c844917ba07606273388342dca9b8f0015245ad"
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/contracts/src/index.ts",
+        "status": "M",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "bb6a1897980d6e7f237192a6531b2415b9811730",
+        "bytes": 2855,
+        "sha256": "03007c4852cf7e39539261c520c8c02f9f15a97378e03a4611e2b8680f38f68f",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/contracts/src/ipc-names.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "28b42796a4816b001916254106869d3a9f8ce546",
+        "bytes": 9535,
+        "sha256": "e67f6f36886a5164efb6e9682429b22c8fb9988be126902d500ef7356bca261f"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/contracts/src/ipc.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "d0f69f3d45d22c51567c6d0ad0ed39d70873bb9d",
+        "bytes": 47055,
+        "sha256": "0b32da0a19968da807a62ba3f49f1f146345eea81a6975a042cae2c883abb911"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/contracts/src/local-album-library.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/contracts/src/local-album-library.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "91681e594939b75ece23dff6f5b531060fde3654",
+        "bytes": 15401,
+        "sha256": "429d403d23bd20c0c3eab141971b9187ba4416622535a021e0eeecbc3ecc9e66",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/contracts/src/local-artwork.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "a6b3c75f53d0ee8513164f1bad489263562e2142",
+        "bytes": 18065,
+        "sha256": "2149ab50ba40113491cd4149e80caa45287c7fad72021e71dec21c16754848ae"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/contracts/src/local-catalog.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "facaa9766cbfe0ea225de57b2e932a6020b461dd",
+        "bytes": 30109,
+        "sha256": "8796cce24bec3b10cabdcde05fe24fa536eef23755cc61389977959a0b2e54e6"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/contracts/src/local-library-lyrics.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "packages/contracts/src/local-library-workbench.ts",
+      "status": "A",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": {
+        "path": "packages/contracts/src/local-library-workbench.ts",
+        "status": "A",
+        "role": "product",
+        "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+        "blob": "433520190cb95de24eddcb0fc762fe572a91eab6",
+        "bytes": 42769,
+        "sha256": "4b08388901ef35565e98374454d03e518ddb819c5b8f1b0f348b1fc913f6b910",
+        "mode": "100644"
+      }
+    },
+    {
+      "path": "packages/contracts/src/local-scan.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "5ed7bb3975bc38104530272a36b65537538b8ffa",
+        "bytes": 17948,
+        "sha256": "232cc3c0423f30377b3f04f8ee12a9c96c85192077d618394bd3f7eb273c53ca"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/contracts/src/local-source-writes.ts",
+      "status": "M",
+      "role": "product",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "167839eaa10edf727141cd836d849e3333f27790",
+        "bytes": 44593,
+        "sha256": "af8497cfe7b79b478325910bbd2b543d9c25a9bf8c5b48988ec79fe874de21c6"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "packages/contracts/test/local-library-lyrics.test.ts",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "CoreLyrics",
+      "donor": null
+    },
+    {
+      "path": "project/POSTRUST_PLAN.json",
+      "status": "M",
+      "role": "state-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "8d5ec6e5ca6958f5acaa59709462de9dbdad6833",
+        "bytes": 2907206,
+        "sha256": "6c78cf5ee96883418dcdeca26da87fb1bd6947b8638b3ec58fb0a5a2fa4b5795"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "project/POSTRUST_PROGRESS.md",
+      "status": "M",
+      "role": "state-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "f3b949793992709e1509edbefd09e19cf5f244c2",
+        "bytes": 128203,
+        "sha256": "4adc3de44b1014c0e8289925b3bb44644f241c0230029b2bf586c024ffc73f06"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "project/STATUS.json",
+      "status": "M",
+      "role": "state-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "cd39e953fa2a6305a9a1af7c7dafa9a7b9a4fc42",
+        "bytes": 2664769,
+        "sha256": "2c1b745116f29e08eae60547db3077d152fe09fdab46416da26e26f8dbfe74da"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "scripts/ci/prepare-v39-integration-002-artifacts.mjs",
+      "status": "A",
+      "role": "admission-gate",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "scripts/ci/report-only-admission.mjs",
+      "status": "M",
+      "role": "admission-gate",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "9ad6b253ebbc6551ffdc38d6f4110805eb7601b9",
+        "bytes": 29630,
+        "sha256": "d5b7c2f5ca9d743e77cb83fc7c6cfe25d7bea3b02f1726d02b4e3b1cd36c24c1"
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "scripts/ci/report-only-v39-integration-002.mjs",
+      "status": "A",
+      "role": "admission-gate",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "scripts/ci/task-applicability.mjs",
+      "status": "M",
+      "role": "admission-gate",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "12c1b6fb0b654f20fc9b4d67378a9c6dc3b88370",
+        "bytes": 8575,
+        "sha256": "be86e4cc7dd45e7ac360945083ecd4677fe8aab5536a9e57e56d818c96a0a4de"
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-002-admission.test.mjs",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-002-artifacts.test.mjs",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-002-gate.test.mjs",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "scripts/ci/test/v39-integration-002-report-only.test.mjs",
+      "status": "A",
+      "role": "test",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "scripts/ci/v39-integration-002-admission.mjs",
+      "status": "A",
+      "role": "admission-gate",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "scripts/ci/verify-v39-integration-002-capacity.mjs",
+      "status": "A",
+      "role": "admission-gate",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "scripts/ci/verify-v39-integration-002-native.mjs",
+      "status": "A",
+      "role": "admission-gate",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "scripts/ci/verify-v39-integration-002.mjs",
+      "status": "A",
+      "role": "admission-gate",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Wave",
+      "donor": null
+    },
+    {
+      "path": "scripts/native/build-cue-ffmpeg.mjs",
+      "status": "A",
+      "role": "native-build",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "scripts/native/build-library-watch.mjs",
+      "status": "A",
+      "role": "native-build",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "scripts/native/build-local-audio-tags.mjs",
+      "status": "A",
+      "role": "native-build",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "tasks/00_TASK_INDEX.md",
+      "status": "M",
+      "role": "state-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "100644",
+        "blob": "d6c7ac5e2192489795527b70bd0f783b67c47108",
+        "bytes": 30187,
+        "sha256": "f87a99b8d2160e6b44d7e54509660f60f4cfa84e7d9012b3bff8748faff2792b"
+      },
+      "owner": "Root",
+      "donor": null
+    },
+    {
+      "path": "tasks/V39-INTEGRATION-002.md",
+      "status": "A",
+      "role": "state-evidence",
+      "newMode": "100644",
+      "before": {
+        "mode": "000000",
+        "blob": "0000000000000000000000000000000000000000",
+        "bytes": 0,
+        "sha256": null
+      },
+      "owner": "Root",
+      "donor": null
+    }
+  ],
+  "finalFiles": [],
+  "reportPaths": [
+    {
+      "path": "reports/V39-INTEGRATION-002_RESULT.json",
+      "status": "A"
+    },
+    {
+      "path": "reports/V39-INTEGRATION-002_RESULT.md",
+      "status": "A"
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-002/CI_EVIDENCE.json",
+      "status": "A"
+    },
+    {
+      "path": "docs/integration/V39-INTEGRATION-002/STATUS.json",
+      "status": "M"
+    },
+    {
+      "path": "project/STATUS.json",
+      "status": "M"
+    },
+    {
+      "path": "project/POSTRUST_PLAN.json",
+      "status": "M"
+    },
+    {
+      "path": "project/POSTRUST_TODO.md",
+      "status": "M"
+    },
+    {
+      "path": "project/POSTRUST_PROGRESS.md",
+      "status": "M"
+    }
+  ],
+  "budgets": {
+    "ordinaryToolStageMs": 90000,
+    "ordinaryToolWholeMs": 480000,
+    "nativeOwnerMs": 2000,
+    "nativeProductStageMs": 180000,
+    "nativeProductWholeMs": 480000,
+    "rawStreamBytes": 16777216,
+    "gitInputOutputBytes": 16777216,
+    "stdinBytes": 16777216,
+    "canonicalReceiptBytes": 16777216,
+    "toolFrameExpandedBytes": 67108864,
+    "readerConcurrency": [
+      1,
+      2
+    ],
+    "readerTotalReadBytes": 33554432,
+    "readerSingleReadBytes": 8388608,
+    "readerTotalAllocationBytes": 67108864,
+    "readerTimeoutMs": 3000,
+    "completeCapture": {
+      "items": 10000,
+      "bytes": 33554432,
+      "policy": "全组原子捕获；不按filter/page截组或拆业务事务绕限"
+    },
+    "boundedSmallGroup": {
+      "items": 2048,
+      "bytes": 131072,
+      "policy": "保留此组规则；不是把全部逻辑成员或原2s期限扩大"
+    },
+    "physicalClaimResources": 2048,
+    "capacityWindowWholeMs": 600000,
+    "capacityRequestMs": 30000,
+    "capacityOwnerMs": 2000,
+    "note": "Native180/480与普通工具90/480各原预算分域；90秒捕获器若被复用，实际较小子限须如实记录。原单命令/编译既有更小/独立期限继续保留，不能通过新包装累计重置整Gate起点。",
+    "lyrics": {
+      "providerCandidates": 12,
+      "totalCandidates": 60,
+      "providerRawBytes": 1048576,
+      "candidateBodyBytes": 65536,
+      "sessionBodyBytes": 8388608,
+      "publicDetailBytes": 131072,
+      "singleProviderDeadlineMs": 15000,
+      "note": "Owner接受/查原回执2000ms不变；15秒Provider actor属于异步任务，不重置全job或Native期限。"
+    }
+  },
+  "leases": {
+    "Root": [
+      "apps/desktop/package.json",
+      "apps/desktop/scripts/native-cue-package.mjs",
+      "apps/desktop/scripts/native-local-audio-tags-package.mjs",
+      "apps/desktop/src/main/core-host.ts",
+      "apps/desktop/src/main/core-supervisor.ts",
+      "apps/desktop/src/main/credential-vault.ts",
+      "apps/desktop/src/main/dataset-owner-bootstrap.ts",
+      "apps/desktop/src/main/dataset-owner-entry.ts",
+      "apps/desktop/src/main/diagnostics.ts",
+      "apps/desktop/src/main/index.ts",
+      "apps/desktop/src/main/local-artwork-image.ts",
+      "apps/desktop/src/main/local-artwork-ipc.ts",
+      "apps/desktop/src/main/local-library-ipc.ts",
+      "apps/desktop/src/main/local-library-workbench/album-artwork-normalizer.ts",
+      "apps/desktop/src/main/local-library-workbench/album-ipc.ts",
+      "apps/desktop/src/main/local-library-workbench/artwork-import-normalizer.ts",
+      "apps/desktop/src/main/local-library-workbench/lyrics-service.ts",
+      "apps/desktop/src/main/local-library-workbench/name-settings.ts",
+      "apps/desktop/src/main/local-library-workbench/native-chooser.ts",
+      "apps/desktop/src/main/local-library-workbench/providers/artwork-providers.ts",
+      "apps/desktop/src/main/local-library-workbench/providers/artwork-urls.ts",
+      "apps/desktop/src/main/local-library-workbench/providers/artwork-web-navigation.ts",
+      "apps/desktop/src/main/local-library-workbench/providers/boundaries.ts",
+      "apps/desktop/src/main/local-library-workbench/providers/index.ts",
+      "apps/desktop/src/main/local-library-workbench/providers/name-transport.ts",
+      "apps/desktop/src/main/local-library-workbench/providers/pinned-transport-review.patch",
+      "apps/desktop/src/main/local-library-workbench/service.ts",
+      "apps/desktop/src/main/local-library-workbench/workbench-ipc.ts",
+      "apps/desktop/src/main/local-playback-evidence.ts",
+      "apps/desktop/src/main/local-source-writes-ipc.ts",
+      "apps/desktop/src/preload/api.ts",
+      "apps/desktop/src/preload/index.ts",
+      "apps/desktop/src/preload/local-album-client.ts",
+      "apps/desktop/src/preload/local-library-client.ts",
+      "apps/desktop/src/preload/local-workbench-client.ts",
+      "apps/desktop/src/renderer/src/composables/application/useLocalArtwork.ts",
+      "apps/desktop/src/renderer/src/composables/application/useLocalOrganizer.ts",
+      "apps/desktop/src/renderer/src/composables/application/useLocalRelocationPlans.ts",
+      "apps/desktop/src/renderer/src/composables/application/useLocalSourceWrites.ts",
+      "apps/desktop/src/renderer/src/composables/application/usePlaybackSession.ts",
+      "apps/desktop/test/core-supervisor.test.ts",
+      "apps/desktop/test/diagnostics.test.ts",
+      "apps/desktop/test/local-artwork-image.test.ts",
+      "apps/desktop/test/local-playback-evidence.test.ts",
+      "apps/desktop/test/local-playback-main-timeout.test.ts",
+      "apps/desktop/test/local-playback-recovery.test.ts",
+      "apps/desktop/test/mbf-local-album-ipc.test.ts",
+      "apps/desktop/test/mbf-local-artwork-import-normalizer.test.ts",
+      "apps/desktop/test/mbf-local-artwork-providers.test.ts",
+      "apps/desktop/test/mbf-local-name-transport.test.ts",
+      "apps/desktop/test/mbf-local-workbench-ipc.test.ts",
+      "apps/desktop/test/mbf-local-workbench-service.test.ts",
+      "apps/desktop/test/mbrs009-local-library-ui.test.ts",
+      "apps/desktop/test/preload.test.ts",
+      "docs/feedback/MBF-002-003/ALBUM_SQL_CAPACITY_EVIDENCE.md",
+      "docs/feedback/MBF-002-003/ALBUM_SQL_PERFORMANCE_REVIEW.md",
+      "docs/feedback/MBF-002-003/ASYNC_DATASET_FENCE_RESULT.md",
+      "docs/feedback/MBF-002-003/COVERDROP_FEATURE_MAP.json",
+      "docs/feedback/MBF-002-003/COVERDROP_FEATURE_MAP.md",
+      "docs/feedback/MBF-002-003/RESULT.md",
+      "docs/feedback/MBF-002-003/V39_ATOMIC_WRITER_INTEGRATION.md",
+      "docs/feedback/MBF-002-003/V39_NATIVE_SETTINGS_INTEGRATION.md",
+      "docs/feedback/MBF-002-003/V39_ROUTE_AND_PAGE_INTEGRATION.md",
+      "docs/feedback/MBF-002-003/VERIFICATION_MANIFEST.json",
+      "docs/feedback/MBF-002-003/WORKBENCH_IMPLEMENTATION.md",
+      "docs/feedback/MBF-002-003/WORKBENCH_SHARED_PORTS.md",
+      "docs/feedback/MBF-002-003/proposals/README.md",
+      "docs/feedback/MBF-002-003/proposals/SHARED_WORKBENCH_JOURNAL_PROPOSAL.json",
+      "docs/feedback/MBF-002-003/proposals/SHARED_WORKBENCH_JOURNAL_PROPOSAL.patch.gz",
+      "docs/feedback/MBF-002-003/proposals/SHARED_WORKBENCH_JOURNAL_PROPOSAL_V2.json",
+      "docs/feedback/MBF-002-003/proposals/SHARED_WORKBENCH_JOURNAL_PROPOSAL_V2.patch.gz",
+      "docs/integration/V39-INTEGRATION-002/DONOR_READBACK.json",
+      "docs/integration/V39-INTEGRATION-002/EXECUTION_SCOPE.json",
+      "docs/integration/V39-INTEGRATION-002/FEATURE_BEHAVIOR_MATRIX.json",
+      "docs/integration/V39-INTEGRATION-002/LOCAL_SOFTWARE_EVIDENCE.json",
+      "docs/integration/V39-INTEGRATION-002/NATIVE_BUILD_INPUTS.json",
+      "docs/integration/V39-INTEGRATION-002/SEALED_BASELINE.json",
+      "docs/integration/V39-INTEGRATION-002/STATUS.json",
+      "native/library-watch/fsevents-helper.cpp",
+      "native/local-audio-tags/taglib-helper.cpp",
+      "packages/bridge-core/src/application/bridge-controller.ts",
+      "packages/bridge-core/src/collection/dataset-dispatch.ts",
+      "packages/bridge-core/src/collection/dataset-domain.ts",
+      "packages/bridge-core/src/collection/dataset-owner-client.ts",
+      "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+      "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+      "packages/bridge-core/src/collection/dataset-services.ts",
+      "packages/bridge-core/src/collection/local-album-browser/artwork-read-port.ts",
+      "packages/bridge-core/src/collection/local-album-browser/grouping.ts",
+      "packages/bridge-core/src/collection/local-album-browser/main-protocol.ts",
+      "packages/bridge-core/src/collection/local-album-browser/owner-port.ts",
+      "packages/bridge-core/src/collection/local-album-browser/owner-protocol.ts",
+      "packages/bridge-core/src/collection/local-album-browser/owner-runtime.ts",
+      "packages/bridge-core/src/collection/local-album-browser/owner-store.ts",
+      "packages/bridge-core/src/collection/local-album-browser/read-service.ts",
+      "packages/bridge-core/src/collection/local-album-browser/sql-read.ts",
+      "packages/bridge-core/src/collection/local-album-browser/sql-types.ts",
+      "packages/bridge-core/src/collection/local-album-browser/types.ts",
+      "packages/bridge-core/src/collection/local-artwork-service.ts",
+      "packages/bridge-core/src/collection/local-artwork-store.ts",
+      "packages/bridge-core/src/collection/local-catalog-store.ts",
+      "packages/bridge-core/src/collection/local-cue-output-actor.ts",
+      "packages/bridge-core/src/collection/local-cue-output-protocol.ts",
+      "packages/bridge-core/src/collection/local-library-workbench/cue-plan.ts",
+      "packages/bridge-core/src/collection/local-library-workbench/lyrics-service.ts",
+      "packages/bridge-core/src/collection/local-library-workbench/lyrics-writer.ts",
+      "packages/bridge-core/src/collection/local-library-workbench/name-proposal.ts",
+      "packages/bridge-core/src/collection/local-library-workbench/owner-journal.ts",
+      "packages/bridge-core/src/collection/local-library-workbench/owner-writer.ts",
+      "packages/bridge-core/src/collection/local-library-workbench/plan-registry.ts",
+      "packages/bridge-core/src/collection/local-library-workbench/read-service.ts",
+      "packages/bridge-core/src/collection/local-library-workbench/types.ts",
+      "packages/bridge-core/src/collection/local-organizer-service.ts",
+      "packages/bridge-core/src/collection/local-organizer-store.ts",
+      "packages/bridge-core/src/collection/local-relocation-coordinator.ts",
+      "packages/bridge-core/src/collection/local-scan-coordinator.ts",
+      "packages/bridge-core/src/collection/local-scan-facts.ts",
+      "packages/bridge-core/src/collection/local-scan-settings.ts",
+      "packages/bridge-core/src/collection/local-scan-snapshot-view.ts",
+      "packages/bridge-core/src/collection/local-scan-store.ts",
+      "packages/bridge-core/src/collection/local-source-writes-journal.ts",
+      "packages/bridge-core/src/collection/local-source-writes-service.ts",
+      "packages/bridge-core/src/collection/local-source-writes-store.ts",
+      "packages/bridge-core/src/collection/source-relocation-companions.ts",
+      "packages/bridge-core/src/collection/source-write-format.ts",
+      "packages/bridge-core/src/collection/source-write-metadata.ts",
+      "packages/bridge-core/src/collection/source-write-verify.ts",
+      "packages/bridge-core/src/collection/source-writes-authority.ts",
+      "packages/bridge-core/src/collection/source-writes-publisher.ts",
+      "packages/bridge-core/src/library/bundled-cue-converter.ts",
+      "packages/bridge-core/src/library/cue-ffmpeg-build-policy.ts",
+      "packages/bridge-core/src/library/fsevents-library-monitor.ts",
+      "packages/bridge-core/src/library/local-artwork-embedded-reader.ts",
+      "packages/bridge-core/src/library/local-audio-tags-actor.ts",
+      "packages/bridge-core/src/library/local-cue-format-qualification.ts",
+      "packages/bridge-core/src/library/lyrics-source-format.ts",
+      "packages/bridge-core/src/library/metadata-reader-types.ts",
+      "packages/bridge-core/src/library/metadata-reader-worker.ts",
+      "packages/bridge-core/src/library/metadata-reader.ts",
+      "packages/bridge-core/src/library/scan-read-admission.ts",
+      "packages/bridge-core/src/recording/source-files.ts",
+      "packages/bridge-core/src/recording/source-protection-store.ts",
+      "packages/bridge-core/src/recording/source-protection.ts",
+      "packages/bridge-core/src/runtime.ts",
+      "packages/bridge-core/src/shared/library-read-trace.ts",
+      "packages/bridge-core/src/shared/local-album-read-trace-node.ts",
+      "packages/bridge-core/src/shared/source-writes-utility-port.ts",
+      "packages/bridge-core/src/stream/gateway.ts",
+      "packages/bridge-core/src/stream/local-file-http.ts",
+      "packages/bridge-core/src/stream/physical-resource-claims.ts",
+      "packages/bridge-core/src/stream/physical-resource-locks.ts",
+      "packages/bridge-core/src/stream/source-namespace-claims.ts",
+      "packages/bridge-core/src/utility-main.ts",
+      "packages/bridge-core/test/dataset-domain.test.ts",
+      "packages/bridge-core/test/dataset-owner-integration.test.ts",
+      "packages/bridge-core/test/dataset-owner.test.ts",
+      "packages/bridge-core/test/local-artwork-embedded-reader.test.ts",
+      "packages/bridge-core/test/local-file-gateway.test.ts",
+      "packages/bridge-core/test/local-library-wave-empty-list.test.ts",
+      "packages/bridge-core/test/local-library-wave-extensible.test.ts",
+      "packages/bridge-core/test/local-playback.test.ts",
+      "packages/bridge-core/test/mbf-local-album-group-markers.test.ts",
+      "packages/bridge-core/test/mbf-local-album-main-protocol.test.ts",
+      "packages/bridge-core/test/mbf-local-album-owner-protocol.test.ts",
+      "packages/bridge-core/test/mbf-local-album-owner.test.ts",
+      "packages/bridge-core/test/mbf-local-album-read-model.test.ts",
+      "packages/bridge-core/test/mbf-local-album-scan-evidence.test.ts",
+      "packages/bridge-core/test/mbf-local-album-source-marker.test.ts",
+      "packages/bridge-core/test/mbf-local-album-source-revision.test.ts",
+      "packages/bridge-core/test/mbf-local-album-sql-read.test.ts",
+      "packages/bridge-core/test/mbf-local-workbench-contract.test.ts",
+      "packages/bridge-core/test/mbf-local-workbench-cue.test.ts",
+      "packages/bridge-core/test/mbf-local-workbench-name.test.ts",
+      "packages/bridge-core/test/mbf-local-workbench-owner-journal.test.ts",
+      "packages/bridge-core/test/mbf-local-workbench-read.test.ts",
+      "packages/bridge-core/test/mbf-local-workbench-registry.test.ts",
+      "packages/bridge-core/test/mbrs003/persistent-scan-owner.test.ts",
+      "packages/bridge-core/test/mbrs004/name-rules-scan-integration.test.ts",
+      "packages/bridge-core/test/mbrs005/config-integration.test.ts",
+      "packages/bridge-core/test/mbrs005/http.test.ts",
+      "packages/bridge-core/test/mbrs006/controller-local.test.ts",
+      "packages/bridge-core/test/v39/fsevents-library-monitor.test.ts",
+      "packages/bridge-core/test/v39/local-album-capacity.test.ts",
+      "packages/bridge-core/test/v39/local-audio-tags-native.test.ts",
+      "packages/bridge-core/test/v39/local-cue-bundle.test.ts",
+      "packages/bridge-core/test/v39/local-cue-input-formats.test.ts",
+      "packages/bridge-core/test/v39/local-cue-native.test.ts",
+      "packages/bridge-core/test/v39/local-cue-output-recovery.test.ts",
+      "packages/bridge-core/test/v39/local-scan-album-scheduler.test.ts",
+      "packages/bridge-core/test/v39/local-scan-completed-snapshot.test.ts",
+      "packages/bridge-core/test/v39/local-workbench-capacity.test.ts",
+      "packages/bridge-core/test/v39/local-workbench-lyrics-write-recovery.test.ts",
+      "packages/bridge-core/test/v39/local-workbench-lyrics.test.ts",
+      "packages/bridge-core/test/v39/local-workbench-shared-owner.test.ts",
+      "packages/bridge-core/tsconfig.test.json",
+      "packages/contracts/src/command-outbox.ts",
+      "packages/contracts/src/index.ts",
+      "packages/contracts/src/ipc-names.ts",
+      "packages/contracts/src/ipc.ts",
+      "packages/contracts/src/local-album-library.ts",
+      "packages/contracts/src/local-artwork.ts",
+      "packages/contracts/src/local-catalog.ts",
+      "packages/contracts/src/local-library-workbench.ts",
+      "packages/contracts/src/local-scan.ts",
+      "packages/contracts/src/local-source-writes.ts",
+      "project/POSTRUST_PLAN.json",
+      "project/POSTRUST_PROGRESS.md",
+      "project/STATUS.json",
+      "scripts/native/build-cue-ffmpeg.mjs",
+      "scripts/native/build-library-watch.mjs",
+      "scripts/native/build-local-audio-tags.mjs",
+      "tasks/00_TASK_INDEX.md",
+      "tasks/V39-INTEGRATION-002.md"
+    ],
+    "CoreLyrics": [
+      "packages/bridge-core/src/collection/local-library-lyrics/inventory.ts",
+      "packages/bridge-core/src/collection/local-library-lyrics/job.ts",
+      "packages/bridge-core/src/collection/local-library-lyrics/providers.ts",
+      "packages/bridge-core/src/collection/local-library-lyrics/save-coordinator.ts",
+      "packages/bridge-core/src/collection/local-library-lyrics/service.ts",
+      "packages/bridge-core/src/collection/local-library-lyrics/types.ts",
+      "packages/bridge-core/test/mbf-local-lyrics-inventory.test.ts",
+      "packages/bridge-core/test/mbf-local-lyrics-job.test.ts",
+      "packages/bridge-core/test/mbf-local-lyrics-providers.test.ts",
+      "packages/bridge-core/test/mbf-local-lyrics-save-coordinator.test.ts",
+      "packages/bridge-core/test/mbf-local-lyrics-service.test.ts",
+      "packages/contracts/src/local-library-lyrics.ts",
+      "packages/contracts/test/local-library-lyrics.test.ts"
+    ],
+    "Renderer": [
+      "apps/desktop/e2e/mbrs009-local-library.spec.ts",
+      "apps/desktop/e2e/v39-coverdrop-original-features.spec.ts",
+      "apps/desktop/src/renderer/src/App.vue",
+      "apps/desktop/src/renderer/src/components/library/CoverDropView.vue",
+      "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+      "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumArtwork.vue",
+      "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumBrowser.vue",
+      "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumDetail.vue",
+      "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumGrid.vue",
+      "apps/desktop/src/renderer/src/components/library/local-browser/presentation.ts",
+      "apps/desktop/src/renderer/src/components/library/local-workbench/LocalAiReview.vue",
+      "apps/desktop/src/renderer/src/components/library/local-workbench/LocalCueSplitReview.vue",
+      "apps/desktop/src/renderer/src/components/library/local-workbench/LocalLibraryWorkbench.vue",
+      "apps/desktop/src/renderer/src/components/library/local-workbench/LocalLyricsBatchControl.vue",
+      "apps/desktop/src/renderer/src/components/library/local-workbench/LocalLyricsReview.vue",
+      "apps/desktop/src/renderer/src/components/library/local-workbench/workbench.css",
+      "apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+      "apps/desktop/src/renderer/src/components/navigation.ts",
+      "apps/desktop/src/renderer/src/components/settings/LocalAiSettings.vue",
+      "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+      "apps/desktop/src/renderer/src/components/settings/SettingsView.vue",
+      "apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+      "apps/desktop/src/renderer/src/composables/application/local-library-browser/model.ts",
+      "apps/desktop/src/renderer/src/composables/application/local-library-browser/presentation.ts",
+      "apps/desktop/src/renderer/src/composables/application/local-library-browser/types.ts",
+      "apps/desktop/src/renderer/src/composables/application/local-library-browser/useLocalAlbumBrowser.ts",
+      "apps/desktop/src/renderer/src/composables/application/local-library-workbench/controller.ts",
+      "apps/desktop/src/renderer/src/composables/application/local-library-workbench/library.ts",
+      "apps/desktop/src/renderer/src/composables/application/local-library-workbench/lyrics.ts",
+      "apps/desktop/src/renderer/src/composables/application/local-library-workbench/ports.ts",
+      "apps/desktop/src/renderer/src/composables/application/local-library-workbench/types.ts",
+      "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+      "apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+      "apps/desktop/test/mbf-coverdrop-library.test.ts",
+      "apps/desktop/test/mbf-coverdrop-lyrics.test.ts",
+      "apps/desktop/test/mbf-coverdrop-router.test.ts",
+      "apps/desktop/test/mbf-coverdrop-save-gate.test.ts",
+      "apps/desktop/test/mbf-local-album-browser.test.ts",
+      "apps/desktop/test/mbf-local-album-components.test.ts",
+      "apps/desktop/test/mbf-local-track-table.test.ts",
+      "apps/desktop/test/mbf-local-workbench.test.ts",
+      "apps/desktop/test/support/mbf-vue-host.ts",
+      "apps/desktop/test/v39/local-workbench-lyrics-ui.test.ts",
+      "apps/desktop/test/v39/local-workbench-native-settings.test.ts"
+    ],
+    "Wave": [
+      ".github/workflows/electron-e2e.yml",
+      ".github/workflows/rust-core.yml",
+      ".github/workflows/security.yml",
+      ".github/workflows/verify.yml",
+      "scripts/ci/prepare-v39-integration-002-artifacts.mjs",
+      "scripts/ci/report-only-admission.mjs",
+      "scripts/ci/report-only-v39-integration-002.mjs",
+      "scripts/ci/task-applicability.mjs",
+      "scripts/ci/test/v39-integration-002-admission.test.mjs",
+      "scripts/ci/test/v39-integration-002-artifacts.test.mjs",
+      "scripts/ci/test/v39-integration-002-gate.test.mjs",
+      "scripts/ci/test/v39-integration-002-report-only.test.mjs",
+      "scripts/ci/v39-integration-002-admission.mjs",
+      "scripts/ci/verify-v39-integration-002-capacity.mjs",
+      "scripts/ci/verify-v39-integration-002-native.mjs",
+      "scripts/ci/verify-v39-integration-002.mjs"
+    ]
+  },
+  "requirements": {
+    "original35": 35,
+    "increments": 9,
+    "total": 44,
+    "lyrics": 7,
+    "historicalMappingRows": 37,
+    "retained": "CD-36",
+    "oldAbsentOnly": "CD-37"
+  },
+  "orderedInputs": [
+    {
+      "phase": "feedback-source",
+      "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+      "parent": "479e746bb7106a4dac158fe616290220de03a53a",
+      "tree": "34f4b0707b0c710adac4950fa8de39153d059e11",
+      "changedFiles": 78,
+      "commitRaw": {
+        "bytes": 664,
+        "sha256": "c0ddb66801ccf544824ace9c8853354b84434bed33b6a969ad434d92c8811a81"
+      }
+    },
+    {
+      "phase": "feedback-report",
+      "revision": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+      "parent": "c9398af851d7b8ddebe83db049e643818eff7659",
+      "tree": "3ecc24fcd574cba9461ce2ce3dfb2392b571d186",
+      "changedFiles": 17,
+      "commitRaw": {
+        "bytes": 275,
+        "sha256": "2369040ac5c2c303de55a9f06caab4f828817efdb33e20e389e9757b924baf31"
+      }
+    },
+    {
+      "phase": "async-source",
+      "revision": "3175d272bdb64ff14869581927241032887b32e9",
+      "parent": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+      "tree": "5a41b86f3537ae8bdbd4fa7b3892e432076f541f",
+      "changedFiles": 2,
+      "commitRaw": {
+        "bytes": 257,
+        "sha256": "705e27e3121a0ebad161ce6dea34e1045ec044939175cf4457682dd23e8c2cd0"
+      }
+    },
+    {
+      "phase": "async-report",
+      "revision": "776924edb128d5fa3b3f86c3265c2ba02760d248",
+      "parent": "3175d272bdb64ff14869581927241032887b32e9",
+      "tree": "910d5a63f9ac02f3f7d90e23e487a2c831b501e7",
+      "changedFiles": 1,
+      "commitRaw": {
+        "bytes": 263,
+        "sha256": "ca9c51097b66c65b566eabbdcf1f1534c43ec84832097507e8f343a39753e47e"
+      }
+    },
+    {
+      "phase": "scan-evidence-source",
+      "revision": "54887cd5a26156d19903ee4116eca507d247debf",
+      "parent": "e2d17ad1c4d11756db75b24d91d2422c7e1fecbb",
+      "tree": "f2ac7a34d2c69e70e50db7feb140fb8d060afabe",
+      "changedFiles": 2,
+      "commitRaw": {
+        "bytes": 272,
+        "sha256": "aed1a5960d48fede5a5d714a9925b6c3a187453117e195fd6fb14e39745b23f5"
+      }
+    },
+    {
+      "phase": "source-marker-source",
+      "revision": "43036e7ac9c322098782aaa9ec3d6d2d22002f5b",
+      "parent": "54887cd5a26156d19903ee4116eca507d247debf",
+      "tree": "573af239969cfab1f0e03827b301021293b7fa0d",
+      "changedFiles": 2,
+      "commitRaw": {
+        "bytes": 260,
+        "sha256": "dbd9c593bf7fe191566b31f259a5e8a9ac5b5070c822c0b9d5817bb4e0322d43"
+      }
+    },
+    {
+      "phase": "group-markers-source",
+      "revision": "b535ed79ae31abacdf92668d983b8af89a584be1",
+      "parent": "43036e7ac9c322098782aaa9ec3d6d2d22002f5b",
+      "tree": "c193a2bb1e261b96e6a901ecf8401daa5b58c47e",
+      "changedFiles": 2,
+      "commitRaw": {
+        "bytes": 275,
+        "sha256": "7729194c04a692fba9febc70aa8147b04ddae67700d9f316d5ae96af4970baa9"
+      }
+    },
+    {
+      "phase": "group-markers-type-source",
+      "revision": "72e5e913e187cb558805c2c5f5faa3d2ce4b2bf3",
+      "parent": "b535ed79ae31abacdf92668d983b8af89a584be1",
+      "tree": "c9ee0e1e770609ce969ebc04a12e57ce61b061e6",
+      "changedFiles": 1,
+      "commitRaw": {
+        "bytes": 260,
+        "sha256": "0dbbcffb6bd4091ab3c8cd525a541ce86a15665050cb48d8777d5045717b8cba"
+      }
+    }
+  ],
+  "donorCount": 99,
+  "fixedNativeInputs": "docs/integration/V39-INTEGRATION-002/NATIVE_BUILD_INPUTS.json",
+  "sealedBaseline": "docs/integration/V39-INTEGRATION-002/SEALED_BASELINE.json",
+  "featureMatrix": "docs/integration/V39-INTEGRATION-002/FEATURE_BEHAVIOR_MATRIX.json",
+  "requiredEvidenceRefs": {
+    "sourceGate": "ACTUAL_CURRENT_SOURCE_GATE_WHOLE_RAW",
+    "sourceCi": "FIRST_NATURAL_CURRENT_SOURCE_PRODUCT_CI",
+    "reportCi": "FIRST_NATURAL_UNIQUE_DIRECT_REPORT_CI",
+    "native": "ACTUAL_BUNDLED_EIGHT_FORMATS_ENCODE_DECODE_EOF",
+    "capacity": "CURRENT_CHANGED_DOMAIN_CAPACITY_EVIDENCE"
+  },
+  "scopeBoundary": "全部44组及99输入；全专辑完整捕获与小组/物理claim分域；不截页、不拆业务事务绕限。只有实际Git准入可签资格；开发Scope不授CI。 唯一新增测试配置M叶269→270，rootDir仅../..，include/strict/noEmit和预算不变；依据协调SCOPE_TEST_CONFIG_DECISION.json整件SHA256 c88cf7d872f442c59c541c492a76be913e0e8cee6f1710707ac9a7942eb697a7。 2026-10-13正常Scan/位置计划一致性修复：原继承source-relocation-companions.ts仅补OGA/TTA/TAK/MPC及MPP/MP+已批准输入别名；必要M叶使开发清单270→271（99M/172A），原目录完整闭包/未登记peer/未知同stem引用拒绝、Public39和全部预算不变。依据原完整44组授权与normalscan06/07实际阻断，不授Source/CI完成资格。 2026-10-14完整捕获性能窄修：同实际GuardedSQLite同步组织投影与仅SQL语句复用，保九字段和原Source NULL/缺行INVENTORY_CONFLICT；新增一原SourceStore M叶及两必要行为负例A叶，开发279→282（108M/174A）。原44组、39公开命令、数据/Source授权、2s/90s/480s/32MiB及99输入不变。采用已复审NULL后继STOP SHA e90fb19cb3b4d5eb8fd4912599779e1330fca3c17b3edc0c14bb882d4301516d；这只是未冻结开发清单，不授Source/CI/Main2s通过。 2026-10-14本地播放remote URL P1窄修：依据Owner本地均不可播放反馈及既有完整44组授权、真实1300 SessionBegan后30s未Playing与合成HTTP公告端口RED，新增原gateway及原mbrs005/http行为测试两必要M叶，未冻结开发282→284（110M/174A）。保TrustedLocalMediaNetwork优先、本地默认及原loopback反向转送、sameUUID UNKNOWN/Source授权；Gate脚本、公开39/99输入/全44及2s/90s/480s/32MiB不变。只同步实际开发授权清单与准入常量/数量测试，不授Source/CI/普通音频资格。 2026-10-14封面格式必要两叶登记：Owner已明确授权独立封面格式修复会话候选由Main唯一采用；最终仅原embedded reader与原对应test两M，开发284→286（112M/174A）。补MP4/Ogg/RIFF-WAVE真实有界图片字节，未知/损坏不伪确认无图；保原3s/12MiB/4MiB/8MiB、Source权限和FD收口，Gate/全44/公开39/99输入及工程预算不变。原Root采用前Scope缺这两M现补齐真实授权清单，旧284/640采用记录保原件，不回填完成或Source/CI资格。",
+  "preserveOriginalLedger": {
+    "tasks": 18,
+    "acceptanceCases": 156,
+    "effectiveTasks": 17,
+    "effectiveAcceptanceCases": 150,
+    "cancelled015NaCases": 6,
+    "MBRS016Cases": 9,
+    "MBRS017Cases": 8
+  },
+  "preserve001": {
+    "source": "744c29af17e7f587a635810c4f45e327c7132705",
+    "report": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+    "frozen52AndDirect7": "HISTORICAL_EXACT",
+    "originalTests": 173,
+    "reportTests": {
+      "registered": 203,
+      "passed": 200,
+      "inheritedSkipped": 3
+    },
+    "coreEnvironmentBytes": 5714,
+    "newSharedChangesOnlyUnder002": true
+  },
+  "reportRule": "完成Source自己的标准、Gate与首次自然CI后才创建唯一直接Report；8叶3A5M，Source权威/软件证据/产品字节保持；TODO只在完成Report更新一次。",
+  "nextOrder": [
+    "V39-INTEGRATION-002",
+    "V39-INTEGRATION-003",
+    "V39-INTEGRATION-004",
+    "MBRS-016",
+    "MBRS-017"
+  ],
+  "mobileTaskIdentity": {
+    "V39-INTEGRATION-003": "保留既有MBM-003合同与现有iOS工作归属。完整验收包含FLAC至少24bit192kHz，以及仅DSD在Mac转24bit/48kHz PCM再生成独立FLAC缓存；首曲整件完成后才播放，缓存复用、Range/seek、续租/释放/配额、原件不改；真实iPhone播放、拖动和断线恢复全部归本阶段，不延期给004。",
+    "V39-INTEGRATION-004": "保留既有MBM-004内容、多设备工作归属与原完整验收。新集成标签不替换或缩小旧任务要求，不承接被003移出的DSD验收。"
+  },
+  "realApplicationServiceDeviceAudio": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "sourceSelfReportQualification": false
+}

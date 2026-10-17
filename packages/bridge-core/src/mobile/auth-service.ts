@@ -1,4 +1,6 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { mobilePreparationAsync, mobilePreparationSync } from './capability-trace.js';
+import { mobileRangeWindowObserve, mobileRangeWindowQueued } from './range-window-observer.js';
 import {
   MOBILE_CODEC_LIMITS, mobileCanonicalJson, mobileCommonRequestSnapshot,
   mobileCommonResponseSnapshot, parseMobileJson,
@@ -168,28 +170,34 @@ export function createMobileAuthService(options: MobileAuthServiceOptions): Mobi
   }
   async function load(): Promise<State> {
     let raw: MobileSealedState;
-    try { raw = await persistence.load(datasetId); }
+    try { raw = await mobilePreparationAsync('preparation.auth.owner-load', () => mobileRangeWindowObserve('auth.owner-load.composite', () => persistence.load(datasetId))); }
     catch { if (!pending) fatal = true; return unavailable(); }
     try {
       if (closed(raw, ['kind', 'datasetId', 'revision']) && raw.kind === 'missing'
         && raw.datasetId === datasetId && raw.revision === 0) {
-        if (pending || observedRevision !== 0) return unavailable();
-        return empty();
+        return mobilePreparationSync('preparation.auth.envelope', () => {
+          if (pending || observedRevision !== 0) return unavailable();
+          return empty();
+        });
       }
-      if (!closed(raw, ['kind', 'datasetId', 'revision', 'commitId', 'sealed']) || raw.kind !== 'sealed'
-        || raw.datasetId !== datasetId || !integer(raw.revision, 1) || raw.revision < observedRevision || !id(raw.commitId)) return unavailable();
-      const sealed = bytes(raw.sealed, MOBILE_AUTH_SEALED_MAX_BYTES);
+      const { sealed, revision, commitId } = mobilePreparationSync('preparation.auth.envelope', () => {
+        if (!closed(raw, ['kind', 'datasetId', 'revision', 'commitId', 'sealed']) || raw.kind !== 'sealed'
+          || raw.datasetId !== datasetId || !integer(raw.revision, 1) || raw.revision < observedRevision || !id(raw.commitId)) return unavailable();
+        return { sealed: bytes(raw.sealed, MOBILE_AUTH_SEALED_MAX_BYTES), revision: raw.revision, commitId: raw.commitId };
+      });
       let plain: Uint8Array;
-      try { plain = bytes(crypto.open(sealed, aad(raw.revision)), MOBILE_AUTH_STATE_MAX_BYTES); }
+      try { plain = mobilePreparationSync('preparation.auth.decrypt', () => bytes(crypto.open(sealed, aad(revision)), MOBILE_AUTH_STATE_MAX_BYTES)); }
       finally { sealed.fill(0); }
       let state: State;
-      try { state = captureState(plain, raw.revision, raw.commitId); }
+      try { state = mobilePreparationSync('preparation.auth.capture', () => captureState(plain, revision, commitId)); }
       finally { plain.fill(0); }
       if (pending) {
         // 不确定提交只核同一份真实原记录；缺记录、别的revision不能触发补发。
-        if (state.commitId !== pending.state.commitId || state.revision !== pending.state.revision
-          || encode(state) !== pending.plain) return unavailable();
-        pending = undefined;
+        mobilePreparationSync('preparation.auth.pending', () => {
+          if (state.commitId !== pending!.state.commitId || state.revision !== pending!.state.revision
+            || encode(state) !== pending!.plain) return unavailable();
+          pending = undefined;
+        });
       }
       observedRevision = state.revision;
       return state;
@@ -198,12 +206,13 @@ export function createMobileAuthService(options: MobileAuthServiceOptions): Mobi
       return unavailable();
     }
   }
-  function run<T>(operation: (state: State) => T | Promise<T>): Promise<T> {
-    if (closing || fatal) return Promise.reject(new MobileServiceError(503, 'BUSY'));
-    const result = tail.then(async () => {
-      if (fatal) return unavailable();
+  function run<T>(operation: (state: State) => T | Promise<T>, kind: string = 'auth-other'): Promise<T> {
+    if (closing || fatal) return mobilePreparationAsync('preparation.auth.admission', () => Promise.reject(new MobileServiceError(503, 'BUSY')));
+    mobilePreparationSync('preparation.auth.admission', () => undefined);
+    const result = tail.then(mobileRangeWindowQueued('auth', kind, async () => {
+      mobilePreparationSync('preparation.auth.queued-admission', () => { if (fatal) return unavailable(); });
       return operation(await load());
-    });
+    }));
     tail = result.then(() => undefined, () => undefined);
     return result;
   }
@@ -390,13 +399,13 @@ export function createMobileAuthService(options: MobileAuthServiceOptions): Mobi
       principals.set(principal, { deviceId: d.deviceId, fence: fences.get(d.deviceId) ?? 0 });
       return principal;
     }),
-    assertCurrent: principal => run(state => { current(state, principal, now(state)); }),
+    assertCurrent: principal => run(state => { current(state, principal, now(state)); }, 'auth-current'),
     assertDeviceCurrent: (deviceId, deviceEpoch) => run(state => {
       if (!id(deviceId) || !integer(deviceEpoch, 1)) return denied();
       const d = state.devices.find(device => device.deviceId === deviceId);
       if (!d || d.revoked || d.deviceEpoch !== deviceEpoch) throw new MobileServiceError(403, 'DEVICE_REVOKED');
       now(state);
-    }),
+    }, 'auth-device'),
     logout: principal => run(async state => {
       const at = now(state), d = current(state, principal, at);
       prune(state, at); bump(d.deviceId);

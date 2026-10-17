@@ -11,7 +11,10 @@ import {
 import { createMobileBackend } from '../src/main/mobile-backend.js';
 import { createMainMobileContentPort } from '../src/main/mobile-content-port.js';
 import type { MobileContentBackendReply } from '../src/main/mobile-content-backend.js';
-import { CoreSupervisor, type CoreChildProcess, type CoreMessagePort } from '../src/main/core-supervisor.js';
+import { CoreSupervisor, CoreIpcError, type CoreChildProcess, type CoreMessagePort } from '../src/main/core-supervisor.js';
+import { safeMobilePlaybackFailure } from '../src/main/mobile-playback-backend.js';
+import { BridgeError } from '../../../packages/bridge-core/src/shared/errors.js';
+import { createMobileCapabilityContext, withMobileCapabilityContext, closeMobileCapabilityContext, MOBILE_CAPABILITY_TRACE_PREFIX } from '../../../packages/bridge-core/src/mobile/capability-trace.js';
 import { createMobileContentRpcPort } from '../../../packages/bridge-core/src/mobile/content-rpc-port.js';
 import { mobileContentRpcFailure, type MobileContentCoreRequest,
   type MobileContentMainPrincipal } from '../../../packages/bridge-core/src/mobile/content-rpc.js';
@@ -67,13 +70,16 @@ function refuses(promise: Promise<unknown>, status: number, code: string, outcom
 }
 
 /** 真Main/auth/actor/私有RPC/完整codec；Owner持久化与来源事实为受控内存端口，不声称FD或Provider。 */
-async function fixture(t: TestContext, enableContent = true) {
+async function fixture(t: TestContext, enableContent = true, privateDiagnostics = false) {
   const key = new Uint8Array(32).fill(73), keys: Uint8Array[] = [], rpcCalls: MobileContentCoreRequest[] = [];
   const scopes = new Map<string, Readonly<MobileContentScope>>(), revoked = new Map<string, number>();
   const stored: { auth: MobileSealedState; playback: MobileSealedState } = {
     auth: { kind: 'missing', datasetId: DATASET, revision: 0 }, playback: { kind: 'missing', datasetId: DATASET, revision: 0 } };
-  const state = { accountDomain: ACCOUNT, providerEpoch: 'provider.fixture.1', ownerEpoch: 'owner.fixture.1',
+  const state = { accountDomain: ACCOUNT, providerEpoch: 'provider.fixture.1' as string | null, ownerEpoch: 'owner.fixture.1',
     qualified: true, initCalls: 0, dispatches: 0, verifies: 0, begins: 0, releases: 0,
+    scopeError: undefined as MobileServiceError | undefined, artworkRevision: 'nar:fixture', imageReads: 0, imageValidates: 0,
+    imageError: undefined as MobileServiceError | undefined, catalogError: undefined as Error | undefined, catalogReads: 0,
+    resized: new Uint8Array([255,216,1,2,3,4,255,217]),
     effect: undefined as ((input: MobileContentServiceInput) => void | Promise<void>) | undefined,
     invalidationWait: undefined as Promise<void> | undefined };
   const enteredInvalidation = deferred(), releaseHooks = new Set<() => void>(), sourceScopes: Readonly<MobileContentScope>[] = [];
@@ -86,7 +92,7 @@ async function fixture(t: TestContext, enableContent = true) {
   const rpc = createMobileContentRpcPort({ initialize: async input => { state.initCalls++; keys.push(input.key);
     assert.equal(hash(input.key), hash(new Uint8Array(hkdfSync('sha256', key, new Uint8Array(), 'MusicBridge:MBM004:CONTENT_ROOT:1', 32)))); },
     invalidateDevice: async input => { revoked.set(input.deviceId, input.deviceEpoch); enteredInvalidation.resolve(); await state.invalidationWait; },
-    resolveScope: async principal => { const scope = { ...principal, ownerEpoch: state.ownerEpoch,
+    resolveScope: async principal => { if (state.scopeError) throw state.scopeError; const scope = { ...principal, ownerEpoch: state.ownerEpoch,
       accountDomain: state.accountDomain, providerEpoch: state.providerEpoch }; scopes.set(principal.deviceId, scope); return scope; },
     assertScope: (scope, stage) => {
       const latest = scopes.get(scope.deviceId);
@@ -94,6 +100,9 @@ async function fixture(t: TestContext, enableContent = true) {
       if (scope.accountDomain !== state.accountDomain || scope.providerEpoch !== state.providerEpoch || scope.ownerEpoch !== state.ownerEpoch
         || stage === 'acquire' && latest.accessGeneration !== scope.accessGeneration) throw new MobileServiceError(409, 'SOURCE_CHANGED');
     }, content, neteasePlaybackQualified: async () => state.qualified,
+    readArtwork: async (_scope, artworkId) => { state.imageReads++; if (state.imageError) throw state.imageError; return { artworkId, revision: state.artworkRevision,
+      contentType: 'image/jpeg', bytes: new Uint8Array([255,216,1,2,3,4,255,217]) }; },
+    assertArtwork: async () => { state.imageValidates++; return state.artworkRevision; },
     source: async (scope, request) => {
       sourceScopes.push(scope);
       if (request.operation === 'prepare') { state.begins++; return { source: 'netease', result: { kind: 'mobile-source-prepared', source: {
@@ -115,11 +124,19 @@ async function fixture(t: TestContext, enableContent = true) {
       else { stored[name] = { kind: 'sealed', datasetId: DATASET, revision: prior.revision + 1,
         commitId: request.request.commitId, sealed: new Uint8Array(request.request.sealed) };
         reply = { kind: 'saved', datasetId: DATASET, revision: prior.revision + 1, commitId: request.request.commitId }; }
+    } else if(request.kind==='catalog'&&request.request.operation==='listTracks'){
+      state.catalogReads++;if(state.catalogError)throw state.catalogError;
+      // 001目录Owner使用UUID；004 scope的合成MobileId不能代替它。
+      reply={datasetId:DATASET,ownerEpoch:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',libraryRevision:'library.fixture.1',operation:'listTracks',
+        offset:request.request.offset,limit:request.request.limit,total:0,items:[]};
     } else throw new MobileServiceError(409, 'UNSUPPORTED_FORMAT');
     assert.equal(isMobileOwnerPrivateResult(reply, request), true); return reply;
   }
   const service = createMobileBackend({ serverId: SERVER, datasetId: DATASET, authKey: key, displayName: '合成004组合', environment: 'development',
-    requestOwner: owner, assertCurrent: () => undefined, resizeArtwork: () => { throw new MobileServiceError(404, 'INVALID_REQUEST'); },
+    privateProviderDiagnostics: privateDiagnostics,
+    requestOwner: owner, assertCurrent: () => undefined, resizeArtwork: (_bytes, size, providerInput) => {
+      assert.equal(providerInput, true); assert.ok([96, 256, 512].includes(size)); return state.resized;
+    },
     enablePlayback: true, ...(enableContent ? { enableContent: true } : {}), requestContentRpc: async (request, parent) => {
       rpcCalls.push(request); return rpc.request(request, parent);
     } });
@@ -151,6 +168,92 @@ async function fixture(t: TestContext, enableContent = true) {
   return { service, rpc, pair, keys, rpcCalls, state, enteredInvalidation, sourceScopes, mediaBytes, currentScope, input, request, control,
     barrier() { const entered = deferred(), release = deferred(); releaseHooks.add(release.resolve); return { entered, release }; } };
 }
+test('私有legacy歌曲诊断：开关默认关闭，真实001读取与发送前同页复核保原错误且公开仍BUSY',async t=>{
+  for(const enabled of [false,true])for(const stage of ['read','beforeSend'] as const)await t.test(`${enabled}-${stage}`,async child=>{
+    const h=await fixture(child,true,enabled),lines:string[]=[];
+    const context=createMobileCapabilityContext(randomUUID(),'main','http',null,signal(),line=>lines.push(line));assert.ok(context);context.privateContentDiagnostic=true;
+    const original=new CoreIpcError('INVALID_IPC_RESPONSE','禁止本地原始正文 https://secret.invalid/ token');
+    const input={operation:'listTracks' as const,request:await h.request('listTracks','/mobile/v1/tracks'),accessToken:h.pair.accessToken,signal:signal(),origin:ORIGIN};
+    try{await withMobileCapabilityContext(context,async()=>{
+      if(stage==='read'){h.state.catalogError=original;await assert.rejects(h.service.backend.dispatch(input),error=>error===original);}
+      else{const reply=await h.service.backend.dispatch(input);h.state.catalogError=original;await assert.rejects(reply.beforeSend!(),error=>error===original);}
+    });}finally{closeMobileCapabilityContext(context);}
+    const safe=safeMobilePlaybackFailure(original);assert.equal(safe.status,503);assert.equal(safe.code,'BUSY');
+    const rows=lines.map(line=>JSON.parse(line.slice(MOBILE_CAPABILITY_TRACE_PREFIX.length)) as {stage:string;phase:string;code:string});
+    const local=rows.filter(row=>row.stage.startsWith('main.catalog.tracks.'));
+    if(!enabled)assert.deepEqual(local,[]);
+    else{
+      assert.ok(local.some(row=>row.stage==='main.catalog.tracks.owner'&&row.phase==='reject'&&row.code==='INVALID_IPC_RESPONSE'));
+      assert.ok(local.some(row=>row.stage==='main.catalog.tracks.auth'&&row.phase==='ok'));
+      if(stage==='beforeSend')assert.ok(local.some(row=>row.stage==='main.catalog.tracks.beforeSend'&&row.phase==='reject'));
+    }
+    assert.equal(h.state.catalogReads,stage==='read'?1:2);assert.doesNotMatch(lines.join(''),/禁止本地|secret\.invalid|token|message|stack/iu);
+  });
+});
+
+test('私有Main内容RPC诊断：真实dispatch明确action且Core安全BUSY不误记为scope或other',async t=>{
+  const h=await fixture(t,true,true),lines:string[]=[];
+  h.state.effect=()=>{throw new BridgeError('NETEASE_REQUEST_FAILED','禁止的Provider正文');};
+  const context=createMobileCapabilityContext(randomUUID(),'main','http',null,signal(),line=>lines.push(line));assert.ok(context);context.privateContentDiagnostic=true;
+  try{const input=await h.input('getNeteaseDailyRecommendations');await withMobileCapabilityContext(context,()=>assert.rejects(h.service.contentBackend!.dispatch(input),error=>error instanceof MobileServiceError&&error.status===503&&error.code==='BUSY'));}
+  finally{closeMobileCapabilityContext(context);}
+  const rows=lines.map(line=>JSON.parse(line.slice(MOBILE_CAPABILITY_TRACE_PREFIX.length)) as {stage:string;phase:string;code:string});
+  assert.ok(rows.some(row=>row.stage==='content.rpc.dispatch'&&row.phase==='reject'&&row.code==='BUSY'));
+  assert.equal(h.state.dispatches,1);assert.doesNotMatch(lines.join(''),/禁止的Provider正文/u);
+});
+
+test('手机发现能力：BUSY只降unavailable，已确认未登录用loginRequired，真正mobile401不吞', async t => {
+  const h = await fixture(t), path = '/mobile/v1/ui/capabilities';
+  const input = { operation: 'getUIContentCapabilities' as const, request: await h.request('getUIContentCapabilities', path),
+    accessToken: h.pair.accessToken, signal: signal(), origin: ORIGIN };
+  h.state.scopeError = new MobileServiceError(503, 'BUSY');
+  const unavailable = await h.service.dsdBackend!.dispatch(input); await unavailable.beforeSend?.();
+  const first = decode('getUIContentCapabilities', path, unavailable); assert.equal(first.category, 'success');
+  assert.ok(isMobileUIContentCapabilities(first.body));
+  assert.equal(first.body.neteaseDailyRecommendations, 'unavailable'); assert.equal(first.body.addedAlbums, 'unavailable');
+  h.state.scopeError = undefined; h.state.providerEpoch = null; h.state.accountDomain = `local:${DATASET}`;
+  const loggedOut = await h.service.dsdBackend!.dispatch(input); await loggedOut.beforeSend?.();
+  const second = decode('getUIContentCapabilities', path, loggedOut); assert.equal(second.category, 'success');
+  assert.ok(isMobileUIContentCapabilities(second.body));
+  assert.equal(second.body.neteaseDailyRecommendations, 'loginRequired'); assert.equal(second.body.addedAlbums, 'ready');
+  assert.ok(await h.service.auth.authenticate(h.pair.accessToken));
+  await assert.rejects(h.service.dsdBackend!.dispatch({ ...input, accessToken: 'invalid.mobile.token' }),
+    error => error instanceof MobileServiceError && error.status === 401);
+  h.state.scopeError = new MobileServiceError(401, 'UNAUTHORIZED');
+  await assert.rejects(h.service.dsdBackend!.dispatch(input), error => error instanceof MobileServiceError && error.status === 401);
+});
+
+test('手机发现发送前：账号scope改变/临时503仍拒旧ready，不伪造更新后的200能力', async t => {
+  const h = await fixture(t), input = { operation: 'getUIContentCapabilities' as const,
+    request: await h.request('getUIContentCapabilities', '/mobile/v1/ui/capabilities'), accessToken: h.pair.accessToken, signal: signal(), origin: ORIGIN };
+  const ready = await h.service.dsdBackend!.dispatch(input); h.state.providerEpoch = 'provider.replaced';
+  await assert.rejects(ready.beforeSend!(), error => error instanceof MobileServiceError && error.status === 409);
+  const next = await h.service.dsdBackend!.dispatch(input); h.state.scopeError = new MobileServiceError(503, 'BUSY');
+  await assert.rejects(next.beforeSend!(), error => error instanceof MobileServiceError && error.status === 503);
+  assert.ok(await h.service.auth.authenticate(h.pair.accessToken));
+});
+
+test('手机图片认证链：现有getArtwork实际Main到Core读取再验证，限制1MiB且拒旧scope/修订', async t => {
+  const h = await fixture(t), path = '/mobile/v1/artwork/naw%3Amain.fixture';
+  const input = { operation: 'getArtwork' as const, request: await h.request('getArtwork', path),
+    accessToken: h.pair.accessToken, signal: signal(), origin: ORIGIN };
+  const first = await h.service.backend.dispatch(input); assert.equal(first.status, 200); assert.equal(first.body.length, 8);
+  await first.beforeSend?.(); assert.equal(h.state.imageReads, 1); assert.equal(h.state.imageValidates, 1);
+  assert.ok(h.rpcCalls.some(call => call.action === 'artwork' && call.operation === 'read'));
+  const stale = await h.service.backend.dispatch(input); h.state.artworkRevision = 'nar:changed';
+  await assert.rejects(stale.beforeSend!(), error => error instanceof MobileServiceError && error.status === 409);
+  const replaced = await h.service.backend.dispatch(input); h.state.providerEpoch = 'provider.new';
+  await assert.rejects(replaced.beforeSend!(), error => error instanceof MobileServiceError && error.status === 409);
+  h.state.resized = new Uint8Array(1024 * 1024 + 1);
+  await assert.rejects(h.service.backend.dispatch(input), error => error instanceof MobileServiceError && error.code === 'CONTENT_LIMIT_EXCEEDED');
+  h.state.imageError = new MobileServiceError(404, 'RESOURCE_REVOKED');
+  await assert.rejects(h.service.backend.dispatch(input), error => error instanceof MobileServiceError && error.status === 404);
+  h.state.imageError = new MobileServiceError(503, 'BUSY');
+  await assert.rejects(h.service.backend.dispatch(input), error => error instanceof MobileServiceError && error.status === 503);
+  assert.ok(await h.service.auth.authenticate(h.pair.accessToken));
+  await assert.rejects(h.service.backend.dispatch({ ...input, accessToken: 'invalid.mobile.token' }), error => error instanceof MobileServiceError && error.status === 401);
+});
+
 function decode<O extends MobileOperationId>(operation: O, path: string, reply: { status: number; headers: MobileHeaderPairs; body: Uint8Array;
   resourceContext?: import('@music-bridge/contracts').MobileResourceSemanticContext; contentContext?: MobileContentReadContext }): MobileReplyMap[O] {
   const result = decodeMobileResponse(operation, { status: reply.status, headers: reply.headers, body: new Uint8Array(reply.body), finalUrl: ORIGIN + path },
@@ -275,7 +378,12 @@ test('真Main播放actor原资源绑定完整Scope；refresh续原lease，logout
 class Port implements CoreMessagePort {
   readonly sent: unknown[] = []; readonly listeners: ((event: { data: unknown }) => void)[] = [];
   on(_event: 'message', callback: (event: { data: unknown }) => void): void { this.listeners.push(callback); }
-  postMessage(value: unknown): void { this.sent.push(value); }
+  postMessage(value: unknown): void {
+    this.sent.push(value);
+    const request = value as { version?: unknown; id?: unknown; command?: unknown };
+    // 只补原Core控制关闭合同；mobile-content UNKNOWN/quiet回声仍逐件手动构造。
+    if (request.version === IPC_VERSION && request.command === 'core.shutdown' && typeof request.id === 'string') queueMicrotask(() => this.receive({ version: IPC_VERSION, id: request.id, ok: true, result: { stopped: true } }));
+  }
   start(): void {} close(): void {}
   receive(value: unknown): void { for (const listener of this.listeners) listener({ data: value }); }
 }

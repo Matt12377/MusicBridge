@@ -2,11 +2,12 @@ import { randomUUID } from 'node:crypto';
 
 /** 仅可信 Core/唯一 DatasetOwner 通道；不是 Roon 元数据许可或 SourceLock。 */
 export interface ScanReadContext { epoch: string; datasetId: string }
+export type ScanReadPurpose = 'scan' | 'local-album-display';
 export type ScanReadAcquireResult = { status: 'granted'; permitId: string } | { status: 'deferred' };
 export type ScanReadRevocationReason = 'media-busy' | 'admission-closed' | 'permit-released' | 'renew';
 export interface ScanReadWatchResult { reason: ScanReadRevocationReason }
 export interface ScanReadAdmission {
-  acquire(context: ScanReadContext): ScanReadAcquireResult;
+  acquire(context: ScanReadContext, purpose?: ScanReadPurpose): ScanReadAcquireResult;
   watchRevocation(context: ScanReadContext, permitId: string): Promise<ScanReadWatchResult>;
   /** 调用方必须先等实际 read 退出和 FD 关闭；LRF 不得伪造此确认。 */
   release(context: ScanReadContext, permitId: string): { released: true };
@@ -15,14 +16,14 @@ export interface ScanReadAdmission {
   resourceCounts(): { permits: number; revoked: number; watches: number; timers: number; closed: boolean };
 }
 interface Watch { resolve(value: ScanReadWatchResult): void; timer: ReturnType<typeof setTimeout> }
-interface Permit { context: ScanReadContext; revoked?: 'media-busy' | 'admission-closed'; watch?: Watch }
+interface Permit { context: ScanReadContext; readonly purpose: ScanReadPurpose; revoked?: 'media-busy' | 'admission-closed'; watch?: Watch }
 export class ScanReadAdmissionError extends Error {
   constructor() { super('扫描读取私有许可无效。'); }
 }
 const validId = (value: string): boolean => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(value);
 const sameContext = (a: ScanReadContext, b: ScanReadContext): boolean => a.epoch === b.epoch && a.datasetId === b.datasetId;
 /** 繁忙从原 Controller/网关实时采样；通知只用于迅速撤销，不创造第二份播放真相。 */
-export function createScanReadAdmission(options: { isBusy(): boolean; watchTimeoutMs?: number }): ScanReadAdmission {
+export function createScanReadAdmission(options: { isBusy(): boolean; isDisplayBusy?(): boolean; watchTimeoutMs?: number }): ScanReadAdmission {
   const watchTimeoutMs = options.watchTimeoutMs ?? 1000;
   if (!Number.isSafeInteger(watchTimeoutMs) || watchTimeoutMs < 1 || watchTimeoutMs > 1000) throw new ScanReadAdmissionError();
   const permits = new Map<string, Permit>();
@@ -30,15 +31,18 @@ export function createScanReadAdmission(options: { isBusy(): boolean; watchTimeo
   const current = (context: ScanReadContext): void => {
     if (!validId(context.epoch) || !validId(context.datasetId)) throw new ScanReadAdmissionError();
   };
-  const busy = (): boolean => { try { return options.isBusy() !== false; } catch { return true; } };
+  const busy = (purpose: ScanReadPurpose): boolean => {
+    try { return (purpose === 'local-album-display' && options.isDisplayBusy ? options.isDisplayBusy() : options.isBusy()) !== false; }
+    catch { return true; }
+  };
   const finishWatch = (permit: Permit, reason: ScanReadRevocationReason): void => {
     const watch = permit.watch;
     if (!watch) return;
     delete permit.watch; clearTimeout(watch.timer); watch.resolve({ reason });
   };
   const observe = (): void => {
-    if (!closed && !busy()) return;
     for (const permit of permits.values()) {
+      if (!closed && !busy(permit.purpose)) continue;
       permit.revoked ??= closed ? 'admission-closed' : 'media-busy';
       finishWatch(permit, permit.revoked);
     }
@@ -50,11 +54,13 @@ export function createScanReadAdmission(options: { isBusy(): boolean; watchTimeo
     return permit;
   };
   return {
-    acquire(context) {
-      current(context); observe();
+    acquire(context, purpose: ScanReadPurpose = 'scan') {
+      current(context);
+      if (purpose !== 'scan' && purpose !== 'local-album-display') throw new ScanReadAdmissionError();
+      observe();
       // 撤销尚不等于资源释放；原票据仍占槽，最多两个 reader 可持有许可。
-      if (closed || busy() || permits.size >= 2) return { status: 'deferred' };
-      const permitId = randomUUID(); permits.set(permitId, { context: { ...context } });
+      if (closed || busy(purpose) || permits.size >= 2) return { status: 'deferred' };
+      const permitId = randomUUID(); permits.set(permitId, { context: { ...context }, purpose });
       return { status: 'granted', permitId };
     },
     watchRevocation(context, permitId) {

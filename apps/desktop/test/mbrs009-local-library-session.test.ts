@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { isLocalAlbumSummary } from '@music-bridge/contracts'
 import type { CommandOutboxOverview, CommandOutboxPublicApi, CommandOutboxState, CommandOutboxView, LocalLibraryPublicApi, LocalLibraryQuery, LocalLibraryQueryPage, LocalLibraryTrackDetail, LocalLibraryTrackSummary, LocalPlayRequest, LocalRootView } from '@music-bridge/contracts'
 import { useLocalLibrary } from '../src/renderer/src/composables/application/useLocalLibrary.js'
 import { usePlaybackSession } from '../src/renderer/src/composables/application/usePlaybackSession.js'
@@ -242,4 +243,38 @@ test('009R1 离页原终态缓存不能在返回异dataset时清锁，回原data
   model.suspend(); model.observeOutbox({ datasetId: id(90), entries: [{ ...outboxEntry(pending.commandId, 'localCatalog.overrideMetadata', 'succeeded'), acknowledged: true }] })
   datasetId = id(92); await model.activate(); assert.equal(model.pendingOverride.value, pending); assert.equal(writes, 1)
   model.suspend(); datasetId = id(90); await model.activate(); assert.equal(model.pendingOverride.value, null); assert.equal(writes, 1)
+})
+
+function album950(): import('@music-bridge/contracts').LocalAlbumSummary {
+  const album: import('@music-bridge/contracts').LocalAlbumSummary = { id: 'directory:owned-950', rootId: root.root.id, revision: 'owned-950', kind: 'source-directory', editionId: null, title: '完整自有专辑', artists: ['合成作者'],
+    year: null, versionLabel: null, trackCount: 245, representativeTrackId: item().track.id, artworkAvailable: false, artworkState: 'unknown', statuses: [] }
+  assert.ok(isLocalAlbumSummary(album), '受控摘要必须先通过原完整公开合同')
+  return album
+}
+test('LP950 页面普通PLAY_NOW只带当前专辑完整身份，首100行不冒245成员且追加保原九字段', async t => {
+  let pageReads = 0; const sends: LocalPlayRequest[] = [], album = album950()
+  const api = libraryApi({ queryLocalLibraryTracks: async query => { pageReads++; return page(query) } })
+  const model = useLocalLibrary({ api, getSelectedZone: () => ({ zoneId: '受控Zone', displayName: '自有Zone', selected: true }), getPlaybackAlbum: () => album,
+    play: async request => { sends.push(request); return { status: 'accepted', request_id: request.request_id, action: request.action } } })
+  t.after(() => model.dispose()); await model.activate(); assert.equal(model.rangeWindow.value.entries.length, 100)
+  await model.playTrack(item(102).track.id)
+  assert.equal(model.actionError.value, '')
+  assert.equal(sends.length, 1); assert.equal(sends[0]!.local_track_id, item(102).track.id); assert.equal(pageReads, 1)
+  assert.deepEqual(sends[0]!.album, { datasetId: id(90), albumKey: album.id, rootId: album.rootId, revision: album.revision, kind: album.kind, editionId: null, trackCount: 245 })
+  assert.equal(Object.hasOwn(sends[0]!.album!, 'members'), false); assert.equal(model.lastPlay.value?.request.request_id, sends[0]!.request_id)
+  await model.playTrack(item(102).track.id, 'APPEND_MB_QUEUE'); await model.playTrack(item(102).track.id, 'PLAY_NEXT_MB_QUEUE')
+  assert.equal(sends.length, 3); assert.ok(sends.slice(1).every(request => Object.keys(request).length === 9 && !Object.hasOwn(request, 'album')))
+})
+test('LP950 页面读取期间切换专辑或工作库不把旧点击改绑新组，零点播', async t => {
+  for (const change of ['album', 'dataset'] as const) {
+    const held = deferred<LocalLibraryTrackDetail>(); let selected = album950(), datasetId = id(90), sends = 0, detailReads = 0
+    const model = useLocalLibrary({ api: libraryApi({ getLocalLibraryTrackDetail: () => { detailReads++; return held.promise }, getCommandOutbox: async () => ({ datasetId, entries: [] }) }),
+      getSelectedZone: () => ({ zoneId: '受控Zone', displayName: '自有Zone', selected: true }), getPlaybackAlbum: () => selected,
+      play: async request => { sends++; return { status: 'accepted', request_id: request.request_id, action: request.action } } })
+    t.after(() => model.dispose()); await model.activate(); const work = model.playTrack(item().track.id)
+    assert.equal(detailReads, 1)
+    if (change === 'album') selected = { ...selected, revision: 'new-950' }; else datasetId = id(92)
+    held.resolve(detail()); await work
+    assert.equal(sends, 0); assert.match(model.actionError.value, /尚未派发/u); assert.equal(model.lastPlay.value, null)
+  }
 })

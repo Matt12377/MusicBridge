@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, open, rm, truncate, writeFile, type FileHandle } from 'node:fs/promises';
+import { mkdtemp, open, readFile, rm, truncate, writeFile, type FileHandle } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -122,12 +123,12 @@ test('真实 FD 短读会继续读取，输出不包含未填充字节', async (
   });
 });
 
-test('未知格式、未支持 ID3 主版本或高位伪造 magic 返回空，扩展名不参与识别', async () => {
-  for (const source of [Buffer.alloc(0), Buffer.from('RIFF合成'), Buffer.from('OggS合成'), id3(2, []), id3(5, []), Buffer.from([0xe6, 0x4c, 0x61, 0x43])]) {
+test('未知格式、未支持 ID3 主版本或高位伪造 magic 明确拒绝，扩展名不参与识别', async () => {
+  for (const source of [Buffer.alloc(0), Buffer.from('NOPE合成'), id3(2, []), id3(5, []), Buffer.from([0xe6, 0x4c, 0x61, 0x43])]) {
     await withSource(source, async (handle, size) => {
       const spy = observed(handle);
-      assert.deepEqual(await readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal), []);
-      assert.ok(spy.calls.reduce((sum, call) => sum + call.bytesRead, 0) <= 4);
+      await assert.rejects(readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal), hasCode('UNSUPPORTED'));
+      assert.ok(spy.calls.reduce((sum, call) => sum + call.bytesRead, 0) <= 8);
     }, '合成未知.flac');
   }
 });
@@ -276,5 +277,279 @@ test('无效 size 在实际 FD 读取之前拒绝', async () => {
       await assert.rejects(readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal), hasCode('INVALID'));
     }
     assert.equal(spy.calls.length, 0);
+  });
+});
+
+// 以下只构造元数据容器；载荷是可由独立图片解码器打开的 2×2 合成图片，不代表音频解码证据。
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEklEQVR4nGPc51bBwMDAxAAGABJAAYCBd8GBAAAAAElFTkSuQmCC', 'base64');
+const jpeg = Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAACAAIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDPooorQ+yP/9k=', 'base64');
+function atom(name: string, bytes: Buffer, extended = false): Buffer {
+  if (!extended) return Buffer.concat([u32(8 + bytes.length), Buffer.from(name, 'latin1'), bytes]);
+  const length = Buffer.alloc(8); length.writeBigUInt64BE(BigInt(16 + bytes.length));
+  return Buffer.concat([u32(1), Buffer.from(name, 'latin1'), length, bytes]);
+}
+function mp4Cover(bytes = png, type = 14): Buffer { return atom('data', Buffer.concat([u32(type), u32(0), bytes])); }
+function mp4(covers: Buffer[], options: { before?: Buffer; extended?: boolean; codec?: string; metaFlags?: number; handler?: string } = {}): Buffer {
+  const hdlr = atom('hdlr', Buffer.concat([u32(0), u32(0), Buffer.from(options.handler ?? 'mdir'), Buffer.alloc(12)]));
+  const meta = atom('meta', Buffer.concat([u32(options.metaFlags ?? 0), hdlr,
+    atom('ilst', Buffer.concat([atom('©nam', atom('data', Buffer.concat([u32(1), u32(0), Buffer.from('合成专辑')]))),
+      ...(covers.length ? [atom('covr', Buffer.concat(covers), options.extended)] : [])]))]), options.extended);
+  return Buffer.concat([atom('ftyp', Buffer.concat([Buffer.from('M4A '), u32(0), Buffer.from('isomM4A ')])),
+    options.before ?? Buffer.alloc(0),
+    atom('moov', Buffer.concat([atom('trak', atom('stsd', atom(options.codec ?? 'mp4a', Buffer.alloc(28)))), atom('udta', meta)]), options.extended)]);
+}
+const le32 = (value: number): Buffer => { const bytes = Buffer.alloc(4); bytes.writeUInt32LE(value); return bytes; };
+function oggPage(laces: number[], body: Buffer, sequence: number, flags: number, serial = 17): Buffer {
+  const header = Buffer.alloc(27); header.write('OggS'); header[5] = flags;
+  header.writeUInt32LE(serial, 14); header.writeUInt32LE(sequence, 18); header[26] = laces.length;
+  const page = Buffer.concat([header, Buffer.from(laces), body]);
+  // 合成页也带真实 CRC，便于独立容器工具使用；提取器只验证有界元数据结构。
+  let crc = 0;
+  for (const byte of page) { crc = (crc ^ byte << 24) >>> 0; for (let bit = 0; bit < 8; bit++) crc = ((crc << 1) ^ (crc & 0x80000000 ? 0x04c11db7 : 0)) >>> 0; }
+  page.writeUInt32LE(crc, 22); return page;
+}
+function oggPackets(packets: Buffer[], options: { pageSegments?: number; serial?: number } = {}): Buffer {
+  const pages: Buffer[] = []; let sequence = 0;
+  for (const packet of packets) {
+    const laces = Array.from({ length: Math.floor(packet.length / 255) }, () => 255); laces.push(packet.length % 255);
+    let offset = 0;
+    while (laces.length) {
+      const part = laces.splice(0, options.pageSegments ?? 255), length = part.reduce((a, b) => a + b, 0);
+      pages.push(oggPage(part, packet.subarray(offset, offset + length), sequence, (sequence === 0 ? 2 : 0) | (offset ? 1 : 0), options.serial));
+      offset += length; sequence++;
+    }
+  }
+  return Buffer.concat(pages);
+}
+function vorbisHead(): Buffer { return Buffer.concat([Buffer.from([1]), Buffer.from('vorbis'), le32(0), Buffer.from([2]), le32(48000), Buffer.alloc(12), Buffer.from([0xb8, 1])]); }
+function opusHead(): Buffer { return Buffer.concat([Buffer.from('OpusHead'), Buffer.from([1, 2]), Buffer.alloc(8), Buffer.from([0])]); }
+function comments(codec: 'vorbis' | 'opus', fields: Array<string | Buffer>): Buffer {
+  return Buffer.concat([Buffer.from(codec === 'vorbis' ? '\x03vorbis' : 'OpusTags'), le32(4), Buffer.from('test'), le32(fields.length),
+    ...fields.flatMap(field => { const bytes = typeof field === 'string' ? Buffer.from(field) : field; return [le32(bytes.length), bytes]; }),
+    ...(codec === 'vorbis' ? [Buffer.from([1])] : [])]);
+}
+function ogg(codec: 'vorbis' | 'opus', fields: Array<string | Buffer>, pageSegments = 255): Buffer {
+  return oggPackets([codec === 'vorbis' ? vorbisHead() : opusHead(), comments(codec, fields)], { pageSegments });
+}
+const pictureComment = (bytes = png, mime = 'image/png'): string => 'METADATA_BLOCK_PICTURE=' + pictureBody(bytes, mime).toString('base64');
+
+test('MP4 AAC/ALAC 样式元数据提取原 PNG/JPEG；支持扩展长度并跳过 mdat', async () => {
+  for (const codec of ['mp4a', 'alac']) for (const extended of [false, true]) {
+    const ignored = atom('mdat', Buffer.alloc(2 * MiB, 0xa5)), source = mp4([mp4Cover(), mp4Cover(jpeg, 13)], { codec, extended, before: ignored });
+    await withSource(source, async (handle, size) => {
+      const spy = observed(handle), result = await readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal);
+      assert.deepEqual(result.map(p => Buffer.from(p.bytes)), [png, jpeg]); assert.deepEqual(result.map(p => p.pictureIndex), [0, 1]);
+      notRead(spy.calls, 24 + 8, 24 + ignored.length);
+    }, '合成容器.m4a');
+  }
+});
+
+test('MP4 合法无 covr 可确认无图；未知 meta/图片类型不得确认无图', async () => {
+  await withSource(mp4([]), async (handle, size) => assert.deepEqual(await readLocalEmbeddedArtwork(handle, size, new AbortController().signal), []));
+  for (const source of [mp4([mp4Cover(png, 0)]), mp4([], { metaFlags: 1 }), mp4([], { handler: 'mdta' })]) {
+    await withSource(source, async (handle, size) => assert.rejects(readLocalEmbeddedArtwork(handle, size, new AbortController().signal), hasCode('UNSUPPORTED')));
+  }
+});
+
+test('MP4 atom 截断、父范围越界、超大 64 位声明和缺 moov 整次拒绝', async () => {
+  const large = Buffer.alloc(16); large.writeUInt32BE(1); large.write('moov', 4); large.writeBigUInt64BE(2n ** 63n, 8);
+  const sources = [mp4([mp4Cover()]).subarray(0, -1), Buffer.concat([u32(4), Buffer.from('ftyp')]),
+    Buffer.concat([atom('ftyp', Buffer.concat([Buffer.from('M4A '), u32(0)])), large]),
+    Buffer.concat([atom('ftyp', Buffer.concat([Buffer.from('M4A '), u32(0)])), atom('mdat', Buffer.alloc(20))]),
+    mp4([Buffer.concat([u32(0xffffffff), Buffer.from('data')])]), mp4([atom('data', Buffer.alloc(3))])];
+  for (const source of sources) await withSource(source, async (handle, size) => {
+    await assert.rejects(readLocalEmbeddedArtwork(handle, size, new AbortController().signal), hasCode('INVALID'));
+  });
+});
+
+test('Ogg Vorbis/Opus 分页图片注释返回真实原图，保持短读与 FD 位置合同', async () => {
+  for (const codec of ['vorbis', 'opus'] as const) {
+    const source = ogg(codec, ['TITLE=合成', pictureComment(), pictureComment(jpeg, 'image/jpeg')], 1);
+    await withSource(source, async (handle, size) => {
+      await handle.read(Buffer.alloc(2), 0, 2, null);
+      const spy = observed(handle, { short: 7 }), result = await readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal);
+      assert.deepEqual(result.map(p => Buffer.from(p.bytes)), [png, jpeg]); assert.deepEqual(result.map(p => p.pictureIndex), [0, 1]);
+      const next = Buffer.alloc(1); await handle.read(next, 0, 1, null); assert.equal(next[0], source[2]);
+    }, '合成容器.ogg');
+  }
+});
+
+test('Ogg 同页多个 packet 不读 setup/音频，合法无图才返回空', async () => {
+  for (const codec of ['vorbis', 'opus'] as const) {
+    const first = codec === 'vorbis' ? vorbisHead() : opusHead(), tags = comments(codec, ['TITLE=合成']), audio = Buffer.alloc(20, 0xff);
+    const source = oggPage([first.length, tags.length, audio.length], Buffer.concat([first, tags, audio]), 0, 2);
+    await withSource(source, async (handle, size) => {
+      const spy = observed(handle); assert.deepEqual(await readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal), []);
+      notRead(spy.calls, source.length - audio.length, source.length);
+    });
+  }
+});
+
+test('Ogg 未支持 codec、旧式 COVERART、URL 图片及非 PNG/JPEG 不得确认无图', async () => {
+  for (const source of [oggPackets([Buffer.from('fishead\0合成')]), ogg('opus', ['COVERART=' + png.toString('base64')]),
+    ogg('vorbis', [pictureComment(Buffer.from('https://example.invalid/cover'), '-->')]), ogg('opus', [pictureComment(png, 'image/webp')])]) {
+    await withSource(source, async (handle, size) => assert.rejects(readLocalEmbeddedArtwork(handle, size, new AbortController().signal), hasCode('UNSUPPORTED')));
+  }
+});
+
+test('Ogg 截断、乱序、跨 serial、错误 continuation 和 comment 范围整次拒绝', async () => {
+  const valid = ogg('opus', [pictureComment()], 1), secondPage = 27 + 1 + opusHead().length;
+  const wrongSequence = Buffer.from(valid); wrongSequence.writeUInt32LE(5, secondPage + 18);
+  const wrongSerial = Buffer.from(valid); wrongSerial.writeUInt32LE(88, secondPage + 14);
+  const wrongContinuation = Buffer.from(valid); wrongContinuation[secondPage + 5] = 1;
+  const truncatedComment = Buffer.concat([Buffer.from('OpusTags'), le32(0xffffffff)]);
+  const badFraming = comments('vorbis', []); badFraming[badFraming.length - 1] = 0;
+  const sources = [valid.subarray(0, -1), wrongSequence, wrongSerial, wrongContinuation, Buffer.from('OggS'),
+    oggPackets([opusHead(), truncatedComment]), oggPackets([vorbisHead(), badFraming])];
+  for (const source of sources) await withSource(source, async (handle, size) => {
+    await assert.rejects(readLocalEmbeddedArtwork(handle, size, new AbortController().signal), hasCode('INVALID'));
+  });
+});
+
+test('Ogg base64 无效字符、非规范 padding、图片尾随数据和超长字段拒绝', async () => {
+  const encoded = pictureBody(png).toString('base64');
+  for (const value of ['!' + encoded.slice(1), encoded.slice(0, -1), encoded + 'AAAA', encoded.slice(0, -4) + 'AB==']) {
+    await withSource(ogg('opus', ['METADATA_BLOCK_PICTURE=' + value]), async (handle, size) =>
+      assert.rejects(readLocalEmbeddedArtwork(handle, size, new AbortController().signal), hasCode('INVALID')));
+  }
+  await withSource(ogg('opus', [pictureComment(Buffer.alloc(4 * MiB + 1))]), async (handle, size) => {
+    const spy = observed(handle);
+    await assert.rejects(readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal), hasCode('LIMIT'));
+    assert.ok(spy.calls.reduce((n, c) => n + c.bytesRead, 0) < 80 * 1024);
+  });
+});
+
+test('MP4/Ogg 保留单图 4 MiB、总图 8 MiB、三张及 12 MiB 读取围栏', async () => {
+  const large = Buffer.alloc(4 * MiB, 0x55);
+  for (const source of [mp4([mp4Cover(large), mp4Cover(large)]), ogg('opus', [pictureComment(large), pictureComment(large)])]) {
+    await withSource(source, async (handle, size) => {
+      const spy = observed(handle), result = await readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal);
+      assert.equal(result.reduce((n, p) => n + p.bytes.length, 0), 8 * MiB);
+      assert.ok(spy.calls.reduce((n, c) => n + c.bytesRead, 0) <= 12 * MiB);
+    });
+  }
+  for (const source of [mp4(Array.from({ length: 4 }, () => mp4Cover())), ogg('vorbis', Array.from({ length: 4 }, () => pictureComment())),
+    mp4([mp4Cover(large), mp4Cover(large), mp4Cover()]), ogg('opus', [pictureComment(large), pictureComment(large), pictureComment()]),
+    mp4([mp4Cover(Buffer.alloc(4 * MiB + 1))])]) {
+    await withSource(source, async (handle, size) =>
+      assert.rejects(readLocalEmbeddedArtwork(handle, size, new AbortController().signal), hasCode('LIMIT')));
+  }
+});
+
+test('MP4/Ogg 读取中取消不返回部分图片，也不关闭借用 FD', async () => {
+  for (const source of [mp4([mp4Cover(), mp4Cover(Buffer.alloc(MiB))]), ogg('opus', [pictureComment(), pictureComment(Buffer.alloc(MiB))])]) {
+    await withSource(source, async (handle, size) => {
+      const controller = new AbortController(), spy = observed(handle, { after: call => { if (call.length >= 16 * 1024) controller.abort(); } });
+      await assert.rejects(readLocalEmbeddedArtwork(spy.handle, size, controller.signal), hasCode('CANCELLED'));
+    });
+  }
+});
+
+test('MP4/Ogg 元数据头或注释数量到达 4096 预算后拒绝，不扫描音频', async () => {
+  const tooManyAtoms = mp4([], { before: Buffer.concat(Array.from({ length: 4096 }, () => atom('free', Buffer.alloc(0)))) });
+  const tooManyComments = oggPackets([opusHead(), Buffer.concat([Buffer.from('OpusTags'), le32(0), le32(4097)])]);
+  const tooManyPages = Buffer.concat([oggPage([opusHead().length], opusHead(), 0, 2),
+    ...Array.from({ length: 4096 }, (_, index) => oggPage([], Buffer.alloc(0), index + 1, 0))]);
+  for (const source of [tooManyAtoms, tooManyComments, tooManyPages]) await withSource(source, async (handle, size) => {
+    const spy = observed(handle);
+    await assert.rejects(readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal), hasCode('LIMIT'));
+    assert.ok(spy.calls.reduce((n, call) => n + call.bytesRead, 0) < MiB);
+  });
+});
+
+test('MP4 非标准图片层级及后续未知封面不会返回前面的部分候选', async () => {
+  const misplaced = Buffer.concat([atom('ftyp', Buffer.concat([Buffer.from('M4A '), u32(0)])),
+    atom('moov', atom('udta', atom('ilst', atom('covr', mp4Cover()))))]);
+  for (const source of [misplaced, mp4([mp4Cover(), mp4Cover(png, 0)]), ogg('opus', [pictureComment(), 'COVERART=AAAA'])]) {
+    await withSource(source, async (handle, size) =>
+      assert.rejects(readLocalEmbeddedArtwork(handle, size, new AbortController().signal), hasCode('UNSUPPORTED')));
+  }
+});
+
+function riffChunk(type: string, bytes: Buffer, declared = bytes.length): Buffer {
+  return Buffer.concat([Buffer.from(type), le32(declared), bytes, Buffer.alloc(bytes.length & 1)]);
+}
+function wave(chunks: Buffer[]): Buffer {
+  const body = Buffer.concat([Buffer.from('WAVE'), ...chunks]); return Buffer.concat([Buffer.from('RIFF'), le32(body.length), body]);
+}
+const waveFormat = (): Buffer => riffChunk('fmt ', Buffer.from('0100020044ac000010b1020004001000', 'hex'));
+
+test('合法 RIFF/WAVE 完整检查后确认无图；奇数块有 padding，音频 data 不读', async () => {
+  const audio = Buffer.alloc(2 * MiB, 0x52), source = wave([waveFormat(), riffChunk('JUNK', Buffer.from([1, 2, 3])), riffChunk('data', audio), riffChunk('LIST', Buffer.from('INFO'))]);
+  await withSource(source, async (handle, size) => {
+    const spy = observed(handle); assert.deepEqual(await readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal), []);
+    const start = source.indexOf('data') + 8; notRead(spy.calls, start, start + audio.length);
+    assert.ok(spy.calls.reduce((sum, call) => sum + call.bytesRead, 0) < 128);
+  }, '合成无图.wav');
+  const original = await readFile(new URL('./fixtures/mbrs003/audio/fixtures/core-wav.wav', import.meta.url));
+  assert.equal(createHash('sha256').update(original).digest('hex'), 'cc1eaac76af6c2b237f97c908202e3ded3b1aff6d7052bf20846a487243e5340');
+  await withSource(original, async (handle, size) => {
+    const spy = observed(handle); assert.deepEqual(await readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal), []);
+    assert.ok(spy.calls.reduce((sum, call) => sum + call.bytesRead, 0) < 1024);
+  }, '原有受封合成.wav');
+});
+
+test('RIFF/WAVE 在 data 前后提取有界 ID3v2.3/4 APIC，保原 PNG/JPEG 字节', async () => {
+  for (const version of [3, 4]) for (const beforeData of [false, true]) {
+    const tags = riffChunk(version === 3 ? 'id3 ' : 'ID3 ', id3(version, [frame(version, 'APIC', apicBody(png)), frame(version, 'APIC', apicBody(jpeg, 0, undefined, 'image/jpeg'))], 0, Buffer.alloc(0)));
+    const audio = riffChunk('data', Buffer.alloc(4096));
+    const source = wave([waveFormat(), ...(beforeData ? [tags, audio] : [audio, tags])]);
+    await withSource(source, async (handle, size) => {
+      const spy = observed(handle), pictures = await readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal);
+      assert.deepEqual(pictures.map(p => Buffer.from(p.bytes)), [png, jpeg]);
+      const start = source.indexOf('data') + 8; notRead(spy.calls, start, start + 4096);
+    }, '合成有图.wav');
+  }
+});
+
+test('RIFF/WAVE 截断、父范围、缺必要块、坏扩展格式与 ID3 边界拒绝确认无图', async () => {
+  const data = riffChunk('data', Buffer.alloc(4));
+  const valid = wave([waveFormat(), data]);
+  const oddPaddingMissing = wave([waveFormat(), riffChunk('data', Buffer.alloc(4)), Buffer.concat([Buffer.from('JUNK'), le32(1), Buffer.from([0])])]);
+  const wrongSize = Buffer.from(valid); wrongSize.writeUInt32LE(1, 4);
+  const tag = id3(4, [frame(4, 'APIC', apicBody(png))], 0, Buffer.alloc(0));
+  const bad = [Buffer.from('RIFF'), valid.subarray(0, -1), Buffer.concat([valid, Buffer.from([0])]), wrongSize, oddPaddingMissing,
+    wave([data]), wave([waveFormat()]), wave([riffChunk('fmt ', Buffer.alloc(15)), data]),
+    wave([riffChunk('fmt ', Buffer.alloc(16)), data]), wave([waveFormat(), riffChunk('data', Buffer.alloc(4), 0xffffffff)]),
+    wave([waveFormat(), riffChunk('fmt ', Buffer.alloc(16)), data]),
+    wave([waveFormat(), data, riffChunk('id3 ', Buffer.concat([tag, Buffer.from([0])]))])];
+  for (const source of bad) await withSource(source, async (handle, size) =>
+    assert.rejects(readLocalEmbeddedArtwork(handle, size, new AbortController().signal), hasCode('INVALID')));
+});
+
+test('RIFF 非 WAVE、未支持 ID3/URL 图片及 DISP 均未确认，不能冒充无图', async () => {
+  const sources = [Buffer.concat([Buffer.from('RIFF'), le32(4), Buffer.from('AVI ')]),
+    wave([waveFormat(), riffChunk('data', Buffer.alloc(4)), riffChunk('id3 ', id3(2, [], 0, Buffer.alloc(0)))]),
+    wave([waveFormat(), riffChunk('data', Buffer.alloc(4)), riffChunk('DISP', Buffer.from([1, 2, 3, 4]))]),
+    wave([waveFormat(), riffChunk('data', Buffer.alloc(4)), riffChunk('id3 ', id3(4, [frame(4, 'APIC', apicBody(png, 0, undefined, '-->'))], 0, Buffer.alloc(0)))])];
+  for (const source of sources) await withSource(source, async (handle, size) =>
+    assert.rejects(readLocalEmbeddedArtwork(handle, size, new AbortController().signal), hasCode('UNSUPPORTED')));
+});
+
+test('RIFF/WAVE 也保留三秒/字节/头预算；取消不返回已读的部分图片', async () => {
+  const tooMany = wave([waveFormat(), ...Array.from({ length: 4096 }, () => riffChunk('JUNK', Buffer.alloc(0))), riffChunk('data', Buffer.alloc(0))]);
+  await withSource(tooMany, async (handle, size) => assert.rejects(readLocalEmbeddedArtwork(handle, size, new AbortController().signal), hasCode('LIMIT')));
+  const source = wave([waveFormat(), riffChunk('data', Buffer.alloc(0)),
+    riffChunk('id3 ', id3(4, [frame(4, 'APIC', apicBody(png)), frame(4, 'APIC', apicBody(Buffer.alloc(MiB)))], 0, Buffer.alloc(0)))]);
+  await withSource(source, async (handle, size) => {
+    const abort = new AbortController(), spy = observed(handle, { after: call => { if (call.length >= 16 * 1024) abort.abort(); } });
+    await assert.rejects(readLocalEmbeddedArtwork(spy.handle, size, abort.signal), hasCode('CANCELLED'));
+  });
+});
+
+test('Ogg 尾部跳音频载荷核页头：后置多流、截断和未终结 packet 不得确认无图', async () => {
+  const base = ogg('opus', []);
+  const chained = Buffer.concat([base, oggPackets([opusHead(), comments('opus', [pictureComment()])], { serial: 88 })]);
+  const foreign = Buffer.concat([base, oggPage([1], Buffer.from([0]), 2, 0, 88)]);
+  const truncated = Buffer.concat([base, Buffer.from('OggS')]);
+  const unfinished = Buffer.concat([base, oggPage([255], Buffer.alloc(255), 2, 4)]);
+  for (const source of [chained, foreign, truncated, unfinished]) await withSource(source, async (handle, size) =>
+    assert.rejects(readLocalEmbeddedArtwork(handle, size, new AbortController().signal),
+      error => hasCode('INVALID')(error) || hasCode('UNSUPPORTED')(error)));
+  const audio = Buffer.alloc(20), source = Buffer.concat([ogg('opus', [pictureComment()]), oggPage([audio.length], audio, 2, 4)]);
+  await withSource(source, async (handle, size) => {
+    const spy = observed(handle), pictures = await readLocalEmbeddedArtwork(spy.handle, size, new AbortController().signal);
+    assert.deepEqual(pictures.map(p => Buffer.from(p.bytes)), [png]);
+    notRead(spy.calls, source.length - audio.length, source.length);
   });
 });

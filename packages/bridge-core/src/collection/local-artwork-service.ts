@@ -5,6 +5,7 @@ import type { CollectionRepository } from './repository.js';
 import type { DatasetProjectionPort } from './dataset-owner-protocol.js';
 import { readonlySourceCandidateMetadata, sourceRootAvailability, withCheckedReadonlyMetadataSource, MetadataLeaseReleaseError, SourceFileError } from '../recording/source-files.js';
 import { readLocalEmbeddedArtwork } from '../library/local-artwork-embedded-reader.js';
+import { readonlyLocalArtworkCandidateNames } from '../library/local-artwork-directory-candidates.js';
 
 const hash = (v: string | Uint8Array): string => createHash('sha256').update(v).digest('hex');
 const commandPart = (command: string, part: string): string => { const h = hash(command + ':' + part); return `${h.slice(0,8)}-${h.slice(8,12)}-4${h.slice(13,16)}-8${h.slice(17,20)}-${h.slice(20,32)}`; };
@@ -12,12 +13,15 @@ type Capture = { target: dto.LocalArtworkTarget; fileRevision: string; locationR
 /** 按需读取复用原低优先级许可；读取/解码不进入同步SQLite事务，不获取音频排他锁。 */
 export function createLocalArtworkService(options: { repository: CollectionRepository; assertCurrent(): void; projection?: DatasetProjectionPort }) {
   const repository = options.repository, catalog = repository.localCatalog, store = repository.localArtwork;
-  const captures = new Map<string,Capture>(), requests = new Map<string, { abort: AbortController; task: Promise<dto.LocalArtworkSourceCopies> }>();
+  const retiredLibraries=new Set<string>();
+  const captures = new Map<string,Capture>(), requests = new Map<string, { libraryId:string; abort: AbortController; task: Promise<dto.LocalArtworkSourceCopies> }>();
   let closed = false, fatal = false;
   const check = (): void => { options.assertCurrent(); if (closed || fatal) throw new Error('封面读取已停止，现有选图保留。'); };
   function locator(target: dto.LocalArtworkTarget) {
     check(); store.assertTarget(target);
-    const detail = catalog.trackDetail(target.trackId), found = catalog.privateAssetLocator(detail.asset.id), root = catalog.root(found.asset.libraryRootId), capability = repository.sources.root(root.sourceRootId);
+    const detail = catalog.trackDetail(target.trackId), found = catalog.privateAssetLocator(detail.asset.id);
+    if(retiredLibraries.has(found.asset.libraryRootId)||!catalog.privateLibraryManagementRootAvailable(found.asset.libraryRootId))throw new Error('原库封面读取已撤销。');
+    const root = catalog.root(found.asset.libraryRootId), capability = repository.sources.root(root.sourceRootId);
     if (!capability || root.sourceRootId !== found.asset.sourceRootId || found.asset.rootRevision !== root.revision) throw new Error('封面来源许可已改变。');
     return { ...found, root, capability };
   }
@@ -45,7 +49,7 @@ export function createLocalArtworkService(options: { repository: CollectionRepos
       if (await sourceRootAvailability(value.capability) !== 'ONLINE') return { status: 'source-unavailable', items: [] };
       const audioObserved = await readonlySourceCandidateMetadata(value.capability,value.relative); alive();
       for (const [key, entry] of captures) if (entry.expires <= Date.now()) captures.delete(key);
-      let total = 0;
+      let total = 0, embeddedConfirmed = false, independentUnresolved = false;
       const remember = (bytes: Uint8Array, relative: string, signature: string, origin: 'local-independent' | 'embedded', label: string, index: number): void => {
         alive(); if (!bytes.length || bytes.length > dto.LOCAL_ARTWORK_INPUT_BYTES || total + bytes.length > 8 * 1024 * 1024 || items.length >= 4) return;
         const sha256 = hash(bytes), sourceIdentity = hash(JSON.stringify([target.trackId, value.asset.id, value.asset.fileRevision, value.asset.locationRevision, value.root.revision, audioObserved.signature, relative, signature, index]));
@@ -53,18 +57,22 @@ export function createLocalArtworkService(options: { repository: CollectionRepos
         captures.set(sourceIdentity, { target, fileRevision: value.asset.fileRevision, locationRevision: value.asset.locationRevision, rootRevision: value.root.revision, sourceRootId: value.capability.id, relative, signature, audioRelative:value.relative, audioSignature:audioObserved.signature, sha256, expires: Date.now() + 10 * 60_000 });
         total += bytes.length; items.push({ origin, sourceIdentity, sourceLabel: label, base64: Buffer.from(bytes).toString('base64') });
       };
-      for (const file of ['cover.jpg','cover.png','folder.jpg','folder.png','front.jpg','front.png']) {
+      const independentSignatures = new Set<string>();
+      for await (const file of readonlyLocalArtworkCandidateNames({ root: value.capability, directory: path.posix.dirname(value.relative), signal: abort.signal,
+        deadlineMs: deadline, assertCurrent: alive, hasCandidateSlot: () => items.length < 2, unresolved: () => { independentUnresolved = true; } })) {
         alive(); if (items.length >= 2) break;
         const relative = path.posix.join(path.posix.dirname(value.relative), file);
         try {
           const observed = await readonlySourceCandidateMetadata(value.capability, relative); alive();
-          if (observed.size > dto.LOCAL_ARTWORK_INPUT_BYTES) continue;
+          if (observed.size > dto.LOCAL_ARTWORK_INPUT_BYTES || independentSignatures.has(observed.signature)) continue;
           const bytes = await withCheckedReadonlyMetadataSource(value.capability, relative, observed.signature, abort.signal, async (fd,size) => {
             const b = Buffer.alloc(size); let offset = 0;
             while (offset < size) { alive(); const next = await fd.read(b,offset,Math.min(64 * 1024,size-offset),offset); alive(); if (!next.bytesRead) throw new Error('封面文件读取提前结束。'); offset += next.bytesRead; }
             return b;
           }, alive);
+          const previousCount = items.length;
           remember(bytes, relative, observed.signature, 'local-independent', file, 0);
+          if (items.length > previousCount) independentSignatures.add(observed.signature);
         } catch (error) { if (error instanceof SourceFileError && error.code === 'MISSING') continue; throw error; }
       }
       if (items.length < 4) {
@@ -72,12 +80,13 @@ export function createLocalArtworkService(options: { repository: CollectionRepos
         try {
           const pictures = await withCheckedReadonlyMetadataSource(value.capability, value.relative, observed.signature, abort.signal,
             (fd,size) => readLocalEmbeddedArtwork(fd,size,abort.signal), alive);
+          embeddedConfirmed = true;
           for (const picture of pictures) remember(picture.bytes, value.relative, observed.signature, 'embedded', `内嵌图片 ${picture.pictureIndex + 1}`, picture.pictureIndex);
         } catch (error) { if (error instanceof MetadataLeaseReleaseError || abort.signal.aborted) throw error; /* 不支持/坏标签不妨碍已读取的独立图与手选。 */ }
       }
       for (const item of items) await revalidate(captures.get(item.sourceIdentity)!);
       // 成功读取但没有图片属于缺图；来源不可用只用于许可/可读性未满足。
-      alive(); return { status: 'ready', items };
+      alive(); return { status: items.length || (embeddedConfirmed && !independentUnresolved) ? 'ready' : 'source-unavailable', items };
     } catch (error) { if (error instanceof MetadataLeaseReleaseError) { fatal = true; leaseFailed = true; } throw error; }
     finally {
       finished = true; signal.removeEventListener('abort',forward);
@@ -116,9 +125,14 @@ export function createLocalArtworkService(options: { repository: CollectionRepos
     readCandidates(request: dto.LocalArtworkCommandPayloads['localArtwork.readCandidates']): Promise<dto.LocalArtworkSourceCopies> {
       check(); if (!dto.isLocalArtworkCommandPayload('localArtwork.readCandidates',request) || requests.has(request.lookupId) || requests.size >= 4) throw new Error('封面读取物理请求已满或逻辑身份无效。');
       const abort = new AbortController(), task = read(request.target,abort.signal).finally(() => { requests.delete(request.lookupId); });
-      requests.set(request.lookupId,{abort,task}); return task;
+      requests.set(request.lookupId,{libraryId:catalog.trackDetail(request.target.trackId).asset.libraryRootId,abort,task}); return task;
     },
     cancelLookup(id: string) { check(); const entry = requests.get(id); entry?.abort.abort(); return { cancelled: !!entry }; },
+    async removeLibrary(libraryId:string){check();retiredLibraries.add(libraryId);const selected=[...requests.values()].filter(value=>value.libraryId===libraryId);
+      for(const entry of selected)entry.abort.abort();await Promise.allSettled(selected.map(entry=>entry.task));
+      if(fatal)throw new Error('本库封面许可关闭未确认，缓存继续保留。');
+      for(const [key,capture]of captures)if(catalog.trackDetail(capture.target.trackId).asset.libraryRootId===libraryId)captures.delete(key);
+    },
     async close() { closed = true; for (const entry of requests.values()) entry.abort.abort(); await Promise.allSettled([...requests.values()].map(v=>v.task)); if (fatal) throw new Error('封面资源关闭未确认，工作库连接保留。'); captures.clear(); },
   };
 }

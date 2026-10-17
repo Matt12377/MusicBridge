@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { LOCAL_ALBUM_TRACE_PREFIX, readLocalAlbumSafeMarker, copyLocalAlbumSafeTrace } from '../../shared/library-read-trace.js'
+
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, shallowReactive, shallowRef, toRaw, watch } from 'vue'
 import { restoreRemoteTarget, reconnectRemoteTarget } from './remote-core-preferences.js'
 
 import type {
@@ -10,6 +12,7 @@ import type {
   RemoteCoreTunnelState,
   TrackSummary,
 } from '@music-bridge/contracts'
+import * as localWorkbenchDto from '@music-bridge/contracts'
 import type { AppInfo } from '../../preload/api.js'
 import AlbumAmbientBackground from './components/AlbumAmbientBackground.vue'
 import BottomPlayer from './components/BottomPlayer.vue'
@@ -53,7 +56,21 @@ import CollectionView from './components/collection/CollectionView.vue'
 import type { CollectionReservationEntry, CollectionReturnLocation, CollectionStartEntry, RecordingPhysicalSelection, RecordingReservationNavigation } from './components/collection/collection-recording-navigation'
 import RecordingView from './components/recording/RecordingView.vue'
 import LocalLibraryView from './components/library/LocalLibraryView.vue'
+import LocalArtworkDialog from './components/library/LocalArtworkDialog.vue'
+import LocalOrganizerDialog from './components/library/LocalOrganizerDialog.vue'
 import { useLocalLibrary } from './composables/application/useLocalLibrary.js'
+import CoverDropView from './components/library/CoverDropView.vue'
+import LocalLibraryWorkbench from './components/library/local-workbench/LocalLibraryWorkbench.vue'
+import LocalLibrarySettings from './components/settings/LocalLibrarySettings.vue'
+import { createCoverDropPageEntry, useLocalAlbumBrowserPages, type CoverDropPageIntent } from './composables/application/local-library-browser/useLocalAlbumBrowser.js'
+import { useLocalLibraryWorkbench } from './composables/application/local-library-workbench/controller.js'
+import { createLocalWorkbenchRendererPorts, createLocalWorkbenchResultReaders } from './composables/application/local-library-workbench/ports.js'
+import { useLocalWorkbenchLibrary } from './composables/application/local-library-workbench/library.js'
+import { useLocalWorkbenchLyrics } from './composables/application/local-library-workbench/lyrics.js'
+import { localWorkbenchLyricsResultKeyMatches, localWorkbenchLibraryResultKeyMatches, sameLocalWorkbenchLyricsResultKey } from './composables/application/local-library-workbench/types.js'
+import type { LocalWorkbenchPorts, LocalWorkbenchExistingAction, LocalWorkbenchAlbumRef, LocalWorkbenchLyricsResultKey, LocalWorkbenchLibraryResultKey, LocalWorkbenchLibraryResultInspection } from './composables/application/local-library-workbench/types.js'
+import type { LocalAlbumWorkbenchRequest, LocalAlbumWorkbenchBatchRequest, LocalAlbumWorkbenchBatchTarget } from './components/library/local-browser/presentation.js'
+
 
 const appInfo = ref<AppInfo | null>(null)
 const recordingReloadRequired = ref(false)
@@ -91,7 +108,522 @@ const {
   invalidateCollectionOperation, playQueueItem, editQueueEntry, togglePlayback, stopPlayback,
   nextTrack, previousTrack, seekPlayback, cancelRoonPlaybackPreparation, retryLastPlaybackAction,
 } = playback
-const localLibrary = useLocalLibrary({ api: window.musicBridge, getSelectedZone: () => selectedZone.value, play: request => playback.playLocalLibrarySelection(request), readPlayReceipt: request => playback.readLocalLibraryPlayReceipt(request), getPlaybackSnapshot: () => playback.playbackState.value })
+const localLibrary = useLocalLibrary({ api: window.musicBridge, getSelectedZone: () => selectedZone.value, play: request => playback.playLocalLibrarySelection(request), readPlayReceipt: request => playback.readLocalLibraryPlayReceipt(request), getPlaybackSnapshot: () => playback.playbackState.value,
+  getPlaybackAlbum: () => currentView.value === 'coverdrop' ? coverDropBrowser.selectedAlbum.value : currentView.value === 'local-library' && localLibraryViewMode.value === 'albums' ? albumBrowser.selectedAlbum.value : null })
+const LocalRelocationDialog = localLibrary.relocationPlans.capable ? defineAsyncComponent(() => import('./components/library/LocalRelocationDialog.vue')) : null
+const LocalSourceWritesDialog = localLibrary.sourceWrites.capable ? defineAsyncComponent(() => import('./components/library/LocalSourceWritesDialog.vue')) : null
+/** 只读取Preload闭marker；原model错误提示、结果计数、代际与重试全部不变。 */
+async function readLocalAlbumWithSafeTrace<T>(action: () => Promise<T>): Promise<T> {
+  const startedAtMs = performance.now()
+  try { return await action() } catch (error) {
+    try {
+      const descriptor = error && typeof error === 'object' ? Object.getOwnPropertyDescriptor(error, 'message') : undefined
+      const safe = descriptor && Object.hasOwn(descriptor, 'value') ? readLocalAlbumSafeMarker(descriptor.value) : null
+      if (safe) { const received = copyLocalAlbumSafeTrace({ ...safe, stage: 'renderer.reject', elapsedMs: Math.max(0, performance.now() - startedAtMs) }); if (received) console.info(LOCAL_ALBUM_TRACE_PREFIX + JSON.stringify(received)) }
+    } catch { /* 安全旁注不能改写原拒绝。 */ }
+    throw error
+  }
+}
+const { localLibrary: albumBrowser, coverDrop: coverDropBrowser } = useLocalAlbumBrowserPages({ api: { queryAlbums: request => readLocalAlbumWithSafeTrace(() => window.musicBridge.queryLocalAlbums(request)), queryAlbumTracks: request => readLocalAlbumWithSafeTrace(() => window.musicBridge.getLocalAlbumTracks(request)), getArtwork: request => readLocalAlbumWithSafeTrace(() => window.musicBridge.getLocalAlbumArtwork(request)) } })
+const workbenchLyrics = useLocalWorkbenchLyrics({ api: window.musicBridge, readOriginalResultEntry: (key, context) => resultReaders.readLyricsEntry(key, context) })
+const workbenchLibrary = useLocalWorkbenchLibrary({ api: window.musicBridge, storage: window.localStorage, canChangeLibrary: () => !workbenchLyrics.pending.value && !localLibrary.maintenanceLocked.value, onChanged: () => { void refreshLocalLibraryFromWorkbench() } })
+const workbenchPorts = shallowReactive<LocalWorkbenchPorts>({})
+const workbench = useLocalLibraryWorkbench({ ports: workbenchPorts, saveParticipants: [workbenchLibrary, workbenchLyrics, { pending: localLibrary.maintenanceLocked, locked: localLibrary.maintenanceLocked, save: async () => false, discard: () => !localLibrary.maintenanceLocked.value }] })
+const localLibraryViewMode = ref<'albums' | 'tracks'>('albums'), workbenchEntryError = ref(''), workbenchOpening = ref(false)
+const localLibrarySelectedTrackId = ref<string | null>(null)
+const localLibraryViewRef = ref<{ returnMaintenanceFocus(): void } | null>(null), coverDropViewRef = ref<{ returnMaintenanceFocus(): void; openManagementPanel(action: string): void; isManagementOpen(): boolean } | null>(null)
+let maintenanceUiGeneration = 0
+let maintenanceUiOpened: { action: LocalWorkbenchExistingAction; datasetId: string; generation: number; albums: string; target: unknown } | null = null
+const coverDropPageEntry = createCoverDropPageEntry({
+  getView: () => journey.currentView.value,
+  isWorkbenchOpen: () => workbench.isOpen.value,
+  navigate: () => journey.navigateSource({ type: 'coverdrop' }),
+  requestLeave: resume => workbench.requestLeave(resume),
+  close: () => workbench.close(),
+  open: intent => { void captureWorkbenchTargets(intent) },
+})
+const libraryResultInspection = shallowRef<LocalWorkbenchLibraryResultInspection | null>(null)
+let inspectionGeneration=0,lyricsInspectionSequence=0,libraryInspectionSequence=0,inspectionDisposed=false
+let lyricsInspectionController:AbortController|undefined,libraryInspectionController:AbortController|undefined
+function lyricsResultKeyCurrent(key:LocalWorkbenchLyricsResultKey):boolean {
+  if(inspectionDisposed||!workbench.isOpen.value||workbenchLibrary.state.value?.datasetId!==key.library.datasetId)return false
+  if(localWorkbenchLyricsResultKeyMatches(key,workbenchLyrics.job.value,workbenchLyrics.originalJob.value))return true
+  const history=workbenchLyrics.jobHistory.value.filter(value=>value.request.commandId===key.jobId)
+  return history.length===1&&localWorkbenchLyricsResultKeyMatches(key,history[0]!.latestSnapshot??history[0]!.snapshot,history[0]!.request)
+}
+const resultReaders=createLocalWorkbenchResultReaders({api:window.musicBridge,datasetId:()=>workbenchLibrary.state.value?.datasetId??null,generation:()=>inspectionGeneration,
+  lyricsKeyCurrent:lyricsResultKeyCurrent,libraryKeyCurrent:key=>!inspectionDisposed&&workbench.isOpen.value&&localWorkbenchLibraryResultKeyMatches(key,workbenchLibrary.job.value,workbenchLibrary.originalJob.value)})
+function closeLyricsResultInspection():void {lyricsInspectionSequence++;lyricsInspectionController?.abort();lyricsInspectionController=undefined;workbenchLyrics.closeResultInspection()}
+function closeLibraryResultInspection():void {libraryInspectionSequence++;libraryInspectionController?.abort();libraryInspectionController=undefined;libraryResultInspection.value=null}
+function invalidateResultInspections():void {inspectionGeneration++;closeLyricsResultInspection();closeLibraryResultInspection()}
+async function inspectLyricsResult(key:LocalWorkbenchLyricsResultKey):Promise<void> {
+  closeLyricsResultInspection();const sequence=lyricsInspectionSequence,expected=structuredClone(toRaw(key)),epoch=inspectionGeneration
+  const controller=new AbortController();lyricsInspectionController=controller
+  const current=()=>!controller.signal.aborted&&!inspectionDisposed&&sequence===lyricsInspectionSequence&&epoch===inspectionGeneration&&lyricsResultKeyCurrent(expected)
+  await workbenchLyrics.inspectOriginalResult(expected)
+  if(!current())return
+  const inspection=workbenchLyrics.resultInspection.value,entry=inspection?.originalEntry
+  if(!inspection||!entry||!sameLocalWorkbenchLyricsResultKey(inspection.key,expected))return
+  try {
+    const facts=await resultReaders.readLyricsFacts(expected,entry,{signal:controller.signal})
+    if(!current())return
+    const latest=workbenchLyrics.resultInspection.value
+    if(!latest||!sameLocalWorkbenchLyricsResultKey(latest.key,expected)||latest.originalEntry?.scope.captureId!==entry.scope.captureId)return
+    // 只合并独立检查事实；原session/保存回执与当前pending由各自原模型保留。
+    workbenchLyrics.resultInspection.value={...latest,...facts}
+  } catch { if(current()&&workbenchLyrics.resultInspection.value)workbenchLyrics.resultInspection.value={...workbenchLyrics.resultInspection.value,error:'原根的专辑事实尚未核实；原会话和保存请求保留，可继续核对原回执。'} }
+}
+async function inspectLibraryResult(key:LocalWorkbenchLibraryResultKey):Promise<void> {
+  closeLibraryResultInspection();const sequence=libraryInspectionSequence,expected=structuredClone(toRaw(key)),epoch=inspectionGeneration
+  const controller=new AbortController();libraryInspectionController=controller
+  libraryResultInspection.value={key:expected,phase:'loading',album:null,trackPage:null,capture:null,error:null}
+  const current=()=>!controller.signal.aborted&&!inspectionDisposed&&sequence===libraryInspectionSequence&&epoch===inspectionGeneration
+    &&workbench.isOpen.value&&localWorkbenchLibraryResultKeyMatches(expected,workbenchLibrary.job.value,workbenchLibrary.originalJob.value)
+  try {const value=await resultReaders.readLibraryResult(expected,{signal:controller.signal});if(current())libraryResultInspection.value={key:expected,phase:'ready',...value,error:null}}
+  catch {if(current())libraryResultInspection.value={key:expected,phase:'stale',album:null,trackPage:null,capture:null,error:'原任务专辑或捕获尚未核实，原UNKNOWN和回执继续保留。'}}
+}
+watch(()=>[workbench.isOpen.value,workbenchLibrary.state.value?.datasetId,workbenchLibrary.capture.value,workbenchLyrics.library.value,workbench.readback.value],invalidateResultInspections,{flush:'sync'})
+watch(() => [workbench.isOpen.value, workbench.readback.value, workbench.focusedAlbumId.value, workbenchLibrary.state.value?.datasetId], () => { maintenanceUiGeneration++; maintenanceUiOpened = null }, { flush: 'sync' })
+let workspaceLoading: Promise<boolean> | null = null, workbenchOpenGeneration = 0
+// 首扫原任务观察开始：只读取已存在的任务，页面离开后不保留后台轮询。
+type InitialScanJob = import('@music-bridge/contracts').ScanJobRecord
+type InitialScanRoot = import('@music-bridge/contracts').LocalRootView['root']
+type InitialScanObservation = {
+  job: InitialScanJob; signature: string; snapshotBefore: string | null; observedSnapshot: string | null; completed: boolean
+  settleAttempts: number; pendingAttempts: number; failures: number; finished: boolean
+}
+const initialScanObservations = new Map<string, InitialScanObservation>()
+const initialScanAttemptedRoots = new Set<string>(), initialScanReceiptCommands = new Set<string>()
+const initialScanSnapshotBefore = new Map<string, string | null>()
+const initialScanDiscoveryBudgets: { pages: number; rows: number; restarts: number }[] = []
+const initialScanUnconfirmed = '扫描状态或完成快照尚未确认；已保存的音乐库保留。'
+let initialScanEpoch = 0, initialScanDisposed = false, initialScanClosing = false, initialScanDataset: string | undefined
+let initialScanTimer: ReturnType<typeof setTimeout> | undefined, initialScanWork: Promise<void> | null = null
+let initialScanRefreshQueued = false, initialScanDiscoverQueued = false, initialScanInspectQueued = false, initialScanTimerQueued = false
+function initialScanRelated(view: string | undefined): boolean { return view === 'local-library' || view === 'coverdrop' || view === 'settings' }
+function initialScanCurrent(epoch: number, datasetId?: string): boolean {
+  return !initialScanDisposed && !initialScanClosing && epoch === initialScanEpoch && initialScanRelated(currentView.value)
+    && (datasetId === undefined || workbenchLibrary.state.value?.datasetId === datasetId && initialScanDataset === datasetId)
+}
+function initialScanRootKey(root: InitialScanRoot): string { return JSON.stringify([root.id, root.sourceRootId, root.revision]) }
+function initialScanMatches(job: InitialScanJob, root: InitialScanRoot, datasetId: string): boolean {
+  return job.datasetId === datasetId && job.libraryRootId === root.id && job.sourceRootId === root.sourceRootId && job.rootRevision === root.revision
+}
+function initialScanNotConfirmed(): void { if (!workbenchLibrary.notice.value || workbenchLibrary.notice.value === initialScanUnconfirmed) workbenchLibrary.notice.value = initialScanUnconfirmed }
+function stopInitialScanObservation(closing = false): void {
+  initialScanEpoch++; initialScanClosing ||= closing
+  clearTimeout(initialScanTimer); initialScanTimer = undefined; initialScanDataset = undefined
+  initialScanObservations.clear(); initialScanAttemptedRoots.clear(); initialScanReceiptCommands.clear(); initialScanSnapshotBefore.clear(); initialScanDiscoveryBudgets.length = 0
+  initialScanRefreshQueued = initialScanDiscoverQueued = initialScanInspectQueued = initialScanTimerQueued = false
+}
+async function readInitialScanLibrary(epoch: number, datasetId?: string): Promise<boolean> {
+  if (!initialScanCurrent(epoch, datasetId) || workbenchLibrary.busy.value) return false
+  const before = workbenchLibrary.state.value
+  // busy核对到原read同步受理之间没有await；另一旧read不能冒充本次新鲜读取。
+  const reading = workbenchLibrary.read()
+  await reading
+  const next = workbenchLibrary.state.value
+  return initialScanCurrent(epoch, datasetId) && next !== null && next !== before && !workbenchLibrary.error.value
+    && (datasetId === undefined || next.datasetId === datasetId)
+}
+async function discoverInitialScanJobs(epoch: number, datasetId: string, roots: readonly InitialScanRoot[]): Promise<void> {
+  const remember = (job: InitialScanJob, root: InitialScanRoot) => {
+    if (!initialScanCurrent(epoch, datasetId) || !initialScanMatches(job, root, datasetId) || initialScanObservations.has(job.jobId)) return
+    initialScanObservations.set(job.jobId, { job, signature: '', snapshotBefore: initialScanSnapshotBefore.get(root.id) ?? null, observedSnapshot: null,
+      completed: false, settleAttempts: 0, pendingAttempts: 0, failures: 0, finished: false })
+  }
+  // 这里只使用真正的导入原命令；AI/CUE的job/originalJob不属于扫描任务。
+  for (const operation of workbenchLibrary.operations.value) {
+    if (operation.kind !== 'library.import.confirm' || operation.state !== 'succeeded' || initialScanReceiptCommands.has(operation.commandId)
+      || !workbenchLibrary.originals.value.some(value => value.command === 'library.import.confirm' && value.payload.commandId === operation.commandId)) continue
+    initialScanReceiptCommands.add(operation.commandId)
+    try {
+      const receipt = await window.musicBridge.localLibraryScan('localScan.receipt', { commandId: operation.commandId })
+      if (!initialScanCurrent(epoch, datasetId)) return
+      if (!receipt || !localWorkbenchDto.isLocalScanReceipt(receipt) || receipt.commandId !== operation.commandId || receipt.operation !== 'start') continue
+      const root = roots.find(value => operation.libraryIds.includes(value.id) && initialScanMatches(receipt.result, value, datasetId))
+      if (root) remember(receipt.result, root)
+    } catch { if (!initialScanCurrent(epoch, datasetId)) return }
+  }
+  const targets = roots.filter(root => !initialScanAttemptedRoots.has(initialScanRootKey(root))
+    && ![...initialScanObservations.values()].some(value => initialScanMatches(value.job, root, datasetId)))
+  if (!targets.length) return
+  for (const root of targets) initialScanAttemptedRoots.add(initialScanRootKey(root))
+  const budget = { pages: 0, rows: 0, restarts: 0 }; initialScanDiscoveryBudgets.push(budget)
+  const page = async (offset: number, limit: number) => {
+    if (!initialScanCurrent(epoch, datasetId) || budget.pages >= 50) throw new Error('扫描发现预算已结束。')
+    budget.pages++
+    const result = await window.musicBridge.localLibraryScan('localScan.page', { offset, limit })
+    if (!initialScanCurrent(epoch, datasetId) || !localWorkbenchDto.isLocalScanPage(result) || result.offset !== offset || result.limit !== limit) throw new Error('扫描分页未确认。')
+    budget.rows += result.items.length
+    if (budget.rows > 10_000) throw new Error('扫描发现行数已结束。')
+    return result
+  }
+  try {
+    for (;;) {
+      const head = await page(0, 1), total = head.total, found = new Map<string, InitialScanJob>(), seen = new Set<string>()
+      let changed = false
+      // 原page按rowid升序；从尾页向前查，不能把末200项当完整清单。
+      for (let offset = total ? Math.floor((total - 1) / 200) * 200 : 0;; offset = Math.max(0, offset - 200)) {
+        const current = await page(offset, 200)
+        if (current.total !== total) { changed = true; break }
+        for (const job of [...current.items].reverse()) {
+          if (seen.has(job.jobId) || job.datasetId !== datasetId) throw new Error('扫描分页身份未确认。')
+          seen.add(job.jobId)
+          for (const root of targets) if (!found.has(root.id) && initialScanMatches(job, root, datasetId)) found.set(root.id, job)
+        }
+        if (found.size === targets.length || offset === 0) break
+      }
+      if (!changed) changed = (await page(0, 1)).total !== total
+      if (changed) { if (budget.restarts >= 1) throw new Error('扫描清单持续变化。'); budget.restarts++; continue }
+      for (const root of targets) { const job = found.get(root.id); if (job) remember(job, root); else initialScanNotConfirmed() }
+      return
+    }
+  } catch { if (initialScanCurrent(epoch, datasetId)) initialScanNotConfirmed() }
+}
+function scheduleInitialScanObservation(): void {
+  if (!initialScanCurrent(initialScanEpoch, initialScanDataset) || ![...initialScanObservations.values()].some(value => !value.finished)) {
+    clearTimeout(initialScanTimer); initialScanTimer = undefined; return
+  }
+  if (initialScanTimer !== undefined) return
+  initialScanTimer = setTimeout(() => {
+    initialScanTimer = undefined; initialScanInspectQueued = initialScanTimerQueued = true; void runInitialScanRefresh()
+  }, 1500)
+}
+async function initialScanRefreshCycle(refresh: boolean, discover: boolean, inspect: boolean, timerTick: boolean): Promise<void> {
+  if (initialScanDisposed || initialScanClosing) return
+  const epoch = initialScanEpoch
+  if (!initialScanRelated(currentView.value)) return
+  for (const library of workbenchLibrary.state.value?.libraries ?? []) if (!initialScanSnapshotBefore.has(library.libraryId)) initialScanSnapshotBefore.set(library.libraryId, library.latestSnapshotId)
+  if (!initialScanDataset && !await readInitialScanLibrary(epoch)) {
+    if (initialScanCurrent(epoch)) {
+      // busy只表示本次还未取得新鲜计数；原read自己的error和页面stale继续保留。
+      if (refresh) await Promise.all([albumBrowser.refresh(), coverDropBrowser.refresh(), localLibrary.refresh()])
+    }
+    return
+  }
+  const datasetId = initialScanDataset ?? workbenchLibrary.state.value?.datasetId
+  if (!datasetId || !initialScanCurrent(epoch)) return
+  initialScanDataset = datasetId
+  let roots: readonly InitialScanRoot[] = []
+  try {
+    const views = await window.musicBridge.listLocalLibraryRoots()
+    if (!initialScanCurrent(epoch, datasetId)) return
+    if (views.length > 100 || !views.every(localWorkbenchDto.isLocalRootView)) throw new Error('目录身份未确认。')
+    roots = views.filter(value => value.root.role === 'library').map(value => value.root)
+    if (discover) await discoverInitialScanJobs(epoch, datasetId, roots)
+  } catch {
+    if (!initialScanCurrent(epoch, datasetId)) return
+    for (const value of initialScanObservations.values()) if (!value.finished && ++value.failures >= 3) value.finished = true
+    initialScanNotConfirmed(); return
+  }
+  if (!initialScanCurrent(epoch, datasetId)) return
+  const completedNow = new Set<string>()
+  if (inspect || discover) for (const observation of initialScanObservations.values()) {
+    if (observation.finished) continue
+    const root = roots.find(value => initialScanMatches(observation.job, value, datasetId))
+    if (!root) { observation.finished = true; initialScanNotConfirmed(); continue }
+    try {
+      const job = await window.musicBridge.localLibraryScan('localScan.get', { jobId: observation.job.jobId })
+      if (!initialScanCurrent(epoch, datasetId)) return
+      const currentRoots = await window.musicBridge.listLocalLibraryRoots()
+      if (!initialScanCurrent(epoch, datasetId)) return
+      if (!currentRoots.some(value => localWorkbenchDto.isLocalRootView(value) && initialScanMatches(observation.job, value.root, datasetId))) {
+        observation.finished = true; initialScanNotConfirmed(); continue
+      }
+      if (!localWorkbenchDto.isScanJobRecord(job) || job.jobId !== observation.job.jobId || !initialScanMatches(job, root, datasetId)
+        || observation.completed && job.phase !== 'completed') throw new Error('原扫描任务身份未确认。')
+      observation.failures = 0; observation.job = job
+      const signature = JSON.stringify([job.jobRevision, job.phase, job.progress, job.checkpointRef, job.failureCode])
+      if (signature !== observation.signature) { observation.signature = signature; refresh = true }
+      if (job.phase === 'completed') {
+        if (!observation.completed) { observation.completed = true; completedNow.add(job.jobId); refresh = true }
+        else if (timerTick) { observation.settleAttempts++; refresh = true }
+      } else if (job.phase === 'pending') {
+        if (timerTick && ++observation.pendingAttempts >= 6) { observation.finished = true; initialScanNotConfirmed() }
+      } else if (job.phase !== 'running') { observation.finished = true; refresh = true }
+    } catch { if (!initialScanCurrent(epoch, datasetId)) return; if (++observation.failures >= 3) observation.finished = true; initialScanNotConfirmed() }
+  }
+  if (!initialScanCurrent(epoch, datasetId)) return
+  const fresh = refresh ? await readInitialScanLibrary(epoch, datasetId) : false
+  if (!initialScanCurrent(epoch, datasetId)) return
+  if (refresh) await Promise.all([albumBrowser.refresh(), coverDropBrowser.refresh(), localLibrary.refresh()])
+  if (!initialScanCurrent(epoch, datasetId)) return
+  for (const observation of initialScanObservations.values()) if (observation.completed && !observation.finished) {
+    const library = fresh ? workbenchLibrary.state.value?.libraries.find(value => value.libraryId === observation.job.libraryRootId) : undefined
+    // 公开ID仅指最后成功快照，即使变化也没有本次job对应，不能升级成本次ready。
+    if (library) observation.observedSnapshot = library.latestSnapshotId
+    // 只能保留本次快照对应未确认的内部边界，不能把正常只读完成变成用户故障提示。
+    if (timerTick && !completedNow.has(observation.job.jobId) && observation.settleAttempts >= 6) observation.finished = true
+  }
+}
+function runInitialScanRefresh(): Promise<void> {
+  if (initialScanWork) return initialScanWork
+  initialScanWork = (async () => {
+    while (initialScanRefreshQueued || initialScanDiscoverQueued || initialScanInspectQueued || initialScanTimerQueued) {
+      const flags = [initialScanRefreshQueued, initialScanDiscoverQueued, initialScanInspectQueued, initialScanTimerQueued] as const
+      initialScanRefreshQueued = initialScanDiscoverQueued = initialScanInspectQueued = initialScanTimerQueued = false
+      try { await initialScanRefreshCycle(...flags) } catch { if (initialScanCurrent(initialScanEpoch, initialScanDataset)) initialScanNotConfirmed() }
+    }
+  })().finally(() => {
+    initialScanWork = null
+    if (initialScanRefreshQueued || initialScanDiscoverQueued || initialScanInspectQueued || initialScanTimerQueued) return runInitialScanRefresh()
+    scheduleInitialScanObservation()
+  })
+  return initialScanWork
+}
+function requestInitialScanRefresh(): Promise<void> {
+  if (initialScanDisposed || initialScanClosing || !initialScanRelated(currentView.value)) return Promise.resolve()
+  initialScanRefreshQueued = initialScanDiscoverQueued = true
+  return runInitialScanRefresh()
+}
+async function refreshLocalLibraryFromWorkbench(): Promise<void> {
+  // 已确认写入的原业务动作独立执行，不能被只读观察的离页/换代清空。
+  await Promise.all([albumBrowser.invalidateArtwork(), coverDropBrowser.invalidateArtwork(), localLibrary.refresh()])
+  await requestInitialScanRefresh()
+}
+async function refreshLocalBrowserViews(): Promise<void> { await requestInitialScanRefresh() }
+function closeInitialScanObservation(): void { stopInitialScanObservation(true) }
+function installInitialScanObservationLifecycle(): void {
+  watch([() => currentView.value, () => workbenchLibrary.state.value?.datasetId], ([view, datasetId]) => {
+    if (!initialScanRelated(view)) { stopInitialScanObservation(); return }
+    if (initialScanDataset !== undefined && datasetId !== initialScanDataset) stopInitialScanObservation()
+    initialScanDataset = datasetId
+    void requestInitialScanRefresh()
+  }, { flush: 'sync' })
+  onMounted(() => { window.addEventListener('pagehide', closeInitialScanObservation); if (initialScanRelated(currentView.value)) void requestInitialScanRefresh() })
+  onUnmounted(() => { initialScanDisposed = true; closeInitialScanObservation(); window.removeEventListener('pagehide', closeInitialScanObservation) })
+}
+// 首扫原任务观察结束。
+async function loadWorkspace(): Promise<boolean> {
+  if (workspaceLoading) return workspaceLoading
+  workspaceLoading = (async () => {
+    try {
+      const capabilities = await window.musicBridge.localWorkbenchCapabilities()
+      await Promise.all([workbenchLibrary.read(), workbenchLibrary.readNameSettings()])
+      Object.assign(workbenchPorts, createLocalWorkbenchRendererPorts({ api: window.musicBridge, capabilities, openExistingAction: request => openOriginalMaintenance(request.action, request.albums), localExistingRoutes: {
+        datasetId: () => workbenchLibrary.state.value?.datasetId ?? null,
+        generation: () => maintenanceUiGeneration,
+        current: () => currentView.value === 'coverdrop' && !!coverDropViewRef.value && workbench.isOpen.value
+          && !!workbenchLibrary.state.value?.datasetId && (!workbench.readback.value || workbench.readback.value.datasetId === workbenchLibrary.state.value.datasetId),
+        availability: localMaintenanceAvailability,
+        opened: localMaintenanceOpened,
+      } }))
+      return true
+    } catch { return false }
+  })()
+  try { return await workspaceLoading } finally { workspaceLoading = null }
+}
+async function captureWorkbenchTargets(intent: CoverDropPageIntent): Promise<void> {
+  if (currentView.value !== 'coverdrop') return
+  const { albums: targets, action } = intent
+  const owner = ++workbenchOpenGeneration
+  workbenchOpening.value = true; workbenchEntryError.value = ''
+  const readFailureMessages = {
+    initialization: '整理入口尚未就绪，尚未准备任何写入。请重新读取。',
+    capture: '完整专辑捕获未获确认，尚未准备任何写入。请重新读取。',
+    workspace: '专辑工作区打开未获确认，尚未准备任何写入。请重新读取。',
+    context: '音乐库读取未获确认，尚未准备任何写入。请重新读取。',
+  } as const
+  let failureStage: keyof typeof readFailureMessages = 'initialization'
+  try {
+    if (!await loadWorkspace()) throw new Error('整理入口尚未就绪。')
+    if (owner !== workbenchOpenGeneration || currentView.value !== 'coverdrop') return
+    if (!targets.length) {
+      failureStage = 'workspace'
+      workbench.openLibrary()
+      failureStage = 'context'
+      const capture = await workbenchLibrary.captureLibraries()
+      if (owner !== workbenchOpenGeneration || currentView.value !== 'coverdrop') return
+      if (capture?.lyricsLibraries.length === 1) workbenchLyrics.bind(null, capture.lyricsLibraries[0]!)
+      return
+    }
+    // 每张专辑都由唯一Owner完整捕获；代表曲目与当前页不充作完整trackIds。
+    const descriptors = targets.map(target => ({ albumId: target.albumKey, rootId: target.rootId, revision: target.revision }))
+    failureStage = 'capture'
+    const captured = descriptors.length === 1
+      ? await window.musicBridge.localLibraryManagement('library.album.capture', descriptors[0]!)
+      : await window.musicBridge.localLibraryManagement('library.albums.capture', { albums: descriptors })
+    if (owner !== workbenchOpenGeneration) return
+    const albums = captured.albums.map(value => value.album)
+    failureStage = 'workspace'
+    await workbench.open({ action, albums }, captured)
+    if (owner !== workbenchOpenGeneration) return
+    if (!workbench.isOpen.value) throw new Error('完整专辑读取尚未确认。')
+    const rootIds = [...new Set(albums.flatMap(value => value.rootId ? [value.rootId] : []))]
+    failureStage = 'context'
+    if (rootIds.length) await workbenchLibrary.captureLibraries(rootIds)
+    bindWorkbenchLyrics()
+  } catch { if (owner === workbenchOpenGeneration) {
+    workbenchEntryError.value = readFailureMessages[failureStage]
+    workbench.error.value = workbenchEntryError.value
+  } } finally { if (owner === workbenchOpenGeneration) workbenchOpening.value = false }
+}
+function openAlbumWorkbench(request: LocalAlbumWorkbenchRequest): void {
+  if (!request.albumId) {
+    coverDropPageEntry.request({ action: request.action, albums: [] })
+    return
+  }
+  const browser = currentView.value === 'coverdrop' ? coverDropBrowser : albumBrowser
+  const album = browser.items.value.find(value => value.id === request.albumId) ?? (browser.selectedAlbum.value?.id === request.albumId ? browser.selectedAlbum.value : null)
+  if (!album) { ++workbenchOpenGeneration; workbenchOpening.value = false; workbenchEntryError.value = '所选专辑当前不在读取结果中，请刷新后重新打开。'; return }
+  coverDropPageEntry.request({ albums: [{ albumKey: album.id, rootId: album.rootId, revision: album.revision, kind: album.kind, title: album.title, artists: album.artists, editionId: album.editionId, representativeTrackId: album.representativeTrackId }], action: request.action, focusedAlbum: album })
+}
+function openAlbumWorkbenchBatch(request: LocalAlbumWorkbenchBatchRequest): void {
+  const browser = currentView.value === 'coverdrop' ? coverDropBrowser : albumBrowser, first = request.albums[0]
+  const focusedAlbum = browser.items.value.find(value => value.id === first?.albumKey && value.rootId === first.rootId && value.revision === first.revision)
+  coverDropPageEntry.request({ albums: request.albums, action: request.action, ...(focusedAlbum ? { focusedAlbum } : {}) })
+}
+function bindWorkbenchLyrics(): void {
+  const album = workbench.focusedAlbum.value, dataset = workbench.readback.value?.datasetId
+  const library = workbenchLibrary.capture.value?.lyricsLibraries.find(value => value.libraryId === album?.album.rootId)
+  if (album?.album.rootId && dataset) workbenchLyrics.bind({ datasetId: dataset, libraryId: album.album.rootId, albumId: album.album.albumId, captureId: album.capture.readToken }, library ?? null)
+}
+watch(() => workbench.focusedAlbum.value, bindWorkbenchLyrics)
+watch(() => workbenchLibrary.selectedLibraryIds.value, async () => {
+  if (!workbench.isOpen.value || workbenchLibrary.selectionLocked.value) return
+  const capture = await workbenchLibrary.captureLibraries()
+  if (capture) workbenchLyrics.setLibraries(capture.lyricsLibraries)
+})
+watch(() => workbenchLibrary.capture.value, capture => { if (capture) workbenchLyrics.setLibraries(capture.lyricsLibraries) })
+let refreshedWorkbenchItems = new Set<string>(), refreshedLyricsCommands = new Set<string>()
+const lyricsSessionScopes = new Map<string, import('@music-bridge/contracts').LocalLyricsScope>()
+watch(() => workbenchLyrics.session.value, session => {
+  if (session) lyricsSessionScopes.set(session.sessionId, { ...session.scope })
+}, { flush: 'sync' })
+watch(() => workbench.operations.value, operations => {
+  const retained = new Set<string>(); let changed = false
+  for (const operation of operations) for (const item of operation.receipt?.items ?? []) {
+    const key = JSON.stringify([operation.request.datasetId, operation.request.commandId, item.itemId]); retained.add(key)
+    if (operation.request.datasetId === workbenchLibrary.state.value?.datasetId && operation.state !== 'unknown'
+      && item.state === 'applied' && !refreshedWorkbenchItems.has(key)) { refreshedWorkbenchItems.add(key); changed = true }
+  }
+  refreshedWorkbenchItems = new Set([...refreshedWorkbenchItems].filter(key => retained.has(key)))
+  if (changed) void refreshLocalLibraryFromWorkbench()
+})
+watch(() => workbenchLyrics.saveOperations.value, operations => {
+  const retained = new Set<string>(), sessions = new Set<string>(); let changed = false
+  for (const operation of operations) {
+    sessions.add(operation.receipt.sessionId)
+    const scope = lyricsSessionScopes.get(operation.receipt.sessionId)
+    if (!scope) continue
+    const key = JSON.stringify([scope.datasetId, operation.receipt.commandId, scope.albumId]); retained.add(key)
+    if (scope.datasetId === workbenchLibrary.state.value?.datasetId && ['complete', 'partial'].includes(operation.receipt.state)
+      && (operation.receipt.cover === 'saved' || operation.receipt.tracks.some(track => track.lrc === 'saved' || track.embed === 'saved'))
+      && !refreshedLyricsCommands.has(key)) { refreshedLyricsCommands.add(key); changed = true }
+  }
+  refreshedLyricsCommands = new Set([...refreshedLyricsCommands].filter(key => retained.has(key)))
+  for (const id of lyricsSessionScopes.keys()) if (!sessions.has(id) && id !== workbenchLyrics.session.value?.sessionId) lyricsSessionScopes.delete(id)
+  if (changed) void refreshLocalLibraryFromWorkbench()
+})
+function localMaintenanceAvailability(action: Exclude<LocalWorkbenchExistingAction, 'finder'>): localWorkbenchDto.LocalWorkbenchAvailability {
+  const unavailable = (reason: string): localWorkbenchDto.LocalWorkbenchAvailability => ({ available: false, reason })
+  if (!workbenchLibrary.state.value || currentView.value !== 'coverdrop' || !coverDropViewRef.value || !workbench.isOpen.value) return unavailable('原音乐库工作区尚未读取。')
+  if (['libraries', 'scan-settings', 'ai-settings', 'scan-history', 'scan-refresh', 'organizer-history'].includes(action)) return { available: true }
+  if (action === 'lyrics') return workbenchLyrics.scope.value || workbenchLyrics.library.value ? { available: true } : unavailable('原专辑或完整歌词库尚未绑定。')
+  const albums = workbench.albums.value
+  if (!albums.length || albums.some(album => !album.rootId || !album.revision || (album.trackCount ?? album.trackIds.length) < 1)) return unavailable('请先读取明确专辑的完整曲目范围。')
+  const count = albums.reduce((total, album) => total + (album.trackCount ?? album.trackIds.length), 0)
+  if (count > localWorkbenchDto.LOCAL_ORGANIZER_LIMIT) return unavailable('原具体源维护一次最多100首，不能截取当前页或代表曲目。')
+  if ((action === 'source-tags' || action === 'source-cover') && !localLibrary.sourceWrites.capable) return unavailable('原源文件维护服务尚未装配。')
+  if ((action === 'rename' || action === 'move') && !localLibrary.relocationPlans.capable) return unavailable('原搬迁预览服务尚未装配。')
+  return { available: true }
+}
+function localMaintenanceOpened(action: Exclude<LocalWorkbenchExistingAction, 'finder'>, albums: readonly LocalWorkbenchAlbumRef[]): boolean {
+  const binding = maintenanceUiOpened, datasetId = workbenchLibrary.state.value?.datasetId
+  if (!binding || binding.action !== action || binding.datasetId !== datasetId || binding.generation !== maintenanceUiGeneration
+    || binding.albums !== JSON.stringify(albums) || currentView.value !== 'coverdrop' || !workbench.isOpen.value || !coverDropViewRef.value) return false
+  if (['libraries', 'scan-settings', 'ai-settings', 'scan-history', 'scan-refresh'].includes(action)) return coverDropViewRef.value.isManagementOpen()
+  // setAction在原delegatedPane期间延后提交；同实际page host和同歌词scope存活，finally仍由原Controller切pane。
+  if (action === 'lyrics') return !!workbenchLyrics.scope.value || !!workbenchLyrics.library.value
+  if (action === 'organizer-history') return localLibrary.organizer.isOpen.value && localLibrary.organizer.view.value === 'history' && localLibrary.organizer.historyLoaded.value
+  if (action === 'mb-info') return localLibrary.organizer.isOpen.value && localLibrary.organizer.view.value === 'edit' && localLibrary.organizer.target.value === binding.target && !localLibrary.organizer.datasetChanged.value && !localLibrary.organizer.error.value
+  if (action === 'source-tags' || action === 'source-cover') return localLibrary.sourceWrites.isOpen.value && localLibrary.sourceWrites.view.value === 'edit' && localLibrary.sourceWrites.target.value === binding.target
+    && localLibrary.sourceWrites.context.value?.datasetId === datasetId && !localLibrary.sourceWrites.contextFailed.value && !localLibrary.sourceWrites.datasetChanged.value
+  return localLibrary.relocationPlans.isOpen.value && localLibrary.relocationPlans.view.value === 'edit' && localLibrary.relocationPlans.targets.value === binding.target
+    && localLibrary.relocationPlans.mode.value === action && localLibrary.relocationPlans.context.value?.datasetId === datasetId && !localLibrary.relocationPlans.contextFailed.value && !localLibrary.relocationPlans.datasetChanged.value
+}
+async function openOriginalMaintenance(action: LocalWorkbenchExistingAction, albums: readonly LocalWorkbenchAlbumRef[]): Promise<{ opened: true } | { opened: false; reason: string }> {
+  if (action === 'finder') return window.musicBridge.openLocalWorkbenchExisting({ action, albums })
+  const datasetId = workbenchLibrary.state.value?.datasetId, owner = maintenanceUiGeneration, selection = JSON.stringify(albums)
+  const current = () => !!datasetId && currentView.value === 'coverdrop' && workbench.isOpen.value && !!coverDropViewRef.value
+    && maintenanceUiGeneration === owner && workbenchLibrary.state.value?.datasetId === datasetId && JSON.stringify(workbench.albums.value) === selection
+  const stale = (): { opened: false; reason: string } => ({ opened: false, reason: '原工作库、维护页面或完整选择已变化。' })
+  if (!current()) return stale()
+  const availability = localMaintenanceAvailability(action)
+  if (!availability.available) return { opened: false, reason: availability.reason }
+  const overview = await window.musicBridge.getCommandOutbox()
+  if (!current() || !localWorkbenchDto.isCommandOutboxOverview(overview) || overview.datasetId !== datasetId) return stale()
+  let target: unknown = null
+  if (action === 'lyrics') workbench.setAction('lyrics')
+  else if (['libraries', 'scan-settings', 'scan-history', 'scan-refresh', 'ai-settings'].includes(action)) {
+    if (action !== 'ai-settings') workbench.setAction('library')
+    coverDropViewRef.value!.openManagementPanel(action)
+  } else if (action === 'organizer-history') await localLibrary.organizer.openHistory()
+  else {
+    const trackIds: string[] = []
+    for (const album of albums) {
+      const count = album.trackCount ?? album.trackIds.length
+      if (!album.rootId || !album.revision || count < 1 || count > localWorkbenchDto.LOCAL_ORGANIZER_LIMIT) return stale()
+      if (album.trackIds.length === count) trackIds.push(...album.trackIds)
+      else {
+        // 只接受真实完整一页；超过旧源维护上限已在availability阻断，不按代表曲目缩组。
+        const request = { albumKey: album.albumId, rootId: album.rootId, offset: 0, limit: 100 }
+        const page = await window.musicBridge.getLocalAlbumTracks(request)
+        if (!current() || !localWorkbenchDto.isLocalAlbumTrackPage(page, request, page.album) || page.album.revision !== album.revision || page.total !== count || page.hasMore || page.items.length !== count) return stale()
+        trackIds.push(...page.items.map(value => value.facts.track.id))
+      }
+    }
+    const ids = [...new Set(trackIds)]
+    if (!current() || !ids.length || ids.length > localWorkbenchDto.LOCAL_ORGANIZER_LIMIT) return stale()
+    const one = albums.length === 1 ? albums[0] : null
+    const selected: localWorkbenchDto.LocalOrganizerTarget = one?.editionId ? { mode: 'edition', editionId: one.editionId }
+      : ids.length === 1 ? { mode: 'single', trackId: ids[0]! } : { mode: 'batch', trackIds: ids }
+    const label = one?.title ?? `明确选择的 ${ids.length} 首`
+    if (action === 'mb-info') {
+      const opening = localLibrary.organizer.open(selected, label); target = localLibrary.organizer.target.value; await opening
+    } else if (action === 'source-tags' || action === 'source-cover') {
+      const opening = localLibrary.sourceWrites.open(selected, label, action === 'source-tags' ? 'TAGS' : 'EMBEDDED_COVER', one?.editionId ?? '')
+      target = localLibrary.sourceWrites.target.value; await opening
+    } else if (action === 'rename' || action === 'move') {
+      const previousTargets = localLibrary.relocationPlans.targets.value
+      await localLibrary.openRelocationTracks(ids, action)
+      if (localLibrary.relocationPlans.targets.value === previousTargets) return stale()
+      target = localLibrary.relocationPlans.targets.value
+    } else return stale()
+  }
+  if (!current()) return stale()
+  maintenanceUiOpened = { action, datasetId: datasetId!, generation: owner, albums: selection, target }
+  await nextTick()
+  if (!localMaintenanceOpened(action, albums)) return { opened: false, reason: '原维护入口或对应读取尚未在当前工作区打开。' }
+  return { opened: true }
+}
+function returnLocalMaintenanceFocus(): void { (currentView.value === 'coverdrop' ? coverDropViewRef.value : localLibraryViewRef.value)?.returnMaintenanceFocus() }
+function sourceFromOrganizer(): void {
+  const current = localLibrary.organizer.target.value
+  if (current) void localLibrary.sourceWrites.open(current, localLibrary.organizer.targetLabel.value, 'TAGS')
+}
+function sourceFromArtwork(): void {
+  const current = localLibrary.artwork.target.value, selection = localLibrary.artwork.context.value?.selection
+  if (current && selection?.candidate) void localLibrary.sourceWrites.open({ mode: 'single', trackId: current.trackId }, '当前曲目已保存的 MB 封面', 'EMBEDDED_COVER', current.editionId)
+}
+function openSourceMbOnly(): void {
+  const current = localLibrary.sourceWrites.target.value, detail = localLibrary.detail.value
+  if (!current) return
+  if (localLibrary.sourceWrites.range.value !== 'TAGS') {
+    const chosenEdition = localLibrary.sourceWrites.editionId.value
+    const exactTrackId = current.mode === 'single' ? current.trackId : detail && detail.editions.some(edition => edition.id === chosenEdition)
+      && (current.mode === 'batch' ? current.trackIds.includes(detail.track.id) : current.editionId === chosenEdition) ? detail.track.id : null
+    if (exactTrackId) { void localLibrary.artwork.open(exactTrackId, chosenEdition || null); return }
+  }
+  const exactDetail = current.mode === 'single' && detail?.track.id === current.trackId ? detail : null
+  void localLibrary.organizer.open(current, localLibrary.sourceWrites.targetLabel.value, detail?.editions ?? [], exactDetail?.metadata.effective, exactDetail?.metadata.override?.annotations)
+}
+function reacquireSourceArtwork(): void {
+  const current = localLibrary.detail.value, requested = localLibrary.sourceWrites.editionId.value
+  if (!current || requested && !current.editions.some(edition => edition.id === requested)) { localLibrary.sourceWrites.error.value = '请从此具体发行的曲目详情进入原选图入口，保存 MB 封面后重新读取材料。'; return }
+  localLibrary.sourceWrites.close(); void localLibrary.artwork.open(current.track.id, requested || null)
+}
 const zones = ref<readonly PublicRoonZone[]>([])
 const zonesLoading = ref(false)
 const zoneRefreshCoordinator = createZoneRefreshCoordinator({
@@ -115,7 +647,7 @@ const commandOutboxOpen = ref(false)
 const commandOutboxTrigger = ref<HTMLButtonElement>()
 async function closeCommandOutbox(): Promise<void> {
   commandOutboxOpen.value = false
-  if (currentView.value === 'local-library') void localLibrary.refresh()
+  if (currentView.value === 'local-library' || currentView.value === 'coverdrop') void localLibrary.refresh()
   await nextTick()
   commandOutboxTrigger.value?.focus({ preventScroll: true })
 }
@@ -263,6 +795,7 @@ const journey = usePageJourney({
   },
   canLeaveRecording: () => recordingViewRef.value?.canLeave() ?? false,
   canLeaveCollection: () => collectionViewRef.value?.canLeave() ?? false,
+  beforeLeave: (destination, resume) => coverDropPageEntry.beforeLeave(destination, resume),
 })
 const {
   currentView, sidebar, roonSearchOrigin,
@@ -296,11 +829,20 @@ function selectAggregatedRoonItem(item: RoonLibraryItem): void {
 }
 
 watch(currentView, (view, previous) => {
+  if (view === 'local-library' || view === 'coverdrop' || view === 'settings') void loadWorkspace()
+  const localPage = view === 'local-library' || view === 'coverdrop', previousLocalPage = previous === 'local-library' || previous === 'coverdrop'
+  if (localPage && !previousLocalPage) void localLibrary.activate()
+  else if (!localPage && previousLocalPage) localLibrary.suspend()
+  if (view !== 'local-library') albumBrowser.deactivate()
+  if (view !== 'coverdrop') coverDropBrowser.deactivate()
+  if (previous !== view) {workbenchOpenGeneration++;maintenanceUiGeneration++;maintenanceUiOpened=null;workbenchOpening.value=false;workbenchEntryError.value='';invalidateResultInspections()}
   if (previous === 'recording' && view !== 'recording') {
     recordingInitialPhysical.value = undefined
     recordingReservationNavigation.value = undefined
   }
 }, { flush: 'sync' })
+
+installInitialScanObservationLifecycle()
 
 function startRecordingFromCollection(entry: CollectionStartEntry): void {
   const { returnOffset, ...selection } = entry
@@ -361,7 +903,7 @@ const zoneLifecycleStatus = computed(() => resolveZoneLifecycleStatus({
   selected: selectedZone.value !== undefined,
 }))
 watch(() => [selectedZone.value?.zoneId, coreState.value?.roon], () => {
-  if (currentView.value === 'local-library') void localLibrary.refreshContext()
+  if (currentView.value === 'local-library' || currentView.value === 'coverdrop') void localLibrary.refreshContext()
 })
 const hasPlaybackIssue = computed(() => Boolean(playbackState.value?.lastIssue || actionError.value))
 const greeting = computed(() => {
@@ -737,7 +1279,7 @@ const lifecycle = useRendererLifecycle({
     const previousStatus = remoteCoreState.value.status
     remoteCoreState.value = state
     if (state.sshTarget) updateRemoteSshTarget(state.sshTarget)
-    if (previousStatus === 'ready' && state.status !== 'ready') { playback.suspendPlaybackStream(); resetRoonRuntimeReferences() }
+    if (previousStatus === 'ready' && state.status !== 'ready') { invalidateResultInspections();playback.suspendPlaybackStream(); resetRoonRuntimeReferences() }
     if (previousStatus === 'ready' && state.status !== 'ready') search.invalidateScope()
     if (state.status !== 'ready' && coreState.value) {
       coreState.value = { ...coreState.value, roon: 'disconnected' }
@@ -753,6 +1295,7 @@ const lifecycle = useRendererLifecycle({
   onCoreEvent: event => {
     const previousRoonStatus = coreState.value?.roon
     const previousRuntime = coreState.value?.runtime
+    if(event.event==='core.ready'||event.event==='core.health'&&event.payload.state.runtime!=='ready')invalidateResultInspections()
     if (event.event === 'core.ready') playback.acceptPlaybackReady(event.payload.playbackEvents)
     if (event.event === 'core.health' && event.payload.state.runtime !== 'ready') playback.suspendPlaybackStream()
     if (event.event === 'playback.snapshot' || event.event === 'playback.state' || event.event === 'playback.progress') playback.acceptPlaybackStreamEvent(event)
@@ -859,6 +1402,7 @@ const lifecycle = useRendererLifecycle({
 onMounted(() => lifecycle.start())
 
 onUnmounted(() => {
+  inspectionDisposed=true;invalidateResultInspections()
   pageCache.dispose()
   lifecycle.dispose()
   zoneRefreshCoordinator.dispose()
@@ -867,6 +1411,8 @@ onUnmounted(() => {
   search.dispose()
   browse.dispose()
   playback.dispose()
+  coverDropPageEntry.dispose()
+  workbench.dispose(); workbenchLibrary.dispose(); workbenchLyrics.dispose(); albumBrowser.dispose(); coverDropBrowser.dispose()
   localLibrary.dispose()
   roonArtworkCache.clear()
   inspectorReturnFocus.value = null
@@ -901,7 +1447,7 @@ onUnmounted(() => {
 
       <section class="workspace" :class="{ 'is-immersive': isImmersiveNowPlaying }">
       <div class="workspace-body" :class="{ 'is-immersive': isImmersiveNowPlaying }">
-      <div ref="contentScroll" class="content-scroll" :class="{ 'is-immersive': isImmersiveNowPlaying }">
+      <div ref="contentScroll" class="content-scroll" :class="{ 'is-immersive': isImmersiveNowPlaying, 'is-coverdrop': currentView === 'coverdrop' }">
         <HomeView
           v-if="currentView === 'home'"
           :liked-tracks="likedPage.items"
@@ -926,7 +1472,9 @@ onUnmounted(() => {
           @retry-daily="refreshAccountProfile"
         />
 
-        <LocalLibraryView v-else-if="currentView === 'local-library'" :session="localLibrary" :playback-state="playbackState" @open-queue="openQueue" @open-outbox="commandOutboxOpen = true" />
+        <LocalLibraryView v-else-if="currentView === 'local-library'" ref="localLibraryViewRef" v-model:view-mode="localLibraryViewMode" v-model:selected-track-id="localLibrarySelectedTrackId" :workbench-entry-error="workbenchEntryError" :workbench-opening="workbenchOpening" external-relocation-dialog external-maintenance-dialogs external-session-lifecycle :browser="albumBrowser" :workspace="workbenchLibrary" @workbench="openAlbumWorkbench" @workbench-batch="openAlbumWorkbenchBatch" :session="localLibrary" :playback-state="playbackState" @open-queue="openQueue" @open-outbox="commandOutboxOpen = true" />
+
+        <CoverDropView v-else-if="currentView === 'coverdrop'" ref="coverDropViewRef" :workbench-entry-error="workbenchEntryError" :workbench-opening="workbenchOpening" :session="localLibrary" :browser="coverDropBrowser" :workspace="workbenchLibrary" :model="workbench" :lyrics="workbenchLyrics" :lyrics-inspection="workbenchLyrics.resultInspection.value" :library-inspection="libraryResultInspection" :playback-state="playbackState" @open-queue="openQueue" @open-outbox="commandOutboxOpen = true" @workbench="openAlbumWorkbench" @workbench-batch="openAlbumWorkbenchBatch" @inspect-lyrics-result="inspectLyricsResult" @close-lyrics-inspection="closeLyricsResultInspection" @inspect-library-result="inspectLibraryResult" @close-library-inspection="closeLibraryResultInspection" @updated="refreshLocalBrowserViews" />
 
         <CollectionView
           v-else-if="currentView === 'collection'"
@@ -1288,6 +1836,9 @@ onUnmounted(() => {
         <SettingsView
           v-else-if="currentView === 'settings'"
           :app-info="appInfo"
+          :workbench-library="workbenchLibrary"
+          :local-relocation-session="localLibrary.relocationPlans"
+          @updated="refreshLocalBrowserViews"
           :auth-state="authState"
           :account-state="accountState"
           :zones="zones"
@@ -1365,12 +1916,22 @@ onUnmounted(() => {
     />
 
     <div v-if="toastMessage" class="toast" role="status" aria-live="polite">{{ toastMessage }}</div>
+    <LocalLibraryWorkbench v-if="currentView !== 'coverdrop' && (workbench.isOpen.value || workbench.leavePrompt.value)" :model="workbench" :lyrics="workbenchLyrics" :workspace="workbenchLibrary" :lyrics-inspection="workbenchLyrics.resultInspection.value" :library-inspection="libraryResultInspection"
+      @inspect-lyrics-result="inspectLyricsResult" @close-lyrics-inspection="closeLyricsResultInspection" @inspect-library-result="inspectLibraryResult" @close-library-inspection="closeLibraryResultInspection">
+      <template #library><LocalLibrarySettings :workspace="workbenchLibrary" :relocation-session="localLibrary.relocationPlans" management-only @updated="refreshLocalBrowserViews" /><section aria-label="全库智能名称解析"><button type="button" :disabled="workbenchLibrary.pending.value || !!workbenchLibrary.originalJob.value || !workbenchLibrary.selectedLibraryIds.value.length" @click="workbenchLibrary.startAi(workbenchLibrary.settings.value?.backend ?? 'ollama')">为选中整个库的缺封面专辑批量解析名称</button></section></template>
+    </LocalLibraryWorkbench>
+    <LocalArtworkDialog v-if="localLibrary.artwork.isOpen.value" :session="localLibrary.artwork" :source-writes-available="localLibrary.sourceWrites.capable" @source-writes="sourceFromArtwork" />
+    <LocalOrganizerDialog v-if="localLibrary.organizer.isOpen.value" :session="localLibrary.organizer" :source-writes-available="localLibrary.sourceWrites.capable" @open-outbox="commandOutboxOpen = true" @return-focus="returnLocalMaintenanceFocus" @source-writes="sourceFromOrganizer" />
+    <LocalSourceWritesDialog v-if="LocalSourceWritesDialog && localLibrary.sourceWrites.isOpen.value" :session="localLibrary.sourceWrites" @open-outbox="commandOutboxOpen = true" @return-focus="returnLocalMaintenanceFocus" @mb-only="openSourceMbOnly" @reacquire="reacquireSourceArtwork" />
+    <LocalRelocationDialog v-if="LocalRelocationDialog && localLibrary.relocationPlans.isOpen.value" :session="localLibrary.relocationPlans" />
     <CommandOutboxPanel v-if="commandOutboxOpen" @close="closeCommandOutbox" @overview="localLibrary.observeOutbox" />
 
   </main>
 </template>
 
 <style scoped>
+/* 独立页由实际主内容尺寸承载，播放器避让留在其内部滚动区。 */
+.app-shell:not(.is-now-playing) .content-scroll.is-coverdrop { display: flex; overflow: hidden; padding: 0; scroll-padding-bottom: 0; }
 .command-outbox-entry { min-height: 44px; padding: 8px 12px; border: 1px solid var(--mb-glass-border); border-radius: 8px; background: var(--mb-glass-clear); color: var(--mb-text-primary); font: inherit; font-size: 13px; cursor: pointer; }
 .command-outbox-entry:focus-visible { outline: 2px solid var(--mb-accent); outline-offset: 3px; }
 @media (hover: hover) and (pointer: fine) { .command-outbox-entry:hover { border-color: var(--mb-accent); } }

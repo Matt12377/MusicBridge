@@ -1,3 +1,26 @@
+# 本次手机发现与封面修复（2026-10-17）
+
+以下为本轮独占候选的进度；原1219同窗账号/作用域成功尚未绑定最终HTTP回包，发现页实际首因仍未证。其他任务继续暂停，不远端提交。
+
+| 本轮任务 | Source实现 | Root QA | 联合真机 | Owner接受 |
+|---|---|---|---|---|
+| Provider登录/临时失败与mobile鉴权分离、能力枚举及发送前隔离 | 实现与受影响测试文本已写，未执行 | NOT_RUN | NOT_RUN | OPEN |
+| 网易云专辑/歌曲/歌单/发现/播放器封面认证链 | 实现与受影响测试文本已写，未执行 | NOT_RUN | NOT_RUN | OPEN |
+| UI/五种发现/图片首成功及首实际失败的关联；Provider内容首拒阶段 | 默认关闭的有限私有旁注与测试文本已写，未执行；每类最多8次需求，未捕获明确UNKNOWN，原256/64预算不增 | NOT_RUN | NOT_RUN | OPEN |
+| R1复审确认的图片DNS校验/实际连接TOCTOU | R2独立派生：专用可取消DNS、固定已验公网IP连接、原Host/SNI/证书校验及连接/体close收口；5个新Top文本已写，含同URL同scope实际字节变更拒旧图组合，均未执行 | NOT_RUN | NOT_RUN | OPEN |
+| R1严格类型拒绝 | R2修正可选字段删除、Main测试调用真实backend.dispatch、正例图片ID非空收窄；不改严格规则/产品接口/断言。R1失败原件保留；Root回执R2严格Core/Main均PASS，R3未运行 | R2 PASS，R3 NOT_RUN | NOT_RUN | OPEN |
+| R2复审P1：超时后网络未close时不得提前确认quiet | R3仅新readArtwork/assertArtwork失败等待本次work静止，原10秒仍取消封输出；Root已在R2用不可变延迟close负例复现read/revalidate均提前quiet（2个预期失败），R3待验；作者未运行 | R2负例已复现，R3 NOT_RUN | NOT_RUN | OPEN |
+| R2组合夹具：scope原型及有效图片 | R3捕获预期scope后严格比对并保真实scope变化409；同URL两次读取改用既有16/32 JPEG有效夹具，不改生产guard。Root回执R2严格Core/Main类型PASS、63项行为绿保留；原失败保留，R3未运行 | NOT_RUN | NOT_RUN | OPEN |
+| 1533/iOS9真机五feed503与本地albumTracks503定位 | 五feed已接到Main dispatch RPC已知BUSY错误，未证Core/Provider具体首因；albumTracks已确认原001 listTracks独立路由，旧无epoch localAlbum拒绝不能归因新错。两项仍未修复闭环 | OPEN | 已保存首次失败 | OPEN |
+| R4最小私有诊断 | 五feed Core dispatch及early admission上下文/固定阶段、原name/code闭集与safe错误分离；Main RPC action分型；001 listTracks初读/Owner/snapshot/auth/发送前同页复核及HTTP首成功首错分槽；4个新Top及2个必要受影响Top文本已写，作者未运行 | NOT_RUN | NOT_RUN | OPEN |
+| 本地封面 | 等待本轮原始拒绝证据，不盲改或重扫 | NOT_RUN | NOT_RUN | OPEN |
+
+最低配套要求：新Mac须与iOS区分资源级403/真正DEVICE_REVOKED的新候选联合核验；不得以原iOS8替代。
+
+网易云图片发送前重新读取同一受限来源并比较实际字节修订；读取与发送前各至多4MiB，仍走原有10秒请求与15秒HTTP总预算。图片需要多次受限原生解码/编码，成本及真机结果未验证。能力枚举准确返回unavailable仅是分类，不代表发现五模块恢复。
+
+以下历史待办按原文保留，只代表其各自记录时点。
+
 # MusicBridge 开发待办
 
 2026-10-11 当前任务：MBM-004 原 Source781 首次自然 CI 的 Core 180016ms 超时及 Electron 两项失败原件、旧本地证据完整保留。当前修复源码已通过 fresh136 三编译、四项类型检查、004组合333项（Core164/Main79/contracts6/Wave62/admission22）、另列收藏21项、完整标准4930项（4928通过、2个原条件skip）及173项CI负测。原001生产Main/HTTPS与070历史分页两项Electron各一次通过、无重试，保留500目录/25快照、8MiB响应和Owner 2s预算。上述均为本地受控软件证据；当前修复Source Gate、首次自然CI与直接报告仍待，真实App、服务/设备/音频及Owner试用未执行。唯一基线 479e746bb7106a4dac158fe616290220de03a53a，正式分支 codex/mbm-004-content-multidevice。十九内容接口沿原 Main 认证、Core、唯一 Owner 接线，保留 1.7.0 / 40 操作和旧资源/DSD边界。004→016→017，原18任务/156验收及取消015后有效17任务/150验收不变。

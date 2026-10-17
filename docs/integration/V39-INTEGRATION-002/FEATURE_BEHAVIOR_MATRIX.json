@@ -1,0 +1,5107 @@
+{
+  "schema": "musicbridge.v39.integration002.feature-behavior-matrix.v1",
+  "task": "V39-INTEGRATION-002",
+  "baseSha": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+  "counts": {
+    "original35": 35,
+    "increments": 9,
+    "total": 44,
+    "lyrics": 7,
+    "historicalMappingRows": 37,
+    "retained": "CD-36",
+    "oldAbsentOnly": "CD-37"
+  },
+  "rows": [
+    {
+      "id": "CD-01",
+      "title": "文件夹导入、结构探测与角色确认",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryHomeView.swift",
+          "symbols": [
+            "sidebar"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "prepareImport",
+            "confirmImport"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryRoleConfirmationView.swift",
+          "symbols": [
+            "body"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/FileSystem/StructureRoleProber.swift",
+          "symbols": [
+            "suggestRole"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+            "symbols": [
+              "目录选择与关联"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/main/local-library-ipc.ts",
+            "symbols": [
+              "installLocalLibraryHandlers"
+            ]
+          }
+        ],
+        "gap": "MB已有目录安全关联与扫描，缺原角色确认的可见对应流程。",
+        "reuseSlice": "保留现有扫描与目录许可入口；在整理工作台展示关联事实。"
+      },
+      "formalUiMinimum": "选根/结构角色真实确认与取消；复用原授权根维护。",
+      "formalOwnerIpcMinimum": "唯一Owner根/角色/扫描任务/最新快照/变化监听/显示名与本地记录清理，真实持久回读，取消或重试使用原命令。",
+      "group": "库管理",
+      "requiredOriginalBehaviorEvidence": [
+        "选择目录后展示实际根身份；取消不会注册或扫描；浏览不创建发行。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "库角色确认显式写入，多库选择按实际dataset持久回读而不改源目录"
+        },
+        {
+          "domain": "standard",
+          "caseName": "426a原import先持久body，同SQL注册后一次绑定，冷开仍只读同一原回执"
+        },
+        {
+          "domain": "standard",
+          "caseName": "专辑原作者：同名不同目录独立，分页回读原trackId；浏览不创建发行、不扫描、不写封面"
+        }
+      ]
+    },
+    {
+      "id": "CD-02",
+      "title": "音乐库切换、持久化与多库选择",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryHomeView.swift",
+          "symbols": [
+            "selectLibraryFromSidebar",
+            "selectLibraryRange",
+            "toggleLibrarySelection",
+            "selectAllLibraries"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "loadLibraries",
+            "selectLibrary"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/Persistence/UserDefaultsLibraryStore.swift",
+          "symbols": [
+            "loadLibraries"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "roots",
+              "search"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "symbols": [
+              "rootId目录筛选"
+            ]
+          }
+        ],
+        "gap": "MB已有根筛选；未提供原侧栏Shift/Command多库操作与库角色展示。",
+        "reuseSlice": "继续复用根筛选，不把浏览动作解释为全库批量授权。"
+      },
+      "formalUiMinimum": "独立工作台选真实库；Shift/Command/范围/全选与持久化，多库明确目标。",
+      "formalOwnerIpcMinimum": "唯一Owner根/角色/扫描任务/最新快照/变化监听/显示名与本地记录清理，真实持久回读，取消或重试使用原命令。",
+      "group": "库管理",
+      "requiredOriginalBehaviorEvidence": [
+        "专辑选择按根和目录/发行身份保留区别；批量仅含明确选择。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "真实库列表支持范围与全选并持久化，存在外部未确认意图时不更换库捕获"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：同名不同根、目录、原始版本与真实发行不合并，MB更正只改变显示和修订"
+        },
+        {
+          "domain": "standard",
+          "caseName": "显式专辑rootIds捕获与当前多库选择分开，其他库的选择变化不阻断明确专辑入口"
+        }
+      ],
+      "current002Readback": {
+        "implementation": "多库明确选择的完整捕获已存在：captureAll逐库分页到total，保存整件原capture与albumRefs；未将当前页代作完整组。",
+        "codeRefs": [
+          {
+            "path": "packages/bridge-core/src/collection/local-library-workbench/read-service.ts",
+            "lines": "698–731"
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/library.ts",
+            "lines": "202–214"
+          }
+        ],
+        "remaining": "630真实Main第9例在第一笔library.capture超时；完整201专辑405成员的联合链未通过。多库业务局部通过保留，真实应用与Owner未验收。",
+        "standard630ExistingReferences": {
+          "passed": 3,
+          "declared": 3,
+          "layer": "WIP当前标准局部例；不授Source/联合/Owner资格"
+        }
+      }
+    },
+    {
+      "id": "CD-03",
+      "title": "扫描、重扫与阶段/数量进度",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryHomeView.swift",
+          "symbols": [
+            "libraryContextMenu",
+            "scanProgressPage"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "scanLibrary"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanProgressView.swift",
+          "symbols": [
+            "body"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/FileSystem/FileSystemLibraryScanner.swift",
+          "symbols": [
+            "scan",
+            "scanAlbumsConcurrently"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+            "symbols": [
+              "扫描状态入口"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/main/local-library-ipc.ts",
+            "symbols": [
+              "installLocalLibraryHandlers"
+            ]
+          }
+        ],
+        "gap": "MB扫描能力存在；浏览首页顶部整理工具需要转入可发现的维护上下文。",
+        "reuseSlice": "保留原扫描服务及回执，不在工作台打开时重扫。"
+      },
+      "formalUiMinimum": "扫描/重扫/真实阶段数量及暂停继续取消；独立snapshot保存状态。",
+      "formalOwnerIpcMinimum": "唯一Owner根/角色/扫描任务/最新快照/变化监听/显示名与本地记录清理，真实持久回读，取消或重试使用原命令。",
+      "group": "库管理",
+      "requiredOriginalBehaviorEvidence": [
+        "打开工作台只读取；扫描失败或离线显示原状态；完成数由回执提供。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "current-composition",
+          "caseName": "002扫描调度：实际1/default12/24专辑任务完整读取自有音频，Reader始终1且Worker/FD全部关闭"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "002扫描调度：真实已冻结任务暂停冷恢复后不追随新24设置且Reader1不变"
+        },
+        {
+          "domain": "standard",
+          "caseName": "专辑原作者：同名不同目录独立，分页回读原trackId；浏览不创建发行、不扫描、不写封面"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF首页失败、确认空结果、加载更多失败和刷新失败分别呈现且错误不泄露内部原因"
+        }
+      ]
+    },
+    {
+      "id": "CD-04",
+      "title": "加载上次SQLite扫描快照与读取进度",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryHomeView.swift",
+          "symbols": [
+            "scanSnapshotLoadingPage",
+            "libraryContextMenu"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "loadLatestScanSnapshotForSelectedLibrary",
+            "loadScanSnapshot"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/Persistence/SQLiteScanSnapshotStore.swift",
+          "symbols": [
+            "latestSnapshot(for:)",
+            "loadSnapshot(at:expectedLibrary:)"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "pump",
+              "activate"
+            ]
+          },
+          {
+            "path": "packages/bridge-core/src/collection/local-catalog-store.ts",
+            "symbols": [
+              "createLocalCatalogStore"
+            ]
+          }
+        ],
+        "gap": "MB持久目录投影可读取；没有原独立“加载上次扫描”与快照读取进度对应UI。",
+        "reuseSlice": "复用MB持久投影和最后成功结果，不复制CoverDrop数据库。"
+      },
+      "formalUiMinimum": "加载上次快照/读取进度/陈旧标记，失败保留原结果。",
+      "formalOwnerIpcMinimum": "唯一Owner根/角色/扫描任务/最新快照/变化监听/显示名与本地记录清理，真实持久回读，取消或重试使用原命令。",
+      "group": "库管理",
+      "requiredOriginalBehaviorEvidence": [
+        "读取失败保留上次成功页面；明确标识缓存/陈旧；不把缓存当本轮扫描。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "current-composition",
+          "caseName": "002完成快照：实际Scanner同库全批全文及完整目录字段落盘，冷开同身份回读无Reader/Provider"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "002完成快照：捕获失败独立留attempt及旧成功原件，显式retry不重新扫描或解析"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF首页失败、确认空结果、加载更多失败和刷新失败分别呈现且错误不泄露内部原因"
+        }
+      ]
+    },
+    {
+      "id": "CD-05",
+      "title": "文件变化监听与专辑局部刷新",
+      "originalSource": [
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "startLibraryChangeMonitoring",
+            "handleLibraryChangeEvent",
+            "refreshChangedAlbums",
+            "markInternalCoverWrite"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/FileSystem/FSEventsLibraryChangeMonitor.swift",
+          "symbols": [
+            "events"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "refreshBusiness",
+              "refresh"
+            ]
+          },
+          {
+            "path": "packages/bridge-core/src/collection/local-catalog-store.ts",
+            "symbols": [
+              "createLocalCatalogStore"
+            ]
+          }
+        ],
+        "gap": "原FSEvents语义不能用页面刷新按钮代替；需要独立核对MB扫描作者的事件投影。",
+        "reuseSlice": "写后由原服务确认并刷新当前专辑；不自行扫描文件系统。"
+      },
+      "formalUiMinimum": "真实变化监听/局部刷新与内部写标记；刷新按钮不能替代。",
+      "formalOwnerIpcMinimum": "唯一Owner根/角色/扫描任务/最新快照/变化监听/显示名与本地记录清理，真实持久回读，取消或重试使用原命令。",
+      "group": "库管理",
+      "requiredOriginalBehaviorEvidence": [
+        "取消后迟到读取零覆盖；写回成功后回读；未知操作只查原回执。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "native",
+          "caseName": "真正FSEvents事件使原根读取失效，STOP取得原生ACK后无迟到回调且FD与进程实际闭合"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF只读服务：作者对象和公开结果互不污染缓存，dispose丢弃迟到封面与后续操作"
+        },
+        {
+          "domain": "standard",
+          "caseName": "unknown保留原请求；重建registry不执行，恢复只能读同一原回执"
+        }
+      ]
+    },
+    {
+      "id": "CD-06",
+      "title": "本地库显示名重命名与移除本地记录",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryHomeView.swift",
+          "symbols": [
+            "beginRename",
+            "libraryContextMenu"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "renameLibrary",
+            "removeLibraries"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+            "symbols": [
+              "目录管理"
+            ]
+          }
+        ],
+        "gap": "原重命名仅库显示名、移除仅本地记录；MB音频改名/移动是不同能力。",
+        "reuseSlice": "沿既有安全目录管理；禁止把原“重命名”解释为改源音频。"
+      },
+      "formalUiMinimum": "库显示名重命名与本地记录删除，保留源音乐及其他库引用。",
+      "formalOwnerIpcMinimum": "唯一Owner根/角色/扫描任务/最新快照/变化监听/显示名与本地记录清理，真实持久回读，取消或重试使用原命令。",
+      "group": "库管理",
+      "requiredOriginalBehaviorEvidence": [
+        "移除文字说明记录范围；保留源文件与用户未授权库；批量目标明确。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "Library真实同SQL绑定与原操作整批提交，冷开保留语义role且remove只撤绑定不删媒体"
+        },
+        {
+          "domain": "standard",
+          "caseName": "426管理read真实SQL计数和role，watch实际READY与持久意图区分，移除不删除源"
+        },
+        {
+          "domain": "standard",
+          "caseName": "本地清理超时保原明确库集合，UNKNOWN阻新rename和新UUID，仅query原operation"
+        },
+        {
+          "domain": "standard",
+          "caseName": "C03实际Root463：同Owner撤库只清专属无引用staging，原媒体与他库保留，冷tombstone拒迟到CREATE和retry"
+        },
+        {
+          "domain": "standard",
+          "caseName": "C03实际Root463：缺watch或冷running scan实际join及最终SQL故障均UNKNOWN，绑定和材料保留，原命令查询不重放"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "按库源写470：PREVIEWING原FD先join，只封原甲plan与grant，乙库及共享Safety保持可用"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "按库源写470：混甲乙原整组先拒绝撤甲，不cancel别库、不新plan或command"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "按库源写470：原publisher stage写FD未闭不能授成功，abort同plan且保源与原材料"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "按库源写470：冷SQL原READY没有本进程physicalProof仍拒绝，原命令与材料不变"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "按库源写470：实际原FD close拒绝保RELEASE_UNKNOWN，原stop重复不转绿、不清材料"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "冷源写闭集476：真实两库publisher全部完成后原同SQL闭口可撤甲，旧账和两库音乐材料保留"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "冷源写闭集476：原READY已完成预览且从未confirm的持久CANCELLED可撤库，原捕获和文件不变"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "冷源写闭集476：原真实闭口marker不能覆盖同SQL后来UNKNOWN issue，旧账原材料保留且不补执行"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "冷源写欠证488：未READY原预览失败与取消持久原库归属，真实FD闭口后冷撤甲保乙"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "冷源写欠证488：真实两库publisher原PARTIAL整组资源释放后持久闭口，冷撤不改已应用事实"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "冷源写欠证488：真实publisher原FAILED零发布在资源全释放后冷认证，原stage备份与源材料保留"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "冷源写欠证488：原CANCELLED必须等待held stage FD与原publisher释放，冷撤不重签原命令"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "冷源写欠证488：旧空归属和旧PARTIAL缺释放证书保持拒绝，真实关闭失败与后来UNKNOWN绝不补绿"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "按库源写502：同SQL原全选甲乙可cancel并join原混组，单甲缓存与伪原引用不能补签"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "002 Main完整库：实际Electron到唯一Owner worker同SQL捕获201专辑405成员遵守原2000ms并自然关闭"
+        },
+        {
+          "domain": "standard",
+          "caseName": "Source关闭重核565：另一连接无关collection提交后原Owner自然退出且Source原账不改"
+        },
+        {
+          "domain": "standard",
+          "caseName": "Source关闭重核565：坏Source账本与未解SourceSafety实际FD均拒绝并保留原材料"
+        }
+      ],
+      "current002Readback": {
+        "implementation": "清理组合已存在：同SQL先持久running，join原AI/CUE job与按库watch/scan/workbench/CUE/lyrics/SourceWrites/Main readers，再清专属无引用缓存，最终CAS inactive；UNKNOWN保绑定与材料。",
+        "codeRefs": [
+          {
+            "path": "packages/bridge-core/src/collection/local-library-workbench/read-service.ts",
+            "lines": "822–850"
+          },
+          {
+            "path": "packages/bridge-core/src/collection/dataset-domain.ts",
+            "lines": "601–644"
+          }
+        ],
+        "remaining": "既有按库/冷恢复/关闭组件通过仍保留；630第一笔捕获已失败，未到完整十actor联合清理断言，不能从局部分层结果授联合完成；真实应用与Owner未闭。",
+        "standard630ExistingReferences": {
+          "passed": 7,
+          "declared": 7,
+          "layer": "WIP当前标准局部例；不授Source/联合/Owner资格"
+        }
+      }
+    },
+    {
+      "id": "CD-07",
+      "title": "设置页返回与扫描并发1至24",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/Settings/AppSettingsView.swift",
+          "symbols": [
+            "scanSettingsPage",
+            "scanConcurrencyBinding"
+          ]
+        },
+        {
+          "path": "CoverDrop/Domain/Models/AppSettings.swift",
+          "symbols": [
+            "Scan"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "openSettings",
+            "closeSettings",
+            "updateScanMaxConcurrentAlbums"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+            "symbols": [
+              "目录设置"
+            ]
+          }
+        ],
+        "gap": "MB未见原专辑扫描并发参数与设置返回位置语义的完整对等。",
+        "reuseSlice": "配置接线需扫描作者授权；当前工作台不冒充已保存配置。"
+      },
+      "formalUiMinimum": "1–24扫描并发保存回读，当前扫描保留启动参数，设置返回原位置。",
+      "formalOwnerIpcMinimum": "唯一Owner根/角色/扫描任务/最新快照/变化监听/显示名与本地记录清理，真实持久回读，取消或重试使用原命令。",
+      "group": "库管理",
+      "requiredOriginalBehaviorEvidence": [
+        "修改对下一次扫描生效；当前扫描保持原设置；配置不可用明确说明。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "current-composition",
+          "caseName": "002扫描调度：实际同库身份默认12及1–24全范围持久设置，越界和同UUID另对象拒绝"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "002扫描调度：真实已冻结任务暂停冷恢复后不追随新24设置且Reader1不变"
+        },
+        {
+          "domain": "standard",
+          "caseName": "工作台迟到取消失败和维护入口返回不覆盖或关闭新专辑上下文"
+        }
+      ]
+    },
+    {
+      "id": "CD-08",
+      "title": "开放专辑墙、搜索、统计和专辑详情返回",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "body",
+            "albumGrid",
+            "libraryOverviewHeader",
+            "scheduleQueryDebounce",
+            "openAlbumDetail",
+            "closeAlbumDetail"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/CoverWallNativeScrollView.swift",
+          "symbols": [
+            "CoverWallNativeScrollView"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "coverWallSnapshotInSelectedLibrary"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "symbols": [
+              "当前TrackTable主浏览"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "query",
+              "rangeWindow"
+            ]
+          }
+        ],
+        "gap": "479e基线默认按曲目，不满足按专辑进入曲目的浏览路径。",
+        "reuseSlice": "独立local-library-browser专辑墙切片；复用MB正式布局和语义token。"
+      },
+      "formalUiMinimum": "本地音乐正式albumwall→detail→曲目；独立CoverDrop入口同Controller/Owner，保留scope/page/scroll/focus。",
+      "formalOwnerIpcMinimum": "复用localAlbum.query/tracks/artwork实际author albumKey/root/directory/edition/revision/counts/statuses；来源状态与问题事实分域。",
+      "group": "浏览筛选",
+      "requiredOriginalBehaviorEvidence": [
+        "同名不同根/目录/发行不合并；选中专辑再显示曲目；关闭整理返回原位置。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "实际Sidebar只新增一个独立CoverDrop，原本地音乐与设置入口仍在同一永久侧栏"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：同名不同根、目录、原始版本与真实发行不合并，MB更正只改变显示和修订"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF进入详情读取真实轨道与资产事实、按页追加，并在返回时恢复搜索筛选和滚动"
+        },
+        {
+          "domain": "standard",
+          "caseName": "进入专辑后返回恢复原滚动和焦点，搜索筛选条件保留"
+        },
+        {
+          "domain": "standard",
+          "caseName": "418：实际Main装配三个本地专辑handler，完整Supervisor读取与可信frame/Owner代际撤销组合"
+        },
+        {
+          "domain": "capacity",
+          "caseName": "002容量：真实300k全部SQL成员计数及当前Owner冷暖查询不以20000样本代替"
+        }
+      ]
+    },
+    {
+      "id": "CD-09",
+      "title": "缺封面筛选",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Domain/Policies/AlbumScanResultFilter.swift",
+          "symbols": [
+            "AlbumScanResultFilter",
+            "AlbumScanResultFiltering.matches",
+            "missingCover"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "bottomFilterBar",
+            "missingCover"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "symbols": [
+              "基线无对应专辑筛选"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "queryLocalLibraryTracks"
+            ]
+          }
+        ],
+        "gap": "缺完整专辑问题投影与可发现筛选；无后端事实时不能用UI猜测通过。",
+        "reuseSlice": "专辑浏览模型保留筛选键；需要Core补投影的项单独记录。"
+      },
+      "formalUiMinimum": "作者投影缺封面筛选；unknown/offline不归missing。",
+      "formalOwnerIpcMinimum": "复用localAlbum.query/tracks/artwork实际author albumKey/root/directory/edition/revision/counts/statuses；来源状态与问题事实分域。",
+      "group": "浏览筛选",
+      "requiredOriginalBehaviorEvidence": [
+        "只按作者投影的缺封面事实筛选，未知不得算缺失。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：未知封面与来源不可用不计缺图，实际图与实际缺图分别计数"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF SQL Owner：实际按需缺图下一query进入筛选；同次回复不自失效，离线/源修订清除证据"
+        },
+        {
+          "domain": "standard",
+          "caseName": "未探测与来源不可用不显示成确认缺图，零轨目录仍请求真实封面读取"
+        }
+      ]
+    },
+    {
+      "id": "CD-10",
+      "title": "已有封面筛选",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Domain/Policies/AlbumScanResultFilter.swift",
+          "symbols": [
+            "AlbumScanResultFilter",
+            "AlbumScanResultFiltering.matches",
+            "withCover"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "bottomFilterBar",
+            "withCover"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "symbols": [
+              "基线无对应专辑筛选"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "queryLocalLibraryTracks"
+            ]
+          }
+        ],
+        "gap": "缺完整专辑问题投影与可发现筛选；无后端事实时不能用UI猜测通过。",
+        "reuseSlice": "专辑浏览模型保留筛选键；需要Core补投影的项单独记录。"
+      },
+      "formalUiMinimum": "已有封面筛选；本地/内嵌/已保存选择分别显示，未应用候选不算保存。",
+      "formalOwnerIpcMinimum": "复用localAlbum.query/tracks/artwork实际author albumKey/root/directory/edition/revision/counts/statuses；来源状态与问题事实分域。",
+      "group": "浏览筛选",
+      "requiredOriginalBehaviorEvidence": [
+        "本地、内嵌及已保存选择均按事实显示；候选未保存不算已保存。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "MBF SQL Owner：按需图可更新has筛选，来源不可用不会缓存missing；await之后invalidate/close丢弃"
+        },
+        {
+          "domain": "standard",
+          "caseName": "专辑已选图：原候选的图像字段在来源离线时仍可读取，读取不改原选择"
+        },
+        {
+          "domain": "standard",
+          "caseName": "候选暂存按本地独立/内嵌优先排序，但取消或失败不提交选择"
+        }
+      ]
+    },
+    {
+      "id": "CD-11",
+      "title": "未分轨筛选",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Domain/Policies/AlbumScanResultFilter.swift",
+          "symbols": [
+            "AlbumScanResultFilter",
+            "AlbumScanResultFiltering.matches",
+            "singleFileUnsplit"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "bottomFilterBar",
+            "singleFileUnsplit"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "symbols": [
+              "基线无对应专辑筛选"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "queryLocalLibraryTracks"
+            ]
+          }
+        ],
+        "gap": "缺完整专辑问题投影与可发现筛选；无后端事实时不能用UI猜测通过。",
+        "reuseSlice": "专辑浏览模型保留筛选键；需要Core补投影的项单独记录。"
+      },
+      "formalUiMinimum": "未分轨与真实CUE资格分开；只锁播放而Info/多选/整理可用。",
+      "formalOwnerIpcMinimum": "复用localAlbum.query/tracks/artwork实际author albumKey/root/directory/edition/revision/counts/statuses；来源状态与问题事实分域。",
+      "group": "浏览筛选",
+      "requiredOriginalBehaviorEvidence": [
+        "单文件与CUE资格分开显示；段落播放不等于已生成分轨文件。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：AI名称失败只标实际目录，CUE只标真实未分轨资产，Track命名保留原判据"
+        },
+        {
+          "domain": "standard",
+          "caseName": "混合专辑逐轨禁用CUE，名称整理失败不禁普通轨，忙和离线时不能发播放ID"
+        },
+        {
+          "domain": "standard",
+          "caseName": "不可直送的segment仍保留真实leading选择与信息slot，子控件Enter不冒泡成播放"
+        }
+      ]
+    },
+    {
+      "id": "CD-12",
+      "title": "标签异常筛选",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Domain/Policies/AlbumScanResultFilter.swift",
+          "symbols": [
+            "AlbumScanResultFilter",
+            "AlbumScanResultFiltering.matches",
+            "metadataReadFailed"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "bottomFilterBar",
+            "metadataReadFailed"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "symbols": [
+              "基线无对应专辑筛选"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "queryLocalLibraryTracks"
+            ]
+          }
+        ],
+        "gap": "缺完整专辑问题投影与可发现筛选；无后端事实时不能用UI猜测通过。",
+        "reuseSlice": "专辑浏览模型保留筛选键；需要Core补投影的项单独记录。"
+      },
+      "formalUiMinimum": "真实标签读失败逐项筛选，缺字段不等同失败。",
+      "formalOwnerIpcMinimum": "复用localAlbum.query/tracks/artwork实际author albumKey/root/directory/edition/revision/counts/statuses；来源状态与问题事实分域。",
+      "group": "浏览筛选",
+      "requiredOriginalBehaviorEvidence": [
+        "来源读取失败逐项可见；不得把元数据缺字段自动等同读失败。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：CUE-only与拒收目录允许零轨，缺字段与真实元数据读取失败分开，AI取消不算失败"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF SQL：零轨CUE/拒收归属与全部rejected分页保持，普通拒收不伪装AI失败"
+        }
+      ]
+    },
+    {
+      "id": "CD-13",
+      "title": "名称解析失败筛选",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Domain/Policies/AlbumScanResultFilter.swift",
+          "symbols": [
+            "AlbumScanResultFilter",
+            "AlbumScanResultFiltering.matches",
+            "nameEnhancementFailed"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "bottomFilterBar",
+            "nameEnhancementFailed"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "symbols": [
+              "基线无对应专辑筛选"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "queryLocalLibraryTracks"
+            ]
+          }
+        ],
+        "gap": "缺完整专辑问题投影与可发现筛选；无后端事实时不能用UI猜测通过。",
+        "reuseSlice": "专辑浏览模型保留筛选键；需要Core补投影的项单独记录。"
+      },
+      "formalUiMinimum": "AI解析失败与cancel/未运行区别。",
+      "formalOwnerIpcMinimum": "复用localAlbum.query/tracks/artwork实际author albumKey/root/directory/edition/revision/counts/statuses；来源状态与问题事实分域。",
+      "group": "浏览筛选",
+      "requiredOriginalBehaviorEvidence": [
+        "显示AI请求真实失败，取消与未运行不归失败。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：CUE-only与拒收目录允许零轨，缺字段与真实元数据读取失败分开，AI取消不算失败"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：AI名称失败只标实际目录，CUE只标真实未分轨资产，Track命名保留原判据"
+        },
+        {
+          "domain": "standard",
+          "caseName": "工作台AI失败逐项保留并继续下一项；候选必须明确选择后才能预览"
+        }
+      ]
+    },
+    {
+      "id": "CD-14",
+      "title": "散落音频筛选",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Domain/Policies/AlbumScanResultFilter.swift",
+          "symbols": [
+            "AlbumScanResultFilter",
+            "AlbumScanResultFiltering.matches",
+            "looseAudio"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "bottomFilterBar",
+            "looseAudio"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "symbols": [
+              "基线无对应专辑筛选"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "queryLocalLibraryTracks"
+            ]
+          }
+        ],
+        "gap": "缺完整专辑问题投影与可发现筛选；无后端事实时不能用UI猜测通过。",
+        "reuseSlice": "专辑浏览模型保留筛选键；需要Core补投影的项单独记录。"
+      },
+      "formalUiMinimum": "真实结构的散落音频，不用无edition猜测。",
+      "formalOwnerIpcMinimum": "复用localAlbum.query/tracks/artwork实际author albumKey/root/directory/edition/revision/counts/statuses；来源状态与问题事实分域。",
+      "group": "浏览筛选",
+      "requiredOriginalBehaviorEvidence": [
+        "散落音频事实来自扫描投影，不能按未关联发行猜测。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：仅root直属未归发行音频组成散落组，艺人摘要不会拒绝完整逐轨事实"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF SQL：散落组超过32艺人与长版本只汇总卡片，详情仍保留原40份事实"
+        }
+      ]
+    },
+    {
+      "id": "CD-15",
+      "title": "track音轨筛选（需求六类之外的实际原入口）",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Domain/Policies/AlbumScanResultFilter.swift",
+          "symbols": [
+            "AlbumScanResultFilter",
+            "AlbumScanResultFiltering.matches",
+            "trackNamedAudioFiles"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "bottomFilterBar",
+            "trackNamedAudioFiles"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "symbols": [
+              "基线无对应专辑筛选"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "queryLocalLibraryTracks"
+            ]
+          }
+        ],
+        "gap": "缺完整专辑问题投影与可发现筛选；无后端事实时不能用UI猜测通过。",
+        "reuseSlice": "专辑浏览模型保留筛选键；需要Core补投影的项单独记录。"
+      },
+      "formalUiMinimum": "原track命名音轨问题筛选保留。",
+      "formalOwnerIpcMinimum": "复用localAlbum.query/tracks/artwork实际author albumKey/root/directory/edition/revision/counts/statuses；来源状态与问题事实分域。",
+      "group": "浏览筛选",
+      "requiredOriginalBehaviorEvidence": [
+        "明确列出track命名问题；缺扫描投影时显示不可用。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：AI名称失败只标实际目录，CUE只标真实未分轨资产，Track命名保留原判据"
+        },
+        {
+          "domain": "standard",
+          "caseName": "本地专辑浏览的搜索和原七类筛选按读取事实派发，缺图入口保留准确身份"
+        }
+      ]
+    },
+    {
+      "id": "CD-16",
+      "title": "全部筛选、问题徽标与专辑边界提示",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Domain/Models/AlbumScanRecord.swift",
+          "symbols": [
+            "AlbumScanIssue"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "AlbumCoverCard",
+            "albumDetail"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "symbols": [
+              "单曲诊断详情"
+            ]
+          }
+        ],
+        "gap": "原损坏封面、不确定专辑边界、无CUE单文件等问题不能丢失。",
+        "reuseSlice": "浏览墙卡片+详情展示实际问题；原事实不足时不伪造徽标。"
+      },
+      "formalUiMinimum": "全部与损坏图/边界不确定/无CUE单文件问题徽标保留。",
+      "formalOwnerIpcMinimum": "复用localAlbum.query/tracks/artwork实际author albumKey/root/directory/edition/revision/counts/statuses；来源状态与问题事实分域。",
+      "group": "浏览筛选",
+      "requiredOriginalBehaviorEvidence": [
+        "问题与来源状态区分；未知边界独立标记；不得字符串同名并库。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：同名不同根、目录、原始版本与真实发行不合并，MB更正只改变显示和修订"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：CUE-only与拒收目录允许零轨，缺字段与真实元数据读取失败分开，AI取消不算失败"
+        },
+        {
+          "domain": "standard",
+          "caseName": "封面使用安全显示图和lazy加载，图片解码失败可显式重试"
+        }
+      ]
+    },
+    {
+      "id": "CD-17",
+      "title": "专辑音频曲序、格式、时长、原始名称/路径和Finder",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "trackList",
+            "trackRow",
+            "infoField"
+          ]
+        },
+        {
+          "path": "CoverDrop/Domain/Policies/AlbumAudioTrackDisplayItem.swift",
+          "symbols": [
+            "init(audioFile:)"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "openAlbumFolderInFinder"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/FileSystem/FinderAlbumFolderOpener.swift",
+          "symbols": [
+            "openFolder"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "symbols": [
+              "单曲详情与TrackTable"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "selectTrack"
+            ]
+          }
+        ],
+        "gap": "MB需按专辑归属进入曲目；Finder若无既有安全端口不能假装打开。",
+        "reuseSlice": "复用现有TrackTable及真实TrackDetail；外部文件打开交Main端口。"
+      },
+      "formalUiMinimum": "真实归属曲目/曲序/格式/时长/原字段+安全Finder入口，私有路径不入通用公开前缀。",
+      "formalOwnerIpcMinimum": "复用localAlbum.query/tracks/artwork实际author albumKey/root/directory/edition/revision/counts/statuses；来源状态与问题事实分域。",
+      "group": "浏览筛选",
+      "requiredOriginalBehaviorEvidence": [
+        "不提供模拟元数据；未知标题/时长明确降级；目录打开失败保留原页面。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：发行按真实关系的盘号曲序，普通目录不从文件名伪造曲序"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF进入详情读取真实轨道与资产事实、按页追加，并在返回时恢复搜索筛选和滚动"
+        },
+        {
+          "domain": "standard",
+          "caseName": "15项闭集命令执行实际名称/图搜/导入链与原registry；预览不调用writer"
+        }
+      ]
+    },
+    {
+      "id": "CD-18",
+      "title": "本地独立图片检测及内嵌图回退",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Infrastructure/Images/ImageIOCoverDetector.swift",
+          "symbols": [
+            "detectCover",
+            "sortedByCoverPriority",
+            "sortedByHeuristicCoverPriority"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/FileSystem/FileSystemLibraryScanner.swift",
+          "symbols": [
+            "scanAlbum",
+            "firstEmbeddedArtworkCover"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/Metadata/TagLibMetadataReader.swift",
+          "symbols": [
+            "readMetadata"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "packages/bridge-core/src/collection/local-artwork-service.ts",
+            "symbols": [
+              "read"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalArtwork.ts",
+            "symbols": [
+              "lookup"
+            ]
+          },
+          {
+            "path": "packages/bridge-core/src/library/local-artwork-embedded-reader.ts",
+            "symbols": [
+              "内嵌图读取"
+            ]
+          }
+        ],
+        "gap": "MB已有候选读取，但LocalArtworkTarget要求edition，未关联时原流程被阻断。",
+        "reuseSlice": "readAlbums/findArtworkCandidates只读；无edition候选暂存，应用时才创建安全关系。"
+      },
+      "formalUiMinimum": "本地独立图优先/内嵌回退；无edition可只读，浏览不创建edition。",
+      "formalOwnerIpcMinimum": "Owner私有来源→utility/Main闭集→真实nativeImage、nativeChooser、原捕获候选租约、原planRegistry；SOURCE_FILES另走原受保护writer。",
+      "group": "封面",
+      "requiredOriginalBehaviorEvidence": [
+        "普通浏览与候选读取零发行创建；本地/内嵌来源尺寸分别展示。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "专辑只读图：无发行也实读独立PNG，保留源字节与作者表，目录/根切换拒绝旧捕获"
+        },
+        {
+          "domain": "standard",
+          "caseName": "候选暂存按本地独立/内嵌优先排序，但取消或失败不提交选择"
+        },
+        {
+          "domain": "standard",
+          "caseName": "封面预览只冻结真实规范副本，无发行先预览；零Track或本地来源无原identity阻断"
+        }
+      ]
+    },
+    {
+      "id": "CD-19",
+      "title": "原始/清洗/AI名称组成搜索词与复制",
+      "originalSource": [
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "displayNames",
+            "searchKeyword"
+          ]
+        },
+        {
+          "path": "CoverDrop/Domain/Policies/AlbumDisplayNameCleaning.swift",
+          "symbols": [
+            "AlbumDisplayNameCleaning"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "copySearchKeyword",
+            "copyKeyword"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalArtwork.ts",
+            "symbols": [
+              "searchQuery"
+            ]
+          },
+          {
+            "path": "packages/bridge-core/src/library/local-name-rules.ts",
+            "symbols": [
+              "coverSearchKeyword",
+              "resolveAlbumNameCandidates"
+            ]
+          }
+        ],
+        "gap": "规则移植不等于完整名称AI与搜索工作流。",
+        "reuseSlice": "读取专辑原名称供查询，AI候选仅在明确选择后成为建议。"
+      },
+      "formalUiMinimum": "原始/清洗/已明确采用AI名组合可审阅查询与复制；查询身份不改源字段。",
+      "formalOwnerIpcMinimum": "Owner私有来源→utility/Main闭集→真实nativeImage、nativeChooser、原捕获候选租约、原planRegistry；SOURCE_FILES另走原受保护writer。",
+      "group": "封面",
+      "requiredOriginalBehaviorEvidence": [
+        "查询可审阅；失败保留原字段；复制操作不写MB/源。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "名称查询462：同SQL原捕获提供原始与清洗名称，暖冷只读不改源字段且闭集拒额外/getter"
+        },
+        {
+          "domain": "standard",
+          "caseName": "名称查询462：原始清洗与明确所选AI组合可编辑复制，未选建议和查询不改变原字段或派发保存"
+        },
+        {
+          "domain": "standard",
+          "caseName": "名称查询462：复制拒绝保编辑词与明确失败，越界组合不覆盖，切专辑后迟到复制结果不串入新页面"
+        }
+      ]
+    },
+    {
+      "id": "CD-20",
+      "title": "豆瓣+iTunes聚合封面搜索、地区选择、重试",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "loadAggregateSearchResultsIfNeeded",
+            "aggregateSearchToolbar",
+            "aggregateResultsGrid"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/Search/CompositeCoverSearchClient.swift",
+          "symbols": [
+            "searchCovers",
+            "live"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/Search/DoubanCoverSearchClient.swift",
+          "symbols": [
+            "searchCovers"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/Search/ITunesCoverSearchClient.swift",
+          "symbols": [
+            "searchCovers"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/main/music-cover-art-provider.ts",
+            "symbols": [
+              "MusicBrainz/CAA"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/main/commons-artwork-provider.ts",
+            "symbols": [
+              "Commons CC0"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalArtwork.ts",
+            "symbols": [
+              "lookup"
+            ]
+          }
+        ],
+        "gap": "MB基线来源为CAA/Commons；原豆瓣+iTunes聚合未接入，不能宣称原全部来源保留。",
+        "reuseSlice": "强类型来源列表逐项显示availability；共享Main来源需Root协调。"
+      },
+      "formalUiMinimum": "豆瓣+iTunes聚合/地区/来源独立失败与重试；CAA/Commons不代替原来源。",
+      "formalOwnerIpcMinimum": "Owner私有来源→utility/Main闭集→真实nativeImage、nativeChooser、原捕获候选租约、原planRegistry；SOURCE_FILES另走原受保护writer。",
+      "group": "封面",
+      "requiredOriginalBehaviorEvidence": [
+        "来源独立失败逐项显示；取消丢弃迟到候选；候选带实际来源和许可事实。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "聚合保持豆瓣/iTunes真实来源顺序、原地区查询协议与安全JPEG预览"
+        },
+        {
+          "domain": "standard",
+          "caseName": "单源失败保留另一个成功结果；两源确认空与两源失败分开"
+        },
+        {
+          "domain": "standard",
+          "caseName": "封面聚合保留各来源失败和预览失败，独立iTunes重试保留豆瓣结果与地区"
+        }
+      ]
+    },
+    {
+      "id": "CD-21",
+      "title": "豆瓣/Bing/Google网页搜索、刷新与外部浏览器打开",
+      "originalSource": [
+        {
+          "path": "CoverDrop/App/AppConfiguration.swift",
+          "symbols": [
+            "CoverSearch.defaultSources"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "CoverSearchWebView",
+            "sourceTabs",
+            "openExternally",
+            "urlBar"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalArtwork.ts",
+            "symbols": [
+              "supportedProviders"
+            ]
+          }
+        ],
+        "gap": "MB没有原网页搜索与图片URL捕获完整入口；不能用CAA替代后关单。",
+        "reuseSlice": "工作台来源登记保留不可用解释；安全网页端口由Main单独实现。"
+      },
+      "formalUiMinimum": "豆瓣/Bing/Google页/刷新/外部打开与私有图片捕获，Main受控导航。",
+      "formalOwnerIpcMinimum": "Owner私有来源→utility/Main闭集→真实nativeImage、nativeChooser、原捕获候选租约、原planRegistry；SOURCE_FILES另走原受保护writer。",
+      "group": "封面",
+      "requiredOriginalBehaviorEvidence": [
+        "来源未接入明确不可用；无凭据/上游私密URL进Renderer；外部打开有真实回执。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "网页搜索保留应用内与显式外部两个端口，只导航固定来源和编码关键词"
+        },
+        {
+          "domain": "standard",
+          "caseName": "受控网页内嵌与显式外部入口分别保留，手动远程导入只返回安全候选"
+        }
+      ],
+      "current002Readback": {
+        "implementation": "630时点的网页拖图捕获缺口现已补齐：自有内嵌隔离world仅接收可信dragstart；原Main导航UUID及逐次有界序号绑定原完整capture，30秒内仅消费一次，并等待原读producer与窗口实际关闭。豆瓣/Bing/Google导航、刷新和显式外部入口保留。",
+        "codeRefs": [
+          {
+            "path": "apps/desktop/src/main/index.ts",
+            "lines": "1185–1235"
+          },
+          {
+            "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-web-navigation.ts",
+            "lines": "43–55、117–142"
+          },
+          {
+            "path": "apps/desktop/src/main/local-library-workbench/service.ts",
+            "lines": "455–506"
+          }
+        ],
+        "missingCode": "630历史缺口已实际补齐；当前受控核验未发现上述授权范围内的新缺代码项。真实Electron网页拖放仍缺运行验证。",
+        "remaining": "受控Main/provider/SFC及实际hook组合111/111通过；完整Main当前8/9，导入目录摘要不一致已窄修待复验，关闭次因尚未解决。正式Source/CI、真实网页拖放、应用及Owner未闭。",
+        "standard630ExistingReferences": {
+          "passed": 2,
+          "declared": 2,
+          "layer": "630历史源码局部标准例；保留原通过，不授当前Source/联合/Owner资格"
+        }
+      }
+    },
+    {
+      "id": "CD-22",
+      "title": "文件选择与图片拖放（含图片数据/远程URL）",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "chooseCoverImage",
+            "CoverDropReceiver.receive",
+            "dropZone",
+            "cacheCapturedWebImage"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "stageCoverImageData",
+            "stageDroppedCoverURL",
+            "stageRemoteCoverImage"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/CoverDropRemoteURLExtractor.swift",
+          "symbols": [
+            "CoverDropRemoteURLExtractor"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalArtwork.ts",
+            "symbols": [
+              "lookup"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/main/local-artwork-ipc.ts",
+            "symbols": [
+              "stage",
+              "lookup"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/preload/local-artwork-client.ts",
+            "symbols": [
+              "createLocalArtworkClient"
+            ]
+          }
+        ],
+        "gap": "MB手选/bytes流程存在但edition阻断；原WebP和网页远程URL不等于MB当前PNG/JPEG资格。",
+        "reuseSlice": "封面可注入文件/bytes端口；遵循现有大小/MIME验证，未支持格式明确提示。"
+      },
+      "formalUiMinimum": "原生图片选择/bytes拖入/远程URL；按真实格式资格呈现，取消关闭原资源。",
+      "formalOwnerIpcMinimum": "Owner私有来源→utility/Main闭集→真实nativeImage、nativeChooser、原捕获候选租约、原planRegistry；SOURCE_FILES另走原受保护writer。",
+      "group": "封面",
+      "requiredOriginalBehaviorEvidence": [
+        "取消选文件保持当前选择；拖入只产生候选；源图/音频不改。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "取消后迟到的原生文件仍关闭许可；取消面板读取不会撤回原应用"
+        },
+        {
+          "domain": "standard",
+          "caseName": "真实工作台拖入HTTPS与粘贴data URI只发Main规范化合同，路径或凭据地址拒绝且没有保存"
+        },
+        {
+          "domain": "standard",
+          "caseName": "TIFF/WebP转换JPEG后再走旧严格管线，公开original不会冒称原输入"
+        }
+      ],
+      "current002Readback": {
+        "implementation": "630时点的同次URL回退缺口现已补齐：第一个await前固定同次DataTransfer文本及原网页引用，合格File bytes优先，无有效bytes时才回退同次合格HTTPS/data URI或原可信捕获；Main bytes失败不派第二请求，关闭/重开/换capture等ABA拒迟到。原生选图与明确预览保存保留。",
+        "codeRefs": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalLibraryWorkbench.vue",
+            "lines": "68–135"
+          },
+          {
+            "path": "apps/desktop/src/main/local-library-workbench/service.ts",
+            "lines": "455–506"
+          }
+        ],
+        "missingCode": "630历史缺口已实际补齐；当前未发现同次文本/bytes优先/无bytes回退及ABA保护的缺代码项。真实应用拖放仍待验证。",
+        "remaining": "对应受控组合111/111通过，原取消、格式与大小负例保留；完整Main当前8/9，正式Source/CI、真实应用/Owner未闭。",
+        "standard630ExistingReferences": {
+          "passed": 3,
+          "declared": 3,
+          "layer": "630历史源码局部标准例；保留原通过，不授当前Source/联合/Owner资格"
+        }
+      }
+    },
+    {
+      "id": "CD-23",
+      "title": "当前封面与待保存封面预览、候选比较/撤销",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "pendingCoverURL",
+            "displayedCoverURL",
+            "panelAlbumInfo"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "pendingCoverURL",
+            "cancelPendingCoverImage"
+          ]
+        },
+        {
+          "path": "CoverDrop/Domain/Models/AlbumCoverWorkflowPresentationState.swift",
+          "symbols": [
+            "AlbumCoverWorkflowPresentationState"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalArtwork.ts",
+            "symbols": [
+              "selectCandidate",
+              "toggleComparison",
+              "comparisonCandidates"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalArtworkDialog.vue",
+            "symbols": [
+              "候选比较"
+            ]
+          }
+        ],
+        "gap": "原可比较当前/待保存；MB额外候选对比存在但专辑入口不通。",
+        "reuseSlice": "工作台同时展示当前与候选；最多两个候选比较，预览和保存分开。"
+      },
+      "formalUiMinimum": "当前/候选/待保存比较撤销；只选择不自动apply，不用display图冒充original。",
+      "formalOwnerIpcMinimum": "Owner私有来源→utility/Main闭集→真实nativeImage、nativeChooser、原捕获候选租约、原planRegistry；SOURCE_FILES另走原受保护writer。",
+      "group": "封面",
+      "requiredOriginalBehaviorEvidence": [
+        "选择图片不自动保存；取消回到原封面；对比以真实候选尺寸来源显示。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "工作台无发行也能读取候选；选择与预览不应用，只有明确保存派发一次"
+        },
+        {
+          "domain": "standard",
+          "caseName": "实际工作台局部撤销封面按钮保留歌词及AI候选和选择，回显原图且零apply"
+        },
+        {
+          "domain": "standard",
+          "caseName": "封面重建只按dataset/plan/候选精确恢复不同于缩略图的原图，不下载、不执行或补签"
+        }
+      ]
+    },
+    {
+      "id": "CD-24",
+      "title": "明确保存封面与源cover.jpg写入",
+      "originalSource": [
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "savePendingCoverImage",
+            "writeCoverImage",
+            "prepareCoverWriteAccess"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/Images/ImageIOCoverImageWriter.swift",
+          "symbols": [
+            "writeCoverImage",
+            "writeCoverImageSynchronously"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalArtwork.ts",
+            "symbols": [
+              "save"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalSourceWrites.ts",
+            "symbols": [
+              "confirm"
+            ]
+          },
+          {
+            "path": "packages/bridge-core/src/collection/local-source-writes-service.ts",
+            "symbols": [
+              "createLocalSourceWritesService"
+            ]
+          }
+        ],
+        "gap": "原直接覆盖cover.jpg；MB需区分MB选择与精确SOURCE_FILES计划，默认OFF。",
+        "reuseSlice": "MB封面选择通过安全关系计划；源封面保存继续原012资格/grant/备份/journal/回读。"
+      },
+      "formalUiMinimum": "MB_ONLY与源cover.jpg明确分域，源写默认OFF/具体计划/锁/日志/备份恢复。",
+      "formalOwnerIpcMinimum": "Owner私有来源→utility/Main闭集→真实nativeImage、nativeChooser、原捕获候选租约、原planRegistry；SOURCE_FILES另走原受保护writer。",
+      "group": "封面",
+      "requiredOriginalBehaviorEvidence": [
+        "预览之前不派发应用；应用仅一次原command；未知保留恢复材料不重签。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "原命令先CAS持久化才调用受保护writer；选择/预览零执行，重复apply不重派"
+        },
+        {
+          "domain": "standard",
+          "caseName": "unknown保留原请求；重建registry不执行，恢复只能读同一原回执"
+        },
+        {
+          "domain": "standard",
+          "caseName": "封面真实副本随冻结捕获持久化，后改候选/错hash不能替换原计划图"
+        }
+      ]
+    },
+    {
+      "id": "CD-25",
+      "title": "专辑移除/源离线、保存失败及迟到暂存保护",
+      "originalSource": [
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "removeAlbumIfFolderMissing",
+            "beginCoverStagingRequest",
+            "isCurrentCoverStagingRequest",
+            "invalidateCoverStagingRequests"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "checkAlbumRemoval",
+            "removedAlbumState"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalArtwork.ts",
+            "symbols": [
+              "receiveContext",
+              "cancelLookup",
+              "open",
+              "reconcile"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "detailStale",
+              "refreshOutbox"
+            ]
+          }
+        ],
+        "gap": "现有代际围栏可复用；要覆盖新专辑上下文与多项批次。",
+        "reuseSlice": "统一读取代际和原请求回执锁，离页不宣称应用被取消。"
+      },
+      "formalUiMinimum": "离线/移除/失败保留；dataset/epoch/childgeneration及原capture前后围栏，unknown只查原body。",
+      "formalOwnerIpcMinimum": "Owner私有来源→utility/Main闭集→真实nativeImage、nativeChooser、原捕获候选租约、原planRegistry；SOURCE_FILES另走原受保护writer。",
+      "group": "封面",
+      "requiredOriginalBehaviorEvidence": [
+        "换专辑后迟到响应零覆盖；读取取消与未知应用分别处理。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "工作台换专辑后丢弃旧封面读取和旧预览，取消选文件保留已保存封面"
+        },
+        {
+          "domain": "standard",
+          "caseName": "离线仍回读原事实，名称请求明确不可用；错误引用不变为新捕获"
+        },
+        {
+          "domain": "standard",
+          "caseName": "捕获、工作库、TTL及字节预算围栏拒绝候选复用，不签发替代计划"
+        },
+        {
+          "domain": "standard",
+          "caseName": "工作台未知应用保留原请求，仅查原回执，不新签或再次confirm"
+        }
+      ]
+    },
+    {
+      "id": "CD-26",
+      "title": "单张专辑名称AI（含已有封面）",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "requestAlbumNameEnhancement",
+            "infoField"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "requestAlbumNameEnhancement(forAlbumID:)",
+            "processAlbumNameEnhancement"
+          ]
+        },
+        {
+          "path": "CoverDrop/Domain/Protocols/AlbumNameSuggesting.swift",
+          "symbols": [
+            "suggestAlbumName"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalOrganizer.ts",
+            "symbols": [
+              "手工字段更正"
+            ]
+          }
+        ],
+        "gap": "MB手工表单与分组建议不等于原模型解析；缺专辑AI后端。",
+        "reuseSlice": "suggestAlbumName端口返回候选、理由、before/after；明确选候选再预览MB更正。"
+      },
+      "formalUiMinimum": "已有封面也可单张AI；候选/理由/原字段预览，明确应用。",
+      "formalOwnerIpcMinimum": "Main真实name transport与Owner capture/name preparation/plan/queue；模型配置/vault/真实stop卸载，不能只展示capability。",
+      "group": "名称AI",
+      "requiredOriginalBehaviorEvidence": [
+        "真实AI候选可审阅；无后端显示不可用；建议阶段零写入。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "工作台实际模板展示AI候选理由、前后字段及明确保存；无手工AI替代表单"
+        },
+        {
+          "domain": "standard",
+          "caseName": "整理只读捕获真实原inspect/catalog/scan事实，模型仅取原名称/目录/字段，预览不执行"
+        },
+        {
+          "domain": "standard",
+          "caseName": "格式与能力按真实资格判断，离线和未接入不会生成假候选或触发transport"
+        }
+      ]
+    },
+    {
+      "id": "CD-27",
+      "title": "明确批量AI、进度、失败逐项、停止与资源释放",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryHomeView.swift",
+          "symbols": [
+            "libraryContextMenu"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "requestAlbumNameEnhancement(forLibraryID:)",
+            "stopAlbumNameEnhancement",
+            "dequeueAlbumNameEnhancementItem",
+            "releaseAlbumNameSuggestingResourcesIfNeeded"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalOrganizer.ts",
+            "symbols": [
+              "batch手工整理"
+            ]
+          }
+        ],
+        "gap": "原批处理默认仅缺封面，单项优先；MB缺对应模型队列及逐项结果。",
+        "reuseSlice": "工作台对明确选择的专辑顺序请求，取消未开始/当前项，保留已完成建议。"
+      },
+      "formalUiMinimum": "原批量默认缺封面、单张优先、逐项失败/进度、stop真实请求与模型卸载；不能用选中100张循环关单。",
+      "formalOwnerIpcMinimum": "Main真实name transport与Owner capture/name preparation/plan/queue；模型配置/vault/真实stop卸载，不能只展示capability。",
+      "group": "名称AI",
+      "requiredOriginalBehaviorEvidence": [
+        "一项失败后继续后续项；取消与失败区分；取消后迟到成功不进入候选。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "全库AI先取完整Owner捕获，missing-cover不截501张到UI当前页并保原job读取"
+        },
+        {
+          "domain": "standard",
+          "caseName": "工作台AI失败逐项保留并继续下一项；候选必须明确选择后才能预览"
+        },
+        {
+          "domain": "standard",
+          "caseName": "工作台取消批次后未开始项与当前项可见，迟到AI候选不覆盖原内容"
+        },
+        {
+          "domain": "standard",
+          "caseName": "426真实异步job停止先abort再join，原stop/selection冷恢复，resume不改start"
+        },
+        {
+          "domain": "standard",
+          "caseName": "stop 串行取消正在读取的流、阻断忙时新请求，完成卸载后才结束"
+        }
+      ],
+      "current002Readback": {
+        "implementation": "完整多专辑AI批次已存在：Renderer先取原全库capture；Owner从原capture展开明确选择或缺封面全集并持久原start/expandedSelection；全失败重试分页核完整集合和原job/capture。",
+        "codeRefs": [
+          {
+            "path": "packages/bridge-core/src/collection/local-library-workbench/read-service.ts",
+            "lines": "976–990"
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/library.ts",
+            "lines": "188–214"
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/library.ts",
+            "lines": "243–263"
+          }
+        ],
+        "remaining": "原批次局部行为通过保留；630 Main在全库捕获首请求即超时，未证明同一次实际Main/唯一Owner完整组启动、停止、重试与清理联合通过；真实应用/Owner未闭。",
+        "standard630ExistingReferences": {
+          "passed": 5,
+          "declared": 5,
+          "layer": "WIP当前标准局部例；不授Source/联合/Owner资格"
+        }
+      }
+    },
+    {
+      "id": "CD-28",
+      "title": "Ollama端点、模型、流式解析与批次卸载",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/Settings/AppSettingsView.swift",
+          "symbols": [
+            "localEnhancementCard",
+            "saveEnhancementSettings"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/LLM/OllamaAlbumNameSuggesting.swift",
+          "symbols": [
+            "suggestAlbumName",
+            "receiveStreamingContent",
+            "releaseResources"
+          ]
+        },
+        {
+          "path": "CoverDrop/Domain/Policies/AlbumNameEnhancementPrompts.swift",
+          "symbols": [
+            "AlbumNameEnhancementPrompts"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [],
+        "gap": "本地AI设置/HTTP执行未见MB正式端口；Renderer不能直接直连端点。",
+        "reuseSlice": "后端独立local AI服务由Root协调；工作台只传backend=ollama与具体专辑读取身份。"
+      },
+      "formalUiMinimum": "真实Ollama配置端点/模型/流式解析与资源卸载；Renderer不直连。",
+      "formalOwnerIpcMinimum": "Main真实name transport与Owner capture/name preparation/plan/queue；模型配置/vault/真实stop卸载，不能只展示capability。",
+      "group": "名称AI",
+      "requiredOriginalBehaviorEvidence": [
+        "Ollama失败呈现可恢复原因；源数据未写；端点/模型配置真实回读。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "Ollama 保留原 api/chat、名称 schema、thinking 忽略及显式卸载协议"
+        },
+        {
+          "domain": "standard",
+          "caseName": "取消阻断晚到正文，并用新的未取消信号卸载原 Ollama 模型"
+        },
+        {
+          "domain": "standard",
+          "caseName": "Main 名称设置完整 CAS 串行保存、冷回读并按原命令返回原结果"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "实际AI Settings修改模型并显式保存，安全输入按钮零密码字段且只发Main有限命令"
+        }
+      ]
+    },
+    {
+      "id": "CD-29",
+      "title": "vLLM OpenAI兼容解析与本地配置",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/Settings/AppSettingsView.swift",
+          "symbols": [
+            "vllmEnhancementCard"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/LLM/OpenAICompatibleAlbumNameSuggesting.swift",
+          "symbols": [
+            "endpointURL",
+            "suggestAlbumName"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/LLM/SwitchableAlbumNameSuggesting.swift",
+          "symbols": [
+            "suggestAlbumName"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [],
+        "gap": "MB无vLLM名称解析流程；手工字段不能替代。",
+        "reuseSlice": "独立backend=vllm端口，共享建议解析和取消语义。"
+      },
+      "formalUiMinimum": "真实vLLM兼容设置/解析/失败恢复，独立后端绑定。",
+      "formalOwnerIpcMinimum": "Main真实name transport与Owner capture/name preparation/plan/queue；模型配置/vault/真实stop卸载，不能只展示capability。",
+      "group": "名称AI",
+      "requiredOriginalBehaviorEvidence": [
+        "响应必须有明确字段与理由；模型配置错误逐项失败；无服务不假成功。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "vLLM 无凭据可用，云端凭据仅进入 Main Authorization，路径不重复 v1"
+        },
+        {
+          "domain": "standard",
+          "caseName": "兼容 SSE 注释、保活、裸 JSON、finish_reason 与跨块 UTF8"
+        },
+        {
+          "domain": "standard",
+          "caseName": "名称AI兼容原artistName/albumName两键；理由明确标为来源说明"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "NAME真实桥：原trusted start经Owner受理后才调用同Main配置，完整分块EOF与SHA保留原job正文"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "NAME真实桥：未配置或无原start不得调用后端，跨Owner与整wire摘要改变拒绝并收口原资源"
+        }
+      ]
+    },
+    {
+      "id": "CD-30",
+      "title": "云端OpenAI兼容名称解析与钥匙串设置",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/Settings/AppSettingsView.swift",
+          "symbols": [
+            "cloudEnhancementCard",
+            "saveAPIKey"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/LLM/OpenAICompatibleAlbumNameSuggesting.swift",
+          "symbols": [
+            "makeRequest",
+            "suggestAlbumName"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/Persistence/KeychainAPIKeyStore.swift",
+          "symbols": [
+            "loadAPIKey",
+            "saveAPIKey"
+          ]
+        },
+        {
+          "path": "CoverDrop/Domain/Models/AppSettings.swift",
+          "symbols": [
+            "NameEnhancement.Backend.cloud"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [],
+        "gap": "这是固定源实际入口；本轮要求优先本地Ollama/vLLM，云端仍是完整迁入carryover，不能漏计。",
+        "reuseSlice": "保留映射与明确未接入状态；凭据只能本地安全通道，未经Root计划不扩展联网。"
+      },
+      "formalUiMinimum": "原云端兼容设置/解析迁入仍开放；只安全vault通道，不取/写凭据到Renderer/chat/report。",
+      "formalOwnerIpcMinimum": "Main真实name transport与Owner capture/name preparation/plan/queue；模型配置/vault/真实stop卸载，不能只展示capability。",
+      "group": "名称AI",
+      "requiredOriginalBehaviorEvidence": [
+        "UI准确说明当前云端不可用；不接受聊天/Renderer凭据；未完成不计完整迁入。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "云端缺凭据、非法凭据和凭据解析异常均不发请求，也不输出 secret"
+        },
+        {
+          "domain": "standard",
+          "caseName": "Main 安全输入只写加密保险库，公开值和配置文件无密钥且新端点不继承密钥"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "实际AI Settings修改模型并显式保存，安全输入按钮零密码字段且只发Main有限命令"
+        },
+        {
+          "domain": "standard",
+          "caseName": "格式与能力按真实资格判断，离线和未接入不会生成假候选或触发transport"
+        }
+      ]
+    },
+    {
+      "id": "CD-31",
+      "title": "名称清洗、原始名保留和建议快照持久化",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Domain/Policies/AlbumNameCleaning.swift",
+          "symbols": [
+            "AlbumNameCleaning"
+          ]
+        },
+        {
+          "path": "CoverDrop/Domain/Policies/AlbumDisplayNameCleaning.swift",
+          "symbols": [
+            "AlbumDisplayNameCleaning"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "displayNames",
+            "saveNewScanSnapshot",
+            "scheduleActiveScanSnapshotUpdate"
+          ]
+        },
+        {
+          "path": "CoverDrop/Domain/Models/ScanSnapshot.swift",
+          "symbols": [
+            "albumNameEnhancement"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "packages/bridge-core/src/library/local-name-rules.ts",
+            "symbols": [
+              "cleanArtistName",
+              "cleanAlbumName",
+              "resolveAlbumNameCandidates"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalOrganizer.ts",
+            "symbols": [
+              "preview",
+              "save"
+            ]
+          }
+        ],
+        "gap": "原在建议返回后更新展示快照；新流程需候选选择/预览/明确应用，不能改变源证据。",
+        "reuseSlice": "复用清洗规则，最终MB_ONLY Organizer保存；SourceEvidence保持原始。"
+      },
+      "formalUiMinimum": "原raw/display/采用建议独立、快照持久化；未应用不覆盖，历史hash不重写。",
+      "formalOwnerIpcMinimum": "Main真实name transport与Owner capture/name preparation/plan/queue；模型配置/vault/真实stop卸载，不能只展示capability。",
+      "group": "名称AI",
+      "requiredOriginalBehaviorEvidence": [
+        "AI未应用保持原展示；最终预览显示字段变化；不改旧hash/历史绑定。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "名称候选应用预览保留before/after、人工锁阻断，预览本身不修改原字段"
+        },
+        {
+          "domain": "standard",
+          "caseName": "MBF分组：同名不同根、目录、原始版本与真实发行不合并，MB更正只改变显示和修订"
+        },
+        {
+          "domain": "standard",
+          "caseName": "Library原AI job固定selection与capture，状态delta冷续链且UNKNOWN只读不换UUID重发"
+        },
+        {
+          "domain": "standard",
+          "caseName": "CD31真实SQL名称建议及冷计划历史零展示更改，明确原capture的AI apply仅改MB effective且保raw版本和旧hash"
+        },
+        {
+          "domain": "standard",
+          "caseName": "CD31真实SQL错capture或改原hash零派写，未注册AI品牌的合法计划也不能保存名称"
+        },
+        {
+          "domain": "standard",
+          "caseName": "CD31名称清洗沿原规则保Live纯年份与Remaster原版本，技术展示清洗不修改原捕获或模型字段"
+        }
+      ]
+    },
+    {
+      "id": "CD-32",
+      "title": "CUE解析、帧区间、pregap与轨道命名",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Infrastructure/Metadata/CueTrackParser.swift",
+          "symbols": [
+            "parseCueSheet"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/Audio/FFmpegCueTrackSplitter.swift",
+          "symbols": [
+            "slice"
+          ]
+        },
+        {
+          "path": "CoverDrop/Domain/Policies/CueTrackFrameMath.swift",
+          "symbols": [
+            "CueTrackFrameMath"
+          ]
+        },
+        {
+          "path": "CoverDrop/Domain/Policies/CueTrackNaming.swift",
+          "symbols": [
+            "defaultFilename",
+            "uniqueFilename"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "partial",
+        "currentMB": [
+          {
+            "path": "packages/bridge-core/src/library/cue-text-reader.ts",
+            "symbols": [
+              "parseCueText"
+            ]
+          },
+          {
+            "path": "packages/bridge-core/src/library/cue-sidecar-reader.ts",
+            "symbols": [
+              "CUE旁车读取"
+            ]
+          }
+        ],
+        "gap": "MB已有只读CUE文本事实与段落保护；MBRS-004仅名称/目录规则，没有移植FFmpeg分轨产物流程。",
+        "reuseSlice": "独立CUE预览端口返实际轨序、startFrame/frameCount、格式、输出目标。"
+      },
+      "formalUiMinimum": "真实CUE帧/pregap/命名预览，区间核源时长/采样率。",
+      "formalOwnerIpcMinimum": "Owner实际CUE/PCM探测→独立目标许可→native encoder/TagLib轨标签→真实输出回读；源保持、原计划恢复、不新签。",
+      "group": "CUE",
+      "requiredOriginalBehaviorEvidence": [
+        "帧区间非负且在源时长内；pregap策略来自后端；段落身份可审阅。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "CUE纯计划消费实际解析CD75索引，保留原首轨/后轨pregap与末轨总帧语义"
+        },
+        {
+          "domain": "standard",
+          "caseName": "CUE严格拒绝越界、空轨、重叠和非CD75时间基"
+        },
+        {
+          "domain": "native",
+          "caseName": "CUE输入：同stem多FILE与Unicode精确关联实际PCM，CD75/pregap/末轨完整绑定"
+        }
+      ]
+    },
+    {
+      "id": "CD-33",
+      "title": "单整轨CUE生成分轨文件与输出标签",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "cueSheetRow",
+            "splitCueSheet"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "splitCueSheetInPlace"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/Audio/FFmpegCueTrackSplitter.swift",
+          "symbols": [
+            "runSplitting",
+            "splitRange",
+            "encoderName",
+            "fileExtension"
+          ]
+        },
+        {
+          "path": "CoverDrop/Infrastructure/Metadata/TagLibTrackTagger.swift",
+          "symbols": [
+            "writeTrackTags"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "symbols": [
+              "基线无独立分轨输出入口"
+            ]
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "段落播放保护"
+            ]
+          }
+        ],
+        "gap": "原同目录输出且生成轨级标签；MB缺独立输出执行服务。本次源保持不变。",
+        "reuseSlice": "previewCueSplit/applyPlan接独立输出服务；输出格式由后端资格决定，显示真实轨序目标。"
+      },
+      "formalUiMinimum": "原CUE单整轨在独立目标生成实际轨文件+标签/逐轨回执，预览零写源。",
+      "formalOwnerIpcMinimum": "Owner实际CUE/PCM探测→独立目标许可→native encoder/TagLib轨标签→真实输出回读；源保持、原计划恢复、不新签。",
+      "group": "CUE",
+      "requiredOriginalBehaviorEvidence": [
+        "预览不生成音频；明确应用后只写独立目标；每轨回执/失败可见；不覆盖源。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "工作台CUE先预览实际轨序分段格式与目标，明确应用后保留逐轨部分失败"
+        },
+        {
+          "domain": "native",
+          "caseName": "CUE八族实际编码、Unicode标签与图片、无损等值及有损质量、完整解码EOF和物理关闭"
+        },
+        {
+          "domain": "native",
+          "caseName": "CUE实际独立输出原回执、品牌恢复和SQLite冷回读保持原命令，不重编码或覆盖同名外部文件"
+        }
+      ]
+    },
+    {
+      "id": "CD-34",
+      "title": "未分轨专辑多选/全选及顺序分轨",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "albumGrid",
+            "splitUnsplitAlbums"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/UnsplitAlbumSelection.swift",
+          "symbols": [
+            "UnsplitAlbumSelection"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/useLocalLibrary.ts",
+            "symbols": [
+              "selectedTrackIds"
+            ]
+          }
+        ],
+        "gap": "MB曲目多选不能代替原专辑CUE批次；需选定专辑与具体CUE。",
+        "reuseSlice": "工作台albums选择+每专辑具体cueId；批次取消及逐项状态。"
+      },
+      "formalUiMinimum": "明确未分轨专辑多选/全选与具体CUE顺序批次，一项失败与cancel保留已写输出。",
+      "formalOwnerIpcMinimum": "Owner实际CUE/PCM探测→独立目标许可→native encoder/TagLib轨标签→真实输出回读；源保持、原计划恢复、不新签。",
+      "group": "CUE",
+      "requiredOriginalBehaviorEvidence": [
+        "全选仅当前明确显示的合格集合；一项失败不被总成功覆盖；取消不删已产生输出。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "普通单击仍进专辑，Cmd/Ctrl和Shift多选保留CUE/零曲目及批量真实身份"
+        },
+        {
+          "domain": "standard",
+          "caseName": "全库CUE明确all-unsplit不传页面100选项；超时只查原job，完整分页失败集合再恢复"
+        },
+        {
+          "domain": "standard",
+          "caseName": "工作台CUE先预览实际轨序分段格式与目标，明确应用后保留逐轨部分失败"
+        },
+        {
+          "domain": "native",
+          "caseName": "CUE输入：99轨×100专辑完整计划不截尾，轨组FILE及32MiB边界整组拒绝"
+        },
+        {
+          "domain": "standard",
+          "caseName": "CUE465完整多专辑纯计划：原选择顺序与每专辑轨顺序、源绑定逐件保留"
+        },
+        {
+          "domain": "standard",
+          "caseName": "CUE465取消持久协议：原published子集与逐项回执一致，pending不能伪physicalClosed"
+        },
+        {
+          "domain": "native",
+          "caseName": "CUE实际独立输出原回执、品牌恢复和SQLite冷回读保持原命令，不重编码或覆盖同名外部文件"
+        }
+      ],
+      "current002Readback": {
+        "implementation": "完整多专辑CUE选定/全未分轨批次已存在：原capture枚举全部合格专辑及实际cueId；不确定CUE保review，Renderer发原selected/all-unsplit请求，全失败重试核完整原集合。",
+        "codeRefs": [
+          {
+            "path": "packages/bridge-core/src/collection/local-library-workbench/read-service.ts",
+            "lines": "976–990"
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/library.ts",
+            "lines": "191–214"
+          },
+          {
+            "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/library.ts",
+            "lines": "243–263"
+          }
+        ],
+        "remaining": "原CUE局部行为与独立Native分层证据保留；630 Main未完成第一笔完整库捕获，完整批次与十actor清理联合未闭，真实应用/Owner未闭。",
+        "standard630ExistingReferences": {
+          "passed": 5,
+          "declared": 5,
+          "layer": "WIP当前标准局部例；不授Source/联合/Owner资格"
+        }
+      }
+    },
+    {
+      "id": "CD-35",
+      "title": "分轨编码保持、冷门编码回退与无覆盖输出名",
+      "originalSource": [
+        {
+          "path": "CoverDrop/Infrastructure/Audio/FFmpegCueTrackSplitter.swift",
+          "symbols": [
+            "encoderName",
+            "fileExtension",
+            "runSplitting"
+          ]
+        },
+        {
+          "path": "CoverDrop/Domain/Policies/CueTrackNaming.swift",
+          "symbols": [
+            "uniqueFilename"
+          ]
+        }
+      ],
+      "historicalMatrixOnly": {
+        "baselineStatus": "missing",
+        "currentMB": [],
+        "gap": "原支持多种编码/扩展名并默认冷门FLAC；MB实际输出资格未实现，不能给模拟格式菜单。",
+        "reuseSlice": "formats由端口公开能力返回；预览显示最终编码与冲突后文件名。"
+      },
+      "formalUiMinimum": "真实多种编码保持/冷门FLAC回退/无覆盖名资格；菜单不等于native已支持。",
+      "formalOwnerIpcMinimum": "Owner实际CUE/PCM探测→独立目标许可→native encoder/TagLib轨标签→真实输出回读；源保持、原计划恢复、不新签。",
+      "group": "CUE",
+      "requiredOriginalBehaviorEvidence": [
+        "仅已支持格式可选；输出目标与源根分离；文件名冲突预览明确阻断或安全派生。"
+      ],
+      "currentFullFormalCompletion": "NOT_ESTABLISHED_BY_STATIC_READBACK",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "CUE资格来自实际编码/标签/音频回读，未资格格式和错误扩展拒绝"
+        },
+        {
+          "domain": "standard",
+          "caseName": "CUE拒绝变化修订/额外源/伪造目标，标签只描述新独立产物"
+        },
+        {
+          "domain": "native",
+          "caseName": "CUE八族实际编码、Unicode标签与图片、无损等值及有损质量、完整解码EOF和物理关闭"
+        },
+        {
+          "domain": "native",
+          "caseName": "CUE实际独立输出原回执、品牌恢复和SQLite冷回读保持原命令，不重编码或覆盖同名外部文件"
+        },
+        {
+          "domain": "standard",
+          "caseName": "CUE465纯输出选择：保留现有源编码，输出未资格时只在FLAC与原精度资格内回退"
+        },
+        {
+          "domain": "standard",
+          "caseName": "CUE465纯输出名：NFC和大小写冲突安全派生且预览原输入保持不变"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "CD35正常Scan495：默认APE拒绝保持，显式冷门读取经真实Worker建立同SQL资产与CUE引用并冷读原事实"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "CD35正常Scan495：坏头与收紧预算不建资产，取消等实际Worker和FD闭口后不接纳迟到事实"
+        }
+      ]
+    },
+    {
+      "id": "CD-L01",
+      "title": "单专辑缺词查询",
+      "currentDelta": {
+        "id": "CD-L01",
+        "能力": "单专辑缺歌词匹配与多来源查询",
+        "入口": [
+          "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift:1572"
+        ],
+        "执行": [
+          "CoverDrop/App/AppModel+AlbumLyrics.swift:16",
+          "CoverDrop/App/LyricsWorkflow.swift:151",
+          "CoverDrop/App/AppEnvironment.swift:81"
+        ],
+        "来源": [
+          "网易云",
+          "QQ音乐",
+          "酷狗",
+          "酷我",
+          "LRCLIB"
+        ],
+        "新增迁移缺口": true
+      },
+      "formalUiMinimum": "LocalLyricsReview + lyrics模块，查询保track/root/file/language/version/live/duration身份；网易云/QQ/酷狗/酷我/LRCLIB独立结果。",
+      "formalOwnerIpcMinimum": "新增typed Owner query/candidate/read/cancel；播放器getLyrics不是该服务。",
+      "requiredBehaviorEvidence": "原整轨数量规则跳过、offline保unknown、歧义需选择、换root/album/epoch或cancel后迟到不显示。",
+      "status": "CURRENT_SWIFT_SOURCE_PRESENT_FORMAL_MB_INTEGRATION_AND_VALIDATION_OPEN",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "歌词已有本地歌词与整轨跳过，offline保unknown不伪未找到"
+        },
+        {
+          "domain": "standard",
+          "caseName": "五歌词来源分别解析原响应和正文并保完整UTF8身份"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词换root或epoch后迟到回调不能发布候选"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "同Owner五源桥：前四个start响应延迟时第五源仍完成完整EOF与摘要，并分别join原流"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词等分歧义必须review且选择候选仍零写"
+        }
+      ]
+    },
+    {
+      "id": "CD-L02",
+      "title": "候选正文预览选择",
+      "currentDelta": {
+        "id": "CD-L02",
+        "能力": "候选正文预览与明确选择",
+        "入口": [
+          "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift:1480",
+          "CoverDrop/Features/Lyrics/AlbumTrackLyricsAccessory.swift:3"
+        ],
+        "执行": [
+          "CoverDrop/App/LyricsWorkflow.swift:257"
+        ],
+        "新增迁移缺口": true
+      },
+      "formalUiMinimum": "实际title/artist/album/duration/source/body；推荐/待确认/未找到/请求失败/已有词区别。",
+      "formalOwnerIpcMinimum": "同capture候选租约与正文预算；选择只更新ID，零LRC/embed/快照写。",
+      "requiredBehaviorEvidence": "真实渲染候选与明确选择；有候选不算本地已有，旧candidate不绑新track。",
+      "status": "CURRENT_SWIFT_SOURCE_PRESENT_FORMAL_MB_INTEGRATION_AND_VALIDATION_OPEN",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "歌词查询先受理后只读轮询，候选预览选择零写"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "真实歌词组件点击查询/正文/候选选择，来源失败与现场版本可见且没有保存写入"
+        },
+        {
+          "domain": "standard",
+          "caseName": "真实歌词候选行和正文显示来源自身artist/album/0秒，空album与null不借当前专辑"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词候选绑定原session与track，合法scope键顺序不影响身份"
+        }
+      ]
+    },
+    {
+      "id": "CD-L03",
+      "title": "同名LRC独占保存拒覆盖",
+      "currentDelta": {
+        "id": "CD-L03",
+        "能力": "明确保存同名LRC且拒绝覆盖，失败保留待保存状态",
+        "入口": [
+          "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift:1534"
+        ],
+        "执行": [
+          "CoverDrop/App/AppModel+AlbumLyrics.swift:43",
+          "CoverDrop/App/LyricsWorkflow.swift:266",
+          "CoverDrop/Infrastructure/Lyrics/LocalLyricsFileStore.swift:126"
+        ],
+        "新增迁移缺口": true
+      },
+      "formalUiMinimum": "共同Save gate后明确保存，失败保pending；disk成功与DB快照失败分开。",
+      "formalOwnerIpcMinimum": "扩展SourceFiles具体sidecar计划/锁/资格/NOFOLLOW/O_EXCL/源重验/原回执；不复制Swift writer绕过保护。",
+      "requiredBehaviorEvidence": "WAV/FLAC同stem、大小写/外来LRC、symlink/nlink/NAS/取消；不覆盖，只清自有inode；rename-exclusive不支持的O_EXCL fallback非atomic如实核。",
+      "status": "CURRENT_SWIFT_SOURCE_PRESENT_FORMAL_MB_INTEGRATION_AND_VALIDATION_OPEN",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "current-composition",
+          "caseName": "实际同SQLite歌词作者默认OFF零Source写，开启后整组LRC独占发布及冷原回执不重放"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "同stem已有不同LRC绝不覆盖，明确FAILED原id经冷完整probe与新Main许可恢复"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词同名外来LRC正文不同不得覆盖或继续embed"
+        },
+        {
+          "domain": "standard",
+          "caseName": "LRC成功与embed失败分开；原snapshot.retry零query零重写，已失败embed仅同id显式恢复"
+        }
+      ]
+    },
+    {
+      "id": "CD-L04",
+      "title": "WAV/FLAC受保护副本embed",
+      "currentDelta": {
+        "id": "CD-L04",
+        "能力": "WAV/FLAC歌词内嵌，LRC成功与内嵌失败分开显示及恢复",
+        "入口": [
+          "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift:1534"
+        ],
+        "执行": [
+          "CoverDrop/App/AppEnvironment.swift:170",
+          "CoverDrop/App/LyricsWorkflow.swift:296",
+          "CoverDrop/Infrastructure/Lyrics/TagLibLyricsEmbedder.swift:17"
+        ],
+        "保护": "仅副本写入，校原tags/artwork/audio payload，核源身份后提交；迁入MB需原SourceFiles资源锁/资格/计划/日志/恢复，不能原样绕过",
+        "新增迁移缺口": true
+      },
+      "formalUiMinimum": "LRC saved与embeddingPending/failed独立，原选择/计划恢复。",
+      "formalOwnerIpcMinimum": "SourceFiles锁/资格/计划/日志/backup/recovery→native TagLib copy；tags/pictures/audio payload前后核、源dev/ino/size/mtimeNs/ctimeNs重验，待embed限定原LRC digest。",
+      "requiredBehaviorEvidence": "LRC成功/embed失败、停止/重启、外来LRC变/源变/unknown；只恢复同原body不新UUID，其他tags/cover/audio完整回读。",
+      "status": "CURRENT_SWIFT_SOURCE_PRESENT_FORMAL_MB_INTEGRATION_AND_VALIDATION_OPEN",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "native",
+          "caseName": "真实WAV和FLAC保护副本只嵌入所选歌词，保留原音频、未选标签和图片并闭合SourceFiles许可"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "同SQLite两轨保护副本embed逐轨保持原command整组捕获，EOF及源事实inventory冷读连续"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词LRC成功embed明确失败仅原body受保护重试embed"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "完整group中非当前目标源变化整组失权，stage和原标签不能局部发布"
+        }
+      ]
+    },
+    {
+      "id": "CD-L05",
+      "title": "全库批次保存停止恢复重试",
+      "currentDelta": {
+        "id": "CD-L05",
+        "能力": "库级批量获取并保存、停止、逐项进度/结果、断点续跑与失败重试",
+        "入口": [
+          "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift:250",
+          "CoverDrop/Features/Lyrics/LibraryLyricsBatchControl.swift:25"
+        ],
+        "执行": [
+          "CoverDrop/App/AppModel+LyricsBatch.swift:14",
+          "CoverDrop/App/LibraryLyricsBatchWorkflow.swift"
+        ],
+        "范围": "只绑定明确当前库，原批次含所有已扫描专辑而非当前筛选；已有LRC/内嵌跳过，整轨不查词",
+        "新增迁移缺口": true
+      },
+      "formalUiMinimum": "明确当前library全部已扫描albums，不是当前filter/60条页；processed/fullysaved/sidecars/inspectionfailed分列。",
+      "formalOwnerIpcMinimum": "Owner固定library/job/checkpoint、单writer协调，有词skip、歧义review，query/commit分域；stop await actual operation/monitor，failed bounded retry。",
+      "requiredBehaviorEvidence": "filter/page改变不截批次；失败继续、stop物理关闭、已写事实保留；重启同job续未完，跨库/源变/旧snapshot拒；300k容量另核，不以小样本替代。",
+      "status": "CURRENT_SWIFT_SOURCE_PRESENT_FORMAL_MB_INTEGRATION_AND_VALIDATION_OPEN",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "歌词全库批次遍历全部已扫描专辑而非当前filter或第一页"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词job停止实际abort并join在途请求且保完整checkpoint"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词job原UNKNOWN跨cold resume只查原写入id不重新Provider或writer"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词job明确失败只重试指定原专辑而不重跑已保存专辑"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "真实全库组件明确展示全范围与原批次入口，不传当前页或过滤条件"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "002歌词组合：同Owner完整捕获与原entry分域，冷SQL读口保原scope/session/saveRequest且零新工作"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "002歌词组合：实际歌词factory关闭等待已装配端口和FD，空job/sessionMap不提前收口"
+        }
+      ]
+    },
+    {
+      "id": "CD-L06",
+      "title": "缺词筛选本地事实持久",
+      "currentDelta": {
+        "id": "CD-L06",
+        "能力": "缺歌词筛选、已有歌词状态和持久化",
+        "入口": [
+          "CoverDrop/Domain/Policies/AlbumScanResultFilter.swift:6"
+        ],
+        "执行": [
+          "CoverDrop/App/AppModel+LyricsInventory.swift",
+          "CoverDrop/Infrastructure/Persistence/SQLiteScanSnapshotStore.swift"
+        ],
+        "新增迁移缺口": true
+      },
+      "formalUiMinimum": "新增missingLyrics/counts及unknown/false/true来源事实，不从候选状态推本地已有。",
+      "formalOwnerIpcMinimum": "Owner派生presence/当前AudioFile identity/旧schema兼容；读inventory无源写，deleted library DB不能CREATE复活。",
+      "requiredBehaviorEvidence": "offline保unknown、旧无字段、跨root/同路径/Unicode歧义、清库后迟到update、page/count一致。",
+      "status": "CURRENT_SWIFT_SOURCE_PRESENT_FORMAL_MB_INTEGRATION_AND_VALIDATION_OPEN",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "歌词库存持久真实unknown false true而不是候选命中事实"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词缺词筛选只含false并保全计数尾页和空页"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词库删除时迟到inspect不能创建或复活原库"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词库存第九筛选不把unknown当missing并保原分页限额"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "同SQLite两轨保护副本embed逐轨保持原command整组捕获，EOF及源事实inventory冷读连续"
+        }
+      ]
+    },
+    {
+      "id": "CD-L07",
+      "title": "封面歌词共同Save/离开门禁",
+      "currentDelta": {
+        "id": "CD-L07",
+        "能力": "详情未保存内容保护与封面/歌词共用保存门禁",
+        "入口": [
+          "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift:1529"
+        ],
+        "执行": [
+          "CoverDrop/App/AppModel+AlbumLyrics.swift:29",
+          "CoverDrop/App/AppModel+AlbumLyrics.swift:35",
+          "CoverDrop/App/AppModel+AlbumLyrics.swift:43"
+        ],
+        "新增迁移缺口": true
+      },
+      "formalUiMinimum": "详情/sidebar/settings/search走同shared pending gate，save/discard/继续捕原library/album/session；未选候选与搜索未完成区分。",
+      "formalOwnerIpcMinimum": "封面与歌词writer协调：cover先、失败不继续lyrics；partial事实保留，accepted/unknown非全部保存成功。",
+      "requiredBehaviorEvidence": "coverpending+lyrics selected/unfinished、失败保pending、换库/album/旧session迟到success、writer运行不能discard；仅同context全部成功且无pending可返回。",
+      "status": "CURRENT_SWIFT_SOURCE_PRESENT_FORMAL_MB_INTEGRATION_AND_VALIDATION_OPEN",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "共同Save依序确认封面再保存歌词，二者完整终态才恢复原离开意图"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词共同Save先落原intent再cover LRC embed，物理join前不能离开"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词cover未知或失败阻断全部歌词写入且保原pending"
+        },
+        {
+          "domain": "standard",
+          "caseName": "实际歌词writer锁定时Sidebar与Settings共用门禁，Save和Discard均不能清锁"
+        },
+        {
+          "domain": "standard",
+          "caseName": "Sidebar Settings Search共用Save门禁，阻断时不改搜索或来源，恢复精确最后意图"
+        },
+        {
+          "domain": "standard",
+          "caseName": "旧委托确认迟到不切换重新打开的面板，也不关闭新的专辑上下文"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "002歌词组合：冷UNKNOWN原command等实际FD join，空运行Map与错session不能重签或恢复源写"
+        }
+      ]
+    },
+    {
+      "id": "CD-06补充",
+      "title": "本地库记录/快照/缓存清理",
+      "currentDelta": {
+        "id": "CD-06补充",
+        "能力": "删除本地库记录以及专属快照/缓存，保留其他库引用与源音乐",
+        "入口": [
+          "CoverDrop/Features/LibraryHome/LibraryHomeView.swift:35"
+        ],
+        "执行": [
+          "CoverDrop/App/AppModel.swift:368",
+          "CoverDrop/Infrastructure/Persistence/LocalLibraryDataCleaner.swift:8"
+        ],
+        "新增迁移缺口": true
+      },
+      "formalUiMinimum": "明确只清本地记录，不通过音频删除/改名入口代理。",
+      "formalOwnerIpcMinimum": "先join本库watcher/AI/lyrics/staging/snapshotqueue；专属快照/无引用cache，音乐/保存cover/LRC/他库引用留存；部分失败诚实回报。",
+      "requiredBehaviorEvidence": "共享cache/离线root/排队snapshot/commit运行/partial失败；原音乐字节不变、他库有效、迟到更新不复活。",
+      "status": "CURRENT_SWIFT_SOURCE_PRESENT_FORMAL_MB_INTEGRATION_AND_VALIDATION_OPEN",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "standard",
+          "caseName": "Library真实同SQL绑定与原操作整批提交，冷开保留语义role且remove只撤绑定不删媒体"
+        },
+        {
+          "domain": "standard",
+          "caseName": "426管理read真实SQL计数和role，watch实际READY与持久意图区分，移除不删除源"
+        },
+        {
+          "domain": "standard",
+          "caseName": "本地清理超时保原明确库集合，UNKNOWN阻新rename和新UUID，仅query原operation"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "按库源写470：PREVIEWING原FD先join，只封原甲plan与grant，乙库及共享Safety保持可用"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "按库源写470：混甲乙原整组先拒绝撤甲，不cancel别库、不新plan或command"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "按库源写470：原publisher stage写FD未闭不能授成功，abort同plan且保源与原材料"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "按库源写470：冷SQL原READY没有本进程physicalProof仍拒绝，原命令与材料不变"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "按库源写470：实际原FD close拒绝保RELEASE_UNKNOWN，原stop重复不转绿、不清材料"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "冷源写闭集476：真实两库publisher全部完成后原同SQL闭口可撤甲，旧账和两库音乐材料保留"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "冷源写闭集476：原READY已完成预览且从未confirm的持久CANCELLED可撤库，原捕获和文件不变"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "冷源写闭集476：原真实闭口marker不能覆盖同SQL后来UNKNOWN issue，旧账原材料保留且不补执行"
+        }
+      ]
+    },
+    {
+      "id": "CD-03/04补充",
+      "title": "快照失败独立retry",
+      "currentDelta": {
+        "id": "CD-03/04补充",
+        "能力": "快照保存失败后的独立重试",
+        "入口": [
+          "CoverDrop/Features/LibraryHome/LibraryHomeView.swift:275",
+          "CoverDrop/Features/LibraryHome/LibraryHomeView.swift:343"
+        ],
+        "执行": [
+          "CoverDrop/App/AppModel.swift:905"
+        ],
+        "新增迁移缺口": true
+      },
+      "formalUiMinimum": "扫描已发布结果上独立snapshotfailed/retry，保wall/统计/filter，不显示scanfailed。",
+      "formalOwnerIpcMinimum": "用同原扫描facts+queue join；retry不scan/Provider/query/sourcewrite，切root重验。",
+      "requiredBehaviorEvidence": "SQLite保存故障仍见结果；retry不增scan/network/writer次数；换库/清库/源变拒旧retry，真实持久回读后清错误。",
+      "status": "CURRENT_SWIFT_SOURCE_PRESENT_FORMAL_MB_INTEGRATION_AND_VALIDATION_OPEN",
+      "current002Implementation": "IN_PROGRESS",
+      "current002Software": "NOT_RUN",
+      "current002Native": "NOT_RUN",
+      "current002Runtime": "NOT_RUN",
+      "current002Owner": "NOT_RUN",
+      "evidenceRefs": [
+        {
+          "domain": "current-composition",
+          "caseName": "002完成快照：捕获失败独立留attempt及旧成功原件，显式retry不重新扫描或解析"
+        },
+        {
+          "domain": "current-composition",
+          "caseName": "002完成快照：已撤销或重关联root明确不可用，load/retry不能复活来源授权"
+        },
+        {
+          "domain": "standard",
+          "caseName": "原快照失败独立retry只派有限snapshot命令，零重扫或Provider查询"
+        },
+        {
+          "domain": "standard",
+          "caseName": "歌词快照失败可独立retry且Provider LRC embed均零重执行"
+        },
+        {
+          "domain": "standard",
+          "caseName": "C03实际Root463：原完成snapshot独立retry不增scan/provider/writer，源签名改变拒旧retry而保原成功"
+        }
+      ]
+    }
+  ],
+  "historicalRetention": [
+    {
+      "id": "CD-36",
+      "title": "源标签写回、源封面、音频改名/移动预览保存（MB既有保留）",
+      "classification": "mb-existing-retained",
+      "source": [
+        {
+          "path": "CoverDrop/Domain/Protocols/AudioTagWriting.swift",
+          "symbols": [
+            "writeTrackTags"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/AppModel.swift",
+          "symbols": [
+            "renameLibrary",
+            "writeCoverImage"
+          ]
+        }
+      ],
+      "historicalGap": "固定原版没有通用源标签编辑/音频改名移动UI；这是MB012/013已有能力，改UI需完整保留保护链。",
+      "interpretation": "CD36是MB原SourceFiles/Relocation等保护保留，不计原35分母。"
+    },
+    {
+      "id": "CD-37",
+      "title": "歌词流程固定版本核对",
+      "classification": "verified-absent-original",
+      "source": [
+        {
+          "path": "CoverDrop/App/AppEnvironment.swift",
+          "symbols": [
+            "依赖全集"
+          ]
+        },
+        {
+          "path": "CoverDrop/App/RootView.swift",
+          "symbols": [
+            "路由全集"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryHomeView.swift",
+          "symbols": [
+            "所有可见入口"
+          ]
+        },
+        {
+          "path": "CoverDrop/Features/LibraryHome/LibraryScanSummaryView.swift",
+          "symbols": [
+            "所有可见入口"
+          ]
+        }
+      ],
+      "historicalGap": "93fa树、AppEnvironment、RootView和完整LibraryHome/LibraryScanSummaryView没有歌词模型/协议/服务/入口。历史后续脏源码不属于本次固定源。",
+      "interpretation": "CD37仅固定93fa无歌词历史事实；当前M/??源码已增加L01–07，不得据旧NA排除最新要求。"
+    }
+  ],
+  "formalInterfaces": [
+    {
+      "id": "R01",
+      "owner": "Renderer（组件/composables/navigation/App/settings及Renderer tests；待精确write grant）",
+      "label": "独立侧栏和同一工作台路由",
+      "paths": [
+        {
+          "path": "apps/desktop/src/renderer/src/App.vue",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/renderer/src/App.vue",
+            "role": "read-only-current-interface",
+            "bytes": 72331,
+            "sha256": "689d6eb509736f5dc198435f2f81a5c99223433443955067c6f4b029b69d8339"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/navigation.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/renderer/src/components/navigation.ts",
+            "role": "read-only-current-interface",
+            "bytes": 997,
+            "sha256": "a86db9d86b15c33e9cfe43982f4f14c65fc802ec462572545c340aa8a7fa5a85"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/renderer/src/components/sidebar/MusicSidebar.vue",
+            "role": "read-only-current-interface",
+            "bytes": 7003,
+            "sha256": "374590db1dc8d8b6e7e1fde6e21dcc7999e61b543591187f8f976d9ca4486477"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/renderer/src/composables/application/usePageJourney.ts",
+            "role": "read-only-current-interface",
+            "bytes": 22367,
+            "sha256": "49f593d1266d49484b3391372713e301cd550b517d5bef9ef82d391e6df0cb20"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/renderer/src/components/library/LocalLibraryView.vue",
+            "role": "read-only-current-interface",
+            "bytes": 26397,
+            "sha256": "69f968e4a2b2526d2e34ab1460a67607d6eb6ce788b3c434346b18fd00dfde99"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/settings/SettingsView.vue",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/renderer/src/components/settings/SettingsView.vue",
+            "role": "read-only-current-interface",
+            "bytes": 14392,
+            "sha256": "d077523d2fa9664514e56811e7892faa6cd3a954d7614aa87fb372a71460573c"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/renderer/src/components/settings/LocalLibrarySettings.vue",
+            "role": "read-only-current-interface",
+            "bytes": 11830,
+            "sha256": "c951cf6de5060ff42ac8b94d1104155cdb7791c137cc68f0cbf9f4c5e0cf9c88"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/CoverDropView.vue",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        }
+      ],
+      "interface": "CoverDrop独立ViewId/SidebarSource；本地音乐墙和detail以同一root/album/revision/Owner工作台进入；usePageJourney离开/return context。",
+      "necessaryImplementation": "原维护入口发现性、settings返回、root/filter/page/scroll/search fences；工作台route继续activate真实库，不能因active=false使playTrack静默no-op；原sourceWrites默认OFF。",
+      "requiredFormalEvidence": "真实sidebar→App→controller→端口；返回、search/page隔离、pending拒离开、late换库丢弃；侧栏存在不是44项通过。"
+    },
+    {
+      "id": "R02",
+      "owner": "Renderer（组件/composables/navigation/App/settings及Renderer tests；待精确write grant）",
+      "label": "本地专辑墙、完整详情和八原筛选",
+      "paths": [
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumArtwork.vue",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumArtwork.vue",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "be0f9292dc7dbc17380840f6c3e33ae6ef384c44",
+            "bytes": 2900,
+            "sha256": "09d35df6d6f44062db2a345076ee6a8e456aac932adf5f781f5ac763818069cb",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumBrowser.vue",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumBrowser.vue",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "a73b23c2b60c93ae6de378cb2728910a92155b0f",
+            "bytes": 16881,
+            "sha256": "ac890affce106410b921958ee40ed442727be8c2dca453ac2ed809753d96f67d",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumDetail.vue",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumDetail.vue",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "25c9b3df2ebd64ed09acdd29b0b9f2a3e897efc5",
+            "bytes": 11922,
+            "sha256": "031a388bc919322dc667ed7cb0e86df0960cc4248cc2bc2a5e2187edbaf46fab",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumGrid.vue",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/components/library/local-browser/LocalAlbumGrid.vue",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "de25f59f45fcd9f7b4f29a38f844e6f121460224",
+            "bytes": 12434,
+            "sha256": "43e052ac690f73a0a1b595ac0e12648cead20ad78e2bea74345eb0514d92b165",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/local-browser/presentation.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/components/library/local-browser/presentation.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "470eec8e0bc0e60d45d0241a85601e0a2393c5e2",
+            "bytes": 2705,
+            "sha256": "bfc963bdbf99566c6812ef7056012103840bbf66cc7a375f7028c28adb25fa88",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/model.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/model.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "9f4e7907f75eb6ff03d028091383a6df9908fe65",
+            "bytes": 26141,
+            "sha256": "048dc8a31fb5b48d76657fb8936ba085f6362423e8817727adb52539f9858d28",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/presentation.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/presentation.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "39d7b67a0b66a6659f559113ff8bd9750a9671d4",
+            "bytes": 1032,
+            "sha256": "127a25431e5a8d5baea9dfd4ba212651eff89b313aabdb121bdfe738fec371a9",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/types.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/types.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "9237dbac60b01669e669f14e8326f9f81968d1d5",
+            "bytes": 2280,
+            "sha256": "4e165b77d9588e64d293181692612af00080749ea2f5b3b89bf59de9a0070a2d",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/useLocalAlbumBrowser.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/composables/application/local-library-browser/useLocalAlbumBrowser.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "13d7ca2cbc6da89f28a88b181f6abd734d8aad8d",
+            "bytes": 2430,
+            "sha256": "5f7a63883e1d8598597fd535169da594284acd51778f2abcdcb8e8beaa493c97",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+            "role": "read-only-current-interface",
+            "bytes": 14058,
+            "sha256": "6eaa180c2ca488e2c38135cbb066e95794a0dafd39352a18e90748497828d26c"
+          },
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/components/media/TrackTable.vue",
+            "status": "M",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "99c7d6e62731153a061ccf083ada96bc2c798a15",
+            "bytes": 14707,
+            "sha256": "8022bf6a8c2dcd45a465fed793f0c8e310b34a5aae41c67284194b20123a34c9",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        }
+      ],
+      "interface": "useLocalAlbumBrowser实际Owner query/tracks/artwork；TrackTable.playableTrackIds仅play/queue围栏。",
+      "necessaryImplementation": "all/missingArtwork/hasArtwork/unsplitCue/tagReadIssue/nameParseFailed/looseAudio/trackNamedAudio八原筛选保留，missingLyrics第九；完整group不可截为page60/tracks100/modal100；CUE Info/多选可用；单view宽度84/80行高保持。",
+      "requiredFormalEvidence": "实际wall/detail/query/count/revision/完整成员、fallback、顺序、Info多选、return scroll/search渲染行为。"
+    },
+    {
+      "id": "R03",
+      "owner": "Renderer（组件/composables/navigation/App/settings及Renderer tests；待精确write grant）",
+      "label": "cover/name/cue共享工作台与AI设置",
+      "paths": [
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalAiReview.vue",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalAiReview.vue",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "a0a00f552aa35b42b76d4bb98097c94e20604fbb",
+            "bytes": 5175,
+            "sha256": "42a067a3e6a2a0d69793534d74d7f4bf162900744ce45fb10e15d76c88508c6a",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalCueSplitReview.vue",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalCueSplitReview.vue",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "82131027755aa1b3ff73b7994c29634f6d8fef0a",
+            "bytes": 5778,
+            "sha256": "e1ba2df68d469cc47fe2603c0c5819669f0ea5517675d451063277e13e595b6e",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalLibraryWorkbench.vue",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalLibraryWorkbench.vue",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "be209fbce0f0e52bef5380c0bcfc56d0f3232c7f",
+            "bytes": 20219,
+            "sha256": "b947fe5e5a3206aac6e713df446c34d58810a2460ac94b3f60f592ab2b06f17c",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/local-workbench/workbench.css",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/components/library/local-workbench/workbench.css",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "2a6318d566009c6d9a95509b5d16fed4d6ed3a96",
+            "bytes": 7478,
+            "sha256": "030f36d41d9fc30ce2d3fa86a8ce30701bd21baa466146b2c5df5052fb37493d",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/controller.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/controller.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "fcddcb1683627cae6bb23bd155cc15c60c1c566c",
+            "bytes": 42823,
+            "sha256": "d059001d1e7c215cf7f4e2eed4744f910f89263eef4434b50544278811facd70",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/ports.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/ports.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "6b2f66ede10fcfdc0d40322f4cf8559d474b9fcd",
+            "bytes": 3888,
+            "sha256": "4451a3ef9ac4965eee25cacb495a02d279229b9a8e30faa2ef753d0f9fcdaf0e",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/types.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/types.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "c63d49d9b51f20c665d90ef82fbe23a56ce61ccd",
+            "bytes": 4493,
+            "sha256": "00206816111c9c160627d939ffc499eea3d810e38564333e0a3e036bd54e1613",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/settings/LocalAiSettings.vue",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        }
+      ],
+      "interface": "原plan/commit/cancel/readOriginalReceipt与同capture context；source outcome+country region+preview failure直到UI；真实AI配置经Main/vault。",
+      "necessaryImplementation": "五页面delegate不得冒库/lyrics实现；候选/web/file/drop/current/staged/revoke/explicitSave；原名清洗/AI建议快照；单album和全库批次流式/stop/unload；close()不能无条件emit。",
+      "requiredFormalEvidence": "真实组件候选、独立来源retry/region、保存失败/late/context/取消和共同Save离开门禁；accepted/unknown非全部保存。"
+    },
+    {
+      "id": "R04",
+      "owner": "Renderer（组件/composables/navigation/App/settings及Renderer tests；待精确write grant）",
+      "label": "七条完整歌词及库batch/清理快照",
+      "paths": [
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalLyricsReview.vue",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/components/library/local-workbench/LocalLyricsBatchControl.vue",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/lyrics.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/renderer/src/composables/application/local-library-workbench/library.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        }
+      ],
+      "interface": "真实Owner lyrics query/candidate/LRC/embed/inventory/batch/checkpoint与library management/snapshot retry；同root/sourceRevision/track/request租约。",
+      "necessaryImplementation": "NetEase/QQ/Kugou/Kuwo/LRCLIB五来源；候选正文/版本/语言/时长/歧义；LRC独占、WAV/FLAC protected embed；allscanAlbums全库save/stop/join/resume/retry、offline unknown；cover先后lyrics共同Save；CD06清理不删源；CD03/04 retry不重扫。",
+      "requiredFormalEvidence": "实际每条API调用与UI反馈；filter/page不截批次，partial与unknown不伪成功，清理/stop物理关闭由Root链证明；播放器歌词展示不替代。"
+    },
+    {
+      "id": "R05",
+      "owner": "Renderer（组件/composables/navigation/App/settings及Renderer tests；待精确write grant）",
+      "label": "有效Renderer行为测试候选",
+      "paths": [
+        {
+          "path": "apps/desktop/test/mbf-local-album-browser.test.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/test/mbf-local-album-browser.test.ts",
+            "status": "A",
+            "role": "test",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "7427d96eddf4c9e6ff667b272f9797af050da2e1",
+            "bytes": 27990,
+            "sha256": "e4618c4abe96f955e02abd9d58d3da356f82c59785ec3c52c89205ab663a7144",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/test/mbf-local-album-components.test.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/test/mbf-local-album-components.test.ts",
+            "status": "A",
+            "role": "test",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "39a3cf484eaed1e2e4578a13f6a6cbce0bfc9baa",
+            "bytes": 28804,
+            "sha256": "f67881b01fc5b8ffdf43d319dc79955c00f6d600c356f9bb84130a34a0e9d434",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/test/mbf-local-track-table.test.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/test/mbf-local-track-table.test.ts",
+            "status": "A",
+            "role": "test",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "708805415dbdf54bf8af3b84ae311f3cd16e1f65",
+            "bytes": 7260,
+            "sha256": "0bd53c14d7cf8b361ac427d82b0cedafe2f75d7259cdabe154fba7ad64d6efe9",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/test/mbf-local-workbench.test.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/test/mbf-local-workbench.test.ts",
+            "status": "A",
+            "role": "test",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "195f87da4a83b29b1ae3779826f1a962e7c31762",
+            "bytes": 30822,
+            "sha256": "04abcaa7a866b91a56e4ed1777bde5bc0d0f76cac57b2a99e6049823eb0bcfcf",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/test/support/mbf-vue-host.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/test/support/mbf-vue-host.ts",
+            "status": "A",
+            "role": "test",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "87caabc07f9b7163dd34b0dfcf4b72306e3c61ca",
+            "bytes": 7838,
+            "sha256": "7fe5ca9d3411fa987a3393a12027e1b74726e173449c26774c7332ef609ccc0d",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/test/mbf-coverdrop-router.test.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/test/mbf-coverdrop-lyrics.test.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/test/mbf-coverdrop-library.test.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/test/mbf-coverdrop-save-gate.test.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        }
+      ],
+      "interface": "原customRenderer真实按钮和Composable+Store；测试不import其他.test自动注册。",
+      "necessaryImplementation": "覆盖44的UI行为和原unknown点播latch；Root另外负责真实Main/utility/native共享业务执行。",
+      "requiredFormalEvidence": "本规划注册0执行0；新case名称/数量/实际结果按正式实现确定，不镜像Map/DTO/静态字符串。"
+    },
+    {
+      "id": "P01",
+      "owner": "Root（Core/shared/CAS/Native/RPC/Main/Preload）",
+      "label": "闭集Preload真实publicAPI装配",
+      "paths": [
+        {
+          "path": "apps/desktop/src/preload/api.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/preload/api.ts",
+            "role": "read-only-current-interface",
+            "bytes": 44738,
+            "sha256": "6748d8a7886abe9adff4ec2ea73d179ef0e874982c4e32c6e2217d38eebdda40"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/preload/index.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/preload/index.ts",
+            "role": "read-only-current-interface",
+            "bytes": 28597,
+            "sha256": "eccce4486969ee84d080d7623b54d28b865c431244ab74bb672894fa5e87dee7"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/preload/command-outbox-client.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/preload/command-outbox-client.ts",
+            "role": "read-only-current-interface",
+            "bytes": 5033,
+            "sha256": "5215d89fe0e47fbf310a0e442c82cb9632983e852c5f69675e5fb59c73640abc"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/preload/local-album-client.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/preload/local-album-client.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "a3f0cd15b703844169a12a4d2b5f53f3bff28492",
+            "bytes": 1878,
+            "sha256": "2736c8416d246314cc22a02bcd4f8b91bf6a5869564e1134c4c6d9f7b1aa81d4",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/preload/local-workbench-client.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/preload/local-workbench-client.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "57a586ab75edf0074a39859d5d56b22071e57b50",
+            "bytes": 4696,
+            "sha256": "ecda456e5df9212e6881f2592011fab6ba3cd5c3b9fa7048472e80388ed42bae",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/preload/local-lyrics-client.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/preload/local-library-management-client.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        }
+      ],
+      "interface": "PUBLIC_API_KEYS/createPreloadApi闭集真实实现；固定Promise DatasetScope与Main当前Owner context/generation区分。",
+      "necessaryImplementation": "保留readPlayReceipt、实际dataset；await assertDataset前后+retrusted；未知字段/跨dataset/旧child拒绝；不让Renderer访问通用native/provider前缀。",
+      "requiredFormalEvidence": "正式publicAPI→Main→唯一Owner；固定window context不冒充动态Owner归因。"
+    },
+    {
+      "id": "M01",
+      "owner": "Root（Core/shared/CAS/Native/RPC/Main/Preload）",
+      "label": "正式Main/utility/Owner全生命周期",
+      "paths": [
+        {
+          "path": "apps/desktop/src/main/index.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/main/index.ts",
+            "role": "read-only-current-interface",
+            "bytes": 113892,
+            "sha256": "455d3721bff96a0d12b70826b180bccbce2e0d1cd9a49d6e039ab3635b682f4d"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/main/core-supervisor.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/main/core-supervisor.ts",
+            "role": "read-only-current-interface",
+            "bytes": 51418,
+            "sha256": "a06f81f147d15ba126a355518a7c6d528009614589e97859507efb1df9efd5ab"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/utility-main.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/utility-main.ts",
+            "role": "read-only-current-interface",
+            "bytes": 55979,
+            "sha256": "ad8101eb0600a0c896803100281b3a654b7f589a3982959a0fefa88b35bfaa1d"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+            "role": "read-only-current-interface",
+            "bytes": 30338,
+            "sha256": "fa070d9383c8913d27e9ff23f59e2417b7402c19f13d7ec57d09b09e64823c5b"
+          },
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/dataset-owner-protocol.ts",
+            "status": "M",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "de338b307820c0f2842e4eaf9f2fa3df04d67726",
+            "bytes": 32487,
+            "sha256": "1d43c3e4f9277524b51bff59315d74f470ae91f580a55ada1e169b6631c763d8",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-owner-client.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/dataset-owner-client.ts",
+            "role": "read-only-current-interface",
+            "bytes": 22836,
+            "sha256": "cef49cbb448c1283b82e61ed1962dff79106c56d505d372a4f0be726421ec86c"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-owner-worker.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/dataset-owner-worker.ts",
+            "role": "read-only-current-interface",
+            "bytes": 23431,
+            "sha256": "ed445977acb0b85174c3b1956d1f72c2dfa7be492a5800bc646452f94ad741c0"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-domain.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/dataset-domain.ts",
+            "role": "read-only-current-interface",
+            "bytes": 30949,
+            "sha256": "4542f5669f766419e029c3111b2b848ebdf737675cdffb60ffd91fb5b41d969a"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-services.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/dataset-services.ts",
+            "role": "read-only-current-interface",
+            "bytes": 3776,
+            "sha256": "25aa186cc1e73e16447c972bdda28e0b99aa9eb0ec70121c58647ed3f0a6da7e"
+          },
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/dataset-services.ts",
+            "status": "M",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "bfbd1cf8ca6a38dbc10259aac9942adc847b2dba",
+            "bytes": 3899,
+            "sha256": "967267d6d0dff6144bd7e40349ccdfb48b041aa30a41e1fabc9a7a8f3a1c1014",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/dataset-dispatch.ts",
+            "role": "read-only-current-interface",
+            "bytes": 59157,
+            "sha256": "32f43b5dda5766bfa2b50d4c1c1f00e979993b50f2ed494444cd4cdcf81e44b3"
+          },
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/dataset-dispatch.ts",
+            "status": "M",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "13866409e551d41c06ea98fcc2e342acdb7922de",
+            "bytes": 60122,
+            "sha256": "961f386beb9b359f3594913ecdd914d37b371974206088ffada35a9b2f35bae8",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        }
+      ],
+      "interface": "createCoreSupervisor当前child/port/generation；attachCoreRuntimePort；私有Owner→utility→Main正常native normalize和完整组投影。",
+      "necessaryImplementation": "保留Source3当前Main arm/ready/两个真实exit71、一重启与预算；Feedback旧整件不可覆盖；完整组业务事务与CAS由唯一Owner执行。",
+      "requiredFormalEvidence": "真实RPC/owner重启/取消/错context/完整组/原receipt只读恢复；helper存在不算formal。"
+    },
+    {
+      "id": "M02",
+      "owner": "Root（Core/shared/CAS/Native/RPC/Main/Preload）",
+      "label": "私有native封面与protected writer",
+      "paths": [
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/album-artwork-normalizer.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/main/local-library-workbench/album-artwork-normalizer.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "03c6b893b5b7b274514cd47dc0dcda7e3653d298",
+            "bytes": 1948,
+            "sha256": "81701b3db133fa0dbd56290e9a3f82bdc45f5fcd5a2b1bfad92d4939618a5173",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/album-ipc.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/main/local-library-workbench/album-ipc.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "36d5a5c0848f700af0ba00f3ecbf65cc2808d20b",
+            "bytes": 2611,
+            "sha256": "7bb2961df17fe6d1b1f87f8b9e09899a66b6044032fafe8d32c15675d7d7b99e",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/artwork-import-normalizer.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/main/local-library-workbench/artwork-import-normalizer.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "703ac86b5f73dcc892085820f8912b35148f7251",
+            "bytes": 23451,
+            "sha256": "bbbdda704936a2d29fec96aab2a1f0bbce4c61fffee1bd6475e2189adaabe02d",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/service.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/main/local-library-workbench/service.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "36588c5ff81415e6e73938463b1b218cc036d2bd",
+            "bytes": 45856,
+            "sha256": "ab15051640967b4d67ecafc6a2a67d74345b57c257f58a40730d3c2af5232f48",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/workbench-ipc.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/main/local-library-workbench/workbench-ipc.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "3175d272bdb64ff14869581927241032887b32e9",
+            "blob": "06b327be003e9964bc2853571a61ce8ee53d7ec7",
+            "bytes": 10834,
+            "sha256": "83ee01e528d64c8a6908450393a37078f163583814b2a38ad2fec2db0636531d",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/native-chooser.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/native-protocol.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        }
+      ],
+      "interface": "真实Electron nativeImage/chooser/drop/normalize；workbench-ipc固定Async3175 await与资源close。",
+      "necessaryImplementation": "overall10000/32MiB及batch2048/128KiB，不将大图片塞超限JSON；actual当前child、零ports、closedshape；完整cancel物理关闭；defaultOFF sourceWrites。",
+      "requiredFormalEvidence": "实际nativeImage处理/失败/关资源与有界字节、跨Owner/晚reply/拒通用前缀。"
+    },
+    {
+      "id": "M03",
+      "owner": "Root（Core/shared/CAS/Native/RPC/Main/Preload）",
+      "label": "provider来源和AI配置/vault",
+      "paths": [
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-providers.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-providers.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "63e528f00d3bc548eec70d2457997ffefef523c0",
+            "bytes": 20903,
+            "sha256": "9a943e3befd3c0a3856875733066251f877ebc5d9e1b7fbcf928d1b51f48d9c5",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-urls.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-urls.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "5c016c1b25ec44447a1037e6ad86fef1137d89a5",
+            "bytes": 4180,
+            "sha256": "f81749696ceeec1ff4fb9e9ff1acb1cf9043a4c1cd7825f81483d064d1adbe88",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-web-navigation.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/main/local-library-workbench/providers/artwork-web-navigation.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "87e4dca6fe117dd797937c8ba6499e08a34c0f4c",
+            "bytes": 2134,
+            "sha256": "5794f42523c56bff4d897aafba1db54af919d32fc388c414502533534b5485ac",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/providers/boundaries.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/main/local-library-workbench/providers/boundaries.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "3ac344523fdec7911b1aeef59129005148f22c0d",
+            "bytes": 4762,
+            "sha256": "50f15dcadf11e583dbeb00a15a1ef799f84b112b9975f034e5afe53ac90993d4",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/providers/index.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/main/local-library-workbench/providers/index.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "cd5948a7b1b19d7213fa72c40595e9c4da31d868",
+            "bytes": 1019,
+            "sha256": "4b70140ac3ab698639290661008922fa4ca6ebf726c88b439fea49e131c06fa0",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/providers/name-transport.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "apps/desktop/src/main/local-library-workbench/providers/name-transport.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "c2cb5daa90c00e67a2ca7583ccf6f51bcfda2a8b",
+            "bytes": 14744,
+            "sha256": "064bffc24d3b31534ba54b1f662e7ce826c00e3285e40dde0f2f36ab692387bf",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/providers/name-settings.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/main/credential-vault.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/src/main/credential-vault.ts",
+            "role": "read-only-current-interface",
+            "bytes": 6069,
+            "sha256": "9f1e6719b374b4ff261874686744c6138b0cf94e9b817397eed9e20ef55f830e"
+          },
+          "donorPin": null
+        }
+      ],
+      "interface": "artwork candidates+sources两部分及country/web来源完整；Ollama stream/unload/vLLM/cloud真实settings保险库。",
+      "necessaryImplementation": "service现丢sources结果需改；按来源独立失败/截断/preview失败/retry，旧CAA/Commons不替代原Douban+iTunes；秘密/私有URL模板不进入Renderer。",
+      "requiredFormalEvidence": "真实允许源/region/单源failure/cancel/close与vault隔离。"
+    },
+    {
+      "id": "C01",
+      "owner": "Root（Core/shared/CAS/Native/RPC/Main/Preload）",
+      "label": "SQL完整专辑Owner读模型",
+      "paths": [
+        {
+          "path": "packages/contracts/src/index.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/contracts/src/index.ts",
+            "role": "read-only-current-interface",
+            "bytes": 2767,
+            "sha256": "334a85a4b8304102635c128a3c844917ba07606273388342dca9b8f0015245ad"
+          },
+          "donorPin": {
+            "path": "packages/contracts/src/index.ts",
+            "status": "M",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "bb6a1897980d6e7f237192a6531b2415b9811730",
+            "bytes": 2855,
+            "sha256": "03007c4852cf7e39539261c520c8c02f9f15a97378e03a4611e2b8680f38f68f",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/contracts/src/local-album-library.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/contracts/src/local-album-library.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "91681e594939b75ece23dff6f5b531060fde3654",
+            "bytes": 15401,
+            "sha256": "429d403d23bd20c0c3eab141971b9187ba4416622535a021e0eeecbc3ecc9e66",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-album-browser/artwork-read-port.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-album-browser/artwork-read-port.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "0aaf8d7c24a13e4b5ec92156df69e9d3727ec508",
+            "bytes": 11134,
+            "sha256": "e8d2d01a7ab972b826d43d19474847b51c993d0165d258b49f04d3eda5158bd2",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-album-browser/grouping.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-album-browser/grouping.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "9b91146090c2b4da1df48ca39d8855c725a71c87",
+            "bytes": 20808,
+            "sha256": "fef0cf19b5fbca7e030813aed34a60bbbab4a0d4d6a52f6141377b5c9185bc31",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-album-browser/main-protocol.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-album-browser/main-protocol.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "eb4720ba35951deefa7c09a933d1336496244036",
+            "bytes": 3600,
+            "sha256": "0afd5768c52777cc103f6a6794dcbde7b76ead127d4e9886754a3f9937c1bfd7",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-album-browser/owner-port.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-album-browser/owner-port.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "1351bf7cc3b1f0687adbde6b30f4c363d6583565",
+            "bytes": 13937,
+            "sha256": "85471c6f59882ea12c2f2697066389b95f9dc0c0805635504e8033237f7b2f3e",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-album-browser/owner-protocol.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-album-browser/owner-protocol.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "0d6024d022186fffb676500ad1223bb6f9cace4d",
+            "bytes": 1772,
+            "sha256": "0cc1abd8f469c0ac009d7eeb751aabe361504b83170613f2a320b450f328b0d7",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-album-browser/owner-runtime.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-album-browser/owner-runtime.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "bad231f9c7effb53f22fc24cbe34fadf4a76c49c",
+            "bytes": 1747,
+            "sha256": "ea047f7aeb5bf723d7c70519b70a33cb2759906e4df071ca5ca4b334066574ff",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-album-browser/owner-store.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-album-browser/owner-store.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "b5dee3a90a2537f6a9c832aa955ae98302067198",
+            "bytes": 1664,
+            "sha256": "ed230250a1f43b1a34f3f6c6163e1acef51fa6b0ed5c02c6fb50c5eea4ca3567",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-album-browser/read-service.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-album-browser/read-service.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "6cd2aadb1c7672b3b00eae109677162e91f92878",
+            "bytes": 10841,
+            "sha256": "3911f59f4a2456126848150516bc0dce36204230cb26098afa580f25f1eb522e",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-album-browser/sql-read.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-album-browser/sql-read.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "b535ed79ae31abacdf92668d983b8af89a584be1",
+            "blob": "e454597e401d13a6cd3a95e768a420c1e3193e12",
+            "bytes": 38788,
+            "sha256": "cd01f6e7aeeda4d5406b1645847394e2a8873dd51850c8036be25e25cbd6211b",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-album-browser/sql-types.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-album-browser/sql-types.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "a4b6f34bfcccac8e9abfc6f9ee3a8200d46e7125",
+            "bytes": 2922,
+            "sha256": "b95088c9694d853d3591f07bea4f2890e0f300fb2a1dbfd3333be031185e2c06",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-album-browser/types.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-album-browser/types.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "5e38f92c5438be126a588d28e4ea0e5031f69b7b",
+            "bytes": 3983,
+            "sha256": "17136251989b5dc7fc62858b77d79d5282aa7f71c84b4e6a0a06a0fda0c1b1c2",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-catalog-store.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/local-catalog-store.ts",
+            "role": "read-only-current-interface",
+            "bytes": 115384,
+            "sha256": "4485d96516b807433c0a3e318ebc662738ed9281431840feb29546025e7040ab"
+          },
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-catalog-store.ts",
+            "status": "M",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "f1b9ff8cd51974174f1a8ffd8682a08f1a319cfa",
+            "bytes": 121945,
+            "sha256": "bc6437c90b3dde653d3eb0c6edc4dcb46cf5c8c13834c8e40b16a039f807d531",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-scan-store.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/local-scan-store.ts",
+            "role": "read-only-current-interface",
+            "bytes": 96652,
+            "sha256": "0d67d169b015ea4af3cb730275126ad899aff3046190c4b17ffb61d96b8cbe7c"
+          },
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-scan-store.ts",
+            "status": "M",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "0ee507bb1040c260488177bb73107266f71e5055",
+            "bytes": 102853,
+            "sha256": "79871706ebb0e1ee2dd5f4bd6221262387f3e364991a2480efe90999b86d6051",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        }
+      ],
+      "interface": "group/revision/count/source/AI/CUE，完整成员和Owner SQL page/order；真实Main规范化port。",
+      "necessaryImplementation": "固定99union最新SQL72与Async3175分别保留；八筛选和专辑边界；fullbulk不可取UI当前100项。",
+      "requiredFormalEvidence": "实际SQL/currentrevision/完整组/count/分页/cancel；性能资格300k仍独立，较小样本不能替代。"
+    },
+    {
+      "id": "C02",
+      "owner": "Root（Core/shared/CAS/Native/RPC/Main/Preload）",
+      "label": "shared/CAS/业务证明与源写保护",
+      "paths": [
+        {
+          "path": "packages/contracts/src/local-library-workbench.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/contracts/src/local-library-workbench.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "433520190cb95de24eddcb0fc762fe572a91eab6",
+            "bytes": 42769,
+            "sha256": "4b08388901ef35565e98374454d03e518ddb819c5b8f1b0f348b1fc913f6b910",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/cue-plan.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-library-workbench/cue-plan.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "cad2f6c7d5d70abfede1333830307001d70d5654",
+            "bytes": 12641,
+            "sha256": "ab257d45fe717c306d8e5221eaa57d306ef05c7c21d3000addf2eb33fba7d41d",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/name-proposal.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-library-workbench/name-proposal.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "0ca376c911c32ec02dfaacfe2657ce9c27585088",
+            "bytes": 13171,
+            "sha256": "9c840394f15af2b4edb9e137083c3363524fd8c012843dbf980dd35780751140",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/owner-journal.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-library-workbench/owner-journal.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "7a58c2322fef5b9fc30bc17cd80c3f6406b52ac4",
+            "bytes": 11270,
+            "sha256": "ff28bd500fd8fa5a7f44c4e87782e27aab10d0ec16e032f2d3b6b85ea17b63d5",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/plan-registry.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-library-workbench/plan-registry.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "0f174e586cd287204e1daced6e55c8027f2e1558",
+            "bytes": 30544,
+            "sha256": "d1c2dfd7311e5f676f0dd24414cac81555448e6f11a033996527e527709840d2",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/read-service.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-library-workbench/read-service.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "3baf0f520cd3f7d1289aabe391007889f0792735",
+            "bytes": 36128,
+            "sha256": "2ecc8582ea912e5f69fe076fa13db6bbca901610dbe61387ba752d3b059a21d9",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/types.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-library-workbench/types.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "257b67728cdaa5c65b2aa29f9a5e3d4a466fda31",
+            "bytes": 9345,
+            "sha256": "ecaf9f741d28c0d225381e513ae7e5988cb98f6df56989e2a03bb1aa17a76340",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/mb-business-proof.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/mb-writer.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/runtime.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-artwork-store.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/local-artwork-store.ts",
+            "role": "read-only-current-interface",
+            "bytes": 20484,
+            "sha256": "b09bf9d744e7f851423a563d9453f83b0096d3354f789730f72cbe0746fb0ba1"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-artwork-service.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/local-artwork-service.ts",
+            "role": "read-only-current-interface",
+            "bytes": 12934,
+            "sha256": "bcbbcdb4c8d534712005e9f182603e9bee5dbcf8200d2c20f9eeed5292889f96"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-organizer-store.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/local-organizer-store.ts",
+            "role": "read-only-current-interface",
+            "bytes": 20130,
+            "sha256": "f20c01e26f64222f1955ec777bf505bfa375373b6517e08d7a001315e746e549"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/source-files.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        }
+      ],
+      "interface": "protected writer revalidate/apply/readOriginalReceipt/cancel；shared完整capturegroup→唯一DBtxn；physicalsource锁/资格。",
+      "necessaryImplementation": "registry/journal是意图非执行；source-files2048与native10000是不同限制；journal32MiB/chunk64KiB不偷升；cold recovery/unknown只query原body。",
+      "requiredFormalEvidence": "旧receipt/provider优先/完整group/CAS/corrupt/预算先拒/原body/rollback/实际close。"
+    },
+    {
+      "id": "C03",
+      "owner": "Root（Core/shared/CAS/Native/RPC/Main/Preload）",
+      "label": "库管理/监听/清理/快照retry",
+      "paths": [
+        {
+          "path": "packages/contracts/src/local-library-management.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/library-ipc.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/library-change-monitor.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/library-service.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/library-journal.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-scan-coordinator.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/local-scan-coordinator.ts",
+            "role": "read-only-current-interface",
+            "bytes": 36729,
+            "sha256": "9ec5da721ddd6ad8ff46717dab5046997f8be5ee710aecfcdcbea8c3c936a3d3"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-scan-store.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/local-scan-store.ts",
+            "role": "read-only-current-interface",
+            "bytes": 96652,
+            "sha256": "0d67d169b015ea4af3cb730275126ad899aff3046190c4b17ffb61d96b8cbe7c"
+          },
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-scan-store.ts",
+            "status": "M",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "0ee507bb1040c260488177bb73107266f71e5055",
+            "bytes": 102853,
+            "sha256": "79871706ebb0e1ee2dd5f4bd6221262387f3e364991a2480efe90999b86d6051",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/library/metadata-reader.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/library/metadata-reader.ts",
+            "role": "read-only-current-interface",
+            "bytes": 14112,
+            "sha256": "9e3588d6dedc2c65a4e81b8eb5967d790be13b26702d4e65ae874f684ae80f0c"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/library/metadata-reader-worker.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/library/metadata-reader-worker.ts",
+            "role": "read-only-current-interface",
+            "bytes": 25164,
+            "sha256": "69dbe124e98d84b6b542d0e43bf459a6d122d4c1e074e2f2b7e8745543fd66e5"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/library/metadata-reader-runtime.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/library/metadata-reader-runtime.ts",
+            "role": "read-only-current-interface",
+            "bytes": 503,
+            "sha256": "88cbcaba71e4005d71fd80b05142bbe0b0914b513bb70f67da0f86de8dbcaca4"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/library/types.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        }
+      ],
+      "interface": "根角色/多库持久selection/name/remove/scan1–24/watch/partialrefresh；load snapshot和retry snapshot独立进度错误。",
+      "necessaryImplementation": "先join库watch/scan/snapshot/AI/lyrics/cover/CUE/staging再清专属无引用cache；音乐coverLRC和其它库不删；late不CREATE复活；retry仅原scanfacts不rescan/providerquery/sourcewrite。",
+      "requiredFormalEvidence": "真实管理各入口、load/scan故障独立、retry无额外scan、移除部分失败/late、其它库与源bytes保留。"
+    },
+    {
+      "id": "C04",
+      "owner": "Root（Core/shared/CAS/Native/RPC/Main/Preload）",
+      "label": "歌词五来源、全库checkpoint和protected Native",
+      "paths": [
+        {
+          "path": "packages/contracts/src/local-lyrics.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/lyrics-ipc.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/src/main/local-library-workbench/providers/lyrics-transport.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/lyrics-service.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/lyrics-inventory.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/lyrics-batch.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/lyrics-journal.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/lyrics-writer.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/library/local-lyrics-native.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-source-writes-service.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/local-source-writes-service.ts",
+            "role": "read-only-current-interface",
+            "bytes": 98065,
+            "sha256": "1fedb95e6a671d900f9613bb01ba9ff7b353ca44fc1f5282a1b0420f45ba8ed8"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-source-writes-store.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/local-source-writes-store.ts",
+            "role": "read-only-current-interface",
+            "bytes": 8892,
+            "sha256": "f74590976d0d9e2fd079f87d8efa98e4158d9da5f290df19d15d529ec32dc8b0"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-source-writes-journal.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/collection/local-source-writes-journal.ts",
+            "role": "read-only-current-interface",
+            "bytes": 36495,
+            "sha256": "b4b2f6ff102113d2a65c6c13c0e20aa800e393f4d7ff92e84f5d52fb06d222ad"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/source-files.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "native/local-lyrics/lyrics-helper.cpp",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "native/local-lyrics/PROTOCOL.md",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "scripts/native/build-local-lyrics.mjs",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/scripts/native-local-lyrics-package.mjs",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        }
+      ],
+      "interface": "5transport实际candidate正文和版本租约；NOFOLLOW/O_EXCL同stemLRC；TagLib保护副本只WAV/FLAC；Owner库存/job/checkpoint和单writer。",
+      "necessaryImplementation": "officialsource/license/build/pin/package仍需Root冻结；fdflock/fcopy/tags-artwork-audiohash/fsync/source dev/ino/size/mtimeNs/ctimeNs复核；NAS非atomicfallback如实；大整数不得whole JS round；batch含所有扫描专辑，stop join所有worker/monitor。",
+      "requiredFormalEvidence": "实际LRC不覆盖/只自有inode、LRCsuccess+embedfailure、停重启同body、Audio/tag/artwork回读；offlineunknown/全库retry/checkpoint；无真实听感代替。"
+    },
+    {
+      "id": "C05",
+      "owner": "Root（Core/shared/CAS/Native/RPC/Main/Preload）",
+      "label": "完整CUE/codec/Unicode标签/封面和取消恢复",
+      "paths": [
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/cue-plan.ts",
+          "state": "fixed-donor-not-formally-adopted",
+          "donorPin": {
+            "path": "packages/bridge-core/src/collection/local-library-workbench/cue-plan.ts",
+            "status": "A",
+            "role": "product",
+            "revision": "c9398af851d7b8ddebe83db049e643818eff7659",
+            "blob": "cad2f6c7d5d70abfede1333830307001d70d5654",
+            "bytes": 12641,
+            "sha256": "ab257d45fe717c306d8e5221eaa57d306ef05c7c21d3000addf2eb33fba7d41d",
+            "allBytesRead": true,
+            "selectedBy": "fixed-ordered-8-last-version-per-path"
+          }
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/cue-actor.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/collection/local-library-workbench/cue-protocol.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/library/cue-reader.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/library/cue-sidecar.ts",
+          "state": "proposed-new-path-not-created",
+          "donorPin": null
+        },
+        {
+          "path": "packages/bridge-core/src/recording/ffmpeg-build-policy.ts",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/packages/bridge-core/src/recording/ffmpeg-build-policy.ts",
+            "role": "read-only-current-interface",
+            "bytes": 1981,
+            "sha256": "fe7c992340e65371e218bd845138a38af7da6136fce26009d01fcae10c8fae47"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "scripts/native/build-ffmpeg.mjs",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/scripts/native/build-ffmpeg.mjs",
+            "role": "read-only-current-interface",
+            "bytes": 6898,
+            "sha256": "5cb09caca5837b008b9d2b0e2512371f11f034edd3f4282b25f13943bd4bb311"
+          },
+          "donorPin": null
+        },
+        {
+          "path": "apps/desktop/scripts/native-converter-package.mjs",
+          "state": "current-root-existing",
+          "currentPin": {
+            "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/workspace/apps/desktop/scripts/native-converter-package.mjs",
+            "role": "read-only-current-interface",
+            "bytes": 4270,
+            "sha256": "39ae2d2f172eed7e770463902e961e523fbea7ca9369cec6c6c77cd0e7cce065"
+          },
+          "donorPin": null
+        }
+      ],
+      "interface": "CD75/PCM/pregap/Unicode tracknames/tag/artwork/完整8codec及rareFLACfallback；多选全选顺序输出和无覆盖。",
+      "necessaryImplementation": "现FFmpeg wavmux/PCMencoder+flacdecoder不等于8codec；native子进程cancel/recovery资源关闭；原2000/180000/480000/Reader1|2不变；CUE不能play仍Info可用。",
+      "requiredFormalEvidence": "实际合成音频全部格式/标签/封面/hash/无覆盖/取消恢复；移动FLAC/DSD独立carryover。"
+    }
+  ],
+  "historyIsNotCurrentPass": true,
+  "current002ValidationRecord": {
+    "basis": "现Scope279=107M172A的合成WIP读回；44功能/35+9/公开39与全部预算不变，原正式current002状态及历史分母未改。",
+    "failureAndRepairHistory": [
+      "原完整库Main捕获失败后，610被动CPU观察定位同步SQL中重复reader/UDF安装和prepare；该诊断不授性能或完整Main通过。",
+      "613生产修复仅复用同实际connection的reader/prepared statement；原guard、scope/source身份、SQL barrier/dataVersion、poison与水位失效保留。614 full strict自然0，61例57通过4观察器失败，原失败保留。",
+      "615修marker/SQL观察器到实际Statement执行及当前观察窗口，保原业务断言；620两整叶28/28自然0、skip/cancel0。",
+      "621首次新完整标准自然verify1/tee0：group-markers的65目录原statement观察失败；旧prepare观察漏cached执行，不能改成native零调用或删除断言。",
+      "624分组观察器跟踪原cached Statement与实际callback；626扫描观察器消除callback持有旧窗口而污染计数，原业务断言保留。627定向group2/2、scan5/5均自然0、skip/cancel0；629同实际SQLite冷原重放1/1自然0。"
+    ],
+    "whyFresh630Required": "613改生产reader/cache，615/624/626改继承测试观察归属；旧标准失败及旧源码/测试/编译inputs不再匹配，局部绿不能代替该新全图。因此630必须在冻结当前输入上重跑完整pnpm verify含尾部production build，并用同次产物运行Main；未复用595旧产物或旧标准绿。",
+    "standard630": {
+      "receipt": "root-wip-whole-current630/full-verify/wip-verification557.json",
+      "verifyExit": 0,
+      "teeExit": 0,
+      "pipelineNaturallyEnded": true,
+      "productionBuildNaturallySucceeded": true,
+      "counts": {
+        "tests": 5480,
+        "suites": 0,
+        "pass": 5478,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 2,
+        "todo": 0
+      },
+      "raw": {
+        "path": "root-wip-whole-current630/full-verify/verify.log",
+        "bytes": 1566072,
+        "sha256": "4e1a9384226a554738c48035710a4efc9ba765a6ddf8b9c698b0af7005e06c9c"
+      },
+      "sourceQualified": false,
+      "formalSourceStandard": false
+    },
+    "main630": {
+      "stage": "root-wip-whole-current630/main/wip-main-nine557.json",
+      "counts": {
+        "tests": 9,
+        "pass": 8,
+        "fail": 1,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "exitCode": 1,
+      "signal": null,
+      "naturallyEnded": true,
+      "durationMs": 23069.992959000003,
+      "raw": {
+        "path": "root-wip-whole-current630/main/wip-main-nine557.stdout.log",
+        "bytes": 4053,
+        "sha256": "e9cda08a033f38e170fa46499ec1037bbf1ea3e63093d5b312a9d88b9c8a5ce2"
+      },
+      "failedCase": "002 Main完整库：实际Electron到唯一Owner worker同SQL捕获201专辑405成员遵守原2000ms并自然关闭",
+      "firstCapture": {
+        "command": "library.capture",
+        "sequence": 7,
+        "bodyBytes": 117,
+        "bodySha256": "33f6c97977ec85f03d86cc343813669cc4bee884055262c5820d306c7189a5be",
+        "ownerPortEvents": [
+          {
+            "part": "begin",
+            "direction": "PORT_IN",
+            "wallAtMs": 1791854885531,
+            "ownerMonotonicAtMs": 7861.166833,
+            "expiresAtMs": 1791854887522,
+            "requestSha256": "33f6c97977ec85f03d86cc343813669cc4bee884055262c5820d306c7189a5be"
+          },
+          {
+            "part": "data",
+            "direction": "PORT_IN",
+            "wallAtMs": 1791854885532,
+            "ownerMonotonicAtMs": 7862.137,
+            "expiresAtMs": 1791854887522,
+            "requestSha256": "33f6c97977ec85f03d86cc343813669cc4bee884055262c5820d306c7189a5be"
+          },
+          {
+            "part": "end",
+            "direction": "PORT_IN",
+            "wallAtMs": 1791854885533,
+            "ownerMonotonicAtMs": 7863.102208,
+            "expiresAtMs": 1791854887522,
+            "requestSha256": "33f6c97977ec85f03d86cc343813669cc4bee884055262c5820d306c7189a5be"
+          },
+          {
+            "part": "cancel",
+            "direction": "PORT_IN",
+            "wallAtMs": 1791854887527,
+            "ownerMonotonicAtMs": 9857.120916,
+            "expiresAtMs": 1791854887522,
+            "requestSha256": "33f6c97977ec85f03d86cc343813669cc4bee884055262c5820d306c7189a5be"
+          },
+          {
+            "part": "failure",
+            "direction": "PORT_OUT",
+            "wallAtMs": 1791854887528,
+            "ownerMonotonicAtMs": 9858.339208,
+            "expiresAtMs": 1791854887522,
+            "requestSha256": "33f6c97977ec85f03d86cc343813669cc4bee884055262c5820d306c7189a5be",
+            "code": "TIMEOUT"
+          },
+          {
+            "part": "settled",
+            "direction": "PORT_OUT",
+            "wallAtMs": 1791854887533,
+            "ownerMonotonicAtMs": 9863.311541,
+            "expiresAtMs": 1791854887522,
+            "requestSha256": "33f6c97977ec85f03d86cc343813669cc4bee884055262c5820d306c7189a5be"
+          }
+        ],
+        "clockBasis": "wallAtMs为原Owner事件墙钟，expiresAtMs为原deadline；ownerMonotonicAtMs仅来自同Owner进程，不与Main单调时钟相减或据此授2000ms成功。",
+        "result": "TIMEOUT；未完成201专辑405成员捕获，未进入后续完整批次/十actor清理证明。"
+      },
+      "shutdown": "同次Main收尾另有CoreIpcError INTERNAL_ERROR；保留独立失败，不将其改写为捕获原因或自然资源quiet。",
+      "fullTenActorAcceptance": false
+    },
+    "remaining": "当前WIP标准局部通过保留；完整Main第9例/联合C03仍失败，正式Source自身新标准/Gate/完整Native/Main/首次自然CI、Report及真实应用/Owner均未授通过。",
+    "historicalStandard595": {
+      "basis": "595是其当时源码的软件通过历史基线，完整保留，不签当前最终源码、Main或Source资格。",
+      "sourceSnapshotSha256": "400dafc7a08d862d016ab4b05cf67e1f4b4e6c1c86d26310ff23b221c57cf826",
+      "verifyExit": 0,
+      "teeExit": 0,
+      "tests": 5480,
+      "pass": 5478,
+      "skipped": 2,
+      "raw": {
+        "path": "root-wip-whole-final-standard595/full-verify/verify.log",
+        "bytes": 1566539,
+        "sha256": "b28efd397974243353cc88ce02c685cc7f99ac6a6b9a23e4f981adc5ffae121d"
+      },
+      "sourceQualified": false
+    },
+    "currentProductDeltaAfter630": {
+      "basis": "636真实被动CPU仅诊断；随后原Scope内窄产品修复及受控定向，不代替当前全标准、原201/405/205的2000ms Main、Source/CI/真实应用/Owner。",
+      "productChanges": [
+        "owner-store同连接非事务/total_changes/data_version/schema/isTransaction前后屏障复用媒体/scan hash；完整原watermark过滤不变。",
+        "scan目录按原索引精确范围选完整成员、prepared SELECT复用；原currentFileState、根/成员/EOF/字节/修订核保留。",
+        "CD21原内嵌隔离world可信drag/原导航UUID+每次有界序号，跨document Main序号段不复用；30秒/原fullcapture fingerprint/单次消费/pending24/真实producer join。",
+        "CD22同次文本在File读取前固定，bytes优先，File无有效bytes才同次合格URL回退；正常bytes Main失败不派第二请求，关闭/重开/换capture等ABA拒迟到。",
+        "Main名称设置使用存储器原固定local-name-settings.json；Main目录UI摘要规范为command/payload，独立family及原body/UUID/choice/author/FD核保留。"
+      ],
+      "verification": {
+        "watermarkDirection": {
+          "tests": 46,
+          "pass": 46,
+          "exitCode": 0
+        },
+        "watermarkBarriers": {
+          "tests": 6,
+          "pass": 6,
+          "exitCode": 0
+        },
+        "webDrag": {
+          "tests": 111,
+          "pass": 111,
+          "exitCode": 0,
+          "raw": {
+            "path": "root-capture-hot-read-fix/web-drag-direction-final.stdout",
+            "bytes": 31549,
+            "sha256": "2918a91ee833262ac45559e87a7c88f6f0a58630127c2b8ee3354926a0bdfe32"
+          }
+        },
+        "CoreNoEmit": 0,
+        "DesktopVueNoEmit": 0,
+        "fullStandardAfterInitializationFix": {
+          "layer": "初始化修复后同源码WIP完整标准历史基线；后续目录摘要窄修不在该快照中",
+          "sourceSnapshotSha256": "125bbe440cf55a25a36e730ec467e5dbb17ab2467c28dc3074b05b903f901e29",
+          "tests": 5498,
+          "pass": 5496,
+          "skipped": 2,
+          "fail": 0,
+          "verifyExit": 0,
+          "teeExit": 0,
+          "pipelineNaturallyEnded": true,
+          "raw": {
+            "path": "root-current-main-settings-validation/full-verify/verify.log",
+            "bytes": 1572017,
+            "sha256": "a040a4083a21364bc9c7e0c02378c6ffa65df1d056a5fdf5b986cde844c5089d"
+          },
+          "receipt": {
+            "path": "root-current-main-settings-validation/full-verify/wip-verification557.json",
+            "bytes": 4508207,
+            "sha256": "cabea00ba0594c0562af02013d08d9b68142785e2b45a2faed8b676082474428"
+          },
+          "sourceQualified": false
+        },
+        "mainAfterInitializationFix": {
+          "tests": 9,
+          "pass": 8,
+          "fail": 1,
+          "exitCode": 1,
+          "pipelineNaturallyEnded": true,
+          "completeOriginalCaptureElapsedMs": 1899.2213329999995,
+          "originalBudgetMs": 2000,
+          "captureAssertionsPassed": true,
+          "firstFailure": "library.import.confirm原state unknown，不等于succeeded；Main与Owner目录ui摘要表示不一致",
+          "secondaryFailure": "finally Core shutdown INTERNAL_ERROR，尚未闭",
+          "raw": {
+            "path": "root-current-main-settings-validation/main/wip-main-nine557.stdout.log",
+            "bytes": 4060,
+            "sha256": "39fbc3f35861a6ced184670c31d6d38b3cd1957185ed5a9d31d7cd5594d3e43d"
+          },
+          "fullTenActorAcceptance": false
+        }
+      },
+      "testCorrections": [
+        "新目录夹具的technical/expectedRevision输入与公共预算错误层级修正；first/corrected8/10原raw保留，原负例不降。",
+        "新value合同import使旧SSR挂载器CJS require仅ESM包失败2例；沿既有host复用真实ESM合同namespace，validator/生产exports不改。",
+        "index hook受控VM先TS5.9.3降语法再执行；首SyntaxError原件保留。"
+      ],
+      "whyNewFullStandardRequired": "初始化修复后的5498完整标准已自然通过；其原Main捕获1899ms通过2秒但完整9项仍8/9。新目录摘要修复与对应有效测试须定向验证；实际当前产品输入变化后需一次新完整标准及原Main，不复用历史快照签当前Source。",
+      "formalAcceptance": false,
+      "fullTenActorAcceptance": false,
+      "realElectronWebDrag": "NOT_RUN",
+      "ownerAcceptance": "NOT_RUN"
+    }
+  }
+}

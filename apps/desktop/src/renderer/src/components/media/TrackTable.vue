@@ -8,6 +8,8 @@ const props = withDefaults(defineProps<{
   tracks: readonly TrackSummary[]
   showArtwork?: boolean
   busy?: boolean
+  /** 可选的逐曲播放资格；不影响详情、选择和信息整理入口。 */
+  playableTrackIds?: ReadonlySet<string>
   initialLoading?: boolean
   loadingMore?: boolean
   loadMoreError?: string | null
@@ -112,24 +114,29 @@ function restoreVirtualScroll(): void {
 }
 
 function playFromContext(): void {
-  if (!contextTrack.value || props.busy) return
+  if (!contextTrack.value || !canRequest(contextTrack.value, 'play')) return
   emit('play', contextTrack.value)
   closeContextMenu()
 }
 
 function requestPlay(track: TrackSummary): void {
-  if (props.busy) return
+  if (!canRequest(track, 'play')) return
   emit('play', track)
 }
 
+function canRequest(track: TrackSummary, action: 'play' | 'queue' | 'play-next'): boolean {
+  if (props.playableTrackIds !== undefined) return !props.busy && props.playableTrackIds.has(track.id)
+  return action !== 'play' || !props.busy
+}
+
 function queueFromContext(): void {
-  if (!contextTrack.value) return
+  if (!contextTrack.value || !canRequest(contextTrack.value, 'queue')) return
   emit('queue', contextTrack.value)
   closeContextMenu()
 }
 
 function playNextFromContext(): void {
-  if (!contextTrack.value) return
+  if (!contextTrack.value || !canRequest(contextTrack.value, 'play-next')) return
   emit('play-next', contextTrack.value)
   closeContextMenu()
 }
@@ -203,7 +210,7 @@ onUnmounted(() => {
         <span class="track-album" aria-hidden="true">{{ entry.track.album }}</span>
         <span class="track-duration" role="cell">{{ formatDuration(entry.track.durationMs) }}</span>
         <span class="row-actions" role="cell">
-          <button type="button" class="row-action" :disabled="props.busy" :aria-label="`播放 ${entry.track.title}`" @click.stop="requestPlay(entry.track)">▶</button>
+          <button type="button" class="row-action" :disabled="!canRequest(entry.track, 'play')" :aria-label="`播放 ${entry.track.title}`" @click.stop="requestPlay(entry.track)">▶</button>
           <button type="button" class="row-action row-action-more" :aria-label="`打开 ${entry.track.title} 的更多操作`" @click.stop="showContextMenu($event, entry.track)">•••</button>
           <slot name="row-detail" :track="entry.track" />
         </span>
@@ -232,9 +239,9 @@ onUnmounted(() => {
       @click.stop
     >
       <strong>{{ contextTrack.title }}</strong>
-      <button type="button" role="menuitem" :disabled="props.busy" @click="playFromContext">播放</button>
-      <button type="button" role="menuitem" @click="playNextFromContext">下一首播放</button>
-      <button type="button" role="menuitem" @click="queueFromContext">加入队列</button>
+      <button type="button" role="menuitem" :disabled="!canRequest(contextTrack, 'play')" @click="playFromContext">播放</button>
+      <button type="button" role="menuitem" :disabled="!canRequest(contextTrack, 'play-next')" @click="playNextFromContext">下一首播放</button>
+      <button type="button" role="menuitem" :disabled="!canRequest(contextTrack, 'queue')" @click="queueFromContext">加入队列</button>
     </div>
   </div>
 </template>

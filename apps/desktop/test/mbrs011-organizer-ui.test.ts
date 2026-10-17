@@ -14,6 +14,10 @@ import * as artwork from '../src/renderer/src/composables/application/useLocalAr
 import { calculateVirtualWindow } from '../src/renderer/src/composables/virtualWindow.js'
 import * as details from '../src/renderer/src/components/player/details.js'
 import * as outboxController from '../src/renderer/src/components/command-outbox/controller.js'
+import * as localAlbumBrowserTypes from '../src/renderer/src/composables/application/local-library-browser/types.js'
+import * as localAlbumTrackPresentation from '../src/renderer/src/composables/application/local-library-browser/presentation.js'
+import * as localAlbumWorkbenchPresentation from '../src/renderer/src/components/library/local-browser/presentation.js'
+import * as gridWindow from '../src/renderer/src/composables/useGridWindow.js'
 
 const require = createRequire(import.meta.url), vue = require('vue') as typeof import('vue')
 const id = (n: number) => `11111111-1111-4111-8111-${String(n).padStart(12, '0')}`
@@ -87,6 +91,11 @@ async function mounted(t: test.TestContext, file: string, initial: Record<string
       if (name.endsWith('/virtualWindow.js')) return { calculateVirtualWindow }
       if (name.endsWith('/details.js')) return details
       if (name.endsWith('/command-outbox/controller.js')) return outboxController
+      // .vue issuer的CommonJS夹具不走TS .js映射；接原ESM模块，不stub新专辑组件或常量。
+      if (name.endsWith('/local-library-browser/types.js')) return localAlbumBrowserTypes
+      if (name.endsWith('/local-library-browser/presentation.js')) return localAlbumTrackPresentation
+      if (name.endsWith('/useGridWindow.js')) return gridWindow
+      if (name === './presentation.js' && path.dirname(filename) === path.join(componentRoot, 'library/local-browser')) return localAlbumWorkbenchPresentation
       return localRequire(name)
     }
     const compile = (code: string) => ts.transpileModule(code, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText

@@ -6,6 +6,7 @@ import { readonlySourceCatalogFileAvailable, SourceCatalogReleaseError } from '.
 import { mobileOwnerDirectPlaybackKind, projectMobileOwnerLocalTrack } from './catalog-service.js';
 import { isMobileOwnerPrivateRequest, isMobileOwnerPrivateResult } from './owner-protocol.js';
 import { createMobileSealedStateStore } from './sealed-state-store.js';
+import { createMobileLocalAlbumProjection, type MobileLocalAlbums } from './local-album-projection.js';
 import { MobileAuthPersistenceError, MobileServiceError, type MobileOwnerArtworkSnapshot, type MobileOwnerCatalogRequest, type MobileOwnerCatalogSnapshot, type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult } from './types.js';
 
 const digest = (value: unknown): string => createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -13,12 +14,23 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 const unavailable = (): never => { throw new MobileServiceError(503, 'BUSY'); };
 const missing = (): never => { throw new MobileServiceError(404, 'INVALID_REQUEST'); };
 
-/** 同一个现有 Owner/连接的只读投影及私有密文作者。没有源文件写入或新增 DDL。 */
-export function createMobileOwnerService(options: {
+interface MobileOwnerServiceOptions {
   collection: CollectionRepository; datasetId: string; ownerEpoch: string; assertCurrent(): void;
   /** 原 Owner 的同一真实缓存资格；不能由 Renderer 或请求 bool 授予。 */
   dsdToPcmAvailable?: () => boolean;
-}) {
+}
+export interface MobileOwnerLegacyService {
+  dispatch(input: MobileOwnerPrivateRequest): MobileOwnerPrivateResult;
+  dispatchLegacy(input: MobileOwnerPrivateRequest): MobileOwnerPrivateResult;
+  dispatchMobile(input: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult>;
+}
+export interface MobileOwnerDirectoryService extends Omit<MobileOwnerLegacyService, 'dispatch'> {
+  dispatch(input: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult>;
+}
+export function createMobileOwnerService(options: MobileOwnerServiceOptions & { localAlbums: MobileLocalAlbums }): MobileOwnerDirectoryService;
+export function createMobileOwnerService(options: MobileOwnerServiceOptions): MobileOwnerLegacyService;
+/** 同一个现有 Owner/连接的只读投影及私有密文作者。没有源文件写入或新增 DDL。 */
+export function createMobileOwnerService(options: MobileOwnerServiceOptions & { localAlbums?: MobileLocalAlbums }): MobileOwnerDirectoryService | MobileOwnerLegacyService {
   const { collection, datasetId, ownerEpoch } = options;
   let state: ReturnType<typeof createMobileSealedStateStore> | undefined;
   let playbackState: ReturnType<typeof createMobileSealedStateStore> | undefined;
@@ -112,7 +124,7 @@ export function createMobileOwnerService(options: {
     current(); if (revision(catalogPlaybackEnabled) !== start) throw new MobileServiceError(409, 'SOURCE_CHANGED');
     return { datasetId, ownerEpoch, libraryRevision: start, operation: request.operation, offset: request.offset, limit: request.limit, total: candidates.total, items };
   }
-  function artwork(request: { serverId: string; artworkId: string }): MobileOwnerArtworkSnapshot {
+  function artwork(request: { serverId: string; artworkId: string }, uniqueGroup = false): MobileOwnerArtworkSnapshot {
     current(); const start = revision(), [selectionId, selectionRevision] = identifiers(request.artworkId, 'aw', 2);
     if (!selectionRevision || !/^[1-9][0-9]*$/u.test(selectionRevision) || !collection.privateMobileCatalogAccess) return missing();
     const selected = collection.privateMobileCatalogAccess(db => {
@@ -121,6 +133,7 @@ export function createMobileOwnerService(options: {
     });
     if (!selected?.candidate) return missing();
     if (selected.revision !== selectionRevision || artworkId(selected) !== request.artworkId) throw new MobileServiceError(409, 'SOURCE_CHANGED');
+    if (uniqueGroup) directory!.resolveAlbum(`la:${datasetId}:${selected.editionId}`);
     const permitted = collection.localCatalog.privateMobileCandidates({ kind: 'tracks', offset: 0, limit: 1, query: '', editionId: selected.editionId, trackId: null });
     if (!permitted.total) return unavailable();
     const display = selected.candidate.display, bytes = Buffer.from(display.dataUrl.slice(23), 'base64');
@@ -128,8 +141,13 @@ export function createMobileOwnerService(options: {
     current(); if (revision() !== start) throw new MobileServiceError(409, 'SOURCE_CHANGED');
     return { datasetId, ownerEpoch, libraryRevision: start, artworkId: request.artworkId, selectionRevision, contentType: 'image/jpeg', bytes: new Uint8Array(bytes) };
   }
-  return {
-    dispatch(input: MobileOwnerPrivateRequest): MobileOwnerPrivateResult {
+  const directory = options.localAlbums ? createMobileLocalAlbumProjection({ ...options, localAlbums: options.localAlbums, playbackAvailable }) : undefined;
+  function reject(error: unknown): MobileOwnerPrivateResult {
+    return { kind: 'mobile-error', status: error instanceof MobileServiceError ? error.status : 503,
+      code: error instanceof MobileServiceError ? error.code : 'BUSY', retryable: false,
+      outcome: error instanceof MobileAuthPersistenceError ? error.outcome : null };
+  }
+  function dispatchLegacy(input: MobileOwnerPrivateRequest): MobileOwnerPrivateResult {
       try {
         current(); if (!isMobileOwnerPrivateRequest(input) || input.datasetId !== datasetId) throw new MobileAuthPersistenceError('not-sent');
         let result: MobileOwnerPrivateResult;
@@ -143,11 +161,20 @@ export function createMobileOwnerService(options: {
           result = input.kind === 'load' || input.kind === 'playback-load' ? store.load(datasetId) : store.save(input.request);
         } else throw new MobileServiceError(400, 'INVALID_REQUEST');
         current(); if (!isMobileOwnerPrivateResult(result, input)) throw new MobileAuthPersistenceError('unknown'); return result;
-      } catch (error) {
-        return { kind: 'mobile-error', status: error instanceof MobileServiceError ? error.status : 503,
-          code: error instanceof MobileServiceError ? error.code : 'BUSY', retryable: false,
-          outcome: error instanceof MobileAuthPersistenceError ? error.outcome : null };
-      }
-    },
-  };
+      } catch (error) { return reject(error); }
+  }
+  async function dispatchMobile(input: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult> {
+    if (!directory) return dispatchLegacy(input);
+    try {
+      current(); if (!isMobileOwnerPrivateRequest(input) || input.datasetId !== datasetId) throw new MobileAuthPersistenceError('not-sent');
+      let result: MobileOwnerPrivateResult;
+      if (input.kind === 'catalog') { await directory.refresh(); result = directory.catalog(input.request); }
+      else if (input.kind === 'artwork' && input.request.artworkId.startsWith('mw:')) result = await directory.artwork(input.request);
+      else if (input.kind === 'artwork') { await directory.refresh(); result = artwork(input.request, true); }
+      else return dispatchLegacy(input);
+      current(); if (!isMobileOwnerPrivateResult(result, input)) throw new MobileAuthPersistenceError('unknown'); return result;
+    } catch (error) { return reject(error); }
+  }
+  if (directory) return { dispatch: dispatchMobile, dispatchLegacy, dispatchMobile };
+  return { dispatch: dispatchLegacy, dispatchLegacy, dispatchMobile };
 }

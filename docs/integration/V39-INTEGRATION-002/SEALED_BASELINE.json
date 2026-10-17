@@ -1,0 +1,303 @@
+{
+  "schema": "musicbridge.v39.integration002.sealed-baseline.v1",
+  "baseReportSha": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+  "baseReportTree": "3991e44a5d1d01a4132891cf2e2b20926d7c8871",
+  "sourceSha": "744c29af17e7f587a635810c4f45e327c7132705",
+  "reportUniqueParent": "744c29af17e7f587a635810c4f45e327c7132705",
+  "qualification": "SOURCE_AND_UNIQUE_DIRECT_REPORT_FIRST_NATURAL_CI_SEALED",
+  "seal": {
+    "schema": "musicbridge.root.v39-integration.source4-report.sealed325.v1",
+    "status": "SOURCE_AND_UNIQUE_DIRECT_REPORT_FIRST_NATURAL_CI_SEALED",
+    "task": "V39-INTEGRATION-001",
+    "source": "744c29af17e7f587a635810c4f45e327c7132705",
+    "sourceParentSha": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+    "report": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+    "branch": "codex/v39-integration-001",
+    "admission": {
+      "head": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+      "source": "744c29af17e7f587a635810c4f45e327c7132705",
+      "parent": "d842d4604da64a19d051dd18a5659ec3ad5e5763",
+      "role": "report",
+      "sourceFiles": 52,
+      "directSourceFiles": 7,
+      "reportFiles": 8,
+      "failedSource1Preserved": true,
+      "failedSource2Preserved": true,
+      "scopeSha256": "c89f612c34241ec8f8e4992ec96ace7aad56c435225a04c97d96f6aaa59aec85",
+      "files": [
+        {
+          "path": "reports/V39-INTEGRATION-001_RESULT.json",
+          "status": "A",
+          "oldMode": "000000",
+          "newMode": "100644"
+        },
+        {
+          "path": "reports/V39-INTEGRATION-001_RESULT.md",
+          "status": "A",
+          "oldMode": "000000",
+          "newMode": "100644"
+        },
+        {
+          "path": "docs/integration/V39-INTEGRATION-001/CI_EVIDENCE.json",
+          "status": "A",
+          "oldMode": "000000",
+          "newMode": "100644"
+        },
+        {
+          "path": "docs/integration/V39-INTEGRATION-001/STATUS.json",
+          "status": "M",
+          "oldMode": "100644",
+          "newMode": "100644"
+        },
+        {
+          "path": "project/STATUS.json",
+          "status": "M",
+          "oldMode": "100644",
+          "newMode": "100644"
+        },
+        {
+          "path": "project/POSTRUST_PLAN.json",
+          "status": "M",
+          "oldMode": "100644",
+          "newMode": "100644"
+        },
+        {
+          "path": "project/POSTRUST_TODO.md",
+          "status": "M",
+          "oldMode": "100644",
+          "newMode": "100644"
+        },
+        {
+          "path": "project/POSTRUST_PROGRESS.md",
+          "status": "M",
+          "oldMode": "100644",
+          "newMode": "100644"
+        }
+      ]
+    },
+    "reportFilesWholeRead": [
+      {
+        "path": "reports/V39-INTEGRATION-001_RESULT.json",
+        "status": "A",
+        "source": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "report": {
+          "bytes": 13510314,
+          "sha256": "f1c3897f973daa7f583f9f3d2f5b9ff82c89cc45481739ff0b04ed10a94c1bfd"
+        }
+      },
+      {
+        "path": "reports/V39-INTEGRATION-001_RESULT.md",
+        "status": "A",
+        "source": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "report": {
+          "bytes": 1588,
+          "sha256": "d39f4556af4b1f7b5af4d4cd8ea7dae4a85416cc61bb535638efdc90ce9b0135"
+        }
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/CI_EVIDENCE.json",
+        "status": "A",
+        "source": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "report": {
+          "bytes": 13510314,
+          "sha256": "f1c3897f973daa7f583f9f3d2f5b9ff82c89cc45481739ff0b04ed10a94c1bfd"
+        }
+      },
+      {
+        "path": "docs/integration/V39-INTEGRATION-001/STATUS.json",
+        "status": "M",
+        "source": {
+          "bytes": 499,
+          "sha256": "af5943fa46eb92090a04fdcf85b052ced2d230e76ab4a9539684a4673768b945"
+        },
+        "report": {
+          "bytes": 6600,
+          "sha256": "f949d7dbf24ba901940c4149213575de69be7be2e92881a50dee660221ec503c"
+        }
+      },
+      {
+        "path": "project/STATUS.json",
+        "status": "M",
+        "source": {
+          "bytes": 2658570,
+          "sha256": "6610994619022c1da18c110a5073809a32a43f85613c18236470950ac60f97fd"
+        },
+        "report": {
+          "bytes": 2664769,
+          "sha256": "2c1b745116f29e08eae60547db3077d152fe09fdab46416da26e26f8dbfe74da"
+        }
+      },
+      {
+        "path": "project/POSTRUST_PLAN.json",
+        "status": "M",
+        "source": {
+          "bytes": 2900559,
+          "sha256": "540ec18e78c6ab5f2a62d44ddc0037afb6ec3554179bb5b2989993ef76c6d139"
+        },
+        "report": {
+          "bytes": 2907206,
+          "sha256": "6c78cf5ee96883418dcdeca26da87fb1bd6947b8638b3ec58fb0a5a2fa4b5795"
+        }
+      },
+      {
+        "path": "project/POSTRUST_TODO.md",
+        "status": "M",
+        "source": {
+          "bytes": 41448,
+          "sha256": "415a2adaa1d5971965ba75e341570ea87cea9f9c95d5a7519f62170b692cbb5d"
+        },
+        "report": {
+          "bytes": 41908,
+          "sha256": "9a826b3daa62e9c5f731a51dad4d18b0ba06e4af4adb4337c6f10043abb488d0"
+        }
+      },
+      {
+        "path": "project/POSTRUST_PROGRESS.md",
+        "status": "M",
+        "source": {
+          "bytes": 127743,
+          "sha256": "0dce32fbd56501e819ecee574f8f2adacdabae062d0b4dcaf12d9643904542fe"
+        },
+        "report": {
+          "bytes": 128203,
+          "sha256": "4adc3de44b1014c0e8289925b3bb44644f241c0230029b2bf586c024ffc73f06"
+        }
+      }
+    ],
+    "ci": [
+      {
+        "phase": "source",
+        "revision": "744c29af17e7f587a635810c4f45e327c7132705",
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/v39-integration-ci235-source4-source-013/ci-result.json",
+          "bytes": 13221293,
+          "sha256": "c326ee85baf8c61b6fa2f387a3c6623a74f4894cb1b3809f8d95cabbf989f766"
+        },
+        "runs": [
+          {
+            "id": 38171183590,
+            "path": ".github/workflows/rust-core.yml",
+            "url": "https://github.com/Matt12377/MusicBridge/actions/runs/38171183590",
+            "attempt": 1,
+            "conclusion": "success"
+          },
+          {
+            "id": 38171183588,
+            "path": ".github/workflows/verify.yml",
+            "url": "https://github.com/Matt12377/MusicBridge/actions/runs/38171183588",
+            "attempt": 1,
+            "conclusion": "success"
+          },
+          {
+            "id": 38171183555,
+            "path": ".github/workflows/security.yml",
+            "url": "https://github.com/Matt12377/MusicBridge/actions/runs/38171183555",
+            "attempt": 1,
+            "conclusion": "success"
+          },
+          {
+            "id": 38171183575,
+            "path": ".github/workflows/electron-e2e.yml",
+            "url": "https://github.com/Matt12377/MusicBridge/actions/runs/38171183575",
+            "attempt": 1,
+            "conclusion": "success"
+          }
+        ],
+        "jobs": 6,
+        "wholeLogsRead": 6,
+        "wholeArtifactsAlreadyVerified": 5,
+        "wholeZipBytesAndCrcReplayedForSeal": false,
+        "toolTests": {
+          "registered": 277,
+          "passed": 277,
+          "skipped": 0
+        },
+        "actualToolDurationMs": 95217.77149999999
+      },
+      {
+        "phase": "report",
+        "revision": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+        "receipt": {
+          "path": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mb-mbm004-prepare-1_y7o18o/v39-integration-ci235-source4-report-002/ci-result.json",
+          "bytes": 1196204,
+          "sha256": "906def55f97110c0dde92231546ab3fca103edbc75801cd60172af2e90e1bac1"
+        },
+        "runs": [
+          {
+            "id": 38175492189,
+            "path": ".github/workflows/security.yml",
+            "url": "https://github.com/Matt12377/MusicBridge/actions/runs/38175492189",
+            "attempt": 1,
+            "conclusion": "success"
+          },
+          {
+            "id": 38175492010,
+            "path": ".github/workflows/verify.yml",
+            "url": "https://github.com/Matt12377/MusicBridge/actions/runs/38175492010",
+            "attempt": 1,
+            "conclusion": "success"
+          }
+        ],
+        "jobs": 3,
+        "wholeLogsRead": 3,
+        "wholeArtifactsAlreadyVerified": 1,
+        "wholeZipBytesAndCrcReplayedForSeal": false,
+        "toolTests": {
+          "registered": 203,
+          "passed": 200,
+          "skipped": 3
+        },
+        "actualToolDurationMs": 108099.532097
+      }
+    ],
+    "remoteHead": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+    "protectedRemoteRefs": {
+      "refs/heads/codex/v39-integration-001": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+      "refs/heads/codex/ci-report-metadata-001": "9bfb5915c17e8b5770ece7ac9a0efc1998d54e72",
+      "refs/heads/codex/ci-report-mirror-001": "1b5345d13d9617c1770a361841d805305d06d038",
+      "refs/heads/codex/mbm-004-content-multidevice": "aebf9464dc080d1242c379db183f4424e62f0b40"
+    },
+    "nextIntegrationBase": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+    "failedSource1Preserved": true,
+    "failedSource2Preserved": true,
+    "unpublishedFailedLocal1367Preserved": true,
+    "unpublishedFailedLocalB64Preserved": true,
+    "cumulativeSourceFiles": 52,
+    "directSourceFiles": 7,
+    "nextTask": "V39-INTEGRATION-002",
+    "nextOrder": [
+      "complete Feedback and Async and performance",
+      "shared/native/local playback/album wall/full CoverDrop",
+      "MBRS-016",
+      "MBRS-017"
+    ],
+    "next002ScopeOrBranchCreated": false,
+    "oldProductArtifactsRedownloadedOrReplayed": false,
+    "currentWholeZipBytesAndCrcReplayedForSeal": false,
+    "realApplicationServiceDeviceAudio": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "canonicalMusicBridgeIosAndCoverDropTouched": false,
+    "reruns": 0,
+    "dispatches": 0
+  },
+  "sealPin": {
+    "bytes": 9111,
+    "sha256": "a27dc7b7e3fb46e10252a687f249c84bac621801450f79d3b61d2fbbeb067fee"
+  },
+  "sourceFullCiEvidence": {
+    "path": "docs/integration/V39-INTEGRATION-001/CI_EVIDENCE.json",
+    "jsonPointer": "/sourceCi"
+  },
+  "original001InputsUnchangedAtEntry": true,
+  "realApplicationServiceDeviceAudio": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN"
+}

@@ -45,7 +45,8 @@ async function harness(hold = false, hint: unknown = 'list', enabled = true) {
     },
   }
   const runtime = {
-    start: async () => {}, shutdown: async () => { queueMicrotask(() => child.exit(0)) },
+    // 与真实utility同序：原shutdown成功回执在microtask投递后，再发受控exit。
+    start: async () => {}, shutdown: async () => { setImmediate(() => child.exit(0)) },
     getState: () => ({ runtime: 'ready', roon: 'ready', provider: 'missing', activeStreamCount: 0, activePlaybackPresent: false }),
     getLibraryReadScope: () => scope,
     browseRoonAlbums: (page: { offset: number; limit: number }) => library.browseAlbums(page),

@@ -10,8 +10,10 @@ import { LocalSourceFence } from '../stream/local-source-fence.js';
 import type { LocalSourceCaptureResult } from '../collection/local-source-ticket-types.js';
 import type { AssetLease, ConfirmedLocalSession } from '../stream/local-file-source.js';
 import { currentPerformanceContext, readPerformanceTime } from '../diagnostics/performance-trace.js';
-import { randomUUID } from 'node:crypto';
-import { isDeepStrictEqual } from 'node:util';
+import { createHash, randomUUID } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { isDeepStrictEqual, types as nodeTypes } from 'node:util';
+import { isLocalAlbumQueueSnapshot, type LocalAlbumQueueSnapshot } from '../collection/local-album-browser/owner-protocol.js';
 import type {
   DiagnosticResourceCounters,
   PlaybackQueueEntry,
@@ -81,10 +83,45 @@ export interface BridgeState {
   activeStreamCount: number;
 }
 
+type LocalPlaybackEvidenceFields =
+  | {stage:'roon-phase';phase:LocalPlaybackObservationLeaf['phase']}
+  | {stage:'position';sampleSequence:1|2;source:'audio-input'|'zone';positionMs:number;positionAdvanced:boolean};
+interface LocalPlaybackEvidenceState {
+  diagnosticId:string;startedAtMs:number;phases:Set<LocalPlaybackObservationLeaf['phase']>;
+  positionSamples:0|1|2;firstPositionMs?:number;
+}
+type LocalGuardStage = 'REQUEST_GATE'|'INTENT'|'TARGET_CAPTURE'|'ALBUM_MATERIALIZE'|'ALBUM_VALIDATE'|'SOURCE_CAPTURE'|'SOURCE_VALIDATE'|'SELECTED_SNAPSHOT'|'STOP_ACTIVE'|'PERSIST_QUEUE'|'RELEASE_CAPTURE'|'START_QUEUE'|'EDITION_RESOLVE'|'SECOND_CAPTURE'|'SECOND_FACTS'|'LEASE_REGISTER'|'SDK_SUBMIT'|'COMPLETED';
+type LocalGuardMatch = 'not-checked'|'match'|'mismatch';
+type LocalGuardMatches = Record<'intentMatch'|'targetMatch'|'sourceMatch'|'fenceMatch'|'snapshotMatch'|'factsMatch',LocalGuardMatch>;
+type LocalGuardPriority = 'first-business'|'final-rejection'|'first-cleanup'|'terminal';
+interface LocalGuardTrace {
+  diagnosticId:string;requestFingerprintSha256:string;startedAtMs:number;operationStage:LocalGuardStage;firstStage:LocalGuardStage|'NONE';
+  matches:LocalGuardMatches;differenceMask:number;closed:boolean;lastError?:unknown;hasError:boolean;failureStage?:LocalGuardStage;
+  budget:{ordinary:number;reserved:Set<LocalGuardPriority>};
+}
+type LocalPlayWork = Promise<LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported>;
+interface LocalPlayRequestEntry {fingerprint:string;work:LocalPlayWork;receipt:import('@music-bridge/contracts').LocalPlayReceipt;guardTrace:LocalGuardTrace|undefined}
+const localGuardCodes = new Set(['NONE','UNKNOWN','BAD_REQUEST','INTERNAL_ERROR','ROON_ZONE_NOT_SELECTED','ROON_NOT_PAIRED','ROON_CORE_NOT_CONNECTED','ROON_TIMEOUT','ROON_MEDIA_ERROR','QUEUE_CONFLICT','INVENTORY_CONFLICT','INVALID_IPC_REQUEST','UNAVAILABLE','NOT_READY','LOCAL_SOURCE_CHANGED','INVALID_REQUEST','TARGET_CHANGED','FACTS_CHANGED','UNAUTHORIZED_ROOT','SEGMENT_UNSUPPORTED','READ_CANCELLED','READ_DEADLINE','ROON_TRANSPORT_UNAVAILABLE','INVENTORY_UNAVAILABLE']);
+const localGuardStatuses = new Set([0,400,401,403,404,409,412,415,422,429,500,503,504]);
+const emptyLocalGuardMatches = ():LocalGuardMatches => ({intentMatch:'not-checked',targetMatch:'not-checked',sourceMatch:'not-checked',fenceMatch:'not-checked',snapshotMatch:'not-checked',factsMatch:'not-checked'});
+/** 诊断只读own data；不触发错误getter、代理或message/stack。 */
+function localGuardOwn(value:unknown,key:string):unknown {
+  if(!value||typeof value!=='object'||nodeTypes.isProxy(value))return undefined;
+  try {const descriptor=Object.getOwnPropertyDescriptor(value,key);return descriptor&&Object.hasOwn(descriptor,'value')?descriptor.value:undefined;}catch{return undefined;}
+}
+/** 仅早于原JSON正文生成的拒绝使用；非普通纯data对象不作诊断序列化。 */
+function localGuardJson(value:unknown,depth=0):unknown {
+  if(value===null||typeof value==='string'||typeof value==='boolean'||typeof value==='number'&&Number.isFinite(value))return value;
+  if(!value||typeof value!=='object'||depth>3||nodeTypes.isProxy(value)||![Object.prototype,null].includes(Object.getPrototypeOf(value)))throw new Error('诊断正文不属于普通data。');
+  const keys=Reflect.ownKeys(value);if(keys.length>32)throw new Error('诊断正文超出有限字段。');
+  const result:Record<string,unknown>={};
+  for(const key of keys){const descriptor=Object.getOwnPropertyDescriptor(value,key);if(typeof key!=='string'||!descriptor?.enumerable||!Object.hasOwn(descriptor,'value'))throw new Error('诊断正文不是own data。');Object.defineProperty(result,key,{value:localGuardJson(descriptor.value,depth+1),enumerable:true,configurable:true,writable:true});}
+  return result;
+}
 interface LocalOwnerResources {
   capture: LocalSourceCaptureResult; fence: LocalSourceFence; lease?: AssetLease; session?: ConfirmedLocalSession;
   timer?: ReturnType<typeof setInterval>; renewing?: Promise<void>; disposing?: Promise<void>;
-  isOwned?: () => boolean; nextRenewal?: number;
+  isOwned?: () => boolean; nextRenewal?: number; evidence?:LocalPlaybackEvidenceState;
   lane?: number; poolAttempt?: number;
   target: NonNullable<ReturnType<NonNullable<RoonPort['captureLocalTarget']>>>;
 }
@@ -139,6 +176,8 @@ interface NativeRoonPlaybackPort {
 interface PlaybackOwner {
   /** 稳定entry入口在准备期间的队列资格；进入Playing后不阻止合法队列编辑。 */
   queueAdmission?: () => void;
+  /** 仅表示此旧owner已受理停止；原停止回执仍是终态依据。 */
+  localStopRequested?: boolean;
   local?: LocalOwnerResources;
   item: QueueItem;
   zoneId: string;
@@ -420,7 +459,8 @@ export class BridgeController {
   private localClosing = false;
   private localObservation: LocalPlaybackObservationLeaf | undefined;
   private readonly localTasks = new Set<Promise<unknown>>();
-  private readonly localRequests = new Map<string,{fingerprint:string;work:Promise<LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported>;receipt:import('@music-bridge/contracts').LocalPlayReceipt}>();
+  private readonly localRequests = new Map<string,LocalPlayRequestEntry>();
+  private readonly localGuardContext = new AsyncLocalStorage<LocalGuardTrace>();
   private queue: QueueItem[] = [];
   private queueIndex = -1;
   private playbackState: PlaybackState = 'idle';
@@ -446,6 +486,8 @@ export class BridgeController {
   private deviceTail: Promise<void> = Promise.resolve();
   private controlTail: Promise<void> = Promise.resolve();
   private pendingPlaybackCommands = 0;
+  private readonly displayReadPriorityOperations = new Set<object>();
+  private readonly displayReadUnconfirmedRoonStops = new Set<string | undefined>();
   private commandEpoch = 0;
   private runningCommandEpoch = 0;
   private queueReplacementGeneration = 0;
@@ -724,16 +766,16 @@ export class BridgeController {
     const candidate=[...items],acceptedRevision=this.logicalRevision;
     const port=this.dependencies.localSources;if(!port?.saveMBQueue)return Promise.resolve();
     const work=this.queueSaveTail.then(async()=>{
-      if(this.localClosing || !port.isLocalSourceCurrent?.())throw this.cancelled();
+      if(this.localGuardRejects('intentMatch',this.localClosing) || this.localGuardRejects('sourceMatch',!port.isLocalSourceCurrent?.()))throw this.cancelled();
       if(!this.queueDatasetId){const identity=await port.prepare();this.queueDatasetId=identity.datasetId;}
-      if(this.localClosing || !port.isLocalSourceCurrent?.())throw this.cancelled();
-      if(this.logicalRevision!==acceptedRevision && queueId===this.queueId)throw this.cancelled();
+      if(this.localGuardRejects('intentMatch',this.localClosing) || this.localGuardRejects('sourceMatch',!port.isLocalSourceCurrent?.()))throw this.cancelled();
+      if(this.localGuardRejects('snapshotMatch',this.logicalRevision!==acceptedRevision && queueId===this.queueId))throw this.cancelled();
       const expectedRevision=this.logicalRevision;
       const queue:MBQueueRecord={schemaVersion:'1.2',datasetId:this.queueDatasetId!,queueId,revision:String(BigInt(expectedRevision)+1n),
         currentEntryId:candidate[index]?.entryId ?? null,restartPolicy:{reResolve:true,autoplay:false},
         entries:candidate.map(logicalQueueEntry)};
       const result=await port.saveMBQueue!({expectedRevision,queue});
-      if(this.localClosing || !port.isLocalSourceCurrent?.() || result.revision!==queue.revision || result.queueId!==queue.queueId)throw this.cancelled();
+      if(this.localGuardRejects('intentMatch',this.localClosing) || this.localGuardRejects('sourceMatch',!port.isLocalSourceCurrent?.()) || this.localGuardRejects('snapshotMatch',result.revision!==queue.revision) || this.localGuardRejects('snapshotMatch',result.queueId!==queue.queueId))throw this.cancelled();
       this.logicalRevision=result.revision;this.queuePersistence='SAVED';this.queueProjectionDirty=true;
     });
     this.queueSaveTail=work.catch(()=>{this.queuePersistence='UNAVAILABLE';this.queueProjectionDirty=true;});return work;
@@ -803,48 +845,175 @@ export class BridgeController {
     });
   }
 
+  private createLocalGuardTrace(request:unknown,fingerprint?:string):LocalGuardTrace|undefined {
+    try {
+      const id=localGuardOwn(request,'request_id');if(typeof id!=='string'||id.length>512)return undefined;
+      const body=fingerprint??JSON.stringify(localGuardJson(request));if(typeof body!=='string'||Buffer.byteLength(body)>65536)return undefined;
+      return {diagnosticId:'diag-local-'+createHash('sha256').update('musicbridge-local-request-guard-v1\0').update(id).digest('hex'),
+        requestFingerprintSha256:createHash('sha256').update('musicbridge-local-request-fingerprint-v1\0').update(body).digest('hex'),
+        startedAtMs:performance.now(),operationStage:'REQUEST_GATE',firstStage:'NONE',matches:emptyLocalGuardMatches(),differenceMask:0,closed:false,hasError:false,
+        budget:{ordinary:0,reserved:new Set<LocalGuardPriority>()}};
+    } catch {return undefined;}
+  }
+  private withLocalGuardTrace<T>(trace:LocalGuardTrace|undefined,operation:()=>T):T {
+    if(!trace)return operation();
+    let outcome:{ok:true;value:T}|{ok:false;error:unknown}|undefined;
+    const once=():T=>{if(outcome){if(outcome.ok)return outcome.value;throw outcome.error;}try{const value=operation();outcome={ok:true,value};return value;}catch(error){outcome={ok:false,error};throw error;}};
+    try{return this.localGuardContext.run(trace,once);}catch{return once();}
+  }
+  private emitLocalGuard(trace:LocalGuardTrace,operationStage:LocalGuardStage,phase:'started'|'succeeded'|'failed'|'cleanup-failed',error?:unknown,priority?:LocalGuardPriority):void {
+    try {
+      if(trace.closed)return;
+      if(priority){if(trace.budget.reserved.has(priority))return;trace.budget.reserved.add(priority);}
+      else {if(trace.budget.ordinary>=60)return;++trace.budget.ordinary;}
+      const failed=phase==='failed'||phase==='cleanup-failed';
+      const rawCode=localGuardOwn(error,'code')??localGuardOwn(localGuardOwn(localGuardOwn(error,'failure'),'error'),'code'),rawStatus=localGuardOwn(error,'httpStatus'),details=localGuardOwn(error,'details');
+      const code=!failed?'NONE':typeof rawCode==='string'&&localGuardCodes.has(rawCode)?rawCode:'UNKNOWN';
+      const errorClass=!failed?'NONE':!error||typeof error!=='object'||nodeTypes.isProxy(error)?'OTHER'
+        :error instanceof BridgeError?'BridgeError':error instanceof DatasetOwnerDispatchError?'DatasetOwnerDispatchError'
+        :error instanceof LocalSourcePreparationError?'LocalSourcePreparationError':nodeTypes.isNativeError(error)?'Error':'OTHER';
+      this.dependencies.logger.info('local_play_request_guard_evidence',{schemaVersion:1,component:'controller',diagnosticId:trace.diagnosticId,
+        requestFingerprintSha256:trace.requestFingerprintSha256,stage:'request-guard',operationStage,firstStage:trace.firstStage,phase,
+        elapsedMs:Math.min(86400000,Math.max(0,Math.floor(performance.now()-trace.startedAtMs))),code,errorClass,
+        httpStatus:typeof rawStatus==='number'&&localGuardStatuses.has(rawStatus)?rawStatus:0,
+        cancelled:localGuardOwn(details,'reason')==='operation_cancelled'?'yes':'not-observed',...trace.matches,differenceMask:trace.differenceMask});
+    } catch { /* 私有诊断失败不影响原命令、错误或清理。 */ }
+  }
+  private localGuardEnter(stage:LocalGuardStage):void {
+    try {const trace=this.localGuardContext.getStore();if(!trace||trace.closed)return;trace.operationStage=stage;trace.matches=emptyLocalGuardMatches();trace.differenceMask=0;this.emitLocalGuard(trace,stage,'started');}catch{}
+  }
+  private localGuardSuccess(stage:LocalGuardStage):void {
+    try {const trace=this.localGuardContext.getStore();if(trace)this.emitLocalGuard(trace,stage,'succeeded');}catch{}
+  }
+  /** 只消费原表达式本次已算出的拒绝布尔；后续短路项仍不求值。 */
+  private localGuardRejects(key:keyof LocalGuardMatches,rejects:boolean,bit?:number):boolean {
+    try {const trace=this.localGuardContext.getStore();if(trace&&!trace.closed){if(rejects)trace.matches[key]='mismatch';else if(trace.matches[key]!=='mismatch')trace.matches[key]='match';if(rejects&&bit!==undefined)trace.differenceMask|=1<<bit;}}catch{}
+    return rejects;
+  }
+  private localGuardFailure(stage:LocalGuardStage,error:unknown,cleanup=false):void {
+    try {
+      const trace=this.localGuardContext.getStore();if(!trace||trace.closed)return;
+      const same=trace.hasError&&trace.lastError===error;
+      if(!same){trace.lastError=error;trace.hasError=true;trace.failureStage=stage;}
+      if(cleanup){this.emitLocalGuard(trace,stage,'cleanup-failed',error,'first-cleanup');return;}
+      if(trace.firstStage==='NONE'){trace.firstStage=stage;this.emitLocalGuard(trace,stage,'failed',error,'first-business');}
+      else if(!same)this.emitLocalGuard(trace,stage,'failed',error);
+    }catch{}
+  }
+  private localGuardCaught(error:unknown):void {
+    try {const trace=this.localGuardContext.getStore();if(trace&&!(trace.hasError&&trace.lastError===error))this.localGuardFailure(trace.operationStage,error);}catch{}
+  }
+  private localGuardSync<T>(stage:LocalGuardStage,operation:()=>T):T {
+    this.localGuardEnter(stage);try{const value=operation();this.localGuardSuccess(stage);return value;}catch(error){this.localGuardFailure(stage,error);throw error;}
+  }
+  private finishLocalGuard(trace:LocalGuardTrace|undefined,error?:unknown,failed=false):void {
+    if(!trace)return;
+    this.withLocalGuardTrace(trace,()=>{
+      try {
+        if(failed){if(!trace.hasError)this.localGuardCaught(error);this.emitLocalGuard(trace,trace.failureStage??trace.operationStage,'failed',error,'final-rejection');}
+        this.emitLocalGuard(trace,'COMPLETED',failed?'failed':'succeeded',error,'terminal');
+      }finally{trace.closed=true;}
+    });
+  }
+  private rejectedLocalGuard(trace:LocalGuardTrace|undefined,error:unknown):LocalPlayWork {
+    this.withLocalGuardTrace(trace,()=>{this.localGuardFailure('REQUEST_GATE',error);this.finishLocalGuard(trace,error,true);});
+    return Promise.reject(error);
+  }
+
   /** 九字段公开请求进入原队列；重复requestId只回同一受理结果。 */
   playLocal(request: LocalPlayRequest): Promise<LocalPlayAccepted | import('@music-bridge/contracts').LocalSourceUnsupported> {
-    if(!isLocalPlayRequest(request) || this.localClosing) return Promise.reject(this.cancelled());
+    if(!isLocalPlayRequest(request) || this.localClosing) return this.rejectedLocalGuard(this.createLocalGuardTrace(request),this.cancelled());
     request=structuredClone(request);
     const fingerprint=JSON.stringify(request), prior=this.localRequests.get(request.request_id);
-    if(prior) return prior.fingerprint===fingerprint ? prior.work : Promise.reject(this.cancelled());
-    if(this.localRequests.size>=256) return Promise.reject(new BridgeError('BAD_REQUEST','本地请求回执达到有限容量。',{httpStatus:429}));
+    if(prior)return prior.fingerprint===fingerprint?prior.work:Promise.reject(this.cancelled());
+    const trace=this.createLocalGuardTrace(request,fingerprint);
+    return this.withLocalGuardTrace(trace,()=>this.playLocalTraced(request,fingerprint,trace));
+  }
+  private playLocalTraced(request:LocalPlayRequest,fingerprint:string,trace:LocalGuardTrace|undefined):LocalPlayWork {
+    this.localGuardEnter('REQUEST_GATE');
+    if(this.localRequests.size>=256) return this.rejectedLocalGuard(trace,new BridgeError('BAD_REQUEST','本地请求回执达到有限容量。',{httpStatus:429}));
+    this.localGuardSuccess('REQUEST_GATE');
     if(request.action==='PLAY_NOW')this.cancelQueueContext();
     const acceptedEpoch=this.commandEpoch,acceptedReplacement=this.queueReplacementGeneration;
-    const guardIntent=()=>{if(this.localClosing || acceptedEpoch!==this.commandEpoch || (request.action!=='PLAY_NOW' && acceptedReplacement!==this.queueReplacementGeneration))throw this.cancelled();if(request.action==='PLAY_NOW')this.guardCommand();};
+    const guardIntent=()=>this.localGuardSync('INTENT',()=>{if(this.localGuardRejects('intentMatch',this.localClosing) || this.localGuardRejects('intentMatch',acceptedEpoch!==this.commandEpoch) || (request.action!=='PLAY_NOW' && this.localGuardRejects('intentMatch',acceptedReplacement!==this.queueReplacementGeneration)))throw this.cancelled();if(request.action==='PLAY_NOW')this.guardCommand();});
     const run=async()=>{
-      guardIntent(); const port=this.dependencies.localSources,target=this.dependencies.roon.captureLocalTarget?.();
-      if(!port?.captureLocalSource || !port.releaseLocalSource || !port.isLocalSourceCurrent?.() || !target?.isCurrent()
-        || target.target.core_id!==request.target.core_id || target.target.zone_id!==request.target.zone_id) throw this.cancelled();
-      let capture:LocalSourceCaptureResult;
-      try{capture=request.action==='PLAY_NOW' ? await port.captureLocalSource(request) : await this.enqueue(()=>{guardIntent();return port.captureLocalSource!(request);});}catch(error){guardIntent();if(error instanceof LocalSourcePreparationError && error.code==='SEGMENT_UNSUPPORTED' || error instanceof DatasetOwnerDispatchError && error.failure.error.code==='INVALID_IPC_REQUEST' && error.failure.error.message.startsWith('[LOCAL_SEGMENT_UNSUPPORTED]'))return {status:'unsupported' as const,reason:'LOCAL_SEGMENT_UNSUPPORTED' as const};throw error;}
-      const fence=new LocalSourceFence(capture.buffer);
       try {
-        guardIntent(); if(this.localClosing || !target.isCurrent() || !port.isLocalSourceCurrent?.() || !fence.current) throw this.cancelled();
-        const item:QueueItem={entryId:randomUUID(),logicalSource:{kind:'local_file',snapshot:{sourceKind:'local_file',trackId:capture.facts.track.id,assetId:capture.facts.asset.id,libraryRootId:capture.facts.root.id,sourceRootId:capture.facts.sourceRoot.id,rootRevision:capture.facts.root.revision,fileRevision:capture.facts.asset.fileRevision,locationRevision:capture.facts.asset.locationRevision,selectionRevision:capture.facts.track.selectionRevision,segment:capture.facts.track.segment},edition:null},trackId:request.local_track_id,qualityPreference:'auto',resolvedSource:'local_file',track:toTrackSummary(capture.metadata),localSelection:structuredClone(request),localExpected:capture.facts,localTarget:target,
+      guardIntent();this.localGuardEnter('TARGET_CAPTURE');const port=this.dependencies.localSources!,target=this.dependencies.roon.captureLocalTarget?.()!;
+      if(this.localGuardRejects('sourceMatch',!port?.captureLocalSource) || this.localGuardRejects('sourceMatch',!port.releaseLocalSource) || this.localGuardRejects('sourceMatch',!port.isLocalSourceCurrent?.()) || this.localGuardRejects('targetMatch',!target?.isCurrent())
+        || this.localGuardRejects('targetMatch',target.target.core_id!==request.target.core_id) || this.localGuardRejects('targetMatch',target.target.zone_id!==request.target.zone_id)) throw this.cancelled();
+      this.localGuardSuccess('TARGET_CAPTURE');
+      let albumQueue:LocalAlbumQueueSnapshot|undefined;
+      if(request.album){
+        this.localGuardEnter('ALBUM_MATERIALIZE');
+        if(!port.readLocalAlbum)throw this.cancelled();
+        const expiresAtMs=Date.now()+2000;
+        let value:Awaited<ReturnType<NonNullable<typeof port.readLocalAlbum>>>;
+        try {value=await port.readLocalAlbum({command:'localAlbum.materializeQueue',payload:{selection:request,expiresAtMs}});}
+        catch(error){this.localGuardFailure('ALBUM_MATERIALIZE',error);throw error;}
+        this.localGuardSuccess('ALBUM_MATERIALIZE');
+        guardIntent();
+        this.localGuardSync('ALBUM_VALIDATE',()=>{if(Date.now()>=expiresAtMs||this.localGuardRejects('targetMatch',!target.isCurrent())||this.localGuardRejects('sourceMatch',!port.isLocalSourceCurrent?.())||this.localGuardRejects('snapshotMatch',!isLocalAlbumQueueSnapshot(value,request)))throw this.cancelled();});
+        if((value as LocalAlbumQueueSnapshot).sources.some(source=>source.snapshot.segment!==null))return {status:'unsupported' as const,reason:'LOCAL_SEGMENT_UNSUPPORTED' as const};
+        albumQueue=value as LocalAlbumQueueSnapshot;
+      }
+      // 票据仍只接收点击曲的原九字段；整组仅保存逻辑快照，按当前/下一曲原上限解析。
+      const {album:_album,...sourceSelection}=request;
+      let playbackIndex=0;
+      let capture:LocalSourceCaptureResult;
+      this.localGuardEnter('SOURCE_CAPTURE');
+      try{capture=request.action==='PLAY_NOW' ? await port.captureLocalSource!(sourceSelection) : await this.enqueue(()=>{guardIntent();this.localGuardEnter('SOURCE_CAPTURE');return port.captureLocalSource!(sourceSelection);});}catch(error){this.localGuardFailure('SOURCE_CAPTURE',error);guardIntent();if(error instanceof LocalSourcePreparationError && error.code==='SEGMENT_UNSUPPORTED' || error instanceof DatasetOwnerDispatchError && error.failure.error.code==='INVALID_IPC_REQUEST' && error.failure.error.message.startsWith('[LOCAL_SEGMENT_UNSUPPORTED]'))return {status:'unsupported' as const,reason:'LOCAL_SEGMENT_UNSUPPORTED' as const};throw error;}
+      this.localGuardSuccess('SOURCE_CAPTURE');
+      const fence=this.localGuardSync('SOURCE_VALIDATE',()=>new LocalSourceFence(capture.buffer));
+      try {
+        guardIntent();this.localGuardSync('SOURCE_VALIDATE',()=>{if(this.localGuardRejects('intentMatch',this.localClosing) || this.localGuardRejects('targetMatch',!target.isCurrent()) || this.localGuardRejects('sourceMatch',!port.isLocalSourceCurrent?.()) || this.localGuardRejects('fenceMatch',!fence.current)) throw this.cancelled();});
+        const item:QueueItem={entryId:randomUUID(),logicalSource:{kind:'local_file',snapshot:{sourceKind:'local_file',trackId:capture.facts.track.id,assetId:capture.facts.asset.id,libraryRootId:capture.facts.root.id,sourceRootId:capture.facts.sourceRoot.id,rootRevision:capture.facts.root.revision,fileRevision:capture.facts.asset.fileRevision,locationRevision:capture.facts.asset.locationRevision,selectionRevision:capture.facts.track.selectionRevision,segment:capture.facts.track.segment},edition:null},trackId:request.local_track_id,qualityPreference:'auto',resolvedSource:'local_file',track:toTrackSummary(capture.metadata),localSelection:structuredClone(sourceSelection),localExpected:capture.facts,localTarget:target,
           local:{local_track_id:request.local_track_id,asset_id:request.asset_id,asset_revision:request.expected_asset_revision,selection_revision:capture.facts.track.selectionRevision,location_revision:capture.facts.asset.locationRevision,root_revision:capture.facts.root.revision}};
         if(request.action==='PLAY_NOW') {
-          await this.stopActive();guardIntent();if(!target.isCurrent() || !fence.current) throw this.cancelled();
-          const replacementId=randomUUID();await this.persistQueue([item],0,replacementId);this.queueId=replacementId;this.queue=[item];this.queueIndex=0;this.queueProjectionDirty=true;guardIntent();
+          let items=[item];
+          if(albumQueue){
+            const originalAlbum=albumQueue,selected=originalAlbum.sources[originalAlbum.startIndex]!;
+            this.localGuardSync('SELECTED_SNAPSHOT',()=>{if(this.localGuardRejects('snapshotMatch',item.logicalSource?.kind!=='local_file'||!isDeepStrictEqual(selected.snapshot,item.logicalSource.snapshot)))throw this.cancelled();});
+            items=originalAlbum.sources.map((source):QueueItem=>({entryId:randomUUID(),trackId:source.snapshot.trackId,qualityPreference:'auto',resolvedSource:'local_file',
+              logicalSource:structuredClone(source),local:localQueueIdentity(source),...(originalAlbum.edition?{edition:{...originalAlbum.edition}}:{}),preflight:{state:'NEEDS_REVALIDATION',reason:null}}));
+            playbackIndex=originalAlbum.startIndex;
+            items[playbackIndex]={...items[playbackIndex]!,track:toTrackSummary(capture.metadata),localSelection:structuredClone(sourceSelection),localExpected:capture.facts,localTarget:target};
+          }
+          this.localGuardEnter('STOP_ACTIVE');
+          try{await this.stopActive();}catch(error){this.localGuardFailure('STOP_ACTIVE',error);throw error;}
+          this.localGuardSuccess('STOP_ACTIVE');guardIntent();this.localGuardSync('SOURCE_VALIDATE',()=>{if(this.localGuardRejects('targetMatch',!target.isCurrent()) || this.localGuardRejects('fenceMatch',!fence.current)) throw this.cancelled();});
+          const replacementId=randomUUID();this.localGuardEnter('PERSIST_QUEUE');
+          try{await this.persistQueue(items,playbackIndex,replacementId);}catch(error){this.localGuardFailure('PERSIST_QUEUE',error);throw error;}
+          this.localGuardSuccess('PERSIST_QUEUE');this.queueId=replacementId;this.queue=items;this.queueIndex=playbackIndex;this.queueProjectionDirty=true;guardIntent();
         } else {
-          const current=()=>{guardIntent();if(!target.isCurrent() || !port.isLocalSourceCurrent?.() || !fence.current)throw this.cancelled();};
+          const current=()=>{guardIntent();this.localGuardSync('SOURCE_VALIDATE',()=>{if(this.localGuardRejects('targetMatch',!target.isCurrent()) || this.localGuardRejects('sourceMatch',!port.isLocalSourceCurrent?.()) || this.localGuardRejects('fenceMatch',!fence.current))throw this.cancelled();});};
           const insert=request.action==='PLAY_NEXT_MB_QUEUE';
-          if(this.queueContext || this.pendingQueueContexts.size)await this.editContextQueue([item],insert,current);
-          else await this.commitQueueEdit([item],insert,current);
+          this.localGuardEnter('PERSIST_QUEUE');
+          try {
+            if(this.queueContext || this.pendingQueueContexts.size)await this.editContextQueue([item],insert,current);
+            else await this.commitQueueEdit([item],insert,current);
+          }catch(error){this.localGuardFailure('PERSIST_QUEUE',error);throw error;}
+          this.localGuardSuccess('PERSIST_QUEUE');
           current();
         }
-      } finally {fence.revoke();await port.releaseLocalSource(capture.ticketId);}
+      } catch(error){this.localGuardCaught(error);throw error;}
+      finally {
+        this.localGuardEnter('RELEASE_CAPTURE');
+        try{fence.revoke();await port.releaseLocalSource!(capture.ticketId);}catch(error){this.localGuardFailure('RELEASE_CAPTURE',error,true);throw error;}
+        this.localGuardSuccess('RELEASE_CAPTURE');
+      }
       guardIntent();
-      if(request.action==='PLAY_NOW') await this.startQueueIndex(0,false,undefined,true);
+      if(request.action==='PLAY_NOW') {this.localGuardEnter('START_QUEUE');await this.startQueueIndex(playbackIndex,false,undefined,true);this.localGuardSuccess('START_QUEUE');}
       return {status:'accepted',request_id:request.request_id,action:request.action} as LocalPlayAccepted;
+      }catch(error){this.localGuardCaught(error);throw error;}
     };
     const work=request.action==='PLAY_NOW' ? this.enqueuePlayback(run,true) : run();
-    const entry = {fingerprint,work,receipt:{status:'pending',request_id:request.request_id,action:request.action} as import('@music-bridge/contracts').LocalPlayReceipt};
+    const entry = {fingerprint,work,guardTrace:trace,receipt:{status:'pending',request_id:request.request_id,action:request.action} as import('@music-bridge/contracts').LocalPlayReceipt};
     this.localRequests.set(request.request_id,entry);
     void work.then(result => {
       entry.receipt={status:'received',request_id:request.request_id,action:request.action,result:structuredClone(result)};
+      this.finishLocalGuard(trace);
     }, error => {
+      this.finishLocalGuard(trace,error,true);
       const code=asBridgeError(error).code;
       const reason:import('@music-bridge/contracts').LocalPlayRejection = code==='ROON_ZONE_NOT_SELECTED' || code==='ROON_NOT_PAIRED' ? 'TARGET_UNAVAILABLE'
         : code==='ROON_MEDIA_ERROR' ? 'MEDIA_ERROR' : code==='ROON_TIMEOUT' ? 'ROON_TIMEOUT'
@@ -868,18 +1037,74 @@ export class BridgeController {
       && !!owner.local?.fence.current && owner.local.target.isCurrent() && this.dependencies.localSources?.isLocalSourceCurrent?.()===true;
   }
   private assertLocal(owner:PlaybackOwner):void {if(!this.localCurrent(owner))throw this.cancelled();}
+  private logLocalEvidence(owner:PlaybackOwner,fields:LocalPlaybackEvidenceFields):void {
+    try {
+      const evidence=owner.local?.evidence;if(!evidence)return;
+      const current=this.localCurrent(owner),confirmed=owner.local?.session?.isConfirmed()===true;
+      this.dependencies.logger.info('local_playback_evidence',{schemaVersion:1,component:'controller',diagnosticId:evidence.diagnosticId,
+        ...fields,elapsedMs:Math.min(86_400_000,Math.max(0,Math.floor(performance.now()-evidence.startedAtMs))),
+        sessionConfirmed:confirmed,currentOwned:current && confirmed && owner.local?.isOwned?.()===true,staleCallback:!current});
+    } catch { /* 日志和只读诊断谓词不改变原状态、预算或失败回执。 */ }
+  }
+  private recordLocalPositionEvidence(owner:PlaybackOwner,event:RoonTimeEvent|undefined):void {
+    try {
+      const evidence=owner.local?.evidence;
+      if(!evidence || evidence.positionSamples===2 || !event || !Number.isSafeInteger(event.revision) || event.revision<0
+        || (event.source!=='audio-input' && event.source!=='zone') || !this.localCurrent(owner)
+        || owner.local?.session?.isConfirmed()!==true || owner.local.isOwned?.()!==true)return;
+      const positionAdvanced=evidence.firstPositionMs!==undefined && event.positionMs>evidence.firstPositionMs;
+      if(evidence.positionSamples===1 && !positionAdvanced)return;
+      evidence.firstPositionMs ??= event.positionMs;evidence.positionSamples=evidence.positionSamples===0?1:2;
+      this.logLocalEvidence(owner,{stage:'position',sampleSequence:evidence.positionSamples,source:event.source,positionMs:event.positionMs,positionAdvanced});
+    } catch { /* 最多首个确认位置和后续一次推进；不创建定时器或每Time输出。 */ }
+  }
   private localPhase(owner:PlaybackOwner,phase:LocalPlaybackObservationLeaf['phase'],event:LocalPlaybackObservationLeaf['roon_observation']['event']='NONE'):void {
     if(this.owner!==owner || !this.localObservation) return;
     const confirmed=owner.local?.session?.isConfirmed()===true;
     this.localObservation={...this.localObservation,phase,ownership:phase==='PLAYING'||phase==='PAUSED'?'MB_OWNED':phase==='OWNERSHIP_LOST'?'UNKNOWN':phase==='SUBMISSION_UNKNOWN'?'UNKNOWN':phase==='ENDED'||phase==='FAILED'||phase==='CANCELLED'?'NONE':'MB_PENDING',
       roon_observation:{event,observed:event!=='NONE'&&event!=='UNKNOWN',correlation:confirmed?'ATTEMPT_CONFIRMED':'UNKNOWN'}};
+    try {
+      const evidence=owner.local?.evidence;
+      if(evidence && !evidence.phases.has(phase)){evidence.phases.add(phase);this.logLocalEvidence(owner,{stage:'roon-phase',phase});}
+    } catch { /* 每个固定phase最多一次，UNKNOWN只作为观测，不取得重发许可。 */ }
   }
   private localTerminal(owner:PlaybackOwner,phase:'FAILED'|'CANCELLED'|'ENDED',errorCode:string|null=null,event:LocalPlaybackObservationLeaf['roon_observation']['event']='NONE'):void {
     if(this.owner!==owner || !this.localObservation)return;
     this.localPhase(owner,phase,event);this.localObservation={...this.localObservation!,error_code:errorCode};
   }
-  private loseLocal(owner:PlaybackOwner):void {
-    if(this.owner!==owner) return;this.localPhase(owner,'OWNERSHIP_LOST','UNKNOWN');this.clearActiveResources();this.playbackState='error';this.cancelNextPreparation();this.notifyPlaybackChanged();
+  private markLocalStopRequested(owner:PlaybackOwner|undefined=this.owner):void {
+    if(owner?.local)owner.localStopRequested=true;
+  }
+  private isOnlyLocalStopCancellation(owner:PlaybackOwner):boolean {
+    const local=owner.local;
+    if(!owner.localStopRequested || !local || this.owner!==owner || this.queue[this.queueIndex]!==owner.item)return false;
+    try {
+      const observation=this.localObservation,lane=local.lane,attempt=local.poolAttempt,facts=local.capture.facts;
+      const laneId=lane===undefined?undefined:this.localLaneIds[lane];
+      // 只绑定该owner原NOT_STARTED观测；不能借新意图取消此前其它owner的未知提交。
+      if(owner.dispatched===false && observation && local.session===undefined && local.isOwned===undefined
+        && lane!==undefined && attempt!==undefined && laneId!==undefined
+        && this.localLaneBusy[lane]===true && this.localLaneAttempts[lane]===attempt
+        && observation.attempt_id===`${laneId}_${attempt}` && observation.delivery_state==='NOT_STARTED'
+        && (observation.phase==='PREPARING' || observation.phase==='SUBMITTING')
+        && observation.ownership==='MB_PENDING' && observation.queue_owner==='MB'
+        && observation.session_epoch===null && observation.roon_observation.event==='NONE' && observation.roon_observation.observed===false
+        && observation.local_track_id===facts.track.id && observation.asset_id===facts.asset.id && observation.asset_revision===facts.asset.fileRevision
+        && (!owner.item.localSelection || observation.request_id===owner.item.localSelection.request_id))return true;
+      this.assertLocalProtocol();
+      if(!local.fence.current || !local.target.isCurrent() || this.dependencies.localSources?.isLocalSourceCurrent?.()!==true)return false;
+      const lease=local.lease,failure=lease?.failureCode,state=lease?.state;
+      if(failure!==undefined && failure!==null || state==='CLOSING' || state==='CLOSED') {
+        // 原lease的authority也包含取消意图；只识别同lane/attempt由此留下的STALE_ATTEMPT。
+        return failure==='STALE_ATTEMPT' && local.lane!==undefined && local.poolAttempt!==undefined
+          && this.localLaneBusy[local.lane]===true && this.localLaneAttempts[local.lane]===local.poolAttempt;
+      }
+      return true;
+    } catch { return false; }
+  }
+  private loseLocal(owner:PlaybackOwner,definiteLoss=false):void {
+    if(this.owner!==owner || !definiteLoss && this.isOnlyLocalStopCancellation(owner))return;
+    this.localPhase(owner,'OWNERSHIP_LOST','UNKNOWN');this.clearActiveResources();this.playbackState='error';this.cancelNextPreparation();this.notifyPlaybackChanged();
   }
   private trackLocalCleanup(work:Promise<unknown>):void {this.localTasks.add(work);void work.finally(()=>this.localTasks.delete(work)).catch(()=>undefined);}
   private disposeLocal(owner:PlaybackOwner):Promise<void> {
@@ -890,14 +1115,20 @@ export class BridgeController {
       await this.dependencies.localSources?.releaseLocalSource?.(local.capture.ticketId);
       if(local.lane!==undefined){this.localLaneBusy[local.lane]=false;queueMicrotask(()=>this.scheduleNextPreparation());}
     })();
+    try {
+      const trace=this.localGuardContext.getStore();
+      if(trace){this.localGuardEnter('RELEASE_CAPTURE');void quiet.then(()=>this.emitLocalGuard(trace,'RELEASE_CAPTURE','succeeded'),error=>{
+        this.withLocalGuardTrace(trace,()=>this.localGuardFailure('RELEASE_CAPTURE',error,true));
+      }).catch(()=>{});}
+    }catch{ /* 只观察原quiet，不替换原Promise或关闭结果。 */ }
     if(local.lane!==undefined)this.localLaneQuiet[local.lane]=quiet;return quiet;
   }
   private assertLogicalLocalFacts(item:QueueItem,capture:LocalSourceCaptureResult):void {
     const source=item.logicalSource;if(source?.kind!=='local_file')return;
     const expected=source.snapshot,f=capture.facts;
-    if(expected.trackId!==f.track.id || expected.assetId!==f.asset.id || expected.libraryRootId!==f.root.id || expected.sourceRootId!==f.sourceRoot.id
-      || expected.fileRevision!==f.asset.fileRevision || expected.rootRevision!==f.root.revision || expected.locationRevision!==f.asset.locationRevision
-      || expected.selectionRevision!==f.track.selectionRevision || !isDeepStrictEqual(expected.segment,f.track.segment)) {
+    if(this.localGuardRejects('factsMatch',expected.trackId!==f.track.id,1) || this.localGuardRejects('factsMatch',expected.assetId!==f.asset.id,2) || this.localGuardRejects('factsMatch',expected.libraryRootId!==f.root.id,3) || this.localGuardRejects('factsMatch',expected.sourceRootId!==f.sourceRoot.id,4)
+      || this.localGuardRejects('factsMatch',expected.fileRevision!==f.asset.fileRevision,6) || this.localGuardRejects('factsMatch',expected.rootRevision!==f.root.revision,5) || this.localGuardRejects('factsMatch',expected.locationRevision!==f.asset.locationRevision,7)
+      || this.localGuardRejects('factsMatch',expected.selectionRevision!==f.track.selectionRevision,8) || this.localGuardRejects('factsMatch',!isDeepStrictEqual(expected.segment,f.track.segment),9)) {
       throw new BridgeError('BAD_REQUEST','本地队列来源修订已变化，请明确重新点播。',{httpStatus:409});
     }
   }
@@ -906,8 +1137,10 @@ export class BridgeController {
   }
   private async resolveQueueEdition(item:QueueItem):Promise<void> {
     const source=item.logicalSource;if(source?.kind!=='local_file' || !source.edition)return;
+    const expectedDatasetId=this.queueDatasetId;
+    if(expectedDatasetId===undefined)throw new BridgeError('BAD_REQUEST','LOCAL_EDITION_NEEDS_REVALIDATION',{httpStatus:409});
     let result:unknown;
-    try{result=await this.dependencies.localSources!.dispatch({version:1,id:randomUUID(),command:'localCatalog.edition',payload:{editionId:source.edition.id}});}
+    try{result=await this.dependencies.localSources!.dispatch({version:1,id:randomUUID(),command:'localCatalog.edition',payload:{editionId:source.edition.id},expectedDatasetId});}
     catch{throw new BridgeError('BAD_REQUEST','LOCAL_EDITION_NEEDS_REVALIDATION',{httpStatus:409});}
     if(!isAlbumEdition(result) || result.id!==source.edition.id || result.revision!==source.edition.revision)throw new BridgeError('BAD_REQUEST','LOCAL_EDITION_NEEDS_REVALIDATION',{httpStatus:409});
     item.edition={id:result.id,revision:result.revision,title:result.title,edition:result.edition};
@@ -957,11 +1190,17 @@ export class BridgeController {
   }
 
   private async startLocalItem(item:QueueItem,owner:PlaybackOwner):Promise<void> {
-    const request=this.localRequest(item),port=this.dependencies.localSources!,target=item.localTarget ?? this.dependencies.roon.captureLocalTarget?.();
-    if(!target?.isCurrent() || !port.captureLocalSource || !port.releaseLocalSource) throw this.cancelled();
-    this.guardOwner(owner);await this.resolveQueueEdition(item);this.guardOwner(owner);this.assertLocalProtocol();if(!target.isCurrent())throw this.cancelled();++this.localAttempt;
+    try {
+    this.localGuardEnter('TARGET_CAPTURE');
+    const request=this.localRequest(item),port=this.dependencies.localSources!,target=(item.localTarget ?? this.dependencies.roon.captureLocalTarget?.())!;
+    if(this.localGuardRejects('targetMatch',!target?.isCurrent()) || this.localGuardRejects('sourceMatch',!port.captureLocalSource) || this.localGuardRejects('sourceMatch',!port.releaseLocalSource)) throw this.cancelled();
+    this.localGuardSuccess('TARGET_CAPTURE');
+    this.guardOwner(owner);this.localGuardEnter('EDITION_RESOLVE');
+    try{await this.resolveQueueEdition(item);}catch(error){this.localGuardFailure('EDITION_RESOLVE',error);throw error;}
+    this.localGuardSuccess('EDITION_RESOLVE');this.guardOwner(owner);this.assertLocalProtocol();if(this.localGuardRejects('targetMatch',!target.isCurrent()))throw this.cancelled();++this.localAttempt;
     let registration:{token:string;lease:AssetLease}|undefined;
     const prepared=this.localNext;
+    this.localGuardEnter('SECOND_FACTS');
     if(prepared?.item===item){
       prepared.promoted=owner;
       await prepared.work;this.guardOwner(owner);
@@ -979,13 +1218,18 @@ export class BridgeController {
       const lane=this.localLaneBusy.findIndex(busy=>!busy);if(lane<0){await Promise.allSettled(this.localLaneQuiet);this.guardOwner(owner);}
       const available=this.localLaneBusy.findIndex(busy=>!busy);if(available<0)throw this.cancelled();
       this.localLaneBusy[available]=true;const poolAttempt=++this.localLaneAttempts[available]!;
-      let capture:LocalSourceCaptureResult;try{capture=await port.captureLocalSource(request);}catch(error){this.localLaneBusy[available]=false;throw error;}
+      this.localGuardEnter('SECOND_CAPTURE');
+      let capture:LocalSourceCaptureResult;try{capture=await port.captureLocalSource!(request);}catch(error){this.localGuardFailure('SECOND_CAPTURE',error);this.localLaneBusy[available]=false;throw error;}
+      this.localGuardSuccess('SECOND_CAPTURE');this.localGuardEnter('SECOND_FACTS');
       const fence=new LocalSourceFence(capture.buffer);owner.local={capture,fence,target,lane:available,poolAttempt};
-      if(this.owner!==owner || owner.abort.signal.aborted || !target.isCurrent() || !fence.current || item.localExpected && JSON.stringify(capture.facts)!==JSON.stringify(item.localExpected)) {
-        await this.disposeLocal(owner);throw this.cancelled();
+      if(this.localGuardRejects('intentMatch',this.owner!==owner) || this.localGuardRejects('intentMatch',owner.abort.signal.aborted) || this.localGuardRejects('targetMatch',!target.isCurrent()) || this.localGuardRejects('fenceMatch',!fence.current) || item.localExpected && this.localGuardRejects('factsMatch',JSON.stringify(capture.facts)!==JSON.stringify(item.localExpected))) {
+        // 原取消Error仍在原cleanup之后创建；此行只保存已发生的拒绝决定。
+        this.localGuardFailure('SECOND_FACTS',undefined);
+        await this.disposeLocal(owner);this.localGuardEnter('SECOND_FACTS');throw this.cancelled();
       }
-      try{this.assertLogicalLocalFacts(item,capture);}catch(error){await this.disposeLocal(owner);throw error;}
+      try{this.assertLogicalLocalFacts(item,capture);}catch(error){this.localGuardFailure('SECOND_FACTS',error);await this.disposeLocal(owner);throw error;}
     }
+    this.localGuardSuccess('SECOND_FACTS');
     const {capture,fence}=owner.local,attempt=owner.local.poolAttempt!;
     const metadata={...capture.metadata,...(item.edition?.edition?{version:item.edition.edition}:{})};
     const fileParameters=safeFileParameters(capture.fileParameters);
@@ -994,29 +1238,46 @@ export class BridgeController {
       quality:untestedAudioQuality(),...(fileParameters?{file_parameters:fileParameters}:{}),error_code:null};
     this.playbackState='preparing';this.notifyPlaybackChanged();
     try {
+      this.localGuardEnter('LEASE_REGISTER');
       registration ??= await this.dependencies.registry.registerLocalSource({source_kind:'local_file',status:'prepared_descriptor',request_id:request.request_id,action:request.action,target:request.target,facts:capture.facts},{ownerId:this.localLaneIds[owner.local.lane!]!,attempt,isCurrent:()=>this.localCurrent(owner)},capture.format);
       owner.token=registration.token;owner.local.lease=registration.lease;
       this.assertLocal(owner);this.activeToken=registration.token;
       this.activePlayback={track:metadata,qualityPreference:'auto',requestedQuality:'standard',actualQuality:'unknown',...(capture.format?{format:capture.format}:{}),sizeBytes:registration.lease.size,startedAt:new Date(this.now()).toISOString()};
       const local=owner.local;
+      try {
+        local.evidence={diagnosticId:'diag-local-'+createHash('sha256').update('musicbridge-local-playback-evidence-v1\0').update(request.request_id)
+          .update('\0'+String(this.playbackGeneration)+'\0'+String(attempt)).digest('hex'),
+          startedAtMs:performance.now(),phases:new Set(),positionSamples:0};
+        const trace=this.localGuardContext.getStore();if(trace&&!trace.closed)trace.diagnosticId=local.evidence.diagnosticId;
+      } catch { /* 私有绑定不可用时保持原播放链；不输出原request UUID。 */ }
       local.timer=setInterval(()=>{
         if(!this.localCurrent(owner) || local.lease?.state==='CLOSED'){this.loseLocal(owner);return;}
         if(!local.session || local.renewing || this.now() < (local.nextRenewal ?? 0)) return;local.nextRenewal=this.now()+30_000;
-        const work=(async()=>{if(!await port.revalidateLocalSource?.(capture.ticketId))throw this.cancelled();this.assertLocal(owner);local.lease!.renew(local.session!);})();
-        local.renewing=work;void work.catch(()=>this.loseLocal(owner)).finally(()=>{delete local.renewing;});
+        let step:'source'|'current'|'lease'='source';
+        const work=(async()=>{if(!await port.revalidateLocalSource?.(capture.ticketId))throw this.cancelled();step='current';this.assertLocal(owner);step='lease';local.lease!.renew(local.session!);})();
+        local.renewing=work;void work.catch(()=>this.loseLocal(owner,step!=='current')).finally(()=>{delete local.renewing;});
       },250);local.timer.unref();
       item.preflight={state:'PREPARED',reason:null};this.queueProjectionDirty=true;
       this.localPhase(owner,'SUBMITTING');this.notifyPlaybackChanged();
+      this.localGuardSuccess('LEASE_REGISTER');
       let gatewayStage:RoonGatewayStage='none';
-      await this.device(()=>{this.assertLocal(owner);return this.dependencies.roon.play({...this.ownerOptions(owner),mediaUrl:this.dependencies.gateway.localStreamUrl(registration!.token,stage=>{gatewayStage=stage;}),iconUrl:this.dependencies.gateway.iconUrl(),metadata,
+      this.localGuardEnter('SDK_SUBMIT');
+      await this.device(()=>{this.assertLocal(owner);return this.dependencies.roon.play({...this.ownerOptions(owner),mediaUrl:this.dependencies.gateway.localStreamUrl(registration!.token,stage=>{gatewayStage=stage;},
+        local.evidence?{diagnosticId:local.evidence.diagnosticId,isCurrent:()=>this.localCurrent(owner),isOwned:()=>local.session?.isConfirmed()===true && local.isOwned?.()===true}:undefined),iconUrl:this.dependencies.gateway.iconUrl(),metadata,
         ...(this.dependencies.localPlaybackDiagnostics ? {onLocalDiagnostic:this.dependencies.localPlaybackDiagnostics()} : {}),
         gatewayStage:()=>gatewayStage,
         onDispatch:()=>{this.assertLocal(owner);owner.dispatched=true;this.localObservation={...this.localObservation!,delivery_state:'UNKNOWN'};this.localPhase(owner,'AWAITING_ROON');},
         onLocalSession:observation=>{
-          if(this.owner!==owner || owner.abort.signal.aborted) return;
+          if(this.owner!==owner)return;
+          if(observation.event==='OWNERSHIP_LOST'){
+            if(!owner.abort.signal.aborted)local.isOwned=observation.isOwned;
+            let definiteLoss=true;
+            if(owner.localStopRequested)try{definiteLoss=observation.isOwned()!==true;}catch{/* 明确会话事实无法读取时仍保守拒绝。 */}
+            this.loseLocal(owner,definiteLoss);return;
+          }
+          if(owner.abort.signal.aborted)return;
           local.isOwned=observation.isOwned;
           if(observation.event==='DISPATCHED')return;
-          if(observation.event==='OWNERSHIP_LOST'){this.loseLocal(owner);return;}
           if(!this.localCurrent(owner)){this.loseLocal(owner);return;}
           if(observation.event==='UNKNOWN'){this.localPhase(owner,'SUBMISSION_UNKNOWN','UNKNOWN');this.playbackState='error';this.notifyPlaybackChanged();return;}
           this.assertLocal(owner);
@@ -1030,7 +1291,9 @@ export class BridgeController {
           this.notifyPlaybackChanged();
         }});});
       this.assertLocal(owner);
+      this.localGuardSuccess('SDK_SUBMIT');
     } catch(error) {
+      this.localGuardCaught(error);
       item.preflight={state:'FAILED',reason:'SOURCE_UNAVAILABLE'};this.queueProjectionDirty=true;
       if(!owner.dispatched || !this.localCurrent(owner) || asBridgeError(error).code==='ROON_MEDIA_ERROR'){
         if(this.localObservation?.phase!=='OWNERSHIP_LOST')this.localTerminal(owner,owner.abort.signal.aborted?'CANCELLED':'FAILED',owner.abort.signal.aborted?null:asBridgeError(error).code,asBridgeError(error).code==='ROON_MEDIA_ERROR'?'ERROR':'NONE');
@@ -1039,6 +1302,7 @@ export class BridgeController {
       this.localPhase(owner,'SUBMISSION_UNKNOWN','UNKNOWN');this.playbackState='error';this.notifyPlaybackChanged();
       // 已发送只能调和本次会话；返回受理结果不会重复begin/play或入队。
     }
+    }catch(error){this.localGuardCaught(error);throw error;}
   }
   async playRoon(input: NativeRoonQueueInput): Promise<BridgeState> {
     return this.replaceRoonQueue([input], 0);
@@ -1454,7 +1718,8 @@ export class BridgeController {
   }
 
   async next(): Promise<BridgeState> {
-    if (this.queueContext) return this.navigateQueueContext(this.queueContext, 1);
+    const context = this.queueContext;
+    if (context) return this.withDisplayReadPriority(() => this.navigateQueueContext(context, 1));
     return this.enqueuePlayback(async () => {
       this.syncNativeRoonTrack();
       if (this.activeRoonPlayback && (this.queueIndex < 0 || this.queueIndex >= this.queue.length - 1)) {
@@ -1474,7 +1739,8 @@ export class BridgeController {
   }
 
   async previous(): Promise<BridgeState> {
-    if (this.queueContext) return this.navigateQueueContext(this.queueContext, -1);
+    const context = this.queueContext;
+    if (context) return this.withDisplayReadPriority(() => this.navigateQueueContext(context, -1));
     return this.enqueuePlayback(async () => {
       this.syncNativeRoonTrack();
       if (this.activeRoonPlayback && this.queueIndex <= 0) return this.navigateNativeRoon('previous');
@@ -1579,13 +1845,16 @@ export class BridgeController {
   }
 
   async stop(): Promise<BridgeState> {
-    this.cancelQueueContext();
-    ++this.commandEpoch;
-    this.owner?.abort.abort();
-    return this.enqueue(async () => {
-      this.cancelNextPreparation();
-      await this.stopActive(true);
-      return this.getState();
+    return this.withDisplayReadPriority(() => {
+      this.markLocalStopRequested();
+      this.cancelQueueContext();
+      ++this.commandEpoch;
+      this.owner?.abort.abort();
+      return this.enqueue(async () => {
+        this.cancelNextPreparation();
+        await this.stopActive(true);
+        return this.getState();
+      });
     });
   }
 
@@ -1630,18 +1899,27 @@ export class BridgeController {
   }
 
   async stopRoonTransport(): Promise<BridgeState> {
-    this.cancelQueueContext();
-    const zoneId = this.dependencies.roon.getState().selectedZoneId;
-    ++this.commandEpoch;
-    this.owner?.abort.abort();
-    return this.enqueue(async () => {
-      this.cancelNextPreparation();
-      if (this.hasPlaybackOwnership()) {
-        await this.stopActive(true);
-      } else {
-        await this.device(() => this.dependencies.roonLibrary?.stop(zoneId ? { expectedZoneId: zoneId } : {}) ?? Promise.resolve());
-      }
-      return this.getState();
+    return this.withDisplayReadPriority(() => {
+      this.markLocalStopRequested();
+      this.cancelQueueContext();
+      const zoneId = this.dependencies.roon.getState().selectedZoneId;
+      ++this.commandEpoch;
+      this.owner?.abort.abort();
+      return this.enqueue(async () => {
+        this.cancelNextPreparation();
+        if (this.hasPlaybackOwnership()) {
+          await this.stopActive(true);
+        } else {
+          try {
+            await this.device(() => this.dependencies.roonLibrary?.stop(zoneId ? { expectedZoneId: zoneId } : {}) ?? Promise.resolve());
+            this.displayReadUnconfirmedRoonStops.delete(zoneId);
+          } catch (error) {
+            this.displayReadUnconfirmedRoonStops.add(zoneId);
+            throw error;
+          }
+        }
+        return this.getState();
+      });
     });
   }
 
@@ -1711,20 +1989,26 @@ export class BridgeController {
     ) {
       throw new BridgeError('BAD_REQUEST', 'Roon seek position is invalid', { httpStatus: 400 });
     }
+    const acceptedOwner=this.owner,acceptedGeneration=this.playbackGeneration;
+    const acceptedLocal=acceptedOwner?.source==='local_file'||acceptedOwner?.local!==undefined;
+    if(acceptedLocal)this.guardLocalSeek(acceptedOwner,acceptedGeneration);
     return this.enqueueControl(async () => {
-      const owner = this.owner;
-      const generation = this.playbackGeneration;
-      const options = this.ownerOptions(owner);
+      if(!acceptedLocal&&(this.owner?.source==='local_file'||this.owner?.local!==undefined))throw this.cancelled();
+      const owner = acceptedLocal?acceptedOwner:this.owner;
+      const generation = acceptedLocal?acceptedGeneration:this.playbackGeneration;
+      const current=()=>this.guardLocalSeek(owner,generation);
+      const options:RoonOperationOptions=owner?.local ? {...this.ownerOptions(owner),assertCurrent:current,
+        withDispatch:<T>(send:()=>T)=>owner.local!.fence.dispatch(send,current)} : this.ownerOptions(owner);
       const roonLibrary = this.dependencies.roonLibrary;
       if (this.activeRoonPlayback && roonLibrary?.seek) {
-        await this.device(() => { this.guardControl(owner, generation); return roonLibrary.seek!(positionMs, options); });
-        this.guardControl(owner, generation);
+        await this.device(() => { current(); return roonLibrary.seek!(positionMs, options); });
+        current();
         this.notifyPlaybackChanged('full');
         return this.getState();
       }
       if (this.activePlayback && this.dependencies.roon.seek) {
-        await this.device(() => { this.guardControl(owner, generation); return this.dependencies.roon.seek!(positionMs, options); });
-        this.guardControl(owner, generation);
+        await this.device(() => { current(); return this.dependencies.roon.seek!(positionMs, options); });
+        current();
         this.notifyPlaybackChanged('full');
         return this.getState();
       }
@@ -1823,25 +2107,31 @@ export class BridgeController {
   }
 
   async clearQueue(): Promise<BridgeState> {
-    this.cancelQueueContext();
-    ++this.commandEpoch;
-    this.owner?.abort.abort();
-    return this.enqueue(async () => {
-      this.cancelNextPreparation();
-      this.queueHydrationGeneration += 1;
-      await this.stopActive(true);
-      this.queue = [];
-      this.queueIndex = -1;
-      this.queueProjectionDirty = true;
-      this.playbackState = 'idle';
-      this.clearPlaybackIssue();
-      this.notifyPlaybackChanged();
-      return this.getState();
+    return this.withDisplayReadPriority(() => {
+      this.markLocalStopRequested();
+      this.cancelQueueContext();
+      ++this.commandEpoch;
+      this.owner?.abort.abort();
+      return this.enqueue(async () => {
+        this.cancelNextPreparation();
+        this.queueHydrationGeneration += 1;
+        await this.stopActive(true);
+        this.queue = [];
+        this.queueIndex = -1;
+        this.queueProjectionDirty = true;
+        this.playbackState = 'idle';
+        this.clearPlaybackIssue();
+        this.notifyPlaybackChanged();
+        return this.getState();
+      });
     });
   }
 
   async shutdown(): Promise<void> {
-    this.localClosing=true; this.dependencies.localSources?.sealLocalSources?.();
+    this.markLocalStopRequested();
+    this.localClosing=true;
+    try { this.notifyReadPriorityChanged(); } catch { /* 关闭意图仍保持。 */ }
+    this.dependencies.localSources?.sealLocalSources?.();
     this.cancelQueueContext();
     ++this.commandEpoch;
     this.owner?.abort.abort();
@@ -1911,6 +2201,7 @@ export class BridgeController {
     }
     if(this.owner?.local){if(!this.localCurrent(this.owner))return false;this.localObservation={...this.localObservation!,position_ms:positionMs};}
     this.positionMs = positionMs;
+    if(this.owner?.local)this.recordLocalPositionEvidence(this.owner,event);
     if (event && this.queueContext && positionContext.source === 'roon') this.recordContextPlaying(event);
     const now = this.now();
     if (now - this.lastPositionPublishedAt < 250) return true;
@@ -2140,7 +2431,8 @@ export class BridgeController {
         this.notifyPlaybackChanged();
         return;
       } catch (error) {
-        if (this.owner !== owner || owner.abort.signal.aborted) throw this.cancelled();
+        this.localGuardCaught(error);
+        if (this.localGuardRejects('intentMatch',this.owner !== owner) || this.localGuardRejects('intentMatch',owner.abort.signal.aborted)) {const cancelled=this.cancelled();this.localGuardFailure('START_QUEUE',cancelled);throw cancelled;}
         this.cancelQueueHydration();
         if (!owner.dispatched && !this.stopUnknown) { owner.abort.abort(); this.owner = undefined; }
         const bridgeError = asBridgeError(error);
@@ -2498,6 +2790,7 @@ export class BridgeController {
       'ROON_TRANSPORT_UNAVAILABLE', '停止尚未确认，请重试停止', { httpStatus: 409 },
     ));
     const owner = this.owner;
+    this.markLocalStopRequested(owner);
     owner?.abort.abort();
     const hasActive = this.activeToken !== undefined || this.activePlayback !== undefined || this.activeRoonPlayback !== undefined;
     if (!hasActive && !owner) {
@@ -2520,7 +2813,13 @@ export class BridgeController {
             if (!this.dependencies.roonLibrary) throw new BridgeError('ROON_LIBRARY_UNAVAILABLE', '本地 Roon 停止不可用', { httpStatus: 503 });
             return this.dependencies.roonLibrary.stop({ ...(zoneId ? { expectedZoneId: zoneId } : {}) });
           }
-          if(owner?.local && (!owner.local.target.isCurrent() || !owner.local.isOwned?.())) return Promise.resolve();
+          if(owner?.local) {
+            const targetCurrent=owner.local.target.isCurrent();
+            if(!targetCurrent || !owner.local.isOwned?.()) {
+              if(owner.dispatched)this.loseLocal(owner,true);
+              return Promise.resolve();
+            }
+          }
           return this.dependencies.roon.stop({ ...(zoneId ? { expectedZoneId: zoneId } : {}) });
         });
       } catch (error) {
@@ -2669,9 +2968,59 @@ export class BridgeController {
     return Boolean(this.pendingPlaybackCommands || this.owner || this.stopFlight || this.stopUnknown || this.activeToken || this.activePlayback || this.activeRoonPlayback);
   }
 
+  /** 同进程显示读口：只读取原播放事实，稳定所有权仍保留原停止能力。 */
+  hasDisplayReadPriorityBlocker(): boolean {
+    try {
+      if (this.localClosing || this.pendingPlaybackCommands || this.displayReadPriorityOperations.size || this.displayReadUnconfirmedRoonStops.size
+        || this.stopFlight || this.stopUnknown || this.nativeRoonStopRequested) return true;
+      const owner = this.owner;
+      if (owner?.preparing || owner?.abort.signal.aborted) return true;
+      if (!owner && !this.activeToken && !this.activePlayback && !this.activeRoonPlayback) return this.playbackState !== 'idle';
+      if (this.playbackState !== 'playing' && this.playbackState !== 'paused' || owner && !owner.dispatched) return true;
+      const position = this.positionContext, zoneId = this.dependencies.roon.getState().selectedZoneId;
+      if (!position || position.generation !== this.playbackGeneration || !zoneId || position.zoneId !== zoneId) return true;
+      if (owner && (owner.source === 'local_file' || owner.local)) {
+        const local = owner.local, observed = this.localObservation;
+        return !local || !this.localCurrent(owner) || local.disposing !== undefined || !local.session
+          || local.session.attempt !== local.poolAttempt || local.session.isConfirmed() !== true || local.isOwned?.() !== true
+          || !this.activePlayback || !this.activeToken || owner.token !== this.activeToken
+          || position.source !== 'local_file' || position.trackId !== this.activePlayback.track.id
+          || !observed || observed.intent_generation !== String(this.playbackGeneration) || observed.session_epoch === null
+          || observed.local_track_id !== local.capture.facts.track.id || observed.asset_id !== local.capture.facts.asset.id
+          || observed.asset_revision !== local.capture.facts.asset.fileRevision || observed.ownership !== 'MB_OWNED'
+          || observed.queue_owner !== 'MB' || observed.roon_observation.correlation !== 'ATTEMPT_CONFIRMED'
+          || !(this.playbackState === 'playing' && observed.phase === 'PLAYING' || this.playbackState === 'paused' && observed.phase === 'PAUSED');
+      }
+      if (this.activeRoonPlayback) return position.source !== 'roon' || position.trackId !== this.activeRoonPlayback.track.id
+        || position.zoneId !== this.activeRoonPlayback.zoneId;
+      if (this.activePlayback && owner) return owner.source !== 'netease' || owner.zoneId !== zoneId
+        || this.queue[this.queueIndex] !== owner.item || owner.token !== this.activeToken || !this.activeToken
+        || position.source !== 'netease' || position.trackId !== this.activePlayback.track.id;
+      return true;
+    } catch { return true; }
+  }
+
+  /** 每个原操作只释放自己的标记；通知异常不改变原Promise或原错误。 */
+  private beginDisplayReadPriority(): () => void {
+    const marker = {};
+    this.displayReadPriorityOperations.add(marker);
+    const notify = (): void => { try { this.notifyReadPriorityChanged(); } catch { /* 保持原操作。 */ } };
+    notify();
+    return () => { if (this.displayReadPriorityOperations.delete(marker)) notify(); };
+  }
+
+  private withDisplayReadPriority<T>(operation: () => Promise<T>): Promise<T> {
+    const release = this.beginDisplayReadPriority();
+    try {
+      const result = operation();
+      void result.then(release, release);
+      return result;
+    } catch (error) { release(); throw error; }
+  }
+
   private guardCommand(): void {
-    if (this.runningCommandEpoch !== this.commandEpoch
-      || this.runningQueueReplacementGeneration !== this.queueReplacementGeneration) throw this.cancelled();
+    if (this.localGuardRejects('intentMatch',this.runningCommandEpoch !== this.commandEpoch)
+      || this.localGuardRejects('intentMatch',this.runningQueueReplacementGeneration !== this.queueReplacementGeneration)) throw this.cancelled();
   }
 
   private cancelled(): BridgeError {
@@ -2680,14 +3029,22 @@ export class BridgeController {
 
   private guardOwner(owner: PlaybackOwner): void {
     owner.queueAdmission?.();
-    if (this.owner !== owner || owner.abort.signal.aborted || this.queue[this.queueIndex] !== owner.item
-      || (this.dependencies.roon.getState().selectedZoneId ?? '') !== owner.zoneId
-      || (owner.token !== undefined && this.activeToken !== owner.token)) throw this.cancelled();
+    if (this.localGuardRejects('intentMatch',this.owner !== owner) || this.localGuardRejects('intentMatch',owner.abort.signal.aborted) || this.localGuardRejects('intentMatch',this.queue[this.queueIndex] !== owner.item)
+      || this.localGuardRejects('targetMatch',(this.dependencies.roon.getState().selectedZoneId ?? '') !== owner.zoneId)
+      || (owner.token !== undefined && this.localGuardRejects('intentMatch',this.activeToken !== owner.token))) throw this.cancelled();
   }
 
   private guardControl(owner: PlaybackOwner | undefined, generation: number): void {
     if (this.owner !== owner || this.playbackGeneration !== generation || owner?.abort.signal.aborted) throw this.cancelled();
     if(owner?.local) this.assertLocal(owner);
+  }
+
+  private guardLocalSeek(owner: PlaybackOwner | undefined, generation: number): void {
+    this.guardControl(owner,generation);
+    if(owner?.source!=='local_file'&&!owner?.local)return;
+    const local=owner?.local,observation=this.localObservation;
+    if(!local||!local.session?.isConfirmed()||local.isOwned?.()!==true||!observation||observation.ownership!=='MB_OWNED'||observation.queue_owner!=='MB'
+      ||!(this.playbackState==='playing'&&observation.phase==='PLAYING'||this.playbackState==='paused'&&observation.phase==='PAUSED'))throw this.cancelled();
   }
 
   private ownerOptions(owner: PlaybackOwner | undefined): RoonOperationOptions {
@@ -2709,15 +3066,19 @@ export class BridgeController {
   }
 
   private device<T>(operation: () => Promise<T>): Promise<T> {
+    const releasePriority = this.beginDisplayReadPriority();
     const result = this.deviceTail.then(operation);
     this.deviceTail = result.then(() => undefined, () => undefined);
+    void result.then(releasePriority, releasePriority);
     return result;
   }
 
   private devicePlay<T>(operation: (onCompletion: (completion: Promise<void>) => void) => Promise<T>): Promise<T> {
+    const releasePriority = this.beginDisplayReadPriority();
     let completionRegistered = false;
     let release!: () => void;
     const barrier = new Promise<void>(resolve => { release = resolve; });
+    void barrier.then(releasePriority, releasePriority);
     const result = this.deviceTail.then(() => operation(value => {
       completionRegistered = true;
       // 写入真实结算即释放控制链，不等待独立的 Transport 确认。
@@ -2739,9 +3100,11 @@ export class BridgeController {
     this.notifyReadPriorityChanged();
     const result = this.enqueue(() => {
       const result = this.playbackCommandTail.then(() => {
-        if (epoch !== this.commandEpoch || replacementGeneration !== this.queueReplacementGeneration) throw this.cancelled();
-        this.runningCommandEpoch = epoch;
-        this.runningQueueReplacementGeneration = replacementGeneration;
+        this.localGuardSync('INTENT',()=>{
+          if (this.localGuardRejects('intentMatch',epoch !== this.commandEpoch) || this.localGuardRejects('intentMatch',replacementGeneration !== this.queueReplacementGeneration)) throw this.cancelled();
+          this.runningCommandEpoch = epoch;
+          this.runningQueueReplacementGeneration = replacementGeneration;
+        });
         return operation();
       });
       this.playbackCommandTail = result.then(() => undefined, () => undefined);
@@ -2757,14 +3120,14 @@ export class BridgeController {
 
   private enqueueControl<T>(operation: () => Promise<T>): Promise<T> {
     const epoch = this.commandEpoch;
-    return this.enqueue(() => {
+    return this.withDisplayReadPriority(() => this.enqueue(() => {
       const result = this.controlTail.then(() => {
         if (epoch !== this.commandEpoch) throw this.cancelled();
         return operation();
       });
       this.controlTail = result.then(() => undefined, () => undefined);
       return result;
-    });
+    }));
   }
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {

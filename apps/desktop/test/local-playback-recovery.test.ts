@@ -8,7 +8,7 @@ import { compileScript, compileTemplate, parse } from '@vue/compiler-sfc'
 import ts from 'typescript'
 import type {
   LocalLibraryPublicApi, LocalLibraryQuery, LocalLibraryQueryPage, LocalLibraryTrackDetail,
-  LocalLibraryTrackSummary, LocalPlayAccepted, LocalPlayReceipt, LocalPlayRejection,
+  LocalLibraryTrackSummary, LocalAlbumSummary, LocalPlayAccepted, LocalPlayReceipt, LocalPlayRejection,
   LocalPlayRequest, LocalRootView, Page, PlaybackQueueRequestItem, PlaybackSnapshot, TrackSummary,
 } from '@music-bridge/contracts'
 import { useLocalLibrary, type LocalLibraryOptions } from '../src/renderer/src/composables/application/useLocalLibrary.js'
@@ -188,6 +188,99 @@ for (const code of ['LOCAL_PLAY_REJECTED', 'INVENTORY_CONFLICT', 'INVALID_IPC_RE
     assert.equal(sends[1]!.local_track_id, item(1).track.id); assert.equal(f.model.lastPlay.value?.outcome, 'received')
   })
 }
+
+test('LOCAL_PLAY_REJECTION_TRANSPORT：固定闭集拒绝可接受下一专辑，未知结果继续守门', async t => {
+  const prefix = "Error invoking remote method 'localLibrary:request': Error: "
+  const albumA: LocalAlbumSummary = { id: 'transport-album-a', kind: 'edition', rootId: root.root.id, editionId: id(3000), title: '合成专辑A', artists: ['合成作者'], year: null, versionLabel: null, trackCount: 1, representativeTrackId: item().track.id, revision: '1', artworkAvailable: false, statuses: ['missing-artwork'] }
+  const albumB: LocalAlbumSummary = { ...albumA, id: 'transport-album-b', editionId: id(3001), title: '合成专辑B', representativeTrackId: item(1).track.id }
+  const api = { ...libraryApi(), getCommandOutbox: async () => ({ datasetId: id(90), entries: [] }) }
+  for (const form of ['裸码', '固定Electron前缀'] as const) {
+    for (const code of ['LOCAL_PLAY_REJECTED', 'INVENTORY_CONFLICT', 'INVALID_IPC_REQUEST'] as const) {
+      await t.test(form + ' ' + code, async st => {
+        let nextId = 700, currentAlbum = albumA, receiptReads = 0
+        const uuid = st.mock.method(globalThis.crypto, 'randomUUID', () => id(nextId++) as ReturnType<Crypto['randomUUID']>)
+        const sends: LocalPlayRequest[] = []
+        const f = librarySession(st, { api, getPlaybackAlbum: () => currentAlbum,
+          readPlayReceipt: async () => { receiptReads++; throw new Error('不应自动核对原回执') },
+          play: async request => {
+            sends.push(structuredClone(request))
+            if (sends.length === 1) throw new Error((form === '裸码' ? '' : prefix) + '[' + code + '] 合成运输错误。')
+            return accepted(request)
+          } })
+        await f.model.activate(); await f.model.selectTrack(item().track.id); await f.model.playTrack(item().track.id)
+        const original = structuredClone(f.model.lastPlay.value!.request)
+        assert.equal(f.model.lastPlay.value?.outcome, 'rejected'); assert.equal(f.model.lastPlay.value?.failure, 'REQUEST_REJECTED')
+        assert.equal(original.album?.albumKey, albumA.id); assert.equal(sends.length, 1); assert.equal(uuid.mock.callCount(), 1)
+        assert.match(f.model.actionError.value, /已拒绝/u); assert.doesNotMatch(f.model.actionError.value, /结果未获确认/u)
+        currentAlbum = albumB; await f.model.selectTrack(item(1).track.id); await f.model.playTrack(item(1).track.id)
+        assert.equal(sends.length, 2); assert.equal(uuid.mock.callCount(), 2); assert.notEqual(sends[1]!.request_id, original.request_id)
+        assert.equal(sends[1]!.local_track_id, item(1).track.id); assert.equal(sends[1]!.album?.albumKey, albumB.id)
+        assert.equal(sends[1]!.album?.editionId, albumB.editionId); assert.equal(f.model.lastPlay.value?.outcome, 'received')
+        assert.equal(receiptReads, 0)
+      })
+    }
+  }
+  const unknowns = [
+    { label: '固定前缀未知码', message: prefix + '[UNKNOWN] 合成未确认。', beforeApi: false },
+    { label: '裸未知码', message: '[UNKNOWN] 合成未确认。', beforeApi: false },
+    { label: '其他channel', message: "Error invoking remote method 'other:request': Error: [LOCAL_PLAY_REJECTED] 合成运输错误。", beforeApi: false },
+    { label: '已知码只是嵌入子串', message: '合成外层信息 [LOCAL_PLAY_REJECTED] 合成运输错误。', beforeApi: false },
+    { label: '嵌套运输前缀', message: prefix + prefix + '[LOCAL_PLAY_REJECTED] 合成运输错误。', beforeApi: false },
+    { label: 'API前普通未就绪错误', message: '播放状态尚未就绪', beforeApi: true },
+  ]
+  for (const entry of unknowns) {
+    await t.test(entry.label + '仍unknown且missing/pending不授权新派发', async st => {
+      let nextId = 700, currentAlbum = albumA, receiptStatus: 'missing' | 'pending' = 'missing'
+      const uuid = st.mock.method(globalThis.crypto, 'randomUUID', () => id(nextId++) as ReturnType<Crypto['randomUUID']>)
+      const attempts: LocalPlayRequest[] = [], wireSends: LocalPlayRequest[] = [], reads: LocalPlayRequest[] = []
+      const f = librarySession(st, { api, getPlaybackAlbum: () => currentAlbum,
+        readPlayReceipt: async request => { reads.push(structuredClone(request)); return unsettled(receiptStatus, request) },
+        play: async request => {
+          attempts.push(structuredClone(request)); if (!entry.beforeApi) wireSends.push(structuredClone(request))
+          throw new Error(entry.message)
+        } })
+      await f.model.activate(); await f.model.selectTrack(item().track.id); await f.model.playTrack(item().track.id)
+      const binding = f.model.lastPlay.value!, original = structuredClone(binding.request)
+      assert.equal(binding.outcome, 'unknown'); assert.match(f.model.actionError.value, /结果未获确认/u)
+      currentAlbum = albumB; await f.model.selectTrack(item(1).track.id)
+      for (const status of ['missing', 'pending'] as const) {
+        receiptStatus = status; await f.model.readOriginalPlay()
+        assert.equal(f.model.lastPlay.value, binding); assert.deepEqual(f.model.lastPlay.value?.request, original)
+        for (const action of ['PLAY_NOW', 'APPEND_MB_QUEUE', 'PLAY_NEXT_MB_QUEUE'] as const) await f.model.playTrack(item(1).track.id, action)
+        assert.equal(attempts.length, 1); assert.equal(wireSends.length, entry.beforeApi ? 0 : 1); assert.equal(uuid.mock.callCount(), 1)
+        assert.equal(f.model.lastPlay.value?.outcome, 'unknown'); assert.match(f.model.actionError.value, /尚未闭合.*暂不新增点播/u)
+      }
+      assert.deepEqual(reads, [original, original]); assert.equal(original.album?.albumKey, albumA.id)
+    })
+  }
+  await t.test('原pending只保持一次派发，结算后下一专辑才可派发', async st => {
+    let nextId = 700, currentAlbum = albumA
+    const uuid = st.mock.method(globalThis.crypto, 'randomUUID', () => id(nextId++) as ReturnType<Crypto['randomUUID']>)
+    const waiting = deferred<LocalPlayAccepted>(), sends: LocalPlayRequest[] = []
+    const f = librarySession(st, { api, getPlaybackAlbum: () => currentAlbum, play: async request => {
+      sends.push(structuredClone(request)); return sends.length === 1 ? waiting.promise : accepted(request)
+    } })
+    await f.model.activate(); const first = f.model.playTrack(item().track.id)
+    try {
+      await flush(); const binding = f.model.lastPlay.value!
+      assert.equal(binding.outcome, 'pending'); assert.equal(f.model.actionBusy.value, true)
+      currentAlbum = albumB; await f.model.selectTrack(item(1).track.id); await f.model.playTrack(item(1).track.id)
+      assert.equal(f.model.lastPlay.value, binding); assert.equal(sends.length, 1); assert.equal(uuid.mock.callCount(), 1)
+      waiting.resolve(accepted(binding.request)); await first; await f.model.playTrack(item(1).track.id)
+      assert.equal(sends.length, 2); assert.equal(uuid.mock.callCount(), 2); assert.equal(sends[1]!.album?.albumKey, albumB.id)
+    } finally { if (sends[0]) waiting.resolve(accepted(sends[0])); await first }
+  })
+  await t.test('原SUBMISSION_UNKNOWN不由拒绝分类自动清除或新建UUID', async st => {
+    const uuid = st.mock.method(globalThis.crypto, 'randomUUID', () => id(700) as ReturnType<Crypto['randomUUID']>)
+    const snapshot = submissionUnknown(selection()), original = structuredClone(snapshot), sends: LocalPlayRequest[] = []
+    const f = librarySession(st, { api, getPlaybackAlbum: () => albumB, getPlaybackSnapshot: () => snapshot, play: async request => {
+      sends.push(structuredClone(request)); throw new Error(prefix + '[LOCAL_PLAY_REJECTED] 合成运输错误。')
+    } })
+    await f.model.activate(); await f.model.playTrack(item(1).track.id); await f.model.refresh(); await f.model.playTrack(item(1).track.id)
+    assert.equal(uuid.mock.callCount(), 0); assert.equal(sends.length, 0); assert.equal(f.model.lastPlay.value, null)
+    assert.deepEqual(snapshot, original); assert.match(f.model.actionError.value, /尚未闭合.*暂不新增点播/u)
+  })
+})
 
 test('MBF001-B：核对期间并发点击只产生一次查询，新的三种点播动作均零派发', async t => {
   const waiting = deferred<LocalPlayReceipt>(), reads: LocalPlayRequest[] = []

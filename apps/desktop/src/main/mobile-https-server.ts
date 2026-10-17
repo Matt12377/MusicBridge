@@ -1,4 +1,7 @@
+import { withMobileRangeWindowContext, type MobileRangeWindowContext, type MobileRangeWindowProbe } from '../../../../packages/bridge-core/src/mobile/range-window-observer.js'
 import { createServer, type Server } from 'node:https'
+import { createMobileCapabilityContext, withMobileCapabilityContext, mobileCapabilityAsync, mobileCapabilitySync, mobileCapabilityReject, closeMobileCapabilityContext, mobilePreparationAsync, mobilePreparationSync, type MobileCapabilityContext, type MobilePreparationProbe } from '../../../../packages/bridge-core/src/mobile/capability-trace.js'
+import { createMobileContentSampleSelector } from '../../../../packages/bridge-core/src/mobile/capability-trace.js'
 import { randomUUID, X509Certificate, createHash } from 'node:crypto'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Duplex } from 'node:stream'
@@ -18,6 +21,7 @@ import { MOBILE002_OPERATIONS, safeMobilePlaybackFailure, type Mobile002Backend,
 import { sendMobileMediaResponse, getMobileMediaReleaseCompletion, type MobileMediaReply } from './mobile-media-response.js'
 import type { Mobile003Backend, Mobile003Operation } from './mobile-backend.js'
 import type { MobileContentBackend, MobileContentBackendReply } from './mobile-content-backend.js'
+import type { MobileRangeTimingProbe, MobileRangeTimingContext, MobileRangeTimingSpan } from './mobile-range-timing.js'
 import { MOBILE_CONTENT_OPERATIONS, type MobileContentOperation } from '../../../../packages/bridge-core/src/mobile/content-types.js'
 
 /** 新门面自己的有限预算，不改变旧 Control API、Stream Gateway 或任务 Gate。 */
@@ -41,6 +45,10 @@ export interface MobileHttpsServerOptions {
   /** 004由原Main认证及原Core/Owner组合根显式装载。 */
   content?: MobileContentBackend
   allowedHosts?: readonly string[]
+  /** 可信Main单次旁注，缺省关闭，不进入HTTP或RPC合同。 */
+  rangeTimingProbe?: MobileRangeTimingProbe
+  rangeWindowProbe?: MobileRangeWindowProbe
+  preparationProbe?: MobilePreparationProbe
 }
 export interface MobileHttpsListening { baseUrl: string; certificateSha256: string }
 export interface MobileHttpsServer { start(): Promise<MobileHttpsListening>; close(): Promise<void> }
@@ -164,6 +172,12 @@ function captureReply(operation: Mobile001Operation | Mobile002Operation | Mobil
   }
   return { status: reply.status, headers, body, ...(reply.beforeSend ? { beforeSend: reply.beforeSend } : {}) }
 }
+function privateStatus(status: number): void {
+  const stages = { 200: 'http.status.200', 400: 'http.status.400', 401: 'http.status.401', 403: 'http.status.403', 404: 'http.status.404',
+    409: 'http.status.409', 410: 'http.status.410', 413: 'http.status.413', 429: 'http.status.429', 503: 'http.status.503' } as const
+  const stage = stages[status as keyof typeof stages]
+  if (stage) mobileCapabilitySync(stage, () => undefined)
+}
 function safeReply(error: unknown, requestId: string): Mobile001BackendReply {
   const safe = safeMobilePlaybackFailure(error)
   const mapped = mapMobileSafeError({ code: safe.code, requestId, retryable: safe.retryable,
@@ -222,6 +236,7 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
   const controls = new Set<AbortController>(), media = new Set<AbortController>()
   const handlers = new Set<Promise<void>>(), mediaCleanup = new Set<Promise<void>>()
   let closed = false, listeningPort = 0, startFlight: Promise<MobileHttpsListening> | undefined, closeFlight: Promise<void> | undefined
+  const privateSamples = createMobileContentSampleSelector()
   server.maxConnections = MOBILE_HTTPS_LIMITS.connections
   // 不让 Node 先截断重复头；总字节先限，随后完整 rawHeaders 闭集核最多64项。
   server.maxHeadersCount = 0
@@ -238,12 +253,21 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
     for (const socket of sockets) socket.destroy()
   })
   server.on('request', (request, response) => {
+    // 本监听回调的到达时刻；不冒充TCP到包或跨进程时钟。
+    const rangeArrival = options.rangeWindowProbe?.markArrival()
     const handler = (async () => {
       const requestId = randomUUID()
       if (closed) { response.destroy(); return }
       const controller = new AbortController(); active.add(controller)
       let ownMediaReply: MobileMediaReply | undefined
-      const cancel = () => controller.abort()
+      let capabilityContext: MobileCapabilityContext | undefined
+      let privateSample: ReturnType<typeof privateSamples.claim>
+      let privateReplyStatus: number | undefined
+      let rangeTiming: MobileRangeTimingContext | undefined, rangeOpen: MobileRangeTimingSpan | undefined
+      let rangeWindow: MobileRangeWindowContext | undefined
+      const windowAbort = () => { if (!response.writableFinished) options.rangeWindowProbe?.abort(rangeWindow) }
+      let rangeFailure: unknown, rangeFailed = false
+      const cancel = () => { options.rangeWindowProbe?.abort(rangeWindow); controller.abort() }
       const peerClose = () => { if (!response.writableFinished) cancel() }
       request.once('aborted', cancel); response.once('close', peerClose)
       const deadline = setTimeout(() => { cancel(); response.destroy() }, MOBILE_HTTPS_LIMITS.requestMs)
@@ -254,63 +278,122 @@ export function createMobileHttpsServer(options: MobileHttpsServerOptions): Mobi
         const resolved = resolveMobileOperation(request.method ?? '', target.path.slice(1).split('/'))
         if (!resolved.ok || !operationSet.has(resolved.value)) throw serviceFailure(404, 'INVALID_REQUEST')
         const operation = resolved.value as Mobile001Operation | Mobile002Operation | Mobile003Operation | MobileContentOperation
+        capabilityContext = options.preparationProbe?.claim(operation, requestId, controller.signal)
+        if (capabilityContext) {
+          withMobileCapabilityContext(capabilityContext, () => mobileCapabilitySync(operation === 'getServer' ? 'preparation.http.identity' : 'preparation.http.session', () => undefined))
+        } else if (operation === 'getCapabilities') {
+          capabilityContext = createMobileCapabilityContext(requestId, 'main', 'http', null, controller.signal)
+          withMobileCapabilityContext(capabilityContext, () => mobileCapabilitySync('http.receive', () => undefined))
+        } else if (options.preparationProbe) {
+          // 只沿既有私有开关；每类最多八次，成功与首错分槽，不记录路径、图片ID或正文。
+          privateSample = privateSamples.claim(operation)
+          if (privateSample) {
+            capabilityContext = createMobileCapabilityContext(requestId, 'main', 'http', null, controller.signal)
+            if (capabilityContext) { capabilityContext.deferredRecords = []; capabilityContext.httpTerminalReserve = true; capabilityContext.privateContentDiagnostic = true }
+            withMobileCapabilityContext(capabilityContext, () => mobileCapabilitySync('http.receive', () => undefined))
+          }
+        }
         const isMedia = operation === 'getMediaAsset' || operation === 'headMediaAsset'
         const lane = isMedia ? media : controls
         if (lane.size >= MOBILE_HTTPS_LIMITS.concurrentRequests) throw serviceFailure(429, isMedia ? 'RESOURCE_BUSY' : 'BUSY')
         lane.add(controller)
-        const body = await readBody(request, headers, controller.signal)
+        const body = await withMobileCapabilityContext(capabilityContext, () => mobilePreparationAsync('preparation.http.body', () => readBody(request, headers, controller.signal)))
         const bearer = accessToken(headers)
         const resourceCapabilities = operation === 'createResource'
           ? await withAbort(options.playback!.resourceCapabilities(bearer, target.path.split('/')[4]!, origin, controller.signal), controller.signal)
           : undefined
-        const decoded = decodeMobileRequest(operation, { method: request.method!, path: target.path, headers, query: target.query, body }, {
+        const decoded = withMobileCapabilityContext(capabilityContext, () => mobilePreparationSync('preparation.http.decode', () => decodeMobileRequest(operation, { method: request.method!, path: target.path, headers, query: target.query, body }, {
           responseOrigin: origin, requestPath: target.path, ...(resourceCapabilities ? { resourceCapabilities } : {}),
-        })
+        })))
         if (!decoded.ok && operation === 'getMediaAsset' && decoded.issue.field === 'range') {
           await output(response, { status: 400, headers: [['Content-Length', '0']], body: new Uint8Array() }); return
         }
-        if (!decoded.ok) throw serviceFailure(decoded.issue.code === 'LIMIT_EXCEEDED' ? 413 : 400,
-          decoded.issue.code === 'LIMIT_EXCEEDED' ? 'CONTENT_LIMIT_EXCEEDED' : 'INVALID_REQUEST')
+        if (!decoded.ok) {
+          const failure = serviceFailure(decoded.issue.code === 'LIMIT_EXCEEDED' ? 413 : 400,
+            decoded.issue.code === 'LIMIT_EXCEEDED' ? 'CONTENT_LIMIT_EXCEEDED' : 'INVALID_REQUEST')
+          withMobileCapabilityContext(capabilityContext, () => mobileCapabilityReject('preparation.http.decode', failure))
+          throw failure
+        }
+        if (operation === 'createSession') options.preparationProbe?.associateSession(capabilityContext, decoded.value.idempotencyKey)
         let raw: Mobile001BackendReply | Mobile002BackendReply | MobileContentBackendReply
-        if ((MOBILE001_OPERATIONS as readonly string[]).includes(operation)) raw = await withAbort(dispatch({ operation: operation as Mobile001Operation,
-          request: decoded.value, accessToken: bearer, signal: controller.signal }), controller.signal)
-        else if (operation === 'getUIContentCapabilities') raw = await withAbort(options.dsd!.dispatch({ operation,
-          request: decoded.value, accessToken: bearer, signal: controller.signal, origin }), controller.signal)
-        else if ((MOBILE_CONTENT_OPERATIONS as readonly string[]).includes(operation)) raw = await withAbort(options.content!.dispatch({
+        if ((MOBILE001_OPERATIONS as readonly string[]).includes(operation)) raw = await withAbort(withMobileCapabilityContext(capabilityContext, () => mobilePreparationAsync('preparation.http.dispatch', () => dispatch({ operation: operation as Mobile001Operation,
+          request: decoded.value, accessToken: bearer, signal: controller.signal }))), controller.signal)
+        else if (operation === 'getUIContentCapabilities') raw = await withAbort(withMobileCapabilityContext(capabilityContext, () => mobileCapabilityAsync('preparation.http.dispatch', () => options.dsd!.dispatch({ operation,
+          request: decoded.value, accessToken: bearer, signal: controller.signal, origin }))), controller.signal)
+        else if ((MOBILE_CONTENT_OPERATIONS as readonly string[]).includes(operation)) raw = await withAbort(withMobileCapabilityContext(capabilityContext, () => mobileCapabilityAsync('preparation.http.dispatch', () => options.content!.dispatch({
           operation: operation as MobileContentOperation, request: decoded.value, accessToken: bearer,
-          signal: controller.signal, origin }), controller.signal)
+          signal: controller.signal, origin }))), controller.signal)
         else {
-          const pending = options.playback!.dispatch({ operation: operation as Mobile002Operation, request: decoded.value,
-            accessToken: bearer, signal: controller.signal, origin, headers })
+          rangeTiming = options.rangeTimingProbe?.claim({ requestId, method: request.method ?? '', operation,
+            range: headers.find(([name]) => name.toLowerCase() === 'range')?.[1],
+            ifRange: headers.find(([name]) => name.toLowerCase() === 'if-range')?.[1] })
+          rangeWindow = options.rangeWindowProbe?.claim({ requestId, method: request.method ?? '', operation,
+            range: headers.find(([name]) => name.toLowerCase() === 'range')?.[1],
+            ifRange: headers.find(([name]) => name.toLowerCase() === 'if-range')?.[1], ...(rangeArrival ? { arrival: rangeArrival } : {}) })
+          if (rangeWindow) { controller.signal.addEventListener('abort', windowAbort, { once: true }); if (controller.signal.aborted) windowAbort() }
+          rangeOpen = rangeTiming?.start('open')
+          const pending = withMobileRangeWindowContext(rangeWindow, () => withMobileCapabilityContext(capabilityContext, () => mobilePreparationAsync('preparation.http.dispatch', () => options.playback!.dispatch({ operation: operation as Mobile002Operation, request: decoded.value,
+            accessToken: bearer, signal: controller.signal, origin, headers }))))
           // HTTP已经退场后的迟到媒体reply仍必须关闭原读句柄。
-          const late = pending.then(async value => { if (controller.signal.aborted && value.kind === 'media') await value.reader.close() }, () => undefined)
+          const late = pending.then(value => withMobileRangeWindowContext(rangeWindow, async () => {
+            if (controller.signal.aborted && value.kind === 'media') {
+              const closing = rangeTiming?.start('actual-close')
+              try { await value.reader.close(); rangeTiming?.end(closing, { quiet: 'confirmed' }) }
+              catch (error) { rangeTiming?.reject(closing, error, 'failed'); throw error }
+            }
+          }), () => undefined)
           mediaCleanup.add(late); void late.then(() => mediaCleanup.delete(late), () => {})
           raw = await withAbort(pending, controller.signal)
+          rangeTiming?.end(rangeOpen)
         }
         if ('kind' in raw && raw.kind === 'media') {
           clearTimeout(deadline); response.setTimeout(0); ownMediaReply = raw
-          await sendMobileMediaResponse(request, response, raw, controller.signal); return
+          rangeTiming?.reply(raw.status, raw.expectedBodyBytes)
+          await withMobileRangeWindowContext(rangeWindow, () => sendMobileMediaResponse(request, response, raw, controller.signal, {}, rangeTiming)); return
         }
-        const reply = captureReply(operation, raw, origin, target.path)
-        if (reply.beforeSend) await withAbort(reply.beforeSend(), controller.signal)
+        const reply = withMobileCapabilityContext(capabilityContext, () => privateSample
+          ? mobileCapabilitySync('preparation.http.capture', () => captureReply(operation, raw, origin, target.path))
+          : mobilePreparationSync('preparation.http.capture', () => captureReply(operation, raw, origin, target.path)))
+        if (reply.beforeSend) await withAbort(withMobileCapabilityContext(capabilityContext, () => privateSample
+          ? mobileCapabilityAsync('preparation.http.beforeSend', () => reply.beforeSend!())
+          : mobilePreparationAsync('preparation.http.beforeSend', () => reply.beforeSend!())), controller.signal)
         if (closed || controller.signal.aborted || response.destroyed) throw serviceFailure(503, 'BUSY')
-        await output(response, reply)
+        if (privateSample) {
+          privateReplyStatus = reply.status
+          withMobileCapabilityContext(capabilityContext, () => privateStatus(reply.status))
+        }
+        await withMobileCapabilityContext(capabilityContext, () => mobileCapabilityAsync('http.send', () => output(response, reply)))
+        if (operation === 'getUIContentCapabilities' && reply.status === 200 && response.writableFinished) options.preparationProbe?.arm()
       } catch (error) {
+        rangeFailed = true; rangeFailure = error; rangeTiming?.reject(rangeOpen, error)
+        withMobileCapabilityContext(capabilityContext, () => mobileCapabilityReject('http.failure', error))
         if (!closed && !controller.signal.aborted && !response.destroyed && !response.headersSent) {
           const reply = safeReply(error, requestId)
+          if (privateSample) {
+            privateReplyStatus = reply.status
+            withMobileCapabilityContext(capabilityContext, () => privateStatus(reply.status))
+          }
           if (request.method === 'HEAD') { reply.body = new Uint8Array(); reply.headers = [...reply.headers.filter(([name]) => name.toLowerCase() !== 'content-length'), ['Content-Length', '0']] }
-          await output(response, reply)
+          await withMobileCapabilityContext(capabilityContext, () => privateSample
+            ? mobileCapabilityAsync('http.send', () => output(response, reply)) : mobilePreparationAsync('http.send', () => output(response, reply)))
         }
         else if (!response.writableFinished) response.destroy()
       } finally {
         clearTimeout(deadline); active.delete(controller)
         controls.delete(controller); media.delete(controller)
         request.removeListener('aborted', cancel); response.removeListener('close', peerClose)
+        options.preparationProbe?.finish(capabilityContext, { failed: rangeFailed, finished: response.writableFinished,
+          httpStatus: response.headersSent ? response.statusCode : null })
+        controller.signal.removeEventListener('abort', windowAbort)
         controller.abort()
         if (ownMediaReply) {
           const cleanup = getMobileMediaReleaseCompletion(ownMediaReply)
           if (cleanup) { mediaCleanup.add(cleanup); void cleanup.then(() => mediaCleanup.delete(cleanup), () => {}) }
         }
+        privateSample?.finish(capabilityContext, privateReplyStatus, rangeFailed, response.writableFinished)
+        closeMobileCapabilityContext(capabilityContext)
+        rangeTiming?.finish(rangeFailed ? 'reject' : 'ok', rangeFailure)
+        options.rangeWindowProbe?.finish(rangeWindow, { status: response.headersSent ? response.statusCode : null, finished: response.writableFinished, failed: rangeFailed, error: rangeFailure })
       }
     })()
     handlers.add(handler)

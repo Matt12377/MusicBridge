@@ -14,7 +14,9 @@ import { isMobileOwnerSourceRequest, isMobileOwnerSourceResult, type MobileOwner
 import type { MobilePlaybackPreparedSource, MobilePlaybackPreparingSource, MobilePlaybackSourceRequest } from './source-types.js';
 import { openMobileDsdSource, closeMobileDsdSource } from './dsd-converter.js';
 import { MobileDsdError, type MobilePreparedCache, type MobileDsdSourceAccess } from './prepared-cache-types.js';
-import type { MobileOwnerPrivateFailure } from './types.js';
+import { MobileServiceError, type MobileOwnerPrivateFailure } from './types.js';
+import { createMobileLocalAlbumProjection, type MobileLocalAlbums } from './local-album-projection.js';
+import { mobileLocalContentDigest } from './local-album-identity.js';
 
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/u;
 const MAX_RECORDS = 2048, MAX_READ_IDS = 4096, MAX_READERS = 32, MAX_RESOURCE_READERS = 4;
@@ -80,6 +82,7 @@ function audio(parameters: FileAudioParameters | undefined): { source: MobileAud
 export function createMobileOwnerSourceService(options: {
   collection: CollectionRepository; tickets: ReturnType<typeof createLocalSourceTickets>;
   datasetId: string; ownerEpoch: string; assertCurrent(): void; preparedCache?: MobilePreparedCache;
+  localAlbums?: MobileLocalAlbums;
 }) {
   const { collection, tickets, datasetId, ownerEpoch } = options;
   if (!UUID.test(datasetId) || !UUID.test(ownerEpoch)) throw new Error('手机源服务需要原 Owner 的完整工作库身份。');
@@ -88,6 +91,7 @@ export function createMobileOwnerSourceService(options: {
   const lanes: Lane[] = Array.from({ length: 8 }, (_, index) => ({ ownerId: `mobile-${ownerEpoch}-${index}`, attempt: 0, record: null }));
   const records = new Map<string, SourceRecord>(), reads = new Map<string, ReadRecord>();
   let closed = false, closing: Promise<void> | null = null;
+  const directory = options.localAlbums ? createMobileLocalAlbumProjection({ ...options, localAlbums: options.localAlbums }) : undefined;
 
   function ownerCurrent(): void {
     if (closed) return fail(503, 'BUSY', true);
@@ -95,6 +99,7 @@ export function createMobileOwnerSourceService(options: {
   }
   function asFailure(error: unknown): SourceFailure {
     if (error instanceof SourceError) return error.failure;
+    if (error instanceof MobileServiceError) return failure(error.status, error.code);
     if (error instanceof MobileDsdError) return error.code === 'RESOURCE_BUSY' ? failure(429, 'RESOURCE_BUSY', true)
       : error.code === 'RESOURCE_RELEASED' ? failure(410, 'RESOURCE_RELEASED') : failure(409, error.code);
     if (error instanceof LocalFileLeaseError) {
@@ -117,14 +122,21 @@ export function createMobileOwnerSourceService(options: {
   }
   function selected(selection: MobilePlaybackSourceRequest) {
     ownerCurrent();
-    const pieces = selection.trackId.split(':');
-    if (pieces.length !== 4 || pieces[0] !== 'lt' || pieces[1] !== datasetId || !UUID.test(pieces[2]!) || !UUID.test(pieces[3]!)) return fail(404, 'INVALID_REQUEST');
-    const found = collection.localCatalog.privateMobileCandidates({ kind: 'tracks', offset: 0, limit: 1, query: '', editionId: pieces[3]!, trackId: pieces[2]! });
-    if (found.total !== 1 || found.items.length !== 1 || found.items[0]!.trackId !== pieces[2] || found.items[0]!.editionId !== pieces[3]) return fail(404, 'INVALID_REQUEST');
-    const detail = collection.localCatalog.trackDetail(pieces[2]!);
-    if (!detail.editions.some(edition => edition.id === pieces[3])) return fail(404, 'INVALID_REQUEST');
+    const detail = (() => {
+      if (directory) {
+        try { return directory.resolveTrack(selection.trackId).detail; }
+        catch (error) { if (error instanceof MobileServiceError) return fail(error.status, error.code); throw error; }
+      }
+      const pieces = selection.trackId.split(':');
+      if (pieces.length !== 4 || pieces[0] !== 'lt' || pieces[1] !== datasetId || !UUID.test(pieces[2]!) || !UUID.test(pieces[3]!)) return fail(404, 'INVALID_REQUEST');
+      const found = collection.localCatalog.privateMobileCandidates({ kind: 'tracks', offset: 0, limit: 1, query: '', editionId: pieces[3]!, trackId: pieces[2]! });
+      if (found.total !== 1 || found.items.length !== 1 || found.items[0]!.trackId !== pieces[2] || found.items[0]!.editionId !== pieces[3]) return fail(404, 'INVALID_REQUEST');
+      const original = collection.localCatalog.trackDetail(pieces[2]!);
+      if (!original.editions.some(edition => edition.id === pieces[3])) return fail(404, 'INVALID_REQUEST');
+      return original;
+    })();
     if (detail.track.segment !== null) return fail(409, 'UNSUPPORTED_FORMAT');
-    const content = digest([datasetId, detail.asset.id, detail.asset.fileRevision, detail.track.selectionRevision, detail.track.segment]);
+    const content = mobileLocalContentDigest(datasetId, detail);
     if (selection.versionId !== 'lv:' + content || selection.contentRevision !== 'lc:' + content) return fail(409, 'SOURCE_CHANGED');
     const root = collection.localCatalog.root(detail.asset.libraryRootId);
     if (root.role !== 'library' || root.revision !== detail.asset.rootRevision) return fail(409, 'SOURCE_CHANGED');
@@ -185,6 +197,9 @@ export function createMobileOwnerSourceService(options: {
   }
   async function prepareRecord(record: SourceRecord): Promise<MobilePlaybackPreparedSource | MobilePlaybackPreparingSource> {
     try {
+      if (record.controller.signal.aborted || record.explicitRelease) return released();
+      // 手机首次访问自行取得原真实Root scope；后续块间current仍同步复核原成员与票据。
+      if (directory) await directory.refresh();
       if (record.controller.signal.aborted || record.explicitRelease) return released();
       const detail = selected(record.selection!);
       const captured = tickets.captureMobile({ local_track_id: detail.track.id, asset_id: detail.asset.id, expected_asset_revision: detail.asset.fileRevision });

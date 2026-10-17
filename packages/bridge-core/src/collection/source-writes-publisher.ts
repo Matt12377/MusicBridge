@@ -218,7 +218,16 @@ async function copyIndependent(source:FileHandle,target:FileHandle,size:number,s
 }
 /** 库外独占同卷仓库，未确认stage/backup/quarantine全部计量；不删除历史保全材料。 */
 export function createSourceSafetyRepository(privateDirectory:string){
-  const reserved=new Map<string,number>();
+  const reserved=new Map<string,number>(),pending=new Set<Promise<unknown>>();
+  let closing=false,closure:Promise<void>|undefined,releaseFailure:unknown;
+  const accepting=()=>{if(closing)return fail('BACKUP_UNAVAILABLE');};
+  function run<T>(operation:()=>Promise<T>):Promise<T>{
+    if(closing)return Promise.reject(new SourcePublisherError('BACKUP_UNAVAILABLE'));
+    const task=Promise.resolve().then(operation);pending.add(task);
+    return task.finally(()=>pending.delete(task));
+  }
+  async function closeFile(handle:FileHandle):Promise<void>{try{await handle.close();}catch(error){releaseFailure??=error;throw error;}}
+  async function removeProbe(absolute:string):Promise<void>{try{await unlink(absolute);}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT'){releaseFailure??=error;throw error;}}}
   async function root():Promise<{absolute:string;info:BigIntStats}>{
     if(!path.isAbsolute(privateDirectory))return fail('BACKUP_UNAVAILABLE');await mkdir(privateDirectory,{recursive:true,mode:0o700});
     const absolute=await realpath(privateDirectory),info=await lstat(absolute,{bigint:true});
@@ -228,22 +237,36 @@ export function createSourceSafetyRepository(privateDirectory:string){
     while(queue.length){const directory=await opendir(queue.shift()!);for await(const entry of directory){if(++entries>50000)return fail('BUDGET_EXCEEDED');const absolute=path.join(directory.path,entry.name),info=await lstat(absolute,{bigint:true});if(info.isSymbolicLink())return fail('BACKUP_UNAVAILABLE');if(info.isDirectory())queue.push(absolute);else if(info.isFile()){bytes+=Number(info.size);if(!Number.isSafeInteger(bytes)||bytes>SOURCE_SAFETY_BYTES)return fail('INSUFFICIENT_SPACE');}else return fail('BACKUP_UNAVAILABLE');}}
     return bytes;
   }
-  return {
-    async preflight(targets:readonly PublisherTarget[]):Promise<{bytes:number;directory:string}>{
+  async function preflight(targets:readonly PublisherTarget[]):Promise<{bytes:number;directory:string}>{
       if(!targets.length||targets.length>100)return fail('BUDGET_EXCEEDED');const owned=await root();let amount=0,io=0;
       for(const target of targets){const checked=await checkedTarget(target),parent=await lstat(checked.parent,{bigint:true});if(parent.dev!==owned.info.dev||inside(target.libraryRootPath,owned.absolute)||inside(owned.absolute,target.libraryRootPath))return fail('BACKUP_UNAVAILABLE');
         const size=target.expected?.bytes??target.replacementBytes?.length??target.restorationBytes??0;if((size<1&&!(target.removeTarget&&target.expected===null))||size>SOURCE_WRITE_FILE_BYTES)return fail('BUDGET_EXCEEDED');io+=size;amount+=3*size+(target.replacementBytes?.length??0)+16384*20;
-        const handle=await open(checked.parent,constants.O_RDONLY|constants.O_DIRECTORY|constants.O_NOFOLLOW);try{await handle.sync();}catch{return fail('BACKUP_UNAVAILABLE');}finally{await handle.close();}
+        const handle=await open(checked.parent,constants.O_RDONLY|constants.O_DIRECTORY|constants.O_NOFOLLOW);try{await handle.sync();}catch{return fail('BACKUP_UNAVAILABLE');}finally{await closeFile(handle);}
       }
       if(io>2147483648||amount>SOURCE_SAFETY_BYTES||await usage()+[...reserved.values()].reduce((a,b)=>a+b,0)+amount>SOURCE_SAFETY_BYTES)return fail('INSUFFICIENT_SPACE');
       const space=await statfs(owned.absolute,{bigint:true});if(space.bavail*space.bsize<BigInt(amount+1048576))return fail('INSUFFICIENT_SPACE');
       const probe=path.join(owned.absolute,`probe-${randomUUID()}`),linked=`${probe}.link`;const file=await open(probe,constants.O_RDWR|constants.O_CREAT|constants.O_EXCL|constants.O_NOFOLLOW,0o600);
-      try{await file.write(Buffer.from('能力观察'));await file.sync();await link(probe,linked);let refused=false;try{await link(probe,linked);}catch(error){refused=(error as NodeJS.ErrnoException).code==='EEXIST';}if(!refused)return fail('BACKUP_UNAVAILABLE');const dir=await open(owned.absolute,constants.O_RDONLY|constants.O_DIRECTORY|constants.O_NOFOLLOW);try{await dir.sync();}finally{await dir.close();}}
-      finally{await file.close();await unlink(linked).catch(()=>{});await unlink(probe).catch(()=>{});}
+      let linkedCreated=false;
+      try{await file.write(Buffer.from('能力观察'));await file.sync();await link(probe,linked);linkedCreated=true;let refused=false;try{await link(probe,linked);}catch(error){refused=(error as NodeJS.ErrnoException).code==='EEXIST';}if(!refused)return fail('BACKUP_UNAVAILABLE');const dir=await open(owned.absolute,constants.O_RDONLY|constants.O_DIRECTORY|constants.O_NOFOLLOW);try{await dir.sync();}finally{await closeFile(dir);}}
+      finally{const results=await Promise.allSettled([closeFile(file),...(linkedCreated?[removeProbe(linked)]:[]),removeProbe(probe)]);const failure=results.find(result=>result.status==='rejected');if(failure?.status==='rejected')throw failure.reason;}
       return {bytes:amount,directory:owned.absolute};
-    },
-    async reserve(targets:readonly PublisherTarget[]):Promise<{id:string;directory:string;release():void}>{const check=await this.preflight(targets),id=randomUUID();reserved.set(id,check.bytes);return {id,directory:check.directory,release(){reserved.delete(id);}};},
-    usage,
+  }
+  return {
+    preflight(targets:readonly PublisherTarget[]):Promise<{bytes:number;directory:string}>{return run(()=>preflight(targets));},
+    reserve(targets:readonly PublisherTarget[]):Promise<{id:string;directory:string;release():void}>{return run(async()=>{const check=await preflight(targets);accepting();const id=randomUUID();reserved.set(id,check.bytes);return {id,directory:check.directory,release(){reserved.delete(id);}};});},
+    /** LYRICS复用真实库外同卷仓库，额外计完整Native PCM；不扩张原2GiB保全界。 */
+    reserveLyrics(targets:readonly PublisherTarget[],extraBytes:number):Promise<{id:string;directory:string;release():void}>{return run(async()=>{
+      if(!Number.isSafeInteger(extraBytes)||extraBytes<0||extraBytes>SOURCE_SAFETY_BYTES)return fail('BUDGET_EXCEEDED');
+      const check=await preflight(targets),owned=await root(),amount=check.bytes+extraBytes;
+      if(!Number.isSafeInteger(amount)||amount>SOURCE_SAFETY_BYTES||owned.absolute!==check.directory)return fail('INSUFFICIENT_SPACE');
+      const used=await usage(),space=await statfs(owned.absolute,{bigint:true});
+      // 最后一次await之后同步核全部原预留并登记，两个歌词请求不能同时占同一余量。
+      accepting();if(used+[...reserved.values()].reduce((a,b)=>a+b,0)+amount>SOURCE_SAFETY_BYTES||space.bavail*space.bsize<BigInt(amount+1048576))return fail('INSUFFICIENT_SPACE');
+      const id=randomUUID();reserved.set(id,amount);return {id,directory:owned.absolute,release(){reserved.delete(id);}};
+    });},
+    usage():Promise<number>{return run(usage);},
+    /** 先封新操作，再等已进入的探针/FD；原预留只能由原消费者释放，不能清空伪造静止。 */
+    close():Promise<void>{if(!closure){closing=true;closure=(async()=>{await Promise.allSettled([...pending]);if(releaseFailure)throw releaseFailure;if(reserved.size)return fail('RELEASE_UNKNOWN');})();}return closure;},
   };
 }
 export type SourceSafetyRepository=ReturnType<typeof createSourceSafetyRepository>;

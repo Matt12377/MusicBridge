@@ -20,8 +20,22 @@ import { readSpreadsheetFile } from './spreadsheet-files.js';
 import { parseSpreadsheetWorkbook } from './spreadsheet-parser.js';
 import { isDatasetCommand } from './dataset-owner-protocol.js';
 import type { DatasetServices } from './dataset-services.js';
+import { isLocalAlbumOwnerReadRequest, type LocalAlbumOwnerPublicReadRequest, type LocalAlbumOwnerReadResult } from './local-album-browser/owner-protocol.js';
 
 export type DatasetDispatchTarget = Partial<DatasetServices>;
+
+/** 独立只读合同；旧 IpcRequest 的公开写入命令与校验保持原边界。 */
+export async function dispatchLocalAlbumRead(runtime: DatasetDispatchTarget, request: LocalAlbumOwnerPublicReadRequest): Promise<LocalAlbumOwnerReadResult> {
+  if (!isLocalAlbumOwnerReadRequest(request)) throw new CollectionError('INVENTORY_CONFLICT', '本地专辑读取请求无效。');
+  const reader = runtime.localAlbums;
+  if (!reader) throw new CollectionError('INVENTORY_UNAVAILABLE', '本地专辑读取服务尚未就绪。');
+  runtime.assertOpen?.();
+  switch (request.command) {
+    case 'localAlbum.query': return reader.queryAlbums(request.payload);
+    case 'localAlbum.tracks': return reader.queryAlbumTracks(request.payload);
+    case 'localAlbum.artwork': return reader.getArtwork(request.payload);
+  }
+}
 
 function backupsFor(runtime: DatasetDispatchTarget) {
   if (!runtime.backups) throw new CollectionError('INVENTORY_UNAVAILABLE', '备份维护服务尚未就绪。');

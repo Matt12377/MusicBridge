@@ -1,3 +1,4 @@
+import type { MobileRangeWindowProbe } from '../../../../packages/bridge-core/src/mobile/range-window-observer.js';
 import { networkInterfaces } from 'node:os';
 import { constants } from 'node:fs';
 import { lstat, mkdir, open, rename, unlink } from 'node:fs/promises';
@@ -10,6 +11,8 @@ import { isMobilePrivateIPv4, loadOrCreateMobileIdentity, type MobileSecretProte
 import { MobileServiceError, type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult } from '../../../../packages/bridge-core/src/mobile/types.js';
 import type { MobileConnectionSettings } from '../shared/mobile-settings.js';
 import type { MobileContentCoreRequest, MobileContentCoreResponse } from '../../../../packages/bridge-core/src/mobile/content-rpc.js';
+import type { MobileRangeTimingProbe } from './mobile-range-timing.js';
+import type { MobilePreparationProbe } from '../../../../packages/bridge-core/src/mobile/capability-trace.js';
 
 const defaultPort = 45391;
 type Preference = { schemaVersion: 1; enabled: boolean; host: string; port: number };
@@ -34,8 +37,12 @@ export function createMobileConnectionSettings(options: {
   requestOwner(request: MobileOwnerPrivateRequest): Promise<MobileOwnerPrivateResult>;
   requestContentRpc?(request: MobileContentCoreRequest, signal: AbortSignal): Promise<MobileContentCoreResponse>;
   isCoreReady(): boolean;
-  resizeArtwork(bytes: Uint8Array, size: 96 | 256 | 512): Uint8Array;
+  resizeArtwork(bytes: Uint8Array, size: 96 | 256 | 512, providerInput?: true): Uint8Array;
   environment: 'development' | 'production';
+  /** 只由可信Main诊断构造传入，不写偏好或公开快照。 */
+  rangeTimingProbe?: MobileRangeTimingProbe;
+  rangeWindowProbe?: MobileRangeWindowProbe;
+  preparationProbe?: MobilePreparationProbe;
 }) {
   if (!path.isAbsolute(options.directory) || options.directory.includes('\0')) throw new Error('移动连接存储位置无效。');
   let pref: Preference = { schemaVersion: 1, enabled: false, host: '127.0.0.1', port: defaultPort };
@@ -60,9 +67,13 @@ export function createMobileConnectionSettings(options: {
     let starting = true;
     const service = createMobileBackend({ serverId: identity.serverId, datasetId, authKey: identity.authKey, displayName: 'Music Bridge', environment: options.environment,
       requestOwner: options.requestOwner, resizeArtwork: options.resizeArtwork, enablePlayback: true, enableDsd: true,
+      privateProviderDiagnostics: options.preparationProbe !== undefined,
       ...(options.requestContentRpc ? { enableContent: true, requestContentRpc: options.requestContentRpc } : {}),
       assertCurrent: () => { if (closing || epoch !== generation || !options.isCoreReady() || !starting && active?.epoch !== generation) throw new MobileServiceError(503, 'BUSY'); } });
     const server = createMobileHttpsServer({ tls: { key: identity.privateKeyPEM, cert: identity.certificatePEM }, host: pref.host, port: pref.port,
+      ...(options.rangeTimingProbe ? { rangeTimingProbe: options.rangeTimingProbe } : {}),
+      ...(options.rangeWindowProbe ? { rangeWindowProbe: options.rangeWindowProbe } : {}),
+      ...(options.preparationProbe ? { preparationProbe: options.preparationProbe } : {}),
       backend: service.backend, ...(service.playbackBackend ? { playback: service.playbackBackend } : {}),
       ...(service.dsdBackend ? { dsd: service.dsdBackend } : {}),
       ...(service.contentBackend ? { content: service.contentBackend } : {}) });

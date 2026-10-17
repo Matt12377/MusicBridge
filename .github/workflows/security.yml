@@ -23,31 +23,36 @@ jobs:
         with:
           node-version: 22.x
 
+      - name: V3.9 完整集成精确身份准入
+        id: v39-complete
+        run: node scripts/ci/v39-integration-002-admission.mjs --workflow-guard
+
       - name: V3.9 Tape组合精确身份准入
         id: v39-integration
+        if: steps.v39-complete.outputs.integrationMode != 'qualified'
         run: node scripts/ci/v39-integration-admission.mjs --workflow-guard
 
       - name: CI报告元数据精确身份与原软件复用准入
         id: ci-metadata
-        if: steps.v39-integration.outputs.integrationMode != 'qualified'
+        if: steps.v39-complete.outputs.integrationMode != 'qualified' && (steps.v39-integration.outputs.integrationMode != 'qualified')
         run: node scripts/ci/ci-report-metadata-admission.mjs --workflow-guard
 
       - name: CI修复精确身份与原软件复用准入
         id: ci-repair
-        if: steps.v39-integration.outputs.integrationMode != 'qualified' && steps.ci-metadata.outputs.repairMode != 'reuse-s165'
+        if: steps.v39-complete.outputs.integrationMode != 'qualified' && (steps.v39-integration.outputs.integrationMode != 'qualified' && steps.ci-metadata.outputs.repairMode != 'reuse-s165')
         run: node scripts/ci/ci-report-mirror-admission.mjs --workflow-guard
 
       - name: 复用165已封存产品软件证据
-        if: steps.v39-integration.outputs.integrationMode != 'qualified' && (steps.ci-metadata.outputs.repairMode == 'reuse-s165' || steps.ci-repair.outputs.repairMode == 'reuse-s165')
+        if: steps.v39-complete.outputs.integrationMode != 'qualified' && (steps.v39-integration.outputs.integrationMode != 'qualified' && (steps.ci-metadata.outputs.repairMode == 'reuse-s165' || steps.ci-repair.outputs.repairMode == 'reuse-s165'))
         run: echo 'REUSED_S165=true；依赖安装及原定向产品测试为SKIPPED_REUSED_S165，当前控制、边界和循环检查独立执行。'
 
       - name: 判定本次精确父Source产品CI复用
         id: ci-mode
-        if: steps.v39-integration.outputs.integrationMode == 'qualified' && steps.v39-integration.outputs.integrationRole == 'report'
+        if: (steps.v39-complete.outputs.integrationMode == 'qualified' && steps.v39-complete.outputs.integrationRole == 'report' || steps.v39-integration.outputs.integrationMode == 'qualified' && steps.v39-integration.outputs.integrationRole == 'report')
         run: node scripts/ci/report-only-admission.mjs
 
       - name: 复用本次精确父Source产品软件证据
-        if: steps.v39-integration.outputs.integrationMode == 'qualified' && steps.v39-integration.outputs.integrationRole == 'report' && steps.ci-mode.outputs.mode == 'report-only'
+        if: (steps.v39-complete.outputs.integrationMode == 'qualified' && steps.v39-complete.outputs.integrationRole == 'report' || steps.v39-integration.outputs.integrationMode == 'qualified' && steps.v39-integration.outputs.integrationRole == 'report') && steps.ci-mode.outputs.mode == 'report-only'
         run: echo 'REUSED_EXACT_CURRENT_PARENT_SOURCE=true；本次产品编译与产品Gate未重跑，当前报告组合Gate与安全检查独立执行。'
 
       - name: Install frozen workspace

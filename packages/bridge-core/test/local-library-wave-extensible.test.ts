@@ -5,6 +5,7 @@ import { fstatSync, type Stats } from 'node:fs';
 import { chmod, lstat, mkdtemp, readFile, realpath, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { MetadataReadBudget, MetadataReaderLifecycle, MetadataReadResult } from '../src/library/metadata-reader-types.js';
+import { isFileAudioParameters } from '@music-bridge/contracts';
 import { mobileOwnerDirectPlaybackKind } from '../src/mobile/catalog-service.js';
 import { loadFreshMetadataReader } from './helpers/mbrs003-audio-fixtures.js';
 
@@ -146,7 +147,8 @@ for (const entry of validCases) test(`本地 WAVE 完整格式：${entry.label}`
   assert.deepEqual(value.technical, { container: 'WAVE', codec: entry.codec, lossless: true, sampleRateHz: rate, channels: 2,
     bitsPerSample: entry.bits, durationSeconds: frames / rate, evidence: 'bounded-parser-reported' });
   const { durationSeconds, ...parameters } = value.technical;
-  assert.equal(mobileOwnerDirectPlaybackKind({ ...parameters, durationMs: durationSeconds! * 1000 }), entry.codec === 'PCM' ? 'WAVE' : null,
+  const quality={ ...parameters, durationMs: durationSeconds! * 1000 };assert.ok(isFileAudioParameters(quality),'实际WAVE结果仍须通过原公开七族音质合同');
+  assert.equal(mobileOwnerDirectPlaybackKind(quality), entry.codec === 'PCM' ? 'WAVE' : null,
     '格式更正只沿原整数 direct 白名单；float 不获得新资格');
 });
 
@@ -161,7 +163,8 @@ for (const entry of unknownCases) test(`本地 WAVE 未知格式：${entry.label
   const f = await fixture(t, { 'unknown.wav': wave(entry.options) }), value = success(await f.read('unknown.wav'));
   assert.equal(value.technical.codec, 'WAVE_EXTENSIBLE_UNKNOWN'); assert.equal(value.technical.lossless, null);
   const { durationSeconds, ...parameters } = value.technical;
-  assert.equal(mobileOwnerDirectPlaybackKind({ ...parameters, durationMs: durationSeconds! * 1000 }), null);
+  const quality={ ...parameters, durationMs: durationSeconds! * 1000 };assert.ok(isFileAudioParameters(quality),'实际未知WAVE参数仍保持原公开合同，不能获得direct资格');
+  assert.equal(mobileOwnerDirectPlaybackKind(quality), null);
 });
 
 const malformedCases: readonly { label: string; bytes(): Buffer }[] = [

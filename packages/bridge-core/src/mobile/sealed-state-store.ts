@@ -5,6 +5,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { isMobileId } from '@music-bridge/contracts';
+import { allocateOwnedSealedBytes } from './owned-sealed-bytes.js';
 import {
   MOBILE_AUTH_SEALED_MAX_BYTES, MobileAuthPersistenceError,
   type MobileSealedSave, type MobileSealedSaveResult, type MobileSealedState,
@@ -71,7 +72,9 @@ export function createMobileSealedStateStore(options: {
       if (sealed.length < 1 || sealed.length > MOBILE_AUTH_SEALED_MAX_BYTES
         || Buffer.from(sealed).toString('base64') !== value.sealed || hash(sealed) !== value.sha256) throw new Error('invalid');
       options.assertCurrent();
-      return { kind: 'sealed', datasetId: options.datasetId, revision: value.revision, commitId: value.commitId, sealed };
+      const captured = allocateOwnedSealedBytes(sealed.byteLength);
+      Uint8Array.prototype.set.call(captured, sealed);
+      return { kind: 'sealed', datasetId: options.datasetId, revision: value.revision, commitId: value.commitId, sealed: captured };
     } finally { closeSync(fd); }
   }
   return {

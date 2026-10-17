@@ -1,9 +1,11 @@
+import { mobileRangeWindowObserve, mobileRangeWindowFailure } from '../../../../packages/bridge-core/src/mobile/range-window-observer.js';
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import {
   validateMobileMediaStreamHeaders, validateMobileMediaStreamCompletion,
   type MobileHeaderPairs, type MobileMediaStreamOperation, type MobileMediaStreamStatus,
 } from '@music-bridge/contracts'
 import { MobileServiceError } from '../../../../packages/bridge-core/src/mobile/types.js'
+import type { MobileRangeTimingContext, MobileRangeTimingSpan } from './mobile-range-timing.js'
 
 /** 只存在于可信 Main；这些回调不得进入 structuredClone/RPC 或 Renderer。 */
 export interface MobileMediaReader {
@@ -68,6 +70,7 @@ function budget(value: number | undefined, maximum: number): number {
 export async function sendMobileMediaResponse(
   request: IncomingMessage, response: ServerResponse, reply: MobileMediaReply,
   signal: AbortSignal, limits: Readonly<MobileMediaResponseLimits> = {},
+  timing?: MobileRangeTimingContext,
 ): Promise<void> {
   const controller = new AbortController()
   let failure: MobileMediaResponseError | undefined, sentBytes = 0, established = false
@@ -81,6 +84,7 @@ export async function sendMobileMediaResponse(
   let resourceSignal: AbortSignal | undefined, closeReader: (() => Promise<void>) | undefined
   let idleMs: number = MOBILE_MEDIA_RESPONSE_LIMITS.idleMs, releaseMs: number = MOBILE_MEDIA_RESPONSE_LIMITS.releaseMs
   let ticketExpiresAtMs = 0
+  let timingActive: MobileRangeTimingSpan | undefined, readOrdinal = 0
   const stop = (code: MobileMediaResponseErrorCode) => {
     if (!failure) failure = new MobileMediaResponseError(code)
     if (!controller.signal.aborted) controller.abort()
@@ -150,26 +154,33 @@ export async function sendMobileMediaResponse(
     if (closeFlight) return closeFlight
     if (!closeReader || !ownedReader) return Promise.resolve()
     const reader = ownedReader, close = closeReader
+    const waiting = timing?.start('close-wait')
     closeFlight = new Promise((resolve, reject) => {
       let settled = false
       const finish = (error?: MobileMediaResponseError) => {
         if (settled) return
         settled = true; clearTimeout(releaseTimer); releaseTimer = undefined
+        if (error) timing?.reject(waiting, error, error.code === 'RELEASE_TIMEOUT' ? 'pending' : 'failed')
+        else timing?.end(waiting, { quiet: 'confirmed' })
         if (error) reject(error); else resolve()
       }
       releaseTimer = setTimeout(() => finish(new MobileMediaResponseError('RELEASE_TIMEOUT')), releaseMs)
       let actual = releaseCompletions.get(reader)
       if (!actual) {
-        actual = Promise.resolve().then(close).catch(() => { throw new MobileMediaResponseError('RELEASE_FAILED') })
+        actual = mobileRangeWindowObserve('sender.close', () => Promise.resolve().then(close).catch(() => { throw new MobileMediaResponseError('RELEASE_FAILED') }), 'cleanup')
         releaseCompletions.set(reader, actual)
       }
-      actual.then(() => finish(), () => finish(new MobileMediaResponseError('RELEASE_FAILED')))
+      const actualClosing = timing?.start('actual-close')
+      actual.then(() => { timing?.end(actualClosing, { quiet: 'confirmed' }); finish() }, error => {
+        timing?.reject(actualClosing, error, 'failed'); finish(new MobileMediaResponseError('RELEASE_FAILED'))
+      })
     })
     return closeFlight
   }
   request.once('aborted', externalAbort); response.once('close', peerClose); response.once('error', peerError)
   signal.addEventListener('abort', externalAbort, { once: true })
   let originalFailure: unknown, failed = false
+  let failureOrigin: 'business' | 'cleanup' = 'business'
   try {
     // 即使校验拒绝，已交给 Main 的 HTTP reader 仍在 finally 中仅关闭一次。
     if (typeof reply?.reader?.close !== 'function') throw new MobileMediaResponseError('INVALID_REPLY')
@@ -198,16 +209,20 @@ export async function sendMobileMediaResponse(
       if (remaining <= 0) { stop('TICKET_EXPIRED'); return }
       ticketTimer = setTimeout(armTicket, Math.min(remaining, 2_147_483_647))
     }
-    const authority = async () => {
-      guard(); clearTimeout(idleTimer); idleTimer = undefined
-      authorityTimer = setTimeout(() => stop('ESTABLISH_TIMEOUT'), establishMs)
-      try { await wait(Promise.resolve().then(beforeSend), 'AUTHORITY_CHECK_FAILED'); guard() }
-      finally {
-        clearTimeout(authorityTimer); authorityTimer = undefined
-        if (established && !controller.signal.aborted) idleTimer = setTimeout(() => stop('IDLE_TIMEOUT'), idleMs)
-      }
+    const authority = async (stage: 'initial-authority' | 'before-write-authority', ordinal = 0) => {
+      const span = timing?.start(stage, ordinal); timingActive = span
+      try {
+        guard(); clearTimeout(idleTimer); idleTimer = undefined
+        authorityTimer = setTimeout(() => stop('ESTABLISH_TIMEOUT'), establishMs)
+        try { await wait(mobileRangeWindowObserve(stage === 'initial-authority' ? 'sender.initial-authority' : 'sender.before-write-authority', () => Promise.resolve().then(beforeSend)), 'AUTHORITY_CHECK_FAILED'); guard() }
+        finally {
+          clearTimeout(authorityTimer); authorityTimer = undefined
+          if (established && !controller.signal.aborted) idleTimer = setTimeout(() => stop('IDLE_TIMEOUT'), idleMs)
+        }
+        timing?.end(span)
+      } catch (error) { timing?.reject(span, error); throw error }
     }
-    armTicket(); guard(); await authority()
+    armTicket(); guard(); await authority('initial-authority')
     response.writeHead(snapshot.status, [...headers.filter(([name]) => name.toLowerCase() !== 'cache-control').flatMap(([name, value]) => [name, value]),
       'Connection', 'close', 'Cache-Control', 'no-store', 'X-Content-Type-Options', 'nosniff'])
     if (snapshot.operation !== 'headMediaAsset' && snapshot.status !== 400 && snapshot.status !== 416) {
@@ -216,20 +231,25 @@ export async function sendMobileMediaResponse(
         // 末尾最多再读1字节核真实EOF；超长reader不得用截断伪装完整成功。
         const remaining = snapshot.expectedBodyBytes - sentBytes
         const maxBytes = Math.min(MOBILE_MEDIA_RESPONSE_LIMITS.maxChunkBytes, Math.max(1, remaining))
-        const chunk = await wait(Promise.resolve().then(() => read(maxBytes, controller.signal)), 'READER_FAILED')
+        const reading = timing?.start(remaining === 0 ? 'eof-read' : 'read', remaining === 0 ? 0 : ++readOrdinal)
+        timingActive = reading
+        const chunk = await wait(mobileRangeWindowObserve('sender.read', () => Promise.resolve().then(() => read(maxBytes, controller.signal))), 'READER_FAILED')
         guard()
         if (chunk === null) {
           const complete = validateMobileMediaStreamCompletion(snapshot, sentBytes)
           if (!complete.ok) throw new MobileMediaResponseError('EARLY_EOF')
+          timing?.end(reading)
           break
         }
         if (!(chunk instanceof Uint8Array) || chunk.buffer instanceof SharedArrayBuffer || !chunk.byteLength) throw new MobileMediaResponseError('INVALID_CHUNK')
         if (chunk.byteLength > remaining) throw new MobileMediaResponseError('OVERFLOW')
         if (chunk.byteLength > maxBytes) throw new MobileMediaResponseError('INVALID_CHUNK')
         const ownedChunk = new Uint8Array(chunk)
-        await authority(); guard()
+        timing?.end(reading, { bytes: ownedChunk.byteLength })
+        await authority('before-write-authority', readOrdinal); guard()
         // reader可复用自身缓冲；当前写完成前只保有一份有限副本。
-        await writeChunk(ownedChunk); sentBytes += ownedChunk.byteLength
+        const writing = timing?.start('write', readOrdinal); timingActive = writing
+        await mobileRangeWindowObserve('sender.write', () => writeChunk(ownedChunk)); timing?.end(writing, { bytes: ownedChunk.byteLength }); sentBytes += ownedChunk.byteLength
       }
     }
     const complete = validateMobileMediaStreamCompletion(snapshot, sentBytes)
@@ -238,17 +258,21 @@ export async function sendMobileMediaResponse(
     clearTimeout(establishmentTimer); establishmentTimer = undefined
     clearTimeout(idleTimer); idleTimer = undefined
     // 释放失败时不发HTTP finish，从而不把未回收的reader记成成功。
-    await release(); guard(); progress(); await endResponse()
+    try { await release() } catch (error) { failureOrigin = 'cleanup'; throw error }
+    guard(); progress(); await endResponse()
   } catch (error) {
+    timing?.reject(timingActive, error)
     failed = true; originalFailure = error instanceof MobileMediaResponseError || error instanceof MobileServiceError
       ? error : new MobileMediaResponseError('WRITE_FAILED')
+    timing?.captureFailure(originalFailure, failureOrigin)
+    mobileRangeWindowFailure(originalFailure, failureOrigin)
     if (response.headersSent && !response.writableFinished) response.destroy()
   } finally {
     controller.abort()
     clearTimeout(establishmentTimer); clearTimeout(idleTimer); clearTimeout(ticketTimer); clearTimeout(authorityTimer)
     request.removeListener('aborted', externalAbort); response.removeListener('close', peerClose); response.removeListener('error', peerError)
     signal.removeEventListener('abort', externalAbort); resourceSignal?.removeEventListener('abort', externalAbort)
-    try { await release() } catch (error) { if (!failed) { failed = true; originalFailure = error } }
+    try { await mobileRangeWindowObserve('sender.close.wait', () => release(), 'cleanup') } catch (error) { if (!failed) { failed = true; originalFailure = error; timing?.captureFailure(error, 'cleanup'); mobileRangeWindowFailure(error, 'cleanup') } }
   }
   if (failed) throw originalFailure
 }

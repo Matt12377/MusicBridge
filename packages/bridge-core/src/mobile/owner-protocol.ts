@@ -1,6 +1,8 @@
 import { isMobileId, isMobileAlbum, isMobileTrack, MOBILE_API_RESPONSE_MAX_BYTES, MOBILE_SAFE_ERROR_CODES } from '@music-bridge/contracts';
 import { isMobileOwnerSourceRequest, isMobileOwnerSourceResult } from './source-protocol.js';
 import { isMobileContentOwnerRequest, isMobileContentOwnerResult } from './owner-content-protocol.js';
+import { types } from 'node:util';
+import { ownedSealedByteLength } from './owned-sealed-bytes.js';
 import {
   MOBILE_AUTH_SEALED_MAX_BYTES, type MobileOwnerCatalogRequest,
   type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult,
@@ -29,6 +31,10 @@ function bytes(value: unknown, maximum: number): value is Uint8Array {
       && Reflect.ownKeys(value).every(key => typeof key === 'string' && /^(?:0|[1-9][0-9]*)$/u.test(key) && Number(key) < length);
   } catch { return false; }
 }
+function sealedBytes(value: unknown): value is Uint8Array {
+  if (types.isProxy(value)) return false;
+  return ownedSealedByteLength(value, MOBILE_AUTH_SEALED_MAX_BYTES) !== null || bytes(value, MOBILE_AUTH_SEALED_MAX_BYTES);
+}
 function dense(value: unknown, maximum: number): value is unknown[] {
   if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype || value.length > maximum || Reflect.ownKeys(value).length !== value.length + 1) return false;
   for (let i = 0; i < value.length; i++) { const d = Object.getOwnPropertyDescriptor(value, String(i)); if (!d?.enumerable || !Object.hasOwn(d, 'value')) return false; }
@@ -52,7 +58,7 @@ export function isMobileOwnerPrivateRequest(v: unknown): v is MobileOwnerPrivate
   if (v.kind === 'artwork') return closed(v.request, ['serverId', 'artworkId']) && isMobileId(v.request.serverId) && isMobileId(v.request.artworkId);
   if (v.kind === 'save' || v.kind === 'playback-save') return closed(v.request, ['datasetId', 'expectedRevision', 'commitId', 'sealed'])
     && v.request.datasetId === v.datasetId && integer(v.request.expectedRevision, 0, Number.MAX_SAFE_INTEGER - 1)
-    && uuid(v.request.commitId) && bytes(v.request.sealed, MOBILE_AUTH_SEALED_MAX_BYTES);
+    && uuid(v.request.commitId) && sealedBytes(v.request.sealed);
   return false;
 }
 export function isMobileOwnerPrivateResult(v: unknown, request: MobileOwnerPrivateRequest): v is MobileOwnerPrivateResult {
@@ -65,7 +71,7 @@ export function isMobileOwnerPrivateResult(v: unknown, request: MobileOwnerPriva
   if (request.kind === 'media-source') return isMobileOwnerSourceResult(v, request.request);
   if (request.kind === 'load' || request.kind === 'playback-load') return closed(v, ['kind', 'datasetId', 'revision']) && v.kind === 'missing' && v.datasetId === request.datasetId && v.revision === 0
     || closed(v, ['kind', 'datasetId', 'revision', 'commitId', 'sealed']) && v.kind === 'sealed' && v.datasetId === request.datasetId
-      && integer(v.revision, 1) && uuid(v.commitId) && bytes(v.sealed, MOBILE_AUTH_SEALED_MAX_BYTES);
+      && integer(v.revision, 1) && uuid(v.commitId) && sealedBytes(v.sealed);
   if (request.kind === 'save' || request.kind === 'playback-save') return closed(v, ['kind', 'datasetId', 'revision', 'commitId']) && v.kind === 'saved'
       && v.datasetId === request.datasetId && v.revision === request.request.expectedRevision + 1 && v.commitId === request.request.commitId
     || closed(v, ['kind', 'datasetId', 'currentRevision']) && v.kind === 'conflict' && v.datasetId === request.datasetId && integer(v.currentRevision, 0);

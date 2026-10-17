@@ -578,3 +578,10 @@ Source548本次300k容量仍未通过，Root171实际摘要pin另列；首请求
 ## V39-INTEGRATION-001 当前Source证据
 
 Source `744c29af17e7f587a635810c4f45e327c7132705` 已通过当前277例组合验证及首次自然4个workflow、6个job、5件完整制品核对。唯一直接Report自身工具Gate及首次自然CI另行验证，当前仍NOT_RUN。真实应用、服务、设备、音频及Owner验收均为NOT_RUN。后续顺序保持完整Feedback/CoverDrop整合、MBRS-016、MBRS-017；原账本与已取消015状态保持。
+
+
+## V39-INTEGRATION-002 当前独立执行入口（2026-10-12）
+
+001已在Source `744c29af17e7f587a635810c4f45e327c7132705` 与唯一直接Report `4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870` 自身首次自然CI封口；历史001报告不重写。002从该实际Report创建独立 `codex/v39-integration-002`，完整Scope见 `tasks/V39-INTEGRATION-002.md` 与 `docs/integration/V39-INTEGRATION-002/EXECUTION_SCOPE.json`。99准确本地输入、35+9完整功能、37历史映射、八族实际Native输出及当前必要容量分别验证。当前是实现态，标准/Gate/Native/容量/CI/真实运行/Owner均未运行；TODO留待完成Report一次更新。顺序002→003→004→MBRS-016→MBRS-017，003/004保留既有MBM-003/004及iOS归属。
+
+003映射校正：完整保留MBM-003的FLAC24bit192kHz、仅DSD→48k24 PCM→独立FLAC缓存、首曲整件准备/复用/Range/seek/续租释放/容量及真实iPhone播放拖动断线恢复；004保留MBM-004内容、多设备归属与原验收，不缩减或置换。

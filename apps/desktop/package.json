@@ -7,7 +7,7 @@
   "productName": "Music Bridge for Roon",
   "scripts": {
     "prebuild": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
-    "build": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && electron-vite build --mode production",
+    "build": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && node scripts/native-cue-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-watch-build && electron-vite build --mode production && node scripts/native-cue-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-watch-build",
     "postbuild": "node scripts/verify-preload-dependencies.mjs",
     "pretypecheck": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "typecheck": "vue-tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.e2e.json",
@@ -19,12 +19,12 @@
     "test:electron": "node --import tsx --test electron-gate/*.test.ts",
     "pretest:security": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build",
     "test:security": "node --import tsx --test test/security.test.ts test/ipc-security.test.ts test/csp.test.ts test/protocol.test.ts test/preload.test.ts test/credential-provisioning.test.ts test/credential-vault.test.ts",
-    "dev": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && electron-vite build --mode development && node scripts/verify-preload-dependencies.mjs && electron dist/main/index.js",
+    "dev": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && node scripts/native-cue-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-watch-build && electron-vite build --mode development && node scripts/native-cue-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-watch-build && node scripts/verify-preload-dependencies.mjs && electron dist/main/index.js",
     "start": "node scripts/verify-preload-dependencies.mjs && electron dist/main/index.js",
     "pack": "electron-builder --dir",
     "pack:beta": "electron-builder --mac --arm64",
     "test:startup": "node scripts/startup-gate.mjs development && node scripts/startup-gate.mjs production",
-    "test:e2e": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && electron-vite build --mode production && node scripts/verify-preload-dependencies.mjs && electron-vite build --config e2e/private-core.vite.config.ts --mode development && playwright test"
+    "test:e2e": "corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build && node scripts/native-cue-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-build && node scripts/native-local-audio-tags-package.mjs --capture-watch-build && electron-vite build --mode production && node scripts/native-cue-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-build && node scripts/native-local-audio-tags-package.mjs --seal-watch-build && node scripts/verify-preload-dependencies.mjs && electron-vite build --config e2e/private-core.vite.config.ts --mode development && playwright test"
   },
   "dependencies": {
     "@music-bridge/contracts": "workspace:*",
@@ -76,7 +76,8 @@
       "!**/*.markdown",
       "!**/*.mdx",
       "!node_modules/@music-bridge/contracts/src{,/**/*}",
-      "!node_modules/@music-bridge/contracts/tsconfig*.json"
+      "!node_modules/@music-bridge/contracts/tsconfig*.json",
+      "!node_modules/.cache{,/**/*}"
     ],
     "asar": true,
     "mac": {
@@ -117,7 +118,7 @@
       "onlyLoadAppFromAsar": true,
       "grantFileProtocolExtraPrivileges": false
     },
-    "beforePack": "./scripts/native-rust-package.mjs",
+    "beforePack": "./scripts/native-cue-package.mjs",
     "extraResources": [
       {
         "from": "native/rust-core/darwin-arm64",
@@ -163,7 +164,70 @@
           "lib/**",
           "legal/**"
         ]
+      },
+      {
+        "from": "native/cue-ffmpeg/darwin-arm64",
+        "to": "cue-ffmpeg/darwin-arm64",
+        "filter": [
+          "manifest.json",
+          "bin/ffmpeg",
+          "bin/ffprobe",
+          "lib/libavcodec.62.dylib",
+          "lib/libavfilter.11.dylib",
+          "lib/libavformat.62.dylib",
+          "lib/libavutil.60.dylib",
+          "lib/libswresample.6.dylib",
+          "lib/libogg.0.dylib",
+          "lib/libvorbis.0.dylib",
+          "lib/libvorbisenc.2.dylib",
+          "lib/libopus.0.dylib",
+          "lib/libmp3lame.0.dylib",
+          "legal/ffmpeg/ffmpeg-8.1.2.tar.xz",
+          "legal/ffmpeg/COPYING.LGPLv2.1",
+          "legal/ffmpeg/LICENSE.md",
+          "legal/ogg/libogg-1.3.6.tar.xz",
+          "legal/ogg/COPYING",
+          "legal/ogg/AUTHORS",
+          "legal/vorbis/libvorbis-1.3.7.tar.xz",
+          "legal/vorbis/COPYING",
+          "legal/vorbis/AUTHORS",
+          "legal/opus/opus-1.6.1.tar.gz",
+          "legal/opus/COPYING",
+          "legal/opus/AUTHORS",
+          "legal/lame/lame-4.0.tar.gz",
+          "legal/lame/LICENSE",
+          "legal/lame/COPYING",
+          "legal/NOTICE.txt"
+        ]
+      },
+      {
+        "from": "native/local-audio-tags/darwin-arm64",
+        "to": "local-audio-tags/darwin-arm64",
+        "filter": [
+          "manifest.json",
+          "bin/mb-audio-tags",
+          "lib/libtag.2.dylib",
+          "legal/COPYING.LGPL",
+          "legal/COPYING.MPL",
+          "legal/AUTHORS",
+          "legal/3rdparty-utfcpp-LICENSE",
+          "legal/taglib-2.3.2.tar.gz"
+        ]
+      },
+      {
+        "from": "../../native/local-audio-tags/taglib-helper.cpp",
+        "to": "local-audio-tags/darwin-arm64/legal/mb-audio-tags-helper.cpp"
+      },
+      {
+        "from": "native/library-watch/darwin-arm64",
+        "to": "library-watch/darwin-arm64",
+        "filter": [
+          "manifest.json",
+          "mb-library-watch",
+          "legal/fsevents-helper.cpp"
+        ]
       }
-    ]
+    ],
+    "afterPack": "./scripts/native-local-audio-tags-package.mjs"
   }
 }

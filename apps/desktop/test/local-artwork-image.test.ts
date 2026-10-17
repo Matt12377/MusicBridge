@@ -8,6 +8,7 @@ import test from 'node:test'
 import { deflateSync } from 'node:zlib'
 import type { PhotoDecoderImage } from '../src/main/collection-photos.js'
 import { LocalArtworkImageError, normalizeLocalArtwork, readLocalArtworkFile } from '../src/main/local-artwork-image.js'
+import { resizeMobileProviderArtwork } from '../src/main/mobile-artwork-image.js'
 
 const hash = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
 const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
@@ -74,6 +75,27 @@ function rejectBeforeDecode(bytes: Buffer, message?: RegExp): void {
   })
   assert.equal(calls, 0, '非法结构或头预算必须在调用native适配器前阻断')
 }
+
+test('手机Provider缩图：实际新组合复用容器和几何预算，最终512JPEG不超过1MiB', () => {
+  const sizes = [[1200, 800], [1200, 800], [512, 512]]; let decodes = 0
+  const result = resizeMobileProviderArtwork(jpeg(1200, 800), 512, () => {
+    const size = sizes[decodes++]; assert.ok(size); return fakeDecoder(size[0], size[1])
+  })
+  assert.equal(decodes, 3); assert.ok(result.byteLength <= 1024 * 1024)
+  assert.deepEqual(Buffer.from(result), jpeg(512, 512))
+})
+
+test('手机Provider缩图：非法MIME魔数/尺寸/输入预算先拒绝，原生空图和超1MiB编码不发布', () => {
+  for (const bytes of [Buffer.alloc(8), jpeg(5000, 1), Buffer.alloc(4 * 1024 * 1024 + 1)]) {
+    let calls = 0
+    assert.throws(() => resizeMobileProviderArtwork(bytes, 512, () => { calls++; return fakeDecoder() }))
+    assert.equal(calls, 0)
+  }
+  assert.throws(() => resizeMobileProviderArtwork(jpeg(), 512, () => fakeDecoder(1, 1, { empty: true })))
+  assert.throws(() => resizeMobileProviderArtwork(jpeg(1200, 800), 512, () => fakeDecoder(1200, 800, {
+    output: (width, height) => width === 512 ? Buffer.alloc(1024 * 1024 + 1) : jpeg(width, height),
+  })))
+})
 
 test('合成PNG归一化分开保存原始与展示字节身份，输入不变', () => {
   const input = png(), before = Buffer.from(input), output = jpeg()

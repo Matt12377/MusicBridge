@@ -1,5 +1,6 @@
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { MobileAuthPersistenceError, MOBILE_AUTH_STATE_MAX_BYTES, type MobileAuthCrypto } from './types.js';
+import { allocateOwnedSealedBytes } from './owned-sealed-bytes.js';
 
 /** 移动认证独立密钥；AAD 由服务绑定 server、dataset 和原提交修订。 */
 export function createMobileAuthCrypto(input: Uint8Array): MobileAuthCrypto {
@@ -11,7 +12,9 @@ export function createMobileAuthCrypto(input: Uint8Array): MobileAuthCrypto {
       const nonce = randomBytes(12), cipher = createCipheriv('aes-256-gcm', key, nonce);
       cipher.setAAD(aad);
       const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
-      return new Uint8Array(Buffer.concat([Buffer.from([1]), nonce, cipher.getAuthTag(), ciphertext]));
+      const bytes = Buffer.concat([Buffer.from([1]), nonce, cipher.getAuthTag(), ciphertext]);
+      const sealed = allocateOwnedSealedBytes(bytes.byteLength);
+      Uint8Array.prototype.set.call(sealed, bytes); return sealed;
     },
     open(sealed, aad) {
       try {

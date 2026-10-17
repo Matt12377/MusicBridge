@@ -200,3 +200,10 @@ MBRS-009 正式本地库UI见[原任务](MBRS-009_LOCAL_LIBRARY_UI.md)；按Post
 ## V39-INTEGRATION-001：已授权连续整合
 
 当前从实际 sealed Report `9bfb5915c17e8b5770ece7ac9a0efc1998d54e72` 接续 Tape13源码+2历史报告及其独立任务准入。当前开发Scope未冻结，不具备完成资格。Tape Source/直接Report自然CI封口后 → V39-INTEGRATION-002 完整Feedback/Async/SQL/shared/native/原35+9 CoverDrop → MBRS-016 → MBRS-017。旧任务与全部真实验收未证层继续保留。
+
+
+## V39-INTEGRATION-002 当前独立执行入口（2026-10-12）
+
+001已在Source `744c29af17e7f587a635810c4f45e327c7132705` 与唯一直接Report `4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870` 自身首次自然CI封口；历史001报告不重写。002从该实际Report创建独立 `codex/v39-integration-002`，完整Scope见 `tasks/V39-INTEGRATION-002.md` 与 `docs/integration/V39-INTEGRATION-002/EXECUTION_SCOPE.json`。99准确本地输入、35+9完整功能、37历史映射、八族实际Native输出及当前必要容量分别验证。当前是实现态，标准/Gate/Native/容量/CI/真实运行/Owner均未运行；TODO留待完成Report一次更新。顺序002→003→004→MBRS-016→MBRS-017，003/004保留既有MBM-003/004及iOS归属。
+
+003映射校正：完整保留MBM-003的FLAC24bit192kHz、仅DSD→48k24 PCM→独立FLAC缓存、首曲整件准备/复用/Range/seek/续租释放/容量及真实iPhone播放拖动断线恢复；004保留MBM-004内容、多设备归属与原验收，不缩减或置换。

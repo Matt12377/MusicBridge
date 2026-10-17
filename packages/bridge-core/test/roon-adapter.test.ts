@@ -2322,3 +2322,169 @@ test('MBP003A Stop Zone：新selectedZone不能误认旧Session owner，无optio
   assert.equal(api.core.audioInput.endSessionCallbacks.length, 0);
   await adapter.stop(); assert.equal(adapter.getDiagnosticResourceCounters().activeSessionCount, 0);
 });
+
+// 跨来源940：只使用原FakeSdk，不连接真实Core、账号或媒体。
+function nativeStopZone940(state: 'playing' | 'paused' | 'stopped' | 'loading' | undefined, outputs = ['output-1']) {
+  return { zone_id: 'zone-1', ...(state ? { state } : {}), outputs: outputs.map(output_id => ({ output_id })) };
+}
+function holdNativeStop940(t: import('node:test').TestContext, transport: FakeTransport) {
+  const held: { calls: number; reply?: (error: string | false) => void } = { calls: 0 };
+  t.mock.method(transport, 'control', (zone: string | { zone_id: string }, control: string, reply: (error: string | false) => void) => {
+    assert.equal(zone, 'zone-1'); assert.equal(control, 'stop'); held.calls++; held.reply = reply;
+  });
+  return held;
+}
+
+for (const state of ['paused', 'stopped'] as const) {
+  test(`跨来源940：同身份${state}在本次Success后无新Zone事件仍确认停止`, async t => {
+    const { logger, events } = recordingLogger();
+    const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 }, logger);
+    t.after(() => adapter.shutdown());
+    api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940(state)] });
+    const before = adapter.getSelectedZonePlaybackObservation()!;
+    const held = holdNativeStop940(t, api.core.transport);
+    let complete = false;
+    const pending = adapter.control('stop', { expectedZoneId: 'zone-1' }).then(() => { complete = true; });
+    await nextTurn(); assert.equal(complete, false, 'inactive旧状态不能替代本次RPC成功回执');
+    held.reply!(false); await pending;
+    assert.equal(held.calls, 1); assert.equal(adapter.getSelectedZonePlaybackObservation()!.revision, before.revision);
+    assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+    const stages = events.filter(row => row.event === 'roon_transport_stop_stage');
+    assert.ok(stages.some(row => row.fields.phase === 'callback' && row.fields.outcome === 'success'));
+    const confirmed = stages.find(row => row.fields.outcome === 'idempotent')!;
+    assert.ok(confirmed); assert.equal(confirmed.fields.revisionAdvanced, false);
+    for (const key of ['coreMatches', 'connectionMatches', 'targetMatches', 'zoneMatches', 'outputsMatch', 'beforeInactive', 'currentInactive']) assert.equal(confirmed.fields[key], true);
+    const ids = new Set(stages.map(row => row.fields.diagnosticId)); assert.equal(ids.size, 1);
+    assert.match(String(confirmed.fields.diagnosticId), /^roon-stop-[0-9a-f-]{36}$/u);
+    for (const row of stages) { assert.ok(Number.isSafeInteger(row.fields.durationMs)); assert.ok((row.fields.durationMs as number) >= 0); }
+    const safe = JSON.stringify(stages);
+    for (const forbidden of ['zone-1', 'output-1', 'Fake Core', 'Fake Zone', 'session_id', 'http://']) assert.equal(safe.includes(forbidden), false);
+  });
+}
+
+test('跨来源940：playing必须本次同Zone新inactive，其他Zone或playing更新不能确认', async t => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 100 }); t.after(() => adapter.shutdown());
+  api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('playing')] });
+  const before = adapter.getSelectedZonePlaybackObservation()!;
+  let complete = false; const pending = adapter.control('stop').then(() => { complete = true; });
+  await nextTurn(); assert.equal(complete, false);
+  api.core.transport.emit('Changed', { zones_added: [{ zone_id: 'zone-other', state: 'paused', outputs: [{ output_id: 'output-other' }] }] });
+  await nextTurn(); assert.equal(complete, false);
+  api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('playing')] });
+  await nextTurn(); assert.equal(complete, false);
+  api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('paused')] }); await pending;
+  assert.ok(adapter.getSelectedZonePlaybackObservation()!.revision > before.revision);
+  assert.deepEqual(api.core.transport.controlCalls, [{ zone: 'zone-1', control: 'stop' }]);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});
+
+for (const state of ['loading', undefined] as const) {
+  test(`跨来源940：${state ?? '缺状态'}不能当作inactive幂等成功`, async t => {
+    const { logger, events } = recordingLogger();
+    const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 5 }, logger); t.after(() => adapter.shutdown());
+    api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940(state)] });
+    await assert.rejects(adapter.control('stop'), { code: 'ROON_TIMEOUT' });
+    assert.ok(events.some(row => row.event === 'roon_transport_stop_stage' && row.fields.phase === 'zone-confirm' && row.fields.outcome === 'rejected'));
+    assert.equal(events.some(row => row.fields.outcome === 'idempotent'), false);
+    assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+  });
+}
+
+test('跨来源940：inactive但回调缺失仍超时，迟到Success不能改写该次结果或补成功阶段', async t => {
+  const { logger, events } = recordingLogger();
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 5 }, logger); t.after(() => adapter.shutdown());
+  api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('paused')] });
+  const held = holdNativeStop940(t, api.core.transport);
+  const error = await adapter.control('stop').then(() => null, failure => failure);
+  assert.ok(error instanceof BridgeError); assert.equal(error.code, 'ROON_TIMEOUT');
+  const timeout = events.find(row => row.event === 'roon_transport_stop_stage' && row.fields.phase === 'callback' && row.fields.outcome === 'timeout');
+  assert.ok(timeout); const count = events.length;
+  held.reply!(false); await nextTurn();
+  assert.equal(events.length, count); assert.equal(held.calls, 1);
+  assert.equal(events.some(row => row.fields.outcome === 'idempotent'), false);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});
+
+test('跨来源940：inactive的错误回调仍拒绝且闭集阶段不输出原响应正文', async t => {
+  const { logger, events } = recordingLogger();
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 }, logger); t.after(() => adapter.shutdown());
+  api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('paused')] });
+  api.core.transport.controlResult = 'PRIVATE_RESPONSE_MUST_NOT_LOG';
+  await assert.rejects(adapter.control('stop'), { code: 'ROON_TIMEOUT' });
+  assert.ok(events.some(row => row.event === 'roon_transport_stop_stage' && row.fields.phase === 'callback' && row.fields.outcome === 'error'));
+  assert.equal(JSON.stringify(events).includes('PRIVATE_RESPONSE_MUST_NOT_LOG'), false);
+  assert.equal(api.core.transport.controlCalls.length, 1); assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});
+
+for (const mutation of ['new-core', 'core-ABA', 'zone-ABA', 'outputs-changed', 'outputs-ABA'] as const) {
+  test(`跨来源940：Success前${mutation}不能以当前inactive释放原停止`, async t => {
+    const { logger, events } = recordingLogger();
+    const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 }, logger); t.after(() => adapter.shutdown());
+    api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('paused')] });
+    const held = holdNativeStop940(t, api.core.transport);
+    const pending = adapter.control('stop'); const rejected = assert.rejects(pending, { code: 'ROON_ZONE_NOT_SELECTED' });
+    if (mutation === 'new-core') {
+      const replacement = new FakeCore(); api.options.core_paired(replacement);
+      replacement.transport.emit('Subscribed', { zones: [nativeStopZone940('paused')] });
+    } else if (mutation === 'core-ABA') {
+      api.unpair(); api.pair(); api.core.transport.emit('Subscribed', { zones: [nativeStopZone940('paused')] });
+    } else if (mutation === 'zone-ABA') {
+      api.core.transport.emit('Changed', { zones_added: [{ zone_id: 'zone-other', state: 'paused', outputs: [{ output_id: 'output-other' }] }] });
+      adapter.selectZone('zone-other'); adapter.selectZone('zone-1');
+    } else {
+      api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('paused', ['output-1', 'output-other'])] });
+      if (mutation === 'outputs-ABA') api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('paused')] });
+    }
+    held.reply!(false); await rejected;
+    assert.equal(held.calls, 1); assert.equal(events.some(row => row.fields.outcome === 'idempotent' || row.fields.outcome === 'fresh'), false);
+    assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+  });
+}
+
+test('跨来源940：fresh inactive已到但返回前Core换代仍拒绝', async t => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 }); t.after(() => adapter.shutdown());
+  api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('playing')] });
+  const pending = adapter.control('stop'); const rejected = assert.rejects(pending, { code: 'ROON_ZONE_NOT_SELECTED' });
+  await nextTurn();
+  api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('paused')] });
+  api.unpair(); api.pair(); api.core.transport.emit('Subscribed', { zones: [nativeStopZone940('paused')] });
+  await rejected; assert.equal(api.core.transport.controlCalls.length, 1);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});
+
+test('跨来源940：停止取消在派发前零RPC，派发后仍等原回调再拒绝', async t => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 }); t.after(() => adapter.shutdown());
+  api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('paused')] });
+  const pre = new AbortController(); pre.abort();
+  await assert.rejects(adapter.control('stop', { signal: pre.signal }), { code: 'BAD_REQUEST' });
+  assert.equal(api.core.transport.controlCalls.length, 0);
+  const held = holdNativeStop940(t, api.core.transport), controller = new AbortController(); let complete = false;
+  const pending = adapter.control('stop', { signal: controller.signal }).then(() => { complete = true; return null; }, error => { complete = true; return error; });
+  controller.abort(); await nextTurn(); assert.equal(complete, false, '取消不能冒充已发RPC的回执');
+  held.reply!(false); const error = await pending;
+  assert.ok(error instanceof BridgeError); assert.equal(error.details?.reason, 'operation_cancelled');
+  assert.equal(held.calls, 1); assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});
+
+test('跨来源940：原作者首拒对象保持且诊断不读取message或stack accessor', async t => {
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 }); t.after(() => adapter.shutdown());
+  api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('paused')] });
+  const held = holdNativeStop940(t, api.core.transport); let current = true, privateReads = 0;
+  const original = Object.create(null) as Record<string, unknown>;
+  Object.defineProperty(original, 'code', { value: 'BAD_REQUEST' });
+  for (const field of ['message', 'stack', 'constructor']) Object.defineProperty(original, field, { get() { privateReads++; throw Error('不能读取私有字段'); } });
+  const pending = adapter.control('stop', { assertCurrent() { if (!current) throw original; } });
+  const result = pending.then(() => null, error => error); current = false; held.reply!(false);
+  assert.strictEqual(await result, original); assert.equal(privateReads, 0); assert.equal(held.calls, 1);
+  assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});
+
+test('跨来源940：阶段Logger自身异常不能改变原Success或错误回调结算', async t => {
+  const logger: Logger = { ...silentLogger, info(event) { if (event === 'roon_transport_stop_stage') throw Error('私有诊断失败'); } };
+  const { adapter, api } = await makeReadyHarness({ transportTimeoutMs: 30 }, logger); t.after(() => adapter.shutdown());
+  api.core.transport.emit('Changed', { zones_changed: [nativeStopZone940('paused')] });
+  await adapter.control('stop');
+  api.core.transport.controlResult = 'Error';
+  await assert.rejects(adapter.control('stop'), { code: 'ROON_TIMEOUT' });
+  assert.equal(api.core.transport.controlCalls.length, 2); assert.equal(adapter.getDiagnosticResourceCounters().timerCount, 0);
+});

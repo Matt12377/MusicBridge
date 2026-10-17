@@ -13,6 +13,7 @@ import {
 } from './content-state.js';
 import type { MobileContentStateLimits } from './content-types.js';
 import { MobileServiceError } from './types.js';
+import { mobileCapabilitySync, mobileCapabilityReject } from './capability-trace.js';
 
 /** 只含安全结果与原 commit；不传播文件路径、正文或加密底层异常。 */
 export class MobileContentPersistenceError extends MobileServiceError {
@@ -126,7 +127,10 @@ export function createMobileContentOwnerStore(options: MobileContentOwnerStoreOp
     catch (error) { if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error; }
     const before = assertNamedDirectory(), fd = openSync(directory, constants.O_RDONLY | constants.O_NOFOLLOW);
     try { if (!sameDirectory(before, fstatSync(fd, { bigint: true }))) throw new Error('目录变化'); }
-    catch (error) { closeSync(fd); throw error; }
+    catch (error) {
+      mobileCapabilityReject('owner.store.directory', error);
+      mobileCapabilitySync('owner.store.directory.close', () => closeSync(fd), 'cleanup'); throw error;
+    }
     return fd;
   }
   function privateFile(info: BigIntStats, max: number): void {
@@ -135,50 +139,64 @@ export function createMobileContentOwnerStore(options: MobileContentOwnerStoreOp
   }
   type Readback = MobileContentLoadedState & { stateHash: string; fileIdentity: BigIntStats | null };
   function read(): Readback {
-    const directoryFd = openDirectory();
+    const directoryFd = mobileCapabilitySync('owner.store.directory', () => openDirectory());
     try {
-      const directoryInfo = fstatSync(directoryFd, { bigint: true });
-      let fd: number;
-      try { fd = openSync(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK); }
-      catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-        assertNamedDirectory(directoryInfo); assertCurrent();
-        const state = createMobileContentState({ serverId: options.serverId, datasetId: options.datasetId });
-        return { state, revision: 0, commitId: null, stateHash: digest(encodeMobileContentState(state, limits)), fileIdentity: null };
+      const directoryInfo = mobileCapabilitySync('owner.store.directory', () => fstatSync(directoryFd, { bigint: true }));
+      const fd = mobileCapabilitySync('owner.store.file.open', () => {
+        try { return openSync(file, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK); }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; return undefined; }
+      });
+      if (fd === undefined) {
+        return mobileCapabilitySync('owner.store.read', () => {
+          assertNamedDirectory(directoryInfo); assertCurrent();
+          const state = createMobileContentState({ serverId: options.serverId, datasetId: options.datasetId });
+          return { state, revision: 0, commitId: null, stateHash: digest(encodeMobileContentState(state, limits)), fileIdentity: null };
+        });
       }
       try {
-        const before = fstatSync(fd, { bigint: true }); privateFile(before, fileMax);
-        const bytes = readFileSync(fd);
-        if (BigInt(bytes.length) !== before.size || !sameFile(before, fstatSync(fd, { bigint: true }))
-          || !sameFile(before, lstatSync(file, { bigint: true }))) throw new Error('文件变化');
-        const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-        const envelope: unknown = JSON.parse(text);
-        if (!closed(envelope, ['schema', 'serverId', 'datasetId', 'revision', 'commitId', 'stateSha256', 'sealedSha256', 'sealed'])
-          || envelope.schema !== SCHEMA || envelope.serverId !== options.serverId || envelope.datasetId !== options.datasetId
-          || !mobileInteger(envelope.revision, 1) || !uuid(envelope.commitId) || !hashString(envelope.stateSha256)
-          || !hashString(envelope.sealedSha256) || typeof envelope.sealed !== 'string' || envelope.sealed.length > fileMax
-          || text !== canonical(envelope) + '\n') throw new Error('信封');
-        const sealed = new Uint8Array(Buffer.from(envelope.sealed, 'base64'));
-        if (sealed.length < 1 || sealed.length > sealedMax || Buffer.from(sealed).toString('base64') !== envelope.sealed
-          || digest(sealed) !== envelope.sealedSha256) throw new Error('密文');
-        const opened = options.open(new Uint8Array(sealed));
-        if (!(opened instanceof Uint8Array) || opened.buffer instanceof SharedArrayBuffer
-          || opened.byteLength < 1 || opened.byteLength > limits.stateBytes + 4096) throw new Error('明文限额');
-        const plain = new Uint8Array(opened), plainText = new TextDecoder('utf-8', { fatal: true }).decode(plain);
-        const payload: unknown = JSON.parse(plainText);
-        if (!closed(payload, ['schema', 'serverId', 'datasetId', 'revision', 'commitId', 'state'])
-          || payload.schema !== PAYLOAD_SCHEMA || payload.serverId !== options.serverId || payload.datasetId !== options.datasetId
-          || payload.revision !== envelope.revision || payload.commitId !== envelope.commitId
-          || canonical(payload) !== plainText) throw new Error('认证提交');
-        const state = decodeMobileContentState(new Uint8Array(Buffer.from(canonical(payload.state), 'utf8')), limits);
-        const stateHash = digest(encodeMobileContentState(state, limits));
-        if (state.serverId !== options.serverId || state.datasetId !== options.datasetId || state.revision !== envelope.revision
-          || stateHash !== envelope.stateSha256 || !sameFile(before, fstatSync(fd, { bigint: true }))
-          || !sameFile(before, lstatSync(file, { bigint: true }))) throw new Error('身份');
-        assertNamedDirectory(directoryInfo); assertCurrent();
-        return { state, revision: state.revision, commitId: envelope.commitId, stateHash, fileIdentity: before };
-      } finally { closeSync(fd); }
-    } finally { closeSync(directoryFd); }
+        const { before, bytes } = mobileCapabilitySync('owner.store.file.read', () => {
+          const before = fstatSync(fd, { bigint: true }); privateFile(before, fileMax);
+          const bytes = readFileSync(fd);
+          if (BigInt(bytes.length) !== before.size || !sameFile(before, fstatSync(fd, { bigint: true }))
+            || !sameFile(before, lstatSync(file, { bigint: true }))) throw new Error('文件变化');
+          return { before, bytes };
+        });
+        const envelope = mobileCapabilitySync('owner.store.envelope', () => {
+          const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+          const envelope: unknown = JSON.parse(text);
+          if (!closed(envelope, ['schema', 'serverId', 'datasetId', 'revision', 'commitId', 'stateSha256', 'sealedSha256', 'sealed'])
+            || envelope.schema !== SCHEMA || envelope.serverId !== options.serverId || envelope.datasetId !== options.datasetId
+            || !mobileInteger(envelope.revision, 1) || !uuid(envelope.commitId) || !hashString(envelope.stateSha256)
+            || !hashString(envelope.sealedSha256) || typeof envelope.sealed !== 'string' || envelope.sealed.length > fileMax
+            || text !== canonical(envelope) + '\n') throw new Error('信封');
+          const sealed = new Uint8Array(Buffer.from(envelope.sealed, 'base64'));
+          if (sealed.length < 1 || sealed.length > sealedMax || Buffer.from(sealed).toString('base64') !== envelope.sealed
+            || digest(sealed) !== envelope.sealedSha256) throw new Error('密文');
+          return { revision: envelope.revision, commitId: envelope.commitId, stateSha256: envelope.stateSha256, sealed };
+        });
+        const plainText = mobileCapabilitySync('owner.store.decrypt', () => {
+          const opened = options.open(new Uint8Array(envelope.sealed));
+          if (!(opened instanceof Uint8Array) || opened.buffer instanceof SharedArrayBuffer
+            || opened.byteLength < 1 || opened.byteLength > limits.stateBytes + 4096) throw new Error('明文限额');
+          return new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(opened));
+        });
+        return mobileCapabilitySync('owner.store.state', () => {
+          const payload: unknown = JSON.parse(plainText);
+          if (!closed(payload, ['schema', 'serverId', 'datasetId', 'revision', 'commitId', 'state'])
+            || payload.schema !== PAYLOAD_SCHEMA || payload.serverId !== options.serverId || payload.datasetId !== options.datasetId
+            || payload.revision !== envelope.revision || payload.commitId !== envelope.commitId
+            || canonical(payload) !== plainText) throw new Error('认证提交');
+          const state = decodeMobileContentState(new Uint8Array(Buffer.from(canonical(payload.state), 'utf8')), limits);
+          const stateHash = digest(encodeMobileContentState(state, limits));
+          if (state.serverId !== options.serverId || state.datasetId !== options.datasetId || state.revision !== envelope.revision
+            || stateHash !== envelope.stateSha256 || !sameFile(before, fstatSync(fd, { bigint: true }))
+            || !sameFile(before, lstatSync(file, { bigint: true }))) throw new Error('身份');
+          assertNamedDirectory(directoryInfo); assertCurrent();
+          return { state, revision: state.revision, commitId: envelope.commitId, stateHash, fileIdentity: before };
+        });
+      } catch (error) { mobileCapabilityReject('owner.store.read', error); throw error; }
+      finally { mobileCapabilitySync('owner.store.file.close', () => closeSync(fd), 'cleanup'); }
+    } finally { mobileCapabilitySync('owner.store.directory.close', () => closeSync(directoryFd), 'cleanup'); }
   }
   const publicRead = (value: Readback): MobileContentLoadedState => Object.freeze({ state: value.state,
     revision: value.revision, commitId: value.commitId });
@@ -195,7 +213,9 @@ export function createMobileContentOwnerStore(options: MobileContentOwnerStoreOp
     load(): MobileContentLoadedState {
       if (pending !== null) throw new MobileContentPersistenceError('unknown', pending.commitId);
       try { return publicRead(read()); }
-      catch { throw new MobileContentPersistenceError('not-sent'); }
+      catch {
+        const mapped = new MobileContentPersistenceError('not-sent'); mobileCapabilityReject('owner.store.load.map', mapped); throw mapped;
+      }
     },
     save(raw: MobileContentOwnerSave): MobileContentOwnerSaveResult {
       if (pending !== null) throw new MobileContentPersistenceError('unknown', pending.commitId);

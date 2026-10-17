@@ -1,0 +1,15 @@
+{
+  "schema": "musicbridge.v39.integration002.local-software-evidence.v1",
+  "task": "V39-INTEGRATION-002",
+  "baseSha": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+  "implementation": "IN_PROGRESS",
+  "qualification": "NOT_RUN",
+  "standard": "NOT_RUN",
+  "toolGate": "NOT_RUN",
+  "nativeGate": "NOT_RUN",
+  "capacityGate": "NOT_RUN",
+  "featureMatrix": "docs/integration/V39-INTEGRATION-002/FEATURE_BEHAVIOR_MATRIX.json",
+  "realApplicationServiceDeviceAudio": "NOT_RUN",
+  "ownerAcceptance": "NOT_RUN",
+  "rawReceipts": []
+}

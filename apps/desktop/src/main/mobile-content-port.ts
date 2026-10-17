@@ -1,4 +1,6 @@
+import { mobileRangeWindowRpc } from '../../../../packages/bridge-core/src/mobile/range-window-observer.js';
 import { randomUUID } from 'node:crypto';
+import { captureMobileCapabilityContext, createMobileCapabilityContext, withMobileCapabilityContext, mobileCapabilityAsync, mobileCapabilitySync, mobileCapabilityReject, mobileCapabilityCache, mobileCapabilityRequestSha, closeMobileCapabilityContext } from '../../../../packages/bridge-core/src/mobile/capability-trace.js';
 import { captureMobileContentReply } from '../../../../packages/bridge-core/src/mobile/content-protocol.js';
 import { captureMobileContentScope, type MobileContentOperation, type MobileContentPort, type MobileContentScope } from '../../../../packages/bridge-core/src/mobile/content-types.js';
 import { sameMobileContentScope } from '../../../../packages/bridge-core/src/mobile/content-service.js';
@@ -15,6 +17,7 @@ export interface MainMobileContentPortOptions {
   datasetId: string;
   /** 由组合根的原 authKey 分域派生；只复制到此 Main 内存。 */
   key: Uint8Array;
+  privateProviderDiagnostics?: boolean;
   requestRpc(request: MobileContentCoreRequest, signal: AbortSignal): Promise<MobileContentCoreResponse>;
   assertCurrent(): void;
   requestMs?: number;
@@ -37,7 +40,8 @@ function bound(input: number | undefined, maximum: number): number {
 export function createMainMobileContentPort(options: MainMobileContentPortOptions) {
   const requestMs = bound(options.requestMs, MOBILE_CONTENT_RPC_BOUNDS.requestMs), closeMs = bound(options.closeMs, MOBILE_CONTENT_RPC_BOUNDS.closeMs);
   const init = captureMobileContentCoreRequest({ type: 'mobile-content-core-request', id: randomUUID(), action: 'initialize',
-    serverId: options.serverId, datasetId: options.datasetId, key: options.key });
+    serverId: options.serverId, datasetId: options.datasetId, key: options.key,
+    ...(options.privateProviderDiagnostics ? { privateProviderDiagnostics: true as const } : {}) });
   if (init.action !== 'initialize') throw new MobileServiceError(400, 'INVALID_REQUEST');
   const key = init.key;
   const active = new Map<string, { request: MobileContentCoreRequest; controller: AbortController; flight: Promise<Success> }>();
@@ -45,6 +49,7 @@ export function createMainMobileContentPort(options: MainMobileContentPortOption
   const knownEpochs = new Map<string, Set<number>>();
   const revokedEpochs = new Map<string, number>();
   let closing = false, closeFlight: Promise<void> | undefined, initialization: Promise<void> | undefined;
+  let initializationState: 'pending' | 'fulfilled' | 'rejected' = 'pending', initializationSha: string | null = null;
   const current = () => { if (closing) throw busy(); options.assertCurrent(); };
   const base = () => ({ type: 'mobile-content-core-request' as const, id: randomUUID() });
   function remember(principal: Readonly<MobileContentMainPrincipal>): void {
@@ -61,7 +66,9 @@ export function createMainMobileContentPort(options: MainMobileContentPortOption
     const scope = 'scope' in request ? request.scope : null;
     const packet: MobileContentCoreRequest = { ...base(), action: 'cancel', requestId: request.id, snapshotId, scope };
     const task = exchange(packet, new AbortController().signal, true).then(result => {
-      if (result.action !== 'cancel' || result.kind !== 'cancelled') throw new MobileAuthPersistenceError('unknown');
+      mobileCapabilitySync('content.rpc.cancel', () => {
+        if (result.action !== 'cancel' || result.kind !== 'cancelled') throw new MobileAuthPersistenceError('unknown');
+      }, 'cleanup');
     });
     cleanup.set(cleanupId, task);
     // 没有真实 quiet ACK 的失败保留，不用删除 Promise 冒充已收口。
@@ -71,12 +78,24 @@ export function createMainMobileContentPort(options: MainMobileContentPortOption
   async function exchange(input: MobileContentCoreRequest, parentSignal: AbortSignal, isCleanup = false): Promise<Success> {
     if (!isCleanup) current();
     const request = captureMobileContentCoreRequest(input);
+    const parentContext = captureMobileCapabilityContext();
+    const stage = request.action === 'initialize' ? 'content.rpc.initialize' : request.action === 'scope' ? 'content.rpc.scope'
+      : request.action === 'cancel' ? 'content.rpc.cancel'
+        : options.privateProviderDiagnostics === true ? request.action === 'dispatch' ? 'content.rpc.dispatch'
+          : request.action === 'revalidate' ? 'content.rpc.revalidate' : request.action === 'artwork' ? 'content.rpc.artwork'
+            : request.action === 'source' ? 'content.rpc.source' : 'content.rpc.other' : 'content.rpc.other';
+    const role = isCleanup ? 'cleanup' : 'business';
     const admission = isCleanup ? MOBILE_CONTENT_RPC_BOUNDS.inflight : MOBILE_CONTENT_RPC_BOUNDS.inflight - 1;
     if (!(parentSignal instanceof AbortSignal) || parentSignal.aborted || active.size >= admission) {
       if (request.action === 'initialize') request.key.fill(0);
-      throw busy();
+      const error = busy();
+      const context = parentContext ? createMobileCapabilityContext(request.id, 'main', 'content', parentContext.requestSha256, parentSignal, parentContext.sink) : undefined;
+      withMobileCapabilityContext(context, () => mobileCapabilityReject(stage, error, role)); closeMobileCapabilityContext(context);
+      throw error;
     }
+    const rangeRpc = mobileRangeWindowRpc(request.id, request.action === 'source' ? request.request.operation : request.action, role);
     const controller = new AbortController();
+    const context = parentContext ? createMobileCapabilityContext(request.id, 'main', 'content', parentContext.requestSha256, controller.signal, parentContext.sink) : undefined;
     const cancel = () => controller.abort(new MobileAuthPersistenceError('unknown'));
     parentSignal.addEventListener('abort', cancel, { once: true }); if (parentSignal.aborted) cancel();
     const timer = setTimeout(cancel, requestMs);
@@ -85,42 +104,60 @@ export function createMainMobileContentPort(options: MainMobileContentPortOption
     const onAbort = () => {
       const error = new MobileServiceError(503, 'BUSY');
       Object.defineProperty(error, 'outcome', { value: 'unknown', enumerable: true });
+      withMobileCapabilityContext(context, () => mobileCapabilityReject(stage, error, role));
       reject(error);
-      if (!isCleanup) void cancelOriginal(request).catch(() => {});
+      if (!isCleanup) void withMobileCapabilityContext(parentContext, () => cancelOriginal(request)).catch(() => {});
     };
     controller.signal.addEventListener('abort', onAbort, { once: true }); if (controller.signal.aborted) onAbort();
-    const flight = Promise.resolve().then(async () => {
+    const flight = Promise.resolve().then(() => withMobileCapabilityContext(context, () => mobileCapabilityAsync(stage, async () => {
       try {
         const response = captureMobileContentCoreResponse(await options.requestRpc(request, controller.signal), request);
         if (controller.signal.aborted || closing && !isCleanup) {
           if (response.action === 'dispatch' && 'kind' in response && response.kind === 'snapshot') {
-            void cancelOriginal(request, response.snapshotId).catch(() => {});
+            void withMobileCapabilityContext(parentContext, () => cancelOriginal(request, response.snapshotId)).catch(() => {});
           }
           throw new MobileAuthPersistenceError('unknown');
         }
         return success(response);
       } catch (error) {
+        mobileCapabilityReject(stage, error, role);
         const failure = mobileContentRpcFailure(request, error instanceof MobileServiceError || error instanceof MobileAuthPersistenceError
           ? error : new MobileAuthPersistenceError('unknown'));
-        if (failure.outcome === 'unknown' && !isCleanup) void cancelOriginal(request).catch(() => {});
+        if (failure.outcome === 'unknown' && !isCleanup) void withMobileCapabilityContext(parentContext, () => cancelOriginal(request)).catch(() => {});
         throwMobileContentRpcFailure(failure);
       }
-    });
+    }, role)));
+    void flight.then(() => rangeRpc?.settle(request.id), error => rangeRpc?.settle(request.id, true, error));
     active.set(request.id, { request, controller, flight });
     const quiet = () => {
       active.delete(request.id); clearTimeout(timer); parentSignal.removeEventListener('abort', cancel);
       controller.signal.removeEventListener('abort', onAbort); if (request.action === 'initialize') request.key.fill(0);
+      closeMobileCapabilityContext(context);
     };
     void flight.then(quiet, quiet);
     return Promise.race([flight, aborted]);
   }
   async function initialize(signal: AbortSignal): Promise<void> {
     current(); signal.throwIfAborted();
-    if (!initialization) initialization = exchange({ ...base(), action: 'initialize', serverId: options.serverId,
-      datasetId: options.datasetId, key }, new AbortController().signal).then(result => {
-      if (result.action !== 'initialize' || result.ok !== true) throw new MobileAuthPersistenceError('unknown');
-    });
-    await initialization; current(); signal.throwIfAborted();
+    if (!initialization) {
+      const request: MobileContentCoreRequest = { ...base(), action: 'initialize', serverId: options.serverId, datasetId: options.datasetId, key };
+      const context = captureMobileCapabilityContext();
+      initializationSha = mobileCapabilityRequestSha('content', request.id);
+      mobileCapabilityCache('content.initialize.cache', 'new-pending', initializationSha);
+      initialization = exchange(request, new AbortController().signal).then(result => {
+        if (result.action !== 'initialize' || result.ok !== true) throw new MobileAuthPersistenceError('unknown');
+      });
+      // 仅旁观原Promise；拒绝仍留在原缓存，不清理、不替换，也不增发initialize。
+      void initialization.then(() => {
+        initializationState = 'fulfilled';
+        withMobileCapabilityContext(context, () => mobileCapabilityCache('content.initialize.cache', 'fulfilled', initializationSha));
+      }, () => {
+        initializationState = 'rejected';
+        withMobileCapabilityContext(context, () => mobileCapabilityCache('content.initialize.cache', 'rejected', initializationSha));
+      });
+    } else mobileCapabilityCache('content.initialize.cache', initializationState === 'pending' ? 'reuse-pending'
+      : initializationState === 'fulfilled' ? 'reuse-fulfilled' : 'reuse-rejected', initializationSha);
+    await mobileCapabilityAsync('content.initialize.wait', () => initialization!); current(); signal.throwIfAborted();
   }
   async function scopeForIdentity(input: Readonly<MobileContentMainPrincipal>, signal: AbortSignal) {
     const principal = captureMobileContentMainPrincipal(input); remember(principal);
@@ -159,6 +196,21 @@ export function createMainMobileContentPort(options: MainMobileContentPortOption
   };
   return {
     content,
+    async artwork(principal: MobilePrincipal, artworkId: string, signal: AbortSignal) {
+      const identity = mobileContentPrincipalFields(principal), selected = await scopeForIdentity(identity, signal), scope = selected.scope;
+      if (scope.providerEpoch === null) throw new MobileServiceError(403, 'RESOURCE_REVOKED');
+      const result = await exchange({ ...base(), action: 'artwork', operation: 'read', scope, artworkId, expectedRevision: null }, signal);
+      if (result.action !== 'artwork' || result.kind !== 'artwork') throw new MobileAuthPersistenceError('unknown');
+      return { bytes: result.bytes, contentType: result.contentType, beforeSend: async () => {
+        current(); signal.throwIfAborted();
+        const latest = await scopeForIdentity(identity, signal);
+        if (!sameMobileContentScope(scope, latest.scope)) throw new MobileServiceError(409, 'SOURCE_CHANGED');
+        const checked = await exchange({ ...base(), action: 'artwork', operation: 'revalidate', scope,
+          artworkId, expectedRevision: result.revision }, signal);
+        if (checked.action !== 'artwork' || checked.kind !== 'artwork-validated') throw new MobileAuthPersistenceError('unknown');
+        current(); signal.throwIfAborted();
+      } };
+    },
     async resolveScope(principal: MobilePrincipal, signal: AbortSignal): Promise<Readonly<MobileContentScope>> {
       return (await scopeForIdentity(mobileContentPrincipalFields(principal), signal)).scope;
     },

@@ -4,6 +4,15 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { SourceSelection, SourceJob, SourceFailure, SourceAction, SourceConfirmation } from '@music-bridge/contracts';
 import type { RootCapability, FileEvidence } from './source-files.js';
 
+const rootStatements = new WeakMap<DatabaseSync, ReturnType<DatabaseSync['prepare']>>();
+/** 仅在原 Owner 的同步 guarded read 内读取同连接 Source 事实；不缓存授权或路径。 */
+export function readSourceRootForDatabase(db: DatabaseSync, id: string, conflict: (message: string) => never): RootCapability {
+  let statement = rootStatements.get(db);
+  if (!statement) { statement = db.prepare('SELECT data FROM source_roots WHERE id=?'); rootStatements.set(db, statement); }
+  const row = statement.get(id);
+  return (row ? JSON.parse(String(row.data)) as RootCapability : undefined) ?? conflict('源目录不存在。');
+}
+
 export const sourceEvidenceMigration = `
 CREATE TABLE source_roots (id TEXT PRIMARY KEY,data TEXT NOT NULL) STRICT;
 CREATE TABLE source_bindings (id TEXT PRIMARY KEY,data TEXT NOT NULL) STRICT;
@@ -24,7 +33,7 @@ export function createSourceStore({ read, conflict, beforeCommit, beforeLocalFac
   const get = <T>(db: DatabaseSync, table: string, id: string): T | undefined => { const row = db.prepare(`SELECT data FROM ${table} WHERE id=?`).get(id); return row ? JSON.parse(String(row.data)) as T : undefined; };
   const all = <T>(db: DatabaseSync, table: string): T[] => db.prepare(`SELECT data FROM ${table} ORDER BY rowid`).all().map(r => JSON.parse(String(r.data)) as T);
   const put = (db: DatabaseSync, table: string, id: string, data: unknown): void => { db.prepare(`INSERT INTO ${table} VALUES (?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data`).run(id, JSON.stringify(data)); };
-  const root = (db: DatabaseSync, id: string): RootCapability => get<RootCapability>(db, 'source_roots', id) ?? conflict('源目录不存在。');
+  const root = (db: DatabaseSync, id: string): RootCapability => readSourceRootForDatabase(db, id, conflict);
   const binding = (db: DatabaseSync, id: string): StoredBinding => get<StoredBinding>(db, 'source_bindings', id) ?? conflict('源绑定不存在。');
   const linked = (db: DatabaseSync, draftId: string, trackId: string): string | null => { const row = db.prepare('SELECT binding_id FROM draft_source_links WHERE draft_id=? AND track_id=?').get(draftId, trackId); return row ? String(row.binding_id) : null; };
   function assertTrack(db: DatabaseSync, draftId: string, trackId: string): void {

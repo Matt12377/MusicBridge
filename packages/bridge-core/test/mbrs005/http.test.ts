@@ -140,3 +140,43 @@ test('AT07/10 每lease四请求/全局八请求背压准入，Gateway.stop join�
   assert.equal(stopped, true); for (const lease of [f.lease, second.lease, third.lease]) assert.equal(lease.state, 'CLOSED');
   assert.equal(f.gateway.getActiveMediaReadCount(), 0); const writer = physicalResourceLocks.acquireWrite([f.resource]); await writer.release();
 });
+
+
+import { createServer as createForward633 } from 'node:http';
+import { StreamGateway as RemoteGateway633 } from '../../src/stream/gateway.js';
+
+test('633 远程Roon本地文件：公告反向转送端口并实际转送GET/HEAD，默认本地地址保留', async t => {
+  const f = await gatewayFixture(t), methods: string[] = [];
+  let remote: RemoteGateway633 | undefined;
+  const forward = createForward633((incoming, response) => {
+    if (!remote) { response.writeHead(503); response.end(); return; }
+    methods.push(incoming.method ?? '');
+    const outgoing = request(new URL(incoming.url ?? '/', remote.localBaseUrl()), { method: incoming.method, headers: incoming.headers }, upstream => {
+      response.writeHead(upstream.statusCode ?? 502, upstream.headers); upstream.pipe(response);
+    });
+    outgoing.once('error', () => response.destroy()); incoming.once('aborted', () => outgoing.destroy()); incoming.pipe(outgoing);
+  });
+  await new Promise<void>((resolve, reject) => { forward.once('error', reject); forward.listen(0, '127.0.0.1', () => { forward.off('error', reject); resolve(); }); });
+  t.after(async () => {
+    await remote?.stop();
+    await new Promise<void>((resolve, reject) => { forward.close(error => error ? reject(error) : resolve()); forward.closeIdleConnections(); });
+  });
+  const address = forward.address(); assert.ok(address && typeof address !== 'string');
+  const advertised = `http://127.0.0.1:${address.port}`;
+  const ignore = () => undefined;
+  remote = new RemoteGateway633({ host: '127.0.0.1', port: 0, publicBaseUrl: advertised, remoteDevelopmentMode: true, registry: f.registry, logger: { debug: ignore, info: ignore, warn: ignore, error: ignore } });
+  await remote.start();
+  const media = remote.localStreamUrl(f.token);
+  assert.equal(new URL(media).origin, advertised);
+  assert.notEqual(new URL(media).origin, remote.localBaseUrl());
+  const partial = await fetch(media, { headers: { Range: 'bytes=7-23' } });
+  assert.equal(partial.status, 206); assert.equal(partial.headers.get('content-type'), 'audio/wav');
+  assert.deepEqual(Buffer.from(await partial.arrayBuffer()), f.bytes.subarray(7, 24));
+  const head = await fetch(media, { method: 'HEAD' });
+  assert.equal(head.status, 200); assert.equal(await head.text(), ''); assert.equal(head.headers.get('content-length'), String(f.bytes.length));
+  assert.deepEqual(methods, ['GET', 'HEAD']);
+  assert.equal(f.gateway.localStreamUrl(f.token), f.url);
+  assert.equal(f.fetches(), 0);
+  assert.equal(f.lease.state, 'PREPARED');
+  assert.deepEqual(f.lease.resourceSnapshot(), { activeRequests: 0, activeIo: 0, timer: 1 });
+});

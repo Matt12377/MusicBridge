@@ -34,6 +34,7 @@ import {
   MobileServiceError, type MobileOwnerCatalogRequest, type MobileOwnerCatalogSnapshot,
   type MobileOwnerPrivateRequest, type MobileOwnerPrivateResult,
 } from './types.js';
+import { mobileCapabilitySync, mobileCapabilityReject } from './capability-trace.js';
 
 export const MOBILE_CONTENT_OWNER_SNAPSHOT_LIMIT = 16;
 export const MOBILE_CONTENT_OWNER_SNAPSHOT_TTL_MS = 15_000;
@@ -158,9 +159,9 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
           return new Uint8Array(Buffer.concat([decipher.update(bytes.subarray(28)), decipher.final()]));
         };
         try {
-          const nextStore = createMobileContentOwnerStore({ directory, serverId: req.serverId, datasetId, limits,
-            seal, open, assertCurrent: current });
-          nextStore.load();
+          const nextStore = mobileCapabilitySync('owner.content.store.create', () => createMobileContentOwnerStore({ directory, serverId: req.serverId, datasetId, limits,
+            seal, open, assertCurrent: current }));
+          mobileCapabilitySync('owner.content.store.load', () => nextStore.load());
           const cursorKey = createHmac('sha256', nextKey).update('MusicBridge:MBM004:CONTENT_CURSOR_KEY:1\0').digest();
           cursor = createMobileContentCursorCodec({ key: cursorKey, now }); cursorKey.fill(0);
           key = nextKey; serverId = req.serverId; store = nextStore;
@@ -521,7 +522,7 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
   }
   function sync(req: MobileContentOwnerRequest): MobileContentOwnerResult {
     current();
-    if (req.action === 'initialize') return initialize(req);
+    if (req.action === 'initialize') return mobileCapabilitySync('owner.content.initialize', () => initialize(req));
     initialized();
     if (req.action === 'context') {
       if (req.serverId !== serverId) return changed();
@@ -560,7 +561,7 @@ export function createMobileContentOwnerService(options: MobileContentOwnerServi
             : req.action === 'revalidate' ? await revalidate(req) : sync(req);
           current(); if (!isMobileContentOwnerResult(result, req)) return unavailable();
           return result;
-        } catch (error) { return failure(error); }
+        } catch (error) { mobileCapabilityReject('owner.rpc.failure', error); return failure(error); }
       };
       // 同步 mutation 到 rename/fsync 不 yield；仅真正侧车读取和 beforeSend 可以等待。
       flight = run(); active.add(flight); void flight.finally(() => active.delete(flight)); return flight;

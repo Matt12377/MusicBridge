@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { loadMetadataEndOfStreamError, loadMetadataParser } from './metadata-reader-runtime.js';
 import { parentPort, workerData } from 'node:worker_threads';
 import type { parseFromTokenizer } from 'music-metadata';
+import { METADATA_PARSER_VERSION, CUE_HEADER_METADATA_PARSER_VERSION } from './metadata-reader-types.js';
 import type { MetadataReadEvidence, MetadataReadResult, MetadataReadFailure, MetadataWorkerInput, MetadataTechnical, MetadataRawFields, MetadataCoverEvidence, MetadataWorkerPhase, MetadataWorkerResultMessage } from './metadata-reader-types.js';
 
 type Tokenizer = Parameters<typeof parseFromTokenizer>[0];
@@ -66,6 +67,294 @@ function waveFormatFacts(bytes: Uint8Array, chunkBytes: number): WaveFormatFacts
   // 这里的位宽是容器位宽；validBits=24 的 32-bit 容器仍按 32-bit 传输。
   return { codec, lossless, sampleRateHz, channels, bitsPerSample, blockAlign };
 }
+type BoundedReadAt = (at: number, length: number) => Promise<Uint8Array>;
+interface CueHeaderFacts {
+  codec: string; lossless: boolean; sampleRateHz: number; channels: number;
+  bitsPerSample: number | null; durationSeconds: number | null;
+}
+const byteView = (bytes: Uint8Array): DataView => new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+const byteText = (bytes: Uint8Array, at: number, length: number): string => String.fromCharCode(...bytes.subarray(at, at + length));
+const boundedEnd = (at: number, bytes: number, limit = input.size): number => {
+  const end = at + bytes;
+  if (!integer(at) || !integer(bytes) || !integer(end) || end > limit) fail('PARSE_FAILED');
+  return end;
+};
+/** 仅用于头、seek 表和有限首段的完整性；不读取整件音频，也不签 Native 解码。 */
+function headerCRC32(bytes: Uint8Array): number {
+  let crc = 0xffffffff;
+  for (let index = 0; index < bytes.length; ++index) {
+    if ((index & 4095) === 0) checkTime();
+    crc ^= bytes[index]!;
+    for (let bit = 0; bit < 8; ++bit) crc = crc >>> 1 ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+function oggPageCRC(bytes: Uint8Array): number {
+  let crc = 0;
+  for (let index = 0; index < bytes.length; ++index) {
+    if ((index & 4095) === 0) checkTime();
+    crc ^= (index >= 22 && index < 26 ? 0 : bytes[index]!) << 24;
+    for (let bit = 0; bit < 8; ++bit) crc = (crc << 1 ^ (crc & 0x80000000 ? 0x04c11db7 : 0)) >>> 0;
+  }
+  return crc >>> 0;
+}
+let takCRCTable: Uint32Array | undefined;
+function takHeaderCRC24(bytes: Uint8Array): number {
+  if (!takCRCTable) {
+    takCRCTable = new Uint32Array(256);
+    for (let index = 0; index < 256; ++index) {
+      let c = index << 24 >>> 0;
+      for (let bit = 0; bit < 8; ++bit) c = (c << 1 ^ (c & 0x80000000 ? 0x864cfb00 : 0)) >>> 0;
+      takCRCTable[index] = ((c >>> 24) | (c >>> 8 & 0xff00) | (c << 8 & 0xff0000) | (c << 24)) >>> 0;
+    }
+  }
+  let crc = 0xce04b7;
+  for (let index = 0; index < bytes.length; ++index) {
+    if ((index & 4095) === 0) checkTime();
+    crc = (takCRCTable[(crc & 255) ^ bytes[index]!]! ^ crc >>> 8) >>> 0;
+  }
+  return crc & 0xffffff;
+}
+const be24 = (bytes: Uint8Array, at: number): number => bytes[at]! * 65536 + bytes[at + 1]! * 256 + bytes[at + 2]!;
+class HeaderLittleBits {
+  position = 0;
+  constructor(readonly bytes: Uint8Array) {}
+  get(width: number): number {
+    checkTime();
+    if (!integer(width) || width > 40 || this.position + width > this.bytes.length * 8) fail('PARSE_FAILED');
+    let value = 0;
+    for (let bit = 0; bit < width; ++bit, ++this.position) value += (this.bytes[this.position >>> 3]! >>> (this.position & 7) & 1) * 2 ** bit;
+    return value;
+  }
+  align(): void { this.position = Math.ceil(this.position / 8) * 8; }
+}
+interface TakHeaderInfo extends CueHeaderFacts { codecId: number; profile: number; samples: number; frameSamples: number }
+function takStreamInfo(bits: HeaderLittleBits): TakHeaderInfo {
+  const codecId = bits.get(6), profile = bits.get(4), frameType = bits.get(4), samples = bits.get(35);
+  const dataType = bits.get(3), sampleRateHz = bits.get(18) + 6000, bitsPerSample = bits.get(5) + 8, channels = bits.get(4) + 1;
+  if (bits.get(1)) { bits.get(5); if (bits.get(1)) for (let channel = 0; channel < channels; ++channel) bits.get(6); }
+  const quants = [3, 4, 6, 8, 4096, 8192, 16384, 512, 1024, 2048];
+  if (frameType >= quants.length || samples < 1) fail('PARSE_FAILED');
+  const frameSamples = frameType <= 3 ? Math.floor(sampleRateHz * quants[frameType]! / 32) : quants[frameType]!;
+  if (frameSamples < 1 || frameSamples > (frameType <= 3 ? 16384 : Math.floor(sampleRateHz * 8 / 32))) fail('PARSE_FAILED');
+  if (![2, 4].includes(codecId) || dataType !== 0 || ![8, 16, 24].includes(bitsPerSample)
+    || channels > 6 || codecId === 2 && channels > 2) fail('UNSUPPORTED');
+  return { codec: 'TAK', lossless: true, sampleRateHz, channels, bitsPerSample, durationSeconds: samples / sampleRateHz,
+    codecId, profile, samples, frameSamples };
+}
+function sameTakInfo(first: TakHeaderInfo, second: TakHeaderInfo): boolean {
+  return (['codecId', 'profile', 'samples', 'frameSamples', 'sampleRateHz', 'channels', 'bitsPerSample'] as const).every(key => first[key] === second[key]);
+}
+async function readTakHeaderFacts(readAt: BoundedReadAt): Promise<CueHeaderFacts> {
+  let at = 4, info: TakHeaderInfo | undefined, last: { offset: number; bytes: number } | undefined, audioAt: number | undefined;
+  for (let blocks = 0; blocks < 4096; ++blocks) {
+    const header = await readAt(at, 4), type = header[0]! & 0x7f, size = header[1]! + header[2]! * 256 + header[3]! * 65536;
+    const next = boundedEnd(at + 4, size);
+    if (type > 7) fail('UNSUPPORTED');
+    if (size > budget.singleAllocationBytes) fail('BUDGET_EXCEEDED');
+    if (type === 0) { if (size !== 0) fail('PARSE_FAILED'); audioAt = next; break; }
+    if ([1, 4, 6, 7].includes(type)) {
+      if (size <= 3 || type === 6 && size !== 19 || type === 7 && size !== 11) fail('PARSE_FAILED');
+      const data = await readAt(at + 4, size), body = data.subarray(0, size - 3);
+      if (takHeaderCRC24(body) !== be24(data, size - 3)) fail('PARSE_FAILED');
+      if (type === 1) {
+        if (info || body.length < 10 || body.length > 23) fail('PARSE_FAILED');
+        const bits = new HeaderLittleBits(body); info = takStreamInfo(bits);
+        if (Math.ceil(bits.position / 8) !== body.length) fail('PARSE_FAILED');
+      } else if (type === 7) {
+        if (last) fail('PARSE_FAILED');
+        const bits = new HeaderLittleBits(body); last = { offset: bits.get(40), bytes: bits.get(24) };
+        if (last.bytes < 12) fail('PARSE_FAILED');
+      }
+    }
+    at = next;
+  }
+  if (audioAt === undefined || !info) return fail('PARSE_FAILED');
+  const stream = info, start = audioAt;
+  const frame = async (position: number, end: number, expectedNumber: number, expectLast: boolean): Promise<void> => {
+    if (end - position < 12) fail('PARSE_FAILED');
+    const data = await readAt(position, Math.min(40, end - position)), bits = new HeaderLittleBits(data);
+    if (bits.get(16) !== 0xa0ff) fail('PARSE_FAILED');
+    const flags = bits.get(3), number = bits.get(21);
+    if (flags & 4 || number !== expectedNumber || Boolean(flags & 1) !== expectLast) fail('PARSE_FAILED');
+    const count = flags & 1 ? bits.get(14) + 1 : stream.frameSamples;
+    if (flags & 1) bits.get(2);
+    if (flags & 2) {
+      if (!sameTakInfo(stream, takStreamInfo(bits))) fail('PARSE_FAILED');
+      if (bits.get(6)) bits.get(25);
+      bits.align();
+    } else if (expectedNumber === 0) fail('PARSE_FAILED');
+    const headerBytes = bits.position / 8;
+    if (!integer(headerBytes) || headerBytes + 7 > end - position || headerBytes + 3 > data.length
+      || takHeaderCRC24(data.subarray(0, headerBytes)) !== be24(data, headerBytes)) fail('PARSE_FAILED');
+    const expectedSamples = expectLast ? stream.samples - expectedNumber * stream.frameSamples : stream.frameSamples;
+    if (count !== expectedSamples || count < 1 || count > stream.frameSamples) fail('PARSE_FAILED');
+    await readAt(position + headerBytes + 3, 1); // 真实音频载荷存在；不检查整帧残差或 body CRC。
+  };
+  const frameCount = Math.ceil(stream.samples / stream.frameSamples);
+  if (!integer(frameCount) || frameCount < 1 || frameCount > 2 ** 21) fail('PARSE_FAILED');
+  const audioEnd = last ? boundedEnd(start, last.offset + last.bytes) : input.size;
+  await frame(start, audioEnd, 0, frameCount === 1);
+  if (last) {
+    const lastAt = boundedEnd(start, last.offset, audioEnd);
+    if (frameCount === 1 && last.offset !== 0 || frameCount > 1 && last.offset === 0) fail('PARSE_FAILED');
+    await frame(lastAt, audioEnd, frameCount - 1, true);
+  }
+  return stream;
+}
+async function readTtaHeaderFacts(readAt: BoundedReadAt): Promise<CueHeaderFacts> {
+  const header = await readAt(0, 22), h = byteView(header), format = h.getUint16(4, true);
+  const channels = h.getUint16(6, true), bitsPerSample = h.getUint16(8, true), sampleRateHz = h.getUint32(10, true), samples = h.getUint32(14, true);
+  if (headerCRC32(header.subarray(0, 18)) !== h.getUint32(18, true) || channels < 1 || channels > 16
+    || sampleRateHz < 1 || sampleRateHz > 1_000_000 || samples < 1) fail('PARSE_FAILED');
+  if (format !== 1 || ![8, 16, 24].includes(bitsPerSample)) fail('UNSUPPORTED');
+  const frameSamples = Math.floor(sampleRateHz * 256 / 245), frameCount = Math.ceil(samples / frameSamples), seekBytes = frameCount * 4;
+  if (!integer(frameCount) || frameSamples < 1 || frameCount < 1 || !integer(seekBytes)) fail('PARSE_FAILED');
+  if (seekBytes + 4 > budget.singleAllocationBytes || seekBytes + 4 > budget.singleReadBytes) fail('BUDGET_EXCEEDED');
+  const seek = await readAt(22, seekBytes + 4), v = byteView(seek);
+  if (headerCRC32(seek.subarray(0, seekBytes)) !== v.getUint32(seekBytes, true)) fail('PARSE_FAILED');
+  const audioAt = boundedEnd(22, seekBytes + 4); let end = audioAt, lastAt = audioAt;
+  for (let index = 0; index < frameCount; ++index) {
+    checkTime(); const size = v.getUint32(index * 4, true);
+    if (size < 5) fail('PARSE_FAILED'); lastAt = end; end = boundedEnd(end, size);
+  }
+  await readAt(audioAt, 1); if (lastAt !== audioAt) await readAt(lastAt, 1); await readAt(end - 4, 4);
+  return { codec: 'TTA', lossless: true, sampleRateHz, channels, bitsPerSample, durationSeconds: samples / sampleRateHz };
+}
+async function readApeHeaderFacts(readAt: BoundedReadAt): Promise<CueHeaderFacts> {
+  const descriptor = byteView(await readAt(0, 52)), version = descriptor.getUint16(4, true);
+  const descriptorBytes = descriptor.getUint32(8, true), headerBytes = descriptor.getUint32(12, true), seekBytes = descriptor.getUint32(16, true);
+  const waveBytes = descriptor.getUint32(20, true), frameBytes = descriptor.getUint32(24, true), frameHigh = descriptor.getUint32(28, true), tailBytes = descriptor.getUint32(32, true);
+  if (version < 3980 || version > 3990 || headerBytes !== 24 || frameHigh !== 0) fail('UNSUPPORTED');
+  if (descriptor.getUint16(6, true) !== 0 || descriptorBytes < 52 || seekBytes < 4 || seekBytes % 4 !== 0 || frameBytes < 8) fail('PARSE_FAILED');
+  if (descriptorBytes > budget.singleAllocationBytes || seekBytes > budget.singleAllocationBytes || waveBytes > budget.singleAllocationBytes) fail('BUDGET_EXCEEDED');
+  const header = byteView(await readAt(descriptorBytes, 24)), compression = header.getUint16(0, true), blocks = header.getUint32(4, true);
+  const finalBlocks = header.getUint32(8, true), frames = header.getUint32(12, true), bitsPerSample = header.getUint16(16, true), channels = header.getUint16(18, true), sampleRateHz = header.getUint32(20, true);
+  const samples = (frames - 1) * blocks + finalBlocks;
+  if (compression < 1000 || compression > 5000 || compression % 1000 !== 0 || blocks < 1 || frames < 1
+    || finalBlocks < 1 || finalBlocks > blocks || frames > seekBytes / 4 || !integer(samples) || samples < 1
+    || ![8, 16, 24, 32].includes(bitsPerSample) || channels < 1 || channels > 2 || sampleRateHz < 1 || sampleRateHz > 1_000_000_000) fail('PARSE_FAILED');
+  const seekAt = boundedEnd(descriptorBytes, headerBytes), audioAt = boundedEnd(boundedEnd(seekAt, seekBytes), waveBytes);
+  const audioEnd = boundedEnd(audioAt, frameBytes); boundedEnd(audioEnd, tailBytes);
+  const seek = byteView(await readAt(seekAt, seekBytes)); let previous = audioAt - 1;
+  for (let index = 0; index < frames; ++index) {
+    checkTime(); const position = seek.getUint32(index * 4, true);
+    if (position < audioAt || position >= audioEnd || position <= previous || index === 0 && position !== audioAt) fail('PARSE_FAILED'); previous = position;
+  }
+  await readAt(audioAt, 8); await readAt(audioEnd - 1, 1);
+  return { codec: 'APE', lossless: true, sampleRateHz, channels, bitsPerSample, durationSeconds: samples / sampleRateHz };
+}
+async function readMusepackHeaderFacts(readAt: BoundedReadAt): Promise<CueHeaderFacts> {
+  const magic = byteText(await readAt(0, 4), 0, 4), rates = [44100, 48000, 37800, 32000];
+  if (magic.slice(0, 3) === 'MP+') {
+    const header = await readAt(0, 28), frames = byteView(header).getUint32(4, true), sampleRateHz = rates[header[10]! & 3]!;
+    if (![7, 0x17].includes(header[3]!) || frames < 1 || frames * 21 + 8 > (input.size - 24) * 8) fail('PARSE_FAILED');
+    const frameBits = byteView(header).getUint32(24, true) >>> 4 & 0xfffff;
+    if (frameBits < 1 || Math.ceil((frameBits + 28) / 32) * 4 > input.size - 24) fail('PARSE_FAILED');
+    // 固定 demux 的声明是 stereo、fcount*1152；MM 的 IS/MSS 和 gapless 派生不是解码 PCM 事实。
+    return { codec: 'musepack7', lossless: false, sampleRateHz, channels: 2, bitsPerSample: 16, durationSeconds: frames * 1152 / sampleRateHz };
+  }
+  let at = 4, info: CueHeaderFacts | undefined, audio = false, ended = false;
+  const variable = (bytes: Uint8Array, start: number): { value: number; next: number } => {
+    let value = 0;
+    for (let count = 0, cursor = start; count < 8 && cursor < bytes.length; ++count, ++cursor) {
+      const byte = bytes[cursor]!; value = value * 128 + (byte & 127);
+      if (!integer(value)) fail('PARSE_FAILED');
+      if (!(byte & 128)) return { value, next: cursor + 1 };
+    }
+    return fail('PARSE_FAILED');
+  };
+  for (let chunks = 0; chunks < 16_384; ++chunks) {
+    if (input.size - at < 3) fail('PARSE_FAILED');
+    const header = await readAt(at, Math.min(10, input.size - at)), tag = byteText(header, 0, 2), size = variable(header, 2);
+    if (!/^[A-Z]{2}$/u.test(tag) || size.value < size.next) fail('PARSE_FAILED');
+    const next = boundedEnd(at, size.value), payloadAt = at + size.next, payloadBytes = size.value - size.next;
+    if (tag === 'SH') {
+      if (info || payloadBytes < 9 || payloadBytes > 26) fail('PARSE_FAILED');
+      const body = await readAt(payloadAt, payloadBytes);
+      if (byteView(body).getUint32(0) === 0 || body[4] !== 8) fail('PARSE_FAILED');
+      const count = variable(body, 5), silence = variable(body, count.next);
+      if (silence.next + 2 !== body.length || count.value < 1 || silence.value > count.value) fail('PARSE_FAILED');
+      const sampleRateHz = rates[body[silence.next]! >>> 5], channels = (body[silence.next + 1]! >>> 4) + 1;
+      if (!sampleRateHz || channels > 2) return fail('UNSUPPORTED');
+      // SH 的 CRC 字段只验证非零与完整边界；固定 demux 未检查它，不冒称已验 CRC。
+      info = { codec: 'musepack8', lossless: false, sampleRateHz, channels, bitsPerSample: 16, durationSeconds: count.value / sampleRateHz };
+    } else if (tag === 'AP') {
+      if (!info || payloadBytes < 1) fail('PARSE_FAILED'); await readAt(payloadAt, 1); audio = true;
+    } else if (tag === 'SE') {
+      if (payloadBytes !== 0 || !audio || !info) fail('PARSE_FAILED'); ended = true; break;
+    }
+    at = next;
+  }
+  if (!ended || !info) return fail('PARSE_FAILED'); return info;
+}
+async function checkWavpackHeader(readAt: BoundedReadAt): Promise<void> {
+  const header = byteView(await readAt(0, 32)), end = boundedEnd(0, header.getUint32(4, true) + 8), version = header.getUint16(8, true), flags = header.getUint32(24, true);
+  if (version < 0x402 || version > 0x410 || end <= 34 || header.getUint32(16, true) !== 0 || header.getUint32(20, true) < 1) fail('PARSE_FAILED');
+  if (flags & 0x80000000) fail('UNSUPPORTED'); // WavPack DSD 不借 CUE 开关绕过独立 DSD/48k 策略。
+  let at = 32, audio = false;
+  for (let blocks = 0; at < end; ++blocks) {
+    if (blocks >= 4096 || end - at < 2) fail('PARSE_FAILED');
+    const first = await readAt(at, 2), large = Boolean(first[0]! & 0x80), odd = first[0]! >>> 6 & 1;
+    const length = large ? await readAt(at + 1, 3) : first.subarray(1, 2), words = length[0]! + (large ? length[1]! * 256 + length[2]! * 65536 : 0);
+    const bytes = words * 2 - odd, payloadAt = at + (large ? 4 : 2), next = boundedEnd(payloadAt, words * 2, end);
+    if (bytes < 0) fail('PARSE_FAILED');
+    if ((first[0]! & 0x3f) === 10) { if (bytes < 1) fail('PARSE_FAILED'); await readAt(payloadAt, 1); audio = true; }
+    at = next;
+  }
+  if (at !== end || !audio) fail('PARSE_FAILED');
+}
+async function readOggHeaderFacts(readAt: BoundedReadAt): Promise<CueHeaderFacts> {
+  let at = 0, serial: number | undefined, sequence = 0, packetBytes = 0, packetNumber = 0;
+  let parts: Uint8Array[] = [], info: CueHeaderFacts | undefined;
+  for (let pages = 0; pages < 4096; ++pages) {
+    const header = await readAt(at, 27), h = byteView(header), flags = header[5]!;
+    if (byteText(header, 0, 4) !== 'OggS' || header[4] !== 0 || flags > 7 || pages === 0 && (flags & 3) !== 2
+      || pages !== 0 && (Boolean(flags & 1) !== (packetBytes > 0) || flags & 2)) fail('PARSE_FAILED');
+    const currentSerial = h.getUint32(14, true), currentSequence = h.getUint32(18, true);
+    if (serial !== undefined && currentSerial !== serial) fail('UNSUPPORTED');
+    if (currentSequence !== sequence) fail('PARSE_FAILED'); serial = currentSerial; ++sequence;
+    const lacing = await readAt(at + 27, header[26]!), payloadBytes = lacing.reduce((sum, n) => sum + n, 0), pageBytes = 27 + lacing.length + payloadBytes;
+    const end = boundedEnd(at, pageBytes), page = await readAt(at, pageBytes);
+    if (oggPageCRC(page) !== h.getUint32(22, true)) fail('PARSE_FAILED');
+    let cursor = 27 + lacing.length;
+    for (const size of lacing) {
+      packetBytes += size; if (packetBytes > budget.singleAllocationBytes) fail('BUDGET_EXCEEDED');
+      parts.push(page.subarray(cursor, cursor + size)); cursor += size;
+      if (size === 255) continue;
+      const packet = Buffer.concat(parts, packetBytes); parts = []; packetBytes = 0;
+      if (packetNumber === 0) {
+        if (byteText(packet, 0, 8) === 'OpusHead') {
+          if (packet.length < 19 || packet[8]! > 15 || packet[9]! < 1 || packet[9]! > 64) fail('PARSE_FAILED');
+          const channels = packet[9]!, family = packet[18]!;
+          if (family === 0) { if (channels > 2 || packet.length !== 19) fail('PARSE_FAILED'); }
+          else {
+            if (packet.length !== 21 + channels || packet[19]! < 1 || packet[20]! > packet[19]! || packet[19]! + packet[20]! > 255) fail('PARSE_FAILED');
+            for (let channel = 0; channel < channels; ++channel) if (packet[21 + channel] !== 255 && packet[21 + channel]! >= packet[19]! + packet[20]!) fail('PARSE_FAILED');
+          }
+          // OpusHead inputSampleRate 是编码前提示；规范时钟 48000 仍只是头事实，不能冒称已解码。
+          info = { codec: 'Opus', lossless: false, sampleRateHz: 48000, channels, bitsPerSample: null, durationSeconds: null };
+        } else if (packet[0] === 1 && byteText(packet, 1, 6) === 'vorbis') {
+          if (packet.length !== 30) fail('PARSE_FAILED'); const v = byteView(packet), channels = packet[11]!, sampleRateHz = v.getUint32(12, true);
+          const lowBlock = packet[28]! & 15, highBlock = packet[28]! >>> 4;
+          if (v.getUint32(7, true) !== 0 || channels < 1 || channels > 64 || sampleRateHz < 1 || sampleRateHz > 1_000_000_000
+            || lowBlock < 6 || highBlock > 13 || lowBlock > highBlock || !(packet[29]! & 1)) fail('PARSE_FAILED');
+          info = { codec: 'Vorbis', lossless: false, sampleRateHz, channels, bitsPerSample: null, durationSeconds: null };
+        } else fail('UNSUPPORTED'); // 固定 Factory 的 Speex/Theora/OggFLAC 不随本开关准入。
+      } else if (!info) fail('PARSE_FAILED');
+      else if (info.codec === 'Opus') {
+        if (packetNumber === 1) { if (packet.length < 8 || byteText(packet, 0, 8) !== 'OpusTags') fail('PARSE_FAILED'); }
+        else { if (packet.length < 1) fail('PARSE_FAILED'); return info; }
+      } else if (packetNumber < 3) {
+        if (packet.length < 7 || packet[0] !== (packetNumber === 1 ? 3 : 5) || byteText(packet, 1, 6) !== 'vorbis') fail('PARSE_FAILED');
+      } else { if (packet.length < 1 || packet[0]! & 1) fail('PARSE_FAILED'); return info; }
+      ++packetNumber;
+    }
+    if (flags & 4) fail('PARSE_FAILED'); at = end;
+  }
+  return fail('BUDGET_EXCEEDED');
+}
+
 /** 在第三方模块加载之前，限制这个独占worker里的字节分配；主线程原生对象不变。 */
 function guardAllocations(): void {
   const originalByteLength = Buffer.byteLength;
@@ -169,6 +458,12 @@ async function run(): Promise<MetadataReadResult> {
   else if (ascii(4,4) === 'ftyp') container = 'MP4';
   else if (input.dsdMetadataEnabled === true && ascii(0,4) === 'DSD ') container = 'DSF';
   else if (input.dsdMetadataEnabled === true && ascii(0,4) === 'FRM8' && ascii(12,4) === 'DSD ') container = 'DFF';
+  else if (input.cueInputMetadataEnabled === true && ascii(0,4) === 'OggS') container = 'OGG';
+  else if (input.cueInputMetadataEnabled === true && ascii(0,4) === 'wvpk') container = 'WAVPACK';
+  else if (input.cueInputMetadataEnabled === true && ascii(0,4) === 'MAC ') container = 'APE';
+  else if (input.cueInputMetadataEnabled === true && ascii(0,4) === 'TTA1') container = 'TTA';
+  else if (input.cueInputMetadataEnabled === true && (ascii(0,4) === 'MPCK' || ascii(0,3) === 'MP+' && [7,0x17].includes(head[3]!))) container = 'MPC';
+  else if (input.cueInputMetadataEnabled === true && ascii(0,4) === 'tBaK') container = 'TAK';
   else if (ascii(0,3) === 'ID3' || head[0] === 0xff && (head[1]! & 0xe0) === 0xe0) container = 'MPEG';
   else return fail('UNSUPPORTED');
   const readAt = async (at: number, length: number): Promise<Uint8Array> => {
@@ -177,7 +472,7 @@ async function run(): Promise<MetadataReadResult> {
   const textAt = (b: Uint8Array,at: number,length: number): string => String.fromCharCode(...b.subarray(at,at+length));
   const view = (b: Uint8Array): DataView => new DataView(b.buffer,b.byteOffset,b.byteLength);
   // 先检查容器边界与存在的音频载荷，再进入Parser；magic/扩展名本身不能构成成功。
-  let dsd: DsdContainerFacts | undefined, wave: WaveFormatFacts | undefined;
+  let dsd: DsdContainerFacts | undefined, wave: WaveFormatFacts | undefined, cue: CueHeaderFacts | undefined;
   if (container === 'DSF' || container === 'DFF') {
     try { dsd = await readDsdContainerFacts(input.size,readAt); }
     catch (error) { if (error instanceof DsdContainerError) fail(error.code); throw error; }
@@ -281,6 +576,19 @@ async function run(): Promise<MetadataReadResult> {
       at += size;
     }
     if (!moov || !media) fail('PARSE_FAILED');
+  } else if (container === 'OGG' || container === 'WAVPACK' || container === 'APE' || container === 'TTA' || container === 'MPC' || container === 'TAK') {
+    if (container === 'OGG') { cue = await readOggHeaderFacts(readAt); tokenizer.fileInfo.mimeType = 'audio/ogg'; }
+    else if (container === 'WAVPACK') { await checkWavpackHeader(readAt); tokenizer.fileInfo.mimeType = 'audio/wavpack'; }
+    else if (container === 'APE') { cue = await readApeHeaderFacts(readAt); tokenizer.fileInfo.mimeType = 'audio/ape'; }
+    else if (container === 'MPC') { cue = await readMusepackHeaderFacts(readAt); tokenizer.fileInfo.mimeType = 'audio/musepack'; }
+    else {
+      cue = container === 'TTA' ? await readTtaHeaderFacts(readAt) : await readTakHeaderFacts(readAt);
+      // 固定 MM 没有这两个 Parser；只发布已核头声明，标签与封面保持未知。
+      const technical: MetadataTechnical = { container, codec: cue.codec, lossless: cue.lossless, sampleRateHz: cue.sampleRateHz,
+        channels: cue.channels, bitsPerSample: cue.bitsPerSample, durationSeconds: cue.durationSeconds, evidence: 'bounded-parser-reported' };
+      checkTime(); phase = 'complete';
+      return { status: 'ok', parserVersion: CUE_HEADER_METADATA_PARSER_VERSION, fields: {}, technical, coverEvidence: [], readEvidence: evidence() };
+    }
   } else {
     let at = 0;
     if (ascii(0,3) === 'ID3') {
@@ -320,18 +628,25 @@ async function run(): Promise<MetadataReadResult> {
   if (common.disk.no !== null) fields.disc = String(common.disk.no);
   if (common.track.no !== null) fields.track = String(common.track.no);
   for (const value of Object.values(fields)) if (Buffer.byteLength(value, 'utf8') > budget.textFieldBytes) fail('BUDGET_EXCEEDED');
-  const format = metadata.format, codec = dsd ? dsd.codec : wave?.codec ?? format.codec;
+  const format = metadata.format, codec = dsd ? dsd.codec : wave?.codec ?? cue?.codec
+    ?? (container === 'WAVPACK' && (head[24]! & 0x80) ? 'IEEE_FLOAT' : format.codec);
+  const sampleRateHz = cue?.sampleRateHz ?? format.sampleRate, channels = cue?.channels ?? format.numberOfChannels;
+  if (cue && container !== 'MPC' && (format.numberOfChannels !== cue.channels
+    || cue.codec !== 'Opus' && format.sampleRate !== cue.sampleRateHz)) fail('PARSE_FAILED');
+  if (container === 'OGG' && format.codec !== (cue?.codec === 'Vorbis' ? 'Vorbis I' : cue?.codec)) fail('UNSUPPORTED');
+  if (container === 'WAVPACK' && (format.codec !== 'PCM' || format.lossless !== ((head[24]! & 8) === 0))) fail('PARSE_FAILED');
   if (dsd && (format.sampleRate !== dsd.sampleRateHz || format.numberOfChannels !== dsd.channels)) fail('PARSE_FAILED');
   if (wave && (format.sampleRate !== wave.sampleRateHz || format.numberOfChannels !== wave.channels
     || format.bitsPerSample !== wave.bitsPerSample)) fail('PARSE_FAILED');
-  if (!Number.isSafeInteger(format.sampleRate) || format.sampleRate! < 1 || format.sampleRate! > 1_000_000_000
-    || !Number.isSafeInteger(format.numberOfChannels) || format.numberOfChannels! < 1 || format.numberOfChannels! > 64
+  if (!Number.isSafeInteger(sampleRateHz) || sampleRateHz! < 1 || sampleRateHz! > 1_000_000_000
+    || !Number.isSafeInteger(channels) || channels! < 1 || channels! > 64
     || typeof codec !== 'string' || codec.length === 0 || Buffer.byteLength(codec,'utf8') > 256 || format.hasAudio === false) throw new ReaderFailure('PARSE_FAILED');
   if (container === 'MP4' && !/ALAC|AAC/iu.test(codec)) fail('UNSUPPORTED');
   const finite = (n: number | undefined): number | null => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= Number.MAX_SAFE_INTEGER ? n : null;
-  const technical: MetadataTechnical = { container, codec, sampleRateHz: format.sampleRate!, channels: format.numberOfChannels!,
-    lossless: dsd ? true : wave ? wave.lossless : typeof format.lossless === 'boolean' ? format.lossless : null,
-    bitsPerSample: dsd ? 1 : finite(format.bitsPerSample), durationSeconds: dsd ? dsd.durationSeconds : finite(format.duration), evidence: 'bounded-parser-reported' };
+  const technical: MetadataTechnical = { container, codec, sampleRateHz: sampleRateHz!, channels: channels!,
+    lossless: dsd ? true : wave ? wave.lossless : cue ? cue.lossless : typeof format.lossless === 'boolean' ? format.lossless : null,
+    bitsPerSample: dsd ? 1 : cue ? cue.bitsPerSample : finite(format.bitsPerSample),
+    durationSeconds: dsd ? dsd.durationSeconds : cue?.durationSeconds ?? finite(format.duration), evidence: 'bounded-parser-reported' };
   const covers = common.picture ?? []; if (covers.length > 8) fail('BUDGET_EXCEEDED');
   const coverEvidence: MetadataCoverEvidence[] = [];
   for (const picture of covers) {
@@ -342,7 +657,7 @@ async function run(): Promise<MetadataReadResult> {
     if (!png && !jpeg) continue;
     coverEvidence.push({ mime: png ? 'image/png' : 'image/jpeg', bytes: data.byteLength, sha256: createHash('sha256').update(data).digest('hex'), evidence: 'encoded-bytes-magic-and-digest' });
   }
-  checkTime(); phase = 'complete'; return { status: 'ok', parserVersion: 'music-metadata-11.15.0/mbrs003-v4', fields, technical, coverEvidence, readEvidence: evidence() };
+  checkTime(); phase = 'complete'; return { status: 'ok', parserVersion: METADATA_PARSER_VERSION, fields, technical, coverEvidence, readEvidence: evidence() };
 }
 const publish = (result: MetadataReadResult): void => { parentPort!.postMessage({ kind: 'metadata-result', result, phase } satisfies MetadataWorkerResultMessage); };
 try { publish(await run()); }

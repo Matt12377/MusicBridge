@@ -23,12 +23,25 @@ class Port implements UtilityPort {
     throw new Error('合成 Core 命令未在期限内返回');
   }
 }
-async function fixture(t: test.TestContext) {
+async function fixture(t: test.TestContext, { expectedShutdownScopeMismatch = false }: { expectedShutdownScopeMismatch?: boolean } = {}) {
   const directory = await mkdtemp(path.join(tmpdir(), 'musicbridge-outbox-'));
   const opened = await openCollectionDataset(directory);
   const runtime = createTestBridgeRuntime({ collectionRepository: opened.repository, backupWorkflowStore: opened.store,
     collectionDatasetIdentity: { datasetId: opened.datasetId, assertCurrent: () => opened.assertIdentity() } });
-  t.after(async () => { await runtime.shutdown(); opened.close(); await rm(directory, { recursive: true, force: true }); });
+  t.after(async () => {
+    try {
+      const shutdown = runtime.shutdown();
+      if (expectedShutdownScopeMismatch) {
+        await assert.rejects(shutdown, { code: 'OUTBOX_SCOPE_MISMATCH' });
+        assert.equal(runtime.shutdown(), shutdown, 'identity失效后的关闭保原rejected flight，不冒quiet成功。');
+        assert.notEqual(runtime.getHealth().runtime, 'stopped', '失败关闭不报告已停止。');
+      } else await shutdown;
+    } finally {
+      // 自有组件夹具显式关闭原两库；这不是失败Domain/Owner的自然关闭或物理join资格。
+      opened.close();
+    }
+    await rm(directory, { recursive: true, force: true });
+  });
   const port = new Port(); await attachCoreRuntimePort(port, runtime);
   const payload = { commandId: randomUUID(), model: { brand: '合成', name: 'outbox', edition: '测试', year: 1990, format: 'cassette', tapeType: 'II', identification: 'verified' }, lengthMinutes: 60, quantities: { openedBlank: 1, sealedBlank: 0, legacyUsed: 0, unclassified: 0 } };
   return { directory, opened, port, payload };
@@ -63,7 +76,7 @@ test('旧工作库scope及嵌套内部命令在Core最后边界拒绝，不产�
   assert.equal(f.opened.repository.list({ offset: 0, limit: 1 }).total, 0);
 });
 test('context读取后实际数据库文件被替换也不能借相同datasetId发送', async t => {
-  const f = await fixture(t);
+  const f = await fixture(t, { expectedShutdownScopeMismatch: true });
   await rename(path.join(f.directory, 'collection.v1.sqlite'), path.join(f.directory, '移开的原库.sqlite'));
   const result = await f.port.rpc('commandOutbox.execute', { datasetId: f.opened.datasetId, command: 'collection.receive', payload: f.payload });
   assert.equal(result.ok, false);

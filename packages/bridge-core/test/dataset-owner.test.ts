@@ -160,3 +160,182 @@ test('原validator合法的含控制字符public id逐字转发，私有身份�
   } finally { await endpoint.close(); }
   assert.deepEqual(reasons, []);
 });
+
+
+// 以下只控制原消息交付次序，运行真实Client；不是实际Owner/Utility或物理FD闭口资格。
+import { DatasetWorkbenchWireError, datasetWorkbenchFrames, datasetWorkbenchMeta, datasetWorkbenchControl, isDatasetWorkbenchFrame, type DatasetWorkbenchFrame, type DatasetWorkbenchMeta, type DatasetWorkbenchContext } from '../src/collection/dataset-owner-protocol.js';
+
+class ContextSettledWorker773 extends EventEmitter {
+  readonly ownerRequests: DatasetOwnerRequest[] = [];
+  readonly frames: DatasetWorkbenchFrame[] = [];
+  readonly begins: DatasetWorkbenchMeta[] = [];
+  postMessage(message: unknown): void {
+    if (isDatasetOwnerRequest(message)) { this.ownerRequests.push(message); return; }
+    assert.ok(isDatasetWorkbenchFrame(message));
+    this.frames.push(message);
+    if (message.lane === 'request' && message.part === 'begin') this.begins.push(datasetWorkbenchMeta(message));
+  }
+  takeOwner(operation: DatasetOwnerRequest['operation']): DatasetOwnerRequest {
+    const request = this.ownerRequests.shift();
+    assert.ok(request); assert.equal(request.operation, operation); return request;
+  }
+  takeContext(): DatasetWorkbenchMeta {
+    const meta = this.begins.shift(); assert.ok(meta); assert.equal(meta.kind, 'context'); return meta;
+  }
+  respond(request: DatasetOwnerRequest, result: unknown): void {
+    this.emit('message', { version: 1, epoch: request.epoch, type: 'response', requestId: request.requestId, operation: request.operation, ok: true, result });
+  }
+}
+
+async function contextSettledFixture773(t: test.TestContext) {
+  const worker = new ContextSettledWorker773();
+  const reasons: DatasetOwnerFatalReason[] = [];
+  const endpoint = createDatasetOwnerClient({ worker: worker as unknown as Worker, onFatal: reason => reasons.push(reason) });
+  let closed = false;
+  t.after(() => {
+    if (!closed) { worker.emit('error', new Error('仅受控组件的未完成消息收尾。')); worker.emit('exit', 17); }
+  });
+  const preparing = endpoint.prepare(), prepare = worker.takeOwner('prepare');
+  const expected = { epoch: prepare.epoch, datasetId: randomUUID() };
+  worker.respond(prepare, expected);
+  const identity = await preparing;
+  const committing = endpoint.commitBoot(), commit = worker.takeOwner('commitBoot');
+  worker.respond(commit, undefined); await committing;
+  const result: DatasetWorkbenchContext = { ...identity, ready: true };
+  return {
+    worker, endpoint, reasons, result,
+    end(meta: DatasetWorkbenchMeta, value: DatasetWorkbenchContext = result) {
+      const frames = datasetWorkbenchFrames(meta, 'response', value);
+      for (const frame of frames) worker.emit('message', frame);
+      return frames;
+    },
+    settle(meta: DatasetWorkbenchMeta) { worker.emit('message', datasetWorkbenchControl(meta, 'settled')); },
+    async finish() {
+      const closing = endpoint.close(), close = worker.takeOwner('close');
+      worker.respond(close, undefined); worker.emit('exit', 0);
+      await closing; closed = true; assert.deepEqual(reasons, []);
+    },
+  };
+}
+
+const contextCheckpoint773 = () => new Promise<void>(resolve => setImmediate(resolve));
+const contextCode773 = (code: string) => (error: unknown) => error instanceof DatasetWorkbenchWireError && error.code === code;
+
+test('context完整成功end仍保pending与join，只有同原settled先清自身再履行原DTO', async t => {
+  const h = await contextSettledFixture773(t);
+  let fulfilled = 0, quiet = false;
+  const result = h.endpoint.workbenchContext!().then(value => { fulfilled++; return value; });
+  const meta = h.worker.takeContext(); h.end(meta);
+  const joining = h.endpoint.joinWorkbench!().then(() => { quiet = true; });
+  await contextCheckpoint773();
+  assert.equal(fulfilled, 0); assert.equal(quiet, false); assert.equal(h.worker.frames.filter(frame => frame.lane === 'request' && frame.part === 'begin').length, 1);
+  h.settle(meta);
+  assert.deepEqual(await result, h.result); await joining;
+  assert.equal(fulfilled, 1); assert.equal(quiet, true); assert.deepEqual(h.reasons, []);
+  await h.finish();
+});
+
+test('context原abort或failure后的合法late end不消账，原settled及取消retired重复ACK才幂等收尾', async t => {
+  for (const mode of ['abort', 'failure'] as const) await t.test(mode, async st => {
+    const h = await contextSettledFixture773(st), controller = new AbortController();
+    const result = h.endpoint.workbenchContext!({ signal: controller.signal });
+    const rejected = assert.rejects(result, contextCode773(mode === 'abort' ? 'TIMEOUT' : 'NOT_READY'));
+    const meta = h.worker.takeContext();
+    if (mode === 'abort') controller.abort();
+    else h.worker.emit('message', datasetWorkbenchControl(meta, 'failure', 'NOT_READY'));
+    await rejected;
+    let quiet = false; const joining = h.endpoint.joinWorkbench!().then(() => { quiet = true; });
+    h.end(meta); await contextCheckpoint773();
+    assert.equal(quiet, false); assert.equal(h.worker.frames.filter(frame => frame.part === 'cancel').length, mode === 'abort' ? 1 : 0);
+    h.settle(meta); await joining; assert.equal(quiet, true);
+    h.settle(meta); await contextCheckpoint773(); assert.deepEqual(h.reasons, []);
+    await h.finish();
+  });
+});
+
+test('context缺settled仍沿原2秒timer拒绝，过期end不能替代实际settled解除join', { timeout: 10_000 }, async t => {
+  for (const mode of ['valid-end-before-timeout', 'first-end-after-timeout'] as const) await t.test(mode, async st => {
+    const h = await contextSettledFixture773(st);
+    const result = h.endpoint.workbenchContext!();
+    const rejected = assert.rejects(result, contextCode773('TIMEOUT'));
+    const meta = h.worker.takeContext();
+    if (mode === 'valid-end-before-timeout') h.end(meta);
+    // 留待原timer真实触发，不加sleep、模拟ACK或延长期限。
+    await rejected; assert.ok(Date.now() >= meta.expiresAtMs);
+    let quiet = false; const joining = h.endpoint.joinWorkbench!().then(() => { quiet = true; });
+    if (mode === 'first-end-after-timeout') h.end(meta);
+    await contextCheckpoint773(); assert.equal(quiet, false);
+    assert.equal(h.worker.frames.filter(frame => frame.part === 'cancel').length, 1);
+    h.settle(meta); await joining; assert.equal(quiet, true); assert.deepEqual(h.reasons, []);
+    await h.finish();
+  });
+});
+
+test('context无成功end或错原meta的settled拒绝，成功end重复与错误DTO身份保原拒绝', async t => {
+  for (const mode of ['no-end', 'wrong-meta', 'duplicate-end', 'wrong-dataset', 'wrong-epoch'] as const) await t.test(mode, async st => {
+    const h = await contextSettledFixture773(st);
+    const result = h.endpoint.workbenchContext!();
+    const expectedCode = mode === 'wrong-meta' ? 'NOT_READY' : mode === 'wrong-dataset' || mode === 'wrong-epoch' ? 'OUTBOX_SCOPE_MISMATCH' : 'INVALID_IPC_RESPONSE';
+    const rejected = assert.rejects(result, contextCode773(expectedCode));
+    const meta = h.worker.takeContext();
+    if (mode === 'no-end') h.settle(meta);
+    else if (mode === 'wrong-meta') { h.end(meta); h.settle({ ...meta, requestSha256: 'f'.repeat(64) }); }
+    else if (mode === 'duplicate-end') {
+      const frames = h.end(meta), end = frames[frames.length - 1]; assert.ok(end); assert.equal(end.part, 'end'); h.worker.emit('message', end);
+    } else h.end(meta, { ...h.result, ...(mode === 'wrong-dataset' ? { datasetId: randomUUID() } : { epoch: randomUUID() }) });
+    await rejected; assert.deepEqual(h.reasons, ['protocol-failure']);
+    const sent = h.worker.frames.length;
+    await assert.rejects(h.endpoint.workbenchContext!(), contextCode773('NOT_READY'));
+    assert.equal(h.worker.frames.length, sent);
+  });
+});
+
+test('context成功retired的重复settled或end锁定原协议失败，不能第二次resolve或创造关闭资格', async t => {
+  for (const mode of ['settled', 'end'] as const) await t.test(mode, async st => {
+    const h = await contextSettledFixture773(st); let fulfilled = 0;
+    const result = h.endpoint.workbenchContext!().then(value => { fulfilled++; return value; });
+    const meta = h.worker.takeContext(), frames = h.end(meta);
+    h.settle(meta); assert.deepEqual(await result, h.result);
+    if (mode === 'settled') h.settle(meta);
+    else { const end = frames[frames.length - 1]; assert.ok(end); h.worker.emit('message', end); }
+    await contextCheckpoint773(); assert.equal(fulfilled, 1); assert.deepEqual(h.reasons, ['protocol-failure']);
+    await assert.rejects(h.endpoint.close(), error => error instanceof DatasetOwnerTransportError && error.outcome === 'not-sent');
+  });
+});
+
+test('首次合法context end后的closeWorkbench保原cancel及drain，两个原收口均完成才关闭', async t => {
+  for (const order of ['context-first', 'drain-first'] as const) await t.test(order, async st => {
+    const h = await contextSettledFixture773(st);
+    const result = h.endpoint.workbenchContext!(), rejected = assert.rejects(result, contextCode773('NOT_READY'));
+    const meta = h.worker.takeContext(); h.end(meta);
+    let closed = false; const closing = h.endpoint.closeWorkbench!().then(() => { closed = true; });
+    const drain = h.worker.begins.shift(); assert.ok(drain); assert.equal(drain.kind, 'drain');
+    assert.equal(h.worker.frames.filter(frame => frame.part === 'cancel').length, 1);
+    assert.equal(h.worker.frames.filter(frame => frame.lane === 'request' && frame.part === 'begin' && frame.kind === 'drain').length, 1);
+    const finishDrain = () => { for (const frame of datasetWorkbenchFrames(drain, 'response', { closed: true })) h.worker.emit('message', frame); };
+    await rejected; await contextCheckpoint773(); assert.equal(closed, false);
+    if (order === 'context-first') h.settle(meta); else finishDrain();
+    await contextCheckpoint773(); assert.equal(closed, false);
+    if (order === 'context-first') finishDrain(); else h.settle(meta);
+    await closing; assert.equal(closed, true); assert.deepEqual(h.reasons, []);
+    await h.finish();
+  });
+});
+
+test('context成功end未settled仍计原23在途上限，第24次零发送且每个原settled仅释放自身', async t => {
+  const h = await contextSettledFixture773(t);
+  const results = Array.from({ length: 23 }, () => h.endpoint.workbenchContext!());
+  for (const result of results) void result.catch(() => {}); // 仅隔离测试失败后的清理拒绝，不改断言或结果。
+  const metas = results.map(() => h.worker.takeContext());
+  for (const meta of metas) h.end(meta);
+  const before = h.worker.frames.length;
+  await assert.rejects(h.endpoint.workbenchContext!(), error => error instanceof DatasetWorkbenchWireError && error.code === 'NOT_READY' && error.outcome === 'not-sent');
+  assert.equal(h.worker.frames.length, before);
+  let quiet = false; const joining = h.endpoint.joinWorkbench!().then(() => { quiet = true; });
+  h.settle(metas[0]!); assert.deepEqual(await results[0], h.result);
+  await contextCheckpoint773(); assert.equal(quiet, false);
+  for (const meta of metas.slice(1)) h.settle(meta);
+  assert.deepEqual(await Promise.all(results), Array.from({ length: 23 }, () => h.result));
+  await joining; assert.equal(quiet, true); assert.deepEqual(h.reasons, []);
+  await h.finish();
+});

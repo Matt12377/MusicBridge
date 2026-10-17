@@ -2,6 +2,8 @@ import type { VolumeRequest, VolumeSnapshot } from '@music-bridge/contracts';
 import { ROON_DIAGNOSTIC_EVENTS, type LocalRoonStartupDiagnostic } from '@music-bridge/contracts';
 import { readVolume, planVolume } from './volume.js';
 import { randomUUID } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
+import { isProxy } from 'node:util/types';
 import type { RemoteCoreMode, RoonImageShapeSummary } from '@music-bridge/contracts';
 import { BridgeError } from '../shared/errors.js';
 import type { Logger } from '../shared/logger.js';
@@ -1201,6 +1203,7 @@ export class RoonAudioInputAdapter implements RoonPort {
     control: 'play' | 'pause' | 'playpause' | 'stop' | 'previous' | 'next',
     options: RoonOperationOptions = {},
   ): Promise<void> {
+    if (control === 'stop') return this.controlNativeStop(options);
     const zone = this.operationZone(options);
     const transport = this.core?.services.RoonApiTransport;
     if (!zone || !transport) {
@@ -1220,21 +1223,114 @@ export class RoonAudioInputAdapter implements RoonPort {
         httpStatus: 409,
       });
     }
-    const beforeStop = control === 'stop'
-      ? this.getSelectedZonePlaybackObservation()
-      : undefined;
     await this.runTransportRequest(
       control,
       (callback) => this.sdkDispatch(options,()=>transport.control(zone.zone_id, control, callback)),
       () => new BridgeError('ROON_TIMEOUT', 'Roon transport request failed', { httpStatus: 502 }),
     );
-    if (beforeStop) {
-      await this.waitForSelectedZonePlayback({
-        zoneId: beforeStop.zoneId,
+  }
+
+  private async controlNativeStop(options: RoonOperationOptions): Promise<void> {
+    const startedAt = performance.now();
+    let diagnosticId: string | undefined;
+    try { diagnosticId = `roon-stop-${randomUUID()}`; } catch { /* 诊断失效不改变停止请求。 */ }
+    let phase: 'dispatch' | 'callback' | 'zone-confirm' = 'dispatch';
+    let core: RoonCore | undefined;
+    let connectionEpoch: number | undefined;
+    let targetEpoch: number | undefined;
+    let zoneId: string | undefined;
+    let outputIdentity: string | undefined;
+    let before: RoonPlaybackObservation | undefined;
+    const inactive = (value: RoonPlaybackObservation | undefined): boolean =>
+      value?.state === 'paused' || value?.state === 'stopped';
+    const matches = () => {
+      const current = this.getSelectedZonePlaybackObservation();
+      return {
+        coreMatches: core === undefined ? null : this.core === core,
+        connectionMatches: connectionEpoch === undefined ? null : this.connectionEpoch === connectionEpoch,
+        targetMatches: targetEpoch === undefined ? null : this.localTargetEpoch === targetEpoch,
+        zoneMatches: zoneId === undefined ? null : this.selectedZone?.zone_id === zoneId,
+        outputsMatch: outputIdentity === undefined ? null : JSON.stringify((this.selectedZone?.outputs ?? []).map(output => output.output_id).sort()) === outputIdentity,
+        beforeInactive: before ? inactive(before) : null,
+        currentInactive: current ? inactive(current) : null,
+        revisionAdvanced: before && current ? current.revision > before.revision : null,
+      };
+    };
+    const trace = (outcome: 'begin' | 'success' | 'error' | 'timeout' | 'rejected' | 'idempotent' | 'fresh', code = 'NONE'): void => {
+      try {
+        this.logger.info('roon_transport_stop_stage', {
+          ...(diagnosticId ? { diagnosticId } : {}), phase, outcome, code,
+          durationMs: Math.min(86_400_000, Math.max(0, Math.floor(performance.now() - startedAt))),
+          ...matches(),
+        });
+      } catch { /* 阶段旁注不得改变原回调、异常或停止结果。 */ }
+    };
+    const failureCode = (error: unknown): string => {
+      try {
+        if (!error || typeof error !== 'object' || isProxy(error)) return 'UNKNOWN';
+        const code = Object.getOwnPropertyDescriptor(error, 'code');
+        return code && Object.hasOwn(code, 'value')
+          && ['ROON_TIMEOUT', 'ROON_ZONE_NOT_SELECTED', 'ROON_TRANSPORT_UNAVAILABLE', 'BAD_REQUEST', 'INTERNAL_ERROR'].includes(code.value)
+          ? code.value as string : 'UNKNOWN';
+      } catch { return 'UNKNOWN'; }
+    };
+    try {
+      trace('begin');
+      const zone = this.operationZone(options);
+      core = this.core;
+      const transport = core?.services.RoonApiTransport;
+      if (!core || !transport) throw new BridgeError('ROON_ZONE_NOT_SELECTED', 'Roon Zone is not selected', { httpStatus: 409 });
+      connectionEpoch = this.connectionEpoch;
+      targetEpoch = this.localTargetEpoch;
+      zoneId = zone.zone_id;
+      outputIdentity = JSON.stringify((zone.outputs ?? []).map(output => output.output_id).sort());
+      before = this.getSelectedZonePlaybackObservation();
+      if (!before) throw new BridgeError('ROON_ZONE_NOT_SELECTED', '播放设备在操作期间已变化', { httpStatus: 409 });
+      const assertCurrent = (): void => {
+        this.operationZone(options, zone.zone_id);
+        const current = matches();
+        if (current.coreMatches !== true || current.connectionMatches !== true || current.targetMatches !== true
+          || current.zoneMatches !== true || current.outputsMatch !== true || this.core?.services.RoonApiTransport !== transport) {
+          throw new BridgeError('ROON_ZONE_NOT_SELECTED', '播放设备在操作期间已变化', { httpStatus: 409 });
+        }
+      };
+      await this.runTransportRequest(
+        'stop',
+        callback => this.sdkDispatch(options, () => transport.control(zone.zone_id, 'stop', callback)),
+        () => new BridgeError('ROON_TIMEOUT', 'Roon transport request failed', { httpStatus: 502 }),
+        event => {
+          if (event === 'dispatch-error') { phase = 'dispatch'; trace('error', 'ROON_TIMEOUT'); }
+          else if (event === 'callback-timeout') { phase = 'callback'; trace('timeout', 'ROON_TIMEOUT'); }
+          else {
+            phase = 'callback';
+            trace(event === 'callback-success' ? 'success' : 'error', event === 'callback-success' ? 'NONE' : 'ROON_TIMEOUT');
+          }
+        },
+      );
+      // 原请求成功后仍须回核原作者、取消与设备身份；不同身份不能进入另一轮确认。
+      assertCurrent();
+      phase = 'zone-confirm';
+      const current = this.getSelectedZonePlaybackObservation();
+      if (inactive(before) && inactive(current) && current!.revision >= before.revision) {
+        trace('idempotent');
+        return;
+      }
+      trace('begin');
+      const confirmed = await this.waitForSelectedZonePlayback({
+        zoneId: before.zoneId,
         state: 'inactive',
-        afterRevision: beforeStop.revision,
+        afterRevision: before.revision,
         ...(options.signal ? { signal: options.signal } : {}),
       });
+      assertCurrent();
+      const after = this.getSelectedZonePlaybackObservation();
+      if (!inactive(after) || after!.revision < confirmed.revision) {
+        throw new BridgeError('ROON_TRANSPORT_UNAVAILABLE', '停止尚未确认，请重试停止', { httpStatus: 409 });
+      }
+      trace('fresh');
+    } catch (error) {
+      trace('rejected', failureCode(error));
+      throw error;
     }
   }
 
@@ -1749,9 +1845,13 @@ export class RoonAudioInputAdapter implements RoonPort {
     operation: RoonTransportControl | 'seek' | 'volume',
     request: (callback: (error: string | false) => void) => void,
     requestError: (cause?: unknown) => BridgeError,
+    onEvent?: (event: 'callback-success' | 'callback-error' | 'callback-timeout' | 'dispatch-error') => void,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       let settled = false;
+      const observe = (event: 'callback-success' | 'callback-error' | 'callback-timeout' | 'dispatch-error'): void => {
+        try { onEvent?.(event); } catch { /* 诊断不参与原Promise结算。 */ }
+      };
       const finish = (error?: Error): void => {
         if (settled) return;
         settled = true;
@@ -1762,6 +1862,7 @@ export class RoonAudioInputAdapter implements RoonPort {
       };
       this.activeTimerCount += 1;
       const timeout = setTimeout(() => {
+        observe('callback-timeout');
         finish(new BridgeError('ROON_TIMEOUT', `Roon transport ${operation} timed out`, {
           httpStatus: 504,
           details: { operation },
@@ -1769,10 +1870,12 @@ export class RoonAudioInputAdapter implements RoonPort {
       }, this.transportTimeoutMs);
       try {
         request((error) => {
+          if (!settled) observe(error === false ? 'callback-success' : 'callback-error');
           if (error === false) finish();
           else finish(requestError());
         });
       } catch (error) {
+        if (!settled) observe('dispatch-error');
         finish(requestError(error));
       }
     });

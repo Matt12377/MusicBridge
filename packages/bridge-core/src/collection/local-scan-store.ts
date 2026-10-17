@@ -1,9 +1,11 @@
+import { verifyCompletedScanSnapshotDatabase } from './local-scan-snapshot-view.js';
 import { createHash, randomUUID } from 'node:crypto';
+import { albumScanRevision } from './local-album-browser/owner-store.js';
 import path from 'node:path';
-import type { DatabaseSync } from 'node:sqlite';
+import type { DatabaseSync, StatementSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
 import type { MetadataTechnical, MetadataCoverEvidence, MetadataReadEvidence } from '../library/metadata-reader-types.js';
-import { LocalCatalogBudgetError, sourceWritesProjectionForDatabase, relocationProjectionForDatabase } from './local-catalog-store.js';
+import { LocalCatalogBudgetError, sourceWritesProjectionForDatabase, relocationProjectionForDatabase, lyricsPhysicalPublicationsForDatabase } from './local-catalog-store.js';
 import type { RelocationProjection, RelocationLocationFact } from './local-relocation-journal.js';
 import { installSourceWriteScanPort } from './source-write-scan-port.js';
 import { installRelocationScanPort, type RelocationScanAuthor, type RelocationScanMapping,
@@ -11,7 +13,22 @@ import { installRelocationScanPort, type RelocationScanAuthor, type RelocationSc
   type RelocationBoundScanFact } from './source-relocation-scan-port.js';
 import type { RelocationReadAccess } from './source-relocation-verify.js';
 import type { ScanReadFacts, ScanFileState } from './local-scan-facts.js';
+import { METADATA_PARSER_VERSION, CUE_HEADER_METADATA_PARSER_VERSION, CUE_INPUT_SCAN_VERSION } from '../library/metadata-reader-types.js';
+import type { LocalWorkbenchDirectoryFactsRequest, LocalWorkbenchDirectoryFacts } from './local-library-workbench/read-service.js';
 export type { ScanReadFacts, ScanFileState } from './local-scan-facts.js';
+
+// 只复用原连接的只读语句；每次仍执行SQLite，不缓存扫描事实、路径许可或文件状态。
+const scanReadStatements = new WeakMap<DatabaseSync, Map<string, StatementSync>>();
+function scanReadStatement(db: DatabaseSync, sql: string): StatementSync {
+  let statements = scanReadStatements.get(db);
+  if (!statements) { statements = new Map(); scanReadStatements.set(db, statements); }
+  const saved = statements.get(sql);
+  if (saved) return saved;
+  const statement = db.prepare(sql);
+  if (statements.size >= 32) statements.delete(statements.keys().next().value!);
+  statements.set(sql, statement);
+  return statement;
+}
 
 /** 扫描状态与目录实体在原业务连接中持久化；这些表不赋予文件系统授权。 */
 const tables = {
@@ -47,15 +64,15 @@ const cueTriggers=Object.keys(cueTables).flatMap(name=>[
   `CREATE TRIGGER ${name}_no_update BEFORE UPDATE ON ${name} BEGIN SELECT RAISE(ABORT,'CUE声明历史不可改写'); END`,
 ]);
 function cueSchema(db:DatabaseSync):boolean {
-  const found=Object.keys(cueTables).map(name=>db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name));
+  const found=Object.keys(cueTables).map(name=>scanReadStatement(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name));
   if(found.every(row=>row === undefined)) {
-    for(const sql of [...cueIndexes,...cueTriggers]) if(db.prepare('SELECT name FROM sqlite_master WHERE name=?').get(sql.split(' ')[2]!)) return corrupt();
+    for(const sql of [...cueIndexes,...cueTriggers]) if(scanReadStatement(db, 'SELECT name FROM sqlite_master WHERE name=?').get(sql.split(' ')[2]!)) return corrupt();
     return false;
   }
   if(found.some(row=>row === undefined)) return corrupt();
-  for(const [name,sql] of Object.entries(cueTables)) if(db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name)?.sql !== sql) return corrupt();
+  for(const [name,sql] of Object.entries(cueTables)) if(scanReadStatement(db, "SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name)?.sql !== sql) return corrupt();
   for(const [type,list] of [['index',cueIndexes],['trigger',cueTriggers]] as const) for(const sql of list)
-    if(db.prepare('SELECT sql FROM sqlite_master WHERE type=? AND name=?').get(type,sql.split(' ')[2]!)?.sql !== sql) return corrupt();
+    if(scanReadStatement(db, 'SELECT sql FROM sqlite_master WHERE type=? AND name=?').get(type,sql.split(' ')[2]!)?.sql !== sql) return corrupt();
   return true;
 }
 function ensureCueSchema(db:DatabaseSync):void {if(!cueSchema(db)) db.exec([...Object.values(cueTables),...cueIndexes,...cueTriggers].join(';')+';');}
@@ -142,7 +159,7 @@ const finiteNonnegative = (v: unknown): v is number => typeof v === 'number' && 
 export function isScanReadFacts(v: unknown): v is ScanReadFacts {
   if (!record(v) || !closed(v, ['technical', 'coverEvidence', 'readEvidence']) || !record(v.technical)
     || !closed(v.technical, ['container', 'codec', 'lossless', 'sampleRateHz', 'channels', 'bitsPerSample', 'durationSeconds', 'evidence'])
-    || typeof v.technical.container !== 'string' || !['FLAC', 'MPEG', 'MP4', 'WAVE', 'AIFF', 'DSF', 'DFF'].includes(v.technical.container)
+    || typeof v.technical.container !== 'string' || !['FLAC', 'MPEG', 'MP4', 'WAVE', 'AIFF', 'DSF', 'DFF', 'OGG', 'WAVPACK', 'APE', 'TTA', 'MPC', 'TAK'].includes(v.technical.container)
     || !text(v.technical.codec) || !(v.technical.lossless === null || typeof v.technical.lossless === 'boolean')
     || !finiteNonnegative(v.technical.sampleRateHz) || v.technical.sampleRateHz === 0 || !finiteNonnegative(v.technical.channels) || v.technical.channels === 0
     || !(v.technical.bitsPerSample === null || finiteNonnegative(v.technical.bitsPerSample))
@@ -161,6 +178,18 @@ export function isScanReadFacts(v: unknown): v is ScanReadFacts {
   return (evidence.bytesRead as number) <= 32 * 1024 * 1024 && (evidence.maxReadBytes as number) <= 8 * 1024 * 1024
     && (evidence.allocationBytes as number) <= 64 * 1024 * 1024 && finiteNonnegative(evidence.elapsedMs)
     && evidence.wholeAudioHash === false && evidence.wholeAudioDecode === false;
+}
+/** job标识扫描合同，item保真实解析器版本；只有显式CUE输入合同允许限定混族，旧job不扩族。 */
+function scanItemMatchesParser(item: ScanPreparedItem, parserVersion: unknown): boolean {
+  const container = item.readFacts?.technical.container;
+  if (parserVersion !== CUE_INPUT_SCAN_VERSION) {
+    return item.parserVersion === parserVersion && (container === undefined || ['FLAC', 'MPEG', 'MP4', 'WAVE', 'AIFF', 'DSF', 'DFF'].includes(container));
+  }
+  if (![METADATA_PARSER_VERSION, CUE_HEADER_METADATA_PARSER_VERSION].includes(item.parserVersion as typeof METADATA_PARSER_VERSION | typeof CUE_HEADER_METADATA_PARSER_VERSION)) return false;
+  // 拒收没有成功解析事实；复用仍由原签名、原parser和同SQL资产原件独立核验。
+  if (container === undefined) return item.readFacts === null;
+  return ['TTA', 'TAK'].includes(container) ? item.parserVersion === CUE_HEADER_METADATA_PARSER_VERSION
+    : item.parserVersion === METADATA_PARSER_VERSION;
 }
 export function isScanPreparedItem(v: unknown): v is ScanPreparedItem {
   return record(v) && closed(v, ['relative', 'signature', 'parserVersion', 'outcome', 'fields', 'failureCode', 'reused', 'readFacts'])
@@ -248,8 +277,14 @@ export function updateSourceWriteScanFacts(db:DatabaseSync,rootId:string,relativ
   const audit=scanAuditFor(db);const changed=db.prepare('UPDATE local_scan_file_state SET data=? WHERE library_root_id=? AND relative=? AND job_id=? AND batch_id=? AND data=?').run(after,rootId,relative,jobId,batchId,before);if(changed.changes!==1)return corrupt();audit.replace('local_scan_file_state',row,db.prepare('SELECT * FROM local_scan_file_state WHERE library_root_id=? AND relative=?').get(rootId,relative)!);return ()=>audit.publish();
 }
 function sourceUpdatedScanState(db:DatabaseSync,row:Row,initial:ScanFileState):ScanFileState|null{
-  const projection=sourceWritesProjectionForDatabase(db);if(!projection)return null;let previous=initial,found=false;
-  for(const event of projection.events){if(event.kind!=='facts'||event.fact.scanJobId!==row.job_id||event.fact.scanBatchId!==row.batch_id)continue;const f=event.fact,next=parse(f.scanAfter,isScanFileState,65536),before=parse(f.scanBefore,isScanFileState,65536);if(next.libraryRootId!==row.library_root_id||next.relative!==row.relative)continue;if(!equal(before,previous)||next.assetId!==initial.assetId||next.trackId!==initial.trackId||next.parserVersion!==initial.parserVersion)return corrupt();previous=next;found=true;}
+  const projection=sourceWritesProjectionForDatabase(db);let previous=initial,found=false;
+  const updates:{before:string;after:string;sequence:number}[]=[];
+  for(const event of projection?.events??[]){if(event.kind!=='facts'||event.fact.scanJobId!==row.job_id||event.fact.scanBatchId!==row.batch_id)continue;
+    const f=event.fact,next=parse(f.scanAfter,isScanFileState,65536);if(next.libraryRootId!==row.library_root_id||next.relative!==row.relative)continue;
+    const ordinal=Number(db.prepare('SELECT rowid n FROM local_catalog_ledger WHERE command_id=?').get(event.eventId)?.n);if(!Number.isSafeInteger(ordinal)||ordinal<1)return corrupt();updates.push({before:f.scanBefore,after:f.scanAfter,sequence:ordinal});
+  }
+  for(const item of lyricsPhysicalPublicationsForDatabase(db)){const scan=item.publication.scan;if(!scan||scan.jobId!==row.job_id||scan.batchId!==row.batch_id||scan.rootId!==row.library_root_id||scan.relative!==row.relative)continue;updates.push({before:scan.before,after:scan.after,sequence:item.sequence});}
+  for(const update of updates.sort((a,b)=>a.sequence-b.sequence)){const next=parse(update.after,isScanFileState,65536),before=parse(update.before,isScanFileState,65536);if(!equal(before,previous)||next.assetId!==initial.assetId||next.trackId!==initial.trackId||next.parserVersion!==initial.parserVersion)return corrupt();previous=next;found=true;}
   return found?previous:null;
 }
 const relocationOriginIndexes = new WeakMap<DatabaseSync, { projection: RelocationProjection; origins: ReadonlyMap<string, RelocationLocationFact> }>();
@@ -354,7 +389,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
     if(batch.kind === 'cue-sidecars-v1' && !hasCue) return corrupt();
     const parserVersion = job ? db.prepare('SELECT parser_version FROM local_scan_jobs WHERE id=?').get(job.jobId)?.parser_version : undefined;
     if (!job || row.id !== batch.batchId || row.job_id !== batch.jobId || row.fingerprint !== scanFingerprint('batch', batch)
-      || batch.items.some(item => item.parserVersion !== parserVersion)) return corrupt();
+      || batch.items.some(item => !scanItemMatchesParser(item, parserVersion))) return corrupt();
     if (batch.checkpointBefore !== null && !db.prepare('SELECT id FROM local_scan_checkpoints WHERE id=? AND job_id=?').get(batch.checkpointBefore, job.jobId)) return corrupt();
     const prepared = db.prepare("SELECT request FROM local_scan_receipts WHERE job_id=? AND operation='prepare-batch' AND json_extract(request,'$.batch.batchId')=?").get(job.jobId, batch.batchId);
     if (!prepared || !equal(parse(prepared.request, (v): v is Row & { commandId: string; jobId: string } => isScanReceiptRequest('prepare-batch', v)).batch, batch)) return corrupt();
@@ -459,6 +494,7 @@ export function verifyLocalScanDatabase(db: DatabaseSync): void {
     const batch = parse(row.request, isScanPreparedBatch), files = parse(row.result, isScanCommittedBatch).files;
     const file = files[fact.scan.origin.itemIndex]; if (!file || !verifyRelocationOrigin(db, job, batch, fact.scan.origin.itemIndex, file)) return corrupt();
   }
+  verifyCompletedScanSnapshotDatabase(db);
   if (scanDataVersion(db) !== initialVersion) return corrupt();
   scanAudits.set(db, { rows: counts, bytes, dataVersion: initialVersion });
 }
@@ -494,37 +530,47 @@ const childCommand = (batchId: string, index: number, operation: string): string
   const digest = createHash('sha256').update(scanCanonical(['mbrs003-subcommand-v1', batchId, index, operation])).digest('hex');
   return `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`;
 };
-export function createLocalScanStore(access: ScanAccess) {
-  let relocationAuthor: RelocationScanAuthor | undefined;
-  const get = (db: DatabaseSync, jobId: string): dto.ScanJobRecord => {
-    if (!dto.isCollectionId(jobId)) return access.conflict('扫描任务身份无效。');
-    const row = db.prepare('SELECT data FROM local_scan_jobs WHERE id=?').get(jobId);
-    return row ? parse(row.data, dto.isScanJobRecord, 65_536) : access.conflict('扫描任务不存在。');
-  };
-  /** 旧路径事实保留；只有当前catalog locator与既有file-state共同指向唯一对象才复用稳定ID。 */
-  function currentFileState(db: DatabaseSync, libraryRootId: string, relative: string): Row | null {
-    const locators = db.prepare('SELECT id FROM local_catalog_assets WHERE root_id=? AND relative=? LIMIT 2').all(libraryRootId,relative);
-    if(locators.length>1) return access.conflict('当前位置有多个独立资产，不能根据同名或路径自动合并。');
-    const direct = db.prepare('SELECT * FROM local_scan_file_state WHERE library_root_id=? AND relative=?').get(libraryRootId, relative);
+/** 复用原扫描当前位置解析；只在原Owner的guarded连接中调用。 */
+function currentScanFileStateRow(db: DatabaseSync, libraryRootId: string, relative: string, conflict: (message: string) => never): Row | null {
+    const locators = scanReadStatement(db, 'SELECT id FROM local_catalog_assets WHERE root_id=? AND relative=? LIMIT 2').all(libraryRootId,relative);
+    if(locators.length>1) return conflict('当前位置有多个独立资产，不能根据同名或路径自动合并。');
+    const direct = scanReadStatement(db, 'SELECT * FROM local_scan_file_state WHERE library_root_id=? AND relative=?').get(libraryRootId, relative);
     if (direct) {
       const state = parse(direct.data, isScanFileState, 65_536);
       if (state.assetId === null) return direct;
-      const locator = db.prepare('SELECT root_id,relative FROM local_catalog_assets WHERE id=?').get(state.assetId);
+      const locator = scanReadStatement(db, 'SELECT root_id,relative FROM local_catalog_assets WHERE id=?').get(state.assetId);
       if (locator?.root_id === libraryRootId && locator.relative === relative) return direct;
     }
     if (locators.length === 0) return null;
     // 两行sentinel拒歧义；root/relative及asset_id均为私有索引，不能每个新path全库回放。
-    const rows = db.prepare(`SELECT s.* FROM local_catalog_assets a JOIN local_scan_file_state s ON s.asset_id=a.id
+    const rows = scanReadStatement(db, `SELECT s.* FROM local_catalog_assets a JOIN local_scan_file_state s ON s.asset_id=a.id
       WHERE a.root_id=? AND a.relative=? AND s.library_root_id=? AND s.track_id IS NOT NULL
       AND NOT EXISTS(SELECT 1 FROM local_scan_file_state newer WHERE newer.asset_id=s.asset_id AND newer.track_id=s.track_id AND newer.rowid>s.rowid)
       ORDER BY s.rowid DESC LIMIT 2`).all(libraryRootId, relative, libraryRootId);
-    if (rows.length > 1) return access.conflict('当前文件位置存在多个独立资产或曲目候选，不能自动合并。');
+    if (rows.length > 1) return conflict('当前文件位置存在多个独立资产或曲目候选，不能自动合并。');
     if (!rows[0]) return null;
     const state = parse(rows[0].data, isScanFileState, 65_536);
     if (state.libraryRootId !== libraryRootId || state.assetId === null || state.trackId === null) return corrupt();
     return rows[0];
+}
+export function readLocalAlbumScanState(db: DatabaseSync, libraryRootId: string, relative: string, conflict: (message: string) => never): ScanFileState | null {
+  const row = currentScanFileStateRow(db, libraryRootId, relative, conflict);
+  return row ? parse(row.data, isScanFileState, 65_536) : null;
+}
+export function readLocalAlbumCueSnapshot(raw: unknown): CueSnapshot { return parse(raw, isCueSnapshot, 65_536); }
+export function createLocalScanStore(access: ScanAccess) {
+  let relocationAuthor: RelocationScanAuthor | undefined;
+  const get = (db: DatabaseSync, jobId: string): dto.ScanJobRecord => {
+    if (!dto.isCollectionId(jobId)) return access.conflict('扫描任务身份无效。');
+    const row = scanReadStatement(db, 'SELECT data FROM local_scan_jobs WHERE id=?').get(jobId);
+    return row ? parse(row.data, dto.isScanJobRecord, 65_536) : access.conflict('扫描任务不存在。');
+  };
+  /** 原扫描与专辑读取共用同一位置解析，重定位后保留原事实身份。 */
+  function currentFileState(db: DatabaseSync, libraryRootId: string, relative: string): Row | null {
+    return currentScanFileStateRow(db, libraryRootId, relative, access.conflict);
   }
   function current(job: dto.ScanJobRecord): dto.LibraryRoot {
+    if(!access.catalog.privateLibraryManagementRootAvailable(job.libraryRootId))return access.conflict('原库已持久撤销或正在撤销，原scan批保留，不能迟到提交。');
     const root = access.catalog.root(job.libraryRootId);
     if (root.revision !== job.rootRevision || root.sourceRootId !== job.sourceRootId) return access.conflict('扫描根关联已改变，现有checkpoint和目录数据保留。');
     if (!access.sources.root(root.sourceRootId).authorized) return access.conflict('扫描来源许可已撤销，现有目录数据保留。');
@@ -604,9 +650,12 @@ export function createLocalScanStore(access: ScanAccess) {
             }
             const factsByResource = new Map<string, RelocationBoundScanFact>();
             for (const [rootId, group] of groups) {
-              const root = access.catalog.root(rootId), parser = group[0]!.read.item.parserVersion;
+              const root = access.catalog.root(rootId), firstParser = group[0]!.read.item.parserVersion;
+              // 原私有移动读取仍保每件实际parser；新增输入族与混parser的job只记录明确扫描合同。
+              const parser = group.every(({ read }) => scanItemMatchesParser(read.item, firstParser)) ? firstParser
+                : group.every(({ read }) => scanItemMatchesParser(read.item, CUE_INPUT_SCAN_VERSION)) ? CUE_INPUT_SCAN_VERSION : corrupt();
               if (group.some(({ read }) => read.mapping.destination.sourceRootId !== root.sourceRootId
-                || read.mapping.destination.rootRevision !== root.revision || read.item.parserVersion !== parser)) return corrupt();
+                || read.mapping.destination.rootRevision !== root.revision || !scanItemMatchesParser(read.item, parser))) return corrupt();
               if (!access.sources.root(root.sourceRootId).authorized) return access.conflict('移动目的根许可已撤销。');
               const jobId = randomUUID(), batchId = randomUUID(), startCommandId = randomUUID(), resumeCommandId = randomUUID(),
                 prepareCommandId = randomUUID(), commitCommandId = randomUUID(), checkpointId = randomUUID();
@@ -634,7 +683,7 @@ export function createLocalScanStore(access: ScanAccess) {
               const count = String(group.length), completed: dto.ScanJobRecord = { ...running, jobRevision: '3', checkpointRef: checkpointId,
                 progress: { visited: count, accepted: count, rejected: '0' }, phase: 'completed' };
               const files: ScanFileState[] = group.map(({ read, asset }) => ({ libraryRootId: root.id, relative: read.item.relative,
-                signature: read.item.signature, parserVersion: parser, outcome: 'accepted', assetId: asset.id,
+                signature: read.item.signature, parserVersion: read.item.parserVersion, outcome: 'accepted', assetId: asset.id,
                 trackId: read.primaryTrackId, failureCode: null, readFacts: read.item.readFacts }));
               const committedBatch: ScanCommittedBatch = { job: completed, files };
               if (!isScanCommittedBatch(committedBatch)) return corrupt();
@@ -680,6 +729,7 @@ export function createLocalScanStore(access: ScanAccess) {
         const previous = db.prepare('SELECT request FROM local_scan_receipts WHERE command_id=?').get(request.commandId);
         const jobId = previous ? parse(previous.request, (v): v is Row & { commandId: string; jobId: string } => isScanReceiptRequest('start', v)).jobId : randomUUID();
         const full = { ...request, jobId }, saved = savedReceipt(db, 'start', full); if (saved) return { job: saved, created: false };
+        if(!access.catalog.privateLibraryManagementRootAvailable(request.libraryRootId))return access.conflict('原库已持久撤销或正在撤销，不能创建新扫描。');
         const root = access.catalog.root(request.libraryRootId);
         if (root.revision !== request.expectedRootRevision || !access.sources.root(root.sourceRootId).authorized) return access.conflict('扫描根修订或许可已改变。');
         const job: dto.ScanJobRecord = { schemaVersion: '1.2', jobId, datasetId: request.datasetId, libraryRootId: root.id,
@@ -691,6 +741,14 @@ export function createLocalScanStore(access: ScanAccess) {
       });
     },
     get(jobId: string): dto.ScanJobRecord { return access.read(db => get(db, jobId)); },
+    /** 扫描器只读原持久job的解析合同，不从公开DTO或当前开关猜旧任务版本。 */
+    privateJobParserVersion(jobId: string): string {
+      if (!dto.isCollectionId(jobId)) return access.conflict('扫描任务身份无效。');
+      return access.read(db => {
+        const job = get(db, jobId), version = db.prepare('SELECT parser_version FROM local_scan_jobs WHERE id=?').get(job.jobId)?.parser_version;
+        return text(version) ? version : corrupt();
+      });
+    },
     page(datasetId: string, page: dto.PageRequest): dto.Page<dto.ScanJobRecord> {
       if (!dto.isCollectionId(datasetId) || !record(page) || !closed(page, ['offset', 'limit']) || !Number.isSafeInteger(page.offset)
         || page.offset < 0 || !Number.isSafeInteger(page.limit) || page.limit < 1 || page.limit > 200) return access.conflict('扫描分页请求无效。');
@@ -714,6 +772,74 @@ export function createLocalScanStore(access: ScanAccess) {
         const result = savedReceipt(db, operation, request);
         const receipt = { commandId, jobId: request.jobId, operation, fingerprint: String(row.fingerprint), result };
         return dto.isLocalScanReceipt(receipt) ? receipt : corrupt();
+      });
+    },
+    /** 只读消费现有扫描/CUE事实；数量和字节超过范围时拒绝，不制造一次扫描。 */
+    privateAlbumBrowserRevision(): string { return access.read(db => albumScanRevision(db)); },
+    /** 整理捕获只读指定目录的完整当前事实；未生成track的拒收文件仍保留真实签名。 */
+    privateWorkbenchDirectoryFacts(request: LocalWorkbenchDirectoryFactsRequest): LocalWorkbenchDirectoryFacts {
+      if (!record(request) || !closed(request, ['expectedRevision','libraryRootId','directories','maxFiles','maxBytes'])
+        || !/^[a-f0-9]{64}$/u.test(request.expectedRevision) || !dto.isCollectionId(request.libraryRootId)
+        || !Array.isArray(request.directories) || !request.directories.length || request.directories.length > 100
+        || new Set(request.directories).size !== request.directories.length || !request.directories.every(value => value === '' || scanRelativePath(value))
+        || !Number.isSafeInteger(request.maxFiles) || request.maxFiles < 1 || request.maxFiles > 10_000
+        || !Number.isSafeInteger(request.maxBytes) || request.maxBytes < 1 || request.maxBytes > 32 * 1024 * 1024) return access.conflict('整理目录捕获范围无效。');
+      return access.read(db => {
+        const revision = albumScanRevision(db);
+        if (revision !== request.expectedRevision) return access.conflict('整理扫描事实已变化，请重新读取。');
+        const libraryRoot = access.catalog.root(request.libraryRootId);
+        const bindings = { root: request.libraryRootId, directories: JSON.stringify(request.directories) };
+        const directories = `dirs AS (SELECT CASE WHEN value='' THEN '' ELSE value||'/' END prefix,
+          CASE WHEN value='' THEN NULL ELSE value||'0' END ceiling FROM json_each(@directories))`;
+        // 非根目录先走现有(root_id,relative)/(library_root_id,relative)索引。
+        // '/'的下一字节是'0'，范围精确覆盖原目录前缀；通配符与Unicode目录均不改语义。
+        // accepted仍按当前asset位置，rejected仍按原scan位置，随后共用原歧义与事实校核。
+        const current = `WITH ${directories},current_files AS (
+          SELECT s.rowid,s.library_root_id,a.relative FROM dirs CROSS JOIN local_catalog_assets a CROSS JOIN local_scan_file_state s
+            WHERE prefix<>'' AND a.root_id=@root AND a.relative>=prefix AND a.relative<ceiling
+              AND s.asset_id=a.id AND s.library_root_id=@root
+          UNION ALL
+          SELECT s.rowid,s.library_root_id,s.relative FROM dirs CROSS JOIN local_scan_file_state s
+            WHERE prefix<>'' AND s.library_root_id=@root AND s.asset_id IS NULL AND s.relative>=prefix AND s.relative<ceiling
+          UNION ALL
+          SELECT s.rowid,s.library_root_id,CASE WHEN s.asset_id IS NULL THEN s.relative ELSE a.relative END relative
+            FROM local_scan_file_state s LEFT JOIN local_catalog_assets a ON a.id=s.asset_id
+            WHERE s.library_root_id=@root AND (s.asset_id IS NULL OR a.root_id=@root) AND EXISTS(SELECT 1 FROM dirs WHERE prefix='')
+          ),members AS (
+          SELECT relative FROM current_files WHERE EXISTS(SELECT 1 FROM dirs WHERE substr(relative,1,length(prefix))=prefix
+            AND instr(substr(relative,length(prefix)+1),'/')=0) GROUP BY relative)`;
+        const count = Number(scanReadStatement(db, `${current} SELECT count(*) n FROM members`).get(bindings)!.n);
+        if (count > request.maxFiles) throw new LocalCatalogBudgetError('整理完整目录文件', count, request.maxFiles);
+        const result: LocalWorkbenchDirectoryFacts = { revision, files: [], cues: [] };
+        const files: LocalWorkbenchDirectoryFacts['files'][number][] = [], cues: LocalWorkbenchDirectoryFacts['cues'][number][] = [];
+        let bytes = 0;
+        const account = (value: unknown): void => {
+          bytes += Buffer.byteLength(JSON.stringify(value), 'utf8');
+          if (bytes > request.maxBytes) throw new LocalCatalogBudgetError('整理完整目录事实字节', bytes, request.maxBytes);
+        };
+        for (const locator of scanReadStatement(db, `${current} SELECT relative FROM members ORDER BY relative LIMIT @limit`).iterate({ ...bindings, limit: request.maxFiles + 1 })) {
+          if (typeof locator.relative !== 'string' || !scanRelativePath(locator.relative)) return corrupt();
+          const row = currentFileState(db, request.libraryRootId, locator.relative);
+          if (!row) return access.conflict('整理当前文件事实未获确认，请重新读取。');
+          const value = parse(row.data, isScanFileState, 65_536), job = get(db, String(row.job_id));
+          if (value.libraryRootId !== request.libraryRootId || job.libraryRootId !== request.libraryRootId) return corrupt();
+          const item = { jobId: job.jobId, rootRevision: libraryRoot.revision, sourceRootId: libraryRoot.sourceRootId, currentRelative: locator.relative, value };
+          account(item); files.push(item);
+        }
+        if (files.length !== count) return access.conflict('整理完整目录成员未获确认。');
+        if (cueSchema(db)) {
+          const query = `WITH ${directories},latest AS (SELECT max(rowid) ordinal FROM local_cue_sources WHERE library_root_id=@root GROUP BY relative)
+            SELECT s.data FROM local_cue_sources s JOIN latest l ON s.rowid=l.ordinal WHERE EXISTS(SELECT 1 FROM dirs
+            WHERE substr(s.relative,1,length(prefix))=prefix AND instr(substr(s.relative,length(prefix)+1),'/')=0)`;
+          const cueCount = Number(scanReadStatement(db, `SELECT count(*) n FROM (${query})`).get(bindings)!.n);
+          if (cueCount + count > request.maxFiles) throw new LocalCatalogBudgetError('整理完整目录扫描/CUE事实', cueCount + count, request.maxFiles);
+          for (const row of scanReadStatement(db, `${query} ORDER BY s.rowid LIMIT @limit`).iterate({ ...bindings, limit: request.maxFiles + 1 })) {
+            const item = parse(row.data, isCueSnapshot, 65_536); account(item); cues.push(item);
+          }
+          if (cues.length !== cueCount) return access.conflict('整理完整CUE事实未获确认。');
+        }
+        if (revision !== albumScanRevision(db)) return access.conflict('整理事实在捕获时已改变，请重新读取。');
+        return { ...result, files, cues };
       });
     },
     privateCheckpoint(jobId: string): ScanCheckpoint | null {
@@ -769,7 +895,9 @@ export function createLocalScanStore(access: ScanAccess) {
         if (state.outcome !== 'accepted' || state.assetId !== asset.id || state.trackId !== trackId || state.relative !== locator.relative || state.libraryRootId !== root.id
           || job.rootRevision !== root.revision || job.sourceRootId !== source.id || !state.readFacts) return null;
         const sourceFact=sourceWritesProjectionForDatabase(db)?.scanFacts.get(`${root.id}/${locator.relative}`)?.fact;
-        if(sourceFact&&sourceFact.scanAfter===row.data&&equal(sourceFact.afterAsset,asset)&&sourceFact.affectedTrackIds.includes(trackId)){
+        const lyricFact=lyricsPhysicalPublicationsForDatabase(db).find(item=>item.publication.scan?.rootId===root.id&&item.publication.scan.relative===locator.relative&&item.publication.scan.after===row.data
+          &&equal(item.publication.replace?.after,asset)&&item.record.original.members.some(m=>m.trackId===trackId&&m.fileId===asset.id));
+        if(sourceFact&&sourceFact.scanAfter===row.data&&equal(sourceFact.afterAsset,asset)&&sourceFact.affectedTrackIds.includes(trackId)||lyricFact){
           const technical=state.readFacts.technical,parameters={container:technical.container,codec:projectedCodec(technical),lossless:technical.lossless,sampleRateHz:technical.sampleRateHz,channels:technical.channels,bitsPerSample:technical.bitsPerSample,durationMs:technical.durationSeconds===null?null:Math.round(technical.durationSeconds*1000),evidence:technical.evidence};return dto.isFileAudioParameters(parameters)?parameters:null;
         }
         const batchRow = db.prepare("SELECT request FROM local_scan_batches WHERE id=? AND phase='committed'").get(String(row.batch_id));
@@ -848,7 +976,7 @@ export function createLocalScanStore(access: ScanAccess) {
         if(batch.kind === 'cue-sidecars-v1') ensureCueSchema(db);
         if (job.phase !== 'running' || job.jobRevision !== batch.expectedJobRevision || job.checkpointRef !== batch.checkpointBefore) return access.conflict('扫描批状态或checkpoint已改变。');
         const parserVersion = db.prepare('SELECT parser_version FROM local_scan_jobs WHERE id=?').get(job.jobId)?.parser_version;
-        if (batch.items.some(item => item.parserVersion !== parserVersion)) return access.conflict('扫描批解析器身份不一致。');
+        if (batch.items.some(item => !scanItemMatchesParser(item, parserVersion))) return access.conflict('扫描批解析器身份不一致。');
         db.prepare('INSERT INTO local_scan_batches VALUES(?,?,?,?,?,?)').run(batch.batchId, job.jobId, scanFingerprint('batch', batch), JSON.stringify(batch), 'prepared', null);
         audit.replace('local_scan_batches', null, db.prepare('SELECT * FROM local_scan_batches WHERE id=?').get(batch.batchId)!);
         putReceipt(db, 'prepare-batch', request, job, audit); return job;

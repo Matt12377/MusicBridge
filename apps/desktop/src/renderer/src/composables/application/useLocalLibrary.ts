@@ -3,7 +3,7 @@ import { useLocalOrganizer } from './useLocalOrganizer.js'
 import { useLocalSourceWrites } from './useLocalSourceWrites.js'
 import { useLocalRelocationPlans } from './useLocalRelocationPlans.js'
 import { computed, markRaw, ref, shallowRef, watch } from 'vue'
-import { LOCAL_ORGANIZER_LIMIT, isCollectionId, isCommandOutboxOverview, isLocalArtworkContext, isLocalCatalogText, isLocalLibraryQueryPage, isLocalLibraryTrackDetail, isLocalPlayTarget, type LocalArtworkContext } from '@music-bridge/contracts'
+import { LOCAL_ORGANIZER_LIMIT, isCollectionId, isCommandOutboxOverview, isLocalArtworkContext, isLocalCatalogText, isLocalLibraryQueryPage, isLocalLibraryTrackDetail, isLocalPlayTarget, isLocalPlayAlbum, isLocalAlbumSummary, type LocalArtworkContext } from '@music-bridge/contracts'
 import type { CommandOutboxOverview, CommandOutboxPublicApi, LocalLibraryPublicApi, LocalLibraryQueryPage, LocalLibraryTrackSummary, LocalLibraryTrackDetail, LocalMetadata, LocalPlayAccepted, LocalPlayAction, LocalPlayRequest, LocalPlayTarget, LocalSourceUnsupported, LocalRootView, LocalRelocationSelection, LocalRelocationCandidates, LocalRelocationConfirm, LocalCatalogCommandPayloads, PublicRoonZone, TrackSummary } from '@music-bridge/contracts'
 import { localPlaybackSubmissionUnconfirmed, localPlaySubmissionResolved, type LocalLibraryPlayReceipt } from '../../components/player/details.js'
 import { isLocalPlayReceipt, type LocalPlayReceipt, type LocalPlayRejection } from '@music-bridge/contracts'
@@ -16,6 +16,7 @@ export interface LocalLibraryOptions {
   play: (request: LocalPlayRequest) => Promise<LocalPlayAccepted | LocalSourceUnsupported>
   readPlayReceipt?: (request:LocalPlayRequest) => Promise<LocalPlayReceipt>
   getPlaybackSnapshot?: () => import('@music-bridge/contracts').PlaybackSnapshot | null
+  getPlaybackAlbum?: () => import('@music-bridge/contracts').LocalAlbumSummary | null
 }
 export function localLibraryTrackPresentation(item: LocalLibraryTrackSummary): TrackSummary {
   return { id: item.track.id, title: item.metadata.title || '来源未提供标题', artists: item.metadata.artist ? [item.metadata.artist] : [], album: item.metadata.album || '',
@@ -285,6 +286,10 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     const generation = ++actionGeneration
     let dispatchedRequest: LocalPlayRequest | null = null
     try {
+      // 捕获当前显示的专辑身份；成员由Owner完整物化，不借当前分页补队列。
+      const album=action==='PLAY_NOW'?options.getPlaybackAlbum?.()??null:null
+      if(album&&!isLocalAlbumSummary(album))throw new Error('专辑选择失效')
+      const albumIdentity=album?JSON.stringify([album.id,album.rootId,album.revision,album.kind,album.editionId,album.trackCount]):null
       const [current, currentTarget, currentRoots] = await Promise.all([options.api.getLocalLibraryTrackDetail(trackId), options.api.getLocalLibraryPlaybackTarget(), options.api.listLocalLibraryRoots()])
       if (!active || disposed || generation !== actionGeneration) return
       if (!isLocalLibraryTrackDetail(current) || current.track.id !== trackId) throw new Error('曲目选择失效')
@@ -294,8 +299,18 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
       if (!root || root.availability !== 'ONLINE') { actionError.value = '源目录离线或许可已撤销，请先恢复或重新关联目录；曲目与收藏保留。'; return }
       if (root.root.revision !== current.asset.rootRevision || root.root.sourceRootId !== current.asset.sourceRootId) { actionError.value = '目录关联已改变，请先完成增量扫描再点播。'; return }
       if (current.track.segment !== null) { actionError.value = '当前 CUE 段落尚不支持原文件直送，曲目保留。'; return }
+      let albumSelection:import('@music-bridge/contracts').LocalPlayAlbum|undefined
+      if(album){
+        const datasetId=await captureDataset(),latest=options.getPlaybackAlbum?.()
+        if(!active||disposed||generation!==actionGeneration)return
+        if(!datasetId||!latest||albumIdentity!==JSON.stringify([latest.id,latest.rootId,latest.revision,latest.kind,latest.editionId,latest.trackCount])
+          ||album.rootId!==current.asset.libraryRootId)throw new Error('专辑或工作库选择已变化')
+        const captured={datasetId,albumKey:album.id,rootId:album.rootId,revision:album.revision,kind:album.kind,editionId:album.editionId,trackCount:album.trackCount}
+        if(!isLocalPlayAlbum(captured))throw new Error('完整专辑队列超过范围或身份未核实')
+        albumSelection=captured
+      }
       if (playSubmissionBlocked(action)) return
-      const request: LocalPlayRequest = { schema_version: '1.2', request_id: crypto.randomUUID(), route: 'roon_audio_input', source_kind: 'local_file', local_track_id: current.track.id, asset_id: current.asset.id, expected_asset_revision: current.asset.fileRevision, target: { ...currentTarget }, action }
+      const request: LocalPlayRequest = { schema_version: '1.2', request_id: crypto.randomUUID(), route: 'roon_audio_input', source_kind: 'local_file', local_track_id: current.track.id, asset_id: current.asset.id, expected_asset_revision: current.asset.fileRevision, target: { ...currentTarget }, action,...(albumSelection?{album:albumSelection}:{}) }
       dispatchedRequest = request
       resolvedPlay = null
       lastPlay.value = { request, result: null, outcome: 'pending' }
@@ -308,7 +323,7 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
         && !hasResolvedPlay(request)) unconfirmedPlay.value = request
       if (active && generation === actionGeneration && result.status === 'unsupported') actionError.value = result.reason === 'LOCAL_SEGMENT_UNSUPPORTED' ? '当前段落尚不支持原文件直送。' : '当前连接尚不支持本地原文件直送，请检查 Roon 目标与播放连接。'
     } catch (error) {
-      const rejected=error instanceof Error && /^\[(?:LOCAL_PLAY_REJECTED|INVENTORY_CONFLICT|INVALID_IPC_REQUEST)\]/u.test(error.message)
+      const rejected=error instanceof Error && /^(?:Error invoking remote method 'localLibrary:request': Error: )?\[(?:LOCAL_PLAY_REJECTED|INVENTORY_CONFLICT|INVALID_IPC_REQUEST)\]/u.test(error.message)
       if (!disposed && dispatchedRequest && lastPlay.value?.request.request_id === dispatchedRequest.request_id && lastPlay.value.outcome === 'pending') lastPlay.value = { ...lastPlay.value, outcome: rejected?'rejected':'unknown',...(rejected?{failure:'REQUEST_REJECTED' as const}:{}) }
       if (!disposed && dispatchedRequest?.action === 'PLAY_NOW' && !rejected && !hasResolvedPlay(dispatchedRequest)) unconfirmedPlay.value = dispatchedRequest
       if (!disposed && active && generation === actionGeneration) actionError.value = !dispatchedRequest?'点播尚未派发，曲目或目录信息读取失败，请刷新后核对。':rejected?rejectionMessage.REQUEST_REJECTED:'点播结果未获确认，请使用“核对原点播”读取原回执，并查看原播放器与队列状态。'
@@ -425,9 +440,13 @@ export function useLocalLibrary(options: LocalLibraryOptions) {
     }
     finally { actionBusy.value = false }
   }
-  return { query, rootId, total, scrollTop, loaded, loading, stale, error, roots, target, targetLabel, rangeWindow, tracks, cachePageCount,
+  const maintenanceLocked = computed(() => sourceWrites.confirming.value || sourceWrites.undoing.value || sourceWrites.cancelling.value || sourceWrites.unknown.value
+    || relocationPlans.confirming.value || relocationPlans.cleaning.value || relocationPlans.cancelling.value || relocationPlans.unknown.value
+    || organizer.confirming.value || organizer.undoing.value || organizer.cancelling.value || organizer.unknown.value
+    || artwork.applying.value || artwork.creating.value || !!artwork.pendingApply.value || !!artwork.pendingEdition.value || !!pendingOverride.value || relocationUnknown.value)
+  return { maintenanceLocked, query, rootId, total, scrollTop, loaded, loading, stale, error, roots, target, targetLabel, rangeWindow, tracks, cachePageCount,
     selectedId, detail, detailLoading, detailStale, detailError, detailReturnTarget, selectedRoot, actionBusy, actionError, titleDraft, pendingOverride, lastPlay,canReadOriginalPlay,readOriginalPlay,
     candidates, relocationSelection, relocationConfirmed, relocationUnknown, pendingRelocation,
-    artwork, detailArtwork, organizer, sourceWrites, relocationPlans, selectionMode, selectedTrackIds, selectionError, toggleTrackSelection, clearTrackSelection, openRelocationTrack, openRelocationBatch,
+    artwork, detailArtwork, organizer, sourceWrites, relocationPlans, selectionMode, selectedTrackIds, selectionError, toggleTrackSelection, clearTrackSelection, openRelocationTrack, openRelocationBatch, openRelocationTracks,
     activate, suspend, dispose, refresh, refreshContext, observeOutbox, search, ensureRange, selectTrack, closeDetail, playTrack, saveTitle, locateSelected, confirmCandidate }
 }

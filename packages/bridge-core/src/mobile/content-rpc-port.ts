@@ -10,9 +10,15 @@ import {
 } from './content-rpc.js';
 import type { MobileOwnerSourceRequest, MobileOwnerSourceResult } from './source-protocol.js';
 import { MobileAuthPersistenceError, MobileServiceError } from './types.js';
+import type { MobileNeteaseArtworkData } from '../netease/mobile-artwork.js';
+import {
+  createMobileCapabilityContext, withMobileCapabilityContext, mobileCapabilityAsync,
+  mobileCapabilityReject, mobileCapabilityCache, mobileCapabilityRequestSha, closeMobileCapabilityContext,
+  mobileContentDiagnosticAsync, mobileContentDiagnosticSync, mobileContentDiagnosticReject,
+} from './capability-trace.js';
 
 export interface MobileContentRpcPortOptions {
-  initialize(input: { serverId: string; datasetId: string; key: Uint8Array }, signal: AbortSignal): Promise<void>;
+  initialize(input: { serverId: string; datasetId: string; key: Uint8Array; privateProviderDiagnostics?: true }, signal: AbortSignal): Promise<void>;
   invalidateDevice(input: { serverId: string; datasetId: string; deviceId: string; deviceEpoch: number }, signal: AbortSignal): Promise<void>;
   content: MobileContentPort;
   resolveScope(principal: Readonly<MobileContentMainPrincipal>, signal: AbortSignal): Promise<Readonly<MobileContentScope>>;
@@ -21,6 +27,8 @@ export interface MobileContentRpcPortOptions {
     source: 'local' | 'netease'; result: MobileOwnerSourceResult;
   }>;
   neteasePlaybackQualified?(scope: Readonly<MobileContentScope>, signal: AbortSignal): boolean | Promise<boolean>;
+  readArtwork?(scope: Readonly<MobileContentScope>, artworkId: string, signal: AbortSignal): Promise<MobileNeteaseArtworkData>;
+  assertArtwork?(scope: Readonly<MobileContentScope>, artworkId: string, signal: AbortSignal): Promise<string>;
   requestMs?: number;
   maxInflight?: number;
   maxSnapshots?: number;
@@ -61,7 +69,7 @@ function cleanupRequest(request: MobileContentCoreRequest): boolean {
 }
 function principalOf(request: MobileContentCoreRequest): Readonly<MobileContentMainPrincipal> | null {
   if (request.action === 'scope') return request.principal;
-  if (request.action === 'dispatch' || request.action === 'source' || request.action === 'revalidate') {
+  if (request.action === 'dispatch' || request.action === 'source' || request.action === 'revalidate' || request.action === 'artwork') {
     const scope = request.scope;
     return captureMobileContentMainPrincipal({ serverId: scope.serverId, datasetId: scope.datasetId,
       deviceId: scope.deviceId, deviceEpoch: scope.deviceEpoch, accessGeneration: scope.accessGeneration });
@@ -78,8 +86,11 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
   const active = new Map<string, Active>(), snapshots = new Map<string, Snapshot>();
   const revokedEpochs = new Map<string, number>();
   let closing = false, closeFlight: Promise<void> | undefined;
+  let privateDispatchDiagnostics = false, privateDispatchClaims = 0;
+  const privateFeeds = new Set(['getNeteaseDailyRecommendations','getNeteasePersonalFM','listNeteaseNewAlbums','listNeteaseCharts','listNeteaseRecommendedPlaylists']);
   let identity: { serverId: string; datasetId: string; keyHash: string } | undefined;
   let initialization: { serverId: string; datasetId: string; keyHash: string; flight: Promise<void> } | undefined;
+  let initializationTrace: { state: 'pending' | 'fulfilled' | 'rejected'; requestSha256: string | null } | undefined;
   const current = (signal: AbortSignal): void => { if (closing || signal.aborted) throw busy(); };
   const response = <A extends MobileContentCoreRequest['action']>(request: { id: string; action: A }) =>
     ({ type: 'mobile-content-core-response' as const, id: request.id, action: request.action });
@@ -117,31 +128,52 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
       if (identity) {
         request.key.fill(0);
         if (identity.serverId !== request.serverId || identity.datasetId !== request.datasetId || identity.keyHash !== keyHash) throw changed();
+        mobileCapabilityCache('core.rpc.initialize.cache', 'reuse-fulfilled', initializationTrace?.requestSha256 ?? null);
         return { ...response(request), ok: true };
       }
+      const reused = initialization !== undefined;
       if (!initialization) {
         const key = new Uint8Array(request.key);
+        const trace: NonNullable<typeof initializationTrace> = { state: 'pending', requestSha256: mobileCapabilityRequestSha('content', request.id) };
+        initializationTrace = trace;
         const flight = Promise.resolve().then(async () => {
-          try { await options.initialize({ serverId: request.serverId, datasetId: request.datasetId, key }, signal); current(signal);
-            identity = { serverId: request.serverId, datasetId: request.datasetId, keyHash }; }
-          finally { key.fill(0); }
+          try {
+            try { await options.initialize({ serverId: request.serverId, datasetId: request.datasetId, key,
+              ...(request.privateProviderDiagnostics ? { privateProviderDiagnostics: true as const } : {}) }, signal); current(signal);
+              identity = { serverId: request.serverId, datasetId: request.datasetId, keyHash };
+              privateDispatchDiagnostics = request.privateProviderDiagnostics === true; }
+            finally { key.fill(0); }
+          } catch (error) {
+            trace.state = 'rejected'; mobileCapabilityCache('core.rpc.initialize.cache', 'rejected', trace.requestSha256); throw error;
+          }
+          trace.state = 'fulfilled'; mobileCapabilityCache('core.rpc.initialize.cache', 'fulfilled', trace.requestSha256);
         });
         initialization = { serverId: request.serverId, datasetId: request.datasetId, keyHash, flight };
+        mobileCapabilityCache('core.rpc.initialize.cache', 'new-pending', trace.requestSha256);
       }
       request.key.fill(0);
       if (initialization.serverId !== request.serverId || initialization.datasetId !== request.datasetId || initialization.keyHash !== keyHash) throw changed();
-      await initialization.flight; current(signal);
+      if (reused) {
+        const state = initializationTrace?.state;
+        mobileCapabilityCache('core.rpc.initialize.cache', state === 'rejected' ? 'reuse-rejected' : state === 'fulfilled' ? 'reuse-fulfilled' : 'reuse-pending', initializationTrace?.requestSha256 ?? null);
+      }
+      await mobileCapabilityAsync('core.rpc.initialize.wait', () => initialization!.flight); current(signal);
       return { ...response(request), ok: true };
     }
-    boundIdentity(request);
+    if (request.action === 'dispatch') mobileContentDiagnosticSync('core.dispatch.scope.before', () => boundIdentity(request));
+    else boundIdentity(request);
     switch (request.action) {
       case 'scope': {
-        const scope = captureMobileContentScope(await options.resolveScope(request.principal, signal));
-        if (!mobileContentPrincipalMatches(request.principal, scope)) throw changed();
-        await assertScope(scope, 'acquire', signal);
-        const qualified = options.neteasePlaybackQualified ? await options.neteasePlaybackQualified(scope, signal) : false;
-        if (typeof qualified !== 'boolean') throw busy();
-        await assertScope(scope, 'acquire', signal);
+        const scope = await mobileCapabilityAsync('core.rpc.scope.resolve', async () => {
+          const value = captureMobileContentScope(await options.resolveScope(request.principal, signal));
+          if (!mobileContentPrincipalMatches(request.principal, value)) throw changed(); return value;
+        });
+        await mobileCapabilityAsync('core.rpc.scope.assert.before', () => assertScope(scope, 'acquire', signal));
+        const qualified = await mobileCapabilityAsync('core.rpc.scope.qualified', async () => {
+          const value = options.neteasePlaybackQualified ? await options.neteasePlaybackQualified(scope, signal) : false;
+          if (typeof value !== 'boolean') throw busy(); return value;
+        });
+        await mobileCapabilityAsync('core.rpc.scope.assert.after', () => assertScope(scope, 'acquire', signal));
         return { ...response(request), kind: 'scope', scope, neteasePlayback: scope.providerEpoch !== null && qualified };
       }
       case 'invalidate-device': {
@@ -166,16 +198,22 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
         return { ...response(request), ok: true };
       }
       case 'dispatch': {
-        if (snapshots.size >= maxSnapshots) throw busy();
-        assertMobileContentRequestScope(request.operation, request.request, request.scope);
-        await assertScope(request.scope, 'acquire', signal);
-        const raw = await options.content.dispatch({ operation: request.operation, request: request.request, scope: request.scope, signal });
-        await assertScope(request.scope, 'acquire', signal);
+        if (snapshots.size >= maxSnapshots) {
+          const error = busy(); mobileContentDiagnosticReject('core.dispatch.admission.snapshots-full', error); throw error;
+        }
+        mobileContentDiagnosticSync('core.dispatch.scope.before', () => assertMobileContentRequestScope(request.operation, request.request, request.scope));
+        await mobileContentDiagnosticAsync('core.dispatch.scope.before', () => assertScope(request.scope, 'acquire', signal));
+        const raw = await mobileContentDiagnosticAsync('core.dispatch.content', () => options.content.dispatch({ operation: request.operation, request: request.request, scope: request.scope, signal }));
+        await mobileContentDiagnosticAsync('core.dispatch.scope.after', () => assertScope(request.scope, 'acquire', signal));
+        const captured = mobileContentDiagnosticSync('core.dispatch.snapshot.capture', () => {
         if (!mobileContentRpcClosed(raw, ['operation', 'scope', 'reply', 'context', 'beforeSend'])
           || raw.operation !== request.operation || typeof raw.beforeSend !== 'function'
           || !sameMobileContentScope(captureMobileContentScope(raw.scope), request.scope)) throw busy();
-        const captured = captureMobileContentReply(request.operation, request.request, request.scope, raw.reply, raw.context);
-        if (snapshots.size >= maxSnapshots) throw busy();
+        return captureMobileContentReply(request.operation, request.request, request.scope, raw.reply, raw.context);
+        });
+        if (snapshots.size >= maxSnapshots) {
+          const error = busy(); mobileContentDiagnosticReject('core.dispatch.admission.snapshots-full', error); throw error;
+        }
         const snapshotId = randomUUID(), onAbort = () => discard(snapshotId);
         const entry: Snapshot = { request, raw, beforeSend: raw.beforeSend, fingerprint: digest(captured), controller,
           cancelled: false, validating: undefined, timer: setTimeout(onAbort, requestMs),
@@ -199,6 +237,21 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
         finally {
           signal.removeEventListener('abort', revoke); clearTimeout(entry.timer); entry.unlink(); snapshots.delete(request.snapshotId);
         }
+      }
+      case 'artwork': {
+        await assertScope(request.scope, 'acquire', signal);
+        if (request.operation === 'read') {
+          if (!options.readArtwork) throw busy();
+          const image = await options.readArtwork(request.scope, request.artworkId, signal);
+          await assertScope(request.scope, 'acquire', signal);
+          return captureMobileContentCoreResponse({ ...response(request), kind: 'artwork', scope: request.scope, ...image }, request);
+        }
+        if (!options.assertArtwork) throw busy();
+        const revision = await options.assertArtwork(request.scope, request.artworkId, signal);
+        await assertScope(request.scope, 'acquire', signal);
+        if (revision !== request.expectedRevision) throw changed();
+        return captureMobileContentCoreResponse({ ...response(request), kind: 'artwork-validated', scope: request.scope,
+          artworkId: request.artworkId, revision }, request);
       }
       case 'source': {
         if (!cleanupRequest(request)) await assertScope(request.scope, request.request.operation === 'prepare' ? 'acquire' : 'lease', signal);
@@ -232,37 +285,63 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
   const port: MobileContentRpcPort = {
     async request(raw, parentSignal) {
       const request = captureMobileContentCoreRequest(raw);
+      const privateDispatch = privateDispatchDiagnostics && request.action === 'dispatch' && privateFeeds.has(request.operation) && privateDispatchClaims < 8;
+      if (privateDispatch) privateDispatchClaims++;
+      const contextFor = (signal?: AbortSignal) => {
+        if (!(privateDispatch || request.action === 'initialize' || request.action === 'scope' || request.action === 'cancel')) return undefined;
+        const context = createMobileCapabilityContext(request.id, 'core', 'content', undefined, signal);
+        if (context && privateDispatch) context.privateContentDiagnostic = true;
+        return context;
+      };
+      const failure = (error: unknown): MobileContentCoreResponse => {
+        mobileCapabilityReject('core.rpc.failure', error, request.action === 'cancel' ? 'cleanup' : 'business');
+        return mobileContentRpcFailure(request, error);
+      };
+      const earlyFailure = (error: unknown, stage: 'core.dispatch.admission' | 'core.dispatch.admission.active-full' = 'core.dispatch.admission'): MobileContentCoreResponse => {
+        const context = contextFor(parentSignal instanceof AbortSignal ? parentSignal : undefined);
+        return withMobileCapabilityContext(context, () => {
+          try { mobileContentDiagnosticReject(stage, error); return failure(error); } finally { closeMobileCapabilityContext(context); }
+        });
+      };
       if (!(parentSignal instanceof AbortSignal) || closing || parentSignal.aborted) {
         if (request.action === 'initialize') request.key.fill(0);
-        return mobileContentRpcFailure(request, busy());
+        return earlyFailure(busy());
       }
       // 为撤权/取消保留一格，但总量不超过原16；满额普通工作不能挡住控制收口。
       const control = request.action === 'cancel' || request.action === 'invalidate-device' || request.action === 'revalidate' || cleanupRequest(request);
       if (active.has(request.id)) {
         if (request.action === 'initialize') request.key.fill(0);
-        return mobileContentRpcFailure(request, new MobileAuthPersistenceError('unknown'));
+        return earlyFailure(new MobileAuthPersistenceError('unknown'));
       }
       const admission = control ? maxInflight : Math.max(1, maxInflight - 1);
       if (active.size >= admission) {
         if (request.action === 'initialize') request.key.fill(0);
-        return mobileContentRpcFailure(request, busy());
+        return earlyFailure(busy(), 'core.dispatch.admission.active-full');
       }
       const controller = new AbortController(), cancel = () => controller.abort(busy());
-      parentSignal.addEventListener('abort', cancel, { once: true }); if (parentSignal.aborted) cancel();
-      const timer = setTimeout(cancel, requestMs);
-      let abort!: (error: unknown) => void;
-      const aborted = new Promise<never>((_, reject) => { abort = reject; });
-      const onAbort = () => abort(new MobileAuthPersistenceError('unknown'));
-      controller.signal.addEventListener('abort', onAbort, { once: true }); if (controller.signal.aborted) onAbort();
-      const flight = Promise.resolve().then(() => execute(request, controller.signal, controller, parentSignal))
-        .then(result => captureMobileContentCoreResponse(result, request)).catch(error => mobileContentRpcFailure(request, error));
-      active.set(request.id, { request, controller, flight });
-      void flight.then(() => {
-        active.delete(request.id); clearTimeout(timer); parentSignal.removeEventListener('abort', cancel);
-        controller.signal.removeEventListener('abort', onAbort); if (request.action === 'initialize') request.key.fill(0);
+      const context = contextFor(controller.signal);
+      return withMobileCapabilityContext(context, async () => {
+        mobileContentDiagnosticSync('core.dispatch.admission', () => undefined);
+        parentSignal.addEventListener('abort', cancel, { once: true }); if (parentSignal.aborted) cancel();
+        const timer = setTimeout(cancel, requestMs);
+        let abort!: (error: unknown) => void;
+        const aborted = new Promise<never>((_, reject) => { abort = reject; });
+        const onAbort = () => abort(new MobileAuthPersistenceError('unknown'));
+        controller.signal.addEventListener('abort', onAbort, { once: true }); if (controller.signal.aborted) onAbort();
+        const flight = Promise.resolve().then(() => execute(request, controller.signal, controller, parentSignal))
+          .then(result => mobileContentDiagnosticSync('core.dispatch.reply.capture', () => captureMobileContentCoreResponse(result, request))).catch(failure);
+        active.set(request.id, { request, controller, flight });
+        void flight.then(() => {
+          try {
+            active.delete(request.id); clearTimeout(timer); parentSignal.removeEventListener('abort', cancel);
+            controller.signal.removeEventListener('abort', onAbort); if (request.action === 'initialize') request.key.fill(0);
+          } catch (error) {
+            mobileCapabilityReject('core.rpc.failure', error, 'cleanup'); throw error;
+          } finally { closeMobileCapabilityContext(context); }
+        });
+        try { return await Promise.race([flight, aborted]); }
+        catch (error) { return failure(error); }
       });
-      try { return await Promise.race([flight, aborted]); }
-      catch (error) { return mobileContentRpcFailure(request, error); }
     },
     close() {
       if (closeFlight) return closeFlight;
@@ -270,7 +349,7 @@ export function createMobileContentRpcPort(options: MobileContentRpcPortOptions)
       for (const id of snapshots.keys()) discard(id);
       for (const entry of active.values()) entry.controller.abort(busy());
       const quiet = Promise.allSettled([...active.values()].map(entry => entry.flight)).then(() => {
-        identity = undefined; initialization = undefined; revokedEpochs.clear();
+        identity = undefined; initialization = undefined; initializationTrace = undefined; revokedEpochs.clear();
       });
       closeFlight = new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => reject(new MobileAuthPersistenceError('unknown')), closeMs);

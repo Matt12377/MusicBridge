@@ -8,7 +8,7 @@ import type { RoonGatewayStage } from '../roon/types.js';
 import type { Logger } from '../shared/logger.js';
 import type { StreamRegistry } from './registry.js';
 import { secureGatewayFetch, type GatewayFetch } from './upstream-policy.js';
-import { serveLocalFile } from './local-file-http.js';
+import { serveLocalFile, type LocalFileTransferEvidence } from './local-file-http.js';
 import { isTrustedLocalMediaNetwork, type TrustedLocalMediaNetwork } from '../config/config.js';
 
 const FORWARDED_RESPONSE_HEADERS = [
@@ -43,6 +43,20 @@ export type MediaExtension =
   | 'unknown';
 
 type GatewayStageObserver = (stage: RoonGatewayStage) => void;
+/** Core私有日志绑定，不改变公开命令、DTO或网关路由。 */
+export interface LocalMediaDiagnosticBinding {
+  diagnosticId: string;
+  isCurrent(): boolean;
+  isOwned(): boolean;
+}
+type GatewayObserverBinding = {
+  stage?: GatewayStageObserver;
+  localDiagnostic?: LocalMediaDiagnosticBinding;
+  requestSequence: number;
+  truncated: boolean;
+};
+type RangeClass = ReturnType<typeof classifyRange>;
+const MAX_LOCAL_MEDIA_DIAGNOSTIC_REQUESTS=16;
 
 function normalizeFormat(format: string | undefined): string {
   return format?.trim().toLowerCase().replace(/^\./, '') ?? '';
@@ -208,7 +222,7 @@ export class StreamGateway {
   private server: Server | undefined;
   private localMediaServer: Server | undefined;
   private localRequests = 0;
-  private readonly stageObservers = new Map<string, GatewayStageObserver>();
+  private readonly stageObservers = new Map<string, GatewayObserverBinding>();
   private activeTimerCount = 0;
   private activeMediaReadCount = 0;
   private activePreflightOwnerListenerCount = 0;
@@ -278,20 +292,39 @@ export class StreamGateway {
     await Promise.all([server, media].filter((value): value is Server => Boolean(value)).map(value => new Promise<void>((resolve, reject) => { value.close(error => error ? reject(error) : resolve()); value.closeIdleConnections(); })));
   }
 
-  localStreamUrl(token: string, onStageChange?:GatewayStageObserver): string {
-    if(onStageChange)this.stageObservers.set(token,onStageChange);
+  localStreamUrl(token: string, onStageChange?:GatewayStageObserver, diagnostic?:LocalMediaDiagnosticBinding): string {
     if (!/^[A-Za-z0-9_-]{43}$/u.test(token) || !this.options.registry.getLocal(token)) throw new BridgeError('STREAM_NOT_FOUND', '本地媒体租约不可用', { httpStatus: 404 });
-    return `${this.options.localMediaNetwork?.advertisedBaseUrl ?? this.localBaseUrl()}/local-stream/${token}`;
+    let localDiagnostic:LocalMediaDiagnosticBinding|undefined;
+    try {
+      if(diagnostic && /^diag-local-[a-f0-9]{64}$/u.test(diagnostic.diagnosticId))localDiagnostic={diagnosticId:diagnostic.diagnosticId,isCurrent:()=>diagnostic.isCurrent(),isOwned:()=>diagnostic.isOwned()};
+    } catch { /* 无合法私有绑定时保持原媒体行为。 */ }
+    if(onStageChange || localDiagnostic)this.stageObservers.set(token,{...(onStageChange?{stage:onStageChange}:{}),...(localDiagnostic?{localDiagnostic}:{}),requestSequence:0,truncated:false});
+    return `${this.options.localMediaNetwork?.advertisedBaseUrl ?? (this.options.remoteDevelopmentMode ? this.options.publicBaseUrl : this.localBaseUrl())}/local-stream/${token}`;
   }
   private async handleLocal(request: IncomingMessage, response: ServerResponse): Promise<boolean> {
     if (!(request.url ?? '').startsWith('/local-stream/')) return false;
     const match = /^\/local-stream\/([A-Za-z0-9_-]{43})$/u.exec(request.url ?? '');
     const registration = match ? this.options.registry.getLocal(match[1]!) : undefined;
     if (!registration || request.method !== 'GET' && request.method !== 'HEAD') { response.writeHead(404, { 'Content-Length': 0 }); response.end(); return true; }
-    if (this.localRequests >= 8) { response.writeHead(429, { 'Content-Length': 0 }); response.end(); return true; }
+    const binding=this.stageObservers.get(match![1]!), method=request.method, rangeClass=classifyRange(request.headers.range);
+    let requestSequence:number|undefined;
+    try {
+      if(binding?.localDiagnostic){
+        const sequence=++binding.requestSequence;
+        if(sequence<=MAX_LOCAL_MEDIA_DIAGNOSTIC_REQUESTS){requestSequence=sequence;this.logLocalMedia(binding,sequence,method,rangeClass,'request');}
+        else if(!binding.truncated){binding.truncated=true;this.logLocalMedia(binding,sequence,method,rangeClass,'truncated');}
+      }
+    } catch { /* 日志或只读诊断谓词失败不改变HTTP准入。 */ }
+    if (this.localRequests >= 8) {
+      response.writeHead(429, { 'Content-Length': 0 }); response.end();
+      if(requestSequence!==undefined)this.logLocalMedia(binding!,requestSequence,method,rangeClass,'transfer-terminal',
+        {outcome:'capacity-rejected',statusCode:429,pipelineBodyBytesObserved:0,observedBytesCapped:false,responseFinished:response.writableFinished,elapsedMs:0});
+      return true;
+    }
     this.localRequests++; const release = this.beginMediaRead();
-    this.options.logger.info('roon_gateway_local_request', { method: request.method, routeClass: 'local-file', rangeClass: classifyRange(request.headers.range) });
-    try { await serveLocalFile(registration.lease, request, response, fallbackContentTypeForFormat(registration.format),stage=>this.notifyStage(match![1]!,stage)); }
+    if(!binding?.localDiagnostic)try{this.options.logger.info('roon_gateway_local_request',{method,routeClass:'local-file',rangeClass});}catch{/* 原有限日志失败同样不改变传输。 */}
+    try { await serveLocalFile(registration.lease, request, response, fallbackContentTypeForFormat(registration.format),stage=>this.notifyStage(match![1]!,stage),
+      requestSequence===undefined?undefined:evidence=>this.logLocalMedia(binding!,requestSequence!,method,rangeClass,'transfer-terminal',evidence)); }
     finally { this.localRequests--; release(); }
     return true;
   }
@@ -301,7 +334,7 @@ export class StreamGateway {
     format?: string,
     onStageChange?: GatewayStageObserver,
   ): string {
-    if (onStageChange) this.stageObservers.set(token, onStageChange);
+    if (onStageChange) this.stageObservers.set(token, {stage:onStageChange,requestSequence:0,truncated:false});
     return `${this.options.publicBaseUrl}/stream/${encodeURIComponent(token)}.${routeExtensionForFormat(format)}`;
   }
 
@@ -699,11 +732,25 @@ export class StreamGateway {
     }
   }
 
+  private logLocalMedia(binding:GatewayObserverBinding,requestSequence:number,method:'GET'|'HEAD',rangeClass:RangeClass,
+    stage:'request'|'transfer-terminal'|'truncated',evidence?:LocalFileTransferEvidence):void {
+    try {
+      const diagnostic=binding.localDiagnostic;if(!diagnostic)return;
+      const current=diagnostic.isCurrent()===true;
+      this.options.logger.info('local_playback_media_evidence',{schemaVersion:1,component:'gateway',diagnosticId:diagnostic.diagnosticId,
+        requestSequence,method,routeClass:'local-file',rangeClass,stage,currentOwned:current && diagnostic.isOwned()===true,staleCallback:!current,
+        ...(evidence?{outcome:evidence.outcome,statusCode:evidence.statusCode,pipelineBodyBytesObserved:evidence.pipelineBodyBytesObserved,
+          observedBytesCapped:evidence.observedBytesCapped,responseFinished:evidence.responseFinished,elapsedMs:evidence.elapsedMs,
+          ...(evidence.completedPipelineBodyBytes===undefined?{}:{completedPipelineBodyBytes:evidence.completedPipelineBodyBytes})}:{}),
+        ...(stage==='truncated'?{requestLimit:MAX_LOCAL_MEDIA_DIAGNOSTIC_REQUESTS}:{})});
+    } catch { /* 私有日志不影响原媒体字节、背压和租约生命周期。 */ }
+  }
+
   private notifyStage(token: string, stage: RoonGatewayStage, terminal = false): void {
     const observer = this.stageObservers.get(token);
     if (!observer) return;
     try {
-      observer(stage);
+      observer.stage?.(stage);
     } catch {
       // A diagnostic observer must never affect media delivery.
     }

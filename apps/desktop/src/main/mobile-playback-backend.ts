@@ -1,10 +1,13 @@
+import { mobileRangeWindowObserve } from '../../../../packages/bridge-core/src/mobile/range-window-observer.js';
 import { createHmac } from 'node:crypto';
+import { mobilePreparationAsync, mobilePreparationSync } from '../../../../packages/bridge-core/src/mobile/capability-trace.js';
 import {
   encodeMobileJsonReply, type MobileDecodedRequest, type MobileHeaderPairs, type MobileReplyMap,
   type MobileResourceCodecContext, type MobileResourceSemanticContext,
 } from '@music-bridge/contracts';
 import { createMobileAuthCrypto } from '../../../../packages/bridge-core/src/mobile/auth-crypto.js';
 import { createMobilePlaybackService } from '../../../../packages/bridge-core/src/mobile/playback-service.js';
+import { createMobilePlaybackStateCodec } from './mobile-playback-state-codec-client.js';
 import {
   MOBILE002_CONTROL_OPERATIONS, MobilePlaybackError, type MobilePlaybackControlOperation,
   type MobilePlaybackMediaOperation, type MobilePlaybackService, type MobilePlaybackSourcePort,
@@ -114,7 +117,7 @@ export function createMobilePlaybackBackend(options: {
         throw error;
       } finally { signal.removeEventListener('abort', release); }
     },
-    verify: async handle => { await source({ operation: 'verify', handle }); },
+    verify: async handle => { await mobileRangeWindowObserve('source.verify.composite', () => source({ operation: 'verify', handle })); },
     renew: async handle => { await source({ operation: 'renew', handle }); },
     async read(handle, readId, start, maxBytes, signal) {
       const cancel = () => { void cleanup({ operation: 'close-read', handle, readId }).catch(() => undefined); };
@@ -125,7 +128,7 @@ export function createMobilePlaybackBackend(options: {
         signal.throwIfAborted(); return new Uint8Array(result.bytes);
       } finally { signal.removeEventListener('abort', cancel); }
     },
-    closeRead: (handle, readId) => cleanup({ operation: 'close-read', handle, readId }),
+    closeRead: (handle, readId) => mobileRangeWindowObserve('cleanup.close-read.composite', () => cleanup({ operation: 'close-read', handle, readId }), 'cleanup', 'close-read'),
     release: handle => cleanup({ operation: 'release', handle }),
   };
   if (options.contentPort) {
@@ -136,12 +139,16 @@ export function createMobilePlaybackBackend(options: {
       const bound = bindings.get(handle); if (!bound) throw new MobilePlaybackError(410, 'RESOURCE_EXPIRED'); return bound;
     };
     const actualSource = async (bound: Binding, request: MobileOwnerSourceRequest, signal: AbortSignal, isCleanup = false) => {
-      if (!isCleanup) { current(); signal.throwIfAborted(); await options.auth.assertDeviceCurrent(bound.scope.deviceId, bound.scope.deviceEpoch); }
+      if (!isCleanup) { current(); signal.throwIfAborted(); await (request.operation === 'read'
+        ? mobileRangeWindowObserve('source.read.authority.before', () => options.auth.assertDeviceCurrent(bound.scope.deviceId, bound.scope.deviceEpoch))
+        : options.auth.assertDeviceCurrent(bound.scope.deviceId, bound.scope.deviceEpoch)); }
       try {
         const result = await content.source(bound.scope, request, signal);
         if (bound.source !== undefined && result.source !== bound.source) throw new MobilePlaybackError(409, 'SOURCE_CHANGED');
         bound.source = result.source;
-        if (!isCleanup) { await options.auth.assertDeviceCurrent(bound.scope.deviceId, bound.scope.deviceEpoch); current(); signal.throwIfAborted(); }
+        if (!isCleanup) { await (request.operation === 'read'
+          ? mobileRangeWindowObserve('source.read.authority.after', () => options.auth.assertDeviceCurrent(bound.scope.deviceId, bound.scope.deviceEpoch))
+          : options.auth.assertDeviceCurrent(bound.scope.deviceId, bound.scope.deviceEpoch)); current(); signal.throwIfAborted(); }
         return result.result;
       } catch (error) {
         if (error instanceof MobileServiceError) throw new MobilePlaybackError(error.status as MobilePlaybackError['status'],
@@ -163,9 +170,9 @@ export function createMobilePlaybackBackend(options: {
     };
     const closeRead = (handle: string, readId: string): Promise<void> => {
       const bound = bindings.get(handle); if (!bound) return Promise.resolve();
-      const task = actualSource(bound, { operation: 'close-read', handle, readId }, new AbortController().signal, true).then(result => {
+      const task = mobileRangeWindowObserve('cleanup.close-read.composite', () => actualSource(bound, { operation: 'close-read', handle, readId }, new AbortController().signal, true).then(result => {
         if (result.kind !== 'mobile-source-ack' || result.operation !== 'close-read' || !result.quiet) throw new MobileAuthPersistenceError('unknown');
-      });
+      }), 'cleanup', 'close-read');
       cleanupFlights.add(task); void task.then(() => cleanupFlights.delete(task), () => {}); return task;
     };
     const captureSource = (bound: Binding, result: MobileOwnerSourceResult) => {
@@ -207,7 +214,7 @@ export function createMobilePlaybackBackend(options: {
       catch (error) { if (signal.aborted) await release(handle); throw error; }
       finally { signal.removeEventListener('abort', aborted); }
     };
-    sourcePort.verify = async handle => { await actualSource(binding(handle), { operation: 'verify', handle }, new AbortController().signal); };
+    sourcePort.verify = async handle => { await mobileRangeWindowObserve('source.verify.composite', () => actualSource(binding(handle), { operation: 'verify', handle }, new AbortController().signal)); };
     sourcePort.renew = async handle => { await actualSource(binding(handle), { operation: 'renew', handle }, new AbortController().signal); };
     sourcePort.read = async (handle, readId, start, maxBytes, signal) => {
       const bound = binding(handle), aborted = () => { void closeRead(handle, readId).catch(() => {}); };
@@ -237,19 +244,26 @@ export function createMobilePlaybackBackend(options: {
           ? `mbm003:${options.serverId}:dsd:${capabilities.resourceDsdToPcm ? 1 : 0}` : `mbm002:${options.serverId}` };
     },
     async dispatch(input) {
-      const playback = requireService(input.origin);
+      const playback = mobilePreparationSync('preparation.main.service', () => requireService(input.origin));
       try {
         if (controlSet.has(input.operation)) {
           if (!input.accessToken) throw new MobileServiceError(401, 'UNAUTHORIZED');
-          const principal = await options.auth.authenticate(input.accessToken);
-          const reply = await playback.control(input.operation as MobilePlaybackControlOperation, input.request, principal, input.signal);
+          const principal = await mobilePreparationAsync('preparation.main.auth', () => options.auth.authenticate(input.accessToken!));
+          const reply = await mobilePreparationAsync('preparation.main.control', () => playback.control(input.operation as MobilePlaybackControlOperation, input.request, principal, input.signal));
           const operation = input.operation as MobilePlaybackControlOperation;
-          const encoded = encodeMobileJsonReply(operation, { status: reply.status, category: reply.status >= 400 ? 'error' : reply.status === 204 ? 'empty' : 'success', body: reply.body } as MobileReplyMap[typeof operation],
-            { responseOrigin: input.origin, requestPath: input.request.path, ...(reply.resourceContext ? { resource: reply.resourceContext } : {}) });
-          if (!encoded.ok) throw new MobileServiceError(503, 'BUSY');
-          return { kind: 'buffered', ...encoded.value, headers: [...encoded.value.headers, ['Cache-Control', 'private, no-store']] as MobileHeaderPairs,
+          const encoded = mobilePreparationSync('preparation.main.encode', () => {
+            const encoded = encodeMobileJsonReply(operation, { status: reply.status, category: reply.status >= 400 ? 'error' : reply.status === 204 ? 'empty' : 'success', body: reply.body } as MobileReplyMap[typeof operation],
+              { responseOrigin: input.origin, requestPath: input.request.path, ...(reply.resourceContext ? { resource: reply.resourceContext } : {}) });
+            if (!encoded.ok) throw new MobileServiceError(503, 'BUSY');
+            return encoded.value;
+          });
+          return { kind: 'buffered', ...encoded, headers: [...encoded.headers, ['Cache-Control', 'private, no-store']] as MobileHeaderPairs,
             ...(reply.resourceContext ? { resourceContext: reply.resourceContext } : {}), beforeSend: async () => {
-              try { current(); input.signal.throwIfAborted(); await options.auth.assertCurrent(principal); await reply.beforeSend(); }
+              try {
+                mobilePreparationSync('preparation.main.beforeSend.current', () => { current(); input.signal.throwIfAborted(); });
+                await mobilePreparationAsync('preparation.main.beforeSend.auth', () => options.auth.assertCurrent(principal));
+                await mobilePreparationAsync('preparation.main.beforeSend.reply', () => reply.beforeSend());
+              }
               catch (error) { throw safeMobilePlaybackFailure(error); }
             } };
         }
@@ -281,7 +295,7 @@ export function createMobilePlaybackBackend(options: {
       if (parsed.protocol !== 'https:' || parsed.origin !== listeningOrigin || parsed.username || parsed.password) throw new MobileServiceError(400, 'INVALID_REQUEST');
       origin = listeningOrigin;
       service = createMobilePlaybackService({ serverId: options.serverId, datasetId: options.datasetId, responseOrigin: origin,
-        auth: options.auth, persistence, crypto: createMobileAuthCrypto(key), sourcePort });
+        auth: options.auth, persistence, crypto: createMobileAuthCrypto(key), sourcePort, stateCodec: createMobilePlaybackStateCodec() });
     },
     revokeDevice: async (deviceId: string) => { await service?.revokeDevice(deviceId); },
     snapshot: () => service?.resourceSnapshot(),

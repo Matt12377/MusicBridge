@@ -23,6 +23,8 @@ import { createPreloadApi, PUBLIC_API_KEYS } from '../src/preload/api.js'
 import { createLibraryReadTerminalClient } from '../src/preload/library-read-terminal.js'
 import {createMBQueueClient} from '../src/preload/mb-queue-client.js'
 import { createLocalLibraryClient } from '../src/preload/local-library-client.js'
+import { createLocalAlbumClient } from '../src/preload/local-album-client.js'
+import { createLocalWorkbenchClient } from '../src/preload/local-workbench-client.js'
 import { createLocalArtworkClient } from '../src/preload/local-artwork-client.js'
 import { createLocalOrganizerClient } from '../src/preload/local-organizer-client.js'
 import { summarizePreloadRoonImage } from '../src/preload/image-diagnostic.js'
@@ -48,6 +50,8 @@ test('实际Preload入口将输出、Attempt与档案有限API直接送到IPC，
     '../shared/performance-transport.js': performanceTransport,
     './library-read-terminal.js': { createLibraryReadTerminalClient },
     './local-library-client.js': { createLocalLibraryClient },
+    './local-album-client.js': { createLocalAlbumClient },
+    './local-workbench-client.js': { createLocalWorkbenchClient },
     './local-artwork-client.js': { createLocalArtworkClient },
     './local-organizer-client.js': { createLocalOrganizerClient },
     './mb-queue-client.js': {createMBQueueClient},
@@ -267,6 +271,29 @@ test('Preload exposes only sanitized business methods', async () => {
     assert.equal(typeof (api as unknown as Record<string, unknown>)[name], 'function', `缺少受限业务API ${name}`)
   }
   assert.deepEqual(PUBLIC_API_KEYS, [
+    'queryLocalAlbums',
+    'getLocalAlbumTracks',
+    'getLocalAlbumArtwork',
+    'requestLocalWorkbenchRead',
+    'cancelLocalWorkbenchRead',
+    'localWorkbenchCapabilities',
+    'readLocalWorkbenchAlbums',
+    'findLocalWorkbenchArtwork',
+    'searchLocalWorkbenchArtwork',
+    'chooseLocalWorkbenchArtwork',
+    'importLocalWorkbenchArtwork',
+    'previewLocalWorkbenchArtwork',
+    'suggestLocalWorkbenchNames',
+    'previewLocalWorkbenchNames',
+    'chooseLocalWorkbenchCueTarget',
+    'previewLocalWorkbenchCue',
+    'applyLocalWorkbenchPlan',
+    'readLocalWorkbenchReceipt',
+    'cancelLocalWorkbenchPlan',
+    'openLocalWorkbenchExisting',
+    'localLibraryManagement',
+    'localNameSettings',
+    'localLibraryLyrics',
     'previewLocalOrganizer',
     'getLocalOrganizerPlan',
     'listLocalOrganizerHistory',
@@ -585,7 +612,9 @@ test('Preload exposes only sanitized business methods', async () => {
     'setLocalSourceWritesPolicy',
     'localRelocationPlan',
   ])
-  assert.deepEqual(Object.keys(api), [...PUBLIC_API_KEYS.slice(0, 14), 'playLocalLibraryTrack', ...PUBLIC_API_KEYS.slice(14)])
+  const localPlaybackAt = PUBLIC_API_KEYS.indexOf('cancelLocalArtworkLookup') + 1
+  assert.ok(localPlaybackAt > 0, '本地点播仍紧接原封面业务入口')
+  assert.deepEqual(Object.keys(api), [...PUBLIC_API_KEYS.slice(0, localPlaybackAt), 'playLocalLibraryTrack', ...PUBLIC_API_KEYS.slice(localPlaybackAt)])
   assert.equal(Object.isFrozen(api), true)
   assert.deepEqual(await api.getAppInfo(), appInfo)
   assert.deepEqual(await api.getCoreHealth(), state)
@@ -756,4 +785,36 @@ test('Attempt客户端固定Renderer工作库、先复制确认意图且绝不�
   assert.deepEqual(calls[1]![1], { datasetId, payload: { ...request, planContentHash: 'a'.repeat(64) } })
   const invalid = (module as typeof import('../src/preload/recording-attempt-client.js')).createRecordingAttemptClient(async () => ({ datasetId: '/private/invalid-scope' }))
   await assert.rejects(invalid.listRecordingAttempts({ page: { offset: 0, limit: 25 } }), error => error instanceof Error && error.message.includes('OUTBOX_SCOPE_MISMATCH') && !error.message.includes('/private'))
+})
+
+
+test('UI04原entry：Owner/Main/Preload绑定原job专辑范围并拒绝跨scope或非read投影', async () => {
+  const [{ isDatasetWorkbenchLyricsResult }, { isLocalWorkbenchLyricsMainResult: mainResult }, { createLocalWorkbenchClient, isLocalWorkbenchLyricsResult: preloadResult }] = await Promise.all([
+    import('../../../packages/bridge-core/src/collection/dataset-owner-protocol.js'), import('../src/main/local-library-workbench/service.js'), import('../src/preload/local-workbench-client.js'),
+  ])
+  const datasetId = '82110000-0000-4000-8000-000000000001', library = { datasetId, libraryId: 'original-library-not-root', captureId: 'original-library-capture' }
+  const snapshot: performanceContracts.LocalLyricsJobSnapshot = { jobId: 'original-job', library, state: 'unknown', totalAlbums: 1, processedAlbums: 1, savedAlbums: 0, reviewAlbumIds: [], failedAlbumIds: [], unknownAlbumIds: ['album'], sidecars: 0, embedded: 0, inspectionFailures: 0, revision: 7 }
+  const originalEntry: performanceContracts.LocalLyricsJobOriginalEntry = { scope: { ...library, albumId: 'album', captureId: 'original-album-capture' }, sessionId: 'original-session', saveRequest: { sessionId: 'original-session', commandId: 'original-save', embed: true } }, projected = { ...snapshot, originalEntry }
+  const validators = [isDatasetWorkbenchLyricsResult, mainResult, preloadResult]
+  for (const validate of validators) {
+    assert.equal(validate('localLyrics.job.read', snapshot, { jobId: snapshot.jobId }, datasetId), true)
+    assert.equal(validate('localLyrics.job.read', projected, { jobId: snapshot.jobId, albumId: 'album' }, datasetId), true)
+    assert.equal(validate('localLyrics.job.read', { ...snapshot, originalEntry: null }, { jobId: snapshot.jobId, albumId: 'missing' }, datasetId), true)
+    assert.equal(validate('localLyrics.job.read', projected, { jobId: snapshot.jobId }, datasetId), false)
+    assert.equal(validate('localLyrics.job.read', snapshot, { jobId: snapshot.jobId, albumId: 'album' }, datasetId), false)
+    assert.equal(validate('localLyrics.job.read', projected, { jobId: 'other-job', albumId: 'album' }, datasetId), false)
+    assert.equal(validate('localLyrics.job.read', projected, { jobId: snapshot.jobId, albumId: 'other-album' }, datasetId), false)
+    for (const value of [ { ...projected, originalEntry: { ...originalEntry, scope: { ...originalEntry.scope, datasetId: 'other-dataset' } } }, { ...projected, originalEntry: { ...originalEntry, scope: { ...originalEntry.scope, libraryId: 'source-root-substitution' } } }, { ...projected, originalEntry: { ...originalEntry, saveRequest: { ...originalEntry.saveRequest!, sessionId: 'other-session' } } }, { ...projected, originalEntry: { ...originalEntry, privateGroup: [] } }, { ...projected, originalEntry: undefined }, { ...projected, revision: -1 } ]) assert.equal(validate('localLyrics.job.read', value, { jobId: snapshot.jobId, albumId: 'album' }, datasetId), false)
+    assert.equal(validate('localLyrics.job.start', projected, { commandId: snapshot.jobId, library, embed: true }, datasetId), false)
+    for (const command of ['localLyrics.job.stop', 'localLyrics.job.resume'] as const) assert.equal(validate(command, projected, { jobId: snapshot.jobId }, datasetId), false)
+    assert.equal(validate('localLyrics.job.retry', projected, { jobId: snapshot.jobId, albumIds: ['album'] }, datasetId), false)
+  }
+  const calls: unknown[] = []; let result: unknown = projected, current = datasetId
+  const client = createLocalWorkbenchClient(async (channel, request) => { assert.equal(channel, 'localWorkbench:lyrics'); calls.push(structuredClone(request)); return result }, async () => current)
+  const reply = await client.localLibraryLyrics('localLyrics.job.read', { jobId: snapshot.jobId, albumId: 'album' }); assert.deepEqual(reply, projected); assert.deepEqual(calls[0], { datasetId, command: 'localLyrics.job.read', payload: { jobId: snapshot.jobId, albumId: 'album' } })
+  result = { ...snapshot, originalEntry: null }; assert.equal((await client.localLibraryLyrics('localLyrics.job.read', { jobId: snapshot.jobId, albumId: 'missing' }))?.originalEntry, null)
+  result = { ...projected, originalEntry: { ...originalEntry, scope: { ...originalEntry.scope, libraryId: 'other-library' } } }; await assert.rejects(client.localLibraryLyrics('localLyrics.job.read', { jobId: snapshot.jobId, albumId: 'album' }), /INVALID_IPC_REQUEST/u)
+  const priorCalls = calls.length, invalidStop = { jobId: snapshot.jobId, albumId: 'album' }; await assert.rejects(client.localLibraryLyrics('localLyrics.job.stop', invalidStop), /INVALID_IPC_REQUEST/u); assert.equal(calls.length, priorCalls)
+  const changedClient = createLocalWorkbenchClient(async () => { current = '82110000-0000-4000-8000-000000000002'; return projected }, async () => current)
+  await assert.rejects(changedClient.localLibraryLyrics('localLyrics.job.read', { jobId: snapshot.jobId, albumId: 'album' }), /DATASET_CHANGED/u)
 })

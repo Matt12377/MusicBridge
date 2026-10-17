@@ -304,3 +304,30 @@ test('partial create 在真实 SQLite 重启后重放完整请求，改修订拒
   assert.throws(() => service.createEdition({ ...request, expectedTrackRevision: '2' }), /同一操作编号/u);
   assert.deepEqual(persisted(f.file).selections, []); f.quiet();
 });
+
+test('LP950：工作台原readCandidates同样发现唯一R-jpg，字节/音频/手选和作者表均不改', async t => {
+  const f = await fixture(t, { independent: true }), selected = await f.manual();
+  const picture = await readFile(new URL('./fixtures/mbrs012-source/owned-cover-16.jpg', import.meta.url));
+  assert.equal(hash(picture), '555f7915442690ccb14754bd0da000ceadfbdcfb50b4e3402f55d4806e3e989d');
+  await rm(f.coverPath); const imagePath = path.join(f.media, 'R-1954762-test.jpg');
+  await writeFile(imagePath, picture, { flag: 'wx', mode: 0o600 });
+  const before = persisted(f.file), asset = f.catalog.asset(f.asset.id), copies = await f.copies();
+  const copy = copies.items.find(item => item.origin === 'local-independent'); assert.ok(copy);
+  assert.equal(copy.sourceLabel, 'R-1954762-test.jpg'); assert.deepEqual(Buffer.from(copy.base64, 'base64'), picture);
+  assert.deepEqual(await readFile(imagePath), picture); assert.deepEqual(await readFile(f.audioPath), f.audioBytes);
+  assert.deepEqual(f.catalog.asset(f.asset.id), asset); assert.deepEqual(persisted(f.file), before);
+  assert.deepEqual(f.service.context(f.request).selection, selected); f.quiet();
+});
+
+test('LP950：工作台多非标图只报来源未定，去歧义后可读且不覆盖原手选', async t => {
+  const f = await fixture(t, { audio: 'core-wav' }), selected = await f.manual(), before = persisted(f.file);
+  await writeFile(path.join(f.media, 'R-one.jpg'), f.coverBytes, { flag: 'wx' });
+  await writeFile(path.join(f.media, 'R-two.png'), f.coverBytes, { flag: 'wx' });
+  const ambiguous = await f.copies();
+  assert.equal(ambiguous.status, 'source-unavailable'); assert.deepEqual(ambiguous.items, []);
+  assert.deepEqual(f.service.context(f.request).selection, selected); f.quiet();
+  await rm(path.join(f.media, 'R-two.png')); const unique = await f.copies();
+  assert.equal(unique.status, 'ready'); assert.equal(unique.items[0]!.sourceLabel, 'R-one.jpg');
+  assert.deepEqual(Buffer.from(unique.items[0]!.base64, 'base64'), f.coverBytes, '扩展名不改写真实PNG字节，格式由原Main内容解码决定');
+  assert.deepEqual(persisted(f.file), before); assert.deepEqual(f.service.context(f.request).selection, selected); f.quiet();
+});

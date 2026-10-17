@@ -2,7 +2,7 @@
 import { type PlaybackQualityPreference, type PlaybackSnapshot, type PublicRoonZone, type TrackSummary } from '@music-bridge/contracts'
 import PlayerProgress from './player/PlayerProgress.vue'
 import VolumeControl from './player/VolumeControl.vue'
-import { qualityDetails, audioQualityDetails } from './player/details.js'
+import { qualityDetails, audioQualityDetails, localPlaybackSeekAllowed } from './player/details.js'
 import SidebarIcon from './sidebar/SidebarIcon.vue'
 import QualityControl from './player/QualityControl.vue'
 import ZoneControl from './player/ZoneControl.vue'
@@ -68,6 +68,6 @@ function transportLabel(state: PlaybackSnapshot['state'] | undefined): string {
       <VolumeControl :zone-id="selectedZone?.zoneId" />
       <button type="button" class="player-inspector-button" aria-label="打开播放队列" @click="emit('open-queue')"><SidebarIcon name="list" :size="16" /><span class="visually-hidden">队列</span></button>
     </div>
-    <PlayerProgress :snapshot="playbackState" :clock-identity="clockIdentity" :allowed="playbackReady !== false && selectedZone?.seekAllowed === true" @seek="(position, settle) => emit('seek', position, settle)" />
+    <PlayerProgress :snapshot="playbackState" :clock-identity="clockIdentity" :allowed="playbackReady !== false && selectedZone?.seekAllowed === true && localPlaybackSeekAllowed(playbackState, selectedZone?.zoneId)" @seek="(position, settle) => emit('seek', position, settle)" />
   </footer>
 </template>

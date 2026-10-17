@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { mobileContentDiagnosticAsync, mobileContentDiagnosticSync } from './capability-trace.js';
 import {
   MOBILE_COMMON_SCHEMAS, MOBILE_CONTENT_SCHEMAS, MOBILE_CONTENT_RESPONSE_NAMES, MOBILE_OPERATION_TABLE,
   mobileCanonicalJson, mobileDataSnapshot, mobileInteger, mobileProjectSchema, mobileRecord, mobileSchemaSnapshot,
@@ -64,9 +65,10 @@ export function createMobileContentProviderService(options:{provider:MobileNetea
     const offset=claim?.offset??0,expectedRevision=claim?.revision??(typeof q.playlistRevision==='string'?q.playlistRevision:typeof q.collectionRevision==='string'?q.collectionRevision:null);
     if(typeof q.accountDomain==='string'&&q.accountDomain!==scope.accountDomain)return fail('SOURCE_CHANGED');
     await current(scope,signal);let raw:MobileNeteaseContentProviderFacts;
-    try{raw=await options.provider.read({operation,scope,request:freeze(request),offset,limit,expectedRevision,signal});}
+    try{raw=await mobileContentDiagnosticAsync('core.provider.read',()=>options.provider.read({operation,scope,request:freeze(request),offset,limit,expectedRevision,signal}));}
     catch(e){signal.throwIfAborted();if(e instanceof MobileServiceError)throw e;return fail('BUSY');}
     await current(scope,signal);
+    return mobileContentDiagnosticSync('core.provider.capture',()=>{
     const snapshot=mobileDataSnapshot(raw);
     if(!snapshot.ok||!mobileRecord(snapshot.value))return fail('BUSY');
     const value=snapshot.value;
@@ -95,5 +97,6 @@ export function createMobileContentProviderService(options:{provider:MobileNetea
     const result={operation:input.operation,scope,reply:checked.reply,context:checked.context,
       async beforeSend(){await current(scope,signal);}};
     return result as unknown as MobileContentSnapshot<O>;
+    });
   },close(){closed=true;cursor.close();}};
 }

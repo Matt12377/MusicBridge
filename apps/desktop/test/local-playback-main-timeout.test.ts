@@ -28,7 +28,12 @@ async function harness(t:TestContext) {
   channel.port2.receive({version:IPC_VERSION,event:'core.ready',payload:{state:{runtime:'ready',roon:'disconnected',provider:'missing',
     activeStreamCount:0,activePlaybackPresent:false}}});
   await starting;
-  t.after(async()=>{const closing=supervisor.shutdown();child.exit();await closing;});
+  t.after(async()=>{
+    const closing=supervisor.shutdown(),request=channel.port2.sent.at(-1) as {id:string;command:string};
+    assert.equal(request.command,'core.shutdown');
+    channel.port2.receive({version:IPC_VERSION,id:request.id,ok:true,result:{stopped:true}});
+    child.exit();await closing;
+  });
   return{supervisor,port:channel.port2,datasetId:randomUUID()};
 }
 const selection=():LocalPlayRequest=>({schema_version:'1.2',request_id:randomUUID(),route:'roon_audio_input',source_kind:'local_file',

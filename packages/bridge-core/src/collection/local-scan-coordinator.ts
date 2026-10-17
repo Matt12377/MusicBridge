@@ -1,4 +1,6 @@
 import { withLocalFactsMutation } from '../stream/local-source-fence.js';
+import { createScanReaderTurn, scheduleScanAlbums, LOCAL_SCAN_DEFAULT_SETTINGS, type LocalScanSettingsStore, type LocalScanFrozenSettings } from './local-scan-settings.js';
+import type { DatasetIdentity } from '../recording/dataset-identity.js';
 import { randomUUID } from 'node:crypto';
 import { lstat, opendir, realpath } from 'node:fs/promises';
 import type { Dir } from 'node:fs';
@@ -10,7 +12,7 @@ import type { DatasetProjectionPort } from './dataset-owner-protocol.js';
 import { SourceFileError, MetadataLeaseReleaseError, withCheckedReadonlyMetadataSource, sourceRootAvailability, readonlySourceCandidateMetadata, type RootCapability } from '../recording/source-files.js';
 import { observeRelocationFile } from './source-relocation-verify.js';
 import { createMetadataReader, readRelocationMetadata } from '../library/metadata-reader.js';
-import type { MetadataReaderPort, MetadataRawFields, MetadataReadResult } from '../library/metadata-reader-types.js';
+import { METADATA_PARSER_VERSION, CUE_HEADER_METADATA_PARSER_VERSION, CUE_INPUT_SCAN_VERSION, type MetadataReaderPort, type MetadataRawFields, type MetadataReadResult } from '../library/metadata-reader-types.js';
 import { scanRelativePath, scanCanonical, type ScanPreparedBatch, type ScanPreparedItem, type RelocationPreparedScanRead } from './local-scan-store.js';
 import type { RelocationCatalogCommitContext, RelocationScanReadRequest } from './source-relocation-scan-port.js';
 import type { RelocationReadAccess } from './source-relocation-verify.js';
@@ -19,7 +21,8 @@ import {parseCueText} from '../library/cue-text-reader.js';
 import type {LocalCuePreparedItem,LocalCueAssetReference} from '@music-bridge/contracts';
 const CUE_PARSER='cue-text-75fps/mbrs003-v1';
 
-const PARSER = 'music-metadata-11.15.0/mbrs003-v4';
+const PARSER = METADATA_PARSER_VERSION;
+const cueAudio = /\.(ogg|oga|opus|wv|ape|tta|mpc|mpp|mp\+|tak)$/iu;
 const audio = /\.(flac|mp3|m4a|mp4|aac|wav|wave|aif|aiff)$/iu;
 const dsdAudio = /\.(dsf|dff)$/iu;
 class ScanYield extends Error { constructor(readonly reason: 'media-busy'|'admission-closed'|'deferred'|'control') { super(reason); } }
@@ -52,7 +55,7 @@ async function directory(root:RootCapability,relative:string):Promise<{absolute:
 /** 只读目录流与持久游标分离；暖扫描保留一个Dir句柄，冷恢复最多重放该目录原skip。 */
 class Walk {
   private opened: {dir:Dir;relative:string;skip:number;signature:string}|undefined;
-  constructor(private readonly root:RootCapability,private readonly signal:AbortSignal,private readonly current:()=>void,private readonly cueMode=false,private readonly allowCueTokens=false,private readonly dsdEnabled=false) {}
+  constructor(private readonly root:RootCapability,private readonly signal:AbortSignal,private readonly current:()=>void,private readonly cueMode=false,private readonly allowCueTokens=false,private readonly dsdEnabled=false,private readonly cueInputEnabled=false) {}
   private check():void { this.current(); if(this.signal.aborted) throw new ScanYield('control'); }
   async close():Promise<void> { const opened=this.opened;this.opened=undefined;if(opened) await opened.dir.close(); }
   async next(frontier:readonly string[],budget=2000):Promise<{relatives:string[];frontier:string[];cueAware:boolean}> {
@@ -72,7 +75,7 @@ class Walk {
       const relative=cursor.relative ? `${cursor.relative}/${entry.name}` : entry.name;
       if(!scanRelativePath(relative) || entry.isSymbolicLink()) continue;
       if(entry.isDirectory()) { if(queue.length>=200) throw new Error('扫描目录frontier超过200项。');queue.push(cursorToken({relative,skip:0,signature:null},this.cueMode ? 'cue':'audio')); }
-      else if(entry.isFile()) {if(/\.cue$/iu.test(entry.name)) {foundCue=true;if(this.cueMode) relatives.push(relative);} else if(!this.cueMode && (audio.test(entry.name) || this.dsdEnabled && dsdAudio.test(entry.name))) relatives.push(relative);}
+      else if(entry.isFile()) {if(/\.cue$/iu.test(entry.name)) {foundCue=true;if(this.cueMode) relatives.push(relative);} else if(!this.cueMode && (audio.test(entry.name) || this.dsdEnabled && dsdAudio.test(entry.name) || this.cueInputEnabled && cueAudio.test(entry.name))) relatives.push(relative);}
     }
     if(!this.cueMode && foundCue) {if(queue.length) queue[0]=cursorToken(cursorFrom(queue[0]!,this.allowCueTokens || this.cueMode), 'pending');else queue.push(cursorToken({relative:'',skip:0,signature:null},'cue'));}
     return {relatives,frontier:queue,cueAware:this.allowCueTokens || this.cueMode || foundCue};
@@ -88,8 +91,13 @@ export function admitScanFields(fields:MetadataRawFields):{status:'accepted';fie
 }
 interface Running { controller:AbortController; done:Promise<void> }
 export interface LocalScanCoordinatorOptions {
+  identity?: DatasetIdentity;
+  settings?: LocalScanSettingsStore;
+  onCompleted?(job: ScanJobRecord, context?: { retry: boolean }): Promise<void>;
   /** 同Owner资格开启；原扫描范围与旧Reader默认保持。 */
   dsdMetadataEnabled?: boolean;
+  /** 私有显式开启；只给新 CUE 输入 job 扩展音频族，不升级旧 job。 */
+  cueInputMetadataEnabled?: boolean;
   repository:CollectionRepository;datasetId:string;assertCurrent():void;
   projection?:DatasetProjectionPort;assertReady?():void;
   /** 仅可信测试替换读取port；生产组合总是创建真实有限reader。 */
@@ -97,7 +105,10 @@ export interface LocalScanCoordinatorOptions {
   cueReader?:CueSidecarReader;
 }
 export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) {
-  const store=options.repository.localScan,reader=options.reader ?? createMetadataReader({concurrency:1,maxPending:1,dsdMetadataEnabled:options.dsdMetadataEnabled === true});
+  if (options.settings && (!options.identity || options.identity.datasetId !== options.datasetId)) throw new Error('扫描设置必须绑定现存同一工作库作者。');
+  const readerTurn = createScanReaderTurn(), frozenSettings = new Map<string, LocalScanFrozenSettings>();
+  const cueInputMetadataEnabled = options.cueInputMetadataEnabled === true;
+  const store=options.repository.localScan,reader=options.reader ?? createMetadataReader({concurrency:1,maxPending:1,dsdMetadataEnabled:options.dsdMetadataEnabled === true,cueInputMetadataEnabled});
   const cueReader=options.cueReader ?? createCueSidecarReader();
   const runs=new Map<string,Running>();let closing=false,fatal:ScanFatal|undefined,closed:Promise<void>|undefined;
   const relocationPrepared = new WeakMap<object, { request: RelocationScanReadRequest; reads: readonly RelocationPreparedScanRead[]; consumed: boolean }>();
@@ -146,8 +157,24 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
     if(yielded) throw new ScanYield(yielded);
     if(signal.aborted) throw new ScanYield('control');return result;
   }
-  function read(job:ScanJobRecord,relative:string,signature:string,signal:AbortSignal):Promise<MetadataReadResult> {
-    return admittedRead(job,signal,(root,local)=>reader.read({root,relative,expectedSignature:signature,assertCurrent:()=>{authority(job);}},local));
+  function cueInputJob(job: ScanJobRecord): boolean {
+    // job 公开 DTO 不带解析器版本；只读原 SQL 列，不由当前 options 给旧 job 改身份。
+    return cueInputMetadataEnabled && store.privateJobParserVersion(job.jobId) === CUE_INPUT_SCAN_VERSION;
+  }
+  function metadataFitsJob(job: ScanJobRecord, result: Extract<MetadataReadResult, { status: 'ok' }>): boolean {
+    if (!cueInputJob(job)) return result.parserVersion === METADATA_PARSER_VERSION
+      && ['FLAC','MPEG','MP4','WAVE','AIFF','DSF','DFF'].includes(result.technical.container);
+    return ['TTA','TAK'].includes(result.technical.container) ? result.parserVersion === CUE_HEADER_METADATA_PARSER_VERSION
+      : result.parserVersion === METADATA_PARSER_VERSION;
+  }
+  function itemParser(job: ScanJobRecord, relative: string, container?: string): string {
+    return cueInputJob(job) && (container === undefined ? /\.(tta|tak)$/iu.test(relative) : ['TTA','TAK'].includes(container))
+      ? CUE_HEADER_METADATA_PARSER_VERSION : METADATA_PARSER_VERSION;
+  }
+  async function read(job:ScanJobRecord,relative:string,signature:string,signal:AbortSignal):Promise<MetadataReadResult> {
+    const result = await readerTurn.consume(signal, () => admittedRead(job,signal,(root,local)=>reader.read({root,relative,expectedSignature:signature,assertCurrent:()=>{authority(job);}},local)));
+    // 同启用 Reader 恢复旧 job 时，晚返回的新族事实仍明确拒绝，真实 FD/Worker 已先 quiet。
+    return result.status === 'ok' && !metadataFitsJob(job, result) ? { status: 'failure', code: 'UNSUPPORTED', readEvidence: result.readEvidence } : result;
   }
   /** 新位置只使用真实原Reader的私有能力；旧raw与普通扫描字段准入不因整文件移动改变。 */
   async function prepareRelocationReads(request: RelocationScanReadRequest, access: RelocationReadAccess, signal: AbortSignal): Promise<unknown> {
@@ -196,8 +223,8 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
       const admissionJob: ScanJobRecord = { schemaVersion: '1.2', jobId: randomUUID(), datasetId: options.datasetId,
         libraryRootId: destinationRoot.id, sourceRootId: destinationRoot.sourceRootId, rootRevision: destinationRoot.revision,
         jobRevision: '1', checkpointRef: null, progress: { visited: '0', accepted: '0', rejected: '0' }, phase: 'pending', failureCode: null };
-      const result = await admittedRead(admissionJob, signal, (_root, local) => readRelocationMetadata(reader,
-        { root: targetRoot, relative: mapping.destination.relative, expectedSignature: stat.signature, assertCurrent: assertMapping }, access, local));
+      const result = await readerTurn.consume(signal, () => admittedRead(admissionJob, signal, (_root, local) => readRelocationMetadata(reader,
+        { root: targetRoot, relative: mapping.destination.relative, expectedSignature: stat.signature, assertCurrent: assertMapping }, access, local)));
       if (result.status !== 'ok') {
         if (result.code === 'LEASE_RELEASE_FAILED') fatal = new ScanFatal('移动扫描真实FD关闭未核实，禁止继续或自动重试。');
         throw fatal ?? new Error(`移动扫描原Reader拒绝：${result.code}。`);
@@ -236,7 +263,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
     const base={relative,signature:stat.signature,parserVersion:CUE_PARSER,previousSnapshotId:prior?.id ?? null};
     if(prior?.item.outcome === 'accepted' && prior.item.result && prior.item.signature === stat.signature && prior.item.parserVersion === CUE_PARSER
       && await currentCueReferences(job,prior.item.result)) return {...base,outcome:'accepted',failureCode:null,reused:true,result:prior.item.result};
-    const value:CueSidecarReadResult=await admittedRead(job,signal,(root,local)=>cueReader.read({root,relative,expectedSignature:stat.signature,assertCurrent:()=>{authority(job);}},local));
+    const value:CueSidecarReadResult=await readerTurn.consume(signal, () => admittedRead(job,signal,(root,local)=>cueReader.read({root,relative,expectedSignature:stat.signature,assertCurrent:()=>{authority(job);}},local)));
     if(value.status === 'failure') {
       if(['REVOKED','SOURCE_ROOT_OFFLINE'].includes(value.code)) throw new SourceFileError(value.code as 'REVOKED'|'SOURCE_ROOT_OFFLINE');
       return {...base,outcome:'rejected',failureCode:value.code,reused:false,result:null};
@@ -282,18 +309,21 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
       if (observed.status === 'ok' && observed.skipped) return null;
     }
     const previous=store.privateCurrentFileState(job.libraryRootId,relative);
-    if(previous?.value.outcome === 'accepted' && previous.value.signature === stat.signature && previous.value.parserVersion === PARSER) {
+    const cachedContainer = previous?.value.readFacts?.technical.container, parserVersion = itemParser(job, relative, cachedContainer);
+    const cacheAllowed = cueInputJob(job) || cachedContainer === undefined || ['FLAC','MPEG','MP4','WAVE','AIFF','DSF','DFF'].includes(cachedContainer);
+    if(cacheAllowed && previous?.value.outcome === 'accepted' && previous.value.signature === stat.signature && previous.value.parserVersion === parserVersion) {
       const asset=options.repository.localCatalog.asset(previous.value.assetId!);
       if(asset.sourceRootId === job.sourceRootId && asset.rootRevision === job.rootRevision)
-        return {relative,signature:stat.signature,parserVersion:PARSER,outcome:'accepted',fields:{},failureCode:null,reused:true,readFacts:null};
+        return {relative,signature:stat.signature,parserVersion,outcome:'accepted',fields:{},failureCode:null,reused:true,readFacts:null};
     }
     const result=await read(job,relative,stat.signature,signal);
-    const base={relative,signature:stat.signature,parserVersion:PARSER,reused:false};
+    const base={relative,signature:stat.signature,parserVersion:itemParser(job,relative),reused:false};
     if(result.status === 'failure') {
       if(['REVOKED','SOURCE_ROOT_OFFLINE'].includes(result.code)) throw new SourceFileError(result.code === 'REVOKED' ? 'REVOKED':'SOURCE_ROOT_OFFLINE');
       if(['CLOSED','QUEUE_FULL','WORKER_FAILED','ADMISSION_FAILED'].includes(result.code)) throw new ScanFatal('扫描reader无法继续安全受理。',result.code);
       return {...base,outcome:'rejected',fields:null,failureCode:result.code,readFacts:null};
     }
+    base.parserVersion = result.parserVersion;
     const admission=admitScanFields(result.fields),readFacts={technical:result.technical,coverEvidence:result.coverEvidence,readEvidence:result.readEvidence};
     return admission.status === 'accepted' ? {...base,outcome:'accepted',fields:admission.fields,failureCode:null,readFacts}
       : {...base,outcome:'rejected',fields:null,failureCode:admission.code,readFacts};
@@ -317,7 +347,11 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
   async function execute(jobId:string,signal:AbortSignal):Promise<void> {
     let walk:Walk|undefined,walkCue=false,walkTokens=false;
     try {
-      let job=scoped(jobId);walk=new Walk(authority(job),signal,()=>{authority(job);},false,false,options.dsdMetadataEnabled === true);
+      let job=scoped(jobId);
+      // 失去本私有能力时保原 job/checkpoint；不能忽略新族文件后宣称 completed。
+      if (!cueInputMetadataEnabled && typeof store.privateJobParserVersion === 'function'
+        && store.privateJobParserVersion(job.jobId) === CUE_INPUT_SCAN_VERSION) throw new ScanYield('deferred');
+      walk=new Walk(authority(job),signal,()=>{authority(job);},false,false,options.dsdMetadataEnabled === true,cueInputJob(job));
       while(!signal.aborted && !closing && job.phase === 'running') {
         authority(job);
         const pending=store.privatePreparedBatches(jobId);
@@ -328,19 +362,20 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
           job=await commitFenced({commandId:randomUUID(),jobId,batchId:batch.batchId,expectedRevision:job.jobRevision},signal);continue;
         }
         const before=store.privateCheckpoint(jobId),frontier=before?.frontier ?? [''],allowCueTokens=store.privateCueAwareCheckpoint(jobId),cueMode=allowCueTokens && (frontier[0]?.startsWith('~cue-v1/') ?? false);
-        if(cueMode !== walkCue || allowCueTokens !== walkTokens){await walk.close();walk=new Walk(authority(job),signal,()=>{authority(job);},cueMode,allowCueTokens,options.dsdMetadataEnabled === true);walkCue=cueMode;walkTokens=allowCueTokens;}
+        if(cueMode !== walkCue || allowCueTokens !== walkTokens){await walk.close();walk=new Walk(authority(job),signal,()=>{authority(job);},cueMode,allowCueTokens,options.dsdMetadataEnabled === true,cueInputJob(job));walkCue=cueMode;walkTokens=allowCueTokens;}
         const discovered=await walk.next(frontier);
         // 一个CUE的最多99条事实为一短批，目录cursor在发现1项后即持久化。
         const items:ScanPreparedItem[]=[],cueItems:LocalCuePreparedItem[]=[];
-        for(const relative of discovered.relatives) {
-          if(signal.aborted) throw new ScanYield('control');
-          try {if(cueMode) cueItems.push(await cueItem(job,relative,signal));else { const parsed = await item(job,relative,signal); if (parsed) items.push(parsed); }}
-          catch(error) {
-            // 单文件在walk后消失时跳过；不伪造签名或拒绝条目，旧实体与历史事实保留。
-            if(error instanceof SourceFileError && error.code === 'MISSING') continue;
-            throw error;
-          }
-        }
+        const parsed = await scheduleScanAlbums(discovered.relatives, frozenSettings.get(jobId)?.albumConcurrency ?? LOCAL_SCAN_DEFAULT_SETTINGS.albumConcurrency,
+          signal, async (relative, local) => {
+            try { return cueMode ? { cue: await cueItem(job, relative, local) } : { audio: await item(job, relative, local) }; }
+            catch (error) {
+              // 消失条目没有成功读取事实；保留旧实体，不造拒绝签名。
+              if (error instanceof SourceFileError && error.code === 'MISSING') return null;
+              throw error;
+            }
+          });
+        for (const value of parsed) { if (value && 'cue' in value) cueItems.push(value.cue!); else if (value && 'audio' in value && value.audio) items.push(value.audio); }
         if(signal.aborted || closing) throw new ScanYield('control');
         const batch:ScanPreparedBatch={batchId:randomUUID(),jobId,expectedJobRevision:job.jobRevision,checkpointBefore:job.checkpointRef,
           items,frontier:discovered.frontier,completed:discovered.frontier.length === 0,...(discovered.cueAware ? {kind:'cue-sidecars-v1' as const,cueItems}:{})};
@@ -349,6 +384,11 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
         if(!await revalidate(job,batch)) {store.privateAbandonBatch({commandId:randomUUID(),jobId,batchId:batch.batchId,expectedRevision:job.jobRevision,reason:'CONTENT_CHANGED'});await walk.close();continue;}
         if(signal.aborted || closing) throw new ScanYield('control');
         job=await commitFenced({commandId:randomUUID(),jobId,batchId:batch.batchId,expectedRevision:job.jobRevision},signal);
+      }
+      if (scoped(jobId).phase === 'completed') {
+        // 完成快照只在真实目录句柄quiet之后捕获；失败独立于已完成的扫描事实。
+        await walk.close(); walk = undefined;
+        await options.onCompleted?.(scoped(jobId), { retry: false });
       }
     } catch(error) {
       if(error instanceof ScanFatal) {fatal=error;throw error;}
@@ -363,6 +403,13 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
   }
   function launch(job:ScanJobRecord):void {
     if(runs.has(job.jobId) || job.phase !== 'running') return;
+    let frozen = options.settings?.frozen(options.identity!, job.jobId) ?? frozenSettings.get(job.jobId);
+    if (!frozen) {
+      const settings = options.settings?.read(options.identity!) ?? LOCAL_SCAN_DEFAULT_SETTINGS;
+      frozen = { jobId: job.jobId, settingsRevision: settings.revision, albumConcurrency: settings.albumConcurrency, readerConcurrency: 1 };
+      if (options.settings) frozen = options.settings.freeze(options.identity!, { schema: 1, datasetId: options.datasetId, eventId: randomUUID(), commandId: randomUUID(), kind: 'launch', frozen });
+    }
+    frozenSettings.set(job.jobId, Object.freeze({ ...frozen }));
     const controller=new AbortController();
     const done=Promise.resolve().then(()=>execute(job.jobId,controller.signal)).catch(error=>{fatal=error instanceof ScanFatal ? error:new ScanFatal('扫描资源收口失败。',error);}).finally(()=>runs.delete(job.jobId));
     runs.set(job.jobId,{controller,done});
@@ -371,7 +418,7 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
     const run=runs.get(jobId);run?.controller.abort(new ScanYield('control'));if(run) await run.done;if(fatal) throw fatal;
   }
   return {
-    start(request:LocalScanStartRequest):ScanJobRecord {assertEntry();const result=store.start({...request,datasetId:options.datasetId,parserVersion:PARSER});
+    start(request:LocalScanStartRequest):ScanJobRecord {assertEntry();const result=store.start({...request,datasetId:options.datasetId,parserVersion:cueInputMetadataEnabled ? CUE_INPUT_SCAN_VERSION : PARSER});
       // public原start回执固定pending；仅首次明确创建启动，不把UNKNOWN同body重试当自动恢复。
       if(result.created) {const running=store.resume({commandId:randomUUID(),jobId:result.job.jobId,expectedRevision:result.job.jobRevision});launch(running);}return result.job;},
     async pause(request:LocalScanTransitionRequest):Promise<ScanJobRecord> {assertEntry();const job=scoped(request.jobId);if(store.receipt(request.commandId) || job.jobRevision !== request.expectedRevision) return store.pause(request);await quiet(request.jobId);return store.pause(request);},
@@ -386,7 +433,29 @@ export function createLocalScanCoordinator(options:LocalScanCoordinatorOptions) 
     async commitBatch(request:{commandId:string;jobId:string;batchId:string;expectedRevision:string}) {assertEntry();scoped(request.jobId);await quiet(request.jobId);const batch=store.privatePreparedBatches(request.jobId).find(b=>b.batchId === request.batchId);
       if(!store.receipt(request.commandId) && (!batch || !await revalidate(scoped(request.jobId),batch))) throw new Error('扫描提交事实已改变。');return commitFenced(request);},
     async yieldForMedia():Promise<void> {assertEntry();for(const jobId of [...runs.keys()]) {await quiet(jobId);const job=scoped(jobId);if(job.phase === 'running') store.pause({commandId:randomUUID(),jobId,expectedRevision:job.jobRevision});}},
-    close():Promise<void> {if(closed) return closed;closing=true;closed=(async()=>{for(const run of runs.values()) run.controller.abort(new ScanYield('control'));await Promise.all([...runs.values()].map(r=>r.done));await Promise.all([reader.close(),cueReader.close()]);if(fatal) throw fatal;})();return closed;},
+    close():Promise<void> {if(closed) return closed;closing=true;readerTurn.close();closed=(async()=>{for(const run of runs.values()) run.controller.abort(new ScanYield('control'));await Promise.all([...runs.values()].map(r=>r.done));await Promise.all([reader.close(),cueReader.close()]);if(fatal) throw fatal;})();return closed;},
+    async retryCompletedSnapshot(jobId: string): Promise<void> {
+      assertEntry(); const job = scoped(jobId); authority(job);
+      if (job.phase !== 'completed' || runs.has(jobId) || !options.onCompleted) throw new Error('只有资源已关闭的完成扫描可独立重试快照。');
+      // 原completed job/frozen/文件批均不改变，不launch、resume或调用Reader。
+      await options.onCompleted(job, { retry: true }); assertEntry();
+    },
+    async privateQuiesceLibrary(libraryId:string,context:{signal?:AbortSignal;deadlineAtMs?:number}={}):Promise<void>{
+      const accepting=()=>{assertEntry();if(context.signal?.aborted||context.deadlineAtMs!==undefined&&performance.now()>=context.deadlineAtMs)throw new Error('原本库扫描join尚未在同Owner期限内确认。');};
+      accepting();const original=options.repository.localCatalog.root(libraryId);
+      if(original.role!=='library')throw new Error('仅原library可以停止本库扫描。');
+      let expected:number|null=null;
+      for(let offset=0;;){accepting();const page=store.page(options.datasetId,{offset,limit:200});
+        if(expected!==null&&expected!==page.total)throw new Error('本库停止期间扫描清单已变化，未撤绑定。');expected=page.total;
+        for(const job of page.items.filter(job=>job.libraryRootId===libraryId)){
+          if(job.phase==='running'&&!runs.has(job.jobId))throw new Error('原running扫描没有当前实际join作者，不能凭空Map撤库。');
+          await quiet(job.jobId);accepting();const current=scoped(job.jobId);
+          if(!['completed','cancelled','failed'].includes(current.phase))store.cancel({commandId:randomUUID(),jobId:current.jobId,expectedRevision:current.jobRevision});}
+        offset+=page.items.length;if(!page.hasMore)break;}
+      accepting();
+    },
+    privateFrozenSettings(jobId: string) { assertCurrent(); const value = frozenSettings.get(jobId) ?? options.settings?.frozen(options.identity!, jobId); return value ? { ...value } : null; },
+    privateReaderTurn: () => readerTurn.inspect(),
     privateWait(jobId:string):Promise<void> {return runs.get(jobId)?.done ?? Promise.resolve();},
   };
 }

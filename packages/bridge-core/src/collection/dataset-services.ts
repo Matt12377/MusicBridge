@@ -1,4 +1,5 @@
 import type { LocalArtworkService } from './local-artwork-service.js';
+import type { LocalAlbumOwnerService } from './local-album-browser/owner-port.js';
 import type { LocalOrganizerService } from './local-organizer-service.js';
 import type { LocalLegacyLinksService } from './local-legacy-links-service.js';
 import type { LocalSourceWritesService } from './local-source-writes-service.js';
@@ -33,6 +34,7 @@ export interface DatasetServices {
   localScan: LocalScanCoordinator;
   localRelocation: LocalRelocationCoordinator;
   localArtwork: LocalArtworkService;
+  localAlbums?: LocalAlbumOwnerService;
   localOrganizer: LocalOrganizerService;
   localLegacyLinks: LocalLegacyLinksService;
   localSourceWrites: LocalSourceWritesService;

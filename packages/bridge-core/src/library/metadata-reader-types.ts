@@ -1,9 +1,15 @@
 import type { RootCapability } from '../recording/source-files.js';
 
+/** 真实解析器版本与扫描 job 版本分开；不进入公开 DTO 或 Native 资格。 */
+export const METADATA_PARSER_VERSION = 'music-metadata-11.15.0/mbrs003-v4';
+export const CUE_HEADER_METADATA_PARSER_VERSION = 'musicbridge-cue-header/mbrs003-v1';
+export const CUE_INPUT_SCAN_VERSION = 'cue-input-scan/v39-v1';
+export type MetadataParserVersion = typeof METADATA_PARSER_VERSION | typeof CUE_HEADER_METADATA_PARSER_VERSION;
+
 /** Node 私有原始标签事实；不是公开 LocalMetadata 的真实性或512字符准入证明。 */
 export interface MetadataRawFields { title?: string; artist?: string; album?: string; year?: string; disc?: string; track?: string }
 export interface MetadataTechnical {
-  container: 'FLAC' | 'MPEG' | 'MP4' | 'WAVE' | 'AIFF' | 'DSF' | 'DFF'; codec: string;
+  container: 'FLAC' | 'MPEG' | 'MP4' | 'WAVE' | 'AIFF' | 'DSF' | 'DFF' | 'OGG' | 'WAVPACK' | 'APE' | 'TTA' | 'MPC' | 'TAK'; codec: string;
   lossless: boolean | null; sampleRateHz: number; channels: number;
   bitsPerSample: number | null; durationSeconds: number | null;
   evidence: 'bounded-parser-reported';
@@ -14,7 +20,7 @@ export interface MetadataReadEvidence { bytesRead: number; readCalls: number; ma
 export type MetadataReadFailure = 'REVOKED' | 'SOURCE_ROOT_OFFLINE' | 'OUTSIDE_ROOT' | 'MISSING' | 'CONTENT_CHANGED' | 'IO_ERROR'
   | 'BUDGET_EXCEEDED' | 'PARSE_FAILED' | 'UNSUPPORTED' | 'TIMEOUT' | 'WORKER_START_TIMEOUT' | 'CANCELLED'
   | 'CLOSED' | 'QUEUE_FULL' | 'WORKER_FAILED' | 'LEASE_RELEASE_FAILED' | 'ADMISSION_FAILED';
-export type MetadataReadResult = { status: 'ok'; parserVersion: 'music-metadata-11.15.0/mbrs003-v4'; fields: MetadataRawFields; technical: MetadataTechnical; coverEvidence: MetadataCoverEvidence[]; readEvidence: MetadataReadEvidence }
+export type MetadataReadResult = { status: 'ok'; parserVersion: MetadataParserVersion; fields: MetadataRawFields; technical: MetadataTechnical; coverEvidence: MetadataCoverEvidence[]; readEvidence: MetadataReadEvidence }
   | { status: 'failure'; code: MetadataReadFailure; readEvidence: MetadataReadEvidence | null };
 export interface MetadataReadInput {
   root: RootCapability; relative: string; expectedSignature: string;
@@ -50,6 +56,8 @@ export type MetadataReaderLifecycle = { type: 'lease-acquired' | 'lease-released
 export interface MetadataReaderOptions {
   /** 仅由同Owner的合格DSD后端与缓存开启；原Reader缺省继续不准入DSD。 */
   dsdMetadataEnabled?: boolean;
+  /** 仅可信同 Owner 的 CUE 输入链显式开启；旧 Reader 缺省范围保持。 */
+  cueInputMetadataEnabled?: boolean;
   concurrency?: 1 | 2; maxPending?: number;
   /** 只供可信Node测试降低预算，不接受Renderer传入，不允许提高产品上限。 */
   trustedBudget?: Partial<MetadataReadBudget>;
@@ -59,4 +67,4 @@ export interface MetadataReaderOptions {
 }
 export interface MetadataReaderPort { read(input: MetadataReadInput, signal?: AbortSignal): Promise<MetadataReadResult>; close(): Promise<void> }
 /** worker只持有共享FD数值；所有关闭权保留父线程FileHandle。 */
-export interface MetadataWorkerInput { fd: number; size: number; budget: MetadataReadBudget; dsdMetadataEnabled?: boolean }
+export interface MetadataWorkerInput { fd: number; size: number; budget: MetadataReadBudget; dsdMetadataEnabled?: boolean; cueInputMetadataEnabled?: boolean }

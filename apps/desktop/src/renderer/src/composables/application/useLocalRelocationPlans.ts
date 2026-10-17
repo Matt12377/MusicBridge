@@ -342,3 +342,5 @@ export function useLocalRelocationPlans(options: Options) {
     busy, unknown, locked, choiceExpired, planExpired, qualified, canPreview, canConfirm, canCleanup, canCancel, canPreviewRecovery, recoveryAction, stateLabel: (state: dto.LocalRelocationPlanState) => relocationStateLabels[state], issue: relocationIssueLabel,
     open, openRoot, openCandidate, openHistory, activateSettings, close, dispose, setMode, setNewName, setDisposition, chooseTarget, readContext, observeOutbox, preview, confirm, cleanup, cancel, previewRecovery, reconcile, loadPlan, loadHistory, loadEvents, edit, setPolicy }
 }
+
+export type { Pending }

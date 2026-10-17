@@ -1,0 +1,237 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { randomUUID } from 'node:crypto'
+import { mkdtemp, mkdir, rm, stat, writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
+import { createCollectionRepository, CollectionError } from '../src/collection/repository.js'
+import { verifyLocalCatalogDatabase } from '../src/collection/local-catalog-store.js'
+import { albumCatalogRevision } from '../src/collection/local-album-browser/owner-store.js'
+import { createLocalAlbumOwnerService } from '../src/collection/local-album-browser/owner-port.js'
+import { createLocalWorkbenchReadService, createLocalLibraryManagementRuntime } from '../src/collection/local-library-workbench/read-service.js'
+import { createCompletedScanSnapshotView } from '../src/collection/local-scan-snapshot-view.js'
+import { createBackupWorkflowStore } from '../src/recording/backup-workflow-store.js'
+import { LocalWorkbenchPlanError } from '../src/collection/local-library-workbench/types.js'
+import { assertLocalWorkbenchJournalComplete, createLocalWorkbenchSnapshotEvents, emptyLocalWorkbenchJournalProjection,
+  localWorkbenchJournalLedgerRow, projectLocalWorkbenchJournalEvent, readLocalWorkbenchJournalEvent } from '../src/collection/local-library-workbench/owner-journal.js'
+import { authorizeSourceDirectory } from '../src/recording/source-files.js'
+import type { ScanPreparedBatch, ScanPreparedItem } from '../src/collection/local-scan-store.js'
+
+async function fixture(t: test.TestContext) {
+  const temporary = process.env.TMPDIR
+  if (!temporary?.startsWith('/Volumes/LifeWeave/Developer/CommandLine/tmp/')) throw new Error('修订验证必须采用外置任务临时目录')
+  const directory = await mkdtemp(path.join(temporary, 'mbf-album-revision-')), media = path.join(directory, 'media'), file = path.join(directory, 'work.sqlite')
+  await mkdir(media)
+  const repository = createCollectionRepository({ filePath: file })
+  const source = repository.sources.authorize(randomUUID(), await authorizeSourceDirectory(media))
+  const root = repository.localCatalog.registerRoot({ commandId: randomUUID(), sourceRootId: source.id, role: 'library' })
+  const asset = repository.localCatalog.registerAsset({ commandId: randomUUID(), libraryRootId: root.id, expectedRootRevision: root.revision,
+    relative: 'album/song.wav', sha256: null, sampleFrames: null, timebaseHz: null })
+  const track = repository.localCatalog.createTrack({ commandId: randomUUID(), assetId: asset.id, segment: null })
+  repository.localCatalog.observeMetadata({ commandId: randomUUID(), trackId: track.id, source: 'synthetic', parserVersion: 'mbf-revision-v1',
+    fields: { title: '合成歌曲', artist: '合成作者', album: '合成专辑', disc: '1', track: '1', year: '2026' } })
+  let closed = false
+  const close = () => { if (!closed) { closed = true; repository.close() } }
+  t.after(async () => { close(); await rm(directory, { recursive: true }) })
+  return { repository, source, root, asset, track, directory, media, file, close }
+}
+
+test('专辑来源修订：真实SQLite中严格复核的纯工作台快照不推进源捕获；旧冷核仍拒绝未登记操作', async t => {
+  const f = await fixture(t), datasetId = randomUUID()
+  f.close()
+  const db = new DatabaseSync(f.file)
+  try {
+    verifyLocalCatalogDatabase(db)
+    const before = albumCatalogRevision(db)
+    const facts = () => ['local_catalog_roots', 'local_catalog_assets', 'local_catalog_tracks', 'local_catalog_observations', 'local_catalog_editions', 'local_catalog_edition_tracks']
+      .map(table => db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all())
+    const originalFacts = facts(), projection = emptyLocalWorkbenchJournalProjection(datasetId)
+    for (let revision = 1; revision <= 2; revision++) {
+      const events = createLocalWorkbenchSnapshotEvents({ schemaVersion: 1, datasetId, revision, entries: [] }, revision - 1)
+      db.exec('BEGIN IMMEDIATE')
+      try {
+        for (const event of events) {
+          const row = localWorkbenchJournalLedgerRow(event)
+          const inserted = db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)')
+            .run(row.command_id!, row.fingerprint!, row.operation!, row.request!, row.result!, row.created_at!)
+          const stored = db.prepare('SELECT * FROM local_catalog_ledger WHERE command_id=?').get(event.eventId)!
+          projectLocalWorkbenchJournalEvent(projection, readLocalWorkbenchJournalEvent(stored), Number(inserted.lastInsertRowid))
+        }
+        assertLocalWorkbenchJournalComplete(projection)
+        assert.equal(projection.revision, revision)
+        db.exec('COMMIT')
+      } catch (error) { db.exec('ROLLBACK'); throw error }
+      assert.deepEqual(facts(), originalFacts)
+      assert.equal(albumCatalogRevision(db), before, '预览与原命令快照不得使原专辑来源修订失效')
+    }
+    // 当前共享冷核完整认证已登记纯快照；未知操作与损坏摘要仍须拒绝。
+    verifyLocalCatalogDatabase(db)
+    const malformed = db.prepare("SELECT * FROM local_catalog_ledger WHERE operation='local-workbench-v1' LIMIT 1").get()!
+    assert.throws(() => readLocalWorkbenchJournalEvent({ ...malformed, fingerprint: '0'.repeat(64) }), LocalWorkbenchPlanError)
+    const unknown = localWorkbenchJournalLedgerRow(createLocalWorkbenchSnapshotEvents({ schemaVersion: 1, datasetId, revision: 3, entries: [] }, 2)[0]!)
+    db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(unknown.command_id!, unknown.fingerprint!, 'unregistered-source541-v1', unknown.request!, unknown.result!, unknown.created_at!)
+    assert.throws(() => verifyLocalCatalogDatabase(db), /目录.*损坏|事实.*损坏|不一致/u)
+  } finally { db.close() }
+})
+
+async function commitDirectoryFiles(f: Awaited<ReturnType<typeof fixture>>, relatives: readonly string[], accepted: readonly string[] = []) {
+  const items: ScanPreparedItem[] = []
+  for (const relative of relatives) {
+    const file = path.join(f.media, relative)
+    await mkdir(path.dirname(file), { recursive: true })
+    await writeFile(file, '自有目录捕获测试字节；不作为解析或听感证据')
+    const info = await stat(file, { bigint: true }), isAccepted = accepted.includes(relative)
+    items.push({ relative, signature: [info.dev, info.ino, info.size, info.mtimeNs, info.ctimeNs].join(':'), parserVersion: 'mbf-directory-index-v1',
+      outcome: isAccepted ? 'accepted' : 'rejected', fields: isAccepted ? { title: relative, artist: '自有测试作者', album: '目录索引测试' } : null,
+      failureCode: isAccepted ? null : 'UNSUPPORTED', reused: false,
+      readFacts: isAccepted ? { technical: { container: 'WAVE', codec: 'PCM', lossless: true, sampleRateHz: 48000, channels: 2, bitsPerSample: 16, durationSeconds: 1, evidence: 'bounded-parser-reported' }, coverEvidence: [], readEvidence: { bytesRead: 1, readCalls: 1, maxReadBytes: 1, allocationBytes: 1, elapsedMs: 1, wholeAudioHash: false, wholeAudioDecode: false } } : null })
+  }
+  const scan = f.repository.localScan
+  const job = scan.start({ commandId: randomUUID(), datasetId: randomUUID(), libraryRootId: f.root.id, expectedRootRevision: f.root.revision, parserVersion: 'mbf-directory-index-v1' }).job
+  const running = scan.resume({ commandId: randomUUID(), jobId: job.jobId, expectedRevision: job.jobRevision })
+  const batch: ScanPreparedBatch = { batchId: randomUUID(), jobId: job.jobId, expectedJobRevision: running.jobRevision, checkpointBefore: null, items, frontier: [], completed: true }
+  scan.privatePrepareBatch({ commandId: randomUUID(), jobId: job.jobId, batch })
+  scan.privateCommitBatch({ commandId: randomUUID(), jobId: job.jobId, batchId: batch.batchId, expectedRevision: running.jobRevision })
+}
+
+test('目录索引捕获：完整成员保持根层级、Unicode和通配符目录边界；移动后按实际asset位置读取', async t => {
+  const f = await fixture(t), scan = f.repository.localScan, catalog = f.repository.localCatalog
+  await commitDirectoryFiles(f, ['top.wav', 'album/rejected.wav', 'album/accepted.wav', 'album/nested/deep.wav', 'albumish/sibling.wav', '奇%_[]/原曲.wav'], ['album/accepted.wav'])
+  const read = (directories: string[], maxFiles = 10000, maxBytes = 32 * 1024 * 1024) => scan.privateWorkbenchDirectoryFacts({
+    libraryRootId: f.root.id, expectedRevision: scan.privateAlbumBrowserRevision(), directories, maxFiles, maxBytes })
+  assert.deepEqual(read(['']).files.map(file => file.currentRelative), ['top.wav'])
+  assert.deepEqual(read(['album']).files.map(file => file.currentRelative), ['album/accepted.wav', 'album/rejected.wav'])
+  assert.deepEqual(read(['奇%_[]']).files.map(file => file.currentRelative), ['奇%_[]/原曲.wav'])
+  assert.deepEqual(read(['album', 'album/nested', '']).files.map(file => file.currentRelative), ['album/accepted.wav', 'album/nested/deep.wav', 'album/rejected.wav', 'top.wav'])
+  const unavailable = (error: unknown) => error instanceof CollectionError && error.code === 'INVENTORY_UNAVAILABLE'
+  assert.throws(() => read(['album'], 1), unavailable)
+  assert.throws(() => read(['album'], 10000, 1), unavailable)
+  const original = scan.privateFileState(f.root.id, 'album/accepted.wav')!
+  const asset = catalog.asset(original.value.assetId!)
+  catalog.moveAsset({ commandId: randomUUID(), assetId: asset.id, expectedLocationRevision: asset.locationRevision, expectedRootRevision: f.root.revision, relative: 'moved/current.wav' })
+  assert.deepEqual(read(['album']).files.map(file => file.currentRelative), ['album/rejected.wav'])
+  const moved = read(['moved']).files
+  assert.equal(moved.length, 1)
+  assert.equal(moved[0]!.currentRelative, 'moved/current.wav')
+  assert.equal(moved[0]!.value.relative, 'album/accepted.wav')
+  assert.equal(moved[0]!.value.assetId, asset.id)
+  assert.equal(moved[0]!.jobId, original.jobId)
+})
+
+test('目录索引捕获：复用语句后仍执行当前SQL并拒旧扫描修订，文件与字节预算逐次生效', async t => {
+  const f = await fixture(t), scan = f.repository.localScan
+  await commitDirectoryFiles(f, ['selected/first.wav'])
+  const request = { libraryRootId: f.root.id, expectedRevision: scan.privateAlbumBrowserRevision(), directories: ['selected'], maxFiles: 10000, maxBytes: 32 * 1024 * 1024 }
+  const before = scan.privateWorkbenchDirectoryFacts(request)
+  assert.deepEqual(scan.privateWorkbenchDirectoryFacts(request), before)
+  await commitDirectoryFiles(f, ['selected/second.wav'])
+  assert.throws(() => scan.privateWorkbenchDirectoryFacts(request), /扫描事实已变化/u)
+  const current = { ...request, expectedRevision: scan.privateAlbumBrowserRevision() }
+  assert.deepEqual(scan.privateWorkbenchDirectoryFacts(current).files.map(file => file.currentRelative), ['selected/first.wav', 'selected/second.wav'])
+  const unavailable = (error: unknown) => error instanceof CollectionError && error.code === 'INVENTORY_UNAVAILABLE'
+  assert.throws(() => scan.privateWorkbenchDirectoryFacts({ ...current, maxFiles: 1 }), unavailable)
+  assert.throws(() => scan.privateWorkbenchDirectoryFacts({ ...current, maxBytes: 1 }), unavailable)
+})
+
+test('专辑来源修订：原Owner元数据、完整发行关系、定位和根修订仍拒绝旧真实捕获', async t => {
+  const f = await fixture(t), datasetId = randomUUID(), catalog = f.repository.localCatalog
+  const roots = async () => [{ root: catalog.root(f.root.id), label: '合成来源', availability: 'ONLINE' as const }]
+  const albums = createLocalAlbumOwnerService({ repository: f.repository, assertCurrent() {}, readRootViews: roots,
+    async readArtwork() { return { image: null, status: 'source-unavailable' } } })
+  const read = createLocalWorkbenchReadService({ datasetId, repository: f.repository, localAlbums: albums, assertCurrent() {}, readRootViews: roots })
+  t.after(() => { read.close(); albums.close() })
+  async function assertInvalidated(change: () => void) {
+    const page = await albums.queryAlbums({ query: '', rootId: f.root.id, filter: 'all', offset: 0, limit: 60 })
+    const selected = page.items.find(album => album.representativeTrackId === f.track.id)!
+    const snapshot = await read.readAlbums({ albums: [{ albumId: selected.id, rootId: selected.rootId, title: selected.title,
+      artist: selected.artists[0] ?? '未知艺人', ...(selected.editionId ? { editionId: selected.editionId } : {}), trackIds: [f.track.id] }] })
+    const request = { datasetId, capture: snapshot.albums[0]!.capture }
+    await read.resolveCapture(request)
+    const before = catalog.privateAlbumBrowserRevision()
+    change()
+    assert.notEqual(catalog.privateAlbumBrowserRevision(), before)
+    await assert.rejects(read.resolveCapture(request), error => error instanceof LocalWorkbenchPlanError && error.code === 'CHANGED')
+  }
+  await assertInvalidated(() => catalog.overrideMetadata({ commandId: randomUUID(), trackId: f.track.id, expectedRevision: null, fields: { album: '实际目录字段修订' } }))
+  const edition = catalog.createEdition({ commandId: randomUUID(), title: '合成发行', edition: '' })
+  await assertInvalidated(() => catalog.linkEditionTrack({ commandId: randomUUID(), editionId: edition.id, trackId: f.track.id, disc: 1, trackNumber: 1, sequence: 1 }))
+  await assertInvalidated(() => catalog.moveAsset({ commandId: randomUUID(), assetId: f.asset.id, expectedLocationRevision: f.asset.locationRevision,
+    expectedRootRevision: f.root.revision, relative: 'album/renamed.wav' }))
+  await assertInvalidated(() => catalog.relinkRoot({ commandId: randomUUID(), sourceRootId: f.source.id, role: 'library', rootId: f.root.id, expectedRevision: f.root.revision }))
+})
+
+test('来源纯捕获541：真实完整库与专辑捕获入账后原readToken仍能resolve，实际字段变化仍CHANGED', async t => {
+  const f = await fixture(t), catalog = f.repository.localCatalog
+  const state = createBackupWorkflowStore({ filePath: path.join(f.directory, 'identity541.sqlite') })
+  const identity = state.datasetIdentities.bind('default', f.file, false)
+  catalog.privateBindWorkbenchDataset(identity)
+  const roots = async () => [{ root: catalog.root(f.root.id), label: '原自有来源', availability: 'ONLINE' as const }]
+  const albums = createLocalAlbumOwnerService({ repository: f.repository, assertCurrent: () => identity.assertCurrent(), readRootViews: roots,
+    async readArtwork() { return { image: null, status: 'source-unavailable' } } })
+  const read = createLocalWorkbenchReadService({ datasetId: identity.datasetId, repository: f.repository, localAlbums: albums,
+    assertCurrent: () => identity.assertCurrent(), readRootViews: roots })
+  const snapshots = createCompletedScanSnapshotView({ repository: f.repository, identity })
+  const management = createLocalLibraryManagementRuntime({ identity, catalog, localScan: f.repository.localScan,
+    workbench: read, localAlbums: albums, readRootViews: roots, assertAccepting: () => identity.assertCurrent(), completedSnapshots: snapshots })
+  try {
+    const before = catalog.privateAlbumBrowserRevision()
+    const page = await albums.queryAlbums({ query: '', rootId: f.root.id, filter: 'all', offset: 0, limit: 60 })
+    const refs = page.items.map(album => ({ albumId: album.id, rootId: album.rootId, revision: album.revision }))
+    assert.equal(refs.length, 1)
+    const complete = await management.execute('library.capture', { libraryIds: [f.root.id] })
+    assert.deepEqual(complete.libraryIds, [f.root.id])
+    assert.equal(catalog.privateLibraryManagementRead(identity, 'capture', complete.captureId)!.record.original.albums.length, 1)
+    assert.equal(catalog.privateAlbumBrowserRevision(), before, '完整库读取入账不能改变原媒体')
+    const selected = await management.execute('library.albums.capture', { albums: refs })
+    assert.equal(selected.albums.length, 1)
+    const request = { datasetId: identity.datasetId, capture: selected.albums[0]!.capture }
+    const resolved = await read.resolveCapture(request)
+    assert.equal(resolved.capture.readToken, request.capture.readToken)
+    assert.deepEqual(resolved.group.members.map(member => member.fact.summary.track.id), [f.track.id])
+    assert.equal(catalog.privateAlbumBrowserRevision(), before, '专辑只读原件入账不能使自身读取失效')
+    const again = await read.resolveCapture(request)
+    assert.deepEqual(again, resolved)
+    catalog.overrideMetadata({ commandId: randomUUID(), trackId: f.track.id, expectedRevision: null, fields: { title: '实际变更后的曲名541' } })
+    assert.notEqual(catalog.privateAlbumBrowserRevision(), before)
+    await assert.rejects(read.resolveCapture(request), error => error instanceof LocalWorkbenchPlanError && error.code === 'CHANGED')
+  } finally {
+    await management.close(); read.close(); albums.close(); snapshots.close(); state.close()
+  }
+})
+
+// 原自有SQLite上验证缓存边界；额外测试表不代表媒体/Source作者或运行资格。
+test('专辑水位缓存：非事务命中仍核SQL屏障，事务/写入/外部提交/模式变化和关闭均不复用旧结果', async t => {
+  const f = await fixture(t); f.close()
+  const db = new DatabaseSync(f.file), external = new DatabaseSync(f.file)
+  let aggregations = 0, changeDuringRead = false
+  const prepare = db.prepare.bind(db)
+  Object.defineProperty(db, 'prepare', { value(sql: string) {
+    const statement = prepare(sql)
+    if (sql.startsWith('SELECT count(*) n, coalesce(max(rowid),0) last')) {
+      const get = statement.get.bind(statement)
+      Object.defineProperty(statement, 'get', { value(...args: Parameters<typeof get>) {
+        aggregations++; const value = get(...args)
+        if (changeDuringRead) { changeDuringRead = false; db.exec('CREATE TABLE owned_cache_mid_read(value TEXT)') }
+        return value
+      } })
+    }
+    return statement
+  } })
+  try {
+    verifyLocalCatalogDatabase(db)
+    const revision = albumCatalogRevision(db), first = aggregations
+    assert.ok(first > 0); assert.equal(albumCatalogRevision(db), revision); assert.equal(aggregations, first)
+    db.exec('BEGIN'); assert.equal(albumCatalogRevision(db), revision); const transactionFirst = aggregations
+    assert.ok(transactionFirst > first); assert.equal(albumCatalogRevision(db), revision); assert.ok(aggregations > transactionFirst)
+    db.exec('ROLLBACK'); assert.equal(albumCatalogRevision(db), revision)
+    db.exec('CREATE TABLE owned_cache_changes(value TEXT)'); assert.equal(albumCatalogRevision(db), revision)
+    let before = aggregations; db.exec("INSERT INTO owned_cache_changes VALUES('同连接真实写入')")
+    assert.equal(albumCatalogRevision(db), revision); assert.ok(aggregations > before)
+    before = aggregations; external.exec("INSERT INTO owned_cache_changes VALUES('另一连接真实提交')")
+    assert.equal(albumCatalogRevision(db), revision); assert.ok(aggregations > before)
+    db.exec("INSERT INTO owned_cache_changes VALUES('使本轮不能命中')"); changeDuringRead = true
+    assert.throws(() => albumCatalogRevision(db), /读取期间SQL已变化/u)
+    assert.equal(albumCatalogRevision(db), revision)
+  } finally { external.close(); db.close() }
+  assert.throws(() => albumCatalogRevision(db))
+})

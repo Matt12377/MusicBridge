@@ -3,6 +3,8 @@ import type {
   MobileObservationReceipt, MobileResource, MobileResourceSemanticContext, MobileSession,
 } from '@music-bridge/contracts';
 import type { MobileAuthCrypto, MobileAuthPersistence, MobilePrincipal } from './types.js';
+import type { PlaybackState } from './playback-state.js';
+import type { DecodedPlaybackStorage, EncodedPlaybackStorage } from './playback-state-codec.js';
 import type { MobilePlaybackSourcePort } from './source-types.js';
 export type { MobilePlaybackSourceRequest, MobilePlaybackPreparedSource, MobilePlaybackPreparingSource, MobilePlaybackSourcePort } from './source-types.js';
 
@@ -47,10 +49,22 @@ export const MOBILE_PLAYBACK_DEFAULT_LIMITS: Readonly<MobilePlaybackLimits> = Ob
   maxStoredSessions: 512, maxStoredResources: 2_048, maxReceipts: 4_096,
   stateBytes: 2 * 1024 * 1024, sealedBytes: 4 * 1024 * 1024,
 });
+/** 内部纯计算口；钥匙、Owner调用和持久化决策不跨此边界。 */
+export interface MobilePlaybackStateCodecContext {
+  serverId: string; datasetId: string; responseOrigin: string; generation: string;
+  revision: number; commitId: string | null; limits: Readonly<MobilePlaybackLimits>;
+}
+export interface MobilePlaybackStateCodecPort {
+  encode(state: PlaybackState, context: MobilePlaybackStateCodecContext): Promise<EncodedPlaybackStorage>;
+  decode(plain: Uint8Array, context: MobilePlaybackStateCodecContext): Promise<DecodedPlaybackStorage>;
+  close(): Promise<void>;
+}
 export interface MobilePlaybackServiceOptions {
   serverId: string; datasetId: string; responseOrigin: string;
   auth: MobilePlaybackAuthPort; persistence: MobileAuthPersistence; crypto: MobileAuthCrypto;
   sourcePort: MobilePlaybackSourcePort;
+  /** Desktop生产组合必须提供独立CPU Worker；旧纯Core组合保留同步实现。 */
+  stateCodec?: MobilePlaybackStateCodecPort;
   nowMs?: () => number; randomToken?: () => string;
   /** 只可向下收紧；不扩旧 005 Pool/Reader 或认证域预算。 */
   limits?: Partial<MobilePlaybackLimits>;

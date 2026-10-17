@@ -1,7 +1,7 @@
 import { Worker } from 'node:worker_threads';
 import { SourceFileError, MetadataLeaseReleaseError, withCheckedReadonlyMetadataSource } from '../recording/source-files.js';
 import { withRelocationMetadataRead, type RelocationReadAccess } from '../collection/source-relocation-verify.js';
-import { DEFAULT_METADATA_READ_BUDGET, type MetadataReaderPort, type MetadataReaderOptions, type MetadataReaderLifecycle,
+import { DEFAULT_METADATA_READ_BUDGET, METADATA_PARSER_VERSION, CUE_HEADER_METADATA_PARSER_VERSION, type MetadataReaderPort, type MetadataReaderOptions, type MetadataReaderLifecycle,
   type MetadataReadInput, type MetadataReadResult, type MetadataReadFailure, type MetadataReadBudget, type MetadataWorkerInput,
   type MetadataWorkerResultMessage, type MetadataWorkerPhase, type MetadataReaderTimeoutLifecycle } from './metadata-reader-types.js';
 
@@ -29,7 +29,7 @@ interface PendingRead { controller: AbortController; started: boolean; run(): Pr
 const workerPhases = new Set(['dependency-load', 'container-check', 'parser-load', 'parse', 'output-check', 'complete']);
 const workerFailureCodes = new Set<MetadataReadFailure>(['REVOKED','SOURCE_ROOT_OFFLINE','OUTSIDE_ROOT','MISSING','CONTENT_CHANGED','IO_ERROR',
   'BUDGET_EXCEEDED','PARSE_FAILED','UNSUPPORTED','TIMEOUT','WORKER_START_TIMEOUT','CANCELLED','CLOSED','QUEUE_FULL','WORKER_FAILED','LEASE_RELEASE_FAILED','ADMISSION_FAILED']);
-function isWorkerMessage(value: unknown): value is MetadataWorkerResultMessage {
+function isWorkerMessage(value: unknown, cueInputMetadataEnabled: boolean): value is MetadataWorkerResultMessage {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const message = value as Record<string, unknown>;
   if (Object.keys(message).length !== 3 || message.kind !== 'metadata-result' || typeof message.phase !== 'string' || !workerPhases.has(message.phase)) return false;
@@ -37,13 +37,19 @@ function isWorkerMessage(value: unknown): value is MetadataWorkerResultMessage {
   const result = message.result as Record<string, unknown>;
   if (result.status === 'failure') return typeof result.code === 'string' && workerFailureCodes.has(result.code as MetadataReadFailure)
     && (result.readEvidence === null || typeof result.readEvidence === 'object' && !Array.isArray(result.readEvidence));
-  return result.status === 'ok' && message.phase === 'complete' && result.parserVersion === 'music-metadata-11.15.0/mbrs003-v4'
-    && typeof result.fields === 'object' && result.fields !== null && typeof result.technical === 'object' && result.technical !== null
-    && Array.isArray(result.coverEvidence) && typeof result.readEvidence === 'object' && result.readEvidence !== null;
+  if (result.status !== 'ok' || message.phase !== 'complete' || typeof result.fields !== 'object' || result.fields === null || Array.isArray(result.fields)
+    || typeof result.technical !== 'object' || result.technical === null || Array.isArray(result.technical)
+    || !Array.isArray(result.coverEvidence) || typeof result.readEvidence !== 'object' || result.readEvidence === null) return false;
+  const technical = result.technical as Record<string, unknown>, container = technical.container;
+  if (typeof container !== 'string') return false;
+  if (result.parserVersion === METADATA_PARSER_VERSION) return ['FLAC','MPEG','MP4','WAVE','AIFF','DSF','DFF'].includes(container)
+    || cueInputMetadataEnabled && ['OGG','WAVPACK','APE','MPC'].includes(container);
+  return cueInputMetadataEnabled && result.parserVersion === CUE_HEADER_METADATA_PARSER_VERSION && ['TTA','TAK'].includes(container)
+    && Object.keys(result.fields).length === 0 && result.coverEvidence.length === 0;
 }
 /** 只支持当前Node编译产物URL；测试也通过真实编译worker，不接受用户worker入口。 */
 export function createMetadataReader(options: MetadataReaderOptions = {}): MetadataReaderPort {
-  const concurrency = options.concurrency ?? 1, maxPending = options.maxPending ?? 16;
+  const concurrency = options.concurrency ?? 1, maxPending = options.maxPending ?? 16, cueInputMetadataEnabled = options.cueInputMetadataEnabled === true;
   if (![1,2].includes(concurrency) || !Number.isSafeInteger(maxPending) || maxPending < 0 || maxPending > 64) throw new Error('元数据reader池预算无效。');
   const budget: MetadataReadBudget = { ...DEFAULT_METADATA_READ_BUDGET, ...options.trustedBudget };
   for (const key of Object.keys(DEFAULT_METADATA_READ_BUDGET) as (keyof MetadataReadBudget)[]) {
@@ -109,7 +115,7 @@ export function createMetadataReader(options: MetadataReaderOptions = {}): Metad
     });
     worker.on('message', (value: unknown) => {
       resultMessageObserved = true;
-      if (result !== undefined || !isWorkerMessage(value)) { stop('WORKER_FAILED'); return; }
+      if (result !== undefined || !isWorkerMessage(value, input.cueInputMetadataEnabled === true)) { stop('WORKER_FAILED'); return; }
       enforceReadDeadline();
       result = value.result; resultPhase = value.phase;
       workerReportedTimeout = result.status === 'failure' && result.code === 'TIMEOUT';
@@ -142,9 +148,9 @@ export function createMetadataReader(options: MetadataReaderOptions = {}): Metad
       }
       if (signal.aborted) return failure('CANCELLED');
       if (relocation) return await withRelocationMetadataRead(relocation.access, input, signal,
-        (handle, size) => runWorker({ fd: handle.fd, size, budget, dsdMetadataEnabled: options.dsdMetadataEnabled === true }, signal), event => emit(event));
+        (handle, size) => runWorker({ fd: handle.fd, size, budget, dsdMetadataEnabled: options.dsdMetadataEnabled === true, cueInputMetadataEnabled }, signal), event => emit(event));
       return await withCheckedReadonlyMetadataSource(input.root, input.relative, input.expectedSignature, signal,
-        (handle, size) => runWorker({ fd: handle.fd, size, budget, dsdMetadataEnabled: options.dsdMetadataEnabled === true },signal), input.assertCurrent,
+        (handle, size) => runWorker({ fd: handle.fd, size, budget, dsdMetadataEnabled: options.dsdMetadataEnabled === true, cueInputMetadataEnabled },signal), input.assertCurrent,
         event => emit(event));
     } catch (error) {
       if (error instanceof MetadataLeaseReleaseError) { fatalLeaseFailure = true; return failure('LEASE_RELEASE_FAILED'); }

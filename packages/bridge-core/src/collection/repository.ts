@@ -1,3 +1,5 @@
+import { createLocalAlbumDisplayCache } from './local-album-browser/display-cache.js';
+import { createLocalAlbumArtworkObservationStore } from './local-album-browser/artwork-observation-store.js';
 import { MobileServiceError } from '../mobile/types.js';
 import { localArtworkMigration, verifyLocalArtworkDatabase, createLocalArtworkStore, type LocalArtworkStore } from './local-artwork-store.js';
 import { mbQueueMigration, verifyMBQueueDatabase, createMBQueueStore, MBQueueStoreError, type MBQueueStore } from './mb-queue-store.js';
@@ -71,6 +73,10 @@ const unavailable = (): never => { throw new CollectionError('INVENTORY_UNAVAILA
 export interface CollectionRepository {
   /** 唯一Owner安装的同步提交资格接点，不进入公开IPC。 */
   privateInstallLocalFactsFence(check: () => void, seal: () => void): void;
+  /** 派生副库仅保存自动浏览缩略图，不参与主库schema或Source授权。 */
+  privateLocalAlbumDisplayCache?: ReturnType<typeof createLocalAlbumDisplayCache>;
+  /** 成功封面观察独立持久化，不随显示LRU淘汰，不参与主库水位。 */
+  privateLocalAlbumArtworkObservations?: ReturnType<typeof createLocalAlbumArtworkObservationStore>;
   localCatalog: LocalCatalogStore;
   localArtwork: LocalArtworkStore;
   localScan: LocalScanStore;
@@ -570,7 +576,11 @@ export function createCollectionRepository(options: { filePath: string; stagingR
   const links = createPhysicalLinksRepository({ read: guarded, conflict, unavailable, music, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const media = createMediaPlanningStore({ read: guarded, conflict, unavailable, stock: mediaStock, stockOne: mediaStockOne, reservationStock: reservedMediaStock, reserve: reserveMediaStock, release: releaseMediaStock, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
   const localCatalog = createLocalCatalogStore({ read: guarded, sources, conflict, beforeLocalFactsCommit: checkLocalFacts, onLocalFactsFatal:failLocalFacts, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) });
+  const albumDisplayCache = createLocalAlbumDisplayCache({ filePath: options.filePath === ':memory:' ? ':memory:' : options.filePath + '.album-display-cache.sqlite' });
+  const albumArtworkObservations = createLocalAlbumArtworkObservationStore({ filePath: options.filePath === ':memory:' ? ':memory:' : options.filePath + '.album-artwork-observations.sqlite' });
   return {
+    privateLocalAlbumDisplayCache: albumDisplayCache,
+    privateLocalAlbumArtworkObservations: albumArtworkObservations,
     privateInstallLocalFactsFence(check,seal) { if (privateFactsFence) throw new Error('本地来源提交接点不能重复安装。'); privateFactsFence = check; privateSealLocalFacts=seal; },
     localCatalog,
     localArtwork: createLocalArtworkStore({ read: guarded, catalog: localCatalog, conflict, ...(options.beforeCommit ? { beforeCommit: options.beforeCommit } : {}) }),
@@ -749,7 +759,11 @@ export function createCollectionRepository(options: { filePath: string; stagingR
     },
     close() {
       closed = true;
-      if (activeSnapshots === 0) { database?.close(); database = undefined; }
+      try { albumArtworkObservations.close(); } finally {
+        try { albumDisplayCache.close(); } finally {
+          if (activeSnapshots === 0) { database?.close(); database = undefined; }
+        }
+      }
     },
   };
 }

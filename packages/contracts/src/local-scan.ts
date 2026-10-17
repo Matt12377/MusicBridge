@@ -83,7 +83,7 @@ const nonnegative = (v: unknown): v is number => typeof v === 'number' && Number
 function scanFacts(v: unknown): boolean {
   if (!record(v) || !closed(v,['technical','coverEvidence','readEvidence']) || !record(v.technical)
     || !closed(v.technical,['container','codec','lossless','sampleRateHz','channels','bitsPerSample','durationSeconds','evidence'])
-    || !['FLAC','MPEG','MP4','WAVE','AIFF'].includes(String(v.technical.container)) || !scanText(v.technical.codec)
+    || !['FLAC','MPEG','MP4','WAVE','AIFF','OGG','WAVPACK','APE','TTA','MPC','TAK'].includes(String(v.technical.container)) || !scanText(v.technical.codec)
     || !(v.technical.lossless === null || typeof v.technical.lossless === 'boolean')
     || !nonnegative(v.technical.sampleRateHz) || v.technical.sampleRateHz === 0 || !nonnegative(v.technical.channels) || v.technical.channels === 0
     || !(v.technical.bitsPerSample === null || nonnegative(v.technical.bitsPerSample))

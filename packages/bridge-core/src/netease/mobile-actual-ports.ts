@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { types as nodeTypes } from 'node:util';
 import {
   mobileCanonicalJson, mobileCatalogResponseSnapshot, mobileContentResponseSnapshot, mobileDataSnapshot,
   mobileInteger, mobileRecord, mobileTrackSelectionEquals, mobileUtf8Bytes,
@@ -21,6 +22,9 @@ import { parseResolvedAudioStream } from './parse.js';
 import { createMobileNeteaseAccountMapper, captureMobileNeteaseSongSnapshot } from './mobile-source-snapshot.js';
 import { createMobileNeteaseHttpStreams, type MobileNeteaseHttpSource } from './mobile-http-stream.js';
 import type { NeteaseMobileReadPort, NeteaseMobileReadRequest, NeteaseMobileAccountInvalidation } from './types.js';
+import { createMobileNeteaseArtwork, mobileNeteaseArtworkURL, type MobileNeteaseArtworkData, type MobileNeteaseArtworkKind } from './mobile-artwork.js';
+import { mobileAccountShapeFailure } from './client.js';
+import { captureMobileCapabilityContext, mobileCapabilityReject, mobileCapabilitySync, type MobileCapabilityStage } from '../mobile/capability-trace.js';
 
 const REQUEST_MS = 10_000, CLOSE_MS = 10_000, ACCOUNT_MS = 10_000, TRACKS = 256, CACHE_MS = 30_000;
 const MAX_OPERATIONS = 16, MAX_COLLECTION_TRACKS = 10_000, MAX_FEED = 1000;
@@ -29,6 +33,8 @@ const changed = (): never => { throw new MobileServiceError(409, 'SOURCE_CHANGED
 const busy = (): never => { throw new MobileServiceError(503, 'BUSY', true, 1000); };
 const unavailable = (): never => { throw new MobileServiceError(403, 'RESOURCE_REVOKED'); };
 const freeze = <T>(v: T): T => { if (v && typeof v === 'object') { for (const child of Object.values(v)) freeze(child); Object.freeze(v); } return v; };
+const artworkFrom = (value: MobileRecord) => mobileNeteaseArtworkURL(value.picUrl)
+  ?? mobileNeteaseArtworkURL(value.blurPicUrl) ?? mobileNeteaseArtworkURL(value.coverImgUrl);
 function data(raw: unknown): MobileJsonValue { const c = mobileDataSnapshot(raw); return c.ok ? c.value : busy(); }
 function record(raw: unknown): MobileRecord { const c = data(raw); return mobileRecord(c) ? c : busy(); }
 function canonical(raw: unknown): string { return mobileCanonicalJson(data(raw)); }
@@ -40,9 +46,12 @@ function text(v: unknown, empty = false): string {
   if (typeof v !== 'string' || !empty && !v.trim() || mobileUtf8Bytes(v) > 1024 || /[\u0000-\u001f\u007f-\u009f]/u.test(v)) return changed();
   return v;
 }
+class ProviderLoginRequired extends Error {}
+const providerLoginMissing = (error: unknown) => error instanceof ProviderLoginRequired
+  || error instanceof BridgeError && ['AUTH_EXPIRED','AUTH_REQUIRED','NETEASE_NOT_CONFIGURED'].includes(error.code);
 function response(raw: unknown): MobileRecord {
   const value = record(raw), code = value.code ?? (mobileRecord(value.data) ? value.data.code : undefined);
-  if (code === 301 || code === 302) throw new MobileServiceError(401, 'UNAUTHORIZED');
+  if (code === 301 || code === 302) throw new ProviderLoginRequired();
   if (code !== 200) return busy(); return value;
 }
 function rows(raw: unknown, max = MAX_FEED): MobileRecord[] {
@@ -50,8 +59,8 @@ function rows(raw: unknown, max = MAX_FEED): MobileRecord[] {
 }
 function safeError(error: unknown, signal?: AbortSignal): Error {
   if (signal?.aborted) return new MobileServiceError(503, 'BUSY', true, 1000);
+  if (providerLoginMissing(error)) return new MobileServiceError(403, 'RESOURCE_REVOKED');
   if (error instanceof MobileServiceError) return error;
-  if (error instanceof BridgeError && ['AUTH_EXPIRED','AUTH_REQUIRED','NETEASE_NOT_CONFIGURED'].includes(error.code)) return new MobileServiceError(401, 'UNAUTHORIZED');
   if (error instanceof BridgeError && ['TRACK_UNAVAILABLE','TRACK_PREVIEW_ONLY'].includes(error.code)) return new MobileServiceError(403, 'RESOURCE_REVOKED');
   return new MobileServiceError(503, 'BUSY', true, 1000);
 }
@@ -61,6 +70,8 @@ export interface ActualMobileNeteasePortsOptions {
   identityKey32: Uint8Array; assertCurrent: MobileNeteaseFence; now?: () => number;
   /** 仅受控 transport 测试注入；生产省略时执行原 HTTPS/DNS/redirect 策略。 */
   fetch?: GatewayFetch;
+  artworkFetch?: GatewayFetch;
+  privateProviderDiagnostics?: boolean;
 }
 export interface ActualMobileNeteaseAlbumPage {
   account: Readonly<MobileNeteaseAccount>; album: Readonly<MobileUIAlbumRecord>; items: readonly MobileTrack[];
@@ -78,6 +89,8 @@ export interface ActualMobileNeteasePorts {
   resolveAlbumTracks(scope: MobileNeteaseScope, albumId: string, page: Readonly<{ offset: number; limit: number }>, signal: AbortSignal): Promise<ActualMobileNeteaseAlbumPage>;
   assertAlbumRevision(scope: MobileNeteaseScope, albumId: string, revision: string, signal: AbortSignal): Promise<void>;
   assertCurrent(scope: MobileNeteaseScope, stage: 'acquire' | 'lease', signal: AbortSignal): Promise<void>;
+  readArtwork(scope: MobileNeteaseScope, artworkId: string, signal: AbortSignal): Promise<MobileNeteaseArtworkData>;
+  assertArtwork(scope: MobileNeteaseScope, artworkId: string, signal: AbortSignal): Promise<string>;
   onAccountInvalidated(listener: (event: Readonly<NeteaseMobileAccountInvalidation>) => void): () => void;
   close(): Promise<void>;
 }
@@ -178,20 +191,73 @@ export function createActualMobileNeteasePorts(options: ActualMobileNeteasePorts
   const stages = new WeakMap<AbortSignal, 'acquire' | 'lease'>();
   let cachedAccount: { value: Readonly<MobileNeteaseAccount>; accountId: string; born: number } | null = null;
   let closed = false, fatal = false, closing: Promise<void> | null = null, accountGeneration = 0;
+  let missingAccountUntil = 0;
+  let accountDiagnosticClaims = 0;
+  let contentDiagnosticClaimed = false;
+  type ProviderPhase = 'feed' | 'mapping' | 'song-detail' | 'stream' | 'audio-probe';
+  function contentDiagnostic(phase: ProviderPhase, error: unknown): void {
+    try {
+      const context = captureMobileCapabilityContext();
+      if (options.privateProviderDiagnostics !== true || contentDiagnosticClaimed || !context || context.closed) return;
+      contentDiagnosticClaimed = true;
+      mobileCapabilityReject(`provider.content.${phase}`, error);
+    } catch { /* 旁注不能替换原异常或触发第二次请求。 */ }
+  }
+  function providerSync<T>(phase: ProviderPhase, work: () => T): T {
+    try { return work(); } catch (error) { contentDiagnostic(phase, error); throw error; }
+  }
+  async function providerStep<T>(phase: ProviderPhase, work: () => Promise<T>): Promise<T> {
+    try { return await work(); } catch (error) { contentDiagnostic(phase, error); throw error; }
+  }
+  function accountDiagnostic(reason: 'ready' | 'auth-expired' | 'not-configured' | 'timeout' | 'shape' | 'unknown'): void {
+    const context = captureMobileCapabilityContext();
+    if (options.privateProviderDiagnostics !== true || !context || context.closed || accountDiagnosticClaims >= 8) return;
+    accountDiagnosticClaims++;
+    const stage = `provider.account.${reason}` as MobileCapabilityStage;
+    if (reason === 'ready' || reason === 'not-configured') mobileCapabilitySync(stage, () => undefined);
+    else mobileCapabilityReject(stage, new MobileServiceError(reason === 'auth-expired' ? 403 : 503,
+      reason === 'auth-expired' ? 'RESOURCE_REVOKED' : 'BUSY'));
+  }
+  const artwork = createMobileNeteaseArtwork({ key: Buffer.from(createHmac('sha256', key).update('NETEASE_ARTWORK').digest()),
+    serverId, datasetId, ownerEpoch, namespace, ...(options.artworkFetch ? { fetch: options.artworkFetch } : {}) });
   const clock = (): number => { const v = now(); return mobileInteger(v) ? v : busy(); };
   const ready = (): void => { if (closed || fatal) return busy(); };
+  function loginMissing(): void {
+    accountGeneration++; cachedAccount = null; trackCache.clear(); http.invalidateAccount(); artwork.invalidate();
+    missingAccountUntil = clock() + ACCOUNT_MS;
+  }
   async function actualAccount(signal: AbortSignal): Promise<Readonly<MobileNeteaseAccount> | null> {
-    ready(); signal.throwIfAborted(); if (!client.configured) return null;
+    ready(); signal.throwIfAborted(); if (!client.configured) { accountDiagnostic('not-configured'); if (cachedAccount) loginMissing(); return null; }
+    if (clock() < missingAccountUntil) return null;
     if (cachedAccount && clock() - cachedAccount.born < ACCOUNT_MS) return cachedAccount.value;
     const generation = accountGeneration;
-    const actual = await client.mobileAccount({signal,timeoutMs:REQUEST_MS,priority:'playback'});
+    let actual: Awaited<ReturnType<NeteaseMobileReadPort['mobileAccount']>>;
+    try { actual = await client.mobileAccount({signal,timeoutMs:REQUEST_MS,priority:'playback'}); }
+    catch (error) {
+      signal.throwIfAborted(); ready(); if (generation !== accountGeneration) return changed();
+      if (options.privateProviderDiagnostics === true && accountDiagnosticClaims < 8 && captureMobileCapabilityContext()) {
+        let reason: 'timeout' | 'shape' | 'auth-expired' | 'not-configured' | 'unknown' = 'unknown';
+        try {
+          const details = !nodeTypes.isProxy(error) && error instanceof BridgeError ? Object.getOwnPropertyDescriptor(error, 'details')?.value : undefined;
+          if (!nodeTypes.isProxy(error) && error instanceof BridgeError
+            && Object.getOwnPropertyDescriptor(error, 'code')?.value === 'NETEASE_NOT_CONFIGURED') reason = 'not-configured';
+          else if (details && typeof details === 'object' && !nodeTypes.isProxy(details)
+            && Object.getOwnPropertyDescriptor(details, 'reason')?.value === 'request-timeout') reason = 'timeout';
+          else if (mobileAccountShapeFailure(error)) reason = 'shape';
+          else if (!nodeTypes.isProxy(error) && providerLoginMissing(error)) reason = 'auth-expired';
+        } catch { /* 旁注失败不替换原业务异常。 */ }
+        accountDiagnostic(reason);
+      }
+      if (providerLoginMissing(error)) { loginMissing(); return null; }
+      throw error;
+    }
     signal.throwIfAborted(); ready(); if (generation !== accountGeneration) return changed();
     const value = accountMapper.capture(actual.accountId, actual.providerEpoch);
     if (cachedAccount && canonical(cachedAccount.value) !== canonical(value)) {
       // 同 Cookie 的上游账户事实也不得静默替换已有 lease 的绑定。
-      trackCache.clear(); http.invalidateAccount();
+      trackCache.clear(); http.invalidateAccount(); artwork.invalidate();
     }
-    cachedAccount = { value, accountId: providerId(actual.accountId), born: clock() }; return value;
+    cachedAccount = { value, accountId: providerId(actual.accountId), born: clock() }; accountDiagnostic('ready'); return value;
   }
   async function current(scopeRaw: MobileNeteaseScope, stage: 'acquire' | 'lease', signal: AbortSignal, queryAccount = true): Promise<MobileNeteaseScope> {
     const scope = captureMobileNeteaseScope(scopeRaw);
@@ -199,16 +265,27 @@ export function createActualMobileNeteasePorts(options: ActualMobileNeteasePorts
     const effectiveStage = stages.get(signal) ?? stage;
     ready(); signal.throwIfAborted(); await fence(scope, effectiveStage); signal.throwIfAborted(); ready();
     const account = queryAccount ? await actualAccount(signal) : cachedAccount?.value ?? null;
-    assertMobileNeteaseAccount(scope, account); if (!client.configured) throw new MobileServiceError(401, 'UNAUTHORIZED');
+    assertMobileNeteaseAccount(scope, account); if (!client.configured) throw new MobileServiceError(403, 'RESOURCE_REVOKED');
     await fence(scope, effectiveStage); signal.throwIfAborted(); ready(); return scope;
   }
   async function api(scope: MobileNeteaseScope, request: NeteaseMobileReadRequest, signal: AbortSignal): Promise<MobileRecord> {
     await current(scope, 'acquire', signal);
-    const raw = await client.mobileRead(request,{signal,timeoutMs:REQUEST_MS,priority:request.operation==='stream'?'playback':'background'});
+    const phase = request.operation === 'stream' ? 'stream' : request.operation === 'song-detail' ? 'song-detail' : 'feed';
+    const raw = await providerStep(phase, () => client.mobileRead(request,{signal,timeoutMs:REQUEST_MS,priority:request.operation==='stream'?'playback':'background'}));
     await current(scope, 'acquire', signal, false); if (raw.providerEpoch !== scope.providerEpoch) return changed();
-    return response(raw.response);
+    return providerSync(phase, () => response(raw.response));
   }
-  async function run<T>(scopeRaw: MobileNeteaseScope, signal: AbortSignal, operation: (scope: MobileNeteaseScope, owned: AbortSignal) => Promise<T>, stage: 'acquire' | 'lease' = 'acquire'): Promise<T> {
+  async function artworkURL(scope: MobileNeteaseScope, kind: MobileNeteaseArtworkKind, item: string, signal: AbortSignal): Promise<unknown> {
+    if (kind === 's') {
+      const values = await songs(scope, [item], signal), song = values[0];
+      if (!song || !mobileRecord(song.al)) return changed(); return artworkFrom(song.al);
+    }
+    const body = await api(scope, kind === 'a' ? { operation: 'album', id: item } : { operation: 'playlist-detail', id: item }, signal);
+    const value = kind === 'a' ? body.album : body.playlist;
+    if (!mobileRecord(value) || providerId(value.id) !== item) return changed();
+    return artworkFrom(value);
+  }
+  async function run<T>(scopeRaw: MobileNeteaseScope, signal: AbortSignal, operation: (scope: MobileNeteaseScope, owned: AbortSignal) => Promise<T>, stage: 'acquire' | 'lease' = 'acquire', awaitFailureQuiet = false): Promise<T> {
     ready(); const scope = captureMobileNeteaseScope(scopeRaw); if (pending.size >= MAX_OPERATIONS) return busy();
     const controller = new AbortController(), abort = () => controller.abort();
     stages.set(controller.signal, stage);
@@ -218,7 +295,14 @@ export function createActualMobileNeteasePorts(options: ActualMobileNeteasePorts
     const work = (async () => { const captured = await current(scope, 'acquire', controller.signal); const value = await operation(captured,controller.signal);
       await current(captured,'acquire',controller.signal,false); return value; })();
     pending.add(work); void work.finally(() => { pending.delete(work); controllers.delete(controller); signal.removeEventListener('abort',abort); if(timer)clearTimeout(timer); }).catch(() => undefined);
-    try { return await Promise.race([work,refusal]); } catch(error) { controller.abort(); throw safeError(error,signal); }
+    try { return await Promise.race([work,refusal]); } catch(error) {
+      if (providerLoginMissing(error)) loginMissing();
+      controller.abort(); const failure = safeError(error,signal);
+      // 仅新封面链：10秒仍立即封输出并取消，RPC flight须等本次真实工作静止才能确认quiet。
+      // 不等待其他操作、不提前释放原pending/图片4槽，也不延长任何网络工作期限。
+      if (awaitFailureQuiet) await work.catch(() => undefined);
+      throw failure;
+    }
   }
   const cacheKey = (scope: MobileNeteaseScope, rawId: string) => canonical([scope.accountDomain,scope.providerEpoch,rawId]);
   function remember(scope: MobileNeteaseScope, rawId: string, entry: TrackEntry): void {
@@ -226,7 +310,9 @@ export function createActualMobileNeteasePorts(options: ActualMobileNeteasePorts
     if (trackCache.size >= TRACKS) trackCache.delete(trackCache.keys().next().value!); trackCache.set(k,entry);
   }
   async function media(scope: MobileNeteaseScope, rawId: string, signal: AbortSignal): Promise<ResolvedMedia> {
-    const raw = await api(scope,{operation:'stream',id:rawId,quality:'hires'},signal), values = rows(raw.data,100);
+    const raw = await api(scope,{operation:'stream',id:rawId,quality:'hires'},signal);
+    return providerSync('stream', () => {
+    const values = rows(raw.data,100);
     const matching = values.filter(v => providerId(v.id) === rawId); if (matching.length !== 1) return changed();
     const row = matching[0]!;
     if (row.freeTrialInfo !== null && row.freeTrialInfo !== undefined || row.code !== undefined && row.code !== 200) return unavailable();
@@ -236,6 +322,7 @@ export function createActualMobileNeteasePorts(options: ActualMobileNeteasePorts
     const md5 = row.md5.toLowerCase(), sourceIdentity = 'ns:'+digest('NETEASE_MEDIA',[rawId,md5,row.size]);
     return {md5,source:freeze({account:cachedAccount!.value,sourceIdentity,size:row.size,
       expiresAtMs:clock()+Math.min(row.expi*1000,300000),upstreamUrl:resolved.upstreamUrl,requestHeaders:{...resolved.requestHeaders}})};
+    });
   }
   function songMaterial(song: MobileRecord): MobileJsonValue {
     const sourceId = providerId(song.id); if (!mobileRecord(song.al)) return changed();
@@ -248,22 +335,29 @@ export function createActualMobileNeteasePorts(options: ActualMobileNeteasePorts
   async function songs(scope: MobileNeteaseScope, ids: string[], signal: AbortSignal): Promise<MobileRecord[]> {
     if (ids.length === 0) return [];
     if (ids.length > 100 || new Set(ids).size !== ids.length) return changed();
-    const result = await api(scope,{operation:'song-detail',ids},signal), values = rows(result.songs,100);
+    const result = await api(scope,{operation:'song-detail',ids},signal);
+    return providerSync('song-detail', () => {
+    const values = rows(result.songs,100);
     const byId = new Map<string,MobileRecord>(); for(const value of values){const rawId=providerId(value.id);if(byId.has(rawId)||!ids.includes(rawId))return changed();byId.set(rawId,value);}
     if(byId.size!==ids.length)return unavailable();return ids.map(rawId=>byId.get(rawId)!);
+    });
   }
   async function observeSong(scope: MobileNeteaseScope, song: MobileRecord, signal: AbortSignal): Promise<TrackEntry> {
-    const metadata = songMaterial(song), rawId = providerId(song.id), stream = await media(scope,rawId,signal);
-    const observed = await http.probe(scope,stream.source,signal); await current(scope,'acquire',signal,false);
+    const metadata = providerSync('mapping', () => songMaterial(song)), rawId = providerId(song.id), stream = await media(scope,rawId,signal);
+    const observed = await providerStep('audio-probe', () => http.probe(scope,stream.source,signal)); await current(scope,'acquire',signal,false);
+    return providerSync('mapping', () => {
     const versionId = 'nv:'+digest('NETEASE_VERSION',[rawId,stream.md5,stream.source.size,observed.audio,observed.headerSha256]);
     const contentRevision = 'nr:'+digest('NETEASE_TRACK',[versionId,metadata]);
     const selection:MobileTrackSelection={trackId:id('nt',rawId),source:'netease',versionId,contentRevision};
     const album = song.al as MobileRecord, material = metadata as MobileRecord;
+    const artworkId = artwork.bind(scope, 's', rawId, artworkFrom(album));
     const facts = captureMobileNeteaseSongSnapshot(song,{account:stream.source.account,selection,sourceItemId:rawId,
-      albumId:id('na',album.id),providerAlbumId:providerId(album.id),editionLabel:text(material.editionLabel,true),observed,availability:'available'});
+      albumId:id('na',album.id),providerAlbumId:providerId(album.id),editionLabel:text(material.editionLabel,true),observed,availability:'available',
+      ...(artworkId ? { artworkId } : {})});
     const checked = mobileCatalogResponseSnapshot('track',facts.track); if(!checked.ok)return busy();
     const entry:TrackEntry={account:stream.source.account,track:freeze(checked.value),observed,mediaBase:stream.source.sourceIdentity,metadata,born:clock()};
     remember(scope,rawId,entry);return entry;
+    });
   }
   async function mapTwo<T,R>(items: readonly T[], action: (value:T)=>Promise<R>): Promise<R[]> {
     const output = new Array<R>(items.length); let at=0;
@@ -286,30 +380,37 @@ export function createActualMobileNeteasePorts(options: ActualMobileNeteasePorts
   const http = createMobileNeteaseHttpStreams({assertCurrent:async(scope,stage)=>{await current(scope,stage,new AbortController().signal,false);},
     refresh:(scope,selection,signal)=>run(scope,signal,(s,owned)=>refreshSource(s,selection,owned),'lease'),now,...(options.fetch?{fetch:options.fetch}:{})});
   const unsubscribe=client.onMobileAccountInvalidated(event=>{accountGeneration++;cachedAccount=null;trackCache.clear();http.invalidateAccount();
+    missingAccountUntil=0;artwork.invalidate();
     for(const c of controllers)c.abort();for(const listener of callbacks){try{listener(event);}catch{/* 观察者不能阻断实际撤销。 */}}});
   const account:MobileNeteaseAccountPort={async current(signal){try{return await actualAccount(signal);}catch(error){throw safeError(error,signal);}}};
-  function albumRecord(raw: MobileRecord, songsRaw?: readonly MobileRecord[]): Readonly<MobileUIAlbumRecord> {
+  function albumRecord(scope: MobileNeteaseScope, raw: MobileRecord, songsRaw?: readonly MobileRecord[]): Readonly<MobileUIAlbumRecord> {
     const albumId=providerId(raw.id), names=Array.isArray(raw.artists)?rows(raw.artists,32):mobileRecord(raw.artist)?[raw.artist]:null;
     if(!names||names.length===0)return changed();const artists=names.map(a=>text(a.name));
     const count=raw.size??raw.trackCount;if(!mobileInteger(count,0,MAX_COLLECTION_TRACKS)||songsRaw&&count!==songsRaw.length)return changed();
     const album:MobileUIAlbumRecord={id:id('na',albumId),source:'netease',title:text(raw.name),artists,editionLabel:typeof raw.type==='string'?text(raw.type,true):'',trackCount:count};
+    const artworkId = artwork.bind(scope, 'a', albumId, artworkFrom(raw)); if (artworkId) album.artworkId = artworkId;
     if(mobileInteger(raw.publishTime,1)){const year=new Date(raw.publishTime).getUTCFullYear();if(mobileInteger(year,0,9999))album.year=year;}
     const result=mobileContentResponseSnapshot('uiAlbum',album);return result.ok?freeze(result.value):busy();
   }
   async function albumState(scope: MobileNeteaseScope, albumId: string, signal: AbortSignal): Promise<AlbumState> {
     const rawId=originalId('na',albumId), body=await api(scope,{operation:'album',id:rawId},signal);
+    return providerSync('mapping', () => {
     if(!mobileRecord(body.album)||providerId(body.album.id)!==rawId)return changed();const raw=body.album, values=rows(body.songs,MAX_COLLECTION_TRACKS);
     const seen=new Set<string>();for(const song of values){const rawSongId=providerId(song.id);if(seen.has(rawSongId)||!mobileRecord(song.al)||providerId(song.al.id)!==rawId)return changed();seen.add(rawSongId);songMaterial(song);}
-    const album=albumRecord(raw,values),revision='nr:'+digest('NETEASE_ALBUM',[album,values.map(songMaterial)]);return{raw,album,songs:values,revision};
+    const album=albumRecord(scope,raw,values),revision='nr:'+digest('NETEASE_ALBUM',[album,values.map(songMaterial)]);return{raw,album,songs:values,revision};
+    });
   }
   async function collectionState(scope: MobileNeteaseScope, publicId: string, kind: 'playlist'|'chart', signal: AbortSignal): Promise<CollectionState> {
     const rawId=originalId(kind==='chart'?'nch':'np',publicId), body=await api(scope,{operation:'playlist-detail',id:rawId},signal);
+    return providerSync('mapping', () => {
     if(!mobileRecord(body.playlist)||providerId(body.playlist.id)!==rawId)return changed();const p=body.playlist;
     const trackIds=rows(p.trackIds,MAX_COLLECTION_TRACKS).map(v=>providerId(v.id));
     if(new Set(trackIds).size!==trackIds.length||!mobileInteger(p.trackCount,0,MAX_COLLECTION_TRACKS)||p.trackCount!==trackIds.length)return changed();
     const material={id:rawId,name:text(p.name),trackCount:p.trackCount,updateTime:p.updateTime??null,ids:trackIds};
-    const revision='nr:'+digest('NETEASE_COLLECTION',material),collection:MobileDiscoveryCollectionRecord={id:publicId,kind,title:text(p.name),artworkId:null,trackCount:p.trackCount,collectionRevision:revision};
+    const artworkId=artwork.bind(scope,'p',rawId,artworkFrom(p))??null;
+    const revision='nr:'+digest('NETEASE_COLLECTION',[material,artworkId]),collection:MobileDiscoveryCollectionRecord={id:publicId,kind,title:text(p.name),artworkId,trackCount:p.trackCount,collectionRevision:revision};
     return{collection:freeze(collection),ids:trackIds,revision};
+    });
   }
   async function liked(scope: MobileNeteaseScope, signal: AbortSignal): Promise<CollectionState> {
     await actualAccount(signal);const accountId=cachedAccount!.accountId;
@@ -329,11 +430,11 @@ export function createActualMobileNeteasePorts(options: ActualMobileNeteasePorts
   }
   async function newAlbums(scope:MobileNeteaseScope,signal:AbortSignal):Promise<MobileUIAlbumRecord[]>{
     const out:MobileUIAlbumRecord[]=[],seen=new Set<string>();let total:number|null=null,first:string|null=null;
-    do{const body=await api(scope,{operation:'new-albums',offset:out.length,limit:100},signal),list=rows(body.albums,100);
+    do{const body=await api(scope,{operation:'new-albums',offset:out.length,limit:100},signal),list=providerSync('mapping',()=>rows(body.albums,100));
       if(!mobileInteger(body.total,0,MAX_FEED)||total!==null&&body.total!==total)return changed();total=body.total;
       if(out.length===0)first=canonical(list);
       if(list.length!==Math.min(100,total-out.length))return changed();
-      for(const raw of list){const album=albumRecord(raw);if(seen.has(album.id))return changed();seen.add(album.id);out.push(album);}
+      for(const raw of list){const album=providerSync('mapping',()=>albumRecord(scope,raw));if(seen.has(album.id))return changed();seen.add(album.id);out.push(album);}
     }while(out.length<total);
     if(out.length>100){const again=await api(scope,{operation:'new-albums',offset:0,limit:100},signal);if(again.total!==total||canonical(rows(again.albums,100))!==first)return changed();}
     return out;
@@ -363,7 +464,7 @@ export function createActualMobileNeteasePorts(options: ActualMobileNeteasePorts
         case 'listNeteaseRecommendedPlaylists':case 'listNeteaseCharts':{
           const kind=input.operation==='listNeteaseCharts'?'chart':'playlist';
           const upstream=await api(scope,kind==='chart'?{operation:'charts'}:{operation:'recommended-playlists',limit:100},signal);
-          const feed=rows(kind==='chart'?upstream.list:upstream.result,100),ids=feed.map(v=>id(kind==='chart'?'nch':'np',v.id));if(new Set(ids).size!==ids.length)return changed();
+          const ids=providerSync('mapping',()=>{const feed=rows(kind==='chart'?upstream.list:upstream.result,100),values=feed.map(v=>id(kind==='chart'?'nch':'np',v.id));if(new Set(values).size!==values.length)return changed();return values;});
           const all=await mapTwo(ids,publicId=>collectionState(scope,publicId,kind,signal)),revision='nr:'+digest('NETEASE_COLLECTION_FEED',[kind,all.map(v=>v.collection)]),p=page(input,all.length);nextOffset=p.next;
           body={accountDomain:scope.accountDomain,feedRevision:revision,items:all.slice(p.start,p.end).map(v=>v.collection),nextCursor:null};ctx=context(scope,revision,{limit:input.limit,pageOffset:input.offset});break;
         }
@@ -375,7 +476,7 @@ export function createActualMobileNeteasePorts(options: ActualMobileNeteasePorts
           if(input.offset!==0)return invalid();const isDaily=input.operation==='getNeteaseDailyRecommendations';
           const upstream=await api(scope,{operation:isDaily?'daily':'personal-fm'},signal);
           const raw=isDaily?(mobileRecord(upstream.data)?upstream.data.dailySongs:undefined):upstream.data;
-          const list=rows(raw,100),ids=list.map(v=>providerId(v.id));if(new Set(ids).size!==ids.length)return changed();
+          const ids=providerSync('mapping',()=>{const list=rows(raw,100),values=list.map(v=>providerId(v.id));if(new Set(values).size!==values.length)return changed();return values;});
           const details=await songs(scope,ids,signal),entries=await mapTwo(details,song=>observeSong(scope,song,signal)),items=entries.map(e=>e.track);
           if(isDaily){const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Shanghai',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(clock()));
             const part=(name:string)=>parts.find(p=>p.type===name)?.value??busy(),date=`${part('year')}-${part('month')}-${part('day')}`;
@@ -388,7 +489,7 @@ export function createActualMobileNeteasePorts(options: ActualMobileNeteasePorts
       // 私有端口的 continuation 是精确 offset；真实公开 cursor 仍只由 ProviderService 签发。
       // count 校验须在“确实有后页”的视图执行，内部验证 token 不进入返回正文。
       const validationBody=nextOffset!==null?{...record(body),nextCursor:'private:'+digest('NETEASE_CONTINUATION',[scope.accountDomain,input.operation,ctx.revision,nextOffset])}:body;
-      const checked=captureMobileContentReply(input.operation,request,scope,{status:200,category:'success',body:validationBody},ctx);
+      const checked=providerSync('mapping',()=>captureMobileContentReply(input.operation,request,scope,{status:200,category:'success',body:validationBody},ctx));
       const outgoing=nextOffset!==null?{...record(checked.reply.body),nextCursor:null}:checked.reply.body;
       return{account:cachedAccount!.value,body:outgoing,context:checked.context,nextOffset};
     });
@@ -461,9 +562,12 @@ export function createActualMobileNeteasePorts(options: ActualMobileNeteasePorts
       return freeze({account:cachedAccount!.value,album:state.album,items,offset:pagination.offset,limit:pagination.limit,total:state.songs.length,revision:state.revision,source:'netease' as const});}),
     assertAlbumRevision:(scope,albumId,revision,signal)=>run(scope,signal,async(s,owned)=>{if(!mobileNeteaseId(revision)||(await albumState(s,albumId,owned)).revision!==revision)return changed();}),
     async assertCurrent(scope,stage,signal){await current(scope,stage,signal);},
+    readArtwork:(scope,id,signal)=>run(scope,signal,(s,owned)=>artwork.read(s,id,owned,(kind,item,signal)=>artworkURL(s,kind,item,signal)),'acquire',true),
+    assertArtwork:(scope,id,signal)=>run(scope,signal,(s,owned)=>artwork.assert(s,id,owned,(kind,item,signal)=>artworkURL(s,kind,item,signal)),'acquire',true),
     onAccountInvalidated(listener){if(typeof listener!=='function'||callbacks.size>=16)return invalid();callbacks.add(listener);return()=>{callbacks.delete(listener);};},
     close(){
       if(closing)return closing;closed=true;unsubscribe();for(const controller of controllers)controller.abort();
+      artwork.close();
       let timer:ReturnType<typeof setTimeout>|undefined;
       const quiet=(async()=>{await http.close();while(pending.size)await Promise.allSettled([...pending]);await client.awaitMobileQuiet();trackCache.clear();cachedAccount=null;callbacks.clear();key.fill(0);})();
       const refused=new Promise<never>((_,reject)=>{timer=setTimeout(()=>{fatal=true;reject(new MobileServiceError(503,'BUSY',true,1000));},CLOSE_MS);});

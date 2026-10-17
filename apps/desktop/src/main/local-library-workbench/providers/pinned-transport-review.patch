@@ -1,0 +1,21 @@
+diff --git a/apps/desktop/src/main/commons-artwork-provider.ts b/apps/desktop/src/main/commons-artwork-provider.ts
+--- a/apps/desktop/src/main/commons-artwork-provider.ts
++++ b/apps/desktop/src/main/commons-artwork-provider.ts
+@@ -166,6 +166,8 @@ function nativeTransport(lookup: ArtworkDnsLookup): PinnedArtworkTransport {
+       || url.hostname === 'musicbrainz.org' && url.pathname.startsWith('/ws/2/')
+       || url.hostname === 'coverartarchive.org' && new RegExp(`^/release/${uuid}/?$`, 'u').test(url.pathname)
+       || (url.hostname === 'archive.org' || /^ia\d+\.(?:us\.)?archive\.org$/u.test(url.hostname)) && new RegExp(`^/download/mbid-${uuid}/index\\.json$`, 'u').test(url.pathname)
++      || url.hostname === 'itunes.apple.com' && url.pathname === '/search'
++    const html = url.hostname === 'search.douban.com' && url.pathname === '/music/subject_search'
+     const pinnedLookup: LookupFunction = (_hostname, _options, callback) => {
+       if (_hostname !== url.hostname) { callback(new ProviderError('封面连接主机不一致。'), '', selected.family); return }
+       callback(null, selected.address, selected.family)
+@@ -179,7 +181,7 @@ function nativeTransport(lookup: ArtworkDnsLookup): PinnedArtworkTransport {
+       const requestOptions: https.RequestOptions & { autoSelectFamily: false } = {
+         method: 'GET', agent: false, lookup: pinnedLookup, family: selected.family, autoSelectFamily: false,
+         servername: url.hostname, rejectUnauthorized: true, maxHeaderSize: 8192,
+-        headers: { 'User-Agent': USER_AGENT, Accept: json ? 'application/json' : 'image/png,image/jpeg', 'Accept-Encoding': 'identity' },
++        headers: { 'User-Agent': USER_AGENT, Accept: json ? 'application/json' : html ? 'text/html' : 'image/png,image/jpeg', 'Accept-Encoding': 'identity' },
+       }
+       const request = https.request(url, requestOptions)
+       const abort = () => { response?.destroy(); request.destroy(canceled()) }

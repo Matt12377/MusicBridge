@@ -300,3 +300,5 @@ export function useLocalOrganizer(options: Options) {
     makePatch, setFieldAction, setFieldValue, setVersionAction, setVersionDescription, setGroupingAction, setGroupingSuggestions,
     open, preview, save, previewUndo, cancelPlan, loadPlan, loadHistory, openHistory, reconcile, observeOutbox, edit, close, dispose }
 }
+
+export type { Pending }

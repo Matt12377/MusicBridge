@@ -1,15 +1,58 @@
+import { LOCAL_LYRICS_ROOT_OPERATION, emptyLocalLyricsRootProjection, copyLocalLyricsRootProjection, assertLocalLyricsRootComplete, captureLocalLyricsRootRecord, assertLocalLyricsRootTransition, createLocalLyricsRootEvents, localLyricsRootLedgerRow, readLocalLyricsRootEvent, projectLocalLyricsRootEvent, type LocalLyricsRootProjection, type LocalLyricsRootRecord, type LocalLyricsRootRecordKind, type LocalLyricsRootRecordMap } from './local-library-workbench/owner-journal.js';
+import { LOCAL_LIBRARY_MANAGEMENT_OPERATION, captureLocalLibraryManagementRecord, captureLocalLibraryManagementOwnerRecord, localLibraryManagementDigest,
+  emptyLocalLibraryManagementProjection, copyLocalLibraryManagementProjection, assertLocalLibraryManagementComplete,
+  readLocalLibraryManagementEvent, projectLocalLibraryManagementEvent, createLocalLibraryManagementBatchEvents, localLibraryManagementLedgerRow,
+  assertLocalLibraryManagementBatch, type LocalLibraryManagementProjection, type LocalLibraryManagementRecord,
+  type LocalLibraryManagementRecordKind, type LocalLibraryManagementRecordMap, type LocalLibraryManagementStored,
+  type LocalLibraryManagementWrite, type LocalLibraryManagementBindingRecord, type LocalLibraryManagementCaptureRecord, type LocalLibraryManagementCapturedAlbum,
+  type LocalLibraryManagementJobRecord, type LocalLibraryManagementOperationRecord } from './local-library-workbench/owner-journal.js';
+import { isLocalWorkbenchDenseArray, LocalWorkbenchPlanError } from './local-library-workbench/types.js';
+import { applyLocalWorkbenchArtworkInTransaction, verifyLocalArtworkDatabase, pruneLocalLibraryArtworkCacheInTransaction } from './local-artwork-store.js';
+import { LOCAL_LYRICS_PHYSICAL_OPERATION, captureLocalLyricsPhysicalRecord, localLyricsPhysicalOperationId,
+  lyricsPhysicalCanonical, lyricsPhysicalDigest, type LocalLyricsPhysicalRecord, type LocalLyricsPhysicalStored } from '../library/lyrics-source-format.js';
+import { emptyLocalLyricsPhysicalProjection, copyLocalLyricsPhysicalProjection, readLocalLyricsPhysicalEvent,
+  projectLocalLyricsPhysicalEvent, assertLocalLyricsPhysicalComplete, createLocalLyricsPhysicalEvents, localLyricsPhysicalLedgerRow,
+  type LocalLyricsPhysicalProjection, type LocalLyricsPhysicalPublication, type LocalLyricsInventoryRecord } from './local-library-workbench/owner-journal.js';
+import { assertLocalWorkbenchCapturedPlan } from './local-library-workbench/plan-registry.js';
+import type { LocalWorkbenchPlanCapture, LocalWorkbenchNameSource } from './local-library-workbench/types.js';
+import type { LocalWorkbenchResolvedReadCapture } from './local-library-workbench/read-service.js';
+import { localWorkbenchJournalCanonical, LOCAL_WORKBENCH_MB_ONLY_OPERATION, emptyLocalWorkbenchMBOnlyProjection, copyLocalWorkbenchMBOnlyProjection,
+  readLocalWorkbenchMBOnlyEvent, projectLocalWorkbenchMBOnlyEvent, assertLocalWorkbenchMBOnlyComplete, createLocalWorkbenchMBOnlyEvents, localWorkbenchMBOnlyLedgerRow,
+  type LocalWorkbenchMBOnlyRecord, type LocalWorkbenchMBOnlyProjection, type LocalWorkbenchMBNameSources } from './local-library-workbench/owner-journal.js';
+import { LOCAL_CUE_OUTPUT_OPERATION, isLocalCueOutputRecord, createLocalCueOutputEvents, type LocalCueOutputRecord } from './local-cue-output-protocol.js';
+import { LOCAL_SCAN_SETTINGS_OPERATION, isLocalScanSettingsEvent, type LocalScanSettingsStore, type LocalScanSettingsEvent, type LocalScanSettings, type LocalScanFrozenSettings } from './local-scan-settings.js';
+import { emptyLocalCueOwnerProjection, copyLocalCueOwnerProjection, readLocalCueOwnerEvent, projectLocalCueOwnerEvent, assertLocalCueOwnerComplete, localCueOwnerLedgerRow,
+  emptyLocalScanSettingsOwnerProjection, copyLocalScanSettingsOwnerProjection, readLocalScanSettingsOwnerEvent, projectLocalScanSettingsOwnerEvent, localScanSettingsOwnerOriginal, localScanSettingsOwnerLedgerRow,
+  type LocalCueOwnerProjection, type LocalScanSettingsOwnerProjection } from './local-library-workbench/owner-journal.js';
+import { assertLocalLyricsSaveRecord } from './local-library-lyrics/save-coordinator.js';
+import type { DatasetIdentity } from '../recording/dataset-identity.js';
+import { LocalLyricsError, lyricsCanonical, lyricsDigest, type LocalLyricsJobRecord, type LocalLyricsSaveRecord } from './local-library-lyrics/types.js';
+import {
+  LOCAL_WORKBENCH_JOURNAL_OPERATION, emptyLocalWorkbenchJournalProjection, copyLocalWorkbenchJournalProjection,
+  readLocalWorkbenchJournalEvent, projectLocalWorkbenchJournalEvent, assertLocalWorkbenchJournalComplete, localWorkbenchJournalLedgerRow,
+  LOCAL_LYRICS_JOURNAL_OPERATION, emptyLocalLyricsJournalProjection, readLocalLyricsJournalEvent, projectLocalLyricsJournalEvent,
+  assertLocalLyricsJournalComplete, createLocalLyricsRecordEvents, createLocalLyricsStateEvents, localLyricsJournalLedgerRow, localLyricsRecordIdentity,
+  type LocalWorkbenchJournalProjection, type LocalWorkbenchJournalEvent, type LocalLyricsJournalProjection,
+  type LocalLyricsRecordKind, type LocalLyricsDurableRecord, type LocalLyricsRecordIndex, type LocalLyricsFullRecordPin,
+} from './local-library-workbench/owner-journal.js';
 import { commitLocalFacts, rollbackLocalFacts, LocalFactsCommitFatal } from '../stream/local-source-fence.js';
 import { createHash, randomUUID } from 'node:crypto';
+import { albumCatalogRevision, albumScanRevision } from './local-album-browser/owner-store.js';
+import { createLocalAlbumSqlReader, isCurrentLocalAlbumSqlReader, localAlbumSqlScopeFingerprint, readWithLocalAlbumSqlErrors, localAlbumOrganizationDirectoryBoundaries } from './local-album-browser/sql-read.js';
+import type { LocalAlbumSqlScope, LocalAlbumLibraryOrganization, LocalAlbumSqlIssueReadOptions, LocalAlbumSqlMobileQuery, LocalAlbumSqlMobilePage } from './local-album-browser/sql-types.js';
+import { readLocalAlbumScanState, readLocalAlbumCueSnapshot, isScanCommittedBatch, isScanFileState } from './local-scan-store.js';
+import type { LocalWorkbenchMetadataProvenanceFact } from './local-library-workbench/read-service.js';
 import { MobileServiceError } from '../mobile/types.js';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import * as dto from '@music-bridge/contracts';
-import type { SourceStore } from '../recording/source-store.js';
+import { readSourceRootForDatabase, type SourceStore } from '../recording/source-store.js';
+import { CollectionError } from './repository.js';
 import type { RootCapability } from '../recording/source-files.js';
 import { extractVersionTokens } from '../library/local-name-rules.js';
 import { ORGANIZER_JOURNAL, isOrganizerEvent, organizerHash, organizerCanonical, readOrganizerEvent, verifyOrganizerJournalRow, type OrganizerEvent } from './local-organizer-journal.js';
 import { LOCAL_LEGACY_LINKS_OPERATION, LegacyLinksError, legacyLinksFail, emptyLegacyLinksProjection, copyLegacyLinksProjection, readLegacyLinksEvent, projectLegacyLinksEvent, verifyLegacyLinksLocalSnapshot, legacyLinksSlot, type LegacyLinksProjection, type LegacyLinksView, type LegacyLinksWriteView, type LegacyLinksEvent, isLegacyLinksEvent } from './local-legacy-links-journal.js';
-import { SOURCE_WRITES_OPERATION, sourceWritesFail, emptySourceWritesProjection, copySourceWritesProjection, readSourceWritesEvent, projectSourceWritesEvent, sourceWritesLedgerRow, type SourceWritesProjection, type SourceWritesReadView, type SourceWritesWriteView, type SourceWritesEvent } from './local-source-writes-journal.js';
+import { SOURCE_WRITES_OPERATION, sourceWritesPolicy, sourceWritesFail, emptySourceWritesProjection, copySourceWritesProjection, readSourceWritesEvent, projectSourceWritesEvent, sourceWritesLedgerRow, type SourceWritesProjection, type SourceWritesReadView, type SourceWritesWriteView, type SourceWritesEvent } from './local-source-writes-journal.js';
 import { updateSourceWriteScanFacts } from './source-write-scan-port.js';
 import { LOCAL_RELOCATION_OPERATION, relocationFail, relocationCanonical, relocationEvent, emptyRelocationProjection, copyRelocationProjection, readRelocationEvent, projectRelocationEvent, relocationLedgerRow, relocationRecoveryFamily, type RelocationProjection, type RelocationReadView, type RelocationWriteView, type RelocationEvent, type RelocationLocationFact, type RelocationStoredPlan } from './local-relocation-journal.js';
 import { prepareRelocationScanReads, applyRelocationScanFacts, type RelocationScanReadRequest, type PreparedRelocationReads } from './source-relocation-scan-port.js';
@@ -52,8 +95,18 @@ const audits = new WeakMap<DatabaseSync, AuditCertificate>();
 const legacyAudits = new WeakMap<DatabaseSync, LegacyLinksProjection | 'BUDGET_EXCEEDED'>();
 const sourceWritesAudits=new WeakMap<DatabaseSync,SourceWritesProjection>();
 const relocationAudits = new WeakMap<DatabaseSync, RelocationProjection>();
+interface WorkbenchAudit {highWater:number; workbench:Map<string,LocalWorkbenchJournalProjection>; lyrics:Map<string,LocalLyricsJournalProjection>;cue:Map<string,LocalCueOwnerProjection>;scanSettings:Map<string,LocalScanSettingsOwnerProjection>;mbOnly:Map<string,LocalWorkbenchMBOnlyProjection>;lyricsPhysical:Map<string,LocalLyricsPhysicalProjection>;management:Map<string,LocalLibraryManagementProjection>;lyricsRoot:Map<string,LocalLyricsRootProjection>}
+const workbenchAudits=new WeakMap<DatabaseSync,WorkbenchAudit>();
+
 /** 只供原扫描冷核/参数证据；不签grant、不暴露数据库给服务。 */
 export function sourceWritesProjectionForDatabase(db:DatabaseSync):SourceWritesProjection|undefined{return sourceWritesAudits.get(db);}
+/** 独立LYRICS来源证明；不会转换成TAGS计划或铸造Source许可。 */
+export function lyricsPhysicalPublicationsForDatabase(db:DatabaseSync):readonly {publication:LocalLyricsPhysicalPublication;record:LocalLyricsPhysicalRecord;sequence:number}[]{
+  const result:{publication:LocalLyricsPhysicalPublication;record:LocalLyricsPhysicalRecord;sequence:number}[]=[];
+  for(const p of workbenchAudits.get(db)?.lyricsPhysical.values()??[])for(const item of p.records.values())
+    if(item.publication&&item.publicationSequence!==null)result.push({publication:item.publication,record:item.record,sequence:item.publicationSequence});
+  return result.sort((a,b)=>a.sequence-b.sequence);
+}
 /** 原Scanner只消费已经由目录账本完整冷核的本域事实；此投影不能铸造读取能力。 */
 export function relocationProjectionForDatabase(db: DatabaseSync): RelocationProjection | undefined { return relocationAudits.get(db); }
 const dataVersion = (db: DatabaseSync): number => Number(db.prepare('PRAGMA data_version').get()?.data_version);
@@ -85,6 +138,14 @@ export interface LinkEditionTrack extends Command { editionId: string; trackId: 
 export interface RemoveEditionTrack extends Command { id: string; expectedRevision: string }
 export interface ObserveLocalMetadata extends Command { trackId: string; source: 'tag' | 'synthetic'; parserVersion: string; fields: dto.LocalMetadata }
 export interface OverrideLocalMetadata extends Command { trackId: string; expectedRevision: string | null; fields: dto.LocalMetadata; annotations?: dto.LocalMetadataAnnotations }
+/** 仅同Owner完整已核capture的选读；这些原pins不由所选片段重新签发。 */
+export interface LocalLibraryManagementFrozenAlbumSelection {
+  captureRecord: Readonly<Pick<LocalLibraryManagementCaptureRecord, 'schema' | 'kind' | 'datasetId' | 'key' | 'revision' | 'originalSha256'> & {
+    original: Pick<LocalLibraryManagementCaptureRecord['original'], 'mode' | 'watermark'>
+  }>
+  managementCapture: Readonly<LocalLyricsRootRecordMap['original-capture']['managementCapture']>
+  album: Readonly<LocalLibraryManagementCapturedAlbum>
+}
 interface Access { read<T>(operation: (db: DatabaseSync) => T): T; sources: Pick<SourceStore, 'root'>; conflict(message: string): never; beforeCommit?: (action: string) => void; beforeLocalFactsCommit?: () => void; onLocalFactsFatal?: () => void }
 type Row = Record<string, unknown>;
 const rowBytes = (row: Row): number => Object.values(row).reduce<number>((bytes, value) => bytes + (typeof value === 'string' ? Buffer.byteLength(value) : 0), 0);
@@ -292,6 +353,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   legacyAudits.delete(db);
   sourceWritesAudits.delete(db);
   relocationAudits.delete(db);
+  workbenchAudits.delete(db);
   const initialDataVersion = dataVersion(db);
   for (const [name, sql] of Object.entries(tables)) if (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name=?").get(name)?.sql !== sql) return corrupt();
   for (const [type, statements] of [['index', indexes], ['trigger', triggers]] as const) for (const sql of statements) {
@@ -315,6 +377,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   let immutableObservations = 0;
   let legacy: LegacyLinksProjection | 'BUDGET_EXCEEDED' = emptyLegacyLinksProjection();
   const sourceWrites=emptySourceWritesProjection();
+  const workbench:WorkbenchAudit={highWater:0,workbench:new Map(),lyrics:new Map(),cue:new Map(),scanSettings:new Map(),mbOnly:new Map(),lyricsPhysical:new Map(),management:new Map(),lyricsRoot:new Map()};
   const relocation = emptyRelocationProjection();
   const rootFactsObligations = new Map<string, { before: dto.LibraryRoot; after: dto.LibraryRoot;
     pending: Map<string, { operationId: string; resourceId: string }> }>();
@@ -393,7 +456,46 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
       }
       continue;
     }
+    if(row.operation===LOCAL_LYRICS_ROOT_OPERATION){
+      const event=readLocalLyricsRootEvent(row),p=workbench.lyricsRoot.get(event.datasetId)??emptyLocalLyricsRootProjection(event.datasetId);
+      const value=projectLocalLyricsRootEvent(p,event,ledgerRowId);workbench.lyricsRoot.set(event.datasetId,p);if(value)verifyLyricsRootRecord(db,workbench,value,false,latest);continue;
+    }
+    if(row.operation===LOCAL_LIBRARY_MANAGEMENT_OPERATION){
+      const event=readLocalLibraryManagementEvent(row),p=workbench.management.get(event.datasetId)??emptyLocalLibraryManagementProjection(event.datasetId);
+      const stored=projectLocalLibraryManagementEvent(p,event,ledgerRowId);workbench.management.set(event.datasetId,p);
+      if(stored)verifyLibraryManagementHistory(db,stored.record,workbench,latest,privateAssets,sourceWrites,ledgerRowId);
+      continue;
+    }
+    if(row.operation===LOCAL_WORKBENCH_JOURNAL_OPERATION){
+      const event=readLocalWorkbenchJournalEvent(row),p=workbench.workbench.get(event.datasetId)??emptyLocalWorkbenchJournalProjection(event.datasetId);
+      projectLocalWorkbenchJournalEvent(p,event,ledgerRowId);workbench.workbench.set(event.datasetId,p);continue;
+    }
+    if(row.operation===LOCAL_LYRICS_JOURNAL_OPERATION){
+      const event=readLocalLyricsJournalEvent(row),p=workbench.lyrics.get(event.datasetId)??emptyLocalLyricsJournalProjection(event.datasetId);
+      projectLocalLyricsJournalEvent(p,event,ledgerRowId);workbench.lyrics.set(event.datasetId,p);continue;
+    }
+    if(row.operation===LOCAL_LYRICS_PHYSICAL_OPERATION){
+      const event=readLocalLyricsPhysicalEvent(row),p=workbench.lyricsPhysical.get(event.datasetId)??emptyLocalLyricsPhysicalProjection(event.datasetId);
+      const value=projectLocalLyricsPhysicalEvent(p,event,ledgerRowId);workbench.lyricsPhysical.set(event.datasetId,p);
+      if(value&&value.revision===1){lyricsPhysicalOriginalSave(db,workbench,value);verifyLyricsPhysicalInitialHistory(db,value,workbench,latest,privateAssets,relations,sourceWrites,ledgerRowId);}
+      if(value&&value.phase==='FACTS_COMMITTED'){const fact=p.records.get(value.operationId)?.publication;if(!fact)return corrupt();verifyLyricsPhysicalPublication(db,value,fact,workbench,ledgerRowId,latest);}
+      continue;
+    }
+    if(row.operation===LOCAL_CUE_OUTPUT_OPERATION){
+      const event=readLocalCueOwnerEvent(row),p=workbench.cue.get(event.datasetId)??emptyLocalCueOwnerProjection(event.datasetId);
+      projectLocalCueOwnerEvent(p,event,ledgerRowId);workbench.cue.set(event.datasetId,p);continue;
+    }
+    if(row.operation===LOCAL_SCAN_SETTINGS_OPERATION){
+      const event=readLocalScanSettingsOwnerEvent(row),p=workbench.scanSettings.get(event.datasetId)??emptyLocalScanSettingsOwnerProjection(event.datasetId);
+      projectLocalScanSettingsOwnerEvent(p,event,ledgerRowId);workbench.scanSettings.set(event.datasetId,p);continue;
+    }
+    if(row.operation===LOCAL_WORKBENCH_MB_ONLY_OPERATION){
+      const e=readLocalWorkbenchMBOnlyEvent(row),p=workbench.mbOnly.get(e.datasetId)??emptyLocalWorkbenchMBOnlyProjection(e.datasetId),value=projectLocalWorkbenchMBOnlyEvent(p,e,ledgerRowId);
+      if(value){verifyMBOnlyHistoricalRecord(db,value,workbench,ledgerRowId);for(const update of value.editionUpdates){if(!same(latest.get(`local_catalog_editions:${update.before.id}`),update.before))return corrupt();latest.set(`local_catalog_editions:${update.after.id}`,update.after)}}
+      workbench.mbOnly.set(e.datasetId,p);continue;
+    }
     if (row.operation === ORGANIZER_JOURNAL) { verifyOrganizerJournalRow(db, row, latest); continue; }
+    if(['relink-root','move-asset','replace-asset','select-asset'].includes(String(row.operation)))for(const p of workbench.lyrics.values()){p.inventory.clear();p.highWater=ledgerRowId}
     const operation = row.operation as dto.LocalCatalogOperation;
     if (!(dto.LOCAL_CATALOG_OPERATIONS as readonly unknown[]).includes(operation) || !dto.isCollectionId(row.command_id)
       || typeof row.created_at !== 'string' || !Number.isFinite(Date.parse(row.created_at))) return corrupt();
@@ -457,6 +559,15 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   if (immutableObservations !== counts.get('local_catalog_observations') || entities !== latest.size + immutableObservations || db.prepare('PRAGMA foreign_key_check').get()
     || db.prepare('PRAGMA integrity_check').get()?.integrity_check !== 'ok') return corrupt();
   if (dataVersion(db) !== initialDataVersion) return corrupt();
+  for(const p of workbench.workbench.values())assertLocalWorkbenchJournalComplete(p);
+  for(const p of workbench.lyrics.values())assertLocalLyricsJournalComplete(p);
+  for(const p of workbench.cue.values())assertLocalCueOwnerComplete(p);
+  for(const p of workbench.mbOnly.values())assertLocalWorkbenchMBOnlyComplete(p);
+  for(const p of workbench.lyricsPhysical.values())assertLocalLyricsPhysicalComplete(p);
+  for(const p of workbench.management.values())assertLocalLibraryManagementComplete(p);
+  for(const p of workbench.lyricsRoot.values())assertLocalLyricsRootComplete(p);
+  workbench.highWater=Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n);
+  workbenchAudits.set(db,workbench);
   audits.set(db, { rows: counts, bytes, dataVersion: initialDataVersion });
   legacyAudits.set(db,legacy);
   sourceWrites.highWater=Math.max(sourceWrites.highWater,Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n));sourceWritesAudits.set(db,sourceWrites);
@@ -464,7 +575,374 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   relocationAudits.set(db, relocation);
 }
 
+function readLyricsFullRecord(db:DatabaseSync,index:LocalLyricsFullRecordPin):LocalLyricsDurableRecord{
+  const parts:Buffer[]=[];let n=0,commit:ReturnType<typeof readLocalLyricsJournalEvent>|null=null
+  for(const row of db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE rowid>=? AND rowid<=? ORDER BY rowid').iterate(index.firstOrdinal,index.lastOrdinal)){
+    boundedRow(row);const event=readLocalLyricsJournalEvent(row)
+    if(event.datasetId!==index.datasetId||event.recordKind!==index.recordKind||event.key!==index.key||event.transactionId!==index.transactionId||event.revision!==index.revision
+      ||event.bytes!==index.bytes||event.snapshotHash!==index.snapshotHash||event.chunks!==index.chunks||commit)return corrupt()
+    if(event.kind==='record-chunk'){if(event.index!==n)return corrupt();parts.push(Buffer.from(event.payload,'base64'));n++}
+    else {if(Number(row._ledger_rowid)!==index.lastOrdinal||n!==index.chunks)return corrupt();commit=event}
+  }
+  const bytes=Buffer.concat(parts)
+  if(!commit||bytes.length!==index.bytes||createHash('sha256').update(bytes).digest('hex')!==index.snapshotHash)return corrupt()
+  let value:LocalLyricsDurableRecord
+  try{value=JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)) as LocalLyricsDurableRecord}catch{return corrupt()}
+  const current=localLyricsRecordIdentity(index.recordKind,value)
+  if(lyricsCanonical(value)!==bytes.toString('utf8')||current.datasetId!==index.datasetId||current.key!==index.key||current.revision!==index.revision||current.immutableHash!==index.immutableHash)return corrupt()
+  return value
+}
+function readLyricsRecord(db:DatabaseSync,index:LocalLyricsRecordIndex):LocalLyricsDurableRecord{
+  if(index.recordKind!=='save'||!index.saveState||!index.intentSource)return readLyricsFullRecord(db,index)
+  const original=readLyricsFullRecord(db,index.intentSource) as LocalLyricsSaveRecord
+  const result:LocalLyricsSaveRecord={intent:original.intent,receipt:structuredClone(index.saveState.receipt),revision:index.revision,physicalClosed:index.saveState.physicalClosed,discarded:index.saveState.discarded}
+  assertLocalLyricsSaveRecord(result);return result
+}
+
+/** 原捕获与快照必须指向同ledger的作者原件；冷核按当时已投影事实，不拿当前成员覆盖历史。 */
+function verifyLyricsRootRecord(db:DatabaseSync,a:WorkbenchAudit,input:LocalLyricsRootRecord,live=false,latest?:ReadonlyMap<string,dto.LocalCatalogResult>):void{
+  const r=captureLocalLyricsRootRecord(input);
+  const current=(table:'local_catalog_tracks'|'local_catalog_assets'|'local_catalog_roots',id:string)=>db.prepare('SELECT * FROM '+table+' WHERE id=?').get(id)??corrupt();
+  if(r.kind==='original-capture'){
+    const pin=r.managementCapture,stored=a.management.get(r.datasetId)?.records.get('capture:'+pin.key);
+    if(!stored||stored.record.kind!=='capture'||stored.ledgerSequence!==pin.ledgerSequence||stored.recordSha256!==pin.recordSha256||stored.record.originalSha256!==pin.originalSha256)return corrupt();
+    const captured=stored.record.original.albums.find(v=>v.libraryId===r.scope.libraryId&&v.resolved.capture.albumId===r.scope.albumId);
+    if(!captured||localLibraryManagementDigest(captured.resolved)!==localLibraryManagementDigest(r.resolved)||captured.sourceRootId!==pin.sourceRootId||captured.rootRevision!==pin.rootRevision
+      ||(stored.record.original.mode==='library'?stored.record.key!==r.scope.captureId:r.resolved.capture.readToken!==r.scope.captureId))return corrupt();
+    for(const m of r.resolved.group.members){const original=r.resolved.capture.members.find(v=>v.trackId===m.fact.summary.track.id);if(!original||original.assetId===null)return corrupt();
+      const t=live?readTrack(current('local_catalog_tracks',original.trackId!)):latest?.get('local_catalog_tracks:'+original.trackId),assetValue=live?readAsset(current('local_catalog_assets',original.assetId)):latest?.get('local_catalog_assets:'+original.assetId);
+      if(t&&(!dto.isLocalTrack(t)||!same(t,m.fact.summary.track))||assetValue&&(!dto.isAudioAsset(assetValue)||!same(assetValue,m.fact.summary.asset)))return corrupt();
+      if(live&&(lyricsDigest(lyricsCanonical(libraryMetadata(db,original.trackId!)))!==original.metadataRevision||readRoot(current('local_catalog_roots',r.scope.libraryId)).revision!==original.rootRevision))throw new LocalLyricsError('STALE');
+    }
+    return;
+  }
+  const captured=a.lyricsRoot.get(r.datasetId)?.records.get('original-capture:'+r.original.originalCaptureKey),index=a.lyrics.get(r.datasetId)?.latest.get('save:'+r.key);
+  if(!captured||captured.kind!=='original-capture'||!index||index.recordKind!=='save')return corrupt();
+  const saved=readLyricsRecord(db,index) as LocalLyricsSaveRecord;assertLocalLyricsSaveRecord(saved);
+  if(!same(saved.intent.request,r.original.request)||!same(saved.intent.scope,r.original.scope)||saved.intent.captureFingerprint!==captured.fingerprint||captured.fingerprint!==r.original.captureSha256
+    ||lyricsPhysicalDigest(saved.intent)!==r.original.intentSha256||!same(captured.scope,r.original.scope))return corrupt();
+  const physical=a.lyricsPhysical.get(r.datasetId),last=r.attempts.at(-1)!;
+  for(const pin of last.publicationPins){const item=physical?.records.get(pin.operationId),record=item?.record,publication=item?.publication;
+    if(!item||!record||!publication||record.binding.commandId!==r.key||record.phase!=='CLOSED'||!record.physicalClosed||!record.protectionReleased||record.unresolved
+      ||!['saved','existing'].includes(String(record.result?.state))||item.ledgerSequence!==pin.ledgerSequence||item.publicationSequence!==pin.publicationSequence||record.revision!==pin.revision
+      ||lyricsPhysicalDigest(record)!==pin.recordSha256||lyricsPhysicalDigest(publication)!==pin.publicationSha256)return corrupt();
+    lyricsPhysicalOriginalSave(db,a,record);
+  }
+  if(last.phase==='SAVED'){
+    const all=[...(physical?.records.values()??[])].filter(v=>v.record.binding.commandId===r.key),closed=all.filter(v=>v.record.phase==='CLOSED');
+    if(all.some(v=>!['CLOSED','FAILED'].includes(v.record.phase)||!v.record.physicalClosed||!v.record.protectionReleased||v.record.unresolved)||closed.length!==last.publicationPins.length
+      ||closed.some(v=>!last.publicationPins.some(p=>p.operationId===v.record.operationId))||!last.observations||!last.resources)return corrupt();
+    const ids=captured.resolved.group.members.map(v=>v.fact.summary.track.id);
+    if(last.observations.length!==ids.length||last.observations.some(v=>!ids.includes(v.trackId))||last.resources.length!==captured.resources.length
+      ||last.resources.some(v=>!captured.resources.some(p=>p.rootId===v.rootId&&p.relative===v.relative)))return corrupt();
+    for(const observation of last.observations){const original=captured.resolved.group.members.find(v=>v.fact.summary.track.id===observation.trackId)!,assetValue=live?readAsset(current('local_catalog_assets',original.fact.summary.asset.id)):latest?.get('local_catalog_assets:'+original.fact.summary.asset.id);
+      if(assetValue&&(!dto.isAudioAsset(assetValue)||assetValue.fileRevision!==observation.fileRevision))return corrupt();
+      if(live&&(lyricsDigest(lyricsCanonical(libraryMetadata(db,observation.trackId)))!==captured.resolved.capture.members.find(m=>m.trackId===observation.trackId)!.metadataRevision))throw new LocalLyricsError('STALE');
+    }
+  }
+}
+
+function lyricsPhysicalOriginalSave(db:DatabaseSync,a:WorkbenchAudit,r:LocalLyricsPhysicalRecord):LocalLyricsSaveRecord{
+  const b=r.binding,index=a.lyrics.get(b.datasetId)?.latest.get(`save:${b.commandId}`);
+  if(!index||index.recordKind!=='save')throw new LocalLyricsError('NOT_FOUND');
+  const saved=readLyricsRecord(db,index) as LocalLyricsSaveRecord;assertLocalLyricsSaveRecord(saved);
+  const intent=saved.intent,selected=intent.selected.find(s=>s.track.trackId===b.trackId);
+  if(!selected||saved.discarded||intent.scope.datasetId!==b.datasetId||intent.scope.libraryId!==b.libraryId||intent.scope.albumId!==b.albumId||intent.scope.captureId!==b.captureId
+    ||intent.request.commandId!==b.commandId||intent.request.sessionId!==b.sessionId||intent.fingerprint!==b.intentFingerprint||selected.candidateId!==b.candidateId||selected.sha256!==b.bodySha256
+    ||lyricsDigest(selected.body)!==b.bodySha256||lyricsPhysicalDigest(intent)!==b.originalIntentSha256||lyricsPhysicalDigest(intent.request)!==b.originalRequestSha256
+    ||intent.captureFingerprint!==b.groupCaptureSha256||lyricsPhysicalDigest(r.original)!==b.protectionSha256||b.memberCount!==r.original.members.length||b.resourceCount!==r.original.resources.length
+    ||b.targetCount!==intent.selected.length*(intent.request.embed?2:1)||b.kind==='embed'&&!intent.request.embed
+    ||['rootRevision','fileRevision','locationRevision','metadataRevision'].some(k=>selected.track[k as keyof typeof selected.track]!==b[k as keyof typeof b]))throw new LocalLyricsError('STALE');
+  for(const item of intent.selected){const m=r.original.members.find(m=>m.trackId===item.track.trackId);
+    if(!m||m.rootId!==b.libraryId||['rootRevision','fileRevision','locationRevision','metadataRevision'].some(k=>m[k as keyof typeof m]!==item.track[k as keyof typeof item.track]))throw new LocalLyricsError('STALE');
+  }
+  return saved;
+}
+function lyricsPhysicalOwnAsset(r:LocalLyricsPhysicalRecord,a:WorkbenchAudit,assetId:string,originalRevision:string):{revision:string;sha256:string|null;target:LocalLyricsPhysicalRecord['artifacts']['target']} {
+  let revision=originalRevision,sha256:string|null=null,target:LocalLyricsPhysicalRecord['artifacts']['target']=null;
+  const publications=[...(a.lyricsPhysical.get(r.binding.datasetId)?.records.values()??[])].filter(item=>item.publication?.replace?.after.id===assetId
+    &&item.record.binding.commandId===r.binding.commandId&&item.record.binding.originalIntentSha256===r.binding.originalIntentSha256
+    &&item.record.binding.groupCaptureSha256===r.binding.groupCaptureSha256&&item.record.result?.state==='saved'
+    &&(item.record.operationId===r.operationId?['FACTS_COMMITTED','QUIET','CLOSED'].includes(item.record.phase):item.record.phase==='CLOSED'))
+    .sort((a,b)=>a.publicationSequence!-b.publicationSequence!);
+  for(const item of publications){const fact=item.publication!.replace!;
+    if(fact.before.fileRevision!==revision)throw new LocalLyricsError('STALE');
+    revision=fact.after.fileRevision;target=item.record.artifacts.target;if(!target)throw new LocalLyricsError('STALE');sha256=target.sha256;
+  }
+  return {revision,sha256,target};
+}
+function verifyLyricsPhysicalInitialHistory(db:DatabaseSync,r:LocalLyricsPhysicalRecord,a:WorkbenchAudit,latest:ReadonlyMap<string,dto.LocalCatalogResult>,locations:ReadonlyMap<string,{relative:unknown;sha256:unknown}>,relations:HistoryRelations,source:SourceWritesProjection,sequence:number):void{
+  const checked=new Set<string>();
+  for(const member of r.original.members){const track=latest.get(`local_catalog_tracks:${member.trackId}`),asset=latest.get(`local_catalog_assets:${member.fileId}`),root=latest.get(`local_catalog_roots:${member.rootId}`),resource=r.original.resources[member.resourceIndex]!,location=locations.get(member.fileId),own=lyricsPhysicalOwnAsset(r,a,member.fileId,member.fileRevision);
+    if(!dto.isLocalTrack(track)||track.assetId!==member.fileId||!dto.isAudioAsset(asset)||!dto.isLibraryRoot(root)||root.id!==r.binding.libraryId||root.revision!==member.rootRevision
+      ||root.sourceRootId!==member.sourceRootId||asset.libraryRootId!==root.id||asset.sourceRootId!==member.sourceRootId||asset.rootRevision!==member.rootRevision||asset.fileRevision!==own.revision||asset.locationRevision!==member.locationRevision
+      ||!location||location.relative!==resource.relative||location.sha256!==null&&location.sha256!==(own.sha256??resource.sha256)||own.target&&lyricsPhysicalDigest(own.target)!==lyricsPhysicalDigest(resource))return corrupt();
+    if(!checked.has(asset.id)){checked.add(asset.id);const original=r.original.members.filter(m=>m.fileId===asset.id),actual=relations.tracks.get(asset.id);
+      if(!actual||actual.size!==original.length||original.some(m=>!actual.has(m.trackId)))return corrupt();
+    }
+    const anchor=source.fullRaw.get(member.trackId),raw:dto.LocalMetadata={...anchor?.fields};
+    const rows=db.prepare("SELECT o.data FROM local_catalog_observations o WHERE o.track_id=? AND EXISTS(SELECT 1 FROM local_catalog_ledger l WHERE l.operation='observe-metadata' AND json_extract(l.result,'$.id')=o.id AND l.rowid<=? AND l.rowid>?) ORDER BY o.rowid LIMIT 201").all(member.trackId,sequence,anchor?.ledgerOrdinal??0);
+    if(rows.length>200)return corrupt();for(const row of rows)Object.assign(raw,parse(row.data,dto.isLocalMetadataObservation).fields);
+    const override=latest.get(`local_catalog_overrides:${member.trackId}`)??null;if(override!==null&&!dto.isLocalMetadataOverride(override))return corrupt();
+    const view={raw,override,effective:{...raw,...override?.fields}};if(lyricsDigest(lyricsCanonical(view))!==member.metadataRevision)return corrupt();
+  }
+}
+/** 冷读核实际子账本，而不是相信一个FACTS_COMMITTED状态词。 */
+function verifyLyricsPhysicalPublication(db:DatabaseSync,r:LocalLyricsPhysicalRecord,f:LocalLyricsPhysicalPublication,a:WorkbenchAudit,sequence:number,latest?:ReadonlyMap<string,dto.LocalCatalogResult>):void{
+  const b=r.binding,saved=lyricsPhysicalOriginalSave(db,a,r),member=r.original.members.find(m=>m.trackId===b.trackId),target=r.artifacts.target;
+  if(!member||!target||f.datasetId!==b.datasetId||f.operationId!==r.operationId||!['saved','existing'].includes(String(r.result?.state))||r.result?.bodySha256!==b.bodySha256)return corrupt();
+  const resource=r.original.resources[member.resourceIndex]!;
+  if(target.rootId!==resource.rootId||b.kind==='lrc'&&target.sha256!==b.bodySha256)return corrupt();
+  if(b.kind==='embed'){
+    const replace=f.replace,scan=f.scan,fidelity=r.fidelity;if(!replace||!scan||!fidelity||fidelity.sourceSha256!==resource.sha256||fidelity.copySha256!==target.sha256
+      ||replace.before.id!==member.fileId||replace.before.libraryRootId!==member.rootId||replace.after.id!==replace.before.id||replace.relative!==resource.relative
+      ||target.relative!==resource.relative||scan.rootId!==member.rootId||scan.relative!==resource.relative)return corrupt();
+    const row=db.prepare('SELECT rowid AS sequence,* FROM local_catalog_ledger WHERE command_id=?').get(replace.commandId);
+    if(!row||row.operation!=='replace-asset'||Number(row.sequence)!==replace.ledgerSequence||replace.ledgerSequence>=sequence)return corrupt();
+    boundedRow(row);const request=JSON.parse(String(row.request)) as ReplaceAudioAsset;
+    if(!validRequest('replace-asset',request)||request.commandId!==replace.commandId||fingerprint('replace-asset',request)!==row.fingerprint||!same(JSON.parse(String(row.result)),replace.after)
+      ||request.assetId!==replace.before.id||request.libraryRootId!==member.rootId||request.relative!==resource.relative||request.sha256!==target.sha256
+      ||request.expectedFileRevision!==replace.before.fileRevision||request.expectedLocationRevision!==replace.before.locationRevision||request.expectedRootRevision!==member.rootRevision
+      ||!same(replace.after,{...replace.before,fileRevision:next(replace.before.fileRevision)}))return corrupt();
+    if(latest&&!same(latest.get(`local_catalog_assets:${replace.after.id}`),replace.after))return corrupt();
+    let before:Row,after:Row;try{before=JSON.parse(scan.before) as Row;after=JSON.parse(scan.after) as Row;}catch{return corrupt();}
+    if(before.libraryRootId!==member.rootId||before.relative!==resource.relative||before.assetId!==member.fileId||before.signature!==resource.signature
+      ||!same(after,{...before,signature:target.signature}))return corrupt();
+  }else if(f.replace||f.scan)return corrupt();
+  const inventoryIdentity=localLyricsRecordIdentity('inventory',f.inventory.record),index=a.lyrics.get(b.datasetId)?.latest.get(`inventory:${inventoryIdentity.key}`);
+  if(!index||index.lastOrdinal!==f.inventory.ledgerSequence||index.lastOrdinal>=sequence||!same(readLyricsRecord(db,index),f.inventory.record)
+    ||!same(f.inventory.record.scope,saved.intent.scope)||f.inventory.record.captureFingerprint!==b.groupCaptureSha256
+    ||f.inventory.record.observations.length!==r.original.members.length)return corrupt();
+  const byTrack=new Map(f.inventory.record.observations.map(o=>[o.trackId,o]));
+  for(const m of r.original.members){const observation=byTrack.get(m.trackId),own=lyricsPhysicalOwnAsset(r,a,m.fileId,m.fileRevision);
+    if(!observation||observation.fileRevision!==own.revision||m.resourceIndex===member.resourceIndex&&(b.kind==='lrc'?observation.lrc:observation.embedded)!=='true')return corrupt();
+  }
+}
+
+const mbOnlyCatalogOwners=new WeakMap<object,(identity:DatasetIdentity)=>void>();
+export function assertLocalWorkbenchCatalogOwner(catalog:object,identity:DatasetIdentity):void{const check=mbOnlyCatalogOwners.get(catalog);if(!check)throw new LocalLyricsError('STALE');check(identity)}
+function verifyMBOnlyHistoricalRecord(db:DatabaseSync,value:LocalWorkbenchMBOnlyRecord,a:WorkbenchAudit,sequence:number):void{
+  const originalProjection=a.workbench.get(value.request.datasetId),entry=originalProjection?.snapshot?.entries.find(e=>e.plan.planId===value.request.planId)
+  if(!entry||!same(entry.plan,value.plan)||!same(entry.capture,value.capture)||!same(entry.original,value.request))return corrupt()
+  for(const m of value.mutations){const row=db.prepare('SELECT rowid AS sequence,* FROM local_catalog_ledger WHERE command_id=?').get(m.commandId)
+    if(!row||row.operation!==m.operation||String(row.sequence)!==m.sequence||Number(row.sequence)>=sequence||Number(row.sequence)<=originalProjection!.highWater||!same(JSON.parse(String(row.request)),m.request)||!same(JSON.parse(String(row.result)),m.result))return corrupt();boundedRow(row);if(!validRequest(m.operation,m.request)||m.request.commandId!==m.commandId||fingerprint(m.operation,m.request)!==row.fingerprint)return corrupt()}
+  for(const art of value.artwork){const row=db.prepare('SELECT fingerprint,result FROM local_artwork_ledger WHERE command_id=?').get(art.commandId);if(!row||!same(JSON.parse(String(row.result)),art.selection)||art.selection.editionId!==art.editionId)return corrupt()
+    const frozen=value.capture.artwork?.find(i=>i.albumId===art.albumId),selected=art.selection.candidate;if(!frozen||!selected||!same(selected.original,frozen.image.original)||!same(selected.display,frozen.image.display)||selected.origin!==frozen.origin||selected.sourceLabel!==frozen.sourceLabel
+      ||selected.sourceIdentity!==createHash('sha256').update(JSON.stringify([frozen.sourceIdentity??null,frozen.candidateId,frozen.image.original.sha256])).digest('hex')
+      ||row.fingerprint!==createHash('sha256').update(localWorkbenchJournalCanonical(['mb-only-artwork',art.editionId,frozen,selected.remoteSource??null])).digest('hex'))return corrupt()}
+  for(const source of value.provenance){const child=value.mutations.find(m=>m.commandId===source.commandId);if(!child||child.operation!=='override-metadata'||!dto.isLocalMetadataOverride(child.result)||child.result.trackId!==source.trackId||child.result.revision!==source.revision||!same(child.result.fields,source.fields))return corrupt()}
+}
+
+function libraryManagementMetadataAt(db:DatabaseSync,trackId:string,latest:ReadonlyMap<string,dto.LocalCatalogResult>,source:SourceWritesProjection,sequence:number):dto.LocalMetadataView {
+  const anchor=source.fullRaw.get(trackId),raw:dto.LocalMetadata={...anchor?.fields};
+  const rows=db.prepare("SELECT o.data FROM local_catalog_observations o WHERE o.track_id=? AND EXISTS(SELECT 1 FROM local_catalog_ledger l WHERE l.operation='observe-metadata' AND json_extract(l.result,'$.id')=o.id AND l.rowid<? AND l.rowid>?) ORDER BY o.rowid LIMIT 201").all(trackId,sequence,anchor?.ledgerOrdinal??0);
+  if(rows.length>200)return corrupt();for(const row of rows)Object.assign(raw,parse(row.data,dto.isLocalMetadataObservation).fields);
+  const override=latest.get(`local_catalog_overrides:${trackId}`)??null;if(override!==null&&!dto.isLocalMetadataOverride(override))return corrupt();
+  return {raw,override,effective:{...raw,...override?.fields}};
+}
+function libraryManagementGroupKey(rootId:string,editionId:string|null,relative:string,raw:dto.LocalMetadata):string {
+  const directory=path.posix.dirname(relative)==='.'?'':path.posix.dirname(relative);
+  const versions=[...new Set(libraryVersionTokens(raw).filter(v=>v.source==='album'&&(v.kind==='edition'||v.kind==='format')).map(v=>v.raw))].sort();
+  const values=editionId?[rootId,editionId]:[rootId,directory,directory===''?'':(raw.album??'').trim(),directory===''?[]:versions];
+  return (editionId?'edition-':'directory-')+createHash('sha256').update(JSON.stringify(values)).digest('hex');
+}
+/** 只核同连接原source.authorize与register-root回执，不能从Root UUID或JSON自造目录资格。 */
+function verifyLibraryManagementImportReceipt(db:DatabaseSync,value:LocalLibraryManagementOperationRecord,beforeSequence?:number):void {
+  if(value.original.command!=='library.import.confirm'||value.receipt.state!=='succeeded'||value.revision===1)return
+  if(value.receipt.libraryIds.length!==1)return corrupt()
+  const row=db.prepare('SELECT rowid ordinal,* FROM local_catalog_ledger WHERE command_id=?').get(value.key)
+  if(!row||row.operation!=='register-root'||beforeSequence!==undefined&&Number(row.ordinal)>=beforeSequence)return corrupt()
+  boundedRow(row)
+  const request=parse(row.request,(v):v is Row & {commandId:string}=>validRequest('register-root',v)),result=parse(row.result,dto.isLibraryRoot)
+  if(request.commandId!==value.key||request.role!=='library'||result.role!=='library'||request.sourceRootId!==result.sourceRootId||value.receipt.libraryIds[0]!==result.id
+    ||row.fingerprint!==fingerprint('register-root',request))return corrupt()
+  const original=db.prepare('SELECT fingerprint,result FROM source_ledger WHERE command_id=?').get(value.key)
+  if(!original||original.fingerprint!==createHash('sha256').update(JSON.stringify(['authorize',value.key])).digest('hex')||original.result!==result.sourceRootId)return corrupt()
+}
+/** 当序真实管理绑定只决定组织边界，SourceRoot角色/资产许可仍由原ledger事实核验。 */
+function libraryManagementRolesAt(value:LocalLibraryManagementCaptureRecord,a:WorkbenchAudit):ReadonlyMap<string,dto.LocalLibraryRole> {
+  const roles=new Map<string,dto.LocalLibraryRole>(),records=a.management.get(value.datasetId)?.records;
+  for(const pin of value.original.libraries){
+    const record=records?.get('binding:'+pin.libraryId)?.record;if(!record)continue;
+    if(record.kind!=='binding'||!record.active||record.datasetId!==value.datasetId||record.key!==pin.libraryId
+      ||record.sourceRootId!==pin.sourceRootId||record.rootRevision!==pin.rootRevision
+      ||!['catalog','artist','album','container'].includes(record.role))return corrupt();
+    roles.set(pin.libraryId,record.role);
+  }
+  return roles;
+}
+/** 输入来自当序latest/privateAssets全集，不按capture自报的albumId划分或猜当前track。 */
+function libraryManagementOrganizationBoundaries(latest:ReadonlyMap<string,dto.LocalCatalogResult>,locations:ReadonlyMap<string,{relative:unknown;sha256:unknown}>,
+  roots:ReadonlySet<string>,roles:ReadonlyMap<string,dto.LocalLibraryRole>) {
+  if(![...roles.values()].includes('artist'))return new Map<string,ReadonlyMap<string,string>>();
+  function* audio(){for(const candidate of latest.values()){
+    if(!dto.isLocalTrack(candidate))continue;const asset=latest.get(`local_catalog_assets:${candidate.assetId}`),location=locations.get(candidate.assetId);
+    if(!dto.isAudioAsset(asset)||!roots.has(asset.libraryRootId)||roles.get(asset.libraryRootId)!=='artist')continue;
+    if(!location||typeof location.relative!=='string')return corrupt();
+    yield {rootId:asset.libraryRootId,assetId:asset.id,relative:location.relative};
+  }}
+  return localAlbumOrganizationDirectoryBoundaries(audio(),roles);
+}
+function libraryManagementOrganizedGroupKey(rootId:string,editionId:string|null,relative:string,raw:dto.LocalMetadata,
+  roles:ReadonlyMap<string,dto.LocalLibraryRole>,boundaries:ReadonlyMap<string,ReadonlyMap<string,string>>):string {
+  const role=roles.get(rootId);
+  // 原edition及catalog/container/无绑定算法保持原字节，不将组织目录当Source许可。
+  if(editionId!==null||role!=='artist'&&role!=='album')return libraryManagementGroupKey(rootId,editionId,relative,raw);
+  const physical=path.posix.dirname(relative)==='.'?'':path.posix.dirname(relative);
+  const directory=role==='album'?'':boundaries.get(rootId)?.get(physical);if(directory===undefined)return corrupt();
+  return 'directory-'+localLibraryManagementDigest([rootId,directory,'',[]]);
+}
+function verifyLibraryManagementHistory(db:DatabaseSync,value:LocalLibraryManagementRecord,a:WorkbenchAudit,latest:ReadonlyMap<string,dto.LocalCatalogResult>,locations:ReadonlyMap<string,{relative:unknown;sha256:unknown}>,source:SourceWritesProjection,sequence:number):void {
+  if(value.kind==='binding'){
+    const root=latest.get(`local_catalog_roots:${value.libraryId}`);
+    if(!dto.isLibraryRoot(root)||root.role!=='library'||value.active&&(root.sourceRootId!==value.sourceRootId||root.revision!==value.rootRevision))return corrupt();return;
+  }
+  if(value.kind==='job'){assertLibraryManagementJobCapture(value,a.management.get(value.datasetId));assertLibraryManagementJobReceipts(value,a);return;}
+  if(value.kind==='operation'){verifyLibraryManagementImportReceipt(db,value,sequence);return;}
+  if(value.kind!=='capture')return;
+  const original=value.original;
+  for(const pin of original.libraries){const root=latest.get(`local_catalog_roots:${pin.libraryId}`);if(!dto.isLibraryRoot(root)||root.role!=='library'||root.revision!==pin.rootRevision||root.sourceRootId!==pin.sourceRootId)return corrupt();}
+  const capturedTrackIds=new Set<string>(),actualGroups=new Map<string,Set<string>>(),roots=new Set(original.libraries.map(p=>p.libraryId)),linksByTrack=new Map<string,dto.AlbumEditionTrack[]>();
+  const roles=libraryManagementRolesAt(value,a),boundaries=libraryManagementOrganizationBoundaries(latest,locations,roots,roles);
+  for(const v of latest.values())if(dto.isAlbumEditionTrack(v)&&v.active){const links=linksByTrack.get(v.trackId)??[];links.push(v);linksByTrack.set(v.trackId,links);}
+  for(const candidate of latest.values()){
+    if(!dto.isLocalTrack(candidate))continue;
+    const asset=latest.get(`local_catalog_assets:${candidate.assetId}`),location=locations.get(candidate.assetId);
+    if(!dto.isAudioAsset(asset)||!roots.has(asset.libraryRootId)||!location||typeof location.relative!=='string')continue;
+    const view=libraryManagementMetadataAt(db,candidate.id,latest,source,sequence);
+    const links=linksByTrack.get(candidate.id)??[];
+    for(const editionId of links.length?links.map(l=>l.editionId):[null]){const key=libraryManagementOrganizedGroupKey(asset.libraryRootId,editionId,location.relative,view.raw,roles,boundaries),ids=actualGroups.get(key)??new Set<string>();ids.add(candidate.id);actualGroups.set(key,ids);}
+  }
+  for(const album of original.albums){
+    const resolved=album.resolved, group=resolved.group, accepted=resolved.capture.members.filter(m=>m.trackId!==null);
+    const actual=actualGroups.get(group.summary.id)??new Set<string>();
+    if(actual.size!==accepted.length||accepted.some(m=>!actual.has(m.trackId!)))return corrupt();
+    for(const member of group.members){
+      const fact=member.fact,track=latest.get(`local_catalog_tracks:${fact.summary.track.id}`),asset=latest.get(`local_catalog_assets:${fact.summary.asset.id}`),location=locations.get(fact.summary.asset.id);
+      if(!same(track,fact.summary.track)||!same(asset,fact.summary.asset)||location?.relative!==fact.relative)return corrupt();
+      const view=libraryManagementMetadataAt(db,fact.summary.track.id,latest,source,sequence),capture=accepted.find(m=>m.trackId===fact.summary.track.id)!;
+      if(!same(view.raw,fact.rawMetadata)||!same(view.effective,fact.summary.metadata)||localLibraryManagementDigest(view)!==capture.metadataRevision)return corrupt();
+      const origin=resolved.provenance.find(p=>p.trackId===fact.summary.track.id)!;
+      if(view.override===null?origin.override!==null:origin.override===null||origin.override.revision!==view.override.revision||!same(origin.override.fields,view.override.fields))return corrupt();
+      if(origin.override){const row=db.prepare("SELECT rowid n,* FROM local_catalog_ledger WHERE command_id=?").get(origin.override.commandId);
+        if(!row||Number(row.n)>=sequence||row.operation!=='override-metadata'||!same(parse(row.result,dto.isLocalMetadataOverride),view.override))return corrupt();}
+      capturedTrackIds.add(fact.summary.track.id);
+    }
+    for(const cue of resolved.directoryFacts.cues){const row=db.prepare('SELECT data FROM local_cue_sources WHERE id=?').get(cue.id);if(!row||!same(readLocalAlbumCueSnapshot(row.data),cue))return corrupt();}
+    for(const file of resolved.directoryFacts.files){
+      const batches=db.prepare("SELECT result FROM local_scan_batches WHERE job_id=? AND phase='committed' ORDER BY rowid DESC").iterate(file.jobId);let found=false;
+      for(const row of batches){if(typeof row.result!=='string'||Buffer.byteLength(row.result)>32*1024*1024)return corrupt();const batch:unknown=JSON.parse(row.result);if(!isScanCommittedBatch(batch))return corrupt();const initial=batch.files.find(f=>f.relative===file.value.relative&&f.libraryRootId===file.value.libraryRootId);if(!initial)continue;
+        let current=initial;const updates:{before:string;after:string;sequence:number}[]=[];
+        for(const event of source.events){if(event.kind!=='facts'||event.fact.scanJobId!==file.jobId||event.fact.scanBefore===null)continue;const before=parse(event.fact.scanBefore,isScanFileState);if(before.libraryRootId!==file.value.libraryRootId||before.relative!==file.value.relative)continue;const ordinal=Number(db.prepare('SELECT rowid n FROM local_catalog_ledger WHERE command_id=?').get(event.eventId)?.n);if(ordinal<sequence)updates.push({before:event.fact.scanBefore,after:event.fact.scanAfter,sequence:ordinal});}
+        for(const p of a.lyricsPhysical.values())for(const item of p.records.values()){const scan=item.publication?.scan;if(scan&&scan.jobId===file.jobId&&scan.rootId===file.value.libraryRootId&&scan.relative===file.value.relative&&item.publicationSequence!==null&&item.publicationSequence<sequence)updates.push({before:scan.before,after:scan.after,sequence:item.publicationSequence});}
+        for(const update of updates.sort((x,y)=>x.sequence-y.sequence)){if(!same(parse(update.before,isScanFileState),current))return corrupt();current=parse(update.after,isScanFileState);}
+        if(same(current,file.value)){found=true;break;}
+      }
+      if(!found)return corrupt();
+    }
+  }
+  if(original.mode==='library'){
+    for(const [key,ids]of actualGroups){if(!original.albumRefs.some(ref=>ref.albumId===key)||[...ids].some(id=>!capturedTrackIds.has(id)))return corrupt();}
+  }
+}
+function assertLibraryManagementJobReceipts(record:LocalLibraryManagementJobRecord,a:WorkbenchAudit):void {
+  for(const item of record.checkpoint.items){if(item.receipt===null)continue;const entry=a.workbench.get(record.datasetId)?.snapshot?.entries.find(e=>e.plan.planId===item.planId&&e.original?.commandId===item.commandId);
+    const mb=a.mbOnly.get(record.datasetId)?.latest.get(item.commandId!)?.record,cue=a.cue.get(record.datasetId)?.output.latest.get(item.commandId!)?.record;
+    if(!same(entry?.receipt,item.receipt)&&!same(mb?.receipt,item.receipt)&&!same(cue?.receipt,item.receipt))return corrupt();}
+}
+function assertLibraryManagementJobCapture(record:LocalLibraryManagementJobRecord,p:LocalLibraryManagementProjection|undefined):void {
+  const capture=p?.records.get(`capture:${record.original.captureId}`)?.record;
+  if(capture?.kind!=='capture'||capture.originalSha256!==record.original.captureSha256)return corrupt();
+  if(record.revision===1)for(const pin of capture.original.libraries){const bound=p?.records.get('binding:'+pin.libraryId)?.record;if(bound?.kind==='binding'&&(!bound.active||bound.sourceRootId!==pin.sourceRootId||bound.rootRevision!==pin.rootRevision))return corrupt();}
+  const selected=record.original.expandedSelection;
+  if(selected.some(ref=>!capture.original.albumRefs.some(a=>same(a,{albumId:ref.albumId,rootId:ref.rootId,revision:ref.revision}))))return corrupt();
+  const start=record.original.start;
+  if(start.command==='library.ai.start'&&start.request.selection==='missing-cover'){
+    const expected=capture.original.albums.filter(a=>a.resolved.group.summary.statuses.includes('missing-artwork')).map(a=>a.resolved.capture.albumId);
+    if(!same(selected.map(s=>s.albumId),expected))return corrupt();
+  }
+  if(start.command==='library.cue.start'){
+    const eligible=capture.original.albums.flatMap(a=>a.resolved.directoryFacts.cues.filter(c=>{const r=c.item.result;if(a.resolved.availability!=='online'||c.item.outcome!=='accepted'||!r||!a.resolved.group.issues.some(i=>i.kind==='cue'&&i.relative===c.item.relative)||new Set(r.tracks.map(t=>t.assetReference.assetId)).size===r.tracks.length)return false;return r.tracks.every(t=>{const ref=t.assetReference,m=a.resolved.capture.members.find(m=>m.assetId===ref.assetId),file=a.resolved.directoryFacts.files.find(f=>f.currentRelative===ref.relative);return ref.libraryRootId===a.libraryId&&ref.sourceRootId===a.sourceRootId&&ref.rootRevision===a.rootRevision&&m!==undefined&&m.fileRevision===ref.fileRevision&&m.locationRevision===ref.locationRevision&&file?.value.outcome==='accepted'&&file.value.assetId===ref.assetId&&file.value.signature===ref.signature;});}).map(c=>({albumId:a.resolved.capture.albumId,cueId:c.id})));
+    if(start.request.selection==='selected'){if(selected.some(s=>!eligible.some(c=>c.albumId===s.albumId&&c.cueId===s.cueId)))return corrupt();}
+    else{const albums=capture.original.albums.filter(a=>a.resolved.group.summary.statuses.includes('cue-unsplit'));if(!same(selected.map(s=>s.albumId),albums.map(a=>a.resolved.capture.albumId)))return corrupt();for(const ref of selected){const cues=eligible.filter(c=>c.albumId===ref.albumId);if(cues.length===1?ref.cueId!==cues[0]!.cueId:ref.cueId!==null)return corrupt();if(ref.cueId===null&&record.checkpoint.items.find(i=>i.albumId===ref.albumId)?.state!=='review')return corrupt();}}
+  }
+}
+
 export function createLocalCatalogStore(access: Access) {
+  // 只复用实际连接的语句；九字段组织投影、根与 Source 授权仍在每次同步读取中重新取得。
+  const organizationStatements = new WeakMap<DatabaseSync, Map<string, ReturnType<DatabaseSync['prepare']>>>();
+  function organizationStatement(db: DatabaseSync, sql: string) {
+    let statements = organizationStatements.get(db);
+    if (!statements) { statements = new Map(); organizationStatements.set(db, statements); }
+    let statement = statements.get(sql);
+    if (!statement) { statement = db.prepare(sql); statements.set(sql, statement); }
+    return statement;
+  }
+  function organizationBarrier(db: DatabaseSync): string {
+    const row = organizationStatement(db, 'SELECT total_changes() AS changes, (SELECT data_version FROM pragma_data_version) AS version, (SELECT schema_version FROM pragma_schema_version) AS schema').get();
+    const values = [row?.changes, row?.version, row?.schema];
+    if (!values.every(value => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
+      || typeof db.isTransaction !== 'boolean') return corrupt();
+    return JSON.stringify([...values, db.isTransaction]);
+  }
+  // 原组织九字段与MB作者水位来自同一实际连接、同一完整SQL屏障；不消费Renderer修订。
+  function libraryManagementOrganizationStateForDatabase(db: DatabaseSync, identity: DatasetIdentity) {
+    const before = organizationBarrier(db), organizations: LocalAlbumLibraryOrganization[] = [];
+    const projection = workbenchProjectionFor(db), bindings = projection.management.get(identity.datasetId)?.records;
+    for (const stored of bindings?.values() ?? []) {
+      const binding = stored.record;
+      if (binding.kind !== 'binding' || !binding.active) continue;
+      // 原可见性只由此实际投影中的 active 决定；不重复复制账本或另读同一 binding。
+      const row = organizationStatement(db, 'SELECT * FROM local_catalog_roots WHERE id=?').get(binding.libraryId);
+      if (!row) return access.conflict('本地对象不存在，请刷新目录。');
+      const actual = readRoot(row), source = readSourceRootForDatabase(db, binding.sourceRootId, access.conflict);
+      if (binding.datasetId !== identity.datasetId || binding.key !== actual.id || actual.role !== 'library'
+        || actual.sourceRootId !== binding.sourceRootId || actual.revision !== binding.rootRevision || !source.authorized)
+        throw new CollectionError('INVENTORY_UNAVAILABLE', '原组织角色绑定或来源身份已变化。');
+      organizations.push({ datasetId: identity.datasetId, rootId: actual.id, sourceRootId: actual.sourceRootId,
+        rootRevision: actual.revision, bindingRevision: binding.revision, recordSha256: stored.recordSha256, role: binding.role,
+        rootName: path.basename(source.path), parentName: path.basename(path.dirname(source.path)) });
+    }
+    organizations.sort((a, b) => a.rootId.localeCompare(b.rootId, 'en'));
+    if (organizationBarrier(db) !== before)
+      throw new CollectionError('INVENTORY_UNAVAILABLE', '组织投影读取期间 SQL 已变化，请重新读取。');
+    return { organizations, originalAuthor: String(projection.mbOnly.get(identity.datasetId)?.highWater ?? 0) };
+  }
+  function organizedMBOnlyAuthorRevision(state: ReturnType<typeof libraryManagementOrganizationStateForDatabase>): string {
+    return state.organizations.length ? createHash('sha256').update(canonical([state.originalAuthor, state.organizations])).digest('hex') : state.originalAuthor;
+  }
+  function libraryManagementOrganizations(identity: DatasetIdentity): readonly LocalAlbumLibraryOrganization[] {
+    assertWorkbenchIdentity(identity);
+    const result = access.read(db => libraryManagementOrganizationStateForDatabase(db, identity).organizations);
+    assertWorkbenchIdentity(identity); return result;
+  }
+  const albumReaders = new WeakMap<DatabaseSync, {
+    projection: SourceWritesProjection; fingerprint: string; barrier: string
+    inventory: LocalAlbumSqlScope['lyricsInventory']; artworkInventory: LocalAlbumSqlScope['artworkInventory']; reader: ReturnType<typeof createLocalAlbumSqlReader>
+  }>()
+  /** 原guard及Source证明仍逐次执行；只复用同连接、同完整scope和同SQL水位的SELECT作者。 */
+  function albumReader(db: DatabaseSync, scope: LocalAlbumSqlScope) {
+    const projection = sourceProjectionFor(db), fingerprint = localAlbumSqlScopeFingerprint(scope)
+    const changes = db.prepare('SELECT total_changes() n').get()?.n
+    const version = db.prepare('PRAGMA data_version').get()?.data_version
+    const schema = db.prepare('PRAGMA schema_version').get()?.schema_version
+    if (![changes, version, schema].every(value => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)) return corrupt()
+    const barrier = JSON.stringify([changes, version, schema, db.isTransaction]), saved = albumReaders.get(db)
+    if (saved && saved.projection === projection && saved.fingerprint === fingerprint && saved.barrier === barrier
+      && saved.inventory === scope.lyricsInventory && saved.artworkInventory === scope.artworkInventory && isCurrentLocalAlbumSqlReader(db, saved.reader)) return saved.reader
+    const reader = createLocalAlbumSqlReader(db, { projectionSql: libraryProjection, sourceLookup: trackId => {
+      const value = projection.fullRaw.get(trackId); return value ? { ordinal: value.ledgerOrdinal, fields: value.fields } : undefined
+    } }, { track: readTrack, asset: readAsset, versionTokens: libraryVersionTokens, boundedRow,
+      scanState: (rootId, relative) => readLocalAlbumScanState(db, rootId, relative, access.conflict), cue: readLocalAlbumCueSnapshot }, scope)
+    albumReaders.set(db, { projection, fingerprint, barrier, inventory: scope.lyricsInventory, artworkInventory: scope.artworkInventory, reader })
+    return reader
+  }
+
+  let workbenchIdentity:DatasetIdentity|undefined;
+  function assertWorkbenchDataset(datasetId:string):void{if(!workbenchIdentity||datasetId!==workbenchIdentity.datasetId)throw new LocalLyricsError('STALE');workbenchIdentity.assertCurrent();}
+  function assertWorkbenchIdentity(identity:DatasetIdentity):void{if(identity!==workbenchIdentity)throw new LocalLyricsError('STALE');assertWorkbenchDataset(identity.datasetId);}
+  const mbOrigins=new WeakMap<object,{planId:string;hash:string;context:string;origin:'Human'|'AI'|'Provider';remote?:dto.LocalArtworkRemoteSource}>(),mbOriginPlans=new Map<string,{brand:object;origin:'Human'|'AI'|'Provider'}>();
+
   const one = (db: DatabaseSync, table: Table, id: string): Row => {
     const key = table === 'local_catalog_overrides' ? 'track_id' : 'id';
     const row = db.prepare(`SELECT * FROM ${table} WHERE ${key}=?`).get(id);
@@ -475,7 +953,7 @@ export function createLocalCatalogStore(access: Access) {
   const track = (db: DatabaseSync, id: string) => readTrack(one(db, 'local_catalog_tracks', id));
   const authorized = (id: string): RootCapability => { const capability = access.sources.root(id); return capability.authorized ? capability : access.conflict('源目录授权已撤销，现有目录身份仍保留。'); };
   const currentRoot = (db: DatabaseSync, id: string, revision: string): dto.LibraryRoot => {
-    const value = root(db, id); if (value.revision !== revision) return access.conflict('本地目录关联修订已改变。'); authorized(value.sourceRootId); return value;
+    assertLibraryManagementRootAvailable(db,id);const value = root(db, id); if (value.revision !== revision) return access.conflict('本地目录关联修订已改变。'); authorized(value.sourceRootId); return value;
   };
   function overlap(db: DatabaseSync, source: RootCapability, except?: string): void {
     for (const row of db.prepare('SELECT * FROM local_catalog_roots').all()) {
@@ -684,6 +1162,7 @@ export function createLocalCatalogStore(access: Access) {
         db.prepare('UPDATE local_catalog_assets SET source_root_id=?,relative=?,sha256=?,data=? WHERE id=?').run(selected.sourceRootId, request.relative, request.sha256, JSON.stringify(result), old.id); return result;
   }
   function applyCreateTrack(db: DatabaseSync, request: CreateLocalTrack): dto.LocalTrack {
+    assertLibraryManagementRootAvailable(db,asset(db,request.assetId).libraryRootId);
         const selected = asset(db, request.assetId);
         const result: dto.LocalTrack = { id: randomUUID(), assetId: selected.id, selectionRevision: '1', segment: request.segment === null ? null : { ...request.segment, id: randomUUID() } };
         checkTrackSegment(result, selected); db.prepare('INSERT INTO local_catalog_tracks VALUES(?,?,?)').run(result.id, result.assetId, JSON.stringify(result)); return result;
@@ -720,7 +1199,520 @@ export function createLocalCatalogStore(access: Access) {
         const result: dto.LocalMetadataOverride = { trackId: request.trackId, revision: old ? next(old.revision) : '1', fields: { ...request.fields }, ...(annotations === undefined ? {} : { annotations: structuredClone(annotations) }) };
         db.prepare('INSERT INTO local_catalog_overrides VALUES(?,?) ON CONFLICT(track_id) DO UPDATE SET data=excluded.data').run(result.trackId, JSON.stringify(result)); return result;
   }
-  return {
+
+  function copyWorkbenchAudit(before:WorkbenchAudit):WorkbenchAudit{
+    return {highWater:before.highWater,workbench:new Map([...before.workbench].map(([id,p])=>[id,{...p,pending:null}])),
+      lyrics:new Map([...before.lyrics].map(([id,p])=>[id,{...p,latest:new Map(p.latest),inventory:new Map(p.inventory),jobOrigins:new Map(p.jobOrigins),pending:null}])),
+      cue:new Map([...before.cue].map(([id,p])=>[id,copyLocalCueOwnerProjection(p)])),scanSettings:new Map([...before.scanSettings].map(([id,p])=>[id,copyLocalScanSettingsOwnerProjection(p)])),mbOnly:new Map([...before.mbOnly].map(([id,p])=>[id,copyLocalWorkbenchMBOnlyProjection(p)])),lyricsPhysical:new Map([...before.lyricsPhysical].map(([id,p])=>[id,copyLocalLyricsPhysicalProjection(p)])),management:new Map([...before.management].map(([id,p])=>[id,copyLocalLibraryManagementProjection(p)])),lyricsRoot:new Map([...before.lyricsRoot].map(([id,p])=>[id,copyLocalLyricsRootProjection(p)]))}
+  }
+  function projectWorkbenchRow(a:WorkbenchAudit,row:Row):void{
+    boundedRow(row);const ordinal=Number(row._ledger_rowid)
+    if(row.operation===LOCAL_LYRICS_ROOT_OPERATION){const e=readLocalLyricsRootEvent(row),p=a.lyricsRoot.get(e.datasetId)??emptyLocalLyricsRootProjection(e.datasetId);projectLocalLyricsRootEvent(p,e,ordinal);a.lyricsRoot.set(e.datasetId,p)}
+    else if(row.operation===LOCAL_LIBRARY_MANAGEMENT_OPERATION){const e=readLocalLibraryManagementEvent(row),p=a.management.get(e.datasetId)??emptyLocalLibraryManagementProjection(e.datasetId);projectLocalLibraryManagementEvent(p,e,ordinal);a.management.set(e.datasetId,p)}
+    else if(row.operation===LOCAL_WORKBENCH_JOURNAL_OPERATION){const e=readLocalWorkbenchJournalEvent(row),p=a.workbench.get(e.datasetId)??emptyLocalWorkbenchJournalProjection(e.datasetId);projectLocalWorkbenchJournalEvent(p,e,ordinal);a.workbench.set(e.datasetId,p)}
+    else if(row.operation===LOCAL_LYRICS_JOURNAL_OPERATION){const e=readLocalLyricsJournalEvent(row),p=a.lyrics.get(e.datasetId)??emptyLocalLyricsJournalProjection(e.datasetId);projectLocalLyricsJournalEvent(p,e,ordinal);a.lyrics.set(e.datasetId,p)}
+    else if(row.operation===LOCAL_LYRICS_PHYSICAL_OPERATION){const e=readLocalLyricsPhysicalEvent(row),p=a.lyricsPhysical.get(e.datasetId)??emptyLocalLyricsPhysicalProjection(e.datasetId);projectLocalLyricsPhysicalEvent(p,e,ordinal);a.lyricsPhysical.set(e.datasetId,p)}
+    else if(row.operation===LOCAL_CUE_OUTPUT_OPERATION){const e=readLocalCueOwnerEvent(row),p=a.cue.get(e.datasetId)??emptyLocalCueOwnerProjection(e.datasetId);projectLocalCueOwnerEvent(p,e,ordinal);a.cue.set(e.datasetId,p)}
+    else if(row.operation===LOCAL_SCAN_SETTINGS_OPERATION){const e=readLocalScanSettingsOwnerEvent(row),p=a.scanSettings.get(e.datasetId)??emptyLocalScanSettingsOwnerProjection(e.datasetId);projectLocalScanSettingsOwnerEvent(p,e,ordinal);a.scanSettings.set(e.datasetId,p)}
+    else if(row.operation===LOCAL_WORKBENCH_MB_ONLY_OPERATION){const e=readLocalWorkbenchMBOnlyEvent(row),p=a.mbOnly.get(e.datasetId)??emptyLocalWorkbenchMBOnlyProjection(e.datasetId);projectLocalWorkbenchMBOnlyEvent(p,e,ordinal);a.mbOnly.set(e.datasetId,p)}
+    else if(['relink-root','move-asset','replace-asset','select-asset'].includes(String(row.operation))){for(const p of a.lyrics.values()){p.inventory.clear();p.highWater=ordinal}}
+    else return corrupt()
+  }
+  function workbenchProjectionFor(db:DatabaseSync):WorkbenchAudit{
+    certificateFor(db);const previous=workbenchAudits.get(db);if(!previous)return corrupt()
+    const highWater=Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n)
+    if(!Number.isSafeInteger(highWater)||highWater<previous.highWater)return corrupt()
+    if(highWater===previous.highWater)return previous
+    const candidate=copyWorkbenchAudit(previous)
+    // 正常同Ownerappend会同步发布cache；此路径仍审本域完整增量，不丢截断尾部。
+    for(const row of db.prepare("SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE rowid>? AND rowid<=? AND operation IN (?,?,?,?,?,?,?,?,'relink-root','move-asset','replace-asset','select-asset') ORDER BY rowid").iterate(previous.highWater,highWater,LOCAL_WORKBENCH_JOURNAL_OPERATION,LOCAL_LYRICS_JOURNAL_OPERATION,LOCAL_CUE_OUTPUT_OPERATION,LOCAL_SCAN_SETTINGS_OPERATION,LOCAL_WORKBENCH_MB_ONLY_OPERATION,LOCAL_LYRICS_PHYSICAL_OPERATION,LOCAL_LIBRARY_MANAGEMENT_OPERATION,LOCAL_LYRICS_ROOT_OPERATION))projectWorkbenchRow(candidate,row)
+    for(const p of candidate.workbench.values())assertLocalWorkbenchJournalComplete(p)
+    for(const p of candidate.lyrics.values())assertLocalLyricsJournalComplete(p)
+    for(const p of candidate.cue.values())assertLocalCueOwnerComplete(p)
+    for(const p of candidate.mbOnly.values())assertLocalWorkbenchMBOnlyComplete(p)
+    for(const p of candidate.lyricsPhysical.values())assertLocalLyricsPhysicalComplete(p)
+    for(const p of candidate.management.values())assertLocalLibraryManagementComplete(p)
+    for(const p of candidate.lyricsRoot.values())assertLocalLyricsRootComplete(p)
+    candidate.highWater=highWater;workbenchAudits.set(db,candidate);return candidate
+  }
+  function appendWorkbenchRows(db:DatabaseSync,previous:WorkbenchAudit,rows:readonly Record<string,string>[],action:string):void{
+    const certificate=certificateFor(db),candidate=copyWorkbenchAudit(previous),before=Number(db.prepare('SELECT total_changes() n').get()!.n)
+    const counts=new Map(certificate.rows);let bytes=certificate.bytes
+    for(const row of rows){
+      if(Object.values(row).reduce((n,s)=>n+Buffer.byteLength(s),0)>maxRowTextBytes||db.prepare('SELECT 1 FROM local_catalog_ledger WHERE command_id=?').get(row.command_id!))throw new LocalLyricsError('CONFLICT')
+      db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(row.command_id!,row.fingerprint!,row.operation!,row.request!,row.result!,row.created_at!)
+      const saved=db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE command_id=?').get(row.command_id!)!;projectWorkbenchRow(candidate,saved)
+      bytes+=rowBytes(saved);const count=counts.get('local_catalog_ledger')!+1;checkBudget('local_catalog_ledger行数',count,rowBudgets.local_catalog_ledger);counts.set('local_catalog_ledger',count);checkBudget('目录总文本字节',bytes,maxCatalogTextBytes)
+    }
+    for(const p of candidate.workbench.values())assertLocalWorkbenchJournalComplete(p)
+    for(const p of candidate.lyrics.values())assertLocalLyricsJournalComplete(p)
+    for(const p of candidate.cue.values())assertLocalCueOwnerComplete(p)
+    for(const p of candidate.mbOnly.values())assertLocalWorkbenchMBOnlyComplete(p)
+    for(const p of candidate.lyricsPhysical.values())assertLocalLyricsPhysicalComplete(p)
+    for(const p of candidate.management.values())assertLocalLibraryManagementComplete(p)
+    for(const p of candidate.lyricsRoot.values())assertLocalLyricsRootComplete(p)
+    if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+rows.length)return corrupt()
+    access.beforeCommit?.(action)
+    if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+rows.length)return corrupt()
+    workbenchIdentity!.assertCurrent();access.beforeLocalFactsCommit?.();commitLocalFacts(db,access.onLocalFactsFatal)
+    candidate.highWater=Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n)
+    audits.set(db,{rows:counts,bytes,dataVersion:certificate.dataVersion});workbenchAudits.set(db,candidate)
+  }
+  function cueOutputRead(identity:DatasetIdentity,commandId:string):{record:LocalCueOutputRecord;ledgerSequence:string}|null{
+    assertWorkbenchIdentity(identity);if(!dto.isCollectionId(commandId))throw new LocalLyricsError('INVALID')
+    const result=access.read(db=>{const p=workbenchProjectionFor(db).cue.get(identity.datasetId);const value=p?.output.latest.get(commandId);return value?structuredClone(value):null});assertWorkbenchIdentity(identity);return result
+  }
+  /** 全组原成员CAS；同命令已经完成的嵌入只能沿同SQL真实publication延续。 */
+  function assertLyricsPhysicalGroup(db:DatabaseSync,a:WorkbenchAudit,r:LocalLyricsPhysicalRecord):Map<string,dto.AudioAsset>{
+    sourceProjectionFor(db);const assets=new Map<string,dto.AudioAsset>();
+    for(const m of r.original.members){const t=track(db,m.trackId),current=assets.get(m.fileId)??asset(db,m.fileId),selected=root(db,m.rootId),location=one(db,'local_catalog_assets',m.fileId),resource=r.original.resources[m.resourceIndex]!,own=lyricsPhysicalOwnAsset(r,a,m.fileId,m.fileRevision);
+      if(t.assetId!==m.fileId||selected.id!==r.binding.libraryId||selected.revision!==m.rootRevision||selected.sourceRootId!==m.sourceRootId||!authorized(m.sourceRootId)
+        ||current.libraryRootId!==m.rootId||current.sourceRootId!==m.sourceRootId||current.rootRevision!==m.rootRevision||current.fileRevision!==own.revision||current.locationRevision!==m.locationRevision
+        ||location.relative!==resource.relative||location.sha256!==null&&location.sha256!==(own.sha256??resource.sha256)
+        ||lyricsDigest(lyricsCanonical(libraryMetadata(db,m.trackId)))!==m.metadataRevision)throw new LocalLyricsError('STALE');
+      if(!assets.has(m.fileId)){const original=r.original.members.filter(v=>v.fileId===m.fileId),rows=db.prepare('SELECT * FROM local_catalog_tracks WHERE asset_id=? ORDER BY rowid LIMIT 10001').all(m.fileId);
+        if(rows.length!==original.length||rows.some(row=>!original.some(v=>v.trackId===readTrack(row).id)))throw new LocalLyricsError('STALE');assets.set(m.fileId,current);
+      }
+    }
+    return assets;
+  }
+
+  function libraryManagementRead<K extends LocalLibraryManagementRecordKind>(identity:DatasetIdentity,kind:K,key:string):LocalLibraryManagementStored<LocalLibraryManagementRecordMap[K]>|null {
+    assertWorkbenchIdentity(identity);if(!['binding','operation','capture','job'].includes(kind)||!dto.isLocalWorkbenchIdentity(key))return corrupt();
+    const result=access.read(db=>{const stored=workbenchProjectionFor(db).management.get(identity.datasetId)?.records.get(kind+':'+key);return stored?structuredClone(stored) as LocalLibraryManagementStored<LocalLibraryManagementRecordMap[K]>:null;});assertWorkbenchIdentity(identity);return result;
+  }
+  /** 同实际连接每次复核完整certificate/projection；头部不泄漏全组的可变别名。 */
+  function libraryManagementReadCaptureHeader(identity:DatasetIdentity,key:string):LocalLibraryManagementFrozenAlbumSelection['captureRecord']|null {
+    assertWorkbenchIdentity(identity);if(!dto.isLocalWorkbenchIdentity(key))return corrupt()
+    const result=access.read(db=>{
+      const stored=workbenchProjectionFor(db).management.get(identity.datasetId)?.records.get('capture:'+key)
+      if(!stored)return null
+      const record=stored.record
+      if(record.kind!=='capture'||record.datasetId!==identity.datasetId||record.key!==key)return corrupt()
+      const header:LocalLibraryManagementFrozenAlbumSelection['captureRecord']={
+        schema:record.schema,kind:record.kind,datasetId:record.datasetId,key:record.key,revision:record.revision,
+        originalSha256:record.originalSha256,original:{mode:record.original.mode,watermark:record.original.watermark},
+      }
+      return structuredClone(header)
+    })
+    assertWorkbenchIdentity(identity);return result
+  }
+  function libraryManagementReadFrozenAlbum(identity:DatasetIdentity,scope:dto.LocalLyricsScope):LocalLibraryManagementFrozenAlbumSelection|null {
+    assertWorkbenchIdentity(identity)
+    if(!dto.isLocalLyricsScope(scope)||scope.datasetId!==identity.datasetId)return corrupt()
+    const result=access.read(db=>{
+      // 保留原完整projection/certificate与全部record的已核SHA；只复制其中一项，不接当前分页。
+      const stored=workbenchProjectionFor(db).management.get(identity.datasetId)?.records.get('capture:'+scope.captureId)
+      if(!stored)return null
+      const record=stored.record
+      if(record.kind!=='capture'||record.datasetId!==identity.datasetId||record.key!==scope.captureId)return corrupt()
+      const pin=record.original.libraries.find(value=>value.libraryId===scope.libraryId)
+      const album=record.original.albums.find(value=>value.libraryId===scope.libraryId&&value.resolved.capture.albumId===scope.albumId)
+      const ref=record.original.albumRefs.find(value=>value.rootId===scope.libraryId&&value.albumId===scope.albumId)
+      if(!pin||!album||!ref)return null
+      if(album.sourceRootId!==pin.sourceRootId||album.rootRevision!==pin.rootRevision||album.resolved.datasetId!==identity.datasetId
+        ||album.resolved.capture.rootId!==scope.libraryId||album.resolved.group.summary.id!==ref.albumId
+        ||album.resolved.group.summary.rootId!==ref.rootId||album.resolved.group.summary.revision!==ref.revision)return corrupt()
+      const value:LocalLibraryManagementFrozenAlbumSelection={
+        captureRecord:{schema:record.schema,kind:record.kind,datasetId:record.datasetId,key:record.key,revision:record.revision,
+          originalSha256:record.originalSha256,original:{mode:record.original.mode,watermark:record.original.watermark}},
+        managementCapture:{key:record.key,ledgerSequence:stored.ledgerSequence,recordSha256:stored.recordSha256,
+          originalSha256:record.originalSha256,...pin},album,
+      }
+      return structuredClone(value)
+    })
+    assertWorkbenchIdentity(identity);return result
+  }
+  function libraryManagementRootAvailable(db:DatabaseSync,libraryId:string):boolean {
+    if(!workbenchIdentity)return true;
+    assertWorkbenchIdentity(workbenchIdentity);const projection=workbenchProjectionFor(db).management.get(workbenchIdentity.datasetId);
+    const binding=projection?.records.get('binding:'+libraryId)?.record;
+    if(binding?.kind==='binding'&&!binding.active)return false;
+    // running/UNKNOWN的原remove也封住新CREATE；关闭失败不允许从空内存Map复活。
+    for(const value of projection?.records.values()??[]){const record=value.record;
+      if(record.kind==='operation'&&record.original.command==='library.remove'
+        &&!['failed','cancelled'].includes(record.receipt.state)&&record.original.request.libraryIds.includes(libraryId))return false;}
+    return true;
+  }
+  function assertLibraryManagementRootAvailable(db:DatabaseSync,libraryId:string):void {
+    if(!libraryManagementRootAvailable(db,libraryId))return access.conflict('原库正在撤销或已撤销，仅保留原回执；不能新建扫描、捕获或媒体记录。');
+  }
+  function libraryManagementReader(db:DatabaseSync,capture:LocalLibraryManagementCaptureRecord){
+    assertWorkbenchDataset(capture.datasetId);
+    const source=sourceProjectionFor(db),audit=workbenchProjectionFor(db),roles=libraryManagementRolesAt(capture,audit),roots:captureRoots=[],libraryOrganizations:LocalAlbumLibraryOrganization[]=[];
+    for(const pin of capture.original.libraries){const actual=currentRoot(db,pin.libraryId,pin.rootRevision);if(actual.role!=='library'||actual.sourceRootId!==pin.sourceRootId)return corrupt();const resource=authorized(pin.sourceRootId);
+      const availability=capture.original.albums.find(a=>a.libraryId===pin.libraryId)?.resolved.availability;roots.push({root:actual,label:resource.label,availability:availability==='offline'?'SOURCE_ROOT_OFFLINE':availability==='unavailable'?'REVOKED':'ONLINE'});
+      const stored=audit.management.get(capture.datasetId)?.records.get('binding:'+pin.libraryId);
+      if(stored?.record.kind==='binding'){const binding=stored.record;libraryOrganizations.push({datasetId:capture.datasetId,rootId:actual.id,sourceRootId:actual.sourceRootId,rootRevision:actual.revision,
+        bindingRevision:binding.revision,recordSha256:stored.recordSha256,role:binding.role,rootName:path.basename(resource.path),parentName:path.basename(path.dirname(resource.path))});}}
+    const reader=createLocalAlbumSqlReader(db,{projectionSql:libraryProjection,sourceLookup:trackId=>{const value=source.fullRaw.get(trackId);return value?{ordinal:value.ledgerOrdinal,fields:value.fields}:undefined;}},
+      {track:readTrack,asset:readAsset,versionTokens:libraryVersionTokens,boundedRow,scanState:(rootId,relative)=>readLocalAlbumScanState(db,rootId,relative,access.conflict),cue:readLocalAlbumCueSnapshot},{revision:capture.original.watermark,roots,...(libraryOrganizations.length?{libraryOrganizations}: {})});
+    return {reader,roles};
+  }
+  type captureRoots=dto.LocalRootView[];
+  function assertLibraryCaptureCurrent(db:DatabaseSync,value:LocalLibraryManagementCaptureRecord,requireWatermark=true):void {
+    if(requireWatermark&&(value.original.catalogRevision!==albumCatalogRevision(db)||value.original.scanRevision!==albumScanRevision(db)))return access.conflict('完整库捕获的原水位已改变，不能换成当前分页或选择。');
+    const {reader,roles}=libraryManagementReader(db,value);
+    if(value.original.mode==='library')for(const pin of value.original.libraries){const page=reader.queryAlbums({rootId:pin.libraryId,query:'',filter:'all',offset:0,limit:1});if(page.total!==value.original.albumRefs.filter(ref=>ref.rootId===pin.libraryId).length)return access.conflict('完整库捕获遗漏专辑或仅保存了分页。');}
+    for(const captured of value.original.albums){const r=captured.resolved,g=r.group,first=reader.queryAlbumMembers({albumKey:g.summary.id,rootId:g.summary.rootId,offset:0,limit:1});
+      if(first.total!==g.members.length)return access.conflict('专辑捕获遗漏完整成员。');
+      const role=roles.get(captured.libraryId),organized= g.summary.editionId===null&&(role==='artist'||role==='album'),actualMembers=new Set<string>();
+      if(organized){
+        // 原同SQL SELECT完整核实际分组成员；分页只是读取传输，不拆业务capture/commit。
+        for(let offset=0;offset<first.total;){const page=reader.queryAlbumMembers({albumKey:g.summary.id,rootId:g.summary.rootId,offset,limit:200});
+          if(page.total!==first.total||page.album.id!==g.summary.id||page.album.rootId!==captured.libraryId||!page.items.length||page.items.length>first.total-offset)return access.conflict('原组织专辑完整成员读取已改变。');
+          for(const member of page.items){const id=member.fact.summary.track.id;if(actualMembers.has(id))return access.conflict('原组织专辑成员身份重复。');actualMembers.add(id);}
+          offset+=page.items.length;
+        }
+        if(actualMembers.size!==g.members.length)return access.conflict('专辑捕获遗漏完整成员。');
+      }
+      for(const member of g.members){const current=track(db,member.fact.summary.track.id),located=one(db,'local_catalog_assets',member.fact.summary.asset.id),view=libraryMetadata(db,current.id),m=r.capture.members.find(m=>m.trackId===current.id)!;
+        if(!same(current,member.fact.summary.track)||!same(readAsset(located),member.fact.summary.asset)||located.relative!==member.fact.relative||!same(view.raw,member.fact.rawMetadata)||!same(view.effective,member.fact.summary.metadata)||localLibraryManagementDigest(view)!==m.metadataRevision)return access.conflict('专辑原根、定位或元数据捕获已改变。');
+        const links=db.prepare("SELECT data FROM local_catalog_edition_tracks WHERE track_id=? AND json_extract(data,'$.active')=1 ORDER BY rowid").all(current.id).map(row=>parse(row.data,dto.isAlbumEditionTrack));
+        if(organized){if(!actualMembers.has(current.id))return access.conflict('曲目不属于原完整专辑。');}
+        else {
+        const keys=(links.length?links.map(l=>l.editionId):[null]).map(editionId=>libraryManagementGroupKey(captured.libraryId,editionId,String(located.relative),view.raw));
+        if(!keys.includes(g.summary.id))return access.conflict('曲目不属于原完整专辑。');
+        }
+      }
+      const issues=reader.queryAlbumIssues({albumKey:g.summary.id,rootId:g.summary.rootId,offset:0,limit:1});if(issues.rejectedTotal!==(g.rejectedFiles?.length??0))return access.conflict('专辑捕获遗漏原拒收文件。');
+      for(const cue of r.directoryFacts.cues){const row=db.prepare('SELECT data FROM local_cue_sources WHERE id=?').get(cue.id);if(!row||!same(readLocalAlbumCueSnapshot(row.data),cue))return access.conflict('原CUE来源或完整解析事实已改变。');}
+      for(const fact of r.directoryFacts.files){const current=readLocalAlbumScanState(db,captured.libraryId,fact.currentRelative,access.conflict);if(!same(current,fact.value))return access.conflict('原扫描文件事实已改变。');}
+    }
+  }
+  function libraryManagementCompareAndSwap(identity:DatasetIdentity,inputs:readonly LocalLibraryManagementWrite[]):{ledgerSequence:string;records:readonly LocalLibraryManagementStored[]} {
+    assertWorkbenchIdentity(identity);if(!isLocalWorkbenchDenseArray(inputs,101)||!inputs.length)return corrupt();
+    const writes=inputs.map(write=>{if(!write||Object.getPrototypeOf(write)!==Object.prototype||Reflect.ownKeys(write).length!==2||!Object.hasOwn(write,'record')||!Object.hasOwn(write,'expectedRevision')||!Object.hasOwn(Object.getOwnPropertyDescriptor(write,'record')!,'value')||!Object.hasOwn(Object.getOwnPropertyDescriptor(write,'expectedRevision')!,'value'))return corrupt();const record=captureLocalLibraryManagementOwnerRecord(write.record);if(record.datasetId!==identity.datasetId||write.expectedRevision!==null&&(!Number.isSafeInteger(write.expectedRevision)||write.expectedRevision<1))return corrupt();return {record,expectedRevision:write.expectedRevision};});
+    if(new Set(writes.map(w=>w.record.kind+':'+w.record.key)).size!==writes.length)return corrupt();
+    const result=access.read(db=>{db.exec('BEGIN IMMEDIATE');try{
+      const a=workbenchProjectionFor(db),p=a.management.get(identity.datasetId)??emptyLocalLibraryManagementProjection(identity.datasetId),records=writes.map(w=>w.record);
+      const exact=writes.every(w=>{const old=p.records.get(w.record.kind+':'+w.record.key);return old&&same(old.record,w.record)&&w.expectedRevision===old.record.revision-1;});
+      if(exact){db.exec('ROLLBACK');const saved=writes.map(w=>structuredClone(p.records.get(w.record.kind+':'+w.record.key)!));return {ledgerSequence:saved.at(-1)!.ledgerSequence,records:saved};}
+      for(const write of writes){const old=p.records.get(write.record.kind+':'+write.record.key);if((old?.record.revision??null)!==write.expectedRevision)return access.conflict('Library原命令CAS修订已改变。');}
+      assertLocalLibraryManagementBatch(p.records,records);
+      for(const record of records){
+        if(record.kind==='operation')verifyLibraryManagementImportReceipt(db,record);
+        if(record.kind==='binding'&&record.active){const actual=currentRoot(db,record.libraryId,record.rootRevision);if(actual.role!=='library'||actual.sourceRootId!==record.sourceRootId)return access.conflict('管理绑定必须来自原实际LibraryRoot，不能以UUID代替来源。');}
+        if(record.kind==='capture')assertLibraryCaptureCurrent(db,record);
+        if(record.kind==='job'){assertLibraryManagementJobCapture(record,p);assertLibraryManagementJobReceipts(record,a);if(record.revision===1){const captured=p.records.get('capture:'+record.original.captureId)!.record;if(captured.kind!=='capture')return corrupt();assertLibraryCaptureCurrent(db,captured,false);}}
+      }
+      const retired=records.filter((record):record is LocalLibraryManagementBindingRecord=>record.kind==='binding'&&!record.active);
+      if(retired.length){
+        const candidates=new Set<string>(),editions=new Set<string>();
+        for(const projection of a.workbench.values())for(const entry of projection.snapshot?.entries??[])for(const artwork of entry.capture.artwork??[])candidates.add(artwork.candidateId);
+        for(const link of legacyProjectionFor(db).links.values())if(link.state==='active'&&link.endpoints.kind==='legacy-edition')editions.add(link.endpoints.localEditionId);
+        for(const binding of retired)pruneLocalLibraryArtworkCacheInTransaction(db,binding.libraryId,{candidates,editions});
+      }
+      const events=createLocalLibraryManagementBatchEvents(writes.map(w=>({record:w.record,previous:p.records.get(w.record.kind+':'+w.record.key)?.record??null})));
+      appendWorkbenchRows(db,a,events.map(localLibraryManagementLedgerRow),'local-library-management:cas');
+      const actual=workbenchAudits.get(db)?.management.get(identity.datasetId);if(!actual)return corrupt();
+      const saved=writes.map(w=>structuredClone(actual.records.get(w.record.kind+':'+w.record.key)!));return {ledgerSequence:saved.at(-1)!.ledgerSequence,records:saved};
+    }catch(error){rollbackLocalFacts(db,error,access.onLocalFactsFatal);}});assertWorkbenchIdentity(identity);return result;
+  }
+  function lyricsRootRead<K extends LocalLyricsRootRecordKind>(identity:DatasetIdentity,kind:K,key:string):Readonly<LocalLyricsRootRecordMap[K]>|null{
+    assertWorkbenchIdentity(identity);if(!['original-capture','save-snapshot'].includes(kind)||(kind==='original-capture'?!sha(key):!dto.isCollectionId(key)))throw new LocalLyricsError('INVALID');
+    const result=access.read(db=>{const value=workbenchProjectionFor(db).lyricsRoot.get(identity.datasetId)?.records.get(kind+':'+key);return value?structuredClone(value) as LocalLyricsRootRecordMap[K]:null;});assertWorkbenchIdentity(identity);return result;
+  }
+  function lyricsRootCompareAndSwap(identity:DatasetIdentity,input:LocalLyricsRootRecord,expectedRevision:number|null):void{
+    assertWorkbenchIdentity(identity);const record=captureLocalLyricsRootRecord(input);if(record.datasetId!==identity.datasetId)throw new LocalLyricsError('STALE');
+    access.read(db=>{db.exec('BEGIN IMMEDIATE');try{const a=workbenchProjectionFor(db),p=a.lyricsRoot.get(identity.datasetId),old=p?.records.get(record.kind+':'+record.key)??null;
+      if((old?.revision??null)!==expectedRevision)throw new LocalLyricsError('CONFLICT');assertLocalLyricsRootTransition(old,record);verifyLyricsRootRecord(db,a,record,true);
+      appendWorkbenchRows(db,a,createLocalLyricsRootEvents(record,old).map(localLyricsRootLedgerRow),'local-lyrics-root:cas');
+    }catch(error){rollbackLocalFacts(db,error,access.onLocalFactsFatal);}});assertWorkbenchIdentity(identity);
+  }
+  function lyricsPhysicalPending(identity:DatasetIdentity):readonly LocalLyricsPhysicalStored[]{
+    assertWorkbenchIdentity(identity);const result=access.read(db=>{const p=workbenchProjectionFor(db).lyricsPhysical.get(identity.datasetId);if(p)assertLocalLyricsPhysicalComplete(p);
+      return structuredClone([...(p?.records.values()??[])].filter(item=>!['CLOSED','FAILED'].includes(item.record.phase)||!item.record.physicalClosed||!item.record.protectionReleased).map(item=>({record:item.record,ledgerSequence:item.ledgerSequence})));});assertWorkbenchIdentity(identity);return result;
+  }
+  function cueOutputPending(identity:DatasetIdentity):readonly {record:LocalCueOutputRecord;ledgerSequence:string}[]{
+    assertWorkbenchIdentity(identity);const result=access.read(db=>{const p=workbenchProjectionFor(db).cue.get(identity.datasetId);if(p)assertLocalCueOwnerComplete(p);
+      return structuredClone([...(p?.output.latest.values()??[])].filter(item=>!['succeeded','failed','cancelled'].includes(item.record.phase)||!item.record.physicalClosed));});assertWorkbenchIdentity(identity);return result;
+  }
+  function lyricsPhysicalPublications(identity:DatasetIdentity,commandId:string):readonly {record:LocalLyricsPhysicalRecord;ledgerSequence:number;publication:LocalLyricsPhysicalPublication|null;publicationSequence:number|null}[]{
+    assertWorkbenchIdentity(identity);if(!dto.isLocalWorkbenchIdentity(commandId))return corrupt();
+    const result=access.read(db=>{const a=workbenchProjectionFor(db),items=[...(a.lyricsPhysical.get(identity.datasetId)?.records.values()??[])].filter(item=>item.record.binding.commandId===commandId);
+      for(const item of items){const index=a.lyrics.get(identity.datasetId)?.latest.get('save:'+commandId);if(!index||index.recordKind!=='save')return corrupt();const saved=readLyricsRecord(db,index) as LocalLyricsSaveRecord;assertLocalLyricsSaveRecord(saved);const b=item.record.binding;if(saved.intent.request.commandId!==commandId||saved.intent.scope.datasetId!==identity.datasetId||b.originalIntentSha256!==lyricsPhysicalDigest(saved.intent)||b.originalRequestSha256!==lyricsPhysicalDigest(saved.intent.request)||b.intentFingerprint!==saved.intent.fingerprint||b.groupCaptureSha256!==saved.intent.captureFingerprint)return corrupt();}
+      return structuredClone(items.map(item=>({record:item.record,ledgerSequence:item.ledgerSequence,publication:item.publication,publicationSequence:item.publicationSequence})).sort((x,y)=>x.ledgerSequence-y.ledgerSequence));});assertWorkbenchIdentity(identity);return result;
+  }
+
+  function lyricsPhysicalRead(identity:DatasetIdentity,operationId:string):LocalLyricsPhysicalStored|null{
+    assertWorkbenchIdentity(identity);if(!/^[a-f0-9]{64}$/u.test(operationId))throw new LocalLyricsError('INVALID');
+    const result=access.read(db=>{const value=workbenchProjectionFor(db).lyricsPhysical.get(identity.datasetId)?.records.get(operationId);return value?{record:structuredClone(value.record),ledgerSequence:value.ledgerSequence}:null;});assertWorkbenchIdentity(identity);return result;
+  }
+  function lyricsPhysicalCompareAndSwap(identity:DatasetIdentity,input:LocalLyricsPhysicalRecord,expectedRevision:number|null):number{
+    assertWorkbenchIdentity(identity);const record=captureLocalLyricsPhysicalRecord(input);if(record.binding.datasetId!==identity.datasetId||record.phase==='FACTS_COMMITTED')throw new LocalLyricsError('INVALID');
+    const result=access.read(db=>{db.exec('BEGIN IMMEDIATE');try{const a=workbenchProjectionFor(db),previous=a.lyricsPhysical.get(identity.datasetId)?.records.get(record.operationId);
+      if((previous?.record.revision??null)!==expectedRevision)throw new LocalLyricsError('CONFLICT');lyricsPhysicalOriginalSave(db,a,record);
+      if(!['FAILED','UNKNOWN'].includes(record.phase))assertLyricsPhysicalGroup(db,a,record);
+      const events=createLocalLyricsPhysicalEvents(record,previous?.record??null);appendWorkbenchRows(db,a,events.map(localLyricsPhysicalLedgerRow),'local-lyrics-physical:cas');
+      const value=workbenchAudits.get(db)?.lyricsPhysical.get(identity.datasetId)?.records.get(record.operationId);if(!value)return corrupt();return value.ledgerSequence;
+    }catch(error){rollbackLocalFacts(db,error,access.onLocalFactsFatal);}});assertWorkbenchIdentity(identity);return result;
+  }
+  function lyricsPhysicalCommitPublication(identity:DatasetIdentity,input:LocalLyricsPhysicalRecord,expectedRevision:number):number{
+    assertWorkbenchIdentity(identity);const record=captureLocalLyricsPhysicalRecord(input),b=record.binding;
+    if(b.datasetId!==identity.datasetId||record.phase!=='FACTS_COMMITTED'||!record.grant||!record.artifacts.target||record.physicalClosed||record.protectionReleased||record.unresolved
+      ||!['saved','existing'].includes(String(record.result?.state))||record.result?.bodySha256!==b.bodySha256)throw new LocalLyricsError('INVALID');
+    const result=access.read(db=>{db.exec('BEGIN IMMEDIATE');let committed=false;try{
+      const a=workbenchProjectionFor(db),previous=a.lyricsPhysical.get(identity.datasetId)?.records.get(record.operationId);
+      if(!previous||previous.record.revision!==expectedRevision||previous.record.phase!=='PUBLISHED'||previous.publication)throw new LocalLyricsError('CONFLICT');
+      const saved=lyricsPhysicalOriginalSave(db,a,record),assets=assertLyricsPhysicalGroup(db,a,record),policy=sourceWritesPolicy(sourceProjectionFor(db),identity.datasetId);
+      if(!policy.enabled||policy.draining)throw new LocalLyricsError('CLOSED');
+      const candidate=copyWorkbenchAudit(a),initialChanges=Number(db.prepare('SELECT total_changes() n').get()!.n),member=record.original.members.find(m=>m.trackId===b.trackId)!;
+      const resource=record.original.resources[member.resourceIndex]!,target=record.artifacts.target!;
+      if(target.rootId!==resource.rootId||b.kind==='lrc'&&target.sha256!==b.bodySha256)throw new LocalLyricsError('STALE');
+      let certificate=certificateFor(db),changed=0,scanPublish:(()=>void)|undefined;
+      const append=(rows:readonly Record<string,string>[]):void=>{for(const row of rows){
+        if(Object.values(row).reduce((n,s)=>n+Buffer.byteLength(s),0)>maxRowTextBytes||db.prepare('SELECT 1 FROM local_catalog_ledger WHERE command_id=?').get(row.command_id!))throw new LocalLyricsError('CONFLICT');
+        db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(row.command_id!,row.fingerprint!,row.operation!,row.request!,row.result!,row.created_at!);
+        const stored=db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE command_id=?').get(row.command_id!)!;projectWorkbenchRow(candidate,stored);changed++;
+        const counts=new Map(certificate.rows),count=counts.get('local_catalog_ledger')!+1,bytes=certificate.bytes+rowBytes(stored);checkBudget('local_catalog_ledger行数',count,rowBudgets.local_catalog_ledger);checkBudget('目录总文本字节',bytes,maxCatalogTextBytes);counts.set('local_catalog_ledger',count);certificate={rows:counts,bytes,dataVersion:certificate.dataVersion};
+      }};
+      let replace:LocalLyricsPhysicalPublication['replace']=null,scan:LocalLyricsPhysicalPublication['scan']=null;
+      if(b.kind==='embed'){
+        const before=assets.get(member.fileId)!,fidelity=record.fidelity;if(!fidelity||fidelity.sourceSha256!==resource.sha256||fidelity.copySha256!==target.sha256||target.relative!==resource.relative
+          ||before.sampleFrames!==null&&before.sampleFrames!==String(fidelity.frames)||before.timebaseHz!==null&&before.timebaseHz!==fidelity.sampleRate)throw new LocalLyricsError('STALE');
+        const locator=one(db,'local_catalog_assets',before.id),scanRow=db.prepare('SELECT * FROM local_scan_file_state WHERE library_root_id=? AND relative=?').get(member.rootId,resource.relative);
+        if(!scanRow||typeof scanRow.data!=='string')throw new LocalLyricsError('STALE');
+        const scanBefore=JSON.parse(scanRow.data) as Row;if(scanBefore.libraryRootId!==member.rootId||scanBefore.relative!==resource.relative||scanBefore.assetId!==member.fileId||scanBefore.signature!==resource.signature||scanBefore.outcome!=='accepted'||!scanBefore.readFacts)throw new LocalLyricsError('STALE');
+        const request:ReplaceAudioAsset={commandId:randomUUID(),assetId:before.id,libraryRootId:member.rootId,expectedRootRevision:member.rootRevision,expectedFileRevision:before.fileRevision,expectedLocationRevision:before.locationRevision,relative:resource.relative,sha256:target.sha256,sampleFrames:before.sampleFrames,timebaseHz:before.timebaseHz};
+        const mutation=mutate(db,certificate,'replace-asset',request,d=>applyReplaceAsset(d,request));if(!mutation.changed)return corrupt();certificate=mutation.certificate;changed+=2;
+        const child=db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE command_id=?').get(request.commandId)!;projectWorkbenchRow(candidate,child);
+        const after=mutation.result as dto.AudioAsset;assets.set(before.id,after);replace={commandId:request.commandId,ledgerSequence:Number(child._ledger_rowid),before,after,relative:resource.relative,catalogSha256:locator.sha256 as string|null};
+        const scanAfter=JSON.stringify({...scanBefore,signature:target.signature});scan={rootId:member.rootId,relative:resource.relative,jobId:String(scanRow.job_id),batchId:String(scanRow.batch_id),before:scanRow.data,after:scanAfter};
+        scanPublish=updateSourceWriteScanFacts(db,scan.rootId,scan.relative,scan.jobId,scan.batchId,scan.before,scan.after);changed++;
+      }
+      const lyrics=a.lyrics.get(identity.datasetId)!,inventoryKey=lyricsDigest(lyricsCanonical([b.libraryId,b.albumId])),priorInventory=lyrics.latest.get(`inventory:${inventoryKey}`);
+      const inventory:LocalLyricsInventoryRecord={scope:saved.intent.scope,captureFingerprint:b.groupCaptureSha256,revision:priorInventory?priorInventory.revision+1:0,
+        observations:record.original.members.map(m=>{const asset=assets.get(m.fileId)!,old=lyrics.inventory.get(m.trackId),oldRevision=lyricsPhysicalOwnAsset(record,a,m.fileId,m.fileRevision).revision;
+          const fact=old&&old.rootId===m.rootId&&old.fileRevision===oldRevision?old:{lrc:'unknown' as const,embedded:'unknown' as const};
+          return {trackId:m.trackId,fileRevision:asset.fileRevision,lrc:m.resourceIndex===member.resourceIndex&&b.kind==='lrc'?'true' as const:fact.lrc,embedded:m.resourceIndex===member.resourceIndex&&b.kind==='embed'?'true' as const:fact.embedded};})};
+      append(createLocalLyricsRecordEvents('inventory',inventory,priorInventory?.revision??null).map(localLyricsJournalLedgerRow));
+      const inventoryIndex=candidate.lyrics.get(identity.datasetId)?.latest.get(`inventory:${inventoryKey}`);if(!inventoryIndex)return corrupt();
+      const publication:LocalLyricsPhysicalPublication={schema:1,datasetId:identity.datasetId,operationId:record.operationId,replace,scan,inventory:{record:inventory,ledgerSequence:inventoryIndex.lastOrdinal}};
+      append(createLocalLyricsPhysicalEvents(record,previous.record,publication).map(localLyricsPhysicalLedgerRow));
+      const value=candidate.lyricsPhysical.get(identity.datasetId)?.records.get(record.operationId);if(!value)return corrupt();verifyLyricsPhysicalPublication(db,record,publication,candidate,value.ledgerSequence);
+      for(const p of candidate.lyricsPhysical.values())assertLocalLyricsPhysicalComplete(p);for(const p of candidate.lyrics.values())assertLocalLyricsJournalComplete(p);
+      if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==initialChanges+changed)return corrupt();access.beforeCommit?.('local-lyrics-physical:publication');
+      if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==initialChanges+changed)return corrupt();assertWorkbenchIdentity(identity);access.beforeLocalFactsCommit?.();commitLocalFacts(db,access.onLocalFactsFatal);committed=true;
+      candidate.highWater=Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n);audits.set(db,certificate);workbenchAudits.set(db,candidate);scanPublish?.();return value.ledgerSequence;
+    }catch(error){if(committed){access.onLocalFactsFatal?.();throw new LocalFactsCommitFatal();}rollbackLocalFacts(db,error,access.onLocalFactsFatal);}});assertWorkbenchIdentity(identity);return result;
+  }
+  function cueOutputCompareAndSwap(identity:DatasetIdentity,record:LocalCueOutputRecord,expectedRevision:number|null):{ledgerSequence:string}{
+    assertWorkbenchIdentity(identity);if(!isLocalCueOutputRecord(record)||record.request.datasetId!==identity.datasetId)throw new LocalLyricsError('INVALID')
+    const events=createLocalCueOutputEvents(record,expectedRevision)
+    const result=access.read(db=>{db.exec('BEGIN IMMEDIATE');try{
+      const a=workbenchProjectionFor(db),previous=a.cue.get(identity.datasetId)?.output.latest.get(record.request.commandId)
+      if((previous?.record.revision??null)!==expectedRevision)throw new LocalLyricsError('CONFLICT')
+      appendWorkbenchRows(db,a,events.map(localCueOwnerLedgerRow),'local-cue-output:cas')
+      const value=workbenchAudits.get(db)?.cue.get(identity.datasetId)?.output.latest.get(record.request.commandId);if(!value)return corrupt();return {ledgerSequence:value.ledgerSequence}
+    }catch(error){rollbackLocalFacts(db,error,access.onLocalFactsFatal)}});assertWorkbenchIdentity(identity);return result
+  }
+  function scanSettingsStore(identity:DatasetIdentity):LocalScanSettingsStore{
+    assertWorkbenchIdentity(identity)
+    const check=(requested:DatasetIdentity):void=>{if(requested!==identity)throw new LocalLyricsError('STALE');assertWorkbenchIdentity(identity)}
+    const write=(requested:DatasetIdentity,event:LocalScanSettingsEvent):LocalScanSettings|LocalScanFrozenSettings=>{
+      check(requested);if(!isLocalScanSettingsEvent(event)||event.datasetId!==identity.datasetId)throw new LocalLyricsError('INVALID')
+      const result=access.read(db=>{db.exec('BEGIN IMMEDIATE');try{
+        const a=workbenchProjectionFor(db),current=a.scanSettings.get(identity.datasetId)??emptyLocalScanSettingsOwnerProjection(identity.datasetId),prior=localScanSettingsOwnerOriginal(current,event)
+        if(prior){db.exec('ROLLBACK');return prior}
+        appendWorkbenchRows(db,a,[localScanSettingsOwnerLedgerRow(event)],'local-scan-settings:'+event.kind)
+        const saved=workbenchAudits.get(db)?.scanSettings.get(identity.datasetId)?.commands.get(event.commandId);if(!saved)return corrupt();return structuredClone(saved.result)
+      }catch(error){rollbackLocalFacts(db,error,access.onLocalFactsFatal)}});check(requested);return result
+    }
+    return {
+      read(requested){check(requested);const result=access.read(db=>structuredClone((workbenchProjectionFor(db).scanSettings.get(identity.datasetId)??emptyLocalScanSettingsOwnerProjection(identity.datasetId)).settings));check(requested);return result},
+      save(requested,event){if(event.kind!=='settings')throw new LocalLyricsError('INVALID');return write(requested,event) as LocalScanSettings},
+      frozen(requested,jobId){check(requested);if(!dto.isCollectionId(jobId))throw new LocalLyricsError('INVALID');const result=access.read(db=>{const value=workbenchProjectionFor(db).scanSettings.get(identity.datasetId)?.jobs.get(jobId);return value?structuredClone(value):null});check(requested);return result},
+      freeze(requested,event){if(event.kind!=='launch')throw new LocalLyricsError('INVALID');return write(requested,event) as LocalScanFrozenSettings},
+    }
+  }
+  function mbEntry(db:DatabaseSync,identity:DatasetIdentity,planId:string){
+    assertWorkbenchIdentity(identity);const a=workbenchProjectionFor(db),entry=a.workbench.get(identity.datasetId)?.snapshot?.entries.find(e=>e.plan.planId===planId)
+    if(!entry)throw new LocalLyricsError('STALE');return {a,entry}
+  }
+  function mbNameSources(db:DatabaseSync,identity:DatasetIdentity,fact:LocalWorkbenchMetadataProvenanceFact):LocalWorkbenchMBNameSources{
+    assertWorkbenchIdentity(identity);if(!dto.isCollectionId(fact.trackId))throw new LocalLyricsError('INVALID');const current=db.prepare("SELECT o.data,(SELECT l.command_id FROM local_catalog_ledger l WHERE l.operation='override-metadata' AND json_extract(l.result,'$.trackId')=t.id ORDER BY l.rowid DESC LIMIT 1) command_id FROM local_catalog_tracks t LEFT JOIN local_catalog_overrides o ON o.track_id=t.id WHERE t.id=?").get(fact.trackId);if(!current)throw new LocalLyricsError('STALE');const override=current.data===null?null:parse(current.data,dto.isLocalMetadataOverride);if(!override)return fact.override?{artistName:'unknown',albumName:'unknown'}:{artistName:'raw',albumName:'raw'}
+    const unknown:LocalWorkbenchMBNameSources={artistName:Object.hasOwn(override.fields,'artist')?'unknown':'raw',albumName:Object.hasOwn(override.fields,'album')?'unknown':'raw'};if(!fact.override||current.command_id!==fact.override.commandId||override.revision!==fact.override.revision||!same(override.fields,fact.override.fields))return unknown
+    const p=workbenchProjectionFor(db).mbOnly.get(identity.datasetId),proof=p?.provenance.get(fact.trackId)
+    return proof&&proof.commandId===fact.override.commandId&&proof.revision===fact.override.revision&&same(proof.fields,fact.override.fields)?structuredClone(proof.sources):unknown
+  }
+  function mbValidate(db:DatabaseSync,identity:DatasetIdentity,plan:dto.LocalWorkbenchPlan,capture:LocalWorkbenchPlanCapture,resolved:readonly Readonly<LocalWorkbenchResolvedReadCapture>[]):void{
+    const {a,entry}=mbEntry(db,identity,plan.planId);if(plan.kind==='cue'||!same(entry.plan,plan)||!same(entry.capture,capture)||plan.scope!=='MB_ONLY'||plan.state!=='ready'||Date.parse(plan.expiresAt)<=Date.now())throw new LocalLyricsError('STALE')
+    assertLocalWorkbenchCapturedPlan(plan,capture)
+    if(resolved.length!==capture.albums.length||capture.albums.reduce((n,b)=>n+b.members.length,0)>10000)throw new LocalCatalogBudgetError('MB整组完整成员',capture.albums.reduce((n,b)=>n+b.members.length,0),10000)
+    const organizationState=libraryManagementOrganizationStateForDatabase(db,identity),author=String(a.mbOnly.get(identity.datasetId)?.highWater??0),catalogRevision=albumCatalogRevision(db),scanRevision=albumScanRevision(db)
+    if(author!==organizationState.originalAuthor)throw new LocalLyricsError('STALE')
+    const authorRevisions=organizationState.organizations.length?[organizedMBOnlyAuthorRevision(organizationState)]:[null,author]
+    const revisions=authorRevisions.map(v=>createHash('sha256').update(JSON.stringify([identity.datasetId,catalogRevision,scanRevision,v])).digest('hex'))
+    if(!revisions.includes(capture.datasetRevision))throw new LocalLyricsError('STALE')
+    if(plan.kind==='ai'&&plan.items.some(item=>item.changes.some(change=>typeof change.after!=='string'||!dto.isLocalCatalogText(change.after,true))))throw new LocalLyricsError('INVALID')
+    const seen=new Set<string>()
+    for(const [i,album]of capture.albums.entries()){
+      const fresh=resolved[i]!;if(fresh.availability!=='online'||fresh.datasetId!==identity.datasetId||fresh.datasetRevision!==capture.datasetRevision||!same(fresh.capture,album)||fresh.group.summary.id!==album.albumId)throw new LocalLyricsError('STALE')
+      assertLibraryManagementRootAvailable(db,album.rootId);const r=root(db,album.rootId);authorized(r.sourceRootId)
+      const ids=album.members.map(m=>m.trackId);if(ids.some(id=>id===null)||!same([...ids].sort(),fresh.group.members.map(m=>m.fact.summary.track.id).sort()))throw new LocalLyricsError('STALE')
+      const byTrack=new Map(fresh.group.members.map(member=>[member.fact.summary.track.id,member])),currentSources:{artistName:LocalWorkbenchNameSource[];albumName:LocalWorkbenchNameSource[]}={artistName:[],albumName:[]}
+      for(const member of album.members){
+        if(member.trackId===null||member.assetId===null||seen.has(member.trackId))throw new LocalLyricsError('STALE');seen.add(member.trackId)
+        const t=track(db,member.trackId),assetRow=one(db,'local_catalog_assets',member.assetId),as=readAsset(assetRow),view=libraryMetadata(db,t.id)
+        if(t.assetId!==member.assetId||as.libraryRootId!==album.rootId||as.sourceRootId!==r.sourceRootId||r.revision!==member.rootRevision||as.rootRevision!==member.rootRevision||as.fileRevision!==member.fileRevision||as.locationRevision!==member.locationRevision||path.posix.basename(String(assetRow.relative))!==member.fileName
+          ||createHash('sha256').update(canonical(view)).digest('hex')!==member.metadataRevision||view.raw.title!==undefined&&view.raw.title!==member.title||view.raw.artist!==undefined&&view.raw.artist!==member.artist||view.raw.album!==undefined&&view.raw.album!==member.album)throw new LocalLyricsError('STALE')
+        const groupMember=byTrack.get(member.trackId);if(!groupMember||!same(groupMember.fact.summary.track,t)||!same(groupMember.fact.summary.asset,as)||groupMember.fact.relative!==assetRow.relative||!same(groupMember.fact.rawMetadata,view.raw)||!same(groupMember.fact.summary.metadata,view.effective))throw new LocalLyricsError('STALE')
+        const latest=db.prepare("SELECT command_id FROM local_catalog_ledger WHERE operation='override-metadata' AND json_extract(result,'$.trackId')=? ORDER BY rowid DESC LIMIT 1").get(t.id),fact:LocalWorkbenchMetadataProvenanceFact={trackId:t.id,override:view.override?{commandId:String(latest?.command_id),revision:view.override.revision,fields:view.override.fields}:null},sources=mbNameSources(db,identity,fact);currentSources.artistName.push(sources.artistName);currentSources.albumName.push(sources.albumName)
+      }
+      for(const field of ['artistName','albumName'] as const){const sources=currentSources[field],actual=sources.includes('manual')?'manual':sources.includes('unknown')?'unknown':sources.includes('workbench-ai')?'workbench-ai':'raw',captured=album.nameSources?.[field]??'unknown';if(actual==='manual'&&(!album.manualLocks[field]||captured!=='manual')||actual==='unknown'&&!['manual','unknown'].includes(captured))throw new LocalLyricsError('STALE');const item=plan.items.find(value=>value.albumId===album.albumId);if(plan.kind==='ai'&&['manual','unknown'].includes(actual)&&item?.changes.some(change=>change.field===(field==='artistName'?'artist':'album')&&change.after!==change.before))throw new LocalLyricsError('STALE')}
+      if(album.editionId!==null){const edition=parse(one(db,'local_catalog_editions',album.editionId).data,dto.isAlbumEdition),linked=db.prepare("SELECT data FROM local_catalog_edition_tracks WHERE edition_id=? AND json_extract(data,'$.active')=1 ORDER BY rowid").all(album.editionId).map(v=>parse(v.data,dto.isAlbumEditionTrack));
+        const captured=capture.albums.filter(b=>b.editionId===album.editionId).flatMap(b=>b.members.map(m=>m.trackId));if(edition.title!==album.albumName||!same(linked.map(l=>l.trackId).sort(),[...captured].sort()))throw new LocalLyricsError('STALE')}
+    }
+  }
+  function mbOriginRoutes(identity:DatasetIdentity){
+    assertWorkbenchIdentity(identity)
+    const register=(planId:string,origin:'Human'|'AI'|'Provider',remote?:dto.LocalArtworkRemoteSource):object=>{
+      assertWorkbenchIdentity(identity);return access.read(db=>{const {entry}=mbEntry(db,identity,planId);if(entry.original!==null||entry.plan.kind==='cue'||origin!=='Provider'&&entry.plan.kind!=='ai'||origin==='Provider'&&(entry.plan.kind!=='artwork'||!dto.isLocalArtworkRemoteSource(remote)))throw new LocalLyricsError('STALE')
+        const prior=mbOriginPlans.get(planId);if(prior){const actual=mbOrigins.get(prior.brand);if(prior.origin!==origin||!actual||!same(actual.remote??null,remote??null))throw new LocalLyricsError('CONFLICT');return prior.brand}
+        const brand=Object.freeze({});mbOrigins.set(brand,{planId,hash:entry.plan.planHash,context:entry.plan.contextFingerprint,origin,...(remote?{remote:structuredClone(remote)}:{})});mbOriginPlans.set(planId,{brand,origin});return brand})
+    }
+    return {registerHumanNamePlan:(planId:string)=>register(planId,'Human'),registerAiPreviewPlan:(planId:string)=>register(planId,'AI'),registerProviderArtworkPlan:(planId:string,remote:dto.LocalArtworkRemoteSource)=>register(planId,'Provider',remote)}
+  }
+  function mbReadReceipt(identity:DatasetIdentity,request:dto.LocalWorkbenchApplyRequest):dto.LocalWorkbenchReceipt|null{
+    assertWorkbenchIdentity(identity);if(!dto.isLocalWorkbenchApplyRequest(request)||request.datasetId!==identity.datasetId)throw new LocalLyricsError('INVALID')
+    const result=access.read(db=>{const {a,entry}=mbEntry(db,identity,request.planId);if(!entry.original)return null;if(!same(entry.original,request))throw new LocalLyricsError('CONFLICT');const v=a.mbOnly.get(identity.datasetId)?.latest.get(request.commandId);return v?structuredClone(v.record.receipt):entry.receipt&&['failed','succeeded'].includes(entry.receipt.state)?structuredClone(entry.receipt):null});assertWorkbenchIdentity(identity);return result
+  }
+  function mbApply(identity:DatasetIdentity,request:dto.LocalWorkbenchApplyRequest,plan:dto.LocalWorkbenchPlan,capture:LocalWorkbenchPlanCapture,resolved:readonly Readonly<LocalWorkbenchResolvedReadCapture>[],origin:object|null):dto.LocalWorkbenchReceipt{
+    assertWorkbenchIdentity(identity);if(!dto.isLocalWorkbenchApplyRequest(request)||request.datasetId!==identity.datasetId)throw new LocalLyricsError('INVALID')
+    const result=access.read(db=>{db.exec('BEGIN IMMEDIATE');try{
+      const before=Number(db.prepare('SELECT total_changes() n').get()!.n),{a,entry}=mbEntry(db,identity,request.planId);if(!same(entry.original,request)||!same(entry.plan,plan)||!same(entry.capture,capture))throw new LocalLyricsError('CONFLICT')
+      const prior=a.mbOnly.get(identity.datasetId)?.latest.get(request.commandId);if(prior){db.exec('ROLLBACK');return structuredClone(prior.record.receipt)}
+      let certificate=certificateFor(db),changed=0,known:'Human'|'AI'|'Artwork'|'Unknown'=plan.kind==='artwork'?'Artwork':'Unknown';const branded=origin?mbOrigins.get(origin):null
+      if(branded&&branded.planId===plan.planId&&branded.hash===plan.planHash&&branded.context===plan.contextFingerprint&&['Human','AI'].includes(branded.origin))known=branded.origin as 'Human'|'AI'
+      const record:LocalWorkbenchMBOnlyRecord={schema:1,request:structuredClone(request),plan:structuredClone(plan),capture:structuredClone(capture),origin:known,
+        receipt:{commandId:request.commandId,datasetId:request.datasetId,planId:request.planId,planHash:request.planHash,state:'succeeded',items:plan.items.map(i=>({itemId:i.itemId,albumId:i.albumId,label:i.label,state:'applied',message:null})),message:null},mutations:[],editionUpdates:[],artwork:[],provenance:[]}
+      const mutations:LocalWorkbenchMBOnlyRecord['mutations'][number][]=[],editions:LocalWorkbenchMBOnlyRecord['editionUpdates'][number][]=[],artworks:LocalWorkbenchMBOnlyRecord['artwork'][number][]=[],provenance:LocalWorkbenchMBOnlyRecord['provenance'][number][]=[]
+      try{mbValidate(db,identity,plan,capture,resolved);if(plan.kind==='ai'&&known==='Unknown'||plan.kind==='artwork'&&capture.artwork?.some(v=>v.origin==='provider')&&(!branded||branded.origin!=='Provider'||branded.hash!==plan.planHash||branded.context!==plan.contextFingerprint))throw new LocalLyricsError('STALE')}
+      catch{record.origin='Unknown';record.receipt={...record.receipt,state:'failed',message:'原捕获、名称作者或图片许可未确认，整组未应用。',items:record.receipt.items.map(i=>({...i,state:'not-written',message:'完整原组未确认，未写入MB事实。'}))}}
+      const apply=(operation:'override-metadata'|'create-edition'|'link-edition-track',body:Command&Row,fn:(db:DatabaseSync)=>dto.LocalCatalogResult)=>{
+        const old=Number(db.prepare('SELECT total_changes() n').get()!.n),v=mutate(db,certificate,operation,body,fn);certificate=v.certificate;changed+=Number(db.prepare('SELECT total_changes() n').get()!.n)-old
+        const row=db.prepare('SELECT rowid AS sequence FROM local_catalog_ledger WHERE command_id=?').get(body.commandId)!;mutations.push({commandId:body.commandId,operation,sequence:String(row.sequence),request:structuredClone(body),result:structuredClone(v.result)});return v.result}
+      if(record.receipt.state==='succeeded')for(const album of capture.albums){
+        if(plan.kind==='ai'){
+          const item=plan.items.find(i=>i.albumId===album.albumId)!;const updates=Object.fromEntries(item.changes.filter(v=>v.after!==v.before).map(v=>[v.field,v.after])) as dto.LocalMetadata
+          for(const member of album.members){const t=member.trackId!,view=libraryMetadata(db,t),oldRow=db.prepare("SELECT command_id FROM local_catalog_ledger WHERE operation='override-metadata' AND json_extract(result,'$.trackId')=? ORDER BY rowid DESC LIMIT 1").get(t)
+            const priorFact:LocalWorkbenchMetadataProvenanceFact={trackId:t,override:view.override?{commandId:String(oldRow?.command_id),revision:view.override.revision,fields:view.override.fields}:null},sources=mbNameSources(db,identity,priorFact),fields={...view.override?.fields,...updates}
+            if(Object.hasOwn(updates,'artist'))sources.artistName=known==='Human'?'manual':'workbench-ai';if(Object.hasOwn(updates,'album'))sources.albumName=known==='Human'?'manual':'workbench-ai'
+            const body:OverrideLocalMetadata={commandId:randomUUID(),trackId:t,expectedRevision:view.override?.revision??null,fields,...(view.override?.annotations?{annotations:structuredClone(view.override.annotations)}:{})},value=apply('override-metadata',body as unknown as Command&Row,d=>applyOverrideMetadata(d,body)) as dto.LocalMetadataOverride
+            provenance.push({trackId:t,commandId:body.commandId,revision:value.revision,fields:value.fields,sources})
+          }
+          if(album.editionId&&Object.hasOwn(updates,'album')){const oldRow=one(db,'local_catalog_editions',album.editionId),old=parse(oldRow.data,dto.isAlbumEdition),nextValue={...old,title:updates.album!,revision:next(old.revision)};if(editions.some(v=>v.before.id===old.id)){if(editions.find(v=>v.before.id===old.id)!.after.title!==nextValue.title)throw new LocalLyricsError('CONFLICT')}else{
+            db.prepare('UPDATE local_catalog_editions SET data=? WHERE id=?').run(JSON.stringify(nextValue),old.id);const afterRow=one(db,'local_catalog_editions',old.id);boundedRow(afterRow);if(!same(parse(afterRow.data,dto.isAlbumEdition),nextValue))return corrupt();certificate={...certificate,bytes:certificate.bytes+rowBytes(afterRow)-rowBytes(oldRow)};checkBudget('目录总文本字节',certificate.bytes,maxCatalogTextBytes);changed++;editions.push({before:old,after:nextValue})}}
+        }else if(plan.kind==='artwork'){
+          let editionId=album.editionId
+          if(editionId===null){const body:CreateAlbumEdition={commandId:randomUUID(),title:album.albumName||album.directoryName||'未命名专辑',edition:''},edition=apply('create-edition',body as unknown as Command&Row,d=>applyCreateEdition(d,body)) as dto.AlbumEdition;editionId=edition.id
+            const group=resolved.find(value=>value.capture.albumId===album.albumId)!.group,byTrack=new Map(group.members.map(member=>[member.fact.summary.track.id,member]));for(const [i,member]of album.members.entries()){const actual=byTrack.get(member.trackId!)!,body:LinkEditionTrack={commandId:randomUUID(),editionId,trackId:member.trackId!,disc:actual.disc??1,trackNumber:actual.trackNumber??i+1,sequence:i+1};apply('link-edition-track',body as unknown as Command&Row,d=>applyLinkEditionTrack(d,body))}}
+          const selected=capture.artwork!.find(v=>v.albumId===album.albumId)!,commandId=randomUUID(),value=applyLocalWorkbenchArtworkInTransaction(db,{commandId,editionId,capture:selected,...(branded?.remote?{remoteSource:branded.remote}:{})});changed+=value.changes;artworks.push({albumId:album.albumId,editionId,commandId,selection:value.selection})
+        }
+      }
+      record.mutations=mutations;record.editionUpdates=editions;record.artwork=artworks;record.provenance=provenance
+      const candidate=copyWorkbenchAudit(a),events=createLocalWorkbenchMBOnlyEvents(record),counts=new Map(certificate.rows);let bytes=certificate.bytes
+      for(const row of events.map(localWorkbenchMBOnlyLedgerRow)){if(db.prepare('SELECT 1 FROM local_catalog_ledger WHERE command_id=?').get(row.command_id!))throw new LocalLyricsError('CONFLICT');db.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(row.command_id!,row.fingerprint!,row.operation!,row.request!,row.result!,row.created_at!);const saved=db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE command_id=?').get(row.command_id!)!;boundedRow(saved);projectWorkbenchRow(candidate,saved);changed++;bytes+=rowBytes(saved);counts.set('local_catalog_ledger',counts.get('local_catalog_ledger')!+1);checkBudget('local_catalog_ledger行数',counts.get('local_catalog_ledger')!,rowBudgets.local_catalog_ledger);checkBudget('目录总文本字节',bytes,maxCatalogTextBytes)}
+      for(const p of candidate.mbOnly.values())assertLocalWorkbenchMBOnlyComplete(p);verifyLocalArtworkDatabase(db)
+      if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+changed)return corrupt();access.beforeCommit?.('local-workbench-mb-only:apply');if(Number(db.prepare('SELECT total_changes() n').get()!.n)!==before+changed)return corrupt();assertWorkbenchIdentity(identity);access.beforeLocalFactsCommit?.();commitLocalFacts(db,access.onLocalFactsFatal)
+      candidate.highWater=Number(db.prepare('SELECT coalesce(max(rowid),0) n FROM local_catalog_ledger').get()!.n);audits.set(db,{rows:counts,bytes,dataVersion:certificate.dataVersion});workbenchAudits.set(db,candidate);return structuredClone(record.receipt)
+    }catch(error){rollbackLocalFacts(db,error,access.onLocalFactsFatal)}});assertWorkbenchIdentity(identity);return result
+  }
+  const result = {
+
+    /** 只能由当前真实domain身份安装；不是公开DTO/随机UUID生成权限。 */
+    privateBindWorkbenchDataset(identity:DatasetIdentity):void{
+      if(!dto.isCommandOutboxDatasetId(identity.datasetId))throw new LocalLyricsError('INVALID')
+      identity.assertCurrent();if(workbenchIdentity&&workbenchIdentity!==identity)throw new LocalLyricsError('STALE');workbenchIdentity=identity
+    },
+    privateWorkbenchMBOnlyOriginRoutes:mbOriginRoutes,
+    privateWorkbenchMBOnlyRevalidate(identity:DatasetIdentity,plan:dto.LocalWorkbenchPlan,capture:LocalWorkbenchPlanCapture,resolved:readonly Readonly<LocalWorkbenchResolvedReadCapture>[]){assertWorkbenchIdentity(identity);access.read(db=>mbValidate(db,identity,plan,capture,resolved));assertWorkbenchIdentity(identity)},
+    privateWorkbenchMBOnlyApply:mbApply,
+    privateWorkbenchMBOnlyReadReceipt:mbReadReceipt,
+    privateWorkbenchMBOnlyReadNameSources(identity:DatasetIdentity,fact:LocalWorkbenchMetadataProvenanceFact){const result=access.read(db=>mbNameSources(db,identity,fact));assertWorkbenchIdentity(identity);return result},
+    privateWorkbenchMBOnlyReadOverrideAuthor(identity:DatasetIdentity,fact:LocalWorkbenchMetadataProvenanceFact):LocalWorkbenchNameSource{const s=access.read(db=>mbNameSources(db,identity,fact));assertWorkbenchIdentity(identity);return Object.values(s).includes('manual')?'manual':Object.values(s).includes('unknown')?'unknown':Object.values(s).includes('workbench-ai')?'workbench-ai':'unknown'},
+    privateWorkbenchMBOnlyAuthorRevision(identity:DatasetIdentity){assertWorkbenchIdentity(identity);const result=access.read(db=>organizedMBOnlyAuthorRevision(libraryManagementOrganizationStateForDatabase(db,identity)));assertWorkbenchIdentity(identity);return result},
+    privateLibraryManagementRead:libraryManagementRead,
+    privateLibraryManagementReadCaptureHeader:libraryManagementReadCaptureHeader,
+    privateLibraryManagementReadFrozenAlbum:libraryManagementReadFrozenAlbum,
+    privateLibraryManagementRootAvailable(libraryId:string):boolean{id(libraryId);return access.read(db=>libraryManagementRootAvailable(db,libraryId));},
+    privateLibraryManagementRootVisible(libraryId:string):boolean{id(libraryId);return access.read(db=>{if(!workbenchIdentity)return true;assertWorkbenchIdentity(workbenchIdentity);const stored=workbenchProjectionFor(db).management.get(workbenchIdentity.datasetId)?.records.get('binding:'+libraryId)?.record;return stored?.kind!=='binding'||stored.active;});},
+    privateLibraryManagementJobs(identity:DatasetIdentity):readonly Readonly<LocalLibraryManagementJobRecord>[]{assertWorkbenchIdentity(identity);return access.read(db=>structuredClone([...(workbenchProjectionFor(db).management.get(identity.datasetId)?.records.values()??[])].filter(value=>value.record.kind==='job').map(value=>value.record as LocalLibraryManagementJobRecord)));},
+    privateLyricsLibraryRecords(identity:DatasetIdentity,libraryId:string):{jobs:LocalLyricsJobRecord[];saves:LocalLyricsSaveRecord[]}{
+      assertWorkbenchIdentity(identity);id(libraryId);return access.read(db=>{const p=workbenchProjectionFor(db).lyrics.get(identity.datasetId),jobs:LocalLyricsJobRecord[]=[],saves:LocalLyricsSaveRecord[]=[];
+        for(const index of p?.latest.values()??[]){if(index.recordKind==='job'){const record=readLyricsRecord(db,index) as LocalLyricsJobRecord;if(record.snapshot.library.libraryId===libraryId)jobs.push(record);}
+          else if(index.recordKind==='save'&&index.scope?.libraryId===libraryId)saves.push(readLyricsRecord(db,index) as LocalLyricsSaveRecord);}
+        assertWorkbenchIdentity(identity);return {jobs,saves};});
+    },
+    privateLibraryManagementCompareAndSwap:libraryManagementCompareAndSwap,
+    privateLibraryManagementOrganizations:libraryManagementOrganizations,
+    privateLibraryManagementBindings(identity:DatasetIdentity):readonly LocalLibraryManagementStored<LocalLibraryManagementBindingRecord>[]{assertWorkbenchIdentity(identity);const result=access.read(db=>structuredClone([...(workbenchProjectionFor(db).management.get(identity.datasetId)?.records.values()??[])].filter((item):item is LocalLibraryManagementStored<LocalLibraryManagementBindingRecord>=>item.record.kind==='binding')));assertWorkbenchIdentity(identity);return result;},
+    privateLibraryManagementRevision(identity:DatasetIdentity):string{assertWorkbenchIdentity(identity);const value=access.read(db=>String(workbenchProjectionFor(db).management.get(identity.datasetId)?.highWater??0));assertWorkbenchIdentity(identity);return value;},
+    privateLyricsRootRead:lyricsRootRead,
+    privateLyricsRootCompareAndSwap:lyricsRootCompareAndSwap,
+    privateLyricsPhysicalPending:lyricsPhysicalPending,
+    privateLyricsPhysicalPublications:lyricsPhysicalPublications,
+    privateCueOutputPending:cueOutputPending,
+    privateCueOutputRead:cueOutputRead,
+    privateCueOutputCompareAndSwap:cueOutputCompareAndSwap,
+    privateLyricsPhysicalRead:lyricsPhysicalRead,
+    privateLyricsPhysicalAssertOriginal(identity:DatasetIdentity,operationId:string,revision:number):void{
+      assertWorkbenchIdentity(identity);access.read(db=>{const a=workbenchProjectionFor(db),record=a.lyricsPhysical.get(identity.datasetId)?.records.get(operationId)?.record;
+        if(!record||record.revision!==revision||!['PREPARED','FAILED'].includes(record.phase)||record.unresolved)throw new LocalLyricsError('STALE');
+        lyricsPhysicalOriginalSave(db,a,record);assertLyricsPhysicalGroup(db,a,record);
+      });assertWorkbenchIdentity(identity);
+    },
+    privateLyricsPhysicalCompareAndSwap:lyricsPhysicalCompareAndSwap,
+    privateLyricsPhysicalCommitPublication:lyricsPhysicalCommitPublication,
+    privateScanSettingsStore:scanSettingsStore,
+    privateWorkbenchSnapshot(datasetId:string){assertWorkbenchDataset(datasetId);return access.read(db=>{const a=workbenchProjectionFor(db),p=a.workbench.get(datasetId);assertWorkbenchDataset(datasetId);return p?.snapshot?structuredClone(p.snapshot):null})},
+    privateWorkbenchCompareAndSwap(datasetId:string,expectedRevision:number,events:readonly LocalWorkbenchJournalEvent[]):void{
+      assertWorkbenchDataset(datasetId);access.read(db=>{db.exec('BEGIN IMMEDIATE');try{
+        const a=workbenchProjectionFor(db),current=a.workbench.get(datasetId)??emptyLocalWorkbenchJournalProjection(datasetId)
+        if(current.revision!==expectedRevision||events.length===0||events.some(e=>e.datasetId!==datasetId||e.expectedRevision!==expectedRevision))throw new LocalLyricsError('CONFLICT')
+        appendWorkbenchRows(db,a,events.map(localWorkbenchJournalLedgerRow),'local-workbench:cas')
+      }catch(error){rollbackLocalFacts(db,error,access.onLocalFactsFatal)}})
+    },
+    privateLyricsRecord(datasetId:string,kind:LocalLyricsRecordKind,key:string):LocalLyricsDurableRecord|null{
+      assertWorkbenchDataset(datasetId);return access.read(db=>{const p=workbenchProjectionFor(db).lyrics.get(datasetId),index=p?.latest.get(`${kind}:${key}`);const result=index?readLyricsRecord(db,index):null;assertWorkbenchDataset(datasetId);return result})
+    },
+    privateLyricsJobOrigin(identity:DatasetIdentity,request:dto.LocalLyricsSaveRequest,scope:dto.LocalLyricsScope){
+      assertWorkbenchIdentity(identity);if(!dto.isLocalLyricsCommandPayload('localLyrics.save',request)||!dto.isLocalLyricsScope(scope)||scope.datasetId!==identity.datasetId)throw new LocalLyricsError('INVALID');
+      const value=access.read(db=>{const entry=workbenchProjectionFor(db).lyrics.get(identity.datasetId)?.jobOrigins.get(request.commandId);
+        if(!entry)return null;if(!same(entry.request,request)||!same(entry.scope,scope))throw new LocalLyricsError('STALE');return structuredClone(entry.origin);});assertWorkbenchIdentity(identity);return value;
+    },
+    privateLyricsPending(datasetId:string,scope:dto.LocalLyricsScope):readonly LocalLyricsSaveRecord[]{
+      assertWorkbenchDataset(datasetId);if(!dto.isLocalLyricsScope(scope)||scope.datasetId!==datasetId)throw new LocalLyricsError('INVALID')
+      return access.read(db=>{const p=workbenchProjectionFor(db).lyrics.get(datasetId),indexes=p?[...p.latest.values()].filter(i=>i.recordKind==='save'&&i.pending&&i.scope?.datasetId===datasetId&&i.scope.libraryId===scope.libraryId&&i.scope.albumId===scope.albumId):[]
+        const result=indexes.map(i=>readLyricsRecord(db,i) as LocalLyricsSaveRecord);assertWorkbenchDataset(datasetId);return result})
+    },
+    privateLyricsCompareAndSwap(datasetId:string,kind:LocalLyricsRecordKind,value:LocalLyricsDurableRecord,expectedRevision:number|null):void{
+      assertWorkbenchDataset(datasetId);const identity=localLyricsRecordIdentity(kind,value);if(identity.datasetId!==datasetId)throw new LocalLyricsError('STALE')
+      access.read(db=>{db.exec('BEGIN IMMEDIATE');try{
+        const a=workbenchProjectionFor(db),p=a.lyrics.get(datasetId)??emptyLocalLyricsJournalProjection(datasetId),previous=p.latest.get(`${kind}:${identity.key}`)
+        if((previous?.revision??null)!==expectedRevision)throw new LocalLyricsError('CONFLICT')
+        // 与初始intent同一事务，另实例/新capture不能在同album未决时创建新原id。
+        if(kind==='save'&&expectedRevision===null&&[...p.latest.values()].some(i=>i.recordKind==='save'&&i.pending&&i.scope&&identity.scope&&i.scope.datasetId===datasetId&&i.scope.libraryId===identity.scope.libraryId&&i.scope.albumId===identity.scope.albumId))throw new LocalLyricsError('IN_FLIGHT')
+        if(kind==='save'&&expectedRevision===null){
+          const r=value as LocalLyricsSaveRecord
+          for(const selected of r.intent.selected){const t=track(db,selected.track.trackId),assetValue=asset(db,t.assetId),rootValue=root(db,assetValue.libraryRootId)
+            if(t.segment!==null||assetValue.libraryRootId!==r.intent.scope.libraryId||rootValue.revision!==selected.track.rootRevision||assetValue.rootRevision!==selected.track.rootRevision
+              ||assetValue.fileRevision!==selected.track.fileRevision||assetValue.locationRevision!==selected.track.locationRevision
+              ||lyricsDigest(lyricsCanonical(libraryMetadata(db,t.id)))!==selected.track.metadataRevision)throw new LocalLyricsError('STALE')
+          }
+        }
+        const events=kind==='save'&&previous?createLocalLyricsStateEvents(value as LocalLyricsSaveRecord,previous):createLocalLyricsRecordEvents(kind,value,expectedRevision)
+        appendWorkbenchRows(db,a,events.map(localLyricsJournalLedgerRow),'local-lyrics:cas')
+      }catch(error){rollbackLocalFacts(db,error,access.onLocalFactsFatal)}})
+    },
+    privateLyricsTrackFacts(datasetId:string,trackId:string,rootId:string,fileRevision:string):{lrc:dto.LocalLyricsPresence;embedded:dto.LocalLyricsPresence}{
+      assertWorkbenchDataset(datasetId);return access.read(db=>{const audited=workbenchProjectionFor(db),fact=audited.lyrics.get(datasetId)?.inventory.get(trackId);return fact&&fact.rootId===rootId&&fact.fileRevision===fileRevision?{lrc:fact.lrc,embedded:fact.embedded}:{lrc:'unknown',embedded:'unknown'}})
+    },
+    privateLyricsInventoryRevision(datasetId:string):string{assertWorkbenchDataset(datasetId);return access.read(db=>String(workbenchProjectionFor(db).lyrics.get(datasetId)?.highWater??0))},
+    privateLyricsInventoryRead(datasetId:string,trackId:string,rootId:string,fileRevision:string):dto.LocalLyricsPresence{
+      assertWorkbenchDataset(datasetId);return access.read(db=>{const audited=workbenchAudits.get(db);if(!audited)return corrupt();const fact=audited.lyrics.get(datasetId)?.inventory.get(trackId);return fact&&fact.rootId===rootId&&fact.fileRevision===fileRevision?fact.presence:'unknown'})
+    },
     privateRelocationPrepareReads(request: RelocationScanReadRequest, readAccess: RelocationReadAccess, signal: AbortSignal): Promise<PreparedRelocationReads> {
       return access.read(db => { certificateFor(db); return prepareRelocationScanReads(db, request, readAccess, signal); });
     },
@@ -834,6 +1826,66 @@ export function createLocalCatalogStore(access: Access) {
           if (committed) { access.onLocalFactsFatal?.(); throw new LocalFactsCommitFatal(); }
           rollbackLocalFacts(db, error, access.onLocalFactsFatal);
         }
+      });
+    },
+    /** 关闭晚期只读核验；临时冷投影不升级普通warm凭证，也不能接纳另一作者的新Source历史。 */
+    privateSourceWritesClosingRead(identity:DatasetIdentity,judge:(projection:SourceWritesProjection)=>boolean):boolean {
+      assertWorkbenchIdentity(identity);
+      return access.read(db=>{
+        const oldAudit=audits.get(db),oldLegacy=legacyAudits.get(db),oldSource=sourceWritesAudits.get(db),
+          oldRelocation=relocationAudits.get(db),oldWorkbench=workbenchAudits.get(db);
+        if(!oldAudit||!oldSource)return sourceWritesFail('RECOVERY_REQUIRED');
+        if(dataVersion(db)===oldAudit.dataVersion){
+          const beforeChanges=Number(db.prepare('SELECT total_changes() n').get()?.n),beforeQueryOnly=db.prepare('PRAGMA query_only').get()?.query_only;
+          if(!Number.isSafeInteger(beforeChanges)||(beforeQueryOnly!==0&&beforeQueryOnly!==1))return sourceWritesFail('RECOVERY_REQUIRED');
+          const result=judge(copySourceWritesProjection(sourceProjectionFor(db)));
+          if(typeof result!=='boolean'||dataVersion(db)!==oldAudit.dataVersion
+            ||Number(db.prepare('SELECT total_changes() n').get()?.n)!==beforeChanges
+            ||db.prepare('PRAGMA foreign_keys').get()?.foreign_keys!==1||db.prepare('PRAGMA query_only').get()?.query_only!==beforeQueryOnly)
+            return sourceWritesFail('RECOVERY_REQUIRED');
+          assertWorkbenchIdentity(identity);return result;
+        }
+        const beforeVersion=dataVersion(db),beforeChanges=Number(db.prepare('SELECT total_changes() n').get()?.n),
+          beforeQueryOnly=db.prepare('PRAGMA query_only').get()?.query_only;
+        if(!Number.isSafeInteger(beforeVersion)||!Number.isSafeInteger(beforeChanges)
+          ||(beforeQueryOnly!==0&&beforeQueryOnly!==1)||db.prepare('PRAGMA foreign_keys').get()?.foreign_keys!==1)
+          return sourceWritesFail('RECOVERY_REQUIRED');
+        let began=false,result=false;const failures:unknown[]=[];
+        try {
+          // BEGIN冲突时不回滚调用者的事务；只结束本方法成功建立的只读快照。
+          db.exec('BEGIN');began=true;db.exec('PRAGMA query_only=ON');
+          if(dataVersion(db)!==beforeVersion||db.prepare('PRAGMA query_only').get()?.query_only!==1)
+            return sourceWritesFail('RECOVERY_REQUIRED');
+          verifyLocalCatalogDatabase(db);
+          const temporary=sourceWritesAudits.get(db);
+          if(!temporary||temporary.highWater<oldSource.highWater||temporary.bytes!==oldSource.bytes
+            ||temporary.fingerprint!==oldSource.fingerprint||temporary.events.length!==oldSource.events.length
+            ||temporary.events.some((event,index)=>!same(sourceWritesLedgerRow(event),sourceWritesLedgerRow(oldSource.events[index]!))))
+            return sourceWritesFail('RECOVERY_REQUIRED');
+          assertWorkbenchIdentity(identity);result=judge(copySourceWritesProjection(temporary));
+          if(typeof result!=='boolean'||dataVersion(db)!==beforeVersion
+            ||Number(db.prepare('SELECT total_changes() n').get()?.n)!==beforeChanges
+            ||db.prepare('PRAGMA foreign_keys').get()?.foreign_keys!==1||db.prepare('PRAGMA query_only').get()?.query_only!==1)
+            return sourceWritesFail('RECOVERY_REQUIRED');
+        }catch(error){failures.push(error);}
+        finally {
+          if(began)try{db.exec('ROLLBACK');}catch(error){failures.push(error);}
+          try{
+            db.exec(beforeQueryOnly===1?'PRAGMA query_only=ON':'PRAGMA query_only=OFF');
+            if(dataVersion(db)!==beforeVersion||Number(db.prepare('SELECT total_changes() n').get()?.n)!==beforeChanges
+              ||db.prepare('PRAGMA foreign_keys').get()?.foreign_keys!==1||db.prepare('PRAGMA query_only').get()?.query_only!==beforeQueryOnly)
+              sourceWritesFail('RECOVERY_REQUIRED');
+            assertWorkbenchIdentity(identity);
+          }catch(error){failures.push(error);}
+          // 五个原缓存逐一恢复原引用；原来不存在的条目继续不存在。
+          audits.set(db,oldAudit);sourceWritesAudits.set(db,oldSource);
+          if(oldLegacy===undefined)legacyAudits.delete(db);else legacyAudits.set(db,oldLegacy);
+          if(oldRelocation===undefined)relocationAudits.delete(db);else relocationAudits.set(db,oldRelocation);
+          if(oldWorkbench===undefined)workbenchAudits.delete(db);else workbenchAudits.set(db,oldWorkbench);
+        }
+        if(failures.length===1)throw failures[0];
+        if(failures.length>1)throw new AggregateError(failures,'Source关闭只读核验与收尾失败；原凭证和数据保留。');
+        return result;
       });
     },
     privateSourceWritesRead<T>(operation:(view:SourceWritesReadView)=>T):T{return access.read(db=>operation(sourceView(db,copySourceWritesProjection(sourceProjectionFor(db)))));},
@@ -1000,6 +2052,66 @@ export function createLocalCatalogStore(access: Access) {
       if (!record(page) || !keys(page, ['offset', 'limit']) || !Number.isSafeInteger(page.offset) || page.offset < 0 || !Number.isSafeInteger(page.limit) || page.limit < 1 || page.limit > 200) return access.conflict('本地目录分页无效。');
       return access.read(db => { const total = Number(db.prepare('SELECT count(*) n FROM local_catalog_tracks').get()!.n), items = db.prepare('SELECT * FROM local_catalog_tracks ORDER BY rowid LIMIT ? OFFSET ?').all(page.limit, page.offset).map(readTrack); return { ...page, total, items, hasMore: page.offset + items.length < total }; });
     },
+    /** 专辑浏览复用同一作者的 raw/effective 水位；不分配文件许可或新连接。 */
+    privateAlbumBrowserRevision(): string { return access.read(db => { certificateFor(db); return albumCatalogRevision(db); }); },
+    /** 原字段覆盖与最新真实目录命令对账；操作名本身不冒充人工或AI作者。 */
+    privateWorkbenchMetadataProvenance(trackIds: readonly string[]): LocalWorkbenchMetadataProvenanceFact[] {
+      if (!Array.isArray(trackIds) || trackIds.length > 10_000 || new Set(trackIds).size !== trackIds.length || !trackIds.every(dto.isCollectionId)) return access.conflict('整理元数据事实成员无效。');
+      return access.read(db => {
+        certificateFor(db);
+        const selected = JSON.stringify(trackIds), rows = db.prepare(`WITH selected AS (SELECT value id FROM json_each(?)),latest AS (
+          SELECT json_extract(result,'$.trackId') track_id,max(rowid) ordinal FROM local_catalog_ledger
+          WHERE operation='override-metadata' AND json_extract(result,'$.trackId') IN (SELECT id FROM selected)
+          GROUP BY json_extract(result,'$.trackId'))
+          SELECT o.track_id,o.data,l.command_id,l.request,l.result FROM local_catalog_overrides o
+          JOIN latest x ON x.track_id=o.track_id JOIN local_catalog_ledger l ON l.rowid=x.ordinal`).all(selected);
+        const byId = new Map<string, LocalWorkbenchMetadataProvenanceFact>();
+        for (const row of rows) {
+          boundedRow({ track_id: row.track_id, data: row.data });
+          boundedRow({ command_id: row.command_id, request: row.request, result: row.result });
+          const current = parse(row.data, dto.isLocalMetadataOverride), receipt = parse(row.result, dto.isLocalMetadataOverride);
+          const request = parse(row.request, (value): value is Row & { commandId: string } => validRequest('override-metadata', value));
+          if (row.track_id !== current.trackId || !dto.isCollectionId(row.command_id) || request.commandId !== row.command_id
+            || request.trackId !== current.trackId || !same(current, receipt) || !same(request.fields, current.fields)) return corrupt();
+          byId.set(current.trackId, { trackId: current.trackId, override: { commandId: String(row.command_id), revision: current.revision, fields: structuredClone(current.fields) } });
+        }
+        return trackIds.map(trackId => {
+          track(db, trackId);
+          const found = byId.get(trackId);
+          if (!found && db.prepare('SELECT 1 FROM local_catalog_overrides WHERE track_id=?').get(trackId)) return corrupt();
+          return found ?? { trackId, override: null };
+        });
+      });
+    },
+    privateAlbumBrowserQuery(request: dto.LocalAlbumQuery, scope: LocalAlbumSqlScope) {
+      if (!dto.isLocalAlbumQuery(request)) return access.conflict('专辑分页读取范围无效。');
+      return readWithLocalAlbumSqlErrors(access.read, db => {
+        return albumReader(db, scope).queryAlbums(request);
+      });
+    },
+    privateAlbumBrowserMembers(request: dto.LocalAlbumTrackQuery, scope: LocalAlbumSqlScope) {
+      if (!dto.isLocalAlbumTrackQuery(request)) return access.conflict('专辑成员分页读取范围无效。');
+      return readWithLocalAlbumSqlErrors(access.read, db => {
+        return albumReader(db, scope).queryAlbumMembers(request);
+      });
+    },
+    privateAlbumBrowserMobile(request: LocalAlbumSqlMobileQuery, scope: LocalAlbumSqlScope): LocalAlbumSqlMobilePage {
+      return readWithLocalAlbumSqlErrors(access.read, db => {
+        return albumReader(db, scope).queryMobile(request);
+      });
+    },
+    privateAlbumBrowserArtwork(request: dto.LocalAlbumArtworkRequest, scope: LocalAlbumSqlScope) {
+      if (!dto.isLocalAlbumArtworkRequest(request)) return access.conflict('专辑封面读取范围无效。');
+      return readWithLocalAlbumSqlErrors(access.read, db => {
+        return albumReader(db, scope).getArtworkContext(request);
+      });
+    },
+    privateAlbumBrowserIssues(request: dto.LocalAlbumTrackQuery, scope: LocalAlbumSqlScope, readOptions?: LocalAlbumSqlIssueReadOptions) {
+      if (!dto.isLocalAlbumTrackQuery(request)) return access.conflict('专辑问题分页读取范围无效。');
+      return readWithLocalAlbumSqlErrors(access.read, db => {
+        return albumReader(db, scope).queryAlbumIssues(request, readOptions);
+      });
+    },
     queryTracks(page: dto.LocalLibraryQuery): dto.LocalLibraryQueryPage {
       if (!dto.isLocalLibraryQuery(page)) return access.conflict('本地搜索或分页范围无效。');
       return access.read(db => {
@@ -1125,5 +2237,6 @@ export function createLocalCatalogStore(access: Access) {
       });
     },
   };
+  mbOnlyCatalogOwners.set(result,assertWorkbenchIdentity);return result;
 }
 export type LocalCatalogStore = ReturnType<typeof createLocalCatalogStore>;

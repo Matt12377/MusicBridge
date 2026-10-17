@@ -27,3 +27,8 @@ apps/desktop/native/output-device/
 apps/desktop/native/rust-core/
 native/output-helper/.build/
 apps/desktop/native/mobile-ffmpeg/
+
+# 本机构建的原生分发资源
+apps/desktop/native/cue-ffmpeg/
+apps/desktop/native/local-audio-tags/
+apps/desktop/native/library-watch/

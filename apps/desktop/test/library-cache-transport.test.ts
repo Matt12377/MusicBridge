@@ -70,5 +70,10 @@ test('005刷新：真实Supervisor将readonlymode复制到Utility消息，不改
     }
     await assert.rejects(supervisor.request(command, payload, undefined, { cacheMode: 'default' } as never), /无效/u)
     await assert.rejects(supervisor.request('playback.stop', {}, undefined, { cacheMode: 'reload' }), /写命令/u)
-  } finally { child.kill(); await supervisor.shutdown() }
+  } finally {
+    const closing=supervisor.shutdown(),request=port.sent.at(-1) as {id:string;command:string};
+    assert.equal(request.command,'core.shutdown');
+    port.receive({version:1,id:request.id,ok:true,result:{stopped:true}});
+    child.kill();await closing;
+  }
 })

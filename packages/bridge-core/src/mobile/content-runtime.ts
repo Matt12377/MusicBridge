@@ -3,6 +3,7 @@ import { mobileCanonicalJson, mobileRecord, mobileTrackSelectionEquals } from '@
 import type { MobileContentReadContext, MobileJsonValue, MobileRequestMap, MobileResponseBody, MobileTrack, MobileTrackSelection } from '@music-bridge/contracts';
 import type { DatasetOwnerEndpoint } from '../collection/dataset-owner-protocol.js';
 import { createActualMobileNeteasePorts } from '../netease/mobile-actual-ports.js';
+import { captureMobileNeteaseScope } from './netease-source-types.js';
 import type { NeteaseMobileReadPort } from '../netease/types.js';
 import type { GatewayFetch } from '../stream/upstream-policy.js';
 import { createMobileContentRpcPort } from './content-rpc-port.js';
@@ -23,6 +24,8 @@ import { isMobileOwnerSourceRequest, isMobileOwnerSourceResult,
   type MobileOwnerSourceRequest, type MobileOwnerSourceResult } from './source-protocol.js';
 import type { MobilePlaybackSourcePort } from './source-types.js';
 import { MobileServiceError, type MobileOwnerPrivateResult } from './types.js';
+import { parseMobileTrackId } from './local-album-identity.js';
+import { mobileCapabilityAsync, mobileCapabilitySync } from './capability-trace.js';
 
 type ActualPorts = ReturnType<typeof createActualMobileNeteasePorts>;
 type Scope = Readonly<MobileContentScope>;
@@ -34,6 +37,7 @@ export interface MobileContentRuntimeOptions {
   owner: DatasetOwnerEndpoint;
   netease: NeteaseMobileReadPort;
   streamFetch?: GatewayFetch;
+  artworkFetch?: GatewayFetch;
   assertCurrent(): void;
 }
 export interface MobileContentRuntime {
@@ -107,7 +111,7 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
   }
   async function assertScope(scope: Scope, stage: 'acquire' | 'lease', signal: AbortSignal): Promise<void> {
     current(signal); mirror(scope, stage);
-    const account = await ready(signal).actual.account.current(signal);
+    const account = await mobileCapabilityAsync('core.assert.account', () => ready(signal).actual.account.current(signal));
     current(signal); mirror(scope, stage);
     const accountDomain = account?.accountDomain ?? `local:${scope.datasetId}`;
     if (scope.accountDomain !== accountDomain || scope.providerEpoch !== (account?.providerEpoch ?? null)) throw changed();
@@ -116,27 +120,27 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
     await assertScope(scope, stage, new AbortController().signal);
   };
   async function resolveScope(principal: Readonly<MobileContentMainPrincipal>, signal: AbortSignal): Promise<Scope> {
-    await providerTail; current(signal);
+    await mobileCapabilityAsync('core.scope.provider-tail', () => providerTail); current(signal);
     const state = ready(signal);
     if (principal.serverId !== state.identity.serverId || principal.datasetId !== state.identity.datasetId) throw changed();
-    const account = await state.actual.account.current(signal); current(signal);
+    const account = await mobileCapabilityAsync('core.scope.account.first', () => state.actual.account.current(signal)); current(signal);
     const scope = captureMobileContentScope({ ...principal, ownerEpoch: state.identity.ownerEpoch,
       accountDomain: account?.accountDomain ?? `local:${state.identity.datasetId}`,
       providerEpoch: account?.providerEpoch ?? null });
-    await serialScope(async () => {
+    await mobileCapabilityAsync('core.scope.queue', () => serialScope(async () => {
       current(signal);
       if ((revoked.get(scope.deviceId) ?? 0) >= scope.deviceEpoch) throw changed();
       const previous = scopes.get(scope.deviceId);
       if (previous && (previous.deviceEpoch > scope.deviceEpoch
         || previous.deviceEpoch === scope.deviceEpoch && previous.accessGeneration > scope.accessGeneration)) throw changed();
       if (!previous && scopes.size >= 32) throw new MobileServiceError(429, 'BUSY');
-      const latest = await state.actual.account.current(signal); current(signal);
+      const latest = await mobileCapabilityAsync('core.scope.account.second', () => state.actual.account.current(signal)); current(signal);
       if ((latest?.accountDomain ?? `local:${scope.datasetId}`) !== scope.accountDomain
         || (latest?.providerEpoch ?? null) !== scope.providerEpoch) throw changed();
-      await result({ action: 'updateScope', scope }, 'content-scope-updated', signal);
+      await mobileCapabilityAsync('core.scope.owner.update', () => result({ action: 'updateScope', scope }, 'content-scope-updated', signal));
       current(signal); scopes.set(scope.deviceId, scope); registeredDevices.add(scope.deviceId);
-    });
-    await assertScope(scope, 'acquire', signal); return scope;
+    }));
+    await mobileCapabilityAsync('core.scope.assert', () => assertScope(scope, 'acquire', signal)); return scope;
   }
   async function localSource(scope: Scope, request: MobileOwnerSourceRequest, signal: AbortSignal): Promise<MobileOwnerSourceResult> {
     const cleanup = request.operation === 'release' || request.operation === 'close-read';
@@ -172,7 +176,8 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
       if (!binding) {
         if (resources.size >= 2048 || [...resources.values()].filter(value => !value.releasing).length >= 8) throw new MobileServiceError(429, 'RESOURCE_BUSY');
         // 源前缀只决定候选作者；该作者仍核验完整原始selection及实际文件/账号。
-        const selectedSource = request.selection.trackId.startsWith('lt:') ? 'local' : 'netease';
+        const selectedSource = request.selection.trackId.startsWith('lt:')
+          || parseMobileTrackId(request.selection.trackId, state.identity.datasetId)?.kind === 'canonical' ? 'local' : 'netease';
         binding = { scope, source: selectedSource, port: selectedSource === 'netease' ? state.networkSources.bind(scope) : null,
           prepared: null, releasing: false, quiet: null };
         resources.set(handle, binding);
@@ -409,29 +414,35 @@ export function createMobileContentRuntime(options: MobileContentRuntimeOptions)
     async initialize(input, signal) {
       current(signal);
       if (!options.owner.mobileMain) throw busy();
-      const binding = await options.owner.prepare(); current(signal);
+      const binding = await mobileCapabilityAsync('core.initialize.owner.prepare', () => options.owner.prepare()); current(signal);
       if (binding.datasetId !== input.datasetId) throw changed();
       identity = { serverId: input.serverId, datasetId: binding.datasetId, ownerEpoch: binding.epoch };
       function child(label: string): Uint8Array {
         const value = new Uint8Array(hkdfSync('sha256', input.key, Buffer.alloc(0), `MusicBridge:MBM004:${label}:1`, 32));
         keys.push(value); return value;
       }
-      await result({ action: 'initialize', serverId: input.serverId, datasetId: input.datasetId, key: child('OWNER_STORE') }, 'content-initialized', signal);
-      actual = createActualMobileNeteasePorts({ client: options.netease, serverId: input.serverId,
-        datasetId: input.datasetId, ownerEpoch: binding.epoch, identityKey32: child('PROVIDER_IDENTITY'), assertCurrent: fence,
-        ...(options.streamFetch ? { fetch: options.streamFetch } : {}) });
-      const catalog = createMobileNeteaseCatalogService({ port: actual.catalog,
-        assertCurrent: scope => fence(scope, 'lease'), playbackQualified: () => actual?.qualified === true });
-      networkSources = createMobileNeteaseSourceService({ catalog, account: actual.account, streams: actual.streams,
-        assertCurrent: fence, isQualified: () => actual?.qualified === true });
-      provider = createMobileContentProviderService({ provider: actual.provider, cursorKey: child('PROVIDER_CURSOR'),
-        assertCurrent: scope => fence(scope, 'acquire') });
-      lyrics = createMobileContentLyricsPort({ local: localLyrics, provider: netLyrics, assertCurrent: scope => fence(scope, 'acquire') });
-      content = createMobileContentService({ owner: ownerPort, provider, lyrics, assertCurrent: scope => fence(scope, 'acquire') });
-      unregisterAccount = actual.onAccountInvalidated(() => { void providerChanged().catch(() => undefined); });
-      current(signal);
+      await mobileCapabilityAsync('core.initialize.owner.initialize', () => result({ action: 'initialize', serverId: input.serverId, datasetId: input.datasetId, key: child('OWNER_STORE') }, 'content-initialized', signal));
+      mobileCapabilitySync('core.initialize.assemble', () => {
+        actual = createActualMobileNeteasePorts({ client: options.netease, serverId: input.serverId,
+          datasetId: input.datasetId, ownerEpoch: binding.epoch, identityKey32: child('PROVIDER_IDENTITY'), assertCurrent: fence,
+          ...(options.streamFetch ? { fetch: options.streamFetch } : {}),
+          ...(options.artworkFetch ? { artworkFetch: options.artworkFetch } : {}),
+          privateProviderDiagnostics: input.privateProviderDiagnostics === true });
+        const catalog = createMobileNeteaseCatalogService({ port: actual.catalog,
+          assertCurrent: scope => fence(scope, 'lease'), playbackQualified: () => actual?.qualified === true });
+        networkSources = createMobileNeteaseSourceService({ catalog, account: actual.account, streams: actual.streams,
+          assertCurrent: fence, isQualified: () => actual?.qualified === true });
+        provider = createMobileContentProviderService({ provider: actual.provider, cursorKey: child('PROVIDER_CURSOR'),
+          assertCurrent: scope => fence(scope, 'acquire') });
+        lyrics = createMobileContentLyricsPort({ local: localLyrics, provider: netLyrics, assertCurrent: scope => fence(scope, 'acquire') });
+        content = createMobileContentService({ owner: ownerPort, provider, lyrics, assertCurrent: scope => fence(scope, 'acquire') });
+        unregisterAccount = actual.onAccountInvalidated(() => { void providerChanged().catch(() => undefined); });
+        current(signal);
+      });
     },
     invalidateDevice, resolveScope, assertScope, source,
+    readArtwork: (scope, id, signal) => ready(signal).actual.readArtwork(captureMobileNeteaseScope(scope), id, signal),
+    assertArtwork: (scope, id, signal) => ready(signal).actual.assertArtwork(captureMobileNeteaseScope(scope), id, signal),
     content: { dispatch: input => ready(input.signal).content.dispatch(input) },
     neteasePlaybackQualified: async (scope, signal) => {
       await assertScope(scope, 'acquire', signal); const state = ready(signal);

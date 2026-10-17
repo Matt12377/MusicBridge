@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
+import { writeSync } from 'node:fs'
+import { mkdtemp, open, readFile, rm, stat } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -9,6 +10,7 @@ import {
   MainDiagnosticRecorder,
   writeDiagnosticReport,
 } from '../src/main/diagnostics.js'
+import { createLocalWorkbenchQuitCoordinator, type LocalWorkbenchQuitGroup } from '../src/main/local-library-workbench/quit-coordinator.js'
 
 test('Main diagnostic recorder keeps public Core health and a bounded event timeline', () => {
   const recorder = new MainDiagnosticRecorder(2)
@@ -122,4 +124,205 @@ test('diagnostic report writer creates one restricted JSON file', async () => {
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
+})
+
+
+test('私有诊断导出：同请求快照与媒体完成量写入受限文件，保留公开报告', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-private-diagnostics-'))
+  try {
+    const outputPath = path.join(directory, 'diagnostics.json'), recorder = new MainDiagnosticRecorder()
+    const localAlbum = { schema: 'v39.local-album-safe-trace.v1' as const, records: [], firstRejects: [], droppedRecords: 0 }
+    const media = { timestamp: '2026-10-14T10:00:00.000Z', level: 'info', event: 'local_playback_media_evidence', schemaVersion: 1, component: 'gateway',
+      diagnosticId: 'diag-local-' + 'a'.repeat(64), stage: 'transfer-terminal', currentOwned: true, staleCallback: false,
+      requestSequence: 1, method: 'GET', routeClass: 'local-file', rangeClass: 'none', outcome: 'body-completed', statusCode: 200,
+      pipelineBodyBytesObserved: 100, observedBytesCapped: false, responseFinished: true, elapsedMs: 10, completedPipelineBodyBytes: 100 }
+    await writeDiagnosticReport(outputPath, {
+      platform: { platform: 'darwin', arch: 'arm64', appVersion: '0.1.0-beta.2', electronVersion: '43.4.0', nodeVersion: '22.23.2' },
+      main: recorder.snapshot(), core: { ...recorder.snapshot(), component: 'core' }, privateEvidence: { version: 1, localAlbum, localPlayback: [media] },
+    })
+    const report = JSON.parse(await readFile(outputPath, 'utf8'))
+    assert.equal(report.schemaVersion, 1)
+    assert.deepEqual(report.privateEvidence, { version: 1, localAlbum, localPlayback: [media] })
+    assert.equal((await stat(outputPath)).mode & 0o777, 0o600)
+    assert.doesNotMatch(JSON.stringify(report.privateEvidence), /https?:\/\/|sessionId|requestId|sourcePath|Cookie/)
+  } finally { await rm(directory, { recursive: true, force: true }) }
+})
+
+test('私有诊断导出：非法媒体记录与截断计数不伪装成功，不覆盖原文件', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'musicbridge-private-diagnostics-reject-'))
+  try {
+    const outputPath = path.join(directory, 'diagnostics.json'), recorder = new MainDiagnosticRecorder()
+    const input = { platform: { platform: 'darwin' as const, arch: 'arm64', appVersion: '0.1.0-beta.2', electronVersion: '43.4.0', nodeVersion: '22.23.2' },
+      main: recorder.snapshot(), core: { ...recorder.snapshot(), component: 'core' as const } }
+    await writeDiagnosticReport(outputPath, input)
+    const original = await readFile(outputPath)
+    const localAlbum = { schema: 'v39.local-album-safe-trace.v1' as const, records: [], firstRejects: [], droppedRecords: 3 }
+    await assert.rejects(writeDiagnosticReport(outputPath, { ...input,
+      privateEvidence: { version: 1, localAlbum, localPlayback: [{ url: 'https://example.invalid/private', sessionId: '不可导出' }] },
+    }), /安全闭集/)
+    assert.deepEqual(await readFile(outputPath), original)
+    await writeDiagnosticReport(outputPath, { ...input, privateEvidence: { version: 1, localAlbum, localPlayback: [] } })
+    const report = JSON.parse(await readFile(outputPath, 'utf8'))
+    assert.equal(report.privateEvidence.localAlbum.droppedRecords, 3)
+  } finally { await rm(directory, { recursive: true, force: true }) }
+})
+
+interface ShutdownStageRow {
+  schema: 'musicbridge.shutdown-stage.v1'; component: 'main'; at: string; event: string; phase: string | null
+  status: 'pending' | 'completed' | 'failed'; elapsedMs: number | null; code: string | null; failureKind: 'first' | 'cleanup' | null
+  pending: string[]; completed: string[]; failed: string[]; firstFailure: { phase: string; code: string } | null
+  cleanupFailures: Array<{ phase: string; code: string }>
+}
+const shutdownPrefix = 'MUSICBRIDGE_SHUTDOWN_STAGE '
+const shutdownTick = () => new Promise<void>(resolve => setImmediate(resolve))
+function shutdownTraceFixture() {
+  const lines: string[] = []; let elapsed = 0
+  const recorder = new MainDiagnosticRecorder(200, { sink: line => { lines.push(line) }, now: () => elapsed,
+    utcNow: () => Date.parse('2026-10-15T07:00:00.000Z') + elapsed })
+  const rows = (): ShutdownStageRow[] => lines.map(line => {
+    assert.ok(line.startsWith(shutdownPrefix) && line.endsWith('\n'))
+    assert.ok(Buffer.byteLength(line, 'utf8') <= 4 * 1024, '每行闭集旁注不超过4KiB。')
+    const row = JSON.parse(line.slice(shutdownPrefix.length)) as ShutdownStageRow
+    assert.deepEqual(Object.keys(row).sort(), ['schema', 'component', 'at', 'event', 'phase', 'status', 'elapsedMs', 'code', 'failureKind', 'pending', 'completed', 'failed', 'firstFailure', 'cleanupFailures'].sort())
+    assert.equal(row.schema, 'musicbridge.shutdown-stage.v1'); assert.equal(row.component, 'main')
+    assert.match(row.at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u)
+    assert.doesNotMatch(line, /reason|message|stack|https?:\/\/|request_id|session|token|sourcePath|\b[0-9a-f]{8}-[0-9a-f-]{27,}\b/iu)
+    return row
+  })
+  return { recorder, lines, rows, advance(milliseconds: number) { elapsed += milliseconds } }
+}
+/** 原coordinator接原recorder；关闭者只提供本例受控Promise，不冒充真实Main/Owner闭口。 */
+function tracedShutdown(recorder: MainDiagnosticRecorder, groups: readonly LocalWorkbenchQuitGroup[], codes = new Map<unknown, string>()) {
+  return createLocalWorkbenchQuitCoordinator({ groups,
+    onPhaseStart: phase => recorder.recordLifecycle('local_workbench_shutdown_phase_start', 'info', { state: phase }),
+    onPhaseSettled: phase => recorder.recordLifecycle('local_workbench_shutdown_phase_settled', 'info', { state: phase }),
+    onFailure: (failure, first) => recorder.recordLifecycle(first ? 'local_workbench_shutdown_failure' : 'local_workbench_shutdown_cleanup_failure', 'error',
+      { state: failure.phase, code: codes.get(failure.reason) ?? 'INTERNAL_ERROR' }),
+  })
+}
+
+test('退出阶段私有旁注：Core缺席时仍记录原coordinator成功与UTC耗时，公开报告字段保持', async () => {
+  const f = shutdownTraceFixture(), calls: string[] = []
+  const coordinator = tracedShutdown(f.recorder, [{ steps: [
+    ['prepare_reads', () => { calls.push('prepare_reads'); f.advance(12) }],
+  ] }, { steps: [['owner_shutdown', () => { calls.push('owner_shutdown'); f.advance(8) }]] },
+  { steps: [['close_outbox', () => { calls.push('close_outbox'); f.advance(5) }]] }])
+  assert.equal(f.recorder.snapshot().health.runtime, 'starting', 'fixture没有Core实例或诊断RPC。')
+  await coordinator.request(); assert.equal(coordinator.confirmed, true)
+  assert.deepEqual(calls, ['prepare_reads', 'owner_shutdown', 'close_outbox'])
+  const rows = f.rows(); assert.equal(rows.length, 6)
+  assert.deepEqual(rows.filter(row => row.status === 'completed').map(row => [row.phase, row.elapsedMs]), [['prepare_reads', 12], ['owner_shutdown', 8], ['close_outbox', 5]])
+  assert.equal(rows[0]?.at, '2026-10-15T07:00:00.000Z'); assert.equal(rows.at(-1)?.at, '2026-10-15T07:00:00.025Z')
+  assert.deepEqual(rows.at(-1)?.pending, []); assert.deepEqual(rows.at(-1)?.completed, ['prepare_reads', 'owner_shutdown', 'close_outbox'])
+  assert.deepEqual(rows.at(-1)?.failed, []); assert.equal(rows.at(-1)?.firstFailure, null)
+  const snapshot = f.recorder.snapshot()
+  assert.equal(snapshot.timeline.length, 6); assert.equal(snapshot.timeline[0]?.state, 'prepare_reads')
+  assert.equal(Object.hasOwn(snapshot, 'shutdown'), false); assert.doesNotMatch(JSON.stringify(snapshot), /musicbridge.shutdown-stage|cleanupFailures|firstFailure/u)
+})
+
+test('退出阶段私有旁注：held原Promise保pending且重复Quit不重入，真实settle后才记completed', async t => {
+  const f = shutdownTraceFixture(); let release!: () => void, ownerCalls = 0, readCalls = 0
+  const held = new Promise<void>(resolve => { release = resolve })
+  const coordinator = tracedShutdown(f.recorder, [{ steps: [
+    ['prepare_reads', () => { readCalls++; return held }], ['prepare_normalizer', () => { f.advance(25) }],
+  ] }, { steps: [['owner_shutdown', () => { ownerCalls++ }]] }])
+  const flight = coordinator.request()!
+  t.after(async () => { release(); await Promise.allSettled([flight]) })
+  await shutdownTick()
+  assert.equal(coordinator.pending, true); assert.equal(coordinator.confirmed, false); assert.equal(coordinator.request(), undefined)
+  assert.equal(readCalls, 1); assert.equal(ownerCalls, 0)
+  const waiting = f.rows().at(-1)!
+  assert.deepEqual(waiting.pending, ['prepare_reads']); assert.deepEqual(waiting.completed, ['prepare_normalizer']); assert.deepEqual(waiting.failed, [])
+  assert.equal(f.rows().some(row => row.phase === 'prepare_reads' && row.status === 'completed'), false)
+  f.advance(75); release(); await flight
+  assert.equal(coordinator.confirmed, true); assert.equal(ownerCalls, 1); assert.equal(readCalls, 1)
+  assert.equal(f.rows().find(row => row.phase === 'prepare_reads' && row.status === 'completed')?.elapsedMs, 100)
+  assert.deepEqual(f.rows().at(-1)?.pending, [])
+})
+
+test('退出阶段私有旁注：准备首错与后续cleanup分别保留，Core关闭拒绝仍可取证且不假成功', async t => {
+  const f = shutdownTraceFixture(), first = new Error('禁止进入日志的原原因'), cleanup = new Error('禁止进入日志的清理原因'), unavailable = new Error('禁止进入日志的Core原因')
+  let getters = 0, release!: () => void, joins = 0, gated = 0, retry = false
+  Object.defineProperty(first, 'code', { get() { getters++; throw new Error('不能读业务错误getter') } })
+  const held = new Promise<void>(resolve => { release = resolve }), codes = new Map<unknown, string>([[first, 'CHANGED'], [cleanup, 'TIMEOUT'], [unavailable, 'NOT_READY']])
+  const coordinator = tracedShutdown(f.recorder, [{ steps: [
+    ['prepare_reads', () => { f.advance(3); if (!retry) throw first }], ['prepare_normalizer', async () => { await held; f.advance(7); if (!retry) throw cleanup }],
+  ] }, { steps: [['owner_shutdown', () => { f.advance(5); throw unavailable }]] },
+  { steps: [['join_readers', () => { joins++ }]] }, { requiresPreviousSuccess: true, steps: [['close_management', () => { gated++ }]] }], codes)
+  const flight = coordinator.request()!, rejected = assert.rejects(flight, error => error === first)
+  t.after(async () => { release(); await Promise.allSettled([flight, rejected]) })
+  await shutdownTick(); release(); await rejected
+  assert.equal(coordinator.confirmed, false); assert.equal(coordinator.firstFailure?.reason, first); assert.equal(joins, 1); assert.equal(gated, 0); assert.equal(getters, 0)
+  // 对应原Main catch再次保留首错、再记录总未确认；不能用cleanup覆盖首因。
+  f.recorder.recordLifecycle('local_workbench_shutdown_failure', 'error', { state: 'prepare_reads', code: 'CHANGED' })
+  f.recorder.recordLifecycle('local_workbench_shutdown_not_verified', 'error', { code: 'CHANGED' })
+  const rows = f.rows(), tail = rows.at(-1)!
+  assert.equal(tail.phase, null); assert.equal(tail.status, 'failed'); assert.equal(tail.elapsedMs, 15)
+  assert.deepEqual(tail.firstFailure, { phase: 'prepare_reads', code: 'CHANGED' })
+  assert.deepEqual(tail.cleanupFailures, [{ phase: 'prepare_normalizer', code: 'TIMEOUT' }, { phase: 'owner_shutdown', code: 'NOT_READY' }])
+  assert.deepEqual(tail.failed, ['prepare_reads', 'prepare_normalizer', 'owner_shutdown']); assert.deepEqual(tail.completed, ['join_readers']); assert.deepEqual(tail.pending, [])
+  assert.equal(rows.filter(row => row.failureKind === 'first').every(row => row.phase === 'prepare_reads' && row.code === 'CHANGED'), true)
+  assert.equal(rows.filter(row => row.failureKind === 'cleanup').length, 2)
+  assert.doesNotMatch(f.lines.join(''), /禁止进入日志|原原因|清理原因|Core原因/u)
+  retry = true
+  await assert.rejects(coordinator.request()!, error => error === first)
+  f.recorder.recordLifecycle('local_workbench_shutdown_failure', 'error', { state: 'prepare_reads', code: 'CHANGED' })
+  f.recorder.recordLifecycle('local_workbench_shutdown_not_verified', 'error', { code: 'CHANGED' })
+  const retried = f.rows().at(-1)!
+  assert.deepEqual(retried.completed, ['prepare_reads', 'prepare_normalizer', 'join_readers'])
+  assert.deepEqual(retried.failed, ['owner_shutdown']); assert.deepEqual(retried.firstFailure, tail.firstFailure)
+  assert.deepEqual(retried.cleanupFailures, tail.cleanupFailures); assert.equal(joins, 1); assert.equal(gated, 0)
+})
+
+test('退出阶段私有旁注：未知phase/code/event与敏感额外字段整条拒绝，getter和Proxy不执行', () => {
+  const f = shutdownTraceFixture(); let getters = 0, traps = 0
+  const send = (event: string, level: 'info' | 'warn' | 'error', value: unknown) => f.recorder.recordLifecycle(event, level, value as { state?: string; code?: string })
+  const accessor = Object.defineProperty({}, 'state', { enumerable: true, get() { getters++; return 'prepare_reads' } })
+  const hidden = Object.defineProperty({}, 'state', { value: 'prepare_reads', enumerable: false })
+  const proxy = new Proxy({}, { ownKeys() { traps++; return [] }, getPrototypeOf() { traps++; return Object.prototype } })
+  const revoked = Proxy.revocable({}, {}); revoked.revoke()
+  for (const value of [null, [], accessor, hidden, proxy, revoked.proxy, Object.create({ state: 'prepare_reads' }),
+    { state: 'unknown' }, { state: 'prepare_reads', message: 'https://example.invalid/private' }, { state: 'prepare_reads', [Symbol('secret')]: true },
+    { state: 'prepare_reads', code: 'CHANGED' }]) send('local_workbench_shutdown_phase_start', 'info', value)
+  send('local_workbench_shutdown_failure', 'error', { state: 'owner_shutdown', code: 'SQLITE_UNKNOWN', path: '/合成私密位置' })
+  send('local_workbench_shutdown_failure', 'error', { state: 'owner_shutdown', code: 'UNKNOWN_CODE' })
+  send('local_workbench_shutdown_failure', 'error', Object.defineProperty({ state: 'owner_shutdown' }, 'code', { enumerable: true, get() { getters++; return 'NOT_READY' } }))
+  send('local_workbench_shutdown_not_verified', 'error', { state: 'owner_shutdown', code: 'NOT_READY' })
+  send('local_workbench_shutdown_phase_start', 'error', { state: 'owner_shutdown' })
+  send('local_workbench_shutdown_unknown', 'info', { state: 'owner_shutdown' })
+  assert.equal(getters, 0); assert.equal(traps, 0); assert.deepEqual(f.lines, []); assert.deepEqual(f.recorder.snapshot().timeline, [])
+  send('local_workbench_shutdown_phase_start', 'info', Object.assign(Object.create(null), { state: 'owner_shutdown' }))
+  send('local_workbench_shutdown_failure', 'error', { state: 'owner_shutdown', code: 'NOT_READY' })
+  assert.equal(f.rows().length, 2); assert.equal(f.rows().at(-1)?.code, 'NOT_READY')
+})
+
+test('退出阶段私有旁注：sink或clock拒绝不改变原关闭结果与公开诊断', async () => {
+  for (const fault of ['sink', 'clock'] as const) {
+    let calls = 0
+    const recorder = new MainDiagnosticRecorder(200, {
+      sink() { throw new Error('受控日志sink不可用') }, now() { if (fault === 'clock') throw new Error('受控clock不可用'); return 0 },
+      utcNow: () => Date.parse('2026-10-15T07:00:00.000Z'),
+    })
+    const coordinator = tracedShutdown(recorder, [{ steps: [['owner_shutdown', () => { calls++ }]] }])
+    await coordinator.request(); assert.equal(coordinator.confirmed, true); assert.equal(calls, 1)
+    assert.deepEqual(recorder.snapshot().timeline.map(row => row.event), ['local_workbench_shutdown_phase_start', 'local_workbench_shutdown_phase_settled'])
+  }
+})
+
+test('退出阶段私有旁注：默认同步写真实EBADF仍保原coordinator确认与公开记录', async () => {
+  const stdout = await open('/dev/null', 'r')
+  try {
+    assert.throws(() => writeSync(stdout.fd, '受控只读FD探针\n'), { code: 'EBADF' })
+    let calls = 0
+    // 不注入sink，实际默认writeSync必须在同一只读FD上失败并被旁注边界隔离。
+    const recorder = new MainDiagnosticRecorder(200, { stdoutFd: stdout.fd, now: () => 0,
+      utcNow: () => Date.parse('2026-10-15T07:00:00.000Z') })
+    const coordinator = tracedShutdown(recorder, [{ steps: [['owner_shutdown', () => { calls++ }]] }])
+    assert.equal(await coordinator.request(), undefined)
+    assert.equal(coordinator.confirmed, true); assert.equal(coordinator.pending, false); assert.equal(coordinator.firstFailure, undefined); assert.equal(calls, 1)
+    assert.deepEqual(recorder.snapshot().timeline.map(row => ({ event: row.event, state: row.state })), [
+      { event: 'local_workbench_shutdown_phase_start', state: 'owner_shutdown' },
+      { event: 'local_workbench_shutdown_phase_settled', state: 'owner_shutdown' },
+    ])
+  } finally { await stdout.close() }
 })

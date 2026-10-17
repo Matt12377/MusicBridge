@@ -3,6 +3,9 @@ import { computed, defineAsyncComponent } from 'vue'
 import AppearanceSettings from './AppearanceSettings.vue'
 import CollectionReadonlySettings from './CollectionReadonlySettings.vue'
 import LocalLibrarySettings from './LocalLibrarySettings.vue'
+import LocalAiSettings from './LocalAiSettings.vue'
+import type { LocalWorkbenchLibrary } from '../../composables/application/local-library-workbench/library.js'
+import type { useLocalRelocationPlans } from '../../composables/application/useLocalRelocationPlans.js'
 import MobileConnectionSettings from './MobileConnectionSettings.vue'
 const SourceWritesSettings = typeof window.musicBridge?.getLocalSourceWrites === 'function' ? defineAsyncComponent(() => import('./LocalSourceWritesSettings.vue')) : null
 import RoonDisplaySettings from './RoonDisplaySettings.vue'
@@ -12,6 +15,8 @@ import { createSettingsNavigation, type SettingsCategory } from '../../composabl
 import { zoneLifecycleLabel, type ZoneLifecycleStatus } from '../../zone-lifecycle.js'
 
 const props = defineProps<{
+  workbenchLibrary?: LocalWorkbenchLibrary
+  localRelocationSession?: ReturnType<typeof useLocalRelocationPlans>
   appInfo: AppInfo | null
   authState: PublicAuthState
   accountState: PublicAccountState
@@ -28,6 +33,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  updated: []
   'begin-login': []
   'cancel-login': []
   logout: []
@@ -172,7 +178,7 @@ function paneId(category: SettingsCategory): string {
     <div v-else-if="activeCategory === 'application'" id="settings-pane-application" class="settings-pane settings-pane-application" role="tabpanel" aria-labelledby="settings-tab-application">
       <AppearanceSettings />
       <CollectionReadonlySettings />
-      <LocalLibrarySettings />
+      <LocalLibrarySettings :workspace="props.workbenchLibrary" :relocation-session="props.localRelocationSession" @updated="emit('updated')" /><LocalAiSettings v-if="props.workbenchLibrary" :model="props.workbenchLibrary" />
       <MobileConnectionSettings />
       <SourceWritesSettings v-if="SourceWritesSettings" />
       <p v-else class="settings-note">源写服务尚未就绪；原 MB 信息整理与封面选择继续可用。</p>

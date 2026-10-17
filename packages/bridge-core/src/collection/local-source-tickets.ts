@@ -34,11 +34,13 @@ export function createLocalSourceTickets(repository: CollectionRepository, epoch
         && current.assetId === facts.asset.id && current.trackId === facts.track.id ? current.readFacts?.technical : undefined;
       const parameters = technical ? { container: technical.container, codec: technical.codec, lossless: technical.lossless, sampleRateHz: technical.sampleRateHz,
         channels: technical.channels, bitsPerSample: technical.bitsPerSample, durationMs: technical.durationSeconds === null ? null : Math.round(technical.durationSeconds * 1000), evidence: technical.evidence } : undefined;
+      const fileParameters = isFileAudioParameters(parameters) ? parameters : undefined;
       const fence = LocalSourceFence.create(), result: LocalSourceCaptureResult = {
         ticketId: randomUUID(), epoch, datasetId, buffer: fence.buffer, facts,
-        metadata: { id: facts.track.id, title: effective.title || path.basename(facts.relative,path.extname(facts.relative)), artists: effective.artist ? [effective.artist] : [], album: effective.album || '' },
+        metadata: { id: facts.track.id, title: effective.title || path.basename(facts.relative,path.extname(facts.relative)), artists: effective.artist ? [effective.artist] : [], album: effective.album || '',
+          ...(fileParameters?.durationMs !== undefined && fileParameters.durationMs !== null ? { durationMs: fileParameters.durationMs } : {}) },
         format: path.extname(facts.relative).slice(1).toLowerCase(),
-        ...(isFileAudioParameters(parameters) ? {fileParameters:parameters} : {}),
+        ...(fileParameters ? {fileParameters} : {}),
       };
       if (!isLocalSourceCaptureResult(result)) { fence.revoke(); throw new Error('本地捕获事实不符合私有读取合同。'); }
       tickets.set(result.ticketId,{selection:structuredClone(selection), result:structuredClone(result),fence}); return result;

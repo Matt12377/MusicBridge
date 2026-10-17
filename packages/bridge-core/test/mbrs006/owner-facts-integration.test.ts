@@ -62,3 +62,109 @@ test('006真实Owner目录CUE/segment明确unsupported，不当整文件观察�
  const f=await catalogFixture(t),asset=f.repository.localCatalog.registerAsset({commandId:randomUUID(),libraryRootId:f.root.id,expectedRootRevision:f.root.revision,relative:'逻辑片段.flac',sha256:'c'.repeat(64),sampleFrames:'96000',timebaseHz:48000}),track=f.repository.localCatalog.createTrack({commandId:randomUUID(),assetId:asset.id,segment:{startFrame:'48000',endFrameExclusive:'96000',timebaseHz:48000}});
  assert.throws(()=>captureLocalFactsReadonly({...f.requests[0]!,request_id:randomUUID(),local_track_id:track.id,asset_id:asset.id,expected_asset_revision:asset.fileRevision},f.repository),error=>error instanceof LocalSourcePreparationError && error.code==='SEGMENT_UNSUPPORTED');
 });
+
+/** 同Owner原扫描事务提交新技术事实；仅测试自有材料，既有每批上限和闭DTO不变。 */
+async function commitDurationFacts950(f: Awaited<ReturnType<typeof catalogFixture>>, durationSeconds: number | null) {
+  const request = f.requests[0]!, locator = f.repository.localCatalog.privateAssetLocator(request.asset_id);
+  const previous = f.repository.localScan.privateCurrentFileState(f.root.id, locator.relative);
+  assert.ok(previous && previous.value.outcome === 'accepted' && previous.value.readFacts);
+  const items = f.requests.map(selection => {
+    const location = f.repository.localCatalog.privateAssetLocator(selection.asset_id);
+    const saved = f.repository.localScan.privateCurrentFileState(f.root.id, location.relative);
+    assert.ok(saved && saved.value.outcome === 'accepted' && saved.value.readFacts);
+    const readFacts = structuredClone(saved.value.readFacts);
+    if (selection.local_track_id === request.local_track_id) readFacts.technical.durationSeconds = durationSeconds;
+    return { relative: location.relative, signature: saved.value.signature, parserVersion: saved.value.parserVersion,
+      outcome: 'accepted' as const, fields: { title: location.relative, artist: '合成作者' }, failureCode: null, reused: false, readFacts };
+  });
+  const started = f.repository.localScan.start({ commandId: randomUUID(), datasetId: f.datasetId, libraryRootId: f.root.id,
+    expectedRootRevision: f.repository.localCatalog.root(f.root.id).revision, parserVersion: previous.value.parserVersion }).job;
+  const job = f.repository.localScan.resume({ commandId: randomUUID(), jobId: started.jobId, expectedRevision: started.jobRevision });
+  const batch: import('../../src/collection/local-scan-store.js').ScanPreparedBatch = {
+    batchId: randomUUID(), jobId: job.jobId, expectedJobRevision: job.jobRevision, checkpointBefore: job.checkpointRef,
+    items,
+    frontier: [], completed: true,
+  };
+  f.repository.localScan.privatePrepareBatch({ commandId: randomUUID(), jobId: job.jobId, batch });
+  f.repository.localScan.privateCommitBatch({ commandId: randomUUID(), jobId: job.jobId, batchId: batch.batchId, expectedRevision: job.jobRevision });
+}
+
+test('本地时长950：同签名Owner已知时长进入metadata并通过原私有接收闭合同', async t => {
+  const f = await catalogFixture(t), captured = f.tickets.capture(f.requests[0]!);
+  assert.equal(captured.fileParameters?.durationMs, 1000, 'RED前提：0840已实际拥有同签名合法技术时长');
+  assert.equal(captured.metadata.durationMs, 1000, '旧产品缺的是metadata投影，不能靠新入口补值');
+  assert.equal(captured.epoch, f.epoch); assert.equal(captured.datasetId, f.datasetId);
+  assert.equal(captured.metadata.id, captured.facts.track.id);
+  assert.equal(captured.facts.observation!.trackId, captured.facts.track.id);
+  assert.equal(isLocalSourceCaptureResult(structuredClone(captured)), true, 'Owner Client实际使用的原exact-key validator必须接受durationMs');
+  for (const durationMs of [-1, NaN, Infinity, 1.5]) {
+    const invalid = structuredClone(captured); invalid.metadata.durationMs = durationMs;
+    assert.equal(isLocalSourceCaptureResult(invalid), false, '非法时长不能因接线放行');
+  }
+  assert.equal(isLocalSourceCaptureResult({ ...captured, metadata: { ...captured.metadata, extra: true } }), false);
+  assert.equal(f.tickets.revalidate(captured.ticketId), true); f.tickets.release(captured.ticketId);
+});
+
+test('本地时长950：当前扫描明确未知时长不沿用上次票据或另一曲目的已知时长', async t => {
+  const f = await catalogFixture(t), old = f.tickets.capture(f.requests[0]!);
+  assert.equal(old.fileParameters?.durationMs, 1000); f.tickets.release(old.ticketId);
+  await commitDurationFacts950(f, null);
+  const current = f.tickets.capture(f.requests[0]!);
+  assert.equal(current.fileParameters?.durationMs, null);
+  assert.equal(Object.hasOwn(current.metadata, 'durationMs'), false);
+  assert.equal(isLocalSourceCaptureResult(current), true);
+  const other = f.tickets.capture(f.requests[1]!);
+  assert.equal(other.fileParameters?.durationMs, 1000); assert.equal(other.metadata.durationMs, 1000);
+  assert.notEqual(current.ticketId, old.ticketId);
+  f.tickets.release(current.ticketId); f.tickets.release(other.ticketId);
+});
+
+test('本地时长950：扫描有限秒数转毫秒越安全整数界时不产生合法metadata或参数', async t => {
+  const f = await catalogFixture(t);
+  await commitDurationFacts950(f, Number.MAX_SAFE_INTEGER);
+  const captured = f.tickets.capture(f.requests[0]!);
+  assert.equal(Object.hasOwn(captured, 'fileParameters'), false);
+  assert.equal(Object.hasOwn(captured.metadata, 'durationMs'), false);
+  assert.equal(isLocalSourceCaptureResult(captured), true);
+  f.tickets.release(captured.ticketId);
+});
+
+test('本地时长950：完整事实后末次技术观察签名漂移不能透传旧时长', async t => {
+  const f = await catalogFixture(t), original = f.repository.localScan.privateCurrentFileState.bind(f.repository.localScan);
+  let reads = 0;
+  t.mock.method(f.repository.localScan, 'privateCurrentFileState', (...args: Parameters<typeof original>) => {
+    const current = original(...args); reads++;
+    if (!current || reads !== 3) return current;
+    // 前两次是真实同Owner完整事实；仅末次技术观察注入另一合法签名，模拟读取缝隙漂移。
+    const parts = current.value.signature.split(':'); parts[2] = (BigInt(parts[2]!) + 1n).toString();
+    return { ...current, value: { ...current.value, signature: parts.join(':') } };
+  });
+  const captured = f.tickets.capture(f.requests[0]!);
+  assert.equal(reads, 3, '投影不得为获取时长再读取或回退历史');
+  assert.equal(Object.hasOwn(captured, 'fileParameters'), false);
+  assert.equal(Object.hasOwn(captured.metadata, 'durationMs'), false);
+  assert.equal(isLocalSourceCaptureResult(captured), true); f.tickets.release(captured.ticketId);
+});
+
+test('本地时长950：已知时长不授旧修订播放资格，真实asset替换仍撤票拒旧请求', async t => {
+  const f = await catalogFixture(t), captured = f.tickets.capture(f.requests[0]!);
+  assert.equal(captured.fileParameters?.durationMs, 1000);
+  const a = captured.facts.asset;
+  f.repository.localCatalog.replaceAsset({ commandId: randomUUID(), assetId: a.id, expectedFileRevision: a.fileRevision,
+    expectedLocationRevision: a.locationRevision, libraryRootId: a.libraryRootId, expectedRootRevision: a.rootRevision,
+    relative: captured.facts.relative, sha256: null, sampleFrames: null, timebaseHz: null });
+  assert.equal(new LocalSourceFence(captured.buffer).current, false);
+  assert.equal(f.tickets.revalidate(captured.ticketId), false);
+  assert.throws(() => f.tickets.capture(f.requests[0]!), error => error instanceof LocalSourcePreparationError && error.code === 'FACTS_CHANGED');
+  f.tickets.release(captured.ticketId);
+});
+
+test('本地时长950：CUE分段票据仍明确unsupported而不拿整文件时长替代片段', async t => {
+  const f = await catalogFixture(t), asset = f.repository.localCatalog.registerAsset({ commandId: randomUUID(), libraryRootId: f.root.id,
+    expectedRootRevision: f.root.revision, relative: '自有CUE整体.wav', sha256: 'd'.repeat(64), sampleFrames: '96000', timebaseHz: 48000 });
+  const track = f.repository.localCatalog.createTrack({ commandId: randomUUID(), assetId: asset.id,
+    segment: { startFrame: '48000', endFrameExclusive: '96000', timebaseHz: 48000 } });
+  assert.throws(() => f.tickets.capture({ ...f.requests[0]!, request_id: randomUUID(), local_track_id: track.id,
+    asset_id: asset.id, expected_asset_revision: asset.fileRevision }), error => error instanceof LocalSourcePreparationError && error.code === 'SEGMENT_UNSUPPORTED');
+  assert.equal(f.tickets.size, 0);
+});

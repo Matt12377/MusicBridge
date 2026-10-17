@@ -21,7 +21,7 @@ import { createOptimisticRoonPlayback } from '../../roon-playback-optimism.js'
 import { collectRoonPlaybackContext } from '../../roon-context-queue.js'
 import { projectPlaybackSnapshot } from './playbackSnapshot.js'
 import { createPlaybackStreamReducer, type PlaybackStreamApplication } from './playbackStreamReducer.js'
-import { localPlaybackSubmissionUnconfirmed } from '../../components/player/details.js'
+import { localPlaybackSubmissionUnconfirmed, localPlaybackSeekAllowed } from '../../components/player/details.js'
 
 const LIBRARY_PAGE_SIZE = 20
 const MAX_ROON_QUEUE_DESCRIPTORS = 256
@@ -73,7 +73,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   let streamLifecycle = 0, seekOperation = 0, automaticAttemptUsed = false
   let recoveryToken = {}
   let syncFlight: Promise<void> | undefined
-  let pendingSeek: { target: number; acknowledged: boolean; isCurrent: () => boolean; settle?: (position?: number) => void; timer?: ReturnType<typeof setTimeout> } | undefined
+  let pendingSeek: { target: number; local: boolean; acknowledged: boolean; isCurrent: () => boolean; settle?: (position?: number) => void; timer?: ReturnType<typeof setTimeout> } | undefined
   const playbackSyncStatus = ref<'ready' | 'syncing' | 'error' | 'suspended'>(streamMode === 'legacy' ? 'ready' : 'syncing')
   const playbackClockIdentity = ref<string | undefined>()
   const playbackViewState = computed(() => {
@@ -135,6 +135,8 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     ++roonPlaybackOperation
     optimisticRoonTrackId = undefined
     if (pendingRoonPlaybackOperation !== undefined) {
+      // 旧点播的只读恢复仍接住回执，但取消后不能盖住下一次准备。
+      recoveryToken = {}; syncFlight = undefined; automaticAttemptUsed = false
       pendingRoonPlaybackOperation = undefined
       playbackStartPending.value = false
     }
@@ -357,6 +359,12 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     const previousDescriptor = localTrackFavoriteDescriptor.value
     const projected = projectPlaybackSnapshot(previousSnapshot, snapshot)
     if (projected !== previousSnapshot) playbackState.value = projected
+    // 本地失权一经原state接纳就废弃该次seek，不能在同身份恢复后认旧ACK。
+    const pending = pendingSeek
+    if (pending?.local && !pending.isCurrent()) {
+      clearPendingSeek()
+      pending.settle?.()
+    }
     if (projected.queue !== previousSnapshot?.queue) {
       for (const item of projected.queue.items) rememberPublishedRoonItem(item)
     }
@@ -429,9 +437,11 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
     }
   }
 
-  function clearPendingSeek(): void {
-    if (pendingSeek?.timer !== undefined) clearTimeout(pendingSeek.timer)
+  function clearPendingSeek(settleLegacyLocal = false): void {
+    const pending = pendingSeek
+    if (pending?.timer !== undefined) clearTimeout(pending.timer)
     pendingSeek = undefined
+    if (settleLegacyLocal && pending?.local && streamMode === 'legacy') pending.settle?.()
   }
   function confirmPendingSeek(): void {
     const pending = pendingSeek
@@ -523,7 +533,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   function acceptPlaybackReady(ack?: PlaybackEventProtocolAck): void {
     if (disposed) return
     if (ack && streamMode === 'compact' && stream.instance === ack.coreInstanceId && playbackSyncStatus.value !== 'suspended') return
-    ++streamLifecycle; ++seekOperation; clearPendingSeek(); syncFlight = undefined; automaticAttemptUsed = false
+    ++streamLifecycle; ++seekOperation; clearPendingSeek(true); syncFlight = undefined; automaticAttemptUsed = false
     cancelRoonPlaybackPreparation()
     if (!ack) {
       streamMode = 'legacy'; stream.suspend(); playbackClockIdentity.value = undefined; playbackSyncStatus.value = 'syncing'
@@ -538,7 +548,7 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   }
   function suspendPlaybackStream(): void {
     if (disposed) return
-    ++streamLifecycle; ++seekOperation; clearPendingSeek(); syncFlight = undefined; automaticAttemptUsed = false
+    ++streamLifecycle; ++seekOperation; clearPendingSeek(true); syncFlight = undefined; automaticAttemptUsed = false
     stream.suspend(); playbackSyncStatus.value = 'suspended'; playbackClockIdentity.value = undefined
     cancelRoonPlaybackPreparation()
   }
@@ -741,10 +751,13 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       await refreshPlaybackWhileCurrent(() => operation === roonPlaybackOperation && !disposed)
     } catch (error) {
       traceOutcome = operation === roonPlaybackOperation ? 'error' : 'cancelled'
-      if (operation !== roonPlaybackOperation) return
+      if (operation !== roonPlaybackOperation || disposed) return
+      const ownedOptimism = optimisticRoonTrackId === roonTrackId
       optimisticRoonTrackId = undefined
+      // 撤掉本次显示覆盖；只回放已接纳的基准，不重新接纳同序或旧帧。
+      if (ownedOptimism && streamMode === 'compact' && stream.snapshot) commitPlaybackState(stream.snapshot)
       await refreshPlaybackWhileCurrent(() => operation === roonPlaybackOperation && !disposed)
-      if (operation !== roonPlaybackOperation) return
+      if (operation !== roonPlaybackOperation || disposed) return
       onError(error)
     } finally {
       api.performanceDiagnostics?.end(trace, operation === roonPlaybackOperation ? traceOutcome : 'cancelled')
@@ -1036,20 +1049,45 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
   async function seekPlayback(positionMs: number, settle?: (positionMs?: number) => void): Promise<void> {
     const snapshot = playbackState.value, track = snapshot?.currentTrack
     if (!snapshot || !track || track.durationMs === undefined || getSelectedZone()?.seekAllowed !== true
-      || playbackSyncStatus.value !== 'ready') { settle?.(); return }
-    clearPendingSeek()
+      || playbackSyncStatus.value !== 'ready' || !localPlaybackSeekAllowed(snapshot, getSelectedZone()?.zoneId)) { settle?.(); return }
+    clearPendingSeek(true)
     const operation = ++seekOperation, lifecycle = streamLifecycle, owner = playbackClockIdentity.value
     const zone = getSelectedZone()?.zoneId, source = snapshot.source
-    const isCurrent = () => !disposed && operation === seekOperation && lifecycle === streamLifecycle
-      && owner === playbackClockIdentity.value && playbackState.value?.currentTrack?.id === track.id
-      && playbackState.value?.source === source && getSelectedZone()?.zoneId === zone
-    const pending = { target: Math.round(positionMs), acknowledged: false, isCurrent, settle } as NonNullable<typeof pendingSeek>
-    if (streamMode === 'compact') pendingSeek = pending
+    const identity = (value: PlaybackSnapshot | null) => {
+      const local = value?.local, entry = value ? value.queue.items[value.queue.index] : undefined
+      return local ? JSON.stringify([local.request_id, local.attempt_id, local.intent_generation, local.route,
+        local.local_track_id, local.asset_id, local.asset_revision, local.target.core_id, local.target.zone_id, local.session_epoch,
+        value?.queue.queueId, entry?.entryId, entry?.local?.local_track_id, entry?.local?.asset_id, entry?.local?.asset_revision,
+        entry?.local?.selection_revision, entry?.local?.location_revision, entry?.local?.root_revision]) : undefined
+    }
+    const localIdentity = source === 'local_file' ? identity(snapshot) : undefined
+    let localInvalidated = false, legacySettled = false
+    const isCurrent = () => {
+      const current = !disposed && operation === seekOperation && lifecycle === streamLifecycle
+        && owner === playbackClockIdentity.value && playbackState.value?.currentTrack?.id === track.id
+        && playbackState.value?.source === source && getSelectedZone()?.zoneId === zone
+        && (source !== 'local_file' || getSelectedZone()?.seekAllowed === true
+          && localPlaybackSeekAllowed(playbackState.value, zone) && identity(playbackState.value) === localIdentity)
+      if (source === 'local_file' && !current) localInvalidated = true
+      return current && !localInvalidated
+    }
+    const legacyLocalSettle = (position?: number) => {
+      if (legacySettled) return
+      legacySettled = true; settle?.(position)
+    }
+    const pending = { target: Math.round(positionMs), local: source === 'local_file', acknowledged: false, isCurrent,
+      settle: source === 'local_file' && streamMode === 'legacy' ? legacyLocalSettle : settle } as NonNullable<typeof pendingSeek>
+    if (streamMode === 'compact' || pending.local) pendingSeek = pending
     try {
       const confirmed = await api.seek(pending.target)
-      if (!isCurrent()) return
-      if (streamMode === 'legacy') settle?.(confirmed.positionMs)
-      else {
+      if (!isCurrent()) {
+        if (pending.local && streamMode === 'legacy') { if (pendingSeek === pending) clearPendingSeek(); pending.settle?.() }
+        return
+      }
+      if (streamMode === 'legacy') {
+        if (pendingSeek === pending) clearPendingSeek()
+        pending.settle?.(confirmed.positionMs)
+      } else {
         pending.acknowledged = true
         // SDK ACK可仍携旧位置；只有已接纳的同owner观测能收起草稿。
         confirmPendingSeek()
@@ -1064,8 +1102,11 @@ export function usePlaybackSession(options: PlaybackSessionOptions) {
       }
       await refreshPlayback()
     } catch (error) {
-      if (!isCurrent()) return
-      clearPendingSeek(); settle?.(); onError(error); await refreshPlayback()
+      if (!isCurrent()) {
+        if (pending.local && streamMode === 'legacy') { if (pendingSeek === pending) clearPendingSeek(); pending.settle?.() }
+        return
+      }
+      clearPendingSeek(); pending.settle?.(); onError(error); await refreshPlayback()
     }
   }
 

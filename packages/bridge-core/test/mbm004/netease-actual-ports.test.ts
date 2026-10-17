@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test, { type TestContext } from 'node:test';
 import { randomUUID } from 'node:crypto';
+import { EventEmitter } from 'node:events';
+import type { ClientRequest } from 'node:http';
 import { MOBILE_OPERATION_TABLE, mobileDataSnapshot } from '@music-bridge/contracts';
 import type { MobileRequestMap, MobileTrack, MobileTrackSelection } from '@music-bridge/contracts';
 import { NeteaseClient } from '../../src/netease/client.js';
@@ -10,9 +12,15 @@ import { createMobileNeteaseCatalogService } from '../../src/mobile/netease-cata
 import { createMobileNeteaseSourceService } from '../../src/mobile/netease-source-service.js';
 import { captureMobileContentRequest } from '../../src/mobile/content-protocol.js';
 import type { MobileContentOperation } from '../../src/mobile/content-types.js';
+import { captureMobileContentScope } from '../../src/mobile/content-types.js';
 import type { MobileNeteaseScope } from '../../src/mobile/netease-source-types.js';
+import { captureMobileNeteaseScope } from '../../src/mobile/netease-source-types.js';
+import { createMobileContentRpcPort } from '../../src/mobile/content-rpc-port.js';
+import { createMobileArtworkFetch } from '../../src/netease/mobile-artwork-transport.js';
 import { MobileServiceError } from '../../src/mobile/types.js';
 import type { GatewayFetch } from '../../src/stream/upstream-policy.js';
+import { BridgeError } from '../../src/shared/errors.js';
+import { createMobileCapabilityContext, withMobileCapabilityContext, closeMobileCapabilityContext, MOBILE_CAPABILITY_TRACE_PREFIX } from '../../src/mobile/capability-trace.js';
 
 // 原Client/scheduler/解析器与新适配器组合；SDK和HTTP均为合成受控端口，不连接账号或用户媒体。
 const signal = () => new AbortController().signal;
@@ -32,12 +40,13 @@ function flac() {
   for (let n = 42; n < value.length; n++) value[n] = n % 251;
   return value;
 }
-async function fixture(t: TestContext) {
+async function fixture(t: TestContext, covers = false, privateProviderDiagnostics = false, artworkFetch?: GatewayFetch) {
   const audio = flac(), calls: { method: string; params: Record<string, unknown> }[] = [], ranges: string[] = [], stages: string[] = [];
   const songs = Array.from({ length: 103 }, (_, index) => ({ id: String(index + 1), name: index < 2 ? '同名合成曲' : `合成曲${index + 1}`,
-    ar: [{ id: '17', name: '合成艺人' }], al: { id: '5', name: '合成原发行' }, dt: 1500, alia: [index === 1 ? '另一录制' : '原发行'] }));
+    ar: [{ id: '17', name: '合成艺人' }], al: { id: '5', name: '合成原发行', ...(covers ? { picUrl: 'https://p1.music.126.net/synthetic-cover.jpg' } : {}) }, dt: 1500, alia: [index === 1 ? '另一录制' : '原发行'] }));
   let accountId: string | number = '700', generation = 1, deviceEpoch = 1, active = true, clock = 1700000000000;
   let metadataSuffix = '', md5Suffix = 'a', trial = false, permissionCode = 200, streamCalls = 0;
+  let accountFailure: BridgeError | null = null, probeFailure = false;
   let lyrics: Record<string, unknown> = { code: 200, lrc: { lyric: '[00:00.000]第一行\n[00:00.500]第二行' }, tlyric: { lyric: '[00:00.000]译文' } };
   let songGate: { started: ReturnType<typeof deferred<void>>; release: ReturnType<typeof deferred<void>> } | null = null;
   const gates: { release: ReturnType<typeof deferred<void>> }[] = [];
@@ -47,7 +56,7 @@ async function fixture(t: TestContext) {
   const api = {
     async login_qr_key() { return response({ code: 200 }); }, async login_qr_create() { return response({ code: 200 }); },
     async login_qr_check() { return response({ code: 200 }); }, async login_status() { return response({ code: 200 }); }, async logout() { return response({ code: 200 }); },
-    async user_account(params: Record<string, unknown>) { log('user_account', params); return response({ code: 200, account: { id: accountId } }); },
+    async user_account(params: Record<string, unknown>) { log('user_account', params); if (accountFailure) throw accountFailure; return response({ code: 200, account: { id: accountId } }); },
     async song_detail(params: Record<string, unknown>) { log('song_detail', params); assert.equal(typeof params.ids, 'string');
       if (songGate) { const gate = songGate; songGate = null; gate.started.resolve(); await gate.release.promise; }
       return response({ code: 200, songs: String(params.ids).split(',').map(song) }); },
@@ -58,15 +67,16 @@ async function fixture(t: TestContext) {
     async personal_fm(params: Record<string, unknown>) { log('personal_fm', params); return response({ code: 200, data: [{ id: '1' }] }); },
     async user_playlist(params: Record<string, unknown>) { log('user_playlist', params); return response({ code: 200, more: false, playlist: [{ id: '9', specialType: 10, creator: { userId: accountId } }] }); },
     async playlist_detail(params: Record<string, unknown>) { log('playlist_detail', params); return response({ code: 200, playlist: { id: params.id,
-      name: `合成集合${String(params.id)}`, trackCount: 3, updateTime: 7, trackIds: songs.slice(0, 3).map(v => ({ id: v.id })) } }); },
+      name: `合成集合${String(params.id)}`, ...(covers ? { coverImgUrl: 'https://p1.music.126.net/synthetic-cover.jpg' } : {}), trackCount: 3, updateTime: 7, trackIds: songs.slice(0, 3).map(v => ({ id: v.id })) } }); },
     async personalized(params: Record<string, unknown>) { log('personalized', params); return response({ code: 200, result: [{ id: '9' }, { id: '10' }] }); },
     async toplist(params: Record<string, unknown>) { log('toplist', params); return response({ code: 200, list: [{ id: '11' }, { id: '12' }] }); },
-    async album_new(params: Record<string, unknown>) { log('album_new', params); return response({ code: 200, total: 1, albums: [{ id: '5', name: '合成原发行', artists: [{ name: '合成艺人' }], size: 103 }] }); },
+    async album_new(params: Record<string, unknown>) { log('album_new', params); return response({ code: 200, total: 1, albums: [{ id: '5', name: '合成原发行', artists: [{ name: '合成艺人' }], size: 103, ...(covers ? { picUrl: 'https://p1.music.126.net/synthetic-cover.jpg' } : {}) }] }); },
     async album(params: Record<string, unknown>) { log('album', params); assert.equal(params.id, '5'); return response({ code: 200,
-      album: { id: '5', name: '合成原发行', artists: [{ name: '合成艺人' }], size: 103 }, songs: songs.map(v => song(v.id)) }); },
+      album: { id: '5', name: '合成原发行', artists: [{ name: '合成艺人' }], size: 103, ...(covers ? { picUrl: 'https://p1.music.126.net/synthetic-cover.jpg' } : {}) }, songs: songs.map(v => song(v.id)) }); },
     async lyric_new(params: Record<string, unknown>) { log('lyric_new', params); return response(lyrics); },
   };
   const fetcher: GatewayFetch = async (_url, init) => {
+    if (probeFailure) throw new Error('禁止记录的音频请求正文 https://secret.invalid/');
     const headers = new Headers(init.headers), range = headers.get('range'); assert.ok(range); ranges.push(range);
     assert.equal(headers.get('cookie'), null); assert.equal(headers.get('accept-encoding'), 'identity');
     const match = /^bytes=([0-9]+)-([0-9]+)$/u.exec(range); assert.ok(match);
@@ -80,7 +90,11 @@ async function fixture(t: TestContext) {
     if (stage === 'acquire' && scope.accessGeneration !== generation) throw new MobileServiceError(401, 'UNAUTHORIZED');
   };
   const actual = createActualMobileNeteasePorts({ client, serverId: 'server-1', datasetId: 'dataset-1', ownerEpoch: 'owner-1',
-    identityKey32: new Uint8Array(32).fill(19), assertCurrent: current, now: () => clock, fetch: fetcher });
+    identityKey32: new Uint8Array(32).fill(19), assertCurrent: current, now: () => clock, fetch: fetcher, privateProviderDiagnostics,
+    ...(artworkFetch ? { artworkFetch } : covers ? { artworkFetch: async (_url: string, init: RequestInit) => {
+      const headers = new Headers(init.headers); assert.equal(headers.get('cookie'), null); assert.equal(headers.get('authorization'), null);
+      return new Response(new Uint8Array([255,216,1,2,3,4,255,217]), { status: 200, headers: { 'content-type': 'image/jpeg', 'content-length': '8' } });
+    } } : {}) });
   const account = await actual.account.current(signal()); assert.ok(account);
   const scope: MobileNeteaseScope = { serverId: 'server-1', datasetId: 'dataset-1', deviceId: 'device-1', deviceEpoch: 1,
     accessGeneration: 1, ownerEpoch: 'owner-1', ...account };
@@ -94,11 +108,138 @@ async function fixture(t: TestContext) {
   const daily = () => provider.dispatch({ operation: 'getNeteaseDailyRecommendations', request: request('getNeteaseDailyRecommendations'), scope, signal: signal() });
   return { actual, provider, sources, client, scope, daily, audio, calls, ranges, stages, api, songs,
     advance: (ms: number) => { clock += ms; }, refresh: () => { generation++; }, revoke: () => { deviceEpoch++; },
+    accountFailure: (value: BridgeError | null) => { accountFailure = value; },
+    probeFailure: () => { probeFailure = true; },
     accountId: (value: string | number) => { accountId = value; }, metadata: (value: string) => { metadataSuffix = value; },
     md5: (value: string) => { md5Suffix = value; }, trial: () => { trial = true; }, permission: (value: number) => { permissionCode = value; },
     streamCalls: () => streamCalls, lyrics: (value: Record<string, unknown>) => { lyrics = value; }, stop: () => { active = false; },
     blockSong: () => { const gate = { started: deferred<void>(), release: deferred<void>() }; gates.push(gate); songGate = gate; return gate; } };
 }
+
+test('手机封面超时收口：原10秒后真实连接close未到时cancel不得提前quiet', async t => {
+  for (const operation of ['read','revalidate'] as const) await t.test(operation, async child => {
+    const entered=deferred<void>();let releaseClose=()=>{},destroyed=false,hold=false;
+    const transport=createMobileArtworkFetch({resolver:()=>({async resolve4(){return['8.8.8.8'];},async resolve6(){return[];},cancel(){}}),
+      request:()=>{
+        const emitter=new EventEmitter();let closed=false;
+        releaseClose=()=>{if(!closed){closed=true;emitter.emit('close');}};
+        const request=Object.assign(emitter,{maxHeadersCount:0,
+          end():EventEmitter{entered.resolve();return emitter;},
+          destroy():EventEmitter{destroyed=true;return emitter;},
+        });return request as unknown as ClientRequest;
+      }});
+    const f=await fixture(child,true,false,(url,init)=>hold?transport(url,init):Promise.resolve(new Response(
+      new Uint8Array([255,216,1,2,3,4,255,217]),{headers:{'Content-Type':'image/jpeg','Content-Length':'8'}})));
+    const track=(await f.daily()).reply.body.items[0]!;assert.ok(typeof track.artworkId==='string');
+    const seed=await f.actual.readArtwork(f.scope,track.artworkId,signal());
+    const expected=captureMobileContentScope(f.scope);
+    const rpc=createMobileContentRpcPort({initialize:async()=>{},invalidateDevice:async()=>{},resolveScope:async principal=>({...f.scope,...principal}),
+      assertScope:current=>{assert.deepEqual(current,expected);},content:{async dispatch(){throw new Error('此夹具不读取JSON内容');}},
+      source:async()=>{throw new Error('此夹具不读取音乐');},
+      readArtwork:(scope,id,owned)=>f.actual.readArtwork(captureMobileNeteaseScope(scope),id,owned),
+      assertArtwork:(scope,id,owned)=>f.actual.assertArtwork(captureMobileNeteaseScope(scope),id,owned),
+    });
+    const base=()=>({type:'mobile-content-core-request' as const,id:randomUUID()});
+    await rpc.request({...base(),action:'initialize',serverId:f.scope.serverId,datasetId:f.scope.datasetId,key:new Uint8Array(32).fill(1)},signal());
+    hold=true;child.mock.timers.enable({apis:['setTimeout']});
+    const original={...base(),action:'artwork' as const,operation,scope:f.scope,artworkId:track.artworkId,expectedRevision:operation==='read'?null:seed.revision};
+    let cancelFinished=false;let cancelling:ReturnType<typeof rpc.request>|undefined;
+    const reading=rpc.request(original,signal());
+    try{
+      await entered.promise;
+      child.mock.timers.tick(10_000); // 产品期限仍注册10000ms，不缩短期限制造负例。
+      await reading;assert.equal(destroyed,true);
+      cancelling=rpc.request({...base(),action:'cancel',requestId:original.id,snapshotId:null,scope:f.scope},signal())
+        .then(reply=>{cancelFinished=true;return reply;});
+      for(let index=0;index<80;index++)await Promise.resolve();
+      assert.equal(cancelFinished,false,'真实close未发生，不能确认quiet');
+      releaseClose();const cancelled=await cancelling;
+      assert.ok(cancelled.action==='cancel'&&cancelled.kind==='cancelled');assert.equal(cancelled.quiet,true);
+    }finally{
+      releaseClose();await reading;if(cancelling)await cancelling;child.mock.timers.reset();await rpc.close();
+    }
+  });
+});
+
+test('手机网易云封面：实际adapter投影专辑歌曲与集合ID，按原身份取图且不输出URL', async t => {
+  const f = await fixture(t, true), daily = await f.daily(), track = daily.reply.body.items[0]!;
+  assert.ok(track.artworkId?.startsWith('naw:'));
+  const albums = await f.provider.dispatch({ operation: 'listNeteaseNewAlbums', request: request('listNeteaseNewAlbums'), scope: f.scope, signal: signal() });
+  assert.ok(albums.reply.body.items[0]?.artworkId?.startsWith('naw:'));
+  const collections = await f.provider.dispatch({ operation: 'listNeteaseRecommendedPlaylists', request: request('listNeteaseRecommendedPlaylists'), scope: f.scope, signal: signal() });
+  const collectionId = collections.reply.body.items[0]?.artworkId; assert.ok(collectionId?.startsWith('naw:'));
+  assert.doesNotMatch(JSON.stringify([daily.reply.body, albums.reply.body, collections.reply.body]), /https?:|music\.126\.net|cookie/iu);
+  for (const id of [track.artworkId, albums.reply.body.items[0]?.artworkId, collectionId]) {
+    assert.ok(typeof id === 'string' && id.startsWith('naw:'), '合成正例必须给出真实封面ID');
+    const image = await f.actual.readArtwork(f.scope, id, signal()); assert.equal(image.contentType, 'image/jpeg');
+    assert.equal(image.bytes.length, 8); assert.equal(await f.actual.assertArtwork(f.scope, id, signal()), image.revision);
+  }
+  f.client.setCredential('synthetic-new-artwork-account');
+  const account = await f.actual.account.current(signal()); assert.ok(account);
+  await assert.rejects(f.actual.readArtwork({ ...f.scope, ...account }, track.artworkId!, signal()), safeError('SOURCE_CHANGED', 409));
+});
+
+test('手机网易云登录：fresh临时503不清账户或图片资格，明确失效清旧网络lease及旧图', async t => {
+  const f = await fixture(t, true), track = (await f.daily()).reply.body.items[0]!;
+  const opened = await f.actual.streams.open({ scope: f.scope, resourceId: randomUUID(), selection: selection(track) }, signal());
+  try {
+    f.advance(11_000); f.accountFailure(new BridgeError('NETEASE_REQUEST_FAILED', '合成临时失败'));
+    await assert.rejects(f.actual.account.current(signal()), safeError('BUSY', 503));
+    f.accountFailure(null); assert.deepEqual(await f.actual.account.current(signal()), { accountDomain: f.scope.accountDomain, providerEpoch: f.scope.providerEpoch });
+    await opened.verify(signal()); await f.actual.readArtwork(f.scope, track.artworkId!, signal());
+    f.advance(11_000); f.accountFailure(new BridgeError('AUTH_EXPIRED', '合成登录到期'));
+    assert.equal(await f.actual.account.current(signal()), null);
+    await assert.rejects(opened.verify(signal()));
+    await assert.rejects(f.actual.readArtwork(f.scope, track.artworkId!, signal()), safeError('RESOURCE_REVOKED', 403));
+    f.accountFailure(null); f.advance(11_000); assert.ok(await f.actual.account.current(signal()));
+    await assert.rejects(f.actual.readArtwork(f.scope, track.artworkId!, signal()), safeError('SOURCE_CHANGED', 409));
+  } finally { await opened.release(); }
+});
+
+test('私有账号原因诊断：默认关闭，开启仅8次闭集原因且不含账号正文或原错误文本', async t => {
+  const off = await fixture(t); off.advance(11_000); off.accountFailure(new BridgeError('NETEASE_REQUEST_FAILED', '不得记录的原始错误'));
+  const absent: string[] = [], offContext = createMobileCapabilityContext(randomUUID(), 'core', 'content', null, signal(), line => absent.push(line));
+  await withMobileCapabilityContext(offContext, () => assert.rejects(off.actual.account.current(signal())));
+  closeMobileCapabilityContext(offContext); assert.deepEqual(absent, []);
+  const f = await fixture(t, false, true), lines: string[] = [];
+  const context = createMobileCapabilityContext(randomUUID(), 'core', 'content', null, signal(), line => lines.push(line));
+  try { await withMobileCapabilityContext(context, async () => {
+    f.advance(11_000); f.accountFailure(new BridgeError('NETEASE_REQUEST_FAILED', '禁止的原消息 https://secret.invalid/', { details: { reason: 'request-timeout' } }));
+    await assert.rejects(f.actual.account.current(signal()));
+    f.accountFailure(null); f.accountId(Number.MAX_SAFE_INTEGER + 1); await assert.rejects(f.actual.account.current(signal()));
+    f.accountId('700'); f.accountFailure(new BridgeError('NETEASE_REQUEST_FAILED', '禁止的cookie正文')); await assert.rejects(f.actual.account.current(signal()));
+    f.accountFailure(new BridgeError('AUTH_EXPIRED', '禁止的登录正文')); assert.equal(await f.actual.account.current(signal()), null);
+    f.client.setCredential(''); assert.equal(await f.actual.account.current(signal()), null);
+    f.client.setCredential('synthetic-private-diagnostic-credential'); f.accountFailure(null); assert.ok(await f.actual.account.current(signal()));
+    f.accountFailure(new BridgeError('NETEASE_REQUEST_FAILED', '禁止的超时消息', { details: { reason: 'request-timeout' } }));
+    for (let i = 0; i < 4; i++) { f.advance(11_000); await assert.rejects(f.actual.account.current(signal())); }
+  }); } finally { closeMobileCapabilityContext(context); }
+  const records = lines.map(line => JSON.parse(line.slice(MOBILE_CAPABILITY_TRACE_PREFIX.length)) as { stage: string; phase: string });
+  assert.equal(records.filter(row => row.phase === 'ok' || row.phase === 'reject').length, 8);
+  for (const reason of ['ready', 'auth-expired', 'not-configured', 'timeout', 'shape', 'unknown'])
+    assert.ok(records.some(row => row.stage === `provider.account.${reason}`));
+  assert.doesNotMatch(lines.join(''), /secret\.invalid|禁止|不得|credential|cookie正文|accountId/iu);
+});
+
+test('私有发现首错区分feed、song-detail、stream、audio probe与DTO映射，不重放或改写原拒绝', async t => {
+  for (const phase of ['feed', 'song-detail', 'stream', 'audio-probe', 'mapping'] as const) await t.test(phase, async child => {
+    const f = await fixture(child, false, true), lines: string[] = [];
+    const refusal = async () => { throw new BridgeError('NETEASE_REQUEST_FAILED', '禁止记录的上游正文 https://secret.invalid/'); };
+    if (phase === 'feed') f.api.recommend_songs = refusal;
+    if (phase === 'song-detail') f.api.song_detail = refusal;
+    if (phase === 'stream') f.api.song_url_v1 = refusal;
+    if (phase === 'audio-probe') f.probeFailure();
+    if (phase === 'mapping') f.songs[0]!.dt = 0;
+    const context = createMobileCapabilityContext(randomUUID(), 'core', 'content', null, signal(), line => lines.push(line));
+    try { await withMobileCapabilityContext(context, async () => { await assert.rejects(f.daily()); await assert.rejects(f.daily()); }); }
+    finally { closeMobileCapabilityContext(context); }
+    const records = lines.map(line => JSON.parse(line.slice(MOBILE_CAPABILITY_TRACE_PREFIX.length)) as { stage: string; code: string });
+    assert.equal(records.filter(row => row.stage.startsWith('provider.content.')).length, 1);
+    const originalCode=phase==='audio-probe'?'UNKNOWN':phase==='mapping'?'SOURCE_CHANGED':'NETEASE_REQUEST_FAILED';
+    assert.ok(records.some(row => row.stage === `provider.content.${phase}` && row.code===originalCode));
+    assert.doesNotMatch(lines.join(''), /secret\.invalid|禁止记录|message|stack|cookie|credential/iu);
+  });
+});
 
 test('原Client仅交出受限SDK正文与真实账户代际，未知参数/不安全整数拒绝且不转发凭据', async t => {
   const f = await fixture(t), account = await f.client.mobileAccount(); assert.equal(account.accountId, '700');
@@ -175,7 +316,7 @@ test('歌词坏行/2001行/单行或整份越预算安全失败，仅真实缺�
   f.lyrics({ code: 200 }); await assert.rejects(f.actual.resolveLyrics(f.scope, selected, signal()), safeError('BUSY', 503));
   f.lyrics({ code: 200, uncollected: true }); assert.equal((await f.actual.resolveLyrics(f.scope, selected, signal())).body.status, 'missing');
   f.lyrics({ code: 200, nolyric: true }); assert.equal((await f.actual.resolveLyrics(f.scope, selected, signal())).body.status, 'instrumental');
-  f.lyrics({ code: 301, lrc: { lyric: '' } }); await assert.rejects(f.actual.resolveLyrics(f.scope, selected, signal()), safeError('UNAUTHORIZED', 401));
+  f.lyrics({ code: 301, lrc: { lyric: '' } }); await assert.rejects(f.actual.resolveLyrics(f.scope, selected, signal()), safeError('RESOURCE_REVOKED', 403));
 });
 test('原试用/权限失败和实际版本变化不伪造available，FLAC实际样本时长保留并拒绝大偏差', async t => {
   const f = await fixture(t), track = (await f.daily()).reply.body.items[0]!; assert.equal(track.durationMs, 1000);

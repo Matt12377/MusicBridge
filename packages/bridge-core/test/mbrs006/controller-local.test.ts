@@ -23,7 +23,11 @@ async function fixture(t:test.TestContext,timeout=500,roonLibrary?:NonNullable<C
  let alive=true,captures=0,gate:Promise<void>|undefined;
  const localSources:DatasetOwnerEndpoint={prepare:async()=>({epoch:f.epoch,datasetId:f.datasetId}),dispatch:async()=>undefined,commitBoot:async()=>{},close:async()=>{},isLocalSourceCurrent:()=>alive,sealLocalSources(){alive=false;f.tickets.seal();},captureLocalSource:async request=>{captures++;if(gate)await gate;return f.tickets.capture(request);},revalidateLocalSource:async ticket=>f.tickets.revalidate(ticket),releaseLocalSource:async ticket=>f.tickets.release(ticket)};
  const controller=new BridgeController({roon:sdk.adapter,registry,gateway,logger:silentLogger,localSources,...(roonLibrary?{roonLibrary}:{}),netease:new Proxy({configured:true},{get(target,key){if(key==='configured')return true;return ()=>{throw new Error('本地点播禁止调用云或隐式fallback');};}}) as NeteasePort});
- t.after(async()=>{await controller.shutdown();await sdk.adapter.shutdown();await gateway.stop();});
+ t.after(async()=>{
+  const errors:unknown[]=[];
+  for(const close of [()=>controller.shutdown(),()=>sdk.adapter.shutdown(),()=>gateway.stop()])try{await close();}catch(error){errors.push(error);}
+  if(errors.length)throw new AggregateError(errors,'本地Controller合成夹具关闭未全部确认。',{cause:errors[0]});
+ });
  const request=(i=0,action:LocalPlayRequest['action']='PLAY_NOW')=>({...f.requests[i]!,request_id:randomUUID(),action});
  const start=async(i=0)=>{const req=request(i),work=controller.playLocal(req);await eventually(()=>sdk.sessions.length>sdk.sends.length,'已发起唯一begin');sdk.sessions.at(-1)!('SessionBegan',{session_id:`controlled-${sdk.sessions.length}`});await work;return req;};
  return {...f,...sdk,controller,pool,registry,gateway,request,start,captures:()=>captures,setGate(value?:Promise<void>){gate=value;}};
@@ -50,6 +54,23 @@ test('006已发送begin超时为UNKNOWN；晚确认仅调和本attempt，重复�
  const f=await fixture(t,15),req=f.request();await f.controller.playLocal(req);assert.equal(f.controller.getPlaybackState().local?.phase,'SUBMISSION_UNKNOWN');assert.equal(f.sessions.length,1);assert.equal(f.sends.length,0);
  await f.controller.playLocal(req);assert.equal(f.sessions.length,1);f.sessions[0]!('SessionBegan',{session_id:'late-current'});await tick();assert.equal(f.controller.getPlaybackState().local?.phase,'PLAYING');assert.equal(f.sends.length,1);
  f.sessions[0]!('SessionBegan',{session_id:'duplicate'});assert.equal(f.sends.length,1);
+});
+test('封面显示关键期：真实提交UNKNOWN不借Zone播放放行，同attempt确认后playing暂停可读',async t=>{
+ const f=await fixture(t,15),req=f.request();
+ assert.equal(f.controller.hasDisplayReadPriorityBlocker(),false);
+ const work=f.controller.playLocal(req);assert.equal(f.controller.hasDisplayReadPriorityBlocker(),true);
+ const accepted=await work,unknown=f.controller.getPlaybackState();
+ assert.equal(unknown.local?.phase,'SUBMISSION_UNKNOWN');assert.equal(f.controller.hasPlaybackOwnership(),true);assert.equal(f.controller.hasDisplayReadPriorityBlocker(),true);
+ const attempt=unknown.local!.attempt_id;
+ f.zoneCallback('Changed',{zones_changed:[{zone_id:'synthetic-zone',state:'playing',outputs:[{output_id:'synthetic-output'}],is_pause_allowed:true,is_play_allowed:true,is_seek_allowed:true}]});
+ f.controller.syncRoonTransportState();assert.equal(f.controller.getPlaybackState().local?.phase,'SUBMISSION_UNKNOWN');assert.equal(f.controller.hasDisplayReadPriorityBlocker(),true);
+ assert.deepEqual(await f.controller.playLocal(req),accepted);assert.equal(f.sessions.length,1);assert.equal(f.sends.length,0);
+ f.sessions[0]!('SessionBegan',{session_id:'display-original-late-session'});await tick();
+ const playing=f.controller.getPlaybackState();assert.equal(playing.local?.attempt_id,attempt);assert.equal(playing.local?.phase,'PLAYING');assert.equal(playing.local?.delivery_state,'UNKNOWN');
+ assert.equal(f.controller.hasPlaybackOwnership(),true);assert.equal(f.controller.hasDisplayReadPriorityBlocker(),false);assert.equal(f.sessions.length,1);assert.equal(f.sends.length,1);
+ const pause=f.controller.pause();assert.equal(f.controller.hasDisplayReadPriorityBlocker(),true);await tick();
+ f.plays[0]!('Paused',{});f.zoneCallback('Changed',{zones_changed:[{zone_id:'synthetic-zone',state:'paused',outputs:[{output_id:'synthetic-output'}],is_pause_allowed:true,is_play_allowed:true,is_seek_allowed:true}]});await pause;
+ assert.equal(f.controller.getPlaybackState().local?.phase,'PAUSED');assert.equal(f.controller.hasDisplayReadPriorityBlocker(),false);assert.equal(f.sessions.length,1);
 });
 test('006A晚回报只清A；B当前Playing不会被旧SessionEnded/Playing覆盖或停止',async t=>{
  const f=await fixture(t);await f.start(0);await f.start(1);const before=f.controller.getPlaybackState();
@@ -117,4 +138,102 @@ for(const action of ['APPEND_MB_QUEUE','PLAY_NEXT_MB_QUEUE'] as const)test(`006�
  const f=await nativeContext(t);let settled=false;const work=f.controller.playLocal(f.request(0,action));void work.then(()=>settled=true,()=>settled=true);await tick();await tick();
  try{assert.equal(settled,false,'原分页尚在途，编辑不能抢先承诺');f.release();await work;const queue=f.controller.getPlaybackState().queue;assert.equal(queue.items.length,7);assert.equal(queue.index,2);assert.equal(queue.items[action==='APPEND_MB_QUEUE'?6:3]!.trackId,f.requests[0]!.local_track_id);assert.equal(f.nativePlays.length,1);assert.equal(f.sessions.length,0);assert.equal(queue.context?.afterComplete,true);}
  finally{f.release();await work.catch(()=>undefined);}
+});
+
+import {createHash as evidenceCreateHash} from 'node:crypto';
+import type {RoonTimeEvent} from '../../src/roon/types.js';
+
+type LocalEvidenceLog={event:string;fields:Record<string,unknown>};
+function captureLocalEvidence(t:test.TestContext,onRecord?:(fields:Record<string,unknown>)=>void,throwAfterRecord=false):LocalEvidenceLog[] {
+  const records:LocalEvidenceLog[]=[];
+  t.mock.method(silentLogger,'info',(event:string,fields:Record<string,unknown>={})=>{
+    if(event!=='local_playback_evidence' && event!=='local_playback_media_evidence')return;
+    records.push({event,fields:{...fields}});onRecord?.(fields);
+    if(throwAfterRecord)throw new Error('受控私有Logger失败，不改变播放回执');
+  });
+  return records;
+}
+const localEvidenceFields=(records:LocalEvidenceLog[],stage:string)=>records.filter(record=>record.fields.stage===stage).map(record=>record.fields);
+function assertSafeLocalEvidence(records:LocalEvidenceLog[],forbidden:string[]):void {
+  const encoded=JSON.stringify(records);
+  for(const value of forbidden)assert.equal(encoded.includes(value),false,'私有播放证据不得泄露原身份、路径、会话或地址');
+  assert.doesNotMatch(encoded,/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/iu);
+  for(const {fields} of records){
+    assert.match(String(fields.diagnosticId),/^diag-local-[a-f0-9]{64}$/u);
+    assert.equal(typeof fields.currentOwned,'boolean');assert.equal(typeof fields.staleCallback,'boolean');
+    for(const [key,value] of Object.entries(fields))if(typeof value==='number')assert.ok(Number.isSafeInteger(value) && value>=0 && value<=Number.MAX_SAFE_INTEGER,`${key}必须为有界非负整数`);
+    for(const key of ['request_id','session_id','token','url','path','title','artist','album','message','stack'])assert.equal(Object.hasOwn(fields,key),false);
+  }
+}
+
+test('安全播放证据：受控SESSION/PLAYING与Time同SHA、原位置写入后仅两样本',async t=>{
+  const f=await fixture(t),positionAtLog:{core:number;local:number|null|undefined}[]=[];
+  const records=captureLocalEvidence(t,fields=>{if(fields.stage==='position')positionAtLog.push({core:(f.controller as unknown as {positionMs:number}).positionMs,local:f.controller.getPlaybackState().local?.position_ms});});
+  const accepted:boolean[]=[];f.adapter.setTimeHandler(event=>accepted.push(f.controller.updateRoonTime(event)));
+  const req=f.request(),work=f.controller.playLocal(req);void work.catch(()=>undefined);await eventually(()=>f.sessions.length===1,'受控唯一begin');
+  const token=(f.controller as unknown as {activeToken:string}).activeToken,url=f.gateway.localStreamUrl(token);
+  const response=await fetch(url);assert.equal(response.status,200);assert.deepEqual(Buffer.from(await response.arrayBuffer()),f.bytes);
+  await eventually(()=>localEvidenceFields(records,'transfer-terminal').length===1,'真实自有loopback body终态');
+  assert.equal(f.controller.getPlaybackState().local?.phase,'AWAITING_ROON');assert.equal(localEvidenceFields(records,'roon-phase').some(fields=>fields.phase==='PLAYING'),false);assert.equal(localEvidenceFields(records,'position').length,0);
+  const sessionId='controlled-evidence-session';f.sessions[0]!('SessionBegan',{session_id:sessionId});assert.deepEqual(await work,{status:'accepted',request_id:req.request_id,action:'PLAY_NOW'});
+  const local=f.controller.getPlaybackState().local!;assert.equal(local.phase,'PLAYING');
+  const attempt=Number(local.attempt_id.split('_').at(-1));assert.ok(Number.isSafeInteger(attempt));
+  const diagnosticId='diag-local-'+evidenceCreateHash('sha256').update('musicbridge-local-playback-evidence-v1\0').update(req.request_id).update('\0'+local.intent_generation+'\0'+String(attempt)).digest('hex');
+  assert.equal(localEvidenceFields(records,'transfer-terminal')[0]!.diagnosticId,diagnosticId);
+  const playing=localEvidenceFields(records,'roon-phase').find(fields=>fields.phase==='PLAYING')!;
+  assert.equal(playing.diagnosticId,diagnosticId);assert.equal(playing.sessionConfirmed,true);assert.equal(playing.currentOwned,true);assert.equal(playing.staleCallback,false);
+  for(const positionMs of [0,0,1000,2000])f.plays[0]!('Time',{seek_position_ms:positionMs});
+  assert.deepEqual(accepted,[true,true,true,true]);assert.equal(f.controller.getPlaybackState().local?.position_ms,2000);
+  const positions=localEvidenceFields(records,'position');assert.equal(positions.length,2);
+  assert.deepEqual(positions.map(fields=>[fields.sampleSequence,fields.positionMs,fields.positionAdvanced]),[[1,0,false],[2,1000,true]]);
+  assert.deepEqual(positionAtLog,[{core:0,local:0},{core:1000,local:1000}]);
+  for(const fields of positions){assert.equal(fields.diagnosticId,diagnosticId);assert.equal(fields.source,'audio-input');assert.equal(fields.sessionConfirmed,true);assert.equal(fields.currentOwned,true);assert.equal(fields.staleCallback,false);}
+  assertSafeLocalEvidence(records,[req.request_id,req.asset_id,req.local_track_id,token,url,sessionId,f.media,'合成作者']);
+  await f.controller.shutdown();assert.deepEqual(f.pool.resourceSnapshot(),{openLeases:0,reservations:0});assert.equal(f.tickets.size,0);
+});
+
+test('安全播放证据：numeric-only/错代/未owned无签名、stale Time不覆盖当前B',async t=>{
+  const f=await fixture(t),records=captureLocalEvidence(t),observed:RoonTimeEvent[]=[];
+  f.adapter.setTimeHandler(event=>{observed.push(event);f.controller.updateRoonTime(event);});
+  const a=await f.start(0);f.plays[0]!('Time',{seek_position_ms:0});assert.equal(localEvidenceFields(records,'position').length,1);
+  const originalEvent=observed[0]!;assert.ok(originalEvent);const before=localEvidenceFields(records,'position').length;
+  assert.equal(f.controller.updateRoonTime(100),true);assert.equal(localEvidenceFields(records,'position').length,before);
+  assert.equal(f.controller.updateRoonTime({...originalEvent,zoneId:'wrong-controlled-zone',positionMs:1000}),false);
+  assert.equal(f.controller.updateRoonTime({...originalEvent,playbackEpoch:(originalEvent.playbackEpoch ?? 0)+1,positionMs:1000}),false);
+  assert.equal(f.controller.updateRoonTime({...originalEvent,positionMs:-1}),false);
+  assert.equal(f.controller.updateRoonTime({...originalEvent,positionMs:86_400_001}),false);
+  assert.equal(f.controller.updateRoonTime(originalEvent,Number(f.controller.getPlaybackState().local!.intent_generation)+1),false);
+  const owner=(f.controller as unknown as {owner:{local:{isOwned:()=>boolean}}}).owner,owned=owner.local.isOwned;
+  try{owner.local.isOwned=()=>false;f.plays[0]!('Time',{seek_position_ms:1000});assert.equal(localEvidenceFields(records,'position').length,before);}
+  finally{owner.local.isOwned=owned;}
+  const b=await f.start(1),stateB=f.controller.getPlaybackState(),recordCount=records.length;
+  f.plays[0]!('Time',{seek_position_ms:5000});f.plays[0]!('Playing',{});f.sessions[0]!('SessionBegan',{session_id:'stale-evidence-session'});await tick();
+  assert.equal(f.controller.updateRoonTime({...originalEvent,positionMs:6000}),false);assert.equal(records.length,recordCount);
+  assert.equal(f.controller.getPlaybackState().local?.request_id,b.request_id);assert.equal(f.controller.getPlaybackState().local?.attempt_id,stateB.local?.attempt_id);
+  for(const positionMs of [0,1000,2000])f.plays[1]!('Time',{seek_position_ms:positionMs});
+  const positions=localEvidenceFields(records,'position');assert.equal(positions.length,3);assert.notEqual(positions[0]!.diagnosticId,positions[1]!.diagnosticId);
+  assert.deepEqual(positions.slice(1).map(fields=>[fields.sampleSequence,fields.positionMs,fields.positionAdvanced]),[[1,0,false],[2,1000,true]]);
+  const forbidden=[a.request_id,b.request_id,f.media,'controlled-1','controlled-2','stale-evidence-session',...f.sends.map(send=>send.media_url)];assertSafeLocalEvidence(records,forbidden);
+  await f.controller.shutdown();assert.deepEqual(f.pool.resourceSnapshot(),{openLeases:0,reservations:0});
+});
+
+test('安全播放证据：UNKNOWN与日志异常不冒确认、同UUID不重发且晚会话只调和原attempt',async t=>{
+  const f=await fixture(t,15),records=captureLocalEvidence(t,undefined,true),req=f.request();
+  f.adapter.setTimeHandler(event=>{f.controller.updateRoonTime(event);});
+  const receipt=await f.controller.playLocal(req);assert.deepEqual(receipt,{status:'accepted',request_id:req.request_id,action:'PLAY_NOW'});
+  assert.equal(f.controller.getPlaybackState().local?.phase,'SUBMISSION_UNKNOWN');assert.equal(f.sessions.length,1);assert.equal(f.sends.length,0);
+  const unknown=localEvidenceFields(records,'roon-phase').find(fields=>fields.phase==='SUBMISSION_UNKNOWN')!;assert.ok(unknown);assert.equal(unknown.sessionConfirmed,false);assert.equal(unknown.currentOwned,false);
+  const token=(f.controller as unknown as {activeToken:string}).activeToken,url=f.gateway.localStreamUrl(token);
+  const body=await fetch(url).then(response=>response.arrayBuffer());assert.deepEqual(Buffer.from(body),f.bytes);
+  await eventually(()=>localEvidenceFields(records,'transfer-terminal').length===1,'UNKNOWN下HTTP终态仍独立于Roon确认');
+  assert.equal(localEvidenceFields(records,'transfer-terminal')[0]!.currentOwned,false);assert.equal(f.controller.getPlaybackState().local?.phase,'SUBMISSION_UNKNOWN');
+  assert.equal(localEvidenceFields(records,'roon-phase').some(fields=>fields.phase==='PLAYING'),false);assert.equal(localEvidenceFields(records,'position').length,0);assert.equal(f.controller.updateRoonTime(0),false);
+  assert.deepEqual(await f.controller.playLocal(req),receipt);assert.equal(f.sessions.length,1);assert.equal(f.sends.length,0);
+  const sessionId='late-controlled-evidence-session';f.sessions[0]!('SessionBegan',{session_id:sessionId});await tick();
+  assert.equal(f.controller.getPlaybackState().local?.phase,'PLAYING');assert.equal(f.sessions.length,1);assert.equal(f.sends.length,1);
+  f.sessions[0]!('SessionBegan',{session_id:'duplicate-evidence-session'});assert.equal(f.sends.length,1);
+  const playing=localEvidenceFields(records,'roon-phase').find(fields=>fields.phase==='PLAYING')!;assert.ok(playing);assert.equal(playing.diagnosticId,unknown.diagnosticId);assert.equal(playing.sessionConfirmed,true);assert.equal(playing.currentOwned,true);assert.equal(playing.staleCallback,false);
+  for(const positionMs of [0,1000,2000])f.plays[0]!('Time',{seek_position_ms:positionMs});assert.equal(f.controller.getPlaybackState().local?.position_ms,2000);assert.equal(localEvidenceFields(records,'position').length,2);
+  assertSafeLocalEvidence(records,[req.request_id,req.asset_id,req.local_track_id,token,url,sessionId,'duplicate-evidence-session',f.media]);
+  await f.controller.shutdown();assert.deepEqual(f.pool.resourceSnapshot(),{openLeases:0,reservations:0});assert.equal(f.tickets.size,0);
 });

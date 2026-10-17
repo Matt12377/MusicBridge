@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "status": "REVIEW_ONLY_NOT_APPLIED",
+  "baseSha": "479e746bb7106a4dac158fe616290220de03a53a",
+  "against": "MBF002003 current source after approved readonly changes",
+  "file": "packages/bridge-core/src/collection/local-catalog-store.ts",
+  "sourceSha256": "cf15dc889579cbf5ad57eb97ac462e467c00b2ca084c6ca18a7ef993cc35df08",
+  "proposedSha256": "4a3b4889213f2b7298d5bd4b5a52cd10c2cfb53984980ba30d9112490dab8fe7",
+  "patchSha256": "69bab766bf06d2fb9c2bff0c27b136821d3679cd3215bb1bfcf3f95182095d67",
+  "operation": "local-workbench-v1",
+  "privateMethods": [
+    "privateWorkbenchSnapshot",
+    "privateWorkbenchCompareAndSwap"
+  ],
+  "validation": "Existing pure event/registry tests only; this shared SQL patch is not applied, compiled or behavior-verified",
+  "integrationOwner": "MusicBridge V3.9",
+  "boundaryReviewOwner": "Root",
+  "limits": {
+    "snapshotBytes": 33554432,
+    "rawChunkBytes": 12288,
+    "eventsPerSnapshot": 2732,
+    "originalLedgerRowBytes": 65536
+  },
+  "boundary": "Same guarded Owner connection, existing ledger/schema/certificate/commit fatal rules; no DB or writer fallback; exact dataset CAS chains preserved across restored scope changes; cold cache holds 32 compact watermarks and one full capture only"
+}

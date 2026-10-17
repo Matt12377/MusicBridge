@@ -34,6 +34,15 @@ export function useGridWindow<T>(items: Readonly<Ref<readonly T[]>>, root: Ref<H
     const row = Math.floor(index / layout.value.columns)
     return { item: items.value[index]!, index, style: enabled() ? { position: 'absolute' as const, top: `${rows.value.tops[row]}px`, left: `${columnLeft(index)}px`, width: `${columnWidth(index)}px`, height: `${rows.value.heights[row]}px` } : undefined }
   }))
+  // 初次测量前沿用默认几何；测量后使用同一viewport与真实行高，不把overscan称作可见。
+  const visible = computed(() => gridWindowIndices(rows.value, items.value.length, viewport.value.start, viewport.value.end, 0)
+    .filter(index => { const row = Math.floor(index / layout.value.columns); return rows.value.tops[row]! < viewport.value.end && rows.value.tops[row]! + rows.value.heights[row]! > viewport.value.start })
+    .map(index => ({ item: items.value[index]!, index })))
+  const nearby = computed(() => {
+    const current = new Set(visible.value.map(entry => entry.index))
+    return gridWindowIndices(rows.value, items.value.length, viewport.value.start, viewport.value.end, 1, focused.value)
+      .filter(index => !current.has(index)).map(index => ({ item: items.value[index]!, index }))
+  })
   const rootStyle = computed(() => enabled() ? { position: 'relative' as const, height: `${rows.value.totalHeight}px` } : undefined)
   const attrs = computed(() => ({ 'data-grid-window': enabled() ? 'true' : 'false', 'data-grid-start': indices.value[0] ?? 0, 'data-grid-end': (indices.value.at(-1) ?? -1) + 1, 'data-grid-columns': layout.value.columns, 'data-grid-total-height': rows.value.totalHeight, 'data-grid-rendered': indices.value.length, 'data-grid-measured': heights.size > 0 ? 'true' : 'false' }))
 
@@ -139,5 +148,5 @@ export function useGridWindow<T>(items: Readonly<Ref<readonly T[]>>, root: Ref<H
     if (typeof document !== 'undefined') void document.fonts?.ready.then(() => { if (!disposed) { heights.clear(); revision.value++; schedule() } })
   })
   onUnmounted(() => { disposed = true; resize?.disconnect(); observedCards.clear(); scrollRoot?.removeEventListener('scroll', schedule); if (typeof window !== 'undefined') window.removeEventListener?.('resize', schedule) })
-  return { rendered, rootStyle, attrs, onFocusIn, onFocusOut, onKeydown, refresh: schedule }
+  return { rendered, visible, nearby, rootStyle, attrs, onFocusIn, onFocusOut, onKeydown, refresh: schedule }
 }

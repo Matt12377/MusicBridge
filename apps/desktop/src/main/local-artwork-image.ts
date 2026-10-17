@@ -1,3 +1,4 @@
+import { noteDesktopArtwork, desktopArtworkStarted, desktopArtworkElapsed } from '../../../../packages/bridge-core/src/shared/desktop-artwork-trace-node.js'
 import { createHash } from 'node:crypto'
 import { constants, promises as fs, type BigIntStats } from 'node:fs'
 import path from 'node:path'
@@ -223,13 +224,17 @@ function jpegGeometry(bytes: Buffer): Geometry {
 
 /** 可信 Main 的 nativeImage 适配器入口；结构校验和注入 fake 不等于真实 native 解码证据。 */
 export function normalizeLocalArtwork(bytes: Uint8Array, decode: (bytes: Buffer) => PhotoDecoderImage): NormalizedLocalArtwork {
+  const started = desktopArtworkStarted(); noteDesktopArtwork('normalize', null, {}, 'main')
   try {
     if (!(bytes instanceof Uint8Array) || bytes.byteLength < 4 || bytes.byteLength > MAX_INPUT_BYTES) fail('封面图片必须非空，压缩大小不得超过 4 MiB。')
     const input = Buffer.from(bytes)
     const mime = input.subarray(0, 8).equals(PNG_SIGNATURE) ? 'image/png' : input[0] === 255 && input[1] === 216 ? 'image/jpeg' : invalid()
     const declared = mime === 'image/png' ? pngGeometry(input) : jpegGeometry(input)
     const original: ImageIdentity = { mime, bytes: input.length, sha256: sha256(input), ...declared }
+    const decodeStarted = desktopArtworkStarted()
+    noteDesktopArtwork('native-decode', original.sha256, {}, 'main')
     const image = decode(input)
+    noteDesktopArtwork('native-decode', original.sha256, { count: 0, elapsedMs: desktopArtworkElapsed(decodeStarted) }, 'main')
     if (image.isEmpty()) fail('无法完整解码封面图片，请换一张图片。')
     const decoded = image.getSize(); checkGeometry(decoded)
     if (decoded.width !== declared.width || decoded.height !== declared.height) fail('封面的实际解码尺寸与文件声明不一致。')
@@ -243,8 +248,10 @@ export function normalizeLocalArtwork(bytes: Uint8Array, decode: (bytes: Buffer)
     if (!Buffer.isBuffer(encoded) || encoded.length < 4 || encoded.length > MAX_DISPLAY_BYTES) fail('封面展示副本无效或超过 1 MiB。')
     const displayGeometry = jpegGeometry(encoded)
     if (displayGeometry.width !== size.width || displayGeometry.height !== size.height) fail('封面展示副本的编码尺寸不一致。')
+    noteDesktopArtwork('normalize', original.sha256, { count: 0, elapsedMs: desktopArtworkElapsed(started), bytes: encoded.length, decodedBytes: decoded.width * decoded.height * 4 }, 'main')
     return { original, display: { mime: 'image/jpeg', bytes: encoded.length, sha256: sha256(encoded), ...size, dataUrl: `data:image/jpeg;base64,${encoded.toString('base64')}` } }
   } catch (error) {
+    noteDesktopArtwork('normalize', null, { count: 0, elapsedMs: desktopArtworkElapsed(started), reason: 'error' }, 'main')
     if (error instanceof LocalArtworkImageError) throw error
     return fail('封面解码或生成展示副本失败，请换一张 PNG 或 JPEG 图片。')
   }

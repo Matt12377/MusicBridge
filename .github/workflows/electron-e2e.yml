@@ -21,7 +21,7 @@ permissions:
 
 jobs:
   macos-electron-gate:
-    runs-on: macos-15-intel
+    runs-on: macos-latest
     timeout-minutes: 60
     steps:
       - name: Checkout
@@ -47,22 +47,27 @@ jobs:
         with:
           node-version: 22.x
 
+      - name: V3.9 完整集成精确身份准入
+        id: v39-complete
+        run: node scripts/ci/v39-integration-002-admission.mjs --workflow-guard
+
       - name: V3.9 Tape组合精确身份准入
         id: v39-integration
+        if: steps.v39-complete.outputs.integrationMode != 'qualified'
         run: node scripts/ci/v39-integration-admission.mjs --workflow-guard
 
       - name: CI报告元数据精确身份与原软件复用准入
         id: ci-metadata
-        if: steps.v39-integration.outputs.integrationMode != 'qualified'
+        if: steps.v39-complete.outputs.integrationMode != 'qualified' && (steps.v39-integration.outputs.integrationMode != 'qualified')
         run: node scripts/ci/ci-report-metadata-admission.mjs --workflow-guard
 
       - name: CI修复精确身份与原软件复用准入
         id: ci-repair
-        if: steps.v39-integration.outputs.integrationMode != 'qualified' && steps.ci-metadata.outputs.repairMode != 'reuse-s165'
+        if: steps.v39-complete.outputs.integrationMode != 'qualified' && (steps.v39-integration.outputs.integrationMode != 'qualified' && steps.ci-metadata.outputs.repairMode != 'reuse-s165')
         run: node scripts/ci/ci-report-mirror-admission.mjs --workflow-guard
 
       - name: 复用165已封存产品软件证据
-        if: steps.v39-integration.outputs.integrationMode != 'qualified' && (steps.ci-metadata.outputs.repairMode == 'reuse-s165' || steps.ci-repair.outputs.repairMode == 'reuse-s165')
+        if: steps.v39-complete.outputs.integrationMode != 'qualified' && (steps.v39-integration.outputs.integrationMode != 'qualified' && (steps.ci-metadata.outputs.repairMode == 'reuse-s165' || steps.ci-repair.outputs.repairMode == 'reuse-s165'))
         run: echo 'REUSED_S165=true；产品与Worker编译、Rust Host、Electron下载/安装、App与原E2E均为SKIPPED_REUSED_S165。'
 
       - name: Prepare source-pinned build workspace mirror
@@ -70,11 +75,11 @@ jobs:
 
       - name: 判定本次精确父Source产品CI复用
         id: ci-mode
-        if: steps.v39-integration.outputs.integrationMode == 'qualified' && steps.v39-integration.outputs.integrationRole == 'report'
+        if: (steps.v39-complete.outputs.integrationMode == 'qualified' && steps.v39-complete.outputs.integrationRole == 'report' || steps.v39-integration.outputs.integrationMode == 'qualified' && steps.v39-integration.outputs.integrationRole == 'report')
         run: node scripts/ci/report-only-admission.mjs
 
       - name: 复用本次精确父Source产品软件证据
-        if: steps.v39-integration.outputs.integrationMode == 'qualified' && steps.v39-integration.outputs.integrationRole == 'report' && steps.ci-mode.outputs.mode == 'report-only'
+        if: (steps.v39-complete.outputs.integrationMode == 'qualified' && steps.v39-complete.outputs.integrationRole == 'report' || steps.v39-integration.outputs.integrationMode == 'qualified' && steps.v39-integration.outputs.integrationRole == 'report') && steps.ci-mode.outputs.mode == 'report-only'
         run: echo 'REUSED_EXACT_CURRENT_PARENT_SOURCE=true；本次产品编译与产品Gate未重跑，当前报告组合Gate与安全检查独立执行。'
 
       - name: Install frozen workspace
@@ -85,7 +90,91 @@ jobs:
       - name: Prepare fresh Core fixed Worker before existing Electron gates
         if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165' && steps.ci-mode.outputs.mode != 'report-only'
         working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
-        run: corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build
+        shell: bash
+        run: |
+          if [ '${{ steps.v39-complete.outputs.integrationMode }}' = 'qualified' ] && [ '${{ steps.v39-complete.outputs.integrationRole }}' = 'source' ]; then
+            node --input-type=module <<'NODE'
+          import { appendFileSync,writeFileSync } from 'node:fs';
+          import path from 'node:path';
+          import { prepareCoreTestEnvironment } from './scripts/ci/run-core-tests.mjs';
+          import { makeCueBinding } from './scripts/ci/verify-mbrs003-scan.mjs';
+          const prepared=await prepareCoreTestEnvironment();
+          const stage=prepared.receipt.stages.find(row=>row.name==='fresh-core-compiler');
+          if(!stage||stage.compilerExit!==0)throw new Error('当前Core实际编译缺失，不派发正常扫描Native链。');
+          const cue=makeCueBinding(prepared.receipt.sourceInputs,{compilerExit:0,compilerStartedAtMs:stage.startedMs,
+            compilerFinishedAtMs:stage.finishedMs,outputs:prepared.receipt.outputs.filter(row=>row.sourceSha256&&row.path.startsWith('packages/bridge-core/'))});
+          const cuePath=path.join(prepared.privateRoot,'cue-build-binding.json');writeFileSync(cuePath,JSON.stringify(cue,null,2)+'\n',{flag:'wx',mode:0o600});
+          prepared.assertCurrent();
+          appendFileSync(process.env.GITHUB_ENV,'MBRS003_READER_BUILD_BINDING='+prepared.env.MBRS003_READER_BUILD_BINDING+'\nMBRS003_CUE_BUILD_BINDING='+cuePath+'\n');
+          NODE
+          else
+            corepack pnpm@10.17.1 --filter @music-bridge/contracts run build && corepack pnpm@10.17.1 --filter @music-bridge/bridge-core run build
+          fi
+
+      - name: 准备V3.9 固定Native源码与公共签名
+        if: steps.v39-complete.outputs.integrationMode == 'qualified' && steps.v39-complete.outputs.integrationRole == 'source'
+        shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}/packages/bridge-core
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = 'arm64'
+          node --import tsx/esm --input-type=module <<'NODE'
+          import { mkdirSync, existsSync, writeFileSync } from 'node:fs';
+          import { createHash } from 'node:crypto';
+          import path from 'node:path';
+          import { CUE_NATIVE_SOURCE_INPUTS } from './src/library/cue-ffmpeg-build-policy.ts';
+          import { readV39Integration002Whole } from '../../scripts/ci/v39-integration-002-admission.mjs';
+          const root=path.join(process.env.RUNNER_TEMP,'musicbridge-native-inputs');
+          mkdirSync(root,{mode:0o700});
+          const rows=[...CUE_NATIVE_SOURCE_INPUTS,
+            {archive:'taglib-2.3.2.tar.gz',url:'https://taglib.org/releases/taglib-2.3.2.tar.gz',bytes:1799985,sha256:'3ca2d8afaa7f1cf7f6ed10e511ebc368bfacd6dcaa3dbfa690b89e502e8963dc'},
+            {archive:'ffmpeg-8.1.2.tar.xz.asc',url:'https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz.asc',bytes:520,sha256:'0a0963fccd70597838073f3e31b20f4a4d8cc2b5e577472c9a5a1f22624246f8'},
+            {archive:'ffmpeg-devel.asc',url:'https://ffmpeg.org/ffmpeg-devel.asc',bytes:1709,sha256:'397b3becedcd5a98769967ff1ff8501ddc89f8368b8f766e4701377d7dbaabe5'}];
+          const began=performance.now();
+          for(const row of rows){
+            if(performance.now()-began>=180000)throw new Error('固定Native输入整体期限已到。');
+            const file=path.join(root,row.archive);let bytes;
+            if(existsSync(file))bytes=readV39Integration002Whole(file);
+            else{
+              const response=await fetch(row.url,{signal:AbortSignal.timeout(30000)});if(!response.ok)throw new Error('官方固定输入请求失败。');
+              const reader=response.body.getReader(),chunks=[];let length=0;
+              try{while(true){const part=await reader.read();if(part.done)break;length+=part.value.length;
+                if(length>row.bytes)throw new Error('固定输入长度超过原记录。');chunks.push(Buffer.from(part.value));}}
+              finally{await reader.cancel();}
+              bytes=Buffer.concat(chunks,length);
+              if(bytes.length!==row.bytes||createHash('sha256').update(bytes).digest('hex')!==row.sha256)throw new Error('固定输入全SHA/长度不符。');
+              writeFileSync(file,bytes,{flag:'wx',mode:0o600});
+            }
+            if(bytes.length!==row.bytes||createHash('sha256').update(bytes).digest('hex')!==row.sha256)throw new Error('已有固定输入不符。');
+          }
+          NODE
+          mkdir -m 700 "$RUNNER_TEMP/musicbridge-native-inputs/pgp"
+          gpg --homedir "$RUNNER_TEMP/musicbridge-native-inputs/pgp" --batch --no-autostart --import "$RUNNER_TEMP/musicbridge-native-inputs/ffmpeg-devel.asc" > "$RUNNER_TEMP/musicbridge-native-inputs/pgp-import.log" 2>&1
+          gpg --homedir "$RUNNER_TEMP/musicbridge-native-inputs/pgp" --batch --no-autostart --status-fd 1 --verify "$RUNNER_TEMP/musicbridge-native-inputs/ffmpeg-8.1.2.tar.xz.asc" "$RUNNER_TEMP/musicbridge-native-inputs/ffmpeg-8.1.2.tar.xz" > "$RUNNER_TEMP/musicbridge-native-inputs/pgp-verify.log" 2>&1
+          grep -F '[GNUPG:] VALIDSIG FCF986EA15E6E293A5644F10B4322F04D67658D8 ' "$RUNNER_TEMP/musicbridge-native-inputs/pgp-verify.log"
+
+      - name: 构建V3.9 独立CUE与保护标签bundle
+        if: steps.v39-complete.outputs.integrationMode == 'qualified' && steps.v39-complete.outputs.integrationRole == 'source'
+        shell: bash
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}/packages/bridge-core
+        run: |
+          set -euo pipefail
+          node --import tsx/esm ../../scripts/native/build-cue-ffmpeg.mjs "$RUNNER_TEMP/musicbridge-native-inputs/ffmpeg-8.1.2.tar.xz" "$RUNNER_TEMP/musicbridge-native-inputs/libogg-1.3.6.tar.xz" "$RUNNER_TEMP/musicbridge-native-inputs/libvorbis-1.3.7.tar.xz" "$RUNNER_TEMP/musicbridge-native-inputs/opus-1.6.1.tar.gz" "$RUNNER_TEMP/musicbridge-native-inputs/lame-4.0.tar.gz" "$RUNNER_TEMP/musicbridge-v39-002-cue-bundle" "$RUNNER_TEMP/musicbridge-v39-002-cue-build"
+          node --import tsx/esm ../../scripts/native/build-local-audio-tags.mjs "$RUNNER_TEMP/musicbridge-native-inputs/taglib-2.3.2.tar.gz" "$RUNNER_TEMP/musicbridge-v39-002-tags-bundle" "$RUNNER_TEMP/musicbridge-v39-002-tags-build"
+
+      - name: V3.9 八格式原生能力 Gate
+        if: steps.v39-complete.outputs.integrationMode == 'qualified' && steps.v39-complete.outputs.integrationRole == 'source'
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: node scripts/ci/verify-v39-integration-002-native.mjs --output-root "$RUNNER_TEMP/musicbridge-v39-002-native" --cue-bundle "$RUNNER_TEMP/musicbridge-v39-002-cue-bundle" --tags-bundle "$RUNNER_TEMP/musicbridge-v39-002-tags-bundle"
+
+      - name: 封存本次Native原Core与Contracts完整编译图
+        if: steps.v39-complete.outputs.integrationMode == 'qualified' && steps.v39-complete.outputs.integrationRole == 'source'
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { snapshotV39Integration002NativeCompiledGraph } from './scripts/ci/prepare-v39-integration-002-artifacts.mjs';
+          await snapshotV39Integration002NativeCompiledGraph({nativeRoot:process.env.RUNNER_TEMP+'/musicbridge-v39-002-native',outputRoot:process.env.RUNNER_TEMP+'/musicbridge-v39-002-native-compiled-snapshot'});
+          NODE
 
       - name: Prepare Rust toolchain
         if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && steps.ci-repair.outputs.repairMode != 'reuse-s165' && steps.ci-mode.outputs.mode != 'report-only'
@@ -147,7 +236,7 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
-          import { readFileSync, realpathSync, appendFileSync } from 'node:fs';
+          import { readFileSync, realpathSync, appendFileSync, writeFileSync } from 'node:fs';
           import path from 'node:path';
           import { randomUUID } from 'node:crypto';
           import { readRustElectronHostsReceipt } from './scripts/ci/rust-electron-host-receipt.mjs';
@@ -167,6 +256,10 @@ jobs:
             }
             const delimiter = 'MB_HOST_ARTIFACTS_' + randomUUID().replaceAll('-', '');
             appendFileSync(process.env.GITHUB_OUTPUT, `paths<<${delimiter}\n${unique.join('\n')}\n${delimiter}\n`);
+            if ('${{ steps.v39-complete.outputs.integrationMode }}' === 'qualified') {
+              const rows = unique.map((file, index) => ({ path: file, relative: 'entry-' + String(index).padStart(4, '0') + '/' + path.basename(file) }));
+              writeFileSync(path.join(process.env.RUNNER_TEMP, 'musicbridge-electron', 'declared-host-files.json'), JSON.stringify(rows) + '\n', { flag: 'wx', mode: 0o600 });
+            }
             console.log(`已选择 ${unique.length} 个本轮声明文件。`);
           } catch {
             console.error('本轮合成宿主产物闭集未确认，拒绝上传编译产物。');
@@ -174,8 +267,13 @@ jobs:
           }
           NODE
 
+      - name: 选择V3.9 当前Host声明原件
+        if: always() && steps.v39-complete.outputs.integrationMode == 'qualified' && steps.v39-complete.outputs.integrationRole == 'source' && steps.rust-host-artifacts.outcome == 'success'
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: node scripts/ci/prepare-v39-integration-002-artifacts.mjs --profile rust-host-source --output-root "$RUNNER_TEMP/musicbridge-v39-002-host-artifact" --declared-files "$RUNNER_TEMP/musicbridge-electron/declared-host-files.json"
+
       - name: Preserve declared synthetic Rust Host compiled artifacts
-        if: ${{ steps.ci-metadata.outputs.repairMode != 'reuse-s165' && always() && steps.ci-repair.outputs.repairMode != 'reuse-s165' && steps.ci-mode.outputs.mode != 'report-only' && steps.rust-host-artifacts.outcome == 'success' }}
+        if: ${{ steps.v39-complete.outputs.integrationMode != 'qualified' && steps.ci-metadata.outputs.repairMode != 'reuse-s165' && always() && steps.ci-repair.outputs.repairMode != 'reuse-s165' && steps.ci-mode.outputs.mode != 'report-only' && steps.rust-host-artifacts.outcome == 'success' }}
         uses: actions/upload-artifact@v4
         with:
           name: rust-host-compiled-${{ github.sha }}
@@ -185,8 +283,33 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: Preserve declared synthetic Rust Host compiled artifacts
+        if: always() && steps.v39-complete.outputs.integrationMode == 'qualified' && steps.v39-complete.outputs.integrationRole == 'source' && steps.rust-host-artifacts.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-host-compiled-${{ github.sha }}
+          path: ${{ runner.temp }}/musicbridge-v39-002-host-artifact/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: 选择V3.9 Native与Electron声明原件
+        if: always() && steps.v39-complete.outputs.integrationMode == 'qualified' && steps.v39-complete.outputs.integrationRole == 'source'
+        working-directory: ${{ env.MUSIC_BRIDGE_BUILD_WORKSPACE }}
+        run: node scripts/ci/prepare-v39-integration-002-artifacts.mjs --profile electron-source --output-root "$RUNNER_TEMP/musicbridge-v39-002-electron-artifact" --native-root "$RUNNER_TEMP/musicbridge-v39-002-native" --electron-root "$RUNNER_TEMP/musicbridge-electron" --compiled-root "$MUSIC_BRIDGE_BUILD_WORKSPACE/apps/desktop/out" --core-compiled-root "$RUNNER_TEMP/musicbridge-v39-002-native-compiled-snapshot"
+
+      - name: 保留本次V3.9 完整集成证据
+        if: always() && steps.v39-complete.outputs.integrationMode == 'qualified' && steps.v39-complete.outputs.integrationRole == 'source'
+        uses: actions/upload-artifact@v4
+        with:
+          name: electron-e2e-${{ github.sha }}
+          path: ${{ runner.temp }}/musicbridge-v39-002-electron-artifact/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Preserve Electron logs and synthetic test artifacts
-        if: steps.ci-metadata.outputs.repairMode != 'reuse-s165' && always() && steps.ci-repair.outputs.repairMode != 'reuse-s165' && steps.ci-mode.outputs.mode != 'report-only'
+        if: steps.v39-complete.outputs.integrationMode != 'qualified' && steps.ci-metadata.outputs.repairMode != 'reuse-s165' && always() && steps.ci-repair.outputs.repairMode != 'reuse-s165' && steps.ci-mode.outputs.mode != 'report-only'
         uses: actions/upload-artifact@v4
         with:
           name: electron-e2e-${{ github.sha }}

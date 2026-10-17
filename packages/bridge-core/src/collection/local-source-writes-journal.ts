@@ -45,9 +45,62 @@ export type SourceWritesEvent=Base & (
   | {kind:'policy-quiet';policy:dto.LocalSourceWritesPolicy}
   | {kind:'recovery-resolved';recoveryPlanId:string;operationIds:string[]}
   | {kind:'protection-closed';operationIds:string[]}
+  | {kind:'accepted-scope';commandId:string;requestFingerprint:string;ownerEpoch:string;libraryRoots:dto.LibraryRoot[]}
+  | {kind:'run-closed';runReceiptEventId:string;scopeEventId:string;ownerEpoch:string;stage:'preview'|'execute';publisher:'not-started'|'released';physicalClosed:true;afterEventHash:string;closedState:dto.LocalSourceWritesState;operationIds:string[]}
   | {kind:'original';commandId:string;requestFingerprint:string;target:dto.LocalArtworkTarget;candidateId:string;original:dto.LocalArtworkImageInfo;contentRef:string;file:string}
 );
 export interface SourceStoredPlan {plan:dto.LocalSourceWritesPlan;intent:dto.LocalSourceWritesIntent;ownerEpoch:string;items:SourceWritePrivateItem[];ready:SourceWritesReadyBody|null;events:SourceWritesEvent[];phaseCounts:Map<string,number>}
+export type SourceWritesAcceptedScope=Extract<SourceWritesEvent,{kind:'accepted-scope'}>;
+export type SourceWritesRunClosed=Extract<SourceWritesEvent,{kind:'run-closed'}>;
+export const sourceWritesAcceptedScope=(stored:SourceStoredPlan):SourceWritesAcceptedScope|undefined=>stored.events.find((event):event is SourceWritesAcceptedScope=>event.kind==='accepted-scope');
+/** 这是同原run生产者在真实join后写入的证书；投影只核身份与原事件顺序，不从QUIET推导释放。 */
+function validateRunClosure(projection:SourceWritesProjection,stored:SourceStoredPlan,event:SourceWritesRunClosed):boolean{
+  const scope=sourceWritesAcceptedScope(stored),receipt=[...projection.receipts.values()].find(value=>value.eventId===event.runReceiptEventId);
+  if(event.physicalClosed!==true||!scope||event.scopeEventId!==scope.eventId||event.ownerEpoch!==stored.ownerEpoch||scope.ownerEpoch!==stored.ownerEpoch
+    ||!receipt||receipt.datasetId!==stored.plan.datasetId||receipt.planId!==stored.plan.planId||receipt.ownerEpoch!==stored.ownerEpoch||receipt.receipt.outcome!=='accepted'
+    ||event.afterEventHash!==stored.events.at(-1)?.eventHash||event.closedState!==stored.plan.state
+    ||stored.events.some(value=>value.kind==='run-closed'&&value.runReceiptEventId===event.runReceiptEventId)
+    ||!equal(event.operationIds,stored.items.map(value=>value.item.operationId))
+    ||stored.plan.recoveryOf!==null||stored.plan.state==='RECOVERY_REQUIRED'||stored.plan.issues.some(issue=>['RELEASE_UNKNOWN','COMMIT_UNKNOWN','RECOVERY_REQUIRED','REPLACEMENT_UNKNOWN'].includes(issue))
+    ||stored.events.some(value=>value.kind==='phase'&&value.fact.phase==='UNKNOWN'||value.kind==='state'&&value.issues.some(issue=>['RELEASE_UNKNOWN','COMMIT_UNKNOWN','RECOVERY_REQUIRED','REPLACEMENT_UNKNOWN'].includes(issue))))return false;
+  const executed=stored.events.some(value=>value.kind==='phase'||value.kind==='facts'||value.kind==='directory-facts'||value.kind==='recovery-resolved'||value.kind==='protection-closed');
+  if(event.stage==='preview')return (receipt.command==='localSourceWrites.preview'||receipt.command==='localSourceWrites.undo')&&receipt.header!==null
+    &&event.publisher==='not-started'&&!executed&&!['QUEUED','RUNNING','CANCEL_REQUESTED'].includes(stored.plan.state)
+    &&!stored.events.some(value=>value.kind==='state'&&(value.state==='QUEUED'||value.state==='RUNNING'));
+  if(receipt.command!=='localSourceWrites.confirm'||receipt.header!==null||!stored.ready||!stored.items.length
+    ||!['COMPLETED','PARTIAL','FAILED','CANCELLED'].includes(stored.plan.state))return false;
+  const applied=stored.items.filter(value=>value.item.state==='applied').length;
+  if(stored.plan.state==='COMPLETED'&&(applied!==stored.items.length||stored.plan.issues.length)
+    ||stored.plan.state==='PARTIAL'&&(!applied||applied===stored.items.length)
+    ||['FAILED','CANCELLED'].includes(stored.plan.state)&&applied!==0)return false;
+  if(event.publisher==='not-started')return !executed&&stored.items.every(value=>value.item.state==='planned'&&value.item.phase==='PLANNED'&&value.item.backup.state==='not-created');
+  return stored.items.every(value=>{
+    const id=value.item.operationId,phases=stored.events.filter((entry):entry is Extract<SourceWritesEvent,{kind:'phase'}>=>entry.kind==='phase'&&entry.fact.operationId===id),last=phases.at(-1);
+    if(!phases.length)return value.item.state==='planned'&&value.item.phase==='PLANNED'&&value.item.backup.state==='not-created';
+    if(last?.fact.phase!=='QUIET'||value.item.phase!=='TERMINAL'||!['applied','not-written'].includes(value.item.state))return false;
+    if(value.item.state==='not-written')return !stored.events.some(entry=>(entry.kind==='facts'||entry.kind==='directory-facts')&&entry.fact.operationId===id);
+    const facts=stored.events.find(entry=>(entry.kind==='facts'||entry.kind==='directory-facts')&&entry.fact.operationId===id);
+    return value.item.issue===null&&!!facts&&stored.events.indexOf(facts)<stored.events.indexOf(last);
+  });
+}
+/** 冷读取只消费原受理/同epoch证书。未来UNKNOWN或第二段执行不能借用上一段闭口。 */
+export function sourceWritesClosedOriginalRun(stored:SourceStoredPlan,projection:SourceWritesProjection):boolean{
+  const scope=sourceWritesAcceptedScope(stored);if(!scope||stored.plan.recoveryOf!==null)return false;
+  const receipts=[...projection.receipts.values()].filter(value=>value.planId===stored.plan.planId&&value.ownerEpoch===stored.ownerEpoch&&value.receipt.outcome==='accepted');
+  const confirmed=receipts.find(value=>value.command==='localSourceWrites.confirm'),stage=confirmed?'execute':'preview';
+  const closed=[...stored.events].reverse().find((event):event is SourceWritesRunClosed=>event.kind==='run-closed'&&event.stage===stage);
+  if(!closed||closed.scopeEventId!==scope.eventId||closed.ownerEpoch!==stored.ownerEpoch||!equal(closed.operationIds,stored.items.map(value=>value.item.operationId)))return false;
+  const at=stored.events.indexOf(closed),prefix={...stored,plan:{...stored.plan,state:closed.closedState},events:stored.events.slice(0,at)};
+  if(!validateRunClosure(projection,prefix,closed))return false;
+  const later=stored.events.slice(at+1);
+  if(later.some(event=>event.kind==='phase'||event.kind==='facts'||event.kind==='directory-facts'||event.kind==='ready'||event.kind==='item'||event.kind==='recovery-resolved'||event.kind==='protection-closed'
+    ||event.kind==='state'&&event.issues.some(issue=>['RELEASE_UNKNOWN','COMMIT_UNKNOWN','RECOVERY_REQUIRED','REPLACEMENT_UNKNOWN'].includes(issue))))return false;
+  const terminal=[...stored.events].reverse().find(event=>event.kind==='state');
+  if(terminal?.kind!=='state'||terminal.state!==stored.plan.state)return false;
+  if(confirmed)return closed.runReceiptEventId===confirmed.eventId&&closed.closedState===stored.plan.state&&stored.events.indexOf(terminal)<at&&!later.some(event=>event.kind==='state');
+  return ['FAILED','BLOCKED','CANCELLED'].includes(stored.plan.state)&&!stored.events.some(event=>event.kind==='state'&&(event.state==='QUEUED'||event.state==='RUNNING'));
+}
+
 /** 解决事件逐项闭合；一个成功恢复不能替没有处理的operation声明quiet。 */
 export function sourceWritesUnresolvedOperations(stored:SourceStoredPlan):string[]{
   const resolved=new Set(stored.events.flatMap(e=>e.kind==='recovery-resolved'?e.operationIds:[]));
@@ -123,10 +176,10 @@ function attributes(v:unknown):v is SourceFileAttributes{
 }
 export function isSourceWritesEvent(input:unknown):input is SourceWritesEvent{
   try{
-    const v=dto.localSourceWritesDataSnapshot(input,65536,12000,2048,100);if(!dto.localSourceWritesRecord(v,['version','kind','eventId','datasetId','planId','occurredAt','eventHash'],['command','request','requestFingerprint','receipt','header','intent','ownerEpoch','policy','index','value','ready','planHash','contextFingerprint','readyAt','expiresAt','resources','backupBytes','state','issues','fact','item','commandId','target','candidateId','original','contentRef','file','recoveryPlanId','operationIds']))return false;
+    const v=dto.localSourceWritesDataSnapshot(input,65536,12000,2048,100);if(!dto.localSourceWritesRecord(v,['version','kind','eventId','datasetId','planId','occurredAt','eventHash'],['command','request','requestFingerprint','receipt','header','intent','ownerEpoch','policy','index','value','ready','planHash','contextFingerprint','readyAt','expiresAt','resources','backupBytes','state','issues','fact','item','commandId','target','candidateId','original','contentRef','file','recoveryPlanId','operationIds','libraryRoots','runReceiptEventId','scopeEventId','stage','publisher','physicalClosed','afterEventHash','closedState']))return false;
     if(v.version!==1||!dto.isCollectionId(v.eventId)||!dto.isLocalSourceWritesDatasetId(v.datasetId)||!(v.planId===null||dto.isCollectionId(v.planId))||typeof v.occurredAt!=='string'||new Date(v.occurredAt).toISOString()!==v.occurredAt||!dto.isLocalSourceWritesHash(v.eventHash))return false;
     const base=['version','kind','eventId','datasetId','planId','occurredAt','eventHash'];
-    const variants:Record<string,string[]>={receipt:['command','request','requestFingerprint','receipt','header','intent','ownerEpoch','policy'],item:['index','value'],ready:['ready','planHash','contextFingerprint','readyAt','expiresAt','resources','backupBytes'],state:['state','issues'],phase:['fact','item'],facts:['fact','item'],'directory-facts':['fact','item'],'policy-quiet':['policy'],original:['commandId','requestFingerprint','target','candidateId','original','contentRef','file'],'recovery-resolved':['recoveryPlanId','operationIds'],'protection-closed':['operationIds']};
+    const variants:Record<string,string[]>={receipt:['command','request','requestFingerprint','receipt','header','intent','ownerEpoch','policy'],item:['index','value'],ready:['ready','planHash','contextFingerprint','readyAt','expiresAt','resources','backupBytes'],state:['state','issues'],phase:['fact','item'],facts:['fact','item'],'directory-facts':['fact','item'],'policy-quiet':['policy'],original:['commandId','requestFingerprint','target','candidateId','original','contentRef','file'],'recovery-resolved':['recoveryPlanId','operationIds'],'protection-closed':['operationIds'],'accepted-scope':['commandId','requestFingerprint','ownerEpoch','libraryRoots'],'run-closed':['runReceiptEventId','scopeEventId','ownerEpoch','stage','publisher','physicalClosed','afterEventHash','closedState','operationIds']};
     if(typeof v.kind!=='string'||!Object.hasOwn(variants,v.kind)||!dto.localSourceWritesRecord(v,[...base,...variants[v.kind]!]))return false;
     if(v.kind==='receipt'){
       if(!dto.isLocalSourceWritesCommand(v.command)||!dto.isLocalSourceWritesCommandPayload(v.command,v.request)||!dto.isLocalSourceWritesReceipt(v.receipt)||v.receipt.command!==v.command||v.receipt.requestFingerprint!==v.requestFingerprint||v.receipt.datasetId!==v.datasetId||v.receipt.planId!==v.planId||sourceWritesRequestFingerprint(v.command,v.request as never)!==v.requestFingerprint||!dto.isCollectionId(v.ownerEpoch))return false;
@@ -149,6 +202,15 @@ export function isSourceWritesEvent(input:unknown):input is SourceWritesEvent{
       if(v.planId!==null||!dto.isLocalSourceWritesPolicy(v.policy)||v.policy.enabled||v.policy.draining)return false;
     }else if(v.kind==='recovery-resolved'){
       if(!dto.isCollectionId(v.recoveryPlanId)||!Array.isArray(v.operationIds)||!v.operationIds.length||v.operationIds.length>100||!v.operationIds.every(dto.isCollectionId)||new Set(v.operationIds).size!==v.operationIds.length)return false;
+    }else if(v.kind==='accepted-scope'){
+      if(v.planId===null||!dto.isCollectionId(v.commandId)||!dto.isLocalSourceWritesHash(v.requestFingerprint)||!dto.isCollectionId(v.ownerEpoch)
+        ||!Array.isArray(v.libraryRoots)||!v.libraryRoots.length||v.libraryRoots.length>100||!v.libraryRoots.every(value=>dto.isLibraryRoot(value)&&value.role==='library')
+        ||new Set(v.libraryRoots.map(value=>(value as dto.LibraryRoot).id)).size!==v.libraryRoots.length)return false;
+    }else if(v.kind==='run-closed'){
+      if(v.planId===null||![v.runReceiptEventId,v.scopeEventId,v.ownerEpoch].every(dto.isCollectionId)||!['preview','execute'].includes(String(v.stage))
+        ||!['not-started','released'].includes(String(v.publisher))||v.physicalClosed!==true||!dto.isLocalSourceWritesHash(v.afterEventHash)
+        ||!(dto.LOCAL_SOURCE_WRITES_STATES as readonly unknown[]).includes(v.closedState)||!Array.isArray(v.operationIds)||v.operationIds.length>100
+        ||!v.operationIds.every(dto.isCollectionId)||new Set(v.operationIds).size!==v.operationIds.length)return false;
     }else if(v.kind==='protection-closed'){
       if(!Array.isArray(v.operationIds)||!v.operationIds.length||v.operationIds.length>100||!v.operationIds.every(dto.isCollectionId)||new Set(v.operationIds).size!==v.operationIds.length)return false;
     }else if(v.kind==='original'){
@@ -164,7 +226,7 @@ export const sourceWritesLedgerId=(e:SourceWritesEvent):string=>e.kind==='receip
 export const sourceWritesLedgerFingerprint=(e:SourceWritesEvent):string=>e.kind==='receipt'||e.kind==='original'?e.requestFingerprint:e.eventHash;
 export function sourceWritesLedgerRow(e:SourceWritesEvent):Record<string,string>{
   if(!isSourceWritesEvent(e))return sourceWritesFail('INVALID_REQUEST');const row={command_id:sourceWritesLedgerId(e),fingerprint:sourceWritesLedgerFingerprint(e),operation:SOURCE_WRITES_OPERATION,request:sourceWritesCanonical(e),result:sourceWritesCanonical({version:1,eventId:e.eventId,eventHash:e.eventHash}),created_at:e.occurredAt};
-  if(!dto.localSourceWritesJournalTextWithinBudget(row,e.kind==='phase'||e.kind==='state'||e.kind==='protection-closed'?'phase':e.kind==='item'?'item':'header'))return sourceWritesFail('BUDGET_EXCEEDED');return row;
+  if(!dto.localSourceWritesJournalTextWithinBudget(row,e.kind==='phase'||e.kind==='state'||e.kind==='protection-closed'||e.kind==='run-closed'?'phase':e.kind==='item'?'item':'header'))return sourceWritesFail('BUDGET_EXCEEDED');return row;
 }
 export function readSourceWritesEvent(row:Record<string,unknown>):SourceWritesEvent{
   try{if(row.operation!==SOURCE_WRITES_OPERATION||typeof row.request!=='string')return corrupt();const event:unknown=JSON.parse(row.request);if(!isSourceWritesEvent(event))return corrupt();const expected=sourceWritesLedgerRow(event);if(Object.keys(expected).some(k=>row[k]!==expected[k]))return corrupt();return event;}catch{return corrupt();}
@@ -182,7 +244,15 @@ export function projectSourceWritesEvent(p:SourceWritesProjection,e:SourceWrites
     if(p.originals.has(e.contentRef))return corrupt();p.originals.set(e.contentRef,e);
   }else {
     const stored=e.planId?p.plans.get(e.planId):undefined;if(!stored||stored.plan.datasetId!==e.datasetId||stored.events.length>=4096)return corrupt();
-    if(e.kind==='item'){if(stored.plan.state!=='PREVIEWING'||e.index!==stored.items.length||stored.items.some(i=>i.item.operationId===e.value.item.operationId))return corrupt();stored.items.push(structuredClone(e.value));stored.plan.items.push(structuredClone(e.value.item));}
+    if(e.kind==='accepted-scope'){
+      const receipt=p.receipts.get(e.commandId);
+      if(stored.events.length||stored.plan.state!=='PREVIEWING'||stored.ready||stored.items.length||e.ownerEpoch!==stored.ownerEpoch
+        ||!receipt||receipt.planId!==stored.plan.planId||receipt.datasetId!==e.datasetId||receipt.ownerEpoch!==e.ownerEpoch||receipt.requestFingerprint!==e.requestFingerprint
+        ||receipt.receipt.outcome!=='accepted'||receipt.header===null||!['localSourceWrites.preview','localSourceWrites.undo'].includes(receipt.command))return corrupt();
+    }else if(e.kind==='run-closed'){
+      if(!validateRunClosure(p,stored,e))return corrupt();
+    }else if(e.kind==='item'){const scope=sourceWritesAcceptedScope(stored);if(scope&&(!scope.libraryRoots.some(root=>equal(root,e.value.capture.libraryRoot))
+      ||e.value.capture.sharedSources.some(source=>!scope.libraryRoots.some(root=>root.id===source.asset.libraryRootId))))return corrupt();if(stored.plan.state!=='PREVIEWING'||e.index!==stored.items.length||stored.items.some(i=>i.item.operationId===e.value.item.operationId))return corrupt();stored.items.push(structuredClone(e.value));stored.plan.items.push(structuredClone(e.value.item));}
     else if(e.kind==='ready'){
       if(stored.ready||stored.plan.state!=='PREVIEWING'||!stored.items.length||stored.items.length!==e.ready.itemContextHashes.length)return corrupt();const body={...e.ready.frozenHeader,operations:stored.items.map(i=>i.operation)};
       if(!dto.isOrganizerFrozenBody(body)||sourceWritesHash(body)!==e.planHash||stored.items.some((i,n)=>sourceWritesHash(i.capture)!==e.ready.itemContextHashes[n]))return corrupt();

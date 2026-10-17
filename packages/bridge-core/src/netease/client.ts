@@ -1,5 +1,6 @@
 import { assertLibraryReadCurrent, currentLibraryRead, libraryReadCancelled, remainingLibraryReadMs, waitLibraryRead } from '../shared/library-read-lifetime.js';
 import { randomUUID } from 'node:crypto';
+import { types as nodeTypes } from 'node:util';
 import { SnapshotReadFlights } from './read-snapshot-cache.js';
 import { assertNeteaseRequestCurrent, MAX_NETEASE_REQUEST_TIMEOUT_MS, NeteaseRequestScheduler, waitNeteaseRequest } from './request-scheduler.js';
 import { traceProviderApi } from '../diagnostics/performance-instrumentation.js';
@@ -63,6 +64,68 @@ import type { QrLoginCheckResult, QrLoginProvider } from './qr-login.js';
 import { ensureNeteaseApiRuntime } from './api-runtime.js';
 
 type ApiResponse = Promise<unknown>;
+
+const MOBILE_ACCOUNT_ABSENT = Symbol('mobile-account-absent');
+const mobileAccountShapeErrors = new WeakSet<object>();
+/** 只读私有旁注，不改变原异常或把正文/原消息带入移动诊断。 */
+export const mobileAccountShapeFailure = (error: unknown): boolean => error !== null && typeof error === 'object'
+  && !nodeTypes.isProxy(error) && mobileAccountShapeErrors.has(error);
+const invalidMobileAccountResponse = () => {
+  const error = new BridgeError('NETEASE_REQUEST_FAILED', '网易云账户身份响应无效', { httpStatus: 502 });
+  mobileAccountShapeErrors.add(error); return error;
+};
+function mobileAccountRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !nodeTypes.isProxy(value) && !Array.isArray(value)
+    && [Object.prototype, null].includes(Object.getPrototypeOf(value));
+}
+function mobileAccountOwn(value: Record<string, unknown>, key: string): unknown {
+  const field = Object.getOwnPropertyDescriptor(value, key);
+  if (!field) return MOBILE_ACCOUNT_ABSENT;
+  if (!field.enumerable || !Object.hasOwn(field, 'value')) throw invalidMobileAccountResponse();
+  return field.value;
+}
+/** 账户身份只读取旧parser所需字段；头像等无关SDK资料不进入手机身份合同或触发getter。 */
+function mobileAccountProjection(response: unknown): Record<string, unknown> {
+  if (!mobileAccountRecord(response)) throw invalidMobileAccountResponse();
+  const body = mobileAccountOwn(response, 'body'), payload = body === MOBILE_ACCOUNT_ABSENT ? response : body;
+  const pick = (value: unknown, kind: 'body' | 'data' | 'result' | 'identity'): Record<string, unknown> => {
+    if (!mobileAccountRecord(value)) throw invalidMobileAccountResponse();
+    const out: Record<string, unknown> = {};
+    for (const key of kind === 'identity' ? ['id', 'userId'] : ['code']) {
+      const field = mobileAccountOwn(value, key);
+      if (field === MOBILE_ACCOUNT_ABSENT) continue;
+      if (field !== null && typeof field === 'object') throw invalidMobileAccountResponse();
+      out[key] = field;
+    }
+    if (kind === 'body' || kind === 'data') for (const key of ['account', 'profile']) {
+      const field = mobileAccountOwn(value, key);
+      if (field !== MOBILE_ACCOUNT_ABSENT) out[key] = field === null ? null : pick(field, 'identity');
+    }
+    if (kind === 'body') for (const key of ['data', 'result'] as const) {
+      const field = mobileAccountOwn(value, key);
+      if (field !== MOBILE_ACCOUNT_ABSENT) out[key] = field === null ? null : pick(field, key);
+    }
+    return out;
+  };
+  return pick(payload, 'body');
+}
+/** SDK明确拒绝包与正常响应使用同一认证分类；未知拒绝仍保留原异常。 */
+function mobileAccountExpiredPacket(error: unknown): boolean {
+  try {
+    if (error === null || typeof error !== 'object' || nodeTypes.isProxy(error)) return false;
+    let packet: unknown = error;
+    // 原scheduler仅把SDK拒绝包放在这一层cause；不遍历任意异常链或读取正文。
+    if (Object.getPrototypeOf(error) === BridgeError.prototype) {
+      const code = Object.getOwnPropertyDescriptor(error, 'code'), cause = Object.getOwnPropertyDescriptor(error, 'cause');
+      if (!code || !Object.hasOwn(code, 'value') || code.value !== 'NETEASE_REQUEST_FAILED'
+        || !cause || !Object.hasOwn(cause, 'value')) return false;
+      packet = cause.value;
+    }
+    if (!mobileAccountRecord(packet)) return false;
+    const status = mobileAccountOwn(packet, 'status'), body = mobileAccountOwn(packet, 'body');
+    return (status === 301 || status === 302) && mobileAccountRecord(body) && mobileAccountOwn(body, 'code') === status;
+  } catch { return false; }
+}
 
 const DEFAULT_METADATA_CACHE_MAX_ENTRIES = 256;
 const MAX_METADATA_CACHE_MAX_ENTRIES = 512;
@@ -341,15 +404,29 @@ export class NeteaseClient implements NeteasePort, QrLoginProvider {
     assertNeteaseRequestCurrent(options, current);
     const method = this.api.user_account;
     if (!method) throw this.libraryApiUnavailable();
-    const response = await (method as (p: Record<string, unknown>, o: NeteaseRequestOptions) => ApiResponse)({ cookie }, options);
+    let response: unknown;
+    try { response = await (method as (p: Record<string, unknown>, o: NeteaseRequestOptions) => ApiResponse)({ cookie }, options); }
+    catch (error) {
+      assertNeteaseRequestCurrent(options, current);
+      if (mobileAccountExpiredPacket(error)) throw new BridgeError('AUTH_EXPIRED', '网易云登录状态已过期', { httpStatus: 401 });
+      throw error;
+    }
     assertNeteaseRequestCurrent(options, current);
     // SDK 包装层的 Cookie 不跨出原 client；安全整数校验发生在旧 parser 的 String 转换前。
-    const responseBody = response !== null && typeof response === 'object' && !Array.isArray(response)
-      && Object.hasOwn(response, 'body') ? (response as { body: unknown }).body : response;
-    const captured = mobileDataSnapshot(responseBody);
-    if (!captured.ok) throw this.libraryApiUnavailable();
-    const accountId = parseAccountId(captured.value);
-    if (!/^[1-9][0-9]{0,31}(?![\s\S])/u.test(accountId)) throw this.libraryApiUnavailable();
+    const captured = mobileDataSnapshot(mobileAccountProjection(response));
+    if (!captured.ok) { const error = this.libraryApiUnavailable(); mobileAccountShapeErrors.add(error); throw error; }
+    let accountId: string;
+    try { accountId = parseAccountId(captured.value); }
+    catch (error) {
+      // 只有已声明200而缺失身份的解析拒绝标为shape；上游拒绝/未知错误不改分类或异常身份。
+      if (error instanceof BridgeError && error.code === 'NETEASE_REQUEST_FAILED'
+        && captured.value !== null && typeof captured.value === 'object' && !Array.isArray(captured.value)
+        && captured.value.code === 200) mobileAccountShapeErrors.add(error);
+      throw error;
+    }
+    if (!/^[1-9][0-9]{0,31}(?![\s\S])/u.test(accountId)) {
+      const error = this.libraryApiUnavailable(); mobileAccountShapeErrors.add(error); throw error;
+    }
     return Object.freeze({ accountId, providerEpoch: this.mobileProviderEpoch() });
   }
 
