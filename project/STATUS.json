@@ -1,4 +1,22 @@
 {
+  "v4DevelopmentBaseline": {
+    "branch": "codex/v4",
+    "state": "LOCAL_DEVELOPMENT_BUILD_READY",
+    "baseCommit": "4c1c6c78d965260a56c3f5bf51f1d6c83ddb9870",
+    "implementationCommit": "d2c8c855727cf9c6ec7cf25d5c3a455df1b82757",
+    "reportCommitResolution": "DIRECT_CHILD_CONTAINING_V4_DEVELOPMENT_BASELINE_REPORT",
+    "sourceSnapshotSHA256": "2aef7af258197e69ac735d32a37b99dc7d6f0d847db71f279d587790e7163f48",
+    "sourceSnapshotFiles": 2365,
+    "developmentBuild": "PASSED",
+    "electronLauncher": "VERSION_COMMAND_PASSED",
+    "featureRegression": "NOT_RUN_EXISTING_PAUSE",
+    "productRuntime": "NOT_RUN",
+    "ownerAcceptance": "NOT_RUN",
+    "remotePush": "NOT_RUN",
+    "otherTasks": "REMAIN_PAUSED",
+    "report": "reports/V4_DEVELOPMENT_BASELINE_2026-10-17.md",
+    "updatedAt": "2026-10-17T10:02:20.774636+00:00"
+  },
   "currentMobileContentTask": "MBM-004",
   "mobileContentMultidevice": {
     "task": "MBM-004",
