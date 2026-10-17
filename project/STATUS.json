@@ -15,7 +15,21 @@
     "remotePush": "NOT_RUN",
     "otherTasks": "REMAIN_PAUSED",
     "report": "reports/V4_DEVELOPMENT_BASELINE_2026-10-17.md",
-    "updatedAt": "2026-10-17T10:02:20.774636+00:00"
+    "updatedAt": "2026-10-17T10:02:20.774636+00:00",
+    "latestRelocation": {
+      "state": "PROJECT_WORKTREE_DEVELOPMENT_BUILD_READY",
+      "sourceCommit": "e7eb32d9832f01d90f5a96739a612fe362857345",
+      "baseCommit": "a222b81da84f2b3e524e423569b4ccec0de889a3",
+      "sourceWorkspace": "/Volumes/LifeWeave/VSCode/MusicBridge/worktree/v4",
+      "buildStrategy": "DEDICATED_APPROVED_ROOT_WORKSPACE",
+      "developmentBuild": "PASSED",
+      "productRuntime": "NOT_RUN",
+      "otherTasks": "REMAIN_PAUSED",
+      "push": "NOT_RUN",
+      "report": "reports/V4_WORKTREE_RELOCATION_2026-10-17.md",
+      "reportCommitResolution": "DIRECT_CHILD_OF_SOURCE_COMMIT",
+      "updatedAt": "2026-10-17T10:16:51.434204+00:00"
+    }
   },
   "currentMobileContentTask": "MBM-004",
   "mobileContentMultidevice": {
