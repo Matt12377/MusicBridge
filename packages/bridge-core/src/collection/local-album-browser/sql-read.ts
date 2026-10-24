@@ -142,6 +142,15 @@ export function createLocalAlbumSqlObservationHistory(db: DatabaseSync, point: L
   const handle = Object.freeze(Object.create(null)) as LocalAlbumSqlObservationHistory
   observationHistories.set(handle, { db, point: observationPoint(point), ordinal, current }); return handle
 }
+/** 同一只读作者已证明只有队列变化时续接原观察索引，不换作者或任何元数据。 */
+export function continueReadonlyQueueObservationHistory(db: DatabaseSync, handle: LocalAlbumSqlObservationHistory,
+  before: LocalAlbumSqlObservationPoint, after: LocalAlbumSqlObservationPoint): void {
+  const saved = observationHistories.get(handle)
+  if (!saved || saved.db !== db || saved.point !== observationPoint(before) || !saved.current()
+    || !db.isTransaction || db.prepare('PRAGMA query_only').get()?.query_only !== 1
+    || before.changes !== after.changes || before.schema !== after.schema) throw new Error('只读队列观察作者水位不匹配。')
+  saved.point = observationPoint(after)
+}
 function currentObservationHistory(db:DatabaseSync,handle:LocalAlbumSqlObservationHistory|undefined,point:string|undefined) {
   try { const history=handle&&observationHistories.get(handle);return history&&history.db===db&&history.point===point&&history.current()?history:undefined } catch { return undefined }
 }
@@ -602,7 +611,9 @@ function createSqlReader(db: DatabaseSync, source: LocalAlbumSqlSource, codec: L
     lastStructureBarrier = hash([scope.revision, scope.roots, names, organizationFacts, source.projectionSql, source.sourceRaw ?? null,
       lyricsRevision, changes, dataVersion, schemaVersion, db.isTransaction,observationAuthorCurrent])
     lastScanBase = hash([scope.roots,names,organizationFacts,source.projectionSql,source.sourceRaw ?? null,lyricsRevision,observationAuthorCurrent])
-    lastScanPoint = db.isTransaction ? undefined : {changes:Number(changes),version:Number(dataVersion),schema:Number(schemaVersion)}
+    // 隔离只读事务只消费原Owner队列证明；普通写事务仍不能发布或借用跨帧路径。
+    const readonlyActor = localAlbumScanScopeOrigin(scope)?.readonlyActor === true && statement('PRAGMA query_only').get()?.query_only === 1
+    lastScanPoint = db.isTransaction && !readonlyActor ? undefined : {changes:Number(changes),version:Number(dataVersion),schema:Number(schemaVersion)}
     return hash([initialScope, lyricsRevision, changes, dataVersion, schemaVersion, db.isTransaction,observationAuthorCurrent])
   }
   // 精确页与一个完整有序键索引共用原4MiB；索引仅含纯输出，不保存权限、FD或图片。

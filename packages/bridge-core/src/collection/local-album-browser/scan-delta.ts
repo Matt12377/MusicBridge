@@ -8,8 +8,24 @@ export interface LocalAlbumScanPoint { changes: number; version: number; schema:
 export interface LocalAlbumScanDirectory { rootId: string; sourceRootId: string; rootRevision: string; directory: string }
 export interface LocalAlbumScanCue { rootId: string; relative: string }
 export interface LocalAlbumScanPath { directories: readonly LocalAlbumScanDirectory[]; cues: readonly LocalAlbumScanCue[] }
-export interface LocalAlbumScanScopeOrigin { owner: object; stable: string; revision: string; catalog: string; scan: string }
+export interface LocalAlbumScanScopeOrigin { owner: object; stable: string; revision: string; catalog: string; scan: string; readonlyActor?: true }
 const scopeOrigins = new WeakMap<object, LocalAlbumScanScopeOrigin>()
+const queueReaders = new WeakMap<object, { db: DatabaseSync; point: LocalAlbumScanPoint; origin: LocalAlbumScanScopeOrigin; epoch: object }>()
+/** 只由原Owner捕获；不透明令牌不能由wire或同值对象补造。 */
+export function captureLocalAlbumQueueReader(db: DatabaseSync, scope: { revision: string }, epoch: object): object | undefined {
+  const origin = localAlbumScanScopeOrigin(scope), point = localAlbumScanPoint(db)
+  if (!origin || !point || db.isTransaction) return undefined
+  const token = Object.freeze({}); queueReaders.set(token, { db, point, origin, epoch }); return token
+}
+export function continuesLocalAlbumQueueReader(db: DatabaseSync, before: object, after: object): boolean {
+  const old = queueReaders.get(before), current = queueReaders.get(after)
+  return !!old && !!current && old.db === db && current.db === db && old.epoch === current.epoch && !db.isTransaction
+    && pointKey(current.point) === pointKey(localAlbumScanPoint(db) ?? { changes: -1, version: -1, schema: -1 })
+    && old.origin.owner === current.origin.owner && old.origin.stable === current.origin.stable
+    && old.origin.revision === current.origin.revision && old.origin.catalog === current.origin.catalog && old.origin.scan === current.origin.scan
+    && current.point.changes > old.point.changes
+    && localAlbumScanPath(db, old.point, current.point, { queueOnly: true }) !== null
+}
 /** scope仍由原Owner完整读取、seal；此品牌只说明不透明修订中哪些组件来自原catalog/scan。 */
 export function bindLocalAlbumScanScope(scope: object, origin: LocalAlbumScanScopeOrigin): void { scopeOrigins.set(scope, Object.freeze({ ...origin })) }
 export function localAlbumScanScopeOrigin(scope: { revision: string }): LocalAlbumScanScopeOrigin | undefined {
@@ -200,7 +216,7 @@ export function captureLocalAlbumCaptureWrite(db: DatabaseSync, datasetId: strin
 export function localAlbumScanPath(db: DatabaseSync, before: LocalAlbumScanPoint, after: LocalAlbumScanPoint,
   options?: { queueOnly?: true; revisionStableOnly?: true },
 ): LocalAlbumScanPath | null {
-  if (before.version !== after.version || before.schema !== after.schema || before.changes > after.changes) return null
+  if (before.schema !== after.schema || before.changes > after.changes) return null
   const from = pointKey(before), until = pointKey(after)
   if (from === until) return { directories: [], cues: [] }
   const chain = chains.get(db), start = chain?.spans.findIndex(value => value.before === from) ?? -1
@@ -221,4 +237,12 @@ export function localAlbumScanPath(db: DatabaseSync, before: LocalAlbumScanPoint
     if (cursor === until) return { directories: [...directories.values()], cues: [...cues.values()] }
   }
   return null
+}
+
+/** 仅隔离只读Actor已核的Owner队列连续链；未知版本变化没有此span，仍拒绝复用。 */
+export function retainReadonlyAlbumQueueSpan(db: DatabaseSync, before: LocalAlbumScanPoint, after: LocalAlbumScanPoint): void {
+  if (!db.isTransaction || db.prepare('PRAGMA query_only').get()?.query_only !== 1
+    || before.changes !== after.changes || before.schema !== after.schema
+    || pointKey(after) !== pointKey(localAlbumScanPoint(db) ?? { changes: -1, version: -1, schema: -1 })) throw new Error('只读队列连续链水位不匹配。')
+  retainSpan(db, { before: pointKey(before), after: pointKey(after), directories: [], cues: [], bytes: 256, queueWrite: true })
 }

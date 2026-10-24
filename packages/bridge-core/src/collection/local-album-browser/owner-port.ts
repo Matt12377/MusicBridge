@@ -14,7 +14,7 @@ import type { LocalAlbumArtworkInventory, LocalAlbumInventoryRead, LocalAlbumSql
 import { MAX_LOCAL_ALBUM_ARTWORK_OBSERVATIONS } from './artwork-observation-store.js'
 import { logLibraryOperation } from '../../shared/library-operation-log.js'
 import { projectLocalAlbumArtworkReply } from './artwork-reply.js'
-import { bindLocalAlbumScanScope } from './scan-delta.js'
+import { bindLocalAlbumScanScope, captureLocalAlbumQueueReader, continuesLocalAlbumQueueReader } from './scan-delta.js'
 import { isLocalAlbumBackgroundCandidateQuery, isLocalAlbumBackgroundCandidatePage,
   type LocalAlbumBackgroundCandidateQuery, type LocalAlbumBackgroundCandidatePage } from './artwork-background-candidates.js'
 
@@ -79,8 +79,13 @@ export interface LocalAlbumPrivateReadOptions { purpose?: 'background'; signal?:
 
 /** 使用原 guarded SQL 聚合/分页；128MiB约束缓存，合法30万轨道不变成全库DTO。 */
 export function createLocalAlbumOwnerService(options: LocalAlbumOwnerPortOptions) {
-  const mobileSql = options.mobileSqlWorker ? createMobileSqlWorker(options.mobileSqlWorker) : undefined
   const catalog = options.repository.localCatalog, scan = options.repository.localScan, sql = catalog as typeof catalog & LocalAlbumSqlPort
+  let queueAuditEpoch = Object.freeze({})
+  const workerOptions = options.mobileSqlWorker ? { ...options.mobileSqlWorker, queueAudit: {
+    capture: (scope: LocalAlbumSqlScope) => catalog.privateRead(db => captureLocalAlbumQueueReader(db, scope, queueAuditEpoch)),
+    continues: (before: object, after: object) => catalog.privateRead(db => continuesLocalAlbumQueueReader(db, before, after)),
+  } } : undefined
+  const mobileSql = workerOptions ? createMobileSqlWorker(workerOptions) : undefined
   let views: readonly dto.LocalRootView[] | null = null, closedService = false, generation = 0, lastRevision: string | null = null, refreshing: Promise<void> | null = null
   const fences = new WeakMap<LocalAlbumSqlScope, number>(), scanScopeOwner = Object.freeze({})
   const observations = new Map<string, LocalAlbumSqlArtworkObservation>(), pending = new Map<string, LocalAlbumSqlArtworkObservation>()
@@ -90,7 +95,7 @@ export function createLocalAlbumOwnerService(options: LocalAlbumOwnerPortOptions
   const datasetId = dto.isCollectionId(options.datasetId) ? options.datasetId : null
   // 单独的惰性 actor 不占原移动目录队列，也不加入启动 prepare；无持久组合的组件保留原同步读口。
   const indexSql = options.mobileSqlWorker && datasetId && options.lyricsInventory
-    ? createArtistIndexSqlWorker(options.mobileSqlWorker, datasetId) : undefined
+    ? createArtistIndexSqlWorker(workerOptions!, datasetId) : undefined
   const withInventoryRead: LocalAlbumInventoryRead = read => {
     const artworkRead = () => options.withArtworkInventoryRead ? options.withArtworkInventoryRead(read) : read()
     // 歌词末核在资源最后inspect和主库末点之后；两个scope都只属于本次同步回调。
@@ -465,9 +470,9 @@ export function createLocalAlbumOwnerService(options: LocalAlbumOwnerPortOptions
       }))
     })
   }
-  function clearObservations(): void { generation++; observations.clear(); pending.clear(); observationSourceRevision = null; observationEpoch++; observationCount = 0; lastRevision = null }
+  function clearObservations(): void { queueAuditEpoch = Object.freeze({}); generation++; observations.clear(); pending.clear(); observationSourceRevision = null; observationEpoch++; observationCount = 0; lastRevision = null }
   function invalidate(): void { clearObservations(); if (datasetId) options.repository.privateLocalAlbumArtworkObservations?.removeDataset(datasetId) }
-  function invalidateRoot(libraryId:string):void{for(const values of [observations,pending])for(const [key,value]of values)if(value.rootId===libraryId)values.delete(key);observationCount=new Set([...observations.keys(),...pending.keys()]).size;options.repository.privateLocalAlbumArtworkObservations?.removeRoot(libraryId);observationEpoch++;lastRevision=null}
+  function invalidateRoot(libraryId:string):void{queueAuditEpoch = Object.freeze({});for(const values of [observations,pending])for(const [key,value]of values)if(value.rootId===libraryId)values.delete(key);observationCount=new Set([...observations.keys(),...pending.keys()]).size;options.repository.privateLocalAlbumArtworkObservations?.removeRoot(libraryId);observationEpoch++;lastRevision=null}
   return { queryAlbums, queryAlbumTracks, getArtwork, inspectAlbum, invalidate,invalidateRoot, privateMobile, privateBackgroundCandidates,
     getCacheInfo: () => ({ mode: 'sql-paged' as const, revision: lastRevision, observationCount, bytes: Buffer.byteLength(JSON.stringify([...observations.values(), ...pending.values()])) }),
     close() { closedService = true; views = null; clearObservations() },

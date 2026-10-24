@@ -14,6 +14,8 @@ export interface MobileSqlWorkerOptions {
   entry?: URL;
   /** 只由可信组合或测试提供，不来自环境或移动请求。 */
   workerFactory?: (options: WorkerOptions) => Worker;
+  /** 可信原Owner的队列连续链作者；不从请求、配置或环境接收。 */
+  queueAudit?: { capture(scope: LocalAlbumSqlScope): object | undefined; continues(before: object, after: object): boolean };
 }
 export function mobileSqlFileIdentity(file: string): string {
   const stat = lstatSync(file, { bigint: true });
@@ -29,7 +31,7 @@ export const MOBILE_SQL_WORKER_STAGES = ['opened', 'begun', 'audit-begin', 'audi
 type Job = {
   id: number; kind: 'prepare' | 'read'; scope: LocalAlbumSqlScope; cancellation: Int32Array;
   begun: boolean; entered: boolean; rolledBack: boolean; auditPhase: number; terminal: boolean;
-  failure?: Error; page?: SqlPage; poll: ReturnType<typeof setInterval> | undefined;
+  failure?: Error; page?: SqlPage; queueToken?: object; poll: ReturnType<typeof setInterval> | undefined;
   done(): void; assertCurrent(): void;
 };
 type Actor = {
@@ -55,6 +57,7 @@ function createSqlWorker<Page extends SqlPage>(options: MobileSqlWorkerOptions, 
   let closed = false, fatal: Error | undefined, actor: Actor | undefined, active: Job | undefined;
   let sequence = 0, closeFlight: Promise<void> | undefined, reserved = false;
   const waiters: Array<{ start(): void; reject(error: unknown): void }> = [];
+  let completedAudit: { actor: Actor; jobId: number; token: object } | undefined;
   const idle: Array<() => void> = [];
   const notifyIdle = () => { if (!reserved && waiters.length === 0) while (idle.length) idle.shift()!(); };
   const pump = () => { if (!reserved && !closed && !fatal) waiters.shift()?.start(); notifyIdle(); };
@@ -168,6 +171,7 @@ function createSqlWorker<Page extends SqlPage>(options: MobileSqlWorkerOptions, 
     catalogTraceEvent('owner.sql.admission', 'begin', { count: waiters.length + Number(reserved) });
     const release = await reserve(assertCurrent);
     let job: Job | undefined;
+    let successful = false;
     try {
       if (closed || fatal) throw fatal ?? fail();
       assertCurrent();
@@ -185,8 +189,15 @@ function createSqlWorker<Page extends SqlPage>(options: MobileSqlWorkerOptions, 
       try {
         const current = ensureActor();
         if (current.exited || mobileSqlFileIdentity(options.databaseFile) !== current.fileIdentity) throw fail();
+        const queueToken = options.queueAudit?.capture(scope);
+        const previous = completedAudit;
+        const queueFromJob = queueToken && previous?.actor === current && options.queueAudit?.continues(previous.token, queueToken)
+          ? previous.jobId : null;
+        completedAudit = undefined;
+        // 令牌仅留在Owner；wire只关联该Actor上一项已成功完成且未撤销的作业。
+        if (queueToken) job.queueToken = queueToken;
         catalogTraceEvent('owner.sql.admission', 'ok', { count: 1 });
-        current.worker.postMessage({ type: 'job', jobId: job.id, kind, scope: plainScope, request: request ?? null, cancellation: job.cancellation.buffer });
+        current.worker.postMessage({ type: 'job', jobId: job.id, kind, scope: plainScope, request: request ?? null, cancellation: job.cancellation.buffer, queueFromJob });
       } catch {
         rejectActor();
         if (!actor) { job.failure ??= fatal ?? fail(); finishJob(job); }
@@ -198,9 +209,12 @@ function createSqlWorker<Page extends SqlPage>(options: MobileSqlWorkerOptions, 
       assertCurrent();
       if (!actor || mobileSqlFileIdentity(options.databaseFile) !== actor.fileIdentity) throw changed();
       if (kind === 'read' && !job.page) throw fail();
+      if (job.queueToken) completedAudit = { actor, jobId: job.id, token: job.queueToken };
+      successful = true;
       catalogTraceEvent('owner.sql.worker', 'ok', { count: job.page?.items.length ?? 0 });
       return job.page as Page | undefined;
     } finally {
+      if (!successful) { completedAudit = undefined; if (job) Atomics.store(job.cancellation, 0, 1); }
       if (job?.poll) clearInterval(job.poll);
       if (active === job) active = undefined;
       release();

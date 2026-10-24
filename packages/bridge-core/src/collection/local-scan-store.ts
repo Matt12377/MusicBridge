@@ -16,7 +16,7 @@ import type { RelocationReadAccess } from './source-relocation-verify.js';
 import type { ScanReadFacts, ScanFileState } from './local-scan-facts.js';
 import { METADATA_PARSER_VERSION, RUST_MEDIA_METADATA_PARSER_VERSION, CUE_HEADER_METADATA_PARSER_VERSION, CUE_INPUT_SCAN_VERSION } from '../library/metadata-reader-types.js';
 import { logLibraryOperation } from '../shared/library-operation-log.js';
-import { createScanOriginIndex, currentScanOriginIndex, ownsScanOriginIndex, discardScanOriginIndex, addScanOriginBatch, publishScanOriginIndex, stageScanOriginIndex, scanOriginPositions } from './local-scan-origin-index.js';
+import { createScanOriginIndex, currentScanOriginIndex, ownsScanOriginIndex, discardScanOriginIndex, addScanOriginBatch, publishScanOriginIndex, stageScanOriginIndex, scanOriginPositions, continueReadonlyQueueScanOrigins } from './local-scan-origin-index.js';
 import type { LocalWorkbenchDirectoryFactsRequest, LocalWorkbenchDirectoryFacts } from './local-library-workbench/read-service.js';
 import { catalogFileParametersBranch, type CatalogFileParametersBranchStage } from '../mobile/catalog-private-trace.js';
 export type { ScanReadFacts, ScanFileState } from './local-scan-facts.js';
@@ -274,6 +274,14 @@ const budgets: Readonly<Record<Table, number>> = { local_scan_jobs: 100_000, loc
 
 interface ScanAuditCertificate { rows: ReadonlyMap<Table, number>; bytes: number; dataVersion: number }
 const scanAudits = new WeakMap<DatabaseSync, ScanAuditCertificate>();
+/** 只续接隔离Actor已核的队列写；不改变冷开、扫描及数据完整性核验。 */
+export function continueReadonlyQueueScanAudit(db: DatabaseSync, previousVersion: number): void {
+  const previous = scanAudits.get(db)
+  if (!previous || previous.dataVersion !== previousVersion || !db.isTransaction
+    || db.prepare('PRAGMA query_only').get()?.query_only !== 1 || db.prepare('PRAGMA foreign_keys').get()?.foreign_keys !== 1) return corrupt()
+  continueReadonlyQueueScanOrigins(db, previousVersion)
+  scanAudits.set(db, { ...previous, dataVersion: Number(db.prepare('PRAGMA data_version').get()?.data_version) })
+}
 const scanDataVersion = (db: DatabaseSync): number => Number(db.prepare('PRAGMA data_version').get()?.data_version);
 const scanRowBytes = (row: Row): number => Object.values(row).reduce<number>((n, v) => n + (typeof v === 'string' ? Buffer.byteLength(v) : 0), 0);
 const checkScanBudget = (domain: string, actual: number, limit: number): void => {

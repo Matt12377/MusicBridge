@@ -40,7 +40,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { logLibraryOperation } from '../shared/library-operation-log.js';
 import { albumCatalogRevision, albumScanRevision } from './local-album-browser/owner-store.js';
 import { approveLocalAlbumScanDelta, invalidateLocalAlbumScanDelta, discardLocalAlbumScanDelta, localAlbumScanPoint, captureLocalAlbumCaptureWrite, type LocalAlbumCaptureWrite, type LocalAlbumScanDelta } from './local-album-browser/scan-delta.js';
-import { createLocalAlbumMobileStructureSqlReader, createLocalAlbumSqlReader, createLocalAlbumSqlObservationHistory, isCurrentLocalAlbumSqlReader, localAlbumSqlScopeFingerprint, readWithLocalAlbumSqlErrors, localAlbumOrganizationDirectoryBoundaries } from './local-album-browser/sql-read.js';
+import { createLocalAlbumMobileStructureSqlReader, createLocalAlbumSqlReader, createLocalAlbumSqlObservationHistory, continueReadonlyQueueObservationHistory, isCurrentLocalAlbumSqlReader, localAlbumSqlScopeFingerprint, readWithLocalAlbumSqlErrors, localAlbumOrganizationDirectoryBoundaries } from './local-album-browser/sql-read.js';
 import type { LocalAlbumSqlScope, LocalAlbumLyricsInventory, LocalAlbumLibraryOrganization, LocalAlbumSqlIssueReadOptions, LocalAlbumSqlMobileQuery, LocalAlbumSqlMobilePage, LocalAlbumSqlObservationHistory, LocalAlbumSqlObservationPoint } from './local-album-browser/sql-types.js';
 import { LocalAlbumReadError } from './local-album-browser/grouping.js';
 import { isLocalAlbumBackgroundCandidateQuery, type LocalAlbumBackgroundCandidateQuery } from './local-album-browser/artwork-background-candidates.js';
@@ -99,6 +99,16 @@ interface AuditCertificate { rows: ReadonlyMap<Table, number>; bytes: number; da
 // 仅缓存同连接完整核验产生的资源计数；实体、定位、权限和回执始终读取SQLite原事实。
 const audits = new WeakMap<DatabaseSync, AuditCertificate>();
 const observationHistoryAudits = new WeakMap<DatabaseSync, { certificate: AuditCertificate; point: LocalAlbumSqlObservationPoint; history: LibraryManagementObservationHistory; handle: LocalAlbumSqlObservationHistory }>();
+/** 仅隔离Actor在原Owner队列连续链获准后调用；首次/未知写仍完整核验。 */
+export function continueReadonlyQueueCatalogAudit(db: DatabaseSync, previousVersion: number): void {
+  const certificate = audits.get(db), saved = observationHistoryAudits.get(db)
+  const point = observationHistoryPoint(db)
+  if (!certificate || certificate.dataVersion !== previousVersion || !db.isTransaction
+    || db.prepare('PRAGMA query_only').get()?.query_only !== 1 || db.prepare('PRAGMA foreign_keys').get()?.foreign_keys !== 1
+    || saved && (saved.certificate !== certificate || saved.point.version !== previousVersion)) throw new Error('只读队列目录核验作者不匹配。')
+  certificate.dataVersion = point.version
+  if (saved) { continueReadonlyQueueObservationHistory(db, saved.handle, saved.point, point); saved.point = point }
+}
 const legacyAudits = new WeakMap<DatabaseSync, LegacyLinksProjection | 'BUDGET_EXCEEDED'>();
 const sourceWritesAudits=new WeakMap<DatabaseSync,SourceWritesProjection>();
 const relocationAudits = new WeakMap<DatabaseSync, RelocationProjection>();

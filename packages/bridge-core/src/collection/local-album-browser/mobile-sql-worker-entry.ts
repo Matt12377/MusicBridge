@@ -1,7 +1,9 @@
 import { DatabaseSync } from 'node:sqlite';
 import { parentPort, workerData } from 'node:worker_threads';
-import { createLocalCatalogStore, verifyLocalCatalogDatabase } from '../local-catalog-store.js';
-import { verifyLocalScanDatabase } from '../local-scan-store.js';
+import { createLocalCatalogStore, verifyLocalCatalogDatabase, continueReadonlyQueueCatalogAudit } from '../local-catalog-store.js';
+import { verifyLocalScanDatabase, continueReadonlyQueueScanAudit } from '../local-scan-store.js';
+import { bindLocalAlbumScanScope, retainReadonlyAlbumQueueSpan } from './scan-delta.js';
+import { albumCatalogRevision, albumScanRevision } from './owner-store.js';
 import { LocalAlbumReadError } from './grouping.js';
 import { mobileSqlFileIdentity } from './mobile-sql-worker.js';
 import { isMobileStructurePage } from './mobile-structure.js';
@@ -16,12 +18,14 @@ const exact = (value: unknown, keys: readonly string[]): value is Record<string,
   && Reflect.ownKeys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
 const warmQuery: LocalAlbumSqlMobileQuery = { kind: 'groups', offset: 0, limit: 1, query: '', rootId: null, albumKey: null, trackId: null, editionId: null, groupHash: null };
 type Point = { changes: number; version: number; schema: number; userVersion: number };
-type Input = { jobId: number; kind: 'prepare' | 'read'; scope: LocalAlbumSqlScope & { lyricsRevision?: string }; request: LocalAlbumSqlMobileQuery | null; cancellation: SharedArrayBuffer };
+type Input = { jobId: number; kind: 'prepare' | 'read'; scope: LocalAlbumSqlScope & { lyricsRevision?: string }; request: LocalAlbumSqlMobileQuery | null; cancellation: SharedArrayBuffer; queueFromJob: number | null };
 const same = (left: Point, right: Point) => left.changes === right.changes && left.version === right.version && left.schema === right.schema && left.userVersion === right.userVersion;
 let db: DatabaseSync | undefined, cancellation: Int32Array | undefined;
 let active: Input | undefined, jobCancellation: Int32Array | undefined, audited: Point | undefined, preparedScope: string | undefined;
 let store: ReturnType<typeof createLocalCatalogStore> | undefined, closing = false, transaction = false, lastJobId = 0;
 let indexDatasetId: string | undefined, currentLyrics: LocalAlbumLyricsInventory | undefined;
+const scopeOwner = Object.freeze({});
+let completedJob: { id: number; cancellation: Int32Array } | undefined;
 let finish!: () => void;
 const lifetime = new Promise<void>(resolve => { finish = resolve; });
 const unavailable = () => new LocalAlbumReadError('UNAVAILABLE', '移动结构只读连接未通过原核验。');
@@ -68,6 +72,17 @@ function runJob(input: Input, databaseFile: string, fileIdentity: string): void 
     db.prepare('SELECT count(*) FROM sqlite_master').get();
     snapshot = point();
     if (!same(before, snapshot)) { invalidate(); throw changed(); }
+    if (completedJob && Atomics.load(completedJob.cancellation, 0) !== 0) { invalidate(); completedJob = undefined; }
+    if (audited && !same(audited, snapshot) && store && completedJob?.id === input.queueFromJob
+      && audited.changes === snapshot.changes && audited.schema === snapshot.schema && audited.userVersion === snapshot.userVersion) {
+      // Owner只认可连续的原队列CAS；Actor还核同一前作业及其未撤销SAB，不能借到别代审计。
+      try {
+        continueReadonlyQueueCatalogAudit(db, audited.version);
+        continueReadonlyQueueScanAudit(db, audited.version);
+        retainReadonlyAlbumQueueSpan(db, audited, snapshot);
+        audited = snapshot;
+      } catch { invalidate(); }
+    }
     if (!audited || !same(audited, snapshot)) {
       invalidate(); stage('audit-begin');
       verifyLocalCatalogDatabase(db); assertCurrent(); stage('audit-catalog');
@@ -84,6 +99,8 @@ function runJob(input: Input, databaseFile: string, fileIdentity: string): void 
     stage('entered');
     const { lyricsRevision, ...plainScope } = input.scope;
     const scope = { ...plainScope, assertReadActive: assertCurrent }, scopeKey = JSON.stringify(input.scope);
+    bindLocalAlbumScanScope(scope, { owner: scopeOwner, stable: scopeKey, revision: scope.revision, readonlyActor: true,
+      catalog: albumCatalogRevision(db), scan: albumScanRevision(db) });
     if (indexDatasetId) {
       if (input.kind !== 'read' || typeof lyricsRevision !== 'string') throw unavailable();
       store.privateWithArtistIndexLyricsRead(indexDatasetId, lyricsRevision, assertCurrent, view => {
@@ -125,7 +142,8 @@ function runJob(input: Input, databaseFile: string, fileIdentity: string): void 
       }
       if (succeeded) assertCurrent();
     } catch (error) { succeeded = false; if (error instanceof LocalAlbumReadError && error.code === 'SNAPSHOT_CHANGED') code = error.code; else fatal = true; }
-    if (!succeeded) preparedScope = undefined;
+    if (!succeeded) { invalidate(); completedJob = undefined; }
+    else completedJob = { id: input.jobId, cancellation: jobCancellation! };
     active = undefined; jobCancellation = undefined;
   }
   if (fatal || !skipped && !rolledBack) { shutdown(true); return; }
@@ -153,7 +171,8 @@ try {
     port.on('message', (message: unknown) => {
       if (closing) return;
       if (exact(message, ['type']) && message.type === 'close') { shutdown(false); return; }
-      if (!exact(message, ['type', 'jobId', 'kind', 'scope', 'request', 'cancellation']) || message.type !== 'job'
+      if (!exact(message, ['type', 'jobId', 'kind', 'scope', 'request', 'cancellation', 'queueFromJob']) || message.type !== 'job'
+        || message.queueFromJob !== null && (!Number.isSafeInteger(message.queueFromJob) || Number(message.queueFromJob) < 1 || Number(message.queueFromJob) >= Number(message.jobId))
         || message.jobId !== lastJobId + 1 || !['prepare', 'read'].includes(String(message.kind)) || active
         || !(message.cancellation instanceof SharedArrayBuffer) || message.cancellation.byteLength !== 4
         || !message.scope || typeof message.scope !== 'object' || (message.kind === 'prepare') !== (message.request === null)

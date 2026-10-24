@@ -28,6 +28,16 @@ function point(db: DatabaseSync): string | undefined {
 export function createScanOriginIndex(): ScanOriginIndex { return { entries: new Map(), batches: new Map(), bytes: 0, overflow: false } }
 export function discardScanOriginIndex(db: DatabaseSync): void { indexes.delete(db) }
 export function ownsScanOriginIndex(db: DatabaseSync, index: ScanOriginIndex): boolean { return indexes.get(db) === index }
+/** 仅已获原Owner连续队列证明的只读事务，保留同一份扫描事实索引。 */
+export function continueReadonlyQueueScanOrigins(db: DatabaseSync, previousVersion: number): void {
+  const index = indexes.get(db), actual = point(db)
+  if (!db.isTransaction || db.prepare('PRAGMA query_only').get()?.query_only !== 1 || !actual) throw new Error('只读队列扫描水位不匹配。')
+  if (!index) return
+  const before = index.point ? JSON.parse(index.point) as number[] : []
+  const after = JSON.parse(actual) as number[]
+  if (before[1] !== previousVersion || before[0] !== after[0] || before[2] !== after[2]) throw new Error('只读队列扫描索引作者不匹配。')
+  index.point = actual; index.pending = true
+}
 export function currentScanOriginIndex(db: DatabaseSync, allowPending = false): ScanOriginIndex | undefined {
   const index = indexes.get(db)
   if (!index) return undefined
