@@ -35,12 +35,15 @@ import { createCompletedScanSnapshotView } from '../src/collection/local-scan-sn
 import type { DatasetWorkbenchExecutionContext, DatasetWorkbenchRequest } from '../src/collection/dataset-owner-protocol.js'
 
 /** 463只装配实际Root/同Owner SQLite/合成文件；扫描种子是已核私有准备批，未装配Main或Native。 */
-async function removalFactoryFixture463(t:import('node:test').TestContext,readersOptions493:{hold?:boolean;failure?:'UNKNOWN'|'TIMEOUT';legacyIndex?:number}={}){
+async function removalFactoryFixture463(t:import('node:test').TestContext,readersOptions493:{hold?:boolean;failure?:'UNKNOWN'|'TIMEOUT';legacyIndex?:number;subjectRole?:LocalLibraryManagementBindingRecord['role']}={}){
   const temporary=process.env.TMPDIR;assert.ok(temporary);assert.ok(temporary.startsWith('/Volumes/LifeWeave/Developer/CommandLine/'))
   const directory=await mkdtemp(path.join(temporary,'library-remove463-')),file=path.join(directory,'collection.sqlite'),identityFile=path.join(directory,'identity.sqlite')
   await mkdir(path.join(directory,'staging'),{mode:0o700})
-  let fault=false,casCalls=0,sourceSafetyCloses=0
+  let fault=false,casCalls=0,sourceSafetyCloses=0,relinkFault=false
   const repository=createCollectionRepository({filePath:file,stagingRoot:path.join(directory,'staging'),beforeCommit(action){
+    if(relinkFault&&action==='local-library-management:root-relink'){
+      relinkFault=false;repository.localCatalog.privateLibraryManagementRevision(identity)
+      throw new Error('仅测试自有SQLite的根与绑定原子提交故障')}
     if(fault&&action==='local-library-management:cas'&&++casCalls===2){fault=false;throw new Error('仅测试自有SQLite的清库最终COMMIT故障')}
   }}),state=createBackupWorkflowStore({filePath:identityFile})
   repository.localCatalog.roots();const identity=state.datasetIdentities.bind('default',file,false);repository.localCatalog.privateBindWorkbenchDataset(identity)
@@ -53,9 +56,10 @@ async function removalFactoryFixture463(t:import('node:test').TestContext,reader
       const target=path.join(sourcePath,relative);await writeFile(target,body,{flag:'wx',mode:0o600});files.push({path:target,bytes:Buffer.from(body)})
     }
     const commandId=randomUUID(),source=repository.sources.authorize(commandId,await authorizeSourceDirectory(sourcePath)),root=repository.localCatalog.registerRoot({commandId,sourceRootId:source.id,role:'library'});roots.push(root)
-    const original:LocalLibraryManagementOperationRecord['original']={command:'library.import.confirm',request:{commandId,choiceId:randomUUID(),role:'catalog'}}
+    const role=index===1?readersOptions493.subjectRole??'catalog':'catalog'
+    const original:LocalLibraryManagementOperationRecord['original']={command:'library.import.confirm',request:{commandId,choiceId:randomUUID(),role}}
     const operation:LocalLibraryManagementOperationRecord={schema:1,kind:'operation',datasetId:identity.datasetId,key:commandId,revision:1,original,originalSha256:localLibraryManagementDigest(original),receipt:{commandId,kind:'library.import.confirm',state:'succeeded',libraryIds:[root.id],message:null}}
-    const binding:LocalLibraryManagementBindingRecord={schema:1,kind:'binding',datasetId:identity.datasetId,key:root.id,revision:1,libraryId:root.id,sourceRootId:root.sourceRootId,rootRevision:root.revision,role:'catalog',name:'原库'+index,active:true,watchEnabled:false,operationId:commandId}
+    const binding:LocalLibraryManagementBindingRecord={schema:1,kind:'binding',datasetId:identity.datasetId,key:root.id,revision:1,libraryId:root.id,sourceRootId:root.sourceRootId,rootRevision:root.revision,role,name:'原库'+index,active:true,watchEnabled:false,operationId:commandId}
     if(index!==readersOptions493.legacyIndex)repository.localCatalog.privateLibraryManagementCompareAndSwap(identity,[{record:operation,expectedRevision:null},{record:binding,expectedRevision:null}])
   }
   async function seedCompleted(index:number){
@@ -95,7 +99,7 @@ async function removalFactoryFixture463(t:import('node:test').TestContext,reader
   function rows(){return repository.localCatalog.privateRead(db=>Object.fromEntries(['local_scan_jobs','local_scan_batches','local_scan_checkpoints','local_scan_receipts','local_scan_snapshot_commits','local_scan_snapshot_chunks','local_artwork_selections','local_artwork_ledger','source_roots','source_ledger'].map(table=>[table,db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()]))) }
   function candidates(){return repository.localCatalog.privateRead(db=>db.prepare('SELECT id,data FROM local_artwork_candidates ORDER BY rowid').all())}
   return {directory,file,identityFile,repository,state,identity,roots,jobs,tracks,files,domain,readers493,epoch493:epoch,snapshots,selected,unreferenced,sharedCache,otherCache,savedSelection,stage,seedCompleted,manage,rows,candidates,close,
-    failFinalCommit(){casCalls=0;fault=true},get sourceSafetyCloses(){return sourceSafetyCloses}}
+    failFinalCommit(){casCalls=0;fault=true},failRelinkCommit(){relinkFault=true},get sourceSafetyCloses(){return sourceSafetyCloses}}
 }
 
 test('C03实际Root463：同Owner撤库只清专属无引用staging，原媒体与他库保留，冷tombstone拒迟到CREATE和retry',async t=>{
@@ -1936,4 +1940,202 @@ test('移除期限：真实Actor与Utility反向relay接受原8秒剩余而不�
     clock.advance(2100);await new Promise<void>(resolve=>setImmediate(resolve));assert.equal(consumed,0)
     main.postMessage(readersEcho493(request));assert.deepEqual(await observed,{ok:true});assert.equal(consumed,1)
   }finally{clock.reset();bridge.close();await Promise.all([readersClosed493(owner,true),readersClosed493(utility,true),readersClosed493(main,true)])}
+})
+
+test('008绑定结算：重关联并完成扫描后实际本地scope可读，组织语义和停用根保持', async t => {
+  const f = await removalFactoryFixture463(t), catalog = f.repository.localCatalog
+  assert.equal((await f.manage('library.remove', { commandId: randomUUID(), libraryIds: [f.roots[0]!.id] }, 30000)).state, 'succeeded')
+  const retired = structuredClone(catalog.root(f.roots[0]!.id)), tombstone = structuredClone(catalog.privateLibraryManagementRead(f.identity, 'binding', retired.id))
+  const before = catalog.privateLibraryManagementRead(f.identity, 'binding', f.roots[1]!.id)!
+  const source = f.repository.sources.authorize(randomUUID(), await authorizeSourceDirectory(path.join(f.directory, 'library-1')))
+  const commandId = randomUUID(), root = catalog.relinkRoot({ commandId, rootId: f.roots[1]!.id, expectedRevision: f.roots[1]!.revision, sourceRootId: source.id, role: 'library' })
+  f.roots[1] = root
+  const completed = await f.seedCompleted(1)
+  assert.equal(completed.phase, 'completed')
+  await f.domain.localAlbums!.privateMobile.refresh()
+  const page = await f.domain.localAlbums!.queryAlbums({ rootId: root.id, query: '', filter: 'all', offset: 0, limit: 20 })
+  assert.ok(page.items.length > 0, '实际组织scope不能在完成扫描后仍被旧binding拒读。')
+  const after = catalog.privateLibraryManagementRead(f.identity, 'binding', root.id)!
+  assert.deepEqual(after.record, { ...before.record, revision: before.record.revision + 1, sourceRootId: source.id, rootRevision: root.revision })
+  assert.equal(catalog.privateLibraryManagementOrganizations(f.identity).length, 1)
+  assert.equal(catalog.privateLibraryManagementRootActiveForRelink(root.id), true)
+  assert.deepEqual(catalog.root(retired.id), retired)
+  assert.deepEqual(catalog.privateLibraryManagementRead(f.identity, 'binding', retired.id), tombstone)
+  for (const file of f.files) assert.deepEqual(await readFile(file.path), file.bytes)
+})
+
+/** 仅在本测试自有库模拟旧客户端：未装配管理Owner的原catalog接口提交真实legacy回执。 */
+async function legacyRootBinding008(t: import('node:test').TestContext, fault: 'matching' | 'stale' | 'removed' | 'running' | 'unknown' | 'other-root' = 'matching') {
+  const f = await removalFactoryFixture463(t), catalog = f.repository.localCatalog
+  assert.equal((await f.manage('library.remove', { commandId: randomUUID(), libraryIds: [f.roots[0]!.id] }, 30000)).state, 'succeeded')
+  const subject = f.roots[1]!, before = structuredClone(catalog.privateLibraryManagementRead(f.identity, 'binding', subject.id)!)
+  const tombstone = structuredClone(catalog.privateLibraryManagementRead(f.identity, 'binding', f.roots[0]!.id)!)
+  if (fault === 'removed') assert.equal((await f.manage('library.remove', { commandId: randomUUID(), libraryIds: [subject.id] }, 30000)).state, 'succeeded')
+  if (fault === 'running' || fault === 'unknown') {
+    const commandId = randomUUID(), original: LocalLibraryManagementOperationRecord['original'] = { command: 'library.remove', request: { commandId, libraryIds: [subject.id] } }
+    const running: LocalLibraryManagementOperationRecord = { schema: 1, kind: 'operation', datasetId: f.identity.datasetId, key: commandId, revision: 1, original, originalSha256: localLibraryManagementDigest(original), receipt: { commandId, kind: 'library.remove', state: 'running', libraryIds: [subject.id], message: null } }
+    catalog.privateLibraryManagementCompareAndSwap(f.identity, [{ record: running, expectedRevision: null }])
+    if (fault === 'unknown') catalog.privateLibraryManagementCompareAndSwap(f.identity, [{ record: { ...running, revision: 2, receipt: { ...running.receipt, state: 'unknown' } }, expectedRevision: 1 }])
+  }
+  await f.close()
+  const legacy = createCollectionRepository({ filePath: f.file }), legacyState = createBackupWorkflowStore({ filePath: f.identityFile })
+  let result: dto.LibraryRoot, commandId = randomUUID()
+  try {
+    const index = fault === 'other-root' ? 0 : 1, original = legacy.localCatalog.root(f.roots[index]!.id)
+    const target = legacy.sources.authorize(randomUUID(), await authorizeSourceDirectory(path.join(f.directory, 'library-' + index)))
+    result = legacy.localCatalog.relinkRoot({ commandId, rootId: original.id, expectedRevision: original.revision, sourceRootId: target.id, role: 'library' })
+    if (fault === 'stale') {
+      const next = legacy.sources.authorize(randomUUID(), await authorizeSourceDirectory(path.join(f.directory, 'library-' + index)))
+      result = legacy.localCatalog.relinkRoot({ commandId: randomUUID(), rootId: result.id, expectedRevision: result.revision, sourceRootId: next.id, role: 'library' })
+    }
+    if (fault === 'matching') {
+      const identity = legacyState.datasetIdentities.bind('default', f.file, false)
+      legacy.localCatalog.privateBindWorkbenchDataset(identity)
+      const info = await stat(path.join(f.directory, 'library-1', '原曲目.wav'), { bigint: true })
+      const started = legacy.localScan.start({ commandId: randomUUID(), datasetId: identity.datasetId, libraryRootId: result.id, expectedRootRevision: result.revision, parserVersion: 'controlled-008-legacy' }).job
+      const running = legacy.localScan.resume({ commandId: randomUUID(), jobId: started.jobId, expectedRevision: started.jobRevision })
+      const item: ScanPreparedItem = { relative: '原曲目.wav', signature: [info.dev, info.ino, info.size, info.mtimeNs, info.ctimeNs].join(':'), parserVersion: 'controlled-008-legacy', outcome: 'accepted', fields: { title: '恢复原曲目', artist: '合成作者', album: '恢复原专辑' }, failureCode: null, reused: false,
+        readFacts: { technical: { container: 'WAVE', codec: 'PCM', lossless: true, sampleRateHz: 48000, channels: 2, bitsPerSample: 16, durationSeconds: 2, evidence: 'bounded-parser-reported' }, coverEvidence: [], readEvidence: { bytesRead: 44, readCalls: 1, maxReadBytes: 44, allocationBytes: 44, elapsedMs: 1, wholeAudioHash: false, wholeAudioDecode: false } } }
+      const batch = { batchId: randomUUID(), jobId: started.jobId, expectedJobRevision: running.jobRevision, checkpointBefore: running.checkpointRef, items: [item], frontier: [], completed: true }
+      legacy.localScan.privatePrepareBatch({ commandId: randomUUID(), jobId: started.jobId, batch })
+      assert.equal(legacy.localScan.privateCommitBatch({ commandId: randomUUID(), jobId: started.jobId, batchId: batch.batchId, expectedRevision: running.jobRevision }).phase, 'completed')
+    }
+  } finally { legacy.close(); legacyState.close() }
+  let recoveryFault = false
+  const repository = createCollectionRepository({ filePath: f.file, beforeCommit(action) {
+    if (recoveryFault && action === 'local-library-management:root-relink-recovery') {
+      recoveryFault = false; repository.localCatalog.privateLibraryManagementRevision(identity)
+      throw new Error('仅测试自有SQLite的旧重关联绑定恢复提交故障')
+    }
+  } }), state = createBackupWorkflowStore({ filePath: f.identityFile }), identity = state.datasetIdentities.bind('default', f.file, false)
+  repository.localCatalog.privateBindWorkbenchDataset(identity)
+  t.after(() => { repository.close(); state.close() })
+  return { f, repository, state, identity, subject, before, tombstone, result: result!, commandId, failRecoveryCommit() { recoveryFault = true } }
+}
+
+test('008绑定结算：旧成功重关联和完扫仅由正常boot消费原回执，冷重开不重复写或扫描', async t => {
+  const x = await legacyRootBinding008(t), catalog = x.repository.localCatalog
+  assert.throws(() => catalog.privateLibraryManagementOrganizations(x.identity), { code: 'INVENTORY_UNAVAILABLE' })
+  const receipt = structuredClone(catalog.privateReceiptRequest(x.commandId)), beforeRoot = structuredClone(catalog.root(x.subject.id))
+  const domain = createDatasetDomain({ collectionRepository: x.repository, backupWorkflowStore: x.state, collectionDatasetIdentity: x.identity, localSourceEpoch: randomUUID() })
+  t.after(() => domain.close())
+  await domain.commitBoot()
+  const binding = catalog.privateLibraryManagementRead(x.identity, 'binding', x.subject.id)!
+  assert.deepEqual(binding.record, { ...x.before.record, revision: x.before.record.revision + 1, sourceRootId: x.result.sourceRootId, rootRevision: x.result.revision })
+  assert.equal(binding.rootRelinkProof?.commandId, x.commandId)
+  assert.deepEqual(catalog.root(x.subject.id), beforeRoot)
+  assert.deepEqual(catalog.privateReceiptRequest(x.commandId), receipt)
+  assert.deepEqual(catalog.privateLibraryManagementRead(x.identity, 'binding', x.f.roots[0]!.id), x.tombstone)
+  const page = await domain.localAlbums!.queryAlbums({ rootId: x.subject.id, query: '', filter: 'all', offset: 0, limit: 20 })
+  assert.ok(page.items.length > 0)
+  assert.equal(catalog.privateRecoverLibraryRootRelinkBindings(x.identity), 0)
+  const revision = catalog.privateLibraryManagementRevision(x.identity)
+  await domain.close()
+  const cold = createCollectionRepository({ filePath: x.f.file }), coldState = createBackupWorkflowStore({ filePath: x.f.identityFile }), identity = coldState.datasetIdentities.bind('default', x.f.file, false)
+  const next = createDatasetDomain({ collectionRepository: cold, backupWorkflowStore: coldState, collectionDatasetIdentity: identity, localSourceEpoch: randomUUID() })
+  t.after(() => next.close())
+  await next.commitBoot()
+  assert.deepEqual(cold.localCatalog.privateLibraryManagementRead(identity, 'binding', x.subject.id), binding)
+  assert.equal(cold.localCatalog.privateLibraryManagementRevision(identity), revision)
+  assert.deepEqual(cold.localCatalog.privateReceiptRequest(x.commandId), receipt)
+  for (const file of x.f.files) assert.deepEqual(await readFile(file.path), file.bytes)
+})
+
+test('008绑定结算：Root与绑定帧提交故障整体回滚，同原命令重试和第二次合法重关联可用', async t => {
+  const f = await removalFactoryFixture463(t), catalog = f.repository.localCatalog, subject = f.roots[1]!
+  const before = structuredClone(catalog.privateLibraryManagementRead(f.identity, 'binding', subject.id)!)
+  const target = f.repository.sources.authorize(randomUUID(), await authorizeSourceDirectory(path.join(f.directory, 'library-1')))
+  const request = { commandId: randomUUID(), rootId: subject.id, expectedRevision: subject.revision, sourceRootId: target.id, role: 'library' as const }
+  f.failRelinkCommit()
+  assert.throws(() => catalog.relinkRoot(request))
+  assert.deepEqual(catalog.root(subject.id), subject)
+  assert.deepEqual(catalog.privateLibraryManagementRead(f.identity, 'binding', subject.id), before)
+  assert.equal(catalog.privateReceiptRequest(request.commandId), null)
+  const result = catalog.relinkRoot(request)
+  assert.equal(catalog.privateLibraryManagementOrganizations(f.identity).length, 2)
+  const source = f.repository.sources.authorize(randomUUID(), await authorizeSourceDirectory(path.join(f.directory, 'library-1')))
+  const next = catalog.relinkRoot({ ...request, commandId: randomUUID(), expectedRevision: result.revision, sourceRootId: source.id })
+  assert.equal(next.revision, '3')
+  assert.equal(catalog.privateLibraryManagementRead(f.identity, 'binding', subject.id)!.record.revision, before.record.revision + 2)
+  assert.equal(catalog.privateLibraryManagementOrganizations(f.identity).length, 2)
+})
+
+for (const fault of ['stale', 'removed', 'running', 'unknown', 'other-root'] as const) test(`008绑定结算：正常恢复不消费${fault}原事实或改变停用边界`, async t => {
+  const x = await legacyRootBinding008(t, fault), catalog = x.repository.localCatalog
+  const roots = structuredClone(catalog.roots()), bindings = structuredClone(catalog.privateLibraryManagementBindings(x.identity)), before = catalog.privateLibraryManagementRevision(x.identity)
+  assert.equal(catalog.privateRecoverLibraryRootRelinkBindings(x.identity), 0)
+  assert.deepEqual(catalog.roots(), roots)
+  assert.deepEqual(catalog.privateLibraryManagementBindings(x.identity), bindings)
+  assert.equal(catalog.privateLibraryManagementRevision(x.identity), before)
+  for (const file of x.f.files) assert.deepEqual(await readFile(file.path), file.bytes)
+})
+
+for (const fault of ['missing-success', 'other-operation', 'stale-success'] as const) test(`008绑定结算：专用私有帧冷核拒绝${fault}，不能以摘要自造成功事实`, async t => {
+  const x = await legacyRootBinding008(t, fault === 'stale-success' ? 'stale' : 'matching'), catalog = x.repository.localCatalog
+  const old = catalog.privateLibraryManagementRead(x.identity, 'binding', x.subject.id)!
+  const row = catalog.privateRead(db => db.prepare('SELECT rowid ordinal,* FROM local_catalog_ledger WHERE command_id=?').get(x.commandId)!)
+  const after = JSON.parse(String(row.result)) as dto.LibraryRoot
+  let commandId: string = x.commandId, ordinal = Number(row.ordinal)
+  if (fault === 'missing-success') commandId = randomUUID()
+  if (fault === 'other-operation') {
+    const other = catalog.privateRead(db => db.prepare("SELECT command_id,rowid ordinal FROM local_catalog_ledger WHERE operation='register-root' AND json_extract(result,'$.id')=?").get(x.f.roots[0]!.id)!)
+    commandId = String(other.command_id); ordinal = Number(other.ordinal)
+  }
+  const request = { commandId, rootId: x.subject.id, expectedRevision: x.subject.revision, sourceRootId: after.sourceRootId, role: 'library' }
+  const { createLocalLibraryManagementRootRelinkEvents } = await import('../src/collection/local-library-workbench/owner-journal.js')
+  const events = createLocalLibraryManagementRootRelinkEvents(old.record, { commandId, ledgerSequence: String(ordinal), requestFingerprint: localLibraryManagementDigest(['relink-root', request]), previousBindingSha256: old.recordSha256, beforeRoot: x.subject, afterRoot: after })
+  x.repository.close(); x.state.close()
+  const raw = new DatabaseSync(x.f.file)
+  try { for (const event of events) { const saved = localLibraryManagementLedgerRow(event); raw.prepare('INSERT INTO local_catalog_ledger VALUES(?,?,?,?,?,?)').run(saved.command_id!, saved.fingerprint!, saved.operation!, saved.request!, saved.result!, saved.created_at!) } } finally { raw.close() }
+  const before = await readFile(x.f.file), cold = createCollectionRepository({ filePath: x.f.file })
+  try { assert.throws(() => cold.localCatalog.roots(), { code: 'INVENTORY_UNAVAILABLE' }) } finally { cold.close() }
+  assert.deepEqual(await readFile(x.f.file), before, '坏帧保留原件，不能靠冷恢复自动修掉。')
+})
+
+test('008绑定结算：通用CAS、异Owner和重复消费不能替代原成功回执结算', async t => {
+  const x = await legacyRootBinding008(t), catalog = x.repository.localCatalog
+  const old = catalog.privateLibraryManagementRead(x.identity, 'binding', x.subject.id)!
+  assert.throws(() => catalog.privateLibraryManagementCompareAndSwap(x.identity, [{ record: { ...old.record, revision: old.record.revision + 1, sourceRootId: x.result.sourceRootId, rootRevision: x.result.revision }, expectedRevision: old.record.revision }]))
+  assert.throws(() => catalog.privateRecoverLibraryRootRelinkBindings({ ...x.identity }))
+  assert.deepEqual(catalog.privateLibraryManagementRead(x.identity, 'binding', x.subject.id), old)
+  assert.equal(catalog.privateRecoverLibraryRootRelinkBindings(x.identity), 1)
+  const after = catalog.privateLibraryManagementRead(x.identity, 'binding', x.subject.id)!
+  const { createLocalLibraryManagementRootRelinkEvents } = await import('../src/collection/local-library-workbench/owner-journal.js')
+  assert.ok(after.rootRelinkProof)
+  assert.throws(() => createLocalLibraryManagementRootRelinkEvents(after.record, after.rootRelinkProof!))
+  assert.equal(catalog.privateRecoverLibraryRootRelinkBindings(x.identity), 0)
+  assert.deepEqual(catalog.privateLibraryManagementRead(x.identity, 'binding', x.subject.id), after)
+})
+
+test('008绑定结算：artist角色、人工名称和已批准watch语义逐字段保留', async t => {
+  const f = await removalFactoryFixture463(t, { subjectRole: 'artist' }), catalog = f.repository.localCatalog, root = f.roots[1]!
+  for (const command of ['library.rename', 'library.watch.set'] as const) {
+    const before = catalog.privateLibraryManagementRead(f.identity, 'binding', root.id)!, commandId = randomUUID()
+    const original: LocalLibraryManagementOperationRecord['original'] = command === 'library.rename'
+      ? { command, request: { commandId, libraryId: root.id, name: '已确认的艺术家收藏' } }
+      : { command, request: { commandId, libraryId: root.id, enabled: true } }
+    const operation: LocalLibraryManagementOperationRecord = { schema: 1, kind: 'operation', datasetId: f.identity.datasetId, key: commandId, revision: 1, original, originalSha256: localLibraryManagementDigest(original), receipt: { commandId, kind: command, state: 'succeeded', libraryIds: [root.id], message: null } }
+    const binding: LocalLibraryManagementBindingRecord = { ...before.record, revision: before.record.revision + 1, operationId: commandId, ...(command === 'library.rename' ? { name: '已确认的艺术家收藏' } : { watchEnabled: true }) }
+    catalog.privateLibraryManagementCompareAndSwap(f.identity, [{ record: binding, expectedRevision: before.record.revision }, { record: operation, expectedRevision: null }])
+  }
+  const before = catalog.privateLibraryManagementRead(f.identity, 'binding', root.id)!
+  const source = f.repository.sources.authorize(randomUUID(), await authorizeSourceDirectory(path.join(f.directory, 'library-1')))
+  const result = catalog.relinkRoot({ commandId: randomUUID(), rootId: root.id, expectedRevision: root.revision, sourceRootId: source.id, role: 'library' })
+  const after = catalog.privateLibraryManagementRead(f.identity, 'binding', root.id)!
+  assert.deepEqual(after.record, { ...before.record, revision: before.record.revision + 1, sourceRootId: source.id, rootRevision: result.revision })
+  assert.equal(after.record.role, 'artist'); assert.equal(after.record.name, '已确认的艺术家收藏'); assert.equal(after.record.watchEnabled, true)
+  assert.equal(catalog.privateLibraryManagementOrganizations(f.identity).find(v => v.rootId === root.id)!.role, 'artist')
+})
+
+test('008绑定结算：恢复提交中读取投影再失败，原事实和缓存一并回退后仍只消费同原回执', async t => {
+  const x = await legacyRootBinding008(t), catalog = x.repository.localCatalog
+  const before = catalog.privateLibraryManagementRead(x.identity, 'binding', x.subject.id)!, root = catalog.root(x.subject.id), receipt = catalog.privateReceiptRequest(x.commandId)
+  x.failRecoveryCommit()
+  assert.throws(() => catalog.privateRecoverLibraryRootRelinkBindings(x.identity))
+  assert.deepEqual(catalog.root(x.subject.id), root)
+  assert.deepEqual(catalog.privateLibraryManagementRead(x.identity, 'binding', x.subject.id), before)
+  assert.deepEqual(catalog.privateReceiptRequest(x.commandId), receipt)
+  assert.equal(catalog.privateRecoverLibraryRootRelinkBindings(x.identity), 1)
+  assert.equal(catalog.privateLibraryManagementRead(x.identity, 'binding', x.subject.id)!.rootRelinkProof?.commandId, x.commandId)
+  assert.equal(catalog.privateLibraryManagementOrganizations(x.identity).length, 1)
 })

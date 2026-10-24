@@ -1293,7 +1293,10 @@ function composeDatasetDomain(options: DatasetDomainOptions, test?: TestDatasetD
     revalidateLocalSource: ticketId => localTickets.revalidate(ticketId),
     releaseLocalSource: ticketId => localTickets.release(ticketId),
     sealLocalSources: () => localTickets.seal(),
-    async commitBoot() { assertOpen();await options.commitBoot?.();assertOpen();scanBootReady=true;
+    async commitBoot() { assertOpen();await options.commitBoot?.();assertOpen();
+      // 仅沿完整核验过的原成功Root回执补齐绑定；开放本地scope前完成，不重放重关联或扫描。
+      if(options.collectionDatasetIdentity)collection.localCatalog.privateRecoverLibraryRootRelinkBindings(options.collectionDatasetIdentity);
+      assertOpen();scanBootReady=true;
       // 数据库提交后才可读取原Root与库存；外层Owner仍等本方法完成才开放请求。
       // 全库审计及摘要在独立只读连接准备好，不能消耗手机首个请求的期限。
       await albumRuntime.localAlbums.privateMobile.prepare?.();

@@ -1,11 +1,11 @@
 import { LOCAL_LYRICS_ROOT_OPERATION, emptyLocalLyricsRootProjection, copyLocalLyricsRootProjection, assertLocalLyricsRootComplete, captureLocalLyricsRootRecord, assertLocalLyricsRootTransition, createLocalLyricsRootEvents, localLyricsRootLedgerRow, readLocalLyricsRootEvent, projectLocalLyricsRootEvent, type LocalLyricsRootProjection, type LocalLyricsRootRecord, type LocalLyricsRootRecordKind, type LocalLyricsRootRecordMap } from './local-library-workbench/owner-journal.js';
 import { LOCAL_LIBRARY_MANAGEMENT_OPERATION, captureLocalLibraryManagementRecord, captureLocalLibraryManagementOwnerRecord, localLibraryManagementDigest,
   emptyLocalLibraryManagementProjection, copyLocalLibraryManagementProjection, assertLocalLibraryManagementComplete,
-  readLocalLibraryManagementEvent, projectLocalLibraryManagementEvent, createLocalLibraryManagementBatchEvents, localLibraryManagementLedgerRow,
+  readLocalLibraryManagementEvent, projectLocalLibraryManagementEvent, createLocalLibraryManagementBatchEvents, createLocalLibraryManagementRootRelinkEvents, localLibraryManagementLedgerRow,
   assertLocalLibraryManagementBatch, type LocalLibraryManagementProjection, type LocalLibraryManagementRecord,
   type LocalLibraryManagementRecordKind, type LocalLibraryManagementRecordMap, type LocalLibraryManagementStored,
   type LocalLibraryManagementWrite, type LocalLibraryManagementBindingRecord, type LocalLibraryManagementCaptureRecord, type LocalLibraryManagementCapturedAlbum,
-  type LocalLibraryManagementJobRecord, type LocalLibraryManagementOperationRecord } from './local-library-workbench/owner-journal.js';
+  type LocalLibraryManagementJobRecord, type LocalLibraryManagementOperationRecord, type LocalLibraryManagementRootRelinkProof } from './local-library-workbench/owner-journal.js';
 import { isLocalWorkbenchDenseArray, LocalWorkbenchPlanError } from './local-library-workbench/types.js';
 import { applyLocalWorkbenchArtworkInTransaction, verifyLocalArtworkDatabase, pruneLocalLibraryArtworkCacheInTransaction } from './local-artwork-store.js';
 import { LOCAL_LYRICS_PHYSICAL_OPERATION, captureLocalLyricsPhysicalRecord, localLyricsPhysicalOperationId,
@@ -112,7 +112,8 @@ export function continueReadonlyQueueCatalogAudit(db: DatabaseSync, previousVers
 const legacyAudits = new WeakMap<DatabaseSync, LegacyLinksProjection | 'BUDGET_EXCEEDED'>();
 const sourceWritesAudits=new WeakMap<DatabaseSync,SourceWritesProjection>();
 const relocationAudits = new WeakMap<DatabaseSync, RelocationProjection>();
-interface WorkbenchAudit {highWater:number; workbench:Map<string,LocalWorkbenchJournalProjection>; lyrics:Map<string,LocalLyricsJournalProjection>;cue:Map<string,LocalCueOwnerProjection>;scanSettings:Map<string,LocalScanSettingsOwnerProjection>;mbOnly:Map<string,LocalWorkbenchMBOnlyProjection>;lyricsPhysical:Map<string,LocalLyricsPhysicalProjection>;management:Map<string,LocalLibraryManagementProjection>;lyricsRoot:Map<string,LocalLyricsRootProjection>}
+interface RootRelinkReceipt {commandId:string;ledgerSequence:string;requestFingerprint:string;request:RelinkLibraryRoot;result:dto.LibraryRoot;beforeRoot?:dto.LibraryRoot}
+interface WorkbenchAudit {highWater:number; rootRelinks:Map<string,RootRelinkReceipt>;workbench:Map<string,LocalWorkbenchJournalProjection>; lyrics:Map<string,LocalLyricsJournalProjection>;cue:Map<string,LocalCueOwnerProjection>;scanSettings:Map<string,LocalScanSettingsOwnerProjection>;mbOnly:Map<string,LocalWorkbenchMBOnlyProjection>;lyricsPhysical:Map<string,LocalLyricsPhysicalProjection>;management:Map<string,LocalLibraryManagementProjection>;lyricsRoot:Map<string,LocalLyricsRootProjection>}
 const workbenchAudits=new WeakMap<DatabaseSync,WorkbenchAudit>();
 
 /** 只供原扫描冷核/参数证据；不签grant、不暴露数据库给服务。 */
@@ -459,7 +460,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
   let immutableObservations = 0;
   let legacy: LegacyLinksProjection | 'BUDGET_EXCEEDED' = emptyLegacyLinksProjection();
   const sourceWrites=emptySourceWritesProjection();
-  const workbench:WorkbenchAudit={highWater:0,workbench:new Map(),lyrics:new Map(),cue:new Map(),scanSettings:new Map(),mbOnly:new Map(),lyricsPhysical:new Map(),management:new Map(),lyricsRoot:new Map()};
+  const workbench:WorkbenchAudit={highWater:0,rootRelinks:new Map(),workbench:new Map(),lyrics:new Map(),cue:new Map(),scanSettings:new Map(),mbOnly:new Map(),lyricsPhysical:new Map(),management:new Map(),lyricsRoot:new Map()};
   const relocation = emptyRelocationProjection();
   const rootFactsObligations = new Map<string, { before: dto.LibraryRoot; after: dto.LibraryRoot;
     pending: Map<string, { operationId: string; resourceId: string }> }>();
@@ -545,7 +546,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
     if(row.operation===LOCAL_LIBRARY_MANAGEMENT_OPERATION){
       const event=readLocalLibraryManagementEvent(row),p=workbench.management.get(event.datasetId)??emptyLocalLibraryManagementProjection(event.datasetId);
       const stored=projectLocalLibraryManagementEvent(p,event,ledgerRowId);workbench.management.set(event.datasetId,p);
-      if(stored)verifyLibraryManagementHistory(db,stored.record,workbench,latest,privateAssets,sourceWrites,ledgerRowId,managementObservations);
+      if(stored)verifyLibraryManagementHistory(db,stored.record,workbench,latest,privateAssets,sourceWrites,ledgerRowId,managementObservations,stored.rootRelinkProof);
       continue;
     }
     if(row.operation===LOCAL_WORKBENCH_JOURNAL_OPERATION){
@@ -589,6 +590,7 @@ export function verifyLocalCatalogDatabase(db: DatabaseSync): void {
     if (['register-root', 'register-asset', 'create-track', 'create-edition', 'link-edition-track', 'observe-metadata'].includes(operation) && previous) return corrupt();
     if (['relink-root', 'move-asset', 'replace-asset', 'select-asset', 'remove-edition-track'].includes(operation) && !previous) return corrupt();
     verifyHistoryStep(db, operation, request, result, latest, privateAssets, observations, relations);
+    if(operation==='relink-root'){if(!dto.isLibraryRoot(previous))return corrupt();workbench.rootRelinks.set(id,readRootRelinkReceipt(row,previous));}
     if (operation === 'create-track' || operation === 'select-asset') {
       const selected = result as dto.LocalTrack;
       if (previous && dto.isLocalTrack(previous)) relations.tracks.get(previous.assetId)?.delete(previous.id);
@@ -883,6 +885,24 @@ function verifyLibraryManagementImportReceipt(db:DatabaseSync,value:LocalLibrary
   const original=db.prepare('SELECT fingerprint,result FROM source_ledger WHERE command_id=?').get(value.key)
   if(!original||original.fingerprint!==createHash('sha256').update(JSON.stringify(['authorize',value.key])).digest('hex')||original.result!==result.sourceRootId)return corrupt()
 }
+function readRootRelinkReceipt(row:Row,beforeRoot?:dto.LibraryRoot):RootRelinkReceipt {
+  boundedRow(row);if(row.operation!=='relink-root')return corrupt();
+  const request=parse(row.request,(v):v is Row & {commandId:string}=>validRequest('relink-root',v));
+  const result=parse(row.result,dto.isLibraryRoot),sequence=Number(row._ledger_rowid??row.ordinal);
+  if(request.commandId!==row.command_id||row.fingerprint!==fingerprint('relink-root',request)
+    ||typeof row.created_at!=='string'||!Number.isFinite(Date.parse(row.created_at))||!Number.isSafeInteger(sequence)||sequence<1)return corrupt();
+  if(beforeRoot&&(request.rootId!==beforeRoot.id||request.expectedRevision!==beforeRoot.revision))return corrupt();
+  return {commandId:String(row.command_id),ledgerSequence:String(sequence),requestFingerprint:String(row.fingerprint),request:request as unknown as RelinkLibraryRoot,result,...(beforeRoot?{beforeRoot}:{})};
+}
+/** 原SQL回执及顺序必须吻合；帧里的Root和摘要不能签发一次新的重关联。 */
+function verifyLibraryManagementRootRelinkReceipt(db:DatabaseSync,proof:LocalLibraryManagementRootRelinkProof,beforeSequence?:number):void {
+  const row=db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE command_id=?').get(proof.commandId);
+  if(!row)return corrupt();const actual=readRootRelinkReceipt(row),request=actual.request;
+  if(actual.ledgerSequence!==proof.ledgerSequence||actual.requestFingerprint!==proof.requestFingerprint
+    ||beforeSequence!==undefined&&Number(actual.ledgerSequence)>=beforeSequence||!same(actual.result,proof.afterRoot)
+    ||request.rootId!==proof.beforeRoot.id||request.expectedRevision!==proof.beforeRoot.revision
+    ||request.sourceRootId!==proof.afterRoot.sourceRootId||request.role!=='library'||proof.beforeRoot.role!=='library')return corrupt();
+}
 /** 当序真实管理绑定只决定组织边界，SourceRoot角色/资产许可仍由原ledger事实核验。 */
 function libraryManagementRolesAt(value:LocalLibraryManagementCaptureRecord,a:WorkbenchAudit):ReadonlyMap<string,dto.LocalLibraryRole> {
   const roles=new Map<string,dto.LocalLibraryRole>(),records=a.management.get(value.datasetId)?.records;
@@ -916,9 +936,12 @@ function libraryManagementOrganizedGroupKey(rootId:string,editionId:string|null,
   const directory=role==='album'?'':boundaries.get(rootId)?.get(physical);if(directory===undefined)return corrupt();
   return 'directory-'+localLibraryManagementDigest([rootId,directory,'',[]]);
 }
-function verifyLibraryManagementHistory(db:DatabaseSync,value:LocalLibraryManagementRecord,a:WorkbenchAudit,latest:ReadonlyMap<string,dto.LocalCatalogResult>,locations:ReadonlyMap<string,{relative:unknown;sha256:unknown}>,source:SourceWritesProjection,sequence:number,history:LibraryManagementObservationHistory):void {
+function verifyLibraryManagementHistory(db:DatabaseSync,value:LocalLibraryManagementRecord,a:WorkbenchAudit,latest:ReadonlyMap<string,dto.LocalCatalogResult>,locations:ReadonlyMap<string,{relative:unknown;sha256:unknown}>,source:SourceWritesProjection,sequence:number,history:LibraryManagementObservationHistory,rootRelinkProof?:LocalLibraryManagementRootRelinkProof):void {
   if(value.kind==='binding'){
     const root=latest.get(`local_catalog_roots:${value.libraryId}`);
+    if(rootRelinkProof){verifyLibraryManagementRootRelinkReceipt(db,rootRelinkProof,sequence);
+      const original=a.rootRelinks.get(value.libraryId);
+      if(!same(root,rootRelinkProof.afterRoot)||original?.commandId!==rootRelinkProof.commandId||!same(original.beforeRoot,rootRelinkProof.beforeRoot))return corrupt();}
     if(!dto.isLibraryRoot(root)||root.role!=='library'||(value.active||value.revision===1)&&(root.sourceRootId!==value.sourceRootId||root.revision!==value.rootRevision))return corrupt();return;
   }
   if(value.kind==='job'){assertLibraryManagementJobCapture(value,a.management.get(value.datasetId));assertLibraryManagementJobReceipts(value,a);return;}
@@ -1303,15 +1326,26 @@ export function createLocalCatalogStore(access: Access) {
     if (!validRequest(operation, request)) return access.conflict('本地目录请求无效。');
     return access.read(db => {
       db.exec('BEGIN IMMEDIATE');
+      let rollbackWorkbench:WorkbenchAudit|undefined;
       try {
+        const previousWorkbench=operation==='relink-root'&&workbenchIdentity?workbenchProjectionFor(db):undefined;
+        rollbackWorkbench=previousWorkbench;
+        const beforeRelinkRoot=previousWorkbench?root(db,String(request.rootId)):undefined;
         const candidate = mutate(db, certificateFor(db), operation, request, apply);
         if (candidate.changed) {
           access.beforeCommit?.(`local-catalog:${operation}`);
           if (Number(db.prepare('SELECT total_changes() n').get()?.n) !== candidate.beforeChanges + 2) return corrupt();
         }
+        if(candidate.changed&&previousWorkbench){
+          // Root事实与绑定帧共用原事务；失败时不发布未提交投影或新审计计数。
+          const prepared=copyWorkbenchAudit(previousWorkbench),row=db.prepare('SELECT rowid AS _ledger_rowid,* FROM local_catalog_ledger WHERE command_id=?').get(request.commandId)!;
+          projectWorkbenchRow(prepared,row,beforeRelinkRoot);
+          const rows=libraryRootRelinkBindingRows(db,prepared,String(request.rootId));
+          if(rows){appendWorkbenchRows(db,prepared,rows,'local-library-management:root-relink',undefined,candidate.certificate);return candidate.result;}
+        }
         access.beforeLocalFactsCommit?.();
         commitLocalFacts(db,access.onLocalFactsFatal); audits.set(db, candidate.certificate); return candidate.result;
-      } catch (error) { rollbackLocalFacts(db,error,access.onLocalFactsFatal); }
+      } catch (error) { if(rollbackWorkbench&&db.isTransaction)workbenchAudits.set(db,rollbackWorkbench);rollbackLocalFacts(db,error,access.onLocalFactsFatal); }
     });
   }
   const id = (value: string): void => { if (!dto.isCollectionId(value)) access.conflict('本地对象身份无效。'); };
@@ -1334,6 +1368,8 @@ export function createLocalCatalogStore(access: Access) {
   function applyRelinkRoot(db: DatabaseSync, request: RelinkLibraryRoot): dto.LibraryRoot {
         const old = root(db, request.rootId); if (old.revision !== request.expectedRevision) return access.conflict('本地目录关联修订已改变。');
         if(!libraryManagementRootAvailable(db,old.id))return access.conflict('原库已移除或正在移除，不能以重关联绕过目录重叠。');
+        if(workbenchIdentity){const binding=workbenchProjectionFor(db).management.get(workbenchIdentity.datasetId)?.records.get('binding:'+old.id)?.record;
+          if(binding?.kind==='binding'&&binding.active&&(binding.sourceRootId!==old.sourceRootId||binding.rootRevision!==old.revision))return access.conflict('原重关联绑定尚未结算，请沿原成功回执恢复。');}
         const source = authorized(request.sourceRootId); overlap(db, source, old.id, false, request.role===old.role);
         const result = { ...old, sourceRootId: source.id, role: request.role, revision: next(old.revision) };
         db.prepare('UPDATE local_catalog_roots SET source_root_id=?,data=? WHERE id=?').run(source.id, JSON.stringify(result), old.id); return result;
@@ -1398,11 +1434,11 @@ export function createLocalCatalogStore(access: Access) {
   }
 
   function copyWorkbenchAudit(before:WorkbenchAudit):WorkbenchAudit{
-    return {highWater:before.highWater,workbench:new Map([...before.workbench].map(([id,p])=>[id,{...p,pending:null}])),
+    return {highWater:before.highWater,rootRelinks:new Map(before.rootRelinks),workbench:new Map([...before.workbench].map(([id,p])=>[id,{...p,pending:null}])),
       lyrics:new Map([...before.lyrics].map(([id,p])=>[id,{...p,latest:new Map(p.latest),inventory:new Map(p.inventory),jobOrigins:new Map(p.jobOrigins),pending:null}])),
       cue:new Map([...before.cue].map(([id,p])=>[id,copyLocalCueOwnerProjection(p)])),scanSettings:new Map([...before.scanSettings].map(([id,p])=>[id,copyLocalScanSettingsOwnerProjection(p)])),mbOnly:new Map([...before.mbOnly].map(([id,p])=>[id,copyLocalWorkbenchMBOnlyProjection(p)])),lyricsPhysical:new Map([...before.lyricsPhysical].map(([id,p])=>[id,copyLocalLyricsPhysicalProjection(p)])),management:new Map([...before.management].map(([id,p])=>[id,copyLocalLibraryManagementProjection(p)])),lyricsRoot:new Map([...before.lyricsRoot].map(([id,p])=>[id,copyLocalLyricsRootProjection(p)]))}
   }
-  function projectWorkbenchRow(a:WorkbenchAudit,row:Row):void{
+  function projectWorkbenchRow(a:WorkbenchAudit,row:Row,beforeRelinkRoot?:dto.LibraryRoot):void{
     boundedRow(row);const ordinal=Number(row._ledger_rowid)
     if(row.operation===LOCAL_LYRICS_ROOT_OPERATION){const e=readLocalLyricsRootEvent(row),p=a.lyricsRoot.get(e.datasetId)??emptyLocalLyricsRootProjection(e.datasetId);projectLocalLyricsRootEvent(p,e,ordinal);a.lyricsRoot.set(e.datasetId,p)}
     else if(row.operation===LOCAL_LIBRARY_MANAGEMENT_OPERATION){const e=readLocalLibraryManagementEvent(row),p=a.management.get(e.datasetId)??emptyLocalLibraryManagementProjection(e.datasetId);projectLocalLibraryManagementEvent(p,e,ordinal);a.management.set(e.datasetId,p)}
@@ -1412,7 +1448,9 @@ export function createLocalCatalogStore(access: Access) {
     else if(row.operation===LOCAL_CUE_OUTPUT_OPERATION){const e=readLocalCueOwnerEvent(row),p=a.cue.get(e.datasetId)??emptyLocalCueOwnerProjection(e.datasetId);projectLocalCueOwnerEvent(p,e,ordinal);a.cue.set(e.datasetId,p)}
     else if(row.operation===LOCAL_SCAN_SETTINGS_OPERATION){const e=readLocalScanSettingsOwnerEvent(row),p=a.scanSettings.get(e.datasetId)??emptyLocalScanSettingsOwnerProjection(e.datasetId);projectLocalScanSettingsOwnerEvent(p,e,ordinal);a.scanSettings.set(e.datasetId,p)}
     else if(row.operation===LOCAL_WORKBENCH_MB_ONLY_OPERATION){const e=readLocalWorkbenchMBOnlyEvent(row),p=a.mbOnly.get(e.datasetId)??emptyLocalWorkbenchMBOnlyProjection(e.datasetId);projectLocalWorkbenchMBOnlyEvent(p,e,ordinal);a.mbOnly.set(e.datasetId,p)}
-    else if(['relink-root','move-asset','replace-asset','select-asset'].includes(String(row.operation))){for(const p of a.lyrics.values()){p.inventory.clear();p.highWater=ordinal}}
+    else if(['relink-root','move-asset','replace-asset','select-asset'].includes(String(row.operation))){
+      if(row.operation==='relink-root'){const receipt=readRootRelinkReceipt(row,beforeRelinkRoot);a.rootRelinks.set(receipt.request.rootId,receipt)}
+      for(const p of a.lyrics.values()){p.inventory.clear();p.highWater=ordinal}}
     else return corrupt()
   }
   function workbenchProjectionFor(db:DatabaseSync):WorkbenchAudit{
@@ -1432,8 +1470,8 @@ export function createLocalCatalogStore(access: Access) {
     for(const p of candidate.lyricsRoot.values())assertLocalLyricsRootComplete(p)
     candidate.highWater=highWater;workbenchAudits.set(db,candidate);return candidate
   }
-  function appendWorkbenchRows(db:DatabaseSync,previous:WorkbenchAudit,rows:readonly Record<string,string>[],action:string,captureWrite?:LocalAlbumCaptureWrite):void{
-    const certificate=certificateFor(db),candidate=copyWorkbenchAudit(previous),before=Number(db.prepare('SELECT total_changes() n').get()!.n)
+  function appendWorkbenchRows(db:DatabaseSync,previous:WorkbenchAudit,rows:readonly Record<string,string>[],action:string,captureWrite?:LocalAlbumCaptureWrite,rootRelinkCertificate?:AuditCertificate):void{
+    const originalCertificate=certificateFor(db),certificate=rootRelinkCertificate??originalCertificate,candidate=copyWorkbenchAudit(previous),before=Number(db.prepare('SELECT total_changes() n').get()!.n)
     const counts=new Map(certificate.rows);let bytes=certificate.bytes
     for(const row of rows){
       if(Object.values(row).reduce((n,s)=>n+Buffer.byteLength(s),0)>maxRowTextBytes||db.prepare('SELECT 1 FROM local_catalog_ledger WHERE command_id=?').get(row.command_id!))throw new LocalLyricsError('CONFLICT')
@@ -1524,6 +1562,9 @@ export function createLocalCatalogStore(access: Access) {
   function libraryManagementRootAvailable(db:DatabaseSync,libraryId:string):boolean {
     if(!workbenchIdentity)return true;
     assertWorkbenchIdentity(workbenchIdentity);const projection=workbenchProjectionFor(db).management.get(workbenchIdentity.datasetId);
+    return libraryManagementRootAvailableInProjection(projection,libraryId);
+  }
+  function libraryManagementRootAvailableInProjection(projection:LocalLibraryManagementProjection|undefined,libraryId:string):boolean {
     const binding=projection?.records.get('binding:'+libraryId)?.record;
     if(binding?.kind==='binding'&&!binding.active)return false;
     // running/UNKNOWN的原remove也封住新CREATE；关闭失败不允许从空内存Map复活。
@@ -1531,6 +1572,36 @@ export function createLocalCatalogStore(access: Access) {
       if(record.kind==='operation'&&record.original.command==='library.remove'
         &&!['failed','cancelled'].includes(record.receipt.state)&&record.original.request.libraryIds.includes(libraryId))return false;}
     return true;
+  }
+  /** 旧绑定只消费同根、下一修订且仍是当前Root的原成功事实，不补造一次新操作。 */
+  function libraryRootRelinkBindingRows(db:DatabaseSync,a:WorkbenchAudit,libraryId:string):readonly Record<string,string>[]|null {
+    if(!workbenchIdentity)return null;
+    assertWorkbenchIdentity(workbenchIdentity);const projection=a.management.get(workbenchIdentity.datasetId),stored=projection?.records.get('binding:'+libraryId);
+    if(stored?.record.kind!=='binding'||!stored.record.active||!libraryManagementRootAvailableInProjection(projection,libraryId))return null;
+    const binding=stored.record,actual=root(db,libraryId),receipt=a.rootRelinks.get(libraryId);
+    if(actual.role!=='library'||binding.sourceRootId===actual.sourceRootId&&binding.rootRevision===actual.revision)return null;
+    if(!receipt||receipt.request.rootId!==libraryId||receipt.request.expectedRevision!==binding.rootRevision
+      ||receipt.request.role!=='library'||!same(receipt.result,actual)||actual.revision!==next(binding.rootRevision))return null;
+    const proof:LocalLibraryManagementRootRelinkProof={commandId:receipt.commandId,ledgerSequence:receipt.ledgerSequence,requestFingerprint:receipt.requestFingerprint,
+      previousBindingSha256:stored.recordSha256,beforeRoot:{id:libraryId,sourceRootId:binding.sourceRootId,role:'library',revision:binding.rootRevision},afterRoot:actual};
+    if(!same(receipt.beforeRoot,proof.beforeRoot))return null;
+    verifyLibraryManagementRootRelinkReceipt(db,proof);authorized(actual.sourceRootId);
+    return createLocalLibraryManagementRootRelinkEvents(binding,proof).map(localLibraryManagementLedgerRow);
+  }
+  function recoverLibraryRootRelinkBindings(identity:DatasetIdentity):number {
+    assertWorkbenchIdentity(identity);
+    const libraries=access.read(db=>[...(workbenchProjectionFor(db).management.get(identity.datasetId)?.records.values()??[])]
+      .filter(stored=>stored.record.kind==='binding'&&stored.record.active).map(stored=>stored.record.key));
+    let recovered=0;
+    for(const libraryId of libraries){assertWorkbenchIdentity(identity);recovered+=access.read(db=>{
+      db.exec('BEGIN IMMEDIATE');let rollbackWorkbench:WorkbenchAudit|undefined;try{
+        const projection=workbenchProjectionFor(db),rows=libraryRootRelinkBindingRows(db,projection,libraryId);
+        rollbackWorkbench=projection;
+        if(!rows){db.exec('ROLLBACK');return 0;}
+        appendWorkbenchRows(db,projection,rows,'local-library-management:root-relink-recovery');return 1;
+      }catch(error){if(rollbackWorkbench&&db.isTransaction)workbenchAudits.set(db,rollbackWorkbench);rollbackLocalFacts(db,error,access.onLocalFactsFatal);}
+    });}
+    assertWorkbenchIdentity(identity);return recovered;
   }
   /** 登记及合格活动根重关联只忽略完整移除的历史对手；不复活旧根或放宽源搬迁。 */
   function libraryManagementRootRetiredForRegistration(db:DatabaseSync,actual:dto.LibraryRoot):boolean {
@@ -1901,6 +1972,7 @@ export function createLocalCatalogStore(access: Access) {
     privateWorkbenchMBOnlyReadOverrideAuthor(identity:DatasetIdentity,fact:LocalWorkbenchMetadataProvenanceFact):LocalWorkbenchNameSource{const s=access.read(db=>mbNameSources(db,identity,fact));assertWorkbenchIdentity(identity);return Object.values(s).includes('manual')?'manual':Object.values(s).includes('unknown')?'unknown':Object.values(s).includes('workbench-ai')?'workbench-ai':'unknown'},
     privateWorkbenchMBOnlyAuthorRevision(identity:DatasetIdentity){assertWorkbenchIdentity(identity);const result=access.read(db=>organizedMBOnlyAuthorRevision(libraryManagementOrganizationStateForDatabase(db,identity)));assertWorkbenchIdentity(identity);return result},
     privateLibraryManagementRead:libraryManagementRead,
+    privateRecoverLibraryRootRelinkBindings:recoverLibraryRootRelinkBindings,
     privateLibraryManagementReadCaptureHeader:libraryManagementReadCaptureHeader,
     privateLibraryManagementReadFrozenAlbum:libraryManagementReadFrozenAlbum,
     privateLibraryManagementRootAvailable(libraryId:string):boolean{id(libraryId);return access.read(db=>libraryManagementRootAvailable(db,libraryId));},

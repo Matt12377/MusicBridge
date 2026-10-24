@@ -791,6 +791,12 @@ export type LocalLibraryManagementRecordKind = keyof LocalLibraryManagementRecor
 export type LocalLibraryManagementRecord = LocalLibraryManagementRecordMap[LocalLibraryManagementRecordKind]
 export interface LocalLibraryManagementStored<T extends LocalLibraryManagementRecord = LocalLibraryManagementRecord> {
   record: Readonly<T>; ledgerSequence: string; recordSha256: string
+  rootRelinkProof?: LocalLibraryManagementRootRelinkProof
+}
+/** 只引用已成功的原Root账本；不是新导入、来源许可或公开管理命令。 */
+export interface LocalLibraryManagementRootRelinkProof {
+  commandId: string; ledgerSequence: string; requestFingerprint: string; previousBindingSha256: string
+  beforeRoot: dto.LibraryRoot; afterRoot: dto.LibraryRoot
 }
 export interface LocalLibraryManagementWrite { record: LocalLibraryManagementRecord; expectedRevision: number | null }
 export interface LocalLibraryManagementOwnerPort {
@@ -1082,14 +1088,14 @@ export function assertLocalLibraryManagementTransition(previous: LocalLibraryMan
 }
 interface LibraryManagementEventCommon {
   datasetId:string; eventId:string; transactionId:string; batchId:string; batchIndex:number; batchCount:number; recordKind:LocalLibraryManagementRecordKind; key:string
-  expectedRevision:number|null; revision:number; encoding:'full-v1'|'job-state-v1'|'operation-state-v1'
+  expectedRevision:number|null; revision:number; encoding:'full-v1'|'job-state-v1'|'operation-state-v1'|'binding-relink-v1'
   recordSha256:string; frameSha256:string; bytes:number; chunks:number
 }
 export type LocalLibraryManagementEvent=LibraryManagementEventCommon & ({kind:'chunk';index:number;payload:string}|{kind:'commit'})
 export interface LocalLibraryManagementProjection {
   datasetId:string; highWater:number; records:Map<string,LocalLibraryManagementStored>
   pending:null|{header:Omit<LibraryManagementEventCommon,'eventId'>;parts:Buffer[];bytes:number}
-  batch:null|{id:string;count:number;records:LocalLibraryManagementStored[]}
+  batch:null|{id:string;count:number;records:LocalLibraryManagementStored[];relinks?:LocalLibraryManagementRootRelinkProof[]}
 }
 export function emptyLocalLibraryManagementProjection(datasetId:string):LocalLibraryManagementProjection {
   if (!dto.isCommandOutboxDatasetId(datasetId)) return invalid()
@@ -1102,7 +1108,7 @@ export function copyLocalLibraryManagementProjection(value:LocalLibraryManagemen
 export function isLocalLibraryManagementEvent(value:unknown):value is LocalLibraryManagementEvent {
   if (!isLocalWorkbenchDataRecord(value,['datasetId','eventId','transactionId','batchId','batchIndex','batchCount','recordKind','key','expectedRevision','revision','encoding','recordSha256','frameSha256','bytes','chunks','kind'],['index','payload'])
     || ![value.datasetId,value.eventId,value.transactionId,value.batchId].every(dto.isCollectionId) || !integer(value.batchCount,1,101) || !integer(value.batchIndex,0,Number(value.batchCount)-1) || !dto.isLocalWorkbenchIdentity(value.key)
-    || !['binding','operation','capture','job'].includes(String(value.recordKind)) || !['full-v1','job-state-v1','operation-state-v1'].includes(String(value.encoding))
+    || !['binding','operation','capture','job'].includes(String(value.recordKind)) || !['full-v1','job-state-v1','operation-state-v1','binding-relink-v1'].includes(String(value.encoding))
     || !integer(value.revision,1,Number.MAX_SAFE_INTEGER) || value.expectedRevision!==null&&!integer(value.expectedRevision,1,Number.MAX_SAFE_INTEGER-1)
     || value.revision!==(value.expectedRevision===null?1:Number(value.expectedRevision)+1) || !hex(value.recordSha256)||!hex(value.frameSha256)
     || !integer(value.bytes,1,LOCAL_LIBRARY_MANAGEMENT_BYTES) || value.chunks!==Math.ceil(Number(value.bytes)/LOCAL_LIBRARY_MANAGEMENT_CHUNK_BYTES)) return false
@@ -1121,6 +1127,10 @@ export function createLocalLibraryManagementEvents(input:LocalLibraryManagementR
   }else if(previous?.kind==='operation'&&current.kind==='operation'){
     encoding='operation-state-v1';frame={schema:1,kind:'operation-state',datasetId:current.datasetId,key:current.key,revision:current.revision,originalSha256:current.originalSha256,receipt:current.receipt}
   }
+  return libraryManagementFrameEvents(current,previous,encoding,frame)
+}
+function libraryManagementFrameEvents(current:LocalLibraryManagementRecord,previous:LocalLibraryManagementRecord|null,
+  encoding:LibraryManagementEventCommon['encoding'],frame:unknown):readonly LocalLibraryManagementEvent[]{
   // 仅同对象Owner品牌的full-v1复用防御克隆已实算的原规范串；其余正文仍逐次计算。
   const ownedCanonical=encoding==='full-v1'&&libraryOwnerRecords.has(current)?libraryOwnerCanonicals.get(current):undefined
   const raw=Buffer.from(ownedCanonical??localWorkbenchJournalCanonical(frame)),frameSha256=hash(raw)
@@ -1133,6 +1143,24 @@ export function createLocalLibraryManagementEvents(input:LocalLibraryManagementR
   events.push({...header,eventId:randomUUID(),kind:'commit'})
   if(!events.every(isLocalLibraryManagementEvent))return invalid()
   return events
+}
+function bindingAfterRootRelink(previous:LocalLibraryManagementBindingRecord,proof:unknown,revision:number):LocalLibraryManagementBindingRecord {
+  if(!isLocalWorkbenchDataRecord(proof,['commandId','ledgerSequence','requestFingerprint','previousBindingSha256','beforeRoot','afterRoot'])
+    ||!dto.isCollectionId(proof.commandId)||typeof proof.ledgerSequence!=='string'||!/^[1-9]\d*$/u.test(proof.ledgerSequence)
+    ||!Number.isSafeInteger(Number(proof.ledgerSequence))||Number(proof.ledgerSequence)<1||!hex(proof.requestFingerprint)
+    ||proof.previousBindingSha256!==localLibraryManagementDigest(previous)||!dto.isLibraryRoot(proof.beforeRoot)||!dto.isLibraryRoot(proof.afterRoot))return invalid()
+  const before=proof.beforeRoot,after=proof.afterRoot
+  if(!previous.active||before.id!==previous.libraryId||before.role!=='library'||before.sourceRootId!==previous.sourceRootId||before.revision!==previous.rootRevision
+    ||!librarySame(after,{...before,sourceRootId:after.sourceRootId,revision:String(BigInt(before.revision)+1n)})||revision!==previous.revision+1)return invalid()
+  const request={commandId:proof.commandId,rootId:before.id,expectedRevision:before.revision,sourceRootId:after.sourceRootId,role:after.role}
+  if(proof.requestFingerprint!==localLibraryManagementDigest(['relink-root',request]))return invalid()
+  return captureLocalLibraryManagementRecord({...previous,revision,sourceRootId:after.sourceRootId,rootRevision:after.revision}) as LocalLibraryManagementBindingRecord
+}
+export function createLocalLibraryManagementRootRelinkEvents(previous:LocalLibraryManagementBindingRecord,input:LocalLibraryManagementRootRelinkProof):readonly LocalLibraryManagementEvent[]{
+  const captured=captureLocalLibraryManagementRecord(previous);if(captured.kind!=='binding')return invalid()
+  const proof=libraryInputWithCanonical(input).value as LocalLibraryManagementRootRelinkProof
+  const current=bindingAfterRootRelink(captured,proof,captured.revision+1)
+  return libraryManagementFrameEvents(current,captured,'binding-relink-v1',{schema:1,kind:'binding-relink',datasetId:current.datasetId,key:current.key,revision:current.revision,proof})
 }
 function libraryEventHeader(event:LocalLibraryManagementEvent):Omit<LibraryManagementEventCommon,'eventId'> {
   return {datasetId:event.datasetId,transactionId:event.transactionId,batchId:event.batchId,batchIndex:event.batchIndex,batchCount:event.batchCount,recordKind:event.recordKind,key:event.key,expectedRevision:event.expectedRevision,
@@ -1157,8 +1185,14 @@ export function projectLocalLibraryManagementEvent(value:LocalLibraryManagementP
   try{capturedFrame=libraryInputWithCanonical(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(raw)))}catch{return invalid()}
   const frame=capturedFrame.value
   if(capturedFrame.canonical!==raw.toString('utf8'))return invalid()
-  let current:LocalLibraryManagementRecord
-  if(event.encoding==='full-v1') {
+  let current:LocalLibraryManagementRecord,rootRelinkProof:LocalLibraryManagementRootRelinkProof|undefined
+  if(event.encoding==='binding-relink-v1'){
+    if(previous?.record.kind!=='binding'||event.batchCount!==1||!isLocalWorkbenchDataRecord(frame,['schema','kind','datasetId','key','revision','proof'])
+      ||frame.schema!==1||frame.kind!=='binding-relink'||frame.datasetId!==previous.record.datasetId||frame.key!==previous.record.key)return invalid()
+    current=bindingAfterRootRelink(previous.record,frame.proof,Number(frame.revision))
+    rootRelinkProof=frame.proof as LocalLibraryManagementRootRelinkProof
+    if(Number(rootRelinkProof.ledgerSequence)>=sequence-event.chunks)return invalid()
+  }else if(event.encoding==='full-v1') {
     if(previous&&['job','operation','capture'].includes(event.recordKind))return invalid()
     // 本次私有frame已完成同一有界克隆与规范字节对账；完整record校验仍逐次执行。
     if(!libraryRecord(frame))return invalid()
@@ -1178,10 +1212,11 @@ export function projectLocalLibraryManagementEvent(value:LocalLibraryManagementP
   if(current.datasetId!==event.datasetId||current.kind!==event.recordKind||current.key!==event.key||current.revision!==event.revision
     ||actualRecordSha256!==event.recordSha256||isLocalWorkbenchDataRecord(frame,[],['schema','kind','datasetId','key','revision','originalSha256','state','action','changes','receipt'])&&(frame.datasetId!==current.datasetId||frame.key!==current.key))return invalid()
   assertLocalLibraryManagementTransition(previous?.record??null,current)
-  const stored={record:current,ledgerSequence:String(sequence),recordSha256:event.recordSha256}
+  const stored={record:current,ledgerSequence:String(sequence),recordSha256:event.recordSha256,...(rootRelinkProof?{rootRelinkProof}:{})}
   if(!value.batch||value.batch.id!==event.batchId||value.batch.records.some(r=>r.record.kind===current.kind&&r.record.key===current.key))return invalid()
   value.batch.records.push(stored);value.pending=null;value.highWater=sequence
-  if(value.batch.records.length===value.batch.count){assertLocalLibraryManagementBatch(value.records,value.batch.records.map(r=>r.record));for(const r of value.batch.records)value.records.set(librarySlot(r.record.kind,r.record.key),r);value.batch=null}
+  if(rootRelinkProof)(value.batch.relinks??=[]).push(rootRelinkProof)
+  if(value.batch.records.length===value.batch.count){assertLocalLibraryManagementBatch(value.records,value.batch.records.map(r=>r.record),value.batch.relinks);for(const r of value.batch.records)value.records.set(librarySlot(r.record.kind,r.record.key),r);value.batch=null}
   return stored
 }
 export function localLibraryManagementLedgerRow(event:LocalLibraryManagementEvent):Record<string,string> {
@@ -1200,10 +1235,19 @@ export function readLocalLibraryManagementEvent(row:Record<string,unknown>):Loca
   return event
 }
 
-/** 每个binding revision必须与本批同原命令的成功回执一起结算；冷尾不能遗失半个管理操作。 */
-export function assertLocalLibraryManagementBatch(previous:ReadonlyMap<string,LocalLibraryManagementStored>, records:readonly LocalLibraryManagementRecord[]):void {
+/** 普通binding与同批成功管理回执结算；重关联只消费专用帧核对的原成功Root回执。 */
+export function assertLocalLibraryManagementBatch(previous:ReadonlyMap<string,LocalLibraryManagementStored>, records:readonly LocalLibraryManagementRecord[],relinks:readonly LocalLibraryManagementRootRelinkProof[]=[]):void {
   const bindings=records.filter((r):r is LocalLibraryManagementBindingRecord=>r.kind==='binding')
   const operations=records.filter((r):r is LocalLibraryManagementOperationRecord=>r.kind==='operation')
+  if(relinks.length){
+    if(relinks.length!==1||records.length!==1||bindings.length!==1)return invalid()
+    const binding=bindings[0]!,old=previous.get(librarySlot('binding',binding.key))?.record
+    if(old?.kind!=='binding'||!librarySame(binding,bindingAfterRootRelink(old,relinks[0],binding.revision)))return invalid()
+    for(const stored of previous.values()){const record=stored.record
+      if(record.kind==='operation'&&record.original.command==='library.remove'&&!['failed','cancelled'].includes(record.receipt.state)
+        &&record.original.request.libraryIds.includes(binding.libraryId))return invalid()}
+    return
+  }
   for(const operation of operations){
     const command=operation.original.command, request=operation.original.request
     const paired=bindings.filter(b=>b.operationId===operation.key)

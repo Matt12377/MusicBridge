@@ -93,14 +93,27 @@ test('组织投影：同根换管理角色和binding修订不复用旧scope，�
   assert.deepEqual(f.catalog.privateLibraryManagementOrganizations(f.identity), [])
 })
 
-test('组织投影：原catalog根换角色或修订以及Source撤销仍拒绝旧绑定', async t => {
+test('组织投影：合法重关联结算绑定，原catalog根换角色或Source撤销仍拒绝旧绑定', async t => {
   for (const mutation of ['role', 'revision', 'revoke'] as const) {
     const f = await fixture(t), { root, source } = f.entries[0]!
-    assert.equal(f.catalog.privateLibraryManagementOrganizations(f.identity).length, 1)
+    const before = f.catalog.privateLibraryManagementOrganizations(f.identity)[0]!
+    const oldBinding = f.catalog.privateLibraryManagementRead(f.identity, 'binding', root.id)!, originalBinding = structuredClone(oldBinding)
+    const commandId = randomUUID()
     if (mutation === 'revoke') f.repository.sources.revoke({ commandId: randomUUID(), id: source.id })
-    else f.catalog.relinkRoot({ commandId: randomUUID(), rootId: root.id, expectedRevision: root.revision,
+    else f.catalog.relinkRoot({ commandId, rootId: root.id, expectedRevision: root.revision,
       sourceRootId: source.id, role: mutation === 'role' ? 'recording-reference' : 'library' })
-    assert.throws(() => f.catalog.privateLibraryManagementOrganizations(f.identity), unavailable)
+    if (mutation === 'revision') {
+      const after = f.catalog.privateLibraryManagementOrganizations(f.identity), binding = f.catalog.privateLibraryManagementRead(f.identity, 'binding', root.id)!
+      assert.deepEqual(after, originalOrganizations(f))
+      assert.equal(after.length, 1); assert.equal(after[0]!.rootId, root.id); assert.equal(after[0]!.sourceRootId, source.id)
+      assert.equal(after[0]!.rootRevision, '2'); assert.equal(after[0]!.bindingRevision, before.bindingRevision + 1)
+      assert.notEqual(after[0]!.recordSha256, before.recordSha256)
+      assert.deepEqual(binding.record, { ...originalBinding.record, revision: originalBinding.record.revision + 1, rootRevision: '2' })
+      assert.equal(binding.rootRelinkProof?.commandId, commandId)
+      assert.deepEqual(binding.rootRelinkProof?.beforeRoot, root)
+      assert.deepEqual(binding.rootRelinkProof?.afterRoot, f.catalog.root(root.id))
+    } else assert.throws(() => f.catalog.privateLibraryManagementOrganizations(f.identity), unavailable, mutation)
+    assert.deepEqual(oldBinding, originalBinding, '读取方持有的原绑定快照不能被重关联突变。')
   }
 })
 
