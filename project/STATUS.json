@@ -3,14 +3,10 @@
     "branch": "codex/mousa-4-1-artists-search",
     "baseCommit": "f459c46525855e87e1d8ee68388e8ea21ab04653",
     "iosBaseCommit": "4e9d8fb8f0ba734b010ac9c7a9d2f91bc15a628e",
-    "state": "nearby-pairing-software-validated-delivery-in-progress",
+    "state": "reports-ready-pending-git-verification",
     "taskTable": "project/MOUSA_4_1_TODO.md",
-    "activeItem": "014",
-    "device": {
-      "name": "SE",
-      "previousAirRetained": true,
-      "doNotOperate14P": true
-    },
+    "activeItem": "015",
+    "device": "SE真机与Duo 27.1模拟器；Air、14P与物理Duo未操作",
     "items": [
       {
         "id": "001",
@@ -18,63 +14,75 @@
       },
       {
         "id": "002",
-        "state": "implemented-runtime-pending"
+        "state": "validated-with-explicit-carryovers"
       },
       {
         "id": "003",
-        "state": "implemented-runtime-pending"
+        "state": "validated-with-explicit-carryovers"
       },
       {
         "id": "004",
-        "state": "implemented-device-pending"
+        "state": "validated-with-explicit-carryovers"
       },
       {
         "id": "005",
-        "state": "software-verified-device-pending"
+        "state": "validated-with-explicit-carryovers"
       },
       {
         "id": "006",
-        "state": "engineering-and-mac-browse-passed-se-pending"
+        "state": "validated-with-explicit-carryovers"
       },
       {
         "id": "007",
-        "state": "regression-passed-runtime-pending"
+        "state": "validated-with-explicit-carryovers"
       },
       {
         "id": "008",
-        "state": "recovery-64-targeted-and-r10-passed-installed-live-scan-pending"
+        "state": "complete"
       },
       {
         "id": "009",
-        "state": "mac132038-same-identity-installed-se114-installed"
+        "state": "complete"
       },
       {
         "id": "010",
-        "state": "r10-full-engineering-passed-mac132038-live-validation-pending"
+        "state": "validated-with-explicit-carryovers"
       },
       {
         "id": "011",
-        "state": "se114-system-authorization-passed-not-connected-pairing-in-progress"
+        "state": "validated-with-explicit-carryovers"
       },
       {
         "id": "012",
-        "state": "partially-measured"
+        "state": "validated-with-explicit-carryovers"
+      },
+      {
+        "id": "013",
+        "state": "complete"
+      },
+      {
+        "id": "014",
+        "state": "complete"
+      },
+      {
+        "id": "015",
+        "state": "git-verification-pending"
       }
     ],
     "ownerAccepted": false,
-    "implementationCommit": null,
+    "implementationCommit": "30df4b0f009a2cb81f9e4ef1013aadcaba61dd51",
     "reportCommit": null,
     "engineeringValidation": {
       "desktopTargetedPassed": 63,
       "coreTargetedPassed": 47,
       "preparationContractPassed": 2,
       "iosTargetedPassed": 29,
-      "macBuild": "passed-in-full-r10",
+      "macBuild": "passed-r18",
       "desktopTypecheck": "passed",
-      "iosProductionBuild": 112,
+      "iosProductionBuild": 118,
       "controlPlane": "passed",
-      "fullVerify": "passed-r8-natural-exit0-all-stages",
-      "runtime": "mac-phonetic-ranking-observed-air-paired-local-search-partial-busy",
+      "fullVerify": "passed-r18-natural-exit0-all-stages",
+      "runtime": "final-layered-real-observations-with-explicit-failures",
       "neteaseSourceTargetedPassed": 44,
       "streamingFollowup": "targeted-and-real-copy-concurrency-build-signing-passed-runtime-running",
       "iosProgressivePublicationPassed": 88,
@@ -120,22 +128,22 @@
         "includedInDesktop202": true
       },
       "latestFullVerify": {
-        "round": "r8",
+        "round": "r18",
+        "implementationCommit": "30df4b0f009a2cb81f9e4ef1013aadcaba61dd51",
         "rootTypecheckPassed": true,
-        "contractsPassed": 362,
-        "coreMainTests": 3654,
-        "coreMainPassed": 3652,
+        "contractsPassed": 366,
+        "coreMainTests": 3730,
+        "coreMainPassed": 3728,
         "coreMainFailed": 0,
         "coreMainSkipped": 2,
         "coreIsolatedStopPassed": 8,
-        "coreSuiteComplete": true,
-        "coreNaturalExit": true,
-        "desktopTests": 2957,
-        "desktopPassed": 2957,
+        "desktopTests": 3002,
+        "desktopPassed": 3002,
         "desktopFailed": 0,
         "desktopCancelled": 0,
         "desktopSkipped": 0,
-        "desktopSuiteComplete": true,
+        "totalPassed": 7104,
+        "totalSkipped": 2,
         "productionBuildPassed": true,
         "sandboxPreloadCheckPassed": true,
         "complete": true,
@@ -143,9 +151,8 @@
         "exitCode": 0,
         "signal": null,
         "timedOut": false,
-        "durationMs": 300298.699416,
-        "log": "mac-source-prepare-verify-r8.log",
-        "receipt": "mac-source-prepare-verify-r8.json"
+        "durationMs": 351698.780167,
+        "receipt": "mac-source-prepare-verify-r18.json"
       },
       "followupMacPackaging": "passed-38-compiled-files-byte-matched",
       "followupMacSigning": "passed-original-identity-23-targets-deep-strict",
@@ -617,7 +624,36 @@
         "skipped": 0,
         "redNewFailures": 4,
         "extraLegacyDiagnosticPassed": false
-      }
+      },
+      "previousFullVerifyR8": {
+        "round": "r8",
+        "rootTypecheckPassed": true,
+        "contractsPassed": 362,
+        "coreMainTests": 3654,
+        "coreMainPassed": 3652,
+        "coreMainFailed": 0,
+        "coreMainSkipped": 2,
+        "coreIsolatedStopPassed": 8,
+        "coreSuiteComplete": true,
+        "coreNaturalExit": true,
+        "desktopTests": 2957,
+        "desktopPassed": 2957,
+        "desktopFailed": 0,
+        "desktopCancelled": 0,
+        "desktopSkipped": 0,
+        "desktopSuiteComplete": true,
+        "productionBuildPassed": true,
+        "sandboxPreloadCheckPassed": true,
+        "complete": true,
+        "naturalExit": true,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "durationMs": 300298.699416,
+        "log": "mac-source-prepare-verify-r8.log",
+        "receipt": "mac-source-prepare-verify-r8.json"
+      },
+      "historicalFieldsNote": "其余较早轮次字段保留历史，不代表当前118或最终Mac的整套结论。"
     },
     "streamingFollowup": {
       "existingCatalogIndependentFromArtistIndex": true,
@@ -1148,7 +1184,7 @@
         "liveScanStarted": false
       }
     },
-    "stageReport": "reports/MOUSA_4_1_STREAMING_LIBRARY_2026-10-24.md",
+    "stageReport": "reports/MOUSA_4_1_DELIVERY_2026-10-25.md",
     "ios112FullLibraryGate": {
       "receipt": "ios-air112-bwwwq_3c/RESULT.json",
       "exitCode": 1,
@@ -1310,7 +1346,7 @@
       "sourceFilesCompared": 379,
       "sourceUnchanged": true
     },
-    "updatedAt": "2026-10-24T14:48:23.970129+00:00",
+    "updatedAt": "2026-10-24T22:22:55.602074+00:00",
     "fixedTaskNumbers": [
       "001",
       "002",
@@ -1330,24 +1366,125 @@
     ],
     "scopeDiscipline": "事项001–015固定；按风险验证；范围外大型问题只记录，不自行修复。",
     "nearbyPairing": {
-      "state": "implemented-software-validated",
+      "state": "software-and-real-se-duo-pairing-verified",
       "bonjourService": "_mousa._tcp",
       "flow": "发现电脑→iOS发起→Mac显示六位码→iOS确认",
       "originalAuthPreserved": true,
-      "physicalDeviceValidation": "pending",
+      "physicalDeviceValidation": "SE真实配对通过；Duo模拟器另用独立真实配对，原历史配对保留",
       "coreTargetedTests": 49,
       "macTargetedTests": 46,
       "iosClientFullTests": 227,
       "iosAppStateTests": 13
     },
     "duoIntegration": {
-      "state": "pending-implementation-commit-only",
+      "state": "five-ui-files-byte-identical-in-ios118",
       "sourceCommit": "d40565bca43c0be452f4ee280415246a15b5fa12",
-      "fileCount": 5
+      "fileCount": 5,
+      "integrationCommit": "d275508915e75df4f694b65b3e97bcac47beadd2",
+      "verifiedProductCommit": "8b232e9d6d1a1050dc9434049cf780834d62038a"
     },
     "gitDelivery": {
-      "state": "authorized-not-yet-pushed",
-      "forcePush": false
+      "state": "reports-ready-pending-push",
+      "forcePush": false,
+      "worktreeConventionEstablished": true,
+      "remote": "origin",
+      "branch": "codex/mousa-4-1-artists-search",
+      "defaultBranchChanged": false,
+      "originalWipPreserved": true,
+      "finalReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mousa41-artists-search-c997n3rn/GIT-DELIVERY-FINAL.json"
+    },
+    "latestValidation": {
+      "macImplementation": "30df4b0f009a2cb81f9e4ef1013aadcaba61dd51",
+      "iosImplementation": "8b232e9d6d1a1050dc9434049cf780834d62038a",
+      "macInstalledBuild": "20261024.220048",
+      "iosInstalledBuild": 118,
+      "macOrdinaryStartMs": 148685.116,
+      "macFullGate": {
+        "round": "r18",
+        "implementationCommit": "30df4b0f009a2cb81f9e4ef1013aadcaba61dd51",
+        "rootTypecheckPassed": true,
+        "contractsPassed": 366,
+        "coreMainTests": 3730,
+        "coreMainPassed": 3728,
+        "coreMainFailed": 0,
+        "coreMainSkipped": 2,
+        "coreIsolatedStopPassed": 8,
+        "desktopTests": 3002,
+        "desktopPassed": 3002,
+        "desktopFailed": 0,
+        "desktopCancelled": 0,
+        "desktopSkipped": 0,
+        "totalPassed": 7104,
+        "totalSkipped": 2,
+        "productionBuildPassed": true,
+        "sandboxPreloadCheckPassed": true,
+        "complete": true,
+        "naturalExit": true,
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "durationMs": 351698.780167,
+        "receipt": "mac-source-prepare-verify-r18.json"
+      },
+      "iosLatestTargeted": {
+        "passed": 41,
+        "failed": 0,
+        "skipped": 0,
+        "naturalExit": true,
+        "exitCode": 0,
+        "receipt": "ios-artist-card-profile-z9dxgdg7/RESULT.json"
+      },
+      "relinkScan": {
+        "state": "completed",
+        "processed": 82823,
+        "admitted": 76546,
+        "skipped": 6277,
+        "pauseResumeVerifiedAtProcessed": 9216
+      },
+      "bindingSettlement": "原成功relink按原回执正规结算已回读；未重放扫描，五个已移除根保持原样",
+      "macActual": "最终220048 Roon专辑/艺术家逐级返回、查询/来源/类别及可视锚点保留，旧详情不覆盖新查询",
+      "se118": "原配对、真实资料/来源/头像、播放中曲库/排序/网格均有实证；最终Mac重启后首次本地资源BUSY，普通重启iOS后0:00至2:56后暂停",
+      "duo118": "真实本地关联头像和来源限定、更正候选只读；最终Mac下在线艺术家详情完成、歌曲分类服务忙，SE同时继续本地播放",
+      "allButtonsAcceptance": false,
+      "p95Acceptance": false,
+      "audibleListeningAcceptance": false,
+      "ownerAcceptance": false,
+      "coldStartupAndIndexOptimizationChanged": false
+    },
+    "previousValidationBeforeFinalCloseout": {
+      "macImplementation": "269c20ee661c54358fa9728664acd717ee931fc1",
+      "iosImplementation": "431f00b33221de61c89e92176ddc30568515f3eb",
+      "macInstalledBuild": "20261024.194257",
+      "macOrdinaryStartMs": 107128.00879200001,
+      "macFullGate": "r15: 7077 pass / 2 skip; types/build exit0",
+      "relinkScan": {
+        "state": "completed",
+        "processed": 82823,
+        "admitted": 76546,
+        "skipped": 6277,
+        "pauseResumeVerifiedAtProcessed": 9216
+      },
+      "bindingSettlement": "旧成功relink的主库绑定结算缺口已由实际读取复现，修复进行中",
+      "se117": "原配对普通恢复、首字母/在线艺术家/发现、真实连续播放/暂停/seek/音量/歌词与自然续播均有实证",
+      "duo117": "中文真实搜索、手动50→51跨页、原配对恢复、另一歌曲自然续播均有实证",
+      "p95Acceptance": false,
+      "allButtonsAcceptance": false,
+      "audibleListeningAcceptance": false,
+      "ownerAcceptance": false,
+      "coldStartupAndIndexOptimizationChanged": false
+    },
+    "finalEvidenceRoot": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mousa41-artists-search-c997n3rn",
+    "performanceAnalysis": {
+      "actualOrdinaryStartupMs": 148685.116,
+      "knownNonoverlappingMs": 109839.961791,
+      "unsegmentedMs": 38845.154209,
+      "separateFirstArtistIndexOnRealCopyMs": 194541,
+      "exactStartupArtistIndexMs": null,
+      "actualLocalQueryP95Ms": null,
+      "actualLANFirstScreenP95Ms": null,
+      "p95Acceptance": "unverified",
+      "optimizationChanged": false,
+      "receipt": "mac-observed-runtime-W7qt7F/FINAL-COLD-START-AGGREGATE.json"
     }
   },
   "v4LocalLibraryRepair": {

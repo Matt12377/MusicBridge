@@ -43,3 +43,6 @@ apps/desktop/native/cue-ffmpeg/
 apps/desktop/native/local-audio-tags/
 apps/desktop/native/library-watch/
 apps/desktop/native/media-worker/
+
+# 独立 Git 工作树在主工作区下登记，不作为普通源码提交。
+/worktree/

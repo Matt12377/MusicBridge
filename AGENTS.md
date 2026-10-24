@@ -125,3 +125,7 @@ Electron 启动、utilityProcess crash/restart 和 safeStorage 测试使用 `app
 ## 报告与停止
 
 报告必须给出 base SHA、实现/报告提交、验证退出码、carryover 和下一分支基线。遇到凭据、真实账号、Owner 人工操作或安全/播放/登录恢复 fatal Gate 时停止并报告；非 fatal 的视觉或可选能力问题记录为 bounded carryover，不跳过验收标准。
+
+## 工作树目录（2026-10-24）
+
+Owner 要求后续新工作树统一使用 `git worktree add`，建在主工作区的 `worktree/` 下。先核对已登记的工作树和确认的基线，保留现有检出、分支与未提交改动；不移动或删除旧工作树。操作示例见 `project/WORKTREE_WORKFLOW.md`。
