@@ -22,6 +22,7 @@ type Input = { jobId: number; kind: 'prepare' | 'read'; scope: LocalAlbumSqlScop
 const same = (left: Point, right: Point) => left.changes === right.changes && left.version === right.version && left.schema === right.schema && left.userVersion === right.userVersion;
 let db: DatabaseSync | undefined, cancellation: Int32Array | undefined;
 let active: Input | undefined, jobCancellation: Int32Array | undefined, audited: Point | undefined, preparedScope: string | undefined;
+let scopeComponents: Readonly<{ catalog: string; scan: string }> | undefined;
 let store: ReturnType<typeof createLocalCatalogStore> | undefined, closing = false, transaction = false, lastJobId = 0;
 let indexDatasetId: string | undefined, currentLyrics: LocalAlbumLyricsInventory | undefined;
 const scopeOwner = Object.freeze({});
@@ -47,7 +48,7 @@ function point(): Point {
     || row.userVersion !== 34) throw unavailable();
   return { changes: Number(row.changes), version: Number(row.version), schema: Number(row.schema), userVersion: Number(row.userVersion) };
 }
-function invalidate(): void { audited = undefined; preparedScope = undefined; store = undefined; }
+function invalidate(): void { audited = undefined; preparedScope = undefined; store = undefined; scopeComponents = undefined; }
 function shutdown(fatal: boolean): void {
   if (closing) return;
   closing = true;
@@ -99,8 +100,10 @@ function runJob(input: Input, databaseFile: string, fileIdentity: string): void 
     stage('entered');
     const { lyricsRevision, ...plainScope } = input.scope;
     const scope = { ...plainScope, assertReadActive: assertCurrent }, scopeKey = JSON.stringify(input.scope);
+    // 只保留本Actor已完整核验快照的组件；队列纯写续接保留，未知变化及撤销统一invalidate。
+    scopeComponents ??= Object.freeze({ catalog: albumCatalogRevision(db), scan: albumScanRevision(db) });
     bindLocalAlbumScanScope(scope, { owner: scopeOwner, stable: scopeKey, revision: scope.revision, readonlyActor: true,
-      catalog: albumCatalogRevision(db), scan: albumScanRevision(db) });
+      ...scopeComponents });
     if (indexDatasetId) {
       if (input.kind !== 'read' || typeof lyricsRevision !== 'string') throw unavailable();
       store.privateWithArtistIndexLyricsRead(indexDatasetId, lyricsRevision, assertCurrent, view => {

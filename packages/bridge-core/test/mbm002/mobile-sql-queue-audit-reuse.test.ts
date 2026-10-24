@@ -10,18 +10,20 @@ import { verifyLocalCatalogDatabase } from '../../src/collection/local-catalog-s
 import { verifyLocalScanDatabase } from '../../src/collection/local-scan-store.js';
 import { createLocalAlbumOwnerService } from '../../src/collection/local-album-browser/owner-port.js';
 import { seedMobileSqlWaveLibrary } from '../helpers/mobile-sql-owned-wave-library.js';
+import { readLibraryOperationLine, type LibraryOperationEvent } from '../../src/shared/library-operation-log.js';
 
 const query = { kind: 'groups' as const, offset: 0, limit: 25, query: '', rootId: null,
   albumKey: null, trackId: null, editionId: null, groupHash: null };
 
-async function fixture(t: test.TestContext) {
+async function fixture(t: test.TestContext, relatives?: readonly string[]) {
   assert.ok(process.env.TMPDIR?.startsWith('/Volumes/LifeWeave/Developer/CommandLine/tmp/'));
   const directory = await mkdtemp(path.join(process.env.TMPDIR!, 'mobile-queue-audit-'));
   const databaseFile = path.join(directory, 'catalog.sqlite');
   const repository = createCollectionRepository({ filePath: databaseFile });
   const datasetId = randomUUID();
-  const seeded = await seedMobileSqlWaveLibrary(repository, datasetId, path.join(directory, '合成来源'));
+  const seeded = await seedMobileSqlWaveLibrary(repository, datasetId, path.join(directory, '合成来源'), false, relatives);
   let audits = 0, workers = 0;
+  const revisionEvents: LibraryOperationEvent[] = [], logClosures: Promise<void>[] = [];
   let live = true, cancelNext = false, queueRevision = 0, expectedFatalClose = false;
   let beforePost: ((frame: Record<string, unknown>) => void) | undefined;
   const queueId = randomUUID();
@@ -29,7 +31,18 @@ async function fixture(t: test.TestContext) {
     mobileSqlWorker: { databaseFile, workerFactory(options) {
       workers++;
       const worker = new Worker(new URL('../../src/collection/local-album-browser/mobile-sql-worker-entry.ts', import.meta.url),
-        { ...options, execArgv: ['--import', 'tsx'] });
+        { ...options, execArgv: ['--import', 'tsx'], stdout: true });
+      let pending = '';
+      worker.stdout!.setEncoding('utf8');
+      worker.stdout!.on('data', (chunk: string) => {
+        pending += chunk;
+        const lines = pending.split('\n'); pending = lines.pop()!;
+        for (const line of lines) {
+          const event = readLibraryOperationLine(line);
+          if (event?.action === 'albums.revision.recompute') revisionEvents.push(event);
+        }
+      });
+      logClosures.push(new Promise(resolve => worker.stdout!.once('end', resolve)));
       const post = worker.postMessage.bind(worker);
       worker.postMessage = (...args: Parameters<Worker['postMessage']>) => {
         const frame = args[0] as Record<string, unknown>;
@@ -59,6 +72,7 @@ async function fixture(t: test.TestContext) {
     queueId, revision: String(++queueRevision), currentEntryId: null, restartPolicy: { reResolve: true, autoplay: false }, entries: [] } });
   return { repository, service, datasetId, read, queue, seeded, directory, databaseFile, audits: () => audits,
     workers: () => workers,
+    async closeLogs() { await service.privateMobile.closeStructure?.(); await Promise.all(logClosures); return revisionEvents; },
     beforeNextJob: (hook: (frame: Record<string, unknown>) => void) => { beforePost = hook; },
     cancelNext: () => { cancelNext = true; }, resume: () => { live = true; }, expectFatalClose: () => { expectedFatalClose = true; } };
 }
@@ -74,6 +88,28 @@ test('已确认的单行队列CAS不使隔离只读Actor重复全库开库审计
   assert.equal(f.audits(), 1, '合法且已证明的单行队列写不能重新全库审计。');
 });
 
+test('同Actor的25个精确专辑热读及队列续接只计算首份catalog/scan水印', { timeout: 20_000 }, async t => {
+  const f = await fixture(t, Array.from({ length: 25 }, (_, i) => `合成目录/${i + 1}.wav`));
+  for (let i = 0; i < f.seeded.trackIds.length; i++) {
+    f.repository.localCatalog.observeMetadata({ commandId: randomUUID(), trackId: f.seeded.trackIds[i]!, source: 'synthetic',
+      parserVersion: 'actor-watermark-hot-v1', fields: { title: `合成曲目${i + 1}`, artist: '合成艺人', album: `热读专辑${i + 1}` } });
+  }
+  const initial = await f.read(); assert.equal(initial.total, 25); assert.equal(initial.items.length, 25);
+  async function readHeaders() {
+    for (const row of initial.items) {
+      const page = await f.service.privateMobile.structure!({ ...query, rootId: row.album.rootId, albumKey: row.album.id, limit: 2 });
+      assert.equal(page.revision, initial.revision); assert.equal(page.total, 1); assert.deepEqual(page.items[0], row);
+    }
+  }
+  await readHeaders(); f.queue(); await readHeaders();
+  assert.equal(f.audits(), 1); assert.equal(f.workers(), 1);
+  const events = await f.closeLogs();
+  assert.deepEqual(events.map(event => event.code).sort(), ['CATALOG', 'SCAN'],
+    '首份快照的两个组件不能在每个header job或已证明的队列续接中重复全域重算。');
+  t.diagnostic(JSON.stringify({ headerJobs: 50, audits: f.audits(), catalogRecomputes: events.filter(event => event.code === 'CATALOG').length,
+    scanRecomputes: events.filter(event => event.code === 'SCAN').length }));
+});
+
 test('多个合法队列CAS连续链保留原审计，链超过128段则重审', { timeout: 20_000 }, async t => {
   const f = await fixture(t), initial = await f.read();
   for (let i = 0; i < 5; i++) f.queue();
@@ -87,6 +123,7 @@ test('同Owner未知表写即使不改逻辑目录也不能借后续队列证明
   f.repository.localCatalog.privateRead(db => db.prepare('UPDATE source_roots SET data=data WHERE id=?').run(f.seeded.sourceId));
   f.queue();
   assert.deepEqual(await f.read(), initial); assert.equal(f.audits(), 2);
+  assert.equal((await f.closeLogs()).length, 4, '未知提交全审后必须重新计算两个水印组件。');
 });
 
 test('队列触发器追加写不会被单行CAS证明覆盖', { timeout: 20_000 }, async t => {
@@ -117,6 +154,7 @@ test('真正元数据变化重审并返回当前目录', { timeout: 20_000 }, as
   f.repository.localCatalog.observeMetadata({ commandId: randomUUID(), trackId: f.seeded.trackIds[0]!, source: 'synthetic',
     parserVersion: 'queue-audit-current-v2', fields: { title: '新曲目', artist: '新合成艺人', album: '新合成专辑' } });
   const changed = await f.read(); assert.notEqual(changed.revision, initial.revision); assert.equal(f.audits(), 2);
+  assert.equal((await f.closeLogs()).length, 4, '真正目录变化必须丢弃旧组件并重算。');
 });
 
 test('新扫描及目录变化保留首次完整审计', { timeout: 20_000 }, async t => {
