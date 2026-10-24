@@ -13,7 +13,10 @@ export function createLocalRelocationCoordinator(options:{repository:CollectionR
  function source(id:string):RootCapability{const s=options.repository.sources.root(id);if(!s||s.id!==id||typeof s.path!=='string'||!path.isAbsolute(s.path)||typeof s.authorized!=='boolean'||typeof s.label!=='string'||!['dev','ino'].every(k=>typeof s[k as 'dev'|'ino']==='string'&&/^(0|[1-9][0-9]{0,31}|-[1-9][0-9]{0,30})$/u.test(s[k as 'dev'|'ino'])))throw new Error('SourceStore根结构无效。');return s;}
  async function online(id:string){const s=source(id);if(await sourceRootAvailability(s)!=='ONLINE')throw new Error('源目录离线或许可已撤销，现有对象保留。');check();return s;}
  const overlap=(a:string,b:string)=>a===b||a.startsWith(b+path.sep)||b.startsWith(a+path.sep);
- function outsideOtherRoots(cap:RootCapability,except?:string,registering=false){for(const root of catalog.roots()){if(root.id===except)continue;if(registering&&cap.id!==root.sourceRootId&&catalog.privateLibraryManagementRootRetiredForRegistration(root.id))continue;const existing=source(root.sourceRootId);if(overlap(cap.path,existing.path))throw new Error('库根重叠会产生多个独立候选，不能自动合并。');}}
+ function outsideOtherRoots(cap:RootCapability,except?:string,registering=false,relinking=false){
+  const activeRelink=relinking&&except!==undefined&&catalog.privateLibraryManagementRootActiveForRelink(except);
+  for(const root of catalog.roots()){if(root.id===except)continue;if((registering||activeRelink)&&cap.id!==root.sourceRootId&&catalog.privateLibraryManagementRootRetiredForRegistration(root.id))continue;const existing=source(root.sourceRootId);if(overlap(cap.path,existing.path))throw new Error('库根重叠会产生多个独立候选，不能自动合并。');}
+ }
  function locate(selection:dto.LocalRelocationSelection){const found=catalog.privateAssetLocator(selection.assetId),root=catalog.root(found.asset.libraryRootId);if(found.asset.fileRevision!==selection.expectedFileRevision||found.asset.locationRevision!==selection.expectedLocationRevision||root.revision!==selection.expectedRootRevision||found.asset.sourceRootId!==root.sourceRootId||found.asset.rootRevision!==root.revision)throw new Error('资产或根关联已改变，请重新捕获候选。');if(catalog.privateAssetHasExactEvidence(found.asset.id))throw new Error('精确录音/片段资产需要原严格证据重定位，不接受普通扫描候选。');return {...found,root};}
  const sameSelection=(a:dto.LocalRelocationSelection,b:dto.LocalRelocationSelection)=>a.assetId===b.assetId&&a.expectedFileRevision===b.expectedFileRevision&&a.expectedLocationRevision===b.expectedLocationRevision&&a.expectedRootRevision===b.expectedRootRevision;
  return {
@@ -36,8 +39,9 @@ export function createLocalRelocationCoordinator(options:{repository:CollectionR
     await options.onRelinked?.(request,prior.result);check();return prior.result;
    }
    const root=catalog.root(request.rootId);if(root.revision!==request.expectedRevision)throw new Error('根修订已改变。');
+   if(!catalog.privateLibraryManagementRootAvailable(root.id))throw new Error('原库已移除或正在移除，不能以重关联绕过目录重叠。');
    if(catalog.privateRootHasExactAssets(root.id))throw new Error('此根含严格内容/精确片段事实，不能以普通目录选择替代其重新证明。');
-   const cap=await online(request.targetSourceRootId);outsideOtherRoots(cap,root.id);await options.beforeMutation?.();check();await online(cap.id);
+   const cap=await online(request.targetSourceRootId);outsideOtherRoots(cap,root.id,false,true);await options.beforeMutation?.();check();await online(cap.id);
    const result=await withLocalFactsMutation(()=>catalog.relinkRoot({commandId:request.commandId,rootId:root.id,expectedRevision:request.expectedRevision,sourceRootId:cap.id,role:root.role}),async()=>{check();await online(cap.id);check();});
    check();await options.onRelinked?.(request,result);check();return result;
   },

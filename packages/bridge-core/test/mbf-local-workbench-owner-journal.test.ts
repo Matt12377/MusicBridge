@@ -1819,6 +1819,89 @@ test('移除后再添加：running与unknown移除不取得历史根注册例外
   })
 })
 
+test('008活动根重关联：已完成移除的历史对手不占用新来源，旧事实与停用绑定不变', async t => {
+  for (const route of ['catalog', 'owner'] as const) await t.test(route, async sub => {
+    const f = await removalFactoryFixture463(sub), catalog = f.repository.localCatalog
+    assert.equal((await f.manage('library.remove', { commandId: randomUUID(), libraryIds: [f.roots[0]!.id] }, 30000)).state, 'succeeded')
+    const retired = structuredClone(catalog.root(f.roots[0]!.id))
+    const binding = structuredClone(catalog.privateLibraryManagementRead(f.identity, 'binding', retired.id))
+    const tracks = f.tracks.map(id => structuredClone(catalog.track(id)))
+    const assets = tracks.map(track => structuredClone(catalog.asset(track.assetId)))
+    const target = f.repository.sources.authorize(randomUUID(), await authorizeSourceDirectory(path.join(f.directory, 'library-0')))
+    assert.notEqual(target.id, retired.sourceRootId)
+    const subject = catalog.root(f.roots[1]!.id), commandId = randomUUID()
+    let notified = 0
+    const { createLocalRelocationCoordinator } = await import('../src/collection/local-relocation-coordinator.js')
+    const owner = createLocalRelocationCoordinator({ repository: f.repository, assertCurrent: () => f.identity.assertCurrent(), onRelinked: async () => { notified++ } })
+    let result: dto.LibraryRoot
+    try {
+      result = route === 'catalog'
+        ? catalog.relinkRoot({ commandId, rootId: subject.id, expectedRevision: subject.revision, sourceRootId: target.id, role: subject.role })
+        : await owner.relinkRoot({ commandId, rootId: subject.id, expectedRevision: subject.revision, targetSourceRootId: target.id, userConfirmed: true })
+      assert.equal(result.id, subject.id)
+      assert.equal(result.revision, '2')
+      assert.equal(result.sourceRootId, target.id)
+      assert.equal(notified, route === 'owner' ? 1 : 0)
+      assert.deepEqual(catalog.root(retired.id), retired)
+      assert.deepEqual(catalog.privateLibraryManagementRead(f.identity, 'binding', retired.id), binding)
+      assert.equal(catalog.privateLibraryManagementRootVisible(retired.id), false)
+      assert.deepEqual(f.tracks.map(id => catalog.track(id)), tracks)
+      assert.deepEqual(tracks.map(track => catalog.asset(track.assetId)), assets, '重新关联不批量改写原资产；后续仍须原扫描确认。')
+      for (const file of f.files) assert.deepEqual(await readFile(file.path), file.bytes)
+    } finally { owner.close(); await f.close() }
+    const cold = createCollectionRepository({ filePath: f.file }), state = createBackupWorkflowStore({ filePath: f.identityFile })
+    try {
+      const identity = state.datasetIdentities.bind('default', f.file, false)
+      cold.localCatalog.privateBindWorkbenchDataset(identity)
+      assert.deepEqual(cold.localCatalog.root(subject.id), result!)
+      assert.deepEqual(cold.localCatalog.root(retired.id), retired)
+      assert.deepEqual(cold.localCatalog.privateLibraryManagementRead(identity, 'binding', retired.id), binding)
+      assert.equal(cold.localCatalog.privateLibraryManagementRootVisible(retired.id), false)
+      assert.deepEqual(tracks.map(track => cold.localCatalog.asset(track.assetId)), assets)
+    } finally { cold.close(); state.close() }
+  })
+})
+
+test('008活动根重关联：退休例外不放宽主体、未决移除、其他活动根或旧来源', async t => {
+  for (const route of ['catalog', 'owner'] as const) for (const condition of [
+    'active-opponent', 'unbound-opponent', 'unbound-subject', 'removed-subject', 'same-source',
+    'subject-running', 'subject-unknown', 'opponent-running', 'opponent-unknown', 'exact-subject',
+    'removed-subject-no-overlap', 'subject-running-no-overlap', 'subject-unknown-no-overlap',
+  ] as const) await t.test(`${route}/${condition}`, async sub => {
+    const f = await removalFactoryFixture463(sub, condition === 'unbound-opponent' ? { legacyIndex: 0 } : condition === 'unbound-subject' ? { legacyIndex: 1 } : {})
+    const catalog = f.repository.localCatalog, opponent = f.roots[0]!, subject = f.roots[1]!
+    const pendingOpponent = condition === 'opponent-running' || condition === 'opponent-unknown'
+    if (condition !== 'active-opponent' && condition !== 'unbound-opponent' && !pendingOpponent) {
+      assert.equal((await f.manage('library.remove', { commandId: randomUUID(), libraryIds: [opponent.id] }, 30000)).state, 'succeeded')
+    }
+    if (condition.startsWith('removed-subject')) assert.equal((await f.manage('library.remove', { commandId: randomUUID(), libraryIds: [subject.id] }, 30000)).state, 'succeeded')
+    if (condition.includes('running') || condition.includes('unknown')) {
+      const id = randomUUID(), libraryId = pendingOpponent ? opponent.id : subject.id
+      const original: LocalLibraryManagementOperationRecord['original'] = { command: 'library.remove', request: { commandId: id, libraryIds: [libraryId] } }
+      const record: LocalLibraryManagementOperationRecord = { schema: 1, kind: 'operation', datasetId: f.identity.datasetId, key: id, revision: 1,
+        original, originalSha256: localLibraryManagementDigest(original), receipt: { commandId: id, kind: 'library.remove',
+          state: condition.includes('running') ? 'running' : 'unknown', libraryIds: [libraryId], message: '合成移除尚未闭合。' } }
+      catalog.privateLibraryManagementCompareAndSwap(f.identity, [{ record, expectedRevision: null }])
+    }
+    if (condition === 'exact-subject') catalog.registerAsset({ commandId: randomUUID(), libraryRootId: subject.id,
+      expectedRootRevision: subject.revision, relative: 'strict.wav', sha256: 'a'.repeat(64), sampleFrames: '100', timebaseHz: 44100 })
+    const targetPath = path.join(f.directory, condition.endsWith('no-overlap') ? '独立新目录' : 'library-0')
+    if (condition.endsWith('no-overlap')) await mkdir(targetPath, { mode: 0o700 })
+    const target = condition === 'same-source' ? f.repository.sources.root(opponent.sourceRootId)
+      : f.repository.sources.authorize(randomUUID(), await authorizeSourceDirectory(targetPath))
+    const before = structuredClone(catalog.root(subject.id))
+    const { createLocalRelocationCoordinator } = await import('../src/collection/local-relocation-coordinator.js')
+    const owner = createLocalRelocationCoordinator({ repository: f.repository, assertCurrent: () => f.identity.assertCurrent() })
+    try {
+      if (route === 'catalog') assert.throws(() => catalog.relinkRoot({ commandId: randomUUID(), rootId: subject.id,
+        expectedRevision: subject.revision, sourceRootId: target.id, role: subject.role }))
+      else await assert.rejects(owner.relinkRoot({ commandId: randomUUID(), rootId: subject.id,
+        expectedRevision: subject.revision, targetSourceRootId: target.id, userConfirmed: true }))
+      assert.deepEqual(catalog.root(subject.id), before)
+    } finally { owner.close(); await f.close() }
+  })
+})
+
 test('移除闭环：真实Domain同一原命令移除managed与legacy两根，逐根fence后整批CAS且冷开保原媒体',async t=>{
   const f=await removalFactoryFixture463(t,{legacyIndex:1}),commandId=randomUUID(),libraryIds=f.roots.map(root=>root.id),original={command:'library.remove' as const,request:{commandId,libraryIds}}
   assert.equal(f.repository.localCatalog.privateLibraryManagementRead(f.identity,'binding',libraryIds[0]!)?.record.active,true)

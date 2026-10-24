@@ -1143,10 +1143,11 @@ export function createLocalCatalogStore(access: Access) {
   const currentRoot = (db: DatabaseSync, id: string, revision: string): dto.LibraryRoot => {
     assertLibraryManagementRootAvailable(db,id);const value = root(db, id); if (value.revision !== revision) return access.conflict('本地目录关联修订已改变。'); authorized(value.sourceRootId); return value;
   };
-  function overlap(db: DatabaseSync, source: RootCapability, except?: string, registering=false): void {
+  function overlap(db: DatabaseSync, source: RootCapability, except?: string, registering=false, relinking=false): void {
+    const activeRelink=relinking&&except!==undefined&&libraryManagementRootActiveForRelink(db,root(db,except));
     for (const row of db.prepare('SELECT * FROM local_catalog_roots').all()) {
       const value = readRoot(row); if (value.id === except) continue;
-      if(registering&&source.id!==value.sourceRootId&&libraryManagementRootRetiredForRegistration(db,value))continue;
+      if((registering||activeRelink)&&source.id!==value.sourceRootId&&libraryManagementRootRetiredForRegistration(db,value))continue;
       const other = access.sources.root(value.sourceRootId);
       const inside = (parent: string, child: string): boolean => { const relative = path.relative(parent, child); return !relative || !path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`); };
       if (inside(source.path, other.path) || inside(other.path, source.path) || source.dev === other.dev && source.ino === other.ino) access.conflict('本地目录引用重叠，请显式重关联现有目录。');
@@ -1332,7 +1333,8 @@ export function createLocalCatalogStore(access: Access) {
   }
   function applyRelinkRoot(db: DatabaseSync, request: RelinkLibraryRoot): dto.LibraryRoot {
         const old = root(db, request.rootId); if (old.revision !== request.expectedRevision) return access.conflict('本地目录关联修订已改变。');
-        const source = authorized(request.sourceRootId); overlap(db, source, old.id);
+        if(!libraryManagementRootAvailable(db,old.id))return access.conflict('原库已移除或正在移除，不能以重关联绕过目录重叠。');
+        const source = authorized(request.sourceRootId); overlap(db, source, old.id, false, request.role===old.role);
         const result = { ...old, sourceRootId: source.id, role: request.role, revision: next(old.revision) };
         db.prepare('UPDATE local_catalog_roots SET source_root_id=?,data=? WHERE id=?').run(source.id, JSON.stringify(result), old.id); return result;
   }
@@ -1530,7 +1532,7 @@ export function createLocalCatalogStore(access: Access) {
         &&!['failed','cancelled'].includes(record.receipt.state)&&record.original.request.libraryIds.includes(libraryId))return false;}
     return true;
   }
-  /** 只供新register-root避开已确认移除的历史占位；不复活旧根，也不放宽relink或源搬迁。 */
+  /** 登记及合格活动根重关联只忽略完整移除的历史对手；不复活旧根或放宽源搬迁。 */
   function libraryManagementRootRetiredForRegistration(db:DatabaseSync,actual:dto.LibraryRoot):boolean {
     if(!workbenchIdentity)return false;
     assertWorkbenchIdentity(workbenchIdentity);
@@ -1541,6 +1543,14 @@ export function createLocalCatalogStore(access: Access) {
     const removed=projection?.records.get('operation:'+binding.operationId)?.record;
     return removed?.kind==='operation'&&removed.datasetId===datasetId&&removed.key===binding.operationId&&removed.original.command==='library.remove'
       &&removed.receipt.state==='succeeded'&&removed.receipt.libraryIds.includes(actual.id)&&removed.original.request.libraryIds.includes(actual.id);
+  }
+  /** 只决定历史对手能否让路；未绑定、移除未决、身份不吻合或精确资产都没有例外。 */
+  function libraryManagementRootActiveForRelink(db:DatabaseSync,actual:dto.LibraryRoot):boolean {
+    if(!workbenchIdentity||actual.role!=='library'||!libraryManagementRootAvailable(db,actual.id))return false;
+    const datasetId=workbenchIdentity.datasetId,binding=workbenchProjectionFor(db).management.get(datasetId)?.records.get('binding:'+actual.id)?.record;
+    return binding?.kind==='binding'&&binding.datasetId===datasetId&&binding.key===actual.id&&binding.libraryId===actual.id&&binding.active
+      &&binding.sourceRootId===actual.sourceRootId&&binding.rootRevision===actual.revision
+      &&!db.prepare("SELECT id FROM local_catalog_assets WHERE root_id=? AND (sha256 IS NOT NULL OR json_extract(data,'$.sampleFrames') IS NOT NULL OR json_extract(data,'$.timebaseHz') IS NOT NULL) LIMIT 1").get(actual.id);
   }
   function assertLibraryManagementRootAvailable(db:DatabaseSync,libraryId:string):void {
     if(!libraryManagementRootAvailable(db,libraryId))return access.conflict('原库正在撤销或已撤销，仅保留原回执；不能新建扫描、捕获或媒体记录。');
@@ -1895,6 +1905,7 @@ export function createLocalCatalogStore(access: Access) {
     privateLibraryManagementReadFrozenAlbum:libraryManagementReadFrozenAlbum,
     privateLibraryManagementRootAvailable(libraryId:string):boolean{id(libraryId);return access.read(db=>libraryManagementRootAvailable(db,libraryId));},
     privateLibraryManagementRootRetiredForRegistration(libraryId:string):boolean{id(libraryId);return access.read(db=>libraryManagementRootRetiredForRegistration(db,root(db,libraryId)));},
+    privateLibraryManagementRootActiveForRelink(libraryId:string):boolean{id(libraryId);return access.read(db=>libraryManagementRootActiveForRelink(db,root(db,libraryId)));},
     privateLibraryManagementRootVisible(libraryId:string):boolean{id(libraryId);return access.read(db=>{if(!workbenchIdentity)return true;assertWorkbenchIdentity(workbenchIdentity);const stored=workbenchProjectionFor(db).management.get(workbenchIdentity.datasetId)?.records.get('binding:'+libraryId)?.record;return stored?.kind!=='binding'||stored.active;});},
     privateLibraryManagementJobs(identity:DatasetIdentity):readonly Readonly<LocalLibraryManagementJobRecord>[]{assertWorkbenchIdentity(identity);return access.read(db=>structuredClone([...(workbenchProjectionFor(db).management.get(identity.datasetId)?.records.values()??[])].filter(value=>value.record.kind==='job').map(value=>value.record as LocalLibraryManagementJobRecord)));},
     privateLyricsLibraryRecords(identity:DatasetIdentity,libraryId:string):{jobs:LocalLyricsJobRecord[];saves:LocalLyricsSaveRecord[]}{
