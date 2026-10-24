@@ -3,9 +3,9 @@
     "branch": "codex/mousa-4-1-artists-search",
     "baseCommit": "f459c46525855e87e1d8ee68388e8ea21ab04653",
     "iosBaseCommit": "4e9d8fb8f0ba734b010ac9c7a9d2f91bc15a628e",
-    "state": "reports-ready-pending-git-verification",
+    "state": "delivered-with-explicit-validation-carryovers",
     "taskTable": "project/MOUSA_4_1_TODO.md",
-    "activeItem": "015",
+    "activeItem": null,
     "device": "SE真机与Duo 27.1模拟器；Air、14P与物理Duo未操作",
     "items": [
       {
@@ -66,12 +66,12 @@
       },
       {
         "id": "015",
-        "state": "git-verification-pending"
+        "state": "complete-with-external-remote-proof"
       }
     ],
     "ownerAccepted": false,
     "implementationCommit": "30df4b0f009a2cb81f9e4ef1013aadcaba61dd51",
-    "reportCommit": null,
+    "reportCommit": "3c1b1065ae11056ec39821b3e10d1a20994ffb56",
     "engineeringValidation": {
       "desktopTargetedPassed": 63,
       "coreTargetedPassed": 47,
@@ -1346,7 +1346,7 @@
       "sourceFilesCompared": 379,
       "sourceUnchanged": true
     },
-    "updatedAt": "2026-10-24T22:22:55.602074+00:00",
+    "updatedAt": "2026-10-24T22:26:46.157735+00:00",
     "fixedTaskNumbers": [
       "001",
       "002",
@@ -1384,14 +1384,16 @@
       "verifiedProductCommit": "8b232e9d6d1a1050dc9434049cf780834d62038a"
     },
     "gitDelivery": {
-      "state": "reports-ready-pending-push",
+      "state": "normal-feature-branch-delivery-proof-in-external-receipt",
       "forcePush": false,
       "worktreeConventionEstablished": true,
       "remote": "origin",
       "branch": "codex/mousa-4-1-artists-search",
       "defaultBranchChanged": false,
       "originalWipPreserved": true,
-      "finalReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mousa41-artists-search-c997n3rn/GIT-DELIVERY-FINAL.json"
+      "finalReceipt": "/Volumes/LifeWeave/Developer/CommandLine/tmp/mousa41-artists-search-c997n3rn/GIT-DELIVERY-FINAL.json",
+      "reportCommit": "3c1b1065ae11056ec39821b3e10d1a20994ffb56",
+      "finalHeadAndRemoteProof": "GIT-DELIVERY-FINAL.json"
     },
     "latestValidation": {
       "macImplementation": "30df4b0f009a2cb81f9e4ef1013aadcaba61dd51",
